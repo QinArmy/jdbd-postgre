@@ -6,6 +6,14 @@ public interface TransactionOption {
 
     boolean isReadOnly();
 
-    boolean autoCommit();
+    boolean isAutoCommit();
+
+    static TransactionOption build(Isolation isolation, boolean readOnly){
+        return new TransactionOptionImpl(isolation, readOnly, readOnly);
+    }
+
+    static TransactionOption build(Isolation isolation, boolean readOnly, boolean autoCommit) {
+        return new TransactionOptionImpl(isolation, readOnly, autoCommit);
+    }
 
 }

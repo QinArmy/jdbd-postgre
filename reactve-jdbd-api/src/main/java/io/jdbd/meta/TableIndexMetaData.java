@@ -3,9 +3,9 @@ package io.jdbd.meta;
 import java.util.Collections;
 import java.util.List;
 
-public final class TableIndexMeta {
+public final class TableIndexMetaData {
 
-    private final DatabaseTableMeta tableMeta;
+    private final DatabaseTableMetaData tableMeta;
 
     private final String indexName;
 
@@ -15,7 +15,7 @@ public final class TableIndexMeta {
 
     private final List<IndexColumnMeta> indexColumnList;
 
-    public TableIndexMeta(DatabaseTableMeta tableMeta, String indexName, String indexType
+    public TableIndexMetaData(DatabaseTableMetaData tableMeta, String indexName, String indexType
             , boolean unique, List<IndexColumnMeta> indexColumnList) {
         this.tableMeta = tableMeta;
         this.indexName = indexName;
@@ -24,7 +24,7 @@ public final class TableIndexMeta {
         this.indexColumnList = Collections.unmodifiableList(indexColumnList);
     }
 
-    public DatabaseTableMeta getTableMeta() {
+    public DatabaseTableMetaData getTableMeta() {
         return this.tableMeta;
     }
 

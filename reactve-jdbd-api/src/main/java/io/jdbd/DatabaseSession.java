@@ -7,8 +7,8 @@ public interface DatabaseSession  extends StatelessDatabaseSession{
 
     Mono<Void> startTransaction(TransactionOption option);
 
-    Statement createStatement();
+    Mono<Void> commit();
 
-
+    Mono<Void> rollback();
 
 }

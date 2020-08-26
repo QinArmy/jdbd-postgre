@@ -2,9 +2,9 @@ package io.jdbd.meta;
 
 import io.jdbd.lang.Nullable;
 
-public final class TableColumnMeta {
+public final class TableColumnMetaData {
 
-    private final DatabaseTableMeta tableMeta;
+    private final DatabaseTableMetaData tableMeta;
 
     private final String columnName;
 
@@ -18,7 +18,7 @@ public final class TableColumnMeta {
 
     private final String comment;
 
-    public TableColumnMeta(DatabaseTableMeta tableMeta, String columnName, String dataTypeName, long precision
+    public TableColumnMetaData(DatabaseTableMetaData tableMeta, String columnName, String dataTypeName, long precision
             , int scale, @Nullable  String defaultValue, @Nullable String comment) {
         this.tableMeta = tableMeta;
         this.columnName = columnName;
@@ -30,7 +30,7 @@ public final class TableColumnMeta {
     }
 
 
-    public DatabaseTableMeta getTableMeta() {
+    public DatabaseTableMetaData getTableMeta() {
         return this.tableMeta;
     }
 

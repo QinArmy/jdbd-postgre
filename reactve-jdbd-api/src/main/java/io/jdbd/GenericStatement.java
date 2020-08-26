@@ -4,7 +4,6 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.sql.BatchUpdateException;
-import java.sql.SQLException;
 import java.util.List;
 
 public interface GenericStatement {
@@ -16,7 +15,7 @@ public interface GenericStatement {
      * such as a DDL statement.
      *
      * <p>
-     * Mono throw {@link SQLException}, if a database access error occurs;
+     * Mono publish {@link ReactiveSQLException}, if a database access error occurs;
      * this method is called on a closed  <code>PreparedStatement</code>
      * or the SQL statement returns a <code>ReactiveResultSet</code> object
      * </p>
@@ -40,7 +39,7 @@ public interface GenericStatement {
      * The default implementation will throw {@code UnsupportedOperationException}
      *
      * <p>
-     * Mono throw {@link SQLException} if a database access error occurs;
+     * Mono publish {@link ReactiveSQLException} if a database access error occurs;
      * this method is called on a closed  <code>PreparedStatement</code>
      * or the SQL statement returns a <code>ReactiveResultSet</code> object
      * </p>
@@ -90,10 +89,10 @@ public interface GenericStatement {
      * update after a <code>BatchUpdateException</code> object has been thrown.
      *
      * <p>
-     * Mono throw {@link SQLException} if a database access error occurs,
+     * Flux throw {@link ReactiveSQLException} if a database access error occurs,
      * this method is called on a closed <code>Statement</code> or the
      * driver does not support batch statements. Throws {@link BatchUpdateException}
-     * (a subclass of <code>SQLException</code>) if one of the commands sent to the
+     * (a subclass of <code>ReactiveSQLException</code>) if one of the commands sent to the
      * database fails to execute properly or attempts to return a result set.
      * </p>
      *
@@ -104,7 +103,7 @@ public interface GenericStatement {
      * @see Statement#addBatch(String)
      * @see java.sql.PreparedStatement#executeBatch()
      */
-    Mono<List<Integer>> executeBatch();
+    Flux<Integer> executeBatch();
 
     /**
      * Submits a batch of commands to the database for execution and
@@ -144,10 +143,10 @@ public interface GenericStatement {
      * <p>
      * The default implementation will throw {@code UnsupportedOperationException}
      * <p>
-     * Mono throw {@link SQLException} if a database access error occurs,
+     * Flux throw {@link ReactiveSQLException} if a database access error occurs,
      * this method is called on a closed <code>Statement</code> or the
      * driver does not support batch statements. Throws {@link BatchUpdateException}
-     * (a subclass of <code>SQLException</code>) if one of the commands sent to the
+     * (a subclass of <code>ReactiveSQLException</code>) if one of the commands sent to the
      * database fails to execute properly or attempts to return a result set.
      * </p>
      *
@@ -158,7 +157,7 @@ public interface GenericStatement {
      * @see Statement#addBatch(String)
      * @see java.sql.PreparedStatement#executeLargeBatch()
      */
-    Mono<List<Long>> executeLargeBatch();
+    Flux<Long> executeLargeBatch();
 
 
     /**
@@ -168,11 +167,12 @@ public interface GenericStatement {
      * @return a <code>ResultSet</code> object that contains the data produced by the
      * query; never <code>null</code>
      * <p>
-     * Mono throw {@link SQLException } if a database access error occurs;
+     * Flux throw {@link ReactiveSQLException } if a database access error occurs;
      * this method is called on a closed  <code>PreparedStatement</code> or the SQL
      * statement does not return a <code>ResultSet</code> object
      * </p>
      * @see java.sql.PreparedStatement#executeQuery()
      */
     Flux<? extends ResultRow> executeQuery();
+
 }

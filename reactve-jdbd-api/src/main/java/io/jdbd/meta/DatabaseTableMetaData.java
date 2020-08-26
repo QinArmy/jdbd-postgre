@@ -2,21 +2,21 @@ package io.jdbd.meta;
 
 import io.jdbd.lang.Nullable;
 
-public final class DatabaseTableMeta {
+public final class DatabaseTableMetaData {
 
-    private final DatabaseSchemaMeta schemaMeta;
+    private final DatabaseSchemaMetaData schemaMeta;
 
     private final String tableName;
 
     private final String comment;
 
-    public DatabaseTableMeta(DatabaseSchemaMeta schemaMeta, String tableName, @Nullable String comment) {
+    public DatabaseTableMetaData(DatabaseSchemaMetaData schemaMeta, String tableName, @Nullable String comment) {
         this.schemaMeta = schemaMeta;
         this.tableName = tableName;
         this.comment = comment;
     }
 
-    public DatabaseSchemaMeta getSchemaMeta() {
+    public DatabaseSchemaMetaData getSchemaMeta() {
         return this.schemaMeta;
     }
 
