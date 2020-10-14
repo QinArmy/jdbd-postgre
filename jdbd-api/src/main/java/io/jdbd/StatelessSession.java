@@ -6,7 +6,7 @@ import reactor.core.publisher.Mono;
 import java.sql.Connection;
 import java.sql.Savepoint;
 
-public interface StatelessDatabaseSession {
+public interface StatelessSession {
 
     DatabaseMetaData getDatabaseMetaData();
 

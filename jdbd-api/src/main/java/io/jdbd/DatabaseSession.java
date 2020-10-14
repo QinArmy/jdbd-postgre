@@ -2,7 +2,7 @@ package io.jdbd;
 
 import reactor.core.publisher.Mono;
 
-public interface DatabaseSession  extends StatelessDatabaseSession{
+public interface DatabaseSession  extends StatelessSession {
 
 
     Mono<Void> startTransaction(TransactionOption option);

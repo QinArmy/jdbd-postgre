@@ -10,7 +10,7 @@ public interface DatabaseMetaData {
 
     Mono<DatabaseSchemaMetaData> getSchema();
 
-    Flux<DatabaseTableMetaData> getTables(DatabaseSchemaMetaData schemaMeta);
+    Flux<DatabaseTableMetaData> getTables(DatabaseSchemaMetaData schemaMeta,String pattern);
 
     Flux<TableColumnMetaData> getColumns(DatabaseTableMetaData tableMeta);
 
