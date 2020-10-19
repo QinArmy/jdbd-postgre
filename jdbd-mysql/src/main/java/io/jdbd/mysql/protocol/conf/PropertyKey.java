@@ -10,7 +10,7 @@ import java.util.TreeMap;
  * PropertyKey handles connection property names, their camel-case aliases and case sensitivity.
  * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-reference-configuration-properties.html">Configuration Properties</a>
  */
-enum PropertyKey {
+public enum PropertyKey {
     /*
      * Properties individually managed after parsing connection string. These property keys are case insensitive.
      */

@@ -2,6 +2,8 @@ package io.jdbd.mysql.protocol.conf;
 
 
 import io.jdbd.mysql.util.StringUtils;
+import org.qinarmy.env.Environment;
+import org.qinarmy.env.ImmutableMapEnvironment;
 import reactor.util.annotation.Nullable;
 
 import java.util.Collections;
@@ -20,14 +22,14 @@ public final class HostInfo {
 
     private final String password;
     private final boolean isPasswordLess;
-    private final Map<String, String> hostProperties;
+    private final Environment environment;
 
-    HostInfo(String originalUrl, String user,@Nullable String password) {
+    HostInfo(String originalUrl, String user, @Nullable String password) {
         this(originalUrl, MySQLUrl.DEFAULT_HOST, MySQLUrl.DEFAULT_PORT, user, password, Collections.emptyMap());
     }
 
     HostInfo(String originalUrl, String host, int port
-            , String user,@Nullable  String password
+            , String user, @Nullable String password
             , Map<String, String> hostProperties) {
 
         if (!StringUtils.hasText(user)) {
@@ -40,7 +42,8 @@ public final class HostInfo {
 
         this.password = password;
         this.isPasswordLess = password == null;
-        this.hostProperties = hostProperties.isEmpty() ? Collections.emptyMap() : hostProperties;
+        this.environment = new ImmutableMapEnvironment(
+                hostProperties.isEmpty() ? Collections.emptyMap() : hostProperties);
     }
 
     @Override
@@ -52,7 +55,7 @@ public final class HostInfo {
                 // .add("user='" + user + "'")
                 // .add("password='" + password + "'")
                 .add("isPasswordLess=" + isPasswordLess)
-                .add("hostProperties=" + hostProperties)
+                .add("environment=" + environment)
                 .toString();
     }
 
@@ -84,7 +87,7 @@ public final class HostInfo {
         return this.isPasswordLess;
     }
 
-    public Map<String, String> getHostProperties() {
-        return this.hostProperties;
+    public Environment getEnvironment() {
+        return this.environment;
     }
 }

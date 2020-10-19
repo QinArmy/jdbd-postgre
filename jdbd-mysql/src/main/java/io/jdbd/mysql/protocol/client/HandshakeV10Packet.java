@@ -2,8 +2,10 @@ package io.jdbd.mysql.protocol.client;
 
 import io.jdbd.mysql.protocol.ServerVersion;
 import io.netty.buffer.ByteBuf;
+import reactor.util.annotation.Nullable;
 
 import java.nio.charset.StandardCharsets;
+import java.util.StringJoiner;
 
 /**
  * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_connection_phase_packets_protocol_handshake_v10.html">Protocol::HandshakeV10</a>
@@ -11,7 +13,15 @@ import java.nio.charset.StandardCharsets;
 final class HandshakeV10Packet extends AbstractHandshakePacket {
 
     public static HandshakeV10Packet readHandshake(ByteBuf byteBuf) {
-
+        // below packet header
+        // 1. payload_length
+        DataTypeUtils.readInt3(byteBuf);
+        // 2. sequence_id
+        DataTypeUtils.readInt1(byteBuf);
+        // below payload
+        if (DataTypeUtils.readInt1(byteBuf) != 10) {
+            throw new IllegalArgumentException("byteBuf isn't Handshake v10 .");
+        }
         // 1. server version
         String serveVersion = DataTypeUtils.readStringTerm(byteBuf, StandardCharsets.US_ASCII);
         // 2. thread id,a.k.a. connection id
@@ -44,20 +54,27 @@ final class HandshakeV10Packet extends AbstractHandshakePacket {
         byteBuf.readerIndex(byteBuf.readerIndex() + 10);
 
         // 11. auth-plugin-data-part-2,Rest of the plugin provided data (scramble), $len=MAX(13, length of auth-plugin-data - 8)
-        //  skip for update read index
-       // DataTypeUtils.readStringLenEnc(byteBuf, StandardCharsets.US_ASCII);
+        String authPluginDataPart2;
+        authPluginDataPart2 = DataTypeUtils.readStringFixed(byteBuf
+                , Integer.max(13, authPluginDataLen - 8), StandardCharsets.US_ASCII);
+//        if (authPluginDataLen > 0) {
+//            authPluginDataPart2 = DataTypeUtils.readStringFixed(byteBuf
+//                    , authPluginDataLen - 8, StandardCharsets.US_ASCII);
+//        } else {
+//            authPluginDataPart2 = DataTypeUtils.readStringTerm(byteBuf,StandardCharsets.US_ASCII);
+//        }
         // 12. auth_plugin_name,name of the auth_method that the auth_plugin_data belongs to
-       // if ((capabilityFlags & ClientProtocol.CLIENT_PLUGIN_AUTH) != 0) {
-            // skip for update read index
-        //    DataTypeUtils.readStringTerm(byteBuf, StandardCharsets.US_ASCII);
-       // }
-        // skip 11 and 12 ,because mysql 	auth-plugin-data-part-2 has bug.
-        byteBuf.readerIndex(byteBuf.writerIndex());
-        return new HandshakeV10Packet((short)10, ServerVersion.parseVersion(serveVersion)
+        String authPluginName = null;
+        if ((capabilityFlags & ClientProtocol.CLIENT_PLUGIN_AUTH) != 0) {
+            //    skip for update read index
+            authPluginName = DataTypeUtils.readStringTerm(byteBuf, StandardCharsets.US_ASCII);
+        }
+        return new HandshakeV10Packet((short) 10, ServerVersion.parseVersion(serveVersion)
                 , threadId, authPluginDataPart1
                 , filler, capabilityFlags
                 , characterSet, statusFlags
-                , authPluginDataLen);
+                , authPluginDataLen, authPluginDataPart2
+                , authPluginName);
     }
 
 
@@ -76,11 +93,16 @@ final class HandshakeV10Packet extends AbstractHandshakePacket {
      */
     private final short authPluginDataLen;
 
+    private final String authPluginDataPart2;
+
+    private final String authPluginName;
+
     private HandshakeV10Packet(short protocolVersion, ServerVersion serverVersion
             , long threadId, String authPluginDataPart1
             , short filler, int capabilityFlags
             , short characterSet, int statusFlags
-            , short authPluginDataLen) {
+            , short authPluginDataLen, String authPluginDataPart2
+            , @Nullable String authPluginName) {
 
         super(protocolVersion, serverVersion, threadId);
 
@@ -91,6 +113,8 @@ final class HandshakeV10Packet extends AbstractHandshakePacket {
 
         this.statusFlags = statusFlags;
         this.authPluginDataLen = authPluginDataLen;
+        this.authPluginDataPart2 = authPluginDataPart2;
+        this.authPluginName = authPluginName;
     }
 
     public String getAuthPluginDataPart1() {
@@ -117,5 +141,26 @@ final class HandshakeV10Packet extends AbstractHandshakePacket {
         return this.authPluginDataLen;
     }
 
+    public String getAuthPluginDataPart2() {
+        return this.authPluginDataPart2;
+    }
 
+    @Nullable
+    public String getAuthPluginName() {
+        return this.authPluginName;
+    }
+
+    @Override
+    public String toString() {
+        return new StringJoiner(", ", HandshakeV10Packet.class.getSimpleName() + "[", "]")
+                .add("authPluginDataPart1='" + authPluginDataPart1 + "'")
+                .add("filler=" + filler)
+                .add("capabilityFlags=" + capabilityFlags)
+                .add("characterSet=" + characterSet)
+                .add("statusFlags=" + statusFlags)
+                .add("authPluginDataLen=" + authPluginDataLen)
+                .add("authPluginDataPart2='" + authPluginDataPart2 + "'")
+                .add("authPluginName='" + authPluginName + "'")
+                .toString();
+    }
 }

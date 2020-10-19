@@ -115,6 +115,9 @@ final class MySQLUrlParser {
 
     private Map<String, String> parseQueryProperties() {
         String query = this.query;
+        if (StringUtils.isEmpty(query)) {
+            return new HashMap<>();
+        }
         String[] queryPairs = query.split("&");
         Map<String, String> properties = new HashMap<>();
         for (String pair : queryPairs) {

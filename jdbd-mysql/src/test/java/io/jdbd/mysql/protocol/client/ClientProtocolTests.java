@@ -2,20 +2,15 @@ package io.jdbd.mysql.protocol.client;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.jdbd.mysql.protocol.MySQLPacket;
-import io.jdbd.mysql.protocol.ProtocolTests;
 import io.netty.buffer.ByteBuf;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.annotations.Test;
-import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.netty.Connection;
 import reactor.netty.tcp.TcpClient;
 
 import java.net.URI;
-import java.net.URL;
-import java.sql.DriverManager;
 import java.time.Duration;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -99,16 +94,6 @@ public class ClientProtocolTests {
         return handshake;
     }
 
-    @Test
-    public void connect() throws Exception {
-        URI uri = URI.create("jdbc:mysql://localhost:3306/army");
-        LOG.info("uri:{},host:{}", uri, uri.getHost());
-        ClientProtocol clientProtocol = ClientProtocolImpl.getInstance(uri, "", "");
-        Object msg = clientProtocol.connect()
-                .block();
-        ObjectMapper mapper = new ObjectMapper();
-        LOG.info("handshake :{}", mapper.writeValueAsString(msg));
 
-    }
 
 }

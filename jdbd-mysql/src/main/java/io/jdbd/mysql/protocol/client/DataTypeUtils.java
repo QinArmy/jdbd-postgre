@@ -40,7 +40,7 @@ public abstract class DataTypeUtils {
     }
 
     public static int readInt3(ByteBuf byteBuf) {
-        if (byteBuf.readableBytes() > 1) {
+        if (byteBuf.readableBytes() > 2) {
             return (byteBuf.readByte() & 0xff)
                     | ((byteBuf.readByte() & 0xff) << 8)
                     | ((byteBuf.readByte() & 0xff) << 16)
@@ -50,7 +50,7 @@ public abstract class DataTypeUtils {
     }
 
     public static int getInt3(ByteBuf byteBuf, int index) {
-        if (byteBuf.readableBytes() > 1) {
+        if (byteBuf.readableBytes() > 2) {
             return (byteBuf.getByte(index++) & 0xff)
                     | ((byteBuf.getByte(index++) & 0xff) << 8)
                     | ((byteBuf.getByte(index) & 0xff) << 16)
@@ -60,7 +60,7 @@ public abstract class DataTypeUtils {
     }
 
     public static int readInt4(ByteBuf byteBuf) {
-        if (byteBuf.readableBytes() > 1) {
+        if (byteBuf.readableBytes() > 3) {
             return (byteBuf.readByte() & 0xff)
                     | ((byteBuf.readByte() & 0xff) << 8)
                     | ((byteBuf.readByte() & 0xff) << 16)
@@ -175,8 +175,8 @@ public abstract class DataTypeUtils {
         while ((index < end) && (byteBuf.getByte(index) != 0)) {
             index++;
         }
-        if(index >= end){
-            throw new IndexOutOfBoundsException(String.format("not found [00] byte,index:%s,writerIndex:%s",index,end));
+        if (index >= end) {
+            throw new IndexOutOfBoundsException(String.format("not found [00] byte,index:%s,writerIndex:%s", index, end));
         }
         byte[] bytes = new byte[index - byteBuf.readerIndex()];
         byteBuf.readBytes(bytes);
@@ -186,8 +186,17 @@ public abstract class DataTypeUtils {
 
     public static String readStringFixed(ByteBuf byteBuf, int len, Charset charset) {
         byte[] bytes = new byte[len];
-        byteBuf. readBytes(bytes);
+        byteBuf.readBytes(bytes);
         return new String(bytes, charset);
+    }
+
+    /**
+     * Protocol::RestOfPacketString
+     * If a string is the last component of a packet, its length can be calculated from the overall packet length minus the current position.
+     */
+    public static String readStringEof(ByteBuf byteBuf, int payloadLength, Charset charset) {
+        // byteBuf is full packet.
+        return readStringFixed(byteBuf, payloadLength, charset);
     }
 
     /**
@@ -197,14 +206,14 @@ public abstract class DataTypeUtils {
      */
     public static String readStringLenEnc(ByteBuf byteBuf, Charset charset) {
         long len = readLenEnc(byteBuf);
-        LOG.info("lenEnc:{},readable bytes:{}",len,byteBuf.readableBytes());
+        LOG.info("lenEnc:{},readable bytes:{}", len, byteBuf.readableBytes());
         String str;
         if (len == NULL_LENGTH) {
             str = null;
         } else if (len == 0L) {
             str = "";
         } else {
-            str = readStringFixed(byteBuf,(int) len, charset);
+            str = readStringFixed(byteBuf, (int) len, charset);
         }
         return str;
     }
