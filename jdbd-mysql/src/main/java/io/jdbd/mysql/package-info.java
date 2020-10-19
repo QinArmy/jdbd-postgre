@@ -1,2 +1,2 @@
 @reactor.util.annotation.NonNullApi
-package io.jdbd.meta;
+package io.jdbd.mysql;

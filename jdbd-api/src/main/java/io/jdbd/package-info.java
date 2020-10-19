@@ -1,2 +1,2 @@
-@io.jdbd.lang.NonNullApi
+@reactor.util.annotation.NonNullApi
 package io.jdbd;

@@ -1,6 +1,6 @@
 package io.jdbd;
 
-import io.jdbd.lang.Nullable;
+import reactor.util.annotation.Nullable;
 
 
 public interface ResultRow {

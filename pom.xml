@@ -9,7 +9,8 @@
     <packaging>pom</packaging>
     <version>1.0-SNAPSHOT</version>
     <modules>
-        <module>reactve-jdbd-api</module>
+        <module>jdbd-api</module>
+        <module>jdbd-mysql</module>
     </modules>
 
     <properties>
@@ -23,6 +24,11 @@
 
     <dependencyManagement>
         <dependencies>
+            <dependency>
+                <groupId>io.jdbd</groupId>
+                <artifactId>jdbd-api</artifactId>
+                <version>1.0-SNAPSHOT</version>
+            </dependency>
             <dependency>
                 <groupId>io.projectreactor</groupId>
                 <artifactId>reactor-core</artifactId>
@@ -38,7 +44,23 @@
                 <artifactId>slf4j-api</artifactId>
                 <version>${slf4.version}</version>
             </dependency>
-
+            <dependency>
+                <groupId>io.netty</groupId>
+                <artifactId>netty-all</artifactId>
+                <version>4.1.53.Final</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.logging.log4j</groupId>
+                <artifactId>log4j-slf4j-impl</artifactId>
+                <scope>test</scope>
+                <version>2.13.3</version>
+            </dependency>
+            <dependency>
+                <groupId>org.testng</groupId>
+                <artifactId>testng</artifactId>
+                <version>7.1.0</version>
+                <scope>test</scope>
+            </dependency>
         </dependencies>
     </dependencyManagement>
 

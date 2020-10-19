@@ -6,7 +6,7 @@ import reactor.core.publisher.Mono;
 import java.sql.Connection;
 import java.sql.Savepoint;
 
-public interface StatelessSession {
+public interface StatelessSession extends ReactiveCloseable{
 
     DatabaseMetaData getDatabaseMetaData();
 
@@ -52,10 +52,6 @@ public interface StatelessSession {
      */
     Mono<Void> rollbackToSavePoint(Savepoint savepoint);
 
-    /**
-     * @see Connection#close()
-     */
-    Mono<Void> close();
 
     /**
      * @see Connection#isClosed()

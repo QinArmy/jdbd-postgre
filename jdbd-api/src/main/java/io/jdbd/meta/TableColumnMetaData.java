@@ -1,6 +1,7 @@
 package io.jdbd.meta;
 
-import io.jdbd.lang.Nullable;
+
+import reactor.util.annotation.Nullable;
 
 public final class TableColumnMetaData {
 
@@ -19,7 +20,7 @@ public final class TableColumnMetaData {
     private final String comment;
 
     public TableColumnMetaData(DatabaseTableMetaData tableMeta, String columnName, String dataTypeName, long precision
-            , int scale, @Nullable  String defaultValue, @Nullable String comment) {
+            , int scale, @Nullable String defaultValue, @Nullable String comment) {
         this.tableMeta = tableMeta;
         this.columnName = columnName;
         this.dataTypeName = dataTypeName;
