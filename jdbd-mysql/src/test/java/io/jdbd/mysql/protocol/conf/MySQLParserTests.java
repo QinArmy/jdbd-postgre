@@ -2,9 +2,6 @@ package io.jdbd.mysql.protocol.conf;
 
 import com.mysql.cj.conf.ConnectionUrl;
 import com.mysql.cj.jdbc.Driver;
-import io.jdbd.mysql.protocol.MySQLPacket;
-import io.jdbd.mysql.protocol.client.ClientProtocol;
-import io.jdbd.mysql.protocol.client.ClientProtocolImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.annotations.Test;
@@ -14,45 +11,44 @@ import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.Statement;
 import java.util.Collections;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.Properties;
+import java.util.regex.Matcher;
 
 public class MySQLParserTests {
 
     private static final Logger LOG = LoggerFactory.getLogger(MySQLParserTests.class);
 
+    private static final String COMMON_URL = "jdbc:mysql://address=(host=kafka)(port=3435)(key2=value2),localhost:8080,( host  =  kosmo , port = 3306 ),( host  =  simonyi , port = 9987 ),zoro:3306,address=(host=myhost2)(port=2222)(key2=value2)/db?useSSL=true";
 
-    @Test(invocationCount = 100)
+
+    @Test//(invocationCount = 100)
     public void simpleTest() throws Exception {
         long start = System.currentTimeMillis();
-        String url = "jdbc:mysql://address=(host=kafka)(port=3435)(key2=value2),localhost,( host  =  kosmo , port = 3306 ),( host  =  simonyi , port = 9987 ),zoro:3306,address=(host=myhost2)(port=2222)(key2=value2)/db?useSSL=true";
-        MySQLUrlParser parser = MySQLUrlParser.parseConnectionString(url, Collections.singletonMap("user", "army"));
+        MySQLUrlParser parser = MySQLUrlParser.parseConnectionString(COMMON_URL, Collections.singletonMap("user", "army"));
+        for (HostInfo parsedHost : parser.getParsedHosts()) {
+            LOG.info("parsedHost:{}", parsedHost.getHostPortPair());
+        }
         LOG.info("cost {} ms", System.currentTimeMillis() - start);
-        // LOG.info("protocol:{}", parser.getScheme());
-        //  LOG.info("authority:{}", parser.getAuthority());
-//        int index = 0;
-//        for (HostInfo host : parser.getParsedHosts()) {
-//            LOG.info("host-{}:{},port:{}", index, host.getHost(), host.getPort());
-//            index++;
-//        }
-
-        //LOG.info("path:{}", parser.getPath());
-        // LOG.info("query:{}", parser.getQuery());
-
     }
 
     @Test
-    public void handshake()throws Exception {
-        String url = "jdbc:mysql://localhost:3306/army";
-        Map<String, String> properties = new HashMap<>();
-        properties.put("user", "army_w");
-        properties.put("password", "army123");
-        MySQLPacket mySQLPacket = ClientProtocolImpl.getInstance(MySQLUrl.getInstance(url, properties))
-                .flatMap(ClientProtocol::handshake)
-                .block();
-        LOG.info("handshake packet:\n {}", mySQLPacket);
+    public void urlPattern() {
+        Matcher matcher = MySQLUrlParser.CONNECTION_STRING_PTRN.matcher("jdbc:mysql:///army");
+        if (!matcher.matches()) {
+            return;
+        }
+        LOG.info("authority:{}", matcher.group("authority"));
     }
+
+    @Test
+    public void isAddressEqualsHostPrefix() {
+        String authority = "address = ( host=kafka)(port=3435)(key2=value2)";
+        if (MySQLUrlParser.isAddressEqualsHostPrefix(authority, 0)) {
+            LOG.info("\"{}\" is address-equals host", authority);
+        }
+
+    }
+
 
     @Test(invocationCount = 100)
     public void pattern() {

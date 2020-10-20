@@ -2,6 +2,8 @@ package io.jdbd.mysql.protocol.client;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.jdbd.mysql.protocol.MySQLPacket;
+import io.jdbd.mysql.protocol.conf.MySQLUrl;
 import io.netty.buffer.ByteBuf;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -10,8 +12,9 @@ import reactor.core.publisher.Mono;
 import reactor.netty.Connection;
 import reactor.netty.tcp.TcpClient;
 
-import java.net.URI;
 import java.time.Duration;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class ClientProtocolTests {
@@ -42,11 +45,26 @@ public class ClientProtocolTests {
 
     }
 
+
+    @Test
+    public void handshake() throws Exception {
+        String url = "jdbc:mysql://localhost:3306/army";
+        Map<String, String> properties = new HashMap<>();
+        properties.put("user", "army_w");
+        properties.put("password", "army123");
+        MySQLPacket mySQLPacket = ClientProtocolImpl.getInstance(MySQLUrl.getInstance(url, properties))
+                .flatMap(ClientProtocol::handshake)
+                .block();
+        LOG.info("handshake packet:\n {}", mySQLPacket);
+    }
+
     @Test
     public void simpleTest() throws Exception {
+        String url = "jdbc:mysql://address=(host=myhost1)(port=1111)(key1=value1),address=(host=myhost2)(port=2222)(key2=value2)/db";
 
 
     }
+
 
     private Mono<Connection> connectMySQL(Connection connection) {
         LOG.info("连接成功");
@@ -93,7 +111,6 @@ public class ClientProtocolTests {
         }
         return handshake;
     }
-
 
 
 }

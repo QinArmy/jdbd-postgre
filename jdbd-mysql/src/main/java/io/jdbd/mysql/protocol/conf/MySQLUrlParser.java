@@ -79,10 +79,16 @@ final class MySQLUrlParser {
         if (!properties.containsKey(PropertyKey.USER.getKeyName())) {
             actualAuthority = parseUserInfo(parseProperties);
         }
-        // finally ,override query properties.
+        // override query properties.
         parseProperties.putAll(properties);
-        this.parsedProperties = parseProperties;
-        this.parsedHosts = parseHostList(actualAuthority);
+        this.parsedProperties = Collections.unmodifiableMap(parseProperties);
+
+        // host info list
+        if (StringUtils.hasText(actualAuthority)) {
+            this.parsedHosts = parseHostList(actualAuthority);
+        } else {
+            this.parsedHosts = createDefaultHostList();
+        }
     }
 
     public String getOriginalUrl() {
@@ -113,6 +119,9 @@ final class MySQLUrlParser {
         return this.parsedProperties;
     }
 
+    /**
+     * @return a modifiable map
+     */
     private Map<String, String> parseQueryProperties() {
         String query = this.query;
         if (StringUtils.isEmpty(query)) {
@@ -150,7 +159,269 @@ final class MySQLUrlParser {
         return authority.substring(index + 1);
     }
 
-    private List<HostInfo> parseHostList(final String actualAuthority) {
+
+    /**
+     * @return a unmodifiable list
+     */
+    private List<HostInfo> parseHostList(String multiHostsSegment) {
+        if (multiHostsSegment.startsWith("[") && multiHostsSegment.endsWith("]")) {
+            multiHostsSegment = multiHostsSegment.substring(1, multiHostsSegment.length() - 1);
+        }
+        final String authority = multiHostsSegment;
+        final List<Character> markList = obtainMarkList();
+        final int len = authority.length();
+
+        List<HostInfo> hostList = new ArrayList<>();
+
+        for (int openingMarkIndex = 0; ; ) {
+            char openingMarker = authority.charAt(openingMarkIndex);
+            if (openingMarker == '(') {
+                // this 'if'  block for key-value host
+                int index = authority.indexOf(')', openingMarkIndex);
+                if (index < 0) {
+                    throw new UrlException(authority.substring(openingMarkIndex) + " no closing mark"
+                            , this.originalUrl);
+                }
+                index++; // right shift to comma or ending.
+                hostList.add(parseKeyValueHost(authority.substring(openingMarkIndex, index)));
+                if (index == len) {
+                    break;
+                }
+                index = StringUtils.indexNonSpace(authority, index);
+                if (authority.charAt(index) != ',') {
+                    throw new UrlException("no comma after " + authority.substring(openingMarkIndex, index)
+                            , this.originalUrl);
+                }
+                openingMarkIndex = index + 1;
+                if (openingMarkIndex == len) {
+                    throw createAuthorityEndWithCommaException();
+                }
+            } else if (isAddressEqualsHostPrefix(authority, openingMarkIndex)) {
+                // this 'if'  block for address equals host
+                // separator is index of comma .
+                int separator = indexAddressEqualsHostSegmentEnding(authority, openingMarkIndex);
+                if (separator < 0) {
+                    hostList.add(parseAddressEqualsHost(authority.substring(openingMarkIndex)));
+                    break;
+                } else {
+                    hostList.add(parseAddressEqualsHost(authority.substring(openingMarkIndex, separator)));
+                    openingMarkIndex = separator + 1;
+                    if (openingMarkIndex == len) {
+                        throw createAuthorityEndWithCommaException();
+                    }
+                }
+            } else if (markList.contains(authority.charAt(openingMarkIndex))) {
+                throw createFormatException(authority.substring(openingMarkIndex == 0 ? 0 : openingMarkIndex - 1));
+            } else {
+                // this 'else'  block for host-port host
+                int separator = -1;
+                for (int i = openingMarkIndex + 1; i < len; i++) {
+                    char ch = authority.charAt(i);
+                    if (ch == ',') {
+                        separator = i;
+                        break;
+                    } else if (markList.contains(ch)) {
+                        throw createFormatException(authority.substring(openingMarkIndex, i + 1));
+                    }
+                }
+                if (separator < 0) {
+                    hostList.add(parseHostPortHost(authority.substring(openingMarkIndex)));
+                    break;
+                } else {
+                    hostList.add(parseHostPortHost(authority.substring(openingMarkIndex, separator)));
+                    openingMarkIndex = separator + 1;
+                    if (openingMarkIndex == len) {
+                        throw createAuthorityEndWithCommaException();
+                    }
+                }
+            }
+        }
+        List<HostInfo> actualHostList;
+        if (hostList.size() == 1) {
+            actualHostList = Collections.singletonList(hostList.get(0));
+        } else {
+            actualHostList = new ArrayList<>(hostList.size());
+            actualHostList.addAll(hostList);
+            actualHostList = Collections.unmodifiableList(actualHostList);
+        }
+        return actualHostList;
+    }
+
+
+    private HostInfo parseAddressEqualsHost(String addressEqualsHost) {
+        int openingMarkersIndex = addressEqualsHost.indexOf('(');
+        if (openingMarkersIndex < 0) {
+            throw new IllegalArgumentException(String.format("addressEqualsHost[%s] error.", addressEqualsHost));
+        }
+
+        final int originalOpeningMarkersIndex = openingMarkersIndex;
+        int closingMarkersIndex;
+        Map<String, String> hostKeyValueMap = new HashMap<>(this.parsedProperties);
+        while ((closingMarkersIndex = addressEqualsHost.indexOf(')', openingMarkersIndex)) > 0) {
+            String pair = addressEqualsHost.substring(openingMarkersIndex + 1, closingMarkersIndex);
+            String[] kv = pair.split("=");
+            if (kv.length != 2) {
+                throw createFormatException(addressEqualsHost);
+            }
+            hostKeyValueMap.put(kv[0].trim(), kv[1].trim());
+            openingMarkersIndex = addressEqualsHost.indexOf('(', closingMarkersIndex);
+            if (openingMarkersIndex < 0) {
+                break;
+            }
+        }
+        if (openingMarkersIndex == originalOpeningMarkersIndex) {
+            // not found key value pair.
+            throw createFormatException(addressEqualsHost);
+        }
+        return createHostInfo(addressEqualsHost, hostKeyValueMap);
+    }
+
+    private HostInfo parseKeyValueHost(String keyValueHost) {
+        int openingMarkersIndex = keyValueHost.indexOf('(');
+        int closingMarkersIndex = keyValueHost.lastIndexOf(')');
+
+        if (openingMarkersIndex < 0 || closingMarkersIndex < 0) {
+            throw createFormatException(keyValueHost);
+        }
+        keyValueHost = keyValueHost.substring(openingMarkersIndex + 1, closingMarkersIndex);
+        String[] pairArray = keyValueHost.split(",");
+
+        if (pairArray.length == 0) {
+            throw createFormatException(keyValueHost);
+        }
+        Map<String, String> hostKeyValueMap = new HashMap<>(this.parsedProperties);
+        for (String pair : pairArray) {
+            String[] kv = pair.split("=");
+            if (kv.length != 2) {
+                throw createFormatException(keyValueHost);
+            }
+            hostKeyValueMap.put(kv[0].trim(), kv[1].trim());
+        }
+        return createHostInfo(keyValueHost, hostKeyValueMap);
+    }
+
+    private HostInfo parseHostPortHost(String hostPortHost) {
+        String[] hostPortPair = hostPortHost.split(":");
+        if (hostPortPair.length == 0 || hostPortPair.length > 2) {
+            throw createFormatException(hostPortHost);
+        }
+        Map<String, String> hostKeyValueMap = new HashMap<>(this.parsedProperties);
+        hostKeyValueMap.put("host", hostPortPair[0].trim());
+
+        if (hostPortPair.length == 2) {
+            hostKeyValueMap.put("port", hostPortPair[1].trim());
+        }
+        return createHostInfo(hostPortHost, hostKeyValueMap);
+    }
+
+
+    private HostInfo createHostInfo(String hostInfo, Map<String, String> hostKeyValueMap) {
+
+        String host = hostKeyValueMap.remove("host");
+        if (StringUtils.isEmpty(host)) {
+            throw new UrlException(String.format("hostInfo[%s] not found host.", hostInfo), this.originalUrl);
+        }
+        String portText = hostKeyValueMap.remove("port");
+        int port = MySQLUrl.DEFAULT_PORT;
+        if (portText != null) {
+            port = parsePort(portText);
+            if (port < 0) {
+                throw new UrlException(String.format("hostInfo[%s] port error.", hostInfo), this.originalUrl);
+            }
+        }
+
+        String user = hostKeyValueMap.remove("user");
+        if (!StringUtils.hasText(user)) {
+            throw new UrlException("not found user info.", this.originalUrl);
+        }
+        String password = hostKeyValueMap.remove("password");
+        return new HostInfo(this.originalUrl, host, port, user, password, hostKeyValueMap);
+    }
+
+    /**
+     * @return port or negative integer.
+     */
+    private int parsePort(String portText) {
+        int port;
+        try {
+            port = Integer.parseInt(portText);
+        } catch (NumberFormatException e) {
+            port = -1;
+        }
+        return port;
+    }
+
+    private List<Character> obtainMarkList() {
+        List<Character> chList = new ArrayList<>(4);
+        chList.add(',');
+        chList.add('=');
+        chList.add('(');
+        chList.add(')');
+        return Collections.unmodifiableList(chList);
+    }
+
+    /**
+     * @param openingMark index of address-equals host prefix{@code pattern 'address\s*=\s*('}
+     */
+    private int indexAddressEqualsHostSegmentEnding(final String authority, final int openingMark) {
+        int prefixEndIndex = authority.indexOf('(', openingMark);
+        if (prefixEndIndex < 0) {
+            throw new IllegalArgumentException("openingMark isn't address-equals host prefix index.");
+        }
+        final int len = authority.length();
+        boolean close = false;
+        int separator = -1;
+        for (int i = prefixEndIndex + 1; i < len; i++) {
+            if (authority.charAt(i) == ')') {
+                if (close) {
+                    throw createParenthesisNotMatchException(authority.substring(openingMark, i + 1));
+                }
+                close = true;
+            } else if (authority.charAt(i) == '(') {
+                if (!close) {
+                    throw createParenthesisNotMatchException(authority.substring(openingMark, i + 1));
+                }
+                close = false;
+            } else if (authority.charAt(i) == ',') {
+                if (!close) {
+                    throw createParenthesisNotMatchException(authority.substring(openingMark, i + 1));
+                }
+                separator = i;
+                break;
+            }
+        }
+        if (!close) {
+            throw createParenthesisNotMatchException(authority.substring(openingMark));
+        }
+        return separator;
+    }
+
+
+    private List<HostInfo> createDefaultHostList() {
+        Map<String, String> props = new HashMap<>(this.parsedProperties);
+        props.put("host", MySQLUrl.DEFAULT_HOST);
+        props.put("port", Integer.toString(MySQLUrl.DEFAULT_PORT));
+        return Collections.singletonList(createHostInfo("", props));
+    }
+
+    private UrlException createAuthorityEndWithCommaException() {
+        throw new UrlException(String.format("\"%s\" can't end with comma", this.authority), this.originalUrl);
+    }
+
+    private UrlException createParenthesisNotMatchException(String hostSegment) {
+        return new UrlException(String.format("\"%s\" parenthesis count not match.", hostSegment), this.originalUrl);
+    }
+
+    private UrlException createFormatException(String hostSegment) {
+        return new UrlException(String.format("\"%s\" format error.", hostSegment), this.originalUrl);
+    }
+
+
+    /**
+     * @deprecated use {@link #parseHostList(String)} ,because check comma.
+     */
+    @Deprecated
+    private List<HostInfo> parseHostListByPattern(final String actualAuthority) {
         String tempAuthority = actualAuthority.replaceAll("\\s", "");
         if (tempAuthority.startsWith("[") && tempAuthority.endsWith("]")) {
             tempAuthority = tempAuthority.substring(1, tempAuthority.length() - 1);
@@ -204,107 +475,32 @@ final class MySQLUrlParser {
         return hostInfoList;
     }
 
-    private HostInfo parseAddressEqualsHost(String addressEqualsHost) {
-        int openingMarkersIndex = addressEqualsHost.indexOf('(');
-        if (openingMarkersIndex < 0) {
-            throw new IllegalArgumentException(String.format("addressEqualsHost[%s] error.", addressEqualsHost));
-        }
-        int closingMarkersIndex;
-        final int originalOpeningMarkersIndex = openingMarkersIndex;
+    /*################################## blow static method ##################################*/
 
-        Map<String, String> hostKeyValueMap = new HashMap<>(this.parsedProperties);
-        while ((closingMarkersIndex = addressEqualsHost.indexOf(')', openingMarkersIndex)) > 0) {
-            String pair = addressEqualsHost.substring(openingMarkersIndex + 1, closingMarkersIndex);
-            String[] kv = pair.split("=");
-            if (kv.length != 2) {
-                throw new IllegalArgumentException(String.format("addressEqualsHost[%s] error.", addressEqualsHost));
+    static boolean isAddressEqualsHostPrefix(String segment, final int fromIndex) {
+        final String address = "address";
+        if (fromIndex < 0 || !segment.startsWith(address, fromIndex)) {
+            return false;
+        }
+        final int len = segment.length();
+        final char space = '\u0020';
+        char ch;
+        boolean match = false;
+        for (int i = fromIndex + address.length(), charCount = 0; i < len; i++) {
+            ch = segment.charAt(i);
+            if (ch == space) {
+                continue;
             }
-            hostKeyValueMap.put(kv[0].trim(), kv[1].trim());
-            openingMarkersIndex = addressEqualsHost.indexOf('(', closingMarkersIndex);
-            if (openingMarkersIndex < 0) {
+            if (ch == '=' && charCount == 0) {
+                charCount++;
+            } else if (ch == '(' && charCount == 1) {
+                match = true;
+                break;
+            } else {
                 break;
             }
         }
-        if (openingMarkersIndex == originalOpeningMarkersIndex) {
-            // not found key value pair.
-            throw new IllegalArgumentException(String.format("addressEqualsHost[%s] error.", addressEqualsHost));
-        }
-        return createHostInfo(addressEqualsHost, hostKeyValueMap);
-    }
-
-    private HostInfo parseKeyValueHost(String keyValueHost) {
-        int openingMarkersIndex = keyValueHost.indexOf('(');
-        int closingMarkersIndex = keyValueHost.lastIndexOf(')');
-
-        if (openingMarkersIndex < 0 | closingMarkersIndex < 0) {
-            throw new IllegalArgumentException(String.format("keyValueHost[%s] error.", keyValueHost));
-        }
-        keyValueHost = keyValueHost.substring(openingMarkersIndex + 1, closingMarkersIndex);
-        String[] pairArray = keyValueHost.split(",");
-
-        if (pairArray.length == 0) {
-            throw new IllegalArgumentException(String.format("keyValueHost[%s] error.", keyValueHost));
-        }
-        Map<String, String> hostKeyValueMap = new HashMap<>(this.parsedProperties);
-        for (String pair : pairArray) {
-            String[] kv = pair.split("=");
-            if (kv.length != 2) {
-                throw new IllegalArgumentException(String.format("keyValueHost[%s] error.", keyValueHost));
-            }
-            hostKeyValueMap.put(kv[0].trim(), kv[1].trim());
-        }
-        return createHostInfo(keyValueHost, hostKeyValueMap);
-    }
-
-    private HostInfo parseHostPortHost(String hostPortHost) {
-        String[] hostPortPair = hostPortHost.split(":");
-        if (hostPortPair.length == 0 || hostPortPair.length > 2) {
-            throw new IllegalArgumentException(String.format("hostPortHost[%s] error.", hostPortHost));
-        }
-        Map<String, String> hostKeyValueMap = new HashMap<>(this.parsedProperties);
-        hostKeyValueMap.put("host", hostPortPair[0].trim());
-
-        if (hostPortPair.length == 2) {
-            hostKeyValueMap.put("port", hostPortPair[1].trim());
-        }
-        return createHostInfo(hostPortHost, hostKeyValueMap);
-    }
-
-
-    private HostInfo createHostInfo(String hostInfo, Map<String, String> hostKeyValueMap) {
-
-        String host = hostKeyValueMap.remove("host");
-        if (StringUtils.isEmpty(host)) {
-            throw new UrlException(String.format("hostInfo[%s] not found host.", hostInfo), this.originalUrl);
-        }
-        String portText = hostKeyValueMap.remove("port");
-        int port = MySQLUrl.DEFAULT_PORT;
-        if (portText != null) {
-            port = parsePort(portText);
-            if (port < 0) {
-                throw new UrlException(String.format("hostInfo[%s] port error.", hostInfo), this.originalUrl);
-            }
-        }
-
-        String user = hostKeyValueMap.remove("user");
-        if (!StringUtils.hasText(user)) {
-            throw new UrlException("not found user info.", this.originalUrl);
-        }
-        String password = hostKeyValueMap.remove("password");
-        return new HostInfo(this.originalUrl, host, port, user, password, hostKeyValueMap);
-    }
-
-    /**
-     * @return port or negative integer.
-     */
-    private int parsePort(String portText) {
-        int port;
-        try {
-            port = Integer.parseInt(portText);
-        } catch (NumberFormatException e) {
-            port = -1;
-        }
-        return port;
+        return match;
     }
 
 
@@ -359,5 +555,6 @@ final class MySQLUrlParser {
         }
         return "";
     }
+
 
 }
