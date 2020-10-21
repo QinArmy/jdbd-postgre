@@ -1,8 +1,7 @@
 package io.jdbd.mysql.protocol;
 
-import io.jdbd.mysql.protocol.client.DataTypeUtils;
+import io.jdbd.mysql.protocol.client.PacketUtils;
 import io.netty.bootstrap.ServerBootstrap;
-import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelOption;
@@ -14,11 +13,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.annotations.Test;
 import reactor.core.publisher.Flux;
-import reactor.netty.Connection;
-import reactor.netty.tcp.TcpClient;
 
 import java.math.BigInteger;
-import java.time.Duration;
 
 public class ProtocolTests {
 
@@ -71,7 +67,7 @@ public class ProtocolTests {
     @Test
     public void simpleTest() {
 
-        BigInteger big = DataTypeUtils.convertInt8ToBigInteger(Long.MIN_VALUE);
+        BigInteger big = PacketUtils.convertInt8ToBigInteger(Long.MIN_VALUE);
         LOG.info("max:{},big:{}", Long.MAX_VALUE, big);
     }
 

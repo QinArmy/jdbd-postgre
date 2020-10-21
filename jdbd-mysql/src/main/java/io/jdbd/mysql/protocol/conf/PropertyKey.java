@@ -8,6 +8,7 @@ import java.util.TreeMap;
 
 /**
  * PropertyKey handles connection property names, their camel-case aliases and case sensitivity.
+ *
  * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-reference-configuration-properties.html">Configuration Properties</a>
  */
 public enum PropertyKey {
@@ -15,242 +16,275 @@ public enum PropertyKey {
      * Properties individually managed after parsing connection string. These property keys are case insensitive.
      */
     /** The database user name. */
-    USER("user", false),
+    USER("user", null, false),
     /** The database user password. */
-    PASSWORD("password", false),
+    PASSWORD("password", null, false),
     /** The hostname value from the properties instance passed to the driver. */
-    HOST("host", false),
+    HOST("host", null, false),
     /** The port number value from the properties instance passed to the driver. */
-    PORT("port", false),
+    PORT("port", null, false),
+
     /** The communications protocol. Possible values: "tcp" and "pipe". */
-    PROTOCOL("protocol", false),
+    PROTOCOL("protocol", null, false),
     /** The name pipes path to use when "protocol=pipe'. */
     PATH("path", "namedPipePath", false),
     /** The server type in a replication setup. Possible values: "master" and "slave". */
-    TYPE("type", false),
+    TYPE("type", null, false),
     /** The address value ("host:port") from the properties instance passed to the driver. */
-    ADDRESS("address", false),
+    ADDRESS("address", null, false),
+
     /** The host priority in a list of hosts. */
-    PRIORITY("priority", false),
+    PRIORITY("priority", null, false),
     /** The database value from the properties instance passed to the driver. */
-    DBNAME("dbname", false), //
+    DBNAME("dbname", null, false), //
+    allowLoadLocalInfile("allowLoadLocalInfile", "false", true), //
+    allowMasterDownConnections("allowMasterDownConnections", "false", true), //
 
-    allowLoadLocalInfile("allowLoadLocalInfile", true), //
-    allowMasterDownConnections("allowMasterDownConnections", true), //
-    allowMultiQueries("allowMultiQueries", true), //
-    allowNanAndInf("allowNanAndInf", true), //
-    allowPublicKeyRetrieval("allowPublicKeyRetrieval", true), //
-    allowSlaveDownConnections("allowSlaveDownConnections", true), //
-    allowUrlInLocalInfile("allowUrlInLocalInfile", true), //
-    alwaysSendSetIsolation("alwaysSendSetIsolation", true), //
-    authenticationPlugins("authenticationPlugins", true), //
-    autoClosePStmtStreams("autoClosePStmtStreams", true), //
-    autoDeserialize("autoDeserialize", true), //
-    autoGenerateTestcaseScript("autoGenerateTestcaseScript", true), //
-    autoReconnect("autoReconnect", true), //
-    autoReconnectForPools("autoReconnectForPools", true), //
-    autoSlowLog("autoSlowLog", true), //
-    blobsAreStrings("blobsAreStrings", true), //
-    blobSendChunkSize("blobSendChunkSize", true), //
-    cacheCallableStmts("cacheCallableStmts", true), //
-    cacheDefaultTimezone("cacheDefaultTimezone", true), //
-    cachePrepStmts("cachePrepStmts", true), //
-    cacheResultSetMetadata("cacheResultSetMetadata", true), //
-    cacheServerConfiguration("cacheServerConfiguration", true), //
-    callableStmtCacheSize("callableStmtCacheSize", true), //
-    characterEncoding("characterEncoding", true), //
-    characterSetResults("characterSetResults", true), //
-    clientCertificateKeyStorePassword("clientCertificateKeyStorePassword", true), //
-    clientCertificateKeyStoreType("clientCertificateKeyStoreType", true), //
-    clientCertificateKeyStoreUrl("clientCertificateKeyStoreUrl", true), //
-    clientInfoProvider("clientInfoProvider", true), //
-    clobberStreamingResults("clobberStreamingResults", true), //
-    clobCharacterEncoding("clobCharacterEncoding", true), //
-    compensateOnDuplicateKeyUpdateCounts("compensateOnDuplicateKeyUpdateCounts", true), //
-    connectionAttributes("connectionAttributes", true), //
-    connectionCollation("connectionCollation", true), //
-    connectionLifecycleInterceptors("connectionLifecycleInterceptors", true), //
-    connectTimeout("connectTimeout", true), //
-    continueBatchOnError("continueBatchOnError", true), //
-    createDatabaseIfNotExist("createDatabaseIfNotExist", true), //
-    databaseTerm("databaseTerm", true), //
-    defaultAuthenticationPlugin("defaultAuthenticationPlugin", true), //
-    defaultFetchSize("defaultFetchSize", true), //
-    detectCustomCollations("detectCustomCollations", true), //
-    disabledAuthenticationPlugins("disabledAuthenticationPlugins", true), //
-    disconnectOnExpiredPasswords("disconnectOnExpiredPasswords", true), //
-    dnsSrv("dnsSrv", true), //
-    dontCheckOnDuplicateKeyUpdateInSQL("dontCheckOnDuplicateKeyUpdateInSQL", true), //
-    dontTrackOpenResources("dontTrackOpenResources", true), //
-    dumpQueriesOnException("dumpQueriesOnException", true), //
-    elideSetAutoCommits("elideSetAutoCommits", true), //
-    emptyStringsConvertToZero("emptyStringsConvertToZero", true), //
-    emulateLocators("emulateLocators", true), //
-    emulateUnsupportedPstmts("emulateUnsupportedPstmts", true), //
-    enabledSSLCipherSuites("enabledSSLCipherSuites", true), //
-    enabledTLSProtocols("enabledTLSProtocols", true), //
-    enableEscapeProcessing("enableEscapeProcessing", true), //
-    enablePacketDebug("enablePacketDebug", true), //
-    enableQueryTimeouts("enableQueryTimeouts", true), //
-    exceptionInterceptors("exceptionInterceptors", true), //
-    explainSlowQueries("explainSlowQueries", true), //
-    failOverReadOnly("failOverReadOnly", true), //
-    functionsNeverReturnBlobs("functionsNeverReturnBlobs", true), //
-    gatherPerfMetrics("gatherPerfMetrics", true), //
-    generateSimpleParameterMetadata("generateSimpleParameterMetadata", true), //
-    getProceduresReturnsFunctions("getProceduresReturnsFunctions", true), //
-    holdResultsOpenOverStatementClose("holdResultsOpenOverStatementClose", true), //
-    ha_enableJMX("ha.enableJMX", "haEnableJMX", true), //
-    ha_loadBalanceStrategy("ha.loadBalanceStrategy", "haLoadBalanceStrategy", true), //
-    ignoreNonTxTables("ignoreNonTxTables", true), //
-    includeInnodbStatusInDeadlockExceptions("includeInnodbStatusInDeadlockExceptions", true), //
-    includeThreadDumpInDeadlockExceptions("includeThreadDumpInDeadlockExceptions", true), //
-    includeThreadNamesAsStatementComment("includeThreadNamesAsStatementComment", true), //
-    initialTimeout("initialTimeout", true), //
-    interactiveClient("interactiveClient", true), //
-    jdbcCompliantTruncation("jdbcCompliantTruncation", true), //
-    largeRowSizeThreshold("largeRowSizeThreshold", true), //
-    loadBalanceAutoCommitStatementRegex("loadBalanceAutoCommitStatementRegex", true), //
-    loadBalanceAutoCommitStatementThreshold("loadBalanceAutoCommitStatementThreshold", true), //
-    loadBalanceBlacklistTimeout("loadBalanceBlacklistTimeout", true), //
-    loadBalanceConnectionGroup("loadBalanceConnectionGroup", true), //
-    loadBalanceExceptionChecker("loadBalanceExceptionChecker", true), //
-    loadBalanceHostRemovalGracePeriod("loadBalanceHostRemovalGracePeriod", true), //
-    loadBalancePingTimeout("loadBalancePingTimeout", true), //
-    loadBalanceSQLStateFailover("loadBalanceSQLStateFailover", true), //
-    loadBalanceSQLExceptionSubclassFailover("loadBalanceSQLExceptionSubclassFailover", true), //
-    loadBalanceValidateConnectionOnSwapServer("loadBalanceValidateConnectionOnSwapServer", true), //
-    localSocketAddress("localSocketAddress", true), //
-    locatorFetchBufferSize("locatorFetchBufferSize", true), //
-    logger("logger", true), //
-    logSlowQueries("logSlowQueries", true), //
-    logXaCommands("logXaCommands", true), //
-    maintainTimeStats("maintainTimeStats", true), //
-    maxAllowedPacket("maxAllowedPacket", true), //
-    maxQuerySizeToLog("maxQuerySizeToLog", true), //
-    maxReconnects("maxReconnects", true), //
-    maxRows("maxRows", true), //
-    metadataCacheSize("metadataCacheSize", true), //
-    netTimeoutForStreamingResults("netTimeoutForStreamingResults", true), //
-    noAccessToProcedureBodies("noAccessToProcedureBodies", true), //
-    noDatetimeStringSync("noDatetimeStringSync", true), //
-    nullDatabaseMeansCurrent("nullDatabaseMeansCurrent", "nullCatalogMeansCurrent", true), //
-    overrideSupportsIntegrityEnhancementFacility("overrideSupportsIntegrityEnhancementFacility", true), //
-    packetDebugBufferSize("packetDebugBufferSize", true), //
-    padCharsWithSpace("padCharsWithSpace", true), //
-    paranoid("paranoid", false), //
-    parseInfoCacheFactory("parseInfoCacheFactory", true), //
-    passwordCharacterEncoding("passwordCharacterEncoding", true), //
-    pedantic("pedantic", true), //
-    pinGlobalTxToPhysicalConnection("pinGlobalTxToPhysicalConnection", true), //
-    populateInsertRowWithDefaultValues("populateInsertRowWithDefaultValues", true), //
-    prepStmtCacheSize("prepStmtCacheSize", true), //
-    prepStmtCacheSqlLimit("prepStmtCacheSqlLimit", true), //
-    processEscapeCodesForPrepStmts("processEscapeCodesForPrepStmts", true), //
-    profilerEventHandler("profilerEventHandler", true), //
-    profileSQL("profileSQL", true), //
-    propertiesTransform("propertiesTransform", true), //
-    queriesBeforeRetryMaster("queriesBeforeRetryMaster", true), //
-    queryInterceptors("queryInterceptors", true), //
-    queryTimeoutKillsConnection("queryTimeoutKillsConnection", true), //
-    readFromMasterWhenNoSlaves("readFromMasterWhenNoSlaves", true), //
-    readOnlyPropagatesToServer("readOnlyPropagatesToServer", true), //
-    reconnectAtTxEnd("reconnectAtTxEnd", true), //
-    replicationConnectionGroup("replicationConnectionGroup", true), //
-    reportMetricsIntervalMillis("reportMetricsIntervalMillis", true), //
-    requireSSL("requireSSL", true), //
-    resourceId("resourceId", true), //
-    resultSetSizeThreshold("resultSetSizeThreshold", true), //
-    retriesAllDown("retriesAllDown", true), //
-    rewriteBatchedStatements("rewriteBatchedStatements", true), //
-    rollbackOnPooledClose("rollbackOnPooledClose", true), //
-    secondsBeforeRetryMaster("secondsBeforeRetryMaster", true), //
-    selfDestructOnPingMaxOperations("selfDestructOnPingMaxOperations", true), //
-    selfDestructOnPingSecondsLifetime("selfDestructOnPingSecondsLifetime", true), //
-    sendFractionalSeconds("sendFractionalSeconds", true), //
-    serverAffinityOrder("serverAffinityOrder", true), //
-    serverConfigCacheFactory("serverConfigCacheFactory", true), //
-    serverRSAPublicKeyFile("serverRSAPublicKeyFile", true), //
-    serverTimezone("serverTimezone", true), //
-    sessionVariables("sessionVariables", true), //
-    slowQueryThresholdMillis("slowQueryThresholdMillis", true), //
-    slowQueryThresholdNanos("slowQueryThresholdNanos", true), //
-    socketFactory("socketFactory", true), //
-    socketTimeout("socketTimeout", true), //
-    socksProxyHost("socksProxyHost", true), //
-    socksProxyPort("socksProxyPort", true), //
-    sslMode("sslMode", true), //
-    strictUpdates("strictUpdates", true), //
-    tcpKeepAlive("tcpKeepAlive", true), //
-    tcpNoDelay("tcpNoDelay", true), //
-    tcpRcvBuf("tcpRcvBuf", true), //
-    tcpSndBuf("tcpSndBuf", true), //
-    tcpTrafficClass("tcpTrafficClass", true), //
-    tinyInt1isBit("tinyInt1isBit", true), //
-    traceProtocol("traceProtocol", true), //
-    transformedBitIsBoolean("transformedBitIsBoolean", true), //
-    treatUtilDateAsTimestamp("treatUtilDateAsTimestamp", true), //
-    trustCertificateKeyStorePassword("trustCertificateKeyStorePassword", true), //
-    trustCertificateKeyStoreType("trustCertificateKeyStoreType", true), //
-    trustCertificateKeyStoreUrl("trustCertificateKeyStoreUrl", true), //
-    ultraDevHack("ultraDevHack", true), //
-    useAffectedRows("useAffectedRows", true), //
-    useColumnNamesInFindColumn("useColumnNamesInFindColumn", true), //
-    useCompression("useCompression", true), //
-    useConfigs("useConfigs", true), //
-    useCursorFetch("useCursorFetch", true), //
-    useHostsInPrivileges("useHostsInPrivileges", true), //
-    useInformationSchema("useInformationSchema", true), //
-    useLocalSessionState("useLocalSessionState", true), //
-    useLocalTransactionState("useLocalTransactionState", true), //
-    useNanosForElapsedTime("useNanosForElapsedTime", true), //
-    useOldAliasMetadataBehavior("useOldAliasMetadataBehavior", true), //
-    useOnlyServerErrorMessages("useOnlyServerErrorMessages", true), //
-    useReadAheadInput("useReadAheadInput", true), //
-    useServerPrepStmts("useServerPrepStmts", true), //
-    useSSL("useSSL", true), //
-    useStreamLengthsInPrepStmts("useStreamLengthsInPrepStmts", true), //
-    useUnbufferedInput("useUnbufferedInput", true), //
-    useUsageAdvisor("useUsageAdvisor", true), //
-    verifyServerCertificate("verifyServerCertificate", true), //
+    allowMultiQueries("allowMultiQueries", "false", true), //
+    allowNanAndInf("allowNanAndInf", "", true), //
+    allowPublicKeyRetrieval("allowPublicKeyRetrieval", "false", true), //
+    allowSlaveDownConnections("allowSlaveDownConnections", "false", true), //
 
-    xdevapiAsyncResponseTimeout("xdevapi.asyncResponseTimeout", "xdevapiAsyncResponseTimeout", true), //
-    xdevapiAuth("xdevapi.auth", "xdevapiAuth", true), //
-    xdevapiConnectTimeout("xdevapi.connect-timeout", "xdevapiConnectTimeout", true), //
+    allowUrlInLocalInfile("allowUrlInLocalInfile", "false", true), //
+    alwaysSendSetIsolation("alwaysSendSetIsolation", "true", true), //
+    authenticationPlugins("authenticationPlugins", null, true), //
+    autoClosePStmtStreams("autoClosePStmtStreams", "false", true), //
+
+    autoDeserialize("autoDeserialize", "false", true), //
+    autoGenerateTestcaseScript("autoGenerateTestcaseScript", "false", true), //
+    autoReconnect("autoReconnect", "false", true), //
+    autoReconnectForPools("autoReconnectForPools", "false", true), //
+
+    autoSlowLog("autoSlowLog", "true", true), //
+    blobsAreStrings("blobsAreStrings", "false", true), //
+    blobSendChunkSize("blobSendChunkSize", "1048576", true), //
+    cacheCallableStmts("cacheCallableStmts", "false", true), //
+
+    cacheDefaultTimezone("cacheDefaultTimezone", "true", true), //
+    cachePrepStmts("cachePrepStmts", "false", true), //
+    cacheResultSetMetadata("cacheResultSetMetadata", "false", true), //
+    cacheServerConfiguration("cacheServerConfiguration", "false", true), //
+
+    callableStmtCacheSize("callableStmtCacheSize", "100", true), //
+    characterEncoding("characterEncoding", null, true), //
+    characterSetResults("characterSetResults", null, true), //
+    clientCertificateKeyStorePassword("clientCertificateKeyStorePassword", null, true), //
+
+    clientCertificateKeyStoreType("clientCertificateKeyStoreType", "JKS", true), //
+    clientCertificateKeyStoreUrl("clientCertificateKeyStoreUrl", null, true), //
+    clientInfoProvider("clientInfoProvider", "com.mysql.cj.jdbc.CommentClientInfoProvider", true), //
+    clobberStreamingResults("clobberStreamingResults", "false", true), //
+
+    clobCharacterEncoding("clobCharacterEncoding", null, true), //
+    compensateOnDuplicateKeyUpdateCounts("compensateOnDuplicateKeyUpdateCounts", "false", true), //
+    connectionAttributes("connectionAttributes", null, true), //
+    connectionCollation("connectionCollation", null, true), //
+
+    connectionLifecycleInterceptors("connectionLifecycleInterceptors", null, true), //
+    connectTimeout("connectTimeout", "0", true), //
+    continueBatchOnError("continueBatchOnError", "true", true), //
+    createDatabaseIfNotExist("createDatabaseIfNotExist", "false", true), //
+
+    databaseTerm("databaseTerm", "CATALOG", true), //
+    defaultAuthenticationPlugin("defaultAuthenticationPlugin", "com.mysql.cj.protocol.a.authentication.MysqlNativePasswordPlugin", true), //
+    defaultFetchSize("defaultFetchSize", "0", true), //
+    detectCustomCollations("detectCustomCollations", "false", true), //
+
+    disabledAuthenticationPlugins("disabledAuthenticationPlugins", null, true), //
+    disconnectOnExpiredPasswords("disconnectOnExpiredPasswords", "true", true), //
+    dnsSrv("dnsSrv", "false", true), //
+    dontCheckOnDuplicateKeyUpdateInSQL("dontCheckOnDuplicateKeyUpdateInSQL", "false", true), //
+
+    dontTrackOpenResources("dontTrackOpenResources", "false", true), //
+    dumpQueriesOnException("dumpQueriesOnException", "false", true), //
+    elideSetAutoCommits("elideSetAutoCommits", "false", true), //
+    emptyStringsConvertToZero("emptyStringsConvertToZero", "true", true), //
+
+    emulateLocators("emulateLocators", "false", true), //
+    emulateUnsupportedPstmts("emulateUnsupportedPstmts", "true", true), //
+    enabledSSLCipherSuites("enabledSSLCipherSuites", null, true), //
+    enabledTLSProtocols("enabledTLSProtocols", null, true), //
+    enableEscapeProcessing("enableEscapeProcessing", "true", true), //
+
+    enablePacketDebug("enablePacketDebug", "false", true), //
+    enableQueryTimeouts("enableQueryTimeouts", "true", true), //
+    exceptionInterceptors("exceptionInterceptors", null, true), //
+    explainSlowQueries("explainSlowQueries", "false", true), //
+
+    failOverReadOnly("failOverReadOnly", "true", true), //
+    functionsNeverReturnBlobs("functionsNeverReturnBlobs", "false", true), //
+    gatherPerfMetrics("gatherPerfMetrics", "false", true), //
+    generateSimpleParameterMetadata("generateSimpleParameterMetadata", "false", true), //
+
+    getProceduresReturnsFunctions("getProceduresReturnsFunctions", "true", true), //
+    holdResultsOpenOverStatementClose("holdResultsOpenOverStatementClose", "false", true), //
+    ha_enableJMX("ha.enableJMX", "haEnableJMX", "false", true), //
+    ha_loadBalanceStrategy("ha.loadBalanceStrategy", "haLoadBalanceStrategy", "random", true), //
+
+    ignoreNonTxTables("ignoreNonTxTables", "false", true), //
+    includeInnodbStatusInDeadlockExceptions("includeInnodbStatusInDeadlockExceptions", "false", true), //
+    includeThreadDumpInDeadlockExceptions("includeThreadDumpInDeadlockExceptions", "false", true), //
+    includeThreadNamesAsStatementComment("includeThreadNamesAsStatementComment", "false", true), //
+
+    initialTimeout("initialTimeout", "2", true), //
+    interactiveClient("interactiveClient", "false", true), //
+    jdbcCompliantTruncation("jdbcCompliantTruncation", "true", true), //
+    largeRowSizeThreshold("largeRowSizeThreshold", "2048", true), //
+
+    loadBalanceAutoCommitStatementRegex("loadBalanceAutoCommitStatementRegex", null, true), //
+    loadBalanceAutoCommitStatementThreshold("loadBalanceAutoCommitStatementThreshold", "0", true), //
+    loadBalanceBlacklistTimeout("loadBalanceBlacklistTimeout", "0", true), //
+    loadBalanceConnectionGroup("loadBalanceConnectionGroup", null, true), //
+
+    loadBalanceExceptionChecker("loadBalanceExceptionChecker", "com.mysql.cj.jdbc.ha.StandardLoadBalanceExceptionChecker", true), //
+    loadBalanceHostRemovalGracePeriod("loadBalanceHostRemovalGracePeriod", "15000", true), //
+    loadBalancePingTimeout("loadBalancePingTimeout", "0", true), //
+    loadBalanceSQLStateFailover("loadBalanceSQLStateFailover", null, true), //
+
+    loadBalanceSQLExceptionSubclassFailover("loadBalanceSQLExceptionSubclassFailover", null, true), //
+    loadBalanceValidateConnectionOnSwapServer("loadBalanceValidateConnectionOnSwapServer", "false", true), //
+    localSocketAddress("localSocketAddress", null, true), //
+    locatorFetchBufferSize("locatorFetchBufferSize", "1048576", true), //
+
+    logger("logger", "com.mysql.cj.log.StandardLogger", true), //
+    logSlowQueries("logSlowQueries", "false", true), //
+    logXaCommands("logXaCommands", "false", true), //
+    maintainTimeStats("maintainTimeStats", "true", true), //
+
+    maxAllowedPacket("maxAllowedPacket", "65535", true), //
+    maxQuerySizeToLog("maxQuerySizeToLog", "2048", true), //
+    maxReconnects("maxReconnects", "3", true), //
+    maxRows("maxRows", "-1", true), //
+
+    metadataCacheSize("metadataCacheSize", "50", true), //
+    netTimeoutForStreamingResults("netTimeoutForStreamingResults", "600", true), //
+    noAccessToProcedureBodies("noAccessToProcedureBodies", "false", true), //
+    noDatetimeStringSync("noDatetimeStringSync", "false", true), //
+
+    nullDatabaseMeansCurrent("nullDatabaseMeansCurrent", "nullCatalogMeansCurrent", "false", true), //
+    overrideSupportsIntegrityEnhancementFacility("overrideSupportsIntegrityEnhancementFacility", "false", true), //
+    packetDebugBufferSize("packetDebugBufferSize", "20", true), //
+    padCharsWithSpace("padCharsWithSpace", "false", true), //
+
+    paranoid("paranoid", "false", false), //
+    parseInfoCacheFactory("parseInfoCacheFactory", "com.mysql.cj.PerConnectionLRUFactory", true), //
+    passwordCharacterEncoding("passwordCharacterEncoding", null, true), //
+    pedantic("pedantic", "false", true), //
+
+    pinGlobalTxToPhysicalConnection("pinGlobalTxToPhysicalConnection", "false", true), //
+    populateInsertRowWithDefaultValues("populateInsertRowWithDefaultValues", "false", true), //
+    prepStmtCacheSize("prepStmtCacheSize", "25", true), //
+    prepStmtCacheSqlLimit("prepStmtCacheSqlLimit", "256", true), //
+
+    processEscapeCodesForPrepStmts("processEscapeCodesForPrepStmts", "true", true), //
+    profilerEventHandler("profilerEventHandler", "com.mysql.cj.log.LoggingProfilerEventHandler", true), //
+    profileSQL("profileSQL", "false", true), //
+    propertiesTransform("propertiesTransform", null, true), //
+
+    queriesBeforeRetryMaster("queriesBeforeRetryMaster", "50", true), //
+    queryInterceptors("queryInterceptors", null, true), //
+    queryTimeoutKillsConnection("queryTimeoutKillsConnection", "false", true), //
+    readFromMasterWhenNoSlaves("readFromMasterWhenNoSlaves", "false", true), //
+
+    readOnlyPropagatesToServer("readOnlyPropagatesToServer", "true", true), //
+    reconnectAtTxEnd("reconnectAtTxEnd", "false", true), //
+    replicationConnectionGroup("replicationConnectionGroup", null, true), //
+    reportMetricsIntervalMillis("reportMetricsIntervalMillis", "30000", true), //
+
+    requireSSL("requireSSL", "false", true), //
+    resourceId("resourceId", null, true), //
+    resultSetSizeThreshold("resultSetSizeThreshold", "100", true), //
+    retriesAllDown("retriesAllDown", "120", true), //
+
+    rewriteBatchedStatements("rewriteBatchedStatements", "false", true), //
+    rollbackOnPooledClose("rollbackOnPooledClose", "true", true), //
+    secondsBeforeRetryMaster("secondsBeforeRetryMaster", "30", true), //
+    selfDestructOnPingMaxOperations("selfDestructOnPingMaxOperations", "0", true), //
+
+    selfDestructOnPingSecondsLifetime("selfDestructOnPingSecondsLifetime", "0", true), //
+    sendFractionalSeconds("sendFractionalSeconds", "true", true), //
+    serverAffinityOrder("serverAffinityOrder", null, true), //
+    serverConfigCacheFactory("serverConfigCacheFactory", "com.mysql.cj.util.PerVmServerConfigCacheFactory", true), //
+    serverRSAPublicKeyFile("serverRSAPublicKeyFile", null, true), //
+
+    serverTimezone("serverTimezone", null, true), //
+    sessionVariables("sessionVariables", null, true), //
+    slowQueryThresholdMillis("slowQueryThresholdMillis", "2000", true), //
+    slowQueryThresholdNanos("slowQueryThresholdNanos", "0", true), //
+    socketFactory("socketFactory", "com.mysql.cj.protocol.StandardSocketFactory", true), //
+
+    socketTimeout("socketTimeout", "0", true), //
+    socksProxyHost("socksProxyHost", null, true), //
+    socksProxyPort("socksProxyPort", "1080", true), //
+    sslMode("sslMode", "PREFERRED", true), //
+
+    strictUpdates("strictUpdates", "true", true), //
+    tcpKeepAlive("tcpKeepAlive", "true", true), //
+    tcpNoDelay("tcpNoDelay", "true", true), //
+    tcpRcvBuf("tcpRcvBuf", "0", true), //
+
+    tcpSndBuf("tcpSndBuf", "0", true), //
+    tcpTrafficClass("tcpTrafficClass", "0", true), //
+    tinyInt1isBit("tinyInt1isBit", "true", true), //
+    traceProtocol("traceProtocol", "false", true), //
+
+    transformedBitIsBoolean("transformedBitIsBoolean", "false", true), //
+    treatUtilDateAsTimestamp("treatUtilDateAsTimestamp", "true", true), //
+    trustCertificateKeyStorePassword("trustCertificateKeyStorePassword", null, true), //
+    trustCertificateKeyStoreType("trustCertificateKeyStoreType", "JKS", true), //
+
+    trustCertificateKeyStoreUrl("trustCertificateKeyStoreUrl", null, true), //
+    ultraDevHack("ultraDevHack", "false", true), //
+    useAffectedRows("useAffectedRows", "false", true), //
+    useColumnNamesInFindColumn("useColumnNamesInFindColumn", "false", true), //
+
+    useCompression("useCompression", "false", true), //
+    useConfigs("useConfigs", null, true), //
+    useCursorFetch("useCursorFetch", "false", true), //
+    useHostsInPrivileges("useHostsInPrivileges", "true", true), //
+
+    useInformationSchema("useInformationSchema", "false", true), //
+    useLocalSessionState("useLocalSessionState", "false", true), //
+    useLocalTransactionState("useLocalTransactionState", "false", true), //
+    useNanosForElapsedTime("useNanosForElapsedTime", "false", true), //
+
+    useOldAliasMetadataBehavior("useOldAliasMetadataBehavior", "false", true), //
+    useOnlyServerErrorMessages("useOnlyServerErrorMessages", "true", true), //
+    useReadAheadInput("useReadAheadInput", "true", true), //
+    useServerPrepStmts("useServerPrepStmts", "false", true), //
+
+    useSSL("useSSL", "true", true), //
+    useStreamLengthsInPrepStmts("useStreamLengthsInPrepStmts", "true", true), //
+    useUnbufferedInput("useUnbufferedInput", "true", true), //
+    useUsageAdvisor("useUsageAdvisor", "false", true), //
+
+    verifyServerCertificate("verifyServerCertificate", "false", true), //
+    xdevapiAsyncResponseTimeout("xdevapi.asyncResponseTimeout", "xdevapiAsyncResponseTimeout", null, true), //
+    xdevapiAuth("xdevapi.auth", "xdevapiAuth", "PLAIN", true), //
+    xdevapiConnectTimeout("xdevapi.connect-timeout", "xdevapiConnectTimeout", "10000", true), //
+
     xdevapiConnectionAttributes("xdevapi.connection-attributes", "xdevapiConnectionAttributes", true), //
-    xdevapiCompression("xdevapi.compression", "xdevapiCompression", true), //
-    xdevapiCompressionAlgorithm("xdevapi.compression-algorithm", "xdevapiCompressionAlgorithm", true), //
-    xdevapiDnsSrv("xdevapi.dns-srv", "xdevapiDnsSrv", true), //
-    xdevapiSSLMode("xdevapi.ssl-mode", "xdevapiSSLMode", true), //
-    xdevapiTlsCiphersuites("xdevapi.tls-ciphersuites", "xdevapiTlsCiphersuites", true), //
-    xdevapiTlsVersions("xdevapi.tls-versions", "xdevapiTlsVersions", true), //
-    xdevapiSSLTrustStoreUrl("xdevapi.ssl-truststore", "xdevapiSSLTruststore", true), //
-    xdevapiSSLTrustStoreType("xdevapi.ssl-truststore-type", "xdevapiSSLTruststoreType", true), //
-    xdevapiSSLTrustStorePassword("xdevapi.ssl-truststore-password", "xdevapiSSLTruststorePassword", true), //
-    xdevapiUseAsyncProtocol("xdevapi.useAsyncProtocol", "xdevapiUseAsyncProtocol", true), //
+    xdevapiCompression("xdevapi.compression", "xdevapiCompression", "PREFERRED", true), //
+    xdevapiCompressionAlgorithm("xdevapi.compression-algorithm", "xdevapiCompressionAlgorithm", null, true), //
+    xdevapiDnsSrv("xdevapi.dns-srv", "xdevapiDnsSrv", "false", true), //
 
-    yearIsDateType("yearIsDateType", true), //
-    zeroDateTimeBehavior("zeroDateTimeBehavior", true) //
+    xdevapiSSLMode("xdevapi.ssl-mode", "xdevapiSSLMode", "REQUIRED", true), //
+    xdevapiTlsCiphersuites("xdevapi.tls-ciphersuites", "xdevapiTlsCiphersuites", null, true), //
+    xdevapiTlsVersions("xdevapi.tls-versions", "xdevapiTlsVersions", null, true), //
+    xdevapiSSLTrustStoreUrl("xdevapi.ssl-truststore", "xdevapiSSLTruststore", null, true), //
+
+    xdevapiSSLTrustStoreType("xdevapi.ssl-truststore-type", "xdevapiSSLTruststoreType", "JKS", true), //
+    xdevapiSSLTrustStorePassword("xdevapi.ssl-truststore-password", "xdevapiSSLTruststorePassword", null, true), //
+    xdevapiUseAsyncProtocol("xdevapi.useAsyncProtocol", "xdevapiUseAsyncProtocol", null, true), //
+    yearIsDateType("yearIsDateType", "true", true), //
+
+    zeroDateTimeBehavior("zeroDateTimeBehavior", "EXCEPTION", true) //
     ;
 
     private final String keyName;
     private final String ccAlias;
+    private final String defaultValue;
     private final boolean isCaseSensitive;
-
-    private final static Map<String, PropertyKey> caseInsensitiveValues = createCaseInsensitiveValuesMap();
-
-    private static Map<String, PropertyKey> createCaseInsensitiveValuesMap() {
-        Map<String, PropertyKey> map = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
-        for (PropertyKey pk : values()) {
-            if (!pk.isCaseSensitive) {
-                map.put(pk.getKeyName(), pk);
-                if (pk.ccAlias != null) {
-                    map.put(pk.getCcAlias(), pk);
-                }
-            }
-        }
-        return Collections.unmodifiableMap(map);
-    }
 
     /**
      * Initializes each enum element with the proper key name to be used in the connection string or properties maps.
@@ -258,8 +292,8 @@ public enum PropertyKey {
      * @param keyName         the key name for the enum element.
      * @param isCaseSensitive is this name case sensitive
      */
-    PropertyKey(String keyName, boolean isCaseSensitive) {
-        this(keyName, null, isCaseSensitive);
+    PropertyKey(String keyName, @Nullable String defaultValue, boolean isCaseSensitive) {
+        this(keyName, null, defaultValue, isCaseSensitive);
     }
 
     /**
@@ -269,9 +303,10 @@ public enum PropertyKey {
      * @param alias           camel-case alias key name
      * @param isCaseSensitive is this name case sensitive
      */
-    PropertyKey(String keyName, @Nullable String alias, boolean isCaseSensitive) {
+    PropertyKey(String keyName, @Nullable String alias, @Nullable String defaultValue, boolean isCaseSensitive) {
         this.keyName = keyName;
         this.ccAlias = alias;
+        this.defaultValue = defaultValue;
         this.isCaseSensitive = isCaseSensitive;
     }
 
@@ -297,6 +332,11 @@ public enum PropertyKey {
     @Nullable
     public String getCcAlias() {
         return this.ccAlias;
+    }
+
+    @Nullable
+    public String getDefaultValue() {
+        return this.defaultValue;
     }
 
     /**
@@ -332,4 +372,20 @@ public enum PropertyKey {
         return pk == null ? keyName : pk.getKeyName();
         //return keyName;
     }
+
+    private final static Map<String, PropertyKey> caseInsensitiveValues = createCaseInsensitiveValuesMap();
+
+    private static Map<String, PropertyKey> createCaseInsensitiveValuesMap() {
+        Map<String, PropertyKey> map = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
+        for (PropertyKey pk : values()) {
+            if (!pk.isCaseSensitive) {
+                map.put(pk.getKeyName(), pk);
+                if (pk.ccAlias != null) {
+                    map.put(pk.getCcAlias(), pk);
+                }
+            }
+        }
+        return Collections.unmodifiableMap(map);
+    }
+
 }

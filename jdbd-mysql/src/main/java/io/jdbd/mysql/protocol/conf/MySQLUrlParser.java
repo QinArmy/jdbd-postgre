@@ -173,7 +173,7 @@ final class MySQLUrlParser {
 
         List<HostInfo> hostList = new ArrayList<>();
 
-        for (int openingMarkIndex = 0; ; ) {
+        for (int openingMarkIndex = StringUtils.indexNonSpace(authority); openingMarkIndex > -1; ) {
             char openingMarker = authority.charAt(openingMarkIndex);
             if (openingMarker == '(') {
                 // this 'if'  block for key-value host
@@ -184,29 +184,27 @@ final class MySQLUrlParser {
                 }
                 index++; // right shift to comma or ending.
                 hostList.add(parseKeyValueHost(authority.substring(openingMarkIndex, index)));
-                if (index == len) {
+                index = StringUtils.indexNonSpace(authority, index);
+                if (index < 0) {
                     break;
                 }
-                index = StringUtils.indexNonSpace(authority, index);
                 if (authority.charAt(index) != ',') {
-                    throw new UrlException("no comma after " + authority.substring(openingMarkIndex, index)
-                            , this.originalUrl);
+                    throw createFormatException(authority.substring(openingMarkIndex, index + 1));
                 }
-                openingMarkIndex = index + 1;
-                if (openingMarkIndex == len) {
+                openingMarkIndex = StringUtils.indexNonSpace(authority, index + 1);
+                if (openingMarkIndex < len) {
                     throw createAuthorityEndWithCommaException();
                 }
             } else if (isAddressEqualsHostPrefix(authority, openingMarkIndex)) {
                 // this 'if'  block for address equals host
-                // separator is index of comma .
-                int separator = indexAddressEqualsHostSegmentEnding(authority, openingMarkIndex);
-                if (separator < 0) {
+                int commaIndex = indexAddressEqualsHostSegmentEnding(authority, openingMarkIndex);
+                if (commaIndex < 0) {
                     hostList.add(parseAddressEqualsHost(authority.substring(openingMarkIndex)));
                     break;
                 } else {
-                    hostList.add(parseAddressEqualsHost(authority.substring(openingMarkIndex, separator)));
-                    openingMarkIndex = separator + 1;
-                    if (openingMarkIndex == len) {
+                    hostList.add(parseAddressEqualsHost(authority.substring(openingMarkIndex, commaIndex)));
+                    openingMarkIndex = StringUtils.indexNonSpace(authority, commaIndex + 1);
+                    if (openingMarkIndex < 0) {
                         throw createAuthorityEndWithCommaException();
                     }
                 }
@@ -214,23 +212,23 @@ final class MySQLUrlParser {
                 throw createFormatException(authority.substring(openingMarkIndex == 0 ? 0 : openingMarkIndex - 1));
             } else {
                 // this 'else'  block for host-port host
-                int separator = -1;
+                int commaIndex = -1;
                 for (int i = openingMarkIndex + 1; i < len; i++) {
                     char ch = authority.charAt(i);
                     if (ch == ',') {
-                        separator = i;
+                        commaIndex = i;
                         break;
                     } else if (markList.contains(ch)) {
                         throw createFormatException(authority.substring(openingMarkIndex, i + 1));
                     }
                 }
-                if (separator < 0) {
+                if (commaIndex < 0) {
                     hostList.add(parseHostPortHost(authority.substring(openingMarkIndex)));
                     break;
                 } else {
-                    hostList.add(parseHostPortHost(authority.substring(openingMarkIndex, separator)));
-                    openingMarkIndex = separator + 1;
-                    if (openingMarkIndex == len) {
+                    hostList.add(parseHostPortHost(authority.substring(openingMarkIndex, commaIndex)));
+                    openingMarkIndex = StringUtils.indexNonSpace(authority, commaIndex + 1);
+                    if (openingMarkIndex < 0) {
                         throw createAuthorityEndWithCommaException();
                     }
                 }
@@ -364,7 +362,7 @@ final class MySQLUrlParser {
      * @param openingMark index of address-equals host prefix{@code pattern 'address\s*=\s*('}
      */
     private int indexAddressEqualsHostSegmentEnding(final String authority, final int openingMark) {
-        int prefixEndIndex = authority.indexOf('(', openingMark);
+        final int prefixEndIndex = authority.indexOf('(', openingMark);
         if (prefixEndIndex < 0) {
             throw new IllegalArgumentException("openingMark isn't address-equals host prefix index.");
         }

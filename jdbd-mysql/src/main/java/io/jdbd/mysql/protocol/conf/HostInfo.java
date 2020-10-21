@@ -2,8 +2,6 @@ package io.jdbd.mysql.protocol.conf;
 
 
 import io.jdbd.mysql.util.StringUtils;
-import org.qinarmy.env.Environment;
-import org.qinarmy.env.ImmutableMapEnvironment;
 import reactor.util.annotation.Nullable;
 
 import java.util.Collections;
@@ -12,7 +10,6 @@ import java.util.StringJoiner;
 
 public final class HostInfo {
 
-    public static final int NO_PORT = -1;
     private static final String HOST_PORT_SEPARATOR = ":";
 
     private final String originalUrl;
@@ -22,7 +19,7 @@ public final class HostInfo {
 
     private final String password;
     private final boolean isPasswordLess;
-    private final Environment environment;
+    private final Properties properties;
 
     HostInfo(String originalUrl, String user, @Nullable String password) {
         this(originalUrl, MySQLUrl.DEFAULT_HOST, MySQLUrl.DEFAULT_PORT, user, password, Collections.emptyMap());
@@ -42,8 +39,7 @@ public final class HostInfo {
 
         this.password = password;
         this.isPasswordLess = password == null;
-        this.environment = new ImmutableMapEnvironment(
-                hostProperties.isEmpty() ? Collections.emptyMap() : hostProperties);
+        this.properties = ImmutableMapProperties.getInstance(hostProperties);
     }
 
     @Override
@@ -55,7 +51,7 @@ public final class HostInfo {
                 // .add("user='" + user + "'")
                 // .add("password='" + password + "'")
                 .add("isPasswordLess=" + isPasswordLess)
-                .add("environment=" + environment)
+                .add("properties=" + properties)
                 .toString();
     }
 
@@ -87,7 +83,7 @@ public final class HostInfo {
         return this.isPasswordLess;
     }
 
-    public Environment getEnvironment() {
-        return this.environment;
+    public Properties getProperties() {
+        return this.properties;
     }
 }

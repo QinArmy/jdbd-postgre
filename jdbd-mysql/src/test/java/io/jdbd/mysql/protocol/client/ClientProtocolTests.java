@@ -74,7 +74,7 @@ public class ClientProtocolTests {
         return connection.inbound().receive()
                 .bufferUntil(byteBuf -> {
                     if (len.get() < 0) {
-                        len.set(DataTypeUtils.getInt3(byteBuf, 0));
+                        len.set(PacketUtils.getInt3(byteBuf, 0));
                     }
                     return actualLen.addAndGet(byteBuf.readableBytes()) >= len.get();
                 })
@@ -94,10 +94,10 @@ public class ClientProtocolTests {
     private HandshakeV10Packet handleHandShakes(ByteBuf byteBuf) {
         LOG.info("cap:{}", byteBuf.capacity());
         LOG.info("readable bytes:{}", byteBuf.readableBytes());
-        int payloadLen = DataTypeUtils.readInt3(byteBuf);
-        short sequenceId = DataTypeUtils.readInt1(byteBuf);
+        int payloadLen = PacketUtils.readInt3(byteBuf);
+        short sequenceId = PacketUtils.readInt1(byteBuf);
         LOG.info("payloadLen:{},sequenceId:{}", payloadLen, sequenceId);
-        short version = DataTypeUtils.readInt1(byteBuf);
+        short version = PacketUtils.readInt1(byteBuf);
         LOG.info("protocol version:{}", version);
         if (version != 10) {
             throw new RuntimeException("version error");

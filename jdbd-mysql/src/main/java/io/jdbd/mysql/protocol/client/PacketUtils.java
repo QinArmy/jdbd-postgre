@@ -1,18 +1,24 @@
 package io.jdbd.mysql.protocol.client;
 
-import com.oracle.tools.packager.Log;
 import io.netty.buffer.ByteBuf;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import reactor.netty.Connection;
+import reactor.util.annotation.Nullable;
 
 import java.math.BigInteger;
+import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
 
-public abstract class DataTypeUtils {
+public abstract class PacketUtils {
 
-    private static final Logger LOG = LoggerFactory.getLogger(DataTypeUtils.class);
+    private static final Logger LOG = LoggerFactory.getLogger(PacketUtils.class);
 
     public static final long NULL_LENGTH = -1;
+
+    public static final int HEADER_SIZE = 4;
+
+    public static final byte BYTE_ZERO = 0;
 
 
     public static short readInt1(ByteBuf byteBuf) {
@@ -184,6 +190,25 @@ public abstract class DataTypeUtils {
         return new String(bytes, charset);
     }
 
+    /**
+     * Protocol::NulTerminatedString
+     * Strings that are terminated by a [00] byte.
+     */
+    public static String readStringTerm(ByteBuffer byteBuffer, Charset charset) {
+        int index = byteBuffer.position();
+        final int end = byteBuffer.limit();
+        while (index < end && byteBuffer.get(index) != 0) {
+            index++;
+        }
+        if (index >= end) {
+            throw new IndexOutOfBoundsException(String.format("not found [00] byte,index:%s,writerIndex:%s", index, end));
+        }
+        byte[] bytes = new byte[index - byteBuffer.remaining()];
+        byteBuffer.get(bytes);
+        byteBuffer.get();// skip terminating byte
+        return new String(bytes, charset);
+    }
+
     public static String readStringFixed(ByteBuf byteBuf, int len, Charset charset) {
         byte[] bytes = new byte[len];
         byteBuf.readBytes(bytes);
@@ -204,6 +229,7 @@ public abstract class DataTypeUtils {
      * A length encoded string is a string that is prefixed with length encoded integer describing the length of the string.
      * It is a special case of Protocol::VariableLengthString
      */
+    @Nullable
     public static String readStringLenEnc(ByteBuf byteBuf, Charset charset) {
         long len = readLenEnc(byteBuf);
         LOG.info("lenEnc:{},readable bytes:{}", len, byteBuf.readableBytes());
@@ -218,10 +244,40 @@ public abstract class DataTypeUtils {
         return str;
     }
 
+    public static ByteBuf createPacketBuffer(Connection connection, int payloadCapacity) {
+        ByteBuf packetBuffer = connection.outbound().alloc().buffer(HEADER_SIZE + payloadCapacity);
+        // reserve header 4 bytes.
+        packetBuffer.writeZero(HEADER_SIZE);
+        return packetBuffer;
+    }
+
+    public static ByteBuf createEmptyPacket(Connection connection) {
+        ByteBuf packetBuffer = connection.outbound().alloc().buffer(HEADER_SIZE + 1);
+        // reserve header 4 bytes.
+        writeInt3(packetBuffer, 1);
+        packetBuffer.writeZero(2);
+        return packetBuffer;
+    }
+
+    public static void writeFinish(ByteBuf packetBuffer) {
+        writeFinish(packetBuffer, 0);
+    }
+
+    public static void writeFinish(ByteBuf packetBuffer, final int sequenceId) {
+        int payloadLength = packetBuffer.readableBytes() - HEADER_SIZE;
+        if (payloadLength > ClientProtocol.MAX_PACKET_SIZE) {
+            throw new IllegalArgumentException(
+                    String.format("byteBuffer payload greater than %s.", ClientProtocol.MAX_PACKET_SIZE));
+        }
+        writeInt3(packetBuffer, payloadLength);
+        writeInt1(packetBuffer, sequenceId);
+    }
+
     public static IndexOutOfBoundsException createIndexOutOfBoundsException(int readableBytes, int needBytes) {
         return new IndexOutOfBoundsException(
                 String.format("need %s bytes but readable %s bytes", needBytes, readableBytes));
     }
+
 
     public static BigInteger convertInt8ToBigInteger(long int8) {
         BigInteger bigInteger;
@@ -235,6 +291,28 @@ public abstract class DataTypeUtils {
             bigInteger = BigInteger.valueOf(int8);
         }
         return bigInteger;
+    }
+
+    public static void writeInt1(ByteBuf byteBuffer, final int int1) {
+        byteBuffer.writeByte(int1);
+    }
+
+    public static void writeInt3(ByteBuf byteBuffer, final int int3) {
+        byteBuffer.writeByte(int3);
+        byteBuffer.writeByte((int3 >> 8));
+        byteBuffer.writeByte((int3 >> 16));
+    }
+
+    public static void writeInt4(ByteBuf byteBuffer, final int int4) {
+        byteBuffer.writeByte(int4);
+        byteBuffer.writeByte((int4 >> 8));
+        byteBuffer.writeByte((int4 >> 16));
+        byteBuffer.writeByte((int4 >> 24));
+    }
+
+    public static void writeStringTerm(ByteBuf byteBuffer, byte[] stringBytes) {
+        byteBuffer.writeBytes(stringBytes);
+        byteBuffer.writeZero(1);
     }
 
     public static byte[] convertInt8ToMySQLBytes(long int8) {

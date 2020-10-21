@@ -1,6 +1,6 @@
 package io.jdbd.mysql.protocol;
 
-import io.jdbd.mysql.protocol.client.DataTypeUtils;
+import io.jdbd.mysql.protocol.client.PacketUtils;
 import io.netty.buffer.ByteBuf;
 
 import java.nio.charset.StandardCharsets;
@@ -18,13 +18,13 @@ public final class ErrorPacket implements MySQLPacket {
      * </p>
      */
     public static ErrorPacket readPacket(ByteBuf byteBuf) {
-        int payloadLength = DataTypeUtils.readInt3(byteBuf);
+        int payloadLength = PacketUtils.readInt3(byteBuf);
 
-        if (DataTypeUtils.readInt1(byteBuf) != ERROR_PACKET_TYPE) {
+        if (PacketUtils.readInt1(byteBuf) != ERROR_PACKET_TYPE) {
             throw new IllegalArgumentException("byteBuf isn't error packet.");
         }
-        return new ErrorPacket(DataTypeUtils.readInt2(byteBuf)
-                , DataTypeUtils.readStringEof(byteBuf,payloadLength, StandardCharsets.US_ASCII));
+        return new ErrorPacket(PacketUtils.readInt2(byteBuf)
+                , PacketUtils.readStringEof(byteBuf, payloadLength, StandardCharsets.US_ASCII));
     }
 
     private final int errorCode;
@@ -45,7 +45,7 @@ public final class ErrorPacket implements MySQLPacket {
     }
 
     public static boolean isErrorPacket(ByteBuf byteBuf) {
-        return DataTypeUtils.getInt1(byteBuf, 4) == ERROR_PACKET_TYPE;
+        return PacketUtils.getInt1(byteBuf, 4) == ERROR_PACKET_TYPE;
     }
 
 }

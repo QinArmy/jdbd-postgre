@@ -14,8 +14,8 @@ public class UrlException extends JdbdRuntimeException{
         this.url = url;
     }
 
-    public UrlException(String message, Throwable cause
-            , boolean enableSuppression, boolean writableStackTrace, String url) {
+    public UrlException(String message, Throwable cause, boolean enableSuppression
+            , boolean writableStackTrace, String url) {
         super(message, cause, enableSuppression, writableStackTrace);
         this.url = url;
     }

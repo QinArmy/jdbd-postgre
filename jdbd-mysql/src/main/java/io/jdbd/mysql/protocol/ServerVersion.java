@@ -2,6 +2,8 @@ package io.jdbd.mysql.protocol;
 
 public final class ServerVersion implements Comparable<ServerVersion> {
 
+    private static final ServerVersion MIN_VERSION = new ServerVersion("0.0.0", 0, 0, 0);
+
     private final String completeVersion;
     private final int major;
     private final int minor;
@@ -73,6 +75,7 @@ public final class ServerVersion implements Comparable<ServerVersion> {
         return this.subMinor;
     }
 
+
     /**
      * Parse the server version into major/minor/subminor.
      *
@@ -101,4 +104,13 @@ public final class ServerVersion implements Comparable<ServerVersion> {
         }
         throw new IllegalArgumentException("versionString error");
     }
+
+    public static ServerVersion getMinVersion() {
+        return MIN_VERSION;
+    }
+
+    public static ServerVersion getInstance(int major, int minor, int subMinor) {
+        return new ServerVersion(major + "." + minor + "." + subMinor, major, minor, subMinor);
+    }
+
 }

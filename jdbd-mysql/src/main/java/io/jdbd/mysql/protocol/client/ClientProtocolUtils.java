@@ -12,14 +12,14 @@ abstract class ClientProtocolUtils extends ProtocolUtils {
 
     static PacketHeader getHeader(ByteBuf byteBuf) {
         int index = byteBuf.readerIndex();
-        return new PacketHeader(DataTypeUtils.getInt3(byteBuf, index)
-                , DataTypeUtils.getInt1(byteBuf, index + 3));
+        return new PacketHeader(PacketUtils.getInt3(byteBuf, index)
+                , PacketUtils.getInt1(byteBuf, index + 3));
     }
 
 
      static PacketHeader readHeader(ByteBuf byteBuf) {
-        return new PacketHeader(DataTypeUtils.readInt3(byteBuf)
-                , DataTypeUtils.readInt1(byteBuf));
-    }
+         return new PacketHeader(PacketUtils.readInt3(byteBuf)
+                 , PacketUtils.readInt1(byteBuf));
+     }
 
 }
