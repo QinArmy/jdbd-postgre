@@ -19,11 +19,13 @@ final class HandshakeV10Packet extends AbstractHandshakePacket {
         // 2. sequence_id
         PacketUtils.readInt1(byteBuf);
         // below payload
-        if (PacketUtils.readInt1(byteBuf) != 10) {
+        short protocolVersion = PacketUtils.readInt1(byteBuf);
+        if (protocolVersion != 10) {
             throw new IllegalArgumentException("byteBuf isn't Handshake v10 .");
         }
         // 1. server version
-        String serveVersion = PacketUtils.readStringTerm(byteBuf, StandardCharsets.US_ASCII);
+        String serveVersionText = PacketUtils.readStringTerm(byteBuf, StandardCharsets.US_ASCII);
+        ServerVersion serverVersion = ServerVersion.parseVersion(serveVersionText);
         // 2. thread id,a.k.a. connection id
         long threadId = PacketUtils.readInt4(byteBuf);
         // 3. auth-plugin-data-part-1,first 8 bytes of the plugin provided data (scramble)
@@ -66,17 +68,21 @@ final class HandshakeV10Packet extends AbstractHandshakePacket {
         // 12. auth_plugin_name,name of the auth_method that the auth_plugin_data belongs to
         String authPluginName = null;
         if ((capabilityFlags & ClientProtocol.CLIENT_PLUGIN_AUTH) != 0) {
-            //    skip for update read index
-            authPluginName = PacketUtils.readStringTerm(byteBuf, StandardCharsets.US_ASCII);
+            // Due to Bug#59453 the auth-plugin-name is missing the terminating NUL-char in versions prior to 5.5.10 and 5.6.2.
+            if (!serverVersion.meetsMinimum(5, 5, 10)
+                    || (serverVersion.meetsMinimum(5, 6, 0) && !serverVersion.meetsMinimum(5, 6, 2))) {
+                authPluginName = PacketUtils.readStringFixed(byteBuf, authPluginDataLen, StandardCharsets.US_ASCII);
+            } else {
+                authPluginName = PacketUtils.readStringTerm(byteBuf, StandardCharsets.US_ASCII);
+            }
         }
-        return new HandshakeV10Packet((short) 10, ServerVersion.parseVersion(serveVersion)
+        return new HandshakeV10Packet(protocolVersion, serverVersion
                 , threadId, authPluginDataPart1
                 , filler, capabilityFlags
                 , characterSet, statusFlags
                 , authPluginDataLen, authPluginDataPart2
                 , authPluginName);
     }
-
 
     private final String authPluginDataPart1;
 

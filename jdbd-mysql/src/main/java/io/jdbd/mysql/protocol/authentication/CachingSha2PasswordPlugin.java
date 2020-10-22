@@ -3,7 +3,7 @@ package io.jdbd.mysql.protocol.authentication;
 import io.jdbd.mysql.JdbdMySQLException;
 import io.jdbd.mysql.protocol.ProtocolAssistant;
 import io.jdbd.mysql.protocol.client.PacketUtils;
-import io.jdbd.mysql.util.StringUtils;
+import io.jdbd.mysql.protocol.conf.HostInfo;
 import io.netty.buffer.ByteBuf;
 import reactor.util.annotation.Nullable;
 
@@ -14,11 +14,16 @@ import java.util.concurrent.atomic.AtomicReference;
 
 public class CachingSha2PasswordPlugin extends Sha256PasswordPlugin {
 
+    public static CachingSha2PasswordPlugin getInstance(ProtocolAssistant protocolAssistant, HostInfo hostInfo) {
+        return new CachingSha2PasswordPlugin(protocolAssistant, hostInfo, tryLoadPublicKeyString(hostInfo));
+    }
+
 
     protected final AtomicReference<AuthStage> stage = new AtomicReference<>(AuthStage.FAST_AUTH_SEND_SCRAMBLE);
 
-    protected CachingSha2PasswordPlugin(ProtocolAssistant protocolAssistant, String publicKeyString) {
-        super(protocolAssistant, publicKeyString);
+    protected CachingSha2PasswordPlugin(ProtocolAssistant protocolAssistant
+            , HostInfo hostInfo, @Nullable String publicKeyString) {
+        super(protocolAssistant, hostInfo, publicKeyString);
     }
 
     @Override
@@ -27,29 +32,20 @@ public class CachingSha2PasswordPlugin extends Sha256PasswordPlugin {
     }
 
     @Override
-    public boolean nextAuthenticationStep(@Nullable ByteBuf fromServer, List<ByteBuf> toServer) {
-        toServer.clear();
-        final ProtocolAssistant protocolAssistant = this.protocolAssistant;
-        final String password = protocolAssistant.getMainHostInfo().getPassword();
-
-        if (StringUtils.isEmpty(password)
-                || fromServer == null
-                || !fromServer.isReadable()) {
-            toServer.add(protocolAssistant.createEmptyPacketForWrite());
-            return true;
-        }
+    protected boolean internalNextAuthenticationStep(String password, ByteBuf fromServer, List<ByteBuf> toServer) {
+        final AuthStage stage = this.stage.get();
 
         try {
-            final AuthStage stage = this.stage.get();
-
             if (stage == AuthStage.FAST_AUTH_SEND_SCRAMBLE) {
-                this.seed.set(PacketUtils.readStringTerm(fromServer, Charset.defaultCharset()));
+                // send a scramble for fast auth
+                String seedString = PacketUtils.readStringTerm(fromServer, Charset.defaultCharset());
+                this.seed.set(seedString);
+
                 byte[] passwordBytes = password.getBytes(protocolAssistant.getPasswordCharset());
-                byte[] sha2Bytes = AuthenticateUtils.scrambleCachingSha2(passwordBytes, this.seed.get().getBytes());
-
+                byte[] sha2Bytes = AuthenticateUtils.scrambleCachingSha2(passwordBytes, seedString.getBytes());
                 ByteBuf packetBuffer = protocolAssistant.createPacketBuffer(sha2Bytes.length);
+                packetBuffer.writeBytes(sha2Bytes);
                 PacketUtils.writeFinish(packetBuffer);
-
                 toServer.add(packetBuffer);
                 return true;
             } else if (stage == AuthStage.FAST_AUTH_READ_RESULT) {
@@ -64,18 +60,23 @@ public class CachingSha2PasswordPlugin extends Sha256PasswordPlugin {
                         throw new JdbdMySQLException("Unknown server response after fast auth.");
                 }
             }
-
-            if (protocolAssistant.isUseSsl()) {
-                // allow plain text over SSL
-                toServer.add(cratePlanTextPasswordPacket(password));
-            } else if (this.publicKeyString.get() != null) {
-
-            }
         } catch (DigestException e) {
-            throw new JdbdMySQLException(e, e.getMessage());
+            throw new JdbdMySQLException(e, "password encrypt failure.");
         }
 
-        return true;
+        return doNextAuthenticationStep(password, fromServer, toServer);
+    }
+
+    @Override
+    protected int getPublicKeyRetrievalPacketFlag() {
+        return 2;
+    }
+
+    @Override
+    protected byte[] encryptPassword(String password) {
+        return this.protocolAssistant.getServerVersion().meetsMinimum(8, 0, 5)
+                ? super.encryptPassword(password)
+                : super.encryptPassword(password, "RSA/ECB/PKCS1Padding");
     }
 
     /*################################## blow static inner class ##################################*/

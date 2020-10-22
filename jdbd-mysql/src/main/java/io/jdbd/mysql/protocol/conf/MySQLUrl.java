@@ -4,7 +4,6 @@ package io.jdbd.mysql.protocol.conf;
 import io.jdbd.UrlException;
 import reactor.util.annotation.Nullable;
 
-
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -58,6 +57,7 @@ public class MySQLUrl {
         return this.originalConnStr;
     }
 
+    @Nullable
     public String getOriginalDatabase() {
         return this.originalDatabase;
     }

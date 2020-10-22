@@ -5,9 +5,20 @@ import org.qinarmy.lang.Nullable;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 public interface Properties extends Environment {
+
+    /**
+     * @return actual property pair count.
+     */
+    int size();
+
+    /**
+     * @return a unmodifiable map
+     */
+    Map<String, String> getSource();
 
     /**
      * Return the property value associated with the given key,
@@ -31,6 +42,17 @@ public interface Properties extends Environment {
      */
     @Nullable
     <T> T getProperty(PropertyKey key, Class<T> targetType);
+
+    /**
+     * Return the property value associated with the given key,but not {@link String} ,the the property value showSQL:
+     * {@code value1,value2,...,valuen}
+     * or empty list the key cannot be resolved.
+     *
+     * @param key the property name to resolve
+     * @return a  list
+     * @see #getRequiredProperty(String, Class)
+     */
+    List<String> getPropertyList(PropertyKey key);
 
     /**
      * Return the property value associated with the given key,but not {@link String} ,the the property value showSQL:
@@ -67,6 +89,8 @@ public interface Properties extends Environment {
      * @see #getRequiredProperty(String, Class)
      */
     <T> Set<T> getPropertySet(PropertyKey key, Class<T> targetArrayType);
+
+    Set<String> getPropertySet(PropertyKey key);
 
     /**
      * Return the property value associated with the given key,but not {@link String} ,the the property value showSQL:

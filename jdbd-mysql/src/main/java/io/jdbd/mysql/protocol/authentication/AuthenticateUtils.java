@@ -1,11 +1,17 @@
 package io.jdbd.mysql.protocol.authentication;
 
-import com.mysql.cj.exceptions.AssertionFailedException;
+
+import io.jdbd.mysql.JdbdMySQLException;
 
 import java.security.DigestException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 
+/**
+ * <p>
+ * see {@code com.mysql.cj.protocol.Security}
+ * </p>
+ */
 abstract class AuthenticateUtils {
 
     protected AuthenticateUtils() {
@@ -14,6 +20,7 @@ abstract class AuthenticateUtils {
 
 
     private static final int CACHING_SHA2_DIGEST_LENGTH = 32;
+
 
     /**
      * Encrypt/Decrypt function used for password encryption in authentication
@@ -33,6 +40,54 @@ abstract class AuthenticateUtils {
             to[pos] = (byte) (from[pos] ^ scramble[pos % scrambleLength]);
             pos++;
         }
+    }
+
+    /**
+     * Hashing for MySQL-4.1 authentication. Algorithm is as follows (c.f. <i>sql/auth/password.c</i>):
+     *
+     * <pre>
+     * SERVER: public_seed=create_random_string()
+     * send(public_seed)
+     *
+     * CLIENT: recv(public_seed)
+     * hash_stage1=sha1("password")
+     * hash_stage2=sha1(hash_stage1)
+     * reply=xor(hash_stage1, sha1(public_seed,hash_stage2))
+     * send(reply)
+     * </pre>
+     *
+     * @param password password
+     * @param seed     seed
+     * @return bytes
+     */
+    public static byte[] scramble411(byte[] password, byte[] seed) {
+        MessageDigest md;
+        try {
+            md = MessageDigest.getInstance("SHA-1");
+        } catch (NoSuchAlgorithmException ex) {
+            //@see https://docs.oracle.com/javase/8/docs/technotes/guides/security/StandardNames.html#MessageDigest
+            // never here
+            throw new JdbdMySQLException(ex, "scramble411 Algorithm error.");
+        }
+
+        byte[] passwordHashStage1 = md.digest(password);
+        md.reset();
+
+        byte[] passwordHashStage2 = md.digest(passwordHashStage1);
+        md.reset();
+
+        md.update(seed);
+        md.update(passwordHashStage2);
+
+        byte[] toBeXord = md.digest();
+
+        int numToXor = toBeXord.length;
+
+        for (int i = 0; i < numToXor; i++) {
+            toBeXord[i] = (byte) (toBeXord[i] ^ passwordHashStage1[i]);
+        }
+
+        return toBeXord;
     }
 
 
@@ -61,7 +116,9 @@ abstract class AuthenticateUtils {
         try {
             md = MessageDigest.getInstance("SHA-256");
         } catch (NoSuchAlgorithmException ex) {
-            throw new AssertionFailedException(ex);
+            //@see https://docs.oracle.com/javase/8/docs/technotes/guides/security/StandardNames.html#MessageDigest
+            // never here
+            throw new JdbdMySQLException(ex, "scrambleCachingSha2 Algorithm error.");
         }
 
         byte[] dig1 = new byte[CACHING_SHA2_DIGEST_LENGTH];

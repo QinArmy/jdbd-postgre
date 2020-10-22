@@ -14,7 +14,7 @@ public interface ClientProtocol {
     int SERVER_QUERY_NO_INDEX_USED = 32;
     int SERVER_STATUS_CURSOR_EXISTS = 64;
     int SERVER_STATUS_LAST_ROW_SENT = 128; // The server status for 'last-row-sent'
-    int SERVER_QUERY_WAS_SLOW = 2048;
+    int SERVER_QUERY_WAS_SLOW = 1 << 11;
 
     int CLIENT_LONG_PASSWORD = 0x00000001; /* new more secure passwords */
     int CLIENT_FOUND_ROWS = 0x00000002;

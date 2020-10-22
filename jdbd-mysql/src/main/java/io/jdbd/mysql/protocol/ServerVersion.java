@@ -17,21 +17,12 @@ public final class ServerVersion implements Comparable<ServerVersion> {
     }
 
     public int compareTo(ServerVersion other) {
-        int c;
-        if ((c = Integer.compare(this.major, other.major)) != 0) {
-            return c;
-        } else if ((c = Integer.compare(this.minor, other.minor)) != 0) {
-            return c;
-        }
-        return Integer.compare(this.subMinor, other.subMinor);
+        return doCompareTo(other.major, other.minor, other.subMinor);
     }
 
     @Override
     public String toString() {
-        if (this.completeVersion != null) {
-            return this.completeVersion;
-        }
-        return String.format("%d.%d.%d", this.major, this.minor, this.subMinor);
+        return this.completeVersion;
     }
 
     @Override
@@ -55,7 +46,11 @@ public final class ServerVersion implements Comparable<ServerVersion> {
      * @return true if version meets the minimum specified by `min'
      */
     public boolean meetsMinimum(ServerVersion min) {
-        return compareTo(min) >= 0;
+        return doCompareTo(min.major, min.minor, min.subMinor) >= 0;
+    }
+
+    public boolean meetsMinimum(int major, int minor, int subMinor) {
+        return doCompareTo(major, minor, subMinor) >= 0;
     }
 
 
@@ -73,6 +68,16 @@ public final class ServerVersion implements Comparable<ServerVersion> {
 
     public int getSubMinor() {
         return this.subMinor;
+    }
+
+    private int doCompareTo(int major, int minor, int subMinor) {
+        int c;
+        if ((c = Integer.compare(this.major, major)) != 0) {
+            return c;
+        } else if ((c = Integer.compare(this.minor, minor)) != 0) {
+            return c;
+        }
+        return Integer.compare(this.subMinor, subMinor);
     }
 
 

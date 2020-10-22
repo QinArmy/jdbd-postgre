@@ -20,6 +20,11 @@ public abstract class PacketUtils {
 
     public static final byte BYTE_ZERO = 0;
 
+    public static final int ENC_1 = 251;
+    public static final int ENC_3 = 252;
+    public static final int ENC_4 = 253;
+    public static final int ENC_9 = 254;
+
 
     public static short readInt1(ByteBuf byteBuf) {
         return (short) (byteBuf.readByte() & 0xff);
@@ -176,6 +181,10 @@ public abstract class PacketUtils {
      * Strings that are terminated by a [00] byte.
      */
     public static String readStringTerm(ByteBuf byteBuf, Charset charset) {
+        return new String(readStringTermBytes(byteBuf), charset);
+    }
+
+    public static byte[] readStringTermBytes(ByteBuf byteBuf) {
         int index = byteBuf.readerIndex();
         int end = byteBuf.writerIndex();
         while ((index < end) && (byteBuf.getByte(index) != 0)) {
@@ -187,7 +196,7 @@ public abstract class PacketUtils {
         byte[] bytes = new byte[index - byteBuf.readerIndex()];
         byteBuf.readBytes(bytes);
         byteBuf.readByte();// skip terminating byte
-        return new String(bytes, charset);
+        return bytes;
     }
 
     /**
@@ -252,11 +261,28 @@ public abstract class PacketUtils {
     }
 
     public static ByteBuf createEmptyPacket(Connection connection) {
+        ByteBuf packetBuffer = connection.outbound().alloc().buffer(HEADER_SIZE);
+        // reserve header 4 bytes.
+        writeInt3(packetBuffer, 0);
+        packetBuffer.writeZero(1);
+        return packetBuffer.asReadOnly();
+    }
+
+    public static ByteBuf createOneSizePacket(Connection connection, int payloadByte) {
         ByteBuf packetBuffer = connection.outbound().alloc().buffer(HEADER_SIZE + 1);
         // reserve header 4 bytes.
         writeInt3(packetBuffer, 1);
-        packetBuffer.writeZero(2);
-        return packetBuffer;
+        packetBuffer.writeZero(1);
+        writeInt1(packetBuffer, payloadByte);
+        return packetBuffer.asReadOnly();
+    }
+
+    public static int getPayloadLen(ByteBuf packetBuffer) {
+        int len = packetBuffer.readableBytes() - 4;
+        if (len < 1) {
+            throw new IllegalArgumentException("packetBuffer isn't packet buffer.");
+        }
+        return len;
     }
 
     public static void writeFinish(ByteBuf packetBuffer) {
@@ -297,6 +323,11 @@ public abstract class PacketUtils {
         byteBuffer.writeByte(int1);
     }
 
+    public static void writeInt2(ByteBuf byteBuffer, final int int2) {
+        byteBuffer.writeByte(int2);
+        byteBuffer.writeByte((int2 >> 8));
+    }
+
     public static void writeInt3(ByteBuf byteBuffer, final int int3) {
         byteBuffer.writeByte(int3);
         byteBuffer.writeByte((int3 >> 8));
@@ -310,9 +341,51 @@ public abstract class PacketUtils {
         byteBuffer.writeByte((int4 >> 24));
     }
 
+    public static void writeInt8(ByteBuf byteBuffer, final long int8) {
+        byteBuffer.writeByte((byte) int8);
+        byteBuffer.writeByte((byte) (int8 >> 8));
+        byteBuffer.writeByte((byte) (int8 >> 16));
+        byteBuffer.writeByte((byte) (int8 >> 24));
+
+        byteBuffer.writeByte((byte) (int8 >> 32));
+        byteBuffer.writeByte((byte) (int8 >> 40));
+        byteBuffer.writeByte((byte) (int8 >> 42));
+        byteBuffer.writeByte((byte) (int8 >> 56));
+    }
+
+    public static void writeIntLenEnc(ByteBuf packetBuffer, final int intLenEnc) {
+        writeIntLenEnc(packetBuffer, intLenEnc & 0xffff_ffffL);
+    }
+
+    public static void writeIntLenEnc(ByteBuf packetBuffer, final long intLenEnc) {
+        if (intLenEnc >= 0 && intLenEnc < ENC_1) {
+            writeInt1(packetBuffer, (int) intLenEnc);
+        } else if (intLenEnc >= ENC_1 && intLenEnc < (1 << 16)) {
+            writeInt1(packetBuffer, ENC_3);
+            writeInt2(packetBuffer, (int) intLenEnc);
+        } else if (intLenEnc >= (1 << 16) && intLenEnc < (1 << 24)) {
+            writeInt1(packetBuffer, ENC_4);
+            writeInt3(packetBuffer, (int) intLenEnc);
+        } else {
+            // intLenEnc < 0 || intLenEnc >=  (1 << 24)
+            writeInt1(packetBuffer, ENC_9);
+            writeInt8(packetBuffer, intLenEnc);
+        }
+    }
+
     public static void writeStringTerm(ByteBuf byteBuffer, byte[] stringBytes) {
         byteBuffer.writeBytes(stringBytes);
         byteBuffer.writeZero(1);
+    }
+
+    public static void writeStringLenEnc(ByteBuf packetBuffer, ByteBuf stringBuffer) {
+        writeIntLenEnc(packetBuffer, stringBuffer.readableBytes());
+        packetBuffer.writeBytes(stringBuffer);
+    }
+
+    public static void writeStringLenEnc(ByteBuf packetBuffer, byte[] stringBytes) {
+        writeIntLenEnc(packetBuffer, stringBytes.length);
+        packetBuffer.writeBytes(stringBytes);
     }
 
     public static byte[] convertInt8ToMySQLBytes(long int8) {

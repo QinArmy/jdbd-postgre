@@ -18,6 +18,16 @@ public final class ImmutableMapProperties extends ImmutableMapEnvironment implem
         super(source);
     }
 
+    @Override
+    public int size() {
+        return this.source.size();
+    }
+
+    @Override
+    public Map<String, String> getSource() {
+        return this.source;
+    }
+
 
     @Override
     public String getProperty(PropertyKey key) {
@@ -39,6 +49,11 @@ public final class ImmutableMapProperties extends ImmutableMapEnvironment implem
             }
         }
         return value;
+    }
+
+    @Override
+    public List<String> getPropertyList(PropertyKey key) {
+        return getPropertyList(key, String.class);
     }
 
     @Override
@@ -82,6 +97,11 @@ public final class ImmutableMapProperties extends ImmutableMapEnvironment implem
             }
         }
         return valueSet;
+    }
+
+    @Override
+    public Set<String> getPropertySet(PropertyKey key) {
+        return getPropertySet(key, String.class);
     }
 
     @Override
