@@ -1,25 +1,11 @@
 package io.jdbd.mysql.protocol.authentication;
 
 import io.netty.buffer.ByteBuf;
-import reactor.util.annotation.Nullable;
 
 import java.util.List;
 
 public interface AuthenticationPlugin {
 
-    /**
-     * Resets the authentication steps sequence.
-     */
-    default void reset() {
-    }
-
-    /**
-     * Called by the driver when this extension should release any resources
-     * it is holding and cleanup internally before the connection is
-     * closed.
-     */
-    default void destroy() {
-    }
 
     /**
      * Returns the name that the MySQL server uses on
@@ -53,10 +39,9 @@ public interface AuthenticationPlugin {
      *
      * @param fromServer a buffer( reserved header) containing handshake data payload from
      *                   server (can be empty).
-     * @param toServer   a modifiable list of buffers with data to be sent to the server
-     *                   (the list can be empty, but buffers in the list
      *                   should contain data).
-     * @return return value is ignored.
+     * @return a unmodifiable list,element is read-only, empty :authentication finish.
      */
-    boolean nextAuthenticationStep(@Nullable ByteBuf fromServer, List<ByteBuf> toServer);
+    List<ByteBuf> nextAuthenticationStep(ByteBuf fromServer);
+
 }

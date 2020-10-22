@@ -15,17 +15,17 @@ public interface ProtocolAssistant {
 
     boolean isUseSsl();
 
-    ByteBuf createPacketBuffer(int initialPayloadCapacity);
+    ByteBuf createPayloadBuffer(int initialPayloadCapacity);
 
     /**
      * @return read-only buffer ,payload length is 1 .
      */
-    ByteBuf createOneSizePacketForWrite(int payloadByte);
+    ByteBuf createOneSizePayload(int payloadByte);
 
     /**
      * @return read-only buffer ,payload length is 0 .
      */
-    ByteBuf createEmptyPacketForWrite();
+    ByteBuf createEmptyPayload();
 
     ServerVersion getServerVersion();
 

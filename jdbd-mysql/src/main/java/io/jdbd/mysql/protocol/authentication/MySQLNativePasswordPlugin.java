@@ -5,8 +5,8 @@ import io.jdbd.mysql.protocol.client.PacketUtils;
 import io.jdbd.mysql.protocol.conf.HostInfo;
 import io.jdbd.mysql.util.StringUtils;
 import io.netty.buffer.ByteBuf;
-import reactor.util.annotation.Nullable;
 
+import java.util.Collections;
 import java.util.List;
 
 public class MySQLNativePasswordPlugin implements AuthenticationPlugin {
@@ -35,24 +35,22 @@ public class MySQLNativePasswordPlugin implements AuthenticationPlugin {
     }
 
     @Override
-    public boolean nextAuthenticationStep(@Nullable ByteBuf fromServer, List<ByteBuf> toServer) {
-        toServer.clear();
+    public List<ByteBuf> nextAuthenticationStep(ByteBuf fromServer) {
         String password = this.hostInfo.getPassword();
 
-        ByteBuf packetBuffer;
-        if (fromServer == null || StringUtils.isEmpty(password)) {
-            packetBuffer = this.protocolAssistant.createEmptyPacketForWrite();
+        ByteBuf payloadBuf;
+        if (StringUtils.isEmpty(password)) {
+            payloadBuf = this.protocolAssistant.createEmptyPayload();
         } else {
             byte[] passwordBytes = password.getBytes(this.protocolAssistant.getPasswordCharset());
             byte[] seed = PacketUtils.readStringTermBytes(fromServer);
             byte[] scrambleBytes = AuthenticateUtils.scramble411(passwordBytes, seed);
 
-            packetBuffer = this.protocolAssistant.createPacketBuffer(scrambleBytes.length);
-            packetBuffer.writeBytes(scrambleBytes);
-            PacketUtils.writeFinish(packetBuffer);
+            payloadBuf = this.protocolAssistant.createPayloadBuffer(scrambleBytes.length);
+            payloadBuf.writeBytes(scrambleBytes);
+            PacketUtils.writeFinish(payloadBuf);
         }
-        toServer.add(packetBuffer);
-        return true;
+        return Collections.singletonList(payloadBuf);
     }
 
 

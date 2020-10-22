@@ -86,7 +86,7 @@ public enum PropertyKey {
     createDatabaseIfNotExist("createDatabaseIfNotExist", "false", true), //
 
     databaseTerm("databaseTerm", "CATALOG", true), //
-    defaultAuthenticationPlugin("defaultAuthenticationPlugin", "com.mysql.cj.protocol.a.authentication.MysqlNativePasswordPlugin", true), //
+    defaultAuthenticationPlugin("defaultAuthenticationPlugin", "mysql_native_password", true), //
     defaultFetchSize("defaultFetchSize", "0", true), //
     detectCustomCollations("detectCustomCollations", "false", true), //
 

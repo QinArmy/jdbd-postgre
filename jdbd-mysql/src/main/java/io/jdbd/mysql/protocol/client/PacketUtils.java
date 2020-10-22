@@ -253,6 +253,7 @@ public abstract class PacketUtils {
         return str;
     }
 
+    @Deprecated
     public static ByteBuf createPacketBuffer(Connection connection, int payloadCapacity) {
         ByteBuf packetBuffer = connection.outbound().alloc().buffer(HEADER_SIZE + payloadCapacity);
         // reserve header 4 bytes.
@@ -260,6 +261,7 @@ public abstract class PacketUtils {
         return packetBuffer;
     }
 
+    @Deprecated
     public static ByteBuf createEmptyPacket(Connection connection) {
         ByteBuf packetBuffer = connection.outbound().alloc().buffer(HEADER_SIZE);
         // reserve header 4 bytes.
@@ -268,6 +270,7 @@ public abstract class PacketUtils {
         return packetBuffer.asReadOnly();
     }
 
+    @Deprecated
     public static ByteBuf createOneSizePacket(Connection connection, int payloadByte) {
         ByteBuf packetBuffer = connection.outbound().alloc().buffer(HEADER_SIZE + 1);
         // reserve header 4 bytes.

@@ -148,18 +148,20 @@ public final class ClientProtocolImpl implements ClientProtocol, ProtocolAssista
     }
 
     @Override
-    public ByteBuf createPacketBuffer(int initialPayloadCapacity) {
-        return PacketUtils.createPacketBuffer(this.connection, initialPayloadCapacity);
+    public ByteBuf createPayloadBuffer(int initialPayloadCapacity) {
+        return this.connection.outbound().alloc().buffer(initialPayloadCapacity);
     }
 
     @Override
-    public ByteBuf createOneSizePacketForWrite(int payloadByte) {
-        return PacketUtils.createOneSizePacket(this.connection, payloadByte);
+    public ByteBuf createOneSizePayload(int payloadByte) {
+        return this.connection.outbound().alloc().buffer(1)
+                .writeByte(payloadByte)
+                .asReadOnly();
     }
 
     @Override
-    public ByteBuf createEmptyPacketForWrite() {
-        return PacketUtils.createEmptyPacket(this.connection);
+    public ByteBuf createEmptyPayload() {
+        return this.connection.outbound().alloc().buffer(0).asReadOnly();
     }
 
     @Override
@@ -219,13 +221,14 @@ public final class ClientProtocolImpl implements ClientProtocol, ProtocolAssista
     }
 
     /**
+     * @return read-only {@link ByteBuf}
      * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_connection_phase_packets_protocol_handshake_response.html#sect_protocol_connection_phase_packets_protocol_handshake_response41">Protocol::HandshakeResponse41</a>
      */
     private Mono<ByteBuf> createHandshakeResponse41() {
         final Charset clientCharset = this.clientCharset;
         final int clientFlag = getClientFlat();
 
-        final ByteBuf packetBuffer = PacketUtils.createPacketBuffer(this.connection, 1024);
+        final ByteBuf packetBuffer = createPayloadBuffer(1024);
 
         // 1. client_flag,Capabilities Flags, CLIENT_PROTOCOL_41 always set.
         PacketUtils.writeInt4(packetBuffer, clientFlag);
@@ -242,7 +245,7 @@ public final class ClientProtocolImpl implements ClientProtocol, ProtocolAssista
         PacketUtils.writeStringTerm(packetBuffer, user.getBytes(clientCharset));
 
         // 6. auth_response or (auth_response_length and auth_response)
-        Pair<ByteBuf, String> authenticatePair = createAuthenticationPair();
+        Pair<ByteBuf, AuthenticationPlugin> authenticatePair = createAuthenticationPair();
         if ((clientFlag & CLIENT_PLUGIN_AUTH_LENENC_CLIENT_DATA) != 0) {
             PacketUtils.writeStringLenEnc(packetBuffer, authenticatePair.getFirst());
         } else {
@@ -261,7 +264,8 @@ public final class ClientProtocolImpl implements ClientProtocol, ProtocolAssista
         }
         // 8. client_plugin_name
         if ((clientFlag & CLIENT_PLUGIN_AUTH) != 0) {
-            PacketUtils.writeStringTerm(packetBuffer, authenticatePair.getSecond().getBytes(clientCharset));
+            String pluginName = authenticatePair.getSecond().getProtocolPluginName();
+            PacketUtils.writeStringTerm(packetBuffer, pluginName.getBytes(clientCharset));
         }
         // 9. client connection attributes
         if ((clientFlag & CLIENT_CONNECT_ATTRS) != 0) {
@@ -278,7 +282,7 @@ public final class ClientProtocolImpl implements ClientProtocol, ProtocolAssista
         }
         //TODO 10.zstd_compression_level,compression level for zstd compression algorithm
 
-        return Mono.just(packetBuffer);
+        return Mono.just(packetBuffer.asReadOnly());
     }
 
     private Mono<Void> sendPacket(ByteBuf packetBuffer) {
@@ -358,11 +362,21 @@ public final class ClientProtocolImpl implements ClientProtocol, ProtocolAssista
         return this.mySQLUrl.getHosts().get(0);
     }
 
-    private Pair<ByteBuf, String> createAuthenticationPair() {
-        return null;
+    private Pair<ByteBuf, AuthenticationPlugin> createAuthenticationPair() {
+        Pair<AuthenticationPlugin, Boolean> pluginPair = obtainAuthenticationPlugin();
+        AuthenticationPlugin plugin = pluginPair.getFirst();
+
+        ByteBuf payloadBuf;
+        if (pluginPair.getSecond()) {
+            // skip password
+            payloadBuf = createOneSizePayload(0);
+        } else {
+
+        }
+        return new Pair<>(payloadBuf, plugin);
     }
 
-    private AuthenticationPlugin obtainAuthenticationPlugin() {
+    private Pair<AuthenticationPlugin, Boolean> obtainAuthenticationPlugin() {
         Map<String, AuthenticationPlugin> pluginMap = loadAuthenticationPluginMap();
 
         Properties properties = this.properties;
@@ -391,7 +405,7 @@ public final class ClientProtocolImpl implements ClientProtocol, ProtocolAssista
         if (plugin.requiresConfidentiality() && !useSsl) {
             throw new JdbdMySQLException("AuthenticationPlugin[%s] required SSL", plugin.getClass().getName());
         }
-        return plugin;
+        return new Pair<>(plugin, skipPassword);
     }
 
 

@@ -4,10 +4,10 @@ import io.jdbd.mysql.protocol.ProtocolAssistant;
 import io.jdbd.mysql.protocol.client.PacketUtils;
 import io.jdbd.mysql.protocol.conf.HostInfo;
 import io.netty.buffer.ByteBuf;
-import reactor.util.annotation.Nullable;
 
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
+import java.util.Collections;
 import java.util.List;
 
 public class MySQLClearPasswordPlugin implements AuthenticationPlugin {
@@ -36,8 +36,7 @@ public class MySQLClearPasswordPlugin implements AuthenticationPlugin {
     }
 
     @Override
-    public boolean nextAuthenticationStep(@Nullable ByteBuf fromServer, List<ByteBuf> toServer) {
-        toServer.clear();
+    public List<ByteBuf> nextAuthenticationStep(ByteBuf fromServer) {
 
         ProtocolAssistant protocolAssistant = this.protocolAssistant;
         Charset passwordCharset = protocolAssistant.getServerVersion().meetsMinimum(5, 7, 6)
@@ -48,12 +47,11 @@ public class MySQLClearPasswordPlugin implements AuthenticationPlugin {
                 ? "".getBytes(passwordCharset)
                 : password.getBytes(passwordCharset);
 
-        ByteBuf packetBuffer = protocolAssistant.createPacketBuffer(passwordBytes.length + 1);
-        PacketUtils.writeStringTerm(packetBuffer, passwordBytes);
-        PacketUtils.writeFinish(packetBuffer);
+        ByteBuf payloadBuf = protocolAssistant.createPayloadBuffer(passwordBytes.length + 1);
+        PacketUtils.writeStringTerm(payloadBuf, passwordBytes);
+        PacketUtils.writeFinish(payloadBuf);
 
-        toServer.add(packetBuffer);
-        return true;
+        return Collections.singletonList(payloadBuf);
     }
 
 

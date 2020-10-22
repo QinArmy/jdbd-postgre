@@ -27,6 +27,7 @@ import java.nio.file.Paths;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.security.PublicKey;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
@@ -39,21 +40,6 @@ public class Sha256PasswordPlugin implements AuthenticationPlugin {
 
         return new Sha256PasswordPlugin(protocolAssistant, hostInfo, tryLoadPublicKeyString(hostInfo));
 
-    }
-
-    @Nullable
-    protected static String tryLoadPublicKeyString(HostInfo hostInfo) {
-        String serverRSAPublicKeyPath = hostInfo.getProperties()
-                .getProperty(PropertyKey.serverRSAPublicKeyFile.getKeyName());
-        String publicKeyString = null;
-        try {
-            if (serverRSAPublicKeyPath != null) {
-                publicKeyString = readPathAsText(Paths.get(serverRSAPublicKeyPath));
-            }
-            return publicKeyString;
-        } catch (IOException e) {
-            throw new JdbdMySQLException(e, "read serverRSAPublicKeyFile error.");
-        }
     }
 
 
@@ -93,35 +79,37 @@ public class Sha256PasswordPlugin implements AuthenticationPlugin {
     }
 
     @Override
-    public boolean nextAuthenticationStep(@Nullable ByteBuf fromServer, List<ByteBuf> toServer) {
-        toServer.clear();
+    public List<ByteBuf> nextAuthenticationStep(ByteBuf fromServer) {
+
         final ProtocolAssistant protocolAssistant = this.protocolAssistant;
         final String password = protocolAssistant.getMainHostInfo().getPassword();
-        boolean result;
+
+        List<ByteBuf> toServer;
         if (StringUtils.isEmpty(password)
-                || fromServer == null
                 || !fromServer.isReadable()) {
-            toServer.add(protocolAssistant.createOneSizePacketForWrite(0));
-            result = true;
+            toServer = Collections.singletonList(protocolAssistant.createOneSizePayload(0));
         } else {
-            result = internalNextAuthenticationStep(password, fromServer, toServer);
+            ByteBuf payloadBuf = internalNextAuthenticationStep(password, fromServer);
+            toServer = payloadBuf == null ? Collections.emptyList() : Collections.singletonList(payloadBuf);
         }
-        return result;
+        return toServer;
     }
 
-    protected boolean internalNextAuthenticationStep(String password, ByteBuf fromServer, List<ByteBuf> toServer) {
-        return doNextAuthenticationStep(password, fromServer, toServer);
+    @Nullable
+    protected ByteBuf internalNextAuthenticationStep(String password, ByteBuf fromServer) {
+        return doNextAuthenticationStep(password, fromServer);
     }
 
 
-    protected final boolean doNextAuthenticationStep(String password, ByteBuf fromServer, List<ByteBuf> toServer) {
+    protected final ByteBuf doNextAuthenticationStep(String password, ByteBuf fromServer) {
+        ByteBuf payloadBuf;
         if (protocolAssistant.isUseSsl()) {
             // allow plain text over SSL
-            toServer.add(cratePlanTextPasswordPacket(password));
+            payloadBuf = cratePlanTextPasswordPacket(password);
         } else if (this.hasServerRSAPublicKeyFile.get()) {
             // encrypt with given key, don't use "Public Key Retrieval"
             this.seed.set(PacketUtils.readStringTerm(fromServer, Charset.defaultCharset()));
-            toServer.add(createEncryptPasswordPacketWithPublicKey(password));
+            payloadBuf = createEncryptPasswordPacketWithPublicKey(password);
         } else if (!this.env.getRequiredProperty(PropertyKey.allowPublicKeyRetrieval, Boolean.class)) {
             throw new JdbdMySQLException("can't connect.");
         } else if (this.publicKeyRequested.get()
@@ -131,16 +119,16 @@ public class Sha256PasswordPlugin implements AuthenticationPlugin {
 
             // read key response
             this.publicKeyString.set(PacketUtils.readStringTerm(fromServer, Charset.defaultCharset()));
+            payloadBuf = createEncryptPasswordPacketWithPublicKey(password);
 
-            toServer.add(createEncryptPasswordPacketWithPublicKey(password));
             this.publicKeyRequested.set(false);
         } else {
             // build and send Public Key Retrieval packet
             this.seed.set(PacketUtils.readStringTerm(fromServer, Charset.defaultCharset()));
-            toServer.add(createPublicKeyRetrievalPacket(getPublicKeyRetrievalPacketFlag()));
+            payloadBuf = createPublicKeyRetrievalPacket(getPublicKeyRetrievalPacketFlag());
             this.publicKeyRequested.set(true);
         }
-        return true;
+        return payloadBuf.asReadOnly();
     }
 
     protected int getPublicKeyRetrievalPacketFlag() {
@@ -176,7 +164,7 @@ public class Sha256PasswordPlugin implements AuthenticationPlugin {
      */
     protected final ByteBuf cratePlanTextPasswordPacket(String password) {
         byte[] passwordBytes = password.getBytes(this.protocolAssistant.getClientCharset());
-        ByteBuf packetBuffer = this.protocolAssistant.createPacketBuffer(passwordBytes.length + 1);
+        ByteBuf packetBuffer = this.protocolAssistant.createPayloadBuffer(passwordBytes.length + 1);
         PacketUtils.writeStringTerm(packetBuffer, passwordBytes);
         PacketUtils.writeFinish(packetBuffer);
         return packetBuffer.asReadOnly();
@@ -188,7 +176,7 @@ public class Sha256PasswordPlugin implements AuthenticationPlugin {
     protected final ByteBuf createEncryptPasswordPacketWithPublicKey(String password) {
         byte[] passwordBytes = encryptPassword(password);
 
-        ByteBuf packetBuffer = protocolAssistant.createPacketBuffer(passwordBytes.length);
+        ByteBuf packetBuffer = protocolAssistant.createPayloadBuffer(passwordBytes.length);
         packetBuffer.writeBytes(passwordBytes);
         PacketUtils.writeFinish(packetBuffer);
         return packetBuffer.asReadOnly();
@@ -201,11 +189,26 @@ public class Sha256PasswordPlugin implements AuthenticationPlugin {
      *             </ul>
      */
     protected final ByteBuf createPublicKeyRetrievalPacket(int flag) {
-        return this.protocolAssistant.createOneSizePacketForWrite(flag);
+        return this.protocolAssistant.createOneSizePayload(flag);
     }
 
 
     /*################################## blow static method ##################################*/
+
+    @Nullable
+    protected static String tryLoadPublicKeyString(HostInfo hostInfo) {
+        String serverRSAPublicKeyPath = hostInfo.getProperties()
+                .getProperty(PropertyKey.serverRSAPublicKeyFile.getKeyName());
+        String publicKeyString = null;
+        try {
+            if (serverRSAPublicKeyPath != null) {
+                publicKeyString = readPathAsText(Paths.get(serverRSAPublicKeyPath));
+            }
+            return publicKeyString;
+        } catch (IOException e) {
+            throw new JdbdMySQLException(e, "read serverRSAPublicKeyFile error.");
+        }
+    }
 
 
     private static String readPathAsText(Path path) throws IOException {

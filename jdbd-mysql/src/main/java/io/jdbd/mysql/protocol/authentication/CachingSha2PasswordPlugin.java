@@ -9,7 +9,6 @@ import reactor.util.annotation.Nullable;
 
 import java.nio.charset.Charset;
 import java.security.DigestException;
-import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 
 public class CachingSha2PasswordPlugin extends Sha256PasswordPlugin {
@@ -31,8 +30,9 @@ public class CachingSha2PasswordPlugin extends Sha256PasswordPlugin {
         return "caching_sha2_password";
     }
 
+    @Nullable
     @Override
-    protected boolean internalNextAuthenticationStep(String password, ByteBuf fromServer, List<ByteBuf> toServer) {
+    protected ByteBuf internalNextAuthenticationStep(String password, ByteBuf fromServer) {
         final AuthStage stage = this.stage.get();
 
         try {
@@ -43,16 +43,14 @@ public class CachingSha2PasswordPlugin extends Sha256PasswordPlugin {
 
                 byte[] passwordBytes = password.getBytes(protocolAssistant.getPasswordCharset());
                 byte[] sha2Bytes = AuthenticateUtils.scrambleCachingSha2(passwordBytes, seedString.getBytes());
-                ByteBuf packetBuffer = protocolAssistant.createPacketBuffer(sha2Bytes.length);
+                ByteBuf packetBuffer = protocolAssistant.createPayloadBuffer(sha2Bytes.length);
                 packetBuffer.writeBytes(sha2Bytes);
-                PacketUtils.writeFinish(packetBuffer);
-                toServer.add(packetBuffer);
-                return true;
+                return packetBuffer.asReadOnly();
             } else if (stage == AuthStage.FAST_AUTH_READ_RESULT) {
                 switch (fromServer.readByte()) {
                     case 3:
                         this.stage.set(AuthStage.FAST_AUTH_COMPLETE);
-                        return true;
+                        return null;
                     case 4:
                         this.stage.set(AuthStage.FULL_AUTH);
                         break;
@@ -64,7 +62,7 @@ public class CachingSha2PasswordPlugin extends Sha256PasswordPlugin {
             throw new JdbdMySQLException(e, "password encrypt failure.");
         }
 
-        return doNextAuthenticationStep(password, fromServer, toServer);
+        return doNextAuthenticationStep(password, fromServer);
     }
 
     @Override

@@ -5,9 +5,9 @@ import io.jdbd.mysql.protocol.client.PacketUtils;
 import io.jdbd.mysql.protocol.conf.HostInfo;
 import io.jdbd.mysql.util.StringUtils;
 import io.netty.buffer.ByteBuf;
-import reactor.util.annotation.Nullable;
 
 import java.nio.charset.Charset;
+import java.util.Collections;
 import java.util.List;
 
 /**
@@ -42,22 +42,21 @@ public class MySQLOldPasswordPlugin implements AuthenticationPlugin {
     }
 
     @Override
-    public boolean nextAuthenticationStep(@Nullable ByteBuf fromServer, List<ByteBuf> toServer) {
+    public List<ByteBuf> nextAuthenticationStep(ByteBuf fromServer) {
         String password = hostInfo.getPassword();
-        ByteBuf packetBuffer;
-        if (fromServer == null || StringUtils.isEmpty(password)) {
-            packetBuffer = this.protocolAssistant.createEmptyPacketForWrite();
+        ByteBuf payloadBuf;
+        if (StringUtils.isEmpty(password)) {
+            payloadBuf = this.protocolAssistant.createEmptyPayload();
         } else {
             String seed = PacketUtils.readStringTerm(fromServer, Charset.defaultCharset()).substring(0, 8);
             String cryptString = newCrypt(password, seed, this.protocolAssistant.getPasswordCharset());
             byte[] payloadBytes = cryptString.getBytes();
 
-            packetBuffer = this.protocolAssistant.createPacketBuffer(payloadBytes.length);
-            packetBuffer.writeBytes(payloadBytes);
-            PacketUtils.writeFinish(packetBuffer);
+            payloadBuf = this.protocolAssistant.createPayloadBuffer(payloadBytes.length);
+            payloadBuf.writeBytes(payloadBytes);
+            PacketUtils.writeFinish(payloadBuf);
         }
-        toServer.add(packetBuffer);
-        return true;
+        return Collections.singletonList(payloadBuf);
     }
 
     // Right from Monty's code
