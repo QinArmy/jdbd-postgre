@@ -30,7 +30,7 @@ public class ClientProtocolTests {
                 .host("localhost")
                 .port(3306)
                 .connect()
-                .flatMap(this::connectMySQL)
+                //.flatMap(this::connectMySQL)
                 .block(Duration.ofSeconds(30L));
 
 
@@ -60,7 +60,6 @@ public class ClientProtocolTests {
 
     @Test
     public void simpleTest() throws Exception {
-        String url = "jdbc:mysql://address=(host=myhost1)(port=1111)(key1=value1),address=(host=myhost2)(port=2222)(key2=value2)/db";
 
 
     }

@@ -280,13 +280,6 @@ public abstract class PacketUtils {
         return packetBuffer.asReadOnly();
     }
 
-    public static int getPayloadLen(ByteBuf packetBuffer) {
-        int len = packetBuffer.readableBytes() - 4;
-        if (len < 1) {
-            throw new IllegalArgumentException("packetBuffer isn't packet buffer.");
-        }
-        return len;
-    }
 
     public static void writeFinish(ByteBuf packetBuffer) {
         writeFinish(packetBuffer, 0);

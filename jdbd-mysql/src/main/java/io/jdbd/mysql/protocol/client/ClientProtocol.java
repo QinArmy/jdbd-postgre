@@ -11,10 +11,13 @@ public interface ClientProtocol {
     int SERVER_STATUS_AUTOCOMMIT = 2; // Server in auto_commit mode
     int SERVER_MORE_RESULTS_EXISTS = 8; // Multi query - next query exists
     int SERVER_QUERY_NO_GOOD_INDEX_USED = 16;
+
     int SERVER_QUERY_NO_INDEX_USED = 32;
     int SERVER_STATUS_CURSOR_EXISTS = 64;
     int SERVER_STATUS_LAST_ROW_SENT = 128; // The server status for 'last-row-sent'
     int SERVER_QUERY_WAS_SLOW = 1 << 11;
+
+    int SERVER_SESSION_STATE_CHANGED = 1 << 14;
 
     int CLIENT_LONG_PASSWORD = 0x00000001; /* new more secure passwords */
     int CLIENT_FOUND_ROWS = 0x00000002;

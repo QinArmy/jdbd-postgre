@@ -113,7 +113,7 @@ public class Sha256PasswordPlugin implements AuthenticationPlugin {
         } else if (!this.env.getRequiredProperty(PropertyKey.allowPublicKeyRetrieval, Boolean.class)) {
             throw new JdbdMySQLException("can't connect.");
         } else if (this.publicKeyRequested.get()
-                && PacketUtils.getPayloadLen(fromServer) > ClientConstants.SEED_LENGTH) { // We must request the public key from the server to encrypt the password
+                && fromServer.readableBytes() > ClientConstants.SEED_LENGTH) { // We must request the public key from the server to encrypt the password
             // Servers affected by Bug#70865 could send Auth Switch instead of key after Public Key Retrieval,
             // so we check payload length to detect that.
 
