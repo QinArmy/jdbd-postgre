@@ -287,9 +287,9 @@ public abstract class PacketUtils {
 
     public static void writeFinish(ByteBuf packetBuffer, final int sequenceId) {
         int payloadLength = packetBuffer.readableBytes() - HEADER_SIZE;
-        if (payloadLength > ClientProtocol.MAX_PACKET_SIZE) {
+        if (payloadLength > ClientCommandProtocol.MAX_PACKET_SIZE) {
             throw new IllegalArgumentException(
-                    String.format("byteBuffer payload greater than %s.", ClientProtocol.MAX_PACKET_SIZE));
+                    String.format("byteBuffer payload greater than %s.", ClientCommandProtocol.MAX_PACKET_SIZE));
         }
         writeInt3(packetBuffer, payloadLength);
         writeInt1(packetBuffer, sequenceId);

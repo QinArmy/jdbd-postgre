@@ -1,7 +1,7 @@
 package io.jdbd.mysql.protocol.conf;
 
 import io.jdbd.UrlException;
-import io.jdbd.mysql.util.StringUtils;
+import io.jdbd.mysql.util.MySQLStringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -84,7 +84,7 @@ final class MySQLUrlParser {
         this.parsedProperties = Collections.unmodifiableMap(parseProperties);
 
         // host info list
-        if (StringUtils.hasText(actualAuthority)) {
+        if (MySQLStringUtils.hasText(actualAuthority)) {
             this.parsedHosts = parseHostList(actualAuthority);
         } else {
             this.parsedHosts = createDefaultHostList();
@@ -124,7 +124,7 @@ final class MySQLUrlParser {
      */
     private Map<String, String> parseQueryProperties() {
         String query = this.query;
-        if (StringUtils.isEmpty(query)) {
+        if (MySQLStringUtils.isEmpty(query)) {
             return new HashMap<>();
         }
         String[] queryPairs = query.split("&");
@@ -173,7 +173,7 @@ final class MySQLUrlParser {
 
         List<HostInfo> hostList = new ArrayList<>();
 
-        for (int openingMarkIndex = StringUtils.indexNonSpace(authority); openingMarkIndex > -1; ) {
+        for (int openingMarkIndex = MySQLStringUtils.indexNonSpace(authority); openingMarkIndex > -1; ) {
             char openingMarker = authority.charAt(openingMarkIndex);
             if (openingMarker == '(') {
                 // this 'if'  block for key-value host
@@ -184,14 +184,14 @@ final class MySQLUrlParser {
                 }
                 index++; // right shift to comma or ending.
                 hostList.add(parseKeyValueHost(authority.substring(openingMarkIndex, index)));
-                index = StringUtils.indexNonSpace(authority, index);
+                index = MySQLStringUtils.indexNonSpace(authority, index);
                 if (index < 0) {
                     break;
                 }
                 if (authority.charAt(index) != ',') {
                     throw createFormatException(authority.substring(openingMarkIndex, index + 1));
                 }
-                openingMarkIndex = StringUtils.indexNonSpace(authority, index + 1);
+                openingMarkIndex = MySQLStringUtils.indexNonSpace(authority, index + 1);
                 if (openingMarkIndex < len) {
                     throw createAuthorityEndWithCommaException();
                 }
@@ -203,7 +203,7 @@ final class MySQLUrlParser {
                     break;
                 } else {
                     hostList.add(parseAddressEqualsHost(authority.substring(openingMarkIndex, commaIndex)));
-                    openingMarkIndex = StringUtils.indexNonSpace(authority, commaIndex + 1);
+                    openingMarkIndex = MySQLStringUtils.indexNonSpace(authority, commaIndex + 1);
                     if (openingMarkIndex < 0) {
                         throw createAuthorityEndWithCommaException();
                     }
@@ -227,7 +227,7 @@ final class MySQLUrlParser {
                     break;
                 } else {
                     hostList.add(parseHostPortHost(authority.substring(openingMarkIndex, commaIndex)));
-                    openingMarkIndex = StringUtils.indexNonSpace(authority, commaIndex + 1);
+                    openingMarkIndex = MySQLStringUtils.indexNonSpace(authority, commaIndex + 1);
                     if (openingMarkIndex < 0) {
                         throw createAuthorityEndWithCommaException();
                     }
@@ -316,7 +316,7 @@ final class MySQLUrlParser {
     private HostInfo createHostInfo(String hostInfo, Map<String, String> hostKeyValueMap) {
 
         String host = hostKeyValueMap.remove("host");
-        if (StringUtils.isEmpty(host)) {
+        if (MySQLStringUtils.isEmpty(host)) {
             throw new UrlException(String.format("hostInfo[%s] not found host.", hostInfo), this.originalUrl);
         }
         String portText = hostKeyValueMap.remove("port");
@@ -329,7 +329,7 @@ final class MySQLUrlParser {
         }
 
         String user = hostKeyValueMap.remove("user");
-        if (!StringUtils.hasText(user)) {
+        if (!MySQLStringUtils.hasText(user)) {
             throw new UrlException("not found user info.", this.originalUrl);
         }
         String password = hostKeyValueMap.remove("password");
@@ -543,7 +543,7 @@ final class MySQLUrlParser {
      * @return the decoded string
      */
     private static String decode(String text) {
-        if (StringUtils.isEmpty(text)) {
+        if (MySQLStringUtils.isEmpty(text)) {
             return text;
         }
         try {

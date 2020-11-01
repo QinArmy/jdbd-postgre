@@ -3,7 +3,7 @@ package io.jdbd.mysql.protocol.authentication;
 import io.jdbd.mysql.protocol.ProtocolAssistant;
 import io.jdbd.mysql.protocol.client.PacketUtils;
 import io.jdbd.mysql.protocol.conf.HostInfo;
-import io.jdbd.mysql.util.StringUtils;
+import io.jdbd.mysql.util.MySQLStringUtils;
 import io.netty.buffer.ByteBuf;
 
 import java.nio.charset.Charset;
@@ -21,6 +21,10 @@ public class MySQLOldPasswordPlugin implements AuthenticationPlugin {
         return new MySQLOldPasswordPlugin(protocolAssistant, hostInfo);
     }
 
+    public static final String PLUGIN_NAME = "mysql_old_password";
+
+    public static final String PLUGIN_CLASS = "com.mysql.cj.protocol.a.authentication.MysqlOldPasswordPlugin";
+
     private final ProtocolAssistant protocolAssistant;
 
     private final HostInfo hostInfo;
@@ -33,7 +37,7 @@ public class MySQLOldPasswordPlugin implements AuthenticationPlugin {
 
     @Override
     public String getProtocolPluginName() {
-        return "mysql_old_password";
+        return PLUGIN_NAME;
     }
 
     @Override
@@ -45,7 +49,7 @@ public class MySQLOldPasswordPlugin implements AuthenticationPlugin {
     public List<ByteBuf> nextAuthenticationStep(ByteBuf fromServer) {
         String password = hostInfo.getPassword();
         ByteBuf payloadBuf;
-        if (StringUtils.isEmpty(password)) {
+        if (MySQLStringUtils.isEmpty(password)) {
             payloadBuf = this.protocolAssistant.createEmptyPayload();
         } else {
             String seed = PacketUtils.readStringTerm(fromServer, Charset.defaultCharset()).substring(0, 8);

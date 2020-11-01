@@ -1,7 +1,7 @@
 package io.jdbd.mysql.protocol.conf;
 
 
-import io.jdbd.mysql.util.StringUtils;
+import io.jdbd.mysql.util.MySQLStringUtils;
 import reactor.util.annotation.Nullable;
 
 import java.util.Collections;
@@ -29,7 +29,7 @@ public final class HostInfo {
             , String user, @Nullable String password
             , Map<String, String> hostProperties) {
 
-        if (!StringUtils.hasText(user)) {
+        if (!MySQLStringUtils.hasText(user)) {
             throw new IllegalArgumentException("user error");
         }
         this.originalUrl = originalUrl;

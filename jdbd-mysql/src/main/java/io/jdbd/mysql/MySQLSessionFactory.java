@@ -2,8 +2,8 @@ package io.jdbd.mysql;
 
 import io.jdbd.DatabaseSession;
 import io.jdbd.DatabaseSessionFactory;
-import io.jdbd.mysql.protocol.client.ClientProtocol;
-import io.jdbd.mysql.protocol.client.ClientProtocolImpl;
+import io.jdbd.mysql.protocol.client.ClientCommandProtocol;
+import io.jdbd.mysql.protocol.client.ClientCommandProtocolImpl;
 import io.jdbd.mysql.protocol.conf.MySQLUrl;
 import reactor.core.publisher.Mono;
 
@@ -48,7 +48,7 @@ public class MySQLSessionFactory implements DatabaseSessionFactory {
     }
 
     private Mono<DatabaseSession> createClientSession() {
-        return ClientProtocolImpl.getInstance(this.mySQLUrl)
+        return ClientCommandProtocolImpl.getInstance(this.mySQLUrl)
                 .flatMap(this::handshake)
                 .flatMap(this::sslRequest)
                 .flatMap(this::authenticate)
@@ -56,17 +56,15 @@ public class MySQLSessionFactory implements DatabaseSessionFactory {
                 ;
     }
 
-    private Mono<ClientProtocol> handshake(ClientProtocol clientProtocol) {
-        return clientProtocol.handshake()
-                .thenReturn(clientProtocol)
-                ;
+    private Mono<ClientCommandProtocol> handshake(ClientCommandProtocol clientProtocol) {
+        return Mono.empty();
     }
 
-    private Mono<ClientProtocol> sslRequest(ClientProtocol clientProtocol) {
+    private Mono<ClientCommandProtocol> sslRequest(ClientCommandProtocol clientProtocol) {
         return Mono.just(clientProtocol);
     }
 
-    private Mono<ClientProtocol> authenticate(ClientProtocol clientProtocol) {
+    private Mono<ClientCommandProtocol> authenticate(ClientCommandProtocol clientProtocol) {
         return Mono.just(clientProtocol);
     }
 

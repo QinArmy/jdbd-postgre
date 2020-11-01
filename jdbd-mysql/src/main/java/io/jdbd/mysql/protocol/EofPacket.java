@@ -1,6 +1,6 @@
 package io.jdbd.mysql.protocol;
 
-import io.jdbd.mysql.protocol.client.ClientProtocol;
+import io.jdbd.mysql.protocol.client.ClientCommandProtocol;
 import io.jdbd.mysql.protocol.client.PacketUtils;
 import io.netty.buffer.ByteBuf;
 
@@ -16,7 +16,7 @@ public final class EofPacket implements MySQLPacket {
             throw new IllegalArgumentException("packetBuf isn't error packet.");
         }
         int statusFags, warnings;
-        if ((serverCapabilities & ClientProtocol.CLIENT_PROTOCOL_41) != 0) {
+        if ((serverCapabilities & ClientCommandProtocol.CLIENT_PROTOCOL_41) != 0) {
             statusFags = PacketUtils.readInt2(packetBuf);
             warnings = PacketUtils.readInt2(packetBuf);
         } else {

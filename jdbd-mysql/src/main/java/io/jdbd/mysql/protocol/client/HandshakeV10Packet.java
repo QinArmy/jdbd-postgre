@@ -44,7 +44,7 @@ final class HandshakeV10Packet extends AbstractHandshakePacket {
 
         // 9. auth_plugin_data_len or skip.
         short authPluginDataLen;
-        if ((capabilityFlags & ClientProtocol.CLIENT_PLUGIN_AUTH) != 0) {
+        if ((capabilityFlags & ClientCommandProtocol.CLIENT_PLUGIN_AUTH) != 0) {
             //length of the combined auth_plugin_data (scramble), if auth_plugin_data_len is > 0
             authPluginDataLen = PacketUtils.readInt1(byteBuf);
         } else {
@@ -67,7 +67,7 @@ final class HandshakeV10Packet extends AbstractHandshakePacket {
 //        }
         // 12. auth_plugin_name,name of the auth_method that the auth_plugin_data belongs to
         String authPluginName = null;
-        if ((capabilityFlags & ClientProtocol.CLIENT_PLUGIN_AUTH) != 0) {
+        if ((capabilityFlags & ClientCommandProtocol.CLIENT_PLUGIN_AUTH) != 0) {
             // Due to Bug#59453 the auth-plugin-name is missing the terminating NUL-char in versions prior to 5.5.10 and 5.6.2.
             if (!serverVersion.meetsMinimum(5, 5, 10)
                     || (serverVersion.meetsMinimum(5, 6, 0) && !serverVersion.meetsMinimum(5, 6, 2))) {

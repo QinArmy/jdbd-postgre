@@ -66,7 +66,7 @@ public enum PropertyKey {
     cacheServerConfiguration("cacheServerConfiguration", "false", true), //
 
     callableStmtCacheSize("callableStmtCacheSize", "100", true), //
-    characterEncoding("characterEncoding", null, true), //
+    characterEncoding("characterEncoding", "UTF-8", true), //
     characterSetResults("characterSetResults", null, true), //
     clientCertificateKeyStorePassword("clientCertificateKeyStorePassword", null, true), //
 

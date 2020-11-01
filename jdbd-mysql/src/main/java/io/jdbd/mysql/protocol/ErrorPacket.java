@@ -1,10 +1,11 @@
 package io.jdbd.mysql.protocol;
 
-import io.jdbd.mysql.protocol.client.ClientProtocol;
+import io.jdbd.mysql.protocol.client.ClientCommandProtocol;
 import io.jdbd.mysql.protocol.client.PacketUtils;
 import io.netty.buffer.ByteBuf;
 
 import java.nio.charset.Charset;
+import java.util.StringJoiner;
 
 /**
  * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_basic_err_packet.html">Protocol::ERR_Packet</a>
@@ -27,7 +28,7 @@ public final class ErrorPacket implements MySQLPacket {
         }
         int errorCode = PacketUtils.readInt2(packetBuf);
         String sqlStateMarker, sqlState;
-        if ((serverCapabilities & ClientProtocol.CLIENT_PROTOCOL_41) != 0) {
+        if ((serverCapabilities & ClientCommandProtocol.CLIENT_PROTOCOL_41) != 0) {
             sqlStateMarker = PacketUtils.readStringFixed(packetBuf, 1, Charset.defaultCharset());
             sqlState = PacketUtils.readStringFixed(packetBuf, 5, Charset.defaultCharset());
         } else {
@@ -39,6 +40,11 @@ public final class ErrorPacket implements MySQLPacket {
                 , sqlState, errorMessage
         );
     }
+
+    public static ErrorPacket readPacketAtHandshake(ByteBuf packetBuf) {
+        return readPacket(packetBuf, ClientCommandProtocol.CLIENT_PROTOCOL_41);
+    }
+
 
     private final int errorCode;
 
@@ -69,6 +75,17 @@ public final class ErrorPacket implements MySQLPacket {
 
     public String getSqlState() {
         return this.sqlState;
+    }
+
+
+    @Override
+    public String toString() {
+        return new StringJoiner(", ", ErrorPacket.class.getSimpleName() + "[", "]")
+                .add("errorCode=" + errorCode)
+                .add("sqlStateMarker='" + sqlStateMarker + "'")
+                .add("sqlState='" + sqlState + "'")
+                .add("errorMessage='" + errorMessage + "'")
+                .toString();
     }
 
     public static boolean isErrorPacket(ByteBuf byteBuf) {

@@ -7,7 +7,7 @@ import io.jdbd.mysql.protocol.client.PacketUtils;
 import io.jdbd.mysql.protocol.conf.HostInfo;
 import io.jdbd.mysql.protocol.conf.Properties;
 import io.jdbd.mysql.protocol.conf.PropertyKey;
-import io.jdbd.mysql.util.StringUtils;
+import io.jdbd.mysql.util.MySQLStringUtils;
 import io.netty.buffer.ByteBuf;
 import org.qinarmy.util.security.KeyPairType;
 import org.qinarmy.util.security.KeyUtils;
@@ -32,9 +32,13 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
+/**
+ * <p>
+ * see {@code com.mysql.cj.protocol.a.authentication.Sha256PasswordPlugin}
+ * </p>
+ */
 public class Sha256PasswordPlugin implements AuthenticationPlugin {
 
-    public static final String PLUGIN_NAME = "sha256_password";
 
     public static Sha256PasswordPlugin getInstance(ProtocolAssistant protocolAssistant, HostInfo hostInfo) {
 
@@ -42,6 +46,9 @@ public class Sha256PasswordPlugin implements AuthenticationPlugin {
 
     }
 
+    public static final String PLUGIN_NAME = "sha256_password";
+
+    public static final String PLUGIN_CLASS = "com.mysql.cj.protocol.a.authentication.Sha256PasswordPlugin";
 
     protected final ProtocolAssistant protocolAssistant;
 
@@ -85,7 +92,7 @@ public class Sha256PasswordPlugin implements AuthenticationPlugin {
         final String password = protocolAssistant.getMainHostInfo().getPassword();
 
         List<ByteBuf> toServer;
-        if (StringUtils.isEmpty(password)
+        if (MySQLStringUtils.isEmpty(password)
                 || !fromServer.isReadable()) {
             toServer = Collections.singletonList(protocolAssistant.createOneSizePayload(0));
         } else {
@@ -141,7 +148,7 @@ public class Sha256PasswordPlugin implements AuthenticationPlugin {
 
     protected byte[] encryptPassword(String password, String transformation) {
         byte[] passwordBytes;
-        passwordBytes = StringUtils.getBytesNullTerminated(password, this.protocolAssistant.getPasswordCharset());
+        passwordBytes = MySQLStringUtils.getBytesNullTerminated(password, this.protocolAssistant.getPasswordCharset());
         byte[] mysqlScrambleBuff = new byte[passwordBytes.length];
         AuthenticateUtils.xorString(passwordBytes, mysqlScrambleBuff, this.seed.get().getBytes(), passwordBytes.length);
         PublicKey publicKey = KeyUtils.readPublicKey(KeyPairType.RSA, this.publicKeyString.get());

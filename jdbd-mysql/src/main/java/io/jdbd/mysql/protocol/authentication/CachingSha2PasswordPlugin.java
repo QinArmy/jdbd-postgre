@@ -17,6 +17,9 @@ public class CachingSha2PasswordPlugin extends Sha256PasswordPlugin {
         return new CachingSha2PasswordPlugin(protocolAssistant, hostInfo, tryLoadPublicKeyString(hostInfo));
     }
 
+    public static final String PLUGIN_NAME = "caching_sha2_password";
+
+    public static final String PLUGIN_CLASS = "com.mysql.cj.protocol.a.authentication.CachingSha2PasswordPlugin";
 
     protected final AtomicReference<AuthStage> stage = new AtomicReference<>(AuthStage.FAST_AUTH_SEND_SCRAMBLE);
 
@@ -27,7 +30,7 @@ public class CachingSha2PasswordPlugin extends Sha256PasswordPlugin {
 
     @Override
     public String getProtocolPluginName() {
-        return "caching_sha2_password";
+        return PLUGIN_NAME;
     }
 
     @Nullable

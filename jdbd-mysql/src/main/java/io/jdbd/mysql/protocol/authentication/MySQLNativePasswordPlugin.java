@@ -3,7 +3,7 @@ package io.jdbd.mysql.protocol.authentication;
 import io.jdbd.mysql.protocol.ProtocolAssistant;
 import io.jdbd.mysql.protocol.client.PacketUtils;
 import io.jdbd.mysql.protocol.conf.HostInfo;
-import io.jdbd.mysql.util.StringUtils;
+import io.jdbd.mysql.util.MySQLStringUtils;
 import io.netty.buffer.ByteBuf;
 
 import java.util.Collections;
@@ -11,9 +11,14 @@ import java.util.List;
 
 public class MySQLNativePasswordPlugin implements AuthenticationPlugin {
 
+
     public static MySQLNativePasswordPlugin getInstance(ProtocolAssistant protocolAssistant, HostInfo hostInfo) {
         return new MySQLNativePasswordPlugin(protocolAssistant, hostInfo);
     }
+
+    public static final String PLUGIN_NAME = "mysql_native_password";
+
+    public static final String PLUGIN_CLASS = "com.mysql.cj.protocol.a.authentication.MysqlNativePasswordPlugin";
 
     private final ProtocolAssistant protocolAssistant;
 
@@ -26,7 +31,7 @@ public class MySQLNativePasswordPlugin implements AuthenticationPlugin {
 
     @Override
     public String getProtocolPluginName() {
-        return "mysql_native_password";
+        return PLUGIN_NAME;
     }
 
     @Override
@@ -39,7 +44,7 @@ public class MySQLNativePasswordPlugin implements AuthenticationPlugin {
         String password = this.hostInfo.getPassword();
 
         ByteBuf payloadBuf;
-        if (StringUtils.isEmpty(password)) {
+        if (MySQLStringUtils.isEmpty(password)) {
             payloadBuf = this.protocolAssistant.createEmptyPayload();
         } else {
             byte[] passwordBytes = password.getBytes(this.protocolAssistant.getPasswordCharset());

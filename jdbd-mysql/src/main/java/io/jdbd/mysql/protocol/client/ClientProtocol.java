@@ -1,10 +1,6 @@
 package io.jdbd.mysql.protocol.client;
 
-import io.jdbd.mysql.protocol.MySQLPacket;
-import reactor.core.publisher.Mono;
-
 public interface ClientProtocol {
-
     int MAX_PACKET_SIZE = (1 << 24) - 1;
 
     int SERVER_STATUS_IN_TRANS = 1;
@@ -40,12 +36,5 @@ public interface ClientProtocol {
     int CLIENT_CAN_HANDLE_EXPIRED_PASSWORD = 0x00400000;
     int CLIENT_SESSION_TRACK = 0x00800000;
     int CLIENT_DEPRECATE_EOF = 0x01000000;
-
-
-    Mono<MySQLPacket> handshake();
-
-    Mono<MySQLPacket> responseHandshake();
-
-    Mono<MySQLPacket> sslRequest();
 
 }

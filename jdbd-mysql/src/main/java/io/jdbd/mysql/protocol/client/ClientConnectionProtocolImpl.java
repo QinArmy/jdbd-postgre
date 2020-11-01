@@ -4,20 +4,15 @@ import io.jdbd.JdbdRuntimeException;
 import io.jdbd.mysql.JdbdMySQLException;
 import io.jdbd.mysql.protocol.*;
 import io.jdbd.mysql.protocol.authentication.*;
-import io.jdbd.mysql.protocol.conf.HostInfo;
-import io.jdbd.mysql.protocol.conf.MySQLUrl;
-import io.jdbd.mysql.protocol.conf.Properties;
-import io.jdbd.mysql.protocol.conf.PropertyKey;
-import io.jdbd.mysql.util.StringUtils;
+import io.jdbd.mysql.protocol.conf.*;
+import io.jdbd.mysql.util.MySQLStringUtils;
 import io.netty.buffer.ByteBuf;
-import io.netty.channel.ChannelHandlerContext;
-import io.netty.handler.codec.ByteToMessageDecoder;
-import org.qinarmy.util.Pair;
 import org.qinarmy.util.Triple;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import reactor.core.publisher.Mono;
 import reactor.netty.Connection;
+import reactor.netty.FutureMono;
 import reactor.netty.tcp.TcpClient;
 
 import java.lang.reflect.InvocationTargetException;
@@ -28,18 +23,14 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
-import static io.jdbd.mysql.protocol.conf.PropertyDefinitions.SslMode;
+final class ClientConnectionProtocolImpl implements ClientConnectionProtocol, ProtocolAssistant {
 
-public final class ClientProtocolImpl implements ClientProtocol, ProtocolAssistant {
+    private static final Logger LOG = LoggerFactory.getLogger(ClientConnectionProtocolImpl.class);
 
-    private static final Logger LOG = LoggerFactory.getLogger(ClientProtocolImpl.class);
 
-    private static final String NONE = "none";
-
-    public static Mono<ClientProtocol> getInstance(MySQLUrl mySQLUrl) {
+    public static Mono<ClientConnectionProtocol> getInstance(MySQLUrl mySQLUrl) {
         if (mySQLUrl.getProtocol() != MySQLUrl.Protocol.SINGLE_CONNECTION) {
             throw new IllegalArgumentException(
                     String.format("mySQLUrl protocol isn't %s", MySQLUrl.Protocol.SINGLE_CONNECTION));
@@ -51,72 +42,50 @@ public final class ClientProtocolImpl implements ClientProtocol, ProtocolAssista
                 // MySQLProtocolDecodeHandler splits mysql packet.
                 .doOnConnected(MySQLProtocolDecodeHandler::addMySQLDecodeHandler)
                 .connect()
-                // receive handshake packet from server
-                .flatMap(ClientProtocolImpl::handshake)
-                // create ClientProtocolImpl instance
-                .map(pair -> new ClientProtocolImpl(mySQLUrl, pair.getFirst(), pair.getSecond()))
+                // create ClientCommandProtocolImpl instance
+                .map(connection -> new ClientConnectionProtocolImpl(mySQLUrl, connection))
                 ;
     }
 
-    private static Mono<Pair<Connection, HandshakeV10Packet>> handshake(Connection connection) {
-        return receiveSmallPacket(connection)
-                .map(HandshakeV10Packet::readHandshake)
-                .doOnNext(handshakeV10Packet -> LOG.debug("handshakeV10Packet:{}", handshakeV10Packet))
-                .map(handshakeV10Packet -> new Pair<>(connection, handshakeV10Packet));
-    }
-
+    private static final String NONE = "none";
 
     private final MySQLUrl mySQLUrl;
 
     private final Connection connection;
 
-    private final HandshakeV10Packet handshakeV10Packet;
+    private final AtomicReference<HandshakeV10Packet> handshakeV10Packet = new AtomicReference<>(null);
 
     private final Properties properties;
 
-    private final AtomicReference<Byte> clientCollationIndex = new AtomicReference<>(null);
-
-    private final AtomicReference<AbstractHandshakePacket> handshakePacket = new AtomicReference<>(null);
-
     private final Charset clientCharset;
+
+    private final AtomicReference<Byte> clientCollationIndex = new AtomicReference<>(null);
 
     private final AtomicBoolean useSsl = new AtomicBoolean(true);
 
-
-    private ClientProtocolImpl(MySQLUrl mySQLUrl, Connection connection, HandshakeV10Packet handshakeV10Packet) {
+    private ClientConnectionProtocolImpl(MySQLUrl mySQLUrl, Connection connection) {
         this.mySQLUrl = mySQLUrl;
         this.connection = connection;
-        this.handshakeV10Packet = handshakeV10Packet;
-        this.properties = this.mySQLUrl.getHosts().get(0).getProperties();
-
+        this.properties = mySQLUrl.getHosts().get(0).getProperties();
         this.clientCharset = Charset.forName(this.properties.getRequiredProperty(PropertyKey.characterEncoding));
     }
 
-
     @Override
-    public final Mono<MySQLPacket> handshake() {
-        final AtomicInteger payloadLength = new AtomicInteger(-1);
-        final AtomicInteger payloadCount = new AtomicInteger(0);
-        return this.connection
-                .inbound()
-                .receive()
-                .bufferUntil(byteBuf -> {
-                    if (payloadLength.get() < 0) {
-                        if (ErrorPacket.isErrorPacket(byteBuf)) {
-                            return true;
-                        }
-                        payloadLength.set(PacketUtils.getInt3(byteBuf, byteBuf.readerIndex()));
-                    }
-                    return payloadCount.addAndGet(byteBuf.readableBytes()) >= payloadLength.get();
-                }).map(ByteBufferUtils::mergeByteBuf)
-                .elementAt(0)
-                .map(this::parseHandshakePacket)
-                .flatMap(this::handleHandshakePacket);
+    public Mono<MySQLPacket> ssl() {
+        return Mono.empty();
     }
 
+    @Override
+    public Mono<MySQLPacket> receiveHandshake() {
+        return ReceiveOneMono.receiveOneMono(this.connection)
+                .flatMap(this::receiveHandshakeV10Packet)
+                .doOnNext(this::handleHandshakeV10Packet)
+                .cast(MySQLPacket.class)
+                ;
+    }
 
     @Override
-    public final Mono<MySQLPacket> responseHandshake() {
+    public Mono<MySQLPacket> responseHandshake() {
         final Triple<AuthenticationPlugin, Boolean, Map<String, AuthenticationPlugin>> triple;
         //1. obtain plugin
         triple = obtainAuthenticationPlugin();
@@ -129,11 +98,6 @@ public final class ClientProtocolImpl implements ClientProtocol, ProtocolAssista
                 .flatMap(this::sendPacket)
                 .then(Mono.defer(this::readAuthResponse))
                 ;
-    }
-
-    @Override
-    public final Mono<MySQLPacket> sslRequest() {
-        return Mono.empty();
     }
 
     /*################################## blow ProtocolAssistant method ##################################*/
@@ -178,58 +142,47 @@ public final class ClientProtocolImpl implements ClientProtocol, ProtocolAssista
 
     @Override
     public ServerVersion getServerVersion() {
-        AbstractHandshakePacket packet = this.handshakePacket.get();
-        if (packet == null) {
-            throw new IllegalStateException("client no handshake.");
-        }
-        return packet.getServerVersion();
+        return obtainHandshakeV10Packet().getServerVersion();
     }
 
-    /*################################## blow private method ##################################*/
 
+    private Mono<MySQLPacket> readAuthResponse() {
+        return ReceiveOneMono.receiveOneMono(this.connection)
+                .map(this::doReadAuthResponse)
+                ;
+    }
 
-    private MySQLPacket parseHandshakePacket(ByteBuf byteBuf) {
-
-        if (ErrorPacket.isErrorPacket(byteBuf)) {
-            return ErrorPacket.readPacket(byteBuf, this.handshakeV10Packet.getCapabilityFlags());
-        }
+    private MySQLPacket doReadAuthResponse(ByteBuf packetByteBuf) {
         MySQLPacket packet;
-        short version = PacketUtils.getInt1(byteBuf, MySQLPacket.HEAD_LENGTH);
-        switch (version) {
-            case 10:
-                packet = HandshakeV10Packet.readHandshake(byteBuf);
-                break;
-            case 9:
-            default:
-                throw new JdbdRuntimeException(String.format("unsupported Handshake packet version[%s].", version)) {
-
-                };
+        if (OkPacket.isOkPacket(packetByteBuf)) {
+            packet = OkPacket.readPacket(packetByteBuf, obtainHandshakeV10Packet().getCapabilityFlags());
+        } else if (AuthSwitchRequestPacket.isAuthSwitchRequestPacket(packetByteBuf)) {
+            packet = AuthSwitchRequestPacket.readPacket(packetByteBuf);
+        } else {
+            packet = RawPacket.readPacket(packetByteBuf, obtainHandshakeV10Packet().getServerVersion());
         }
         return packet;
     }
 
-    private Mono<MySQLPacket> handleHandshakePacket(MySQLPacket packet) {
-        Mono<MySQLPacket> mono;
-        if (packet instanceof ErrorPacket) {
-            //TODO zoro reject Protocol
-            mono = Mono.error(new RuntimeException("handshake error."));
-        } else if (packet instanceof HandshakeV10Packet) {
-            this.handshakePacket.compareAndSet(null, (HandshakeV10Packet) packet);
-            this.clientCollationIndex.compareAndSet(null, mapClientCollationIndex());
-            mono = Mono.just(packet);
-        } else if (packet instanceof HandshakeV9Packet) {
-            this.handshakePacket.compareAndSet(null, (HandshakeV9Packet) packet);
-            this.clientCollationIndex.compareAndSet(null, mapClientCollationIndex());
-            mono = Mono.just(packet);
-        } else {
-            // never here
-            mono = Mono.error(new IllegalArgumentException("packet error"));
+    private void handleHandshakeV10Packet(HandshakeV10Packet packet) {
+        if (!this.handshakeV10Packet.compareAndSet(null, packet)) {
+            throw new IllegalStateException("handshakeV10Packet isn't null.");
         }
-        return mono;
+        this.clientCollationIndex.compareAndSet(null, mapClientCollationIndex());
     }
 
-    private Mono<ByteBuf> createHandshakeResponse320() {
-        return Mono.error(new UnsupportedOperationException("unsupported handshake response 320"));
+
+    private Mono<HandshakeV10Packet> receiveHandshakeV10Packet(ByteBuf packetBuf) {
+        if (ErrorPacket.isErrorPacket(packetBuf)) {
+            // reject packet
+            ErrorPacket errorPacket = ErrorPacket.readPacketAtHandshake(packetBuf);
+            return FutureMono.from(this.connection.channel().close())
+                    .then(Mono.defer(() ->
+                            Mono.error(new JdbdMySQLException(
+                                    "handshake packet is error packet,close connection.ErrorPacket[%s]", errorPacket))
+                    ));
+        }
+        return Mono.just(HandshakeV10Packet.readHandshake(packetBuf));
     }
 
     /**
@@ -247,12 +200,12 @@ public final class ClientProtocolImpl implements ClientProtocol, ProtocolAssista
         // 2. max_packet_size
         PacketUtils.writeInt4(payloadBuf, MAX_PACKET_SIZE);
         // 3. character_set
-        PacketUtils.writeInt1(payloadBuf, getClientCollationIndex());
+        PacketUtils.writeInt1(payloadBuf, obtainClientCollationIndex());
         // 4. filler,Set of bytes reserved for future use.
         payloadBuf.writeZero(23);
 
         // 5. username,login user name
-        HostInfo hostInfo = getHostInfo();
+        HostInfo hostInfo = getMainHostInfo();
         String user = hostInfo.getUser();
         PacketUtils.writeStringTerm(payloadBuf, user.getBytes(clientCharset));
 
@@ -267,7 +220,7 @@ public final class ClientProtocolImpl implements ClientProtocol, ProtocolAssista
         // 7. database
         if ((clientFlag & CLIENT_CONNECT_WITH_DB) != 0) {
             String database = this.mySQLUrl.getOriginalDatabase();
-            if (!StringUtils.hasText(database)) {
+            if (!MySQLStringUtils.hasText(database)) {
                 throw new JdbdMySQLException("client flag error,check this.getClientFlat() method.");
             }
             PacketUtils.writeStringTerm(payloadBuf, database.getBytes(clientCharset));
@@ -292,123 +245,6 @@ public final class ClientProtocolImpl implements ClientProtocol, ProtocolAssista
         //TODO 10.zstd_compression_level,compression level for zstd compression algorithm
 
         return Mono.just(payloadBuf);
-    }
-
-    private Mono<Void> sendPacket(ByteBuf packetBuffer) {
-        return Mono.from(this.connection.outbound().send(Mono.just(packetBuffer)));
-    }
-
-    private Mono<MySQLPacket> readAuthResponse() {
-        return receiveSmallPacket(this.connection)
-                .map(this::doReadAuthResponse)
-                ;
-    }
-
-
-    private MySQLPacket doReadAuthResponse(ByteBuf packetByteBuf) {
-        MySQLPacket packet;
-        if (OkPacket.isOkPacket(packetByteBuf)) {
-            packet = OkPacket.readPacket(packetByteBuf, this.handshakeV10Packet.getCapabilityFlags());
-        } else if (AuthSwitchRequestPacket.isAuthSwitchRequestPacket(packetByteBuf)) {
-            packet = AuthSwitchRequestPacket.readPacket(packetByteBuf);
-        } else {
-            packet = RawPacket.readPacket(packetByteBuf, this.handshakeV10Packet.getServerVersion());
-        }
-        return packet;
-    }
-
-
-    private int obtainClientFlat() {
-        HandshakeV10Packet handshakeV10Packet = (HandshakeV10Packet) this.handshakePacket.get();
-        final int serverFlag = handshakeV10Packet.getCapabilityFlags();
-        final Properties env = this.properties;
-
-        final boolean useConnectWithDb = StringUtils.hasText(this.mySQLUrl.getOriginalDatabase())
-                && !env.getRequiredProperty(PropertyKey.createDatabaseIfNotExist, Boolean.class);
-
-        return CLIENT_SECURE_CONNECTION
-                | CLIENT_PLUGIN_AUTH
-                | (serverFlag & CLIENT_LONG_PASSWORD)  //
-                | (serverFlag & CLIENT_PROTOCOL_41)    //
-
-                | (serverFlag & CLIENT_TRANSACTIONS)   // Need this to get server status values
-                | (serverFlag & CLIENT_MULTI_RESULTS)  // We always allow multiple result sets
-                | (serverFlag & CLIENT_PS_MULTI_RESULTS)  // We always allow multiple result sets for SSPS
-                | (serverFlag & CLIENT_LONG_FLAG)      //
-
-                | (serverFlag & CLIENT_DEPRECATE_EOF)  //
-                | (serverFlag & CLIENT_PLUGIN_AUTH_LENENC_CLIENT_DATA)
-                | (env.getRequiredProperty(PropertyKey.useCompression, Boolean.class) ? (serverFlag & CLIENT_COMPRESS) : 0)
-                | (useConnectWithDb ? (serverFlag & CLIENT_CONNECT_WITH_DB) : 0)
-                | (env.getRequiredProperty(PropertyKey.useAffectedRows, Boolean.class) ? 0 : (serverFlag & CLIENT_FOUND_ROWS))
-
-                | (env.getRequiredProperty(PropertyKey.allowLoadLocalInfile, Boolean.class) ? (serverFlag & CLIENT_LOCAL_FILES) : 0)
-                | (env.getRequiredProperty(PropertyKey.interactiveClient, Boolean.class) ? (serverFlag & CLIENT_INTERACTIVE) : 0)
-                | (env.getRequiredProperty(PropertyKey.allowMultiQueries, Boolean.class) ? (serverFlag & CLIENT_MULTI_STATEMENTS) : 0)
-                | (env.getRequiredProperty(PropertyKey.disconnectOnExpiredPasswords, Boolean.class) ? 0 : (serverFlag & CLIENT_CAN_HANDLE_EXPIRED_PASSWORD))
-
-                | (NONE.equals(env.getRequiredProperty(PropertyKey.connectionAttributes)) ? 0 : (serverFlag & CLIENT_CONNECT_ATTRS))
-                | (env.getRequiredProperty(PropertyKey.sslMode, SslMode.class) != SslMode.DISABLED ? (serverFlag & CLIENT_SSL) : 0)
-
-                // TODO MYSQLCONNJ-437
-                // clientParam |= (capabilityFlags & NativeServerSession.CLIENT_SESSION_TRACK);
-
-                ;
-    }
-
-
-    private byte getClientCollationIndex() {
-        Byte b = this.clientCollationIndex.get();
-        if (b == null) {
-            throw new IllegalStateException("client no handshake");
-        }
-        return b;
-    }
-
-    private byte mapClientCollationIndex() {
-        int charsetIndex;
-        AbstractHandshakePacket handshakePacket = this.handshakePacket.get();
-        if (handshakePacket == null) {
-            throw new IllegalStateException("client no handshake.");
-        }
-        charsetIndex = CharsetMapping.getCollationIndexForJavaEncoding(
-                this.clientCharset.name(), handshakePacket.getServerVersion());
-        if (charsetIndex == 0) {
-            charsetIndex = CharsetMapping.MYSQL_COLLATION_INDEX_utf8;
-        }
-        if (charsetIndex > 255) {
-            throw new JdbdRuntimeException("client collation mapping error.") {
-            };
-        }
-        return (byte) charsetIndex;
-    }
-
-    private HostInfo getHostInfo() {
-        return this.mySQLUrl.getHosts().get(0);
-    }
-
-    private ByteBuf createAuthenticationDataFor41(AuthenticationPlugin plugin, boolean skipPassword) {
-        ByteBuf payloadBuf;
-        if (skipPassword) {
-            // skip password
-            payloadBuf = createOneSizePayload(0);
-        } else {
-            HandshakeV10Packet handshakeV10Packet = obtainHandshakeV10Packet();
-            String seed = handshakeV10Packet.getAuthPluginDataPart1() + handshakeV10Packet.getAuthPluginDataPart2();
-            byte[] seedBytes = seed.getBytes();
-            ByteBuf fromServer = createPayloadBuffer(seedBytes.length);
-            // invoke AuthenticationPlugin
-            List<ByteBuf> toServer = plugin.nextAuthenticationStep(fromServer);
-            // release temp fromServer
-            fromServer.release();
-            if (toServer.isEmpty()) {
-                throw new IllegalStateException(String.format(
-                        "AuthenticationPlugin[%s] nextAuthenticationStep return error"
-                        , plugin.getClass().getName()));
-            }
-            payloadBuf = toServer.get(0);
-        }
-        return payloadBuf;
     }
 
     private Triple<AuthenticationPlugin, Boolean, Map<String, AuthenticationPlugin>> obtainAuthenticationPlugin() {
@@ -443,6 +279,51 @@ public final class ClientProtocolImpl implements ClientProtocol, ProtocolAssista
         return new Triple<>(plugin, skipPassword, pluginMap);
     }
 
+    private int obtainClientFlat() {
+        HandshakeV10Packet handshakeV10Packet = this.handshakeV10Packet.get();
+        final int serverFlag = handshakeV10Packet.getCapabilityFlags();
+        final Properties env = this.properties;
+
+        final boolean useConnectWithDb = MySQLStringUtils.hasText(this.mySQLUrl.getOriginalDatabase())
+                && !env.getRequiredProperty(PropertyKey.createDatabaseIfNotExist, Boolean.class);
+
+        return CLIENT_SECURE_CONNECTION
+                | CLIENT_PLUGIN_AUTH
+                | (serverFlag & CLIENT_LONG_PASSWORD)  //
+                | (serverFlag & CLIENT_PROTOCOL_41)    //
+
+                | (serverFlag & CLIENT_TRANSACTIONS)   // Need this to get server status values
+                | (serverFlag & CLIENT_MULTI_RESULTS)  // We always allow multiple result sets
+                | (serverFlag & CLIENT_PS_MULTI_RESULTS)  // We always allow multiple result sets for SSPS
+                | (serverFlag & CLIENT_LONG_FLAG)      //
+
+                | (serverFlag & CLIENT_DEPRECATE_EOF)  //
+                | (serverFlag & CLIENT_PLUGIN_AUTH_LENENC_CLIENT_DATA)
+                | (env.getRequiredProperty(PropertyKey.useCompression, Boolean.class) ? (serverFlag & CLIENT_COMPRESS) : 0)
+                | (useConnectWithDb ? (serverFlag & CLIENT_CONNECT_WITH_DB) : 0)
+                | (env.getRequiredProperty(PropertyKey.useAffectedRows, Boolean.class) ? 0 : (serverFlag & CLIENT_FOUND_ROWS))
+
+                | (env.getRequiredProperty(PropertyKey.allowLoadLocalInfile, Boolean.class) ? (serverFlag & CLIENT_LOCAL_FILES) : 0)
+                | (env.getRequiredProperty(PropertyKey.interactiveClient, Boolean.class) ? (serverFlag & CLIENT_INTERACTIVE) : 0)
+                | (env.getRequiredProperty(PropertyKey.allowMultiQueries, Boolean.class) ? (serverFlag & CLIENT_MULTI_STATEMENTS) : 0)
+                | (env.getRequiredProperty(PropertyKey.disconnectOnExpiredPasswords, Boolean.class) ? 0 : (serverFlag & CLIENT_CAN_HANDLE_EXPIRED_PASSWORD))
+
+                | (NONE.equals(env.getProperty(PropertyKey.connectionAttributes)) ? 0 : (serverFlag & CLIENT_CONNECT_ATTRS))
+                | (env.getRequiredProperty(PropertyKey.sslMode, PropertyDefinitions.SslMode.class) != PropertyDefinitions.SslMode.DISABLED ? (serverFlag & CLIENT_SSL) : 0)
+
+                // TODO MYSQLCONNJ-437
+                // clientParam |= (capabilityFlags & NativeServerSession.CLIENT_SESSION_TRACK);
+
+                ;
+    }
+
+    private byte obtainClientCollationIndex() {
+        Byte b = this.clientCollationIndex.get();
+        if (b == null) {
+            throw new IllegalStateException("client no handshake");
+        }
+        return b;
+    }
 
     /**
      * @return a unmodifiable map
@@ -483,22 +364,62 @@ public final class ClientProtocolImpl implements ClientProtocol, ProtocolAssista
         return Collections.unmodifiableMap(map);
     }
 
-    private HandshakeV10Packet obtainHandshakeV10Packet() {
-        AbstractHandshakePacket packet = obtainHandshakePacket();
-        if (!(packet instanceof HandshakeV10Packet)) {
-            throw new IllegalStateException(
-                    String.format("handshakePacket[%s] isn't HandshakeV10Packet.", packet.getClass().getName()));
-        }
-        return (HandshakeV10Packet) packet;
+    private Mono<Void> sendPacket(ByteBuf packetBuffer) {
+        return Mono.from(this.connection.outbound().send(Mono.just(packetBuffer)));
     }
 
-    private AbstractHandshakePacket obtainHandshakePacket() {
-        AbstractHandshakePacket handshakePacket = this.handshakePacket.get();
+    private byte mapClientCollationIndex() {
+        int charsetIndex;
+        AbstractHandshakePacket handshakePacket = this.handshakeV10Packet.get();
         if (handshakePacket == null) {
             throw new IllegalStateException("client no handshake.");
         }
-        return handshakePacket;
+        charsetIndex = CharsetMapping.getCollationIndexForJavaEncoding(
+                this.clientCharset.name(), handshakePacket.getServerVersion());
+        if (charsetIndex == 0) {
+            charsetIndex = CharsetMapping.MYSQL_COLLATION_INDEX_utf8;
+        }
+        if (charsetIndex > 255) {
+            throw new JdbdRuntimeException("client collation mapping error.") {
+            };
+        }
+        return (byte) charsetIndex;
     }
+
+
+    private HandshakeV10Packet obtainHandshakeV10Packet() {
+        HandshakeV10Packet packet = this.handshakeV10Packet.get();
+        if (packet == null) {
+            throw new IllegalStateException("no handshake.");
+        }
+        return packet;
+    }
+
+
+    private ByteBuf createAuthenticationDataFor41(AuthenticationPlugin plugin, boolean skipPassword) {
+        ByteBuf payloadBuf;
+        if (skipPassword) {
+            // skip password
+            payloadBuf = createOneSizePayload(0);
+        } else {
+            HandshakeV10Packet handshakeV10Packet = obtainHandshakeV10Packet();
+            String seed = handshakeV10Packet.getAuthPluginDataPart1() + handshakeV10Packet.getAuthPluginDataPart2();
+            byte[] seedBytes = seed.getBytes();
+            ByteBuf fromServer = createPayloadBuffer(seedBytes.length);
+            // invoke AuthenticationPlugin
+            List<ByteBuf> toServer = plugin.nextAuthenticationStep(fromServer);
+            // release temp fromServer
+            fromServer.release();
+            if (toServer.isEmpty()) {
+                throw new IllegalStateException(String.format(
+                        "AuthenticationPlugin[%s] nextAuthenticationStep return error"
+                        , plugin.getClass().getName()));
+            }
+            payloadBuf = toServer.get(0);
+        }
+        return payloadBuf;
+    }
+
 
     private Map<String, String> createConnectionAttributes() {
         String connectionStr = this.properties.getProperty(PropertyKey.connectionAttributes);
@@ -527,12 +448,13 @@ public final class ClientProtocolImpl implements ClientProtocol, ProtocolAssista
         return attMap;
     }
 
+
     /*################################## blow static method ##################################*/
 
-    public static AuthenticationPlugin loadPlugin(String pluginClassName, ProtocolAssistant assistant
+    private static AuthenticationPlugin loadPlugin(String pluginClassName, ProtocolAssistant assistant
             , HostInfo hostInfo) {
         try {
-            Class<?> pluginClass = Class.forName(pluginClassName);
+            Class<?> pluginClass = Class.forName(convertPluginClassName(pluginClassName));
             if (!AuthenticationPlugin.class.isAssignableFrom(pluginClass)) {
                 throw new JdbdMySQLException("class[%s] isn't %s type.", AuthenticationPlugin.class.getName());
             }
@@ -550,6 +472,35 @@ public final class ClientProtocolImpl implements ClientProtocol, ProtocolAssista
         }
     }
 
+    private static String convertPluginClassName(String pluginClassName) {
+        String className;
+        switch (pluginClassName) {
+            case MySQLNativePasswordPlugin.PLUGIN_NAME:
+            case MySQLNativePasswordPlugin.PLUGIN_CLASS:
+                className = MySQLNativePasswordPlugin.class.getName();
+                break;
+            case CachingSha2PasswordPlugin.PLUGIN_NAME:
+            case CachingSha2PasswordPlugin.PLUGIN_CLASS:
+                className = CachingSha2PasswordPlugin.class.getName();
+                break;
+            case MySQLClearPasswordPlugin.PLUGIN_NAME:
+            case MySQLClearPasswordPlugin.PLUGIN_CLASS:
+                className = MySQLClearPasswordPlugin.class.getName();
+                break;
+            case MySQLOldPasswordPlugin.PLUGIN_NAME:
+            case MySQLOldPasswordPlugin.PLUGIN_CLASS:
+                className = MySQLOldPasswordPlugin.class.getName();
+                break;
+            case Sha256PasswordPlugin.PLUGIN_NAME:
+            case Sha256PasswordPlugin.PLUGIN_CLASS:
+                className = Sha256PasswordPlugin.class.getName();
+                break;
+            default:
+                className = pluginClassName;
+        }
+        return className;
+    }
+
     private static void appendBuildInPluginClassNameList(List<String> pluginClassNameList) {
         pluginClassNameList.add(MySQLNativePasswordPlugin.class.getName());
         pluginClassNameList.add(MySQLClearPasswordPlugin.class.getName());
@@ -557,35 +508,6 @@ public final class ClientProtocolImpl implements ClientProtocol, ProtocolAssista
         pluginClassNameList.add(CachingSha2PasswordPlugin.class.getName());
 
         pluginClassNameList.add(MySQLNativePasswordPlugin.class.getName());
-
-    }
-
-    private static Mono<ByteBuf> receiveSmallPacket(Connection connection) {
-        return connection.inbound().receive()
-                .doOnSubscribe(subscription -> subscription.request(1L))
-                .elementAt(0);
-    }
-
-
-    private static final class MySQLProtocolDecodeHandler extends ByteToMessageDecoder {
-
-        static void addMySQLDecodeHandler(Connection connection) {
-            connection.addHandlerFirst(MySQLProtocolDecodeHandler.class.getSimpleName()
-                    , new MySQLProtocolDecodeHandler());
-        }
-
-        private MySQLProtocolDecodeHandler() {
-
-        }
-
-        @Override
-        protected void decode(ChannelHandlerContext channelHandlerContext, ByteBuf byteBuf, List<Object> list) {
-            final int packetTotalLen = PacketUtils.HEADER_SIZE + PacketUtils.getInt3(byteBuf, byteBuf.readerIndex());
-
-            if (byteBuf.readableBytes() >= packetTotalLen) {
-                list.add(byteBuf.readRetainedSlice(packetTotalLen));
-            }
-        }
 
     }
 

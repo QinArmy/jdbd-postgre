@@ -1,6 +1,6 @@
 package io.jdbd.mysql.protocol;
 
-import io.jdbd.mysql.protocol.client.ClientProtocol;
+import io.jdbd.mysql.protocol.client.ClientCommandProtocol;
 import io.jdbd.mysql.protocol.client.PacketUtils;
 import io.netty.buffer.ByteBuf;
 import reactor.util.annotation.Nullable;
@@ -27,7 +27,7 @@ public final class OkPacket implements MySQLPacket {
         long lastInsertId = PacketUtils.readLenEnc(packetBuf);
         //3. status_flags and warnings
         final int statusFags, warnings;
-        if ((serverCapabilities & ClientProtocol.CLIENT_PROTOCOL_41) != 0) {
+        if ((serverCapabilities & ClientCommandProtocol.CLIENT_PROTOCOL_41) != 0) {
             statusFags = PacketUtils.readInt2(packetBuf);
             warnings = PacketUtils.readInt2(packetBuf);
         } else {
@@ -35,9 +35,9 @@ public final class OkPacket implements MySQLPacket {
         }
         //4.
         String info, sessionStateInfo = null;
-        if ((serverCapabilities & ClientProtocol.CLIENT_SESSION_TRACK) != 0) {
+        if ((serverCapabilities & ClientCommandProtocol.CLIENT_SESSION_TRACK) != 0) {
             info = PacketUtils.readStringLenEnc(packetBuf, Charset.defaultCharset());
-            if ((statusFags & ClientProtocol.SERVER_SESSION_STATE_CHANGED) != 0) {
+            if ((statusFags & ClientCommandProtocol.SERVER_SESSION_STATE_CHANGED) != 0) {
                 sessionStateInfo = PacketUtils.readStringLenEnc(packetBuf, Charset.defaultCharset());
             }
         } else {

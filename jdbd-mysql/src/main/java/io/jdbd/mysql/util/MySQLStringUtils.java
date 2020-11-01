@@ -2,9 +2,9 @@ package io.jdbd.mysql.util;
 
 import java.nio.charset.Charset;
 
-public abstract class StringUtils extends org.qinarmy.util.StringUtils {
+public abstract class MySQLStringUtils extends org.qinarmy.util.StringUtils {
 
-    protected StringUtils() {
+    protected MySQLStringUtils() {
         throw new UnsupportedOperationException();
     }
 

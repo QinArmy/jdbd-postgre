@@ -16,6 +16,10 @@ public class MySQLClearPasswordPlugin implements AuthenticationPlugin {
         return new MySQLClearPasswordPlugin(protocolAssistant, hostInfo);
     }
 
+    public static final String PLUGIN_NAME = "mysql_clear_password";
+
+    public static final String PLUGIN_CLASS = "com.mysql.cj.protocol.a.authentication.MysqlClearPasswordPlugin";
+
     private final ProtocolAssistant protocolAssistant;
 
     private final HostInfo hostInfo;
@@ -27,7 +31,7 @@ public class MySQLClearPasswordPlugin implements AuthenticationPlugin {
 
     @Override
     public String getProtocolPluginName() {
-        return "mysql_clear_password";
+        return PLUGIN_NAME;
     }
 
     @Override

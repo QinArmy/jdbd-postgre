@@ -47,21 +47,40 @@ public class ClientProtocolTests {
 
 
     @Test
-    public void handshake() throws Exception {
-        String url = "jdbc:mysql://localhost:3306/army";
-        Map<String, String> properties = new HashMap<>();
-        properties.put("user", "army_w");
-        properties.put("password", "army123");
-        MySQLPacket mySQLPacket = ClientProtocolImpl.getInstance(MySQLUrl.getInstance(url, properties))
-                .flatMap(ClientProtocol::handshake)
+    public void simpleTest() throws Exception {
+
+
+    }
+
+
+    @Test
+    public void receiveHandshake() throws Exception {
+
+        MySQLPacket mySQLPacket = createMySQLConnectionProtocol()
+                .flatMap(ClientConnectionProtocol::receiveHandshake)
                 .block();
         LOG.info("handshake packet:\n {}", mySQLPacket);
     }
 
     @Test
-    public void simpleTest() throws Exception {
+    public void responseHandshake() {
+        MySQLPacket mySQLPacket = createMySQLConnectionProtocol()
+                .flatMap(protocol -> protocol.receiveHandshake().thenReturn(protocol))
+                .flatMap(ClientConnectionProtocol::responseHandshake)
+                .block();
+        LOG.info("response responseHandshake:\n {}", mySQLPacket);
+    }
 
 
+    private Mono<ClientConnectionProtocol> createMySQLConnectionProtocol() {
+        String url = "jdbc:mysql://localhost:3306/army";
+        Map<String, String> properties = new HashMap<>();
+        properties.put("user", "army_w");
+        properties.put("password", "army123");
+
+        return ClientConnectionProtocolImpl
+                .getInstance(MySQLUrl.getInstance(url, properties))
+                ;
     }
 
 
