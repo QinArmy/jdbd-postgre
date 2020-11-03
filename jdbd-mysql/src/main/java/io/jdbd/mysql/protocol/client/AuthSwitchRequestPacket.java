@@ -10,10 +10,10 @@ public final class AuthSwitchRequestPacket implements MySQLPacket {
 
     public static final int AUTH_SWITCH_REQUEST_HEADER = 0xFE;
 
-    public static AuthSwitchRequestPacket readPacket(ByteBuf packetBuf) {
+    public static AuthSwitchRequestPacket readPacket(ByteBuf payloadBuf) {
 
-        String pluginName = PacketUtils.readStringTerm(packetBuf, StandardCharsets.US_ASCII);
-        String pluginProviderData = PacketUtils.readStringTerm(packetBuf, StandardCharsets.US_ASCII);
+        String pluginName = PacketUtils.readStringTerm(payloadBuf, StandardCharsets.US_ASCII);
+        String pluginProviderData = PacketUtils.readStringTerm(payloadBuf, StandardCharsets.US_ASCII);
 
         return new AuthSwitchRequestPacket(pluginName, pluginProviderData);
     }
@@ -42,10 +42,6 @@ public final class AuthSwitchRequestPacket implements MySQLPacket {
                 .add("pluginName='" + pluginName + "'")
                 .add("pluginProviderData='" + pluginProviderData + "'")
                 .toString();
-    }
-
-    public static boolean isAuthSwitchRequestPacket(ByteBuf packetBuf) {
-        return PacketUtils.getInt1(packetBuf, PacketUtils.HEADER_SIZE) == AUTH_SWITCH_REQUEST_HEADER;
     }
 
 }

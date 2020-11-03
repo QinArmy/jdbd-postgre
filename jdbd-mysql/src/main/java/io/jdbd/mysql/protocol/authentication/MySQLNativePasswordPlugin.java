@@ -53,7 +53,6 @@ public class MySQLNativePasswordPlugin implements AuthenticationPlugin {
 
             payloadBuf = this.protocolAssistant.createPayloadBuffer(scrambleBytes.length);
             payloadBuf.writeBytes(scrambleBytes);
-            PacketUtils.writeFinish(payloadBuf);
         }
         return Collections.singletonList(payloadBuf);
     }

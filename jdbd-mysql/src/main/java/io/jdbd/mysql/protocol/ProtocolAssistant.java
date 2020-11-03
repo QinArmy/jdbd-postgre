@@ -15,6 +15,8 @@ public interface ProtocolAssistant {
 
     boolean isUseSsl();
 
+    ByteBuf createPacketBuffer(int initialPayloadCapacity);
+
     ByteBuf createPayloadBuffer(int initialPayloadCapacity);
 
     /**

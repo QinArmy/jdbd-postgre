@@ -1,6 +1,5 @@
 package io.jdbd.mysql.protocol;
 
-import io.jdbd.mysql.protocol.client.ClientCommandProtocol;
 import io.jdbd.mysql.protocol.client.PacketUtils;
 import io.netty.buffer.ByteBuf;
 
@@ -19,22 +18,17 @@ public final class ErrorPacket implements MySQLPacket {
      * see {@code com.mysql.cj.protocol.a.NativeProtocol#rejectProtocol(com.mysql.cj.protocol.a.NativePacketPayload)}
      * </p>
      */
-    public static ErrorPacket readPacket(ByteBuf packetBuf, final int serverCapabilities) {
-        int payloadLength = PacketUtils.readInt3(packetBuf);
-        // skip sequence_id
-        packetBuf.readByte();
-        if (PacketUtils.readInt1(packetBuf) != ERROR_HEADER) {
+    public static ErrorPacket readPacket(ByteBuf payloadBuf) {
+        if (PacketUtils.readInt1(payloadBuf) != ERROR_HEADER) {
             throw new IllegalArgumentException("packetBuf isn't error packet.");
         }
-        int errorCode = PacketUtils.readInt2(packetBuf);
-        String sqlStateMarker, sqlState;
-        if ((serverCapabilities & ClientCommandProtocol.CLIENT_PROTOCOL_41) != 0) {
-            sqlStateMarker = PacketUtils.readStringFixed(packetBuf, 1, Charset.defaultCharset());
-            sqlState = PacketUtils.readStringFixed(packetBuf, 5, Charset.defaultCharset());
-        } else {
-            throw new IllegalArgumentException("only supported CLIENT_PROTOCOL_41.");
-        }
-        String errorMessage = PacketUtils.readStringEof(packetBuf, payloadLength, Charset.defaultCharset());
+        int errorCode = PacketUtils.readInt2(payloadBuf);
+
+        String sqlStateMarker, sqlState, errorMessage;
+        sqlStateMarker = PacketUtils.readStringFixed(payloadBuf, 1, Charset.defaultCharset());
+        sqlState = PacketUtils.readStringFixed(payloadBuf, 5, Charset.defaultCharset());
+
+        errorMessage = PacketUtils.readStringEof(payloadBuf, payloadBuf.readableBytes(), Charset.defaultCharset());
 
         return new ErrorPacket(errorCode, sqlStateMarker
                 , sqlState, errorMessage
@@ -42,7 +36,7 @@ public final class ErrorPacket implements MySQLPacket {
     }
 
     public static ErrorPacket readPacketAtHandshake(ByteBuf packetBuf) {
-        return readPacket(packetBuf, ClientCommandProtocol.CLIENT_PROTOCOL_41);
+        return readPacket(packetBuf);
     }
 
 
@@ -89,7 +83,7 @@ public final class ErrorPacket implements MySQLPacket {
     }
 
     public static boolean isErrorPacket(ByteBuf byteBuf) {
-        return PacketUtils.getInt1(byteBuf, PacketUtils.HEADER_SIZE) == ERROR_HEADER;
+        return PacketUtils.getInt1(byteBuf, byteBuf.readerIndex()) == ERROR_HEADER;
     }
 
 }

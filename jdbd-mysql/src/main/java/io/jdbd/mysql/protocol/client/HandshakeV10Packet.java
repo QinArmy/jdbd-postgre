@@ -12,52 +12,47 @@ import java.util.StringJoiner;
  */
 final class HandshakeV10Packet extends AbstractHandshakePacket {
 
-    public static HandshakeV10Packet readHandshake(ByteBuf byteBuf) {
-        // below packet header
-        // 1. payload_length
-        PacketUtils.readInt3(byteBuf);
-        // 2. sequence_id
-        PacketUtils.readInt1(byteBuf);
+    public static HandshakeV10Packet readHandshake(ByteBuf payloadBuf) {
         // below payload
-        short protocolVersion = PacketUtils.readInt1(byteBuf);
+        short protocolVersion = PacketUtils.readInt1(payloadBuf);
         if (protocolVersion != 10) {
             throw new IllegalArgumentException("byteBuf isn't Handshake v10 .");
         }
         // 1. server version
-        String serveVersionText = PacketUtils.readStringTerm(byteBuf, StandardCharsets.US_ASCII);
+        String serveVersionText = PacketUtils.readStringTerm(payloadBuf, StandardCharsets.US_ASCII);
         ServerVersion serverVersion = ServerVersion.parseVersion(serveVersionText);
         // 2. thread id,a.k.a. connection id
-        long threadId = PacketUtils.readInt4(byteBuf);
+        long threadId = PacketUtils.readInt4(payloadBuf);
         // 3. auth-plugin-data-part-1,first 8 bytes of the plugin provided data (scramble)
-        String authPluginDataPart1 = PacketUtils.readStringFixed(byteBuf, 8, StandardCharsets.US_ASCII);
+        String authPluginDataPart1 = PacketUtils.readStringFixed(payloadBuf, 8, StandardCharsets.US_ASCII);
         // 4. filler,0x00 byte, terminating the first part of a scramble
-        short filler = PacketUtils.readInt1(byteBuf);
+        short filler = PacketUtils.readInt1(payloadBuf);
 
         // 5. The lower 2 bytes of the Capabilities Flags
-        int capabilityFlags = PacketUtils.readInt2(byteBuf);
+        int capabilityFlags = PacketUtils.readInt2(payloadBuf);
         // 6. character_set,default server a_protocol_character_set, only the lower 8-bits
-        short characterSet = PacketUtils.readInt1(byteBuf);
+        short characterSet = PacketUtils.readInt1(payloadBuf);
         // 7. status_flags,SERVER_STATUS_flags_enum
-        int statusFlags = PacketUtils.readInt2(byteBuf);
+        int statusFlags = PacketUtils.readInt2(payloadBuf);
         // 8. read the upper 2 bytes of the Capabilities Flags and OR operation
-        capabilityFlags |= (PacketUtils.readInt2(byteBuf) << 16);
+        capabilityFlags |= (PacketUtils.readInt2(payloadBuf) << 16);
 
         // 9. auth_plugin_data_len or skip.
         short authPluginDataLen;
         if ((capabilityFlags & ClientCommandProtocol.CLIENT_PLUGIN_AUTH) != 0) {
             //length of the combined auth_plugin_data (scramble), if auth_plugin_data_len is > 0
-            authPluginDataLen = PacketUtils.readInt1(byteBuf);
+            authPluginDataLen = PacketUtils.readInt1(payloadBuf);
         } else {
             //skip constant 0x00
-            byteBuf.readByte();
+            payloadBuf.readByte();
             authPluginDataLen = 0;
         }
         // 10. reserved,reserved. All 0s.   skip for update read index
-        byteBuf.readerIndex(byteBuf.readerIndex() + 10);
+        payloadBuf.readerIndex(payloadBuf.readerIndex() + 10);
 
         // 11. auth-plugin-data-part-2,Rest of the plugin provided data (scramble), $len=MAX(13, length of auth-plugin-data - 8)
         String authPluginDataPart2;
-        authPluginDataPart2 = PacketUtils.readStringFixed(byteBuf
+        authPluginDataPart2 = PacketUtils.readStringFixed(payloadBuf
                 , Integer.max(13, authPluginDataLen - 8), StandardCharsets.US_ASCII);
 //        if (authPluginDataLen > 0) {
 //            authPluginDataPart2 = PacketUtils.readStringFixed(byteBuf
@@ -71,9 +66,9 @@ final class HandshakeV10Packet extends AbstractHandshakePacket {
             // Due to Bug#59453 the auth-plugin-name is missing the terminating NUL-char in versions prior to 5.5.10 and 5.6.2.
             if (!serverVersion.meetsMinimum(5, 5, 10)
                     || (serverVersion.meetsMinimum(5, 6, 0) && !serverVersion.meetsMinimum(5, 6, 2))) {
-                authPluginName = PacketUtils.readStringFixed(byteBuf, authPluginDataLen, StandardCharsets.US_ASCII);
+                authPluginName = PacketUtils.readStringFixed(payloadBuf, authPluginDataLen, StandardCharsets.US_ASCII);
             } else {
-                authPluginName = PacketUtils.readStringTerm(byteBuf, StandardCharsets.US_ASCII);
+                authPluginName = PacketUtils.readStringTerm(payloadBuf, StandardCharsets.US_ASCII);
             }
         }
         return new HandshakeV10Packet(protocolVersion, serverVersion

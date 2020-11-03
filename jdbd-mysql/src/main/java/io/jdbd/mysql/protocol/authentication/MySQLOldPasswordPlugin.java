@@ -58,7 +58,6 @@ public class MySQLOldPasswordPlugin implements AuthenticationPlugin {
 
             payloadBuf = this.protocolAssistant.createPayloadBuffer(payloadBytes.length);
             payloadBuf.writeBytes(payloadBytes);
-            PacketUtils.writeFinish(payloadBuf);
         }
         return Collections.singletonList(payloadBuf);
     }

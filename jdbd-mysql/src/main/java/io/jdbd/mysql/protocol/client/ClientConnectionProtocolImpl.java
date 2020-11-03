@@ -10,6 +10,7 @@ import io.netty.buffer.ByteBuf;
 import org.qinarmy.util.Triple;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.netty.Connection;
 import reactor.netty.FutureMono;
@@ -18,11 +19,13 @@ import reactor.netty.tcp.TcpClient;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 final class ClientConnectionProtocolImpl implements ClientConnectionProtocol, ProtocolAssistant {
@@ -47,11 +50,14 @@ final class ClientConnectionProtocolImpl implements ClientConnectionProtocol, Pr
                 ;
     }
 
+
     private static final String NONE = "none";
 
     private final MySQLUrl mySQLUrl;
 
     private final Connection connection;
+
+    private final MySQLPacketSubscriber<ByteBuf> packetReceiver = new MySQLPacketSubscriber<>();
 
     private final AtomicReference<HandshakeV10Packet> handshakeV10Packet = new AtomicReference<>(null);
 
@@ -63,21 +69,38 @@ final class ClientConnectionProtocolImpl implements ClientConnectionProtocol, Pr
 
     private final AtomicBoolean useSsl = new AtomicBoolean(true);
 
+    private final AtomicInteger sequenceId = new AtomicInteger(0);
+
+    private final AtomicReference<Integer> clientCapability = new AtomicReference<>(null);
+
+    private final AtomicReference<ServerStatus> oldServerStatus = new AtomicReference<>(null);
+
+    private final AtomicReference<ServerStatus> serverStatus = new AtomicReference<>(null);
+
+    private final AtomicInteger authCounter = new AtomicInteger(0);
+
+
     private ClientConnectionProtocolImpl(MySQLUrl mySQLUrl, Connection connection) {
         this.mySQLUrl = mySQLUrl;
         this.connection = connection;
         this.properties = mySQLUrl.getHosts().get(0).getProperties();
         this.clientCharset = Charset.forName(this.properties.getRequiredProperty(PropertyKey.characterEncoding));
+
+        connection.inbound().receive().subscribe(packetReceiver);
     }
 
     @Override
     public Mono<MySQLPacket> ssl() {
         return Mono.empty();
+//        return createSslRequestPayload()
+//                .flatMap(this::sendPacket)
+//                .then(Mono.empty())
+//                ;
     }
 
     @Override
     public Mono<MySQLPacket> receiveHandshake() {
-        return ReceiveOneMono.receiveOneMono(this.connection)
+        return receivePayload()
                 .flatMap(this::receiveHandshakeV10Packet)
                 .doOnNext(this::handleHandshakeV10Packet)
                 .cast(MySQLPacket.class)
@@ -90,13 +113,15 @@ final class ClientConnectionProtocolImpl implements ClientConnectionProtocol, Pr
         //1. obtain plugin
         triple = obtainAuthenticationPlugin();
 
-        AuthenticationPlugin plugin = triple.getFirst();
+        final AuthenticationPlugin plugin = triple.getFirst();
         //2. 'plugin out' is password data.
         ByteBuf pluginOut = createAuthenticationDataFor41(plugin, triple.getSecond());
 
         return createHandshakeResponse41(plugin.getProtocolPluginName(), pluginOut)
                 .flatMap(this::sendPacket)
-                .then(Mono.defer(this::readAuthResponse))
+                .then(Mono.defer(this::receivePayload))
+                .flatMap(packet -> handleAuthResponse(packet, plugin, triple.getThird()))
+                .then(Mono.empty())
                 ;
     }
 
@@ -124,6 +149,11 @@ final class ClientConnectionProtocolImpl implements ClientConnectionProtocol, Pr
     }
 
     @Override
+    public ByteBuf createPacketBuffer(int initialPayloadCapacity) {
+        return PacketUtils.createPacketBuffer(this.connection, initialPayloadCapacity);
+    }
+
+    @Override
     public ByteBuf createPayloadBuffer(int initialPayloadCapacity) {
         return this.connection.outbound().alloc().buffer(initialPayloadCapacity);
     }
@@ -146,22 +176,78 @@ final class ClientConnectionProtocolImpl implements ClientConnectionProtocol, Pr
     }
 
 
-    private Mono<MySQLPacket> readAuthResponse() {
-        return ReceiveOneMono.receiveOneMono(this.connection)
-                .map(this::doReadAuthResponse)
-                ;
-    }
-
-    private MySQLPacket doReadAuthResponse(ByteBuf packetByteBuf) {
+    private MySQLPacket doReadAuthResponse(ByteBuf payloadBuf) {
         MySQLPacket packet;
-        if (OkPacket.isOkPacket(packetByteBuf)) {
-            packet = OkPacket.readPacket(packetByteBuf, obtainHandshakeV10Packet().getCapabilityFlags());
-        } else if (AuthSwitchRequestPacket.isAuthSwitchRequestPacket(packetByteBuf)) {
-            packet = AuthSwitchRequestPacket.readPacket(packetByteBuf);
+        if (OkPacket.isOkPacket(payloadBuf)) {
+            packet = OkPacket.readPacket(payloadBuf, obtainHandshakeV10Packet().getCapabilityFlags());
+        } else if (PacketUtils.isAuthSwitchRequestPacket(payloadBuf)) {
+            packet = AuthSwitchRequestPacket.readPacket(payloadBuf);
+        } else if (ErrorPacket.isErrorPacket(payloadBuf)) {
+            packet = ErrorPacket.readPacket(payloadBuf);
         } else {
-            packet = RawPacket.readPacket(packetByteBuf, obtainHandshakeV10Packet().getServerVersion());
+            packet = RawPacket.readPacket(payloadBuf, obtainHandshakeV10Packet().getServerVersion());
         }
         return packet;
+    }
+
+    private Mono<Void> handleAuthResponse(ByteBuf payloadBuf, AuthenticationPlugin plugin
+            , Map<String, AuthenticationPlugin> pluginMap) {
+
+        Mono<Void> mono;
+        if (OkPacket.isOkPacket(payloadBuf)) {
+            OkPacket packet = OkPacket.readPacket(payloadBuf, obtainHandshakeV10Packet().getCapabilityFlags());
+            setServerStatus(packet.getStatusFags(), true);
+            mono = Mono.empty();
+        } else if (ErrorPacket.isErrorPacket(payloadBuf)) {
+            mono = closeConnection()
+                    .then(Mono.error(new JdbdMySQLException("auth error, %s", ErrorPacket.readPacket(payloadBuf))));
+        } else if (this.authCounter.addAndGet(1) >= 100) {
+            mono = Mono.error(new JdbdMySQLException("TooManyAuthenticationPluginNegotiations"));
+        } else {
+            final AuthenticationPlugin authPlugin;
+            if (PacketUtils.isAuthSwitchRequestPacket(payloadBuf)) {
+                payloadBuf.skipBytes(1); // skip type header
+                String pluginName = PacketUtils.readStringTerm(payloadBuf, StandardCharsets.US_ASCII);
+
+                if (plugin.getProtocolPluginName().equals(pluginName)) {
+                    authPlugin = plugin;
+                } else {
+                    authPlugin = pluginMap.get(pluginName);
+                    if (authPlugin == null) {
+                        return Mono.error(new JdbdMySQLException("BadAuthenticationPlugin[%s] from server.", pluginName));
+                    }
+                }
+                authPlugin.reset();
+            } else {
+                authPlugin = plugin;
+                payloadBuf.skipBytes(1); // skip type header
+            }
+            // plugin auth
+            mono = Flux.fromIterable(authPlugin.nextAuthenticationStep(payloadBuf))
+                    .map(this::convertPayloadBufToPacketBuf)
+                    // all packet send to server
+                    .flatMap(this::sendPacket)
+                    .then(Mono.defer(this::receivePayload))
+                    // recursion invoke handleAuthResponse
+                    .flatMap(buffer -> handleAuthResponse(buffer, authPlugin, pluginMap));
+        }
+        return mono;
+    }
+
+    private ByteBuf convertPayloadBufToPacketBuf(ByteBuf payloadBuf) {
+        ByteBuf packetBuf = createPacketBuffer(payloadBuf.readableBytes());
+        payloadBuf.readBytes(packetBuf);
+        payloadBuf.release();
+        return packetBuf;
+    }
+
+    private void setServerStatus(int serverStatus, boolean saveOldStatusFlags) {
+        if (saveOldStatusFlags) {
+            this.oldServerStatus.set(this.serverStatus.get());
+        } else {
+            this.oldServerStatus.set(null);
+        }
+        this.serverStatus.set(ServerStatus.fromValue(serverStatus));
     }
 
     private void handleHandshakeV10Packet(HandshakeV10Packet packet) {
@@ -191,31 +277,32 @@ final class ClientConnectionProtocolImpl implements ClientConnectionProtocol, Pr
      */
     private Mono<ByteBuf> createHandshakeResponse41(String authPluginName, ByteBuf pluginOut) {
         final Charset clientCharset = this.clientCharset;
-        final int clientFlag = obtainClientFlat();
+        final int clientFlag = obtainClientCapability();
 
-        final ByteBuf payloadBuf = createPayloadBuffer(1024);
+        final ByteBuf packetBuffer = createPacketBuffer(1024);
 
         // 1. client_flag,Capabilities Flags, CLIENT_PROTOCOL_41 always set.
-        PacketUtils.writeInt4(payloadBuf, clientFlag);
+        PacketUtils.writeInt4(packetBuffer, clientFlag);
         // 2. max_packet_size
-        PacketUtils.writeInt4(payloadBuf, MAX_PACKET_SIZE);
+        PacketUtils.writeInt4(packetBuffer, MAX_PACKET_SIZE);
         // 3. character_set
-        PacketUtils.writeInt1(payloadBuf, obtainClientCollationIndex());
+        PacketUtils.writeInt1(packetBuffer, obtainClientCollationIndex());
         // 4. filler,Set of bytes reserved for future use.
-        payloadBuf.writeZero(23);
+        packetBuffer.writeZero(23);
 
         // 5. username,login user name
         HostInfo hostInfo = getMainHostInfo();
         String user = hostInfo.getUser();
-        PacketUtils.writeStringTerm(payloadBuf, user.getBytes(clientCharset));
+        PacketUtils.writeStringTerm(packetBuffer, user.getBytes(clientCharset));
 
         // 6. auth_response or (auth_response_length and auth_response)
         if ((clientFlag & CLIENT_PLUGIN_AUTH_LENENC_CLIENT_DATA) != 0) {
-            PacketUtils.writeStringLenEnc(payloadBuf, pluginOut);
+            PacketUtils.writeStringLenEnc(packetBuffer, pluginOut);
         } else {
-            PacketUtils.writeInt1(payloadBuf, pluginOut.readableBytes());
-            payloadBuf.writeBytes(pluginOut);
+            packetBuffer.writeByte(pluginOut.readableBytes());
+            packetBuffer.writeBytes(pluginOut);
         }
+        pluginOut.release();
 
         // 7. database
         if ((clientFlag & CLIENT_CONNECT_WITH_DB) != 0) {
@@ -223,28 +310,41 @@ final class ClientConnectionProtocolImpl implements ClientConnectionProtocol, Pr
             if (!MySQLStringUtils.hasText(database)) {
                 throw new JdbdMySQLException("client flag error,check this.getClientFlat() method.");
             }
-            PacketUtils.writeStringTerm(payloadBuf, database.getBytes(clientCharset));
+            PacketUtils.writeStringTerm(packetBuffer, database.getBytes(clientCharset));
         }
         // 8. client_plugin_name
         if ((clientFlag & CLIENT_PLUGIN_AUTH) != 0) {
-            PacketUtils.writeStringTerm(payloadBuf, authPluginName.getBytes(clientCharset));
+            PacketUtils.writeStringTerm(packetBuffer, authPluginName.getBytes(clientCharset));
         }
         // 9. client connection attributes
         if ((clientFlag & CLIENT_CONNECT_ATTRS) != 0) {
             Map<String, String> propertySource = createConnectionAttributes();
             // length of all key-values,affected rows
-            PacketUtils.writeIntLenEnc(payloadBuf, propertySource.size());
+            PacketUtils.writeIntLenEnc(packetBuffer, propertySource.size());
             for (Map.Entry<String, String> e : propertySource.entrySet()) {
                 // write key
-                PacketUtils.writeStringLenEnc(payloadBuf, e.getKey().getBytes(clientCharset));
+                PacketUtils.writeStringLenEnc(packetBuffer, e.getKey().getBytes(clientCharset));
                 // write value
-                PacketUtils.writeStringLenEnc(payloadBuf, e.getValue().getBytes(clientCharset));
+                PacketUtils.writeStringLenEnc(packetBuffer, e.getValue().getBytes(clientCharset));
             }
 
         }
         //TODO 10.zstd_compression_level,compression level for zstd compression algorithm
+        //packetBuffer.writeByte(0);
+        return Mono.just(packetBuffer);
+    }
 
-        return Mono.just(payloadBuf);
+    private Mono<ByteBuf> createSslRequestPayload() {
+        ByteBuf packetBuf = createPacketBuffer(32);
+        // 1. client_flag
+        PacketUtils.writeInt4(packetBuf, obtainClientCapability());
+        // 2. max_packet_size
+        PacketUtils.writeInt4(packetBuf, MAX_PACKET_SIZE);
+        // 3. character_set,
+        PacketUtils.writeInt1(packetBuf, obtainClientCollationIndex());
+        // 4. filler
+        packetBuf.writeZero(23);
+        return Mono.just(packetBuf);
     }
 
     private Triple<AuthenticationPlugin, Boolean, Map<String, AuthenticationPlugin>> obtainAuthenticationPlugin() {
@@ -279,8 +379,17 @@ final class ClientConnectionProtocolImpl implements ClientConnectionProtocol, Pr
         return new Triple<>(plugin, skipPassword, pluginMap);
     }
 
-    private int obtainClientFlat() {
-        HandshakeV10Packet handshakeV10Packet = this.handshakeV10Packet.get();
+    private int obtainClientCapability() {
+        Integer clientCapability = this.clientCapability.get();
+        if (clientCapability == null) {
+            clientCapability = createClientCapability();
+            this.clientCapability.set(clientCapability);
+        }
+        return clientCapability;
+    }
+
+    private int createClientCapability() {
+        HandshakeV10Packet handshakeV10Packet = obtainHandshakeV10Packet();
         final int serverFlag = handshakeV10Packet.getCapabilityFlags();
         final Properties env = this.properties;
 
@@ -364,9 +473,6 @@ final class ClientConnectionProtocolImpl implements ClientConnectionProtocol, Pr
         return Collections.unmodifiableMap(map);
     }
 
-    private Mono<Void> sendPacket(ByteBuf packetBuffer) {
-        return Mono.from(this.connection.outbound().send(Mono.just(packetBuffer)));
-    }
 
     private byte mapClientCollationIndex() {
         int charsetIndex;
@@ -406,6 +512,7 @@ final class ClientConnectionProtocolImpl implements ClientConnectionProtocol, Pr
             String seed = handshakeV10Packet.getAuthPluginDataPart1() + handshakeV10Packet.getAuthPluginDataPart2();
             byte[] seedBytes = seed.getBytes();
             ByteBuf fromServer = createPayloadBuffer(seedBytes.length);
+            fromServer.writeBytes(seedBytes);
             // invoke AuthenticationPlugin
             List<ByteBuf> toServer = plugin.nextAuthenticationStep(fromServer);
             // release temp fromServer
@@ -446,6 +553,40 @@ final class ClientConnectionProtocolImpl implements ClientConnectionProtocol, Pr
         attMap.put("_runtime_version", Constants.JVM_VERSION);
         attMap.put("_client_license", Constants.CJ_LICENSE);
         return attMap;
+    }
+
+    /**
+     * packet header have read.
+     *
+     * @see #readPacketHeader(ByteBuf)
+     * @see #sendPacket(ByteBuf)
+     */
+    private Mono<ByteBuf> receivePayload() {
+        return this.packetReceiver.receiveOne()
+                .doOnNext(this::readPacketHeader);
+    }
+
+    /**
+     * @see #receivePayload()
+     * @see #sendPacket(ByteBuf)
+     */
+    private void readPacketHeader(ByteBuf packetBuf) {
+        packetBuf.skipBytes(3);
+        this.sequenceId.set(PacketUtils.readInt1(packetBuf));
+    }
+
+    /**
+     * @see #readPacketHeader(ByteBuf)
+     * @see #receivePayload()
+     */
+    private Mono<Void> sendPacket(ByteBuf packetBuffer) {
+        PacketUtils.writePacketHeader(packetBuffer, this.sequenceId.addAndGet(1));
+        return Mono.from(this.connection.outbound()
+                .send(Mono.just(packetBuffer)));
+    }
+
+    private Mono<Void> closeConnection() {
+        return FutureMono.from(this.connection.channel().close());
     }
 
 

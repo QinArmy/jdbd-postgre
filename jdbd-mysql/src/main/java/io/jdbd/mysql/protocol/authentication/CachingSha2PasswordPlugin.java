@@ -5,6 +5,8 @@ import io.jdbd.mysql.protocol.ProtocolAssistant;
 import io.jdbd.mysql.protocol.client.PacketUtils;
 import io.jdbd.mysql.protocol.conf.HostInfo;
 import io.netty.buffer.ByteBuf;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import reactor.util.annotation.Nullable;
 
 import java.nio.charset.Charset;
@@ -12,6 +14,8 @@ import java.security.DigestException;
 import java.util.concurrent.atomic.AtomicReference;
 
 public class CachingSha2PasswordPlugin extends Sha256PasswordPlugin {
+
+    private static final Logger LOG = LoggerFactory.getLogger(CachingSha2PasswordPlugin.class);
 
     public static CachingSha2PasswordPlugin getInstance(ProtocolAssistant protocolAssistant, HostInfo hostInfo) {
         return new CachingSha2PasswordPlugin(protocolAssistant, hostInfo, tryLoadPublicKeyString(hostInfo));
@@ -26,6 +30,11 @@ public class CachingSha2PasswordPlugin extends Sha256PasswordPlugin {
     protected CachingSha2PasswordPlugin(ProtocolAssistant protocolAssistant
             , HostInfo hostInfo, @Nullable String publicKeyString) {
         super(protocolAssistant, hostInfo, publicKeyString);
+    }
+
+    @Override
+    public void reset() {
+        this.stage.set(AuthStage.FAST_AUTH_SEND_SCRAMBLE);
     }
 
     @Override
@@ -44,13 +53,16 @@ public class CachingSha2PasswordPlugin extends Sha256PasswordPlugin {
                 String seedString = PacketUtils.readStringTerm(fromServer, Charset.defaultCharset());
                 this.seed.set(seedString);
 
-                byte[] passwordBytes = password.getBytes(protocolAssistant.getPasswordCharset());
+                byte[] passwordBytes = password.getBytes(this.protocolAssistant.getPasswordCharset());
                 byte[] sha2Bytes = AuthenticateUtils.scrambleCachingSha2(passwordBytes, seedString.getBytes());
-                ByteBuf packetBuffer = protocolAssistant.createPayloadBuffer(sha2Bytes.length);
-                packetBuffer.writeBytes(sha2Bytes);
-                return packetBuffer.asReadOnly();
+                ByteBuf payloadBuffer = this.protocolAssistant.createPayloadBuffer(sha2Bytes.length);
+                payloadBuffer.writeBytes(sha2Bytes);
+
+                this.stage.set(AuthStage.FAST_AUTH_READ_RESULT);
+                return payloadBuffer.asReadOnly();
             } else if (stage == AuthStage.FAST_AUTH_READ_RESULT) {
-                switch (fromServer.readByte()) {
+                short flag = PacketUtils.readInt1(fromServer);
+                switch (flag) {
                     case 3:
                         this.stage.set(AuthStage.FAST_AUTH_COMPLETE);
                         return null;
@@ -58,7 +70,7 @@ public class CachingSha2PasswordPlugin extends Sha256PasswordPlugin {
                         this.stage.set(AuthStage.FULL_AUTH);
                         break;
                     default:
-                        throw new JdbdMySQLException("Unknown server response after fast auth.");
+                        throw new JdbdMySQLException("Unknown server response[%s] after fast auth.", flag);
                 }
             }
         } catch (DigestException e) {

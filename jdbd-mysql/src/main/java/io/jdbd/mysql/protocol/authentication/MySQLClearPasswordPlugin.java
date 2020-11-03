@@ -53,7 +53,6 @@ public class MySQLClearPasswordPlugin implements AuthenticationPlugin {
 
         ByteBuf payloadBuf = protocolAssistant.createPayloadBuffer(passwordBytes.length + 1);
         PacketUtils.writeStringTerm(payloadBuf, passwordBytes);
-        PacketUtils.writeFinish(payloadBuf);
 
         return Collections.singletonList(payloadBuf);
     }

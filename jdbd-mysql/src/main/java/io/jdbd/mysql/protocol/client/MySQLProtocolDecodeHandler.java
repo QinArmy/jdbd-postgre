@@ -11,13 +11,13 @@ import java.util.List;
 final class MySQLProtocolDecodeHandler extends ByteToMessageDecoder {
 
     static void addMySQLDecodeHandler(Connection connection) {
-        connection.addHandlerFirst(MySQLProtocolDecodeHandler.class.getSimpleName()
-                , new MySQLProtocolDecodeHandler());
+        connection.addHandlerFirst(MySQLProtocolDecodeHandler.class.getSimpleName(), new MySQLProtocolDecodeHandler());
     }
 
     private MySQLProtocolDecodeHandler() {
 
     }
+
 
     @Override
     protected void decode(ChannelHandlerContext context, ByteBuf byteBuf, List<Object> list) {

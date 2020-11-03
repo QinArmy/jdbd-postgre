@@ -6,14 +6,18 @@ import java.util.List;
 
 public interface AuthenticationPlugin {
 
+ default void reset() {
 
-    /**
-     * Returns the name that the MySQL server uses on
-     * the wire for this plugin
-     *
-     * @return plugin name
-     */
-    String getProtocolPluginName();
+ }
+
+
+ /**
+  * Returns the name that the MySQL server uses on
+  * the wire for this plugin
+  *
+  * @return plugin name
+  */
+ String getProtocolPluginName();
 
     /**
      * Does this plugin require the connection itself to be confidential

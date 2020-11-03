@@ -15,7 +15,6 @@ import reactor.netty.tcp.TcpClient;
 import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.atomic.AtomicInteger;
 
 public class ClientProtocolTests {
 
@@ -84,25 +83,6 @@ public class ClientProtocolTests {
     }
 
 
-    private Mono<Connection> connectMySQL(Connection connection) {
-        LOG.info("连接成功");
-        final AtomicInteger len = new AtomicInteger(-1);
-        final AtomicInteger actualLen = new AtomicInteger(0);
-
-        return connection.inbound().receive()
-                .bufferUntil(byteBuf -> {
-                    if (len.get() < 0) {
-                        len.set(PacketUtils.getInt3(byteBuf, 0));
-                    }
-                    return actualLen.addAndGet(byteBuf.readableBytes()) >= len.get();
-                })
-                .elementAt(0)
-                .map(ByteBufferUtils::mergeByteBuf)
-                .map(this::handleHandShakes)
-                .then(Mono.just(connection));
-
-
-    }
 
 
     private void disConnectMySQL(Connection connection) {

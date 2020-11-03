@@ -14,34 +14,31 @@ public final class OkPacket implements MySQLPacket {
 
     public static final int OK_HEADER = 0;
 
-    public static OkPacket readPacket(ByteBuf packetBuf, final int serverCapabilities) {
-        final int payloadLength = PacketUtils.readInt3(packetBuf);
-        // skip sequence_id
-        packetBuf.readByte();
-        if (PacketUtils.readInt1(packetBuf) != OK_HEADER) {
+    public static OkPacket readPacket(ByteBuf payloadBuf, final int serverCapabilities) {
+        if (PacketUtils.readInt1(payloadBuf) != OK_HEADER) {
             throw new IllegalArgumentException("packetBuf isn't ok packet.");
         }
         //1. affected_rows
-        long affectedRows = PacketUtils.readLenEnc(packetBuf);
+        long affectedRows = PacketUtils.readLenEnc(payloadBuf);
         //2. last_insert_id
-        long lastInsertId = PacketUtils.readLenEnc(packetBuf);
+        long lastInsertId = PacketUtils.readLenEnc(payloadBuf);
         //3. status_flags and warnings
         final int statusFags, warnings;
         if ((serverCapabilities & ClientCommandProtocol.CLIENT_PROTOCOL_41) != 0) {
-            statusFags = PacketUtils.readInt2(packetBuf);
-            warnings = PacketUtils.readInt2(packetBuf);
+            statusFags = PacketUtils.readInt2(payloadBuf);
+            warnings = PacketUtils.readInt2(payloadBuf);
         } else {
             throw new IllegalArgumentException("only supported CLIENT_PROTOCOL_41.");
         }
         //4.
         String info, sessionStateInfo = null;
         if ((serverCapabilities & ClientCommandProtocol.CLIENT_SESSION_TRACK) != 0) {
-            info = PacketUtils.readStringLenEnc(packetBuf, Charset.defaultCharset());
+            info = PacketUtils.readStringLenEnc(payloadBuf, Charset.defaultCharset());
             if ((statusFags & ClientCommandProtocol.SERVER_SESSION_STATE_CHANGED) != 0) {
-                sessionStateInfo = PacketUtils.readStringLenEnc(packetBuf, Charset.defaultCharset());
+                sessionStateInfo = PacketUtils.readStringLenEnc(payloadBuf, Charset.defaultCharset());
             }
         } else {
-            info = PacketUtils.readStringEof(packetBuf, payloadLength, Charset.defaultCharset());
+            info = PacketUtils.readStringEof(payloadBuf, payloadBuf.readableBytes(), Charset.defaultCharset());
         }
         return new OkPacket(affectedRows, lastInsertId
                 , statusFags, warnings, info, sessionStateInfo);
@@ -98,8 +95,8 @@ public final class OkPacket implements MySQLPacket {
         return this.sessionStateInfo;
     }
 
-    public static boolean isOkPacket(ByteBuf packetBuf) {
-        return PacketUtils.getInt1(packetBuf, PacketUtils.HEADER_SIZE) == OK_HEADER;
+    public static boolean isOkPacket(ByteBuf payloadBuf) {
+        return PacketUtils.getInt1(payloadBuf, payloadBuf.readerIndex()) == OK_HEADER;
     }
 
 }

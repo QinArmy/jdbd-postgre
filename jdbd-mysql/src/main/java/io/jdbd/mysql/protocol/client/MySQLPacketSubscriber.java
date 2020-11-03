@@ -10,16 +10,16 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
-final class MySQLPacketReceiverImpl<T> implements CoreSubscriber<T>, MySQLPacketReceiver<T> {
+final class MySQLPacketSubscriber<T> implements CoreSubscriber<T>, MySQLPacketReceiver<T> {
 
     private final AtomicReference<Subscription> subscriptionHolder = new AtomicReference<>(null);
 
     private Subscription subscription;
 
-    private final AtomicReference<MySQLPacketSubscriber<T>> actualSubscriber = new AtomicReference<>(null);
+    private final AtomicReference<MySQLPacketProxySubscriber<T>> actualSubscriber = new AtomicReference<>(null);
 
 
-    public void subscribe(MySQLPacketSubscriber<T> subscriber) {
+    public void subscribe(MySQLPacketProxySubscriber<T> subscriber) {
         if (this.actualSubscriber.compareAndSet(null, subscriber)) {
             subscriber.onSubscribe();
         } else {
@@ -36,7 +36,7 @@ final class MySQLPacketReceiverImpl<T> implements CoreSubscriber<T>, MySQLPacket
 
     @Override
     public void onNext(T t) {
-        MySQLPacketSubscriber<T> subscriber = this.actualSubscriber.get();
+        MySQLPacketProxySubscriber<T> subscriber = this.actualSubscriber.get();
         MySQLAssert.stateNonNull(subscriber, "actualSubscriber is null.");
         subscriber.onNext(t);
 
@@ -46,7 +46,7 @@ final class MySQLPacketReceiverImpl<T> implements CoreSubscriber<T>, MySQLPacket
 
     @Override
     public void onError(Throwable t) {
-        MySQLPacketSubscriber<T> subscriber = this.actualSubscriber.get();
+        MySQLPacketProxySubscriber<T> subscriber = this.actualSubscriber.get();
         MySQLAssert.stateNonNull(subscriber, "actualSubscriber is null.");
         subscriber.onError(t);
 
@@ -71,7 +71,7 @@ final class MySQLPacketReceiverImpl<T> implements CoreSubscriber<T>, MySQLPacket
 
     private static final class MySQLReceiveMono<T> extends Mono<T> implements Subscription {
 
-        private final MySQLPacketReceiverImpl<T> source;
+        private final MySQLPacketSubscriber<T> source;
 
         private final Subscription actualSubscription;
 
@@ -79,14 +79,14 @@ final class MySQLPacketReceiverImpl<T> implements CoreSubscriber<T>, MySQLPacket
 
         private final AtomicInteger requested = new AtomicInteger(0);
 
-        private MySQLReceiveMono(MySQLPacketReceiverImpl<T> source, Subscription actualSubscription) {
+        private MySQLReceiveMono(MySQLPacketSubscriber<T> source, Subscription actualSubscription) {
             this.source = source;
             this.actualSubscription = actualSubscription;
         }
 
         @Override
         public void subscribe(CoreSubscriber<? super T> actual) {
-            this.source.subscribe(new MySQLPacketSubscriber<>(this, actual));
+            this.source.subscribe(new MySQLPacketProxySubscriber<>(this, actual));
         }
 
         @Override
@@ -103,13 +103,13 @@ final class MySQLPacketReceiverImpl<T> implements CoreSubscriber<T>, MySQLPacket
     }
 
 
-    private static final class MySQLPacketSubscriber<T> {
+    private static final class MySQLPacketProxySubscriber<T> {
 
         private final Subscription subscription;
 
         private final CoreSubscriber<? super T> actual;
 
-        private MySQLPacketSubscriber(Subscription subscription, CoreSubscriber<? super T> actual) {
+        private MySQLPacketProxySubscriber(Subscription subscription, CoreSubscriber<? super T> actual) {
             this.subscription = subscription;
             this.actual = actual;
         }

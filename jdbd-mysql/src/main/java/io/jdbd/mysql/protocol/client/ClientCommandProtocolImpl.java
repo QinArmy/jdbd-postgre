@@ -33,13 +33,18 @@ public final class ClientCommandProtocolImpl implements ClientCommandProtocol, P
                 .host(hostInfo.getHost())
                 .port(hostInfo.getPort())
                 // MySQLProtocolDecodeHandler splits mysql packet.
-                .doOnConnected(MySQLProtocolDecodeHandler::addMySQLDecodeHandler)
+                .doOnConnected(ClientCommandProtocolImpl::addMySQLCodec)
                 .connect()
                 // receive handshake packet from server
                 .flatMap(ClientCommandProtocolImpl::handshake)
                 // create ClientCommandProtocolImpl instance
                 .map(pair -> new ClientCommandProtocolImpl(mySQLUrl, pair.getFirst(), pair.getSecond()))
                 ;
+    }
+
+    private static void addMySQLCodec(Connection connection) {
+        MySQLProtocolDecodeHandler.addMySQLDecodeHandler(connection);
+        MySQLProtocolEncodeHandler.addMySQLEncodeHandler(connection);
     }
 
     private static Mono<Pair<Connection, HandshakeV10Packet>> handshake(Connection connection) {
@@ -97,6 +102,11 @@ public final class ClientCommandProtocolImpl implements ClientCommandProtocol, P
     @Override
     public boolean isUseSsl() {
         return this.useSsl.get();
+    }
+
+    @Override
+    public ByteBuf createPacketBuffer(int initialPayloadCapacity) {
+        return null;
     }
 
     @Override

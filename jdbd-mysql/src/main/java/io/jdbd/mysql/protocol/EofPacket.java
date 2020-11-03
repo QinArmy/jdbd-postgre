@@ -43,8 +43,8 @@ public final class EofPacket implements MySQLPacket {
         return this.warnings;
     }
 
-    public static boolean isEofPacket(ByteBuf packetBuf) {
-        return PacketUtils.getInt1(packetBuf, PacketUtils.HEADER_SIZE) == EOF_HEADER
-                && PacketUtils.getInt3(packetBuf, packetBuf.readerIndex()) < 5;
+    public static boolean isEofPacket(ByteBuf payloadBuf) {
+        return PacketUtils.getInt1(payloadBuf, payloadBuf.readerIndex()) == EOF_HEADER
+                && payloadBuf.readableBytes() < 5;
     }
 }

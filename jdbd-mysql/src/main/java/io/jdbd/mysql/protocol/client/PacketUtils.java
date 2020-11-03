@@ -233,6 +233,10 @@ public abstract class PacketUtils {
         return readStringFixed(byteBuf, payloadLength, charset);
     }
 
+    public static String readStringEof(ByteBuf byteBuf, Charset charset) {
+        return readStringFixed(byteBuf, byteBuf.readableBytes(), charset);
+    }
+
     /**
      * Protocol::LengthEncodedString
      * A length encoded string is a string that is prefixed with length encoded integer describing the length of the string.
@@ -253,7 +257,7 @@ public abstract class PacketUtils {
         return str;
     }
 
-    @Deprecated
+
     public static ByteBuf createPacketBuffer(Connection connection, int payloadCapacity) {
         ByteBuf packetBuffer = connection.outbound().alloc().buffer(HEADER_SIZE + payloadCapacity);
         // reserve header 4 bytes.
@@ -273,27 +277,29 @@ public abstract class PacketUtils {
     @Deprecated
     public static ByteBuf createOneSizePacket(Connection connection, int payloadByte) {
         ByteBuf packetBuffer = connection.outbound().alloc().buffer(HEADER_SIZE + 1);
-        // reserve header 4 bytes.
+
         writeInt3(packetBuffer, 1);
         packetBuffer.writeZero(1);
-        writeInt1(packetBuffer, payloadByte);
+        // payload
+        packetBuffer.writeByte(payloadByte);
         return packetBuffer.asReadOnly();
     }
 
-
-    public static void writeFinish(ByteBuf packetBuffer) {
-        writeFinish(packetBuffer, 0);
-    }
-
-    public static void writeFinish(ByteBuf packetBuffer, final int sequenceId) {
-        int payloadLength = packetBuffer.readableBytes() - HEADER_SIZE;
-        if (payloadLength > ClientCommandProtocol.MAX_PACKET_SIZE) {
+    public static void writePacketHeader(ByteBuf packetBuf, final int sequenceId) {
+        final int payloadLen = packetBuf.readableBytes() - HEADER_SIZE;
+        if (payloadLen > ClientCommandProtocol.MAX_PACKET_SIZE) {
             throw new IllegalArgumentException(
                     String.format("byteBuffer payload greater than %s.", ClientCommandProtocol.MAX_PACKET_SIZE));
         }
-        writeInt3(packetBuffer, payloadLength);
-        writeInt1(packetBuffer, sequenceId);
+        packetBuf.markWriterIndex();
+        packetBuf.writerIndex(packetBuf.readerIndex());
+
+        writeInt3(packetBuf, payloadLen);
+        packetBuf.writeByte(sequenceId);
+
+        packetBuf.resetWriterIndex();
     }
+
 
     public static IndexOutOfBoundsException createIndexOutOfBoundsException(int readableBytes, int needBytes) {
         return new IndexOutOfBoundsException(
@@ -315,8 +321,9 @@ public abstract class PacketUtils {
         return bigInteger;
     }
 
-    public static void writeInt1(ByteBuf byteBuffer, final int int1) {
-        byteBuffer.writeByte(int1);
+
+    public static void writeInt1(ByteBuf byteBuffer, final byte int1) {
+        byteBuffer.writeByte(int1 & 0xff);
     }
 
     public static void writeInt2(ByteBuf byteBuffer, final int int2) {
@@ -355,16 +362,16 @@ public abstract class PacketUtils {
 
     public static void writeIntLenEnc(ByteBuf packetBuffer, final long intLenEnc) {
         if (intLenEnc >= 0 && intLenEnc < ENC_1) {
-            writeInt1(packetBuffer, (int) intLenEnc);
+            packetBuffer.writeByte((int) intLenEnc);
         } else if (intLenEnc >= ENC_1 && intLenEnc < (1 << 16)) {
-            writeInt1(packetBuffer, ENC_3);
+            packetBuffer.writeByte(ENC_3);
             writeInt2(packetBuffer, (int) intLenEnc);
         } else if (intLenEnc >= (1 << 16) && intLenEnc < (1 << 24)) {
-            writeInt1(packetBuffer, ENC_4);
+            packetBuffer.writeByte(ENC_4);
             writeInt3(packetBuffer, (int) intLenEnc);
         } else {
             // intLenEnc < 0 || intLenEnc >=  (1 << 24)
-            writeInt1(packetBuffer, ENC_9);
+            packetBuffer.writeByte(ENC_9);
             writeInt8(packetBuffer, intLenEnc);
         }
     }
@@ -399,6 +406,12 @@ public abstract class PacketUtils {
         return bytes;
     }
 
+    public static boolean isAuthSwitchRequestPacket(ByteBuf payloadBuf) {
+        return getInt1(payloadBuf, payloadBuf.readerIndex()) == 0xFE;
+    }
+
+    /*################################## blow private static method ##################################*/
+
     private static void divideInt8(long int8, byte[] bytes, int index) {
         bytes[index++] = (byte) (int8 >> 56);
         bytes[index++] = (byte) (int8 >> 48);
@@ -410,4 +423,6 @@ public abstract class PacketUtils {
         bytes[index++] = (byte) (int8 >> 8);
         bytes[index] = (byte) int8;
     }
+
+
 }

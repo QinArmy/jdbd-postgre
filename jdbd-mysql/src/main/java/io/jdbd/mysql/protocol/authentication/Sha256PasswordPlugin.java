@@ -173,7 +173,6 @@ public class Sha256PasswordPlugin implements AuthenticationPlugin {
         byte[] passwordBytes = password.getBytes(this.protocolAssistant.getClientCharset());
         ByteBuf packetBuffer = this.protocolAssistant.createPayloadBuffer(passwordBytes.length + 1);
         PacketUtils.writeStringTerm(packetBuffer, passwordBytes);
-        PacketUtils.writeFinish(packetBuffer);
         return packetBuffer.asReadOnly();
     }
 
@@ -185,7 +184,6 @@ public class Sha256PasswordPlugin implements AuthenticationPlugin {
 
         ByteBuf packetBuffer = protocolAssistant.createPayloadBuffer(passwordBytes.length);
         packetBuffer.writeBytes(passwordBytes);
-        PacketUtils.writeFinish(packetBuffer);
         return packetBuffer.asReadOnly();
     }
 
