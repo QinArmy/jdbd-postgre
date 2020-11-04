@@ -1,7 +1,9 @@
 package io.jdbd.mysql.protocol;
 
+import io.jdbd.mysql.protocol.client.ClientProtocol;
 import io.jdbd.mysql.protocol.client.PacketUtils;
 import io.netty.buffer.ByteBuf;
+import reactor.util.annotation.Nullable;
 
 import java.nio.charset.Charset;
 import java.util.StringJoiner;
@@ -17,17 +19,23 @@ public final class ErrorPacket implements MySQLPacket {
      * <p>
      * see {@code com.mysql.cj.protocol.a.NativeProtocol#rejectProtocol(com.mysql.cj.protocol.a.NativePacketPayload)}
      * </p>
+     *
+     * @param capability <ul>
+     *                   <li>before server receive handshake response packet: server capability</li>
+     *                   <li>after server receive handshake response packet: negotiated capability</li>
+     *                   </ul>
      */
-    public static ErrorPacket readPacket(ByteBuf payloadBuf) {
+    public static ErrorPacket readPacket(ByteBuf payloadBuf, final int capability) {
         if (PacketUtils.readInt1(payloadBuf) != ERROR_HEADER) {
             throw new IllegalArgumentException("packetBuf isn't error packet.");
         }
         int errorCode = PacketUtils.readInt2(payloadBuf);
 
-        String sqlStateMarker, sqlState, errorMessage;
-        sqlStateMarker = PacketUtils.readStringFixed(payloadBuf, 1, Charset.defaultCharset());
-        sqlState = PacketUtils.readStringFixed(payloadBuf, 5, Charset.defaultCharset());
-
+        String sqlStateMarker = null, sqlState = null, errorMessage;
+        if ((capability & ClientProtocol.CLIENT_PROTOCOL_41) != 0) {
+            sqlStateMarker = PacketUtils.readStringFixed(payloadBuf, 1, Charset.defaultCharset());
+            sqlState = PacketUtils.readStringFixed(payloadBuf, 5, Charset.defaultCharset());
+        }
         errorMessage = PacketUtils.readStringEof(payloadBuf, payloadBuf.readableBytes(), Charset.defaultCharset());
 
         return new ErrorPacket(errorCode, sqlStateMarker
@@ -35,9 +43,6 @@ public final class ErrorPacket implements MySQLPacket {
         );
     }
 
-    public static ErrorPacket readPacketAtHandshake(ByteBuf packetBuf) {
-        return readPacket(packetBuf);
-    }
 
 
     private final int errorCode;
@@ -48,7 +53,7 @@ public final class ErrorPacket implements MySQLPacket {
 
     private final String errorMessage;
 
-    private ErrorPacket(int errorCode, String sqlStateMarker, String sqlState, String errorMessage) {
+    private ErrorPacket(int errorCode, @Nullable String sqlStateMarker, @Nullable String sqlState, String errorMessage) {
         this.errorCode = errorCode;
         this.sqlStateMarker = sqlStateMarker;
         this.sqlState = sqlState;
@@ -63,10 +68,12 @@ public final class ErrorPacket implements MySQLPacket {
         return this.errorMessage;
     }
 
+    @Nullable
     public String getSqlStateMarker() {
         return this.sqlStateMarker;
     }
 
+    @Nullable
     public String getSqlState() {
         return this.sqlState;
     }

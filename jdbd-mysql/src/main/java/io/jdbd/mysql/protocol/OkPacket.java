@@ -14,7 +14,15 @@ public final class OkPacket implements MySQLPacket {
 
     public static final int OK_HEADER = 0;
 
-    public static OkPacket readPacket(ByteBuf payloadBuf, final int serverCapabilities) {
+    /**
+     * @param payloadBuf a packet buffer than skip header .
+     * @param capability <ul>
+     *                   <li>before server receive handshake response packet: server capability</li>
+     *                   <li>after server receive handshake response packet: negotiated capability</li>
+     *                   </ul>
+     * @throws IllegalArgumentException packet error.
+     */
+    public static OkPacket readPacket(ByteBuf payloadBuf, final int capability) {
         if (PacketUtils.readInt1(payloadBuf) != OK_HEADER) {
             throw new IllegalArgumentException("packetBuf isn't ok packet.");
         }
@@ -24,21 +32,24 @@ public final class OkPacket implements MySQLPacket {
         long lastInsertId = PacketUtils.readLenEnc(payloadBuf);
         //3. status_flags and warnings
         final int statusFags, warnings;
-        if ((serverCapabilities & ClientCommandProtocol.CLIENT_PROTOCOL_41) != 0) {
-            statusFags = PacketUtils.readInt2(payloadBuf);
+        statusFags = PacketUtils.readInt2(payloadBuf);
+        if ((capability & ClientCommandProtocol.CLIENT_PROTOCOL_41) != 0) {
             warnings = PacketUtils.readInt2(payloadBuf);
         } else {
-            throw new IllegalArgumentException("only supported CLIENT_PROTOCOL_41.");
+            warnings = -1;
         }
         //4.
         String info, sessionStateInfo = null;
-        if ((serverCapabilities & ClientCommandProtocol.CLIENT_SESSION_TRACK) != 0) {
+        if ((capability & ClientCommandProtocol.CLIENT_SESSION_TRACK) != 0) {
             info = PacketUtils.readStringLenEnc(payloadBuf, Charset.defaultCharset());
+            if (info == null) {
+                info = "";
+            }
             if ((statusFags & ClientCommandProtocol.SERVER_SESSION_STATE_CHANGED) != 0) {
                 sessionStateInfo = PacketUtils.readStringLenEnc(payloadBuf, Charset.defaultCharset());
             }
         } else {
-            info = PacketUtils.readStringEof(payloadBuf, payloadBuf.readableBytes(), Charset.defaultCharset());
+            info = PacketUtils.readStringEof(payloadBuf, Charset.defaultCharset());
         }
         return new OkPacket(affectedRows, lastInsertId
                 , statusFags, warnings, info, sessionStateInfo);
@@ -58,7 +69,7 @@ public final class OkPacket implements MySQLPacket {
 
     private OkPacket(long affectedRows, long lastInsertId
             , int statusFags, int warnings
-            , @Nullable String info, @Nullable String sessionStateInfo) {
+            , String info, @Nullable String sessionStateInfo) {
 
         this.affectedRows = affectedRows;
         this.lastInsertId = lastInsertId;
@@ -85,7 +96,6 @@ public final class OkPacket implements MySQLPacket {
         return this.warnings;
     }
 
-    @Nullable
     public String getInfo() {
         return this.info;
     }

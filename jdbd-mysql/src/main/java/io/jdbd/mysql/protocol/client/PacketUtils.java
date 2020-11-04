@@ -245,7 +245,6 @@ public abstract class PacketUtils {
     @Nullable
     public static String readStringLenEnc(ByteBuf byteBuf, Charset charset) {
         long len = readLenEnc(byteBuf);
-        LOG.info("lenEnc:{},readable bytes:{}", len, byteBuf.readableBytes());
         String str;
         if (len == NULL_LENGTH) {
             str = null;

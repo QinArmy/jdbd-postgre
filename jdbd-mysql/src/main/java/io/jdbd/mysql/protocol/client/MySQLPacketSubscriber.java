@@ -36,21 +36,17 @@ final class MySQLPacketSubscriber<T> implements CoreSubscriber<T>, MySQLPacketRe
 
     @Override
     public void onNext(T t) {
-        MySQLPacketProxySubscriber<T> subscriber = this.actualSubscriber.get();
+        MySQLPacketProxySubscriber<T> subscriber = this.actualSubscriber.getAndSet(null);
         MySQLAssert.stateNonNull(subscriber, "actualSubscriber is null.");
         subscriber.onNext(t);
-
         subscriber.onComplete();
-        this.actualSubscriber.compareAndSet(subscriber, null);
     }
 
     @Override
     public void onError(Throwable t) {
-        MySQLPacketProxySubscriber<T> subscriber = this.actualSubscriber.get();
+        MySQLPacketProxySubscriber<T> subscriber = this.actualSubscriber.getAndSet(null);
         MySQLAssert.stateNonNull(subscriber, "actualSubscriber is null.");
         subscriber.onError(t);
-
-        this.actualSubscriber.compareAndSet(subscriber, null);
     }
 
     @Override

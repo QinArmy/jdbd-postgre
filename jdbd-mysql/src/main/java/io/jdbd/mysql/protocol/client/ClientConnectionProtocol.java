@@ -9,5 +9,6 @@ public interface ClientConnectionProtocol extends ClientProtocol {
 
     Mono<MySQLPacket> receiveHandshake();
 
-    Mono<MySQLPacket> responseHandshake();
+    Mono<Void> responseHandshakeAndAuthenticate();
+
 }

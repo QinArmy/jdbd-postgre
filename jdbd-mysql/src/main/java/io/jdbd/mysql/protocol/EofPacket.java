@@ -8,7 +8,7 @@ public final class EofPacket implements MySQLPacket {
 
     public static final int EOF_HEADER = 0xFE;
 
-    public static EofPacket readPacket(ByteBuf packetBuf, final int serverCapabilities) {
+    public static EofPacket readPacket(ByteBuf packetBuf, final int capabilities) {
         int payloadLength = PacketUtils.readInt3(packetBuf);
         // skip sequence_id
         packetBuf.readByte();
@@ -16,7 +16,7 @@ public final class EofPacket implements MySQLPacket {
             throw new IllegalArgumentException("packetBuf isn't error packet.");
         }
         int statusFags, warnings;
-        if ((serverCapabilities & ClientCommandProtocol.CLIENT_PROTOCOL_41) != 0) {
+        if ((capabilities & ClientCommandProtocol.CLIENT_PROTOCOL_41) != 0) {
             statusFags = PacketUtils.readInt2(packetBuf);
             warnings = PacketUtils.readInt2(packetBuf);
         } else {

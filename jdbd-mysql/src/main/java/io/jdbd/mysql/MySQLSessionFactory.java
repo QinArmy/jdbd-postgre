@@ -48,7 +48,7 @@ public class MySQLSessionFactory implements DatabaseSessionFactory {
     }
 
     private Mono<DatabaseSession> createClientSession() {
-        return ClientCommandProtocolImpl.getInstance(this.mySQLUrl)
+        return ClientCommandProtocolImpl.getInstance(null)
                 .flatMap(this::handshake)
                 .flatMap(this::sslRequest)
                 .flatMap(this::authenticate)
