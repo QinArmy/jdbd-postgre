@@ -30,7 +30,7 @@ public final class ClientCommandProtocolImpl implements ClientCommandProtocol {
 
     private final Connection connection;
 
-    private final MySQLPacketSubscriber<ByteBuf> packetReceiver;
+    private final MySQLCumulateReceiver cumulateReceiver;
 
     private final HandshakeV10Packet handshakeV10Packet;
 
@@ -45,7 +45,7 @@ public final class ClientCommandProtocolImpl implements ClientCommandProtocol {
         this.mySQLUrl = connectionProtocol.getMySQLUrl();
         this.connection = connectionProtocol.getConnection();
         this.properties = this.mySQLUrl.getHosts().get(0).getProperties();
-        this.packetReceiver = connectionProtocol.getPacketReceiver();
+        this.cumulateReceiver = connectionProtocol.getCumulateReceiver();
 
         this.handshakeV10Packet = connectionProtocol.getHandshakeV10Packet();
         this.clientCollationIndex = connectionProtocol.getClientCollationIndex();
@@ -66,15 +66,24 @@ public final class ClientCommandProtocolImpl implements ClientCommandProtocol {
 
         return sendCommandPacket(packetBuf, sequenceId)
                 .then(Mono.defer(() -> receivePayload(sequenceId)))
-                .flatMap(this::handleComQueryResponse)
+                .flatMap(payloadBuf -> handleComQueryResponse(payloadBuf, sequenceId))
                 ;
 
     }
 
     /*################################## blow private method ##################################*/
 
-    private Mono<MySQLPacket> handleComQueryResponse(ByteBuf payloadBuf) {
-        LOG.info("payloadBuf readableBytes:{}", payloadBuf.readableBytes());
+    private Mono<MySQLPacket> handleComQueryResponse(ByteBuf payloadBuf, AtomicInteger sequenceId) {
+        if ((this.negotiatedCapability & CLIENT_OPTIONAL_RESULTSET_METADATA) != 0) {
+            byte metadataFollows = payloadBuf.readByte();
+            if (metadataFollows == 1) {
+                LOG.debug("metadataFollows is RESULTSET_METADATA_NONE");
+            } else if (metadataFollows == 0) {
+                LOG.debug("metadataFollows is RESULTSET_METADATA_FULL");
+            }
+        }
+        long columnCount = PacketUtils.readLenEnc(payloadBuf);
+
         return Mono.empty();
     }
 
@@ -86,7 +95,7 @@ public final class ClientCommandProtocolImpl implements ClientCommandProtocol {
      * @see #sendCommandPacket(ByteBuf, AtomicInteger sequenceId)
      */
     private Mono<ByteBuf> receivePayload(AtomicInteger sequenceId) {
-        return this.packetReceiver.receiveOne()
+        return this.cumulateReceiver.receiveOnePacket()
                 .flatMap(packetBuf -> readPacketHeader(packetBuf, sequenceId));
     }
 

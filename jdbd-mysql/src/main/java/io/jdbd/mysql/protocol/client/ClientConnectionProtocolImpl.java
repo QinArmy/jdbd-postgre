@@ -32,7 +32,7 @@ final class ClientConnectionProtocolImpl implements ClientConnectionProtocol, Pr
     private static final Logger LOG = LoggerFactory.getLogger(ClientConnectionProtocolImpl.class);
 
 
-    public static Mono<ClientConnectionProtocol> getInstance(MySQLUrl mySQLUrl) {
+    public static Mono<ClientConnectionProtocol> from(MySQLUrl mySQLUrl) {
         if (mySQLUrl.getProtocol() != MySQLUrl.Protocol.SINGLE_CONNECTION) {
             throw new IllegalArgumentException(
                     String.format("mySQLUrl protocol isn't %s", MySQLUrl.Protocol.SINGLE_CONNECTION));
@@ -41,8 +41,6 @@ final class ClientConnectionProtocolImpl implements ClientConnectionProtocol, Pr
         return TcpClient.create()
                 .host(hostInfo.getHost())
                 .port(hostInfo.getPort())
-                // MySQLProtocolDecodeHandler splits mysql packet.
-                .doOnConnected(MySQLProtocolDecodeHandler::addMySQLDecodeHandler)
                 .connect()
                 // create ClientCommandProtocolImpl instance
                 .map(connection -> new ClientConnectionProtocolImpl(mySQLUrl, connection))
@@ -56,7 +54,7 @@ final class ClientConnectionProtocolImpl implements ClientConnectionProtocol, Pr
 
     private final Connection connection;
 
-    private final MySQLPacketSubscriber<ByteBuf> packetReceiver = new MySQLPacketSubscriber<>();
+    private final MySQLCumulateReceiver cumulateReceiver;
 
     private final AtomicReference<HandshakeV10Packet> handshakeV10Packet = new AtomicReference<>(null);
 
@@ -83,7 +81,7 @@ final class ClientConnectionProtocolImpl implements ClientConnectionProtocol, Pr
         this.properties = mySQLUrl.getHosts().get(0).getProperties();
         this.clientCharset = Charset.forName(this.properties.getRequiredProperty(PropertyKey.characterEncoding));
 
-        connection.inbound().receive().subscribe(packetReceiver);
+        this.cumulateReceiver = MySQLCumulateSubscriber.from(connection);
     }
 
     @Override
@@ -184,8 +182,8 @@ final class ClientConnectionProtocolImpl implements ClientConnectionProtocol, Pr
         return this.connection;
     }
 
-    MySQLPacketSubscriber<ByteBuf> getPacketReceiver() {
-        return this.packetReceiver;
+    MySQLCumulateReceiver getCumulateReceiver() {
+        return this.cumulateReceiver;
     }
 
     HandshakeV10Packet getHandshakeV10Packet() {
@@ -206,7 +204,6 @@ final class ClientConnectionProtocolImpl implements ClientConnectionProtocol, Pr
             , Map<String, AuthenticationPlugin> pluginMap) {
 
         Mono<Void> mono;
-
         if (this.authCounter.addAndGet(1) >= 100) {
             mono = Mono.error(new JdbdMySQLException("TooManyAuthenticationPluginNegotiations"));
         } else if (OkPacket.isOkPacket(payloadBuf)) {
@@ -425,6 +422,7 @@ final class ClientConnectionProtocolImpl implements ClientConnectionProtocol, Pr
 
         return CLIENT_SECURE_CONNECTION
                 | CLIENT_PLUGIN_AUTH
+                // |( serverFlag & CLIENT_OPTIONAL_RESULTSET_METADATA)
                 | (serverFlag & CLIENT_LONG_PASSWORD)  //
                 | (serverFlag & CLIENT_PROTOCOL_41)    //
 
@@ -503,7 +501,7 @@ final class ClientConnectionProtocolImpl implements ClientConnectionProtocol, Pr
 
     private byte mapClientCollationIndex() {
         int charsetIndex;
-        AbstractHandshakePacket handshakePacket = this.handshakeV10Packet.get();
+        HandshakeV10Packet handshakePacket = this.handshakeV10Packet.get();
         if (handshakePacket == null) {
             throw new IllegalStateException("client no handshake.");
         }
@@ -589,7 +587,7 @@ final class ClientConnectionProtocolImpl implements ClientConnectionProtocol, Pr
      * @see #sendPacket(ByteBuf)
      */
     private Mono<ByteBuf> receivePayload() {
-        return this.packetReceiver.receiveOne()
+        return this.cumulateReceiver.receiveOnePacket()
                 .flatMap(this::readPacketHeader);
     }
 

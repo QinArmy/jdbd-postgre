@@ -12,7 +12,6 @@ import io.netty.channel.socket.SocketChannel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.annotations.Test;
-import reactor.core.publisher.Flux;
 
 import java.math.BigInteger;
 
@@ -71,16 +70,6 @@ public class ProtocolTests {
         LOG.info("max:{},big:{}", Long.MAX_VALUE, big);
     }
 
-    @Test
-    public void reactorHttpClient() {
-        Flux.just(1/*, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12*/)
-                .bufferUntil(num -> num == 8)
-                .elementAt(0)
-                .doOnNext(list -> LOG.info("list:{}", list))
-                .then()
-                .block()
-        ;
-    }
 
 
 
