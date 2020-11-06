@@ -171,7 +171,7 @@ public final class ClientCommandProtocolImpl implements ClientCommandProtocol {
 
     private Mono<ByteBuf> receiveComQueryResponseMeta() {
         return this.cumulateReceiver.receiveOne(
-                cumulateBuf -> PacketDecoders.comQueryResponseMetaDecoder(cumulateBuf, this.negotiatedCapability));
+                cumulateBuf -> PacketDecoders.comQueryResponseDecoder(cumulateBuf, this.negotiatedCapability));
     }
 
     /**

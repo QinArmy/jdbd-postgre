@@ -45,6 +45,6 @@ public final class EofPacket implements MySQLPacket {
 
     public static boolean isEofPacket(ByteBuf payloadBuf) {
         return PacketUtils.getInt1(payloadBuf, payloadBuf.readerIndex()) == EOF_HEADER
-                && payloadBuf.readableBytes() < 5;
+                && payloadBuf.readableBytes() <= 9;
     }
 }

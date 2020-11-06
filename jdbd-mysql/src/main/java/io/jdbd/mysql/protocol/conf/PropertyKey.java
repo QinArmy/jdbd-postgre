@@ -108,6 +108,8 @@ public enum PropertyKey {
     tcpRcvBuf("tcpRcvBuf", "0", true), //
     tcpSndBuf("tcpSndBuf", "0", true), //
 
+
+    // blow Security Group
     /**
      * @see io.jdbd.mysql.protocol.conf.PropertyDefinitions.SslMode
      */

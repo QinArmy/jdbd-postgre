@@ -2,6 +2,7 @@ package io.jdbd.mysql.protocol.client;
 
 import io.jdbd.mysql.JdbdMySQLException;
 import io.jdbd.mysql.protocol.EofPacket;
+import io.jdbd.mysql.protocol.ErrorPacket;
 import io.netty.buffer.ByteBuf;
 import reactor.util.annotation.Nullable;
 
@@ -11,6 +12,17 @@ public abstract class PacketDecoders {
     protected PacketDecoders() {
         throw new UnsupportedOperationException();
     }
+
+    /**
+     * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_com_query_response.html">Protocol::COM_QUERY Response</a>
+     */
+    enum ComQueryResponse {
+        OK,
+        ERROR,
+        TEXT_RESULT,
+        LOCAL_INFILE_REQUEST
+    }
+
 
     @Nullable
     public static ByteBuf packetDecoder(final ByteBuf cumulateBuffer) {
@@ -35,7 +47,71 @@ public abstract class PacketDecoders {
 
 
     @Nullable
-    public static ByteBuf comQueryResponseMetaDecoder(final ByteBuf cumulateBuf, final int negotiatedCapability) {
+    public static ByteBuf comQueryResponseDecoder(final ByteBuf cumulateBuf, final int negotiatedCapability) {
+        if (!PacketUtils.hasOnePacket(cumulateBuf)) {
+            return null;
+        }
+        ByteBuf decodedByteBuf;
+        final ComQueryResponse responseType = decodeComQueryResponseType(cumulateBuf, negotiatedCapability);
+        switch (responseType) {
+            case OK:
+            case ERROR:
+            case LOCAL_INFILE_REQUEST:
+                decodedByteBuf = packetDecoder(cumulateBuf);
+                break;
+            case TEXT_RESULT:
+                decodedByteBuf = comQueryTextResultSetMetadataDecoder(cumulateBuf, negotiatedCapability);
+                break;
+            default:
+                throw new IllegalStateException(String.format("unknown ComQueryResponse[%s]", responseType));
+        }
+        return decodedByteBuf;
+    }
+
+
+    /*################################## blow package method ##################################*/
+
+    /**
+     * invoke this method after invoke {@link PacketUtils#hasOnePacket(ByteBuf)}.
+     */
+    static ComQueryResponse decodeComQueryResponseType(final ByteBuf cumulateBuf, final int negotiatedCapability) {
+        int readerIndex = cumulateBuf.readerIndex();
+        final int payloadLength = PacketUtils.getInt3(cumulateBuf, readerIndex);
+        // skip header
+        readerIndex += PacketUtils.HEADER_SIZE;
+        ComQueryResponse responseType;
+        final boolean metadata = (negotiatedCapability & ClientProtocol.CLIENT_OPTIONAL_RESULTSET_METADATA) != 0;
+
+        switch (PacketUtils.getInt1(cumulateBuf, readerIndex++)) {
+            case 0:
+                if (metadata && PacketUtils.obtainLenEncIntByteCount(cumulateBuf, readerIndex) + 1 == payloadLength) {
+                    responseType = ComQueryResponse.TEXT_RESULT;
+                } else {
+                    responseType = ComQueryResponse.OK;
+                }
+                break;
+            case ErrorPacket.ERROR_HEADER:
+                responseType = ComQueryResponse.ERROR;
+                break;
+            case PacketUtils.LOCAL_INFILE_REQUEST_HEADER:
+                responseType = ComQueryResponse.LOCAL_INFILE_REQUEST;
+                break;
+            default:
+                responseType = ComQueryResponse.TEXT_RESULT;
+
+        }
+        return responseType;
+    }
+
+    /*################################## blow private method ##################################*/
+
+    /**
+     * @see #comQueryResponseDecoder(ByteBuf, int)
+     */
+    @Nullable
+    private static ByteBuf comQueryTextResultSetMetadataDecoder(final ByteBuf cumulateBuf
+            , final int negotiatedCapability) {
+
         if (cumulateBuf.readableBytes() < 9) {
             return null;
         }
@@ -107,4 +183,6 @@ public abstract class PacketDecoders {
         }
         return decodedBuf;
     }
+
+
 }

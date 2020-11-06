@@ -18,12 +18,14 @@ public abstract class PacketUtils {
 
     public static final int HEADER_SIZE = 4;
 
+    public static final int LOCAL_INFILE_REQUEST_HEADER = 0xFB;
+
     public static final byte BYTE_ZERO = 0;
 
-    public static final int ENC_1 = 251;
-    public static final int ENC_3 = 252;
-    public static final int ENC_4 = 253;
-    public static final int ENC_9 = 254;
+    public static final int ENC_0 = 0xFB;
+    public static final int ENC_3 = 0xFC;
+    public static final int ENC_4 = 0xFD;
+    public static final int ENC_9 = 0xFE;
 
 
     public static short readInt1(ByteBuf byteBuf) {
@@ -155,7 +157,7 @@ public abstract class PacketUtils {
         final int sw = getInt1(byteBuf, index++);
         long int8;
         switch (sw) {
-            case ENC_1:
+            case ENC_0:
                 // represents a NULL in a ProtocolText::ResultsetRow
                 int8 = NULL_LENGTH;
                 break;
@@ -175,6 +177,29 @@ public abstract class PacketUtils {
         return int8;
     }
 
+    public static int obtainLenEncIntByteCount(ByteBuf byteBuf, int index) {
+        int byteCount;
+        switch (getInt1(byteBuf, index)) {
+            case ENC_0:
+                // represents a NULL in a ProtocolText::ResultsetRow
+                byteCount = 0;
+                break;
+            case ENC_3:
+                byteCount = 3;
+                break;
+            case ENC_4:
+                byteCount = 4;
+                break;
+            case ENC_9:
+                byteCount = 9;
+                break;
+            default:
+                // ENC_1
+                byteCount = 1;
+        }
+        return byteCount;
+    }
+
     /**
      * see {@code com.mysql.cj.protocol.a.NativePacketPayload#readInteger(com.mysql.cj.protocol.a.NativeConstants.IntegerDataType)}
      */
@@ -182,7 +207,7 @@ public abstract class PacketUtils {
         final int sw = readInt1(byteBuf);
         long int8;
         switch (sw) {
-            case ENC_1:
+            case ENC_0:
                 // represents a NULL in a ProtocolText::ResultsetRow
                 int8 = NULL_LENGTH;
                 break;
@@ -304,6 +329,12 @@ public abstract class PacketUtils {
         return HEADER_SIZE + readInt3(packetBuf);
     }
 
+    public static boolean hasOnePacket(ByteBuf byteBuf) {
+        int readableBytes = byteBuf.readableBytes();
+        return readableBytes > HEADER_SIZE
+                && (readableBytes >= HEADER_SIZE + getInt3(byteBuf, byteBuf.readerIndex()));
+    }
+
     @Deprecated
     public static ByteBuf createOneSizePacket(Connection connection, int payloadByte) {
         ByteBuf packetBuffer = connection.outbound().alloc().buffer(HEADER_SIZE + 1);
@@ -391,9 +422,9 @@ public abstract class PacketUtils {
     }
 
     public static void writeIntLenEnc(ByteBuf packetBuffer, final long intLenEnc) {
-        if (intLenEnc >= 0 && intLenEnc < ENC_1) {
+        if (intLenEnc >= 0 && intLenEnc < ENC_0) {
             packetBuffer.writeByte((int) intLenEnc);
-        } else if (intLenEnc >= ENC_1 && intLenEnc < (1 << 16)) {
+        } else if (intLenEnc >= ENC_0 && intLenEnc < (1 << 16)) {
             packetBuffer.writeByte(ENC_3);
             writeInt2(packetBuffer, (int) intLenEnc);
         } else if (intLenEnc >= (1 << 16) && intLenEnc < (1 << 24)) {

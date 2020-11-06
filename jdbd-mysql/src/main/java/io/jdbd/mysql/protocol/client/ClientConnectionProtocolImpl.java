@@ -425,9 +425,6 @@ final class ClientConnectionProtocolImpl implements ClientConnectionProtocol, Pr
 
         return CLIENT_SECURE_CONNECTION
                 | CLIENT_PLUGIN_AUTH
-                //CLIENT_OPTIONAL_RESULTSET_METADATA required set for distinguish the COM_QUERY response
-                // packet type( OK_Packet ,ERR_Packet,LOCAL INFILE Request ,Text Resultset)
-                | (serverCapability & CLIENT_OPTIONAL_RESULTSET_METADATA)
                 | (serverCapability & CLIENT_LONG_PASSWORD)  //
                 | (serverCapability & CLIENT_PROTOCOL_41)    //
 
