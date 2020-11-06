@@ -60,6 +60,9 @@ final class ClientConnectionProtocolImpl implements ClientConnectionProtocol, Pr
 
     private final Properties properties;
 
+    /**
+     * connection phase client charset,will send to server by {@code Protocol::HandshakeResponse41}.
+     */
     private final Charset clientCharset;
 
     private final AtomicReference<Byte> clientCollationIndex = new AtomicReference<>(null);
@@ -79,7 +82,7 @@ final class ClientConnectionProtocolImpl implements ClientConnectionProtocol, Pr
         this.mySQLUrl = mySQLUrl;
         this.connection = connection;
         this.properties = mySQLUrl.getHosts().get(0).getProperties();
-        this.clientCharset = Charset.forName(this.properties.getRequiredProperty(PropertyKey.characterEncoding));
+        this.clientCharset = this.properties.getProperty(PropertyKey.characterEncoding, Charset.class, StandardCharsets.UTF_8);
 
         this.cumulateReceiver = MySQLCumulateSubscriber.from(connection);
     }
@@ -414,7 +417,7 @@ final class ClientConnectionProtocolImpl implements ClientConnectionProtocol, Pr
 
     private int createNegotiatedCapability() {
         HandshakeV10Packet handshakeV10Packet = obtainHandshakeV10Packet();
-        final int serverFlag = handshakeV10Packet.getCapabilityFlags();
+        final int serverCapability = handshakeV10Packet.getCapabilityFlags();
         final Properties env = this.properties;
 
         final boolean useConnectWithDb = MySQLStringUtils.hasText(this.mySQLUrl.getOriginalDatabase())
@@ -422,28 +425,30 @@ final class ClientConnectionProtocolImpl implements ClientConnectionProtocol, Pr
 
         return CLIENT_SECURE_CONNECTION
                 | CLIENT_PLUGIN_AUTH
-                // |( serverFlag & CLIENT_OPTIONAL_RESULTSET_METADATA)
-                | (serverFlag & CLIENT_LONG_PASSWORD)  //
-                | (serverFlag & CLIENT_PROTOCOL_41)    //
+                //CLIENT_OPTIONAL_RESULTSET_METADATA required set for distinguish the COM_QUERY response
+                // packet type( OK_Packet ,ERR_Packet,LOCAL INFILE Request ,Text Resultset)
+                | (serverCapability & CLIENT_OPTIONAL_RESULTSET_METADATA)
+                | (serverCapability & CLIENT_LONG_PASSWORD)  //
+                | (serverCapability & CLIENT_PROTOCOL_41)    //
 
-                | (serverFlag & CLIENT_TRANSACTIONS)   // Need this to get server status values
-                | (serverFlag & CLIENT_MULTI_RESULTS)  // We always allow multiple result sets
-                | (serverFlag & CLIENT_PS_MULTI_RESULTS)  // We always allow multiple result sets for SSPS
-                | (serverFlag & CLIENT_LONG_FLAG)      //
+                | (serverCapability & CLIENT_TRANSACTIONS)   // Need this to get server status values
+                | (serverCapability & CLIENT_MULTI_RESULTS)  // We always allow multiple result sets
+                | (serverCapability & CLIENT_PS_MULTI_RESULTS)  // We always allow multiple result sets for SSPS
+                | (serverCapability & CLIENT_LONG_FLAG)      //
 
-                | (serverFlag & CLIENT_DEPRECATE_EOF)  //
-                | (serverFlag & CLIENT_PLUGIN_AUTH_LENENC_CLIENT_DATA)
-                | (env.getRequiredProperty(PropertyKey.useCompression, Boolean.class) ? (serverFlag & CLIENT_COMPRESS) : 0)
-                | (useConnectWithDb ? (serverFlag & CLIENT_CONNECT_WITH_DB) : 0)
-                | (env.getRequiredProperty(PropertyKey.useAffectedRows, Boolean.class) ? 0 : (serverFlag & CLIENT_FOUND_ROWS))
+                | (serverCapability & CLIENT_DEPRECATE_EOF)  //
+                | (serverCapability & CLIENT_PLUGIN_AUTH_LENENC_CLIENT_DATA)
+                | (env.getRequiredProperty(PropertyKey.useCompression, Boolean.class) ? (serverCapability & CLIENT_COMPRESS) : 0)
+                | (useConnectWithDb ? (serverCapability & CLIENT_CONNECT_WITH_DB) : 0)
+                | (env.getRequiredProperty(PropertyKey.useAffectedRows, Boolean.class) ? 0 : (serverCapability & CLIENT_FOUND_ROWS))
 
-                | (env.getRequiredProperty(PropertyKey.allowLoadLocalInfile, Boolean.class) ? (serverFlag & CLIENT_LOCAL_FILES) : 0)
-                | (env.getRequiredProperty(PropertyKey.interactiveClient, Boolean.class) ? (serverFlag & CLIENT_INTERACTIVE) : 0)
-                | (env.getRequiredProperty(PropertyKey.allowMultiQueries, Boolean.class) ? (serverFlag & CLIENT_MULTI_STATEMENTS) : 0)
-                | (env.getRequiredProperty(PropertyKey.disconnectOnExpiredPasswords, Boolean.class) ? 0 : (serverFlag & CLIENT_CAN_HANDLE_EXPIRED_PASSWORD))
+                | (env.getRequiredProperty(PropertyKey.allowLoadLocalInfile, Boolean.class) ? (serverCapability & CLIENT_LOCAL_FILES) : 0)
+                | (env.getRequiredProperty(PropertyKey.interactiveClient, Boolean.class) ? (serverCapability & CLIENT_INTERACTIVE) : 0)
+                | (env.getRequiredProperty(PropertyKey.allowMultiQueries, Boolean.class) ? (serverCapability & CLIENT_MULTI_STATEMENTS) : 0)
+                | (env.getRequiredProperty(PropertyKey.disconnectOnExpiredPasswords, Boolean.class) ? 0 : (serverCapability & CLIENT_CAN_HANDLE_EXPIRED_PASSWORD))
 
-                | (NONE.equals(env.getProperty(PropertyKey.connectionAttributes)) ? 0 : (serverFlag & CLIENT_CONNECT_ATTRS))
-                | (env.getRequiredProperty(PropertyKey.sslMode, PropertyDefinitions.SslMode.class) != PropertyDefinitions.SslMode.DISABLED ? (serverFlag & CLIENT_SSL) : 0)
+                | (NONE.equals(env.getProperty(PropertyKey.connectionAttributes)) ? 0 : (serverCapability & CLIENT_CONNECT_ATTRS))
+                | (env.getRequiredProperty(PropertyKey.sslMode, PropertyDefinitions.SslMode.class) != PropertyDefinitions.SslMode.DISABLED ? (serverCapability & CLIENT_SSL) : 0)
 
                 // TODO MYSQLCONNJ-437
                 // clientParam |= (capabilityFlags & NativeServerSession.CLIENT_SESSION_TRACK);

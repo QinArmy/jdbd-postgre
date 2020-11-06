@@ -4,6 +4,7 @@ import io.jdbd.mysql.JdbdMySQLException;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.EventLoop;
 import io.netty.handler.codec.ByteToMessageDecoder;
+import io.netty.util.ReferenceCountUtil;
 import org.reactivestreams.Subscription;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -18,11 +19,12 @@ import reactor.util.concurrent.Queues;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Queue;
-import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 
 /**
+ * This class is a implementation of {@link MySQLCumulateReceiver}.
+ *
  * @see NettyInbound#receive()
  * @see ByteBufFlux#retain()
  */
@@ -31,7 +33,7 @@ final class MySQLCumulateSubscriber implements CoreSubscriber<ByteBuf>, MySQLCum
     static MySQLCumulateReceiver from(Connection connection) {
         MySQLCumulateSubscriber receiver = new MySQLCumulateSubscriber(connection);
         connection.inbound().receive()
-                .retain()
+                .retain() // for below cumulate
                 .subscribe(receiver);
         connection.channel().eventLoop();
         return receiver;
@@ -39,8 +41,6 @@ final class MySQLCumulateSubscriber implements CoreSubscriber<ByteBuf>, MySQLCum
 
     private static final Logger LOG = LoggerFactory.getLogger(MySQLCumulateSubscriber.class);
 
-    private static final AtomicIntegerFieldUpdater<MySQLCumulateSubscriber> COMPLETE = AtomicIntegerFieldUpdater
-            .newUpdater(MySQLCumulateSubscriber.class, "complete");
 
     private final Queue<MySQLReceiver> receiverQueue = Queues.<MySQLReceiver>small().get();
 
@@ -52,7 +52,7 @@ final class MySQLCumulateSubscriber implements CoreSubscriber<ByteBuf>, MySQLCum
     private ByteBuf cumulateBuffer;
 
 
-    private volatile int complete = 0;
+    private boolean complete = false;
 
     private MySQLCumulateSubscriber(Connection connection) {
         //  this.connection = connection;
@@ -68,7 +68,6 @@ final class MySQLCumulateSubscriber implements CoreSubscriber<ByteBuf>, MySQLCum
     @Override
     public void onSubscribe(Subscription s) {
         this.upstream = s;
-        // s.request(Long.MAX_VALUE);
     }
 
     @Override
@@ -81,25 +80,20 @@ final class MySQLCumulateSubscriber implements CoreSubscriber<ByteBuf>, MySQLCum
     }
 
     @Override
-    public void onError(Throwable t) {
-        MySQLReceiver receiver = this.receiverQueue.poll();
-        if (receiver != null) {
-            receiver.onError(t);
+    public void onError(Throwable e) {
+        if (this.eventLoop.inEventLoop()) {
+            executeOnError(e);
+        } else {
+            this.eventLoop.execute(() -> executeOnError(e));
         }
     }
 
     @Override
     public void onComplete() {
-        if (COMPLETE.compareAndSet(this, 0, 1)) {
-            Queue<MySQLReceiver> receiverQueue = this.receiverQueue;
-            MySQLReceiver receiver;
-            while ((receiver = receiverQueue.poll()) != null) {
-                if (receiver instanceof MonoMySQLReceiver) {
-                    ((MonoMySQLReceiver) receiver).success(null);
-                } else if (receiver instanceof FluxMySQLReceiver) {
-                    ((FluxMySQLReceiver) receiver).onComplete();
-                }
-            }
+        if (this.eventLoop.inEventLoop()) {
+            executeOnComplete();
+        } else {
+            this.eventLoop.execute(this::executeOnComplete);
         }
     }
 
@@ -107,7 +101,7 @@ final class MySQLCumulateSubscriber implements CoreSubscriber<ByteBuf>, MySQLCum
 
     @Override
     public Mono<ByteBuf> receiveOnePacket() {
-        return receiveOne(MySQLCumulateSubscriber::parseMySQLPacket);
+        return receiveOne(PacketDecoders::packetDecoder);
     }
 
     @Override
@@ -135,18 +129,46 @@ final class MySQLCumulateSubscriber implements CoreSubscriber<ByteBuf>, MySQLCum
     /*################################## blow private method ##################################*/
 
     private void executeOnNext(ByteBuf byteBufFromPeer) {
-        // 1. cumulate Buffer
-        final ByteBuf cumulateBuffer;
-        if (this.cumulateBuffer == null) {
+        //  cumulate Buffer
+        ByteBuf cumulateBuffer = this.cumulateBuffer;
+        if (cumulateBuffer == null) {
             cumulateBuffer = byteBufFromPeer;
         } else {
             cumulateBuffer = ByteToMessageDecoder.MERGE_CUMULATOR.cumulate(
-                    byteBufFromPeer.alloc(), this.cumulateBuffer, byteBufFromPeer);
+                    byteBufFromPeer.alloc(), cumulateBuffer, byteBufFromPeer);
         }
         this.cumulateBuffer = cumulateBuffer;
         if (drainReceiver(cumulateBuffer)) {
             this.upstream.request(1L);
         }
+    }
+
+    private void executeOnError(Throwable e) {
+        MySQLReceiver receiver = this.receiverQueue.poll();
+        if (receiver != null) {
+            receiver.onError(e);
+        }
+    }
+
+    private void executeOnComplete() {
+        if (this.complete) {
+            return;
+        }
+        ByteBuf cumulateBuf = this.cumulateBuffer;
+        if (cumulateBuf != null) {
+            cumulateBuf.release();
+            this.cumulateBuffer = null;
+        }
+        Queue<MySQLReceiver> receiverQueue = this.receiverQueue;
+        MySQLReceiver receiver;
+        while ((receiver = receiverQueue.poll()) != null) {
+            if (receiver instanceof MonoMySQLReceiver) {
+                ((MonoMySQLReceiver) receiver).success(null);
+            } else if (receiver instanceof FluxMySQLReceiver) {
+                ((FluxMySQLReceiver) receiver).onComplete();
+            }
+        }
+        this.complete = true;
     }
 
     private boolean drainReceiver(@Nullable ByteBuf cumulateBuffer) {
@@ -157,7 +179,7 @@ final class MySQLCumulateSubscriber implements CoreSubscriber<ByteBuf>, MySQLCum
         // 1. invoke receiver
         final MySQLReceiver receiver = this.receiverQueue.peek();
         if (receiver == null) {
-            return true;
+            return false;
         }
         final int readableBytes = cumulateBuffer.readableBytes();
         final ByteBuf newCumulateBuffer;
@@ -170,13 +192,8 @@ final class MySQLCumulateSubscriber implements CoreSubscriber<ByteBuf>, MySQLCum
             throw new IllegalStateException("receiver unknown.");
         }
         // 2. handle newCumulateBuffer
-        if (newCumulateBuffer != null && !newCumulateBuffer.isReadable()) {
-            newCumulateBuffer.release();
-            this.cumulateBuffer = null;
-        } else {
-            this.cumulateBuffer = newCumulateBuffer;
-        }
-        return newCumulateBuffer == cumulateBuffer && cumulateBuffer.readableBytes() != readableBytes;
+        this.cumulateBuffer = newCumulateBuffer;
+        return newCumulateBuffer == cumulateBuffer && cumulateBuffer.readableBytes() == readableBytes;
     }
 
 
@@ -198,7 +215,7 @@ final class MySQLCumulateSubscriber implements CoreSubscriber<ByteBuf>, MySQLCum
      * @see #addMySQLReceiver(MySQLReceiver)
      */
     private void doAddMySQLReceiverInEventLoop(MySQLReceiver receiver) {
-        if (this.complete > 0) {
+        if (this.complete) {
             receiver.onError(new JdbdMySQLException("Cannot subscribe MySQL packet because connection closed."));
         }
         final Queue<MySQLReceiver> receiverQueue = this.receiverQueue;
@@ -212,24 +229,35 @@ final class MySQLCumulateSubscriber implements CoreSubscriber<ByteBuf>, MySQLCum
         }
     }
 
+    /**
+     * @return cumulateBuffer or {@code null}
+     */
     @Nullable
     private ByteBuf onNextForMono(MonoMySQLReceiver receiver, ByteBuf cumulateBuffer) {
         final ByteBuf decodedBuf = receiver.decode(cumulateBuffer);
         if (decodedBuf == null) {
             return cumulateBuffer;
         }
-        this.receiverQueue.poll();
+        if (this.receiverQueue.poll() != receiver) {
+            throw new IllegalStateException("head of queue isn't  current receiver.");
+        }
         receiver.success(decodedBuf);
         return decodedBuf == cumulateBuffer ? null : cumulateBuffer;
 
     }
 
+    /**
+     * @return cumulateBuffer or {@code null}
+     */
     @Nullable
     private ByteBuf onNextForFlux(FluxMySQLReceiver receiver, final ByteBuf cumulateBuffer) {
         List<ByteBuf> decodedList = new ArrayList<>();
         final MySQLReceiver removeReceive;
         if (receiver.decode(cumulateBuffer, decodedList)) {
             removeReceive = this.receiverQueue.poll();
+            if (removeReceive != receiver) {
+                throw new IllegalStateException("head of queue isn't  current receiver.");
+            }
         } else {
             removeReceive = null;
         }
@@ -254,26 +282,7 @@ final class MySQLCumulateSubscriber implements CoreSubscriber<ByteBuf>, MySQLCum
 
     /*################################## blow private method ##################################*/
 
-    @Nullable
-    private static ByteBuf parseMySQLPacket(final ByteBuf cumulateBuffer) {
-        final int readableBytes = cumulateBuffer.readableBytes();
-        if (readableBytes < PacketUtils.HEADER_SIZE) {
-            return null;
-        }
 
-        final int packetLength;
-        packetLength = PacketUtils.HEADER_SIZE + PacketUtils.getInt3(cumulateBuffer, cumulateBuffer.readerIndex());
-
-        final ByteBuf packetBuf;
-        if (readableBytes < packetLength) {
-            packetBuf = null;
-        } else if (readableBytes == packetLength) {
-            packetBuf = cumulateBuffer;
-        } else {
-            packetBuf = cumulateBuffer.readRetainedSlice(packetLength);
-        }
-        return packetBuf;
-    }
 
 
     /*################################## blow private static class ##################################*/
@@ -401,6 +410,7 @@ final class MySQLCumulateSubscriber implements CoreSubscriber<ByteBuf>, MySQLCum
 
         private ReleaseByteBufCoreSubscriber(CoreSubscriber<? super ByteBuf> actual) {
             this.actual = actual;
+            Operators.enableOnDiscard(actual.currentContext(), ReferenceCountUtil::release);
         }
 
         @Override

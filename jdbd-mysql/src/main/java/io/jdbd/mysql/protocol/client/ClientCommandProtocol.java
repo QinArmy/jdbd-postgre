@@ -13,5 +13,6 @@ public interface ClientCommandProtocol extends ClientProtocol {
      */
     Mono<MySQLPacket> comQueryForResultSet(String sql);
 
+    long getId();
 
 }

@@ -2,6 +2,7 @@ package io.jdbd.mysql.protocol.client;
 
 import io.jdbd.mysql.JdbdMySQLException;
 import io.jdbd.mysql.protocol.ClientConstants;
+import io.jdbd.mysql.protocol.EofPacket;
 import io.jdbd.mysql.protocol.MySQLPacket;
 import io.jdbd.mysql.protocol.conf.MySQLUrl;
 import io.jdbd.mysql.protocol.conf.Properties;
@@ -65,26 +66,94 @@ public final class ClientCommandProtocolImpl implements ClientCommandProtocol {
         final AtomicInteger sequenceId = new AtomicInteger(-1);
 
         return sendCommandPacket(packetBuf, sequenceId)
-                .then(Mono.defer(() -> receivePayload(sequenceId)))
-                .flatMap(payloadBuf -> handleComQueryResponse(payloadBuf, sequenceId))
+                .then(Mono.defer(this::receiveComQueryResponseMeta))
+                .map(payloadBuf -> handleComQueryResponseMeta(payloadBuf, sequenceId))
+                .then(Mono.empty())
                 ;
 
     }
 
+    @Override
+    public long getId() {
+        return this.handshakeV10Packet.getThreadId();
+    }
+
     /*################################## blow private method ##################################*/
 
-    private Mono<MySQLPacket> handleComQueryResponse(ByteBuf payloadBuf, AtomicInteger sequenceId) {
-        if ((this.negotiatedCapability & CLIENT_OPTIONAL_RESULTSET_METADATA) != 0) {
-            byte metadataFollows = payloadBuf.readByte();
-            if (metadataFollows == 1) {
-                LOG.debug("metadataFollows is RESULTSET_METADATA_NONE");
-            } else if (metadataFollows == 0) {
-                LOG.debug("metadataFollows is RESULTSET_METADATA_FULL");
+    private MySQLRowMeta handleComQueryResponseMeta(final ByteBuf metaBuf, AtomicInteger sequenceId) {
+        readPacketHeader(metaBuf, sequenceId);
+        final int negotiatedCapability = this.negotiatedCapability;
+        // 1. metadata_follows
+        final byte metadataFollows;
+        if ((negotiatedCapability & CLIENT_OPTIONAL_RESULTSET_METADATA) != 0) {
+            // 0: RESULTSET_METADATA_NONE , 1:RESULTSET_METADATA_FULL
+            metadataFollows = metaBuf.readByte();
+        } else {
+            metadataFollows = 1;
+        }
+        // 2. column_count
+        final int columnCount = (int) PacketUtils.readLenEnc(metaBuf);
+        final MySQLRowMeta rowMeta;
+        if ((negotiatedCapability & CLIENT_OPTIONAL_RESULTSET_METADATA) == 0 || metadataFollows == 1) {
+            // 3. Field metadata ,read row meta.
+            rowMeta = readRowMeta(metaBuf, columnCount, sequenceId);
+        } else {
+            throw new JdbdMySQLException("COM_QUERY response packet,not present field metadata.");
+        }
+        if ((negotiatedCapability & CLIENT_DEPRECATE_EOF) == 0) {
+            // 4. read EOF packet Marker to set the end of metadata
+            readPacketHeader(metaBuf, sequenceId);
+            EofPacket.isEofPacket(metaBuf);
+        }
+        return rowMeta;
+    }
+
+    private MySQLRowMeta readRowMeta(final ByteBuf metaBuf, final int columnCount, AtomicInteger sequenceId) {
+        int prevSequenceId = sequenceId.get();
+        ColumnMeta[] columnMetas = new ColumnMeta[columnCount];
+        for (int i = 0; i < columnCount; i++) {
+            int startReaderIndex = metaBuf.readerIndex();
+            int packetLength = PacketUtils.readPacketLength(metaBuf);
+            int currentSequenceId = PacketUtils.readInt1(metaBuf);
+
+            if (currentSequenceId != prevSequenceId + 1) {
+                LOG.error("COM_QUERY response Field metadata exception,expected[{}] but[{}] ."
+                        , prevSequenceId + 1, currentSequenceId);
+            }
+            prevSequenceId = currentSequenceId;
+
+            columnMetas[i] = readColumnMeta(metaBuf);
+            if (metaBuf.readerIndex() != startReaderIndex + packetLength) {
+                throw new JdbdMySQLException(String.format(
+                        "Field metadata read error,currentSequenceId[%s]", currentSequenceId));
             }
         }
-        long columnCount = PacketUtils.readLenEnc(payloadBuf);
+        return createRowMeta(columnMetas);
+    }
 
-        return Mono.empty();
+    private ColumnMeta readColumnMeta(final ByteBuf metaBuf) {
+        final Charset charset = this.clientCharset;
+
+        // 1. catalog
+        PacketUtils.readStringLenEnc(metaBuf, charset);
+        // 2. schema
+        PacketUtils.readStringLenEnc(metaBuf, charset);
+        // 3. table
+        PacketUtils.readStringLenEnc(metaBuf, charset);
+        // 4. org_table
+        PacketUtils.readStringLenEnc(metaBuf, charset);
+
+        // 5. name ,  alias
+        final String alias = PacketUtils.readStringLenEnc(metaBuf, charset);
+        // 6. org_name
+        PacketUtils.readStringLenEnc(metaBuf, charset);
+
+
+        return null;
+    }
+
+    private MySQLRowMeta createRowMeta(ColumnMeta[] columnMetas) {
+        return MySQLRowMeta.from(columnMetas);
     }
 
 
@@ -96,25 +165,28 @@ public final class ClientCommandProtocolImpl implements ClientCommandProtocol {
      */
     private Mono<ByteBuf> receivePayload(AtomicInteger sequenceId) {
         return this.cumulateReceiver.receiveOnePacket()
-                .flatMap(packetBuf -> readPacketHeader(packetBuf, sequenceId));
+                .doOnNext(packetBuf -> readPacketHeader(packetBuf, sequenceId))
+                ;
+    }
+
+    private Mono<ByteBuf> receiveComQueryResponseMeta() {
+        return this.cumulateReceiver.receiveOne(
+                cumulateBuf -> PacketDecoders.comQueryResponseMetaDecoder(cumulateBuf, this.negotiatedCapability));
     }
 
     /**
      * @see #receivePayload(AtomicInteger)
      * @see #sendCommandPacket(ByteBuf, AtomicInteger sequenceId)
      */
-    private Mono<ByteBuf> readPacketHeader(ByteBuf packetBuf, AtomicInteger sequenceId) {
+    private void readPacketHeader(ByteBuf packetBuf, AtomicInteger sequenceId) {
         packetBuf.skipBytes(3);
         final int sequenceIdFromServer = PacketUtils.readInt1(packetBuf);
-        Mono<ByteBuf> mono;
-        if (sequenceId.compareAndSet(sequenceIdFromServer - 1, sequenceIdFromServer)) {
-            mono = Mono.just(packetBuf);
-        } else {
-            mono = Mono.error(new JdbdMySQLException(
-                    "sequenceId[%s] form server error,should be %s .", sequenceIdFromServer, sequenceIdFromServer - 1));
+        if (!sequenceId.compareAndSet(sequenceIdFromServer - 1, sequenceIdFromServer)) {
+            throw new JdbdMySQLException(
+                    "sequenceId[%s] form server error,should be %s .", sequenceIdFromServer, sequenceIdFromServer - 1);
         }
-        return mono;
     }
+
 
     /**
      * @see #receivePayload(AtomicInteger)

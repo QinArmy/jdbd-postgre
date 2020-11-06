@@ -44,6 +44,17 @@ public interface Properties extends Environment {
     <T> T getProperty(PropertyKey key, Class<T> targetType);
 
     /**
+     * Return the property value associated with the given key,
+     * or {@code defaultValue} if the key cannot be resolved.
+     *
+     * @param key          the property name to resolve
+     * @param targetType   the expected type of the property value
+     * @param defaultValue the default value to return if no value is found
+     * @see #getRequiredProperty(String, Class)
+     */
+    <T> T getProperty(PropertyKey key, Class<T> targetType, T defaultValue);
+
+    /**
      * Return the property value associated with the given key,but not {@link String} ,the the property value showSQL:
      * {@code value1,value2,...,valuen}
      * or empty list the key cannot be resolved.

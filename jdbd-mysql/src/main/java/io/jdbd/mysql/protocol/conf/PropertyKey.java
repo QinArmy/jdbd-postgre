@@ -1,5 +1,6 @@
 package io.jdbd.mysql.protocol.conf;
 
+import reactor.netty.resources.ConnectionProvider;
 import reactor.util.annotation.Nullable;
 
 import java.util.Collections;
@@ -15,10 +16,13 @@ public enum PropertyKey {
     /*
      * Properties individually managed after parsing connection string. These property keys are case insensitive.
      */
+    //below Authentication Group
     /** The database user name. */
     USER("user", null, false),
     /** The database user password. */
     PASSWORD("password", null, false),
+
+
     /** The hostname value from the properties instance passed to the driver. */
     HOST("host", null, false),
     /** The port number value from the properties instance passed to the driver. */
@@ -37,6 +41,88 @@ public enum PropertyKey {
     PRIORITY("priority", null, false),
     /** The database value from the properties instance passed to the driver. */
     DBNAME("dbname", null, false), //
+
+    // blow Connection Group
+    connectionAttributes("connectionAttributes", null, true), //
+    connectionLifecycleInterceptors("connectionLifecycleInterceptors", null, true), //
+    useConfigs("useConfigs", null, true), //
+    authenticationPlugins("authenticationPlugins", null, true), //
+
+    /** @deprecated discard in jdbd */
+    @Deprecated
+    clientInfoProvider("clientInfoProvider", "com.mysql.cj.jdbc.CommentClientInfoProvider", true), //
+    createDatabaseIfNotExist("createDatabaseIfNotExist", "false", true), //
+    /** @deprecated always CATALOG in jdbd */
+    @Deprecated
+    databaseTerm("databaseTerm", "CATALOG", true), //
+    defaultAuthenticationPlugin("defaultAuthenticationPlugin", "mysql_native_password", true), //
+    /** @deprecated discard in jdbd */
+    @Deprecated
+    detectCustomCollations("detectCustomCollations", "false", true), //
+    disabledAuthenticationPlugins("disabledAuthenticationPlugins", null, true), //
+    disconnectOnExpiredPasswords("disconnectOnExpiredPasswords", "true", true), //
+    interactiveClient("interactiveClient", "false", true), //
+    passwordCharacterEncoding("passwordCharacterEncoding", null, true), //
+    propertiesTransform("propertiesTransform", null, true), //
+    rollbackOnPooledClose("rollbackOnPooledClose", "true", true), //
+    useAffectedRows("useAffectedRows", "false", true), //
+
+
+    // blow Session Group
+    sessionVariables("sessionVariables", null, true), //
+    /**
+     * relation to System Variables {@code character_set_client}
+     *
+     * @see <a href="https://dev.mysql.com/doc/refman/8.0/en/charset-connection.html">character_set_client</a>
+     */
+    characterEncoding("characterEncoding", null, true), //
+    /**
+     * relation to System Variables {@code character_set_results }
+     *
+     * @see <a href="https://dev.mysql.com/doc/refman/8.0/en/charset-connection.html">character_set_results</a>
+     */
+    characterSetResults("characterSetResults", null, true), //
+    /**
+     * relation to System Variables {@code collation_connection  }
+     *
+     * @see <a href="https://dev.mysql.com/doc/refman/8.0/en/charset-connection.html">collation_connection </a>
+     */
+    connectionCollation("connectionCollation", null, true), //
+
+
+    // blow Networking Group
+    socksProxyHost("socksProxyHost", null, true), //
+    socksProxyPort("socksProxyPort", "1080", true), //
+    /** @deprecated use {@link #connectionProvider} */
+    @Deprecated
+    socketFactory("socketFactory", null, true), //
+    /** must be class name of implementation of {@link ConnectionProvider } */
+    connectionProvider("connectionProvider", null, true),
+    connectTimeout("connectTimeout", "0", true), //
+    socketTimeout("socketTimeout", "0", true), //
+    dnsSrv("dnsSrv", "false", true), //
+    localSocketAddress("localSocketAddress", null, true), //
+    maxAllowedPacket("maxAllowedPacket", "65535", true), //
+    tcpKeepAlive("tcpKeepAlive", "true", true), //
+    tcpNoDelay("tcpNoDelay", "true", true), //
+    tcpRcvBuf("tcpRcvBuf", "0", true), //
+    tcpSndBuf("tcpSndBuf", "0", true), //
+
+    /**
+     * @see io.jdbd.mysql.protocol.conf.PropertyDefinitions.SslMode
+     */
+    sslMode("sslMode", "PREFERRED", true), //
+    /** @deprecated use {@link #sslMode} */
+    @Deprecated
+    useSSL("useSSL", "true", true), //
+    /** @deprecated use {@link #sslMode} */
+    @Deprecated
+    requireSSL("requireSSL", "false", true), //
+    /** @deprecated use {@link #sslMode} */
+    @Deprecated
+    verifyServerCertificate("verifyServerCertificate", "false", true), //
+
+
     allowLoadLocalInfile("allowLoadLocalInfile", "false", true), //
     allowMasterDownConnections("allowMasterDownConnections", "false", true), //
 
@@ -47,7 +133,7 @@ public enum PropertyKey {
 
     allowUrlInLocalInfile("allowUrlInLocalInfile", "false", true), //
     alwaysSendSetIsolation("alwaysSendSetIsolation", "true", true), //
-    authenticationPlugins("authenticationPlugins", null, true), //
+
     autoClosePStmtStreams("autoClosePStmtStreams", "false", true), //
 
     autoDeserialize("autoDeserialize", "false", true), //
@@ -66,33 +152,25 @@ public enum PropertyKey {
     cacheServerConfiguration("cacheServerConfiguration", "false", true), //
 
     callableStmtCacheSize("callableStmtCacheSize", "100", true), //
-    characterEncoding("characterEncoding", "UTF-8", true), //
-    characterSetResults("characterSetResults", null, true), //
+
+
     clientCertificateKeyStorePassword("clientCertificateKeyStorePassword", null, true), //
 
     clientCertificateKeyStoreType("clientCertificateKeyStoreType", "JKS", true), //
     clientCertificateKeyStoreUrl("clientCertificateKeyStoreUrl", null, true), //
-    clientInfoProvider("clientInfoProvider", "com.mysql.cj.jdbc.CommentClientInfoProvider", true), //
+
     clobberStreamingResults("clobberStreamingResults", "false", true), //
 
     clobCharacterEncoding("clobCharacterEncoding", null, true), //
     compensateOnDuplicateKeyUpdateCounts("compensateOnDuplicateKeyUpdateCounts", "false", true), //
-    connectionAttributes("connectionAttributes", null, true), //
-    connectionCollation("connectionCollation", null, true), //
 
-    connectionLifecycleInterceptors("connectionLifecycleInterceptors", null, true), //
-    connectTimeout("connectTimeout", "0", true), //
+
     continueBatchOnError("continueBatchOnError", "true", true), //
-    createDatabaseIfNotExist("createDatabaseIfNotExist", "false", true), //
 
-    databaseTerm("databaseTerm", "CATALOG", true), //
-    defaultAuthenticationPlugin("defaultAuthenticationPlugin", "mysql_native_password", true), //
+
     defaultFetchSize("defaultFetchSize", "0", true), //
-    detectCustomCollations("detectCustomCollations", "false", true), //
 
-    disabledAuthenticationPlugins("disabledAuthenticationPlugins", null, true), //
-    disconnectOnExpiredPasswords("disconnectOnExpiredPasswords", "true", true), //
-    dnsSrv("dnsSrv", "false", true), //
+
     dontCheckOnDuplicateKeyUpdateInSQL("dontCheckOnDuplicateKeyUpdateInSQL", "false", true), //
 
     dontTrackOpenResources("dontTrackOpenResources", "false", true), //
@@ -127,7 +205,7 @@ public enum PropertyKey {
     includeThreadNamesAsStatementComment("includeThreadNamesAsStatementComment", "false", true), //
 
     initialTimeout("initialTimeout", "2", true), //
-    interactiveClient("interactiveClient", "false", true), //
+
     jdbcCompliantTruncation("jdbcCompliantTruncation", "true", true), //
     largeRowSizeThreshold("largeRowSizeThreshold", "2048", true), //
 
@@ -143,7 +221,7 @@ public enum PropertyKey {
 
     loadBalanceSQLExceptionSubclassFailover("loadBalanceSQLExceptionSubclassFailover", null, true), //
     loadBalanceValidateConnectionOnSwapServer("loadBalanceValidateConnectionOnSwapServer", "false", true), //
-    localSocketAddress("localSocketAddress", null, true), //
+
     locatorFetchBufferSize("locatorFetchBufferSize", "1048576", true), //
 
     logger("logger", "com.mysql.cj.log.StandardLogger", true), //
@@ -151,7 +229,7 @@ public enum PropertyKey {
     logXaCommands("logXaCommands", "false", true), //
     maintainTimeStats("maintainTimeStats", "true", true), //
 
-    maxAllowedPacket("maxAllowedPacket", "65535", true), //
+
     maxQuerySizeToLog("maxQuerySizeToLog", "2048", true), //
     maxReconnects("maxReconnects", "3", true), //
     maxRows("maxRows", "-1", true), //
@@ -168,7 +246,7 @@ public enum PropertyKey {
 
     paranoid("paranoid", "false", false), //
     parseInfoCacheFactory("parseInfoCacheFactory", "com.mysql.cj.PerConnectionLRUFactory", true), //
-    passwordCharacterEncoding("passwordCharacterEncoding", null, true), //
+
     pedantic("pedantic", "false", true), //
 
     pinGlobalTxToPhysicalConnection("pinGlobalTxToPhysicalConnection", "false", true), //
@@ -179,7 +257,7 @@ public enum PropertyKey {
     processEscapeCodesForPrepStmts("processEscapeCodesForPrepStmts", "true", true), //
     profilerEventHandler("profilerEventHandler", "com.mysql.cj.log.LoggingProfilerEventHandler", true), //
     profileSQL("profileSQL", "false", true), //
-    propertiesTransform("propertiesTransform", null, true), //
+
 
     queriesBeforeRetryMaster("queriesBeforeRetryMaster", "50", true), //
     queryInterceptors("queryInterceptors", null, true), //
@@ -191,13 +269,13 @@ public enum PropertyKey {
     replicationConnectionGroup("replicationConnectionGroup", null, true), //
     reportMetricsIntervalMillis("reportMetricsIntervalMillis", "30000", true), //
 
-    requireSSL("requireSSL", "false", true), //
+
     resourceId("resourceId", null, true), //
     resultSetSizeThreshold("resultSetSizeThreshold", "100", true), //
     retriesAllDown("retriesAllDown", "120", true), //
 
     rewriteBatchedStatements("rewriteBatchedStatements", "false", true), //
-    rollbackOnPooledClose("rollbackOnPooledClose", "true", true), //
+
     secondsBeforeRetryMaster("secondsBeforeRetryMaster", "30", true), //
     selfDestructOnPingMaxOperations("selfDestructOnPingMaxOperations", "0", true), //
 
@@ -208,22 +286,14 @@ public enum PropertyKey {
     serverRSAPublicKeyFile("serverRSAPublicKeyFile", null, true), //
 
     serverTimezone("serverTimezone", null, true), //
-    sessionVariables("sessionVariables", null, true), //
+
     slowQueryThresholdMillis("slowQueryThresholdMillis", "2000", true), //
     slowQueryThresholdNanos("slowQueryThresholdNanos", "0", true), //
-    socketFactory("socketFactory", "com.mysql.cj.protocol.StandardSocketFactory", true), //
 
-    socketTimeout("socketTimeout", "0", true), //
-    socksProxyHost("socksProxyHost", null, true), //
-    socksProxyPort("socksProxyPort", "1080", true), //
-    sslMode("sslMode", "PREFERRED", true), //
 
     strictUpdates("strictUpdates", "true", true), //
-    tcpKeepAlive("tcpKeepAlive", "true", true), //
-    tcpNoDelay("tcpNoDelay", "true", true), //
-    tcpRcvBuf("tcpRcvBuf", "0", true), //
 
-    tcpSndBuf("tcpSndBuf", "0", true), //
+
     tcpTrafficClass("tcpTrafficClass", "0", true), //
     tinyInt1isBit("tinyInt1isBit", "true", true), //
     traceProtocol("traceProtocol", "false", true), //
@@ -235,11 +305,11 @@ public enum PropertyKey {
 
     trustCertificateKeyStoreUrl("trustCertificateKeyStoreUrl", null, true), //
     ultraDevHack("ultraDevHack", "false", true), //
-    useAffectedRows("useAffectedRows", "false", true), //
+
     useColumnNamesInFindColumn("useColumnNamesInFindColumn", "false", true), //
 
     useCompression("useCompression", "false", true), //
-    useConfigs("useConfigs", null, true), //
+
     useCursorFetch("useCursorFetch", "false", true), //
     useHostsInPrivileges("useHostsInPrivileges", "true", true), //
 
@@ -253,12 +323,12 @@ public enum PropertyKey {
     useReadAheadInput("useReadAheadInput", "true", true), //
     useServerPrepStmts("useServerPrepStmts", "false", true), //
 
-    useSSL("useSSL", "true", true), //
+
     useStreamLengthsInPrepStmts("useStreamLengthsInPrepStmts", "true", true), //
     useUnbufferedInput("useUnbufferedInput", "true", true), //
     useUsageAdvisor("useUsageAdvisor", "false", true), //
 
-    verifyServerCertificate("verifyServerCertificate", "false", true), //
+
     xdevapiAsyncResponseTimeout("xdevapi.asyncResponseTimeout", "xdevapiAsyncResponseTimeout", null, true), //
     xdevapiAuth("xdevapi.auth", "xdevapiAuth", "PLAIN", true), //
     xdevapiConnectTimeout("xdevapi.connect-timeout", "xdevapiConnectTimeout", "10000", true), //

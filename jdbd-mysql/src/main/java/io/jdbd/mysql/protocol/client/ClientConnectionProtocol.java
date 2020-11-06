@@ -5,6 +5,7 @@ import reactor.core.publisher.Mono;
 
 public interface ClientConnectionProtocol extends ClientProtocol {
 
+
     Mono<MySQLPacket> ssl();
 
     Mono<MySQLPacket> receiveHandshake();

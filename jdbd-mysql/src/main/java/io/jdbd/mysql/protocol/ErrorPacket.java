@@ -5,7 +5,7 @@ import io.jdbd.mysql.protocol.client.PacketUtils;
 import io.netty.buffer.ByteBuf;
 import reactor.util.annotation.Nullable;
 
-import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.util.StringJoiner;
 
 /**
@@ -21,7 +21,7 @@ public final class ErrorPacket implements MySQLPacket {
      * </p>
      *
      * @param capability <ul>
-     *                   <li>before server receive handshake response packet: server capability</li>
+     *                   <li>before server receive handshake response packet: 0</li>
      *                   <li>after server receive handshake response packet: negotiated capability</li>
      *                   </ul>
      */
@@ -33,10 +33,10 @@ public final class ErrorPacket implements MySQLPacket {
 
         String sqlStateMarker = null, sqlState = null, errorMessage;
         if ((capability & ClientProtocol.CLIENT_PROTOCOL_41) != 0) {
-            sqlStateMarker = PacketUtils.readStringFixed(payloadBuf, 1, Charset.defaultCharset());
-            sqlState = PacketUtils.readStringFixed(payloadBuf, 5, Charset.defaultCharset());
+            sqlStateMarker = PacketUtils.readStringFixed(payloadBuf, 1, StandardCharsets.UTF_8);
+            sqlState = PacketUtils.readStringFixed(payloadBuf, 5, StandardCharsets.UTF_8);
         }
-        errorMessage = PacketUtils.readStringEof(payloadBuf, payloadBuf.readableBytes(), Charset.defaultCharset());
+        errorMessage = PacketUtils.readStringEof(payloadBuf, payloadBuf.readableBytes(), StandardCharsets.UTF_8);
 
         return new ErrorPacket(errorCode, sqlStateMarker
                 , sqlState, errorMessage

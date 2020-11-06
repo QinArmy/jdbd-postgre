@@ -151,21 +151,48 @@ public abstract class PacketUtils {
     /**
      * see {@code com.mysql.cj.protocol.a.NativePacketPayload#readInteger(com.mysql.cj.protocol.a.NativeConstants.IntegerDataType)}
      */
+    public static long getLenEnc(ByteBuf byteBuf, int index) {
+        final int sw = getInt1(byteBuf, index++);
+        long int8;
+        switch (sw) {
+            case ENC_1:
+                // represents a NULL in a ProtocolText::ResultsetRow
+                int8 = NULL_LENGTH;
+                break;
+            case ENC_3:
+                int8 = getInt2(byteBuf, index);
+                break;
+            case ENC_4:
+                int8 = getInt3(byteBuf, index);
+                break;
+            case ENC_9:
+                int8 = getInt8(byteBuf, index);
+                break;
+            default:
+                int8 = sw;
+
+        }
+        return int8;
+    }
+
+    /**
+     * see {@code com.mysql.cj.protocol.a.NativePacketPayload#readInteger(com.mysql.cj.protocol.a.NativeConstants.IntegerDataType)}
+     */
     public static long readLenEnc(ByteBuf byteBuf) {
         final int sw = readInt1(byteBuf);
         long int8;
         switch (sw) {
-            case 251:
+            case ENC_1:
                 // represents a NULL in a ProtocolText::ResultsetRow
                 int8 = NULL_LENGTH;
                 break;
-            case 252:
+            case ENC_3:
                 int8 = readInt2(byteBuf);
                 break;
-            case 253:
+            case ENC_4:
                 int8 = readInt3(byteBuf);
                 break;
-            case 254:
+            case ENC_9:
                 int8 = readInt8(byteBuf);
                 break;
             default:
@@ -271,6 +298,10 @@ public abstract class PacketUtils {
         writeInt3(packetBuffer, 0);
         packetBuffer.writeZero(1);
         return packetBuffer.asReadOnly();
+    }
+
+    public static int readPacketLength(ByteBuf packetBuf) {
+        return HEADER_SIZE + readInt3(packetBuf);
     }
 
     @Deprecated

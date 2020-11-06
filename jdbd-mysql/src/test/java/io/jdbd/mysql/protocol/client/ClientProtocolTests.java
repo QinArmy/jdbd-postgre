@@ -11,6 +11,7 @@ import org.testng.annotations.Test;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicReference;
 
 public class ClientProtocolTests {
 
@@ -50,26 +51,21 @@ public class ClientProtocolTests {
     }
 
     @Test(dependsOnMethods = {"sslRequest", "receiveHandshake"})
-    public void responseHandshake(ITestContext context) {
+    public void responseHandshake(ITestContext context) throws Throwable {
+        final AtomicReference<Throwable> error = new AtomicReference<>(null);
         obtainConnectionProtocol(context)
                 .responseHandshakeAndAuthenticate()
-                .doOnSuccess(v -> LOG.info("authentication success."))
-                .doOnError(e -> LOG.error("authentication failure.", e))
+                .doOnSuccess(v -> createCommandProtocol(context))
+                .doOnError(error::set)
                 .block();
+        Throwable e = error.get();
+        if (e != null) {
+            throw e;
+        }
     }
+
 
     @Test(dependsOnMethods = {"sslRequest", "receiveHandshake", "responseHandshake"})
-    public void createCommandProtocol(ITestContext context) {
-        ClientConnectionProtocolImpl connectionProtocol = obtainConnectionProtocol(context);
-        //LOG.info("connectionProtocol:{}",connectionProtocol);
-        ClientCommandProtocol commandProtocol;
-        commandProtocol = ClientCommandProtocolImpl.getInstance(connectionProtocol)
-                .block();
-        context.setAttribute("commandProtocol", commandProtocol);
-    }
-
-
-    @Test(dependsOnMethods = {"sslRequest", "receiveHandshake", "responseHandshake", "createCommandProtocol"})
     public void comQueryForResultSet(ITestContext context) {
         ClientCommandProtocol commandProtocol;
         commandProtocol = obtainCommandProtocol(context);
@@ -80,6 +76,16 @@ public class ClientProtocolTests {
 
 
     /*################################## blow private static method ##################################*/
+
+
+    private static void createCommandProtocol(ITestContext context) {
+        ClientConnectionProtocolImpl connectionProtocol = obtainConnectionProtocol(context);
+        //LOG.info("connectionProtocol:{}",connectionProtocol);
+        ClientCommandProtocol commandProtocol;
+        commandProtocol = ClientCommandProtocolImpl.getInstance(connectionProtocol)
+                .block();
+        context.setAttribute("commandProtocol", commandProtocol);
+    }
 
     static ClientConnectionProtocolImpl obtainConnectionProtocol(ITestContext context) {
         ClientConnectionProtocolImpl protocol;
