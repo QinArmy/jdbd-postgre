@@ -1,8 +1,6 @@
 package io.jdbd.mysql.protocol.client;
 
 import io.netty.buffer.ByteBuf;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import reactor.netty.Connection;
 import reactor.util.annotation.Nullable;
 
@@ -12,15 +10,12 @@ import java.nio.charset.Charset;
 
 public abstract class PacketUtils {
 
-    private static final Logger LOG = LoggerFactory.getLogger(PacketUtils.class);
 
-    public static final long NULL_LENGTH = -1;
+    public static final long NULL_LENGTH = -1L;
 
     public static final int HEADER_SIZE = 4;
 
     public static final int LOCAL_INFILE_REQUEST_HEADER = 0xFB;
-
-    public static final byte BYTE_ZERO = 0;
 
     public static final int ENC_0 = 0xFB;
     public static final int ENC_3 = 0xFC;
@@ -29,69 +24,69 @@ public abstract class PacketUtils {
 
 
     public static short readInt1(ByteBuf byteBuf) {
-        return (short) (byteBuf.readByte() & 0xff);
+        return (short) (byteBuf.readByte() & 0xFF);
     }
 
     public static short getInt1(ByteBuf byteBuf, int index) {
-        return (short) (byteBuf.getByte(index) & 0xff);
+        return (short) (byteBuf.getByte(index) & 0xFF);
     }
 
     public static int readInt2(ByteBuf byteBuf) {
         if (byteBuf.readableBytes() > 1) {
-            return (byteBuf.readByte() & 0xff)
-                    | ((byteBuf.readByte() & 0xff) << 8);
+            return (byteBuf.readByte() & 0xFF)
+                    | ((byteBuf.readByte() & 0xFF) << 8);
         }
         throw createIndexOutOfBoundsException(byteBuf.readableBytes(), 2);
     }
 
     public static int getInt2(ByteBuf byteBuf, int index) {
         if (byteBuf.readableBytes() > 1) {
-            return (byteBuf.getByte(index++) & 0xff)
-                    | ((byteBuf.getByte(index) & 0xff) << 8);
+            return (byteBuf.getByte(index++) & 0xFF)
+                    | ((byteBuf.getByte(index) & 0xFF) << 8);
         }
         throw createIndexOutOfBoundsException(byteBuf.readableBytes(), 2);
     }
 
     public static int readInt3(ByteBuf byteBuf) {
         if (byteBuf.readableBytes() > 2) {
-            return (byteBuf.readByte() & 0xff)
-                    | ((byteBuf.readByte() & 0xff) << 8)
-                    | ((byteBuf.readByte() & 0xff) << 16)
+            return (byteBuf.readByte() & 0xFF)
+                    | ((byteBuf.readByte() & 0xFF) << 8)
+                    | ((byteBuf.readByte() & 0xFF) << 16)
                     ;
         }
-        throw createIndexOutOfBoundsException(byteBuf.readableBytes(), 2);
+        throw createIndexOutOfBoundsException(byteBuf.readableBytes(), 3);
     }
 
     public static int getInt3(ByteBuf byteBuf, int index) {
         if (byteBuf.readableBytes() > 2) {
-            return (byteBuf.getByte(index++) & 0xff)
-                    | ((byteBuf.getByte(index++) & 0xff) << 8)
-                    | ((byteBuf.getByte(index) & 0xff) << 16)
+            return (byteBuf.getByte(index++) & 0xFF)
+                    | ((byteBuf.getByte(index++) & 0xFF) << 8)
+                    | ((byteBuf.getByte(index) & 0xFF) << 16)
                     ;
         }
-        throw createIndexOutOfBoundsException(byteBuf.readableBytes(), 2);
+        throw createIndexOutOfBoundsException(byteBuf.readableBytes(), 3);
     }
 
     public static int readInt4(ByteBuf byteBuf) {
         if (byteBuf.readableBytes() > 3) {
-            return (byteBuf.readByte() & 0xff)
-                    | ((byteBuf.readByte() & 0xff) << 8)
-                    | ((byteBuf.readByte() & 0xff) << 16)
-                    | ((byteBuf.readByte() & 0xff) << 24)
+            return (byteBuf.readByte() & 0xFF)
+                    | ((byteBuf.readByte() & 0xFF) << 8)
+                    | ((byteBuf.readByte() & 0xFF) << 16)
+                    | ((byteBuf.readByte() & 0xFF) << 24)
                     ;
         }
-        throw createIndexOutOfBoundsException(byteBuf.readableBytes(), 2);
+        throw createIndexOutOfBoundsException(byteBuf.readableBytes(), 4);
     }
 
     public static int getInt4(ByteBuf byteBuf, int index) {
         if (byteBuf.readableBytes() > 3) {
-            return (byteBuf.getByte(index++) & 0xff)
-                    | ((byteBuf.getByte(index++) & 0xff) << 8)
-                    | ((byteBuf.getByte(index++) & 0xff) << 16)
-                    | ((byteBuf.getByte(index) & 0xff) << 24)
+            return (byteBuf.getByte(index++) & 0xFF)
+                    | ((byteBuf.getByte(index++) & 0xFF) << 8)
+                    | ((byteBuf.getByte(index++) & 0xFF) << 16)
+                    | ((byteBuf.getByte(index) & 0xFF) << 24)
                     ;
         }
-        throw createIndexOutOfBoundsException(byteBuf.readableBytes(), 2);
+        throw createIndexOutOfBoundsException(byteBuf.readableBytes(), 4);
     }
 
     public static long readInt6(ByteBuf byteBuf) {
@@ -104,7 +99,7 @@ public abstract class PacketUtils {
                     | (((long) byteBuf.readByte() & 0xffL) << 40)
                     ;
         }
-        throw createIndexOutOfBoundsException(byteBuf.readableBytes(), 5);
+        throw createIndexOutOfBoundsException(byteBuf.readableBytes(), 6);
     }
 
     public static long getInt6(ByteBuf byteBuf, int index) {
@@ -117,7 +112,7 @@ public abstract class PacketUtils {
                     | (((long) byteBuf.getByte(index) & 0xffL) << 40)
                     ;
         }
-        throw createIndexOutOfBoundsException(byteBuf.readableBytes(), 5);
+        throw createIndexOutOfBoundsException(byteBuf.readableBytes(), 6);
     }
 
     public static long readInt8(ByteBuf byteBuf) {
@@ -132,7 +127,7 @@ public abstract class PacketUtils {
                     | (((long) byteBuf.readByte() & 0xffL) << 56)
                     ;
         }
-        throw createIndexOutOfBoundsException(byteBuf.readableBytes(), 5);
+        throw createIndexOutOfBoundsException(byteBuf.readableBytes(), 8);
     }
 
     public static long getInt8(ByteBuf byteBuf, int index) {
@@ -147,7 +142,7 @@ public abstract class PacketUtils {
                     | (((long) byteBuf.getByte(index) & 0xffL) << 56)
                     ;
         }
-        throw createIndexOutOfBoundsException(byteBuf.readableBytes(), 5);
+        throw createIndexOutOfBoundsException(byteBuf.readableBytes(), 8);
     }
 
     /**
@@ -171,13 +166,14 @@ public abstract class PacketUtils {
                 int8 = getInt8(byteBuf, index);
                 break;
             default:
+                // ENC_1
                 int8 = sw;
 
         }
         return int8;
     }
 
-    public static int obtainLenEncIntByteCount(ByteBuf byteBuf, int index) {
+    public static int obtainLenEncIntByteCount(ByteBuf byteBuf, final int index) {
         int byteCount;
         switch (getInt1(byteBuf, index)) {
             case ENC_0:
@@ -221,6 +217,7 @@ public abstract class PacketUtils {
                 int8 = readInt8(byteBuf);
                 break;
             default:
+                // ENC_1
                 int8 = sw;
 
         }
@@ -384,7 +381,7 @@ public abstract class PacketUtils {
 
 
     public static void writeInt1(ByteBuf byteBuffer, final byte int1) {
-        byteBuffer.writeByte(int1 & 0xff);
+        byteBuffer.writeByte(int1 & 0xFF);
     }
 
     public static void writeInt2(ByteBuf byteBuffer, final int int2) {

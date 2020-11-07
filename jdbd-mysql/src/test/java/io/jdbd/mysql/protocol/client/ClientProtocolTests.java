@@ -44,7 +44,7 @@ public class ClientProtocolTests {
     @Test(dependsOnMethods = "receiveHandshake")
     public void sslRequest(ITestContext context) {
         MySQLPacket mySQLPacket = obtainConnectionProtocol(context)
-                .ssl()
+                .sslNegotiate()
                 .block();
 
         LOG.info("response ssl packet:\n{}", mySQLPacket);
@@ -54,7 +54,7 @@ public class ClientProtocolTests {
     public void responseHandshake(ITestContext context) throws Throwable {
         final AtomicReference<Throwable> error = new AtomicReference<>(null);
         obtainConnectionProtocol(context)
-                .responseHandshakeAndAuthenticate()
+                .authenticateAndInitializing()
                 .doOnSuccess(v -> createCommandProtocol(context))
                 .doOnError(error::set)
                 .block();

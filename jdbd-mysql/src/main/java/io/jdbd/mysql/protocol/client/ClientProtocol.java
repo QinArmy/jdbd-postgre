@@ -27,9 +27,9 @@ public interface ClientProtocol {
     int CLIENT_TRANSACTIONS = 0x00002000; // Client knows about transactions
     int CLIENT_RESERVED = 0x00004000; // for 4.1.0 only
     int CLIENT_SECURE_CONNECTION = 0x00008000;
-    int CLIENT_MULTI_STATEMENTS = 0x00010000; // Enable/disable multiquery support
-    int CLIENT_MULTI_RESULTS = 0x00020000; // Enable/disable multi-results
-    int CLIENT_PS_MULTI_RESULTS = 0x00040000; // Enable/disable multi-results for server prepared statements
+    int CLIENT_MULTI_STATEMENTS = 1 << 16; // Enable/disable multiquery support
+    int CLIENT_MULTI_RESULTS = 1 << 17; // Enable/disable multi-results
+    int CLIENT_PS_MULTI_RESULTS = 1 << 18; // Enable/disable multi-results for server prepared statements
     int CLIENT_PLUGIN_AUTH = 0x00080000;
     int CLIENT_CONNECT_ATTRS = 0x00100000;
     int CLIENT_PLUGIN_AUTH_LENENC_CLIENT_DATA = 1 << 21;

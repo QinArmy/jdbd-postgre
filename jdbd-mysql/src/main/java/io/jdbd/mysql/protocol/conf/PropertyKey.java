@@ -56,8 +56,7 @@ public enum PropertyKey {
     @Deprecated
     databaseTerm("databaseTerm", "CATALOG", true), //
     defaultAuthenticationPlugin("defaultAuthenticationPlugin", "mysql_native_password", true), //
-    /** @deprecated discard in jdbd */
-    @Deprecated
+
     detectCustomCollations("detectCustomCollations", "false", true), //
     disabledAuthenticationPlugins("disabledAuthenticationPlugins", null, true), //
     disconnectOnExpiredPasswords("disconnectOnExpiredPasswords", "true", true), //

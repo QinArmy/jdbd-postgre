@@ -87,17 +87,29 @@ final class ClientConnectionProtocolImpl implements ClientConnectionProtocol, Pr
         this.cumulateReceiver = MySQLCumulateSubscriber.from(connection);
     }
 
-    @Override
-    public Mono<MySQLPacket> ssl() {
-        return Mono.empty();
-//        return createSslRequestPayload()
-//                .flatMap(this::sendPacket)
-//                .then(Mono.empty())
-//                ;
-    }
 
     @Override
-    public Mono<MySQLPacket> receiveHandshake() {
+    public Mono<Void> authenticateAndInitializing() {
+        return receiveHandshake()
+                .then(Mono.defer(this::sslNegotiate))
+                .then(Mono.defer(this::authenticate))
+                .then(Mono.defer(this::configureSessionPropertyGroup))
+                .then(Mono.defer(this::initialize))
+                ;
+    }
+
+
+    /**
+     * <p>
+     * must invoke firstly .
+     * </p>
+     * <p>
+     * Receive HandshakeV10 packet send by MySQL server.
+     * </p>
+     *
+     * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_connection_phase_packets_protocol_handshake_v10.html">Protocol::HandshakeV10</a>
+     */
+    Mono<MySQLPacket> receiveHandshake() {
         return receivePayload()
                 .flatMap(this::receiveHandshakeV10Packet)
                 .doOnNext(this::handleHandshakeV10Packet)
@@ -105,8 +117,35 @@ final class ClientConnectionProtocolImpl implements ClientConnectionProtocol, Pr
                 ;
     }
 
-    @Override
-    public Mono<Void> responseHandshakeAndAuthenticate() {
+    /**
+     * negotiate ssl for connection than hold by this instance.
+     * <p>
+     * must invoke after {@link #receiveHandshake()} and before {@link #authenticateAndInitializing()}
+     * </p>
+     *
+     * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_connection_phase.html#sect_protocol_connection_phase_initial_handshake_ssl_handshake">Protocol::SSL Handshake</a>
+     */
+    Mono<MySQLPacket> sslNegotiate() {
+        return Mono.empty();
+//        return createSslRequestPayload()
+//                .flatMap(this::sendPacket)
+//                .then(Mono.empty())
+//                ;
+    }
+
+    /**
+     * <p>
+     * must invoke after {@link #sslNegotiate()}.
+     * </p>
+     * <p>
+     * do below:
+     *     <ol>
+     *     <li>send HandshakeResponse41 packet.</li>
+     *     <li>handle more authentication exchange.</li>
+     *     </ol>
+     * </p>
+     */
+    Mono<Void> authenticate() {
         final Triple<AuthenticationPlugin, Boolean, Map<String, AuthenticationPlugin>> triple;
         //1. obtain plugin
         triple = obtainAuthenticationPlugin();
@@ -123,6 +162,43 @@ final class ClientConnectionProtocolImpl implements ClientConnectionProtocol, Pr
                 .flatMap(packet -> handleAuthResponse(packet, plugin, triple.getThird()))
                 ;
     }
+
+    /**
+     * <p>
+     * must invoke after {@link #authenticateAndInitializing()}
+     * </p>
+     * configure below url config session group properties:
+     * <ul>
+     *     <li>{@link PropertyKey#sessionVariables}</li>
+     *     <li>{@link PropertyKey#characterEncoding}</li>
+     *     <li>{@link PropertyKey#characterSetResults}</li>
+     *     <li>{@link PropertyKey#connectionCollation}</li>
+     * </ul>
+     * <p>
+     *     If {@link PropertyKey#detectCustomCollations} is true,then firstly handle this.
+     * </p>
+     */
+    Mono<Void> configureSessionPropertyGroup() {
+        return Mono.empty();
+    }
+
+    /**
+     * <p>
+     * must invoke after {@link #configureSessionPropertyGroup()}
+     * </p>
+     * <p>
+     * do initialize ,must contain below operation:
+     *     <ul>
+     *         <li>{@code set autocommit = 0}</li>
+     *         <li>{@code SET SESSION TRANSACTION READ COMMITTED}</li>
+     *         <li>more initializing operations</li>
+     *     </ul>
+     * </p>
+     */
+    Mono<Void> initialize() {
+        return Mono.empty();
+    }
+
 
     /*################################## blow ProtocolAssistant method ##################################*/
 
