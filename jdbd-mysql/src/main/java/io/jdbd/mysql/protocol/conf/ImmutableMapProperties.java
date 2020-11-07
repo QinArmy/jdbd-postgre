@@ -36,6 +36,12 @@ public final class ImmutableMapProperties extends ImmutableMapEnvironment implem
     }
 
     @Override
+    public String getProperty(PropertyKey key, String defaultValue) {
+        String value = getProperty(key);
+        return value == null ? defaultValue : value;
+    }
+
+    @Override
     public <T> T getProperty(PropertyKey key, Class<T> targetType) {
         T value = getProperty(key.getKeyName(), targetType);
         if (value == null) {

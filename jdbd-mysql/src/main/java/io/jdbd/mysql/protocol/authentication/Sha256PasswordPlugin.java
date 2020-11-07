@@ -170,7 +170,7 @@ public class Sha256PasswordPlugin implements AuthenticationPlugin {
      * @return read-only buffer
      */
     protected final ByteBuf cratePlanTextPasswordPacket(String password) {
-        byte[] passwordBytes = password.getBytes(this.protocolAssistant.getClientCharset());
+        byte[] passwordBytes = password.getBytes(this.protocolAssistant.getHandshakeCharset());
         ByteBuf packetBuffer = this.protocolAssistant.createPayloadBuffer(passwordBytes.length + 1);
         PacketUtils.writeStringTerm(packetBuffer, passwordBytes);
         return packetBuffer.asReadOnly();

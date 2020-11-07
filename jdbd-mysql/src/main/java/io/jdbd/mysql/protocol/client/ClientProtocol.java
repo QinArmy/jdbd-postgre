@@ -22,8 +22,8 @@ public interface ClientProtocol {
     int CLIENT_COMPRESS = 0x00000020; /* Can use compression protcol */
     int CLIENT_LOCAL_FILES = 0x00000080; /* Can use LOAD DATA LOCAL */
     int CLIENT_PROTOCOL_41 = 1 << 9; // for > 4.1.1
-    int CLIENT_INTERACTIVE = 0x00000400;
-    int CLIENT_SSL = 0x00000800;
+    int CLIENT_INTERACTIVE = 1 << 10;
+    int CLIENT_SSL = 1 << 11;
     int CLIENT_TRANSACTIONS = 0x00002000; // Client knows about transactions
     int CLIENT_RESERVED = 0x00004000; // for 4.1.0 only
     int CLIENT_SECURE_CONNECTION = 0x00008000;

@@ -7,7 +7,7 @@ import java.nio.charset.Charset;
 
 public interface ProtocolAssistant {
 
-    Charset getClientCharset();
+    Charset getHandshakeCharset();
 
     Charset getPasswordCharset();
 

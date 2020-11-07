@@ -36,6 +36,17 @@ public interface Properties extends Environment {
      * Return the property value associated with the given key,
      * or {@code null} if the key cannot be resolved.
      *
+     * @param key the property name to resolve
+     * @see #getProperty(String, String)
+     * @see #getProperty(String, Class)
+     * @see #getRequiredProperty(String)
+     */
+    String getProperty(PropertyKey key, String defaultValue);
+
+    /**
+     * Return the property value associated with the given key,
+     * or {@code null} if the key cannot be resolved.
+     *
      * @param key        the property name to resolve
      * @param targetType the expected type of the property value
      * @see #getRequiredProperty(String, Class)

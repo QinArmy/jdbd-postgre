@@ -5,6 +5,7 @@ import io.jdbd.mysql.protocol.client.PacketUtils;
 import io.netty.buffer.ByteBuf;
 import reactor.util.annotation.Nullable;
 
+import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.StringJoiner;
 
@@ -26,6 +27,15 @@ public final class ErrorPacket implements MySQLPacket {
      *                   </ul>
      */
     public static ErrorPacket readPacket(ByteBuf payloadBuf, final int capability) {
+        return readPacket(payloadBuf, capability, StandardCharsets.UTF_8);
+    }
+
+    public static ErrorPacket readPacketInHandshakePhase(ByteBuf payloadBuf) {
+        return readPacket(payloadBuf, 0, StandardCharsets.UTF_8);
+    }
+
+
+    public static ErrorPacket readPacket(ByteBuf payloadBuf, final int capability, Charset errorMessageCharset) {
         if (PacketUtils.readInt1(payloadBuf) != ERROR_HEADER) {
             throw new IllegalArgumentException("packetBuf isn't error packet.");
         }
@@ -33,16 +43,15 @@ public final class ErrorPacket implements MySQLPacket {
 
         String sqlStateMarker = null, sqlState = null, errorMessage;
         if ((capability & ClientProtocol.CLIENT_PROTOCOL_41) != 0) {
-            sqlStateMarker = PacketUtils.readStringFixed(payloadBuf, 1, StandardCharsets.UTF_8);
-            sqlState = PacketUtils.readStringFixed(payloadBuf, 5, StandardCharsets.UTF_8);
+            sqlStateMarker = PacketUtils.readStringFixed(payloadBuf, 1, errorMessageCharset);
+            sqlState = PacketUtils.readStringFixed(payloadBuf, 5, errorMessageCharset);
         }
-        errorMessage = PacketUtils.readStringEof(payloadBuf, payloadBuf.readableBytes(), StandardCharsets.UTF_8);
+        errorMessage = PacketUtils.readStringEof(payloadBuf, payloadBuf.readableBytes(), errorMessageCharset);
 
         return new ErrorPacket(errorCode, sqlStateMarker
                 , sqlState, errorMessage
         );
     }
-
 
 
     private final int errorCode;

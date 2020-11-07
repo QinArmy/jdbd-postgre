@@ -50,6 +50,18 @@ final class ClientConnectionProtocolImpl implements ClientConnectionProtocol, Pr
 
     private static final String NONE = "none";
 
+    /**
+     * below {@code xxx_PHASE } representing connection phase.
+     *
+     * @see #connectionPhase
+     */
+    private static final int HANDSHAKE_PHASE = 0;
+    private static final int SSL_PHASE = 1;
+    private static final int AUTHENTICATION_PHASE = 2;
+    private static final int CONFIGURE_SESSION_PHASE = 3;
+
+    private static final int INITIALIZING_PHASE = 4;
+
     private final MySQLUrl mySQLUrl;
 
     private final Connection connection;
@@ -63,9 +75,7 @@ final class ClientConnectionProtocolImpl implements ClientConnectionProtocol, Pr
     /**
      * connection phase client charset,will send to server by {@code Protocol::HandshakeResponse41}.
      */
-    private final Charset clientCharset;
-
-    private final AtomicReference<Byte> clientCollationIndex = new AtomicReference<>(null);
+    private final Charset handshakeCharset;
 
     private final AtomicReference<Integer> negotiatedCapability = new AtomicReference<>(null);
 
@@ -77,12 +87,17 @@ final class ClientConnectionProtocolImpl implements ClientConnectionProtocol, Pr
 
     private final AtomicInteger authCounter = new AtomicInteger(0);
 
+    private final AtomicInteger connectionPhase = new AtomicInteger(HANDSHAKE_PHASE);
+
+    private final AtomicInteger handshakeCollationIndex = new AtomicInteger(0);
+
 
     private ClientConnectionProtocolImpl(MySQLUrl mySQLUrl, Connection connection) {
         this.mySQLUrl = mySQLUrl;
         this.connection = connection;
         this.properties = mySQLUrl.getHosts().get(0).getProperties();
-        this.clientCharset = this.properties.getProperty(PropertyKey.characterEncoding, Charset.class, StandardCharsets.UTF_8);
+        this.handshakeCharset = this.properties.getProperty(PropertyKey.characterEncoding
+                , Charset.class, StandardCharsets.UTF_8);
 
         this.cumulateReceiver = MySQLCumulateSubscriber.from(connection);
     }
@@ -98,119 +113,17 @@ final class ClientConnectionProtocolImpl implements ClientConnectionProtocol, Pr
                 ;
     }
 
-
-    /**
-     * <p>
-     * must invoke firstly .
-     * </p>
-     * <p>
-     * Receive HandshakeV10 packet send by MySQL server.
-     * </p>
-     *
-     * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_connection_phase_packets_protocol_handshake_v10.html">Protocol::HandshakeV10</a>
-     */
-    Mono<MySQLPacket> receiveHandshake() {
-        return receivePayload()
-                .flatMap(this::receiveHandshakeV10Packet)
-                .doOnNext(this::handleHandshakeV10Packet)
-                .cast(MySQLPacket.class)
-                ;
-    }
-
-    /**
-     * negotiate ssl for connection than hold by this instance.
-     * <p>
-     * must invoke after {@link #receiveHandshake()} and before {@link #authenticateAndInitializing()}
-     * </p>
-     *
-     * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_connection_phase.html#sect_protocol_connection_phase_initial_handshake_ssl_handshake">Protocol::SSL Handshake</a>
-     */
-    Mono<MySQLPacket> sslNegotiate() {
-        return Mono.empty();
-//        return createSslRequestPayload()
-//                .flatMap(this::sendPacket)
-//                .then(Mono.empty())
-//                ;
-    }
-
-    /**
-     * <p>
-     * must invoke after {@link #sslNegotiate()}.
-     * </p>
-     * <p>
-     * do below:
-     *     <ol>
-     *     <li>send HandshakeResponse41 packet.</li>
-     *     <li>handle more authentication exchange.</li>
-     *     </ol>
-     * </p>
-     */
-    Mono<Void> authenticate() {
-        final Triple<AuthenticationPlugin, Boolean, Map<String, AuthenticationPlugin>> triple;
-        //1. obtain plugin
-        triple = obtainAuthenticationPlugin();
-
-        final AuthenticationPlugin plugin = triple.getFirst();
-        //2. 'plugin out' is password data.
-        ByteBuf pluginOut = createAuthenticationDataFor41(plugin, triple.getSecond());
-
-        return createHandshakeResponse41(plugin.getProtocolPluginName(), pluginOut)
-                // send response handshake packet
-                .flatMap(this::sendPacket)
-                .then(Mono.defer(this::receivePayload))
-                // handle authentication Negotiation
-                .flatMap(packet -> handleAuthResponse(packet, plugin, triple.getThird()))
-                ;
-    }
-
-    /**
-     * <p>
-     * must invoke after {@link #authenticateAndInitializing()}
-     * </p>
-     * configure below url config session group properties:
-     * <ul>
-     *     <li>{@link PropertyKey#sessionVariables}</li>
-     *     <li>{@link PropertyKey#characterEncoding}</li>
-     *     <li>{@link PropertyKey#characterSetResults}</li>
-     *     <li>{@link PropertyKey#connectionCollation}</li>
-     * </ul>
-     * <p>
-     *     If {@link PropertyKey#detectCustomCollations} is true,then firstly handle this.
-     * </p>
-     */
-    Mono<Void> configureSessionPropertyGroup() {
-        return Mono.empty();
-    }
-
-    /**
-     * <p>
-     * must invoke after {@link #configureSessionPropertyGroup()}
-     * </p>
-     * <p>
-     * do initialize ,must contain below operation:
-     *     <ul>
-     *         <li>{@code set autocommit = 0}</li>
-     *         <li>{@code SET SESSION TRANSACTION READ COMMITTED}</li>
-     *         <li>more initializing operations</li>
-     *     </ul>
-     * </p>
-     */
-    Mono<Void> initialize() {
-        return Mono.empty();
-    }
-
-
     /*################################## blow ProtocolAssistant method ##################################*/
 
     @Override
-    public Charset getClientCharset() {
-        return this.clientCharset;
+    public Charset getHandshakeCharset() {
+        return this.handshakeCharset;
     }
 
     @Override
     public Charset getPasswordCharset() {
         String pwdCharset = this.properties.getProperty(PropertyKey.passwordCharacterEncoding);
-        return pwdCharset == null ? this.clientCharset : Charset.forName(pwdCharset);
+        return pwdCharset == null ? this.handshakeCharset : Charset.forName(pwdCharset);
     }
 
     @Override
@@ -253,6 +166,139 @@ final class ClientConnectionProtocolImpl implements ClientConnectionProtocol, Pr
 
     /*################################## blow package method ##################################*/
 
+
+    /**
+     * <p>
+     * must invoke firstly .
+     * </p>
+     * <p>
+     * Receive HandshakeV10 packet send by MySQL server.
+     * </p>
+     *
+     * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_connection_phase_packets_protocol_handshake_v10.html">Protocol::HandshakeV10</a>
+     */
+    Mono<MySQLPacket> receiveHandshake() {
+        final int phase = this.connectionPhase.get();
+        if (phase != HANDSHAKE_PHASE) {
+            return createConnectionPhaseNotMatchException(phase);
+        }
+        return receivePayload()
+                .flatMap(this::readHandshakeV10Packet)
+                .flatMap(this::handleHandshakeV10Packet)
+                .cast(MySQLPacket.class)
+                ;
+    }
+
+    /**
+     * negotiate ssl for connection than hold by this instance.
+     * <p>
+     * must invoke after {@link #receiveHandshake()} and before {@link #authenticateAndInitializing()}
+     * </p>
+     *
+     * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_connection_phase.html#sect_protocol_connection_phase_initial_handshake_ssl_handshake">Protocol::SSL Handshake</a>
+     */
+    Mono<Void> sslNegotiate() {
+        final int phase = this.connectionPhase.get();
+        if (phase != SSL_PHASE) {
+            return createConnectionPhaseNotMatchException(phase);
+        }
+        PropertyDefinitions.SslMode sslMode;
+        sslMode = this.properties.getProperty(PropertyKey.sslMode, PropertyDefinitions.SslMode.class);
+        if ((obtainNegotiatedCapability() & CLIENT_SSL) == 0 || sslMode == PropertyDefinitions.SslMode.DISABLED) {
+            return Mono.empty();
+        }
+        return createSslRequestPacket()
+                .flatMap(this::sendPacket)
+                .then(Mono.defer(this::doAfterSendSslRequestSuccess))
+                ;
+    }
+
+    /**
+     * <p>
+     * must invoke after {@link #sslNegotiate()}.
+     * </p>
+     * <p>
+     * do below:
+     *     <ol>
+     *     <li>send HandshakeResponse41 packet.</li>
+     *     <li>handle more authentication exchange.</li>
+     *     </ol>
+     * </p>
+     */
+    Mono<Void> authenticate() {
+        final int phase = this.connectionPhase.get();
+        if (phase != AUTHENTICATION_PHASE) {
+            return createConnectionPhaseNotMatchException(phase);
+        }
+        final Triple<AuthenticationPlugin, Boolean, Map<String, AuthenticationPlugin>> triple;
+        //1. obtain plugin
+        triple = obtainAuthenticationPlugin();
+
+        final AuthenticationPlugin plugin = triple.getFirst();
+        //2. 'plugin out' is password data.
+        ByteBuf pluginOut = createAuthenticationDataFor41(plugin, triple.getSecond());
+
+        return createHandshakeResponse41(plugin.getProtocolPluginName(), pluginOut)
+                // send response handshake packet
+                .flatMap(this::sendPacket)
+                .then(Mono.defer(this::receivePayload))
+                // handle authentication Negotiation
+                .flatMap(packet -> handleAuthResponse(packet, plugin, triple.getThird()))
+                .then(Mono.defer(this::enableMultiStatement))
+                ;
+    }
+
+    /**
+     * <p>
+     * must invoke after {@link #authenticateAndInitializing()}
+     * </p>
+     * configure below url config session group properties:
+     * <ul>
+     *     <li>{@link PropertyKey#sessionVariables}</li>
+     *     <li>{@link PropertyKey#characterEncoding}</li>
+     *     <li>{@link PropertyKey#characterSetResults}</li>
+     *     <li>{@link PropertyKey#connectionCollation}</li>
+     * </ul>
+     * <p>
+     *     If {@link PropertyKey#detectCustomCollations} is true,then firstly handle this.
+     * </p>
+     */
+    Mono<Void> configureSessionPropertyGroup() {
+        final int phase = this.connectionPhase.get();
+        if (phase != CONFIGURE_SESSION_PHASE) {
+            return createConnectionPhaseNotMatchException(phase);
+        }
+        return detectCustomCollations()
+                .then(Mono.defer(this::executeSessionVariables))
+                .then(Mono.defer(this::configureSessionCharset))
+                .then(Mono.defer(this::doAfterConfigureSessionPropertyGroupSuccess))
+                ;
+    }
+
+    /**
+     * <p>
+     * must invoke after {@link #configureSessionPropertyGroup()}
+     * </p>
+     * <p>
+     * do initialize ,must contain below operation:
+     *     <ul>
+     *         <li>{@code set autocommit = 0}</li>
+     *         <li>{@code SET SESSION TRANSACTION READ COMMITTED}</li>
+     *         <li>more initializing operations</li>
+     *     </ul>
+     * </p>
+     */
+    Mono<Void> initialize() {
+        final int phase = this.connectionPhase.get();
+        if (phase != INITIALIZING_PHASE) {
+            return createConnectionPhaseNotMatchException(phase);
+        }
+        return Mono.empty()
+                .then(Mono.defer(this::disableMultiStatement))
+                ;
+    }
+
+
     MySQLUrl getMySQLUrl() {
         return this.mySQLUrl;
     }
@@ -270,12 +316,14 @@ final class ClientConnectionProtocolImpl implements ClientConnectionProtocol, Pr
     }
 
     byte getClientCollationIndex() {
-        return obtainClientCollationIndex();
+        return obtainHandshakeCollationIndex();
     }
 
     int getNegotiatedCapability() {
         return obtainNegotiatedCapability();
     }
+
+
 
     /*################################## blow private method ##################################*/
 
@@ -293,12 +341,11 @@ final class ClientConnectionProtocolImpl implements ClientConnectionProtocol, Pr
         } else if (ErrorPacket.isErrorPacket(payloadBuf)) {
             ErrorPacket packet;
             if (this.sequenceId.get() < 2) {
-                packet = ErrorPacket.readPacket(payloadBuf, 0);
+                packet = ErrorPacket.readPacketInHandshakePhase(payloadBuf);
             } else {
                 packet = ErrorPacket.readPacket(payloadBuf, obtainNegotiatedCapability());
             }
-            mono = closeConnection()
-                    .then(Mono.error(new JdbdMySQLException("auth error, %s", packet)));
+            mono = rejectPacket(new JdbdMySQLException("auth error, %s", packet));
         } else {
             mono = processNextAuthenticationNegotiation(payloadBuf, plugin, pluginMap);
         }
@@ -351,25 +398,34 @@ final class ClientConnectionProtocolImpl implements ClientConnectionProtocol, Pr
         this.serverStatus.set(ServerStatus.fromValue(serverStatus));
     }
 
-    private void handleHandshakeV10Packet(HandshakeV10Packet packet) {
+    private Mono<HandshakeV10Packet> handleHandshakeV10Packet(HandshakeV10Packet packet) {
         if (!this.handshakeV10Packet.compareAndSet(null, packet)) {
-            throw new IllegalStateException("handshakeV10Packet isn't null.");
+            return Mono.error(new JdbdMySQLException(
+                    "%s can't concurrently invoke.handshakeV10Packet isn't null.", this));
         }
-        this.clientCollationIndex.compareAndSet(null, mapClientCollationIndex());
+        final byte handshakeCollationIndex;
+        handshakeCollationIndex = obtainHandshakeCollationIndex(this.handshakeCharset, packet.getServerVersion());
+        if (!this.handshakeCollationIndex.compareAndSet(0, handshakeCollationIndex)) {
+            return Mono.error(new JdbdMySQLException(
+                    "%s can't concurrently invoke.handshakeCollationIndex expected[0] but not.", this));
+        }
+        return this.connectionPhase.compareAndSet(HANDSHAKE_PHASE, SSL_PHASE)
+                ? Mono.just(packet)
+                : createConcurrentlyConnectionException(HANDSHAKE_PHASE);
     }
 
 
-    private Mono<HandshakeV10Packet> receiveHandshakeV10Packet(ByteBuf packetBuf) {
-        if (ErrorPacket.isErrorPacket(packetBuf)) {
+    private Mono<HandshakeV10Packet> readHandshakeV10Packet(ByteBuf payloadBuf) {
+        if (ErrorPacket.isErrorPacket(payloadBuf)) {
             // reject packet
-            ErrorPacket errorPacket = ErrorPacket.readPacket(packetBuf, 0);
+            ErrorPacket errorPacket = ErrorPacket.readPacket(payloadBuf, 0);
             return FutureMono.from(this.connection.channel().close())
                     .then(Mono.defer(() ->
                             Mono.error(new JdbdMySQLException(
                                     "handshake packet is error packet,close connection.ErrorPacket[%s]", errorPacket))
                     ));
         }
-        return Mono.just(HandshakeV10Packet.readHandshake(packetBuf));
+        return Mono.just(HandshakeV10Packet.readHandshake(payloadBuf));
     }
 
     /**
@@ -377,7 +433,7 @@ final class ClientConnectionProtocolImpl implements ClientConnectionProtocol, Pr
      * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_connection_phase_packets_protocol_handshake_response.html#sect_protocol_connection_phase_packets_protocol_handshake_response41">Protocol::HandshakeResponse41</a>
      */
     private Mono<ByteBuf> createHandshakeResponse41(String authPluginName, ByteBuf pluginOut) {
-        final Charset clientCharset = this.clientCharset;
+        final Charset clientCharset = this.handshakeCharset;
         final int clientFlag = obtainNegotiatedCapability();
 
         final ByteBuf packetBuffer = createPacketBuffer(1024);
@@ -387,7 +443,7 @@ final class ClientConnectionProtocolImpl implements ClientConnectionProtocol, Pr
         // 2. max_packet_size
         PacketUtils.writeInt4(packetBuffer, MAX_PACKET_SIZE);
         // 3. character_set
-        PacketUtils.writeInt1(packetBuffer, obtainClientCollationIndex());
+        PacketUtils.writeInt1(packetBuffer, obtainHandshakeCollationIndex());
         // 4. filler,Set of bytes reserved for future use.
         packetBuffer.writeZero(23);
 
@@ -435,17 +491,75 @@ final class ClientConnectionProtocolImpl implements ClientConnectionProtocol, Pr
         return Mono.just(packetBuffer);
     }
 
-    private Mono<ByteBuf> createSslRequestPayload() {
+    /**
+     * create ssl request packet.
+     *
+     * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_connection_phase.html#sect_protocol_connection_phase_initial_handshake_ssl_handshake">Protocol::SSL Handshake</a>
+     */
+    private Mono<ByteBuf> createSslRequestPacket() {
         ByteBuf packetBuf = createPacketBuffer(32);
-        // 1. client_flag
-        PacketUtils.writeInt4(packetBuf, obtainNegotiatedCapability());
-        // 2. max_packet_size
-        PacketUtils.writeInt4(packetBuf, MAX_PACKET_SIZE);
-        // 3. character_set,
-        PacketUtils.writeInt1(packetBuf, obtainClientCollationIndex());
-        // 4. filler
-        packetBuf.writeZero(23);
+
+        final int serverCapability = obtainHandshakeV10Packet().getCapabilityFlags();
+        if ((serverCapability & CLIENT_PROTOCOL_41) != 0) {
+            // 1. client_flag
+            PacketUtils.writeInt4(packetBuf, obtainNegotiatedCapability());
+            // 2. max_packet_size
+            PacketUtils.writeInt4(packetBuf, MAX_PACKET_SIZE);
+            // 3. character_set,
+            PacketUtils.writeInt1(packetBuf, obtainHandshakeCollationIndex());
+            // 4. filler
+            packetBuf.writeZero(23);
+        } else {
+            // 1. client_flag
+            PacketUtils.writeInt2(packetBuf, obtainNegotiatedCapability());
+            // 2. max_packet_size
+            PacketUtils.writeInt3(packetBuf, MAX_PACKET_SIZE);
+        }
         return Mono.just(packetBuf);
+    }
+
+    private Mono<Void> enableMultiStatement() {
+        return Mono.empty();
+    }
+
+    private Mono<Void> disableMultiStatement() {
+        return Mono.empty();
+    }
+
+    private Mono<Void> doAfterSendSslRequestSuccess() {
+        return this.connectionPhase.compareAndSet(SSL_PHASE, AUTHENTICATION_PHASE)
+                ? Mono.empty()
+                : createConcurrentlyConnectionException(SSL_PHASE);
+    }
+
+    private Mono<Void> detectCustomCollations() {
+        if (!this.properties.getRequiredProperty(PropertyKey.detectCustomCollations, Boolean.class)) {
+            return Mono.empty();
+        }
+        return Mono.empty();
+    }
+
+    private Mono<Void> executeSessionVariables() {
+        return Mono.empty();
+    }
+
+    private Mono<Void> configureSessionCharset() {
+        return Mono.empty();
+    }
+
+    private Mono<Void> doAfterConfigureSessionPropertyGroupSuccess() {
+        return this.connectionPhase.compareAndSet(CONFIGURE_SESSION_PHASE, INITIALIZING_PHASE)
+                ? Mono.empty()
+                : createConcurrentlyConnectionException(CONFIGURE_SESSION_PHASE);
+    }
+
+    private <T> Mono<T> createConcurrentlyConnectionException(int expected) {
+        return Mono.error(new JdbdMySQLException(
+                "%s can't concurrently invoke.connectionPhase expected[%s] but not.", this, expected));
+    }
+
+    private <T> Mono<T> createConnectionPhaseNotMatchException(int currentPhase) {
+        return Mono.error(new JdbdMySQLException("Not sslNegotiate phase,current phase[%s]", currentPhase));
     }
 
     private Triple<AuthenticationPlugin, Boolean, Map<String, AuthenticationPlugin>> obtainAuthenticationPlugin() {
@@ -529,12 +643,12 @@ final class ClientConnectionProtocolImpl implements ClientConnectionProtocol, Pr
                 ;
     }
 
-    private byte obtainClientCollationIndex() {
-        Byte b = this.clientCollationIndex.get();
-        if (b == null) {
-            throw new IllegalStateException("client no handshake");
+    private byte obtainHandshakeCollationIndex() {
+        int index = this.handshakeCollationIndex.get();
+        if (index == 0) {
+            throw new IllegalStateException("client no handshake,handshakeCollationIndex no value.");
         }
-        return b;
+        return (byte) index;
     }
 
     /**
@@ -584,7 +698,7 @@ final class ClientConnectionProtocolImpl implements ClientConnectionProtocol, Pr
             throw new IllegalStateException("client no handshake.");
         }
         charsetIndex = CharsetMapping.getCollationIndexForJavaEncoding(
-                this.clientCharset.name(), handshakePacket.getServerVersion());
+                this.handshakeCharset.name(), handshakePacket.getServerVersion());
         if (charsetIndex == 0) {
             charsetIndex = CharsetMapping.MYSQL_COLLATION_INDEX_utf8;
         }
@@ -701,6 +815,11 @@ final class ClientConnectionProtocolImpl implements ClientConnectionProtocol, Pr
         return FutureMono.from(this.connection.channel().close());
     }
 
+    private <T> Mono<T> rejectPacket(Throwable rejectReason) {
+        return closeConnection()
+                .then(Mono.error(rejectReason));
+    }
+
 
     /*################################## blow static method ##################################*/
 
@@ -723,6 +842,17 @@ final class ClientConnectionProtocolImpl implements ClientConnectionProtocol, Pr
         } catch (IllegalAccessException | InvocationTargetException e) {
             throw new JdbdMySQLException(e, "plugin[%s] getInstance() invoke error.", pluginClassName);
         }
+    }
+
+
+    private static void appendBuildInPluginClassNameList(List<String> pluginClassNameList) {
+        pluginClassNameList.add(MySQLNativePasswordPlugin.class.getName());
+        pluginClassNameList.add(MySQLClearPasswordPlugin.class.getName());
+        pluginClassNameList.add(Sha256PasswordPlugin.class.getName());
+        pluginClassNameList.add(CachingSha2PasswordPlugin.class.getName());
+
+        pluginClassNameList.add(MySQLNativePasswordPlugin.class.getName());
+
     }
 
     private static String convertPluginClassName(String pluginClassName) {
@@ -754,14 +884,13 @@ final class ClientConnectionProtocolImpl implements ClientConnectionProtocol, Pr
         return className;
     }
 
-    private static void appendBuildInPluginClassNameList(List<String> pluginClassNameList) {
-        pluginClassNameList.add(MySQLNativePasswordPlugin.class.getName());
-        pluginClassNameList.add(MySQLClearPasswordPlugin.class.getName());
-        pluginClassNameList.add(Sha256PasswordPlugin.class.getName());
-        pluginClassNameList.add(CachingSha2PasswordPlugin.class.getName());
 
-        pluginClassNameList.add(MySQLNativePasswordPlugin.class.getName());
-
+    private static byte obtainHandshakeCollationIndex(Charset handshakeCharset, ServerVersion serverVersion) {
+        int charsetIndex = CharsetMapping.getCollationIndexForJavaEncoding(handshakeCharset.name(), serverVersion);
+        if (charsetIndex == 0) {
+            charsetIndex = CharsetMapping.MYSQL_COLLATION_INDEX_utf8;
+        }
+        return (byte) charsetIndex;
     }
 
 

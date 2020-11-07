@@ -11,7 +11,6 @@ import org.testng.annotations.Test;
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.atomic.AtomicReference;
 
 public class ClientProtocolTests {
 
@@ -32,40 +31,65 @@ public class ClientProtocolTests {
         context.setAttribute("clientConnectionProtocol", protocol);
     }
 
+    /**
+     * test {@link ClientConnectionProtocolImpl#receiveHandshake() }
+     */
     @Test
     public void receiveHandshake(ITestContext context) {
         MySQLPacket mySQLPacket = obtainConnectionProtocol(context)
                 .receiveHandshake()
                 .block();
         Assert.assertNotNull(mySQLPacket);
-        LOG.info("handshake packet:\n{}", mySQLPacket.toString());
+        LOG.info("Connection protocol receiveHandshake phase success. packet:\n{}", mySQLPacket.toString());
     }
 
+    /**
+     * test {@link ClientConnectionProtocolImpl#sslNegotiate() }
+     */
     @Test(dependsOnMethods = "receiveHandshake")
-    public void sslRequest(ITestContext context) {
-        MySQLPacket mySQLPacket = obtainConnectionProtocol(context)
+    public void sslNegotiate(ITestContext context) {
+        obtainConnectionProtocol(context)
                 .sslNegotiate()
                 .block();
-
-        LOG.info("response ssl packet:\n{}", mySQLPacket);
+        LOG.info("Connection protocol sslNegotiate success");
     }
 
-    @Test(dependsOnMethods = {"sslRequest", "receiveHandshake"})
-    public void responseHandshake(ITestContext context) throws Throwable {
-        final AtomicReference<Throwable> error = new AtomicReference<>(null);
-        obtainConnectionProtocol(context)
-                .authenticateAndInitializing()
-                .doOnSuccess(v -> createCommandProtocol(context))
-                .doOnError(error::set)
+    /**
+     * test {@link ClientConnectionProtocolImpl#authenticate() }
+     */
+    @Test(dependsOnMethods = {"receiveHandshake", "sslNegotiate"})
+    public void authenticate(ITestContext context) {
+        MySQLPacket mySQLPacket = obtainConnectionProtocol(context)
+                .authenticate()
                 .block();
-        Throwable e = error.get();
-        if (e != null) {
-            throw e;
-        }
+        Assert.assertNotNull(mySQLPacket);
+        LOG.info("Connection protocol authenticate phase execute success.packet:\n{}", mySQLPacket);
+    }
+
+    /**
+     * test {@link ClientConnectionProtocolImpl#configureSessionPropertyGroup() }
+     */
+    @Test(dependsOnMethods = {"receiveHandshake", "sslNegotiate", "authenticate"})
+    public void configureSessionPropertyGroup(ITestContext context) {
+        obtainConnectionProtocol(context)
+                .configureSessionPropertyGroup()
+                .block();
+        LOG.info("Connection protocol configureSessionPropertyGroup phase execute success");
+    }
+
+    /**
+     * test {@link ClientConnectionProtocolImpl#initialize() }
+     */
+    @Test(dependsOnMethods = {"receiveHandshake", "sslNegotiate", "authenticate", "configureSessionPropertyGroup"})
+    public void initialize(ITestContext context) {
+        obtainConnectionProtocol(context)
+                .initialize()
+                .block();
+        LOG.info("Connection protocol initialize phase execute success");
     }
 
 
-    @Test(dependsOnMethods = {"sslRequest", "receiveHandshake", "responseHandshake"})
+    @Test(dependsOnMethods = {"receiveHandshake", "sslNegotiate", "authenticate", "configureSessionPropertyGroup", "initialize"})
     public void comQueryForResultSet(ITestContext context) {
         ClientCommandProtocol commandProtocol;
         commandProtocol = obtainCommandProtocol(context);

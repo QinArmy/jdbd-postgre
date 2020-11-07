@@ -50,7 +50,7 @@ public final class ClientCommandProtocolImpl implements ClientCommandProtocol {
 
         this.handshakeV10Packet = connectionProtocol.getHandshakeV10Packet();
         this.clientCollationIndex = connectionProtocol.getClientCollationIndex();
-        this.clientCharset = connectionProtocol.getClientCharset();
+        this.clientCharset = connectionProtocol.getHandshakeCharset();
         this.negotiatedCapability = connectionProtocol.getNegotiatedCapability();
     }
 
