@@ -118,4 +118,11 @@ public final class ServerVersion implements Comparable<ServerVersion> {
         return new ServerVersion(major + "." + minor + "." + subMinor, major, minor, subMinor);
     }
 
+    public static boolean isEnterpriseEdition(ServerVersion serverVersion) {
+        String completeVersion = serverVersion.completeVersion;
+        return completeVersion.contains("enterprise")
+                || completeVersion.contains("commercial")
+                || completeVersion.contains("advanced");
+    }
+
 }

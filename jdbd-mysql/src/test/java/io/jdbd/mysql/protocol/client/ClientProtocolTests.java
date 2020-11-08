@@ -2,6 +2,7 @@ package io.jdbd.mysql.protocol.client;
 
 import io.jdbd.mysql.protocol.MySQLPacket;
 import io.jdbd.mysql.protocol.conf.MySQLUrl;
+import io.jdbd.mysql.protocol.conf.PropertyDefinitions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
@@ -48,10 +49,10 @@ public class ClientProtocolTests {
      */
     @Test(dependsOnMethods = "receiveHandshake")
     public void sslNegotiate(ITestContext context) {
-        obtainConnectionProtocol(context)
+        PropertyDefinitions.SslMode sslMode = obtainConnectionProtocol(context)
                 .sslNegotiate()
                 .block();
-        LOG.info("Connection protocol sslNegotiate success");
+        LOG.info("Connection protocol sslNegotiate {}", sslMode);
     }
 
     /**
@@ -59,11 +60,10 @@ public class ClientProtocolTests {
      */
     @Test(dependsOnMethods = {"receiveHandshake", "sslNegotiate"})
     public void authenticate(ITestContext context) {
-        MySQLPacket mySQLPacket = obtainConnectionProtocol(context)
+        obtainConnectionProtocol(context)
                 .authenticate()
                 .block();
-        Assert.assertNotNull(mySQLPacket);
-        LOG.info("Connection protocol authenticate phase execute success.packet:\n{}", mySQLPacket);
+        LOG.info("Connection protocol authenticate phase execute success.packet:");
     }
 
     /**

@@ -4,9 +4,17 @@ import io.jdbd.JdbdRuntimeException;
 import io.jdbd.mysql.JdbdMySQLException;
 import io.jdbd.mysql.protocol.*;
 import io.jdbd.mysql.protocol.authentication.*;
+import io.jdbd.mysql.protocol.conf.Properties;
 import io.jdbd.mysql.protocol.conf.*;
 import io.jdbd.mysql.util.MySQLStringUtils;
 import io.netty.buffer.ByteBuf;
+import io.netty.channel.Channel;
+import io.netty.channel.ChannelPipeline;
+import io.netty.handler.ssl.SslContext;
+import io.netty.handler.ssl.SslContextBuilder;
+import io.netty.handler.ssl.SslHandler;
+import org.qinarmy.util.Pair;
+import org.qinarmy.util.StringUtils;
 import org.qinarmy.util.Triple;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -14,16 +22,28 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.netty.Connection;
 import reactor.netty.FutureMono;
+import reactor.netty.NettyPipeline;
 import reactor.netty.tcp.TcpClient;
+import reactor.util.annotation.Nullable;
 
+import javax.net.ssl.KeyManagerFactory;
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLException;
+import javax.net.ssl.TrustManagerFactory;
+import java.io.IOException;
+import java.io.InputStream;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.net.MalformedURLException;
+import java.net.URL;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.security.KeyStore;
+import java.security.KeyStoreException;
+import java.security.NoSuchAlgorithmException;
+import java.security.UnrecoverableKeyException;
+import java.security.cert.CertificateException;
+import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -49,6 +69,24 @@ final class ClientConnectionProtocolImpl implements ClientConnectionProtocol, Pr
 
 
     private static final String NONE = "none";
+
+    private static final String TLSv1 = "TLSv1";
+    private static final String TLSv1_1 = "TLSv1.1";
+    private static final String TLSv1_2 = "TLSv1.2";
+    private static final String TLSv1_3 = "TLSv1.3";
+
+    /** a unmodifiable list */
+    private static final List<String> TLS_PROTOCOL_LIST = createTlsProtocolList();
+
+    /** a unmodifiable list */
+    private static final List<String> ALLOWED_TLS_CIPHER_LIST = createTlsCipherList();
+
+    /** a unmodifiable list */
+    private static final List<String> RESTRICTED_CIPHER_SUBSTR = createRestrictedCipherSubStrList();
+
+    /** a unmodifiable list */
+    private static final List<String> JDK_SUPPORT_TLS_LIST = createJdkSupportTlsProtocolList();
+
 
     /**
      * below {@code xxx_PHASE } representing connection phase.
@@ -197,19 +235,17 @@ final class ClientConnectionProtocolImpl implements ClientConnectionProtocol, Pr
      *
      * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_connection_phase.html#sect_protocol_connection_phase_initial_handshake_ssl_handshake">Protocol::SSL Handshake</a>
      */
-    Mono<Void> sslNegotiate() {
+    Mono<PropertyDefinitions.SslMode> sslNegotiate() {
         final int phase = this.connectionPhase.get();
         if (phase != SSL_PHASE) {
             return createConnectionPhaseNotMatchException(phase);
         }
-        PropertyDefinitions.SslMode sslMode;
-        sslMode = this.properties.getProperty(PropertyKey.sslMode, PropertyDefinitions.SslMode.class);
-        if ((obtainNegotiatedCapability() & CLIENT_SSL) == 0 || sslMode == PropertyDefinitions.SslMode.DISABLED) {
-            return Mono.empty();
+        if ((obtainNegotiatedCapability() & CLIENT_SSL) == 0) {
+            return doAfterSendSslRequestEnd();
         }
-        return createSslRequestPacket()
-                .flatMap(this::sendPacket)
-                .then(Mono.defer(this::doAfterSendSslRequestSuccess))
+        return sendPacket(createSslRequestPacket())
+                .then(Mono.defer(this::performSslHandshake))
+                .then(Mono.defer(this::doAfterSendSslRequestEnd))
                 ;
     }
 
@@ -496,7 +532,7 @@ final class ClientConnectionProtocolImpl implements ClientConnectionProtocol, Pr
      *
      * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_connection_phase.html#sect_protocol_connection_phase_initial_handshake_ssl_handshake">Protocol::SSL Handshake</a>
      */
-    private Mono<ByteBuf> createSslRequestPacket() {
+    private ByteBuf createSslRequestPacket() {
         ByteBuf packetBuf = createPacketBuffer(32);
 
         final int serverCapability = obtainHandshakeV10Packet().getCapabilityFlags();
@@ -515,8 +551,205 @@ final class ClientConnectionProtocolImpl implements ClientConnectionProtocol, Pr
             // 2. max_packet_size
             PacketUtils.writeInt3(packetBuf, MAX_PACKET_SIZE);
         }
-        return Mono.just(packetBuf);
+        return packetBuf;
     }
+
+    private Mono<Void> performSslHandshake() {
+
+        Channel channel = this.connection.channel();
+        final SslHandler sslHandler = createSslHandler(channel);
+
+        ChannelPipeline pipeline = channel.pipeline();
+
+        if (pipeline.get(NettyPipeline.ProxyHandler) != null) {
+            pipeline.addAfter(NettyPipeline.ProxyHandler, NettyPipeline.SslHandler, sslHandler);
+        } else if (pipeline.get(NettyPipeline.ProxyProtocolReader) != null) {
+            pipeline.addAfter(NettyPipeline.ProxyProtocolReader, NettyPipeline.SslHandler, sslHandler);
+        } else {
+            pipeline.addFirst(NettyPipeline.SslHandler, sslHandler);
+        }
+        return Mono.empty();
+    }
+
+    private SslHandler createSslHandler(Channel channel) {
+        TrustManagerFactory trustManagerFactory = tryObtainTrustManagerFactory();
+        KeyManagerFactory keyManagerFactory = tryObtainKeyManagerFactory();
+
+        SslContextBuilder contextBuilder = SslContextBuilder.forClient();
+        if (trustManagerFactory != null) {
+            contextBuilder.trustManager(trustManagerFactory);
+        }
+        if (keyManagerFactory != null) {
+            contextBuilder.keyManager(keyManagerFactory);
+        }
+        contextBuilder.protocols(obtainAllowedTlsProtocolList())
+                .ciphers(obtainAllowedCipherList())
+        ;
+        try {
+            HostInfo hostInfo = getMainHostInfo();
+            return contextBuilder.build()
+                    .newHandler(channel.alloc(), hostInfo.getHost(), hostInfo.getPort());
+        } catch (SSLException e) {
+            throw new JdbdMySQLException(e, "create %s", SslContext.class.getName());
+        }
+    }
+
+
+    private List<String> obtainAllowedCipherList() {
+        String enabledSSLCipherSuites = this.properties.getProperty(PropertyKey.enabledSSLCipherSuites);
+        List<String> candidateList = StringUtils.spitAsList(enabledSSLCipherSuites, ",");
+
+        if (candidateList.isEmpty()) {
+            // TODO zoro 处理不同 协议所需要的 cipher.
+            candidateList = ALLOWED_TLS_CIPHER_LIST;
+        } else {
+            candidateList.retainAll(ALLOWED_TLS_CIPHER_LIST);
+        }
+
+        List<String> allowedCipherList = new ArrayList<>(candidateList.size());
+        candidateFor:
+        for (String candidate : candidateList) {
+            for (String restricted : RESTRICTED_CIPHER_SUBSTR) {
+                if (candidate.contains(restricted)) {
+                    continue candidateFor;
+                }
+            }
+            allowedCipherList.add(candidate);
+        }
+        return Collections.unmodifiableList(allowedCipherList);
+    }
+
+
+    /**
+     * @return a unmodifiable list
+     */
+    private List<String> obtainAllowedTlsProtocolList() {
+        String enabledTLSProtocols = this.properties.getProperty(PropertyKey.enabledTLSProtocols);
+        List<String> candidateList = StringUtils.spitAsList(enabledTLSProtocols, ",");
+
+        if (candidateList.isEmpty()) {
+            ServerVersion serverVersion = obtainHandshakeV10Packet().getServerVersion();
+
+            if (serverVersion.meetsMinimum(5, 7, 28)
+                    || (serverVersion.meetsMinimum(5, 6, 46) && !serverVersion.meetsMinimum(5, 7, 0))
+                    || (serverVersion.meetsMinimum(5, 6, 0) && ServerVersion.isEnterpriseEdition(serverVersion))) {
+                candidateList = new ArrayList<>(TLS_PROTOCOL_LIST);
+            } else {
+                candidateList = Arrays.asList(TLSv1_1, TLSv1);
+            }
+        }
+        candidateList.retainAll(JDK_SUPPORT_TLS_LIST);
+        return Collections.unmodifiableList(candidateList);
+    }
+
+    @Nullable
+    private TrustManagerFactory tryObtainTrustManagerFactory() {
+        PropertyDefinitions.SslMode sslMode;
+        sslMode = this.properties.getProperty(PropertyKey.sslMode, PropertyDefinitions.SslMode.class);
+        if (sslMode != PropertyDefinitions.SslMode.VERIFY_CA
+                && sslMode != PropertyDefinitions.SslMode.VERIFY_IDENTITY) {
+            return null;
+        }
+        try {
+            Pair<KeyStore, char[]> storePair = tryObtainKeyStorePasswordPairForSsl(false);
+            if (storePair == null) {
+                return null;
+            }
+            TrustManagerFactory tmf = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
+            tmf.init(storePair.getFirst());
+            return tmf;
+        } catch (NoSuchAlgorithmException e) {
+            // use default algorithm, never here.
+            throw new JdbdMySQLException(e, "%s algorithm error", TrustManagerFactory.class.getName());
+        } catch (KeyStoreException e) {
+            throw new JdbdMySQLException(e, "%s content error,cannot init %s."
+                    , PropertyKey.trustCertificateKeyStoreUrl, TrustManagerFactory.class.getName());
+        }
+    }
+
+    @Nullable
+    private KeyManagerFactory tryObtainKeyManagerFactory() {
+        try {
+            Pair<KeyStore, char[]> storePair = tryObtainKeyStorePasswordPairForSsl(true);
+            if (storePair == null) {
+                return null;
+            }
+            KeyManagerFactory kmf = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
+            kmf.init(storePair.getFirst(), storePair.getSecond());
+            return kmf;
+        } catch (NoSuchAlgorithmException e) {
+            // use default algorithm, never here.
+            throw new JdbdMySQLException(e, "%s algorithm error", KeyManagerFactory.class.getName());
+        } catch (KeyStoreException | UnrecoverableKeyException e) {
+            throw new JdbdMySQLException(e, "%s content error,cannot init %s."
+                    , PropertyKey.clientCertificateKeyStoreUrl, KeyManagerFactory.class.getName());
+        }
+    }
+
+    @Nullable
+    private Pair<KeyStore, char[]> tryObtainKeyStorePasswordPairForSsl(final boolean client) {
+        // 1. below obtain three storeUrl,storeType,storePassword
+        final PropertyKey storeUrlKey, storeTypeKey, passwordKey;
+        final String defaultStoreUrlKey, defaultStoreTypeKey, defaultPasswordKey;
+        if (client) {
+            storeUrlKey = PropertyKey.clientCertificateKeyStoreUrl;
+            storeTypeKey = PropertyKey.clientCertificateKeyStoreType;
+            passwordKey = PropertyKey.clientCertificateKeyStorePassword;
+
+            defaultStoreUrlKey = "javax.net.ssl.keyStore";
+            defaultStoreTypeKey = "javax.net.ssl.keyStoreType";
+            defaultPasswordKey = "javax.net.ssl.keyStorePassword";
+        } else {
+            storeUrlKey = PropertyKey.trustCertificateKeyStoreUrl;
+            storeTypeKey = PropertyKey.trustCertificateKeyStoreType;
+            passwordKey = PropertyKey.trustCertificateKeyStorePassword;
+
+            defaultStoreUrlKey = "javax.net.ssl.trustStore";
+            defaultStoreTypeKey = "javax.net.ssl.trustStoreType";
+            defaultPasswordKey = "javax.net.ssl.trustStorePassword";
+        }
+
+        final Properties properties = this.properties;
+        String storeUrl, storeType;
+        storeUrl = properties.getProperty(storeUrlKey);
+        storeType = properties.getProperty(storeTypeKey);
+
+        if (!StringUtils.hasText(storeUrl)) {
+            storeUrl = System.getProperty(defaultStoreUrlKey);
+        }
+        if (!StringUtils.hasText(storeType)) {
+            storeType = System.getProperty(defaultStoreTypeKey);
+        }
+
+        if (!StringUtils.hasText(storeUrl) || !StringUtils.hasText(storeType)) {
+            return null;
+        }
+        String storePwd = properties.getProperty(passwordKey);
+        if (!StringUtils.hasText(storePwd)) {
+            storePwd = System.getenv(defaultPasswordKey);
+        }
+
+        final char[] storePassword = (storePwd == null) ? new char[0] : storePwd.toCharArray();
+        // 2. create and init KeyStore with three storeUrl,storeType,storePassword
+        try (InputStream storeInput = new URL(storeUrl).openStream()) {
+            try {
+                KeyStore keyStore = KeyStore.getInstance(storeType);
+                keyStore.load(storeInput, storePassword);
+                return new Pair<>(keyStore, storePassword);
+            } catch (KeyStoreException e) {
+                throw new JdbdMySQLException(e, "%s[%s] error,cannot create %s.", storeTypeKey, storeType
+                        , KeyStore.class.getName());
+            } catch (NoSuchAlgorithmException | IOException | CertificateException e) {
+                throw new JdbdMySQLException(e, "%s[%s] content error,cannot init %s."
+                        , storeUrlKey, storeUrl, KeyStore.class.getName());
+            }
+        } catch (MalformedURLException e) {
+            throw new JdbdMySQLException(e, "%s [%s] isn't url.", storeUrlKey, storeUrl);
+        } catch (IOException e) {
+            throw new JdbdMySQLException(e, "%s [%s] cannot open InputStream.", storeUrlKey, storeUrl);
+        }
+    }
+
 
     private Mono<Void> enableMultiStatement() {
         return Mono.empty();
@@ -526,9 +759,9 @@ final class ClientConnectionProtocolImpl implements ClientConnectionProtocol, Pr
         return Mono.empty();
     }
 
-    private Mono<Void> doAfterSendSslRequestSuccess() {
+    private Mono<PropertyDefinitions.SslMode> doAfterSendSslRequestEnd() {
         return this.connectionPhase.compareAndSet(SSL_PHASE, AUTHENTICATION_PHASE)
-                ? Mono.empty()
+                ? Mono.justOrEmpty(this.properties.getProperty(PropertyKey.sslMode, PropertyDefinitions.SslMode.class))
                 : createConcurrentlyConnectionException(SSL_PHASE);
     }
 
@@ -891,6 +1124,157 @@ final class ClientConnectionProtocolImpl implements ClientConnectionProtocol, Pr
             charsetIndex = CharsetMapping.MYSQL_COLLATION_INDEX_utf8;
         }
         return (byte) charsetIndex;
+    }
+
+
+    /**
+     * @return a unmodifiable list
+     */
+    private static List<String> createTlsProtocolList() {
+        List<String> list = new ArrayList<>(4);
+        list.add(TLSv1);
+        list.add(TLSv1_1);
+        list.add(TLSv1_2);
+        list.add(TLSv1_3);
+        return Collections.unmodifiableList(list);
+    }
+
+    /**
+     * @return a unmodifiable list
+     */
+    private static List<String> createTlsCipherList() {
+        List<String> list = new ArrayList<>();
+
+        // Mandatory TLS Ciphers");
+
+        list.add("TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256");
+        list.add("TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384");
+        list.add("TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256");
+
+
+        // Approved TLS Ciphers");
+        list.add("TLS_AES_128_GCM_SHA256");
+        list.add("TLS_AES_256_GCM_SHA384");
+        list.add("TLS_CHACHA20_POLY1305_SHA256");
+        list.add("TLS_AES_128_CCM_SHA256");
+
+        list.add("TLS_AES_128_CCM_8_SHA256");
+        list.add("TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384");
+        list.add("TLS_DHE_RSA_WITH_AES_128_GCM_SHA256");
+        list.add("TLS_DHE_DSS_WITH_AES_128_GCM_SHA256");
+
+        list.add("TLS_DHE_DSS_WITH_AES_256_GCM_SHA384");
+        list.add("TLS_DHE_RSA_WITH_AES_256_GCM_SHA384");
+        list.add("TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256");
+        list.add("TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256");
+
+        list.add("TLS_DH_DSS_WITH_AES_128_GCM_SHA256");
+        list.add("TLS_ECDH_ECDSA_WITH_AES_128_GCM_SHA256");
+        list.add("TLS_DH_DSS_WITH_AES_256_GCM_SHA384");
+        list.add("TLS_ECDH_ECDSA_WITH_AES_256_GCM_SHA384");
+
+        list.add("TLS_DH_RSA_WITH_AES_128_GCM_SHA256");
+        list.add("TLS_ECDH_RSA_WITH_AES_128_GCM_SHA256");
+        list.add("TLS_DH_RSA_WITH_AES_256_GCM_SHA384");
+        list.add("TLS_ECDH_RSA_WITH_AES_256_GCM_SHA384");
+
+
+        // Deprecated TLS Ciphers");
+        list.add("TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256");
+        list.add("TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256");
+        list.add("TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384");
+        list.add("TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384");
+
+        list.add("TLS_DHE_DSS_WITH_AES_128_CBC_SHA256");
+        list.add("TLS_DHE_DSS_WITH_AES_256_CBC_SHA256");
+        list.add("TLS_DHE_RSA_WITH_AES_256_CBC_SHA256");
+        list.add("TLS_DHE_RSA_WITH_AES_128_CBC_SHA256");
+
+        list.add("TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA");
+        list.add("TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA");
+        list.add("TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA");
+        list.add("TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA");
+
+        list.add("TLS_DHE_DSS_WITH_AES_128_CBC_SHA");
+        list.add("TLS_DHE_RSA_WITH_AES_128_CBC_SHA");
+        list.add("TLS_DHE_DSS_WITH_AES_256_CBC_SHA");
+        list.add("TLS_DHE_RSA_WITH_AES_256_CBC_SHA");
+
+        list.add("TLS_DH_RSA_WITH_AES_128_CBC_SHA256");
+        list.add("TLS_ECDH_ECDSA_WITH_AES_128_CBC_SHA256");
+        list.add("TLS_ECDH_RSA_WITH_AES_128_CBC_SHA256");
+        list.add("TLS_DH_RSA_WITH_AES_256_CBC_SHA256");
+
+        list.add("TLS_ECDH_RSA_WITH_AES_256_CBC_SHA384");
+        list.add("TLS_DH_DSS_WITH_AES_128_CBC_SHA256");
+        list.add("TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA384");
+        list.add("TLS_DH_DSS_WITH_AES_128_CBC_SHA");
+
+        list.add("TLS_ECDH_ECDSA_WITH_AES_128_CBC_SHA");
+        list.add("TLS_DH_DSS_WITH_AES_256_CBC_SHA");
+        list.add("TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA");
+        list.add("TLS_DH_DSS_WITH_AES_256_CBC_SHA256");
+
+        list.add("TLS_DH_RSA_WITH_AES_128_CBC_SHA");
+        list.add("TLS_ECDH_RSA_WITH_AES_128_CBC_SHA");
+        list.add("TLS_DH_RSA_WITH_AES_256_CBC_SHA");
+        list.add("TLS_ECDH_RSA_WITH_AES_256_CBC_SHA");
+
+        list.add("TLS_RSA_WITH_AES_128_GCM_SHA256");
+        list.add("TLS_RSA_WITH_AES_256_GCM_SHA384");
+        list.add("TLS_RSA_WITH_AES_128_CBC_SHA256");
+        list.add("TLS_RSA_WITH_AES_256_CBC_SHA256");
+
+        list.add("TLS_RSA_WITH_AES_128_CBC_SHA");
+        list.add("TLS_RSA_WITH_AES_256_CBC_SHA");
+        list.add("TLS_RSA_WITH_CAMELLIA_256_CBC_SHA");
+        list.add("TLS_RSA_WITH_CAMELLIA_128_CBC_SHA");
+
+        list.add("TLS_DH_DSS_WITH_3DES_EDE_CBC_SHA");
+        list.add("TLS_DH_RSA_WITH_3DES_EDE_CBC_SHA");
+        list.add("TLS_DHE_DSS_WITH_3DES_EDE_CBC_SHA");
+        list.add("TLS_DHE_RSA_WITH_3DES_EDE_CBC_SHA");
+
+        list.add("TLS_ECDH_RSA_WITH_3DES_EDE_CBC_SHA");
+        list.add("TLS_ECDH_ECDSA_WITH_3DES_EDE_CBC_SHA");
+        list.add("TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA");
+        list.add("TLS_ECDHE_ECDSA_WITH_3DES_EDE_CBC_SHA");
+
+        list.add("TLS_RSA_WITH_3DES_EDE_CBC_SHA");
+
+        return Collections.unmodifiableList(list);
+    }
+
+    private static List<String> createRestrictedCipherSubStrList() {
+        List<String> list = new ArrayList<>(8);
+        // Unacceptable TLS Ciphers
+        list.add("_ANON_");
+        list.add("_NULL_");
+        list.add("_EXPORT");
+        list.add("_MD5");
+
+        list.add("_DES");
+        list.add("_RC2_");
+        list.add("_RC4_");
+        list.add("_PSK_");
+        return Collections.unmodifiableList(list);
+    }
+
+    /**
+     * @return a unmodifiable list
+     * @see <a href="https://docs.oracle.com/javase/8/docs/technotes/guides/security/StandardNames.html#SSLContext">JDK TLS protocls</a>
+     */
+    private static List<String> createJdkSupportTlsProtocolList() {
+        List<String> list = new ArrayList<>(TLS_PROTOCOL_LIST.size());
+        for (String protocol : TLS_PROTOCOL_LIST) {
+            try {
+                SSLContext.getInstance(protocol);
+                list.add(protocol);
+            } catch (NoSuchAlgorithmException e) {
+                LOG.debug("{} unsupported by JDK.", protocol);
+            }
+        }
+        return Collections.unmodifiableList(list);
     }
 
 

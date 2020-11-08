@@ -162,10 +162,10 @@ final class MySQLCumulateSubscriber implements CoreSubscriber<ByteBuf>, MySQLCum
         Queue<MySQLReceiver> receiverQueue = this.receiverQueue;
         MySQLReceiver receiver;
         while ((receiver = receiverQueue.poll()) != null) {
-            if (receiver instanceof MonoMySQLReceiver) {
-                ((MonoMySQLReceiver) receiver).success(null);
-            } else if (receiver instanceof FluxMySQLReceiver) {
-                ((FluxMySQLReceiver) receiver).onComplete();
+            try {
+                receiver.onError(new JdbdMySQLException("Connection close ,can't receive packet."));
+            } catch (Throwable e) {
+                LOG.warn("downstream handler error event occur error.error msg:{}", e.getMessage());
             }
         }
         this.complete = true;
