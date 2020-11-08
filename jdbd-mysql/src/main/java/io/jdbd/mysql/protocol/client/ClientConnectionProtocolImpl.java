@@ -27,7 +27,6 @@ import reactor.netty.tcp.TcpClient;
 import reactor.util.annotation.Nullable;
 
 import javax.net.ssl.KeyManagerFactory;
-import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLException;
 import javax.net.ssl.TrustManagerFactory;
 import java.io.IOException;
@@ -69,23 +68,6 @@ final class ClientConnectionProtocolImpl implements ClientConnectionProtocol, Pr
 
 
     private static final String NONE = "none";
-
-    private static final String TLSv1 = "TLSv1";
-    private static final String TLSv1_1 = "TLSv1.1";
-    private static final String TLSv1_2 = "TLSv1.2";
-    private static final String TLSv1_3 = "TLSv1.3";
-
-    /** a unmodifiable list */
-    private static final List<String> TLS_PROTOCOL_LIST = createTlsProtocolList();
-
-    /** a unmodifiable list */
-    private static final List<String> ALLOWED_TLS_CIPHER_LIST = createTlsCipherList();
-
-    /** a unmodifiable list */
-    private static final List<String> RESTRICTED_CIPHER_SUBSTR = createRestrictedCipherSubStrList();
-
-    /** a unmodifiable list */
-    private static final List<String> JDK_SUPPORT_TLS_LIST = createJdkSupportTlsProtocolList();
 
 
     /**
@@ -583,11 +565,13 @@ final class ClientConnectionProtocolImpl implements ClientConnectionProtocol, Pr
             contextBuilder.keyManager(keyManagerFactory);
         }
         contextBuilder.protocols(obtainAllowedTlsProtocolList())
-                .ciphers(obtainAllowedCipherList())
+        //TODO zoro 找到确认 jdk or open ssl 支持 cipher suit 的方法
+        //.ciphers(obtainAllowedCipherSuitList())
         ;
         try {
             HostInfo hostInfo = getMainHostInfo();
-            return contextBuilder.build()
+            return contextBuilder
+                    .build()
                     .newHandler(channel.alloc(), hostInfo.getHost(), hostInfo.getPort());
         } catch (SSLException e) {
             throw new JdbdMySQLException(e, "create %s", SslContext.class.getName());
@@ -595,21 +579,20 @@ final class ClientConnectionProtocolImpl implements ClientConnectionProtocol, Pr
     }
 
 
-    private List<String> obtainAllowedCipherList() {
+    private List<String> obtainAllowedCipherSuitList() {
         String enabledSSLCipherSuites = this.properties.getProperty(PropertyKey.enabledSSLCipherSuites);
         List<String> candidateList = StringUtils.spitAsList(enabledSSLCipherSuites, ",");
 
         if (candidateList.isEmpty()) {
-            // TODO zoro 处理不同 协议所需要的 cipher.
-            candidateList = ALLOWED_TLS_CIPHER_LIST;
+            candidateList = ProtocolUtils.CLIENT_SUPPORT_TLS_CIPHER_LIST;
         } else {
-            candidateList.retainAll(ALLOWED_TLS_CIPHER_LIST);
+            candidateList.retainAll(ProtocolUtils.CLIENT_SUPPORT_TLS_CIPHER_LIST);
         }
 
         List<String> allowedCipherList = new ArrayList<>(candidateList.size());
         candidateFor:
         for (String candidate : candidateList) {
-            for (String restricted : RESTRICTED_CIPHER_SUBSTR) {
+            for (String restricted : ProtocolUtils.MYSQL_RESTRICTED_CIPHER_SUBSTR_LIST) {
                 if (candidate.contains(restricted)) {
                     continue candidateFor;
                 }
@@ -633,13 +616,15 @@ final class ClientConnectionProtocolImpl implements ClientConnectionProtocol, Pr
             if (serverVersion.meetsMinimum(5, 7, 28)
                     || (serverVersion.meetsMinimum(5, 6, 46) && !serverVersion.meetsMinimum(5, 7, 0))
                     || (serverVersion.meetsMinimum(5, 6, 0) && ServerVersion.isEnterpriseEdition(serverVersion))) {
-                candidateList = new ArrayList<>(TLS_PROTOCOL_LIST);
+                candidateList = ProtocolUtils.CLIENT_SUPPORT_TLS_PROTOCOL_LIST;
             } else {
-                candidateList = Arrays.asList(TLSv1_1, TLSv1);
+                candidateList = Collections.unmodifiableList(Arrays.asList(ProtocolUtils.TLSv1_1, ProtocolUtils.TLSv1));
             }
+        } else {
+            candidateList.retainAll(ProtocolUtils.CLIENT_SUPPORT_TLS_PROTOCOL_LIST);
+            candidateList = Collections.unmodifiableList(candidateList);
         }
-        candidateList.retainAll(JDK_SUPPORT_TLS_LIST);
-        return Collections.unmodifiableList(candidateList);
+        return candidateList;
     }
 
     @Nullable
@@ -1124,157 +1109,6 @@ final class ClientConnectionProtocolImpl implements ClientConnectionProtocol, Pr
             charsetIndex = CharsetMapping.MYSQL_COLLATION_INDEX_utf8;
         }
         return (byte) charsetIndex;
-    }
-
-
-    /**
-     * @return a unmodifiable list
-     */
-    private static List<String> createTlsProtocolList() {
-        List<String> list = new ArrayList<>(4);
-        list.add(TLSv1);
-        list.add(TLSv1_1);
-        list.add(TLSv1_2);
-        list.add(TLSv1_3);
-        return Collections.unmodifiableList(list);
-    }
-
-    /**
-     * @return a unmodifiable list
-     */
-    private static List<String> createTlsCipherList() {
-        List<String> list = new ArrayList<>();
-
-        // Mandatory TLS Ciphers");
-
-        list.add("TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256");
-        list.add("TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384");
-        list.add("TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256");
-
-
-        // Approved TLS Ciphers");
-        list.add("TLS_AES_128_GCM_SHA256");
-        list.add("TLS_AES_256_GCM_SHA384");
-        list.add("TLS_CHACHA20_POLY1305_SHA256");
-        list.add("TLS_AES_128_CCM_SHA256");
-
-        list.add("TLS_AES_128_CCM_8_SHA256");
-        list.add("TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384");
-        list.add("TLS_DHE_RSA_WITH_AES_128_GCM_SHA256");
-        list.add("TLS_DHE_DSS_WITH_AES_128_GCM_SHA256");
-
-        list.add("TLS_DHE_DSS_WITH_AES_256_GCM_SHA384");
-        list.add("TLS_DHE_RSA_WITH_AES_256_GCM_SHA384");
-        list.add("TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256");
-        list.add("TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256");
-
-        list.add("TLS_DH_DSS_WITH_AES_128_GCM_SHA256");
-        list.add("TLS_ECDH_ECDSA_WITH_AES_128_GCM_SHA256");
-        list.add("TLS_DH_DSS_WITH_AES_256_GCM_SHA384");
-        list.add("TLS_ECDH_ECDSA_WITH_AES_256_GCM_SHA384");
-
-        list.add("TLS_DH_RSA_WITH_AES_128_GCM_SHA256");
-        list.add("TLS_ECDH_RSA_WITH_AES_128_GCM_SHA256");
-        list.add("TLS_DH_RSA_WITH_AES_256_GCM_SHA384");
-        list.add("TLS_ECDH_RSA_WITH_AES_256_GCM_SHA384");
-
-
-        // Deprecated TLS Ciphers");
-        list.add("TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256");
-        list.add("TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256");
-        list.add("TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384");
-        list.add("TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384");
-
-        list.add("TLS_DHE_DSS_WITH_AES_128_CBC_SHA256");
-        list.add("TLS_DHE_DSS_WITH_AES_256_CBC_SHA256");
-        list.add("TLS_DHE_RSA_WITH_AES_256_CBC_SHA256");
-        list.add("TLS_DHE_RSA_WITH_AES_128_CBC_SHA256");
-
-        list.add("TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA");
-        list.add("TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA");
-        list.add("TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA");
-        list.add("TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA");
-
-        list.add("TLS_DHE_DSS_WITH_AES_128_CBC_SHA");
-        list.add("TLS_DHE_RSA_WITH_AES_128_CBC_SHA");
-        list.add("TLS_DHE_DSS_WITH_AES_256_CBC_SHA");
-        list.add("TLS_DHE_RSA_WITH_AES_256_CBC_SHA");
-
-        list.add("TLS_DH_RSA_WITH_AES_128_CBC_SHA256");
-        list.add("TLS_ECDH_ECDSA_WITH_AES_128_CBC_SHA256");
-        list.add("TLS_ECDH_RSA_WITH_AES_128_CBC_SHA256");
-        list.add("TLS_DH_RSA_WITH_AES_256_CBC_SHA256");
-
-        list.add("TLS_ECDH_RSA_WITH_AES_256_CBC_SHA384");
-        list.add("TLS_DH_DSS_WITH_AES_128_CBC_SHA256");
-        list.add("TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA384");
-        list.add("TLS_DH_DSS_WITH_AES_128_CBC_SHA");
-
-        list.add("TLS_ECDH_ECDSA_WITH_AES_128_CBC_SHA");
-        list.add("TLS_DH_DSS_WITH_AES_256_CBC_SHA");
-        list.add("TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA");
-        list.add("TLS_DH_DSS_WITH_AES_256_CBC_SHA256");
-
-        list.add("TLS_DH_RSA_WITH_AES_128_CBC_SHA");
-        list.add("TLS_ECDH_RSA_WITH_AES_128_CBC_SHA");
-        list.add("TLS_DH_RSA_WITH_AES_256_CBC_SHA");
-        list.add("TLS_ECDH_RSA_WITH_AES_256_CBC_SHA");
-
-        list.add("TLS_RSA_WITH_AES_128_GCM_SHA256");
-        list.add("TLS_RSA_WITH_AES_256_GCM_SHA384");
-        list.add("TLS_RSA_WITH_AES_128_CBC_SHA256");
-        list.add("TLS_RSA_WITH_AES_256_CBC_SHA256");
-
-        list.add("TLS_RSA_WITH_AES_128_CBC_SHA");
-        list.add("TLS_RSA_WITH_AES_256_CBC_SHA");
-        list.add("TLS_RSA_WITH_CAMELLIA_256_CBC_SHA");
-        list.add("TLS_RSA_WITH_CAMELLIA_128_CBC_SHA");
-
-        list.add("TLS_DH_DSS_WITH_3DES_EDE_CBC_SHA");
-        list.add("TLS_DH_RSA_WITH_3DES_EDE_CBC_SHA");
-        list.add("TLS_DHE_DSS_WITH_3DES_EDE_CBC_SHA");
-        list.add("TLS_DHE_RSA_WITH_3DES_EDE_CBC_SHA");
-
-        list.add("TLS_ECDH_RSA_WITH_3DES_EDE_CBC_SHA");
-        list.add("TLS_ECDH_ECDSA_WITH_3DES_EDE_CBC_SHA");
-        list.add("TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA");
-        list.add("TLS_ECDHE_ECDSA_WITH_3DES_EDE_CBC_SHA");
-
-        list.add("TLS_RSA_WITH_3DES_EDE_CBC_SHA");
-
-        return Collections.unmodifiableList(list);
-    }
-
-    private static List<String> createRestrictedCipherSubStrList() {
-        List<String> list = new ArrayList<>(8);
-        // Unacceptable TLS Ciphers
-        list.add("_ANON_");
-        list.add("_NULL_");
-        list.add("_EXPORT");
-        list.add("_MD5");
-
-        list.add("_DES");
-        list.add("_RC2_");
-        list.add("_RC4_");
-        list.add("_PSK_");
-        return Collections.unmodifiableList(list);
-    }
-
-    /**
-     * @return a unmodifiable list
-     * @see <a href="https://docs.oracle.com/javase/8/docs/technotes/guides/security/StandardNames.html#SSLContext">JDK TLS protocls</a>
-     */
-    private static List<String> createJdkSupportTlsProtocolList() {
-        List<String> list = new ArrayList<>(TLS_PROTOCOL_LIST.size());
-        for (String protocol : TLS_PROTOCOL_LIST) {
-            try {
-                SSLContext.getInstance(protocol);
-                list.add(protocol);
-            } catch (NoSuchAlgorithmException e) {
-                LOG.debug("{} unsupported by JDK.", protocol);
-            }
-        }
-        return Collections.unmodifiableList(list);
     }
 
 

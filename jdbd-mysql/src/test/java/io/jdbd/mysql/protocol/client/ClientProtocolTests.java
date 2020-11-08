@@ -20,7 +20,8 @@ public class ClientProtocolTests {
 
     @BeforeClass
     public static void createConnectionProtocol(ITestContext context) {
-        String url = "jdbc:mysql://localhost:3306/army?sslMode=DISABLED";
+        // PREFERRED ,DISABLED
+        String url = "jdbc:mysql://localhost:3306/army?sslMode=PREFERRED";
         Map<String, String> properties = new HashMap<>();
         properties.put("user", "army_w");
         properties.put("password", "army123");
@@ -48,10 +49,11 @@ public class ClientProtocolTests {
      * test {@link ClientConnectionProtocolImpl#sslNegotiate() }
      */
     @Test(dependsOnMethods = "receiveHandshake")
-    public void sslNegotiate(ITestContext context) {
+    public void sslNegotiate(ITestContext context) throws Exception {
         PropertyDefinitions.SslMode sslMode = obtainConnectionProtocol(context)
                 .sslNegotiate()
                 .block();
+        //Thread.sleep(5000L);
         LOG.info("Connection protocol sslNegotiate {}", sslMode);
     }
 
