@@ -1,14 +1,29 @@
 package io.jdbd.meta;
 
+import java.sql.JDBCType;
+
 public interface SQLType {
 
     /**
-     * @return upper case name.
+     * Returns the {@code SQLType} upper case name that represents a SQL data type.
+     *
+     * @return The upper case name of this {@code SQLType}.
      */
     String name();
 
-    int code();
+    JDBCType jdbcType();
 
-    boolean useInProtocol();
+    /**
+     * @see io.jdbd.ResultRow#getObject(String)
+     */
+    Class<?> javaType();
+
+    /**
+     * Returns the name of the vendor that supports this data type. The value
+     * returned typically is the package name for this vendor.
+     *
+     * @return The name of the vendor for this data type
+     */
+    String getVendor();
 
 }

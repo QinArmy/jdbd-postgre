@@ -21,7 +21,7 @@ public class ClientProtocolTests {
     @BeforeClass
     public static void createConnectionProtocol(ITestContext context) {
         // PREFERRED ,DISABLED
-        String url = "jdbc:mysql://localhost:3306/army?sslMode=PREFERRED";
+        String url = "jdbc:mysql://localhost:3306/army?sslMode=DISABLED";
         Map<String, String> properties = new HashMap<>();
         properties.put("user", "army_w");
         properties.put("password", "army123");
@@ -65,16 +65,16 @@ public class ClientProtocolTests {
         obtainConnectionProtocol(context)
                 .authenticate()
                 .block();
-        LOG.info("Connection protocol authenticate phase execute success.packet:");
+        LOG.info("Connection protocol authenticate phase execute success");
     }
 
     /**
-     * test {@link ClientConnectionProtocolImpl#configureSessionPropertyGroup() }
+     * test {@link ClientConnectionProtocolImpl#configureSessionProperties() }
      */
     @Test(dependsOnMethods = {"receiveHandshake", "sslNegotiate", "authenticate"})
     public void configureSessionPropertyGroup(ITestContext context) {
         obtainConnectionProtocol(context)
-                .configureSessionPropertyGroup()
+                .configureSessionProperties()
                 .block();
         LOG.info("Connection protocol configureSessionPropertyGroup phase execute success");
     }

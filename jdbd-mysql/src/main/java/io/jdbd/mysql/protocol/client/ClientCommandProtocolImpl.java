@@ -110,7 +110,7 @@ public final class ClientCommandProtocolImpl implements ClientCommandProtocol {
 
     private MySQLRowMeta readRowMeta(final ByteBuf metaBuf, final int columnCount, AtomicInteger sequenceId) {
         int prevSequenceId = sequenceId.get();
-        ColumnMeta[] columnMetas = new ColumnMeta[columnCount];
+        MySQLColumnMeta[] mySQLColumnMetas = new MySQLColumnMeta[columnCount];
         for (int i = 0; i < columnCount; i++) {
             int startReaderIndex = metaBuf.readerIndex();
             int packetLength = PacketUtils.readPacketLength(metaBuf);
@@ -122,16 +122,16 @@ public final class ClientCommandProtocolImpl implements ClientCommandProtocol {
             }
             prevSequenceId = currentSequenceId;
 
-            columnMetas[i] = readColumnMeta(metaBuf);
+            mySQLColumnMetas[i] = readColumnMeta(metaBuf);
             if (metaBuf.readerIndex() != startReaderIndex + packetLength) {
                 throw new JdbdMySQLException(String.format(
                         "Field metadata read error,currentSequenceId[%s]", currentSequenceId));
             }
         }
-        return createRowMeta(columnMetas);
+        return createRowMeta(mySQLColumnMetas);
     }
 
-    private ColumnMeta readColumnMeta(final ByteBuf metaBuf) {
+    private MySQLColumnMeta readColumnMeta(final ByteBuf metaBuf) {
         final Charset charset = this.clientCharset;
 
         // 1. catalog
@@ -152,8 +152,8 @@ public final class ClientCommandProtocolImpl implements ClientCommandProtocol {
         return null;
     }
 
-    private MySQLRowMeta createRowMeta(ColumnMeta[] columnMetas) {
-        return MySQLRowMeta.from(columnMetas);
+    private MySQLRowMeta createRowMeta(MySQLColumnMeta[] mySQLColumnMetas) {
+        return MySQLRowMeta.from(mySQLColumnMetas);
     }
 
 

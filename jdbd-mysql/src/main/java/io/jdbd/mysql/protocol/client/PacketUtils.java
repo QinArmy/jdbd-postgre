@@ -1,5 +1,6 @@
 package io.jdbd.mysql.protocol.client;
 
+import io.jdbd.mysql.JdbdMySQLException;
 import io.netty.buffer.ByteBuf;
 import reactor.netty.Connection;
 import reactor.util.annotation.Nullable;
@@ -16,6 +17,8 @@ public abstract class PacketUtils {
     public static final int HEADER_SIZE = 4;
 
     public static final int LOCAL_INFILE_REQUEST_HEADER = 0xFB;
+    public static final int COM_QUERY_HEADER = 3;
+
 
     public static final int ENC_0 = 0xFB;
     public static final int ENC_3 = 0xFC;
@@ -67,16 +70,25 @@ public abstract class PacketUtils {
         throw createIndexOutOfBoundsException(byteBuf.readableBytes(), 3);
     }
 
-    public static int readInt4(ByteBuf byteBuf) {
+    public static int readInt4AsInt(ByteBuf byteBuf) {
+        long int4 = readInt4(byteBuf);
+        if (int4 > Integer.MAX_VALUE) {
+            throw new JdbdMySQLException("readInt4() convert to int failure,because > Integer.MAX_VALUE");
+        }
+        return (int) int4;
+    }
+
+    public static long readInt4(ByteBuf byteBuf) {
         if (byteBuf.readableBytes() > 3) {
-            return (byteBuf.readByte() & 0xFF)
-                    | ((byteBuf.readByte() & 0xFF) << 8)
-                    | ((byteBuf.readByte() & 0xFF) << 16)
-                    | ((byteBuf.readByte() & 0xFF) << 24)
+            return (byteBuf.readByte() & 0xFFL)
+                    | ((byteBuf.readByte() & 0xFFL) << 8)
+                    | ((byteBuf.readByte() & 0xFFL) << 16)
+                    | ((byteBuf.readByte() & 0xFFL) << 24)
                     ;
         }
         throw createIndexOutOfBoundsException(byteBuf.readableBytes(), 4);
     }
+
 
     public static int getInt4(ByteBuf byteBuf, int index) {
         if (byteBuf.readableBytes() > 3) {
@@ -224,6 +236,37 @@ public abstract class PacketUtils {
         return int8;
     }
 
+    /**
+     * see {@code com.mysql.cj.protocol.a.NativePacketPayload#readInteger(com.mysql.cj.protocol.a.NativeConstants.IntegerDataType)}
+     */
+    public static int readLenEncAsInt(ByteBuf byteBuf) {
+        final int sw = readInt1(byteBuf);
+        long intEnc;
+        switch (sw) {
+            case ENC_0:
+                // represents a NULL in a ProtocolText::ResultsetRow
+                intEnc = NULL_LENGTH;
+                break;
+            case ENC_3:
+                intEnc = readInt2(byteBuf);
+                break;
+            case ENC_4:
+                intEnc = readInt3(byteBuf);
+                break;
+            case ENC_9:
+                intEnc = readInt8(byteBuf);
+                if (intEnc > Integer.MAX_VALUE) {
+                    throw new JdbdMySQLException("int<lenenc> is long");
+                }
+                break;
+            default:
+                // ENC_1
+                intEnc = sw;
+
+        }
+        return (int) intEnc;
+    }
+
 
     /**
      * Protocol::NulTerminatedString
@@ -326,6 +369,14 @@ public abstract class PacketUtils {
         return HEADER_SIZE + readInt3(packetBuf);
     }
 
+    /**
+     * <p>
+     * This method does not modify {@code readerIndex} or {@code writerIndex} of
+     * this buffer.
+     * </p>
+     *
+     * @return true ,at least have one packet.
+     */
     public static boolean hasOnePacket(ByteBuf byteBuf) {
         int readableBytes = byteBuf.readableBytes();
         return readableBytes > HEADER_SIZE

@@ -128,7 +128,7 @@ final class ClientConnectionProtocolImpl implements ClientConnectionProtocol, Pr
         return receiveHandshake()
                 .then(Mono.defer(this::sslNegotiate))
                 .then(Mono.defer(this::authenticate))
-                .then(Mono.defer(this::configureSessionPropertyGroup))
+                .then(Mono.defer(this::configureSessionProperties))
                 .then(Mono.defer(this::initialize))
                 ;
     }
@@ -225,7 +225,7 @@ final class ClientConnectionProtocolImpl implements ClientConnectionProtocol, Pr
         if ((obtainNegotiatedCapability() & CLIENT_SSL) == 0) {
             return doAfterSendSslRequestEnd();
         }
-        return sendPacket(createSslRequestPacket())
+        return sendHandshakePacket(createSslRequestPacket())
                 .then(Mono.defer(this::performSslHandshake))
                 .then(Mono.defer(this::doAfterSendSslRequestEnd))
                 ;
@@ -258,7 +258,7 @@ final class ClientConnectionProtocolImpl implements ClientConnectionProtocol, Pr
 
         return createHandshakeResponse41(plugin.getProtocolPluginName(), pluginOut)
                 // send response handshake packet
-                .flatMap(this::sendPacket)
+                .flatMap(this::sendHandshakePacket)
                 .then(Mono.defer(this::receivePayload))
                 // handle authentication Negotiation
                 .flatMap(packet -> handleAuthResponse(packet, plugin, triple.getThird()))
@@ -281,7 +281,7 @@ final class ClientConnectionProtocolImpl implements ClientConnectionProtocol, Pr
      *     If {@link PropertyKey#detectCustomCollations} is true,then firstly handle this.
      * </p>
      */
-    Mono<Void> configureSessionPropertyGroup() {
+    Mono<Void> configureSessionProperties() {
         final int phase = this.connectionPhase.get();
         if (phase != CONFIGURE_SESSION_PHASE) {
             return createConnectionPhaseNotMatchException(phase);
@@ -289,13 +289,13 @@ final class ClientConnectionProtocolImpl implements ClientConnectionProtocol, Pr
         return detectCustomCollations()
                 .then(Mono.defer(this::executeSessionVariables))
                 .then(Mono.defer(this::configureSessionCharset))
-                .then(Mono.defer(this::doAfterConfigureSessionPropertyGroupSuccess))
+                .then(Mono.defer(this::doAfterConfigureSessionProperties))
                 ;
     }
 
     /**
      * <p>
-     * must invoke after {@link #configureSessionPropertyGroup()}
+     * must invoke after {@link #configureSessionProperties()}
      * </p>
      * <p>
      * do initialize ,must contain below operation:
@@ -394,7 +394,7 @@ final class ClientConnectionProtocolImpl implements ClientConnectionProtocol, Pr
         return Flux.fromIterable(authPlugin.nextAuthenticationStep(payloadBuf))
                 .map(this::convertPayloadBufToPacketBuf)
                 // all packet send to server
-                .flatMap(this::sendPacket)
+                .flatMap(this::sendHandshakePacket)
                 .then(Mono.defer(this::receivePayload))
                 // recursion invoke handleAuthResponse
                 .flatMap(buffer -> handleAuthResponse(buffer, authPlugin, pluginMap));
@@ -754,8 +754,11 @@ final class ClientConnectionProtocolImpl implements ClientConnectionProtocol, Pr
         if (!this.properties.getRequiredProperty(PropertyKey.detectCustomCollations, Boolean.class)) {
             return Mono.empty();
         }
-        return Mono.empty();
+        return detectCustomCollation()
+                .then(Mono.defer(this::detectCustomCharset))
+                ;
     }
+
 
     private Mono<Void> executeSessionVariables() {
         return Mono.empty();
@@ -765,7 +768,7 @@ final class ClientConnectionProtocolImpl implements ClientConnectionProtocol, Pr
         return Mono.empty();
     }
 
-    private Mono<Void> doAfterConfigureSessionPropertyGroupSuccess() {
+    private Mono<Void> doAfterConfigureSessionProperties() {
         return this.connectionPhase.compareAndSet(CONFIGURE_SESSION_PHASE, INITIALIZING_PHASE)
                 ? Mono.empty()
                 : createConcurrentlyConnectionException(CONFIGURE_SESSION_PHASE);
@@ -778,6 +781,18 @@ final class ClientConnectionProtocolImpl implements ClientConnectionProtocol, Pr
 
     private <T> Mono<T> createConnectionPhaseNotMatchException(int currentPhase) {
         return Mono.error(new JdbdMySQLException("Not sslNegotiate phase,current phase[%s]", currentPhase));
+    }
+
+    private Mono<MySQLRowMeta> executeQueryCommand(String command, final AtomicInteger sequenceId) {
+        // 1. create COM_QUERY packet.
+        ByteBuf packetBuf = createPacketBuffer(command.length());
+        packetBuf.writeByte(PacketUtils.COM_QUERY_HEADER)
+                // here still use  handshakeCharset TODO think right?
+                .writeBytes(command.getBytes(this.handshakeCharset));
+        return sendPacket(packetBuf, sequenceId) //2. send COM_QUERY packet
+                .then(Mono.defer(this::receiveResultSetMetadataPacket))//3. receive row meta packet
+                .map(metaBuf -> handleResultRowMetadataPacket(metaBuf, sequenceId)) //3. convert row meta packet to MySQLRowMeta instance
+                ;
     }
 
     private Triple<AuthenticationPlugin, Boolean, Map<String, AuthenticationPlugin>> obtainAuthenticationPlugin() {
@@ -990,20 +1005,52 @@ final class ClientConnectionProtocolImpl implements ClientConnectionProtocol, Pr
         return attMap;
     }
 
+
+    private Mono<Void> detectCustomCollation() {
+        final AtomicInteger sequenceId = new AtomicInteger(-1);
+        return executeQueryCommand("SHOW COLLATION", sequenceId)
+                .flatMap(this::extractCollationRowData);
+    }
+
+    private Mono<Void> detectCustomCharset() {
+        final AtomicInteger sequenceId = new AtomicInteger(-1);
+        return executeQueryCommand("SHOW CHARSET", sequenceId)
+                .flatMap(this::extractCharsetRowData);
+    }
+
+
     /**
      * packet header have read.
      *
      * @see #readPacketHeader(ByteBuf)
-     * @see #sendPacket(ByteBuf)
+     * @see #sendHandshakePacket(ByteBuf)
      */
     private Mono<ByteBuf> receivePayload() {
         return this.cumulateReceiver.receiveOnePacket()
                 .flatMap(this::readPacketHeader);
     }
 
+    private Mono<ByteBuf> receiveResultSetMetadataPacket() {
+        return this.cumulateReceiver.receiveOne(this::comQueryResultSetMetaDecoder);
+    }
+
+    private Flux<ByteBuf> receiveMultiRowData() {
+        return this.cumulateReceiver.receive(PacketDecoders::resultSetMultiRowDecoder);
+    }
+
+    private Mono<Void> extractCollationRowData(MySQLRowMeta metadata) {
+        return receiveMultiRowData()
+                .then()
+                ;
+    }
+
+    private Mono<Void> extractCharsetRowData(MySQLRowMeta metadata) {
+        return Mono.empty();
+    }
+
     /**
      * @see #receivePayload()
-     * @see #sendPacket(ByteBuf)
+     * @see #sendHandshakePacket(ByteBuf)
      */
     private Mono<ByteBuf> readPacketHeader(ByteBuf packetBuf) {
         packetBuf.skipBytes(3); // skip payload length
@@ -1019,12 +1066,37 @@ final class ClientConnectionProtocolImpl implements ClientConnectionProtocol, Pr
 
     }
 
+    @Nullable
+    private ByteBuf comQueryResultSetMetaDecoder(ByteBuf cumulateBuf) {
+        return PacketDecoders.comQueryResponseDecoder(cumulateBuf, obtainNegotiatedCapability());
+    }
+
+
+    private MySQLRowMeta handleResultRowMetadataPacket(ByteBuf packetBuf, AtomicInteger sequenceId) {
+        PacketDecoders.ComQueryResponse response;
+        response = PacketDecoders.decodeComQueryResponseType(packetBuf, obtainNegotiatedCapability());
+        if (response == PacketDecoders.ComQueryResponse.TEXT_RESULT) {
+            packetBuf.skipBytes(3); // skip payload length
+            sequenceId.set(PacketUtils.readInt1(packetBuf));
+            // due to here character_set_results unknown, use UTF_8 ,see https://dev.mysql.com/doc/refman/8.0/en/charset-metadata.html
+            // and https://dev.mysql.com/doc/refman/8.0/en/server-system-variables.html#sysvar_character_set_results
+            return PacketDecoders.readResultRowMeta(packetBuf, obtainNegotiatedCapability()
+                    , StandardCharsets.UTF_8, Collections.emptyMap());
+        } else {
+            throw new JdbdMySQLException("Expected result set response,but %s ", response);
+        }
+    }
+
     /**
      * @see #readPacketHeader(ByteBuf)
      * @see #receivePayload()
      */
-    private Mono<Void> sendPacket(ByteBuf packetBuffer) {
-        PacketUtils.writePacketHeader(packetBuffer, this.sequenceId.addAndGet(1));
+    private Mono<Void> sendHandshakePacket(ByteBuf packetBuffer) {
+        return sendPacket(packetBuffer, this.sequenceId);
+    }
+
+    private Mono<Void> sendPacket(ByteBuf packetBuffer, AtomicInteger sequenceId) {
+        PacketUtils.writePacketHeader(packetBuffer, sequenceId.addAndGet(1));
         return Mono.from(this.connection.outbound()
                 .send(Mono.just(packetBuffer)));
     }

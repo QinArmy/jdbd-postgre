@@ -103,6 +103,7 @@ public abstract class CharsetMapping {
      */
     public static final Map<Integer, Collation> INDEX_TO_COLLATION;
 
+
     static {
         // 1. below initialize fore: NUMBER_OF_ENCODINGS_CONFIGURED,CHARSET_NAME_TO_CHARSET ,JAVA_ENCODING_UC_TO_MYSQL_CHARSET,MULTIBYTE_ENCODINGS
         final List<MySQLCharset> mySQLCharsetList = createMySQLCharsetList();
@@ -113,14 +114,14 @@ public abstract class CharsetMapping {
         Set<String> tempMultibyteEncodings = new HashSet<>(); // Character sets that we can't convert ourselves.
 
         int numberOfEncodingsConfigured = 0;
-        for (MySQLCharset MySQLCharset : mySQLCharsetList) {
-            charsetNameToMysqlCharsetMap.put(MySQLCharset.charsetName, MySQLCharset);
-            numberOfEncodingsConfigured += MySQLCharset.javaEncodingsUcList.size();
+        for (MySQLCharset mySQLCharset : mySQLCharsetList) {
+            charsetNameToMysqlCharsetMap.put(mySQLCharset.charsetName, mySQLCharset);
+            numberOfEncodingsConfigured += mySQLCharset.javaEncodingsUcList.size();
 
-            for (String encUC : MySQLCharset.javaEncodingsUcList) {
+            for (String encUC : mySQLCharset.javaEncodingsUcList) {
                 List<MySQLCharset> charsetList = javaUcToMysqlCharsetMap.computeIfAbsent(encUC, k -> new ArrayList<>());
-                charsetList.add(MySQLCharset);
-                if (MySQLCharset.mblen > 1) {
+                charsetList.add(mySQLCharset);
+                if (mySQLCharset.mblen > 1) {
                     tempMultibyteEncodings.add(encUC);
                 }
             }
@@ -134,7 +135,7 @@ public abstract class CharsetMapping {
         final int maxSize = 2048;
 
         final Collation notUsedCollation = new Collation(0, COLLATION_NOT_DEFINED, 0, NOT_USED);
-        final Map<Integer, Collation> collationMap = createCollationMap(createCollationList());
+        final Map<Integer, Collation> collationMap = createCollationMap();
         final Map<Integer, Collation> indexToCollationMap = new HashMap<>((int) (maxSize / 0.75f));
 
         Map<String, Integer> charsetNameToCollationIndexMap = new TreeMap<>();
@@ -145,7 +146,7 @@ public abstract class CharsetMapping {
             Collation collation = collationMap.getOrDefault(i, notUsedCollation);
             indexToCollationMap.put(i, collation);
 
-            String charsetName = collation.MySQLCharset.charsetName;
+            String charsetName = collation.mySQLCharset.charsetName;
             if (!charsetNameToCollationIndexMap.containsKey(charsetName)
                     || charsetNameToCollationPriorityMap.get(charsetName) < collation.priority) {
                 charsetNameToCollationIndexMap.put(charsetName, i);
@@ -166,6 +167,15 @@ public abstract class CharsetMapping {
 
     public static int getNumberOfCharsetsConfigured() {
         return NUMBER_OF_ENCODINGS_CONFIGURED;
+    }
+
+    @Nullable
+    public static String getJavaCharsetByIndex(int collationIndex) {
+        Collation collation = INDEX_TO_COLLATION.get(collationIndex);
+        if (collation == null) {
+            return null;
+        }
+        return collation.mySQLCharset.javaEncodingsUcList.get(0);
     }
 
     @Nullable
@@ -334,7 +344,7 @@ public abstract class CharsetMapping {
         list.add(new Collation(60, "utf32_general_ci", 1, utf32));
         list.add(new Collation(61, "utf32_bin", 0, utf32));
         list.add(new Collation(62, "utf16le_bin", 0, utf16le));
-        list.add(new Collation(63, "binary", 1, binary));
+        list.add(new Collation(MYSQL_COLLATION_INDEX_binary, "binary", 1, binary));
         list.add(new Collation(64, "armscii8_bin", 0, armscii8));
         list.add(new Collation(65, "ascii_bin", 0, ascii));
         list.add(new Collation(66, "cp1250_bin", 0, cp1250));
@@ -586,7 +596,8 @@ public abstract class CharsetMapping {
     /**
      * @return a unmodifiable map
      */
-    private static Map<Integer, Collation> createCollationMap(List<Collation> collationList) {
+    private static Map<Integer, Collation> createCollationMap() {
+        List<Collation> collationList = createCollationList();
         Map<Integer, Collation> map = new HashMap<>((int) (collationList.size() / 0.75f));
         for (Collation collation : collationList) {
             map.put(collation.index, collation);
@@ -653,7 +664,7 @@ public abstract class CharsetMapping {
          * @param javaEncoding java encoding name
          * @return java encoding name
          */
-        String getMatchingJavaEncoding(String javaEncoding) {
+        String getMatchingJavaEncoding(@Nullable String javaEncoding) {
             if (javaEncoding != null && this.javaEncodingsUcList.contains(javaEncoding.toUpperCase(Locale.ENGLISH))) {
                 return javaEncoding;
             }
@@ -708,13 +719,13 @@ public abstract class CharsetMapping {
         public final int index;
         public final String collationName;
         public final int priority;
-        public final MySQLCharset MySQLCharset;
+        public final MySQLCharset mySQLCharset;
 
         private Collation(int index, String collationName, int priority, String charsetName) {
             this.index = index;
             this.collationName = collationName;
             this.priority = priority;
-            this.MySQLCharset = CharsetMapping.CHARSET_NAME_TO_CHARSET.get(charsetName);
+            this.mySQLCharset = CharsetMapping.CHARSET_NAME_TO_CHARSET.get(charsetName);
         }
 
         @Override
@@ -726,9 +737,9 @@ public abstract class CharsetMapping {
             asString.append(",collationName=");
             asString.append(this.collationName);
             asString.append(",charsetName=");
-            asString.append(this.MySQLCharset.charsetName);
+            asString.append(this.mySQLCharset.charsetName);
             asString.append(",javaCharsetName=");
-            asString.append(this.MySQLCharset.getMatchingJavaEncoding(null));
+            asString.append(this.mySQLCharset.getMatchingJavaEncoding(null));
             asString.append("]");
             return asString.toString();
         }

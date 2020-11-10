@@ -3,8 +3,14 @@ package io.jdbd.mysql.protocol.client;
 import io.jdbd.mysql.JdbdMySQLException;
 import io.jdbd.mysql.protocol.EofPacket;
 import io.jdbd.mysql.protocol.ErrorPacket;
+import io.jdbd.mysql.protocol.OkPacket;
 import io.netty.buffer.ByteBuf;
 import reactor.util.annotation.Nullable;
+
+import java.nio.charset.Charset;
+import java.util.List;
+import java.util.Map;
+import java.util.function.BiFunction;
 
 public abstract class PacketDecoders {
 
@@ -101,6 +107,70 @@ public abstract class PacketDecoders {
 
         }
         return responseType;
+    }
+
+    static MySQLRowMeta readResultRowMeta(ByteBuf payloadBuf, final int negotiatedCapability
+            , Charset resultCharset, Map<Integer, Charset> customCharsetMap) {
+        final byte metadataFollows;
+        final boolean hasOptionalMeta = (negotiatedCapability & ClientProtocol.CLIENT_OPTIONAL_RESULTSET_METADATA) != 0;
+        if (hasOptionalMeta) {
+            metadataFollows = payloadBuf.readByte();
+        } else {
+            metadataFollows = -1;
+        }
+        final int columnCount = PacketUtils.readLenEncAsInt(payloadBuf);
+        MySQLColumnMeta[] columnMetas = new MySQLColumnMeta[columnCount];
+        if (!hasOptionalMeta || metadataFollows == 1) {
+            for (int i = 0; i < columnCount; i++) {
+                columnMetas[i] = MySQLColumnMeta.readFor41(payloadBuf, resultCharset, customCharsetMap);
+            }
+        }
+        if ((negotiatedCapability & ClientProtocol.CLIENT_DEPRECATE_EOF) != 0) {
+            EofPacket.readPacket(payloadBuf, negotiatedCapability);
+        }
+        return MySQLRowMeta.from(columnMetas);
+    }
+
+
+    /**
+     * @param resultList a modifiable and emtpy list
+     * @return true :decode end.
+     * @see MySQLCumulateReceiver#receive(BiFunction)
+     */
+    static boolean resultSetMultiRowDecoder(final ByteBuf cumulateBuf, List<ByteBuf> resultList) {
+        final int originalReaderIndex = cumulateBuf.readerIndex(), writeIndex = cumulateBuf.writerIndex();
+
+        int readerIndex = originalReaderIndex;
+        boolean decoderEnd = false;
+
+        for (int readableBytes, packetLength; ; ) {
+            readableBytes = writeIndex - readerIndex;
+            if (readableBytes < PacketUtils.HEADER_SIZE) {
+                break;
+            }
+            packetLength = PacketUtils.getInt3(cumulateBuf, readerIndex);
+            if (readableBytes < PacketUtils.HEADER_SIZE + packetLength) {
+                break;
+            }
+            switch (PacketUtils.getInt1(cumulateBuf, readerIndex + PacketUtils.HEADER_SIZE)) {
+                case OkPacket.OK_HEADER:
+                case EofPacket.EOF_HEADER:
+                case ErrorPacket.ERROR_HEADER:
+                    // The row data END
+                    decoderEnd = true;
+                    break;
+                default:
+                    readerIndex += packetLength;
+            }
+        }
+        if (readerIndex > originalReaderIndex) {
+            if (readerIndex == writeIndex) {
+                resultList.add(cumulateBuf);
+            } else {
+                resultList.add(cumulateBuf.readRetainedSlice(readerIndex - originalReaderIndex));
+            }
+        }
+        return decoderEnd;
     }
 
     /*################################## blow private method ##################################*/

@@ -1,86 +1,719 @@
 package io.jdbd.mysql.protocol.client;
 
 import io.jdbd.meta.SQLType;
+import io.jdbd.mysql.protocol.CharsetMapping;
+import io.jdbd.mysql.protocol.conf.Properties;
+import io.jdbd.mysql.protocol.conf.PropertyKey;
+import io.jdbd.mysql.type.Geometry;
+import io.jdbd.mysql.util.MySQLObjects;
+import org.qinarmy.util.StringUtils;
 
-import java.util.HashSet;
-import java.util.Set;
+import java.math.BigDecimal;
+import java.math.BigInteger;
+import java.sql.JDBCType;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.time.Year;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.function.BiFunction;
 
+/**
+ * @see <a href="https://dev.mysql.com/doc/refman/8.0/en/data-types.html"> Data Types</a>
+ */
 public enum MySQLType implements SQLType {
 
-    DECIMAL(0),
-    TINY(1),
-    SHORT(2),
-    LONG(3),
+    /**
+     * DECIMAL[(M[,D])] [UNSIGNED] [ZEROFILL]
+     * A packed "exact" fixed-point number. M is the total number of digits (the precision) and D is the number of digits
+     * after the decimal point (the scale). The decimal point and (for negative numbers) the "-" sign are not counted in M.
+     * If D is 0, values have no decimal point or fractional part. The maximum number of digits (M) for DECIMAL is 65.
+     * The maximum number of supported decimals (D) is 30. If D is omitted, the default is 0. If M is omitted, the default is 10.
+     * <p>
+     * Protocol: TYPE_DECIMAL = 0
+     * Protocol: TYPE_NEWDECIMAL = 246
+     * <p>
+     * These types are synonyms for DECIMAL:
+     * DEC[(M[,D])] [UNSIGNED] [ZEROFILL],
+     * NUMERIC[(M[,D])] [UNSIGNED] [ZEROFILL],
+     * FIXED[(M[,D])] [UNSIGNED] [ZEROFILL]
+     */
+    DECIMAL(JDBCType.DECIMAL, BigDecimal.class),
+    /**
+     * DECIMAL[(M[,D])] UNSIGNED [ZEROFILL]
+     *
+     * @see #DECIMAL
+     */
+    DECIMAL_UNSIGNED(JDBCType.DECIMAL, BigDecimal.class),
+    /**
+     * TINYINT[(M)] [UNSIGNED] [ZEROFILL]
+     * A very small integer. The signed range is -128 to 127. The unsigned range is 0 to 255.
+     * <p>
+     * Protocol: TYPE_TINY = 1
+     */
+    TINYINT(JDBCType.TINYINT, Integer.class),
+    /**
+     * TINYINT[(M)] UNSIGNED [ZEROFILL]
+     *
+     * @see #TINYINT
+     */
+    TINYINT_UNSIGNED(JDBCType.TINYINT, Integer.class),
+    /**
+     * BOOL, BOOLEAN
+     * These types are synonyms for TINYINT(1). A value of zero is considered false. Nonzero values are considered true
+     * <p>
+     * BOOLEAN is converted to TINYINT(1) during DDL execution i.e. it has the same precision=3. Thus we have to
+     * look at full data type name and convert TINYINT to BOOLEAN (or BIT) if it has "(1)" length specification.
+     * <p>
+     * Protocol: TYPE_TINY = 1
+     */
+    BOOLEAN(JDBCType.BOOLEAN, Boolean.class),
+    /**
+     * SMALLINT[(M)] [UNSIGNED] [ZEROFILL]
+     * A small integer. The signed range is -32768 to 32767. The unsigned range is 0 to 65535.
+     * <p>
+     * Protocol: TYPE_SHORT = 2
+     */
+    SMALLINT(JDBCType.SMALLINT, Integer.class),
+    /**
+     * SMALLINT[(M)] UNSIGNED [ZEROFILL]
+     *
+     * @see #SMALLINT
+     */
+    SMALLINT_UNSIGNED(JDBCType.SMALLINT, Integer.class),
+    /**
+     * INT[(M)] [UNSIGNED] [ZEROFILL]
+     * A normal-size integer. The signed range is -2147483648 to 2147483647. The unsigned range is 0 to 4294967295.
+     * <p>
+     * Protocol: TYPE_LONG = 3
+     * <p>
+     * INTEGER[(M)] [UNSIGNED] [ZEROFILL] is a synonym for INT.
+     */
+    INT(JDBCType.INTEGER, Integer.class),
+    /**
+     * INT[(M)] UNSIGNED [ZEROFILL]
+     *
+     * @see #INT
+     */
+    INT_UNSIGNED(JDBCType.INTEGER, Long.class),
+    /**
+     * FLOAT[(M,D)] [UNSIGNED] [ZEROFILL]
+     * A small (single-precision) floating-point number. Permissible values are -3.402823466E+38 to -1.175494351E-38, 0,
+     * and 1.175494351E-38 to 3.402823466E+38. These are the theoretical limits, based on the IEEE standard. The actual
+     * range might be slightly smaller depending on your hardware or operating system.
+     * <p>
+     * M is the total number of digits and D is the number of digits following the decimal point. If M and D are omitted,
+     * values are stored to the limits permitted by the hardware. A single-precision floating-point number is accurate to
+     * approximately 7 decimal places.
+     * <p>
+     * Protocol: TYPE_FLOAT = 4
+     * <p>
+     * Additionally:
+     * FLOAT(p) [UNSIGNED] [ZEROFILL]
+     * A floating-point number. p represents the precision in bits, but MySQL uses this value only to determine whether
+     * to use FLOAT or DOUBLE for the resulting data type. If p is from 0 to 24, the data type becomes FLOAT with no M or D values.
+     * If p is from 25 to 53, the data type becomes DOUBLE with no M or D values. The range of the resulting column is the same as
+     * for the single-precision FLOAT or double-precision DOUBLE data types.
+     */
+    FLOAT(JDBCType.REAL, Float.class),
+    /**
+     * FLOAT[(M,D)] UNSIGNED [ZEROFILL]
+     *
+     * @see #FLOAT
+     */
+    FLOAT_UNSIGNED(JDBCType.REAL, Float.class),
 
-    FLOAT(4),
-    DOUBLE(5),
-    NULL(6),
-    TIMESTAMP(7),
+    /**
+     * DOUBLE[(M,D)] [UNSIGNED] [ZEROFILL]
+     * A normal-size (double-precision) floating-point number. Permissible values are -1.7976931348623157E+308 to
+     * -2.2250738585072014E-308, 0, and 2.2250738585072014E-308 to 1.7976931348623157E+308. These are the theoretical limits,
+     * based on the IEEE standard. The actual range might be slightly smaller depending on your hardware or operating system.
+     * <p>
+     * M is the total number of digits and D is the number of digits following the decimal point. If M and D are omitted,
+     * values are stored to the limits permitted by the hardware. A double-precision floating-point number is accurate to
+     * approximately 15 decimal places.
+     * <p>
+     * Protocol: TYPE_DOUBLE = 5
+     * <p>
+     * These types are synonyms for DOUBLE:
+     * DOUBLE PRECISION[(M,D)] [UNSIGNED] [ZEROFILL],
+     * REAL[(M,D)] [UNSIGNED] [ZEROFILL]. Exception: If the REAL_AS_FLOAT SQL mode is enabled, REAL is a synonym for FLOAT rather than DOUBLE.
+     */
+    DOUBLE(JDBCType.DOUBLE, Double.class),
+    /**
+     * DOUBLE[(M,D)] UNSIGNED [ZEROFILL]
+     *
+     * @see #DOUBLE
+     */
+    DOUBLE_UNSIGNED(JDBCType.DOUBLE, Double.class),
+    /**
+     * TYPE_NULL = 6
+     */
+    NULL(JDBCType.NULL, Object.class),
+    /**
+     * TIMESTAMP[(fsp)]
+     * A timestamp. The range is '1970-01-01 00:00:01.000000' UTC to '2038-01-19 03:14:07.999999' UTC.
+     * TIMESTAMP values are stored as the number of seconds since the epoch ('1970-01-01 00:00:00' UTC).
+     * A TIMESTAMP cannot represent the value '1970-01-01 00:00:00' because that is equivalent to 0 seconds
+     * from the epoch and the value 0 is reserved for representing '0000-00-00 00:00:00', the "zero" TIMESTAMP value.
+     * An optional fsp value in the range from 0 to 6 may be given to specify fractional seconds precision. A value
+     * of 0 signifies that there is no fractional part. If omitted, the default precision is 0.
+     * <p>
+     * Protocol: TYPE_TIMESTAMP = 7
+     */
+    // TODO If MySQL server run with the MAXDB SQL mode enabled, TIMESTAMP is identical with DATETIME. If this mode is enabled at the time that a table is created, TIMESTAMP columns are created as DATETIME columns.
+    // As a result, such columns use DATETIME display format, have the same range of values, and there is no automatic initialization or updating to the current date and time
+    TIMESTAMP(JDBCType.TIMESTAMP, LocalDateTime.class),
 
-    LONGLONG(8),
-    INT24(9),
-    DATE(10),
-    TIME(11),
+    /**
+     * BIGINT[(M)] [UNSIGNED] [ZEROFILL]
+     * A large integer. The signed range is -9223372036854775808 to 9223372036854775807. The unsigned range is 0 to 18446744073709551615.
+     * <p>
+     * Protocol: TYPE_LONGLONG = 8
+     * <p>
+     * SERIAL is an alias for BIGINT UNSIGNED NOT NULL AUTO_INCREMENT UNIQUE.
+     */
+    BIGINT(JDBCType.BIGINT, Long.class),
+    /**
+     * BIGINT[(M)] UNSIGNED [ZEROFILL]
+     *
+     * @see #BIGINT
+     */
+    BIGINT_UNSIGNED(JDBCType.BIGINT, BigInteger.class),
+    /**
+     * MEDIUMINT[(M)] [UNSIGNED] [ZEROFILL]
+     * A medium-sized integer. The signed range is -8388608 to 8388607. The unsigned range is 0 to 16777215.
+     * <p>
+     * Protocol: TYPE_INT24 = 9
+     */
+    MEDIUMINT(JDBCType.INTEGER, Integer.class),
+    /**
+     * MEDIUMINT[(M)] UNSIGNED [ZEROFILL]
+     *
+     * @see #MEDIUMINT
+     */
+    MEDIUMINT_UNSIGNED(JDBCType.INTEGER, Integer.class),
+    /**
+     * DATE
+     * A date. The supported range is '1000-01-01' to '9999-12-31'. MySQL displays DATE values in 'YYYY-MM-DD' format,
+     * but permits assignment of values to DATE columns using either strings or numbers.
+     * <p>
+     * Protocol: TYPE_DATE = 10
+     */
+    DATE(JDBCType.DATE, LocalDateTime.class),
+    /**
+     * TIME[(fsp)]
+     * A time. The range is '-838:59:59.000000' to '838:59:59.000000'. MySQL displays TIME values in
+     * 'HH:MM:SS[.fraction]' format, but permits assignment of values to TIME columns using either strings or numbers.
+     * An optional fsp value in the range from 0 to 6 may be given to specify fractional seconds precision. A value
+     * of 0 signifies that there is no fractional part. If omitted, the default precision is 0.
+     * <p>
+     * Protocol: TYPE_TIME = 11
+     */
+    TIME(JDBCType.TIME, LocalTime.class),
+    /**
+     * DATETIME[(fsp)]
+     * A date and time combination. The supported range is '1000-01-01 00:00:00.000000' to '9999-12-31 23:59:59.999999'.
+     * MySQL displays DATETIME values in 'YYYY-MM-DD HH:MM:SS[.fraction]' format, but permits assignment of values to
+     * DATETIME columns using either strings or numbers.
+     * An optional fsp value in the range from 0 to 6 may be given to specify fractional seconds precision. A value
+     * of 0 signifies that there is no fractional part. If omitted, the default precision is 0.
+     * <p>
+     * Protocol: TYPE_DATETIME = 12
+     */
+    DATETIME(JDBCType.TIMESTAMP, LocalDateTime.class),
+    /**
+     * YEAR[(4)]
+     * A year in four-digit format. MySQL displays YEAR values in YYYY format, but permits assignment of
+     * values to YEAR columns using either strings or numbers. Values display as 1901 to 2155, and 0000.
+     * Protocol: TYPE_YEAR = 13
+     */
+    YEAR(JDBCType.DATE, Year.class),
+    /**
+     * [NATIONAL] VARCHAR(M) [CHARACTER SET charset_name] [COLLATE collation_name]
+     * A variable-length string. M represents the maximum column length in characters. The range of M is 0 to 65,535.
+     * The effective maximum length of a VARCHAR is subject to the maximum row size (65,535 bytes, which is shared among
+     * all columns) and the character set used. For example, utf8 characters can require up to three bytes per character,
+     * so a VARCHAR column that uses the utf8 character set can be declared to be a maximum of 21,844 characters.
+     * <p>
+     * MySQL stores VARCHAR values as a 1-byte or 2-byte length prefix plus data. The length prefix indicates the number
+     * of bytes in the value. A VARCHAR column uses one length byte if values require no more than 255 bytes, two length
+     * bytes if values may require more than 255 bytes.
+     * <p>
+     * Note
+     * MySQL 5.7 follows the standard SQL specification, and does not remove trailing spaces from VARCHAR values.
+     * <p>
+     * VARCHAR is shorthand for CHARACTER VARYING. NATIONAL VARCHAR is the standard SQL way to define that a VARCHAR
+     * column should use some predefined character set. MySQL 4.1 and up uses utf8 as this predefined character set.
+     * NVARCHAR is shorthand for NATIONAL VARCHAR.
+     * <p>
+     * Protocol: TYPE_VARCHAR = 15
+     * Protocol: TYPE_VAR_STRING = 253
+     */
+    VARCHAR(JDBCType.VARCHAR, String.class),
+    /**
+     * VARBINARY(M)
+     * The VARBINARY type is similar to the VARCHAR type, but stores binary byte strings rather than nonbinary
+     * character strings. M represents the maximum column length in bytes.
+     * <p>
+     * Protocol: TYPE_VARCHAR = 15
+     * Protocol: TYPE_VAR_STRING = 253
+     */
+    VARBINARY(JDBCType.VARBINARY, byte[].class), // TODO check that it's correct
+    /**
+     * BIT[(M)]
+     * A bit-field type. M indicates the number of bits per value, from 1 to 64. The default is 1 if M is omitted.
+     * Protocol: TYPE_BIT = 16
+     */
+    BIT(JDBCType.BIT, Boolean.class), // TODO maybe precision=8 ?
+    /**
+     * The size of JSON documents stored in JSON columns is limited to the value of the max_allowed_packet system variable (max value 1073741824).
+     * (While the server manipulates a JSON value internally in memory, it can be larger; the limit applies when the server stores it.)
+     * <p>
+     * Protocol: TYPE_BIT = 245
+     */
+    JSON(JDBCType.LONGVARCHAR, String.class),
+    /**
+     * ENUM('value1','value2',...) [CHARACTER SET charset_name] [COLLATE collation_name]
+     * An enumeration. A string object that can have only one value, chosen from the list of values 'value1',
+     * 'value2', ..., NULL or the special '' error value. ENUM values are represented internally as integers.
+     * An ENUM column can have a maximum of 65,535 distinct elements. (The practical limit is less than 3000.)
+     * A table can have no more than 255 unique element list definitions among its ENUM and SET columns considered as a group
+     * <p>
+     * Protocol: TYPE_ENUM = 247
+     */
+    ENUM(JDBCType.CHAR, String.class),
+    /**
+     * SET('value1','value2',...) [CHARACTER SET charset_name] [COLLATE collation_name]
+     * A set. A string object that can have zero or more values, each of which must be chosen from the list
+     * of values 'value1', 'value2', ... SET values are represented internally as integers.
+     * A SET column can have a maximum of 64 distinct members. A table can have no more than 255 unique
+     * element list definitions among its ENUM and SET columns considered as a group
+     * <p>
+     * Protocol: TYPE_SET = 248
+     */
+    SET(JDBCType.CHAR, String.class),
+    /**
+     * TINYBLOB
+     * A BLOB column with a maximum length of 255 (28 - 1) bytes. Each TINYBLOB value is stored using a
+     * 1-byte length prefix that indicates the number of bytes in the value.
+     * <p>
+     * Protocol:TYPE_TINY_BLOB = 249
+     */
+    TINYBLOB(JDBCType.VARBINARY, byte[].class),// TODO check that it's correct
+    /**
+     * TINYTEXT [CHARACTER SET charset_name] [COLLATE collation_name]
+     * A TEXT column with a maximum length of 255 (28 - 1) characters. The effective maximum length
+     * is less if the value contains multibyte characters. Each TINYTEXT value is stored using
+     * a 1-byte length prefix that indicates the number of bytes in the value.
+     * <p>
+     * Protocol:TYPE_TINY_BLOB = 249
+     */
+    TINYTEXT(JDBCType.VARCHAR, String.class),
+    /**
+     * MEDIUMBLOB
+     * A BLOB column with a maximum length of 16,777,215 (224 - 1) bytes. Each MEDIUMBLOB value is stored
+     * using a 3-byte length prefix that indicates the number of bytes in the value.
+     * <p>
+     * Protocol: TYPE_MEDIUM_BLOB = 250
+     */
+    MEDIUMBLOB(JDBCType.LONGVARBINARY, byte[].class),// TODO check that it's correct
+    /**
+     * MEDIUMTEXT [CHARACTER SET charset_name] [COLLATE collation_name]
+     * A TEXT column with a maximum length of 16,777,215 (224 - 1) characters. The effective maximum length
+     * is less if the value contains multibyte characters. Each MEDIUMTEXT value is stored using a 3-byte
+     * length prefix that indicates the number of bytes in the value.
+     * <p>
+     * Protocol: TYPE_MEDIUM_BLOB = 250
+     */
+    MEDIUMTEXT(JDBCType.LONGVARCHAR, String.class),
+    /**
+     * LONGBLOB
+     * A BLOB column with a maximum length of 4,294,967,295 or 4GB (232 - 1) bytes. The effective maximum length
+     * of LONGBLOB columns depends on the configured maximum packet size in the client/server protocol and available
+     * memory. Each LONGBLOB value is stored using a 4-byte length prefix that indicates the number of bytes in the value.
+     * <p>
+     * Protocol: TYPE_LONG_BLOB = 251
+     */
+    LONGBLOB(JDBCType.LONGVARBINARY, byte[].class),
+    /**
+     * LONGTEXT [CHARACTER SET charset_name] [COLLATE collation_name]
+     * A TEXT column with a maximum length of 4,294,967,295 or 4GB (232 - 1) characters. The effective
+     * maximum length is less if the value contains multibyte characters. The effective maximum length
+     * of LONGTEXT columns also depends on the configured maximum packet size in the client/server protocol
+     * and available memory. Each LONGTEXT value is stored using a 4-byte length prefix that indicates
+     * the number of bytes in the value.
+     * <p>
+     * Protocol: TYPE_LONG_BLOB = 251
+     */
+    LONGTEXT(JDBCType.LONGVARCHAR, String.class),
+    /**
+     * BLOB[(M)]
+     * A BLOB column with a maximum length of 65,535 (216 - 1) bytes. Each BLOB value is stored using
+     * a 2-byte length prefix that indicates the number of bytes in the value.
+     * An optional length M can be given for this type. If this is done, MySQL creates the column as
+     * the smallest BLOB type large enough to hold values M bytes long.
+     * <p>
+     * Protocol: TYPE_BLOB = 252
+     */
+    BLOB(JDBCType.LONGVARBINARY, byte[].class),// TODO check that it's correct
+    /**
+     * TEXT[(M)] [CHARACTER SET charset_name] [COLLATE collation_name]
+     * A TEXT column with a maximum length of 65,535 (216 - 1) characters. The effective maximum length
+     * is less if the value contains multibyte characters. Each TEXT value is stored using a 2-byte length
+     * prefix that indicates the number of bytes in the value.
+     * An optional length M can be given for this type. If this is done, MySQL creates the column as
+     * the smallest TEXT type large enough to hold values M characters long.
+     * <p>
+     * Protocol: TYPE_BLOB = 252
+     */
+    TEXT(JDBCType.LONGVARCHAR, String.class),
+    /**
+     * [NATIONAL] CHAR[(M)] [CHARACTER SET charset_name] [COLLATE collation_name]
+     * A fixed-length string that is always right-padded with spaces to the specified length when stored.
+     * M represents the column length in characters. The range of M is 0 to 255. If M is omitted, the length is 1.
+     * Note
+     * Trailing spaces are removed when CHAR values are retrieved unless the PAD_CHAR_TO_FULL_LENGTH SQL mode is enabled.
+     * CHAR is shorthand for CHARACTER. NATIONAL CHAR (or its equivalent short form, NCHAR) is the standard SQL way
+     * to define that a CHAR column should use some predefined character set. MySQL 4.1 and up uses utf8
+     * as this predefined character set.
+     * <p>
+     * MySQL permits you to create a column of type CHAR(0). This is useful primarily when you have to be compliant
+     * with old applications that depend on the existence of a column but that do not actually use its value.
+     * CHAR(0) is also quite nice when you need a column that can take only two values: A column that is defined
+     * as CHAR(0) NULL occupies only one bit and can take only the values NULL and '' (the empty string).
+     * <p>
+     * Protocol: TYPE_STRING = 254
+     */
+    CHAR(JDBCType.CHAR, String.class),
+    /**
+     * BINARY(M)
+     * The BINARY type is similar to the CHAR type, but stores binary byte strings rather than nonbinary character strings.
+     * M represents the column length in bytes.
+     * <p>
+     * The CHAR BYTE data type is an alias for the BINARY data type.
+     * <p>
+     * Protocol: no concrete type on the wire TODO: really?
+     */
+    BINARY(JDBCType.BINARY, byte[].class),// TODO check that it's correct
+    /**
+     * Top class for Spatial Data Types
+     * <p>
+     * Protocol: TYPE_GEOMETRY = 255
+     */
+    GEOMETRY(JDBCType.OTHER, Geometry.class), // TODO check precision, it isn't well documented, only mentioned that WKB format is represented by BLOB
+    /**
+     * Fall-back type for those MySQL data types which c/J can't recognize.
+     * Handled the same as BLOB.
+     * <p>
+     * Has no protocol ID.
+     */
+    UNKNOWN(JDBCType.OTHER, Object.class);
 
-    DATETIME(12),
-    YEAR(13),
-    NEWDATE(0, false), //Internal to MySQL.Not used in protocol
-    VARCHAR(15),
+    private static Map<Integer, BiFunction<MySQLColumnMeta, Properties, MySQLType>> CONVERT_FUNCTION_MAP = createConverterMap();
 
-    BIT(16),
-    TIMESTAMP2(17),
-    DATETIME2(18, false),//Internal to MySQL.Not used in protocol
-    TIME2(19, false),//Internal to MySQL.Not used in protocol
 
-    TYPED_ARRAY(20, false), //Used for replication only.
-    INVALID(243),
-    BOOL(244, false), //Currently just a placeholder.
-    JSON(245),
+    private final JDBCType jdbcType;
 
-    NEWDECIMAL(246),
-    ENUM(247),
-    SET(248),
-    TINY_BLOB(249),
+    private final Class<?> javaType;
 
-    MEDIUM_BLOB(250),
-    LONG_BLOB(251),
-    BLOB(252),
-    VAR_STRING(253),
+    MySQLType(JDBCType jdbcType, Class<?> javaType) {
+        this.jdbcType = jdbcType;
+        this.javaType = javaType;
+    }
 
-    STRING(254),
-    GEOMETRY(255);
+    @Override
+    public JDBCType jdbcType() {
+        return this.jdbcType;
+    }
 
-    static {
-        Set<Integer> codeSet = new HashSet<>();
-        for (MySQLType value : values()) {
-            if (!codeSet.add(value.code)) {
-                throw new IllegalStateException(String.format("MySQLType[%s] code duplication.", value.name()));
-            }
+    @Override
+    public Class<?> javaType() {
+        return this.javaType;
+    }
+
+    /**
+     * @return always {@code MySQL}
+     */
+    @Override
+    public String getVendor() {
+        return "MySQL";
+    }
+
+
+    public static MySQLType from(MySQLColumnMeta columnMeta, Properties properties) {
+        BiFunction<MySQLColumnMeta, Properties, MySQLType> function;
+        function = CONVERT_FUNCTION_MAP.get(columnMeta.typeFlag);
+        return function == null ? UNKNOWN : function.apply(columnMeta, properties);
+    }
+
+
+    private static MySQLType fromDecimal(MySQLColumnMeta columnMeta, Properties properties) {
+        return isUnsigned(columnMeta)
+                ? DECIMAL_UNSIGNED
+                : DECIMAL;
+    }
+
+
+    private static MySQLType fromTiny(MySQLColumnMeta columnMeta, Properties properties) {
+        final boolean isUnsigned = isUnsigned(columnMeta);
+        // Adjust for pseudo-boolean
+        MySQLType mySQLType;
+        if (!isUnsigned && columnMeta.maxLength == 1
+                && properties.getRequiredProperty(PropertyKey.tinyInt1isBit, Boolean.class)) {
+            mySQLType = properties.getRequiredProperty(PropertyKey.transformedBitIsBoolean, Boolean.class)
+                    ? BOOLEAN
+                    : BIT;
+        } else {
+            mySQLType = isUnsigned ? MySQLType.TINYINT_UNSIGNED : MySQLType.TINYINT;
         }
+        return mySQLType;
     }
 
-    private final int code;
-
-    private final boolean useInProtocol;
-
-    MySQLType(int code) {
-        this(code, true);
+    private static MySQLType fromShort(MySQLColumnMeta columnMeta, Properties properties) {
+        return isUnsigned(columnMeta)
+                ? SMALLINT_UNSIGNED
+                : SMALLINT;
     }
 
-    MySQLType(int code, boolean useInProtocol) {
-        this.code = code;
-        this.useInProtocol = useInProtocol;
+    private static MySQLType fromLong(MySQLColumnMeta columnMeta, Properties properties) {
+        return isUnsigned(columnMeta)
+                ? INT_UNSIGNED
+                : INT;
     }
 
-    @Override
-    public int code() {
-        return this.code;
+    private static MySQLType fromFloat(MySQLColumnMeta columnMeta, Properties properties) {
+        return isUnsigned(columnMeta)
+                ? FLOAT_UNSIGNED
+                : FLOAT;
     }
 
-    @Override
-    public boolean useInProtocol() {
-        return this.useInProtocol;
+    private static MySQLType fromDouble(MySQLColumnMeta columnMeta, Properties properties) {
+        return isUnsigned(columnMeta)
+                ? DOUBLE_UNSIGNED
+                : DOUBLE;
     }
+
+    private static MySQLType fromNull(MySQLColumnMeta columnMeta, Properties properties) {
+        return MySQLType.NULL;
+    }
+
+    private static MySQLType fromTimestamp(MySQLColumnMeta columnMeta, Properties properties) {
+        return MySQLType.TIMESTAMP;
+    }
+
+    private static MySQLType fromLongLong(MySQLColumnMeta columnMeta, Properties properties) {
+        return isUnsigned(columnMeta)
+                ? BIGINT_UNSIGNED
+                : BIGINT;
+    }
+
+    private static MySQLType fromInt24(MySQLColumnMeta columnMeta, Properties properties) {
+        return isUnsigned(columnMeta)
+                ? MEDIUMINT_UNSIGNED
+                : MEDIUMINT;
+    }
+
+    private static MySQLType fromDate(MySQLColumnMeta columnMeta, Properties properties) {
+        return MySQLType.DATE;
+    }
+
+    private static MySQLType fromTime(MySQLColumnMeta columnMeta, Properties properties) {
+        return MySQLType.TIME;
+    }
+
+    private static MySQLType fromDatetime(MySQLColumnMeta columnMeta, Properties properties) {
+        return MySQLType.DATETIME;
+    }
+
+    private static MySQLType fromYear(MySQLColumnMeta columnMeta, Properties properties) {
+        return MySQLType.YEAR;
+    }
+
+    private static MySQLType fromVarcharOrVarString(MySQLColumnMeta columnMeta, Properties properties) {
+        return (isOpaqueBinary(columnMeta) && !isFunctionsNeverReturnBlobs(columnMeta, properties))
+                ? VARBINARY : VARCHAR;
+    }
+
+    private static MySQLType fromBit(MySQLColumnMeta columnMeta, Properties properties) {
+        return BIT;
+    }
+
+    private static MySQLType fromJson(MySQLColumnMeta columnMeta, Properties properties) {
+        return JSON;
+    }
+
+    private static MySQLType fromEnum(MySQLColumnMeta columnMeta, Properties properties) {
+        return ENUM;
+    }
+
+    private static MySQLType fromSet(MySQLColumnMeta columnMeta, Properties properties) {
+        return SET;
+    }
+
+    private static MySQLType fromTinyBlob(MySQLColumnMeta columnMeta, Properties properties) {
+        return isBlobTypeReturnText(columnMeta, properties) ? TINYTEXT : TINYBLOB;
+    }
+
+    private static MySQLType fromMediumBlob(MySQLColumnMeta columnMeta, Properties properties) {
+        return isBlobTypeReturnText(columnMeta, properties) ? MEDIUMTEXT : MEDIUMBLOB;
+    }
+
+    private static MySQLType fromLongBlob(MySQLColumnMeta columnMeta, Properties properties) {
+        return isBlobTypeReturnText(columnMeta, properties) ? LONGTEXT : LONGBLOB;
+    }
+
+    private static MySQLType fromBlob(MySQLColumnMeta columnMeta, Properties properties) {
+        // Sometimes MySQL uses this protocol-level type for all possible BLOB variants,
+        // we can divine what the actual type is by the length reported
+
+        int newMysqlTypeId;
+
+        final long maxLength = columnMeta.maxLength;
+        // fixing initial type according to length
+        if (maxLength <= 255L) {
+            newMysqlTypeId = TYPE_TINY_BLOB;
+        } else if (columnMeta.maxLength <= (1 << 16) - 1) {
+            return isBlobTypeReturnText(columnMeta, properties) ? TEXT : BLOB;
+        } else if (maxLength <= (1 << 24) - 1) {
+            newMysqlTypeId = TYPE_MEDIUM_BLOB;
+        } else {
+            newMysqlTypeId = TYPE_LONG_BLOB;
+        }
+
+        // call this method again with correct this.mysqlType set
+        return MySQLObjects.requireNonNull(
+                CONVERT_FUNCTION_MAP.get(newMysqlTypeId), "TypeFlag[%s] no function", newMysqlTypeId)
+                .apply(columnMeta, properties);
+    }
+
+    private static MySQLType fromString(MySQLColumnMeta columnMeta, Properties properties) {
+        return (isOpaqueBinary(columnMeta)
+                && !properties.getRequiredProperty(PropertyKey.blobsAreStrings, Boolean.class))
+                ? BINARY
+                : CHAR;
+    }
+
+    private static MySQLType fromGeometry(MySQLColumnMeta columnMeta, Properties properties) {
+        return GEOMETRY;
+    }
+
+
+    private static boolean isOpaqueBinary(MySQLColumnMeta columnMeta) {
+
+        boolean isImplicitTemporaryTable = columnMeta.tableName != null
+                && columnMeta.tableName.startsWith("#sql_"); //TODO check tableName or tableAlias
+
+        boolean isBinaryString = (isBinary(columnMeta.definitionFlags)
+                && columnMeta.collationIndex == CharsetMapping.MYSQL_COLLATION_INDEX_binary
+                && (columnMeta.typeFlag == TYPE_STRING
+                || columnMeta.typeFlag == TYPE_VAR_STRING
+                || columnMeta.typeFlag == TYPE_VARCHAR));
+
+        return isBinaryString
+                // queries resolved by temp tables also have this 'signature', check for that
+                ? !isImplicitTemporaryTable : columnMeta.collationIndex == CharsetMapping.MYSQL_COLLATION_INDEX_binary;
+
+    }
+
+    private static boolean isUnsigned(MySQLColumnMeta columnMeta) {
+        return ((columnMeta.definitionFlags & MySQLColumnMeta.UNSIGNED_FLAG) != 0);
+    }
+
+    private static boolean isBinary(final int definitionFlags) {
+        return (definitionFlags & MySQLColumnMeta.BINARY_FLAG) != 0;
+    }
+
+    private static boolean isFunctionsNeverReturnBlobs(MySQLColumnMeta columnMeta, Properties properties) {
+        return StringUtils.isEmpty(columnMeta.tableName)
+                && properties.getRequiredProperty(PropertyKey.functionsNeverReturnBlobs, Boolean.class);
+    }
+
+    private static boolean isBlobTypeReturnText(MySQLColumnMeta columnMeta, Properties properties) {
+        return !isBinary(columnMeta.definitionFlags)
+                || columnMeta.collationIndex != CharsetMapping.MYSQL_COLLATION_INDEX_binary
+                || properties.getRequiredProperty(PropertyKey.blobsAreStrings, Boolean.class)
+                || isFunctionsNeverReturnBlobs(columnMeta, properties);
+    }
+
+    private static Map<Integer, BiFunction<MySQLColumnMeta, Properties, MySQLType>> createConverterMap() {
+        Map<Integer, BiFunction<MySQLColumnMeta, Properties, MySQLType>> map;
+        map = new HashMap<>();
+
+        map.put(TYPE_DECIMAL, MySQLType::fromDecimal);
+        map.put(TYPE_TINY, MySQLType::fromTiny);
+        map.put(TYPE_SHORT, MySQLType::fromShort);
+        map.put(TYPE_LONG, MySQLType::fromLong);
+
+        map.put(TYPE_FLOAT, MySQLType::fromFloat);
+        map.put(TYPE_DOUBLE, MySQLType::fromDouble);
+        map.put(TYPE_NULL, MySQLType::fromNull);
+        map.put(TYPE_TIMESTAMP, MySQLType::fromTimestamp);
+
+        map.put(TYPE_LONGLONG, MySQLType::fromLongLong);
+        map.put(TYPE_INT24, MySQLType::fromInt24);
+        map.put(TYPE_DATE, MySQLType::fromDate);
+        map.put(TYPE_TIME, MySQLType::fromTime);
+
+        map.put(TYPE_DATETIME, MySQLType::fromDatetime);
+        map.put(TYPE_YEAR, MySQLType::fromYear);
+        map.put(TYPE_VARCHAR, MySQLType::fromVarcharOrVarString);
+        map.put(TYPE_BIT, MySQLType::fromBit);
+
+        map.put(TYPE_JSON, MySQLType::fromJson);
+        map.put(TYPE_NEWDECIMAL, MySQLType::fromDecimal);
+        map.put(TYPE_ENUM, MySQLType::fromEnum);
+        map.put(TYPE_SET, MySQLType::fromSet);
+
+        map.put(TYPE_TINY_BLOB, MySQLType::fromTinyBlob);
+        map.put(TYPE_MEDIUM_BLOB, MySQLType::fromMediumBlob);
+        map.put(TYPE_LONG_BLOB, MySQLType::fromLongBlob);
+        map.put(TYPE_BLOB, MySQLType::fromBlob);
+
+        map.put(TYPE_VAR_STRING, MySQLType::fromVarcharOrVarString);
+        map.put(TYPE_STRING, MySQLType::fromString);
+        map.put(TYPE_GEOMETRY, MySQLType::fromGeometry);
+
+        return Collections.unmodifiableMap(map);
+    }
+
+
+    //below  Protocol field type numbers, see https://dev.mysql.com/doc/dev/mysql-server/latest/field__types_8h.html#a69e798807026a0f7e12b1d6c72374854
+    //
+    public static final int TYPE_DECIMAL = 0;
+    public static final int TYPE_TINY = 1;
+    public static final int TYPE_SHORT = 2;
+    public static final int TYPE_LONG = 3;
+
+    public static final int TYPE_FLOAT = 4;
+    public static final int TYPE_DOUBLE = 5;
+    public static final int TYPE_NULL = 6;
+    public static final int TYPE_TIMESTAMP = 7;
+
+    public static final int TYPE_LONGLONG = 8;
+    public static final int TYPE_INT24 = 9;
+    public static final int TYPE_DATE = 10;
+    public static final int TYPE_TIME = 11;
+
+    public static final int TYPE_DATETIME = 12;
+    public static final int TYPE_YEAR = 13;
+    public static final int TYPE_VARCHAR = 15;
+    public static final int TYPE_BIT = 16;
+
+    public static final int TYPE_JSON = 245;
+    public static final int TYPE_NEWDECIMAL = 246;
+    public static final int TYPE_ENUM = 247;
+    public static final int TYPE_SET = 248;
+
+    public static final int TYPE_TINY_BLOB = 249;
+    public static final int TYPE_MEDIUM_BLOB = 250;
+    public static final int TYPE_LONG_BLOB = 251;
+    public static final int TYPE_BLOB = 252;
+
+    public static final int TYPE_VAR_STRING = 253;
+    public static final int TYPE_STRING = 254;
+    public static final int TYPE_GEOMETRY = 255;
 
 
 }
