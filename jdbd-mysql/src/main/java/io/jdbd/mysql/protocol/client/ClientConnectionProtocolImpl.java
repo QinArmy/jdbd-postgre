@@ -1081,7 +1081,7 @@ final class ClientConnectionProtocolImpl implements ClientConnectionProtocol, Pr
             // due to here character_set_results unknown, use UTF_8 ,see https://dev.mysql.com/doc/refman/8.0/en/charset-metadata.html
             // and https://dev.mysql.com/doc/refman/8.0/en/server-system-variables.html#sysvar_character_set_results
             return PacketDecoders.readResultRowMeta(packetBuf, obtainNegotiatedCapability()
-                    , StandardCharsets.UTF_8, Collections.emptyMap());
+                    , StandardCharsets.UTF_8, this.properties);
         } else {
             throw new JdbdMySQLException("Expected result set response,but %s ", response);
         }

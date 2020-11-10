@@ -460,7 +460,7 @@ public enum MySQLType implements SQLType {
         final boolean isUnsigned = isUnsigned(columnMeta);
         // Adjust for pseudo-boolean
         MySQLType mySQLType;
-        if (!isUnsigned && columnMeta.maxLength == 1
+        if (!isUnsigned && columnMeta.length == 1
                 && properties.getRequiredProperty(PropertyKey.tinyInt1isBit, Boolean.class)) {
             mySQLType = properties.getRequiredProperty(PropertyKey.transformedBitIsBoolean, Boolean.class)
                     ? BOOLEAN
@@ -570,11 +570,11 @@ public enum MySQLType implements SQLType {
 
         int newMysqlTypeId;
 
-        final long maxLength = columnMeta.maxLength;
+        final long maxLength = columnMeta.length;
         // fixing initial type according to length
         if (maxLength <= 255L) {
             newMysqlTypeId = TYPE_TINY_BLOB;
-        } else if (columnMeta.maxLength <= (1 << 16) - 1) {
+        } else if (columnMeta.length <= (1 << 16) - 1) {
             return isBlobTypeReturnText(columnMeta, properties) ? TEXT : BLOB;
         } else if (maxLength <= (1 << 24) - 1) {
             newMysqlTypeId = TYPE_MEDIUM_BLOB;

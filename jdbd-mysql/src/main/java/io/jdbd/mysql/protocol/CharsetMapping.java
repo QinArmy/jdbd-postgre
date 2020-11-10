@@ -1,6 +1,7 @@
 package io.jdbd.mysql.protocol;
 
 
+import io.jdbd.mysql.JdbdMySQLException;
 import reactor.util.annotation.Nullable;
 
 import java.nio.charset.Charset;
@@ -178,6 +179,14 @@ public abstract class CharsetMapping {
         return collation.mySQLCharset.javaEncodingsUcList.get(0);
     }
 
+    public static int getMblen(int collationIndex) {
+        Collation collation = INDEX_TO_COLLATION.get(collationIndex);
+        if (collation == null) {
+            throw new JdbdMySQLException("Not found Collation for collationIndex[%s]", collationIndex);
+        }
+        return collation.mySQLCharset.mblen;
+    }
+
     @Nullable
     public static String getMysqlCharsetForJavaEncoding(String javaEncoding, @Nullable ServerVersion version) {
 
@@ -215,6 +224,12 @@ public abstract class CharsetMapping {
             }
         }
         return 0;
+    }
+
+    @Nullable
+    public static String getCollationNameByIndex(int collationIndex) {
+        Collation collation = INDEX_TO_COLLATION.get(collationIndex);
+        return collation == null ? null : collation.collationName;
     }
 
     /**

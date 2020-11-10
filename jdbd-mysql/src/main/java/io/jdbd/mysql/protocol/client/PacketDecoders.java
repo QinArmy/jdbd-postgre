@@ -4,12 +4,12 @@ import io.jdbd.mysql.JdbdMySQLException;
 import io.jdbd.mysql.protocol.EofPacket;
 import io.jdbd.mysql.protocol.ErrorPacket;
 import io.jdbd.mysql.protocol.OkPacket;
+import io.jdbd.mysql.protocol.conf.Properties;
 import io.netty.buffer.ByteBuf;
 import reactor.util.annotation.Nullable;
 
 import java.nio.charset.Charset;
 import java.util.List;
-import java.util.Map;
 import java.util.function.BiFunction;
 
 public abstract class PacketDecoders {
@@ -110,7 +110,7 @@ public abstract class PacketDecoders {
     }
 
     static MySQLRowMeta readResultRowMeta(ByteBuf payloadBuf, final int negotiatedCapability
-            , Charset resultCharset, Map<Integer, Charset> customCharsetMap) {
+            , Charset metaCharset, Properties properties) {
         final byte metadataFollows;
         final boolean hasOptionalMeta = (negotiatedCapability & ClientProtocol.CLIENT_OPTIONAL_RESULTSET_METADATA) != 0;
         if (hasOptionalMeta) {
@@ -122,7 +122,7 @@ public abstract class PacketDecoders {
         MySQLColumnMeta[] columnMetas = new MySQLColumnMeta[columnCount];
         if (!hasOptionalMeta || metadataFollows == 1) {
             for (int i = 0; i < columnCount; i++) {
-                columnMetas[i] = MySQLColumnMeta.readFor41(payloadBuf, resultCharset, customCharsetMap);
+                columnMetas[i] = MySQLColumnMeta.readFor41(payloadBuf, metaCharset, properties);
             }
         }
         if ((negotiatedCapability & ClientProtocol.CLIENT_DEPRECATE_EOF) != 0) {

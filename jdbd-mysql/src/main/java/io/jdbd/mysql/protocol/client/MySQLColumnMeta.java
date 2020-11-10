@@ -1,10 +1,11 @@
 package io.jdbd.mysql.protocol.client;
 
+import io.jdbd.mysql.protocol.conf.Properties;
+import io.jdbd.mysql.util.MySQLObjects;
 import io.netty.buffer.ByteBuf;
 import reactor.util.annotation.Nullable;
 
 import java.nio.charset.Charset;
-import java.util.Objects;
 
 /**
  * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/group__group__cs__column__definition__flags.html"> Column Definition Flags</a>
@@ -47,7 +48,7 @@ final class MySQLColumnMeta {
 
     final long fixedLength;
 
-    final long maxLength;
+    final long length;
 
     final int typeFlag;
 
@@ -62,8 +63,8 @@ final class MySQLColumnMeta {
             , @Nullable String tableName, @Nullable String tableAlias
             , @Nullable String columnName, String columnAlias
             , int collationIndex, long fixedLength
-            , long maxLength, int typeFlag
-            , int definitionFlags, short decimals) {
+            , long length, int typeFlag
+            , int definitionFlags, short decimals, Properties properties) {
 
         this.catalogName = catalogName;
         this.schemaName = schemaName;
@@ -75,32 +76,32 @@ final class MySQLColumnMeta {
         this.collationIndex = collationIndex;
         this.fixedLength = fixedLength;
 
-        this.maxLength = maxLength;
+        this.length = length;
         this.typeFlag = typeFlag;
         this.definitionFlags = definitionFlags;
         this.decimals = decimals;
         // mysqlType must be last
-        this.mysqlType = MySQLType.from(this);
+        this.mysqlType = MySQLType.from(this, properties);
     }
 
     /**
      * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_com_query_response_text_resultset_column_definition.html">Protocol::ColumnDefinition41</a>
      */
-    static MySQLColumnMeta readFor41(ByteBuf payloadBuf, Charset charset) {
+    static MySQLColumnMeta readFor41(ByteBuf payloadBuf, Charset metaCharset, Properties properties) {
         // 1. catalog
-        String catalogName = PacketUtils.readStringLenEnc(payloadBuf, charset);
+        String catalogName = PacketUtils.readStringLenEnc(payloadBuf, metaCharset);
         // 2. schema
-        String schemaName = PacketUtils.readStringLenEnc(payloadBuf, charset);
+        String schemaName = PacketUtils.readStringLenEnc(payloadBuf, metaCharset);
         // 3. table,virtual table name
-        String tableAlias = PacketUtils.readStringLenEnc(payloadBuf, charset);
+        String tableAlias = PacketUtils.readStringLenEnc(payloadBuf, metaCharset);
         // 4. org_table,physical table name
-        String tableName = PacketUtils.readStringLenEnc(payloadBuf, charset);
+        String tableName = PacketUtils.readStringLenEnc(payloadBuf, metaCharset);
 
         // 5. name ,virtual column name,alias in select statement
-        String columnAlias = Objects.requireNonNull(PacketUtils.readStringLenEnc(payloadBuf, charset)
+        String columnAlias = MySQLObjects.requireNonNull(PacketUtils.readStringLenEnc(payloadBuf, metaCharset)
                 , "columnAlias");
         // 6. org_name,physical column name
-        String columnName = PacketUtils.readStringLenEnc(payloadBuf, charset);
+        String columnName = PacketUtils.readStringLenEnc(payloadBuf, metaCharset);
         // 7. length of fixed length fields
         long fixedLength = PacketUtils.readLenEnc(payloadBuf);
         // 8. character_set of column
@@ -125,6 +126,7 @@ final class MySQLColumnMeta {
                 , collationIndex, fixedLength
                 , length, typeFlag
                 , definitionFlags, decimals
+                , properties
         );
     }
 

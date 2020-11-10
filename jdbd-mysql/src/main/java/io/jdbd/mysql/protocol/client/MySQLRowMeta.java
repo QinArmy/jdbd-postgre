@@ -1,25 +1,34 @@
 package io.jdbd.mysql.protocol.client;
 
-import com.mysql.cj.CharsetMapping;
 import io.jdbd.NullMode;
 import io.jdbd.ReactiveSQLException;
 import io.jdbd.ResultRowMeta;
 import io.jdbd.meta.SQLType;
+import io.jdbd.mysql.protocol.CharsetMapping;
+import io.jdbd.mysql.util.MySQLStringUtils;
 import org.qinarmy.util.StringUtils;
+import reactor.util.annotation.Nullable;
 
 import java.sql.JDBCType;
 import java.sql.SQLException;
+import java.util.Map;
 
+/**
+ * This class is a implementation of {@link ResultRowMeta}
+ */
 abstract class MySQLRowMeta implements ResultRowMeta {
 
-    static MySQLRowMeta from(MySQLColumnMeta[] mySQLColumnMetas) {
-        return null;
+    static MySQLRowMeta from(MySQLColumnMeta[] mySQLColumnMetas, Map<Integer, Integer> customIndexMblenMap) {
+        return new SimpleIndexMySQLRowMeta(mySQLColumnMetas, customIndexMblenMap);
     }
 
     private final MySQLColumnMeta[] columnMetas;
 
-    private MySQLRowMeta(MySQLColumnMeta[] columnMetas) {
+    private final Map<Integer, Integer> customIndexMblenMap;
+
+    private MySQLRowMeta(MySQLColumnMeta[] columnMetas, Map<Integer, Integer> customIndexMblenMap) {
         this.columnMetas = columnMetas;
+        this.customIndexMblenMap = customIndexMblenMap;
     }
 
     @Override
@@ -28,9 +37,8 @@ abstract class MySQLRowMeta implements ResultRowMeta {
     }
 
     @Override
-    public final JDBCType getJdbdType(int index) throws ReactiveSQLException {
-        checkIndex(index);
-        return this.columnMetas[index].mysqlType.jdbcType();
+    public final JDBCType getJdbdType(int indexBaseOne) throws ReactiveSQLException {
+        return this.columnMetas[convertIndex(indexBaseOne)].mysqlType.jdbcType();
     }
 
     @Override
@@ -39,9 +47,8 @@ abstract class MySQLRowMeta implements ResultRowMeta {
     }
 
     @Override
-    public final boolean isPhysicalColumn(int index) throws ReactiveSQLException {
-        checkIndex(index);
-        MySQLColumnMeta columnMeta = this.columnMetas[index];
+    public final boolean isPhysicalColumn(int indexBaseOne) throws ReactiveSQLException {
+        MySQLColumnMeta columnMeta = this.columnMetas[convertIndex(indexBaseOne)];
         return StringUtils.hasText(columnMeta.tableName)
                 && StringUtils.hasText(columnMeta.columnName);
     }
@@ -52,9 +59,8 @@ abstract class MySQLRowMeta implements ResultRowMeta {
     }
 
     @Override
-    public final SQLType getSQLType(int index) throws ReactiveSQLException {
-        checkIndex(index);
-        return this.columnMetas[index].mysqlType;
+    public final SQLType getSQLType(int indexBaseOne) throws ReactiveSQLException {
+        return this.columnMetas[convertIndex(indexBaseOne)].mysqlType;
     }
 
     @Override
@@ -63,9 +69,8 @@ abstract class MySQLRowMeta implements ResultRowMeta {
     }
 
     @Override
-    public final NullMode getNullMode(int index) throws ReactiveSQLException {
-        checkIndex(index);
-        return (this.columnMetas[index].definitionFlags & MySQLColumnMeta.NOT_NULL_FLAG) != 0
+    public final NullMode getNullMode(int indexBaseOne) throws ReactiveSQLException {
+        return (this.columnMetas[convertIndex(indexBaseOne)].definitionFlags & MySQLColumnMeta.NOT_NULL_FLAG) != 0
                 ? NullMode.NON_NULL
                 : NullMode.NULLABLE;
     }
@@ -76,9 +81,8 @@ abstract class MySQLRowMeta implements ResultRowMeta {
     }
 
     @Override
-    public final boolean isSigned(int index) throws ReactiveSQLException {
-        checkIndex(index);
-        return (this.columnMetas[index].definitionFlags & MySQLColumnMeta.UNSIGNED_FLAG) == 0;
+    public final boolean isSigned(int indexBaseOne) throws ReactiveSQLException {
+        return (this.columnMetas[convertIndex(indexBaseOne)].definitionFlags & MySQLColumnMeta.UNSIGNED_FLAG) == 0;
     }
 
     @Override
@@ -87,9 +91,8 @@ abstract class MySQLRowMeta implements ResultRowMeta {
     }
 
     @Override
-    public final boolean isAutoIncrement(int index) throws ReactiveSQLException {
-        checkIndex(index);
-        return (this.columnMetas[index].definitionFlags & MySQLColumnMeta.AUTO_INCREMENT_FLAG) != 0;
+    public final boolean isAutoIncrement(int indexBaseOne) throws ReactiveSQLException {
+        return (this.columnMetas[convertIndex(indexBaseOne)].definitionFlags & MySQLColumnMeta.AUTO_INCREMENT_FLAG) != 0;
     }
 
     @Override
@@ -98,141 +101,153 @@ abstract class MySQLRowMeta implements ResultRowMeta {
     }
 
     @Override
-    public boolean isCaseSensitive(int index) throws ReactiveSQLException {
-        checkIndex(index);
-        return false;
+    public final boolean isCaseSensitive(int indexBaseOne) throws ReactiveSQLException {
+        return doIsCaseSensitive(this.columnMetas[convertIndex(indexBaseOne)]);
     }
 
     @Override
-    public boolean isCaseSensitive(String columnLabel) throws ReactiveSQLException {
+    public final boolean isCaseSensitive(String columnLabel) throws ReactiveSQLException {
         return isCaseSensitive(convertToIndex(columnLabel));
     }
 
+    @Nullable
     @Override
-    public String getCatalogName(int index) throws ReactiveSQLException {
-        return null;
+    public final String getCatalogName(int indexBaseOne) throws ReactiveSQLException {
+        return this.columnMetas[convertIndex(indexBaseOne)].catalogName;
+    }
+
+    @Nullable
+    @Override
+    public final String getCatalogName(String columnLabel) throws ReactiveSQLException {
+        return getCatalogName(convertToIndex(columnLabel));
+    }
+
+    @Nullable
+    @Override
+    public final String getSchemaName(int indexBaseOne) throws ReactiveSQLException {
+        return this.columnMetas[convertIndex(indexBaseOne)].schemaName;
+    }
+
+    @Nullable
+    @Override
+    public final String getSchemaName(String columnLabel) throws ReactiveSQLException {
+        return getSchemaName(convertToIndex(columnLabel));
+    }
+
+    @Nullable
+    @Override
+    public final String getTableName(int indexBaseOne) throws ReactiveSQLException {
+        return this.columnMetas[convertIndex(indexBaseOne)].tableName;
+    }
+
+    @Nullable
+    @Override
+    public final String getTableName(String columnLabel) throws ReactiveSQLException {
+        return getTableName(convertToIndex(columnLabel));
     }
 
     @Override
-    public String getCatalogName(String columnLabel) throws ReactiveSQLException {
-        return null;
+    public final String getColumnLabel(int indexBaseOne) throws ReactiveSQLException {
+        return this.columnMetas[convertIndex(indexBaseOne)].columnAlias;
+    }
+
+    @Nullable
+    @Override
+    public final String getColumnName(int indexBaseOne) throws ReactiveSQLException {
+        return this.columnMetas[convertIndex(indexBaseOne)].columnName;
     }
 
     @Override
-    public String getSchemaName(int index) throws ReactiveSQLException {
-        return null;
+    public boolean isReadOnly(int indexBaseOne) throws ReactiveSQLException {
+        MySQLColumnMeta columnMeta = this.columnMetas[convertIndex(indexBaseOne)];
+        return MySQLStringUtils.isEmpty(columnMeta.tableName)
+                && MySQLStringUtils.isEmpty(columnMeta.columnName);
     }
 
     @Override
-    public String getSchemaName(String columnLabel) throws ReactiveSQLException {
-        return null;
+    public final boolean isReadOnly(String columnLabel) throws ReactiveSQLException {
+        return isReadOnly(convertToIndex(columnLabel));
     }
 
     @Override
-    public String getTableName(int index) throws ReactiveSQLException {
-        return null;
+    public final boolean isWritable(int indexBaseOne) throws ReactiveSQLException {
+        return !isReadOnly(indexBaseOne);
     }
 
     @Override
-    public String getTableName(String columnLabel) throws ReactiveSQLException {
-        return null;
+    public final boolean isWritable(String columnLabel) throws ReactiveSQLException {
+        return isWritable(convertToIndex(columnLabel));
     }
 
     @Override
-    public String getColumnLabel(int index) throws ReactiveSQLException {
-        return null;
+    public final Class<?> getColumnClass(int indexBaseOne) throws ReactiveSQLException {
+        return this.columnMetas[convertIndex(indexBaseOne)].mysqlType.javaType();
     }
 
     @Override
-    public String getColumnName(int index) throws ReactiveSQLException {
-        return null;
+    public final Class<?> getColumnClass(String columnLabel) throws ReactiveSQLException {
+        return getColumnClass(convertToIndex(columnLabel));
     }
 
     @Override
-    public boolean isReadOnly(int index) throws ReactiveSQLException {
-        return false;
+    public final long getPrecision(int indexBaseOne) throws ReactiveSQLException {
+        return obtainPrecision(this.columnMetas[convertIndex(indexBaseOne)]);
     }
 
     @Override
-    public boolean isReadOnly(String columnLabel) throws ReactiveSQLException {
-        return false;
+    public final long getPrecision(String columnLabel) throws ReactiveSQLException {
+        return getPrecision(convertToIndex(columnLabel));
     }
 
     @Override
-    public boolean isWritable(int index) throws ReactiveSQLException {
-        return false;
-    }
-
-    @Override
-    public boolean isWritable(String columnLabel) throws ReactiveSQLException {
-        return false;
-    }
-
-    @Override
-    public Class<?> getColumnClass(int index) throws ReactiveSQLException {
-        return null;
-    }
-
-    @Override
-    public Class<?> getColumnClass(String columnLabel) throws ReactiveSQLException {
-        return null;
-    }
-
-    @Override
-    public long getPrecision(int index) throws ReactiveSQLException {
-        return 0;
-    }
-
-    @Override
-    public long getPrecision(String columnLabel) throws ReactiveSQLException {
-        return 0;
-    }
-
-    @Override
-    public int getScale(int index) throws ReactiveSQLException {
-        return 0;
+    public int getScale(int indexBaseOne) throws ReactiveSQLException {
+        MySQLColumnMeta columnMeta = this.columnMetas[convertIndex(indexBaseOne)];
+        return (columnMeta.mysqlType == MySQLType.DECIMAL || columnMeta.mysqlType == MySQLType.DECIMAL_UNSIGNED)
+                ? columnMeta.decimals
+                : 0;
     }
 
     @Override
     public int getScale(String columnLabel) throws ReactiveSQLException {
-        return 0;
+        return getScale(convertToIndex(columnLabel));
     }
 
+
     @Override
-    public boolean isPrimaryKey(int index) throws ReactiveSQLException {
-        return false;
+    public boolean isPrimaryKey(int indexBaseOne) throws ReactiveSQLException {
+        return (this.columnMetas[convertIndex(indexBaseOne)].definitionFlags & MySQLColumnMeta.PRI_KEY_FLAG) != 0;
     }
 
     @Override
     public boolean isPrimaryKey(String columnLabel) throws ReactiveSQLException {
-        return false;
+        return isPrimaryKey(convertToIndex(columnLabel));
     }
 
     @Override
-    public boolean isUniqueKey(int index) throws ReactiveSQLException {
-        return false;
+    public boolean isUniqueKey(int indexBaseOne) throws ReactiveSQLException {
+        return (this.columnMetas[convertIndex(indexBaseOne)].definitionFlags & MySQLColumnMeta.UNIQUE_KEY_FLAG) != 0;
     }
 
     @Override
     public boolean isUniqueKey(String columnLabel) throws ReactiveSQLException {
-        return false;
+        return isUniqueKey(convertToIndex(columnLabel));
     }
 
     @Override
-    public boolean isMultipleKey(int index) throws ReactiveSQLException {
-        return false;
+    public boolean isMultipleKey(int indexBaseOne) throws ReactiveSQLException {
+        return (this.columnMetas[convertIndex(indexBaseOne)].definitionFlags & MySQLColumnMeta.MULTIPLE_KEY_FLAG) != 0;
     }
 
     @Override
     public boolean isMultipleKey(String columnLabel) throws ReactiveSQLException {
-        return false;
+        return isMultipleKey(convertToIndex(columnLabel));
     }
 
     int convertToIndex(String columnLabel) {
         MySQLColumnMeta[] columnMetas = this.columnMetas;
         int len = columnMetas.length;
         for (int i = 0; i < len; i++) {
-            if (columnMetas[i].alias.equals(columnLabel)) {
+            if (columnMetas[i].columnAlias.equals(columnLabel)) {
                 return i;
             }
         }
@@ -240,18 +255,20 @@ abstract class MySQLRowMeta implements ResultRowMeta {
                 new SQLException(String.format("not found index for columnLabel[%s]", columnLabel)));
     }
 
-    private void checkIndex(int index) {
-        if (index < 0 || index >= this.columnMetas.length) {
+    private int convertIndex(int indexBaseOne) {
+        if (indexBaseOne < 1 || indexBaseOne > this.columnMetas.length) {
             throw new ReactiveSQLException(new SQLException(
-                    String.format("index[%s] out of bounds[%s].", index, columnMetas.length)))
+                    String.format("index[%s] out of bounds[1 -- %s].", indexBaseOne, columnMetas.length)));
         }
+        return indexBaseOne - 1;
     }
 
     private boolean doIsCaseSensitive(MySQLColumnMeta columnMeta) {
+        boolean caseSensitive;
         switch (columnMeta.mysqlType) {
             case BIT:
-            case TINY:
-            case SHORT:
+            case TINYINT:
+            case SMALLINT:
             case INT:
             case INT_UNSIGNED:
             case MEDIUMINT:
@@ -267,8 +284,8 @@ abstract class MySQLRowMeta implements ResultRowMeta {
             case TIME:
             case TIMESTAMP:
             case DATETIME:
-                return false;
-
+                caseSensitive = false;
+                break;
             case CHAR:
             case VARCHAR:
             case TINYTEXT:
@@ -278,11 +295,82 @@ abstract class MySQLRowMeta implements ResultRowMeta {
             case JSON:
             case ENUM:
             case SET:
-                String collationName = CharsetMapping.COLLATION_INDEX_TO_COLLATION_NAME[field.getCollationIndex()];
-                return ((collationName != null) && !collationName.endsWith("_ci"));
-
+                String collationName = CharsetMapping.getCollationNameByIndex(columnMeta.collationIndex);
+                caseSensitive = ((collationName != null) && !collationName.endsWith("_ci"));
+                break;
             default:
-                return true;
+                caseSensitive = true;
+        }
+        return caseSensitive;
+    }
+
+    long obtainPrecision(MySQLColumnMeta columnMeta) {
+        long precision;
+        // Protocol returns precision and scale differently for some types. We need to align then to I_S.
+        switch (columnMeta.mysqlType) {
+            case DECIMAL:
+                precision = columnMeta.length;
+                precision--;
+                if (columnMeta.decimals > 0) {
+                    precision--;
+                }
+                break;
+            case DECIMAL_UNSIGNED:
+                precision = columnMeta.length;
+                if (columnMeta.decimals > 0) {
+                    precision--;
+                }
+                break;
+            case TINYBLOB:
+            case BLOB:
+            case MEDIUMBLOB:
+            case LONGBLOB:
+                precision = columnMeta.length;
+                break;
+            case CHAR:
+            case VARCHAR:
+            case TINYTEXT:
+            case MEDIUMTEXT:
+            case TEXT:
+            case LONGTEXT:
+                // char
+                int collationIndex = columnMeta.collationIndex;
+                Integer mblen = this.customIndexMblenMap.get(collationIndex);
+                if (mblen == null) {
+                    mblen = CharsetMapping.getMblen(collationIndex);
+                }
+                precision = columnMeta.length / mblen;
+                break;
+            case YEAR:
+            case DATE:
+                precision = 0L;
+                break;
+            case TIME:
+                precision = columnMeta.length - 11L;
+                if (precision < 0) {
+                    precision = 0;
+                }
+                break;
+            case TIMESTAMP:
+            case DATETIME:
+                precision = columnMeta.length - 20L;
+                if (precision < 0) {
+                    precision = 0;
+                }
+                break;
+            default:
+                precision = -1;
+
+        }
+        return precision;
+    }
+
+
+    private static final class SimpleIndexMySQLRowMeta extends MySQLRowMeta {
+
+        private SimpleIndexMySQLRowMeta(MySQLColumnMeta[] columnMetas
+                , Map<Integer, Integer> customIndexMblenMap) {
+            super(columnMetas, customIndexMblenMap);
         }
     }
 
