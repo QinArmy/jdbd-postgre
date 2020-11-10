@@ -58,7 +58,7 @@ public abstract class PacketDecoders {
             return null;
         }
         ByteBuf decodedByteBuf;
-        final ComQueryResponse responseType = decodeComQueryResponseType(cumulateBuf, negotiatedCapability);
+        final ComQueryResponse responseType = detectComQueryResponseType(cumulateBuf, negotiatedCapability);
         switch (responseType) {
             case OK:
             case ERROR:
@@ -80,7 +80,7 @@ public abstract class PacketDecoders {
     /**
      * invoke this method after invoke {@link PacketUtils#hasOnePacket(ByteBuf)}.
      */
-    static ComQueryResponse decodeComQueryResponseType(final ByteBuf cumulateBuf, final int negotiatedCapability) {
+    static ComQueryResponse detectComQueryResponseType(final ByteBuf cumulateBuf, final int negotiatedCapability) {
         int readerIndex = cumulateBuf.readerIndex();
         final int payloadLength = PacketUtils.getInt3(cumulateBuf, readerIndex);
         // skip header
@@ -109,26 +109,31 @@ public abstract class PacketDecoders {
         return responseType;
     }
 
-    static MySQLRowMeta readResultRowMeta(ByteBuf payloadBuf, final int negotiatedCapability
+    static MySQLColumnMeta[] readResultColumnMetas(ByteBuf columnMetaPacket, final int negotiatedCapability
             , Charset metaCharset, Properties properties) {
+
+        columnMetaPacket.skipBytes(PacketUtils.HEADER_SIZE); //skip header
+
         final byte metadataFollows;
         final boolean hasOptionalMeta = (negotiatedCapability & ClientProtocol.CLIENT_OPTIONAL_RESULTSET_METADATA) != 0;
         if (hasOptionalMeta) {
-            metadataFollows = payloadBuf.readByte();
+            metadataFollows = columnMetaPacket.readByte();
         } else {
             metadataFollows = -1;
         }
-        final int columnCount = PacketUtils.readLenEncAsInt(payloadBuf);
+        final int columnCount = PacketUtils.readLenEncAsInt(columnMetaPacket);
         MySQLColumnMeta[] columnMetas = new MySQLColumnMeta[columnCount];
+
         if (!hasOptionalMeta || metadataFollows == 1) {
             for (int i = 0; i < columnCount; i++) {
-                columnMetas[i] = MySQLColumnMeta.readFor41(payloadBuf, metaCharset, properties);
+                columnMetaPacket.skipBytes(PacketUtils.HEADER_SIZE); // skip header
+                columnMetas[i] = MySQLColumnMeta.readFor41(columnMetaPacket, metaCharset, properties);
             }
         }
         if ((negotiatedCapability & ClientProtocol.CLIENT_DEPRECATE_EOF) != 0) {
-            EofPacket.readPacket(payloadBuf, negotiatedCapability);
+            EofPacket.readPacket(columnMetaPacket, negotiatedCapability);
         }
-        return MySQLRowMeta.from(columnMetas);
+        return columnMetas;
     }
 
 

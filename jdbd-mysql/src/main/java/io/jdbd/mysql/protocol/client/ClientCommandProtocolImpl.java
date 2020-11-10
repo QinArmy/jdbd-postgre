@@ -153,7 +153,7 @@ public final class ClientCommandProtocolImpl implements ClientCommandProtocol {
     }
 
     private MySQLRowMeta createRowMeta(MySQLColumnMeta[] mySQLColumnMetas) {
-        return MySQLRowMeta.from(mySQLColumnMetas);
+        return MySQLRowMeta.from(mySQLColumnMetas, null);
     }
 
 

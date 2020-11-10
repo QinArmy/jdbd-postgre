@@ -9,9 +9,9 @@ public final class EofPacket implements MySQLPacket {
     public static final int EOF_HEADER = 0xFE;
 
     public static EofPacket readPacket(ByteBuf packetBuf, final int capabilities) {
-        int payloadLength = PacketUtils.readInt3(packetBuf);
+        packetBuf.skipBytes(3); //skip payload length
         // skip sequence_id
-        packetBuf.readByte();
+        short sequenceId = packetBuf.readByte();
         if (PacketUtils.readInt1(packetBuf) != EOF_HEADER) {
             throw new IllegalArgumentException("packetBuf isn't error packet.");
         }
@@ -22,17 +22,23 @@ public final class EofPacket implements MySQLPacket {
         } else {
             throw new IllegalArgumentException("only supported CLIENT_PROTOCOL_41.");
         }
-        return new EofPacket(statusFags, warnings);
+        return new EofPacket(sequenceId, statusFags, warnings);
     }
 
+    private final short sequenceId;
 
     private final int statusFags;
 
     private final int warnings;
 
-    private EofPacket(int statusFags, int warnings) {
+    private EofPacket(short sequenceId, int statusFags, int warnings) {
+        this.sequenceId = sequenceId;
         this.statusFags = statusFags;
         this.warnings = warnings;
+    }
+
+    public short getSequenceId() {
+        return this.sequenceId;
     }
 
     public int getStatusFags() {

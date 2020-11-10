@@ -1,6 +1,5 @@
 package io.jdbd.mysql.protocol.client;
 
-import io.jdbd.JdbdRuntimeException;
 import io.jdbd.mysql.JdbdMySQLException;
 import io.jdbd.mysql.protocol.*;
 import io.jdbd.mysql.protocol.authentication.*;
@@ -111,6 +110,27 @@ final class ClientConnectionProtocolImpl implements ClientConnectionProtocol, Pr
 
     private final AtomicInteger handshakeCollationIndex = new AtomicInteger(0);
 
+    /**
+     * @see <a href="https://dev.mysql.com/doc/refman/8.0/en/charset-connection.html"> character_set_client system variable</a>
+     * @see PropertyKey#characterEncoding
+     */
+    private final AtomicReference<Charset> charsetClient = new AtomicReference<>(null);
+
+    /**
+     * @see <a href="https://dev.mysql.com/doc/refman/8.0/en/charset-connection.html"> character_set_results system variable</a>
+     * @see PropertyKey#characterSetResults
+     */
+    private final AtomicReference<Charset> charsetResults = new AtomicReference<>(null);
+
+    /**
+     * @see <a href="https://dev.mysql.com/doc/refman/8.0/en/charset-connection.html"> collation_connection system variable</a>
+     * @see PropertyKey#connectionCollation
+     */
+    private final AtomicReference<Integer> collationConnection = new AtomicReference<>(null);
+
+    private final AtomicReference<Map<Integer, Integer>> customMblenMap = new AtomicReference<>(null);
+
+    private final AtomicReference<Map<Integer, String>> customCharsetMap = new AtomicReference<>(null);
 
     private ClientConnectionProtocolImpl(MySQLUrl mySQLUrl, Connection connection) {
         this.mySQLUrl = mySQLUrl;
@@ -783,17 +803,33 @@ final class ClientConnectionProtocolImpl implements ClientConnectionProtocol, Pr
         return Mono.error(new JdbdMySQLException("Not sslNegotiate phase,current phase[%s]", currentPhase));
     }
 
-    private Mono<MySQLRowMeta> executeQueryCommand(String command, final AtomicInteger sequenceId) {
+    private Mono<MySQLRowMeta> executeQueryCommand(String command) {
         // 1. create COM_QUERY packet.
         ByteBuf packetBuf = createPacketBuffer(command.length());
         packetBuf.writeByte(PacketUtils.COM_QUERY_HEADER)
-                // here still use  handshakeCharset TODO think right?
-                .writeBytes(command.getBytes(this.handshakeCharset));
-        return sendPacket(packetBuf, sequenceId) //2. send COM_QUERY packet
+                .writeBytes(command.getBytes(obtainCharsetClient()));
+        return sendPacket(packetBuf, null) //2. send COM_QUERY packet
                 .then(Mono.defer(this::receiveResultSetMetadataPacket))//3. receive row meta packet
-                .map(metaBuf -> handleResultRowMetadataPacket(metaBuf, sequenceId)) //3. convert row meta packet to MySQLRowMeta instance
+                .map(this::handleResultRowMetadataPacket) //3. convert row meta packet to MySQLRowMeta instance
                 ;
     }
+
+    private Charset obtainCharsetClient() {
+        Charset charsetClient = this.charsetClient.get();
+        if (charsetClient == null) {
+            charsetClient = this.handshakeCharset;
+        }
+        return charsetClient;
+    }
+
+    private Charset obtainCharsetResults() {
+        Charset charsetClient = this.charsetResults.get();
+        if (charsetClient == null) {
+            charsetClient = StandardCharsets.UTF_8;
+        }
+        return charsetClient;
+    }
+
 
     private Triple<AuthenticationPlugin, Boolean, Map<String, AuthenticationPlugin>> obtainAuthenticationPlugin() {
         Map<String, AuthenticationPlugin> pluginMap = loadAuthenticationPluginMap();
@@ -924,25 +960,6 @@ final class ClientConnectionProtocolImpl implements ClientConnectionProtocol, Pr
     }
 
 
-    private byte mapClientCollationIndex() {
-        int charsetIndex;
-        HandshakeV10Packet handshakePacket = this.handshakeV10Packet.get();
-        if (handshakePacket == null) {
-            throw new IllegalStateException("client no handshake.");
-        }
-        charsetIndex = CharsetMapping.getCollationIndexForJavaEncoding(
-                this.handshakeCharset.name(), handshakePacket.getServerVersion());
-        if (charsetIndex == 0) {
-            charsetIndex = CharsetMapping.MYSQL_COLLATION_INDEX_utf8;
-        }
-        if (charsetIndex > 255) {
-            throw new JdbdRuntimeException("client collation mapping error.") {
-            };
-        }
-        return (byte) charsetIndex;
-    }
-
-
     private HandshakeV10Packet obtainHandshakeV10Packet() {
         HandshakeV10Packet packet = this.handshakeV10Packet.get();
         if (packet == null) {
@@ -1007,14 +1024,12 @@ final class ClientConnectionProtocolImpl implements ClientConnectionProtocol, Pr
 
 
     private Mono<Void> detectCustomCollation() {
-        final AtomicInteger sequenceId = new AtomicInteger(-1);
-        return executeQueryCommand("SHOW COLLATION", sequenceId)
+        return executeQueryCommand("SHOW COLLATION")
                 .flatMap(this::extractCollationRowData);
     }
 
     private Mono<Void> detectCustomCharset() {
-        final AtomicInteger sequenceId = new AtomicInteger(-1);
-        return executeQueryCommand("SHOW CHARSET", sequenceId)
+        return executeQueryCommand("SHOW CHARSET")
                 .flatMap(this::extractCharsetRowData);
     }
 
@@ -1045,6 +1060,7 @@ final class ClientConnectionProtocolImpl implements ClientConnectionProtocol, Pr
     }
 
     private Mono<Void> extractCharsetRowData(MySQLRowMeta metadata) {
+
         return Mono.empty();
     }
 
@@ -1072,19 +1088,26 @@ final class ClientConnectionProtocolImpl implements ClientConnectionProtocol, Pr
     }
 
 
-    private MySQLRowMeta handleResultRowMetadataPacket(ByteBuf packetBuf, AtomicInteger sequenceId) {
+    private MySQLRowMeta handleResultRowMetadataPacket(ByteBuf columnMetaPacket) {
         PacketDecoders.ComQueryResponse response;
-        response = PacketDecoders.decodeComQueryResponseType(packetBuf, obtainNegotiatedCapability());
+        final int negotiatedCapability = obtainNegotiatedCapability();
+        response = PacketDecoders.detectComQueryResponseType(columnMetaPacket, negotiatedCapability);
         if (response == PacketDecoders.ComQueryResponse.TEXT_RESULT) {
-            packetBuf.skipBytes(3); // skip payload length
-            sequenceId.set(PacketUtils.readInt1(packetBuf));
-            // due to here character_set_results unknown, use UTF_8 ,see https://dev.mysql.com/doc/refman/8.0/en/charset-metadata.html
-            // and https://dev.mysql.com/doc/refman/8.0/en/server-system-variables.html#sysvar_character_set_results
-            return PacketDecoders.readResultRowMeta(packetBuf, obtainNegotiatedCapability()
+            MySQLColumnMeta[] columnMetas = PacketDecoders.readResultColumnMetas(
+                    columnMetaPacket, negotiatedCapability
                     , StandardCharsets.UTF_8, this.properties);
+            return MySQLRowMeta.from(columnMetas, obtainCustomMblenMap());
         } else {
             throw new JdbdMySQLException("Expected result set response,but %s ", response);
         }
+    }
+
+    private Map<Integer, Integer> obtainCustomMblenMap() {
+        Map<Integer, Integer> map = this.customMblenMap.get();
+        if (map == null) {
+            map = Collections.emptyMap();
+        }
+        return map;
     }
 
     /**
@@ -1095,8 +1118,8 @@ final class ClientConnectionProtocolImpl implements ClientConnectionProtocol, Pr
         return sendPacket(packetBuffer, this.sequenceId);
     }
 
-    private Mono<Void> sendPacket(ByteBuf packetBuffer, AtomicInteger sequenceId) {
-        PacketUtils.writePacketHeader(packetBuffer, sequenceId.addAndGet(1));
+    private Mono<Void> sendPacket(ByteBuf packetBuffer, @Nullable AtomicInteger sequenceId) {
+        PacketUtils.writePacketHeader(packetBuffer, sequenceId == null ? 0 : sequenceId.addAndGet(1));
         return Mono.from(this.connection.outbound()
                 .send(Mono.just(packetBuffer)));
     }

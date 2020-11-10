@@ -37,8 +37,8 @@ abstract class MySQLRowMeta implements ResultRowMeta {
     }
 
     @Override
-    public final JDBCType getJdbdType(int indexBaseOne) throws ReactiveSQLException {
-        return this.columnMetas[convertIndex(indexBaseOne)].mysqlType.jdbcType();
+    public final JDBCType getJdbdType(int indexBaseZero) throws ReactiveSQLException {
+        return this.columnMetas[convertIndex(indexBaseZero)].mysqlType.jdbcType();
     }
 
     @Override
@@ -47,8 +47,8 @@ abstract class MySQLRowMeta implements ResultRowMeta {
     }
 
     @Override
-    public final boolean isPhysicalColumn(int indexBaseOne) throws ReactiveSQLException {
-        MySQLColumnMeta columnMeta = this.columnMetas[convertIndex(indexBaseOne)];
+    public final boolean isPhysicalColumn(int indexBaseZero) throws ReactiveSQLException {
+        MySQLColumnMeta columnMeta = this.columnMetas[convertIndex(indexBaseZero)];
         return StringUtils.hasText(columnMeta.tableName)
                 && StringUtils.hasText(columnMeta.columnName);
     }
@@ -59,8 +59,8 @@ abstract class MySQLRowMeta implements ResultRowMeta {
     }
 
     @Override
-    public final SQLType getSQLType(int indexBaseOne) throws ReactiveSQLException {
-        return this.columnMetas[convertIndex(indexBaseOne)].mysqlType;
+    public final SQLType getSQLType(int indexBaseZero) throws ReactiveSQLException {
+        return this.columnMetas[convertIndex(indexBaseZero)].mysqlType;
     }
 
     @Override
@@ -69,8 +69,8 @@ abstract class MySQLRowMeta implements ResultRowMeta {
     }
 
     @Override
-    public final NullMode getNullMode(int indexBaseOne) throws ReactiveSQLException {
-        return (this.columnMetas[convertIndex(indexBaseOne)].definitionFlags & MySQLColumnMeta.NOT_NULL_FLAG) != 0
+    public final NullMode getNullMode(int indexBaseZero) throws ReactiveSQLException {
+        return (this.columnMetas[convertIndex(indexBaseZero)].definitionFlags & MySQLColumnMeta.NOT_NULL_FLAG) != 0
                 ? NullMode.NON_NULL
                 : NullMode.NULLABLE;
     }
@@ -81,8 +81,8 @@ abstract class MySQLRowMeta implements ResultRowMeta {
     }
 
     @Override
-    public final boolean isSigned(int indexBaseOne) throws ReactiveSQLException {
-        return (this.columnMetas[convertIndex(indexBaseOne)].definitionFlags & MySQLColumnMeta.UNSIGNED_FLAG) == 0;
+    public final boolean isSigned(int indexBaseZero) throws ReactiveSQLException {
+        return (this.columnMetas[convertIndex(indexBaseZero)].definitionFlags & MySQLColumnMeta.UNSIGNED_FLAG) == 0;
     }
 
     @Override
@@ -91,8 +91,8 @@ abstract class MySQLRowMeta implements ResultRowMeta {
     }
 
     @Override
-    public final boolean isAutoIncrement(int indexBaseOne) throws ReactiveSQLException {
-        return (this.columnMetas[convertIndex(indexBaseOne)].definitionFlags & MySQLColumnMeta.AUTO_INCREMENT_FLAG) != 0;
+    public final boolean isAutoIncrement(int indexBaseZero) throws ReactiveSQLException {
+        return (this.columnMetas[convertIndex(indexBaseZero)].definitionFlags & MySQLColumnMeta.AUTO_INCREMENT_FLAG) != 0;
     }
 
     @Override
@@ -101,8 +101,8 @@ abstract class MySQLRowMeta implements ResultRowMeta {
     }
 
     @Override
-    public final boolean isCaseSensitive(int indexBaseOne) throws ReactiveSQLException {
-        return doIsCaseSensitive(this.columnMetas[convertIndex(indexBaseOne)]);
+    public final boolean isCaseSensitive(int indexBaseZero) throws ReactiveSQLException {
+        return doIsCaseSensitive(this.columnMetas[convertIndex(indexBaseZero)]);
     }
 
     @Override
@@ -112,8 +112,8 @@ abstract class MySQLRowMeta implements ResultRowMeta {
 
     @Nullable
     @Override
-    public final String getCatalogName(int indexBaseOne) throws ReactiveSQLException {
-        return this.columnMetas[convertIndex(indexBaseOne)].catalogName;
+    public final String getCatalogName(int indexBaseZero) throws ReactiveSQLException {
+        return this.columnMetas[convertIndex(indexBaseZero)].catalogName;
     }
 
     @Nullable
@@ -124,8 +124,8 @@ abstract class MySQLRowMeta implements ResultRowMeta {
 
     @Nullable
     @Override
-    public final String getSchemaName(int indexBaseOne) throws ReactiveSQLException {
-        return this.columnMetas[convertIndex(indexBaseOne)].schemaName;
+    public final String getSchemaName(int indexBaseZero) throws ReactiveSQLException {
+        return this.columnMetas[convertIndex(indexBaseZero)].schemaName;
     }
 
     @Nullable
@@ -136,8 +136,8 @@ abstract class MySQLRowMeta implements ResultRowMeta {
 
     @Nullable
     @Override
-    public final String getTableName(int indexBaseOne) throws ReactiveSQLException {
-        return this.columnMetas[convertIndex(indexBaseOne)].tableName;
+    public final String getTableName(int indexBaseZero) throws ReactiveSQLException {
+        return this.columnMetas[convertIndex(indexBaseZero)].tableName;
     }
 
     @Nullable
@@ -147,19 +147,24 @@ abstract class MySQLRowMeta implements ResultRowMeta {
     }
 
     @Override
-    public final String getColumnLabel(int indexBaseOne) throws ReactiveSQLException {
-        return this.columnMetas[convertIndex(indexBaseOne)].columnAlias;
+    public final String getColumnLabel(int indexBaseZero) throws ReactiveSQLException {
+        return this.columnMetas[convertIndex(indexBaseZero)].columnAlias;
+    }
+
+    @Override
+    public int getColumnIndex(String columnLabel) throws ReactiveSQLException {
+        return convertToIndex(columnLabel);
     }
 
     @Nullable
     @Override
-    public final String getColumnName(int indexBaseOne) throws ReactiveSQLException {
-        return this.columnMetas[convertIndex(indexBaseOne)].columnName;
+    public final String getColumnName(int indexBaseZero) throws ReactiveSQLException {
+        return this.columnMetas[convertIndex(indexBaseZero)].columnName;
     }
 
     @Override
-    public boolean isReadOnly(int indexBaseOne) throws ReactiveSQLException {
-        MySQLColumnMeta columnMeta = this.columnMetas[convertIndex(indexBaseOne)];
+    public boolean isReadOnly(int indexBaseZero) throws ReactiveSQLException {
+        MySQLColumnMeta columnMeta = this.columnMetas[convertIndex(indexBaseZero)];
         return MySQLStringUtils.isEmpty(columnMeta.tableName)
                 && MySQLStringUtils.isEmpty(columnMeta.columnName);
     }
@@ -170,8 +175,8 @@ abstract class MySQLRowMeta implements ResultRowMeta {
     }
 
     @Override
-    public final boolean isWritable(int indexBaseOne) throws ReactiveSQLException {
-        return !isReadOnly(indexBaseOne);
+    public final boolean isWritable(int indexBaseZero) throws ReactiveSQLException {
+        return !isReadOnly(indexBaseZero);
     }
 
     @Override
@@ -180,8 +185,8 @@ abstract class MySQLRowMeta implements ResultRowMeta {
     }
 
     @Override
-    public final Class<?> getColumnClass(int indexBaseOne) throws ReactiveSQLException {
-        return this.columnMetas[convertIndex(indexBaseOne)].mysqlType.javaType();
+    public final Class<?> getColumnClass(int indexBaseZero) throws ReactiveSQLException {
+        return this.columnMetas[convertIndex(indexBaseZero)].mysqlType.javaType();
     }
 
     @Override
@@ -190,8 +195,8 @@ abstract class MySQLRowMeta implements ResultRowMeta {
     }
 
     @Override
-    public final long getPrecision(int indexBaseOne) throws ReactiveSQLException {
-        return obtainPrecision(this.columnMetas[convertIndex(indexBaseOne)]);
+    public final long getPrecision(int indexBaseZero) throws ReactiveSQLException {
+        return obtainPrecision(this.columnMetas[convertIndex(indexBaseZero)]);
     }
 
     @Override
@@ -200,8 +205,8 @@ abstract class MySQLRowMeta implements ResultRowMeta {
     }
 
     @Override
-    public int getScale(int indexBaseOne) throws ReactiveSQLException {
-        MySQLColumnMeta columnMeta = this.columnMetas[convertIndex(indexBaseOne)];
+    public int getScale(int indexBaseZero) throws ReactiveSQLException {
+        MySQLColumnMeta columnMeta = this.columnMetas[convertIndex(indexBaseZero)];
         return (columnMeta.mysqlType == MySQLType.DECIMAL || columnMeta.mysqlType == MySQLType.DECIMAL_UNSIGNED)
                 ? columnMeta.decimals
                 : 0;
@@ -214,8 +219,8 @@ abstract class MySQLRowMeta implements ResultRowMeta {
 
 
     @Override
-    public boolean isPrimaryKey(int indexBaseOne) throws ReactiveSQLException {
-        return (this.columnMetas[convertIndex(indexBaseOne)].definitionFlags & MySQLColumnMeta.PRI_KEY_FLAG) != 0;
+    public boolean isPrimaryKey(int indexBaseZero) throws ReactiveSQLException {
+        return (this.columnMetas[convertIndex(indexBaseZero)].definitionFlags & MySQLColumnMeta.PRI_KEY_FLAG) != 0;
     }
 
     @Override
@@ -224,8 +229,8 @@ abstract class MySQLRowMeta implements ResultRowMeta {
     }
 
     @Override
-    public boolean isUniqueKey(int indexBaseOne) throws ReactiveSQLException {
-        return (this.columnMetas[convertIndex(indexBaseOne)].definitionFlags & MySQLColumnMeta.UNIQUE_KEY_FLAG) != 0;
+    public boolean isUniqueKey(int indexBaseZero) throws ReactiveSQLException {
+        return (this.columnMetas[convertIndex(indexBaseZero)].definitionFlags & MySQLColumnMeta.UNIQUE_KEY_FLAG) != 0;
     }
 
     @Override
@@ -234,8 +239,8 @@ abstract class MySQLRowMeta implements ResultRowMeta {
     }
 
     @Override
-    public boolean isMultipleKey(int indexBaseOne) throws ReactiveSQLException {
-        return (this.columnMetas[convertIndex(indexBaseOne)].definitionFlags & MySQLColumnMeta.MULTIPLE_KEY_FLAG) != 0;
+    public boolean isMultipleKey(int indexBaseZero) throws ReactiveSQLException {
+        return (this.columnMetas[convertIndex(indexBaseZero)].definitionFlags & MySQLColumnMeta.MULTIPLE_KEY_FLAG) != 0;
     }
 
     @Override
@@ -255,12 +260,12 @@ abstract class MySQLRowMeta implements ResultRowMeta {
                 new SQLException(String.format("not found index for columnLabel[%s]", columnLabel)));
     }
 
-    private int convertIndex(int indexBaseOne) {
-        if (indexBaseOne < 1 || indexBaseOne > this.columnMetas.length) {
+    private int convertIndex(int indexBaseZero) {
+        if (indexBaseZero < 0 || indexBaseZero >= this.columnMetas.length) {
             throw new ReactiveSQLException(new SQLException(
-                    String.format("index[%s] out of bounds[1 -- %s].", indexBaseOne, columnMetas.length)));
+                    String.format("index[%s] out of bounds[1 -- %s].", indexBaseZero, columnMetas.length)));
         }
-        return indexBaseOne - 1;
+        return indexBaseZero;
     }
 
     private boolean doIsCaseSensitive(MySQLColumnMeta columnMeta) {

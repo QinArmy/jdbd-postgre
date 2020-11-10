@@ -64,7 +64,7 @@ public class MySQLParserTests {
 
     @Test
     public void mysqlConnect() throws Exception {
-        String url = "jdbc:mysql://(address=(host=localhost)(port=3306))/army?useSSL=false";
+        String url = "jdbc:mysql://(address=(host=localhost)(port=3306))/army?useSSL=false&detectCustomCollations=true";
         Driver.class.getName();
         try (Connection conn = DriverManager.getConnection(url, "army_w", "army123")) {
             try (Statement st = conn.createStatement()) {
