@@ -181,7 +181,7 @@ public abstract class CharsetMapping {
 
     public static int getMblen(int collationIndex) {
         Collation collation = INDEX_TO_COLLATION.get(collationIndex);
-        if (collation == null) {
+        if (collation == null || COLLATION_NOT_DEFINED.equals(collation.collationName)) {
             throw new JdbdMySQLException("Not found Collation for collationIndex[%s]", collationIndex);
         }
         return collation.mySQLCharset.mblen;
@@ -213,6 +213,17 @@ public abstract class CharsetMapping {
             }
         }
         return currentChoice == null ? null : currentChoice.charsetName;
+    }
+
+    /**
+     * exclude not use {@link Collation}
+     */
+    @Nullable
+    public static Charset getJavaCharsetByCollationIndex(int collationIndex) {
+        Collation collation = INDEX_TO_COLLATION.get(collationIndex);
+        return (collation == null || COLLATION_NOT_DEFINED.equals(collation.collationName))
+                ? null
+                : Charset.forName(collation.mySQLCharset.charsetName);
     }
 
     public static int getCollationIndexForJavaEncoding(String javaEncoding, ServerVersion version) {
@@ -329,7 +340,7 @@ public abstract class CharsetMapping {
         list.add(new Collation(30, "latin5_turkish_ci", 1, latin5));
         list.add(new Collation(31, "latin1_german2_ci", 0, latin1));
         list.add(new Collation(32, "armscii8_general_ci", 0, armscii8));
-        list.add(new Collation(33, "utf8_general_ci", 1, utf8));
+        list.add(new Collation(MYSQL_COLLATION_INDEX_utf8, "utf8_general_ci", 1, utf8));
         list.add(new Collation(34, "cp1250_czech_cs", 0, cp1250));
         list.add(new Collation(35, "ucs2_general_ci", 1, ucs2));
         list.add(new Collation(36, "cp866_general_ci", 1, cp866));

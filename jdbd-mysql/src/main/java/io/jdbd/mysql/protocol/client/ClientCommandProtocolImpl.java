@@ -1,7 +1,6 @@
 package io.jdbd.mysql.protocol.client;
 
 import io.jdbd.mysql.JdbdMySQLException;
-import io.jdbd.mysql.protocol.ClientConstants;
 import io.jdbd.mysql.protocol.EofPacket;
 import io.jdbd.mysql.protocol.MySQLPacket;
 import io.jdbd.mysql.protocol.conf.MySQLUrl;
@@ -60,7 +59,7 @@ public final class ClientCommandProtocolImpl implements ClientCommandProtocol {
     public Mono<MySQLPacket> comQueryForResultSet(String sql) {
         final ByteBuf packetBuf = PacketUtils.createPacketBuffer(this.connection, sql.length() + 1);
 
-        packetBuf.writeByte(ClientConstants.COM_QUERY) //write command header
+        packetBuf.writeByte(PacketUtils.COM_QUERY_HEADER) //write command header
                 .writeBytes(sql.getBytes(this.clientCharset)) //write query
         ;
         final AtomicInteger sequenceId = new AtomicInteger(-1);

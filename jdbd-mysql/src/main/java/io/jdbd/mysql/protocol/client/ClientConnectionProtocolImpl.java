@@ -1,5 +1,6 @@
 package io.jdbd.mysql.protocol.client;
 
+import io.jdbd.ResultRow;
 import io.jdbd.mysql.JdbdMySQLException;
 import io.jdbd.mysql.protocol.*;
 import io.jdbd.mysql.protocol.authentication.*;
@@ -41,11 +42,12 @@ import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
 import java.security.UnrecoverableKeyException;
 import java.security.cert.CertificateException;
+import java.time.ZoneId;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
-final class ClientConnectionProtocolImpl implements ClientConnectionProtocol, ProtocolAssistant {
+final class ClientConnectionProtocolImpl extends AbstractClientProtocol implements ClientConnectionProtocol, ProtocolAssistant {
 
     private static final Logger LOG = LoggerFactory.getLogger(ClientConnectionProtocolImpl.class);
 
@@ -81,11 +83,7 @@ final class ClientConnectionProtocolImpl implements ClientConnectionProtocol, Pr
 
     private static final int INITIALIZING_PHASE = 4;
 
-    private final MySQLUrl mySQLUrl;
 
-    private final Connection connection;
-
-    private final MySQLCumulateReceiver cumulateReceiver;
 
     private final AtomicReference<HandshakeV10Packet> handshakeV10Packet = new AtomicReference<>(null);
 
@@ -133,13 +131,11 @@ final class ClientConnectionProtocolImpl implements ClientConnectionProtocol, Pr
     private final AtomicReference<Map<Integer, String>> customCharsetMap = new AtomicReference<>(null);
 
     private ClientConnectionProtocolImpl(MySQLUrl mySQLUrl, Connection connection) {
-        this.mySQLUrl = mySQLUrl;
-        this.connection = connection;
+        super(connection, mySQLUrl, MySQLCumulateSubscriber.from(connection));
+
         this.properties = mySQLUrl.getHosts().get(0).getProperties();
         this.handshakeCharset = this.properties.getProperty(PropertyKey.characterEncoding
                 , Charset.class, StandardCharsets.UTF_8);
-
-        this.cumulateReceiver = MySQLCumulateSubscriber.from(connection);
     }
 
 
@@ -361,7 +357,25 @@ final class ClientConnectionProtocolImpl implements ClientConnectionProtocol, Pr
         return obtainNegotiatedCapability();
     }
 
+    @Override
+    Map<Integer, Charset> obtainCustomCollationIndexToCharsetMap() {
+        return Collections.emptyMap();
+    }
 
+    @Override
+    Map<Integer, Integer> obtainCustomCollationIndexToMblenMap() {
+        return Collections.emptyMap();
+    }
+
+    @Override
+    ZoneId obtainDatabaseZoneId() {
+        return ZoneId.systemDefault();
+    }
+
+    @Override
+    ZoneId obtainClientZoneId() {
+        return ZoneId.systemDefault();
+    }
 
     /*################################## blow private method ##################################*/
 
@@ -1060,9 +1074,19 @@ final class ClientConnectionProtocolImpl implements ClientConnectionProtocol, Pr
     }
 
     private Mono<Void> extractCharsetRowData(MySQLRowMeta metadata) {
-
+        this.cumulateReceiver.receive(PacketDecoders::resultSetMultiRowDecoder)
+                .flatMap(multiRowBuf -> convertResultRow(multiRowBuf, metadata))
+        ;
         return Mono.empty();
     }
+
+
+    private Flux<ResultRow> convertResultRow(ByteBuf multiRowBuf, MySQLRowMeta metadata) {
+        multiRowBuf.skipBytes(PacketUtils.HEADER_SIZE);
+
+        return Flux.empty();
+    }
+
 
     /**
      * @see #receivePayload()

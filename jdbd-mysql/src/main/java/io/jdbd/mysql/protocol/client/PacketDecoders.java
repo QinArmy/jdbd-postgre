@@ -148,13 +148,14 @@ public abstract class PacketDecoders {
         int readerIndex = originalReaderIndex;
         boolean decoderEnd = false;
 
-        for (int readableBytes, packetLength; ; ) {
+        for (int readableBytes, payloadLength, packetLength; ; ) {
             readableBytes = writeIndex - readerIndex;
             if (readableBytes < PacketUtils.HEADER_SIZE) {
                 break;
             }
-            packetLength = PacketUtils.getInt3(cumulateBuf, readerIndex);
-            if (readableBytes < PacketUtils.HEADER_SIZE + packetLength) {
+            payloadLength = PacketUtils.getInt3(cumulateBuf, readerIndex);
+            packetLength = PacketUtils.HEADER_SIZE + payloadLength;
+            if (readableBytes < packetLength) {
                 break;
             }
             switch (PacketUtils.getInt1(cumulateBuf, readerIndex + PacketUtils.HEADER_SIZE)) {

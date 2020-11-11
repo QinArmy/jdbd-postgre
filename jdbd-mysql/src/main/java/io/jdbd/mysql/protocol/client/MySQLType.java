@@ -266,7 +266,7 @@ public enum MySQLType implements SQLType {
      * A bit-field type. M indicates the number of bits per value, from 1 to 64. The default is 1 if M is omitted.
      * Protocol: TYPE_BIT = 16
      */
-    BIT(JDBCType.BIT, Boolean.class), // TODO maybe precision=8 ?
+    BIT(JDBCType.BIT, Long.class),
     /**
      * The size of JSON documents stored in JSON columns is limited to the value of the max_allowed_packet system variable (max value 1073741824).
      * (While the server manipulates a JSON value internally in memory, it can be larger; the limit applies when the server stores it.)
@@ -471,6 +471,10 @@ public enum MySQLType implements SQLType {
         return mySQLType;
     }
 
+    private static MySQLType fromBool(MySQLColumnMeta columnMeta, Properties properties) {
+        return BOOLEAN;
+    }
+
     private static MySQLType fromShort(MySQLColumnMeta columnMeta, Properties properties) {
         return isUnsigned(columnMeta)
                 ? SMALLINT_UNSIGNED
@@ -673,7 +677,9 @@ public enum MySQLType implements SQLType {
 
         map.put(TYPE_VAR_STRING, MySQLType::fromVarcharOrVarString);
         map.put(TYPE_STRING, MySQLType::fromString);
+        map.put(TYPE_BOOL, MySQLType::fromBool);
         map.put(TYPE_GEOMETRY, MySQLType::fromGeometry);
+
 
         return Collections.unmodifiableMap(map);
     }
@@ -701,16 +707,17 @@ public enum MySQLType implements SQLType {
     public static final int TYPE_VARCHAR = 15;
     public static final int TYPE_BIT = 16;
 
+    public static final int TYPE_BOOL = 244;
     public static final int TYPE_JSON = 245;
     public static final int TYPE_NEWDECIMAL = 246;
     public static final int TYPE_ENUM = 247;
-    public static final int TYPE_SET = 248;
 
+    public static final int TYPE_SET = 248;
     public static final int TYPE_TINY_BLOB = 249;
     public static final int TYPE_MEDIUM_BLOB = 250;
     public static final int TYPE_LONG_BLOB = 251;
-    public static final int TYPE_BLOB = 252;
 
+    public static final int TYPE_BLOB = 252;
     public static final int TYPE_VAR_STRING = 253;
     public static final int TYPE_STRING = 254;
     public static final int TYPE_GEOMETRY = 255;

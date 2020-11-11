@@ -1,11 +1,13 @@
 package io.jdbd.mysql.protocol.client;
 
+import io.jdbd.mysql.protocol.CharsetMapping;
 import io.jdbd.mysql.protocol.conf.Properties;
 import io.jdbd.mysql.util.MySQLObjects;
 import io.netty.buffer.ByteBuf;
 import reactor.util.annotation.Nullable;
 
 import java.nio.charset.Charset;
+import java.util.Map;
 
 /**
  * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/group__group__cs__column__definition__flags.html"> Column Definition Flags</a>
@@ -83,6 +85,68 @@ final class MySQLColumnMeta {
         // mysqlType must be last
         this.mysqlType = MySQLType.from(this, properties);
     }
+
+    long obtainPrecision(Map<Integer, Integer> customIndexMblenMap) {
+        long precision;
+        // Protocol returns precision and scale differently for some types. We need to align then to I_S.
+        switch (this.mysqlType) {
+            case DECIMAL:
+                precision = this.length;
+                precision--;// signed
+                if (this.decimals > 0) {
+                    precision--; // point
+                }
+                break;
+            case DECIMAL_UNSIGNED:
+                precision = this.length;
+                if (this.decimals > 0) {
+                    precision--;// point
+                }
+                break;
+            case TINYBLOB:
+            case BLOB:
+            case MEDIUMBLOB:
+            case LONGBLOB:
+                precision = this.length;
+                break;
+            case CHAR:
+            case VARCHAR:
+            case TINYTEXT:
+            case MEDIUMTEXT:
+            case TEXT:
+            case LONGTEXT:
+                // char
+                int collationIndex = this.collationIndex;
+                Integer mblen = customIndexMblenMap.get(collationIndex);
+                if (mblen == null) {
+                    mblen = CharsetMapping.getMblen(collationIndex);
+                }
+                precision = this.length / mblen;
+                break;
+            case YEAR:
+            case DATE:
+                precision = 0L;
+                break;
+            case TIME:
+                precision = this.length - 11L;
+                if (precision < 0) {
+                    precision = 0;
+                }
+                break;
+            case TIMESTAMP:
+            case DATETIME:
+                precision = this.length - 20L;
+                if (precision < 0) {
+                    precision = 0;
+                }
+                break;
+            default:
+                precision = -1;
+
+        }
+        return precision;
+    }
+
 
     /**
      * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_com_query_response_text_resultset_column_definition.html">Protocol::ColumnDefinition41</a>

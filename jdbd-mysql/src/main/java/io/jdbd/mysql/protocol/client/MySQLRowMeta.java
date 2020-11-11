@@ -196,7 +196,8 @@ abstract class MySQLRowMeta implements ResultRowMeta {
 
     @Override
     public final long getPrecision(int indexBaseZero) throws ReactiveSQLException {
-        return obtainPrecision(this.columnMetas[convertIndex(indexBaseZero)]);
+        return this.columnMetas[convertIndex(indexBaseZero)]
+                .obtainPrecision(this.customIndexMblenMap);
     }
 
     @Override
@@ -309,67 +310,6 @@ abstract class MySQLRowMeta implements ResultRowMeta {
         return caseSensitive;
     }
 
-    long obtainPrecision(MySQLColumnMeta columnMeta) {
-        long precision;
-        // Protocol returns precision and scale differently for some types. We need to align then to I_S.
-        switch (columnMeta.mysqlType) {
-            case DECIMAL:
-                precision = columnMeta.length;
-                precision--;
-                if (columnMeta.decimals > 0) {
-                    precision--;
-                }
-                break;
-            case DECIMAL_UNSIGNED:
-                precision = columnMeta.length;
-                if (columnMeta.decimals > 0) {
-                    precision--;
-                }
-                break;
-            case TINYBLOB:
-            case BLOB:
-            case MEDIUMBLOB:
-            case LONGBLOB:
-                precision = columnMeta.length;
-                break;
-            case CHAR:
-            case VARCHAR:
-            case TINYTEXT:
-            case MEDIUMTEXT:
-            case TEXT:
-            case LONGTEXT:
-                // char
-                int collationIndex = columnMeta.collationIndex;
-                Integer mblen = this.customIndexMblenMap.get(collationIndex);
-                if (mblen == null) {
-                    mblen = CharsetMapping.getMblen(collationIndex);
-                }
-                precision = columnMeta.length / mblen;
-                break;
-            case YEAR:
-            case DATE:
-                precision = 0L;
-                break;
-            case TIME:
-                precision = columnMeta.length - 11L;
-                if (precision < 0) {
-                    precision = 0;
-                }
-                break;
-            case TIMESTAMP:
-            case DATETIME:
-                precision = columnMeta.length - 20L;
-                if (precision < 0) {
-                    precision = 0;
-                }
-                break;
-            default:
-                precision = -1;
-
-        }
-        return precision;
-    }
-
 
     private static final class SimpleIndexMySQLRowMeta extends MySQLRowMeta {
 
@@ -378,5 +318,6 @@ abstract class MySQLRowMeta implements ResultRowMeta {
             super(columnMetas, customIndexMblenMap);
         }
     }
+
 
 }
