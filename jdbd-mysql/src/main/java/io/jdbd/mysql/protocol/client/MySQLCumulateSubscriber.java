@@ -359,7 +359,11 @@ final class MySQLCumulateSubscriber implements CoreSubscriber<ByteBuf>, MySQLCum
 
         @Override
         public void onError(Throwable t) {
-            this.sink.error(t);
+            if (this.sink.isCancelled()) {
+                this.sink.error(t);
+            } else {
+                LOG.warn("FluxMonoMySQLReceiver canceled,but io error.", t);
+            }
         }
 
         @Override
@@ -369,12 +373,20 @@ final class MySQLCumulateSubscriber implements CoreSubscriber<ByteBuf>, MySQLCum
 
         @Override
         public void onNext(ByteBuf byteBuf) {
-            this.sink.next(byteBuf);
+            if (!this.sink.isCancelled()) {
+                this.sink.next(byteBuf);
+            } else {
+                LOG.debug("FluxMonoMySQLReceiver canceled,skip byteBuf.");
+            }
         }
 
         @Override
         public void onComplete() {
-            this.sink.complete();
+            if (!this.sink.isCancelled()) {
+                this.sink.complete();
+            } else {
+                LOG.debug("FluxMonoMySQLReceiver canceled,skip complete signal.");
+            }
         }
     }
 

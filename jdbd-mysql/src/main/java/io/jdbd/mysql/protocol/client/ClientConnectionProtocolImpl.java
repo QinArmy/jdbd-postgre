@@ -87,7 +87,6 @@ final class ClientConnectionProtocolImpl extends AbstractClientProtocol implemen
     private static final int INITIALIZING_PHASE = 4;
 
 
-
     private final AtomicReference<HandshakeV10Packet> handshakeV10Packet = new AtomicReference<>(null);
 
     private final Properties properties;
@@ -131,7 +130,9 @@ final class ClientConnectionProtocolImpl extends AbstractClientProtocol implemen
 
     private final AtomicReference<Map<Integer, Integer>> customMblenMap = new AtomicReference<>(null);
 
-    private final AtomicReference<Map<Integer, String>> customCharsetMap = new AtomicReference<>(null);
+    private final AtomicReference<Map<Integer, CharsetMapping.CustomCollation>> customCollationMap = new AtomicReference<>(null);
+
+    private final AtomicReference<Set<String>> customCharsetNameSet = new AtomicReference<>(null);
 
     private ClientConnectionProtocolImpl(MySQLUrl mySQLUrl, Connection connection) {
         super(connection, mySQLUrl, MySQLCumulateSubscriber.from(connection));
@@ -147,7 +148,7 @@ final class ClientConnectionProtocolImpl extends AbstractClientProtocol implemen
         return receiveHandshake()
                 .then(Mono.defer(this::sslNegotiate))
                 .then(Mono.defer(this::authenticate))
-                .then(Mono.defer(this::configureSessionProperties))
+                .then(Mono.defer(this::configureSession))
                 .then(Mono.defer(this::initialize))
                 ;
     }
@@ -251,7 +252,7 @@ final class ClientConnectionProtocolImpl extends AbstractClientProtocol implemen
         if ((obtainNegotiatedCapability() & CLIENT_SSL) == 0) {
             return doAfterSendSslRequestEnd();
         }
-        return sendHandshakePacket(createSslRequestPacket())
+        return sendHandshakePacket(createSslRequest41Packet())
                 .then(Mono.defer(this::performSslHandshake))
                 .then(Mono.defer(this::doAfterSendSslRequestEnd))
                 ;
@@ -307,7 +308,7 @@ final class ClientConnectionProtocolImpl extends AbstractClientProtocol implemen
      *     If {@link PropertyKey#detectCustomCollations} is true,then firstly handle this.
      * </p>
      */
-    Mono<Void> configureSessionProperties() {
+    Mono<Void> configureSession() {
         final int phase = this.connectionPhase.get();
         if (phase != CONFIGURE_SESSION_PHASE) {
             return createConnectionPhaseNotMatchException(phase);
@@ -321,7 +322,7 @@ final class ClientConnectionProtocolImpl extends AbstractClientProtocol implemen
 
     /**
      * <p>
-     * must invoke after {@link #configureSessionProperties()}
+     * must invoke after {@link #configureSession()}
      * </p>
      * <p>
      * do initialize ,must contain below operation:
@@ -382,6 +383,35 @@ final class ClientConnectionProtocolImpl extends AbstractClientProtocol implemen
         return MySQLTimeUtils.toZoneOffset(ZoneId.systemDefault());
     }
 
+    @Override
+    int obtainNegotiatedCapability() {
+        Integer clientCapability = this.negotiatedCapability.get();
+        if (clientCapability == null) {
+            clientCapability = createNegotiatedCapability();
+            if (!this.negotiatedCapability.compareAndSet(null, clientCapability)) {
+                clientCapability = this.negotiatedCapability.get();
+            }
+        }
+        return clientCapability;
+    }
+
+    @Override
+    Charset obtainCharsetClient() {
+        Charset charsetClient = this.charsetClient.get();
+        if (charsetClient == null) {
+            charsetClient = this.handshakeCharset;
+        }
+        return charsetClient;
+    }
+
+    @Override
+    Charset obtainCharsetResults() {
+        Charset charsetClient = this.charsetResults.get();
+        if (charsetClient == null) {
+            charsetClient = StandardCharsets.UTF_8;
+        }
+        return charsetClient;
+    }
 
     /*################################## blow private method ##################################*/
 
@@ -554,25 +584,16 @@ final class ClientConnectionProtocolImpl extends AbstractClientProtocol implemen
      *
      * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_connection_phase.html#sect_protocol_connection_phase_initial_handshake_ssl_handshake">Protocol::SSL Handshake</a>
      */
-    private ByteBuf createSslRequestPacket() {
+    private ByteBuf createSslRequest41Packet() {
         ByteBuf packetBuf = createPacketBuffer(32);
-
-        final int serverCapability = obtainHandshakeV10Packet().getCapabilityFlags();
-        if ((serverCapability & CLIENT_PROTOCOL_41) != 0) {
-            // 1. client_flag
-            PacketUtils.writeInt4(packetBuf, obtainNegotiatedCapability());
-            // 2. max_packet_size
-            PacketUtils.writeInt4(packetBuf, MAX_PACKET_SIZE);
-            // 3. character_set,
-            PacketUtils.writeInt1(packetBuf, obtainHandshakeCollationIndex());
-            // 4. filler
-            packetBuf.writeZero(23);
-        } else {
-            // 1. client_flag
-            PacketUtils.writeInt2(packetBuf, obtainNegotiatedCapability());
-            // 2. max_packet_size
-            PacketUtils.writeInt3(packetBuf, MAX_PACKET_SIZE);
-        }
+        // 1. client_flag
+        PacketUtils.writeInt4(packetBuf, obtainNegotiatedCapability());
+        // 2. max_packet_size
+        PacketUtils.writeInt4(packetBuf, MAX_PACKET_SIZE);
+        // 3. character_set,
+        PacketUtils.writeInt1(packetBuf, obtainHandshakeCollationIndex());
+        // 4. filler
+        packetBuf.writeZero(23);
         return packetBuf;
     }
 
@@ -794,9 +815,10 @@ final class ClientConnectionProtocolImpl extends AbstractClientProtocol implemen
         if (!this.properties.getRequiredProperty(PropertyKey.detectCustomCollations, Boolean.class)) {
             return Mono.empty();
         }
-        return detectCustomCollation()
-                .then(Mono.defer(this::detectCustomCharset))
-                ;
+        return executeQueryCommand("SHOW COLLATION")
+                .flatMap(this::extractCollationRowData)
+                .then(Mono.defer(() -> executeQueryCommand("SHOW CHARSET")))
+                .flatMap(this::extractCharsetRowData);
     }
 
 
@@ -834,22 +856,6 @@ final class ClientConnectionProtocolImpl extends AbstractClientProtocol implemen
                 ;
     }
 
-    private Charset obtainCharsetClient() {
-        Charset charsetClient = this.charsetClient.get();
-        if (charsetClient == null) {
-            charsetClient = this.handshakeCharset;
-        }
-        return charsetClient;
-    }
-
-    private Charset obtainCharsetResults() {
-        Charset charsetClient = this.charsetResults.get();
-        if (charsetClient == null) {
-            charsetClient = StandardCharsets.UTF_8;
-        }
-        return charsetClient;
-    }
-
 
     private Triple<AuthenticationPlugin, Boolean, Map<String, AuthenticationPlugin>> obtainAuthenticationPlugin() {
         Map<String, AuthenticationPlugin> pluginMap = loadAuthenticationPluginMap();
@@ -883,16 +889,6 @@ final class ClientConnectionProtocolImpl extends AbstractClientProtocol implemen
         return new Triple<>(plugin, skipPassword, pluginMap);
     }
 
-    private int obtainNegotiatedCapability() {
-        Integer clientCapability = this.negotiatedCapability.get();
-        if (clientCapability == null) {
-            clientCapability = createNegotiatedCapability();
-            if (!this.negotiatedCapability.compareAndSet(null, clientCapability)) {
-                clientCapability = this.negotiatedCapability.get();
-            }
-        }
-        return clientCapability;
-    }
 
     private int createNegotiatedCapability() {
         HandshakeV10Packet handshakeV10Packet = obtainHandshakeV10Packet();
@@ -1043,17 +1039,6 @@ final class ClientConnectionProtocolImpl extends AbstractClientProtocol implemen
     }
 
 
-    private Mono<Void> detectCustomCollation() {
-        return executeQueryCommand("SHOW COLLATION")
-                .flatMap(this::extractCollationRowData);
-    }
-
-    private Mono<Void> detectCustomCharset() {
-        return executeQueryCommand("SHOW CHARSET")
-                .flatMap(this::extractCharsetRowData);
-    }
-
-
     /**
      * packet header have read.
      *
@@ -1069,28 +1054,79 @@ final class ClientConnectionProtocolImpl extends AbstractClientProtocol implemen
         return this.cumulateReceiver.receiveOne(this::comQueryResultSetMetaDecoder);
     }
 
-    private Flux<ByteBuf> receiveMultiRowData() {
-        return this.cumulateReceiver.receive(PacketDecoders::resultSetMultiRowDecoder);
-    }
-
+    /**
+     * extract {@code show collation} result to {@link #customCollationMap} and {@link #customCharsetNameSet}
+     */
     private Mono<Void> extractCollationRowData(MySQLRowMeta metadata) {
-        return receiveMultiRowData()
+        return receiveSingleResultSetRowDataAndHandleTerminator(metadata)
+                .filter(this::isCustomCollation)
+                .collectMap(this::customCollationMapKeyFunction, this::customCollationMapValueFunction)
+                .doOnNext(this::createCustomCollationMapForShowCollation)
                 .then()
                 ;
     }
 
+
+    private void createCustomCollationMapForShowCollation(Map<Integer, CharsetMapping.CustomCollation> map) {
+        this.customCollationMap.set(Collections.unmodifiableMap(map));
+        Set<String> charsetNameSet = new HashSet<>();
+        for (CharsetMapping.CustomCollation collation : map.values()) {
+            charsetNameSet.add(collation.charsetName);
+        }
+        this.customCharsetNameSet.set(Collections.unmodifiableSet(charsetNameSet));
+    }
+
+    private Integer customCollationMapKeyFunction(ResultRow resultRow) {
+        return resultRow.getRequiredObject("Id", Integer.class);
+    }
+
+    private CharsetMapping.CustomCollation customCollationMapValueFunction(ResultRow resultRow) {
+        return new CharsetMapping.CustomCollation(
+                resultRow.getRequiredObject("Id", Integer.class)
+                , resultRow.getRequiredObject("Collation", String.class)
+                , resultRow.getRequiredObject("Charset", String.class)
+                , -1 // placeholder.
+        );
+    }
+
+    private boolean isCustomCollation(ResultRow resultRow) {
+        return !CharsetMapping.INDEX_TO_COLLATION.containsKey(resultRow.getRequiredObject("Id", Integer.class));
+    }
+
     private Mono<Void> extractCharsetRowData(MySQLRowMeta metadata) {
-        this.cumulateReceiver.receive(PacketDecoders::resultSetMultiRowDecoder)
-                .flatMap(multiRowBuf -> convertResultRow(multiRowBuf, metadata))
-        ;
-        return Mono.empty();
+        final Set<String> charsetNameSet = this.customCharsetNameSet.get();
+        if (charsetNameSet == null) {
+            return Mono.error(new IllegalStateException("No detect custom collation."));
+        }
+        return receiveSingleResultSetRowDataAndHandleTerminator(metadata)
+                .filter(resultRow -> charsetNameSet.contains(resultRow.getRequiredObject("Charset", String.class)))
+                .collectMap(resultRow -> resultRow.getRequiredObject("Charset", String.class)
+                        , resultRow -> resultRow.getRequiredObject("Maxlen", Integer.class))
+                .doOnNext(this::createCustomCollations)
+                .then()
+                ;
     }
 
 
-    private Flux<ResultRow> convertResultRow(ByteBuf multiRowBuf, MySQLRowMeta metadata) {
-        multiRowBuf.skipBytes(PacketUtils.HEADER_SIZE);
+    private void createCustomCollations(final Map<String, Integer> customCharsetToMaxLenMap) {
+        // oldCollationMap no max length of charset.
+        Map<Integer, CharsetMapping.CustomCollation> oldCollationMap = this.customCollationMap.get();
+        if (oldCollationMap == null) {
+            throw new IllegalStateException("No detect custom collation.");
+        }
+        Map<Integer, CharsetMapping.CustomCollation> newCollationMap = new HashMap<>();
+        for (Map.Entry<Integer, CharsetMapping.CustomCollation> e : oldCollationMap.entrySet()) {
+            Integer index = e.getKey();
+            CharsetMapping.CustomCollation collation = e.getValue();
 
-        return Flux.empty();
+            String charsetName = collation.charsetName;
+            Integer maxLen = customCharsetToMaxLenMap.get(charsetName);
+            CharsetMapping.CustomCollation newCollation = new CharsetMapping.CustomCollation(
+                    index, collation.collationName, charsetName, maxLen);
+
+            newCollationMap.put(index, newCollation);
+        }
+        this.customCollationMap.set(Collections.unmodifiableMap(newCollationMap));
     }
 
 

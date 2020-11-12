@@ -21,7 +21,7 @@ public class ClientProtocolTests {
     @BeforeClass
     public static void createConnectionProtocol(ITestContext context) {
         // PREFERRED ,DISABLED
-        String url = "jdbc:mysql://localhost:3306/army?sslMode=DISABLED";
+        String url = "jdbc:mysql://localhost:3306/army?sslMode=DISABLED&detectCustomCollations=true";
         Map<String, String> properties = new HashMap<>();
         properties.put("user", "army_w");
         properties.put("password", "army123");
@@ -69,12 +69,12 @@ public class ClientProtocolTests {
     }
 
     /**
-     * test {@link ClientConnectionProtocolImpl#configureSessionProperties() }
+     * test {@link ClientConnectionProtocolImpl#configureSession() }
      */
     @Test(dependsOnMethods = {"receiveHandshake", "sslNegotiate", "authenticate"})
-    public void configureSessionPropertyGroup(ITestContext context) {
+    public void configureSession(ITestContext context) {
         obtainConnectionProtocol(context)
-                .configureSessionProperties()
+                .configureSession()
                 .block();
         LOG.info("Connection protocol configureSessionPropertyGroup phase execute success");
     }
@@ -82,7 +82,7 @@ public class ClientProtocolTests {
     /**
      * test {@link ClientConnectionProtocolImpl#initialize() }
      */
-    @Test(dependsOnMethods = {"receiveHandshake", "sslNegotiate", "authenticate", "configureSessionPropertyGroup"})
+    @Test(dependsOnMethods = {"receiveHandshake", "sslNegotiate", "authenticate", "configureSession"})
     public void initialize(ITestContext context) {
         obtainConnectionProtocol(context)
                 .initialize()
@@ -91,7 +91,7 @@ public class ClientProtocolTests {
     }
 
 
-    @Test(dependsOnMethods = {"receiveHandshake", "sslNegotiate", "authenticate", "configureSessionPropertyGroup", "initialize"})
+    @Test(dependsOnMethods = {"receiveHandshake", "sslNegotiate", "authenticate", "configureSession", "initialize"})
     public void comQueryForResultSet(ITestContext context) {
         ClientCommandProtocol commandProtocol;
         commandProtocol = obtainCommandProtocol(context);

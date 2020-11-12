@@ -114,6 +114,62 @@ abstract class MySQLResultRow implements ResultRow {
         }
     }
 
+    @Override
+    public Object getRequiredObject(int indexBaseZero) throws ReactiveSQLException {
+        Object value = getObject(indexBaseZero);
+        if (value == null) {
+            throw createNotRequiredException(indexBaseZero);
+        }
+        return value;
+    }
+
+    @Override
+    public <T> T getRequiredObject(int indexBaseZero, Class<T> columnClass) throws ReactiveSQLException {
+        T value = getObject(indexBaseZero, columnClass);
+        if (value == null) {
+            throw createNotRequiredException(indexBaseZero);
+        }
+        return value;
+    }
+
+    @Override
+    public Object getRequiredObject(String alias) throws ReactiveSQLException {
+        Object value = getObject(alias);
+        if (value == null) {
+            throw createNotRequiredException(alias);
+        }
+        return value;
+    }
+
+    @Override
+    public <T> T getRequiredObject(String alias, Class<T> columnClass) throws ReactiveSQLException {
+        T value = getObject(alias, columnClass);
+        if (value == null) {
+            throw createNotRequiredException(alias);
+        }
+        return value;
+    }
+
+    @Override
+    public <T extends Temporal> T getRequiredObject(int indexBaseZero, Class<T> targetClass, ZoneId targetZoneId)
+            throws ReactiveSQLException {
+        T value = getObject(indexBaseZero, targetClass, targetZoneId);
+        if (value == null) {
+            throw createNotRequiredException(indexBaseZero);
+        }
+        return value;
+    }
+
+    @Override
+    public <T extends Temporal> T getRequiredObject(String alias, Class<T> targetClass, ZoneId targetZoneId)
+            throws ReactiveSQLException {
+        T value = getObject(alias, targetClass, targetZoneId);
+        if (value == null) {
+            throw createNotRequiredException(alias);
+        }
+        return value;
+    }
+
     private int checkIndex(int indexBaseZero) {
         if (indexBaseZero < 0 || indexBaseZero >= this.columnValues.length) {
             throw new ReactiveSQLException(new SQLException(
@@ -537,6 +593,15 @@ abstract class MySQLResultRow implements ResultRow {
         return Collections.unmodifiableMap(map);
     }
 
+    private static ReactiveSQLException createNotRequiredException(int indexBaseZero) {
+        return new ReactiveSQLException(new SQLException(
+                String.format("Expected Object at index[%s] non-null,but null.", indexBaseZero)));
+    }
+
+    private static ReactiveSQLException createNotRequiredException(String alias) {
+        return new ReactiveSQLException(new SQLException(
+                String.format("Expected Object at alias[%s] non-null,but null.", alias)));
+    }
 
     private static ReactiveSQLException createNotSupportedException(Object value, Class<?> targetClass) {
         String m = String.format("Not support convert from value[%s] and type[%s] to [%s] ."

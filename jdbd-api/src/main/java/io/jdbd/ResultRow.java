@@ -11,14 +11,18 @@ public interface ResultRow {
     @Nullable
     Object getObject(int indexBaseZero) throws ReactiveSQLException;
 
+
     @Nullable
     <T> T getObject(int indexBaseZero, Class<T> columnClass) throws ReactiveSQLException;
+
 
     @Nullable
     Object getObject(String alias) throws ReactiveSQLException;
 
+
     @Nullable
     <T> T getObject(String alias, Class<T> columnClass) throws ReactiveSQLException;
+
 
     /**
      * <p>
@@ -53,6 +57,7 @@ public interface ResultRow {
     @Nullable
     <T extends Temporal> T getObject(int indexBaseZero, Class<T> targetClass, ZoneId targetZoneId) throws ReactiveSQLException;
 
+
     /**
      * <p>
      * return date time object with zone ,but precondition:{@link #getObject(String)} return below one of
@@ -84,6 +89,20 @@ public interface ResultRow {
      * @throws ReactiveSQLException if a database access error occurs
      */
     @Nullable
-    <T extends Temporal> T getObject(String alias, Class<T> targetClass, ZoneId targetZoneId) throws ReactiveSQLException;
+    <T extends Temporal> T getObject(String alias, Class<T> targetClass, ZoneId targetZoneId)
+            throws ReactiveSQLException;
 
+    Object getRequiredObject(int indexBaseZero) throws ReactiveSQLException;
+
+    <T> T getRequiredObject(int indexBaseZero, Class<T> columnClass) throws ReactiveSQLException;
+
+    Object getRequiredObject(String alias) throws ReactiveSQLException;
+
+    <T> T getRequiredObject(String alias, Class<T> columnClass) throws ReactiveSQLException;
+
+    <T extends Temporal> T getRequiredObject(int indexBaseZero, Class<T> targetClass, ZoneId targetZoneId)
+            throws ReactiveSQLException;
+
+    <T extends Temporal> T getRequiredObject(String alias, Class<T> targetClass, ZoneId targetZoneId)
+            throws ReactiveSQLException;
 }

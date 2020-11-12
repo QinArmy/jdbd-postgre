@@ -1,12 +1,19 @@
 package io.jdbd.mysql.protocol.client;
 
 import io.jdbd.ReactiveSQLException;
+import io.jdbd.ResultRow;
 import io.jdbd.mysql.JdbdMySQLException;
 import io.jdbd.mysql.protocol.CharsetMapping;
+import io.jdbd.mysql.protocol.ErrorPacket;
 import io.jdbd.mysql.protocol.conf.MySQLUrl;
 import io.jdbd.mysql.util.MySQLStringUtils;
 import io.netty.buffer.ByteBuf;
 import org.qinarmy.util.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.FluxSink;
+import reactor.core.publisher.Mono;
 import reactor.netty.Connection;
 import reactor.util.annotation.Nullable;
 
@@ -26,6 +33,8 @@ import java.util.function.BiFunction;
 import static java.time.temporal.ChronoField.*;
 
 abstract class AbstractClientProtocol implements ClientProtocol, ResultRowAdjutant {
+
+    private static final Logger LOG = LoggerFactory.getLogger(AbstractClientProtocol.class);
 
 
     static final DateTimeFormatter MYSQL_TIME_FORMATTER = new DateTimeFormatterBuilder()
@@ -66,7 +75,7 @@ abstract class AbstractClientProtocol implements ClientProtocol, ResultRowAdjuta
     /*################################## blow ResultRowAdjutant method ##################################*/
 
 
-    final BiFunction<ByteBuf, MySQLColumnMeta, Object> obtainResultColumnConverter(MySQLType mySQLType) {
+    final BiFunction<ByteBuf, MySQLColumnMeta, Object> obtainResultColumnParser(MySQLType mySQLType) {
         BiFunction<ByteBuf, MySQLColumnMeta, Object> function = this.resultColumnParserMap.get(mySQLType);
         if (function == null) {
             throw new JdbdMySQLException("Not found column parser for %s", mySQLType);
@@ -74,13 +83,34 @@ abstract class AbstractClientProtocol implements ClientProtocol, ResultRowAdjuta
         return function;
     }
 
+    /**
+     * receive multi row and read terminator, if error, publish error.
+     *
+     * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_com_query_response_text_resultset.html">Protocol::Text Resultset</a>
+     */
+    final Flux<ResultRow> receiveSingleResultSetRowDataAndHandleTerminator(MySQLRowMeta rowMeta) {
+        return this.cumulateReceiver.receive(PacketDecoders::resultSetMultiRowDecoder)
+                .flatMap(multiRowBuf -> {
+                    multiRowBuf.retain(); // for below convertResultRow method.
+                    return Flux.<ResultRow>create(sink -> convertResultRow(sink, multiRowBuf, rowMeta));
+                })
+                .onErrorResume(this::handleSingleResultTerminatorOnError)
+                .concatWith(Mono.defer(this::readAndHandleSingleResultTerminator))
+                ;
+    }
+
+
     abstract Map<Integer, Charset> obtainCustomCollationIndexToCharsetMap();
 
     abstract Map<Integer, Integer> obtainCustomCollationIndexToMblenMap();
 
     abstract ZoneOffset obtainDatabaseZoneOffset();
 
+    abstract int obtainNegotiatedCapability();
 
+    abstract Charset obtainCharsetClient();
+
+    abstract Charset obtainCharsetResults();
 
     /*################################## blow private method ##################################*/
 
@@ -444,6 +474,65 @@ abstract class AbstractClientProtocol implements ClientProtocol, ResultRowAdjuta
         return charset;
     }
 
+
+    private void convertResultRow(FluxSink<ResultRow> sink, ByteBuf multiRowBuf, MySQLRowMeta metadata) {
+        final MySQLColumnMeta[] columnMetas = metadata.columnMetas;
+
+        try {
+            while (multiRowBuf.isReadable()) {
+                multiRowBuf.skipBytes(PacketUtils.HEADER_SIZE);
+                Object[] columnValues = new Object[columnMetas.length];
+                MySQLColumnMeta columnMeta;
+                for (int i = 0; i < columnMetas.length; i++) {
+                    columnMeta = columnMetas[i];
+                    columnValues[i] = obtainResultColumnParser(columnMeta.mysqlType).apply(multiRowBuf, columnMeta);
+                }
+                sink.next(MySQLResultRow.from(columnValues, metadata, this));
+            }
+            sink.complete();
+        } catch (Throwable e) {
+            sink.error(e);
+        } finally {
+            if (multiRowBuf.refCnt() > 0) {
+                multiRowBuf.release(multiRowBuf.refCnt());
+            }
+        }
+
+    }
+
+    /**
+     * @see #readAndHandleSingleResultTerminator()
+     */
+    private Mono<ResultRow> handleSingleResultTerminatorOnError(Throwable e) {
+        return this.cumulateReceiver.receiveOnePacket() // skip terminator packet
+                .doOnNext(byteBuf -> LOG.debug("handle single result terminator finish on error."))
+                .then(Mono.error(e))
+                ;
+    }
+
+    /**
+     * @see #handleSingleResultTerminatorOnError(Throwable)
+     */
+    private Mono<ResultRow> readAndHandleSingleResultTerminator() {
+        return this.cumulateReceiver.receiveOnePacket()
+                .flatMap(this::handleSingleResultSetTerminator)
+                .then(Mono.empty())
+                ;
+    }
+
+    private Mono<ResultRow> handleSingleResultSetTerminator(ByteBuf terminatorPacket) {
+        terminatorPacket.skipBytes(PacketUtils.HEADER_SIZE); // skip header
+        Mono<ResultRow> mono;
+        if (ErrorPacket.isErrorPacket(terminatorPacket)) {
+            ErrorPacket packet = ErrorPacket.readPacket(terminatorPacket
+                    , obtainNegotiatedCapability(), obtainCharsetResults());
+            mono = Mono.error(new ReactiveSQLException(
+                    new SQLException(packet.getErrorMessage(), packet.getSqlState())));
+        } else {
+            mono = Mono.empty();
+        }
+        return mono;
+    }
 
     /*################################## blow private static method  ##################################*/
 

@@ -770,4 +770,22 @@ public abstract class CharsetMapping {
             return asString.toString();
         }
     }
+
+    public static final class CustomCollation {
+
+        public final int index;
+
+        public final String collationName;
+
+        public final String charsetName;
+
+        public final int maxLen;
+
+        public CustomCollation(int index, String collationName, String charsetName, int maxLen) {
+            this.index = index;
+            this.collationName = collationName;
+            this.charsetName = charsetName;
+            this.maxLen = maxLen;
+        }
+    }
 }
