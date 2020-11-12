@@ -14,6 +14,10 @@ public final class ReactiveSQLException extends RuntimeException {
         super(message, cause);
     }
 
+    public ReactiveSQLException(String message, ReactiveSQLException cause) {
+        super(message, cause);
+    }
+
     @NonNull
     @Override
     public synchronized SQLException getCause() {

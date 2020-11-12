@@ -14,9 +14,7 @@ import java.sql.JDBCType;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.Year;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 import java.util.function.BiFunction;
 
 /**
@@ -411,8 +409,9 @@ public enum MySQLType implements SQLType {
      */
     UNKNOWN(JDBCType.OTHER, Object.class);
 
-    private static Map<Integer, BiFunction<MySQLColumnMeta, Properties, MySQLType>> CONVERT_FUNCTION_MAP = createConverterMap();
+    private static final Map<Integer, BiFunction<MySQLColumnMeta, Properties, MySQLType>> CONVERT_FUNCTION_MAP = createConverterMap();
 
+    private static final List<MySQLType> VALUE_LIST = Collections.unmodifiableList(Arrays.asList(values()));
 
     private final JDBCType jdbcType;
 
@@ -439,6 +438,11 @@ public enum MySQLType implements SQLType {
     @Override
     public String getVendor() {
         return "MySQL";
+    }
+
+    @Override
+    public List<? extends SQLType> getFamily() {
+        return VALUE_LIST;
     }
 
 

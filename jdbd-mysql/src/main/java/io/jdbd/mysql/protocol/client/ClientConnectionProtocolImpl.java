@@ -7,6 +7,7 @@ import io.jdbd.mysql.protocol.authentication.*;
 import io.jdbd.mysql.protocol.conf.Properties;
 import io.jdbd.mysql.protocol.conf.*;
 import io.jdbd.mysql.util.MySQLStringUtils;
+import io.jdbd.mysql.util.MySQLTimeUtils;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelPipeline;
@@ -43,6 +44,8 @@ import java.security.NoSuchAlgorithmException;
 import java.security.UnrecoverableKeyException;
 import java.security.cert.CertificateException;
 import java.time.ZoneId;
+import java.time.ZoneOffset;
+import java.time.ZonedDateTime;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
@@ -197,6 +200,13 @@ final class ClientConnectionProtocolImpl extends AbstractClientProtocol implemen
     @Override
     public ServerVersion getServerVersion() {
         return obtainHandshakeV10Packet().getServerVersion();
+    }
+
+    /*################################## blow ResultRowAdjutant method ##################################*/
+
+    @Override
+    public ZoneOffset obtainClientZoneOffset() {
+        return ZonedDateTime.now(ZoneId.systemDefault()).getOffset();
     }
 
 
@@ -368,14 +378,10 @@ final class ClientConnectionProtocolImpl extends AbstractClientProtocol implemen
     }
 
     @Override
-    ZoneId obtainDatabaseZoneId() {
-        return ZoneId.systemDefault();
+    ZoneOffset obtainDatabaseZoneOffset() {
+        return MySQLTimeUtils.toZoneOffset(ZoneId.systemDefault());
     }
 
-    @Override
-    ZoneId obtainClientZoneId() {
-        return ZoneId.systemDefault();
-    }
 
     /*################################## blow private method ##################################*/
 

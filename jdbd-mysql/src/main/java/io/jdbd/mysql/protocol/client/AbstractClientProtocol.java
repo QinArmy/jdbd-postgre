@@ -4,6 +4,7 @@ import io.jdbd.ReactiveSQLException;
 import io.jdbd.mysql.JdbdMySQLException;
 import io.jdbd.mysql.protocol.CharsetMapping;
 import io.jdbd.mysql.protocol.conf.MySQLUrl;
+import io.jdbd.mysql.util.MySQLStringUtils;
 import io.netty.buffer.ByteBuf;
 import org.qinarmy.util.StringUtils;
 import reactor.netty.Connection;
@@ -17,14 +18,15 @@ import java.time.*;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeFormatterBuilder;
 import java.util.Collections;
-import java.util.HashMap;
+import java.util.EnumMap;
 import java.util.Locale;
 import java.util.Map;
 import java.util.function.BiFunction;
 
 import static java.time.temporal.ChronoField.*;
 
-abstract class AbstractClientProtocol implements ClientProtocol {
+abstract class AbstractClientProtocol implements ClientProtocol, ResultRowAdjutant {
+
 
     static final DateTimeFormatter MYSQL_TIME_FORMATTER = new DateTimeFormatterBuilder()
             .appendValue(HOUR_OF_DAY, 2)
@@ -44,6 +46,8 @@ abstract class AbstractClientProtocol implements ClientProtocol {
             .append(MYSQL_TIME_FORMATTER)
             .toFormatter(Locale.ENGLISH);
 
+    private static final long LONG_SIGNED_BIT = (1L << 63);
+
 
     final Connection connection;
 
@@ -59,6 +63,9 @@ abstract class AbstractClientProtocol implements ClientProtocol {
         this.cumulateReceiver = cumulateReceiver;
     }
 
+    /*################################## blow ResultRowAdjutant method ##################################*/
+
+
     final BiFunction<ByteBuf, MySQLColumnMeta, Object> obtainResultColumnConverter(MySQLType mySQLType) {
         BiFunction<ByteBuf, MySQLColumnMeta, Object> function = this.resultColumnParserMap.get(mySQLType);
         if (function == null) {
@@ -71,9 +78,9 @@ abstract class AbstractClientProtocol implements ClientProtocol {
 
     abstract Map<Integer, Integer> obtainCustomCollationIndexToMblenMap();
 
-    abstract ZoneId obtainDatabaseZoneId();
+    abstract ZoneOffset obtainDatabaseZoneOffset();
 
-    abstract ZoneId obtainClientZoneId();
+
 
     /*################################## blow private method ##################################*/
 
@@ -83,7 +90,7 @@ abstract class AbstractClientProtocol implements ClientProtocol {
      * @see MySQLType#DECIMAL_UNSIGNED
      */
     @Nullable
-    private Object toDecimal(ByteBuf multiRowBuf, MySQLColumnMeta columnMeta) {
+    private BigDecimal toDecimal(ByteBuf multiRowBuf, MySQLColumnMeta columnMeta) {
         String decimalText = PacketUtils.readStringLenEnc(multiRowBuf, obtainResultColumnCharset(columnMeta));
         try {
             return decimalText == null ? null : new BigDecimal(decimalText);
@@ -103,7 +110,7 @@ abstract class AbstractClientProtocol implements ClientProtocol {
      * @see MySQLType#INT
      */
     @Nullable
-    private Object toInt(ByteBuf multiRowBuf, MySQLColumnMeta columnMeta) {
+    private Integer toInt(ByteBuf multiRowBuf, MySQLColumnMeta columnMeta) {
         String intText = PacketUtils.readStringLenEnc(multiRowBuf, obtainResultColumnCharset(columnMeta));
         try {
             return intText == null ? null : Integer.parseInt(intText);
@@ -117,7 +124,7 @@ abstract class AbstractClientProtocol implements ClientProtocol {
      * @see MySQLType#BIGINT
      */
     @Nullable
-    private Object toLong(ByteBuf multiRowBuf, MySQLColumnMeta columnMeta) {
+    private Long toLong(ByteBuf multiRowBuf, MySQLColumnMeta columnMeta) {
         String longText = PacketUtils.readStringLenEnc(multiRowBuf, obtainResultColumnCharset(columnMeta));
         try {
             return longText == null ? null : Long.parseLong(longText);
@@ -130,7 +137,7 @@ abstract class AbstractClientProtocol implements ClientProtocol {
      * @see MySQLType#BIGINT_UNSIGNED
      */
     @Nullable
-    private Object toBigInteger(ByteBuf multiRowBuf, MySQLColumnMeta columnMeta) {
+    private BigInteger toBigInteger(ByteBuf multiRowBuf, MySQLColumnMeta columnMeta) {
         String integerText = PacketUtils.readStringLenEnc(multiRowBuf, obtainResultColumnCharset(columnMeta));
         try {
             return integerText == null ? null : new BigInteger(integerText);
@@ -143,37 +150,30 @@ abstract class AbstractClientProtocol implements ClientProtocol {
      * @see MySQLType#BOOLEAN
      */
     @Nullable
-    private Object toBoolean(ByteBuf multiRowBuf, MySQLColumnMeta columnMeta) {
+    private Boolean toBoolean(ByteBuf multiRowBuf, MySQLColumnMeta columnMeta) {
         String booleanText = PacketUtils.readStringLenEnc(multiRowBuf, obtainResultColumnCharset(columnMeta));
         if (booleanText == null) {
             return null;
         }
-        boolean value;
-        if (booleanText.equalsIgnoreCase("true")
-                || booleanText.equalsIgnoreCase("Y")
-                || booleanText.equalsIgnoreCase("T")) {
-            value = true;
 
-        } else if (booleanText.equalsIgnoreCase("false")
-                || booleanText.equalsIgnoreCase("N")
-                || booleanText.equalsIgnoreCase("F")) {
-            value = false;
-        } else {
+        Boolean boolValue = MySQLStringUtils.tryConvertToBoolean(booleanText);
+        if (boolValue != null) {
+            return boolValue;
+        }
+        boolean value;
+        try {
+            int num = Integer.parseInt(booleanText);
+            // Goes back to ODBC driver compatibility, and VB/Automation Languages/COM, where in Windows "-1" can mean true as well.
+            value = num != 0;
+        } catch (NumberFormatException e) {
             try {
-                int num = Integer.parseInt(booleanText);
-                // Goes back to ODBC driver compatibility, and VB/Automation Languages/COM, where in Windows "-1" can mean true as well.
-                value = (num > 0 || num == -1);
-            } catch (NumberFormatException e) {
-                try {
-                    BigDecimal decimal = new BigDecimal(booleanText);
-                    // this means that 0.1 or -1 will be TRUE
-                    value = decimal.compareTo(BigDecimal.ZERO) > 0 || decimal.compareTo(BigDecimal.valueOf(-1L)) == 0;
-                } catch (Throwable exception) {
-                    throw createParserResultSetException(columnMeta, exception, booleanText);
-                }
+                BigDecimal decimal = new BigDecimal(booleanText);
+                // this means that 0.1 or -1 will be TRUE
+                value = decimal.compareTo(BigDecimal.ZERO) != 0;
+            } catch (Throwable exception) {
+                throw createParserResultSetException(columnMeta, exception, booleanText);
             }
         }
-
         return value;
     }
 
@@ -182,7 +182,7 @@ abstract class AbstractClientProtocol implements ClientProtocol {
      * @see MySQLType#FLOAT_UNSIGNED
      */
     @Nullable
-    private Object toFlat(ByteBuf multiRowBuf, MySQLColumnMeta columnMeta) {
+    private Float toFlat(ByteBuf multiRowBuf, MySQLColumnMeta columnMeta) {
         String text = PacketUtils.readStringLenEnc(multiRowBuf, obtainResultColumnCharset(columnMeta));
         if (text == null) {
             return null;
@@ -199,7 +199,7 @@ abstract class AbstractClientProtocol implements ClientProtocol {
      * @see MySQLType#DOUBLE_UNSIGNED
      */
     @Nullable
-    private Object toDouble(ByteBuf multiRowBuf, MySQLColumnMeta columnMeta) {
+    private Double toDouble(ByteBuf multiRowBuf, MySQLColumnMeta columnMeta) {
         String text = PacketUtils.readStringLenEnc(multiRowBuf, obtainResultColumnCharset(columnMeta));
         if (text == null) {
             return null;
@@ -216,6 +216,7 @@ abstract class AbstractClientProtocol implements ClientProtocol {
      */
     @Nullable
     private Object toNull(ByteBuf multiRowBuf, MySQLColumnMeta columnMeta) {
+        // skip this column
         PacketUtils.readStringLenEnc(multiRowBuf, obtainResultColumnCharset(columnMeta));
         return null;
     }
@@ -225,17 +226,16 @@ abstract class AbstractClientProtocol implements ClientProtocol {
      * @see MySQLType#DATETIME
      */
     @Nullable
-    private Object toLocalDateTime(ByteBuf multiRowBuf, MySQLColumnMeta columnMeta) {
+    private LocalDateTime toLocalDateTime(ByteBuf multiRowBuf, MySQLColumnMeta columnMeta) {
         String text = PacketUtils.readStringLenEnc(multiRowBuf, obtainResultColumnCharset(columnMeta));
         if (text == null) {
             return null;
         }
         try {
             // convert data zone to client zone
-            return ZonedDateTime.of(LocalDateTime.parse(text, MYSQL_DATETIME_FORMATTER), obtainDatabaseZoneId())
-                    .withZoneSameInstant(obtainClientZoneId())
-                    .toLocalDateTime()
-                    ;
+            return ZonedDateTime.of(LocalDateTime.parse(text, MYSQL_DATETIME_FORMATTER), obtainDatabaseZoneOffset())
+                    .withZoneSameInstant(obtainClientZoneOffset())
+                    .toLocalDateTime();
         } catch (Throwable e) {
             throw createParserResultSetException(columnMeta, e, text);
         }
@@ -245,7 +245,7 @@ abstract class AbstractClientProtocol implements ClientProtocol {
      * @see MySQLType#DATE
      */
     @Nullable
-    private Object toLocalDate(ByteBuf multiRowBuf, MySQLColumnMeta columnMeta) {
+    private LocalDate toLocalDate(ByteBuf multiRowBuf, MySQLColumnMeta columnMeta) {
         String text = PacketUtils.readStringLenEnc(multiRowBuf, obtainResultColumnCharset(columnMeta));
         if (text == null) {
             return null;
@@ -262,19 +262,15 @@ abstract class AbstractClientProtocol implements ClientProtocol {
      * @see MySQLType#TIME
      */
     @Nullable
-    private Object toLocalTime(ByteBuf multiRowBuf, MySQLColumnMeta columnMeta) {
+    private LocalTime toLocalTime(ByteBuf multiRowBuf, MySQLColumnMeta columnMeta) {
         String text = PacketUtils.readStringLenEnc(multiRowBuf, obtainResultColumnCharset(columnMeta));
         if (text == null) {
             return null;
         }
         try {
-            ZoneOffset databaseOffset = ZonedDateTime.now(obtainDatabaseZoneId()).getOffset();
-            ZoneOffset clientOffset = ZonedDateTime.now(obtainClientZoneId()).getOffset();
-
-            return OffsetTime.of(LocalTime.parse(text, MYSQL_TIME_FORMATTER), databaseOffset)
-                    .withOffsetSameInstant(clientOffset)
-                    .toLocalTime()
-                    ;
+            return OffsetTime.of(LocalTime.parse(text, MYSQL_TIME_FORMATTER), obtainDatabaseZoneOffset())
+                    .withOffsetSameInstant(obtainClientZoneOffset())
+                    .toLocalTime();
         } catch (Throwable e) {
             throw createParserResultSetException(columnMeta, e, text);
         }
@@ -284,7 +280,7 @@ abstract class AbstractClientProtocol implements ClientProtocol {
      * @see MySQLType#YEAR
      */
     @Nullable
-    private Object toYear(ByteBuf multiRowBuf, MySQLColumnMeta columnMeta) {
+    private Year toYear(ByteBuf multiRowBuf, MySQLColumnMeta columnMeta) {
         String text = PacketUtils.readStringLenEnc(multiRowBuf, obtainResultColumnCharset(columnMeta));
         if (text == null) {
             return null;
@@ -309,24 +305,32 @@ abstract class AbstractClientProtocol implements ClientProtocol {
      * @see MySQLType#UNKNOWN
      */
     @Nullable
-    private Object toString(ByteBuf multiRowBuf, MySQLColumnMeta columnMeta) {
-        return PacketUtils.readStringLenEnc(multiRowBuf, obtainResultColumnCharset(columnMeta));
+    private String toString(ByteBuf multiRowBuf, MySQLColumnMeta columnMeta) {
+        try {
+            return PacketUtils.readStringLenEnc(multiRowBuf, obtainResultColumnCharset(columnMeta));
+        } catch (Throwable e) {
+            throw createParserResultSetException(columnMeta, e, null);
+        }
     }
 
+    /**
+     * @see MySQLType#BIT
+     */
     @Nullable
-    private Object toLongForBit(ByteBuf multiRowBuf, MySQLColumnMeta columnMeta) {
-        String text = PacketUtils.readStringLenEnc(multiRowBuf, obtainResultColumnCharset(columnMeta));
-        if (text == null) {
-            return null;
-        }
-        boolean negative = text.length() == 64 && text.charAt(0) == '1';
-        if (negative) {
-            text = text.substring(1);
-        }
+    private Long toLongForBit(ByteBuf multiRowBuf, MySQLColumnMeta columnMeta) {
+        String text = null;
         try {
+            text = PacketUtils.readStringLenEnc(multiRowBuf, obtainResultColumnCharset(columnMeta));
+            if (text == null) {
+                return null;
+            }
+            boolean negative = text.length() == 64 && text.charAt(0) == '1';
+            if (negative) {
+                text = text.substring(1);
+            }
             long bitResult = Long.parseLong(text, 2);
             if (negative) {
-                bitResult |= (1L << 63);
+                bitResult |= LONG_SIGNED_BIT;
             }
             return bitResult;
         } catch (Throwable e) {
@@ -343,14 +347,15 @@ abstract class AbstractClientProtocol implements ClientProtocol {
      * @see MySQLType#LONGBLOB
      */
     @Nullable
-    private Object toByteArray(ByteBuf multiRowBuf, MySQLColumnMeta columnMeta) {
+    private byte[] toByteArray(ByteBuf multiRowBuf, MySQLColumnMeta columnMeta) {
         try {
             int len = PacketUtils.readInt1(multiRowBuf);
             if (len == PacketUtils.NULL_LENGTH) {
-                return new byte[0];
+                return null;
             }
             byte[] bytes = new byte[len];
-            return multiRowBuf.readBytes(bytes);
+            multiRowBuf.readBytes(bytes);
+            return bytes;
         } catch (Throwable e) {
             throw createParserResultSetException(columnMeta, e, null);
         }
@@ -361,6 +366,7 @@ abstract class AbstractClientProtocol implements ClientProtocol {
      */
     @Nullable
     private Object toGeometry(ByteBuf multiRowBuf, MySQLColumnMeta columnMeta) {
+        //TODO add Geometry class
         return PacketUtils.readStringLenEnc(multiRowBuf, obtainResultColumnCharset(columnMeta));
     }
 
@@ -368,7 +374,7 @@ abstract class AbstractClientProtocol implements ClientProtocol {
      * @return a unmodifiable map.
      */
     private Map<MySQLType, BiFunction<ByteBuf, MySQLColumnMeta, Object>> createResultColumnTypeParserMap() {
-        Map<MySQLType, BiFunction<ByteBuf, MySQLColumnMeta, Object>> map = new HashMap<>((int) (41 / 0.75f));
+        Map<MySQLType, BiFunction<ByteBuf, MySQLColumnMeta, Object>> map = new EnumMap<>(MySQLType.class);
 
         map.put(MySQLType.DECIMAL, this::toDecimal);
         map.put(MySQLType.DECIMAL_UNSIGNED, this::toDecimal);    // 1 fore

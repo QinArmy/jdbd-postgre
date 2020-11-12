@@ -1,6 +1,7 @@
 package io.jdbd.meta;
 
 import java.sql.JDBCType;
+import java.util.List;
 
 public interface SQLType {
 
@@ -25,5 +26,7 @@ public interface SQLType {
      * @return The name of the vendor for this data type
      */
     String getVendor();
+
+    List<? extends SQLType> getFamily();
 
 }
