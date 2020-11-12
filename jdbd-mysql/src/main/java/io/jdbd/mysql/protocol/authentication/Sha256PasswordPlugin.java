@@ -110,7 +110,7 @@ public class Sha256PasswordPlugin implements AuthenticationPlugin {
 
     protected final ByteBuf doNextAuthenticationStep(String password, ByteBuf fromServer) {
         ByteBuf payloadBuf;
-        if (protocolAssistant.isUseSsl()) {
+        if (this.protocolAssistant.isUseSsl()) {
             // allow plain text over SSL
             payloadBuf = cratePlanTextPasswordPacket(password);
         } else if (this.hasServerRSAPublicKeyFile.get()) {
@@ -118,7 +118,7 @@ public class Sha256PasswordPlugin implements AuthenticationPlugin {
             this.seed.set(PacketUtils.readStringTerm(fromServer, Charset.defaultCharset()));
             payloadBuf = createEncryptPasswordPacketWithPublicKey(password);
         } else if (!this.env.getRequiredProperty(PropertyKey.allowPublicKeyRetrieval, Boolean.class)) {
-            throw new JdbdMySQLException("can't connect.");
+            throw new JdbdMySQLException("Don't allow public key retrieval ,can't connect.");
         } else if (this.publicKeyRequested.get()
                 && fromServer.readableBytes() > ClientConstants.SEED_LENGTH) { // We must request the public key from the server to encrypt the password
             // Servers affected by Bug#70865 could send Auth Switch instead of key after Public Key Retrieval,

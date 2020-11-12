@@ -148,6 +148,26 @@ final class MySQLColumnMeta {
     }
 
 
+    @Override
+    public String toString() {
+        final StringBuilder sb = new StringBuilder("MySQLColumnMeta{");
+        sb.append("catalogName='").append(catalogName).append('\'');
+        sb.append(",\n schemaName='").append(schemaName).append('\'');
+        sb.append(",\n tableName='").append(tableName).append('\'');
+        sb.append(",\n tableAlias='").append(tableAlias).append('\'');
+        sb.append(",\n columnName='").append(columnName).append('\'');
+        sb.append(",\n columnAlias='").append(columnAlias).append('\'');
+        sb.append(",\n collationIndex=").append(collationIndex);
+        sb.append(",\n fixedLength=").append(fixedLength);
+        sb.append(",\n length=").append(length);
+        sb.append(",\n typeFlag=").append(typeFlag);
+        sb.append(",\n definitionFlags=").append(definitionFlags);
+        sb.append(",\n decimals=").append(decimals);
+        sb.append(",\n mysqlType=").append(mysqlType);
+        sb.append('}');
+        return sb.toString();
+    }
+
     /**
      * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_com_query_response_text_resultset_column_definition.html">Protocol::ColumnDefinition41</a>
      */
@@ -166,8 +186,9 @@ final class MySQLColumnMeta {
                 , "columnAlias");
         // 6. org_name,physical column name
         String columnName = PacketUtils.readStringLenEnc(payloadBuf, metaCharset);
-        // 7. length of fixed length fields
-        long fixedLength = PacketUtils.readLenEnc(payloadBuf);
+        // 7. length of fixed length fields ,[0x0c]
+        //
+        PacketUtils.readLenEnc(payloadBuf);
         // 8. character_set of column
         int collationIndex = PacketUtils.readInt2(payloadBuf);
 
@@ -187,7 +208,7 @@ final class MySQLColumnMeta {
                 catalogName, schemaName
                 , tableName, tableAlias
                 , columnName, columnAlias
-                , collationIndex, fixedLength
+                , collationIndex, length
                 , length, typeFlag
                 , definitionFlags, decimals
                 , properties

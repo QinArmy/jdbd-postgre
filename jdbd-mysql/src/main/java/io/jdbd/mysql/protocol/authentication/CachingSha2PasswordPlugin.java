@@ -68,6 +68,7 @@ public class CachingSha2PasswordPlugin extends Sha256PasswordPlugin {
                         return null;
                     case 4:
                         this.stage.set(AuthStage.FULL_AUTH);
+                        LOG.debug("Server demand FULL_AUTH");
                         break;
                     default:
                         throw new JdbdMySQLException("Unknown server response[%s] after fast auth.", flag);

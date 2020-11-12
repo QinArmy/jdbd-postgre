@@ -6,6 +6,8 @@ import io.jdbd.mysql.protocol.ErrorPacket;
 import io.jdbd.mysql.protocol.OkPacket;
 import io.jdbd.mysql.protocol.conf.Properties;
 import io.netty.buffer.ByteBuf;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import reactor.util.annotation.Nullable;
 
 import java.nio.charset.Charset;
@@ -18,6 +20,8 @@ public abstract class PacketDecoders {
     protected PacketDecoders() {
         throw new UnsupportedOperationException();
     }
+
+    private static final Logger LOG = LoggerFactory.getLogger(PacketDecoders.class);
 
     /**
      * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_com_query_response.html">Protocol::COM_QUERY Response</a>
@@ -125,12 +129,17 @@ public abstract class PacketDecoders {
         MySQLColumnMeta[] columnMetas = new MySQLColumnMeta[columnCount];
 
         if (!hasOptionalMeta || metadataFollows == 1) {
-            for (int i = 0; i < columnCount; i++) {
-                columnMetaPacket.skipBytes(PacketUtils.HEADER_SIZE); // skip header
+            for (int i = 0, payloadLen, payloadIndex; i < columnCount; i++) {
+                payloadLen = PacketUtils.readInt3(columnMetaPacket);
+                columnMetaPacket.skipBytes(1); // skip sequence id.
+                payloadIndex = columnMetaPacket.readerIndex();
+
                 columnMetas[i] = MySQLColumnMeta.readFor41(columnMetaPacket, metaCharset, properties);
+                columnMetaPacket.readerIndex(payloadIndex + payloadLen); // to next packet.
             }
         }
-        if ((negotiatedCapability & ClientProtocol.CLIENT_DEPRECATE_EOF) != 0) {
+        if ((negotiatedCapability & ClientProtocol.CLIENT_DEPRECATE_EOF) == 0) {
+            columnMetaPacket.skipBytes(PacketUtils.HEADER_SIZE); //skip header
             EofPacket.readPacket(columnMetaPacket, negotiatedCapability);
         }
         return columnMetas;
@@ -200,10 +209,10 @@ public abstract class PacketDecoders {
             // 0: RESULTSET_METADATA_NONE , 1:RESULTSET_METADATA_FULL
             metadataFollows = cumulateBuf.readByte();
         } else {
-            metadataFollows = 1;
+            metadataFollows = -1;
         }
         // 2. column_count
-        final int columnCount = (int) PacketUtils.readLenEnc(cumulateBuf);
+        final int columnCount = PacketUtils.readLenEncAsInt(cumulateBuf);
         int actualColumnCount = 0;
         if ((negotiatedCapability & ClientProtocol.CLIENT_OPTIONAL_RESULTSET_METADATA) == 0 || metadataFollows == 1) {
             // 3. Field metadata

@@ -493,9 +493,7 @@ abstract class AbstractClientProtocol implements ClientProtocol, ResultRowAdjuta
         } catch (Throwable e) {
             sink.error(e);
         } finally {
-            if (multiRowBuf.refCnt() > 0) {
-                multiRowBuf.release(multiRowBuf.refCnt());
-            }
+            multiRowBuf.release();
         }
 
     }

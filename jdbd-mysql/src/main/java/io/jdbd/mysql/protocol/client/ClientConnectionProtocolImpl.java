@@ -289,7 +289,8 @@ final class ClientConnectionProtocolImpl extends AbstractClientProtocol implemen
                 .then(Mono.defer(this::receivePayload))
                 // handle authentication Negotiation
                 .flatMap(packet -> handleAuthResponse(packet, plugin, triple.getThird()))
-                .then(Mono.defer(this::enableMultiStatement))
+                .doOnSuccess(v -> this.connectionPhase.compareAndSet(AUTHENTICATION_PHASE, CONFIGURE_SESSION_PHASE))
+                .then()
                 ;
     }
 
@@ -446,7 +447,7 @@ final class ClientConnectionProtocolImpl extends AbstractClientProtocol implemen
         if (PacketUtils.isAuthSwitchRequestPacket(payloadBuf)) {
             payloadBuf.skipBytes(1); // skip type header
             String pluginName = PacketUtils.readStringTerm(payloadBuf, StandardCharsets.US_ASCII);
-
+            LOG.debug("Auth switch request method[{}]", pluginName);
             if (plugin.getProtocolPluginName().equals(pluginName)) {
                 authPlugin = plugin;
             } else {
@@ -842,7 +843,7 @@ final class ClientConnectionProtocolImpl extends AbstractClientProtocol implemen
     }
 
     private <T> Mono<T> createConnectionPhaseNotMatchException(int currentPhase) {
-        return Mono.error(new JdbdMySQLException("Not sslNegotiate phase,current phase[%s]", currentPhase));
+        return Mono.error(new JdbdMySQLException("Connection phase not match,current phase[%s]", currentPhase));
     }
 
     private Mono<MySQLRowMeta> executeQueryCommand(String command) {
@@ -1158,14 +1159,20 @@ final class ClientConnectionProtocolImpl extends AbstractClientProtocol implemen
         PacketDecoders.ComQueryResponse response;
         final int negotiatedCapability = obtainNegotiatedCapability();
         response = PacketDecoders.detectComQueryResponseType(columnMetaPacket, negotiatedCapability);
-        if (response == PacketDecoders.ComQueryResponse.TEXT_RESULT) {
-            MySQLColumnMeta[] columnMetas = PacketDecoders.readResultColumnMetas(
-                    columnMetaPacket, negotiatedCapability
-                    , StandardCharsets.UTF_8, this.properties);
-            return MySQLRowMeta.from(columnMetas, obtainCustomMblenMap());
-        } else {
-            throw new JdbdMySQLException("Expected result set response,but %s ", response);
+        switch (response) {
+            case TEXT_RESULT:
+                MySQLColumnMeta[] columnMetas = PacketDecoders.readResultColumnMetas(
+                        columnMetaPacket, negotiatedCapability
+                        , obtainCharsetResults(), this.properties);
+                return MySQLRowMeta.from(columnMetas, obtainCustomMblenMap());
+            case ERROR:
+                ErrorPacket packet;
+                packet = ErrorPacket.readPacket(columnMetaPacket, negotiatedCapability, obtainCharsetResults());
+                throw new JdbdMySQLException("Expected result set response,but error,{} ", packet.getErrorMessage());
+            default:
+                throw new JdbdMySQLException("Expected result set response,but %s ", response);
         }
+
     }
 
     private Map<Integer, Integer> obtainCustomMblenMap() {
