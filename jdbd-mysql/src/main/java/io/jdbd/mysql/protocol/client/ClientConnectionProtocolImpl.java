@@ -812,13 +812,16 @@ final class ClientConnectionProtocolImpl extends AbstractClientProtocol implemen
                 : createConcurrentlyConnectionException(SSL_PHASE);
     }
 
+    /**
+     * @see #configureSession()
+     */
     private Mono<Void> detectCustomCollations() {
         if (!this.properties.getRequiredProperty(PropertyKey.detectCustomCollations, Boolean.class)) {
             return Mono.empty();
         }
         return executeQueryCommand("SHOW COLLATION")
                 .flatMap(this::extractCollationRowData)
-                .then(Mono.defer(() -> executeQueryCommand("SHOW CHARSET")))
+                .then(Mono.defer(this::detectCustomCharset))
                 .flatMap(this::extractCharsetRowData);
     }
 
@@ -846,6 +849,9 @@ final class ClientConnectionProtocolImpl extends AbstractClientProtocol implemen
         return Mono.error(new JdbdMySQLException("Connection phase not match,current phase[%s]", currentPhase));
     }
 
+    /**
+     * @see #detectCustomCollations()
+     */
     private Mono<MySQLRowMeta> executeQueryCommand(String command) {
         // 1. create COM_QUERY packet.
         ByteBuf packetBuf = createPacketBuffer(command.length());
@@ -858,6 +864,9 @@ final class ClientConnectionProtocolImpl extends AbstractClientProtocol implemen
     }
 
 
+    /**
+     * @see #authenticate()
+     */
     private Triple<AuthenticationPlugin, Boolean, Map<String, AuthenticationPlugin>> obtainAuthenticationPlugin() {
         Map<String, AuthenticationPlugin> pluginMap = loadAuthenticationPluginMap();
 
@@ -1057,6 +1066,8 @@ final class ClientConnectionProtocolImpl extends AbstractClientProtocol implemen
 
     /**
      * extract {@code show collation} result to {@link #customCollationMap} and {@link #customCharsetNameSet}
+     *
+     * @see #detectCustomCollations()
      */
     private Mono<Void> extractCollationRowData(MySQLRowMeta metadata) {
         return receiveSingleResultSetRowDataAndHandleTerminator(metadata)
@@ -1067,14 +1078,21 @@ final class ClientConnectionProtocolImpl extends AbstractClientProtocol implemen
                 ;
     }
 
-
+    /**
+     * @see #extractCollationRowData(MySQLRowMeta)
+     */
     private void createCustomCollationMapForShowCollation(Map<Integer, CharsetMapping.CustomCollation> map) {
-        this.customCollationMap.set(Collections.unmodifiableMap(map));
-        Set<String> charsetNameSet = new HashSet<>();
-        for (CharsetMapping.CustomCollation collation : map.values()) {
-            charsetNameSet.add(collation.charsetName);
+        if (map.isEmpty()) {
+            this.customCollationMap.set(Collections.emptyMap());
+            this.customCharsetNameSet.set(Collections.emptySet());
+        } else {
+            this.customCollationMap.set(Collections.unmodifiableMap(map));
+            Set<String> charsetNameSet = new HashSet<>();
+            for (CharsetMapping.CustomCollation collation : map.values()) {
+                charsetNameSet.add(collation.charsetName);
+            }
+            this.customCharsetNameSet.set(Collections.unmodifiableSet(charsetNameSet));
         }
-        this.customCharsetNameSet.set(Collections.unmodifiableSet(charsetNameSet));
     }
 
     private Integer customCollationMapKeyFunction(ResultRow resultRow) {
@@ -1090,10 +1108,32 @@ final class ClientConnectionProtocolImpl extends AbstractClientProtocol implemen
         );
     }
 
+    /**
+     * @see #extractCollationRowData(MySQLRowMeta)
+     */
     private boolean isCustomCollation(ResultRow resultRow) {
         return !CharsetMapping.INDEX_TO_COLLATION.containsKey(resultRow.getRequiredObject("Id", Integer.class));
     }
 
+    /**
+     * @see #detectCustomCollations()
+     */
+    private Mono<MySQLRowMeta> detectCustomCharset() {
+        Map<Integer, CharsetMapping.CustomCollation> map = this.customCollationMap.get();
+        Mono<MySQLRowMeta> mono;
+        if (map == null) {
+            mono = Mono.error(new JdbdMySQLException("no detect custom collation."));
+        } else if (map.isEmpty()) {
+            mono = Mono.empty();
+        } else {
+            mono = executeQueryCommand("SHOW CHARACTER SET");
+        }
+        return mono;
+    }
+
+    /**
+     * @see #detectCustomCollations()
+     */
     private Mono<Void> extractCharsetRowData(MySQLRowMeta metadata) {
         final Set<String> charsetNameSet = this.customCharsetNameSet.get();
         if (charsetNameSet == null) {
@@ -1109,11 +1149,17 @@ final class ClientConnectionProtocolImpl extends AbstractClientProtocol implemen
     }
 
 
+    /**
+     * @see #detectCustomCollations()
+     */
     private void createCustomCollations(final Map<String, Integer> customCharsetToMaxLenMap) {
         // oldCollationMap no max length of charset.
         Map<Integer, CharsetMapping.CustomCollation> oldCollationMap = this.customCollationMap.get();
         if (oldCollationMap == null) {
             throw new IllegalStateException("No detect custom collation.");
+        }
+        if (oldCollationMap.isEmpty()) {
+            return;
         }
         Map<Integer, CharsetMapping.CustomCollation> newCollationMap = new HashMap<>();
         for (Map.Entry<Integer, CharsetMapping.CustomCollation> e : oldCollationMap.entrySet()) {

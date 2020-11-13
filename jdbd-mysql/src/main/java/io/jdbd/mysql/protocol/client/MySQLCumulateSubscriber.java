@@ -2,6 +2,7 @@ package io.jdbd.mysql.protocol.client;
 
 import io.jdbd.mysql.JdbdMySQLException;
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufAllocator;
 import io.netty.channel.EventLoop;
 import io.netty.handler.codec.ByteToMessageDecoder;
 import io.netty.util.ReferenceCountUtil;
@@ -16,10 +17,9 @@ import reactor.netty.NettyInbound;
 import reactor.util.annotation.Nullable;
 import reactor.util.concurrent.Queues;
 
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Queue;
 import java.util.function.BiFunction;
+import java.util.function.Consumer;
 import java.util.function.Function;
 
 /**
@@ -35,7 +35,6 @@ final class MySQLCumulateSubscriber implements CoreSubscriber<ByteBuf>, MySQLCum
         connection.inbound().receive()
                 .retain() // for below cumulate
                 .subscribe(receiver);
-        connection.channel().eventLoop();
         return receiver;
     }
 
@@ -46,17 +45,19 @@ final class MySQLCumulateSubscriber implements CoreSubscriber<ByteBuf>, MySQLCum
 
     private final EventLoop eventLoop;
 
+    private final ByteBufAllocator allocator;
+
     private Subscription upstream;
 
     //non-volatile ,modify in io.netty.channel.EventLoop .
     private ByteBuf cumulateBuffer;
-
 
     private boolean complete = false;
 
     private MySQLCumulateSubscriber(Connection connection) {
         //  this.connection = connection;
         this.eventLoop = connection.channel().eventLoop();
+        this.allocator = connection.channel().alloc();
 
     }
 
@@ -68,10 +69,15 @@ final class MySQLCumulateSubscriber implements CoreSubscriber<ByteBuf>, MySQLCum
     @Override
     public void onSubscribe(Subscription s) {
         this.upstream = s;
+        s.request(Long.MAX_VALUE);
     }
 
     @Override
     public void onNext(ByteBuf byteBufFromPeer) {
+        if (byteBufFromPeer == this.cumulateBuffer) {
+            // due to byteBufFromPeer.release()
+            throw new JdbdMySQLException("previous cumulateBuffer handle error.");
+        }
         if (this.eventLoop.inEventLoop()) {
             executeOnNext(byteBufFromPeer);
         } else {
@@ -108,7 +114,7 @@ final class MySQLCumulateSubscriber implements CoreSubscriber<ByteBuf>, MySQLCum
     public Mono<ByteBuf> receiveOne(Function<ByteBuf, ByteBuf> decoder) {
         Mono<ByteBuf> mono = Mono.create(sink -> {
             MonoMySQLReceiver receiver = new MonoMySQLReceiverImpl(sink, decoder);
-            sink.onRequest(n -> MySQLCumulateSubscriber.this.upstream.request(1L));
+            sink.onRequest(n -> MySQLCumulateSubscriber.this.upstream.request(128L));
             MySQLCumulateSubscriber.this.addMySQLReceiver(receiver);
 
         });
@@ -116,10 +122,10 @@ final class MySQLCumulateSubscriber implements CoreSubscriber<ByteBuf>, MySQLCum
     }
 
     @Override
-    public Flux<ByteBuf> receive(BiFunction<ByteBuf, List<ByteBuf>, Boolean> decoder) {
+    public Flux<ByteBuf> receive(BiFunction<ByteBuf, Consumer<ByteBuf>, Boolean> decoder) {
         Flux<ByteBuf> flux = Flux.create(sink -> {
             FluxMonoMySQLReceiver receiver = new FluxMonoMySQLReceiver(sink, decoder);
-            sink.onRequest(n -> MySQLCumulateSubscriber.this.upstream.request(1L));
+            sink.onRequest(n -> MySQLCumulateSubscriber.this.upstream.request(512L));
             MySQLCumulateSubscriber.this.addMySQLReceiver(receiver);
         });
         return new FluxReleaseByteBuf(flux);
@@ -128,19 +134,25 @@ final class MySQLCumulateSubscriber implements CoreSubscriber<ByteBuf>, MySQLCum
 
     /*################################## blow private method ##################################*/
 
+    /**
+     * @see #onNext(ByteBuf)
+     */
     private void executeOnNext(ByteBuf byteBufFromPeer) {
+
         //  cumulate Buffer
         ByteBuf cumulateBuffer = this.cumulateBuffer;
         if (cumulateBuffer == null) {
             cumulateBuffer = byteBufFromPeer;
         } else {
+            if (cumulateBuffer == byteBufFromPeer) {
+                // due to byteBufFromPeer.release()
+                throw new JdbdMySQLException("byteBufFromPeer duplication");
+            }
             cumulateBuffer = ByteToMessageDecoder.MERGE_CUMULATOR.cumulate(
-                    byteBufFromPeer.alloc(), cumulateBuffer, byteBufFromPeer);
+                    this.allocator, cumulateBuffer, byteBufFromPeer);
         }
         this.cumulateBuffer = cumulateBuffer;
-        if (drainReceiver(cumulateBuffer)) {
-            this.upstream.request(1L);
-        }
+        drainReceiver();
     }
 
     private void executeOnError(Throwable e) {
@@ -165,35 +177,34 @@ final class MySQLCumulateSubscriber implements CoreSubscriber<ByteBuf>, MySQLCum
             try {
                 receiver.onError(new JdbdMySQLException("Connection close ,can't receive packet."));
             } catch (Throwable e) {
-                LOG.warn("downstream handler error event occur error.error msg:{}", e.getMessage());
+                LOG.warn("downstream handler error event occur error.", e);
             }
         }
         this.complete = true;
     }
 
-    private boolean drainReceiver(@Nullable ByteBuf cumulateBuffer) {
+    /**
+     * @see #executeOnNext(ByteBuf)
+     * @see #doAddMySQLReceiverInEventLoop(MySQLReceiver)
+     */
+    private void drainReceiver() {
 
-        if (cumulateBuffer == null) {
-            return true;
+        if (this.cumulateBuffer == null) {
+            return;
         }
         // 1. invoke receiver
         final MySQLReceiver receiver = this.receiverQueue.peek();
         if (receiver == null) {
-            return false;
+            return;
         }
-        final int readableBytes = cumulateBuffer.readableBytes();
-        final ByteBuf newCumulateBuffer;
         if (receiver instanceof MonoMySQLReceiver) {
-            newCumulateBuffer = onNextForMono((MonoMySQLReceiver) receiver, cumulateBuffer);
+            onNextForMono((MonoMySQLReceiver) receiver, this.cumulateBuffer);
         } else if (receiver instanceof FluxMySQLReceiver) {
-            newCumulateBuffer = onNextForFlux((FluxMySQLReceiver) receiver, cumulateBuffer);
+            onNextForFlux((FluxMySQLReceiver) receiver, this.cumulateBuffer);
         } else {
             // never here
             throw new IllegalStateException("receiver unknown.");
         }
-        // 2. handle newCumulateBuffer
-        this.cumulateBuffer = newCumulateBuffer;
-        return newCumulateBuffer == cumulateBuffer && cumulateBuffer.readableBytes() == readableBytes;
     }
 
 
@@ -221,7 +232,7 @@ final class MySQLCumulateSubscriber implements CoreSubscriber<ByteBuf>, MySQLCum
         final Queue<MySQLReceiver> receiverQueue = this.receiverQueue;
         if (receiverQueue.offer(receiver)) {
             if (receiver == receiverQueue.peek()) {
-                drainReceiver(this.cumulateBuffer);
+                drainReceiver();
             }
         } else {
             receiver.onError(new JdbdMySQLException(
@@ -229,54 +240,32 @@ final class MySQLCumulateSubscriber implements CoreSubscriber<ByteBuf>, MySQLCum
         }
     }
 
-    /**
-     * @return cumulateBuffer or {@code null}
-     */
-    @Nullable
-    private ByteBuf onNextForMono(MonoMySQLReceiver receiver, ByteBuf cumulateBuffer) {
+    private void onNextForMono(MonoMySQLReceiver receiver, ByteBuf cumulateBuffer) {
         final ByteBuf decodedBuf = receiver.decode(cumulateBuffer);
         if (decodedBuf == null) {
-            return cumulateBuffer;
+            return;
         }
         if (this.receiverQueue.poll() != receiver) {
             throw new IllegalStateException("head of queue isn't  current receiver.");
         }
         receiver.success(decodedBuf);
-        return decodedBuf == cumulateBuffer ? null : cumulateBuffer;
 
     }
 
     /**
-     * @return cumulateBuffer or {@code null}
+     * @see #executeOnNext(ByteBuf)
      */
-    @Nullable
-    private ByteBuf onNextForFlux(FluxMySQLReceiver receiver, final ByteBuf cumulateBuffer) {
-        List<ByteBuf> decodedList = new ArrayList<>();
+    private void onNextForFlux(FluxMySQLReceiver receiver, final ByteBuf cumulateBuffer) {
+
         final MySQLReceiver removeReceive;
-        if (receiver.decode(cumulateBuffer, decodedList)) {
+        if (receiver.decodeAndNext(cumulateBuffer)) {
             removeReceive = this.receiverQueue.poll();
             if (removeReceive != receiver) {
                 throw new IllegalStateException("head of queue isn't  current receiver.");
             }
-        } else {
-            removeReceive = null;
-        }
-
-        for (ByteBuf decodeBuf : decodedList) {
-            receiver.onNext(decodeBuf);
-        }
-
-        if (removeReceive != null) {
             receiver.onComplete();
         }
 
-        final ByteBuf newCumulateBuffer;
-        if (decodedList.size() == 1 && decodedList.get(0) == cumulateBuffer) {
-            newCumulateBuffer = null;
-        } else {
-            newCumulateBuffer = cumulateBuffer;
-        }
-        return newCumulateBuffer;
     }
 
 
@@ -309,9 +298,8 @@ final class MySQLCumulateSubscriber implements CoreSubscriber<ByteBuf>, MySQLCum
         /**
          * @return true: flux complete.
          */
-        boolean decode(ByteBuf cumulateBuffer, List<ByteBuf> decodedList);
+        boolean decodeAndNext(ByteBuf cumulateBuffer);
 
-        void onNext(ByteBuf byteBuf);
 
         void onComplete();
     }
@@ -350,16 +338,16 @@ final class MySQLCumulateSubscriber implements CoreSubscriber<ByteBuf>, MySQLCum
 
         private final FluxSink<ByteBuf> sink;
 
-        private final BiFunction<ByteBuf, List<ByteBuf>, Boolean> decoder;
+        private final BiFunction<ByteBuf, Consumer<ByteBuf>, Boolean> decoder;
 
-        private FluxMonoMySQLReceiver(FluxSink<ByteBuf> sink, BiFunction<ByteBuf, List<ByteBuf>, Boolean> decoder) {
+        private FluxMonoMySQLReceiver(FluxSink<ByteBuf> sink, BiFunction<ByteBuf, Consumer<ByteBuf>, Boolean> decoder) {
             this.sink = sink;
             this.decoder = decoder;
         }
 
         @Override
         public void onError(Throwable t) {
-            if (this.sink.isCancelled()) {
+            if (!this.sink.isCancelled()) {
                 this.sink.error(t);
             } else {
                 LOG.warn("FluxMonoMySQLReceiver canceled,but io error.", t);
@@ -367,12 +355,12 @@ final class MySQLCumulateSubscriber implements CoreSubscriber<ByteBuf>, MySQLCum
         }
 
         @Override
-        public boolean decode(ByteBuf cumulateBuffer, List<ByteBuf> decodedList) {
-            return this.decoder.apply(cumulateBuffer, decodedList);
+        public boolean decodeAndNext(ByteBuf cumulateBuffer) {
+            return this.decoder.apply(cumulateBuffer, this::onNext);
         }
 
-        @Override
-        public void onNext(ByteBuf byteBuf) {
+
+        private void onNext(ByteBuf byteBuf) {
             if (!this.sink.isCancelled()) {
                 this.sink.next(byteBuf);
             } else {
@@ -432,10 +420,12 @@ final class MySQLCumulateSubscriber implements CoreSubscriber<ByteBuf>, MySQLCum
 
         @Override
         public void onNext(ByteBuf byteBuf) {
+            // this.actual.onNext(byteBuf);
             try {
                 this.actual.onNext(byteBuf);
             } finally {
                 try {
+                    // LOG.debug("byteBuf reference count:{},{}@{}",byteBuf.refCnt(),byteBuf.getClass().getName(),System.identityHashCode(byteBuf));
                     byteBuf.release();
                 } catch (Throwable e) {
                     this.actual.onError(e);

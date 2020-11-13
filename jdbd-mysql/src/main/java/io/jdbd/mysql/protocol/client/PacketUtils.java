@@ -6,7 +6,6 @@ import reactor.netty.Connection;
 import reactor.util.annotation.Nullable;
 
 import java.math.BigInteger;
-import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
 
 public abstract class PacketUtils {
@@ -291,24 +290,6 @@ public abstract class PacketUtils {
         return bytes;
     }
 
-    /**
-     * Protocol::NulTerminatedString
-     * Strings that are terminated by a [00] byte.
-     */
-    public static String readStringTerm(ByteBuffer byteBuffer, Charset charset) {
-        int index = byteBuffer.position();
-        final int end = byteBuffer.limit();
-        while (index < end && byteBuffer.get(index) != 0) {
-            index++;
-        }
-        if (index >= end) {
-            throw new IndexOutOfBoundsException(String.format("not found [00] byte,index:%s,writerIndex:%s", index, end));
-        }
-        byte[] bytes = new byte[index - byteBuffer.remaining()];
-        byteBuffer.get(bytes);
-        byteBuffer.get();// skip terminating byte
-        return new String(bytes, charset);
-    }
 
     public static String readStringFixed(ByteBuf byteBuf, int len, Charset charset) {
         byte[] bytes = new byte[len];

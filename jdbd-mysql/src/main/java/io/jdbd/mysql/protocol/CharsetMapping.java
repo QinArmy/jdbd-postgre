@@ -221,9 +221,10 @@ public abstract class CharsetMapping {
     @Nullable
     public static Charset getJavaCharsetByCollationIndex(int collationIndex) {
         Collation collation = INDEX_TO_COLLATION.get(collationIndex);
-        return (collation == null || COLLATION_NOT_DEFINED.equals(collation.collationName))
-                ? null
-                : Charset.forName(collation.mySQLCharset.charsetName);
+        if ((collation == null || COLLATION_NOT_DEFINED.equals(collation.collationName))) {
+            return null;
+        }
+        return Charset.forName(collation.mySQLCharset.javaEncodingsUcList.get(0));
     }
 
     public static int getCollationIndexForJavaEncoding(String javaEncoding, ServerVersion version) {

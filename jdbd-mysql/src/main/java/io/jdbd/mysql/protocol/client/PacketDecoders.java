@@ -3,7 +3,6 @@ package io.jdbd.mysql.protocol.client;
 import io.jdbd.mysql.JdbdMySQLException;
 import io.jdbd.mysql.protocol.EofPacket;
 import io.jdbd.mysql.protocol.ErrorPacket;
-import io.jdbd.mysql.protocol.OkPacket;
 import io.jdbd.mysql.protocol.conf.Properties;
 import io.netty.buffer.ByteBuf;
 import org.slf4j.Logger;
@@ -11,8 +10,8 @@ import org.slf4j.LoggerFactory;
 import reactor.util.annotation.Nullable;
 
 import java.nio.charset.Charset;
-import java.util.List;
 import java.util.function.BiFunction;
+import java.util.function.Consumer;
 
 public abstract class PacketDecoders {
 
@@ -47,8 +46,6 @@ public abstract class PacketDecoders {
         final ByteBuf packetBuf;
         if (readableBytes < packetLength) {
             packetBuf = null;
-        } else if (readableBytes == packetLength) {
-            packetBuf = cumulateBuffer;
         } else {
             packetBuf = cumulateBuffer.readRetainedSlice(packetLength);
         }
@@ -147,17 +144,18 @@ public abstract class PacketDecoders {
 
 
     /**
-     * @param resultList a modifiable and emtpy list
      * @return true :decode end.
      * @see MySQLCumulateReceiver#receive(BiFunction)
      */
-    static boolean resultSetMultiRowDecoder(final ByteBuf cumulateBuf, List<ByteBuf> resultList) {
+    static boolean resultSetMultiRowDecoder(final ByteBuf cumulateBuf, Consumer<ByteBuf> sink
+            , final int negotiatedCapability) {
         final int originalReaderIndex = cumulateBuf.readerIndex(), writeIndex = cumulateBuf.writerIndex();
-
+        final boolean clientDeprecateEof = (negotiatedCapability & ClientProtocol.CLIENT_DEPRECATE_EOF) != 0;
         int readerIndex = originalReaderIndex;
         boolean decoderEnd = false;
 
-        for (int readableBytes, payloadLength, packetLength; ; ) {
+        out:
+        for (int readableBytes, packetLength, payloadLength, header; ; ) {
             readableBytes = writeIndex - readerIndex;
             if (readableBytes < PacketUtils.HEADER_SIZE) {
                 break;
@@ -167,23 +165,33 @@ public abstract class PacketDecoders {
             if (readableBytes < packetLength) {
                 break;
             }
-            switch (PacketUtils.getInt1(cumulateBuf, readerIndex + PacketUtils.HEADER_SIZE)) {
-                case OkPacket.OK_HEADER:
-                case EofPacket.EOF_HEADER:
+            // LOG.debug("i:{}", i);
+            header = PacketUtils.getInt1(cumulateBuf, readerIndex + PacketUtils.HEADER_SIZE);
+            readerIndex += packetLength;
+            switch (header) {
                 case ErrorPacket.ERROR_HEADER:
                     // The row data END
                     decoderEnd = true;
-                    break;
+                    break out;
+                case EofPacket.EOF_HEADER:
+                    if (clientDeprecateEof) {
+                        if (payloadLength < 0xFFFF_FF) { // 3 byte max value
+                            //OK terminator
+                            decoderEnd = true;
+                            break out;
+                        }
+                    } else if (packetLength < 10) {
+                        // EOF terminator
+                        decoderEnd = true;
+                        break out;
+                    }
+
                 default:
-                    readerIndex += packetLength;
+
             }
         }
         if (readerIndex > originalReaderIndex) {
-            if (readerIndex == writeIndex) {
-                resultList.add(cumulateBuf);
-            } else {
-                resultList.add(cumulateBuf.readRetainedSlice(readerIndex - originalReaderIndex));
-            }
+            sink.accept(cumulateBuf.readRetainedSlice(readerIndex - originalReaderIndex));
         }
         return decoderEnd;
     }

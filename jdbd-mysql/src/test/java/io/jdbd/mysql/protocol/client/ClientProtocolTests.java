@@ -76,7 +76,7 @@ public class ClientProtocolTests {
         obtainConnectionProtocol(context)
                 .configureSession()
                 .block();
-        LOG.info("Connection protocol configureSessionPropertyGroup phase execute success");
+        LOG.info("Connection protocol configureSession phase execute success");
     }
 
     /**

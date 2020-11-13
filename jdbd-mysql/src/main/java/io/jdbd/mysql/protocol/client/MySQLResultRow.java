@@ -170,6 +170,9 @@ abstract class MySQLResultRow implements ResultRow {
         return value;
     }
 
+
+    /*################################## blow private method ##################################*/
+
     private int checkIndex(int indexBaseZero) {
         if (indexBaseZero < 0 || indexBaseZero >= this.columnValues.length) {
             throw new ReactiveSQLException(new SQLException(
