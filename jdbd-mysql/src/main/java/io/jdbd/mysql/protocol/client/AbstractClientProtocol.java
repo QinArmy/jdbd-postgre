@@ -14,6 +14,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.FluxSink;
+import reactor.core.publisher.Mono;
+import reactor.core.publisher.MonoSink;
 import reactor.netty.Connection;
 import reactor.util.annotation.Nullable;
 
@@ -29,8 +31,8 @@ import java.util.EnumMap;
 import java.util.Locale;
 import java.util.Map;
 import java.util.function.BiFunction;
-import java.util.function.Consumer;
 
+import static io.jdbd.mysql.protocol.client.PacketDecoders.ComQueryResponse.TEXT_RESULT;
 import static java.time.temporal.ChronoField.*;
 
 abstract class AbstractClientProtocol implements ClientProtocol, ResultRowAdjutant {
@@ -89,13 +91,58 @@ abstract class AbstractClientProtocol implements ClientProtocol, ResultRowAdjuta
      *
      * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_com_query_response_text_resultset.html">Protocol::Text Resultset</a>
      */
-    final Flux<ResultRow> receiveSingleResultSetRowDataAndHandleTerminator(MySQLRowMeta rowMeta) {
+    final Flux<ResultRow> receiveSingleResultSetRowData(MySQLRowMeta rowMeta) {
         return this.cumulateReceiver.receive(this::invokeResultSetMultiRowDecoder)
                 .flatMap(multiRowBuf -> {
                     multiRowBuf.retain(); // for below convertResultRow method.
-                    return Flux.<ResultRow>create(sink -> convertResultRow(sink, multiRowBuf, rowMeta));
+                    return Flux.<ResultRow>create(sink -> parseResultSetRows(sink, multiRowBuf, rowMeta));
                 })
                 ;
+    }
+
+    final Mono<ByteBuf> receiveResultSetMetadataPacket() {
+        return this.cumulateReceiver.receiveOne(this::comQueryResultSetMetaDecoder);
+    }
+
+    /**
+     * @see #receiveResultSetMetadataPacket()
+     */
+    final boolean comQueryResultSetMetaDecoder(ByteBuf cumulateBuf, MonoSink<ByteBuf> sink) {
+        if (!PacketUtils.hasOnePacket(cumulateBuf)) {
+            return false;
+        }
+        final int negotiatedCapability = obtainNegotiatedCapability();
+        final PacketDecoders.ComQueryResponse responseType;
+        responseType = PacketDecoders.detectComQueryResponseType(cumulateBuf, negotiatedCapability);
+        boolean decodeEnd;
+        switch (responseType) {
+            case OK:
+            case LOCAL_INFILE_REQUEST:
+                ByteBuf packetBuf;
+                packetBuf = cumulateBuf.readRetainedSlice(PacketUtils.HEADER_SIZE + PacketUtils.readInt3(cumulateBuf));
+                sink.error(createStatementUseCaseException(TEXT_RESULT, packetBuf));
+                decodeEnd = true;
+                break;
+            case ERROR:
+                decodeEnd = true;
+                break;
+            case TEXT_RESULT:
+                decodeEnd = PacketDecoders.comQueryResultSetMetadataDecoder(cumulateBuf, sink, negotiatedCapability);
+                break;
+            default:
+                throw new IllegalStateException(String.format("unknown ComQueryResponse[%s]", responseType));
+        }
+        return decodeEnd;
+    }
+
+
+    private ReactiveSQLException createStatementUseCaseException(PacketDecoders.ComQueryResponse expectedType
+            , ByteBuf actualPacketBuf) {
+        actualPacketBuf.skipBytes(PacketUtils.HEADER_SIZE);
+        //TODO 处理期待类型错误
+        return new ReactiveSQLException(
+                new SQLException(String.format(
+                        "statement use case error,expected type:%s,actual type:%s", expectedType, "")));
     }
 
 
@@ -475,9 +522,9 @@ abstract class AbstractClientProtocol implements ClientProtocol, ResultRowAdjuta
 
 
     /**
-     * @see #receiveSingleResultSetRowDataAndHandleTerminator(MySQLRowMeta)
+     * @see #receiveSingleResultSetRowData(MySQLRowMeta)
      */
-    private void convertResultRow(FluxSink<ResultRow> sink, ByteBuf multiRowBuf, MySQLRowMeta metadata) {
+    private void parseResultSetRows(FluxSink<ResultRow> sink, ByteBuf multiRowBuf, MySQLRowMeta metadata) {
         final MySQLColumnMeta[] columnMetas = metadata.columnMetas;
         final boolean clientDeprecateEof = (obtainNegotiatedCapability() & ClientProtocol.CLIENT_DEPRECATE_EOF) != 0;
         try {
@@ -516,7 +563,7 @@ abstract class AbstractClientProtocol implements ClientProtocol, ResultRowAdjuta
             }
             sink.complete();
         } catch (Throwable e) {
-            LOG.error("", e);
+            LOG.error("Parse result set rows error.", e);
             sink.error(e);
         } finally {
             multiRowBuf.release();
@@ -525,6 +572,9 @@ abstract class AbstractClientProtocol implements ClientProtocol, ResultRowAdjuta
     }
 
 
+    /**
+     * @see #parseResultSetRows(FluxSink, ByteBuf, MySQLRowMeta)
+     */
     private void handleResultSetErrorPacket(ByteBuf payload, FluxSink<ResultRow> sink) {
         ErrorPacket errorPacket;
         errorPacket = ErrorPacket.readPacket(payload, obtainNegotiatedCapability(), obtainCharsetResults());
@@ -533,9 +583,9 @@ abstract class AbstractClientProtocol implements ClientProtocol, ResultRowAdjuta
     }
 
     /**
-     * @see #receiveSingleResultSetRowDataAndHandleTerminator(MySQLRowMeta)
+     * @see #receiveSingleResultSetRowData(MySQLRowMeta)
      */
-    private boolean invokeResultSetMultiRowDecoder(final ByteBuf cumulateBuf, Consumer<ByteBuf> sink) {
+    private boolean invokeResultSetMultiRowDecoder(final ByteBuf cumulateBuf, FluxSink<ByteBuf> sink) {
         return PacketDecoders.resultSetMultiRowDecoder(cumulateBuf, sink, obtainNegotiatedCapability());
     }
 

@@ -73,6 +73,10 @@ final class ClientConnectionProtocolImpl extends AbstractClientProtocol implemen
 
     private static final String NONE = "none";
 
+    static final String CHARACTER_SET_CLIENT = "character_set_client";
+    static final String CHARACTER_SET_RESULTS = "character_set_results";
+    static final String COLLATION_CONNECTION = "collation_connection";
+
 
     /**
      * below {@code xxx_PHASE } representing connection phase.
@@ -315,9 +319,9 @@ final class ClientConnectionProtocolImpl extends AbstractClientProtocol implemen
             return createConnectionPhaseNotMatchException(phase);
         }
         return detectCustomCollations()
-                .then(Mono.defer(this::executeSessionVariables))
+                .then(Mono.defer(this::executeSetSessionVariables))
                 .then(Mono.defer(this::configureSessionCharset))
-                .then(Mono.defer(this::doAfterConfigureSessionProperties))
+                .then(Mono.defer(this::configureSessionSuccessEvent))
                 ;
     }
 
@@ -820,21 +824,49 @@ final class ClientConnectionProtocolImpl extends AbstractClientProtocol implemen
             return Mono.empty();
         }
         return executeQueryCommand("SHOW COLLATION")
+                .map(this::parseResultSetMetaPacket) //convert row meta packet to MySQLRowMeta instance
                 .flatMap(this::extractCollationRowData)
                 .then(Mono.defer(this::detectCustomCharset))
                 .flatMap(this::extractCharsetRowData);
     }
 
+    /**
+     * execute config session variables in {@link PropertyKey#sessionVariables}
+     *
+     * @see #configureSession()
+     */
+    private Mono<Void> executeSetSessionVariables() {
+        String pairString = this.properties.getProperty(PropertyKey.sessionVariables);
+        if (!StringUtils.hasText(pairString)) {
+            return Mono.empty();
+        }
+        return executeQueryCommand(ProtocolUtils.buildSetVariableCommand(pairString))
+                .then()
+                ;
 
-    private Mono<Void> executeSessionVariables() {
-        return Mono.empty();
     }
 
+
+    /**
+     * config three session variables:
+     * <u>
+     * <li>PropertyKey#characterEncoding</li>
+     * <li>PropertyKey#characterSetResults</li>
+     * <li>PropertyKey#connectionCollation</li>
+     * </u>
+     *
+     * @see #configureSession()
+     */
     private Mono<Void> configureSessionCharset() {
         return Mono.empty();
     }
 
-    private Mono<Void> doAfterConfigureSessionProperties() {
+    /**
+     * handle {@link #configureSession()} success event.
+     *
+     * @see #configureSession()
+     */
+    private Mono<Void> configureSessionSuccessEvent() {
         return this.connectionPhase.compareAndSet(CONFIGURE_SESSION_PHASE, INITIALIZING_PHASE)
                 ? Mono.empty()
                 : createConcurrentlyConnectionException(CONFIGURE_SESSION_PHASE);
@@ -852,14 +884,13 @@ final class ClientConnectionProtocolImpl extends AbstractClientProtocol implemen
     /**
      * @see #detectCustomCollations()
      */
-    private Mono<MySQLRowMeta> executeQueryCommand(String command) {
+    private Mono<ByteBuf> executeQueryCommand(String command) {
         // 1. create COM_QUERY packet.
         ByteBuf packetBuf = createPacketBuffer(command.length());
         packetBuf.writeByte(PacketUtils.COM_QUERY_HEADER)
                 .writeBytes(command.getBytes(obtainCharsetClient()));
         return sendPacket(packetBuf, null) //2. send COM_QUERY packet
                 .then(Mono.defer(this::receiveResultSetMetadataPacket))//3. receive row meta packet
-                .map(this::handleResultRowMetadataPacket) //3. convert row meta packet to MySQLRowMeta instance
                 ;
     }
 
@@ -1060,9 +1091,7 @@ final class ClientConnectionProtocolImpl extends AbstractClientProtocol implemen
                 .flatMap(this::readPacketHeader);
     }
 
-    private Mono<ByteBuf> receiveResultSetMetadataPacket() {
-        return this.cumulateReceiver.receiveOne(this::comQueryResultSetMetaDecoder);
-    }
+
 
     /**
      * extract {@code show collation} result to {@link #customCollationMap} and {@link #customCharsetNameSet}
@@ -1070,7 +1099,7 @@ final class ClientConnectionProtocolImpl extends AbstractClientProtocol implemen
      * @see #detectCustomCollations()
      */
     private Mono<Void> extractCollationRowData(MySQLRowMeta metadata) {
-        return receiveSingleResultSetRowDataAndHandleTerminator(metadata)
+        return receiveSingleResultSetRowData(metadata)
                 .filter(this::isCustomCollation)
                 .collectMap(this::customCollationMapKeyFunction, this::customCollationMapValueFunction)
                 .doOnNext(this::createCustomCollationMapForShowCollation)
@@ -1126,7 +1155,9 @@ final class ClientConnectionProtocolImpl extends AbstractClientProtocol implemen
         } else if (map.isEmpty()) {
             mono = Mono.empty();
         } else {
-            mono = executeQueryCommand("SHOW CHARACTER SET");
+            mono = executeQueryCommand("SHOW CHARACTER SET")
+                    .map(this::parseResultSetMetaPacket) //convert row meta packet to MySQLRowMeta instance
+            ;
         }
         return mono;
     }
@@ -1139,7 +1170,7 @@ final class ClientConnectionProtocolImpl extends AbstractClientProtocol implemen
         if (charsetNameSet == null) {
             return Mono.error(new IllegalStateException("No detect custom collation."));
         }
-        return receiveSingleResultSetRowDataAndHandleTerminator(metadata)
+        return receiveSingleResultSetRowData(metadata)
                 .filter(resultRow -> charsetNameSet.contains(resultRow.getRequiredObject("Charset", String.class)))
                 .collectMap(resultRow -> resultRow.getRequiredObject("Charset", String.class)
                         , resultRow -> resultRow.getRequiredObject("Maxlen", Integer.class))
@@ -1195,13 +1226,8 @@ final class ClientConnectionProtocolImpl extends AbstractClientProtocol implemen
 
     }
 
-    @Nullable
-    private ByteBuf comQueryResultSetMetaDecoder(ByteBuf cumulateBuf) {
-        return PacketDecoders.comQueryResponseDecoder(cumulateBuf, obtainNegotiatedCapability());
-    }
 
-
-    private MySQLRowMeta handleResultRowMetadataPacket(ByteBuf columnMetaPacket) {
+    private MySQLRowMeta parseResultSetMetaPacket(ByteBuf columnMetaPacket) {
         PacketDecoders.ComQueryResponse response;
         final int negotiatedCapability = obtainNegotiatedCapability();
         response = PacketDecoders.detectComQueryResponseType(columnMetaPacket, negotiatedCapability);
@@ -1219,6 +1245,25 @@ final class ClientConnectionProtocolImpl extends AbstractClientProtocol implemen
                 throw new JdbdMySQLException("Expected result set response,but %s ", response);
         }
 
+    }
+
+    private MySQLRowMeta parseUpdateCommandResultPacket(ByteBuf resultPacket) {
+        PacketDecoders.ComQueryResponse response;
+        final int negotiatedCapability = obtainNegotiatedCapability();
+        response = PacketDecoders.detectComQueryResponseType(resultPacket, negotiatedCapability);
+        switch (response) {
+            case TEXT_RESULT:
+                MySQLColumnMeta[] columnMetas = PacketDecoders.readResultColumnMetas(
+                        resultPacket, negotiatedCapability
+                        , obtainCharsetResults(), this.properties);
+                return MySQLRowMeta.from(columnMetas, obtainCustomMblenMap());
+            case ERROR:
+                ErrorPacket packet;
+                packet = ErrorPacket.readPacket(resultPacket, negotiatedCapability, obtainCharsetResults());
+                throw new JdbdMySQLException("Expected result set response,but error,{} ", packet.getErrorMessage());
+            default:
+                throw new JdbdMySQLException("Expected result set response,but %s ", response);
+        }
     }
 
     private Map<Integer, Integer> obtainCustomMblenMap() {

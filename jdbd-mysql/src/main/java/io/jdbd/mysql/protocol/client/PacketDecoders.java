@@ -7,11 +7,11 @@ import io.jdbd.mysql.protocol.conf.Properties;
 import io.netty.buffer.ByteBuf;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import reactor.util.annotation.Nullable;
+import reactor.core.publisher.FluxSink;
+import reactor.core.publisher.MonoSink;
 
 import java.nio.charset.Charset;
 import java.util.function.BiFunction;
-import java.util.function.Consumer;
 
 public abstract class PacketDecoders {
 
@@ -21,6 +21,7 @@ public abstract class PacketDecoders {
     }
 
     private static final Logger LOG = LoggerFactory.getLogger(PacketDecoders.class);
+
 
     /**
      * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_com_query_response.html">Protocol::COM_QUERY Response</a>
@@ -33,47 +34,24 @@ public abstract class PacketDecoders {
     }
 
 
-    @Nullable
-    public static ByteBuf packetDecoder(final ByteBuf cumulateBuffer) {
+    public static boolean packetDecoder(final ByteBuf cumulateBuffer, MonoSink<ByteBuf> sink) {
         final int readableBytes = cumulateBuffer.readableBytes();
+        boolean decodeEnd;
         if (readableBytes < PacketUtils.HEADER_SIZE) {
-            return null;
-        }
-
-        final int packetLength;
-        packetLength = PacketUtils.HEADER_SIZE + PacketUtils.getInt3(cumulateBuffer, cumulateBuffer.readerIndex());
-
-        final ByteBuf packetBuf;
-        if (readableBytes < packetLength) {
-            packetBuf = null;
+            decodeEnd = false;
         } else {
-            packetBuf = cumulateBuffer.readRetainedSlice(packetLength);
+            final int packetLength;
+            packetLength = PacketUtils.HEADER_SIZE + PacketUtils.getInt3(cumulateBuffer, cumulateBuffer.readerIndex());
+            if (readableBytes < packetLength) {
+                decodeEnd = false;
+            } else {
+                decodeEnd = true;
+                sink.success(cumulateBuffer.readRetainedSlice(packetLength));
+            }
         }
-        return packetBuf;
+        return decodeEnd;
     }
 
-
-    @Nullable
-    public static ByteBuf comQueryResponseDecoder(final ByteBuf cumulateBuf, final int negotiatedCapability) {
-        if (!PacketUtils.hasOnePacket(cumulateBuf)) {
-            return null;
-        }
-        ByteBuf decodedByteBuf;
-        final ComQueryResponse responseType = detectComQueryResponseType(cumulateBuf, negotiatedCapability);
-        switch (responseType) {
-            case OK:
-            case ERROR:
-            case LOCAL_INFILE_REQUEST:
-                decodedByteBuf = packetDecoder(cumulateBuf);
-                break;
-            case TEXT_RESULT:
-                decodedByteBuf = comQueryTextResultSetMetadataDecoder(cumulateBuf, negotiatedCapability);
-                break;
-            default:
-                throw new IllegalStateException(String.format("unknown ComQueryResponse[%s]", responseType));
-        }
-        return decodedByteBuf;
-    }
 
 
     /*################################## blow package method ##################################*/
@@ -147,7 +125,7 @@ public abstract class PacketDecoders {
      * @return true :decode end.
      * @see MySQLCumulateReceiver#receive(BiFunction)
      */
-    static boolean resultSetMultiRowDecoder(final ByteBuf cumulateBuf, Consumer<ByteBuf> sink
+    static boolean resultSetMultiRowDecoder(final ByteBuf cumulateBuf, FluxSink<ByteBuf> sink
             , final int negotiatedCapability) {
         final int originalReaderIndex = cumulateBuf.readerIndex(), writeIndex = cumulateBuf.writerIndex();
         final boolean clientDeprecateEof = (negotiatedCapability & ClientProtocol.CLIENT_DEPRECATE_EOF) != 0;
@@ -191,22 +169,19 @@ public abstract class PacketDecoders {
             }
         }
         if (readerIndex > originalReaderIndex) {
-            sink.accept(cumulateBuf.readRetainedSlice(readerIndex - originalReaderIndex));
+            sink.next(cumulateBuf.readRetainedSlice(readerIndex - originalReaderIndex));
         }
         return decoderEnd;
     }
 
-    /*################################## blow private method ##################################*/
-
     /**
-     * @see #comQueryResponseDecoder(ByteBuf, int)
+     * @see AbstractClientProtocol#comQueryResultSetMetaDecoder(ByteBuf, MonoSink)
      */
-    @Nullable
-    private static ByteBuf comQueryTextResultSetMetadataDecoder(final ByteBuf cumulateBuf
+    static boolean comQueryResultSetMetadataDecoder(final ByteBuf cumulateBuf, MonoSink<ByteBuf> sink
             , final int negotiatedCapability) {
 
         if (cumulateBuf.readableBytes() < 9) {
-            return null;
+            return false;
         }
         final int startReaderIndex = cumulateBuf.readerIndex();
 
@@ -224,8 +199,8 @@ public abstract class PacketDecoders {
         int actualColumnCount = 0;
         if ((negotiatedCapability & ClientProtocol.CLIENT_OPTIONAL_RESULTSET_METADATA) == 0 || metadataFollows == 1) {
             // 3. Field metadata
-            for (; actualColumnCount < columnCount; actualColumnCount++) {
-                int readableBytes = cumulateBuf.readableBytes();
+            for (int readableBytes; actualColumnCount < columnCount; actualColumnCount++) {
+                readableBytes = cumulateBuf.readableBytes();
                 if (readableBytes < PacketUtils.HEADER_SIZE) {
                     break;
                 }
@@ -239,24 +214,23 @@ public abstract class PacketDecoders {
         } else {
             // reset reader index
             cumulateBuf.readerIndex(startReaderIndex);
+            // TODO 抛出特定的异常 在上层捕捉并 关闭连接,这种情况属于协议有误
             throw new JdbdMySQLException("COM_QUERY response packet,not present field metadata.");
         }
 
         if (actualColumnCount == columnCount && (negotiatedCapability & ClientProtocol.CLIENT_DEPRECATE_EOF) == 0) {
             // 4. End of metadata
-            int readableBytes = cumulateBuf.readableBytes();
-
-            if (readableBytes > PacketUtils.HEADER_SIZE) {
-                int packetLength;
-                packetLength = PacketUtils.HEADER_SIZE + PacketUtils.getInt3(cumulateBuf, cumulateBuf.readerIndex());
-                if (readableBytes >= packetLength && EofPacket.isEofPacket(cumulateBuf)) {
-                    cumulateBuf.skipBytes(packetLength);
+            if (PacketUtils.hasOnePacket(cumulateBuf)) {
+                int payloadLength = PacketUtils.readInt3(cumulateBuf);
+                cumulateBuf.skipBytes(PacketUtils.HEADER_SIZE); // skip header
+                if (EofPacket.isEofPacket(cumulateBuf)) {
+                    cumulateBuf.skipBytes(payloadLength);
                 } else {
                     // reset reader index
+                    // TODO 抛出特定的异常 在上层捕捉并 关闭连接,这种情况属于协议有误
                     cumulateBuf.readerIndex(startReaderIndex);
                     throw new JdbdMySQLException("COM_QUERY response packet,End of metadata isn't EOF packet.");
                 }
-
             }
         }
 
@@ -264,18 +238,17 @@ public abstract class PacketDecoders {
         final int endReaderIndex = cumulateBuf.readerIndex();
         // reset reader index
         cumulateBuf.readerIndex(startReaderIndex);
-        ByteBuf decodedBuf;
+        boolean decodeEnd;
         if (actualColumnCount == columnCount) {
-            if (endReaderIndex == cumulateBuf.writerIndex()) {
-                decodedBuf = cumulateBuf;
-            } else {
-                decodedBuf = cumulateBuf.readRetainedSlice(endReaderIndex - startReaderIndex);
-            }
+            decodeEnd = true;
+            sink.success(cumulateBuf.readRetainedSlice(endReaderIndex - startReaderIndex));
         } else {
-            decodedBuf = null;
+            decodeEnd = false;
         }
-        return decodedBuf;
+        return decodeEnd;
     }
+
+    /*################################## blow private method ##################################*/
 
 
 }

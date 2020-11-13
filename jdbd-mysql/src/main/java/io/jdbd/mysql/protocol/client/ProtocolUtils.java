@@ -1,5 +1,8 @@
 package io.jdbd.mysql.protocol.client;
 
+import io.jdbd.mysql.JdbdMySQLException;
+import io.jdbd.mysql.protocol.conf.PropertyKey;
+import io.jdbd.mysql.util.MySQLStringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -479,5 +482,38 @@ abstract class ProtocolUtils {
         return list;
     }
 
+    static String buildSetVariableCommand(String pairString) {
+        List<String> pairList = MySQLStringUtils.split(pairString, ",;", "\"'(", "\"')");
+        StringBuilder builder = new StringBuilder("SET");
+        int index = 0;
+        for (String pair : pairList) {
+            if (!pair.contains("=")) {
+                throw new JdbdMySQLException("Property sessionVariables format error,please check it.");
+            }
+            String lower = pair.toLowerCase();
+            if (lower.contains(ClientConnectionProtocolImpl.CHARACTER_SET_RESULTS)
+                    || lower.contains(ClientConnectionProtocolImpl.CHARACTER_SET_CLIENT)
+                    || lower.contains(ClientConnectionProtocolImpl.COLLATION_CONNECTION)) {
+                throw new JdbdMySQLException(
+                        "Below three session variables[%s,%s,%s] must specified by below three properties[%s,%s,%s]."
+                        , ClientConnectionProtocolImpl.CHARACTER_SET_CLIENT
+                        , ClientConnectionProtocolImpl.CHARACTER_SET_RESULTS
+                        , ClientConnectionProtocolImpl.COLLATION_CONNECTION
+                        , PropertyKey.characterEncoding
+                        , PropertyKey.characterSetResults
+                        , PropertyKey.connectionCollation);
+
+            }
+            if (index > 0) {
+                builder.append(",");
+            }
+            if (!pair.contains("@")) {
+                builder.append("@@SESSION.");
+            }
+            builder.append(pair);
+            index++;
+        }
+        return builder.toString();
+    }
 
 }
