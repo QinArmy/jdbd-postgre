@@ -1,6 +1,7 @@
 package io.jdbd.mysql.protocol.client;
 
 import io.jdbd.mysql.JdbdMySQLException;
+import io.jdbd.mysql.protocol.CharsetMapping;
 import io.jdbd.mysql.protocol.EofPacket;
 import io.jdbd.mysql.protocol.MySQLPacket;
 import io.jdbd.mysql.protocol.conf.MySQLUrl;
@@ -12,9 +13,11 @@ import reactor.core.publisher.Mono;
 import reactor.netty.Connection;
 
 import java.nio.charset.Charset;
+import java.time.ZoneOffset;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 
-public final class ClientCommandProtocolImpl implements ClientCommandProtocol {
+public final class ClientCommandProtocolImpl extends AbstractClientProtocol implements ClientCommandProtocol {
 
     private static final Logger LOG = LoggerFactory.getLogger(ClientCommandProtocolImpl.class);
 
@@ -42,6 +45,7 @@ public final class ClientCommandProtocolImpl implements ClientCommandProtocol {
 
 
     private ClientCommandProtocolImpl(ClientConnectionProtocolImpl connectionProtocol) {
+        super(connectionProtocol.connection, connectionProtocol.getMySQLUrl(), connectionProtocol.cumulateReceiver);
         this.mySQLUrl = connectionProtocol.getMySQLUrl();
         this.connection = connectionProtocol.getConnection();
         this.properties = this.mySQLUrl.getHosts().get(0).getProperties();
@@ -75,6 +79,41 @@ public final class ClientCommandProtocolImpl implements ClientCommandProtocol {
     @Override
     public long getId() {
         return this.handshakeV10Packet.getThreadId();
+    }
+
+    @Override
+    ZoneOffset obtainDatabaseZoneOffset() {
+        return null;
+    }
+
+    @Override
+    int obtainNegotiatedCapability() {
+        return 0;
+    }
+
+    @Override
+    Charset obtainCharsetClient() {
+        return null;
+    }
+
+    @Override
+    int obtainMaxBytesPerCharClient() {
+        return 0;
+    }
+
+    @Override
+    Charset obtainCharsetResults() {
+        return null;
+    }
+
+    @Override
+    Map<Integer, CharsetMapping.CustomCollation> obtainCustomCollationMap() {
+        return null;
+    }
+
+    @Override
+    public ZoneOffset obtainClientZoneOffset() {
+        return null;
     }
 
     /*################################## blow private method ##################################*/

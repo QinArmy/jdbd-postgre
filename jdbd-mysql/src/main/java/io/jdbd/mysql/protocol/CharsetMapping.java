@@ -64,45 +64,42 @@ public abstract class CharsetMapping {
 
     private static final String utf32 = "utf32";
     private static final String utf8 = "utf8";
-    private static final String utf8mb4 = "utf8mb4";
+    public static final String utf8mb4 = "utf8mb4";
 
     public static final String NOT_USED = latin1; // punting for not-used character sets
     public static final String COLLATION_NOT_DEFINED = "none";
 
     public static final int MYSQL_COLLATION_INDEX_utf8 = 33;
     public static final int MYSQL_COLLATION_INDEX_binary = 63;
+    public static final int MYSQL_COLLATION_INDEX_utf8mb4 = 255;
 
     private static final int NUMBER_OF_ENCODINGS_CONFIGURED;
 
-    /**
-     * a unmodifiable map
-     */
+    /** a unmodifiable map */
     public static final Map<String, MySQLCharset> CHARSET_NAME_TO_CHARSET;
 
-    /**
-     * a unmodifiable map
-     */
+    /** a unmodifiable map */
     public static final Map<String, List<MySQLCharset>> JAVA_ENCODING_UC_TO_MYSQL_CHARSET;
 
-    /**
-     * a unmodifiable set
-     */
+    /** a unmodifiable map */
     public static final Set<String> MULTIBYTE_ENCODINGS;
 
-    /**
-     * a unmodifiable map
-     */
+    /** a unmodifiable map */
     public static final Map<String, Integer> CHARSET_NAME_TO_COLLATION_INDEX;
 
-    /**
-     * a unmodifiable set
-     */
+    /** a unmodifiable map */
     public static final Set<Integer> UTF8MB4_INDEXES;
 
-    /**
-     * a unmodifiable map
-     */
+    /** a unmodifiable map */
     public static final Map<Integer, Collation> INDEX_TO_COLLATION;
+
+    /** a unmodifiable map */
+    public static final Map<String, Collation> NAME_TO_COLLATION;
+
+    /**
+     * @see <a href="https://dev.mysql.com/doc/refman/8.0/en/charset-connection.html#charset-connection-impermissible-client-charset">Impermissible Client Character Sets</a>
+     */
+    public static final Collection<String> UNSUPPORTED_CHARSET_CLIENTS = createUnsupportedCharsetClients();
 
 
     static {
@@ -132,20 +129,24 @@ public abstract class CharsetMapping {
         JAVA_ENCODING_UC_TO_MYSQL_CHARSET = Collections.unmodifiableMap(javaUcToMysqlCharsetMap);
         MULTIBYTE_ENCODINGS = Collections.unmodifiableSet(tempMultibyteEncodings);
 
-        // 2. below initialize three : CHARSET_NAME_TO_COLLATION_INDEX,UTF8MB4_INDEXES,INDEX_TO_COLLATION
+        // 2. below initialize four : CHARSET_NAME_TO_COLLATION_INDEX,UTF8MB4_INDEXES,INDEX_TO_COLLATION,NAME_TO_COLLATION
         final int maxSize = 2048;
 
-        final Collation notUsedCollation = new Collation(0, COLLATION_NOT_DEFINED, 0, NOT_USED);
-        final Map<Integer, Collation> collationMap = createCollationMap();
+        //final Collation notUsedCollation = new Collation(0, COLLATION_NOT_DEFINED, 0, NOT_USED);
         final Map<Integer, Collation> indexToCollationMap = new HashMap<>((int) (maxSize / 0.75f));
 
         Map<String, Integer> charsetNameToCollationIndexMap = new TreeMap<>();
         Map<String, Integer> charsetNameToCollationPriorityMap = new TreeMap<>();
         Set<Integer> tempUTF8MB4Indexes = new HashSet<>();
 
-        for (int i = 0; i < maxSize; i++) {
-            Collation collation = collationMap.getOrDefault(i, notUsedCollation);
+        Map<String, Collation> nameToCollation = new HashMap<>();
+
+        for (Map.Entry<Integer, Collation> e : createCollationMap().entrySet()) {
+            Integer i = e.getKey();
+            Collation collation = e.getValue();
+
             indexToCollationMap.put(i, collation);
+            nameToCollation.put(collation.collationName, collation);
 
             String charsetName = collation.mySQLCharset.charsetName;
             if (!charsetNameToCollationIndexMap.containsKey(charsetName)
@@ -162,6 +163,7 @@ public abstract class CharsetMapping {
         CHARSET_NAME_TO_COLLATION_INDEX = Collections.unmodifiableMap(charsetNameToCollationIndexMap);
         UTF8MB4_INDEXES = Collections.unmodifiableSet(tempUTF8MB4Indexes);
         INDEX_TO_COLLATION = Collections.unmodifiableMap(indexToCollationMap);
+        NAME_TO_COLLATION = Collections.unmodifiableMap(nameToCollation);
 
     }
 
@@ -188,8 +190,7 @@ public abstract class CharsetMapping {
     }
 
     @Nullable
-    public static String getMysqlCharsetForJavaEncoding(String javaEncoding, @Nullable ServerVersion version) {
-
+    public static MySQLCharset getMysqlCharsetForJavaEncoding(String javaEncoding, @Nullable ServerVersion version) {
         List<MySQLCharset> mysqlCharsets;
         mysqlCharsets = CharsetMapping.JAVA_ENCODING_UC_TO_MYSQL_CHARSET.get(javaEncoding.toUpperCase(Locale.ENGLISH));
 
@@ -200,7 +201,7 @@ public abstract class CharsetMapping {
         for (MySQLCharset charset : mysqlCharsets) {
             if (version == null) {
                 // Take the first one we get
-                return charset.charsetName;
+                return charset;
             }
 
             if (currentChoice == null
@@ -212,7 +213,7 @@ public abstract class CharsetMapping {
                 }
             }
         }
-        return currentChoice == null ? null : currentChoice.charsetName;
+        return currentChoice;
     }
 
     /**
@@ -238,9 +239,9 @@ public abstract class CharsetMapping {
 
 
     public static int getCollationIndexForJavaEncoding(String javaEncoding, ServerVersion version) {
-        String charsetName = getMysqlCharsetForJavaEncoding(javaEncoding, version);
-        if (charsetName != null) {
-            Integer ci = CHARSET_NAME_TO_COLLATION_INDEX.get(charsetName);
+        MySQLCharset mySQLCharset = getMysqlCharsetForJavaEncoding(javaEncoding, version);
+        if (mySQLCharset != null) {
+            Integer ci = CHARSET_NAME_TO_COLLATION_INDEX.get(mySQLCharset.charsetName);
             if (ci != null) {
                 return ci;
             }
@@ -252,6 +253,15 @@ public abstract class CharsetMapping {
     public static String getCollationNameByIndex(int collationIndex) {
         Collation collation = INDEX_TO_COLLATION.get(collationIndex);
         return collation == null ? null : collation.collationName;
+    }
+
+    @Nullable
+    public static Collation getCollationByName(String collationName) {
+        return CharsetMapping.NAME_TO_COLLATION.get(collationName.toLowerCase(Locale.ENGLISH));
+    }
+
+    public static boolean isUnsupportedCharset(String javaCharset) {
+        return UNSUPPORTED_CHARSET_CLIENTS.contains(javaCharset.toLowerCase(Locale.ENGLISH));
     }
 
     /**
@@ -549,7 +559,7 @@ public abstract class CharsetMapping {
         list.add(new Collation(249, "gb18030_bin", 0, gb18030));
         list.add(new Collation(250, "gb18030_unicode_520_ci", 0, gb18030));
 
-        list.add(new Collation(255, "utf8mb4_0900_ai_ci", 1, utf8mb4));
+        list.add(new Collation(MYSQL_COLLATION_INDEX_utf8mb4, "utf8mb4_0900_ai_ci", 1, utf8mb4));
         list.add(new Collation(256, "utf8mb4_de_pb_0900_ai_ci", 0, utf8mb4));
         list.add(new Collation(257, "utf8mb4_is_0900_ai_ci", 0, utf8mb4));
         list.add(new Collation(258, "utf8mb4_lv_0900_ai_ci", 0, utf8mb4));
@@ -640,6 +650,24 @@ public abstract class CharsetMapping {
             map.put(collation.index, collation);
         }
         return Collections.unmodifiableMap(map);
+    }
+
+    /**
+     * @return a unmodifiable collection
+     */
+    private static Collection<String> createUnsupportedCharsetClients() {
+        List<String> list = new ArrayList<>(4);
+
+        list.add("ucs2");
+        list.add("utf16");
+        list.add("utf16le");
+        list.add("utf32");
+
+        list.add("ucs-2");
+        list.add("utf-16");
+        list.add("utf-16le");
+        list.add("utf-32");
+        return Collections.unmodifiableCollection(list);
     }
 
 

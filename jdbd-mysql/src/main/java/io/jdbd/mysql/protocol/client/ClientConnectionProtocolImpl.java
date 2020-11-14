@@ -126,12 +126,6 @@ final class ClientConnectionProtocolImpl extends AbstractClientProtocol implemen
      */
     private final AtomicReference<Charset> charsetResults = new AtomicReference<>(null);
 
-    /**
-     * @see <a href="https://dev.mysql.com/doc/refman/8.0/en/charset-connection.html"> collation_connection system variable</a>
-     * @see PropertyKey#connectionCollation
-     */
-    private final AtomicReference<Integer> collationConnection = new AtomicReference<>(null);
-
     private final AtomicReference<Map<Integer, Integer>> customMblenMap = new AtomicReference<>(null);
 
     private final AtomicReference<Map<Integer, CharsetMapping.CustomCollation>> customCollationMap = new AtomicReference<>(null);
@@ -314,10 +308,10 @@ final class ClientConnectionProtocolImpl extends AbstractClientProtocol implemen
         if (phase != CONFIGURE_SESSION_PHASE) {
             return createConnectionPhaseNotMatchException(phase);
         }
-        return detectCustomCollations()
-                .then(Mono.defer(this::executeSetSessionVariables))
-                .then(Mono.defer(this::configureSessionCharset))
-                .then(Mono.defer(this::configureSessionSuccessEvent))
+        return detectCustomCollations()//1.
+                .then(Mono.defer(this::executeSetSessionVariables))// 2.
+                .then(Mono.defer(this::configureSessionCharset))//3.
+                .then(Mono.defer(this::configureSessionSuccessEvent))//4.
                 ;
     }
 
@@ -803,9 +797,6 @@ final class ClientConnectionProtocolImpl extends AbstractClientProtocol implemen
     }
 
 
-    private Mono<Void> enableMultiStatement() {
-        return Mono.empty();
-    }
 
     private Mono<Void> disableMultiStatement() {
         return Mono.empty();
@@ -861,8 +852,154 @@ final class ClientConnectionProtocolImpl extends AbstractClientProtocol implemen
      * @see #configureSession()
      */
     private Mono<Void> configureSessionCharset() {
-        return Mono.empty();
+
+        CharsetMapping.Collation connectionCollation = tryObtainConnectionCollation();
+        final Charset clientCharset;
+        final String namesCommand;
+        if (connectionCollation != null) {
+            namesCommand = String.format("SET NAMES '%s' COLLATE '%s'"
+                    , connectionCollation.mySQLCharset.charsetName
+                    , connectionCollation.collationName);
+            clientCharset = Charset.forName(connectionCollation.mySQLCharset.javaEncodingsUcList.get(0));
+        } else {
+            Pair<CharsetMapping.MySQLCharset, Charset> clientPair = obtainClientMySQLCharset();
+            namesCommand = String.format("SET NAMES '%s'", clientPair.getFirst().charsetName);
+            clientCharset = clientPair.getSecond();
+        }
+        // tow phase : SET NAMES and SET character_set_results = ?
+        //below one phase SET NAMES
+        return commandUpdate(namesCommand, EMPTY_STATE_CONSUMER)
+                .doOnSuccess(rows -> commandSetNamesSuccessEvent(clientCharset))
+                // below tow phase SET character_set_results = ?
+                .then(Mono.defer(this::configCharsetResults))
+                ;
     }
+
+    /**
+     * @see #configureSessionCharset()
+     * @see #commandSetNamesSuccessEvent(Charset)
+     */
+    private Mono<Void> configCharsetResults() {
+        final String charset = this.properties.getProperty(PropertyKey.characterSetResults, String.class);
+        if (charset != null && !MySQLStringUtils.hasText(charset)) {
+            return Mono.empty();
+        }
+        final Charset charsetResults;
+        final String command;
+        if (charset == null || charset.equalsIgnoreCase("NULL")) {
+            command = "SET character_set_results = NULL";
+            charsetResults = null;
+        } else {
+            ServerVersion serverVersion = obtainHandshakeV10Packet().getServerVersion();
+            CharsetMapping.MySQLCharset mySQLCharset;
+            mySQLCharset = CharsetMapping.getMysqlCharsetForJavaEncoding(charset, serverVersion);
+            if (mySQLCharset == null) {
+                return Mono.error(new JdbdMySQLException(
+                        "No found MySQL charset fro Property characterSetResults[%s]", charset));
+            }
+            command = String.format("SET character_set_results = '%s'", mySQLCharset.charsetName);
+            charsetResults = Charset.forName(charset);
+        }
+        return commandUpdate(command, EMPTY_STATE_CONSUMER)
+                .flatMap(rows -> overrideCharsetResults(charsetResults));
+
+    }
+
+    /**
+     * override {@link #charsetResults}
+     *
+     * @see #configCharsetResults()
+     */
+    private Mono<Void> overrideCharsetResults(@Nullable Charset charsetResults) {
+        if (charsetResults != null) {
+            this.charsetResults.set(charsetResults);
+            return Mono.empty();
+        }
+        String command = "SHOW VARIABLES WHERE Variable_name = 'character_set_system'";
+        return commandQuery(command, ORIGINAL_ROW_DECODER, EMPTY_STATE_CONSUMER)
+                .elementAt(0)
+                .doOnNext(this::updateCharsetResultsAfterQueryCharacterSetSystem)
+                .then()
+                ;
+    }
+
+    /**
+     * update {@link #charsetResults}
+     *
+     * @see #overrideCharsetResults(Charset)
+     */
+    private void updateCharsetResultsAfterQueryCharacterSetSystem(ResultRow resultRow) {
+        final String charset = resultRow.getObject("Value", String.class);
+        if (charset == null) {
+            this.charsetResults.set(StandardCharsets.UTF_8);
+        } else {
+            ServerVersion serverVersion = obtainHandshakeV10Packet().getServerVersion();
+            CharsetMapping.MySQLCharset mySQLCharset;
+            mySQLCharset = CharsetMapping.getMysqlCharsetForJavaEncoding(charset, serverVersion);
+            if (mySQLCharset == null) {
+                throw new JdbdMySQLException(
+                        "Not found java charset for character_set_system[%s]", charset);
+            }
+            this.charsetResults.set(Charset.forName(mySQLCharset.javaEncodingsUcList.get(0)));
+        }
+    }
+
+
+    /**
+     * @see #configureSessionCharset()
+     * @see #configCharsetResults()
+     */
+    private void commandSetNamesSuccessEvent(Charset clientCharset) {
+        this.charsetClient.set(clientCharset);
+        this.charsetResults.set(clientCharset);
+    }
+
+
+    @Nullable
+    private CharsetMapping.Collation tryObtainConnectionCollation() {
+        CharsetMapping.Collation collationConnection;
+        String connectionCollation = this.properties.getProperty(PropertyKey.connectionCollation, String.class);
+        if (!MySQLStringUtils.hasText(connectionCollation)) {
+            return null;
+        }
+        collationConnection = CharsetMapping.getCollationByName(connectionCollation);
+        if (collationConnection != null
+                && CharsetMapping.isUnsupportedCharset(collationConnection.mySQLCharset.charsetName)) {
+            collationConnection = CharsetMapping.INDEX_TO_COLLATION.get(CharsetMapping.MYSQL_COLLATION_INDEX_utf8mb4);
+        }
+        return collationConnection;
+    }
+
+    private Pair<CharsetMapping.MySQLCharset, Charset> obtainClientMySQLCharset() {
+        final String charsetClient = properties.getProperty(PropertyKey.characterEncoding);
+
+        final Pair<CharsetMapping.MySQLCharset, Charset> defaultPair;
+        defaultPair = new Pair<>(
+                CharsetMapping.CHARSET_NAME_TO_CHARSET.get(CharsetMapping.utf8mb4)
+                , StandardCharsets.UTF_8
+        );
+
+        Pair<CharsetMapping.MySQLCharset, Charset> pair = null;
+        if (!MySQLStringUtils.hasText(charsetClient)
+                || !CharsetMapping.isUnsupportedCharset(charsetClient)
+                || StandardCharsets.UTF_8.name().equalsIgnoreCase(charsetClient)
+                || StandardCharsets.UTF_8.aliases().contains(charsetClient)) {
+            pair = defaultPair;
+        } else {
+            ServerVersion serverVersion = obtainHandshakeV10Packet().getServerVersion();
+            CharsetMapping.MySQLCharset mySQLCharset = CharsetMapping.getMysqlCharsetForJavaEncoding(
+                    charsetClient, serverVersion);
+            if (mySQLCharset != null) {
+                pair = new Pair<>(mySQLCharset, Charset.forName(charsetClient));
+            }
+        }
+
+        if (pair == null) {
+            pair = defaultPair;
+        }
+        return pair;
+    }
+
 
     /**
      * handle {@link #configureSession()} success event.
