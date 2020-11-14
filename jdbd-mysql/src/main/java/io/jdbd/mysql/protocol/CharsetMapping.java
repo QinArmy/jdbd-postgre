@@ -227,6 +227,16 @@ public abstract class CharsetMapping {
         return Charset.forName(collation.mySQLCharset.javaEncodingsUcList.get(0));
     }
 
+    @Nullable
+    public static Charset getJavaCharsetByMySQLCharsetName(String mysqlCharsetName) {
+        MySQLCharset mySQLCharset = CHARSET_NAME_TO_CHARSET.get(mysqlCharsetName);
+        if (mySQLCharset == null) {
+            return null;
+        }
+        return Charset.forName(mySQLCharset.javaEncodingsUcList.get(0));
+    }
+
+
     public static int getCollationIndexForJavaEncoding(String javaEncoding, ServerVersion version) {
         String charsetName = getMysqlCharsetForJavaEncoding(javaEncoding, version);
         if (charsetName != null) {

@@ -23,7 +23,8 @@ public final class OkPacket implements MySQLPacket {
      * @throws IllegalArgumentException packet error.
      */
     public static OkPacket readPacket(ByteBuf payloadBuf, final int capability) {
-        if (PacketUtils.readInt1(payloadBuf) != OK_HEADER) {
+        int type = PacketUtils.readInt1(payloadBuf);
+        if (type != OK_HEADER && type != EofPacket.EOF_HEADER) {
             throw new IllegalArgumentException("packetBuf isn't ok packet.");
         }
         //1. affected_rows

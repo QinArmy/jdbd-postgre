@@ -2,14 +2,18 @@ package io.jdbd.mysql.protocol.client;
 
 import io.jdbd.ReactiveSQLException;
 import io.jdbd.ResultRow;
+import io.jdbd.ResultRowMeta;
+import io.jdbd.ResultStates;
 import io.jdbd.mysql.JdbdMySQLException;
 import io.jdbd.mysql.protocol.CharsetMapping;
 import io.jdbd.mysql.protocol.EofPacket;
 import io.jdbd.mysql.protocol.ErrorPacket;
+import io.jdbd.mysql.protocol.OkPacket;
 import io.jdbd.mysql.protocol.conf.MySQLUrl;
+import io.jdbd.mysql.protocol.conf.Properties;
+import io.jdbd.mysql.util.MySQLExceptionUtils;
 import io.jdbd.mysql.util.MySQLStringUtils;
 import io.netty.buffer.ByteBuf;
-import org.qinarmy.util.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import reactor.core.publisher.Flux;
@@ -30,9 +34,10 @@ import java.util.Collections;
 import java.util.EnumMap;
 import java.util.Locale;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiFunction;
+import java.util.function.Consumer;
 
-import static io.jdbd.mysql.protocol.client.PacketDecoders.ComQueryResponse.TEXT_RESULT;
 import static java.time.temporal.ChronoField.*;
 
 abstract class AbstractClientProtocol implements ClientProtocol, ResultRowAdjutant {
@@ -67,13 +72,43 @@ abstract class AbstractClientProtocol implements ClientProtocol, ResultRowAdjuta
 
     final MySQLCumulateReceiver cumulateReceiver;
 
+    final Properties properties;
+
     private final Map<MySQLType, BiFunction<ByteBuf, MySQLColumnMeta, Object>> resultColumnParserMap = createResultColumnTypeParserMap();
 
     AbstractClientProtocol(Connection connection, MySQLUrl mySQLUrl, MySQLCumulateReceiver cumulateReceiver) {
         this.connection = connection;
         this.mySQLUrl = mySQLUrl;
         this.cumulateReceiver = cumulateReceiver;
+
+        this.properties = mySQLUrl.getHosts().get(0).getProperties();
     }
+
+    @Override
+    public final Mono<Integer> commandUpdate(String command, Consumer<ResultStates> statesConsumer) {
+        return Mono.error(new UnsupportedOperationException());
+    }
+
+    @Override
+    public final <T> Flux<T> commandQuery(String command, BiFunction<ResultRow, ResultRowMeta, T> rowDecoder
+            , Consumer<ResultStates> statesConsumer) {
+        // 1. create COM_QUERY packet.
+        ByteBuf packetBuf = createPacketBuffer(command.length() * obtainMaxBytesPerCharClient());
+        packetBuf.writeByte(PacketUtils.COM_QUERY_HEADER)
+                .writeBytes(command.getBytes(obtainCharsetClient()));
+
+        return sendPacket(packetBuf, null) //2. send COM_QUERY packet
+                .then(Mono.defer(this::receiveResultSetMetadataPacket))//3. receive row meta packet
+                // 4. receive rows and decode with rowDecoder
+                .flatMapMany(rowMeta -> receiveResultSetRows(rowMeta, rowDecoder, statesConsumer))
+                ;
+    }
+
+    public final ByteBuf createPacketBuffer(int initialPayloadCapacity) {
+        return PacketUtils.createPacketBuffer(this.connection, initialPayloadCapacity);
+    }
+
+
 
     /*################################## blow ResultRowAdjutant method ##################################*/
 
@@ -87,68 +122,16 @@ abstract class AbstractClientProtocol implements ClientProtocol, ResultRowAdjuta
     }
 
     /**
-     * receive multi row and read terminator, if error, publish error.
-     *
-     * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_com_query_response_text_resultset.html">Protocol::Text Resultset</a>
+     * @see #commandQuery(String, BiFunction, Consumer)
+     * @see #commandUpdate(String, Consumer)
      */
-    final Flux<ResultRow> receiveSingleResultSetRowData(MySQLRowMeta rowMeta) {
-        return this.cumulateReceiver.receive(this::invokeResultSetMultiRowDecoder)
-                .flatMap(multiRowBuf -> {
-                    multiRowBuf.retain(); // for below convertResultRow method.
-                    return Flux.<ResultRow>create(sink -> parseResultSetRows(sink, multiRowBuf, rowMeta));
-                })
-                ;
+    final Mono<Void> sendPacket(ByteBuf packetBuffer, @Nullable AtomicInteger sequenceId) {
+        // TODO optimize packet send
+        PacketUtils.writePacketHeader(packetBuffer, sequenceId == null ? 0 : sequenceId.addAndGet(1));
+        return Mono.from(this.connection.outbound()
+                .send(Mono.just(packetBuffer)));
     }
 
-    final Mono<ByteBuf> receiveResultSetMetadataPacket() {
-        return this.cumulateReceiver.receiveOne(this::comQueryResultSetMetaDecoder);
-    }
-
-    /**
-     * @see #receiveResultSetMetadataPacket()
-     */
-    final boolean comQueryResultSetMetaDecoder(ByteBuf cumulateBuf, MonoSink<ByteBuf> sink) {
-        if (!PacketUtils.hasOnePacket(cumulateBuf)) {
-            return false;
-        }
-        final int negotiatedCapability = obtainNegotiatedCapability();
-        final PacketDecoders.ComQueryResponse responseType;
-        responseType = PacketDecoders.detectComQueryResponseType(cumulateBuf, negotiatedCapability);
-        boolean decodeEnd;
-        switch (responseType) {
-            case OK:
-            case LOCAL_INFILE_REQUEST:
-                ByteBuf packetBuf;
-                packetBuf = cumulateBuf.readRetainedSlice(PacketUtils.HEADER_SIZE + PacketUtils.readInt3(cumulateBuf));
-                sink.error(createStatementUseCaseException(TEXT_RESULT, packetBuf));
-                decodeEnd = true;
-                break;
-            case ERROR:
-                decodeEnd = true;
-                break;
-            case TEXT_RESULT:
-                decodeEnd = PacketDecoders.comQueryResultSetMetadataDecoder(cumulateBuf, sink, negotiatedCapability);
-                break;
-            default:
-                throw new IllegalStateException(String.format("unknown ComQueryResponse[%s]", responseType));
-        }
-        return decodeEnd;
-    }
-
-
-    private ReactiveSQLException createStatementUseCaseException(PacketDecoders.ComQueryResponse expectedType
-            , ByteBuf actualPacketBuf) {
-        actualPacketBuf.skipBytes(PacketUtils.HEADER_SIZE);
-        //TODO 处理期待类型错误
-        return new ReactiveSQLException(
-                new SQLException(String.format(
-                        "statement use case error,expected type:%s,actual type:%s", expectedType, "")));
-    }
-
-
-    abstract Map<Integer, Charset> obtainCustomCollationIndexToCharsetMap();
-
-    abstract Map<Integer, Integer> obtainCustomCollationIndexToMblenMap();
 
     abstract ZoneOffset obtainDatabaseZoneOffset();
 
@@ -156,7 +139,17 @@ abstract class AbstractClientProtocol implements ClientProtocol, ResultRowAdjuta
 
     abstract Charset obtainCharsetClient();
 
+    /**
+     * be equivalent to {@code (int)obtainCharsetClient().newEncoder().maxBytesPerChar()}
+     */
+    abstract int obtainMaxBytesPerCharClient();
+
     abstract Charset obtainCharsetResults();
+
+    /**
+     * @return a unmodifiable map
+     */
+    abstract Map<Integer, CharsetMapping.CustomCollation> obtainCustomCollationMap();
 
     /*################################## blow private method ##################################*/
 
@@ -166,7 +159,7 @@ abstract class AbstractClientProtocol implements ClientProtocol, ResultRowAdjuta
      * @see MySQLType#DECIMAL_UNSIGNED
      */
     @Nullable
-    private BigDecimal toDecimal(ByteBuf multiRowBuf, MySQLColumnMeta columnMeta) {
+    private BigDecimal parseDecimal(ByteBuf multiRowBuf, MySQLColumnMeta columnMeta) {
         String decimalText = PacketUtils.readStringLenEnc(multiRowBuf, obtainResultColumnCharset(columnMeta));
         try {
             return decimalText == null ? null : new BigDecimal(decimalText);
@@ -186,7 +179,7 @@ abstract class AbstractClientProtocol implements ClientProtocol, ResultRowAdjuta
      * @see MySQLType#INT
      */
     @Nullable
-    private Integer toInt(ByteBuf multiRowBuf, MySQLColumnMeta columnMeta) {
+    private Integer parseInt(ByteBuf multiRowBuf, MySQLColumnMeta columnMeta) {
         String intText = PacketUtils.readStringLenEnc(multiRowBuf, obtainResultColumnCharset(columnMeta));
         try {
             return intText == null ? null : Integer.parseInt(intText);
@@ -200,7 +193,7 @@ abstract class AbstractClientProtocol implements ClientProtocol, ResultRowAdjuta
      * @see MySQLType#BIGINT
      */
     @Nullable
-    private Long toLong(ByteBuf multiRowBuf, MySQLColumnMeta columnMeta) {
+    private Long parseLong(ByteBuf multiRowBuf, MySQLColumnMeta columnMeta) {
         String longText = PacketUtils.readStringLenEnc(multiRowBuf, obtainResultColumnCharset(columnMeta));
         try {
             return longText == null ? null : Long.parseLong(longText);
@@ -213,7 +206,7 @@ abstract class AbstractClientProtocol implements ClientProtocol, ResultRowAdjuta
      * @see MySQLType#BIGINT_UNSIGNED
      */
     @Nullable
-    private BigInteger toBigInteger(ByteBuf multiRowBuf, MySQLColumnMeta columnMeta) {
+    private BigInteger parseBigInteger(ByteBuf multiRowBuf, MySQLColumnMeta columnMeta) {
         String integerText = PacketUtils.readStringLenEnc(multiRowBuf, obtainResultColumnCharset(columnMeta));
         try {
             return integerText == null ? null : new BigInteger(integerText);
@@ -226,7 +219,7 @@ abstract class AbstractClientProtocol implements ClientProtocol, ResultRowAdjuta
      * @see MySQLType#BOOLEAN
      */
     @Nullable
-    private Boolean toBoolean(ByteBuf multiRowBuf, MySQLColumnMeta columnMeta) {
+    private Boolean parseBoolean(ByteBuf multiRowBuf, MySQLColumnMeta columnMeta) {
         String booleanText = PacketUtils.readStringLenEnc(multiRowBuf, obtainResultColumnCharset(columnMeta));
         if (booleanText == null) {
             return null;
@@ -258,7 +251,7 @@ abstract class AbstractClientProtocol implements ClientProtocol, ResultRowAdjuta
      * @see MySQLType#FLOAT_UNSIGNED
      */
     @Nullable
-    private Float toFlat(ByteBuf multiRowBuf, MySQLColumnMeta columnMeta) {
+    private Float parseFloat(ByteBuf multiRowBuf, MySQLColumnMeta columnMeta) {
         String text = PacketUtils.readStringLenEnc(multiRowBuf, obtainResultColumnCharset(columnMeta));
         if (text == null) {
             return null;
@@ -275,7 +268,7 @@ abstract class AbstractClientProtocol implements ClientProtocol, ResultRowAdjuta
      * @see MySQLType#DOUBLE_UNSIGNED
      */
     @Nullable
-    private Double toDouble(ByteBuf multiRowBuf, MySQLColumnMeta columnMeta) {
+    private Double parseDouble(ByteBuf multiRowBuf, MySQLColumnMeta columnMeta) {
         String text = PacketUtils.readStringLenEnc(multiRowBuf, obtainResultColumnCharset(columnMeta));
         if (text == null) {
             return null;
@@ -291,7 +284,7 @@ abstract class AbstractClientProtocol implements ClientProtocol, ResultRowAdjuta
      * @see MySQLType#NULL
      */
     @Nullable
-    private Object toNull(ByteBuf multiRowBuf, MySQLColumnMeta columnMeta) {
+    private Object parseNull(ByteBuf multiRowBuf, MySQLColumnMeta columnMeta) {
         // skip this column
         PacketUtils.readStringLenEnc(multiRowBuf, obtainResultColumnCharset(columnMeta));
         return null;
@@ -302,7 +295,7 @@ abstract class AbstractClientProtocol implements ClientProtocol, ResultRowAdjuta
      * @see MySQLType#DATETIME
      */
     @Nullable
-    private LocalDateTime toLocalDateTime(ByteBuf multiRowBuf, MySQLColumnMeta columnMeta) {
+    private LocalDateTime parseLocalDateTime(ByteBuf multiRowBuf, MySQLColumnMeta columnMeta) {
         String text = PacketUtils.readStringLenEnc(multiRowBuf, obtainResultColumnCharset(columnMeta));
         if (text == null) {
             return null;
@@ -321,7 +314,7 @@ abstract class AbstractClientProtocol implements ClientProtocol, ResultRowAdjuta
      * @see MySQLType#DATE
      */
     @Nullable
-    private LocalDate toLocalDate(ByteBuf multiRowBuf, MySQLColumnMeta columnMeta) {
+    private LocalDate parseLocalDate(ByteBuf multiRowBuf, MySQLColumnMeta columnMeta) {
         String text = PacketUtils.readStringLenEnc(multiRowBuf, obtainResultColumnCharset(columnMeta));
         if (text == null) {
             return null;
@@ -338,7 +331,7 @@ abstract class AbstractClientProtocol implements ClientProtocol, ResultRowAdjuta
      * @see MySQLType#TIME
      */
     @Nullable
-    private LocalTime toLocalTime(ByteBuf multiRowBuf, MySQLColumnMeta columnMeta) {
+    private LocalTime parseLocalTime(ByteBuf multiRowBuf, MySQLColumnMeta columnMeta) {
         String text = PacketUtils.readStringLenEnc(multiRowBuf, obtainResultColumnCharset(columnMeta));
         if (text == null) {
             return null;
@@ -356,7 +349,7 @@ abstract class AbstractClientProtocol implements ClientProtocol, ResultRowAdjuta
      * @see MySQLType#YEAR
      */
     @Nullable
-    private Year toYear(ByteBuf multiRowBuf, MySQLColumnMeta columnMeta) {
+    private Year parseYear(ByteBuf multiRowBuf, MySQLColumnMeta columnMeta) {
         String text = PacketUtils.readStringLenEnc(multiRowBuf, obtainResultColumnCharset(columnMeta));
         if (text == null) {
             return null;
@@ -381,7 +374,7 @@ abstract class AbstractClientProtocol implements ClientProtocol, ResultRowAdjuta
      * @see MySQLType#UNKNOWN
      */
     @Nullable
-    private String toString(ByteBuf multiRowBuf, MySQLColumnMeta columnMeta) {
+    private String parseString(ByteBuf multiRowBuf, MySQLColumnMeta columnMeta) {
         try {
             return PacketUtils.readStringLenEnc(multiRowBuf, obtainResultColumnCharset(columnMeta));
         } catch (Throwable e) {
@@ -393,7 +386,7 @@ abstract class AbstractClientProtocol implements ClientProtocol, ResultRowAdjuta
      * @see MySQLType#BIT
      */
     @Nullable
-    private Long toLongForBit(ByteBuf multiRowBuf, MySQLColumnMeta columnMeta) {
+    private Long parseLongForBit(ByteBuf multiRowBuf, MySQLColumnMeta columnMeta) {
         String text = null;
         try {
             text = PacketUtils.readStringLenEnc(multiRowBuf, obtainResultColumnCharset(columnMeta));
@@ -423,7 +416,7 @@ abstract class AbstractClientProtocol implements ClientProtocol, ResultRowAdjuta
      * @see MySQLType#LONGBLOB
      */
     @Nullable
-    private byte[] toByteArray(ByteBuf multiRowBuf, MySQLColumnMeta columnMeta) {
+    private byte[] parseByteArray(ByteBuf multiRowBuf, MySQLColumnMeta columnMeta) {
         try {
             int len = PacketUtils.readInt1(multiRowBuf);
             if (len == PacketUtils.NULL_LENGTH) {
@@ -441,7 +434,7 @@ abstract class AbstractClientProtocol implements ClientProtocol, ResultRowAdjuta
      * @see MySQLType#GEOMETRY
      */
     @Nullable
-    private Object toGeometry(ByteBuf multiRowBuf, MySQLColumnMeta columnMeta) {
+    private Object parseGeometry(ByteBuf multiRowBuf, MySQLColumnMeta columnMeta) {
         //TODO add Geometry class
         return PacketUtils.readStringLenEnc(multiRowBuf, obtainResultColumnCharset(columnMeta));
     }
@@ -452,57 +445,57 @@ abstract class AbstractClientProtocol implements ClientProtocol, ResultRowAdjuta
     private Map<MySQLType, BiFunction<ByteBuf, MySQLColumnMeta, Object>> createResultColumnTypeParserMap() {
         Map<MySQLType, BiFunction<ByteBuf, MySQLColumnMeta, Object>> map = new EnumMap<>(MySQLType.class);
 
-        map.put(MySQLType.DECIMAL, this::toDecimal);
-        map.put(MySQLType.DECIMAL_UNSIGNED, this::toDecimal);    // 1 fore
-        map.put(MySQLType.TINYINT, this::toInt);
-        map.put(MySQLType.TINYINT_UNSIGNED, this::toInt);
+        map.put(MySQLType.DECIMAL, this::parseDecimal);
+        map.put(MySQLType.DECIMAL_UNSIGNED, this::parseDecimal);    // 1 fore
+        map.put(MySQLType.TINYINT, this::parseInt);
+        map.put(MySQLType.TINYINT_UNSIGNED, this::parseInt);
 
-        map.put(MySQLType.BOOLEAN, this::toBoolean);
-        map.put(MySQLType.SMALLINT, this::toInt);            // 2 fore
-        map.put(MySQLType.SMALLINT_UNSIGNED, this::toInt);
-        map.put(MySQLType.INT, this::toInt);
+        map.put(MySQLType.BOOLEAN, this::parseBoolean);
+        map.put(MySQLType.SMALLINT, this::parseInt);            // 2 fore
+        map.put(MySQLType.SMALLINT_UNSIGNED, this::parseInt);
+        map.put(MySQLType.INT, this::parseInt);
 
-        map.put(MySQLType.INT_UNSIGNED, this::toLong);
-        map.put(MySQLType.FLOAT, this::toFlat);           // 3 fore
-        map.put(MySQLType.FLOAT_UNSIGNED, this::toFlat);
-        map.put(MySQLType.DOUBLE, this::toDouble);
+        map.put(MySQLType.INT_UNSIGNED, this::parseLong);
+        map.put(MySQLType.FLOAT, this::parseFloat);           // 3 fore
+        map.put(MySQLType.FLOAT_UNSIGNED, this::parseFloat);
+        map.put(MySQLType.DOUBLE, this::parseDouble);
 
-        map.put(MySQLType.DOUBLE_UNSIGNED, this::toDouble);
-        map.put(MySQLType.NULL, this::toNull);          // 4 fore
-        map.put(MySQLType.TIMESTAMP, this::toLocalDateTime);
-        map.put(MySQLType.BIGINT, this::toLong);
+        map.put(MySQLType.DOUBLE_UNSIGNED, this::parseDouble);
+        map.put(MySQLType.NULL, this::parseNull);          // 4 fore
+        map.put(MySQLType.TIMESTAMP, this::parseLocalDateTime);
+        map.put(MySQLType.BIGINT, this::parseLong);
 
-        map.put(MySQLType.BIGINT_UNSIGNED, this::toBigInteger);
-        map.put(MySQLType.MEDIUMINT, this::toInt);         // 5 fore
-        map.put(MySQLType.MEDIUMINT_UNSIGNED, this::toInt);
-        map.put(MySQLType.DATE, this::toLocalDate);
+        map.put(MySQLType.BIGINT_UNSIGNED, this::parseBigInteger);
+        map.put(MySQLType.MEDIUMINT, this::parseInt);         // 5 fore
+        map.put(MySQLType.MEDIUMINT_UNSIGNED, this::parseInt);
+        map.put(MySQLType.DATE, this::parseLocalDate);
 
-        map.put(MySQLType.TIME, this::toLocalTime);
-        map.put(MySQLType.DATETIME, this::toLocalDateTime);        // 6 fore
-        map.put(MySQLType.YEAR, this::toYear);
-        map.put(MySQLType.VARCHAR, this::toString);
+        map.put(MySQLType.TIME, this::parseLocalTime);
+        map.put(MySQLType.DATETIME, this::parseLocalDateTime);        // 6 fore
+        map.put(MySQLType.YEAR, this::parseYear);
+        map.put(MySQLType.VARCHAR, this::parseString);
 
-        map.put(MySQLType.VARBINARY, this::toByteArray);
-        map.put(MySQLType.BIT, this::toLongForBit);        // 7 fore
-        map.put(MySQLType.JSON, this::toString);
-        map.put(MySQLType.ENUM, this::toString);
+        map.put(MySQLType.VARBINARY, this::parseByteArray);
+        map.put(MySQLType.BIT, this::parseLongForBit);        // 7 fore
+        map.put(MySQLType.JSON, this::parseString);
+        map.put(MySQLType.ENUM, this::parseString);
 
-        map.put(MySQLType.SET, this::toString);
-        map.put(MySQLType.TINYBLOB, this::toByteArray);        // 8 fore
-        map.put(MySQLType.TINYTEXT, this::toString);
-        map.put(MySQLType.MEDIUMBLOB, this::toByteArray);
+        map.put(MySQLType.SET, this::parseString);
+        map.put(MySQLType.TINYBLOB, this::parseByteArray);        // 8 fore
+        map.put(MySQLType.TINYTEXT, this::parseString);
+        map.put(MySQLType.MEDIUMBLOB, this::parseByteArray);
 
-        map.put(MySQLType.MEDIUMTEXT, this::toString);
-        map.put(MySQLType.LONGBLOB, this::toByteArray);        // 9 fore
-        map.put(MySQLType.LONGTEXT, this::toString);
-        map.put(MySQLType.BLOB, this::toByteArray);
+        map.put(MySQLType.MEDIUMTEXT, this::parseString);
+        map.put(MySQLType.LONGBLOB, this::parseByteArray);        // 9 fore
+        map.put(MySQLType.LONGTEXT, this::parseString);
+        map.put(MySQLType.BLOB, this::parseByteArray);
 
-        map.put(MySQLType.TEXT, this::toString);
-        map.put(MySQLType.CHAR, this::toString);        // 10 fore
-        map.put(MySQLType.BINARY, this::toByteArray);
-        map.put(MySQLType.GEOMETRY, this::toGeometry);
+        map.put(MySQLType.TEXT, this::parseString);
+        map.put(MySQLType.CHAR, this::parseString);        // 10 fore
+        map.put(MySQLType.BINARY, this::parseByteArray);
+        map.put(MySQLType.GEOMETRY, this::parseGeometry);
 
-        map.put(MySQLType.UNKNOWN, this::toString);
+        map.put(MySQLType.UNKNOWN, this::parseString);
 
         return Collections.unmodifiableMap(map);
     }
@@ -511,10 +504,15 @@ abstract class AbstractClientProtocol implements ClientProtocol, ResultRowAdjuta
     private Charset obtainResultColumnCharset(MySQLColumnMeta columnMeta) {
         Charset charset = CharsetMapping.getJavaCharsetByCollationIndex(columnMeta.collationIndex);
         if (charset == null) {
-            Map<Integer, Charset> customCharset = obtainCustomCollationIndexToCharsetMap();
-            charset = customCharset.get(columnMeta.collationIndex);
-            if (charset == null) {
+            Map<Integer, CharsetMapping.CustomCollation> map = obtainCustomCollationMap();
+            CharsetMapping.CustomCollation collation = map.get(columnMeta.collationIndex);
+            if (collation == null) {
                 throw createNotFoundCustomCharsetException(columnMeta);
+            }
+            charset = CharsetMapping.getJavaCharsetByMySQLCharsetName(collation.charsetName);
+            if (charset == null) {
+                // here , io.jdbd.mysql.protocol.client.ClientConnectionProtocolImpl.detectCustomCollations have bugs.
+                throw new IllegalStateException("Can't obtain ResultSet meta charset.");
             }
         }
         return charset;
@@ -522,35 +520,204 @@ abstract class AbstractClientProtocol implements ClientProtocol, ResultRowAdjuta
 
 
     /**
-     * @see #receiveSingleResultSetRowData(MySQLRowMeta)
+     * @see #receiveResultSetRows(MySQLRowMeta, BiFunction, Consumer)
+     */
+    private boolean textResultSetMultiRowDecoder(final ByteBuf cumulateBuf, FluxSink<ByteBuf> sink) {
+        return PacketDecoders.textResultSetMultiRowDecoder(cumulateBuf, sink, obtainNegotiatedCapability());
+    }
+
+    /**
+     * @see #commandQuery(String, BiFunction, Consumer)
+     */
+    private Mono<MySQLRowMeta> receiveResultSetMetadataPacket() {
+        //  comQueryResultSetMetaDecoder will handle not expected packet,eg:ok,LOCAL INFILE Request .
+        return this.cumulateReceiver.receiveOne(this::textResultSetMetaDecoder)
+                .map(this::parseResultSetMetaPacket)
+                ;
+    }
+
+    /**
+     * @see #receiveResultSetMetadataPacket()
+     */
+    private boolean textResultSetMetaDecoder(final ByteBuf cumulateBuf, final MonoSink<ByteBuf> sink) {
+        if (!PacketUtils.hasOnePacket(cumulateBuf)) {
+            return false;
+        }
+        final int negotiatedCapability = obtainNegotiatedCapability();
+        final PacketDecoders.ComQueryResponse responseType;
+        responseType = PacketDecoders.detectComQueryResponseType(cumulateBuf, negotiatedCapability);
+        boolean decodeEnd;
+        switch (responseType) {
+            case OK:
+            case LOCAL_INFILE_REQUEST:
+                // expected TEXT_RESULT, but OK/LOCAL_INFILE_REQUEST, read packet and drop.
+                decodeEnd = PacketDecoders.packetDecoder(cumulateBuf, PacketDecoders.SEWAGE_SINK);//SEWAGE_SINK for drop
+                if (decodeEnd) {
+                    // notify downstream command sql not match
+                    sink.error(MySQLExceptionUtils.createNonResultSetCommandException());
+                }
+                break;
+            case ERROR:
+                ErrorPacket packet;
+                packet = PacketDecoders.decodeErrorPacket(cumulateBuf, negotiatedCapability, obtainCharsetResults());
+                // notify downstream command sql error.
+                sink.error(MySQLExceptionUtils.createErrorPacketException(packet));
+                decodeEnd = true;
+                break;
+            case TEXT_RESULT:
+                decodeEnd = PacketDecoders.textResultSetMetadataDecoder(cumulateBuf, sink, negotiatedCapability);
+                break;
+            default:
+                throw new IllegalStateException(String.format("unknown ComQueryResponse[%s]", responseType));
+        }
+        return decodeEnd;
+    }
+
+    /**
+     * @see #receiveResultSetMetadataPacket()
+     */
+    private MySQLRowMeta parseResultSetMetaPacket(ByteBuf rowMetaOrErrorPacket) {
+        PacketDecoders.ComQueryResponse response;
+        final int negotiatedCapability = obtainNegotiatedCapability();
+        response = PacketDecoders.detectComQueryResponseType(rowMetaOrErrorPacket, negotiatedCapability);
+
+        if (response == PacketDecoders.ComQueryResponse.TEXT_RESULT) {
+
+            MySQLColumnMeta[] columnMetas = PacketDecoders.readResultColumnMetas(
+                    rowMetaOrErrorPacket, negotiatedCapability
+                    , obtainCharsetResults(), this.properties);
+            return MySQLRowMeta.from(columnMetas, obtainCustomCollationMap());
+        }
+        throw new IllegalArgumentException("rowMetaOrErrorPacket error");
+
+    }
+
+
+    /**
+     * @see #commandQuery(String, BiFunction, Consumer)
+     * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_com_query_response_text_resultset.html">Protocol::Text Resultset</a>
+     */
+    private <T> Flux<T> receiveResultSetRows(MySQLRowMeta rowMeta
+            , BiFunction<ResultRow, ResultRowMeta, T> rowDecoder, Consumer<ResultStates> statesConsumer) {
+        return this.cumulateReceiver.receive(this::textResultSetMultiRowDecoder) // 1. decode packet,if error skip packet and publish error.
+                .flatMap(multiRowBuf -> {
+                    multiRowBuf.retain(); // for below convertResultRow method.
+                    return Flux.<ResultRow>create(sink -> parseResultSetRows(sink, multiRowBuf, rowMeta));
+                }) //2.parse ByteBuf to ResultRow
+                .map(resultRow -> decodeResultRow(resultRow, rowMeta, rowDecoder)) //3. convert ResultRow to T
+                .onErrorResume(this::handleResultSetTerminatorOnError) // optionally handle upstream error and terminator,finally publish error.
+                .concatWith(Flux.defer(() -> handleResultSetTerminator(statesConsumer))) // 4.handle result set terminator,don't publish ResultRow
+                ;
+    }
+
+
+    /**
+     * @see #receiveResultSetRows(MySQLRowMeta, BiFunction, Consumer)
+     */
+    private <T> T decodeResultRow(ResultRow resultRow, MySQLRowMeta rowMeta
+            , BiFunction<ResultRow, ResultRowMeta, T> rowDecoder) {
+        T finalRow;
+        try {
+            finalRow = rowDecoder.apply(resultRow, rowMeta);
+        } catch (Throwable e) {
+            throw new ReactiveSQLException(new SQLException("rowDecoder throw exception.", e));
+        }
+        if (finalRow == null) {
+            throw new ReactiveSQLException(new SQLException("Result Set decoder can't return null."));
+        }
+        return finalRow;
+    }
+
+
+    /**
+     * @return {@link Flux#error(Throwable)}
+     * @see #receiveResultSetRows(MySQLRowMeta, BiFunction, Consumer)
+     */
+    private <T> Flux<T> handleResultSetTerminatorOnError(Throwable e) {
+        return handleResultSetTerminator(EMPTY_STATE_CONSUMER)
+                .thenMany(Flux.error(MySQLExceptionUtils.wrapExceptionIfNeed(e)))
+                ;
+    }
+
+
+    /**
+     * @return {@link Flux#empty()} or {@link Flux#error(Throwable)} (if terminator is error packet.)
+     * @see #receiveResultSetRows(MySQLRowMeta, BiFunction, Consumer)
+     * @see #handleResultSetTerminatorOnError(Throwable)
+     */
+    private <T> Flux<T> handleResultSetTerminator(Consumer<ResultStates> statesConsumer) {
+        // use packet decoder , because Text ResultRow decoder do it.
+        return this.cumulateReceiver.receiveOnePacket()
+                .flatMapMany(packetBuf -> handleResultSetTerminator0(packetBuf, statesConsumer))
+                ;
+    }
+
+    /**
+     * handle Text ResultSet terminator.
+     *
+     * @return {@link Flux#empty()} or {@link Flux#error(Throwable)} (if terminator is error packet.)
+     * @see #handleResultSetTerminator(Consumer)
+     */
+    private <T> Flux<T> handleResultSetTerminator0(ByteBuf resultSetTerminatorPacket
+            , Consumer<ResultStates> statesConsumer) {
+
+        final int payloadLength = PacketUtils.readInt3(resultSetTerminatorPacket);
+        resultSetTerminatorPacket.skipBytes(1);// skip sequence_id
+
+        final int negotiatedCapability = obtainNegotiatedCapability();
+        final boolean clientDeprecateEof = (negotiatedCapability & ClientProtocol.CLIENT_DEPRECATE_EOF) != 0;
+        Flux<T> flux;
+        switch (PacketUtils.getInt1(resultSetTerminatorPacket, resultSetTerminatorPacket.readerIndex())) {
+            case ErrorPacket.ERROR_HEADER:
+                // ERROR terminator
+                ErrorPacket error;
+                error = ErrorPacket.readPacket(resultSetTerminatorPacket, negotiatedCapability, obtainCharsetResults());
+                flux = handleResultSetErrorPacket(error);
+                break;
+            case EofPacket.EOF_HEADER:
+                if (clientDeprecateEof && payloadLength < PacketUtils.ENC_3_MAX_VALUE) {
+                    //OK terminator
+                    OkPacket okPacket = OkPacket.readPacket(resultSetTerminatorPacket, negotiatedCapability);
+                    flux = textResultSetTerminatorConsumer(MySQLResultStates.from(okPacket), statesConsumer);
+                    break;
+                } else if (!clientDeprecateEof && payloadLength < 6) {
+                    // EOF terminator
+                    EofPacket eofPacket = EofPacket.readPacket(resultSetTerminatorPacket, negotiatedCapability);
+                    flux = textResultSetTerminatorConsumer(MySQLResultStates.from(eofPacket), statesConsumer);
+                    break;
+                }
+            default:
+                // never here ,if Text ResultSet row decoder no bug.
+                flux = Flux.error(new ReactiveSQLException(new SQLException("Text ResultSet row decoder error.")));
+
+        }
+        return flux;
+    }
+
+    /**
+     * @return {@link Flux#error(Throwable)}
+     * @see #handleResultSetTerminator0(ByteBuf, Consumer)
+     */
+    private <T> Flux<T> handleResultSetErrorPacket(ErrorPacket error) {
+        return Flux.error(new ReactiveSQLException(
+                new SQLException(error.getErrorMessage(), error.getSqlState())));
+    }
+
+
+    /**
+     * @see #receiveResultSetRows(MySQLRowMeta, BiFunction, Consumer)
      */
     private void parseResultSetRows(FluxSink<ResultRow> sink, ByteBuf multiRowBuf, MySQLRowMeta metadata) {
         final MySQLColumnMeta[] columnMetas = metadata.columnMetas;
-        final boolean clientDeprecateEof = (obtainNegotiatedCapability() & ClientProtocol.CLIENT_DEPRECATE_EOF) != 0;
         try {
             int payloadLength, payloadIndex;
-            out:
             while (multiRowBuf.isReadable()) {
+
                 payloadLength = PacketUtils.readInt3(multiRowBuf);
                 multiRowBuf.skipBytes(1); // skip sequence id
-                switch (PacketUtils.getInt1(multiRowBuf, multiRowBuf.readerIndex())) {
-                    case ErrorPacket.ERROR_HEADER:
-                        // handle error end  method
-                        handleResultSetErrorPacket(multiRowBuf, sink);
-                        return; // return ,avoid sink.complete()
-                    case EofPacket.EOF_HEADER:
-                        if (clientDeprecateEof) {
-                            if (payloadLength < 0xFFFF_FF) { // 3 byte max value
-                                //OK terminator
-                                break out;
-                            }
-                        } else if (payloadLength < 6) {
-                            // EOF terminator
-                            break out;
-                        }
-                    default:
-                }
+
                 payloadIndex = multiRowBuf.readerIndex();
+
                 Object[] columnValues = new Object[columnMetas.length];
                 MySQLColumnMeta columnMeta;
                 for (int i = 0; i < columnMetas.length; i++) {
@@ -559,11 +726,10 @@ abstract class AbstractClientProtocol implements ClientProtocol, ResultRowAdjuta
                 }
                 multiRowBuf.readerIndex(payloadIndex + payloadLength); // to next pakcet
                 sink.next(MySQLResultRow.from(columnValues, metadata, this));
-
             }
             sink.complete();
         } catch (Throwable e) {
-            LOG.error("Parse result set rows error.", e);
+            LOG.error("Parse text ResultSet rows error.", e);
             sink.error(e);
         } finally {
             multiRowBuf.release();
@@ -572,29 +738,11 @@ abstract class AbstractClientProtocol implements ClientProtocol, ResultRowAdjuta
     }
 
 
-    /**
-     * @see #parseResultSetRows(FluxSink, ByteBuf, MySQLRowMeta)
-     */
-    private void handleResultSetErrorPacket(ByteBuf payload, FluxSink<ResultRow> sink) {
-        ErrorPacket errorPacket;
-        errorPacket = ErrorPacket.readPacket(payload, obtainNegotiatedCapability(), obtainCharsetResults());
-        sink.error(new ReactiveSQLException(
-                new SQLException(errorPacket.getErrorMessage(), errorPacket.getSqlState())));
-    }
-
-    /**
-     * @see #receiveSingleResultSetRowData(MySQLRowMeta)
-     */
-    private boolean invokeResultSetMultiRowDecoder(final ByteBuf cumulateBuf, FluxSink<ByteBuf> sink) {
-        return PacketDecoders.resultSetMultiRowDecoder(cumulateBuf, sink, obtainNegotiatedCapability());
-    }
-
-
 
     /*################################## blow private static method  ##################################*/
 
     /**
-     * @see #toDecimal(ByteBuf, MySQLColumnMeta)
+     * @see #parseDecimal(ByteBuf, MySQLColumnMeta)
      */
     private static ReactiveSQLException createParserResultSetException(MySQLColumnMeta columnMeta, Throwable e
             , @Nullable String textValue) {
@@ -624,26 +772,38 @@ abstract class AbstractClientProtocol implements ClientProtocol, ResultRowAdjuta
     }
 
     private static void appendColumnDetailForSQLException(StringBuilder builder, MySQLColumnMeta columnMeta) {
-        if (StringUtils.hasText(columnMeta.tableName)) {
+        if (MySQLStringUtils.hasText(columnMeta.tableName)) {
             builder.append(" TableName[")
                     .append(columnMeta.tableName)
                     .append("]");
         }
-        if (StringUtils.hasText(columnMeta.tableAlias)) {
+        if (MySQLStringUtils.hasText(columnMeta.tableAlias)) {
             builder.append(" TableAlias[")
                     .append(columnMeta.tableAlias)
                     .append("]");
         }
-        if (StringUtils.hasText(columnMeta.columnName)) {
+        if (MySQLStringUtils.hasText(columnMeta.columnName)) {
             builder.append(" ColumnName[")
                     .append(columnMeta.columnName)
                     .append("]");
         }
-        if (StringUtils.hasText(columnMeta.columnAlias)) {
+        if (MySQLStringUtils.hasText(columnMeta.columnAlias)) {
             builder.append(" ColumnAlias[")
                     .append(columnMeta.columnAlias)
                     .append("]");
         }
+    }
+
+    private static <T> Flux<T> textResultSetTerminatorConsumer(ResultStates resultStates
+            , Consumer<ResultStates> statesConsumer) {
+        Flux<T> flux;
+        try {
+            statesConsumer.accept(resultStates);
+            flux = Flux.empty();
+        } catch (Throwable e) {
+            flux = Flux.error(new ReactiveSQLException(new SQLException("statesConsumer throw exception.", e)));
+        }
+        return flux;
     }
 
 

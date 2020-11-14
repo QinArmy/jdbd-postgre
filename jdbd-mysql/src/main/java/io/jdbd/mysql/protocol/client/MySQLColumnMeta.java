@@ -86,7 +86,7 @@ final class MySQLColumnMeta {
         this.mysqlType = MySQLType.from(this, properties);
     }
 
-    long obtainPrecision(Map<Integer, Integer> customIndexMblenMap) {
+    long obtainPrecision(Map<Integer, CharsetMapping.CustomCollation> customCollationMap) {
         long precision;
         // Protocol returns precision and scale differently for some types. We need to align then to I_S.
         switch (this.mysqlType) {
@@ -117,7 +117,11 @@ final class MySQLColumnMeta {
             case LONGTEXT:
                 // char
                 int collationIndex = this.collationIndex;
-                Integer mblen = customIndexMblenMap.get(collationIndex);
+                CharsetMapping.CustomCollation collation = customCollationMap.get(collationIndex);
+                Integer mblen = null;
+                if (collation != null) {
+                    mblen = collation.maxLen;
+                }
                 if (mblen == null) {
                     mblen = CharsetMapping.getMblen(collationIndex);
                 }

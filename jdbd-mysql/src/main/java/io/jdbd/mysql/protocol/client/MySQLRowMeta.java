@@ -18,18 +18,20 @@ import java.util.Map;
  */
 abstract class MySQLRowMeta implements ResultRowMeta {
 
-    static MySQLRowMeta from(MySQLColumnMeta[] mySQLColumnMetas, Map<Integer, Integer> customIndexMblenMap) {
-        return new SimpleIndexMySQLRowMeta(mySQLColumnMetas, customIndexMblenMap);
+    static MySQLRowMeta from(MySQLColumnMeta[] mySQLColumnMetas
+            , Map<Integer, CharsetMapping.CustomCollation> customCollationMap) {
+        return new SimpleIndexMySQLRowMeta(mySQLColumnMetas, customCollationMap);
     }
 
     final MySQLColumnMeta[] columnMetas;
 
-    final Map<Integer, Integer> customIndexMblenMap;
+    final Map<Integer, CharsetMapping.CustomCollation> customCollationMap;
 
 
-    private MySQLRowMeta(MySQLColumnMeta[] columnMetas, Map<Integer, Integer> customIndexMblenMap) {
+    private MySQLRowMeta(MySQLColumnMeta[] columnMetas
+            , Map<Integer, CharsetMapping.CustomCollation> customCollationMap) {
         this.columnMetas = columnMetas;
-        this.customIndexMblenMap = customIndexMblenMap;
+        this.customCollationMap = customCollationMap;
     }
 
     @Override
@@ -143,7 +145,7 @@ abstract class MySQLRowMeta implements ResultRowMeta {
     @Override
     public final long getPrecision(int indexBaseZero) throws ReactiveSQLException {
         return this.columnMetas[checkIndex(indexBaseZero)]
-                .obtainPrecision(this.customIndexMblenMap);
+                .obtainPrecision(this.customCollationMap);
     }
 
 
@@ -237,8 +239,8 @@ abstract class MySQLRowMeta implements ResultRowMeta {
     private static final class SimpleIndexMySQLRowMeta extends MySQLRowMeta {
 
         private SimpleIndexMySQLRowMeta(MySQLColumnMeta[] columnMetas
-                , Map<Integer, Integer> customIndexMblenMap) {
-            super(columnMetas, customIndexMblenMap);
+                , Map<Integer, CharsetMapping.CustomCollation> customCollationMap) {
+            super(columnMetas, customCollationMap);
         }
     }
 

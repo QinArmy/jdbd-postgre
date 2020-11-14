@@ -5,6 +5,8 @@ import reactor.core.publisher.Mono;
 
 import java.sql.BatchUpdateException;
 import java.util.List;
+import java.util.function.BiFunction;
+import java.util.function.Consumer;
 
 public interface GenericStatement {
 
@@ -173,6 +175,6 @@ public interface GenericStatement {
      * </p>
      * @see java.sql.PreparedStatement#executeQuery()
      */
-    Flux<? extends ResultRow> executeQuery();
+    <T> Flux<T> executeQuery(BiFunction<ResultRow, ResultRowMeta, T> decoder, Consumer<ResultStates> statesConsumer);
 
 }

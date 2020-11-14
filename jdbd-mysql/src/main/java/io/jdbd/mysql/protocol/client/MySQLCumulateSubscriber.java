@@ -1,6 +1,7 @@
 package io.jdbd.mysql.protocol.client;
 
 import io.jdbd.mysql.JdbdMySQLException;
+import io.jdbd.mysql.util.MySQLExceptionUtils;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
 import io.netty.channel.EventLoop;
@@ -42,6 +43,8 @@ final class MySQLCumulateSubscriber implements CoreSubscriber<ByteBuf>, MySQLCum
 
     private final EventLoop eventLoop;
 
+    private final Connection connection;
+
     private final ByteBufAllocator allocator;
 
     private Subscription upstream;
@@ -52,7 +55,7 @@ final class MySQLCumulateSubscriber implements CoreSubscriber<ByteBuf>, MySQLCum
     private boolean complete = false;
 
     private MySQLCumulateSubscriber(Connection connection) {
-        //  this.connection = connection;
+        this.connection = connection;
         this.eventLoop = connection.channel().eventLoop();
         this.allocator = connection.channel().alloc();
 
@@ -153,10 +156,18 @@ final class MySQLCumulateSubscriber implements CoreSubscriber<ByteBuf>, MySQLCum
     }
 
     private void executeOnError(Throwable e) {
-        MySQLReceiver receiver = this.receiverQueue.poll();
-        if (receiver != null) {
-            receiver.error(e);
+        if (MySQLExceptionUtils.isContainFatalIoException(e)) {
+            MySQLReceiver receiver;
+            while ((receiver = this.receiverQueue.poll()) != null) {
+                receiver.error(e);
+            }
+        } else {
+            MySQLReceiver receiver = this.receiverQueue.poll();
+            if (receiver != null) {
+                receiver.error(e);
+            }
         }
+
     }
 
     private void executeOnComplete() {
@@ -191,8 +202,21 @@ final class MySQLCumulateSubscriber implements CoreSubscriber<ByteBuf>, MySQLCum
         }
         // 1. invoke receiver
         final MySQLReceiver receiver = this.receiverQueue.peek();
-        if (receiver != null && receiver.decodeAndNext(this.cumulateBuffer)) {
-            this.receiverQueue.poll();
+        if (receiver != null) {
+            boolean decodeEnd;
+            try {
+                decodeEnd = receiver.decodeAndNext(this.cumulateBuffer);
+            } catch (Throwable e) {
+                if (MySQLExceptionUtils.isContainFatalIoException(e)) {
+                    // fatal io error, must close connection.
+                    this.connection.channel().close();
+                }
+                throw e;
+
+            }
+            if (decodeEnd) {
+                this.receiverQueue.poll();
+            }
         }
     }
 

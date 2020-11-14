@@ -15,6 +15,11 @@ public abstract class PacketUtils {
 
     public static final int HEADER_SIZE = 4;
 
+    /**
+     * @see #ENC_3
+     */
+    public static final int ENC_3_MAX_VALUE = 0xFF_FF_FF;
+
     public static final int LOCAL_INFILE_REQUEST_HEADER = 0xFB;
     public static final int COM_QUERY_HEADER = 3;
 
