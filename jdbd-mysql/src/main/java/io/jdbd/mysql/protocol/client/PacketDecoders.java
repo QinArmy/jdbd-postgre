@@ -189,6 +189,9 @@ public abstract class PacketDecoders {
                 LOG.debug("text result set downstream error or cancel,drop text result row packets.");
             } else {
                 sink.next(cumulateBuf.readRetainedSlice(readerIndex - originalReaderIndex));
+                if (decoderEnd) {
+                    sink.complete();
+                }
             }
         }
         return decoderEnd;

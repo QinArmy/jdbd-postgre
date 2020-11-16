@@ -484,7 +484,7 @@ abstract class ProtocolUtils {
 
     static String buildSetVariableCommand(String pairString) {
         List<String> pairList = MySQLStringUtils.split(pairString, ",;", "\"'(", "\"')");
-        StringBuilder builder = new StringBuilder("SET");
+        StringBuilder builder = new StringBuilder("SET ");
         int index = 0;
         for (String pair : pairList) {
             if (!pair.contains("=")) {

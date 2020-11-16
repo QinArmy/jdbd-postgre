@@ -566,7 +566,7 @@ abstract class AbstractClientProtocol implements ClientProtocol, ResultRowAdjuta
                 decodeEnd = PacketDecoders.textResultSetMetadataDecoder(cumulateBuf, sink, negotiatedCapability);
                 break;
             default:
-                throw new IllegalStateException(String.format("unknown ComQueryResponse[%s]", responseType));
+                throw MySQLExceptionUtils.createUnknownEnumException(responseType);
         }
         return decodeEnd;
     }
@@ -802,31 +802,30 @@ abstract class AbstractClientProtocol implements ClientProtocol, ResultRowAdjuta
      * @return {@link Flux#empty()} or {@link Flux#error(Throwable)} (if terminator is error packet.)
      * @see #handleResultSetTerminator(Consumer)
      */
-    private <T> Flux<T> handleResultSetTerminator0(ByteBuf resultSetTerminatorPacket
+    private <T> Flux<T> handleResultSetTerminator0(ByteBuf terminatorPacket
             , Consumer<ResultStates> statesConsumer) {
-
-        final int payloadLength = PacketUtils.readInt3(resultSetTerminatorPacket);
-        resultSetTerminatorPacket.skipBytes(1);// skip sequence_id
+        final int payloadLength = PacketUtils.readInt3(terminatorPacket);
+        terminatorPacket.skipBytes(1);// skip sequence_id
 
         final int negotiatedCapability = obtainNegotiatedCapability();
         final boolean clientDeprecateEof = (negotiatedCapability & ClientProtocol.CLIENT_DEPRECATE_EOF) != 0;
         Flux<T> flux;
-        switch (PacketUtils.getInt1(resultSetTerminatorPacket, resultSetTerminatorPacket.readerIndex())) {
+        switch (PacketUtils.getInt1(terminatorPacket, terminatorPacket.readerIndex())) {
             case ErrorPacket.ERROR_HEADER:
                 // ERROR terminator
                 ErrorPacket error;
-                error = ErrorPacket.readPacket(resultSetTerminatorPacket, negotiatedCapability, obtainCharsetResults());
+                error = ErrorPacket.readPacket(terminatorPacket, negotiatedCapability, obtainCharsetResults());
                 flux = handleResultSetErrorPacket(error);
                 break;
             case EofPacket.EOF_HEADER:
                 if (clientDeprecateEof && payloadLength < PacketUtils.ENC_3_MAX_VALUE) {
                     //OK terminator
-                    OkPacket okPacket = OkPacket.readPacket(resultSetTerminatorPacket, negotiatedCapability);
+                    OkPacket okPacket = OkPacket.readPacket(terminatorPacket, negotiatedCapability);
                     flux = textResultSetTerminatorConsumer(MySQLResultStates.from(okPacket), statesConsumer);
                     break;
                 } else if (!clientDeprecateEof && payloadLength < 6) {
                     // EOF terminator
-                    EofPacket eofPacket = EofPacket.readPacket(resultSetTerminatorPacket, negotiatedCapability);
+                    EofPacket eofPacket = EofPacket.readPacket(terminatorPacket, negotiatedCapability);
                     flux = textResultSetTerminatorConsumer(MySQLResultStates.from(eofPacket), statesConsumer);
                     break;
                 }

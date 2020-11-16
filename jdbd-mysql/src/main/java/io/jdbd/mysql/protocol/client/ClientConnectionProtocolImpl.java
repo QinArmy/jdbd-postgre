@@ -127,11 +127,11 @@ final class ClientConnectionProtocolImpl extends AbstractClientProtocol implemen
      */
     private final AtomicReference<Charset> charsetResults = new AtomicReference<>(null);
 
-    private final AtomicReference<Map<Integer, Integer>> customMblenMap = new AtomicReference<>(null);
-
     private final AtomicReference<Map<Integer, CharsetMapping.CustomCollation>> customCollationMap = new AtomicReference<>(null);
 
     private final AtomicReference<Set<String>> customCharsetNameSet = new AtomicReference<>(null);
+
+    private final AtomicReference<ZoneOffset> DATABASE_ZONE_OFFSET = new AtomicReference<>(null);
 
     private ClientConnectionProtocolImpl(MySQLUrl mySQLUrl, Connection connection) {
         super(connection, mySQLUrl, MySQLCumulateSubscriber.from(connection));
@@ -312,7 +312,8 @@ final class ClientConnectionProtocolImpl extends AbstractClientProtocol implemen
         return detectCustomCollations()//1.
                 .then(Mono.defer(this::executeSetSessionVariables))// 2.
                 .then(Mono.defer(this::configureSessionCharset))//3.
-                .then(Mono.defer(this::configureSessionSuccessEvent))//4.
+                //.then(Mono.defer(this::obtainDatabaseTimeZone)) //4
+                .then(Mono.defer(this::configureSessionSuccessEvent))//5.
                 ;
     }
 
@@ -323,7 +324,7 @@ final class ClientConnectionProtocolImpl extends AbstractClientProtocol implemen
      * <p>
      * do initialize ,must contain below operation:
      *     <ul>
-     *         <li>{@code set autocommit = 0}</li>
+     *         <li>{@code SET autocommit = 0}</li>
      *         <li>{@code SET SESSION TRANSACTION READ COMMITTED}</li>
      *         <li>more initializing operations</li>
      *     </ul>
@@ -334,9 +335,13 @@ final class ClientConnectionProtocolImpl extends AbstractClientProtocol implemen
         if (phase != INITIALIZING_PHASE) {
             return createConnectionPhaseNotMatchException(phase);
         }
-        return Mono.empty()
-                .then(Mono.defer(this::disableMultiStatement))
-                ;
+        final String autoCommitCommand = "SET autocommit = 0";
+        final String isolationCommand = "SET SESSION TRANSACTION READ COMMITTED";
+        return commandUpdate(autoCommitCommand, EMPTY_STATE_CONSUMER)
+                .doOnSuccess(rows -> LOG.debug("Command [{}] execute success.", autoCommitCommand))
+                .then(Mono.defer(() -> commandUpdate(isolationCommand, EMPTY_STATE_CONSUMER)))
+                .doOnSuccess(rows -> LOG.debug("Command [{}]  execute success.", isolationCommand))
+                .then();
     }
 
 
@@ -801,7 +806,6 @@ final class ClientConnectionProtocolImpl extends AbstractClientProtocol implemen
     }
 
 
-
     private Mono<Void> disableMultiStatement() {
         return Mono.empty();
     }
@@ -838,7 +842,11 @@ final class ClientConnectionProtocolImpl extends AbstractClientProtocol implemen
         if (!StringUtils.hasText(pairString)) {
             return Mono.empty();
         }
-        return commandUpdate(ProtocolUtils.buildSetVariableCommand(pairString), EMPTY_STATE_CONSUMER)
+        String command = ProtocolUtils.buildSetVariableCommand(pairString);
+        if (LOG.isDebugEnabled()) {
+            LOG.debug("execute set session variables:{}", command);
+        }
+        return commandUpdate(command, EMPTY_STATE_CONSUMER)
                 .then()
                 ;
 
@@ -870,6 +878,9 @@ final class ClientConnectionProtocolImpl extends AbstractClientProtocol implemen
             namesCommand = String.format("SET NAMES '%s'", clientPair.getFirst().charsetName);
             clientCharset = clientPair.getSecond();
         }
+        if (LOG.isDebugEnabled()) {
+            LOG.debug("config session charset:{}", namesCommand);
+        }
         // tow phase : SET NAMES and SET character_set_results = ?
         //below one phase SET NAMES
         return commandUpdate(namesCommand, EMPTY_STATE_CONSUMER)
@@ -878,6 +889,7 @@ final class ClientConnectionProtocolImpl extends AbstractClientProtocol implemen
                 .then(Mono.defer(this::configCharsetResults))
                 ;
     }
+
 
     /**
      * @see #configureSessionCharset()
@@ -904,6 +916,9 @@ final class ClientConnectionProtocolImpl extends AbstractClientProtocol implemen
             command = String.format("SET character_set_results = '%s'", mySQLCharset.charsetName);
             charsetResults = Charset.forName(charset);
         }
+        if (LOG.isDebugEnabled()) {
+            LOG.debug("config charset result:{}", command);
+        }
         return commandUpdate(command, EMPTY_STATE_CONSUMER)
                 .flatMap(rows -> overrideCharsetResults(charsetResults));
 
@@ -920,6 +935,9 @@ final class ClientConnectionProtocolImpl extends AbstractClientProtocol implemen
             return Mono.empty();
         }
         String command = "SHOW VARIABLES WHERE Variable_name = 'character_set_system'";
+        if (LOG.isDebugEnabled()) {
+            LOG.debug("override charsetResults with character_set_system:{}", command);
+        }
         return commandQuery(command, ORIGINAL_ROW_DECODER, EMPTY_STATE_CONSUMER)
                 .elementAt(0)
                 .doOnNext(this::updateCharsetResultsAfterQueryCharacterSetSystem)
@@ -1011,9 +1029,19 @@ final class ClientConnectionProtocolImpl extends AbstractClientProtocol implemen
      * @see #configureSession()
      */
     private Mono<Void> configureSessionSuccessEvent() {
-        return this.connectionPhase.compareAndSet(CONFIGURE_SESSION_PHASE, INITIALIZING_PHASE)
-                ? Mono.empty()
-                : createConcurrentlyConnectionException(CONFIGURE_SESSION_PHASE);
+        if (!this.connectionPhase.compareAndSet(CONFIGURE_SESSION_PHASE, INITIALIZING_PHASE)) {
+            return createConcurrentlyConnectionException(CONFIGURE_SESSION_PHASE);
+        }
+        Charset charsetClient = this.charsetClient.get();
+        Charset charsetResults = this.charsetResults.get();
+        if (charsetClient == null || charsetResults == null) {
+            return Mono.error
+                    (new JdbdMySQLException("charsetClient:{},charsetResults:{}", charsetClient, charsetResults));
+        }
+        if (LOG.isDebugEnabled()) {
+            LOG.debug("charsetClient:{},charsetResults:{}", charsetClient, charsetResults);
+        }
+        return Mono.empty();
     }
 
     private <T> Mono<T> createConcurrentlyConnectionException(int expected) {
@@ -1218,7 +1246,7 @@ final class ClientConnectionProtocolImpl extends AbstractClientProtocol implemen
      * @see #sendHandshakePacket(ByteBuf)
      */
     private Mono<ByteBuf> receivePayload() {
-        LOG.debug("receive payload,last sequenceId:{}", this.handshakeSequenceId.get());
+        // LOG.debug("receive payload,last sequenceId:{}", this.handshakeSequenceId.get());
         return this.cumulateReceiver.receiveOnePacket()
                 .flatMap(this::readPacketHeader);
     }
@@ -1326,7 +1354,7 @@ final class ClientConnectionProtocolImpl extends AbstractClientProtocol implemen
     private Mono<ByteBuf> readPacketHeader(ByteBuf packetBuf) {
         packetBuf.skipBytes(3); // skip payload length
         int sequenceId = PacketUtils.readInt1(packetBuf);
-        LOG.debug("receive handshake packet,sequenceId:{}", sequenceId);
+        // LOG.debug("receive handshake packet,sequenceId:{}", sequenceId);
         Mono<ByteBuf> mono;
         if (this.handshakeSequenceId.compareAndSet(sequenceId - 1, sequenceId)) {
             mono = Mono.just(packetBuf);
@@ -1356,14 +1384,6 @@ final class ClientConnectionProtocolImpl extends AbstractClientProtocol implemen
             default:
                 throw new JdbdMySQLException("Expected result set response,but %s ", response);
         }
-    }
-
-    private Map<Integer, Integer> obtainCustomMblenMap() {
-        Map<Integer, Integer> map = this.customMblenMap.get();
-        if (map == null) {
-            map = Collections.emptyMap();
-        }
-        return map;
     }
 
     /**

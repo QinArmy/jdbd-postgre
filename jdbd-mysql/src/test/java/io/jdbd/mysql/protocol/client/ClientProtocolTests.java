@@ -21,11 +21,15 @@ public class ClientProtocolTests {
     @BeforeClass
     public static void createConnectionProtocol(ITestContext context) {
         // PREFERRED ,DISABLED
-        String url = "jdbc:mysql://localhost:3306/army?sslMode=DISABLED&detectCustomCollations=true";
+        String url = "jdbc:mysql://localhost:3306/army";
         Map<String, String> properties = new HashMap<>();
         properties.put("user", "army_w");
         properties.put("password", "army123");
-      //  properties.put("sessionVariables", "@@SESSION.zoro='我喜欢你',@@SESSION.simonyi='你好';@@SESSION.kosmo='美国'");
+
+        properties.put("sslMode", "DISABLED");
+        properties.put("detectCustomCollations", "true");
+        properties.put("sessionVariables", "time_zone='+08:00'");
+
 
         ClientConnectionProtocol protocol = ClientConnectionProtocolImpl
                 .from(MySQLUrl.getInstance(url, properties))
