@@ -5,11 +5,12 @@ import io.jdbd.ReactiveSQLException;
 import io.jdbd.Statement;
 import io.jdbd.mysql.protocol.ErrorPacket;
 import io.jdbd.mysql.protocol.MySQLFatalIoException;
+import org.qinarmy.util.security.ExceptionUtils;
 import reactor.util.annotation.Nullable;
 
 import java.sql.SQLException;
 
-public abstract class MySQLExceptionUtils {
+public abstract class MySQLExceptionUtils extends ExceptionUtils {
 
     protected MySQLExceptionUtils() {
         throw new UnsupportedOperationException();
@@ -37,7 +38,7 @@ public abstract class MySQLExceptionUtils {
         return new ReactiveSQLException(new SQLException(message));
     }
 
-    public static ReactiveSQLException createNonCommandException() {
+    public static ReactiveSQLException createNonCommandUpdateException() {
         String message = "SQL isn't dml command,please use %s.executeUpdate() or %s.executeUpdate(String ) method";
         message = String.format(message, PreparedStatement.class.getName(), Statement.class.getName());
         return new ReactiveSQLException(new SQLException(message));
@@ -53,17 +54,8 @@ public abstract class MySQLExceptionUtils {
         return new ReactiveSQLException(new MySQLFatalIoException(message));
     }
 
-    public static boolean isContainFatalIoException(final Throwable e) {
-        Throwable t = e;
-        boolean match = false;
-        while (t != null) {
-            if (t instanceof MySQLFatalIoException) {
-                match = true;
-                break;
-            }
-            t = t.getCause();
-        }
-        return match;
+    public static boolean containFatalIoException(final Throwable e) {
+        return containException(e, MySQLFatalIoException.class);
     }
 
 

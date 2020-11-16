@@ -85,24 +85,22 @@ abstract class AbstractClientProtocol implements ClientProtocol, ResultRowAdjuta
     }
 
     @Override
-    public final Mono<Integer> commandUpdate(String command, Consumer<ResultStates> statesConsumer) {
-        return Mono.error(new UnsupportedOperationException());
+    public final Mono<Long> commandUpdate(String command, Consumer<ResultStates> statesConsumer) {
+        return sendCommandPacket(command)
+                .then(Mono.defer(() -> receiveCommandUpdatePacket(statesConsumer)));
     }
+
 
     @Override
     public final <T> Flux<T> commandQuery(String command, BiFunction<ResultRow, ResultRowMeta, T> rowDecoder
             , Consumer<ResultStates> statesConsumer) {
-        // 1. create COM_QUERY packet.
-        ByteBuf packetBuf = createPacketBuffer(command.length() * obtainMaxBytesPerCharClient());
-        packetBuf.writeByte(PacketUtils.COM_QUERY_HEADER)
-                .writeBytes(command.getBytes(obtainCharsetClient()));
-
-        return sendPacket(packetBuf, null) //2. send COM_QUERY packet
-                .then(Mono.defer(this::receiveResultSetMetadataPacket))//3. receive row meta packet
-                // 4. receive rows and decode with rowDecoder
+        return sendCommandPacket(command) //1. send COM_QUERY packet
+                .then(Mono.defer(this::receiveResultSetMetadataPacket))//2. receive row meta packet
+                // 3. receive rows and decode with rowDecoder
                 .flatMapMany(rowMeta -> receiveResultSetRows(rowMeta, rowDecoder, statesConsumer))
                 ;
     }
+
 
     public final ByteBuf createPacketBuffer(int initialPayloadCapacity) {
         return PacketUtils.createPacketBuffer(this.connection, initialPayloadCapacity);
@@ -551,7 +549,7 @@ abstract class AbstractClientProtocol implements ClientProtocol, ResultRowAdjuta
             case OK:
             case LOCAL_INFILE_REQUEST:
                 // expected TEXT_RESULT, but OK/LOCAL_INFILE_REQUEST, read packet and drop.
-                decodeEnd = PacketDecoders.packetDecoder(cumulateBuf, PacketDecoders.SEWAGE_SINK);//SEWAGE_SINK for drop
+                decodeEnd = PacketDecoders.packetDecoder(cumulateBuf, PacketDecoders.SEWAGE_MONO_SINK);//SEWAGE_SINK for drop
                 if (decodeEnd) {
                     // notify downstream command sql not match
                     sink.error(MySQLExceptionUtils.createNonResultSetCommandException());
@@ -590,6 +588,152 @@ abstract class AbstractClientProtocol implements ClientProtocol, ResultRowAdjuta
         }
         throw new IllegalArgumentException("rowMetaOrErrorPacket error");
 
+    }
+
+    /**
+     * @see #commandUpdate(String, Consumer)
+     */
+    private Mono<Long> receiveCommandUpdatePacket(Consumer<ResultStates> statesConsumer) {
+        return this.cumulateReceiver.receiveOnePacket()
+                .flatMap(packetBuf -> commandUpdateResultHandler(packetBuf, statesConsumer))
+                ;
+    }
+
+    private enum ErrorType {
+        TEXT_RESULT,
+        LOCAL_INFILE_REQUEST
+    }
+
+    private abstract class AbstractCommandUpdateResultDecoder implements BiFunction<ByteBuf, MonoSink<ByteBuf>, Boolean> {
+
+        //non-volatile ,because update in Netty EvenLoop .
+        int textResultPhase = 0;
+
+        private ErrorType errorType;
+
+        @Override
+        public final Boolean apply(ByteBuf cumulateBuf, MonoSink<ByteBuf> sink) {
+            boolean decodeEnd = false;
+            if (this.textResultPhase == 0) {
+                // no error, command and Statement method match.
+                decodeEnd = decodeResult(cumulateBuf, sink);
+            }
+            if (decodeEnd && this.textResultPhase == 0) {
+
+            }
+            // command and Statement method not match.
+            switch (this.textResultPhase) {
+                case 1:
+                    if (!textResultSetMetaDecoder(cumulateBuf, PacketDecoders.SEWAGE_MONO_SINK)) {
+                        break;
+                    }
+                    this.textResultPhase++;
+                    if (!textResultSetMultiRowDecoder(cumulateBuf, PacketDecoders.SEWAGE_FLUX_SINK)) {
+                        break;
+                    }
+                    this.textResultPhase++;
+                    if (!PacketDecoders.packetDecoder(cumulateBuf, PacketDecoders.SEWAGE_MONO_SINK)) {
+                        break;
+                    }
+                    this.textResultPhase++;
+                    break;
+                case 2:
+                    if (!textResultSetMultiRowDecoder(cumulateBuf, PacketDecoders.SEWAGE_FLUX_SINK)) {
+                        break;
+                    }
+                    this.textResultPhase++;
+                    if (!PacketDecoders.packetDecoder(cumulateBuf, PacketDecoders.SEWAGE_MONO_SINK)) {
+                        break;
+                    }
+                    this.textResultPhase++;
+                    break;
+                case 3:
+                    if (!PacketDecoders.packetDecoder(cumulateBuf, PacketDecoders.SEWAGE_MONO_SINK)) {
+                        break;
+                    }
+                    this.textResultPhase++;
+                    break;
+                default:
+                    throw new IllegalStateException(
+                            String.format("textResultPhase[%s] state error.", this.textResultPhase));
+            }
+            return this.textResultPhase > 3;
+        }
+
+
+        final void commandError(ErrorType errorType) {
+            this.errorType = errorType;
+        }
+
+        abstract boolean decodeResult(ByteBuf byteBuf, MonoSink<ByteBuf> sink);
+
+    }
+
+    private final class CommandUpdateResultDecoder extends AbstractCommandUpdateResultDecoder {
+        @Override
+        boolean decodeResult(ByteBuf cumulateBuf, MonoSink<ByteBuf> sink) {
+            if (!PacketUtils.hasOnePacket(cumulateBuf)) {
+                return false;
+            }
+            final int negotiatedCapability = obtainNegotiatedCapability();
+            final PacketDecoders.ComQueryResponse type;
+            type = PacketDecoders.detectComQueryResponseType(cumulateBuf, negotiatedCapability);
+            boolean decodeEnd;
+            switch (type) {
+                case ERROR:
+                    ErrorPacket error;
+                    error = PacketDecoders.decodeErrorPacket(cumulateBuf, negotiatedCapability, obtainCharsetResults());
+                    sink.error(MySQLExceptionUtils.createErrorPacketException(error));
+                    decodeEnd = true;
+                    break;
+                case OK:
+                    decodeEnd = PacketDecoders.packetDecoder(cumulateBuf, sink);
+                    break;
+                case TEXT_RESULT:
+                    this.commandError(ErrorType.TEXT_RESULT);
+                    decodeEnd = false;
+                    break;
+                case LOCAL_INFILE_REQUEST:
+                    this.commandError(ErrorType.LOCAL_INFILE_REQUEST);
+                    decodeEnd = false;
+                    break;
+                default:
+                    throw MySQLExceptionUtils.createUnknownEnumException(type);
+            }
+            return decodeEnd;
+        }
+    }
+
+    private final class CommandLocalInfileRequestDecoder extends AbstractCommandUpdateResultDecoder {
+        @Override
+        boolean decodeResult(ByteBuf byteBuf, MonoSink<ByteBuf> sink) {
+            return false;
+        }
+    }
+
+
+    private Mono<Long> commandUpdateResultHandler(ByteBuf packetBuf, Consumer<ResultStates> statesConsumer) {
+        packetBuf.skipBytes(PacketUtils.HEADER_SIZE);
+        OkPacket okPacket = OkPacket.readPacket(packetBuf, obtainNegotiatedCapability());
+        final ResultStates resultStates = MySQLResultStates.from(okPacket);
+        return Mono.just(okPacket.getAffectedRows())
+                .concatWith(Flux.defer(() -> commandUpdateStateConsume(resultStates, statesConsumer)))
+                .elementAt(0)
+                ;
+    }
+
+    /**
+     * @return {@link Flux#empty()} or {@link Flux#error(Throwable)}
+     */
+    private Flux<Long> commandUpdateStateConsume(ResultStates resultStates, Consumer<ResultStates> statesConsumer) {
+        Flux<Long> flux;
+        try {
+            statesConsumer.accept(resultStates);
+            flux = Flux.empty();
+        } catch (Throwable e) {
+            flux = Flux.error(MySQLExceptionUtils.wrapExceptionIfNeed(e));
+        }
+        return flux;
     }
 
 
@@ -737,6 +881,17 @@ abstract class AbstractClientProtocol implements ClientProtocol, ResultRowAdjuta
 
     }
 
+    /**
+     * @see #commandUpdate(String, Consumer)
+     * @see #commandQuery(String, BiFunction, Consumer)
+     */
+    private Mono<Void> sendCommandPacket(String command) {
+        // 1. create COM_QUERY packet.
+        ByteBuf packetBuf = createPacketBuffer(command.length() * obtainMaxBytesPerCharClient());
+        packetBuf.writeByte(PacketUtils.COM_QUERY_HEADER)
+                .writeBytes(command.getBytes(obtainCharsetClient()));
+        return sendPacket(packetBuf, null);
+    }
 
 
     /*################################## blow private static method  ##################################*/

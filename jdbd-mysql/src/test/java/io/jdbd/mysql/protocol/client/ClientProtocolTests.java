@@ -25,7 +25,7 @@ public class ClientProtocolTests {
         Map<String, String> properties = new HashMap<>();
         properties.put("user", "army_w");
         properties.put("password", "army123");
-        properties.put("sessionVariables", "@@SESSION.zoro='我喜欢你',@@SESSION.simonyi='你好';@@SESSION.kosmo='美国'");
+      //  properties.put("sessionVariables", "@@SESSION.zoro='我喜欢你',@@SESSION.simonyi='你好';@@SESSION.kosmo='美国'");
 
         ClientConnectionProtocol protocol = ClientConnectionProtocolImpl
                 .from(MySQLUrl.getInstance(url, properties))

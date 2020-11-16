@@ -114,7 +114,7 @@ final class MySQLCumulateSubscriber implements CoreSubscriber<ByteBuf>, MySQLCum
     public Mono<ByteBuf> receiveOne(BiFunction<ByteBuf, MonoSink<ByteBuf>, Boolean> decoder) {
         Mono<ByteBuf> mono = Mono.create(sink -> {
             MySQLReceiver receiver = new MonoMySQLReceiverImpl(sink, decoder);
-            sink.onRequest(n -> MySQLCumulateSubscriber.this.upstream.request(128L));
+            //   sink.onRequest(n -> MySQLCumulateSubscriber.this.upstream.request(128L));
             MySQLCumulateSubscriber.this.addMySQLReceiver(receiver);
 
         });
@@ -125,7 +125,7 @@ final class MySQLCumulateSubscriber implements CoreSubscriber<ByteBuf>, MySQLCum
     public Flux<ByteBuf> receive(BiFunction<ByteBuf, FluxSink<ByteBuf>, Boolean> decoder) {
         Flux<ByteBuf> flux = Flux.create(sink -> {
             MySQLReceiver receiver = new FluxMonoMySQLReceiver(sink, decoder);
-            sink.onRequest(n -> MySQLCumulateSubscriber.this.upstream.request(512L));
+            // sink.onRequest(n -> MySQLCumulateSubscriber.this.upstream.request(512L));
             MySQLCumulateSubscriber.this.addMySQLReceiver(receiver);
         });
         return new FluxReleaseByteBuf(flux);
@@ -152,11 +152,11 @@ final class MySQLCumulateSubscriber implements CoreSubscriber<ByteBuf>, MySQLCum
                     this.allocator, cumulateBuffer, byteBufFromPeer);
         }
         this.cumulateBuffer = cumulateBuffer;
-        drainReceiver();
+        invokeDrainReceiver();
     }
 
     private void executeOnError(Throwable e) {
-        if (MySQLExceptionUtils.isContainFatalIoException(e)) {
+        if (MySQLExceptionUtils.containFatalIoException(e)) {
             MySQLReceiver receiver;
             while ((receiver = this.receiverQueue.poll()) != null) {
                 receiver.error(e);
@@ -191,33 +191,47 @@ final class MySQLCumulateSubscriber implements CoreSubscriber<ByteBuf>, MySQLCum
         this.complete = true;
     }
 
+    private void invokeDrainReceiver() {
+        final Queue<MySQLReceiver> receiverQueue = this.receiverQueue;
+
+        while (this.cumulateBuffer != null
+                && this.cumulateBuffer.isReadable()
+                && !receiverQueue.isEmpty()) {
+
+            if (!drainReceiver()) {
+                break;
+            }
+        }
+    }
+
     /**
      * @see #executeOnNext(ByteBuf)
      * @see #doAddMySQLReceiverInEventLoop(MySQLReceiver)
+     * @see true remove one receive.
      */
-    private void drainReceiver() {
+    private boolean drainReceiver() {
 
         if (this.cumulateBuffer == null) {
-            return;
+            return false;
         }
-        // 1. invoke receiver
         final MySQLReceiver receiver = this.receiverQueue.peek();
-        if (receiver != null) {
-            boolean decodeEnd;
-            try {
-                decodeEnd = receiver.decodeAndNext(this.cumulateBuffer);
-            } catch (Throwable e) {
-                if (MySQLExceptionUtils.isContainFatalIoException(e)) {
-                    // fatal io error, must close connection.
-                    this.connection.channel().close();
-                }
-                throw e;
-
-            }
-            if (decodeEnd) {
-                this.receiverQueue.poll();
-            }
+        if (receiver == null) {
+            return false;
         }
+        boolean decodeEnd;
+        try {
+            decodeEnd = receiver.decodeAndNext(this.cumulateBuffer);
+        } catch (Throwable e) {
+            if (MySQLExceptionUtils.containFatalIoException(e)) {
+                // fatal io error, must close connection.
+                this.connection.channel().close();
+            }
+            throw e;
+        }
+        if (decodeEnd) {
+            this.receiverQueue.poll();
+        }
+        return decodeEnd;
     }
 
 
@@ -239,8 +253,10 @@ final class MySQLCumulateSubscriber implements CoreSubscriber<ByteBuf>, MySQLCum
         }
         final Queue<MySQLReceiver> receiverQueue = this.receiverQueue;
         if (receiverQueue.offer(receiver)) {
+            this.upstream.request(256L);
             if (receiver == receiverQueue.peek()) {
-                drainReceiver();
+                //LOG.debug("add receiver success at head.");
+                invokeDrainReceiver();
             }
         } else {
             receiver.error(new JdbdMySQLException(

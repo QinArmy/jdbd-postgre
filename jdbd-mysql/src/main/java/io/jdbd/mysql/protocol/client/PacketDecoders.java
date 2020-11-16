@@ -50,9 +50,11 @@ public abstract class PacketDecoders {
                 decodeEnd = false;
             } else {
                 decodeEnd = true;
+               // LOG.debug("packetDecoder receive one packet ");
                 sink.success(cumulateBuffer.readRetainedSlice(packetLength));
             }
         }
+
         return decodeEnd;
     }
 
@@ -262,12 +264,14 @@ public abstract class PacketDecoders {
         return decodeEnd;
     }
 
+
+
     /*################################## blow private method ##################################*/
 
     /**
      * use when drop packet
      */
-    static final MonoSink<ByteBuf> SEWAGE_SINK = new MonoSink<ByteBuf>() {
+    static final MonoSink<ByteBuf> SEWAGE_MONO_SINK = new MonoSink<ByteBuf>() {
         @Override
         public Context currentContext() {
             return Context.empty();
@@ -300,6 +304,60 @@ public abstract class PacketDecoders {
 
         @Override
         public MonoSink<ByteBuf> onDispose(Disposable d) {
+            return this;
+        }
+    };
+
+    static final FluxSink<ByteBuf> SEWAGE_FLUX_SINK = new FluxSink<ByteBuf>() {
+        @Override
+        public void complete() {
+            //no-op
+        }
+
+        @Override
+        public Context currentContext() {
+            //no-op
+            return Context.empty();
+        }
+
+        @Override
+        public void error(Throwable e) {
+            //no-op
+        }
+
+        @Override
+        public FluxSink<ByteBuf> next(ByteBuf byteBuf) {
+            //no-op
+            return this;
+        }
+
+        @Override
+        public long requestedFromDownstream() {
+            //no-op
+            return 0;
+        }
+
+        @Override
+        public boolean isCancelled() {
+            //no-op
+            return false;
+        }
+
+        @Override
+        public FluxSink<ByteBuf> onRequest(LongConsumer consumer) {
+            //no-op
+            return this;
+        }
+
+        @Override
+        public FluxSink<ByteBuf> onCancel(Disposable d) {
+            //no-op
+            return this;
+        }
+
+        @Override
+        public FluxSink<ByteBuf> onDispose(Disposable d) {
+            //no-op
             return this;
         }
     };

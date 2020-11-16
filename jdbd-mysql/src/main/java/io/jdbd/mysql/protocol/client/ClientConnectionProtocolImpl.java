@@ -6,6 +6,7 @@ import io.jdbd.mysql.protocol.*;
 import io.jdbd.mysql.protocol.authentication.*;
 import io.jdbd.mysql.protocol.conf.Properties;
 import io.jdbd.mysql.protocol.conf.*;
+import io.jdbd.mysql.util.MySQLExceptionUtils;
 import io.jdbd.mysql.util.MySQLStringUtils;
 import io.jdbd.mysql.util.MySQLTimeUtils;
 import io.netty.buffer.ByteBuf;
@@ -102,7 +103,7 @@ final class ClientConnectionProtocolImpl extends AbstractClientProtocol implemen
 
     private final AtomicReference<Integer> negotiatedCapability = new AtomicReference<>(null);
 
-    private final AtomicInteger sequenceId = new AtomicInteger(-1);
+    private final AtomicInteger handshakeSequenceId = new AtomicInteger(-1);
 
     private final AtomicReference<ServerStatus> oldServerStatus = new AtomicReference<>(null);
 
@@ -415,6 +416,9 @@ final class ClientConnectionProtocolImpl extends AbstractClientProtocol implemen
 
     /*################################## blow private method ##################################*/
 
+    /**
+     * @see #authenticate()
+     */
     private Mono<Void> handleAuthResponse(ByteBuf payloadBuf, AuthenticationPlugin plugin
             , Map<String, AuthenticationPlugin> pluginMap) {
 
@@ -428,12 +432,12 @@ final class ClientConnectionProtocolImpl extends AbstractClientProtocol implemen
             mono = Mono.empty();
         } else if (ErrorPacket.isErrorPacket(payloadBuf)) {
             ErrorPacket packet;
-            if (this.sequenceId.get() < 2) {
+            if (this.handshakeSequenceId.get() < 2) {
                 packet = ErrorPacket.readPacketInHandshakePhase(payloadBuf);
             } else {
                 packet = ErrorPacket.readPacket(payloadBuf, obtainNegotiatedCapability());
             }
-            mono = rejectPacket(new JdbdMySQLException("auth error, %s", packet));
+            mono = rejectPacket(MySQLExceptionUtils.createErrorPacketException(packet));
         } else {
             mono = processNextAuthenticationNegotiation(payloadBuf, plugin, pluginMap);
         }
@@ -1214,6 +1218,7 @@ final class ClientConnectionProtocolImpl extends AbstractClientProtocol implemen
      * @see #sendHandshakePacket(ByteBuf)
      */
     private Mono<ByteBuf> receivePayload() {
+        LOG.debug("receive payload,last sequenceId:{}", this.handshakeSequenceId.get());
         return this.cumulateReceiver.receiveOnePacket()
                 .flatMap(this::readPacketHeader);
     }
@@ -1321,8 +1326,9 @@ final class ClientConnectionProtocolImpl extends AbstractClientProtocol implemen
     private Mono<ByteBuf> readPacketHeader(ByteBuf packetBuf) {
         packetBuf.skipBytes(3); // skip payload length
         int sequenceId = PacketUtils.readInt1(packetBuf);
+        LOG.debug("receive handshake packet,sequenceId:{}", sequenceId);
         Mono<ByteBuf> mono;
-        if (this.sequenceId.compareAndSet(sequenceId - 1, sequenceId)) {
+        if (this.handshakeSequenceId.compareAndSet(sequenceId - 1, sequenceId)) {
             mono = Mono.just(packetBuf);
         } else {
             mono = Mono.error(new JdbdMySQLException(
@@ -1365,7 +1371,7 @@ final class ClientConnectionProtocolImpl extends AbstractClientProtocol implemen
      * @see #receivePayload()
      */
     private Mono<Void> sendHandshakePacket(ByteBuf packetBuffer) {
-        return sendPacket(packetBuffer, this.sequenceId);
+        return sendPacket(packetBuffer, this.handshakeSequenceId);
     }
 
 

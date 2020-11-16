@@ -133,6 +133,9 @@ public abstract class MySQLStringUtils extends org.qinarmy.util.StringUtils {
             }
 
         }
+        if (!openMarkerStack.isEmpty()) {
+            throw new IllegalArgumentException(String.format("[%s] not close marker", input));
+        }
         return list;
     }
 

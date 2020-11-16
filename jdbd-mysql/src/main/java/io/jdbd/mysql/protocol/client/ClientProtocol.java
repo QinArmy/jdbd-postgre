@@ -56,7 +56,8 @@ public interface ClientProtocol {
     /**
      * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_com_query.html">Protocol::COM_QUERY</a>
      */
-    Mono<Integer> commandUpdate(String command, Consumer<ResultStates> statesConsumer);
+    Mono<Long> commandUpdate(String command, Consumer<ResultStates> statesConsumer);
+
 
     /**
      * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_com_query.html">Protocol::COM_QUERY</a>
