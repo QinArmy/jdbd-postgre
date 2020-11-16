@@ -101,6 +101,14 @@ abstract class AbstractClientProtocol implements ClientProtocol, ResultRowAdjuta
                 ;
     }
 
+    @Override
+    public final Mono<Void> closeGracefully() {
+        // TODO optimize
+        ByteBuf packetBuf = createPacketBuffer(1);
+        packetBuf.writeByte(PacketUtils.COM_QUIT_HEADER);
+        return sendPacket(packetBuf, null)
+                .then();
+    }
 
     public final ByteBuf createPacketBuffer(int initialPayloadCapacity) {
         return PacketUtils.createPacketBuffer(this.connection, initialPayloadCapacity);
@@ -712,8 +720,21 @@ abstract class AbstractClientProtocol implements ClientProtocol, ResultRowAdjuta
     }
 
 
+    /**
+     * @see #receiveCommandUpdatePacket(Consumer)
+     */
     private Mono<Long> commandUpdateResultHandler(ByteBuf packetBuf, Consumer<ResultStates> statesConsumer) {
-        packetBuf.skipBytes(PacketUtils.HEADER_SIZE);
+        packetBuf.skipBytes(3);
+        if (packetBuf.readByte() != 1) {
+            return Mono.error(new ReactiveSQLException(
+                    new SQLException("Read COM_QUERY response error,sequence_id isn't 1.")));
+        }
+
+        if (ErrorPacket.isErrorPacket(packetBuf)) {
+            ErrorPacket error = ErrorPacket.readPacket(packetBuf, obtainNegotiatedCapability(), obtainCharsetResults());
+            return Mono.error(MySQLExceptionUtils.createErrorPacketException(error));
+        }
+
         OkPacket okPacket = OkPacket.readPacket(packetBuf, obtainNegotiatedCapability());
         final ResultStates resultStates = MySQLResultStates.from(okPacket);
         return Mono.just(okPacket.getAffectedRows())
@@ -750,6 +771,8 @@ abstract class AbstractClientProtocol implements ClientProtocol, ResultRowAdjuta
                 }) //2.parse ByteBuf to ResultRow
                 .map(resultRow -> decodeResultRow(resultRow, rowMeta, rowDecoder)) //3. convert ResultRow to T
                 .onErrorResume(this::handleResultSetTerminatorOnError) // optionally handle upstream error and terminator,finally publish error.
+                .doOnCancel(() -> handleResultSetTerminator(statesConsumer).subscribe(v -> {
+                }))
                 .concatWith(Flux.defer(() -> handleResultSetTerminator(statesConsumer))) // 4.handle result set terminator,don't publish ResultRow
                 ;
     }

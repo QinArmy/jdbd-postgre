@@ -90,6 +90,7 @@ final class ClientConnectionProtocolImpl extends AbstractClientProtocol implemen
     private static final int CONFIGURE_SESSION_PHASE = 3;
 
     private static final int INITIALIZING_PHASE = 4;
+    private static final int COMMAND_PHASE = 5;
 
 
     private final AtomicReference<HandshakeV10Packet> handshakeV10Packet = new AtomicReference<>(null);
@@ -329,6 +330,7 @@ final class ClientConnectionProtocolImpl extends AbstractClientProtocol implemen
      *         <li>more initializing operations</li>
      *     </ul>
      * </p>
+     * @see #authenticateAndInitializing()
      */
     Mono<Void> initialize() {
         final int phase = this.connectionPhase.get();
@@ -336,12 +338,22 @@ final class ClientConnectionProtocolImpl extends AbstractClientProtocol implemen
             return createConnectionPhaseNotMatchException(phase);
         }
         final String autoCommitCommand = "SET autocommit = 0";
-        final String isolationCommand = "SET SESSION TRANSACTION READ COMMITTED";
+        final String isolationCommand = "SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED";
         return commandUpdate(autoCommitCommand, EMPTY_STATE_CONSUMER)
                 .doOnSuccess(rows -> LOG.debug("Command [{}] execute success.", autoCommitCommand))
+                // blow 2 step
                 .then(Mono.defer(() -> commandUpdate(isolationCommand, EMPTY_STATE_CONSUMER)))
                 .doOnSuccess(rows -> LOG.debug("Command [{}]  execute success.", isolationCommand))
-                .then();
+                .doOnSuccess(n -> this.connectionPhase.compareAndSet(INITIALIZING_PHASE, COMMAND_PHASE))
+                .then()
+                ;
+    }
+
+    private Mono<Void> checkError() {
+        return this.cumulateReceiver.receiveOnePacket()
+                .flatMap(packetBuf -> PacketDecoders.checkError(packetBuf, obtainNegotiatedCapability(), obtainCharsetResults()))
+
+                ;
     }
 
 
@@ -935,9 +947,6 @@ final class ClientConnectionProtocolImpl extends AbstractClientProtocol implemen
             return Mono.empty();
         }
         String command = "SHOW VARIABLES WHERE Variable_name = 'character_set_system'";
-        if (LOG.isDebugEnabled()) {
-            LOG.debug("override charsetResults with character_set_system:{}", command);
-        }
         return commandQuery(command, ORIGINAL_ROW_DECODER, EMPTY_STATE_CONSUMER)
                 .elementAt(0)
                 .doOnNext(this::updateCharsetResultsAfterQueryCharacterSetSystem)
@@ -961,6 +970,9 @@ final class ClientConnectionProtocolImpl extends AbstractClientProtocol implemen
             if (mySQLCharset == null) {
                 throw new JdbdMySQLException(
                         "Not found java charset for character_set_system[%s]", charset);
+            }
+            if (LOG.isDebugEnabled()) {
+                LOG.debug("override charsetResults with character_set_system:{}", charset);
             }
             this.charsetResults.set(Charset.forName(mySQLCharset.javaEncodingsUcList.get(0)));
         }

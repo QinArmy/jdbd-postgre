@@ -1,7 +1,6 @@
 package io.jdbd.mysql.protocol.client;
 
 import io.jdbd.mysql.protocol.MySQLPacket;
-import io.jdbd.mysql.protocol.conf.MySQLUrl;
 import io.jdbd.mysql.protocol.conf.PropertyDefinitions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -13,26 +12,18 @@ import org.testng.annotations.Test;
 import java.util.HashMap;
 import java.util.Map;
 
-public class ClientProtocolTests {
+public class ClientConnectionProtocolTests {
 
 
-    private static final Logger LOG = LoggerFactory.getLogger(ClientProtocolTests.class);
+    private static final Logger LOG = LoggerFactory.getLogger(ClientConnectionProtocolTests.class);
 
     @BeforeClass
     public static void createConnectionProtocol(ITestContext context) {
         // PREFERRED ,DISABLED
-        String url = "jdbc:mysql://localhost:3306/army";
         Map<String, String> properties = new HashMap<>();
-        properties.put("user", "army_w");
-        properties.put("password", "army123");
-
-        properties.put("sslMode", "DISABLED");
-        properties.put("detectCustomCollations", "true");
-        properties.put("sessionVariables", "time_zone='+08:00'");
-
 
         ClientConnectionProtocol protocol = ClientConnectionProtocolImpl
-                .from(MySQLUrl.getInstance(url, properties))
+                .from(MySQLUrlUtils.build(properties))
                 .block();
 
         context.setAttribute("clientConnectionProtocol", protocol);
@@ -95,28 +86,22 @@ public class ClientProtocolTests {
         LOG.info("Connection protocol initialize phase execute success");
     }
 
-
+    /**
+     * test {@link ClientConnectionProtocolImpl#closeGracefully() }
+     */
     @Test(dependsOnMethods = {"receiveHandshake", "sslNegotiate", "authenticate", "configureSession", "initialize"})
-    public void comQueryForResultSet(ITestContext context) {
-        ClientCommandProtocol commandProtocol;
-        commandProtocol = obtainCommandProtocol(context);
-        Object result = commandProtocol.comQueryForResultSet("SELECT NOW()")
+    public void closeGracefully(ITestContext context) {
+        obtainConnectionProtocol(context)
+                .closeGracefully()
+                .then()
                 .block();
-        LOG.info("comQueryForResultSet :{}", result);
+        LOG.info("Connection protocol close phase execute success");
     }
+
 
 
     /*################################## blow private static method ##################################*/
 
-
-    private static void createCommandProtocol(ITestContext context) {
-        ClientConnectionProtocolImpl connectionProtocol = obtainConnectionProtocol(context);
-        //LOG.info("connectionProtocol:{}",connectionProtocol);
-        ClientCommandProtocol commandProtocol;
-        commandProtocol = ClientCommandProtocolImpl.getInstance(connectionProtocol)
-                .block();
-        context.setAttribute("commandProtocol", commandProtocol);
-    }
 
     static ClientConnectionProtocolImpl obtainConnectionProtocol(ITestContext context) {
         ClientConnectionProtocolImpl protocol;
@@ -125,10 +110,5 @@ public class ClientProtocolTests {
         return protocol;
     }
 
-    static ClientCommandProtocolImpl obtainCommandProtocol(ITestContext context) {
-        ClientCommandProtocolImpl protocol;
-        protocol = (ClientCommandProtocolImpl) context.getAttribute("commandProtocol");
-        Assert.assertNotNull(protocol, "no ClientCommandProtocol");
-        return protocol;
-    }
+
 }

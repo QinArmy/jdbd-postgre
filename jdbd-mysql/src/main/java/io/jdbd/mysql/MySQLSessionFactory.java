@@ -3,7 +3,6 @@ package io.jdbd.mysql;
 import io.jdbd.DatabaseSession;
 import io.jdbd.DatabaseSessionFactory;
 import io.jdbd.mysql.protocol.client.ClientCommandProtocol;
-import io.jdbd.mysql.protocol.client.ClientCommandProtocolImpl;
 import io.jdbd.mysql.protocol.conf.MySQLUrl;
 import reactor.core.publisher.Mono;
 
@@ -48,12 +47,7 @@ public class MySQLSessionFactory implements DatabaseSessionFactory {
     }
 
     private Mono<DatabaseSession> createClientSession() {
-        return ClientCommandProtocolImpl.getInstance(null)
-                .flatMap(this::handshake)
-                .flatMap(this::sslRequest)
-                .flatMap(this::authenticate)
-                .map(MySQLSession::getInstance)
-                ;
+        return Mono.empty();
     }
 
     private Mono<ClientCommandProtocol> handshake(ClientCommandProtocol clientProtocol) {

@@ -66,4 +66,7 @@ public interface ClientProtocol {
             , Consumer<ResultStates> statesConsumer);
 
 
+    Mono<Void> closeGracefully();
+
+
 }

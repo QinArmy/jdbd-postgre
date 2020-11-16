@@ -22,7 +22,7 @@ public abstract class PacketUtils {
 
     public static final int LOCAL_INFILE_REQUEST_HEADER = 0xFB;
     public static final int COM_QUERY_HEADER = 3;
-
+    public static final int COM_QUIT_HEADER = 0x01;
 
     public static final int ENC_0 = 0xFB;
     public static final int ENC_3 = 0xFC;

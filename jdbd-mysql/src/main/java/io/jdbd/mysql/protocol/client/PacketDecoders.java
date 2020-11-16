@@ -9,6 +9,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import reactor.core.Disposable;
 import reactor.core.publisher.FluxSink;
+import reactor.core.publisher.Mono;
 import reactor.core.publisher.MonoSink;
 import reactor.util.annotation.Nullable;
 import reactor.util.context.Context;
@@ -50,7 +51,7 @@ public abstract class PacketDecoders {
                 decodeEnd = false;
             } else {
                 decodeEnd = true;
-               // LOG.debug("packetDecoder receive one packet ");
+
                 sink.success(cumulateBuffer.readRetainedSlice(packetLength));
             }
         }
@@ -68,6 +69,18 @@ public abstract class PacketDecoders {
         }
         packetBuf.skipBytes(PacketUtils.HEADER_SIZE);
         return ErrorPacket.readPacket(packetBuf, negotiatedCapability, charset);
+    }
+
+    public static Mono<Void> checkError(final ByteBuf packetBuf, final int negotiatedCapability
+            , Charset charset) {
+        int type = PacketUtils.getInt1(packetBuf, packetBuf.readerIndex() + PacketUtils.HEADER_SIZE);
+        if (type == ErrorPacket.ERROR_HEADER) {
+            packetBuf.skipBytes(PacketUtils.HEADER_SIZE);
+            ErrorPacket error = ErrorPacket.readPacket(packetBuf, negotiatedCapability, charset);
+            return Mono.error(MySQLExceptionUtils.createErrorPacketException(error));
+        }
+        return Mono.empty();
+
     }
 
 
