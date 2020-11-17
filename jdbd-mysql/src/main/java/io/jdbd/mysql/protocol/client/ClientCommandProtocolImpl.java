@@ -5,6 +5,7 @@ import io.jdbd.mysql.protocol.conf.MySQLUrl;
 import io.jdbd.mysql.protocol.conf.Properties;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import reactor.core.publisher.Mono;
 import reactor.netty.Connection;
 
 import java.nio.charset.Charset;
@@ -16,8 +17,11 @@ public final class ClientCommandProtocolImpl extends AbstractClientProtocol impl
     private static final Logger LOG = LoggerFactory.getLogger(ClientCommandProtocolImpl.class);
 
 
-    public static ClientCommandProtocol from(ClientConnectionProtocolImpl connectionProtocol) {
-        return new ClientCommandProtocolImpl(connectionProtocol);
+    public static Mono<ClientCommandProtocol> from(MySQLUrl mySQLUrl) {
+        return ClientConnectionProtocolImpl.from(mySQLUrl)
+                .flatMap(p -> p.authenticateAndInitializing().thenReturn(p))
+                .cast(ClientConnectionProtocolImpl.class)
+                .map(ClientCommandProtocolImpl::new);
     }
 
 
@@ -105,7 +109,6 @@ public final class ClientCommandProtocolImpl extends AbstractClientProtocol impl
     }
 
     /*################################## blow private method ##################################*/
-
 
 
 }

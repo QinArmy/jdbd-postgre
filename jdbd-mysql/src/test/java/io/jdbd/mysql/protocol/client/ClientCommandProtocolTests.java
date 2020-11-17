@@ -1,23 +1,68 @@
 package io.jdbd.mysql.protocol.client;
 
+import io.jdbd.mysql.util.MySQLObjects;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.testng.Assert;
 import org.testng.ITestContext;
+import org.testng.annotations.AfterClass;
+import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 public class ClientCommandProtocolTests {
 
     private static final Logger LOG = LoggerFactory.getLogger(ClientCommandProtocolTests.class);
 
+    @BeforeClass
+    public void createCommandProtocol(ITestContext context) {
+        Map<String, String> properties = new HashMap<>();
+        properties.put("allowMultiQueries", "true");
+
+        ClientCommandProtocol commandProtocol = ClientCommandProtocolImpl.from(MySQLUrlUtils.build(properties))
+                .block();
+        Assert.assertNotNull(commandProtocol, "commandProtocol");
+        context.setAttribute("commandProtocol", commandProtocol);
+    }
+
+    @AfterClass
+    public void closeClientCommandProtocol(ITestContext context) {
+        obtainProtocol(context)
+                .closeGracefully()
+                .block();
+    }
+
 
     @Test
     public void multiCommand(ITestContext context) {
+        List<String> list = new ArrayList<>();
+        list.add("UPDATE u_user AS u SET  u.nick_name= concat(u.nick_name,'2') limit 3");
+        list.add("SELECT * ROM u_user as u");
+        list.add("SELECT u.id FROM u_user as u");
 
+        StringBuilder builder = new StringBuilder();
+        final int size = list.size();
+        for (int i = 0; i < size; i++) {
+            if (i > 0) {
+                builder.append(";");
+            }
+            builder.append(list.get(i));
+        }
+
+        final ClientCommandProtocol p = obtainProtocol(context);
+        p.commandUpdate(builder.toString(), ClientCommandProtocol.EMPTY_STATE_CONSUMER)
+                .block()
+        ;
     }
 
 
     private ClientCommandProtocol obtainProtocol(ITestContext context) {
-        return null;
+        ClientCommandProtocol protocol = (ClientCommandProtocol) context.getAttribute("commandProtocol");
+        return MySQLObjects.requireNonNull(protocol, "protocol");
     }
 
 }
