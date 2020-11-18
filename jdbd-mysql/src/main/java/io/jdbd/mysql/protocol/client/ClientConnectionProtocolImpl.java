@@ -16,7 +16,6 @@ import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslContextBuilder;
 import io.netty.handler.ssl.SslHandler;
 import org.qinarmy.util.Pair;
-import org.qinarmy.util.StringUtils;
 import org.qinarmy.util.Triple;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -44,9 +43,7 @@ import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
 import java.security.UnrecoverableKeyException;
 import java.security.cert.CertificateException;
-import java.time.ZoneId;
-import java.time.ZoneOffset;
-import java.time.ZonedDateTime;
+import java.time.*;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
@@ -132,7 +129,10 @@ final class ClientConnectionProtocolImpl extends AbstractClientProtocol implemen
 
     private final AtomicReference<Set<String>> customCharsetNameSet = new AtomicReference<>(null);
 
-    private final AtomicReference<ZoneOffset> DATABASE_ZONE_OFFSET = new AtomicReference<>(null);
+    private final AtomicReference<ZoneOffset> zoneOffsetDatabase = new AtomicReference<>(null);
+
+    private final AtomicReference<ZoneOffset> zoneOffsetClient = new AtomicReference<>(null);
+
 
     private ClientConnectionProtocolImpl(MySQLUrl mySQLUrl, Connection connection) {
         super(connection, mySQLUrl, MySQLCumulateSubscriber.from(connection));
@@ -313,7 +313,7 @@ final class ClientConnectionProtocolImpl extends AbstractClientProtocol implemen
         return detectCustomCollations()//1.
                 .then(Mono.defer(this::executeSetSessionVariables))// 2.
                 .then(Mono.defer(this::configureSessionCharset))//3.
-                //.then(Mono.defer(this::obtainDatabaseTimeZone)) //4
+                .then(Mono.defer(this::configZoneOffsets)) //4
                 .then(Mono.defer(this::configureSessionSuccessEvent))//5.
                 ;
     }
@@ -330,6 +330,7 @@ final class ClientConnectionProtocolImpl extends AbstractClientProtocol implemen
      *         <li>more initializing operations</li>
      *     </ul>
      * </p>
+     *
      * @see #authenticateAndInitializing()
      */
     Mono<Void> initialize() {
@@ -349,12 +350,6 @@ final class ClientConnectionProtocolImpl extends AbstractClientProtocol implemen
                 ;
     }
 
-    private Mono<Void> checkError() {
-        return this.cumulateReceiver.receiveOnePacket()
-                .flatMap(packetBuf -> PacketDecoders.checkError(packetBuf, obtainNegotiatedCapability(), obtainCharsetResults()))
-
-                ;
-    }
 
 
     MySQLUrl getMySQLUrl() {
@@ -371,10 +366,6 @@ final class ClientConnectionProtocolImpl extends AbstractClientProtocol implemen
 
     HandshakeV10Packet getHandshakeV10Packet() {
         return obtainHandshakeV10Packet();
-    }
-
-    byte getClientCollationIndex() {
-        return obtainHandshakeCollationIndex();
     }
 
     int getNegotiatedCapability() {
@@ -663,7 +654,7 @@ final class ClientConnectionProtocolImpl extends AbstractClientProtocol implemen
 
     private List<String> obtainAllowedCipherSuitList() {
         String enabledSSLCipherSuites = this.properties.getProperty(PropertyKey.enabledSSLCipherSuites);
-        List<String> candidateList = StringUtils.spitAsList(enabledSSLCipherSuites, ",");
+        List<String> candidateList = MySQLStringUtils.spitAsList(enabledSSLCipherSuites, ",");
 
         if (candidateList.isEmpty()) {
             candidateList = ProtocolUtils.CLIENT_SUPPORT_TLS_CIPHER_LIST;
@@ -690,7 +681,7 @@ final class ClientConnectionProtocolImpl extends AbstractClientProtocol implemen
      */
     private List<String> obtainAllowedTlsProtocolList() {
         String enabledTLSProtocols = this.properties.getProperty(PropertyKey.enabledTLSProtocols);
-        List<String> candidateList = StringUtils.spitAsList(enabledTLSProtocols, ",");
+        List<String> candidateList = MySQLStringUtils.spitAsList(enabledTLSProtocols, ",");
 
         if (candidateList.isEmpty()) {
             ServerVersion serverVersion = obtainHandshakeV10Packet().getServerVersion();
@@ -781,18 +772,18 @@ final class ClientConnectionProtocolImpl extends AbstractClientProtocol implemen
         storeUrl = properties.getProperty(storeUrlKey);
         storeType = properties.getProperty(storeTypeKey);
 
-        if (!StringUtils.hasText(storeUrl)) {
+        if (!MySQLStringUtils.hasText(storeUrl)) {
             storeUrl = System.getProperty(defaultStoreUrlKey);
         }
-        if (!StringUtils.hasText(storeType)) {
+        if (!MySQLStringUtils.hasText(storeType)) {
             storeType = System.getProperty(defaultStoreTypeKey);
         }
 
-        if (!StringUtils.hasText(storeUrl) || !StringUtils.hasText(storeType)) {
+        if (!MySQLStringUtils.hasText(storeUrl) || !MySQLStringUtils.hasText(storeType)) {
             return null;
         }
         String storePwd = properties.getProperty(passwordKey);
-        if (!StringUtils.hasText(storePwd)) {
+        if (!MySQLStringUtils.hasText(storePwd)) {
             storePwd = System.getenv(defaultPasswordKey);
         }
 
@@ -851,7 +842,7 @@ final class ClientConnectionProtocolImpl extends AbstractClientProtocol implemen
      */
     private Mono<Void> executeSetSessionVariables() {
         String pairString = this.properties.getProperty(PropertyKey.sessionVariables);
-        if (!StringUtils.hasText(pairString)) {
+        if (!MySQLStringUtils.hasText(pairString)) {
             return Mono.empty();
         }
         String command = ProtocolUtils.buildSetVariableCommand(pairString);
@@ -902,6 +893,133 @@ final class ClientConnectionProtocolImpl extends AbstractClientProtocol implemen
                 ;
     }
 
+    /**
+     * config {@link #zoneOffsetClient} and {@link #zoneOffsetDatabase}
+     *
+     * @see #configureSession()
+     */
+    private Mono<Void> configZoneOffsets() {
+        //1. blow config zoneOffsetClient
+        String zoneOffsetClientText = this.properties.getProperty(PropertyKey.zoneOffsetClient);
+        ZoneOffset zoneOffsetClient;
+        if (MySQLStringUtils.hasText(zoneOffsetClientText)) {
+            try {
+                zoneOffsetClient = ZoneOffset.of(zoneOffsetClientText);
+            } catch (DateTimeException e) {
+                return Mono.error(new JdbdMySQLException(e, "%s format error.", PropertyKey.zoneOffsetClient));
+            }
+        } else {
+            zoneOffsetClient = MySQLTimeUtils.systemZoneOffset();
+        }
+        this.zoneOffsetClient.set(zoneOffsetClient);
+        //2. blow config zoneOffsetDatabase
+        return performanceZoneOffsetSession()
+                .then(Mono.defer(this::retrieveAndConvertDatabaseTimeZone))
+                // 3. blow check zoneOffsetClient and zoneOffsetDatabase
+                .then(Mono.defer(this::checkAndAcceptZoneOffsets))
+                ;
+    }
+
+    private Mono<Void> checkAndAcceptZoneOffsets() {
+        ZoneOffset zoneOffsetClient, zoneOffsetDatabase;
+        zoneOffsetClient = this.zoneOffsetClient.get();
+        zoneOffsetDatabase = this.zoneOffsetDatabase.get();
+        if (zoneOffsetClient == null || zoneOffsetDatabase == null) {
+            return Mono.error(new JdbdMySQLException(
+                    "Config ZoneOffset failure,zoneOffsetClient[%s],zoneOffsetDatabase[%s]"
+                    , zoneOffsetClient, zoneOffsetDatabase));
+        }
+        if (LOG.isDebugEnabled()) {
+            LOG.debug("zoneOffsetClient:[{}] ; zoneOffsetDatabase[{}]", zoneOffsetClient, zoneOffsetDatabase);
+        }
+        return Mono.empty();
+    }
+
+    /**
+     * @see #configZoneOffsets() (back to invoker)
+     */
+    private Mono<Void> performanceZoneOffsetSession() {
+        String zoneOffsetSessionText = this.properties.getProperty(PropertyKey.zoneOffsetSession);
+        Mono<Void> mono;
+        if (MySQLStringUtils.hasText(zoneOffsetSessionText)) {
+            try {
+                ZoneOffset zoneOffsetSession = ZoneOffset.of(zoneOffsetSessionText);
+                String command = String.format("SET @@SESSION.time_zone = '%s'", zoneOffsetSession.getId());
+                if (LOG.isDebugEnabled()) {
+                    LOG.debug("performant: {}", command);
+                }
+                mono = commandUpdate(command, EMPTY_STATE_CONSUMER)
+                        .then()
+                ;
+            } catch (DateTimeException e) {
+                mono = Mono.error(new JdbdMySQLException(e, "%s format error.", PropertyKey.zoneOffsetSession));
+            }
+
+        } else {
+            mono = Mono.empty();
+        }
+        return mono;
+    }
+
+    /**
+     * @see #configZoneOffsets()
+     */
+    private Mono<Void> retrieveAndConvertDatabaseTimeZone() {
+        return commandQuery("SELECT @@SESSION.time_zone as timeZone", ORIGINAL_ROW_DECODER, EMPTY_STATE_CONSUMER)
+                .elementAt(0)
+                .flatMap(this::handleDatabaseTimeZone)
+                ;
+    }
+
+    /**
+     * @see #configZoneOffsets()
+     */
+    private Mono<Void> handleDatabaseTimeZone(ResultRow resultRow) {
+        String databaseZoneText = resultRow.getRequiredObject("timeZone", String.class);
+        Mono<Void> mono;
+        if ("SYSTEM".equalsIgnoreCase(databaseZoneText)) {
+            mono = convertDatabaseSystemZone();
+        } else {
+            try {
+                ZoneId databaseZone = ZoneId.of(databaseZoneText, ZoneId.SHORT_IDS);
+                this.zoneOffsetDatabase.set(MySQLTimeUtils.toZoneOffset(databaseZone));
+                mono = Mono.empty();
+            } catch (DateTimeException e) {
+                mono = Mono.error(new JdbdMySQLException(e, "MySQL time_zone[%s] cannot convert to %s ."
+                        , databaseZoneText, ZoneId.class.getName()));
+            }
+        }
+        return mono;
+    }
+
+    /**
+     * @see #handleDatabaseTimeZone(ResultRow)
+     */
+    private Mono<Void> convertDatabaseSystemZone() {
+        final long utcEpochSecond = OffsetDateTime.now(ZoneOffset.UTC).toEpochSecond();
+        String command = String.format("SELECT from_unixtime(%s) as databaseNow;", utcEpochSecond);
+        if (LOG.isDebugEnabled()) {
+            LOG.debug("convert time_zone[SYSTEM],execute command: {}", command);
+        }
+        return commandQuery(command, ORIGINAL_ROW_DECODER, EMPTY_STATE_CONSUMER)
+                .elementAt(0)
+                .doOnNext(row -> handleDatabaseNowForConvertDatabaseZone(row, utcEpochSecond))
+                .then()
+                ;
+    }
+
+    /**
+     * @see #convertDatabaseSystemZone()
+     */
+    private void handleDatabaseNowForConvertDatabaseZone(ResultRow resultRow, final long utcEpochSecond) {
+        LocalDateTime dateTimeOfDatabase;
+        dateTimeOfDatabase = LocalDateTime.parse(
+                resultRow.getRequiredObject("databaseNow", String.class), MYSQL_DATETIME_FORMATTER);
+        OffsetDateTime dateTime = OffsetDateTime.of(dateTimeOfDatabase, ZoneOffset.UTC);
+        int totalSeconds = (int) (dateTime.toEpochSecond() - utcEpochSecond);
+        this.zoneOffsetDatabase.set(ZoneOffset.ofTotalSeconds(totalSeconds));
+    }
+
 
     /**
      * @see #configureSessionCharset()
@@ -947,6 +1065,9 @@ final class ClientConnectionProtocolImpl extends AbstractClientProtocol implemen
             return Mono.empty();
         }
         String command = "SHOW VARIABLES WHERE Variable_name = 'character_set_system'";
+        if (LOG.isDebugEnabled()) {
+            LOG.debug("override charsetResults,execute command: {}", command);
+        }
         return commandQuery(command, ORIGINAL_ROW_DECODER, EMPTY_STATE_CONSUMER)
                 .elementAt(0)
                 .doOnNext(this::updateCharsetResultsAfterQueryCharacterSetSystem)
@@ -961,7 +1082,7 @@ final class ClientConnectionProtocolImpl extends AbstractClientProtocol implemen
      */
     private void updateCharsetResultsAfterQueryCharacterSetSystem(ResultRow resultRow) {
         final String charset = resultRow.getObject("Value", String.class);
-        if (charset == null) {
+        if (charset == null || charset.equalsIgnoreCase("NULL")) {
             this.charsetResults.set(StandardCharsets.UTF_8);
         } else {
             ServerVersion serverVersion = obtainHandshakeV10Packet().getServerVersion();

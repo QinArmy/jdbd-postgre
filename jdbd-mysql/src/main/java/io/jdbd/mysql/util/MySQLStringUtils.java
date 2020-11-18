@@ -65,12 +65,13 @@ public abstract class MySQLStringUtils extends org.qinarmy.util.StringUtils {
                     ("openMarker[%s] and closeMarker[%s] not match.", openMarker, closeMarker));
         }
 
-        Stack<Character> openMarkerStack = new Stack<>();
+       final Stack<Character> openMarkerStack = new Stack<>();
         List<String> list = new ArrayList<>();
 
         final int size = MySQLObjects.requireNonNull(input, "input").length();
+        int start = 0;
         char current, lastOpenMarker;
-        for (int i = 0, start = 0, openMarkerIndex, closeMarkerIndex, charCount = 0; i < size; i++) {
+        for (int i = 0, openMarkerIndex, closeMarkerIndex, charCount = 0; i < size; i++) {
             current = input.charAt(i);
             if (Character.isWhitespace(current)) {
                 continue;
@@ -89,10 +90,6 @@ public abstract class MySQLStringUtils extends org.qinarmy.util.StringUtils {
                 lastOpenMarker = openMarkerStack.peek();
                 if (lastOpenMarker == current) {
                     openMarkerStack.pop();
-                    if (i + 1 == size) {
-                        // scan end
-                        list.add(input.substring(start));
-                    }
                 } else {
                     openMarkerStack.push(current);
                 }
@@ -109,10 +106,6 @@ public abstract class MySQLStringUtils extends org.qinarmy.util.StringUtils {
                 }
                 // marker match
                 openMarkerStack.pop();
-                if (i + 1 == size) {
-                    // scan end
-                    list.add(input.substring(start));
-                }
                 continue;
             }
             // current is neither open marker nor close marker.
@@ -127,14 +120,14 @@ public abstract class MySQLStringUtils extends org.qinarmy.util.StringUtils {
                 list.add(input.substring(start, i).trim());
                 start = i + 1;
                 charCount = 0;
-            } else if (i + 1 == size) {
-                //scan end
-                list.add(input.substring(start));
             }
 
         }
         if (!openMarkerStack.isEmpty()) {
             throw new IllegalArgumentException(String.format("[%s] not close marker", input));
+        }
+        if (start < size) {
+            list.add(input.substring(start));
         }
         return list;
     }

@@ -87,7 +87,8 @@ public enum PropertyKey {
      * @see <a href="https://dev.mysql.com/doc/refman/8.0/en/charset-connection.html">collation_connection </a>
      */
     connectionCollation("connectionCollation", null, true), //
-
+    zoneOffsetSession("zoneOffsetSession", null, true),
+    zoneOffsetClient("zoneOffsetClient", null, true),
 
     // blow Networking Group
     socksProxyHost("socksProxyHost", null, true), //

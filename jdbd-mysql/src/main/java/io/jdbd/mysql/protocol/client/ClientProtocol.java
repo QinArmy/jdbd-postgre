@@ -52,6 +52,8 @@ public interface ClientProtocol {
 
     BiFunction<ResultRow, ResultRowMeta, ResultRow> ORIGINAL_ROW_DECODER = (resultRow, resultRowMeta) -> resultRow;
 
+    MultiResults command(String command);
+
 
     /**
      * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_com_query.html">Protocol::COM_QUERY</a>

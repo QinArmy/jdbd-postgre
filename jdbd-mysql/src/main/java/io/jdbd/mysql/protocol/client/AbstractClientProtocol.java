@@ -85,6 +85,12 @@ abstract class AbstractClientProtocol implements ClientProtocol, ResultRowAdjuta
     }
 
     @Override
+    public MultiResults command(String command) {
+        return null;
+    }
+
+
+    @Override
     public final Mono<Long> commandUpdate(String command, Consumer<ResultStates> statesConsumer) {
         return sendCommandPacket(command)
                 .then(Mono.defer(() -> receiveCommandUpdatePacket(statesConsumer)));
