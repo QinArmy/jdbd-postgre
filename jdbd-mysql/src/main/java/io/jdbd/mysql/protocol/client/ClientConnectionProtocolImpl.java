@@ -1501,12 +1501,12 @@ final class ClientConnectionProtocolImpl extends AbstractClientProtocol implemen
 
 
     private MySQLRowMeta parseUpdateCommandResultPacket(ByteBuf resultPacket) {
-        PacketDecoders.ComQueryResponse response;
+        CommandStatementTask.ComQueryResponse response;
         final int negotiatedCapability = obtainNegotiatedCapability();
-        response = PacketDecoders.detectComQueryResponseType(resultPacket, negotiatedCapability);
+        response = CommandStatementTask.detectComQueryResponseType(resultPacket, negotiatedCapability);
         switch (response) {
             case TEXT_RESULT:
-                MySQLColumnMeta[] columnMetas = PacketDecoders.readResultColumnMetas(
+                MySQLColumnMeta[] columnMetas = CommandStatementTask.readResultColumnMetas(
                         resultPacket, negotiatedCapability
                         , obtainCharsetResults(), this.properties);
                 return MySQLRowMeta.from(columnMetas, obtainCustomCollationMap());

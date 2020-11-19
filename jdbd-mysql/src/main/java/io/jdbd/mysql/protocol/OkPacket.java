@@ -37,7 +37,7 @@ public final class OkPacket implements MySQLPacket {
         if ((capability & ClientCommandProtocol.CLIENT_PROTOCOL_41) != 0) {
             warnings = PacketUtils.readInt2(payloadBuf);
         } else {
-            warnings = -1;
+            warnings = 0;
         }
         //4.
         String info, sessionStateInfo = null;

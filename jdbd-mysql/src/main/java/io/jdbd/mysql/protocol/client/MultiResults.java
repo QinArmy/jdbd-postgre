@@ -12,8 +12,8 @@ import java.util.function.Consumer;
 
 public interface MultiResults {
 
-    Mono<Long> nextUpdate(Consumer<ResultStates> consumer);
+    Mono<Long> nextUpdate(Consumer<ResultStates> statesConsumer);
 
-    <T> Flux<T> nextQuery(BiFunction<ResultRow, ResultRowMeta, T> decoder, Consumer<ResultStates> consumer);
+    <T> Flux<T> nextQuery(BiFunction<ResultRow, ResultRowMeta, T> decoder, Consumer<ResultStates> statesConsumer);
 
 }

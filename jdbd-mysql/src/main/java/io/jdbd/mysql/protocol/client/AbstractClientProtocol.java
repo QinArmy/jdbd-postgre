@@ -12,7 +12,6 @@ import io.jdbd.mysql.protocol.OkPacket;
 import io.jdbd.mysql.protocol.conf.MySQLUrl;
 import io.jdbd.mysql.protocol.conf.Properties;
 import io.jdbd.mysql.util.MySQLExceptionUtils;
-import io.jdbd.mysql.util.MySQLStringUtils;
 import io.netty.buffer.ByteBuf;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -23,47 +22,18 @@ import reactor.core.publisher.MonoSink;
 import reactor.netty.Connection;
 import reactor.util.annotation.Nullable;
 
-import java.math.BigDecimal;
-import java.math.BigInteger;
 import java.nio.charset.Charset;
 import java.sql.SQLException;
-import java.time.*;
-import java.time.format.DateTimeFormatter;
-import java.time.format.DateTimeFormatterBuilder;
-import java.util.Collections;
-import java.util.EnumMap;
-import java.util.Locale;
+import java.time.ZoneOffset;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 
-import static java.time.temporal.ChronoField.*;
-
 abstract class AbstractClientProtocol implements ClientProtocol, ResultRowAdjutant {
 
     private static final Logger LOG = LoggerFactory.getLogger(AbstractClientProtocol.class);
 
-
-    static final DateTimeFormatter MYSQL_TIME_FORMATTER = new DateTimeFormatterBuilder()
-            .appendValue(HOUR_OF_DAY, 2)
-            .appendLiteral(':')
-            .appendValue(MINUTE_OF_HOUR, 2)
-            .optionalStart()
-            .appendLiteral(':')
-            .appendValue(SECOND_OF_MINUTE, 2)
-
-            .optionalStart()
-            .appendFraction(NANO_OF_SECOND, 0, 6, true)
-            .toFormatter(Locale.ENGLISH);
-
-    static final DateTimeFormatter MYSQL_DATETIME_FORMATTER = new DateTimeFormatterBuilder()
-            .append(DateTimeFormatter.ISO_LOCAL_DATE)
-            .appendLiteral(' ')
-            .append(MYSQL_TIME_FORMATTER)
-            .toFormatter(Locale.ENGLISH);
-
-    private static final long LONG_SIGNED_BIT = (1L << 63);
 
 
     final Connection connection;
@@ -73,8 +43,6 @@ abstract class AbstractClientProtocol implements ClientProtocol, ResultRowAdjuta
     final MySQLCumulateReceiver cumulateReceiver;
 
     final Properties properties;
-
-    private final Map<MySQLType, BiFunction<ByteBuf, MySQLColumnMeta, Object>> resultColumnParserMap = createResultColumnTypeParserMap();
 
     AbstractClientProtocol(Connection connection, MySQLUrl mySQLUrl, MySQLCumulateReceiver cumulateReceiver) {
         this.connection = connection;
@@ -166,369 +134,12 @@ abstract class AbstractClientProtocol implements ClientProtocol, ResultRowAdjuta
     /*################################## blow private method ##################################*/
 
 
-    /**
-     * @see MySQLType#DECIMAL
-     * @see MySQLType#DECIMAL_UNSIGNED
-     */
-    @Nullable
-    private BigDecimal parseDecimal(ByteBuf multiRowBuf, MySQLColumnMeta columnMeta) {
-        String decimalText = PacketUtils.readStringLenEnc(multiRowBuf, obtainResultColumnCharset(columnMeta));
-        try {
-            return decimalText == null ? null : new BigDecimal(decimalText);
-        } catch (Throwable e) {
-            throw createParserResultSetException(columnMeta, e, decimalText);
-        }
-    }
 
 
     /**
-     * @see MySQLType#TINYINT
-     * @see MySQLType#TINYINT_UNSIGNED
-     * @see MySQLType#SMALLINT
-     * @see MySQLType#SMALLINT_UNSIGNED
-     * @see MySQLType#MEDIUMINT
-     * @see MySQLType#MEDIUMINT_UNSIGNED
-     * @see MySQLType#INT
-     */
-    @Nullable
-    private Integer parseInt(ByteBuf multiRowBuf, MySQLColumnMeta columnMeta) {
-        String intText = PacketUtils.readStringLenEnc(multiRowBuf, obtainResultColumnCharset(columnMeta));
-        try {
-            return intText == null ? null : Integer.parseInt(intText);
-        } catch (Throwable e) {
-            throw createParserResultSetException(columnMeta, e, intText);
-        }
-    }
-
-    /**
-     * @see MySQLType#INT_UNSIGNED
-     * @see MySQLType#BIGINT
-     */
-    @Nullable
-    private Long parseLong(ByteBuf multiRowBuf, MySQLColumnMeta columnMeta) {
-        String longText = PacketUtils.readStringLenEnc(multiRowBuf, obtainResultColumnCharset(columnMeta));
-        try {
-            return longText == null ? null : Long.parseLong(longText);
-        } catch (Throwable e) {
-            throw createParserResultSetException(columnMeta, e, longText);
-        }
-    }
-
-    /**
-     * @see MySQLType#BIGINT_UNSIGNED
-     */
-    @Nullable
-    private BigInteger parseBigInteger(ByteBuf multiRowBuf, MySQLColumnMeta columnMeta) {
-        String integerText = PacketUtils.readStringLenEnc(multiRowBuf, obtainResultColumnCharset(columnMeta));
-        try {
-            return integerText == null ? null : new BigInteger(integerText);
-        } catch (Throwable e) {
-            throw createParserResultSetException(columnMeta, e, integerText);
-        }
-    }
-
-    /**
-     * @see MySQLType#BOOLEAN
-     */
-    @Nullable
-    private Boolean parseBoolean(ByteBuf multiRowBuf, MySQLColumnMeta columnMeta) {
-        String booleanText = PacketUtils.readStringLenEnc(multiRowBuf, obtainResultColumnCharset(columnMeta));
-        if (booleanText == null) {
-            return null;
-        }
-
-        Boolean boolValue = MySQLStringUtils.tryConvertToBoolean(booleanText);
-        if (boolValue != null) {
-            return boolValue;
-        }
-        boolean value;
-        try {
-            int num = Integer.parseInt(booleanText);
-            // Goes back to ODBC driver compatibility, and VB/Automation Languages/COM, where in Windows "-1" can mean true as well.
-            value = num != 0;
-        } catch (NumberFormatException e) {
-            try {
-                BigDecimal decimal = new BigDecimal(booleanText);
-                // this means that 0.1 or -1 will be TRUE
-                value = decimal.compareTo(BigDecimal.ZERO) != 0;
-            } catch (Throwable exception) {
-                throw createParserResultSetException(columnMeta, exception, booleanText);
-            }
-        }
-        return value;
-    }
-
-    /**
-     * @see MySQLType#FLOAT
-     * @see MySQLType#FLOAT_UNSIGNED
-     */
-    @Nullable
-    private Float parseFloat(ByteBuf multiRowBuf, MySQLColumnMeta columnMeta) {
-        String text = PacketUtils.readStringLenEnc(multiRowBuf, obtainResultColumnCharset(columnMeta));
-        if (text == null) {
-            return null;
-        }
-        try {
-            return Float.parseFloat(text);
-        } catch (NumberFormatException e) {
-            throw createParserResultSetException(columnMeta, e, text);
-        }
-    }
-
-    /**
-     * @see MySQLType#DOUBLE
-     * @see MySQLType#DOUBLE_UNSIGNED
-     */
-    @Nullable
-    private Double parseDouble(ByteBuf multiRowBuf, MySQLColumnMeta columnMeta) {
-        String text = PacketUtils.readStringLenEnc(multiRowBuf, obtainResultColumnCharset(columnMeta));
-        if (text == null) {
-            return null;
-        }
-        try {
-            return Double.parseDouble(text);
-        } catch (NumberFormatException e) {
-            throw createParserResultSetException(columnMeta, e, text);
-        }
-    }
-
-    /**
-     * @see MySQLType#NULL
-     */
-    @Nullable
-    private Object parseNull(ByteBuf multiRowBuf, MySQLColumnMeta columnMeta) {
-        // skip this column
-        PacketUtils.readStringLenEnc(multiRowBuf, obtainResultColumnCharset(columnMeta));
-        return null;
-    }
-
-    /**
-     * @see MySQLType#TIMESTAMP
-     * @see MySQLType#DATETIME
-     */
-    @Nullable
-    private LocalDateTime parseLocalDateTime(ByteBuf multiRowBuf, MySQLColumnMeta columnMeta) {
-        String text = PacketUtils.readStringLenEnc(multiRowBuf, obtainResultColumnCharset(columnMeta));
-        if (text == null) {
-            return null;
-        }
-        try {
-            // convert data zone to client zone
-            return ZonedDateTime.of(LocalDateTime.parse(text, MYSQL_DATETIME_FORMATTER), obtainDatabaseZoneOffset())
-                    .withZoneSameInstant(obtainClientZoneOffset())
-                    .toLocalDateTime();
-        } catch (Throwable e) {
-            throw createParserResultSetException(columnMeta, e, text);
-        }
-    }
-
-    /**
-     * @see MySQLType#DATE
-     */
-    @Nullable
-    private LocalDate parseLocalDate(ByteBuf multiRowBuf, MySQLColumnMeta columnMeta) {
-        String text = PacketUtils.readStringLenEnc(multiRowBuf, obtainResultColumnCharset(columnMeta));
-        if (text == null) {
-            return null;
-        }
-        try {
-            return LocalDate.parse(text, DateTimeFormatter.ISO_LOCAL_DATE);
-        } catch (Throwable e) {
-            throw createParserResultSetException(columnMeta, e, text);
-        }
-    }
 
 
-    /**
-     * @see MySQLType#TIME
-     */
-    @Nullable
-    private LocalTime parseLocalTime(ByteBuf multiRowBuf, MySQLColumnMeta columnMeta) {
-        String text = PacketUtils.readStringLenEnc(multiRowBuf, obtainResultColumnCharset(columnMeta));
-        if (text == null) {
-            return null;
-        }
-        try {
-            return OffsetTime.of(LocalTime.parse(text, MYSQL_TIME_FORMATTER), obtainDatabaseZoneOffset())
-                    .withOffsetSameInstant(obtainClientZoneOffset())
-                    .toLocalTime();
-        } catch (Throwable e) {
-            throw createParserResultSetException(columnMeta, e, text);
-        }
-    }
 
-    /**
-     * @see MySQLType#YEAR
-     */
-    @Nullable
-    private Year parseYear(ByteBuf multiRowBuf, MySQLColumnMeta columnMeta) {
-        String text = PacketUtils.readStringLenEnc(multiRowBuf, obtainResultColumnCharset(columnMeta));
-        if (text == null) {
-            return null;
-        }
-        try {
-            return Year.parse(text);
-        } catch (Throwable e) {
-            throw createParserResultSetException(columnMeta, e, text);
-        }
-    }
-
-    /**
-     * @see MySQLType#CHAR
-     * @see MySQLType#VARCHAR
-     * @see MySQLType#JSON
-     * @see MySQLType#ENUM
-     * @see MySQLType#SET
-     * @see MySQLType#TINYTEXT
-     * @see MySQLType#MEDIUMTEXT
-     * @see MySQLType#TEXT
-     * @see MySQLType#LONGTEXT
-     * @see MySQLType#UNKNOWN
-     */
-    @Nullable
-    private String parseString(ByteBuf multiRowBuf, MySQLColumnMeta columnMeta) {
-        try {
-            return PacketUtils.readStringLenEnc(multiRowBuf, obtainResultColumnCharset(columnMeta));
-        } catch (Throwable e) {
-            throw createParserResultSetException(columnMeta, e, null);
-        }
-    }
-
-    /**
-     * @see MySQLType#BIT
-     */
-    @Nullable
-    private Long parseLongForBit(ByteBuf multiRowBuf, MySQLColumnMeta columnMeta) {
-        String text = null;
-        try {
-            text = PacketUtils.readStringLenEnc(multiRowBuf, obtainResultColumnCharset(columnMeta));
-            if (text == null) {
-                return null;
-            }
-            boolean negative = text.length() == 64 && text.charAt(0) == '1';
-            if (negative) {
-                text = text.substring(1);
-            }
-            long bitResult = Long.parseLong(text, 2);
-            if (negative) {
-                bitResult |= LONG_SIGNED_BIT;
-            }
-            return bitResult;
-        } catch (Throwable e) {
-            throw createParserResultSetException(columnMeta, e, text);
-        }
-    }
-
-    /**
-     * @see MySQLType#BINARY
-     * @see MySQLType#VARBINARY
-     * @see MySQLType#TINYBLOB
-     * @see MySQLType#BLOB
-     * @see MySQLType#MEDIUMBLOB
-     * @see MySQLType#LONGBLOB
-     */
-    @Nullable
-    private byte[] parseByteArray(ByteBuf multiRowBuf, MySQLColumnMeta columnMeta) {
-        try {
-            int len = PacketUtils.readInt1(multiRowBuf);
-            if (len == PacketUtils.NULL_LENGTH) {
-                return null;
-            }
-            byte[] bytes = new byte[len];
-            multiRowBuf.readBytes(bytes);
-            return bytes;
-        } catch (Throwable e) {
-            throw createParserResultSetException(columnMeta, e, null);
-        }
-    }
-
-    /**
-     * @see MySQLType#GEOMETRY
-     */
-    @Nullable
-    private Object parseGeometry(ByteBuf multiRowBuf, MySQLColumnMeta columnMeta) {
-        //TODO add Geometry class
-        return PacketUtils.readStringLenEnc(multiRowBuf, obtainResultColumnCharset(columnMeta));
-    }
-
-    /**
-     * @return a unmodifiable map.
-     */
-    private Map<MySQLType, BiFunction<ByteBuf, MySQLColumnMeta, Object>> createResultColumnTypeParserMap() {
-        Map<MySQLType, BiFunction<ByteBuf, MySQLColumnMeta, Object>> map = new EnumMap<>(MySQLType.class);
-
-        map.put(MySQLType.DECIMAL, this::parseDecimal);
-        map.put(MySQLType.DECIMAL_UNSIGNED, this::parseDecimal);    // 1 fore
-        map.put(MySQLType.TINYINT, this::parseInt);
-        map.put(MySQLType.TINYINT_UNSIGNED, this::parseInt);
-
-        map.put(MySQLType.BOOLEAN, this::parseBoolean);
-        map.put(MySQLType.SMALLINT, this::parseInt);            // 2 fore
-        map.put(MySQLType.SMALLINT_UNSIGNED, this::parseInt);
-        map.put(MySQLType.INT, this::parseInt);
-
-        map.put(MySQLType.INT_UNSIGNED, this::parseLong);
-        map.put(MySQLType.FLOAT, this::parseFloat);           // 3 fore
-        map.put(MySQLType.FLOAT_UNSIGNED, this::parseFloat);
-        map.put(MySQLType.DOUBLE, this::parseDouble);
-
-        map.put(MySQLType.DOUBLE_UNSIGNED, this::parseDouble);
-        map.put(MySQLType.NULL, this::parseNull);          // 4 fore
-        map.put(MySQLType.TIMESTAMP, this::parseLocalDateTime);
-        map.put(MySQLType.BIGINT, this::parseLong);
-
-        map.put(MySQLType.BIGINT_UNSIGNED, this::parseBigInteger);
-        map.put(MySQLType.MEDIUMINT, this::parseInt);         // 5 fore
-        map.put(MySQLType.MEDIUMINT_UNSIGNED, this::parseInt);
-        map.put(MySQLType.DATE, this::parseLocalDate);
-
-        map.put(MySQLType.TIME, this::parseLocalTime);
-        map.put(MySQLType.DATETIME, this::parseLocalDateTime);        // 6 fore
-        map.put(MySQLType.YEAR, this::parseYear);
-        map.put(MySQLType.VARCHAR, this::parseString);
-
-        map.put(MySQLType.VARBINARY, this::parseByteArray);
-        map.put(MySQLType.BIT, this::parseLongForBit);        // 7 fore
-        map.put(MySQLType.JSON, this::parseString);
-        map.put(MySQLType.ENUM, this::parseString);
-
-        map.put(MySQLType.SET, this::parseString);
-        map.put(MySQLType.TINYBLOB, this::parseByteArray);        // 8 fore
-        map.put(MySQLType.TINYTEXT, this::parseString);
-        map.put(MySQLType.MEDIUMBLOB, this::parseByteArray);
-
-        map.put(MySQLType.MEDIUMTEXT, this::parseString);
-        map.put(MySQLType.LONGBLOB, this::parseByteArray);        // 9 fore
-        map.put(MySQLType.LONGTEXT, this::parseString);
-        map.put(MySQLType.BLOB, this::parseByteArray);
-
-        map.put(MySQLType.TEXT, this::parseString);
-        map.put(MySQLType.CHAR, this::parseString);        // 10 fore
-        map.put(MySQLType.BINARY, this::parseByteArray);
-        map.put(MySQLType.GEOMETRY, this::parseGeometry);
-
-        map.put(MySQLType.UNKNOWN, this::parseString);
-
-        return Collections.unmodifiableMap(map);
-    }
-
-
-    private Charset obtainResultColumnCharset(MySQLColumnMeta columnMeta) {
-        Charset charset = CharsetMapping.getJavaCharsetByCollationIndex(columnMeta.collationIndex);
-        if (charset == null) {
-            Map<Integer, CharsetMapping.CustomCollation> map = obtainCustomCollationMap();
-            CharsetMapping.CustomCollation collation = map.get(columnMeta.collationIndex);
-            if (collation == null) {
-                throw createNotFoundCustomCharsetException(columnMeta);
-            }
-            charset = CharsetMapping.getJavaCharsetByMySQLCharsetName(collation.charsetName);
-            if (charset == null) {
-                // here , io.jdbd.mysql.protocol.client.ClientConnectionProtocolImpl.detectCustomCollations have bugs.
-                throw new IllegalStateException("Can't obtain ResultSet meta charset.");
-            }
-        }
-        return charset;
-    }
 
 
     /**
@@ -556,8 +167,8 @@ abstract class AbstractClientProtocol implements ClientProtocol, ResultRowAdjuta
             return false;
         }
         final int negotiatedCapability = obtainNegotiatedCapability();
-        final PacketDecoders.ComQueryResponse responseType;
-        responseType = PacketDecoders.detectComQueryResponseType(cumulateBuf, negotiatedCapability);
+        final CommandStatementTask.ComQueryResponse responseType;
+        responseType = CommandStatementTask.detectComQueryResponseType(cumulateBuf, negotiatedCapability);
         boolean decodeEnd;
         switch (responseType) {
             case OK:
@@ -589,13 +200,13 @@ abstract class AbstractClientProtocol implements ClientProtocol, ResultRowAdjuta
      * @see #receiveResultSetMetadataPacket()
      */
     private MySQLRowMeta parseResultSetMetaPacket(ByteBuf rowMetaOrErrorPacket) {
-        PacketDecoders.ComQueryResponse response;
+        CommandStatementTask.ComQueryResponse response;
         final int negotiatedCapability = obtainNegotiatedCapability();
-        response = PacketDecoders.detectComQueryResponseType(rowMetaOrErrorPacket, negotiatedCapability);
+        response = CommandStatementTask.detectComQueryResponseType(rowMetaOrErrorPacket, negotiatedCapability);
 
-        if (response == PacketDecoders.ComQueryResponse.TEXT_RESULT) {
+        if (response == CommandStatementTask.ComQueryResponse.TEXT_RESULT) {
 
-            MySQLColumnMeta[] columnMetas = PacketDecoders.readResultColumnMetas(
+            MySQLColumnMeta[] columnMetas = CommandStatementTask.readResultColumnMetas(
                     rowMetaOrErrorPacket, negotiatedCapability
                     , obtainCharsetResults(), this.properties);
             return MySQLRowMeta.from(columnMetas, obtainCustomCollationMap());
@@ -690,8 +301,8 @@ abstract class AbstractClientProtocol implements ClientProtocol, ResultRowAdjuta
                 return false;
             }
             final int negotiatedCapability = obtainNegotiatedCapability();
-            final PacketDecoders.ComQueryResponse type;
-            type = PacketDecoders.detectComQueryResponseType(cumulateBuf, negotiatedCapability);
+            final CommandStatementTask.ComQueryResponse type;
+            type = CommandStatementTask.detectComQueryResponseType(cumulateBuf, negotiatedCapability);
             boolean decodeEnd;
             switch (type) {
                 case ERROR:
@@ -876,38 +487,7 @@ abstract class AbstractClientProtocol implements ClientProtocol, ResultRowAdjuta
     }
 
 
-    /**
-     * @see #receiveResultSetRows(MySQLRowMeta, BiFunction, Consumer)
-     */
-    private void parseResultSetRows(FluxSink<ResultRow> sink, ByteBuf multiRowBuf, MySQLRowMeta metadata) {
-        final MySQLColumnMeta[] columnMetas = metadata.columnMetas;
-        try {
-            int payloadLength, payloadIndex;
-            while (multiRowBuf.isReadable()) {
 
-                payloadLength = PacketUtils.readInt3(multiRowBuf);
-                multiRowBuf.skipBytes(1); // skip sequence id
-
-                payloadIndex = multiRowBuf.readerIndex();
-
-                Object[] columnValues = new Object[columnMetas.length];
-                MySQLColumnMeta columnMeta;
-                for (int i = 0; i < columnMetas.length; i++) {
-                    columnMeta = columnMetas[i];
-                    columnValues[i] = obtainResultColumnParser(columnMeta.mysqlType).apply(multiRowBuf, columnMeta);
-                }
-                multiRowBuf.readerIndex(payloadIndex + payloadLength); // to next pakcet
-                sink.next(MySQLResultRow.from(columnValues, metadata, this));
-            }
-            sink.complete();
-        } catch (Throwable e) {
-            LOG.error("Parse text ResultSet rows error.", e);
-            sink.error(e);
-        } finally {
-            multiRowBuf.release();
-        }
-
-    }
 
     /**
      * @see #commandUpdate(String, Consumer)
@@ -924,58 +504,11 @@ abstract class AbstractClientProtocol implements ClientProtocol, ResultRowAdjuta
 
     /*################################## blow private static method  ##################################*/
 
-    /**
-     * @see #parseDecimal(ByteBuf, MySQLColumnMeta)
-     */
-    private static ReactiveSQLException createParserResultSetException(MySQLColumnMeta columnMeta, Throwable e
-            , @Nullable String textValue) {
-        // here ,1.maybe parse code error; 2.maybe server send packet error.
-        StringBuilder builder = new StringBuilder("Cannot parse");
-        if (textValue != null) {
-            builder.append("[")
-                    .append(textValue)
-                    .append("]")
-            ;
-        }
-        appendColumnDetailForSQLException(builder, columnMeta);
-
-        return new ReactiveSQLException(new SQLException(builder.toString(), e));
-    }
 
 
-    private static ReactiveSQLException createNotFoundCustomCharsetException(MySQLColumnMeta columnMeta) {
-        // to here , code error,because check after load custom charset.
-        StringBuilder builder = new StringBuilder("Not found java charset for");
-        appendColumnDetailForSQLException(builder, columnMeta);
-        builder.append(" ,Collation Index[")
-                .append(columnMeta.collationIndex)
-                .append("].");
-        return new ReactiveSQLException(new SQLException(builder.toString()));
 
-    }
 
-    private static void appendColumnDetailForSQLException(StringBuilder builder, MySQLColumnMeta columnMeta) {
-        if (MySQLStringUtils.hasText(columnMeta.tableName)) {
-            builder.append(" TableName[")
-                    .append(columnMeta.tableName)
-                    .append("]");
-        }
-        if (MySQLStringUtils.hasText(columnMeta.tableAlias)) {
-            builder.append(" TableAlias[")
-                    .append(columnMeta.tableAlias)
-                    .append("]");
-        }
-        if (MySQLStringUtils.hasText(columnMeta.columnName)) {
-            builder.append(" ColumnName[")
-                    .append(columnMeta.columnName)
-                    .append("]");
-        }
-        if (MySQLStringUtils.hasText(columnMeta.columnAlias)) {
-            builder.append(" ColumnAlias[")
-                    .append(columnMeta.columnAlias)
-                    .append("]");
-        }
-    }
+
 
     private static <T> Flux<T> textResultSetTerminatorConsumer(ResultStates resultStates
             , Consumer<ResultStates> statesConsumer) {

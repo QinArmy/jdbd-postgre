@@ -11,6 +11,7 @@ import org.qinarmy.util.StringUtils;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.sql.JDBCType;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.Year;
@@ -199,7 +200,7 @@ public enum MySQLType implements SQLType {
      * <p>
      * Protocol: TYPE_DATE = 10
      */
-    DATE(JDBCType.DATE, LocalDateTime.class),
+    DATE(JDBCType.DATE, LocalDate.class),
     /**
      * TIME[(fsp)]
      * A time. The range is '-838:59:59.000000' to '838:59:59.000000'. MySQL displays TIME values in
