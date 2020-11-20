@@ -1,8 +1,8 @@
 package io.jdbd;
 
-import reactor.core.publisher.Mono;
+import org.reactivestreams.Publisher;
 
 public interface ReactiveCloseable {
 
-    Mono<Void> close();
+    Publisher<Void> close();
 }

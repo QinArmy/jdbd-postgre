@@ -1,20 +1,19 @@
 package io.jdbd.meta;
 
 import io.jdbd.DatabaseProductMetaData;
-import reactor.core.publisher.Flux;
-import reactor.core.publisher.Mono;
+import org.reactivestreams.Publisher;
 
 public interface DatabaseMetaData {
 
-    Mono<DatabaseProductMetaData> getDatabaseProduct();
+    Publisher<DatabaseProductMetaData> getDatabaseProduct();
 
-    Mono<DatabaseSchemaMetaData> getSchema();
+    Publisher<DatabaseSchemaMetaData> getSchema();
 
-    Flux<DatabaseTableMetaData> getTables(DatabaseSchemaMetaData schemaMeta,String pattern);
+    Publisher<DatabaseTableMetaData> getTables(DatabaseSchemaMetaData schemaMeta, String pattern);
 
-    Flux<TableColumnMetaData> getColumns(DatabaseTableMetaData tableMeta);
+    Publisher<TableColumnMetaData> getColumns(DatabaseTableMetaData tableMeta);
 
-    Flux<TableIndexMetaData> getIndexes(DatabaseTableMetaData tableMeta);
+    Publisher<TableIndexMetaData> getIndexes(DatabaseTableMetaData tableMeta);
 
     boolean supportSavePoints();
 

@@ -1,7 +1,6 @@
 package io.jdbd;
 
-import reactor.core.publisher.Flux;
-import reactor.core.publisher.Mono;
+import org.reactivestreams.Publisher;
 
 import java.sql.BatchUpdateException;
 import java.util.List;
@@ -26,7 +25,7 @@ public interface GenericStatement {
      * or (2) 0 for SQL statements that return nothing
      * @see java.sql.PreparedStatement#executeUpdate()
      */
-    Mono<Integer> executeUpdate();
+    Publisher<Integer> executeUpdate();
 
     /**
      * Executes the SQL statement in this <code>PreparedStatement</code> object,
@@ -50,7 +49,7 @@ public interface GenericStatement {
      * (DML) statements or (2) 0 for SQL statements that return nothing
      * @see java.sql.PreparedStatement#executeLargeUpdate()
      */
-    Mono<Long> executeLargeUpdate();
+    Publisher<Long> executeLargeUpdate();
 
     /**
      * Submits a batch of commands to the database for execution and
@@ -105,7 +104,7 @@ public interface GenericStatement {
      * @see Statement#addBatch(String)
      * @see java.sql.PreparedStatement#executeBatch()
      */
-    Flux<Integer> executeBatch();
+    Publisher<Integer> executeBatch();
 
     /**
      * Submits a batch of commands to the database for execution and
@@ -159,7 +158,7 @@ public interface GenericStatement {
      * @see Statement#addBatch(String)
      * @see java.sql.PreparedStatement#executeLargeBatch()
      */
-    Flux<Long> executeLargeBatch();
+    Publisher<Long> executeLargeBatch();
 
 
     /**
@@ -175,6 +174,6 @@ public interface GenericStatement {
      * </p>
      * @see java.sql.PreparedStatement#executeQuery()
      */
-    <T> Flux<T> executeQuery(BiFunction<ResultRow, ResultRowMeta, T> decoder, Consumer<ResultStates> statesConsumer);
+    <T> Publisher<T> executeQuery(BiFunction<ResultRow, ResultRowMeta, T> decoder, Consumer<ResultStates> statesConsumer);
 
 }

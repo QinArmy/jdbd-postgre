@@ -1,12 +1,12 @@
 package io.jdbd;
 
-import reactor.core.publisher.Mono;
+import org.reactivestreams.Publisher;
 
 public interface DatabaseSessionFactory extends ReactiveCloseable{
 
     /**
      * @return {@link DatabaseSession} or {@link java.sql.SQLException}
      */
-    Mono<DatabaseSession> getSession();
+    Publisher<DatabaseSession> getSession();
 
 }

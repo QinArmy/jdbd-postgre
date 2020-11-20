@@ -10,7 +10,7 @@ import java.nio.charset.Charset;
 /**
  * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_basic_ok_packet.html">Protocol::OK_Packet</a>
  */
-public final class OkPacket implements MySQLPacket {
+public final class OkPacket extends TerminatorPacket {
 
     public static final int OK_HEADER = 0;
 
@@ -60,10 +60,6 @@ public final class OkPacket implements MySQLPacket {
 
     private final long lastInsertId;
 
-    private final int statusFags;
-
-    private final int warnings;
-
     private final String info;
 
     private final String sessionStateInfo;
@@ -71,12 +67,10 @@ public final class OkPacket implements MySQLPacket {
     private OkPacket(long affectedRows, long lastInsertId
             , int statusFags, int warnings
             , String info, @Nullable String sessionStateInfo) {
+        super(warnings, statusFags);
 
         this.affectedRows = affectedRows;
         this.lastInsertId = lastInsertId;
-        this.statusFags = statusFags;
-        this.warnings = warnings;
-
         this.info = info;
         this.sessionStateInfo = sessionStateInfo;
     }
@@ -89,14 +83,6 @@ public final class OkPacket implements MySQLPacket {
         return this.lastInsertId;
     }
 
-    public int getStatusFags() {
-        return this.statusFags;
-    }
-
-    public int getWarnings() {
-        return this.warnings;
-    }
-
     public String getInfo() {
         return this.info;
     }
@@ -105,6 +91,7 @@ public final class OkPacket implements MySQLPacket {
     public String getSessionStateInfo() {
         return this.sessionStateInfo;
     }
+
 
     public static boolean isOkPacket(ByteBuf payloadBuf) {
         return PacketUtils.getInt1(payloadBuf, payloadBuf.readerIndex()) == OK_HEADER;

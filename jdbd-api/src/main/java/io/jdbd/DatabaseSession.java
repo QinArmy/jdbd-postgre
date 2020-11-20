@@ -1,14 +1,15 @@
 package io.jdbd;
 
-import reactor.core.publisher.Mono;
-
-public interface DatabaseSession  extends StatelessSession {
+import org.reactivestreams.Publisher;
 
 
-    Mono<Void> startTransaction(TransactionOption option);
+public interface DatabaseSession extends StatelessSession {
 
-    Mono<Void> commit();
 
-    Mono<Void> rollback();
+    Publisher<Void> startTransaction(TransactionOption option);
+
+    Publisher<Void> commit();
+
+    Publisher<Void> rollback();
 
 }

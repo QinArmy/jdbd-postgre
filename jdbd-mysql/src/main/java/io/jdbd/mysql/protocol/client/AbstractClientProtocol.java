@@ -1,9 +1,6 @@
 package io.jdbd.mysql.protocol.client;
 
-import io.jdbd.ReactiveSQLException;
-import io.jdbd.ResultRow;
-import io.jdbd.ResultRowMeta;
-import io.jdbd.ResultStates;
+import io.jdbd.*;
 import io.jdbd.mysql.JdbdMySQLException;
 import io.jdbd.mysql.protocol.CharsetMapping;
 import io.jdbd.mysql.protocol.EofPacket;
@@ -167,8 +164,8 @@ abstract class AbstractClientProtocol implements ClientProtocol, ResultRowAdjuta
             return false;
         }
         final int negotiatedCapability = obtainNegotiatedCapability();
-        final CommandStatementTask.ComQueryResponse responseType;
-        responseType = CommandStatementTask.detectComQueryResponseType(cumulateBuf, negotiatedCapability);
+        final ComQueryTask.ComQueryResponse responseType;
+        responseType = ComQueryTask.detectComQueryResponseType(cumulateBuf, negotiatedCapability);
         boolean decodeEnd;
         switch (responseType) {
             case OK:
@@ -200,13 +197,13 @@ abstract class AbstractClientProtocol implements ClientProtocol, ResultRowAdjuta
      * @see #receiveResultSetMetadataPacket()
      */
     private MySQLRowMeta parseResultSetMetaPacket(ByteBuf rowMetaOrErrorPacket) {
-        CommandStatementTask.ComQueryResponse response;
+        ComQueryTask.ComQueryResponse response;
         final int negotiatedCapability = obtainNegotiatedCapability();
-        response = CommandStatementTask.detectComQueryResponseType(rowMetaOrErrorPacket, negotiatedCapability);
+        response = ComQueryTask.detectComQueryResponseType(rowMetaOrErrorPacket, negotiatedCapability);
 
-        if (response == CommandStatementTask.ComQueryResponse.TEXT_RESULT) {
+        if (response == ComQueryTask.ComQueryResponse.TEXT_RESULT) {
 
-            MySQLColumnMeta[] columnMetas = CommandStatementTask.readResultColumnMetas(
+            MySQLColumnMeta[] columnMetas = ComQueryTask.readResultColumnMetas(
                     rowMetaOrErrorPacket, negotiatedCapability
                     , obtainCharsetResults(), this.properties);
             return MySQLRowMeta.from(columnMetas, obtainCustomCollationMap());
@@ -301,8 +298,8 @@ abstract class AbstractClientProtocol implements ClientProtocol, ResultRowAdjuta
                 return false;
             }
             final int negotiatedCapability = obtainNegotiatedCapability();
-            final CommandStatementTask.ComQueryResponse type;
-            type = CommandStatementTask.detectComQueryResponseType(cumulateBuf, negotiatedCapability);
+            final ComQueryTask.ComQueryResponse type;
+            type = ComQueryTask.detectComQueryResponseType(cumulateBuf, negotiatedCapability);
             boolean decodeEnd;
             switch (type) {
                 case ERROR:

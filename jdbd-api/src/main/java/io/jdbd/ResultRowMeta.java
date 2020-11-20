@@ -1,7 +1,7 @@
 package io.jdbd;
 
+import io.jdbd.lang.Nullable;
 import io.jdbd.meta.SQLType;
-import reactor.util.annotation.Nullable;
 
 import java.sql.JDBCType;
 

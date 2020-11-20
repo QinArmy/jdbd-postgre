@@ -1,7 +1,7 @@
 package io.jdbd;
 
 import io.jdbd.meta.DatabaseMetaData;
-import reactor.core.publisher.Mono;
+import org.reactivestreams.Publisher;
 
 import java.sql.Connection;
 import java.sql.Savepoint;
@@ -15,17 +15,17 @@ public interface StatelessSession extends ReactiveCloseable{
      * @see Connection#getTransactionIsolation()
      * @see Connection#getAutoCommit()
      */
-    Mono<? extends TransactionOption> getTransactionOption();
+    Publisher<? extends TransactionOption> getTransactionOption();
 
     /**
      * @see Connection#createStatement()
      */
-    Mono<Statement> createStatement();
+    Publisher<Statement> createStatement();
 
     /**
      * @see java.sql.Connection#prepareStatement(String)
      */
-    Mono<PreparedStatement> prepareStatement(String sql);
+    Publisher<PreparedStatement> prepareStatement(String sql);
 
     /**
      * @see java.sql.DatabaseMetaData#supportsSavepoints()
@@ -35,28 +35,28 @@ public interface StatelessSession extends ReactiveCloseable{
     /**
      * @see java.sql.Connection#setSavepoint()
      */
-    Mono<? extends Savepoint> setSavepoint();
+    Publisher<? extends Savepoint> setSavepoint();
 
     /**
      * @see java.sql.Connection#setSavepoint(String)
      */
-    Mono<? extends Savepoint> setSavepoint(String name);
+    Publisher<? extends Savepoint> setSavepoint(String name);
 
     /**
      * @see java.sql.Connection#releaseSavepoint(Savepoint)
      */
-    Mono<Void> releaseSavePoint(Savepoint savepoint);
+    Publisher<Void> releaseSavePoint(Savepoint savepoint);
 
     /**
      * @see java.sql.Connection#rollback(Savepoint)
      */
-    Mono<Void> rollbackToSavePoint(Savepoint savepoint);
+    Publisher<Void> rollbackToSavePoint(Savepoint savepoint);
 
 
     /**
      * @see Connection#isClosed()
      */
-    Mono<Boolean> isClosed();
+    Publisher<Boolean> isClosed();
 
 
 }

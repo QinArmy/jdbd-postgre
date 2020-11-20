@@ -2,13 +2,14 @@ package io.jdbd.mysql.protocol.client;
 
 import io.jdbd.mysql.protocol.CharsetMapping;
 import io.jdbd.mysql.protocol.conf.Properties;
+import io.jdbd.vendor.CommTaskExecutorAdjutant;
 import io.netty.buffer.ByteBuf;
 
 import java.nio.charset.Charset;
 import java.time.ZoneOffset;
 import java.util.Map;
 
-public interface StatementTaskAdjutant extends ResultRowAdjutant {
+public interface StatementTaskAdjutant extends ResultRowAdjutant, CommTaskExecutorAdjutant {
 
     ByteBuf createPacketBuffer(int initialPayloadCapacity);
 

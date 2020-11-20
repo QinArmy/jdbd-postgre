@@ -1,6 +1,5 @@
 package io.jdbd.mysql.protocol.client;
 
-import io.jdbd.vendor.StatementTask;
 import io.netty.buffer.ByteBuf;
 import org.reactivestreams.Subscription;
 import reactor.core.CoreSubscriber;

@@ -1,28 +1,24 @@
 package io.jdbd.vendor;
 
-
 import io.jdbd.lang.Nullable;
 
 import java.nio.file.Path;
 
-public interface StatementTask<T> {
+public interface CommTask<T> {
 
     @Nullable
     T start();
 
-    boolean decode(T cumulateBuf);
-
-    @Nullable
-    T moreSendPacket();
-
     @Nullable
     TaskPhase getTaskPhase();
 
-    @Nullable
-    default Path moreSendFile() {
-        return null;
-    }
+    boolean decode(T cumulateBuffer);
 
+    @Nullable
+    Path moreSendFile();
+
+    @Nullable
+    T moreSendPacket();
 
     enum TaskPhase {
         SUBMITTED,

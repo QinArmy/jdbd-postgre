@@ -1,5 +1,6 @@
 package io.jdbd.mysql.protocol.client;
 
+import io.jdbd.MultiResults;
 import io.jdbd.ResultRow;
 import io.jdbd.ResultRowMeta;
 import io.jdbd.ResultStates;

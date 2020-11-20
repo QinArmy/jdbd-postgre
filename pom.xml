@@ -5,12 +5,13 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>io.jdbd</groupId>
-    <artifactId>reactive-jdbd</artifactId>
+    <artifactId>jdbd</artifactId>
     <packaging>pom</packaging>
     <version>1.0-SNAPSHOT</version>
     <modules>
         <module>jdbd-api</module>
         <module>jdbd-mysql</module>
+        <module>jdbd-vendor</module>
     </modules>
 
     <properties>
@@ -19,7 +20,21 @@
 
         <reactor.version>3.3.5.RELEASE</reactor.version>
         <jsr305.version>3.0.2</jsr305.version>
+
+        <netty.version>4.1.52.Final</netty.version>
+
+        <qinarmy.common.version>1.0-SNAPSHOT</qinarmy.common.version>
+
+        <jackson.core.version>2.11.3</jackson.core.version>
+        <jackson.module.version>2.11.3</jackson.module.version>
+        <jackson.datatype.version>2.11.3</jackson.datatype.version>
+
+        <mysql.versioin>8.0.22</mysql.versioin>
+
         <slf4.version>1.7.28</slf4.version>
+        <log4j2.version>2.13.3</log4j2.version>
+
+        <testng.version>7.1.0</testng.version>
     </properties>
 
     <dependencyManagement>
@@ -27,38 +42,103 @@
             <dependency>
                 <groupId>io.jdbd</groupId>
                 <artifactId>jdbd-api</artifactId>
-                <version>1.0-SNAPSHOT</version>
+                <version>${project.version}</version>
             </dependency>
             <dependency>
-                <groupId>io.projectreactor</groupId>
-                <artifactId>reactor-core</artifactId>
-                <version>${reactor.version}</version>
+                <groupId>io.jdbd</groupId>
+                <artifactId>jdbd-vendor</artifactId>
+                <version>${project.version}</version>
             </dependency>
+            <dependency>
+                <groupId>io.jdbd</groupId>
+                <artifactId>jdbd-mysql</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+
             <dependency>
                 <groupId>com.google.code.findbugs</groupId>
                 <artifactId>jsr305</artifactId>
                 <version>${jsr305.version}</version>
             </dependency>
             <dependency>
-                <groupId>org.slf4j</groupId>
-                <artifactId>slf4j-api</artifactId>
-                <version>${slf4.version}</version>
+                <groupId>org.qinarmy.common</groupId>
+                <artifactId>common-env</artifactId>
+                <version>${qinarmy.common.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.qinarmy.common</groupId>
+                <artifactId>common-util</artifactId>
+                <version>${qinarmy.common.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>io.projectreactor</groupId>
+                <artifactId>reactor-bom</artifactId>
+                <version>2020.0.1</version>
+                <type>pom</type>
+                <scope>import</scope>
             </dependency>
             <dependency>
                 <groupId>io.netty</groupId>
                 <artifactId>netty-all</artifactId>
-                <version>4.1.53.Final</version>
+                <version>${netty.version}</version>
             </dependency>
+
+
+            <dependency>
+                <groupId>org.slf4j</groupId>
+                <artifactId>slf4j-api</artifactId>
+                <version>${slf4.version}</version>
+            </dependency>
+
+
+            <!-- below test dependencies -->
             <dependency>
                 <groupId>org.apache.logging.log4j</groupId>
                 <artifactId>log4j-slf4j-impl</artifactId>
                 <scope>test</scope>
-                <version>2.13.3</version>
+                <version>${log4j2.version}</version>
             </dependency>
+
+            <dependency>
+                <groupId>com.fasterxml.jackson.core</groupId>
+                <artifactId>jackson-databind</artifactId>
+                <version>${jackson.core.version}</version>
+                <scope>test</scope>
+            </dependency>
+
+            <dependency>
+                <groupId>com.fasterxml.jackson.module</groupId>
+                <artifactId>jackson-modules-java8</artifactId>
+                <version>${jackson.module.version}</version>
+                <scope>test</scope>
+            </dependency>
+            <dependency>
+                <groupId>com.fasterxml.jackson.datatype</groupId>
+                <artifactId>jackson-datatype-jsr310</artifactId>
+                <version>${jackson.datatype.version}</version>
+                <scope>test</scope>
+            </dependency>
+
+
+            <dependency>
+                <groupId>mysql</groupId>
+                <artifactId>mysql-connector-java</artifactId>
+                <version>${mysql.versioin}</version>
+                <scope>test</scope>
+            </dependency>
+
+
             <dependency>
                 <groupId>org.testng</groupId>
                 <artifactId>testng</artifactId>
-                <version>7.1.0</version>
+                <version>${testng.version}</version>
+                <exclusions>
+                    <exclusion>
+                        <groupId>junit</groupId>
+                        <artifactId>junit</artifactId>
+                    </exclusion>
+                </exclusions>
                 <scope>test</scope>
             </dependency>
         </dependencies>

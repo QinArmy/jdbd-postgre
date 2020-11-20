@@ -1,6 +1,6 @@
 package io.jdbd.meta;
 
-import reactor.util.annotation.Nullable;
+import io.jdbd.lang.Nullable;
 
 public final class DatabaseSchemaMetaData {
 

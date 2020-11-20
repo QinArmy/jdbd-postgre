@@ -14,6 +14,8 @@ import java.util.Map;
  */
 final class MySQLColumnMeta {
 
+    static final MySQLColumnMeta[] EMPTY = new MySQLColumnMeta[0];
+
     static final int NOT_NULL_FLAG = 1;
     static final int PRI_KEY_FLAG = 1 << 1;
     static final int UNIQUE_KEY_FLAG = 1 << 4;
