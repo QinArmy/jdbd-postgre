@@ -1,7 +1,7 @@
 package io.jdbd.mysql.protocol.authentication;
 
 import io.jdbd.mysql.JdbdMySQLException;
-import io.jdbd.mysql.protocol.ProtocolAssistant;
+import io.jdbd.mysql.protocol.AuthenticateAssistant;
 import io.jdbd.mysql.protocol.client.PacketUtils;
 import io.jdbd.mysql.protocol.conf.HostInfo;
 import io.netty.buffer.ByteBuf;
@@ -17,7 +17,7 @@ public class CachingSha2PasswordPlugin extends Sha256PasswordPlugin {
 
     private static final Logger LOG = LoggerFactory.getLogger(CachingSha2PasswordPlugin.class);
 
-    public static CachingSha2PasswordPlugin getInstance(ProtocolAssistant protocolAssistant, HostInfo hostInfo) {
+    public static CachingSha2PasswordPlugin getInstance(AuthenticateAssistant protocolAssistant, HostInfo hostInfo) {
         return new CachingSha2PasswordPlugin(protocolAssistant, hostInfo, tryLoadPublicKeyString(hostInfo));
     }
 
@@ -27,7 +27,7 @@ public class CachingSha2PasswordPlugin extends Sha256PasswordPlugin {
 
     protected final AtomicReference<AuthStage> stage = new AtomicReference<>(AuthStage.FAST_AUTH_SEND_SCRAMBLE);
 
-    protected CachingSha2PasswordPlugin(ProtocolAssistant protocolAssistant
+    protected CachingSha2PasswordPlugin(AuthenticateAssistant protocolAssistant
             , HostInfo hostInfo, @Nullable String publicKeyString) {
         super(protocolAssistant, hostInfo, publicKeyString);
     }

@@ -1,31 +1,17 @@
 package io.jdbd.vendor;
 
-import io.jdbd.ResultRow;
-import io.jdbd.ResultRowMeta;
-import io.jdbd.ResultStates;
 import io.jdbd.lang.Nullable;
 import io.netty.buffer.ByteBuf;
-import reactor.core.publisher.Flux;
-import reactor.core.publisher.FluxSink;
 import reactor.core.publisher.Mono;
 
-import java.util.function.BiFunction;
-import java.util.function.Consumer;
+public abstract class AbstractCommTask implements CommTask<ByteBuf> {
 
-public abstract class AbstractCommTask implements CommTask<ByteBuf>, ReactorMultiResults {
-
-    private final CommTaskExecutorAdjutant executorAdjutant;
-
-    protected final int expectedResultCount;
-
-    private int receiveResultCount;
+    final CommTaskExecutorAdjutant executorAdjutant;
 
     private TaskPhase taskPhase;
 
-
-    protected AbstractCommTask(CommTaskExecutorAdjutant executorAdjutant, int expectedResultCount) {
+    protected AbstractCommTask(CommTaskExecutorAdjutant executorAdjutant) {
         this.executorAdjutant = executorAdjutant;
-        this.expectedResultCount = expectedResultCount;
     }
 
     @Nullable
@@ -65,36 +51,15 @@ public abstract class AbstractCommTask implements CommTask<ByteBuf>, ReactorMult
     }
 
     @Override
-    public final Mono<Long> nextUpdate(Consumer<ResultStates> statesConsumer) {
-        return Mono.empty();
+    public void onChannelClose() {
+        // TODO optimize
     }
 
-    @Override
-    public final <T> Flux<T> nextQuery(BiFunction<ResultRow, ResultRowMeta, T> rowDecoder
-            , Consumer<ResultStates> statesConsumer) {
-        return Flux.empty();
+    protected final Mono<Void> submit() {
+        return this.executorAdjutant.submitTask(this)
+                .doOnSuccess(v -> AbstractCommTask.this.taskPhase = TaskPhase.SUBMITTED)
+                ;
     }
-
-    protected final boolean skipCurrentResultRestRows() {
-        return false;
-    }
-
-    protected final void emitErrorPacket(Throwable e) {
-
-    }
-
-    protected final void emitUpdateResult(ReactorMultiResults resultStates) {
-        this.receiveResultCount++;
-    }
-
-    protected final void emitRowTerminator(ReactorMultiResults resultStates) {
-        this.receiveResultCount++;
-    }
-
-    protected final FluxSink<ResultRow> obtainQueryResultSink() {
-        return null;
-    }
-
 
     @Nullable
     protected abstract ByteBuf internalStart();

@@ -18,7 +18,7 @@ public final class ClientCommandProtocolImpl extends AbstractClientProtocol impl
 
 
     public static Mono<ClientCommandProtocol> from(MySQLUrl mySQLUrl) {
-        return ClientConnectionProtocolImpl.from(mySQLUrl)
+        return ClientConnectionProtocolImpl.create(mySQLUrl)
                 .flatMap(p -> p.authenticateAndInitializing().thenReturn(p))
                 .cast(ClientConnectionProtocolImpl.class)
                 .map(ClientCommandProtocolImpl::new);
@@ -62,7 +62,7 @@ public final class ClientCommandProtocolImpl extends AbstractClientProtocol impl
 
         this.maxBytesPerCharClient = (int) this.charsetClient.newEncoder().maxBytesPerChar();
         this.customCollationMap = connectionProtocol.obtainCustomCollationMap();
-        this.clientZoneOffset = connectionProtocol.obtainClientZoneOffset();
+        this.clientZoneOffset = connectionProtocol.obtainZoneOffsetClient();
     }
 
     /*################################## blow ClientCommandProtocol method ##################################*/
@@ -104,7 +104,7 @@ public final class ClientCommandProtocolImpl extends AbstractClientProtocol impl
     }
 
     @Override
-    public ZoneOffset obtainClientZoneOffset() {
+    public ZoneOffset obtainZoneOffsetClient() {
         return this.clientZoneOffset;
     }
 

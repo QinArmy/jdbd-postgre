@@ -27,7 +27,7 @@ abstract class ColumnParsers {
     private static final long LONG_SIGNED_BIT = (1L << 63);
 
     @Nullable
-    static Object parseColumn(ByteBuf multiRowBuf, MySQLColumnMeta columnMeta, StatementTaskAdjutant adjutant) {
+    static Object parseColumn(ByteBuf multiRowBuf, MySQLColumnMeta columnMeta, MySQLTaskAdjutant adjutant) {
         final MySQLType sqlType = columnMeta.mysqlType;
         final Charset columnCharset = obtainResultColumnCharset(columnMeta, adjutant);
         Object value;
@@ -465,7 +465,7 @@ abstract class ColumnParsers {
         }
     }
 
-    private static Charset obtainResultColumnCharset(MySQLColumnMeta columnMeta, StatementTaskAdjutant adjutant) {
+    private static Charset obtainResultColumnCharset(MySQLColumnMeta columnMeta, MySQLTaskAdjutant adjutant) {
         Charset charset = CharsetMapping.getJavaCharsetByCollationIndex(columnMeta.collationIndex);
         if (charset == null) {
             Map<Integer, CharsetMapping.CustomCollation> map = adjutant.obtainCustomCollationMap();

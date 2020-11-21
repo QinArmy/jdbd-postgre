@@ -8,6 +8,7 @@ import io.jdbd.mysql.protocol.OkPacket;
 import io.jdbd.mysql.protocol.TerminatorPacket;
 import io.jdbd.mysql.protocol.conf.Properties;
 import io.jdbd.mysql.util.MySQLExceptionUtils;
+import io.jdbd.vendor.ReactorMultiResults;
 import io.netty.buffer.ByteBuf;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -19,13 +20,13 @@ import java.nio.file.Paths;
 import java.util.List;
 
 
-final class ComQueryTask extends MySQLCommTask {
+final class ComQueryTask extends MySQLCommandTask {
 
-    static ComQueryTask create(StatementTaskAdjutant taskAdjutant, String command) {
+    static ReactorMultiResults command(MySQLTaskAdjutant taskAdjutant, String command) {
         return new ComQueryTask(taskAdjutant, command, 1);
     }
 
-    static ComQueryTask create(StatementTaskAdjutant taskAdjutant, List<String> commandList) {
+    static ReactorMultiResults commands(MySQLTaskAdjutant taskAdjutant, List<String> commandList) {
         StringBuilder builder = new StringBuilder();
         final int size = commandList.size();
         for (int i = 0; i < size; i++) {
@@ -56,7 +57,7 @@ final class ComQueryTask extends MySQLCommTask {
     private MySQLRowMeta rowMeta;
 
 
-    private ComQueryTask(StatementTaskAdjutant taskAdjutant, String command, int expectedResultCount) {
+    private ComQueryTask(MySQLTaskAdjutant taskAdjutant, String command, int expectedResultCount) {
         super(taskAdjutant, expectedResultCount);
         this.command = command;
     }
@@ -185,7 +186,7 @@ final class ComQueryTask extends MySQLCommTask {
             case EofPacket.EOF_HEADER:
             case OkPacket.OK_HEADER:
                 OkPacket ok = OkPacket.readPacket(cumulateBuffer, negotiatedCapability);
-                emitUpdateOkPacket(ok);
+                emitUpdateResult(MySQLResultStates.from(ok));
                 taskEnd = (ok.getStatusFags() & ClientProtocol.SERVER_MORE_RESULTS_EXISTS) == 0;
                 break;
             default:
@@ -319,7 +320,7 @@ final class ComQueryTask extends MySQLCommTask {
         MySQLColumnMeta[] columnMetas = rowMeta.columnMetas;
         MySQLColumnMeta columnMeta;
         Object[] columnValueArray = new Object[columnMetas.length];
-        final StatementTaskAdjutant taskAdjutant = this.executorAdjutant;
+        final MySQLTaskAdjutant taskAdjutant = this.executorAdjutant;
 
         for (int i = 0; i < columnMetas.length; i++) {
             columnMeta = columnMetas[i];

@@ -21,6 +21,8 @@ public final class HostInfo {
     private final boolean isPasswordLess;
     private final Properties properties;
 
+    private final String database;
+
     HostInfo(String originalUrl, String user, @Nullable String password) {
         this(originalUrl, MySQLUrl.DEFAULT_HOST, MySQLUrl.DEFAULT_PORT, user, password, Collections.emptyMap());
     }
@@ -40,6 +42,7 @@ public final class HostInfo {
         this.password = password;
         this.isPasswordLess = password == null;
         this.properties = ImmutableMapProperties.getInstance(hostProperties);
+        this.database = this.properties.getRequiredProperty(PropertyKey.DBNAME);
     }
 
     @Override
@@ -85,5 +88,9 @@ public final class HostInfo {
 
     public Properties getProperties() {
         return this.properties;
+    }
+
+    public String getDatabase() {
+        return this.database;
     }
 }

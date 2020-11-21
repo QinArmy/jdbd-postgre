@@ -4,6 +4,6 @@ import java.time.ZoneOffset;
 
 interface ResultRowAdjutant {
 
-     ZoneOffset obtainClientZoneOffset();
+     ZoneOffset obtainZoneOffsetClient();
 
 }

@@ -3,10 +3,11 @@ package io.jdbd.mysql.util;
 import io.jdbd.PreparedStatement;
 import io.jdbd.ReactiveSQLException;
 import io.jdbd.Statement;
+import io.jdbd.lang.Nullable;
+import io.jdbd.mysql.JdbdMySQLException;
 import io.jdbd.mysql.protocol.ErrorPacket;
 import io.jdbd.mysql.protocol.MySQLFatalIoException;
 import org.qinarmy.util.security.ExceptionUtils;
-import reactor.util.annotation.Nullable;
 
 import java.sql.SQLException;
 
@@ -16,7 +17,7 @@ public abstract class MySQLExceptionUtils extends ExceptionUtils {
         throw new UnsupportedOperationException();
     }
 
-    public static ReactiveSQLException wrapExceptionIfNeed(Throwable t) {
+    public static ReactiveSQLException wrapSQLExceptionIfNeed(Throwable t) {
         ReactiveSQLException e;
         if (t instanceof ReactiveSQLException) {
             e = (ReactiveSQLException) t;
@@ -24,6 +25,16 @@ public abstract class MySQLExceptionUtils extends ExceptionUtils {
             e = new ReactiveSQLException((SQLException) t);
         } else {
             e = new ReactiveSQLException(new SQLException(t));
+        }
+        return e;
+    }
+
+    public static JdbdMySQLException wrapJdbdExceptionIfNeed(Throwable t) {
+        JdbdMySQLException e;
+        if (t instanceof JdbdMySQLException) {
+            e = (JdbdMySQLException) t;
+        } else {
+            e = new JdbdMySQLException(t, t.getMessage());
         }
         return e;
     }
@@ -44,14 +55,19 @@ public abstract class MySQLExceptionUtils extends ExceptionUtils {
         return new ReactiveSQLException(new SQLException(message));
     }
 
-    public static ReactiveSQLException createFatalIoException(String format, @Nullable Object... args) {
+    public static ReactiveSQLException createFatalIoException(@Nullable Throwable e, String format
+            , @Nullable Object... args) {
         String message;
         if (args == null || args.length == 0) {
             message = format;
         } else {
             message = String.format(format, args);
         }
-        return new ReactiveSQLException(new MySQLFatalIoException(message));
+        return new ReactiveSQLException(new MySQLFatalIoException(message, e));
+    }
+
+    public static ReactiveSQLException createFatalIoException(String format, @Nullable Object... args) {
+        return createFatalIoException(null, format, args);
     }
 
     public static boolean containFatalIoException(final Throwable e) {

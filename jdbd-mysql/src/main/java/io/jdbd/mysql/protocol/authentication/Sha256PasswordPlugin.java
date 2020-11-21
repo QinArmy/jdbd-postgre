@@ -1,8 +1,8 @@
 package io.jdbd.mysql.protocol.authentication;
 
 import io.jdbd.mysql.JdbdMySQLException;
+import io.jdbd.mysql.protocol.AuthenticateAssistant;
 import io.jdbd.mysql.protocol.ClientConstants;
-import io.jdbd.mysql.protocol.ProtocolAssistant;
 import io.jdbd.mysql.protocol.client.PacketUtils;
 import io.jdbd.mysql.protocol.conf.HostInfo;
 import io.jdbd.mysql.protocol.conf.Properties;
@@ -40,7 +40,7 @@ import java.util.concurrent.atomic.AtomicReference;
 public class Sha256PasswordPlugin implements AuthenticationPlugin {
 
 
-    public static Sha256PasswordPlugin getInstance(ProtocolAssistant protocolAssistant, HostInfo hostInfo) {
+    public static Sha256PasswordPlugin getInstance(AuthenticateAssistant protocolAssistant, HostInfo hostInfo) {
 
         return new Sha256PasswordPlugin(protocolAssistant, hostInfo, tryLoadPublicKeyString(hostInfo));
 
@@ -50,7 +50,7 @@ public class Sha256PasswordPlugin implements AuthenticationPlugin {
 
     public static final String PLUGIN_CLASS = "com.mysql.cj.protocol.a.authentication.Sha256PasswordPlugin";
 
-    protected final ProtocolAssistant protocolAssistant;
+    protected final AuthenticateAssistant protocolAssistant;
 
     protected final HostInfo hostInfo;
 
@@ -65,7 +65,7 @@ public class Sha256PasswordPlugin implements AuthenticationPlugin {
     protected final AtomicReference<String> seed = new AtomicReference<>(null);
 
 
-    protected Sha256PasswordPlugin(ProtocolAssistant protocolAssistant, HostInfo hostInfo, @Nullable String publicKeyString) {
+    protected Sha256PasswordPlugin(AuthenticateAssistant protocolAssistant, HostInfo hostInfo, @Nullable String publicKeyString) {
         this.protocolAssistant = protocolAssistant;
         this.hostInfo = hostInfo;
         if (publicKeyString != null) {
@@ -88,7 +88,7 @@ public class Sha256PasswordPlugin implements AuthenticationPlugin {
     @Override
     public List<ByteBuf> nextAuthenticationStep(ByteBuf fromServer) {
 
-        final ProtocolAssistant protocolAssistant = this.protocolAssistant;
+        final AuthenticateAssistant protocolAssistant = this.protocolAssistant;
         final String password = protocolAssistant.getMainHostInfo().getPassword();
 
         List<ByteBuf> toServer;

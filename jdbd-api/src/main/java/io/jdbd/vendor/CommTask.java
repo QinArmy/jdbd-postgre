@@ -20,6 +20,10 @@ public interface CommTask<T> {
     @Nullable
     T moreSendPacket();
 
+    void error(Throwable e);
+
+    void onChannelClose();
+
     enum TaskPhase {
         SUBMITTED,
         STARTED,

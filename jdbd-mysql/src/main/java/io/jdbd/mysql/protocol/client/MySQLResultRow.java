@@ -196,7 +196,7 @@ abstract class MySQLResultRow implements ResultRow {
     private <T extends Temporal> T convertFromLocalDateTime(LocalDateTime value, Class<T> targetClass
             , ZoneId targetZoneId) {
         // @see AbstractClientProtocol#toLocalDateTime(ByteBuf, MySQLColumnMeta)
-        OffsetDateTime newOffset = OffsetDateTime.of(value, this.adjutant.obtainClientZoneOffset())
+        OffsetDateTime newOffset = OffsetDateTime.of(value, this.adjutant.obtainZoneOffsetClient())
                 .withOffsetSameInstant(MySQLTimeUtils.toZoneOffset(targetZoneId));
 
         Temporal newValue;
@@ -228,7 +228,7 @@ abstract class MySQLResultRow implements ResultRow {
     private <T extends Temporal> T convertFromLocalTime(LocalTime value, Class<T> targetClass
             , ZoneId targetZoneId) {
         //  @see AbstractClientProtocol#toLocalTime(ByteBuf, MySQLColumnMeta)
-        OffsetTime newOffset = OffsetTime.of(value, this.adjutant.obtainClientZoneOffset())
+        OffsetTime newOffset = OffsetTime.of(value, this.adjutant.obtainZoneOffsetClient())
                 .withOffsetSameInstant(MySQLTimeUtils.toZoneOffset(targetZoneId));
         Temporal newValue;
         if (targetClass == OffsetTime.class) {

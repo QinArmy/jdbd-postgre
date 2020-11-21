@@ -1,12 +1,13 @@
 package io.jdbd.mysql.protocol.client;
 
-import io.jdbd.MultiResults;
 import io.jdbd.ResultRow;
 import io.jdbd.ResultRowMeta;
 import io.jdbd.ResultStates;
+import io.jdbd.vendor.ReactorMultiResults;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+import java.util.List;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 
@@ -53,7 +54,7 @@ public interface ClientProtocol {
 
     BiFunction<ResultRow, ResultRowMeta, ResultRow> ORIGINAL_ROW_DECODER = (resultRow, resultRowMeta) -> resultRow;
 
-    MultiResults command(String command);
+    ReactorMultiResults commands(List<String> commandList);
 
 
     /**

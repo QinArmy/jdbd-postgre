@@ -5,7 +5,7 @@ import io.netty.buffer.ByteBuf;
 
 import java.nio.charset.Charset;
 
-public interface ProtocolAssistant {
+public interface AuthenticateAssistant {
 
     Charset getHandshakeCharset();
 
@@ -19,15 +19,7 @@ public interface ProtocolAssistant {
 
     ByteBuf createPayloadBuffer(int initialPayloadCapacity);
 
-    /**
-     * @return read-only buffer ,payload length is 1 .
-     */
-    ByteBuf createOneSizePayload(int payloadByte);
 
-    /**
-     * @return read-only buffer ,payload length is 0 .
-     */
-    ByteBuf createEmptyPayload();
 
     ServerVersion getServerVersion();
 

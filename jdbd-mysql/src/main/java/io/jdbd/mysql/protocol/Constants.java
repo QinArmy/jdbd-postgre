@@ -1,7 +1,5 @@
 package io.jdbd.mysql.protocol;
 
-import com.mysql.cj.Messages;
-import com.mysql.cj.conf.PropertyDefinitions;
 
 import java.math.BigDecimal;
 import java.math.BigInteger;
@@ -22,19 +20,19 @@ public interface Constants {
     /**
      * I18N'd representation of the abbreviation for "ms"
      */
-    String MILLIS_I18N = Messages.getString("Milliseconds");
+    String MILLIS_I18N = "ms";
 
     byte[] SLASH_STAR_SPACE_AS_BYTES = new byte[]{(byte) '/', (byte) '*', (byte) ' '};
 
     byte[] SPACE_STAR_SLASH_SPACE_AS_BYTES = new byte[]{(byte) ' ', (byte) '*', (byte) '/', (byte) ' '};
 
-    String JVM_VENDOR = System.getProperty(PropertyDefinitions.SYSP_java_vendor);
-    String JVM_VERSION = System.getProperty(PropertyDefinitions.SYSP_java_version);
+    String JVM_VENDOR = System.getProperty("java.vendor");
+    String JVM_VERSION = System.getProperty("java.version");
 
-    String OS_NAME = System.getProperty(PropertyDefinitions.SYSP_os_name);
-    String OS_ARCH = System.getProperty(PropertyDefinitions.SYSP_os_arch);
-    String OS_VERSION = System.getProperty(PropertyDefinitions.SYSP_os_version);
-    String PLATFORM_ENCODING = System.getProperty(PropertyDefinitions.SYSP_file_encoding);
+//    String OS_NAME = System.getProperty(PropertyDefinitions.SYSP_os_name);
+//    String OS_ARCH = System.getProperty(PropertyDefinitions.SYSP_os_arch);
+//    String OS_VERSION = System.getProperty(PropertyDefinitions.SYSP_os_version);
+//    String PLATFORM_ENCODING = System.getProperty(PropertyDefinitions.SYSP_file_encoding);
 
     String CJ_NAME = "MySQL Connector/J";
     String CJ_FULL_NAME = "mysql-connector-java-8.0.21";

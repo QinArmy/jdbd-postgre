@@ -1,6 +1,6 @@
 package io.jdbd.mysql.protocol.authentication;
 
-import io.jdbd.mysql.protocol.ProtocolAssistant;
+import io.jdbd.mysql.protocol.AuthenticateAssistant;
 import io.jdbd.mysql.protocol.client.PacketUtils;
 import io.jdbd.mysql.protocol.conf.HostInfo;
 import io.netty.buffer.ByteBuf;
@@ -12,7 +12,7 @@ import java.util.List;
 
 public class MySQLClearPasswordPlugin implements AuthenticationPlugin {
 
-    public static MySQLClearPasswordPlugin getInstance(ProtocolAssistant protocolAssistant, HostInfo hostInfo) {
+    public static MySQLClearPasswordPlugin getInstance(AuthenticateAssistant protocolAssistant, HostInfo hostInfo) {
         return new MySQLClearPasswordPlugin(protocolAssistant, hostInfo);
     }
 
@@ -20,11 +20,11 @@ public class MySQLClearPasswordPlugin implements AuthenticationPlugin {
 
     public static final String PLUGIN_CLASS = "com.mysql.cj.protocol.a.authentication.MysqlClearPasswordPlugin";
 
-    private final ProtocolAssistant protocolAssistant;
+    private final AuthenticateAssistant protocolAssistant;
 
     private final HostInfo hostInfo;
 
-    private MySQLClearPasswordPlugin(ProtocolAssistant protocolAssistant, HostInfo hostInfo) {
+    private MySQLClearPasswordPlugin(AuthenticateAssistant protocolAssistant, HostInfo hostInfo) {
         this.protocolAssistant = protocolAssistant;
         this.hostInfo = hostInfo;
     }
@@ -42,7 +42,7 @@ public class MySQLClearPasswordPlugin implements AuthenticationPlugin {
     @Override
     public List<ByteBuf> nextAuthenticationStep(ByteBuf fromServer) {
 
-        ProtocolAssistant protocolAssistant = this.protocolAssistant;
+        AuthenticateAssistant protocolAssistant = this.protocolAssistant;
         Charset passwordCharset = protocolAssistant.getServerVersion().meetsMinimum(5, 7, 6)
                 ? protocolAssistant.getPasswordCharset() : StandardCharsets.UTF_8;
 

@@ -2,6 +2,7 @@ package io.jdbd.mysql.protocol.client;
 
 import io.jdbd.mysql.JdbdMySQLException;
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufAllocator;
 import reactor.netty.Connection;
 import reactor.util.annotation.Nullable;
 
@@ -335,16 +336,16 @@ public abstract class PacketUtils {
     }
 
 
-    public static ByteBuf createPacketBuffer(Connection connection, int payloadCapacity) {
-        ByteBuf packetBuffer = connection.outbound().alloc().buffer(HEADER_SIZE + payloadCapacity);
+    public static ByteBuf createPacketBuffer(ByteBufAllocator allocator, int payloadCapacity) {
+        ByteBuf packetBuffer = allocator.buffer(HEADER_SIZE + payloadCapacity);
         // reserve header 4 bytes.
         packetBuffer.writeZero(HEADER_SIZE);
         return packetBuffer;
     }
 
     @Deprecated
-    public static ByteBuf createEmptyPacket(Connection connection) {
-        ByteBuf packetBuffer = connection.outbound().alloc().buffer(HEADER_SIZE);
+    public static ByteBuf createEmptyPacket(ByteBufAllocator allocator) {
+        ByteBuf packetBuffer = allocator.buffer(HEADER_SIZE);
         // reserve header 4 bytes.
         writeInt3(packetBuffer, 0);
         packetBuffer.writeZero(1);

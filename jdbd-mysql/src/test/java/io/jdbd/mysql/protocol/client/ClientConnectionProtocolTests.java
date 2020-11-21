@@ -24,7 +24,7 @@ public class ClientConnectionProtocolTests {
         Map<String, String> properties = new HashMap<>();
 
         ClientConnectionProtocol protocol = ClientConnectionProtocolImpl
-                .from(MySQLUrlUtils.build(properties))
+                .create(MySQLUrlUtils.build(properties))
                 .block();
 
         context.setAttribute("clientConnectionProtocol", protocol);
