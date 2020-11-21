@@ -19,8 +19,6 @@ public interface AuthenticateAssistant {
 
     ByteBuf createPayloadBuffer(int initialPayloadCapacity);
 
-
-
     ServerVersion getServerVersion();
 
 }

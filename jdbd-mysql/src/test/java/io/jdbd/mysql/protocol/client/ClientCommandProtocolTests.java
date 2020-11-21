@@ -1,6 +1,8 @@
 package io.jdbd.mysql.protocol.client;
 
+import io.jdbd.mysql.protocol.conf.HostInfo;
 import io.jdbd.mysql.util.MySQLObjects;
+import io.netty.channel.EventLoopGroup;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
@@ -8,6 +10,7 @@ import org.testng.ITestContext;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
+import reactor.netty.resources.LoopResources;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -23,7 +26,10 @@ public class ClientCommandProtocolTests {
         Map<String, String> properties = new HashMap<>();
         properties.put("allowMultiQueries", "true");
 
-        ClientCommandProtocol commandProtocol = ClientCommandProtocolImpl.from(MySQLUrlUtils.build(properties))
+        HostInfo hostInfo = MySQLUrlUtils.build(properties).getHosts().get(0);
+        EventLoopGroup eventLoopGroup = LoopResources.create("jdbd-mysql").onClient(true);
+
+        ClientCommandProtocol commandProtocol = ClientCommandProtocolImpl.create(hostInfo, eventLoopGroup)
                 .block();
         Assert.assertNotNull(commandProtocol, "commandProtocol");
         context.setAttribute("commandProtocol", commandProtocol);

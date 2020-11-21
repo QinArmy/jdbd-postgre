@@ -51,7 +51,7 @@ final class DefaultCommTaskExecutor implements MySQLCommTaskExecutor, CoreSubscr
         }
     }
 
-    static MySQLCommTaskExecutor updateProtocolAdjutant(DefaultCommTaskExecutor executor
+    static void updateProtocolAdjutant(DefaultCommTaskExecutor executor
             , ClientCommandProtocolImpl adjutant) {
         boolean success = false;
         synchronized (executor.taskAdjutant) {
@@ -63,7 +63,6 @@ final class DefaultCommTaskExecutor implements MySQLCommTaskExecutor, CoreSubscr
         if (!success) {
             throw new IllegalStateException("Only once update taskAdjutant allowed. ");
         }
-        return executor;
     }
 
     private final Queue<MySQLTask> taskQueue = Queues.<MySQLTask>small().get();

@@ -1,12 +1,12 @@
 package io.jdbd.mysql.protocol.client;
 
 import io.jdbd.mysql.protocol.CharsetMapping;
-import io.jdbd.mysql.protocol.conf.MySQLUrl;
-import io.jdbd.mysql.protocol.conf.Properties;
+import io.jdbd.mysql.protocol.conf.HostInfo;
+import io.netty.buffer.ByteBuf;
+import io.netty.channel.EventLoopGroup;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import reactor.core.publisher.Mono;
-import reactor.netty.Connection;
 
 import java.nio.charset.Charset;
 import java.time.ZoneOffset;
@@ -17,24 +17,18 @@ public final class ClientCommandProtocolImpl extends AbstractClientProtocol impl
     private static final Logger LOG = LoggerFactory.getLogger(ClientCommandProtocolImpl.class);
 
 
-    public static Mono<ClientCommandProtocol> from(MySQLUrl mySQLUrl) {
-        return ClientConnectionProtocolImpl.create(mySQLUrl)
-                .flatMap(p -> p.authenticateAndInitializing().thenReturn(p))
-                .cast(ClientConnectionProtocolImpl.class)
-                .map(ClientCommandProtocolImpl::new);
+    public static Mono<ClientCommandProtocol> create(HostInfo hostInfo, EventLoopGroup eventLoopGroup) {
+        return ClientConnectionProtocolImpl.create(hostInfo, eventLoopGroup)
+                .map(cp -> {
+                    ClientCommandProtocolImpl dp = new ClientCommandProtocolImpl(cp);
+                    DefaultCommTaskExecutor.updateProtocolAdjutant(cp.commTaskExecutor, dp);
+                    return dp;
+                });
+
     }
 
 
-    private final MySQLUrl mySQLUrl;
-
-    private final Properties properties;
-
-    private final Connection connection;
-
-    private final MySQLCumulateReceiver cumulateReceiver;
-
     private final HandshakeV10Packet handshakeV10Packet;
-
 
     private final int negotiatedCapability;
 
@@ -46,26 +40,25 @@ public final class ClientCommandProtocolImpl extends AbstractClientProtocol impl
 
     private final Map<Integer, CharsetMapping.CustomCollation> customCollationMap;
 
-    private final ZoneOffset clientZoneOffset;
+    private final ZoneOffset zoneOffsetClient;
 
-    private ClientCommandProtocolImpl(ClientConnectionProtocolImpl connectionProtocol) {
-        super(connectionProtocol.connection, connectionProtocol.getMySQLUrl(), connectionProtocol.cumulateReceiver);
-        this.mySQLUrl = connectionProtocol.getMySQLUrl();
-        this.connection = connectionProtocol.getConnection();
-        this.properties = this.mySQLUrl.getHosts().get(0).getProperties();
-        this.cumulateReceiver = connectionProtocol.getCumulateReceiver();
+    private final ZoneOffset zoneOffsetDatabase;
 
-        this.handshakeV10Packet = connectionProtocol.getHandshakeV10Packet();
-        this.negotiatedCapability = connectionProtocol.getNegotiatedCapability();
-        this.charsetClient = connectionProtocol.obtainCharsetClient();
-        this.charsetResults = connectionProtocol.obtainCharsetResults();
+    private ClientCommandProtocolImpl(ClientConnectionProtocolImpl cp) {
+        super(cp.obtainHostInfo(), cp.taskAdjutant);
 
-        this.maxBytesPerCharClient = (int) this.charsetClient.newEncoder().maxBytesPerChar();
-        this.customCollationMap = connectionProtocol.obtainCustomCollationMap();
-        this.clientZoneOffset = connectionProtocol.obtainZoneOffsetClient();
+        this.handshakeV10Packet = cp.obtainHandshakeV10Packet();
+        this.negotiatedCapability = cp.obtainNegotiatedCapability();
+        this.charsetClient = cp.obtainCharsetClient();
+        this.charsetResults = cp.obtainCharsetResults();
+
+        this.maxBytesPerCharClient = cp.obtainMaxBytesPerCharClient();
+        this.customCollationMap = cp.obtainCustomCollationMap();
+        this.zoneOffsetClient = cp.obtainZoneOffsetClient();
+        this.zoneOffsetDatabase = cp.obtainZoneOffsetDatabase();
     }
 
-    /*################################## blow ClientCommandProtocol method ##################################*/
+    /*################################## blow ClientProtocolAdjutant method ##################################*/
 
 
     @Override
@@ -74,39 +67,55 @@ public final class ClientCommandProtocolImpl extends AbstractClientProtocol impl
     }
 
     @Override
-    ZoneOffset obtainDatabaseZoneOffset() {
-        throw new UnsupportedOperationException();
+    public ByteBuf createPacketBuffer(int initialPayloadCapacity) {
+        return this.taskAdjutant.createPacketBuffer(initialPayloadCapacity);
     }
 
     @Override
-    int obtainNegotiatedCapability() {
-        return this.negotiatedCapability;
+    public ByteBuf createPayloadBuffer(int initialPayloadCapacity) {
+        return this.taskAdjutant.createPacketBuffer(initialPayloadCapacity);
     }
 
     @Override
-    Charset obtainCharsetClient() {
-        return this.charsetClient;
-    }
-
-    @Override
-    int obtainMaxBytesPerCharClient() {
+    public int obtainMaxBytesPerCharClient() {
         return this.maxBytesPerCharClient;
     }
 
     @Override
-    Charset obtainCharsetResults() {
+    public Charset obtainCharsetClient() {
+        return this.charsetClient;
+    }
+
+    @Override
+    public Charset obtainCharsetResults() {
         return this.charsetResults;
     }
 
     @Override
-    Map<Integer, CharsetMapping.CustomCollation> obtainCustomCollationMap() {
+    public int obtainNegotiatedCapability() {
+        return this.negotiatedCapability;
+    }
+
+    @Override
+    public Map<Integer, CharsetMapping.CustomCollation> obtainCustomCollationMap() {
         return this.customCollationMap;
     }
 
     @Override
-    public ZoneOffset obtainZoneOffsetClient() {
-        return this.clientZoneOffset;
+    public ZoneOffset obtainZoneOffsetDatabase() {
+        return this.zoneOffsetDatabase;
     }
+
+    @Override
+    public ZoneOffset obtainZoneOffsetClient() {
+        return this.zoneOffsetClient;
+    }
+
+    @Override
+    public HandshakeV10Packet obtainHandshakeV10Packet() {
+        return this.handshakeV10Packet;
+    }
+
 
     /*################################## blow private method ##################################*/
 

@@ -1,6 +1,7 @@
 package io.jdbd;
 
-import reactor.util.annotation.NonNull;
+
+import io.jdbd.lang.NonNull;
 
 import java.sql.SQLException;
 

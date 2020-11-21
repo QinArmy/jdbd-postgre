@@ -1,7 +1,9 @@
 package io.jdbd.mysql.protocol.client;
 
 import io.jdbd.mysql.protocol.MySQLPacket;
+import io.jdbd.mysql.protocol.conf.HostInfo;
 import io.jdbd.mysql.protocol.conf.PropertyDefinitions;
+import io.netty.channel.EventLoopGroup;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
@@ -9,6 +11,7 @@ import org.testng.ITestContext;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
+import reactor.netty.resources.LoopResources;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -23,8 +26,11 @@ public class ClientConnectionProtocolTests {
         // PREFERRED ,DISABLED
         Map<String, String> properties = new HashMap<>();
 
+        HostInfo hostInfo = MySQLUrlUtils.build(properties).getHosts().get(0);
+        EventLoopGroup eventLoopGroup = LoopResources.create("jdbd-mysql").onClient(true);
+
         ClientConnectionProtocol protocol = ClientConnectionProtocolImpl
-                .create(MySQLUrlUtils.build(properties))
+                .create(hostInfo, eventLoopGroup)
                 .block();
 
         context.setAttribute("clientConnectionProtocol", protocol);

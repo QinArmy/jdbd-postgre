@@ -1,6 +1,7 @@
 package io.jdbd;
 
-import reactor.util.annotation.Nullable;
+
+import io.jdbd.lang.Nullable;
 
 public abstract class JdbdRuntimeException extends RuntimeException {
 

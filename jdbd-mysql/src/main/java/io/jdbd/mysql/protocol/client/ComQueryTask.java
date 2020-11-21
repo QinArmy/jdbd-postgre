@@ -392,7 +392,7 @@ final class ComQueryTask extends MySQLCommandTask {
         int receiveColumnCount = 0;
         if (!hasOptionalMeta || metadataFollows == 1) {
             final Charset metaCharset = this.executorAdjutant.obtainCharsetResults();
-            final Properties properties = this.executorAdjutant.obtainProperties();
+            final Properties properties = this.executorAdjutant.obtainHostInfo().getProperties();
             for (int i = 0, readableBytes; i < columnCount; i++) {
                 readableBytes = cumulateBuffer.readableBytes();
                 if (readableBytes < PacketUtils.HEADER_SIZE) {

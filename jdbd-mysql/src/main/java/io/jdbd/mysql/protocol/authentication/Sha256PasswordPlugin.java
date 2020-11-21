@@ -94,7 +94,9 @@ public class Sha256PasswordPlugin implements AuthenticationPlugin {
         List<ByteBuf> toServer;
         if (MySQLStringUtils.isEmpty(password)
                 || !fromServer.isReadable()) {
-            toServer = Collections.singletonList(protocolAssistant.createOneSizePayload(0));
+            ByteBuf byteBuf = protocolAssistant.createPayloadBuffer(1);
+            byteBuf.writeZero(1);
+            toServer = Collections.singletonList(byteBuf);
         } else {
             ByteBuf payloadBuf = internalNextAuthenticationStep(password, fromServer);
             toServer = payloadBuf == null ? Collections.emptyList() : Collections.singletonList(payloadBuf);
@@ -194,7 +196,9 @@ public class Sha256PasswordPlugin implements AuthenticationPlugin {
      *             </ul>
      */
     protected final ByteBuf createPublicKeyRetrievalPacket(int flag) {
-        return this.protocolAssistant.createOneSizePayload(flag);
+        ByteBuf byteBuf = protocolAssistant.createPayloadBuffer(1);
+        byteBuf.writeByte(flag);
+        return byteBuf;
     }
 
 

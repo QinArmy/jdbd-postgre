@@ -5,6 +5,7 @@ import io.jdbd.mysql.protocol.client.PacketUtils;
 import io.jdbd.mysql.protocol.conf.HostInfo;
 import io.jdbd.mysql.util.MySQLStringUtils;
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
 
 import java.util.Collections;
 import java.util.List;
@@ -45,7 +46,7 @@ public class MySQLNativePasswordPlugin implements AuthenticationPlugin {
 
         ByteBuf payloadBuf;
         if (MySQLStringUtils.isEmpty(password)) {
-            payloadBuf = this.protocolAssistant.createEmptyPayload();
+            payloadBuf = Unpooled.EMPTY_BUFFER;
         } else {
             byte[] passwordBytes = password.getBytes(this.protocolAssistant.getPasswordCharset());
             byte[] seed = PacketUtils.readStringTermBytes(fromServer);

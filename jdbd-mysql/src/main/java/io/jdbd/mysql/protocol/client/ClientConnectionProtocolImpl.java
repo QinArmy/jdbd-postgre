@@ -63,7 +63,7 @@ final class ClientConnectionProtocolImpl extends AbstractClientProtocol
     private static final int COMMAND_PHASE = 5;
 
 
-    private final DefaultCommTaskExecutor commTaskExecutor;
+     final DefaultCommTaskExecutor commTaskExecutor;
 
     private final AtomicReference<HandshakeV10Packet> handshakeV10Packet = new AtomicReference<>(null);
 
@@ -210,11 +210,6 @@ final class ClientConnectionProtocolImpl extends AbstractClientProtocol
     }
 
 
-    @Override
-    public HostInfo obtainHostInfo() {
-        return this.hostInfo;
-    }
-
 
     /*################################## blow package method ##################################*/
 
@@ -280,11 +275,9 @@ final class ClientConnectionProtocolImpl extends AbstractClientProtocol
             return createConnectionPhaseNotMatchException(phase);
         }
         return AuthenticateTask.authenticate(this.taskAdjutant)
-                .doOnSuccess(negotiatedCapability -> {
-                    this.negotiatedCapability.set(negotiatedCapability);
+                .doOnSuccess(v -> {
                     this.connectionPhase.compareAndSet(AUTHENTICATION_PHASE, CONFIGURE_SESSION_PHASE);
                 })
-                .then()
                 ;
     }
 

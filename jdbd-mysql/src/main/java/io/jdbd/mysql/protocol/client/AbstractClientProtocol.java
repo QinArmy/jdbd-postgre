@@ -56,5 +56,10 @@ abstract class AbstractClientProtocol implements ClientProtocol, ClientProtocolA
         return QuitTask.quit(this.taskAdjutant);
     }
 
+    @Override
+    public final HostInfo obtainHostInfo() {
+        return this.hostInfo;
+    }
+
 
 }

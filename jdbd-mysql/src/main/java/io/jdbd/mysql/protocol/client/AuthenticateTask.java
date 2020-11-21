@@ -23,7 +23,7 @@ import java.util.*;
 
 final class AuthenticateTask extends AbstractAuthenticateTask implements AuthenticateAssistant {
 
-    static Mono<Integer> authenticate(MySQLTaskAdjutant executorAdjutant) {
+    static Mono<Void> authenticate(MySQLTaskAdjutant executorAdjutant) {
         return Mono.create(sink ->
                 new AuthenticateTask(executorAdjutant, sink)
                         .submit()
@@ -45,7 +45,7 @@ final class AuthenticateTask extends AbstractAuthenticateTask implements Authent
     // non-volatile ,because all modify in netty EventLoop
     private Queue<ByteBuf> pluginOutputQueue;
 
-    private AuthenticateTask(MySQLTaskAdjutant executorAdjutant, MonoSink<Integer> sink) {
+    private AuthenticateTask(MySQLTaskAdjutant executorAdjutant, MonoSink<Void> sink) {
         super(executorAdjutant, obtainSequenceId(executorAdjutant), sink);
 
         this.pluginMap = loadAuthenticationPluginMap();
@@ -77,7 +77,7 @@ final class AuthenticateTask extends AbstractAuthenticateTask implements Authent
 
     @Override
     public boolean isUseSsl() {
-        return (obtainNegotiatedCapability() & ClientProtocol.CLIENT_SSL) != 0;
+        return (this.negotiatedCapability & ClientProtocol.CLIENT_SSL) != 0;
     }
 
     @Override
@@ -140,7 +140,7 @@ final class AuthenticateTask extends AbstractAuthenticateTask implements Authent
             this.sink.error(new JdbdMySQLException("TooManyAuthenticationPluginNegotiations"));
             taskEnd = true;
         } else if (OkPacket.isOkPacket(cumulateBuffer)) {
-            OkPacket packet = OkPacket.readPacket(cumulateBuffer, obtainNegotiatedCapability());
+            OkPacket packet = OkPacket.readPacket(cumulateBuffer, this.negotiatedCapability);
             LOG.debug("MySQL authentication success,info:{}", packet.getInfo());
             taskEnd = true;
         } else if (ErrorPacket.isErrorPacket(cumulateBuffer)) {
@@ -149,7 +149,7 @@ final class AuthenticateTask extends AbstractAuthenticateTask implements Authent
             if (getSequenceId() < 2) {
                 error = ErrorPacket.readPacket(cumulateBuffer, 0, charset);
             } else {
-                error = ErrorPacket.readPacket(cumulateBuffer, obtainNegotiatedCapability(), charset);
+                error = ErrorPacket.readPacket(cumulateBuffer, this.negotiatedCapability, charset);
             }
             this.sink.error(MySQLExceptionUtils.createErrorPacketException(error));
             taskEnd = true;
@@ -195,7 +195,7 @@ final class AuthenticateTask extends AbstractAuthenticateTask implements Authent
      */
     private ByteBuf createHandshakeResponse41(String authPluginName, ByteBuf pluginOut) {
         final Charset clientCharset = this.handshakeCharset;
-        final int clientFlag = obtainNegotiatedCapability();
+        final int clientFlag = this.negotiatedCapability;
 
         final ByteBuf packetBuffer = this.executorAdjutant.createPacketBuffer(1024);
 

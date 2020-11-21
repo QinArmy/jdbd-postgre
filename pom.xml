@@ -25,9 +25,9 @@
 
         <qinarmy.common.version>1.0-SNAPSHOT</qinarmy.common.version>
 
-        <jackson.core.version>2.11.3</jackson.core.version>
-        <jackson.module.version>2.11.3</jackson.module.version>
-        <jackson.datatype.version>2.11.3</jackson.datatype.version>
+        <jackson.core.version>2.11.0</jackson.core.version>
+        <jackson.module.version>2.11.0</jackson.module.version>
+        <jackson.datatype.version>2.11.0</jackson.datatype.version>
 
         <mysql.versioin>8.0.22</mysql.versioin>
 
@@ -78,12 +78,6 @@
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
-            <dependency>
-                <groupId>io.netty</groupId>
-                <artifactId>netty-all</artifactId>
-                <version>${netty.version}</version>
-            </dependency>
-
 
             <dependency>
                 <groupId>org.slf4j</groupId>
@@ -98,6 +92,13 @@
                 <artifactId>log4j-slf4j-impl</artifactId>
                 <scope>test</scope>
                 <version>${log4j2.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>io.netty</groupId>
+                <artifactId>netty-all</artifactId>
+                <version>${netty.version}</version>
+                <scope>test</scope>
             </dependency>
 
             <dependency>
