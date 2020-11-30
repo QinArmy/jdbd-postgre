@@ -1,12 +1,12 @@
 package io.jdbd.mysql.protocol.client;
 
-import io.jdbd.ReactiveSQLException;
+import io.jdbd.JdbdSQLException;
 import io.jdbd.lang.Nullable;
 import io.jdbd.mysql.protocol.CharsetMapping;
-import io.jdbd.mysql.type.Geometry;
 import io.jdbd.mysql.util.MySQLExceptionUtils;
 import io.jdbd.mysql.util.MySQLStringUtils;
 import io.jdbd.mysql.util.MySQLTimeUtils;
+import io.jdbd.type.Geometry;
 import io.netty.buffer.ByteBuf;
 
 import java.math.BigDecimal;
@@ -427,7 +427,7 @@ abstract class ColumnParsers {
     /**
      * @see #parseDecimal(ByteBuf, MySQLColumnMeta, Charset)
      */
-    private static ReactiveSQLException createParserResultSetException(MySQLColumnMeta columnMeta, Throwable e
+    private static JdbdSQLException createParserResultSetException(MySQLColumnMeta columnMeta, Throwable e
             , @Nullable String textValue) {
         // here ,1.maybe parse code error; 2.maybe server send packet error.
         StringBuilder builder = new StringBuilder("Cannot parse");
@@ -439,7 +439,7 @@ abstract class ColumnParsers {
         }
         appendColumnDetailForSQLException(builder, columnMeta);
 
-        return new ReactiveSQLException(new SQLException(builder.toString(), e));
+        return new JdbdSQLException(new SQLException(builder.toString(), e));
     }
 
     private static void appendColumnDetailForSQLException(StringBuilder builder, MySQLColumnMeta columnMeta) {
@@ -482,14 +482,14 @@ abstract class ColumnParsers {
         return charset;
     }
 
-    private static ReactiveSQLException createNotFoundCustomCharsetException(MySQLColumnMeta columnMeta) {
+    private static JdbdSQLException createNotFoundCustomCharsetException(MySQLColumnMeta columnMeta) {
         // to here , code error,because check after load custom charset.
         StringBuilder builder = new StringBuilder("Not found java charset for");
         appendColumnDetailForSQLException(builder, columnMeta);
         builder.append(" ,Collation Index[")
                 .append(columnMeta.collationIndex)
                 .append("].");
-        return new ReactiveSQLException(new SQLException(builder.toString()));
+        return new JdbdSQLException(new SQLException(builder.toString()));
 
     }
 

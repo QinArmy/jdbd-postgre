@@ -5,13 +5,15 @@ import io.jdbd.mysql.JdbdMySQLException;
 import io.jdbd.mysql.protocol.CharsetMapping;
 import io.jdbd.mysql.protocol.conf.HostInfo;
 import io.jdbd.mysql.util.MySQLExceptionUtils;
-import io.jdbd.vendor.CommTask;
+import io.jdbd.vendor.CommunicationTask;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
 import io.netty.channel.EventLoop;
 import io.netty.channel.EventLoopGroup;
 import io.netty.handler.codec.ByteToMessageDecoder;
 import org.reactivestreams.Subscription;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import reactor.core.CoreSubscriber;
 import reactor.core.publisher.Mono;
 import reactor.netty.Connection;
@@ -64,6 +66,8 @@ final class DefaultCommTaskExecutor implements MySQLCommTaskExecutor, CoreSubscr
             throw new IllegalStateException("Only once update taskAdjutant allowed. ");
         }
     }
+
+    private static final Logger LOG = LoggerFactory.getLogger(DefaultCommTaskExecutor.class);
 
     private final Queue<MySQLTask> taskQueue = Queues.<MySQLTask>small().get();
 
@@ -163,7 +167,10 @@ final class DefaultCommTaskExecutor implements MySQLCommTaskExecutor, CoreSubscr
      * must invoke in {@link #eventLoop}
      */
     private void doOnCompleteInEventLoop() {
-        MySQLTask task;
+        MySQLTask task = this.currentTask;
+        if (task != null) {
+            task.onChannelClose();
+        }
         while ((task = this.taskQueue.poll()) != null) {
             task.onChannelClose();
         }
@@ -177,17 +184,17 @@ final class DefaultCommTaskExecutor implements MySQLCommTaskExecutor, CoreSubscr
             MySQLTask task = this.currentTask;
             if (task != null) {
                 this.currentTask = null;
-                task.error(new JdbdMySQLException(e, "TCP connection close,cannot execute CommTask."));
+                task.error(new JdbdMySQLException(e, "TCP connection close,cannot execute CommunicationTask."));
             }
             while ((task = this.taskQueue.poll()) != null) {
-                task.error(new JdbdMySQLException(e, "TCP connection close,cannot execute CommTask."));
+                task.error(new JdbdMySQLException(e, "TCP connection close,cannot execute CommunicationTask."));
             }
         } else {
             // TODO optimize handle netty Handler error.
             MySQLTask task = this.currentTask;
             if (task != null) {
                 this.currentTask = null;
-                task.error(new JdbdMySQLException(e, "TCP connection close,cannot execute CommTask."));
+                task.error(new JdbdMySQLException(e, "TCP connection close,cannot execute CommunicationTask."));
             }
 
         }
@@ -198,14 +205,17 @@ final class DefaultCommTaskExecutor implements MySQLCommTaskExecutor, CoreSubscr
      * must invoke in {@link #eventLoop}
      */
     private void drainToTask() {
-
         final ByteBuf cumulateBuffer = this.cumulateBuffer;
+        if (cumulateBuffer == null) {
+            return;
+        }
         MySQLTask currentTask;
         while ((currentTask = this.currentTask) != null) {
-            if (cumulateBuffer == null || !cumulateBuffer.isReadable()) {
+            if (!cumulateBuffer.isReadable()) {
                 break;
             }
             if (currentTask.decode(cumulateBuffer)) {
+                this.currentTask = null; // current task end.
                 if (!startHeadIfNeed()) {  // start next task
                     break;
                 }
@@ -223,6 +233,7 @@ final class DefaultCommTaskExecutor implements MySQLCommTaskExecutor, CoreSubscr
             }
         }
 
+
     }
 
     /**
@@ -235,21 +246,23 @@ final class DefaultCommTaskExecutor implements MySQLCommTaskExecutor, CoreSubscr
         if (currentTask != null) {
             return false;
         }
-        currentTask = this.taskQueue.poll();
-        if (currentTask == null) {
-            return false;
-        }
-        this.currentTask = currentTask;
-        final MySQLTask headTask = currentTask;
-
-        ByteBuf packetBuf = headTask.start();
         boolean needDecode = false;
-        if (packetBuf != null) {
-            // send packet
-            sendPacket(headTask, packetBuf);
-        } else {
-            this.upstream.request(128L);
-            needDecode = true;
+        while ((currentTask = this.taskQueue.poll()) != null) {
+            if (currentTask.getTaskPhase() != CommunicationTask.TaskPhase.SUBMITTED) {
+                currentTask.error(new JdbdMySQLException("CommunicationTask[%s] phase isn't SUBMITTED,cannot start."
+                        , currentTask));
+                continue;
+            }
+            this.currentTask = currentTask;
+            ByteBuf packetBuf = currentTask.start();
+            if (packetBuf != null) {
+                // send packet
+                sendPacket(currentTask, packetBuf);
+            } else {
+                this.upstream.request(128L);
+                needDecode = true;
+            }
+            break;
         }
         return needDecode;
     }
@@ -258,7 +271,7 @@ final class DefaultCommTaskExecutor implements MySQLCommTaskExecutor, CoreSubscr
         Mono.from(this.connection.outbound()
                 .send(Mono.just(packetBuf)))
                 .doOnError(e -> removeTaskOnStartFailure(headTask, e))
-                .subscribe(v -> this.upstream.request(512L))
+                .subscribe(v -> this.upstream.request(Long.MAX_VALUE))
         ;
     }
 
@@ -315,13 +328,29 @@ final class DefaultCommTaskExecutor implements MySQLCommTaskExecutor, CoreSubscr
         return mono;
     }
 
+    private boolean syncPushTask(MySQLTask task) throws JdbdMySQLException {
+        if (!this.eventLoop.inEventLoop()) {
+            throw new JdbdMySQLException("Current thread not in EventLoop.");
+        }
+        if (!this.connection.channel().isActive()) {
+            throw new JdbdMySQLException("Cannot summit CommunicationTask because TCP connection closed.");
+        }
+        boolean success = this.taskQueue.offer(task);
+        if (success) {
+            if (startHeadIfNeed()) {
+                drainToTask();
+            }
+        }
+        return success;
+    }
+
 
     private static JdbdMySQLException createChannelCloseError() {
-        return new JdbdMySQLException("Cannot summit CommTask because TCP connection closed.");
+        return new JdbdMySQLException("Cannot summit CommunicationTask because TCP connection closed.");
     }
 
     private static JdbdMySQLException createQueueOverflow() {
-        return new JdbdMySQLException("Cannot submit CommTask because queue limit is exceeded");
+        return new JdbdMySQLException("Cannot submit CommunicationTask because queue limit is exceeded");
     }
 
 
@@ -402,8 +431,13 @@ final class DefaultCommTaskExecutor implements MySQLCommTaskExecutor, CoreSubscr
         }
 
         @Override
-        public Mono<Void> submitTask(CommTask<?> task) {
-            return DefaultCommTaskExecutor.this.pushTask((MySQLTask) task);
+        public boolean syncSubmitTask(CommunicationTask<?> task) throws IllegalStateException {
+            return DefaultCommTaskExecutor.this.syncPushTask((MySQLTask) task);
+        }
+
+        @Override
+        public void execute(Runnable runnable) {
+            DefaultCommTaskExecutor.this.eventLoop.execute(runnable);
         }
 
         @Override

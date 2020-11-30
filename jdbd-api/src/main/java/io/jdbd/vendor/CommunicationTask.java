@@ -4,7 +4,7 @@ import io.jdbd.lang.Nullable;
 
 import java.nio.file.Path;
 
-public interface CommTask<T> {
+public interface CommunicationTask<T> {
 
     @Nullable
     T start();

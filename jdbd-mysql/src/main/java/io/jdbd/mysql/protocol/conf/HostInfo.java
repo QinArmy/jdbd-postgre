@@ -6,7 +6,6 @@ import reactor.util.annotation.Nullable;
 
 import java.util.Collections;
 import java.util.Map;
-import java.util.StringJoiner;
 
 public final class HostInfo {
 
@@ -47,15 +46,17 @@ public final class HostInfo {
 
     @Override
     public String toString() {
-        return new StringJoiner(", ", HostInfo.class.getSimpleName() + "[", "]")
-                .add("originalUrl='" + originalUrl + "'")
-                .add("host='" + host + "'")
-                .add("port=" + port)
-                // .add("user='" + user + "'")
-                // .add("password='" + password + "'")
-                .add("isPasswordLess=" + isPasswordLess)
-                .add("properties=" + properties)
-                .toString();
+        final StringBuilder sb = new StringBuilder("HostInfo{");
+        sb.append("originalUrl='").append(originalUrl).append('\'');
+        sb.append(", host='").append(host).append('\'');
+        sb.append(", port=").append(port);
+        // sb.append(", user='").append(user).append('\'');
+        //sb.append(", password='").append(password).append('\'');
+        sb.append(", isPasswordLess=").append(isPasswordLess);
+        sb.append(", properties=").append(properties);
+        sb.append(", database='").append(database).append('\'');
+        sb.append('}');
+        return sb.toString();
     }
 
     public String getHostPortPair() {

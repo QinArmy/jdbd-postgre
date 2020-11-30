@@ -314,7 +314,12 @@ final class MySQLUrlParser {
 
 
     private HostInfo createHostInfo(String hostInfo, Map<String, String> hostKeyValueMap) {
-
+        if (!hostKeyValueMap.containsKey(PropertyKey.DBNAME.getKeyName())) {
+            String dbName = this.path;
+            if (MySQLStringUtils.hasText(dbName)) {
+                hostKeyValueMap.put(PropertyKey.DBNAME.getKeyName(), dbName);
+            }
+        }
         String host = hostKeyValueMap.remove("host");
         if (MySQLStringUtils.isEmpty(host)) {
             throw new UrlException(String.format("hostInfo[%s] not found host.", hostInfo), this.originalUrl);

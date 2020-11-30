@@ -1,4 +1,4 @@
-package io.jdbd.mysql.type;
+package io.jdbd.type;
 
 public interface Geometry {
 

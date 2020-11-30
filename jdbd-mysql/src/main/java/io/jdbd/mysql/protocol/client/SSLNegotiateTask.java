@@ -10,7 +10,7 @@ final class SSLNegotiateTask extends AbstractAuthenticateTask {
     static Mono<Void> sslNegotiate(MySQLTaskAdjutant executorAdjutant) {
         return Mono.create(sink ->
                 new SSLNegotiateTask(executorAdjutant, sink)
-                        .submit()
+                        .syncSubmit()
                         .doOnError(e -> sink.error(MySQLExceptionUtils.wrapJdbdExceptionIfNeed(e)))
                         .subscribe()
         );

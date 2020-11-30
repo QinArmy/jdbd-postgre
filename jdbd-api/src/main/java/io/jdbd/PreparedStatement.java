@@ -18,7 +18,7 @@ public interface PreparedStatement extends GenericStatement{
      * @param jdbcType     nonNullValue mapping {@link JDBCType}
      * @param nonNullValue non null the parameter value
      */
-    PreparedStatement bind(int index, JDBCType jdbcType, Object nonNullValue) throws ReactiveSQLException;
+    PreparedStatement bind(int index, JDBCType jdbcType, Object nonNullValue) throws JdbdSQLException;
 
     /**
      * <p>
@@ -29,7 +29,7 @@ public interface PreparedStatement extends GenericStatement{
      * @param nonNullValue         non null the parameter value
      * @param upperCaseSQLTypeName nonNullValue mapping sql data type name(must upper case).
      */
-    PreparedStatement bind(int index, String upperCaseSQLTypeName, Object nonNullValue) throws ReactiveSQLException;
+    PreparedStatement bind(int index, String upperCaseSQLTypeName, Object nonNullValue) throws JdbdSQLException;
 
     /**
      * <p>
@@ -38,7 +38,7 @@ public interface PreparedStatement extends GenericStatement{
      *
      * @param index the first parameter is 1, the second is 2, ...
      */
-    PreparedStatement bindNull(int index, JDBCType jdbcType) throws ReactiveSQLException;
+    PreparedStatement bindNull(int index, JDBCType jdbcType) throws JdbdSQLException;
 
     /**
      * <p>
@@ -48,16 +48,16 @@ public interface PreparedStatement extends GenericStatement{
      * @param index                the first parameter is 1, the second is 2, ...
      * @param upperCaseSQLTypeName upper case sql data type name,eg: BIGINT
      */
-    PreparedStatement bindNull(int index, String upperCaseSQLTypeName) throws ReactiveSQLException;
+    PreparedStatement bindNull(int index, String upperCaseSQLTypeName) throws JdbdSQLException;
 
     /**
      * Adds a set of parameters to this <code>PreparedStatement</code>
      * object's batch of commands.
      *
-     * @throws ReactiveSQLException if a database access error occurs or
-     *                      this method is called on a closed <code>PreparedStatement</code>
+     * @throws JdbdSQLException if a database access error occurs or
+     *                          this method is called on a closed <code>PreparedStatement</code>
      */
-    PreparedStatement addBatch() throws ReactiveSQLException;
+    PreparedStatement addBatch() throws JdbdSQLException;
 
 
 

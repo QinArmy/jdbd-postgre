@@ -1,9 +1,6 @@
 package io.jdbd.mysql.protocol;
 
 
-import java.math.BigDecimal;
-import java.math.BigInteger;
-
 /**
  * Represents various constants used in the driver.
  * <p>
@@ -42,32 +39,5 @@ public interface Constants {
     String CJ_MINOR_VERSION = "0";
     String CJ_LICENSE = "GPL";
 
-    BigInteger BIG_INTEGER_ZERO = BigInteger.valueOf(0);
-    BigInteger BIG_INTEGER_ONE = BigInteger.valueOf(1);
-    BigInteger BIG_INTEGER_NEGATIVE_ONE = BigInteger.valueOf(-1);
-    BigInteger BIG_INTEGER_MIN_BYTE_VALUE = BigInteger.valueOf(Byte.MIN_VALUE);
-    BigInteger BIG_INTEGER_MAX_BYTE_VALUE = BigInteger.valueOf(Byte.MAX_VALUE);
-    BigInteger BIG_INTEGER_MIN_SHORT_VALUE = BigInteger.valueOf(Short.MIN_VALUE);
-    BigInteger BIG_INTEGER_MAX_SHORT_VALUE = BigInteger.valueOf(Short.MAX_VALUE);
-    BigInteger BIG_INTEGER_MIN_INTEGER_VALUE = BigInteger.valueOf(Integer.MIN_VALUE);
-    BigInteger BIG_INTEGER_MAX_INTEGER_VALUE = BigInteger.valueOf(Integer.MAX_VALUE);
-    BigInteger BIG_INTEGER_MIN_LONG_VALUE = BigInteger.valueOf(Long.MIN_VALUE);
-    BigInteger BIG_INTEGER_MAX_LONG_VALUE = BigInteger.valueOf(Long.MAX_VALUE);
-
-    BigDecimal BIG_DECIMAL_ZERO = BigDecimal.valueOf(0);
-    BigDecimal BIG_DECIMAL_ONE = BigDecimal.valueOf(1);
-    BigDecimal BIG_DECIMAL_NEGATIVE_ONE = BigDecimal.valueOf(-1);
-    BigDecimal BIG_DECIMAL_MIN_BYTE_VALUE = BigDecimal.valueOf(Byte.MIN_VALUE);
-    BigDecimal BIG_DECIMAL_MAX_BYTE_VALUE = BigDecimal.valueOf(Byte.MAX_VALUE);
-    BigDecimal BIG_DECIMAL_MIN_SHORT_VALUE = BigDecimal.valueOf(Short.MIN_VALUE);
-    BigDecimal BIG_DECIMAL_MAX_SHORT_VALUE = BigDecimal.valueOf(Short.MAX_VALUE);
-    BigDecimal BIG_DECIMAL_MIN_INTEGER_VALUE = BigDecimal.valueOf(Integer.MIN_VALUE);
-    BigDecimal BIG_DECIMAL_MAX_INTEGER_VALUE = BigDecimal.valueOf(Integer.MAX_VALUE);
-    BigDecimal BIG_DECIMAL_MIN_LONG_VALUE = BigDecimal.valueOf(Long.MIN_VALUE);
-    BigDecimal BIG_DECIMAL_MAX_LONG_VALUE = BigDecimal.valueOf(Long.MAX_VALUE);
-    BigDecimal BIG_DECIMAL_MAX_DOUBLE_VALUE = BigDecimal.valueOf(Double.MAX_VALUE);
-    BigDecimal BIG_DECIMAL_MAX_NEGATIVE_DOUBLE_VALUE = BigDecimal.valueOf(-Double.MAX_VALUE);
-    BigDecimal BIG_DECIMAL_MAX_FLOAT_VALUE = BigDecimal.valueOf(Float.MAX_VALUE);
-    BigDecimal BIG_DECIMAL_MAX_NEGATIVE_FLOAT_VALUE = BigDecimal.valueOf(-Float.MAX_VALUE);
 
 }

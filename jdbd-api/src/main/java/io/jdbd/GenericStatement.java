@@ -16,7 +16,7 @@ public interface GenericStatement {
      * such as a DDL statement.
      *
      * <p>
-     * Mono publish {@link ReactiveSQLException}, if a database access error occurs;
+     * Mono publish {@link JdbdSQLException}, if a database access error occurs;
      * this method is called on a closed  <code>PreparedStatement</code>
      * or the SQL statement returns a <code>ReactiveResultSet</code> object
      * </p>
@@ -40,7 +40,7 @@ public interface GenericStatement {
      * The default implementation will throw {@code UnsupportedOperationException}
      *
      * <p>
-     * Mono publish {@link ReactiveSQLException} if a database access error occurs;
+     * Mono publish {@link JdbdSQLException} if a database access error occurs;
      * this method is called on a closed  <code>PreparedStatement</code>
      * or the SQL statement returns a <code>ReactiveResultSet</code> object
      * </p>
@@ -90,10 +90,10 @@ public interface GenericStatement {
      * update after a <code>BatchUpdateException</code> object has been thrown.
      *
      * <p>
-     * Flux throw {@link ReactiveSQLException} if a database access error occurs,
+     * Flux throw {@link JdbdSQLException} if a database access error occurs,
      * this method is called on a closed <code>Statement</code> or the
      * driver does not support batch statements. Throws {@link BatchUpdateException}
-     * (a subclass of <code>ReactiveSQLException</code>) if one of the commands sent to the
+     * (a subclass of <code>JdbdSQLException</code>) if one of the commands sent to the
      * database fails to execute properly or attempts to return a result set.
      * </p>
      *
@@ -144,10 +144,10 @@ public interface GenericStatement {
      * <p>
      * The default implementation will throw {@code UnsupportedOperationException}
      * <p>
-     * Flux throw {@link ReactiveSQLException} if a database access error occurs,
+     * Flux throw {@link JdbdSQLException} if a database access error occurs,
      * this method is called on a closed <code>Statement</code> or the
      * driver does not support batch statements. Throws {@link BatchUpdateException}
-     * (a subclass of <code>ReactiveSQLException</code>) if one of the commands sent to the
+     * (a subclass of <code>JdbdSQLException</code>) if one of the commands sent to the
      * database fails to execute properly or attempts to return a result set.
      * </p>
      *
@@ -168,7 +168,7 @@ public interface GenericStatement {
      * @return a <code>ResultSet</code> object that contains the data produced by the
      * query; never <code>null</code>
      * <p>
-     * Flux throw {@link ReactiveSQLException } if a database access error occurs;
+     * Flux throw {@link JdbdSQLException } if a database access error occurs;
      * this method is called on a closed  <code>PreparedStatement</code> or the SQL
      * statement does not return a <code>ResultSet</code> object
      * </p>

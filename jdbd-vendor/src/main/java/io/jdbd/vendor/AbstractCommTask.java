@@ -1,10 +1,12 @@
 package io.jdbd.vendor;
 
+import io.jdbd.TaskQueueOverflowException;
 import io.jdbd.lang.Nullable;
 import io.netty.buffer.ByteBuf;
-import reactor.core.publisher.Mono;
 
-public abstract class AbstractCommTask implements CommTask<ByteBuf> {
+import java.util.function.Consumer;
+
+public abstract class AbstractCommTask implements CommunicationTask<ByteBuf> {
 
     final CommTaskExecutorAdjutant executorAdjutant;
 
@@ -44,6 +46,11 @@ public abstract class AbstractCommTask implements CommTask<ByteBuf> {
         return taskEnd;
     }
 
+    @Override
+    public final void error(Throwable e) {
+        this.taskPhase = TaskPhase.END;
+        internalError(e);
+    }
 
     @Override
     public final TaskPhase getTaskPhase() {
@@ -51,20 +58,40 @@ public abstract class AbstractCommTask implements CommTask<ByteBuf> {
     }
 
     @Override
-    public void onChannelClose() {
+    public final void onChannelClose() {
+        this.taskPhase = TaskPhase.END;
         // TODO optimize
+        internalOnChannelClose();
+
     }
 
-    protected final Mono<Void> submit() {
-        return this.executorAdjutant.submitTask(this)
-                .doOnSuccess(v -> AbstractCommTask.this.taskPhase = TaskPhase.SUBMITTED)
-                ;
+    protected final void syncSubmit(Consumer<TaskQueueOverflowException> consumer) {
+        if (this.taskPhase != null) {
+            throw new IllegalStateException("Communication task have submitted.");
+        }
+        if (this.executorAdjutant.syncSubmitTask(this)) {
+            this.taskPhase = TaskPhase.SUBMITTED;
+        } else {
+            consumer.accept(new TaskQueueOverflowException("Communication task queue overflow,cant' execute task."));
+        }
+
+    }
+
+    protected void internalError(Throwable e) {
+
+    }
+
+    protected void internalOnChannelClose() {
+
     }
 
     @Nullable
     protected abstract ByteBuf internalStart();
 
     protected abstract boolean internalDecode(ByteBuf cumulateBuffer);
+
+
+    /*################################## blow package static method ##################################*/
 
 
 }

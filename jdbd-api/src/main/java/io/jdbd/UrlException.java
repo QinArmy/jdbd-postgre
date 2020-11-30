@@ -1,6 +1,6 @@
 package io.jdbd;
 
-public class UrlException extends JdbdRuntimeException{
+public class UrlException extends JdbdNonSQLException {
 
     private final String url;
 

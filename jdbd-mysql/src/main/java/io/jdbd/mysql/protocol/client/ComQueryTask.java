@@ -12,7 +12,6 @@ import io.jdbd.vendor.ReactorMultiResults;
 import io.netty.buffer.ByteBuf;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import reactor.core.publisher.FluxSink;
 
 import java.nio.charset.Charset;
 import java.nio.file.Path;
@@ -142,7 +141,7 @@ final class ComQueryTask extends MySQLCommandTask {
                 cumulateBuf.skipBytes(PacketUtils.HEADER_SIZE);
                 ErrorPacket error;
                 error = ErrorPacket.readPacket(cumulateBuf, this.negotiatedCapability, charsetResults);
-                emitErrorPacket(MySQLExceptionUtils.createErrorPacketException(error)); //emit error packet
+                emitDatabaseAccessError(MySQLExceptionUtils.createErrorPacketException(error)); //emit error packet
                 taskEnd = true;
                 break;
             case OK:
@@ -180,7 +179,7 @@ final class ComQueryTask extends MySQLCommandTask {
             case ErrorPacket.ERROR_HEADER:
                 ErrorPacket error = ErrorPacket.readPacket(cumulateBuffer
                         , this.negotiatedCapability, this.executorAdjutant.obtainCharsetResults());
-                emitErrorPacket(MySQLExceptionUtils.createErrorPacketException(error));
+                emitDatabaseAccessError(MySQLExceptionUtils.createErrorPacketException(error));
                 taskEnd = true;
                 break;
             case EofPacket.EOF_HEADER:
@@ -253,11 +252,11 @@ final class ComQueryTask extends MySQLCommandTask {
      * @return true: read error packet, invoker must end task
      * @see #decodeTextResult(ByteBuf)
      */
-    private boolean decodeMultiRowData(ByteBuf cumulateBuffer) {
+    protected boolean internalDecodeMultiRowData(ByteBuf cumulateBuffer, RowSink sink) {
         final boolean clientDeprecateEof = (this.negotiatedCapability & ClientProtocol.CLIENT_DEPRECATE_EOF) != 0;
         boolean rowPhaseEnd = false;
         int sequenceId = -1;
-        final FluxSink<ResultRow> sink = obtainQueryResultSink();
+
 
         final MySQLRowMeta rowMeta = this.rowMeta;
         out:
@@ -279,7 +278,7 @@ final class ComQueryTask extends MySQLCommandTask {
                     Charset charsetResults = this.executorAdjutant.obtainCharsetResults();
                     ErrorPacket error;
                     error = ErrorPacket.readPacket(cumulateBuffer, this.negotiatedCapability, charsetResults);
-                    emitErrorPacket(MySQLExceptionUtils.createErrorPacketException(error));
+                    emitDatabaseAccessError(MySQLExceptionUtils.createErrorPacketException(error));
                     return true;
                 case EofPacket.EOF_HEADER:
                     if (clientDeprecateEof && payloadLength < PacketUtils.ENC_3_MAX_VALUE) {
@@ -296,13 +295,13 @@ final class ComQueryTask extends MySQLCommandTask {
                 default:
                     cumulateBuffer.skipBytes(3);
                     sequenceId = PacketUtils.readInt1(cumulateBuffer);
-                    if (sink.isCancelled()) {
-                        if (LOG.isDebugEnabled()) {
-                            LOG.debug("downstream cancel, skip ResultRow");
-                        }
-                    } else {
-                        sink.next(decodeOneRow(cumulateBuffer, rowMeta)); // emit one row
-                    }
+//                    if (sink.isCancelled()) {
+//                        if (LOG.isDebugEnabled()) {
+//                            LOG.debug("downstream cancel, skip ResultRow");
+//                        }
+//                    } else {
+//                        sink.next(decodeOneRow(cumulateBuffer, rowMeta)); // emit one row
+//                    }
                     cumulateBuffer.readerIndex(packetStartIndex + packetLength); // to next packet
             }
         }

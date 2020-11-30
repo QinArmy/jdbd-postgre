@@ -3,7 +3,6 @@ package io.jdbd.mysql.protocol.client;
 import io.jdbd.mysql.JdbdMySQLException;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
-import reactor.netty.Connection;
 import reactor.util.annotation.Nullable;
 
 import java.math.BigInteger;
@@ -343,14 +342,6 @@ public abstract class PacketUtils {
         return packetBuffer;
     }
 
-    @Deprecated
-    public static ByteBuf createEmptyPacket(ByteBufAllocator allocator) {
-        ByteBuf packetBuffer = allocator.buffer(HEADER_SIZE);
-        // reserve header 4 bytes.
-        writeInt3(packetBuffer, 0);
-        packetBuffer.writeZero(1);
-        return packetBuffer.asReadOnly();
-    }
 
     public static int readPacketLength(ByteBuf packetBuf) {
         return HEADER_SIZE + readInt3(packetBuf);
@@ -370,16 +361,6 @@ public abstract class PacketUtils {
                 && (readableBytes >= HEADER_SIZE + getInt3(byteBuf, byteBuf.readerIndex()));
     }
 
-    @Deprecated
-    public static ByteBuf createOneSizePacket(Connection connection, int payloadByte) {
-        ByteBuf packetBuffer = connection.outbound().alloc().buffer(HEADER_SIZE + 1);
-
-        writeInt3(packetBuffer, 1);
-        packetBuffer.writeZero(1);
-        // payload
-        packetBuffer.writeByte(payloadByte);
-        return packetBuffer.asReadOnly();
-    }
 
     public static void writePacketHeader(ByteBuf packetBuf, final int sequenceId) {
         final int payloadLen = packetBuf.readableBytes() - HEADER_SIZE;

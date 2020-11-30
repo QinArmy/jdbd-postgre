@@ -4,8 +4,8 @@ import io.jdbd.meta.SQLType;
 import io.jdbd.mysql.protocol.CharsetMapping;
 import io.jdbd.mysql.protocol.conf.Properties;
 import io.jdbd.mysql.protocol.conf.PropertyKey;
-import io.jdbd.mysql.type.Geometry;
 import io.jdbd.mysql.util.MySQLObjects;
+import io.jdbd.type.Geometry;
 import org.qinarmy.util.StringUtils;
 
 import java.math.BigDecimal;

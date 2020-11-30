@@ -1,9 +1,9 @@
 package io.jdbd.mysql;
 
-import io.jdbd.JdbdRuntimeException;
+import io.jdbd.JdbdNonSQLException;
 import reactor.util.annotation.Nullable;
 
-public class JdbdMySQLException extends JdbdRuntimeException {
+public class JdbdMySQLException extends JdbdNonSQLException {
 
     public JdbdMySQLException(String message, @Nullable Object... args) {
         super(createMessage(message, args));

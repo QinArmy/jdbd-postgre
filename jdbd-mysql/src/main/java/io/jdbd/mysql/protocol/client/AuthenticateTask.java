@@ -26,7 +26,7 @@ final class AuthenticateTask extends AbstractAuthenticateTask implements Authent
     static Mono<Void> authenticate(MySQLTaskAdjutant executorAdjutant) {
         return Mono.create(sink ->
                 new AuthenticateTask(executorAdjutant, sink)
-                        .submit()
+                        .syncSubmit()
                         .doOnError(e -> sink.error(MySQLExceptionUtils.wrapJdbdExceptionIfNeed(e)))
                         .subscribe()
         );
@@ -129,9 +129,16 @@ final class AuthenticateTask extends AbstractAuthenticateTask implements Authent
 
     @Override
     protected boolean internalDecode(ByteBuf cumulateBuffer) {
-        if (!PacketUtils.hasOnePacket(cumulateBuffer)) {
-            return false;
+        boolean taskEnd;
+        taskEnd = doDecode(cumulateBuffer);
+        while (!taskEnd && (this.pluginOutputQueue == null || this.pluginOutputQueue.isEmpty())
+                && PacketUtils.hasOnePacket(cumulateBuffer)) {
+            taskEnd = doDecode(cumulateBuffer);
         }
+        return taskEnd;
+    }
+
+    private boolean doDecode(ByteBuf cumulateBuffer) {
         final int payloadLength = PacketUtils.readInt3(cumulateBuffer);
         updateSequenceId(PacketUtils.readInt1(cumulateBuffer));
         final int payloadStartIndex = cumulateBuffer.readerIndex();
@@ -142,6 +149,7 @@ final class AuthenticateTask extends AbstractAuthenticateTask implements Authent
         } else if (OkPacket.isOkPacket(cumulateBuffer)) {
             OkPacket packet = OkPacket.readPacket(cumulateBuffer, this.negotiatedCapability);
             LOG.debug("MySQL authentication success,info:{}", packet.getInfo());
+            this.sink.success();
             taskEnd = true;
         } else if (ErrorPacket.isErrorPacket(cumulateBuffer)) {
             ErrorPacket error;
@@ -165,6 +173,7 @@ final class AuthenticateTask extends AbstractAuthenticateTask implements Authent
     /*################################## blow private method ##################################*/
 
     private boolean processNextAuthenticationNegotiation(ByteBuf cumulateBuffer) {
+
         final AuthenticationPlugin authPlugin;
         if (PacketUtils.isAuthSwitchRequestPacket(cumulateBuffer)) {
             cumulateBuffer.skipBytes(1); // skip type header
@@ -184,8 +193,11 @@ final class AuthenticateTask extends AbstractAuthenticateTask implements Authent
             authPlugin = this.plugin;
             cumulateBuffer.skipBytes(1); // skip type header
         }
-        // plugin auth
-        this.pluginOutputQueue = new ArrayDeque<>(authPlugin.nextAuthenticationStep(cumulateBuffer));
+        List<ByteBuf> outputList = authPlugin.nextAuthenticationStep(cumulateBuffer);
+        if (!outputList.isEmpty()) {
+            // plugin auth
+            this.pluginOutputQueue = new ArrayDeque<>();
+        }
         return false;
     }
 
@@ -332,10 +344,13 @@ final class AuthenticateTask extends AbstractAuthenticateTask implements Authent
         // Leaving disabled until standard values are defined
         // props.setProperty("_os", NonRegisteringDriver.OS);
         // props.setProperty("_platform", NonRegisteringDriver.PLATFORM);
-
+        String clientVersion = ClientProtocol.class.getPackage().getImplementationVersion();
+        if (clientVersion == null) {
+            clientVersion = "jdbd-test";
+        }
         attMap.put("_client_name", "JDBD-MySQL");
-        attMap.put("_client_version", ClientProtocol.class.getPackage().getImplementationVersion());
-        attMap.put("_runtime_vendor", "QinArmy");
+        attMap.put("_client_version", clientVersion);
+        attMap.put("_runtime_vendor", Constants.JVM_VENDOR);
         attMap.put("_runtime_version", Constants.JVM_VERSION);
         attMap.put("_client_license", Constants.CJ_LICENSE);
         return attMap;

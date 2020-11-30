@@ -14,6 +14,11 @@
         <module>jdbd-vendor</module>
     </modules>
 
+    <organization>
+        <name>QinArmy-common</name>
+        <url>http://qinarmy.org/</url>
+    </organization>
+
     <properties>
         <java.version>1.8</java.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -146,12 +151,18 @@
     </dependencyManagement>
 
     <build>
-        <!-- <resources>
-             <resource>
-                 <directory>src/main/resources</directory>
-                 <filtering>true</filtering>
-             </resource>
-         </resources>-->
+        <resources>
+            <resource>
+                <directory>src/main/resources</directory>
+                <filtering>true</filtering>
+            </resource>
+        </resources>
+        <testResources>
+            <testResource>
+                <directory>src/test/resources</directory>
+                <filtering>true</filtering>
+            </testResource>
+        </testResources>
         <plugins>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
@@ -189,6 +200,20 @@
                         </goals>
                     </execution>
                 </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-jar-plugin</artifactId>
+                <version>3.2.0</version>
+                <configuration>
+                    <archive>
+                        <manifest>
+                            <addBuildEnvironmentEntries>true</addBuildEnvironmentEntries>
+                            <addDefaultImplementationEntries>true</addDefaultImplementationEntries>
+                            <addDefaultSpecificationEntries>true</addDefaultSpecificationEntries>
+                        </manifest>
+                    </archive>
+                </configuration>
             </plugin>
         </plugins>
     </build>

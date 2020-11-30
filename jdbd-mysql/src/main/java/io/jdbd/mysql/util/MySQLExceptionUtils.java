@@ -1,7 +1,7 @@
 package io.jdbd.mysql.util;
 
+import io.jdbd.JdbdSQLException;
 import io.jdbd.PreparedStatement;
-import io.jdbd.ReactiveSQLException;
 import io.jdbd.Statement;
 import io.jdbd.lang.Nullable;
 import io.jdbd.mysql.JdbdMySQLException;
@@ -17,14 +17,14 @@ public abstract class MySQLExceptionUtils extends ExceptionUtils {
         throw new UnsupportedOperationException();
     }
 
-    public static ReactiveSQLException wrapSQLExceptionIfNeed(Throwable t) {
-        ReactiveSQLException e;
-        if (t instanceof ReactiveSQLException) {
-            e = (ReactiveSQLException) t;
+    public static JdbdSQLException wrapSQLExceptionIfNeed(Throwable t) {
+        JdbdSQLException e;
+        if (t instanceof JdbdSQLException) {
+            e = (JdbdSQLException) t;
         } else if (t instanceof SQLException) {
-            e = new ReactiveSQLException((SQLException) t);
+            e = new JdbdSQLException((SQLException) t);
         } else {
-            e = new ReactiveSQLException(new SQLException(t));
+            e = new JdbdSQLException(new SQLException(t));
         }
         return e;
     }
@@ -39,23 +39,23 @@ public abstract class MySQLExceptionUtils extends ExceptionUtils {
         return e;
     }
 
-    public static ReactiveSQLException createErrorPacketException(ErrorPacket error) {
-        return new ReactiveSQLException(new SQLException(error.getErrorMessage(), error.getSqlState()));
+    public static JdbdSQLException createErrorPacketException(ErrorPacket error) {
+        return new JdbdSQLException(new SQLException(error.getErrorMessage(), error.getSqlState()));
     }
 
-    public static ReactiveSQLException createNonResultSetCommandException() {
+    public static JdbdSQLException createNonResultSetCommandException() {
         String message = "SQL isn't query command,please use " + Statement.class.getName() +
                 ".executeQuery(String,BiFunction<ResultRow,ResultRowMeta,T>, Consumer<ResultStates>) method";
-        return new ReactiveSQLException(new SQLException(message));
+        return new JdbdSQLException(new SQLException(message));
     }
 
-    public static ReactiveSQLException createNonCommandUpdateException() {
+    public static JdbdSQLException createNonCommandUpdateException() {
         String message = "SQL isn't dml command,please use %s.executeUpdate() or %s.executeUpdate(String ) method";
         message = String.format(message, PreparedStatement.class.getName(), Statement.class.getName());
-        return new ReactiveSQLException(new SQLException(message));
+        return new JdbdSQLException(new SQLException(message));
     }
 
-    public static ReactiveSQLException createFatalIoException(@Nullable Throwable e, String format
+    public static JdbdSQLException createFatalIoException(@Nullable Throwable e, String format
             , @Nullable Object... args) {
         String message;
         if (args == null || args.length == 0) {
@@ -63,10 +63,10 @@ public abstract class MySQLExceptionUtils extends ExceptionUtils {
         } else {
             message = String.format(format, args);
         }
-        return new ReactiveSQLException(new MySQLFatalIoException(message, e));
+        return new JdbdSQLException(new MySQLFatalIoException(message, e));
     }
 
-    public static ReactiveSQLException createFatalIoException(String format, @Nullable Object... args) {
+    public static JdbdSQLException createFatalIoException(String format, @Nullable Object... args) {
         return createFatalIoException(null, format, args);
     }
 

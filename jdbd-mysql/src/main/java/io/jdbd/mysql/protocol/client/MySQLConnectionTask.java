@@ -19,7 +19,7 @@ abstract class MySQLConnectionTask extends AbstractCommTask implements MySQLTask
     MySQLConnectionTask(MySQLTaskAdjutant executorAdjutant, int sequenceId) {
         super(executorAdjutant);
         this.executorAdjutant = executorAdjutant;
-        this.negotiatedCapability = executorAdjutant.obtainNegotiatedCapability();
+        this.negotiatedCapability = (this instanceof HandshakeV10Task) ? 0 : executorAdjutant.obtainNegotiatedCapability();
         this.sequenceId = sequenceId;
     }
 

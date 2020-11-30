@@ -11,7 +11,7 @@ final class QuitTask extends MySQLConnectionTask {
     static Mono<Void> quit(MySQLTaskAdjutant executorAdjutant) {
         return Mono.create(sink ->
                 new QuitTask(executorAdjutant, sink)
-                        .submit()
+                        .syncSubmit()
                         .doOnError(e -> sink.error(MySQLExceptionUtils.wrapJdbdExceptionIfNeed(e)))
                         .subscribe()
         );
@@ -53,8 +53,9 @@ final class QuitTask extends MySQLConnectionTask {
         return true;
     }
 
+
     @Override
-    public void onChannelClose() {
+    public void internalOnChannelClose() {
         this.sink.success();
     }
 

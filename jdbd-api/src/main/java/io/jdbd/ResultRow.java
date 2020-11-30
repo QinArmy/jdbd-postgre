@@ -9,19 +9,19 @@ import java.time.temporal.Temporal;
 public interface ResultRow {
 
     @Nullable
-    Object getObject(int indexBaseZero) throws ReactiveSQLException;
+    Object getObject(int indexBaseZero) throws JdbdSQLException;
 
 
     @Nullable
-    <T> T getObject(int indexBaseZero, Class<T> columnClass) throws ReactiveSQLException;
+    <T> T getObject(int indexBaseZero, Class<T> columnClass) throws JdbdSQLException;
 
 
     @Nullable
-    Object getObject(String alias) throws ReactiveSQLException;
+    Object getObject(String alias) throws JdbdSQLException;
 
 
     @Nullable
-    <T> T getObject(String alias, Class<T> columnClass) throws ReactiveSQLException;
+    <T> T getObject(String alias, Class<T> columnClass) throws JdbdSQLException;
 
 
     /**
@@ -52,10 +52,10 @@ public interface ResultRow {
      *     <li>{@link java.time.YearMonth, {@link #getObject(int)} with date}</li>
      *     <li>{@link java.time.Instant}</li>
      * </ul>
-     * @throws ReactiveSQLException if a database access error occurs
+     * @throws JdbdSQLException if a database access error occurs
      */
     @Nullable
-    <T extends Temporal> T getObject(int indexBaseZero, Class<T> targetClass, ZoneId targetZoneId) throws ReactiveSQLException;
+    <T extends Temporal> T getObject(int indexBaseZero, Class<T> targetClass, ZoneId targetZoneId) throws JdbdSQLException;
 
 
     /**
@@ -86,23 +86,23 @@ public interface ResultRow {
      *     <li>{@link java.time.YearMonth, {@link #getObject(int)} with date}</li>
      *     <li>{@link java.time.Instant}</li>
      * </ul>
-     * @throws ReactiveSQLException if a database access error occurs
+     * @throws JdbdSQLException if a database access error occurs
      */
     @Nullable
     <T extends Temporal> T getObject(String alias, Class<T> targetClass, ZoneId targetZoneId)
-            throws ReactiveSQLException;
+            throws JdbdSQLException;
 
-    Object getRequiredObject(int indexBaseZero) throws ReactiveSQLException;
+    Object getRequiredObject(int indexBaseZero) throws JdbdSQLException;
 
-    <T> T getRequiredObject(int indexBaseZero, Class<T> columnClass) throws ReactiveSQLException;
+    <T> T getRequiredObject(int indexBaseZero, Class<T> columnClass) throws JdbdSQLException;
 
-    Object getRequiredObject(String alias) throws ReactiveSQLException;
+    Object getRequiredObject(String alias) throws JdbdSQLException;
 
-    <T> T getRequiredObject(String alias, Class<T> columnClass) throws ReactiveSQLException;
+    <T> T getRequiredObject(String alias, Class<T> columnClass) throws JdbdSQLException;
 
     <T extends Temporal> T getRequiredObject(int indexBaseZero, Class<T> targetClass, ZoneId targetZoneId)
-            throws ReactiveSQLException;
+            throws JdbdSQLException;
 
     <T extends Temporal> T getRequiredObject(String alias, Class<T> targetClass, ZoneId targetZoneId)
-            throws ReactiveSQLException;
+            throws JdbdSQLException;
 }

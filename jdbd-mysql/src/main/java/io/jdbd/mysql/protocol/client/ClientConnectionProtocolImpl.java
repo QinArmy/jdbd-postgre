@@ -275,9 +275,7 @@ final class ClientConnectionProtocolImpl extends AbstractClientProtocol
             return createConnectionPhaseNotMatchException(phase);
         }
         return AuthenticateTask.authenticate(this.taskAdjutant)
-                .doOnSuccess(v -> {
-                    this.connectionPhase.compareAndSet(AUTHENTICATION_PHASE, CONFIGURE_SESSION_PHASE);
-                })
+                .doOnSuccess(v -> this.connectionPhase.compareAndSet(AUTHENTICATION_PHASE, CONFIGURE_SESSION_PHASE))
                 ;
     }
 

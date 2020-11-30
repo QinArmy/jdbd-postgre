@@ -1,7 +1,7 @@
 package io.jdbd.mysql.protocol.client;
 
+import io.jdbd.JdbdSQLException;
 import io.jdbd.NullMode;
-import io.jdbd.ReactiveSQLException;
 import io.jdbd.ResultRowMeta;
 import io.jdbd.meta.SQLType;
 import io.jdbd.mysql.protocol.CharsetMapping;
@@ -40,13 +40,13 @@ abstract class MySQLRowMeta implements ResultRowMeta {
     }
 
     @Override
-    public final JDBCType getJdbdType(int indexBaseZero) throws ReactiveSQLException {
+    public final JDBCType getJdbdType(int indexBaseZero) throws JdbdSQLException {
         return this.columnMetas[checkIndex(indexBaseZero)].mysqlType.jdbcType();
     }
 
 
     @Override
-    public final boolean isPhysicalColumn(int indexBaseZero) throws ReactiveSQLException {
+    public final boolean isPhysicalColumn(int indexBaseZero) throws JdbdSQLException {
         MySQLColumnMeta columnMeta = this.columnMetas[checkIndex(indexBaseZero)];
         return StringUtils.hasText(columnMeta.tableName)
                 && StringUtils.hasText(columnMeta.columnName);
@@ -54,13 +54,13 @@ abstract class MySQLRowMeta implements ResultRowMeta {
 
 
     @Override
-    public final SQLType getSQLType(int indexBaseZero) throws ReactiveSQLException {
+    public final SQLType getSQLType(int indexBaseZero) throws JdbdSQLException {
         return this.columnMetas[checkIndex(indexBaseZero)].mysqlType;
     }
 
 
     @Override
-    public final NullMode getNullMode(int indexBaseZero) throws ReactiveSQLException {
+    public final NullMode getNullMode(int indexBaseZero) throws JdbdSQLException {
         return (this.columnMetas[checkIndex(indexBaseZero)].definitionFlags & MySQLColumnMeta.NOT_NULL_FLAG) != 0
                 ? NullMode.NON_NULL
                 : NullMode.NULLABLE;
@@ -68,62 +68,62 @@ abstract class MySQLRowMeta implements ResultRowMeta {
 
 
     @Override
-    public final boolean isSigned(int indexBaseZero) throws ReactiveSQLException {
+    public final boolean isSigned(int indexBaseZero) throws JdbdSQLException {
         return (this.columnMetas[checkIndex(indexBaseZero)].definitionFlags & MySQLColumnMeta.UNSIGNED_FLAG) == 0;
     }
 
 
     @Override
-    public final boolean isAutoIncrement(int indexBaseZero) throws ReactiveSQLException {
+    public final boolean isAutoIncrement(int indexBaseZero) throws JdbdSQLException {
         return (this.columnMetas[checkIndex(indexBaseZero)].definitionFlags & MySQLColumnMeta.AUTO_INCREMENT_FLAG) != 0;
     }
 
 
     @Override
-    public final boolean isCaseSensitive(int indexBaseZero) throws ReactiveSQLException {
+    public final boolean isCaseSensitive(int indexBaseZero) throws JdbdSQLException {
         return doIsCaseSensitive(this.columnMetas[checkIndex(indexBaseZero)]);
     }
 
 
     @Nullable
     @Override
-    public final String getCatalogName(int indexBaseZero) throws ReactiveSQLException {
+    public final String getCatalogName(int indexBaseZero) throws JdbdSQLException {
         return this.columnMetas[checkIndex(indexBaseZero)].catalogName;
     }
 
 
     @Nullable
     @Override
-    public final String getSchemaName(int indexBaseZero) throws ReactiveSQLException {
+    public final String getSchemaName(int indexBaseZero) throws JdbdSQLException {
         return this.columnMetas[checkIndex(indexBaseZero)].schemaName;
     }
 
 
     @Nullable
     @Override
-    public final String getTableName(int indexBaseZero) throws ReactiveSQLException {
+    public final String getTableName(int indexBaseZero) throws JdbdSQLException {
         return this.columnMetas[checkIndex(indexBaseZero)].tableName;
     }
 
 
     @Override
-    public final String getColumnLabel(int indexBaseZero) throws ReactiveSQLException {
+    public final String getColumnLabel(int indexBaseZero) throws JdbdSQLException {
         return this.columnMetas[checkIndex(indexBaseZero)].columnAlias;
     }
 
     @Override
-    public int getColumnIndex(String columnLabel) throws ReactiveSQLException {
+    public int getColumnIndex(String columnLabel) throws JdbdSQLException {
         return convertToIndex(columnLabel);
     }
 
     @Nullable
     @Override
-    public final String getColumnName(int indexBaseZero) throws ReactiveSQLException {
+    public final String getColumnName(int indexBaseZero) throws JdbdSQLException {
         return this.columnMetas[checkIndex(indexBaseZero)].columnName;
     }
 
     @Override
-    public boolean isReadOnly(int indexBaseZero) throws ReactiveSQLException {
+    public boolean isReadOnly(int indexBaseZero) throws JdbdSQLException {
         MySQLColumnMeta columnMeta = this.columnMetas[checkIndex(indexBaseZero)];
         return MySQLStringUtils.isEmpty(columnMeta.tableName)
                 && MySQLStringUtils.isEmpty(columnMeta.columnName);
@@ -131,26 +131,26 @@ abstract class MySQLRowMeta implements ResultRowMeta {
 
 
     @Override
-    public final boolean isWritable(int indexBaseZero) throws ReactiveSQLException {
+    public final boolean isWritable(int indexBaseZero) throws JdbdSQLException {
         return !isReadOnly(indexBaseZero);
     }
 
 
     @Override
-    public final Class<?> getColumnClass(int indexBaseZero) throws ReactiveSQLException {
+    public final Class<?> getColumnClass(int indexBaseZero) throws JdbdSQLException {
         return this.columnMetas[checkIndex(indexBaseZero)].mysqlType.javaType();
     }
 
 
     @Override
-    public final long getPrecision(int indexBaseZero) throws ReactiveSQLException {
+    public final long getPrecision(int indexBaseZero) throws JdbdSQLException {
         return this.columnMetas[checkIndex(indexBaseZero)]
                 .obtainPrecision(this.customCollationMap);
     }
 
 
     @Override
-    public int getScale(int indexBaseZero) throws ReactiveSQLException {
+    public int getScale(int indexBaseZero) throws JdbdSQLException {
         MySQLColumnMeta columnMeta = this.columnMetas[checkIndex(indexBaseZero)];
         return (columnMeta.mysqlType == MySQLType.DECIMAL || columnMeta.mysqlType == MySQLType.DECIMAL_UNSIGNED)
                 ? columnMeta.decimals
@@ -159,18 +159,18 @@ abstract class MySQLRowMeta implements ResultRowMeta {
 
 
     @Override
-    public boolean isPrimaryKey(int indexBaseZero) throws ReactiveSQLException {
+    public boolean isPrimaryKey(int indexBaseZero) throws JdbdSQLException {
         return (this.columnMetas[checkIndex(indexBaseZero)].definitionFlags & MySQLColumnMeta.PRI_KEY_FLAG) != 0;
     }
 
 
     @Override
-    public boolean isUniqueKey(int indexBaseZero) throws ReactiveSQLException {
+    public boolean isUniqueKey(int indexBaseZero) throws JdbdSQLException {
         return (this.columnMetas[checkIndex(indexBaseZero)].definitionFlags & MySQLColumnMeta.UNIQUE_KEY_FLAG) != 0;
     }
 
     @Override
-    public boolean isMultipleKey(int indexBaseZero) throws ReactiveSQLException {
+    public boolean isMultipleKey(int indexBaseZero) throws JdbdSQLException {
         return (this.columnMetas[checkIndex(indexBaseZero)].definitionFlags & MySQLColumnMeta.MULTIPLE_KEY_FLAG) != 0;
     }
 
@@ -182,13 +182,13 @@ abstract class MySQLRowMeta implements ResultRowMeta {
                 return i;
             }
         }
-        throw new ReactiveSQLException(
+        throw new JdbdSQLException(
                 new SQLException(String.format("not found index for columnLabel[%s]", columnLabel)));
     }
 
     private int checkIndex(int indexBaseZero) {
         if (indexBaseZero < 0 || indexBaseZero >= this.columnMetas.length) {
-            throw new ReactiveSQLException(new SQLException(
+            throw new JdbdSQLException(new SQLException(
                     String.format("index[%s] out of bounds[0 -- %s].", indexBaseZero, columnMetas.length - 1)));
         }
         return indexBaseZero;

@@ -1,13 +1,14 @@
 package io.jdbd.vendor;
 
-import reactor.core.publisher.Mono;
+import io.jdbd.JdbdNonSQLException;
 
 public interface CommTaskExecutorAdjutant {
 
 
     boolean inEventLoop();
 
-    Mono<Void> submitTask(CommTask<?> task);
 
+    boolean syncSubmitTask(CommunicationTask<?> task) throws JdbdNonSQLException;
 
+    void execute(Runnable runnable);
 }
