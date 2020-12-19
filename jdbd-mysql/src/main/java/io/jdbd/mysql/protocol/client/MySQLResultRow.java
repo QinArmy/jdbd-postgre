@@ -11,6 +11,7 @@ import reactor.util.annotation.Nullable;
 
 import java.math.BigDecimal;
 import java.math.BigInteger;
+import java.nio.file.Path;
 import java.sql.SQLException;
 import java.time.*;
 import java.time.temporal.Temporal;
@@ -23,6 +24,10 @@ abstract class MySQLResultRow implements ResultRow {
 
     static MySQLResultRow from(Object[] columnValues, MySQLRowMeta rowMeta, ResultRowAdjutant adjutant) {
         return new SimpleMySQLResultRow(columnValues, rowMeta, adjutant);
+    }
+
+    static MySQLResultRow from(Path bigRowPath, MySQLRowMeta rowMeta, ResultRowAdjutant adjutant) {
+        return null;
     }
 
     private static final Map<Class<?>, Function<Object, Object>> COLUMN_CONVERTER_MAP = createColumnConverterMap();

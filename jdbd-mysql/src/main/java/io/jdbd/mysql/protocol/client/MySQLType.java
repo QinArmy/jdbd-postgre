@@ -8,6 +8,8 @@ import io.jdbd.mysql.util.MySQLObjects;
 import io.jdbd.type.Geometry;
 import org.qinarmy.util.StringUtils;
 
+import java.io.InputStream;
+import java.io.Reader;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.sql.JDBCType;
@@ -335,7 +337,7 @@ public enum MySQLType implements SQLType {
      * <p>
      * Protocol: TYPE_LONG_BLOB = 251
      */
-    LONGBLOB(JDBCType.LONGVARBINARY, byte[].class),
+    LONGBLOB(JDBCType.LONGVARBINARY, InputStream.class),
     /**
      * LONGTEXT [CHARACTER SET charset_name] [COLLATE collation_name]
      * A TEXT column with a maximum length of 4,294,967,295 or 4GB (232 - 1) characters. The effective
@@ -346,7 +348,7 @@ public enum MySQLType implements SQLType {
      * <p>
      * Protocol: TYPE_LONG_BLOB = 251
      */
-    LONGTEXT(JDBCType.LONGVARCHAR, String.class),
+    LONGTEXT(JDBCType.LONGVARCHAR, Reader.class),
     /**
      * BLOB[(M)]
      * A BLOB column with a maximum length of 65,535 (216 - 1) bytes. Each BLOB value is stored using

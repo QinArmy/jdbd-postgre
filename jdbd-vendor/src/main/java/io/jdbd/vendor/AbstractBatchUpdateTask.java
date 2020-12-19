@@ -7,7 +7,7 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.FluxSink;
 
 
-public abstract class AbstractBatchUpdateTask extends AbstractCommTask implements BatchUpdateResults {
+public abstract class AbstractBatchUpdateTask extends AbstractCommunicationTask implements BatchUpdateResults {
 
     private FluxSink<ResultStates> sink;
 

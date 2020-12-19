@@ -1,9 +1,9 @@
 package io.jdbd.mysql.protocol.client;
 
+import io.jdbd.MultiResults;
 import io.jdbd.ResultRow;
 import io.jdbd.ResultRowMeta;
 import io.jdbd.ResultStates;
-import io.jdbd.vendor.ReactorMultiResults;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -54,13 +54,13 @@ public interface ClientProtocol {
 
     BiFunction<ResultRow, ResultRowMeta, ResultRow> ORIGINAL_ROW_DECODER = (resultRow, resultRowMeta) -> resultRow;
 
-    ReactorMultiResults commands(List<String> commandList);
+    MultiResults commands(List<String> commandList);
 
 
     /**
      * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_com_query.html">Protocol::COM_QUERY</a>
      */
-    Mono<Long> commandUpdate(String command, Consumer<ResultStates> statesConsumer);
+    Mono<ResultStates> commandUpdate(String command);
 
 
     /**

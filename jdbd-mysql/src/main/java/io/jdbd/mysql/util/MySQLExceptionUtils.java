@@ -40,7 +40,11 @@ public abstract class MySQLExceptionUtils extends ExceptionUtils {
     }
 
     public static JdbdSQLException createErrorPacketException(ErrorPacket error) {
-        return new JdbdSQLException(new SQLException(error.getErrorMessage(), error.getSqlState()));
+        return new JdbdSQLException(createSQLException(error));
+    }
+
+    public static SQLException createSQLException(ErrorPacket error) {
+        return new SQLException(error.getErrorMessage(), error.getSqlState());
     }
 
     public static JdbdSQLException createNonResultSetCommandException() {
@@ -69,6 +73,7 @@ public abstract class MySQLExceptionUtils extends ExceptionUtils {
     public static JdbdSQLException createFatalIoException(String format, @Nullable Object... args) {
         return createFatalIoException(null, format, args);
     }
+
 
     public static boolean containFatalIoException(final Throwable e) {
         return containException(e, MySQLFatalIoException.class);

@@ -1,11 +1,11 @@
 package io.jdbd.mysql.protocol.client;
 
+import io.jdbd.MultiResults;
 import io.jdbd.ResultRow;
 import io.jdbd.ResultRowMeta;
 import io.jdbd.ResultStates;
 import io.jdbd.mysql.protocol.conf.HostInfo;
 import io.jdbd.mysql.protocol.conf.Properties;
-import io.jdbd.vendor.ReactorMultiResults;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import reactor.core.publisher.Flux;
@@ -32,22 +32,22 @@ abstract class AbstractClientProtocol implements ClientProtocol, ClientProtocolA
     }
 
     @Override
-    public ReactorMultiResults commands(List<String> commandList) {
-        return ComQueryTask.commands(this.taskAdjutant, commandList);
+    public MultiResults commands(List<String> commandList) {
+        return ComQueryTask.multiCommands(this.taskAdjutant, commandList);
     }
 
 
     @Override
-    public final Mono<Long> commandUpdate(String command, Consumer<ResultStates> statesConsumer) {
-        return ComQueryTask.command(this.taskAdjutant, command)
-                .nextUpdate(statesConsumer);
+    public final Mono<ResultStates> commandUpdate(String command) {
+        return ComQueryTask.singleCommand(this.taskAdjutant, command)
+                .nextUpdate();
     }
 
 
     @Override
     public final <T> Flux<T> commandQuery(String command, BiFunction<ResultRow, ResultRowMeta, T> rowDecoder
             , Consumer<ResultStates> statesConsumer) {
-        return ComQueryTask.command(this.taskAdjutant, command)
+        return ComQueryTask.singleCommand(this.taskAdjutant, command)
                 .nextQuery(rowDecoder, statesConsumer);
     }
 

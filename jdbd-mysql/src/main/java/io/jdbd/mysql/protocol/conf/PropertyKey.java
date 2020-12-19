@@ -1,5 +1,6 @@
 package io.jdbd.mysql.protocol.conf;
 
+import io.jdbd.mysql.protocol.ClientConstants;
 import reactor.netty.resources.ConnectionProvider;
 import reactor.util.annotation.Nullable;
 
@@ -124,6 +125,7 @@ public enum PropertyKey {
     @Deprecated
     verifyServerCertificate("verifyServerCertificate", "false", true), //
 
+    bigRowMemoryUpperBoundary("bigRowMemoryUpperBoundary", Integer.toString(ClientConstants.DEFAULT_BIG_ROW_UPPER), true),
 
     allowLoadLocalInfile("allowLoadLocalInfile", "false", true), //
     allowMasterDownConnections("allowMasterDownConnections", "false", true), //

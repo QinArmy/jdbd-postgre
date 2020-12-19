@@ -1,5 +1,7 @@
 package io.jdbd.mysql.protocol;
 
+import io.jdbd.lang.Nullable;
+
 import java.sql.SQLException;
 
 public final class MySQLFatalIoException extends SQLException {
@@ -8,7 +10,7 @@ public final class MySQLFatalIoException extends SQLException {
         super(reason);
     }
 
-    public MySQLFatalIoException(String reason, Throwable cause) {
+    public MySQLFatalIoException(String reason, @Nullable Throwable cause) {
         super(reason, cause);
     }
 

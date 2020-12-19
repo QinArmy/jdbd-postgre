@@ -1,12 +1,12 @@
 package io.jdbd.mysql.protocol.client;
 
-import io.jdbd.vendor.AbstractCommTask;
+import io.jdbd.vendor.AbstractCommunicationTask;
 import io.netty.buffer.ByteBuf;
 
 import java.nio.file.Path;
 
 
-abstract class MySQLConnectionTask extends AbstractCommTask implements MySQLTask {
+abstract class MySQLConnectionTask extends AbstractCommunicationTask implements MySQLTask {
 
 
     final MySQLTaskAdjutant executorAdjutant;

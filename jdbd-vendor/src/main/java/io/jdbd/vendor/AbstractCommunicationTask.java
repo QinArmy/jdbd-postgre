@@ -6,13 +6,13 @@ import io.netty.buffer.ByteBuf;
 
 import java.util.function.Consumer;
 
-public abstract class AbstractCommTask implements CommunicationTask<ByteBuf> {
+public abstract class AbstractCommunicationTask implements CommunicationTask<ByteBuf> {
 
     final CommTaskExecutorAdjutant executorAdjutant;
 
     private TaskPhase taskPhase;
 
-    protected AbstractCommTask(CommTaskExecutorAdjutant executorAdjutant) {
+    protected AbstractCommunicationTask(CommTaskExecutorAdjutant executorAdjutant) {
         this.executorAdjutant = executorAdjutant;
     }
 

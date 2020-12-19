@@ -1,7 +1,6 @@
 package io.jdbd.vendor;
 
 import io.jdbd.*;
-import io.netty.buffer.ByteBuf;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import reactor.core.publisher.Flux;
@@ -16,25 +15,20 @@ import java.util.Queue;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 
-public abstract class AbstractSQLCommTask extends AbstractCommTask implements ReactorMultiResults {
+public final class DefaultMultiResultsSink implements MultiResultsSink {
 
-    private static final Logger LOG = LoggerFactory.getLogger(AbstractSQLCommTask.class);
 
-    private static final RowSink EMPTY_ROW_SINK = new RowSink() {
-        @Override
-        public boolean isCanceled() {
-            return true;
-        }
+    public static DefaultMultiResultsSink forTask(AbstractCommunicationTask task, int expectedResultCount) {
+        return new DefaultMultiResultsSink(task, expectedResultCount);
+    }
 
-        @Override
-        public void next(ResultRow resultRow) {
-            // no-op
-        }
-    };
 
-    private static final BufferSubscriber TOO_MANY_RESULT_ERROR_SUBSCRIBER = new BufferSubscriber() {
-    };
+    private static final Logger LOG = LoggerFactory.getLogger(DefaultMultiResultsSink.class);
 
+
+    private final AbstractCommunicationTask task;
+
+    private final MultiResults multiResults = new MultiResultsImpl(this);
 
     private final int expectedResultCount;
 
@@ -48,7 +42,7 @@ public abstract class AbstractSQLCommTask extends AbstractCommTask implements Re
      * record {@link #currentSubscriber} when satisfy below all:
      * <ul>
      *     <li>{@link #currentSubscriber} is {@link DownstreamSubscriber}</li>
-     *     <li>{@link #currentSubscriber} will set to {@link #TOO_MANY_RESULT_ERROR_SUBSCRIBER}</li>
+     *     <li>{@link #currentSubscriber} will set to {@link TooManyResultBufferSubscriber#INSTANCE}</li>
      * </ul>
      */
     private DownstreamSubscriber pendingSubscriber;
@@ -56,32 +50,14 @@ public abstract class AbstractSQLCommTask extends AbstractCommTask implements Re
     private Queue<BufferSubscriber> bufferSubscriberQueue;
 
 
-    protected AbstractSQLCommTask(CommTaskExecutorAdjutant executorAdjutant, int expectedResultCount) {
-        super(executorAdjutant);
+    private DefaultMultiResultsSink(AbstractCommunicationTask task, int expectedResultCount) {
+        this.task = task;
         this.expectedResultCount = expectedResultCount;
     }
 
-    @Override
-    public final Mono<ResultStates> nextUpdate() {
-        return Mono.create(sink -> {
-            if (this.executorAdjutant.inEventLoop()) {
-                addMonoSubscriber(sink);
-            } else {
-                this.executorAdjutant.execute(() -> addMonoSubscriber(sink));
-            }
-        });
-    }
 
-    @Override
-    public final <T> Flux<T> nextQuery(BiFunction<ResultRow, ResultRowMeta, T> rowDecoder
-            , Consumer<ResultStates> statesConsumer) {
-        return Flux.create(sink -> {
-            if (this.executorAdjutant.inEventLoop()) {
-                addFluxSubscriber(sink, rowDecoder, statesConsumer);
-            } else {
-                this.executorAdjutant.execute(() -> addFluxSubscriber(sink, rowDecoder, statesConsumer));
-            }
-        });
+    public final MultiResults getMultiResults() {
+        return this.multiResults;
     }
 
 
@@ -100,11 +76,11 @@ public abstract class AbstractSQLCommTask extends AbstractCommTask implements Re
      * @throws IllegalStateException throw when {@link #currentSubscriber} is {@link AccessErrorBufferSubscriber}.
      * @see AccessErrorBufferSubscriber
      */
-    protected final void emitDatabaseAccessError(SQLException e) {
+    public final void error(SQLException e) {
         final ResultSubscriber currentSubscriber = this.currentSubscriber;
 
         final AccessErrorBufferSubscriber ae;
-        if (currentSubscriber == TOO_MANY_RESULT_ERROR_SUBSCRIBER) {
+        if (currentSubscriber instanceof TooManyResultBufferSubscriber) {
             String tooManyMessage = buildTooManyMessageWhenAccessError();
             // 1. firstly, set currentSubscriber to AccessErrorBufferSubscriber, avoid to downstream update currentSubscriber
             ae = new AccessErrorBufferSubscriber(e, tooManyMessage);
@@ -119,7 +95,7 @@ public abstract class AbstractSQLCommTask extends AbstractCommTask implements Re
                 this.pendingSubscriber = null;
                 ((MonoDownstreamSubscriber) pendingSubscriber).sink.error(new JdbdSQLException(tooManyMessage, e));
             } else if (pendingSubscriber != null) {
-                throw createUnknownResultSubscriberTypeError(pendingSubscriber);
+                throw createNonExpectedResultSubscriberTypeError(pendingSubscriber);
             }
         } else {
             // 1. firstly, set currentSubscriber to AccessErrorBufferSubscriber, avoid to downstream update currentSubscriber
@@ -141,7 +117,7 @@ public abstract class AbstractSQLCommTask extends AbstractCommTask implements Re
             } else if (currentSubscriber instanceof FluxBufferSubscriber) {
                 ((FluxBufferSubscriber) currentSubscriber).resultRowQueue.clear();
             } else {
-                throw createUnknownResultSubscriberTypeError(currentSubscriber);
+                throw createNonExpectedResultSubscriberTypeError(currentSubscriber);
             }
 
         }
@@ -156,7 +132,7 @@ public abstract class AbstractSQLCommTask extends AbstractCommTask implements Re
                 } else if (downstreamSubscriber instanceof MonoDownstreamSubscriber) {
                     ((MonoDownstreamSubscriber) downstreamSubscriber).sink.error(new JdbdSQLException(ae.message, ae.accessError));
                 } else {
-                    throw createUnknownResultSubscriberTypeError(downstreamSubscriber);
+                    throw createNonExpectedResultSubscriberTypeError(downstreamSubscriber);
                 }
             }
         }
@@ -165,16 +141,16 @@ public abstract class AbstractSQLCommTask extends AbstractCommTask implements Re
     }
 
 
-    protected final void emitUpdateResult(ResultStates resultStates, final boolean hasMore) {
+    public final void nextUpdate(ResultStates resultStates, final boolean hasMore) {
         final ResultSubscriber currentSubscriber = this.currentSubscriber;
         if (currentSubscriber instanceof AccessErrorBufferSubscriber) {
             throw createTaskEndWithDatabaseAccessError((AccessErrorBufferSubscriber) currentSubscriber);
         }
         this.currentSubscriber = null;
         this.receiveResultCount++;
-        if (currentSubscriber == TOO_MANY_RESULT_ERROR_SUBSCRIBER && hasMore) {
-            getOrCreateBufferSubscriber().add(TOO_MANY_RESULT_ERROR_SUBSCRIBER);
-        } else if (currentSubscriber == TOO_MANY_RESULT_ERROR_SUBSCRIBER) {
+        if (currentSubscriber instanceof TooManyResultBufferSubscriber && hasMore) {
+            getOrCreateBufferSubscriber().add((TooManyResultBufferSubscriber) currentSubscriber);
+        } else if (currentSubscriber instanceof TooManyResultBufferSubscriber) {
             final DownstreamSubscriber pending = this.pendingSubscriber;
             this.pendingSubscriber = null;
             if (pending instanceof MonoDownstreamSubscriber) {
@@ -182,17 +158,17 @@ public abstract class AbstractSQLCommTask extends AbstractCommTask implements Re
             } else if (pending instanceof FluxDownstreamSubscriber) {
                 ((FluxDownstreamSubscriber) pending).sink.error(new TooManyResultException(this.expectedResultCount, this.receiveResultCount));
             } else if (pending != null) {
-                throw createUnknownResultSubscriberTypeError(pending);
+                throw createNonExpectedResultSubscriberTypeError(pending);
             }
         } else if (this.receiveResultCount == this.expectedResultCount && hasMore) {
-            this.currentSubscriber = TOO_MANY_RESULT_ERROR_SUBSCRIBER;
+            this.currentSubscriber = TooManyResultBufferSubscriber.INSTANCE;
             if (currentSubscriber == null) {
-                getOrCreateBufferSubscriber().add(TOO_MANY_RESULT_ERROR_SUBSCRIBER);
+                getOrCreateBufferSubscriber().add(TooManyResultBufferSubscriber.INSTANCE);
             } else if (currentSubscriber instanceof MonoDownstreamSubscriber
                     || currentSubscriber instanceof FluxDownstreamSubscriber) {
                 this.pendingSubscriber = (DownstreamSubscriber) currentSubscriber;
             } else {
-                throw createUnknownResultSubscriberTypeError(currentSubscriber);
+                throw createNonExpectedResultSubscriberTypeError(currentSubscriber);
             }
         } else if (currentSubscriber == null) {
             getOrCreateBufferSubscriber().add(new MonoBufferSubscriber(resultStates));
@@ -201,7 +177,7 @@ public abstract class AbstractSQLCommTask extends AbstractCommTask implements Re
         } else if (currentSubscriber instanceof FluxDownstreamSubscriber) {
             ((FluxDownstreamSubscriber) currentSubscriber).sink.error(SubscriptionNotMatchException.expectUpdate());
         } else {
-            throw createUnknownResultSubscriberTypeError(currentSubscriber);
+            throw createNonExpectedResultSubscriberTypeError(currentSubscriber);
         }
 
         publishHeapUpBufferIfNeed();
@@ -212,29 +188,27 @@ public abstract class AbstractSQLCommTask extends AbstractCommTask implements Re
     /**
      * must invoke in {@link io.netty.channel.EventLoop}
      *
-     * @see #decodeMultiRowData(ByteBuf)
-     * @see #emitResultRowTerminator(ResultStates, boolean)
+     * @see #obtainCurrentRowSink()
+     * @see #emitRowTerminator(ResultStates, boolean)
      */
-    protected final void setCurrentSubscriberRowMeta(ResultRowMeta rowMeta) {
+    public final void nextQueryRowMeta(ResultRowMeta rowMeta) {
         final ResultSubscriber currentSubscriber = this.currentSubscriber;
         if (currentSubscriber == null) {
             this.currentSubscriber = new FluxBufferSubscriber(rowMeta);
         } else if (currentSubscriber instanceof AccessErrorBufferSubscriber) {
             throw createTaskEndWithDatabaseAccessError((AccessErrorBufferSubscriber) currentSubscriber);
-        } else if (currentSubscriber == TOO_MANY_RESULT_ERROR_SUBSCRIBER) {
-            if (LOG.isDebugEnabled()) {
-                LOG.debug("currentSubscriber is TOO_MANY_RESULT_ERROR_SUBSCRIBER");
-            }
+        } else if (currentSubscriber instanceof TooManyResultBufferSubscriber) {
+            this.currentSubscriber = new FluxTooManyResultBufferSubscriber(rowMeta);
         } else if (currentSubscriber instanceof FluxDownstreamSubscriber) {
             FluxDownstreamSubscriber downstreamSubscriber = (FluxDownstreamSubscriber) currentSubscriber;
             if (downstreamSubscriber.rowMeta != null) {
                 throw new IllegalStateException(String.format("%s.rowMeta not null"
                         , FluxDownstreamSubscriber.class.getName()));
             }
-            downstreamSubscriber.rowMeta = Objects.requireNonNull(rowMeta, "parma rowMeta");
+            downstreamSubscriber.rowMeta = rowMeta;
         } else if (currentSubscriber instanceof MonoDownstreamSubscriber) {
-            MonoDownstreamSubscriber downstreamSubscriber = (MonoDownstreamSubscriber) currentSubscriber;
-            downstreamSubscriber.sink.error(SubscriptionNotMatchException.expectQuery()); // emit error.
+            this.currentSubscriber = new FluxNotMatchSubscriber(rowMeta);
+            ((MonoDownstreamSubscriber) currentSubscriber).sink.error(SubscriptionNotMatchException.expectQuery()); // emit error.
         } else {
             throw new IllegalStateException(String.format("currentSubscriber isn' expected type[%s]."
                     , currentSubscriber.getClass().getName()));
@@ -245,48 +219,36 @@ public abstract class AbstractSQLCommTask extends AbstractCommTask implements Re
     /**
      * must invoke in {@link io.netty.channel.EventLoop}
      *
-     * @see #setCurrentSubscriberRowMeta(ResultRowMeta)
-     * @see #emitResultRowTerminator(ResultStates, boolean)
+     * @see #nextQueryRowMeta(ResultRowMeta)
+     * @see #emitRowTerminator(ResultStates, boolean)
      */
-    protected final boolean decodeMultiRowData(ByteBuf cumulateBuffer) {
+    public final MultiResultsSink.RowSink obtainCurrentRowSink() {
         final ResultSubscriber currentSubscriber = Objects.requireNonNull(this.currentSubscriber, "currentSubscriber");
+        final RowSink sink;
         if (currentSubscriber instanceof AccessErrorBufferSubscriber) {
             throw createTaskEndWithDatabaseAccessError((AccessErrorBufferSubscriber) currentSubscriber);
-        }
-        final RowSink sink;
-        if (currentSubscriber == TOO_MANY_RESULT_ERROR_SUBSCRIBER
-                || currentSubscriber instanceof MonoDownstreamSubscriber) {
-            // setCurrentSubscriberRowMeta have emitted error.
-            sink = EMPTY_ROW_SINK;
         } else if (currentSubscriber instanceof FluxDownstreamSubscriber) {
             sink = ((FluxDownstreamSubscriber) currentSubscriber).rowSink;
+        } else if (currentSubscriber instanceof FluxTooManyResultBufferSubscriber) {
+            sink = ((FluxTooManyResultBufferSubscriber) currentSubscriber).sink;
         } else if (currentSubscriber instanceof FluxBufferSubscriber) {
             sink = ((FluxBufferSubscriber) currentSubscriber).sink;
-        } else if (currentSubscriber instanceof MonoBufferSubscriber) {
-            throw new IllegalStateException(String.format(
-                    "currentSubscriber type[%s] error,please check this.setCurrentSubscriberRowMeta(ResultRowMeta)."
-                    , currentSubscriber.getClass().getName()));
+        } else if (currentSubscriber instanceof FluxNotMatchSubscriber) {
+            sink = ((FluxNotMatchSubscriber) currentSubscriber).sink;
         } else {
-            throw createUnknownResultSubscriberTypeError(currentSubscriber);
+            throw createNonExpectedResultSubscriberTypeError(currentSubscriber);
         }
-        return internalDecodeMultiRowData(cumulateBuffer, sink);
-    }
-
-    /**
-     * must invoke in {@link io.netty.channel.EventLoop}
-     */
-    protected boolean internalDecodeMultiRowData(ByteBuf cumulateBuffer, RowSink sink) {
-        throw new UnsupportedOperationException();
+        return sink;
     }
 
 
     /**
      * must invoke in {@link io.netty.channel.EventLoop}
      *
-     * @see #setCurrentSubscriberRowMeta(ResultRowMeta)
-     * @see #decodeMultiRowData(ByteBuf)
+     * @see #nextQueryRowMeta(ResultRowMeta)
+     * @see #obtainCurrentRowSink()
      */
-    protected final void emitResultRowTerminator(ResultStates states, final boolean hasMore) {
+    public final void emitRowTerminator(ResultStates states, final boolean hasMore) {
         final ResultSubscriber currentSubscriber = Objects.requireNonNull(this.currentSubscriber, "currentSubscriber");
         if (currentSubscriber instanceof AccessErrorBufferSubscriber) {
             throw createTaskEndWithDatabaseAccessError((AccessErrorBufferSubscriber) this.currentSubscriber);
@@ -295,9 +257,8 @@ public abstract class AbstractSQLCommTask extends AbstractCommTask implements Re
         final boolean tooManyResultError = (++this.receiveResultCount) == this.expectedResultCount && hasMore;
 
         if (tooManyResultError) {
-            this.currentSubscriber = TOO_MANY_RESULT_ERROR_SUBSCRIBER; // don't accept subscribe again.
+            this.currentSubscriber = TooManyResultBufferSubscriber.INSTANCE; // don't accept subscribe again.
         }
-
         if (currentSubscriber instanceof FluxDownstreamSubscriber) {
             // publish to downstream
             final FluxDownstreamSubscriber downstreamSubscriber = (FluxDownstreamSubscriber) currentSubscriber;
@@ -338,13 +299,10 @@ public abstract class AbstractSQLCommTask extends AbstractCommTask implements Re
             } else {
                 downstreamSubscriber.sink.error(SubscriptionNotMatchException.expectQuery());
             }
-        } else if (currentSubscriber instanceof MonoBufferSubscriber) {
-            throw new IllegalStateException(String.format(
-                    "currentSubscriber type[%s] error,please check this.setCurrentSubscriberRowMeta(ResultRowMeta)."
-                    , currentSubscriber.getClass().getName()));
-        } else {
-            throw createUnknownResultSubscriberTypeError(currentSubscriber);
+        } else if (!(currentSubscriber instanceof FluxTooManyResultBufferSubscriber)) {
+            throw createNonExpectedResultSubscriberTypeError(currentSubscriber);
         }
+
     }
 
     /*################################## blow private method ##################################*/
@@ -387,7 +345,7 @@ public abstract class AbstractSQLCommTask extends AbstractCommTask implements Re
             } else if (subscriber instanceof FluxDownstreamSubscriber) {
                 ((FluxDownstreamSubscriber) subscriber).sink.error(e);
             } else {
-                throw createUnknownResultSubscriberTypeError(subscriber);
+                throw createNonExpectedResultSubscriberTypeError(subscriber);
             }
         } else if (buffer instanceof MonoBufferSubscriber && subscriber instanceof MonoDownstreamSubscriber) {
             ((MonoDownstreamSubscriber) subscriber).sink.success(((MonoBufferSubscriber) buffer).resultStates);
@@ -447,7 +405,7 @@ public abstract class AbstractSQLCommTask extends AbstractCommTask implements Re
         } else if (buffer instanceof MonoBufferSubscriber && subscriber instanceof FluxDownstreamSubscriber) {
             ((FluxDownstreamSubscriber) subscriber).sink.error(SubscriptionNotMatchException.expectUpdate());
         } else {
-            throw createUnknownResultSubscriberTypeError(subscriber);
+            throw createNonExpectedResultSubscriberTypeError(subscriber);
         }
     }
 
@@ -490,8 +448,8 @@ public abstract class AbstractSQLCommTask extends AbstractCommTask implements Re
             this.downstreamSubscriberQueue = queue;
             queue.add(downstreamSubscriber);
         }
-        if (this.getTaskPhase() == null) {
-            syncSubmit(sinkError);  // submit task
+        if (this.task.getTaskPhase() == null) {
+            this.task.syncSubmit(sinkError);  // submit task
         } else {
             publishHeapUpBufferIfNeed();
         }
@@ -499,8 +457,8 @@ public abstract class AbstractSQLCommTask extends AbstractCommTask implements Re
 
     private boolean subscribePermit(Consumer<Throwable> sink) {
         final ResultSubscriber currentSubscriber = this.currentSubscriber;
-        boolean permit;
-        if (getTaskPhase() == TaskPhase.END
+        final boolean permit;
+        if (this.task.getTaskPhase() == CommunicationTask.TaskPhase.END
                 && (this.bufferSubscriberQueue == null || this.bufferSubscriberQueue.isEmpty())) {
             sink.accept(new NoMoreResultException(String.format("%s no more result,cannot subscribe.", MultiResults.class.getName())));
             permit = false;
@@ -508,7 +466,7 @@ public abstract class AbstractSQLCommTask extends AbstractCommTask implements Re
             AccessErrorBufferSubscriber ae = (AccessErrorBufferSubscriber) currentSubscriber;
             sink.accept(new JdbdSQLException(ae.message, ae.accessError));
             permit = false;
-        } else if (currentSubscriber == TOO_MANY_RESULT_ERROR_SUBSCRIBER) {
+        } else if (currentSubscriber instanceof TooManyResultBufferSubscriber) {
             sink.accept(new TooManyResultException(this.expectedResultCount, this.receiveResultCount));
             permit = false;
         } else {
@@ -516,6 +474,9 @@ public abstract class AbstractSQLCommTask extends AbstractCommTask implements Re
         }
         return permit;
     }
+
+
+
 
 
     /*################################## blow private static method ##################################*/
@@ -532,7 +493,7 @@ public abstract class AbstractSQLCommTask extends AbstractCommTask implements Re
     }
 
 
-    private static IllegalStateException createUnknownResultSubscriberTypeError(ResultSubscriber subscriber) {
+    private static IllegalStateException createNonExpectedResultSubscriberTypeError(ResultSubscriber subscriber) {
         return new IllegalStateException(String.format("Unknown %s type[%s]"
                 , ResultSubscriber.class.getName(), subscriber.getClass().getName()));
     }
@@ -542,15 +503,43 @@ public abstract class AbstractSQLCommTask extends AbstractCommTask implements Re
 
     /*################################## blow protected  static class ##################################*/
 
-    protected interface RowSink {
 
-        boolean isCanceled();
-
-        void next(ResultRow resultRow);
-    }
 
 
     /*################################## blow private static inner class  ##################################*/
+
+    private static final class MultiResultsImpl implements MultiResults {
+
+        private final DefaultMultiResultsSink resultsSink;
+
+        private MultiResultsImpl(DefaultMultiResultsSink resultsSink) {
+            this.resultsSink = resultsSink;
+        }
+
+        @Override
+        public final Mono<ResultStates> nextUpdate() {
+            return Mono.create(sink -> {
+                if (this.resultsSink.task.executorAdjutant.inEventLoop()) {
+                    this.resultsSink.addMonoSubscriber(sink);
+                } else {
+                    this.resultsSink.task.executorAdjutant.execute(() -> this.resultsSink.addMonoSubscriber(sink));
+                }
+            });
+        }
+
+        @Override
+        public final <T> Flux<T> nextQuery(BiFunction<ResultRow, ResultRowMeta, T> rowDecoder
+                , Consumer<ResultStates> statesConsumer) {
+            return Flux.create(sink -> {
+                if (this.resultsSink.task.executorAdjutant.inEventLoop()) {
+                    this.resultsSink.addFluxSubscriber(sink, rowDecoder, statesConsumer);
+                } else {
+                    this.resultsSink.task.executorAdjutant.execute(
+                            () -> this.resultsSink.addFluxSubscriber(sink, rowDecoder, statesConsumer));
+                }
+            });
+        }
+    }
 
     private interface ResultSubscriber {
 
@@ -570,6 +559,7 @@ public abstract class AbstractSQLCommTask extends AbstractCommTask implements Re
         final SQLException accessError;
 
         final String message;
+
 
         AccessErrorBufferSubscriber(SQLException accessError, String message) {
             this.accessError = accessError;
@@ -623,6 +613,32 @@ public abstract class AbstractSQLCommTask extends AbstractCommTask implements Re
         private MonoBufferSubscriber(ResultStates resultStates) {
             this.resultStates = resultStates;
         }
+
+    }
+
+    private static class TooManyResultBufferSubscriber implements BufferSubscriber {
+        private static final TooManyResultBufferSubscriber INSTANCE = new TooManyResultBufferSubscriber();
+
+        private TooManyResultBufferSubscriber() {
+        }
+    }
+
+    private static final class FluxTooManyResultBufferSubscriber extends TooManyResultBufferSubscriber {
+
+        private final RowSink sink;
+
+        private FluxTooManyResultBufferSubscriber(ResultRowMeta rowMeta) {
+            this.sink = EmptyRowSink.create(rowMeta);
+        }
+    }
+
+    private static final class FluxNotMatchSubscriber implements BufferSubscriber {
+
+        private final RowSink sink;
+
+        private FluxNotMatchSubscriber(ResultRowMeta rowMeta) {
+            this.sink = EmptyRowSink.create(rowMeta);
+        }
     }
 
 
@@ -632,33 +648,55 @@ public abstract class AbstractSQLCommTask extends AbstractCommTask implements Re
 
         private final Queue<ResultRow> resultRowQueue = createQueue();
 
+        private final RowSink sink = new BufferRowSink(this);
+
         //non-volatile ,modify in netty EventLoop.
         private ResultStates resultStates;
 
         //non-volatile ,modify in netty EventLoop.
-        private Throwable accessError;
+        private SQLException accessError;
 
         private boolean tooManyResultError;
 
-        private final RowSink sink = new RowSink() {
-            @Override
-            public boolean isCanceled() {
-                return accessError != null;
-            }
-
-            @Override
-            public void next(ResultRow resultRow) {
-                if (accessError == null) {
-                    resultRowQueue.add(resultRow);
-                }
-
-            }
-        };
 
         private FluxBufferSubscriber(ResultRowMeta rowMeta) {
             this.rowMeta = rowMeta;
         }
     }
+
+
+    private static final class BufferRowSink implements RowSink {
+
+        private final FluxBufferSubscriber subscriber;
+
+        private BufferRowSink(FluxBufferSubscriber subscriber) {
+            this.subscriber = subscriber;
+        }
+
+        @Override
+        public void error(SQLException e) {
+            if (this.subscriber.accessError != null) {
+                throw new IllegalStateException("Access database error duplication.");
+            }
+            this.subscriber.accessError = e;
+        }
+
+        @Override
+        public ResultRowMeta getRowMeta() {
+            return this.subscriber.rowMeta;
+        }
+
+        @Override
+        public boolean isCanceled() {
+            return false;
+        }
+
+        @Override
+        public void next(ResultRow row) {
+            this.subscriber.resultRowQueue.add(row);
+        }
+    }
+
 
     private static final class DownstreamRowSink implements RowSink {
 
@@ -668,10 +706,17 @@ public abstract class AbstractSQLCommTask extends AbstractCommTask implements Re
         private boolean rowDecoderError;
 
         private DownstreamRowSink(FluxDownstreamSubscriber subscriber) {
-            if (subscriber.rowMeta == null) {
-                throw new IllegalArgumentException("FluxDownstreamSubscriber.rowMeta is null");
-            }
             this.subscriber = subscriber;
+        }
+
+        @Override
+        public void error(SQLException e) {
+            this.subscriber.sink.error(new JdbdSQLException("Access database occur error.", e));
+        }
+
+        @Override
+        public ResultRowMeta getRowMeta() {
+            return Objects.requireNonNull(this.subscriber.rowMeta, "this.subscriber.rowMeta");
         }
 
         @Override

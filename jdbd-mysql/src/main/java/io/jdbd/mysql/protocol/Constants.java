@@ -9,6 +9,7 @@ package io.jdbd.mysql.protocol;
  */
 public interface Constants {
 
+
     /**
      * Avoids allocation of empty byte[] when representing 0-length strings.
      */

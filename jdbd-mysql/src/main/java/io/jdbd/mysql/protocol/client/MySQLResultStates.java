@@ -1,17 +1,13 @@
 package io.jdbd.mysql.protocol.client;
 
-import io.jdbd.mysql.protocol.EofPacket;
-import io.jdbd.mysql.protocol.OkPacket;
-import io.jdbd.vendor.ReactorMultiResults;
+import io.jdbd.ResultStates;
+import io.jdbd.mysql.protocol.TerminatorPacket;
 
-public abstract class MySQLResultStates implements ReactorMultiResults {
+public abstract class MySQLResultStates implements ResultStates {
 
-    public static MySQLResultStates from(OkPacket okPacket) {
+    public static MySQLResultStates from(TerminatorPacket okPacket) {
         return null;
     }
 
-    public static MySQLResultStates from(EofPacket eofPacket) {
-        return null;
-    }
 
 }

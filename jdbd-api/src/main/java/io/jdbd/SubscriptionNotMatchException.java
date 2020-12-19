@@ -3,11 +3,15 @@ package io.jdbd;
 public final class SubscriptionNotMatchException extends JdbdNonSQLException {
 
     public static SubscriptionNotMatchException expectQuery() {
-        return new SubscriptionNotMatchException(SubscriptionType.QUERY, "expect subscribe nextQuery(),but nextUpdate.");
+        return new SubscriptionNotMatchException(SubscriptionType.QUERY, "expect subscribe nextQuery(),but not.");
     }
 
     public static SubscriptionNotMatchException expectUpdate() {
-        return new SubscriptionNotMatchException(SubscriptionType.UPDATE, "expect subscribe nextUpdate(),but nextQuery.");
+        return new SubscriptionNotMatchException(SubscriptionType.UPDATE, "expect subscribe nextUpdate(),but not.");
+    }
+
+    public static SubscriptionNotMatchException expectBatchUpdate() {
+        return new SubscriptionNotMatchException(SubscriptionType.BATCH_UPDATE, "expect subscribe batchUpdate(),but not.");
     }
 
     private final SubscriptionType expectedType;
@@ -23,6 +27,7 @@ public final class SubscriptionNotMatchException extends JdbdNonSQLException {
 
     public enum SubscriptionType {
         UPDATE,
-        QUERY
+        QUERY,
+        BATCH_UPDATE
     }
 }
