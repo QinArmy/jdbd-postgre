@@ -329,10 +329,10 @@ final class ClientConnectionProtocolImpl extends AbstractClientProtocol
         }
         final String autoCommitCommand = "SET autocommit = 0";
         final String isolationCommand = "SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED";
-        return commandUpdate(autoCommitCommand, EMPTY_STATE_CONSUMER)
+        return commandUpdate(autoCommitCommand)
                 .doOnSuccess(rows -> LOG.debug("Command [{}] execute success.", autoCommitCommand))
                 // blow 2 step
-                .then(Mono.defer(() -> commandUpdate(isolationCommand, EMPTY_STATE_CONSUMER)))
+                .then(Mono.defer(() -> commandUpdate(isolationCommand)))
                 .doOnSuccess(rows -> LOG.debug("Command [{}]  execute success.", isolationCommand))
                 .doOnSuccess(n -> this.connectionPhase.compareAndSet(INITIALIZING_PHASE, COMMAND_PHASE))
                 .then()
@@ -394,7 +394,7 @@ final class ClientConnectionProtocolImpl extends AbstractClientProtocol
         if (LOG.isDebugEnabled()) {
             LOG.debug("execute set session variables:{}", command);
         }
-        return commandUpdate(command, EMPTY_STATE_CONSUMER)
+        return commandUpdate(command)
                 .then()
                 ;
 
@@ -431,7 +431,7 @@ final class ClientConnectionProtocolImpl extends AbstractClientProtocol
         }
         // tow phase : SET NAMES and SET character_set_results = ?
         //below one phase SET NAMES
-        return commandUpdate(namesCommand, EMPTY_STATE_CONSUMER)
+        return commandUpdate(namesCommand)
                 .doOnSuccess(rows -> commandSetNamesSuccessEvent(clientCharset))
                 // below tow phase SET character_set_results = ?
                 .then(Mono.defer(this::configCharsetResults))
@@ -493,7 +493,7 @@ final class ClientConnectionProtocolImpl extends AbstractClientProtocol
                 if (LOG.isDebugEnabled()) {
                     LOG.debug("performant: {}", command);
                 }
-                mono = commandUpdate(command, EMPTY_STATE_CONSUMER)
+                mono = commandUpdate(command)
                         .then()
                 ;
             } catch (DateTimeException e) {
@@ -574,7 +574,7 @@ final class ClientConnectionProtocolImpl extends AbstractClientProtocol
         if (LOG.isDebugEnabled()) {
             LOG.debug("config charset result:{}", command);
         }
-        return commandUpdate(command, EMPTY_STATE_CONSUMER)
+        return commandUpdate(command)
                 .flatMap(rows -> overrideCharsetResults(charsetResults));
 
     }

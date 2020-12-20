@@ -49,7 +49,7 @@ public abstract class AbstractBatchUpdateTask extends AbstractCommunicationTask 
                     , BatchUpdateResults.class.getName())));
         } else if (currentSink == null) {
             this.sink = sink;
-            syncSubmit(sink::error);
+            submit(sink::error);
         } else {
             sink.error(new NoMoreResultException(String.format("%s have subscribed,cannot subscribe."
                     , BatchUpdateResults.class.getName())));

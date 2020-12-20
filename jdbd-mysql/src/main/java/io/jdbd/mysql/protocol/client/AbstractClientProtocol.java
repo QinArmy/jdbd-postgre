@@ -52,6 +52,11 @@ abstract class AbstractClientProtocol implements ClientProtocol, ClientProtocolA
     }
 
     @Override
+    public Flux<ResultStates> bathUpdate(List<String> commandList, int totalLength) {
+        return BatchUpdateTask.batchCommand(this.taskAdjutant, commandList, totalLength);
+    }
+
+    @Override
     public final Mono<Void> closeGracefully() {
         return QuitTask.quit(this.taskAdjutant);
     }

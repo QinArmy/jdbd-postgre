@@ -9,7 +9,7 @@ import java.sql.SQLException;
 
 public interface MultiResultsSink {
 
-    void error(SQLException e);
+    void error(Throwable e);
 
     void nextUpdate(ResultStates resultStates, boolean hasMore);
 

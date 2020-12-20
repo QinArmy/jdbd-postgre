@@ -3,7 +3,6 @@ package io.jdbd.mysql.protocol.client;
 import io.jdbd.ResultRowMeta;
 import io.jdbd.ResultStates;
 import io.jdbd.mysql.JdbdMySQLException;
-import io.jdbd.mysql.util.MySQLExceptionUtils;
 import io.jdbd.mysql.util.MySQLStringUtils;
 import io.jdbd.vendor.EmptyRowSink;
 import io.jdbd.vendor.MultiResultsSink;
@@ -12,7 +11,6 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.FluxSink;
 
 import java.nio.charset.Charset;
-import java.sql.SQLException;
 import java.util.List;
 import java.util.function.Function;
 
@@ -35,7 +33,7 @@ final class BatchUpdateTask extends AbstractComQueryTask {
             return byteBuf;
         };
         return Flux.create(sink -> new BatchUpdateTask(executorAdjutant, function, commandList.size(), sink)
-                .syncSubmit(sink::error));
+                .submit(sink::error));
     }
 
     private final FluxSink<ResultStates> sink;
@@ -52,8 +50,8 @@ final class BatchUpdateTask extends AbstractComQueryTask {
     /*################################## blow packet template method ##################################*/
 
     @Override
-    void emitErrorPacket(SQLException e) {
-        this.sink.error(MySQLExceptionUtils.wrapSQLExceptionIfNeed(e));
+    void emitError(Throwable e) {
+        this.sink.error(e);
     }
 
     @Override

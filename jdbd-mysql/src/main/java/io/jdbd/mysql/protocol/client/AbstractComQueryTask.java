@@ -1,8 +1,6 @@
 package io.jdbd.mysql.protocol.client;
 
-import io.jdbd.ResultRow;
-import io.jdbd.ResultRowMeta;
-import io.jdbd.ResultStates;
+import io.jdbd.*;
 import io.jdbd.mysql.protocol.*;
 import io.jdbd.mysql.protocol.conf.Properties;
 import io.jdbd.mysql.protocol.conf.PropertyKey;
@@ -17,7 +15,6 @@ import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.sql.SQLException;
 import java.util.Objects;
 import java.util.function.Function;
 
@@ -45,7 +42,7 @@ abstract class AbstractComQueryTask extends MySQLCommunicationTask {
 
     private Path bigRowPath;
 
-    private IOException tempFileError;
+    private Exception error;
 
 
     AbstractComQueryTask(MySQLTaskAdjutant taskAdjutant, Function<MySQLCommunicationTask, ByteBuf> bufFunction
@@ -106,21 +103,17 @@ abstract class AbstractComQueryTask extends MySQLCommunicationTask {
         } else {
             taskEnd = decodeOneResultSet(cumulateBuf);
         }
-        if (taskEnd && this.tempFileError != null) {
-            emitNonSQLError(this.tempFileError);
+        if (taskEnd && this.error != null) {
+            emitError(this.error);
         }
         return taskEnd;
     }
 
 
-
-
     /*################################## blow package template method ##################################*/
 
 
-    abstract void emitNonSQLError(Throwable e);
-
-    abstract void emitErrorPacket(SQLException e);
+    abstract void emitError(Throwable e);
 
     abstract void emitUpdateResult(ResultStates resultStates, boolean hasMore);
 
@@ -148,7 +141,7 @@ abstract class AbstractComQueryTask extends MySQLCommunicationTask {
                 ErrorPacket error;
                 error = ErrorPacket.readPacket(cumulateBuf.readSlice(payloadLength)
                         , this.negotiatedCapability, charsetResults);
-                emitErrorPacket(MySQLExceptionUtils.createSQLException(error)); //emit error packet
+                emitError(MySQLExceptionUtils.createSQLException(error)); //emit error packet
                 taskEnd = true;
             }
             break;
@@ -162,16 +155,18 @@ abstract class AbstractComQueryTask extends MySQLCommunicationTask {
                 taskEnd = emitSuccess(hasMore);
             }
             break;
-            case LOCAL_INFILE_REQUEST:
+            case LOCAL_INFILE_REQUEST: {
                 this.decoderType = DecoderType.LOCAL_INFILE;
                 sendLocalFile(cumulateBuf);
                 taskEnd = false;
-                break;
-            case TEXT_RESULT:
+            }
+            break;
+            case TEXT_RESULT: {
                 this.decoderType = DecoderType.TEXT_RESULT;
                 this.textResultDecodePhase = TextResultDecodePhase.META;
                 taskEnd = decodeTextResult(cumulateBuf);
-                break;
+            }
+            break;
             default:
                 throw MySQLExceptionUtils.createUnknownEnumException(response);
         }
@@ -201,12 +196,15 @@ abstract class AbstractComQueryTask extends MySQLCommunicationTask {
         boolean taskEnd = false;
         final TextResultDecodePhase phase = this.textResultDecodePhase;
         switch (phase) {
-            case META:
+            case META: {
                 MySQLColumnMeta[] columnMetas = readResultColumnMetas(cumulateBuffer);
                 if (columnMetas.length == 0) {
                     break;
                 }
-                emitCurrentQueryRowMeta(MySQLRowMeta.from(columnMetas, this.executorAdjutant.obtainCustomCollationMap()));
+                ResultRowMeta rowMeta = MySQLRowMeta.from(columnMetas, this.executorAdjutant.obtainCustomCollationMap());
+                if (emitCurrentQueryRowMeta(rowMeta) && this.error == null) {
+                    this.error = SubscriptionNotMatchException.expectBatchUpdate();
+                }
                 this.textResultDecodePhase = TextResultDecodePhase.ROWS;
                 if (!PacketUtils.hasOnePacket(cumulateBuffer)) {
                     break;
@@ -218,8 +216,9 @@ abstract class AbstractComQueryTask extends MySQLCommunicationTask {
                     break;
                 }
                 taskEnd = decodeRowTerminator(cumulateBuffer);
-                break;
-            case ROWS:
+            }
+            break;
+            case ROWS: {
                 // task end ,if read error packet
                 taskEnd = this.decodeMultiRowData(cumulateBuffer);
                 if (taskEnd
@@ -228,10 +227,12 @@ abstract class AbstractComQueryTask extends MySQLCommunicationTask {
                     break;
                 }
                 taskEnd = decodeRowTerminator(cumulateBuffer);
-                break;
-            case TERMINATOR:
+            }
+            break;
+            case TERMINATOR: {
                 taskEnd = decodeRowTerminator(cumulateBuffer);
-                break;
+            }
+            break;
             default:
                 throw MySQLExceptionUtils.createUnknownEnumException(phase);
         }
@@ -332,7 +333,7 @@ abstract class AbstractComQueryTask extends MySQLCommunicationTask {
                     ErrorPacket error;
                     error = ErrorPacket.readPacket(cumulateBuffer.readSlice(payloadLength)
                             , this.negotiatedCapability, charsetResults);
-                    emitErrorPacket(MySQLExceptionUtils.createSQLException(error));
+                    emitError(MySQLExceptionUtils.createSQLException(error));
                 }
                 return true; // occur error packet , communication task end.
                 case EofPacket.EOF_HEADER: {
@@ -475,7 +476,9 @@ abstract class AbstractComQueryTask extends MySQLCommunicationTask {
             }
         }
         if (payloadBuffer != null) {
-            sink.next(decodeOneRow(cumulateBuffer, (MySQLRowMeta) sink.getRowMeta())); // emit one row
+            if (!sink.isCanceled()) {
+                sink.next(decodeOneRow(cumulateBuffer, (MySQLRowMeta) sink.getRowMeta())); // emit one row
+            }
             payloadBuffer.release();
         }
         return sequenceId;
@@ -483,7 +486,7 @@ abstract class AbstractComQueryTask extends MySQLCommunicationTask {
 
     private int readBigRowToFile(ByteBuf cumulateBuffer, MultiResultsSink.RowSink sink, int sequenceId) {
         final Path bigRowFile = this.bigRowPath;
-        if (this.tempFileError != null) {
+        if (this.error != null) {
             return skipCurrentBigRow(cumulateBuffer, sequenceId);
         }
         final Path tempFile;
@@ -493,7 +496,7 @@ abstract class AbstractComQueryTask extends MySQLCommunicationTask {
                 sequenceId = -1;
                 this.bigRowPath = tempFile;
             } catch (IOException e) {
-                this.tempFileError = e;
+                this.error = new JdbdIoException("Cannot create temp file.", e);
                 this.bigRowPath = TEMP_DIRECTORY;
                 return skipCurrentBigRow(cumulateBuffer, -1);
             }
@@ -527,7 +530,7 @@ abstract class AbstractComQueryTask extends MySQLCommunicationTask {
                         cumulateBuffer.readBytes(output, payloadLength); //output to temp file.
                     } catch (IOException e) {
                         ioError = true;
-                        this.tempFileError = e;
+                        this.error = new BigRowIoException("Can't write bit row content.", e, tempFile);
                     }
                 }
                 if (payloadLength < ClientProtocol.MAX_PACKET_SIZE) {
@@ -539,13 +542,13 @@ abstract class AbstractComQueryTask extends MySQLCommunicationTask {
             if (payloadEnd) {
                 final Path bigRowPath = this.bigRowPath;
                 this.bigRowPath = null;
-                if (this.tempFileError == null) {
+                if (this.error == null) {
                     sink.next(MySQLResultRow.from(bigRowPath, (MySQLRowMeta) sink.getRowMeta(), this.executorAdjutant));
                 }
             }
         } catch (IOException e) {
             // open temp file failure
-            this.tempFileError = e;
+            this.error = new BigRowIoException("Can't open temp file.", e, tempFile);
             sequenceId = skipCurrentBigRow(cumulateBuffer, sequenceId);
         }
         return sequenceId;
@@ -699,7 +702,7 @@ abstract class AbstractComQueryTask extends MySQLCommunicationTask {
             case ErrorPacket.ERROR_HEADER: {
                 ErrorPacket error = ErrorPacket.readPacket(cumulateBuffer.readSlice(payloadLength)
                         , this.negotiatedCapability, this.executorAdjutant.obtainCharsetResults());
-                emitErrorPacket(MySQLExceptionUtils.createSQLException(error));
+                emitError(MySQLExceptionUtils.createSQLException(error));
                 taskEnd = true;
             }
             break;

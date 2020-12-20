@@ -65,17 +65,14 @@ public abstract class AbstractCommunicationTask implements CommunicationTask<Byt
 
     }
 
-    protected final void syncSubmit(Consumer<TaskQueueOverflowException> consumer) {
-        if (this.taskPhase != null) {
-            throw new IllegalStateException("Communication task have submitted.");
-        }
-        if (this.executorAdjutant.syncSubmitTask(this)) {
-            this.taskPhase = TaskPhase.SUBMITTED;
+    protected final void submit(Consumer<TaskQueueOverflowException> consumer) {
+        if (this.executorAdjutant.inEventLoop()) {
+            syncSubmitTask(consumer);
         } else {
-            consumer.accept(new TaskQueueOverflowException("Communication task queue overflow,cant' execute task."));
+            this.executorAdjutant.execute(() -> syncSubmitTask(consumer));
         }
-
     }
+
 
     protected void internalError(Throwable e) {
 
@@ -92,6 +89,20 @@ public abstract class AbstractCommunicationTask implements CommunicationTask<Byt
 
 
     /*################################## blow package static method ##################################*/
+
+    /*################################## blow private method ##################################*/
+
+
+    private void syncSubmitTask(Consumer<TaskQueueOverflowException> consumer) {
+        if (this.taskPhase != null) {
+            throw new IllegalStateException("Communication task have submitted.");
+        }
+        if (this.executorAdjutant.syncSubmitTask(this)) {
+            this.taskPhase = TaskPhase.SUBMITTED;
+        } else {
+            consumer.accept(new TaskQueueOverflowException("Communication task queue overflow,cant' execute task."));
+        }
+    }
 
 
 }

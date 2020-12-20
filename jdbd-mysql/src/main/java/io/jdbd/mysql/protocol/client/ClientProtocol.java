@@ -54,6 +54,7 @@ public interface ClientProtocol {
 
     BiFunction<ResultRow, ResultRowMeta, ResultRow> ORIGINAL_ROW_DECODER = (resultRow, resultRowMeta) -> resultRow;
 
+
     MultiResults commands(List<String> commandList);
 
 
@@ -62,6 +63,7 @@ public interface ClientProtocol {
      */
     Mono<ResultStates> commandUpdate(String command);
 
+    Flux<ResultStates> bathUpdate(List<String> commandList, int totalLength);
 
     /**
      * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_com_query.html">Protocol::COM_QUERY</a>

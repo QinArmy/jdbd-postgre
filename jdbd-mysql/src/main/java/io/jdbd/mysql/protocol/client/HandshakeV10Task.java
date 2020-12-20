@@ -14,9 +14,8 @@ final class HandshakeV10Task extends MySQLConnectionTask {
     static Mono<HandshakeV10Packet> receive(MySQLTaskAdjutant executorAdjutant) {
         return Mono.create(sink ->
                 new HandshakeV10Task(executorAdjutant, sink)
-                        .syncSubmit()
-                        .doOnError(e -> sink.error(MySQLExceptionUtils.wrapJdbdExceptionIfNeed(e)))
-                        .subscribe()
+                        .submit(sink::error)
+
         );
     }
 

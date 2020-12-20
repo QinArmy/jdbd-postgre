@@ -1,6 +1,5 @@
 package io.jdbd.mysql.protocol.client;
 
-import io.jdbd.mysql.util.MySQLExceptionUtils;
 import io.netty.buffer.ByteBuf;
 import reactor.core.publisher.Mono;
 import reactor.core.publisher.MonoSink;
@@ -10,9 +9,8 @@ final class SSLNegotiateTask extends AbstractAuthenticateTask {
     static Mono<Void> sslNegotiate(MySQLTaskAdjutant executorAdjutant) {
         return Mono.create(sink ->
                 new SSLNegotiateTask(executorAdjutant, sink)
-                        .syncSubmit()
-                        .doOnError(e -> sink.error(MySQLExceptionUtils.wrapJdbdExceptionIfNeed(e)))
-                        .subscribe()
+                        .submit(sink::error)
+
         );
     }
 

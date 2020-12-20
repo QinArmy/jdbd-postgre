@@ -8,7 +8,6 @@ import io.jdbd.vendor.DefaultMultiResultsSink;
 import io.jdbd.vendor.MultiResultsSink;
 import io.netty.buffer.ByteBuf;
 
-import java.sql.SQLException;
 import java.util.List;
 import java.util.function.Function;
 
@@ -46,12 +45,7 @@ final class ComQueryTask extends AbstractComQueryTask {
     /*################################## blow package template method ##################################*/
 
     @Override
-    void emitNonSQLError(Throwable e) {
-
-    }
-
-    @Override
-    void emitErrorPacket(SQLException e) {
+    void emitError(Throwable e) {
         this.resultsSink.error(e);
     }
 

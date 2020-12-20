@@ -32,10 +32,7 @@ abstract class MySQLConnectionTask extends AbstractCommunicationTask implements 
         return sequenceId;
     }
 
-    @Override
-    public void error(Throwable e) {
 
-    }
 
     final int getSequenceId() {
         return this.sequenceId;

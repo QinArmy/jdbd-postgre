@@ -26,7 +26,7 @@ final class AuthenticateTask extends AbstractAuthenticateTask implements Authent
     static Mono<Void> authenticate(MySQLTaskAdjutant executorAdjutant) {
         return Mono.create(sink ->
                 new AuthenticateTask(executorAdjutant, sink)
-                        .syncSubmit(sink::error)
+                        .submit(sink::error)
 
         );
     }

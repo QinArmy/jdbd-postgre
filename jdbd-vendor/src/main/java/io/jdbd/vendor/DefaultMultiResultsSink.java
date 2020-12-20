@@ -1,6 +1,7 @@
 package io.jdbd.vendor;
 
 import io.jdbd.*;
+import io.jdbd.lang.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import reactor.core.publisher.Flux;
@@ -65,7 +66,7 @@ public final class DefaultMultiResultsSink implements MultiResultsSink {
      * <p>
      *     <ol>
      *         <li>if {@link #currentSubscriber} is {@link DownstreamSubscriber},emit {@link JdbdSQLException} to downstream</li>
-     *         <li>set {@link #currentSubscriber} as {@link AccessErrorBufferSubscriber},and don't update again</li>
+     *         <li>set {@link #currentSubscriber} as {@link AccessExceptionBufferSubscriber},and don't update again</li>
      *     </ol>
      * </p>
      * <p>
@@ -73,33 +74,33 @@ public final class DefaultMultiResultsSink implements MultiResultsSink {
      * </p>
      *
      * @param e database return exception
-     * @throws IllegalStateException throw when {@link #currentSubscriber} is {@link AccessErrorBufferSubscriber}.
-     * @see AccessErrorBufferSubscriber
+     * @throws IllegalStateException throw when {@link #currentSubscriber} is {@link AccessExceptionBufferSubscriber}.
+     * @see AccessExceptionBufferSubscriber
      */
-    public final void error(SQLException e) {
+    public final void error(Throwable e) {
         final ResultSubscriber currentSubscriber = this.currentSubscriber;
 
-        final AccessErrorBufferSubscriber ae;
+        final AccessExceptionBufferSubscriber ae;
         if (currentSubscriber instanceof TooManyResultBufferSubscriber) {
             String tooManyMessage = buildTooManyMessageWhenAccessError();
-            // 1. firstly, set currentSubscriber to AccessErrorBufferSubscriber, avoid to downstream update currentSubscriber
-            ae = new AccessErrorBufferSubscriber(e, tooManyMessage);
+            // 1. firstly, set currentSubscriber to AccessExceptionBufferSubscriber, avoid to downstream update currentSubscriber
+            ae = new AccessExceptionBufferSubscriber(e, tooManyMessage);
             this.currentSubscriber = ae;
 
             // 2. bow handle currentSubscriber
             final DownstreamSubscriber pendingSubscriber = this.pendingSubscriber;
             if (pendingSubscriber instanceof FluxDownstreamSubscriber) {
                 this.pendingSubscriber = null;
-                ((FluxDownstreamSubscriber) pendingSubscriber).sink.error(new JdbdSQLException(tooManyMessage, e));
+                ((FluxDownstreamSubscriber) pendingSubscriber).sink.error(convertError(e, tooManyMessage));
             } else if (pendingSubscriber instanceof MonoDownstreamSubscriber) {
                 this.pendingSubscriber = null;
-                ((MonoDownstreamSubscriber) pendingSubscriber).sink.error(new JdbdSQLException(tooManyMessage, e));
+                ((MonoDownstreamSubscriber) pendingSubscriber).sink.error(convertError(e, tooManyMessage));
             } else if (pendingSubscriber != null) {
                 throw createNonExpectedResultSubscriberTypeError(pendingSubscriber);
             }
         } else {
-            // 1. firstly, set currentSubscriber to AccessErrorBufferSubscriber, avoid to downstream update currentSubscriber
-            ae = new AccessErrorBufferSubscriber(e);
+            // 1. firstly, set currentSubscriber to AccessExceptionBufferSubscriber, avoid to downstream update currentSubscriber
+            ae = new AccessExceptionBufferSubscriber(e);
             this.currentSubscriber = ae;
 
             // 2. bow handle currentSubscriber
@@ -107,13 +108,13 @@ public final class DefaultMultiResultsSink implements MultiResultsSink {
                 if (LOG.isDebugEnabled()) {
                     LOG.debug("emit access error,currentSubscriber is null.");
                 }
-            } else if (currentSubscriber instanceof AccessErrorBufferSubscriber) {
+            } else if (currentSubscriber instanceof AccessExceptionBufferSubscriber) {
                 throw new IllegalStateException(String.format("currentSubscriber is %s ,access error duplication."
-                        , AccessErrorBufferSubscriber.class.getName()));
+                        , AccessExceptionBufferSubscriber.class.getName()));
             } else if (currentSubscriber instanceof FluxDownstreamSubscriber) {
-                ((FluxDownstreamSubscriber) currentSubscriber).sink.error(new JdbdSQLException(e));
+                ((FluxDownstreamSubscriber) currentSubscriber).sink.error(convertError(e, null));
             } else if (currentSubscriber instanceof MonoDownstreamSubscriber) {
-                ((MonoDownstreamSubscriber) currentSubscriber).sink.error(new JdbdSQLException(e));
+                ((MonoDownstreamSubscriber) currentSubscriber).sink.error(convertError(e, null));
             } else if (currentSubscriber instanceof FluxBufferSubscriber) {
                 ((FluxBufferSubscriber) currentSubscriber).resultRowQueue.clear();
             } else {
@@ -122,15 +123,15 @@ public final class DefaultMultiResultsSink implements MultiResultsSink {
 
         }
 
-        // 3. emit AccessErrorBufferSubscriber to downstream .
+        // 3. emit AccessExceptionBufferSubscriber to downstream .
         final Queue<DownstreamSubscriber> subscriberQueue = this.downstreamSubscriberQueue;
         if (subscriberQueue != null && !subscriberQueue.isEmpty()) {
             DownstreamSubscriber downstreamSubscriber;
             while ((downstreamSubscriber = subscriberQueue.poll()) != null) {
                 if (downstreamSubscriber instanceof FluxDownstreamSubscriber) {
-                    ((FluxDownstreamSubscriber) downstreamSubscriber).sink.error(new JdbdSQLException(ae.message, ae.accessError));
+                    ((FluxDownstreamSubscriber) downstreamSubscriber).sink.error(convertError(ae.accessError, ae.message));
                 } else if (downstreamSubscriber instanceof MonoDownstreamSubscriber) {
-                    ((MonoDownstreamSubscriber) downstreamSubscriber).sink.error(new JdbdSQLException(ae.message, ae.accessError));
+                    ((MonoDownstreamSubscriber) downstreamSubscriber).sink.error(convertError(ae.accessError, ae.message));
                 } else {
                     throw createNonExpectedResultSubscriberTypeError(downstreamSubscriber);
                 }
@@ -143,8 +144,8 @@ public final class DefaultMultiResultsSink implements MultiResultsSink {
 
     public final void nextUpdate(ResultStates resultStates, final boolean hasMore) {
         final ResultSubscriber currentSubscriber = this.currentSubscriber;
-        if (currentSubscriber instanceof AccessErrorBufferSubscriber) {
-            throw createTaskEndWithDatabaseAccessError((AccessErrorBufferSubscriber) currentSubscriber);
+        if (currentSubscriber instanceof AccessExceptionBufferSubscriber) {
+            throw createTaskEndWithDatabaseAccessError((AccessExceptionBufferSubscriber) currentSubscriber);
         }
         this.currentSubscriber = null;
         this.receiveResultCount++;
@@ -195,8 +196,8 @@ public final class DefaultMultiResultsSink implements MultiResultsSink {
         final ResultSubscriber currentSubscriber = this.currentSubscriber;
         if (currentSubscriber == null) {
             this.currentSubscriber = new FluxBufferSubscriber(rowMeta);
-        } else if (currentSubscriber instanceof AccessErrorBufferSubscriber) {
-            throw createTaskEndWithDatabaseAccessError((AccessErrorBufferSubscriber) currentSubscriber);
+        } else if (currentSubscriber instanceof AccessExceptionBufferSubscriber) {
+            throw createTaskEndWithDatabaseAccessError((AccessExceptionBufferSubscriber) currentSubscriber);
         } else if (currentSubscriber instanceof TooManyResultBufferSubscriber) {
             this.currentSubscriber = new FluxTooManyResultBufferSubscriber(rowMeta);
         } else if (currentSubscriber instanceof FluxDownstreamSubscriber) {
@@ -225,8 +226,8 @@ public final class DefaultMultiResultsSink implements MultiResultsSink {
     public final MultiResultsSink.RowSink obtainCurrentRowSink() {
         final ResultSubscriber currentSubscriber = Objects.requireNonNull(this.currentSubscriber, "currentSubscriber");
         final RowSink sink;
-        if (currentSubscriber instanceof AccessErrorBufferSubscriber) {
-            throw createTaskEndWithDatabaseAccessError((AccessErrorBufferSubscriber) currentSubscriber);
+        if (currentSubscriber instanceof AccessExceptionBufferSubscriber) {
+            throw createTaskEndWithDatabaseAccessError((AccessExceptionBufferSubscriber) currentSubscriber);
         } else if (currentSubscriber instanceof FluxDownstreamSubscriber) {
             sink = ((FluxDownstreamSubscriber) currentSubscriber).rowSink;
         } else if (currentSubscriber instanceof FluxTooManyResultBufferSubscriber) {
@@ -250,8 +251,8 @@ public final class DefaultMultiResultsSink implements MultiResultsSink {
      */
     public final void emitRowTerminator(ResultStates states, final boolean hasMore) {
         final ResultSubscriber currentSubscriber = Objects.requireNonNull(this.currentSubscriber, "currentSubscriber");
-        if (currentSubscriber instanceof AccessErrorBufferSubscriber) {
-            throw createTaskEndWithDatabaseAccessError((AccessErrorBufferSubscriber) this.currentSubscriber);
+        if (currentSubscriber instanceof AccessExceptionBufferSubscriber) {
+            throw createTaskEndWithDatabaseAccessError((AccessExceptionBufferSubscriber) this.currentSubscriber);
         }
         this.currentSubscriber = null; // clear for downstream
         final boolean tooManyResultError = (++this.receiveResultCount) == this.expectedResultCount && hasMore;
@@ -337,9 +338,9 @@ public final class DefaultMultiResultsSink implements MultiResultsSink {
 
 
     private void publishBuffer(BufferSubscriber buffer, DownstreamSubscriber subscriber) {
-        if (buffer instanceof AccessErrorBufferSubscriber) {
-            AccessErrorBufferSubscriber aes = ((AccessErrorBufferSubscriber) buffer);
-            JdbdSQLException e = new JdbdSQLException(aes.message, aes.accessError);
+        if (buffer instanceof AccessExceptionBufferSubscriber) {
+            AccessExceptionBufferSubscriber aes = ((AccessExceptionBufferSubscriber) buffer);
+            Throwable e = convertError(aes.accessError, aes.message);
             if (subscriber instanceof MonoDownstreamSubscriber) {
                 ((MonoDownstreamSubscriber) subscriber).sink.error(e);
             } else if (subscriber instanceof FluxDownstreamSubscriber) {
@@ -449,7 +450,7 @@ public final class DefaultMultiResultsSink implements MultiResultsSink {
             queue.add(downstreamSubscriber);
         }
         if (this.task.getTaskPhase() == null) {
-            this.task.syncSubmit(sinkError);  // submit task
+            this.task.submit(sinkError);  // submit task
         } else {
             publishHeapUpBufferIfNeed();
         }
@@ -462,9 +463,9 @@ public final class DefaultMultiResultsSink implements MultiResultsSink {
                 && (this.bufferSubscriberQueue == null || this.bufferSubscriberQueue.isEmpty())) {
             sink.accept(new NoMoreResultException(String.format("%s no more result,cannot subscribe.", MultiResults.class.getName())));
             permit = false;
-        } else if (currentSubscriber instanceof AccessErrorBufferSubscriber) {
-            AccessErrorBufferSubscriber ae = (AccessErrorBufferSubscriber) currentSubscriber;
-            sink.accept(new JdbdSQLException(ae.message, ae.accessError));
+        } else if (currentSubscriber instanceof AccessExceptionBufferSubscriber) {
+            AccessExceptionBufferSubscriber ae = (AccessExceptionBufferSubscriber) currentSubscriber;
+            sink.accept(convertError(ae.accessError, ae.message));
             permit = false;
         } else if (currentSubscriber instanceof TooManyResultBufferSubscriber) {
             sink.accept(new TooManyResultException(this.expectedResultCount, this.receiveResultCount));
@@ -475,7 +476,27 @@ public final class DefaultMultiResultsSink implements MultiResultsSink {
         return permit;
     }
 
-
+    private Throwable convertError(Throwable e, @Nullable String message) {
+        Throwable ex;
+        if (e instanceof JdbdSQLException) {
+            ex = e;
+        } else if (e instanceof SQLException) {
+            if (message == null) {
+                ex = new JdbdSQLException((SQLException) e);
+            } else {
+                ex = new JdbdSQLException(message, (SQLException) e);
+            }
+        } else {
+            if (message == null) {
+                ex = new JdbdNonSQLException(e.getMessage(), e) {
+                };
+            } else {
+                ex = new JdbdNonSQLException(message, e) {
+                };
+            }
+        }
+        return ex;
+    }
 
 
 
@@ -485,7 +506,7 @@ public final class DefaultMultiResultsSink implements MultiResultsSink {
         return new LinkedList<>();
     }
 
-    private static IllegalStateException createTaskEndWithDatabaseAccessError(AccessErrorBufferSubscriber error) {
+    private static IllegalStateException createTaskEndWithDatabaseAccessError(AccessExceptionBufferSubscriber error) {
         String m = String.format("%s have ended with database access error :%s."
                 , CommunicationTask.class.getName()
                 , error.accessError.getMessage());
@@ -554,19 +575,19 @@ public final class DefaultMultiResultsSink implements MultiResultsSink {
 
     }
 
-    private static class AccessErrorBufferSubscriber implements BufferSubscriber {
+    private static class AccessExceptionBufferSubscriber implements BufferSubscriber {
 
-        final SQLException accessError;
+        final Throwable accessError;
 
         final String message;
 
 
-        AccessErrorBufferSubscriber(SQLException accessError, String message) {
+        AccessExceptionBufferSubscriber(Throwable accessError, String message) {
             this.accessError = accessError;
             this.message = message;
         }
 
-        AccessErrorBufferSubscriber(SQLException accessError) {
+        AccessExceptionBufferSubscriber(Throwable accessError) {
             this.accessError = accessError;
             this.message = "Database access error.";
         }
