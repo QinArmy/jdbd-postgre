@@ -313,7 +313,7 @@ abstract class AbstractComQueryTask extends MySQLCommunicationTask {
         final MultiResultsSink.RowSink sink = obtainCurrentRowSink();
         final boolean clientDeprecateEof = (this.negotiatedCapability & ClientProtocol.CLIENT_DEPRECATE_EOF) != 0;
         boolean rowPhaseEnd = false;
-        int sequenceId = -1;
+        int sequenceId = obtainSequenceId();
         out:
         for (int readableBytes, payloadLength, packetStartIndex; ; ) {
             readableBytes = cumulateBuffer.readableBytes();

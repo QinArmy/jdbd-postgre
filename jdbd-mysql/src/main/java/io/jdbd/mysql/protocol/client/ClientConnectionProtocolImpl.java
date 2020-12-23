@@ -116,6 +116,11 @@ final class ClientConnectionProtocolImpl extends AbstractClientProtocol
                 ;
     }
 
+    @Override
+    public Mono<Void> closeGracefully() {
+        return Mono.empty();
+    }
+
     /*################################## blow ClientProtocolAdjutant method ##################################*/
 
     @Override
@@ -511,8 +516,8 @@ final class ClientConnectionProtocolImpl extends AbstractClientProtocol
      */
     private Mono<Void> retrieveAndConvertDatabaseTimeZone() {
         final long utcEpochSecond = OffsetDateTime.now(ZoneOffset.UTC).toEpochSecond();
-        String command = String.format("SELECT @@SESSION.time_zone as timeZone,from_unixtime(%s) as databaseNow"
-                , utcEpochSecond);
+        String command = String.format("SELECT @@SESSION.time_zone as timeZone,DATE_FORMAT(FROM_UNIXTIME(%s),'%s') as databaseNow"
+                , utcEpochSecond, "%Y-%m-%d %T");
         return commandQuery(command, ORIGINAL_ROW_DECODER, EMPTY_STATE_CONSUMER)
                 .elementAt(0)
                 .flatMap(resultRow -> handleDatabaseTimeZone(resultRow, utcEpochSecond))

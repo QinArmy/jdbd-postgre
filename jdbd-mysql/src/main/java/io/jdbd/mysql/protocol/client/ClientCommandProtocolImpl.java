@@ -58,6 +58,11 @@ public final class ClientCommandProtocolImpl extends AbstractClientProtocol impl
         this.zoneOffsetDatabase = cp.obtainZoneOffsetDatabase();
     }
 
+    @Override
+    public Mono<Void> closeGracefully() {
+        return QuitTask.quit(this.taskAdjutant);
+    }
+
     /*################################## blow ClientProtocolAdjutant method ##################################*/
 
 
@@ -115,7 +120,6 @@ public final class ClientCommandProtocolImpl extends AbstractClientProtocol impl
     public HandshakeV10Packet obtainHandshakeV10Packet() {
         return this.handshakeV10Packet;
     }
-
 
     /*################################## blow private method ##################################*/
 

@@ -26,6 +26,7 @@ import java.time.ZoneOffset;
 import java.util.Map;
 import java.util.Queue;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Consumer;
 
 final class DefaultCommTaskExecutor implements MySQLCommTaskExecutor, CoreSubscriber<ByteBuf> {
 
@@ -214,6 +215,7 @@ final class DefaultCommTaskExecutor implements MySQLCommTaskExecutor, CoreSubscr
             if (!cumulateBuffer.isReadable()) {
                 break;
             }
+
             if (currentTask.decode(cumulateBuffer)) {
                 this.currentTask = null; // current task end.
                 if (!startHeadIfNeed()) {  // start next task
@@ -297,51 +299,21 @@ final class DefaultCommTaskExecutor implements MySQLCommTaskExecutor, CoreSubscr
         }
     }
 
-    private Mono<Void> pushTask(MySQLTask task) {
-        Mono<Void> mono;
-        if (this.eventLoop.inEventLoop()) {
-            if (!this.connection.channel().isActive()) {
-                mono = Mono.error(createChannelCloseError());
-            } else if (this.taskQueue.offer(task)) {
-                if (startHeadIfNeed()) {
-                    drainToTask();
-                }
-                mono = Mono.empty();
-            } else {
-                mono = Mono.error(createQueueOverflow());
-            }
-        } else {
-            mono = Mono.create(sink -> this.eventLoop.execute(() -> {
-                if (!this.connection.channel().isActive()) {
-                    sink.error(createChannelCloseError());
-                } else if (this.taskQueue.offer(task)) {
-                    sink.success();
-                    if (startHeadIfNeed()) {
-                        drainToTask();
-                    }
-                } else {
-                    sink.error(createQueueOverflow());
-                }
-            }));
-        }
 
-        return mono;
-    }
-
-    private boolean syncPushTask(MySQLTask task) throws JdbdMySQLException {
+    private void syncPushTask(MySQLTask task, Consumer<Boolean> offerCall) throws JdbdMySQLException {
         if (!this.eventLoop.inEventLoop()) {
             throw new JdbdMySQLException("Current thread not in EventLoop.");
         }
         if (!this.connection.channel().isActive()) {
             throw new JdbdMySQLException("Cannot summit CommunicationTask because TCP connection closed.");
         }
-        boolean success = this.taskQueue.offer(task);
-        if (success) {
-            if (startHeadIfNeed()) {
-                drainToTask();
-            }
+        if (this.taskQueue.offer(task)) {
+            offerCall.accept(Boolean.TRUE);
+            startHeadIfNeed();
+            drainToTask();
+        } else {
+            offerCall.accept(Boolean.FALSE);
         }
-        return success;
     }
 
 
@@ -420,6 +392,7 @@ final class DefaultCommTaskExecutor implements MySQLCommTaskExecutor, CoreSubscr
             return this.adjutant.obtainHostInfo();
         }
 
+
         @Override
         public ZoneOffset obtainZoneOffsetClient() {
             return this.adjutant.obtainZoneOffsetClient();
@@ -431,8 +404,8 @@ final class DefaultCommTaskExecutor implements MySQLCommTaskExecutor, CoreSubscr
         }
 
         @Override
-        public boolean syncSubmitTask(CommunicationTask<?> task) throws IllegalStateException {
-            return DefaultCommTaskExecutor.this.syncPushTask((MySQLTask) task);
+        public void syncSubmitTask(CommunicationTask<?> task, Consumer<Boolean> offerCall) throws JdbdMySQLException {
+            DefaultCommTaskExecutor.this.syncPushTask((MySQLTask) task, offerCall);
         }
 
         @Override

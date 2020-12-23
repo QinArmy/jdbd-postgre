@@ -438,7 +438,7 @@ public final class DefaultMultiResultsSink implements MultiResultsSink {
     }
 
     private void addDownstreamSubscriber(DownstreamSubscriber downstreamSubscriber
-            , Consumer<TaskQueueOverflowException> sinkError) {
+            , Consumer<Throwable> sinkError) {
         Queue<DownstreamSubscriber> queue = this.downstreamSubscriberQueue;
         if (queue != null) {
             queue.add(downstreamSubscriber);

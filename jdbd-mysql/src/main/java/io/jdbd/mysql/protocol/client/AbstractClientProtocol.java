@@ -57,11 +57,6 @@ abstract class AbstractClientProtocol implements ClientProtocol, ClientProtocolA
     }
 
     @Override
-    public final Mono<Void> closeGracefully() {
-        return QuitTask.quit(this.taskAdjutant);
-    }
-
-    @Override
     public final HostInfo obtainHostInfo() {
         return this.hostInfo;
     }

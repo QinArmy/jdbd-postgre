@@ -1,5 +1,6 @@
 package io.jdbd.vendor;
 
+import io.jdbd.JdbdNonSQLException;
 import io.jdbd.TaskQueueOverflowException;
 import io.jdbd.lang.Nullable;
 import io.netty.buffer.ByteBuf;
@@ -65,7 +66,7 @@ public abstract class AbstractCommunicationTask implements CommunicationTask<Byt
 
     }
 
-    protected final void submit(Consumer<TaskQueueOverflowException> consumer) {
+    protected final void submit(Consumer<Throwable> consumer) {
         if (this.executorAdjutant.inEventLoop()) {
             syncSubmitTask(consumer);
         } else {
@@ -93,15 +94,22 @@ public abstract class AbstractCommunicationTask implements CommunicationTask<Byt
     /*################################## blow private method ##################################*/
 
 
-    private void syncSubmitTask(Consumer<TaskQueueOverflowException> consumer) {
+    private void syncSubmitTask(Consumer<Throwable> consumer) {
         if (this.taskPhase != null) {
             throw new IllegalStateException("Communication task have submitted.");
         }
-        if (this.executorAdjutant.syncSubmitTask(this)) {
-            this.taskPhase = TaskPhase.SUBMITTED;
-        } else {
-            consumer.accept(new TaskQueueOverflowException("Communication task queue overflow,cant' execute task."));
+        try {
+            this.executorAdjutant.syncSubmitTask(this, success -> {
+                if (success) {
+                    this.taskPhase = TaskPhase.SUBMITTED;
+                } else {
+                    consumer.accept(new TaskQueueOverflowException("Communication task queue overflow,cant' execute task."));
+                }
+            });
+        } catch (JdbdNonSQLException e) {
+            consumer.accept(e);
         }
+
     }
 
 

@@ -3,6 +3,8 @@ package io.jdbd.mysql.protocol.client;
 import io.jdbd.mysql.protocol.ErrorPacket;
 import io.jdbd.mysql.util.MySQLExceptionUtils;
 import io.netty.buffer.ByteBuf;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import reactor.core.publisher.Mono;
 import reactor.core.publisher.MonoSink;
 
@@ -19,6 +21,8 @@ final class HandshakeV10Task extends MySQLConnectionTask {
         );
     }
 
+    private static final Logger LOG = LoggerFactory.getLogger(HandshakeV10Task.class);
+
     private final MonoSink<HandshakeV10Packet> sink;
 
     private HandshakeV10Task(MySQLTaskAdjutant executorAdjutant, MonoSink<HandshakeV10Packet> sink) {
@@ -28,6 +32,7 @@ final class HandshakeV10Task extends MySQLConnectionTask {
 
     @Override
     protected ByteBuf internalStart() {
+        LOG.debug("Handshake receive task start");
         // no data send
         return null;
     }
