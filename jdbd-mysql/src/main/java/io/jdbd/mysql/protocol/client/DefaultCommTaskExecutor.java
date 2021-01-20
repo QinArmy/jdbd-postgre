@@ -11,6 +11,7 @@ import io.netty.buffer.ByteBufAllocator;
 import io.netty.channel.EventLoop;
 import io.netty.channel.EventLoopGroup;
 import io.netty.handler.codec.ByteToMessageDecoder;
+import org.reactivestreams.Publisher;
 import org.reactivestreams.Subscription;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -21,7 +22,6 @@ import reactor.netty.tcp.TcpClient;
 import reactor.util.concurrent.Queues;
 
 import java.nio.charset.Charset;
-import java.nio.file.Path;
 import java.time.ZoneOffset;
 import java.util.Map;
 import java.util.Queue;
@@ -86,6 +86,8 @@ final class DefaultCommTaskExecutor implements MySQLCommTaskExecutor, CoreSubscr
     private Subscription upstream;
 
     private MySQLTask currentTask;
+
+    private int serverStatus;
 
     private DefaultCommTaskExecutor(Connection connection) {
         this.connection = connection;
@@ -216,26 +218,26 @@ final class DefaultCommTaskExecutor implements MySQLCommTaskExecutor, CoreSubscr
                 break;
             }
 
-            if (currentTask.decode(cumulateBuffer)) {
+            if (currentTask.decode(cumulateBuffer, this::updateServerStatus)) {
                 this.currentTask = null; // current task end.
                 if (!startHeadIfNeed()) {  // start next task
                     break;
                 }
             } else {
-                ByteBuf packetBuf;
-                while ((packetBuf = currentTask.moreSendPacket()) != null) {
+                Publisher<ByteBuf> bufPublisher = currentTask.moreSendPacket();
+                if (bufPublisher != null) {
                     // send packet
-                    sendPacket(currentTask, packetBuf);
-                }
-                Path path;
-                while ((path = currentTask.moreSendFile()) != null) {
-                    sendFile(path);
+                    sendPacket(currentTask, bufPublisher);
                 }
                 break;
             }
         }
 
 
+    }
+
+    private void updateServerStatus(Object serversStatus) {
+        this.serverStatus = (Integer) serversStatus;
     }
 
     /**
@@ -256,10 +258,10 @@ final class DefaultCommTaskExecutor implements MySQLCommTaskExecutor, CoreSubscr
                 continue;
             }
             this.currentTask = currentTask;
-            ByteBuf packetBuf = currentTask.start();
-            if (packetBuf != null) {
+            Publisher<ByteBuf> bufPublisher = currentTask.start();
+            if (bufPublisher != null) {
                 // send packet
-                sendPacket(currentTask, packetBuf);
+                sendPacket(currentTask, bufPublisher);
             } else {
                 this.upstream.request(128L);
                 needDecode = true;
@@ -269,20 +271,16 @@ final class DefaultCommTaskExecutor implements MySQLCommTaskExecutor, CoreSubscr
         return needDecode;
     }
 
-    private void sendPacket(MySQLTask headTask, ByteBuf packetBuf) {
-        Mono.from(this.connection.outbound()
-                .send(Mono.just(packetBuf)))
+    private void sendPacket(MySQLTask headTask, Publisher<ByteBuf> bufPublisher) {
+        Mono.from(this.connection.outbound().send(bufPublisher))
                 .doOnError(e -> removeTaskOnStartFailure(headTask, e))
                 .subscribe(v -> this.upstream.request(Long.MAX_VALUE))
         ;
     }
 
-    private void sendFile(Path path) {
-        // TODO finish
-    }
 
     /**
-     * @see #sendPacket(MySQLTask, ByteBuf)
+     * @see #sendPacket(MySQLTask, Publisher)
      */
     private void removeTaskOnStartFailure(MySQLTask headTask, Throwable e) {
         headTask.error(MySQLExceptionUtils.wrapSQLExceptionIfNeed(e)); // emit error
@@ -411,6 +409,30 @@ final class DefaultCommTaskExecutor implements MySQLCommTaskExecutor, CoreSubscr
         @Override
         public void execute(Runnable runnable) {
             DefaultCommTaskExecutor.this.eventLoop.execute(runnable);
+        }
+
+        @Override
+        public boolean isAutoCommit() throws JdbdMySQLException {
+            if (this.inEventLoop()) {
+                return (DefaultCommTaskExecutor.this.serverStatus & ClientProtocol.SERVER_STATUS_AUTOCOMMIT) != 0;
+            }
+            throw new JdbdMySQLException("Current not in EventLoop.");
+        }
+
+        @Nullable
+        @Override
+        public Integer getServerStatus() throws JdbdMySQLException {
+            if (this.inEventLoop()) {
+                int status = DefaultCommTaskExecutor.this.serverStatus;
+                Integer serverStatus;
+                if (status == 0) {
+                    serverStatus = status;
+                } else {
+                    serverStatus = null;
+                }
+                return serverStatus;
+            }
+            throw new JdbdMySQLException("Current not in EventLoop.");
         }
 
         @Override

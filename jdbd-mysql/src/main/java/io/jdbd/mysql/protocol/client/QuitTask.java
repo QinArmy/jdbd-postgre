@@ -3,8 +3,11 @@ package io.jdbd.mysql.protocol.client;
 import io.jdbd.mysql.protocol.ErrorPacket;
 import io.jdbd.mysql.util.MySQLExceptionUtils;
 import io.netty.buffer.ByteBuf;
+import org.reactivestreams.Publisher;
 import reactor.core.publisher.Mono;
 import reactor.core.publisher.MonoSink;
+
+import java.util.function.Consumer;
 
 final class QuitTask extends MySQLConnectionTask {
 
@@ -25,15 +28,15 @@ final class QuitTask extends MySQLConnectionTask {
 
 
     @Override
-    protected ByteBuf internalStart() {
+    protected Publisher<ByteBuf> internalStart() {
         ByteBuf packetBuf = executorAdjutant.createPacketBuffer(1);
         packetBuf.writeByte(PacketUtils.COM_QUIT_HEADER);
         PacketUtils.writePacketHeader(packetBuf, addAndGetSequenceId());
-        return packetBuf;
+        return Mono.just(packetBuf);
     }
 
     @Override
-    protected boolean internalDecode(ByteBuf cumulateBuffer) {
+    protected boolean internalDecode(ByteBuf cumulateBuffer, Consumer<Object> serverStatusConsumer) {
         if (!PacketUtils.hasOnePacket(cumulateBuffer)) {
             return false;
         }

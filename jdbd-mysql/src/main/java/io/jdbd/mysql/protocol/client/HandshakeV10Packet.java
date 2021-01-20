@@ -22,7 +22,7 @@ final class HandshakeV10Packet implements MySQLPacket {
         String serveVersionText = PacketUtils.readStringTerm(payloadBuf, StandardCharsets.US_ASCII);
         ServerVersion serverVersion = ServerVersion.parseVersion(serveVersionText);
         // 2. thread id,a.k.a. connection id
-        long threadId = PacketUtils.readInt4AsInt(payloadBuf);
+        long threadId = PacketUtils.readInt4AsLong(payloadBuf);
         // 3. auth-plugin-data-part-1,first 8 bytes of the plugin provided data (scramble)
         String authPluginDataPart1 = PacketUtils.readStringFixed(payloadBuf, 8, StandardCharsets.US_ASCII);
         // 4. filler,0x00 byte, terminating the first part of a scramble

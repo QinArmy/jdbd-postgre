@@ -4,6 +4,7 @@ import io.jdbd.JdbdNonSQLException;
 import io.jdbd.TaskQueueOverflowException;
 import io.jdbd.lang.Nullable;
 import io.netty.buffer.ByteBuf;
+import org.reactivestreams.Publisher;
 
 import java.util.function.Consumer;
 
@@ -19,20 +20,20 @@ public abstract class AbstractCommunicationTask implements CommunicationTask<Byt
 
     @Nullable
     @Override
-    public final ByteBuf start() {
+    public final Publisher<ByteBuf> start() {
         if (!this.executorAdjutant.inEventLoop()) {
             throw new IllegalStateException("start() isn't in EventLoop.");
         }
         if (this.taskPhase != TaskPhase.SUBMITTED) {
             throw new IllegalStateException("taskPhase not null");
         }
-        ByteBuf byteBuf = internalStart();
+        Publisher<ByteBuf> publisher = internalStart();
         this.taskPhase = TaskPhase.STARTED;
-        return byteBuf;
+        return publisher;
     }
 
     @Override
-    public final boolean decode(ByteBuf cumulateBuffer) {
+    public final boolean decode(ByteBuf cumulateBuffer, Consumer<Object> serverStatusConsumer) {
         if (!this.executorAdjutant.inEventLoop()) {
             throw new IllegalStateException("decode(ByteBuf) isn't in EventLoop.");
         }
@@ -40,17 +41,18 @@ public abstract class AbstractCommunicationTask implements CommunicationTask<Byt
             throw new IllegalStateException("Communication task not start.");
         }
         boolean taskEnd;
-        taskEnd = internalDecode(cumulateBuffer);
+        taskEnd = internalDecode(cumulateBuffer, serverStatusConsumer);
         if (taskEnd) {
             this.taskPhase = TaskPhase.END;
         }
         return taskEnd;
     }
 
+    @Nullable
     @Override
-    public final void error(Throwable e) {
+    public final Publisher<ByteBuf> error(Throwable e) {
         this.taskPhase = TaskPhase.END;
-        internalError(e);
+        return internalError(e);
     }
 
     @Override
@@ -74,9 +76,9 @@ public abstract class AbstractCommunicationTask implements CommunicationTask<Byt
         }
     }
 
-
-    protected void internalError(Throwable e) {
-
+    @Nullable
+    protected Publisher<ByteBuf> internalError(Throwable e) {
+        return null;
     }
 
     protected void internalOnChannelClose() {
@@ -84,9 +86,9 @@ public abstract class AbstractCommunicationTask implements CommunicationTask<Byt
     }
 
     @Nullable
-    protected abstract ByteBuf internalStart();
+    protected abstract Publisher<ByteBuf> internalStart();
 
-    protected abstract boolean internalDecode(ByteBuf cumulateBuffer);
+    protected abstract boolean internalDecode(ByteBuf cumulateBuffer, Consumer<Object> serverStatusConsumer);
 
 
     /*################################## blow package static method ##################################*/

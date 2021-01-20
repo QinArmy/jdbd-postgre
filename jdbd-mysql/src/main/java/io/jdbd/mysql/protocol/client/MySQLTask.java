@@ -5,6 +5,5 @@ import io.netty.buffer.ByteBuf;
 
 interface MySQLTask extends CommunicationTask<ByteBuf> {
 
-    int addAndGetSequenceId();
 
 }

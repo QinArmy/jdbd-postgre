@@ -3,7 +3,7 @@ package io.jdbd.meta;
 import java.sql.JDBCType;
 import java.util.List;
 
-public interface SQLType {
+public interface SQLType extends java.sql.SQLType {
 
     /**
      * Returns the {@code SQLType} upper case name that represents a SQL data type.
@@ -26,6 +26,8 @@ public interface SQLType {
      * @return The name of the vendor for this data type
      */
     String getVendor();
+
+    boolean isUnsigned();
 
     List<? extends SQLType> getFamily();
 

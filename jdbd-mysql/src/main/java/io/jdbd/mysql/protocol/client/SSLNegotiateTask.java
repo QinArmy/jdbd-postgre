@@ -1,8 +1,11 @@
 package io.jdbd.mysql.protocol.client;
 
 import io.netty.buffer.ByteBuf;
+import org.reactivestreams.Publisher;
 import reactor.core.publisher.Mono;
 import reactor.core.publisher.MonoSink;
+
+import java.util.function.Consumer;
 
 final class SSLNegotiateTask extends AbstractAuthenticateTask {
 
@@ -23,7 +26,7 @@ final class SSLNegotiateTask extends AbstractAuthenticateTask {
      * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_connection_phase_packets_protocol_ssl_request.html">Protocol::SSLRequest</a>
      */
     @Override
-    protected ByteBuf internalStart() {
+    protected Publisher<ByteBuf> internalStart() {
 
         ByteBuf packetBuf = this.executorAdjutant.createPacketBuffer(32);
         // 1. client_flag
@@ -36,11 +39,12 @@ final class SSLNegotiateTask extends AbstractAuthenticateTask {
         packetBuf.writeZero(23);
 
         PacketUtils.writePacketHeader(packetBuf, addAndGetSequenceId());
-        return packetBuf;
+        return Mono.just(packetBuf);
     }
 
+
     @Override
-    protected boolean internalDecode(ByteBuf cumulateBuffer) {
+    protected boolean internalDecode(ByteBuf cumulateBuffer, Consumer<Object> serverStatusConsumer) {
         return true;
     }
 

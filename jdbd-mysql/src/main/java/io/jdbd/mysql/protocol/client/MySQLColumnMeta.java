@@ -12,7 +12,7 @@ import java.util.Map;
 /**
  * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/group__group__cs__column__definition__flags.html"> Column Definition Flags</a>
  */
-final class MySQLColumnMeta {
+public final class MySQLColumnMeta {
 
     static final MySQLColumnMeta[] EMPTY = new MySQLColumnMeta[0];
 
@@ -199,7 +199,7 @@ final class MySQLColumnMeta {
         int collationIndex = PacketUtils.readInt2(payloadBuf);
 
         // 9. column_length,maximum length of the field
-        long length = PacketUtils.readInt4(payloadBuf);
+        long length = PacketUtils.readInt4AsLong(payloadBuf);
         // 10. type,type of the column as defined in enum_field_types,type of the column as defined in enum_field_types
         int typeFlag = PacketUtils.readInt1(payloadBuf);
         // 11. flags,Flags as defined in Column Definition Flags

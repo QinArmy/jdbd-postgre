@@ -2,8 +2,7 @@ package io.jdbd.mysql.protocol.client;
 
 import io.jdbd.vendor.AbstractCommunicationTask;
 import io.netty.buffer.ByteBuf;
-
-import java.nio.file.Path;
+import org.reactivestreams.Publisher;
 
 
 abstract class MySQLConnectionTask extends AbstractCommunicationTask implements MySQLTask {
@@ -24,8 +23,7 @@ abstract class MySQLConnectionTask extends AbstractCommunicationTask implements 
     }
 
 
-    @Override
-    public int addAndGetSequenceId() {
+    final int addAndGetSequenceId() {
         int sequenceId = this.sequenceId;
         sequenceId = (++sequenceId) % 256;
         this.sequenceId = sequenceId;
@@ -39,14 +37,10 @@ abstract class MySQLConnectionTask extends AbstractCommunicationTask implements 
     }
 
     @Override
-    public ByteBuf moreSendPacket() {
+    public Publisher<ByteBuf> moreSendPacket() {
         return null;
     }
 
-    @Override
-    public Path moreSendFile() {
-        return null;
-    }
 
     final void updateSequenceId(int sequenceId) {
         this.sequenceId = sequenceId % 256;

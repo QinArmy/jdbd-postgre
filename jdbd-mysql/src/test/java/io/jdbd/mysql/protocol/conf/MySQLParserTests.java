@@ -6,10 +6,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.annotations.Test;
 
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.ResultSet;
-import java.sql.Statement;
+import java.sql.*;
 import java.util.Collections;
 import java.util.Properties;
 import java.util.regex.Matcher;
@@ -68,11 +65,40 @@ public class MySQLParserTests {
         Driver.class.getName();
         try (Connection conn = DriverManager.getConnection(url, "army_w", "army123")) {
             try (Statement st = conn.createStatement()) {
-                try (ResultSet resultSet = st.executeQuery("SELECT now()")) {
+                try (ResultSet resultSet = st.executeQuery("SELECT NOW()")) {
                     if (resultSet.next()) {
                         LOG.info("now:{}", resultSet.getString(1));
                     }
                 }
+            }
+        }
+    }
+
+    @Test
+    public void preparedStatement() throws Exception {
+        String url = "jdbc:mysql://(address=(host=localhost)(port=3306))/army?useSSL=false&detectCustomCollations=true&useServerPrepStmts=true";
+        Driver.class.getName();
+        try (Connection conn = DriverManager.getConnection(url, "army_w", "army123")) {
+            try (PreparedStatement st = conn.prepareStatement("SELECT u.id,u.nick_name FROM u_user AS u WHERE u.id = ?")) {
+                st.setLong(1, 1L);
+                try (ResultSet resultSet = st.executeQuery()) {
+                    while (resultSet.next()) {
+                        LOG.info("id:{}\nnickName:{}\n\n\n", resultSet.getLong(1), resultSet.getString(2));
+                    }
+                }
+            }
+        }
+    }
+
+    @Test
+    public void loadLocalInfile() throws Exception {
+        String url = "jdbc:mysql://(address=(host=localhost)(port=3306))/army?allowLoadLocalInfile=true&sslMode=DISABLED&detectCustomCollations=true&useServerPrepStmts=true";
+        Driver.class.getName();
+        String sql = "LOAD DATA LOCAL INFILE '/Users/zoro/repository/my-github/idea/jdbd/jdbd-mysql/src/test/resources/my-local/zoro_user.sql'\n" +
+                " INTO TABLE u_user;";
+        try (Connection conn = DriverManager.getConnection(url, "army_w", "army123")) {
+            try (PreparedStatement st = conn.prepareStatement(sql)) {
+                LOG.info("update rows:{}", st.executeUpdate());
             }
         }
     }

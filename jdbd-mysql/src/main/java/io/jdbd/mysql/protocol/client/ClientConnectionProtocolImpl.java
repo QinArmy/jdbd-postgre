@@ -118,6 +118,9 @@ final class ClientConnectionProtocolImpl extends AbstractClientProtocol
 
     @Override
     public Mono<Void> closeGracefully() {
+        if (this.connectionPhase.get() > AUTHENTICATION_PHASE) {
+            return QuitTask.quit(this.taskAdjutant);
+        }
         return Mono.empty();
     }
 
@@ -173,7 +176,7 @@ final class ClientConnectionProtocolImpl extends AbstractClientProtocol
 
     @Override
     public int obtainMaxBytesPerCharClient() {
-        return (int) obtainCharsetClient().newEncoder().maxBytesPerChar();
+        return (int) Math.ceil(obtainCharsetClient().newEncoder().maxBytesPerChar());
     }
 
 

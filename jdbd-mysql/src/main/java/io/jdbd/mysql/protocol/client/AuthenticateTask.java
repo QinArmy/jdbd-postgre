@@ -10,8 +10,10 @@ import io.jdbd.mysql.util.MySQLExceptionUtils;
 import io.jdbd.mysql.util.MySQLStringUtils;
 import io.netty.buffer.ByteBuf;
 import org.qinarmy.util.Pair;
+import org.reactivestreams.Publisher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.core.publisher.MonoSink;
 
@@ -19,7 +21,11 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
-import java.util.*;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.function.Consumer;
 
 final class AuthenticateTask extends AbstractAuthenticateTask implements AuthenticateAssistant {
 
@@ -42,7 +48,7 @@ final class AuthenticateTask extends AbstractAuthenticateTask implements Authent
     private int authCounter = 0;
 
     // non-volatile ,because all modify in netty EventLoop
-    private Queue<ByteBuf> pluginOutputQueue;
+    private Publisher<ByteBuf> pluginOutput;
 
     private AuthenticateTask(MySQLTaskAdjutant executorAdjutant, MonoSink<Void> sink) {
         super(executorAdjutant, obtainSequenceId(executorAdjutant), sink);
@@ -96,41 +102,30 @@ final class AuthenticateTask extends AbstractAuthenticateTask implements Authent
     }
 
     @Override
-    public ByteBuf moreSendPacket() {
-        Queue<ByteBuf> queue = this.pluginOutputQueue;
-        if (queue == null || queue.isEmpty()) {
-            this.pluginOutputQueue = null;
-            return null;
+    public Publisher<ByteBuf> moreSendPacket() {
+        Publisher<ByteBuf> publisher = this.pluginOutput;
+        if (publisher != null) {
+            this.pluginOutput = null;
         }
-        ByteBuf pluginOutput = queue.poll();
-        if (pluginOutput == null) {
-            this.pluginOutputQueue = null;
-        } else {
-            ByteBuf packetBuf = createPacketBuffer(pluginOutput.readableBytes());
-            packetBuf.readBytes(pluginOutput);
-            pluginOutput.release();
-            pluginOutput = packetBuf;
-            PacketUtils.writePacketHeader(pluginOutput, addAndGetSequenceId());
-        }
-        return pluginOutput;
+        return publisher;
     }
 
     /*################################## blow protected method ##################################*/
 
     @Override
-    protected ByteBuf internalStart() {
+    protected Publisher<ByteBuf> internalStart() {
         Pair<AuthenticationPlugin, Boolean> pair = obtainAuthenticationPlugin();
         AuthenticationPlugin plugin = pair.getFirst();
         this.plugin = plugin;
         ByteBuf pluginOut = createAuthenticationDataFor41(plugin, pair.getSecond());
-        return createHandshakeResponse41(plugin.getProtocolPluginName(), pluginOut);
+        return Mono.just(createHandshakeResponse41(plugin.getProtocolPluginName(), pluginOut));
     }
 
     @Override
-    protected boolean internalDecode(ByteBuf cumulateBuffer) {
+    protected boolean internalDecode(ByteBuf cumulateBuffer, Consumer<Object> serverStatusConsumer) {
         boolean taskEnd;
         taskEnd = doDecode(cumulateBuffer);
-        while (!taskEnd && (this.pluginOutputQueue == null || this.pluginOutputQueue.isEmpty())
+        while (!taskEnd && (this.pluginOutput == null)
                 && PacketUtils.hasOnePacket(cumulateBuffer)) {
             taskEnd = doDecode(cumulateBuffer);
         }
@@ -195,7 +190,7 @@ final class AuthenticateTask extends AbstractAuthenticateTask implements Authent
         List<ByteBuf> outputList = authPlugin.nextAuthenticationStep(cumulateBuffer);
         if (!outputList.isEmpty()) {
             // plugin auth
-            this.pluginOutputQueue = new ArrayDeque<>();
+            this.pluginOutput = Flux.fromIterable(outputList);
         }
         return false;
     }

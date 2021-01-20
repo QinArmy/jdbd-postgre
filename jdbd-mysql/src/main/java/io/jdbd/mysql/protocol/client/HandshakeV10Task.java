@@ -3,13 +3,14 @@ package io.jdbd.mysql.protocol.client;
 import io.jdbd.mysql.protocol.ErrorPacket;
 import io.jdbd.mysql.util.MySQLExceptionUtils;
 import io.netty.buffer.ByteBuf;
+import org.reactivestreams.Publisher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import reactor.core.publisher.Mono;
 import reactor.core.publisher.MonoSink;
 
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Path;
+import java.util.function.Consumer;
 
 final class HandshakeV10Task extends MySQLConnectionTask {
 
@@ -31,26 +32,20 @@ final class HandshakeV10Task extends MySQLConnectionTask {
     }
 
     @Override
-    protected ByteBuf internalStart() {
+    protected Publisher<ByteBuf> internalStart() {
         LOG.debug("Handshake receive task start");
         // no data send
         return null;
     }
 
     @Override
-    public ByteBuf moreSendPacket() {
+    public Publisher<ByteBuf> moreSendPacket() {
         // no data send
         return null;
     }
 
     @Override
-    public Path moreSendFile() {
-        // no data send
-        return null;
-    }
-
-    @Override
-    protected boolean internalDecode(ByteBuf cumulateBuffer) {
+    protected boolean internalDecode(ByteBuf cumulateBuffer, Consumer<Object> serverStatusConsumer) {
         if (!PacketUtils.hasOnePacket(cumulateBuffer)) {
             return false;
         }

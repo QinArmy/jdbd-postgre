@@ -1,5 +1,6 @@
 package io.jdbd;
 
+
 import java.sql.JDBCType;
 
 /**
@@ -18,18 +19,18 @@ public interface PreparedStatement extends GenericStatement{
      * @param jdbcType     nonNullValue mapping {@link JDBCType}
      * @param nonNullValue non null the parameter value
      */
-    PreparedStatement bind(int index, JDBCType jdbcType, Object nonNullValue) throws JdbdSQLException;
+    PreparedStatement bind(int index, JDBCType jdbcType, Object nonNullValue) throws SQLBindParameterException;
 
     /**
      * <p>
      * SQL parameter placeholder must be {@code ?}
      * </p>
      *
-     * @param index                the first parameter is 1, the second is 2, ...
-     * @param nonNullValue         non null the parameter value
-     * @param upperCaseSQLTypeName nonNullValue mapping sql data type name(must upper case).
+     * @param index        the first parameter is 1, the second is 2, ...
+     * @param nonNullValue non null the parameter value
+     * @param sqlType      nonNullValue mapping sql data type name(must upper case).
      */
-    PreparedStatement bind(int index, String upperCaseSQLTypeName, Object nonNullValue) throws JdbdSQLException;
+    PreparedStatement bind(int index, io.jdbd.meta.SQLType sqlType, Object nonNullValue) throws SQLBindParameterException;
 
     /**
      * <p>
@@ -38,7 +39,7 @@ public interface PreparedStatement extends GenericStatement{
      *
      * @param index the first parameter is 1, the second is 2, ...
      */
-    PreparedStatement bindNull(int index, JDBCType jdbcType) throws JdbdSQLException;
+    PreparedStatement bindNull(int index, JDBCType jdbcType) throws SQLBindParameterException;
 
     /**
      * <p>
@@ -46,9 +47,9 @@ public interface PreparedStatement extends GenericStatement{
      * </p>
      *
      * @param index                the first parameter is 1, the second is 2, ...
-     * @param upperCaseSQLTypeName upper case sql data type name,eg: BIGINT
+     * @param sqlType upper case sql data type name,eg: BIGINT
      */
-    PreparedStatement bindNull(int index, String upperCaseSQLTypeName) throws JdbdSQLException;
+    PreparedStatement bindNull(int index, io.jdbd.meta.SQLType sqlType) throws SQLBindParameterException;
 
     /**
      * Adds a set of parameters to this <code>PreparedStatement</code>
@@ -57,8 +58,7 @@ public interface PreparedStatement extends GenericStatement{
      * @throws JdbdSQLException if a database access error occurs or
      *                          this method is called on a closed <code>PreparedStatement</code>
      */
-    PreparedStatement addBatch() throws JdbdSQLException;
-
+    PreparedStatement addBatch() throws SQLBindParameterException;
 
 
 }

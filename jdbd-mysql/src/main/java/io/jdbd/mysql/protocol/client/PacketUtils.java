@@ -15,6 +15,8 @@ public abstract class PacketUtils {
 
     public static final int HEADER_SIZE = 4;
 
+    public static final int MAX_PACKET_CAPACITY = HEADER_SIZE + ClientProtocol.MAX_PACKET_SIZE;
+
     /**
      * @see #ENC_3
      */
@@ -22,143 +24,126 @@ public abstract class PacketUtils {
 
     public static final int LOCAL_INFILE = 0xFB;
     public static final int COM_QUERY_HEADER = 3;
+    public static final int COM_STMT_PREPARE = 0x16;
+    public static final int COM_STMT_EXECUTE = 0x17;
+
+    public static final int COM_STMT_SEND_LONG_DATA = 0x18;
+
+    public static final int COM_STMT_RESET = 0x1A;
     public static final int COM_QUIT_HEADER = 0x01;
+
 
     public static final int ENC_0 = 0xFB;
     public static final int ENC_3 = 0xFC;
     public static final int ENC_4 = 0xFD;
     public static final int ENC_9 = 0xFE;
 
+    public static final int BIT_8 = 0xff;
+
+    public static final long BIT_8L = 0xffL;
+
+    public static final long BIT_32 = 0xffff_ffffL;
+
 
     public static short readInt1(ByteBuf byteBuf) {
-        return (short) (byteBuf.readByte() & 0xFF);
+        return (short) (byteBuf.readByte() & BIT_8);
     }
 
     public static short getInt1(ByteBuf byteBuf, int index) {
-        return (short) (byteBuf.getByte(index) & 0xFF);
+        return (short) (byteBuf.getByte(index) & BIT_8);
     }
 
     public static int readInt2(ByteBuf byteBuf) {
-        if (byteBuf.readableBytes() > 1) {
-            return (byteBuf.readByte() & 0xFF)
-                    | ((byteBuf.readByte() & 0xFF) << 8);
-        }
-        throw createIndexOutOfBoundsException(byteBuf.readableBytes(), 2);
+        return (byteBuf.readByte() & BIT_8)
+                | ((byteBuf.readByte() & BIT_8) << 8);
     }
 
     public static int getInt2(ByteBuf byteBuf, int index) {
-        if (byteBuf.readableBytes() > 1) {
-            return (byteBuf.getByte(index++) & 0xFF)
-                    | ((byteBuf.getByte(index) & 0xFF) << 8);
-        }
-        throw createIndexOutOfBoundsException(byteBuf.readableBytes(), 2);
+        return (byteBuf.getByte(index++) & BIT_8)
+                | ((byteBuf.getByte(index) & BIT_8) << 8);
     }
 
     public static int readInt3(ByteBuf byteBuf) {
-        if (byteBuf.readableBytes() > 2) {
-            return (byteBuf.readByte() & 0xFF)
-                    | ((byteBuf.readByte() & 0xFF) << 8)
-                    | ((byteBuf.readByte() & 0xFF) << 16)
-                    ;
-        }
-        throw createIndexOutOfBoundsException(byteBuf.readableBytes(), 3);
+        return (byteBuf.readByte() & BIT_8)
+                | ((byteBuf.readByte() & BIT_8) << 8)
+                | ((byteBuf.readByte() & BIT_8) << 16)
+                ;
     }
 
     public static int getInt3(ByteBuf byteBuf, int index) {
-        if (byteBuf.readableBytes() > 2) {
-            return (byteBuf.getByte(index++) & 0xFF)
-                    | ((byteBuf.getByte(index++) & 0xFF) << 8)
-                    | ((byteBuf.getByte(index) & 0xFF) << 16)
-                    ;
-        }
-        throw createIndexOutOfBoundsException(byteBuf.readableBytes(), 3);
+        return (byteBuf.getByte(index++) & BIT_8)
+                | ((byteBuf.getByte(index++) & BIT_8) << 8)
+                | ((byteBuf.getByte(index) & BIT_8) << 16)
+                ;
     }
 
-    public static int readInt4AsInt(ByteBuf byteBuf) {
-        long int4 = readInt4(byteBuf);
-        if (int4 > Integer.MAX_VALUE) {
-            throw new JdbdMySQLException("readInt4() convert to int failure,because > Integer.MAX_VALUE");
-        }
-        return (int) int4;
+    public static long readInt4AsLong(ByteBuf byteBuf) {
+        return readInt4(byteBuf) & BIT_32;
     }
 
-    public static long readInt4(ByteBuf byteBuf) {
-        if (byteBuf.readableBytes() > 3) {
-            return (byteBuf.readByte() & 0xFFL)
-                    | ((byteBuf.readByte() & 0xFFL) << 8)
-                    | ((byteBuf.readByte() & 0xFFL) << 16)
-                    | ((byteBuf.readByte() & 0xFFL) << 24)
-                    ;
-        }
-        throw createIndexOutOfBoundsException(byteBuf.readableBytes(), 4);
+    public static int readInt4(ByteBuf byteBuf) {
+        return (byteBuf.readByte() & BIT_8)
+                | ((byteBuf.readByte() & BIT_8) << 8)
+                | ((byteBuf.readByte() & BIT_8) << 16)
+                | ((byteBuf.readByte() & BIT_8) << 24)
+                ;
+    }
+
+    public static long getInt4AsLong(ByteBuf byteBuf, int index) {
+        return getInt4(byteBuf, index) & BIT_32;
     }
 
 
     public static int getInt4(ByteBuf byteBuf, int index) {
-        if (byteBuf.readableBytes() > 3) {
-            return (byteBuf.getByte(index++) & 0xFF)
-                    | ((byteBuf.getByte(index++) & 0xFF) << 8)
-                    | ((byteBuf.getByte(index++) & 0xFF) << 16)
-                    | ((byteBuf.getByte(index) & 0xFF) << 24)
-                    ;
-        }
-        throw createIndexOutOfBoundsException(byteBuf.readableBytes(), 4);
+        return (byteBuf.getByte(index++) & BIT_8)
+                | ((byteBuf.getByte(index++) & BIT_8) << 8)
+                | ((byteBuf.getByte(index++) & BIT_8) << 16)
+                | ((byteBuf.getByte(index) & BIT_8) << 24)
+                ;
     }
 
     public static long readInt6(ByteBuf byteBuf) {
-        if (byteBuf.readableBytes() > 5) {
-            return ((long) byteBuf.readByte() & 0xffL)
-                    | (((long) byteBuf.readByte() & 0xffL) << 8)
-                    | (((long) byteBuf.readByte() & 0xffL) << 16)
-                    | (((long) byteBuf.readByte() & 0xffL) << 24)
-                    | (((long) byteBuf.readByte() & 0xffL) << 32)
-                    | (((long) byteBuf.readByte() & 0xffL) << 40)
-                    ;
-        }
-        throw createIndexOutOfBoundsException(byteBuf.readableBytes(), 6);
+        return (byteBuf.readByte() & BIT_8L)
+                | ((byteBuf.readByte() & BIT_8L) << 8)
+                | ((byteBuf.readByte() & BIT_8L) << 16)
+                | ((byteBuf.readByte() & BIT_8L) << 24)
+                | ((byteBuf.readByte() & BIT_8L) << 32)
+                | ((byteBuf.readByte() & BIT_8L) << 40)
+                ;
     }
 
     public static long getInt6(ByteBuf byteBuf, int index) {
-        if (byteBuf.readableBytes() > 5) {
-            return ((long) byteBuf.getByte(index++) & 0xffL)
-                    | (((long) byteBuf.getByte(index++) & 0xffL) << 8)
-                    | (((long) byteBuf.getByte(index++) & 0xffL) << 16)
-                    | (((long) byteBuf.getByte(index++) & 0xffL) << 24)
-                    | (((long) byteBuf.getByte(index++) & 0xffL) << 32)
-                    | (((long) byteBuf.getByte(index) & 0xffL) << 40)
-                    ;
-        }
-        throw createIndexOutOfBoundsException(byteBuf.readableBytes(), 6);
+        return (byteBuf.getByte(index++) & BIT_8L)
+                | ((byteBuf.getByte(index++) & BIT_8L) << 8)
+                | ((byteBuf.getByte(index++) & BIT_8L) << 16)
+                | ((byteBuf.getByte(index++) & BIT_8L) << 24)
+                | ((byteBuf.getByte(index++) & BIT_8L) << 32)
+                | ((byteBuf.getByte(index) & BIT_8L) << 40)
+                ;
     }
 
     public static long readInt8(ByteBuf byteBuf) {
-        if (byteBuf.readableBytes() > 7) {
-            return ((long) byteBuf.readByte() & 0xffL)
-                    | (((long) byteBuf.readByte() & 0xffL) << 8)
-                    | (((long) byteBuf.readByte() & 0xffL) << 16)
-                    | (((long) byteBuf.readByte() & 0xffL) << 24)
-                    | (((long) byteBuf.readByte() & 0xffL) << 32)
-                    | (((long) byteBuf.readByte() & 0xffL) << 40)
-                    | (((long) byteBuf.readByte() & 0xffL) << 48)
-                    | (((long) byteBuf.readByte() & 0xffL) << 56)
-                    ;
-        }
-        throw createIndexOutOfBoundsException(byteBuf.readableBytes(), 8);
+        return (byteBuf.readByte() & BIT_8L)
+                | ((byteBuf.readByte() & BIT_8L) << 8)
+                | ((byteBuf.readByte() & BIT_8L) << 16)
+                | ((byteBuf.readByte() & BIT_8L) << 24)
+                | ((byteBuf.readByte() & BIT_8L) << 32)
+                | ((byteBuf.readByte() & BIT_8L) << 40)
+                | ((byteBuf.readByte() & BIT_8L) << 48)
+                | ((byteBuf.readByte() & BIT_8L) << 56)
+                ;
     }
 
     public static long getInt8(ByteBuf byteBuf, int index) {
-        if (byteBuf.readableBytes() > 7) {
-            return ((long) byteBuf.getByte(index++) & 0xffL)
-                    | (((long) byteBuf.getByte(index++) & 0xffL) << 8)
-                    | (((long) byteBuf.getByte(index++) & 0xffL) << 16)
-                    | (((long) byteBuf.getByte(index++) & 0xffL) << 24)
-                    | (((long) byteBuf.getByte(index++) & 0xffL) << 32)
-                    | (((long) byteBuf.getByte(index++) & 0xffL) << 40)
-                    | (((long) byteBuf.getByte(index++) & 0xffL) << 48)
-                    | (((long) byteBuf.getByte(index) & 0xffL) << 56)
-                    ;
-        }
-        throw createIndexOutOfBoundsException(byteBuf.readableBytes(), 8);
+        return (byteBuf.getByte(index++) & BIT_8L)
+                | ((byteBuf.getByte(index++) & BIT_8L) << 8)
+                | ((byteBuf.getByte(index++) & BIT_8L) << 16)
+                | ((byteBuf.getByte(index++) & BIT_8L) << 24)
+                | ((byteBuf.getByte(index++) & BIT_8L) << 32)
+                | ((byteBuf.getByte(index++) & BIT_8L) << 40)
+                | ((byteBuf.getByte(index++) & BIT_8L) << 48)
+                | ((byteBuf.getByte(index) & BIT_8L) << 56)
+                ;
     }
 
     /**
@@ -244,29 +229,9 @@ public abstract class PacketUtils {
      * see {@code com.mysql.cj.protocol.a.NativePacketPayload#readInteger(com.mysql.cj.protocol.a.NativeConstants.IntegerDataType)}
      */
     public static int readLenEncAsInt(ByteBuf byteBuf) {
-        final int sw = readInt1(byteBuf);
-        long intEnc;
-        switch (sw) {
-            case ENC_0:
-                // represents a NULL in a ProtocolText::ResultsetRow
-                intEnc = NULL_LENGTH;
-                break;
-            case ENC_3:
-                intEnc = readInt2(byteBuf);
-                break;
-            case ENC_4:
-                intEnc = readInt3(byteBuf);
-                break;
-            case ENC_9:
-                intEnc = readInt8(byteBuf);
-                if (intEnc > Integer.MAX_VALUE) {
-                    throw new JdbdMySQLException("int<lenenc> is long");
-                }
-                break;
-            default:
-                // ENC_1
-                intEnc = sw;
-
+        long intEnc = readLenEnc(byteBuf);
+        if (intEnc > Integer.MAX_VALUE) {
+            throw new JdbdMySQLException("int<lenenc> is long");
         }
         return (int) intEnc;
     }
@@ -342,11 +307,6 @@ public abstract class PacketUtils {
         return packetBuffer;
     }
 
-
-    public static int readPacketLength(ByteBuf packetBuf) {
-        return HEADER_SIZE + readInt3(packetBuf);
-    }
-
     /**
      * <p>
      * This method does not modify {@code readerIndex} or {@code writerIndex} of
@@ -359,6 +319,32 @@ public abstract class PacketUtils {
         int readableBytes = byteBuf.readableBytes();
         return readableBytes > HEADER_SIZE
                 && (readableBytes >= HEADER_SIZE + getInt3(byteBuf, byteBuf.readerIndex()));
+    }
+
+    public static boolean hasPacket(ByteBuf cumulateBuffer, final int expectedPacketCount) {
+        if (expectedPacketCount < 1) {
+            throw new IllegalArgumentException("expectedPacketCount must great than 0");
+        }
+        final int originalReaderIndex = cumulateBuffer.readerIndex();
+        int packetCount = 0;
+        for (int readableBytes, payloadLength; packetCount < expectedPacketCount; ) {
+            readableBytes = cumulateBuffer.readableBytes();
+            if (readableBytes < HEADER_SIZE) {
+                break;
+            }
+            payloadLength = readInt3(cumulateBuffer);
+            if (readableBytes < HEADER_SIZE + payloadLength) {
+                break;
+            }
+            cumulateBuffer.skipBytes(1 + payloadLength);
+            packetCount++;
+            if (packetCount == expectedPacketCount) {
+                break;
+            }
+
+        }
+        cumulateBuffer.readerIndex(originalReaderIndex);
+        return packetCount == expectedPacketCount;
     }
 
 
@@ -399,8 +385,8 @@ public abstract class PacketUtils {
     }
 
 
-    public static void writeInt1(ByteBuf byteBuffer, final byte int1) {
-        byteBuffer.writeByte(int1 & 0xFF);
+    public static void writeInt1(ByteBuf byteBuffer, final int int1) {
+        byteBuffer.writeByte(int1 & BIT_8);
     }
 
     public static void writeInt2(ByteBuf byteBuffer, final int int2) {
@@ -434,7 +420,7 @@ public abstract class PacketUtils {
     }
 
     public static void writeIntLenEnc(ByteBuf packetBuffer, final int intLenEnc) {
-        writeIntLenEnc(packetBuffer, intLenEnc & 0xffff_ffffL);
+        writeIntLenEnc(packetBuffer, intLenEnc & BIT_32);
     }
 
     public static void writeIntLenEnc(ByteBuf packetBuffer, final long intLenEnc) {

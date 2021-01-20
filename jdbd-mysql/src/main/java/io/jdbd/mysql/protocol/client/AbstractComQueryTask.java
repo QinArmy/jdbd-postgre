@@ -1,13 +1,15 @@
 package io.jdbd.mysql.protocol.client;
 
 import io.jdbd.*;
+import io.jdbd.lang.Nullable;
 import io.jdbd.mysql.protocol.*;
 import io.jdbd.mysql.protocol.conf.Properties;
 import io.jdbd.mysql.protocol.conf.PropertyKey;
 import io.jdbd.mysql.util.MySQLExceptionUtils;
 import io.jdbd.vendor.MultiResultsSink;
 import io.netty.buffer.ByteBuf;
-import reactor.util.annotation.Nullable;
+import org.reactivestreams.Publisher;
+import reactor.core.publisher.Mono;
 
 import java.io.IOException;
 import java.io.OutputStream;
@@ -16,6 +18,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Objects;
+import java.util.function.Consumer;
 import java.util.function.Function;
 
 abstract class AbstractComQueryTask extends MySQLCommunicationTask {
@@ -30,9 +33,6 @@ abstract class AbstractComQueryTask extends MySQLCommunicationTask {
     private final int expectedResultCount;
 
     private int receiveResultCount = 0;
-
-    // non-volatile ,because all modify in netty EventLoop .
-    private Path localPath;
 
     // non-volatile ,because all modify in netty EventLoop .
     private DecoderType decoderType;
@@ -56,34 +56,21 @@ abstract class AbstractComQueryTask extends MySQLCommunicationTask {
 
     @Nullable
     @Override
-    public final ByteBuf moreSendPacket() {
+    public final Publisher<ByteBuf> moreSendPacket() {
         // always null
         return null;
     }
 
 
-    @Override
-    @Nullable
-    public final Path moreSendFile() {
-        if (!this.executorAdjutant.inEventLoop()) {
-            throw new IllegalStateException("moreSendFile() isn't in EventLoop.");
-        }
-        Path path = this.localPath;
-        if (path != null) {
-            this.localPath = null;
-        }
-        return path;
-    }
-
     /*################################## blow protected template method ##################################*/
 
     @Override
-    protected final ByteBuf internalStart() {
-        return Objects.requireNonNull(this.bufFunction.apply(this), "this.bufFunction return value.");
+    protected final Publisher<ByteBuf> internalStart() {
+        return Mono.just(Objects.requireNonNull(this.bufFunction.apply(this), "this.bufFunction return value."));
     }
 
     @Override
-    protected boolean internalDecode(final ByteBuf cumulateBuf) {
+    protected boolean internalDecode(final ByteBuf cumulateBuf, Consumer<Object> serverStatusConsumer) {
         if (!PacketUtils.hasOnePacket(cumulateBuf)) {
             return false;
         }
@@ -189,7 +176,6 @@ abstract class AbstractComQueryTask extends MySQLCommunicationTask {
         filePath = PacketUtils.readStringEof(cumulateBuffer.readSlice(payloadLength)
                 , payloadLength, this.executorAdjutant.obtainCharsetResults());
         // task executor will send.
-        this.localPath = Paths.get(filePath);
     }
 
     private boolean decodeTextResult(ByteBuf cumulateBuffer) {
@@ -653,14 +639,42 @@ abstract class AbstractComQueryTask extends MySQLCommunicationTask {
         return MySQLResultRow.from(columnValueArray, rowMeta, taskAdjutant);
     }
 
+    private boolean decodeLocalInfileResult(ByteBuf cumulateBuffer) {
+        final int payloadLength = PacketUtils.readInt3(cumulateBuffer);
+        updateSequenceId(PacketUtils.readInt1(cumulateBuffer));
 
+        final int payloadIndex = cumulateBuffer.readerIndex();
+        boolean taskEnd;
+        final int type = PacketUtils.getInt1(cumulateBuffer, cumulateBuffer.readerIndex());
+        switch (type) {
+            case ErrorPacket.ERROR_HEADER: {
+                ErrorPacket error = ErrorPacket.readPacket(cumulateBuffer.readSlice(payloadLength)
+                        , this.negotiatedCapability, this.executorAdjutant.obtainCharsetResults());
+                emitError(MySQLExceptionUtils.createSQLException(error));
+                taskEnd = true;
+            }
+            break;
+            case EofPacket.EOF_HEADER:
+            case OkPacket.OK_HEADER: {
+                OkPacket ok = OkPacket.readPacket(cumulateBuffer.readSlice(payloadLength), negotiatedCapability);
+                boolean hasMore = (ok.getStatusFags() & ClientProtocol.SERVER_MORE_RESULTS_EXISTS) != 0;
+                emitUpdateResult(MySQLResultStates.from(ok), hasMore);
+                taskEnd = emitSuccess(hasMore);
+            }
+            break;
+            default:
+                throw MySQLExceptionUtils.createFatalIoException("LOCAL INFILE Data response type[%s] unknown.", type);
+        }
+        cumulateBuffer.readerIndex(payloadIndex + payloadLength); // to next packet
+        return taskEnd;
+    }
 
     /*################################## blow  static method ##################################*/
 
     /**
      * invoke this method after invoke {@link PacketUtils#hasOnePacket(ByteBuf)}.
      *
-     * @see #decode(ByteBuf)
+     * @see #decode(ByteBuf, Consumer)
      */
     static ComQueryResponse detectComQueryResponseType(final ByteBuf cumulateBuf, final int negotiatedCapability) {
         int readerIndex = cumulateBuf.readerIndex();
@@ -691,35 +705,40 @@ abstract class AbstractComQueryTask extends MySQLCommunicationTask {
         return responseType;
     }
 
-    private boolean decodeLocalInfileResult(ByteBuf cumulateBuffer) {
-        final int payloadLength = PacketUtils.readInt3(cumulateBuffer);
-        updateSequenceId(PacketUtils.readInt1(cumulateBuffer));
-
-        final int payloadIndex = cumulateBuffer.readerIndex();
-        boolean taskEnd;
-        final int type = PacketUtils.getInt1(cumulateBuffer, cumulateBuffer.readerIndex());
-        switch (type) {
-            case ErrorPacket.ERROR_HEADER: {
-                ErrorPacket error = ErrorPacket.readPacket(cumulateBuffer.readSlice(payloadLength)
-                        , this.negotiatedCapability, this.executorAdjutant.obtainCharsetResults());
-                emitError(MySQLExceptionUtils.createSQLException(error));
-                taskEnd = true;
-            }
-            break;
-            case EofPacket.EOF_HEADER:
-            case OkPacket.OK_HEADER: {
-                OkPacket ok = OkPacket.readPacket(cumulateBuffer.readSlice(payloadLength), negotiatedCapability);
-                boolean hasMore = (ok.getStatusFags() & ClientProtocol.SERVER_MORE_RESULTS_EXISTS) != 0;
-                emitUpdateResult(MySQLResultStates.from(ok), hasMore);
-                taskEnd = emitSuccess(hasMore);
-            }
-            break;
-            default:
-                throw MySQLExceptionUtils.createFatalIoException("LOCAL INFILE Data response type[%s] unknown.", type);
+    /**
+     * @param index index of metaArray
+     * @return increased index
+     */
+    static int tryReadColumnMetas(final ByteBuf cumulateBuffer, final MySQLTaskAdjutant taskAdjutant
+            , final MySQLColumnMeta[] metaArray, int index, Consumer<Integer> sequenceIdConsumer) {
+        if (index < 1 || index >= metaArray.length) {
+            throw new IndexOutOfBoundsException(String.format("index not in[0,%s)", metaArray.length));
         }
-        cumulateBuffer.readerIndex(payloadIndex + payloadLength); // to next packet
-        return taskEnd;
+
+        int sequenceId = -1;
+        final Charset metaCharset = taskAdjutant.obtainCharsetResults();
+        final Properties properties = taskAdjutant.obtainHostInfo().getProperties();
+        for (int readableBytes, payloadStartIndex, payloadLength; index < metaArray.length; index++) {
+            readableBytes = cumulateBuffer.readableBytes();
+            if (readableBytes < PacketUtils.HEADER_SIZE) {
+                continue;
+            }
+            payloadLength = PacketUtils.getInt3(cumulateBuffer, cumulateBuffer.readerIndex());
+            if (readableBytes < PacketUtils.HEADER_SIZE + payloadLength) {
+                continue;
+            }
+            cumulateBuffer.skipBytes(3);//skip payload length
+            sequenceId = PacketUtils.readInt1(cumulateBuffer);
+            payloadStartIndex = cumulateBuffer.readerIndex();
+            metaArray[index] = MySQLColumnMeta.readFor41(cumulateBuffer, metaCharset, properties);
+            cumulateBuffer.readerIndex(payloadStartIndex + payloadLength);//to next packet,avoid tail filler
+        }
+        if (index == metaArray.length) {
+            sequenceIdConsumer.accept(sequenceId);
+        }
+        return index;
     }
+
 
     /*################################## blow static class ##################################*/
 
