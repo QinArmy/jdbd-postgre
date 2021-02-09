@@ -1,6 +1,8 @@
 package io.jdbd.mysql.protocol;
 
 
+import java.time.Duration;
+
 /**
  * Represents various constants used in the driver.
  * <p>
@@ -39,6 +41,12 @@ public interface Constants {
     String CJ_MAJOR_VERSION = "8";
     String CJ_MINOR_VERSION = "0";
     String CJ_LICENSE = "GPL";
+
+    long DURATION_MAX_SECONDS = Duration.ofHours(838)
+            .plusMinutes(59)
+            .plusSeconds(59)
+            .plusMillis(999)
+            .getSeconds();
 
 
     //below  Protocol field type numbers, see https://dev.mysql.com/doc/dev/mysql-server/latest/field__types_8h.html#a69e798807026a0f7e12b1d6c72374854

@@ -31,7 +31,12 @@ abstract class MySQLCommunicationTask extends AbstractCommunicationTask implemen
     }
 
     final void updateSequenceId(int sequenceId) {
-        this.sequenceId = sequenceId % SEQUENCE_ID_MODEL;
+        if (sequenceId < 0) {
+            this.sequenceId = -1;
+        } else {
+            this.sequenceId = sequenceId % SEQUENCE_ID_MODEL;
+        }
+
     }
 
     final int obtainSequenceId() {

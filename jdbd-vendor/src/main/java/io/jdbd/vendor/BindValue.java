@@ -6,6 +6,8 @@ import io.jdbd.lang.Nullable;
 
 public interface BindValue {
 
+    int getIndex();
+
     boolean isLongData();
 
     /**
@@ -19,5 +21,7 @@ public interface BindValue {
 
     @Nullable
     Object getValue();
+
+    Object getRequiredValue() throws NullPointerException;
 
 }

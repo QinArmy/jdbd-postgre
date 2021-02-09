@@ -419,6 +419,25 @@ public abstract class PacketUtils {
         byteBuffer.writeByte((byte) (int8 >> 56));
     }
 
+    public static void writeInt8(ByteBuf byteBuffer, BigInteger int8) {
+        byte[] array = int8.toByteArray();
+        byte[] int8Array = new byte[8];
+        if (array.length >= int8Array.length) {
+            for (int i = 0, j = array.length - 1; i < int8Array.length; i++, j--) {
+                int8Array[i] = array[j];
+            }
+        } else {
+            int i = 0;
+            for (int j = array.length - 1; i < array.length; i++, j--) {
+                int8Array[i] = array[j];
+            }
+            for (; i < int8Array.length; i++) {
+                int8Array[i] = 0;
+            }
+        }
+        byteBuffer.writeBytes(int8Array);
+    }
+
     public static void writeIntLenEnc(ByteBuf packetBuffer, final int intLenEnc) {
         writeIntLenEnc(packetBuffer, intLenEnc & BIT_32);
     }

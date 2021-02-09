@@ -3,25 +3,40 @@ package io.jdbd.mysql.protocol.client;
 import io.jdbd.*;
 import io.jdbd.lang.Nullable;
 import io.jdbd.mysql.JdbdMySQLException;
+import io.jdbd.mysql.protocol.Constants;
 import io.jdbd.mysql.protocol.EofPacket;
 import io.jdbd.mysql.protocol.ErrorPacket;
 import io.jdbd.mysql.protocol.conf.PropertyKey;
 import io.jdbd.mysql.util.MySQLExceptionUtils;
+import io.jdbd.mysql.util.MySQLNumberUtils;
+import io.jdbd.type.Geometry;
 import io.jdbd.vendor.CommunicationTask;
 import io.netty.buffer.ByteBuf;
 import org.qinarmy.util.Pair;
 import org.reactivestreams.Publisher;
+import org.reactivestreams.Subscription;
+import reactor.core.CoreSubscriber;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.FluxSink;
 import reactor.core.publisher.Mono;
 import reactor.core.publisher.MonoSink;
 
-import java.io.*;
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.Reader;
+import java.math.BigDecimal;
+import java.math.BigInteger;
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
-import java.nio.channels.ScatteringByteChannel;
-import java.nio.charset.*;
+import java.nio.channels.ReadableByteChannel;
+import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
+import java.time.*;
+import java.time.temporal.ChronoField;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -29,6 +44,13 @@ import java.util.function.BiFunction;
 import java.util.function.Consumer;
 
 /**
+ * <p>
+ *     <ol>
+ *         <li>{@link #internalStart()} send COM_STMT_PREPARE</li>
+ *         <li>{@link #createExecutionPacketPublisher(List)} send COM_STMT_EXECUTE</li>
+ *     </ol>
+ * </p>
+ *
  * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_command_phase_ps.html">Prepared Statements</a>
  */
 final class ComPreparedTask extends MySQLCommunicationTask implements PreparedTask {
@@ -41,7 +63,13 @@ final class ComPreparedTask extends MySQLCommunicationTask implements PreparedTa
         });
     }
 
-    private static final int MAX_DATA = ClientProtocol.MAX_PACKET_SIZE - 7;
+    private static final int BUFFER_LENGTH = 8192;
+
+    private static final int LONG_DATA_PREFIX_SIZE = 7;
+
+    private static final int MIN_CHUNK_SIZE = BUFFER_LENGTH;
+
+    private static final int MAX_DATA = ClientProtocol.MAX_PACKET_SIZE - LONG_DATA_PREFIX_SIZE;
 
 
     private final String sql;
@@ -74,10 +102,17 @@ final class ComPreparedTask extends MySQLCommunicationTask implements PreparedTa
 
     private Object sink;
 
+    private final int blobSendChunkSize;
+
+    private final int maxBlobPacketSize;
+
     private ComPreparedTask(MySQLTaskAdjutant executorAdjutant, String sql, MonoSink<PreparedTask> taskSink) {
         super(executorAdjutant);
         this.sql = sql;
         this.taskSink = taskSink;
+        this.blobSendChunkSize = obtainBlobSendChunkSize();
+        this.maxBlobPacketSize = Math.min(PacketUtils.HEADER_SIZE + LONG_DATA_PREFIX_SIZE + this.blobSendChunkSize
+                , PacketUtils.MAX_PACKET_CAPACITY);
     }
 
     @Nullable
@@ -138,6 +173,8 @@ final class ComPreparedTask extends MySQLCommunicationTask implements PreparedTa
 
     @Override
     protected Publisher<ByteBuf> internalStart() {
+        // this method send COM_STMT_PREPARE packet.
+        // @see https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_com_stmt_prepare.html
         int payloadLength = (this.sql.length() * this.executorAdjutant.obtainMaxBytesPerCharClient()) + 1;
         ByteBuf packetBuffer = this.executorAdjutant.createPacketBuffer(payloadLength);
 
@@ -372,6 +409,7 @@ final class ComPreparedTask extends MySQLCommunicationTask implements PreparedTa
         final List<List<BindValue>> parameterGroupList = Objects.requireNonNull(
                 this.parameterGroupList, "this.parameterGroupList");
         if (batchIndex == parameterGroupList.size()) {
+            // no more param group,task end
             return true;
         }
         this.batchIndex++;
@@ -444,137 +482,9 @@ final class ComPreparedTask extends MySQLCommunicationTask implements PreparedTa
         return false;
     }
 
+
     /**
-     * @return true : task end because bind parameter occur error.
-     * @throws IllegalArgumentException when {@link BindValue#getValue()} is null.
      * @see #createExecutionPacketPublisher(List)
-     */
-    @Nullable
-    private String bindParameter(ByteBuf packetBuffer, MySQLColumnMeta parameterMeta, BindValue bindValue) {
-        final Object nonNullValue = bindValue.getValue();
-        if (nonNullValue == null) {
-            throw new IllegalArgumentException("bindValue.getValue() is null ");
-        }
-        String errorMsg;
-        switch (parameterMeta.mysqlType) {
-            case INT:
-                errorMsg = bindToInt(packetBuffer, nonNullValue, bindValue.getType());
-                break;
-            case INT_UNSIGNED:
-                errorMsg = bindToUnsignedInt(nonNullValue, parameterMeta, bindValue.getType());
-                break;
-            case BIGINT:
-                errorMsg = bindToBigInt(nonNullValue, parameterMeta, bindValue.getType());
-                break;
-            case BIGINT_UNSIGNED:
-                errorMsg = bindToUnsignedBigInt(nonNullValue, parameterMeta, bindValue.getType());
-                break;
-            case FLOAT:
-                errorMsg = bindToFloat(nonNullValue, parameterMeta, bindValue.getType());
-                break;
-            case FLOAT_UNSIGNED:
-                errorMsg = bindToUnsignedFloat(nonNullValue, parameterMeta, bindValue.getType());
-                break;
-
-            case DOUBLE:
-                errorMsg = bindToDouble(nonNullValue, parameterMeta, bindValue.getType());
-                break;
-            case DOUBLE_UNSIGNED:
-                errorMsg = bindToUnsignedDouble(nonNullValue, parameterMeta, bindValue.getType());
-                break;
-            case BIT:
-                errorMsg = bindToBit(nonNullValue, parameterMeta, bindValue.getType());
-                break;
-            case BOOLEAN:
-                errorMsg = bindToBoolean(nonNullValue, parameterMeta, bindValue.getType());
-                break;
-            case TINYINT:
-                errorMsg = bindToTinyInt(nonNullValue, parameterMeta, bindValue.getType());
-                break;
-            case TINYINT_UNSIGNED:
-                errorMsg = bindToUnsignedTinyInt(nonNullValue, parameterMeta, bindValue.getType());
-                break;
-            case SMALLINT:
-                errorMsg = bindToSmallInt(nonNullValue, parameterMeta, bindValue.getType());
-                break;
-            case SMALLINT_UNSIGNED:
-                errorMsg = bindToUnsignedSmallInt(nonNullValue, parameterMeta, bindValue.getType());
-                break;
-            case MEDIUMINT:
-                errorMsg = bindToMediumInt(nonNullValue, parameterMeta, bindValue.getType());
-                break;
-            case MEDIUMINT_UNSIGNED:
-                errorMsg = bindToUnsignedMediumInt(nonNullValue, parameterMeta, bindValue.getType());
-                break;
-            case DECIMAL:
-                errorMsg = bindToDecimal(nonNullValue, parameterMeta, bindValue.getType());
-                break;
-            case DECIMAL_UNSIGNED:
-                errorMsg = bindToUnsignedDecimal(nonNullValue, parameterMeta, bindValue.getType());
-                break;
-            case VARCHAR:
-                errorMsg = bindToVarChar(nonNullValue, parameterMeta, bindValue.getType());
-                break;
-            case CHAR:
-                errorMsg = bindToChar(nonNullValue, parameterMeta, bindValue.getType());
-                break;
-            case SET:
-            case JSON:
-            case ENUM:
-            case TINYTEXT:
-            case MEDIUMTEXT:
-            case TEXT:
-            case LONGTEXT:
-                errorMsg = null;
-                break;
-            case BINARY:
-            case VARBINARY:
-            case TINYBLOB:
-            case MEDIUMBLOB:
-            case BLOB:
-            case LONGBLOB:
-                errorMsg = null;
-                break;
-            case TIME:
-                errorMsg = bindToTime(nonNullValue, parameterMeta, bindValue.getType());
-                break;
-            case DATE:
-                errorMsg = bindToDate(nonNullValue, parameterMeta, bindValue.getType());
-                break;
-            case DATETIME:
-                errorMsg = bindToDatetime(nonNullValue, parameterMeta, bindValue.getType());
-                break;
-            case YEAR:
-                errorMsg = bindToYear(nonNullValue, parameterMeta, bindValue.getType());
-                break;
-            case TIMESTAMP:
-                errorMsg = bindToTimestamp(nonNullValue, parameterMeta, bindValue.getType());
-                break;
-            case NULL:
-            case UNKNOWN:
-            case GEOMETRY:
-                errorMsg = null;
-                break;
-            default:
-                throw MySQLExceptionUtils.createUnknownEnumException(parameterMeta.mysqlType);
-        }
-
-        return errorMsg;
-    }
-
-    private Publisher<ByteBuf> createResetPacketPublisher() {
-        ByteBuf packetBuffer = this.executorAdjutant.createPacketBuffer(5);
-
-        packetBuffer.writeByte(PacketUtils.COM_STMT_RESET);
-        PacketUtils.writeInt4(packetBuffer, this.statementId);
-        PacketUtils.writePacketHeader(packetBuffer, addAndGetSequenceId());
-
-        return Mono.just(packetBuffer);
-    }
-
-
-    /**
-     * @see #executeStatement()
      */
     private ByteBuf createExecutePacketBuffer(int initialPayloadCapacity) {
         if (this.phase != Phase.EXECUTE) {
@@ -692,7 +602,6 @@ final class ComPreparedTask extends MySQLCommunicationTask implements PreparedTa
     /**
      * @see #createExecutePacketPublisherWithParameters(List)
      */
-    @SuppressWarnings("unchecked")
     private Flux<ByteBuf> sendLongData(Pair<Integer, Object> pair) {
         final Object value = Objects.requireNonNull(pair.getSecond(), "pair.getSecond()");
         Flux<ByteBuf> flux;
@@ -700,12 +609,14 @@ final class ComPreparedTask extends MySQLCommunicationTask implements PreparedTa
             flux = sendByteArrayLongData(pair.getFirst(), (byte[]) value);
         } else if (value instanceof InputStream) {
             flux = sendInputStreamLongData(pair.getFirst(), (InputStream) value);
+        } else if (value instanceof ReadableByteChannel) {
+            flux = sendInputReadByteChannelLongData(pair.getFirst(), (ReadableByteChannel) value);
         } else if (value instanceof Reader) {
             flux = sendReaderLongData(pair.getFirst(), (Reader) value);
         } else if (value instanceof Path) {
             flux = sendPathLongData(pair.getFirst(), (Path) value);
         } else if (value instanceof Publisher) {
-            flux = sendPublisherLongData(pair.getFirst(), (Publisher<byte[]>) value);
+            flux = sendPublisherLongData(pair.getFirst(), (Publisher<?>) value);
         } else {
             flux = Flux.error(new BindParameterException
                     (String.format("Bind parameter[%s] type[%s] not support."
@@ -733,165 +644,181 @@ final class ComPreparedTask extends MySQLCommunicationTask implements PreparedTa
 
             packetBuffer = this.executorAdjutant.createPayloadBuffer(capacity);
 
-            for (int i = 1, offset = 0, length = MAX_DATA; i <= time; ) {
-                // below write payload length
+            for (int i = 1, offset = 0, payloadLength = MAX_DATA; i <= time; i++) {
+                //1. below write payload length
                 if (i < time) {
                     PacketUtils.writeInt3(packetBuffer, ClientProtocol.MAX_PACKET_SIZE);
                 } else {
-                    PacketUtils.writeInt3(packetBuffer, length);
+                    PacketUtils.writeInt3(packetBuffer, payloadLength);
                 }
-                PacketUtils.writeInt1(packetBuffer, addAndGetSequenceId()); // write sequence_id;
+                PacketUtils.writeInt1(packetBuffer, addAndGetSequenceId()); //2. write sequence_id;
                 if (i == 1) {
                     packetBuffer.writeByte(PacketUtils.COM_STMT_SEND_LONG_DATA); //status
                     PacketUtils.writeInt4(packetBuffer, this.statementId); //statement_id
                     PacketUtils.writeInt2(packetBuffer, paramId);//param_id
                 }
                 if (offset < longData.length) {
-                    packetBuffer.writeBytes(longData, offset, length);
+                    packetBuffer.writeBytes(longData, offset, payloadLength);
                 }
-
-                i++;
-                offset += length;
-                length = longData.length - offset;
+                offset += payloadLength;
+                payloadLength = longData.length - offset;
             }
         }
         return Flux.just(packetBuffer);
     }
 
     /**
-     * @param longData <ul>
-     *                 <li>{@link InputStream}</li>
-     *                 <li>{@link ScatteringByteChannel}</li>
-     *                 </ul>
      * @see #sendLongData(Pair)
      */
-    private Flux<ByteBuf> sendInputStreamLongData(final int paramId, Closeable longData) {
-        return Flux.create(sink -> {
-//            MySQLColumnMeta[] parameterMetaArray = this.parameterMetas;
-//            MySQLColumnMeta parameterMeta = parameterMetaArray[parameterIndex];
-            try {
-                ByteBuf packetBuffer = createLongDataPacket(paramId, 1024);
-                int len, dataLen = packetBuffer.writableBytes(), capacity;
-                while (true) {
-                    if (longData instanceof InputStream) {
-                        len = packetBuffer.writeBytes((InputStream) longData, dataLen);
-                    } else if (longData instanceof ScatteringByteChannel) {
-                        len = packetBuffer.writeBytes((ScatteringByteChannel) longData, dataLen);
-                    } else {
-                        sink.error(new BindParameterException(
-                                String.format("Bind parameter[%s] type[%s] not support"
-                                        , paramId, longData.getClass().getName()), paramId));
-                        break;
-                    }
+    private Flux<ByteBuf> sendInputStreamLongData(final int parameterIndex, InputStream input) {
+        return Flux.create(sink -> writeInputStreamParameter(parameterIndex, input, sink));
+    }
 
-                    if (len < dataLen) {
-                        PacketUtils.writePacketHeader(packetBuffer, addAndGetSequenceId());
-                        sink.next(packetBuffer);
-                        break;
-                    }
-                    if (packetBuffer.capacity() == PacketUtils.MAX_PACKET_CAPACITY) {
-                        PacketUtils.writePacketHeader(packetBuffer, addAndGetSequenceId());
-                        sink.next(packetBuffer);
-                        packetBuffer = this.executorAdjutant.createPacketBuffer(1024);
-                    } else {
-                        capacity = Math.min(packetBuffer.capacity() * 2, PacketUtils.MAX_PACKET_CAPACITY);
-                        packetBuffer = packetBuffer.capacity(capacity);
-                    }
-                    dataLen = packetBuffer.writableBytes();
+    /**
+     * @see #sendLongData(Pair)
+     */
+    private Flux<ByteBuf> sendInputReadByteChannelLongData(final int parameterIndex, ReadableByteChannel channel) {
+        return Flux.create(sink -> {
+            ByteBuf packetBuffer = null;
+            try {
+                packetBuffer = createLongDataPacket(parameterIndex, BUFFER_LENGTH);
+                final ByteBuffer buffer = ByteBuffer.allocate(BUFFER_LENGTH);
+                while (channel.read(buffer) > 0) {
+                    packetBuffer = writeByteBufferToBlobPacket(buffer, parameterIndex, packetBuffer, sink);
+                }
+                if (hasBlobData(packetBuffer)) {
+                    PacketUtils.writePacketHeader(packetBuffer, addAndGetSequenceId()); // write header
+                    sink.next(packetBuffer); // send packet
+                } else {
+                    packetBuffer.release();
                 }
 
             } catch (IOException e) {
-                sink.error(new BindParameterException(
-                        String.format("Bind parameter[%s] read error.", paramId), e, paramId));
+                packetBuffer.release();
+                sink.error(createLongDataReadException(e, channel.getClass(), parameterIndex));
             }
         });
     }
 
-    private Flux<ByteBuf> sendReaderLongData(final int paramId, Reader longData) {
+    /**
+     * @see #sendLongData(Pair)
+     */
+    private Flux<ByteBuf> sendReaderLongData(final int parameterIndex, final Reader reader) {
         return Flux.create(sink -> {
-            MySQLColumnMeta[] parameterMetaArray = this.parameterMetas;
-            final MySQLColumnMeta parameterMeta = parameterMetaArray[paramId];
+            ByteBuf packetBuffer = null;
             try {
-                ByteBuf packetBuffer = createLongDataPacket(paramId, 1024);
-                int len, dataLen = packetBuffer.writableBytes(), capacity, resetCapacity;
-
                 final Charset clobCharset = obtainClobCharset();
-                CharsetEncoder encoder = clobCharset.newEncoder();
-                CharBuffer charBuffer = CharBuffer.allocate(1024);
-                int maxBytesPerChar = (int) Math.ceil(encoder.maxBytesPerChar());
-                if (clobCharset.equals(StandardCharsets.UTF_16) && maxBytesPerChar == 1) {
-                    maxBytesPerChar = 2;// for safety
-                }
-                ByteBuffer byteBuffer = ByteBuffer.allocate(maxBytesPerChar);
-                CoderResult coderResult;
-                while (true) {
-                    len = longData.read(charBuffer);
-                    coderResult = encoder.encode(charBuffer, byteBuffer, true);
-                    if (coderResult.isError()) {
-                        sink.error(createBindParameterException(paramId, coderResult));
-                        break;
-                    }
-                    dataLen = byteBuffer.remaining();
-                    if (dataLen <= packetBuffer.writableBytes()) {
-                        packetBuffer.writeBytes(byteBuffer);
-                    } else {
-                        packetBuffer = adjustsOnePacketCapacity(packetBuffer, dataLen);
-                        resetCapacity = packetBuffer.writableBytes();
-                        if (resetCapacity >= dataLen) {
-                            packetBuffer.writeBytes(byteBuffer);
-                        } else {
-                            final int originalLimit = byteBuffer.limit();
-                            byteBuffer.limit(byteBuffer.position() + resetCapacity);
-                            packetBuffer.writeBytes(byteBuffer);
-                            byteBuffer.limit(originalLimit);
-                        }
-                    }
-                    if (byteBuffer.capacity() == PacketUtils.MAX_PACKET_CAPACITY && !packetBuffer.isWritable()) {
-                        PacketUtils.writePacketHeader(packetBuffer, addAndGetSequenceId());
-                        sink.next(packetBuffer);
-                        packetBuffer = this.executorAdjutant.createPacketBuffer(1024);
-                    }
-                    if (len < dataLen) {
-                        PacketUtils.writePacketHeader(packetBuffer, addAndGetSequenceId());
-                        sink.next(packetBuffer);
-                        break;
-                    }
-                    if (packetBuffer.capacity() == PacketUtils.MAX_PACKET_CAPACITY) {
-                        PacketUtils.writePacketHeader(packetBuffer, addAndGetSequenceId());
-                        sink.next(packetBuffer);
-                        packetBuffer = this.executorAdjutant.createPacketBuffer(1024);
-                    } else {
-                        capacity = Math.min(packetBuffer.capacity() * 2, PacketUtils.MAX_PACKET_CAPACITY);
-                        packetBuffer = packetBuffer.capacity(capacity);
-                    }
-                    dataLen = packetBuffer.writableBytes();
-                }
+                final CharBuffer charBuffer = CharBuffer.allocate(BUFFER_LENGTH >> 1);
 
+                packetBuffer = createLongDataPacket(parameterIndex, BUFFER_LENGTH);
+
+                ByteBuffer byteBuffer;
+                while (reader.read(charBuffer) > 0) { //1. read char stream
+                    byteBuffer = clobCharset.encode(charBuffer);   //2. encode char to byte
+                    packetBuffer = writeByteBufferToBlobPacket(byteBuffer, parameterIndex, packetBuffer, sink); // 3.write byte to packet.
+                    charBuffer.clear(); // 4. clear charBuffer
+                }
+                if (hasBlobData(packetBuffer)) {
+                    PacketUtils.writePacketHeader(packetBuffer, addAndGetSequenceId()); // write header
+                    sink.next(packetBuffer); // send packet
+                } else {
+                    packetBuffer.release();
+                }
             } catch (IOException e) {
-                sink.error(new BindParameterException(
-                        String.format("Bind parameter[%s] read error.", paramId), e, paramId));
+                packetBuffer.release();
+                sink.error(createLongDataReadException(e, reader.getClass(), parameterIndex));
             }
         });
     }
 
+    /**
+     * @see #sendLongData(Pair)
+     */
     private Flux<ByteBuf> sendPathLongData(int parameterIndex, Path path) {
-        return Flux.empty();
+        return Flux.create(sink -> {
+            try (InputStream input = Files.newInputStream(path, StandardOpenOption.READ)) {
+                writeInputStreamParameter(parameterIndex, input, sink);
+            } catch (IOException e) {
+                sink.error(createLongDataReadException(e, path.getClass(), parameterIndex));
+            }
+
+
+        });
     }
 
-    private Flux<ByteBuf> sendPublisherLongData(int parameterIndex, Publisher<byte[]> longData) {
-        return Flux.empty();
+
+    /**
+     * @see #sendLongData(Pair)
+     */
+    private Flux<ByteBuf> sendPublisherLongData(int parameterIndex, Publisher<?> inputPublisher) {
+        return Flux.create(sink -> Flux.from(inputPublisher)
+                .subscribeWith(new PublisherLongDataSubscriber(sink, parameterIndex)));
     }
 
-    private ByteBuf createLongDataPacket(int parameterIndex, int initialPayloadCapacity) {
-        if (initialPayloadCapacity < 1) {
-            initialPayloadCapacity = 1024;
+
+    private boolean hasBlobData(ByteBuf packetBuffer) {
+        return packetBuffer.readableBytes() > (PacketUtils.HEADER_SIZE + LONG_DATA_PREFIX_SIZE);
+    }
+
+
+    private ByteBuf addBlobPacketCapacity(final ByteBuf packetBuffer, final int addCapacity) {
+        final int oldCapacity = packetBuffer.capacity();
+        final int capacity = Math.min(this.maxBlobPacketSize, Math.max(oldCapacity + addCapacity, oldCapacity << 1));
+        ByteBuf buffer = packetBuffer;
+        if (oldCapacity < capacity) {
+            if (packetBuffer.maxCapacity() < capacity) {
+                ByteBuf tempBuf = this.executorAdjutant.createPayloadBuffer(capacity);
+                tempBuf.writeBytes(packetBuffer);
+                packetBuffer.release();
+                buffer = tempBuf;
+            } else {
+                buffer = packetBuffer.capacity(capacity);
+            }
         }
-        ByteBuf packetBuffer = this.executorAdjutant.createPacketBuffer(7 + initialPayloadCapacity);
+        return buffer;
+    }
+
+    private BindParameterException createLongDataReadException(IOException e, Class<?> parameterClass, int parameterIndex) {
+        return new BindParameterException(
+                String.format("Bind parameter[%s](%s) read error.", parameterIndex, parameterClass.getName())
+                , e, parameterIndex);
+    }
+
+
+    private int obtainBlobSendChunkSize() {
+        int packetChunkSize = this.properties.getOrDefault(PropertyKey.blobSendChunkSize, Integer.class);
+        if (packetChunkSize < MIN_CHUNK_SIZE) {
+            packetChunkSize = MIN_CHUNK_SIZE;
+        }
+        return packetChunkSize;
+    }
+
+    private int obtainMaxBytesChar(Charset charset) {
+        int maxBytesChar;
+        if (!charset.equals(StandardCharsets.UTF_16)) {
+            maxBytesChar = (int) Math.ceil(charset.newEncoder().maxBytesPerChar());
+            if (maxBytesChar == 1) {
+                maxBytesChar = 2; // for safety
+            }
+        } else {
+            maxBytesChar = 4;
+        }
+        return maxBytesChar;
+    }
+
+
+    private ByteBuf createLongDataPacket(final int parameterIndex, final int chunkSize) {
+        int payloadCapacity;
+        if (chunkSize < 1024) {
+            payloadCapacity = 1024;
+        } else {
+            payloadCapacity = LONG_DATA_PREFIX_SIZE + Math.min(this.blobSendChunkSize, chunkSize);
+        }
+        ByteBuf packetBuffer = this.executorAdjutant.createPacketBuffer(payloadCapacity);
 
         packetBuffer.writeByte(PacketUtils.COM_STMT_SEND_LONG_DATA); //status
         PacketUtils.writeInt4(packetBuffer, this.statementId); //statement_id
         PacketUtils.writeInt2(packetBuffer, parameterIndex);//param_id
-
         return packetBuffer;
 
     }
@@ -903,34 +830,6 @@ final class ComPreparedTask extends MySQLCommunicationTask implements PreparedTa
             charset = this.executorAdjutant.obtainCharsetClient();
         }
         return charset;
-    }
-
-    private BindParameterException createBindParameterException(final int paramId, CoderResult coderResult) {
-        BindParameterException ex;
-        try {
-            coderResult.throwException();
-            // never here.
-            ex = new BindParameterException("", paramId);
-        } catch (CharacterCodingException e) {
-            ex = new BindParameterException(String.format("Parameter[%s] encode error.", paramId), e, paramId);
-        }
-        return ex;
-    }
-
-    private ByteBuf adjustsOnePacketCapacity(ByteBuf packetBuffer, final int dataLen) {
-        final int needCapacity = ((packetBuffer.capacity() - PacketUtils.HEADER_SIZE) << 1) + PacketUtils.HEADER_SIZE;
-        final int newCapacity;
-        final ByteBuf newBuffer;
-        newCapacity = Math.min(needCapacity, PacketUtils.MAX_PACKET_CAPACITY);
-        if (packetBuffer.maxCapacity() < newCapacity) {
-            newBuffer = packetBuffer.alloc().buffer(newCapacity);
-            newBuffer.writeBytes(packetBuffer);
-            packetBuffer.release();
-        } else {
-            packetBuffer.capacity(newCapacity);
-            newBuffer = packetBuffer;
-        }
-        return newBuffer;
     }
 
 
@@ -972,7 +871,8 @@ final class ComPreparedTask extends MySQLCommunicationTask implements PreparedTa
             if (bindValue.isLongData() || bindValue.getValue() == null) {
                 continue;
             }
-            String errorMsg = bindParameter(packetBuffer, parameterMetaArray[i], bindValue);
+            String errorMsg = bindParameter(packetBuffer, parameterMetaArray[i]
+                    , bindValue, this.executorAdjutant.obtainCharsetClient());
             if (errorMsg != null) { //parameter_values
                 // bind parameter error , end task.
                 packetBuffer.release();
@@ -1010,148 +910,646 @@ final class ComPreparedTask extends MySQLCommunicationTask implements PreparedTa
         }
     }
 
-    @Nullable
-    private String bindToBoolean(Object nonNullValue, MySQLColumnMeta parameterMeta, MySQLType bindType) {
-        return null;
+
+    private ByteBuf writeByteArrayToBlobPacket(final byte[] byteArray, final int length
+            , final int parameterIndex, ByteBuf packetBuffer, final FluxSink<ByteBuf> sink) {
+        if (length == 0) {
+            return packetBuffer;
+        }
+        if (length <= packetBuffer.writableBytes()) {
+            packetBuffer.writeBytes(byteArray);
+            return packetBuffer;
+        }
+        // below Adjusts the capacity of this buffer
+        for (int offset = 0, writableBytes, dataLen; offset < length; ) {
+            dataLen = length - offset;
+            packetBuffer = addBlobPacketCapacity(packetBuffer, dataLen);
+            writableBytes = packetBuffer.writableBytes();
+
+            if (dataLen > writableBytes) {
+                if (writableBytes > 0) {
+                    packetBuffer.writeBytes(byteArray, offset, writableBytes);
+                    offset += writableBytes;
+                }
+                PacketUtils.writePacketHeader(packetBuffer, addAndGetSequenceId()); // write header
+                sink.next(packetBuffer); // send packet
+
+                dataLen = length - offset;
+                packetBuffer = createLongDataPacket(parameterIndex, dataLen); // create new packet
+                dataLen = Math.min(dataLen, packetBuffer.writableBytes());
+            }
+            packetBuffer.writeBytes(byteArray, offset, dataLen);
+            offset += dataLen;
+        }
+        return packetBuffer;
     }
 
-    @Nullable
-    private String bindToTinyInt(Object nonNullValue, MySQLColumnMeta parameterMeta, MySQLType bindType) {
-        return null;
+    private ByteBuf writeByteBufferToBlobPacket(final ByteBuffer byteBuffer, final int parameterIndex
+            , ByteBuf packetBuffer, final FluxSink<ByteBuf> sink) {
+        if (!byteBuffer.hasRemaining()) {
+            return packetBuffer;
+        }
+
+        if (byteBuffer.remaining() <= packetBuffer.writableBytes()) {
+            packetBuffer.writeBytes(byteBuffer);
+            return packetBuffer;
+        }
+        // below Adjusts the capacity of this buffer
+
+        for (int writableBytes; byteBuffer.hasRemaining(); ) {
+            packetBuffer = addBlobPacketCapacity(packetBuffer, byteBuffer.remaining());
+            writableBytes = packetBuffer.writableBytes();
+
+            if (byteBuffer.remaining() > writableBytes) {
+                if (writableBytes > 0) {
+                    byte[] bufferArray = new byte[writableBytes];
+                    byteBuffer.get(bufferArray);
+                    packetBuffer.writeBytes(bufferArray);
+                }
+                PacketUtils.writePacketHeader(packetBuffer, addAndGetSequenceId()); // write header
+                sink.next(packetBuffer); // send packet
+
+                packetBuffer = createLongDataPacket(parameterIndex, byteBuffer.remaining()); // create new packet
+            } else {
+                packetBuffer.writeBytes(byteBuffer);
+            }
+
+        }
+        return packetBuffer;
+
     }
 
-    @Nullable
-    private String bindToUnsignedTinyInt(Object nonNullValue, MySQLColumnMeta parameterMeta, MySQLType bindType) {
-        return null;
+    private void writeInputStreamParameter(final int parameterIndex, InputStream input, FluxSink<ByteBuf> sink) {
+        ByteBuf packetBuffer = null;
+        try {
+            packetBuffer = createLongDataPacket(parameterIndex, BUFFER_LENGTH);
+            final byte[] buffer = new byte[BUFFER_LENGTH];
+            for (int length; (length = input.read(buffer)) > 0; ) {
+                packetBuffer = writeByteArrayToBlobPacket(buffer, length, parameterIndex, packetBuffer, sink);
+            }
+            if (hasBlobData(packetBuffer)) {
+                PacketUtils.writePacketHeader(packetBuffer, addAndGetSequenceId()); // write header
+                sink.next(packetBuffer); // send packet
+            } else {
+                packetBuffer.release();
+            }
+
+        } catch (IOException e) {
+            packetBuffer.release();
+            sink.error(createLongDataReadException(e, input.getClass(), parameterIndex));
+        }
     }
 
+    /**
+     * @return true : task end because bind parameter occur error.
+     * @throws IllegalArgumentException when {@link BindValue#getValue()} is null.
+     */
     @Nullable
-    private String bindToSmallInt(Object nonNullValue, MySQLColumnMeta parameterMeta, MySQLType bindType) {
-        return null;
-    }
-
-    @Nullable
-    private String bindToUnsignedSmallInt(Object nonNullValue, MySQLColumnMeta parameterMeta, MySQLType bindType) {
-        return null;
-    }
-
-    @Nullable
-    private String bindToMediumInt(Object nonNullValue, MySQLColumnMeta parameterMeta, MySQLType bindType) {
-        return null;
-    }
-
-    @Nullable
-    private String bindToUnsignedMediumInt(Object nonNullValue, MySQLColumnMeta parameterMeta, MySQLType bindType) {
-        return null;
-    }
-
-    @Nullable
-    private String bindToInt(ByteBuf packetBuffer, Object nonNullValue, MySQLType bindType) {
-        switch (bindType) {
+    private String bindParameter(ByteBuf packetBuffer, MySQLColumnMeta parameterMeta, BindValue bindValue
+            , Charset clientCharset) {
+        final String errorMsg;
+        switch (parameterMeta.mysqlType) {
             case INT:
-                PacketUtils.writeInt4(packetBuffer, (Integer) nonNullValue);
+            case MEDIUMINT:
+            case MEDIUMINT_UNSIGNED:
+                errorMsg = bindToInt(packetBuffer, bindValue);
                 break;
             case INT_UNSIGNED:
-            case MEDIUMINT_UNSIGNED:
-            case SMALLINT_UNSIGNED:
-            case TINYINT_UNSIGNED:
+            case BIGINT:
             case BIGINT_UNSIGNED:
-            case SMALLINT:
-            case TINYINT:
-            case MEDIUMINT:
+                errorMsg = bindToBigInt(packetBuffer, bindValue);
+                break;
+            case FLOAT:
+            case FLOAT_UNSIGNED:
+                errorMsg = bindToFloat(packetBuffer, bindValue);
+                break;
+            case DOUBLE:
+            case DOUBLE_UNSIGNED:
+                errorMsg = bindToDouble(packetBuffer, bindValue);
+                break;
+            case BIT:
+                errorMsg = bindToBit(packetBuffer, bindValue, clientCharset);
+                break;
             case BOOLEAN:
+            case TINYINT:
+            case TINYINT_UNSIGNED:
+                errorMsg = bindToTinyInt(packetBuffer, bindValue);
+                break;
+            case SMALLINT:
+            case SMALLINT_UNSIGNED:
+            case YEAR:
+                errorMsg = bindShort(packetBuffer, bindValue);
+                break;
+            case DECIMAL:
+            case DECIMAL_UNSIGNED:
+            case VARCHAR:
+            case CHAR:
+            case SET:
+            case JSON:
+            case ENUM:
+            case TINYTEXT:
+            case MEDIUMTEXT:
+            case TEXT:
+            case LONGTEXT:
+                // below binary
+            case BINARY:
+            case VARBINARY:
+            case TINYBLOB:
+            case MEDIUMBLOB:
+            case BLOB:
+            case LONGBLOB:
+                errorMsg = bindToStringType(packetBuffer, bindValue, clientCharset);
+                break;
+            case TIME:
+                errorMsg = bindToTime(packetBuffer, parameterMeta, bindValue);
+                break;
+            case DATE:
+            case DATETIME:
+            case TIMESTAMP:
+                errorMsg = bindToDatetime(packetBuffer, parameterMeta, bindValue);
+                break;
+            case UNKNOWN:
+            case GEOMETRY:
+                errorMsg = null; //TODO add code
+                break;
+            default:
+                throw MySQLExceptionUtils.createUnknownEnumException(parameterMeta.mysqlType);
         }
-        return null;
+
+        return errorMsg;
     }
 
     @Nullable
-    private String bindToUnsignedInt(Object nonNullValue, MySQLColumnMeta parameterMeta, MySQLType bindType) {
-        return null;
+    private String bindToTinyInt(ByteBuf packetBuffer, BindValue bindValue) {
+        final Object nonNullValue = bindValue.getRequiredValue();
+        String errorMsg = null;
+        final int unsignedMaxByte = MySQLNumberUtils.unsignedByteToInt((byte) -1);
+        if (nonNullValue instanceof Byte) {
+            packetBuffer.writeByte((Byte) nonNullValue);
+        } else if (nonNullValue instanceof Boolean) {
+            packetBuffer.writeByte(((Boolean) nonNullValue) ? 1 : 0);
+        } else if (nonNullValue instanceof Integer) {
+            int num = (Integer) nonNullValue;
+            if (num >= Byte.MIN_VALUE && num <= unsignedMaxByte) {
+                packetBuffer.writeByte(num);
+            } else {
+                errorMsg = createNumberRangErrorMessage(bindValue, unsignedMaxByte, Byte.MIN_VALUE);
+            }
+        } else if (nonNullValue instanceof String) {
+            try {
+                int num = Integer.parseInt((String) nonNullValue);
+                if (num >= Byte.MIN_VALUE && num <= unsignedMaxByte) {
+                    packetBuffer.writeByte(num);
+                } else {
+                    errorMsg = createNumberRangErrorMessage(bindValue, unsignedMaxByte, Byte.MIN_VALUE);
+                }
+            } catch (NumberFormatException e) {
+                errorMsg = createTypeNotMatchMessage(bindValue);
+            }
+        } else if (nonNullValue instanceof Short) {
+            int num = (Short) nonNullValue;
+            if (num >= Byte.MIN_VALUE && num <= unsignedMaxByte) {
+                packetBuffer.writeByte(num);
+            } else {
+                errorMsg = createNumberRangErrorMessage(bindValue, unsignedMaxByte, Byte.MIN_VALUE);
+            }
+        } else if (nonNullValue instanceof Long) {
+            long num = (Long) nonNullValue;
+            if (num >= Byte.MIN_VALUE && num <= unsignedMaxByte) {
+                packetBuffer.writeByte((int) num);
+            } else {
+                errorMsg = createNumberRangErrorMessage(bindValue, unsignedMaxByte, Byte.MIN_VALUE);
+            }
+        } else if (nonNullValue instanceof BigInteger) {
+            BigInteger num = (BigInteger) nonNullValue;
+            if (num.compareTo(BigInteger.valueOf(Byte.MIN_VALUE)) >= 0
+                    && num.compareTo(BigInteger.valueOf(unsignedMaxByte)) <= 0) {
+                packetBuffer.writeByte(num.intValue());
+            } else {
+                errorMsg = createNumberRangErrorMessage(bindValue, unsignedMaxByte, Byte.MIN_VALUE);
+            }
+        } else if (nonNullValue instanceof BigDecimal) {
+            BigDecimal num = (BigDecimal) nonNullValue;
+            if (num.scale() != 0) {
+                errorMsg = createTypeNotMatchMessage(bindValue);
+            } else if (num.compareTo(BigDecimal.valueOf(Byte.MIN_VALUE)) >= 0
+                    && num.compareTo(BigDecimal.valueOf(unsignedMaxByte)) <= 0) {
+                packetBuffer.writeByte(num.intValue());
+            } else {
+                errorMsg = createNumberRangErrorMessage(bindValue, unsignedMaxByte, Byte.MIN_VALUE);
+            }
+        } else {
+            errorMsg = createTypeNotMatchMessage(bindValue);
+        }
+        return errorMsg;
+    }
+
+    /**
+     * @see #bindParameter(ByteBuf, MySQLColumnMeta, BindValue, Charset)
+     */
+    @Nullable
+    private String bindShort(ByteBuf packetBuffer, BindValue bindValue) {
+        Object nonNullValue = bindValue.getRequiredValue();
+        String errorMsg = null;
+        final int unsignedMaxShort = MySQLNumberUtils.unsignedShortToInt((short) -1);
+        if (nonNullValue instanceof Year) {
+            PacketUtils.writeInt2(packetBuffer, ((Year) nonNullValue).getValue());
+        } else if (nonNullValue instanceof Short) {
+            PacketUtils.writeInt2(packetBuffer, ((Short) nonNullValue).intValue());
+        } else if (nonNullValue instanceof Integer) {
+            int num = (Integer) nonNullValue;
+            if (num >= Short.MIN_VALUE && num <= unsignedMaxShort) {
+                PacketUtils.writeInt2(packetBuffer, num);
+            } else {
+                errorMsg = createNumberRangErrorMessage(bindValue, unsignedMaxShort, Short.MIN_VALUE);
+            }
+        } else if (nonNullValue instanceof String) {
+            try {
+                int num = Integer.parseInt((String) nonNullValue);
+                if (num >= Short.MIN_VALUE && num <= unsignedMaxShort) {
+                    PacketUtils.writeInt2(packetBuffer, num);
+                } else {
+                    errorMsg = createNumberRangErrorMessage(bindValue, unsignedMaxShort, Short.MIN_VALUE);
+                }
+            } catch (NumberFormatException e) {
+                errorMsg = createTypeNotMatchMessage(bindValue);
+            }
+        } else if (nonNullValue instanceof Long) {
+            long num = (Long) nonNullValue;
+            if (num >= Short.MIN_VALUE && num <= unsignedMaxShort) {
+                PacketUtils.writeInt2(packetBuffer, (int) num);
+            } else {
+                errorMsg = createNumberRangErrorMessage(bindValue, unsignedMaxShort, Short.MIN_VALUE);
+            }
+        } else if (nonNullValue instanceof Byte) {
+            PacketUtils.writeInt2(packetBuffer, ((Byte) nonNullValue).intValue());
+        } else if (nonNullValue instanceof BigInteger) {
+            BigInteger num = (BigInteger) nonNullValue;
+            if (num.compareTo(BigInteger.valueOf(Short.MIN_VALUE)) >= 0
+                    && num.compareTo(BigInteger.valueOf(unsignedMaxShort)) <= 0) {
+                PacketUtils.writeInt2(packetBuffer, num.intValue());
+            } else {
+                errorMsg = createNumberRangErrorMessage(bindValue, unsignedMaxShort, Short.MIN_VALUE);
+            }
+        } else if (nonNullValue instanceof BigDecimal) {
+            BigDecimal num = (BigDecimal) nonNullValue;
+            if (num.scale() != 0) {
+                errorMsg = createTypeNotMatchMessage(bindValue);
+            } else if (num.compareTo(BigDecimal.valueOf(Short.MIN_VALUE)) >= 0
+                    && num.compareTo(BigDecimal.valueOf(unsignedMaxShort)) <= 0) {
+                PacketUtils.writeInt2(packetBuffer, num.intValue());
+            } else {
+                errorMsg = createNumberRangErrorMessage(bindValue, unsignedMaxShort, Short.MIN_VALUE);
+            }
+        } else {
+            errorMsg = createTypeNotMatchMessage(bindValue);
+        }
+        return errorMsg;
+    }
+
+
+    @Nullable
+    private String bindToInt(ByteBuf packetBuffer, BindValue bindValue) {
+        final Object nonNullValue = bindValue.getRequiredValue();
+        String errorMsg = null;
+        final long unsignedMaxInt = MySQLNumberUtils.unsignedIntToLong(-1);
+        if (nonNullValue instanceof Integer) {
+            PacketUtils.writeInt4(packetBuffer, ((Integer) nonNullValue));
+        } else if (nonNullValue instanceof Long) {
+            long num = (Long) nonNullValue;
+            if (num >= Integer.MIN_VALUE && num <= unsignedMaxInt) {
+                PacketUtils.writeInt4(packetBuffer, (int) num);
+            } else {
+                errorMsg = createTypeNotMatchMessage(bindValue);
+            }
+        } else if (nonNullValue instanceof String) {
+            try {
+                long num = Long.parseLong((String) nonNullValue);
+                if (num >= Short.MIN_VALUE && num <= unsignedMaxInt) {
+                    PacketUtils.writeInt4(packetBuffer, (int) unsignedMaxInt);
+                } else {
+                    errorMsg = createNumberRangErrorMessage(bindValue, unsignedMaxInt, Integer.MIN_VALUE);
+                }
+            } catch (NumberFormatException e) {
+                errorMsg = createTypeNotMatchMessage(bindValue);
+            }
+        } else if (nonNullValue instanceof BigInteger) {
+            BigInteger num = (BigInteger) nonNullValue;
+            if (num.compareTo(BigInteger.valueOf(Integer.MIN_VALUE)) >= 0
+                    && num.compareTo(BigInteger.valueOf(unsignedMaxInt)) <= 0) {
+                PacketUtils.writeInt4(packetBuffer, (int) num.longValue());
+            } else {
+                errorMsg = createNumberRangErrorMessage(bindValue
+                        , unsignedMaxInt
+                        , BigInteger.valueOf(Integer.MIN_VALUE));
+            }
+
+        } else if (nonNullValue instanceof Short) {
+            PacketUtils.writeInt4(packetBuffer, ((Short) nonNullValue).intValue());
+        } else if (nonNullValue instanceof Byte) {
+            PacketUtils.writeInt4(packetBuffer, ((Byte) nonNullValue).intValue());
+        } else if (nonNullValue instanceof BigDecimal) {
+            BigDecimal num = (BigDecimal) nonNullValue;
+            if (num.scale() != 0) {
+                errorMsg = createTypeNotMatchMessage(bindValue);
+            } else if (num.compareTo(BigDecimal.valueOf(Integer.MIN_VALUE)) >= 0
+                    && num.compareTo(BigDecimal.valueOf(unsignedMaxInt)) <= 0) {
+                PacketUtils.writeInt4(packetBuffer, (int) num.longValue());
+            } else {
+                errorMsg = createNumberRangErrorMessage(bindValue
+                        , unsignedMaxInt
+                        , BigDecimal.valueOf(Integer.MIN_VALUE));
+            }
+        } else {
+            errorMsg = createTypeNotMatchMessage(bindValue);
+        }
+        return errorMsg;
     }
 
     @Nullable
-    private String bindToFloat(Object nonNullValue, MySQLColumnMeta parameterMeta, MySQLType bindType) {
-        return null;
+    private String bindToFloat(ByteBuf packetBuffer, BindValue bindValue) {
+        final Object nonNullValue = bindValue.getRequiredValue();
+        String errorMsg = null;
+        if (nonNullValue instanceof Float) {
+            PacketUtils.writeInt4(packetBuffer, Float.floatToIntBits((Float) nonNullValue));
+        } else if (nonNullValue instanceof String) {
+            try {
+                PacketUtils.writeInt4(packetBuffer, Float.floatToIntBits(Float.parseFloat((String) nonNullValue)));
+            } catch (NumberFormatException e) {
+                errorMsg = createTypeNotMatchMessage(bindValue);
+            }
+        } else if (nonNullValue instanceof Short) {
+            PacketUtils.writeInt4(packetBuffer, Float.floatToIntBits(((Short) nonNullValue).floatValue()));
+        } else if (nonNullValue instanceof Byte) {
+            PacketUtils.writeInt4(packetBuffer, Float.floatToIntBits(((Byte) nonNullValue).floatValue()));
+        } else {
+            errorMsg = createTypeNotMatchMessage(bindValue);
+        }
+
+        return errorMsg;
     }
 
-    @Nullable
-    private String bindToUnsignedFloat(Object nonNullValue, MySQLColumnMeta parameterMeta, MySQLType bindType) {
-        return null;
-    }
 
     @Nullable
-    private String bindToBigInt(Object nonNullValue, MySQLColumnMeta parameterMeta, MySQLType bindType) {
-        return null;
+    private String bindToBigInt(ByteBuf packetBuffer, BindValue bindValue) {
+        final Object nonNullValue = bindValue.getRequiredValue();
+        String errorMsg = null;
+        if (nonNullValue instanceof Long) {
+            PacketUtils.writeInt8(packetBuffer, ((Long) nonNullValue));
+        } else if (nonNullValue instanceof Integer) {
+            PacketUtils.writeInt8(packetBuffer, ((Integer) nonNullValue).longValue());
+        } else if (nonNullValue instanceof BigInteger) {
+            BigInteger num = (BigInteger) nonNullValue;
+            if (num.compareTo(BigInteger.valueOf(Long.MIN_VALUE)) >= 0
+                    && num.compareTo(MySQLNumberUtils.UNSIGNED_MAX_LONG) <= 0) {
+                PacketUtils.writeInt8(packetBuffer, num);
+            } else {
+                errorMsg = createNumberRangErrorMessage(bindValue
+                        , MySQLNumberUtils.UNSIGNED_MAX_LONG
+                        , BigInteger.valueOf(Long.MIN_VALUE));
+            }
+
+        } else if (nonNullValue instanceof Short) {
+            PacketUtils.writeInt8(packetBuffer, ((Short) nonNullValue).longValue());
+        } else if (nonNullValue instanceof Byte) {
+            PacketUtils.writeInt8(packetBuffer, ((Byte) nonNullValue).longValue());
+        } else if (nonNullValue instanceof String) {
+            try {
+                BigInteger num = new BigInteger((String) nonNullValue);
+                if (num.compareTo(BigInteger.valueOf(Long.MIN_VALUE)) >= 0
+                        && num.compareTo(MySQLNumberUtils.UNSIGNED_MAX_LONG) <= 0) {
+                    PacketUtils.writeInt8(packetBuffer, num);
+                } else {
+                    errorMsg = createNumberRangErrorMessage(bindValue
+                            , MySQLNumberUtils.UNSIGNED_MAX_LONG
+                            , BigInteger.valueOf(Long.MIN_VALUE));
+                }
+            } catch (NumberFormatException e) {
+                errorMsg = createTypeNotMatchMessage(bindValue);
+            }
+        } else if (nonNullValue instanceof BigDecimal) {
+            BigDecimal num = (BigDecimal) nonNullValue;
+            BigDecimal unsignedMaxLong = new BigDecimal(MySQLNumberUtils.UNSIGNED_MAX_LONG);
+            if (num.scale() != 0) {
+                errorMsg = createTypeNotMatchMessage(bindValue);
+            } else if (num.compareTo(BigDecimal.valueOf(Long.MIN_VALUE)) >= 0
+                    && num.compareTo(unsignedMaxLong) <= 0) {
+                PacketUtils.writeInt8(packetBuffer, num.toBigInteger());
+            } else {
+                errorMsg = createNumberRangErrorMessage(bindValue
+                        , unsignedMaxLong
+                        , BigDecimal.valueOf(Long.MIN_VALUE));
+            }
+        } else {
+            errorMsg = createTypeNotMatchMessage(bindValue);
+        }
+        return errorMsg;
     }
 
-    @Nullable
-    private String bindToUnsignedBigInt(Object nonNullValue, MySQLColumnMeta parameterMeta, MySQLType bindType) {
-        return null;
-    }
 
     @Nullable
-    private String bindToDouble(Object nonNullValue, MySQLColumnMeta parameterMeta, MySQLType bindType) {
-        return null;
+    private String bindToDouble(ByteBuf packetBuffer, BindValue bindValue) {
+        final Object nonNullValue = bindValue.getRequiredValue();
+        String errorMsg = null;
+        if (nonNullValue instanceof Double) {
+            PacketUtils.writeInt8(packetBuffer, Double.doubleToLongBits((Double) nonNullValue));
+        } else if (nonNullValue instanceof Float) {
+            PacketUtils.writeInt8(packetBuffer, Double.doubleToLongBits((Float) nonNullValue));
+        } else if (nonNullValue instanceof String) {
+            try {
+                PacketUtils.writeInt8(packetBuffer, Double.doubleToLongBits(Double.parseDouble((String) nonNullValue)));
+            } catch (NumberFormatException e) {
+                errorMsg = createTypeNotMatchMessage(bindValue);
+            }
+        } else if (nonNullValue instanceof Integer) {
+            PacketUtils.writeInt8(packetBuffer, Double.doubleToLongBits(((Integer) nonNullValue).doubleValue()));
+        } else if (nonNullValue instanceof Short) {
+            PacketUtils.writeInt8(packetBuffer, Double.doubleToLongBits(((Short) nonNullValue).doubleValue()));
+        } else if (nonNullValue instanceof Byte) {
+            PacketUtils.writeInt8(packetBuffer, Double.doubleToLongBits(((Byte) nonNullValue).doubleValue()));
+        } else {
+            errorMsg = createTypeNotMatchMessage(bindValue);
+        }
+
+        return errorMsg;
     }
 
-    @Nullable
-    private String bindToUnsignedDouble(Object nonNullValue, MySQLColumnMeta parameterMeta, MySQLType bindType) {
-        return null;
-    }
 
     @Nullable
-    private String bindToDecimal(Object nonNullValue, MySQLColumnMeta parameterMeta, MySQLType bindType) {
-        return null;
+    private String bindToTime(ByteBuf packetBuffer, MySQLColumnMeta parameterMeta, BindValue bindValue) {
+        final Object nonNullValue = bindValue.getRequiredValue();
+        String errorMsg = null;
+        final int length;
+        if (parameterMeta.decimals > 0 && parameterMeta.decimals < 7) {
+            length = 8 + parameterMeta.decimals;
+        } else {
+            length = 8 + ((int) (parameterMeta.length - 20L));
+        }
+        final LocalTime time;
+        if (nonNullValue instanceof LocalTime) {
+            time = OffsetTime.of((LocalTime) nonNullValue, this.executorAdjutant.obtainZoneOffsetClient())
+                    .withOffsetSameInstant(this.executorAdjutant.obtainZoneOffsetDatabase())
+                    .toLocalTime();
+        } else if (nonNullValue instanceof OffsetTime) {
+            time = ((OffsetTime) nonNullValue).withOffsetSameInstant(this.executorAdjutant.obtainZoneOffsetDatabase())
+                    .toLocalTime();
+        } else if (nonNullValue instanceof Duration) {
+            time = null;
+            Duration duration = (Duration) nonNullValue;
+            packetBuffer.writeByte(length); //1. length
+
+            packetBuffer.writeByte(duration.isNegative() ? 1 : 0); //2. is_negative
+            duration = duration.abs();
+            if (duration.getSeconds() > Constants.DURATION_MAX_SECONDS) {
+                return String.format("Bind parameter[%s] MySQLType[%s] Duration[%s] beyond [-838:59:59,838:59:59]"
+                        , bindValue.getIndex(), bindValue.getType(), duration);
+            }
+            long temp;
+            temp = duration.toDays();
+            PacketUtils.writeInt4(packetBuffer, (int) temp); //3. days
+            duration = duration.minusDays(temp);
+
+            temp = duration.toHours();
+            packetBuffer.writeByte((int) temp); //4. hour
+            duration = duration.minusHours(temp);
+
+            temp = duration.toMinutes();
+            packetBuffer.writeByte((int) temp); //5. minute
+            duration = duration.minusMinutes(temp);
+
+            temp = duration.getSeconds();
+            packetBuffer.writeByte((int) temp); //6. second
+            duration = duration.minusSeconds(temp);
+            if (length == 12) {
+                PacketUtils.writeInt4(packetBuffer, (int) duration.toMillis());//7, micro seconds
+            }
+        } else {
+            time = null;
+            errorMsg = createTypeNotMatchMessage(bindValue);
+        }
+        if (time != null) {
+            packetBuffer.writeByte(length); //1. length
+            packetBuffer.writeByte(0); //2. is_negative
+            packetBuffer.writeZero(4); //3. days
+
+            packetBuffer.writeByte(time.getHour()); //4. hour
+            packetBuffer.writeByte(time.getMinute()); //5. minute
+            packetBuffer.writeByte(time.getSecond()); ///6. second
+
+            if (length == 11) {
+                PacketUtils.writeInt4(packetBuffer, time.get(ChronoField.MICRO_OF_SECOND));//7, micro seconds
+            }
+        }
+        return errorMsg;
     }
 
+    /**
+     * @see #bindParameter(ByteBuf, MySQLColumnMeta, BindValue, Charset)
+     */
     @Nullable
-    private String bindToUnsignedDecimal(Object nonNullValue, MySQLColumnMeta parameterMeta, MySQLType bindType) {
-        return null;
+    private String bindToDatetime(ByteBuf packetBuffer, MySQLColumnMeta parameterMeta, BindValue bindValue) {
+        Object nonNullValue = bindValue.getRequiredValue();
+
+        String errorMsg = null;
+        LocalDateTime dateTime = null;
+        if (nonNullValue instanceof LocalDate) {
+            LocalDate date = (LocalDate) nonNullValue;
+
+            packetBuffer.writeByte(4); // length
+            PacketUtils.writeInt2(packetBuffer, date.getYear()); // year
+            packetBuffer.writeByte(date.getMonthValue()); // month
+            packetBuffer.writeByte(date.getDayOfMonth()); // day
+        } else if (nonNullValue instanceof LocalDateTime) {
+            dateTime = OffsetDateTime.of((LocalDateTime) nonNullValue, this.executorAdjutant.obtainZoneOffsetClient())
+                    .withOffsetSameInstant(this.executorAdjutant.obtainZoneOffsetDatabase())
+                    .toLocalDateTime();
+        } else if (nonNullValue instanceof ZonedDateTime) {
+            dateTime = ((ZonedDateTime) nonNullValue)
+                    .withZoneSameInstant(this.executorAdjutant.obtainZoneOffsetDatabase())
+                    .toLocalDateTime();
+        } else if (nonNullValue instanceof OffsetDateTime) {
+            dateTime = ((OffsetDateTime) nonNullValue)
+                    .withOffsetSameInstant(this.executorAdjutant.obtainZoneOffsetDatabase())
+                    .toLocalDateTime();
+        } else {
+            errorMsg = createTypeNotMatchMessage(bindValue);
+        }
+        if (dateTime != null) {
+            final int length;
+            if (parameterMeta.decimals > 0 && parameterMeta.decimals < 7) {
+                length = 7 + parameterMeta.decimals;
+            } else {
+                length = 7 + ((int) (parameterMeta.length - 20L));
+            }
+            packetBuffer.writeByte(length); // length
+
+            PacketUtils.writeInt2(packetBuffer, dateTime.getYear()); // year
+            packetBuffer.writeByte(dateTime.getMonthValue()); // month
+            packetBuffer.writeByte(dateTime.getDayOfMonth()); // day
+
+            packetBuffer.writeByte(dateTime.getHour()); // hour
+            packetBuffer.writeByte(dateTime.getMinute()); // minute
+            packetBuffer.writeByte(dateTime.getSecond()); // second
+
+            PacketUtils.writeInt4(packetBuffer, dateTime.get(ChronoField.MICRO_OF_SECOND));// micro second
+        }
+        return errorMsg;
     }
 
+
+    /**
+     * @see #bindParameter(ByteBuf, MySQLColumnMeta, BindValue, Charset)
+     */
     @Nullable
-    private String bindToTime(Object nonNullValue, MySQLColumnMeta parameterMeta, MySQLType bindType) {
-        return null;
+    private String bindToBit(ByteBuf packetBuffer, BindValue bindValue, Charset clientCharset) {
+        Object nonNullValue = bindValue.getRequiredValue();
+        String errorMsg = null;
+        if (nonNullValue instanceof Long) {
+            PacketUtils.writeStringLenEnc(packetBuffer
+                    , Long.toBinaryString((Long) nonNullValue).getBytes(clientCharset));
+        } else {
+            errorMsg = createTypeNotMatchMessage(bindValue);
+        }
+        return errorMsg;
     }
 
+    /**
+     * @see #bindParameter(ByteBuf, MySQLColumnMeta, BindValue, Charset)
+     */
     @Nullable
-    private String bindToDate(Object nonNullValue, MySQLColumnMeta parameterMeta, MySQLType bindType) {
-        return null;
+    private String bindToStringType(ByteBuf packetBuffer, BindValue bindValue, Charset clientCharset) {
+        Object nonNullValue = Objects.requireNonNull(bindValue.getValue(), "bindValue");
+        String errorMsg = null;
+        if (nonNullValue instanceof String) {
+            PacketUtils.writeStringLenEnc(packetBuffer, ((String) nonNullValue).getBytes(clientCharset));
+        } else if (nonNullValue instanceof BigDecimal) {
+            PacketUtils.writeStringLenEnc(packetBuffer
+                    , ((BigDecimal) nonNullValue).toPlainString().getBytes(clientCharset));
+        } else if (nonNullValue instanceof byte[]) {
+            PacketUtils.writeStringLenEnc(packetBuffer, (byte[]) nonNullValue);
+        } else if (nonNullValue instanceof Number) {
+            PacketUtils.writeStringLenEnc(packetBuffer, nonNullValue.toString().getBytes(clientCharset));
+        } else if (nonNullValue instanceof Character) {
+            PacketUtils.writeStringLenEnc(packetBuffer, nonNullValue.toString().getBytes(clientCharset));
+        } else if (nonNullValue instanceof Enum) {
+            PacketUtils.writeStringLenEnc(packetBuffer, ((Enum<?>) nonNullValue).name().getBytes(clientCharset));
+        } else if (nonNullValue instanceof Geometry) {
+            // TODO add code
+        } else {
+            errorMsg = createTypeNotMatchMessage(bindValue);
+        }
+        return errorMsg;
     }
 
-    @Nullable
-    private String bindToDatetime(Object nonNullValue, MySQLColumnMeta parameterMeta, MySQLType bindType) {
-        return null;
+    private String createNumberRangErrorMessage(BindValue bindValue, Number upper, Number lower) {
+        return String.format("Bind parameter[%s] MySQLType[%s] beyond rang[%s,%s]."
+                , bindValue.getIndex(), bindValue.getType(), upper, lower);
     }
 
-    @Nullable
-    private String bindToTimestamp(Object nonNullValue, MySQLColumnMeta parameterMeta, MySQLType bindType) {
-        return null;
-    }
 
-    @Nullable
-    private String bindToYear(Object nonNullValue, MySQLColumnMeta parameterMeta, MySQLType bindType) {
-        return null;
-    }
-
-    @Nullable
-    private String bindToBit(Object nonNullValue, MySQLColumnMeta parameterMeta, MySQLType bindType) {
-        return null;
-    }
-
-    @Nullable
-    private String bindToChar(Object nonNullValue, MySQLColumnMeta parameterMeta, MySQLType bindType) {
-        return null;
-    }
-
-    @Nullable
-    private String bindToVarChar(Object nonNullValue, MySQLColumnMeta parameterMeta, MySQLType bindType) {
-        return null;
-    }
-
-    @Nullable
-    private String bindToSet(Object nonNullValue, MySQLColumnMeta parameterMeta, MySQLType bindType) {
-        return null;
+    private String createTypeNotMatchMessage(BindValue bindValue) {
+        return String.format("Bind parameter[%s] MySQLType[%s] and JavaType[%s] not match."
+                , bindValue.getIndex(), bindValue.getType(), bindValue.getRequiredValue().getClass().getName());
     }
 
     /*################################## blow private static method ##################################*/
@@ -1162,6 +1560,73 @@ final class ComPreparedTask extends MySQLCommunicationTask implements PreparedTa
                         , parameterIndex, parameterClass.getName()), parameterIndex));*/
         closeStatement();
         return Integer.MIN_VALUE;
+    }
+
+    /*################################## blow private instance inner class ##################################*/
+
+    private final class PublisherLongDataSubscriber implements CoreSubscriber<Object> {
+
+        private final FluxSink<ByteBuf> sink;
+
+        private final int parameterIndex;
+
+        ByteBuf packetBuffer;
+
+        private PublisherLongDataSubscriber(FluxSink<ByteBuf> sink, int parameterIndex) {
+            this.sink = sink;
+            this.parameterIndex = parameterIndex;
+        }
+
+        @Override
+        public void onSubscribe(Subscription s) {
+            s.request(Long.MAX_VALUE);
+        }
+
+        @Override
+        public void onNext(final Object data) {
+            ByteBuf packetBuffer = this.packetBuffer;
+            if (data instanceof byte[]) {
+                byte[] byteArray = (byte[]) data;
+                if (packetBuffer == null) {
+                    packetBuffer = createLongDataPacket(this.parameterIndex, byteArray.length);
+                }
+                this.packetBuffer = writeByteArrayToBlobPacket(byteArray, byteArray.length
+                        , this.parameterIndex, packetBuffer, this.sink);
+            } else if (data instanceof ByteBuffer) {
+                ByteBuffer byteBuffer = (ByteBuffer) data;
+                if (packetBuffer == null) {
+                    packetBuffer = createLongDataPacket(this.parameterIndex, byteBuffer.remaining());
+                }
+                this.packetBuffer = writeByteBufferToBlobPacket(byteBuffer, this.parameterIndex, packetBuffer, this.sink);
+            } else {
+                this.sink.error(new BindParameterException(
+                        String.format("Bind parameter[%s] type[%s] error.", this.parameterIndex, data.getClass())
+                        , this.parameterIndex));
+            }
+        }
+
+        @Override
+        public void onError(Throwable t) {
+            ByteBuf packetBuffer = this.packetBuffer;
+            if (packetBuffer != null) {
+                packetBuffer.release();
+            }
+            this.sink.error(new BindParameterException(
+                    String.format("Bind parameter[%s]'s publisher throw error", this.parameterIndex)
+                    , t, this.parameterIndex));
+        }
+
+        @Override
+        public void onComplete() {
+            ByteBuf packetBuffer = this.packetBuffer;
+            if (packetBuffer != null && hasBlobData(packetBuffer)) {
+                PacketUtils.writePacketHeader(packetBuffer, addAndGetSequenceId()); // write header
+                this.sink.next(packetBuffer); // send packet
+                this.packetBuffer = null;
+            }
+        }
+
+
     }
 
     enum Phase {

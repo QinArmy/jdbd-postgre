@@ -139,4 +139,25 @@ public final class ImmutableMapProperties extends ImmutableMapEnvironment implem
         }
         return value;
     }
+
+    @Override
+    public <T> T getOrDefault(PropertyKey key, Class<T> targetType) throws IllegalStateException {
+        T value = getProperty(key, targetType);
+        if (value != null) {
+            return value;
+        }
+        String defaultText = key.getDefaultValue();
+        if (defaultText == null) {
+            throw new IllegalStateException(String.format("not found value for key[%s]", key.getKeyName()));
+        } else {
+            Converter<String, T> converter = this.converterManager.getConverter(String.class, targetType);
+            if (converter == null) {
+                throw new IllegalStateException(
+                        String.format("not found Converter for [%s,%s]", String.class, targetType));
+            } else {
+                value = converter.convert(defaultText);
+            }
+        }
+        return value;
+    }
 }
