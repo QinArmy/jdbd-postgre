@@ -3,6 +3,7 @@ package io.jdbd.mysql.protocol.client;
 import io.jdbd.JdbdSQLException;
 import io.jdbd.lang.Nullable;
 import io.jdbd.mysql.protocol.CharsetMapping;
+import io.jdbd.mysql.util.MySQLConvertUtils;
 import io.jdbd.mysql.util.MySQLExceptionUtils;
 import io.jdbd.mysql.util.MySQLStringUtils;
 import io.jdbd.mysql.util.MySQLTimeUtils;
@@ -15,7 +16,6 @@ import java.nio.charset.Charset;
 import java.sql.SQLException;
 import java.time.*;
 import java.time.format.DateTimeFormatter;
-import java.util.Map;
 
 abstract class ColumnParsers {
 
@@ -29,7 +29,8 @@ abstract class ColumnParsers {
     @Nullable
     static Object parseColumn(ByteBuf multiRowBuf, MySQLColumnMeta columnMeta, MySQLTaskAdjutant adjutant) {
         final MySQLType sqlType = columnMeta.mysqlType;
-        final Charset columnCharset = obtainResultColumnCharset(columnMeta, adjutant);
+        final Charset columnCharset = CharsetMapping.getJavaCharsetByCollationIndex(columnMeta.collationIndex
+                , adjutant.obtainCustomCollationMap());
         Object value;
         switch (sqlType) {
             // more probability
@@ -189,7 +190,7 @@ abstract class ColumnParsers {
             return null;
         }
 
-        Boolean boolValue = MySQLStringUtils.tryConvertToBoolean(booleanText);
+        Boolean boolValue = MySQLConvertUtils.tryConvertToBoolean(booleanText);
         if (boolValue != null) {
             return boolValue;
         }
@@ -465,22 +466,6 @@ abstract class ColumnParsers {
         }
     }
 
-    private static Charset obtainResultColumnCharset(MySQLColumnMeta columnMeta, MySQLTaskAdjutant adjutant) {
-        Charset charset = CharsetMapping.getJavaCharsetByCollationIndex(columnMeta.collationIndex);
-        if (charset == null) {
-            Map<Integer, CharsetMapping.CustomCollation> map = adjutant.obtainCustomCollationMap();
-            CharsetMapping.CustomCollation collation = map.get(columnMeta.collationIndex);
-            if (collation == null) {
-                throw createNotFoundCustomCharsetException(columnMeta);
-            }
-            charset = CharsetMapping.getJavaCharsetByMySQLCharsetName(collation.charsetName);
-            if (charset == null) {
-                // here , io.jdbd.mysql.protocol.client.ClientConnectionProtocolImpl.detectCustomCollations have bugs.
-                throw new IllegalStateException("Can't obtain ResultSet meta charset.");
-            }
-        }
-        return charset;
-    }
 
     private static JdbdSQLException createNotFoundCustomCharsetException(MySQLColumnMeta columnMeta) {
         // to here , code error,because check after load custom charset.

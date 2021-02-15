@@ -6,6 +6,7 @@ import io.jdbd.mysql.protocol.CharsetMapping;
 import io.jdbd.mysql.protocol.conf.HostInfo;
 import io.jdbd.mysql.util.MySQLExceptionUtils;
 import io.jdbd.vendor.CommunicationTask;
+import io.jdbd.vendor.TaskSignal;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
 import io.netty.channel.EventLoop;
@@ -28,7 +29,7 @@ import java.util.Queue;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 
-final class DefaultCommTaskExecutor implements MySQLCommTaskExecutor, CoreSubscriber<ByteBuf> {
+final class DefaultCommTaskExecutor implements MySQLCommTaskExecutor, CoreSubscriber<ByteBuf>, TaskSignal<ByteBuf> {
 
     static Mono<DefaultCommTaskExecutor> create(HostInfo hostInfo, EventLoopGroup eventLoopGroup) {
         return TcpClient.create()
@@ -145,6 +146,21 @@ final class DefaultCommTaskExecutor implements MySQLCommTaskExecutor, CoreSubscr
         }
     }
 
+    @Override
+    public Mono<Void> terminate(CommunicationTask<ByteBuf> task) {
+        return Mono.empty();
+    }
+
+    @Override
+    public Mono<Void> sendPacket(CommunicationTask<ByteBuf> task) {
+        return Mono.empty();
+    }
+
+    @Override
+    public boolean canSignal() {
+        return false;
+    }
+
     /**
      * must invoke in {@link #eventLoop}
      */
@@ -258,7 +274,7 @@ final class DefaultCommTaskExecutor implements MySQLCommTaskExecutor, CoreSubscr
                 continue;
             }
             this.currentTask = currentTask;
-            Publisher<ByteBuf> bufPublisher = currentTask.start();
+            Publisher<ByteBuf> bufPublisher = currentTask.start(this);
             if (bufPublisher != null) {
                 // send packet
                 sendPacket(currentTask, bufPublisher);

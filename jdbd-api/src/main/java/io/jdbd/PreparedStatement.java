@@ -5,10 +5,10 @@ import java.sql.JDBCType;
 
 /**
  * <p>
- *     This interface is reactive version of {@link java.sql.PreparedStatement}
+ * This interface is reactive version of {@link java.sql.PreparedStatement}
  * </p>
  */
-public interface PreparedStatement extends GenericStatement{
+public interface PreparedStatement extends AutoCloseableStatement {
 
     /**
      * <p>

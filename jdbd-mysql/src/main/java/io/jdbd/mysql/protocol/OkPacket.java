@@ -22,7 +22,7 @@ public final class OkPacket extends TerminatorPacket {
      *                   </ul>
      * @throws IllegalArgumentException packet error.
      */
-    public static OkPacket readPacket(ByteBuf payloadBuf, final int capability) {
+    public static OkPacket read(ByteBuf payloadBuf, final int capability) {
         int type = PacketUtils.readInt1(payloadBuf);
         if (type != OK_HEADER && type != EofPacket.EOF_HEADER) {
             throw new IllegalArgumentException("packetBuf isn't ok packet.");

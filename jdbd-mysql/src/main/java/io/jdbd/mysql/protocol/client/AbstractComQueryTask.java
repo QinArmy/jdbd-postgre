@@ -3,10 +3,10 @@ package io.jdbd.mysql.protocol.client;
 import io.jdbd.*;
 import io.jdbd.lang.Nullable;
 import io.jdbd.mysql.protocol.*;
-import io.jdbd.mysql.protocol.conf.Properties;
 import io.jdbd.mysql.protocol.conf.PropertyKey;
 import io.jdbd.mysql.util.MySQLExceptionUtils;
 import io.jdbd.vendor.MultiResultsSink;
+import io.jdbd.vendor.TaskSignal;
 import io.netty.buffer.ByteBuf;
 import org.reactivestreams.Publisher;
 import reactor.core.publisher.Mono;
@@ -25,7 +25,7 @@ abstract class AbstractComQueryTask extends MySQLCommunicationTask {
 
     private static final int MEMORY_LIMIT = (int) (Runtime.getRuntime().totalMemory() * 0.2D);
 
-    private static final Path TEMP_DIRECTORY = Paths.get(System.getProperty("java.io.tmpdir"), "jdbd/mysq/bigRow");
+    static final Path TEMP_DIRECTORY = Paths.get(System.getProperty("java.io.tmpdir"), "jdbd/mysql/bigRow");
 
 
     private final Function<MySQLCommunicationTask, ByteBuf> bufFunction;
@@ -65,7 +65,7 @@ abstract class AbstractComQueryTask extends MySQLCommunicationTask {
     /*################################## blow protected template method ##################################*/
 
     @Override
-    protected final Publisher<ByteBuf> internalStart() {
+    protected final Publisher<ByteBuf> internalStart(TaskSignal<ByteBuf> signal) {
         return Mono.just(Objects.requireNonNull(this.bufFunction.apply(this), "this.bufFunction return value."));
     }
 
@@ -136,7 +136,7 @@ abstract class AbstractComQueryTask extends MySQLCommunicationTask {
                 int payloadLength = PacketUtils.readInt3(cumulateBuf);
                 updateSequenceId(PacketUtils.readInt1(cumulateBuf));
                 OkPacket okPacket;
-                okPacket = OkPacket.readPacket(cumulateBuf.readSlice(payloadLength), this.negotiatedCapability);
+                okPacket = OkPacket.read(cumulateBuf.readSlice(payloadLength), this.negotiatedCapability);
                 boolean hasMore = (okPacket.getStatusFags() & ClientProtocol.SERVER_MORE_RESULTS_EXISTS) != 0;
                 emitUpdateResult(MySQLResultStates.from(okPacket), hasMore); // emit dml sql result set.
                 taskEnd = emitSuccess(hasMore);
@@ -252,8 +252,6 @@ abstract class AbstractComQueryTask extends MySQLCommunicationTask {
         MySQLColumnMeta[] columnMetas = new MySQLColumnMeta[columnCount];
         int receiveColumnCount = 0;
         if (!hasOptionalMeta || metadataFollows == 1) {
-            final Charset metaCharset = this.executorAdjutant.obtainCharsetResults();
-            final Properties properties = this.executorAdjutant.obtainHostInfo().getProperties();
             for (int i = 0, readableBytes; i < columnCount; i++) {
                 readableBytes = cumulateBuffer.readableBytes();
                 if (readableBytes < PacketUtils.HEADER_SIZE) {
@@ -268,7 +266,7 @@ abstract class AbstractComQueryTask extends MySQLCommunicationTask {
                 }
                 sequenceId = PacketUtils.readInt1(cumulateBuffer);
 
-                columnMetas[i] = MySQLColumnMeta.readFor41(cumulateBuffer, metaCharset, properties);
+                columnMetas[i] = MySQLColumnMeta.readFor41(cumulateBuffer, this.executorAdjutant);
                 cumulateBuffer.readerIndex(packetStartIndex + packetLength); // to next packet.
                 receiveColumnCount++;
             }
@@ -279,7 +277,7 @@ abstract class AbstractComQueryTask extends MySQLCommunicationTask {
                 packetLength = PacketUtils.HEADER_SIZE + PacketUtils.readInt3(cumulateBuffer);
                 sequenceId = PacketUtils.readInt1(cumulateBuffer);
 
-                EofPacket.readPacket(cumulateBuffer, this.negotiatedCapability);
+                EofPacket.read(cumulateBuffer, this.negotiatedCapability);
                 cumulateBuffer.readerIndex(packetStartIndex + packetLength); // to next packet.
             } else {
                 receiveColumnCount = 0; // need cumulate buffer
@@ -614,10 +612,10 @@ abstract class AbstractComQueryTask extends MySQLCommunicationTask {
         final TerminatorPacket terminator;
         if ((this.negotiatedCapability & ClientProtocol.CLIENT_DEPRECATE_EOF) != 0) {
             // ok terminator
-            terminator = OkPacket.readPacket(cumulateBuffer.readSlice(payloadLength), this.negotiatedCapability);
+            terminator = OkPacket.read(cumulateBuffer.readSlice(payloadLength), this.negotiatedCapability);
         } else {
             // eof terminator
-            terminator = EofPacket.readPacket(cumulateBuffer.readSlice(payloadLength), this.negotiatedCapability);
+            terminator = EofPacket.read(cumulateBuffer.readSlice(payloadLength), this.negotiatedCapability);
         }
         final boolean hasMore = (terminator.getStatusFags() & ClientProtocol.SERVER_MORE_RESULTS_EXISTS) != 0;
         emitCurrentRowTerminator(MySQLResultStates.from(terminator), hasMore); // emit
@@ -627,7 +625,7 @@ abstract class AbstractComQueryTask extends MySQLCommunicationTask {
     }
 
     private ResultRow decodeOneRow(ByteBuf cumulateBuffer, MySQLRowMeta rowMeta) {
-        MySQLColumnMeta[] columnMetas = rowMeta.columnMetas;
+        MySQLColumnMeta[] columnMetas = rowMeta.columnMetaArray;
         MySQLColumnMeta columnMeta;
         Object[] columnValueArray = new Object[columnMetas.length];
         final MySQLTaskAdjutant taskAdjutant = this.executorAdjutant;
@@ -656,7 +654,7 @@ abstract class AbstractComQueryTask extends MySQLCommunicationTask {
             break;
             case EofPacket.EOF_HEADER:
             case OkPacket.OK_HEADER: {
-                OkPacket ok = OkPacket.readPacket(cumulateBuffer.readSlice(payloadLength), negotiatedCapability);
+                OkPacket ok = OkPacket.read(cumulateBuffer.readSlice(payloadLength), negotiatedCapability);
                 boolean hasMore = (ok.getStatusFags() & ClientProtocol.SERVER_MORE_RESULTS_EXISTS) != 0;
                 emitUpdateResult(MySQLResultStates.from(ok), hasMore);
                 taskEnd = emitSuccess(hasMore);
@@ -706,37 +704,35 @@ abstract class AbstractComQueryTask extends MySQLCommunicationTask {
     }
 
     /**
-     * @param index index of metaArray
-     * @return increased index
+     * @return new metaIndex of metaArray.
      */
-    static int tryReadColumnMetas(final ByteBuf cumulateBuffer, final MySQLTaskAdjutant taskAdjutant
-            , final MySQLColumnMeta[] metaArray, int index, Consumer<Integer> sequenceIdConsumer) {
-        if (index < 1 || index >= metaArray.length) {
-            throw new IndexOutOfBoundsException(String.format("index not in[0,%s)", metaArray.length));
+    static int tryReadColumnMetas(final ByteBuf cumulateBuffer, int metaIndex, final MySQLTaskAdjutant taskAdjutant
+            , final MySQLColumnMeta[] metaArray, Consumer<Integer> sequenceIdConsumer) {
+        if (metaIndex < 0 || metaIndex >= metaArray.length) {
+            throw new IndexOutOfBoundsException(
+                    String.format("metaIndex[%s] out [0,%s) .", metaIndex, metaArray.length));
         }
 
         int sequenceId = -1;
-        final Charset metaCharset = taskAdjutant.obtainCharsetResults();
-        final Properties properties = taskAdjutant.obtainHostInfo().getProperties();
-        for (int readableBytes, payloadStartIndex, payloadLength; index < metaArray.length; index++) {
+        for (int readableBytes, payloadStartIndex, payloadLength; metaIndex < metaArray.length; metaIndex++) {
             readableBytes = cumulateBuffer.readableBytes();
             if (readableBytes < PacketUtils.HEADER_SIZE) {
-                continue;
+                break;
             }
             payloadLength = PacketUtils.getInt3(cumulateBuffer, cumulateBuffer.readerIndex());
             if (readableBytes < PacketUtils.HEADER_SIZE + payloadLength) {
-                continue;
+                break;
             }
             cumulateBuffer.skipBytes(3);//skip payload length
             sequenceId = PacketUtils.readInt1(cumulateBuffer);
             payloadStartIndex = cumulateBuffer.readerIndex();
-            metaArray[index] = MySQLColumnMeta.readFor41(cumulateBuffer, metaCharset, properties);
+            metaArray[metaIndex] = MySQLColumnMeta.readFor41(cumulateBuffer, taskAdjutant);
             cumulateBuffer.readerIndex(payloadStartIndex + payloadLength);//to next packet,avoid tail filler
         }
-        if (index == metaArray.length) {
+        if (sequenceId > -1) {
             sequenceIdConsumer.accept(sequenceId);
         }
-        return index;
+        return metaIndex;
     }
 
 

@@ -1,5 +1,6 @@
 package io.jdbd.mysql.protocol.client;
 
+import io.jdbd.vendor.TaskSignal;
 import io.netty.buffer.ByteBuf;
 import org.reactivestreams.Publisher;
 import reactor.core.publisher.Mono;
@@ -26,7 +27,7 @@ final class SSLNegotiateTask extends AbstractAuthenticateTask {
      * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_connection_phase_packets_protocol_ssl_request.html">Protocol::SSLRequest</a>
      */
     @Override
-    protected Publisher<ByteBuf> internalStart() {
+    protected Publisher<ByteBuf> internalStart(TaskSignal<ByteBuf> signal) {
 
         ByteBuf packetBuf = this.executorAdjutant.createPacketBuffer(32);
         // 1. client_flag

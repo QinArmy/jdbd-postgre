@@ -1,7 +1,9 @@
 package io.jdbd.mysql.protocol.client;
 
 
-public interface BindValue extends io.jdbd.vendor.BindValue {
+import io.jdbd.vendor.IBindValue;
+
+public interface BindValue extends IBindValue {
 
     @Override
     MySQLType getType();

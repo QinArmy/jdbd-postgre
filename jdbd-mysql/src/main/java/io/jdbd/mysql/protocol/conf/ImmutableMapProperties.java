@@ -141,6 +141,19 @@ public final class ImmutableMapProperties extends ImmutableMapEnvironment implem
     }
 
     @Override
+    public String getOrDefault(PropertyKey key) throws IllegalStateException {
+        String value = getProperty(key);
+        if (value != null) {
+            return value;
+        }
+        String defaultText = key.getDefaultValue();
+        if (defaultText == null) {
+            throw new IllegalStateException(String.format("not found value for key[%s]", key.getKeyName()));
+        }
+        return defaultText;
+    }
+
+    @Override
     public <T> T getOrDefault(PropertyKey key, Class<T> targetType) throws IllegalStateException {
         T value = getProperty(key, targetType);
         if (value != null) {

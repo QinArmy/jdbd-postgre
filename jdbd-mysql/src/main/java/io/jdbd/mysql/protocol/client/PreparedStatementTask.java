@@ -11,12 +11,16 @@ import java.util.List;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 
-public interface PreparedTask extends MySQLTask {
+public interface PreparedStatementTask extends MySQLTask {
 
     /**
      * @throws JdbdMySQLException when task(prepared statement) not prepared yet.
      */
     MySQLColumnMeta[] obtainParameterMeta() throws JdbdMySQLException;
+
+    int obtainParameterCount() throws IllegalStateException;
+
+    MySQLColumnMeta obtainParameterMeta(int parameterIndex) throws IllegalStateException;
 
     int obtainPreparedWarningCount() throws IllegalStateException;
 

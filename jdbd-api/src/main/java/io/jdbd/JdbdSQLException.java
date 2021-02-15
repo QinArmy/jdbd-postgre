@@ -5,7 +5,7 @@ import io.jdbd.lang.NonNull;
 
 import java.sql.SQLException;
 
-public final class JdbdSQLException extends RuntimeException {
+public final class JdbdSQLException extends JdbdException {
 
     public JdbdSQLException(SQLException cause) {
         super(cause);

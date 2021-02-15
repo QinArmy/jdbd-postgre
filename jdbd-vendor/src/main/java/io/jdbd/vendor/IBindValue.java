@@ -4,9 +4,9 @@ package io.jdbd.vendor;
 import io.jdbd.lang.Nullable;
 
 
-public interface BindValue {
+public interface IBindValue {
 
-    int getIndex();
+    int getParamIndex();
 
     boolean isLongData();
 

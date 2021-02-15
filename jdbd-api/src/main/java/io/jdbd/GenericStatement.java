@@ -4,7 +4,6 @@ import org.reactivestreams.Publisher;
 
 import java.sql.BatchUpdateException;
 import java.util.List;
-import java.util.function.BiFunction;
 import java.util.function.Consumer;
 
 public interface GenericStatement {
@@ -174,6 +173,6 @@ public interface GenericStatement {
      * </p>
      * @see java.sql.PreparedStatement#executeQuery()
      */
-    <T> Publisher<T> executeQuery(BiFunction<ResultRow, ResultRowMeta, T> decoder, Consumer<ResultStates> statesConsumer);
+    Publisher<ResultRow> executeQuery(Consumer<ResultStates> statesConsumer);
 
 }

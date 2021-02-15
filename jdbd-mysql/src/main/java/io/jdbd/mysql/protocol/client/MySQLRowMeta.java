@@ -11,6 +11,7 @@ import reactor.util.annotation.Nullable;
 
 import java.sql.JDBCType;
 import java.sql.SQLException;
+import java.util.Collections;
 import java.util.Map;
 
 /**
@@ -18,36 +19,40 @@ import java.util.Map;
  */
 abstract class MySQLRowMeta implements ResultRowMeta {
 
+    static final MySQLRowMeta EMPTY = from(MySQLColumnMeta.EMPTY, Collections.emptyMap());
+
     static MySQLRowMeta from(MySQLColumnMeta[] mySQLColumnMetas
             , Map<Integer, CharsetMapping.CustomCollation> customCollationMap) {
         return new SimpleIndexMySQLRowMeta(mySQLColumnMetas, customCollationMap);
     }
 
-    final MySQLColumnMeta[] columnMetas;
+    final MySQLColumnMeta[] columnMetaArray;
 
     final Map<Integer, CharsetMapping.CustomCollation> customCollationMap;
 
+    int metaIndex = 0;
 
-    private MySQLRowMeta(MySQLColumnMeta[] columnMetas
+
+    private MySQLRowMeta(MySQLColumnMeta[] columnMetaArray
             , Map<Integer, CharsetMapping.CustomCollation> customCollationMap) {
-        this.columnMetas = columnMetas;
+        this.columnMetaArray = columnMetaArray;
         this.customCollationMap = customCollationMap;
     }
 
     @Override
     public final int getColumnCount() {
-        return this.columnMetas.length;
+        return this.columnMetaArray.length;
     }
 
     @Override
     public final JDBCType getJdbdType(int indexBaseZero) throws JdbdSQLException {
-        return this.columnMetas[checkIndex(indexBaseZero)].mysqlType.jdbcType();
+        return this.columnMetaArray[checkIndex(indexBaseZero)].mysqlType.jdbcType();
     }
 
 
     @Override
     public final boolean isPhysicalColumn(int indexBaseZero) throws JdbdSQLException {
-        MySQLColumnMeta columnMeta = this.columnMetas[checkIndex(indexBaseZero)];
+        MySQLColumnMeta columnMeta = this.columnMetaArray[checkIndex(indexBaseZero)];
         return StringUtils.hasText(columnMeta.tableName)
                 && StringUtils.hasText(columnMeta.columnName);
     }
@@ -55,13 +60,13 @@ abstract class MySQLRowMeta implements ResultRowMeta {
 
     @Override
     public final SQLType getSQLType(int indexBaseZero) throws JdbdSQLException {
-        return this.columnMetas[checkIndex(indexBaseZero)].mysqlType;
+        return this.columnMetaArray[checkIndex(indexBaseZero)].mysqlType;
     }
 
 
     @Override
     public final NullMode getNullMode(int indexBaseZero) throws JdbdSQLException {
-        return (this.columnMetas[checkIndex(indexBaseZero)].definitionFlags & MySQLColumnMeta.NOT_NULL_FLAG) != 0
+        return (this.columnMetaArray[checkIndex(indexBaseZero)].definitionFlags & MySQLColumnMeta.NOT_NULL_FLAG) != 0
                 ? NullMode.NON_NULL
                 : NullMode.NULLABLE;
     }
@@ -69,46 +74,46 @@ abstract class MySQLRowMeta implements ResultRowMeta {
 
     @Override
     public final boolean isSigned(int indexBaseZero) throws JdbdSQLException {
-        return (this.columnMetas[checkIndex(indexBaseZero)].definitionFlags & MySQLColumnMeta.UNSIGNED_FLAG) == 0;
+        return (this.columnMetaArray[checkIndex(indexBaseZero)].definitionFlags & MySQLColumnMeta.UNSIGNED_FLAG) == 0;
     }
 
 
     @Override
     public final boolean isAutoIncrement(int indexBaseZero) throws JdbdSQLException {
-        return (this.columnMetas[checkIndex(indexBaseZero)].definitionFlags & MySQLColumnMeta.AUTO_INCREMENT_FLAG) != 0;
+        return (this.columnMetaArray[checkIndex(indexBaseZero)].definitionFlags & MySQLColumnMeta.AUTO_INCREMENT_FLAG) != 0;
     }
 
 
     @Override
     public final boolean isCaseSensitive(int indexBaseZero) throws JdbdSQLException {
-        return doIsCaseSensitive(this.columnMetas[checkIndex(indexBaseZero)]);
+        return doIsCaseSensitive(this.columnMetaArray[checkIndex(indexBaseZero)]);
     }
 
 
     @Nullable
     @Override
     public final String getCatalogName(int indexBaseZero) throws JdbdSQLException {
-        return this.columnMetas[checkIndex(indexBaseZero)].catalogName;
+        return this.columnMetaArray[checkIndex(indexBaseZero)].catalogName;
     }
 
 
     @Nullable
     @Override
     public final String getSchemaName(int indexBaseZero) throws JdbdSQLException {
-        return this.columnMetas[checkIndex(indexBaseZero)].schemaName;
+        return this.columnMetaArray[checkIndex(indexBaseZero)].schemaName;
     }
 
 
     @Nullable
     @Override
     public final String getTableName(int indexBaseZero) throws JdbdSQLException {
-        return this.columnMetas[checkIndex(indexBaseZero)].tableName;
+        return this.columnMetaArray[checkIndex(indexBaseZero)].tableName;
     }
 
 
     @Override
     public final String getColumnLabel(int indexBaseZero) throws JdbdSQLException {
-        return this.columnMetas[checkIndex(indexBaseZero)].columnAlias;
+        return this.columnMetaArray[checkIndex(indexBaseZero)].columnAlias;
     }
 
     @Override
@@ -119,12 +124,12 @@ abstract class MySQLRowMeta implements ResultRowMeta {
     @Nullable
     @Override
     public final String getColumnName(int indexBaseZero) throws JdbdSQLException {
-        return this.columnMetas[checkIndex(indexBaseZero)].columnName;
+        return this.columnMetaArray[checkIndex(indexBaseZero)].columnName;
     }
 
     @Override
     public boolean isReadOnly(int indexBaseZero) throws JdbdSQLException {
-        MySQLColumnMeta columnMeta = this.columnMetas[checkIndex(indexBaseZero)];
+        MySQLColumnMeta columnMeta = this.columnMetaArray[checkIndex(indexBaseZero)];
         return MySQLStringUtils.isEmpty(columnMeta.tableName)
                 && MySQLStringUtils.isEmpty(columnMeta.columnName);
     }
@@ -138,20 +143,20 @@ abstract class MySQLRowMeta implements ResultRowMeta {
 
     @Override
     public final Class<?> getColumnClass(int indexBaseZero) throws JdbdSQLException {
-        return this.columnMetas[checkIndex(indexBaseZero)].mysqlType.javaType();
+        return this.columnMetaArray[checkIndex(indexBaseZero)].mysqlType.javaType();
     }
 
 
     @Override
     public final long getPrecision(int indexBaseZero) throws JdbdSQLException {
-        return this.columnMetas[checkIndex(indexBaseZero)]
+        return this.columnMetaArray[checkIndex(indexBaseZero)]
                 .obtainPrecision(this.customCollationMap);
     }
 
 
     @Override
     public int getScale(int indexBaseZero) throws JdbdSQLException {
-        MySQLColumnMeta columnMeta = this.columnMetas[checkIndex(indexBaseZero)];
+        MySQLColumnMeta columnMeta = this.columnMetaArray[checkIndex(indexBaseZero)];
         return (columnMeta.mysqlType == MySQLType.DECIMAL || columnMeta.mysqlType == MySQLType.DECIMAL_UNSIGNED)
                 ? columnMeta.decimals
                 : 0;
@@ -160,22 +165,26 @@ abstract class MySQLRowMeta implements ResultRowMeta {
 
     @Override
     public boolean isPrimaryKey(int indexBaseZero) throws JdbdSQLException {
-        return (this.columnMetas[checkIndex(indexBaseZero)].definitionFlags & MySQLColumnMeta.PRI_KEY_FLAG) != 0;
+        return (this.columnMetaArray[checkIndex(indexBaseZero)].definitionFlags & MySQLColumnMeta.PRI_KEY_FLAG) != 0;
     }
 
 
     @Override
     public boolean isUniqueKey(int indexBaseZero) throws JdbdSQLException {
-        return (this.columnMetas[checkIndex(indexBaseZero)].definitionFlags & MySQLColumnMeta.UNIQUE_KEY_FLAG) != 0;
+        return (this.columnMetaArray[checkIndex(indexBaseZero)].definitionFlags & MySQLColumnMeta.UNIQUE_KEY_FLAG) != 0;
     }
 
     @Override
     public boolean isMultipleKey(int indexBaseZero) throws JdbdSQLException {
-        return (this.columnMetas[checkIndex(indexBaseZero)].definitionFlags & MySQLColumnMeta.MULTIPLE_KEY_FLAG) != 0;
+        return (this.columnMetaArray[checkIndex(indexBaseZero)].definitionFlags & MySQLColumnMeta.MULTIPLE_KEY_FLAG) != 0;
+    }
+
+    boolean isReady() {
+        return this.metaIndex == this.columnMetaArray.length;
     }
 
     int convertToIndex(String columnLabel) {
-        MySQLColumnMeta[] columnMetas = this.columnMetas;
+        MySQLColumnMeta[] columnMetas = this.columnMetaArray;
         int len = columnMetas.length;
         for (int i = 0; i < len; i++) {
             if (columnMetas[i].columnAlias.equals(columnLabel)) {
@@ -187,9 +196,9 @@ abstract class MySQLRowMeta implements ResultRowMeta {
     }
 
     private int checkIndex(int indexBaseZero) {
-        if (indexBaseZero < 0 || indexBaseZero >= this.columnMetas.length) {
+        if (indexBaseZero < 0 || indexBaseZero >= this.columnMetaArray.length) {
             throw new JdbdSQLException(new SQLException(
-                    String.format("index[%s] out of bounds[0 -- %s].", indexBaseZero, columnMetas.length - 1)));
+                    String.format("index[%s] out of bounds[0 -- %s].", indexBaseZero, columnMetaArray.length - 1)));
         }
         return indexBaseZero;
     }

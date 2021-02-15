@@ -1,12 +1,17 @@
 package io.jdbd.mysql.protocol.client;
 
 import io.jdbd.mysql.JdbdMySQLException;
+import io.jdbd.mysql.util.MySQLExceptionUtils;
+import io.jdbd.mysql.util.MySQLNumberUtils;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
 import reactor.util.annotation.Nullable;
 
 import java.math.BigInteger;
 import java.nio.charset.Charset;
+import java.time.*;
+import java.util.function.Consumer;
+import java.util.function.Function;
 
 public abstract class PacketUtils {
 
@@ -15,7 +20,11 @@ public abstract class PacketUtils {
 
     public static final int HEADER_SIZE = 4;
 
-    public static final int MAX_PACKET_CAPACITY = HEADER_SIZE + ClientProtocol.MAX_PACKET_SIZE;
+    public static final int MAX_PAYLOAD = ClientProtocol.MAX_PACKET_SIZE;
+
+    public static final int MAX_PACKET_CAPACITY = HEADER_SIZE + MAX_PAYLOAD;
+
+    public static final byte[] EMPTY_BYTE_ARRAY = new byte[0];
 
     /**
      * @see #ENC_3
@@ -38,20 +47,23 @@ public abstract class PacketUtils {
     public static final int ENC_4 = 0xFD;
     public static final int ENC_9 = 0xFE;
 
-    public static final int BIT_8 = 0xff;
+    public static final int BIT_8 = 0xFF;
 
-    public static final long BIT_8L = 0xffL;
+    public static final long BIT_8L = 0xFFL;
 
-    public static final long BIT_32 = 0xffff_ffffL;
+    public static final long BIT_32 = 0xFFFF_FFFFL;
+
+    private static final long LONG_SIGNED_BIT = (1L << 63);
 
 
-    public static short readInt1(ByteBuf byteBuf) {
-        return (short) (byteBuf.readByte() & BIT_8);
+    public static int readInt1(ByteBuf byteBuf) {
+        return (byteBuf.readByte() & BIT_8);
     }
 
-    public static short getInt1(ByteBuf byteBuf, int index) {
-        return (short) (byteBuf.getByte(index) & BIT_8);
+    public static int getInt1(ByteBuf byteBuf, int index) {
+        return (byteBuf.getByte(index) & BIT_8);
     }
+
 
     public static int readInt2(ByteBuf byteBuf) {
         return (byteBuf.readByte() & BIT_8)
@@ -62,6 +74,7 @@ public abstract class PacketUtils {
         return (byteBuf.getByte(index++) & BIT_8)
                 | ((byteBuf.getByte(index) & BIT_8) << 8);
     }
+
 
     public static int readInt3(ByteBuf byteBuf) {
         return (byteBuf.readByte() & BIT_8)
@@ -76,6 +89,7 @@ public abstract class PacketUtils {
                 | ((byteBuf.getByte(index) & BIT_8) << 16)
                 ;
     }
+
 
     public static long readInt4AsLong(ByteBuf byteBuf) {
         return readInt4(byteBuf) & BIT_32;
@@ -101,6 +115,7 @@ public abstract class PacketUtils {
                 | ((byteBuf.getByte(index) & BIT_8) << 24)
                 ;
     }
+
 
     public static long readInt6(ByteBuf byteBuf) {
         return (byteBuf.readByte() & BIT_8L)
@@ -132,6 +147,10 @@ public abstract class PacketUtils {
                 | ((byteBuf.readByte() & BIT_8L) << 48)
                 | ((byteBuf.readByte() & BIT_8L) << 56)
                 ;
+    }
+
+    public static BigInteger readInt8AsBigInteger(ByteBuf byteBuf) {
+        return MySQLNumberUtils.unsignedLongToBigInteger(readInt8(byteBuf));
     }
 
     public static long getInt8(ByteBuf byteBuf, int index) {
@@ -172,6 +191,50 @@ public abstract class PacketUtils {
 
         }
         return int8;
+    }
+
+    /**
+     * @return negative : more cumulate.
+     */
+    public static long getLenEncTotalByteLength(ByteBuf byteBuf) {
+        int index = byteBuf.readerIndex();
+        final int sw = getInt1(byteBuf, index++);
+        final long totalLength;
+        switch (sw) {
+            case ENC_0:
+                // represents a NULL in a ProtocolText::ResultsetRow
+                totalLength = 1L;
+                break;
+            case ENC_3: {
+                if (byteBuf.readableBytes() < 3) {
+                    totalLength = -1L;
+                } else {
+                    totalLength = 3L + getInt2(byteBuf, index);
+                }
+            }
+            break;
+            case ENC_4: {
+                if (byteBuf.readableBytes() < 4) {
+                    totalLength = -1L;
+                } else {
+                    totalLength = 4L + getInt3(byteBuf, index);
+                }
+            }
+            break;
+            case ENC_9: {
+                if (byteBuf.readableBytes() < 9) {
+                    totalLength = -1L;
+                } else {
+                    totalLength = 9L + getInt8(byteBuf, index);
+                }
+            }
+            break;
+            default:
+                // ENC_1
+                totalLength = 1L + sw;
+
+        }
+        return totalLength;
     }
 
     public static int obtainLenEncIntByteCount(ByteBuf byteBuf, final int index) {
@@ -231,7 +294,7 @@ public abstract class PacketUtils {
     public static int readLenEncAsInt(ByteBuf byteBuf) {
         long intEnc = readLenEnc(byteBuf);
         if (intEnc > Integer.MAX_VALUE) {
-            throw new JdbdMySQLException("int<lenenc> is long");
+            throw new JdbdMySQLException("length encode integer cant' convert to int.");
         }
         return (int) intEnc;
     }
@@ -281,22 +344,184 @@ public abstract class PacketUtils {
     }
 
     /**
+     * read {@code string<lenenc>} with binary protocol.
+     */
+    public static byte[] readBytesLenEnc(ByteBuf byteBuf) {
+        int len = readLenEncAsInt(byteBuf);
+        if (len == NULL_LENGTH) {
+            throw new IllegalArgumentException("byteBuf no Bytes length encode");
+        }
+        byte[] bytes = new byte[len];
+        byteBuf.readBytes(bytes);
+        return bytes;
+    }
+
+    public static long readBinaryBitTypeAsLong(byte[] bytes) {
+        long bitLong = 0L;
+        for (int i = 0, bitCount = 0; i < bytes.length; i++, bitCount += 8) {
+            bitLong = (bitLong << bitCount) | bytes[i];
+        }
+        return bitLong;
+    }
+
+    @Nullable
+    public static Long readTextBitTypeAsLong(ByteBuf byteBuf, Charset charset) {
+        String text = readStringLenEnc(byteBuf, charset);
+        if (text == null) {
+            return null;
+        }
+        boolean negative = text.length() == 64 && text.charAt(0) == '1';
+        if (negative) {
+            text = text.substring(1);
+        }
+        long bitResult = Long.parseLong(text, 2);
+        if (negative) {
+            bitResult |= LONG_SIGNED_BIT;
+        }
+        return bitResult;
+    }
+
+    /**
+     * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_binary_resultset.html#sect_protocol_binary_resultset_row_value_time">ProtocolBinary::MYSQL_TYPE_TIME</a>
+     */
+    public static LocalTime readBinaryTime(ByteBuf byteBuf, ClientProtocolAdjutant adjutant) {
+        byte length = byteBuf.readByte();
+        final LocalTime time;
+        switch (length) {
+            case 8: {
+                time = LocalTime.of(byteBuf.readByte(), byteBuf.readByte(), byteBuf.readByte());
+            }
+            break;
+            case 12: {
+                time = LocalTime.of(byteBuf.readByte(), byteBuf.readByte(), byteBuf.readByte()
+                        , PacketUtils.readInt4(byteBuf));
+            }
+            break;
+            case 0: {
+                time = LocalTime.MIN;
+            }
+            break;
+            default:
+                throw MySQLExceptionUtils.createFatalIoException(
+                        "Server send binary MYSQL_TYPE_DATE length[%s] error.", length);
+        }
+        return OffsetTime.of(time, adjutant.obtainZoneOffsetDatabase())
+                .withOffsetSameInstant(adjutant.obtainZoneOffsetClient())
+                .toLocalTime()
+                ;
+    }
+
+    /**
+     * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_binary_resultset.html#sect_protocol_binary_resultset_row_value_date">ProtocolBinary::MYSQL_TYPE_DATE</a>
+     */
+    @Nullable
+    public static LocalDate readBinaryDate(ByteBuf byteBuf) {
+        byte length = byteBuf.readByte();
+        LocalDate date;
+        switch (length) {
+            case 4: {
+                date = LocalDate.of(PacketUtils.readInt2(byteBuf), byteBuf.readByte(), byteBuf.readByte());
+            }
+            break;
+            case 0: {
+                date = null;
+            }
+            break;
+            default:
+                throw MySQLExceptionUtils.createFatalIoException(
+                        "Server send binary MYSQL_TYPE_DATE length[%s] error.", length);
+        }
+        return date;
+    }
+
+    /**
+     * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_binary_resultset.html#sect_protocol_binary_resultset_row_value_date">ProtocolBinary::MYSQL_TYPE_DATETIME</a>
+     */
+    @Nullable
+    public static LocalDateTime readBinaryDateTime(ByteBuf byteBuf, ClientProtocolAdjutant adjutant) {
+        LocalDateTime dateTime;
+        final byte length = byteBuf.readByte();
+        switch (length) {
+            case 7: {
+                dateTime = LocalDateTime.of(
+                        PacketUtils.readInt2(byteBuf) // year
+                        , byteBuf.readByte()           // month
+                        , byteBuf.readByte()           // day
+
+                        , byteBuf.readByte()           // hour
+                        , byteBuf.readByte()           // minute
+                        , byteBuf.readByte()           // second
+                );
+            }
+            break;
+            case 11: {
+                dateTime = LocalDateTime.of(
+                        PacketUtils.readInt2(byteBuf) // year
+                        , byteBuf.readByte()           // month
+                        , byteBuf.readByte()           // day
+
+                        , byteBuf.readByte()           // hour
+                        , byteBuf.readByte()           // minute
+                        , byteBuf.readByte()           // second
+
+                        , PacketUtils.readInt4(byteBuf)// micro second
+                );
+            }
+            break;
+            case 4: {
+                LocalDate date = LocalDate.of(PacketUtils.readInt2(byteBuf), byteBuf.readByte(), byteBuf.readByte());
+                dateTime = LocalDateTime.of(date, LocalTime.MIN);
+            }
+            break;
+            case 0: {
+                dateTime = null;
+            }
+            break;
+            default:
+                throw MySQLExceptionUtils.createFatalIoException(
+                        "Server send binary MYSQL_TYPE_DATETIME length[%s] error.", length);
+        }
+        if (dateTime != null) {
+            dateTime = OffsetDateTime.of(dateTime, adjutant.obtainZoneOffsetDatabase())
+                    .withOffsetSameInstant(adjutant.obtainZoneOffsetClient())
+                    .toLocalDateTime();
+        }
+        return dateTime;
+    }
+
+
+    /**
      * Protocol::LengthEncodedString
      * A length encoded string is a string that is prefixed with length encoded integer describing the length of the string.
      * It is a special case of Protocol::VariableLengthString
      */
     @Nullable
     public static String readStringLenEnc(ByteBuf byteBuf, Charset charset) {
-        long len = readLenEnc(byteBuf);
-        String str;
-        if (len == NULL_LENGTH) {
-            str = null;
-        } else if (len == 0L) {
-            str = "";
+        final byte[] bytes = readTextBytes(byteBuf);
+        final String text;
+        if (bytes == null) {
+            text = null;
+        } else if (bytes.length == 0) {
+            text = "";
         } else {
-            str = readStringFixed(byteBuf, (int) len, charset);
+            text = new String(bytes, charset);
         }
-        return str;
+        return text;
+    }
+
+    @Nullable
+    public static byte[] readTextBytes(ByteBuf byteBuf) {
+        final int len = readLenEncAsInt(byteBuf);
+        final byte[] bytes;
+        if (len == NULL_LENGTH) {
+            bytes = null;
+        } else if (len == 0L) {
+            bytes = EMPTY_BYTE_ARRAY;
+        } else {
+            bytes = new byte[len];
+            byteBuf.readBytes(bytes);
+        }
+        return bytes;
     }
 
 
@@ -321,33 +546,6 @@ public abstract class PacketUtils {
                 && (readableBytes >= HEADER_SIZE + getInt3(byteBuf, byteBuf.readerIndex()));
     }
 
-    public static boolean hasPacket(ByteBuf cumulateBuffer, final int expectedPacketCount) {
-        if (expectedPacketCount < 1) {
-            throw new IllegalArgumentException("expectedPacketCount must great than 0");
-        }
-        final int originalReaderIndex = cumulateBuffer.readerIndex();
-        int packetCount = 0;
-        for (int readableBytes, payloadLength; packetCount < expectedPacketCount; ) {
-            readableBytes = cumulateBuffer.readableBytes();
-            if (readableBytes < HEADER_SIZE) {
-                break;
-            }
-            payloadLength = readInt3(cumulateBuffer);
-            if (readableBytes < HEADER_SIZE + payloadLength) {
-                break;
-            }
-            cumulateBuffer.skipBytes(1 + payloadLength);
-            packetCount++;
-            if (packetCount == expectedPacketCount) {
-                break;
-            }
-
-        }
-        cumulateBuffer.readerIndex(originalReaderIndex);
-        return packetCount == expectedPacketCount;
-    }
-
-
     public static void writePacketHeader(ByteBuf packetBuf, final int sequenceId) {
         final int payloadLen = packetBuf.readableBytes() - HEADER_SIZE;
         if (payloadLen > ClientCommandProtocol.MAX_PACKET_SIZE) {
@@ -361,6 +559,77 @@ public abstract class PacketUtils {
         packetBuf.writeByte(sequenceId);
 
         packetBuf.resetWriterIndex();
+    }
+
+    /**
+     * @return <ul>
+     * <li>{@link Integer#MIN_VALUE}:big packet. </li>
+     * <li>{@code -1}: more cumulate</li>
+     * <li>positive:multi payload length</li>
+     * </ul>
+     */
+    public static int obtainMultiPayloadLength(ByteBuf cumulateBuffer) {
+        final int maxLength = (int) Math.min((Runtime.getRuntime().totalMemory() / 10L), Integer.MAX_VALUE);
+        final int originalReaderIndex = cumulateBuffer.readerIndex();
+
+        int packetLengthSum = 0;
+        for (int payloadLength, readableBytes, packetStartIndex; ; ) {
+            readableBytes = cumulateBuffer.readableBytes();
+            packetStartIndex = cumulateBuffer.readerIndex();
+            if (readableBytes < HEADER_SIZE) {
+                packetLengthSum = -1;
+                break;
+            }
+            payloadLength = getInt3(cumulateBuffer, cumulateBuffer.readerIndex());
+            if (readableBytes < (HEADER_SIZE + payloadLength)) {
+                packetLengthSum = -1;
+                break;
+            }
+            packetLengthSum += payloadLength;
+            if ((maxLength - packetLengthSum) < MAX_PAYLOAD) {
+                packetLengthSum = Integer.MIN_VALUE;
+                break;
+            }
+            if (payloadLength < MAX_PAYLOAD) {
+                break;
+            }
+            cumulateBuffer.readerIndex(packetStartIndex + HEADER_SIZE + payloadLength);
+        }
+        cumulateBuffer.readerIndex(originalReaderIndex);
+        return packetLengthSum;
+    }
+
+    /**
+     * @see #obtainMultiPayloadLength(ByteBuf)
+     */
+    public static ByteBuf readBigPayload(final ByteBuf cumulateBuffer, final int capacity
+            , Consumer<Integer> sequenceIdConsumer, Function<Integer, ByteBuf> function) {
+        if (capacity <= MAX_PAYLOAD) {
+            throw new IllegalArgumentException(String.format("maxLength must great than %s .", MAX_PAYLOAD));
+        }
+        final int originalReaderIndex = cumulateBuffer.readerIndex();
+        ByteBuf payload = null;
+        try {
+            payload = function.apply(capacity);
+            int sequenceId;
+            for (int payloadLength; ; ) {
+
+                payloadLength = readInt3(cumulateBuffer);
+                sequenceId = readInt1(cumulateBuffer);
+                payload.writeBytes(cumulateBuffer, payloadLength);
+                if (payloadLength < MAX_PAYLOAD) {
+                    break;
+                }
+            }
+            sequenceIdConsumer.accept(sequenceId);
+            return payload;
+        } catch (Throwable e) {
+            if (payload != null) {
+                payload.release();
+            }
+            cumulateBuffer.readerIndex(originalReaderIndex);
+            throw e;
+        }
     }
 
 

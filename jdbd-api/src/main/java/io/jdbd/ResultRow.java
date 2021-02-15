@@ -8,6 +8,8 @@ import java.time.temporal.Temporal;
 
 public interface ResultRow {
 
+    ResultRowMeta getRowMeta();
+
     @Nullable
     Object getObject(int indexBaseZero) throws JdbdSQLException;
 

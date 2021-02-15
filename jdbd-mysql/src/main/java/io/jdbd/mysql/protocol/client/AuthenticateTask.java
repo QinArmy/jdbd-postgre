@@ -8,6 +8,7 @@ import io.jdbd.mysql.protocol.conf.Properties;
 import io.jdbd.mysql.protocol.conf.PropertyKey;
 import io.jdbd.mysql.util.MySQLExceptionUtils;
 import io.jdbd.mysql.util.MySQLStringUtils;
+import io.jdbd.vendor.TaskSignal;
 import io.netty.buffer.ByteBuf;
 import org.qinarmy.util.Pair;
 import org.reactivestreams.Publisher;
@@ -113,7 +114,7 @@ final class AuthenticateTask extends AbstractAuthenticateTask implements Authent
     /*################################## blow protected method ##################################*/
 
     @Override
-    protected Publisher<ByteBuf> internalStart() {
+    protected Publisher<ByteBuf> internalStart(TaskSignal<ByteBuf> signal) {
         Pair<AuthenticationPlugin, Boolean> pair = obtainAuthenticationPlugin();
         AuthenticationPlugin plugin = pair.getFirst();
         this.plugin = plugin;
@@ -141,7 +142,7 @@ final class AuthenticateTask extends AbstractAuthenticateTask implements Authent
             this.sink.error(new JdbdMySQLException("TooManyAuthenticationPluginNegotiations"));
             taskEnd = true;
         } else if (OkPacket.isOkPacket(cumulateBuffer)) {
-            OkPacket packet = OkPacket.readPacket(cumulateBuffer, this.negotiatedCapability);
+            OkPacket packet = OkPacket.read(cumulateBuffer, this.negotiatedCapability);
             LOG.debug("MySQL authentication success,info:{}", packet.getInfo());
             this.sink.success();
             taskEnd = true;
@@ -456,7 +457,7 @@ final class AuthenticateTask extends AbstractAuthenticateTask implements Authent
     }
 
     private Charset obtainServerCharset() {
-        Charset charset = CharsetMapping.getJavaCharsetByCollationIndex(this.handshakeV10Packet.getCharacterSet());
+        Charset charset = CharsetMapping.getJavaCharsetByCollationIndex(this.handshakeV10Packet.getCollationIndex());
         if (charset == null) {
             charset = StandardCharsets.UTF_8;
         }

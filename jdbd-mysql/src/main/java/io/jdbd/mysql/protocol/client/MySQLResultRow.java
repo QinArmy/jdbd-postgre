@@ -2,9 +2,10 @@ package io.jdbd.mysql.protocol.client;
 
 import io.jdbd.JdbdSQLException;
 import io.jdbd.ResultRow;
+import io.jdbd.ResultRowMeta;
 import io.jdbd.mysql.JdbdMySQLException;
+import io.jdbd.mysql.util.MySQLConvertUtils;
 import io.jdbd.mysql.util.MySQLNumberUtils;
-import io.jdbd.mysql.util.MySQLStringUtils;
 import io.jdbd.mysql.util.MySQLTimeUtils;
 import org.qinarmy.util.NotSupportedConvertException;
 import reactor.util.annotation.Nullable;
@@ -39,14 +40,19 @@ abstract class MySQLResultRow implements ResultRow {
     private final ResultRowAdjutant adjutant;
 
     private MySQLResultRow(Object[] columnValues, MySQLRowMeta rowMeta, ResultRowAdjutant adjutant) {
-        if (columnValues.length != rowMeta.columnMetas.length) {
+        if (columnValues.length != rowMeta.columnMetaArray.length) {
             throw new IllegalArgumentException(
                     String.format("columnValues length[%s] and columnMetas of rowMeta length[%s] not match."
-                            , columnValues.length, rowMeta.columnMetas.length));
+                            , columnValues.length, rowMeta.columnMetaArray.length));
         }
         this.columnValues = columnValues;
         this.rowMeta = rowMeta;
         this.adjutant = adjutant;
+    }
+
+    @Override
+    public ResultRowMeta getRowMeta() {
+        return this.rowMeta;
     }
 
     @Nullable
@@ -401,41 +407,6 @@ abstract class MySQLResultRow implements ResultRow {
     }
 
 
-    private static Boolean convertToBoolean(Object sourceValue) {
-        boolean newValue;
-        if (sourceValue instanceof String) {
-            Boolean boolValue = MySQLStringUtils.tryConvertToBoolean((String) sourceValue);
-            if (boolValue == null) {
-                throw createNotSupportedException(sourceValue, Boolean.class);
-            }
-            newValue = boolValue;
-        } else if (sourceValue instanceof Number) {
-            if (sourceValue instanceof Long) {
-                // most probably for mysql
-                // Goes back to ODBC driver compatibility, and VB/Automation Languages/COM, where in Windows "-1" can mean true as well.
-                // @see io.jdbd.mysql.protocol.client.AbstractClientProtocol.toBoolean
-                newValue = (Long) sourceValue != 0L;
-            } else if (sourceValue instanceof Float || sourceValue instanceof Double) {
-                //this means that 0.1 or -1 will be TRUE
-                // @see io.jdbd.mysql.protocol.client.AbstractClientProtocol.toBoolean
-                newValue = ((Number) sourceValue).doubleValue() != 0.0d;
-            } else if (sourceValue instanceof BigDecimal) {
-                //this means that 0.1 or -1 will be TRUE
-                newValue = ((BigDecimal) sourceValue).compareTo(BigDecimal.ZERO) != 0;
-            } else if (sourceValue instanceof Byte || sourceValue instanceof Short) {
-                newValue = ((Number) sourceValue).intValue() != 0;
-            } else if (sourceValue instanceof BigInteger) {
-                newValue = ((BigInteger) sourceValue).compareTo(BigInteger.valueOf(0L)) != 0;
-            } else {
-                throw createNotSupportedException(sourceValue, Boolean.class);
-            }
-        } else {
-            throw createNotSupportedException(sourceValue, Boolean.class);
-        }
-
-        return newValue;
-    }
-
 
     private static Double convertToDouble(Object sourceValue) {
         double newValue;
@@ -581,7 +552,7 @@ abstract class MySQLResultRow implements ResultRow {
 
         map = new HashMap<>();
 
-        map.put(Boolean.class, MySQLResultRow::convertToBoolean);
+        map.put(Boolean.class, MySQLConvertUtils::convertObjectToBoolean);
         map.put(Double.class, MySQLResultRow::convertToDouble);         // 1 four
         map.put(BigDecimal.class, MySQLResultRow::convertToBigDecimal);
         map.put(BigInteger.class, MySQLResultRow::convertToBigInteger);

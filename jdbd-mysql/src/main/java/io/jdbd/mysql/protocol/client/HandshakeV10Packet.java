@@ -26,12 +26,12 @@ final class HandshakeV10Packet implements MySQLPacket {
         // 3. auth-plugin-data-part-1,first 8 bytes of the plugin provided data (scramble)
         String authPluginDataPart1 = PacketUtils.readStringFixed(payloadBuf, 8, StandardCharsets.US_ASCII);
         // 4. filler,0x00 byte, terminating the first part of a scramble
-        short filler = PacketUtils.readInt1(payloadBuf);
+        short filler = (short) PacketUtils.readInt1(payloadBuf);
 
         // 5. The lower 2 bytes of the Capabilities Flags
         int capabilityFlags = PacketUtils.readInt2(payloadBuf);
         // 6. character_set,default server a_protocol_character_set, only the lower 8-bits
-        short characterSet = PacketUtils.readInt1(payloadBuf);
+        short characterSet = (short) PacketUtils.readInt1(payloadBuf);
         // 7. status_flags,SERVER_STATUS_flags_enum
         int statusFlags = PacketUtils.readInt2(payloadBuf);
         // 8. read the upper 2 bytes of the Capabilities Flags and OR operation
@@ -41,7 +41,7 @@ final class HandshakeV10Packet implements MySQLPacket {
         short authPluginDataLen;
         if ((capabilityFlags & ClientCommandProtocol.CLIENT_PLUGIN_AUTH) != 0) {
             //length of the combined auth_plugin_data (scramble), if auth_plugin_data_len is > 0
-            authPluginDataLen = PacketUtils.readInt1(payloadBuf);
+            authPluginDataLen = (short) PacketUtils.readInt1(payloadBuf);
         } else {
             //skip constant 0x00
             payloadBuf.readByte();
@@ -84,7 +84,7 @@ final class HandshakeV10Packet implements MySQLPacket {
 
     private final int capabilityFlags;
 
-    private final short characterSet;
+    private final short collationIndex;
 
     private final int statusFlags;
 
@@ -100,7 +100,7 @@ final class HandshakeV10Packet implements MySQLPacket {
     private HandshakeV10Packet(ServerVersion serverVersion
             , long threadId, String authPluginDataPart1
             , short filler, int capabilityFlags
-            , short characterSet, int statusFlags
+            , short collationIndex, int statusFlags
             , short authPluginDataLen, String authPluginDataPart2
             , @Nullable String authPluginName) {
 
@@ -110,7 +110,7 @@ final class HandshakeV10Packet implements MySQLPacket {
         this.filler = filler;
 
         this.capabilityFlags = capabilityFlags;
-        this.characterSet = characterSet;
+        this.collationIndex = collationIndex;
         this.statusFlags = statusFlags;
         this.authPluginDataLen = authPluginDataLen;
 
@@ -138,8 +138,8 @@ final class HandshakeV10Packet implements MySQLPacket {
         return this.capabilityFlags;
     }
 
-    public short getCharacterSet() {
-        return this.characterSet;
+    public short getCollationIndex() {
+        return this.collationIndex;
     }
 
     public int getStatusFlags() {
@@ -165,7 +165,7 @@ final class HandshakeV10Packet implements MySQLPacket {
                 .add("authPluginDataPart1='" + authPluginDataPart1 + "'")
                 .add("filler=" + filler)
                 .add("capabilityFlags=" + capabilityFlags)
-                .add("characterSet=" + characterSet)
+                .add("characterSet=" + collationIndex)
                 .add("statusFlags=" + statusFlags)
                 .add("authPluginDataLen=" + authPluginDataLen)
                 .add("authPluginDataPart2='" + authPluginDataPart2 + "'")

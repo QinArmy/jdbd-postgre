@@ -20,14 +20,14 @@ public abstract class AbstractCommunicationTask implements CommunicationTask<Byt
 
     @Nullable
     @Override
-    public final Publisher<ByteBuf> start() {
+    public final Publisher<ByteBuf> start(TaskSignal<ByteBuf> signal) {
         if (!this.executorAdjutant.inEventLoop()) {
             throw new IllegalStateException("start() isn't in EventLoop.");
         }
         if (this.taskPhase != TaskPhase.SUBMITTED) {
             throw new IllegalStateException("taskPhase not null");
         }
-        Publisher<ByteBuf> publisher = internalStart();
+        Publisher<ByteBuf> publisher = internalStart(signal);
         this.taskPhase = TaskPhase.STARTED;
         return publisher;
     }
@@ -86,7 +86,7 @@ public abstract class AbstractCommunicationTask implements CommunicationTask<Byt
     }
 
     @Nullable
-    protected abstract Publisher<ByteBuf> internalStart();
+    protected abstract Publisher<ByteBuf> internalStart(TaskSignal<ByteBuf> signal);
 
     protected abstract boolean internalDecode(ByteBuf cumulateBuffer, Consumer<Object> serverStatusConsumer);
 

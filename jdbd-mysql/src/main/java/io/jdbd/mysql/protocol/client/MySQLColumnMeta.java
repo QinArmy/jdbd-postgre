@@ -11,6 +11,7 @@ import java.util.Map;
 
 /**
  * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/group__group__cs__column__definition__flags.html"> Column Definition Flags</a>
+ * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_com_query_response_text_resultset_column_definition.html"> Column Definition Protocol</a>
  */
 public final class MySQLColumnMeta {
 
@@ -50,6 +51,8 @@ public final class MySQLColumnMeta {
 
     final int collationIndex;
 
+    final Charset columnCharset;
+
     final long fixedLength;
 
     final long length;
@@ -66,9 +69,10 @@ public final class MySQLColumnMeta {
             @Nullable String catalogName, @Nullable String schemaName
             , @Nullable String tableName, @Nullable String tableAlias
             , @Nullable String columnName, String columnAlias
-            , int collationIndex, long fixedLength
-            , long length, int typeFlag
-            , int definitionFlags, short decimals, Properties properties) {
+            , int collationIndex, Charset columnCharset
+            , long fixedLength, long length
+            , int typeFlag, int definitionFlags
+            , short decimals, Properties properties) {
 
         this.catalogName = catalogName;
         this.schemaName = schemaName;
@@ -78,14 +82,20 @@ public final class MySQLColumnMeta {
         this.columnName = columnName;
         this.columnAlias = columnAlias;
         this.collationIndex = collationIndex;
-        this.fixedLength = fixedLength;
+        this.columnCharset = columnCharset;
 
+        this.fixedLength = fixedLength;
         this.length = length;
         this.typeFlag = typeFlag;
         this.definitionFlags = definitionFlags;
+
         this.decimals = decimals;
         // mysqlType must be last
         this.mysqlType = MySQLType.from(this, properties);
+    }
+
+    public boolean isUnsigned() {
+        return (this.definitionFlags & UNSIGNED_FLAG) != 0;
     }
 
     long obtainPrecision(Map<Integer, CharsetMapping.CustomCollation> customCollationMap) {
@@ -177,7 +187,9 @@ public final class MySQLColumnMeta {
     /**
      * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_com_query_response_text_resultset_column_definition.html">Protocol::ColumnDefinition41</a>
      */
-    static MySQLColumnMeta readFor41(ByteBuf payloadBuf, Charset metaCharset, Properties properties) {
+    static MySQLColumnMeta readFor41(ByteBuf payloadBuf, ClientProtocolAdjutant adjutant) {
+        final Charset metaCharset = adjutant.obtainCharsetResults();
+        final Properties properties = adjutant.obtainHostInfo().getProperties();
         // 1. catalog
         String catalogName = PacketUtils.readStringLenEnc(payloadBuf, metaCharset);
         // 2. schema
@@ -194,10 +206,11 @@ public final class MySQLColumnMeta {
         String columnName = PacketUtils.readStringLenEnc(payloadBuf, metaCharset);
         // 7. length of fixed length fields ,[0x0c]
         //
-        PacketUtils.readLenEnc(payloadBuf);
+        long fixLength = PacketUtils.readLenEnc(payloadBuf);
         // 8. character_set of column
         int collationIndex = PacketUtils.readInt2(payloadBuf);
-
+        Charset columnCharset = CharsetMapping.getJavaCharsetByCollationIndex(collationIndex
+                , adjutant.obtainCustomCollationMap());
         // 9. column_length,maximum length of the field
         long length = PacketUtils.readInt4AsLong(payloadBuf);
         // 10. type,type of the column as defined in enum_field_types,type of the column as defined in enum_field_types
@@ -208,16 +221,16 @@ public final class MySQLColumnMeta {
         //0x00 for integers and static strings
         //0x1f for dynamic strings, double, float
         //0x00 to 0x51 for decimals
-        short decimals = PacketUtils.readInt1(payloadBuf);
+        short decimals = (short) PacketUtils.readInt1(payloadBuf);
 
         return new MySQLColumnMeta(
                 catalogName, schemaName
                 , tableName, tableAlias
                 , columnName, columnAlias
-                , collationIndex, length
-                , length, typeFlag
-                , definitionFlags, decimals
-                , properties
+                , collationIndex, columnCharset
+                , fixLength, length
+                , typeFlag, definitionFlags
+                , decimals, properties
         );
     }
 

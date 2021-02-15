@@ -61,7 +61,7 @@ public class CachingSha2PasswordPlugin extends Sha256PasswordPlugin {
                 this.stage.set(AuthStage.FAST_AUTH_READ_RESULT);
                 return payloadBuffer.asReadOnly();
             } else if (stage == AuthStage.FAST_AUTH_READ_RESULT) {
-                short flag = PacketUtils.readInt1(fromServer);
+                int flag = PacketUtils.readInt1(fromServer);
                 switch (flag) {
                     case 3:
                         this.stage.set(AuthStage.FAST_AUTH_COMPLETE);

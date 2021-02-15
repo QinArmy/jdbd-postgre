@@ -2,7 +2,6 @@ package io.jdbd.mysql.protocol.client;
 
 import io.jdbd.meta.SQLType;
 import io.jdbd.mysql.protocol.CharsetMapping;
-import io.jdbd.mysql.protocol.Constants;
 import io.jdbd.mysql.protocol.conf.Properties;
 import io.jdbd.mysql.protocol.conf.PropertyKey;
 import io.jdbd.mysql.util.MySQLObjects;
@@ -41,26 +40,26 @@ public enum MySQLType implements SQLType {
      * NUMERIC[(M[,D])] [UNSIGNED] [ZEROFILL],
      * FIXED[(M[,D])] [UNSIGNED] [ZEROFILL]
      */
-    DECIMAL(Constants.TYPE_DECIMAL, JDBCType.DECIMAL, BigDecimal.class),
+    DECIMAL(ProtocolConstants.TYPE_DECIMAL, JDBCType.DECIMAL, BigDecimal.class),
     /**
      * DECIMAL[(M[,D])] UNSIGNED [ZEROFILL]
      *
      * @see #DECIMAL
      */
-    DECIMAL_UNSIGNED(Constants.TYPE_DECIMAL, true, JDBCType.DECIMAL, BigDecimal.class),
+    DECIMAL_UNSIGNED(ProtocolConstants.TYPE_DECIMAL, true, JDBCType.DECIMAL, BigDecimal.class),
     /**
      * TINYINT[(M)] [UNSIGNED] [ZEROFILL]
      * A very small integer. The signed range is -128 to 127. The unsigned range is 0 to 255.
      * <p>
      * Protocol: TYPE_TINY = 1
      */
-    TINYINT(Constants.TYPE_TINY, JDBCType.TINYINT, Integer.class),
+    TINYINT(ProtocolConstants.TYPE_TINY, JDBCType.TINYINT, Byte.class),
     /**
      * TINYINT[(M)] UNSIGNED [ZEROFILL]
      *
      * @see #TINYINT
      */
-    TINYINT_UNSIGNED(Constants.TYPE_TINY, true, JDBCType.TINYINT, Integer.class),
+    TINYINT_UNSIGNED(ProtocolConstants.TYPE_TINY, true, JDBCType.TINYINT, Short.class),
     /**
      * BOOL, BOOLEAN
      * These types are synonyms for TINYINT(1). A value of zero is considered false. Nonzero values are considered true
@@ -70,20 +69,20 @@ public enum MySQLType implements SQLType {
      * <p>
      * Protocol: TYPE_TINY = 1
      */
-    BOOLEAN(Constants.TYPE_BOOL, JDBCType.BOOLEAN, Boolean.class),
+    BOOLEAN(ProtocolConstants.TYPE_BOOL, JDBCType.BOOLEAN, Boolean.class),
     /**
      * SMALLINT[(M)] [UNSIGNED] [ZEROFILL]
      * A small integer. The signed range is -32768 to 32767. The unsigned range is 0 to 65535.
      * <p>
      * Protocol: TYPE_SHORT = 2
      */
-    SMALLINT(Constants.TYPE_SHORT, JDBCType.SMALLINT, Integer.class),
+    SMALLINT(ProtocolConstants.TYPE_SHORT, JDBCType.SMALLINT, Short.class),
     /**
      * SMALLINT[(M)] UNSIGNED [ZEROFILL]
      *
      * @see #SMALLINT
      */
-    SMALLINT_UNSIGNED(Constants.TYPE_SHORT, true, JDBCType.SMALLINT, Integer.class),
+    SMALLINT_UNSIGNED(ProtocolConstants.TYPE_SHORT, true, JDBCType.SMALLINT, Integer.class),
     /**
      * INT[(M)] [UNSIGNED] [ZEROFILL]
      * A normal-size integer. The signed range is -2147483648 to 2147483647. The unsigned range is 0 to 4294967295.
@@ -92,13 +91,13 @@ public enum MySQLType implements SQLType {
      * <p>
      * INTEGER[(M)] [UNSIGNED] [ZEROFILL] is a synonym for INT.
      */
-    INT(Constants.TYPE_LONG, JDBCType.INTEGER, Integer.class),
+    INT(ProtocolConstants.TYPE_LONG, JDBCType.INTEGER, Integer.class),
     /**
      * INT[(M)] UNSIGNED [ZEROFILL]
      *
      * @see #INT
      */
-    INT_UNSIGNED(Constants.TYPE_LONG, true, JDBCType.INTEGER, Long.class),
+    INT_UNSIGNED(ProtocolConstants.TYPE_LONG, true, JDBCType.INTEGER, Long.class),
     /**
      * FLOAT[(M,D)] [UNSIGNED] [ZEROFILL]
      * A small (single-precision) floating-point number. Permissible values are -3.402823466E+38 to -1.175494351E-38, 0,
@@ -118,13 +117,13 @@ public enum MySQLType implements SQLType {
      * If p is from 25 to 53, the data type becomes DOUBLE with no M or D values. The range of the resulting column is the same as
      * for the single-precision FLOAT or double-precision DOUBLE data types.
      */
-    FLOAT(Constants.TYPE_FLOAT, JDBCType.REAL, Float.class),
+    FLOAT(ProtocolConstants.TYPE_FLOAT, JDBCType.REAL, Float.class),
     /**
      * FLOAT[(M,D)] UNSIGNED [ZEROFILL]
      *
      * @see #FLOAT
      */
-    FLOAT_UNSIGNED(Constants.TYPE_FLOAT, true, JDBCType.REAL, Float.class),
+    FLOAT_UNSIGNED(ProtocolConstants.TYPE_FLOAT, true, JDBCType.REAL, Double.class),
 
     /**
      * DOUBLE[(M,D)] [UNSIGNED] [ZEROFILL]
@@ -142,17 +141,17 @@ public enum MySQLType implements SQLType {
      * DOUBLE PRECISION[(M,D)] [UNSIGNED] [ZEROFILL],
      * REAL[(M,D)] [UNSIGNED] [ZEROFILL]. Exception: If the REAL_AS_FLOAT SQL mode is enabled, REAL is a synonym for FLOAT rather than DOUBLE.
      */
-    DOUBLE(Constants.TYPE_DOUBLE, JDBCType.DOUBLE, Double.class),
+    DOUBLE(ProtocolConstants.TYPE_DOUBLE, JDBCType.DOUBLE, Double.class),
     /**
      * DOUBLE[(M,D)] UNSIGNED [ZEROFILL]
      *
      * @see #DOUBLE
      */
-    DOUBLE_UNSIGNED(Constants.TYPE_DOUBLE, true, JDBCType.DOUBLE, Double.class),
+    DOUBLE_UNSIGNED(ProtocolConstants.TYPE_DOUBLE, true, JDBCType.DOUBLE, BigDecimal.class),
     /**
      * TYPE_NULL = 6
      */
-    NULL(Constants.TYPE_NULL, JDBCType.NULL, Object.class),
+    NULL(ProtocolConstants.TYPE_NULL, JDBCType.NULL, Object.class),
     /**
      * TIMESTAMP[(fsp)]
      * A timestamp. The range is '1970-01-01 00:00:01.000000' UTC to '2038-01-19 03:14:07.999999' UTC.
@@ -166,7 +165,7 @@ public enum MySQLType implements SQLType {
      */
     // TODO If MySQL server run with the MAXDB SQL mode enabled, TIMESTAMP is identical with DATETIME. If this mode is enabled at the time that a table is created, TIMESTAMP columns are created as DATETIME columns.
     // As a result, such columns use DATETIME display format, have the same range of values, and there is no automatic initialization or updating to the current date and time
-    TIMESTAMP(Constants.TYPE_TIMESTAMP, JDBCType.TIMESTAMP, LocalDateTime.class),
+    TIMESTAMP(ProtocolConstants.TYPE_TIMESTAMP, JDBCType.TIMESTAMP, LocalDateTime.class),
 
     /**
      * BIGINT[(M)] [UNSIGNED] [ZEROFILL]
@@ -176,26 +175,26 @@ public enum MySQLType implements SQLType {
      * <p>
      * SERIAL is an alias for BIGINT UNSIGNED NOT NULL AUTO_INCREMENT UNIQUE.
      */
-    BIGINT(Constants.TYPE_LONGLONG, JDBCType.BIGINT, Long.class),
+    BIGINT(ProtocolConstants.TYPE_LONGLONG, JDBCType.BIGINT, Long.class),
     /**
      * BIGINT[(M)] UNSIGNED [ZEROFILL]
      *
      * @see #BIGINT
      */
-    BIGINT_UNSIGNED(Constants.TYPE_LONGLONG, true, JDBCType.BIGINT, BigInteger.class),
+    BIGINT_UNSIGNED(ProtocolConstants.TYPE_LONGLONG, true, JDBCType.BIGINT, BigInteger.class),
     /**
      * MEDIUMINT[(M)] [UNSIGNED] [ZEROFILL]
      * A medium-sized integer. The signed range is -8388608 to 8388607. The unsigned range is 0 to 16777215.
      * <p>
      * Protocol: TYPE_INT24 = 9
      */
-    MEDIUMINT(Constants.TYPE_INT24, JDBCType.INTEGER, Integer.class),
+    MEDIUMINT(ProtocolConstants.TYPE_INT24, JDBCType.INTEGER, Integer.class),
     /**
      * MEDIUMINT[(M)] UNSIGNED [ZEROFILL]
      *
      * @see #MEDIUMINT
      */
-    MEDIUMINT_UNSIGNED(Constants.TYPE_INT24, true, JDBCType.INTEGER, Integer.class),
+    MEDIUMINT_UNSIGNED(ProtocolConstants.TYPE_INT24, true, JDBCType.INTEGER, Integer.class),
     /**
      * DATE
      * A date. The supported range is '1000-01-01' to '9999-12-31'. MySQL displays DATE values in 'YYYY-MM-DD' format,
@@ -203,7 +202,7 @@ public enum MySQLType implements SQLType {
      * <p>
      * Protocol: TYPE_DATE = 10
      */
-    DATE(Constants.TYPE_DATE, JDBCType.DATE, LocalDate.class),
+    DATE(ProtocolConstants.TYPE_DATE, JDBCType.DATE, LocalDate.class),
     /**
      * TIME[(fsp)]
      * A time. The range is '-838:59:59.000000' to '838:59:59.000000'. MySQL displays TIME values in
@@ -213,7 +212,7 @@ public enum MySQLType implements SQLType {
      * <p>
      * Protocol: TYPE_TIME = 11
      */
-    TIME(Constants.TYPE_TIME, JDBCType.TIME, LocalTime.class),
+    TIME(ProtocolConstants.TYPE_TIME, JDBCType.TIME, LocalTime.class),
     /**
      * DATETIME[(fsp)]
      * A date and time combination. The supported range is '1000-01-01 00:00:00.000000' to '9999-12-31 23:59:59.999999'.
@@ -224,14 +223,14 @@ public enum MySQLType implements SQLType {
      * <p>
      * Protocol: TYPE_DATETIME = 12
      */
-    DATETIME(Constants.TYPE_DATETIME, JDBCType.TIMESTAMP, LocalDateTime.class),
+    DATETIME(ProtocolConstants.TYPE_DATETIME, JDBCType.TIMESTAMP, LocalDateTime.class),
     /**
      * YEAR[(4)]
      * A year in four-digit format. MySQL displays YEAR values in YYYY format, but permits assignment of
      * values to YEAR columns using either strings or numbers. Values display as 1901 to 2155, and 0000.
      * Protocol: TYPE_YEAR = 13
      */
-    YEAR(Constants.TYPE_YEAR, JDBCType.DATE, Year.class),
+    YEAR(ProtocolConstants.TYPE_YEAR, JDBCType.DATE, Year.class),
     /**
      * [NATIONAL] VARCHAR(M) [CHARACTER SET charset_name] [COLLATE collation_name]
      * A variable-length string. M represents the maximum column length in characters. The range of M is 0 to 65,535.
@@ -253,7 +252,7 @@ public enum MySQLType implements SQLType {
      * Protocol: TYPE_VARCHAR = 15
      * Protocol: TYPE_VAR_STRING = 253
      */
-    VARCHAR(Constants.TYPE_VARCHAR, JDBCType.VARCHAR, String.class),
+    VARCHAR(ProtocolConstants.TYPE_VARCHAR, JDBCType.VARCHAR, String.class),
     /**
      * VARBINARY(M)
      * The VARBINARY type is similar to the VARCHAR type, but stores binary byte strings rather than nonbinary
@@ -262,20 +261,20 @@ public enum MySQLType implements SQLType {
      * Protocol: TYPE_VARCHAR = 15
      * Protocol: TYPE_VAR_STRING = 253
      */
-    VARBINARY(Constants.TYPE_VAR_STRING, JDBCType.VARBINARY, byte[].class), // TODO check that it's correct
+    VARBINARY(ProtocolConstants.TYPE_VAR_STRING, JDBCType.VARBINARY, byte[].class), // TODO check that it's correct
     /**
      * BIT[(M)]
      * A bit-field type. M indicates the number of bits per value, from 1 to 64. The default is 1 if M is omitted.
      * Protocol: TYPE_BIT = 16
      */
-    BIT(Constants.TYPE_BIT, JDBCType.BIT, Long.class),
+    BIT(ProtocolConstants.TYPE_BIT, JDBCType.BIT, Long.class),
     /**
      * The size of JSON documents stored in JSON columns is limited to the value of the max_allowed_packet system variable (max value 1073741824).
      * (While the server manipulates a JSON value internally in memory, it can be larger; the limit applies when the server stores it.)
      * <p>
      * Protocol: TYPE_BIT = 245
      */
-    JSON(Constants.TYPE_JSON, JDBCType.LONGVARCHAR, String.class),
+    JSON(ProtocolConstants.TYPE_JSON, JDBCType.LONGVARCHAR, String.class),
     /**
      * ENUM('value1','value2',...) [CHARACTER SET charset_name] [COLLATE collation_name]
      * An enumeration. A string object that can have only one value, chosen from the list of values 'value1',
@@ -285,7 +284,7 @@ public enum MySQLType implements SQLType {
      * <p>
      * Protocol: TYPE_ENUM = 247
      */
-    ENUM(Constants.TYPE_ENUM, JDBCType.CHAR, String.class),
+    ENUM(ProtocolConstants.TYPE_ENUM, JDBCType.CHAR, String.class),
     /**
      * SET('value1','value2',...) [CHARACTER SET charset_name] [COLLATE collation_name]
      * A set. A string object that can have zero or more values, each of which must be chosen from the list
@@ -294,8 +293,11 @@ public enum MySQLType implements SQLType {
      * element list definitions among its ENUM and SET columns considered as a group
      * <p>
      * Protocol: TYPE_SET = 248
+     * <p>
+     * a unmodifiable {@link Set} ,the type of elements is {@link String}
+     * </p>
      */
-    SET(Constants.TYPE_SET, JDBCType.CHAR, String.class),
+    SET(ProtocolConstants.TYPE_SET, JDBCType.CHAR, Set.class),
     /**
      * TINYBLOB
      * A BLOB column with a maximum length of 255 (28 - 1) bytes. Each TINYBLOB value is stored using a
@@ -303,7 +305,7 @@ public enum MySQLType implements SQLType {
      * <p>
      * Protocol:TYPE_TINY_BLOB = 249
      */
-    TINYBLOB(Constants.TYPE_TINY_BLOB, JDBCType.VARBINARY, byte[].class),// TODO check that it's correct
+    TINYBLOB(ProtocolConstants.TYPE_TINY_BLOB, JDBCType.VARBINARY, byte[].class),// TODO check that it's correct
     /**
      * TINYTEXT [CHARACTER SET charset_name] [COLLATE collation_name]
      * A TEXT column with a maximum length of 255 (28 - 1) characters. The effective maximum length
@@ -312,7 +314,7 @@ public enum MySQLType implements SQLType {
      * <p>
      * Protocol:TYPE_TINY_BLOB = 249
      */
-    TINYTEXT(Constants.TYPE_TINY_BLOB, JDBCType.VARCHAR, String.class),
+    TINYTEXT(ProtocolConstants.TYPE_TINY_BLOB, JDBCType.VARCHAR, String.class),
     /**
      * MEDIUMBLOB
      * A BLOB column with a maximum length of 16,777,215 (224 - 1) bytes. Each MEDIUMBLOB value is stored
@@ -320,7 +322,7 @@ public enum MySQLType implements SQLType {
      * <p>
      * Protocol: TYPE_MEDIUM_BLOB = 250
      */
-    MEDIUMBLOB(Constants.TYPE_MEDIUM_BLOB, JDBCType.LONGVARBINARY, byte[].class),// TODO check that it's correct
+    MEDIUMBLOB(ProtocolConstants.TYPE_MEDIUM_BLOB, JDBCType.LONGVARBINARY, byte[].class),// TODO check that it's correct
     /**
      * MEDIUMTEXT [CHARACTER SET charset_name] [COLLATE collation_name]
      * A TEXT column with a maximum length of 16,777,215 (224 - 1) characters. The effective maximum length
@@ -329,7 +331,7 @@ public enum MySQLType implements SQLType {
      * <p>
      * Protocol: TYPE_MEDIUM_BLOB = 250
      */
-    MEDIUMTEXT(Constants.TYPE_MEDIUM_BLOB, JDBCType.LONGVARCHAR, String.class),
+    MEDIUMTEXT(ProtocolConstants.TYPE_MEDIUM_BLOB, JDBCType.LONGVARCHAR, String.class),
     /**
      * LONGBLOB
      * A BLOB column with a maximum length of 4,294,967,295 or 4GB (232 - 1) bytes. The effective maximum length
@@ -338,7 +340,7 @@ public enum MySQLType implements SQLType {
      * <p>
      * Protocol: TYPE_LONG_BLOB = 251
      */
-    LONGBLOB(Constants.TYPE_LONG_BLOB, JDBCType.LONGVARBINARY, InputStream.class),
+    LONGBLOB(ProtocolConstants.TYPE_LONG_BLOB, JDBCType.LONGVARBINARY, InputStream.class),
     /**
      * LONGTEXT [CHARACTER SET charset_name] [COLLATE collation_name]
      * A TEXT column with a maximum length of 4,294,967,295 or 4GB (232 - 1) characters. The effective
@@ -349,7 +351,7 @@ public enum MySQLType implements SQLType {
      * <p>
      * Protocol: TYPE_LONG_BLOB = 251
      */
-    LONGTEXT(Constants.TYPE_LONG_BLOB, JDBCType.LONGVARCHAR, Reader.class),
+    LONGTEXT(ProtocolConstants.TYPE_LONG_BLOB, JDBCType.LONGVARCHAR, Reader.class),
     /**
      * BLOB[(M)]
      * A BLOB column with a maximum length of 65,535 (216 - 1) bytes. Each BLOB value is stored using
@@ -359,7 +361,7 @@ public enum MySQLType implements SQLType {
      * <p>
      * Protocol: TYPE_BLOB = 252
      */
-    BLOB(Constants.TYPE_BLOB, JDBCType.LONGVARBINARY, byte[].class),// TODO check that it's correct
+    BLOB(ProtocolConstants.TYPE_BLOB, JDBCType.LONGVARBINARY, byte[].class),// TODO check that it's correct
     /**
      * TEXT[(M)] [CHARACTER SET charset_name] [COLLATE collation_name]
      * A TEXT column with a maximum length of 65,535 (216 - 1) characters. The effective maximum length
@@ -370,7 +372,7 @@ public enum MySQLType implements SQLType {
      * <p>
      * Protocol: TYPE_BLOB = 252
      */
-    TEXT(Constants.TYPE_BLOB, JDBCType.LONGVARCHAR, String.class),
+    TEXT(ProtocolConstants.TYPE_BLOB, JDBCType.LONGVARCHAR, String.class),
     /**
      * [NATIONAL] CHAR[(M)] [CHARACTER SET charset_name] [COLLATE collation_name]
      * A fixed-length string that is always right-padded with spaces to the specified length when stored.
@@ -388,7 +390,7 @@ public enum MySQLType implements SQLType {
      * <p>
      * Protocol: TYPE_STRING = 254
      */
-    CHAR(Constants.TYPE_STRING, JDBCType.CHAR, String.class),
+    CHAR(ProtocolConstants.TYPE_STRING, JDBCType.CHAR, String.class),
     /**
      * BINARY(M)
      * The BINARY type is similar to the CHAR type, but stores binary byte strings rather than nonbinary character strings.
@@ -398,13 +400,13 @@ public enum MySQLType implements SQLType {
      * <p>
      * Protocol: no concrete type on the wire TODO: really?
      */
-    BINARY(Constants.TYPE_STRING, JDBCType.BINARY, byte[].class),// TODO check that it's correct
+    BINARY(ProtocolConstants.TYPE_STRING, JDBCType.BINARY, byte[].class),// TODO check that it's correct
     /**
      * Top class for Spatial Data Types
      * <p>
      * Protocol: TYPE_GEOMETRY = 255
      */
-    GEOMETRY(Constants.TYPE_GEOMETRY, JDBCType.OTHER, Geometry.class), // TODO check precision, it isn't well documented, only mentioned that WKB format is represented by BLOB
+    GEOMETRY(ProtocolConstants.TYPE_GEOMETRY, JDBCType.OTHER, Geometry.class), // TODO check precision, it isn't well documented, only mentioned that WKB format is represented by BLOB
     /**
      * Fall-back type for those MySQL data types which c/J can't recognize.
      * Handled the same as BLOB.
@@ -493,12 +495,12 @@ public enum MySQLType implements SQLType {
 
 
     private static MySQLType fromTiny(MySQLColumnMeta columnMeta, Properties properties) {
-        final boolean isUnsigned = isUnsigned(columnMeta);
+        final boolean isUnsigned = columnMeta.isUnsigned();
         // Adjust for pseudo-boolean
         MySQLType mySQLType;
         if (!isUnsigned && columnMeta.length == 1
-                && properties.getRequiredProperty(PropertyKey.tinyInt1isBit, Boolean.class)) {
-            mySQLType = properties.getRequiredProperty(PropertyKey.transformedBitIsBoolean, Boolean.class)
+                && properties.getOrDefault(PropertyKey.tinyInt1isBit, Boolean.class)) {
+            mySQLType = properties.getOrDefault(PropertyKey.transformedBitIsBoolean, Boolean.class)
                     ? BOOLEAN
                     : BIT;
         } else {
@@ -613,13 +615,13 @@ public enum MySQLType implements SQLType {
         final long maxLength = columnMeta.length;
         // fixing initial type according to length
         if (maxLength <= 255L) {
-            newMysqlTypeId = Constants.TYPE_TINY_BLOB;
+            newMysqlTypeId = ProtocolConstants.TYPE_TINY_BLOB;
         } else if (columnMeta.length <= (1 << 16) - 1) {
             return isBlobTypeReturnText(columnMeta, properties) ? TEXT : BLOB;
         } else if (maxLength <= (1 << 24) - 1) {
-            newMysqlTypeId = Constants.TYPE_MEDIUM_BLOB;
+            newMysqlTypeId = ProtocolConstants.TYPE_MEDIUM_BLOB;
         } else {
-            newMysqlTypeId = Constants.TYPE_LONG_BLOB;
+            newMysqlTypeId = ProtocolConstants.TYPE_LONG_BLOB;
         }
 
         // call this method again with correct this.mysqlType set
@@ -647,9 +649,9 @@ public enum MySQLType implements SQLType {
 
         boolean isBinaryString = (isBinary(columnMeta.definitionFlags)
                 && columnMeta.collationIndex == CharsetMapping.MYSQL_COLLATION_INDEX_binary
-                && (columnMeta.typeFlag == Constants.TYPE_STRING
-                || columnMeta.typeFlag == Constants.TYPE_VAR_STRING
-                || columnMeta.typeFlag == Constants.TYPE_VARCHAR));
+                && (columnMeta.typeFlag == ProtocolConstants.TYPE_STRING
+                || columnMeta.typeFlag == ProtocolConstants.TYPE_VAR_STRING
+                || columnMeta.typeFlag == ProtocolConstants.TYPE_VARCHAR));
 
         return isBinaryString
                 // queries resolved by temp tables also have this 'signature', check for that
@@ -681,40 +683,40 @@ public enum MySQLType implements SQLType {
         Map<Integer, BiFunction<MySQLColumnMeta, Properties, MySQLType>> map;
         map = new HashMap<>();
 
-        map.put(Constants.TYPE_DECIMAL, MySQLType::fromDecimal);
-        map.put(Constants.TYPE_TINY, MySQLType::fromTiny);
-        map.put(Constants.TYPE_SHORT, MySQLType::fromShort);
-        map.put(Constants.TYPE_LONG, MySQLType::fromLong);
+        map.put(ProtocolConstants.TYPE_DECIMAL, MySQLType::fromDecimal);
+        map.put(ProtocolConstants.TYPE_TINY, MySQLType::fromTiny);
+        map.put(ProtocolConstants.TYPE_SHORT, MySQLType::fromShort);
+        map.put(ProtocolConstants.TYPE_LONG, MySQLType::fromLong);
 
-        map.put(Constants.TYPE_FLOAT, MySQLType::fromFloat);
-        map.put(Constants.TYPE_DOUBLE, MySQLType::fromDouble);
-        map.put(Constants.TYPE_NULL, MySQLType::fromNull);
-        map.put(Constants.TYPE_TIMESTAMP, MySQLType::fromTimestamp);
+        map.put(ProtocolConstants.TYPE_FLOAT, MySQLType::fromFloat);
+        map.put(ProtocolConstants.TYPE_DOUBLE, MySQLType::fromDouble);
+        map.put(ProtocolConstants.TYPE_NULL, MySQLType::fromNull);
+        map.put(ProtocolConstants.TYPE_TIMESTAMP, MySQLType::fromTimestamp);
 
-        map.put(Constants.TYPE_LONGLONG, MySQLType::fromLongLong);
-        map.put(Constants.TYPE_INT24, MySQLType::fromInt24);
-        map.put(Constants.TYPE_DATE, MySQLType::fromDate);
-        map.put(Constants.TYPE_TIME, MySQLType::fromTime);
+        map.put(ProtocolConstants.TYPE_LONGLONG, MySQLType::fromLongLong);
+        map.put(ProtocolConstants.TYPE_INT24, MySQLType::fromInt24);
+        map.put(ProtocolConstants.TYPE_DATE, MySQLType::fromDate);
+        map.put(ProtocolConstants.TYPE_TIME, MySQLType::fromTime);
 
-        map.put(Constants.TYPE_DATETIME, MySQLType::fromDatetime);
-        map.put(Constants.TYPE_YEAR, MySQLType::fromYear);
-        map.put(Constants.TYPE_VARCHAR, MySQLType::fromVarcharOrVarString);
-        map.put(Constants.TYPE_BIT, MySQLType::fromBit);
+        map.put(ProtocolConstants.TYPE_DATETIME, MySQLType::fromDatetime);
+        map.put(ProtocolConstants.TYPE_YEAR, MySQLType::fromYear);
+        map.put(ProtocolConstants.TYPE_VARCHAR, MySQLType::fromVarcharOrVarString);
+        map.put(ProtocolConstants.TYPE_BIT, MySQLType::fromBit);
 
-        map.put(Constants.TYPE_JSON, MySQLType::fromJson);
-        map.put(Constants.TYPE_NEWDECIMAL, MySQLType::fromDecimal);
-        map.put(Constants.TYPE_ENUM, MySQLType::fromEnum);
-        map.put(Constants.TYPE_SET, MySQLType::fromSet);
+        map.put(ProtocolConstants.TYPE_JSON, MySQLType::fromJson);
+        map.put(ProtocolConstants.TYPE_NEWDECIMAL, MySQLType::fromDecimal);
+        map.put(ProtocolConstants.TYPE_ENUM, MySQLType::fromEnum);
+        map.put(ProtocolConstants.TYPE_SET, MySQLType::fromSet);
 
-        map.put(Constants.TYPE_TINY_BLOB, MySQLType::fromTinyBlob);
-        map.put(Constants.TYPE_MEDIUM_BLOB, MySQLType::fromMediumBlob);
-        map.put(Constants.TYPE_LONG_BLOB, MySQLType::fromLongBlob);
-        map.put(Constants.TYPE_BLOB, MySQLType::fromBlob);
+        map.put(ProtocolConstants.TYPE_TINY_BLOB, MySQLType::fromTinyBlob);
+        map.put(ProtocolConstants.TYPE_MEDIUM_BLOB, MySQLType::fromMediumBlob);
+        map.put(ProtocolConstants.TYPE_LONG_BLOB, MySQLType::fromLongBlob);
+        map.put(ProtocolConstants.TYPE_BLOB, MySQLType::fromBlob);
 
-        map.put(Constants.TYPE_VAR_STRING, MySQLType::fromVarcharOrVarString);
-        map.put(Constants.TYPE_STRING, MySQLType::fromString);
-        map.put(Constants.TYPE_BOOL, MySQLType::fromBool);
-        map.put(Constants.TYPE_GEOMETRY, MySQLType::fromGeometry);
+        map.put(ProtocolConstants.TYPE_VAR_STRING, MySQLType::fromVarcharOrVarString);
+        map.put(ProtocolConstants.TYPE_STRING, MySQLType::fromString);
+        map.put(ProtocolConstants.TYPE_BOOL, MySQLType::fromBool);
+        map.put(ProtocolConstants.TYPE_GEOMETRY, MySQLType::fromGeometry);
 
 
         return Collections.unmodifiableMap(map);

@@ -1,16 +1,17 @@
 package io.jdbd.mysql.protocol.client;
 
 import io.jdbd.*;
-import io.jdbd.lang.Nullable;
 import io.jdbd.mysql.JdbdMySQLException;
 import io.jdbd.mysql.protocol.Constants;
 import io.jdbd.mysql.protocol.EofPacket;
 import io.jdbd.mysql.protocol.ErrorPacket;
+import io.jdbd.mysql.protocol.OkPacket;
 import io.jdbd.mysql.protocol.conf.PropertyKey;
 import io.jdbd.mysql.util.MySQLExceptionUtils;
 import io.jdbd.mysql.util.MySQLNumberUtils;
 import io.jdbd.type.Geometry;
 import io.jdbd.vendor.CommunicationTask;
+import io.jdbd.vendor.TaskSignal;
 import io.netty.buffer.ByteBuf;
 import org.qinarmy.util.Pair;
 import org.reactivestreams.Publisher;
@@ -20,6 +21,7 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.FluxSink;
 import reactor.core.publisher.Mono;
 import reactor.core.publisher.MonoSink;
+import reactor.util.annotation.Nullable;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -35,27 +37,32 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
+import java.sql.SQLException;
 import java.time.*;
 import java.time.temporal.ChronoField;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 
 /**
  * <p>
  *     <ol>
- *         <li>{@link #internalStart()} send COM_STMT_PREPARE</li>
- *         <li>{@link #createExecutionPacketPublisher(List)} send COM_STMT_EXECUTE</li>
+ *         <li>send COM_STMT_PREPARE : {@link #internalStart(TaskSignal)} </li>
+ *         <li>read COM_STMT_PREPARE Response : {@link #readPrepareResponse(ByteBuf, Consumer)}</li>
+ *         <li>send COM_STMT_EXECUTE : {@link #createExecutionPacketPublisher(List)} </li>
+ *         <li>read COM_STMT_EXECUTE Response : {@link #readExecuteResponse(ByteBuf, Consumer)}</li>
+ *         <li>read Binary Protocol ResultSet Row : {@link #readExecuteBinaryRows(ByteBuf, Consumer)}</li>
  *     </ol>
  * </p>
  *
  * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_command_phase_ps.html">Prepared Statements</a>
  */
-final class ComPreparedTask extends MySQLCommunicationTask implements PreparedTask {
+final class ComPreparedTask extends MySQLCommunicationTask implements PreparedStatementTask, StatementTask {
 
-    static Mono<PreparedTask> prepared(MySQLTaskAdjutant taskAdjutant, String sql) {
+    static Mono<PreparedStatement> prepare(MySQLTaskAdjutant taskAdjutant, String sql) {
         return Mono.create(sink -> {
             // ComPreparedTask reference is hold by MySQLCommTaskExecutor.
             new ComPreparedTask(taskAdjutant, sql, sink)
@@ -71,10 +78,11 @@ final class ComPreparedTask extends MySQLCommunicationTask implements PreparedTa
 
     private static final int MAX_DATA = ClientProtocol.MAX_PACKET_SIZE - LONG_DATA_PREFIX_SIZE;
 
-
     private final String sql;
 
-    private final MonoSink<PreparedTask> taskSink;
+    private final MonoSink<PreparedStatement> stmtSink;
+
+    private final AtomicBoolean stmtCancel = new AtomicBoolean(false);
 
     private List<List<BindValue>> parameterGroupList;
 
@@ -88,32 +96,44 @@ final class ComPreparedTask extends MySQLCommunicationTask implements PreparedTa
 
     private MySQLColumnMeta[] parameterMetas;
 
-    private MySQLColumnMeta[] columnMetas;
+    private MySQLRowMeta rowMeta;
 
-    private int columnIndex = 0;
+    private int columnMetaIndex = -1;
 
-    private int batchParameterIndex = 0;
+    private int parameterMetaIndex = -1;
 
     private int batchIndex = 0;
 
     private Publisher<ByteBuf> packetPublisher;
 
+    private int cursorFetchSize = -1;
+
     private Throwable error;
 
-    private Object sink;
+    private TaskSignal<ByteBuf> signal;
+
+    private FluxSink<ResultRow> rowSink;
+
+    private Consumer<ResultStates> resultStatesConsumer;
+
+    private Path bigRowPath;
+
+    private ResultSetReader resultSetReader;
 
     private final int blobSendChunkSize;
 
     private final int maxBlobPacketSize;
 
-    private ComPreparedTask(MySQLTaskAdjutant executorAdjutant, String sql, MonoSink<PreparedTask> taskSink) {
+    private ComPreparedTask(MySQLTaskAdjutant executorAdjutant, String sql, MonoSink<PreparedStatement> stmtSink) {
         super(executorAdjutant);
         this.sql = sql;
-        this.taskSink = taskSink;
+        this.stmtSink = stmtSink;
         this.blobSendChunkSize = obtainBlobSendChunkSize();
         this.maxBlobPacketSize = Math.min(PacketUtils.HEADER_SIZE + LONG_DATA_PREFIX_SIZE + this.blobSendChunkSize
                 , PacketUtils.MAX_PACKET_CAPACITY);
+        this.stmtSink.onCancel(() -> this.stmtCancel.compareAndSet(false, true));
     }
+
 
     @Nullable
     @Override
@@ -131,6 +151,20 @@ final class ComPreparedTask extends MySQLCommunicationTask implements PreparedTa
     }
 
     @Override
+    public int obtainParameterCount() throws IllegalStateException {
+        MySQLColumnMeta[] parameterMetaArray = this.parameterMetas;
+        if (parameterMetaArray == null) {
+            throw new IllegalStateException("Not prepared yet.");
+        }
+        return parameterMetaArray.length;
+    }
+
+    @Override
+    public MySQLColumnMeta obtainParameterMeta(int parameterIndex) throws IllegalStateException {
+        return null;
+    }
+
+    @Override
     public int obtainPreparedWarningCount() throws IllegalStateException {
         if (this.phase == Phase.PREPARED) {
             throw new IllegalStateException("Not prepared yet.");
@@ -140,7 +174,7 @@ final class ComPreparedTask extends MySQLCommunicationTask implements PreparedTa
 
     @Override
     public MySQLColumnMeta[] obtainColumnMeta() {
-        MySQLColumnMeta[] columnMetaArray = this.columnMetas;
+        MySQLColumnMeta[] columnMetaArray = this.rowMeta.columnMetaArray;
         if (columnMetaArray == null) {
             throw new IllegalStateException(
                     String.format("%s[%s] not prepared yet.", CommunicationTask.class.getName(), this));
@@ -169,21 +203,37 @@ final class ComPreparedTask extends MySQLCommunicationTask implements PreparedTa
         return Mono.empty();
     }
 
+
+    @Override
+    public ClientProtocolAdjutant obtainAdjutant() {
+        return this.executorAdjutant;
+    }
+
     /*################################## blow protected method ##################################*/
 
     @Override
-    protected Publisher<ByteBuf> internalStart() {
+    protected Publisher<ByteBuf> internalStart(TaskSignal<ByteBuf> signal) {
+        this.signal = signal;
         // this method send COM_STMT_PREPARE packet.
         // @see https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_com_stmt_prepare.html
-        int payloadLength = (this.sql.length() * this.executorAdjutant.obtainMaxBytesPerCharClient()) + 1;
+        int payloadLength = 1 + (this.sql.length() * this.executorAdjutant.obtainMaxBytesPerCharClient());
         ByteBuf packetBuffer = this.executorAdjutant.createPacketBuffer(payloadLength);
 
-        packetBuffer.writeByte(PacketUtils.COM_STMT_PREPARE);
+        packetBuffer.writeByte(PacketUtils.COM_STMT_PREPARE); // command
         packetBuffer.writeCharSequence(this.sql, this.executorAdjutant.obtainCharsetClient());
         PacketUtils.writePacketHeader(packetBuffer, addAndGetSequenceId());
 
-        this.phase = Phase.PREPARE_RESPONSE;
-        return Mono.just(packetBuffer);
+        final Mono<ByteBuf> mono;
+        if (this.stmtCancel.get()) {
+            // downstream cancel subscription,terminate task
+            this.phase = Phase.CLOSE_STMT;
+            mono = null;
+            signal.terminate(this);
+        } else {
+            this.phase = Phase.READ_PREPARE_RESPONSE;
+            mono = Mono.just(packetBuffer);
+        }
+        return mono;
     }
 
     @Override
@@ -194,51 +244,65 @@ final class ComPreparedTask extends MySQLCommunicationTask implements PreparedTa
         final Phase phase = Objects.requireNonNull(this.phase, "this.phase");
         boolean taskEnd = false;
         switch (phase) {
-            case PREPARE_RESPONSE: {
+            case READ_PREPARE_RESPONSE: {
                 taskEnd = readPrepareResponse(cumulateBuffer, serverStatusConsumer);
                 if (!taskEnd && this.phase == Phase.EXECUTE) {
                     taskEnd = executeStatement();
                 }
             }
             break;
-            case READ_PARAM_META: {
-                if (!readParameterMeta(cumulateBuffer, serverStatusConsumer)) {
+            case READ_PREPARE_PARAM_META: {
+                if (!readPrepareParameterMeta(cumulateBuffer, serverStatusConsumer)) {
                     break;
                 }
-                if (this.columnMetas.length == 0) {
+                if (this.rowMeta.columnMetaArray.length == 0) {
                     this.phase = Phase.EXECUTE;
                     break;
                 }
-                this.phase = Phase.READ_COLUMN_META;
-                if (readColumnMeta(cumulateBuffer, serverStatusConsumer)) {
+                this.phase = Phase.READ_PREPARE_COLUMN_META;
+                if (readPrepareColumnMeta(cumulateBuffer, serverStatusConsumer)) {
                     this.phase = Phase.EXECUTE;
                 }
             }
             break;
-            case READ_COLUMN_META: {
-                if (readColumnMeta(cumulateBuffer, serverStatusConsumer)) {
+            case READ_PREPARE_COLUMN_META: {
+                if (readPrepareColumnMeta(cumulateBuffer, serverStatusConsumer)) {
                     this.phase = Phase.EXECUTE;
                 }
-            }
-            break;
-            case RESET: {
-
             }
             break;
             case EXECUTE: {
                 taskEnd = executeStatement();
+                if (!taskEnd) {
+                    this.phase = Phase.READ_EXECUTE_RESPONSE;
+                }
             }
             break;
-            case READ_RESULT_SET:
-                taskEnd = readResultSet(cumulateBuffer);
+            case READ_EXECUTE_RESPONSE:
+                taskEnd = readExecuteResponse(cumulateBuffer, serverStatusConsumer);
                 break;
+            case READ_EXECUTE_COLUMN_META: {
+                if (readExecuteColumnMeta(cumulateBuffer)) {
+                    this.phase = Phase.READ_EXECUTE_BINARY_ROW;
+                    if (readExecuteBinaryRows(cumulateBuffer, serverStatusConsumer)) {
+                        markIdle();
+                    }
+                }
+            }
+            break;
+            case READ_EXECUTE_BINARY_ROW: {
+                if (readExecuteBinaryRows(cumulateBuffer, serverStatusConsumer)) {
+                    markIdle();
+                }
+            }
+            break;
             case PREPARED:
                 throw new IllegalStateException("this.phase is PREPARED ,task not start yet.");
             default:
                 throw MySQLExceptionUtils.createUnknownEnumException(phase);
         }
         if (taskEnd && this.error != null) {
-            emitError(this.error);
+            emitErrorForResult(this.error);
             closeStatement();
         }
         return taskEnd;
@@ -249,40 +313,42 @@ final class ComPreparedTask extends MySQLCommunicationTask implements PreparedTa
     /**
      * @return true: task end ,prepare statement failure.
      * @see #internalDecode(ByteBuf, Consumer)
+     * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_com_stmt_prepare.html#sect_protocol_com_stmt_prepare_response">COM_STMT_PREPARE Response</a>
      */
     private boolean readPrepareResponse(ByteBuf cumulateBuffer, Consumer<Object> serverStatusConsumer) {
         final int payloadLength = PacketUtils.readInt3(cumulateBuffer);
         updateSequenceId(PacketUtils.readInt1(cumulateBuffer));
         final int payloadStartIndex = cumulateBuffer.readerIndex();
 
-        final int headFlag = PacketUtils.readInt1(cumulateBuffer); //1. status/error header
+        final int headFlag = PacketUtils.getInt1(cumulateBuffer, cumulateBuffer.readerIndex()); //1. status/error header
         boolean taskEnd;
         switch (headFlag) {
             case ErrorPacket.ERROR_HEADER: {
                 ErrorPacket error = ErrorPacket.readPacket(cumulateBuffer.readSlice(payloadLength)
                         , this.negotiatedCapability, this.executorAdjutant.obtainCharsetResults());
-                this.taskSink.error(MySQLExceptionUtils.createErrorPacketException(error));
+                this.stmtSink.error(MySQLExceptionUtils.createErrorPacketException(error));
                 taskEnd = true;
             }
             break;
-            case 0: {
+            case OkPacket.OK_HEADER: {
                 this.statementId = PacketUtils.readInt4(cumulateBuffer);//2. statement_id
                 final int numColumns = PacketUtils.readInt2(cumulateBuffer);//3. num_columns
                 final int numParams = PacketUtils.readInt2(cumulateBuffer);//4. num_params
                 cumulateBuffer.skipBytes(1); //5. skip filler
                 this.preparedWarningCount = PacketUtils.readInt2(cumulateBuffer);//6. warning_count
+                boolean hasMetaFollow = true;
                 if ((this.negotiatedCapability & ClientProtocol.CLIENT_OPTIONAL_RESULTSET_METADATA) != 0) {
-                    this.hasMeta = cumulateBuffer.readByte() != 0; //7. metadata_follows
+                    hasMetaFollow = cumulateBuffer.readByte() != ProtocolConstants.RESULTSET_METADATA_NONE; //7. metadata_follows
                 }
                 cumulateBuffer.readerIndex(payloadStartIndex + payloadLength); // to next packet,avoid tail filler.
-                readPreparedMeta(cumulateBuffer, numColumns, numParams, serverStatusConsumer);
+                readPrepareMeta(cumulateBuffer, numColumns, numParams, hasMetaFollow, serverStatusConsumer);
                 taskEnd = false;
             }
             break;
             default: {
                 RuntimeException e = MySQLExceptionUtils.createFatalIoException(
                         "COM_STMT_PREPARE Response error. headFlag[%s]", headFlag);
-                this.taskSink.error(e);
+                this.stmtSink.error(e);
                 throw e;
             }
         }
@@ -295,39 +361,35 @@ final class ComPreparedTask extends MySQLCommunicationTask implements PreparedTa
      * modify :
      *     <ul>
      *         <li>{@link #phase}</li>
-     *          <li>{@link #parameterMetas}</li>
-     *           <li>{@link #columnMetas}</li>
+     *         <li>{@link #parameterMetas}</li>
+     *         <li>{@link #rowMeta}</li>
      *     </ul>
      * </p>
      *
      * @see #readPrepareResponse(ByteBuf, Consumer)
      */
-    private void readPreparedMeta(ByteBuf cumulateBuffer, final int numColumns, final int numParams
-            , Consumer<Object> serverStatusConsumer) {
-        if (this.phase != Phase.PREPARE_RESPONSE) {
+    private void readPrepareMeta(ByteBuf cumulateBuffer, final int numColumns, final int numParams
+            , boolean hasMetaFollow, Consumer<Object> serverStatusConsumer) {
+        if (this.phase != Phase.READ_PREPARE_RESPONSE) {
             throw new IllegalStateException(
-                    String.format("this.phase[%s] isn't %s.", this.phase, Phase.PREPARE_RESPONSE));
+                    String.format("this.phase[%s] isn't %s.", this.phase, Phase.READ_PREPARE_RESPONSE));
         }
         // below read parameter meta and column meta.
         final boolean paramMetaReadEnd;
-        if (numParams > 0) {
-            this.parameterMetas = new MySQLColumnMeta[numParams];
-            this.phase = Phase.READ_PARAM_META;
-            paramMetaReadEnd = readParameterMeta(cumulateBuffer, serverStatusConsumer);
+        if (numParams > 0 && hasMetaFollow) {
+            resetParameterMetas(numParams);
+            this.phase = Phase.READ_PREPARE_PARAM_META;
+            paramMetaReadEnd = readPrepareParameterMeta(cumulateBuffer, serverStatusConsumer);
         } else {
             paramMetaReadEnd = true;
             this.parameterMetas = MySQLColumnMeta.EMPTY;
         }
 
-        if (numColumns > 0) {
-            this.columnMetas = new MySQLColumnMeta[numColumns];
-        } else {
-            this.columnMetas = MySQLColumnMeta.EMPTY;
-        }
+        resetColumnMeta(numColumns);
 
         if (numColumns > 0 && paramMetaReadEnd) {
-            this.phase = Phase.READ_COLUMN_META;
-            if (readColumnMeta(cumulateBuffer, serverStatusConsumer)) {
+            this.phase = Phase.READ_PREPARE_COLUMN_META;
+            if (readPrepareColumnMeta(cumulateBuffer, serverStatusConsumer)) {
                 this.phase = Phase.EXECUTE;
             }
         } else if (paramMetaReadEnd) {
@@ -337,48 +399,50 @@ final class ComPreparedTask extends MySQLCommunicationTask implements PreparedTa
 
     /**
      * @return true:read end
-     * @see #readPreparedMeta(ByteBuf, int, int, Consumer)
+     * @see #readPrepareMeta(ByteBuf, int, int, boolean, Consumer)
      * @see #internalDecode(ByteBuf, Consumer)
      */
-    private boolean readParameterMeta(ByteBuf cumulateBuffer, Consumer<Object> serverStatusConsumer) {
-        if (this.phase != Phase.READ_PARAM_META) {
+    private boolean readPrepareParameterMeta(ByteBuf cumulateBuffer, Consumer<Object> serverStatusConsumer) {
+        if (this.phase != Phase.READ_PREPARE_PARAM_META) {
             throw new IllegalStateException(
-                    String.format("this.phase[%s] isn't %s.", this.phase, Phase.READ_PARAM_META));
+                    String.format("this.phase[%s] isn't %s.", this.phase, Phase.READ_PREPARE_PARAM_META));
         }
-        int index = this.batchParameterIndex;
+        int parameterMetaIndex = this.parameterMetaIndex;
         final MySQLColumnMeta[] metaArray = Objects.requireNonNull(this.parameterMetas, "this.parameterMetas");
-        if (index < metaArray.length) {
-            index = AbstractComQueryTask.tryReadColumnMetas(cumulateBuffer, this.executorAdjutant
-                    , metaArray, index, this::updateSequenceId);
-            this.batchParameterIndex = index;
+        if (parameterMetaIndex < metaArray.length) {
+            parameterMetaIndex = AbstractComQueryTask.tryReadColumnMetas(cumulateBuffer
+                    , parameterMetaIndex, this.executorAdjutant, metaArray, this::updateSequenceId);
+            this.parameterMetaIndex = parameterMetaIndex;
         }
-        return index == metaArray.length && tryReadEof(cumulateBuffer, serverStatusConsumer);
+        return parameterMetaIndex == metaArray.length
+                && tryReadEof(cumulateBuffer, serverStatusConsumer);
     }
 
     /**
      * @return true:read end
-     * @see #readPreparedMeta(ByteBuf, int, int, Consumer)
+     * @see #readPrepareMeta(ByteBuf, int, int, boolean, Consumer)
      * @see #internalDecode(ByteBuf, Consumer)
      */
-    private boolean readColumnMeta(ByteBuf cumulateBuffer, Consumer<Object> serverStatusConsumer) {
-        if (this.phase != Phase.READ_COLUMN_META) {
+    private boolean readPrepareColumnMeta(ByteBuf cumulateBuffer, Consumer<Object> serverStatusConsumer) {
+        if (this.phase != Phase.READ_PREPARE_COLUMN_META) {
             throw new IllegalStateException(
-                    String.format("this.phase[%s] isn't %s.", this.phase, Phase.READ_COLUMN_META));
+                    String.format("this.phase[%s] isn't %s.", this.phase, Phase.READ_PREPARE_COLUMN_META));
         }
-        int index = this.columnIndex;
-        final MySQLColumnMeta[] metaArray = Objects.requireNonNull(this.columnMetas, "this.columnIndex");
-        if (index < metaArray.length) {
-            index = AbstractComQueryTask.tryReadColumnMetas(cumulateBuffer, this.executorAdjutant
-                    , metaArray, index, this::updateSequenceId);
-            this.columnIndex = index;
+        final MySQLColumnMeta[] metaArray = Objects.requireNonNull(this.rowMeta.columnMetaArray, "this.columnIndex");
+        int columnMetaIndex = this.columnMetaIndex;
+        if (columnMetaIndex < metaArray.length) {
+            columnMetaIndex = AbstractComQueryTask.tryReadColumnMetas(cumulateBuffer, columnMetaIndex, this.executorAdjutant
+                    , metaArray, this::updateSequenceId);
+            this.columnMetaIndex = columnMetaIndex;
         }
-        return index == metaArray.length && tryReadEof(cumulateBuffer, serverStatusConsumer);
+        return columnMetaIndex == metaArray.length
+                && tryReadEof(cumulateBuffer, serverStatusConsumer);
     }
 
     /**
      * @return false : need more cumulate
-     * @see #readParameterMeta(ByteBuf, Consumer)
-     * @see #readColumnMeta(ByteBuf, Consumer)
+     * @see #readPrepareParameterMeta(ByteBuf, Consumer)
+     * @see #readPrepareColumnMeta(ByteBuf, Consumer)
      */
     private boolean tryReadEof(ByteBuf cumulateBuffer, Consumer<Object> serverStatusConsumer) {
         boolean end = true;
@@ -387,7 +451,7 @@ final class ComPreparedTask extends MySQLCommunicationTask implements PreparedTa
                 int payloadLength = PacketUtils.readInt3(cumulateBuffer);
                 updateSequenceId(PacketUtils.readInt1(cumulateBuffer));
                 EofPacket eof;
-                eof = EofPacket.readPacket(cumulateBuffer.readSlice(payloadLength), this.negotiatedCapability);
+                eof = EofPacket.read(cumulateBuffer.readSlice(payloadLength), this.negotiatedCapability);
                 serverStatusConsumer.accept(eof.getStatusFags());
             } else {
                 end = false;
@@ -494,7 +558,21 @@ final class ComPreparedTask extends MySQLCommunicationTask implements PreparedTa
 
         packetBuffer.writeByte(PacketUtils.COM_STMT_EXECUTE); // 1.status
         PacketUtils.writeInt4(packetBuffer, this.statementId);// 2. statement_id
-        packetBuffer.writeByte(0); //3.cursor Flags, reactive api not support cursor
+        //3.cursor Flags, reactive api not support cursor
+        if (this.cursorFetchSize > 0
+                && this.rowMeta != null
+                && this.rowMeta.columnMetaArray.length > 0
+                && this.properties.getOrDefault(PropertyKey.useCursorFetch, Boolean.class)) {
+            // we only create cursor-backed result sets if
+            // a) The query is a SELECT
+            // b) The server supports it
+            // c) We know it is forward-only (note this doesn't preclude updatable result sets)
+            // d) The user has set a fetch size
+            packetBuffer.writeByte(ProtocolConstants.CURSOR_TYPE_READ_ONLY);
+        } else {
+            packetBuffer.writeByte(ProtocolConstants.CURSOR_TYPE_NO_CURSOR);
+
+        }
         PacketUtils.writeInt4(packetBuffer, 1);//4. iteration_count,Number of times to execute the statement. Currently always 1.
 
         return packetBuffer;
@@ -860,12 +938,14 @@ final class ComPreparedTask extends MySQLCommunicationTask implements PreparedTa
         final ByteBuf packetBuffer = createExecutePacketBuffer(
                 10 + nullBitsMap.length + 1 + (parameterCount * 2) + parameterValueLength);
 
-        packetBuffer.writeBytes(nullBitsMap); // null_bitmap
-        packetBuffer.writeByte(1); //new_params_bind_flag
+        packetBuffer.writeBytes(nullBitsMap); //fill null_bitmap
+        packetBuffer.writeByte(1); //fill new_params_bind_flag
 
+        //fill  parameter_types
         for (BindValue value : parameterGroup) {
-            PacketUtils.writeInt2(packetBuffer, value.getType().parameterType); // parameter_types
+            PacketUtils.writeInt2(packetBuffer, value.getType().parameterType);
         }
+        //fill parameter_values
         for (int i = 0; i < parameterCount; i++) {
             BindValue bindValue = parameterGroup.get(i);
             if (bindValue.isLongData() || bindValue.getValue() == null) {
@@ -892,15 +972,66 @@ final class ComPreparedTask extends MySQLCommunicationTask implements PreparedTa
         return null;
     }
 
+    /**
+     * @see #internalDecode(ByteBuf, Consumer)
+     */
+    private boolean readExecuteResponse(ByteBuf cumulateBuffer, Consumer<Object> serverStatusConsumer) {
+        if (this.phase != Phase.READ_EXECUTE_RESPONSE) {
+            throw new IllegalStateException(String.format("this.phase[%s] isn't %s."
+                    , this.phase, Phase.READ_EXECUTE_RESPONSE));
+        }
+        final int payloadLength = PacketUtils.readInt3(cumulateBuffer);
+        updateSequenceId(PacketUtils.readInt1(cumulateBuffer));
+        final int header = PacketUtils.getInt1(cumulateBuffer, cumulateBuffer.readerIndex());
+        boolean taskEnd = false;
+        switch (header) {
+            case ErrorPacket.ERROR_HEADER: {
+                ErrorPacket error = ErrorPacket.readPacket(cumulateBuffer.readSlice(payloadLength)
+                        , this.negotiatedCapability, this.executorAdjutant.obtainCharsetResults());
+                emitErrorForResult(MySQLExceptionUtils.createErrorPacketException(error));
+                taskEnd = true;
+            }
+            break;
+            case OkPacket.OK_HEADER: {
+                OkPacket ok = OkPacket.read(cumulateBuffer.readSlice(payloadLength), this.negotiatedCapability);
+                emitUpdateResult(ok);
+                serverStatusConsumer.accept(ok.getStatusFags());
+                markIdle();
+            }
+            break;
+            default: {
+                // column_count
+                final int payloadStartIndex = cumulateBuffer.readerIndex();
+                final int columnCount = PacketUtils.readLenEncAsInt(cumulateBuffer);
+                cumulateBuffer.readerIndex(payloadStartIndex + payloadLength);//to next packet,avoid tail filler
 
-    private boolean readResultSet(ByteBuf cumulateBuffer) {
-        return false;
+                if (columnCount != this.rowMeta.columnMetaArray.length && this.error == null) {
+                    this.error = new JdbdSQLException("Read binary result set error."
+                            , new SQLException("Column metadata length of COM_STMT_PREPARE and Column metadata length of COM_STMT_EXECUTE not match."));
+                }
+                //update column metas
+                resetColumnMeta(columnCount);
+                this.phase = Phase.READ_EXECUTE_COLUMN_META;
+                if (!readExecuteColumnMeta(cumulateBuffer)) {
+                    break;
+                }
+                this.phase = Phase.READ_EXECUTE_BINARY_ROW;
+                if (readExecuteBinaryRows(cumulateBuffer, serverStatusConsumer)) {
+                    markIdle();
+                }
+
+            }
+        }
+        return taskEnd;
     }
 
-    private void emitError(Throwable e) {
-        Object sink = this.sink;
+    /**
+     * @see #readExecuteResponse(ByteBuf, Consumer)
+     */
+    private void emitErrorForResult(Throwable e) {
+        Object sink = this.rowSink;
         if (sink == null) {
-            throw new NullPointerException("this.sink is null");
+            throw new NullPointerException("this.resultSink is null");
         } else if (sink instanceof MonoSink) {
             ((MonoSink<?>) sink).error(e);
         } else if (sink instanceof FluxSink) {
@@ -910,7 +1041,102 @@ final class ComPreparedTask extends MySQLCommunicationTask implements PreparedTa
         }
     }
 
+    /**
+     * @see #readExecuteResponse(ByteBuf, Consumer)
+     */
+    @SuppressWarnings("unchecked")
+    private void emitUpdateResult(OkPacket ok) {
+        Object sink = this.rowSink;
+        if (sink == null) {
+            throw new NullPointerException("this.resultSink is null");
+        } else if (sink instanceof MonoSink) {
+            ((MonoSink<MySQLResultStates>) sink).success(MySQLResultStates.from(ok));
+        } else if (sink instanceof FluxSink) {
+            ((FluxSink<?>) sink).error(SubscriptionNotMatchException.expectUpdate());
+        } else {
+            throw new IllegalStateException(String.format("this.sink type[%s] unknown.", sink.getClass().getName()));
+        }
+    }
 
+    /**
+     * @see #readExecuteBinaryRows(ByteBuf, Consumer)
+     */
+    private void consumeQueryResultStatus(ResultStates resultStates) {
+        Consumer<ResultStates> consumer = this.resultStatesConsumer;
+        if (consumer == null) {
+            throw new NullPointerException("this.resultStatesConsumer is null");
+        } else {
+            consumer.accept(resultStates);
+        }
+    }
+
+    private void markIdle() {
+        this.phase = Phase.IDLE;
+    }
+
+    /**
+     * @return true: read execute column meta finish.
+     * @see #readExecuteResponse(ByteBuf, Consumer)
+     * @see #internalDecode(ByteBuf, Consumer)
+     */
+    private boolean readExecuteColumnMeta(ByteBuf cumulateBuffer) {
+        if (this.phase != Phase.READ_EXECUTE_COLUMN_META) {
+            throw new IllegalStateException(
+                    String.format("this.phase[%s] isn't %s.", this.phase, Phase.READ_EXECUTE_COLUMN_META));
+        }
+        final MySQLColumnMeta[] metaArray = Objects.requireNonNull(this.rowMeta.columnMetaArray, "this.rowMeta.columnMetas");
+        int columnMetaIndex = this.columnMetaIndex;
+        if (columnMetaIndex < metaArray.length) {
+            columnMetaIndex = AbstractComQueryTask.tryReadColumnMetas(cumulateBuffer, columnMetaIndex
+                    , this.executorAdjutant, metaArray, this::updateSequenceId);
+            this.columnMetaIndex = columnMetaIndex;
+        }
+        return columnMetaIndex == metaArray.length;
+    }
+
+    /**
+     * @return true: read EOF_Packet of Binary Protocol ResultSet,it mean ResultSet terminate.
+     * @see #readExecuteResponse(ByteBuf, Consumer)
+     * @see #internalDecode(ByteBuf, Consumer)
+     */
+    private boolean readExecuteBinaryRows(final ByteBuf cumulateBuffer, Consumer<Object> serverStatusConsumer) {
+        if (this.phase != Phase.READ_EXECUTE_BINARY_ROW) {
+            throw new IllegalStateException(
+                    String.format("this.phase[%s] isn't %s.", this.phase, Phase.READ_EXECUTE_BINARY_ROW));
+        }
+        final ResultSetReader resultSetReader = this.resultSetReader;
+        if (resultSetReader == null) {
+            throw new NullPointerException("this.resultSetReader");
+        }
+        return resultSetReader.read(cumulateBuffer, serverStatusConsumer);
+    }
+
+
+    /**
+     * @see #readPrepareMeta(ByteBuf, int, int, boolean, Consumer)
+     * @see #readExecuteResponse(ByteBuf, Consumer)
+     */
+    private void resetColumnMeta(int columnCount) {
+        if (columnCount == 0) {
+            this.rowMeta = MySQLRowMeta.EMPTY;
+        } else {
+            this.rowMeta = MySQLRowMeta.from(new MySQLColumnMeta[columnCount]
+                    , this.executorAdjutant.obtainCustomCollationMap());
+        }
+        this.columnMetaIndex = 0;
+    }
+
+    /**
+     * @see #readPrepareMeta(ByteBuf, int, int, boolean, Consumer)
+     */
+    private void resetParameterMetas(int parameterCount) {
+        this.parameterMetas = new MySQLColumnMeta[parameterCount];
+        this.parameterMetaIndex = 0;
+    }
+
+    /**
+     * @see #writeInputStreamParameter(int, InputStream, FluxSink)
+     */
     private ByteBuf writeByteArrayToBlobPacket(final byte[] byteArray, final int length
             , final int parameterIndex, ByteBuf packetBuffer, final FluxSink<ByteBuf> sink) {
         if (length == 0) {
@@ -1402,7 +1628,7 @@ final class ComPreparedTask extends MySQLCommunicationTask implements PreparedTa
             duration = duration.abs();
             if (duration.getSeconds() > Constants.DURATION_MAX_SECONDS) {
                 return String.format("Bind parameter[%s] MySQLType[%s] Duration[%s] beyond [-838:59:59,838:59:59]"
-                        , bindValue.getIndex(), bindValue.getType(), duration);
+                        , bindValue.getParamIndex(), bindValue.getType(), duration);
             }
             long temp;
             temp = duration.toDays();
@@ -1543,13 +1769,13 @@ final class ComPreparedTask extends MySQLCommunicationTask implements PreparedTa
 
     private String createNumberRangErrorMessage(BindValue bindValue, Number upper, Number lower) {
         return String.format("Bind parameter[%s] MySQLType[%s] beyond rang[%s,%s]."
-                , bindValue.getIndex(), bindValue.getType(), upper, lower);
+                , bindValue.getParamIndex(), bindValue.getType(), upper, lower);
     }
 
 
     private String createTypeNotMatchMessage(BindValue bindValue) {
         return String.format("Bind parameter[%s] MySQLType[%s] and JavaType[%s] not match."
-                , bindValue.getIndex(), bindValue.getType(), bindValue.getRequiredValue().getClass().getName());
+                , bindValue.getParamIndex(), bindValue.getType(), bindValue.getRequiredValue().getClass().getName());
     }
 
     /*################################## blow private static method ##################################*/
@@ -1631,12 +1857,20 @@ final class ComPreparedTask extends MySQLCommunicationTask implements PreparedTa
 
     enum Phase {
         PREPARED,
-        PREPARE_RESPONSE,
-        READ_PARAM_META,
-        READ_COLUMN_META,
+        READ_PREPARE_RESPONSE,
+        READ_PREPARE_PARAM_META,
+        READ_PREPARE_COLUMN_META,
+
         EXECUTE,
-        RESET,
-        READ_RESULT_SET
+        READ_EXECUTE_RESPONSE,
+        READ_EXECUTE_COLUMN_META,
+        READ_EXECUTE_BINARY_ROW,
+
+        RESET_STMT,
+        FETCH_RESULT,
+        READ_FETCH_RESULT,
+        IDLE,
+        CLOSE_STMT
     }
 
 

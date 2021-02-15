@@ -143,6 +143,7 @@ public interface Properties extends Environment {
      */
     <T> T getRequiredProperty(PropertyKey key, Class<T> targetType) throws IllegalStateException;
 
+   String getOrDefault(PropertyKey key) throws IllegalStateException;
 
     <T> T getOrDefault(PropertyKey key, Class<T> targetType) throws IllegalStateException;
 

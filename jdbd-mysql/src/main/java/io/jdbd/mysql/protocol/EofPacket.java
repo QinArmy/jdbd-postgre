@@ -8,7 +8,7 @@ public final class EofPacket extends TerminatorPacket {
 
     public static final int EOF_HEADER = 0xFE;
 
-    public static EofPacket readPacket(ByteBuf payloadBuffer, final int capabilities) {
+    public static EofPacket read(ByteBuf payloadBuffer, final int capabilities) {
         if (PacketUtils.readInt1(payloadBuffer) != EOF_HEADER) {
             throw new IllegalArgumentException("packetBuf isn't error packet.");
         }
@@ -28,7 +28,4 @@ public final class EofPacket extends TerminatorPacket {
     }
 
 
-    public static boolean isEofPacket(ByteBuf payloadBuf) {
-        return PacketUtils.getInt1(payloadBuf, payloadBuf.readerIndex()) == EOF_HEADER;
-    }
 }

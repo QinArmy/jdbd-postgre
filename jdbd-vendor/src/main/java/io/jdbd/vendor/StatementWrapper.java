@@ -9,7 +9,7 @@ import java.util.List;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 
-public interface StatementWrapper<T extends BindValue> {
+public interface StatementWrapper<T extends IBindValue> {
 
     String getSql();
 
