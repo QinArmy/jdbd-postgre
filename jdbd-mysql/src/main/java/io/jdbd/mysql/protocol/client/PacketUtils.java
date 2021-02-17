@@ -262,6 +262,21 @@ public abstract class PacketUtils {
         return byteCount;
     }
 
+    public static int obtainIntLenEncLength(final long intLenEnc) {
+        final int length;
+        if (intLenEnc >= 0 && intLenEnc < ENC_0) {
+            length = 1;
+        } else if (intLenEnc >= ENC_0 && intLenEnc < (1 << 16)) {
+            length = 3;
+        } else if (intLenEnc >= (1 << 16) && intLenEnc < (1 << 24)) {
+            length = 4;
+        } else {
+            // intLenEnc < 0 || intLenEnc >=  (1 << 24)
+            length = 9;
+        }
+        return length;
+    }
+
     /**
      * see {@code com.mysql.cj.protocol.a.NativePacketPayload#readInteger(com.mysql.cj.protocol.a.NativeConstants.IntegerDataType)}
      */
@@ -791,9 +806,6 @@ public abstract class PacketUtils {
         byteBuffer.writeBytes(int8Array);
     }
 
-    public static void writeIntLenEnc(ByteBuf packetBuffer, final int intLenEnc) {
-        writeIntLenEnc(packetBuffer, intLenEnc & BIT_32);
-    }
 
     public static void writeIntLenEnc(ByteBuf packetBuffer, final long intLenEnc) {
         if (intLenEnc >= 0 && intLenEnc < ENC_0) {

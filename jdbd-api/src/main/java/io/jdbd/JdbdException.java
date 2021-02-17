@@ -1,6 +1,7 @@
 package io.jdbd;
 
-import io.jdbd.lang.Nullable;
+
+import reactor.util.annotation.Nullable;
 
 public class JdbdException extends RuntimeException {
 
@@ -21,13 +22,30 @@ public class JdbdException extends RuntimeException {
         super(message, cause, enableSuppression, writableStackTrace);
     }
 
-    protected static String createMessage(@Nullable String format, @Nullable Object... args) {
+    public JdbdException(String messageFormat, Object... args) {
+        super(createMessage(messageFormat, args));
+    }
+
+    public JdbdException(@Nullable Throwable cause, String messageFormat, Object... args) {
+        super(createMessage(messageFormat, args), cause);
+
+    }
+
+    public JdbdException(@Nullable Throwable cause, boolean enableSuppression
+            , boolean writableStackTrace, String messageFormat, Object... args) {
+        super(createMessage(messageFormat, args), cause, enableSuppression, writableStackTrace);
+    }
+
+
+    protected static String createMessage(@Nullable String messageFormat, @Nullable Object... args) {
         String msg;
-        if (format != null && args != null && args.length > 0) {
-            msg = String.format(format, args);
+        if (messageFormat != null && args != null && args.length > 0) {
+            msg = String.format(messageFormat, args);
         } else {
-            msg = format;
+            msg = messageFormat;
         }
         return msg;
     }
+
+
 }

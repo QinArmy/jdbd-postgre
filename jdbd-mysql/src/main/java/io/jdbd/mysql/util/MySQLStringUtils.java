@@ -21,6 +21,18 @@ public abstract class MySQLStringUtils extends org.qinarmy.util.StringUtils {
         return bytes;
     }
 
+    public static boolean isBinaryString(String text) {
+        final int length = text.length();
+        char ch;
+        for (int i = 0; i < length; i++) {
+            ch = text.charAt(i);
+            if (ch != '0' && ch != '1') {
+                return false;
+            }
+        }
+        return true;
+    }
+
     /**
      * Splits input into a list, using the given delimiter and skipping all between the given markers.
      * <p>
@@ -44,7 +56,7 @@ public abstract class MySQLStringUtils extends org.qinarmy.util.StringUtils {
                     ("openMarker[%s] and closeMarker[%s] not match.", openMarker, closeMarker));
         }
 
-       final Stack<Character> openMarkerStack = new Stack<>();
+        final Stack<Character> openMarkerStack = new Stack<>();
         List<String> list = new ArrayList<>();
 
         final int size = MySQLObjects.requireNonNull(input, "input").length();

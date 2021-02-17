@@ -7,6 +7,7 @@ import io.jdbd.mysql.protocol.conf.Properties;
 import io.jdbd.mysql.protocol.conf.PropertyKey;
 import io.jdbd.mysql.util.MySQLExceptionUtils;
 import io.jdbd.mysql.util.MySQLNumberUtils;
+import io.jdbd.mysql.util.MySQLStringUtils;
 import io.jdbd.type.Geometry;
 import io.netty.buffer.ByteBuf;
 import org.reactivestreams.Publisher;
@@ -14,11 +15,8 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.FluxSink;
 import reactor.core.publisher.Mono;
 
-import java.io.ByteArrayInputStream;
 import java.math.BigDecimal;
 import java.math.BigInteger;
-import java.nio.ByteBuffer;
-import java.nio.CharBuffer;
 import java.nio.charset.Charset;
 import java.time.*;
 import java.time.temporal.ChronoField;
@@ -62,21 +60,22 @@ final class BinaryStatementCommandWriter implements StatementCommandWriter {
         if (size != paramMetaArray.length) {
             return Mono.error(new SQLBindParameterException(
                     String.format("Bind parameter size[%s] and sql parameter size[%s] not match."
-                            , size, this.paramMetaArray.length)));
+                            , size, paramMetaArray.length)));
         }
         List<BindValue> longParamList = null;
 
         for (int i = 0; i < size; i++) {
             BindValue bindValue = parameterGroup.get(i);
             if (bindValue.getParamIndex() != i) {
-                IllegalStateException e = new IllegalStateException(
-                        String.format("BindValue param index[%s] and position[%s] not match.", bindValue.getParamIndex(), i));
-                return Flux.error(e);
+                IllegalArgumentException e = new IllegalArgumentException(
+                        String.format("parameterGroup BindValue parameter index[%s] and position[%s] not match."
+                                , bindValue.getParamIndex(), i));
+                return Mono.error(e);
             } else if (bindValue.getType() != paramMetaArray[i].mysqlType) {
-                IllegalStateException e = new IllegalStateException(
-                        String.format("BindValue param index[%s] SQLType[%s] and parameter type[%s] not match."
+                IllegalArgumentException e = new IllegalArgumentException(
+                        String.format("BindValue parameter index[%s] SQLType[%s] and parameter type[%s] not match."
                                 , bindValue.getParamIndex(), bindValue.getType(), paramMetaArray[i].mysqlType));
-                return Flux.error(e);
+                return Mono.error(e);
             } else if (bindValue.isLongData()) {
                 if (longParamList == null) {
                     longParamList = new ArrayList<>();
@@ -88,12 +87,14 @@ final class BinaryStatementCommandWriter implements StatementCommandWriter {
 
         final Publisher<ByteBuf> publisher;
         if (size == 0) {
+            // this 'if' block handle no bind parameter.
             publisher = Flux.create(sink -> {
                 ByteBuf packet = createExecutePacketBuffer(10);
                 PacketUtils.publishBigPacket(packet, sink, this.sequenceIdSupplier
                         , this.adjutant::createPayloadBuffer, true);
             });
         } else if (longParamList == null) {
+            // this 'if' block handle no long parameter.
             publisher = createExecutionPacketPublisher(parameterGroup);
         } else {
             publisher = this.longParameterWriter.write(Collections.unmodifiableList(longParamList))
@@ -124,13 +125,12 @@ final class BinaryStatementCommandWriter implements StatementCommandWriter {
         long parameterValueLength = 0L;
         int i = 0;
         try {
-            for (int length; i < parameterCount; i++) {
+            for (; i < parameterCount; i++) {
                 BindValue bindValue = parameterGroup.get(i);
                 if (bindValue.getValue() == null) {
                     nullBitsMap[i / 8] |= (1 << (i & 7));
                 } else if (!bindValue.isLongData()) {
-                    length = obtainParameterValueLength(parameterMetaArray[i], bindValue);
-                    parameterValueLength += length;
+                    parameterValueLength += obtainParameterValueLength(parameterMetaArray[i], bindValue);
                 }
             }
             i = 0;
@@ -191,9 +191,11 @@ final class BinaryStatementCommandWriter implements StatementCommandWriter {
 
             }
             if (buffer == packetBuffer) {
+                // this 'if' block handle small packet.
                 PacketUtils.publishBigPacket(buffer, sink, this.sequenceIdSupplier
                         , this.adjutant::createPayloadBuffer, true);
             } else {
+                // this 'if' block handle big packet tailor.
                 PacketUtils.publishBigPayload(buffer, sink, this.sequenceIdSupplier
                         , this.adjutant::createPayloadBuffer, true);
             }
@@ -233,19 +235,19 @@ final class BinaryStatementCommandWriter implements StatementCommandWriter {
      * @throws IllegalArgumentException when {@link BindValue#getValue()} is null.
      * @see #emitExecutionPackets(List, FluxSink)
      */
-    private int obtainParameterValueLength(MySQLColumnMeta parameterMeta, BindValue bindValue) {
+    private long obtainParameterValueLength(MySQLColumnMeta parameterMeta, BindValue bindValue) {
         final Object value = bindValue.getRequiredValue();
-        int length;
+        final long length;
         switch (bindValue.getType()) {
             case INT:
             case FLOAT:
             case FLOAT_UNSIGNED:
             case MEDIUMINT:
             case MEDIUMINT_UNSIGNED:
-                length = 4;
+                length = 4L;
                 break;
             case DATE:
-                length = 5;
+                length = 5L;
                 break;
             case BIGINT:
             case INT_UNSIGNED:
@@ -253,21 +255,21 @@ final class BinaryStatementCommandWriter implements StatementCommandWriter {
             case DOUBLE:
             case DOUBLE_UNSIGNED:
             case BIT:
-                length = 8;
+                length = 8L;
                 break;
             case BOOLEAN:
             case TINYINT:
             case TINYINT_UNSIGNED:
-                length = 1;
+                length = 1L;
                 break;
             case SMALLINT:
             case SMALLINT_UNSIGNED:
             case YEAR:
-                length = 2;
+                length = 2L;
                 break;
             case DECIMAL:
             case DECIMAL_UNSIGNED:
-                length = (int) parameterMeta.length;
+                length = parameterMeta.length;
                 break;
             case VARCHAR:
             case CHAR:
@@ -284,21 +286,17 @@ final class BinaryStatementCommandWriter implements StatementCommandWriter {
             case MEDIUMBLOB:
             case BLOB:
             case LONGBLOB: {
+                long lenEncBytes;
                 if (value instanceof String) {
-                    length = ((String) value).length() * this.adjutant.obtainMaxBytesPerCharClient();
+                    lenEncBytes = (long) ((String) value).length() * this.adjutant.obtainMaxBytesPerCharClient();
                 } else if (value instanceof byte[]) {
-                    length = ((byte[]) value).length;
-                } else if (value instanceof ByteArrayInputStream) {
-                    length = ((ByteArrayInputStream) value).available();
-                } else if (value instanceof ByteBuffer) {
-                    length = ((ByteBuffer) value).remaining();
-                } else if (value instanceof CharBuffer) {
-                    length = ((CharBuffer) value).remaining();
+                    lenEncBytes = ((byte[]) value).length;
                 } else {
                     String m = String.format("Bind parameter[%s] not support type[%s]"
                             , bindValue.getParamIndex(), value.getClass().getName());
                     throw new BindParameterException(m, bindValue.getParamIndex());
                 }
+                length = PacketUtils.obtainIntLenEncLength(lenEncBytes) + lenEncBytes;
             }
             break;
             case DATETIME:
@@ -390,7 +388,7 @@ final class BinaryStatementCommandWriter implements StatementCommandWriter {
             case UNKNOWN:
             case GEOMETRY:
                 //TODO add code
-                throw createTypeNotMatchMessage(bindValue);
+                throw createTypeNotMatchException(bindValue);
             default:
                 throw MySQLExceptionUtils.createUnknownEnumException(parameterMeta.mysqlType);
         }
@@ -406,34 +404,38 @@ final class BinaryStatementCommandWriter implements StatementCommandWriter {
         if (nonNullValue instanceof Byte) {
             byte num = (Byte) nonNullValue;
             if (parameterMeta.isUnsigned() && num < 0) {
-                throw createNumberRangErrorMessage(bindValue, 0, unsignedMaxByte);
+                throw createNumberRangErrorException(bindValue, 0, unsignedMaxByte);
             }
             int1 = num;
         } else if (nonNullValue instanceof Boolean) {
             int1 = (Boolean) nonNullValue ? 1 : 0;
-        } else if (nonNullValue instanceof Integer) {
-            int1 = longTotInt1(bindValue, parameterMeta, (Integer) nonNullValue);
+        } else if (nonNullValue instanceof Integer
+                || nonNullValue instanceof Long
+                || nonNullValue instanceof Short) {
+            int1 = longTotInt1(bindValue, parameterMeta, ((Number) nonNullValue).longValue());
         } else if (nonNullValue instanceof String) {
+            Number num;
             try {
-                int1 = longTotInt1(bindValue, parameterMeta, Integer.parseInt((String) nonNullValue));
+                num = longTotInt1(bindValue, parameterMeta, Integer.parseInt((String) nonNullValue));
             } catch (NumberFormatException e) {
-                throw createTypeNotMatchMessage(bindValue);
+                try {
+                    num = bigIntegerTotInt1(bindValue, parameterMeta, new BigInteger((String) nonNullValue));
+                } catch (NumberFormatException ne) {
+                    throw createTypeNotMatchException(bindValue);
+                }
             }
-        } else if (nonNullValue instanceof Short) {
-            int1 = longTotInt1(bindValue, parameterMeta, (Short) nonNullValue);
-        } else if (nonNullValue instanceof Long) {
-            int1 = longTotInt1(bindValue, parameterMeta, (Long) nonNullValue);
+            int1 = num.intValue();
         } else if (nonNullValue instanceof BigInteger) {
             int1 = bigIntegerTotInt1(bindValue, parameterMeta, (BigInteger) nonNullValue);
         } else if (nonNullValue instanceof BigDecimal) {
             BigDecimal num = (BigDecimal) nonNullValue;
             if (num.scale() != 0) {
-                throw createTypeNotMatchMessage(bindValue);
+                throw createNotSupportFractionException(bindValue);
             } else {
                 int1 = bigIntegerTotInt1(bindValue, parameterMeta, num.toBigInteger());
             }
         } else {
-            throw createTypeNotMatchMessage(bindValue);
+            throw createTypeNotMatchException(bindValue);
         }
 
         PacketUtils.writeInt1(buffer, int1);
@@ -451,10 +453,8 @@ final class BinaryStatementCommandWriter implements StatementCommandWriter {
             int2 = ((Year) nonNullValue).getValue();
         } else if (nonNullValue instanceof Short) {
             short num = (Short) nonNullValue;
-            if (parameterMeta.isUnsigned()) {
-                if (num < 0 || num > unsignedMaxShort) {
-                    throw createNumberRangErrorMessage(bindValue, 0, unsignedMaxShort);
-                }
+            if (parameterMeta.isUnsigned() && num < 0) {
+                throw createNumberRangErrorException(bindValue, 0, unsignedMaxShort);
             }
             int2 = num;
         } else if (nonNullValue instanceof Integer
@@ -462,22 +462,28 @@ final class BinaryStatementCommandWriter implements StatementCommandWriter {
                 || nonNullValue instanceof Long) {
             int2 = longTotInt2(bindValue, parameterMeta, ((Number) nonNullValue).longValue());
         } else if (nonNullValue instanceof String) {
+            Number num;
             try {
-                int2 = longTotInt2(bindValue, parameterMeta, Long.parseLong((String) nonNullValue));
+                num = longTotInt2(bindValue, parameterMeta, Integer.parseInt((String) nonNullValue));
             } catch (NumberFormatException e) {
-                throw createTypeNotMatchMessage(bindValue);
+                try {
+                    num = bigIntegerTotInt1(bindValue, parameterMeta, new BigInteger((String) nonNullValue));
+                } catch (NumberFormatException ne) {
+                    throw createTypeNotMatchException(bindValue);
+                }
             }
+            int2 = num.intValue();
         } else if (nonNullValue instanceof BigInteger) {
             int2 = bigIntegerTotInt2(bindValue, parameterMeta, (BigInteger) nonNullValue);
         } else if (nonNullValue instanceof BigDecimal) {
             BigDecimal num = (BigDecimal) nonNullValue;
             if (num.scale() != 0) {
-                throw createTypeNotMatchMessage(bindValue);
+                throw createNotSupportFractionException(bindValue);
             } else {
                 int2 = bigIntegerTotInt2(bindValue, parameterMeta, num.toBigInteger());
             }
         } else {
-            throw createTypeNotMatchMessage(bindValue);
+            throw createTypeNotMatchException(bindValue);
         }
         PacketUtils.writeInt2(buffer, int2);
     }
@@ -507,7 +513,7 @@ final class BinaryStatementCommandWriter implements StatementCommandWriter {
         } else if (nonNullValue instanceof Double || nonNullValue instanceof Float) {
             decimal = nonNullValue.toString();
         } else {
-            throw createTypeNotMatchMessage(bindValue);
+            throw createTypeNotMatchException(bindValue);
         }
         PacketUtils.writeStringLenEnc(buffer, decimal.getBytes(this.adjutant.obtainCharsetClient()));
     }
@@ -520,10 +526,11 @@ final class BinaryStatementCommandWriter implements StatementCommandWriter {
         final long unsignedMaxInt = Integer.toUnsignedLong(-1);
         final int int4;
         if (nonNullValue instanceof Integer) {
-            if (parameterMeta.isUnsigned()) {
-                throw createNotSupportTypeWithUnsigned(bindValue);
+            int num = (Integer) nonNullValue;
+            if (parameterMeta.isUnsigned() && num < 0) {
+                throw createNumberRangErrorException(bindValue, 0, unsignedMaxInt);
             }
-            int4 = (Integer) nonNullValue;
+            int4 = num;
         } else if (nonNullValue instanceof Long) {
             int4 = longToInt4(bindValue, parameterMeta, (Long) nonNullValue);
         } else if (nonNullValue instanceof String) {
@@ -531,41 +538,39 @@ final class BinaryStatementCommandWriter implements StatementCommandWriter {
             try {
                 num = longToInt4(bindValue, parameterMeta, Long.parseLong((String) nonNullValue));
             } catch (NumberFormatException e) {
-                try {
-                    num = bigIntegerToIn4(bindValue, parameterMeta, new BigInteger((String) nonNullValue));
-                } catch (NumberFormatException ne) {
-                    throw createTypeNotMatchMessage(bindValue);
-                }
+                throw createNumberRangErrorException(bindValue, 0, unsignedMaxInt);
             }
             int4 = num;
         } else if (nonNullValue instanceof BigInteger) {
             int4 = bigIntegerToIn4(bindValue, parameterMeta, (BigInteger) nonNullValue);
         } else if (nonNullValue instanceof Short) {
-            if (parameterMeta.isUnsigned()) {
-                throw createNumberRangErrorMessage(bindValue, 0, unsignedMaxInt);
+            short num = ((Short) nonNullValue);
+            if (parameterMeta.isUnsigned() && num < 0) {
+                throw createNumberRangErrorException(bindValue, 0, unsignedMaxInt);
             }
-            int4 = ((Short) nonNullValue).intValue();
+            int4 = num;
         } else if (nonNullValue instanceof Byte) {
-            if (parameterMeta.isUnsigned()) {
-                throw createNumberRangErrorMessage(bindValue, 0, unsignedMaxInt);
+            byte num = ((Byte) nonNullValue);
+            if (parameterMeta.isUnsigned() && num < 0) {
+                throw createNumberRangErrorException(bindValue, 0, unsignedMaxInt);
             }
-            int4 = ((Byte) nonNullValue).intValue();
+            int4 = num;
         } else if (nonNullValue instanceof BigDecimal) {
             BigDecimal num = (BigDecimal) nonNullValue;
             if (num.scale() != 0) {
-                throw createTypeNotMatchMessage(bindValue);
+                throw createNotSupportFractionException(bindValue);
             } else if (parameterMeta.isUnsigned()) {
                 if (num.compareTo(BigDecimal.ZERO) < 0
                         || num.compareTo(BigDecimal.valueOf(unsignedMaxInt)) > 0) {
-                    throw createNumberRangErrorMessage(bindValue, 0, unsignedMaxInt);
+                    throw createNumberRangErrorException(bindValue, 0, unsignedMaxInt);
                 }
             } else if (num.compareTo(BigDecimal.valueOf(Integer.MIN_VALUE)) < 0
                     || num.compareTo(BigDecimal.valueOf(Integer.MAX_VALUE)) > 0) {
-                throw createNumberRangErrorMessage(bindValue, 0, unsignedMaxInt);
+                throw createNumberRangErrorException(bindValue, 0, unsignedMaxInt);
             }
             int4 = num.intValue();
         } else {
-            throw createTypeNotMatchMessage(bindValue);
+            throw createTypeNotMatchException(bindValue);
         }
 
         PacketUtils.writeInt4(buffer, int4);
@@ -583,14 +588,14 @@ final class BinaryStatementCommandWriter implements StatementCommandWriter {
             try {
                 floatValue = Float.parseFloat((String) nonNullValue);
             } catch (NumberFormatException e) {
-                throw createTypeNotMatchMessage(bindValue);
+                throw createTypeNotMatchException(bindValue);
             }
         } else if (nonNullValue instanceof Short) {
             floatValue = ((Short) nonNullValue).floatValue();
         } else if (nonNullValue instanceof Byte) {
             floatValue = ((Byte) nonNullValue).floatValue();
         } else {
-            throw createTypeNotMatchMessage(bindValue);
+            throw createTypeNotMatchException(bindValue);
         }
 
         PacketUtils.writeInt4(buffer, Float.floatToIntBits(floatValue));
@@ -605,7 +610,7 @@ final class BinaryStatementCommandWriter implements StatementCommandWriter {
         if (nonNullValue instanceof Long) {
             long num = (Long) nonNullValue;
             if (parameterMeta.isUnsigned() && num < 0) {
-                throw createNumberRangErrorMessage(bindValue, 0, MySQLNumberUtils.UNSIGNED_MAX_LONG);
+                throw createNumberRangErrorException(bindValue, 0, MySQLNumberUtils.UNSIGNED_MAX_LONG);
             }
             int8 = num;
         } else if (nonNullValue instanceof BigInteger) {
@@ -613,19 +618,19 @@ final class BinaryStatementCommandWriter implements StatementCommandWriter {
         } else if (nonNullValue instanceof Integer) {
             int num = (Integer) nonNullValue;
             if (parameterMeta.isUnsigned() && num < 0) {
-                throw createNumberRangErrorMessage(bindValue, 0, MySQLNumberUtils.UNSIGNED_MAX_LONG);
+                throw createNumberRangErrorException(bindValue, 0, MySQLNumberUtils.UNSIGNED_MAX_LONG);
             }
             int8 = num;
         } else if (nonNullValue instanceof Short) {
             int num = (Short) nonNullValue;
             if (parameterMeta.isUnsigned() && num < 0) {
-                throw createNumberRangErrorMessage(bindValue, 0, MySQLNumberUtils.UNSIGNED_MAX_LONG);
+                throw createNumberRangErrorException(bindValue, 0, MySQLNumberUtils.UNSIGNED_MAX_LONG);
             }
             int8 = num;
         } else if (nonNullValue instanceof Byte) {
             int num = (Byte) nonNullValue;
             if (parameterMeta.isUnsigned() && num < 0) {
-                throw createNumberRangErrorMessage(bindValue, 0, MySQLNumberUtils.UNSIGNED_MAX_LONG);
+                throw createNumberRangErrorException(bindValue, 0, MySQLNumberUtils.UNSIGNED_MAX_LONG);
             }
             int8 = num;
         } else if (nonNullValue instanceof String) {
@@ -633,17 +638,17 @@ final class BinaryStatementCommandWriter implements StatementCommandWriter {
                 BigInteger big = new BigInteger((String) nonNullValue);
                 int8 = bigIntegerToInt8(bindValue, parameterMeta, big);
             } catch (NumberFormatException e) {
-                throw createTypeNotMatchMessage(bindValue);
+                throw createTypeNotMatchException(bindValue);
             }
         } else if (nonNullValue instanceof BigDecimal) {
             BigDecimal num = (BigDecimal) nonNullValue;
             if (num.scale() != 0) {
-                throw createTypeNotMatchMessage(bindValue);
+                throw createNotSupportFractionException(bindValue);
             } else {
                 int8 = bigIntegerToInt8(bindValue, parameterMeta, num.toBigInteger());
             }
         } else {
-            throw createTypeNotMatchMessage(bindValue);
+            throw createTypeNotMatchException(bindValue);
         }
 
         PacketUtils.writeInt8(buffer, int8);
@@ -663,7 +668,7 @@ final class BinaryStatementCommandWriter implements StatementCommandWriter {
             try {
                 value = Double.parseDouble((String) nonNullValue);
             } catch (NumberFormatException e) {
-                throw createTypeNotMatchMessage(bindValue);
+                throw createTypeNotMatchException(bindValue);
             }
         } else if (nonNullValue instanceof Integer) {
             value = ((Integer) nonNullValue).doubleValue();
@@ -672,7 +677,7 @@ final class BinaryStatementCommandWriter implements StatementCommandWriter {
         } else if (nonNullValue instanceof Byte) {
             value = ((Byte) nonNullValue).doubleValue();
         } else {
-            throw createTypeNotMatchMessage(bindValue);
+            throw createTypeNotMatchException(bindValue);
         }
 
         PacketUtils.writeInt8(buffer, Double.doubleToLongBits(value));
@@ -741,7 +746,7 @@ final class BinaryStatementCommandWriter implements StatementCommandWriter {
             time = ((OffsetTime) nonNullValue).withOffsetSameInstant(this.adjutant.obtainZoneOffsetDatabase())
                     .toLocalTime();
         } else {
-            throw createTypeNotMatchMessage(bindValue);
+            throw createTypeNotMatchException(bindValue);
         }
         if (time != null) {
             buffer.writeByte(length); //1. length
@@ -788,7 +793,7 @@ final class BinaryStatementCommandWriter implements StatementCommandWriter {
                     .withOffsetSameInstant(this.adjutant.obtainZoneOffsetDatabase())
                     .toLocalDateTime();
         } else {
-            throw createTypeNotMatchMessage(bindValue);
+            throw createTypeNotMatchException(bindValue);
         }
 
         final int length;
@@ -815,7 +820,10 @@ final class BinaryStatementCommandWriter implements StatementCommandWriter {
         buffer.writeByte(dateTime.getMinute()); // minute
         buffer.writeByte(dateTime.getSecond()); // second
 
-        PacketUtils.writeInt4(buffer, dateTime.get(ChronoField.MICRO_OF_SECOND));// micro second
+        if (length == 11) {
+            PacketUtils.writeInt4(buffer, dateTime.get(ChronoField.MICRO_OF_SECOND));// micro second
+        }
+
     }
 
 
@@ -829,24 +837,37 @@ final class BinaryStatementCommandWriter implements StatementCommandWriter {
             bits = Long.toBinaryString((Long) nonNullValue);
         } else if (nonNullValue instanceof Integer) {
             bits = Integer.toBinaryString((Integer) nonNullValue);
+        } else if (nonNullValue instanceof byte[]) {
+            byte[] bytes = (byte[]) nonNullValue;
+            if (bytes.length == 0 || bytes.length > parameterMeta.length) {
+                throw createNumberRangErrorException(bindValue, 1, parameterMeta.length);
+            }
+            PacketUtils.writeStringLenEnc(buffer, bytes);
+            return;
         } else if (nonNullValue instanceof Short) {
             bits = Integer.toBinaryString((Short) nonNullValue);
         } else if (nonNullValue instanceof Byte) {
             bits = Integer.toBinaryString((Byte) nonNullValue);
         } else if (nonNullValue instanceof String) {
             bits = (String) nonNullValue;
-        } else if (nonNullValue instanceof BigInteger) {
-            BigInteger big = (BigInteger) nonNullValue;
-            if (big.compareTo(BigInteger.valueOf(Long.MIN_VALUE)) < 0
-                    || big.compareTo(MySQLNumberUtils.UNSIGNED_MAX_LONG) > 0) {
-                throw createNumberRangErrorMessage(bindValue, 1, parameterMeta.length);
+            if (!MySQLStringUtils.isBinaryString(bits)) {
+                throw new BindParameterException(bindValue.getParamIndex()
+                        , "Bind parameter[%s] value[%s] isn't binary string."
+                        , bindValue.getParamIndex(), bits);
             }
-            bits = big.toString(2);
+        } else if (nonNullValue instanceof BigInteger) {
+            bits = ((BigInteger) nonNullValue).toString(2);
+        } else if (nonNullValue instanceof BigDecimal) {
+            BigDecimal decimal = (BigDecimal) nonNullValue;
+            if (decimal.scale() != 0) {
+                throw createNotSupportFractionException(bindValue);
+            }
+            bits = decimal.toPlainString();
         } else {
-            throw createTypeNotMatchMessage(bindValue);
+            throw createTypeNotMatchException(bindValue);
         }
         if (bits.length() < 1 || bits.length() > parameterMeta.length) {
-            throw createNumberRangErrorMessage(bindValue, 1, parameterMeta.length);
+            throw createNumberRangErrorException(bindValue, 1, parameterMeta.length);
         }
         PacketUtils.writeStringLenEnc(buffer, bits.getBytes(this.adjutant.obtainCharsetClient()));
     }
@@ -865,9 +886,9 @@ final class BinaryStatementCommandWriter implements StatementCommandWriter {
             PacketUtils.writeStringLenEnc(buffer, ((Enum<?>) nonNullValue).name().getBytes(charset));
         } else if (nonNullValue instanceof Geometry) {
             // TODO add code
-            throw createTypeNotMatchMessage(bindValue);
+            throw createTypeNotMatchException(bindValue);
         } else {
-            throw createTypeNotMatchMessage(bindValue);
+            throw createTypeNotMatchException(bindValue);
         }
 
     }
@@ -875,39 +896,48 @@ final class BinaryStatementCommandWriter implements StatementCommandWriter {
 
     /*################################## blow private static convert method ##################################*/
 
+    /**
+     * @see #bindToInt4(ByteBuf, MySQLColumnMeta, BindValue)
+     */
     private static int longToInt4(BindValue bindValue, MySQLColumnMeta parameterMeta, final long num) {
         if (parameterMeta.isUnsigned()) {
             long unsignedMaxInt = Integer.toUnsignedLong(-1);
             if (num < 0 || num > unsignedMaxInt) {
-                throw createNumberRangErrorMessage(bindValue, 0, unsignedMaxInt);
+                throw createNumberRangErrorException(bindValue, 0, unsignedMaxInt);
             }
         } else if (num < Integer.MIN_VALUE || num > Integer.MAX_VALUE) {
-            throw createNumberRangErrorMessage(bindValue, Integer.MIN_VALUE, Integer.MAX_VALUE);
+            throw createNumberRangErrorException(bindValue, Integer.MIN_VALUE, Integer.MAX_VALUE);
         }
         return (int) num;
     }
 
+    /**
+     * @see #bindToInt4(ByteBuf, MySQLColumnMeta, BindValue)
+     */
     private static int bigIntegerToIn4(BindValue bindValue, MySQLColumnMeta parameterMeta, final BigInteger num) {
         if (parameterMeta.isUnsigned()) {
             BigInteger unsignedMaxInt = BigInteger.valueOf(Integer.toUnsignedLong(-1));
             if (num.compareTo(BigInteger.ZERO) < 0 || num.compareTo(unsignedMaxInt) > 0) {
-                throw createNumberRangErrorMessage(bindValue, 0, unsignedMaxInt);
+                throw createNumberRangErrorException(bindValue, 0, unsignedMaxInt);
             }
         } else if (num.compareTo(BigInteger.valueOf(Integer.MIN_VALUE)) < 0
                 || num.compareTo(BigInteger.valueOf(Integer.MAX_VALUE)) > 0) {
-            throw createNumberRangErrorMessage(bindValue, Integer.MIN_VALUE, Integer.MAX_VALUE);
+            throw createNumberRangErrorException(bindValue, Integer.MIN_VALUE, Integer.MAX_VALUE);
         }
         return num.intValue();
     }
 
+    /**
+     * @see #bindToInt8(ByteBuf, MySQLColumnMeta, BindValue)
+     */
     private static long bigIntegerToInt8(BindValue bindValue, MySQLColumnMeta parameterMeta, final BigInteger num) {
         if (parameterMeta.isUnsigned()) {
             if (num.compareTo(BigInteger.ZERO) < 0 || num.compareTo(MySQLNumberUtils.UNSIGNED_MAX_LONG) > 0) {
-                throw createNumberRangErrorMessage(bindValue, 0, MySQLNumberUtils.UNSIGNED_MAX_LONG);
+                throw createNumberRangErrorException(bindValue, 0, MySQLNumberUtils.UNSIGNED_MAX_LONG);
             }
         } else if (num.compareTo(BigInteger.valueOf(Long.MIN_VALUE)) < 0
                 || num.compareTo(BigInteger.valueOf(Long.MAX_VALUE)) > 0) {
-            throw createNumberRangErrorMessage(bindValue, Long.MIN_VALUE, Long.MAX_VALUE);
+            throw createNumberRangErrorException(bindValue, Long.MIN_VALUE, Long.MAX_VALUE);
         }
         return num.longValue();
     }
@@ -917,10 +947,10 @@ final class BinaryStatementCommandWriter implements StatementCommandWriter {
         if (parameterMeta.isUnsigned()) {
             int unsignedMaxByte = Byte.toUnsignedInt((byte) -1);
             if (num < 0 || num > unsignedMaxByte) {
-                throw createNumberRangErrorMessage(bindValue, 0, unsignedMaxByte);
+                throw createNumberRangErrorException(bindValue, 0, unsignedMaxByte);
             }
         } else if (num < Byte.MIN_VALUE || num > Byte.MAX_VALUE) {
-            throw createNumberRangErrorMessage(bindValue, Byte.MIN_VALUE, Byte.MAX_VALUE);
+            throw createNumberRangErrorException(bindValue, Byte.MIN_VALUE, Byte.MAX_VALUE);
         }
         return (int) num;
     }
@@ -930,10 +960,10 @@ final class BinaryStatementCommandWriter implements StatementCommandWriter {
         if (parameterMeta.isUnsigned()) {
             int unsignedMaxShort = Short.toUnsignedInt((short) -1);
             if (num < 0 || num > unsignedMaxShort) {
-                throw createNumberRangErrorMessage(bindValue, 0, unsignedMaxShort);
+                throw createNumberRangErrorException(bindValue, 0, unsignedMaxShort);
             }
         } else if (num < Short.MIN_VALUE || num > Short.MAX_VALUE) {
-            throw createNumberRangErrorMessage(bindValue, Short.MIN_VALUE, Short.MAX_VALUE);
+            throw createNumberRangErrorException(bindValue, Short.MIN_VALUE, Short.MAX_VALUE);
         }
         return (int) num;
     }
@@ -943,11 +973,11 @@ final class BinaryStatementCommandWriter implements StatementCommandWriter {
         if (parameterMeta.isUnsigned()) {
             BigInteger unsignedMaxByte = BigInteger.valueOf(Byte.toUnsignedInt((byte) -1));
             if (num.compareTo(BigInteger.ZERO) < 0 || num.compareTo(unsignedMaxByte) > 0) {
-                throw createNumberRangErrorMessage(bindValue, 0, unsignedMaxByte);
+                throw createNumberRangErrorException(bindValue, 0, unsignedMaxByte);
             }
         } else if (num.compareTo(BigInteger.valueOf(Byte.MIN_VALUE)) < 0
                 || num.compareTo(BigInteger.valueOf(Byte.MAX_VALUE)) > 0) {
-            throw createNumberRangErrorMessage(bindValue, Byte.MIN_VALUE, Byte.MAX_VALUE);
+            throw createNumberRangErrorException(bindValue, Byte.MIN_VALUE, Byte.MAX_VALUE);
         }
         return num.intValue();
     }
@@ -957,11 +987,11 @@ final class BinaryStatementCommandWriter implements StatementCommandWriter {
         if (parameterMeta.isUnsigned()) {
             BigInteger unsignedMaxInt2 = BigInteger.valueOf(Short.toUnsignedInt((byte) -1));
             if (num.compareTo(BigInteger.ZERO) < 0 || num.compareTo(unsignedMaxInt2) > 0) {
-                throw createNumberRangErrorMessage(bindValue, 0, unsignedMaxInt2);
+                throw createNumberRangErrorException(bindValue, 0, unsignedMaxInt2);
             }
         } else if (num.compareTo(BigInteger.valueOf(Short.MIN_VALUE)) < 0
                 || num.compareTo(BigInteger.valueOf(Short.MAX_VALUE)) > 0) {
-            throw createNumberRangErrorMessage(bindValue, Short.MIN_VALUE, Short.MAX_VALUE);
+            throw createNumberRangErrorException(bindValue, Short.MIN_VALUE, Short.MAX_VALUE);
         }
         return num.intValue();
     }
@@ -969,14 +999,14 @@ final class BinaryStatementCommandWriter implements StatementCommandWriter {
 
     /*################################## blow private static exception method ##################################*/
 
-    private static BindParameterException createNotSupportTypeWithUnsigned(BindValue bindValue) {
-        throw new BindParameterException(String.format("Bind parameter[%s] is unsigned,not support %s"
+    private static BindParameterException createNotSupportFractionException(BindValue bindValue) {
+        throw new BindParameterException(String.format("Bind parameter[%s] is MySQLType[%s],not support fraction."
                 , bindValue.getParamIndex()
-                , bindValue.getRequiredValue().getClass().getName())
+                , bindValue.getType())
                 , bindValue.getParamIndex());
     }
 
-    private static BindParameterException createNumberRangErrorMessage(BindValue bindValue, Number lower
+    private static BindParameterException createNumberRangErrorException(BindValue bindValue, Number lower
             , Number upper) {
         return new BindParameterException(String.format("Bind parameter[%s] MySQLType[%s] beyond rang[%s,%s]."
                 , bindValue.getParamIndex(), bindValue.getType(), lower, upper)
@@ -984,11 +1014,12 @@ final class BinaryStatementCommandWriter implements StatementCommandWriter {
 
     }
 
-    private static BindParameterException createTypeNotMatchMessage(BindValue bindValue) {
-        return new BindParameterException(String.format("Bind parameter[%s] MySQLType[%s] and JavaType[%s] not match."
-                , bindValue.getParamIndex()
-                , bindValue.getType()
-                , bindValue.getRequiredValue().getClass().getName())
+    private static BindParameterException createTypeNotMatchException(BindValue bindValue) {
+        return new BindParameterException(
+                String.format("Bind parameter[%s] MySQLType[%s] and JavaType[%s] rang not match."
+                        , bindValue.getParamIndex()
+                        , bindValue.getType()
+                        , bindValue.getRequiredValue().getClass().getName())
                 , bindValue.getParamIndex());
     }
 
