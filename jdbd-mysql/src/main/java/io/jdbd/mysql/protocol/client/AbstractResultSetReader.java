@@ -272,6 +272,7 @@ abstract class AbstractResultSetReader implements ResultSetReader {
         return rowMeta.isReady();
     }
 
+
     final void updateSequenceId(int sequenceId) {
         this.sequenceId = sequenceId;
         this.sequenceConsumer.accept(sequenceId);

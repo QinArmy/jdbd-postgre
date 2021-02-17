@@ -16,6 +16,10 @@ import java.time.Year;
 import java.util.Objects;
 import java.util.function.Consumer;
 
+
+/**
+ * @see ComPreparedTask
+ */
 final class BinaryResultSetReader extends AbstractResultSetReader {
 
     BinaryResultSetReader(FluxSink<ResultRow> sink, Consumer<ResultStates> statesConsumer

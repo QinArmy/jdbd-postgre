@@ -42,11 +42,10 @@ public interface Constants {
     String CJ_MINOR_VERSION = "0";
     String CJ_LICENSE = "GPL";
 
-    long DURATION_MAX_SECONDS = Duration.ofHours(838)
+    Duration MAX_DURATION = Duration.ofHours(838)
             .plusMinutes(59)
             .plusSeconds(59)
-            .plusMillis(999)
-            .getSeconds();
+            .plusMillis(999);
 
 
 }

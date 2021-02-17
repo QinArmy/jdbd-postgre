@@ -12,7 +12,7 @@ import java.nio.charset.Charset;
  */
 public final class OkPacket extends TerminatorPacket {
 
-    public static final int OK_HEADER = 0;
+    public static final int OK_HEADER = 0x00;
 
     /**
      * @param payloadBuf a packet buffer than skip header .

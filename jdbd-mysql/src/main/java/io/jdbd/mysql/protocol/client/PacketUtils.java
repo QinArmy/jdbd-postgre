@@ -5,6 +5,7 @@ import io.jdbd.mysql.util.MySQLExceptionUtils;
 import io.jdbd.mysql.util.MySQLNumberUtils;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
+import reactor.core.publisher.FluxSink;
 import reactor.util.annotation.Nullable;
 
 import java.math.BigInteger;
@@ -12,6 +13,7 @@ import java.nio.charset.Charset;
 import java.time.*;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.function.Supplier;
 
 public abstract class PacketUtils {
 
@@ -22,7 +24,7 @@ public abstract class PacketUtils {
 
     public static final int MAX_PAYLOAD = ClientProtocol.MAX_PACKET_SIZE;
 
-    public static final int MAX_PACKET_CAPACITY = HEADER_SIZE + MAX_PAYLOAD;
+    public static final int MAX_PACKET = HEADER_SIZE + MAX_PAYLOAD;
 
     public static final byte[] EMPTY_BYTE_ARRAY = new byte[0];
 
@@ -546,19 +548,101 @@ public abstract class PacketUtils {
                 && (readableBytes >= HEADER_SIZE + getInt3(byteBuf, byteBuf.readerIndex()));
     }
 
-    public static void writePacketHeader(ByteBuf packetBuf, final int sequenceId) {
-        final int payloadLen = packetBuf.readableBytes() - HEADER_SIZE;
-        if (payloadLen > ClientCommandProtocol.MAX_PACKET_SIZE) {
-            throw new IllegalArgumentException(
-                    String.format("byteBuffer payload greater than %s.", ClientCommandProtocol.MAX_PACKET_SIZE));
+    public static void writePacketHeader(final ByteBuf packetBuf, final int sequenceId) {
+        final int readableBytes = packetBuf.readableBytes();
+        if (readableBytes < HEADER_SIZE || readableBytes > MAX_PACKET) {
+            throw new IllegalArgumentException(String.format("packetBuf readableBytes[%s] error.", readableBytes));
         }
-        packetBuf.markWriterIndex();
+        final int originalWriterIndex = packetBuf.writerIndex();
         packetBuf.writerIndex(packetBuf.readerIndex());
 
-        writeInt3(packetBuf, payloadLen);
+        writeInt3(packetBuf, Math.min(readableBytes - HEADER_SIZE, MAX_PAYLOAD));
         packetBuf.writeByte(sequenceId);
 
-        packetBuf.resetWriterIndex();
+        packetBuf.writerIndex(originalWriterIndex);
+    }
+
+    /**
+     * @return publish length of payload byte
+     */
+    public static int publishBigPayload(final ByteBuf bigPayload, FluxSink<ByteBuf> sink
+            , Supplier<Integer> sequenceIdSupplier, Function<Integer, ByteBuf> bufferCreator
+            , final boolean publishSmallPacket) {
+        ByteBuf packet;
+        int publishLength = 0;
+        for (int readableBytes; ; ) {
+            readableBytes = bigPayload.readableBytes();
+            if (readableBytes >= MAX_PAYLOAD) {
+                packet = bufferCreator.apply(MAX_PACKET);
+
+                writeInt3(packet, MAX_PAYLOAD);
+                packet.writeByte(sequenceIdSupplier.get());
+                packet.writeBytes(bigPayload, MAX_PAYLOAD);
+
+                sink.next(packet);
+                publishLength += MAX_PAYLOAD;
+            } else {
+                if (publishSmallPacket && readableBytes >= 0) {
+                    packet = bufferCreator.apply(HEADER_SIZE + readableBytes);
+
+                    writeInt3(packet, readableBytes);
+                    packet.writeByte(sequenceIdSupplier.get());
+                    if (readableBytes > 0) {
+                        packet.writeBytes(bigPayload, readableBytes);
+                    }
+                    sink.next(packet);
+
+                    bigPayload.release();
+                    publishLength += readableBytes;
+                }
+                break;
+            }
+        }
+
+        return publishLength;
+    }
+
+    /**
+     * @return publish length of payload byte
+     */
+    public static int publishBigPacket(final ByteBuf bigPacket, FluxSink<ByteBuf> sink
+            , Supplier<Integer> sequenceIdSupplier, Function<Integer, ByteBuf> bufferCreator
+            , final boolean publishSmallPacket) {
+        int readableBytes = bigPacket.readableBytes();
+        if (readableBytes < HEADER_SIZE) {
+            throw new IllegalArgumentException(String.format("bigPacket readableBytes[%s]", readableBytes));
+        }
+
+        int publishLength = 0;
+
+        ByteBuf packet;
+        if (readableBytes >= MAX_PACKET) {
+            if (bigPacket.isReadOnly()) {
+                packet = bufferCreator.apply(MAX_PACKET);
+            } else {
+                packet = bigPacket.readRetainedSlice(MAX_PACKET);
+            }
+            writePacketHeader(packet, sequenceIdSupplier.get());
+            sink.next(packet);
+
+            publishLength += MAX_PAYLOAD;
+            publishLength += publishBigPayload(bigPacket, sink, sequenceIdSupplier, bufferCreator, publishSmallPacket);
+        }
+        if (publishSmallPacket && (readableBytes = bigPacket.readableBytes()) >= 0) {
+            packet = bufferCreator.apply(HEADER_SIZE + readableBytes);
+
+            writeInt3(packet, readableBytes);
+            packet.writeByte(sequenceIdSupplier.get());
+            if (readableBytes > 0) {
+                packet.writeBytes(bigPacket, readableBytes);
+            }
+
+            sink.next(packet);
+
+            bigPacket.release();
+            publishLength += readableBytes;
+        }
+        return publishLength;
     }
 
     /**
