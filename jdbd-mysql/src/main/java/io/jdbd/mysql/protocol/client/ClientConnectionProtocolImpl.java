@@ -2,6 +2,7 @@ package io.jdbd.mysql.protocol.client;
 
 import io.jdbd.ResultRow;
 import io.jdbd.mysql.JdbdMySQLException;
+import io.jdbd.mysql.Server;
 import io.jdbd.mysql.protocol.CharsetMapping;
 import io.jdbd.mysql.protocol.MySQLPacket;
 import io.jdbd.mysql.protocol.ServerVersion;
@@ -132,8 +133,8 @@ final class ClientConnectionProtocolImpl extends AbstractClientProtocol
     }
 
     @Override
-    public ByteBuf createPayloadBuffer(int initialPayloadCapacity) {
-        return this.taskAdjutant.createPayloadBuffer(initialPayloadCapacity);
+    public ByteBuf createByteBuffer(int initialPayloadCapacity) {
+        return this.taskAdjutant.createByteBuffer(initialPayloadCapacity);
     }
 
     @Override
@@ -217,7 +218,10 @@ final class ClientConnectionProtocolImpl extends AbstractClientProtocol
         return packet;
     }
 
-
+    @Override
+    public Server obtainServer() {
+        throw new UnsupportedOperationException();
+    }
 
     /*################################## blow package method ##################################*/
 

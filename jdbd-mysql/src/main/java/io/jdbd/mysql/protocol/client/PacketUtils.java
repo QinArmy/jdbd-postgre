@@ -34,7 +34,7 @@ public abstract class PacketUtils {
     public static final int ENC_3_MAX_VALUE = 0xFF_FF_FF;
 
     public static final int LOCAL_INFILE = 0xFB;
-    public static final int COM_QUERY_HEADER = 3;
+    public static final int COM_QUERY_HEADER = 0x03;
     public static final int COM_STMT_PREPARE = 0x16;
     public static final int COM_STMT_EXECUTE = 0x17;
 
@@ -617,6 +617,7 @@ public abstract class PacketUtils {
         return publishLength;
     }
 
+
     /**
      * @return publish length of payload byte
      */
@@ -659,6 +660,34 @@ public abstract class PacketUtils {
         }
         return publishLength;
     }
+
+    /**
+     * <ol>
+     *     <li>bigPacket will be send.</li>
+     *     <li>suffix that it's length of payload less than {@link #MAX_PAYLOAD} will be cut to new packet.</li>
+     *     <li>bigPacket {@link ByteBuf#release()} will invoked.</li>
+     * </ol>
+     *
+     * @return packet than it's length of payload less than {@link #MAX_PAYLOAD}.
+     */
+    public static ByteBuf publishAndCutBigPacket(final ByteBuf bigPacket, FluxSink<ByteBuf> sink
+            , Supplier<Integer> sequenceIdSupplier, Function<Integer, ByteBuf> bufferCreator) {
+
+        publishBigPacket(bigPacket, sink, sequenceIdSupplier, bufferCreator, false);
+
+        final ByteBuf tempBuffer;
+        final int readableBytes = bigPacket.readableBytes();
+        if (readableBytes > 0) {
+            tempBuffer = bufferCreator.apply(readableBytes);
+        } else {
+            tempBuffer = bufferCreator.apply(128);
+        }
+        tempBuffer.writeBytes(bigPacket);
+        bigPacket.release();
+
+        return tempBuffer;
+    }
+
 
     /**
      * @return <ul>
@@ -836,6 +865,10 @@ public abstract class PacketUtils {
     public static void writeStringLenEnc(ByteBuf packetBuffer, byte[] stringBytes) {
         writeIntLenEnc(packetBuffer, stringBytes.length);
         packetBuffer.writeBytes(stringBytes);
+    }
+
+    public static void writeByteWithEscape(ByteBuf packetBuffer, final byte[] bytes, int length) {
+
     }
 
     public static byte[] convertInt8ToMySQLBytes(long int8) {

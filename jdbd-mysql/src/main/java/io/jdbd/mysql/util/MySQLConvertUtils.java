@@ -27,10 +27,10 @@ public abstract class MySQLConvertUtils {
                 } catch (NumberFormatException e) {
                     throw createNotSupportedException(nonNull, Boolean.class, e);
                 }
-                boolValue = convertToBoolean(decimal);
+                boolValue = tryConvertToBoolean(decimal);
             }
         } else if (nonNull instanceof Number) {
-            boolValue = convertToBoolean((Number) nonNull);
+            boolValue = tryConvertToBoolean((Number) nonNull);
         } else {
             throw createNotSupportedException(nonNull, Boolean.class, null);
         }
@@ -56,8 +56,9 @@ public abstract class MySQLConvertUtils {
 
     }
 
-    public static boolean convertToBoolean(Number nonNull) throws NotSupportedConvertException {
-        final boolean newValue;
+    @Nullable
+    public static Boolean tryConvertToBoolean(Number nonNull) {
+        final Boolean newValue;
         if (nonNull instanceof Long
                 || nonNull instanceof Integer
                 || nonNull instanceof Byte
@@ -80,7 +81,7 @@ public abstract class MySQLConvertUtils {
             BigInteger i = (BigInteger) nonNull;
             newValue = i.compareTo(BigInteger.ZERO) > 0 || i.compareTo(BigInteger.valueOf(-1L)) == 0;
         } else {
-            throw createNotSupportedException(nonNull, Boolean.class, null);
+            newValue = null;
         }
         return newValue;
     }

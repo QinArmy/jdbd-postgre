@@ -182,7 +182,7 @@ abstract class AbstractResultSetReader implements ResultSetReader {
                     break outFor;
                     default: {
                         payload = PacketUtils.readBigPayload(cumulateBuffer, multiPayloadLength
-                                , this::updateSequenceId, this.adjutant::createPayloadBuffer);
+                                , this::updateSequenceId, this.adjutant::createByteBuffer);
                         payloadLength = payload.readableBytes();
                         sequenceId = this.sequenceId;
                     }
@@ -478,9 +478,9 @@ abstract class AbstractResultSetReader implements ResultSetReader {
         final int payloadLength = packetPayload.readableBytes();
         if (!payloadBuffer.isReadable()) {
             payloadBuffer.release();
-            payloadBuffer = this.adjutant.createPayloadBuffer(payloadLength);
+            payloadBuffer = this.adjutant.createByteBuffer(payloadLength);
         } else if (payloadBuffer.maxFastWritableBytes() < payloadLength) {
-            ByteBuf tempBuffer = this.adjutant.createPayloadBuffer(payloadBuffer.readableBytes() + payloadLength);
+            ByteBuf tempBuffer = this.adjutant.createByteBuffer(payloadBuffer.readableBytes() + payloadLength);
             tempBuffer.writeBytes(payloadBuffer);
             payloadBuffer.release();
             payloadBuffer = tempBuffer;
@@ -531,25 +531,25 @@ abstract class AbstractResultSetReader implements ResultSetReader {
         }
         try (OutputStream out = Files.newOutputStream(bigColumn.path, StandardOpenOption.WRITE)) {
             final long totalBytes = bigColumn.totalBytes;
-            long wroteBytes = bigColumn.wroteBytes;
-            if (wroteBytes >= totalBytes) {
+            long writtenBytes = bigColumn.wroteBytes;
+            if (writtenBytes >= totalBytes) {
                 throw new IllegalStateException(String.format("BigColumn[%s] wroteBytes[%s] > totalBytes[%s]"
-                        , columnMetas[bigColumnIndex].columnAlias, wroteBytes, totalBytes));
+                        , columnMetas[bigColumnIndex].columnAlias, writtenBytes, totalBytes));
             }
             final ByteBuf payload = bigRowData.cachePayload;
             if (payload.isReadable()) {
-                int writeBytes = (int) Math.min(totalBytes - wroteBytes, payload.readableBytes());
+                int writeBytes = (int) Math.min(totalBytes - writtenBytes, payload.readableBytes());
                 payload.readBytes(out, writeBytes);
-                wroteBytes += writeBytes;
+                writtenBytes += writeBytes;
 
                 payload.release();
                 bigRowData.cachePayload = Unpooled.EMPTY_BUFFER;
 
-                if (wroteBytes == totalBytes) {
+                if (writtenBytes == totalBytes) {
                     //this 'if' block handle big column end.
                     this.phase = Phase.READ_BIG_ROW;
                     bigRowData.index++;
-                    bigColumn.wroteBytes = wroteBytes;
+                    bigColumn.wroteBytes = writtenBytes;
                     return;
                 }
             }
@@ -559,13 +559,13 @@ abstract class AbstractResultSetReader implements ResultSetReader {
                 payloadLength = PacketUtils.readInt3(cumulateBuffer);
                 sequenceId = PacketUtils.readInt1(cumulateBuffer);
 
-                writeBytes = (int) Math.min(totalBytes - wroteBytes, payloadLength);
+                writeBytes = (int) Math.min(totalBytes - writtenBytes, payloadLength);
                 cumulateBuffer.readBytes(out, writeBytes);
 
-                wroteBytes += writeBytes;
+                writtenBytes += writeBytes;
 
 
-                if (wroteBytes == totalBytes) {
+                if (writtenBytes == totalBytes) {
                     // this 'if' block handle big column end.
                     bigRowData.index++;
                     this.phase = Phase.READ_BIG_ROW;
@@ -580,14 +580,14 @@ abstract class AbstractResultSetReader implements ResultSetReader {
 
                     }
                     break;
-                } else if (wroteBytes > totalBytes) {
+                } else if (writtenBytes > totalBytes) {
                     throw new IllegalStateException(String.format("BigColumn[%s] wroteBytes[%s] > totalBytes[%s]"
-                            , columnMetas[bigColumnIndex].columnAlias, wroteBytes, totalBytes));
+                            , columnMetas[bigColumnIndex].columnAlias, writtenBytes, totalBytes));
                 }
                 bigRowData.bigRowValues[bigColumnIndex] = bigColumn.path;
             }
 
-            bigColumn.wroteBytes = wroteBytes;
+            bigColumn.wroteBytes = writtenBytes;
             if (sequenceId > -1) {
                 updateSequenceId(sequenceId);
             }

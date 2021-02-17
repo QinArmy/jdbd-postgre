@@ -23,7 +23,10 @@ import java.nio.file.StandardOpenOption;
 import java.util.List;
 import java.util.function.Supplier;
 
-final class BinaryLongParameterWriter implements BinaryStatementCommandWriter.LongParameterWriter {
+/**
+ * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_com_stmt_send_long_data.html">Protocol::COM_STMT_SEND_LONG_DATA</a>
+ */
+final class PrepareLongParameterWriter implements PrepareExecuteCommandWriter.LongParameterWriter {
 
     private static final int LONG_DATA_PREFIX_SIZE = 7;
 
@@ -45,7 +48,7 @@ final class BinaryLongParameterWriter implements BinaryStatementCommandWriter.Lo
 
     final int maxPacketCapacity;
 
-    BinaryLongParameterWriter(int statementId, ClientProtocolAdjutant adjutant, Supplier<Integer> sequenceIdSupplier) {
+    PrepareLongParameterWriter(int statementId, ClientProtocolAdjutant adjutant, Supplier<Integer> sequenceIdSupplier) {
         this.statementId = statementId;
         this.adjutant = adjutant;
         this.sequenceIdSupplier = sequenceIdSupplier;
@@ -170,6 +173,15 @@ final class BinaryLongParameterWriter implements BinaryStatementCommandWriter.Lo
             } catch (IOException e) {
                 packetBuffer.release();
                 sink.error(createLongDataReadException(e, input.getClass(), paramIndex));
+            } finally {
+                if (this.properties.getOrDefault(PropertyKey.autoClosePStmtStreams, Boolean.class)) {
+                    try {
+                        input.close();
+                    } catch (IOException e) {
+                        sink.error(new BindParameterException(
+                                e, paramIndex, "Bind parameter[%s] %s close failure.", input.getClass().getName()));
+                    }
+                }
             }
         });
     }
@@ -220,7 +232,7 @@ final class BinaryLongParameterWriter implements BinaryStatementCommandWriter.Lo
         return packetChunkSize;
     }
 
-    private void writeInputStreamParameter(final int parameterIndex, InputStream input, FluxSink<ByteBuf> sink) {
+    private void writeInputStreamParameter(final int parameterIndex, final InputStream input, FluxSink<ByteBuf> sink) {
         ByteBuf packetBuffer = null;
         try {
             packetBuffer = createLongDataPacket(parameterIndex, BUFFER_LENGTH << 1);
@@ -238,6 +250,15 @@ final class BinaryLongParameterWriter implements BinaryStatementCommandWriter.Lo
         } catch (IOException e) {
             packetBuffer.release();
             sink.error(createLongDataReadException(e, input.getClass(), parameterIndex));
+        } finally {
+            if (this.properties.getOrDefault(PropertyKey.autoClosePStmtStreams, Boolean.class)) {
+                try {
+                    input.close();
+                } catch (IOException e) {
+                    sink.error(new BindParameterException(
+                            e, parameterIndex, "Bind parameter[%s] %s close failure.", input.getClass().getName()));
+                }
+            }
         }
     }
 
@@ -321,7 +342,7 @@ final class BinaryLongParameterWriter implements BinaryStatementCommandWriter.Lo
         ByteBuf buffer = packetBuffer;
         if (oldCapacity < capacity) {
             if (packetBuffer.maxCapacity() < capacity) {
-                ByteBuf tempBuf = this.adjutant.createPayloadBuffer(capacity);
+                ByteBuf tempBuf = this.adjutant.createByteBuffer(capacity);
                 tempBuf.writeBytes(packetBuffer);
                 packetBuffer.release();
                 buffer = tempBuf;

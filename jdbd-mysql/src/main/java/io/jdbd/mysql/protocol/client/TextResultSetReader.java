@@ -193,13 +193,13 @@ final class TextResultSetReader extends AbstractResultSetReader {
                     columnValue = null;
                 } else if (columnMeta.isUnsigned()) {
                     if (bitIsBoolean) {
-                        columnValue = MySQLConvertUtils.convertToBoolean(Integer.parseInt(columnText));
+                        columnValue = MySQLConvertUtils.tryConvertToBoolean(Integer.parseInt(columnText));
                     } else {
                         columnValue = Integer.parseInt(columnText);
                     }
                 } else {
                     if (bitIsBoolean) {
-                        columnValue = MySQLConvertUtils.convertToBoolean(Byte.parseByte(columnText));
+                        columnValue = MySQLConvertUtils.tryConvertToBoolean(Byte.parseByte(columnText));
                     } else {
                         columnValue = Byte.parseByte(columnText);
                     }

@@ -93,7 +93,7 @@ final class BatchUpdateTask extends AbstractComQueryTask {
     private static ByteBuf batchSingleCommand(MySQLCommunicationTask task, List<String> commandList
             , final int totalLength) {
         int initialCapacity = task.executorAdjutant.obtainMaxBytesPerCharClient() * totalLength;
-        ByteBuf byteBuf = task.executorAdjutant.createPayloadBuffer(initialCapacity);
+        ByteBuf byteBuf = task.executorAdjutant.createByteBuffer(initialCapacity);
         final Charset charsetClient = task.executorAdjutant.obtainCharsetClient();
         byte[] payload;
         for (String command : commandList) {

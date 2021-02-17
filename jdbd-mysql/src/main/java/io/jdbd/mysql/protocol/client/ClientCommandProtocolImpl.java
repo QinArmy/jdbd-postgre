@@ -1,5 +1,6 @@
 package io.jdbd.mysql.protocol.client;
 
+import io.jdbd.mysql.Server;
 import io.jdbd.mysql.protocol.CharsetMapping;
 import io.jdbd.mysql.protocol.conf.HostInfo;
 import io.netty.buffer.ByteBuf;
@@ -77,7 +78,7 @@ public final class ClientCommandProtocolImpl extends AbstractClientProtocol impl
     }
 
     @Override
-    public ByteBuf createPayloadBuffer(int initialPayloadCapacity) {
+    public ByteBuf createByteBuffer(int initialPayloadCapacity) {
         return this.taskAdjutant.createPacketBuffer(initialPayloadCapacity);
     }
 
@@ -121,6 +122,10 @@ public final class ClientCommandProtocolImpl extends AbstractClientProtocol impl
         return this.handshakeV10Packet;
     }
 
+    @Override
+    public Server obtainServer() {
+        throw new UnsupportedOperationException();
+    }
     /*################################## blow private method ##################################*/
 
 

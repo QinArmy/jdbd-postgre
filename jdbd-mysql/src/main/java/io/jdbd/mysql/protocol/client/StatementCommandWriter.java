@@ -7,7 +7,7 @@ import java.util.List;
 
 interface StatementCommandWriter {
 
-     Publisher<ByteBuf> writeCommand(List<BindValue> valueList);
+     Publisher<ByteBuf> writeCommand(List<BindValue> parameterGroup);
 
 
 }

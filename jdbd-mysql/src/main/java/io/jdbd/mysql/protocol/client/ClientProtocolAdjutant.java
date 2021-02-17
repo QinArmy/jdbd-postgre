@@ -1,5 +1,6 @@
 package io.jdbd.mysql.protocol.client;
 
+import io.jdbd.mysql.Server;
 import io.jdbd.mysql.protocol.CharsetMapping;
 import io.jdbd.mysql.protocol.conf.HostInfo;
 import io.netty.buffer.ByteBuf;
@@ -12,7 +13,7 @@ interface ClientProtocolAdjutant extends ResultRowAdjutant {
 
     ByteBuf createPacketBuffer(int initialPayloadCapacity);
 
-    ByteBuf createPayloadBuffer(int initialPayloadCapacity);
+    ByteBuf createByteBuffer(int initialPayloadCapacity);
 
     int obtainMaxBytesPerCharClient();
 
@@ -31,5 +32,7 @@ interface ClientProtocolAdjutant extends ResultRowAdjutant {
     HandshakeV10Packet obtainHandshakeV10Packet();
 
     HostInfo obtainHostInfo();
+
+    Server obtainServer();
 
 }

@@ -135,7 +135,7 @@ final class BinaryResultSetReader extends AbstractResultSetReader {
             }
             break;
             case ProtocolConstants.TYPE_BOOL: {
-                columnValue = MySQLConvertUtils.convertToBoolean(payload.readByte());
+                columnValue = MySQLConvertUtils.tryConvertToBoolean(payload.readByte());
             }
             break;
             case ProtocolConstants.TYPE_TINY: {
@@ -145,7 +145,7 @@ final class BinaryResultSetReader extends AbstractResultSetReader {
                     }
                     break;
                     case BOOLEAN: {
-                        columnValue = MySQLConvertUtils.convertToBoolean(payload.readByte());
+                        columnValue = MySQLConvertUtils.tryConvertToBoolean(payload.readByte());
                     }
                     break;
                     case TINYINT_UNSIGNED: {

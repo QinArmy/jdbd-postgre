@@ -2,6 +2,7 @@ package io.jdbd.mysql.protocol.client;
 
 import io.jdbd.lang.Nullable;
 import io.jdbd.mysql.JdbdMySQLException;
+import io.jdbd.mysql.Server;
 import io.jdbd.mysql.protocol.CharsetMapping;
 import io.jdbd.mysql.protocol.conf.HostInfo;
 import io.jdbd.mysql.util.MySQLExceptionUtils;
@@ -362,7 +363,7 @@ final class DefaultCommTaskExecutor implements MySQLCommTaskExecutor, CoreSubscr
         }
 
         @Override
-        public ByteBuf createPayloadBuffer(int initialPayloadCapacity) {
+        public ByteBuf createByteBuffer(int initialPayloadCapacity) {
             return DefaultCommTaskExecutor.this.allocator.buffer(initialPayloadCapacity);
         }
 
@@ -449,6 +450,11 @@ final class DefaultCommTaskExecutor implements MySQLCommTaskExecutor, CoreSubscr
                 return serverStatus;
             }
             throw new JdbdMySQLException("Current not in EventLoop.");
+        }
+
+        @Override
+        public Server obtainServer() {
+            throw new UnsupportedOperationException();
         }
 
         @Override

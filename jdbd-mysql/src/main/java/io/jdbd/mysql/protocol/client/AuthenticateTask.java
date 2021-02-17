@@ -93,7 +93,7 @@ final class AuthenticateTask extends AbstractAuthenticateTask implements Authent
 
     @Override
     public ByteBuf createPayloadBuffer(int initialPayloadCapacity) {
-        return this.executorAdjutant.createPayloadBuffer(initialPayloadCapacity);
+        return this.executorAdjutant.createByteBuffer(initialPayloadCapacity);
     }
 
 
@@ -263,7 +263,7 @@ final class AuthenticateTask extends AbstractAuthenticateTask implements Authent
         ByteBuf payloadBuf;
         if (skipPassword) {
             // skip password
-            payloadBuf = this.executorAdjutant.createPayloadBuffer(0);
+            payloadBuf = this.executorAdjutant.createByteBuffer(0);
         } else {
             HandshakeV10Packet handshakeV10Packet = this.handshakeV10Packet;
             String seed = handshakeV10Packet.getAuthPluginDataPart1() + handshakeV10Packet.getAuthPluginDataPart2();

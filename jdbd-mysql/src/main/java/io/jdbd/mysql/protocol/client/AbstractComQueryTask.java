@@ -439,7 +439,7 @@ abstract class AbstractComQueryTask extends MySQLCommunicationTask {
         if (sink.isCanceled()) {
             payloadBuffer = null;
         } else {
-            payloadBuffer = this.executorAdjutant.createPayloadBuffer(totalLength);
+            payloadBuffer = this.executorAdjutant.createByteBuffer(totalLength);
         }
         int sequenceId = -1;
         for (int payloadLength; ; ) {
