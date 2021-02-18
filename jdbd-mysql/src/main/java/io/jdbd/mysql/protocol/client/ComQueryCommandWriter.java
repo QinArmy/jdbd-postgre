@@ -256,7 +256,7 @@ final class ComQueryCommandWriter implements StatementCommandWriter {
                 new BigDecimal(text);
                 buffer.writeBytes(text.getBytes(this.clientCharset));
             } catch (NumberFormatException e) {
-                throw BindUtils.createTypeNotMatchException(bindValue);
+                throw BindUtils.createTypeNotMatchException(bindValue, e);
             }
         } else if (nonNull instanceof BigDecimal) {
             text = ((BigDecimal) nonNull).toPlainString();

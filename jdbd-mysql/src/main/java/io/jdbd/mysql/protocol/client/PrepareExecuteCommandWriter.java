@@ -23,10 +23,12 @@ import java.time.temporal.ChronoField;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 
 /**
+ * @see ComPreparedTask
  * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_com_stmt_execute.html">Protocol::COM_STMT_EXECUTE</a>
  */
 final class PrepareExecuteCommandWriter implements StatementCommandWriter {
@@ -45,14 +47,17 @@ final class PrepareExecuteCommandWriter implements StatementCommandWriter {
 
     private final LongParameterWriter longParameterWriter;
 
+    private final Consumer<Throwable> errorConsumer;
+
     PrepareExecuteCommandWriter(final int statementId, MySQLColumnMeta[] paramMetaArray, boolean query
-            , Supplier<Integer> sequenceIdSupplier, ClientProtocolAdjutant adjutant) {
+            , Supplier<Integer> sequenceIdSupplier, ClientProtocolAdjutant adjutant, Consumer<Throwable> errorConsumer) {
         this.statementId = statementId;
         this.paramMetaArray = paramMetaArray;
         this.query = query;
         this.sequenceIdSupplier = sequenceIdSupplier;
 
         this.adjutant = adjutant;
+        this.errorConsumer = errorConsumer;
         this.properties = adjutant.obtainHostInfo().getProperties();
         this.longParameterWriter = new PrepareLongParameterWriter(statementId, adjutant, sequenceIdSupplier);
     }
@@ -385,6 +390,8 @@ final class PrepareExecuteCommandWriter implements StatementCommandWriter {
                 bindToTime(buffer, parameterMeta, bindValue);
                 break;
             case DATE:
+                bindToDate(buffer, bindValue);
+                break;
             case DATETIME:
             case TIMESTAMP:
                 bindToDatetime(buffer, parameterMeta, bindValue);
@@ -785,18 +792,34 @@ final class PrepareExecuteCommandWriter implements StatementCommandWriter {
     /**
      * @see #bindParameter(ByteBuf, MySQLColumnMeta, BindValue)
      */
+    private void bindToDate(final ByteBuf buffer, final BindValue bindValue) {
+        final Object nonNullValue = bindValue.getRequiredValue();
+
+        final LocalDate date;
+        if (nonNullValue instanceof LocalDate) {
+            date = (LocalDate) nonNullValue;
+
+        } else if (nonNullValue instanceof String) {
+            try {
+                date = LocalDate.parse((String) nonNullValue);
+            } catch (DateTimeParseException e) {
+                throw BindUtils.createTypeNotMatchException(bindValue, e);
+            }
+        } else {
+            throw BindUtils.createTypeNotMatchException(bindValue);
+        }
+        buffer.writeByte(4); // length
+        PacketUtils.writeInt2(buffer, date.getYear()); // year
+        buffer.writeByte(date.getMonthValue()); // month
+        buffer.writeByte(date.getDayOfMonth()); // day
+    }
+
+    /**
+     * @see #bindParameter(ByteBuf, MySQLColumnMeta, BindValue)
+     */
     private void bindToDatetime(final ByteBuf buffer, final MySQLColumnMeta parameterMeta, final BindValue bindValue) {
         final Object nonNullValue = bindValue.getRequiredValue();
 
-        if (nonNullValue instanceof LocalDate) {
-            LocalDate date = (LocalDate) nonNullValue;
-
-            buffer.writeByte(4); // length
-            PacketUtils.writeInt2(buffer, date.getYear()); // year
-            buffer.writeByte(date.getMonthValue()); // month
-            buffer.writeByte(date.getDayOfMonth()); // day
-            return;
-        }
         final LocalDateTime dateTime;
         if (nonNullValue instanceof LocalDateTime) {
             dateTime = OffsetDateTime.of((LocalDateTime) nonNullValue, this.adjutant.obtainZoneOffsetClient())
@@ -810,6 +833,16 @@ final class PrepareExecuteCommandWriter implements StatementCommandWriter {
             dateTime = ((OffsetDateTime) nonNullValue)
                     .withOffsetSameInstant(this.adjutant.obtainZoneOffsetDatabase())
                     .toLocalDateTime();
+        } else if (nonNullValue instanceof String) {
+            try {
+                LocalDateTime localDateTime = LocalDateTime.parse((String) nonNullValue
+                        , MySQLTimeUtils.MYSQL_DATETIME_FORMATTER);
+                dateTime = OffsetDateTime.of(localDateTime, this.adjutant.obtainZoneOffsetClient())
+                        .withOffsetSameInstant(this.adjutant.obtainZoneOffsetDatabase())
+                        .toLocalDateTime();
+            } catch (DateTimeParseException e) {
+                throw BindUtils.createTypeNotMatchException(bindValue, e);
+            }
         } else {
             throw BindUtils.createTypeNotMatchException(bindValue);
         }

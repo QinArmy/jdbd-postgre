@@ -15,7 +15,7 @@ abstract class MySQLCommunicationTask extends AbstractCommunicationTask implemen
 
     static final int SEQUENCE_ID_MODEL = 256;
 
-    final MySQLTaskAdjutant executorAdjutant;
+    final MySQLTaskAdjutant adjutant;
 
     final int negotiatedCapability;
 
@@ -23,11 +23,11 @@ abstract class MySQLCommunicationTask extends AbstractCommunicationTask implemen
 
     private int sequenceId = -1;
 
-    MySQLCommunicationTask(MySQLTaskAdjutant executorAdjutant) {
-        super(executorAdjutant);
-        this.negotiatedCapability = executorAdjutant.obtainNegotiatedCapability();
-        this.executorAdjutant = executorAdjutant;
-        this.properties = executorAdjutant.obtainHostInfo().getProperties();
+    MySQLCommunicationTask(MySQLTaskAdjutant adjutant) {
+        super(adjutant);
+        this.negotiatedCapability = adjutant.obtainNegotiatedCapability();
+        this.adjutant = adjutant;
+        this.properties = adjutant.obtainHostInfo().getProperties();
     }
 
     final void updateSequenceId(int sequenceId) {
@@ -56,7 +56,7 @@ abstract class MySQLCommunicationTask extends AbstractCommunicationTask implemen
         CharsetMapping.Collation collation = CharsetMapping.INDEX_TO_COLLATION.get(collationIndex);
         if (collation == null) {
             CharsetMapping.CustomCollation customCollation;
-            customCollation = this.executorAdjutant.obtainCustomCollationMap().get(collationIndex);
+            customCollation = this.adjutant.obtainCustomCollationMap().get(collationIndex);
             if (customCollation == null) {
                 throw new IllegalStateException(
                         String.format("collationIndex[%s] not found Collation.", collationIndex));
@@ -73,7 +73,7 @@ abstract class MySQLCommunicationTask extends AbstractCommunicationTask implemen
         Charset charset;
         if (collation == null) {
             CharsetMapping.CustomCollation customCollation;
-            customCollation = this.executorAdjutant.obtainCustomCollationMap().get(collationIndex);
+            customCollation = this.adjutant.obtainCustomCollationMap().get(collationIndex);
             if (customCollation == null) {
                 throw new IllegalStateException(
                         String.format("collationIndex[%s] not found Collation.", collationIndex));
@@ -95,9 +95,9 @@ abstract class MySQLCommunicationTask extends AbstractCommunicationTask implemen
 
 
     static ByteBuf commandBuffer(MySQLCommunicationTask task, String command) {
-        int initialCapacity = task.executorAdjutant.obtainMaxBytesPerCharClient() * command.length();
-        ByteBuf byteBuf = task.executorAdjutant.createPacketBuffer(initialCapacity);
-        byte[] payload = command.getBytes(task.executorAdjutant.obtainCharsetClient());
+        int initialCapacity = task.adjutant.obtainMaxBytesPerCharClient() * command.length();
+        ByteBuf byteBuf = task.adjutant.createPacketBuffer(initialCapacity);
+        byte[] payload = command.getBytes(task.adjutant.obtainCharsetClient());
 
         if (payload.length > ClientProtocol.MAX_PACKET_SIZE) {
             byteBuf.writerIndex(byteBuf.readerIndex());

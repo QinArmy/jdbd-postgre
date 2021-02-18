@@ -124,7 +124,7 @@ abstract class AbstractComQueryTask extends MySQLCommunicationTask {
             case ERROR: {
                 int payloadLength = PacketUtils.readInt3(cumulateBuf);
                 cumulateBuf.skipBytes(1); // skip sequence_id
-                Charset charsetResults = this.executorAdjutant.obtainCharsetResults();
+                Charset charsetResults = this.adjutant.obtainCharsetResults();
                 ErrorPacket error;
                 error = ErrorPacket.readPacket(cumulateBuf.readSlice(payloadLength)
                         , this.negotiatedCapability, charsetResults);
@@ -174,7 +174,7 @@ abstract class AbstractComQueryTask extends MySQLCommunicationTask {
         updateSequenceId(PacketUtils.readInt1(cumulateBuffer));
         String filePath;
         filePath = PacketUtils.readStringEof(cumulateBuffer.readSlice(payloadLength)
-                , payloadLength, this.executorAdjutant.obtainCharsetResults());
+                , payloadLength, this.adjutant.obtainCharsetResults());
         // task executor will send.
     }
 
@@ -187,7 +187,7 @@ abstract class AbstractComQueryTask extends MySQLCommunicationTask {
                 if (columnMetas.length == 0) {
                     break;
                 }
-                ResultRowMeta rowMeta = MySQLRowMeta.from(columnMetas, this.executorAdjutant.obtainCustomCollationMap());
+                ResultRowMeta rowMeta = MySQLRowMeta.from(columnMetas, this.adjutant.obtainCustomCollationMap());
                 if (emitCurrentQueryRowMeta(rowMeta) && this.error == null) {
                     this.error = SubscriptionNotMatchException.expectBatchUpdate();
                 }
@@ -266,7 +266,7 @@ abstract class AbstractComQueryTask extends MySQLCommunicationTask {
                 }
                 sequenceId = PacketUtils.readInt1(cumulateBuffer);
 
-                columnMetas[i] = MySQLColumnMeta.readFor41(cumulateBuffer, this.executorAdjutant);
+                columnMetas[i] = MySQLColumnMeta.readFor41(cumulateBuffer, this.adjutant);
                 cumulateBuffer.readerIndex(packetStartIndex + packetLength); // to next packet.
                 receiveColumnCount++;
             }
@@ -312,7 +312,7 @@ abstract class AbstractComQueryTask extends MySQLCommunicationTask {
             switch (PacketUtils.getInt1(cumulateBuffer, packetStartIndex + PacketUtils.HEADER_SIZE)) {
                 case ErrorPacket.ERROR_HEADER: {
                     // error terminator
-                    Charset charsetResults = this.executorAdjutant.obtainCharsetResults();
+                    Charset charsetResults = this.adjutant.obtainCharsetResults();
                     cumulateBuffer.skipBytes(PacketUtils.HEADER_SIZE);
                     ErrorPacket error;
                     error = ErrorPacket.readPacket(cumulateBuffer.readSlice(payloadLength)
@@ -439,7 +439,7 @@ abstract class AbstractComQueryTask extends MySQLCommunicationTask {
         if (sink.isCanceled()) {
             payloadBuffer = null;
         } else {
-            payloadBuffer = this.executorAdjutant.createByteBuffer(totalLength);
+            payloadBuffer = this.adjutant.createByteBuffer(totalLength);
         }
         int sequenceId = -1;
         for (int payloadLength; ; ) {
@@ -527,7 +527,7 @@ abstract class AbstractComQueryTask extends MySQLCommunicationTask {
                 final Path bigRowPath = this.bigRowPath;
                 this.bigRowPath = null;
                 if (this.error == null) {
-                    sink.next(MySQLResultRow.from(bigRowPath, (MySQLRowMeta) sink.getRowMeta(), this.executorAdjutant));
+                    sink.next(MySQLResultRow.from(bigRowPath, (MySQLRowMeta) sink.getRowMeta(), this.adjutant));
                 }
             }
         } catch (IOException e) {
@@ -568,7 +568,7 @@ abstract class AbstractComQueryTask extends MySQLCommunicationTask {
     }
 
     private int obtainBigRowUpperBoundary() {
-        int bigRowBoundary = this.executorAdjutant.obtainHostInfo().getProperties()
+        int bigRowBoundary = this.adjutant.obtainHostInfo().getProperties()
                 .getRequiredProperty(PropertyKey.bigRowMemoryUpperBoundary, Integer.class);
         if (bigRowBoundary < ClientConstants.MIN_BIG_ROW_UPPER) {
             bigRowBoundary = ClientConstants.MIN_BIG_ROW_UPPER;
@@ -628,7 +628,7 @@ abstract class AbstractComQueryTask extends MySQLCommunicationTask {
         MySQLColumnMeta[] columnMetas = rowMeta.columnMetaArray;
         MySQLColumnMeta columnMeta;
         Object[] columnValueArray = new Object[columnMetas.length];
-        final MySQLTaskAdjutant taskAdjutant = this.executorAdjutant;
+        final MySQLTaskAdjutant taskAdjutant = this.adjutant;
 
         for (int i = 0; i < columnMetas.length; i++) {
             columnMeta = columnMetas[i];
@@ -647,7 +647,7 @@ abstract class AbstractComQueryTask extends MySQLCommunicationTask {
         switch (type) {
             case ErrorPacket.ERROR_HEADER: {
                 ErrorPacket error = ErrorPacket.readPacket(cumulateBuffer.readSlice(payloadLength)
-                        , this.negotiatedCapability, this.executorAdjutant.obtainCharsetResults());
+                        , this.negotiatedCapability, this.adjutant.obtainCharsetResults());
                 emitError(MySQLExceptionUtils.createSQLException(error));
                 taskEnd = true;
             }
