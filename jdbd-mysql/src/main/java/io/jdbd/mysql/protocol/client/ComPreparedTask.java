@@ -20,7 +20,6 @@ import reactor.core.publisher.Mono;
 import reactor.core.publisher.MonoSink;
 import reactor.util.annotation.Nullable;
 
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
@@ -47,7 +46,8 @@ import java.util.function.Consumer;
  *              </ul>
  *         </li>
  *         <li>read COM_STMT_EXECUTE Response : {@link #readExecuteResponse(ByteBuf, Consumer)}</li>
- *         <li>read Binary Protocol ResultSet Row : {@link #readExecuteBinaryRows(ByteBuf, Consumer)}</li>
+ *         <li>read Binary Protocol ResultSet Row : {@link BinaryResultSetReader#read(ByteBuf, Consumer)}</li>
+ *         <li>send COM_STMT_CLOSE : {@link #closeStatement()}</li>
  *     </ol>
  * </p>
  *
@@ -94,13 +94,13 @@ final class ComPreparedTask extends MySQLCommunicationTask implements PreparedSt
     private int columnMetaIndex = -1;
 
 
-    private int batchIndex = 0;
+    private int batchGroupIndex = 0;
 
     private Publisher<ByteBuf> packetPublisher;
 
     private int cursorFetchSize = -1;
 
-    private final List<Throwable> errorList = new ArrayList<>();
+    private List<Throwable> errorList;
 
     private TaskSignal<ByteBuf> signal;
 
@@ -116,18 +116,12 @@ final class ComPreparedTask extends MySQLCommunicationTask implements PreparedSt
 
     private StatementCommandWriter executeCommandWriter;
 
-    private final int blobSendChunkSize;
-
-    private final int maxBlobPacketSize;
-
 
     private ComPreparedTask(MySQLTaskAdjutant executorAdjutant, String sql, MonoSink<PreparedStatement> stmtSink) {
         super(executorAdjutant);
         this.sql = sql;
         this.stmtSink = stmtSink;
-        this.blobSendChunkSize = obtainBlobSendChunkSize();
-        this.maxBlobPacketSize = Math.min(PacketUtils.HEADER_SIZE + LONG_DATA_PREFIX_SIZE + this.blobSendChunkSize
-                , PacketUtils.MAX_PACKET);
+
         this.stmtSink.onCancel(() -> this.stmtCancel.compareAndSet(false, true));
     }
 
@@ -135,7 +129,11 @@ final class ComPreparedTask extends MySQLCommunicationTask implements PreparedSt
     @Nullable
     @Override
     public Publisher<ByteBuf> moreSendPacket() {
-        return null;
+        Publisher<ByteBuf> publisher = this.packetPublisher;
+        if (publisher != null) {
+            this.packetPublisher = null;
+        }
+        return publisher;
     }
 
     @Override
@@ -272,7 +270,7 @@ final class ComPreparedTask extends MySQLCommunicationTask implements PreparedSt
                 case READ_PREPARE_COLUMN_META: {
                     if (readPrepareColumnMeta(cumulateBuffer, serverStatusConsumer)) {
                         continueDecode = PacketUtils.hasOnePacket(cumulateBuffer);
-                        markIdle(); // idle wait for prepare bind parameter .
+                        markWaitForParameters(); // idle wait for prepare bind parameter .
                         this.stmtSink.success(ServerPreparedStatement.create(this));
                     } else {
                         continueDecode = false;
@@ -282,7 +280,7 @@ final class ComPreparedTask extends MySQLCommunicationTask implements PreparedSt
                 case READ_EXECUTE_RESPONSE: {
                     // maybe modify this.phase
                     taskEnd = readExecuteResponse(cumulateBuffer, serverStatusConsumer);
-                    continueDecode = !taskEnd;
+                    continueDecode = PacketUtils.hasOnePacket(cumulateBuffer);
                 }
                 break;
                 case READ_RESULT_SET: {
@@ -299,7 +297,6 @@ final class ComPreparedTask extends MySQLCommunicationTask implements PreparedSt
             }
         }
         if (taskEnd) {
-
             closeStatement();
         }
         return taskEnd;
@@ -420,9 +417,19 @@ final class ComPreparedTask extends MySQLCommunicationTask implements PreparedSt
 
     /**
      * @see #internalDecode(ByteBuf, Consumer)
+     * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_com_stmt_close.html">Protocol::COM_STMT_CLOSE</a>
      */
     private void closeStatement() {
+        List<Throwable> errorList = this.errorList;
+        if (!MySQLCollectionUtils.isEmpty(errorList)) {
 
+        }
+        ByteBuf packet = this.adjutant.createPacketBuffer(5);
+        packet.writeByte(PacketUtils.COM_STMT_CLOSE);
+        PacketUtils.writeInt4(packet, this.statementId);
+        PacketUtils.writePacketHeader(packet, addAndGetSequenceId());
+
+        this.packetPublisher = Mono.just(packet);
     }
 
 
@@ -449,6 +456,7 @@ final class ComPreparedTask extends MySQLCommunicationTask implements PreparedSt
     /**
      * @see #executeUpdateInEventLoop(MonoSink, List)
      * @see #internalDecode(ByteBuf, Consumer)
+     * @see #executeNextUpdate()
      */
     private void executeUpdateStatement(final MonoSink<ResultStates> sink, final List<BindValue> parameterGroup) {
         this.phase = Phase.EXECUTE;
@@ -467,10 +475,10 @@ final class ComPreparedTask extends MySQLCommunicationTask implements PreparedSt
 
         if (parameterGroup.isEmpty()) {
             this.parameterGroupList = Collections.emptyList();
-            this.batchIndex = -1;
+            this.batchGroupIndex = -1;
         } else {
             this.parameterGroupList = Collections.singletonList(parameterGroup);
-            this.batchIndex = 0;
+            this.batchGroupIndex = 0;
         }
 
         // write execute command.
@@ -479,7 +487,9 @@ final class ComPreparedTask extends MySQLCommunicationTask implements PreparedSt
         this.phase = Phase.READ_EXECUTE_RESPONSE;
 
         // send signal to task executor.
-        Objects.requireNonNull(this.signal, "this.signal").sendPacket(this);
+        Objects.requireNonNull(this.signal, "this.signal")
+                .sendPacket(this)
+                .subscribe();
 
     }
 
@@ -529,10 +539,10 @@ final class ComPreparedTask extends MySQLCommunicationTask implements PreparedSt
 
         if (parameterGroup.isEmpty()) {
             this.parameterGroupList = Collections.emptyList();
-            this.batchIndex = -1;
+            this.batchGroupIndex = -1;
         } else {
             this.parameterGroupList = Collections.singletonList(parameterGroup);
-            this.batchIndex = 0;
+            this.batchGroupIndex = 0;
         }
 
         updateSequenceId(-1); // reset sequence_id
@@ -545,7 +555,9 @@ final class ComPreparedTask extends MySQLCommunicationTask implements PreparedSt
                 , this::readResultSetErrorEvent);
 
         // send signal to task executor.
-        Objects.requireNonNull(this.signal, "this.signal").sendPacket(this);
+        Objects.requireNonNull(this.signal, "this.signal")
+                .sendPacket(this)
+                .subscribe();
 
     }
 
@@ -617,16 +629,18 @@ final class ComPreparedTask extends MySQLCommunicationTask implements PreparedSt
         // write execute command.
         if (parameterGroupList.isEmpty()) {
             this.packetPublisher = commandWriter.writeCommand(Collections.emptyList());
-            this.batchIndex = -1;
+            this.batchGroupIndex = -1;
         } else {
             this.packetPublisher = commandWriter.writeCommand(parameterGroupList.get(0));
-            this.batchIndex = 0;
+            this.batchGroupIndex = 0;
         }
 
         this.phase = Phase.READ_EXECUTE_RESPONSE;
 
         // send signal to task executor.
-        Objects.requireNonNull(this.signal, "this.signal").sendPacket(this);
+        Objects.requireNonNull(this.signal, "this.signal")
+                .sendPacket(this)
+                .subscribe();
     }
 
 
@@ -659,7 +673,7 @@ final class ComPreparedTask extends MySQLCommunicationTask implements PreparedSt
                 serverStatusConsumer.accept(ok.getStatusFags());
                 Objects.requireNonNull(this.updateSink, "this.updateSink")
                         .success(MySQLResultStates.from(ok));
-                taskEnd = true;
+                taskEnd = executeNextUpdate();
             }
             break;
             default: {
@@ -691,8 +705,7 @@ final class ComPreparedTask extends MySQLCommunicationTask implements PreparedSt
     }
 
 
-
-    private void markIdle() {
+    private void markWaitForParameters() {
         this.phase = Phase.WAIT_FOR_PARAMETER;
     }
 
@@ -712,6 +725,26 @@ final class ComPreparedTask extends MySQLCommunicationTask implements PreparedSt
     private void resetParameterMetas(int parameterCount) {
         this.parameterMetas = new MySQLColumnMeta[parameterCount];
         this.parameterMetaIndex = 0;
+    }
+
+    /**
+     * @return true: no next ,task end.
+     * @see #readExecuteResponse(ByteBuf, Consumer)
+     * @see #executeUpdateStatement(MonoSink, List)
+     */
+    private boolean executeNextUpdate() {
+        final int batchGroupIndex = this.batchGroupIndex;
+        final List<List<BindValue>> parameterGroupList = Objects.requireNonNull(this.parameterGroupList
+                , "this.parameterGroupList");
+        if (parameterGroupList.isEmpty() || batchGroupIndex == parameterGroupList.size()) {
+            this.phase = Phase.STATEMENT_END;
+            return true;
+        }
+        this.packetPublisher = Objects.requireNonNull(this.executeCommandWriter, "this.executeCommandWriter")
+                .writeCommand(parameterGroupList.get(batchGroupIndex));
+        this.batchGroupIndex++;
+        this.phase = Phase.READ_EXECUTE_RESPONSE;
+        return false;
     }
 
     /*################################## blow private instance exception method ##################################*/
@@ -767,6 +800,7 @@ final class ComPreparedTask extends MySQLCommunicationTask implements PreparedSt
         READ_EXECUTE_RESPONSE,
         READ_RESULT_SET,
 
+        STATEMENT_END,
         RESET_STMT,
         FETCH_RESULT,
         READ_FETCH_RESULT,

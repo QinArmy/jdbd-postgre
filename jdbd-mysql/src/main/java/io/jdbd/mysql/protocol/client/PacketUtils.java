@@ -39,6 +39,7 @@ public abstract class PacketUtils {
     public static final int COM_STMT_EXECUTE = 0x17;
 
     public static final int COM_STMT_SEND_LONG_DATA = 0x18;
+    public static final int COM_STMT_CLOSE = 0x19;
 
     public static final int COM_STMT_RESET = 0x1A;
     public static final int COM_QUIT_HEADER = 0x01;
