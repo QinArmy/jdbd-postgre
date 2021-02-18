@@ -3,11 +3,13 @@ package io.jdbd.mysql.protocol.client;
 import io.jdbd.BindParameterException;
 import io.jdbd.SQLBindParameterException;
 import io.jdbd.mysql.SQLMode;
+import io.jdbd.mysql.Server;
 import io.jdbd.mysql.protocol.Constants;
 import io.jdbd.mysql.protocol.conf.Properties;
 import io.jdbd.mysql.protocol.conf.PropertyKey;
 import io.jdbd.mysql.util.MySQLConvertUtils;
 import io.jdbd.mysql.util.MySQLExceptionUtils;
+import io.jdbd.mysql.util.MySQLTimeUtils;
 import io.jdbd.vendor.SQLStatement;
 import io.netty.buffer.ByteBuf;
 import org.reactivestreams.Publisher;
@@ -26,7 +28,9 @@ import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
-import java.time.Year;
+import java.time.*;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.List;
 import java.util.function.Supplier;
 
@@ -35,6 +39,12 @@ import java.util.function.Supplier;
  * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_com_query.html">Protocol::COM_QUERY</a>
  */
 final class ComQueryCommandWriter implements StatementCommandWriter {
+
+    private final static byte[] HEX_DIGITS = new byte[]{
+            (byte) '0', (byte) '1', (byte) '2', (byte) '3'
+            , (byte) '4', (byte) '5', (byte) '6', (byte) '7'
+            , (byte) '8', (byte) '9', (byte) 'A', (byte) 'B'
+            , (byte) 'C', (byte) 'D', (byte) 'E', (byte) 'F'};
 
     private final SQLStatement sqlStatement;
 
@@ -46,6 +56,8 @@ final class ComQueryCommandWriter implements StatementCommandWriter {
 
     private final boolean noAnsiQuotes;
 
+    private final boolean hexEscape;
+
     private final Charset clientCharset;
 
     ComQueryCommandWriter(SQLStatement sqlStatement, Supplier<Integer> sequenceIdSupplier
@@ -53,9 +65,12 @@ final class ComQueryCommandWriter implements StatementCommandWriter {
         this.sqlStatement = sqlStatement;
         this.sequenceIdSupplier = sequenceIdSupplier;
         this.adjutant = adjutant;
-
         this.properties = adjutant.obtainHostInfo().getProperties();
-        this.noAnsiQuotes = !this.adjutant.obtainServer().containSqlMode(SQLMode.ANSI_QUOTES);
+
+        Server server = this.adjutant.obtainServer();
+
+        this.noAnsiQuotes = server.containSqlMode(SQLMode.ANSI_QUOTES);
+        this.hexEscape = server.containSqlMode(SQLMode.NO_BACKSLASH_ESCAPES);
         this.clientCharset = adjutant.obtainCharsetClient();
     }
 
@@ -75,6 +90,9 @@ final class ComQueryCommandWriter implements StatementCommandWriter {
 
     /*################################## blow private method ##################################*/
 
+    /**
+     * @see #writeCommand(List)
+     */
     private void emitComQueryPacket(final List<BindValue> parameterGroup, final FluxSink<ByteBuf> sink) {
         final int parameterCount = parameterGroup.size();
         final byte[][] staticSql = this.sqlStatement.getStaticSql();
@@ -89,8 +107,8 @@ final class ComQueryCommandWriter implements StatementCommandWriter {
         ByteBuf packet = createComQueryPacket();
         int i = 0;
         try {
-            final Charset charset = this.adjutant.obtainCharsetClient();
-            final byte[] nullBytes = Constants.NULL.getBytes(charset);
+
+            final byte[] nullBytes = Constants.NULL.getBytes(this.clientCharset);
             for (i = 0; i < parameterCount; i++) {
 
                 packet.writeBytes(staticSql[i]);
@@ -122,7 +140,7 @@ final class ComQueryCommandWriter implements StatementCommandWriter {
             PacketUtils.publishBigPacket(packet, sink, this.sequenceIdSupplier
                     , this.adjutant::createByteBuffer, true);
         } catch (IOException e) {
-            // don't  packet.release();
+            // don't  packet.release(), because bindParameter method have handled.
             sink.error(new BindParameterException(e, i, "Bind parameter[%s] write error.", i));
         } catch (Throwable e) {
             packet.release();
@@ -131,6 +149,9 @@ final class ComQueryCommandWriter implements StatementCommandWriter {
 
     }
 
+    /**
+     * @see #emitComQueryPacket(List, FluxSink)
+     */
     private ByteBuf createComQueryPacket() {
         int capacity = 1 + this.sqlStatement.getSql().length();
         ByteBuf packet = this.adjutant.createPacketBuffer(capacity);
@@ -138,10 +159,13 @@ final class ComQueryCommandWriter implements StatementCommandWriter {
         return packet;
     }
 
-
+    /**
+     * @see #emitComQueryPacket(List, FluxSink)
+     */
     private ByteBuf bindParameter(final BindValue bindValue, final ByteBuf buffer, final FluxSink<ByteBuf> sink)
             throws Exception {
-        ByteBuf newBuffer = buffer;
+
+        final ByteBuf newBuffer;
 
         switch (bindValue.getType()) {
             case TINYINT:
@@ -160,15 +184,21 @@ final class ComQueryCommandWriter implements StatementCommandWriter {
             case DOUBLE_UNSIGNED:
             case DECIMAL:
             case DECIMAL_UNSIGNED:
-            case YEAR:
+            case YEAR: {
                 bindToNumber(bindValue, buffer);
-                break;
-            case BOOLEAN:
+                newBuffer = buffer;
+            }
+            break;
+            case BOOLEAN: {
                 bindToBoolean(bindValue, buffer);
-                break;
-            case BIT:
+                newBuffer = buffer;
+            }
+            break;
+            case BIT: {
                 buffer.writeBytes(BindUtils.bindToBits(bindValue, buffer).getBytes(this.clientCharset));
-                break;
+                newBuffer = buffer;
+            }
+            break;
             case VARCHAR:
             case CHAR:
             case SET:
@@ -187,13 +217,22 @@ final class ComQueryCommandWriter implements StatementCommandWriter {
             case LONGBLOB:
                 newBuffer = bindToBytes(bindValue, buffer, sink);
                 break;
-            case TIME:
-                break;
-            case DATE:
+            case TIME: {
+                bindToTime(bindValue, buffer);
+                newBuffer = buffer;
+            }
+            break;
+            case DATE: {
+                bindToDate(bindValue, buffer);
+                newBuffer = buffer;
+            }
+            break;
             case DATETIME:
-            case TIMESTAMP:
-
-                break;
+            case TIMESTAMP: {
+                bindToDateTime(bindValue, buffer);
+                newBuffer = buffer;
+            }
+            break;
             case UNKNOWN:
             case GEOMETRY:
                 //TODO add code
@@ -265,9 +304,6 @@ final class ComQueryCommandWriter implements StatementCommandWriter {
         final Object nonNull = bindValue.getRequiredValue();
 
         ByteBuf newPacket = packetBuffer;
-        // 1. write quote char
-        packetBuffer.writeByte(Constants.QUOTE_CHAR_BYTE);
-        // 2. write bytes with escapes.
         if (nonNull instanceof byte[]) {
             byte[] bytes = (byte[]) nonNull;
             writeByteEscapes(packetBuffer, bytes, bytes.length);
@@ -275,7 +311,8 @@ final class ComQueryCommandWriter implements StatementCommandWriter {
             byte[] bytes = nonNull.toString().getBytes(this.clientCharset);
             writeByteEscapes(packetBuffer, bytes, bytes.length);
         } else if (nonNull instanceof InputStream) {
-            newPacket = writeInputStream(bindValue, packetBuffer, (InputStream) nonNull, sink);
+            newPacket = writeInputStream(bindValue, packetBuffer, (InputStream) nonNull, sink
+                    , this.properties.getOrDefault(PropertyKey.autoClosePStmtStreams, Boolean.class));
         } else if (nonNull instanceof Reader) {
             newPacket = writeReader(bindValue, packetBuffer, (Reader) nonNull, sink);
         } else if (nonNull instanceof char[]) {
@@ -284,42 +321,97 @@ final class ComQueryCommandWriter implements StatementCommandWriter {
         } else if (nonNull instanceof ReadableByteChannel) {
             newPacket = writeChannel(bindValue, packetBuffer, (ReadableByteChannel) nonNull, sink);
         } else if (nonNull instanceof Path) {
-            newPacket = writePath(packetBuffer, (Path) nonNull, sink);
+            try (InputStream input = Files.newInputStream((Path) nonNull, StandardOpenOption.READ)) {
+                newPacket = writeInputStream(bindValue, packetBuffer, input, sink, false);
+            }
         } else {
             throw BindUtils.createTypeNotMatchException(bindValue);
         }
-        // 3. write quote char
-        packetBuffer.writeByte(Constants.QUOTE_CHAR_BYTE);
         return newPacket;
 
     }
 
     /**
-     * @see #bindToBytes(BindValue, ByteBuf, FluxSink)
+     * @see #bindParameter(BindValue, ByteBuf, FluxSink)
      */
-    private ByteBuf writePath(final ByteBuf packetBuffer
-            , final Path path, final FluxSink<ByteBuf> sink) throws IOException {
-        ByteBuf packet = packetBuffer;
-        try (InputStream input = Files.newInputStream(path, StandardOpenOption.READ)) {
-            final byte[] bufferArray = new byte[2048];
-            int length;
-            while ((length = input.read(bufferArray)) > 0) {
+    private void bindToTime(final BindValue bindValue, final ByteBuf packetBuffer) {
+        final Object nonNull = bindValue.getRequiredValue();
 
-                writeByteEscapes(packetBuffer, bufferArray, length);
-
-                if (packet.readableBytes() >= PacketUtils.MAX_PACKET) {
-                    packet = PacketUtils.publishAndCutBigPacket(packet, sink, this.sequenceIdSupplier
-                            , this.adjutant::createByteBuffer);
-                }
-            }
-            return packet;
-        } catch (IOException e) {
-            packet.release();
-            throw e;
+        final String text;
+        if (nonNull instanceof LocalTime) {
+            LocalTime time = (LocalTime) nonNull;
+            text = OffsetTime.of(time, this.adjutant.obtainZoneOffsetClient())
+                    .withOffsetSameInstant(this.adjutant.obtainZoneOffsetDatabase())
+                    .toLocalTime()
+                    .format(MySQLTimeUtils.MYSQL_TIME_FORMATTER);
+        } else if (nonNull instanceof OffsetTime) {
+            text = ((OffsetTime) nonNull).withOffsetSameInstant(this.adjutant.obtainZoneOffsetDatabase())
+                    .toLocalTime()
+                    .format(MySQLTimeUtils.MYSQL_TIME_FORMATTER);
+        } else if (nonNull instanceof String) {
+            text = parseAndFormatTime((String) nonNull, bindValue);
+        } else {
+            throw BindUtils.createTypeNotMatchException(bindValue);
         }
 
+        packetBuffer.writeBytes(text.getBytes(this.clientCharset));
 
     }
+
+    /**
+     * @see #bindParameter(BindValue, ByteBuf, FluxSink)
+     */
+    private void bindToDate(final BindValue bindValue, final ByteBuf packetBuffer) {
+        final Object nonNull = bindValue.getRequiredValue();
+
+        final String text;
+        if (nonNull instanceof LocalDate) {
+            text = ((LocalDate) nonNull).format(DateTimeFormatter.ISO_LOCAL_DATE);
+        } else if (nonNull instanceof String) {
+            try {
+                text = (String) nonNull;
+                LocalDate.parse(text, DateTimeFormatter.ISO_LOCAL_DATE);
+            } catch (DateTimeParseException e) {
+                throw BindUtils.createTypeNotMatchException(bindValue, e);
+            }
+        } else {
+            throw BindUtils.createTypeNotMatchException(bindValue);
+        }
+
+        packetBuffer.writeBytes(text.getBytes(this.clientCharset));
+
+    }
+
+    /**
+     * @see #bindParameter(BindValue, ByteBuf, FluxSink)
+     */
+    private void bindToDateTime(final BindValue bindValue, final ByteBuf packetBuffer) {
+        final Object nonNull = bindValue.getRequiredValue();
+
+        final String text;
+        if (nonNull instanceof LocalDateTime) {
+            text = OffsetDateTime.of((LocalDateTime) nonNull, this.adjutant.obtainZoneOffsetClient())
+                    .withOffsetSameInstant(this.adjutant.obtainZoneOffsetDatabase())
+                    .toLocalDateTime()
+                    .format(MySQLTimeUtils.MYSQL_DATETIME_FORMATTER);
+        } else if (nonNull instanceof OffsetDateTime) {
+            text = ((OffsetDateTime) nonNull).withOffsetSameInstant(this.adjutant.obtainZoneOffsetDatabase())
+                    .toLocalDateTime()
+                    .format(MySQLTimeUtils.MYSQL_DATETIME_FORMATTER);
+        } else if (nonNull instanceof ZonedDateTime) {
+            text = ((ZonedDateTime) nonNull).withZoneSameInstant(this.adjutant.obtainZoneOffsetDatabase())
+                    .toLocalDateTime()
+                    .format(MySQLTimeUtils.MYSQL_DATETIME_FORMATTER);
+        } else if (nonNull instanceof String) {
+            text = parseAndFormatDateTime((String) nonNull, bindValue);
+        } else {
+            throw BindUtils.createTypeNotMatchException(bindValue);
+        }
+
+        packetBuffer.writeBytes(text.getBytes(this.clientCharset));
+
+    }
+
 
     /**
      * @see #bindToBytes(BindValue, ByteBuf, FluxSink)
@@ -328,20 +420,29 @@ final class ComQueryCommandWriter implements StatementCommandWriter {
             , final ReadableByteChannel channel, final FluxSink<ByteBuf> sink) throws IOException {
         ByteBuf packet = packetBuffer;
         try {
+            final boolean hexEscapes = this.hexEscape;
+            // 1. write quote char
+            if (hexEscapes) {
+                packet.writeByte('X');
+            }
+            packet.writeByte(Constants.QUOTE_CHAR_BYTE);
+            // 2. write hex or bytes with escapes.
             final byte[] bufferArray = new byte[2048];
-
             final ByteBuffer byteBuffer = ByteBuffer.wrap(bufferArray);
-
             while (channel.read(byteBuffer) > 0) {
-
-                writeByteEscapes(packetBuffer, bufferArray, byteBuffer.remaining());
-
+                if (hexEscapes) {
+                    writeHexEscapes(packet, bufferArray, byteBuffer.remaining());
+                } else {
+                    writeByteEscapes(packet, bufferArray, byteBuffer.remaining());
+                }
                 byteBuffer.clear();
                 if (packet.readableBytes() >= PacketUtils.MAX_PACKET) {
                     packet = PacketUtils.publishAndCutBigPacket(packet, sink, this.sequenceIdSupplier
                             , this.adjutant::createByteBuffer);
                 }
             }
+            // 3. write quote char
+            packet.writeByte(Constants.QUOTE_CHAR_BYTE);
             return packet;
         } catch (IOException e) {
             packet.release();
@@ -367,18 +468,31 @@ final class ComQueryCommandWriter implements StatementCommandWriter {
             , final FluxSink<ByteBuf> sink) throws IOException {
         ByteBuf packet = packetBuffer;
         try {
+            final boolean hexEscapes = this.hexEscape;
+            // 1. write quote char
+            if (hexEscapes) {
+                packet.writeByte('X');
+            }
+            packet.writeByte(Constants.QUOTE_CHAR_BYTE);
+
+            // 2. write hex or bytes with escapes.
             final CharBuffer charBuffer = CharBuffer.allocate(1024);
             final Charset clientCharset = this.clientCharset;
             ByteBuffer byteBuffer;
             byte[] bufferArray;
-            while (reader.read(charBuffer) > 0) {//1. read char
-                byteBuffer = clientCharset.encode(charBuffer); // 2. encode char'
+            while (reader.read(charBuffer) > 0) {//2-1. read char
+                byteBuffer = clientCharset.encode(charBuffer); // 2-2. encode char
 
-                //3. write bytes with escapes.
+                //2-3. write bytes with escapes.
                 bufferArray = new byte[byteBuffer.remaining()];
                 byteBuffer.get(bufferArray);
-                writeByteEscapes(packetBuffer, bufferArray, bufferArray.length);
 
+                if (hexEscapes) {
+                    writeHexEscapes(packet, bufferArray, bufferArray.length);
+                } else {
+                    writeByteEscapes(packet, bufferArray, bufferArray.length);
+                }
+                //2-4. clear charBuffer for next
                 charBuffer.clear();
 
                 if (packet.readableBytes() >= PacketUtils.MAX_PACKET) {
@@ -386,6 +500,8 @@ final class ComQueryCommandWriter implements StatementCommandWriter {
                             , this.adjutant::createByteBuffer);
                 }
             }
+            // 3. write quote char
+            packet.writeByte(Constants.QUOTE_CHAR_BYTE);
             return packet;
         } catch (IOException e) {
             packet.release();
@@ -407,26 +523,39 @@ final class ComQueryCommandWriter implements StatementCommandWriter {
      * @see #bindToBytes(BindValue, ByteBuf, FluxSink)
      */
     private ByteBuf writeInputStream(final BindValue bindValue, final ByteBuf packetBuffer, final InputStream input
-            , final FluxSink<ByteBuf> sink) throws IOException {
+            , final FluxSink<ByteBuf> sink, final boolean autoClose) throws IOException {
         ByteBuf packet = packetBuffer;
         try {
-            final byte[] bufferArray = new byte[2048];
-            int length;
-            while ((length = input.read(bufferArray)) > 0) {
+            final boolean hexEscapes = this.hexEscape;
+            // 1. write quote char
+            if (hexEscapes) {
+                packet.writeByte('X');
+            }
+            packet.writeByte(Constants.QUOTE_CHAR_BYTE);
 
-                writeByteEscapes(packetBuffer, bufferArray, length);
+            // 2. write hex or bytes with escapes.
+            int length;
+            final byte[] bufferArray = new byte[2048];
+            while ((length = input.read(bufferArray)) > 0) {
+                if (hexEscapes) {
+                    writeHexEscapes(packet, bufferArray, length);
+                } else {
+                    writeByteEscapes(packet, bufferArray, length);
+                }
 
                 if (packet.readableBytes() >= PacketUtils.MAX_PACKET) {
                     packet = PacketUtils.publishAndCutBigPacket(packet, sink, this.sequenceIdSupplier
                             , this.adjutant::createByteBuffer);
                 }
             }
+            // 3. write quote char
+            packet.writeByte(Constants.QUOTE_CHAR_BYTE);
             return packet;
         } catch (IOException e) {
             packet.release();
             throw e;
         } finally {
-            if (this.properties.getOrDefault(PropertyKey.autoClosePStmtStreams, Boolean.class)) {
+            if (autoClose) {
                 try {
                     input.close();
                 } catch (IOException e) {
@@ -440,6 +569,12 @@ final class ComQueryCommandWriter implements StatementCommandWriter {
     }
 
 
+    /**
+     * @see #writeInputStream(BindValue, ByteBuf, InputStream, FluxSink, boolean)
+     * @see #writeReader(BindValue, ByteBuf, Reader, FluxSink)
+     * @see #writeChannel(BindValue, ByteBuf, ReadableByteChannel, FluxSink)
+     * @see #bindToBytes(BindValue, ByteBuf, FluxSink)
+     */
     private void writeByteEscapes(final ByteBuf buffer, final byte[] bytes, final int length) {
         if (length < 0 || length > bytes.length) {
             throw new IllegalArgumentException(String.format(
@@ -475,5 +610,60 @@ final class ComQueryCommandWriter implements StatementCommandWriter {
 
     }
 
+    /**
+     * @see #writeInputStream(BindValue, ByteBuf, InputStream, FluxSink, boolean)
+     * @see #writeReader(BindValue, ByteBuf, Reader, FluxSink)
+     * @see #writeChannel(BindValue, ByteBuf, ReadableByteChannel, FluxSink)
+     * @see #bindToBytes(BindValue, ByteBuf, FluxSink)
+     */
+    private void writeHexEscapes(final ByteBuf buffer, final byte[] bytes, final int length) {
+
+        final byte[] hexDigits = HEX_DIGITS;
+        for (int i = 0; i < length; i++) {
+            byte b = bytes[i];
+
+            buffer.writeByte(hexDigits[(b >> 0x4) & 0xF]); // write highBits
+            buffer.writeByte(hexDigits[b & 0xF]);          // write lowBits
+        }
+
+    }
+
+    /**
+     * @see #bindToTime(BindValue, ByteBuf)
+     */
+    private String parseAndFormatTime(final String timeText, final BindValue bindValue) {
+        final LocalTime time;
+        try {
+            time = OffsetTime.of(LocalTime.parse(timeText, MySQLTimeUtils.MYSQL_TIME_FORMATTER)
+                    , this.adjutant.obtainZoneOffsetClient())
+                    .withOffsetSameInstant(this.adjutant.obtainZoneOffsetDatabase())
+                    .toLocalTime();
+        } catch (DateTimeParseException e) {
+            throw BindUtils.createTypeNotMatchException(bindValue, e);
+        }
+        final int index = timeText.lastIndexOf('.');
+        return time.format(BindUtils.obtainTimeFormatter(index < 0 ? 0 : timeText.length() - index));
+
+    }
+
+
+    /**
+     * @see #bindToDateTime(BindValue, ByteBuf)
+     */
+    private String parseAndFormatDateTime(final String dateTimeText, final BindValue bindValue) {
+        final LocalDateTime dateTime;
+        try {
+            dateTime = OffsetDateTime.of(LocalDateTime.parse(dateTimeText, MySQLTimeUtils.MYSQL_DATETIME_FORMATTER)
+                    , this.adjutant.obtainZoneOffsetClient())
+                    .withOffsetSameInstant(this.adjutant.obtainZoneOffsetDatabase())
+                    .toLocalDateTime();
+        } catch (DateTimeParseException e) {
+            throw BindUtils.createTypeNotMatchException(bindValue, e);
+        }
+
+        final int index = dateTimeText.lastIndexOf('.');
+        return dateTime.format(BindUtils.obtainDateTimeFormatter(index < 0 ? 0 : dateTimeText.length() - index));
+
+    }
 
 }

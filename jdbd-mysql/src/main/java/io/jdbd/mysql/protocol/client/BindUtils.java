@@ -2,10 +2,13 @@ package io.jdbd.mysql.protocol.client;
 
 import io.jdbd.BindParameterException;
 import io.jdbd.mysql.util.MySQLStringUtils;
+import io.jdbd.mysql.util.MySQLTimeUtils;
 import io.netty.buffer.ByteBuf;
+import reactor.util.annotation.Nullable;
 
 import java.math.BigDecimal;
 import java.math.BigInteger;
+import java.time.format.DateTimeFormatter;
 
 abstract class BindUtils {
 
@@ -55,16 +58,86 @@ abstract class BindUtils {
     }
 
 
+    static DateTimeFormatter obtainTimeFormatter(final int microPrecision) {
+        final DateTimeFormatter formatter;
+        switch (microPrecision) {
+            case 0:
+                formatter = MySQLTimeUtils.MYSQL_TIME_FORMATTER_0;
+                break;
+            case 6:
+                formatter = MySQLTimeUtils.MYSQL_TIME_FORMATTER;
+                break;
+            case 1:
+                formatter = MySQLTimeUtils.MYSQL_TIME_FORMATTER_1;
+                break;
+            case 2:
+                formatter = MySQLTimeUtils.MYSQL_TIME_FORMATTER_2;
+                break;
+            case 3:
+                formatter = MySQLTimeUtils.MYSQL_TIME_FORMATTER_3;
+                break;
+            case 4:
+                formatter = MySQLTimeUtils.MYSQL_TIME_FORMATTER_4;
+                break;
+            case 5:
+                formatter = MySQLTimeUtils.MYSQL_TIME_FORMATTER_5;
+                break;
+            default:
+                throw new IllegalArgumentException(String.format("microPrecision[%s] error", microPrecision));
+
+        }
+
+        return formatter;
+    }
+
+    static DateTimeFormatter obtainDateTimeFormatter(final int microPrecision) {
+        final DateTimeFormatter formatter;
+
+        switch (microPrecision) {
+            case 0:
+                formatter = MySQLTimeUtils.MYSQL_DATETIME_FORMATTER_0;
+                break;
+            case 6:
+                formatter = MySQLTimeUtils.MYSQL_DATETIME_FORMATTER;
+                break;
+            case 1:
+                formatter = MySQLTimeUtils.MYSQL_DATETIME_FORMATTER_1;
+                break;
+            case 2:
+                formatter = MySQLTimeUtils.MYSQL_DATETIME_FORMATTER_2;
+                break;
+            case 3:
+                formatter = MySQLTimeUtils.MYSQL_DATETIME_FORMATTER_3;
+                break;
+            case 4:
+                formatter = MySQLTimeUtils.MYSQL_DATETIME_FORMATTER_4;
+                break;
+            case 5:
+                formatter = MySQLTimeUtils.MYSQL_DATETIME_FORMATTER_5;
+                break;
+            default:
+                throw new IllegalArgumentException(String.format("microPrecision[%s] error.", microPrecision));
+
+        }
+
+        return formatter;
+
+    }
+
+
     /*################################## blow private exception ##################################*/
 
-
     static BindParameterException createTypeNotMatchException(BindValue bindValue) {
-        return new BindParameterException(
-                String.format("Bind parameter[%s] MySQLType[%s] and JavaType[%s] value not match."
-                        , bindValue.getParamIndex()
-                        , bindValue.getType()
-                        , bindValue.getRequiredValue().getClass().getName())
-                , bindValue.getParamIndex());
+        return createTypeNotMatchException(bindValue, null);
+    }
+
+    static BindParameterException createTypeNotMatchException(BindValue bindValue, @Nullable Throwable cause) {
+        return new BindParameterException(cause, bindValue.getParamIndex()
+                , "Bind parameter[%s] MySQLType[%s] and JavaType[%s] value not match."
+                , bindValue.getParamIndex()
+                , bindValue.getType()
+                , bindValue.getRequiredValue().getClass().getName()
+        );
     }
 
     static BindParameterException createNotSupportFractionException(BindValue bindValue) {
@@ -81,4 +154,6 @@ abstract class BindUtils {
                 , bindValue.getParamIndex());
 
     }
+
+
 }

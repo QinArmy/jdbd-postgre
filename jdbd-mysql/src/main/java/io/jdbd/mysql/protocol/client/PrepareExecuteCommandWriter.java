@@ -7,6 +7,7 @@ import io.jdbd.mysql.protocol.conf.Properties;
 import io.jdbd.mysql.protocol.conf.PropertyKey;
 import io.jdbd.mysql.util.MySQLExceptionUtils;
 import io.jdbd.mysql.util.MySQLNumberUtils;
+import io.jdbd.mysql.util.MySQLTimeUtils;
 import io.jdbd.type.Geometry;
 import io.netty.buffer.ByteBuf;
 import org.reactivestreams.Publisher;
@@ -17,6 +18,7 @@ import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.nio.charset.Charset;
 import java.time.*;
+import java.time.format.DateTimeParseException;
 import java.time.temporal.ChronoField;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -54,6 +56,7 @@ final class PrepareExecuteCommandWriter implements StatementCommandWriter {
         this.properties = adjutant.obtainHostInfo().getProperties();
         this.longParameterWriter = new PrepareLongParameterWriter(statementId, adjutant, sequenceIdSupplier);
     }
+
 
     @Override
     public Publisher<ByteBuf> writeCommand(final List<BindValue> parameterGroup) {
@@ -690,14 +693,15 @@ final class PrepareExecuteCommandWriter implements StatementCommandWriter {
     private void bindToTime(final ByteBuf buffer, final MySQLColumnMeta parameterMeta, final BindValue bindValue) {
         final Object nonNullValue = bindValue.getRequiredValue();
 
-        final int length;
+        final int length, microPrecision;
         if (parameterMeta.decimals > 0 && parameterMeta.decimals < 7) {
+            microPrecision = parameterMeta.decimals;
             length = 12;
         } else {
-            int decimal = (int) (parameterMeta.length - 11L);
-            if (decimal == 0) {
+            microPrecision = (int) (parameterMeta.length - 11L);
+            if (microPrecision == 0) {
                 length = 8;
-            } else if (decimal < 7) {
+            } else if (microPrecision < 7) {
                 length = 12;
             } else {
                 throw new BindParameterException(String.format("Parameter[%s] meta length[%s] error,"
@@ -733,7 +737,8 @@ final class PrepareExecuteCommandWriter implements StatementCommandWriter {
             buffer.writeByte((int) temp); //6. second
             duration = duration.minusSeconds(temp);
             if (length == 12) {
-                PacketUtils.writeInt4(buffer, (int) duration.toMillis());//7, micro seconds
+                //7, micro seconds
+                PacketUtils.writeInt4(buffer, truncateMicroSeconds((int) duration.toMillis(), microPrecision));
             }
             return;
         }
@@ -746,6 +751,16 @@ final class PrepareExecuteCommandWriter implements StatementCommandWriter {
         } else if (nonNullValue instanceof OffsetTime) {
             time = ((OffsetTime) nonNullValue).withOffsetSameInstant(this.adjutant.obtainZoneOffsetDatabase())
                     .toLocalTime();
+        } else if (nonNullValue instanceof String) {
+            String timeText = (String) nonNullValue;
+            try {
+                time = OffsetTime.of(LocalTime.parse(timeText, MySQLTimeUtils.MYSQL_TIME_FORMATTER)
+                        , this.adjutant.obtainZoneOffsetClient())
+                        .withOffsetSameInstant(this.adjutant.obtainZoneOffsetDatabase())
+                        .toLocalTime();
+            } catch (DateTimeParseException e) {
+                throw BindUtils.createTypeNotMatchException(bindValue, e);
+            }
         } else {
             throw BindUtils.createTypeNotMatchException(bindValue);
         }
@@ -759,7 +774,9 @@ final class PrepareExecuteCommandWriter implements StatementCommandWriter {
             buffer.writeByte(time.getSecond()); ///6. second
 
             if (length == 12) {
-                PacketUtils.writeInt4(buffer, time.get(ChronoField.MICRO_OF_SECOND));//7, micro seconds
+                //7, micro seconds
+                PacketUtils.writeInt4(buffer
+                        , truncateMicroSeconds(time.get(ChronoField.MICRO_OF_SECOND), microPrecision));
             }
         }
 
@@ -797,14 +814,15 @@ final class PrepareExecuteCommandWriter implements StatementCommandWriter {
             throw BindUtils.createTypeNotMatchException(bindValue);
         }
 
-        final int length;
+        final int length, microPrecision;
         if (parameterMeta.decimals > 0 && parameterMeta.decimals < 7) {
+            microPrecision = parameterMeta.decimals;
             length = 11;
         } else {
-            int decimal = (int) (parameterMeta.length - 20L);
-            if (decimal == 0) {
+            microPrecision = (int) (parameterMeta.length - 20L);
+            if (microPrecision == 0) {
                 length = 7;
-            } else if (decimal < 7) {
+            } else if (microPrecision < 7) {
                 length = 11;
             } else {
                 throw new BindParameterException(String.format("Parameter[%s] meta length[%s] error,"
@@ -822,7 +840,9 @@ final class PrepareExecuteCommandWriter implements StatementCommandWriter {
         buffer.writeByte(dateTime.getSecond()); // second
 
         if (length == 11) {
-            PacketUtils.writeInt4(buffer, dateTime.get(ChronoField.MICRO_OF_SECOND));// micro second
+            // micro second
+            PacketUtils.writeInt4(buffer
+                    , truncateMicroSeconds(dateTime.get(ChronoField.MICRO_OF_SECOND), microPrecision));
         }
 
     }
@@ -858,6 +878,43 @@ final class PrepareExecuteCommandWriter implements StatementCommandWriter {
             throw BindUtils.createTypeNotMatchException(bindValue);
         }
 
+    }
+
+
+    /*################################## blow private static method ##################################*/
+
+    /**
+     * @see #bindToTime(ByteBuf, MySQLColumnMeta, BindValue)
+     * @see #bindToDatetime(ByteBuf, MySQLColumnMeta, BindValue)
+     */
+    private static int truncateMicroSeconds(final int microSeconds, final int precision) {
+        final int newMicroSeconds;
+        switch (precision) {
+            case 0:
+                newMicroSeconds = 0;
+                break;
+            case 1:
+            case 2:
+            case 3:
+            case 4:
+            case 5:
+            case 6: {
+                int micro = microSeconds % 100_0000;
+                int unit = 1;
+                final int num = 6 - precision;
+                for (int i = 0; i < num; i++) {
+                    unit *= 10;
+                }
+                if (unit > 0) {
+                    micro -= (micro % unit);
+                }
+                newMicroSeconds = micro;
+            }
+            break;
+            default:
+                throw new IllegalArgumentException(String.format("precision[%s] not in [0,6]", precision));
+        }
+        return newMicroSeconds;
     }
 
 
@@ -962,8 +1019,6 @@ final class PrepareExecuteCommandWriter implements StatementCommandWriter {
         }
         return num.intValue();
     }
-
-
 
 
     interface LongParameterWriter {
