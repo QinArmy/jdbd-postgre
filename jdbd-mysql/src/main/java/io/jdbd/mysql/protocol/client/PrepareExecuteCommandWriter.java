@@ -675,21 +675,8 @@ final class PrepareExecuteCommandWriter implements StatementCommandWriter {
     private void bindToTime(final ByteBuf buffer, final MySQLColumnMeta parameterMeta, final BindValue bindValue) {
         final Object nonNullValue = bindValue.getRequiredValue();
 
-        final int length, microPrecision;
-        if (parameterMeta.decimals > 0 && parameterMeta.decimals < 7) {
-            microPrecision = parameterMeta.decimals;
-            length = 12;
-        } else {
-            microPrecision = (int) (parameterMeta.length - 11L);
-            if (microPrecision == 0) {
-                length = 8;
-            } else if (microPrecision < 7) {
-                length = 12;
-            } else {
-                throw new BindParameterException(String.format("Parameter[%s] meta length[%s] error,"
-                        , bindValue.getParamIndex(), parameterMeta.length), bindValue.getParamIndex());
-            }
-        }
+        final int microPrecision = MySQLColumnMeta.obtainDateTimeTypePrecision(parameterMeta);
+        final int length = microPrecision > 0 ? 12 : 8;
 
         if (nonNullValue instanceof Duration) {
             Duration duration = (Duration) nonNullValue;
@@ -822,21 +809,8 @@ final class PrepareExecuteCommandWriter implements StatementCommandWriter {
             throw BindUtils.createTypeNotMatchException(bindValue);
         }
 
-        final int length, microPrecision;
-        if (parameterMeta.decimals > 0 && parameterMeta.decimals < 7) {
-            microPrecision = parameterMeta.decimals;
-            length = 11;
-        } else {
-            microPrecision = (int) (parameterMeta.length - 20L);
-            if (microPrecision == 0) {
-                length = 7;
-            } else if (microPrecision < 7) {
-                length = 11;
-            } else {
-                throw new BindParameterException(String.format("Parameter[%s] meta length[%s] error,"
-                        , bindValue.getParamIndex(), parameterMeta.length), bindValue.getParamIndex());
-            }
-        }
+        final int microPrecision = MySQLColumnMeta.obtainDateTimeTypePrecision(parameterMeta);
+        final int length = microPrecision > 0 ? 11 : 7;
         buffer.writeByte(length); // length
 
         PacketUtils.writeInt2(buffer, dateTime.getYear()); // year

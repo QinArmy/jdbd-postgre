@@ -144,17 +144,11 @@ public final class MySQLColumnMeta {
                 precision = 0L;
                 break;
             case TIME:
-                precision = this.length - 11L;
-                if (precision < 0) {
-                    precision = 0;
-                }
+                precision = obtainTimeTypePrecision(this);
                 break;
             case TIMESTAMP:
             case DATETIME:
-                precision = this.length - 20L;
-                if (precision < 0) {
-                    precision = 0;
-                }
+                precision = obtainDateTimeTypePrecision(this);
                 break;
             default:
                 precision = -1;
@@ -182,6 +176,32 @@ public final class MySQLColumnMeta {
         sb.append(",\n mysqlType=").append(mysqlType);
         sb.append('}');
         return sb.toString();
+    }
+
+    static int obtainTimeTypePrecision(MySQLColumnMeta columnMeta) {
+        final int precision;
+        if (columnMeta.decimals > 0 && columnMeta.decimals < 7) {
+            precision = columnMeta.decimals;
+        } else {
+            precision = (int) (columnMeta.length - 11L);
+            if (precision < 0 || precision > 6) {
+                throw new IllegalArgumentException(String.format("MySQLColumnMeta[%s] isn't time type.", columnMeta));
+            }
+        }
+        return precision;
+    }
+
+    static int obtainDateTimeTypePrecision(MySQLColumnMeta columnMeta) {
+        final int precision;
+        if (columnMeta.decimals > 0 && columnMeta.decimals < 7) {
+            precision = columnMeta.decimals;
+        } else {
+            precision = (int) (columnMeta.length - 20L);
+            if (precision < 0 || precision > 6) {
+                throw new IllegalArgumentException(String.format("MySQLColumnMeta[%s] isn't time type.", columnMeta));
+            }
+        }
+        return precision;
     }
 
     /**

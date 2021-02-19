@@ -439,7 +439,7 @@ public enum MySQLType implements SQLType {
         this.jdbcType = jdbcType;
         this.javaType = javaType;
 
-        this.parameterType = unsigned ? (128 | typeFlag) : typeFlag;
+        this.parameterType = unsigned ? (0B1000_0000 | typeFlag) : typeFlag;
     }
 
     @Override
@@ -514,25 +514,25 @@ public enum MySQLType implements SQLType {
     }
 
     private static MySQLType fromShort(MySQLColumnMeta columnMeta, Properties properties) {
-        return isUnsigned(columnMeta)
+        return columnMeta.isUnsigned()
                 ? SMALLINT_UNSIGNED
                 : SMALLINT;
     }
 
     private static MySQLType fromLong(MySQLColumnMeta columnMeta, Properties properties) {
-        return isUnsigned(columnMeta)
+        return columnMeta.isUnsigned()
                 ? INT_UNSIGNED
                 : INT;
     }
 
     private static MySQLType fromFloat(MySQLColumnMeta columnMeta, Properties properties) {
-        return isUnsigned(columnMeta)
+        return columnMeta.isUnsigned()
                 ? FLOAT_UNSIGNED
                 : FLOAT;
     }
 
     private static MySQLType fromDouble(MySQLColumnMeta columnMeta, Properties properties) {
-        return isUnsigned(columnMeta)
+        return columnMeta.isUnsigned()
                 ? DOUBLE_UNSIGNED
                 : DOUBLE;
     }
@@ -546,13 +546,13 @@ public enum MySQLType implements SQLType {
     }
 
     private static MySQLType fromLongLong(MySQLColumnMeta columnMeta, Properties properties) {
-        return isUnsigned(columnMeta)
+        return columnMeta.isUnsigned()
                 ? BIGINT_UNSIGNED
                 : BIGINT;
     }
 
     private static MySQLType fromInt24(MySQLColumnMeta columnMeta, Properties properties) {
-        return isUnsigned(columnMeta)
+        return columnMeta.isUnsigned()
                 ? MEDIUMINT_UNSIGNED
                 : MEDIUMINT;
     }

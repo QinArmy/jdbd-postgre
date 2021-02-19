@@ -273,8 +273,8 @@ public final class DefaultMultiResultsSink implements MultiResultsSink {
                         canComplete = !downstreamSubscriber.sink.isCancelled();
                     }
                 } catch (Throwable e) {
-                    downstreamSubscriber.sink.error(new ResultStateConsumerException(
-                            "stateConsumer throw exception", e));
+                    downstreamSubscriber.sink.error(new ResultStateConsumerException(e
+                            , "stateConsumer throw exception"));
                 }
                 if (canComplete) {
                     downstreamSubscriber.sink.complete();
@@ -389,7 +389,7 @@ public final class DefaultMultiResultsSink implements MultiResultsSink {
                 subscriber.statesConsumer.accept(resultStates);
                 downstreamSink.complete();
             } catch (Throwable e) {
-                downstreamSink.error(new ResultStateConsumerException("stateConsumer throw exception", e));
+                downstreamSink.error(new ResultStateConsumerException(e, "stateConsumer throw exception"));
             }
         } else {
             downstreamSink.error(databaseError);

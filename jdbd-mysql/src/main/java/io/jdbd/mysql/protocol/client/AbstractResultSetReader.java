@@ -213,7 +213,13 @@ abstract class AbstractResultSetReader implements ResultSetReader {
                 serverStatusConsumer.accept(tp.getStatusFags());
                 this.moreResults = (tp.getStatusFags() & ClientProtocol.SERVER_MORE_RESULTS_EXISTS) != 0;
                 if (noError()) {
-                    this.statesConsumer.accept(MySQLResultStates.from(tp));
+                    try {
+                        this.statesConsumer.accept(MySQLResultStates.from(tp));
+                        this.sink.complete();
+                    } catch (Throwable e) {
+                        this.sink.error(new ResultStateConsumerException(e, "Downstream consumer %s occur error."
+                                , ResultStates.class.getName()));
+                    }
                 }
                 resultSetEnd = true;
                 break;
@@ -290,8 +296,8 @@ abstract class AbstractResultSetReader implements ResultSetReader {
     final void emitError(Throwable e) {
         if (this.error == null) {
             this.error = e;
-            this.errorConsumer.accept(e);
         }
+        this.errorConsumer.accept(e);
     }
 
     final boolean noError() {

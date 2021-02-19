@@ -53,36 +53,31 @@ import java.util.function.Consumer;
  */
 final class ComPreparedTask extends MySQLCommunicationTask {
 
-    /**
-     * @param parameterGroup a modifiable list
-     */
-    static Flux<ResultRow> query(String sql, List<BindValue> parameterGroup, Consumer<ResultStates> statesConsumer
-            , MySQLTaskAdjutant adjutant) {
+
+    static Flux<ResultRow> query(StatementWrapper wrapper, MySQLTaskAdjutant adjutant) {
 
         return Flux.create(sink -> {
 
             // ComPreparedTask reference is hold by MySQLCommTaskExecutor.
-            new ComPreparedTask(adjutant, new QuerySink(sql, parameterGroup, sink, statesConsumer))
+            new ComPreparedTask(adjutant, new QuerySink(wrapper.getSql()
+                    , wrapper.getParameterGroup(), sink, wrapper.getStatesConsumer()))
                     .submit(sink::error);
         });
     }
 
-    /**
-     * @param parameterGroup a modifiable list
-     */
-    static Mono<ResultStates> update(String sql, List<BindValue> parameterGroup, MySQLTaskAdjutant adjutant) {
+    static Mono<ResultStates> update(StatementWrapper wrapper, MySQLTaskAdjutant adjutant) {
 
         return Mono.create(sink -> {
 
             // ComPreparedTask reference is hold by MySQLCommTaskExecutor.
-            new ComPreparedTask(adjutant, new UpdateSink(sql, parameterGroup, sink))
+            new ComPreparedTask(adjutant, new UpdateSink(wrapper.getSql(), wrapper.getParameterGroup(), sink))
                     .submit(sink::error);
         });
     }
 
-    static Flux<ResultStates> batchUpdate(String sql, List<List<BindValue>> groupList, MySQLTaskAdjutant adjutant) {
+    static Flux<ResultStates> batchUpdate(StatementWrapper wrapper, MySQLTaskAdjutant adjutant) {
         return Flux.create(sink -> {
-            new ComPreparedTask(adjutant, new BatchUpdateSink(sql, groupList, sink))
+            new ComPreparedTask(adjutant, new BatchUpdateSink(wrapper.getSql(), wrapper.getParameterGroupList(), sink))
                     .submit(sink::error);
         });
     }
@@ -168,7 +163,7 @@ final class ComPreparedTask extends MySQLCommunicationTask {
             switch (this.phase) {
                 case READ_PREPARE_RESPONSE: {
                     taskEnd = readPrepareResponse(cumulateBuffer);
-                    continueDecode = !taskEnd;
+                    continueDecode = !taskEnd && PacketUtils.hasOnePacket(cumulateBuffer);
                 }
                 break;
                 case READ_PREPARE_PARAM_META: {
@@ -193,7 +188,7 @@ final class ComPreparedTask extends MySQLCommunicationTask {
                 case READ_EXECUTE_RESPONSE: {
                     // maybe modify this.phase
                     taskEnd = readExecuteResponse(cumulateBuffer, serverStatusConsumer);
-                    continueDecode = PacketUtils.hasOnePacket(cumulateBuffer);
+                    continueDecode = false;
                 }
                 break;
                 case READ_RESULT_SET: {
@@ -201,12 +196,8 @@ final class ComPreparedTask extends MySQLCommunicationTask {
                     continueDecode = false;
                 }
                 break;
-                case PREPARED:
-                case EXECUTE:
-                case CLOSE_STMT:
-                    throw new IllegalStateException(String.format("this.phase[%s] error.", this.phase));
                 default:
-                    throw MySQLExceptionUtils.createUnknownEnumException(this.phase);
+                    throw new IllegalStateException(String.format("this.phase[%s] error.", this.phase));
             }
         }
         if (taskEnd) {
@@ -373,11 +364,19 @@ final class ComPreparedTask extends MySQLCommunicationTask {
         }
     }
 
+    /**
+     * @see #executeQueryStatement(QuerySink, MySQLColumnMeta[], StatementCommandWriter)
+     */
     private void readResultSetErrorEvent(Throwable e) {
-        if (this.adjutant.inEventLoop()) {
-            this.errorList.add(e);
+        if (e instanceof JdbdSQLException) {
+            this.downStreamSink.error(e);
         } else {
-            this.adjutant.execute(() -> this.errorList.add(e));
+            List<Throwable> errorList = this.errorList;
+            if (errorList == null) {
+                errorList = new ArrayList<>();
+                this.errorList = errorList;
+            }
+            errorList.add(e);
         }
     }
 
