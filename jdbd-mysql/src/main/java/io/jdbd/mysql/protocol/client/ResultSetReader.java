@@ -11,4 +11,8 @@ interface ResultSetReader {
     boolean read(ByteBuf cumulateBuffer, Consumer<Object> serverStatusConsumer) throws JdbdException;
 
     boolean hasMoreResults();
+
+    boolean hasMoreFetch();
+
+
 }

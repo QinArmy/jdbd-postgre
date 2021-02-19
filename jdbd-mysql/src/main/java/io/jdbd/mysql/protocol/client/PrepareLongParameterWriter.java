@@ -26,7 +26,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.util.List;
-import java.util.function.Supplier;
 
 /**
  * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_com_stmt_send_long_data.html">Protocol::COM_STMT_SEND_LONG_DATA</a>
@@ -42,26 +41,27 @@ final class PrepareLongParameterWriter implements PrepareExecuteCommandWriter.Lo
 
     private static final int MIN_CHUNK_SIZE = ClientConstants.BUFFER_LENGTH;
 
+    private final StatementTask statementTask;
+
     private final int statementId;
 
     private final ClientProtocolAdjutant adjutant;
 
     private final Properties properties;
 
-    private final Supplier<Integer> sequenceIdSupplier;
-
     private final int blobSendChunkSize;
 
     private final int maxPacketCapacity;
 
 
-    PrepareLongParameterWriter(int statementId, ClientProtocolAdjutant adjutant, Supplier<Integer> sequenceIdSupplier) {
-        this.statementId = statementId;
-        this.adjutant = adjutant;
-        this.sequenceIdSupplier = sequenceIdSupplier;
+    PrepareLongParameterWriter(final StatementTask statementTask) {
+        this.statementTask = statementTask;
+
+        this.statementId = statementTask.obtainStatementId();
+        this.adjutant = statementTask.obtainAdjutant();
         this.blobSendChunkSize = obtainBlobSendChunkSize();
 
-        this.properties = adjutant.obtainHostInfo().getProperties();
+        this.properties = this.adjutant.obtainHostInfo().getProperties();
         this.maxPacketCapacity = PacketUtils.HEADER_SIZE + LONG_DATA_PREFIX_SIZE + blobSendChunkSize;
 
     }
@@ -394,7 +394,7 @@ final class PrepareLongParameterWriter implements PrepareExecuteCommandWriter.Lo
         ByteBuf packet;
         if (bigPacket.readableBytes() >= maxPacketCapacity) {
             packet = bigPacket.readRetainedSlice(maxPacketCapacity);
-            PacketUtils.writePacketHeader(packet, this.sequenceIdSupplier.get());
+            PacketUtils.writePacketHeader(packet, this.statementTask.addAndGetSequenceId());
             sink.next(packet);
         }
         packet = createLongDataPacket(paramIndex, bigPacket.readableBytes());
@@ -409,7 +409,7 @@ final class PrepareLongParameterWriter implements PrepareExecuteCommandWriter.Lo
      */
     private void publishLastPacket(final ByteBuf packet, final FluxSink<ByteBuf> sink) {
         if (packet.readableBytes() > (PacketUtils.HEADER_SIZE + LONG_DATA_PREFIX_SIZE)) {
-            PacketUtils.publishBigPacket(packet, sink, this.sequenceIdSupplier
+            PacketUtils.publishBigPacket(packet, sink, this.statementTask::addAndGetSequenceId
                     , this.adjutant::createByteBuffer, true);
         } else {
             packet.release();

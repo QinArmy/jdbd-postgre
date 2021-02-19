@@ -14,4 +14,9 @@ public interface IStatementWrapper<T extends IBindValue> {
     List<T> getParameterGroup();
 
     Consumer<ResultStates> getStatesConsumer();
+
+    /**
+     * @return negative or fetch size, if zero ignore.
+     */
+    int getFetchSize();
 }

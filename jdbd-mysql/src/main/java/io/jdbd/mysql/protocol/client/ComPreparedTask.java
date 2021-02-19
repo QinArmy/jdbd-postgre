@@ -6,6 +6,8 @@ import io.jdbd.mysql.MySQLBindValue;
 import io.jdbd.mysql.protocol.EofPacket;
 import io.jdbd.mysql.protocol.ErrorPacket;
 import io.jdbd.mysql.protocol.OkPacket;
+import io.jdbd.mysql.protocol.conf.Properties;
+import io.jdbd.mysql.protocol.conf.PropertyKey;
 import io.jdbd.mysql.util.MySQLCollectionUtils;
 import io.jdbd.mysql.util.MySQLExceptionUtils;
 import io.jdbd.vendor.LongParameterException;
@@ -51,7 +53,7 @@ import java.util.function.Consumer;
  * @see BinaryResultSetReader
  * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_command_phase_ps.html">Prepared Statements</a>
  */
-final class ComPreparedTask extends MySQLCommunicationTask {
+final class ComPreparedTask extends MySQLCommunicationTask implements StatementTask {
 
 
     static Flux<ResultRow> query(StatementWrapper wrapper, MySQLTaskAdjutant adjutant) {
@@ -59,8 +61,7 @@ final class ComPreparedTask extends MySQLCommunicationTask {
         return Flux.create(sink -> {
 
             // ComPreparedTask reference is hold by MySQLCommTaskExecutor.
-            new ComPreparedTask(adjutant, new QuerySink(wrapper.getSql()
-                    , wrapper.getParameterGroup(), sink, wrapper.getStatesConsumer()))
+            new ComPreparedTask(adjutant, new QuerySink(wrapper, sink))
                     .submit(sink::error);
         });
     }
@@ -87,6 +88,8 @@ final class ComPreparedTask extends MySQLCommunicationTask {
 
     private final DownStreamSink downStreamSink;
 
+    private final Properties properties;
+
     private int statementId;
 
     private Phase phase = Phase.PREPARED;
@@ -111,6 +114,8 @@ final class ComPreparedTask extends MySQLCommunicationTask {
     private ComPreparedTask(MySQLTaskAdjutant adjutant, DownStreamSink sink) {
         super(adjutant);
         this.downStreamSink = sink;
+        this.properties = adjutant.obtainHostInfo().getProperties();
+        ;
 
     }
 
@@ -125,6 +130,83 @@ final class ComPreparedTask extends MySQLCommunicationTask {
         return publisher;
     }
 
+    @Override
+    public int obtainStatementId() {
+        return this.statementId;
+    }
+
+    @Override
+    public MySQLColumnMeta[] obtainParameterMetas() {
+        return Objects.requireNonNull(this.parameterMetas, "this.parameterMetas");
+    }
+
+    @Override
+    public ClientProtocolAdjutant obtainAdjutant() {
+        return this.adjutant;
+    }
+
+    @Override
+    public void handleWriteCommandError(Throwable e) {
+        if (this.adjutant.inEventLoop()) {
+            addError(e);
+        } else {
+            this.adjutant.execute(() -> addError(e));
+        }
+    }
+
+    @Override
+    public void handleReadResultSetError(Throwable e) {
+        if (e instanceof JdbdSQLException) {
+            this.downStreamSink.error(e);
+        } else {
+            addError(e);
+        }
+    }
+
+    @Override
+    public boolean isFetchResult() {
+        DownStreamSink downStreamSink = this.downStreamSink;
+        MySQLColumnMeta[] prepareColumnMetas = this.prepareColumnMetas;
+
+        // we only create cursor-backed result sets if
+        // a) The query is a SELECT
+        // b) The server supports it
+        // c) We know it is forward-only (note this doesn't preclude updatable result sets)
+        //TODO d) The user has set a fetch size
+        return downStreamSink instanceof QuerySink
+                && prepareColumnMetas != null
+                && prepareColumnMetas.length > 0
+                && this.properties.getOrDefault(PropertyKey.useCursorFetch, Boolean.class)
+                && ((QuerySink) downStreamSink).fetchSize > 0;
+    }
+
+    @Override
+    public boolean returnResultSet() {
+        return Objects.requireNonNull(this.prepareColumnMetas, "this.prepareColumnMetas").length > 0;
+    }
+
+    @Override
+    public FluxSink<ResultRow> obtainRowSink() throws IllegalStateException {
+        DownStreamSink downStreamSink = this.downStreamSink;
+        if (!(downStreamSink instanceof QuerySink)) {
+            throw new IllegalStateException("No Row sink");
+        }
+        return ((QuerySink) downStreamSink).sink;
+    }
+
+    @Override
+    public Consumer<ResultStates> obtainStatesConsumer() throws IllegalStateException {
+        DownStreamSink downStreamSink = this.downStreamSink;
+        if (!(downStreamSink instanceof QuerySink)) {
+            throw new IllegalStateException("No states consumer");
+        }
+        return ((QuerySink) downStreamSink).statesConsumer;
+    }
+
+    @Override
+    public boolean hasError() {
+        return !MySQLCollectionUtils.isEmpty(this.errorList);
+    }
 
 
     /*################################## blow protected  method ##################################*/
@@ -192,7 +274,7 @@ final class ComPreparedTask extends MySQLCommunicationTask {
                 }
                 break;
                 case READ_RESULT_SET: {
-                    taskEnd = this.downStreamSink.readResultSet(cumulateBuffer, serverStatusConsumer);
+                    taskEnd = readResultSet(cumulateBuffer, serverStatusConsumer);
                     continueDecode = false;
                 }
                 break;
@@ -353,35 +435,6 @@ final class ComPreparedTask extends MySQLCommunicationTask {
 
 
     /**
-     * @see #internalError(Throwable)
-     * @see #executeStatement()
-     */
-    private void executeCommandWriterErrorEvent(Throwable e) {
-        if (this.adjutant.inEventLoop()) {
-            this.errorList.add(e);
-        } else {
-            this.adjutant.execute(() -> this.errorList.add(e));
-        }
-    }
-
-    /**
-     * @see #executeQueryStatement(QuerySink, MySQLColumnMeta[], StatementCommandWriter)
-     */
-    private void readResultSetErrorEvent(Throwable e) {
-        if (e instanceof JdbdSQLException) {
-            this.downStreamSink.error(e);
-        } else {
-            List<Throwable> errorList = this.errorList;
-            if (errorList == null) {
-                errorList = new ArrayList<>();
-                this.errorList = errorList;
-            }
-            errorList.add(e);
-        }
-    }
-
-
-    /**
      * @return true: task end.
      * @see #internalDecode(ByteBuf, Consumer)
      * @see #executeQueryStatement(QuerySink, MySQLColumnMeta[], StatementCommandWriter)
@@ -417,13 +470,29 @@ final class ComPreparedTask extends MySQLCommunicationTask {
             break;
             default: {
                 this.phase = Phase.READ_RESULT_SET;
-                taskEnd = this.downStreamSink.readResultSet(cumulateBuffer, serverStatusConsumer);
+                taskEnd = readResultSet(cumulateBuffer, serverStatusConsumer);
             }
         }
         if (taskEnd && MySQLCollectionUtils.isEmpty(this.errorList)) {
             this.phase = Phase.STATEMENT_END;
         }
         return taskEnd;
+    }
+
+    /**
+     * @return true: task end.
+     * @see #readExecuteResponse(ByteBuf, Consumer)
+     * @see #internalDecode(ByteBuf, Consumer)
+     */
+    private boolean readResultSet(final ByteBuf cumulateBuffer, final Consumer<Object> serverStatusConsumer) {
+        boolean readEnd;
+        readEnd = this.downStreamSink.readResultSet(cumulateBuffer, serverStatusConsumer);
+        if (readEnd && this.downStreamSink.hasMoreFetch()) {
+            this.packetPublisher = Mono.just(createFetchPacket());
+            this.phase = Phase.READ_RESULT_SET;
+            readEnd = false;
+        }
+        return readEnd;
     }
 
 
@@ -443,10 +512,7 @@ final class ComPreparedTask extends MySQLCommunicationTask {
         final MySQLColumnMeta[] parameterMetaArray = Objects.requireNonNull(
                 this.parameterMetas, "this.parameterMetas");
 
-        final StatementCommandWriter commandWriter = new PrepareExecuteCommandWriter(
-                this.statementId, parameterMetaArray
-                , columnMetaArray.length > 0, this::addAndGetSequenceId
-                , this.adjutant, this::executeCommandWriterErrorEvent);
+        final StatementCommandWriter commandWriter = new PrepareExecuteCommandWriter(this);
 
         boolean taskEnd = false;
         try {
@@ -503,9 +569,7 @@ final class ComPreparedTask extends MySQLCommunicationTask {
         querySink.parameterGroup = parameterGroup;
         this.packetPublisher = commandWriter.writeCommand(parameterGroup); // write command
 
-        querySink.resultSetReader = new BinaryResultSetReader(querySink.sink, querySink.statesConsumer
-                , this.adjutant, this::updateSequenceId
-                , this::readResultSetErrorEvent);
+        querySink.resultSetReader = new BinaryResultSetReader(this);
     }
 
     /**
@@ -550,6 +614,31 @@ final class ComPreparedTask extends MySQLCommunicationTask {
             taskEnd = false;
         }
         return taskEnd;
+    }
+
+    /**
+     * @see #readResultSet(ByteBuf, Consumer)
+     * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_com_stmt_fetch.html">Protocol::COM_STMT_FETCH</a>
+     */
+    private ByteBuf createFetchPacket() {
+        DownStreamSink downStreamSink = this.downStreamSink;
+        if (!(downStreamSink instanceof QuerySink)) {
+            throw new IllegalStateException(String.format("downStreamSink[%s] isn't QuerySink", downStreamSink));
+        }
+        final QuerySink querySink = (QuerySink) downStreamSink;
+        final int fetchSize = querySink.fetchSize;
+        if (fetchSize < 1) {
+            throw new IllegalStateException(String.format("fetchSize[%s] error.", fetchSize));
+        }
+        ByteBuf packet = this.adjutant.alloc().buffer(13);
+        PacketUtils.writeInt3(packet, 9);
+        packet.writeByte(addAndGetSequenceId());
+
+        packet.writeByte(PacketUtils.COM_STMT_FETCH);
+        PacketUtils.writeInt4(packet, this.statementId);
+        PacketUtils.writeInt4(packet, fetchSize);
+
+        return packet;
     }
 
 
@@ -601,6 +690,15 @@ final class ComPreparedTask extends MySQLCommunicationTask {
         packet.writeByte(PacketUtils.COM_STMT_CLOSE);
         PacketUtils.writeInt4(packet, this.statementId);
         return packet;
+    }
+
+    private void addError(Throwable e) {
+        List<Throwable> errorList = this.errorList;
+        if (errorList == null) {
+            errorList = new ArrayList<>();
+            this.errorList = errorList;
+        }
+        errorList.add(e);
     }
 
 
@@ -666,6 +764,8 @@ final class ComPreparedTask extends MySQLCommunicationTask {
         abstract Publisher<ByteBuf> emitUpdateResult(ResultStates resultStates, MySQLColumnMeta[] parameterMetaArray);
 
         abstract boolean readResultSet(ByteBuf cumulateBuffer, Consumer<Object> serverStatusConsumer);
+
+        abstract boolean hasMoreFetch();
     }
 
     private static final class QuerySink extends DownStreamSink {
@@ -678,14 +778,17 @@ final class ComPreparedTask extends MySQLCommunicationTask {
 
         private final Consumer<ResultStates> statesConsumer;
 
+        private final int fetchSize;
 
-        private QuerySink(String sql, List<BindValue> parameterGroup, FluxSink<ResultRow> sink
-                , Consumer<ResultStates> statesConsumer) {
-            super(sql);
+        private QuerySink(StatementWrapper wrapper, FluxSink<ResultRow> sink) {
+            super(wrapper.getSql());
+
             this.resultSetReader = null;
-            this.parameterGroup = parameterGroup;
+            this.parameterGroup = wrapper.getParameterGroup();
             this.sink = sink;
-            this.statesConsumer = statesConsumer;
+            this.statesConsumer = wrapper.getStatesConsumer();
+
+            this.fetchSize = wrapper.getFetchSize();
         }
 
         @Override
@@ -696,13 +799,18 @@ final class ComPreparedTask extends MySQLCommunicationTask {
         @Override
         Publisher<ByteBuf> emitUpdateResult(final ResultStates resultStates
                 , final MySQLColumnMeta[] parameterMetaArray) {
-            throw new IllegalStateException(String.format("%s not support read update result.", this));
+            throw new UnsupportedOperationException(String.format("%s not support read update result.", this));
         }
 
         @Override
         boolean readResultSet(final ByteBuf cumulateBuffer, final Consumer<Object> serverStatusConsumer) {
             return Objects.requireNonNull(this.resultSetReader, "this.resultSetReader")
                     .read(cumulateBuffer, serverStatusConsumer);
+        }
+
+        @Override
+        boolean hasMoreFetch() {
+            return Objects.requireNonNull(this.resultSetReader, "this.resultSetReader").hasMoreFetch();
         }
     }
 
@@ -732,7 +840,12 @@ final class ComPreparedTask extends MySQLCommunicationTask {
 
         @Override
         boolean readResultSet(final ByteBuf cumulateBuffer, final Consumer<Object> serverStatusConsumer) {
-            throw new IllegalStateException(String.format("%s not support read result set.", this));
+            throw new UnsupportedOperationException(String.format("%s not support read result set.", this));
+        }
+
+        @Override
+        boolean hasMoreFetch() {
+            throw new UnsupportedOperationException(String.format("%s not support read hasMoreResults().", this));
         }
     }
 
@@ -788,7 +901,12 @@ final class ComPreparedTask extends MySQLCommunicationTask {
 
         @Override
         boolean readResultSet(final ByteBuf cumulateBuffer, final Consumer<Object> serverStatusConsumer) {
-            throw new IllegalStateException(String.format("%s not support read result set.", this));
+            throw new UnsupportedOperationException(String.format("%s not support read result set.", this));
+        }
+
+        @Override
+        boolean hasMoreFetch() {
+            throw new UnsupportedOperationException(String.format("%s not support read hasMoreResults().", this));
         }
     }
 

@@ -9,7 +9,6 @@ import io.jdbd.mysql.protocol.conf.Properties;
 import io.jdbd.mysql.protocol.conf.PropertyDefinitions;
 import io.jdbd.mysql.protocol.conf.PropertyKey;
 import io.jdbd.mysql.util.MySQLExceptionUtils;
-import io.jdbd.vendor.CheatRowFluxSink;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import reactor.core.publisher.FluxSink;
@@ -30,15 +29,15 @@ abstract class AbstractResultSetReader implements ResultSetReader {
 
     static final Path TEMP_DIRECTORY = Paths.get(System.getProperty("java.io.tmpdir"), "jdbd/mysql/bigRow");
 
+    final StatementTask statementTask;
+
     final FluxSink<ResultRow> sink;
 
     final Consumer<ResultStates> statesConsumer;
 
     final ClientProtocolAdjutant adjutant;
 
-    final Consumer<Integer> sequenceConsumer;
-
-    final Consumer<Throwable> errorConsumer;
+    final boolean fetchResult;
 
     final Properties properties;
 
@@ -48,7 +47,7 @@ abstract class AbstractResultSetReader implements ResultSetReader {
 
     private boolean resultSetEnd;
 
-    private boolean moreResults;
+    private int serverStatus;
 
     private Phase phase = Phase.READ_RESULT_META;
 
@@ -56,16 +55,13 @@ abstract class AbstractResultSetReader implements ResultSetReader {
 
     private Throwable error;
 
-    AbstractResultSetReader(FluxSink<ResultRow> sink, Consumer<ResultStates> statesConsumer
-            , ClientProtocolAdjutant adjutant, Consumer<Integer> sequenceConsumer
-            , Consumer<Throwable> errorConsumer) {
+    AbstractResultSetReader(StatementTask statementTask) {
+        this.statementTask = statementTask;
+        this.sink = statementTask.obtainRowSink();
+        this.statesConsumer = statementTask.obtainStatesConsumer();
+        this.adjutant = statementTask.obtainAdjutant();
 
-        this.sink = sink;
-        this.statesConsumer = statesConsumer;
-        this.adjutant = adjutant;
-        this.sequenceConsumer = sequenceConsumer;
-
-        this.errorConsumer = errorConsumer;
+        this.fetchResult = statementTask.isFetchResult();
         this.properties = adjutant.obtainHostInfo().getProperties();
     }
 
@@ -118,8 +114,20 @@ abstract class AbstractResultSetReader implements ResultSetReader {
 
     @Override
     public final boolean hasMoreResults() {
-        return this.moreResults;
+        return (this.serverStatus & ClientProtocol.SERVER_MORE_RESULTS_EXISTS) != 0;
     }
+
+    /**
+     * @see #readResultRows(ByteBuf, Consumer)
+     */
+    @Override
+    public boolean hasMoreFetch() {
+        int serverStatus = this.serverStatus;
+        return this.fetchResult
+                && (serverStatus & ClientProtocol.SERVER_STATUS_CURSOR_EXISTS) != 0
+                && (serverStatus & ClientProtocol.SERVER_STATUS_LAST_ROW_SENT) == 0;
+    }
+
 
     /*################################## blow packet template method ##################################*/
 
@@ -204,15 +212,15 @@ abstract class AbstractResultSetReader implements ResultSetReader {
             } else if (header == EofPacket.EOF_HEADER && (binaryReader || payloadLength < PacketUtils.MAX_PAYLOAD)) {
                 ByteBuf eofPayload = (payload == cumulateBuffer) ? cumulateBuffer.readSlice(payloadLength) : payload;
                 // binary row terminator
-                TerminatorPacket tp;
+                final TerminatorPacket tp;
                 if ((negotiatedCapability & ClientProtocol.CLIENT_DEPRECATE_EOF) != 0) {
                     tp = OkPacket.read(eofPayload, negotiatedCapability);
                 } else {
                     tp = EofPacket.read(eofPayload, negotiatedCapability);
                 }
+                this.serverStatus = tp.getStatusFags();
                 serverStatusConsumer.accept(tp.getStatusFags());
-                this.moreResults = (tp.getStatusFags() & ClientProtocol.SERVER_MORE_RESULTS_EXISTS) != 0;
-                if (noError()) {
+                if (((binaryReader && !hasMoreFetch()) || !hasMoreResults()) && noError()) {
                     try {
                         this.statesConsumer.accept(MySQLResultStates.from(tp));
                         this.sink.complete();
@@ -281,7 +289,7 @@ abstract class AbstractResultSetReader implements ResultSetReader {
 
     final void updateSequenceId(int sequenceId) {
         this.sequenceId = sequenceId;
-        this.sequenceConsumer.accept(sequenceId);
+        this.statementTask.updateSequenceId(sequenceId);
     }
 
     /**
@@ -297,11 +305,11 @@ abstract class AbstractResultSetReader implements ResultSetReader {
         if (this.error == null) {
             this.error = e;
         }
-        this.errorConsumer.accept(e);
+        this.statementTask.handleReadResultSetError(e);
     }
 
     final boolean noError() {
-        return this.error == null && !(this.sink instanceof CheatRowFluxSink);
+        return this.error == null && !this.statementTask.hasError();
     }
 
 

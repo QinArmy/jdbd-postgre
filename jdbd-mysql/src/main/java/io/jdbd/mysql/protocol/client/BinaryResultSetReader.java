@@ -1,11 +1,9 @@
 package io.jdbd.mysql.protocol.client;
 
 import io.jdbd.ResultRow;
-import io.jdbd.ResultStates;
 import io.jdbd.mysql.util.MySQLConvertUtils;
 import io.jdbd.mysql.util.MySQLExceptionUtils;
 import io.netty.buffer.ByteBuf;
-import reactor.core.publisher.FluxSink;
 import reactor.util.annotation.Nullable;
 
 import java.math.BigDecimal;
@@ -22,10 +20,9 @@ import java.util.function.Consumer;
  */
 final class BinaryResultSetReader extends AbstractResultSetReader {
 
-    BinaryResultSetReader(FluxSink<ResultRow> sink, Consumer<ResultStates> statesConsumer
-            , ClientProtocolAdjutant adjutant, Consumer<Integer> sequenceConsumer
-            , Consumer<Throwable> errorConsumer) {
-        super(sink, statesConsumer, adjutant, sequenceConsumer, errorConsumer);
+
+    BinaryResultSetReader(StatementTask statementTask) {
+        super(statementTask);
     }
 
     @Override

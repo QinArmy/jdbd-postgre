@@ -5,7 +5,6 @@ import io.jdbd.SQLBindParameterException;
 import io.jdbd.mysql.BindValue;
 import io.jdbd.mysql.protocol.Constants;
 import io.jdbd.mysql.protocol.conf.Properties;
-import io.jdbd.mysql.protocol.conf.PropertyKey;
 import io.jdbd.mysql.util.MySQLExceptionUtils;
 import io.jdbd.mysql.util.MySQLNumberUtils;
 import io.jdbd.mysql.util.MySQLTimeUtils;
@@ -14,6 +13,7 @@ import io.netty.buffer.ByteBuf;
 import org.reactivestreams.Publisher;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.FluxSink;
+import reactor.core.publisher.Mono;
 
 import java.io.InputStream;
 import java.io.Reader;
@@ -26,8 +26,6 @@ import java.time.temporal.ChronoField;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.function.Consumer;
-import java.util.function.Supplier;
 
 
 /**
@@ -36,13 +34,13 @@ import java.util.function.Supplier;
  */
 final class PrepareExecuteCommandWriter implements StatementCommandWriter {
 
+    private final StatementTask statementTask;
+
     private final int statementId;
 
     private final MySQLColumnMeta[] paramMetaArray;
 
     private final boolean query;
-
-    private final Supplier<Integer> sequenceIdSupplier;
 
     private final ClientProtocolAdjutant adjutant;
 
@@ -50,20 +48,19 @@ final class PrepareExecuteCommandWriter implements StatementCommandWriter {
 
     private final LongParameterWriter longParameterWriter;
 
-    private final Consumer<Throwable> errorConsumer;
+    private final boolean fetchResultSet;
 
 
-    PrepareExecuteCommandWriter(final int statementId, MySQLColumnMeta[] paramMetaArray, boolean query
-            , Supplier<Integer> sequenceIdSupplier, ClientProtocolAdjutant adjutant, Consumer<Throwable> errorConsumer) {
-        this.statementId = statementId;
-        this.paramMetaArray = paramMetaArray;
-        this.query = query;
-        this.sequenceIdSupplier = sequenceIdSupplier;
+    PrepareExecuteCommandWriter(final StatementTask statementTask) {
+        this.statementTask = statementTask;
+        this.statementId = statementTask.obtainStatementId();
+        this.paramMetaArray = statementTask.obtainParameterMetas();
+        this.query = statementTask.returnResultSet();
 
-        this.adjutant = adjutant;
-        this.errorConsumer = errorConsumer;
-        this.properties = adjutant.obtainHostInfo().getProperties();
-        this.longParameterWriter = new PrepareLongParameterWriter(statementId, adjutant, sequenceIdSupplier);
+        this.adjutant = statementTask.obtainAdjutant();
+        this.properties = this.adjutant.obtainHostInfo().getProperties();
+        this.longParameterWriter = new PrepareLongParameterWriter(statementTask);
+        this.fetchResultSet = statementTask.isFetchResult();
     }
 
 
@@ -101,11 +98,9 @@ final class PrepareExecuteCommandWriter implements StatementCommandWriter {
         final Publisher<ByteBuf> publisher;
         if (size == 0) {
             // this 'if' block handle no bind parameter.
-            publisher = Flux.create(sink -> {
-                ByteBuf packet = createExecutePacketBuffer(10);
-                PacketUtils.publishBigPacket(packet, sink, this.sequenceIdSupplier
-                        , this.adjutant::createByteBuffer, true);
-            });
+            ByteBuf packet = createExecutePacketBuffer(10);
+            PacketUtils.writePacketHeader(packet, this.statementTask.addAndGetSequenceId());
+            publisher = Mono.just(packet);
         } else if (longParamList == null) {
             // this 'if' block handle no long parameter.
             publisher = createExecutionPacketPublisher(parameterGroup);
@@ -180,7 +175,7 @@ final class PrepareExecuteCommandWriter implements StatementCommandWriter {
                 bindParameter(packetBuffer, parameterMetaArray[i], bindValue);
 
             }
-            PacketUtils.publishBigPacket(packetBuffer, sink, this.sequenceIdSupplier
+            PacketUtils.publishBigPacket(packetBuffer, sink, this.statementTask::addAndGetSequenceId
                     , this.adjutant.alloc()::buffer, true);
         } catch (Throwable e) {
             packetBuffer.release();
@@ -198,12 +193,7 @@ final class PrepareExecuteCommandWriter implements StatementCommandWriter {
         packetBuffer.writeByte(PacketUtils.COM_STMT_EXECUTE); // 1.status
         PacketUtils.writeInt4(packetBuffer, this.statementId);// 2. statement_id
         //3.cursor Flags, reactive api not support cursor
-        if (this.query && this.properties.getOrDefault(PropertyKey.useCursorFetch, Boolean.class)) {
-            // we only create cursor-backed result sets if
-            // a) The query is a SELECT
-            // b) The server supports it
-            // c) We know it is forward-only (note this doesn't preclude updatable result sets)
-            //TODO d) The user has set a fetch size
+        if (this.fetchResultSet) {
             packetBuffer.writeByte(ProtocolConstants.CURSOR_TYPE_READ_ONLY);
         } else {
             packetBuffer.writeByte(ProtocolConstants.CURSOR_TYPE_NO_CURSOR);

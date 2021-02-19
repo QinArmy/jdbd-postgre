@@ -32,21 +32,23 @@ abstract class MySQLCommunicationTask extends AbstractCommunicationTask implemen
         this.properties = adjutant.obtainHostInfo().getProperties();
     }
 
-    final void updateSequenceId(int sequenceId) {
+    public final int updateSequenceId(final int sequenceId) {
+        final int newSequenceId;
         if (sequenceId < 0) {
-            this.sequenceId.set(-1);
+            newSequenceId = -1;
         } else {
-            this.sequenceId.getAndUpdate(operand -> operand % SEQUENCE_ID_MODEL);
+            newSequenceId = sequenceId % SEQUENCE_ID_MODEL;
         }
-
+        this.sequenceId.set(newSequenceId);
+        return newSequenceId;
     }
 
-    final int obtainSequenceId() {
+    public final int obtainSequenceId() {
         return this.sequenceId.get();
     }
 
 
-    final int addAndGetSequenceId() {
+    public final int addAndGetSequenceId() {
         return this.sequenceId.updateAndGet(operand -> (++operand) % SEQUENCE_ID_MODEL);
     }
 
