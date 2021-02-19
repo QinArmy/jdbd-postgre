@@ -10,10 +10,12 @@ import org.reactivestreams.Publisher;
 import reactor.core.publisher.Mono;
 
 import java.nio.charset.Charset;
+import java.util.concurrent.atomic.AtomicInteger;
 
 abstract class MySQLCommunicationTask extends AbstractCommunicationTask implements MySQLTask {
 
     static final int SEQUENCE_ID_MODEL = 256;
+
 
     final MySQLTaskAdjutant adjutant;
 
@@ -21,7 +23,7 @@ abstract class MySQLCommunicationTask extends AbstractCommunicationTask implemen
 
     final Properties properties;
 
-    private int sequenceId = -1;
+    private final AtomicInteger sequenceId = new AtomicInteger(-1);
 
     MySQLCommunicationTask(MySQLTaskAdjutant adjutant) {
         super(adjutant);
@@ -32,24 +34,22 @@ abstract class MySQLCommunicationTask extends AbstractCommunicationTask implemen
 
     final void updateSequenceId(int sequenceId) {
         if (sequenceId < 0) {
-            this.sequenceId = -1;
+            this.sequenceId.set(-1);
         } else {
-            this.sequenceId = sequenceId % SEQUENCE_ID_MODEL;
+            this.sequenceId.getAndUpdate(operand -> operand % SEQUENCE_ID_MODEL);
         }
 
     }
 
     final int obtainSequenceId() {
-        return this.sequenceId;
+        return this.sequenceId.get();
     }
 
 
     final int addAndGetSequenceId() {
-        int sequenceId = this.sequenceId;
-        sequenceId = (++sequenceId) % SEQUENCE_ID_MODEL;
-        this.sequenceId = sequenceId;
-        return sequenceId;
+        return this.sequenceId.updateAndGet(operand -> (++operand) % SEQUENCE_ID_MODEL);
     }
+
 
     final int obtainMLen(final int collationIndex) {
         final int maxBytes;
@@ -93,6 +93,14 @@ abstract class MySQLCommunicationTask extends AbstractCommunicationTask implemen
         return Mono.empty();
     }
 
+    final ByteBuf createResetConnectionPacket() {
+        ByteBuf packet = this.adjutant.alloc().buffer(5);
+
+        PacketUtils.writeInt3(packet, 1);
+        packet.writeByte(addAndGetSequenceId());
+        packet.writeByte(PacketUtils.COM_RESET_CONNECTION);
+        return packet;
+    }
 
     static ByteBuf commandBuffer(MySQLCommunicationTask task, String command) {
         int initialCapacity = task.adjutant.obtainMaxBytesPerCharClient() * command.length();

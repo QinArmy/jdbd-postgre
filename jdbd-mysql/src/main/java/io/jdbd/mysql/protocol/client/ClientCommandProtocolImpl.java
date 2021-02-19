@@ -4,6 +4,7 @@ import io.jdbd.mysql.Server;
 import io.jdbd.mysql.protocol.CharsetMapping;
 import io.jdbd.mysql.protocol.conf.HostInfo;
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufAllocator;
 import io.netty.channel.EventLoopGroup;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -120,6 +121,11 @@ public final class ClientCommandProtocolImpl extends AbstractClientProtocol impl
     @Override
     public HandshakeV10Packet obtainHandshakeV10Packet() {
         return this.handshakeV10Packet;
+    }
+
+    @Override
+    public ByteBufAllocator alloc() {
+        return this.taskAdjutant.alloc();
     }
 
     @Override

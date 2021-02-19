@@ -4,6 +4,7 @@ import io.jdbd.mysql.Server;
 import io.jdbd.mysql.protocol.CharsetMapping;
 import io.jdbd.mysql.protocol.conf.HostInfo;
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufAllocator;
 
 import java.nio.charset.Charset;
 import java.time.ZoneOffset;
@@ -30,6 +31,8 @@ interface ClientProtocolAdjutant extends ResultRowAdjutant {
     ZoneOffset obtainZoneOffsetClient();
 
     HandshakeV10Packet obtainHandshakeV10Packet();
+
+    ByteBufAllocator alloc();
 
     HostInfo obtainHostInfo();
 

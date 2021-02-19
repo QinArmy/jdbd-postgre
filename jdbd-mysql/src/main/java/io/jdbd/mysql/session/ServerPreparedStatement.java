@@ -5,7 +5,6 @@ import io.jdbd.ResultRow;
 import io.jdbd.ResultStates;
 import io.jdbd.SQLBindParameterException;
 import io.jdbd.meta.SQLType;
-import io.jdbd.mysql.protocol.client.PreparedStatementTask;
 import org.reactivestreams.Publisher;
 
 import java.sql.JDBCType;

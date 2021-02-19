@@ -13,6 +13,7 @@ import io.jdbd.mysql.protocol.conf.PropertyKey;
 import io.jdbd.mysql.util.MySQLStringUtils;
 import io.jdbd.mysql.util.MySQLTimeUtils;
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufAllocator;
 import io.netty.channel.EventLoopGroup;
 import org.qinarmy.util.Pair;
 import org.slf4j.Logger;
@@ -216,6 +217,11 @@ final class ClientConnectionProtocolImpl extends AbstractClientProtocol
             throw new IllegalStateException("no handshake.");
         }
         return packet;
+    }
+
+    @Override
+    public ByteBufAllocator alloc() {
+        return this.taskAdjutant.alloc();
     }
 
     @Override

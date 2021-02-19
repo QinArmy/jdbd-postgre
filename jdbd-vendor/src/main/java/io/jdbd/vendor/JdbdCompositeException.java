@@ -18,13 +18,13 @@ public class JdbdCompositeException extends JdbdNonSQLException {
 
     public JdbdCompositeException(List<Throwable> errorList, String messageFormat, Object... args) {
         super(getFirstError(errorList), messageFormat, args);
-        this.errorList = JdbdCollectionUtils.asModifiableList(errorList);
+        this.errorList = JdbdCollectionUtils.unmodifiableList(errorList);
     }
 
     public JdbdCompositeException(List<Throwable> errorList, boolean enableSuppression, boolean writableStackTrace
             , String messageFormat, Object... args) {
         super(getFirstError(errorList), enableSuppression, writableStackTrace, messageFormat, args);
-        this.errorList = JdbdCollectionUtils.asModifiableList(errorList);
+        this.errorList = JdbdCollectionUtils.unmodifiableList(errorList);
     }
 
     /**

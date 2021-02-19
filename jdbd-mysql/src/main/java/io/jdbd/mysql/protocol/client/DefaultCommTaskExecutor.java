@@ -403,6 +403,11 @@ final class DefaultCommTaskExecutor implements MySQLCommTaskExecutor, CoreSubscr
         }
 
         @Override
+        public ByteBufAllocator alloc() {
+            return DefaultCommTaskExecutor.this.allocator;
+        }
+
+        @Override
         public HostInfo obtainHostInfo() {
             return this.adjutant.obtainHostInfo();
         }

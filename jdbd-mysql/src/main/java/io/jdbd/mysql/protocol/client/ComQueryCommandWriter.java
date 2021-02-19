@@ -2,6 +2,7 @@ package io.jdbd.mysql.protocol.client;
 
 import io.jdbd.BindParameterException;
 import io.jdbd.SQLBindParameterException;
+import io.jdbd.mysql.BindValue;
 import io.jdbd.mysql.SQLMode;
 import io.jdbd.mysql.Server;
 import io.jdbd.mysql.protocol.Constants;

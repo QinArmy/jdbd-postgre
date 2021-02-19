@@ -7,4 +7,7 @@ public interface ClientConstants {
     int MIN_BIG_ROW_UPPER = (1 << 28) - 1;
 
 
+    int BUFFER_LENGTH = 8192;
+
+
 }

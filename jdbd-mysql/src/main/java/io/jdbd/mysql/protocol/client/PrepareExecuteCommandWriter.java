@@ -2,6 +2,7 @@ package io.jdbd.mysql.protocol.client;
 
 import io.jdbd.BindParameterException;
 import io.jdbd.SQLBindParameterException;
+import io.jdbd.mysql.BindValue;
 import io.jdbd.mysql.protocol.Constants;
 import io.jdbd.mysql.protocol.conf.Properties;
 import io.jdbd.mysql.protocol.conf.PropertyKey;
@@ -14,6 +15,8 @@ import org.reactivestreams.Publisher;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.FluxSink;
 
+import java.io.InputStream;
+import java.io.Reader;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.nio.charset.Charset;
@@ -48,6 +51,7 @@ final class PrepareExecuteCommandWriter implements StatementCommandWriter {
     private final LongParameterWriter longParameterWriter;
 
     private final Consumer<Throwable> errorConsumer;
+
 
     PrepareExecuteCommandWriter(final int statementId, MySQLColumnMeta[] paramMetaArray, boolean query
             , Supplier<Integer> sequenceIdSupplier, ClientProtocolAdjutant adjutant, Consumer<Throwable> errorConsumer) {
@@ -150,10 +154,13 @@ final class PrepareExecuteCommandWriter implements StatementCommandWriter {
 
         final int prefixLength = 10 + nullBitsMap.length + 1 + (parameterCount << 1);
         final ByteBuf packetBuffer;
-        if (parameterValueLength < (PacketUtils.MAX_PAYLOAD - prefixLength)) {
+        if ((PacketUtils.HEADER_SIZE + prefixLength + parameterValueLength) <= Integer.MAX_VALUE) {
             packetBuffer = createExecutePacketBuffer(prefixLength + (int) parameterValueLength);
         } else {
-            packetBuffer = createExecutePacketBuffer(PacketUtils.MAX_PAYLOAD);
+            sink.error(new SQLBindParameterException(
+                    "Bind parameter too long,execute packet great than Integer.MAX_VALUE,please use %s or %s"
+                    , InputStream.class.getName(), Reader.class.getName()));
+            return;
         }
         packetBuffer.writeBytes(nullBitsMap); //fill null_bitmap
         packetBuffer.writeByte(1); //fill new_params_bind_flag
@@ -162,9 +169,7 @@ final class PrepareExecuteCommandWriter implements StatementCommandWriter {
             PacketUtils.writeInt2(packetBuffer, value.getType().parameterType);
         }
         //fill parameter_values
-        ByteBuf buffer = packetBuffer;
         try {
-            long restPayloadLength = prefixLength + parameterValueLength;
 
             for (i = 0; i < parameterCount; i++) {
                 BindValue bindValue = parameterGroup.get(i);
@@ -172,44 +177,13 @@ final class PrepareExecuteCommandWriter implements StatementCommandWriter {
                     continue;
                 }
                 // bind parameter bto packet buffer
-                bindParameter(buffer, parameterMetaArray[i], bindValue);
-
-                if ((buffer == packetBuffer && buffer.readableBytes() >= PacketUtils.MAX_PACKET)
-                        || buffer.readableBytes() >= PacketUtils.MAX_PAYLOAD) {
-                    if (buffer == packetBuffer) {
-                        restPayloadLength -= PacketUtils.publishBigPacket(buffer, sink, this.sequenceIdSupplier
-                                , this.adjutant::createByteBuffer, false);
-                    } else {
-                        restPayloadLength -= PacketUtils.publishBigPayload(buffer, sink, this.sequenceIdSupplier
-                                , this.adjutant::createByteBuffer, false);
-                    }
-                    final ByteBuf tempBuffer;
-                    if (restPayloadLength < 0L) {
-                        // this 'if' block handle restPayloadLength error, eg: GEOMETRY,UNKNOWN
-                        tempBuffer = this.adjutant.createPacketBuffer(buffer.readableBytes());
-                    } else if (restPayloadLength < PacketUtils.MAX_PAYLOAD) {
-                        tempBuffer = this.adjutant.createByteBuffer((int) restPayloadLength);
-                    } else {
-                        tempBuffer = this.adjutant.createByteBuffer(PacketUtils.MAX_PAYLOAD);
-                    }
-
-                    tempBuffer.writeBytes(buffer);
-                    buffer.release();
-                    buffer = tempBuffer;
-                }
+                bindParameter(packetBuffer, parameterMetaArray[i], bindValue);
 
             }
-            if (buffer == packetBuffer) {
-                // this 'if' block handle small packet.
-                PacketUtils.publishBigPacket(buffer, sink, this.sequenceIdSupplier
-                        , this.adjutant::createByteBuffer, true);
-            } else {
-                // this 'if' block handle big packet tailor.
-                PacketUtils.publishBigPayload(buffer, sink, this.sequenceIdSupplier
-                        , this.adjutant::createByteBuffer, true);
-            }
+            PacketUtils.publishBigPacket(packetBuffer, sink, this.sequenceIdSupplier
+                    , this.adjutant.alloc()::buffer, true);
         } catch (Throwable e) {
-            buffer.release();
+            packetBuffer.release();
             sink.error(new BindParameterException(String.format("Bind parameter[%s] write error.", i), e, i));
         }
     }
@@ -218,7 +192,8 @@ final class PrepareExecuteCommandWriter implements StatementCommandWriter {
      * @see #createExecutionPacketPublisher(List)
      */
     private ByteBuf createExecutePacketBuffer(int initialPayloadCapacity) {
-        ByteBuf packetBuffer = this.adjutant.createPacketBuffer(initialPayloadCapacity);
+
+        ByteBuf packetBuffer = this.adjutant.alloc().buffer(initialPayloadCapacity, Integer.MAX_VALUE);
 
         packetBuffer.writeByte(PacketUtils.COM_STMT_EXECUTE); // 1.status
         PacketUtils.writeInt4(packetBuffer, this.statementId);// 2. statement_id

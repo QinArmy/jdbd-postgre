@@ -1,6 +1,7 @@
 package io.jdbd.mysql.protocol.client;
 
 import io.jdbd.BindParameterException;
+import io.jdbd.mysql.BindValue;
 import io.jdbd.mysql.util.MySQLStringUtils;
 import io.jdbd.mysql.util.MySQLTimeUtils;
 import io.netty.buffer.ByteBuf;

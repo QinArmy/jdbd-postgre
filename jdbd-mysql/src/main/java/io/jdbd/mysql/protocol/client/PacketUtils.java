@@ -40,6 +40,8 @@ public abstract class PacketUtils {
 
     public static final int COM_STMT_SEND_LONG_DATA = 0x18;
     public static final int COM_STMT_CLOSE = 0x19;
+    public static final int COM_RESET_CONNECTION = 0x1F;
+
 
     public static final int COM_STMT_RESET = 0x1A;
     public static final int COM_QUIT_HEADER = 0x01;
@@ -598,7 +600,7 @@ public abstract class PacketUtils {
                 sink.next(packet);
                 publishLength += MAX_PAYLOAD;
             } else {
-                if (publishSmallPacket && readableBytes >= 0) {
+                if (publishSmallPacket) {
                     packet = bufferCreator.apply(HEADER_SIZE + readableBytes);
 
                     writeInt3(packet, readableBytes);

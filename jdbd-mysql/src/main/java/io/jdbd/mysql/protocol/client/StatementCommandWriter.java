@@ -1,5 +1,6 @@
 package io.jdbd.mysql.protocol.client;
 
+import io.jdbd.mysql.BindValue;
 import io.netty.buffer.ByteBuf;
 import org.reactivestreams.Publisher;
 

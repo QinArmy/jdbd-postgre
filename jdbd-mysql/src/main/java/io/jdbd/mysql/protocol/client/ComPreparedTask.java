@@ -1,29 +1,26 @@
 package io.jdbd.mysql.protocol.client;
 
-import io.jdbd.PreparedStatement;
-import io.jdbd.ResultRow;
-import io.jdbd.ResultStates;
-import io.jdbd.mysql.JdbdMySQLException;
+import io.jdbd.*;
+import io.jdbd.mysql.BindValue;
+import io.jdbd.mysql.MySQLBindValue;
 import io.jdbd.mysql.protocol.EofPacket;
 import io.jdbd.mysql.protocol.ErrorPacket;
 import io.jdbd.mysql.protocol.OkPacket;
-import io.jdbd.mysql.session.ServerPreparedStatement;
 import io.jdbd.mysql.util.MySQLCollectionUtils;
 import io.jdbd.mysql.util.MySQLExceptionUtils;
-import io.jdbd.vendor.CommunicationTask;
+import io.jdbd.vendor.LongParameterException;
 import io.jdbd.vendor.TaskSignal;
 import io.netty.buffer.ByteBuf;
 import org.reactivestreams.Publisher;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.FluxSink;
 import reactor.core.publisher.Mono;
 import reactor.core.publisher.MonoSink;
 import reactor.util.annotation.Nullable;
 
-import java.util.Collections;
-import java.util.List;
-import java.util.Objects;
-import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.*;
 import java.util.function.Consumer;
 
 /**
@@ -39,15 +36,14 @@ import java.util.function.Consumer;
  *         </li>
  *         <li>send COM_STMT_EXECUTE :
  *              <ul>
- *                  <li>{@link #executeQueryStatement(FluxSink, List, Consumer)}</li>
- *                  <li>{@link #executeUpdateStatement(MonoSink, List)}</li>
- *                  <li>{@link #executeBatchUpdateStatement(FluxSink, List)}</li>
+ *                  <li>{@link #executeStatement()}</li>
  *                  <li> {@link PrepareExecuteCommandWriter#writeCommand(List)}</li>
  *              </ul>
  *         </li>
  *         <li>read COM_STMT_EXECUTE Response : {@link #readExecuteResponse(ByteBuf, Consumer)}</li>
  *         <li>read Binary Protocol ResultSet Row : {@link BinaryResultSetReader#read(ByteBuf, Consumer)}</li>
  *         <li>send COM_STMT_CLOSE : {@link #closeStatement()}</li>
+ *         <li>COM_STMT_CLOSE : {@link #createCloseStatementPacket()}</li>
  *     </ol>
  * </p>
  *
@@ -55,33 +51,48 @@ import java.util.function.Consumer;
  * @see BinaryResultSetReader
  * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_command_phase_ps.html">Prepared Statements</a>
  */
-final class ComPreparedTask extends MySQLCommunicationTask implements PreparedStatementTask {
+final class ComPreparedTask extends MySQLCommunicationTask {
 
-    static Mono<PreparedStatement> prepare(MySQLTaskAdjutant taskAdjutant, String sql) {
-        return Mono.create(sink -> {
+    /**
+     * @param parameterGroup a modifiable list
+     */
+    static Flux<ResultRow> query(String sql, List<BindValue> parameterGroup, Consumer<ResultStates> statesConsumer
+            , MySQLTaskAdjutant adjutant) {
+
+        return Flux.create(sink -> {
+
             // ComPreparedTask reference is hold by MySQLCommTaskExecutor.
-            new ComPreparedTask(taskAdjutant, sql, sink)
+            new ComPreparedTask(adjutant, new QuerySink(sql, parameterGroup, sink, statesConsumer))
                     .submit(sink::error);
         });
     }
 
-    private static final int BUFFER_LENGTH = 8192;
+    /**
+     * @param parameterGroup a modifiable list
+     */
+    static Mono<ResultStates> update(String sql, List<BindValue> parameterGroup, MySQLTaskAdjutant adjutant) {
 
-    private static final int LONG_DATA_PREFIX_SIZE = 7;
+        return Mono.create(sink -> {
 
-    private final String sql;
+            // ComPreparedTask reference is hold by MySQLCommTaskExecutor.
+            new ComPreparedTask(adjutant, new UpdateSink(sql, parameterGroup, sink))
+                    .submit(sink::error);
+        });
+    }
 
-    private final MonoSink<PreparedStatement> stmtSink;
+    static Flux<ResultStates> batchUpdate(String sql, List<List<BindValue>> groupList, MySQLTaskAdjutant adjutant) {
+        return Flux.create(sink -> {
+            new ComPreparedTask(adjutant, new BatchUpdateSink(sql, groupList, sink))
+                    .submit(sink::error);
+        });
+    }
 
-    private final AtomicBoolean stmtCancel = new AtomicBoolean(false);
+    private static final Logger LOG = LoggerFactory.getLogger(ComPreparedTask.class);
 
-    private List<List<BindValue>> parameterGroupList;
+
+    private final DownStreamSink downStreamSink;
 
     private int statementId;
-
-    private int preparedWarningCount = 0;
-
-    private boolean hasMeta = true;
 
     private Phase phase = Phase.PREPARED;
 
@@ -93,9 +104,6 @@ final class ComPreparedTask extends MySQLCommunicationTask implements PreparedSt
 
     private int columnMetaIndex = -1;
 
-
-    private int batchGroupIndex = 0;
-
     private Publisher<ByteBuf> packetPublisher;
 
     private int cursorFetchSize = -1;
@@ -104,25 +112,11 @@ final class ComPreparedTask extends MySQLCommunicationTask implements PreparedSt
 
     private TaskSignal<ByteBuf> signal;
 
-    private FluxSink<ResultRow> querySink;
 
-    private Consumer<ResultStates> resultStatesConsumer;
+    private ComPreparedTask(MySQLTaskAdjutant adjutant, DownStreamSink sink) {
+        super(adjutant);
+        this.downStreamSink = sink;
 
-    private MonoSink<ResultStates> updateSink;
-
-    private FluxSink<ResultStates> batchUpdateSink;
-
-    private ResultSetReader resultSetReader;
-
-    private StatementCommandWriter executeCommandWriter;
-
-
-    private ComPreparedTask(MySQLTaskAdjutant executorAdjutant, String sql, MonoSink<PreparedStatement> stmtSink) {
-        super(executorAdjutant);
-        this.sql = sql;
-        this.stmtSink = stmtSink;
-
-        this.stmtSink.onCancel(() -> this.stmtCancel.compareAndSet(false, true));
     }
 
 
@@ -136,110 +130,29 @@ final class ComPreparedTask extends MySQLCommunicationTask implements PreparedSt
         return publisher;
     }
 
-    @Override
-    public MySQLColumnMeta[] obtainParameterMeta() throws JdbdMySQLException {
-        MySQLColumnMeta[] parameterMetaArray = this.parameterMetas;
-        if (parameterMetaArray == null) {
-            throw new JdbdMySQLException("%s[%s] not prepared yet.", CommunicationTask.class.getName(), this);
-        }
-        return parameterMetaArray;
-    }
-
-    @Override
-    public int obtainParameterCount() throws IllegalStateException {
-        MySQLColumnMeta[] parameterMetaArray = this.parameterMetas;
-        if (parameterMetaArray == null) {
-            throw new IllegalStateException("Not prepared yet.");
-        }
-        return parameterMetaArray.length;
-    }
-
-    @Override
-    public MySQLColumnMeta obtainParameterMeta(int parameterIndex) throws IllegalStateException {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public int obtainPreparedWarningCount() throws IllegalStateException {
-        if (this.phase == Phase.PREPARED) {
-            throw new IllegalStateException("Not prepared yet.");
-        }
-        return this.preparedWarningCount;
-    }
-
-    @Override
-    public MySQLColumnMeta[] obtainColumnMeta() {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public Flux<ResultRow> executeQuery(List<BindValue> parameterGroup, Consumer<ResultStates> statesConsumer) {
-        return Flux.create(sink -> {
-            if (this.adjutant.inEventLoop()) {
-                executeQueryInEventLoop(sink, MySQLCollectionUtils.asModifiableList(parameterGroup), statesConsumer);
-            } else {
-                this.adjutant.execute(() ->
-                        executeQueryInEventLoop(sink, MySQLCollectionUtils.asModifiableList(parameterGroup)
-                                , statesConsumer)
-                );
-            }
-        });
-    }
-
-    @Override
-    public Mono<ResultStates> executeUpdate(final List<BindValue> parameterGroup) {
-        return Mono.create(sink -> {
-            if (this.adjutant.inEventLoop()) {
-                executeUpdateInEventLoop(sink, MySQLCollectionUtils.asModifiableList(parameterGroup));
-            } else {
-                this.adjutant.execute(() ->
-                        executeUpdateInEventLoop(sink, MySQLCollectionUtils.asModifiableList(parameterGroup))
-                );
-            }
-        });
-    }
-
-    @Override
-    public Flux<ResultStates> executeBatchUpdate(final List<List<BindValue>> parameterGroupList) {
-        return Flux.create(sink -> {
-            if (this.adjutant.inEventLoop()) {
-                executeBatchUpdateInEventLoop(sink, MySQLCollectionUtils.asModifiableList(parameterGroupList));
-            } else {
-                this.adjutant.execute(() ->
-                        executeBatchUpdateInEventLoop(sink, MySQLCollectionUtils.asModifiableList(parameterGroupList))
-                );
-            }
-        });
-    }
 
 
     /*################################## blow protected  method ##################################*/
 
+    /**
+     * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_com_stmt_prepare.html">Protocol::COM_STMT_PREPARE</a>
+     */
     @Override
     protected Publisher<ByteBuf> internalStart(TaskSignal<ByteBuf> signal) {
         assertPhase(Phase.PREPARED);
+
         this.signal = signal;
-        // this method send COM_STMT_PREPARE packet.
-        // @see https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_com_stmt_prepare.html
-        int payloadLength = 1 + (this.sql.length() * this.adjutant.obtainMaxBytesPerCharClient());
+        final String sql = this.downStreamSink.sql;
+        int payloadLength = 1 + (sql.length() * this.adjutant.obtainMaxBytesPerCharClient());
         ByteBuf packetBuffer = this.adjutant.createPacketBuffer(payloadLength);
 
         packetBuffer.writeByte(PacketUtils.COM_STMT_PREPARE); // command
-        packetBuffer.writeCharSequence(this.sql, this.adjutant.obtainCharsetClient());
+        packetBuffer.writeCharSequence(sql, this.adjutant.obtainCharsetClient());// query
+
         PacketUtils.writePacketHeader(packetBuffer, addAndGetSequenceId());
 
-        final Mono<ByteBuf> mono;
-        if (this.stmtCancel.get()) {
-            // downstream cancel subscription,terminate task
-            this.phase = Phase.CLOSE_STMT;
-            mono = null;
-            packetBuffer.release();
-            signal.terminate(this);
-        } else {
-            this.phase = Phase.READ_PREPARE_RESPONSE;
-            mono = Mono.just(packetBuffer);
-        }
-        return mono;
+        this.phase = Phase.READ_PREPARE_RESPONSE;
+        return Mono.just(packetBuffer);
     }
 
     /**
@@ -269,12 +182,12 @@ final class ComPreparedTask extends MySQLCommunicationTask implements PreparedSt
                 break;
                 case READ_PREPARE_COLUMN_META: {
                     if (readPrepareColumnMeta(cumulateBuffer, serverStatusConsumer)) {
-                        continueDecode = PacketUtils.hasOnePacket(cumulateBuffer);
-                        markWaitForParameters(); // idle wait for prepare bind parameter .
-                        this.stmtSink.success(ServerPreparedStatement.create(this));
-                    } else {
-                        continueDecode = false;
+                        taskEnd = executeStatement(); // execute command
+                        if (!taskEnd) {
+                            this.phase = Phase.READ_EXECUTE_RESPONSE;
+                        }
                     }
+                    continueDecode = false;
                 }
                 break;
                 case READ_EXECUTE_RESPONSE: {
@@ -284,8 +197,8 @@ final class ComPreparedTask extends MySQLCommunicationTask implements PreparedSt
                 }
                 break;
                 case READ_RESULT_SET: {
-                    taskEnd = readResultSet(cumulateBuffer, serverStatusConsumer);
-                    continueDecode = !taskEnd;
+                    taskEnd = this.downStreamSink.readResultSet(cumulateBuffer, serverStatusConsumer);
+                    continueDecode = false;
                 }
                 break;
                 case PREPARED:
@@ -300,6 +213,20 @@ final class ComPreparedTask extends MySQLCommunicationTask implements PreparedSt
             closeStatement();
         }
         return taskEnd;
+    }
+
+
+    /**
+     * @see #error(Throwable)
+     */
+    @Nullable
+    @Override
+    protected Publisher<ByteBuf> internalError(Throwable e) {
+        Publisher<ByteBuf> publisher = null;
+        if (e instanceof SQLBindParameterException) {
+            publisher = handleSQLBindParameterException((SQLBindParameterException) e);
+        }
+        return publisher;
     }
 
     /*################################## blow private method ##################################*/
@@ -320,7 +247,7 @@ final class ComPreparedTask extends MySQLCommunicationTask implements PreparedSt
             case ErrorPacket.ERROR_HEADER: {
                 ErrorPacket error = ErrorPacket.readPacket(cumulateBuffer.readSlice(payloadLength)
                         , this.negotiatedCapability, this.adjutant.obtainCharsetResults());
-                this.stmtSink.error(MySQLExceptionUtils.createErrorPacketException(error));
+                this.downStreamSink.error(MySQLExceptionUtils.createErrorPacketException(error));
                 taskEnd = true;
             }
             break;
@@ -331,7 +258,10 @@ final class ComPreparedTask extends MySQLCommunicationTask implements PreparedSt
                 resetColumnMeta(PacketUtils.readInt2(cumulateBuffer));//3. num_columns
                 resetParameterMetas(PacketUtils.readInt2(cumulateBuffer));//4. num_params
                 cumulateBuffer.skipBytes(1); //5. skip filler
-                this.preparedWarningCount = PacketUtils.readInt2(cumulateBuffer);//6. warning_count
+                int prepareWarningCount = PacketUtils.readInt2(cumulateBuffer);//6. warning_count
+                if (prepareWarningCount > 0 && LOG.isWarnEnabled()) {
+                    LOG.warn("sql[{}] prepare occur {} warning.", this.downStreamSink.sql, prepareWarningCount);
+                }
                 if ((this.negotiatedCapability & ClientProtocol.CLIENT_OPTIONAL_RESULTSET_METADATA) != 0) {
                     throw new IllegalStateException("Not support CLIENT_OPTIONAL_RESULTSET_METADATA"); //7. metadata_follows
                 }
@@ -341,10 +271,8 @@ final class ComPreparedTask extends MySQLCommunicationTask implements PreparedSt
             }
             break;
             default: {
-                RuntimeException e = MySQLExceptionUtils.createFatalIoException(
+                throw MySQLExceptionUtils.createFatalIoException(
                         "Server send COM_STMT_PREPARE Response error. header        [%s]", headFlag);
-                this.stmtSink.error(e);
-                throw e;
             }
         }
 
@@ -434,137 +362,8 @@ final class ComPreparedTask extends MySQLCommunicationTask implements PreparedSt
 
 
     /**
-     * @see #executeUpdate(List)
-     */
-    private void executeUpdateInEventLoop(final MonoSink<ResultStates> sink, final List<BindValue> parameterGroup) {
-        switch (this.phase) {
-            case CLOSE_STMT:
-                sink.error(createStatementCloseException());
-                break;
-            case WAIT_FOR_PARAMETER: {
-                if (this.querySink != null || this.updateSink != null || this.batchUpdateSink != null) {
-                    throw createExecuteMultiTimeException();
-                }
-                executeUpdateStatement(sink, parameterGroup);
-            }
-            break;
-            default:
-                sink.error(createExecuteMultiTimeException());
-        }
-    }
-
-    /**
-     * @see #executeUpdateInEventLoop(MonoSink, List)
-     * @see #internalDecode(ByteBuf, Consumer)
-     * @see #executeNextUpdate()
-     */
-    private void executeUpdateStatement(final MonoSink<ResultStates> sink, final List<BindValue> parameterGroup) {
-        this.phase = Phase.EXECUTE;
-        this.updateSink = sink;
-        this.batchUpdateSink = null;
-
-        final MySQLColumnMeta[] parameterMetaArray = Objects.requireNonNull(
-                this.parameterMetas, "this.parameterMetas");
-
-        updateSequenceId(-1); // reset sequence_id
-        final StatementCommandWriter commandWriter = new PrepareExecuteCommandWriter(
-                this.statementId, parameterMetaArray
-                , false, this::addAndGetSequenceId
-                , this.adjutant, this::executeCommandWriterErrorEvent);
-        this.executeCommandWriter = commandWriter;
-
-        if (parameterGroup.isEmpty()) {
-            this.parameterGroupList = Collections.emptyList();
-            this.batchGroupIndex = -1;
-        } else {
-            this.parameterGroupList = Collections.singletonList(parameterGroup);
-            this.batchGroupIndex = 0;
-        }
-
-        // write execute command.
-
-        this.packetPublisher = commandWriter.writeCommand(parameterGroup);
-        this.phase = Phase.READ_EXECUTE_RESPONSE;
-
-        // send signal to task executor.
-        Objects.requireNonNull(this.signal, "this.signal")
-                .sendPacket(this)
-                .subscribe();
-
-    }
-
-
-    /**
-     * @see #executeQuery(List, Consumer)
-     */
-    private void executeQueryInEventLoop(final FluxSink<ResultRow> sink, final List<BindValue> parameterGroup
-            , final Consumer<ResultStates> statesConsumer) {
-        switch (this.phase) {
-            case CLOSE_STMT:
-                sink.error(createStatementCloseException());
-                break;
-            case WAIT_FOR_PARAMETER: {
-                if (this.querySink != null || this.updateSink != null || this.batchUpdateSink != null) {
-                    throw createExecuteMultiTimeException();
-                }
-                executeQueryStatement(sink, parameterGroup, statesConsumer);
-            }
-            break;
-            default:
-                sink.error(createExecuteMultiTimeException());
-        }
-    }
-
-    /**
-     * @see #executeQueryInEventLoop(FluxSink, List, Consumer)
-     * @see #internalDecode(ByteBuf, Consumer)
-     * @see #readExecuteResponse(ByteBuf, Consumer)
-     */
-    private void executeQueryStatement(final FluxSink<ResultRow> sink, final List<BindValue> parameterGroup
-            , final Consumer<ResultStates> statesConsumer) {
-        this.phase = Phase.EXECUTE;
-        this.querySink = sink;
-        this.resultStatesConsumer = statesConsumer;
-
-        final MySQLColumnMeta[] columnMetaArray = Objects.requireNonNull(
-                this.prepareColumnMetas, "this.prepareColumnMetas");
-        final MySQLColumnMeta[] parameterMetaArray = Objects.requireNonNull(
-                this.parameterMetas, "this.parameterMetas");
-
-        final StatementCommandWriter commandWriter = new PrepareExecuteCommandWriter(
-                this.statementId, parameterMetaArray
-                , columnMetaArray.length > 0, this::addAndGetSequenceId
-                , this.adjutant, this::executeCommandWriterErrorEvent);
-        this.executeCommandWriter = commandWriter;
-
-        if (parameterGroup.isEmpty()) {
-            this.parameterGroupList = Collections.emptyList();
-            this.batchGroupIndex = -1;
-        } else {
-            this.parameterGroupList = Collections.singletonList(parameterGroup);
-            this.batchGroupIndex = 0;
-        }
-
-        updateSequenceId(-1); // reset sequence_id
-        // write execute command.
-        this.packetPublisher = commandWriter.writeCommand(parameterGroup);
-        this.phase = Phase.READ_EXECUTE_RESPONSE;
-
-        this.resultSetReader = new BinaryResultSetReader(sink, this.resultStatesConsumer
-                , this.adjutant, this::updateSequenceId
-                , this::readResultSetErrorEvent);
-
-        // send signal to task executor.
-        Objects.requireNonNull(this.signal, "this.signal")
-                .sendPacket(this)
-                .subscribe();
-
-    }
-
-
-    /**
      * @see #internalError(Throwable)
-     * @see #executeQueryStatement(FluxSink, List, Consumer)
+     * @see #executeStatement()
      */
     private void executeCommandWriterErrorEvent(Throwable e) {
         if (this.adjutant.inEventLoop()) {
@@ -582,72 +381,11 @@ final class ComPreparedTask extends MySQLCommunicationTask implements PreparedSt
         }
     }
 
-    /**
-     * @see #executeBatchUpdate(List)
-     * @see #internalDecode(ByteBuf, Consumer)
-     */
-    private void executeBatchUpdateInEventLoop(final FluxSink<ResultStates> sink
-            , final List<List<BindValue>> parameterGroupList) {
-        switch (this.phase) {
-            case CLOSE_STMT:
-                sink.error(createStatementCloseException());
-                break;
-            case WAIT_FOR_PARAMETER: {
-                if (this.querySink != null || this.updateSink != null || this.batchUpdateSink != null) {
-                    throw createExecuteMultiTimeException();
-                }
-                executeBatchUpdateStatement(sink, parameterGroupList);
-            }
-            break;
-            default:
-                sink.error(createExecuteMultiTimeException());
-        }
-    }
-
-    private void executeBatchUpdateStatement(final FluxSink<ResultStates> sink
-            , final List<List<BindValue>> parameterGroupList) {
-
-        this.phase = Phase.EXECUTE;
-        this.batchUpdateSink = sink;
-        this.parameterGroupList = parameterGroupList;
-
-        this.updateSink = null;
-        this.querySink = null;
-        this.resultStatesConsumer = null;
-
-        final MySQLColumnMeta[] parameterMetaArray = Objects.requireNonNull(
-                this.parameterMetas, "this.parameterMetas");
-
-        updateSequenceId(-1); // reset sequence_id
-        final StatementCommandWriter commandWriter = new PrepareExecuteCommandWriter(
-                this.statementId, parameterMetaArray
-                , false, this::addAndGetSequenceId
-                , this.adjutant, this::executeCommandWriterErrorEvent);
-        this.executeCommandWriter = commandWriter;
-
-
-        // write execute command.
-        if (parameterGroupList.isEmpty()) {
-            this.packetPublisher = commandWriter.writeCommand(Collections.emptyList());
-            this.batchGroupIndex = -1;
-        } else {
-            this.packetPublisher = commandWriter.writeCommand(parameterGroupList.get(0));
-            this.batchGroupIndex = 0;
-        }
-
-        this.phase = Phase.READ_EXECUTE_RESPONSE;
-
-        // send signal to task executor.
-        Objects.requireNonNull(this.signal, "this.signal")
-                .sendPacket(this)
-                .subscribe();
-    }
-
 
     /**
      * @return true: task end.
      * @see #internalDecode(ByteBuf, Consumer)
-     * @see #executeQueryStatement(FluxSink, List, Consumer)
+     * @see #executeQueryStatement(QuerySink, MySQLColumnMeta[], StatementCommandWriter)
      */
     private boolean readExecuteResponse(final ByteBuf cumulateBuffer, final Consumer<Object> serverStatusConsumer) {
         assertPhase(Phase.READ_EXECUTE_RESPONSE);
@@ -661,7 +399,7 @@ final class ComPreparedTask extends MySQLCommunicationTask implements PreparedSt
 
                 ErrorPacket error = ErrorPacket.readPacket(cumulateBuffer.readSlice(payloadLength)
                         , this.negotiatedCapability, this.adjutant.obtainCharsetResults());
-                emitErrorToResultDownstream(MySQLExceptionUtils.createErrorPacketException(error));
+                this.downStreamSink.error(MySQLExceptionUtils.createErrorPacketException(error));
                 taskEnd = true;
             }
             break;
@@ -671,42 +409,148 @@ final class ComPreparedTask extends MySQLCommunicationTask implements PreparedSt
 
                 OkPacket ok = OkPacket.read(cumulateBuffer.readSlice(payloadLength), this.negotiatedCapability);
                 serverStatusConsumer.accept(ok.getStatusFags());
-                Objects.requireNonNull(this.updateSink, "this.updateSink")
-                        .success(MySQLResultStates.from(ok));
-                taskEnd = executeNextUpdate();
+                // emit update result
+                Publisher<ByteBuf> publisher = this.downStreamSink.emitUpdateResult(MySQLResultStates.from(ok)
+                        , Objects.requireNonNull(this.parameterMetas, "this.parameterMetas"));
+                this.packetPublisher = publisher;
+                taskEnd = publisher == null;
             }
             break;
             default: {
                 this.phase = Phase.READ_RESULT_SET;
-                taskEnd = readResultSet(cumulateBuffer, serverStatusConsumer);
+                taskEnd = this.downStreamSink.readResultSet(cumulateBuffer, serverStatusConsumer);
             }
+        }
+        if (taskEnd && MySQLCollectionUtils.isEmpty(this.errorList)) {
+            this.phase = Phase.STATEMENT_END;
+        }
+        return taskEnd;
+    }
+
+
+    /**
+     * @return true : bind parameter error,task end.
+     * @see #internalDecode(ByteBuf, Consumer)
+     * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_com_stmt_execute.html">Protocol::COM_STMT_EXECUTE</a>
+     */
+    private boolean executeStatement() {
+        assertPhase(Phase.EXECUTE);
+
+        final DownStreamSink downStreamSink = this.downStreamSink;
+
+        final MySQLColumnMeta[] columnMetaArray = Objects.requireNonNull(
+                this.prepareColumnMetas, "this.prepareColumnMetas");
+
+        final MySQLColumnMeta[] parameterMetaArray = Objects.requireNonNull(
+                this.parameterMetas, "this.parameterMetas");
+
+        final StatementCommandWriter commandWriter = new PrepareExecuteCommandWriter(
+                this.statementId, parameterMetaArray
+                , columnMetaArray.length > 0, this::addAndGetSequenceId
+                , this.adjutant, this::executeCommandWriterErrorEvent);
+
+        boolean taskEnd = false;
+        try {
+            if (downStreamSink instanceof QuerySink) {
+                if (columnMetaArray.length == 0) {
+                    downStreamSink.error(SubscriptionNotMatchException.expectQuery());
+                    taskEnd = true;
+                } else {
+                    executeQueryStatement((QuerySink) downStreamSink, parameterMetaArray, commandWriter);
+                }
+            } else if (downStreamSink instanceof UpdateSink) {
+                if (columnMetaArray.length > 0) {
+                    downStreamSink.error(SubscriptionNotMatchException.expectUpdate());
+                    taskEnd = true;
+                } else {
+                    executeUpdateStatement((UpdateSink) downStreamSink, parameterMetaArray, commandWriter);
+                }
+            } else if (downStreamSink instanceof BatchUpdateSink) {
+                if (columnMetaArray.length > 0) {
+                    downStreamSink.error(SubscriptionNotMatchException.expectBatchUpdate());
+                    taskEnd = true;
+                } else {
+                    taskEnd = executeBatchUpdateStatement((BatchUpdateSink) downStreamSink
+                            , parameterMetaArray, commandWriter);
+                }
+            } else {
+                throw new IllegalStateException(String.format("Unknown DownstreamSink[%s]", downStreamSink));
+            }
+
+            this.phase = Phase.READ_EXECUTE_RESPONSE;
+
+        } catch (SQLBindParameterException e) {
+            downStreamSink.error(e);
+            taskEnd = true;
         }
         return taskEnd;
     }
 
     /**
-     * @see #readExecuteResponse(ByteBuf, Consumer)
-     * @see #internalDecode(ByteBuf, Consumer)
+     * @see #executeStatement()
      */
-    private boolean readResultSet(final ByteBuf cumulateBuffer, final Consumer<Object> serverStatusConsumer) {
-        return Objects.requireNonNull(this.resultSetReader, "this.resultSetReader")
-                .read(cumulateBuffer, serverStatusConsumer);
+    private void executeQueryStatement(final QuerySink querySink, final MySQLColumnMeta[] parameterMetaArray
+            , final StatementCommandWriter commandWriter) throws SQLBindParameterException {
+
+
+        List<BindValue> parameterGroup = Objects.requireNonNull(querySink.parameterGroup
+                , "querySink.parameterGroup");
+
+        if (parameterGroup.isEmpty()) {
+            parameterGroup = Collections.emptyList();
+        } else {
+            parameterGroup = prepareParameterGroup(parameterMetaArray, parameterGroup);
+        }
+        querySink.parameterGroup = parameterGroup;
+        this.packetPublisher = commandWriter.writeCommand(parameterGroup); // write command
+
+        querySink.resultSetReader = new BinaryResultSetReader(querySink.sink, querySink.statesConsumer
+                , this.adjutant, this::updateSequenceId
+                , this::readResultSetErrorEvent);
     }
 
     /**
-     * @see #readExecuteResponse(ByteBuf, Consumer)
+     * @see #executeStatement()
      */
-    private void emitErrorToResultDownstream(Throwable e) {
-        if (this.resultStatesConsumer == null) {
-            Objects.requireNonNull(this.updateSink, "this.updateSink").error(e);
+    private void executeUpdateStatement(final UpdateSink updateSink, final MySQLColumnMeta[] parameterMetaArray
+            , final StatementCommandWriter commandWriter) throws SQLBindParameterException {
+        List<BindValue> parameterGroup = Objects.requireNonNull(updateSink.parameterGroup
+                , "updateSink.parameterGroup");
+        if (parameterGroup.isEmpty()) {
+            parameterGroup = Collections.emptyList();
         } else {
-            Objects.requireNonNull(this.querySink, "this.updateSink").error(e);
+            parameterGroup = prepareParameterGroup(parameterMetaArray, parameterGroup);
         }
+        updateSink.parameterGroup = parameterGroup;
+        this.packetPublisher = commandWriter.writeCommand(parameterGroup); // write command
     }
 
+    /**
+     * @see #executeStatement()
+     */
+    private boolean executeBatchUpdateStatement(final BatchUpdateSink batchSink, final MySQLColumnMeta[] parameterMetaArray
+            , final StatementCommandWriter commandWriter) throws SQLBindParameterException {
+        List<List<BindValue>> groupList = Objects.requireNonNull(batchSink.groupList
+                , "batchSink.groupList");
 
-    private void markWaitForParameters() {
-        this.phase = Phase.WAIT_FOR_PARAMETER;
+
+        final List<BindValue> parameterGroup;
+        if (groupList.isEmpty()) {
+            parameterGroup = Collections.emptyList();
+        } else {
+            parameterGroup = prepareParameterGroup(parameterMetaArray, groupList.get(0));
+            groupList.set(0, parameterGroup);
+            batchSink.index++;
+        }
+        final boolean taskEnd;
+        if (parameterGroup.isEmpty()) {
+            batchSink.error(SubscriptionNotMatchException.expectBatchUpdate());
+            taskEnd = true;
+        } else {
+            this.packetPublisher = commandWriter.writeCommand(parameterGroup);
+            taskEnd = false;
+        }
+        return taskEnd;
     }
 
 
@@ -727,59 +571,39 @@ final class ComPreparedTask extends MySQLCommunicationTask implements PreparedSt
         this.parameterMetaIndex = 0;
     }
 
+
     /**
-     * @return true: no next ,task end.
-     * @see #readExecuteResponse(ByteBuf, Consumer)
-     * @see #executeUpdateStatement(MonoSink, List)
+     * @see #internalError(Throwable)
      */
-    private boolean executeNextUpdate() {
-        final int batchGroupIndex = this.batchGroupIndex;
-        final List<List<BindValue>> parameterGroupList = Objects.requireNonNull(this.parameterGroupList
-                , "this.parameterGroupList");
-        if (parameterGroupList.isEmpty() || batchGroupIndex == parameterGroupList.size()) {
-            this.phase = Phase.STATEMENT_END;
-            return true;
+    @Nullable
+    private Publisher<ByteBuf> handleSQLBindParameterException(SQLBindParameterException e) {
+        Publisher<ByteBuf> publisher = null;
+        if (e instanceof LongParameterException) {
+            // io.jdbd.mysql.protocol.client.PrepareLongParameterWriter.publishLonDataReadException
+            publisher = Mono.just(createCloseStatementPacket());//1. close statement
+        } else if (e instanceof BindParameterException) {
+
+        } else {
+
         }
-        this.packetPublisher = Objects.requireNonNull(this.executeCommandWriter, "this.executeCommandWriter")
-                .writeCommand(parameterGroupList.get(batchGroupIndex));
-        this.batchGroupIndex++;
-        this.phase = Phase.READ_EXECUTE_RESPONSE;
-        return false;
+        return publisher;
     }
-
-    /*################################## blow private instance exception method ##################################*/
 
 
     /**
-     * @see #executeQueryInEventLoop(FluxSink, List, Consumer)
+     * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_com_stmt_close.html">Protocol::COM_STMT_CLOSE</a>
      */
-    private IllegalStateException createStatementCloseException() {
-        throw new IllegalStateException(
-                String.format("%s have closed.", PreparedStatement.class.getName()));
+    private ByteBuf createCloseStatementPacket() {
+        ByteBuf packet = this.adjutant.alloc().buffer(9);
+
+        PacketUtils.writeInt3(packet, 5);
+        packet.writeByte(addAndGetSequenceId());
+
+        packet.writeByte(PacketUtils.COM_STMT_CLOSE);
+        PacketUtils.writeInt4(packet, this.statementId);
+        return packet;
     }
 
-    /**
-     * @see #executeQueryInEventLoop(FluxSink, List, Consumer)
-     */
-    private IllegalStateException createExecuteMultiTimeException() {
-        throw new IllegalStateException(
-                String.format("%s execute only once.", PreparedStatement.class.getName()));
-    }
-
-
-
-
-
-    /*################################## blow private static method ##################################*/
-
-
-
-
-    /*################################## blow private instance inner class ##################################*/
-
-
-
-    /*################################## blow private method ##################################*/
 
     private void assertPhase(Phase expectedPhase) {
         if (this.phase != expectedPhase) {
@@ -788,6 +612,186 @@ final class ComPreparedTask extends MySQLCommunicationTask implements PreparedSt
     }
 
     /*################################## blow private static method ##################################*/
+
+
+    private static List<BindValue> prepareParameterGroup(final MySQLColumnMeta[] parameterMetaArray
+            , final List<BindValue> parameterGroup) {
+
+        final int size = parameterGroup.size();
+        if (size != parameterMetaArray.length) {
+            throw new SQLBindParameterException(
+                    "Bind parameter count[%s] and prepare sql parameter count[%s] not match."
+                    , parameterGroup.size(), parameterMetaArray.length);
+        }
+
+        List<BindValue> list = new ArrayList<>(parameterGroup);
+
+        list.sort(Comparator.comparingInt(BindValue::getParamIndex));
+
+        BindValue bindValue;
+        for (int i = 0, index; i < size; i++) {
+            bindValue = parameterGroup.get(i);
+            index = bindValue.getParamIndex();
+            if (index < i) {
+                throw new BindParameterException(index, "Bind parameter[%s] duplication.", index);
+            } else if (index != i) {
+                throw new BindParameterException(i, "Bind parameter[%s] not set.", i);
+            } else {
+                MySQLType type = parameterMetaArray[i].mysqlType;
+                if (bindValue.getType() != type) {
+                    list.set(i, MySQLBindValue.create(bindValue, type));
+                }
+            }
+        }
+
+        return MySQLCollectionUtils.unmodifiableList(list);
+    }
+
+
+    /*################################## blow private static inner class ##################################*/
+
+
+    private static abstract class DownStreamSink {
+
+        private final String sql;
+
+        StatementCommandWriter commandWriter;
+
+        public DownStreamSink(String sql) {
+            this.sql = sql;
+        }
+
+        abstract void error(Throwable e);
+
+        @Nullable
+        abstract Publisher<ByteBuf> emitUpdateResult(ResultStates resultStates, MySQLColumnMeta[] parameterMetaArray);
+
+        abstract boolean readResultSet(ByteBuf cumulateBuffer, Consumer<Object> serverStatusConsumer);
+    }
+
+    private static final class QuerySink extends DownStreamSink {
+
+        private ResultSetReader resultSetReader;
+
+        private List<BindValue> parameterGroup;
+
+        private final FluxSink<ResultRow> sink;
+
+        private final Consumer<ResultStates> statesConsumer;
+
+
+        private QuerySink(String sql, List<BindValue> parameterGroup, FluxSink<ResultRow> sink
+                , Consumer<ResultStates> statesConsumer) {
+            super(sql);
+            this.resultSetReader = null;
+            this.parameterGroup = parameterGroup;
+            this.sink = sink;
+            this.statesConsumer = statesConsumer;
+        }
+
+        @Override
+        void error(Throwable e) {
+            this.sink.error(e);
+        }
+
+        @Override
+        Publisher<ByteBuf> emitUpdateResult(final ResultStates resultStates
+                , final MySQLColumnMeta[] parameterMetaArray) {
+            throw new IllegalStateException(String.format("%s not support read update result.", this));
+        }
+
+        @Override
+        boolean readResultSet(final ByteBuf cumulateBuffer, final Consumer<Object> serverStatusConsumer) {
+            return Objects.requireNonNull(this.resultSetReader, "this.resultSetReader")
+                    .read(cumulateBuffer, serverStatusConsumer);
+        }
+    }
+
+    private static final class UpdateSink extends DownStreamSink {
+
+        private List<BindValue> parameterGroup;
+
+        private final MonoSink<ResultStates> sink;
+
+        private UpdateSink(String sql, List<BindValue> parameterGroup, MonoSink<ResultStates> sink) {
+            super(sql);
+            this.parameterGroup = parameterGroup;
+            this.sink = sink;
+        }
+
+        @Override
+        void error(Throwable e) {
+            this.sink.error(e);
+        }
+
+        @Override
+        Publisher<ByteBuf> emitUpdateResult(final ResultStates resultStates
+                , final MySQLColumnMeta[] parameterMetaArray) {
+            this.sink.success(resultStates);
+            return null;
+        }
+
+        @Override
+        boolean readResultSet(final ByteBuf cumulateBuffer, final Consumer<Object> serverStatusConsumer) {
+            throw new IllegalStateException(String.format("%s not support read result set.", this));
+        }
+    }
+
+    private static final class BatchUpdateSink extends DownStreamSink {
+
+        private final List<List<BindValue>> groupList;
+
+        private int index = 0;
+
+        private final FluxSink<ResultStates> sink;
+
+
+        private BatchUpdateSink(String sql, List<List<BindValue>> groupList, FluxSink<ResultStates> sink) {
+            super(sql);
+            this.groupList = MySQLCollectionUtils.unmodifiableList(groupList);
+            this.sink = sink;
+        }
+
+        @Override
+        void error(Throwable e) {
+            this.sink.error(e);
+        }
+
+        @Nullable
+        @Override
+        Publisher<ByteBuf> emitUpdateResult(final ResultStates resultStates
+                , final MySQLColumnMeta[] parameterMetaArray) {
+
+            this.sink.next(resultStates);
+
+            final int index = this.index;
+
+            Publisher<ByteBuf> publisher;
+            if (index == this.groupList.size()) {
+                publisher = null;
+            } else {
+                try {
+                    List<BindValue> parameterGroup = this.groupList.get(index);
+                    parameterGroup = prepareParameterGroup(parameterMetaArray, parameterGroup);
+                    this.groupList.set(index, parameterGroup);
+                    this.index++;
+
+                    publisher = Objects.requireNonNull(this.commandWriter, "this.commandWriter")
+                            .writeCommand(parameterGroup);
+                } catch (SQLBindParameterException e) {
+                    this.sink.error(e);
+                    publisher = null;
+                }
+            }
+            return publisher;
+
+        }
+
+        @Override
+        boolean readResultSet(final ByteBuf cumulateBuffer, final Consumer<Object> serverStatusConsumer) {
+            throw new IllegalStateException(String.format("%s not support read result set.", this));
+        }
+    }
 
 
     enum Phase {
