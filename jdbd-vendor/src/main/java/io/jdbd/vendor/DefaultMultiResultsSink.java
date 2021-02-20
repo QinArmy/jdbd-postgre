@@ -2,6 +2,7 @@ package io.jdbd.vendor;
 
 import io.jdbd.*;
 import io.jdbd.lang.Nullable;
+import org.reactivestreams.Publisher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import reactor.core.publisher.Flux;
@@ -19,8 +20,8 @@ import java.util.function.Consumer;
 public final class DefaultMultiResultsSink implements MultiResultsSink {
 
 
-    public static DefaultMultiResultsSink forTask(AbstractCommunicationTask task, int expectedResultCount) {
-        return new DefaultMultiResultsSink(task, expectedResultCount);
+    public static DefaultMultiResultsSink forTask(AbstractCommunicationTask task) {
+        return new DefaultMultiResultsSink(task);
     }
 
 
@@ -51,7 +52,7 @@ public final class DefaultMultiResultsSink implements MultiResultsSink {
     private Queue<BufferSubscriber> bufferSubscriberQueue;
 
 
-    private DefaultMultiResultsSink(AbstractCommunicationTask task, int expectedResultCount) {
+    private DefaultMultiResultsSink(AbstractCommunicationTask task) {
         this.task = task;
         this.expectedResultCount = expectedResultCount;
     }
@@ -176,7 +177,7 @@ public final class DefaultMultiResultsSink implements MultiResultsSink {
         } else if (currentSubscriber instanceof MonoDownstreamSubscriber) {
             ((MonoDownstreamSubscriber) currentSubscriber).sink.success(resultStates);
         } else if (currentSubscriber instanceof FluxDownstreamSubscriber) {
-            ((FluxDownstreamSubscriber) currentSubscriber).sink.error(SubscriptionNotMatchException.expectUpdate());
+            ((FluxDownstreamSubscriber) currentSubscriber).sink.error(ErrorSubscribeException.expectUpdate());
         } else {
             throw createNonExpectedResultSubscriberTypeError(currentSubscriber);
         }
@@ -209,7 +210,7 @@ public final class DefaultMultiResultsSink implements MultiResultsSink {
             downstreamSubscriber.rowMeta = rowMeta;
         } else if (currentSubscriber instanceof MonoDownstreamSubscriber) {
             this.currentSubscriber = new FluxNotMatchSubscriber(rowMeta);
-            ((MonoDownstreamSubscriber) currentSubscriber).sink.error(SubscriptionNotMatchException.expectQuery()); // emit error.
+            ((MonoDownstreamSubscriber) currentSubscriber).sink.error(ErrorSubscribeException.expectQuery()); // emit error.
         } else {
             throw new IllegalStateException(String.format("currentSubscriber isn' expected type[%s]."
                     , currentSubscriber.getClass().getName()));
@@ -298,7 +299,7 @@ public final class DefaultMultiResultsSink implements MultiResultsSink {
             if (tooManyResultError) {
                 downstreamSubscriber.sink.error(new TooManyResultException(this.expectedResultCount, this.receiveResultCount));
             } else {
-                downstreamSubscriber.sink.error(SubscriptionNotMatchException.expectQuery());
+                downstreamSubscriber.sink.error(ErrorSubscribeException.expectQuery());
             }
         } else if (!(currentSubscriber instanceof FluxTooManyResultBufferSubscriber)) {
             throw createNonExpectedResultSubscriberTypeError(currentSubscriber);
@@ -402,9 +403,9 @@ public final class DefaultMultiResultsSink implements MultiResultsSink {
      */
     private void publishSubscriptionNotMatchError(BufferSubscriber buffer, DownstreamSubscriber subscriber) {
         if (buffer instanceof FluxBufferSubscriber && subscriber instanceof MonoDownstreamSubscriber) {
-            ((MonoDownstreamSubscriber) subscriber).sink.error(SubscriptionNotMatchException.expectQuery());
+            ((MonoDownstreamSubscriber) subscriber).sink.error(ErrorSubscribeException.expectQuery());
         } else if (buffer instanceof MonoBufferSubscriber && subscriber instanceof FluxDownstreamSubscriber) {
-            ((FluxDownstreamSubscriber) subscriber).sink.error(SubscriptionNotMatchException.expectUpdate());
+            ((FluxDownstreamSubscriber) subscriber).sink.error(ErrorSubscribeException.expectUpdate());
         } else {
             throw createNonExpectedResultSubscriberTypeError(subscriber);
         }
@@ -560,7 +561,14 @@ public final class DefaultMultiResultsSink implements MultiResultsSink {
                 }
             });
         }
+
+        @Override
+        public Publisher<ResultRow> nextQuery(Consumer<ResultStates> statesConsumer) {
+            return Flux.create(sink -> {
+            });
+        }
     }
+
 
     private interface ResultSubscriber {
 

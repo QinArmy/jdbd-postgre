@@ -1,34 +1,24 @@
 package io.jdbd.vendor;
 
-import io.jdbd.ResultRow;
-import io.jdbd.ResultRowMeta;
 import io.jdbd.ResultStates;
-
-import java.sql.SQLException;
+import io.jdbd.vendor.result.QuerySink;
 
 
 public interface MultiResultsSink {
 
     void error(Throwable e);
 
-    void nextUpdate(ResultStates resultStates, boolean hasMore);
+    /**
+     * @throws IllegalStateException when current result is query result.
+     */
+    void nextUpdate(ResultStates resultStates) throws IllegalStateException;
 
-    void nextQueryRowMeta(ResultRowMeta rowMeta);
-
-    RowSink obtainCurrentRowSink();
-
-    void emitRowTerminator(ResultStates resultStates, boolean hasMore);
-
-
-    interface RowSink {
-
-        void error(SQLException e);
-
-        ResultRowMeta getRowMeta();
-
-        boolean isCanceled();
-
-        void next(ResultRow row);
-    }
+    /**
+     * @throws IllegalStateException when <ul>
+     *                               <li>MultiResult complete.</li>
+     *                               <li>current result is query result and not complete.</li>
+     *                               </ul>
+     */
+    QuerySink nextQuery() throws IllegalStateException;
 
 }

@@ -7,56 +7,61 @@ import reactor.util.context.Context;
 
 import java.util.function.LongConsumer;
 
-public final class CheatRowFluxSink implements FluxSink<ResultRow> {
+public final class DirtyFluxSink implements FluxSink<ResultRow> {
 
-    private static final CheatRowFluxSink INSTANCE = new CheatRowFluxSink();
+    public static final DirtyFluxSink INSTANCE = new DirtyFluxSink();
 
 
-    private CheatRowFluxSink() {
+    private DirtyFluxSink() {
     }
 
     @Override
     public boolean isCancelled() {
+        // always true
         return true;
     }
 
     @Override
     public FluxSink<ResultRow> next(ResultRow resultRow) {
-        throw new UnsupportedOperationException();
+        // no-op
+        return this;
     }
 
     @Override
     public void complete() {
-        throw new UnsupportedOperationException();
+        // no-op
     }
 
     @Override
     public void error(Throwable e) {
-        throw new UnsupportedOperationException();
+        // no-op
     }
 
     @Override
     public Context currentContext() {
-        throw new UnsupportedOperationException();
+        return Context.empty();
     }
 
     @Override
     public long requestedFromDownstream() {
-        throw new UnsupportedOperationException();
+        return Long.MAX_VALUE;
     }
 
     @Override
     public FluxSink<ResultRow> onRequest(LongConsumer consumer) {
-        throw new UnsupportedOperationException();
+        // no-op
+        return this;
     }
 
     @Override
     public FluxSink<ResultRow> onCancel(Disposable d) {
-        throw new UnsupportedOperationException();
+        // no-op
+        return this;
     }
 
     @Override
     public FluxSink<ResultRow> onDispose(Disposable d) {
-        throw new UnsupportedOperationException();
+        // no-op
+        return this;
     }
 }

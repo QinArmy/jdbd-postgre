@@ -5,7 +5,9 @@ import io.jdbd.lang.Nullable;
 import java.time.ZoneId;
 import java.time.temporal.Temporal;
 
-
+/**
+ * @see MultiResults
+ */
 public interface ResultRow {
 
     ResultRowMeta getRowMeta();

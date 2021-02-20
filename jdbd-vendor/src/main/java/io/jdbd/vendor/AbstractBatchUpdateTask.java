@@ -12,7 +12,7 @@ public abstract class AbstractBatchUpdateTask extends AbstractCommunicationTask 
     private FluxSink<ResultStates> sink;
 
 
-    protected AbstractBatchUpdateTask(CommTaskExecutorAdjutant executorAdjutant) {
+    protected AbstractBatchUpdateTask(TaskAdjutant executorAdjutant) {
         super(executorAdjutant);
     }
 

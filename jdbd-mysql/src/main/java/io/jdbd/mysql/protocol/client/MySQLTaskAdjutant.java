@@ -2,9 +2,9 @@ package io.jdbd.mysql.protocol.client;
 
 import io.jdbd.lang.Nullable;
 import io.jdbd.mysql.JdbdMySQLException;
-import io.jdbd.vendor.CommTaskExecutorAdjutant;
+import io.jdbd.vendor.TaskAdjutant;
 
-interface MySQLTaskAdjutant extends CommTaskExecutorAdjutant, ClientProtocolAdjutant {
+interface MySQLTaskAdjutant extends TaskAdjutant, ClientProtocolAdjutant {
 
 
     MySQLCommTaskExecutor obtainCommTaskExecutor();

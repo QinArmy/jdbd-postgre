@@ -1,11 +1,11 @@
 package io.jdbd.mysql.protocol.client;
 
 import io.jdbd.mysql.BindValue;
-import io.jdbd.vendor.IStatementWrapper;
+import io.jdbd.vendor.statement.IPrepareWrapper;
 
 import java.util.List;
 
-public interface StatementWrapper extends IStatementWrapper<BindValue> {
+public interface PrepareWrapper extends IPrepareWrapper<BindValue> {
 
     @Override
     List<List<BindValue>> getParameterGroupList();

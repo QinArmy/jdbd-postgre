@@ -5,7 +5,7 @@ import io.jdbd.lang.Nullable;
 
 import java.util.function.Consumer;
 
-public interface CommTaskExecutorAdjutant {
+public interface TaskAdjutant {
 
 
     boolean inEventLoop();

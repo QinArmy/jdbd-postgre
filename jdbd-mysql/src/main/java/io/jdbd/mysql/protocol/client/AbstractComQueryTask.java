@@ -189,7 +189,7 @@ abstract class AbstractComQueryTask extends MySQLCommunicationTask {
                 }
                 ResultRowMeta rowMeta = MySQLRowMeta.from(columnMetas, this.adjutant.obtainCustomCollationMap());
                 if (emitCurrentQueryRowMeta(rowMeta) && this.error == null) {
-                    this.error = SubscriptionNotMatchException.expectBatchUpdate();
+                    this.error = ErrorSubscribeException.expectBatchUpdate();
                 }
                 this.textResultDecodePhase = TextResultDecodePhase.ROWS;
                 if (!PacketUtils.hasOnePacket(cumulateBuffer)) {

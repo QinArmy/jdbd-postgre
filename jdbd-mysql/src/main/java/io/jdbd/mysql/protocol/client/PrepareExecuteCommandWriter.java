@@ -40,7 +40,6 @@ final class PrepareExecuteCommandWriter implements StatementCommandWriter {
 
     private final MySQLColumnMeta[] paramMetaArray;
 
-    private final boolean query;
 
     private final ClientProtocolAdjutant adjutant;
 
@@ -55,7 +54,6 @@ final class PrepareExecuteCommandWriter implements StatementCommandWriter {
         this.statementTask = statementTask;
         this.statementId = statementTask.obtainStatementId();
         this.paramMetaArray = statementTask.obtainParameterMetas();
-        this.query = statementTask.returnResultSet();
 
         this.adjutant = statementTask.obtainAdjutant();
         this.properties = this.adjutant.obtainHostInfo().getProperties();

@@ -1,14 +1,18 @@
 package io.jdbd.mysql.protocol.client;
 
 import io.jdbd.MultiResults;
+import io.jdbd.ResultRow;
 import io.jdbd.ResultRowMeta;
 import io.jdbd.ResultStates;
 import io.jdbd.mysql.util.MySQLStringUtils;
 import io.jdbd.vendor.DefaultMultiResultsSink;
 import io.jdbd.vendor.MultiResultsSink;
+import io.jdbd.vendor.statement.StatementWrapper;
 import io.netty.buffer.ByteBuf;
+import reactor.core.publisher.FluxSink;
 
 import java.util.List;
+import java.util.function.Consumer;
 import java.util.function.Function;
 
 
@@ -72,6 +76,58 @@ final class ComQueryTask extends AbstractComQueryTask {
 
 
     /*################################## blow private method ##################################*/
+
+    private abstract class DownStreamSink {
+
+        final String sql;
+
+        final StatementCommandWriter commandWriter;
+
+        private DownStreamSink(String sql, StatementCommandWriter commandWriter) {
+            this.sql = sql;
+            this.commandWriter = commandWriter;
+        }
+
+        abstract void error(Throwable e);
+
+
+        abstract void nextUpdate(ResultStates resultStates);
+
+        abstract FluxSink<ResultRow> nextQuery();
+
+        abstract FluxSink<ResultRow> currentQuery();
+
+    }
+
+    private final class QuerySink extends DownStreamSink {
+
+        private final FluxSink<ResultRow> sink;
+
+        private final Consumer<ResultStates> statesConsumer;
+
+        private QuerySink(FluxSink<ResultRow> sink, StatementWrapper wrapper, StatementCommandWriter commandWriter) {
+            super(wrapper.getSql(), commandWriter);
+            this.sink = sink;
+            this.statesConsumer = wrapper.getStatesConsumer();
+        }
+
+
+        @Override
+        void error(Throwable e) {
+            this.sink.error(e);
+        }
+
+        @Override
+        boolean complete(ResultStates resultStates) {
+            return true;
+        }
+
+        @Override
+        boolean nextResult(ResultStates resultStates) {
+            return true;
+        }
+
+    }
 
 
 }

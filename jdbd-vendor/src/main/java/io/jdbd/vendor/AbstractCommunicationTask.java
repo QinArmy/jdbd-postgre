@@ -10,11 +10,11 @@ import java.util.function.Consumer;
 
 public abstract class AbstractCommunicationTask implements CommunicationTask<ByteBuf> {
 
-    final CommTaskExecutorAdjutant executorAdjutant;
+    final TaskAdjutant executorAdjutant;
 
     private TaskPhase taskPhase;
 
-    protected AbstractCommunicationTask(CommTaskExecutorAdjutant executorAdjutant) {
+    protected AbstractCommunicationTask(TaskAdjutant executorAdjutant) {
         this.executorAdjutant = executorAdjutant;
     }
 

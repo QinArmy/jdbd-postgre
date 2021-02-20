@@ -56,7 +56,7 @@ import java.util.function.Consumer;
 final class ComPreparedTask extends MySQLCommunicationTask implements StatementTask {
 
 
-    static Flux<ResultRow> query(StatementWrapper wrapper, MySQLTaskAdjutant adjutant) {
+    static Flux<ResultRow> query(PrepareWrapper wrapper, MySQLTaskAdjutant adjutant) {
 
         return Flux.create(sink -> {
 
@@ -66,7 +66,7 @@ final class ComPreparedTask extends MySQLCommunicationTask implements StatementT
         });
     }
 
-    static Mono<ResultStates> update(StatementWrapper wrapper, MySQLTaskAdjutant adjutant) {
+    static Mono<ResultStates> update(PrepareWrapper wrapper, MySQLTaskAdjutant adjutant) {
 
         return Mono.create(sink -> {
 
@@ -76,7 +76,7 @@ final class ComPreparedTask extends MySQLCommunicationTask implements StatementT
         });
     }
 
-    static Flux<ResultStates> batchUpdate(StatementWrapper wrapper, MySQLTaskAdjutant adjutant) {
+    static Flux<ResultStates> batchUpdate(PrepareWrapper wrapper, MySQLTaskAdjutant adjutant) {
         return Flux.create(sink -> {
             new ComPreparedTask(adjutant, new BatchUpdateSink(wrapper.getSql(), wrapper.getParameterGroupList(), sink))
                     .submit(sink::error);
@@ -518,21 +518,21 @@ final class ComPreparedTask extends MySQLCommunicationTask implements StatementT
         try {
             if (downStreamSink instanceof QuerySink) {
                 if (columnMetaArray.length == 0) {
-                    downStreamSink.error(SubscriptionNotMatchException.expectQuery());
+                    downStreamSink.error(ErrorSubscribeException.expectQuery());
                     taskEnd = true;
                 } else {
                     executeQueryStatement((QuerySink) downStreamSink, parameterMetaArray, commandWriter);
                 }
             } else if (downStreamSink instanceof UpdateSink) {
                 if (columnMetaArray.length > 0) {
-                    downStreamSink.error(SubscriptionNotMatchException.expectUpdate());
+                    downStreamSink.error(ErrorSubscribeException.expectUpdate());
                     taskEnd = true;
                 } else {
                     executeUpdateStatement((UpdateSink) downStreamSink, parameterMetaArray, commandWriter);
                 }
             } else if (downStreamSink instanceof BatchUpdateSink) {
                 if (columnMetaArray.length > 0) {
-                    downStreamSink.error(SubscriptionNotMatchException.expectBatchUpdate());
+                    downStreamSink.error(ErrorSubscribeException.expectBatchUpdate());
                     taskEnd = true;
                 } else {
                     taskEnd = executeBatchUpdateStatement((BatchUpdateSink) downStreamSink
@@ -607,7 +607,7 @@ final class ComPreparedTask extends MySQLCommunicationTask implements StatementT
         }
         final boolean taskEnd;
         if (parameterGroup.isEmpty()) {
-            batchSink.error(SubscriptionNotMatchException.expectBatchUpdate());
+            batchSink.error(ErrorSubscribeException.expectBatchUpdate());
             taskEnd = true;
         } else {
             this.packetPublisher = commandWriter.writeCommand(parameterGroup);
@@ -780,7 +780,7 @@ final class ComPreparedTask extends MySQLCommunicationTask implements StatementT
 
         private final int fetchSize;
 
-        private QuerySink(StatementWrapper wrapper, FluxSink<ResultRow> sink) {
+        private QuerySink(PrepareWrapper wrapper, FluxSink<ResultRow> sink) {
             super(wrapper.getSql());
 
             this.resultSetReader = null;

@@ -6,8 +6,7 @@ public interface ResultStates {
 
     long getAffectedRows();
 
-    @NonNull
-    Long getInsertId();
+    long getInsertId();
 
     int getWarnings();
 
@@ -15,6 +14,8 @@ public interface ResultStates {
     String getSQLState();
 
     int getVendorCode();
+
+    boolean hasMoreResults();
 
 
 }
