@@ -5,9 +5,7 @@ package io.jdbd;
  */
 public final class NoMoreResultException extends JdbdNonSQLException {
 
-    public NoMoreResultException(String message) {
-        super(message);
+    public NoMoreResultException(String messageFormat, Object... args) {
+        super(messageFormat, args);
     }
-
-
 }
