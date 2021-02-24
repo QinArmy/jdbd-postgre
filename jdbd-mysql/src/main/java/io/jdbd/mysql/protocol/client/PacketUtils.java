@@ -640,6 +640,7 @@ public abstract class PacketUtils {
         if (readableBytes >= MAX_PACKET) {
             if (bigPacket.isReadOnly()) {
                 packet = bufferCreator.apply(MAX_PACKET);
+                packet.writeBytes(bigPacket, MAX_PACKET);
             } else {
                 packet = bigPacket.readRetainedSlice(MAX_PACKET);
             }
@@ -649,7 +650,8 @@ public abstract class PacketUtils {
             publishLength += MAX_PAYLOAD;
             publishLength += publishBigPayload(bigPacket, sink, sequenceIdSupplier, bufferCreator, publishSmallPacket);
         }
-        if (publishSmallPacket && (readableBytes = bigPacket.readableBytes()) >= 0) {
+        if (publishSmallPacket) {
+            readableBytes = bigPacket.readableBytes();
             packet = bufferCreator.apply(HEADER_SIZE + readableBytes);
 
             writeInt3(packet, readableBytes);
@@ -872,9 +874,6 @@ public abstract class PacketUtils {
         packetBuffer.writeBytes(stringBytes);
     }
 
-    public static void writeByteWithEscape(ByteBuf packetBuffer, final byte[] bytes, int length) {
-
-    }
 
     public static byte[] convertInt8ToMySQLBytes(long int8) {
         byte[] bytes = new byte[8];

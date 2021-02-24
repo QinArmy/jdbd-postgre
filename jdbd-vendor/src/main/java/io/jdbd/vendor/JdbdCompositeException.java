@@ -9,10 +9,10 @@ import java.util.List;
 
 public class JdbdCompositeException extends JdbdNonSQLException {
 
-    private final List<Throwable> errorList;
+    private final List<? extends Throwable> errorList;
 
 
-    public JdbdCompositeException(List<Throwable> errorList, String messageFormat, Object... args) {
+    public JdbdCompositeException(List<? extends Throwable> errorList, String messageFormat, Object... args) {
         super(getFirstError(errorList), messageFormat, args);
         this.errorList = JdbdCollectionUtils.unmodifiableList(new ArrayList<>(errorList));
     }
@@ -26,12 +26,12 @@ public class JdbdCompositeException extends JdbdNonSQLException {
     /**
      * @return a unmodifiable list.
      */
-    public List<Throwable> getErrorList() {
+    public List<? extends Throwable> getErrorList() {
         return this.errorList;
     }
 
     @Nullable
-    protected static Throwable getFirstError(List<Throwable> errorList) {
+    protected static Throwable getFirstError(List<? extends Throwable> errorList) {
         return errorList.isEmpty() ? null : errorList.get(0);
     }
 

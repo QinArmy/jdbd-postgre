@@ -15,29 +15,33 @@ public final class ErrorSubscribeException extends JdbdNonSQLException {
     }
 
 
-    public static ErrorSubscribeException errorSubscribe(SubscriptionType expect, SubscriptionType actual
+    public static ErrorSubscribeException errorSubscribe(ResultType expect, ResultType actual
             , String format, Object... args) {
         return new ErrorSubscribeException(expect, actual, format, args);
     }
 
-    private final SubscriptionType expectedType;
+    private final ResultType subscribeType;
 
-    private final SubscriptionType actualType;
+    private final ResultType actualType;
 
-    private ErrorSubscribeException(SubscriptionType expectedType, SubscriptionType actualType
-            , String format, Object... args) {
-        super(createMessage(format, args));
-        this.expectedType = expectedType;
+    public ErrorSubscribeException(ResultType subscribeType, ResultType actualType) {
+        super("Subscribe ResultType[%s] but actual ResultType[%s]", subscribeType, actualType);
+        this.subscribeType = subscribeType;
         this.actualType = actualType;
     }
 
-    public SubscriptionType getActualType() {
+    private ErrorSubscribeException(ResultType subscribeType, ResultType actualType
+            , String format, Object... args) {
+        super(createMessage(format, args));
+        this.subscribeType = subscribeType;
+        this.actualType = actualType;
+    }
+
+    public ResultType getActualType() {
         return this.actualType;
     }
 
-    public enum SubscriptionType {
-        UPDATE,
-        QUERY,
-        BATCH_UPDATE
+    public ResultType getSubscribeType() {
+        return this.subscribeType;
     }
 }

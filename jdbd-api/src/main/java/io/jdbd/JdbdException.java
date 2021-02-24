@@ -3,35 +3,40 @@ package io.jdbd;
 
 import reactor.util.annotation.Nullable;
 
-public class JdbdException extends RuntimeException {
 
-    public JdbdException(String message) {
+/**
+ * @see JdbdSQLException
+ * @see JdbdNonSQLException
+ */
+public abstract class JdbdException extends RuntimeException {
+
+    JdbdException(String message) {
         super(message);
     }
 
-    public JdbdException(String message, @Nullable Throwable cause) {
+    JdbdException(String message, @Nullable Throwable cause) {
         super(message, cause);
     }
 
-    public JdbdException(Throwable cause) {
+    JdbdException(Throwable cause) {
         super(cause);
     }
 
-    public JdbdException(String message, @Nullable Throwable cause
+    JdbdException(String message, @Nullable Throwable cause
             , boolean enableSuppression, boolean writableStackTrace) {
         super(message, cause, enableSuppression, writableStackTrace);
     }
 
-    public JdbdException(String messageFormat, Object... args) {
+    JdbdException(String messageFormat, Object... args) {
         super(createMessage(messageFormat, args));
     }
 
-    public JdbdException(@Nullable Throwable cause, String messageFormat, Object... args) {
+    JdbdException(@Nullable Throwable cause, String messageFormat, Object... args) {
         super(createMessage(messageFormat, args), cause);
 
     }
 
-    public JdbdException(@Nullable Throwable cause, boolean enableSuppression
+    JdbdException(@Nullable Throwable cause, boolean enableSuppression
             , boolean writableStackTrace, String messageFormat, Object... args) {
         super(createMessage(messageFormat, args), cause, enableSuppression, writableStackTrace);
     }

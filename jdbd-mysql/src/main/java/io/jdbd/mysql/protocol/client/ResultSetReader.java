@@ -8,11 +8,8 @@ import java.util.function.Consumer;
 
 interface ResultSetReader {
 
-    boolean read(ByteBuf cumulateBuffer, Consumer<Object> serverStatusConsumer) throws JdbdException;
+    boolean read(ByteBuf cumulateBuffer, Consumer<Object> statesConsumer) throws JdbdException;
 
-    boolean hasMoreResults();
-
-    boolean hasMoreFetch();
 
 
 }

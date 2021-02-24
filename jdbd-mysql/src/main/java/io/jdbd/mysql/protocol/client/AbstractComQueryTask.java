@@ -669,39 +669,7 @@ abstract class AbstractComQueryTask extends MySQLCommunicationTask {
 
     /*################################## blow  static method ##################################*/
 
-    /**
-     * invoke this method after invoke {@link PacketUtils#hasOnePacket(ByteBuf)}.
-     *
-     * @see #decode(ByteBuf, Consumer)
-     */
-    static ComQueryResponse detectComQueryResponseType(final ByteBuf cumulateBuf, final int negotiatedCapability) {
-        int readerIndex = cumulateBuf.readerIndex();
-        final int payloadLength = PacketUtils.getInt3(cumulateBuf, readerIndex);
-        // skip header
-        readerIndex += PacketUtils.HEADER_SIZE;
-        ComQueryResponse responseType;
-        final boolean metadata = (negotiatedCapability & ClientProtocol.CLIENT_OPTIONAL_RESULTSET_METADATA) != 0;
 
-        switch (PacketUtils.getInt1(cumulateBuf, readerIndex++)) {
-            case 0:
-                if (metadata && PacketUtils.obtainLenEncIntByteCount(cumulateBuf, readerIndex) + 1 == payloadLength) {
-                    responseType = ComQueryResponse.TEXT_RESULT;
-                } else {
-                    responseType = ComQueryResponse.OK;
-                }
-                break;
-            case ErrorPacket.ERROR_HEADER:
-                responseType = ComQueryResponse.ERROR;
-                break;
-            case PacketUtils.LOCAL_INFILE:
-                responseType = ComQueryResponse.LOCAL_INFILE_REQUEST;
-                break;
-            default:
-                responseType = ComQueryResponse.TEXT_RESULT;
-
-        }
-        return responseType;
-    }
 
     /**
      * @return new metaIndex of metaArray.
@@ -738,15 +706,6 @@ abstract class AbstractComQueryTask extends MySQLCommunicationTask {
 
     /*################################## blow static class ##################################*/
 
-    /**
-     * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_com_query_response.html">Protocol::COM_QUERY Response</a>
-     */
-    private enum ComQueryResponse {
-        OK,
-        ERROR,
-        TEXT_RESULT,
-        LOCAL_INFILE_REQUEST
-    }
 
     private enum DecoderType {
         TEXT_RESULT,

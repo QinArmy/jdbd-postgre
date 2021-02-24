@@ -3,6 +3,7 @@ package io.jdbd.mysql.protocol.client;
 import io.jdbd.*;
 import io.jdbd.mysql.BindValue;
 import io.jdbd.mysql.MySQLBindValue;
+import io.jdbd.mysql.PrepareWrapper;
 import io.jdbd.mysql.protocol.EofPacket;
 import io.jdbd.mysql.protocol.ErrorPacket;
 import io.jdbd.mysql.protocol.OkPacket;

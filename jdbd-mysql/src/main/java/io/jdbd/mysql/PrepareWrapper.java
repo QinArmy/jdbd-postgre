@@ -1,6 +1,5 @@
-package io.jdbd.mysql.protocol.client;
+package io.jdbd.mysql;
 
-import io.jdbd.mysql.BindValue;
 import io.jdbd.vendor.statement.IPrepareWrapper;
 
 import java.util.List;

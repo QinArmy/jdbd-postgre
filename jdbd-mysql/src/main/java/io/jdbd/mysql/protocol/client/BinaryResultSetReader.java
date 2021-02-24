@@ -21,12 +21,12 @@ import java.util.function.Consumer;
 final class BinaryResultSetReader extends AbstractResultSetReader {
 
 
-    BinaryResultSetReader(StatementTask statementTask) {
-        super(statementTask);
+    BinaryResultSetReader(ResultSetReaderBuilder builder) {
+        super(builder);
     }
 
     @Override
-    boolean readResultSetMeta(ByteBuf cumulateBuffer, Consumer<Object> serverStatusConsumer) {
+    boolean readResultSetMeta(ByteBuf cumulateBuffer, Consumer<Object> statesConsumer) {
         return doReadRowMeta(cumulateBuffer);
     }
 

@@ -44,7 +44,7 @@ public abstract class MySQLExceptionUtils extends ExceptionUtils {
     }
 
     public static SQLException createSQLException(ErrorPacket error) {
-        return new SQLException(error.getErrorMessage(), error.getSqlState());
+        return new SQLException(error.getErrorMessage(), error.getSqlState(), error.getErrorCode());
     }
 
     public static JdbdSQLException createNonResultSetCommandException() {

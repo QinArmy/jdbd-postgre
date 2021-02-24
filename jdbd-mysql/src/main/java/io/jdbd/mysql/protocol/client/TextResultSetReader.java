@@ -1,14 +1,12 @@
 package io.jdbd.mysql.protocol.client;
 
 import io.jdbd.ResultRow;
-import io.jdbd.ResultStates;
 import io.jdbd.mysql.protocol.EofPacket;
 import io.jdbd.mysql.protocol.conf.PropertyKey;
 import io.jdbd.mysql.util.MySQLConvertUtils;
 import io.jdbd.mysql.util.MySQLExceptionUtils;
 import io.jdbd.mysql.util.MySQLTimeUtils;
 import io.netty.buffer.ByteBuf;
-import reactor.core.publisher.FluxSink;
 import reactor.util.annotation.Nullable;
 
 import java.math.BigDecimal;
@@ -20,10 +18,8 @@ import java.util.function.Consumer;
 
 final class TextResultSetReader extends AbstractResultSetReader {
 
-    TextResultSetReader(FluxSink<ResultRow> sink, Consumer<ResultStates> statesConsumer
-            , ClientProtocolAdjutant adjutant, Consumer<Integer> sequenceConsumer
-            , Consumer<Throwable> errorConsumer) {
-        super(sink, statesConsumer, adjutant, sequenceConsumer, errorConsumer);
+    TextResultSetReader(ResultSetReaderBuilder builder) {
+        super(builder);
     }
 
 
@@ -41,7 +37,7 @@ final class TextResultSetReader extends AbstractResultSetReader {
                 int payloadLength = PacketUtils.readInt3(cumulateBuffer);
                 updateSequenceId(PacketUtils.readInt1(cumulateBuffer));
                 EofPacket eof = EofPacket.read(cumulateBuffer.readSlice(payloadLength), negotiatedCapability);
-                serverStatusConsumer.accept(eof.getStatusFags());
+                serverStatusConsumer.accept(eof);
             } else {
                 metaEnd = false;
             }

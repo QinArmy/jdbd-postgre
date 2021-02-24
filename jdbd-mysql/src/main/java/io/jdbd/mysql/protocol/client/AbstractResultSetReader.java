@@ -1,6 +1,9 @@
 package io.jdbd.mysql.protocol.client;
 
-import io.jdbd.*;
+import io.jdbd.BigRowIoException;
+import io.jdbd.JdbdException;
+import io.jdbd.JdbdSQLException;
+import io.jdbd.ResultRow;
 import io.jdbd.mysql.protocol.EofPacket;
 import io.jdbd.mysql.protocol.ErrorPacket;
 import io.jdbd.mysql.protocol.OkPacket;
@@ -9,9 +12,9 @@ import io.jdbd.mysql.protocol.conf.Properties;
 import io.jdbd.mysql.protocol.conf.PropertyDefinitions;
 import io.jdbd.mysql.protocol.conf.PropertyKey;
 import io.jdbd.mysql.util.MySQLExceptionUtils;
+import io.jdbd.vendor.result.ResultRowSink;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
-import reactor.core.publisher.FluxSink;
 import reactor.util.annotation.Nullable;
 
 import java.io.IOException;
@@ -24,20 +27,23 @@ import java.sql.SQLException;
 import java.time.LocalDate;
 import java.util.Objects;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 
 abstract class AbstractResultSetReader implements ResultSetReader {
 
     static final Path TEMP_DIRECTORY = Paths.get(System.getProperty("java.io.tmpdir"), "jdbd/mysql/bigRow");
 
-    final StatementTask statementTask;
-
-    final FluxSink<ResultRow> sink;
-
-    final Consumer<ResultStates> statesConsumer;
-
     final ClientProtocolAdjutant adjutant;
 
-    final boolean fetchResult;
+    private final ResultRowSink sink;
+
+    private final boolean fetchResult;
+
+    private final Consumer<JdbdException> errorConsumer;
+
+    private final Consumer<Integer> sequenceIdUpdater;
+
+    private final Supplier<Boolean> errorJudger;
 
     final Properties properties;
 
@@ -55,18 +61,19 @@ abstract class AbstractResultSetReader implements ResultSetReader {
 
     private Throwable error;
 
-    AbstractResultSetReader(StatementTask statementTask) {
-        this.statementTask = statementTask;
-        this.sink = statementTask.obtainRowSink();
-        this.statesConsumer = statementTask.obtainStatesConsumer();
-        this.adjutant = statementTask.obtainAdjutant();
+    AbstractResultSetReader(ResultSetReaderBuilder builder) {
+        this.sink = Objects.requireNonNull(builder.rowSink, "builder.rowSink");
+        this.adjutant = Objects.requireNonNull(builder.adjutant, "builder.adjutant");
+        this.fetchResult = builder.fetchResult;
+        this.errorConsumer = Objects.requireNonNull(builder.errorConsumer, "builder.errorConsumer");
 
-        this.fetchResult = statementTask.isFetchResult();
+        this.sequenceIdUpdater = Objects.requireNonNull(builder.sequenceIdUpdater, "builder.sequenceIdUpdater");
+        this.errorJudger = Objects.requireNonNull(builder.errorJudger, "builder.errorJudger");
         this.properties = adjutant.obtainHostInfo().getProperties();
     }
 
     @Override
-    public final boolean read(final ByteBuf cumulateBuffer, Consumer<Object> serverStatusConsumer)
+    public final boolean read(final ByteBuf cumulateBuffer, Consumer<Object> statesConsumer)
             throws JdbdException {
         boolean resultSetEnd = this.resultSetEnd;
         if (resultSetEnd) {
@@ -76,7 +83,7 @@ abstract class AbstractResultSetReader implements ResultSetReader {
         while (continueRead) {
             switch (this.phase) {
                 case READ_RESULT_META: {
-                    if (readResultSetMeta(cumulateBuffer, serverStatusConsumer)) {
+                    if (readResultSetMeta(cumulateBuffer, statesConsumer)) {
                         this.phase = Phase.READ_RESULT_ROW;
                         continueRead = PacketUtils.hasOnePacket(cumulateBuffer);
                     } else {
@@ -85,12 +92,13 @@ abstract class AbstractResultSetReader implements ResultSetReader {
                 }
                 break;
                 case READ_RESULT_ROW: {
-                    resultSetEnd = readResultRows(cumulateBuffer, serverStatusConsumer);
+                    resultSetEnd = readResultRows(cumulateBuffer, statesConsumer);
                     continueRead = !resultSetEnd && this.phase == Phase.READ_BIG_ROW;
                 }
                 break;
                 case READ_BIG_ROW: {
                     if (readBigRow(cumulateBuffer)) {
+                        this.phase = Phase.READ_RESULT_ROW;
                         continueRead = PacketUtils.hasOnePacket(cumulateBuffer);
                     } else {
                         continueRead = this.phase == Phase.READ_BIG_COLUMN;
@@ -98,8 +106,12 @@ abstract class AbstractResultSetReader implements ResultSetReader {
                 }
                 break;
                 case READ_BIG_COLUMN: {
-                    readBigColumn(cumulateBuffer);
-                    continueRead = this.phase == Phase.READ_BIG_ROW;
+                    if (readBigColumn(cumulateBuffer)) {
+                        continueRead = true;
+                        this.phase = Phase.READ_BIG_ROW;
+                    } else {
+                        continueRead = false;
+                    }
                 }
                 break;
                 default:
@@ -112,21 +124,7 @@ abstract class AbstractResultSetReader implements ResultSetReader {
         return resultSetEnd;
     }
 
-    @Override
-    public final boolean hasMoreResults() {
-        return (this.serverStatus & ClientProtocol.SERVER_MORE_RESULTS_EXISTS) != 0;
-    }
 
-    /**
-     * @see #readResultRows(ByteBuf, Consumer)
-     */
-    @Override
-    public boolean hasMoreFetch() {
-        int serverStatus = this.serverStatus;
-        return this.fetchResult
-                && (serverStatus & ClientProtocol.SERVER_STATUS_CURSOR_EXISTS) != 0
-                && (serverStatus & ClientProtocol.SERVER_STATUS_LAST_ROW_SENT) == 0;
-    }
 
 
     /*################################## blow packet template method ##################################*/
@@ -135,7 +133,7 @@ abstract class AbstractResultSetReader implements ResultSetReader {
      * @return true: read result set meta end.
      * @see #read(ByteBuf, Consumer)
      */
-    abstract boolean readResultSetMeta(ByteBuf cumulateBuffer, Consumer<Object> serverStatusConsumer);
+    abstract boolean readResultSetMeta(ByteBuf cumulateBuffer, Consumer<Object> statesConsumer);
 
     abstract ResultRow readOneRow(ByteBuf payload);
 
@@ -158,15 +156,15 @@ abstract class AbstractResultSetReader implements ResultSetReader {
      * @return true: read ResultSet end.
      * @see #read(ByteBuf, Consumer)
      */
-    final boolean readResultRows(final ByteBuf cumulateBuffer, Consumer<Object> serverStatusConsumer) {
+    final boolean readResultRows(final ByteBuf cumulateBuffer, Consumer<Object> serverStatesConsumer) {
         assertPhase(Phase.READ_RESULT_ROW);
-        final FluxSink<ResultRow> sink = Objects.requireNonNull(this.sink, "this.sink");
+        final ResultRowSink sink = Objects.requireNonNull(this.sink, "this.sink");
 
         boolean resultSetEnd = false;
         int sequenceId = -1;
         final boolean binaryReader = isBinaryReader();
         final int negotiatedCapability = this.adjutant.obtainNegotiatedCapability();
-
+        final boolean notCancelled = !sink.isCancelled();
         outFor:
         for (int payloadLength, readableBytes, header; ; ) {
             readableBytes = cumulateBuffer.readableBytes();
@@ -219,22 +217,15 @@ abstract class AbstractResultSetReader implements ResultSetReader {
                     tp = EofPacket.read(eofPayload, negotiatedCapability);
                 }
                 this.serverStatus = tp.getStatusFags();
-                serverStatusConsumer.accept(tp.getStatusFags());
-                if (((binaryReader && !hasMoreFetch()) || !hasMoreResults()) && noError()) {
-                    try {
-                        this.statesConsumer.accept(MySQLResultStates.from(tp));
-                        this.sink.complete();
-                    } catch (Throwable e) {
-                        this.sink.error(new ResultStateConsumerException(e, "Downstream consumer %s occur error."
-                                , ResultStates.class.getName()));
-                    }
-                }
+                serverStatesConsumer.accept(tp.getStatusFags());
+
+                sink.accept(MySQLResultStates.from(tp));
                 resultSetEnd = true;
                 break;
             } else {
                 final int payloadStartIndex = payload.readerIndex();
                 ResultRow row = readOneRow(payload);
-                if (noError()) {
+                if (notCancelled && noError()) {
                     //if no error,publish to downstream
                     sink.next(row);
                 }
@@ -289,7 +280,7 @@ abstract class AbstractResultSetReader implements ResultSetReader {
 
     final void updateSequenceId(int sequenceId) {
         this.sequenceId = sequenceId;
-        this.statementTask.updateSequenceId(sequenceId);
+        this.sequenceIdUpdater.accept(sequenceId);
     }
 
     /**
@@ -301,15 +292,15 @@ abstract class AbstractResultSetReader implements ResultSetReader {
         this.phase = Phase.READ_BIG_ROW;
     }
 
-    final void emitError(Throwable e) {
+    final void emitError(JdbdException e) {
         if (this.error == null) {
             this.error = e;
         }
-        this.statementTask.handleReadResultSetError(e);
+        this.errorConsumer.accept(e);
     }
 
     final boolean noError() {
-        return this.error == null && !this.statementTask.hasError();
+        return this.error == null && !this.errorJudger.get();
     }
 
 
@@ -351,6 +342,20 @@ abstract class AbstractResultSetReader implements ResultSetReader {
 
     /*################################## blow private method ##################################*/
 
+    private boolean hasMoreResults() {
+        return (this.serverStatus & ClientProtocol.SERVER_MORE_RESULTS_EXISTS) != 0;
+    }
+
+    /**
+     * @see #readResultRows(ByteBuf, Consumer)
+     */
+    private boolean hasMoreFetch() {
+        int serverStatus = this.serverStatus;
+        return this.fetchResult
+                && (serverStatus & ClientProtocol.SERVER_STATUS_CURSOR_EXISTS) != 0
+                && (serverStatus & ClientProtocol.SERVER_STATUS_LAST_ROW_SENT) == 0;
+    }
+
 
     /**
      * @return true:bigRow read end.
@@ -370,7 +375,7 @@ abstract class AbstractResultSetReader implements ResultSetReader {
         final boolean rowPayloadEnd = bigRowData.payloadEnd;
         boolean bigRowEnd = false;
         ourFor:
-        for (int i = bigRowData.index, byteIndex, bitIndex, payloadLength; i < columnMetaArray.length
+        for (int i = bigRowData.index, payloadLength; i < columnMetaArray.length
                 ; bigRowData.index = ++i) {
 
             ByteBuf packetPayload;
@@ -472,7 +477,6 @@ abstract class AbstractResultSetReader implements ResultSetReader {
                         "BigRow end ,but index[%s] not equals columnMetaArray.length[%s]"
                         , bigRowData.index, columnMetaArray.length));
             }
-            this.phase = Phase.READ_RESULT_ROW;
             bigRowData.payloadEnd = true;
             bigRowData.cachePayload.release();
             this.bigRowData = null;
@@ -521,9 +525,11 @@ abstract class AbstractResultSetReader implements ResultSetReader {
     }
 
     /**
+     * @return true:big column end,next invoke {@link #readBigRow(ByteBuf)} .
      * @see #read(ByteBuf, Consumer)
+     * @see #readBigRow(ByteBuf)
      */
-    private void readBigColumn(final ByteBuf cumulateBuffer) {
+    private boolean readBigColumn(final ByteBuf cumulateBuffer) {
         assertPhase(Phase.READ_BIG_COLUMN);
 
         final BigRowData bigRowData = Objects.requireNonNull(this.bigRowData, "this.bigRowData");
@@ -543,6 +549,7 @@ abstract class AbstractResultSetReader implements ResultSetReader {
                     , bigColumnIndex
                     , BigColumn.class.getName()));
         }
+        boolean bigColumnEnd = false;
         try (OutputStream out = Files.newOutputStream(bigColumn.path, StandardOpenOption.WRITE)) {
             final long totalBytes = bigColumn.totalBytes;
             long writtenBytes = bigColumn.wroteBytes;
@@ -564,7 +571,7 @@ abstract class AbstractResultSetReader implements ResultSetReader {
                     this.phase = Phase.READ_BIG_ROW;
                     bigRowData.index++;
                     bigColumn.wroteBytes = writtenBytes;
-                    return;
+                    return true;
                 }
             }
 
@@ -582,7 +589,7 @@ abstract class AbstractResultSetReader implements ResultSetReader {
                 if (writtenBytes == totalBytes) {
                     // this 'if' block handle big column end.
                     bigRowData.index++;
-                    this.phase = Phase.READ_BIG_ROW;
+                    bigColumnEnd = true;
 
                     if (payloadLength < PacketUtils.MAX_PAYLOAD) {
                         bigRowData.payloadEnd = true;
@@ -609,6 +616,7 @@ abstract class AbstractResultSetReader implements ResultSetReader {
             throw new BigRowIoException(
                     String.format("Big row column[%s] read error.", columnMetas[bigRowData.index]), e);
         }
+        return bigColumnEnd;
 
     }
 
