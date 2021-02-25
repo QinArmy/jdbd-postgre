@@ -57,4 +57,8 @@ public interface Constants {
 
     byte DOUBLE_QUOTE_BYTE = (byte) '"';
 
+    String SEMICOLON = ";";
+
+    char EMPTY_CHAR = '\0';
+
 }

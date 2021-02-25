@@ -1007,7 +1007,7 @@ public final class JdbdMultiResultsSink implements MultiResultsSink {
     /*################################## blow private static inner class  ##################################*/
 
 
-    private static class DefaultMultiResults implements MultiResults {
+    private static final class DefaultMultiResults implements MultiResults {
 
         private final JdbdMultiResultsSink resultsSink;
 
@@ -1037,6 +1037,10 @@ public final class JdbdMultiResultsSink implements MultiResultsSink {
             });
         }
 
+        @Override
+        public Publisher<ResultRow> nextQuery() {
+            return this.nextQuery(EMPTY_CONSUMER);
+        }
     }
 
 

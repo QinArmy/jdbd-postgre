@@ -648,7 +648,10 @@ public abstract class PacketUtils {
             sink.next(packet);
 
             publishLength += MAX_PAYLOAD;
-            publishLength += publishBigPayload(bigPacket, sink, sequenceIdSupplier, bufferCreator, publishSmallPacket);
+            if (bigPacket.readableBytes() >= MAX_PAYLOAD) {
+                publishLength += publishBigPayload(bigPacket, sink, sequenceIdSupplier
+                        , bufferCreator, publishSmallPacket);
+            }
         }
         if (publishSmallPacket) {
             readableBytes = bigPacket.readableBytes();

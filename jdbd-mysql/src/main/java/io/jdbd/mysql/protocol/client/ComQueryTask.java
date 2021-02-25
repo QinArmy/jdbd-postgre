@@ -4,16 +4,18 @@ import io.jdbd.*;
 import io.jdbd.mysql.BindValue;
 import io.jdbd.mysql.PrepareWrapper;
 import io.jdbd.mysql.StmtWrapper;
+import io.jdbd.mysql.protocol.Constants;
 import io.jdbd.mysql.protocol.ErrorPacket;
 import io.jdbd.mysql.protocol.OkPacket;
 import io.jdbd.mysql.util.MySQLCollectionUtils;
 import io.jdbd.mysql.util.MySQLExceptionUtils;
+import io.jdbd.mysql.util.MySQLStringUtils;
 import io.jdbd.vendor.JdbdCompositeException;
 import io.jdbd.vendor.MultiResultsSink;
-import io.jdbd.vendor.SQLStatement;
 import io.jdbd.vendor.TaskSignal;
 import io.jdbd.vendor.result.QuerySink;
 import io.jdbd.vendor.result.ResultRowSink;
+import io.jdbd.vendor.statement.SQLStatement;
 import io.netty.buffer.ByteBuf;
 import org.qinarmy.util.Pair;
 import org.reactivestreams.Publisher;
@@ -38,7 +40,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.function.Consumer;
-import java.util.function.Supplier;
 
 
 final class ComQueryTask extends MySQLCommunicationTask {
@@ -51,24 +52,45 @@ final class ComQueryTask extends MySQLCommunicationTask {
         throw new UnsupportedOperationException();
     }
 
-    static Mono<ResultStates> update(String sql, MySQLTaskAdjutant adjutant) {
-        return Mono.create(sink -> {
-        });
+    static Mono<ResultStates> update(final String sql, final MySQLTaskAdjutant adjutant) {
+        if (Capabilities.supportMultiStatement(adjutant) && !MySQLStringUtils.isSingleStatement(sql)) {
+            return Mono.error(createMultiStatementException());
+        }
+        return Mono.create(sink -> new ComQueryTask(sql, sink, adjutant)
+                .submit(sink::error));
     }
 
-    static Flux<ResultRow> query(String sql, Consumer<ResultStates> statesConsumer, MySQLTaskAdjutant adjutant) {
-        return Flux.create(sink -> {
-        });
+    static Flux<ResultRow> query(final String sql, Consumer<ResultStates> statesConsumer, MySQLTaskAdjutant adjutant) {
+        if (Capabilities.supportMultiStatement(adjutant) && !MySQLStringUtils.isSingleStatement(sql)) {
+            return Flux.error(createMultiStatementException());
+        }
+        return Flux.create(sink -> new ComQueryTask(sql, sink, statesConsumer, adjutant)
+                .submit(sink::error));
     }
 
     static Flux<ResultStates> batchUpdate(List<String> sqlList, MySQLTaskAdjutant adjutant) {
-        return Flux.create(sink -> {
-        });
+        if (sqlList.isEmpty()) {
+            return Flux.error(new StatementException("no sql,reject execute."));
+        }
+        final List<String> singleSqlList = new ArrayList<>(sqlList.size());
+        final boolean supportMultiStmt = Capabilities.supportMultiStatement(adjutant);
+        for (String sql : sqlList) {
+            if (supportMultiStmt && !MySQLStringUtils.isSingleStatement(sql)) {
+                return Flux.error(createMultiStatementException());
+            }
+            singleSqlList.add(sql);
+        }
+        return Flux.create(sink -> new ComQueryTask(MySQLCollectionUtils.unmodifiableList(singleSqlList)
+                , sink, adjutant)
+                .submit(sink::error));
     }
 
     static Mono<ResultStates> prepareUpdate(StmtWrapper wrapper, MySQLTaskAdjutant adjutant) {
-        return Mono.create(sink -> {
-        });
+        if (Capabilities.supportMultiStatement(adjutant) && !MySQLStringUtils.isSingleStatement(wrapper.getSql())) {
+            return Mono.error(createMultiStatementException());
+        }
+        return Mono.create(sink -> new ComQueryTask(wrapper, sink, adjutant)
+                .submit(sink::error));
     }
 
     static Flux<ResultRow> prepareQuery(StmtWrapper wrapper, MySQLTaskAdjutant adjutant) {
@@ -85,15 +107,16 @@ final class ComQueryTask extends MySQLCommunicationTask {
         return null;
     }
 
+
     private static final Logger LOG = LoggerFactory.getLogger(ComQueryTask.class);
 
     private final DownstreamSink downstreamSink;
 
     private final Mode mode;
 
-    private final Supplier<Publisher<ByteBuf>> commandWriter;
+    private final int sqlCount;
 
-    private final int sqlCount = 0;
+    private boolean multiStmtFailure;
 
     private int currentResultSequenceId = 1;
 
@@ -109,11 +132,62 @@ final class ComQueryTask extends MySQLCommunicationTask {
 
     private ResultRowSink dirtyRowSink;
 
-    private ComQueryTask(MySQLTaskAdjutant adjutant) {
+    /**
+     * @see #update(String, MySQLTaskAdjutant)
+     */
+    private ComQueryTask(String sql, MonoSink<ResultStates> sink, MySQLTaskAdjutant adjutant) {
         super(adjutant);
-        this.commandWriter = this::createSimpleComQueryPackets;
-        this.downstreamSink = null;
-        this.mode = Mode.MULTI_STMT;
+        this.mode = Mode.SINGLE_STMT;
+        this.sqlCount = 1;
+        this.packetPublisher = createStaticCommandPackets(sql);
+        this.downstreamSink = new SingleUpdateSink(sink);
+    }
+
+    /**
+     * @see #query(String, Consumer, MySQLTaskAdjutant)
+     */
+    private ComQueryTask(final String sql, FluxSink<ResultRow> sink, Consumer<ResultStates> statesConsumer
+            , MySQLTaskAdjutant adjutant) {
+        super(adjutant);
+        this.mode = Mode.SINGLE_STMT;
+        this.sqlCount = 1;
+        this.packetPublisher = createStaticCommandPackets(sql);
+        this.downstreamSink = new SingleQuerySink(sink, statesConsumer);
+    }
+
+    /**
+     * @see #batchUpdate(List, MySQLTaskAdjutant)
+     */
+    private ComQueryTask(final List<String> sqlList, final FluxSink<ResultStates> resultSink, MySQLTaskAdjutant adjutant) {
+        super(adjutant);
+
+        this.sqlCount = sqlList.size();
+        if (Capabilities.supportMultiStatement(this.negotiatedCapability)) {
+            this.mode = Mode.MULTI_STMT;
+            this.packetPublisher = Flux.create(commandSink -> publishBatchStaticCommand(commandSink, sqlList));
+            this.downstreamSink = new MultiStatementBatchUpdateSink(resultSink);
+        } else if (this.sqlCount > 3) {
+            this.mode = Mode.TEMP_MULTI;
+            this.packetPublisher = Flux.create(commandSink -> publishBatchStaticCommand(commandSink, sqlList));
+            this.downstreamSink = new MultiStatementBatchUpdateSink(resultSink);
+        } else {
+            this.mode = Mode.SINGLE_STMT;
+            this.packetPublisher = createStaticCommandPackets(sqlList.get(0));
+            this.downstreamSink = new SingleStatementBatchUpdate(sqlList, resultSink);
+        }
+    }
+
+    /**
+     * @see #prepareUpdate(StmtWrapper, MySQLTaskAdjutant)
+     */
+    private ComQueryTask(final StmtWrapper wrapper, final MonoSink<ResultStates> resultSink
+            , MySQLTaskAdjutant adjutant) {
+        super(adjutant);
+        this.sqlCount = 1;
+        this.mode = Mode.SINGLE_STMT;
+        // this.packetPublisher = ComQueryCommandWriter
+        this.downstreamSink = new SingleUpdateSink(resultSink);
+
     }
 
 
@@ -195,7 +269,7 @@ final class ComQueryTask extends MySQLCommunicationTask {
                 updateLastResultStates(resultSequenceId, resultStates);
                 // emit update result.
                 if (this.downstreamSink.skipRestResults()) {
-                    if (!hasError(StatementException.class)) {
+                    if (!hasException(StatementException.class)) {
                         addError(new StatementException("Expect single statement ,but multi statement."));
                     }
                 } else {
@@ -334,7 +408,7 @@ final class ComQueryTask extends MySQLCommunicationTask {
 
     private void addMultiStatementException() {
         if (!hasException(StatementException.class)) {
-            addError(new StatementException("Expect single statement ,but multi statement."));
+            addError(createMultiStatementException());
         }
     }
 
@@ -343,9 +417,6 @@ final class ComQueryTask extends MySQLCommunicationTask {
         return pair != null && pair.getSecond().hasMoreResults();
     }
 
-    private Publisher<ByteBuf> createSimpleComQueryPackets() {
-        return Mono.empty();
-    }
 
     /**
      * @see #readResponseResultSet(ByteBuf, Consumer)
@@ -457,21 +528,58 @@ final class ComQueryTask extends MySQLCommunicationTask {
         return packet;
     }
 
+    private Publisher<ByteBuf> createStaticCommandPackets(final String sql) {
+        // result sequence_id
+        this.updateSequenceId(-1);
+        Publisher<ByteBuf> publisher;
+        try {
+            final byte[] commandBytes = sql.getBytes(this.adjutant.obtainCharsetClient());
+            publisher = Flux.create(sink -> publishSingleStaticCommand(sink, commandBytes));
+        } catch (Throwable e) {
+            publisher = Flux.error(e);
+        }
+        return publisher;
+    }
+
     private void sendStaticCommand(final String sql) {
         // result sequence_id
         this.updateSequenceId(-1);
         try {
             final byte[] commandBytes = sql.getBytes(this.adjutant.obtainCharsetClient());
-            this.packetPublisher = Flux.create(sink -> sendBigStaticCommand(sink, commandBytes));
+            this.packetPublisher = Flux.create(sink -> publishSingleStaticCommand(sink, commandBytes));
         } catch (Throwable e) {
             this.packetPublisher = Flux.error(e);
         }
     }
 
+
+    private void publishBatchStaticCommand(final FluxSink<ByteBuf> sink, final List<String> sqlList) {
+        ByteBuf packet = this.adjutant.createPacketBuffer(2048);
+        packet.writeByte(PacketUtils.COM_QUERY_HEADER);
+
+        final Charset clientCharset = this.adjutant.obtainCharsetClient();
+        final byte[] semicolonBytes = Constants.SEMICOLON.getBytes(clientCharset);
+        for (String sql : sqlList) {
+            packet.writeBytes(sql.getBytes(clientCharset)); // write single command
+            packet.writeBytes(semicolonBytes);              // write semicolon.
+
+            if (packet.readableBytes() >= PacketUtils.MAX_PACKET) {
+                packet = PacketUtils.publishAndCutBigPacket(packet, sink, this::addAndGetSequenceId,
+                        this.adjutant.alloc()::buffer);
+            }
+
+        }
+        PacketUtils.writePacketHeader(packet, addAndGetSequenceId());
+        sink.next(packet);
+        sink.complete();
+
+    }
+
     /**
      * @see #sendStaticCommand(String)
      */
-    private void sendBigStaticCommand(final FluxSink<ByteBuf> sink, final byte[] commandBytes) {
+    private void publishSingleStaticCommand(final FluxSink<ByteBuf> sink, final byte[] commandBytes) {
+
         ByteBuf packet;
         if (commandBytes.length < PacketUtils.MAX_PAYLOAD) {
             packet = this.adjutant.createPacketBuffer(1 + commandBytes.length);
@@ -499,6 +607,7 @@ final class ComQueryTask extends MySQLCommunicationTask {
 
         }
 
+
         if (packet.readableBytes() >= PacketUtils.MAX_PACKET) {
             PacketUtils.publishBigPacket(packet, sink, this::addAndGetSequenceId
                     , this.adjutant.alloc()::buffer, true);
@@ -506,7 +615,6 @@ final class ComQueryTask extends MySQLCommunicationTask {
             PacketUtils.writePacketHeader(packet, addAndGetSequenceId());
             sink.next(packet);
         }
-
         sink.complete();
 
     }
@@ -905,9 +1013,9 @@ final class ComQueryTask extends MySQLCommunicationTask {
 
         private int currentSequenceId = 1;
 
-        private MultiStatementBatchUpdateSink(FluxSink<ResultStates> sink, int batchCount) {
+        private MultiStatementBatchUpdateSink(FluxSink<ResultStates> sink) {
             this.sink = sink;
-            this.batchCount = batchCount;
+            this.batchCount = ComQueryTask.this.sqlCount;
         }
 
         @Override
@@ -1113,6 +1221,12 @@ final class ComQueryTask extends MySQLCommunicationTask {
 
         }
         return responseType;
+    }
+
+    /*################################## blow private static method ##################################*/
+
+    private static StatementException createMultiStatementException() {
+        return new StatementException("Expect single statement ,but multi statement.");
     }
 
 

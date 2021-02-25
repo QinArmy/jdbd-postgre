@@ -11,7 +11,7 @@ import io.jdbd.mysql.protocol.conf.PropertyKey;
 import io.jdbd.mysql.util.MySQLConvertUtils;
 import io.jdbd.mysql.util.MySQLExceptionUtils;
 import io.jdbd.mysql.util.MySQLTimeUtils;
-import io.jdbd.vendor.SQLStatement;
+import io.jdbd.vendor.statement.SQLStatement;
 import io.netty.buffer.ByteBuf;
 import org.reactivestreams.Publisher;
 import reactor.core.publisher.Flux;

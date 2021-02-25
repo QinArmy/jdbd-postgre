@@ -11,6 +11,11 @@ import org.qinarmy.util.security.ExceptionUtils;
 
 import java.sql.SQLException;
 
+/**
+ * @see <a href="https://dev.mysql.com/doc/mysql-errors/8.0/en/server-error-reference.html">Server Error Message Reference</a>
+ * @see <a href="https://dev.mysql.com/doc/mysql-errors/8.0/en/client-error-reference.html">Client Error Message Reference</a>
+ * @see <a href="https://dev.mysql.com/doc/mysql-errors/8.0/en/global-error-reference.html">Global Error Message Reference</a>
+ */
 public abstract class MySQLExceptionUtils extends ExceptionUtils {
 
     protected MySQLExceptionUtils() {
@@ -77,6 +82,29 @@ public abstract class MySQLExceptionUtils extends ExceptionUtils {
 
     public static boolean containFatalIoException(final Throwable e) {
         return containException(e, MySQLFatalIoException.class);
+    }
+
+    public static JdbdSQLException createEmptySqlException() {
+        return null;
+    }
+
+    public static JdbdSQLException createParseException(final String position, final int line) {
+        String msg = String.format("You have an error in your SQL syntax; near '%s' at line %d", position, line);
+        return new JdbdSQLException(createParseException(msg), "sql parse occur error.");
+    }
+
+    public static JdbdSQLException createMultiStatementException() {
+        String msg = "You have an error in your SQL syntax,sql is multi statement; near ';' ";
+        return new JdbdSQLException(createParseException(msg), "sql parse occur error.");
+    }
+
+    public static JdbdSQLException createSyntaxException(String message) {
+        return new JdbdSQLException(createParseException(message));
+    }
+
+
+    private static SQLException createParseException(String message) {
+        return new SQLException(message, "42000", 1064);
     }
 
 

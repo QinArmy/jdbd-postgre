@@ -4,4 +4,6 @@ public interface Server {
 
     boolean containSqlMode(SQLMode sqlMode);
 
+    boolean isBackslashEscapes();
+
 }
