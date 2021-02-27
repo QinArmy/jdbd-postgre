@@ -11,7 +11,7 @@ import io.jdbd.mysql.protocol.TerminatorPacket;
 import io.jdbd.mysql.protocol.conf.Properties;
 import io.jdbd.mysql.protocol.conf.PropertyDefinitions;
 import io.jdbd.mysql.protocol.conf.PropertyKey;
-import io.jdbd.mysql.util.MySQLExceptionUtils;
+import io.jdbd.mysql.util.MySQLExceptions;
 import io.jdbd.vendor.result.ResultRowSink;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
@@ -115,7 +115,7 @@ abstract class AbstractResultSetReader implements ResultSetReader {
                 }
                 break;
                 default:
-                    throw MySQLExceptionUtils.createUnknownEnumException(this.phase);
+                    throw MySQLExceptions.createUnknownEnumException(this.phase);
             }
         }
         if (resultSetEnd) {
@@ -204,7 +204,7 @@ abstract class AbstractResultSetReader implements ResultSetReader {
                 ErrorPacket error;
                 error = ErrorPacket.readPacket(errorPayload, negotiatedCapability
                         , this.adjutant.obtainCharsetResults());
-                emitError(MySQLExceptionUtils.createErrorPacketException(error));
+                emitError(MySQLExceptions.createErrorPacketException(error));
                 resultSetEnd = true;
                 break;
             } else if (header == EofPacket.EOF_HEADER && (binaryReader || payloadLength < PacketUtils.MAX_PAYLOAD)) {
@@ -322,7 +322,7 @@ abstract class AbstractResultSetReader implements ResultSetReader {
             case CONVERT_TO_NULL:
                 break;
             default:
-                throw MySQLExceptionUtils.createUnknownEnumException(behavior);
+                throw MySQLExceptions.createUnknownEnumException(behavior);
         }
         return date;
     }
@@ -391,7 +391,7 @@ abstract class AbstractResultSetReader implements ResultSetReader {
                         throw new IllegalStateException("Not bit row,can't invoke this method.");
                     }
                     if (cumulateBuffer.readByte() != 0) {
-                        throw MySQLExceptionUtils.createFatalIoException("Binary big row packet_header[%s] error."
+                        throw MySQLExceptions.createFatalIoException("Binary big row packet_header[%s] error."
                                 , cumulateBuffer.getByte(cumulateBuffer.readerIndex() - 1));
                     }
                     cumulateBuffer.readBytes(nullBitMap);
@@ -405,7 +405,7 @@ abstract class AbstractResultSetReader implements ResultSetReader {
             //below  skip null column
             i = skipNullColumn(bigRowData, packetPayload, i);
             if (i == columnMetaArray.length && payloadLength != 0) {
-                throw MySQLExceptionUtils.createFatalIoException(
+                throw MySQLExceptions.createFatalIoException(
                         "Not found non-null column after index[%s]", bigRowData.index);
             }
             bigRowData.index = i;
@@ -440,7 +440,7 @@ abstract class AbstractResultSetReader implements ResultSetReader {
                     this.phase = Phase.READ_BIG_COLUMN;
                     break ourFor;
                 } else {
-                    throw MySQLExceptionUtils.createFatalIoException("Server send binary column[%s] length error."
+                    throw MySQLExceptions.createFatalIoException("Server send binary column[%s] length error."
                             , columnMeta.columnAlias);
                 }
                 if (payloadLength < PacketUtils.MAX_PAYLOAD) {

@@ -59,6 +59,7 @@ public interface Constants {
 
     String SEMICOLON = ";";
 
+
     char EMPTY_CHAR = '\0';
 
 }

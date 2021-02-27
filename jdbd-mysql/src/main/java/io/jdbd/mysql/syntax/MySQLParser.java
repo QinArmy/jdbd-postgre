@@ -1,13 +1,13 @@
 package io.jdbd.mysql.syntax;
 
-import io.jdbd.JdbdSQLException;
+import java.sql.SQLException;
 
 public interface MySQLParser {
 
-    MySQLStatement parse(String singleSql) throws JdbdSQLException;
+    MySQLStatement parse(String singleSql) throws SQLException;
 
-    boolean isSingleStmt(String sql);
+    boolean isSingleStmt(String sql) throws SQLException;
 
-    boolean isMultiStmt(String sql);
+    boolean isMultiStmt(String sql) throws SQLException;
 
 }

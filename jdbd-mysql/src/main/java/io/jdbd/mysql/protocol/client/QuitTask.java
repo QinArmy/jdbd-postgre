@@ -1,7 +1,7 @@
 package io.jdbd.mysql.protocol.client;
 
 import io.jdbd.mysql.protocol.ErrorPacket;
-import io.jdbd.mysql.util.MySQLExceptionUtils;
+import io.jdbd.mysql.util.MySQLExceptions;
 import io.jdbd.vendor.TaskSignal;
 import io.netty.buffer.ByteBuf;
 import org.reactivestreams.Publisher;
@@ -52,7 +52,7 @@ final class QuitTask extends MySQLConnectionTask {
 
         updateSequenceId(sequenceId);
 
-        this.sink.error(MySQLExceptionUtils.createErrorPacketException(error));
+        this.sink.error(MySQLExceptions.createErrorPacketException(error));
         return true;
     }
 

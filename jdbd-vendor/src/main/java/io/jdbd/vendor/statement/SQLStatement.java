@@ -10,6 +10,4 @@ public interface SQLStatement {
 
     String getSql();
 
-
-
 }

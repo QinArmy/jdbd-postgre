@@ -2,7 +2,7 @@ package io.jdbd.mysql.protocol.client;
 
 import io.jdbd.ResultRow;
 import io.jdbd.mysql.util.MySQLConvertUtils;
-import io.jdbd.mysql.util.MySQLExceptionUtils;
+import io.jdbd.mysql.util.MySQLExceptions;
 import io.netty.buffer.ByteBuf;
 import reactor.util.annotation.Nullable;
 
@@ -39,7 +39,7 @@ final class BinaryResultSetReader extends AbstractResultSetReader {
         final MySQLRowMeta rowMeta = Objects.requireNonNull(this.rowMeta, "this.rowMeta");
         final MySQLColumnMeta[] columnMetas = rowMeta.columnMetaArray;
         if (payload.readByte() != 0) {
-            throw MySQLExceptionUtils.createFatalIoException(
+            throw MySQLExceptions.createFatalIoException(
                     "Header[%s] of Binary Protocol ResultSet Row is error."
                     , payload.getByte(payload.readerIndex() - 1));
         }
@@ -190,7 +190,7 @@ final class BinaryResultSetReader extends AbstractResultSetReader {
             }
             break;
             default:
-                throw MySQLExceptionUtils.createFatalIoException("Server send unknown type[%s]"
+                throw MySQLExceptions.createFatalIoException("Server send unknown type[%s]"
                         , columnMeta.typeFlag);
 
         }
@@ -270,7 +270,7 @@ final class BinaryResultSetReader extends AbstractResultSetReader {
             }
             break;
             default:
-                throw MySQLExceptionUtils.createFatalIoException("Server send unknown type[%s]"
+                throw MySQLExceptions.createFatalIoException("Server send unknown type[%s]"
                         , columnMeta.typeFlag);
 
         }

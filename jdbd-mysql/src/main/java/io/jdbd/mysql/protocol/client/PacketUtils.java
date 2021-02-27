@@ -1,7 +1,7 @@
 package io.jdbd.mysql.protocol.client;
 
 import io.jdbd.mysql.JdbdMySQLException;
-import io.jdbd.mysql.util.MySQLExceptionUtils;
+import io.jdbd.mysql.util.MySQLExceptions;
 import io.jdbd.mysql.util.MySQLNumberUtils;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
@@ -11,6 +11,7 @@ import reactor.util.annotation.Nullable;
 import java.math.BigInteger;
 import java.nio.charset.Charset;
 import java.time.*;
+import java.util.List;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -34,7 +35,7 @@ public abstract class PacketUtils {
     public static final int ENC_3_MAX_VALUE = 0xFF_FF_FF;
 
     public static final int LOCAL_INFILE = 0xFB;
-    public static final int COM_QUERY_HEADER = 0x03;
+    public static final int COM_QUERY = 0x03;
     public static final int COM_STMT_PREPARE = 0x16;
     public static final int COM_STMT_EXECUTE = 0x17;
 
@@ -424,7 +425,7 @@ public abstract class PacketUtils {
             }
             break;
             default:
-                throw MySQLExceptionUtils.createFatalIoException(
+                throw MySQLExceptions.createFatalIoException(
                         "Server send binary MYSQL_TYPE_DATE length[%s] error.", length);
         }
         return OffsetTime.of(time, adjutant.obtainZoneOffsetDatabase())
@@ -450,7 +451,7 @@ public abstract class PacketUtils {
             }
             break;
             default:
-                throw MySQLExceptionUtils.createFatalIoException(
+                throw MySQLExceptions.createFatalIoException(
                         "Server send binary MYSQL_TYPE_DATE length[%s] error.", length);
         }
         return date;
@@ -500,7 +501,7 @@ public abstract class PacketUtils {
             }
             break;
             default:
-                throw MySQLExceptionUtils.createFatalIoException(
+                throw MySQLExceptions.createFatalIoException(
                         "Server send binary MYSQL_TYPE_DATETIME length[%s] error.", length);
         }
         if (dateTime != null) {
@@ -696,6 +697,49 @@ public abstract class PacketUtils {
         bigPacket.release();
 
         return tempBuffer;
+    }
+
+    public static ByteBuf addAndCutBigPacket(final ByteBuf bigPacket, final List<ByteBuf> packetList
+            , Supplier<Integer> sequenceIdSupplier, Function<Integer, ByteBuf> bufferCreator) {
+        if (bigPacket.readableBytes() < MAX_PACKET) {
+            return bigPacket;
+        }
+
+        ByteBuf packet;
+        if (bigPacket.isReadOnly()) {
+            packet = bufferCreator.apply(MAX_PACKET);
+
+            writeInt3(packet, MAX_PAYLOAD);
+            packet.writeByte(sequenceIdSupplier.get());
+            bigPacket.skipBytes(HEADER_SIZE); // bigPacket skip header part
+            packet.writeBytes(bigPacket, MAX_PAYLOAD);
+        } else {
+            packet = bigPacket.readRetainedSlice(MAX_PACKET);
+            PacketUtils.writePacketHeader(packet, sequenceIdSupplier.get());
+        }
+        packetList.add(packet);
+
+        while (bigPacket.readableBytes() >= MAX_PAYLOAD) {
+            packet = bufferCreator.apply(MAX_PACKET);
+
+            writeInt3(packet, MAX_PAYLOAD);
+            packet.writeByte(sequenceIdSupplier.get());
+            packet.writeBytes(bigPacket, MAX_PAYLOAD);
+
+            packetList.add(packet);
+        }
+
+        if (bigPacket.readableBytes() > 0) {
+            packet = bufferCreator.apply(HEADER_SIZE + bigPacket.readableBytes());
+            packet.writeZero(HEADER_SIZE);
+            packet.writeBytes(bigPacket);
+        } else {
+            packet = bufferCreator.apply(1024);
+            packet.writeZero(HEADER_SIZE);
+        }
+
+        bigPacket.release();
+        return packet;
     }
 
 

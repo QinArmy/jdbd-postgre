@@ -3,7 +3,7 @@ package io.jdbd.mysql.protocol.client;
 import io.jdbd.JdbdSQLException;
 import io.jdbd.mysql.protocol.CharsetMapping;
 import io.jdbd.mysql.protocol.conf.Properties;
-import io.jdbd.mysql.util.MySQLExceptionUtils;
+import io.jdbd.mysql.util.MySQLExceptions;
 import io.jdbd.vendor.AbstractCommunicationTask;
 import io.netty.buffer.ByteBuf;
 import org.reactivestreams.Publisher;
@@ -113,7 +113,7 @@ abstract class MySQLCommunicationTask extends AbstractCommunicationTask implemen
             byteBuf.writerIndex(byteBuf.readerIndex());
             writeBigBuffer(task, byteBuf, payload);
         } else {
-            byteBuf.writeByte(PacketUtils.COM_QUERY_HEADER)
+            byteBuf.writeByte(PacketUtils.COM_QUERY)
                     .writeBytes(payload);
             PacketUtils.writePacketHeader(byteBuf, task.addAndGetSequenceId());
         }
@@ -130,7 +130,7 @@ abstract class MySQLCommunicationTask extends AbstractCommunicationTask implemen
             PacketUtils.writeInt3(byteBuf, len);
             byteBuf.writeByte(task.addAndGetSequenceId());
             if (i == 0) {
-                byteBuf.writeByte(PacketUtils.COM_QUERY_HEADER);
+                byteBuf.writeByte(PacketUtils.COM_QUERY);
             }
             byteBuf.writeBytes(bigPayload, i, len);
         }
@@ -138,7 +138,7 @@ abstract class MySQLCommunicationTask extends AbstractCommunicationTask implemen
 
 
     static JdbdSQLException createSequenceIdError(int expected, ByteBuf cumulateBuffer) {
-        return MySQLExceptionUtils.createFatalIoException(
+        return MySQLExceptions.createFatalIoException(
                 (Throwable) null
                 , "MySQL server row packet return sequence_id error,expected[%s] actual[%s]"
                 , expected, PacketUtils.getInt1(cumulateBuffer, cumulateBuffer.readerIndex() - 1));

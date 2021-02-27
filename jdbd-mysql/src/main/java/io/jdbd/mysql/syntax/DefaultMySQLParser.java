@@ -4,14 +4,15 @@ import io.jdbd.JdbdSQLException;
 import io.jdbd.mysql.SQLMode;
 import io.jdbd.mysql.Server;
 import io.jdbd.mysql.protocol.Constants;
-import io.jdbd.mysql.util.MySQLExceptionUtils;
+import io.jdbd.mysql.util.MySQLExceptions;
 import io.jdbd.vendor.util.JdbdStringUtils;
 
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-public class DefaultMySQLParser implements MySQLParser {
+public final class DefaultMySQLParser implements MySQLParser {
 
     public static MySQLParser create(Server server) {
         return new DefaultMySQLParser(server);
@@ -50,10 +51,7 @@ public class DefaultMySQLParser implements MySQLParser {
     }
 
     @Override
-    public final MySQLStatement parse(final String sql) throws JdbdSQLException {
-        if (!JdbdStringUtils.hasText(sql)) {
-            throw MySQLExceptionUtils.createEmptySqlException();
-        }
+    public final MySQLStatement parse(final String sql) throws SQLException {
         Object value = doParse(sql, Mode.PARSE);
         if (value instanceof MySQLStatement) {
             return (MySQLStatement) value;
@@ -62,13 +60,9 @@ public class DefaultMySQLParser implements MySQLParser {
     }
 
     @Override
-    public boolean isSingleStmt(String sql) {
+    public boolean isSingleStmt(String sql) throws SQLException {
         Object value;
-        try {
-            value = doParse(sql, Mode.SINGLE);
-        } catch (JdbdSQLException e) {
-            return false;
-        }
+        value = doParse(sql, Mode.SINGLE);
         if (value instanceof Integer) {
             return ((Integer) value) == 1;
         }
@@ -76,21 +70,19 @@ public class DefaultMySQLParser implements MySQLParser {
     }
 
     @Override
-    public boolean isMultiStmt(String sql) {
+    public boolean isMultiStmt(String sql) throws SQLException {
         Object value;
-        try {
-            value = doParse(sql, Mode.MULTI);
-        } catch (JdbdSQLException e) {
-            return false;
-        }
+        value = doParse(sql, Mode.MULTI);
         if (value instanceof Integer) {
             return ((Integer) value) > 1;
         }
         throw new IllegalStateException("parser bug.");
     }
 
-    private Object doParse(final String sql, final Mode mode) throws JdbdSQLException {
-
+    private Object doParse(final String sql, final Mode mode) throws SQLException {
+        if (!JdbdStringUtils.hasText(sql)) {
+            throw MySQLExceptions.createEmptySqlException();
+        }
         final boolean ansiQuotes = this.server.containSqlMode(SQLMode.ANSI_QUOTES);
         final boolean backslashEscapes = this.server.isBackslashEscapes();
 
@@ -100,7 +92,7 @@ public class DefaultMySQLParser implements MySQLParser {
         final List<String> endpointList = mode == Mode.PARSE ? new ArrayList<>() : Collections.emptyList();
 
         char ch, firstStmtChar = Constants.EMPTY_CHAR, letter = Constants.EMPTY_CHAR;
-        for (int i = 0; i < sqlLength; i++) {
+        for (int i = 0, line = 1; i < sqlLength; i++) {
             ch = sql.charAt(i);
 
             if (inQuoteId) {
@@ -135,7 +127,16 @@ public class DefaultMySQLParser implements MySQLParser {
                 continue;
             }
 
-            if (Character.isWhitespace(ch)) {
+            if (ch == '\r') {
+                if (i + 1 < sqlLength && sql.charAt(i + 1) == '\n') {
+                    i++;
+                }
+                line++;
+                continue;
+            } else if (ch == '\n') {
+                line++;
+                continue;
+            } else if (Character.isWhitespace(ch)) {
                 continue;
             }
 
@@ -163,7 +164,7 @@ public class DefaultMySQLParser implements MySQLParser {
             } else if (ch == ';') {
                 switch (mode) {
                     case PARSE:
-                        throw MySQLExceptionUtils.createMultiStatementException();
+                        throw MySQLExceptions.createMultiStatementError();
                     case SINGLE:
                         return 2;// not single statement.
                     case MULTI: {
@@ -174,7 +175,7 @@ public class DefaultMySQLParser implements MySQLParser {
                     }
                     break;
                     default:
-                        throw MySQLExceptionUtils.createUnknownEnumException(mode);
+                        throw MySQLExceptions.createUnknownEnumException(mode);
                 }
             } else if (ch == '?') {
                 if (mode == Mode.PARSE) {
@@ -185,10 +186,11 @@ public class DefaultMySQLParser implements MySQLParser {
                 letter = Character.toUpperCase(ch);
                 if (firstStmtChar == Constants.EMPTY_CHAR) {
                     firstStmtChar = letter;
-                    if ((ch == 'L') && !localInfile) {
-                        if (sql.regionMatches(true, i, LOAD, 0, LOAD.length())) {
-                            localInfile = isLocalInfile(sql, i);
-                        }
+                    //TODO  search for "ON DUPLICATE KEY UPDATE" if not an INSERT statement
+                    //@see com.mysql.cj.ParseInfo.ParseInfo(java.lang.String, com.mysql.cj.Session, java.lang.String, boolean)
+                    if (ch == 'L' && sql.regionMatches(true, i, LOAD, 0, LOAD.length())) {
+                        localInfile = isLocalInfile(sql, i);
+
                     }
                 }
 
@@ -199,13 +201,13 @@ public class DefaultMySQLParser implements MySQLParser {
 
 
         if (inQuoteId) {
-            throw MySQLExceptionUtils.createSyntaxException("Identifier quote(`) not close.");
+            throw MySQLExceptions.createSyntaxError("Identifier quote(`) not close.");
         } else if (inDoubleId) {
-            throw MySQLExceptionUtils.createSyntaxException("Identifier quote(\") not close.");
+            throw MySQLExceptions.createSyntaxError("Identifier quote(\") not close.");
         } else if (inQuotes) {
-            throw MySQLExceptionUtils.createSyntaxException("String Literals quote(') not close.");
+            throw MySQLExceptions.createSyntaxError("String Literals quote(') not close.");
         } else if (inDoubleQuotes) {
-            throw MySQLExceptionUtils.createSyntaxException("String Literals double quote(\") not close.");
+            throw MySQLExceptions.createSyntaxError("String Literals double quote(\") not close.");
         }
 
         final Object returnValue;
@@ -228,7 +230,7 @@ public class DefaultMySQLParser implements MySQLParser {
             }
             break;
             default:
-                throw MySQLExceptionUtils.createUnknownEnumException(mode);
+                throw MySQLExceptions.createUnknownEnumException(mode);
         }
 
         return returnValue;
@@ -287,14 +289,14 @@ public class DefaultMySQLParser implements MySQLParser {
      * @return {@link #BLOCK_COMMENT_END_MARKER}'s last char index.
      */
     private static int skipBlockCommentEndMarker(String sql, int i)
-            throws JdbdSQLException {
+            throws SQLException {
         i += BLOCK_COMMENT_START_MARKER.length();
         if (i >= sql.length()) {
-            throw MySQLExceptionUtils.createSyntaxException("Block comment marker quote(/*) not close.");
+            throw MySQLExceptions.createSyntaxError("Block comment marker quote(/*) not close.");
         }
         int endMarkerIndex = sql.indexOf(BLOCK_COMMENT_END_MARKER, i);
         if (endMarkerIndex < 0) {
-            throw MySQLExceptionUtils.createSyntaxException("Block comment marker quote(/*) not close.");
+            throw MySQLExceptions.createSyntaxError("Block comment marker quote(/*) not close.");
         }
         return endMarkerIndex + BLOCK_COMMENT_END_MARKER.length() - 1;
     }
@@ -321,6 +323,9 @@ public class DefaultMySQLParser implements MySQLParser {
         }
         return i;
     }
+
+
+    /*################################## blow private static method ##################################*/
 
 
     private enum Mode {

@@ -6,7 +6,7 @@ import io.jdbd.mysql.protocol.authentication.*;
 import io.jdbd.mysql.protocol.conf.HostInfo;
 import io.jdbd.mysql.protocol.conf.Properties;
 import io.jdbd.mysql.protocol.conf.PropertyKey;
-import io.jdbd.mysql.util.MySQLExceptionUtils;
+import io.jdbd.mysql.util.MySQLExceptions;
 import io.jdbd.mysql.util.MySQLStringUtils;
 import io.jdbd.vendor.TaskSignal;
 import io.netty.buffer.ByteBuf;
@@ -154,7 +154,7 @@ final class AuthenticateTask extends AbstractAuthenticateTask implements Authent
             } else {
                 error = ErrorPacket.readPacket(cumulateBuffer, this.negotiatedCapability, charset);
             }
-            this.sink.error(MySQLExceptionUtils.createErrorPacketException(error));
+            this.sink.error(MySQLExceptions.createErrorPacketException(error));
             taskEnd = true;
         } else {
             taskEnd = processNextAuthenticationNegotiation(cumulateBuffer);

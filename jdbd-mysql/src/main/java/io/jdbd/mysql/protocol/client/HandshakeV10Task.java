@@ -1,7 +1,7 @@
 package io.jdbd.mysql.protocol.client;
 
 import io.jdbd.mysql.protocol.ErrorPacket;
-import io.jdbd.mysql.util.MySQLExceptionUtils;
+import io.jdbd.mysql.util.MySQLExceptions;
 import io.jdbd.vendor.TaskSignal;
 import io.netty.buffer.ByteBuf;
 import org.reactivestreams.Publisher;
@@ -56,17 +56,17 @@ final class HandshakeV10Task extends MySQLConnectionTask {
 
         if (ErrorPacket.isErrorPacket(cumulateBuffer)) {
             ErrorPacket error = ErrorPacket.readPacket(cumulateBuffer, 0, StandardCharsets.UTF_8);
-            this.sink.error(MySQLExceptionUtils.createErrorPacketException(error));
+            this.sink.error(MySQLExceptions.createErrorPacketException(error));
 
         } else if (sequenceId != 0) {
             this.sink.error(
-                    MySQLExceptionUtils.createFatalIoException("Handshake sequenceId[%s] isn't 0 .", sequenceId));
+                    MySQLExceptions.createFatalIoException("Handshake sequenceId[%s] isn't 0 .", sequenceId));
         } else {
             try {
                 this.sink.success(HandshakeV10Packet.readHandshake(cumulateBuffer)); //emit HandshakeV10Packet
                 cumulateBuffer.readerIndex(payloadStartIndex + payloadLength); // to next packet
             } catch (Throwable e) {
-                this.sink.error(MySQLExceptionUtils.createFatalIoException(e, "Handshake packet parse error"));
+                this.sink.error(MySQLExceptions.createFatalIoException(e, "Handshake packet parse error"));
             }
         }
         return true;

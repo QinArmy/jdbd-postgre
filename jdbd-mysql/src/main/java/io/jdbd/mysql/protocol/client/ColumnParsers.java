@@ -4,7 +4,7 @@ import io.jdbd.JdbdSQLException;
 import io.jdbd.lang.Nullable;
 import io.jdbd.mysql.protocol.CharsetMapping;
 import io.jdbd.mysql.util.MySQLConvertUtils;
-import io.jdbd.mysql.util.MySQLExceptionUtils;
+import io.jdbd.mysql.util.MySQLExceptions;
 import io.jdbd.mysql.util.MySQLStringUtils;
 import io.jdbd.mysql.util.MySQLTimeUtils;
 import io.jdbd.type.Geometry;
@@ -113,7 +113,7 @@ abstract class ColumnParsers {
                 value = parseUnknown(multiRowBuf, columnMeta, columnCharset);
                 break;
             default:
-                throw MySQLExceptionUtils.createUnknownEnumException(sqlType);
+                throw MySQLExceptions.createUnknownEnumException(sqlType);
         }
         return value;
     }

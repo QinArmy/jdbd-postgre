@@ -2,6 +2,7 @@ package io.jdbd;
 
 import reactor.util.annotation.Nullable;
 
+@Deprecated
 public class SQLBindParameterException extends JdbdNonSQLException {
 
     public SQLBindParameterException(String message) {

@@ -1,5 +1,6 @@
 package io.jdbd;
 
+@Deprecated
 public class StatementException extends JdbdNonSQLException {
 
     public StatementException(String messageFormat, Object... args) {

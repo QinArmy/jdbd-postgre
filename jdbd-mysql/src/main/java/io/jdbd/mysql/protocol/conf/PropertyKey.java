@@ -352,8 +352,10 @@ public enum PropertyKey {
     xdevapiUseAsyncProtocol("xdevapi.useAsyncProtocol", "xdevapiUseAsyncProtocol", null, true), //
     yearIsDateType("yearIsDateType", "true", true), //
 
-    zeroDateTimeBehavior("zeroDateTimeBehavior", "EXCEPTION", true) //
-    ;
+    zeroDateTimeBehavior("zeroDateTimeBehavior", "EXCEPTION", true), //
+
+    // new add
+    clientPrepareSupportStream("clientPrepareSupportStream", "false", true);
 
     private final String keyName;
     private final String ccAlias;

@@ -5,7 +5,8 @@ import io.jdbd.mysql.JdbdMySQLException;
 import io.jdbd.mysql.Server;
 import io.jdbd.mysql.protocol.CharsetMapping;
 import io.jdbd.mysql.protocol.conf.HostInfo;
-import io.jdbd.mysql.util.MySQLExceptionUtils;
+import io.jdbd.mysql.syntax.MySQLStatement;
+import io.jdbd.mysql.util.MySQLExceptions;
 import io.jdbd.vendor.CommunicationTask;
 import io.jdbd.vendor.TaskSignal;
 import io.netty.buffer.ByteBuf;
@@ -24,6 +25,7 @@ import reactor.netty.tcp.TcpClient;
 import reactor.util.concurrent.Queues;
 
 import java.nio.charset.Charset;
+import java.sql.SQLException;
 import java.time.ZoneOffset;
 import java.util.Map;
 import java.util.Queue;
@@ -300,7 +302,7 @@ final class DefaultCommTaskExecutor implements MySQLCommTaskExecutor, CoreSubscr
      * @see #sendPacket(MySQLTask, Publisher)
      */
     private void removeTaskOnStartFailure(MySQLTask headTask, Throwable e) {
-        headTask.error(MySQLExceptionUtils.wrapSQLExceptionIfNeed(e)); // emit error
+        headTask.error(MySQLExceptions.wrapSQLExceptionIfNeed(e)); // emit error
         if (this.eventLoop.inEventLoop()) {
             if (this.currentTask == headTask) {
                 this.currentTask = null;
@@ -465,6 +467,21 @@ final class DefaultCommTaskExecutor implements MySQLCommTaskExecutor, CoreSubscr
         @Override
         public MySQLCommTaskExecutor obtainCommTaskExecutor() {
             return DefaultCommTaskExecutor.this;
+        }
+
+        @Override
+        public MySQLStatement parse(String singleSql) throws SQLException {
+            return null;
+        }
+
+        @Override
+        public boolean isSingleStmt(String sql) throws SQLException {
+            return false;
+        }
+
+        @Override
+        public boolean isMultiStmt(String sql) throws SQLException {
+            return false;
         }
     }
 

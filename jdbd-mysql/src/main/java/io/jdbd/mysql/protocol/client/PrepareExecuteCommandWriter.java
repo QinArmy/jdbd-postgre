@@ -5,7 +5,7 @@ import io.jdbd.SQLBindParameterException;
 import io.jdbd.mysql.BindValue;
 import io.jdbd.mysql.protocol.Constants;
 import io.jdbd.mysql.protocol.conf.Properties;
-import io.jdbd.mysql.util.MySQLExceptionUtils;
+import io.jdbd.mysql.util.MySQLExceptions;
 import io.jdbd.mysql.util.MySQLNumberUtils;
 import io.jdbd.mysql.util.MySQLTimeUtils;
 import io.jdbd.type.Geometry;
@@ -284,7 +284,7 @@ final class PrepareExecuteCommandWriter implements StatementCommandWriter {
                 length = 0; // TODO 优化
                 break;
             default:
-                throw MySQLExceptionUtils.createUnknownEnumException(parameterMeta.mysqlType);
+                throw MySQLExceptions.createUnknownEnumException(parameterMeta.mysqlType);
         }
 
         return length;
@@ -364,7 +364,7 @@ final class PrepareExecuteCommandWriter implements StatementCommandWriter {
                 //TODO add code
                 throw BindUtils.createTypeNotMatchException(bindValue);
             default:
-                throw MySQLExceptionUtils.createUnknownEnumException(parameterMeta.mysqlType);
+                throw MySQLExceptions.createUnknownEnumException(parameterMeta.mysqlType);
         }
     }
 

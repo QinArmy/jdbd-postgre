@@ -4,13 +4,14 @@ import io.jdbd.*;
 import io.jdbd.mysql.BindValue;
 import io.jdbd.mysql.MySQLBindValue;
 import io.jdbd.mysql.PrepareWrapper;
+import io.jdbd.mysql.StmtWrapper;
 import io.jdbd.mysql.protocol.EofPacket;
 import io.jdbd.mysql.protocol.ErrorPacket;
 import io.jdbd.mysql.protocol.OkPacket;
 import io.jdbd.mysql.protocol.conf.Properties;
 import io.jdbd.mysql.protocol.conf.PropertyKey;
 import io.jdbd.mysql.util.MySQLCollectionUtils;
-import io.jdbd.mysql.util.MySQLExceptionUtils;
+import io.jdbd.mysql.util.MySQLExceptions;
 import io.jdbd.vendor.LongParameterException;
 import io.jdbd.vendor.TaskSignal;
 import io.netty.buffer.ByteBuf;
@@ -57,7 +58,7 @@ import java.util.function.Consumer;
 final class ComPreparedTask extends MySQLCommunicationTask implements StatementTask {
 
 
-    static Flux<ResultRow> query(PrepareWrapper wrapper, MySQLTaskAdjutant adjutant) {
+    static Flux<ResultRow> query(StmtWrapper wrapper, MySQLTaskAdjutant adjutant) {
 
         return Flux.create(sink -> {
 
@@ -67,7 +68,7 @@ final class ComPreparedTask extends MySQLCommunicationTask implements StatementT
         });
     }
 
-    static Mono<ResultStates> update(PrepareWrapper wrapper, MySQLTaskAdjutant adjutant) {
+    static Mono<ResultStates> update(StmtWrapper wrapper, MySQLTaskAdjutant adjutant) {
 
         return Mono.create(sink -> {
 
@@ -321,7 +322,7 @@ final class ComPreparedTask extends MySQLCommunicationTask implements StatementT
             case ErrorPacket.ERROR_HEADER: {
                 ErrorPacket error = ErrorPacket.readPacket(cumulateBuffer.readSlice(payloadLength)
                         , this.negotiatedCapability, this.adjutant.obtainCharsetResults());
-                this.downStreamSink.error(MySQLExceptionUtils.createErrorPacketException(error));
+                this.downStreamSink.error(MySQLExceptions.createErrorPacketException(error));
                 taskEnd = true;
             }
             break;
@@ -345,7 +346,7 @@ final class ComPreparedTask extends MySQLCommunicationTask implements StatementT
             }
             break;
             default: {
-                throw MySQLExceptionUtils.createFatalIoException(
+                throw MySQLExceptions.createFatalIoException(
                         "Server send COM_STMT_PREPARE Response error. header        [%s]", headFlag);
             }
         }
@@ -452,7 +453,7 @@ final class ComPreparedTask extends MySQLCommunicationTask implements StatementT
 
                 ErrorPacket error = ErrorPacket.readPacket(cumulateBuffer.readSlice(payloadLength)
                         , this.negotiatedCapability, this.adjutant.obtainCharsetResults());
-                this.downStreamSink.error(MySQLExceptionUtils.createErrorPacketException(error));
+                this.downStreamSink.error(MySQLExceptions.createErrorPacketException(error));
                 taskEnd = true;
             }
             break;

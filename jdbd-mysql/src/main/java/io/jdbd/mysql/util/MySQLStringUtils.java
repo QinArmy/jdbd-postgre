@@ -123,13 +123,6 @@ public abstract class MySQLStringUtils extends org.qinarmy.util.StringUtils {
         return list;
     }
 
-    public static boolean isMultiStatement(String sql) {
-        return false;
-    }
-
-    public static boolean isSingleStatement(String sql) {
-        return false;
-    }
 
     /*################################## blow private static method ##################################*/
 

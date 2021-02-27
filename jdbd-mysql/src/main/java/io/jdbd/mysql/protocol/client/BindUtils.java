@@ -1,23 +1,72 @@
 package io.jdbd.mysql.protocol.client;
 
 import io.jdbd.BindParameterException;
+import io.jdbd.MultiResults;
 import io.jdbd.mysql.BindValue;
+import io.jdbd.mysql.syntax.MySQLStatement;
+import io.jdbd.mysql.util.MySQLExceptions;
 import io.jdbd.mysql.util.MySQLStringUtils;
 import io.jdbd.mysql.util.MySQLTimeUtils;
-import io.netty.buffer.ByteBuf;
+import io.jdbd.vendor.result.JdbdMultiResults;
+import io.jdbd.vendor.util.JdbdBindUtils;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 import reactor.util.annotation.Nullable;
 
 import java.math.BigDecimal;
 import java.math.BigInteger;
+import java.sql.SQLException;
 import java.time.format.DateTimeFormatter;
+import java.util.List;
 
-abstract class BindUtils {
+abstract class BindUtils extends JdbdBindUtils {
 
     protected BindUtils() {
         throw new UnsupportedOperationException();
     }
 
-    public static String bindToBits(final BindValue bindValue, final ByteBuf buffer) {
+    static <T> Flux<T> createParamCountNotMatchFluxError(MySQLStatement stmt, List<BindValue> parameterGroup) {
+        Flux<T> flux;
+        final int bindCount = parameterGroup.size(), paramCount = stmt.getParamCount();
+        if (paramCount == 0) {
+            flux = Flux.error(MySQLExceptions.createNoParametersExistsException());
+        } else if (paramCount > bindCount) {
+            flux = Flux.error(MySQLExceptions.createParamsNotBindException(bindCount));
+        } else {
+            flux = Flux.error(MySQLExceptions.createInvalidParameterException(paramCount));
+        }
+        return flux;
+    }
+
+    static <T> Mono<T> createParamCountNotMatchMonoError(MySQLStatement stmt, List<BindValue> parameterGroup) {
+        Mono<T> mono;
+        final int bindCount = parameterGroup.size(), paramCount = stmt.getParamCount();
+        if (paramCount == 0) {
+            mono = Mono.error(MySQLExceptions.createNoParametersExistsException());
+        } else if (paramCount > bindCount) {
+            mono = Mono.error(MySQLExceptions.createParamsNotBindException(bindCount));
+        } else {
+            mono = Mono.error(MySQLExceptions.createInvalidParameterException(paramCount));
+        }
+        return mono;
+    }
+
+    static MultiResults createParamCountNotMatchError(MySQLStatement stmt, List<BindValue> parameterGroup
+            , int stmtIndex) {
+        MultiResults results;
+        final int bindCount = parameterGroup.size(), paramCount = stmt.getParamCount();
+        if (paramCount == 0) {
+            results = JdbdMultiResults.error(MySQLExceptions.createNoParametersExistsException(stmtIndex));
+        } else if (paramCount > bindCount) {
+            results = JdbdMultiResults.error(MySQLExceptions.createParamsNotBindException(stmtIndex, bindCount));
+        } else {
+            results = JdbdMultiResults.error(MySQLExceptions.createInvalidParameterException(stmtIndex, paramCount));
+        }
+        return results;
+    }
+
+
+    public static String bindToBits(final int stmtIndex, final BindValue bindValue) throws SQLException {
         final Object nonNullValue = bindValue.getRequiredValue();
 
         final String bits;
@@ -39,20 +88,18 @@ abstract class BindUtils {
         } else if (nonNullValue instanceof String) {
             bits = (String) nonNullValue;
             if (!MySQLStringUtils.isBinaryString(bits)) {
-                throw new BindParameterException(bindValue.getParamIndex()
-                        , "Bind parameter[%s] value[%s] isn't binary string."
-                        , bindValue.getParamIndex(), bits);
+                throw MySQLExceptions.createUnsupportedParamTypeError(stmtIndex, bindValue);
             }
         } else if (nonNullValue instanceof BigInteger) {
             bits = ((BigInteger) nonNullValue).toString(2);
         } else if (nonNullValue instanceof BigDecimal) {
             BigDecimal decimal = (BigDecimal) nonNullValue;
             if (decimal.scale() != 0) {
-                throw BindUtils.createNotSupportFractionException(bindValue);
+                throw MySQLExceptions.createUnsupportedParamTypeError(stmtIndex, bindValue);
             }
             bits = decimal.toPlainString();
         } else {
-            throw BindUtils.createTypeNotMatchException(bindValue);
+            throw MySQLExceptions.createUnsupportedParamTypeError(stmtIndex, bindValue);
         }
 
         return ("B'" + bits + "'");

@@ -4,7 +4,7 @@ import io.jdbd.*;
 import io.jdbd.lang.Nullable;
 import io.jdbd.mysql.protocol.*;
 import io.jdbd.mysql.protocol.conf.PropertyKey;
-import io.jdbd.mysql.util.MySQLExceptionUtils;
+import io.jdbd.mysql.util.MySQLExceptions;
 import io.jdbd.vendor.MultiResultsSink;
 import io.jdbd.vendor.TaskSignal;
 import io.netty.buffer.ByteBuf;
@@ -85,7 +85,7 @@ abstract class AbstractComQueryTask extends MySQLCommunicationTask {
                     taskEnd = decodeLocalInfileResult(cumulateBuf);
                     break;
                 default:
-                    throw MySQLExceptionUtils.createUnknownEnumException(decoderType);
+                    throw MySQLExceptions.createUnknownEnumException(decoderType);
             }
         } else {
             taskEnd = decodeOneResultSet(cumulateBuf);
@@ -128,7 +128,7 @@ abstract class AbstractComQueryTask extends MySQLCommunicationTask {
                 ErrorPacket error;
                 error = ErrorPacket.readPacket(cumulateBuf.readSlice(payloadLength)
                         , this.negotiatedCapability, charsetResults);
-                emitError(MySQLExceptionUtils.createSQLException(error)); //emit error packet
+                emitError(MySQLExceptions.createSQLException(error)); //emit error packet
                 taskEnd = true;
             }
             break;
@@ -155,7 +155,7 @@ abstract class AbstractComQueryTask extends MySQLCommunicationTask {
             }
             break;
             default:
-                throw MySQLExceptionUtils.createUnknownEnumException(response);
+                throw MySQLExceptions.createUnknownEnumException(response);
         }
         return taskEnd;
     }
@@ -220,7 +220,7 @@ abstract class AbstractComQueryTask extends MySQLCommunicationTask {
             }
             break;
             default:
-                throw MySQLExceptionUtils.createUnknownEnumException(phase);
+                throw MySQLExceptions.createUnknownEnumException(phase);
         }
         return taskEnd;
     }
@@ -317,7 +317,7 @@ abstract class AbstractComQueryTask extends MySQLCommunicationTask {
                     ErrorPacket error;
                     error = ErrorPacket.readPacket(cumulateBuffer.readSlice(payloadLength)
                             , this.negotiatedCapability, charsetResults);
-                    emitError(MySQLExceptionUtils.createSQLException(error));
+                    emitError(MySQLExceptions.createSQLException(error));
                 }
                 return true; // occur error packet , communication task end.
                 case EofPacket.EOF_HEADER: {
@@ -330,7 +330,7 @@ abstract class AbstractComQueryTask extends MySQLCommunicationTask {
                         rowPhaseEnd = true;
                         break out;
                     } else {
-                        throw MySQLExceptionUtils.createFatalIoException("MySQL server send error ResultSet terminator.");
+                        throw MySQLExceptions.createFatalIoException("MySQL server send error ResultSet terminator.");
                     }
                 }
                 default: {
@@ -428,7 +428,7 @@ abstract class AbstractComQueryTask extends MySQLCommunicationTask {
                     sequenceId = readBigRowToFile(cumulateBuffer, sink, -1);
                     break;
                 default:
-                    throw MySQLExceptionUtils.createUnknownEnumException(bigRowPhase);
+                    throw MySQLExceptions.createUnknownEnumException(bigRowPhase);
             }
         }
         return sequenceId;
@@ -648,7 +648,7 @@ abstract class AbstractComQueryTask extends MySQLCommunicationTask {
             case ErrorPacket.ERROR_HEADER: {
                 ErrorPacket error = ErrorPacket.readPacket(cumulateBuffer.readSlice(payloadLength)
                         , this.negotiatedCapability, this.adjutant.obtainCharsetResults());
-                emitError(MySQLExceptionUtils.createSQLException(error));
+                emitError(MySQLExceptions.createSQLException(error));
                 taskEnd = true;
             }
             break;
@@ -661,7 +661,7 @@ abstract class AbstractComQueryTask extends MySQLCommunicationTask {
             }
             break;
             default:
-                throw MySQLExceptionUtils.createFatalIoException("LOCAL INFILE Data response type[%s] unknown.", type);
+                throw MySQLExceptions.createFatalIoException("LOCAL INFILE Data response type[%s] unknown.", type);
         }
         cumulateBuffer.readerIndex(payloadIndex + payloadLength); // to next packet
         return taskEnd;

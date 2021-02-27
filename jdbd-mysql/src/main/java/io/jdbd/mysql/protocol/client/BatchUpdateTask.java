@@ -103,7 +103,7 @@ final class BatchUpdateTask extends AbstractComQueryTask {
             } else {
                 PacketUtils.writeInt3(byteBuf, payload.length);
                 byteBuf.writeByte(task.addAndGetSequenceId());
-                byteBuf.writeByte(PacketUtils.COM_QUERY_HEADER);
+                byteBuf.writeByte(PacketUtils.COM_QUERY);
                 byteBuf.writeBytes(payload);
             }
         }

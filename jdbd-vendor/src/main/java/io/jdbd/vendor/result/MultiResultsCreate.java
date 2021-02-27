@@ -6,8 +6,6 @@ import io.jdbd.vendor.JdbdCompositeException;
 import io.jdbd.vendor.MultiResultsSink;
 import io.jdbd.vendor.TaskAdjutant;
 import io.jdbd.vendor.util.JdbdCollectionUtils;
-import org.qinarmy.util.Pair;
-import org.reactivestreams.Publisher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import reactor.core.Disposable;
@@ -44,27 +42,25 @@ import static io.jdbd.ResultType.UPDATE;
  *     </ul>
  * </p>
  */
-public final class JdbdMultiResultsSink implements MultiResultsSink {
+final class MultiResultsCreate implements MultiResultsSink {
 
 
-    public static Pair<MultiResultsSink, MultiResults> create(TaskAdjutant adjutant
-            , Consumer<Void> subscribeConsumer) {
-        JdbdMultiResultsSink sink = new JdbdMultiResultsSink(adjutant, subscribeConsumer);
-        return new Pair<>(sink, sink.multiResults);
+    static MultiResults create(TaskAdjutant adjutant, Consumer<MultiResultsSink> callback) {
+        return new MultiResultsCreate(adjutant, callback).multiResults;
     }
 
-    private static final Logger LOG = LoggerFactory.getLogger(JdbdMultiResultsSink.class);
+    private static final Logger LOG = LoggerFactory.getLogger(MultiResultsCreate.class);
 
     private static final Consumer<ResultStates> EMPTY_CONSUMER = resultStates -> {
     };
 
     private final TaskAdjutant adjutant;
 
-    private final Consumer<Void> subscribeConsumer;
+    private final Consumer<MultiResultsSink> subscribeConsumer;
 
-    private final MultiResults multiResults;
+    private final ReactorMultiResults multiResults;
 
-    private boolean publishSubscribeEvent;
+    private volatile boolean publishSubscribeEvent;
 
     private Queue<RealDownstreamSink> realSinkQueue;
 
@@ -103,7 +99,7 @@ public final class JdbdMultiResultsSink implements MultiResultsSink {
      */
     private int resultSequenceId = 1;
 
-    private JdbdMultiResultsSink(TaskAdjutant adjutant, Consumer<Void> subscribeConsumer) {
+    private MultiResultsCreate(TaskAdjutant adjutant, Consumer<MultiResultsSink> subscribeConsumer) {
         this.adjutant = adjutant;
         this.subscribeConsumer = subscribeConsumer;
         this.multiResults = new DefaultMultiResults(this);
@@ -185,6 +181,10 @@ public final class JdbdMultiResultsSink implements MultiResultsSink {
             this.errorList = errorList;
         }
         errorList.add(e);
+    }
+
+    private boolean hasError() {
+        return !JdbdCollectionUtils.isEmpty(this.errorList);
     }
 
     private void addBufferDownstreamSink(BufferDownstreamSink bufferSink) {
@@ -375,7 +375,7 @@ public final class JdbdMultiResultsSink implements MultiResultsSink {
             } else if (bufferSink instanceof BufferUpdateSink) {
                 bufferSink.clearBuffer();
                 if (realSink != null) {
-                    Throwable e = ErrorSubscribeException.errorSubscribe(UPDATE, QUERY
+                    ErrorSubscribeException e = ErrorSubscribeException.errorSubscribe(UPDATE, QUERY
                             , "Expect subscribe nextUpdate() but subscribe nextQuery()");
                     addError(e);
                     realSink.error(e);
@@ -383,7 +383,7 @@ public final class JdbdMultiResultsSink implements MultiResultsSink {
             } else if (bufferSink instanceof BufferQuerySink) {
                 bufferSink.clearBuffer();
                 if (realSink != null) {
-                    Throwable e = ErrorSubscribeException.errorSubscribe(QUERY, UPDATE
+                    ErrorSubscribeException e = ErrorSubscribeException.errorSubscribe(QUERY, UPDATE
                             , "Expect subscribe nextQuery() but subscribe nextUpdate()");
                     addError(e);
                     realSink.error(e);
@@ -465,7 +465,7 @@ public final class JdbdMultiResultsSink implements MultiResultsSink {
 
     private interface DownstreamSink {
 
-        void error(Throwable e);
+        void error(JdbdException e);
 
         void nextUpdate(ResultStates resultStates);
 
@@ -534,7 +534,7 @@ public final class JdbdMultiResultsSink implements MultiResultsSink {
 
         @Override
         public void clearBuffer() {
-            if (JdbdCollectionUtils.isEmpty(JdbdMultiResultsSink.this.errorList)) {
+            if (JdbdCollectionUtils.isEmpty(MultiResultsCreate.this.errorList)) {
                 throw new IllegalStateException(String.format("No error ,%s reject clear buffer.", this));
             }
             this.bufferFluxSink.clearQueue();
@@ -542,12 +542,12 @@ public final class JdbdMultiResultsSink implements MultiResultsSink {
         }
 
         @Override
-        public void error(Throwable e) {
+        public void error(JdbdException e) {
             this.bufferFluxSink.internalError(e);
         }
 
         /**
-         * @see JdbdMultiResultsSink#drainReceiver()
+         * @see MultiResultsCreate#drainReceiver()
          */
         private void drainToDownstream(FluxSink<ResultRow> sink, Consumer<ResultStates> statesConsumer) {
             this.bufferFluxSink.drainToDownstream(sink);
@@ -563,7 +563,7 @@ public final class JdbdMultiResultsSink implements MultiResultsSink {
         }
 
         /**
-         * @see JdbdMultiResultsSink#subscribeNextQuery(FluxSink, Consumer)
+         * @see MultiResultsCreate#subscribeNextQuery(FluxSink, Consumer)
          */
         private void subscribe(FluxSink<ResultRow> sink, Consumer<ResultStates> statesConsumer) {
             if (this.statesConsumer != null) {
@@ -581,7 +581,7 @@ public final class JdbdMultiResultsSink implements MultiResultsSink {
 
         @Override
         public QuerySink nextQuery() throws IllegalStateException {
-            if (JdbdMultiResultsSink.this.currentSink != this) {
+            if (MultiResultsCreate.this.currentSink != this) {
                 throw new IllegalStateException(String.format("%s have ended.", this));
             }
             if (this.started) {
@@ -613,7 +613,7 @@ public final class JdbdMultiResultsSink implements MultiResultsSink {
 
         private final Consumer<ResultStates> statesConsumer;
 
-        private final QuerySink querySink;
+        private final DefaultQuerySink querySink;
 
         private boolean started;
 
@@ -622,7 +622,7 @@ public final class JdbdMultiResultsSink implements MultiResultsSink {
         private RealQuerySink(FluxSink<ResultRow> sink, Consumer<ResultStates> statesConsumer) {
             this.sinkWrapper = new FluxSinkWrapper(this, sink);
             this.statesConsumer = statesConsumer;
-            this.querySink = new DefaultQuerySink(this, this.sinkWrapper);
+            this.querySink = new DefaultQuerySink(this, sink);
         }
 
 
@@ -641,26 +641,26 @@ public final class JdbdMultiResultsSink implements MultiResultsSink {
         }
 
         @Override
-        public void error(Throwable e) {
-            this.sinkWrapper.internalError(e);
+        public void error(JdbdException e) {
+            this.querySink.actualSink.error(e);
         }
 
         @Override
         public void nextUpdate(ResultStates resultStates) {
-            if (JdbdMultiResultsSink.this.currentSink != this) {
+            if (MultiResultsCreate.this.currentSink != this) {
                 throw new IllegalStateException(String.format("%s have ended.", this));
             }
             LOG.debug("{} expect Query but update.", this);
             // here, downstream subscribe error,should subscribe io.jdbd.MultiResults.nextUpdate.
             ErrorSubscribeException e = ErrorSubscribeException.errorSubscribe(QUERY, UPDATE
                     , "Result sequenceId[%s] Expect subscribe nextQuery,but subscribe nextUpdate."
-                    , JdbdMultiResultsSink.this.resultSequenceId);
-            JdbdMultiResultsSink.this.internalError(e);
+                    , MultiResultsCreate.this.resultSequenceId);
+            MultiResultsCreate.this.internalError(e);
         }
 
         @Override
         public QuerySink nextQuery() throws IllegalStateException {
-            if (JdbdMultiResultsSink.this.currentSink != this) {
+            if (MultiResultsCreate.this.currentSink != this) {
                 throw new IllegalStateException(String.format("%s have ended.", this));
             }
             if (this.started) {
@@ -709,22 +709,22 @@ public final class JdbdMultiResultsSink implements MultiResultsSink {
 
 
         @Override
-        public void error(Throwable e) {
+        public void error(JdbdException e) {
             this.sink.error(e);
         }
 
         @Override
         public void nextUpdate(ResultStates resultStates) {
-            if (JdbdMultiResultsSink.this.currentSink != this) {
+            if (MultiResultsCreate.this.currentSink != this) {
                 throw new IllegalStateException(String.format("%s have ended.", this));
             }
-            JdbdMultiResultsSink.this.currentSink = null;
+            MultiResultsCreate.this.currentSink = null;
             this.sink.success(resultStates);
         }
 
         @Override
         public QuerySink nextQuery() {
-            if (JdbdMultiResultsSink.this.currentSink != this) {
+            if (MultiResultsCreate.this.currentSink != this) {
                 throw new IllegalStateException(String.format("%s have ended.", this));
             }
             if (this.errorSubscribe) {
@@ -735,7 +735,7 @@ public final class JdbdMultiResultsSink implements MultiResultsSink {
             ErrorSubscribeException e = ErrorSubscribeException.errorSubscribe(UPDATE, QUERY
                     , "Result[sequenceId:%s] Expect subscribe nextQuery,but subscribe nextUpdate."
                     , getSequenceId());
-            JdbdMultiResultsSink.this.internalError(e);
+            MultiResultsCreate.this.internalError(e);
 
             return new DefaultQuerySink(this, new FluxSinkWrapper(this, DirtyFluxSink.INSTANCE));
         }
@@ -756,18 +756,40 @@ public final class JdbdMultiResultsSink implements MultiResultsSink {
 
         private final DownstreamQuerySink downstreamSink;
 
-        private final FluxSink<ResultRow> sinkWrapper;
+        private final FluxSink<ResultRow> actualSink;
 
         private ResultStates resultStates;
 
-        private DefaultQuerySink(DownstreamQuerySink downstreamSink, FluxSink<ResultRow> sinkWrapper) {
+        private DefaultQuerySink(DownstreamQuerySink downstreamSink, FluxSink<ResultRow> actualSink) {
             this.downstreamSink = downstreamSink;
-            this.sinkWrapper = sinkWrapper;
+            this.actualSink = actualSink;
         }
 
         @Override
         public FluxSink<ResultRow> getSink() {
-            return this.sinkWrapper;
+            return this.actualSink;
+        }
+
+        @Override
+        public void next(ResultRow resultRow) {
+            this.actualSink.next(resultRow);
+        }
+
+        @Override
+        public boolean isCanceled() {
+            return MultiResultsCreate.this.hasError() || this.actualSink.isCancelled();
+        }
+
+        @Override
+        public void complete() {
+            final DownstreamSink currentSink = MultiResultsCreate.this.currentSink;
+            if (currentSink != this.downstreamSink) {
+                throw new IllegalStateException("Current FluxSink have ended.");
+            }
+            // firstly
+            MultiResultsCreate.this.currentSink = null;
+            // secondly
+            this.actualSink.complete();
         }
 
         @Override
@@ -776,8 +798,11 @@ public final class JdbdMultiResultsSink implements MultiResultsSink {
                 throw new IllegalStateException(String.format("%s have ended.", this));
             }
             this.resultStates = resultStates;
-            JdbdMultiResultsSink.this.lastResultStates = resultStates;
-            this.downstreamSink.acceptStatus(resultStates);
+            MultiResultsCreate.this.lastResultStates = resultStates;
+            if (!MultiResultsCreate.this.hasError()) {
+                this.downstreamSink.acceptStatus(resultStates);
+            }
+
         }
 
     }
@@ -801,26 +826,26 @@ public final class JdbdMultiResultsSink implements MultiResultsSink {
 
         @Override
         public void complete() {
-            final DownstreamSink currentSink = JdbdMultiResultsSink.this.currentSink;
+            final DownstreamSink currentSink = MultiResultsCreate.this.currentSink;
             if (currentSink != this.downstreamSink) {
                 throw new IllegalStateException("Current FluxSink have ended.");
             }
             // firstly
-            JdbdMultiResultsSink.this.currentSink = null;
+            MultiResultsCreate.this.currentSink = null;
             // secondly
             this.actualSink.complete();
         }
 
-        private void internalError(Throwable e) {
+        private void internalError(JdbdException e) {
             this.actualSink.error(e);
         }
 
         @Override
         public void error(final Throwable e) {
-            if (JdbdMultiResultsSink.this.currentSink != this.downstreamSink) {
+            if (MultiResultsCreate.this.currentSink != this.downstreamSink) {
                 throw new IllegalStateException("Current FluxSink have ended.");
             }
-            JdbdMultiResultsSink.this.internalError(e);
+            MultiResultsCreate.this.internalError(e);
         }
 
         @Override
@@ -835,7 +860,7 @@ public final class JdbdMultiResultsSink implements MultiResultsSink {
 
         @Override
         public boolean isCancelled() {
-            return !JdbdCollectionUtils.isEmpty(JdbdMultiResultsSink.this.errorList)
+            return !JdbdCollectionUtils.isEmpty(MultiResultsCreate.this.errorList)
                     || this.actualSink.isCancelled();
         }
 
@@ -872,7 +897,7 @@ public final class JdbdMultiResultsSink implements MultiResultsSink {
 
 
         private void clearQueue() {
-            if (JdbdCollectionUtils.isEmpty(JdbdMultiResultsSink.this.errorList)) {
+            if (JdbdCollectionUtils.isEmpty(MultiResultsCreate.this.errorList)) {
                 throw new IllegalStateException(String.format("No error ,%s reject clear queue.", this));
             }
             Queue<ResultRow> resultRowQueue = this.resultRowQueue;
@@ -882,11 +907,11 @@ public final class JdbdMultiResultsSink implements MultiResultsSink {
             }
             FluxSink<ResultRow> actualSink = this.actualSink;
             if (actualSink != null) {
-                actualSink.error(JdbdMultiResultsSink.this.createException());
+                actualSink.error(MultiResultsCreate.this.createException());
             }
         }
 
-        private void internalError(Throwable e) {
+        private void internalError(JdbdException e) {
             FluxSink<ResultRow> actualSink = this.actualSink;
             if (actualSink != null) {
                 this.actualSink.error(e);
@@ -935,7 +960,7 @@ public final class JdbdMultiResultsSink implements MultiResultsSink {
 
         @Override
         public void complete() {
-            if (JdbdMultiResultsSink.this.currentSink != this.bufferQuerySink) {
+            if (MultiResultsCreate.this.currentSink != this.bufferQuerySink) {
                 throw new IllegalStateException(String.format("%s have ended.", this));
             }
             if (this.bufferQuerySink.resultStates == null) {
@@ -944,11 +969,11 @@ public final class JdbdMultiResultsSink implements MultiResultsSink {
                                 , this, QuerySink.class.getName()));
             }
             // firstly
-            JdbdMultiResultsSink.this.currentSink = null;
+            MultiResultsCreate.this.currentSink = null;
             FluxSink<ResultRow> actualSink = this.actualSink;
             // secondly
             if (actualSink == null) {
-                JdbdMultiResultsSink.this.addBufferDownstreamSink(this.bufferQuerySink);
+                MultiResultsCreate.this.addBufferDownstreamSink(this.bufferQuerySink);
             } else {
                 actualSink.complete();
             }
@@ -956,10 +981,10 @@ public final class JdbdMultiResultsSink implements MultiResultsSink {
 
         @Override
         public void error(Throwable e) {
-            if (JdbdMultiResultsSink.this.currentSink != this.bufferQuerySink) {
+            if (MultiResultsCreate.this.currentSink != this.bufferQuerySink) {
                 throw new IllegalStateException(String.format("%s have ended.", this));
             }
-            JdbdMultiResultsSink.this.internalError(e);
+            MultiResultsCreate.this.internalError(e);
         }
 
         @Override
@@ -1007,16 +1032,16 @@ public final class JdbdMultiResultsSink implements MultiResultsSink {
     /*################################## blow private static inner class  ##################################*/
 
 
-    private static final class DefaultMultiResults implements MultiResults {
+    private static final class DefaultMultiResults implements ReactorMultiResults {
 
-        private final JdbdMultiResultsSink resultsSink;
+        private final MultiResultsCreate resultsSink;
 
-        private DefaultMultiResults(JdbdMultiResultsSink resultsSink) {
+        private DefaultMultiResults(MultiResultsCreate resultsSink) {
             this.resultsSink = resultsSink;
         }
 
         @Override
-        public Publisher<ResultStates> nextUpdate() {
+        public Mono<ResultStates> nextUpdate() {
             return Mono.create(sink -> {
                 if (resultsSink.adjutant.inEventLoop()) {
                     resultsSink.subscribeNextUpdate(sink);
@@ -1027,7 +1052,7 @@ public final class JdbdMultiResultsSink implements MultiResultsSink {
         }
 
         @Override
-        public Publisher<ResultRow> nextQuery(final Consumer<ResultStates> statesConsumer) {
+        public Flux<ResultRow> nextQuery(final Consumer<ResultStates> statesConsumer) {
             return Flux.create(sink -> {
                 if (resultsSink.adjutant.inEventLoop()) {
                     resultsSink.subscribeNextQuery(sink, statesConsumer);
@@ -1038,7 +1063,7 @@ public final class JdbdMultiResultsSink implements MultiResultsSink {
         }
 
         @Override
-        public Publisher<ResultRow> nextQuery() {
+        public Flux<ResultRow> nextQuery() {
             return this.nextQuery(EMPTY_CONSUMER);
         }
     }
@@ -1067,7 +1092,7 @@ public final class JdbdMultiResultsSink implements MultiResultsSink {
         }
 
         @Override
-        public void error(Throwable e) {
+        public void error(JdbdException e) {
             throw new UnsupportedOperationException();
         }
 

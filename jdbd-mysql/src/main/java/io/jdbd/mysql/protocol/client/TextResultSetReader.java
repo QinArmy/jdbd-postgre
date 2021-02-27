@@ -4,7 +4,7 @@ import io.jdbd.ResultRow;
 import io.jdbd.mysql.protocol.EofPacket;
 import io.jdbd.mysql.protocol.conf.PropertyKey;
 import io.jdbd.mysql.util.MySQLConvertUtils;
-import io.jdbd.mysql.util.MySQLExceptionUtils;
+import io.jdbd.mysql.util.MySQLExceptions;
 import io.jdbd.mysql.util.MySQLTimeUtils;
 import io.netty.buffer.ByteBuf;
 import reactor.util.annotation.Nullable;
@@ -263,7 +263,7 @@ final class TextResultSetReader extends AbstractResultSetReader {
             }
             break;
             default:
-                throw MySQLExceptionUtils.createFatalIoException("Server send unknown type[%s]"
+                throw MySQLExceptions.createFatalIoException("Server send unknown type[%s]"
                         , columnMeta.typeFlag);
 
         }
