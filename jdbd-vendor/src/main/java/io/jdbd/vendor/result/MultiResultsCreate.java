@@ -71,7 +71,7 @@ final class MultiResultsCreate implements MultiResultsSink {
      * below can modify this field:
      * <ul>
      *     <li>{@link #nextUpdate(ResultStates)}</li>
-     *     <li>{@link DefaultQuerySink#acceptStatus(ResultStates)}</li>
+     *     <li>{@link DefaultQuerySink#accept(ResultStates)}</li>
      * </ul>
      * </p>
      */
@@ -766,19 +766,17 @@ final class MultiResultsCreate implements MultiResultsSink {
         }
 
         @Override
-        public FluxSink<ResultRow> getSink() {
-            return this.actualSink;
+        public boolean isCancelled() {
+            return this.actualSink.isCancelled();
         }
 
         @Override
         public void next(ResultRow resultRow) {
-            this.actualSink.next(resultRow);
+            if (!MultiResultsCreate.this.hasError()) {
+                this.actualSink.next(resultRow);
+            }
         }
 
-        @Override
-        public boolean isCanceled() {
-            return MultiResultsCreate.this.hasError() || this.actualSink.isCancelled();
-        }
 
         @Override
         public void complete() {
@@ -793,7 +791,7 @@ final class MultiResultsCreate implements MultiResultsSink {
         }
 
         @Override
-        public void acceptStatus(final ResultStates resultStates) throws IllegalStateException {
+        public void accept(final ResultStates resultStates) throws IllegalStateException {
             if (this.resultStates != null) {
                 throw new IllegalStateException(String.format("%s have ended.", this));
             }

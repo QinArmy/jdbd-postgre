@@ -355,7 +355,7 @@ public enum PropertyKey {
     zeroDateTimeBehavior("zeroDateTimeBehavior", "EXCEPTION", true), //
 
     // new add
-    clientPrepareSupportStream("clientPrepareSupportStream", "false", true);
+    clientPrepare("clientPrepare", "UN_SUPPORT_STREAM", true);
 
     private final String keyName;
     private final String ccAlias;

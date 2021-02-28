@@ -24,6 +24,11 @@ public abstract class MySQLExceptions extends ExceptionUtils {
         throw new UnsupportedOperationException();
     }
 
+    public static int CR_PARAMS_NOT_BOUND = 2031;
+    public static int CR_NO_PARAMETERS_EXISTS = 2033;
+    public static int CR_INVALID_PARAMETER_NO = 2034;
+    public static int CR_UNSUPPORTED_PARAM_TYPE = 2036;
+
     public static JdbdSQLException wrapSQLExceptionIfNeed(Throwable t) {
         JdbdSQLException e;
         if (t instanceof JdbdSQLException) {
@@ -94,45 +99,13 @@ public abstract class MySQLExceptions extends ExceptionUtils {
         return new JdbdSQLException(createMultiStatementError());
     }
 
-    public static JdbdSQLException createNoParametersExistsException() {
-        return new JdbdSQLException(createNoParametersExistsError("No parameters exist in the statement"));
-    }
 
-    public static JdbdSQLException createNoParametersExistsException(int stmtIndex) {
-        String message = String.format("No parameters exist in the statement[sequenceId:%s]", stmtIndex);
-        return new JdbdSQLException(createNoParametersExistsError(message));
-    }
-
-    /**
-     * @param stmtIndex  [negative,n] ,if single statement ,stmtIndex is negative.
-     * @param paramIndex [0,n]
-     */
-    public static JdbdSQLException createParamsNotBindException(int stmtIndex, int paramIndex) {
-        String message;
-        if (stmtIndex < 0) {
-            message = String.format("No data supplied for parameters[%s] in prepared statement.", paramIndex);
-        } else {
-            message = String.format("No data supplied for parameters[%s] in statement[sequenceId:%s]."
-                    , paramIndex, stmtIndex);
-        }
-        return new JdbdSQLException(createParamsNotBindError(message));
-    }
-
-    public static JdbdSQLException createInvalidParameterException(int paramIndex) {
-        String message = String.format("Invalid parameter number[%s].", paramIndex);
-        return new JdbdSQLException(createInvalidParameterError(message));
-    }
-
-    public static JdbdSQLException createInvalidParameterException(int stmtIndex, int paramIndex) {
+    public static SQLException createInvalidParameterNoError(int stmtIndex, int paramIndex) {
         String message = String.format("Invalid parameter number[%s] in statement[sequenceId:%s]."
                 , paramIndex, stmtIndex);
-        return new JdbdSQLException(createInvalidParameterError(message));
+        return new SQLException(message, null, CR_INVALID_PARAMETER_NO);
     }
 
-    public static JdbdSQLException createBatchUpdateParamNoBindException() {
-        String message = "No data supplied for parameters in prepared statement,about batch update method.";
-        return new JdbdSQLException(createParamsNotBindError(message));
-    }
 
     public static LongDataReadException createLongDataReadException(int stmtIndex, BindValue bindValue
             , Throwable cause) {
@@ -176,7 +149,7 @@ public abstract class MySQLExceptions extends ExceptionUtils {
             message = String.format("Using unsupported param type:%s for MySQLType[%s] at (parameter:%s) in statement[sequenceId:%s],please check type or value rang."
                     , clazz.getName(), bindValue.getType(), bindValue.getParamIndex(), stmtIndex);
         }
-        return new SQLException(message, null, 2036);
+        return new SQLException(message, null, CR_UNSUPPORTED_PARAM_TYPE);
     }
 
     public static SQLException createBindValueParamIndexNotMatchError(int stmtIndex, BindValue bindValue, int paramIndex) {
@@ -188,7 +161,33 @@ public abstract class MySQLExceptions extends ExceptionUtils {
             message = String.format("BindValue parameter index[%s] and sql param[%s] not match in statement[sequenceId:%s]"
                     , bindValue.getParamIndex(), paramIndex, stmtIndex);
         }
-        return createParamsNotBindError(message);
+        return new SQLException(message, null, CR_PARAMS_NOT_BOUND);
+    }
+
+    public static SQLException createNoParametersExistsError(int stmtIndex) {
+        String message;
+        if (stmtIndex < 0) {
+            message = "No parameters exist in the statement";
+        } else {
+            message = String.format("No parameters exist in the statement[sequenceId:%s]", stmtIndex);
+        }
+
+        return new SQLException(message, null, CR_NO_PARAMETERS_EXISTS);
+    }
+
+    /**
+     * @param stmtIndex  [negative,n] ,if single statement ,stmtIndex is negative.
+     * @param paramIndex [0,n]
+     */
+    public static SQLException createParamsNotBindError(int stmtIndex, int paramIndex) {
+        String message;
+        if (stmtIndex < 0) {
+            message = String.format("No data supplied for parameters[%s] in prepared statement.", paramIndex);
+        } else {
+            message = String.format("No data supplied for parameters[%s] in statement[sequenceId:%s]."
+                    , paramIndex, stmtIndex);
+        }
+        return new SQLException(message, null, CR_PARAMS_NOT_BOUND);
     }
 
 
@@ -197,17 +196,10 @@ public abstract class MySQLExceptions extends ExceptionUtils {
     }
 
 
-    private static SQLException createNoParametersExistsError(String message) {
-        return new SQLException(message, null, 2033);
-    }
-
     private static SQLException createInvalidParameterError(String message) {
         return new SQLException(message, null, 2034);
     }
 
-    private static SQLException createParamsNotBindError(String message) {
-        return new SQLException(message, null, 2031);
-    }
 
 
     /*################################## blow private static method ##################################*/

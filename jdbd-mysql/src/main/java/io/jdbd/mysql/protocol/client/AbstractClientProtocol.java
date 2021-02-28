@@ -32,8 +32,8 @@ abstract class AbstractClientProtocol implements ClientProtocol, ClientProtocolA
     }
 
     @Override
-    public MultiResults commands(List<String> commandList) {
-        return ComQueryTask.multiCommands(this.taskAdjutant, commandList);
+    public MultiResults multiStatement(List<String> commandList) {
+        return ComQueryTask.multiStatement(commandList, this.taskAdjutant);
     }
 
 

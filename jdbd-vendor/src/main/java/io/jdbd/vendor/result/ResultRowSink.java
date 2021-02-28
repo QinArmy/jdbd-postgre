@@ -21,6 +21,6 @@ public interface ResultRowSink {
     /**
      * @see io.jdbd.GenericStatement#executeQuery(Consumer)
      */
-    void accept(ResultStates resultStates);
+    void accept(ResultStates resultStates) throws IllegalStateException;
 
 }

@@ -44,7 +44,7 @@ public abstract class PacketUtils {
     public static final int COM_STMT_FETCH = 0x1C;
 
     public static final int COM_RESET_CONNECTION = 0x1F;
-
+    public static final int COM_SET_OPTION = 0x1B;
 
     public static final int COM_STMT_RESET = 0x1A;
     public static final int COM_QUIT_HEADER = 0x01;

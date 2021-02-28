@@ -55,7 +55,7 @@ public interface ClientProtocol {
     BiFunction<ResultRow, ResultRowMeta, ResultRow> ORIGINAL_ROW_DECODER = (resultRow, resultRowMeta) -> resultRow;
 
 
-    MultiResults commands(List<String> commandList);
+    MultiResults multiStatement(List<String> commandList);
 
 
     /**
