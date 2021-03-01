@@ -10,7 +10,7 @@ import io.jdbd.mysql.protocol.ErrorPacket;
 import io.jdbd.mysql.protocol.OkPacket;
 import io.jdbd.mysql.protocol.conf.Properties;
 import io.jdbd.mysql.protocol.conf.PropertyKey;
-import io.jdbd.mysql.util.MySQLCollectionUtils;
+import io.jdbd.mysql.util.MySQLCollections;
 import io.jdbd.mysql.util.MySQLExceptions;
 import io.jdbd.vendor.LongParameterException;
 import io.jdbd.vendor.TaskSignal;
@@ -207,7 +207,7 @@ final class ComPreparedTask extends MySQLCommunicationTask implements StatementT
 
     @Override
     public boolean hasError() {
-        return !MySQLCollectionUtils.isEmpty(this.errorList);
+        return !MySQLCollections.isEmpty(this.errorList);
     }
 
 
@@ -424,7 +424,7 @@ final class ComPreparedTask extends MySQLCommunicationTask implements StatementT
      */
     private void closeStatement() {
         List<Throwable> errorList = this.errorList;
-        if (!MySQLCollectionUtils.isEmpty(errorList)) {
+        if (!MySQLCollections.isEmpty(errorList)) {
 
         }
         ByteBuf packet = this.adjutant.createPacketBuffer(5);
@@ -475,7 +475,7 @@ final class ComPreparedTask extends MySQLCommunicationTask implements StatementT
                 taskEnd = readResultSet(cumulateBuffer, serverStatusConsumer);
             }
         }
-        if (taskEnd && MySQLCollectionUtils.isEmpty(this.errorList)) {
+        if (taskEnd && MySQLCollections.isEmpty(this.errorList)) {
             this.phase = Phase.STATEMENT_END;
         }
         return taskEnd;
@@ -743,7 +743,7 @@ final class ComPreparedTask extends MySQLCommunicationTask implements StatementT
             }
         }
 
-        return MySQLCollectionUtils.unmodifiableList(list);
+        return MySQLCollections.unmodifiableList(list);
     }
 
 
@@ -862,7 +862,7 @@ final class ComPreparedTask extends MySQLCommunicationTask implements StatementT
 
         private BatchUpdateSink(String sql, List<List<BindValue>> groupList, FluxSink<ResultStates> sink) {
             super(sql);
-            this.groupList = MySQLCollectionUtils.unmodifiableList(groupList);
+            this.groupList = MySQLCollections.unmodifiableList(groupList);
             this.sink = sink;
         }
 

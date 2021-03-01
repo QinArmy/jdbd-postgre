@@ -6,7 +6,7 @@ import io.jdbd.mysql.protocol.Constants;
 import io.jdbd.mysql.protocol.conf.Properties;
 import io.jdbd.mysql.protocol.conf.PropertyKey;
 import io.jdbd.mysql.syntax.MySQLStatement;
-import io.jdbd.mysql.util.MySQLCollectionUtils;
+import io.jdbd.mysql.util.MySQLCollections;
 import io.jdbd.mysql.util.MySQLConvertUtils;
 import io.jdbd.mysql.util.MySQLExceptions;
 import io.jdbd.mysql.util.MySQLTimeUtils;
@@ -95,7 +95,7 @@ final class ComQueryCommandWriter {
             PacketUtils.writePacketHeader(packet, sequenceIdSupplier.get());
             tempPacketList.add(packet);
 
-            packetList = MySQLCollectionUtils.unmodifiableList(tempPacketList);
+            packetList = MySQLCollections.unmodifiableList(tempPacketList);
         }
         return packetList;
     }
@@ -134,7 +134,7 @@ final class ComQueryCommandWriter {
             }
             PacketUtils.writePacketHeader(packet, sequenceIdSupplier.get());
             packetList.add(packet);
-            return MySQLCollectionUtils.unmodifiableList(packetList);
+            return MySQLCollections.unmodifiableList(packetList);
         } catch (Throwable e) {
             ByteBuf byteBuf;
             while ((byteBuf = packetList.poll()) != null) {
@@ -235,7 +235,7 @@ final class ComQueryCommandWriter {
             PacketUtils.writePacketHeader(packet, this.sequenceIdSupplier.get());
             packetList.add(packet);
 
-            return MySQLCollectionUtils.unmodifiableList(packetList);
+            return MySQLCollections.unmodifiableList(packetList);
         } catch (SQLException | LongDataReadException e) {
             ByteBuf byteBuf;
             while ((byteBuf = packetList.poll()) != null) {
@@ -259,7 +259,7 @@ final class ComQueryCommandWriter {
         packet = doWritePrepareCommand(-1, stmtWrapper, packetList, packet);
         PacketUtils.writePacketHeader(packet, this.sequenceIdSupplier.get());
         packetList.add(packet);
-        return MySQLCollectionUtils.unmodifiableList(packetList);
+        return MySQLCollections.unmodifiableList(packetList);
     }
 
     /**
@@ -322,7 +322,7 @@ final class ComQueryCommandWriter {
 
             PacketUtils.writePacketHeader(packet, this.sequenceIdSupplier.get());
             packetList.add(packet);
-            return MySQLCollectionUtils.unmodifiableList(packetList);
+            return MySQLCollections.unmodifiableList(packetList);
         } catch (Throwable e) {
             ByteBuf byteBuf;
             while ((byteBuf = packetList.poll()) != null) {

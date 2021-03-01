@@ -5,32 +5,15 @@ import io.jdbd.SQLBindParameterException;
 import io.jdbd.vendor.IBindValue;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 
-public abstract class JdbdCollectionUtils extends org.qinarmy.util.CollectionUtils {
+public abstract class JdbdCollections extends org.qinarmy.util.CollectionUtils {
 
-
-    public static <T> List<List<T>> unmodifiableGroupList(final List<List<T>> groupList) {
-        final List<List<T>> newGroupList;
-        switch (groupList.size()) {
-            case 0:
-                newGroupList = Collections.emptyList();
-                break;
-            case 1:
-                newGroupList = Collections.singletonList(groupList.get(0));
-                break;
-            default: {
-                List<List<T>> list = new ArrayList<>(groupList.size());
-                for (List<T> group : groupList) {
-                    list.add(unmodifiableList(group));
-                }
-                newGroupList = Collections.unmodifiableList(list);
-            }
-        }
-        return newGroupList;
+    protected JdbdCollections() {
+        throw new UnsupportedOperationException();
     }
+
 
     /**
      * @param parameterGroup a modifiable list.

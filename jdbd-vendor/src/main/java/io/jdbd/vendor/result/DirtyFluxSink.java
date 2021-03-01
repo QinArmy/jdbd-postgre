@@ -1,4 +1,4 @@
-package io.jdbd.vendor;
+package io.jdbd.vendor.result;
 
 import io.jdbd.ResultRow;
 import reactor.core.Disposable;
@@ -7,9 +7,9 @@ import reactor.util.context.Context;
 
 import java.util.function.LongConsumer;
 
-public final class DirtyFluxSink implements FluxSink<ResultRow> {
+final class DirtyFluxSink implements FluxSink<ResultRow> {
 
-    public static final DirtyFluxSink INSTANCE = new DirtyFluxSink();
+    static final DirtyFluxSink INSTANCE = new DirtyFluxSink();
 
 
     private DirtyFluxSink() {
@@ -17,8 +17,8 @@ public final class DirtyFluxSink implements FluxSink<ResultRow> {
 
     @Override
     public boolean isCancelled() {
-        // always true
-        return true;
+        // always false
+        return false;
     }
 
     @Override

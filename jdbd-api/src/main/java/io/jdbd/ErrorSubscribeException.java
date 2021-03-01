@@ -30,7 +30,7 @@ public final class ErrorSubscribeException extends JdbdNonSQLException {
         this.actualType = actualType;
     }
 
-    private ErrorSubscribeException(ResultType subscribeType, ResultType actualType
+    public ErrorSubscribeException(ResultType subscribeType, ResultType actualType
             , String format, Object... args) {
         super(createMessage(format, args));
         this.subscribeType = subscribeType;

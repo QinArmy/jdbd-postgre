@@ -1,6 +1,6 @@
 package io.jdbd.mysql.syntax;
 
-import io.jdbd.mysql.util.MySQLCollectionUtils;
+import io.jdbd.mysql.util.MySQLCollections;
 
 import java.util.List;
 
@@ -14,7 +14,7 @@ final class DefaultMySQLStatement implements MySQLStatement {
 
     DefaultMySQLStatement(String sql, List<String> staticSqlList, boolean loadInfile) {
         this.sql = sql;
-        this.staticSqlList = MySQLCollectionUtils.unmodifiableList(staticSqlList);
+        this.staticSqlList = MySQLCollections.unmodifiableList(staticSqlList);
         this.loadInfile = loadInfile;
     }
 

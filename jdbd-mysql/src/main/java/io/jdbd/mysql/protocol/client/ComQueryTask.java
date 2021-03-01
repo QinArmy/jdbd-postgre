@@ -9,7 +9,7 @@ import io.jdbd.mysql.protocol.ErrorPacket;
 import io.jdbd.mysql.protocol.OkPacket;
 import io.jdbd.mysql.protocol.conf.Properties;
 import io.jdbd.mysql.protocol.conf.PropertyKey;
-import io.jdbd.mysql.util.MySQLCollectionUtils;
+import io.jdbd.mysql.util.MySQLCollections;
 import io.jdbd.mysql.util.MySQLExceptions;
 import io.jdbd.vendor.JdbdCompositeException;
 import io.jdbd.vendor.MultiResultsSink;
@@ -701,7 +701,7 @@ final class ComQueryTask extends MySQLCommunicationTask {
 
     private JdbdException createException() {
         List<JdbdException> errorList = this.errorList;
-        if (MySQLCollectionUtils.isEmpty(errorList)) {
+        if (MySQLCollections.isEmpty(errorList)) {
             throw new IllegalStateException(String.format("%s No error,reject creat exception.", this));
         }
         JdbdException e;
@@ -748,7 +748,7 @@ final class ComQueryTask extends MySQLCommunicationTask {
     }
 
     private boolean hasError() {
-        return !MySQLCollectionUtils.isEmpty(this.errorList);
+        return !MySQLCollections.isEmpty(this.errorList);
     }
 
     private boolean hasException(Class<? extends JdbdException> clazz) {
