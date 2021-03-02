@@ -27,7 +27,7 @@ final class SSLNegotiateTask extends AbstractAuthenticateTask {
      * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_connection_phase_packets_protocol_ssl_request.html">Protocol::SSLRequest</a>
      */
     @Override
-    protected Publisher<ByteBuf> internalStart(TaskSignal<ByteBuf> signal) {
+    protected Publisher<ByteBuf> internalStart(TaskSignal signal) {
 
         ByteBuf packetBuf = this.executorAdjutant.createPacketBuffer(32);
         // 1. client_flag
@@ -50,21 +50,5 @@ final class SSLNegotiateTask extends AbstractAuthenticateTask {
     }
 
 
-    private Mono<Void> performSslHandshake() {
-
-//        Channel channel = this.connection.channel();
-//        final SslHandler sslHandler = createSslHandler(channel);
-//
-//        ChannelPipeline pipeline = channel.pipeline();
-//
-//        if (pipeline.get(NettyPipeline.ProxyHandler) != null) {
-//            pipeline.addAfter(NettyPipeline.ProxyHandler, NettyPipeline.SslHandler, sslHandler);
-//        } else if (pipeline.get(NettyPipeline.ProxyProtocolReader) != null) {
-//            pipeline.addAfter(NettyPipeline.ProxyProtocolReader, NettyPipeline.SslHandler, sslHandler);
-//        } else {
-//            pipeline.addFirst(NettyPipeline.SslHandler, sslHandler);
-//        }
-        return Mono.empty();
-    }
 
 }

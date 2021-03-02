@@ -287,8 +287,6 @@ final class MultiResultsCreate implements MultiResultsSink {
     }
 
 
-
-
     /**
      * @see DefaultMultiResults#nextUpdate()
      */
@@ -408,12 +406,21 @@ final class MultiResultsCreate implements MultiResultsSink {
     }
 
     private JdbdException createException() {
+        JdbdException upstreamError = this.upstreamError;
         List<JdbdException> errorList = this.errorList;
-        if (JdbdCollections.isEmpty(errorList)) {
+        if (upstreamError == null && (errorList == null || errorList.isEmpty())) {
             throw new IllegalStateException("No error.");
         }
-        JdbdException e;
-        if (errorList.size() == 1) {
+        final JdbdException e;
+        if (upstreamError != null && !errorList.isEmpty()) {
+            List<JdbdException> tempList = new ArrayList<>();
+            tempList.add(upstreamError);
+            tempList.addAll(errorList);
+            e = new JdbdCompositeException(tempList
+                    , "MultiResults read occur multi error,the key error[%s]", tempList.get(0).getMessage());
+        } else if (upstreamError != null) {
+            e = upstreamError;
+        } else if (errorList.size() == 1) {
             e = errorList.get(0);
         } else {
             e = new JdbdCompositeException(errorList

@@ -59,7 +59,7 @@ final class ResultSetReaderBuilder {
         return this;
     }
 
-    public ResultSetReader build(Class<? extends ResultSetReader> typeClass) {
+    public <T extends ResultSetReader> ResultSetReader build(Class<T> typeClass) {
         ResultSetReader reader;
         if (typeClass == TextResultSetReader.class) {
             reader = new TextResultSetReader(this);

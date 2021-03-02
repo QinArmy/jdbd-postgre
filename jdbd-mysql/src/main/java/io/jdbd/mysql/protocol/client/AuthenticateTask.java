@@ -114,7 +114,7 @@ final class AuthenticateTask extends AbstractAuthenticateTask implements Authent
     /*################################## blow protected method ##################################*/
 
     @Override
-    protected Publisher<ByteBuf> internalStart(TaskSignal<ByteBuf> signal) {
+    protected Publisher<ByteBuf> internalStart(TaskSignal signal) {
         Pair<AuthenticationPlugin, Boolean> pair = obtainAuthenticationPlugin();
         AuthenticationPlugin plugin = pair.getFirst();
         this.plugin = plugin;

@@ -32,7 +32,7 @@ import java.util.Queue;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 
-final class DefaultCommTaskExecutor implements MySQLCommTaskExecutor, CoreSubscriber<ByteBuf>, TaskSignal<ByteBuf> {
+final class DefaultCommTaskExecutor implements MySQLCommTaskExecutor, CoreSubscriber<ByteBuf>, TaskSignal {
 
     static Mono<DefaultCommTaskExecutor> create(HostInfo hostInfo, EventLoopGroup eventLoopGroup) {
         return TcpClient.create()
@@ -150,12 +150,12 @@ final class DefaultCommTaskExecutor implements MySQLCommTaskExecutor, CoreSubscr
     }
 
     @Override
-    public Mono<Void> terminate(CommunicationTask<ByteBuf> task) {
+    public Mono<Void> terminate(CommunicationTask<?> task) {
         return Mono.empty();
     }
 
     @Override
-    public Mono<Void> sendPacket(CommunicationTask<ByteBuf> task) {
+    public Mono<Void> sendPacket(CommunicationTask<?> task) {
         return Mono.empty();
     }
 

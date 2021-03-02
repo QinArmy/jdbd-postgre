@@ -47,6 +47,7 @@ public interface ClientProtocol {
     int CLIENT_CAN_HANDLE_EXPIRED_PASSWORD = 0x00400000;
     int CLIENT_SESSION_TRACK = 0x00800000;
     int CLIENT_DEPRECATE_EOF = 0x01000000;
+
     int CLIENT_OPTIONAL_RESULTSET_METADATA = 1 << 25;
 
     Consumer<ResultStates> EMPTY_STATE_CONSUMER = r -> {

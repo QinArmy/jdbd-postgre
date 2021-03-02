@@ -37,8 +37,6 @@ abstract class AbstractResultSetReader implements ResultSetReader {
 
     private final ResultRowSink sink;
 
-    private final boolean fetchResult;
-
     private final Consumer<JdbdException> errorConsumer;
 
     private final Consumer<Integer> sequenceIdUpdater;
@@ -49,7 +47,7 @@ abstract class AbstractResultSetReader implements ResultSetReader {
 
     MySQLRowMeta rowMeta;
 
-    int sequenceId;
+    int sequenceId = -1;
 
     private boolean resultSetEnd;
 
@@ -64,7 +62,6 @@ abstract class AbstractResultSetReader implements ResultSetReader {
     AbstractResultSetReader(ResultSetReaderBuilder builder) {
         this.sink = Objects.requireNonNull(builder.rowSink, "builder.rowSink");
         this.adjutant = Objects.requireNonNull(builder.adjutant, "builder.adjutant");
-        this.fetchResult = builder.fetchResult;
         this.errorConsumer = Objects.requireNonNull(builder.errorConsumer, "builder.errorConsumer");
 
         this.sequenceIdUpdater = Objects.requireNonNull(builder.sequenceIdUpdater, "builder.sequenceIdUpdater");
@@ -119,7 +116,11 @@ abstract class AbstractResultSetReader implements ResultSetReader {
             }
         }
         if (resultSetEnd) {
-            this.resultSetEnd = true;
+            if (noError() && isResettable()) {
+                resetReader();
+            } else {
+                this.resultSetEnd = true;
+            }
         }
         return resultSetEnd;
     }
@@ -128,6 +129,8 @@ abstract class AbstractResultSetReader implements ResultSetReader {
 
 
     /*################################## blow packet template method ##################################*/
+
+    abstract boolean isResettable();
 
     /**
      * @return true: read result set meta end.
@@ -256,23 +259,12 @@ abstract class AbstractResultSetReader implements ResultSetReader {
         }
         final MySQLColumnMeta[] columnMetaArray = rowMeta.columnMetaArray;
 
-        int sequenceId = -1, metaIndex = rowMeta.metaIndex;
-        for (int payloadStartIndex, payloadLength; metaIndex < columnMetaArray.length; metaIndex++) {
-            if (!PacketUtils.hasOnePacket(cumulateBuffer)) {
-                break;
-            }
-            payloadLength = PacketUtils.readInt3(cumulateBuffer);//skip payload length
-            sequenceId = PacketUtils.readInt1(cumulateBuffer);
-            payloadStartIndex = cumulateBuffer.readerIndex();
+        int metaIndex = rowMeta.metaIndex;
 
-            columnMetaArray[metaIndex] = MySQLColumnMeta.readFor41(cumulateBuffer, adjutant);
-            cumulateBuffer.readerIndex(payloadStartIndex + payloadLength);//to next packet,avoid tail filler
-        }
+        metaIndex = readColumnMeta(cumulateBuffer, columnMetaArray, metaIndex, this::updateSequenceId, this.adjutant);
+
         if (metaIndex > rowMeta.metaIndex) {
             rowMeta.metaIndex = metaIndex;
-        }
-        if (sequenceId > -1) {
-            updateSequenceId(sequenceId);
         }
         return rowMeta.isReady();
     }
@@ -335,25 +327,34 @@ abstract class AbstractResultSetReader implements ResultSetReader {
         } catch (Throwable e) {
             value = null;
             String m = String.format("Read Text ResultSet column[%s] error,", columnMeta.columnAlias);
-            emitError(new JdbdSQLException(m, new SQLException(m, e)));
+            emitError(new JdbdSQLException(new SQLException(m, e)));
         }
         return value;
     }
 
     /*################################## blow private method ##################################*/
 
-    private boolean hasMoreResults() {
-        return (this.serverStatus & ClientProtocol.SERVER_MORE_RESULTS_EXISTS) != 0;
-    }
-
     /**
-     * @see #readResultRows(ByteBuf, Consumer)
+     * @see #read(ByteBuf, Consumer)
      */
-    private boolean hasMoreFetch() {
-        int serverStatus = this.serverStatus;
-        return this.fetchResult
-                && (serverStatus & ClientProtocol.SERVER_STATUS_CURSOR_EXISTS) != 0
+    private void resetReader() {
+        final int serverStatus = this.serverStatus;
+        final boolean hasMoreResults = (serverStatus & ClientProtocol.SERVER_MORE_RESULTS_EXISTS) != 0;
+        final boolean hasMoreFetch = (serverStatus & ClientProtocol.SERVER_STATUS_CURSOR_EXISTS) != 0
                 && (serverStatus & ClientProtocol.SERVER_STATUS_LAST_ROW_SENT) == 0;
+        if (hasMoreResults || hasMoreFetch) {
+
+            this.phase = Phase.READ_RESULT_META;
+            this.resultSetEnd = false;
+            this.sequenceId = -1;
+            this.serverStatus = 0;
+
+            this.bigRowData = null;
+            this.rowMeta = null;
+            this.error = null;
+        } else {
+            this.resultSetEnd = true;
+        }
     }
 
 
@@ -624,6 +625,32 @@ abstract class AbstractResultSetReader implements ResultSetReader {
         if (this.phase != expectedPhase) {
             throw new IllegalStateException(String.format("this.phase isn't %s .", expectedPhase));
         }
+    }
+
+    /**
+     * @see #doReadRowMeta(ByteBuf)
+     */
+    static int readColumnMeta(final ByteBuf cumulateBuffer, final MySQLColumnMeta[] columnMetaArray, int metaIndex
+            , Consumer<Integer> sequenceIdUpdater, ClientProtocolAdjutant adjutant) {
+        if (metaIndex < 0 || metaIndex >= columnMetaArray.length) {
+            throw new IllegalArgumentException("metaIndex  error.");
+        }
+        int sequenceId = -1;
+        for (int payloadStartIndex, payloadLength; metaIndex < columnMetaArray.length; metaIndex++) {
+            if (!PacketUtils.hasOnePacket(cumulateBuffer)) {
+                break;
+            }
+            payloadLength = PacketUtils.readInt3(cumulateBuffer);//skip payload length
+            sequenceId = PacketUtils.readInt1(cumulateBuffer);
+            payloadStartIndex = cumulateBuffer.readerIndex();
+
+            columnMetaArray[metaIndex] = MySQLColumnMeta.readFor41(cumulateBuffer, adjutant);
+            cumulateBuffer.readerIndex(payloadStartIndex + payloadLength);//to next packet,avoid tail filler
+        }
+        if (sequenceId > 0) {
+            sequenceIdUpdater.accept(sequenceId);
+        }
+        return metaIndex;
     }
 
 

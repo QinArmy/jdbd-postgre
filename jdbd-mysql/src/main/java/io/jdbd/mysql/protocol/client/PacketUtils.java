@@ -649,12 +649,11 @@ public abstract class PacketUtils {
             sink.next(packet);
 
             publishLength += MAX_PAYLOAD;
-            if (bigPacket.readableBytes() >= MAX_PAYLOAD) {
-                publishLength += publishBigPayload(bigPacket, sink, sequenceIdSupplier
-                        , bufferCreator, publishSmallPacket);
-            }
         }
-        if (publishSmallPacket) {
+        if (bigPacket.readableBytes() >= MAX_PAYLOAD) {
+            publishLength += publishBigPayload(bigPacket, sink, sequenceIdSupplier
+                    , bufferCreator, publishSmallPacket);
+        } else if (publishSmallPacket) {
             readableBytes = bigPacket.readableBytes();
             packet = bufferCreator.apply(HEADER_SIZE + readableBytes);
 

@@ -9,7 +9,7 @@ import io.jdbd.mysql.BindValue;
 import io.jdbd.mysql.JdbdMySQLException;
 import io.jdbd.mysql.protocol.ErrorPacket;
 import io.jdbd.mysql.protocol.MySQLFatalIoException;
-import org.qinarmy.util.security.ExceptionUtils;
+import io.jdbd.vendor.util.JdbdExceptions;
 
 import java.sql.SQLException;
 
@@ -18,11 +18,8 @@ import java.sql.SQLException;
  * @see <a href="https://dev.mysql.com/doc/mysql-errors/8.0/en/client-error-reference.html">Client Error Message Reference</a>
  * @see <a href="https://dev.mysql.com/doc/mysql-errors/8.0/en/global-error-reference.html">Global Error Message Reference</a>
  */
-public abstract class MySQLExceptions extends ExceptionUtils {
+public abstract class MySQLExceptions extends JdbdExceptions {
 
-    protected MySQLExceptions() {
-        throw new UnsupportedOperationException();
-    }
 
     public static int CR_PARAMS_NOT_BOUND = 2031;
     public static int CR_NO_PARAMETERS_EXISTS = 2033;

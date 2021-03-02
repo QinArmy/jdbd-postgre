@@ -1,12 +1,13 @@
 package io.jdbd.mysql.protocol.client;
 
 import io.jdbd.BindParameterException;
+import io.jdbd.LongDataReadException;
 import io.jdbd.lang.Nullable;
 import io.jdbd.mysql.BindValue;
 import io.jdbd.mysql.protocol.ClientConstants;
 import io.jdbd.mysql.protocol.conf.Properties;
 import io.jdbd.mysql.protocol.conf.PropertyKey;
-import io.jdbd.vendor.LongParameterException;
+import io.jdbd.mysql.util.MySQLExceptions;
 import io.netty.buffer.ByteBuf;
 import org.reactivestreams.Publisher;
 import org.reactivestreams.Subscription;
@@ -56,7 +57,6 @@ final class PrepareLongParameterWriter implements PrepareExecuteCommandWriter.Lo
 
     PrepareLongParameterWriter(final StatementTask statementTask) {
         this.statementTask = statementTask;
-
         this.statementId = statementTask.obtainStatementId();
         this.adjutant = statementTask.obtainAdjutant();
         this.blobSendChunkSize = obtainBlobSendChunkSize();
@@ -101,9 +101,7 @@ final class PrepareLongParameterWriter implements PrepareExecuteCommandWriter.Lo
         } else if (value instanceof Publisher) {
             flux = sendPublisher(bindValue.getParamIndex(), (Publisher<?>) value);
         } else {
-            flux = Flux.error(new LongParameterException(bindValue.getParamIndex()
-                    , "Bind parameter[%s] type[%s] not support."
-                    , bindValue.getParamIndex(), value.getClass().getName()));
+            flux = Flux.error(MySQLExceptions.createUnsupportedParamTypeError(-1, bindValue));
         }
 
         return flux;
@@ -115,8 +113,8 @@ final class PrepareLongParameterWriter implements PrepareExecuteCommandWriter.Lo
     private Flux<ByteBuf> sendByteArrayParameter(final int paramIndex, final byte[] input) {
         return Flux.create(sink -> {
 
-            ByteBuf packet = createLongDataPacket(paramIndex, Math.min(this.blobSendChunkSize, input.length));
-            packet = writeByteArray(packet, sink, paramIndex, input, input.length);
+            ByteBuf packet = createLongDataPacket(paramIndex, input.length);
+            packet = publishByteArray(packet, sink, paramIndex, input, input.length);
             publishLastPacket(packet, sink);
 
         });
@@ -143,14 +141,14 @@ final class PrepareLongParameterWriter implements PrepareExecuteCommandWriter.Lo
         return Flux.create(sink -> {
             final long byteLength = (long) string.length() * this.adjutant.obtainMaxBytesPerCharClient();
             ByteBuf packet;
-            if (byteLength > Integer.MAX_VALUE) {
+            if (byteLength > (1 << 30)) {
                 packet = createLongDataPacket(paramIndex, this.blobSendChunkSize);
                 char[] charArray = string.toCharArray();
                 packet = writeCharArray(packet, sink, paramIndex, charArray, charArray.length);
             } else {
-                packet = createLongDataPacket(paramIndex, Math.min(this.blobSendChunkSize, (int) byteLength));
+                packet = createLongDataPacket(paramIndex, (int) byteLength);
                 byte[] bytes = string.getBytes(this.adjutant.obtainCharsetClient());
-                packet = writeByteArray(packet, sink, paramIndex, bytes, bytes.length);
+                packet = publishByteArray(packet, sink, paramIndex, bytes, bytes.length);
             }
 
             publishLastPacket(packet, sink);
@@ -187,8 +185,10 @@ final class PrepareLongParameterWriter implements PrepareExecuteCommandWriter.Lo
                 }
 
                 publishLastPacket(packet, sink);
-            } catch (IOException e) {
-                packet.release();
+            } catch (Throwable e) {
+                if (packet != null) {
+                    packet.release();
+                }
                 publishLonDataReadException(sink, e, paramIndex, input);
             } finally {
                 autoClose(input, paramIndex, sink);
@@ -222,8 +222,10 @@ final class PrepareLongParameterWriter implements PrepareExecuteCommandWriter.Lo
 
                 publishLastPacket(packet, sink);
 
-            } catch (IOException e) {
-                packet.release();
+            } catch (Throwable e) {
+                if (packet != null) {
+                    packet.release();
+                }
                 publishLonDataReadException(sink, e, paramIndex, input);
             } finally {
                 autoClose(input, paramIndex, sink);
@@ -234,11 +236,14 @@ final class PrepareLongParameterWriter implements PrepareExecuteCommandWriter.Lo
     }
 
 
+    /**
+     * @see #sendLongData(BindValue)
+     */
     private Flux<ByteBuf> sendPathParameter(final int paramIndex, final Path path) {
         return Flux.create(sink -> {
             try (InputStream input = Files.newInputStream(path, StandardOpenOption.READ)) {
                 writeInputStream(paramIndex, input, sink, false);
-            } catch (IOException e) {
+            } catch (Throwable e) {
                 publishLonDataReadException(sink, e, paramIndex, path);
             }
 
@@ -246,6 +251,9 @@ final class PrepareLongParameterWriter implements PrepareExecuteCommandWriter.Lo
     }
 
 
+    /**
+     * @see #sendLongData(BindValue)
+     */
     private Flux<ByteBuf> sendPublisher(final int paramIndex, Publisher<?> input) {
         return Flux.create(sink -> Flux.from(input)
                 .subscribeWith(new PublisherLongDataSubscriber(sink, paramIndex)));
@@ -309,8 +317,8 @@ final class PrepareLongParameterWriter implements PrepareExecuteCommandWriter.Lo
                 try {
                     input.close();
                 } catch (IOException e) {
-                    sink.error(new BindParameterException(
-                            e, parameterIndex, "Bind parameter[%s] %s close failure.", input.getClass().getName()));
+                    sink.error(new LongDataReadException(e
+                            , "Bind long parameter(index:%s) InputStream close occur error.", parameterIndex));
                 }
             }
         }
@@ -356,9 +364,10 @@ final class PrepareLongParameterWriter implements PrepareExecuteCommandWriter.Lo
     }
 
     /**
+     * @return the pack that {@link ByteBuf#readableBytes()} less than {@link #maxPacketCapacity}.
      * @see #sendByteArrayParameter(int, byte[])
      */
-    private ByteBuf writeByteArray(final ByteBuf packetBuffer, FluxSink<ByteBuf> sink
+    private ByteBuf publishByteArray(final ByteBuf packetBuffer, FluxSink<ByteBuf> sink
             , final int paramIndex, final byte[] input, final int arrayLength) {
 
         if (arrayLength < 0 || arrayLength > input.length) {
@@ -424,7 +433,7 @@ final class PrepareLongParameterWriter implements PrepareExecuteCommandWriter.Lo
     private void publishLonDataReadException(FluxSink<ByteBuf> sink, Throwable cause
             , int parameterIndex, final @Nullable Object input) {
         Class<?> javaType = input == null ? Object.class : input.getClass();
-        LongParameterException e = new LongParameterException(cause, parameterIndex
+        LongDataReadException e = new LongDataReadException(cause
                 , "Bind parameter[%s](%s) read error.", parameterIndex, javaType.getName());
         sink.error(e);
     }
@@ -436,9 +445,9 @@ final class PrepareLongParameterWriter implements PrepareExecuteCommandWriter.Lo
         if (this.properties.getOrDefault(PropertyKey.autoClosePStmtStreams, Boolean.class)) {
             try {
                 input.close();
-            } catch (IOException e) {
-                sink.error(new BindParameterException(
-                        e, parameterIndex, "Bind parameter[%s] %s close failure.", input.getClass().getName()));
+            } catch (Throwable e) {
+                sink.error(new LongDataReadException(
+                        e, "Bind parameter[%s] %s close failure.", parameterIndex, input.getClass().getName()));
             }
         }
     }

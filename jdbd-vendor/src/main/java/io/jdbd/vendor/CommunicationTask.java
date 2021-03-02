@@ -17,7 +17,7 @@ import java.util.function.Consumer;
 public interface CommunicationTask<T> {
 
     @Nullable
-    Publisher<T> start(TaskSignal<T> signal);
+    Publisher<T> start(TaskSignal signal);
 
     @Nullable
     TaskPhase getTaskPhase();

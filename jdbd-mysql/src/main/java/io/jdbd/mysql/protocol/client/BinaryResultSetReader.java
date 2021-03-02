@@ -31,6 +31,11 @@ final class BinaryResultSetReader extends AbstractResultSetReader {
     }
 
 
+    @Override
+    final boolean isResettable() {
+        return true;
+    }
+
     /**
      * @see #readResultRows(ByteBuf, Consumer)
      */

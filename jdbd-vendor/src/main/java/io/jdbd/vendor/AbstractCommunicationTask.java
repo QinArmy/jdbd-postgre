@@ -2,9 +2,9 @@ package io.jdbd.vendor;
 
 import io.jdbd.JdbdNonSQLException;
 import io.jdbd.TaskQueueOverflowException;
-import io.jdbd.lang.Nullable;
 import io.netty.buffer.ByteBuf;
 import org.reactivestreams.Publisher;
+import reactor.util.annotation.Nullable;
 
 import java.util.function.Consumer;
 
@@ -14,13 +14,15 @@ public abstract class AbstractCommunicationTask implements CommunicationTask<Byt
 
     private TaskPhase taskPhase;
 
+    protected Publisher<ByteBuf> packetPublisher;
+
     protected AbstractCommunicationTask(TaskAdjutant executorAdjutant) {
         this.executorAdjutant = executorAdjutant;
     }
 
     @Nullable
     @Override
-    public final Publisher<ByteBuf> start(TaskSignal<ByteBuf> signal) {
+    public final Publisher<ByteBuf> start(TaskSignal signal) {
         if (!this.executorAdjutant.inEventLoop()) {
             throw new IllegalStateException("start() isn't in EventLoop.");
         }
@@ -46,6 +48,16 @@ public abstract class AbstractCommunicationTask implements CommunicationTask<Byt
             this.taskPhase = TaskPhase.END;
         }
         return taskEnd;
+    }
+
+    @Nullable
+    @Override
+    public Publisher<ByteBuf> moreSendPacket() {
+        Publisher<ByteBuf> publisher = this.packetPublisher;
+        if (publisher != null) {
+            this.packetPublisher = null;
+        }
+        return publisher;
     }
 
     @Nullable
@@ -86,7 +98,7 @@ public abstract class AbstractCommunicationTask implements CommunicationTask<Byt
     }
 
     @Nullable
-    protected abstract Publisher<ByteBuf> internalStart(TaskSignal<ByteBuf> signal);
+    protected abstract Publisher<ByteBuf> internalStart(TaskSignal signal);
 
     protected abstract boolean internalDecode(ByteBuf cumulateBuffer, Consumer<Object> serverStatusConsumer);
 

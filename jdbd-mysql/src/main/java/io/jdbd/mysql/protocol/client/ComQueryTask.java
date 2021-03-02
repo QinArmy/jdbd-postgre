@@ -44,6 +44,11 @@ import java.util.Objects;
 import java.util.function.Consumer;
 
 /**
+ * <p>
+ * below is chinese signature:<br/>
+ * 当你在阅读这段代码时,我才真正在写这段代码,你阅读到哪里,我便写到哪里.
+ * </p>
+ *
  * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_com_query.html">Protocol::COM_QUERY</a>
  * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_com_query_response.html">Protocol::COM_QUERY Response</a>
  */
@@ -411,7 +416,7 @@ final class ComQueryTask extends MySQLCommunicationTask {
     /*################################## blow package template method ##################################*/
 
     @Override
-    protected Publisher<ByteBuf> internalStart(TaskSignal<ByteBuf> signal) {
+    protected Publisher<ByteBuf> internalStart(TaskSignal signal) {
         Publisher<ByteBuf> publisher;
         if (this.mode == Mode.TEMP_MULTI) {
             this.phase = Phase.READ_MULTI_STMT_ENABLE_RESULT;

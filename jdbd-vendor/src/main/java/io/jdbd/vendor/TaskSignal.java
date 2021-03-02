@@ -2,11 +2,11 @@ package io.jdbd.vendor;
 
 import reactor.core.publisher.Mono;
 
-public interface TaskSignal<T> {
+public interface TaskSignal {
 
-    Mono<Void> terminate(CommunicationTask<T> task);
+    Mono<Void> terminate(CommunicationTask<?> task);
 
-    Mono<Void> sendPacket(CommunicationTask<T> task);
+    Mono<Void> sendPacket(CommunicationTask<?> task);
 
     boolean canSignal();
 

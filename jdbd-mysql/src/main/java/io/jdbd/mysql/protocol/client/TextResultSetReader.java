@@ -24,6 +24,11 @@ final class TextResultSetReader extends AbstractResultSetReader {
 
 
     @Override
+    final boolean isResettable() {
+        return false;
+    }
+
+    @Override
     boolean readResultSetMeta(final ByteBuf cumulateBuffer, Consumer<Object> serverStatusConsumer) {
         final int negotiatedCapability = this.adjutant.obtainNegotiatedCapability();
         if ((negotiatedCapability & ClientProtocol.CLIENT_OPTIONAL_RESULTSET_METADATA) != 0) {

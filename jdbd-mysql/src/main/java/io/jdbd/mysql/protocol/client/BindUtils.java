@@ -159,5 +159,17 @@ abstract class BindUtils extends JdbdBindUtils {
 
     }
 
+    static void assertParamCountMatch(int stmtIndex, int paramCount, int bindCount)
+            throws SQLException {
 
+        if (bindCount != paramCount) {
+            if (paramCount == 0) {
+                throw MySQLExceptions.createNoParametersExistsError(stmtIndex);
+            } else if (paramCount > bindCount) {
+                throw MySQLExceptions.createParamsNotBindError(stmtIndex, bindCount);
+            } else {
+                throw MySQLExceptions.createInvalidParameterNoError(stmtIndex, paramCount);
+            }
+        }
+    }
 }

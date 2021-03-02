@@ -2,19 +2,23 @@ package io.jdbd;
 
 public final class ErrorSubscribeException extends JdbdNonSQLException {
 
+    @Deprecated
     public static ErrorSubscribeException expectQuery() {
         throw new UnsupportedOperationException();
     }
 
+    @Deprecated
     public static ErrorSubscribeException expectUpdate() {
         throw new UnsupportedOperationException();
     }
 
+    @Deprecated
     public static ErrorSubscribeException expectBatchUpdate() {
         throw new UnsupportedOperationException();
     }
 
 
+    @Deprecated
     public static ErrorSubscribeException errorSubscribe(ResultType expect, ResultType actual
             , String format, Object... args) {
         return new ErrorSubscribeException(expect, actual, format, args);

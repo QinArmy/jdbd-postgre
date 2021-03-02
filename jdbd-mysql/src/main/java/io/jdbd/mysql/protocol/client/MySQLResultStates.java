@@ -10,4 +10,8 @@ public abstract class MySQLResultStates implements ResultStates {
     }
 
 
+    public int getServerStatus() {
+        return 0;
+    }
+
 }

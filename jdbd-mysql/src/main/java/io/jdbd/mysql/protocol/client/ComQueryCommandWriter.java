@@ -287,7 +287,7 @@ final class ComQueryCommandWriter {
         try {
             for (int i = 0; i < stmtCount; i++) {
                 List<BindValue> parameterGroup = parameterGroupList.get(i);
-                assertParamCountMatch(i, stmt, parameterGroup);
+                BindUtils.assertParamCountMatch(i, stmt.getParamCount(), parameterGroup.size());
 
                 if (i > 0) {
                     packet.writeBytes(semicolonBytes); // write ';' delimit multiple statement.
@@ -346,8 +346,9 @@ final class ComQueryCommandWriter {
 
         MySQLStatement stmt = this.adjutant.parse(stmtWrapper.getSql());
         final List<BindValue> parameterGroup = stmtWrapper.getParameterGroup();
+        final int paramCount = parameterGroup.size();
 
-        assertParamCountMatch(stmtIndex, stmt, parameterGroup);
+        BindUtils.assertParamCountMatch(stmtIndex, stmt.getParamCount(), paramCount);
 
         ByteBuf packet = currentPacket;
 
@@ -355,7 +356,6 @@ final class ComQueryCommandWriter {
         final boolean supportStream = this.supportStream;
         final Charset clientCharset = this.clientCharset;
         final byte[] nullBytes = Constants.NULL.getBytes(clientCharset);
-        final int paramCount = parameterGroup.size();
 
         for (int i = 0; i < paramCount; i++) {
             packet.writeCharSequence(staticSqlList.get(i), clientCharset);
@@ -908,24 +908,6 @@ final class ComQueryCommandWriter {
     }
 
     /*################################## blow private static method ##################################*/
-
-    /**
-     * @see #doWritePrepareCommand(int, StmtWrapper, List, ByteBuf)
-     */
-    private static void assertParamCountMatch(int stmtIndex, MySQLStatement stmt, List<BindValue> parameterGroup)
-            throws SQLException {
-        final int bindCount = parameterGroup.size(), paramCount = stmt.getParamCount();
-
-        if (bindCount != paramCount) {
-            if (paramCount == 0) {
-                throw MySQLExceptions.createNoParametersExistsError(stmtIndex);
-            } else if (paramCount > bindCount) {
-                throw MySQLExceptions.createParamsNotBindError(stmtIndex, bindCount);
-            } else {
-                throw MySQLExceptions.createInvalidParameterNoError(stmtIndex, paramCount);
-            }
-        }
-    }
 
 
 }

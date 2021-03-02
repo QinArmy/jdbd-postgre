@@ -1,10 +1,11 @@
 package io.jdbd.mysql.protocol.client;
 
 import io.jdbd.BindParameterException;
-import io.jdbd.SQLBindParameterException;
 import io.jdbd.mysql.BindValue;
+import io.jdbd.mysql.MySQLBindValue;
 import io.jdbd.mysql.protocol.Constants;
 import io.jdbd.mysql.protocol.conf.Properties;
+import io.jdbd.mysql.util.MySQLCollections;
 import io.jdbd.mysql.util.MySQLExceptions;
 import io.jdbd.mysql.util.MySQLNumberUtils;
 import io.jdbd.mysql.util.MySQLTimeUtils;
@@ -15,16 +16,16 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.FluxSink;
 import reactor.core.publisher.Mono;
 
-import java.io.InputStream;
-import java.io.Reader;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.nio.charset.Charset;
+import java.sql.SQLException;
 import java.time.*;
 import java.time.format.DateTimeParseException;
 import java.time.temporal.ChronoField;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.LinkedList;
 import java.util.List;
 
 
@@ -57,34 +58,32 @@ final class PrepareExecuteCommandWriter implements StatementCommandWriter {
 
         this.adjutant = statementTask.obtainAdjutant();
         this.properties = this.adjutant.obtainHostInfo().getProperties();
-        this.longParameterWriter = new PrepareLongParameterWriter(statementTask);
         this.fetchResultSet = statementTask.isFetchResult();
+        this.longParameterWriter = new PrepareLongParameterWriter(statementTask);
     }
 
 
     @Override
-    public Publisher<ByteBuf> writeCommand(final List<BindValue> parameterGroup) {
-        final int size = parameterGroup.size();
+    public Publisher<ByteBuf> writeCommand(final List<BindValue> originalParameterGroup) throws SQLException {
+        final int bindParamSize = originalParameterGroup.size();
         final MySQLColumnMeta[] paramMetaArray = this.paramMetaArray;
-        if (size != paramMetaArray.length) {
-            throw new SQLBindParameterException(
-                    String.format("Bind parameter size[%s] and sql parameter size[%s] not match."
-                            , size, paramMetaArray.length));
-        }
+        BindUtils.assertParamCountMatch(-1, paramMetaArray.length, bindParamSize);
+
         List<BindValue> longParamList = null;
 
-        for (int i = 0; i < size; i++) {
-            BindValue bindValue = parameterGroup.get(i);
+        List<BindValue> tempParameterGroup = new ArrayList<>(bindParamSize);
+        for (int i = 0; i < bindParamSize; i++) {
+            BindValue bindValue = originalParameterGroup.get(i);
             if (bindValue.getParamIndex() != i) {
-                throw new IllegalArgumentException(
-                        String.format("parameterGroup BindValue parameter index[%s] and position[%s] not match."
-                                , bindValue.getParamIndex(), i));
+                // hear invoker has bug
+                throw MySQLExceptions.createBindValueParamIndexNotMatchError(-1, bindValue, i);
 
-            } else if (bindValue.getType() != paramMetaArray[i].mysqlType) {
-                throw new IllegalArgumentException(
-                        String.format("BindValue parameter index[%s] SQLType[%s] and parameter type[%s] not match."
-                                , bindValue.getParamIndex(), bindValue.getType(), paramMetaArray[i].mysqlType));
-            } else if (bindValue.isLongData()) {
+            }
+            if (bindValue.getType() != paramMetaArray[i].mysqlType) {
+                bindValue = MySQLBindValue.create(bindValue, paramMetaArray[i].mysqlType);
+            }
+            tempParameterGroup.add(bindValue);
+            if (bindValue.isLongData()) {
                 if (longParamList == null) {
                     longParamList = new ArrayList<>();
                 }
@@ -93,8 +92,10 @@ final class PrepareExecuteCommandWriter implements StatementCommandWriter {
 
         }
 
+        final List<BindValue> parameterGroup = MySQLCollections.unmodifiableList(tempParameterGroup);
+
         final Publisher<ByteBuf> publisher;
-        if (size == 0) {
+        if (bindParamSize == 0) {
             // this 'if' block handle no bind parameter.
             ByteBuf packet = createExecutePacketBuffer(10);
             PacketUtils.writePacketHeader(packet, this.statementTask.addAndGetSequenceId());
@@ -140,28 +141,27 @@ final class PrepareExecuteCommandWriter implements StatementCommandWriter {
                 }
             }
             i = 0;
-        } catch (Exception e) {
-            sink.error(new BindParameterException(String.format("Parameter[%s] type not compatibility", i), i));
+        } catch (Throwable e) {
+            sink.error(MySQLExceptions.wrap(e, "Bind param[index(based zero):%s] type error.", i));
             return;
         }
 
         final int prefixLength = 10 + nullBitsMap.length + 1 + (parameterCount << 1);
-        final ByteBuf packetBuffer;
-        if ((PacketUtils.HEADER_SIZE + prefixLength + parameterValueLength) <= Integer.MAX_VALUE) {
-            packetBuffer = createExecutePacketBuffer(prefixLength + (int) parameterValueLength);
+
+        ByteBuf packet;
+        if ((prefixLength + parameterValueLength) < PacketUtils.MAX_PAYLOAD) {
+            packet = createExecutePacketBuffer((int) (prefixLength + parameterValueLength));
         } else {
-            sink.error(new SQLBindParameterException(
-                    "Bind parameter too long,execute packet great than Integer.MAX_VALUE,please use %s or %s"
-                    , InputStream.class.getName(), Reader.class.getName()));
-            return;
+            packet = createExecutePacketBuffer(PacketUtils.MAX_PAYLOAD);
         }
-        packetBuffer.writeBytes(nullBitsMap); //fill null_bitmap
-        packetBuffer.writeByte(1); //fill new_params_bind_flag
+        packet.writeBytes(nullBitsMap); //fill null_bitmap
+        packet.writeByte(1); //fill new_params_bind_flag
         //fill  parameter_types
         for (BindValue value : parameterGroup) {
-            PacketUtils.writeInt2(packetBuffer, value.getType().parameterType);
+            PacketUtils.writeInt2(packet, value.getType().parameterType);
         }
         //fill parameter_values
+        LinkedList<ByteBuf> packetList = new LinkedList<>();
         try {
 
             for (i = 0; i < parameterCount; i++) {
@@ -170,14 +170,30 @@ final class PrepareExecuteCommandWriter implements StatementCommandWriter {
                     continue;
                 }
                 // bind parameter bto packet buffer
-                bindParameter(packetBuffer, parameterMetaArray[i], bindValue);
-
+                bindParameter(packet, parameterMetaArray[i], bindValue);
+                if (packet.readableBytes() >= PacketUtils.MAX_PACKET) {
+                    packet = PacketUtils.addAndCutBigPacket(packet, packetList, this.statementTask::addAndGetSequenceId
+                            , this.adjutant.alloc()::buffer);
+                }
             }
-            PacketUtils.publishBigPacket(packetBuffer, sink, this.statementTask::addAndGetSequenceId
-                    , this.adjutant.alloc()::buffer, true);
+            PacketUtils.writePacketHeader(packet, this.statementTask.addAndGetSequenceId());
+            packetList.add(packet);
+
+            // finally emit to sink
+            ByteBuf byteBuf;
+            while ((byteBuf = packetList.poll()) != null) {
+                sink.next(byteBuf);
+            }
+            sink.complete();
         } catch (Throwable e) {
-            packetBuffer.release();
-            sink.error(new BindParameterException(String.format("Bind parameter[%s] write error.", i), e, i));
+            ByteBuf byteBuf;
+            while ((byteBuf = packetList.poll()) != null) {
+                byteBuf.release();
+            }
+            if (packet.refCnt() > 0) {
+                packet.release();
+            }
+            sink.error(MySQLExceptions.wrap(e, "Bind parameter[index(based zero):%s] write error.", i));
         }
     }
 
@@ -186,20 +202,19 @@ final class PrepareExecuteCommandWriter implements StatementCommandWriter {
      */
     private ByteBuf createExecutePacketBuffer(int initialPayloadCapacity) {
 
-        ByteBuf packetBuffer = this.adjutant.alloc().buffer(initialPayloadCapacity, Integer.MAX_VALUE);
+        ByteBuf packet = this.adjutant.createPacketBuffer(initialPayloadCapacity);
 
-        packetBuffer.writeByte(PacketUtils.COM_STMT_EXECUTE); // 1.status
-        PacketUtils.writeInt4(packetBuffer, this.statementId);// 2. statement_id
+        packet.writeByte(PacketUtils.COM_STMT_EXECUTE); // 1.status
+        PacketUtils.writeInt4(packet, this.statementId);// 2. statement_id
         //3.cursor Flags, reactive api not support cursor
         if (this.fetchResultSet) {
-            packetBuffer.writeByte(ProtocolConstants.CURSOR_TYPE_READ_ONLY);
+            packet.writeByte(ProtocolConstants.CURSOR_TYPE_READ_ONLY);
         } else {
-            packetBuffer.writeByte(ProtocolConstants.CURSOR_TYPE_NO_CURSOR);
-
+            packet.writeByte(ProtocolConstants.CURSOR_TYPE_NO_CURSOR);
         }
-        PacketUtils.writeInt4(packetBuffer, 1);//4. iteration_count,Number of times to execute the statement. Currently always 1.
+        PacketUtils.writeInt4(packet, 1);//4. iteration_count,Number of times to execute the statement. Currently always 1.
 
-        return packetBuffer;
+        return packet;
     }
 
     /**
@@ -207,7 +222,8 @@ final class PrepareExecuteCommandWriter implements StatementCommandWriter {
      * @throws IllegalArgumentException when {@link BindValue#getValue()} is null.
      * @see #emitExecutionPackets(List, FluxSink)
      */
-    private long obtainParameterValueLength(MySQLColumnMeta parameterMeta, BindValue bindValue) {
+    private long obtainParameterValueLength(MySQLColumnMeta parameterMeta, BindValue bindValue)
+            throws SQLException {
         final Object value = bindValue.getRequiredValue();
         final long length;
         switch (bindValue.getType()) {
@@ -264,9 +280,7 @@ final class PrepareExecuteCommandWriter implements StatementCommandWriter {
                 } else if (value instanceof byte[]) {
                     lenEncBytes = ((byte[]) value).length;
                 } else {
-                    String m = String.format("Bind parameter[%s] not support type[%s]"
-                            , bindValue.getParamIndex(), value.getClass().getName());
-                    throw new BindParameterException(m, bindValue.getParamIndex());
+                    throw MySQLExceptions.createUnsupportedParamTypeError(-1, bindValue);
                 }
                 length = PacketUtils.obtainIntLenEncLength(lenEncBytes) + lenEncBytes;
             }
@@ -293,7 +307,7 @@ final class PrepareExecuteCommandWriter implements StatementCommandWriter {
     /**
      * @see #emitExecutionPackets(List, FluxSink)
      */
-    private void bindParameter(ByteBuf buffer, MySQLColumnMeta parameterMeta, BindValue bindValue) {
+    private void bindParameter(ByteBuf buffer, MySQLColumnMeta parameterMeta, BindValue bindValue) throws SQLException {
 
         switch (parameterMeta.mysqlType) {
             case INT:
@@ -821,8 +835,9 @@ final class PrepareExecuteCommandWriter implements StatementCommandWriter {
     /**
      * @see #bindParameter(ByteBuf, MySQLColumnMeta, BindValue)
      */
-    private void bindToBit(final ByteBuf buffer, final MySQLColumnMeta parameterMeta, final BindValue bindValue) {
-        final String bits = BindUtils.bindToBits(bindValue, buffer);
+    private void bindToBit(final ByteBuf buffer, final MySQLColumnMeta parameterMeta, final BindValue bindValue)
+            throws SQLException {
+        final String bits = BindUtils.bindToBits(-1, bindValue);
         if (bits.length() < 4 || bits.length() > (parameterMeta.length + 3)) {
             throw BindUtils.createNumberRangErrorException(bindValue, 1, parameterMeta.length);
         }

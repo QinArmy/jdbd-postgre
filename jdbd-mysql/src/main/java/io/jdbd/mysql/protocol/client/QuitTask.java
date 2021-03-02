@@ -29,7 +29,7 @@ final class QuitTask extends MySQLConnectionTask {
 
 
     @Override
-    protected Publisher<ByteBuf> internalStart(TaskSignal<ByteBuf> signal) {
+    protected Publisher<ByteBuf> internalStart(TaskSignal signal) {
         ByteBuf packetBuf = executorAdjutant.createPacketBuffer(1);
         packetBuf.writeByte(PacketUtils.COM_QUIT_HEADER);
         PacketUtils.writePacketHeader(packetBuf, addAndGetSequenceId());

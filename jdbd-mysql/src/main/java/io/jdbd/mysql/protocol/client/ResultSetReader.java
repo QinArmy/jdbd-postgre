@@ -11,5 +11,4 @@ interface ResultSetReader {
     boolean read(ByteBuf cumulateBuffer, Consumer<Object> statesConsumer) throws JdbdException;
 
 
-
 }

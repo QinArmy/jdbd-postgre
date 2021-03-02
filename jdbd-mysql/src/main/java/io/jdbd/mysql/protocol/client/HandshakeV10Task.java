@@ -33,7 +33,7 @@ final class HandshakeV10Task extends MySQLConnectionTask {
     }
 
     @Override
-    protected Publisher<ByteBuf> internalStart(TaskSignal<ByteBuf> signal) {
+    protected Publisher<ByteBuf> internalStart(TaskSignal signal) {
         LOG.debug("Handshake receive task start");
         // no data send
         return null;
