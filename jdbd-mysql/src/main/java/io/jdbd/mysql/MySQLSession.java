@@ -1,11 +1,11 @@
 package io.jdbd.mysql;
 
-import io.jdbd.DatabaseSession;
+import io.jdbd.JdbdSession;
 import io.jdbd.TransactionOption;
 import io.jdbd.mysql.protocol.client.ClientCommandProtocol;
 import reactor.core.publisher.Mono;
 
-class MySQLSession extends AbstractStatelessSession implements DatabaseSession {
+class MySQLSession extends AbstractStatelessSession implements JdbdSession {
 
     public static MySQLSession getInstance(ClientCommandProtocol clientProtocol) {
         return new MySQLSession(clientProtocol);

@@ -3,7 +3,7 @@ package io.jdbd.mysql.util;
 import io.jdbd.JdbdSQLException;
 import io.jdbd.LongDataReadException;
 import io.jdbd.PreparedStatement;
-import io.jdbd.Statement;
+import io.jdbd.StaticStatement;
 import io.jdbd.lang.Nullable;
 import io.jdbd.mysql.BindValue;
 import io.jdbd.mysql.JdbdMySQLException;
@@ -57,14 +57,14 @@ public abstract class MySQLExceptions extends JdbdExceptions {
     }
 
     public static JdbdSQLException createNonResultSetCommandException() {
-        String message = "SQL isn't query command,please use " + Statement.class.getName() +
+        String message = "SQL isn't query command,please use " + StaticStatement.class.getName() +
                 ".executeQuery(String,BiFunction<ResultRow,ResultRowMeta,T>, Consumer<ResultStates>) method";
         return new JdbdSQLException(new SQLException(message));
     }
 
     public static JdbdSQLException createNonCommandUpdateException() {
         String message = "SQL isn't dml command,please use %s.executeUpdate() or %s.executeUpdate(String ) method";
-        message = String.format(message, PreparedStatement.class.getName(), Statement.class.getName());
+        message = String.format(message, PreparedStatement.class.getName(), StaticStatement.class.getName());
         return new JdbdSQLException(new SQLException(message));
     }
 

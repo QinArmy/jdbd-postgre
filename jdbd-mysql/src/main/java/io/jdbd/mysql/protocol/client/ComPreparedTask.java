@@ -1,8 +1,8 @@
 package io.jdbd.mysql.protocol.client;
 
 import io.jdbd.*;
+import io.jdbd.mysql.BatchWrapper;
 import io.jdbd.mysql.BindValue;
-import io.jdbd.mysql.PrepareWrapper;
 import io.jdbd.mysql.StmtWrapper;
 import io.jdbd.mysql.protocol.EofPacket;
 import io.jdbd.mysql.protocol.ErrorPacket;
@@ -74,24 +74,46 @@ final class ComPreparedTask extends MySQLCommunicationTask implements StatementT
      * @see #ComPreparedTask(StmtWrapper, MonoSink, MySQLTaskAdjutant)
      */
     static Mono<ResultStates> update(final StmtWrapper wrapper, final MySQLTaskAdjutant adjutant) {
-        return Mono.create(sink -> new ComPreparedTask(wrapper, sink, adjutant)
-                .submit(sink::error));
+        return Mono.create(sink -> {
+            try {
+                new ComPreparedTask(wrapper, sink, adjutant)
+                        .submit(sink::error);
+            } catch (Throwable e) {
+                sink.error(MySQLExceptions.wrap(e));
+            }
+        });
     }
 
     /**
      * @see #ComPreparedTask(StmtWrapper, FluxSink, MySQLTaskAdjutant)
      */
     static Flux<ResultRow> query(final StmtWrapper wrapper, final MySQLTaskAdjutant adjutant) {
-        return Flux.create(sink -> new ComPreparedTask(wrapper, sink, adjutant)
-                .submit(sink::error));
+        return Flux.create(sink -> {
+            try {
+                new ComPreparedTask(wrapper, sink, adjutant)
+                        .submit(sink::error);
+            } catch (Throwable e) {
+                sink.error(MySQLExceptions.wrap(e));
+            }
+        });
     }
 
     /**
-     * @see #ComPreparedTask(FluxSink, PrepareWrapper, MySQLTaskAdjutant)
+     * @see #ComPreparedTask(FluxSink, BatchWrapper, MySQLTaskAdjutant)
      */
-    static Flux<ResultStates> batchUpdate(final PrepareWrapper wrapper, final MySQLTaskAdjutant adjutant) {
-        return Flux.create(sink -> new ComPreparedTask(sink, wrapper, adjutant)
-                .submit(sink::error));
+    static Flux<ResultStates> batchUpdate(final BatchWrapper wrapper, final MySQLTaskAdjutant adjutant) {
+        return Flux.create(sink -> {
+            try {
+                new ComPreparedTask(sink, wrapper, adjutant)
+                        .submit(sink::error);
+            } catch (Throwable e) {
+                sink.error(MySQLExceptions.wrap(e));
+            }
+        });
+    }
+
+    static Mono<PreparedStatement> prepare(final String sql, final MySQLTaskAdjutant adjutant) {
+        return Mono.empty();
     }
 
     private static final Logger LOG = LoggerFactory.getLogger(ComPreparedTask.class);
@@ -125,9 +147,13 @@ final class ComPreparedTask extends MySQLCommunicationTask implements StatementT
      * @see #update(StmtWrapper, MySQLTaskAdjutant)
      */
     private ComPreparedTask(final StmtWrapper wrapper, final MonoSink<ResultStates> sink
-            , final MySQLTaskAdjutant adjutant) {
+            , final MySQLTaskAdjutant adjutant) throws SQLException {
         super(adjutant);
-        this.sql = wrapper.getSql();
+        String sql = wrapper.getSql();
+        if (!adjutant.isSingleStmt(sql)) {
+            throw MySQLExceptions.createMultiStatementError();
+        }
+        this.sql = sql;
         this.properties = adjutant.obtainHostInfo().getProperties();
 
         this.fetchSize = -1;
@@ -142,8 +168,12 @@ final class ComPreparedTask extends MySQLCommunicationTask implements StatementT
      * @see #query(StmtWrapper, MySQLTaskAdjutant)
      */
     private ComPreparedTask(final StmtWrapper wrapper, final FluxSink<ResultRow> sink
-            , final MySQLTaskAdjutant adjutant) {
+            , final MySQLTaskAdjutant adjutant) throws SQLException {
         super(adjutant);
+        String sql = wrapper.getSql();
+        if (!adjutant.isSingleStmt(sql)) {
+            throw MySQLExceptions.createMultiStatementError();
+        }
         this.sql = wrapper.getSql();
         this.properties = adjutant.obtainHostInfo().getProperties();
 
@@ -161,11 +191,15 @@ final class ComPreparedTask extends MySQLCommunicationTask implements StatementT
     }
 
     /**
-     * @see #batchUpdate(PrepareWrapper, MySQLTaskAdjutant)
+     * @see #batchUpdate(BatchWrapper, MySQLTaskAdjutant)
      */
-    private ComPreparedTask(final FluxSink<ResultStates> sink, final PrepareWrapper wrapper
-            , final MySQLTaskAdjutant adjutant) {
+    private ComPreparedTask(final FluxSink<ResultStates> sink, final BatchWrapper wrapper
+            , final MySQLTaskAdjutant adjutant) throws SQLException {
         super(adjutant);
+        String sql = wrapper.getSql();
+        if (!adjutant.isSingleStmt(sql)) {
+            throw MySQLExceptions.createMultiStatementError();
+        }
         this.sql = wrapper.getSql();
         this.properties = adjutant.obtainHostInfo().getProperties();
 

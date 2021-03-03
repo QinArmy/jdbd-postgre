@@ -1,14 +1,14 @@
 package io.jdbd.mysql;
 
-import io.jdbd.DatabaseSession;
-import io.jdbd.DatabaseSessionFactory;
+import io.jdbd.JdbdSession;
+import io.jdbd.JdbdSessionFactory;
 import io.jdbd.mysql.protocol.client.ClientCommandProtocol;
 import io.jdbd.mysql.protocol.conf.MySQLUrl;
 import reactor.core.publisher.Mono;
 
 import java.util.Map;
 
-public class MySQLSessionFactory implements DatabaseSessionFactory {
+public class MySQLSessionFactory implements JdbdSessionFactory {
 
     public static MySQLSessionFactory getInstance(String url, Map<String, String> properties) {
         return new MySQLSessionFactory(MySQLUrl.getInstance(url, properties));
@@ -21,8 +21,8 @@ public class MySQLSessionFactory implements DatabaseSessionFactory {
     }
 
     @Override
-    public Mono<DatabaseSession> getSession() {
-        Mono<DatabaseSession> mono;
+    public Mono<JdbdSession> getSession() {
+        Mono<JdbdSession> mono;
         switch (this.mySQLUrl.getProtocol()) {
             case SINGLE_CONNECTION:
                 mono = createClientSession();
@@ -46,7 +46,7 @@ public class MySQLSessionFactory implements DatabaseSessionFactory {
         return Mono.empty();
     }
 
-    private Mono<DatabaseSession> createClientSession() {
+    private Mono<JdbdSession> createClientSession() {
         return Mono.empty();
     }
 

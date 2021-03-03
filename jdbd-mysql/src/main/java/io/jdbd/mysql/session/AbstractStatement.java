@@ -1,7 +1,7 @@
 package io.jdbd.mysql.session;
 
-import io.jdbd.GenericStatement;
+import io.jdbd.ExecutableStatement;
 
-abstract class AbstractStatement implements GenericStatement {
+abstract class AbstractStatement implements ExecutableStatement {
 
 }

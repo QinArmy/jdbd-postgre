@@ -1,15 +1,6 @@
 package io.jdbd.mysql.protocol.client;
 
-import io.jdbd.MultiResults;
-import io.jdbd.ResultRow;
-import io.jdbd.ResultRowMeta;
-import io.jdbd.ResultStates;
-import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
-
-import java.util.List;
-import java.util.function.BiFunction;
-import java.util.function.Consumer;
 
 public interface ClientProtocol {
     int MAX_PACKET_SIZE = (1 << 24) - 1;
@@ -50,30 +41,6 @@ public interface ClientProtocol {
 
     int CLIENT_OPTIONAL_RESULTSET_METADATA = 1 << 25;
 
-    Consumer<ResultStates> EMPTY_STATE_CONSUMER = r -> {
-    };
-
-    BiFunction<ResultRow, ResultRowMeta, ResultRow> ORIGINAL_ROW_DECODER = (resultRow, resultRowMeta) -> resultRow;
-
-
-    MultiResults multiStatement(List<String> commandList);
-
-
-    /**
-     * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_com_query.html">Protocol::COM_QUERY</a>
-     */
-    Mono<ResultStates> commandUpdate(String command);
-
-    Flux<ResultStates> bathUpdate(List<String> commandList, int totalLength);
-
-    /**
-     * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_com_query.html">Protocol::COM_QUERY</a>
-     */
-    <T> Flux<T> commandQuery(String command, BiFunction<ResultRow, ResultRowMeta, T> rowDecoder
-            , Consumer<ResultStates> statesConsumer);
-
-
     Mono<Void> closeGracefully();
-
 
 }

@@ -20,7 +20,7 @@ public interface StatelessSession extends ReactiveCloseable{
     /**
      * @see Connection#createStatement()
      */
-    Publisher<Statement> createStatement();
+    Publisher<StaticStatement> createStatement();
 
     /**
      * @see java.sql.Connection#prepareStatement(String)

@@ -1,9 +1,8 @@
 package io.jdbd.mysql.protocol.client;
 
 import io.jdbd.*;
+import io.jdbd.mysql.BatchWrapper;
 import io.jdbd.mysql.BindValue;
-import io.jdbd.mysql.JdbdMySQLException;
-import io.jdbd.mysql.PrepareWrapper;
 import io.jdbd.mysql.StmtWrapper;
 import io.jdbd.mysql.protocol.ErrorPacket;
 import io.jdbd.mysql.protocol.OkPacket;
@@ -62,10 +61,8 @@ final class ComQueryTask extends MySQLCommunicationTask {
             try {
                 ComQueryTask task = new ComQueryTask(sql, sink, adjutant);
                 task.submit(sink::error);
-            } catch (SQLException e) {
-                sink.error(new JdbdSQLException(e));
             } catch (Throwable e) {
-                sink.error(new JdbdMySQLException(e, "Unknown error."));
+                sink.error(MySQLExceptions.wrap(e));
             }
         });
     }
@@ -78,10 +75,8 @@ final class ComQueryTask extends MySQLCommunicationTask {
             try {
                 ComQueryTask task = new ComQueryTask(sql, sink, statesConsumer, adjutant);
                 task.submit(sink::error);
-            } catch (SQLException e) {
-                sink.error(new JdbdSQLException(e));
             } catch (Throwable e) {
-                sink.error(new JdbdMySQLException(e, "Unknown error."));
+                sink.error(MySQLExceptions.wrap(e));
             }
         });
     }
@@ -99,10 +94,8 @@ final class ComQueryTask extends MySQLCommunicationTask {
                 try {
                     task = new ComQueryTask(sqlList, sink, adjutant);
                     task.submit(sink::error);
-                } catch (SQLException e) {
-                    sink.error(new JdbdSQLException(e));
                 } catch (Throwable e) {
-                    sink.error(new JdbdMySQLException(e, "Unknown error."));
+                    sink.error(MySQLExceptions.wrap(e));
                 }
 
             });
@@ -114,7 +107,7 @@ final class ComQueryTask extends MySQLCommunicationTask {
      * @see #ComQueryTask(StmtWrapper, MonoSink, MySQLTaskAdjutant)
      * @see ComPreparedTask#update(StmtWrapper, MySQLTaskAdjutant)
      */
-    static Mono<ResultStates> prepareUpdate(final StmtWrapper wrapper, final MySQLTaskAdjutant adjutant) {
+    static Mono<ResultStates> bindableUpdate(final StmtWrapper wrapper, final MySQLTaskAdjutant adjutant) {
         Mono<ResultStates> mono;
         final List<BindValue> parameterGroup = wrapper.getParameterGroup();
         Properties properties = adjutant.obtainHostInfo().getProperties();
@@ -128,12 +121,8 @@ final class ComQueryTask extends MySQLCommunicationTask {
                 try {
                     task = new ComQueryTask(wrapper, sink, adjutant);
                     task.submit(sink::error);
-                } catch (SQLException e) {
-                    sink.error(new JdbdSQLException(e));
-                } catch (LongDataReadException e) {
-                    sink.error(e);
                 } catch (Throwable e) {
-                    sink.error(new JdbdMySQLException(e, "Unknown error."));
+                    sink.error(MySQLExceptions.wrap(e));
                 }
 
             });
@@ -142,9 +131,9 @@ final class ComQueryTask extends MySQLCommunicationTask {
     }
 
     /**
-     * @see #ComQueryTask(PrepareWrapper, FluxSink, MySQLTaskAdjutant)
+     * @see #ComQueryTask(BatchWrapper, FluxSink, MySQLTaskAdjutant)
      */
-    static Flux<ResultStates> prepareBatchUpdate(final PrepareWrapper wrapper, final MySQLTaskAdjutant adjutant) {
+    static Flux<ResultStates> bindableBatch(final BatchWrapper wrapper, final MySQLTaskAdjutant adjutant) {
         final List<List<BindValue>> parameterGroupList = wrapper.getParameterGroupList();
         Properties properties = adjutant.obtainHostInfo().getProperties();
 
@@ -160,12 +149,8 @@ final class ComQueryTask extends MySQLCommunicationTask {
                 try {
                     task = new ComQueryTask(wrapper, sink, adjutant);
                     task.submit(sink::error);
-                } catch (SQLException e) {
-                    sink.error(new JdbdSQLException(e));
-                } catch (LongDataReadException e) {
-                    sink.error(e);
                 } catch (Throwable e) {
-                    sink.error(new JdbdMySQLException(e, "Unknown error."));
+                    sink.error(MySQLExceptions.wrap(e));
                 }
             });
         }
@@ -180,7 +165,7 @@ final class ComQueryTask extends MySQLCommunicationTask {
      *
      * @see #ComQueryTask(StmtWrapper, FluxSink, MySQLTaskAdjutant)
      */
-    static Flux<ResultRow> prepareQuery(final StmtWrapper wrapper, final MySQLTaskAdjutant adjutant) {
+    static Flux<ResultRow> bindableQuery(final StmtWrapper wrapper, final MySQLTaskAdjutant adjutant) {
         Flux<ResultRow> flux;
 
         Properties properties = adjutant.obtainHostInfo().getProperties();
@@ -193,12 +178,8 @@ final class ComQueryTask extends MySQLCommunicationTask {
                 try {
                     ComQueryTask task = new ComQueryTask(wrapper, sink, adjutant);
                     task.submit(sink::error);
-                } catch (SQLException e) {
-                    sink.error(new JdbdSQLException(e));
-                } catch (LongDataReadException e) {
-                    sink.error(e);
                 } catch (Throwable e) {
-                    sink.error(new JdbdMySQLException(e, "Unknown error."));
+                    sink.error(MySQLExceptions.wrap(e));
                 }
             });
         }
@@ -214,7 +195,7 @@ final class ComQueryTask extends MySQLCommunicationTask {
      *
      * @see #ComQueryTask(List, MultiResultsSink, MySQLTaskAdjutant)
      */
-    static ReactorMultiResults multiStatement(final List<StmtWrapper> stmtWrapperList
+    static ReactorMultiResults bindableMultiStmt(final List<StmtWrapper> stmtWrapperList
             , final MySQLTaskAdjutant adjutant) {
         ReactorMultiResults multiResults;
         if (stmtWrapperList.isEmpty()) {
@@ -225,14 +206,33 @@ final class ComQueryTask extends MySQLCommunicationTask {
                 try {
                     task = new ComQueryTask(stmtWrapperList, sink, adjutant);
                     task.submit(sink::error);
-                } catch (SQLException e) {
-                    sink.error(new JdbdSQLException(e));
-                } catch (LongDataReadException e) {
-                    sink.error(e);
                 } catch (Throwable e) {
-                    sink.error(new JdbdMySQLException(e, "Unknown error."));
+                    sink.error(MySQLExceptions.wrap(e));
                 }
 
+            });
+        } else {
+            multiResults = JdbdMultiResults.error(MySQLExceptions.createMultiStatementException());
+        }
+        return multiResults;
+    }
+
+    /**
+     * @see #ComQueryTask(MultiResultsSink, List, MySQLTaskAdjutant)
+     */
+    static ReactorMultiResults multiStmt(final List<String> sqlList, final MySQLTaskAdjutant adjutant) {
+        ReactorMultiResults multiResults;
+        if (sqlList.isEmpty()) {
+            multiResults = JdbdMultiResults.error(MySQLExceptions.createEmptySqlException());
+        } else if (Capabilities.supportMultiStatement(adjutant)) {
+            multiResults = JdbdMultiResults.create(adjutant, sink -> {
+                ComQueryTask task;
+                try {
+                    task = new ComQueryTask(sink, sqlList, adjutant);
+                    task.submit(sink::error);
+                } catch (Throwable e) {
+                    sink.error(MySQLExceptions.wrap(e));
+                }
             });
         } else {
             multiResults = JdbdMultiResults.error(MySQLExceptions.createMultiStatementException());
@@ -326,7 +326,7 @@ final class ComQueryTask extends MySQLCommunicationTask {
      * this method create task for client update prepare statement.
      * </p>
      *
-     * @see #prepareUpdate(StmtWrapper, MySQLTaskAdjutant)
+     * @see #bindableUpdate(StmtWrapper, MySQLTaskAdjutant)
      */
     private ComQueryTask(final StmtWrapper wrapper, final MonoSink<ResultStates> resultSink
             , MySQLTaskAdjutant adjutant) throws SQLException, LongDataReadException {
@@ -345,7 +345,7 @@ final class ComQueryTask extends MySQLCommunicationTask {
      * this method create task for client query prepare statement.
      * </p>
      *
-     * @see #prepareQuery(StmtWrapper, MySQLTaskAdjutant)
+     * @see #bindableQuery(StmtWrapper, MySQLTaskAdjutant)
      */
     private ComQueryTask(final StmtWrapper wrapper, final FluxSink<ResultRow> sink
             , final MySQLTaskAdjutant adjutant) throws SQLException, LongDataReadException {
@@ -363,9 +363,9 @@ final class ComQueryTask extends MySQLCommunicationTask {
      * this method create task for prepare batch update statement.
      * </p>
      *
-     * @see #prepareBatchUpdate(PrepareWrapper, MySQLTaskAdjutant)
+     * @see #bindableBatch(BatchWrapper, MySQLTaskAdjutant)
      */
-    private ComQueryTask(final PrepareWrapper wrapper, final FluxSink<ResultStates> sink
+    private ComQueryTask(final BatchWrapper wrapper, final FluxSink<ResultStates> sink
             , final MySQLTaskAdjutant adjutant) throws SQLException, LongDataReadException {
         super(adjutant);
         final List<List<BindValue>> parameterGroupList = wrapper.getParameterGroupList();
@@ -391,7 +391,7 @@ final class ComQueryTask extends MySQLCommunicationTask {
      * this method create task for multi statement.
      * </p>
      *
-     * @see #multiStatement(List, MySQLTaskAdjutant)
+     * @see #bindableMultiStmt(List, MySQLTaskAdjutant)
      */
     private ComQueryTask(final List<StmtWrapper> stmtWrapperList, final MultiResultsSink resultSink
             , final MySQLTaskAdjutant adjutant)
@@ -403,13 +403,30 @@ final class ComQueryTask extends MySQLCommunicationTask {
 
         final List<ByteBuf> packetList = ComQueryCommandWriter.createPrepareMultiCommand(
                 stmtWrapperList, this::addAndGetSequenceId, adjutant);
-        this.packetPublisher = Flux.fromIterable(packetList);
 
+        this.packetPublisher = Flux.fromIterable(packetList);
         this.sqlCount = stmtWrapperList.size();
         this.mode = Mode.MULTI_STMT;
-
         this.downstreamSink = new MultiStmtSink(resultSink);
 
+    }
+
+    /**
+     * @see #multiStmt(List, MySQLTaskAdjutant)
+     */
+    private ComQueryTask(final MultiResultsSink resultSink, final List<String> sqlList
+            , final MySQLTaskAdjutant adjutant) throws SQLException {
+        super(adjutant);
+        if (!Capabilities.supportMultiStatement(this.negotiatedCapability)) {
+            throw MySQLExceptions.createMultiStatementError();
+        }
+        final List<ByteBuf> packetList = ComQueryCommandWriter.createStaticMultiCommand(
+                sqlList, this::addAndGetSequenceId, adjutant);
+
+        this.packetPublisher = Flux.fromIterable(packetList);
+        this.sqlCount = sqlList.size();
+        this.mode = Mode.MULTI_STMT;
+        this.downstreamSink = new MultiStmtSink(resultSink);
     }
 
 

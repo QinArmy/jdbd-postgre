@@ -1,17 +1,15 @@
 package io.jdbd.mysql;
 
-import io.jdbd.DatabaseSession;
-import io.jdbd.DatabaseSessionFactory;
+import io.jdbd.JdbdSession;
+import io.jdbd.JdbdSessionFactory;
 import reactor.core.publisher.Mono;
 import reactor.netty.Connection;
 
-abstract class AbstractMySQLSessionFactory implements DatabaseSessionFactory {
-
-
+abstract class AbstractMySQLSessionFactory implements JdbdSessionFactory {
 
 
     @Override
-    public final Mono<DatabaseSession> getSession() {
+    public final Mono<JdbdSession> getSession() {
         return null;
     }
 

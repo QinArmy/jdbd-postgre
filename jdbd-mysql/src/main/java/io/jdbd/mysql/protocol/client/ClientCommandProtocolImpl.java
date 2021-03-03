@@ -1,6 +1,12 @@
 package io.jdbd.mysql.protocol.client;
 
+import io.jdbd.MultiResults;
+import io.jdbd.PreparedStatement;
+import io.jdbd.ResultRow;
+import io.jdbd.ResultStates;
+import io.jdbd.mysql.BatchWrapper;
 import io.jdbd.mysql.Server;
+import io.jdbd.mysql.StmtWrapper;
 import io.jdbd.mysql.protocol.CharsetMapping;
 import io.jdbd.mysql.protocol.conf.HostInfo;
 import io.netty.buffer.ByteBuf;
@@ -8,11 +14,14 @@ import io.netty.buffer.ByteBufAllocator;
 import io.netty.channel.EventLoopGroup;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.nio.charset.Charset;
 import java.time.ZoneOffset;
+import java.util.List;
 import java.util.Map;
+import java.util.function.Consumer;
 
 public final class ClientCommandProtocolImpl extends AbstractClientProtocol implements ClientCommandProtocol {
 
@@ -60,10 +69,7 @@ public final class ClientCommandProtocolImpl extends AbstractClientProtocol impl
         this.zoneOffsetDatabase = cp.obtainZoneOffsetDatabase();
     }
 
-    @Override
-    public Mono<Void> closeGracefully() {
-        return QuitTask.quit(this.taskAdjutant);
-    }
+
 
     /*################################## blow ClientProtocolAdjutant method ##################################*/
 
@@ -132,6 +138,62 @@ public final class ClientCommandProtocolImpl extends AbstractClientProtocol impl
     public Server obtainServer() {
         throw new UnsupportedOperationException();
     }
+
+
+    /*################################## blow ClientCommandProtocol method ##################################*/
+
+
+    @Override
+    public final Mono<ResultStates> update(String sql) {
+        return ComQueryTask.update(sql, this.taskAdjutant);
+    }
+
+    @Override
+    public final Flux<ResultRow> query(String sql, Consumer<ResultStates> statesConsumer) {
+        return ComQueryTask.query(sql, statesConsumer, this.taskAdjutant);
+    }
+
+    @Override
+    public final Flux<ResultStates> batchUpdate(List<String> sqlList) {
+        return ComQueryTask.batchUpdate(sqlList, this.taskAdjutant);
+    }
+
+    @Override
+    public final Mono<ResultStates> bindableUpdate(StmtWrapper wrapper) {
+        return ComQueryTask.bindableUpdate(wrapper, this.taskAdjutant);
+    }
+
+    @Override
+    public final Flux<ResultRow> bindableQuery(StmtWrapper wrapper) {
+        return ComQueryTask.bindableQuery(wrapper, this.taskAdjutant);
+    }
+
+    @Override
+    public final Flux<ResultStates> bindableBatch(BatchWrapper wrapper) {
+        return ComQueryTask.bindableBatch(wrapper, this.taskAdjutant);
+    }
+
+    @Override
+    public final Mono<PreparedStatement> prepare(String sql) {
+        return ComPreparedTask.prepare(sql, this.taskAdjutant);
+    }
+
+    @Override
+    public final MultiResults multiStmt(List<String> commandList) {
+        return ComQueryTask.multiStmt(commandList, this.taskAdjutant);
+    }
+
+    @Override
+    public final MultiResults multiBindable(List<StmtWrapper> wrapperList) {
+        return ComQueryTask.bindableMultiStmt(wrapperList, this.taskAdjutant);
+    }
+
+    @Override
+    public Mono<Void> closeGracefully() {
+        return QuitTask.quit(this.taskAdjutant);
+    }
+
+
     /*################################## blow private method ##################################*/
 
 

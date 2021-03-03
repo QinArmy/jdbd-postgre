@@ -1,5 +1,6 @@
 package io.jdbd.vendor.result;
 
+import io.jdbd.ExecutableStatement;
 import io.jdbd.ResultRow;
 import io.jdbd.ResultStates;
 import reactor.core.publisher.FluxSink;
@@ -19,7 +20,7 @@ public interface ResultRowSink {
     boolean isCancelled();
 
     /**
-     * @see io.jdbd.GenericStatement#executeQuery(Consumer)
+     * @see ExecutableStatement#executeQuery(Consumer)
      */
     void accept(ResultStates resultStates) throws IllegalStateException;
 

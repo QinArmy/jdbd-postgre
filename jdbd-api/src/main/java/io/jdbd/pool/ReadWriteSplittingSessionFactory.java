@@ -1,9 +1,9 @@
 package io.jdbd.pool;
 
-import io.jdbd.DatabaseSessionFactory;
+import io.jdbd.JdbdSessionFactory;
 
-public interface ReadWriteSplittingSessionFactory extends DatabaseSessionFactory {
+public interface ReadWriteSplittingSessionFactory extends JdbdSessionFactory {
 
-    DatabaseSessionFactory getPrimaryFactory();
+    JdbdSessionFactory getPrimaryFactory();
 
 }

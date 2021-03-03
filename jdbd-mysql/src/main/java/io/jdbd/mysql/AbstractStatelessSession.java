@@ -2,7 +2,7 @@ package io.jdbd.mysql;
 
 import io.jdbd.PreparedStatement;
 import io.jdbd.StatelessSession;
-import io.jdbd.Statement;
+import io.jdbd.StaticStatement;
 import io.jdbd.TransactionOption;
 import io.jdbd.meta.DatabaseMetaData;
 import reactor.core.publisher.Mono;
@@ -25,7 +25,7 @@ abstract class AbstractStatelessSession implements StatelessSession {
     }
 
     @Override
-    public Mono<Statement> createStatement() {
+    public Mono<StaticStatement> createStatement() {
         return null;
     }
 

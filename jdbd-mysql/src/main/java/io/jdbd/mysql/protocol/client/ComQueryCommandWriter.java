@@ -62,7 +62,7 @@ final class ComQueryCommandWriter {
     /**
      * @return a unmodifiable list.
      */
-    static List<ByteBuf> createPrepareBatchCommand(PrepareWrapper wrapper, Supplier<Integer> sequenceIdSupplier
+    static List<ByteBuf> createPrepareBatchCommand(BatchWrapper wrapper, Supplier<Integer> sequenceIdSupplier
             , MySQLTaskAdjutant adjutant) throws SQLException, LongDataReadException {
 
         return new ComQueryCommandWriter(sequenceIdSupplier, adjutant)
@@ -264,9 +264,9 @@ final class ComQueryCommandWriter {
 
     /**
      * @return a unmodifiable list.
-     * @see #createPrepareBatchCommand(PrepareWrapper, Supplier, MySQLTaskAdjutant)
+     * @see #createPrepareBatchCommand(BatchWrapper, Supplier, MySQLTaskAdjutant)
      */
-    private List<ByteBuf> writePrepareBatchCommand(PrepareWrapper wrapper) throws SQLException, LongDataReadException {
+    private List<ByteBuf> writePrepareBatchCommand(BatchWrapper wrapper) throws SQLException, LongDataReadException {
         final MySQLStatement stmt;
         stmt = this.adjutant.parse(wrapper.getSql());
 
