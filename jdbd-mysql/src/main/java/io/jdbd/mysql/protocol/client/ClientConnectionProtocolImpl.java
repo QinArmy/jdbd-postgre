@@ -65,7 +65,7 @@ final class ClientConnectionProtocolImpl extends AbstractClientProtocol
     private static final int COMMAND_PHASE = 5;
 
 
-     final DefaultCommTaskExecutor commTaskExecutor;
+    final DefaultCommTaskExecutor commTaskExecutor;
 
     private final AtomicReference<HandshakeV10Packet> handshakeV10Packet = new AtomicReference<>(null);
 
@@ -347,14 +347,15 @@ final class ClientConnectionProtocolImpl extends AbstractClientProtocol
         }
         final String autoCommitCommand = "SET autocommit = 0";
         final String isolationCommand = "SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED";
-        return commandUpdate(autoCommitCommand)
-                .doOnSuccess(rows -> LOG.debug("Command [{}] execute success.", autoCommitCommand))
-                // blow 2 step
-                .then(Mono.defer(() -> commandUpdate(isolationCommand)))
-                .doOnSuccess(rows -> LOG.debug("Command [{}]  execute success.", isolationCommand))
-                .doOnSuccess(n -> this.connectionPhase.compareAndSet(INITIALIZING_PHASE, COMMAND_PHASE))
-                .then()
-                ;
+//        return commandUpdate(autoCommitCommand)
+//                .doOnSuccess(rows -> LOG.debug("Command [{}] execute success.", autoCommitCommand))
+//                // blow 2 step
+//                .then(Mono.defer(() -> commandUpdate(isolationCommand)))
+//                .doOnSuccess(rows -> LOG.debug("Command [{}]  execute success.", isolationCommand))
+//                .doOnSuccess(n -> this.connectionPhase.compareAndSet(INITIALIZING_PHASE, COMMAND_PHASE))
+//                .then()
+        ;
+        return Mono.empty();
     }
 
 
@@ -390,12 +391,13 @@ final class ClientConnectionProtocolImpl extends AbstractClientProtocol
             return Mono.empty();
         }
         // blow tow phase: SHOW COLLATION phase and SHOW CHARACTER SET phase
-        return commandQuery("SHOW COLLATION", ORIGINAL_ROW_DECODER, EMPTY_STATE_CONSUMER)
-                .filter(this::isCustomCollation)
-                .collectMap(this::customCollationMapKeyFunction, this::customCollationMapValueFunction)
-                .doOnNext(this::createCustomCollationMapForShowCollation)
-                // above SHOW COLLATION phase,blow SHOW CHARACTER SET phase
-                .then(Mono.defer(this::detectCustomCharset));
+//        return commandQuery("SHOW COLLATION", ORIGINAL_ROW_DECODER, EMPTY_STATE_CONSUMER)
+//                .filter(this::isCustomCollation)
+//                .collectMap(this::customCollationMapKeyFunction, this::customCollationMapValueFunction)
+//                .doOnNext(this::createCustomCollationMapForShowCollation)
+//                // above SHOW COLLATION phase,blow SHOW CHARACTER SET phase
+//                .then(Mono.defer(this::detectCustomCharset));
+        return Mono.empty();
     }
 
     /**
@@ -412,9 +414,11 @@ final class ClientConnectionProtocolImpl extends AbstractClientProtocol
         if (LOG.isDebugEnabled()) {
             LOG.debug("execute set session variables:{}", command);
         }
-        return commandUpdate(command)
-                .then()
-                ;
+//        return commandUpdate(command)
+//                .then()
+//                ;
+
+        return Mono.empty();
 
     }
 
@@ -449,11 +453,12 @@ final class ClientConnectionProtocolImpl extends AbstractClientProtocol
         }
         // tow phase : SET NAMES and SET character_set_results = ?
         //below one phase SET NAMES
-        return commandUpdate(namesCommand)
-                .doOnSuccess(rows -> commandSetNamesSuccessEvent(clientCharset))
-                // below tow phase SET character_set_results = ?
-                .then(Mono.defer(this::configCharsetResults))
-                ;
+//        return commandUpdate(namesCommand)
+//                .doOnSuccess(rows -> commandSetNamesSuccessEvent(clientCharset))
+//                // below tow phase SET character_set_results = ?
+//                .then(Mono.defer(this::configCharsetResults))
+//                ;
+        return Mono.empty();
     }
 
     /**
@@ -511,9 +516,7 @@ final class ClientConnectionProtocolImpl extends AbstractClientProtocol
                 if (LOG.isDebugEnabled()) {
                     LOG.debug("performant: {}", command);
                 }
-                mono = commandUpdate(command)
-                        .then()
-                ;
+                mono = Mono.empty();
             } catch (DateTimeException e) {
                 mono = Mono.error(new JdbdMySQLException(e, "%s format error.", PropertyKey.zoneOffsetSession));
             }
@@ -531,10 +534,11 @@ final class ClientConnectionProtocolImpl extends AbstractClientProtocol
         final long utcEpochSecond = OffsetDateTime.now(ZoneOffset.UTC).toEpochSecond();
         String command = String.format("SELECT @@SESSION.time_zone as timeZone,DATE_FORMAT(FROM_UNIXTIME(%s),'%s') as databaseNow"
                 , utcEpochSecond, "%Y-%m-%d %T");
-        return commandQuery(command, ORIGINAL_ROW_DECODER, EMPTY_STATE_CONSUMER)
-                .elementAt(0)
-                .flatMap(resultRow -> handleDatabaseTimeZone(resultRow, utcEpochSecond))
-                ;
+//        return commandQuery(command, ORIGINAL_ROW_DECODER, EMPTY_STATE_CONSUMER)
+//                .elementAt(0)
+//                .flatMap(resultRow -> handleDatabaseTimeZone(resultRow, utcEpochSecond))
+//                ;
+        return Mono.empty();
     }
 
     /**
@@ -592,8 +596,9 @@ final class ClientConnectionProtocolImpl extends AbstractClientProtocol
         if (LOG.isDebugEnabled()) {
             LOG.debug("config charset result:{}", command);
         }
-        return commandUpdate(command)
-                .flatMap(rows -> overrideCharsetResults(charsetResults));
+//        return commandUpdate(command)
+//                .flatMap(rows -> overrideCharsetResults(charsetResults));
+        return Mono.empty();
 
     }
 
@@ -611,11 +616,12 @@ final class ClientConnectionProtocolImpl extends AbstractClientProtocol
         if (LOG.isDebugEnabled()) {
             LOG.debug("override charsetResults,execute command: {}", command);
         }
-        return commandQuery(command, ORIGINAL_ROW_DECODER, EMPTY_STATE_CONSUMER)
-                .elementAt(0)
-                .doOnNext(this::updateCharsetResultsAfterQueryCharacterSetSystem)
-                .then()
-                ;
+//        return commandQuery(command, ORIGINAL_ROW_DECODER, EMPTY_STATE_CONSUMER)
+//                .elementAt(0)
+//                .doOnNext(this::updateCharsetResultsAfterQueryCharacterSetSystem)
+//                .then()
+//                ;
+        return Mono.empty();
     }
 
     /**
@@ -786,14 +792,14 @@ final class ClientConnectionProtocolImpl extends AbstractClientProtocol
             mono = Mono.empty();
         } else {
 
-            mono = commandQuery("SHOW CHARACTER SET", ORIGINAL_ROW_DECODER, EMPTY_STATE_CONSUMER)
-                    .filter(resultRow -> charsetNameSet.contains(resultRow.getRequiredObject("Charset", String.class)))
-                    .collectMap(resultRow -> resultRow.getRequiredObject("Charset", String.class)
-                            , resultRow -> resultRow.getRequiredObject("Maxlen", Integer.class))
-                    .doOnNext(this::createCustomCollations)
-                    .then();
+//            mono = commandQuery("SHOW CHARACTER SET", ORIGINAL_ROW_DECODER, EMPTY_STATE_CONSUMER)
+//                    .filter(resultRow -> charsetNameSet.contains(resultRow.getRequiredObject("Charset", String.class)))
+//                    .collectMap(resultRow -> resultRow.getRequiredObject("Charset", String.class)
+//                            , resultRow -> resultRow.getRequiredObject("Maxlen", Integer.class))
+//                    .doOnNext(this::createCustomCollations)
+//                    .then();
         }
-        return mono;
+        return Mono.empty();
     }
 
 

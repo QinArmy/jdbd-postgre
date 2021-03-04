@@ -1,0 +1,752 @@
+//Table 2. Class Code 00: Unqualified Successful Completion
+//SQLSTATE Value	Meaning
+00000	Execution of the operation was successful and did not result in any type of warning or exception condition.
+//Table 3. Class Code 01: Warning
+//SQLSTATE Value	Meaning
+01xxx	Valid warning SQLSTATEs returned by an SQL routine. Also used for RAISE_ERROR and SIGNAL.
+01003	Null values were eliminated from the argument of an aggregate function.
+01004	The value of a string was truncated when assigned to another string data type with a shorter length.
+01005	Insufficient number of entries in an SQLDA.
+0100C	One or more ad hoc result sets were returned from the procedure.
+0100E	The procedure returned too many result sets.
+01011	The PATH value has been truncated. Array data, right truncation.
+01503	The number of result columns is larger than the number of variables provided.
+01504	The UPDATE or DELETE statement does not include a WHERE clause.
+01505	The statement was not executed because it is unacceptable in this environment.
+01506	An adjustment was made to a DATE or TIMESTAMP value to correct an invalid date resulting from an arithmetic operation.
+01507	One or more non-zero digits were eliminated from the fractional part of a number used as the operand of a multiply or divide operation.
+01514	The tablespace has been placed in the check-pending state.
+01515	The null value has been assigned to a variable, because the non-null value of the column is not within the range of the variable.
+01516	An inapplicable WITH GRANT OPTION has been ignored.
+01517	A character that could not be converted was replaced with a substitute character.
+01519	The null value has been assigned to a variable, because a numeric value is out of range.
+01520	The null value has been assigned to a variable, because the characters cannot be converted.
+01521	A specified server-name is undefined but is not needed until the statement is executed or the alias is used.
+01522	The local table or view name used in the CREATE ALIAS statement is undefined.
+01523	ALL was interpreted to exclude ALTER, INDEX, REFERENCES, and TRIGGER, because these privileges cannot be granted to a remote user.
+01524	The result of an aggregate function does not include the null values that were caused by evaluating the arithmetic expression implied by the column of the view.
+01525	The number of INSERT values is not the same as the number of columns.
+01527	A SET statement references a special register that does not exist at the AS.
+01528	WHERE NOT NULL is ignored, because the index key cannot contain null values.
+01530	Definition change may require a corresponding change on the read-only systems.
+01532	An undefined object name was detected.
+01533	An undefined column name was detected.
+01537	An SQL statement cannot be EXPLAINed, because it references a remote object.
+01538	The table cannot be subsequently defined as a dependent, because it has the maximum number of columns.
+01539	Connection is successful but only SBCS characters should be used.
+01540	A limit key has been truncated to 40 bytes.
+01542	Authorization ID does not have the privilege to perform the operation as specified.
+01543	A duplicate constraint has been ignored.
+01545	An unqualified column name has been interpreted as a correlated reference.
+01546	A column of the explanation table is improperly defined.
+01548	The authorization ID does not have the privilege to perform the specified operation on the identified object.
+01551	A table in a partitioned tablespace is not available, because its partitioned index has not been created.
+01552	An ambiguous qualified column name was resolved to the first of the duplicate names in the FROM clause.
+01553	Isolation level RR conflicts with a tablespace locksize of page.
+01554	Decimal multiplication may cause overflow.
+01558	A distribution protocol has been violated.
+01560	A redundant GRANT has been ignored.
+01561	An update to a data capture table was not signaled to the originating subsystem.
+01565	The null value has been assigned to a variable, because a miscellaneous data exception occurred; for example, the character value for the CAST, DECIMAL, FLOAT, or INTEGER scalar function is invalid; a floating-point NAN (not a number) or invalid data in a packed decimal field was detected.
+01566	The index has been placed in a pending state.
+01568	The dynamic SQL statement ends with a semicolon.
+01590	Type 2 indexes do not have subpages.
+01591	The result of the positioned UPDATE or DELETE may depend on the order of the rows.
+01594	Insufficient number of entries in an SQLDA for ALL information (i.e. not enough descriptors to return the distinct name).
+01596	Comparison functions were not created for a distinct type based on a long string data type.
+01597	Specific and non-specific volume IDs are not allowed in a storage group.
+01600	SUBPAGES ignored on alter of catalog index.
+01602	Optimization processing encountered a restriction that might have caused it to produce a sub-optimal result.
+01605	A recursive common table expression may contain an infinite loop.
+01608	An unsupported value has been replaced.
+01614	There are fewer locators than the number of result sets.
+01616	The estimated CPU cost exceeds the resource limit.
+01624	The GBPCACHE specification is ignored because the buffer pool does not allow caching.
+01625	The schema name appears more than once in the CURRENT PATH.
+01628	The user-specified access path hints are invalid. The access path hints are ignored.
+01629	User-specified access path hints were used during access path selection.
+01640	ROLLBACK TO SAVEPOINT occurred when there were uncommitted INSERTs or DELETEs that cannot be rolled back.
+01643	Assignment to SQLCODE or //SQLSTATE variable does not signal a warning or error.
+01644	DEFINE NO is not applicable for a lob space or data sets using the VCAT option.
+01656	ROLLBACK TO savepoint caused a NOT LOGGED table space to be placed in the LPL.
+01658	Binary data is invalid for DECRYPT_CHAR and DECYRYPT_DB.
+01659	A non-atomic statement successfully processed all requested rows with one or more warning conditions.
+01663	NOT PADDED clause is ignored for indexes created on auxiliary tables.
+01664	Option not specified following the ALTER PARTITION CLAUSE.
+01668	A rowset FETCH statement returned one or more rows of data, with one or more bind out processing error conditions. Use GET DIAGNOSTICS for more information.
+01679	A trusted connection cannot be established for the specified system authorization ID.
+01680	The option is not supported in the context in which it was specified.
+01681	The trusted context is no longer defined to be used by specific attribute value.
+01682	The ability to use the trusted context was removed from some but not all authorization IDs specified in statement.
+01683	A SELECT containing a non-ATOMIC data change statement successfully returned some rows, but one or more warnings or errors occurred.
+0168B	An operation was partially successful and partially unsuccessful. Use GET DIAGNOSTICS for more information.
+0168C	A decimal float operation produced an inexact result.
+0168D	A decimal floating point operation was invalid.
+0168E	A decimal float operation produced an overflow or underflow.
+0168F	A decimal float operation produced division by zero.
+0168G	A decimal float operation produced a subnormal number.
+0168L	No routine was found with the specified name and compatible arguments.
+0168T	WITH ROW CHANGE COLUMNS ALWAYS DISTINCT was specified, but the database manager is unable to return distinct row change columns.
+0168X	The combination of target namespace and schema location hint is not unique in the XML schema repository.
+0168Z	The statement was successfully prepared, but cannot be executed.
+01694	A deprecated feature has been ignored.
+01695	Adjustment made to a value for a period as a result of a data change operation.
+01Hxx	Valid warning SQLSTATEs returned by a user-defined function, external procedure CALL, or command invocation.
+//Table 4. Class Code 02: No Data
+//SQLSTATE Value	Meaning
+02000	One of the following exceptions occurred:
+//The result of the SELECT INTO statement or the subselect of the INSERT statement was an empty table.
+//The number of rows identified in the searched UPDATE or DELETE statement was zero.
+//The position of the cursor referenced in the FETCH statement was after the last row of the result table.
+//The fetch orientation is invalid.
+02502	Delete or update hole detected.
+02504	FETCH PRIOR ROWSET returned a partial rowset.
+//Table 5. Class Code 07: Dynamic SQL Error
+//SQLSTATE Value	Meaning
+07001	The number of variables is not correct for the number of parameter markers.
+07002	The call parameter list or control block is invalid.
+07003	The statement identified in the EXECUTE statement is a select-statement, or is not in a prepared state.
+07005	The statement name of the cursor identifies a prepared statement that cannot be associated with a cursor.
+07501	The option specified on PREPARE is not valid.
+//Table 6. Class Code 08: Connection Exception
+//SQLSTATE Value	Meaning
+08001	The connection was unable to be established to the application server or other server.
+08002	The connection already exists.
+08003	The connection does not exist.
+08004	The application server rejected establishment of the connection.
+//Table 7. Class Code 09: Triggered Action Exception
+//SQLSTATE Value	Meaning
+09000	A triggered SQL statement failed.
+//Table 8. Class Code 0A: Feature Not Supported
+//SQLSTATE Value	Meaning
+0A001	The CONNECT statement is invalid, because the process is not in the connectable state.
+//Table 9. Class Code 0F: Invalid Token
+//SQLSTATE Value	Meaning
+0F001	The locator value does not currently represent any value.
+//Table 10. Class Code 0K: Resignal When Handler Not Active
+//SQLSTATE Value	Meaning
+0K000	A RESIGNAL was issued but a handler is not active.
+//Table 11. Class Code 0N: SQL/XML Mapping Error
+//SQLSTATE Value	Meaning
+0N002	A character cannot be mapped to a valid XML character.
+//Table 12. Class Code 10: XQuery Error
+//SQLSTATE Value	Meaning
+10501	An XQuery expression is missing the assignment of a static or dynamic context component.
+10502	An error was encountered in the prolog of an XQuery expression.
+10503	A duplicate name was defined in an XQuery or XPath expression.
+10504	An XQuery namespace declaration specified an invalid URI.
+10505	A character, token or clause is missing or invalid in an XQuery expression.
+10506	An XQuery expression references a name that is not defined.
+10507	A type error was encountered processing an XPath or XQuery expression.
+10509	An unsupported XQuery language feature is specified.
+10601	An arithmetic error was encountered processing an XQuery function or operator.
+10602	A casting error was encountered processing an XQuery function or operator.
+10606	There is no context item for processing an XQuery function or operator.
+10608	An error was encountered in the argument of an XQuery function or operator.
+10609	A regular expression error was encountered processing an XQuery function or operator.
+//Table 13. Class Code 20: Case Not Found for Case Statement
+//SQLSTATE Value	Meaning
+20000	The case was not found for the CASE statement.
+//Table 14. Class Code 21: Cardinality Violation
+//SQLSTATE Value	Meaning
+21000	The result of a SELECT INTO, scalar fullselect, or subquery of a basic predicate is more than one value.
+21501	A multiple-row INSERT into a self-referencing table is invalid.
+21502	A multiple-row UPDATE of a primary key is invalid.
+//Table 15. Class Code 22: Data Exception
+//SQLSTATE Value	Meaning
+22001	Character data, right truncation occurred; for example, an update or insert value is a string that is too long for the column, or a datetime value cannot be assigned to a variable, because it is too small.
+22002	A null value, or the absence of an indicator parameter was detected; for example, the null value cannot be assigned to a variable, because no indicator variable is specified.
+22003	A numeric value is out of range.
+22004	A null value is not allowed.
+22007	An invalid datetime format was detected; that is, an invalid string representation or value was specified.
+22008	Datetime field overflow occurred; for example, an arithmetic operation on a date or timestamp has a result that is not within the valid range of dates.
+2200L	The XML value is not a well-formed document with a single root element.
+2200M	The XML document is not valid.
+2200S	The XML comment is not valid.
+2200T	The XML processing instruction is not valid.
+2200V	A context item is an XML sequence of more than one item.
+2200W	An XML value contained data that could not be serialized.
+22011	A substring error occurred; for example, an argument of SUBSTR or SUBSTRING is out of range.
+22012	Division by zero is invalid.
+22018	The character value for a CAST specification or cast scalar function is invalid.
+22019	The LIKE predicate has an invalid escape character.
+2201R	The XML document is not valid.
+22021	A character is not in the coded character set or the conversion is not supported.
+22023	A parameter or variable value is invalid.
+22024	A NUL-terminated input host variable or parameter did not contain a NUL.
+22025	The LIKE predicate string pattern contains an invalid occurrence of an escape character.
+22501	The length control field of a variable length string is negative or greater than the maximum.
+22502	Signalling NaN was encountered.
+22503	The string representation of a name is invalid.
+22504	A mixed data value is invalid.
+22505	The local date or time length has been increased, but the executing program relies on the old length.
+22506	A reference to a datetime special register is invalid, because the clock is malfunctioning or the operating system time zone parameter is out of range.
+22508	CURRENT PACKAGESET is blank.
+22511	ADT length exceeds maximum column length. The value for a ROWID or reference column is not valid.
+22512	A variable in a predicate is invalid, because its indicator variable is negative.
+22522	A CCSID value is not valid at all, not valid for the data type or subtype, or not valid for the encoding scheme.
+22525	Partitioning key value is not valid.
+22527	Invalid input data detected for a multiple-row insert.
+22528	Binary data is invalid for DECRYPT_CHAR and DECYRYPT_DB.
+22529	A non-atomic statement successfully completed for at least one row, but one or more errors occurred.
+22530	A non-atomic statement attempted to process multiple rows of data, but no row was inserted and one or more errors occurred.
+22531	The argument of a built-in or system provided routine resulted in an error.
+22532	An XSROBJECT is not found in the XML schema repository.
+22533	A unique XSROBJECT could not be found in the XML schema repository.
+22534	An XML schema document is not connected to the other XML schema documents using an include or redefine.
+22537	A rowset FETCH statement returned one or more rows of data, with one or more non-terminating error conditions. Use GET DIAGNOSTICS for more information.
+22541	The binary XML value contains unrecognized data.
+22542	The INSERT or UPDATE in not allowed because a resulting row does not satisfy row permissions.
+22544	The binary XML value contains a version that is not supported.
+22546	The value for a routine argument is not valid.
+22547	Multiple result values cannot be returned from the scalar function.
+225DE	An XML schema cannot be enabled for decomposition.
+//Table 16. Class Code 23: Constraint Violation
+//SQLSTATE Value	Meaning
+23502	An insert or update value is null, but the column cannot contain null values.
+23503	The insert or update value of a foreign key is invalid.
+23504	The update or delete of a parent key is prevented by a NO ACTION update or delete rule.
+23505	A violation of the constraint imposed by a unique index or a unique constraint occurred.
+23506	A violation of a constraint imposed by an edit or validation procedure occurred.
+23507	A violation of a constraint imposed by a field procedure occurred.
+23508	A violation of a constraint imposed by the DDL Registration Facility occurred.
+23509	The owner of the package has constrained its use to environments which do not include that of the application process.
+23510	A violation of a constraint on the use of the command imposed by the RLST table occurred.
+23511	A parent row cannot be deleted, because the check constraint restricts the deletion.
+23512	The check constraint cannot be added, because the table contains rows that do not satisfy the constraint definition.
+23513	The resulting row of the INSERT or UPDATE does not conform to the check constraint definition.
+23515	The unique index could not be created or unique constraint added, because the table contains duplicate values of the specified key.
+23522	The range of values for the identity column or sequence is exhausted.
+23523	An invalid value has been provided for the SECURITY LABEL column.
+23525	A violation of a constraint imposed by an XML values index occurred.
+23526	An XML values index could not be created because the table data contains values that violate a constraint imposed by the index.
+//Table 17. Class Code 24: Invalid Cursor State
+//SQLSTATE Value	Meaning
+24501	The identified cursor is not open.
+24502	The cursor identified in an OPEN statement is already open.
+24504	The cursor identified in the UPDATE, DELETE, SET, or GET statement is not positioned on a row.
+24506	The statement identified in the PREPARE is the statement of an open cursor.
+24510	An UPDATE or DELETE operation was attempted against a delete or update hole
+24512	The result table does not agree with the base table.
+24513	FETCH NEXT, PRIOR, CURRENT, or RELATIVE is not allowed, because the cursor position is not known.
+24516	A cursor has already been assigned to a result set.
+24517	A cursor was left open by an external function or method.
+24518	A cursor is not defined to handle row sets, but a rowset was requested.
+24519	A hole was detected on a multiple-row FETCH statement, but indicator variables were not provided.
+24520	The cursor identified in the UPDATE or DELETE statement is not positioned on a rowset.
+24521	A positioned DELETE or UPDATE statement specified a row of a rowset, but the row is not contained within the current rowset.
+24522	The fetch orientation is inconsistent with the definition of the cursor and whether rowsets are supported for the cursor.
+24524	A FETCH CURRENT CONTINUE was requested, but there is no truncated LOB or XML data to return.
+//Table 18. Class Code 25: Invalid Transaction State
+//SQLSTATE Value	Meaning
+25000	An insert, update, or delete operation or procedure call is invalid in the context where it is specified.
+//Table 19. Class Code 26: Invalid SQL Statement Identifier
+//SQLSTATE Value	Meaning
+26501	The statement identified does not exist.
+//Table 20. Class Code 2D: Invalid Transaction Termination
+//SQLSTATE Value	Meaning
+2D521	SQL COMMIT or ROLLBACK are invalid in the current operating environment.
+2D528	Dynamic COMMIT or COMMIT ON RETURN procedure is invalid for the application execution environment
+2D529	Dynamic ROLLBACK is invalid for the application execution environment.
+//Table 21. Class Code 34: Invalid Cursor Name
+//SQLSTATE Value	Meaning
+34000	Cursor name is invalid.
+//Table 22. Class Code 35: Invalid Condition Number
+//SQLSTATE Value	Meaning
+35000	Condition number is invalid.
+//Table 23. Class Code 36: Cursor Sensitivity Exception
+//SQLSTATE Value	Meaning
+36001	A SENSITIVE cursor cannot be defined for the specified select-statement.
+//Table 24. Class Code 38: External Function Exception
+//SQLSTATE Value	Meaning
+38xxx	Valid error SQLSTATEs returned by an external routine or trigger.
+38000	A Java routine has exited with an exception.
+38001	The external routine is not allowed to execute SQL statements.
+38002	The external routine attempted to modify data, but the routine was not defined as MODIFIES SQL DATA.
+38003	The statement is not allowed in a routine.
+38004	The external routine attempted to read data, but the routine was not defined as READS SQL DATA.
+38503	A user-defined function or procedure has abnormally terminated (abend).
+38504	A routine has been interrupted by the user.
+38505	An SQL statement is not allowed in a routine on a FINAL CALL.
+38H01	An IBM® MQ function failed to initialize.
+38H02	IBM MQ Application Messaging Interface failed to terminate the session.
+38H03	IBM MQ Application Messaging Interface failed to properly process a message.
+38H04	IBM MQ Application Messaging Interface failed in sending a message.
+38H05	IBM MQ Application Messaging Interface failed to read/receive a message.
+38H06	An IBM MQ Application Messaging Interface message was truncated.
+38H10	Error occurred during text search processing.
+38H11	Text search support is not available.
+38H12	Text search is not allowed on a column because a text search index does not exist on the column.
+38H13	A conflicting search administration procedure or command is running on the same text search index.
+38H14	Text search administration procedure error.
+//Table 25. Class Code 39: External Function Call Exception
+//SQLSTATE Value	Meaning
+39004	A null value is not allowed for an IN or INOUT argument when using PARAMETER STYLE GENERAL or an argument that is a Java primitive type.
+39501	An output argument value returned from a function or a procedure was too long.
+//Table 26. Class Code 3B: Savepoint Exception
+//SQLSTATE Value	Meaning
+3B001	The savepoint is not valid.
+3B501	A duplicate savepoint name was detected.
+3B502	A RELEASE or ROLLBACK TO SAVEPOINT was specified, but a savepoint does not exist.
+3B503	A SAVEPOINT, RELEASE SAVEPOINT, or ROLLBACK TO SAVEPOINT is not allowed in a trigger, function, or global transaction.
+//Table 27. Class Code 3C: Ambiguous Cursor Name
+//SQLSTATE Value	Meaning
+3C000	The cursor name is ambiguous.
+//Table 28. Class Code 40: Transaction Rollback
+//SQLSTATE Value	Meaning
+40001	Deadlock or timeout with automatic rollback occurred.
+//Table 29. Class Code 42: Syntax Error or Access Rule Violation
+//SQLSTATE Value	Meaning
+42501	The authorization ID does not have the privilege to perform the specified operation on the identified object.
+42502	The authorization ID does not have the privilege to perform the operation as specified.
+42503	The specified authorization ID or one of the authorization IDs of the application process is not allowed.
+42504	A specified privilege, security label, or exemption cannot be revoked from a specified authorization-name.
+42505	Connection authorization failure occurred.
+42506	Owner authorization failure occurred.
+42509	SQL statement is not authorized, because of the DYNAMICRULES option.
+42510	The authorization ID does not have the privilege to create functions or procedures in the WLM environment.
+42512	The authorization ID does not have security to the protected column.
+42513	The authorization ID does not have the MLS WRITE-DOWN privilege.
+42517	The specified authorization ID is not allowed to use the trusted context.
+42601	A character, token, or clause is invalid or missing.
+42602	A character that is invalid in a name has been detected.
+42603	An unterminated string constant has been detected.
+42604	An invalid numeric or string constant has been detected.
+42605	The number of arguments specified for a scalar function is invalid.
+42606	An invalid hexadecimal constant has been detected.
+42607	An operand of an aggregate function or CONCAT operator is invalid.
+42608	The use of NULL or DEFAULT in VALUES or an assignment statement is invalid.
+42609	All operands of an operator or predicate are parameter markers.
+42610	A parameter marker or the null value is not allowed.
+42611	The column, argument, parameter, or global variable definition is invalid.
+42612	The statement string is an SQL statement that is not acceptable in the context in which it is presented.
+42613	Clauses are mutually exclusive.
+42614	A duplicate keyword or clause is invalid.
+42615	An invalid alternative was detected.
+42617	The statement string is blank or empty.
+42618	A host variable is not allowed.
+42620	Read-only SCROLL was specified with the UPDATE clause.
+42621	The check constraint or generated column expression is invalid.
+42622	A name or label is too long.
+42623	A DEFAULT clause cannot be specified.
+42625	A CASE expression is invalid.
+42626	A column specification is not allowed for a CREATE INDEX that is built on an auxiliary table.
+42629	Parameter names must be specified for SQL routines.
+42630	An //SQLSTATE or SQLCODE variable is not valid in this context.
+42633	An AS clause is required for an argument of XMLATTRIBUTES or XMLFOREST.
+42634	The XML name is not valid.
+42701	The same target is specified more than once for assignment in the same SQL statement.
+42702	A column reference is ambiguous, because of duplicate names.
+42703	An undefined column or parameter name was detected.
+42704	An undefined object or constraint name was detected.
+42705	An undefined server-name was detected.
+42707	A column name in ORDER BY does not identify a column of the result table.
+42708	The locale specified in a SET LOCALE or locale sensitive function was not found.
+42709	A duplicate column name was specified in a key column list.
+42710	A duplicate object or constraint name was detected.
+42711	A duplicate column name was detected in the object definition or ALTER TABLE statement.
+42712	A duplicate table designator was detected in the FROM clause or REFERENCING clause of a CREATE TRIGGER statement.
+42713	A duplicate object was detected in a list or is the same as an existing object.
+42714	A host variable can be defined only once.
+42718	The local server name is not defined.
+42721	The special register name is unknown at the server.
+42723	A routine with the same signature already exists.
+42724	Unable to access an external program used for a user-defined function or a procedure.
+42725	A routine was referenced directly (not by either signature or by specific instance name), but there is more than one specific instance of that routine.
+42726	Duplicate names for common table expressions were detected.
+42732	A duplicate schema name in a special register was detected.
+42734	A duplicate parameter-name, SQL variable name, label, or condition-name was detected.
+42736	The label specified on the GOTO, ITERATE, or LEAVE statement is not found or not valid.
+42737	The condition specified is not defined.
+42749	An XML schema document with the same target namespace and schema location already exists for the XML schema.
+4274A	An XSROBJECT is not found in the XML schema repository.
+4274B	A unique XSROBJECT could not be found in the XML schema repository.
+4274C	The specified attribute was not found in the trusted context.
+4274D	The specified attribute already exists in the trusted context.
+4274E	The specified attribute is not supported in the trusted context.
+4274M	An undefined period name was detected.
+42801	Isolation level UR is invalid, because the result table is not read-only.
+42802	The number of insert or update values is not the same as the number of columns or variables.
+42803	A column reference in the SELECT or HAVING clause is invalid, because it is not a grouping column; or a column reference in the GROUP BY clause is invalid.
+42804	The result expressions in a CASE expression are not compatible.
+42805	An integer in the ORDER BY clause does not identify a column of the result table.
+42806	A value cannot be assigned to a variable, because the data types are not compatible.
+42807	The data-change statement is not permitted on this object.
+42808	A column identified in the INSERT or UPDATE operation is not updatable.
+42809	The identified object is not the type of object to which the statement applies.
+42810	A base table is not identified in a FOREIGN KEY clause.
+42811	The number of columns specified is not the same as the number of columns in the SELECT clause.
+42813	WITH CHECK OPTION cannot be used for the specified view.
+42815	The data type, length, scale, value, or CCSID is invalid.
+42816	A datetime value or duration in an expression is invalid.
+42818	The operands of an operator or function are not compatible or comparable.
+42819	An operand of an arithmetic operation or an operand of a function that requires a number is invalid.
+42820	A numeric constant is too long, or it has a value that is not within the range of its data type.
+42821	A data type for an assignment to a column or variable is not compatible with the data type.
+42822	An expression in the ORDER BY clause or GROUP BY clause is not valid.
+42823	Multiple columns are returned from a subquery that only allows one column.
+42824	An operand of LIKE is not a string, or the first operand is not a column.
+42825	The rows of UNION, INTERSECT, EXCEPT, or VALUES do not have compatible columns.
+42826	The rows of UNION, INTERSECT, EXCEPT, or VALUES do not have the same number of columns.
+42827	The table identified in the UPDATE or DELETE is not the same table designated by the cursor.
+42828	The table designated by the cursor of the UPDATE or DELETE statement cannot be modified, or the cursor is read-only.
+42829	FOR UPDATE OF is invalid, because the result table designated by the cursor cannot be modified.
+42830	The foreign key does not conform to the description of the parent key.
+42831	A column of a primary key, unique key, ROWID, ROW CHANGE TIMESTAMP does not allow null values.
+42832	The operation is not allowed on system objects.
+42834	SET NULL cannot be specified, because no column of the foreign key can be assigned the null value.
+42835	Cyclic references cannot be specified between named derived tables.
+42836	The specification of a recursive, named derived table is invalid.
+42837	The column cannot be altered, because its attributes are not compatible with the current column attributes.
+42842	A column or parameter definition is invalid, because a specified option is inconsistent with the column description.
+42845	An invalid use of a NOT DETERMINISTIC or EXTERNAL ACTION function was detected.
+42846	Cast from source type to target type is not supported.
+42849	The specified option is not supported for routines.
+42852	The privileges specified in GRANT or REVOKE are invalid or inconsistent. (For example, GRANT ALTER on a view.)
+42855	The assignment of the LOB or XML to this variable is not allowed. The target variable for all fetches of a LOB or XML value for this cursor must be the same for all FETCHes.
+42856	The alter of a CCSID to the specified CCSID is not valid.
+42866	The data type in either the RETURNS clause or the CAST FROM clause in the CREATE FUNCTION statement is not appropriate for the data type returned from the sourced function or RETURN statement in the function body.
+42872	FETCH statement clauses are incompatible with the cursor definition.
+42873	An invalid number of rows was specified in a multiple-row FETCH or multiple-row INSERT.
+42877	The column name cannot be qualified.
+42878	An invalid function or procedure name was used with the EXTERNAL keyword.
+42879	The data type of one or more input parameters in the CREATE FUNCTION statement is not appropriate for the corresponding data type in the source function.
+42880	The CAST TO and CAST FROM data types are incompatible, or would always result in truncation of a fixed string.
+42882	The specific instance name qualifier is not equal to the function name qualifier.
+42883	No routine was found with a matching signature.
+42884	No routine was found with the specified name and compatible arguments.
+42885	The number of input parameters specified on a CREATE FUNCTION statement does not match the number provided by the function named in the SOURCE clause.
+42886	The IN, OUT, or INOUT parameter attributes do not match.
+42887	The function is not valid in the context where it occurs.
+42888	The table does not have a primary key.
+42889	The table already has a primary key.
+42890	A column list was specified in the references clause, but the identified parent table does not have a unique constraint with the specified column names.
+42893	The object or constraint cannot be dropped, altered, or transferred or authorities cannot be revoked from the object, because other objects are dependent on it.
+42894	The value of a column or sequence attribute is invalid.
+42895	For static SQL, an input variable cannot be used, because its data type is not compatible with the parameter of a procedure or user-defined function.
+42898	An invalid correlated reference or transition table was detected in a trigger.
+42899	Correlated references and column names are not allowed for triggered actions with the FOR EACH STATEMENT clause.
+428A1	Unable to access a file referenced by a file reference variable.
+428B3	An invalid //SQLSTATE was specified.
+428B4	The part clause of a LOCK TABLE statement is not valid.
+428B7	A number specified in an SQL statement is out of the valid range.
+428C1	The data type or attribute of a column can only be specified once for a table.
+428C2	Examination of the function body indicates that the given clause should have been specified on the CREATE FUNCTION statement.
+428C4	The number of elements on each side of the predicate operator is not the same.
+428C7	A ROWID or reference column specification is not valid or used in an invalid context.
+428C9	A column defined as GENERATED ALWAYS cannot be specified as the target column of an insert or update operation.
+428D2	AS LOCATOR cannot be specified for a non-LOB parameter.
+428D3	GENERATED is not allowed for the specified data type or attribute of a column.
+428D4	A cursor specified in a FOR statement cannot be referenced in an OPEN, CLOSE, or FETCH statement.
+428D5	The ending label does not match the beginning label.
+428D6	UNDO is not allowed for NOT ATOMIC compound statements.
+428D7	The condition value is not allowed.
+428D8	The sqlcode or sqlstate variable declaration is not valid.
+428EC	The fullselect specified for the materialized query table is not valid.
+428EK	The schema qualifier is not valid.
+428EW	The table cannot be converted to or from a materialized query table.
+428F2	An integer expression must be specified on a RETURN statement in an SQL procedure.
+428F4	The SENSITIVITY specified on FETCH is not allowed for the cursor.
+428F5	The invocation of a routine is ambiguous.
+428F9	A sequence expression cannot be specified in this context.
+428FA	The scale of the decimal number must be zero.
+428FB	Sequence-name must not be a sequence generated by the system.
+428FC	The length of the encryption password is not valid.
+428FE	The data is not a result of the ENCRYPT function.
+428FJ	ORDER BY or FETCH FIRST is not allowed in the outer fullselect of a view or materialized query table.
+428FL	A data change statement is not allowed in the context in which it was specified.
+428FM	An SQL data change statement within a SELECT specified a view which is not a symmetric view.
+428FP	Only one INSTEAD OF trigger is allowed for each kind of operation on a view.
+428FQ	An INSTEAD OF trigger cannot be created because of how the view is defined.
+428FR	A column cannot be altered as specified.
+428FS	A column cannot be added to an index.
+428FT	The partitioning clause specified on CREATE or ALTER is not valid.
+428FY	A column cannot be added, dropped, or altered in a materialized query table.
+428G3	FINAL TABLE is not valid when the target view of the SQL data change statement in a fullselect has an INSTEAD OF trigger defined.
+428G4	Invalid use of INPUT SEQUENCE ordering.
+428G5	The assignment clause of the UPDATE statement must specify at least one column that is not an INCLUDE column.
+428GB	A character could not be converted and substitution characters are not allowed.
+428GC	An invalid string unit was specified for a function.
+428GH	The data type of one or more parameters specified in the ADD VERSION clause does not match the corresponding data type in the routine being altered.
+428GI	An XML schema is not complete because an XML schema document is missing.
+428GJ	The table cannot be truncated because DELETE triggers exist for the table or the table is a parent table of a referential constraint that would be affected by the statement.
+428GL	The system authorization ID specified for a trusted context is already specified in another trusted context.
+428GM	The trusted context is already defined to be used by this authorization ID or PUBLIC.
+428GN	The specified authorization ID or PUBLIC is not defined in the specified trusted context.
+428GU	A table must include at least one column that is not implicitly hidden.
+428H8	The object must be defined as secure because another object depends on it for row-level or column-level access control.
+428H9	PERMISSION or MASK cannot be altered.
+428HA	An argument of a user-defined table function must not reference a column for which a column mask is defined.
+428HB	A permission or mask cannot be created on the specified object.
+428HC	A column mask is already defined for the specified column.
+428HD	The statement cannot be processed because a column mask cannot be applied or the definition of the mask conflicts with the statement.
+428HJ	The organization clause specified on CREATE or ALTER is not valid.
+428HK	The specified hash space is not valid for the implicitly created table space.
+428HM	The system versioning clause specified on CREATE or ALTER is not valid.
+428HN	The period specification is not valid.
+428I1	The columns updated by the XMLMODIFY function were not specified in the UPDATE SET clause.
+42902	The object of the INSERT, UPDATE, or DELETE is also identified (possibly implicitly through a view) in a FROM clause.
+42903	Invalid use of an aggregate function or OLAP function.
+42905	DISTINCT is specified more than once in a subselect.
+42906	An aggregate function in a subquery of a HAVING clause includes an expression that applies an operator to a correlated reference.
+42907	The string is too long in the context it was specified.
+42908	The statement does not include a required column list.
+42909	CREATE VIEW includes an operator or operand that is not valid for views.
+42911	A decimal divide operation is invalid, because the result would have a negative scale.
+42912	A column cannot be updated, because it is not identified in the UPDATE clause of the select-statement of the cursor.
+42914	The DELETE is invalid, because a table referenced in a subquery can be affected by the operation.
+42915	An invalid referential constraint has been detected.
+42917	The object cannot be explicitly dropped or altered.
+42918	A user-defined data type cannot be created with a system-defined data type name (for example, INTEGER).
+42924	An alias resolved to another alias rather than a table or view at the remote location.
+42925	Recursive named derived tables cannot specify SELECT DISTINCT and must specify UNION ALL.
+42927	The function cannot be altered to NOT DETERMINISTIC or EXTERNAL ACTION because it is referenced by one or more existing views.
+42932	The program preparation assumptions are incorrect.
+42939	The name cannot be used, because the specified identifier is reserved for system use.
+42945	ALTER CCSID is not allowed on a table space or database that contains a view.
+42961	The server name specified does not match the current server.
+42962	A long column, LOB column, structured type column or datalink column cannot be used in an index, a key, generated column, or a constraint.
+42963	Invalid specification of a security label column.
+42969	The package was not created.
+42972	An expression in a join-condition or ON clause of a MERGE statement references columns in more than one of the operand tables.
+42986	The source table of a rename operation is referenced in a context where is it not supported.
+42987	The statement or routine is not allowed in a trigger.
+42988	The operation is not allowed with mixed ASCII data.
+42993	The column, as defined, is too large to be logged.
+42995	The requested function does not apply to global temporary tables.
+42997	Capability is not supported by this version of the Db2 application requester, Db2 application server, or the combination of the two.
+429B1	A procedure specifying COMMIT ON RETURN cannot be the target of a nested CALL statement.
+429BI	The condition area is full and cannot handle more errors for a NOT ATOMIC statement.
+429BN	A CREATE statement cannot be processed when the value of CURRENT SCHEMA differs from CURRENT SQLID.
+429BQ	The specified alter of the data type or attribute is not allowed.
+429BS	Invalid index definition involving an XMLPATTERN clause or a column defined with a data type of XML.
+429BV	Invalid specification of a ROW CHANGE TIMESTAMP column.
+429BW	The statement cannot be processed due to related implicitly created objects.
+429BX	The expression for an index key is not valid.
+429BY	The statement is not allowed when using a trusted connection.
+ 429C1 	 A data type cannot be determined for an untyped expression.
+//Table 30. Class Code 44: WITH CHECK OPTION Violation
+//SQLSTATE Value	Meaning
+44000	The INSERT or UPDATE is not allowed, because a resulting row does not satisfy the view definition.
+//Table 31. Class Code 46: Java Errors
+//SQLSTATE Value	Meaning
+46001	The URL specified on an install or replace of a jar procedure did not identify a valid jar file.
+46002	The jar name specified on the install, replace, or remove of a Java procedure is not valid.
+46003	The jar file cannot be removed, a class is in use by a procedure.
+46007	A Java function has a Java method with an invalid signature.
+46008	A Java function could not map to a single Java method.
+4600C	The jar cannot be removed. It is in use.
+4600D	The value provided for the new Java path is invalid.
+4600E	The alter of the jar failed because the specified path references itself.
+46103	A Java routine encountered a ClassNotFound exception.
+46501	The install or remove jar procedure specified the use of a deployment descriptor.
+46502	A user-defined procedure has returned a DYNAMIC RESULT SET of an invalid class. The parameter is not a Db2 result set.
+//Table 32. Class Code 51: Invalid Application State
+//SQLSTATE Value	Meaning
+51002	The package corresponding to an SQL statement execution request was not found.
+51003	Consistency tokens do not match.
+51004	An address in the SQLDA is invalid.
+51005	The previous system error has disabled this function.
+51006	A valid connection has not been established.
+51008	The release number of the program or package is not valid.
+51015	An attempt was made to execute a section that was found to be in error at bind time.
+51021	SQL statements cannot be executed until the application process executes a rollback operation.
+51024	An object cannot be used, because it has been marked inoperative.
+51030	The procedure referenced in a DESCRIBE PROCEDURE or ASSOCIATE LOCATOR statement has not yet been called within the application process.
+51032	A valid CCSID has not yet been specified for this Db2 for z/OS® subsystem.
+51033	The operation is not allowed because it operates on a result set that was not created by the current server.
+51034	The routine defined with MODIFIES SQL DATA is not valid in the context in which it is invoked.
+51035	A PREVIOUS VALUE expression cannot be used because a value has not been generated for the sequence yet in this session.
+51036	An implicit connect to a remote server is not allowed because a savepoint is outstanding.
+51039	The ENCRYPTION PASSWORD value is not set.
+//Table 33. Class Code 53: Invalid Operand or Inconsistent Specification
+//SQLSTATE Value	Meaning
+53001	A clause is invalid, because the table space is a workfile.
+53004	DSNDB07 is the implicit workfile database.
+53014	The specified OBID is invalid.
+53022	Variable or parameter is not allowed.
+53035	Key limits must be specified in the CREATE or ALTER INDEX statement.
+53036	The number of PARTITION specifications is not the same as the number of partitions.
+53037	A partitioned index cannot be created on a table in a non-partitioned table space.
+53038	The number of key limit values is zero or greater than the number of columns in the key.
+53039	The PARTITION clause of the ALTER statement is omitted or invalid.
+53040	The buffer pool cannot be changed as specified.
+53041	The page size of the buffer pool is invalid.
+53043	Columns with different field procedures cannot be compared.
+53044	The columns have a field procedure, but the field types are not compatible.
+53045	The data type of the key limit constant is not the same as the data type of the column.
+53088	LOCKMAX is inconsistent with the specified LOCKSIZE.
+53089	The number of variable parameters for a stored procedure is not equal to the number of expected variable parameters.
+53090	Only data from one encoding scheme, either ASCII, EBCDIC or Unicode, can be referenced in the same SQL statement.
+53091	The encoding scheme specified is not the same as the encoding scheme currently in use for the containing table space.
+53092	Type 1 index cannot be created for a table using the ASCII encoding scheme.
+53093	The CCSID ASCII or UNICODE clause is not supported for this database or table space.
+53094	The PLAN_TABLE cannot be created with the FOR ASCII clause.
+53095	CREATE or ALTER statement cannot define an object with the specified encoding scheme.
+53096	The PARTITION clause was specified on CREATE AUXILIARY TABLE, but the base table is not partitioned.
+53098	The auxiliary table cannot be created because a column was specified that is not a LOB column.
+53099	A WLM ENVIRONMENT name must be specified on the CREATE FUNCTION statement.
+530A1	An ALTER TABLE statement specified FLOAT as the new data type for a column, but there is an existing index or constraint that restricts the use of FLOAT.
+530A2	The PARTITIONING clause is not allowed on the specified index.
+530A3	The specified option is not allowed for the internal representation of the routine specified
+530A4	The options specified on ALTER statement are not the same as those specified when the object was created.
+530A5	The REGENERATE option is only valid for an index with key expressions.
+530A7	EXCHANGE DATA is not allowed because the tables do not have a defined clone relationship.
+530A8	A system parameter is incompatible with the specified SQL statement.
+//Table 34. Class Code 54: SQL or Product Limit Exceeded
+//SQLSTATE Value	Meaning
+54001	The statement is too long or too complex.
+54002	A string constant is too long.
+54004	The statement has too many table names or too many items in a SELECT or INSERT list.
+54005	The sort key is too long, or has too many columns.
+54006	The result string is too long.
+54008	The key is too long, a column of the key is too long, or the key has too many columns.
+54010	The record length of the table is too long.
+54011	Too many columns were specified for a table, view, or table function.
+54024	The check constraint, generated column, or key expression is too long.
+54025	The table description exceeds the maximum size of the object descriptor.
+54027	The catalog has the maximum number of user-defined indexes.
+54035	An internal object limit exceeded.
+54038	Maximum depth of nested routines or triggers was exceeded.
+54041	The maximum number of internal identifiers has been reached.
+54042	Only one index is allowed on an auxiliary table.
+54051	Value specified on FETCH ABSOLUTE or RELATIVE is invalid.
+54054	The number of data partitions, or the combination of the number of table space partitions and the corresponding length of the partitioning limit key is exceeded.
+54055	The maximum number of versions has been reached for a table or index.
+54058	The internal representation of an XML path is too long.
+54065	The maximum of 99999 implicitly generated object names has been exceeded.
+//Table 35. Class Code 55: Object Not in Prerequisite State
+//SQLSTATE Value	Meaning
+55002	The explanation table is not defined properly.
+55003	The DDL registration table is not defined properly.
+55004	The database cannot be accessed, because it is no longer a shared database.
+55006	The object cannot be dropped, because it is currently in use by the same application process.
+55007	The object cannot be altered, because it is currently in use by the same application process.
+55011	The operation is disallowed, because the workfile database is not in the stopped state.
+55012	A clustering index is not valid on the table.
+55014	The table does not have an index to enforce the uniqueness of the primary key.
+55015	The ALTER statement cannot be executed, because the pageset is not in the stopped state.
+55016	The ALTER statement is invalid, because the pageset has user-managed data sets.
+55017	The table cannot be created in the table space, because it already contains a table.
+55019	The object is in an invalid state for the operation.
+55020	A work file database is already defined for the member.
+55023	An error occurred calling a procedure.
+55030	A package specified in a remote BIND REPLACE operation must not have a system list.
+55035	The table cannot be dropped, because it is protected.
+55048	Encrypted data cannot be encrypted.
+55058	The DEBUG MODE cannot be changed for a routine that was created with DISABLE DEBUG MODE.
+55059	The currently active version for a routine cannot be dropped.
+55063	The XML schema is not in the correct state for the operation.
+55078	The table is already in the specified state.
+//Table 36. Class Code 56: Miscellaneous SQL or Product Error
+//SQLSTATE Value	Meaning
+56010	The subtype of a string variable is not the same as the subtype at bind time, and the difference cannot be resolved by character conversion.
+56016	The ranges specified for data partitions are not valid.
+56018	A column cannot be added to the table, because it has an edit procedure.
+56023	An invalid reference to a remote object has been detected.
+56025	An invalid use of AT ALL LOCATIONS in GRANT or REVOKE has been detected.
+56027	A nullable column of a foreign key with a delete rule of SET NULL cannot be part of the key of a partitioned index.
+56031	The clause or scalar function is invalid, because mixed and DBCS data are not supported on this system.
+56036	Specific and non-specific volume IDs are not allowed in a storage group.
+56038	The requested feature is not supported in this environment.
+56040	CURRENT SQLID cannot be used in a statement that references remote objects.
+56045	The application must issue a rollback operation to back out the change that was made at the read-only application server.
+56052	The remote requester tried to bind, rebind, or free a trigger package.
+56053	The parent of a table in a read-only shared database must also be a table in a read-only shared database.
+56054	User-defined data sets for objects in a shared database must be defined with SHAREOPTIONS(1,3).
+56055	The database is defined as SHARE READ, but the table space or indexspace has not been defined on the owning system.
+56056	The description of an object in a SHARE READ database must be consistent with its description in the OWNER system.
+56057	A database cannot be altered from SHARE READ to SHARE OWNER.
+56059	An error occurred when binding a triggered SQL statement.
+56060	An LE function failed.
+56062	A distributed operation is invalid, because the unit of work was started before DDF.
+56064	The bind operation is disallowed, because the program depends on functions of a release from which fallback has occurred.
+56065	The bind operation is disallowed, because the DBRM has been modified or was created for a different release.
+56066	The rebind operation is disallowed, because the plan or package depends on functions of a release from which fallback has occurred.
+56067	The rebind operation is disallowed, because the value of SYSPACKAGE.IBMREQD is invalid.
+56072	Execution failed due to the function not supported by a downlevel server that will not affect the execution of subsequent SQL statements.
+56073	Execution failed due to the function not supported by a downlevel server that will affect the execution of subsequent SQL statements.
+56080	The data type is not allowed in Db2 private protocol processing.
+56084	An unsupported SQLTYPE was encountered in a select list or input list.
+56088	ALTER FUNCTION failed because functions cannot modify data when they are processed in parallel.
+56089	Specified option requires type 2 indexes.
+56090	The alter of an index or table is not allowed.
+56095	A bind option is invalid.
+56096	Bind options are incompatible.
+560A1	The table space name is not valid.
+560A2	A LOB table and its associated base table space must be in the same database.
+560A3	The table is not compatible with the database.
+560A4	The operation is not allowed on an auxiliary table.
+560A5	An auxiliary table already exists for the specified column or partition.
+560A6	A table cannot have a LOB column unless it also has a ROWID column or cannot have an XML column unless it also has a DOCID.
+560A7	GBPCACHE NONE cannot be specified for a table space or index in GRECP.
+560A8	An 8K or 16K buffer pool pagesize is invalid for a WORKFILE object.
+560A9	A discontinued parameter, option, or clause was specified.
+560AB	The data type is not supported in an SQL routine.
+560AD	A view name was specified after LIKE in addition to the INCLUDING IDENTITY COLUMN ATTRIBUTES clause.
+560AE	The specified table or view is not allowed in a LIKE clause.
+560B1	Procedure failed because a result set was scrollable but the cursor was not positioned before the first row.
+560B2	Open failed because the cursor is scrollable but the client does not support scrollable cursors.
+560B3	Procedure failed because one or more result sets returned by the procedure are scrollable but the client does not support scrollable cursors.
+560B5	Local special register is not valid as used.
+560B8	The SQL statement cannot be executed because it was precompiled at a level that is incompatible with the current value of the ENCODING bind option or special register.
+560B9	Hexadecimal constant GX is not allowed.
+560BF	The encryption and decryption facility has not been installed.
+560C3	An AFTER trigger cannot modify a row being inserted for an INSERT statement.
+560C5	The package must be bound or rebound to be successfully executed.
+560C7	ALTER VIEW failed.
+560CC	ALTER INDEX failed.
+560CG	An XML value contains a combination of XML nodes that causes an internal identifier limit to be exceeded.
+560CH	The maximum number of children nodes for an XML node in an XML value is exceeded.to be exceeded.
+560CK	Explain monitored statements failed.
+560CM	An error occurred in a key expression evaluation.
+560CU	The VARCHAR option is not consistent with the option specified when the procedure was created.
+560CV	Invalid table reference for table locator.
+560CY	A period specification or period clause is not valid as specified.
+//Table 37. Class Code 57: Resource Not Available or Operator Intervention
+//SQLSTATE Value	Meaning
+57001	The table is unavailable, because it does not have a primary index.
+57002	GRANT and REVOKE are invalid, because authorization has been disabled.
+57003	The specified buffer pool has not been activated.
+57004	The table is unavailable, because it lacks a partitioned index.
+57005	The statement cannot be executed, because a utility or a governor time limit was exceeded.
+57006	The object cannot be created, because a DROP or CREATE is pending.
+57007	The object cannot be used, because an operation is pending.
+57008	The date or time local format exit has not been installed.
+57010	A field procedure could not be loaded.
+57011	Virtual storage or database resource is not available.
+57012	A non-database resource is not available. This will not affect the successful execution of subsequent statements.
+57013	A non-database resource is not available. This will affect the successful execution of subsequent statements.
+57014	Processing was canceled as requested.
+57015	Connection to the local Db2 not established.
+57017	Character conversion is not defined.
+57018	A DDL registration table or its unique index does not exist.
+57023	The DDL statement cannot be executed, because a DROP is pending of a DDL registration table.
+57033	Deadlock or timeout occurred without automatic rollback.
+57051	The estimated CPU cost exceeds the resource limit.
+57053	A table is not available in a routine or trigger because of violated nested SQL statement rules.
+57054	A table is not available until the auxiliary tables and indexes for its externally stored columns have been created.
+57057	The SQL statement cannot be executed due to a prior condition in a DRDA chain of SQL statements.
+57062	Adjustment not allowed for a period as a result of a data change operation.
+//Table 38. Class Code 58: System Error
+//SQLSTATE Value	Meaning
+58001	The database cannot be created, because the assigned DBID is a duplicate.
+58002	An exit has returned an error or invalid data.
+58003	An invalid section number was detected.
+58004	A system error (that does not necessarily preclude the successful execution of subsequent SQL statements) occurred.
+58006	A system error occurred during connection.
+58008	Execution failed due to a distribution protocol error that will not affect the successful execution of subsequent DDM commands or SQL statements.
+58009	Execution failed due to a distribution protocol error that caused deallocation of the conversation.
+58010	Execution failed due to a distribution protocol error that will affect the successful execution of subsequent DDM commands or SQL statements.
+58011	The DDM command is invalid while the bind process in progress.
+58012	The bind process with the specified package name and consistency token is not active.
+58013	The SQLCODE is inconsistent with the reply message.
+58014	The DDM command is not supported.
+58015	The DDM object is not supported.
+58016	The DDM parameter is not supported.
+58017	The DDM parameter value is not supported.
+58018	The DDM reply message is not supported.
+58026	The number of variables in the statement is not equal to the number of variables in SQLSTTVRB.
+//Table 39. Class Code 5UA: Common Utilities and Tools
+//SQLSTATE Value	Meaning
+5UA01	The task cannot be removed because it is currently executing.

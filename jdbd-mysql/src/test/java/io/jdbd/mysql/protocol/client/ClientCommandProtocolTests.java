@@ -60,9 +60,7 @@ public class ClientCommandProtocolTests {
         }
 
         final ClientCommandProtocol p = obtainProtocol(context);
-        p.commandUpdate(builder.toString())
-                .block()
-        ;
+
     }
 
 

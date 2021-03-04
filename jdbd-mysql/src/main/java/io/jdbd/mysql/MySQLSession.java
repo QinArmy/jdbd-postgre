@@ -1,6 +1,8 @@
 package io.jdbd.mysql;
 
+import io.jdbd.BindableStatement;
 import io.jdbd.JdbdSession;
+import io.jdbd.StaticStatement;
 import io.jdbd.TransactionOption;
 import io.jdbd.mysql.protocol.client.ClientCommandProtocol;
 import reactor.core.publisher.Mono;
@@ -32,4 +34,14 @@ class MySQLSession extends AbstractStatelessSession implements JdbdSession {
         return null;
     }
 
+
+    @Override
+    public StaticStatement staticStmt() {
+        return null;
+    }
+
+    @Override
+    public BindableStatement bindableStmt() {
+        return null;
+    }
 }

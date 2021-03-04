@@ -26,35 +26,57 @@ import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
 import java.security.UnrecoverableKeyException;
 import java.security.cert.CertificateException;
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
-final class SslHandlerProvider {
+/**
+ * @see SslHandler
+ */
+final class SslHandlerBuilder {
 
 
-    static SslHandlerProvider create(HostInfo hostInfo, ServerVersion serverVersion, ByteBufAllocator allocator) {
-        return new SslHandlerProvider(hostInfo, serverVersion, allocator);
+    static SslHandlerBuilder builder() {
+        return new SslHandlerBuilder();
     }
 
-    private final HostInfo hostInfo;
+    private HostInfo hostInfo;
 
-    private final ServerVersion serverVersion;
+    private ServerVersion serverVersion;
 
-    private final ByteBufAllocator allocator;
+    private ByteBufAllocator allocator;
 
-    private final Properties properties;
+    private Properties properties;
 
 
-    private SslHandlerProvider(HostInfo hostInfo, ServerVersion serverVersion, ByteBufAllocator allocator) {
+    private SslHandlerBuilder() {
+    }
+
+    public SslHandlerBuilder hostInfo(HostInfo hostInfo) {
         this.hostInfo = hostInfo;
-        this.serverVersion = serverVersion;
-        this.allocator = allocator;
-        this.properties = hostInfo.getProperties();
+        return this;
     }
 
-    SslHandler acquire() {
+    public SslHandlerBuilder serverVersion(ServerVersion serverVersion) {
+        this.serverVersion = serverVersion;
+        return this;
+    }
+
+    public SslHandlerBuilder allocator(ByteBufAllocator allocator) {
+        this.allocator = allocator;
+        return this;
+    }
+
+
+    public SslHandler build() throws SQLException {
+        if (this.hostInfo == null || this.serverVersion == null || this.allocator == null) {
+            throw new IllegalStateException("hostInfo or serverVersion or allocator is null");
+        }
+
+        SslContextBuilder builder = SslContextBuilder.forClient();
+
         TrustManagerFactory trustManagerFactory = tryObtainTrustManagerFactory();
         KeyManagerFactory keyManagerFactory = tryObtainKeyManagerFactory();
 
@@ -173,11 +195,11 @@ final class SslHandlerProvider {
     }
 
     @Nullable
-    private Pair<KeyStore, char[]> tryObtainKeyStorePasswordPairForSsl(final boolean client) {
+    private Pair<KeyStore, char[]> tryObtainKeyStorePasswordPairForSsl(final boolean keyManager) {
         // 1. below obtain three storeUrl,storeType,storePassword
         final PropertyKey storeUrlKey, storeTypeKey, passwordKey;
         final String defaultStoreUrlKey, defaultStoreTypeKey, defaultPasswordKey;
-        if (client) {
+        if (keyManager) {
             storeUrlKey = PropertyKey.clientCertificateKeyStoreUrl;
             storeTypeKey = PropertyKey.clientCertificateKeyStoreType;
             passwordKey = PropertyKey.clientCertificateKeyStorePassword;

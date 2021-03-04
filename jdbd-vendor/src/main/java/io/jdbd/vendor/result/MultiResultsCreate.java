@@ -42,7 +42,7 @@ import static io.jdbd.ResultType.UPDATE;
 final class MultiResultsCreate implements MultiResultsSink {
 
 
-    static MultiResults create(TaskAdjutant adjutant, Consumer<MultiResultsSink> callback) {
+    static ReactorMultiResults create(TaskAdjutant adjutant, Consumer<MultiResultsSink> callback) {
         return new MultiResultsCreate(adjutant, callback)
                 .multiResults;
     }

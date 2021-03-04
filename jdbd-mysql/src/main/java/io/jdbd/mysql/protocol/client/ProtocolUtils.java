@@ -87,7 +87,7 @@ abstract class ProtocolUtils {
     /**
      * @return a modifiable list
      */
-    private static List<String> createMySQLSupportTlsCipherSuitList() {
+    static List<String> createMySQLSupportTlsCipherSuitList() {
         List<String> list = new ArrayList<>();
 
         // Mandatory TLS Ciphers");
@@ -203,7 +203,7 @@ abstract class ProtocolUtils {
                 SSLContext.getInstance(protocol);
                 list.add(protocol);
             } catch (NoSuchAlgorithmException e) {
-                LOG.debug("{} unsupported by JDK.", protocol);
+                LOG.debug("{} unsupported by JDK,ignore.", protocol);
             }
         }
         return list;

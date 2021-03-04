@@ -39,6 +39,7 @@ final class DefaultCommTaskExecutor implements MySQLCommTaskExecutor, CoreSubscr
                 .runOn(eventLoopGroup)
                 .host(hostInfo.getHost())
                 .port(hostInfo.getPort())
+                .secure()
                 .connect()
                 .map(DefaultCommTaskExecutor::new)
                 ;
