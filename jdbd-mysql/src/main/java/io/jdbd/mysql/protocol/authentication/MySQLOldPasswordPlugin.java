@@ -2,8 +2,8 @@ package io.jdbd.mysql.protocol.authentication;
 
 import io.jdbd.mysql.protocol.AuthenticateAssistant;
 import io.jdbd.mysql.protocol.client.PacketUtils;
-import io.jdbd.mysql.protocol.conf.HostInfo;
 import io.jdbd.mysql.util.MySQLStringUtils;
+import io.jdbd.vendor.conf.DefaultHostInfo;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 
@@ -18,7 +18,7 @@ import java.util.List;
  */
 public class MySQLOldPasswordPlugin implements AuthenticationPlugin {
 
-    public static MySQLOldPasswordPlugin getInstance(AuthenticateAssistant protocolAssistant, HostInfo hostInfo) {
+    public static MySQLOldPasswordPlugin getInstance(AuthenticateAssistant protocolAssistant, DefaultHostInfo hostInfo) {
         return new MySQLOldPasswordPlugin(protocolAssistant, hostInfo);
     }
 
@@ -28,9 +28,9 @@ public class MySQLOldPasswordPlugin implements AuthenticationPlugin {
 
     private final AuthenticateAssistant protocolAssistant;
 
-    private final HostInfo hostInfo;
+    private final DefaultHostInfo hostInfo;
 
-    private MySQLOldPasswordPlugin(AuthenticateAssistant protocolAssistant, HostInfo hostInfo) {
+    private MySQLOldPasswordPlugin(AuthenticateAssistant protocolAssistant, DefaultHostInfo hostInfo) {
         this.protocolAssistant = protocolAssistant;
         this.hostInfo = hostInfo;
     }

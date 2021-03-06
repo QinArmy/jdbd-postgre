@@ -1,7 +1,6 @@
 package io.jdbd.vendor.result;
 
 import io.jdbd.ResultStates;
-import io.jdbd.vendor.MultiResultsSink;
 
 /**
  * @see MultiResultsSink#nextQuery()

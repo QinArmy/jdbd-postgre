@@ -1,17 +1,17 @@
-package io.jdbd.mysql.protocol.conf;
+package io.jdbd.vendor.conf;
 
 import org.qinarmy.env.Environment;
-import org.qinarmy.lang.Nullable;
+import reactor.util.annotation.Nullable;
 
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-public interface Properties extends Environment {
+public interface Properties<K extends IPropertyKey> extends Environment {
 
     /**
-     * @return actual property pair count.
+     * @return actual property pair count( not contain {@link System#getProperties()} and {@link System#getenv()})
      */
     int size();
 
@@ -30,7 +30,7 @@ public interface Properties extends Environment {
      * @see #getRequiredProperty(String)
      */
     @Nullable
-    String getProperty(PropertyKey key);
+    String getProperty(K key);
 
     /**
      * Return the property value associated with the given key,
@@ -41,7 +41,7 @@ public interface Properties extends Environment {
      * @see #getProperty(String, Class)
      * @see #getRequiredProperty(String)
      */
-    String getProperty(PropertyKey key, String defaultValue);
+    String getProperty(K key, String defaultValue);
 
     /**
      * Return the property value associated with the given key,
@@ -52,7 +52,7 @@ public interface Properties extends Environment {
      * @see #getRequiredProperty(String, Class)
      */
     @Nullable
-    <T> T getProperty(PropertyKey key, Class<T> targetType);
+    <T> T getProperty(K key, Class<T> targetType);
 
     /**
      * Return the property value associated with the given key,
@@ -63,7 +63,8 @@ public interface Properties extends Environment {
      * @param defaultValue the default value to return if no value is found
      * @see #getRequiredProperty(String, Class)
      */
-    <T> T getProperty(PropertyKey key, Class<T> targetType, T defaultValue);
+    @Nullable
+    <T> T getProperty(K key, Class<T> targetType, T defaultValue);
 
     /**
      * Return the property value associated with the given key,but not {@link String} ,the the property value showSQL:
@@ -74,7 +75,7 @@ public interface Properties extends Environment {
      * @return a  list
      * @see #getRequiredProperty(String, Class)
      */
-    List<String> getPropertyList(PropertyKey key);
+    List<String> getPropertyList(K key);
 
     /**
      * Return the property value associated with the given key,but not {@link String} ,the the property value showSQL:
@@ -86,7 +87,7 @@ public interface Properties extends Environment {
      * @return a  list
      * @see #getRequiredProperty(String, Class)
      */
-    <T> List<T> getPropertyList(PropertyKey key, Class<T> targetArrayType);
+    <T> List<T> getPropertyList(K key, Class<T> targetArrayType);
 
     /**
      * Return the property value associated with the given key,
@@ -98,7 +99,7 @@ public interface Properties extends Environment {
      * @return a  list
      * @see #getRequiredProperty(String, Class)
      */
-    <T> List<T> getPropertyList(PropertyKey key, Class<T> targetArrayType, List<T> defaultList);
+    <T> List<T> getPropertyList(K key, Class<T> targetArrayType, List<T> defaultList);
 
     /**
      * Return the property value associated with the given key,but not {@link String} ,the the property value showSQL:
@@ -110,9 +111,9 @@ public interface Properties extends Environment {
      * @return a  list
      * @see #getRequiredProperty(String, Class)
      */
-    <T> Set<T> getPropertySet(PropertyKey key, Class<T> targetArrayType);
+    <T> Set<T> getPropertySet(K key, Class<T> targetArrayType);
 
-    Set<String> getPropertySet(PropertyKey key);
+    Set<String> getPropertySet(K key);
 
     /**
      * Return the property value associated with the given key,but not {@link String} ,the the property value showSQL:
@@ -125,7 +126,7 @@ public interface Properties extends Environment {
      * @return a  list
      * @see #getRequiredProperty(String, Class)
      */
-    <T> Set<T> getPropertySet(PropertyKey key, Class<T> targetArrayType, Set<T> defaultSet);
+    <T> Set<T> getPropertySet(K key, Class<T> targetArrayType, Set<T> defaultSet);
 
     /**
      * Return the property value associated with the given key (never {@code null}).
@@ -133,7 +134,7 @@ public interface Properties extends Environment {
      * @throws IllegalStateException if the key cannot be resolved
      * @see #getRequiredProperty(String, Class)
      */
-    String getRequiredProperty(PropertyKey key) throws IllegalStateException;
+    String getRequiredProperty(K key) throws IllegalStateException;
 
     /**
      * Return the property value associated with the given key, converted to the given
@@ -141,11 +142,11 @@ public interface Properties extends Environment {
      *
      * @throws IllegalStateException if the given key cannot be resolved
      */
-    <T> T getRequiredProperty(PropertyKey key, Class<T> targetType) throws IllegalStateException;
+    <T> T getRequiredProperty(K key, Class<T> targetType) throws IllegalStateException;
 
-   String getOrDefault(PropertyKey key) throws IllegalStateException;
+    String getOrDefault(K key) throws IllegalStateException;
 
-    <T> T getOrDefault(PropertyKey key, Class<T> targetType) throws IllegalStateException;
+    <T> T getOrDefault(K key, Class<T> targetType) throws IllegalStateException;
 
 
 }

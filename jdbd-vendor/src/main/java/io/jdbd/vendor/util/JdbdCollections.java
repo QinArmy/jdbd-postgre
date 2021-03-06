@@ -2,7 +2,7 @@ package io.jdbd.vendor.util;
 
 import io.jdbd.BindParameterException;
 import io.jdbd.SQLBindParameterException;
-import io.jdbd.vendor.IBindValue;
+import io.jdbd.vendor.statement.IBindValue;
 
 import java.util.ArrayList;
 import java.util.Comparator;

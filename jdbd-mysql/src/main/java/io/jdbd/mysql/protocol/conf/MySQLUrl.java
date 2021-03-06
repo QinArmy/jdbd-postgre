@@ -2,11 +2,9 @@ package io.jdbd.mysql.protocol.conf;
 
 
 import io.jdbd.UrlException;
+import io.jdbd.vendor.conf.DefaultJdbcUrl;
 import reactor.util.annotation.Nullable;
 
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 /**
@@ -14,71 +12,20 @@ import java.util.Map;
  * see {@code com.mysql.cj.conf.ConnectionUrl}
  * </p>
  */
-public class MySQLUrl {
+public final class MySQLUrl extends DefaultJdbcUrl<PropertyKey> {
 
-    public static final String DEFAULT_HOST = "localhost";
     public static final int DEFAULT_PORT = 3306;
 
     public static MySQLUrl getInstance(String url, Map<String, String> properties) {
-        MySQLUrlParser parser = MySQLUrlParser.parseConnectionString(url, properties);
-        Protocol protocol = Protocol.fromValue(parser.getProtocol(), parser.getParsedHosts().size());
-
-        return new MySQLUrl(protocol, parser.getOriginalUrl()
-                , parser.getPath(), parser.getParsedHosts()
-                , parser.getParsedProperties());
+        return new MySQLUrl(MySQLUrlParser.parseConnectionString(url, properties));
     }
 
-    protected final Protocol protocol;
-    protected final String originalConnStr;
-    protected final String originalDatabase;
-    protected final List<HostInfo> hosts;
-
-    protected final Map<String, String> properties;
-
-    /**
-     * @param properties a modifiable map
-     */
-    private MySQLUrl(Protocol protocol, String originalConnStr
-            , @Nullable String originalDatabase, List<HostInfo> hosts
-            , Map<String, String> properties) {
-
-        this.protocol = protocol;
-        this.originalConnStr = originalConnStr;
-        this.originalDatabase = originalDatabase;
-        this.hosts = Collections.unmodifiableList(hosts);
-
-        Map<String, String> map = new HashMap<>(properties);
-        map.remove(PropertyKey.USER.getKeyName());
-        map.remove(PropertyKey.PASSWORD.getKeyName());
-        this.properties = Collections.unmodifiableMap(map);
-    }
+    private final Protocol protocolType;
 
 
-    public Protocol getProtocol() {
-        return this.protocol;
-    }
-
-    public String getOriginalConnStr() {
-        return this.originalConnStr;
-    }
-
-    @Nullable
-    public String getOriginalDatabase() {
-        return this.originalDatabase;
-    }
-
-    /**
-     * @return a unmodifiable list
-     */
-    public List<HostInfo> getHosts() {
-        return this.hosts;
-    }
-
-    /**
-     * @return a unmodifiable map
-     */
-    public Map<String, String> getProperties() {
-        return this.properties;
+    private MySQLUrl(MySQLUrlParser parser) {
+        super(parser);
+        this.protocolType = Protocol.fromValue(this.getProtocol(), this.getHostList().size());
     }
 
     /**
@@ -108,6 +55,9 @@ public class MySQLUrl {
         public abstract boolean assertSize(int n);
     }
 
+    public Protocol getProtocolType() {
+        return protocolType;
+    }
 
     /**
      * <p>

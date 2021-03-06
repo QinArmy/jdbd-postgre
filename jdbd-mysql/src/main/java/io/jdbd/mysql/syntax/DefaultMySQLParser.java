@@ -84,7 +84,7 @@ public final class DefaultMySQLParser implements MySQLParser {
             throw MySQLExceptions.createEmptySqlException();
         }
         final boolean ansiQuotes = this.server.containSqlMode(SQLMode.ANSI_QUOTES);
-        final boolean backslashEscapes = this.server.isBackslashEscapes();
+        final boolean backslashEscapes = !this.server.containSqlMode(SQLMode.NO_BACKSLASH_ESCAPES);
 
         boolean inQuotes = false, inDoubleQuotes = false, inQuoteId = false, inDoubleId = false, localInfile = false;
         final int sqlLength = sql.length();

@@ -5,9 +5,9 @@ import io.jdbd.LongDataReadException;
 import io.jdbd.lang.Nullable;
 import io.jdbd.mysql.BindValue;
 import io.jdbd.mysql.protocol.ClientConstants;
-import io.jdbd.mysql.protocol.conf.Properties;
 import io.jdbd.mysql.protocol.conf.PropertyKey;
 import io.jdbd.mysql.util.MySQLExceptions;
+import io.jdbd.vendor.conf.Properties;
 import io.netty.buffer.ByteBuf;
 import org.reactivestreams.Publisher;
 import org.reactivestreams.Subscription;
@@ -269,7 +269,7 @@ final class PrepareLongParameterWriter implements PrepareExecuteCommandWriter.Lo
         } else {
             payloadCapacity = LONG_DATA_PREFIX_SIZE + Math.min(this.blobSendChunkSize, chunkSize);
         }
-        ByteBuf packetBuffer = this.adjutant.alloc().buffer(payloadCapacity, PacketUtils.MAX_PAYLOAD << 2);
+        ByteBuf packetBuffer = this.adjutant.allocator().buffer(payloadCapacity, PacketUtils.MAX_PAYLOAD << 2);
 
         packetBuffer.writeByte(PacketUtils.COM_STMT_SEND_LONG_DATA); //status
         PacketUtils.writeInt4(packetBuffer, this.statementId); //statement_id

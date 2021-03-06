@@ -1,9 +1,9 @@
 package io.jdbd.mysql.protocol.authentication;
 
-import io.jdbd.mysql.JdbdMySQLException;
+import io.jdbd.mysql.MySQLJdbdException;
 import io.jdbd.mysql.protocol.AuthenticateAssistant;
 import io.jdbd.mysql.protocol.client.PacketUtils;
-import io.jdbd.mysql.protocol.conf.HostInfo;
+import io.jdbd.vendor.conf.DefaultHostInfo;
 import io.netty.buffer.ByteBuf;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -17,7 +17,7 @@ public class CachingSha2PasswordPlugin extends Sha256PasswordPlugin {
 
     private static final Logger LOG = LoggerFactory.getLogger(CachingSha2PasswordPlugin.class);
 
-    public static CachingSha2PasswordPlugin getInstance(AuthenticateAssistant protocolAssistant, HostInfo hostInfo) {
+    public static CachingSha2PasswordPlugin getInstance(AuthenticateAssistant protocolAssistant, DefaultHostInfo hostInfo) {
         return new CachingSha2PasswordPlugin(protocolAssistant, hostInfo, tryLoadPublicKeyString(hostInfo));
     }
 
@@ -28,7 +28,7 @@ public class CachingSha2PasswordPlugin extends Sha256PasswordPlugin {
     protected final AtomicReference<AuthStage> stage = new AtomicReference<>(AuthStage.FAST_AUTH_SEND_SCRAMBLE);
 
     protected CachingSha2PasswordPlugin(AuthenticateAssistant protocolAssistant
-            , HostInfo hostInfo, @Nullable String publicKeyString) {
+            , DefaultHostInfo hostInfo, @Nullable String publicKeyString) {
         super(protocolAssistant, hostInfo, publicKeyString);
     }
 
@@ -71,11 +71,11 @@ public class CachingSha2PasswordPlugin extends Sha256PasswordPlugin {
                         LOG.debug("Server demand FULL_AUTH");
                         break;
                     default:
-                        throw new JdbdMySQLException("Unknown server response[%s] after fast auth.", flag);
+                        throw new MySQLJdbdException("Unknown server response[%s] after fast auth.", flag);
                 }
             }
         } catch (DigestException e) {
-            throw new JdbdMySQLException(e, "password encrypt failure.");
+            throw new MySQLJdbdException(e, "password encrypt failure.");
         }
 
         return doNextAuthenticationStep(password, fromServer);

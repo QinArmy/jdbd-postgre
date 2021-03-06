@@ -23,7 +23,6 @@ public abstract class MySQLUrlUtils {
         properties.put("user", "army_w");
         properties.put("password", "army123");
 
-        properties.put("sslMode", "DISABLED");
         properties.put("detectCustomCollations", "true");
         properties.put("sessionVariables", String.format("time_zone='%s'", zoneOffset));
 

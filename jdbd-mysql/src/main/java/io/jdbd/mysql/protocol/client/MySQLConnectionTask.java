@@ -1,6 +1,6 @@
 package io.jdbd.mysql.protocol.client;
 
-import io.jdbd.vendor.AbstractCommunicationTask;
+import io.jdbd.vendor.task.AbstractCommunicationTask;
 import io.netty.buffer.ByteBuf;
 import org.reactivestreams.Publisher;
 
@@ -8,31 +8,26 @@ import org.reactivestreams.Publisher;
 abstract class MySQLConnectionTask extends AbstractCommunicationTask implements MySQLTask {
 
 
-    final MySQLTaskAdjutant executorAdjutant;
+    final MySQLTaskAdjutant adjutant;
 
-    final int negotiatedCapability;
-
-    private int sequenceId;
+    private int sequenceId = -1;
 
 
-    MySQLConnectionTask(MySQLTaskAdjutant executorAdjutant, int sequenceId) {
-        super(executorAdjutant);
-        this.executorAdjutant = executorAdjutant;
-        this.negotiatedCapability = (this instanceof HandshakeV10Task) ? 0 : executorAdjutant.obtainNegotiatedCapability();
-        this.sequenceId = sequenceId;
+    MySQLConnectionTask(MySQLTaskAdjutant adjutant) {
+        super(adjutant);
+        this.adjutant = adjutant;
     }
 
 
     final int addAndGetSequenceId() {
         int sequenceId = this.sequenceId;
-        sequenceId = (++sequenceId) % 256;
+        sequenceId = (++sequenceId) & 0XFF;
         this.sequenceId = sequenceId;
         return sequenceId;
     }
 
 
-
-    final int getSequenceId() {
+    final int obtainSequenceId() {
         return this.sequenceId;
     }
 
@@ -43,7 +38,7 @@ abstract class MySQLConnectionTask extends AbstractCommunicationTask implements 
 
 
     final void updateSequenceId(int sequenceId) {
-        this.sequenceId = sequenceId % 256;
+        this.sequenceId = sequenceId & 0XFF;
     }
 
 

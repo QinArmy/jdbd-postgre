@@ -1,7 +1,5 @@
-package io.jdbd.mysql.protocol;
+package io.jdbd.mysql.protocol.client;
 
-import io.jdbd.mysql.protocol.client.ClientCommandProtocol;
-import io.jdbd.mysql.protocol.client.PacketUtils;
 import io.netty.buffer.ByteBuf;
 import reactor.util.annotation.Nullable;
 

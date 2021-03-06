@@ -8,7 +8,8 @@ import io.jdbd.mysql.BatchWrapper;
 import io.jdbd.mysql.Server;
 import io.jdbd.mysql.StmtWrapper;
 import io.jdbd.mysql.protocol.CharsetMapping;
-import io.jdbd.mysql.protocol.conf.HostInfo;
+import io.jdbd.mysql.protocol.conf.PropertyKey;
+import io.jdbd.vendor.conf.HostInfo;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
 import io.netty.channel.EventLoopGroup;
@@ -28,11 +29,11 @@ public final class ClientCommandProtocolImpl extends AbstractClientProtocol impl
     private static final Logger LOG = LoggerFactory.getLogger(ClientCommandProtocolImpl.class);
 
 
-    public static Mono<ClientCommandProtocol> create(HostInfo hostInfo, EventLoopGroup eventLoopGroup) {
+    public static Mono<ClientCommandProtocol> create(HostInfo<PropertyKey> hostInfo, EventLoopGroup eventLoopGroup) {
         return ClientConnectionProtocolImpl.create(hostInfo, eventLoopGroup)
                 .map(cp -> {
                     ClientCommandProtocolImpl dp = new ClientCommandProtocolImpl(cp);
-                    DefaultCommTaskExecutor.updateProtocolAdjutant(cp.commTaskExecutor, dp);
+                    MySQLTaskExecutor.updateProtocolAdjutant(cp.taskExecutor, dp);
                     return dp;
                 });
 
@@ -56,7 +57,7 @@ public final class ClientCommandProtocolImpl extends AbstractClientProtocol impl
     private final ZoneOffset zoneOffsetDatabase;
 
     private ClientCommandProtocolImpl(ClientConnectionProtocolImpl cp) {
-        super(cp.obtainHostInfo(), cp.taskAdjutant);
+        super(cp.obtainHostInfo(), cp.adutant);
 
         this.handshakeV10Packet = cp.obtainHandshakeV10Packet();
         this.negotiatedCapability = cp.obtainNegotiatedCapability();
@@ -81,12 +82,12 @@ public final class ClientCommandProtocolImpl extends AbstractClientProtocol impl
 
     @Override
     public ByteBuf createPacketBuffer(int initialPayloadCapacity) {
-        return this.taskAdjutant.createPacketBuffer(initialPayloadCapacity);
+        return this.adutant.createPacketBuffer(initialPayloadCapacity);
     }
 
     @Override
     public ByteBuf createByteBuffer(int initialPayloadCapacity) {
-        return this.taskAdjutant.createPacketBuffer(initialPayloadCapacity);
+        return this.adutant.createPacketBuffer(initialPayloadCapacity);
     }
 
     @Override
@@ -130,8 +131,8 @@ public final class ClientCommandProtocolImpl extends AbstractClientProtocol impl
     }
 
     @Override
-    public ByteBufAllocator alloc() {
-        return this.taskAdjutant.alloc();
+    public ByteBufAllocator allocator() {
+        return this.adutant.allocator();
     }
 
     @Override
@@ -145,52 +146,52 @@ public final class ClientCommandProtocolImpl extends AbstractClientProtocol impl
 
     @Override
     public final Mono<ResultStates> update(String sql) {
-        return ComQueryTask.update(sql, this.taskAdjutant);
+        return ComQueryTask.update(sql, this.adutant);
     }
 
     @Override
     public final Flux<ResultRow> query(String sql, Consumer<ResultStates> statesConsumer) {
-        return ComQueryTask.query(sql, statesConsumer, this.taskAdjutant);
+        return ComQueryTask.query(sql, statesConsumer, this.adutant);
     }
 
     @Override
     public final Flux<ResultStates> batchUpdate(List<String> sqlList) {
-        return ComQueryTask.batchUpdate(sqlList, this.taskAdjutant);
+        return ComQueryTask.batchUpdate(sqlList, this.adutant);
     }
 
     @Override
     public final Mono<ResultStates> bindableUpdate(StmtWrapper wrapper) {
-        return ComQueryTask.bindableUpdate(wrapper, this.taskAdjutant);
+        return ComQueryTask.bindableUpdate(wrapper, this.adutant);
     }
 
     @Override
     public final Flux<ResultRow> bindableQuery(StmtWrapper wrapper) {
-        return ComQueryTask.bindableQuery(wrapper, this.taskAdjutant);
+        return ComQueryTask.bindableQuery(wrapper, this.adutant);
     }
 
     @Override
     public final Flux<ResultStates> bindableBatch(BatchWrapper wrapper) {
-        return ComQueryTask.bindableBatch(wrapper, this.taskAdjutant);
+        return ComQueryTask.bindableBatch(wrapper, this.adutant);
     }
 
     @Override
     public final Mono<PreparedStatement> prepare(String sql) {
-        return ComPreparedTask.prepare(sql, this.taskAdjutant);
+        return ComPreparedTask.prepare(sql, this.adutant);
     }
 
     @Override
     public final MultiResults multiStmt(List<String> commandList) {
-        return ComQueryTask.multiStmt(commandList, this.taskAdjutant);
+        return ComQueryTask.multiStmt(commandList, this.adutant);
     }
 
     @Override
     public final MultiResults multiBindable(List<StmtWrapper> wrapperList) {
-        return ComQueryTask.bindableMultiStmt(wrapperList, this.taskAdjutant);
+        return ComQueryTask.bindableMultiStmt(wrapperList, this.adutant);
     }
 
     @Override
     public Mono<Void> closeGracefully() {
-        return QuitTask.quit(this.taskAdjutant);
+        return QuitTask.quit(this.adutant);
     }
 
 

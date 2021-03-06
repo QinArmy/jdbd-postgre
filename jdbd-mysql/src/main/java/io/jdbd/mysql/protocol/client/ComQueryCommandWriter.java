@@ -3,13 +3,13 @@ package io.jdbd.mysql.protocol.client;
 import io.jdbd.LongDataReadException;
 import io.jdbd.mysql.*;
 import io.jdbd.mysql.protocol.Constants;
-import io.jdbd.mysql.protocol.conf.Properties;
 import io.jdbd.mysql.protocol.conf.PropertyKey;
 import io.jdbd.mysql.syntax.MySQLStatement;
 import io.jdbd.mysql.util.MySQLCollections;
 import io.jdbd.mysql.util.MySQLConvertUtils;
 import io.jdbd.mysql.util.MySQLExceptions;
 import io.jdbd.mysql.util.MySQLTimeUtils;
+import io.jdbd.vendor.conf.Properties;
 import io.netty.buffer.ByteBuf;
 
 import java.io.IOException;
@@ -165,7 +165,7 @@ final class ComQueryCommandWriter {
 
             if (packet.readableBytes() >= PacketUtils.MAX_PACKET) {
                 packet = PacketUtils.addAndCutBigPacket(packet, packetList, sequenceIdSupplier
-                        , adjutant.alloc()::buffer);
+                        , adjutant.allocator()::buffer);
             }
         }
         return packet;
@@ -229,7 +229,7 @@ final class ComQueryCommandWriter {
                 packet = doWritePrepareCommand(i, stmtWrapperList.get(i), packetList, packet);
                 if (packet.readableBytes() >= PacketUtils.MAX_PACKET) {
                     packet = PacketUtils.addAndCutBigPacket(packet, packetList, this.sequenceIdSupplier
-                            , this.adjutant.alloc()::buffer);
+                            , this.adjutant.allocator()::buffer);
                 }
             }
             PacketUtils.writePacketHeader(packet, this.sequenceIdSupplier.get());
@@ -315,7 +315,7 @@ final class ComQueryCommandWriter {
 
                 if (packet.readableBytes() >= PacketUtils.MAX_PACKET) {
                     packet = PacketUtils.addAndCutBigPacket(packet, packetList, this.sequenceIdSupplier
-                            , this.adjutant.alloc()::buffer);
+                            , this.adjutant.allocator()::buffer);
                 }
 
             }
@@ -779,7 +779,7 @@ final class ComQueryCommandWriter {
 
                 if (packet.readableBytes() >= PacketUtils.MAX_PACKET) {
                     packet = PacketUtils.addAndCutBigPacket(packet, packetList, this.sequenceIdSupplier
-                            , this.adjutant.alloc()::buffer);
+                            , this.adjutant.allocator()::buffer);
 
                 }
             }

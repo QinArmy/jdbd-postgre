@@ -1,7 +1,5 @@
 package io.jdbd.vendor.statement;
 
-import io.jdbd.vendor.IBindValue;
-
 import java.util.Collections;
 import java.util.List;
 

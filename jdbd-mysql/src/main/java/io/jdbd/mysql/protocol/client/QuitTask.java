@@ -1,8 +1,7 @@
 package io.jdbd.mysql.protocol.client;
 
-import io.jdbd.mysql.protocol.ErrorPacket;
 import io.jdbd.mysql.util.MySQLExceptions;
-import io.jdbd.vendor.TaskSignal;
+import io.jdbd.vendor.task.TaskSignal;
 import io.netty.buffer.ByteBuf;
 import org.reactivestreams.Publisher;
 import reactor.core.publisher.Mono;
@@ -10,11 +9,14 @@ import reactor.core.publisher.MonoSink;
 
 import java.util.function.Consumer;
 
+/**
+ * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_com_quit.html">Protocol::COM_QUIT</a>
+ */
 final class QuitTask extends MySQLConnectionTask {
 
-    static Mono<Void> quit(MySQLTaskAdjutant executorAdjutant) {
+    static Mono<Void> quit(MySQLTaskAdjutant adjutant) {
         return Mono.create(sink ->
-                new QuitTask(executorAdjutant, sink)
+                new QuitTask(adjutant, sink)
                         .submit(sink::error)
 
         );
@@ -22,15 +24,15 @@ final class QuitTask extends MySQLConnectionTask {
 
     private final MonoSink<Void> sink;
 
-    private QuitTask(MySQLTaskAdjutant executorAdjutant, MonoSink<Void> sink) {
-        super(executorAdjutant, -1);
+    private QuitTask(MySQLTaskAdjutant adjutant, MonoSink<Void> sink) {
+        super(adjutant);
         this.sink = sink;
     }
 
 
     @Override
     protected Publisher<ByteBuf> internalStart(TaskSignal signal) {
-        ByteBuf packetBuf = executorAdjutant.createPacketBuffer(1);
+        ByteBuf packetBuf = adjutant.createPacketBuffer(1);
         packetBuf.writeByte(PacketUtils.COM_QUIT_HEADER);
         PacketUtils.writePacketHeader(packetBuf, addAndGetSequenceId());
         return Mono.just(packetBuf);
@@ -47,7 +49,7 @@ final class QuitTask extends MySQLConnectionTask {
 
         ErrorPacket error;
         error = ErrorPacket.readPacket(cumulateBuffer
-                , this.executorAdjutant.obtainNegotiatedCapability(), this.executorAdjutant.obtainCharsetResults());
+                , this.adjutant.obtainNegotiatedCapability(), this.adjutant.getCharsetResults());
         cumulateBuffer.readerIndex(payloadStartIndex + payloadLength);
 
         updateSequenceId(sequenceId);

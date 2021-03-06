@@ -20,10 +20,13 @@
             <groupId>io.projectreactor.netty</groupId>
             <artifactId>reactor-netty</artifactId>
         </dependency>
-
         <dependency>
             <groupId>org.qinarmy.common</groupId>
             <artifactId>common-util</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.qinarmy.common</groupId>
+            <artifactId>common-env</artifactId>
         </dependency>
     </dependencies>
 </project>

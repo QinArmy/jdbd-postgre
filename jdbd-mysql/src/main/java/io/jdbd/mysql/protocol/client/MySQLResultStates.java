@@ -1,7 +1,6 @@
 package io.jdbd.mysql.protocol.client;
 
 import io.jdbd.ResultStates;
-import io.jdbd.mysql.protocol.TerminatorPacket;
 
 public abstract class MySQLResultStates implements ResultStates {
 

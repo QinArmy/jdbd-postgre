@@ -1,8 +1,7 @@
 package io.jdbd.vendor.result;
 
 import io.jdbd.JdbdException;
-import io.jdbd.vendor.MultiResultsSink;
-import io.jdbd.vendor.TaskAdjutant;
+import io.jdbd.vendor.task.TaskAdjutant;
 
 import java.util.function.Consumer;
 

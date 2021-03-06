@@ -6,9 +6,9 @@ import io.jdbd.PreparedStatement;
 import io.jdbd.StaticStatement;
 import io.jdbd.lang.Nullable;
 import io.jdbd.mysql.BindValue;
-import io.jdbd.mysql.JdbdMySQLException;
-import io.jdbd.mysql.protocol.ErrorPacket;
+import io.jdbd.mysql.MySQLJdbdException;
 import io.jdbd.mysql.protocol.MySQLFatalIoException;
+import io.jdbd.mysql.protocol.client.ErrorPacket;
 import io.jdbd.vendor.util.JdbdExceptions;
 
 import java.sql.SQLException;
@@ -38,12 +38,12 @@ public abstract class MySQLExceptions extends JdbdExceptions {
         return e;
     }
 
-    public static JdbdMySQLException wrapJdbdExceptionIfNeed(Throwable t) {
-        JdbdMySQLException e;
-        if (t instanceof JdbdMySQLException) {
-            e = (JdbdMySQLException) t;
+    public static MySQLJdbdException wrapJdbdExceptionIfNeed(Throwable t) {
+        MySQLJdbdException e;
+        if (t instanceof MySQLJdbdException) {
+            e = (MySQLJdbdException) t;
         } else {
-            e = new JdbdMySQLException(t, t.getMessage());
+            e = new MySQLJdbdException(t, t.getMessage());
         }
         return e;
     }

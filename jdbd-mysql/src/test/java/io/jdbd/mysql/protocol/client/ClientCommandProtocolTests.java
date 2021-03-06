@@ -1,7 +1,7 @@
 package io.jdbd.mysql.protocol.client;
 
-import io.jdbd.mysql.protocol.conf.HostInfo;
 import io.jdbd.mysql.util.MySQLObjects;
+import io.jdbd.vendor.conf.DefaultHostInfo;
 import io.netty.channel.EventLoopGroup;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -26,7 +26,7 @@ public class ClientCommandProtocolTests {
         Map<String, String> properties = new HashMap<>();
         properties.put("allowMultiQueries", "true");
 
-        HostInfo hostInfo = MySQLUrlUtils.build(properties).getHosts().get(0);
+        DefaultHostInfo hostInfo = MySQLUrlUtils.build(properties).getHosts().get(0);
         EventLoopGroup eventLoopGroup = LoopResources.create("jdbd-mysql").onClient(true);
 
         ClientCommandProtocol commandProtocol = ClientCommandProtocolImpl.create(hostInfo, eventLoopGroup)

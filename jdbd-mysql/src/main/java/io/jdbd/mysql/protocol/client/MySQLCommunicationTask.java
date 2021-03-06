@@ -1,9 +1,9 @@
 package io.jdbd.mysql.protocol.client;
 
 import io.jdbd.JdbdSQLException;
-import io.jdbd.mysql.protocol.conf.Properties;
 import io.jdbd.mysql.util.MySQLExceptions;
-import io.jdbd.vendor.AbstractCommunicationTask;
+import io.jdbd.vendor.conf.Properties;
+import io.jdbd.vendor.task.AbstractCommunicationTask;
 import io.netty.buffer.ByteBuf;
 
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;

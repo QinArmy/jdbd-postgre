@@ -33,6 +33,7 @@ public class ProtocolTests {
                         public void initChannel(SocketChannel ch) throws Exception {
                             ch.pipeline().addLast(null);
                         }
+
                     })
                     .handler(null)
                     .option(ChannelOption.SO_BACKLOG, 128)          // (5)

@@ -2,8 +2,8 @@ package io.jdbd.mysql.protocol.authentication;
 
 import io.jdbd.mysql.protocol.AuthenticateAssistant;
 import io.jdbd.mysql.protocol.client.PacketUtils;
-import io.jdbd.mysql.protocol.conf.HostInfo;
 import io.jdbd.mysql.util.MySQLStringUtils;
+import io.jdbd.vendor.conf.DefaultHostInfo;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 
@@ -13,7 +13,7 @@ import java.util.List;
 public class MySQLNativePasswordPlugin implements AuthenticationPlugin {
 
 
-    public static MySQLNativePasswordPlugin getInstance(AuthenticateAssistant protocolAssistant, HostInfo hostInfo) {
+    public static MySQLNativePasswordPlugin getInstance(AuthenticateAssistant protocolAssistant, DefaultHostInfo hostInfo) {
         return new MySQLNativePasswordPlugin(protocolAssistant, hostInfo);
     }
 
@@ -23,9 +23,9 @@ public class MySQLNativePasswordPlugin implements AuthenticationPlugin {
 
     private final AuthenticateAssistant protocolAssistant;
 
-    private final HostInfo hostInfo;
+    private final DefaultHostInfo hostInfo;
 
-    private MySQLNativePasswordPlugin(AuthenticateAssistant protocolAssistant, HostInfo hostInfo) {
+    private MySQLNativePasswordPlugin(AuthenticateAssistant protocolAssistant, DefaultHostInfo hostInfo) {
         this.protocolAssistant = protocolAssistant;
         this.hostInfo = hostInfo;
     }

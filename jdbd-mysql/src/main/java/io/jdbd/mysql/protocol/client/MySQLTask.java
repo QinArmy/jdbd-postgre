@@ -1,9 +1,8 @@
 package io.jdbd.mysql.protocol.client;
 
-import io.jdbd.vendor.CommunicationTask;
-import io.netty.buffer.ByteBuf;
+import io.jdbd.vendor.task.CommunicationTask;
 
-interface MySQLTask extends CommunicationTask<ByteBuf> {
+interface MySQLTask extends CommunicationTask {
 
 
 }

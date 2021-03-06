@@ -2,10 +2,10 @@ package io.jdbd.mysql.protocol.client;
 
 import io.jdbd.meta.SQLType;
 import io.jdbd.mysql.protocol.CharsetMapping;
-import io.jdbd.mysql.protocol.conf.Properties;
 import io.jdbd.mysql.protocol.conf.PropertyKey;
 import io.jdbd.mysql.util.MySQLObjects;
 import io.jdbd.type.Geometry;
+import io.jdbd.vendor.conf.Properties;
 import org.qinarmy.util.StringUtils;
 
 import java.io.InputStream;
@@ -415,7 +415,7 @@ public enum MySQLType implements SQLType {
      */
     UNKNOWN(-1, JDBCType.OTHER, Object.class);
 
-    private static final Map<Integer, BiFunction<MySQLColumnMeta, Properties, MySQLType>> CONVERT_FUNCTION_MAP = createConverterMap();
+    private static final Map<Integer, BiFunction<MySQLColumnMeta, Properties<PropertyKey>, MySQLType>> CONVERT_FUNCTION_MAP = createConverterMap();
 
     private static final List<MySQLType> VALUE_LIST = Collections.unmodifiableList(Arrays.asList(values()));
 
@@ -480,21 +480,21 @@ public enum MySQLType implements SQLType {
     }
 
 
-    public static MySQLType from(MySQLColumnMeta columnMeta, Properties properties) {
-        BiFunction<MySQLColumnMeta, Properties, MySQLType> function;
+    public static MySQLType from(MySQLColumnMeta columnMeta, Properties<PropertyKey> properties) {
+        BiFunction<MySQLColumnMeta, Properties<PropertyKey>, MySQLType> function;
         function = CONVERT_FUNCTION_MAP.get(columnMeta.typeFlag);
         return function == null ? UNKNOWN : function.apply(columnMeta, properties);
     }
 
 
-    private static MySQLType fromDecimal(MySQLColumnMeta columnMeta, Properties properties) {
+    private static MySQLType fromDecimal(MySQLColumnMeta columnMeta, Properties<PropertyKey> properties) {
         return isUnsigned(columnMeta)
                 ? DECIMAL_UNSIGNED
                 : DECIMAL;
     }
 
 
-    private static MySQLType fromTiny(MySQLColumnMeta columnMeta, Properties properties) {
+    private static MySQLType fromTiny(MySQLColumnMeta columnMeta, Properties<PropertyKey> properties) {
         final boolean isUnsigned = columnMeta.isUnsigned();
         // Adjust for pseudo-boolean
         MySQLType mySQLType;
@@ -509,104 +509,104 @@ public enum MySQLType implements SQLType {
         return mySQLType;
     }
 
-    private static MySQLType fromBool(MySQLColumnMeta columnMeta, Properties properties) {
+    private static MySQLType fromBool(MySQLColumnMeta columnMeta, Properties<PropertyKey> properties) {
         return BOOLEAN;
     }
 
-    private static MySQLType fromShort(MySQLColumnMeta columnMeta, Properties properties) {
+    private static MySQLType fromShort(MySQLColumnMeta columnMeta, Properties<PropertyKey> properties) {
         return columnMeta.isUnsigned()
                 ? SMALLINT_UNSIGNED
                 : SMALLINT;
     }
 
-    private static MySQLType fromLong(MySQLColumnMeta columnMeta, Properties properties) {
+    private static MySQLType fromLong(MySQLColumnMeta columnMeta, Properties<PropertyKey> properties) {
         return columnMeta.isUnsigned()
                 ? INT_UNSIGNED
                 : INT;
     }
 
-    private static MySQLType fromFloat(MySQLColumnMeta columnMeta, Properties properties) {
+    private static MySQLType fromFloat(MySQLColumnMeta columnMeta, Properties<PropertyKey> properties) {
         return columnMeta.isUnsigned()
                 ? FLOAT_UNSIGNED
                 : FLOAT;
     }
 
-    private static MySQLType fromDouble(MySQLColumnMeta columnMeta, Properties properties) {
+    private static MySQLType fromDouble(MySQLColumnMeta columnMeta, Properties<PropertyKey> properties) {
         return columnMeta.isUnsigned()
                 ? DOUBLE_UNSIGNED
                 : DOUBLE;
     }
 
-    private static MySQLType fromNull(MySQLColumnMeta columnMeta, Properties properties) {
+    private static MySQLType fromNull(MySQLColumnMeta columnMeta, Properties<PropertyKey> properties) {
         return MySQLType.NULL;
     }
 
-    private static MySQLType fromTimestamp(MySQLColumnMeta columnMeta, Properties properties) {
+    private static MySQLType fromTimestamp(MySQLColumnMeta columnMeta, Properties<PropertyKey> properties) {
         return MySQLType.TIMESTAMP;
     }
 
-    private static MySQLType fromLongLong(MySQLColumnMeta columnMeta, Properties properties) {
+    private static MySQLType fromLongLong(MySQLColumnMeta columnMeta, Properties<PropertyKey> properties) {
         return columnMeta.isUnsigned()
                 ? BIGINT_UNSIGNED
                 : BIGINT;
     }
 
-    private static MySQLType fromInt24(MySQLColumnMeta columnMeta, Properties properties) {
+    private static MySQLType fromInt24(MySQLColumnMeta columnMeta, Properties<PropertyKey> properties) {
         return columnMeta.isUnsigned()
                 ? MEDIUMINT_UNSIGNED
                 : MEDIUMINT;
     }
 
-    private static MySQLType fromDate(MySQLColumnMeta columnMeta, Properties properties) {
+    private static MySQLType fromDate(MySQLColumnMeta columnMeta, Properties<PropertyKey> properties) {
         return MySQLType.DATE;
     }
 
-    private static MySQLType fromTime(MySQLColumnMeta columnMeta, Properties properties) {
+    private static MySQLType fromTime(MySQLColumnMeta columnMeta, Properties<PropertyKey> properties) {
         return MySQLType.TIME;
     }
 
-    private static MySQLType fromDatetime(MySQLColumnMeta columnMeta, Properties properties) {
+    private static MySQLType fromDatetime(MySQLColumnMeta columnMeta, Properties<PropertyKey> properties) {
         return MySQLType.DATETIME;
     }
 
-    private static MySQLType fromYear(MySQLColumnMeta columnMeta, Properties properties) {
+    private static MySQLType fromYear(MySQLColumnMeta columnMeta, Properties<PropertyKey> properties) {
         return MySQLType.YEAR;
     }
 
-    private static MySQLType fromVarcharOrVarString(MySQLColumnMeta columnMeta, Properties properties) {
+    private static MySQLType fromVarcharOrVarString(MySQLColumnMeta columnMeta, Properties<PropertyKey> properties) {
         return (isOpaqueBinary(columnMeta) && !isFunctionsNeverReturnBlobs(columnMeta, properties))
                 ? VARBINARY : VARCHAR;
     }
 
-    private static MySQLType fromBit(MySQLColumnMeta columnMeta, Properties properties) {
+    private static MySQLType fromBit(MySQLColumnMeta columnMeta, Properties<PropertyKey> properties) {
         return BIT;
     }
 
-    private static MySQLType fromJson(MySQLColumnMeta columnMeta, Properties properties) {
+    private static MySQLType fromJson(MySQLColumnMeta columnMeta, Properties<PropertyKey> properties) {
         return JSON;
     }
 
-    private static MySQLType fromEnum(MySQLColumnMeta columnMeta, Properties properties) {
+    private static MySQLType fromEnum(MySQLColumnMeta columnMeta, Properties<PropertyKey> properties) {
         return ENUM;
     }
 
-    private static MySQLType fromSet(MySQLColumnMeta columnMeta, Properties properties) {
+    private static MySQLType fromSet(MySQLColumnMeta columnMeta, Properties<PropertyKey> properties) {
         return SET;
     }
 
-    private static MySQLType fromTinyBlob(MySQLColumnMeta columnMeta, Properties properties) {
+    private static MySQLType fromTinyBlob(MySQLColumnMeta columnMeta, Properties<PropertyKey> properties) {
         return isBlobTypeReturnText(columnMeta, properties) ? TINYTEXT : TINYBLOB;
     }
 
-    private static MySQLType fromMediumBlob(MySQLColumnMeta columnMeta, Properties properties) {
+    private static MySQLType fromMediumBlob(MySQLColumnMeta columnMeta, Properties<PropertyKey> properties) {
         return isBlobTypeReturnText(columnMeta, properties) ? MEDIUMTEXT : MEDIUMBLOB;
     }
 
-    private static MySQLType fromLongBlob(MySQLColumnMeta columnMeta, Properties properties) {
+    private static MySQLType fromLongBlob(MySQLColumnMeta columnMeta, Properties<PropertyKey> properties) {
         return isBlobTypeReturnText(columnMeta, properties) ? LONGTEXT : LONGBLOB;
     }
 
-    private static MySQLType fromBlob(MySQLColumnMeta columnMeta, Properties properties) {
+    private static MySQLType fromBlob(MySQLColumnMeta columnMeta, Properties<PropertyKey> properties) {
         // Sometimes MySQL uses this protocol-level type for all possible BLOB variants,
         // we can divine what the actual type is by the length reported
 
@@ -630,14 +630,14 @@ public enum MySQLType implements SQLType {
                 .apply(columnMeta, properties);
     }
 
-    private static MySQLType fromString(MySQLColumnMeta columnMeta, Properties properties) {
+    private static MySQLType fromString(MySQLColumnMeta columnMeta, Properties<PropertyKey> properties) {
         return (isOpaqueBinary(columnMeta)
                 && !properties.getRequiredProperty(PropertyKey.blobsAreStrings, Boolean.class))
                 ? BINARY
                 : CHAR;
     }
 
-    private static MySQLType fromGeometry(MySQLColumnMeta columnMeta, Properties properties) {
+    private static MySQLType fromGeometry(MySQLColumnMeta columnMeta, Properties<PropertyKey> properties) {
         return GEOMETRY;
     }
 
@@ -667,20 +667,20 @@ public enum MySQLType implements SQLType {
         return (definitionFlags & MySQLColumnMeta.BINARY_FLAG) != 0;
     }
 
-    private static boolean isFunctionsNeverReturnBlobs(MySQLColumnMeta columnMeta, Properties properties) {
+    private static boolean isFunctionsNeverReturnBlobs(MySQLColumnMeta columnMeta, Properties<PropertyKey> properties) {
         return StringUtils.isEmpty(columnMeta.tableName)
                 && properties.getRequiredProperty(PropertyKey.functionsNeverReturnBlobs, Boolean.class);
     }
 
-    private static boolean isBlobTypeReturnText(MySQLColumnMeta columnMeta, Properties properties) {
+    private static boolean isBlobTypeReturnText(MySQLColumnMeta columnMeta, Properties<PropertyKey> properties) {
         return !isBinary(columnMeta.definitionFlags)
                 || columnMeta.collationIndex != CharsetMapping.MYSQL_COLLATION_INDEX_binary
                 || properties.getRequiredProperty(PropertyKey.blobsAreStrings, Boolean.class)
                 || isFunctionsNeverReturnBlobs(columnMeta, properties);
     }
 
-    private static Map<Integer, BiFunction<MySQLColumnMeta, Properties, MySQLType>> createConverterMap() {
-        Map<Integer, BiFunction<MySQLColumnMeta, Properties, MySQLType>> map;
+    private static Map<Integer, BiFunction<MySQLColumnMeta, Properties<PropertyKey>, MySQLType>> createConverterMap() {
+        Map<Integer, BiFunction<MySQLColumnMeta, Properties<PropertyKey>, MySQLType>> map;
         map = new HashMap<>();
 
         map.put(ProtocolConstants.TYPE_DECIMAL, MySQLType::fromDecimal);

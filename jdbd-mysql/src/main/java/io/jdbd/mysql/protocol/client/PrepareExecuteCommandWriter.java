@@ -4,12 +4,12 @@ import io.jdbd.BindParameterException;
 import io.jdbd.mysql.BindValue;
 import io.jdbd.mysql.MySQLBindValue;
 import io.jdbd.mysql.protocol.Constants;
-import io.jdbd.mysql.protocol.conf.Properties;
 import io.jdbd.mysql.util.MySQLCollections;
 import io.jdbd.mysql.util.MySQLExceptions;
 import io.jdbd.mysql.util.MySQLNumberUtils;
 import io.jdbd.mysql.util.MySQLTimeUtils;
 import io.jdbd.type.Geometry;
+import io.jdbd.vendor.conf.Properties;
 import io.netty.buffer.ByteBuf;
 import org.reactivestreams.Publisher;
 import reactor.core.publisher.Flux;
@@ -173,7 +173,7 @@ final class PrepareExecuteCommandWriter implements StatementCommandWriter {
                 bindParameter(packet, parameterMetaArray[i], bindValue);
                 if (packet.readableBytes() >= PacketUtils.MAX_PACKET) {
                     packet = PacketUtils.addAndCutBigPacket(packet, packetList, this.statementTask::addAndGetSequenceId
-                            , this.adjutant.alloc()::buffer);
+                            , this.adjutant.allocator()::buffer);
                 }
             }
             PacketUtils.writePacketHeader(packet, this.statementTask.addAndGetSequenceId());

@@ -1,4 +1,6 @@
-package io.jdbd.mysql.protocol;
+package io.jdbd.mysql.protocol.client;
+
+import io.jdbd.mysql.protocol.MySQLPacket;
 
 public abstract class TerminatorPacket implements MySQLPacket {
 

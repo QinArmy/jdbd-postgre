@@ -1,33 +1,32 @@
 package io.jdbd.mysql.protocol.conf;
 
 import io.jdbd.mysql.protocol.ClientConstants;
+import io.jdbd.mysql.protocol.Constants;
+import io.jdbd.vendor.conf.HostInfo;
+import io.jdbd.vendor.conf.IPropertyKey;
 import reactor.netty.resources.ConnectionProvider;
 import reactor.util.annotation.Nullable;
-
-import java.util.Collections;
-import java.util.Map;
-import java.util.TreeMap;
 
 /**
  * PropertyKey handles connection property names, their camel-case aliases and case sensitivity.
  *
  * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-reference-configuration-properties.html">Configuration Properties</a>
  */
-public enum PropertyKey {
+public enum PropertyKey implements IPropertyKey {
     /*
      * Properties individually managed after parsing connection string. These property keys are case insensitive.
      */
     //below Authentication Group
     /** The database user name. */
-    USER("user", null, false),
+    USER(HostInfo.USER, null, false),
     /** The database user password. */
-    PASSWORD("password", null, false),
+    PASSWORD(HostInfo.PASSWORD, null, false),
 
 
     /** The hostname value from the properties instance passed to the driver. */
-    HOST("host", null, false),
+    HOST(HostInfo.HOST, null, false),
     /** The port number value from the properties instance passed to the driver. */
-    PORT("port", null, false),
+    PORT(HostInfo.PORT, null, false),
 
     /** The communications protocol. Possible values: "tcp" and "pipe". */
     PROTOCOL("protocol", null, false),
@@ -88,8 +87,6 @@ public enum PropertyKey {
      * @see <a href="https://dev.mysql.com/doc/refman/8.0/en/charset-connection.html">collation_connection </a>
      */
     connectionCollation("connectionCollation", null, true), //
-    zoneOffsetSession("zoneOffsetSession", null, true),
-    zoneOffsetClient("zoneOffsetClient", null, true),
 
     // blow Networking Group
     socksProxyHost("socksProxyHost", null, true), //
@@ -125,6 +122,8 @@ public enum PropertyKey {
     @Deprecated
     verifyServerCertificate("verifyServerCertificate", "false", true), //
 
+    fallbackToSystemKeyStore("fallbackToSystemKeyStore", "true", true), //
+    fallbackToSystemTrustStore("fallbackToSystemTrustStore", "true", true), //
     bigRowMemoryUpperBoundary("bigRowMemoryUpperBoundary", Integer.toString(ClientConstants.MIN_BIG_ROW_UPPER), true),
 
     allowLoadLocalInfile("allowLoadLocalInfile", "false", true), //
@@ -289,14 +288,13 @@ public enum PropertyKey {
     serverConfigCacheFactory("serverConfigCacheFactory", "com.mysql.cj.util.PerVmServerConfigCacheFactory", true), //
     serverRSAPublicKeyFile("serverRSAPublicKeyFile", null, true), //
 
-    serverTimezone("serverTimezone", null, true), //
-
     slowQueryThresholdMillis("slowQueryThresholdMillis", "2000", true), //
     slowQueryThresholdNanos("slowQueryThresholdNanos", "0", true), //
 
 
     strictUpdates("strictUpdates", "true", true), //
 
+    connectionTimeZone(null, Constants.LOCAL, true),
 
     tcpTrafficClass("tcpTrafficClass", "0", true), //
     tinyInt1isBit("tinyInt1isBit", "true", true), //
@@ -386,6 +384,7 @@ public enum PropertyKey {
         this.isCaseSensitive = isCaseSensitive;
     }
 
+
     @Override
     public String toString() {
         return this.keyName;
@@ -396,7 +395,8 @@ public enum PropertyKey {
      *
      * @return the key name associated with the enum element.
      */
-    public String getKeyName() {
+    @Override
+    public String getKey() {
         return this.keyName;
     }
 
@@ -411,57 +411,13 @@ public enum PropertyKey {
     }
 
     @Nullable
-    public String getDefaultValue() {
+    public String getDefault() {
         return this.defaultValue;
     }
 
-    /**
-     * Looks for a {@link com.mysql.cj.conf.PropertyKey} that matches the given value as key name.
-     *
-     * @param value the key name to look for.
-     * @return the {@link com.mysql.cj.conf.PropertyKey} element that matches the given key name value or <code>null</code> if none is found.
-     */
-    @Nullable
-    public static PropertyKey fromValue(String value) {
-        for (PropertyKey k : values()) {
-            if (k.isCaseSensitive) {
-                if (k.getKeyName().equals(value) || (k.getCcAlias() != null && k.getCcAlias().equals(value))) {
-                    return k;
-                }
-            } else {
-                if (k.getKeyName().equalsIgnoreCase(value) || (k.getCcAlias() != null && k.getCcAlias().equalsIgnoreCase(value))) {
-                    return k;
-                }
-            }
-        }
+
+    @Override
+    public Class<?> getType() {
         return null;
     }
-
-    /**
-     * Helper method that normalizes the case of the given key, if it is one of {@link com.mysql.cj.conf.PropertyKey} elements.
-     *
-     * @param keyName the key name to normalize.
-     * @return the normalized key name if it belongs to this enum, otherwise returns the input unchanged.
-     */
-    public static String normalizeCase(String keyName) {
-        PropertyKey pk = caseInsensitiveValues.get(keyName);
-        return pk == null ? keyName : pk.getKeyName();
-        //return keyName;
-    }
-
-    private final static Map<String, PropertyKey> caseInsensitiveValues = createCaseInsensitiveValuesMap();
-
-    private static Map<String, PropertyKey> createCaseInsensitiveValuesMap() {
-        Map<String, PropertyKey> map = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
-        for (PropertyKey pk : values()) {
-            if (!pk.isCaseSensitive) {
-                map.put(pk.getKeyName(), pk);
-                if (pk.ccAlias != null) {
-                    map.put(pk.getCcAlias(), pk);
-                }
-            }
-        }
-        return Collections.unmodifiableMap(map);
-    }
-
 }

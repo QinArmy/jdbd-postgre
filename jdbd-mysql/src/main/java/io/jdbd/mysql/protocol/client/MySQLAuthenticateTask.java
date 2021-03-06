@@ -1,15 +1,23 @@
 package io.jdbd.mysql.protocol.client;
 
-import io.jdbd.mysql.JdbdMySQLException;
-import io.jdbd.mysql.protocol.*;
+import io.jdbd.SessionCloseException;
+import io.jdbd.mysql.MySQLJdbdException;
+import io.jdbd.mysql.protocol.AuthenticateAssistant;
+import io.jdbd.mysql.protocol.CharsetMapping;
+import io.jdbd.mysql.protocol.Constants;
+import io.jdbd.mysql.protocol.ServerVersion;
 import io.jdbd.mysql.protocol.authentication.*;
-import io.jdbd.mysql.protocol.conf.HostInfo;
-import io.jdbd.mysql.protocol.conf.Properties;
+import io.jdbd.mysql.protocol.conf.PropertyDefinitions;
 import io.jdbd.mysql.protocol.conf.PropertyKey;
 import io.jdbd.mysql.util.MySQLExceptions;
 import io.jdbd.mysql.util.MySQLStringUtils;
-import io.jdbd.vendor.TaskSignal;
+import io.jdbd.vendor.conf.DefaultHostInfo;
+import io.jdbd.vendor.conf.HostInfo;
+import io.jdbd.vendor.conf.Properties;
+import io.jdbd.vendor.task.AuthenticateTask;
+import io.jdbd.vendor.task.TaskSignal;
 import io.netty.buffer.ByteBuf;
+import io.netty.handler.ssl.SslHandler;
 import org.qinarmy.util.Pair;
 import org.reactivestreams.Publisher;
 import org.slf4j.Logger;
@@ -17,31 +25,48 @@ import org.slf4j.LoggerFactory;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.core.publisher.MonoSink;
+import reactor.util.annotation.Nullable;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.sql.SQLException;
+import java.util.*;
 import java.util.function.Consumer;
 
-final class AuthenticateTask extends AbstractAuthenticateTask implements AuthenticateAssistant {
+final class MySQLAuthenticateTask extends MySQLConnectionTask implements AuthenticateAssistant, AuthenticateTask {
 
-    static Mono<Void> authenticate(MySQLTaskAdjutant executorAdjutant) {
+    static Mono<AuthenticateResult> authenticate(MySQLTaskAdjutant adjutant) {
         return Mono.create(sink ->
-                new AuthenticateTask(executorAdjutant, sink)
+                new MySQLAuthenticateTask(adjutant, sink)
                         .submit(sink::error)
 
         );
     }
 
-    private static final Logger LOG = LoggerFactory.getLogger(AuthenticateTask.class);
+    private static final Logger LOG = LoggerFactory.getLogger(MySQLAuthenticateTask.class);
 
+    private final MonoSink<AuthenticateResult> sink;
 
     private final Map<String, AuthenticationPlugin> pluginMap;
+
+    private final HostInfo<PropertyKey> hostInfo;
+
+    private final Properties<PropertyKey> properties;
+
+    private final Charset handshakeCharset;
+
+
+    private Phase phase;
+
+    private TaskSignal signal;
+
+    private int negotiatedCapability = 0;
+
+    private byte handshakeCollationIndex;
+
+    private HandshakeV10Packet handshake;
 
     private AuthenticationPlugin plugin;
 
@@ -51,18 +76,18 @@ final class AuthenticateTask extends AbstractAuthenticateTask implements Authent
     // non-volatile ,because all modify in netty EventLoop
     private Publisher<ByteBuf> pluginOutput;
 
-    private AuthenticateTask(MySQLTaskAdjutant executorAdjutant, MonoSink<Void> sink) {
-        super(executorAdjutant, obtainSequenceId(executorAdjutant), sink);
+    private Consumer<SslHandler> sslHandlerConsumer;
 
+    private MySQLAuthenticateTask(MySQLTaskAdjutant adjutant, MonoSink<AuthenticateResult> sink) {
+        super(adjutant);
+        this.hostInfo = adjutant.obtainHostInfo();
+        this.properties = this.hostInfo.getProperties();
         this.pluginMap = loadAuthenticationPluginMap();
+        this.sink = sink;
+        this.handshakeCharset = this.properties.getProperty(PropertyKey.characterEncoding
+                , Charset.class, StandardCharsets.UTF_8);
     }
 
-    private static int obtainSequenceId(MySQLTaskAdjutant executorAdjutant) {
-        return (executorAdjutant.obtainNegotiatedCapability() & ClientProtocol.CLIENT_SSL) != 0
-                ? 1
-                : 0
-                ;
-    }
     /*################################## blow AuthenticateAssistant method ##################################*/
 
     @Override
@@ -77,7 +102,7 @@ final class AuthenticateTask extends AbstractAuthenticateTask implements Authent
     }
 
     @Override
-    public HostInfo getMainHostInfo() {
+    public HostInfo<PropertyKey> getMainHostInfo() {
         return this.hostInfo;
     }
 
@@ -88,68 +113,124 @@ final class AuthenticateTask extends AbstractAuthenticateTask implements Authent
 
     @Override
     public ByteBuf createPacketBuffer(int initialPayloadCapacity) {
-        return this.executorAdjutant.createPacketBuffer(initialPayloadCapacity);
+        return this.adjutant.createPacketBuffer(initialPayloadCapacity);
     }
 
     @Override
     public ByteBuf createPayloadBuffer(int initialPayloadCapacity) {
-        return this.executorAdjutant.createByteBuffer(initialPayloadCapacity);
+        return this.adjutant.createByteBuffer(initialPayloadCapacity);
     }
 
 
     @Override
     public ServerVersion getServerVersion() {
-        return this.handshakeV10Packet.getServerVersion();
+        return this.handshake.getServerVersion();
     }
 
     @Override
     public Publisher<ByteBuf> moreSendPacket() {
-        Publisher<ByteBuf> publisher = this.pluginOutput;
+        LOG.debug("moreSendPacket:{}", obtainSequenceId());
+        Publisher<ByteBuf> publisher = this.packetPublisher;
         if (publisher != null) {
-            this.pluginOutput = null;
+            this.packetPublisher = null;
         }
         return publisher;
     }
 
+    @Override
+    public void sslHandlerConsumer(Consumer<SslHandler> consumer) {
+        this.sslHandlerConsumer = consumer;
+    }
+
     /*################################## blow protected method ##################################*/
 
+    @Nullable
     @Override
-    protected Publisher<ByteBuf> internalStart(TaskSignal signal) {
-        Pair<AuthenticationPlugin, Boolean> pair = obtainAuthenticationPlugin();
-        AuthenticationPlugin plugin = pair.getFirst();
-        this.plugin = plugin;
-        ByteBuf pluginOut = createAuthenticationDataFor41(plugin, pair.getSecond());
-        return Mono.just(createHandshakeResponse41(plugin.getProtocolPluginName(), pluginOut));
+    protected Publisher<ByteBuf> internalStart(final TaskSignal signal) {
+        // no data to send after receive Handshake packet from server.
+        this.phase = Phase.RECEIVE_HANDSHAKE;
+        this.signal = signal;
+        return null;
     }
 
     @Override
-    protected boolean internalDecode(ByteBuf cumulateBuffer, Consumer<Object> serverStatusConsumer) {
-        boolean taskEnd;
-        taskEnd = doDecode(cumulateBuffer);
-        while (!taskEnd && (this.pluginOutput == null)
-                && PacketUtils.hasOnePacket(cumulateBuffer)) {
-            taskEnd = doDecode(cumulateBuffer);
+    protected boolean internalDecode(final ByteBuf cumulateBuffer, final Consumer<Object> serverStatusConsumer) {
+        if (!PacketUtils.hasOnePacket(cumulateBuffer)) {
+            return false;
+        }
+        boolean taskEnd = false;
+        switch (this.phase) {
+            case RECEIVE_HANDSHAKE: {
+                //1. read handshake packet
+                int payloadLength = PacketUtils.readInt3(cumulateBuffer);
+                updateSequenceId(PacketUtils.readInt1(cumulateBuffer));
+                HandshakeV10Packet handshake;
+                handshake = HandshakeV10Packet.readHandshake(cumulateBuffer.readSlice(payloadLength));
+                this.handshake = handshake;
+                LOG.debug("receive handshake success:\n{}", handshake);
+                //2. negotiate capabilities
+                final int negotiatedCapability = createNegotiatedCapability(handshake);
+                this.negotiatedCapability = negotiatedCapability;
+                //3.create handshake collation index
+                final byte handshakeCollationIndex;
+                handshakeCollationIndex = CharsetMapping.getHandshakeCollationIndex(
+                        this.handshakeCharset, this.handshake.getServerVersion());
+                this.handshakeCollationIndex = handshakeCollationIndex;
+
+                if (Capabilities.supportSsl(negotiatedCapability)) {
+                    //4. optional ssl request
+                    sendSSlRequest(negotiatedCapability, handshakeCollationIndex);
+                    this.phase = Phase.SSL_REQUEST;
+                }
+            }
+            break;
+            case HANDSHAKE_RESPONSE: {
+                taskEnd = authenticateDecode(cumulateBuffer, serverStatusConsumer);
+            }
+            break;
+            default:
+                throw new IllegalStateException(String.format("%s this.phase[%s] error.", this, this.phase));
         }
         return taskEnd;
     }
 
-    private boolean doDecode(ByteBuf cumulateBuffer) {
+    @Nullable
+    @Override
+    protected Publisher<ByteBuf> internalError(Throwable e) {
+        this.sink.error(MySQLExceptions.wrap(e));
+        return null;
+    }
+
+    @Override
+    protected void internalOnChannelClose() {
+        this.sink.error(new SessionCloseException("Channel unexpected close."));
+    }
+
+    /*################################## blow private method ##################################*/
+
+    /**
+     * @see #internalDecode(ByteBuf, Consumer)
+     */
+    private boolean authenticateDecode(final ByteBuf cumulateBuffer, final Consumer<Object> serverConsumer) {
+        assertPhase(Phase.HANDSHAKE_RESPONSE);
+
         final int payloadLength = PacketUtils.readInt3(cumulateBuffer);
         updateSequenceId(PacketUtils.readInt1(cumulateBuffer));
         final int payloadStartIndex = cumulateBuffer.readerIndex();
         boolean taskEnd;
         if (++this.authCounter > 100) {
-            this.sink.error(new JdbdMySQLException("TooManyAuthenticationPluginNegotiations"));
+            this.sink.error(new MySQLJdbdException("TooManyAuthenticationPluginNegotiations"));
             taskEnd = true;
         } else if (OkPacket.isOkPacket(cumulateBuffer)) {
-            OkPacket packet = OkPacket.read(cumulateBuffer, this.negotiatedCapability);
-            LOG.debug("MySQL authentication success,info:{}", packet.getInfo());
+            OkPacket ok = OkPacket.read(cumulateBuffer, this.negotiatedCapability);
+            serverConsumer.accept(ok.getStatusFags());
+            LOG.debug("MySQL authentication success,info:{}", ok.getInfo());
             this.sink.success();
             taskEnd = true;
         } else if (ErrorPacket.isErrorPacket(cumulateBuffer)) {
             ErrorPacket error;
             Charset charset = obtainServerCharset();
-            if (getSequenceId() < 2) {
+            if (obtainSequenceId() < 2) {
                 error = ErrorPacket.readPacket(cumulateBuffer, 0, charset);
             } else {
                 error = ErrorPacket.readPacket(cumulateBuffer, this.negotiatedCapability, charset);
@@ -167,6 +248,75 @@ final class AuthenticateTask extends AbstractAuthenticateTask implements Authent
 
     /*################################## blow private method ##################################*/
 
+    private ByteBuf createHandshakeResponsePacket() {
+        Pair<AuthenticationPlugin, Boolean> pair = obtainAuthenticationPlugin();
+        AuthenticationPlugin plugin = pair.getFirst();
+        this.plugin = plugin;
+        ByteBuf pluginOut = createAuthenticationDataFor41(plugin, pair.getSecond());
+        return createHandshakeResponse41(plugin.getProtocolPluginName(), pluginOut);
+    }
+
+    /**
+     * @see #internalDecode(ByteBuf, Consumer)
+     * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_connection_phase_packets_protocol_ssl_request.html">Protocol::SSLRequest</a>
+     */
+    private void sendSSlRequest(final int negotiatedCapability, final byte handshakeCollationIndex) {
+        ByteBuf packet = this.adjutant.createPacketBuffer(32);
+        // 1. client_flag
+        PacketUtils.writeInt4(packet, negotiatedCapability);
+        // 2. max_packet_size
+        PacketUtils.writeInt4(packet, PacketUtils.MAX_PAYLOAD);
+        // 3. character_set,
+        PacketUtils.writeInt1(packet, handshakeCollationIndex);
+        // 4. filler
+        packet.writeZero(23);
+        PacketUtils.writePacketHeader(packet, addAndGetSequenceId());
+        this.packetPublisher = Mono.just(packet);
+    }
+
+    @Override
+    public void onSendSuccess() {
+        switch (this.phase) {
+            case SSL_REQUEST: {
+                LOG.debug("ssl request send success.");
+                try {
+                    SslHandler sslHandler = SslHandlerBuilder.builder()
+                            .allocator(this.adjutant.allocator())
+                            .hostInfo(this.hostInfo)
+                            .serverVersion(this.handshake.getServerVersion())
+                            .build();
+
+                    // add sslHandler to channel line.
+                    Objects.requireNonNull(this.sslHandlerConsumer).accept(sslHandler);
+                    sendHandshakeResponsePacket();
+                } catch (SQLException e) {
+                    e.printStackTrace();
+                }
+            }
+            break;
+            default:
+        }
+    }
+
+    private void sslRequestFinishEvent(Object obj) {
+        if (this.adjutant.inEventLoop()) {
+            sendHandshakeResponsePacket();
+        } else {
+            this.adjutant.execute(this::sendHandshakeResponsePacket);
+        }
+
+    }
+
+    private void sendHandshakeResponsePacket() {
+        LOG.debug("ssl request send complete.");
+        this.packetPublisher = Mono.just(createHandshakeResponsePacket());
+        this.phase = Phase.HANDSHAKE_RESPONSE;
+        // notify CommunicationTaskExecutor invoke io.jdbd.vendor.task.CommunicationTask.moreSendPacket
+        this.signal.sendPacket(this)
+                .doOnError(this::internalError)
+                .subscribe();
+    }
+
     private boolean processNextAuthenticationNegotiation(ByteBuf cumulateBuffer) {
 
         final AuthenticationPlugin authPlugin;
@@ -179,7 +329,7 @@ final class AuthenticateTask extends AbstractAuthenticateTask implements Authent
             } else {
                 authPlugin = this.pluginMap.get(pluginName);
                 if (authPlugin == null) {
-                    this.sink.error(new JdbdMySQLException("BadAuthenticationPlugin[%s] from server.", pluginName));
+                    this.sink.error(new MySQLJdbdException("BadAuthenticationPlugin[%s] from server.", pluginName));
                     return true;
                 }
             }
@@ -197,21 +347,20 @@ final class AuthenticateTask extends AbstractAuthenticateTask implements Authent
     }
 
     /**
-     * @return read-only {@link ByteBuf}
      * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_connection_phase_packets_protocol_handshake_response.html#sect_protocol_connection_phase_packets_protocol_handshake_response41">Protocol::HandshakeResponse41</a>
      */
     private ByteBuf createHandshakeResponse41(String authPluginName, ByteBuf pluginOut) {
         final Charset clientCharset = this.handshakeCharset;
         final int clientFlag = this.negotiatedCapability;
 
-        final ByteBuf packetBuffer = this.executorAdjutant.createPacketBuffer(1024);
+        final ByteBuf packetBuffer = this.adjutant.createPacketBuffer(1024);
 
         // 1. client_flag,Capabilities Flags, CLIENT_PROTOCOL_41 always set.
         PacketUtils.writeInt4(packetBuffer, clientFlag);
         // 2. max_packet_size
         PacketUtils.writeInt4(packetBuffer, ClientProtocol.MAX_PACKET_SIZE);
         // 3. character_set
-        PacketUtils.writeInt1(packetBuffer, obtainHandshakeCollationIndex());
+        PacketUtils.writeInt1(packetBuffer, this.handshakeCollationIndex);
         // 4. filler,Set of bytes reserved for future use.
         packetBuffer.writeZero(23);
 
@@ -232,7 +381,7 @@ final class AuthenticateTask extends AbstractAuthenticateTask implements Authent
         if ((clientFlag & ClientProtocol.CLIENT_CONNECT_WITH_DB) != 0) {
             String database = this.hostInfo.getDatabase();
             if (!MySQLStringUtils.hasText(database)) {
-                throw new JdbdMySQLException("client flag error,check this.getClientFlat() method.");
+                throw new MySQLJdbdException("client flag error,check this.getClientFlat() method.");
             }
             PacketUtils.writeStringTerm(packetBuffer, database.getBytes(clientCharset));
         }
@@ -263,9 +412,9 @@ final class AuthenticateTask extends AbstractAuthenticateTask implements Authent
         ByteBuf payloadBuf;
         if (skipPassword) {
             // skip password
-            payloadBuf = this.executorAdjutant.createByteBuffer(0);
+            payloadBuf = this.adjutant.createByteBuffer(0);
         } else {
-            HandshakeV10Packet handshakeV10Packet = this.handshakeV10Packet;
+            HandshakeV10Packet handshakeV10Packet = this.handshake;
             String seed = handshakeV10Packet.getAuthPluginDataPart1() + handshakeV10Packet.getAuthPluginDataPart2();
             byte[] seedBytes = seed.getBytes();
             ByteBuf fromServer = createPayloadBuffer(seedBytes.length);
@@ -286,13 +435,13 @@ final class AuthenticateTask extends AbstractAuthenticateTask implements Authent
 
 
     /**
-     * @see #internalStart()
+     *
      */
     private Pair<AuthenticationPlugin, Boolean> obtainAuthenticationPlugin() {
         Map<String, AuthenticationPlugin> pluginMap = this.pluginMap;
 
         Properties properties = this.properties;
-        String pluginName = this.handshakeV10Packet.getAuthPluginName();
+        String pluginName = this.handshake.getAuthPluginName();
 
         AuthenticationPlugin plugin = pluginMap.get(pluginName);
         boolean skipPassword = false;
@@ -314,7 +463,7 @@ final class AuthenticateTask extends AbstractAuthenticateTask implements Authent
             plugin = pluginMap.get(defaultPluginName);
         }
         if (plugin.requiresConfidentiality() && !useSsl) {
-            throw new JdbdMySQLException("AuthenticationPlugin[%s] required SSL", plugin.getClass().getName());
+            throw new MySQLJdbdException("AuthenticationPlugin[%s] required SSL", plugin.getClass().getName());
         }
         return new Pair<>(plugin, skipPassword);
     }
@@ -357,7 +506,7 @@ final class AuthenticateTask extends AbstractAuthenticateTask implements Authent
     private Map<String, AuthenticationPlugin> loadAuthenticationPluginMap() {
         Properties properties = this.properties;
 
-        String defaultPluginName = properties.getRequiredProperty(PropertyKey.defaultAuthenticationPlugin);
+        String defaultPluginName = properties.getOrDefault(PropertyKey.defaultAuthenticationPlugin);
         List<String> disabledPluginList = properties.getPropertyList(PropertyKey.disabledAuthenticationPlugins);
 
         // below three line: obtain pluginClassNameList
@@ -384,9 +533,9 @@ final class AuthenticateTask extends AbstractAuthenticateTask implements Authent
             }
         }
         if (!defaultIsFound) {
-            JdbdMySQLException e;
+            MySQLJdbdException e;
             //TODO optimize
-            e = new JdbdMySQLException("defaultAuthenticationPlugin[%s] not fond or disable.", defaultPluginName);
+            e = new MySQLJdbdException("defaultAuthenticationPlugin[%s] not fond or disable.", defaultPluginName);
             this.sink.error(e);
             throw e;
         }
@@ -407,23 +556,23 @@ final class AuthenticateTask extends AbstractAuthenticateTask implements Authent
     }
 
     private static AuthenticationPlugin loadPlugin(String pluginClassName, AuthenticateAssistant assistant
-            , HostInfo hostInfo) {
+            , DefaultHostInfo hostInfo) {
         try {
             Class<?> pluginClass = Class.forName(convertPluginClassName(pluginClassName));
             if (!AuthenticationPlugin.class.isAssignableFrom(pluginClass)) {
-                throw new JdbdMySQLException("class[%s] isn't %s type.", AuthenticationPlugin.class.getName());
+                throw new MySQLJdbdException("class[%s] isn't %s type.", AuthenticationPlugin.class.getName());
             }
-            Method method = pluginClass.getMethod("getInstance", AuthenticateAssistant.class, HostInfo.class);
+            Method method = pluginClass.getMethod("getInstance", AuthenticateAssistant.class, DefaultHostInfo.class);
             if (!AuthenticationPlugin.class.isAssignableFrom(method.getReturnType())) {
-                throw new JdbdMySQLException("plugin[%s] getInstance return error type.", pluginClassName);
+                throw new MySQLJdbdException("plugin[%s] getInstance return error type.", pluginClassName);
             }
             return (AuthenticationPlugin) method.invoke(null, assistant, hostInfo);
         } catch (ClassNotFoundException e) {
-            throw new JdbdMySQLException(e, "plugin[%s] not found in classpath.", pluginClassName);
+            throw new MySQLJdbdException(e, "plugin[%s] not found in classpath.", pluginClassName);
         } catch (NoSuchMethodException e) {
-            throw new JdbdMySQLException(e, "plugin[%s] no getInstance() factory method.", pluginClassName);
+            throw new MySQLJdbdException(e, "plugin[%s] no getInstance() factory method.", pluginClassName);
         } catch (IllegalAccessException | InvocationTargetException e) {
-            throw new JdbdMySQLException(e, "plugin[%s] getInstance() invoke error.", pluginClassName);
+            throw new MySQLJdbdException(e, "plugin[%s] getInstance() invoke error.", pluginClassName);
         }
     }
 
@@ -457,11 +606,64 @@ final class AuthenticateTask extends AbstractAuthenticateTask implements Authent
     }
 
     private Charset obtainServerCharset() {
-        Charset charset = CharsetMapping.getJavaCharsetByCollationIndex(this.handshakeV10Packet.getCollationIndex());
+        Charset charset = CharsetMapping.getJavaCharsetByCollationIndex(this.handshake.getCollationIndex());
         if (charset == null) {
             charset = StandardCharsets.UTF_8;
         }
         return charset;
+    }
+
+    private int createNegotiatedCapability(final HandshakeV10Packet handshake) {
+        final int serverCapability = handshake.getCapabilityFlags();
+        final Properties<PropertyKey> env = this.properties;
+
+        final boolean useConnectWithDb = MySQLStringUtils.hasText(this.hostInfo.getDatabase())
+                && !env.getOrDefault(PropertyKey.createDatabaseIfNotExist, Boolean.class);
+
+        return ClientProtocol.CLIENT_SECURE_CONNECTION
+                | ClientProtocol.CLIENT_PLUGIN_AUTH
+                | (serverCapability & ClientProtocol.CLIENT_LONG_PASSWORD)  //
+                | (serverCapability & ClientProtocol.CLIENT_PROTOCOL_41)    //
+
+                | (serverCapability & ClientProtocol.CLIENT_TRANSACTIONS)   // Need this to get server status values
+                | (serverCapability & ClientProtocol.CLIENT_MULTI_RESULTS)  // We always allow multiple result sets
+                | (serverCapability & ClientProtocol.CLIENT_PS_MULTI_RESULTS)  // We always allow multiple result sets for SSPS
+                | (serverCapability & ClientProtocol.CLIENT_LONG_FLAG)      //
+
+                | (serverCapability & ClientProtocol.CLIENT_DEPRECATE_EOF)  //
+                | (serverCapability & ClientProtocol.CLIENT_PLUGIN_AUTH_LENENC_CLIENT_DATA)
+                | (env.getOrDefault(PropertyKey.useCompression, Boolean.class) ? (serverCapability & ClientProtocol.CLIENT_COMPRESS) : 0)
+                | (useConnectWithDb ? (serverCapability & ClientProtocol.CLIENT_CONNECT_WITH_DB) : 0)
+                | (env.getOrDefault(PropertyKey.useAffectedRows, Boolean.class) ? 0 : (serverCapability & ClientProtocol.CLIENT_FOUND_ROWS))
+
+                | (env.getOrDefault(PropertyKey.allowLoadLocalInfile, Boolean.class) ? (serverCapability & ClientProtocol.CLIENT_LOCAL_FILES) : 0)
+                | (env.getOrDefault(PropertyKey.interactiveClient, Boolean.class) ? (serverCapability & ClientProtocol.CLIENT_INTERACTIVE) : 0)
+                | (env.getOrDefault(PropertyKey.allowMultiQueries, Boolean.class) ? (serverCapability & ClientProtocol.CLIENT_MULTI_STATEMENTS) : 0)
+                | (env.getOrDefault(PropertyKey.disconnectOnExpiredPasswords, Boolean.class) ? 0 : (serverCapability & ClientProtocol.CLIENT_CAN_HANDLE_EXPIRED_PASSWORD))
+
+                | (Constants.NONE.equals(env.getProperty(PropertyKey.connectionAttributes)) ? 0 : (serverCapability & ClientProtocol.CLIENT_CONNECT_ATTRS))
+                | (env.getOrDefault(PropertyKey.sslMode, PropertyDefinitions.SslMode.class) != PropertyDefinitions.SslMode.DISABLED ? (serverCapability & ClientProtocol.CLIENT_SSL) : 0)
+
+                // TODO MYSQLCONNJ-437
+                // clientParam |= (capabilityFlags & NativeServerSession.CLIENT_SESSION_TRACK);
+
+                ;
+    }
+
+    private void assertPhase(Phase expectedPhase) {
+        if (this.phase != expectedPhase) {
+            throw new IllegalStateException(String.format("this.phase isn't %s.", expectedPhase));
+        }
+    }
+
+
+    /*################################## blow private static method ##################################*/
+
+
+    private enum Phase {
+        RECEIVE_HANDSHAKE,
+        SSL_REQUEST,
+        HANDSHAKE_RESPONSE
     }
 
 

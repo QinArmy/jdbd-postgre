@@ -1,13 +1,13 @@
 package io.jdbd.mysql.protocol.authentication;
 
-import io.jdbd.mysql.JdbdMySQLException;
+import io.jdbd.mysql.MySQLJdbdException;
 import io.jdbd.mysql.protocol.AuthenticateAssistant;
 import io.jdbd.mysql.protocol.ClientConstants;
 import io.jdbd.mysql.protocol.client.PacketUtils;
-import io.jdbd.mysql.protocol.conf.HostInfo;
-import io.jdbd.mysql.protocol.conf.Properties;
 import io.jdbd.mysql.protocol.conf.PropertyKey;
 import io.jdbd.mysql.util.MySQLStringUtils;
+import io.jdbd.vendor.conf.DefaultHostInfo;
+import io.jdbd.vendor.conf.Properties;
 import io.netty.buffer.ByteBuf;
 import org.qinarmy.util.security.KeyPairType;
 import org.qinarmy.util.security.KeyUtils;
@@ -40,7 +40,7 @@ import java.util.concurrent.atomic.AtomicReference;
 public class Sha256PasswordPlugin implements AuthenticationPlugin {
 
 
-    public static Sha256PasswordPlugin getInstance(AuthenticateAssistant protocolAssistant, HostInfo hostInfo) {
+    public static Sha256PasswordPlugin getInstance(AuthenticateAssistant protocolAssistant, DefaultHostInfo hostInfo) {
 
         return new Sha256PasswordPlugin(protocolAssistant, hostInfo, tryLoadPublicKeyString(hostInfo));
 
@@ -52,7 +52,7 @@ public class Sha256PasswordPlugin implements AuthenticationPlugin {
 
     protected final AuthenticateAssistant protocolAssistant;
 
-    protected final HostInfo hostInfo;
+    protected final DefaultHostInfo hostInfo;
 
     protected final AtomicReference<String> publicKeyString = new AtomicReference<>(null);
 
@@ -65,7 +65,7 @@ public class Sha256PasswordPlugin implements AuthenticationPlugin {
     protected final AtomicReference<String> seed = new AtomicReference<>(null);
 
 
-    protected Sha256PasswordPlugin(AuthenticateAssistant protocolAssistant, HostInfo hostInfo, @Nullable String publicKeyString) {
+    protected Sha256PasswordPlugin(AuthenticateAssistant protocolAssistant, DefaultHostInfo hostInfo, @Nullable String publicKeyString) {
         this.protocolAssistant = protocolAssistant;
         this.hostInfo = hostInfo;
         if (publicKeyString != null) {
@@ -120,7 +120,7 @@ public class Sha256PasswordPlugin implements AuthenticationPlugin {
             this.seed.set(PacketUtils.readStringTerm(fromServer, Charset.defaultCharset()));
             payloadBuf = createEncryptPasswordPacketWithPublicKey(password);
         } else if (!this.env.getRequiredProperty(PropertyKey.allowPublicKeyRetrieval, Boolean.class)) {
-            throw new JdbdMySQLException("Don't allow public key retrieval ,can't connect.");
+            throw new MySQLJdbdException("Don't allow public key retrieval ,can't connect.");
         } else if (this.publicKeyRequested.get()
                 && fromServer.readableBytes() > ClientConstants.SEED_LENGTH) { // We must request the public key from the server to encrypt the password
             // Servers affected by Bug#70865 could send Auth Switch instead of key after Public Key Retrieval,
@@ -164,7 +164,7 @@ public class Sha256PasswordPlugin implements AuthenticationPlugin {
             return cipher.doFinal(mysqlScrambleBuff);
         } catch (NoSuchAlgorithmException | NoSuchPaddingException
                 | InvalidKeyException | IllegalBlockSizeException | BadPaddingException e) {
-            throw new JdbdMySQLException(e, "password encrypt error.");
+            throw new MySQLJdbdException(e, "password encrypt error.");
         }
     }
 
@@ -205,9 +205,9 @@ public class Sha256PasswordPlugin implements AuthenticationPlugin {
     /*################################## blow static method ##################################*/
 
     @Nullable
-    protected static String tryLoadPublicKeyString(HostInfo hostInfo) {
+    protected static String tryLoadPublicKeyString(DefaultHostInfo hostInfo) {
         String serverRSAPublicKeyPath = hostInfo.getProperties()
-                .getProperty(PropertyKey.serverRSAPublicKeyFile.getKeyName());
+                .getProperty(PropertyKey.serverRSAPublicKeyFile.getKey());
         String publicKeyString = null;
         try {
             if (serverRSAPublicKeyPath != null) {
@@ -215,7 +215,7 @@ public class Sha256PasswordPlugin implements AuthenticationPlugin {
             }
             return publicKeyString;
         } catch (IOException e) {
-            throw new JdbdMySQLException(e, "read serverRSAPublicKeyFile error.");
+            throw new MySQLJdbdException(e, "read serverRSAPublicKeyFile error.");
         }
     }
 

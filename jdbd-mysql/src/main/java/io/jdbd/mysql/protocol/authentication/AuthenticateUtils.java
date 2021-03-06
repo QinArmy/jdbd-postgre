@@ -1,7 +1,7 @@
 package io.jdbd.mysql.protocol.authentication;
 
 
-import io.jdbd.mysql.JdbdMySQLException;
+import io.jdbd.mysql.MySQLJdbdException;
 
 import java.security.DigestException;
 import java.security.MessageDigest;
@@ -67,7 +67,7 @@ abstract class AuthenticateUtils {
         } catch (NoSuchAlgorithmException ex) {
             //@see https://docs.oracle.com/javase/8/docs/technotes/guides/security/StandardNames.html#MessageDigest
             // never here
-            throw new JdbdMySQLException(ex, "scramble411 Algorithm error.");
+            throw new MySQLJdbdException(ex, "scramble411 Algorithm error.");
         }
 
         byte[] passwordHashStage1 = md.digest(password);
@@ -118,7 +118,7 @@ abstract class AuthenticateUtils {
         } catch (NoSuchAlgorithmException ex) {
             //@see https://docs.oracle.com/javase/8/docs/technotes/guides/security/StandardNames.html#MessageDigest
             // never here
-            throw new JdbdMySQLException(ex, "scrambleCachingSha2 Algorithm error.");
+            throw new MySQLJdbdException(ex, "scrambleCachingSha2 Algorithm error.");
         }
 
         byte[] dig1 = new byte[CACHING_SHA2_DIGEST_LENGTH];

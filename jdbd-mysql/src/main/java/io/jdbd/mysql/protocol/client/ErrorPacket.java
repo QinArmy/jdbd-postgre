@@ -1,12 +1,10 @@
-package io.jdbd.mysql.protocol;
+package io.jdbd.mysql.protocol.client;
 
-import io.jdbd.mysql.protocol.client.ClientProtocol;
-import io.jdbd.mysql.protocol.client.PacketUtils;
+import io.jdbd.mysql.protocol.MySQLPacket;
 import io.netty.buffer.ByteBuf;
 import reactor.util.annotation.Nullable;
 
 import java.nio.charset.Charset;
-import java.nio.charset.StandardCharsets;
 import java.util.StringJoiner;
 
 /**
@@ -16,23 +14,6 @@ public final class ErrorPacket implements MySQLPacket {
 
     public static final short ERROR_HEADER = 0xFF;
 
-    /**
-     * <p>
-     * see {@code com.mysql.cj.protocol.a.NativeProtocol#rejectProtocol(com.mysql.cj.protocol.a.NativePacketPayload)}
-     * </p>
-     *
-     * @param capability <ul>
-     *                   <li>before server receive handshake response packet: 0</li>
-     *                   <li>after server receive handshake response packet: negotiated capability</li>
-     *                   </ul>
-     */
-    public static ErrorPacket readPacket(ByteBuf payloadBuf, final int capability) {
-        return readPacket(payloadBuf, capability, StandardCharsets.UTF_8);
-    }
-
-    public static ErrorPacket readPacketInHandshakePhase(ByteBuf payloadBuf) {
-        return readPacket(payloadBuf, 0, StandardCharsets.UTF_8);
-    }
 
 
     public static ErrorPacket readPacket(ByteBuf payloadBuf, final int capability, Charset errorMessageCharset) {

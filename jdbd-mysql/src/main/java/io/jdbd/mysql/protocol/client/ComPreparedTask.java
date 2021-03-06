@@ -4,16 +4,13 @@ import io.jdbd.*;
 import io.jdbd.mysql.BatchWrapper;
 import io.jdbd.mysql.BindValue;
 import io.jdbd.mysql.StmtWrapper;
-import io.jdbd.mysql.protocol.EofPacket;
-import io.jdbd.mysql.protocol.ErrorPacket;
-import io.jdbd.mysql.protocol.OkPacket;
-import io.jdbd.mysql.protocol.conf.Properties;
 import io.jdbd.mysql.protocol.conf.PropertyKey;
 import io.jdbd.mysql.util.MySQLCollections;
 import io.jdbd.mysql.util.MySQLExceptions;
 import io.jdbd.vendor.JdbdCompositeException;
-import io.jdbd.vendor.TaskSignal;
+import io.jdbd.vendor.conf.Properties;
 import io.jdbd.vendor.result.ResultRowSink;
+import io.jdbd.vendor.task.TaskSignal;
 import io.netty.buffer.ByteBuf;
 import org.reactivestreams.Publisher;
 import org.slf4j.Logger;
@@ -401,7 +398,7 @@ final class ComPreparedTask extends MySQLCommunicationTask implements StatementT
         switch (headFlag) {
             case ErrorPacket.ERROR_HEADER: {
                 ErrorPacket error = ErrorPacket.readPacket(cumulateBuffer.readSlice(payloadLength)
-                        , this.negotiatedCapability, this.adjutant.obtainCharsetResults());
+                        , this.negotiatedCapability, this.adjutant.getCharsetResults());
                 addError(MySQLExceptions.createErrorPacketException(error));
                 taskEnd = true;
             }
@@ -503,7 +500,7 @@ final class ComPreparedTask extends MySQLCommunicationTask implements StatementT
      * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_com_stmt_close.html">Protocol::COM_STMT_CLOSE</a>
      */
     private ByteBuf createCloseStatementPacket() {
-        ByteBuf packet = this.adjutant.alloc().buffer(9);
+        ByteBuf packet = this.adjutant.allocator().buffer(9);
 
         PacketUtils.writeInt3(packet, 5);
         packet.writeByte(addAndGetSequenceId());
@@ -534,7 +531,7 @@ final class ComPreparedTask extends MySQLCommunicationTask implements StatementT
                 updateSequenceId(PacketUtils.readInt1(cumulateBuffer));
 
                 ErrorPacket error = ErrorPacket.readPacket(cumulateBuffer.readSlice(payloadLength)
-                        , this.negotiatedCapability, this.adjutant.obtainCharsetResults());
+                        , this.negotiatedCapability, this.adjutant.getCharsetResults());
                 addError(MySQLExceptions.createErrorPacketException(error));
                 taskEnd = true;
             }
@@ -612,7 +609,7 @@ final class ComPreparedTask extends MySQLCommunicationTask implements StatementT
             final int payloadLength = PacketUtils.readInt3(cumulateBuffer);
             updateSequenceId(PacketUtils.readInt1(cumulateBuffer));
             ErrorPacket error = ErrorPacket.readPacket(cumulateBuffer.readSlice(payloadLength)
-                    , this.negotiatedCapability, this.adjutant.obtainCharsetResults());
+                    , this.negotiatedCapability, this.adjutant.getCharsetResults());
             addError(MySQLExceptions.createErrorPacketException(error));
             taskEnd = true;
         }
@@ -633,7 +630,7 @@ final class ComPreparedTask extends MySQLCommunicationTask implements StatementT
         switch (flag) {
             case ErrorPacket.ERROR_HEADER: {
                 ErrorPacket error = ErrorPacket.readPacket(cumulateBuffer.readSlice(payloadLength)
-                        , this.negotiatedCapability, this.adjutant.obtainCharsetResults());
+                        , this.negotiatedCapability, this.adjutant.getCharsetResults());
                 addError(MySQLExceptions.createErrorPacketException(error));
                 taskEnd = true;
             }
@@ -753,7 +750,7 @@ final class ComPreparedTask extends MySQLCommunicationTask implements StatementT
         if (!querySink.hasMoreFetch()) {
             throw new IllegalStateException("Fetch mode have sent last row.");
         }
-        ByteBuf packet = this.adjutant.alloc().buffer(13);
+        ByteBuf packet = this.adjutant.allocator().buffer(13);
         PacketUtils.writeInt3(packet, 9);
         packet.writeByte(addAndGetSequenceId());
 
@@ -780,7 +777,7 @@ final class ComPreparedTask extends MySQLCommunicationTask implements StatementT
         if (!((BatchUpdateSink) downStreamSink).hasMoreGroup()) {
             throw new IllegalStateException("Batch update have ended");
         }
-        ByteBuf packet = this.adjutant.alloc().buffer(9);
+        ByteBuf packet = this.adjutant.allocator().buffer(9);
 
         PacketUtils.writeInt3(packet, 5);
         packet.writeByte(addAndGetSequenceId());
@@ -830,7 +827,7 @@ final class ComPreparedTask extends MySQLCommunicationTask implements StatementT
 
     private void assertPhase(Phase expectedPhase) {
         if (this.phase != expectedPhase) {
-            throw new IllegalStateException(String.format("this.phase isn't %s.", adjutant));
+            throw new IllegalStateException(String.format("this.phase isn't %s.", expectedPhase));
         }
     }
 

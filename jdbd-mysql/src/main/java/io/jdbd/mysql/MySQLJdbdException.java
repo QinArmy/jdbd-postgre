@@ -3,17 +3,17 @@ package io.jdbd.mysql;
 import io.jdbd.JdbdNonSQLException;
 import reactor.util.annotation.Nullable;
 
-public class JdbdMySQLException extends JdbdNonSQLException {
+public class MySQLJdbdException extends JdbdNonSQLException {
 
-    public JdbdMySQLException(String message, @Nullable Object... args) {
+    public MySQLJdbdException(String message, @Nullable Object... args) {
         super(createMessage(message, args));
     }
 
-    public JdbdMySQLException(Throwable cause, String message, @Nullable Object... args) {
+    public MySQLJdbdException(Throwable cause, String message, @Nullable Object... args) {
         super(createMessage(message, args), cause);
     }
 
-    public JdbdMySQLException(Throwable cause, boolean enableSuppression, boolean writableStackTrace
+    public MySQLJdbdException(Throwable cause, boolean enableSuppression, boolean writableStackTrace
             , String message, @Nullable Object... args) {
         super(createMessage(message, args), cause, enableSuppression, writableStackTrace);
     }

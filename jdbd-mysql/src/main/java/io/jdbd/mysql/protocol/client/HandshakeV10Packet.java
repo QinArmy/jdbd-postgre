@@ -13,46 +13,46 @@ import java.util.StringJoiner;
  */
 final class HandshakeV10Packet implements MySQLPacket {
 
-    public static HandshakeV10Packet readHandshake(ByteBuf payloadBuf) {
+    public static HandshakeV10Packet readHandshake(ByteBuf payload) {
         // below payload
-        if (payloadBuf.readByte() != 10) {
+        if (payload.readByte() != 10) {
             throw new IllegalArgumentException("byteBuf isn't Handshake v10 .");
         }
         // 1. server version
-        String serveVersionText = PacketUtils.readStringTerm(payloadBuf, StandardCharsets.US_ASCII);
+        String serveVersionText = PacketUtils.readStringTerm(payload, StandardCharsets.US_ASCII);
         ServerVersion serverVersion = ServerVersion.parseVersion(serveVersionText);
         // 2. thread id,a.k.a. connection id
-        long threadId = PacketUtils.readInt4AsLong(payloadBuf);
+        long threadId = PacketUtils.readInt4AsLong(payload);
         // 3. auth-plugin-data-part-1,first 8 bytes of the plugin provided data (scramble)
-        String authPluginDataPart1 = PacketUtils.readStringFixed(payloadBuf, 8, StandardCharsets.US_ASCII);
+        String authPluginDataPart1 = PacketUtils.readStringFixed(payload, 8, StandardCharsets.US_ASCII);
         // 4. filler,0x00 byte, terminating the first part of a scramble
-        short filler = (short) PacketUtils.readInt1(payloadBuf);
+        short filler = (short) PacketUtils.readInt1(payload);
 
         // 5. The lower 2 bytes of the Capabilities Flags
-        int capabilityFlags = PacketUtils.readInt2(payloadBuf);
+        int capabilityFlags = PacketUtils.readInt2(payload);
         // 6. character_set,default server a_protocol_character_set, only the lower 8-bits
-        short characterSet = (short) PacketUtils.readInt1(payloadBuf);
+        short characterSet = (short) PacketUtils.readInt1(payload);
         // 7. status_flags,SERVER_STATUS_flags_enum
-        int statusFlags = PacketUtils.readInt2(payloadBuf);
+        int statusFlags = PacketUtils.readInt2(payload);
         // 8. read the upper 2 bytes of the Capabilities Flags and OR operation
-        capabilityFlags |= (PacketUtils.readInt2(payloadBuf) << 16);
+        capabilityFlags |= (PacketUtils.readInt2(payload) << 16);
 
         // 9. auth_plugin_data_len or skip.
         short authPluginDataLen;
         if ((capabilityFlags & ClientCommandProtocol.CLIENT_PLUGIN_AUTH) != 0) {
             //length of the combined auth_plugin_data (scramble), if auth_plugin_data_len is > 0
-            authPluginDataLen = (short) PacketUtils.readInt1(payloadBuf);
+            authPluginDataLen = (short) PacketUtils.readInt1(payload);
         } else {
             //skip constant 0x00
-            payloadBuf.readByte();
+            payload.readByte();
             authPluginDataLen = 0;
         }
         // 10. reserved,reserved. All 0s.   skip for update read index
-        payloadBuf.readerIndex(payloadBuf.readerIndex() + 10);
+        payload.readerIndex(payload.readerIndex() + 10);
 
         // 11. auth-plugin-data-part-2,Rest of the plugin provided data (scramble), $len=MAX(13, length of auth-plugin-data - 8)
         String authPluginDataPart2;
-        authPluginDataPart2 = PacketUtils.readStringFixed(payloadBuf
+        authPluginDataPart2 = PacketUtils.readStringFixed(payload
                 , Integer.max(13, authPluginDataLen - 8), StandardCharsets.US_ASCII);
         // 12. auth_plugin_name,name of the auth_method that the auth_plugin_data belongs to
         String authPluginName = null;
@@ -60,9 +60,9 @@ final class HandshakeV10Packet implements MySQLPacket {
             // Due to Bug#59453 the auth-plugin-name is missing the terminating NUL-char in versions prior to 5.5.10 and 5.6.2.
             if (!serverVersion.meetsMinimum(5, 5, 10)
                     || (serverVersion.meetsMinimum(5, 6, 0) && !serverVersion.meetsMinimum(5, 6, 2))) {
-                authPluginName = PacketUtils.readStringFixed(payloadBuf, authPluginDataLen, StandardCharsets.US_ASCII);
+                authPluginName = PacketUtils.readStringFixed(payload, authPluginDataLen, StandardCharsets.US_ASCII);
             } else {
-                authPluginName = PacketUtils.readStringTerm(payloadBuf, StandardCharsets.US_ASCII);
+                authPluginName = PacketUtils.readStringTerm(payload, StandardCharsets.US_ASCII);
             }
         }
         return new HandshakeV10Packet(serverVersion

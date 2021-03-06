@@ -1,8 +1,9 @@
 package io.jdbd.mysql.protocol.client;
 
 import io.jdbd.mysql.protocol.CharsetMapping;
-import io.jdbd.mysql.protocol.conf.Properties;
+import io.jdbd.mysql.protocol.conf.PropertyKey;
 import io.jdbd.mysql.util.MySQLObjects;
+import io.jdbd.vendor.conf.Properties;
 import io.netty.buffer.ByteBuf;
 import reactor.util.annotation.Nullable;
 
@@ -208,8 +209,8 @@ public final class MySQLColumnMeta {
      * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_com_query_response_text_resultset_column_definition.html">Protocol::ColumnDefinition41</a>
      */
     static MySQLColumnMeta readFor41(ByteBuf payloadBuf, ClientProtocolAdjutant adjutant) {
-        final Charset metaCharset = adjutant.obtainCharsetResults();
-        final Properties properties = adjutant.obtainHostInfo().getProperties();
+        final Charset metaCharset = adjutant.getCharsetResults();
+        final Properties<PropertyKey> properties = adjutant.obtainHostInfo().getProperties();
         // 1. catalog
         String catalogName = PacketUtils.readStringLenEnc(payloadBuf, metaCharset);
         // 2. schema

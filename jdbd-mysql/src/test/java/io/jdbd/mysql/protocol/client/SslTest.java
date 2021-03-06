@@ -1,5 +1,6 @@
 package io.jdbd.mysql.protocol.client;
 
+import io.jdbd.mysql.util.MySQLStates;
 import io.jdbd.vendor.util.SQLStates;
 import io.netty.buffer.ByteBuf;
 import io.netty.handler.ssl.SslContext;
@@ -11,15 +12,17 @@ import reactor.netty.Connection;
 import reactor.netty.tcp.SslProvider;
 import reactor.netty.tcp.TcpClient;
 
-import javax.net.ssl.*;
+import javax.net.ssl.SSLException;
 import java.io.BufferedReader;
 import java.lang.reflect.Field;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.security.SecureRandom;
-import java.util.*;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
 
 public class SslTest {
     private static final Logger LOG = LoggerFactory.getLogger(SslTest.class);
@@ -89,8 +92,25 @@ public class SslTest {
 
     @Test
     public void simple() throws Exception {
+        final Field[] statesFields = SQLStates.class.getDeclaredFields();
+        Map<String, String> stateMap = new HashMap<>();
+        for (Field field : statesFields) {
+            stateMap.put((String) field.get(null), field.getName());
+        }
 
 
+        final Field[] mysqlStatesFields = MySQLStates.class.getDeclaredFields();
+        Map<String, String> mysqlStatsMap = new HashMap<>();
+        for (Field field : mysqlStatesFields) {
+            mysqlStatsMap.put((String) field.get(null), field.getName());
+        }
+
+        Set<String> stateCodeSet = new HashSet<>(mysqlStatsMap.keySet());
+        stateCodeSet.retainAll(stateMap.keySet());
+
+        for (Field field : mysqlStatesFields) {
+            System.out.printf("map.put();");
+        }
     }
 
     @Test
@@ -100,22 +120,7 @@ public class SslTest {
 
     @Test
     public void cipherSuits() throws Exception {
-        List<String> mysqlLCipherList = ProtocolUtils.createMySQLSupportTlsCipherSuitList();
-        LOG.info("mysqlLCipherList:{}", mysqlLCipherList.size());
-        for (String protocol : ProtocolUtils.CLIENT_SUPPORT_TLS_PROTOCOL_LIST) {
 
-            SSLContext sslContext = SSLContext.getInstance(protocol);
-            sslContext.init(new KeyManager[0], new TrustManager[0], new SecureRandom());
-            SSLParameters sslParameters = sslContext.getSupportedSSLParameters();
-
-            List<String> jdkCipherSuitList = new ArrayList<>();
-            Collections.addAll(jdkCipherSuitList, sslParameters.getCipherSuites());
-            int size = jdkCipherSuitList.size();
-            jdkCipherSuitList.retainAll(mysqlLCipherList);
-            LOG.info("protocol:{}  size:{}, new size:{}", protocol, size, jdkCipherSuitList.size());
-            LOG.info("cipher suits:\n{}", jdkCipherSuitList);
-
-        }
 
     }
 

@@ -2,7 +2,7 @@ package io.jdbd.mysql.protocol;
 
 
 import io.jdbd.JdbdSQLException;
-import io.jdbd.mysql.JdbdMySQLException;
+import io.jdbd.mysql.MySQLJdbdException;
 import reactor.util.annotation.Nullable;
 
 import java.nio.charset.Charset;
@@ -186,7 +186,7 @@ public abstract class CharsetMapping {
     public static int getMblen(int collationIndex) {
         Collation collation = INDEX_TO_COLLATION.get(collationIndex);
         if (collation == null || COLLATION_NOT_DEFINED.equals(collation.collationName)) {
-            throw new JdbdMySQLException("Not found Collation for collationIndex[%s]", collationIndex);
+            throw new MySQLJdbdException("Not found Collation for collationIndex[%s]", collationIndex);
         }
         return collation.mySQLCharset.mblen;
     }
@@ -284,7 +284,7 @@ public abstract class CharsetMapping {
         return CharsetMapping.NAME_TO_COLLATION.get(collationName.toLowerCase(Locale.ENGLISH));
     }
 
-    public static boolean isUnsupportedCharset(String javaCharset) {
+    public static boolean isUnsupportedCharsetClient(String javaCharset) {
         return UNSUPPORTED_CHARSET_CLIENTS.contains(javaCharset.toLowerCase(Locale.ENGLISH));
     }
 

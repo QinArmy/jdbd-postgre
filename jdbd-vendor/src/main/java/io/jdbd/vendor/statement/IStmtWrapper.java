@@ -1,7 +1,6 @@
 package io.jdbd.vendor.statement;
 
 import io.jdbd.ResultStates;
-import io.jdbd.vendor.IBindValue;
 
 import java.util.List;
 import java.util.function.Consumer;

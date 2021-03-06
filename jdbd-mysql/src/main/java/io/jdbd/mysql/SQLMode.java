@@ -6,6 +6,7 @@ package io.jdbd.mysql;
 public enum SQLMode {
 
     ANSI_QUOTES,
-    NO_BACKSLASH_ESCAPES
+    NO_BACKSLASH_ESCAPES,
+    TIME_TRUNCATE_FRACTIONAL
 
 }

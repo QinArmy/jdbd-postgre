@@ -1,9 +1,10 @@
 package io.jdbd.mysql.protocol.conf;
 
 import io.jdbd.UrlException;
+import io.jdbd.mysql.util.MySQLCollections;
 import io.jdbd.mysql.util.MySQLStringUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import io.jdbd.vendor.conf.HostInfo;
+import io.jdbd.vendor.conf.JdbcUrlParser;
 
 import java.io.UnsupportedEncodingException;
 import java.net.URLDecoder;
@@ -16,10 +17,11 @@ import java.util.regex.Pattern;
  * <p>
  * see {@code com.mysql.cj.conf.ConnectionUrlParser}
  * </p>
+ *
+ * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-reference-jdbc-url-format.html">Connection URL Syntax</a>
  */
-final class MySQLUrlParser {
+final class MySQLUrlParser implements JdbcUrlParser {
 
-    private static final Logger LOG = LoggerFactory.getLogger(MySQLUrlParser.class);
 
     static final Pattern CONNECTION_STRING_PTRN = Pattern.compile("(?<scheme>[\\w\\+:%]+)\\s*" // scheme: required; alphanumeric, plus, colon or percent
             + "(?://(?<authority>[^/?#]*))?\\s*" // authority: optional; starts with "//" followed by any char except "/", "?" and "#"
@@ -27,9 +29,6 @@ final class MySQLUrlParser {
             + "(?:\\?(?!\\s*\\?)(?<query>[^#]*))?" // query: optional; starts with "?" but not followed by "?", and then followed by by any char except "#"
             + "(?:\\s*#(?<fragment>.*))?"); // fragment: optional; starts with "#", and then followed by anything
 
-    private static final Pattern HOST_PORT_HOST = Pattern.compile("(?<=^|,)(?:[^=,()]+(?::\\d+)?)(?=$|,)");
-    private static final Pattern ADDRESS_EQUALS_HOST = Pattern.compile("(?:address=(?:\\([^=,()]+=[^=,()]+\\))+)");
-    private static final Pattern KEY_VALUE_HOST = Pattern.compile("(?<![=)])(?:\\([^=,()]+=[^=,()]+(?:,[^=,()]+=[^=,()]+)*\\))");
 
     private static final Pattern SCHEME_PTRN = Pattern.compile("(?<scheme>[\\w\\+:%]+).*");
 
@@ -39,8 +38,9 @@ final class MySQLUrlParser {
     private final String path;
     private final String query;
 
-    private final List<HostInfo> parsedHosts;
-    private final Map<String, String> parsedProperties;
+    private final List<Map<String, String>> hostInfo;
+
+    private final Map<String, String> globalProperties;
 
     /**
      * Static factory method for constructing instances of this class.
@@ -57,10 +57,7 @@ final class MySQLUrlParser {
      *
      * @param connString the connection string to parse
      */
-    private MySQLUrlParser(String connString, Map<String, String> properties) {
-        if (connString == null) {
-            throw new NullPointerException("connString");
-        }
+    private MySQLUrlParser(String connString, final Map<String, String> properties) {
         if (!isConnectionStringSupported(connString)) {
             throw new UrlException("unsupported url schema", connString);
         }
@@ -69,32 +66,67 @@ final class MySQLUrlParser {
         if (!matcher.matches()) {
             throw new UrlException("url error.", connString);
         }
+        // 1. parse url partition.
         this.protocol = decodeSkippingPlusSign(matcher.group("scheme"));
         this.authority = matcher.group("authority"); // Don't decode just yet.
         this.path = matcher.group("path") == null ? null : decode(matcher.group("path")).trim();
         this.query = matcher.group("query"); // Don't decode just yet.
 
+        // 2-1 parse url query properties
         Map<String, String> parseProperties = parseQueryProperties();
+
+        //2-2 parse user and password from url
         String actualAuthority = this.authority;
-        if (!properties.containsKey(PropertyKey.USER.getKeyName())) {
+        if (!properties.containsKey(PropertyKey.USER.getKey())) {
             actualAuthority = parseUserInfo(parseProperties);
         }
-        // override query properties.
+        // override query properties wih host
         parseProperties.putAll(properties);
-        this.parsedProperties = Collections.unmodifiableMap(parseProperties);
 
-        // host info list
-        if (MySQLStringUtils.hasText(actualAuthority)) {
-            this.parsedHosts = parseHostList(actualAuthority);
+        //3. create global properties
+        int capacity = (int) ((properties.size() + parseProperties.size()) * 0.75F);
+        final Map<String, String> globalProperties = new HashMap<>(capacity);
+        //firstly query properties
+        globalProperties.putAll(parseProperties);
+        //secondly properties
+        globalProperties.putAll(properties);
+        // thirdly dbname
+        if (this.path == null) {
+            globalProperties.remove(HostInfo.DB_NAME);
         } else {
-            this.parsedHosts = createDefaultHostList();
+            globalProperties.put(HostInfo.DB_NAME, this.path);
+        }
+        this.globalProperties = Collections.unmodifiableMap(globalProperties);
+
+        //4. parse host info list
+        if (MySQLStringUtils.hasText(actualAuthority)) {
+            this.hostInfo = parseHostList(actualAuthority);
+        } else {
+            this.hostInfo = createDefaultHostList();
         }
     }
 
+    @Override
+    public String getSubProtocol() {
+        return null;
+    }
+
+    @Override
+    public Map<String, String> getGlobalProperties() {
+        return this.globalProperties;
+    }
+
+    @Override
+    public List<Map<String, String>> getHostInfo() {
+        return this.hostInfo;
+    }
+
+    @Override
     public String getOriginalUrl() {
         return this.originalUrl;
     }
 
+    @Override
     public String getProtocol() {
         return this.protocol;
     }
@@ -103,7 +135,8 @@ final class MySQLUrlParser {
         return this.authority;
     }
 
-    public String getPath() {
+    @Override
+    public String getDatabase() {
         return this.path;
     }
 
@@ -111,13 +144,6 @@ final class MySQLUrlParser {
         return this.query;
     }
 
-    public List<HostInfo> getParsedHosts() {
-        return this.parsedHosts;
-    }
-
-    public Map<String, String> getParsedProperties() {
-        return this.parsedProperties;
-    }
 
     /**
      * @return a modifiable map
@@ -152,9 +178,9 @@ final class MySQLUrlParser {
         if (userInfoPair.length == 0 || userInfoPair.length > 2) {
             throw new UrlException(String.format("user info[%s] error of url.", userInfo), this.originalUrl);
         }
-        properties.put(PropertyKey.USER.getKeyName(), userInfoPair[0].trim());
+        properties.put(PropertyKey.USER.getKey(), userInfoPair[0].trim());
         if (userInfoPair.length == 2) {
-            properties.put(PropertyKey.PASSWORD.getKeyName(), userInfoPair[1].trim());
+            properties.put(PropertyKey.PASSWORD.getKey(), userInfoPair[1].trim());
         }
         return authority.substring(index + 1);
     }
@@ -163,7 +189,7 @@ final class MySQLUrlParser {
     /**
      * @return a unmodifiable list
      */
-    private List<HostInfo> parseHostList(String multiHostsSegment) {
+    private List<Map<String, String>> parseHostList(String multiHostsSegment) {
         if (multiHostsSegment.startsWith("[") && multiHostsSegment.endsWith("]")) {
             multiHostsSegment = multiHostsSegment.substring(1, multiHostsSegment.length() - 1);
         }
@@ -171,7 +197,7 @@ final class MySQLUrlParser {
         final List<Character> markList = obtainMarkList();
         final int len = authority.length();
 
-        List<HostInfo> hostList = new ArrayList<>();
+        List<Map<String, String>> hostPropertiesList = new ArrayList<>();
 
         for (int openingMarkIndex = MySQLStringUtils.indexNonSpace(authority); openingMarkIndex > -1; ) {
             char openingMarker = authority.charAt(openingMarkIndex);
@@ -179,11 +205,11 @@ final class MySQLUrlParser {
                 // this 'if'  block for key-value host
                 int index = authority.indexOf(')', openingMarkIndex);
                 if (index < 0) {
-                    throw new UrlException(authority.substring(openingMarkIndex) + " no closing mark"
-                            , this.originalUrl);
+                    throw new UrlException(this.originalUrl, "%s no closing mark"
+                            , authority.substring(openingMarkIndex));
                 }
                 index++; // right shift to comma or ending.
-                hostList.add(parseKeyValueHost(authority.substring(openingMarkIndex, index)));
+                hostPropertiesList.add(parseKeyValueHost(authority.substring(openingMarkIndex, index)));
                 index = MySQLStringUtils.indexNonSpace(authority, index);
                 if (index < 0) {
                     break;
@@ -199,10 +225,10 @@ final class MySQLUrlParser {
                 // this 'if'  block for address equals host
                 int commaIndex = indexAddressEqualsHostSegmentEnding(authority, openingMarkIndex);
                 if (commaIndex < 0) {
-                    hostList.add(parseAddressEqualsHost(authority.substring(openingMarkIndex)));
+                    hostPropertiesList.add(parseAddressEqualsHost(authority.substring(openingMarkIndex)));
                     break;
                 } else {
-                    hostList.add(parseAddressEqualsHost(authority.substring(openingMarkIndex, commaIndex)));
+                    hostPropertiesList.add(parseAddressEqualsHost(authority.substring(openingMarkIndex, commaIndex)));
                     openingMarkIndex = MySQLStringUtils.indexNonSpace(authority, commaIndex + 1);
                     if (openingMarkIndex < 0) {
                         throw createAuthorityEndWithCommaException();
@@ -223,10 +249,10 @@ final class MySQLUrlParser {
                     }
                 }
                 if (commaIndex < 0) {
-                    hostList.add(parseHostPortHost(authority.substring(openingMarkIndex)));
+                    hostPropertiesList.add(parseHostPortHost(authority.substring(openingMarkIndex)));
                     break;
                 } else {
-                    hostList.add(parseHostPortHost(authority.substring(openingMarkIndex, commaIndex)));
+                    hostPropertiesList.add(parseHostPortHost(authority.substring(openingMarkIndex, commaIndex)));
                     openingMarkIndex = MySQLStringUtils.indexNonSpace(authority, commaIndex + 1);
                     if (openingMarkIndex < 0) {
                         throw createAuthorityEndWithCommaException();
@@ -234,19 +260,22 @@ final class MySQLUrlParser {
                 }
             }
         }
-        List<HostInfo> actualHostList;
-        if (hostList.size() == 1) {
-            actualHostList = Collections.singletonList(hostList.get(0));
+        List<Map<String, String>> actualHostList;
+        if (hostPropertiesList.size() == 1) {
+            actualHostList = Collections.singletonList(hostPropertiesList.get(0));
         } else {
-            actualHostList = new ArrayList<>(hostList.size());
-            actualHostList.addAll(hostList);
+            actualHostList = new ArrayList<>(hostPropertiesList.size());
+            actualHostList.addAll(hostPropertiesList);
             actualHostList = Collections.unmodifiableList(actualHostList);
         }
         return actualHostList;
     }
 
 
-    private HostInfo parseAddressEqualsHost(String addressEqualsHost) {
+    /**
+     * @return a unmodifiable map
+     */
+    private Map<String, String> parseAddressEqualsHost(String addressEqualsHost) {
         int openingMarkersIndex = addressEqualsHost.indexOf('(');
         if (openingMarkersIndex < 0) {
             throw new IllegalArgumentException(String.format("addressEqualsHost[%s] error.", addressEqualsHost));
@@ -254,7 +283,7 @@ final class MySQLUrlParser {
 
         final int originalOpeningMarkersIndex = openingMarkersIndex;
         int closingMarkersIndex;
-        Map<String, String> hostKeyValueMap = new HashMap<>(this.parsedProperties);
+        Map<String, String> hostKeyValueMap = new HashMap<>();
         while ((closingMarkersIndex = addressEqualsHost.indexOf(')', openingMarkersIndex)) > 0) {
             String pair = addressEqualsHost.substring(openingMarkersIndex + 1, closingMarkersIndex);
             String[] kv = pair.split("=");
@@ -271,10 +300,13 @@ final class MySQLUrlParser {
             // not found key value pair.
             throw createFormatException(addressEqualsHost);
         }
-        return createHostInfo(addressEqualsHost, hostKeyValueMap);
+        return MySQLCollections.unmodifiableMap(hostKeyValueMap);
     }
 
-    private HostInfo parseKeyValueHost(String keyValueHost) {
+    /**
+     * @return a unmodifiable map
+     */
+    private Map<String, String> parseKeyValueHost(String keyValueHost) {
         int openingMarkersIndex = keyValueHost.indexOf('(');
         int closingMarkersIndex = keyValueHost.lastIndexOf(')');
 
@@ -287,7 +319,7 @@ final class MySQLUrlParser {
         if (pairArray.length == 0) {
             throw createFormatException(keyValueHost);
         }
-        Map<String, String> hostKeyValueMap = new HashMap<>(this.parsedProperties);
+        Map<String, String> hostKeyValueMap = new HashMap<>((int) (pairArray.length / 0.75F));
         for (String pair : pairArray) {
             String[] kv = pair.split("=");
             if (kv.length != 2) {
@@ -295,64 +327,26 @@ final class MySQLUrlParser {
             }
             hostKeyValueMap.put(kv[0].trim(), kv[1].trim());
         }
-        return createHostInfo(keyValueHost, hostKeyValueMap);
+        return MySQLCollections.unmodifiableMap(hostKeyValueMap);
     }
 
-    private HostInfo parseHostPortHost(String hostPortHost) {
+    /**
+     * @return a unmodifiable map
+     */
+    private Map<String, String> parseHostPortHost(String hostPortHost) {
         String[] hostPortPair = hostPortHost.split(":");
         if (hostPortPair.length == 0 || hostPortPair.length > 2) {
             throw createFormatException(hostPortHost);
         }
-        Map<String, String> hostKeyValueMap = new HashMap<>(this.parsedProperties);
-        hostKeyValueMap.put("host", hostPortPair[0].trim());
+        Map<String, String> hostKeyValueMap = new HashMap<>(4);
+        hostKeyValueMap.put(HostInfo.HOST, hostPortPair[0].trim());
 
         if (hostPortPair.length == 2) {
-            hostKeyValueMap.put("port", hostPortPair[1].trim());
+            hostKeyValueMap.put(HostInfo.PORT, hostPortPair[1].trim());
         }
-        return createHostInfo(hostPortHost, hostKeyValueMap);
+        return Collections.unmodifiableMap(hostKeyValueMap);
     }
 
-
-    private HostInfo createHostInfo(String hostInfo, Map<String, String> hostKeyValueMap) {
-        if (!hostKeyValueMap.containsKey(PropertyKey.DBNAME.getKeyName())) {
-            String dbName = this.path;
-            if (MySQLStringUtils.hasText(dbName)) {
-                hostKeyValueMap.put(PropertyKey.DBNAME.getKeyName(), dbName);
-            }
-        }
-        String host = hostKeyValueMap.remove("host");
-        if (MySQLStringUtils.isEmpty(host)) {
-            throw new UrlException(String.format("hostInfo[%s] not found host.", hostInfo), this.originalUrl);
-        }
-        String portText = hostKeyValueMap.remove("port");
-        int port = MySQLUrl.DEFAULT_PORT;
-        if (portText != null) {
-            port = parsePort(portText);
-            if (port < 0) {
-                throw new UrlException(String.format("hostInfo[%s] port error.", hostInfo), this.originalUrl);
-            }
-        }
-
-        String user = hostKeyValueMap.remove("user");
-        if (!MySQLStringUtils.hasText(user)) {
-            throw new UrlException("not found user info.", this.originalUrl);
-        }
-        String password = hostKeyValueMap.remove("password");
-        return new HostInfo(this.originalUrl, host, port, user, password, hostKeyValueMap);
-    }
-
-    /**
-     * @return port or negative integer.
-     */
-    private int parsePort(String portText) {
-        int port;
-        try {
-            port = Integer.parseInt(portText);
-        } catch (NumberFormatException e) {
-            port = -1;
-        }
-        return port;
-    }
 
     private List<Character> obtainMarkList() {
         List<Character> chList = new ArrayList<>(4);
@@ -400,83 +394,25 @@ final class MySQLUrlParser {
     }
 
 
-    private List<HostInfo> createDefaultHostList() {
-        Map<String, String> props = new HashMap<>(this.parsedProperties);
-        props.put("host", MySQLUrl.DEFAULT_HOST);
-        props.put("port", Integer.toString(MySQLUrl.DEFAULT_PORT));
-        return Collections.singletonList(createHostInfo("", props));
+    private List<Map<String, String>> createDefaultHostList() {
+        Map<String, String> props = new HashMap<>(4);
+        props.put(HostInfo.HOST, HostInfo.DEFAULT_HOST);
+        props.put(HostInfo.PORT, Integer.toString(MySQLUrl.DEFAULT_PORT));
+        return Collections.singletonList(props);
     }
 
     private UrlException createAuthorityEndWithCommaException() {
-        throw new UrlException(String.format("\"%s\" can't end with comma", this.authority), this.originalUrl);
+        throw new UrlException(this.originalUrl, "\"%s\" can't end with comma", this.authority);
     }
 
     private UrlException createParenthesisNotMatchException(String hostSegment) {
-        return new UrlException(String.format("\"%s\" parenthesis count not match.", hostSegment), this.originalUrl);
+        return new UrlException(this.originalUrl, "\"%s\" parenthesis count not match.", hostSegment);
     }
 
     private UrlException createFormatException(String hostSegment) {
-        return new UrlException(String.format("\"%s\" format error.", hostSegment), this.originalUrl);
+        return new UrlException(this.originalUrl, "\"%s\" format error.", hostSegment);
     }
 
-
-    /**
-     * @deprecated use {@link #parseHostList(String)} ,because check comma.
-     */
-    @Deprecated
-    private List<HostInfo> parseHostListByPattern(final String actualAuthority) {
-        String tempAuthority = actualAuthority.replaceAll("\\s", "");
-        if (tempAuthority.startsWith("[") && tempAuthority.endsWith("]")) {
-            tempAuthority = tempAuthority.substring(1, tempAuthority.length() - 1);
-        }
-        final String authority = tempAuthority;
-        if (authority.isEmpty()) {
-            String user = this.parsedProperties.get(PropertyKey.USER.getKeyName());
-            String password = this.parsedProperties.get(PropertyKey.USER.getKeyName());
-            return Collections.singletonList(new HostInfo(this.originalUrl, user, password));
-        }
-        Matcher matcher;
-        Map<Integer, HostInfo> hostInfoMap = new HashMap<>();
-        final int len = authority.length();
-        int index = 0;
-        matcher = ADDRESS_EQUALS_HOST.matcher(authority);
-        while (index < len) {
-            if (matcher.find(index)) {
-                index = matcher.end();
-                hostInfoMap.put(matcher.start(), parseAddressEqualsHost(matcher.group()));
-            } else {
-                break;
-            }
-        }
-        index = 0;
-        matcher = KEY_VALUE_HOST.matcher(authority);
-        while (index < len) {
-            if (matcher.find(index)) {
-                hostInfoMap.put(matcher.start(), parseKeyValueHost(matcher.group()));
-                index = matcher.end();
-            } else {
-                break;
-            }
-        }
-        index = 0;
-        matcher = HOST_PORT_HOST.matcher(authority);
-        while (index < len) {
-            if (matcher.find(index)) {
-                hostInfoMap.put(matcher.start(), parseHostPortHost(matcher.group()));
-                index = matcher.end();
-            } else {
-                break;
-            }
-        }
-        List<Integer> startIndexList = new ArrayList<>(hostInfoMap.keySet());
-        startIndexList.sort(Comparator.comparingInt(Integer::intValue));
-
-        List<HostInfo> hostInfoList = new ArrayList<>(startIndexList.size());
-        for (Integer startIndex : startIndexList) {
-            hostInfoList.add(hostInfoMap.get(startIndex));
-        }
-        return hostInfoList;
-    }
 
     /*################################## blow static method ##################################*/
 
@@ -514,9 +450,6 @@ final class MySQLUrlParser {
      * @return true if supported
      */
     public static boolean isConnectionStringSupported(String connString) {
-        if (connString == null) {
-            throw new NullPointerException("connString");
-        }
         Matcher matcher = SCHEME_PTRN.matcher(connString);
         return matcher.matches() && MySQLUrl.Protocol.isSupported(decodeSkippingPlusSign(matcher.group("scheme")));
     }
@@ -529,7 +462,7 @@ final class MySQLUrlParser {
      * @return the decoded string
      */
     private static String decodeSkippingPlusSign(String text) {
-        if (text == null || text.equals("")) {
+        if (text.equals("")) {
             return text;
         }
         text = text.replace("+", "%2B"); // Percent encode for "+" is "%2B".

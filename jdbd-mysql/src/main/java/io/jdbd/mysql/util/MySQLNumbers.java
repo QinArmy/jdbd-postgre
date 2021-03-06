@@ -298,6 +298,8 @@ public abstract class MySQLNumbers {
     public static final int ER_GET_STACKED_DA_WITHOUT_ACTIVE_HANDLER = 1887;
     public static final int ER_INVALID_ARGUMENT_FOR_LOGARITHM = 1903;
 
+    public static final int CR_UNKNOWN_ERROR = 2000;
+
 
     public static final Map<Integer, String> ERROR_TO_SQL_STATES_MAP = createMySQLErrorNumberToSQLStatesMap();
 

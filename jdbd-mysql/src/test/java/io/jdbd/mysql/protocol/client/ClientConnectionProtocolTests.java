@@ -1,8 +1,8 @@
 package io.jdbd.mysql.protocol.client;
 
 import io.jdbd.mysql.protocol.MySQLPacket;
-import io.jdbd.mysql.protocol.conf.HostInfo;
 import io.jdbd.mysql.protocol.conf.PropertyDefinitions;
+import io.jdbd.vendor.conf.DefaultHostInfo;
 import io.netty.channel.EventLoopGroup;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -26,7 +26,9 @@ public class ClientConnectionProtocolTests {
         // PREFERRED ,DISABLED
         Map<String, String> properties = new HashMap<>();
 
-        HostInfo hostInfo = MySQLUrlUtils.build(properties).getHosts().get(0);
+        properties.put("sslMode", "PREFERRED");
+
+        DefaultHostInfo hostInfo = MySQLUrlUtils.build(properties).getHosts().get(0);
         EventLoopGroup eventLoopGroup = LoopResources.create("jdbd-mysql").onClient(true);
 
         ClientConnectionProtocol protocol = ClientConnectionProtocolImpl
@@ -41,6 +43,14 @@ public class ClientConnectionProtocolTests {
         obtainConnectionProtocol(context)
                 .closeGracefully()
                 .block();
+    }
+
+    @Test
+    public void authenticateAndInitializing(ITestContext context) throws Exception {
+        obtainConnectionProtocol(context)
+                .authenticateAndInitializing()
+                .block();
+        Thread.sleep(15 * 1000L);
     }
 
     /**

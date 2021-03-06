@@ -2,6 +2,7 @@ package io.jdbd.mysql.protocol.conf;
 
 import com.mysql.cj.conf.ConnectionUrl;
 import com.mysql.cj.jdbc.Driver;
+import io.jdbd.vendor.conf.DefaultHostInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.annotations.Test;
@@ -22,7 +23,7 @@ public class MySQLParserTests {
     public void simpleTest() throws Exception {
         long start = System.currentTimeMillis();
         MySQLUrlParser parser = MySQLUrlParser.parseConnectionString(COMMON_URL, Collections.singletonMap("user", "army"));
-        for (HostInfo parsedHost : parser.getParsedHosts()) {
+        for (DefaultHostInfo parsedHost : parser.getParsedHosts()) {
             LOG.info("parsedHost:{}", parsedHost.getHostPortPair());
         }
         LOG.info("cost {} ms", System.currentTimeMillis() - start);

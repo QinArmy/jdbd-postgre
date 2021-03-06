@@ -2,8 +2,7 @@ package io.jdbd.vendor.result;
 
 import io.jdbd.*;
 import io.jdbd.vendor.JdbdCompositeException;
-import io.jdbd.vendor.MultiResultsSink;
-import io.jdbd.vendor.TaskAdjutant;
+import io.jdbd.vendor.task.TaskAdjutant;
 import io.jdbd.vendor.util.JdbdCollections;
 import io.jdbd.vendor.util.JdbdExceptions;
 import org.slf4j.Logger;

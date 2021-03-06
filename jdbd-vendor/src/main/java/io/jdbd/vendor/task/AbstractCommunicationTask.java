@@ -1,4 +1,4 @@
-package io.jdbd.vendor;
+package io.jdbd.vendor.task;
 
 import io.jdbd.JdbdNonSQLException;
 import io.jdbd.TaskQueueOverflowException;
@@ -8,22 +8,22 @@ import reactor.util.annotation.Nullable;
 
 import java.util.function.Consumer;
 
-public abstract class AbstractCommunicationTask implements CommunicationTask<ByteBuf> {
+public abstract class AbstractCommunicationTask implements CommunicationTask {
 
-    final TaskAdjutant executorAdjutant;
+    final TaskAdjutant adjutant;
 
     private TaskPhase taskPhase;
 
     protected Publisher<ByteBuf> packetPublisher;
 
-    protected AbstractCommunicationTask(TaskAdjutant executorAdjutant) {
-        this.executorAdjutant = executorAdjutant;
+    protected AbstractCommunicationTask(TaskAdjutant adjutant) {
+        this.adjutant = adjutant;
     }
 
     @Nullable
     @Override
     public final Publisher<ByteBuf> start(TaskSignal signal) {
-        if (!this.executorAdjutant.inEventLoop()) {
+        if (!this.adjutant.inEventLoop()) {
             throw new IllegalStateException("start() isn't in EventLoop.");
         }
         if (this.taskPhase != TaskPhase.SUBMITTED) {
@@ -36,7 +36,7 @@ public abstract class AbstractCommunicationTask implements CommunicationTask<Byt
 
     @Override
     public final boolean decode(ByteBuf cumulateBuffer, Consumer<Object> serverStatusConsumer) {
-        if (!this.executorAdjutant.inEventLoop()) {
+        if (!this.adjutant.inEventLoop()) {
             throw new IllegalStateException("decode(ByteBuf) isn't in EventLoop.");
         }
         if (this.taskPhase != TaskPhase.STARTED) {
@@ -81,10 +81,10 @@ public abstract class AbstractCommunicationTask implements CommunicationTask<Byt
     }
 
     protected final void submit(Consumer<Throwable> consumer) {
-        if (this.executorAdjutant.inEventLoop()) {
+        if (this.adjutant.inEventLoop()) {
             syncSubmitTask(consumer);
         } else {
-            this.executorAdjutant.execute(() -> syncSubmitTask(consumer));
+            this.adjutant.execute(() -> syncSubmitTask(consumer));
         }
     }
 
@@ -113,7 +113,7 @@ public abstract class AbstractCommunicationTask implements CommunicationTask<Byt
             throw new IllegalStateException("Communication task have submitted.");
         }
         try {
-            this.executorAdjutant.syncSubmitTask(this, success -> {
+            this.adjutant.syncSubmitTask(this, success -> {
                 if (success) {
                     this.taskPhase = TaskPhase.SUBMITTED;
                 } else {

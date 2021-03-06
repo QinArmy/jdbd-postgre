@@ -3,7 +3,7 @@ package io.jdbd.mysql.protocol.client;
 import io.jdbd.JdbdSQLException;
 import io.jdbd.ResultRow;
 import io.jdbd.ResultRowMeta;
-import io.jdbd.mysql.JdbdMySQLException;
+import io.jdbd.mysql.MySQLJdbdException;
 import io.jdbd.mysql.util.MySQLConvertUtils;
 import io.jdbd.mysql.util.MySQLNumberUtils;
 import io.jdbd.mysql.util.MySQLTimeUtils;
@@ -76,8 +76,8 @@ abstract class MySQLResultRow implements ResultRow {
     public final Object getObject(String alias) throws JdbdSQLException {
         try {
             return this.columnValues[checkIndex(rowMeta.convertToIndex(alias))];
-        } catch (JdbdMySQLException e) {
-            throw new JdbdMySQLException(String.format("alias[%s] access error.", alias), e);
+        } catch (MySQLJdbdException e) {
+            throw new MySQLJdbdException(String.format("alias[%s] access error.", alias), e);
         }
     }
 
@@ -86,8 +86,8 @@ abstract class MySQLResultRow implements ResultRow {
     public final <T> T getObject(String alias, Class<T> columnClass) throws JdbdSQLException {
         try {
             return getObject(this.rowMeta.convertToIndex(alias), columnClass);
-        } catch (JdbdMySQLException e) {
-            throw new JdbdMySQLException(String.format("alias[%s] access error.", alias), e);
+        } catch (MySQLJdbdException e) {
+            throw new MySQLJdbdException(String.format("alias[%s] access error.", alias), e);
         }
     }
 
@@ -121,8 +121,8 @@ abstract class MySQLResultRow implements ResultRow {
             throws JdbdSQLException {
         try {
             return getObject(this.rowMeta.convertToIndex(alias), targetClass, zoneId);
-        } catch (JdbdMySQLException e) {
-            throw new JdbdMySQLException(String.format("alias[%s] access error.", alias), e);
+        } catch (MySQLJdbdException e) {
+            throw new MySQLJdbdException(String.format("alias[%s] access error.", alias), e);
         }
     }
 

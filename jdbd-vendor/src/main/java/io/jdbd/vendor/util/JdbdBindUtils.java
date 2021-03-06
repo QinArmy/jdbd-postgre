@@ -1,6 +1,6 @@
 package io.jdbd.vendor.util;
 
-import io.jdbd.vendor.IBindValue;
+import io.jdbd.vendor.statement.IBindValue;
 
 import java.util.List;
 

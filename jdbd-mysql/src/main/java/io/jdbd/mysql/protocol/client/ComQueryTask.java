@@ -4,19 +4,13 @@ import io.jdbd.*;
 import io.jdbd.mysql.BatchWrapper;
 import io.jdbd.mysql.BindValue;
 import io.jdbd.mysql.StmtWrapper;
-import io.jdbd.mysql.protocol.ErrorPacket;
-import io.jdbd.mysql.protocol.OkPacket;
-import io.jdbd.mysql.protocol.conf.Properties;
 import io.jdbd.mysql.protocol.conf.PropertyKey;
 import io.jdbd.mysql.util.MySQLCollections;
 import io.jdbd.mysql.util.MySQLExceptions;
 import io.jdbd.vendor.JdbdCompositeException;
-import io.jdbd.vendor.MultiResultsSink;
-import io.jdbd.vendor.TaskSignal;
-import io.jdbd.vendor.result.JdbdMultiResults;
-import io.jdbd.vendor.result.QuerySink;
-import io.jdbd.vendor.result.ReactorMultiResults;
-import io.jdbd.vendor.result.ResultRowSink;
+import io.jdbd.vendor.conf.Properties;
+import io.jdbd.vendor.result.*;
+import io.jdbd.vendor.task.TaskSignal;
 import io.netty.buffer.ByteBuf;
 import org.qinarmy.util.Pair;
 import org.reactivestreams.Publisher;
@@ -529,7 +523,7 @@ final class ComQueryTask extends MySQLCommunicationTask {
             case ErrorPacket.ERROR_HEADER: {
                 ErrorPacket error;
                 error = ErrorPacket.readPacket(cumulateBuffer.readSlice(payloadLength)
-                        , this.negotiatedCapability, this.adjutant.obtainCharsetResults());
+                        , this.negotiatedCapability, this.adjutant.getCharsetResults());
                 if (LOG.isDebugEnabled()) {
                     LOG.debug("COM_SET_OPTION return error,{}", error);
                 }
@@ -577,7 +571,7 @@ final class ComQueryTask extends MySQLCommunicationTask {
             case ErrorPacket.ERROR_HEADER: {
                 ErrorPacket error;
                 error = ErrorPacket.readPacket(cumulateBuffer.readSlice(payloadLength)
-                        , this.negotiatedCapability, this.adjutant.obtainCharsetResults());
+                        , this.negotiatedCapability, this.adjutant.getCharsetResults());
                 if (LOG.isDebugEnabled()) {
                     LOG.debug("COM_SET_OPTION return error,{}", error);
                 }
@@ -613,7 +607,7 @@ final class ComQueryTask extends MySQLCommunicationTask {
                 updateSequenceId(PacketUtils.readInt1(cumulateBuffer)); //  sequence_id
                 ErrorPacket error;
                 error = ErrorPacket.readPacket(cumulateBuffer.readSlice(payloadLength)
-                        , this.negotiatedCapability, this.adjutant.obtainCharsetResults());
+                        , this.negotiatedCapability, this.adjutant.getCharsetResults());
                 addErrorForSqlError(error);
                 taskEnd = true;
             }
@@ -699,7 +693,7 @@ final class ComQueryTask extends MySQLCommunicationTask {
      * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_com_set_option.html">Protocol::COM_SET_OPTION</a>
      */
     private ByteBuf createSetOptionPacket(final boolean enable, final int sequenceId) {
-        ByteBuf packet = this.adjutant.alloc().buffer(7);
+        ByteBuf packet = this.adjutant.allocator().buffer(7);
         PacketUtils.writeInt3(packet, 3);
         packet.writeByte(sequenceId);
 
@@ -810,7 +804,7 @@ final class ComQueryTask extends MySQLCommunicationTask {
         }
         String localFilePath;
         localFilePath = PacketUtils.readStringFixed(cumulateBuffer, payloadLength - 1
-                , this.adjutant.obtainCharsetResults());
+                , this.adjutant.getCharsetResults());
 
         final Path filePath = Paths.get(localFilePath);
 
@@ -901,7 +895,7 @@ final class ComQueryTask extends MySQLCommunicationTask {
      * @see #doSendLocalFile(FluxSink, Path)
      */
     private ByteBuf createEmptyPacket() {
-        ByteBuf packet = this.adjutant.alloc().buffer(PacketUtils.HEADER_SIZE);
+        ByteBuf packet = this.adjutant.allocator().buffer(PacketUtils.HEADER_SIZE);
         PacketUtils.writeInt3(packet, 0);
         packet.writeByte(addAndGetSequenceId());
         return packet;

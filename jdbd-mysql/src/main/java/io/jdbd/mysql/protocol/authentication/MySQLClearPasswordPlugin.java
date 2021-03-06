@@ -2,7 +2,7 @@ package io.jdbd.mysql.protocol.authentication;
 
 import io.jdbd.mysql.protocol.AuthenticateAssistant;
 import io.jdbd.mysql.protocol.client.PacketUtils;
-import io.jdbd.mysql.protocol.conf.HostInfo;
+import io.jdbd.vendor.conf.DefaultHostInfo;
 import io.netty.buffer.ByteBuf;
 
 import java.nio.charset.Charset;
@@ -12,7 +12,7 @@ import java.util.List;
 
 public class MySQLClearPasswordPlugin implements AuthenticationPlugin {
 
-    public static MySQLClearPasswordPlugin getInstance(AuthenticateAssistant protocolAssistant, HostInfo hostInfo) {
+    public static MySQLClearPasswordPlugin getInstance(AuthenticateAssistant protocolAssistant, DefaultHostInfo hostInfo) {
         return new MySQLClearPasswordPlugin(protocolAssistant, hostInfo);
     }
 
@@ -22,9 +22,9 @@ public class MySQLClearPasswordPlugin implements AuthenticationPlugin {
 
     private final AuthenticateAssistant protocolAssistant;
 
-    private final HostInfo hostInfo;
+    private final DefaultHostInfo hostInfo;
 
-    private MySQLClearPasswordPlugin(AuthenticateAssistant protocolAssistant, HostInfo hostInfo) {
+    private MySQLClearPasswordPlugin(AuthenticateAssistant protocolAssistant, DefaultHostInfo hostInfo) {
         this.protocolAssistant = protocolAssistant;
         this.hostInfo = hostInfo;
     }

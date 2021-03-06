@@ -1,26 +1,24 @@
 package io.jdbd;
 
+import io.jdbd.lang.Nullable;
+
 public class UrlException extends JdbdNonSQLException {
 
     private final String url;
 
-    public UrlException(String message, String url) {
-        super(message);
+    public UrlException(String url, String message, Object... args) {
+        super(message, args);
         this.url = url;
     }
 
-    public UrlException(String message, Throwable cause, String url) {
-        super(message, cause);
+    public UrlException(@Nullable Throwable cause, String url, String messageFormat, Object... args) {
+        super(cause, messageFormat, args);
         this.url = url;
     }
 
-    public UrlException(String message, Throwable cause, boolean enableSuppression
-            , boolean writableStackTrace, String url) {
-        super(message, cause, enableSuppression, writableStackTrace);
-        this.url = url;
-    }
-
-    public String getUrl() {
+    public final String getUrl() {
         return this.url;
     }
+
+
 }

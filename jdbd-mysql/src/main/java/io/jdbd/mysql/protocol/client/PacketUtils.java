@@ -1,6 +1,6 @@
 package io.jdbd.mysql.protocol.client;
 
-import io.jdbd.mysql.JdbdMySQLException;
+import io.jdbd.mysql.MySQLJdbdException;
 import io.jdbd.mysql.util.MySQLExceptions;
 import io.jdbd.mysql.util.MySQLNumberUtils;
 import io.netty.buffer.ByteBuf;
@@ -317,7 +317,7 @@ public abstract class PacketUtils {
     public static int readLenEncAsInt(ByteBuf byteBuf) {
         long intEnc = readLenEnc(byteBuf);
         if (intEnc > Integer.MAX_VALUE) {
-            throw new JdbdMySQLException("length encode integer cant' convert to int.");
+            throw new MySQLJdbdException("length encode integer cant' convert to int.");
         }
         return (int) intEnc;
     }

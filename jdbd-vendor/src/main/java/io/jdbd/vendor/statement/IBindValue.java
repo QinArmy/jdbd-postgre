@@ -1,4 +1,4 @@
-package io.jdbd.vendor;
+package io.jdbd.vendor.statement;
 
 
 import io.jdbd.lang.Nullable;

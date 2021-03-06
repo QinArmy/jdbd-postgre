@@ -4,14 +4,10 @@ import io.jdbd.BigRowIoException;
 import io.jdbd.JdbdException;
 import io.jdbd.JdbdSQLException;
 import io.jdbd.ResultRow;
-import io.jdbd.mysql.protocol.EofPacket;
-import io.jdbd.mysql.protocol.ErrorPacket;
-import io.jdbd.mysql.protocol.OkPacket;
-import io.jdbd.mysql.protocol.TerminatorPacket;
-import io.jdbd.mysql.protocol.conf.Properties;
 import io.jdbd.mysql.protocol.conf.PropertyDefinitions;
 import io.jdbd.mysql.protocol.conf.PropertyKey;
 import io.jdbd.mysql.util.MySQLExceptions;
+import io.jdbd.vendor.conf.Properties;
 import io.jdbd.vendor.result.ResultRowSink;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
@@ -43,7 +39,7 @@ abstract class AbstractResultSetReader implements ResultSetReader {
 
     private final Supplier<Boolean> errorJudger;
 
-    final Properties properties;
+    final Properties<PropertyKey> properties;
 
     MySQLRowMeta rowMeta;
 
@@ -191,7 +187,7 @@ abstract class AbstractResultSetReader implements ResultSetReader {
                     break outFor;
                     default: {
                         payload = PacketUtils.readBigPayload(cumulateBuffer, multiPayloadLength
-                                , this::updateSequenceId, this.adjutant::createByteBuffer);
+                                , this::updateSequenceId, this.adjutant.allocator()::buffer);
                         payloadLength = payload.readableBytes();
                         sequenceId = this.sequenceId;
                     }
@@ -206,7 +202,7 @@ abstract class AbstractResultSetReader implements ResultSetReader {
                 ByteBuf errorPayload = (payload == cumulateBuffer) ? cumulateBuffer.readSlice(payloadLength) : payload;
                 ErrorPacket error;
                 error = ErrorPacket.readPacket(errorPayload, negotiatedCapability
-                        , this.adjutant.obtainCharsetResults());
+                        , this.adjutant.obtainCharsetError());
                 emitError(MySQLExceptions.createErrorPacketException(error));
                 resultSetEnd = true;
                 break;
@@ -497,9 +493,9 @@ abstract class AbstractResultSetReader implements ResultSetReader {
         final int payloadLength = packetPayload.readableBytes();
         if (!payloadBuffer.isReadable()) {
             payloadBuffer.release();
-            payloadBuffer = this.adjutant.createByteBuffer(payloadLength);
+            payloadBuffer = this.adjutant.allocator().buffer(payloadLength);
         } else if (payloadBuffer.maxFastWritableBytes() < payloadLength) {
-            ByteBuf tempBuffer = this.adjutant.createByteBuffer(payloadBuffer.readableBytes() + payloadLength);
+            ByteBuf tempBuffer = this.adjutant.allocator().buffer(payloadBuffer.readableBytes() + payloadLength);
             tempBuffer.writeBytes(payloadBuffer);
             payloadBuffer.release();
             payloadBuffer = tempBuffer;
