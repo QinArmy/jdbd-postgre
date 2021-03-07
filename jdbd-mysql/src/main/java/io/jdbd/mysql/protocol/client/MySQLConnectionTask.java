@@ -399,7 +399,7 @@ final class MySQLConnectionTask extends AbstractCommunicationTask implements Aut
 
         // 7. database
         if ((clientFlag & ClientProtocol.CLIENT_CONNECT_WITH_DB) != 0) {
-            String database = this.hostInfo.getDatabase();
+            String database = this.hostInfo.getDbName();
             if (!MySQLStringUtils.hasText(database)) {
                 throw new MySQLJdbdException("client flag error,check this.getClientFlat() method.");
             }
@@ -637,7 +637,7 @@ final class MySQLConnectionTask extends AbstractCommunicationTask implements Aut
         final int serverCapability = handshake.getCapabilityFlags();
         final Properties<PropertyKey> env = this.properties;
 
-        final boolean useConnectWithDb = MySQLStringUtils.hasText(this.hostInfo.getDatabase())
+        final boolean useConnectWithDb = MySQLStringUtils.hasText(this.hostInfo.getDbName())
                 && !env.getOrDefault(PropertyKey.createDatabaseIfNotExist, Boolean.class);
 
         return ClientProtocol.CLIENT_SECURE_CONNECTION

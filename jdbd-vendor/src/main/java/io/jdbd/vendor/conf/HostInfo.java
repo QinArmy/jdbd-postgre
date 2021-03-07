@@ -40,7 +40,7 @@ public interface HostInfo<K extends IPropertyKey> {
     Properties<K> getProperties();
 
     @Nullable
-    String getDatabase();
+    String getDbName();
 
     @Override
     String toString();

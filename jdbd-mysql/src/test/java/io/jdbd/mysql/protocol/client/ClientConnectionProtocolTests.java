@@ -1,8 +1,7 @@
 package io.jdbd.mysql.protocol.client;
 
-import io.jdbd.mysql.protocol.MySQLPacket;
-import io.jdbd.mysql.protocol.conf.PropertyDefinitions;
-import io.jdbd.vendor.conf.DefaultHostInfo;
+import io.jdbd.mysql.protocol.conf.PropertyKey;
+import io.jdbd.vendor.conf.HostInfo;
 import io.netty.channel.EventLoopGroup;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -28,7 +27,7 @@ public class ClientConnectionProtocolTests {
 
         properties.put("sslMode", "PREFERRED");
 
-        DefaultHostInfo hostInfo = MySQLUrlUtils.build(properties).getHosts().get(0);
+        HostInfo<PropertyKey> hostInfo = MySQLUrlUtils.build(properties).getHostList().get(0);
         EventLoopGroup eventLoopGroup = LoopResources.create("jdbd-mysql").onClient(true);
 
         ClientConnectionProtocol protocol = ClientConnectionProtocolImpl
@@ -51,63 +50,6 @@ public class ClientConnectionProtocolTests {
                 .authenticateAndInitializing()
                 .block();
         Thread.sleep(15 * 1000L);
-    }
-
-    /**
-     * test {@link ClientConnectionProtocolImpl#receiveHandshake() }
-     */
-    @Test
-    public void receiveHandshake(ITestContext context) {
-        MySQLPacket mySQLPacket = obtainConnectionProtocol(context)
-                .receiveHandshake()
-                .block();
-        Assert.assertNotNull(mySQLPacket);
-        LOG.info("Connection protocol receiveHandshake phase success. packet:\n{}", mySQLPacket.toString());
-    }
-
-    /**
-     * test {@link ClientConnectionProtocolImpl#sslNegotiate() }
-     */
-    @Test(dependsOnMethods = "receiveHandshake")
-    public void sslNegotiate(ITestContext context) throws Exception {
-        PropertyDefinitions.SslMode sslMode = obtainConnectionProtocol(context)
-                .sslNegotiate()
-                .block();
-        //Thread.sleep(5000L);
-        LOG.info("Connection protocol sslNegotiate {}", sslMode);
-    }
-
-    /**
-     * test {@link ClientConnectionProtocolImpl#authenticate() }
-     */
-    @Test(dependsOnMethods = {"receiveHandshake", "sslNegotiate"})
-    public void authenticate(ITestContext context) {
-        obtainConnectionProtocol(context)
-                .authenticate()
-                .block();
-        LOG.info("Connection protocol authenticate phase execute success");
-    }
-
-    /**
-     * test {@link ClientConnectionProtocolImpl#configureSession() }
-     */
-    @Test(dependsOnMethods = {"receiveHandshake", "sslNegotiate", "authenticate"})
-    public void configureSession(ITestContext context) {
-        obtainConnectionProtocol(context)
-                .configureSession()
-                .block();
-        LOG.info("Connection protocol configureSession phase execute success");
-    }
-
-    /**
-     * test {@link ClientConnectionProtocolImpl#initialize() }
-     */
-    @Test(dependsOnMethods = {"receiveHandshake", "sslNegotiate", "authenticate", "configureSession"})
-    public void initialize(ITestContext context) {
-        obtainConnectionProtocol(context)
-                .initialize()
-                .block();
-        LOG.info("Connection protocol initialize phase execute success");
     }
 
 

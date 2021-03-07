@@ -17,7 +17,7 @@ public final class MySQLUrl extends DefaultJdbcUrl<PropertyKey> {
     public static final int DEFAULT_PORT = 3306;
 
     public static MySQLUrl getInstance(String url, Map<String, String> properties) {
-        return new MySQLUrl(MySQLUrlParser.parseConnectionString(url, properties));
+        return new MySQLUrl(MySQLUrlParser.parseMySQLUrl(url, properties));
     }
 
     private final Protocol protocolType;
@@ -25,7 +25,16 @@ public final class MySQLUrl extends DefaultJdbcUrl<PropertyKey> {
 
     private MySQLUrl(MySQLUrlParser parser) {
         super(parser);
-        this.protocolType = Protocol.fromValue(this.getProtocol(), this.getHostList().size());
+        this.protocolType = Protocol.fromValue(this.getOriginalUrl(), this.getProtocol(), this.getHostList().size());
+    }
+
+    public Protocol getProtocolType() {
+        return protocolType;
+    }
+
+    @Override
+    protected String internalToString() {
+        return this.protocolType.name();
     }
 
     /**
@@ -55,9 +64,6 @@ public final class MySQLUrl extends DefaultJdbcUrl<PropertyKey> {
         public abstract boolean assertSize(int n);
     }
 
-    public Protocol getProtocolType() {
-        return protocolType;
-    }
 
     /**
      * <p>
@@ -118,6 +124,7 @@ public final class MySQLUrl extends DefaultJdbcUrl<PropertyKey> {
             return this.alternateDnsSrvType;
         }
 
+
         /**
          * Returns the {@link Protocol} corresponding to the given scheme and number of hosts, if any.
          * Otherwise throws an {@link UrlException}.
@@ -127,14 +134,13 @@ public final class MySQLUrl extends DefaultJdbcUrl<PropertyKey> {
          * @param n      the number of hosts in the database URL
          * @return the {@link Protocol} corresponding to the given protocol and number of hosts
          */
-        public static Protocol fromValue(String scheme, int n) {
+        public static Protocol fromValue(String url, String scheme, int n) {
             for (Protocol t : Protocol.values()) {
                 if (t.getScheme().equalsIgnoreCase(scheme) && (n < 0 || t.getCardinality().assertSize(n))) {
                     return t;
                 }
             }
-            throw new IllegalArgumentException(
-                    String.format("unsupported scheme[%s] and hosts cardinality[%s]", scheme, n));
+            throw new UrlException(url, "unsupported scheme[%s] and hosts cardinality[%s]", scheme, n);
         }
 
         /**

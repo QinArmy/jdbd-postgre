@@ -2,13 +2,13 @@ package io.jdbd.mysql.protocol.client;
 
 import io.jdbd.mysql.protocol.CharsetMapping;
 import io.jdbd.mysql.protocol.conf.PropertyKey;
-import io.jdbd.mysql.util.MySQLObjects;
 import io.jdbd.vendor.conf.Properties;
 import io.netty.buffer.ByteBuf;
 import reactor.util.annotation.Nullable;
 
 import java.nio.charset.Charset;
 import java.util.Map;
+import java.util.Objects;
 
 /**
  * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/group__group__cs__column__definition__flags.html"> Column Definition Flags</a>
@@ -209,7 +209,7 @@ public final class MySQLColumnMeta {
      * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_com_query_response_text_resultset_column_definition.html">Protocol::ColumnDefinition41</a>
      */
     static MySQLColumnMeta readFor41(ByteBuf payloadBuf, ClientProtocolAdjutant adjutant) {
-        final Charset metaCharset = adjutant.getCharsetResults();
+        final Charset metaCharset = adjutant.obtainCharsetMeta();
         final Properties<PropertyKey> properties = adjutant.obtainHostInfo().getProperties();
         // 1. catalog
         String catalogName = PacketUtils.readStringLenEnc(payloadBuf, metaCharset);
@@ -221,7 +221,7 @@ public final class MySQLColumnMeta {
         String tableName = PacketUtils.readStringLenEnc(payloadBuf, metaCharset);
 
         // 5. name ,virtual column name,alias in select statement
-        String columnAlias = MySQLObjects.requireNonNull(PacketUtils.readStringLenEnc(payloadBuf, metaCharset)
+        String columnAlias = Objects.requireNonNull(PacketUtils.readStringLenEnc(payloadBuf, metaCharset)
                 , "columnAlias");
         // 6. org_name,physical column name
         String columnName = PacketUtils.readStringLenEnc(payloadBuf, metaCharset);

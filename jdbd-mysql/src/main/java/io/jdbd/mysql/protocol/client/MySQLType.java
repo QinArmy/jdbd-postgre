@@ -3,7 +3,6 @@ package io.jdbd.mysql.protocol.client;
 import io.jdbd.meta.SQLType;
 import io.jdbd.mysql.protocol.CharsetMapping;
 import io.jdbd.mysql.protocol.conf.PropertyKey;
-import io.jdbd.mysql.util.MySQLObjects;
 import io.jdbd.type.Geometry;
 import io.jdbd.vendor.conf.Properties;
 import org.qinarmy.util.StringUtils;
@@ -625,8 +624,7 @@ public enum MySQLType implements SQLType {
         }
 
         // call this method again with correct this.mysqlType set
-        return MySQLObjects.requireNonNull(
-                CONVERT_FUNCTION_MAP.get(newMysqlTypeId), "TypeFlag[%s] no function", newMysqlTypeId)
+        return Objects.requireNonNull(CONVERT_FUNCTION_MAP.get(newMysqlTypeId), "TypeFlag no function")
                 .apply(columnMeta, properties);
     }
 

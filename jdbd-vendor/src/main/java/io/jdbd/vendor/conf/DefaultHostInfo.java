@@ -1,6 +1,7 @@
 package io.jdbd.vendor.conf;
 
 
+import io.jdbd.UrlException;
 import io.jdbd.vendor.util.JdbdCollections;
 import io.jdbd.vendor.util.JdbdStringUtils;
 import reactor.util.annotation.Nullable;
@@ -27,7 +28,7 @@ public final class DefaultHostInfo<K extends IPropertyKey> implements HostInfo<K
     private final boolean isPasswordLess;
     private final Properties<K> properties;
 
-    private final String database;
+    private final String dbName;
 
 
     protected DefaultHostInfo(final String originalUrl, final Map<String, String> globalProperties
@@ -49,28 +50,29 @@ public final class DefaultHostInfo<K extends IPropertyKey> implements HostInfo<K
 
         this.host = JdbdStringUtils.hasText(host) ? host : DEFAULT_HOST;
         this.port = Integer.parseInt(map.remove(PORT));
-        this.user = map.remove(map.remove(USER));
+        this.user = map.remove(USER);
         this.password = map.remove(PASSWORD);
 
         if (!JdbdStringUtils.hasText(this.user)) {
-            throw new IllegalArgumentException(String.format("%s property must be not empty", USER));
+            throw new UrlException(this.originalUrl, "%s property must be not empty", USER);
         }
-        this.isPasswordLess = password == null;
-        this.database = map.remove(DB_NAME);
+        this.isPasswordLess = !JdbdStringUtils.hasText(this.password);
+        this.dbName = map.remove(DB_NAME);
 
         this.properties = ImmutableMapProperties.getInstance(map);
     }
 
     @Override
     public String toString() {
-        final StringBuilder sb = new StringBuilder("DefaultHostInfo{");
-        sb.append(", host='").append(this.host).append('\'');
-        sb.append(", port=").append(this.port);
-        sb.append(", isPasswordLess=").append(this.isPasswordLess);
-        sb.append(", properties=").append(this.properties);
-        sb.append(", database='").append(this.database).append('\'');
-        sb.append('}');
-        return sb.toString();
+        return new StringBuilder()
+                .append("(")
+                .append("host = '").append(this.host)
+                .append(", port = ").append(this.port)
+                .append(", isPasswordLess = ").append(this.isPasswordLess)
+                .append(", propertiesSize = ")
+                .append(this.properties.size())
+                .append(')')
+                .toString();
     }
 
     @Override
@@ -114,7 +116,7 @@ public final class DefaultHostInfo<K extends IPropertyKey> implements HostInfo<K
     }
 
     @Nullable
-    public String getDatabase() {
-        return this.database;
+    public String getDbName() {
+        return this.dbName;
     }
 }

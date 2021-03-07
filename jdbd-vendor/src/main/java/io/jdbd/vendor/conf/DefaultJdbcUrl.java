@@ -43,6 +43,38 @@ public class DefaultJdbcUrl<K extends IPropertyKey> implements JdbcUrl<K> {
         }
         this.dbName = parser.getGlobalProperties().get(HostInfo.DB_NAME);
         this.hostInfoList = JdbdCollections.unmodifiableList(createHostInfo(parser));
+        if (this.hostInfoList.isEmpty()) {
+            throw new IllegalArgumentException("hostInfoList can't is empty.");
+        }
+    }
+
+    @Override
+    public final String toString() {
+        StringBuilder builder = new StringBuilder("{")
+                .append(internalToString())
+                .append("\noriginalUrl:")
+                .append(this.originalUrl)
+                .append("\nprotocol:")
+                .append(this.protocol)
+                .append("\nsubProtocol:")
+                .append(this.subProtocol)
+                .append("\ndbName:")
+                .append(this.dbName)
+                .append("\nhostInfoList:[");
+        int count = 0;
+        for (HostInfo<K> hostInfo : this.hostInfoList) {
+            if (count > 0) {
+                builder.append(",\n");
+            }
+            builder.append(hostInfo);
+            count++;
+        }
+        builder.append("]\n}");
+        return builder.toString();
+    }
+
+    protected String internalToString() {
+        return "";
     }
 
     @Override

@@ -3,6 +3,7 @@ package io.jdbd.mysql.util;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.Stack;
 
 public abstract class MySQLStringUtils extends org.qinarmy.util.StringUtils {
@@ -47,9 +48,9 @@ public abstract class MySQLStringUtils extends org.qinarmy.util.StringUtils {
      */
     public static List<String> split(String input, String delimiter, String openMarker, String closeMarker) {
 
-        final char[] delimiterArray = MySQLObjects.requireNonNull(delimiter, "delimiter").toCharArray();
-        final char[] openMarkerArray = MySQLObjects.requireNonNull(openMarker, "openMarker").toCharArray();
-        final char[] closeMarkerArray = MySQLObjects.requireNonNull(closeMarker, "closeMarker").toCharArray();
+        final char[] delimiterArray = Objects.requireNonNull(delimiter, "delimiter").toCharArray();
+        final char[] openMarkerArray = Objects.requireNonNull(openMarker, "openMarker").toCharArray();
+        final char[] closeMarkerArray = Objects.requireNonNull(closeMarker, "closeMarker").toCharArray();
 
         if (openMarkerArray.length != closeMarkerArray.length) {
             throw new IllegalArgumentException(String.format
@@ -59,7 +60,7 @@ public abstract class MySQLStringUtils extends org.qinarmy.util.StringUtils {
         final Stack<Character> openMarkerStack = new Stack<>();
         List<String> list = new ArrayList<>();
 
-        final int size = MySQLObjects.requireNonNull(input, "input").length();
+        final int size = Objects.requireNonNull(input, "input").length();
         int start = 0;
         char current, lastOpenMarker;
         for (int i = 0, openMarkerIndex, closeMarkerIndex, charCount = 0; i < size; i++) {

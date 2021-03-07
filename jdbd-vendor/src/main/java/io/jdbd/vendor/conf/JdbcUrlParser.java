@@ -12,18 +12,18 @@ public interface JdbcUrlParser {
     String getProtocol();
 
     @Nullable
-    String getDatabase();
+    String getDbName();
 
     @Nullable
     String getSubProtocol();
 
     /**
-     * @return a modifiable map,see {@link DefaultJdbcUrl#create(JdbcUrlParser)}.
+     * @return a unmodifiable map
      */
     Map<String, String> getGlobalProperties();
 
     /**
-     * @return a list that each element is modifiable,see {@link DefaultJdbcUrl#create(JdbcUrlParser)}.
+     * @return a unmodifiable list
      */
     List<Map<String, String>> getHostInfo();
 

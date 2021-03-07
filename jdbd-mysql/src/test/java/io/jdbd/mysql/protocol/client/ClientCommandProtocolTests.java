@@ -1,7 +1,6 @@
 package io.jdbd.mysql.protocol.client;
 
 import io.jdbd.mysql.protocol.conf.PropertyKey;
-import io.jdbd.mysql.util.MySQLObjects;
 import io.jdbd.vendor.conf.HostInfo;
 import io.netty.channel.EventLoopGroup;
 import org.slf4j.Logger;
@@ -13,10 +12,7 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 import reactor.netty.resources.LoopResources;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 public class ClientCommandProtocolTests {
 
@@ -67,7 +63,7 @@ public class ClientCommandProtocolTests {
 
     private ClientCommandProtocol obtainProtocol(ITestContext context) {
         ClientCommandProtocol protocol = (ClientCommandProtocol) context.getAttribute("commandProtocol");
-        return MySQLObjects.requireNonNull(protocol, "protocol");
+        return Objects.requireNonNull(protocol, "protocol");
     }
 
 }

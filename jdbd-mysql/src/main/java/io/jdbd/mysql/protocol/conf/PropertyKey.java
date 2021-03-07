@@ -7,6 +7,8 @@ import io.jdbd.vendor.conf.IPropertyKey;
 import reactor.netty.resources.ConnectionProvider;
 import reactor.util.annotation.Nullable;
 
+import java.util.Objects;
+
 /**
  * PropertyKey handles connection property names, their camel-case aliases and case sensitivity.
  *
@@ -413,6 +415,10 @@ public enum PropertyKey implements IPropertyKey {
     @Nullable
     public String getDefault() {
         return this.defaultValue;
+    }
+
+    public String getRequiredDefault() {
+        return Objects.requireNonNull(this.defaultValue, "defaultValue");
     }
 
 

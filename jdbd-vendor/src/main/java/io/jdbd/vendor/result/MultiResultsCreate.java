@@ -380,7 +380,7 @@ final class MultiResultsCreate implements MultiResultsSink {
                         , realQuerySink.statesConsumer);
             } else if (bufferSink instanceof BufferUpdateSink) {
                 if (realSink != null) {
-                    ErrorSubscribeException e = ErrorSubscribeException.errorSubscribe(UPDATE, QUERY
+                    ErrorSubscribeException e = new ErrorSubscribeException(UPDATE, QUERY
                             , "Update result[sequenceId(based one):%s] expect subscribe nextUpdate() but subscribe nextQuery()");
                     addDownstreamError(e);
                     realSink.error(e);
@@ -388,7 +388,7 @@ final class MultiResultsCreate implements MultiResultsSink {
                 bufferSink.clearBuffer();
             } else if (bufferSink instanceof BufferQuerySink) {
                 if (realSink != null) {
-                    ErrorSubscribeException e = ErrorSubscribeException.errorSubscribe(QUERY, UPDATE
+                    ErrorSubscribeException e = new ErrorSubscribeException(QUERY, UPDATE
                             , "Query result[sequenceId(based one):%s] expect subscribe nextQuery() but subscribe nextUpdate()");
                     addDownstreamError(e);
                     realSink.error(e);
@@ -468,9 +468,6 @@ final class MultiResultsCreate implements MultiResultsSink {
 
     /*################################## blow private static method ##################################*/
 
-    private IllegalStateException createSequenceIdException(DownstreamSink sink) {
-        return new IllegalStateException(String.format("Downstream %s sequenceId status error.", sink));
-    }
 
     /*################################## blow private instance inner class ##################################*/
 
@@ -880,7 +877,7 @@ final class MultiResultsCreate implements MultiResultsSink {
             }
             this.sequenceId = sequenceId;
             // here, downstream subscribe error,should subscribe io.jdbd.MultiResults.nextUpdate.
-            ErrorSubscribeException e = ErrorSubscribeException.errorSubscribe(QUERY, UPDATE
+            ErrorSubscribeException e = new ErrorSubscribeException(QUERY, UPDATE
                     , "Result[sequenceId(based one):%s] Expect subscribe nextQuery,but subscribe nextUpdate."
                     , sequenceId);
 
