@@ -6,7 +6,6 @@ import io.netty.buffer.ByteBuf;
 import reactor.util.annotation.Nullable;
 
 import java.nio.charset.StandardCharsets;
-import java.util.StringJoiner;
 
 /**
  * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_connection_phase_packets_protocol_handshake_v10.html">Protocol::HandshakeV10</a>
@@ -161,15 +160,18 @@ final class HandshakeV10Packet implements MySQLPacket {
 
     @Override
     public String toString() {
-        return new StringJoiner(", ", HandshakeV10Packet.class.getSimpleName() + "[", "]")
-                .add("authPluginDataPart1='" + authPluginDataPart1 + "'")
-                .add("filler=" + filler)
-                .add("capabilityFlags=" + capabilityFlags)
-                .add("characterSet=" + collationIndex)
-                .add("statusFlags=" + statusFlags)
-                .add("authPluginDataLen=" + authPluginDataLen)
-                .add("authPluginDataPart2='" + authPluginDataPart2 + "'")
-                .add("authPluginName='" + authPluginName + "'")
-                .toString();
+        final StringBuilder sb = new StringBuilder("HandshakeV10Packet{");
+        sb.append("serverVersion=").append(serverVersion);
+        sb.append(", threadId=").append(threadId);
+        sb.append(", authPluginDataPart1='").append(authPluginDataPart1).append('\'');
+        sb.append(", filler=").append(filler);
+        sb.append(", capabilityFlags=").append(capabilityFlags);
+        sb.append(", collationIndex=").append(collationIndex);
+        sb.append(", statusFlags=").append(statusFlags);
+        sb.append(", authPluginDataLen=").append(authPluginDataLen);
+        sb.append(", authPluginDataPart2='").append(authPluginDataPart2).append('\'');
+        sb.append(", authPluginName='").append(authPluginName).append('\'');
+        sb.append('}');
+        return sb.toString();
     }
 }

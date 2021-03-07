@@ -9,9 +9,9 @@ import io.jdbd.vendor.conf.HostInfo;
 import io.jdbd.vendor.conf.Properties;
 import io.jdbd.vendor.util.SQLStates;
 import io.netty.channel.EventLoopGroup;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import reactor.core.publisher.Mono;
+import reactor.util.Logger;
+import reactor.util.Loggers;
 
 import java.sql.SQLException;
 import java.util.*;
@@ -19,12 +19,18 @@ import java.util.concurrent.atomic.AtomicReference;
 
 final class ClientConnectionProtocolImpl implements ClientConnectionProtocol {
 
-    private static final Logger LOG = LoggerFactory.getLogger(ClientConnectionProtocolImpl.class);
+    private static final Logger LOG = Loggers.getLogger(ClientConnectionProtocolImpl.class);
 
 
     static Mono<ClientConnectionProtocolImpl> create(HostInfo<PropertyKey> hostInfo, EventLoopGroup eventLoopGroup) {
         return MySQLTaskExecutor.create(hostInfo, eventLoopGroup)
-                .map(taskExecutor -> new ClientConnectionProtocolImpl(hostInfo, taskExecutor))
+                .flatMap(taskExecutor -> {
+                    ClientConnectionProtocolImpl protocol;
+                    protocol = new ClientConnectionProtocolImpl(hostInfo, taskExecutor);
+                    return protocol.authenticateAndInitializing()
+                            .thenReturn(protocol);
+                })
+
                 ;
     }
 
@@ -75,16 +81,20 @@ final class ClientConnectionProtocolImpl implements ClientConnectionProtocol {
      * @see #authenticateAndInitializing()
      */
     private Mono<Map<Integer, CharsetMapping.CustomCollation>> detectCustomCollations() {
+
         Mono<Map<Integer, CharsetMapping.CustomCollation>> mono;
-        if (this.properties.getRequiredProperty(PropertyKey.detectCustomCollations, Boolean.class)) {
+        if (this.properties.getOrDefault(PropertyKey.detectCustomCollations, Boolean.class)) {
+            LOG.debug("detectCustomCollations start");
             // blow tow phase: SHOW COLLATION phase and SHOW CHARACTER SET phase
             mono = ComQueryTask.query("SHOW COLLATION", MultiResults.EMPTY_CONSUMER, this.taskExecutor.getAdjutant())
                     .filter(this::isCustomCollation)
+                    .doFirst(() -> LOG.debug("has custom collations."))
                     .collectMap(this::customCollationMapKeyFunction, this::customCollationMapValueFunction)
                     .flatMap(this::createCustomCollationMapForShowCollation)
                     // above SHOW COLLATION phase,blow SHOW CHARACTER SET phase
                     .then(Mono.defer(this::detectCustomCharset));
         } else {
+            LOG.debug("no detectCustomCollations,return empty map.");
             mono = Mono.just(Collections.emptyMap());
         }
 
@@ -100,6 +110,7 @@ final class ClientConnectionProtocolImpl implements ClientConnectionProtocol {
      * @see #detectCustomCollations()
      */
     private Mono<Void> createCustomCollationMapForShowCollation(Map<Integer, CharsetMapping.CustomCollation> map) {
+        LOG.debug("createCustomCollationMapForShowCollation start");
         if (map.isEmpty()) {
             this.customCollationMap.set(Collections.emptyMap());
             this.customCharsetNameSet.set(Collections.emptySet());
@@ -152,6 +163,7 @@ final class ClientConnectionProtocolImpl implements ClientConnectionProtocol {
      * @see #detectCustomCollations()
      */
     private Mono<Map<Integer, CharsetMapping.CustomCollation>> detectCustomCharset() {
+        LOG.debug("detectCustomCharset start");
         final Set<String> charsetNameSet = this.customCharsetNameSet.get();
         Mono<Map<Integer, CharsetMapping.CustomCollation>> mono;
         if (charsetNameSet == null) {

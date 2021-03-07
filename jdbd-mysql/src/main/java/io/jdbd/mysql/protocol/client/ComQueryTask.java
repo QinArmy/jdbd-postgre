@@ -14,12 +14,12 @@ import io.jdbd.vendor.task.TaskSignal;
 import io.netty.buffer.ByteBuf;
 import org.qinarmy.util.Pair;
 import org.reactivestreams.Publisher;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.FluxSink;
 import reactor.core.publisher.Mono;
 import reactor.core.publisher.MonoSink;
+import reactor.util.Logger;
+import reactor.util.Loggers;
 
 import java.io.IOException;
 import java.io.Reader;
@@ -235,7 +235,7 @@ final class ComQueryTask extends MySQLCommandTask {
     }
 
 
-    private static final Logger LOG = LoggerFactory.getLogger(ComQueryTask.class);
+    private static final Logger LOG = Loggers.getLogger(ComQueryTask.class);
 
     private final DownstreamSink downstreamSink;
 
@@ -1035,7 +1035,7 @@ final class ComQueryTask extends MySQLCommandTask {
 
         @Override
         public String toString() {
-            return SingleUpdateSink.class.getSimpleName();
+            return this.getClass().getSimpleName();
         }
 
         @Override
@@ -1082,7 +1082,7 @@ final class ComQueryTask extends MySQLCommandTask {
             final boolean resultEnd;
             if (resultSequenceId == 1) {
                 resultEnd = this.resultSetReader.read(cumulateBuffer, serverStatusConsumer);
-                if (this.resultStates == null) {
+                if (resultEnd && this.resultStates == null) {
                     throw new IllegalStateException(String.format("%s, %s not invoke ResultStates Consumer."
                             , this, this.resultSetReader.getClass().getName()));
                 }
@@ -1105,6 +1105,9 @@ final class ComQueryTask extends MySQLCommandTask {
                 // invoke user ResultStates Consumer.
                 this.statesConsumer.accept(Objects.requireNonNull(this.resultStates, "this.resultStates"));
                 this.sink.complete();
+                if (LOG.isTraceEnabled()) {
+                    LOG.trace("{} complete.", this.getClass().getSimpleName());
+                }
             } catch (Throwable e) {
                 this.sink.error(new ResultStateConsumerException(e, "%s consumer error."
                         , ResultStates.class.getName()));
@@ -1170,6 +1173,11 @@ final class ComQueryTask extends MySQLCommandTask {
         @Override
         public boolean skipRestResults() {
             return this.resultEnd;
+        }
+
+        @Override
+        public String toString() {
+            return this.getClass().getSimpleName();
         }
     }
 
@@ -1239,6 +1247,11 @@ final class ComQueryTask extends MySQLCommandTask {
         public boolean skipRestResults() {
             return this.currentSequenceId > this.sqlList.size();
         }
+
+        @Override
+        public String toString() {
+            return this.getClass().getSimpleName();
+        }
     }
 
 
@@ -1295,6 +1308,11 @@ final class ComQueryTask extends MySQLCommandTask {
         @Override
         public boolean skipRestResults() {
             return this.currentSequenceId > this.batchCount;
+        }
+
+        @Override
+        public String toString() {
+            return this.getClass().getSimpleName();
         }
     }
 
@@ -1387,6 +1405,11 @@ final class ComQueryTask extends MySQLCommandTask {
         @Override
         public boolean skipRestResults() {
             return this.resultSequenceId > this.sqlList.size();
+        }
+
+        @Override
+        public String toString() {
+            return this.getClass().getSimpleName();
         }
     }
 

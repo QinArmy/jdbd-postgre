@@ -15,6 +15,7 @@ import reactor.netty.resources.LoopResources;
 import java.util.HashMap;
 import java.util.Map;
 
+@Test(enabled = false)
 public class ClientConnectionProtocolTests {
 
 
@@ -27,7 +28,7 @@ public class ClientConnectionProtocolTests {
 
         properties.put("sslMode", "PREFERRED");
 
-        HostInfo<PropertyKey> hostInfo = MySQLUrlUtils.build(properties).getHostList().get(0);
+        HostInfo<PropertyKey> hostInfo = ClientTestUtils.singleUrl(properties).getHostList().get(0);
         EventLoopGroup eventLoopGroup = LoopResources.create("jdbd-mysql").onClient(true);
 
         ClientConnectionProtocol protocol = ClientConnectionProtocolImpl

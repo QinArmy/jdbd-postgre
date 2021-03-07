@@ -1,6 +1,7 @@
 package io.jdbd.mysql.protocol.conf;
 
 import io.jdbd.UrlException;
+import io.jdbd.mysql.TestConstant;
 import io.jdbd.mysql.util.MySQLStringUtils;
 import io.jdbd.vendor.conf.HostInfo;
 import io.jdbd.vendor.conf.Properties;
@@ -8,8 +9,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
 import org.testng.ITestContext;
-import org.testng.annotations.BeforeSuite;
-import org.testng.annotations.Test;
+import org.testng.annotations.*;
 
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
@@ -17,21 +17,36 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
-@Test(threadPoolSize = 3)
+@Test(threadPoolSize = 3, groups = {TestConstant.MYSQL_URL_GROUP})
 public class MySQLUrlParserTests {
 
     private static final Logger LOG = LoggerFactory.getLogger(MySQLUrlParserTests.class);
 
     @BeforeSuite
     public static void beforeSuite(ITestContext context) {
-        LOG.info("\nfeature test suite start\n");
-        context.setAttribute("startTime", System.currentTimeMillis());
+        LOG.info("\n\njdbd-mysql feature test suite start\n");
+
     }
+
+    @AfterSuite
+    public static void afterSuite(ITestContext context) {
+        LOG.info("\njdbd-mysql feature test suite end.\n\n");
+    }
+
+    @BeforeClass
+    public static void beforeClass() {
+        LOG.info("\nmysql url test start\n");
+    }
+
+    @AfterClass
+    public static void afterClass() {
+        LOG.info("\nmysql url test end\n");
+    }
+
 
     @Test
     public void singleConnection() {
         LOG.info("test SINGLE_CONNECTION start.");
-
         String url = "jdbc:mysql://192.168.0.106:3306/army?sslMode=REQUIRED";
         final Map<String, String> propMap = Collections.singletonMap(HostInfo.USER, "army_w");
 
@@ -53,6 +68,7 @@ public class MySQLUrlParserTests {
 
         LOG.info("test SINGLE_CONNECTION end");
     }
+
 
     @Test
     public void failoverConnection() throws Exception {
@@ -230,13 +246,13 @@ public class MySQLUrlParserTests {
 
     @Test(expectedExceptions = {UrlException.class})
     public void schemaError() {
-        LOG.info("test schema error start.");
+        LOG.info("test schema error test start.");
 
         String url = "jdbc:oracle://192.168.0.106:3306/army?sslMode=REQUIRED";
         final Map<String, String> propMap = Collections.singletonMap(HostInfo.USER, "army_w");
         MySQLUrl.getInstance(url, propMap);
 
-        LOG.info("test schema error success.");
+        LOG.info("test schema error test success.");
     }
 
 

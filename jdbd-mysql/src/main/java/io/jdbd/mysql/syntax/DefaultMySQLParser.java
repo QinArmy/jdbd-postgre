@@ -2,7 +2,6 @@ package io.jdbd.mysql.syntax;
 
 import io.jdbd.JdbdSQLException;
 import io.jdbd.mysql.SQLMode;
-import io.jdbd.mysql.Server;
 import io.jdbd.mysql.protocol.Constants;
 import io.jdbd.mysql.util.MySQLExceptions;
 import io.jdbd.vendor.util.JdbdStringUtils;
@@ -11,11 +10,12 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.function.Function;
 
 public final class DefaultMySQLParser implements MySQLParser {
 
-    public static MySQLParser create(Server server) {
-        return new DefaultMySQLParser(server);
+    public static MySQLParser create(Function<SQLMode, Boolean> sqlModeFunction) {
+        return new DefaultMySQLParser(sqlModeFunction);
     }
 
 
@@ -44,10 +44,10 @@ public final class DefaultMySQLParser implements MySQLParser {
     private static final String LOCAL = "LOCAL";
 
 
-    private final Server server;
+    private final Function<SQLMode, Boolean> sqlModeFunction;
 
-    private DefaultMySQLParser(Server server) {
-        this.server = server;
+    private DefaultMySQLParser(Function<SQLMode, Boolean> sqlModeFunction) {
+        this.sqlModeFunction = sqlModeFunction;
     }
 
     @Override
@@ -83,8 +83,8 @@ public final class DefaultMySQLParser implements MySQLParser {
         if (!JdbdStringUtils.hasText(sql)) {
             throw MySQLExceptions.createEmptySqlException();
         }
-        final boolean ansiQuotes = this.server.containSqlMode(SQLMode.ANSI_QUOTES);
-        final boolean backslashEscapes = !this.server.containSqlMode(SQLMode.NO_BACKSLASH_ESCAPES);
+        final boolean ansiQuotes = this.sqlModeFunction.apply(SQLMode.ANSI_QUOTES);
+        final boolean backslashEscapes = !this.sqlModeFunction.apply(SQLMode.NO_BACKSLASH_ESCAPES);
 
         boolean inQuotes = false, inDoubleQuotes = false, inQuoteId = false, inDoubleId = false, localInfile = false;
         final int sqlLength = sql.length();

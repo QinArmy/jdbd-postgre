@@ -1,8 +1,0 @@
-<!DOCTYPE suite SYSTEM "https://testng.org/testng-1.0.dtd" >
-<suite name="featureSuite" verbose="1">
-    <test name="mysqlUrl">
-        <packages>
-            <package name="io.jdbd.mysql.protocol.conf"/>
-        </packages>
-    </test>
-</suite>

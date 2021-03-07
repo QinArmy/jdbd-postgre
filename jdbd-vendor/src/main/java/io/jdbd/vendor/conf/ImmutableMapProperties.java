@@ -46,10 +46,9 @@ public final class ImmutableMapProperties<K extends IPropertyKey>
         return getProperty(key.getKey(), targetType);
     }
 
-    @Nullable
     @Override
     public <T> T getProperty(K key, Class<T> targetType, T defaultValue) {
-        return getProperty(key.getKey(), targetType);
+        return getProperty(key.getKey(), targetType, defaultValue);
     }
 
     @Override

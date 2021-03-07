@@ -49,7 +49,12 @@ public final class DefaultHostInfo<K extends IPropertyKey> implements HostInfo<K
         String host = map.remove(HOST);
 
         this.host = JdbdStringUtils.hasText(host) ? host : DEFAULT_HOST;
-        this.port = Integer.parseInt(map.remove(PORT));
+        final String portText = map.remove(PORT);
+        try {
+            this.port = Integer.parseInt(portText);
+        } catch (NumberFormatException e) {
+            throw new UrlException(e, this.originalUrl, "post[%s] format error", portText);
+        }
         this.user = map.remove(USER);
         this.password = map.remove(PASSWORD);
 

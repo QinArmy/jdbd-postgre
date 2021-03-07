@@ -1,32 +1,34 @@
 package io.jdbd.mysql.protocol.client;
 
 import io.jdbd.mysql.protocol.conf.MySQLUrl;
+import io.netty.channel.EventLoopGroup;
+import org.testng.annotations.Test;
+import reactor.netty.resources.LoopResources;
 
-import java.time.Instant;
-import java.time.ZoneId;
-import java.time.ZoneOffset;
 import java.util.HashMap;
 import java.util.Map;
 
-public abstract class MySQLUrlUtils {
+@Test(enabled = false)
+public abstract class ClientTestUtils {
 
-    protected MySQLUrlUtils() {
+    protected ClientTestUtils() {
         throw new UnsupportedOperationException();
     }
 
+    final static EventLoopGroup EVENT_LOOP_GROUP = LoopResources.create("jdbd-mysql", 20, true)
+            .onClient(true);
 
-    public static MySQLUrl build(Map<String, String> propertiesMap) {
-        final ZoneOffset zoneOffset = ZoneId.systemDefault().getRules().getOffset(Instant.now());
+
+    public static MySQLUrl singleUrl(Map<String, String> propertiesMap) {
         // PREFERRED ,DISABLED
         String url = "jdbc:mysql://localhost:3306/army";
         Map<String, String> properties = new HashMap<>();
         properties.put("user", "army_w");
         properties.put("password", "army123");
 
-        properties.put("detectCustomCollations", "true");
-        properties.put("sessionVariables", String.format("time_zone='%s'", zoneOffset));
-
         properties.putAll(propertiesMap);
         return MySQLUrl.getInstance(url, properties);
     }
+
+
 }

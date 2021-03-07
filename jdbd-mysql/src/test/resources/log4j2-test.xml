@@ -18,7 +18,7 @@
         </RollingFile>
     </Appenders>
     <Loggers>
-        <Logger name="io.jdbd.mysql" level="DEBUG" additivity="false">
+        <Logger name="io.jdbd.mysql" level="TRACE" additivity="false">
             <AppenderRef ref="Console"/>
         </Logger>
         <Root level="INFO">

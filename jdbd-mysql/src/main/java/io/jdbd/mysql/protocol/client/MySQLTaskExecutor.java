@@ -1,5 +1,6 @@
 package io.jdbd.mysql.protocol.client;
 
+import io.jdbd.mysql.SQLMode;
 import io.jdbd.mysql.Server;
 import io.jdbd.mysql.protocol.CharsetMapping;
 import io.jdbd.mysql.protocol.conf.PropertyKey;
@@ -13,6 +14,8 @@ import io.netty.channel.EventLoopGroup;
 import reactor.core.publisher.Mono;
 import reactor.netty.Connection;
 import reactor.netty.tcp.TcpClient;
+import reactor.util.Logger;
+import reactor.util.Loggers;
 import reactor.util.annotation.Nullable;
 
 import java.nio.charset.Charset;
@@ -42,7 +45,7 @@ final class MySQLTaskExecutor extends CommunicationTaskExecutor<MySQLTaskAdjutan
             // 1.
             taskAdjutant.server = server;
             //2.
-            taskAdjutant.mySQLParser = DefaultMySQLParser.create(server);
+            taskAdjutant.mySQLParser = DefaultMySQLParser.create(server::containSqlMode);
             //3.
             double maxBytes = server.obtainCharsetClient().newEncoder().maxBytesPerChar();
             taskAdjutant.maxBytesPerCharClient = (int) Math.ceil(maxBytes);
@@ -56,9 +59,8 @@ final class MySQLTaskExecutor extends CommunicationTaskExecutor<MySQLTaskAdjutan
             if (taskAdjutant.handshakeV10Packet == null
                     && taskAdjutant.negotiatedCapability == 0) {
                 // 1.
-                HandshakeV10Packet handshake = Objects.requireNonNull(result.handshakeV10Packet()
-                        , "result.handshakeV10Packet()");
-                taskAdjutant.handshakeV10Packet = handshake;
+                HandshakeV10Packet handshake = Objects.requireNonNull(result, "result").handshakeV10Packet();
+                taskAdjutant.handshakeV10Packet = Objects.requireNonNull(handshake, "handshake");
 
                 //2.
                 Charset serverCharset = CharsetMapping.getJavaCharsetByCollationIndex(handshake.getCollationIndex());
@@ -83,11 +85,14 @@ final class MySQLTaskExecutor extends CommunicationTaskExecutor<MySQLTaskAdjutan
     }
 
     static void setCustomCollation(MySQLTaskExecutor taskExecutor, Map<Integer, CharsetMapping.CustomCollation> map) {
+        LOG.debug("setCustomCollation start.");
         synchronized (taskExecutor.taskAdjutant) {
             MySQLTaskAdjutantWrapper taskAdjutant = (MySQLTaskAdjutantWrapper) taskExecutor.taskAdjutant;
             taskAdjutant.customCollationMap = map;
         }
     }
+
+    private static final Logger LOG = Loggers.getLogger(MySQLTaskExecutor.class);
 
 
     final HostInfo<PropertyKey> hostInfo;
@@ -118,15 +123,13 @@ final class MySQLTaskExecutor extends CommunicationTaskExecutor<MySQLTaskAdjutan
 
         private final MySQLTaskExecutor taskExecutor;
 
-        private final HostInfo<PropertyKey> hostInfo;
-
         private HandshakeV10Packet handshakeV10Packet;
 
         private Charset serverHandshakeCharset;
 
         private int negotiatedCapability = 0;
 
-        private MySQLParser mySQLParser;
+        private MySQLParser mySQLParser = DefaultMySQLParser.create(MySQLTaskExecutor::initSqlModeFunction);
 
         private Server server;
 
@@ -137,7 +140,6 @@ final class MySQLTaskExecutor extends CommunicationTaskExecutor<MySQLTaskAdjutan
         private MySQLTaskAdjutantWrapper(MySQLTaskExecutor taskExecutor) {
             super(taskExecutor);
             this.taskExecutor = taskExecutor;
-            this.hostInfo = taskExecutor.hostInfo;
         }
 
         @Override
@@ -237,7 +239,7 @@ final class MySQLTaskExecutor extends CommunicationTaskExecutor<MySQLTaskAdjutan
 
         @Override
         public HostInfo<PropertyKey> obtainHostInfo() {
-            return this.hostInfo;
+            return this.taskExecutor.hostInfo;
         }
 
 
@@ -291,6 +293,24 @@ final class MySQLTaskExecutor extends CommunicationTaskExecutor<MySQLTaskAdjutan
             }
             return parser.isMultiStmt(sql);
         }
+    }
+
+    /**
+     * @see DefaultMySQLParser
+     */
+    private static boolean initSqlModeFunction(SQLMode sqlMode) {
+        boolean contains;
+        switch (sqlMode) {
+            case ANSI_QUOTES:
+                contains = false;
+                break;
+            case NO_BACKSLASH_ESCAPES:
+                contains = true;
+                break;
+            default:
+                throw new IllegalArgumentException("sqlMode error");
+        }
+        return contains;
     }
 
 

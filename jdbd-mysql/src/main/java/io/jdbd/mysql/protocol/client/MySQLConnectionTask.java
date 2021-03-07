@@ -11,7 +11,6 @@ import io.jdbd.mysql.protocol.conf.PropertyDefinitions;
 import io.jdbd.mysql.protocol.conf.PropertyKey;
 import io.jdbd.mysql.util.MySQLExceptions;
 import io.jdbd.mysql.util.MySQLStringUtils;
-import io.jdbd.vendor.conf.DefaultHostInfo;
 import io.jdbd.vendor.conf.HostInfo;
 import io.jdbd.vendor.conf.Properties;
 import io.jdbd.vendor.task.AbstractCommunicationTask;
@@ -161,6 +160,7 @@ final class MySQLConnectionTask extends AbstractCommunicationTask implements Aut
         return null;
     }
 
+
     @Override
     protected boolean internalDecode(final ByteBuf cumulateBuffer, final Consumer<Object> serverStatusConsumer) {
         if (!PacketUtils.hasOnePacket(cumulateBuffer)) {
@@ -191,6 +191,9 @@ final class MySQLConnectionTask extends AbstractCommunicationTask implements Aut
                     //4. optional ssl request
                     this.packetPublisher = sendSSlRequest(negotiatedCapability, handshakeCollationIndex);
                     this.phase = Phase.SSL_REQUEST;
+                } else {
+                    LOG.debug("plaintext send handshake response.");
+                    sendHandshakeResponsePacket();
                 }
             }
             break;
@@ -203,6 +206,36 @@ final class MySQLConnectionTask extends AbstractCommunicationTask implements Aut
         }
         return taskEnd;
     }
+
+    /**
+     * @see #onSendSuccess()
+     */
+    @Override
+    protected boolean internalOnSendSuccess() {
+        if (this.phase == Phase.SSL_REQUEST) {
+            LOG.debug("ssl request send success.");
+            try {
+                SslHandler sslHandler = SslHandlerBuilder.builder()
+                        .allocator(this.adjutant.allocator())
+                        .hostInfo(this.hostInfo)
+                        .serverVersion(this.handshake.getServerVersion())
+                        .build();
+
+                // add sslHandler to channel line.
+                Objects.requireNonNull(this.sslHandlerConsumer).accept(sslHandler);
+            } catch (SQLException e) {
+                this.sink.error(MySQLExceptions.wrap(e));
+                return true;
+            }
+            sendHandshakeResponsePacket();
+        } else if (this.phase == Phase.HANDSHAKE_RESPONSE) {
+            LOG.trace("handshake response send success.");
+        }
+
+
+        return false;
+    }
+
 
     @Nullable
     @Override
@@ -222,6 +255,7 @@ final class MySQLConnectionTask extends AbstractCommunicationTask implements Aut
      * @see #internalDecode(ByteBuf, Consumer)
      */
     private boolean authenticateDecode(final ByteBuf cumulateBuffer, final Consumer<Object> serverConsumer) {
+        LOG.trace("decode authenticate packet.");
         assertPhase(Phase.HANDSHAKE_RESPONSE);
 
         final int payloadLength = PacketUtils.readInt3(cumulateBuffer);
@@ -235,7 +269,7 @@ final class MySQLConnectionTask extends AbstractCommunicationTask implements Aut
             OkPacket ok = OkPacket.read(cumulateBuffer, this.negotiatedCapability);
             serverConsumer.accept(ok.getStatusFags());
             LOG.debug("MySQL authentication success,info:{}", ok.getInfo());
-            this.sink.success();
+            this.sink.success(new AuthenticateResult(this.handshake, this.negotiatedCapability));
             taskEnd = true;
         } else if (ErrorPacket.isErrorPacket(cumulateBuffer)) {
             ErrorPacket error;
@@ -296,45 +330,20 @@ final class MySQLConnectionTask extends AbstractCommunicationTask implements Aut
         return Mono.just(packet);
     }
 
-    /**
-     * @see #onSendSuccess()
-     */
-    @Override
-    public boolean internalOnSendSuccess() {
-        if (this.phase == Phase.SSL_REQUEST) {
-            LOG.debug("ssl request send success.");
-            try {
-                SslHandler sslHandler = SslHandlerBuilder.builder()
-                        .allocator(this.adjutant.allocator())
-                        .hostInfo(this.hostInfo)
-                        .serverVersion(this.handshake.getServerVersion())
-                        .build();
-
-                // add sslHandler to channel line.
-                Objects.requireNonNull(this.sslHandlerConsumer).accept(sslHandler);
-            } catch (SQLException e) {
-                this.sink.error(MySQLExceptions.wrap(e));
-                return true;
-            }
-            sendHandshakeResponsePacket();
-        }
-
-
-        return false;
-    }
 
 
     /**
      * @see #internalOnSendSuccess()
      */
     private void sendHandshakeResponsePacket() {
-        LOG.debug("ssl request send complete,send handshake response.");
         this.packetPublisher = Mono.just(createHandshakeResponsePacket());
         this.phase = Phase.HANDSHAKE_RESPONSE;
         // notify CommunicationTaskExecutor invoke io.jdbd.vendor.task.CommunicationTask.moreSendPacket
-        this.signal.sendPacket(this)
-                .doOnError(this::internalError)
-                .subscribe();
+        if (Capabilities.supportSsl(this.negotiatedCapability)) {
+            this.signal.sendPacket(this)
+                    .doOnError(this::internalError)
+                    .subscribe();
+        }
     }
 
     private boolean processNextAuthenticationNegotiation(ByteBuf cumulateBuffer) {
@@ -582,11 +591,11 @@ final class MySQLConnectionTask extends AbstractCommunicationTask implements Aut
             if (!AuthenticationPlugin.class.isAssignableFrom(pluginClass)) {
                 throw new MySQLJdbdException("class[%s] isn't %s type.", AuthenticationPlugin.class.getName());
             }
-            Method method = pluginClass.getMethod("getInstance", AuthenticateAssistant.class, DefaultHostInfo.class);
+            Method method = pluginClass.getMethod("getInstance", AuthenticateAssistant.class);
             if (!AuthenticationPlugin.class.isAssignableFrom(method.getReturnType())) {
                 throw new MySQLJdbdException("plugin[%s] getInstance return error type.", pluginClassName);
             }
-            return (AuthenticationPlugin) method.invoke(null, assistant, hostInfo);
+            return (AuthenticationPlugin) method.invoke(null, assistant);
         } catch (ClassNotFoundException e) {
             throw new MySQLJdbdException(e, "plugin[%s] not found in classpath.", pluginClassName);
         } catch (NoSuchMethodException e) {

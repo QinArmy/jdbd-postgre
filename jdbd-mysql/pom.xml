@@ -74,7 +74,7 @@
                 <artifactId>maven-surefire-plugin</artifactId>
                 <configuration>
                     <suiteXmlFiles>
-                        <suiteXmlFile>${project.basedir}/testng/jdbd-mysql-general.xml</suiteXmlFile>
+                        <suiteXmlFile>${project.basedir}/testng/jdbd-mysql.xml</suiteXmlFile>
                     </suiteXmlFiles>
                 </configuration>
             </plugin>

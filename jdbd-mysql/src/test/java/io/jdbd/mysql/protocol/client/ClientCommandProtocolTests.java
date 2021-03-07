@@ -14,6 +14,7 @@ import reactor.netty.resources.LoopResources;
 
 import java.util.*;
 
+@Test(enabled = false)
 public class ClientCommandProtocolTests {
 
     private static final Logger LOG = LoggerFactory.getLogger(ClientCommandProtocolTests.class);
@@ -23,7 +24,7 @@ public class ClientCommandProtocolTests {
         Map<String, String> properties = new HashMap<>();
         properties.put("allowMultiQueries", "true");
 
-        HostInfo<PropertyKey> hostInfo = MySQLUrlUtils.build(properties).getHostList().get(0);
+        HostInfo<PropertyKey> hostInfo = ClientTestUtils.singleUrl(properties).getHostList().get(0);
         EventLoopGroup eventLoopGroup = LoopResources.create("jdbd-mysql").onClient(true);
 
         ClientCommandProtocol commandProtocol = ClientCommandProtocolImpl.create(hostInfo, eventLoopGroup)

@@ -1,0 +1,16 @@
+<!DOCTYPE suite SYSTEM "https://testng.org/testng-1.0.dtd" >
+<suite name="jdbd-mysql" verbose="1">
+    <test name="feature" parallel="methods" thread-count="20">
+        <groups>
+            <define name="mysqlUrl"/>
+            <define name="authenticatePlugin"/>
+            <dependencies>
+                <group name="authenticatePlugin" depends-on="mysqlUrl"/>
+            </dependencies>
+        </groups>
+        <classes>
+            <class name="io.jdbd.mysql.protocol.conf.MySQLUrlParserTests"/>
+            <class name="io.jdbd.mysql.protocol.client.AuthenticatePluginTests"/>
+        </classes>
+    </test>
+</suite>

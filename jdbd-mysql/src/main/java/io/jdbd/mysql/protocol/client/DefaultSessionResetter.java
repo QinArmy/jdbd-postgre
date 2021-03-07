@@ -57,6 +57,13 @@ final class DefaultSessionResetter implements SessionResetter {
 
     @Override
     public Mono<Server> reset() {
+        this.charsetClient.set(null);
+        this.charsetResults.set(null);
+        this.zoneOffsetDatabase.set(null);
+        this.zoneOffsetClient.set(null);
+
+        this.sqlModeSet.set(null);
+
         return executeSetSessionVariables()//1.
                 .then(Mono.defer(this::configSessionCharset))//2.
                 .then(Mono.defer(this::configZoneOffsets))//3.

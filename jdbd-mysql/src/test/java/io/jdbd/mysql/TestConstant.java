@@ -4,5 +4,9 @@ public interface TestConstant {
 
     String GENERAL_SUITE = "generalSuite";
 
-    String MYSQL_URL_TEST = "mysqlUrlTest";
+    String MYSQL_URL_GROUP = "mysqlUrl";
+
+    String AUTHENTICATE_PLUGIN_GROUP = "authenticatePlugin";
+
+
 }
