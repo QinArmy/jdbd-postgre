@@ -2,8 +2,9 @@ package io.jdbd.mysql.protocol.authentication;
 
 import io.jdbd.mysql.protocol.AuthenticateAssistant;
 import io.jdbd.mysql.protocol.client.PacketUtils;
+import io.jdbd.mysql.protocol.conf.PropertyKey;
 import io.jdbd.mysql.util.MySQLStringUtils;
-import io.jdbd.vendor.conf.DefaultHostInfo;
+import io.jdbd.vendor.conf.HostInfo;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 
@@ -18,8 +19,8 @@ import java.util.List;
  */
 public class MySQLOldPasswordPlugin implements AuthenticationPlugin {
 
-    public static MySQLOldPasswordPlugin getInstance(AuthenticateAssistant protocolAssistant, DefaultHostInfo hostInfo) {
-        return new MySQLOldPasswordPlugin(protocolAssistant, hostInfo);
+    public static MySQLOldPasswordPlugin getInstance(AuthenticateAssistant protocolAssistant) {
+        return new MySQLOldPasswordPlugin(protocolAssistant);
     }
 
     public static final String PLUGIN_NAME = "mysql_old_password";
@@ -28,11 +29,11 @@ public class MySQLOldPasswordPlugin implements AuthenticationPlugin {
 
     private final AuthenticateAssistant protocolAssistant;
 
-    private final DefaultHostInfo hostInfo;
+    private final HostInfo<PropertyKey> hostInfo;
 
-    private MySQLOldPasswordPlugin(AuthenticateAssistant protocolAssistant, DefaultHostInfo hostInfo) {
+    private MySQLOldPasswordPlugin(AuthenticateAssistant protocolAssistant) {
         this.protocolAssistant = protocolAssistant;
-        this.hostInfo = hostInfo;
+        this.hostInfo = protocolAssistant.getHostInfo();
     }
 
 
@@ -57,7 +58,7 @@ public class MySQLOldPasswordPlugin implements AuthenticationPlugin {
             String cryptString = newCrypt(password, seed, this.protocolAssistant.getPasswordCharset());
             byte[] payloadBytes = cryptString.getBytes();
 
-            payloadBuf = this.protocolAssistant.createPayloadBuffer(payloadBytes.length);
+            payloadBuf = this.protocolAssistant.allocator().buffer(payloadBytes.length);
             payloadBuf.writeBytes(payloadBytes);
         }
         return Collections.singletonList(payloadBuf);

@@ -3,6 +3,7 @@ package io.jdbd.mysql.protocol;
 import io.jdbd.mysql.protocol.conf.PropertyKey;
 import io.jdbd.vendor.conf.HostInfo;
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufAllocator;
 
 import java.nio.charset.Charset;
 
@@ -12,14 +13,14 @@ public interface AuthenticateAssistant {
 
     Charset getPasswordCharset();
 
-    HostInfo<PropertyKey> getMainHostInfo();
+    HostInfo<PropertyKey> getHostInfo();
 
     boolean isUseSsl();
 
     ByteBuf createPacketBuffer(int initialPayloadCapacity);
 
-    ByteBuf createPayloadBuffer(int initialPayloadCapacity);
-
     ServerVersion getServerVersion();
+
+    ByteBufAllocator allocator();
 
 }

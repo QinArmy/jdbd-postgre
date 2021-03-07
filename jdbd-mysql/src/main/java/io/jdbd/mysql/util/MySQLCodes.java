@@ -7,9 +7,9 @@ import java.util.Map;
 /**
  * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-reference-error-MySQLStates.html">Mapping MySQL Error Numbers to JDBC SQLState Codes</a>
  */
-public abstract class MySQLNumbers {
+public abstract class MySQLCodes {
 
-    protected MySQLNumbers() {
+    protected MySQLCodes() {
         throw new UnsupportedOperationException();
     }
 
@@ -301,11 +301,16 @@ public abstract class MySQLNumbers {
     public static final int CR_UNKNOWN_ERROR = 2000;
 
 
+    /**
+     * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-reference-error-sqlstates.html">Mapping MySQL Error Numbers to JDBC SQLState Codes</a>
+     */
     public static final Map<Integer, String> ERROR_TO_SQL_STATES_MAP = createMySQLErrorNumberToSQLStatesMap();
 
+    /*################################## blow private static method ##################################*/
 
     /**
      * @return a unmodifiable map
+     * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-reference-error-sqlstates.html">Mapping MySQL Error Numbers to JDBC SQLState Codes</a>
      */
     private static Map<Integer, String> createMySQLErrorNumberToSQLStatesMap() {
         Map<Integer, String> map = new HashMap<>((int) (228 / 0.75F));

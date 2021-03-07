@@ -45,7 +45,7 @@ import java.util.function.Consumer;
  * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_com_query.html">Protocol::COM_QUERY</a>
  * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_com_query_response.html">Protocol::COM_QUERY Response</a>
  */
-final class ComQueryTask extends MySQLCommunicationTask {
+final class ComQueryTask extends MySQLCommandTask {
 
     /**
      * @see #ComQueryTask(String, MonoSink, MySQLTaskAdjutant)
@@ -104,7 +104,7 @@ final class ComQueryTask extends MySQLCommunicationTask {
     static Mono<ResultStates> bindableUpdate(final StmtWrapper wrapper, final MySQLTaskAdjutant adjutant) {
         Mono<ResultStates> mono;
         final List<BindValue> parameterGroup = wrapper.getParameterGroup();
-        Properties properties = adjutant.obtainHostInfo().getProperties();
+        Properties<PropertyKey> properties = adjutant.obtainHostInfo().getProperties();
         if (!properties.getOrDefault(PropertyKey.clientPrepare, Boolean.class)
                 && BindUtils.hasLongData(parameterGroup)) {
             // has long data ,can't use client prepare statement.
@@ -129,7 +129,7 @@ final class ComQueryTask extends MySQLCommunicationTask {
      */
     static Flux<ResultStates> bindableBatch(final BatchWrapper wrapper, final MySQLTaskAdjutant adjutant) {
         final List<List<BindValue>> parameterGroupList = wrapper.getParameterGroupList();
-        Properties properties = adjutant.obtainHostInfo().getProperties();
+        Properties<PropertyKey> properties = adjutant.obtainHostInfo().getProperties();
 
         Flux<ResultStates> flux;
         if (parameterGroupList.size() < 4
@@ -162,7 +162,7 @@ final class ComQueryTask extends MySQLCommunicationTask {
     static Flux<ResultRow> bindableQuery(final StmtWrapper wrapper, final MySQLTaskAdjutant adjutant) {
         Flux<ResultRow> flux;
 
-        Properties properties = adjutant.obtainHostInfo().getProperties();
+        Properties<PropertyKey> properties = adjutant.obtainHostInfo().getProperties();
         if (!properties.getOrDefault(PropertyKey.clientPrepare, Boolean.class)
                 && BindUtils.hasLongData(wrapper.getParameterGroup())) {
             // has long data ,can't use client prepare statement.
@@ -523,7 +523,7 @@ final class ComQueryTask extends MySQLCommunicationTask {
             case ErrorPacket.ERROR_HEADER: {
                 ErrorPacket error;
                 error = ErrorPacket.readPacket(cumulateBuffer.readSlice(payloadLength)
-                        , this.negotiatedCapability, this.adjutant.getCharsetResults());
+                        , this.negotiatedCapability, this.adjutant.obtainCharsetError());
                 if (LOG.isDebugEnabled()) {
                     LOG.debug("COM_SET_OPTION return error,{}", error);
                 }
@@ -571,7 +571,7 @@ final class ComQueryTask extends MySQLCommunicationTask {
             case ErrorPacket.ERROR_HEADER: {
                 ErrorPacket error;
                 error = ErrorPacket.readPacket(cumulateBuffer.readSlice(payloadLength)
-                        , this.negotiatedCapability, this.adjutant.getCharsetResults());
+                        , this.negotiatedCapability, this.adjutant.obtainCharsetError());
                 if (LOG.isDebugEnabled()) {
                     LOG.debug("COM_SET_OPTION return error,{}", error);
                 }
@@ -607,7 +607,7 @@ final class ComQueryTask extends MySQLCommunicationTask {
                 updateSequenceId(PacketUtils.readInt1(cumulateBuffer)); //  sequence_id
                 ErrorPacket error;
                 error = ErrorPacket.readPacket(cumulateBuffer.readSlice(payloadLength)
-                        , this.negotiatedCapability, this.adjutant.getCharsetResults());
+                        , this.negotiatedCapability, this.adjutant.obtainCharsetError());
                 addErrorForSqlError(error);
                 taskEnd = true;
             }

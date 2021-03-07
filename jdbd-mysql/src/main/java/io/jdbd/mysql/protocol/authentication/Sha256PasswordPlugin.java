@@ -6,7 +6,7 @@ import io.jdbd.mysql.protocol.ClientConstants;
 import io.jdbd.mysql.protocol.client.PacketUtils;
 import io.jdbd.mysql.protocol.conf.PropertyKey;
 import io.jdbd.mysql.util.MySQLStringUtils;
-import io.jdbd.vendor.conf.DefaultHostInfo;
+import io.jdbd.vendor.conf.HostInfo;
 import io.jdbd.vendor.conf.Properties;
 import io.netty.buffer.ByteBuf;
 import org.qinarmy.util.security.KeyPairType;
@@ -40,9 +40,9 @@ import java.util.concurrent.atomic.AtomicReference;
 public class Sha256PasswordPlugin implements AuthenticationPlugin {
 
 
-    public static Sha256PasswordPlugin getInstance(AuthenticateAssistant protocolAssistant, DefaultHostInfo hostInfo) {
+    public static Sha256PasswordPlugin getInstance(AuthenticateAssistant protocolAssistant) {
 
-        return new Sha256PasswordPlugin(protocolAssistant, hostInfo, tryLoadPublicKeyString(hostInfo));
+        return new Sha256PasswordPlugin(protocolAssistant, tryLoadPublicKeyString(protocolAssistant.getHostInfo()));
 
     }
 
@@ -52,11 +52,11 @@ public class Sha256PasswordPlugin implements AuthenticationPlugin {
 
     protected final AuthenticateAssistant protocolAssistant;
 
-    protected final DefaultHostInfo hostInfo;
+    protected final HostInfo<PropertyKey> hostInfo;
 
     protected final AtomicReference<String> publicKeyString = new AtomicReference<>(null);
 
-    protected final Properties env;
+    protected final Properties<PropertyKey> env;
 
     private final AtomicBoolean hasServerRSAPublicKeyFile = new AtomicBoolean();
 
@@ -65,14 +65,15 @@ public class Sha256PasswordPlugin implements AuthenticationPlugin {
     protected final AtomicReference<String> seed = new AtomicReference<>(null);
 
 
-    protected Sha256PasswordPlugin(AuthenticateAssistant protocolAssistant, DefaultHostInfo hostInfo, @Nullable String publicKeyString) {
+    protected Sha256PasswordPlugin(AuthenticateAssistant protocolAssistant
+            , @Nullable String publicKeyString) {
         this.protocolAssistant = protocolAssistant;
-        this.hostInfo = hostInfo;
+        this.hostInfo = protocolAssistant.getHostInfo();
         if (publicKeyString != null) {
             this.publicKeyString.set(publicKeyString);
         }
         this.hasServerRSAPublicKeyFile.set(publicKeyString != null);
-        this.env = protocolAssistant.getMainHostInfo().getProperties();
+        this.env = protocolAssistant.getHostInfo().getProperties();
     }
 
     @Override
@@ -89,12 +90,12 @@ public class Sha256PasswordPlugin implements AuthenticationPlugin {
     public List<ByteBuf> nextAuthenticationStep(ByteBuf fromServer) {
 
         final AuthenticateAssistant protocolAssistant = this.protocolAssistant;
-        final String password = protocolAssistant.getMainHostInfo().getPassword();
+        final String password = protocolAssistant.getHostInfo().getPassword();
 
         List<ByteBuf> toServer;
         if (MySQLStringUtils.isEmpty(password)
                 || !fromServer.isReadable()) {
-            ByteBuf byteBuf = protocolAssistant.createPayloadBuffer(1);
+            ByteBuf byteBuf = protocolAssistant.allocator().buffer(1);
             byteBuf.writeZero(1);
             toServer = Collections.singletonList(byteBuf);
         } else {
@@ -173,7 +174,7 @@ public class Sha256PasswordPlugin implements AuthenticationPlugin {
      */
     protected final ByteBuf cratePlanTextPasswordPacket(String password) {
         byte[] passwordBytes = password.getBytes(this.protocolAssistant.getHandshakeCharset());
-        ByteBuf packetBuffer = this.protocolAssistant.createPayloadBuffer(passwordBytes.length + 1);
+        ByteBuf packetBuffer = this.protocolAssistant.allocator().buffer(passwordBytes.length + 1);
         PacketUtils.writeStringTerm(packetBuffer, passwordBytes);
         return packetBuffer.asReadOnly();
     }
@@ -184,7 +185,7 @@ public class Sha256PasswordPlugin implements AuthenticationPlugin {
     protected final ByteBuf createEncryptPasswordPacketWithPublicKey(String password) {
         byte[] passwordBytes = encryptPassword(password);
 
-        ByteBuf packetBuffer = protocolAssistant.createPayloadBuffer(passwordBytes.length);
+        ByteBuf packetBuffer = protocolAssistant.allocator().buffer(passwordBytes.length);
         packetBuffer.writeBytes(passwordBytes);
         return packetBuffer.asReadOnly();
     }
@@ -196,7 +197,7 @@ public class Sha256PasswordPlugin implements AuthenticationPlugin {
      *             </ul>
      */
     protected final ByteBuf createPublicKeyRetrievalPacket(int flag) {
-        ByteBuf byteBuf = protocolAssistant.createPayloadBuffer(1);
+        ByteBuf byteBuf = protocolAssistant.allocator().buffer(1);
         byteBuf.writeByte(flag);
         return byteBuf;
     }
@@ -205,7 +206,7 @@ public class Sha256PasswordPlugin implements AuthenticationPlugin {
     /*################################## blow static method ##################################*/
 
     @Nullable
-    protected static String tryLoadPublicKeyString(DefaultHostInfo hostInfo) {
+    protected static String tryLoadPublicKeyString(HostInfo<PropertyKey> hostInfo) {
         String serverRSAPublicKeyPath = hostInfo.getProperties()
                 .getProperty(PropertyKey.serverRSAPublicKeyFile.getKey());
         String publicKeyString = null;

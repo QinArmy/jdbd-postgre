@@ -9,7 +9,7 @@ import io.jdbd.mysql.protocol.CharsetMapping;
 import io.jdbd.mysql.protocol.Constants;
 import io.jdbd.mysql.protocol.ServerVersion;
 import io.jdbd.mysql.protocol.conf.PropertyKey;
-import io.jdbd.mysql.util.MySQLNumbers;
+import io.jdbd.mysql.util.MySQLCodes;
 import io.jdbd.mysql.util.MySQLStringUtils;
 import io.jdbd.mysql.util.MySQLTimeUtils;
 import io.jdbd.vendor.conf.Properties;
@@ -102,7 +102,7 @@ final class DefaultSessionResetter implements SessionResetter {
                     , sqlModeSet));
         } else {
             mono = Mono.error(new JdbdSQLException(new SQLException(message, SQLStates.CONNECTION_EXCEPTION
-                    , MySQLNumbers.CR_UNKNOWN_ERROR)));
+                    , MySQLCodes.CR_UNKNOWN_ERROR)));
         }
         return mono;
     }

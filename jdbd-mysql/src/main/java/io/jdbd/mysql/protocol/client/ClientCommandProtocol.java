@@ -35,4 +35,6 @@ public interface ClientCommandProtocol extends ClientProtocol {
 
     MultiResults multiBindable(List<StmtWrapper> wrapperList);
 
+    Mono<Void> reset();
+
 }

@@ -2,8 +2,9 @@ package io.jdbd.mysql.protocol.authentication;
 
 import io.jdbd.mysql.protocol.AuthenticateAssistant;
 import io.jdbd.mysql.protocol.client.PacketUtils;
+import io.jdbd.mysql.protocol.conf.PropertyKey;
 import io.jdbd.mysql.util.MySQLStringUtils;
-import io.jdbd.vendor.conf.DefaultHostInfo;
+import io.jdbd.vendor.conf.HostInfo;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 
@@ -13,8 +14,8 @@ import java.util.List;
 public class MySQLNativePasswordPlugin implements AuthenticationPlugin {
 
 
-    public static MySQLNativePasswordPlugin getInstance(AuthenticateAssistant protocolAssistant, DefaultHostInfo hostInfo) {
-        return new MySQLNativePasswordPlugin(protocolAssistant, hostInfo);
+    public static MySQLNativePasswordPlugin getInstance(AuthenticateAssistant protocolAssistant) {
+        return new MySQLNativePasswordPlugin(protocolAssistant);
     }
 
     public static final String PLUGIN_NAME = "mysql_native_password";
@@ -23,11 +24,11 @@ public class MySQLNativePasswordPlugin implements AuthenticationPlugin {
 
     private final AuthenticateAssistant protocolAssistant;
 
-    private final DefaultHostInfo hostInfo;
+    private final HostInfo<PropertyKey> hostInfo;
 
-    private MySQLNativePasswordPlugin(AuthenticateAssistant protocolAssistant, DefaultHostInfo hostInfo) {
+    private MySQLNativePasswordPlugin(AuthenticateAssistant protocolAssistant) {
         this.protocolAssistant = protocolAssistant;
-        this.hostInfo = hostInfo;
+        this.hostInfo = protocolAssistant.getHostInfo();
     }
 
     @Override
@@ -52,7 +53,7 @@ public class MySQLNativePasswordPlugin implements AuthenticationPlugin {
             byte[] seed = PacketUtils.readStringTermBytes(fromServer);
             byte[] scrambleBytes = AuthenticateUtils.scramble411(passwordBytes, seed);
 
-            payloadBuf = this.protocolAssistant.createPayloadBuffer(scrambleBytes.length);
+            payloadBuf = this.protocolAssistant.allocator().buffer(scrambleBytes.length);
             payloadBuf.writeBytes(scrambleBytes);
         }
         return Collections.singletonList(payloadBuf);

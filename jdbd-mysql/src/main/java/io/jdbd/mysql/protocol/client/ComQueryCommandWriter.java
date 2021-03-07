@@ -182,7 +182,7 @@ final class ComQueryCommandWriter {
 
     private final MySQLTaskAdjutant adjutant;
 
-    private final Properties properties;
+    private final Properties<PropertyKey> properties;
 
     private final boolean noAnsiQuotes;
 
@@ -665,7 +665,7 @@ final class ComQueryCommandWriter {
                 byteBuffer.clear();
                 if (packet.readableBytes() >= PacketUtils.MAX_PACKET) {
                     packet = PacketUtils.addAndCutBigPacket(packet, packetList, this.sequenceIdSupplier
-                            , this.adjutant::createByteBuffer);
+                            , this.adjutant.allocator()::buffer);
                 }
             }
             // 3. write quote char
@@ -727,7 +727,7 @@ final class ComQueryCommandWriter {
 
                 if (packet.readableBytes() >= PacketUtils.MAX_PACKET) {
                     packet = PacketUtils.addAndCutBigPacket(packet, packetList, this.sequenceIdSupplier
-                            , this.adjutant::createByteBuffer);
+                            , this.adjutant.allocator()::buffer);
                 }
             }
             // 3. write quote char

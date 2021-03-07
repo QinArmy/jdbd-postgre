@@ -12,7 +12,7 @@ import java.util.function.Consumer;
 /**
  * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_com_quit.html">Protocol::COM_QUIT</a>
  */
-final class QuitTask extends MySQLConnectionTask {
+final class QuitTask extends MySQLCommandTask {
 
     static Mono<Void> quit(MySQLTaskAdjutant adjutant) {
         return Mono.create(sink ->
@@ -49,7 +49,7 @@ final class QuitTask extends MySQLConnectionTask {
 
         ErrorPacket error;
         error = ErrorPacket.readPacket(cumulateBuffer
-                , this.adjutant.obtainNegotiatedCapability(), this.adjutant.getCharsetResults());
+                , this.adjutant.obtainNegotiatedCapability(), this.adjutant.obtainCharsetError());
         cumulateBuffer.readerIndex(payloadStartIndex + payloadLength);
 
         updateSequenceId(sequenceId);

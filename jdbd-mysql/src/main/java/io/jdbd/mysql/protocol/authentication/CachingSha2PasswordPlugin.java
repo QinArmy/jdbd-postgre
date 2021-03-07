@@ -3,7 +3,6 @@ package io.jdbd.mysql.protocol.authentication;
 import io.jdbd.mysql.MySQLJdbdException;
 import io.jdbd.mysql.protocol.AuthenticateAssistant;
 import io.jdbd.mysql.protocol.client.PacketUtils;
-import io.jdbd.vendor.conf.DefaultHostInfo;
 import io.netty.buffer.ByteBuf;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -17,8 +16,8 @@ public class CachingSha2PasswordPlugin extends Sha256PasswordPlugin {
 
     private static final Logger LOG = LoggerFactory.getLogger(CachingSha2PasswordPlugin.class);
 
-    public static CachingSha2PasswordPlugin getInstance(AuthenticateAssistant protocolAssistant, DefaultHostInfo hostInfo) {
-        return new CachingSha2PasswordPlugin(protocolAssistant, hostInfo, tryLoadPublicKeyString(hostInfo));
+    public static CachingSha2PasswordPlugin getInstance(AuthenticateAssistant protocolAssistant) {
+        return new CachingSha2PasswordPlugin(protocolAssistant, tryLoadPublicKeyString(protocolAssistant.getHostInfo()));
     }
 
     public static final String PLUGIN_NAME = "caching_sha2_password";
@@ -27,9 +26,8 @@ public class CachingSha2PasswordPlugin extends Sha256PasswordPlugin {
 
     protected final AtomicReference<AuthStage> stage = new AtomicReference<>(AuthStage.FAST_AUTH_SEND_SCRAMBLE);
 
-    protected CachingSha2PasswordPlugin(AuthenticateAssistant protocolAssistant
-            , DefaultHostInfo hostInfo, @Nullable String publicKeyString) {
-        super(protocolAssistant, hostInfo, publicKeyString);
+    protected CachingSha2PasswordPlugin(AuthenticateAssistant protocolAssistant, @Nullable String publicKeyString) {
+        super(protocolAssistant, publicKeyString);
     }
 
     @Override
@@ -55,7 +53,7 @@ public class CachingSha2PasswordPlugin extends Sha256PasswordPlugin {
 
                 byte[] passwordBytes = password.getBytes(this.protocolAssistant.getPasswordCharset());
                 byte[] sha2Bytes = AuthenticateUtils.scrambleCachingSha2(passwordBytes, seedString.getBytes());
-                ByteBuf payloadBuffer = this.protocolAssistant.createPayloadBuffer(sha2Bytes.length);
+                ByteBuf payloadBuffer = this.protocolAssistant.allocator().buffer(sha2Bytes.length);
                 payloadBuffer.writeBytes(sha2Bytes);
 
                 this.stage.set(AuthStage.FAST_AUTH_READ_RESULT);

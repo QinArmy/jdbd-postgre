@@ -48,7 +48,7 @@ final class PrepareLongParameterWriter implements PrepareExecuteCommandWriter.Lo
 
     private final ClientProtocolAdjutant adjutant;
 
-    private final Properties properties;
+    private final Properties<PropertyKey> properties;
 
     private final int blobSendChunkSize;
 
@@ -419,7 +419,7 @@ final class PrepareLongParameterWriter implements PrepareExecuteCommandWriter.Lo
     private void publishLastPacket(final ByteBuf packet, final FluxSink<ByteBuf> sink) {
         if (packet.readableBytes() > (PacketUtils.HEADER_SIZE + LONG_DATA_PREFIX_SIZE)) {
             PacketUtils.publishBigPacket(packet, sink, this.statementTask::addAndGetSequenceId
-                    , this.adjutant::createByteBuffer, true);
+                    , this.adjutant.allocator()::buffer, true);
         } else {
             packet.release();
         }

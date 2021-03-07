@@ -154,8 +154,9 @@ public abstract class CommunicationTaskExecutor<T extends TaskAdjutant> implemen
         }
         if (this.taskQueue.offer(task)) {
             offerCall.accept(Boolean.TRUE);
-            startHeadIfNeed();
-            drainToTask();
+            if (startHeadIfNeed()) {
+                drainToTask();
+            }
         } else {
             offerCall.accept(Boolean.FALSE);
         }
@@ -252,8 +253,8 @@ public abstract class CommunicationTaskExecutor<T extends TaskAdjutant> implemen
             }
 
             this.currentTask = currentTask;
-            if (currentTask instanceof AuthenticateTask) {
-                ((AuthenticateTask) currentTask).sslHandlerConsumer(this::addSslHandler);
+            if (currentTask instanceof ConnectionTask) {
+                ((ConnectionTask) currentTask).sslHandlerConsumer(this::addSslHandler);
             }
             Publisher<ByteBuf> bufPublisher;
             try {
@@ -339,16 +340,7 @@ public abstract class CommunicationTaskExecutor<T extends TaskAdjutant> implemen
     private void handleTaskError(final CommunicationTask task, final Throwable e) {
         try {
             task.error(JdbdExceptions.wrap(e));
-
-            if (task == this.currentTask) {
-                this.currentTask = null;
-                ByteBuf cumulate = this.cumulateBuffer;
-                if (cumulate != null) {
-                    cumulate.readerIndex(cumulate.writerIndex());
-                    cumulate.release();
-                    this.cumulateBuffer = null;
-                }
-            }
+            currentTaskEndIfNeed(task);
         } catch (Throwable te) {
             this.taskErrorMethodError = new TaskStatusException(e, "%s error(Throwable) method throw error.", task);
         }
@@ -357,10 +349,35 @@ public abstract class CommunicationTaskExecutor<T extends TaskAdjutant> implemen
 
     private void handleTaskPacketSendSuccess(final CommunicationTask task) {
         try {
-            task.onSendSuccess();
+            if (task.onSendSuccess()) {
+                currentTaskEndIfNeed(task);
+            }
         } catch (Throwable e) {
             handleTaskError(task, new TaskStatusException(e, "%s onSendSuccess() method throw error.", task));
         }
+    }
+
+    private void currentTaskEndIfNeed(final CommunicationTask task) {
+        if (task == this.currentTask) {
+
+            ByteBuf cumulate = this.cumulateBuffer;
+            if (cumulate != null) {
+                if (cumulate.isReadable()) {
+                    cumulate.readerIndex(cumulate.writerIndex());
+                }
+                cumulate.release();
+                this.cumulateBuffer = null;
+            }
+
+            this.currentTask = null;
+
+            if (startHeadIfNeed()) {
+                drainToTask();
+            }
+
+        }
+
+
     }
 
     /*################################## blow private static class ##################################*/

@@ -5,7 +5,7 @@ import io.netty.handler.ssl.SslHandler;
 
 import java.util.function.Consumer;
 
-public interface AuthenticateTask extends CommunicationTask {
+public interface ConnectionTask extends CommunicationTask {
 
     void sslHandlerConsumer(Consumer<SslHandler> consumer);
 

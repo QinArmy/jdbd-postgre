@@ -2,7 +2,8 @@ package io.jdbd.mysql.protocol.authentication;
 
 import io.jdbd.mysql.protocol.AuthenticateAssistant;
 import io.jdbd.mysql.protocol.client.PacketUtils;
-import io.jdbd.vendor.conf.DefaultHostInfo;
+import io.jdbd.mysql.protocol.conf.PropertyKey;
+import io.jdbd.vendor.conf.HostInfo;
 import io.netty.buffer.ByteBuf;
 
 import java.nio.charset.Charset;
@@ -12,8 +13,8 @@ import java.util.List;
 
 public class MySQLClearPasswordPlugin implements AuthenticationPlugin {
 
-    public static MySQLClearPasswordPlugin getInstance(AuthenticateAssistant protocolAssistant, DefaultHostInfo hostInfo) {
-        return new MySQLClearPasswordPlugin(protocolAssistant, hostInfo);
+    public static MySQLClearPasswordPlugin getInstance(AuthenticateAssistant protocolAssistant) {
+        return new MySQLClearPasswordPlugin(protocolAssistant);
     }
 
     public static final String PLUGIN_NAME = "mysql_clear_password";
@@ -22,11 +23,11 @@ public class MySQLClearPasswordPlugin implements AuthenticationPlugin {
 
     private final AuthenticateAssistant protocolAssistant;
 
-    private final DefaultHostInfo hostInfo;
+    private final HostInfo<PropertyKey> hostInfo;
 
-    private MySQLClearPasswordPlugin(AuthenticateAssistant protocolAssistant, DefaultHostInfo hostInfo) {
+    private MySQLClearPasswordPlugin(AuthenticateAssistant protocolAssistant) {
         this.protocolAssistant = protocolAssistant;
-        this.hostInfo = hostInfo;
+        this.hostInfo = protocolAssistant.getHostInfo();
     }
 
     @Override
@@ -51,7 +52,7 @@ public class MySQLClearPasswordPlugin implements AuthenticationPlugin {
                 ? "".getBytes(passwordCharset)
                 : password.getBytes(passwordCharset);
 
-        ByteBuf payloadBuf = protocolAssistant.createPayloadBuffer(passwordBytes.length + 1);
+        ByteBuf payloadBuf = protocolAssistant.allocator().buffer(passwordBytes.length + 1);
         PacketUtils.writeStringTerm(payloadBuf, passwordBytes);
 
         return Collections.singletonList(payloadBuf);

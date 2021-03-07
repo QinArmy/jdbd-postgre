@@ -64,7 +64,7 @@ import java.util.function.Consumer;
  * @see BinaryResultSetReader
  * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_command_phase_ps.html">Prepared Statements</a>
  */
-final class ComPreparedTask extends MySQLCommunicationTask implements StatementTask {
+final class ComPreparedTask extends MySQLCommandTask implements StatementTask {
 
 
     /**
@@ -119,7 +119,7 @@ final class ComPreparedTask extends MySQLCommunicationTask implements StatementT
 
     private final DownstreamSink downstreamSink;
 
-    private final Properties properties;
+    private final Properties<PropertyKey> properties;
 
     private final int fetchSize;
 
@@ -398,7 +398,7 @@ final class ComPreparedTask extends MySQLCommunicationTask implements StatementT
         switch (headFlag) {
             case ErrorPacket.ERROR_HEADER: {
                 ErrorPacket error = ErrorPacket.readPacket(cumulateBuffer.readSlice(payloadLength)
-                        , this.negotiatedCapability, this.adjutant.getCharsetResults());
+                        , this.negotiatedCapability, this.adjutant.obtainCharsetError());
                 addError(MySQLExceptions.createErrorPacketException(error));
                 taskEnd = true;
             }
@@ -531,7 +531,7 @@ final class ComPreparedTask extends MySQLCommunicationTask implements StatementT
                 updateSequenceId(PacketUtils.readInt1(cumulateBuffer));
 
                 ErrorPacket error = ErrorPacket.readPacket(cumulateBuffer.readSlice(payloadLength)
-                        , this.negotiatedCapability, this.adjutant.getCharsetResults());
+                        , this.negotiatedCapability, this.adjutant.obtainCharsetError());
                 addError(MySQLExceptions.createErrorPacketException(error));
                 taskEnd = true;
             }
@@ -609,7 +609,7 @@ final class ComPreparedTask extends MySQLCommunicationTask implements StatementT
             final int payloadLength = PacketUtils.readInt3(cumulateBuffer);
             updateSequenceId(PacketUtils.readInt1(cumulateBuffer));
             ErrorPacket error = ErrorPacket.readPacket(cumulateBuffer.readSlice(payloadLength)
-                    , this.negotiatedCapability, this.adjutant.getCharsetResults());
+                    , this.negotiatedCapability, this.adjutant.obtainCharsetError());
             addError(MySQLExceptions.createErrorPacketException(error));
             taskEnd = true;
         }
@@ -630,7 +630,7 @@ final class ComPreparedTask extends MySQLCommunicationTask implements StatementT
         switch (flag) {
             case ErrorPacket.ERROR_HEADER: {
                 ErrorPacket error = ErrorPacket.readPacket(cumulateBuffer.readSlice(payloadLength)
-                        , this.negotiatedCapability, this.adjutant.getCharsetResults());
+                        , this.negotiatedCapability, this.adjutant.obtainCharsetError());
                 addError(MySQLExceptions.createErrorPacketException(error));
                 taskEnd = true;
             }

@@ -22,23 +22,7 @@ public class MySQLSessionFactory implements JdbdSessionFactory {
 
     @Override
     public Mono<JdbdSession> getSession() {
-        Mono<JdbdSession> mono;
-        switch (this.mySQLUrl.getProtocol()) {
-            case SINGLE_CONNECTION:
-                mono = createClientSession();
-                break;
-            case XDEVAPI_SESSION:
-            case FAILOVER_CONNECTION:
-            case LOADBALANCE_CONNECTION:
-            case REPLICATION_CONNECTION:
-            case XDEVAPI_DNS_SRV_SESSION:
-            case FAILOVER_DNS_SRV_CONNECTION:
-            case LOADBALANCE_DNS_SRV_CONNECTION:
-            case REPLICATION_DNS_SRV_CONNECTION:
-            default:
-                mono = Mono.empty();
-        }
-        return mono;
+        return Mono.empty();
     }
 
     @Override

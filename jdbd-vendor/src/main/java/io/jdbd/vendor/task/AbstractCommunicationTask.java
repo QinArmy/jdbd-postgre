@@ -60,6 +60,16 @@ public abstract class AbstractCommunicationTask implements CommunicationTask {
         return publisher;
     }
 
+    @Override
+    public final boolean onSendSuccess() {
+        boolean taskEnd;
+        taskEnd = internalOnSendSuccess();
+        if (taskEnd) {
+            this.taskPhase = TaskPhase.END;
+        }
+        return taskEnd;
+    }
+
     @Nullable
     @Override
     public final Publisher<ByteBuf> error(Throwable e) {
@@ -95,6 +105,10 @@ public abstract class AbstractCommunicationTask implements CommunicationTask {
 
     protected void internalOnChannelClose() {
 
+    }
+
+    protected boolean internalOnSendSuccess() {
+        return false;
     }
 
     @Nullable

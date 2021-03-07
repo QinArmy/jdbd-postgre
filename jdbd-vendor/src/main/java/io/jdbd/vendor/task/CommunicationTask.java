@@ -20,10 +20,10 @@ public interface CommunicationTask {
     @Nullable
     Publisher<ByteBuf> moreSendPacket();
 
-    default void onSendSuccess() {
-
-    }
-
+    /**
+     * @return true : task end
+     */
+    boolean onSendSuccess();
 
     @Nullable
     Publisher<ByteBuf> error(Throwable e);
