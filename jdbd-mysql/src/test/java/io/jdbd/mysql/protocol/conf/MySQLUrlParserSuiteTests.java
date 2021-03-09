@@ -1,7 +1,8 @@
 package io.jdbd.mysql.protocol.conf;
 
 import io.jdbd.UrlException;
-import io.jdbd.mysql.TestConstant;
+import io.jdbd.mysql.Groups;
+import io.jdbd.mysql.protocol.client.Enums;
 import io.jdbd.mysql.util.MySQLStringUtils;
 import io.jdbd.vendor.conf.HostInfo;
 import io.jdbd.vendor.conf.Properties;
@@ -17,10 +18,10 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
-@Test(threadPoolSize = 3, groups = {TestConstant.MYSQL_URL_GROUP})
-public class MySQLUrlParserTests {
+@Test(threadPoolSize = 3, groups = {Groups.MYSQL_URL})
+public class MySQLUrlParserSuiteTests {
 
-    private static final Logger LOG = LoggerFactory.getLogger(MySQLUrlParserTests.class);
+    private static final Logger LOG = LoggerFactory.getLogger(MySQLUrlParserSuiteTests.class);
 
     @BeforeSuite
     public static void beforeSuite(ITestContext context) {
@@ -64,7 +65,7 @@ public class MySQLUrlParserTests {
 
         Properties<PropertyKey> properties = hostInfo.getProperties();
         Assert.assertEquals(properties.size(), 1, "prop size");
-        Assert.assertEquals(properties.getOrDefault(PropertyKey.sslMode, PropertyDefinitions.SslMode.class), PropertyDefinitions.SslMode.REQUIRED, "sslMode");
+        Assert.assertEquals(properties.getOrDefault(PropertyKey.sslMode, Enums.SslMode.class), Enums.SslMode.REQUIRED, "sslMode");
 
         LOG.info("test SINGLE_CONNECTION end");
     }
@@ -130,7 +131,7 @@ public class MySQLUrlParserTests {
         Properties<PropertyKey> properties = hostInfo1.getProperties();
 
         Assert.assertEquals(properties.size(), 3, "host1 prop size");
-        Assert.assertEquals(properties.getOrDefault(PropertyKey.sslMode, PropertyDefinitions.SslMode.class), PropertyDefinitions.SslMode.REQUIRED, " sslMode");
+        Assert.assertEquals(properties.getOrDefault(PropertyKey.sslMode, Enums.SslMode.class), Enums.SslMode.REQUIRED, " sslMode");
         Assert.assertEquals(properties.getOrDefault(PropertyKey.xdevapiSSLTrustStoreType), PropertyKey.xdevapiSSLTrustStoreType.getDefault(), "xdevapiSSLTrustStoreType");
         Assert.assertEquals(properties.getProperty("key2"), "value2", "host1 key2");
 

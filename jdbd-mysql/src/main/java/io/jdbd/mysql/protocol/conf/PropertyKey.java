@@ -2,6 +2,7 @@ package io.jdbd.mysql.protocol.conf;
 
 import io.jdbd.mysql.protocol.ClientConstants;
 import io.jdbd.mysql.protocol.Constants;
+import io.jdbd.mysql.protocol.client.Enums;
 import io.jdbd.vendor.conf.HostInfo;
 import io.jdbd.vendor.conf.IPropertyKey;
 import reactor.netty.resources.ConnectionProvider;
@@ -111,7 +112,7 @@ public enum PropertyKey implements IPropertyKey {
 
     // blow Security Group
     /**
-     * @see io.jdbd.mysql.protocol.conf.PropertyDefinitions.SslMode
+     * @see Enums.SslMode
      */
     sslMode("sslMode", "PREFERRED", true), //
     /** @deprecated use {@link #sslMode} */

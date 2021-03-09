@@ -12,6 +12,9 @@ import java.nio.charset.Charset;
 import java.security.DigestException;
 import java.util.concurrent.atomic.AtomicReference;
 
+/**
+ * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_caching_sha2_authentication_exchanges.html">Caching_sha2_password</a>
+ */
 public class CachingSha2PasswordPlugin extends Sha256PasswordPlugin {
 
     private static final Logger LOG = LoggerFactory.getLogger(CachingSha2PasswordPlugin.class);

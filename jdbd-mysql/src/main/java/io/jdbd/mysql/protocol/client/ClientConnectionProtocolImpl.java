@@ -51,14 +51,14 @@ final class ClientConnectionProtocolImpl implements ClientConnectionProtocol {
     private ClientConnectionProtocolImpl(final HostInfo<PropertyKey> hostInfo, final MySQLTaskExecutor taskExecutor) {
         this.hostInfo = hostInfo;
         this.taskExecutor = taskExecutor;
-        this.sessionResetter = DefaultSessionResetter.create(this.taskExecutor.createTaskAdjutant());
+        this.sessionResetter = DefaultSessionResetter.create(this.taskExecutor.getAdjutant());
         this.properties = this.hostInfo.getProperties();
     }
 
 
     @Override
     public Mono<Void> authenticateAndInitializing() {
-        return MySQLConnectionTask.authenticate(this.taskExecutor.createTaskAdjutant())
+        return MySQLConnectionTask.authenticate(this.taskExecutor.getAdjutant())
                 .doOnSuccess(result -> MySQLTaskExecutor.setAuthenticateResult(this.taskExecutor, result))
                 .then(Mono.defer(this::detectCustomCollations))
                 .doOnSuccess(map -> MySQLTaskExecutor.setCustomCollation(this.taskExecutor, map))
@@ -71,7 +71,7 @@ final class ClientConnectionProtocolImpl implements ClientConnectionProtocol {
 
     @Override
     public Mono<Void> closeGracefully() {
-        return QuitTask.quit(this.taskExecutor.createTaskAdjutant());
+        return QuitTask.quit(this.taskExecutor.getAdjutant());
     }
 
 
@@ -88,7 +88,7 @@ final class ClientConnectionProtocolImpl implements ClientConnectionProtocol {
             // blow tow phase: SHOW COLLATION phase and SHOW CHARACTER SET phase
             mono = ComQueryTask.query("SHOW COLLATION", MultiResults.EMPTY_CONSUMER, this.taskExecutor.getAdjutant())
                     .filter(this::isCustomCollation)
-                    .doFirst(() -> LOG.debug("has custom collations."))
+                    .doOnNext(this::printCustomCollationLog)
                     .collectMap(this::customCollationMapKeyFunction, this::customCollationMapValueFunction)
                     .flatMap(this::createCustomCollationMapForShowCollation)
                     // above SHOW COLLATION phase,blow SHOW CHARACTER SET phase
@@ -104,6 +104,13 @@ final class ClientConnectionProtocolImpl implements ClientConnectionProtocol {
 
 
     /*################################## blow private method ##################################*/
+
+    private void printCustomCollationLog(ResultRow row) {
+        if (LOG.isDebugEnabled()) {
+            LOG.debug("has custom collations : {} - {} "
+                    , row.getRequiredObject("Id"), row.getRequiredObject("Collation"));
+        }
+    }
 
 
     /**

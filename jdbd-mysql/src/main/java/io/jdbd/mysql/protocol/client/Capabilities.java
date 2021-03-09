@@ -14,6 +14,7 @@ abstract class Capabilities {
         return (negotiatedCapability & ClientProtocol.CLIENT_MULTI_STATEMENTS) != 0;
     }
 
+
     static boolean supportMultiStatement(final ClientProtocolAdjutant adjutant) {
         return supportMultiStatement(adjutant.obtainNegotiatedCapability());
     }

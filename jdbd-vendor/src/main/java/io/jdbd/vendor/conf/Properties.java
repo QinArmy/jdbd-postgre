@@ -63,7 +63,6 @@ public interface Properties<K extends IPropertyKey> extends Environment {
      * @param defaultValue the default value to return if no value is found
      * @see #getRequiredProperty(String, Class)
      */
-    @Nullable
     <T> T getProperty(K key, Class<T> targetType, T defaultValue);
 
     /**

@@ -1,9 +1,7 @@
 package io.jdbd.mysql.protocol.client;
 
 import io.jdbd.mysql.protocol.conf.MySQLUrl;
-import io.netty.channel.EventLoopGroup;
 import org.testng.annotations.Test;
-import reactor.netty.resources.LoopResources;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -14,9 +12,6 @@ public abstract class ClientTestUtils {
     protected ClientTestUtils() {
         throw new UnsupportedOperationException();
     }
-
-    final static EventLoopGroup EVENT_LOOP_GROUP = LoopResources.create("jdbd-mysql", 20, true)
-            .onClient(true);
 
 
     public static MySQLUrl singleUrl(Map<String, String> propertiesMap) {

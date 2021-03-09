@@ -4,13 +4,14 @@ import io.jdbd.BigRowIoException;
 import io.jdbd.JdbdException;
 import io.jdbd.JdbdSQLException;
 import io.jdbd.ResultRow;
-import io.jdbd.mysql.protocol.conf.PropertyDefinitions;
 import io.jdbd.mysql.protocol.conf.PropertyKey;
 import io.jdbd.mysql.util.MySQLExceptions;
 import io.jdbd.vendor.conf.Properties;
 import io.jdbd.vendor.result.ResultRowSink;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import reactor.util.annotation.Nullable;
 
 import java.io.IOException;
@@ -28,6 +29,8 @@ import java.util.function.Supplier;
 abstract class AbstractResultSetReader implements ResultSetReader {
 
     static final Path TEMP_DIRECTORY = Paths.get(System.getProperty("java.io.tmpdir"), "jdbd/mysql/bigRow");
+
+    private static final Logger LOG = LoggerFactory.getLogger(AbstractResultSetReader.class);
 
     final ClientProtocolAdjutant adjutant;
 
@@ -149,6 +152,8 @@ abstract class AbstractResultSetReader implements ResultSetReader {
 
     abstract int skipNullColumn(BigRowData bigRowData, ByteBuf payload, int columnIndex);
 
+    abstract Logger obtainLogger();
+
     /*################################## blow final packet method ##################################*/
 
     /**
@@ -156,6 +161,11 @@ abstract class AbstractResultSetReader implements ResultSetReader {
      * @see #read(ByteBuf, Consumer)
      */
     final boolean readResultRows(final ByteBuf cumulateBuffer, Consumer<Object> serverStatesConsumer) {
+        final Logger LOG = obtainLogger();
+        if (LOG.isTraceEnabled()) {
+            LOG.trace("read text ResultSet rows");
+        }
+
         assertPhase(Phase.READ_RESULT_ROW);
         final ResultRowSink sink = Objects.requireNonNull(this.sink, "this.sink");
 
@@ -220,6 +230,9 @@ abstract class AbstractResultSetReader implements ResultSetReader {
 
                 sink.accept(MySQLResultStates.from(tp));
                 resultSetEnd = true;
+                if (LOG.isDebugEnabled()) {
+                    LOG.debug("read text ResultSet end.");
+                }
                 break;
             } else {
                 final int payloadStartIndex = payload.readerIndex();
@@ -250,8 +263,15 @@ abstract class AbstractResultSetReader implements ResultSetReader {
 
         MySQLRowMeta rowMeta = this.rowMeta;
         if (rowMeta == null) {
+            int payloadLength = PacketUtils.readInt3(cumulateBuffer);
+            updateSequenceId(PacketUtils.readInt1(cumulateBuffer));
+
+            int payloadStartIndex = cumulateBuffer.readerIndex();
             int columnCount = PacketUtils.readLenEncAsInt(cumulateBuffer);
+            cumulateBuffer.readerIndex(payloadStartIndex + payloadLength);//to next packet,avoid tail filler
+
             rowMeta = MySQLRowMeta.from(new MySQLColumnMeta[columnCount], adjutant.obtainCustomCollationMap());
+            this.rowMeta = rowMeta;
         }
         final MySQLColumnMeta[] columnMetaArray = rowMeta.columnMetaArray;
 
@@ -294,9 +314,9 @@ abstract class AbstractResultSetReader implements ResultSetReader {
 
     @Nullable
     final LocalDate handleZeroDateBehavior() {
-        PropertyDefinitions.ZeroDatetimeBehavior behavior;
+        Enums.ZeroDatetimeBehavior behavior;
         behavior = this.adjutant.obtainHostInfo().getProperties().getOrDefault(PropertyKey.zeroDateTimeBehavior
-                , PropertyDefinitions.ZeroDatetimeBehavior.class);
+                , Enums.ZeroDatetimeBehavior.class);
         LocalDate date = null;
         switch (behavior) {
             case EXCEPTION: {
@@ -631,20 +651,32 @@ abstract class AbstractResultSetReader implements ResultSetReader {
         if (metaIndex < 0 || metaIndex >= columnMetaArray.length) {
             throw new IllegalArgumentException("metaIndex  error.");
         }
+        final boolean traceEnabled = LOG.isTraceEnabled();
+        if (traceEnabled) {
+            LOG.trace("read column meta start,metaIndex[{}],readableBytes[{}]"
+                    , metaIndex, cumulateBuffer.readableBytes());
+        }
+
         int sequenceId = -1;
-        for (int payloadStartIndex, payloadLength; metaIndex < columnMetaArray.length; metaIndex++) {
+        for (int payloadStartIndex, payloadLength; metaIndex < columnMetaArray.length; ) {
             if (!PacketUtils.hasOnePacket(cumulateBuffer)) {
+                if (traceEnabled) {
+                    LOG.trace("read column meta,no packet,more cumulate.");
+                }
                 break;
             }
             payloadLength = PacketUtils.readInt3(cumulateBuffer);//skip payload length
             sequenceId = PacketUtils.readInt1(cumulateBuffer);
             payloadStartIndex = cumulateBuffer.readerIndex();
 
-            columnMetaArray[metaIndex] = MySQLColumnMeta.readFor41(cumulateBuffer, adjutant);
+            columnMetaArray[metaIndex++] = MySQLColumnMeta.readFor41(cumulateBuffer, adjutant);
             cumulateBuffer.readerIndex(payloadStartIndex + payloadLength);//to next packet,avoid tail filler
         }
-        if (sequenceId > 0) {
+        if (sequenceId > -1) {
             sequenceIdUpdater.accept(sequenceId);
+        }
+        if (traceEnabled) {
+            LOG.trace("read column meta end,metaIndex[{}],sequenceId[{}]", metaIndex, sequenceId);
         }
         return metaIndex;
     }

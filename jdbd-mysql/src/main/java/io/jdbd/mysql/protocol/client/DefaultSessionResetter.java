@@ -24,7 +24,9 @@ import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.sql.SQLException;
 import java.time.*;
-import java.util.*;
+import java.util.Collections;
+import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
 
 final class DefaultSessionResetter implements SessionResetter {
@@ -48,7 +50,7 @@ final class DefaultSessionResetter implements SessionResetter {
 
     private final AtomicReference<ZoneOffset> zoneOffsetClient = new AtomicReference<>(null);
 
-    private final AtomicReference<Set<SQLMode>> sqlModeSet = new AtomicReference<>(null);
+    private final AtomicReference<Set<String>> sqlModeSet = new AtomicReference<>(null);
 
     private DefaultSessionResetter(MySQLTaskAdjutant adjutant) {
         this.adjutant = adjutant;
@@ -86,7 +88,7 @@ final class DefaultSessionResetter implements SessionResetter {
         ZoneOffset zoneOffsetDatabase = this.zoneOffsetDatabase.get();
         ZoneOffset zoneOffsetClient = this.zoneOffsetClient.get();
 
-        Set<SQLMode> sqlModeSet = this.sqlModeSet.get();
+        Set<String> sqlModeSet = this.sqlModeSet.get();
 
         Mono<Server> mono;
         final String message;
@@ -288,39 +290,27 @@ final class DefaultSessionResetter implements SessionResetter {
      */
     private Mono<Void> appendSqlModeIfNeed(final ResultRow resultRow) {
         String sqlModeString = resultRow.getRequiredObject(0, String.class);
-        List<String> sqlModeValueList = MySQLStringUtils.spitAsList(sqlModeString, ",");
-
-        final List<SQLMode> sqlModeList;
-        if (sqlModeValueList.isEmpty()) {
-            sqlModeList = new ArrayList<>();
-        } else {
-            sqlModeList = new ArrayList<>(sqlModeValueList.size());
-
-            for (String sqlModeValue : sqlModeValueList) {
-                sqlModeList.add(SQLMode.valueOf(sqlModeValue));
-            }
-
-        }
+        final Set<String> sqlModeSet = MySQLStringUtils.spitAsSet(sqlModeString, ",");
 
         final Mono<Void> mono;
-        if (sqlModeList.contains(SQLMode.TIME_TRUNCATE_FRACTIONAL)) {
-            this.sqlModeSet.set(EnumSet.copyOf(sqlModeList));
+        if (sqlModeSet.contains(SQLMode.TIME_TRUNCATE_FRACTIONAL.name())) {
+            this.sqlModeSet.set(Collections.unmodifiableSet(sqlModeSet));
             mono = Mono.empty();
         } else {
-            sqlModeList.add(SQLMode.TIME_TRUNCATE_FRACTIONAL);
+            sqlModeSet.add(SQLMode.TIME_TRUNCATE_FRACTIONAL.name());
             StringBuilder commandBuilder = new StringBuilder("SET @@SESSION.sql_mode = '");
             int count = 0;
-            for (SQLMode sqlMode : sqlModeList) {
+            for (String sqlMode : sqlModeSet) {
                 if (count > 0) {
                     commandBuilder.append(",");
                 }
-                commandBuilder.append(sqlMode.name());
+                commandBuilder.append(sqlMode);
                 count++;
             }
             commandBuilder.append("'");
-
+            final Set<String> unmodifiableSet = Collections.unmodifiableSet(sqlModeSet);
             mono = ComQueryTask.update(commandBuilder.toString(), this.adjutant)
-                    .doOnSuccess(states -> this.sqlModeSet.set(EnumSet.copyOf(sqlModeList)))
+                    .doOnSuccess(states -> this.sqlModeSet.set(unmodifiableSet))
                     .then();
         }
         return mono;
@@ -452,11 +442,11 @@ final class DefaultSessionResetter implements SessionResetter {
         private final ZoneOffset zoneOffsetDatabase;
         private final ZoneOffset zoneOffsetClient;
 
-        private final Set<SQLMode> sqlModeSet;
+        private final Set<String> sqlModeSet;
 
         private DefaultServer(Charset charsetClient, @Nullable Charset charsetResults
                 , ZoneOffset zoneOffsetDatabase, ZoneOffset zoneOffsetClient
-                , Set<SQLMode> sqlModeSet) {
+                , Set<String> sqlModeSet) {
             this.charsetClient = charsetClient;
             this.charsetResults = charsetResults;
             this.zoneOffsetDatabase = zoneOffsetDatabase;
@@ -466,7 +456,7 @@ final class DefaultSessionResetter implements SessionResetter {
 
         @Override
         public boolean containSqlMode(SQLMode sqlMode) {
-            return this.sqlModeSet.contains(sqlMode);
+            return this.sqlModeSet.contains(sqlMode.name());
         }
 
         @Override

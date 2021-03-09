@@ -4,7 +4,6 @@ import io.jdbd.JdbdSQLException;
 import io.jdbd.mysql.MySQLJdbdException;
 import io.jdbd.mysql.protocol.ServerVersion;
 import io.jdbd.mysql.protocol.X509TrustManagerWrapper;
-import io.jdbd.mysql.protocol.conf.PropertyDefinitions;
 import io.jdbd.mysql.protocol.conf.PropertyKey;
 import io.jdbd.mysql.util.MySQLStates;
 import io.jdbd.mysql.util.MySQLStringUtils;
@@ -32,11 +31,11 @@ import java.util.List;
 /**
  * @see SslHandler
  */
-final class SslHandlerBuilder {
+final class ReactorSslProviderBuilder {
 
 
-    static SslHandlerBuilder builder() {
-        return new SslHandlerBuilder();
+    static ReactorSslProviderBuilder builder() {
+        return new ReactorSslProviderBuilder();
     }
 
     private HostInfo<PropertyKey> hostInfo;
@@ -48,26 +47,38 @@ final class SslHandlerBuilder {
     private Properties<PropertyKey> properties;
 
 
-    private SslHandlerBuilder() {
+    private ReactorSslProviderBuilder() {
     }
 
-    public SslHandlerBuilder hostInfo(HostInfo<PropertyKey> hostInfo) {
+    public ReactorSslProviderBuilder hostInfo(HostInfo<PropertyKey> hostInfo) {
         this.hostInfo = hostInfo;
         return this;
     }
 
-    public SslHandlerBuilder serverVersion(ServerVersion serverVersion) {
+    public ReactorSslProviderBuilder serverVersion(ServerVersion serverVersion) {
         this.serverVersion = serverVersion;
         return this;
     }
 
-    public SslHandlerBuilder allocator(ByteBufAllocator allocator) {
+    public ReactorSslProviderBuilder allocator(ByteBufAllocator allocator) {
         this.allocator = allocator;
         return this;
     }
 
 
-    public SslHandler build() throws SQLException {
+    public reactor.netty.tcp.SslProvider build() throws SQLException {
+
+        return reactor.netty.tcp.SslProvider.builder()
+                .sslContext(buildSslContext())
+                .build();
+    }
+
+    public SslHandler buildSslHandler() throws SQLException {
+        HostInfo<PropertyKey> hostInfo = this.hostInfo;
+        return buildSslContext().newHandler(this.allocator, hostInfo.getHost(), hostInfo.getPort());
+    }
+
+    public SslContext buildSslContext() throws SQLException {
         if (this.hostInfo == null || this.serverVersion == null || this.allocator == null) {
             throw new IllegalStateException("hostInfo or serverVersion or allocator is null");
         }
@@ -92,10 +103,7 @@ final class SslHandlerBuilder {
             builder.sslProvider(SslProvider.JDK);
         }
         try {
-            HostInfo<PropertyKey> hostInfo = this.hostInfo;
-            SSLEngine sslEngine = builder.build()
-                    .newEngine(this.allocator, hostInfo.getHost(), hostInfo.getPort());
-            return new SslHandler(sslEngine);
+            return builder.build();
         } catch (SSLException e) {
             String message = String.format("Cannot create %s due to [%s]", SslHandler.class.getName(), e.getMessage());
             throw new SQLException(message, MySQLStates.SQLCLIENT_UNABLE_TO_ESTABLISH_SQLCONNECTION, e);
@@ -152,11 +160,11 @@ final class SslHandlerBuilder {
     }
 
 
-    private void configTrustManager(final SslContextBuilder builder) throws SQLException {
-        PropertyDefinitions.SslMode sslMode;
-        sslMode = this.properties.getProperty(PropertyKey.sslMode, PropertyDefinitions.SslMode.class);
-        final boolean verify = sslMode == PropertyDefinitions.SslMode.VERIFY_CA
-                || sslMode == PropertyDefinitions.SslMode.VERIFY_IDENTITY;
+    private void configTrustManager(final io.netty.handler.ssl.SslContextBuilder builder) throws SQLException {
+        Enums.SslMode sslMode;
+        sslMode = this.properties.getProperty(PropertyKey.sslMode, Enums.SslMode.class);
+        final boolean verify = sslMode == Enums.SslMode.VERIFY_CA
+                || sslMode == Enums.SslMode.VERIFY_IDENTITY;
         try {
 
             Pair<KeyStore, char[]> storePair = tryObtainKeyStorePasswordPairForSsl(false);

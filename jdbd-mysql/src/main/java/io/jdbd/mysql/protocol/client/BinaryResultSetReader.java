@@ -4,6 +4,8 @@ import io.jdbd.ResultRow;
 import io.jdbd.mysql.util.MySQLConvertUtils;
 import io.jdbd.mysql.util.MySQLExceptions;
 import io.netty.buffer.ByteBuf;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import reactor.util.annotation.Nullable;
 
 import java.math.BigDecimal;
@@ -20,6 +22,8 @@ import java.util.function.Consumer;
  */
 final class BinaryResultSetReader extends AbstractResultSetReader {
 
+    private static final Logger LOG = LoggerFactory.getLogger(BinaryResultSetReader.class);
+
 
     BinaryResultSetReader(ResultSetReaderBuilder builder) {
         super(builder);
@@ -30,6 +34,11 @@ final class BinaryResultSetReader extends AbstractResultSetReader {
         return doReadRowMeta(cumulateBuffer);
     }
 
+
+    @Override
+    Logger obtainLogger() {
+        return LOG;
+    }
 
     @Override
     final boolean isResettable() {

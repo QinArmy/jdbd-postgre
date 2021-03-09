@@ -20,7 +20,7 @@ public class MySQLNativePasswordPlugin implements AuthenticationPlugin {
 
     public static final String PLUGIN_NAME = "mysql_native_password";
 
-    public static final String PLUGIN_CLASS = "com.mysql.cj.protocol.a.authentication.MysqlNativePasswordPlugin";
+    public static final String PLUGIN_CLASS = MySQLNativePasswordPlugin.class.getName();
 
     private final AuthenticateAssistant protocolAssistant;
 

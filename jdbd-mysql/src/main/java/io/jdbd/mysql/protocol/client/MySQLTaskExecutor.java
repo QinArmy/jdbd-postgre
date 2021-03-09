@@ -11,11 +11,11 @@ import io.jdbd.vendor.conf.HostInfo;
 import io.jdbd.vendor.task.CommunicationTaskExecutor;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.EventLoopGroup;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import reactor.core.publisher.Mono;
 import reactor.netty.Connection;
 import reactor.netty.tcp.TcpClient;
-import reactor.util.Logger;
-import reactor.util.Loggers;
 import reactor.util.annotation.Nullable;
 
 import java.nio.charset.Charset;
@@ -55,27 +55,26 @@ final class MySQLTaskExecutor extends CommunicationTaskExecutor<MySQLTaskAdjutan
 
     static void setAuthenticateResult(MySQLTaskExecutor taskExecutor, AuthenticateResult result) {
         synchronized (taskExecutor.taskAdjutant) {
-            MySQLTaskAdjutantWrapper taskAdjutant = (MySQLTaskAdjutantWrapper) taskExecutor.taskAdjutant;
-            if (taskAdjutant.handshakeV10Packet == null
-                    && taskAdjutant.negotiatedCapability == 0) {
+            MySQLTaskAdjutantWrapper adjutantWrapper = (MySQLTaskAdjutantWrapper) taskExecutor.taskAdjutant;
+            if (adjutantWrapper.handshakeV10Packet == null
+                    && adjutantWrapper.negotiatedCapability == 0) {
                 // 1.
                 HandshakeV10Packet handshake = Objects.requireNonNull(result, "result").handshakeV10Packet();
-                taskAdjutant.handshakeV10Packet = Objects.requireNonNull(handshake, "handshake");
+                adjutantWrapper.handshakeV10Packet = Objects.requireNonNull(handshake, "handshake");
 
                 //2.
                 Charset serverCharset = CharsetMapping.getJavaCharsetByCollationIndex(handshake.getCollationIndex());
                 if (serverCharset == null) {
                     throw new IllegalArgumentException("server handshake charset is null");
                 }
-                taskAdjutant.serverHandshakeCharset = serverCharset;
+                adjutantWrapper.serverHandshakeCharset = serverCharset;
 
                 // 3.
                 int negotiatedCapability = result.negotiatedCapability();
                 if (negotiatedCapability == 0) {
                     throw new IllegalArgumentException("result error.");
                 }
-                taskAdjutant.negotiatedCapability = negotiatedCapability;
-
+                adjutantWrapper.negotiatedCapability = negotiatedCapability;
             } else {
                 throw new IllegalStateException("Duplicate update AuthenticateResult");
             }
@@ -85,15 +84,13 @@ final class MySQLTaskExecutor extends CommunicationTaskExecutor<MySQLTaskAdjutan
     }
 
     static void setCustomCollation(MySQLTaskExecutor taskExecutor, Map<Integer, CharsetMapping.CustomCollation> map) {
-        LOG.debug("setCustomCollation start.");
         synchronized (taskExecutor.taskAdjutant) {
             MySQLTaskAdjutantWrapper taskAdjutant = (MySQLTaskAdjutantWrapper) taskExecutor.taskAdjutant;
             taskAdjutant.customCollationMap = map;
         }
     }
 
-    private static final Logger LOG = Loggers.getLogger(MySQLTaskExecutor.class);
-
+    private static final Logger LOG = LoggerFactory.getLogger(MySQLTaskExecutor.class);
 
     final HostInfo<PropertyKey> hostInfo;
 
@@ -102,6 +99,11 @@ final class MySQLTaskExecutor extends CommunicationTaskExecutor<MySQLTaskAdjutan
     private MySQLTaskExecutor(Connection connection, HostInfo<PropertyKey> hostInfo) {
         super(connection);
         this.hostInfo = hostInfo;
+    }
+
+    @Override
+    protected Logger obtainLogger() {
+        return LOG;
     }
 
     @Override
@@ -114,7 +116,10 @@ final class MySQLTaskExecutor extends CommunicationTaskExecutor<MySQLTaskAdjutan
         this.serverStatus = (Integer) serversStatus;
     }
 
-
+    @Override
+    protected HostInfo<?> obtainHostInfo() {
+        return this.hostInfo;
+    }
 
 
     /*################################## blow private method ##################################*/
@@ -141,6 +146,7 @@ final class MySQLTaskExecutor extends CommunicationTaskExecutor<MySQLTaskAdjutan
             super(taskExecutor);
             this.taskExecutor = taskExecutor;
         }
+
 
         @Override
         public ByteBuf createPacketBuffer(int initialPayloadCapacity) {
@@ -209,6 +215,7 @@ final class MySQLTaskExecutor extends CommunicationTaskExecutor<MySQLTaskAdjutan
         public int obtainNegotiatedCapability() {
             int capacity = this.negotiatedCapability;
             if (capacity == 0) {
+                LOG.trace("Cannot access negotiatedCapability[{}],this[{}]", this.negotiatedCapability, this);
                 throw new IllegalStateException("Cannot access negotiatedCapability now.");
             }
             return capacity;
@@ -293,6 +300,7 @@ final class MySQLTaskExecutor extends CommunicationTaskExecutor<MySQLTaskAdjutan
             }
             return parser.isMultiStmt(sql);
         }
+
     }
 
     /**

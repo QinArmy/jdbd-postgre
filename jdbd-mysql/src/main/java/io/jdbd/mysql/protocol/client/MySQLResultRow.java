@@ -4,7 +4,6 @@ import io.jdbd.JdbdSQLException;
 import io.jdbd.ResultRow;
 import io.jdbd.ResultRowMeta;
 import io.jdbd.mysql.MySQLJdbdException;
-import io.jdbd.mysql.util.MySQLConvertUtils;
 import io.jdbd.mysql.util.MySQLNumberUtils;
 import io.jdbd.mysql.util.MySQLTimeUtils;
 import org.qinarmy.util.NotSupportedConvertException;
@@ -12,14 +11,10 @@ import reactor.util.annotation.Nullable;
 
 import java.math.BigDecimal;
 import java.math.BigInteger;
-import java.nio.file.Path;
+import java.nio.charset.Charset;
 import java.sql.SQLException;
 import java.time.*;
 import java.time.temporal.Temporal;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.function.Function;
 
 abstract class MySQLResultRow implements ResultRow {
 
@@ -27,11 +22,6 @@ abstract class MySQLResultRow implements ResultRow {
         return new SimpleMySQLResultRow(columnValues, rowMeta, adjutant);
     }
 
-    static MySQLResultRow from(Path bigRowPath, MySQLRowMeta rowMeta, ResultRowAdjutant adjutant) {
-        return null;
-    }
-
-    private static final Map<Class<?>, Function<Object, Object>> COLUMN_CONVERTER_MAP = createColumnConverterMap();
 
     private final Object[] columnValues;
 
@@ -68,7 +58,7 @@ abstract class MySQLResultRow implements ResultRow {
         Object value = this.columnValues[checkIndex(indexBaseZero)];
         return (value == null || columnClass.isInstance(value))
                 ? (T) value
-                : convertValue(value, columnClass);
+                : convertValue(indexBaseZero, value, columnClass);
     }
 
     @Nullable
@@ -91,40 +81,6 @@ abstract class MySQLResultRow implements ResultRow {
         }
     }
 
-    @Override
-    public final <T extends Temporal> T getObject(int indexBaseZero, Class<T> targetClass, ZoneId targetZoneId)
-            throws JdbdSQLException {
-        Object value = this.columnValues[checkIndex(indexBaseZero)];
-        if (value == null) {
-            return null;
-        }
-        T newValue;
-        if (value instanceof LocalDateTime) {
-            newValue = convertFromLocalDateTime((LocalDateTime) value, targetClass, targetZoneId);
-        } else if (value instanceof LocalTime) {
-            newValue = convertFromLocalTime((LocalTime) value, targetClass, targetZoneId);
-        } else if (value instanceof ZonedDateTime) {
-            newValue = convertFromZonedDateTime((ZonedDateTime) value, targetClass, targetZoneId);
-        } else if (value instanceof OffsetDateTime) {
-            newValue = convertFromOffsetDateTime((OffsetDateTime) value, targetClass, targetZoneId);
-        } else if (value instanceof OffsetTime) {
-            newValue = convertFromOffsetTime((OffsetTime) value, targetClass, targetZoneId);
-        } else {
-            throw createNotSupportedException(value, targetClass);
-        }
-        return newValue;
-    }
-
-    @Nullable
-    @Override
-    public final <T extends Temporal> T getObject(String alias, Class<T> targetClass, ZoneId zoneId)
-            throws JdbdSQLException {
-        try {
-            return getObject(this.rowMeta.convertToIndex(alias), targetClass, zoneId);
-        } catch (MySQLJdbdException e) {
-            throw new MySQLJdbdException(String.format("alias[%s] access error.", alias), e);
-        }
-    }
 
     @Override
     public Object getRequiredObject(int indexBaseZero) throws JdbdSQLException {
@@ -162,25 +118,6 @@ abstract class MySQLResultRow implements ResultRow {
         return value;
     }
 
-    @Override
-    public <T extends Temporal> T getRequiredObject(int indexBaseZero, Class<T> targetClass, ZoneId targetZoneId)
-            throws JdbdSQLException {
-        T value = getObject(indexBaseZero, targetClass, targetZoneId);
-        if (value == null) {
-            throw createNotRequiredException(indexBaseZero);
-        }
-        return value;
-    }
-
-    @Override
-    public <T extends Temporal> T getRequiredObject(String alias, Class<T> targetClass, ZoneId targetZoneId)
-            throws JdbdSQLException {
-        T value = getObject(alias, targetClass, targetZoneId);
-        if (value == null) {
-            throw createNotRequiredException(alias);
-        }
-        return value;
-    }
 
 
     /*################################## blow private method ##################################*/
@@ -194,176 +131,135 @@ abstract class MySQLResultRow implements ResultRow {
     }
 
     @SuppressWarnings("unchecked")
-    private <T> T convertValue(Object nonValue, Class<T> columnClass) {
-        Function<Object, Object> function = COLUMN_CONVERTER_MAP.get(columnClass);
-        if (function == null) {
-            throw createNotSupportedException(nonValue, columnClass);
+    private <T> T convertValue(final int indexBaseZero, final Object nonValue, final Class<T> columnClass) {
+        final Object convertedValue;
+
+        if (columnClass == String.class) {
+            convertedValue = convertToString(indexBaseZero, nonValue);
+        } else if (Number.class.isAssignableFrom(columnClass)) {
+            if (columnClass == Integer.class) {
+                convertedValue = convertToInteger(indexBaseZero, nonValue);
+            } else if (columnClass == Long.class) {
+                convertedValue = convertToLong(indexBaseZero, nonValue);
+            } else if (columnClass == BigDecimal.class) {
+                convertedValue = convertToBigDecimal(indexBaseZero, nonValue);
+            } else if (columnClass == BigInteger.class) {
+                convertedValue = convertToBigInteger(indexBaseZero, nonValue);
+            } else if (columnClass == Byte.class) {
+                convertedValue = convertToByte(indexBaseZero, nonValue);
+            } else if (columnClass == Short.class) {
+                convertedValue = convertToShort(indexBaseZero, nonValue);
+            } else if (columnClass == Double.class) {
+                convertedValue = convertToDouble(indexBaseZero, nonValue);
+            } else if (columnClass == Float.class) {
+                convertedValue = convertToFloat(indexBaseZero, nonValue);
+            } else {
+                throw createNotSupportedException(indexBaseZero, nonValue.getClass(), columnClass);
+            }
+        } else if (Temporal.class.isAssignableFrom(columnClass)) {
+            if (columnClass == LocalDateTime.class) {
+                convertedValue = convertToLocalDateTime(indexBaseZero, nonValue);
+            } else if (columnClass == LocalTime.class) {
+                convertedValue = convertToLocalTime(indexBaseZero, nonValue);
+            } else if (columnClass == LocalDate.class) {
+                convertedValue = convertToLocalDate(indexBaseZero, nonValue);
+            } else if (columnClass == ZonedDateTime.class) {
+                convertedValue = convertToZonedDateTime(indexBaseZero, nonValue);
+            } else if (columnClass == OffsetDateTime.class) {
+                convertedValue = convertToOffsetDateTime(indexBaseZero, nonValue);
+            } else if (columnClass == OffsetTime.class) {
+                convertedValue = convertToOffsetTime(indexBaseZero, nonValue);
+            } else if (columnClass == Instant.class) {
+                convertedValue = convertToInstant(indexBaseZero, nonValue);
+            } else if (columnClass == Year.class) {
+                convertedValue = convertToYear(indexBaseZero, nonValue);
+            } else if (columnClass == YearMonth.class) {
+                convertedValue = convertToYearMonth(indexBaseZero, nonValue);
+            } else {
+                throw createNotSupportedException(indexBaseZero, nonValue.getClass(), columnClass);
+            }
+        } else if (columnClass == MonthDay.class) {
+            convertedValue = convertToMonthDay(indexBaseZero, nonValue);
+        } else if (columnClass == DayOfWeek.class) {
+            convertedValue = convertToDayOfWeek(indexBaseZero, nonValue);
+        } else {
+            throw createNotSupportedException(indexBaseZero, nonValue.getClass(), columnClass);
         }
-        return (T) function.apply(nonValue);
+        return (T) convertedValue;
     }
 
     /*################################## blow instance converter method ##################################*/
 
-    @SuppressWarnings("unchecked")
-    private <T extends Temporal> T convertFromLocalDateTime(LocalDateTime value, Class<T> targetClass
-            , ZoneId targetZoneId) {
-        // @see AbstractClientProtocol#toLocalDateTime(ByteBuf, MySQLColumnMeta)
-        OffsetDateTime newOffset = OffsetDateTime.of(value, this.adjutant.obtainZoneOffsetClient())
-                .withOffsetSameInstant(MySQLTimeUtils.toZoneOffset(targetZoneId));
-
-        Temporal newValue;
-        if (targetClass == ZonedDateTime.class) {
-            newValue = newOffset.toZonedDateTime();
-        } else if (targetClass == OffsetDateTime.class) {
-            newValue = newOffset;
-        } else if (targetClass == LocalDateTime.class) {
-            newValue = newOffset.toLocalDateTime();
-        } else if (targetClass == LocalDate.class) {
-            newValue = newOffset.toLocalDate();
-        } else if (targetClass == OffsetTime.class) {
-            newValue = newOffset.toOffsetTime();
-        } else if (targetClass == LocalTime.class) {
-            newValue = newOffset.toLocalTime();
-        } else if (targetClass == Year.class) {
-            newValue = Year.from(newOffset);
-        } else if (targetClass == YearMonth.class) {
-            newValue = YearMonth.from(newOffset);
-        } else if (targetClass == Instant.class) {
-            newValue = Instant.from(newOffset);
-        } else {
-            throw createNotSupportedException(value, targetClass);
-        }
-        return (T) newValue;
-    }
-
-    @SuppressWarnings("unchecked")
-    private <T extends Temporal> T convertFromLocalTime(LocalTime value, Class<T> targetClass
-            , ZoneId targetZoneId) {
-        //  @see AbstractClientProtocol#toLocalTime(ByteBuf, MySQLColumnMeta)
-        OffsetTime newOffset = OffsetTime.of(value, this.adjutant.obtainZoneOffsetClient())
-                .withOffsetSameInstant(MySQLTimeUtils.toZoneOffset(targetZoneId));
-        Temporal newValue;
-        if (targetClass == OffsetTime.class) {
-            newValue = newOffset;
-        } else if (targetClass == LocalTime.class) {
-            newValue = newOffset.toLocalTime();
-        } else if (targetClass == Instant.class) {
-            newValue = Instant.from(newOffset);
-        } else {
-            throw createNotSupportedException(value, targetClass);
-        }
-        return (T) newValue;
-    }
-
-    @SuppressWarnings("unchecked")
-    private <T extends Temporal> T convertFromZonedDateTime(ZonedDateTime value, Class<T> targetClass
-            , ZoneId targetZoneId) {
-        ZonedDateTime newDateTime = value.withZoneSameInstant(MySQLTimeUtils.toZoneOffset(targetZoneId));
-
-        Temporal newValue;
-        if (targetClass == ZonedDateTime.class) {
-            newValue = newDateTime;
-        } else if (targetClass == OffsetDateTime.class) {
-            newValue = newDateTime.toOffsetDateTime();
-        } else if (targetClass == LocalDateTime.class) {
-            newValue = newDateTime.toLocalDateTime();
-        } else if (targetClass == LocalDate.class) {
-            newValue = newDateTime.toLocalDate();
-        } else if (targetClass == OffsetTime.class) {
-            newValue = newDateTime.toOffsetDateTime().toOffsetTime();
-        } else if (targetClass == LocalTime.class) {
-            newValue = newDateTime.toLocalTime();
-        } else if (targetClass == Year.class) {
-            newValue = Year.from(newDateTime);
-        } else if (targetClass == YearMonth.class) {
-            newValue = YearMonth.from(newDateTime);
-        } else if (targetClass == Instant.class) {
-            newValue = Instant.from(newDateTime);
-        } else {
-            throw createNotSupportedException(value, targetClass);
-        }
-        return (T) newValue;
-    }
-
-    @SuppressWarnings("unchecked")
-    private <T extends Temporal> T convertFromOffsetDateTime(OffsetDateTime value, Class<T> targetClass
-            , ZoneId targetZoneId) {
-        OffsetDateTime newOffset = value.withOffsetSameInstant(MySQLTimeUtils.toZoneOffset(targetZoneId));
-
-        Temporal newValue;
-        if (targetClass == ZonedDateTime.class) {
-            newValue = newOffset.toZonedDateTime();
-        } else if (targetClass == OffsetDateTime.class) {
-            newValue = newOffset;
-        } else if (targetClass == LocalDateTime.class) {
-            newValue = newOffset.toLocalDateTime();
-        } else if (targetClass == LocalDate.class) {
-            newValue = newOffset.toLocalDate();
-        } else if (targetClass == OffsetTime.class) {
-            newValue = newOffset.toOffsetTime();
-        } else if (targetClass == LocalTime.class) {
-            newValue = newOffset.toLocalTime();
-        } else if (targetClass == Year.class) {
-            newValue = Year.from(newOffset);
-        } else if (targetClass == YearMonth.class) {
-            newValue = YearMonth.from(newOffset);
-        } else if (targetClass == Instant.class) {
-            newValue = Instant.from(newOffset);
-        } else {
-            throw createNotSupportedException(value, targetClass);
-        }
-        return (T) newValue;
-    }
-
-    @SuppressWarnings("unchecked")
-    private <T extends Temporal> T convertFromOffsetTime(OffsetTime value, Class<T> targetClass
-            , ZoneId targetZoneId) {
-        OffsetTime newOffset = value.withOffsetSameInstant(MySQLTimeUtils.toZoneOffset(targetZoneId));
-        Temporal newValue;
-        if (targetClass == OffsetTime.class) {
-            newValue = newOffset;
-        } else if (targetClass == LocalTime.class) {
-            newValue = newOffset.toLocalTime();
-        } else if (targetClass == Instant.class) {
-            newValue = Instant.from(newOffset);
-        } else {
-            throw createNotSupportedException(value, targetClass);
-        }
-        return (T) newValue;
-    }
-
 
     /*################################## blow static converter method ##################################*/
 
-    private static OffsetTime convertToOffsetTime(Object sourceValue) {
+    /**
+     * @see #convertValue(int, Object, Class)
+     */
+    private OffsetTime convertToOffsetTime(final int indexBaseZero, Object sourceValue) {
         OffsetTime newValue;
         if (sourceValue instanceof ZonedDateTime) {
             newValue = ((ZonedDateTime) sourceValue).toOffsetDateTime().toOffsetTime();
         } else if (sourceValue instanceof OffsetDateTime) {
             newValue = ((OffsetDateTime) sourceValue).toOffsetTime();
         } else {
-            throw createNotSupportedException(sourceValue, OffsetTime.class);
+            throw createNotSupportedException(indexBaseZero, sourceValue.getClass(), OffsetTime.class);
         }
         return newValue;
     }
 
-    private static OffsetDateTime convertToOffsetDateTime(Object sourceValue) {
+    /**
+     * @see #convertValue(int, Object, Class)
+     */
+    private Instant convertToInstant(final int indexBaseZero, Object sourceValue) {
+        throw createNotSupportedException(indexBaseZero, sourceValue.getClass(), Instant.class);
+    }
+
+    /**
+     * @see #convertValue(int, Object, Class)
+     */
+    private Year convertToYear(final int indexBaseZero, Object sourceValue) {
+        throw createNotSupportedException(indexBaseZero, sourceValue.getClass(), Year.class);
+    }
+
+    /**
+     * @see #convertValue(int, Object, Class)
+     */
+    private YearMonth convertToYearMonth(final int indexBaseZero, Object sourceValue) {
+        throw createNotSupportedException(indexBaseZero, sourceValue.getClass(), YearMonth.class);
+    }
+
+    /**
+     * @see #convertValue(int, Object, Class)
+     */
+    private MonthDay convertToMonthDay(final int indexBaseZero, Object sourceValue) {
+        throw createNotSupportedException(indexBaseZero, sourceValue.getClass(), MonthDay.class);
+    }
+
+    /**
+     * @see #convertValue(int, Object, Class)
+     */
+    private DayOfWeek convertToDayOfWeek(final int indexBaseZero, Object sourceValue) {
+        throw createNotSupportedException(indexBaseZero, sourceValue.getClass(), DayOfWeek.class);
+    }
+
+    private OffsetDateTime convertToOffsetDateTime(final int indexBaseZero, Object sourceValue) {
         if (sourceValue instanceof ZonedDateTime) {
             return ((ZonedDateTime) sourceValue).toOffsetDateTime();
         }
-        throw createNotSupportedException(sourceValue, OffsetDateTime.class);
+        throw createNotSupportedException(indexBaseZero, sourceValue.getClass(), OffsetDateTime.class);
     }
 
 
-    private static ZonedDateTime convertToZonedDateTime(Object sourceValue) {
+    private ZonedDateTime convertToZonedDateTime(final int indexBaseZero, Object sourceValue) {
         if (sourceValue instanceof OffsetDateTime) {
             return ((OffsetDateTime) sourceValue).toZonedDateTime();
         }
-        throw createNotSupportedException(sourceValue, ZonedDateTime.class);
+        throw createNotSupportedException(indexBaseZero, sourceValue.getClass(), ZonedDateTime.class);
     }
 
 
-    private static LocalTime convertToLocalTime(Object sourceValue) {
+    private LocalTime convertToLocalTime(final int indexBaseZero, Object sourceValue) {
         LocalTime newValue;
         if (sourceValue instanceof OffsetTime) {
             newValue = ((OffsetTime) sourceValue).toLocalTime();
@@ -374,25 +270,38 @@ abstract class MySQLResultRow implements ResultRow {
         } else if (sourceValue instanceof OffsetDateTime) {
             newValue = ((OffsetDateTime) sourceValue).toLocalTime();
         } else {
-            throw createNotSupportedException(sourceValue, LocalTime.class);
+            throw createNotSupportedException(indexBaseZero, sourceValue.getClass(), LocalTime.class);
         }
         return newValue;
     }
 
-    private static LocalDateTime convertToLocalDateTime(Object sourceValue) {
-        LocalDateTime newValue;
+    private LocalDateTime convertToLocalDateTime(final int indexBaseZero, final Object sourceValue) {
+        final LocalDateTime newValue;
         if (sourceValue instanceof ZonedDateTime) {
             newValue = ((ZonedDateTime) sourceValue).toLocalDateTime();
         } else if (sourceValue instanceof OffsetDateTime) {
             newValue = ((OffsetDateTime) sourceValue).toLocalDateTime();
+        } else if (sourceValue instanceof String) {
+            try {
+                newValue = LocalDateTime.parse((String) sourceValue, MySQLTimeUtils.MYSQL_DATETIME_FORMATTER);
+            } catch (DateTimeException e) {
+                throw createValueCannotConvertException(indexBaseZero, sourceValue.getClass(), LocalDateTime.class);
+            }
+        } else if (sourceValue instanceof byte[]) {
+            String textValue = new String((byte[]) sourceValue, obtainColumnCharset(indexBaseZero));
+            try {
+                newValue = LocalDateTime.parse(textValue, MySQLTimeUtils.MYSQL_DATETIME_FORMATTER);
+            } catch (DateTimeException e) {
+                throw createValueCannotConvertException(indexBaseZero, sourceValue.getClass(), LocalDateTime.class);
+            }
         } else {
-            throw createNotSupportedException(sourceValue, LocalDateTime.class);
+            throw createNotSupportedException(indexBaseZero, sourceValue.getClass(), LocalDateTime.class);
         }
         return newValue;
     }
 
 
-    private static LocalDate convertToLocalDate(Object sourceValue) {
+    private LocalDate convertToLocalDate(final int indexBaseZero, Object sourceValue) {
         LocalDate newValue;
         if (sourceValue instanceof LocalDateTime) {
             newValue = ((LocalDateTime) sourceValue).toLocalDate();
@@ -401,177 +310,178 @@ abstract class MySQLResultRow implements ResultRow {
         } else if (sourceValue instanceof OffsetDateTime) {
             newValue = ((OffsetDateTime) sourceValue).toLocalDate();
         } else {
-            throw createNotSupportedException(sourceValue, LocalDate.class);
+            throw createNotSupportedException(indexBaseZero, sourceValue.getClass(), LocalDate.class);
         }
         return newValue;
     }
 
 
-
-    private static Double convertToDouble(Object sourceValue) {
+    private Double convertToDouble(final int indexBaseZero, Object sourceValue) {
         double newValue;
         if (sourceValue instanceof String) {
             try {
                 newValue = Double.parseDouble((String) sourceValue);
             } catch (NumberFormatException e) {
-                throw createNotSupportedException(sourceValue, Double.class);
+                throw createNotSupportedException(indexBaseZero, sourceValue.getClass(), Double.class);
             }
         } else if (sourceValue instanceof Float) {
             newValue = ((Float) sourceValue).doubleValue();
         } else {
-            throw createNotSupportedException(sourceValue, BigDecimal.class);
+            throw createNotSupportedException(indexBaseZero, sourceValue.getClass(), BigDecimal.class);
         }
         return newValue;
     }
 
-    private static BigDecimal convertToBigDecimal(Object sourceValue) {
+    private Float convertToFloat(final int indexBaseZero, Object sourceValue) {
+        throw createNotSupportedException(indexBaseZero, sourceValue.getClass(), BigDecimal.class);
+    }
+
+    private BigDecimal convertToBigDecimal(final int indexBaseZero, Object sourceValue) {
         BigDecimal newValue;
         if (sourceValue instanceof String) {
             try {
                 newValue = new BigDecimal((String) sourceValue);
             } catch (NumberFormatException e) {
-                throw createNotSupportedException(sourceValue, BigDecimal.class);
+                throw createNotSupportedException(indexBaseZero, sourceValue.getClass(), BigDecimal.class);
             }
         } else if (sourceValue instanceof Number) {
             try {
                 newValue = MySQLNumberUtils.convertNumberToBigDecimal((Number) sourceValue);
             } catch (NotSupportedConvertException e) {
-                throw createNotSupportedException(sourceValue, BigDecimal.class);
+                throw createNotSupportedException(indexBaseZero, sourceValue.getClass(), BigDecimal.class);
             }
         } else {
-            throw createNotSupportedException(sourceValue, BigDecimal.class);
+            throw createNotSupportedException(indexBaseZero, sourceValue.getClass(), BigDecimal.class);
         }
         return newValue;
     }
 
-    private static BigInteger convertToBigInteger(Object sourceValue) {
+    private BigInteger convertToBigInteger(final int indexBaseZero, Object sourceValue) {
         BigInteger newValue;
         if (sourceValue instanceof String) {
             try {
                 newValue = new BigInteger((String) sourceValue);
             } catch (NumberFormatException e) {
-                throw createNotSupportedException(sourceValue, BigInteger.class);
+                throw createNotSupportedException(indexBaseZero, sourceValue.getClass(), BigInteger.class);
             }
         } else if (sourceValue instanceof Number) {
             try {
                 newValue = MySQLNumberUtils.convertNumberToBigInteger((Number) sourceValue);
             } catch (NotSupportedConvertException e) {
-                throw createNotSupportedException(sourceValue, BigInteger.class);
+                throw createNotSupportedException(indexBaseZero, sourceValue.getClass(), BigInteger.class);
             }
         } else {
-            throw createNotSupportedException(sourceValue, BigInteger.class);
+            throw createNotSupportedException(indexBaseZero, sourceValue.getClass(), BigInteger.class);
         }
         return newValue;
     }
 
-    private static Long convertToLong(Object sourceValue) {
+    private Long convertToLong(final int indexBaseZero, Object sourceValue) {
         long newValue;
         if (sourceValue instanceof String) {
             try {
                 newValue = Long.parseLong((String) sourceValue);
             } catch (NumberFormatException e) {
-                throw createNotSupportedException(sourceValue, Long.class);
+                throw createNotSupportedException(indexBaseZero, sourceValue.getClass(), Long.class);
             }
         } else if (sourceValue instanceof Number) {
             try {
                 newValue = MySQLNumberUtils.convertNumberToLong((Number) sourceValue);
             } catch (NotSupportedConvertException e) {
-                throw createNotSupportedException(sourceValue, Long.class);
+                throw createNotSupportedException(indexBaseZero, sourceValue.getClass(), Long.class);
             }
         } else {
-            throw createNotSupportedException(sourceValue, Long.class);
+            throw createNotSupportedException(indexBaseZero, sourceValue.getClass(), Long.class);
         }
         return newValue;
     }
 
-    private static Integer convertToInteger(Object sourceValue) {
+    private Integer convertToInteger(final int indexBaseZero, Object sourceValue) {
         int newValue;
         if (sourceValue instanceof String) {
             try {
                 newValue = Integer.parseInt((String) sourceValue);
             } catch (NumberFormatException e) {
-                throw createNotSupportedException(sourceValue, Integer.class);
+                throw createNotSupportedException(indexBaseZero, sourceValue.getClass(), Integer.class);
             }
         } else if (sourceValue instanceof Number) {
             try {
                 newValue = MySQLNumberUtils.convertNumberToInt((Number) sourceValue);
             } catch (NotSupportedConvertException e) {
-                throw createNotSupportedException(sourceValue, Integer.class);
+                throw createNotSupportedException(indexBaseZero, sourceValue.getClass(), Integer.class);
             }
         } else {
-            throw createNotSupportedException(sourceValue, Integer.class);
+            throw createNotSupportedException(indexBaseZero, sourceValue.getClass(), Integer.class);
         }
         return newValue;
     }
 
-    private static Short convertToShort(Object sourceValue) {
+    private Short convertToShort(final int indexBaseZero, Object sourceValue) {
         short newValue;
         if (sourceValue instanceof String) {
             try {
                 newValue = Short.parseShort((String) sourceValue);
             } catch (NumberFormatException e) {
-                throw createNotSupportedException(sourceValue, Short.class);
+                throw createNotSupportedException(indexBaseZero, sourceValue.getClass(), Short.class);
             }
         } else if (sourceValue instanceof Number) {
             try {
                 newValue = MySQLNumberUtils.convertNumberToShort((Number) sourceValue);
             } catch (NotSupportedConvertException e) {
-                throw createNotSupportedException(sourceValue, Short.class);
+                throw createNotSupportedException(indexBaseZero, sourceValue.getClass(), Short.class);
             }
         } else {
-            throw createNotSupportedException(sourceValue, Short.class);
+            throw createNotSupportedException(indexBaseZero, sourceValue.getClass(), Short.class);
         }
         return newValue;
     }
 
-    private static Byte convertTotByte(Object sourceValue) {
+    private Byte convertToByte(final int indexBaseZero, Object sourceValue) {
         byte newValue;
         if (sourceValue instanceof String) {
             try {
                 newValue = Byte.parseByte((String) sourceValue);
             } catch (NumberFormatException e) {
-                throw createNotSupportedException(sourceValue, Byte.class);
+                throw createNotSupportedException(indexBaseZero, sourceValue.getClass(), Byte.class);
             }
         } else if (sourceValue instanceof Number) {
             try {
                 newValue = MySQLNumberUtils.convertNumberToByte((Number) sourceValue);
             } catch (NotSupportedConvertException e) {
-                throw createNotSupportedException(sourceValue, Byte.class);
+                throw createNotSupportedException(indexBaseZero, sourceValue.getClass(), Byte.class);
             }
         } else {
-            throw createNotSupportedException(sourceValue, Byte.class);
+            throw createNotSupportedException(indexBaseZero, sourceValue.getClass(), Byte.class);
         }
         return newValue;
     }
 
-    /**
-     * @return a unmodifiable map
-     */
-    private static Map<Class<?>, Function<Object, Object>> createColumnConverterMap() {
-        Map<Class<?>, Function<Object, Object>> map;
-
-        map = new HashMap<>();
-
-        map.put(Boolean.class, MySQLConvertUtils::convertObjectToBoolean);
-        map.put(Double.class, MySQLResultRow::convertToDouble);         // 1 four
-        map.put(BigDecimal.class, MySQLResultRow::convertToBigDecimal);
-        map.put(BigInteger.class, MySQLResultRow::convertToBigInteger);
-
-        map.put(Long.class, MySQLResultRow::convertToLong);
-        map.put(Integer.class, MySQLResultRow::convertToInteger);       // 2 four
-        map.put(Short.class, MySQLResultRow::convertToShort);
-        map.put(Byte.class, MySQLResultRow::convertTotByte);
-
-        map.put(LocalDate.class, MySQLResultRow::convertToLocalDate);
-        map.put(LocalDateTime.class, MySQLResultRow::convertToLocalDateTime);      // 3 four
-        map.put(LocalTime.class, MySQLResultRow::convertToLocalTime);
-        map.put(ZonedDateTime.class, MySQLResultRow::convertToZonedDateTime);
-
-        map.put(OffsetDateTime.class, MySQLResultRow::convertToOffsetDateTime);
-        map.put(OffsetTime.class, MySQLResultRow::convertToOffsetTime);
-
-        return Collections.unmodifiableMap(map);
+    private String convertToString(final int indexBaseZero, final Object sourceValue) {
+        final String value;
+        if (sourceValue instanceof byte[]) {
+            value = new String((byte[]) sourceValue, obtainColumnCharset(indexBaseZero));
+        } else if (sourceValue instanceof BigDecimal) {
+            value = ((BigDecimal) sourceValue).toPlainString();
+        } else if (sourceValue instanceof Number || sourceValue instanceof Year) {
+            value = sourceValue.toString();
+        } else if (sourceValue instanceof LocalDateTime) {
+            value = ((LocalDateTime) sourceValue).format(MySQLTimeUtils.MYSQL_DATETIME_FORMATTER);
+        } else if (sourceValue instanceof LocalTime) {
+            value = ((LocalTime) sourceValue).format(MySQLTimeUtils.MYSQL_TIME_FORMATTER);
+        } else {
+            throw createNotSupportedException(indexBaseZero, sourceValue.getClass(), String.class);
+        }
+        return value;
     }
+
+    private Charset obtainColumnCharset(final int index) {
+        Charset charset = this.adjutant.getCharsetResults();
+        if (charset == null) {
+            charset = this.rowMeta.columnMetaArray[index].columnCharset;
+        }
+        return charset;
+    }
+
 
     private static JdbdSQLException createNotRequiredException(int indexBaseZero) {
         return new JdbdSQLException(new SQLException(
@@ -583,10 +493,19 @@ abstract class MySQLResultRow implements ResultRow {
                 String.format("Expected Object at alias[%s] non-null,but null.", alias)));
     }
 
-    private static JdbdSQLException createNotSupportedException(Object value, Class<?> targetClass) {
-        String m = String.format("Not support convert from value[%s] and type[%s] to [%s] ."
-                , value
-                , value.getClass().getName(), targetClass.getName());
+    private JdbdSQLException createNotSupportedException(int indexBasedZero, Class<?> valueClass
+            , Class<?> targetClass) {
+        String m = String.format("Not support convert from (index[%s] alias[%s] and type[%s]) to %s."
+                , indexBasedZero, this.rowMeta.getColumnLabel(indexBasedZero)
+                , valueClass.getName(), targetClass.getName());
+        return new JdbdSQLException(new SQLException(m));
+    }
+
+    private JdbdSQLException createValueCannotConvertException(int indexBasedZero, Class<?> valueClass
+            , Class<?> targetClass) {
+        String m = String.format("Cannot convert value from (index[%s] alias[%s] and type[%s]) to %s, please check value rang."
+                , indexBasedZero, this.rowMeta.getColumnLabel(indexBasedZero)
+                , valueClass.getName(), targetClass.getName());
         return new JdbdSQLException(new SQLException(m));
     }
 

@@ -1,7 +1,7 @@
 package io.jdbd.mysql.protocol.client;
 
 import io.jdbd.mysql.util.MySQLExceptions;
-import io.jdbd.vendor.task.TaskSignal;
+import io.jdbd.vendor.task.MorePacketSignal;
 import io.netty.buffer.ByteBuf;
 import org.reactivestreams.Publisher;
 import reactor.core.publisher.Mono;
@@ -31,7 +31,7 @@ final class QuitTask extends MySQLCommandTask {
 
 
     @Override
-    protected Publisher<ByteBuf> internalStart(TaskSignal signal) {
+    protected Publisher<ByteBuf> internalStart(MorePacketSignal signal) {
         ByteBuf packetBuf = adjutant.createPacketBuffer(1);
         packetBuf.writeByte(PacketUtils.COM_QUIT_HEADER);
         PacketUtils.writePacketHeader(packetBuf, addAndGetSequenceId());

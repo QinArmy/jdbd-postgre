@@ -6,6 +6,8 @@ import io.jdbd.mysql.util.MySQLConvertUtils;
 import io.jdbd.mysql.util.MySQLExceptions;
 import io.jdbd.mysql.util.MySQLTimeUtils;
 import io.netty.buffer.ByteBuf;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import reactor.util.annotation.Nullable;
 
 import java.math.BigDecimal;
@@ -16,6 +18,8 @@ import java.util.Objects;
 import java.util.function.Consumer;
 
 final class TextResultSetReader extends AbstractResultSetReader {
+
+    private static final Logger LOG = LoggerFactory.getLogger(TextResultSetReader.class);
 
     TextResultSetReader(ResultSetReaderBuilder builder) {
         super(builder);
@@ -29,6 +33,7 @@ final class TextResultSetReader extends AbstractResultSetReader {
 
     @Override
     boolean readResultSetMeta(final ByteBuf cumulateBuffer, Consumer<Object> serverStatusConsumer) {
+
         final int negotiatedCapability = this.adjutant.obtainNegotiatedCapability();
         if ((negotiatedCapability & ClientProtocol.CLIENT_OPTIONAL_RESULTSET_METADATA) != 0) {
             throw new IllegalStateException("Not support CLIENT_OPTIONAL_RESULTSET_METADATA");
@@ -47,6 +52,11 @@ final class TextResultSetReader extends AbstractResultSetReader {
             }
         }
         return metaEnd;
+    }
+
+    @Override
+    Logger obtainLogger() {
+        return LOG;
     }
 
     @Override

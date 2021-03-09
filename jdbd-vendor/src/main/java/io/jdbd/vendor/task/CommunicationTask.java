@@ -10,7 +10,7 @@ import java.util.function.Consumer;
 public interface CommunicationTask {
 
     @Nullable
-    Publisher<ByteBuf> start(TaskSignal signal);
+    Publisher<ByteBuf> start(MorePacketSignal signal);
 
     @Nullable
     TaskPhase getTaskPhase();
@@ -21,7 +21,7 @@ public interface CommunicationTask {
     Publisher<ByteBuf> moreSendPacket();
 
     /**
-     * @return true : task end
+     * @return true :immediately invoke {@link #moreSendPacket()}
      */
     boolean onSendSuccess();
 

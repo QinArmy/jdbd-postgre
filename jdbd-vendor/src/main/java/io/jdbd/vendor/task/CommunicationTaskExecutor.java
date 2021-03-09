@@ -1,9 +1,11 @@
 package io.jdbd.vendor.task;
 
 import io.jdbd.JdbdException;
+import io.jdbd.vendor.conf.HostInfo;
 import io.jdbd.vendor.util.JdbdExceptions;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
+import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelPipeline;
 import io.netty.channel.EventLoop;
 import io.netty.handler.codec.ByteToMessageDecoder;
@@ -11,23 +13,21 @@ import io.netty.handler.ssl.SslHandler;
 import org.reactivestreams.Publisher;
 import org.reactivestreams.Subscription;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import reactor.core.CoreSubscriber;
 import reactor.core.publisher.Mono;
 import reactor.core.publisher.MonoSink;
 import reactor.netty.Connection;
 import reactor.netty.NettyPipeline;
+import reactor.netty.tcp.SslProvider;
 import reactor.util.concurrent.Queues;
 
+import java.net.InetSocketAddress;
+import java.util.Map;
 import java.util.Queue;
 import java.util.function.Consumer;
 
 public abstract class CommunicationTaskExecutor<T extends TaskAdjutant> implements CoreSubscriber<ByteBuf>
         , TaskExecutor<T> {
-
-    private static final Logger LOG = LoggerFactory.getLogger(CommunicationTaskExecutor.class);
-
-    private final Queue<CommunicationTask> taskQueue = Queues.<CommunicationTask>small().get();
 
     protected final Connection connection;
 
@@ -42,7 +42,9 @@ public abstract class CommunicationTaskExecutor<T extends TaskAdjutant> implemen
     // non-volatile ,all modify in netty EventLoop
     protected ByteBuf cumulateBuffer;
 
-    private final TaskSignal taskSignal;
+    private final Queue<CommunicationTask> taskQueue = Queues.<CommunicationTask>small().get();
+
+    private final MorePacketSignal morePacketSignal;
 
     private Subscription upstream;
 
@@ -55,16 +57,18 @@ public abstract class CommunicationTaskExecutor<T extends TaskAdjutant> implemen
         this.connection = connection;
         this.eventLoop = connection.channel().eventLoop();
         this.allocator = connection.channel().alloc();
-        this.taskSignal = new TaskSingleImpl(this);
+        this.morePacketSignal = new MorePacketSingleImpl(this);
 
         this.taskAdjutant = createTaskAdjutant();
-
         connection.inbound()
                 .receive()
                 .retain() // for cumulate
                 .subscribe(this);
 
     }
+
+    protected abstract Logger obtainLogger();
+
 
     @Override
     public final T getAdjutant() {
@@ -83,6 +87,10 @@ public abstract class CommunicationTaskExecutor<T extends TaskAdjutant> implemen
         if (this.eventLoop.inEventLoop()) {
             doOnNextInEventLoop(byteBufFromPeer);
         } else {
+            if (obtainLogger().isDebugEnabled()) {
+                Logger LOG = obtainLogger();
+                LOG.debug("{} onNext(),current thread not in EventLoop.", this);
+            }
             this.eventLoop.execute(() -> doOnNextInEventLoop(byteBufFromPeer));
         }
     }
@@ -141,6 +149,8 @@ public abstract class CommunicationTaskExecutor<T extends TaskAdjutant> implemen
 
     protected abstract T createTaskAdjutant();
 
+    protected abstract HostInfo<?> obtainHostInfo();
+
 
     /*################################## blow private method ##################################*/
 
@@ -167,6 +177,9 @@ public abstract class CommunicationTaskExecutor<T extends TaskAdjutant> implemen
      * @see #onNext(ByteBuf)
      */
     private void doOnNextInEventLoop(final ByteBuf byteBufFromPeer) {
+        if (obtainLogger().isTraceEnabled()) {
+            obtainLogger().trace("doOnNextInEventLoop() readableBytes={}", byteBufFromPeer.readableBytes());
+        }
         if (byteBufFromPeer == this.cumulateBuffer) {
             // subclass bug
             throw new IllegalStateException("previous cumulateBuffer handle error.");
@@ -184,7 +197,7 @@ public abstract class CommunicationTaskExecutor<T extends TaskAdjutant> implemen
     }
 
     private void doOnErrorInEventLoop(Throwable e) {
-        LOG.debug("channel upstream error.");
+        obtainLogger().debug("channel upstream error.");
 
         if (!this.connection.channel().isActive()) {
             CommunicationTask task = this.currentTask;
@@ -212,7 +225,10 @@ public abstract class CommunicationTaskExecutor<T extends TaskAdjutant> implemen
      * must invoke in {@link #eventLoop}
      */
     private void doOnCompleteInEventLoop() {
-        LOG.debug("Channel close.");
+        Logger LOG = obtainLogger();
+        if (LOG.isDebugEnabled()) {
+            LOG.debug("Connection  close.");
+        }
         CommunicationTask task = this.currentTask;
         if (task != null) {
             task.onChannelClose();
@@ -254,11 +270,12 @@ public abstract class CommunicationTaskExecutor<T extends TaskAdjutant> implemen
 
             this.currentTask = currentTask;
             if (currentTask instanceof ConnectionTask) {
-                ((ConnectionTask) currentTask).sslHandlerConsumer(this::addSslHandler);
+                ((ConnectionTask) currentTask)
+                        .connectSignal(this::addSslHandler, this::disconnection);
             }
             Publisher<ByteBuf> bufPublisher;
             try {
-                bufPublisher = currentTask.start(this.taskSignal);
+                bufPublisher = currentTask.start(this.morePacketSignal);
             } catch (Throwable e) {
                 handleTaskError(currentTask, new TaskStatusException(e, "%s start failure.", currentTask));
                 continue;
@@ -275,25 +292,60 @@ public abstract class CommunicationTaskExecutor<T extends TaskAdjutant> implemen
         return needDecode;
     }
 
-    private void addSslHandler(SslHandler sslHandler) {
-
-        ChannelPipeline pipeline = this.connection.channel().pipeline();
-        if (pipeline.get(NettyPipeline.SslHandler) != null) {
-            LOG.warn("duplicate add {}", SslHandler.class.getName());
-            return;
-        }
-        LOG.debug("add ssl handler");
-        if (pipeline.get(NettyPipeline.ProxyHandler) != null) {
-            pipeline.addAfter(NettyPipeline.ProxyHandler, NettyPipeline.SslHandler, sslHandler);
+    private void disconnection(Void v) {
+        if (this.currentTask instanceof ConnectionTask) {
+            this.connection.channel()
+                    .close();
         } else {
-            pipeline.addFirst(NettyPipeline.SslHandler, sslHandler);
+            throw new IllegalStateException(String.format("Current %s[%s] isn't %s,reject disconnect."
+                    , CommunicationTask.class.getName(), this.currentTask, ConnectionTask.class.getName()));
+        }
+    }
+
+    /**
+     * @see ConnectionTask#connectSignal(Consumer, Consumer)
+     */
+    private void addSslHandler(final Object sslObject) {
+
+        final Logger LOG = obtainLogger();
+        final boolean traceEnabled = LOG.isTraceEnabled();
+        ChannelPipeline pipeline = this.connection.channel().pipeline();
+
+        for (Map.Entry<String, ChannelHandler> e : pipeline) {
+            LOG.trace("handleName = {} : handle = {}", e.getKey(), e.getValue());
         }
 
 
+        if (sslObject instanceof SslProvider) {
+            SslProvider sslProvider = (SslProvider) sslObject;
+            HostInfo<?> hostInfo = obtainHostInfo();
+            InetSocketAddress address = InetSocketAddress.createUnresolved(hostInfo.getHost(), hostInfo.getPort());
+            sslProvider.addSslHandler(this.connection.channel(), address, traceEnabled);
+        } else if (sslObject instanceof SslHandler) {
+            SslHandler sslHandler = (SslHandler) sslObject;
+            if (pipeline.get(NettyPipeline.ProxyHandler) != null) {
+                pipeline.addAfter(NettyPipeline.ProxyHandler, NettyPipeline.SslHandler, sslHandler);
+            } else {
+                pipeline.addFirst(NettyPipeline.SslHandler, sslHandler);
+            }
+        }
+
+        if (traceEnabled) {
+            pipeline.addBefore(NettyPipeline.SslHandler, BeforeSslTraceLogHandler.class.getSimpleName(), new BeforeSslTraceLogHandler());
+            pipeline.addBefore(NettyPipeline.ReactiveBridge, AfterSslTraceLogHandler.class.getSimpleName(), new AfterSslTraceLogHandler());
+
+            for (Map.Entry<String, ChannelHandler> e : pipeline) {
+                LOG.trace("after add SslHandler ,handleName = {} : handle = {}", e.getKey(), e.getValue());
+            }
+        }
+
+        this.upstream.request(Long.MAX_VALUE);
     }
 
     private void doSendPacketSignal(final MonoSink<Void> sink, final CommunicationTask signalTask) {
-        LOG.debug("{} send packet signal", signalTask);
+        if (obtainLogger().isDebugEnabled()) {
+            obtainLogger().debug("{} send packet signal", signalTask);
+        }
         if (signalTask == this.currentTask) {
             Publisher<ByteBuf> packetPublisher;
             try {
@@ -324,6 +376,7 @@ public abstract class CommunicationTaskExecutor<T extends TaskAdjutant> implemen
                     if (this.eventLoop.inEventLoop()) {
                         handleTaskPacketSendSuccess(headTask);
                     } else {
+                        obtainLogger().trace("send packet success,but current thread not in EventLoop.");
                         this.eventLoop.execute(() -> handleTaskPacketSendSuccess(headTask));
                     }
                 })
@@ -348,13 +401,25 @@ public abstract class CommunicationTaskExecutor<T extends TaskAdjutant> implemen
     }
 
     private void handleTaskPacketSendSuccess(final CommunicationTask task) {
+        boolean hasMorePacket = false;
         try {
-            if (task.onSendSuccess()) {
-                currentTaskEndIfNeed(task);
-            }
+            hasMorePacket = task.onSendSuccess();
         } catch (Throwable e) {
             handleTaskError(task, new TaskStatusException(e, "%s onSendSuccess() method throw error.", task));
         }
+
+        if (hasMorePacket) {
+            Publisher<ByteBuf> publisher = null;
+            try {
+                publisher = task.moreSendPacket();
+            } catch (Throwable e) {
+                handleTaskError(task, new TaskStatusException(e, "%s moreSendPacket() method throw error.", task));
+            }
+            if (publisher != null) {
+                sendPacket(task, publisher);
+            }
+        }
+
     }
 
     private void currentTaskEndIfNeed(final CommunicationTask task) {
@@ -413,11 +478,11 @@ public abstract class CommunicationTaskExecutor<T extends TaskAdjutant> implemen
 
     }
 
-    private static final class TaskSingleImpl implements TaskSignal {
+    private static final class MorePacketSingleImpl implements MorePacketSignal {
 
         private final CommunicationTaskExecutor<?> taskExecutor;
 
-        private TaskSingleImpl(CommunicationTaskExecutor<?> taskExecutor) {
+        private MorePacketSingleImpl(CommunicationTaskExecutor<?> taskExecutor) {
             this.taskExecutor = taskExecutor;
         }
 

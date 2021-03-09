@@ -10,7 +10,7 @@ import io.jdbd.mysql.util.MySQLExceptions;
 import io.jdbd.vendor.JdbdCompositeException;
 import io.jdbd.vendor.conf.Properties;
 import io.jdbd.vendor.result.ResultRowSink;
-import io.jdbd.vendor.task.TaskSignal;
+import io.jdbd.vendor.task.MorePacketSignal;
 import io.netty.buffer.ByteBuf;
 import org.reactivestreams.Publisher;
 import org.slf4j.Logger;
@@ -31,7 +31,7 @@ import java.util.function.Consumer;
  * <p>  code navigation :
  *     <ol>
  *         <li>decode entrance method : {@link #internalDecode(ByteBuf, Consumer)}</li>
- *         <li>send COM_STMT_PREPARE : {@link #internalStart(TaskSignal)} </li>
+ *         <li>send COM_STMT_PREPARE : {@link #internalStart(MorePacketSignal)} </li>
  *         <li>read COM_STMT_PREPARE Response : {@link #readPrepareResponse(ByteBuf)}
  *              <ol>
  *                  <li>read parameter meta : {@link #readPrepareParameterMeta(ByteBuf, Consumer)}</li>
@@ -234,7 +234,7 @@ final class ComPreparedTask extends MySQLCommandTask implements StatementTask {
      * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_com_stmt_prepare.html">Protocol::COM_STMT_PREPARE</a>
      */
     @Override
-    protected Publisher<ByteBuf> internalStart(TaskSignal signal) {
+    protected Publisher<ByteBuf> internalStart(MorePacketSignal signal) {
         assertPhase(Phase.PREPARED);
 
         final String sql = this.sql;

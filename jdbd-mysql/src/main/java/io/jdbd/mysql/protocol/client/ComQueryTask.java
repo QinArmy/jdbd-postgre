@@ -10,16 +10,16 @@ import io.jdbd.mysql.util.MySQLExceptions;
 import io.jdbd.vendor.JdbdCompositeException;
 import io.jdbd.vendor.conf.Properties;
 import io.jdbd.vendor.result.*;
-import io.jdbd.vendor.task.TaskSignal;
+import io.jdbd.vendor.task.MorePacketSignal;
 import io.netty.buffer.ByteBuf;
 import org.qinarmy.util.Pair;
 import org.reactivestreams.Publisher;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.FluxSink;
 import reactor.core.publisher.Mono;
 import reactor.core.publisher.MonoSink;
-import reactor.util.Logger;
-import reactor.util.Loggers;
 
 import java.io.IOException;
 import java.io.Reader;
@@ -235,7 +235,7 @@ final class ComQueryTask extends MySQLCommandTask {
     }
 
 
-    private static final Logger LOG = Loggers.getLogger(ComQueryTask.class);
+    private static final Logger LOG = LoggerFactory.getLogger(ComQueryTask.class);
 
     private final DownstreamSink downstreamSink;
 
@@ -280,6 +280,7 @@ final class ComQueryTask extends MySQLCommandTask {
     private ComQueryTask(final String sql, FluxSink<ResultRow> sink, Consumer<ResultStates> statesConsumer
             , MySQLTaskAdjutant adjutant) throws SQLException {
         super(adjutant);
+        LOG.trace("create single statement query task.");
         this.sqlCount = 1;
         this.mode = Mode.SINGLE_STMT;
         final List<ByteBuf> packetList = ComQueryCommandWriter.createStaticSingleCommand(sql, this::addAndGetSequenceId
@@ -427,7 +428,7 @@ final class ComQueryTask extends MySQLCommandTask {
     /*################################## blow package template method ##################################*/
 
     @Override
-    protected Publisher<ByteBuf> internalStart(TaskSignal signal) {
+    protected Publisher<ByteBuf> internalStart(MorePacketSignal signal) {
         Publisher<ByteBuf> publisher;
         if (this.mode == Mode.TEMP_MULTI) {
             this.phase = Phase.READ_MULTI_STMT_ENABLE_RESULT;
@@ -436,6 +437,9 @@ final class ComQueryTask extends MySQLCommandTask {
             this.phase = Phase.READ_RESPONSE_RESULT_SET;
             publisher = Objects.requireNonNull(this.packetPublisher, "this.packetPublisher");
             this.packetPublisher = null;
+        }
+        if (LOG.isTraceEnabled()) {
+            LOG.trace("send COM_QUERY packet with mode[{}]", this.mode);
         }
         return publisher;
     }
@@ -485,6 +489,10 @@ final class ComQueryTask extends MySQLCommandTask {
             }
         }
         if (taskEnd) {
+            if (LOG.isTraceEnabled()) {
+                LOG.trace("COM_QUERY instant[{}] task end.", this.hashCode());
+            }
+
             if (hasError()) {
                 this.downstreamSink.error(createException());
             } else {
@@ -661,8 +669,11 @@ final class ComQueryTask extends MySQLCommandTask {
      */
     private boolean readTextResultSet(final ByteBuf cumulateBuffer, final Consumer<Object> serverStatusConsumer) {
         assertPhase(Phase.READ_TEXT_RESULT_SET);
+        if (LOG.isTraceEnabled()) {
+            LOG.trace("read COM_QUERY TEXT ResultSet,readableBytes[{}]", cumulateBuffer.readableBytes());
+        }
 
-        int resultSequenceId = this.currentResultSequenceId;
+        final int resultSequenceId = this.currentResultSequenceId;
         final boolean resultSetEnd;
         if (this.dirtyResultSetReader != null || this.downstreamSink.skipRestResults()) {
             if (!hasException(StatementException.class)) {
@@ -675,6 +686,9 @@ final class ComQueryTask extends MySQLCommandTask {
         }
         final boolean taskEnd;
         if (resultSetEnd) {
+            if (LOG.isTraceEnabled()) {
+                LOG.trace("Text ResultSet[resultSequenceId={}] end.", resultSequenceId);
+            }
             // must update currentResultSequenceId after result set end.
             this.currentResultSequenceId++;
             this.phase = Phase.READ_RESPONSE_RESULT_SET;
@@ -804,7 +818,7 @@ final class ComQueryTask extends MySQLCommandTask {
         }
         String localFilePath;
         localFilePath = PacketUtils.readStringFixed(cumulateBuffer, payloadLength - 1
-                , this.adjutant.getCharsetResults());
+                , this.adjutant.obtainCharsetClient());
 
         final Path filePath = Paths.get(localFilePath);
 
@@ -1058,7 +1072,7 @@ final class ComQueryTask extends MySQLCommandTask {
 
         @Override
         public void accept(ResultStates resultStates) {
-            if (this.resultSetReader != null) {
+            if (this.resultStates != null) {
                 throw new IllegalStateException(String.format("%s.resultStates isn't null,reject update.", this));
             }
             this.resultStates = resultStates;
@@ -1518,24 +1532,25 @@ final class ComQueryTask extends MySQLCommandTask {
     /**
      * invoke this method after invoke {@link PacketUtils#hasOnePacket(ByteBuf)}.
      *
-     * @see #decode(ByteBuf, Consumer)
+     * @see #internalDecode(ByteBuf, Consumer)
      */
-    static ComQueryResponse detectComQueryResponseType(final ByteBuf cumulateBuf, final int negotiatedCapability) {
-        int readerIndex = cumulateBuf.readerIndex();
-        final int payloadLength = PacketUtils.getInt3(cumulateBuf, readerIndex);
+    static ComQueryResponse detectComQueryResponseType(final ByteBuf cumulateBuffer, final int negotiatedCapability) {
+        int readerIndex = cumulateBuffer.readerIndex();
+        final int payloadLength = PacketUtils.getInt3(cumulateBuffer, readerIndex);
         // skip header
         readerIndex += PacketUtils.HEADER_SIZE;
         ComQueryResponse responseType;
         final boolean metadata = (negotiatedCapability & ClientProtocol.CLIENT_OPTIONAL_RESULTSET_METADATA) != 0;
 
-        switch (PacketUtils.getInt1(cumulateBuf, readerIndex++)) {
-            case 0:
-                if (metadata && PacketUtils.obtainLenEncIntByteCount(cumulateBuf, readerIndex) + 1 == payloadLength) {
+        switch (PacketUtils.getInt1(cumulateBuffer, readerIndex++)) {
+            case 0: {
+                if (metadata && PacketUtils.obtainLenEncIntByteCount(cumulateBuffer, readerIndex) + 1 == payloadLength) {
                     responseType = ComQueryResponse.TEXT_RESULT;
                 } else {
                     responseType = ComQueryResponse.OK;
                 }
-                break;
+            }
+            break;
             case ErrorPacket.ERROR_HEADER:
                 responseType = ComQueryResponse.ERROR;
                 break;
