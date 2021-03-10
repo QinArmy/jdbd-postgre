@@ -2,6 +2,7 @@ package io.jdbd.mysql.protocol.conf;
 
 import io.jdbd.mysql.protocol.ClientConstants;
 import io.jdbd.mysql.protocol.Constants;
+import io.jdbd.mysql.protocol.authentication.MySQLNativePasswordPlugin;
 import io.jdbd.mysql.protocol.client.Enums;
 import io.jdbd.vendor.conf.HostInfo;
 import io.jdbd.vendor.conf.IPropertyKey;
@@ -58,7 +59,7 @@ public enum PropertyKey implements IPropertyKey {
     /** @deprecated always CATALOG in jdbd */
     @Deprecated
     databaseTerm("databaseTerm", "CATALOG", true), //
-    defaultAuthenticationPlugin("defaultAuthenticationPlugin", "mysql_native_password", true), //
+    defaultAuthenticationPlugin("defaultAuthenticationPlugin", MySQLNativePasswordPlugin.PLUGIN_NAME, true), //
 
     detectCustomCollations("detectCustomCollations", "false", true), //
     disabledAuthenticationPlugins("disabledAuthenticationPlugins", null, true), //

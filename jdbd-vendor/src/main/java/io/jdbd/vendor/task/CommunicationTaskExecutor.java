@@ -5,11 +5,13 @@ import io.jdbd.vendor.conf.HostInfo;
 import io.jdbd.vendor.util.JdbdExceptions;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
-import io.netty.channel.ChannelHandler;
+import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.channel.ChannelPipeline;
 import io.netty.channel.EventLoop;
 import io.netty.handler.codec.ByteToMessageDecoder;
 import io.netty.handler.ssl.SslHandler;
+import io.netty.handler.ssl.SslHandshakeCompletionEvent;
 import org.reactivestreams.Publisher;
 import org.reactivestreams.Subscription;
 import org.slf4j.Logger;
@@ -22,9 +24,9 @@ import reactor.netty.tcp.SslProvider;
 import reactor.util.concurrent.Queues;
 
 import java.net.InetSocketAddress;
-import java.util.Map;
 import java.util.Queue;
 import java.util.function.Consumer;
+import java.util.function.Function;
 
 public abstract class CommunicationTaskExecutor<T extends TaskAdjutant> implements CoreSubscriber<ByteBuf>
         , TaskExecutor<T> {
@@ -129,6 +131,13 @@ public abstract class CommunicationTaskExecutor<T extends TaskAdjutant> implemen
                 break;
             }
             if (currentTask.decode(cumulateBuffer, this::updateServerStatus)) {
+                if (currentTask instanceof ConnectionTask) {
+                    ConnectionTask connectionTask = (ConnectionTask) currentTask;
+                    if (connectionTask.disconnect()) {
+                        disconnection();
+                        return;
+                    }
+                }
                 this.currentTask = null; // current task end.
                 if (!startHeadIfNeed()) {  // start next task
                     break;
@@ -270,11 +279,16 @@ public abstract class CommunicationTaskExecutor<T extends TaskAdjutant> implemen
 
             this.currentTask = currentTask;
             if (currentTask instanceof ConnectionTask) {
-                ((ConnectionTask) currentTask)
-                        .connectSignal(this::addSslHandler, this::disconnection);
+                ConnectionTask connectionTask = ((ConnectionTask) currentTask);
+                if (connectionTask.disconnect()) {
+                    disconnection();
+                    return false;
+                }
+                connectionTask.connectSignal(this::addSslHandler);
             }
             Publisher<ByteBuf> bufPublisher;
             try {
+                // invoke task start() method.
                 bufPublisher = currentTask.start(this.morePacketSignal);
             } catch (Throwable e) {
                 handleTaskError(currentTask, new TaskStatusException(e, "%s start failure.", currentTask));
@@ -292,7 +306,7 @@ public abstract class CommunicationTaskExecutor<T extends TaskAdjutant> implemen
         return needDecode;
     }
 
-    private void disconnection(Void v) {
+    private void disconnection() {
         if (this.currentTask instanceof ConnectionTask) {
             this.connection.channel()
                     .close();
@@ -303,18 +317,26 @@ public abstract class CommunicationTaskExecutor<T extends TaskAdjutant> implemen
     }
 
     /**
-     * @see ConnectionTask#connectSignal(Consumer, Consumer)
+     * @see ConnectionTask#connectSignal(Function)
      */
-    private void addSslHandler(final Object sslObject) {
+    private Mono<Void> addSslHandler(final Object sslObject) {
+        return Mono.create(sink -> {
+            if (this.eventLoop.inEventLoop()) {
+                doAddSslHandler(sink, sslObject);
+            } else {
+                this.eventLoop.execute(() -> doAddSslHandler(sink, sslObject));
+            }
+
+        });
+    }
+
+    private void doAddSslHandler(final MonoSink<Void> sink, final Object sslObject) {
 
         final Logger LOG = obtainLogger();
         final boolean traceEnabled = LOG.isTraceEnabled();
-        ChannelPipeline pipeline = this.connection.channel().pipeline();
+        final ChannelPipeline pipeline = this.connection.channel().pipeline();
 
-        for (Map.Entry<String, ChannelHandler> e : pipeline) {
-            LOG.trace("handleName = {} : handle = {}", e.getKey(), e.getValue());
-        }
-
+        addSslHandshakeSuccessListener(sink, pipeline, LOG);
 
         if (sslObject instanceof SslProvider) {
             SslProvider sslProvider = (SslProvider) sslObject;
@@ -330,16 +352,46 @@ public abstract class CommunicationTaskExecutor<T extends TaskAdjutant> implemen
             }
         }
 
-        if (traceEnabled) {
-            pipeline.addBefore(NettyPipeline.SslHandler, BeforeSslTraceLogHandler.class.getSimpleName(), new BeforeSslTraceLogHandler());
-            pipeline.addBefore(NettyPipeline.ReactiveBridge, AfterSslTraceLogHandler.class.getSimpleName(), new AfterSslTraceLogHandler());
+        this.upstream.request(512L);
+    }
 
-            for (Map.Entry<String, ChannelHandler> e : pipeline) {
-                LOG.trace("after add SslHandler ,handleName = {} : handle = {}", e.getKey(), e.getValue());
+    /**
+     * @see #doAddSslHandler(MonoSink, Object)
+     */
+    private void addSslHandshakeSuccessListener(MonoSink<Void> sink, ChannelPipeline pipeline, Logger LOG) {
+        final String handlerName = "jdbd.mysql.ssl.handshake.success.event.handler";
+        pipeline.addBefore(NettyPipeline.ReactiveBridge, handlerName, new ChannelInboundHandlerAdapter() {
+            @Override
+            public void userEventTriggered(ChannelHandlerContext ctx, Object evt) throws Exception {
+                if (evt instanceof SslHandshakeCompletionEvent) {
+                    SslHandshakeCompletionEvent event = (SslHandshakeCompletionEvent) evt;
+                    if (event.isSuccess()) {
+                        LOG.debug("SSL handshake success");
+                        sink.success();
+                        sendPacketAfterSslHandshakeSuccess();
+                        ChannelPipeline pipeline = ctx.pipeline();
+                        if (pipeline.context(this) != null) {
+                            pipeline.remove(this);
+                        }
+                    }
+                }
+                super.userEventTriggered(ctx, evt);
             }
-        }
+        });
+    }
 
-        this.upstream.request(Long.MAX_VALUE);
+    /**
+     * @see #addSslHandshakeSuccessListener(MonoSink, ChannelPipeline, Logger)
+     */
+    private void sendPacketAfterSslHandshakeSuccess() {
+        final CommunicationTask currentTask = this.currentTask;
+        if (currentTask instanceof ConnectionTask) {
+            Publisher<ByteBuf> packetPublisher = currentTask.moreSendPacket();
+            if (packetPublisher != null) {
+                sendPacket(currentTask, packetPublisher);
+            }
+
+        }
     }
 
     private void doSendPacketSignal(final MonoSink<Void> sink, final CommunicationTask signalTask) {
@@ -417,6 +469,11 @@ public abstract class CommunicationTaskExecutor<T extends TaskAdjutant> implemen
             }
             if (publisher != null) {
                 sendPacket(task, publisher);
+            }
+        } else if (task instanceof ConnectionTask) {
+            ConnectionTask connectionTask = (ConnectionTask) task;
+            if (connectionTask == this.currentTask && connectionTask.disconnect()) {
+                disconnection();
             }
         }
 

@@ -10,14 +10,12 @@ import reactor.util.annotation.Nullable;
 
 import java.nio.charset.Charset;
 import java.security.DigestException;
-import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_caching_sha2_authentication_exchanges.html">Caching_sha2_password</a>
  */
 public class CachingSha2PasswordPlugin extends Sha256PasswordPlugin {
 
-    private static final Logger LOG = LoggerFactory.getLogger(CachingSha2PasswordPlugin.class);
 
     public static CachingSha2PasswordPlugin getInstance(AuthenticateAssistant protocolAssistant) {
         return new CachingSha2PasswordPlugin(protocolAssistant, tryLoadPublicKeyString(protocolAssistant.getHostInfo()));
@@ -25,9 +23,10 @@ public class CachingSha2PasswordPlugin extends Sha256PasswordPlugin {
 
     public static final String PLUGIN_NAME = "caching_sha2_password";
 
-    public static final String PLUGIN_CLASS = "com.mysql.cj.protocol.a.authentication.CachingSha2PasswordPlugin";
+    private static final Logger LOG = LoggerFactory.getLogger(CachingSha2PasswordPlugin.class);
 
-    protected final AtomicReference<AuthStage> stage = new AtomicReference<>(AuthStage.FAST_AUTH_SEND_SCRAMBLE);
+
+    protected AuthStage stage = AuthStage.FAST_AUTH_SEND_SCRAMBLE;
 
     protected CachingSha2PasswordPlugin(AuthenticateAssistant protocolAssistant, @Nullable String publicKeyString) {
         super(protocolAssistant, publicKeyString);
@@ -35,7 +34,8 @@ public class CachingSha2PasswordPlugin extends Sha256PasswordPlugin {
 
     @Override
     public void reset() {
-        this.stage.set(AuthStage.FAST_AUTH_SEND_SCRAMBLE);
+        super.reset();
+        this.stage = AuthStage.FAST_AUTH_SEND_SCRAMBLE;
     }
 
     @Override
@@ -46,29 +46,29 @@ public class CachingSha2PasswordPlugin extends Sha256PasswordPlugin {
     @Nullable
     @Override
     protected ByteBuf internalNextAuthenticationStep(String password, ByteBuf fromServer) {
-        final AuthStage stage = this.stage.get();
+        final AuthStage stage = this.stage;
 
         try {
             if (stage == AuthStage.FAST_AUTH_SEND_SCRAMBLE) {
                 // send a scramble for fast auth
                 String seedString = PacketUtils.readStringTerm(fromServer, Charset.defaultCharset());
-                this.seed.set(seedString);
+                this.seed = seedString;
 
                 byte[] passwordBytes = password.getBytes(this.protocolAssistant.getPasswordCharset());
                 byte[] sha2Bytes = AuthenticateUtils.scrambleCachingSha2(passwordBytes, seedString.getBytes());
                 ByteBuf payloadBuffer = this.protocolAssistant.allocator().buffer(sha2Bytes.length);
                 payloadBuffer.writeBytes(sha2Bytes);
 
-                this.stage.set(AuthStage.FAST_AUTH_READ_RESULT);
+                this.stage = AuthStage.FAST_AUTH_READ_RESULT;
                 return payloadBuffer.asReadOnly();
             } else if (stage == AuthStage.FAST_AUTH_READ_RESULT) {
                 int flag = PacketUtils.readInt1(fromServer);
                 switch (flag) {
                     case 3:
-                        this.stage.set(AuthStage.FAST_AUTH_COMPLETE);
+                        this.stage = AuthStage.FAST_AUTH_COMPLETE;
                         return null;
                     case 4:
-                        this.stage.set(AuthStage.FULL_AUTH);
+                        this.stage = AuthStage.FULL_AUTH;
                         LOG.debug("Server demand FULL_AUTH");
                         break;
                     default:
@@ -101,7 +101,7 @@ public class CachingSha2PasswordPlugin extends Sha256PasswordPlugin {
         FAST_AUTH_SEND_SCRAMBLE,
         FAST_AUTH_READ_RESULT,
         FAST_AUTH_COMPLETE,
-        FULL_AUTH;
+        FULL_AUTH
     }
 
 }

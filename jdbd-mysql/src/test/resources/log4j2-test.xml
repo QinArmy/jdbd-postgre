@@ -24,16 +24,7 @@
         <Logger name="reactor.netty.tcp.ssl" level="TRACE" additivity="false">
             <AppenderRef ref="Console"/>
         </Logger>
-        <Logger name="io.jdbd.vendor.task.BeforeSslTraceLogHandler" level="TRACE" additivity="false">
-            <AppenderRef ref="Console"/>
-        </Logger>
-        <Logger name="io.jdbd.vendor.task.AfterSslTraceLogHandler" level="TRACE" additivity="false">
-            <AppenderRef ref="Console"/>
-        </Logger>
-        <Logger name="reactor.netty.channel.FluxReceive" level="TRACE" additivity="false">
-            <AppenderRef ref="Console"/>
-        </Logger>
-        <Root level="DEBUG">
+        <Root level="INFO">
             <AppenderRef ref="Console"/>
         </Root>
     </Loggers>

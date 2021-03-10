@@ -29,8 +29,7 @@ import java.security.NoSuchAlgorithmException;
 import java.security.PublicKey;
 import java.util.Collections;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicReference;
+import java.util.Objects;
 
 /**
  * <p>
@@ -48,31 +47,26 @@ public class Sha256PasswordPlugin implements AuthenticationPlugin {
 
     public static final String PLUGIN_NAME = "sha256_password";
 
-    public static final String PLUGIN_CLASS = "com.mysql.cj.protocol.a.authentication.Sha256PasswordPlugin";
 
     protected final AuthenticateAssistant protocolAssistant;
 
     protected final HostInfo<PropertyKey> hostInfo;
 
-    protected final AtomicReference<String> publicKeyString = new AtomicReference<>(null);
-
     protected final Properties<PropertyKey> env;
 
-    private final AtomicBoolean hasServerRSAPublicKeyFile = new AtomicBoolean();
+    protected boolean publicKeyRequested;
 
-    protected final AtomicBoolean publicKeyRequested = new AtomicBoolean(false);
+    protected String publicKeyString;
 
-    protected final AtomicReference<String> seed = new AtomicReference<>(null);
+    protected String seed;
 
 
     protected Sha256PasswordPlugin(AuthenticateAssistant protocolAssistant
             , @Nullable String publicKeyString) {
+
         this.protocolAssistant = protocolAssistant;
         this.hostInfo = protocolAssistant.getHostInfo();
-        if (publicKeyString != null) {
-            this.publicKeyString.set(publicKeyString);
-        }
-        this.hasServerRSAPublicKeyFile.set(publicKeyString != null);
+        this.publicKeyString = publicKeyString;
         this.env = protocolAssistant.getHostInfo().getProperties();
     }
 
@@ -112,33 +106,33 @@ public class Sha256PasswordPlugin implements AuthenticationPlugin {
 
 
     protected final ByteBuf doNextAuthenticationStep(String password, ByteBuf fromServer) {
-        ByteBuf payloadBuf;
+        ByteBuf payload;
         if (this.protocolAssistant.isUseSsl()) {
             // allow plain text over SSL
-            payloadBuf = cratePlanTextPasswordPacket(password);
-        } else if (this.hasServerRSAPublicKeyFile.get()) {
+            payload = cratePlainTextPasswordPacket(password);
+        } else if (this.publicKeyString != null) {
             // encrypt with given key, don't use "Public Key Retrieval"
-            this.seed.set(PacketUtils.readStringTerm(fromServer, Charset.defaultCharset()));
-            payloadBuf = createEncryptPasswordPacketWithPublicKey(password);
-        } else if (!this.env.getRequiredProperty(PropertyKey.allowPublicKeyRetrieval, Boolean.class)) {
+            this.seed = PacketUtils.readStringTerm(fromServer, Charset.defaultCharset());
+            payload = createEncryptPasswordPacketWithPublicKey(password);
+        } else if (!this.env.getOrDefault(PropertyKey.allowPublicKeyRetrieval, Boolean.class)) {
             throw new MySQLJdbdException("Don't allow public key retrieval ,can't connect.");
-        } else if (this.publicKeyRequested.get()
+        } else if (this.publicKeyRequested
                 && fromServer.readableBytes() > ClientConstants.SEED_LENGTH) { // We must request the public key from the server to encrypt the password
             // Servers affected by Bug#70865 could send Auth Switch instead of key after Public Key Retrieval,
             // so we check payload length to detect that.
 
             // read key response
-            this.publicKeyString.set(PacketUtils.readStringTerm(fromServer, Charset.defaultCharset()));
-            payloadBuf = createEncryptPasswordPacketWithPublicKey(password);
+            this.publicKeyString = PacketUtils.readStringTerm(fromServer, Charset.defaultCharset());
+            payload = createEncryptPasswordPacketWithPublicKey(password);
 
-            this.publicKeyRequested.set(false);
+            this.publicKeyRequested = false;
         } else {
             // build and send Public Key Retrieval packet
-            this.seed.set(PacketUtils.readStringTerm(fromServer, Charset.defaultCharset()));
-            payloadBuf = createPublicKeyRetrievalPacket(getPublicKeyRetrievalPacketFlag());
-            this.publicKeyRequested.set(true);
+            this.seed = PacketUtils.readStringTerm(fromServer, Charset.defaultCharset());
+            payload = createPublicKeyRetrievalPacket(getPublicKeyRetrievalPacketFlag());
+            this.publicKeyRequested = true;
         }
-        return payloadBuf.asReadOnly();
+        return payload.asReadOnly();
     }
 
     protected int getPublicKeyRetrievalPacketFlag() {
@@ -153,11 +147,17 @@ public class Sha256PasswordPlugin implements AuthenticationPlugin {
         byte[] passwordBytes;
         passwordBytes = MySQLStringUtils.getBytesNullTerminated(password, this.protocolAssistant.getPasswordCharset());
         byte[] mysqlScrambleBuff = new byte[passwordBytes.length];
-        AuthenticateUtils.xorString(passwordBytes, mysqlScrambleBuff, this.seed.get().getBytes(), passwordBytes.length);
-        PublicKey publicKey = KeyUtils.readPublicKey(KeyPairType.RSA, this.publicKeyString.get());
+        byte[] seedBytes = Objects.requireNonNull(this.seed, "this.seed").getBytes();
+
+        AuthenticateUtils.xorString(passwordBytes, mysqlScrambleBuff, seedBytes, passwordBytes.length);
+        String publicKeyString = Objects.requireNonNull(this.publicKeyString, "this.publicKeyString");
+        PublicKey publicKey = KeyUtils.readPublicKey(KeyPairType.RSA, publicKeyString);
         return encryptWithPublicKey(mysqlScrambleBuff, publicKey, transformation);
     }
 
+    /**
+     * @see #encryptPassword(String, String)
+     */
     protected byte[] encryptWithPublicKey(byte[] mysqlScrambleBuff, PublicKey publicKey, String transformation) {
         try {
             Cipher cipher = Cipher.getInstance(transformation);
@@ -172,7 +172,7 @@ public class Sha256PasswordPlugin implements AuthenticationPlugin {
     /**
      * @return read-only buffer
      */
-    protected final ByteBuf cratePlanTextPasswordPacket(String password) {
+    protected final ByteBuf cratePlainTextPasswordPacket(String password) {
         byte[] passwordBytes = password.getBytes(this.protocolAssistant.getHandshakeCharset());
         ByteBuf packetBuffer = this.protocolAssistant.allocator().buffer(passwordBytes.length + 1);
         PacketUtils.writeStringTerm(packetBuffer, passwordBytes);
@@ -207,15 +207,14 @@ public class Sha256PasswordPlugin implements AuthenticationPlugin {
 
     @Nullable
     protected static String tryLoadPublicKeyString(HostInfo<PropertyKey> hostInfo) {
-        String serverRSAPublicKeyPath = hostInfo.getProperties()
-                .getProperty(PropertyKey.serverRSAPublicKeyFile.getKey());
+        String serverRSAPublicKeyPath = hostInfo.getProperties().getProperty(PropertyKey.serverRSAPublicKeyFile);
         String publicKeyString = null;
         try {
             if (serverRSAPublicKeyPath != null) {
                 publicKeyString = readPathAsText(Paths.get(serverRSAPublicKeyPath));
             }
             return publicKeyString;
-        } catch (IOException e) {
+        } catch (Throwable e) {
             throw new MySQLJdbdException(e, "read serverRSAPublicKeyFile error.");
         }
     }

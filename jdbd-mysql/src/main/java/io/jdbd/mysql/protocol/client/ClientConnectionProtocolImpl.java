@@ -5,10 +5,10 @@ import io.jdbd.MultiResults;
 import io.jdbd.ResultRow;
 import io.jdbd.mysql.protocol.CharsetMapping;
 import io.jdbd.mysql.protocol.conf.PropertyKey;
+import io.jdbd.mysql.session.MySQLSessionAdjutant;
 import io.jdbd.vendor.conf.HostInfo;
 import io.jdbd.vendor.conf.Properties;
 import io.jdbd.vendor.util.SQLStates;
-import io.netty.channel.EventLoopGroup;
 import reactor.core.publisher.Mono;
 import reactor.util.Logger;
 import reactor.util.Loggers;
@@ -22,11 +22,11 @@ final class ClientConnectionProtocolImpl implements ClientConnectionProtocol {
     private static final Logger LOG = Loggers.getLogger(ClientConnectionProtocolImpl.class);
 
 
-    static Mono<ClientConnectionProtocolImpl> create(HostInfo<PropertyKey> hostInfo, EventLoopGroup eventLoopGroup) {
-        return MySQLTaskExecutor.create(hostInfo, eventLoopGroup)
+    static Mono<ClientConnectionProtocolImpl> create(final int hostIndex, MySQLSessionAdjutant sessionAdjutant) {
+        return MySQLTaskExecutor.create(hostIndex, sessionAdjutant)
                 .flatMap(taskExecutor -> {
                     ClientConnectionProtocolImpl protocol;
-                    protocol = new ClientConnectionProtocolImpl(hostInfo, taskExecutor);
+                    protocol = new ClientConnectionProtocolImpl(sessionAdjutant, hostIndex, taskExecutor);
                     return protocol.authenticateAndInitializing()
                             .thenReturn(protocol);
                 })
@@ -48,8 +48,9 @@ final class ClientConnectionProtocolImpl implements ClientConnectionProtocol {
     final SessionResetter sessionResetter;
 
 
-    private ClientConnectionProtocolImpl(final HostInfo<PropertyKey> hostInfo, final MySQLTaskExecutor taskExecutor) {
-        this.hostInfo = hostInfo;
+    private ClientConnectionProtocolImpl(final MySQLSessionAdjutant sessionAdjutant
+            , int hostIndex, final MySQLTaskExecutor taskExecutor) {
+        this.hostInfo = sessionAdjutant.obtainUrl().getHostList().get(hostIndex);
         this.taskExecutor = taskExecutor;
         this.sessionResetter = DefaultSessionResetter.create(this.taskExecutor.getAdjutant());
         this.properties = this.hostInfo.getProperties();

@@ -1,8 +1,8 @@
 package io.jdbd.mysql.protocol.client;
 
 import io.jdbd.mysql.Groups;
-import io.jdbd.mysql.protocol.conf.MySQLUrl;
 import io.jdbd.mysql.protocol.conf.PropertyKey;
+import io.jdbd.mysql.session.MySQLSessionAdjutant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.ITestContext;
@@ -14,6 +14,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertTrue;
 
 @Test(groups = {Groups.AUTHENTICATE_PLUGIN}, dependsOnGroups = {Groups.MYSQL_URL, Groups.SQL_PARSER})
 public class AuthenticatePluginSuiteTests extends AbstractConnectionBasedSuiteTests {
@@ -44,7 +45,7 @@ public class AuthenticatePluginSuiteTests extends AbstractConnectionBasedSuiteTe
 
 
     @Test(timeOut = TIME_OUT)
-    public void defaultPlugin() {
+    public void defaultPlugin() throws Exception {
         LOG.info("defaultPlugin test start.");
         final Map<String, String> propMap;
 
@@ -52,34 +53,39 @@ public class AuthenticatePluginSuiteTests extends AbstractConnectionBasedSuiteTe
         propMap.put(PropertyKey.detectCustomCollations.getKey(), "true");
         //propMap.put(PropertyKey.sslMode.getKey(),  Enums.SslMode.PREFERRED.name());
 
-        MySQLUrl url = ClientTestUtils.singleUrl(propMap);
+        MySQLSessionAdjutant sessionAdjutant = getSessionAdjutantForSingleHost(propMap);
 
-        ClientConnectionProtocolImpl.create(url.getPrimaryHost(), getEventLoopGroup())
-                .doOnSuccess(c -> {
-                    assertNotNull(c, "client connection protocol.");
-                    MySQLTaskAdjutant adjutant = c.taskExecutor.getAdjutant();
-                    assertNotNull(adjutant, "adjutant");
-
-                    HandshakeV10Packet packet = adjutant.obtainHandshakeV10Packet();
-                    assertNotNull(packet, "HandshakeV10Packet");
-                    LOG.info("defaultPlugin test success. {}", packet);
-                })
-                .flatMap(ClientConnectionProtocol::closeGracefully)
+        AuthenticateResult result = MySQLTaskExecutor.create(0, sessionAdjutant)
+                .flatMap(executor -> MySQLConnectionTask.authenticate(executor.getAdjutant()))
                 .block();
 
+        assertNotNull(result, "result");
+
+        HandshakeV10Packet packet = result.handshakeV10Packet();
+        assertNotNull(packet, "HandshakeV10Packet");
+
+        assertTrue(result.negotiatedCapability() != 0, "negotiatedCapability");
+
+        LOG.info("defaultPlugin test success. {}", packet);
     }
+
 
     @Test(dependsOnMethods = "defaultPlugin", timeOut = TIME_OUT)
     public void defaultPluginWithSslDisabled() {
         LOG.info("defaultPluginWithSslDisabled test start.");
+        final Map<String, String> propMap;
+        propMap = Collections.singletonMap(PropertyKey.sslMode.getKey()
+                , Enums.SslMode.DISABLED.name());
 
-        MySQLUrl url = ClientTestUtils.singleUrl(Collections.singletonMap(PropertyKey.sslMode.getKey()
-                , Enums.SslMode.DISABLED.name()));
+        MySQLSessionAdjutant sessionAdjutant = getSessionAdjutantForSingleHost(propMap);
 
-        ClientConnectionProtocolImpl.create(url.getPrimaryHost(), getEventLoopGroup())
-                .doOnSuccess(c -> LOG.info("defaultPlugin test success. {}"
-                        , c.taskExecutor.getAdjutant().obtainHandshakeV10Packet()))
+        AuthenticateResult result = MySQLTaskExecutor.create(0, sessionAdjutant)
+                .flatMap(executor -> MySQLConnectionTask.authenticate(executor.getAdjutant()))
                 .block();
+
+        assertNotNull(result, "result");
+        LOG.info("defaultPluginWithSslDisabled test success.handshakeV10Packet:\n {}", result.handshakeV10Packet());
+
     }
 
 

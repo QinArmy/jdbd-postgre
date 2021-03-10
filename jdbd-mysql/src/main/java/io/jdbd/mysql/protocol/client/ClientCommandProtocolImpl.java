@@ -7,8 +7,8 @@ import io.jdbd.ResultStates;
 import io.jdbd.mysql.BatchWrapper;
 import io.jdbd.mysql.StmtWrapper;
 import io.jdbd.mysql.protocol.conf.PropertyKey;
+import io.jdbd.mysql.session.MySQLSessionAdjutant;
 import io.jdbd.vendor.conf.HostInfo;
-import io.netty.channel.EventLoopGroup;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -21,9 +21,11 @@ import java.util.function.Consumer;
 public final class ClientCommandProtocolImpl implements ClientCommandProtocol {
 
 
-    public static Mono<ClientCommandProtocol> create(HostInfo<PropertyKey> hostInfo, EventLoopGroup eventLoopGroup) {
-        return ClientConnectionProtocolImpl.create(hostInfo, eventLoopGroup)
-                .map(ClientCommandProtocolImpl::new);
+    public static Mono<ClientCommandProtocol> create(HostInfo<PropertyKey> hostInfo
+            , MySQLSessionAdjutant sessionAdjutant) {
+//        return ClientConnectionProtocolImpl.create(hostInfo, sessionAdjutant)
+//                .map(ClientCommandProtocolImpl::new);
+        return Mono.empty();
 
     }
 

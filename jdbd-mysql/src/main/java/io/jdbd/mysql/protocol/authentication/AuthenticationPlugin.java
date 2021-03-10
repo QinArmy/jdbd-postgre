@@ -6,18 +6,18 @@ import java.util.List;
 
 public interface AuthenticationPlugin {
 
- default void reset() {
+    default void reset() {
 
- }
+    }
 
 
- /**
-  * Returns the name that the MySQL server uses on
-  * the wire for this plugin
-  *
-  * @return plugin name
-  */
- String getProtocolPluginName();
+    /**
+     * Returns the name that the MySQL server uses on
+     * the wire for this plugin
+     *
+     * @return plugin name
+     */
+    String getProtocolPluginName();
 
     /**
      * Does this plugin require the connection itself to be confidential
@@ -44,7 +44,7 @@ public interface AuthenticationPlugin {
      * @param fromServer a buffer( reserved header) containing handshake data payload from
      *                   server (can be empty).
      *                   should contain data).
-     * @return a unmodifiable list,element is read-only, empty :authentication finish.
+     * @return a unmodifiable list,that is list of payload,element is read-only, empty :authentication finish.
      */
     List<ByteBuf> nextAuthenticationStep(ByteBuf fromServer);
 

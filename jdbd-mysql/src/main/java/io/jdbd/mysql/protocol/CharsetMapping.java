@@ -288,14 +288,6 @@ public abstract class CharsetMapping {
         return UNSUPPORTED_CHARSET_CLIENTS.contains(javaCharset.toLowerCase(Locale.ENGLISH));
     }
 
-    public static byte getHandshakeCollationIndex(Charset handshakeCharset, ServerVersion serverVersion) {
-        int charsetIndex = CharsetMapping.getCollationIndexForJavaEncoding(
-                handshakeCharset.name(), serverVersion);
-        if (charsetIndex == 0) {
-            charsetIndex = CharsetMapping.MYSQL_COLLATION_INDEX_utf8;
-        }
-        return (byte) charsetIndex;
-    }
 
     /**
      * @return a unmodifiable list
