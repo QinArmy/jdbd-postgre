@@ -287,6 +287,11 @@ final class MySQLTaskExecutor extends CommunicationTaskExecutor<MySQLTaskAdjutan
         }
 
         @Override
+        public boolean isAuthenticated() {
+            return this.handshakeV10Packet != null;
+        }
+
+        @Override
         public Server obtainServer() {
             Server server = this.server;
             if (server == null) {

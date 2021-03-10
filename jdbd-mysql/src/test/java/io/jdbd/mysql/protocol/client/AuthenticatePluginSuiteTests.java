@@ -27,9 +27,8 @@ import static org.testng.Assert.assertTrue;
 @Test(groups = {Groups.AUTHENTICATE_PLUGIN}, dependsOnGroups = {Groups.MYSQL_URL, Groups.SQL_PARSER})
 public class AuthenticatePluginSuiteTests extends AbstractConnectionBasedSuiteTests {
 
-    static final Logger LOG = LoggerFactory.getLogger(AuthenticatePluginSuiteTests.class);
+    private static final Logger LOG = LoggerFactory.getLogger(AuthenticatePluginSuiteTests.class);
 
-    private static final long TIME_OUT = 5L * 1000L;
 
     @BeforeSuite
     public static void beforeSuite(ITestContext context) {

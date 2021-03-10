@@ -15,6 +15,7 @@ abstract class Commands {
     static final String CHARACTER_SET_CLIENT = "character_set_client";
     static final String CHARACTER_SET_RESULTS = "character_set_results";
     static final String COLLATION_CONNECTION = "collation_connection";
+    static final String RESULTSET_METADATA = "resultset_metadata";
 
 
     static String buildSetVariableCommand(String pairString) {
@@ -22,22 +23,17 @@ abstract class Commands {
         StringBuilder builder = new StringBuilder("SET ");
         int index = 0;
         for (String pair : pairList) {
+            pair = pair.trim();
             if (!pair.contains("=")) {
                 throw new MySQLJdbdException("Property sessionVariables format error,please check it.");
             }
             String lower = pair.toLowerCase();
             if (lower.contains(CHARACTER_SET_RESULTS)
                     || lower.contains(CHARACTER_SET_CLIENT)
-                    || lower.contains(COLLATION_CONNECTION)) {
-                throw new MySQLJdbdException(
-                        "Below three session variables[%s,%s,%s] must specified by below three properties[%s,%s,%s]."
-                        , CHARACTER_SET_CLIENT
-                        , CHARACTER_SET_RESULTS
-                        , COLLATION_CONNECTION
-                        , PropertyKey.characterEncoding
-                        , PropertyKey.characterSetResults
-                        , PropertyKey.connectionCollation);
+                    || lower.contains(COLLATION_CONNECTION)
+                    || lower.contains(RESULTSET_METADATA)) {
 
+                throw createSetVariableException();
             }
             if (index > 0) {
                 builder.append(",");
@@ -49,6 +45,23 @@ abstract class Commands {
             index++;
         }
         return builder.toString();
+    }
+
+    /*################################## blow private method ##################################*/
+
+    /**
+     * @see #buildSetVariableCommand(String)
+     */
+    private static MySQLJdbdException createSetVariableException() {
+        String message = String.format("Below three session variables[%s,%s,%s,%s] must specified by below three properties[%s,%s,%s]."
+                , CHARACTER_SET_CLIENT
+                , CHARACTER_SET_RESULTS
+                , COLLATION_CONNECTION
+                , RESULTSET_METADATA
+                , PropertyKey.characterEncoding
+                , PropertyKey.characterSetResults
+                , PropertyKey.connectionCollation);
+        return new MySQLJdbdException(message);
     }
 
 

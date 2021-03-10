@@ -5,6 +5,7 @@
             <class name="io.jdbd.mysql.protocol.conf.MySQLUrlParserSuiteTests"/>
             <class name="io.jdbd.mysql.syntax.MySQLParserSuiteTests"/>
             <class name="io.jdbd.mysql.protocol.client.AuthenticatePluginSuiteTests"/>
+            <class name="io.jdbd.mysql.protocol.client.ConnectionPhaseSuiteTests"/>
         </classes>
     </test>
 </suite>

@@ -9,5 +9,7 @@ public interface Groups {
 
     String SQL_PARSER = "sqlParser";
 
+    String CONNECTION_PHASE = "connectionPhase";
+
 
 }

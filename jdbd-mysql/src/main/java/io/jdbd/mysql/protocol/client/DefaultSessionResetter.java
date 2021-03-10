@@ -107,8 +107,12 @@ final class DefaultSessionResetter implements SessionResetter {
         if (message == null) {
             assert charsetClient != null;
             assert zoneOffsetClient != null;
-            mono = Mono.just(new DefaultServer(charsetClient, charsetResults, zoneOffsetDatabase, zoneOffsetClient
-                    , sqlModeSet));
+            Server server = new DefaultServer(charsetClient, charsetResults, zoneOffsetDatabase, zoneOffsetClient
+                    , sqlModeSet);
+            if (LOG.isDebugEnabled() && !this.properties.getOrDefault(PropertyKey.paranoid, Boolean.class)) {
+                LOG.debug("after reset ,server :\n{}", server);
+            }
+            mono = Mono.just(server);
         } else {
             mono = Mono.error(new JdbdSQLException(new SQLException(message, SQLStates.CONNECTION_EXCEPTION
                     , MySQLCodes.CR_UNKNOWN_ERROR)));
@@ -267,10 +271,10 @@ final class DefaultSessionResetter implements SessionResetter {
             charsetResults = null;
         } else {
             CharsetMapping.MySQLCharset mySQLCharset;
-            mySQLCharset = CharsetMapping.CHARSET_NAME_TO_CHARSET.get(charsetString);
+            mySQLCharset = CharsetMapping.CHARSET_NAME_TO_CHARSET.get(charsetString.toLowerCase());
             if (mySQLCharset == null) {
-                String message = String.format("No found MySQL charset fro Property %s[%s]"
-                        , PropertyKey.characterSetResults, charsetString);
+                String message = String.format("No found MySQL charset[%s] fro Property[%s]"
+                        , charsetString, PropertyKey.characterSetResults);
                 return Mono.error(new JdbdSQLException(new SQLException(message, SQLStates.CONNECTION_EXCEPTION)));
             }
             command = String.format("SET character_set_results = '%s'", mySQLCharset.charsetName);
@@ -452,6 +456,17 @@ final class DefaultSessionResetter implements SessionResetter {
             this.zoneOffsetDatabase = zoneOffsetDatabase;
             this.zoneOffsetClient = zoneOffsetClient;
             this.sqlModeSet = sqlModeSet;
+        }
+
+        @Override
+        public String toString() {
+            return new StringBuilder("DefaultServer{")
+                    .append("\n charsetClient=").append(this.charsetClient)
+                    .append("\n charsetResults=").append(this.charsetResults)
+                    .append("\n zoneOffsetDatabase=").append(this.zoneOffsetDatabase)
+                    .append("\n zoneOffsetClient=").append(this.zoneOffsetClient)
+                    .append("\n sqlModeSet=").append(this.sqlModeSet)
+                    .append("\n}").toString();
         }
 
         @Override

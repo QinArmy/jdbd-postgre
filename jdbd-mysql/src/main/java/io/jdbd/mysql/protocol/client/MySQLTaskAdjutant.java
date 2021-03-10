@@ -16,4 +16,6 @@ interface MySQLTaskAdjutant extends TaskAdjutant, ClientProtocolAdjutant, MySQLP
      */
     Map<String, Class<? extends AuthenticationPlugin>> obtainPluginMechanismMap();
 
+    boolean isAuthenticated();
+
 }

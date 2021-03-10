@@ -9,9 +9,9 @@ import io.jdbd.mysql.session.MySQLSessionAdjutant;
 import io.jdbd.vendor.conf.HostInfo;
 import io.jdbd.vendor.conf.Properties;
 import io.jdbd.vendor.util.SQLStates;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import reactor.core.publisher.Mono;
-import reactor.util.Logger;
-import reactor.util.Loggers;
 
 import java.sql.SQLException;
 import java.util.*;
@@ -19,7 +19,7 @@ import java.util.concurrent.atomic.AtomicReference;
 
 final class ClientConnectionProtocolImpl implements ClientConnectionProtocol {
 
-    private static final Logger LOG = Loggers.getLogger(ClientConnectionProtocolImpl.class);
+    private static final Logger LOG = LoggerFactory.getLogger(ClientConnectionProtocolImpl.class);
 
 
     static Mono<ClientConnectionProtocolImpl> create(final int hostIndex, MySQLSessionAdjutant sessionAdjutant) {
@@ -67,6 +67,7 @@ final class ClientConnectionProtocolImpl implements ClientConnectionProtocol {
                 .then(Mono.defer(this.sessionResetter::reset)) // reset session.
                 .doOnSuccess(server -> MySQLTaskExecutor.resetTaskAdjutant(this.taskExecutor, server))
                 .then()
+                .onErrorResume(this::handleInitializingError)
                 ;
     }
 
@@ -77,6 +78,23 @@ final class ClientConnectionProtocolImpl implements ClientConnectionProtocol {
 
 
     /*################################## blow package method ##################################*/
+
+    /**
+     * @see #authenticateAndInitializing()
+     */
+    private Mono<Void> handleInitializingError(Throwable e) {
+        Mono<Void> mono;
+        if (this.taskExecutor.getAdjutant().isAuthenticated()) {
+            if (LOG.isDebugEnabled()) {
+                LOG.debug("initializing occur error,quit session.");
+            }
+            mono = closeGracefully()
+                    .then(Mono.error(e));
+        } else {
+            mono = Mono.error(e);
+        }
+        return mono;
+    }
 
     /**
      * @see #authenticateAndInitializing()
