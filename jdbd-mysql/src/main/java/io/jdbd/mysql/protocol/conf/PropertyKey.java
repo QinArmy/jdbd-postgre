@@ -290,6 +290,10 @@ public enum PropertyKey implements IPropertyKey {
     sendFractionalSeconds("sendFractionalSeconds", "true", true), //
     serverAffinityOrder("serverAffinityOrder", null, true), //
     serverConfigCacheFactory("serverConfigCacheFactory", "com.mysql.cj.util.PerVmServerConfigCacheFactory", true), //
+
+    /**
+     * @see <a href="https://dev.mysql.com/doc/refman/8.0/en/server-system-variables.html#sysvar_sha256_password_public_key_path">sha256_password_public_key_path</a>
+     */
     serverRSAPublicKeyFile("serverRSAPublicKeyFile", null, true), //
 
     slowQueryThresholdMillis("slowQueryThresholdMillis", "2000", true), //

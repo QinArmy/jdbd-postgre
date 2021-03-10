@@ -1,14 +1,22 @@
 package io.jdbd.mysql.protocol.client;
 
+import io.jdbd.JdbdSQLException;
 import io.jdbd.mysql.Groups;
+import io.jdbd.mysql.protocol.authentication.CachingSha2PasswordPlugin;
+import io.jdbd.mysql.protocol.authentication.MySQLNativePasswordPlugin;
 import io.jdbd.mysql.protocol.conf.PropertyKey;
 import io.jdbd.mysql.session.MySQLSessionAdjutant;
+import io.jdbd.vendor.conf.HostInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.testng.Assert;
 import org.testng.ITestContext;
 import org.testng.annotations.*;
 import reactor.netty.resources.LoopResources;
 
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -43,14 +51,48 @@ public class AuthenticatePluginSuiteTests extends AbstractConnectionBasedSuiteTe
         LOG.info("\n{} group test end.\n", Groups.AUTHENTICATE_PLUGIN);
     }
 
-
     @Test(timeOut = TIME_OUT)
+    public void cachingSha2PasswordPublicKeyAuthenticate() {
+        LOG.info("cachingSha2PasswordPublicKeyAuthenticate test start.");
+        final Path serverRSAPublicKeyPath;
+        serverRSAPublicKeyPath = Paths.get(System.getProperty("user.dir")
+                , "jdbd-mysql/src/test/resources/mysql-server/public_key.pem");
+
+        if (Files.notExists(serverRSAPublicKeyPath)) {
+            LOG.warn("{} not exists,ignore cachingSha2PasswordPublicKeyAuthenticate.", serverRSAPublicKeyPath);
+            return;
+        }
+
+        final Map<String, String> propMap;
+        propMap = new HashMap<>();
+
+        propMap.put(PropertyKey.sslMode.getKey(), Enums.SslMode.DISABLED.name());
+        // here use (CachingSha2PasswordPlugin and sslMode = DISABLED)
+        propMap.put(PropertyKey.defaultAuthenticationPlugin.getKey(), CachingSha2PasswordPlugin.PLUGIN_NAME);
+        propMap.put(PropertyKey.authenticationPlugins.getKey(), CachingSha2PasswordPlugin.class.getName());
+        propMap.put(PropertyKey.serverRSAPublicKeyFile.getKey(), serverRSAPublicKeyPath.toString());
+
+        // propMap.put(PropertyKey.allowPublicKeyRetrieval.getKey(), serverRSAPublicKeyPath.toString());
+
+        MySQLSessionAdjutant sessionAdjutant = getSessionAdjutantForSingleHost(propMap);
+
+        AuthenticateResult result = MySQLTaskExecutor.create(0, sessionAdjutant)
+                .flatMap(executor -> MySQLConnectionTask.authenticate(executor.getAdjutant()))
+                .block();
+
+        assertNotNull(result, "result");
+
+        LOG.info("cachingSha2PasswordPublicKeyAuthenticate test end.");
+    }
+
+
+    @Test(dependsOnMethods = "cachingSha2PasswordPublicKeyAuthenticate", timeOut = TIME_OUT)
     public void defaultPlugin() throws Exception {
         LOG.info("defaultPlugin test start.");
         final Map<String, String> propMap;
 
         propMap = new HashMap<>();
-        propMap.put(PropertyKey.detectCustomCollations.getKey(), "true");
+        //propMap.put(PropertyKey.detectCustomCollations.getKey(), "true");
         //propMap.put(PropertyKey.sslMode.getKey(),  Enums.SslMode.PREFERRED.name());
 
         MySQLSessionAdjutant sessionAdjutant = getSessionAdjutantForSingleHost(propMap);
@@ -86,6 +128,54 @@ public class AuthenticatePluginSuiteTests extends AbstractConnectionBasedSuiteTe
         assertNotNull(result, "result");
         LOG.info("defaultPluginWithSslDisabled test success.handshakeV10Packet:\n {}", result.handshakeV10Packet());
 
+    }
+
+    @Test(dependsOnMethods = "defaultPlugin", expectedExceptions = JdbdSQLException.class)
+    public void cachingSha2PasswordPluginEmptyPassword() {
+        LOG.info("cachingSha2PasswordPluginEmptyPassword test start.");
+
+        final Map<String, String> propMap;
+        propMap = new HashMap<>();
+
+        propMap.put(PropertyKey.sslMode.getKey(), Enums.SslMode.DISABLED.name());
+        propMap.put(PropertyKey.defaultAuthenticationPlugin.getKey(), CachingSha2PasswordPlugin.PLUGIN_NAME);
+        propMap.put(PropertyKey.authenticationPlugins.getKey(), CachingSha2PasswordPlugin.class.getName());
+        propMap.put(HostInfo.PASSWORD, "");
+
+        MySQLSessionAdjutant sessionAdjutant = getSessionAdjutantForSingleHost(propMap);
+
+        AuthenticateResult result = MySQLTaskExecutor.create(0, sessionAdjutant)
+                .flatMap(executor -> MySQLConnectionTask.authenticate(executor.getAdjutant()))
+                .block();
+
+        assertNotNull(result, "result");
+
+        Assert.fail("cachingSha2PasswordPluginEmptyPassword test failure.");
+    }
+
+    /**
+     * This test need to config mysql serer.
+     */
+    @Test(enabled = false, dependsOnMethods = "defaultPlugin")
+    public void mySQLNativePasswordPlugin() {
+        LOG.info("mySQLNativePasswordPlugin test start.");
+
+        final Map<String, String> propMap;
+        propMap = new HashMap<>();
+
+        propMap.put(PropertyKey.sslMode.getKey(), Enums.SslMode.DISABLED.name());
+        propMap.put(PropertyKey.defaultAuthenticationPlugin.getKey(), MySQLNativePasswordPlugin.PLUGIN_NAME);
+        propMap.put(PropertyKey.authenticationPlugins.getKey(), MySQLNativePasswordPlugin.class.getName());
+
+        MySQLSessionAdjutant sessionAdjutant = getSessionAdjutantForSingleHost(propMap);
+
+        AuthenticateResult result = MySQLTaskExecutor.create(0, sessionAdjutant)
+                .flatMap(executor -> MySQLConnectionTask.authenticate(executor.getAdjutant()))
+                .block();
+
+        assertNotNull(result, "result");
+
+        LOG.info("mySQLNativePasswordPlugin test end.");
     }
 
 

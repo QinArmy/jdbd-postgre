@@ -77,7 +77,6 @@ final class HandshakeV10Packet implements MySQLPacket {
 
     private final long threadId;
 
-    private final String authPluginDataPart1;
 
     private final short filler;
 
@@ -92,7 +91,8 @@ final class HandshakeV10Packet implements MySQLPacket {
      */
     private final short authPluginDataLen;
 
-    private final String authPluginDataPart2;
+
+    private final String pluginSeed;
 
     private final String authPluginName;
 
@@ -105,15 +105,14 @@ final class HandshakeV10Packet implements MySQLPacket {
 
         this.serverVersion = serverVersion;
         this.threadId = threadId;
-        this.authPluginDataPart1 = authPluginDataPart1;
         this.filler = filler;
-
         this.capabilityFlags = capabilityFlags;
+
         this.collationIndex = collationIndex;
         this.statusFlags = statusFlags;
         this.authPluginDataLen = authPluginDataLen;
 
-        this.authPluginDataPart2 = authPluginDataPart2;
+        this.pluginSeed = authPluginDataPart1 + authPluginDataPart2;
         this.authPluginName = authPluginName;
     }
 
@@ -125,8 +124,9 @@ final class HandshakeV10Packet implements MySQLPacket {
         return this.threadId;
     }
 
-    public String getAuthPluginDataPart1() {
-        return this.authPluginDataPart1;
+
+    public String getPluginSeed() {
+        return pluginSeed;
     }
 
     public short getFiller() {
@@ -149,10 +149,6 @@ final class HandshakeV10Packet implements MySQLPacket {
         return this.authPluginDataLen;
     }
 
-    public String getAuthPluginDataPart2() {
-        return this.authPluginDataPart2;
-    }
-
     @Nullable
     public String getAuthPluginName() {
         return this.authPluginName;
@@ -163,13 +159,12 @@ final class HandshakeV10Packet implements MySQLPacket {
         final StringBuilder sb = new StringBuilder("HandshakeV10Packet{");
         sb.append("serverVersion=").append(serverVersion);
         sb.append(", threadId=").append(threadId);
-        sb.append(", authPluginDataPart1='").append(authPluginDataPart1).append('\'');
+        sb.append(", pluginSeed='").append(pluginSeed).append('\'');
         sb.append(", filler=").append(filler);
         sb.append(", capabilityFlags=").append(capabilityFlags);
         sb.append(", collationIndex=").append(collationIndex);
         sb.append(", statusFlags=").append(statusFlags);
         sb.append(", authPluginDataLen=").append(authPluginDataLen);
-        sb.append(", authPluginDataPart2='").append(authPluginDataPart2).append('\'');
         sb.append(", authPluginName='").append(authPluginName).append('\'');
         sb.append('}');
         return sb.toString();

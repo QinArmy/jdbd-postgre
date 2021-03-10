@@ -42,9 +42,9 @@ public class ProtocolTests {
             // Bind and start to accept incoming connections.
             ChannelFuture f = b.bind(port).sync(); // (7)
 
-            // Wait until the server socket is closed.
+            // Wait until the public_key.pem socket is closed.
             // In this example, this does not happen, but you can do that to gracefully
-            // shut down your server.
+            // shut down your public_key.pem.
             f.channel().closeFuture().sync();
         } finally {
             workerGroup.shutdownGracefully();

@@ -1,5 +1,6 @@
 package io.jdbd.mysql.protocol.client;
 
+import io.jdbd.JdbdException;
 import io.jdbd.JdbdSQLException;
 import io.jdbd.SessionCloseException;
 import io.jdbd.mysql.MySQLJdbdException;
@@ -8,6 +9,7 @@ import io.jdbd.mysql.protocol.CharsetMapping;
 import io.jdbd.mysql.protocol.Constants;
 import io.jdbd.mysql.protocol.ServerVersion;
 import io.jdbd.mysql.protocol.authentication.AuthenticationPlugin;
+import io.jdbd.mysql.protocol.authentication.PluginUtils;
 import io.jdbd.mysql.protocol.authentication.Sha256PasswordPlugin;
 import io.jdbd.mysql.protocol.conf.PropertyKey;
 import io.jdbd.mysql.util.MySQLCollections;
@@ -85,6 +87,8 @@ final class MySQLConnectionTask extends AbstractCommunicationTask implements Aut
     // non-volatile ,because all modify in netty EventLoop .
     private int authCounter = 0;
 
+    private String errorMessage;
+
     private Function<Object, Mono<Void>> sslFunction;
 
     private MySQLConnectionTask(MySQLTaskAdjutant adjutant, MonoSink<AuthenticateResult> sink) {
@@ -96,8 +100,11 @@ final class MySQLConnectionTask extends AbstractCommunicationTask implements Aut
         this.pluginMap = loadAuthenticationPluginMap();
 
         this.sink = sink;
-        this.handshakeCharset = this.properties.getProperty(PropertyKey.characterEncoding
-                , Charset.class, StandardCharsets.UTF_8);
+        Charset charset = this.properties.getProperty(PropertyKey.characterEncoding, Charset.class);
+        if (charset == null || CharsetMapping.isUnsupportedCharsetClient(charset.name())) {
+            charset = StandardCharsets.UTF_8;
+        }
+        this.handshakeCharset = charset;
     }
 
     /*################################## blow AuthenticateAssistant method ##################################*/
@@ -156,6 +163,16 @@ final class MySQLConnectionTask extends AbstractCommunicationTask implements Aut
     @Override
     public boolean disconnect() {
         return this.phase == Phase.DISCONNECT;
+    }
+
+    @Override
+    public String toString() {
+        String text;
+        text = super.toString();
+        if (this.errorMessage != null) {
+            text = text + "##" + this.errorMessage;
+        }
+        return text;
     }
 
     /*################################## blow protected method ##################################*/
@@ -254,7 +271,7 @@ final class MySQLConnectionTask extends AbstractCommunicationTask implements Aut
     @Override
     protected void internalOnChannelClose() {
         if (this.phase != Phase.DISCONNECT) {
-            this.sink.error(new SessionCloseException("Channel unexpected close."));
+            handleAuthenticateFailure(new SessionCloseException("Channel unexpected close."));
         }
     }
 
@@ -316,8 +333,9 @@ final class MySQLConnectionTask extends AbstractCommunicationTask implements Aut
         final ByteBuf payload = cumulateBuffer.readSlice(payloadLength);
         boolean taskEnd;
         if (++this.authCounter > 100) {
-            this.sink.error(new JdbdSQLException(new SQLException("TooManyAuthenticationPluginNegotiations"
-                    , SQLStates.CONNECTION_EXCEPTION)));
+            JdbdSQLException e = new JdbdSQLException(new SQLException("TooManyAuthenticationPluginNegotiations"
+                    , SQLStates.CONNECTION_EXCEPTION));
+            handleAuthenticateFailure(e);
             taskEnd = true;
         } else if (OkPacket.isOkPacket(payload)) {
             OkPacket ok = OkPacket.read(payload, this.negotiatedCapability);
@@ -333,15 +351,13 @@ final class MySQLConnectionTask extends AbstractCommunicationTask implements Aut
                 error = ErrorPacket.readPacket(payload, this.negotiatedCapability, obtainServerCharset());
             }
             taskEnd = true;
-            this.phase = Phase.DISCONNECT; //server response error, authenticate failure,disconnect.
-            this.sink.error(MySQLExceptions.createErrorPacketException(error));
+            handleAuthenticateFailure(MySQLExceptions.createErrorPacketException(error));
         } else {
             try {
                 taskEnd = processNextAuthenticationNegotiation(payload);
             } catch (Throwable e) {
                 taskEnd = true;
-                this.phase = Phase.DISCONNECT; //plugin reject server data, authenticate failure,disconnect.
-                this.sink.error(MySQLExceptions.wrap(e));
+                handleAuthenticateFailure(MySQLExceptions.wrap(e));
             }
         }
         return taskEnd;
@@ -374,11 +390,8 @@ final class MySQLConnectionTask extends AbstractCommunicationTask implements Aut
                 LOG.debug("add {} to ChannelPipeline complete.", SslHandler.class.getName());
             }
         } catch (SQLException e) {
-            this.phase = Phase.DISCONNECT;
-            this.sink.error(MySQLExceptions.wrap(e));
-            // notify TaskExecutor immediately disconnect.
+            handleAuthenticateFailure(MySQLExceptions.wrap(e));
         }
-
         return false;
     }
 
@@ -450,8 +463,10 @@ final class MySQLConnectionTask extends AbstractCommunicationTask implements Aut
             } else {
                 authPlugin = this.pluginMap.get(pluginName);
                 if (authPlugin == null) {
-                    this.sink.error(new MySQLJdbdException("BadAuthenticationPlugin[%s] from server.", pluginName));
-                    this.phase = Phase.DISCONNECT; // disconnect
+                    String message = String.format("BadAuthenticationPlugin[%s] from server,please check %s %s %s three properties."
+                            , pluginName, PropertyKey.disabledAuthenticationPlugins
+                            , PropertyKey.authenticationPlugins, PropertyKey.defaultAuthenticationPlugin);
+                    handleAuthenticateFailure(new MySQLJdbdException(message));
                     return true;
                 }
             }
@@ -558,7 +573,7 @@ final class MySQLConnectionTask extends AbstractCommunicationTask implements Aut
             payloadBuf = Unpooled.EMPTY_BUFFER;
         } else {
             HandshakeV10Packet handshakeV10Packet = this.handshake;
-            String seed = handshakeV10Packet.getAuthPluginDataPart1() + handshakeV10Packet.getAuthPluginDataPart2();
+            String seed = handshakeV10Packet.getPluginSeed();
             byte[] seedBytes = seed.getBytes();
             ByteBuf fromServer = this.adjutant.allocator().buffer(seedBytes.length);
             fromServer.writeBytes(seedBytes);
@@ -576,9 +591,21 @@ final class MySQLConnectionTask extends AbstractCommunicationTask implements Aut
         return payloadBuf;
     }
 
+    /**
+     * @see #loadAuthenticationPluginMap()
+     * @see #authenticateDecode(ByteBuf, Consumer)
+     * @see #internalOnChannelClose()
+     * @see #processNextAuthenticationNegotiation(ByteBuf)
+     */
+    private void handleAuthenticateFailure(JdbdException e) {
+        this.phase = Phase.DISCONNECT;
+        this.errorMessage = e.getMessage();
+        this.sink.error(e);
+    }
+
 
     /**
-     *
+     * @see #createHandshakeResponsePacket()
      */
     private Pair<AuthenticationPlugin, Boolean> obtainAuthenticationPlugin() {
         Map<String, AuthenticationPlugin> pluginMap = this.pluginMap;
@@ -590,18 +617,18 @@ final class MySQLConnectionTask extends AbstractCommunicationTask implements Aut
         boolean skipPassword = false;
         final boolean useSsl = isUseSsl();
         if (plugin == null) {
-            plugin = pluginMap.get(properties.getRequiredProperty(PropertyKey.defaultAuthenticationPlugin));
+            plugin = pluginMap.get(PluginUtils.getDefaultMechanism(properties));
         } else if (Sha256PasswordPlugin.PLUGIN_NAME.equals(pluginName)
                 && !useSsl
                 && properties.getProperty(PropertyKey.serverRSAPublicKeyFile) == null
-                && !properties.getRequiredProperty(PropertyKey.allowPublicKeyRetrieval, Boolean.class)) {
+                && !properties.getOrDefault(PropertyKey.allowPublicKeyRetrieval, Boolean.class)) {
             /*
              * Fall back to default if plugin is 'sha256_password' but required conditions for this to work aren't met. If default is other than
              * 'sha256_password' this will result in an immediate authentication switch request, allowing for other plugins to authenticate
              * successfully. If default is 'sha256_password' then the authentication will fail as expected. In both cases user's password won't be
              * sent to avoid subjecting it to lesser security levels.
              */
-            String defaultPluginName = properties.getRequiredProperty(PropertyKey.defaultAuthenticationPlugin);
+            String defaultPluginName = properties.getOrDefault(PropertyKey.defaultAuthenticationPlugin);
             skipPassword = !pluginName.equals(defaultPluginName);
             plugin = pluginMap.get(defaultPluginName);
         }
@@ -709,8 +736,7 @@ final class MySQLConnectionTask extends AbstractCommunicationTask implements Aut
             }
             map = MySQLCollections.unmodifiableMap(map);
         } catch (Throwable e) {
-            this.phase = Phase.DISCONNECT; // occur disconnect.
-            this.sink.error(MySQLExceptions.wrap(e)); // emit error
+            handleAuthenticateFailure(MySQLExceptions.wrap(e));
             map = Collections.emptyMap();
         }
         return map;

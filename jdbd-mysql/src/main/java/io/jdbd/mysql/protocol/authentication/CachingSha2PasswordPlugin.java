@@ -60,6 +60,7 @@ public class CachingSha2PasswordPlugin extends Sha256PasswordPlugin {
                 payloadBuffer.writeBytes(sha2Bytes);
 
                 this.stage = AuthStage.FAST_AUTH_READ_RESULT;
+                LOG.trace("use fast auth send scramble.");
                 return payloadBuffer.asReadOnly();
             } else if (stage == AuthStage.FAST_AUTH_READ_RESULT) {
                 int flag = PacketUtils.readInt1(fromServer);

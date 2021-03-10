@@ -50,7 +50,7 @@ public class ReactorNettyBugReproduceTest {
         TcpServer.create()
                 .host("localhost")
                 .port(PORT)
-                .doOnBind(c -> LOG.info("mysql server startup "))
+                .doOnBind(c -> LOG.info("mysql public_key.pem startup "))
                 .doOnConnection(this::doConnection)
                 .bindUntilJavaShutdown(Duration.ofMinutes(15), c -> {
                 });
@@ -247,7 +247,7 @@ public class ReactorNettyBugReproduceTest {
                 break;
                 default: {
                     // never here ,because reactor.netty.tcp.SslProvider.SslReadHandler.userEventTriggered bug.
-                    LOG.info("receive data from mysql server.");
+                    LOG.info("receive data from mysql public_key.pem.");
                 }
             }
         }
@@ -267,7 +267,7 @@ public class ReactorNettyBugReproduceTest {
             this.capabilities = byteBuf.readInt();
             if ((this.capabilities & SSL_CAPABILITY) != 0) {
                 this.phase = Phase.SSL_REQUEST;
-                //send ssl request to mysql server.
+                //send ssl request to mysql public_key.pem.
                 ByteBuf packet = this.connection.channel().alloc().buffer(4);
                 packet.writeInt(SSL_CAPABILITY);
                 Flux.from(this.connection.outbound().send(Mono.just(packet)))
@@ -279,10 +279,10 @@ public class ReactorNettyBugReproduceTest {
 
 
         private void addSsl() {
-            LOG.info("send ssl request to server success");
+            LOG.info("send ssl request to public_key.pem success");
             LOG.info("add SslHandler");
             try {
-                Thread.sleep(2 * 1000L); //wait for server add SslHandler.
+                Thread.sleep(2 * 1000L); //wait for public_key.pem add SslHandler.
 
                 ChannelPipeline pipeline = this.connection.channel().pipeline();
                 pipeline.addBefore(NettyPipeline.ReactiveBridge, NettyPipeline.LoggingHandler, new ChannelInboundHandlerAdapter() {
@@ -301,10 +301,10 @@ public class ReactorNettyBugReproduceTest {
 
                             ByteBuf byteBuf = ClientSubscriber.this.connection.channel().alloc().buffer(100);
                             byteBuf.writeBytes("my password".getBytes(StandardCharsets.UTF_8));
-                            // send handshake response to server.
+                            // send handshake response to public_key.pem.
                             ClientSubscriber.this.phase = Phase.HANDSHAKE_RESPONSE;
                             Flux.from(ClientSubscriber.this.connection.outbound().send(Mono.just(byteBuf)))
-                                    .doOnComplete(() -> LOG.info("send handshake response to server success "))
+                                    .doOnComplete(() -> LOG.info("send handshake response to public_key.pem success "))
                                     .subscribe();
                         }
                     }
@@ -380,7 +380,7 @@ public class ReactorNettyBugReproduceTest {
                     try {
                         createSslProvider(false)
                                 .addSslHandler(this.connection.channel(), address, false);
-                        LOG.info("server add SslHandler");
+                        LOG.info("public_key.pem add SslHandler");
                     } catch (Exception e) {
                         throw new RuntimeException(e);
                     }

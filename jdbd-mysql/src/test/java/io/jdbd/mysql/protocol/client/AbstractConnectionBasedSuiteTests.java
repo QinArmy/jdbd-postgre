@@ -1,9 +1,9 @@
 package io.jdbd.mysql.protocol.client;
 
 import io.jdbd.mysql.protocol.authentication.AuthenticationPlugin;
+import io.jdbd.mysql.protocol.authentication.PluginUtils;
 import io.jdbd.mysql.protocol.conf.MySQLUrl;
 import io.jdbd.mysql.session.MySQLSessionAdjutant;
-import io.jdbd.mysql.session.SessionTestAgent;
 import io.netty.channel.EventLoopGroup;
 import reactor.netty.resources.LoopResources;
 
@@ -33,7 +33,7 @@ public abstract class AbstractConnectionBasedSuiteTests {
 
         private SessionAdjutantForSingleHostTest(MySQLUrl mySQLUrl) {
             this.mySQLUrl = mySQLUrl;
-            this.pluginClassMap = SessionTestAgent.createPluginClassMap(mySQLUrl.getPrimaryHost().getProperties());
+            this.pluginClassMap = PluginUtils.createPluginClassMap(mySQLUrl.getPrimaryHost().getProperties());
         }
 
         @Override

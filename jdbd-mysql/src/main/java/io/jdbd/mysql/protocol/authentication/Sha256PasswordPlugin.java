@@ -9,8 +9,11 @@ import io.jdbd.mysql.util.MySQLStringUtils;
 import io.jdbd.vendor.conf.HostInfo;
 import io.jdbd.vendor.conf.Properties;
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
 import org.qinarmy.util.security.KeyPairType;
 import org.qinarmy.util.security.KeyUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import reactor.util.annotation.Nullable;
 
 import javax.crypto.BadPaddingException;
@@ -47,12 +50,15 @@ public class Sha256PasswordPlugin implements AuthenticationPlugin {
 
     public static final String PLUGIN_NAME = "sha256_password";
 
+    protected final Logger LOG = LoggerFactory.getLogger(getClass());
 
     protected final AuthenticateAssistant protocolAssistant;
 
     protected final HostInfo<PropertyKey> hostInfo;
 
     protected final Properties<PropertyKey> env;
+
+    private final String originalPublicKeyString;
 
     protected boolean publicKeyRequested;
 
@@ -63,9 +69,10 @@ public class Sha256PasswordPlugin implements AuthenticationPlugin {
 
     protected Sha256PasswordPlugin(AuthenticateAssistant protocolAssistant
             , @Nullable String publicKeyString) {
-
         this.protocolAssistant = protocolAssistant;
         this.hostInfo = protocolAssistant.getHostInfo();
+        this.originalPublicKeyString = publicKeyString;
+
         this.publicKeyString = publicKeyString;
         this.env = protocolAssistant.getHostInfo().getProperties();
     }
@@ -81,6 +88,13 @@ public class Sha256PasswordPlugin implements AuthenticationPlugin {
     }
 
     @Override
+    public void reset() {
+        this.publicKeyString = this.originalPublicKeyString;
+        this.publicKeyRequested = false;
+        this.seed = null;
+    }
+
+    @Override
     public List<ByteBuf> nextAuthenticationStep(ByteBuf fromServer) {
 
         final AuthenticateAssistant protocolAssistant = this.protocolAssistant;
@@ -89,9 +103,7 @@ public class Sha256PasswordPlugin implements AuthenticationPlugin {
         List<ByteBuf> toServer;
         if (MySQLStringUtils.isEmpty(password)
                 || !fromServer.isReadable()) {
-            ByteBuf byteBuf = protocolAssistant.allocator().buffer(1);
-            byteBuf.writeZero(1);
-            toServer = Collections.singletonList(byteBuf);
+            toServer = Collections.singletonList(Unpooled.EMPTY_BUFFER);
         } else {
             ByteBuf payloadBuf = internalNextAuthenticationStep(password, fromServer);
             toServer = payloadBuf == null ? Collections.emptyList() : Collections.singletonList(payloadBuf);
@@ -112,6 +124,7 @@ public class Sha256PasswordPlugin implements AuthenticationPlugin {
             payload = cratePlainTextPasswordPacket(password);
         } else if (this.publicKeyString != null) {
             // encrypt with given key, don't use "Public Key Retrieval"
+            LOG.trace("authenticate with server public key.");
             this.seed = PacketUtils.readStringTerm(fromServer, Charset.defaultCharset());
             payload = createEncryptPasswordPacketWithPublicKey(password);
         } else if (!this.env.getOrDefault(PropertyKey.allowPublicKeyRetrieval, Boolean.class)) {
@@ -120,7 +133,7 @@ public class Sha256PasswordPlugin implements AuthenticationPlugin {
                 && fromServer.readableBytes() > ClientConstants.SEED_LENGTH) { // We must request the public key from the server to encrypt the password
             // Servers affected by Bug#70865 could send Auth Switch instead of key after Public Key Retrieval,
             // so we check payload length to detect that.
-
+            LOG.trace("authenticate with request server public key.");
             // read key response
             this.publicKeyString = PacketUtils.readStringTerm(fromServer, Charset.defaultCharset());
             payload = createEncryptPasswordPacketWithPublicKey(password);
@@ -235,4 +248,6 @@ public class Sha256PasswordPlugin implements AuthenticationPlugin {
             return builder.toString();
         }
     }
+
+
 }

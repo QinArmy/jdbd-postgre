@@ -1,7 +1,6 @@
 package io.jdbd.mysql.protocol.client;
 
 import io.jdbd.mysql.MySQLJdbdException;
-import io.jdbd.mysql.SQLMode;
 import io.jdbd.mysql.Server;
 import io.jdbd.mysql.protocol.CharsetMapping;
 import io.jdbd.mysql.protocol.authentication.AuthenticationPlugin;
@@ -152,7 +151,7 @@ final class MySQLTaskExecutor extends CommunicationTaskExecutor<MySQLTaskAdjutan
 
         private int negotiatedCapability = 0;
 
-        private MySQLParser mySQLParser = DefaultMySQLParser.create(MySQLTaskExecutor::initSqlModeFunction);
+        private MySQLParser mySQLParser = DefaultMySQLParser.getForInitialization();
 
         private Server server;
 
@@ -324,24 +323,6 @@ final class MySQLTaskExecutor extends CommunicationTaskExecutor<MySQLTaskAdjutan
             return parser.isMultiStmt(sql);
         }
 
-    }
-
-    /**
-     * @see DefaultMySQLParser
-     */
-    private static boolean initSqlModeFunction(SQLMode sqlMode) {
-        boolean contains;
-        switch (sqlMode) {
-            case ANSI_QUOTES:
-                contains = false;
-                break;
-            case NO_BACKSLASH_ESCAPES:
-                contains = true;
-                break;
-            default:
-                throw new IllegalArgumentException("sqlMode error");
-        }
-        return contains;
     }
 
 

@@ -308,6 +308,10 @@ public abstract class CommunicationTaskExecutor<T extends TaskAdjutant> implemen
 
     private void disconnection() {
         if (this.currentTask instanceof ConnectionTask) {
+            Logger LOG = obtainLogger();
+            if (LOG.isTraceEnabled()) {
+                LOG.trace("Task[{}] demand disconnect.", this.currentTask);
+            }
             this.connection.channel()
                     .close();
         } else {

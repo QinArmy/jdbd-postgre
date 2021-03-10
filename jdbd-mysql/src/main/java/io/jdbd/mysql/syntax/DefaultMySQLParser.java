@@ -5,6 +5,8 @@ import io.jdbd.mysql.SQLMode;
 import io.jdbd.mysql.protocol.Constants;
 import io.jdbd.mysql.util.MySQLExceptions;
 import io.jdbd.vendor.util.JdbdStringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.sql.SQLException;
 import java.util.ArrayList;
@@ -14,10 +16,36 @@ import java.util.function.Function;
 
 public final class DefaultMySQLParser implements MySQLParser {
 
+
     public static MySQLParser create(Function<SQLMode, Boolean> sqlModeFunction) {
         return new DefaultMySQLParser(sqlModeFunction);
     }
 
+
+    public static MySQLParser getForInitialization() {
+        return INITIALIZING_INSTANCE;
+    }
+
+    /*
+     * not java-doc
+     * @see ClientConnectionProtocolImpl#authenticateAndInitializing()
+     */
+    private static boolean initSqlModeFunction(SQLMode sqlMode) {
+        boolean contains;
+        switch (sqlMode) {
+            case ANSI_QUOTES:
+            case NO_BACKSLASH_ESCAPES:
+                contains = false;
+                break;
+            default:
+                throw new IllegalArgumentException("sqlMode error");
+        }
+        return contains;
+    }
+
+    private static final Logger LOG = LoggerFactory.getLogger(DefaultMySQLParser.class);
+
+    private static final DefaultMySQLParser INITIALIZING_INSTANCE = new DefaultMySQLParser(DefaultMySQLParser::initSqlModeFunction);
 
     private static final String BLOCK_COMMENT_START_MARKER = "/*";
 
@@ -74,6 +102,9 @@ public final class DefaultMySQLParser implements MySQLParser {
         Object value;
         value = doParse(sql, Mode.MULTI);
         if (value instanceof Integer) {
+            if (LOG.isTraceEnabled()) {
+                LOG.trace("statement count value is {}", value);
+            }
             return ((Integer) value) > 1;
         }
         throw new IllegalStateException("parser bug.");
@@ -91,7 +122,7 @@ public final class DefaultMySQLParser implements MySQLParser {
         int lastParmEnd = 0, stmtCount = 0;
         final List<String> endpointList = mode == Mode.PARSE ? new ArrayList<>() : Collections.emptyList();
 
-        char ch, firstStmtChar = Constants.EMPTY_CHAR, letter = Constants.EMPTY_CHAR;
+        char ch, firstStmtChar = Constants.EMPTY_CHAR, firstEachStmt = Constants.EMPTY_CHAR;
         for (int i = 0, line = 1; i < sqlLength; i++) {
             ch = sql.charAt(i);
 
@@ -168,9 +199,9 @@ public final class DefaultMySQLParser implements MySQLParser {
                     case SINGLE:
                         return 2;// not single statement.
                     case MULTI: {
-                        if (letter != Constants.EMPTY_CHAR) {
-                            letter = Constants.EMPTY_CHAR;
-                            stmtCount++;
+                        stmtCount++;
+                        if (firstEachStmt != Constants.EMPTY_CHAR) {
+                            firstEachStmt = Constants.EMPTY_CHAR;
                         }
                     }
                     break;
@@ -182,10 +213,10 @@ public final class DefaultMySQLParser implements MySQLParser {
                     endpointList.add(sql.substring(lastParmEnd, i));
                     lastParmEnd = i + 1;
                 }
-            } else if (letter == Constants.EMPTY_CHAR && Character.isLetter(ch)) {
-                letter = Character.toUpperCase(ch);
+            } else if (firstEachStmt == Constants.EMPTY_CHAR && Character.isLetter(ch)) {
+                firstEachStmt = Character.toUpperCase(ch);
                 if (firstStmtChar == Constants.EMPTY_CHAR) {
-                    firstStmtChar = letter;
+                    firstStmtChar = firstEachStmt;
                     //TODO  search for "ON DUPLICATE KEY UPDATE" if not an INSERT statement
                     //@see com.mysql.cj.ParseInfo.ParseInfo(java.lang.String, com.mysql.cj.Session, java.lang.String, boolean)
                     if (ch == 'L' && sql.regionMatches(true, i, LOAD, 0, LOAD.length())) {
@@ -216,6 +247,8 @@ public final class DefaultMySQLParser implements MySQLParser {
             case MULTI: {
                 if (stmtCount == 0) {
                     stmtCount = 1;
+                } else if (mode == Mode.MULTI && stmtCount > 0 && firstEachStmt != Constants.EMPTY_CHAR) {
+                    stmtCount++;
                 }
                 returnValue = stmtCount;
             }
