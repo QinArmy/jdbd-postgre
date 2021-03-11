@@ -681,7 +681,7 @@ public abstract class CharsetMapping {
      * @return a unmodifiable collection
      */
     private static Collection<String> createUnsupportedCharsetClients() {
-        List<String> list = new ArrayList<>(4);
+        List<String> list = new ArrayList<>(8);
 
         list.add("ucs2");
         list.add("utf16");

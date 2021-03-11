@@ -297,7 +297,8 @@ final class DefaultSessionResetter implements SessionResetter {
         final Set<String> sqlModeSet = MySQLStringUtils.spitAsSet(sqlModeString, ",");
 
         final Mono<Void> mono;
-        if (sqlModeSet.contains(SQLMode.TIME_TRUNCATE_FRACTIONAL.name())) {
+        if (!this.properties.getOrDefault(PropertyKey.timeTruncateFractional, Boolean.class)
+                || sqlModeSet.contains(SQLMode.TIME_TRUNCATE_FRACTIONAL.name())) {
             this.sqlModeSet.set(Collections.unmodifiableSet(sqlModeSet));
             mono = Mono.empty();
         } else {

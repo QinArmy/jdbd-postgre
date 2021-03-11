@@ -361,7 +361,8 @@ public enum PropertyKey implements IPropertyKey {
     zeroDateTimeBehavior("zeroDateTimeBehavior", "EXCEPTION", true), //
 
     // new add
-    clientPrepare("clientPrepare", "UN_SUPPORT_STREAM", true);
+    clientPrepare("clientPrepare", "UN_SUPPORT_STREAM", true),
+    timeTruncateFractional("timeTruncateFractional", "true", true);
 
     private final String keyName;
     private final String ccAlias;

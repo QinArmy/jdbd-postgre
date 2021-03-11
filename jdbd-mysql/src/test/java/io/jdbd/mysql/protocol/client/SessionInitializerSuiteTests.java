@@ -1,6 +1,10 @@
 package io.jdbd.mysql.protocol.client;
 
+import io.jdbd.MultiResults;
+import io.jdbd.ResultRow;
 import io.jdbd.mysql.Groups;
+import io.jdbd.mysql.SQLMode;
+import io.jdbd.mysql.Server;
 import io.jdbd.mysql.protocol.conf.PropertyKey;
 import io.jdbd.mysql.session.MySQLSessionAdjutant;
 import io.jdbd.mysql.util.MySQLTimeUtils;
@@ -9,6 +13,7 @@ import org.slf4j.LoggerFactory;
 import org.testng.annotations.Test;
 
 import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.time.ZoneOffset;
 import java.util.Collections;
 import java.util.HashMap;
@@ -96,6 +101,7 @@ public class SessionInitializerSuiteTests extends AbstractConnectionBasedSuiteTe
 
     }
 
+
     /**
      * @see DefaultSessionResetter#configSessionCharset()
      */
@@ -115,7 +121,50 @@ public class SessionInitializerSuiteTests extends AbstractConnectionBasedSuiteTe
         adjutant = doConnectionTest(propMap);
         assertNull(adjutant.getCharsetResults(), "charset results");
 
+        propMap.put(PropertyKey.characterEncoding.getKey(), StandardCharsets.UTF_8.name());
+        adjutant = doConnectionTest(propMap);
+        assertNull(adjutant.getCharsetResults(), "charset results");
+        assertEquals(adjutant.obtainCharsetClient(), StandardCharsets.UTF_8, "charset client");
+
+
+        propMap.put(PropertyKey.connectionCollation.getKey(), "utf8mb4");
+        propMap.remove(PropertyKey.characterSetResults.getKey());
+        adjutant = doConnectionTest(propMap);
+        assertNull(adjutant.getCharsetResults(), "charset results");
+        assertEquals(adjutant.obtainCharsetClient(), StandardCharsets.UTF_8, "charset client");
+        String sql = "SELECT @@character_set_connection as  characterSetConnection" +
+                ", @@character_set_results as characterSetResults," +
+                "@@character_set_client as characterSetClient";
+        ResultRow resultRow = ComQueryTask.query(sql, MultiResults.EMPTY_CONSUMER, adjutant)
+                .elementAt(0)
+                .block();
+        assertNotNull(resultRow);
+
+        assertEquals(resultRow.getObject("characterSetConnection", String.class), "utf8mb4", "characterSetConnection");
+        assertEquals(resultRow.getObject("characterSetClient", String.class), "utf8mb4", "characterSetClient");
+        assertNull(resultRow.getObject("characterSetResults", String.class), "characterSetResults");
+
         LOG.info("configSessionCharsets test success.");
+    }
+
+
+    @Test
+    public void configSqlMode() {
+        LOG.info("configSqlMode test start.");
+        MySQLTaskAdjutant adjutant;
+
+        final Map<String, String> propMap;
+        propMap = new HashMap<>();
+
+        propMap.put(PropertyKey.timeTruncateFractional.getKey(), "true");
+        adjutant = doConnectionTest(propMap);
+        Server server = adjutant.obtainServer();
+
+        assertNotNull(server, "server");
+        assertTrue(server.containSqlMode(SQLMode.TIME_TRUNCATE_FRACTIONAL), "TIME_TRUNCATE_FRACTIONAL");
+
+        LOG.info("configSqlMode test success.");
+
     }
 
 

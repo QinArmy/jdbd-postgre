@@ -367,19 +367,27 @@ public abstract class CommunicationTaskExecutor<T extends TaskAdjutant> implemen
         pipeline.addBefore(NettyPipeline.ReactiveBridge, handlerName, new ChannelInboundHandlerAdapter() {
             @Override
             public void userEventTriggered(ChannelHandlerContext ctx, Object evt) throws Exception {
+                final boolean sslHandshakeSuccess;
                 if (evt instanceof SslHandshakeCompletionEvent) {
                     SslHandshakeCompletionEvent event = (SslHandshakeCompletionEvent) evt;
-                    if (event.isSuccess()) {
+                    sslHandshakeSuccess = event.isSuccess();
+                    if (sslHandshakeSuccess) {
                         LOG.debug("SSL handshake success");
                         sink.success();
                         sendPacketAfterSslHandshakeSuccess();
-                        ChannelPipeline pipeline = ctx.pipeline();
-                        if (pipeline.context(this) != null) {
-                            pipeline.remove(this);
-                        }
                     }
+                } else {
+                    sslHandshakeSuccess = false;
                 }
                 super.userEventTriggered(ctx, evt);
+
+                if (sslHandshakeSuccess) {
+                    ChannelPipeline pipeline = ctx.pipeline();
+                    if (pipeline.context(this) != null) {
+                        pipeline.remove(this);
+                    }
+                }
+
             }
         });
     }

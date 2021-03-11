@@ -131,59 +131,59 @@ abstract class MySQLResultRow implements ResultRow {
     }
 
     @SuppressWarnings("unchecked")
-    private <T> T convertValue(final int indexBaseZero, final Object nonValue, final Class<T> columnClass) {
+    private <T> T convertValue(final int indexBaseZero, final Object nonValue, final Class<T> targetClass) {
         final Object convertedValue;
 
-        if (columnClass == String.class) {
+        if (targetClass == String.class) {
             convertedValue = convertToString(indexBaseZero, nonValue);
-        } else if (Number.class.isAssignableFrom(columnClass)) {
-            if (columnClass == Integer.class) {
+        } else if (Number.class.isAssignableFrom(targetClass)) {
+            if (targetClass == Integer.class) {
                 convertedValue = convertToInteger(indexBaseZero, nonValue);
-            } else if (columnClass == Long.class) {
+            } else if (targetClass == Long.class) {
                 convertedValue = convertToLong(indexBaseZero, nonValue);
-            } else if (columnClass == BigDecimal.class) {
+            } else if (targetClass == BigDecimal.class) {
                 convertedValue = convertToBigDecimal(indexBaseZero, nonValue);
-            } else if (columnClass == BigInteger.class) {
+            } else if (targetClass == BigInteger.class) {
                 convertedValue = convertToBigInteger(indexBaseZero, nonValue);
-            } else if (columnClass == Byte.class) {
+            } else if (targetClass == Byte.class) {
                 convertedValue = convertToByte(indexBaseZero, nonValue);
-            } else if (columnClass == Short.class) {
+            } else if (targetClass == Short.class) {
                 convertedValue = convertToShort(indexBaseZero, nonValue);
-            } else if (columnClass == Double.class) {
+            } else if (targetClass == Double.class) {
                 convertedValue = convertToDouble(indexBaseZero, nonValue);
-            } else if (columnClass == Float.class) {
+            } else if (targetClass == Float.class) {
                 convertedValue = convertToFloat(indexBaseZero, nonValue);
             } else {
-                throw createNotSupportedException(indexBaseZero, nonValue.getClass(), columnClass);
+                throw createNotSupportedException(indexBaseZero, nonValue.getClass(), targetClass);
             }
-        } else if (Temporal.class.isAssignableFrom(columnClass)) {
-            if (columnClass == LocalDateTime.class) {
+        } else if (Temporal.class.isAssignableFrom(targetClass)) {
+            if (targetClass == LocalDateTime.class) {
                 convertedValue = convertToLocalDateTime(indexBaseZero, nonValue);
-            } else if (columnClass == LocalTime.class) {
+            } else if (targetClass == LocalTime.class) {
                 convertedValue = convertToLocalTime(indexBaseZero, nonValue);
-            } else if (columnClass == LocalDate.class) {
+            } else if (targetClass == LocalDate.class) {
                 convertedValue = convertToLocalDate(indexBaseZero, nonValue);
-            } else if (columnClass == ZonedDateTime.class) {
+            } else if (targetClass == ZonedDateTime.class) {
                 convertedValue = convertToZonedDateTime(indexBaseZero, nonValue);
-            } else if (columnClass == OffsetDateTime.class) {
+            } else if (targetClass == OffsetDateTime.class) {
                 convertedValue = convertToOffsetDateTime(indexBaseZero, nonValue);
-            } else if (columnClass == OffsetTime.class) {
+            } else if (targetClass == OffsetTime.class) {
                 convertedValue = convertToOffsetTime(indexBaseZero, nonValue);
-            } else if (columnClass == Instant.class) {
+            } else if (targetClass == Instant.class) {
                 convertedValue = convertToInstant(indexBaseZero, nonValue);
-            } else if (columnClass == Year.class) {
+            } else if (targetClass == Year.class) {
                 convertedValue = convertToYear(indexBaseZero, nonValue);
-            } else if (columnClass == YearMonth.class) {
+            } else if (targetClass == YearMonth.class) {
                 convertedValue = convertToYearMonth(indexBaseZero, nonValue);
             } else {
-                throw createNotSupportedException(indexBaseZero, nonValue.getClass(), columnClass);
+                throw createNotSupportedException(indexBaseZero, nonValue.getClass(), targetClass);
             }
-        } else if (columnClass == MonthDay.class) {
+        } else if (targetClass == MonthDay.class) {
             convertedValue = convertToMonthDay(indexBaseZero, nonValue);
-        } else if (columnClass == DayOfWeek.class) {
+        } else if (targetClass == DayOfWeek.class) {
             convertedValue = convertToDayOfWeek(indexBaseZero, nonValue);
         } else {
-            throw createNotSupportedException(indexBaseZero, nonValue.getClass(), columnClass);
+            throw createNotSupportedException(indexBaseZero, nonValue.getClass(), targetClass);
         }
         return (T) convertedValue;
     }

@@ -311,7 +311,7 @@ final class MySQLConnectionTask extends AbstractCommunicationTask implements Aut
             this.phase = Phase.SSL_REQUEST;
         } else {
             LOG.debug("plaintext send handshake response.");
-            this.packetPublisher = Mono.just(createHandshakeResponsePacket());
+            this.packetPublisher = createHandshakeResponsePacket();
             this.phase = Phase.HANDSHAKE_RESPONSE;
         }
 
@@ -400,7 +400,7 @@ final class MySQLConnectionTask extends AbstractCommunicationTask implements Aut
      */
     private void sendHandshakeResponseAfterSslHandshakeSuccess(Void v) {
         LOG.debug("Ssl handshake success,send handshake response.");
-        this.packetPublisher = Mono.just(createHandshakeResponsePacket());
+        this.packetPublisher = createHandshakeResponsePacket();
         this.phase = Phase.HANDSHAKE_RESPONSE;
     }
 
@@ -420,12 +420,21 @@ final class MySQLConnectionTask extends AbstractCommunicationTask implements Aut
      * @see #internalDecode(ByteBuf, Consumer)
      * @see #handleSslRequestSendSuccess()
      */
-    private ByteBuf createHandshakeResponsePacket() {
-        Pair<AuthenticationPlugin, Boolean> pair = obtainAuthenticationPlugin();
-        AuthenticationPlugin plugin = pair.getFirst();
-        this.plugin = plugin;
-        ByteBuf pluginOut = createAuthenticationDataFor41(plugin, pair.getSecond());
-        return createHandshakeResponse41(plugin.getProtocolPluginName(), pluginOut);
+    private Mono<ByteBuf> createHandshakeResponsePacket() {
+        Mono<ByteBuf> mono;
+
+        try {
+            Pair<AuthenticationPlugin, Boolean> pair = obtainAuthenticationPlugin();
+            AuthenticationPlugin plugin = pair.getFirst();
+            this.plugin = plugin;
+            ByteBuf pluginOut = createAuthenticationDataFor41(plugin, pair.getSecond());
+            mono = Mono.just(createHandshakeResponse41(plugin.getProtocolPluginName(), pluginOut));
+        } catch (Throwable e) {
+            JdbdException je = MySQLExceptions.wrap(e);
+            handleAuthenticateFailure(je);
+            mono = Mono.empty();
+        }
+        return mono;
     }
 
     /**
