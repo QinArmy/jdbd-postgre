@@ -16,11 +16,13 @@ import org.testng.annotations.Test;
 import reactor.core.publisher.Mono;
 
 import java.io.BufferedReader;
+import java.math.BigDecimal;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.time.OffsetTime;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -122,6 +124,65 @@ public class ComQueryTaskSuiteTests extends AbstractConnectionBasedSuiteTests {
 
         LOG.info("update test success");
 
+    }
+
+    @Test(dependsOnMethods = "update")
+    public void delete(ITestContext context) {
+        LOG.info("delete test start");
+        final MySQLTaskAdjutant adjutant = obtainTaskAdjutant(context);
+        String sql = "DELETE FROM u_user WHERE u_user.id = 1";
+
+        ResultStates resultStates = ComQueryTask.update(sql, adjutant)
+                .block();
+
+        assertNotNull(resultStates, "resultStates");
+        assertEquals(resultStates.getAffectedRows(), 1L, "affectedRows");
+        assertEquals(resultStates.getInsertId(), 0L, "inserted");
+        assertEquals(resultStates.getWarnings(), 0, "warnings");
+
+        assertFalse(resultStates.hasMoreResults(), "hasMoreResults");
+
+        sql = "SELECT u.id,u.name FROM u_user as u WHERE u.id = 1";
+
+        List<ResultRow> resultRowList = ComQueryTask.query(sql, MultiResults.EMPTY_CONSUMER, adjutant)
+                .collectList()
+                .block();
+
+        assertNotNull(resultRowList, "resultRowList");
+        assertTrue(resultRowList.isEmpty(), "resultRowList is empty");
+
+        LOG.info("delete test success");
+    }
+
+    @Test
+    public void query(ITestContext context) {
+        LOG.info("query test start");
+        final MySQLTaskAdjutant adjutant = obtainTaskAdjutant(context);
+        String sql = "SELECT u.* FROM u_user as u ORDER BY u.id DESC LIMIT 10";
+        List<ResultRow> resultRowList = ComQueryTask.query(sql, MultiResults.EMPTY_CONSUMER, adjutant)
+                .collectList()
+                .block();
+
+        assertNotNull(resultRowList, "resultRowList");
+        assertFalse(resultRowList.isEmpty(), "resultRowList is empty");
+
+        for (ResultRow resultRow : resultRowList) {
+
+            resultRow.get("id", Long.class);
+            resultRow.get("name", String.class);
+            resultRow.get("nick_name", String.class);
+            resultRow.get("balance", BigDecimal.class);
+
+            resultRow.get("height", Integer.class);
+            resultRow.get("wake_up_time", LocalTime.class);
+            resultRow.get("wake_up_time", OffsetTime.class);
+            resultRow.get("birthday", LocalDate.class);
+
+            assertNull(resultRow.get("love_music"), "love_music");
+
+        }
+
+        LOG.info("query test success");
     }
 
 

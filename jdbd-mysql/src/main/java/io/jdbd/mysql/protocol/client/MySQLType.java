@@ -673,7 +673,7 @@ public enum MySQLType implements SQLType {
     private static boolean isBlobTypeReturnText(MySQLColumnMeta columnMeta, Properties<PropertyKey> properties) {
         return !isBinary(columnMeta.definitionFlags)
                 || columnMeta.collationIndex != CharsetMapping.MYSQL_COLLATION_INDEX_binary
-                || properties.getRequiredProperty(PropertyKey.blobsAreStrings, Boolean.class)
+                || properties.getOrDefault(PropertyKey.blobsAreStrings, Boolean.class)
                 || isFunctionsNeverReturnBlobs(columnMeta, properties);
     }
 

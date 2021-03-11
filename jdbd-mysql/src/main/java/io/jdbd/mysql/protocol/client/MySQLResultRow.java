@@ -199,9 +199,15 @@ abstract class MySQLResultRow implements ResultRow {
     private OffsetTime convertToOffsetTime(final int indexBaseZero, Object sourceValue) {
         OffsetTime newValue;
         if (sourceValue instanceof ZonedDateTime) {
-            newValue = ((ZonedDateTime) sourceValue).toOffsetDateTime().toOffsetTime();
+            newValue = ((ZonedDateTime) sourceValue).toOffsetDateTime()
+                    .withOffsetSameInstant(this.adjutant.obtainZoneOffsetClient())
+                    .toOffsetTime();
         } else if (sourceValue instanceof OffsetDateTime) {
-            newValue = ((OffsetDateTime) sourceValue).toOffsetTime();
+            newValue = ((OffsetDateTime) sourceValue)
+                    .withOffsetSameInstant(this.adjutant.obtainZoneOffsetClient())
+                    .toOffsetTime();
+        } else if (sourceValue instanceof LocalTime) {
+            newValue = OffsetTime.of((LocalTime) sourceValue, this.adjutant.obtainZoneOffsetClient());
         } else {
             throw createNotSupportedException(indexBaseZero, sourceValue.getClass(), OffsetTime.class);
         }
