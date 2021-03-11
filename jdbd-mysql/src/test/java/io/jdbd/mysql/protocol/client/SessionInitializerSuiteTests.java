@@ -166,9 +166,9 @@ public class SessionInitializerSuiteTests extends AbstractConnectionBasedSuiteTe
                 .block();
         assertNotNull(resultRow);
 
-        assertEquals(resultRow.getObject("characterSetConnection", String.class), "utf8mb4", "characterSetConnection");
-        assertEquals(resultRow.getObject("characterSetClient", String.class), "utf8mb4", "characterSetClient");
-        assertNull(resultRow.getObject("characterSetResults", String.class), "characterSetResults");
+        assertEquals(resultRow.get("characterSetConnection", String.class), "utf8mb4", "characterSetConnection");
+        assertEquals(resultRow.get("characterSetClient", String.class), "utf8mb4", "characterSetClient");
+        assertNull(resultRow.get("characterSetResults", String.class), "characterSetResults");
 
         LOG.info("configSessionCharsets test success.");
     }

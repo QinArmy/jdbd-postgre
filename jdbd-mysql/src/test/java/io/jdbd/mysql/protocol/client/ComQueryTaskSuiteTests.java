@@ -1,8 +1,12 @@
 package io.jdbd.mysql.protocol.client;
 
 
+import io.jdbd.MultiResults;
+import io.jdbd.ResultRow;
+import io.jdbd.ResultStates;
 import io.jdbd.mysql.Groups;
 import io.jdbd.mysql.session.MySQLSessionAdjutant;
+import io.jdbd.mysql.util.MySQLTimeUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.ITestContext;
@@ -15,9 +19,14 @@ import java.io.BufferedReader;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.time.LocalDate;
+import java.time.LocalTime;
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.List;
+import java.util.Random;
 
-import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.*;
 
 @Test(groups = {Groups.COM_QUERY}, dependsOnGroups = {Groups.SESSION_INITIALIZER})
 public class ComQueryTaskSuiteTests extends AbstractConnectionBasedSuiteTests {
@@ -47,13 +56,19 @@ public class ComQueryTaskSuiteTests extends AbstractConnectionBasedSuiteTests {
             }
 
         }
+        List<String> commandList = new ArrayList<>(2);
+        commandList.add(builder.toString());
+        commandList.add("TRUNCATE u_user");
 
-        ComQueryTask.update(builder.toString(), taskAdjutant)
-                .then(Mono.defer(() -> ComQueryTask.update("TRUNCATE u_user", taskAdjutant)))
+        ComQueryTask.batchUpdate(commandList, taskAdjutant)
                 .then()
                 .block();
-        LOG.info("create u_user table success");
 
+        for (int i = 0; i < 2; i++) {
+            prepareData(taskAdjutant);
+        }
+
+        LOG.info("create u_user table success");
     }
 
     @AfterClass
@@ -68,19 +83,113 @@ public class ComQueryTaskSuiteTests extends AbstractConnectionBasedSuiteTests {
         ComQueryTask.update("TRUNCATE u_user", adjutant)
                 .then(Mono.defer(protocol::closeGracefully))
                 .block();
+//        protocol.closeGracefully()
+//                .block();
     }
+
 
     @Test
-    public void prepareData(ITestContext context) {
+    public void update(ITestContext context) {
+        LOG.info("update test start");
+        final MySQLTaskAdjutant adjutant = obtainTaskAdjutant(context);
+
+        final String newName = "simonyi";
+        String sql = "UPDATE u_user as u SET u.name = '%s' WHERE u.id = 1";
+        ResultStates resultStates = ComQueryTask.update(String.format(sql, newName), adjutant)
+                .block();
+
+        assertNotNull(resultStates, "resultStates");
+        assertEquals(resultStates.getAffectedRows(), 1L, "affectedRows");
+        assertEquals(resultStates.getInsertId(), 0L, "insertedId");
+        assertEquals(resultStates.getWarnings(), 0, "warnings");
+
+        assertFalse(resultStates.hasMoreResults(), "hasMoreResult");
+
+        sql = "SELECT u.id,u.name FROM u_user as u WHERE u.id = 1";
+        List<ResultRow> resultRowList = ComQueryTask.query(sql, MultiResults.EMPTY_CONSUMER, adjutant)
+                .collectList()
+                .block();
+
+        assertNotNull(resultRowList, "resultRowList");
+        assertEquals(resultRowList.size(), 1, "resultRowList size");
+
+        ResultRow resultRow = resultRowList.get(0);
+
+        assertEquals(resultRow.obtain("id", Long.class), (Object) 1L, "id");
+        assertEquals(resultRow.obtain("name", String.class), newName, "name");
+
+        assertFalse(resultStates.hasMoreResults(), "hasMoreResult");
+
+        LOG.info("update test success");
 
     }
 
+
+
     /*################################## blow private method ##################################*/
+
 
     private MySQLTaskAdjutant obtainTaskAdjutant(ITestContext context) {
         ClientConnectionProtocolImpl protocol = (ClientConnectionProtocolImpl) context.getAttribute(PROTOCOL_KEY);
         assertNotNull(protocol, "protocol");
         return protocol.taskExecutor.getAdjutant();
+    }
+
+    private static void prepareData(MySQLTaskAdjutant taskAdjutant) {
+        final int rowCount = 1000;
+
+        StringBuilder builder = new StringBuilder(40 * rowCount)
+                .append("INSERT INTO u_user(name,nick_name,balance,birthday,height,wake_up_time) VALUES");
+
+        final LocalDate age18Birthday = LocalDate.now().minusYears(18);
+        final int ageBound = 365 * 80;
+        final int genericHeight = 166;
+        final Random random = new Random();
+        final LocalTime wakeUpTime = LocalTime.of(6, 0, 0);
+        final int minutes = 60 * 8;
+
+        for (int i = 1, height; i <= rowCount; i++) {
+            if (i > 1) {
+                builder.append(",");
+            }
+            height = random.nextInt(20);
+            if ((height & 1) == 0) {
+                height += genericHeight;
+            } else {
+                height = genericHeight - height;
+            }
+            builder.append("(")
+                    //.append(i)//id
+                    .append("'zoro")//name
+                    .append(i)
+                    .append("','simonyi")//nickname
+                    .append(i)
+                    .append("',")//balance
+                    .append(random.nextInt(Integer.MAX_VALUE))
+                    .append(".")
+                    .append(random.nextInt(100))
+                    .append(",'")
+                    .append(age18Birthday.minusDays(random.nextInt(ageBound)))//birthday
+                    .append("',")
+                    .append(height)//height
+                    .append(",'")//wake_up_time
+                    .append(wakeUpTime.plusMinutes(random.nextInt(minutes)).format(MySQLTimeUtils.MYSQL_TIME_FORMATTER))
+                    .append("')");
+        }
+
+        final String command = builder.toString();
+        // LOG.info("prepare data command:\n {}", builder.toString());
+//        byte[] bytes = command.getBytes(taskAdjutant.obtainCharsetClient());
+//        LOG.info("prepare data command bytes:{}, times:{}",bytes.length,bytes.length / PacketUtils.MAX_PAYLOAD);
+//
+        ResultStates resultStates = ComQueryTask.update(command, taskAdjutant)
+                .block();
+
+        assertNotNull(resultStates, "resultStates");
+        assertEquals(resultStates.getAffectedRows(), rowCount, "affectedRows");
+        assertFalse(resultStates.hasMoreResults(), "hasMoreResults");
+        LOG.info("InsertId:{}", resultStates.getInsertId());
+
     }
 
 

@@ -41,20 +41,20 @@ abstract class MySQLResultRow implements ResultRow {
     }
 
     @Override
-    public ResultRowMeta getRowMeta() {
+    public ResultRowMeta obtainRowMeta() {
         return this.rowMeta;
     }
 
     @Nullable
     @Override
-    public final Object getObject(int indexBaseZero) throws JdbdSQLException {
+    public final Object get(int indexBaseZero) throws JdbdSQLException {
         return this.columnValues[checkIndex(indexBaseZero)];
     }
 
     @SuppressWarnings("unchecked")
     @Nullable
     @Override
-    public final <T> T getObject(int indexBaseZero, Class<T> columnClass) throws JdbdSQLException {
+    public final <T> T get(int indexBaseZero, Class<T> columnClass) throws JdbdSQLException {
         Object value = this.columnValues[checkIndex(indexBaseZero)];
         return (value == null || columnClass.isInstance(value))
                 ? (T) value
@@ -63,7 +63,7 @@ abstract class MySQLResultRow implements ResultRow {
 
     @Nullable
     @Override
-    public final Object getObject(String alias) throws JdbdSQLException {
+    public final Object get(String alias) throws JdbdSQLException {
         try {
             return this.columnValues[checkIndex(rowMeta.convertToIndex(alias))];
         } catch (MySQLJdbdException e) {
@@ -73,9 +73,9 @@ abstract class MySQLResultRow implements ResultRow {
 
     @Nullable
     @Override
-    public final <T> T getObject(String alias, Class<T> columnClass) throws JdbdSQLException {
+    public final <T> T get(String alias, Class<T> columnClass) throws JdbdSQLException {
         try {
-            return getObject(this.rowMeta.convertToIndex(alias), columnClass);
+            return get(this.rowMeta.convertToIndex(alias), columnClass);
         } catch (MySQLJdbdException e) {
             throw new MySQLJdbdException(String.format("alias[%s] access error.", alias), e);
         }
@@ -83,8 +83,8 @@ abstract class MySQLResultRow implements ResultRow {
 
 
     @Override
-    public Object getRequiredObject(int indexBaseZero) throws JdbdSQLException {
-        Object value = getObject(indexBaseZero);
+    public Object obtain(int indexBaseZero) throws JdbdSQLException {
+        Object value = get(indexBaseZero);
         if (value == null) {
             throw createNotRequiredException(indexBaseZero);
         }
@@ -92,8 +92,8 @@ abstract class MySQLResultRow implements ResultRow {
     }
 
     @Override
-    public <T> T getRequiredObject(int indexBaseZero, Class<T> columnClass) throws JdbdSQLException {
-        T value = getObject(indexBaseZero, columnClass);
+    public <T> T obtain(int indexBaseZero, Class<T> columnClass) throws JdbdSQLException {
+        T value = get(indexBaseZero, columnClass);
         if (value == null) {
             throw createNotRequiredException(indexBaseZero);
         }
@@ -101,8 +101,8 @@ abstract class MySQLResultRow implements ResultRow {
     }
 
     @Override
-    public Object getRequiredObject(String alias) throws JdbdSQLException {
-        Object value = getObject(alias);
+    public Object obtain(String alias) throws JdbdSQLException {
+        Object value = get(alias);
         if (value == null) {
             throw createNotRequiredException(alias);
         }
@@ -110,8 +110,8 @@ abstract class MySQLResultRow implements ResultRow {
     }
 
     @Override
-    public <T> T getRequiredObject(String alias, Class<T> columnClass) throws JdbdSQLException {
-        T value = getObject(alias, columnClass);
+    public <T> T obtain(String alias, Class<T> columnClass) throws JdbdSQLException {
+        T value = get(alias, columnClass);
         if (value == null) {
             throw createNotRequiredException(alias);
         }

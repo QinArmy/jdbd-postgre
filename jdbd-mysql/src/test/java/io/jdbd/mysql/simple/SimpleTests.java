@@ -26,4 +26,9 @@ public class SimpleTests {
         LOG.info("localZoneId : {} , localOffset :{}", localZoneId, localOffset);
     }
 
+    @Test
+    public void simple() {
+        System.out.println(Integer.toBinaryString(67108864).length());
+    }
+
 }

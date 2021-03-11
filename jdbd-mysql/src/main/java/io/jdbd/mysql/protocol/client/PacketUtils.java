@@ -23,7 +23,10 @@ public abstract class PacketUtils {
 
     public static final int HEADER_SIZE = 4;
 
-    public static final int MAX_PAYLOAD = ClientProtocol.MAX_PACKET_SIZE;
+    /**
+     * @see ClientProtocol#MAX_PAYLOAD_SIZE
+     */
+    public static final int MAX_PAYLOAD = ClientProtocol.MAX_PAYLOAD_SIZE;
 
     public static final int MAX_PACKET = HEADER_SIZE + MAX_PAYLOAD;
 

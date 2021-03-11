@@ -404,7 +404,7 @@ abstract class AbstractResultSetReader implements ResultSetReader {
                 sequenceId = PacketUtils.readInt1(cumulateBuffer);
                 if (i == 0) {
                     // this block handle first payload of big row.
-                    if (payloadLength != ClientProtocol.MAX_PACKET_SIZE) {
+                    if (payloadLength != ClientProtocol.MAX_PAYLOAD_SIZE) {
                         throw new IllegalStateException("Not bit row,can't invoke this method.");
                     }
                     if (cumulateBuffer.readByte() != 0) {

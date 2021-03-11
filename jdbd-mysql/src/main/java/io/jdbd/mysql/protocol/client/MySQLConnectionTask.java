@@ -70,6 +70,8 @@ final class MySQLConnectionTask extends AbstractCommunicationTask implements Aut
 
     private final Properties<PropertyKey> properties;
 
+    private final int maxPayloadSize;
+
     private Charset handshakeCharset;
 
     private byte handshakeCollationIndex;
@@ -98,6 +100,8 @@ final class MySQLConnectionTask extends AbstractCommunicationTask implements Aut
         this.hostInfo = adjutant.obtainHostInfo();
         this.properties = this.hostInfo.getProperties();
         this.pluginMap = loadAuthenticationPluginMap();
+
+        this.maxPayloadSize = obtainMaxPacketBytes(this.properties);
 
         this.sink = sink;
         Charset charset = this.properties.getProperty(PropertyKey.characterEncoding, Charset.class);
@@ -417,9 +421,11 @@ final class MySQLConnectionTask extends AbstractCommunicationTask implements Aut
 
 
     /**
-     * @see #internalDecode(ByteBuf, Consumer)
      * @see #handleSslRequestSendSuccess()
+     * @see #sendHandshakeResponseAfterSslHandshakeSuccess(Void)
+     * @see #receiveHandshakeAndSendResponse(ByteBuf)
      */
+    @Nullable
     private Mono<ByteBuf> createHandshakeResponsePacket() {
         Mono<ByteBuf> mono;
 
@@ -432,7 +438,7 @@ final class MySQLConnectionTask extends AbstractCommunicationTask implements Aut
         } catch (Throwable e) {
             JdbdException je = MySQLExceptions.wrap(e);
             handleAuthenticateFailure(je);
-            mono = Mono.empty();
+            mono = null;
         }
         return mono;
     }
@@ -446,7 +452,7 @@ final class MySQLConnectionTask extends AbstractCommunicationTask implements Aut
         // 1. client_flag
         PacketUtils.writeInt4(packet, this.negotiatedCapability);
         // 2. max_packet_size
-        PacketUtils.writeInt4(packet, PacketUtils.MAX_PAYLOAD);
+        PacketUtils.writeInt4(packet, this.maxPayloadSize);
         // 3.handshake character_set,
         packet.writeByte(this.handshakeCollationIndex);
         // 4. filler
@@ -496,6 +502,9 @@ final class MySQLConnectionTask extends AbstractCommunicationTask implements Aut
         return false;
     }
 
+    /**
+     * @see #processNextAuthenticationNegotiation(ByteBuf)
+     */
     private ByteBuf writeAuthPayload(final ByteBuf payload) {
         final ByteBuf packet;
         final int readableBytes = payload.readableBytes();
@@ -526,7 +535,7 @@ final class MySQLConnectionTask extends AbstractCommunicationTask implements Aut
         // 1. client_flag,Capabilities Flags, CLIENT_PROTOCOL_41 always set.
         PacketUtils.writeInt4(packetBuffer, clientFlag);
         // 2. max_packet_size
-        PacketUtils.writeInt4(packetBuffer, ClientProtocol.MAX_PACKET_SIZE);
+        PacketUtils.writeInt4(packetBuffer, this.maxPayloadSize);
         // 3. character_set
         PacketUtils.writeInt1(packetBuffer, this.handshakeCollationIndex);
         // 4. filler,Set of bytes reserved for future use.
@@ -782,6 +791,18 @@ final class MySQLConnectionTask extends AbstractCommunicationTask implements Aut
             String message = String.format("load plugin[%s] occur error.", pluginClass.getName());
             throw new MySQLJdbdException(e, message);
         }
+    }
+
+    private static int obtainMaxPacketBytes(final Properties<PropertyKey> properties) {
+        // because @@session.max_allowed_packet must be multiple of 1024,and single packet maxPayload is ((1<<24) - 1)
+        final int minMultiple = (1 << 14), maxMultiple = 1 << 20;
+        int multiple = properties.getOrDefault(PropertyKey.maxAllowedPacketMultiple, Integer.class);
+        if (multiple < minMultiple) {
+            multiple = minMultiple;
+        } else if (multiple > maxMultiple) {
+            multiple = maxMultiple;
+        }
+        return multiple;
     }
 
 

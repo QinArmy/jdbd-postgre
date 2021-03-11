@@ -7,30 +7,30 @@ import io.jdbd.lang.Nullable;
  */
 public interface ResultRow {
 
-    ResultRowMeta getRowMeta();
+    ResultRowMeta obtainRowMeta();
 
     @Nullable
-    Object getObject(int indexBaseZero) throws JdbdSQLException;
-
-
-    @Nullable
-    <T> T getObject(int indexBaseZero, Class<T> columnClass) throws JdbdSQLException;
+    Object get(int indexBaseZero) throws JdbdSQLException;
 
 
     @Nullable
-    Object getObject(String alias) throws JdbdSQLException;
+    <T> T get(int indexBaseZero, Class<T> columnClass) throws JdbdSQLException;
 
 
     @Nullable
-    <T> T getObject(String alias, Class<T> columnClass) throws JdbdSQLException;
+    Object get(String alias) throws JdbdSQLException;
 
 
-    Object getRequiredObject(int indexBaseZero) throws JdbdSQLException;
+    @Nullable
+    <T> T get(String alias, Class<T> columnClass) throws JdbdSQLException;
 
-    <T> T getRequiredObject(int indexBaseZero, Class<T> columnClass) throws JdbdSQLException;
 
-    Object getRequiredObject(String alias) throws JdbdSQLException;
+    Object obtain(int indexBaseZero) throws JdbdSQLException;
 
-    <T> T getRequiredObject(String alias, Class<T> columnClass) throws JdbdSQLException;
+    <T> T obtain(int indexBaseZero, Class<T> columnClass) throws JdbdSQLException;
+
+    Object obtain(String alias) throws JdbdSQLException;
+
+    <T> T obtain(String alias, Class<T> columnClass) throws JdbdSQLException;
 
 }

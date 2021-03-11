@@ -127,7 +127,7 @@ final class ClientConnectionProtocolImpl implements ClientConnectionProtocol {
     private void printCustomCollationLog(ResultRow row) {
         if (LOG.isDebugEnabled()) {
             LOG.debug("has custom collations : {} - {} "
-                    , row.getRequiredObject("Id"), row.getRequiredObject("Collation"));
+                    , row.obtain("Id"), row.obtain("Collation"));
         }
     }
 
@@ -163,7 +163,7 @@ final class ClientConnectionProtocolImpl implements ClientConnectionProtocol {
      * @see #detectCustomCollations()
      */
     private Integer customCollationMapKeyFunction(ResultRow resultRow) {
-        return resultRow.getRequiredObject("Id", Integer.class);
+        return resultRow.obtain("Id", Integer.class);
     }
 
     /**
@@ -171,9 +171,9 @@ final class ClientConnectionProtocolImpl implements ClientConnectionProtocol {
      */
     private CharsetMapping.CustomCollation customCollationMapValueFunction(ResultRow resultRow) {
         return new CharsetMapping.CustomCollation(
-                resultRow.getRequiredObject("Id", Integer.class)
-                , resultRow.getRequiredObject("Collation", String.class)
-                , resultRow.getRequiredObject("Charset", String.class)
+                resultRow.obtain("Id", Integer.class)
+                , resultRow.obtain("Collation", String.class)
+                , resultRow.obtain("Charset", String.class)
                 , -1 // placeholder.
         );
     }
@@ -182,7 +182,7 @@ final class ClientConnectionProtocolImpl implements ClientConnectionProtocol {
      * @see #detectCustomCollations()
      */
     private boolean isCustomCollation(ResultRow resultRow) {
-        return !CharsetMapping.INDEX_TO_COLLATION.containsKey(resultRow.getRequiredObject("Id", Integer.class));
+        return !CharsetMapping.INDEX_TO_COLLATION.containsKey(resultRow.obtain("Id", Integer.class));
     }
 
     /**
@@ -200,9 +200,9 @@ final class ClientConnectionProtocolImpl implements ClientConnectionProtocol {
         } else {
 
             mono = ComQueryTask.query("SHOW CHARACTER SET", MultiResults.EMPTY_CONSUMER, this.taskExecutor.getAdjutant())
-                    .filter(resultRow -> charsetNameSet.contains(resultRow.getRequiredObject("Charset", String.class)))
-                    .collectMap(resultRow -> resultRow.getRequiredObject("Charset", String.class)
-                            , resultRow -> resultRow.getRequiredObject("Maxlen", Integer.class))
+                    .filter(resultRow -> charsetNameSet.contains(resultRow.obtain("Charset", String.class)))
+                    .collectMap(resultRow -> resultRow.obtain("Charset", String.class)
+                            , resultRow -> resultRow.obtain("Maxlen", Integer.class))
                     .map(this::createCustomCollations);
         }
         return mono;

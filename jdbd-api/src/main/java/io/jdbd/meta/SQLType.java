@@ -15,7 +15,7 @@ public interface SQLType extends java.sql.SQLType {
     JDBCType jdbcType();
 
     /**
-     * @see io.jdbd.ResultRow#getObject(String)
+     * @see io.jdbd.ResultRow#get(String)
      */
     Class<?> javaType();
 

@@ -29,7 +29,11 @@ public abstract class ClientTestUtils {
     }
 
     public static Path getModulePath() {
-        return Paths.get(System.getProperty("user.dir"), "jdbd-mysql");
+        Path path = Paths.get(System.getProperty("user.dir"));
+        if (!path.toString().endsWith("jdbd-mysql")) {
+            path = Paths.get(path.toString(), "jdbd-mysql");
+        }
+        return path;
     }
 
     public static Path getTestResourcesPath() {
