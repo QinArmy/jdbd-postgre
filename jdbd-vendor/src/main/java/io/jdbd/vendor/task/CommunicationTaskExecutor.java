@@ -236,7 +236,7 @@ public abstract class CommunicationTaskExecutor<T extends TaskAdjutant> implemen
     private void doOnCompleteInEventLoop() {
         Logger LOG = obtainLogger();
         if (LOG.isDebugEnabled()) {
-            LOG.debug("Connection  close.");
+            LOG.debug("Connection close.");
         }
         CommunicationTask task = this.currentTask;
         if (task != null) {

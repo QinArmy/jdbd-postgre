@@ -10,7 +10,10 @@ import io.jdbd.mysql.session.MySQLSessionAdjutant;
 import io.jdbd.mysql.util.MySQLTimeUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.testng.annotations.AfterClass;
+import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
+import reactor.core.publisher.Flux;
 
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
@@ -18,13 +21,36 @@ import java.time.ZoneOffset;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 
 import static org.testng.Assert.*;
 
-@Test(groups = {Groups.CONNECTION_PHASE}, dependsOnGroups = {Groups.AUTHENTICATE_PLUGIN})
+@Test(groups = {Groups.SESSION_INITIALIZER}, dependsOnGroups = {Groups.AUTHENTICATE_PLUGIN})
 public class SessionInitializerSuiteTests extends AbstractConnectionBasedSuiteTests {
 
     private static final Logger LOG = LoggerFactory.getLogger(SessionInitializerSuiteTests.class);
+
+    private static final ConcurrentMap<Long, ClientConnectionProtocol> protocolMap = new ConcurrentHashMap<>();
+
+    @BeforeClass
+    public static void beforeClass() {
+        LOG.info("\n {} group test start.\n", Groups.SESSION_INITIALIZER);
+    }
+
+    @AfterClass
+    public static void afterClass() {
+        LOG.info("\n {} group test end.\n", Groups.SESSION_INITIALIZER);
+        LOG.info("close {} ,size:{}", ClientConnectionProtocol.class.getName(), protocolMap.size());
+
+        Flux.fromIterable(protocolMap.values())
+                .flatMap(ClientConnectionProtocol::closeGracefully)
+                .then()
+                .block();
+
+        protocolMap.clear();
+    }
+
 
     @Test(timeOut = TIME_OUT)
     public void connectAndInitializing() {
@@ -181,7 +207,9 @@ public class SessionInitializerSuiteTests extends AbstractConnectionBasedSuiteTe
         assertNotNull(protocol.taskExecutor, "protocol.taskExecutor");
         assertNotNull(protocol.sessionResetter, "protocol.sessionResetter");
 
-        return protocol.taskExecutor.getAdjutant();
+        MySQLTaskAdjutant adjutant = protocol.taskExecutor.getAdjutant();
+        protocolMap.put(adjutant.obtainHandshakeV10Packet().getThreadId(), protocol);
+        return adjutant;
     }
 
 

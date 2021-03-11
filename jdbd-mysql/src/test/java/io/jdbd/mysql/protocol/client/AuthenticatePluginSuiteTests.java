@@ -55,7 +55,7 @@ public class AuthenticatePluginSuiteTests extends AbstractConnectionBasedSuiteTe
         LOG.info("cachingSha2PasswordPublicKeyAuthenticate test start.");
         final Path serverRSAPublicKeyPath;
         serverRSAPublicKeyPath = Paths.get(System.getProperty("user.dir")
-                , "jdbd-mysql/src/test/resources/mysql-server/public_key.pem");
+                , "jdbd-mysql/src/test/resources/my-local/mysql-server/public_key.pem");
 
         if (Files.notExists(serverRSAPublicKeyPath)) {
             LOG.warn("{} not exists,ignore cachingSha2PasswordPublicKeyAuthenticate.", serverRSAPublicKeyPath);

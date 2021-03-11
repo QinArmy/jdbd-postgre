@@ -18,10 +18,13 @@
         </RollingFile>
     </Appenders>
     <Loggers>
-        <Logger name="io.jdbd.mysql" level="TRACE" additivity="false">
+        <Logger name="io.jdbd.mysql" level="DEBUG" additivity="false">
             <AppenderRef ref="Console"/>
         </Logger>
-        <Logger name="reactor.netty.tcp.ssl" level="TRACE" additivity="false">
+        <Logger name="io.jdbd.mysql.protocol.client.ComQueryTask" level="TRACE" additivity="false">
+            <AppenderRef ref="Console"/>
+        </Logger>
+        <Logger name="reactor.netty.tcp.ssl" level="INFO" additivity="false">
             <AppenderRef ref="Console"/>
         </Logger>
         <Root level="INFO">

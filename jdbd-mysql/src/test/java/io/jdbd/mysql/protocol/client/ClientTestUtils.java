@@ -3,6 +3,9 @@ package io.jdbd.mysql.protocol.client;
 import io.jdbd.mysql.protocol.conf.MySQLUrl;
 import org.testng.annotations.Test;
 
+import java.nio.charset.Charset;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -23,6 +26,18 @@ public abstract class ClientTestUtils {
 
         properties.putAll(propertiesMap);
         return MySQLUrl.getInstance(url, properties);
+    }
+
+    public static Path getModulePath() {
+        return Paths.get(System.getProperty("user.dir"), "jdbd-mysql");
+    }
+
+    public static Path getTestResourcesPath() {
+        return Paths.get(getModulePath().toString(), "src/test/resources");
+    }
+
+    public static Charset getSystemFileCharset() {
+        return Charset.forName(System.getProperty("file.encoding"));
     }
 
 
