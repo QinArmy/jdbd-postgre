@@ -28,7 +28,7 @@ public class SimpleTests {
 
     @Test
     public void simple() {
-        System.out.println(Integer.toBinaryString(67108864).length());
+
     }
 
 }

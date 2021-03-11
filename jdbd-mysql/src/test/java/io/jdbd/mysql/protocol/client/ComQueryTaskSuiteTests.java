@@ -20,9 +20,7 @@ import java.math.BigDecimal;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.time.LocalDate;
-import java.time.LocalTime;
-import java.time.OffsetTime;
+import java.time.*;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -176,6 +174,24 @@ public class ComQueryTaskSuiteTests extends AbstractConnectionBasedSuiteTests {
             resultRow.get("height", Integer.class);
             resultRow.get("wake_up_time", LocalTime.class);
             resultRow.get("wake_up_time", OffsetTime.class);
+            resultRow.get("wake_up_time", String.class);
+
+            resultRow.get("create_time", LocalDateTime.class);
+            resultRow.get("create_time", LocalDate.class);
+            resultRow.get("create_time", LocalTime.class);
+            resultRow.get("create_time", ZonedDateTime.class);
+
+            resultRow.get("create_time", OffsetDateTime.class);
+            resultRow.get("create_time", OffsetTime.class);
+            resultRow.get("create_time", Year.class);
+            resultRow.get("create_time", YearMonth.class);
+
+            resultRow.get("create_time", MonthDay.class);
+            resultRow.get("create_time", Month.class);
+            resultRow.get("create_time", DayOfWeek.class);
+            resultRow.get("create_time", String.class);
+
+            resultRow.get("update_time", LocalDateTime.class);
             resultRow.get("birthday", LocalDate.class);
 
             assertNull(resultRow.get("love_music"), "love_music");

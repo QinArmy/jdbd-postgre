@@ -18,7 +18,7 @@ public interface ResultRow {
 
 
     @Nullable
-    Object get(String alias) throws JdbdSQLException;
+    Object get(String columnAlias) throws JdbdSQLException;
 
 
     @Nullable
@@ -29,8 +29,8 @@ public interface ResultRow {
 
     <T> T obtain(int indexBaseZero, Class<T> columnClass) throws JdbdSQLException;
 
-    Object obtain(String alias) throws JdbdSQLException;
+    Object obtain(String columnAlias) throws JdbdSQLException;
 
-    <T> T obtain(String alias, Class<T> columnClass) throws JdbdSQLException;
+    <T> T obtain(String columnAlias, Class<T> columnClass) throws JdbdSQLException;
 
 }

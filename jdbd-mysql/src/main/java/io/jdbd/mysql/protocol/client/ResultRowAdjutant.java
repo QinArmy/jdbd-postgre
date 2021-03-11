@@ -9,6 +9,8 @@ interface ResultRowAdjutant {
 
     ZoneOffset obtainZoneOffsetClient();
 
+    ZoneOffset obtainZoneOffsetDatabase();
+
     @Nullable
     Charset getCharsetResults();
 

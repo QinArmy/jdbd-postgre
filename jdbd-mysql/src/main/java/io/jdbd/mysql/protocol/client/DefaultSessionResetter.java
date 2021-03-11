@@ -332,7 +332,8 @@ final class DefaultSessionResetter implements SessionResetter {
         String databaseZoneText = resultRow.obtain("timeZone", String.class);
         final ZoneOffset zoneOffsetDatabase;
         if ("SYSTEM".equals(databaseZoneText)) {
-            LocalDateTime dateTime = resultRow.obtain("databaseNow", LocalDateTime.class);
+            LocalDateTime dateTime = LocalDateTime.parse(resultRow.obtain("databaseNow", String.class)
+                    , MySQLTimeUtils.MYSQL_DATETIME_FORMATTER);
             OffsetDateTime databaseNow = OffsetDateTime.of(dateTime, ZoneOffset.UTC);
 
             int totalSeconds = (int) (databaseNow.toEpochSecond() - utcEpochSecond);
