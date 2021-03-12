@@ -115,8 +115,8 @@ public class ComQueryTaskSuiteTests extends AbstractConnectionBasedSuiteTests {
 
         ResultRow resultRow = resultRowList.get(0);
 
-        assertEquals(resultRow.obtain("id", Long.class), (Object) 1L, "id");
-        assertEquals(resultRow.obtain("name", String.class), newName, "name");
+        assertEquals(resultRow.getNonNull("id", Long.class), (Object) 1L, "id");
+        assertEquals(resultRow.getNonNull("name", String.class), newName, "name");
 
         assertFalse(resultStates.hasMoreResults(), "hasMoreResult");
 

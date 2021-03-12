@@ -9,6 +9,7 @@ import io.jdbd.mysql.util.MySQLStringUtils;
 import org.qinarmy.util.StringUtils;
 import reactor.util.annotation.Nullable;
 
+import java.nio.charset.Charset;
 import java.sql.JDBCType;
 import java.sql.SQLException;
 import java.util.Collections;
@@ -193,6 +194,14 @@ abstract class MySQLRowMeta implements ResultRowMeta {
         }
         throw new JdbdSQLException(
                 new SQLException(String.format("not found index for columnLabel[%s]", columnLabel)));
+    }
+
+    final MySQLType getMySQLType(int indexBaseZero) {
+        return this.columnMetaArray[checkIndex(indexBaseZero)].mysqlType;
+    }
+
+    public final Charset getColumnCharset(int indexBaseZero) {
+        return this.columnMetaArray[checkIndex(indexBaseZero)].columnCharset;
     }
 
     private int checkIndex(int indexBaseZero) {

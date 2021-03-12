@@ -293,7 +293,7 @@ final class DefaultSessionResetter implements SessionResetter {
      * @see #configSqlMode()
      */
     private Mono<Void> appendSqlModeIfNeed(final ResultRow resultRow) {
-        String sqlModeString = resultRow.obtain(0, String.class);
+        String sqlModeString = resultRow.getNonNull(0, String.class);
         final Set<String> sqlModeSet = MySQLStringUtils.spitAsSet(sqlModeString, ",");
 
         final Mono<Void> mono;
@@ -329,10 +329,10 @@ final class DefaultSessionResetter implements SessionResetter {
      */
     private Mono<Void> handleDatabaseTimeZoneAndConnectionZone(final ResultRow resultRow, final long utcEpochSecond) {
         // 1. handle query result.
-        String databaseZoneText = resultRow.obtain("timeZone", String.class);
+        String databaseZoneText = resultRow.getNonNull("timeZone", String.class);
         final ZoneOffset zoneOffsetDatabase;
         if ("SYSTEM".equals(databaseZoneText)) {
-            LocalDateTime dateTime = LocalDateTime.parse(resultRow.obtain("databaseNow", String.class)
+            LocalDateTime dateTime = LocalDateTime.parse(resultRow.getNonNull("databaseNow", String.class)
                     , MySQLTimeUtils.MYSQL_DATETIME_FORMATTER);
             OffsetDateTime databaseNow = OffsetDateTime.of(dateTime, ZoneOffset.UTC);
 

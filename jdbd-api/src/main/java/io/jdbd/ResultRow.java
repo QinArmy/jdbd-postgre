@@ -7,14 +7,14 @@ import io.jdbd.lang.Nullable;
  */
 public interface ResultRow {
 
-    ResultRowMeta obtainRowMeta();
+    ResultRowMeta getRowMeta();
 
     @Nullable
     Object get(int indexBaseZero) throws JdbdSQLException;
 
 
     @Nullable
-    <T> T get(int indexBaseZero, Class<T> columnClass) throws JdbdSQLException;
+    <T> T get(int indexBaseZero, Class<T> columnClass) throws JdbdSQLException, UnsupportedConvertingException;
 
 
     @Nullable
@@ -22,15 +22,17 @@ public interface ResultRow {
 
 
     @Nullable
-    <T> T get(String alias, Class<T> columnClass) throws JdbdSQLException;
+    <T> T get(String alias, Class<T> columnClass) throws JdbdSQLException, UnsupportedConvertingException;
 
 
-    Object obtain(int indexBaseZero) throws JdbdSQLException;
+    Object getNonNull(int indexBaseZero) throws JdbdSQLException, NullPointerException;
 
-    <T> T obtain(int indexBaseZero, Class<T> columnClass) throws JdbdSQLException;
+    <T> T getNonNull(int indexBaseZero, Class<T> columnClass)
+            throws JdbdSQLException, UnsupportedConvertingException, NullPointerException;
 
-    Object obtain(String columnAlias) throws JdbdSQLException;
+    Object getNonNull(String columnAlias) throws JdbdSQLException, NullPointerException;
 
-    <T> T obtain(String columnAlias, Class<T> columnClass) throws JdbdSQLException;
+    <T> T getNonNull(String columnAlias, Class<T> columnClass)
+            throws JdbdSQLException, UnsupportedConvertingException, NullPointerException;
 
 }

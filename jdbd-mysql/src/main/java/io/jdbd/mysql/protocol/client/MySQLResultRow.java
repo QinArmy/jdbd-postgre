@@ -1,47 +1,63 @@
 package io.jdbd.mysql.protocol.client;
 
 import io.jdbd.JdbdSQLException;
-import io.jdbd.ResultRowMeta;
+import io.jdbd.UnsupportedConvertingException;
+import io.jdbd.mysql.util.MySQLConvertUtils;
 import io.jdbd.mysql.util.MySQLTimeUtils;
 import io.jdbd.vendor.result.AbstractResultRow;
-import reactor.util.annotation.Nullable;
 
 import java.nio.charset.Charset;
 import java.sql.SQLException;
-import java.time.DateTimeException;
-import java.time.LocalDate;
-import java.time.ZoneOffset;
+import java.time.*;
 import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeFormatterBuilder;
 import java.time.temporal.TemporalAccessor;
+import java.time.temporal.TemporalAmount;
+import java.util.Locale;
 
-abstract class MySQLResultRow extends AbstractResultRow {
+abstract class MySQLResultRow extends AbstractResultRow<MySQLRowMeta> {
 
     static MySQLResultRow from(Object[] columnValues, MySQLRowMeta rowMeta, ResultRowAdjutant adjutant) {
         return new SimpleMySQLResultRow(columnValues, rowMeta, adjutant);
     }
 
-
-    private final MySQLRowMeta rowMeta;
-
     private final ResultRowAdjutant adjutant;
 
     private MySQLResultRow(Object[] columnValues, MySQLRowMeta rowMeta, ResultRowAdjutant adjutant) {
-        super(columnValues);
-        if (columnValues.length != rowMeta.columnMetaArray.length) {
-            throw new IllegalArgumentException(
-                    String.format("columnValues length[%s] and columnMetas of rowMeta length[%s] not match."
-                            , columnValues.length, rowMeta.columnMetaArray.length));
-        }
-        this.rowMeta = rowMeta;
+        super(rowMeta, columnValues);
         this.adjutant = adjutant;
     }
 
-    @Override
-    public ResultRowMeta obtainRowMeta() {
-        return this.rowMeta;
-    }
 
     /*################################## blow protected method ##################################*/
+
+    /**
+     * <p>
+     * see {@code com.mysql.cj.result.BooleanValueFactory}
+     * </p>
+     *
+     * @see #convertValue(int, Object, Class)
+     */
+    @Override
+    protected boolean convertToBoolean(final int indexBaseZero, final Object sourceValue) {
+        final boolean value;
+
+        try {
+            if (sourceValue instanceof Boolean) {
+                value = (Boolean) sourceValue;
+            } else if (sourceValue instanceof Number || sourceValue instanceof String) {
+                value = MySQLConvertUtils.convertObjectToBoolean(sourceValue);
+            } else if (sourceValue instanceof byte[]) {
+                String text = new String((byte[]) sourceValue, obtainColumnCharset(indexBaseZero));
+                value = MySQLConvertUtils.convertObjectToBoolean(text);
+            } else {
+                throw createNotSupportedException(indexBaseZero, Boolean.class);
+            }
+            return value;
+        } catch (Throwable e) {
+            throw createValueCannotConvertException(e, indexBaseZero, Boolean.class);
+        }
+    }
 
     @Override
     protected int convertToIndex(String columnAlias) {
@@ -53,34 +69,16 @@ abstract class MySQLResultRow extends AbstractResultRow {
         return this.adjutant.obtainZoneOffsetClient();
     }
 
-    @Override
-    protected ZoneOffset obtainZoneOffsetDatabase() {
-        return this.adjutant.obtainZoneOffsetDatabase();
-    }
 
     @Override
-    protected boolean isDatabaseSupportTimeZone() {
-        return false;
-    }
-
-    @Override
-    protected DateTimeFormatter obtainLocalDateTimeFormatter() {
-        return MySQLTimeUtils.MYSQL_DATETIME_FORMATTER;
-    }
-
-    @Override
-    protected DateTimeFormatter obtainLocalTimeFormatter() {
-        return MySQLTimeUtils.MYSQL_TIME_FORMATTER;
-    }
-
-    @Override
-    protected Charset obtainColumnCharset(final int index) {
+    protected Charset obtainColumnCharset(final int indexBaseZero) {
         Charset charset = this.adjutant.getCharsetResults();
         if (charset == null) {
-            charset = this.rowMeta.columnMetaArray[index].columnCharset;
+            charset = this.rowMeta.getColumnCharset(indexBaseZero);
         }
         return charset;
     }
+
 
     @Override
     protected JdbdSQLException createNotRequiredException(int indexBaseZero) {
@@ -96,48 +94,113 @@ abstract class MySQLResultRow extends AbstractResultRow {
 
     @Override
     protected TemporalAccessor convertStringToTemporalAccessor(final int indexBaseZero, final String sourceValue
-            , final Class<?> targetClass) {
-        MySQLColumnMeta columnMeta = this.rowMeta.columnMetaArray[indexBaseZero];
+            , final Class<?> targetClass)
+            throws DateTimeException, UnsupportedConvertingException {
+
         final TemporalAccessor accessor;
-        try {
-            switch (columnMeta.mysqlType) {
-                case DATETIME:
-                case TIMESTAMP:
-                    accessor = convertStringToOffsetDateTime(indexBaseZero, sourceValue
-                            , targetClass);
-                    break;
-                case DATE:
-                    accessor = LocalDate.parse(sourceValue);
-                    break;
-                case TIME:
-                    accessor = convertStringToOffsetTime(indexBaseZero, sourceValue, targetClass);
-                    break;
-                default:
-                    throw createNotSupportedException(indexBaseZero, sourceValue.getClass(), targetClass);
+
+        switch (this.rowMeta.getMySQLType(indexBaseZero)) {
+            case DATETIME:
+            case TIMESTAMP: {
+                LocalDateTime dateTime;
+                dateTime = LocalDateTime.parse(sourceValue, MySQLTimeUtils.MYSQL_DATETIME_FORMATTER);
+                accessor = OffsetDateTime.of(dateTime, this.adjutant.obtainZoneOffsetDatabase())
+                        .withOffsetSameInstant(obtainZoneOffsetClient())
+                        .toLocalDateTime();
             }
-        } catch (DateTimeException e) {
-            throw createValueCannotConvertException(e, indexBaseZero, sourceValue.getClass(), targetClass);
+            break;
+            case DATE:
+                accessor = LocalDate.parse(sourceValue);
+                break;
+            case TIME: {
+                LocalTime databaseTime = LocalTime.parse(sourceValue, MySQLTimeUtils.MYSQL_TIME_FORMATTER);
+                accessor = OffsetTime.of(databaseTime, this.adjutant.obtainZoneOffsetDatabase())
+                        .withOffsetSameInstant(obtainZoneOffsetClient())
+                        .toLocalTime();
+            }
+            break;
+            case YEAR:
+                accessor = Year.parse(sourceValue);
+                break;
+            default:
+                throw createNotSupportedException(indexBaseZero, targetClass);
         }
         return accessor;
     }
 
-
     @Override
-    protected JdbdSQLException createNotSupportedException(int indexBasedZero, Class<?> valueClass
-            , Class<?> targetClass) {
-        String m = String.format("Not support convert from (index[%s] alias[%s] and type[%s]) to %s."
-                , indexBasedZero, this.rowMeta.getColumnLabel(indexBasedZero)
-                , valueClass.getName(), targetClass.getName());
-        return new JdbdSQLException(new SQLException(m));
+    protected TemporalAmount convertStringToTemporalAmount(final int indexBaseZero, final String sourceValue
+            , final Class<?> targetClass) throws DateTimeException, UnsupportedConvertingException {
+        final Duration duration;
+        if (this.rowMeta.getMySQLType(indexBaseZero) == MySQLType.TIME) {
+            duration = MySQLTimeUtils.parseTimeAsDuration(sourceValue);
+        } else {
+            throw createNotSupportedException(indexBaseZero, targetClass);
+        }
+        return duration;
     }
 
     @Override
-    protected JdbdSQLException createValueCannotConvertException(@Nullable Throwable cause, int indexBasedZero
-            , Class<?> valueClass, Class<?> targetClass) {
-        String m = String.format("Cannot convert value from (index[%s] alias[%s] and type[%s]) to %s, please check value rang."
+    protected String formatTemporalAccessor(final TemporalAccessor temporalAccessor) throws DateTimeException {
+        final String text;
+        if (temporalAccessor instanceof LocalDateTime) {
+            text = ((LocalDateTime) temporalAccessor).format(MySQLTimeUtils.MYSQL_DATETIME_FORMATTER);
+        } else if (temporalAccessor instanceof LocalTime) {
+            text = ((LocalTime) temporalAccessor).format(MySQLTimeUtils.MYSQL_TIME_FORMATTER);
+        } else if (temporalAccessor instanceof ZonedDateTime) {
+            //no bug never here
+            DateTimeFormatter formatter = new DateTimeFormatterBuilder()
+                    .append(MySQLTimeUtils.MYSQL_DATETIME_FORMATTER)
+                    .appendOffsetId()
+                    .toFormatter(Locale.ENGLISH);
+
+            text = ((ZonedDateTime) temporalAccessor).format(formatter);
+        } else if (temporalAccessor instanceof OffsetDateTime) {
+            //no bug  never here
+            DateTimeFormatter formatter = new DateTimeFormatterBuilder()
+                    .append(MySQLTimeUtils.MYSQL_DATETIME_FORMATTER)
+                    .appendZoneId()
+                    .toFormatter(Locale.ENGLISH);
+
+            text = ((OffsetDateTime) temporalAccessor).format(formatter);
+        } else if (temporalAccessor instanceof OffsetTime) {
+            //no bug  never here
+            DateTimeFormatter formatter = new DateTimeFormatterBuilder()
+                    .append(MySQLTimeUtils.MYSQL_TIME_FORMATTER)
+                    .appendOffsetId()
+                    .toFormatter(Locale.ENGLISH);
+
+            text = ((OffsetTime) temporalAccessor).format(formatter);
+        } else {
+            text = temporalAccessor.toString();
+        }
+        return text;
+    }
+
+
+    @Override
+    protected UnsupportedConvertingException createNotSupportedException(final int indexBasedZero
+            , final Class<?> targetClass) {
+        MySQLType mySQLType = this.rowMeta.getMySQLType(indexBasedZero);
+
+        String message = String.format("Not support convert from (index[%s] alias[%s] and MySQLType[%s]) to %s.",
+                indexBasedZero, this.rowMeta.getColumnLabel(indexBasedZero)
+                , mySQLType, targetClass.getName());
+
+        return new UnsupportedConvertingException(message, mySQLType, targetClass);
+    }
+
+    @Override
+    protected UnsupportedConvertingException createValueCannotConvertException(Throwable cause
+            , int indexBasedZero, Class<?> targetClass) {
+        MySQLType mySQLType = this.rowMeta.getMySQLType(indexBasedZero);
+
+        String f = "Cannot convert value from (index[%s] alias[%s] and MySQLType[%s]) to %s, please check value rang.";
+        String m = String.format(f
                 , indexBasedZero, this.rowMeta.getColumnLabel(indexBasedZero)
-                , valueClass.getName(), targetClass.getName());
-        return new JdbdSQLException(new SQLException(m, cause));
+                , mySQLType, targetClass.getName());
+
+        return new UnsupportedConvertingException(m, cause, mySQLType, targetClass);
     }
 
 

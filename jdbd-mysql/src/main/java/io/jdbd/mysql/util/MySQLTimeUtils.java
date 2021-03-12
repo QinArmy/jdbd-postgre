@@ -2,6 +2,9 @@ package io.jdbd.mysql.util;
 
 import org.qinarmy.util.TimeUtils;
 
+import java.time.DateTimeException;
+import java.time.Duration;
+import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeFormatterBuilder;
 import java.util.Locale;
@@ -111,6 +114,70 @@ public abstract class MySQLTimeUtils extends TimeUtils {
             .appendLiteral(' ')
             .append(MYSQL_TIME_FORMATTER)
             .toFormatter(Locale.ENGLISH);
+
+
+    /**
+     * @return {@link java.time.LocalTime} or {@link Duration}
+     * @see <a href="https://dev.mysql.com/doc/refman/8.0/en/time.html">The TIME Type</a>
+     */
+    public static Object parseTime(final String timeText) throws DateTimeException {
+        Object timeValue;
+        try {
+            timeValue = LocalTime.parse(timeText, MYSQL_TIME_FORMATTER);
+        } catch (DateTimeException e) {
+            timeValue = parseTimeAsDuration(timeText);
+        }
+        return timeValue;
+    }
+
+
+    /**
+     * @see <a href="https://dev.mysql.com/doc/refman/8.0/en/time.html">The TIME Type</a>
+     */
+    public static Duration parseTimeAsDuration(final String timeText) throws DateTimeException {
+
+        try {
+            final String[] itemArray = timeText.trim().split(":");
+            if (itemArray.length != 3) {
+                throw new DateTimeException(createTimeFormatErrorMessage(timeText));
+            }
+            final int hours, minutes, seconds, micros;
+            hours = Integer.parseInt(itemArray[0]);
+            minutes = Integer.parseInt(itemArray[1]);
+
+            if (itemArray[2].contains(".")) {
+                String[] secondPartArray = itemArray[2].split("\\.");
+                if (secondPartArray.length != 2) {
+                    throw new DateTimeException(createTimeFormatErrorMessage(timeText));
+                }
+                seconds = Integer.parseInt(secondPartArray[0]);
+                micros = Integer.parseInt(secondPartArray[1]);
+            } else {
+                seconds = Integer.parseInt(itemArray[2]);
+                micros = 0;
+            }
+            if (minutes < 0 || seconds < 0 || micros < 0) {
+                throw new DateTimeException(createTimeFormatErrorMessage(timeText));
+            }
+            final long totalSecond, totalNanos;
+            if (hours < 0) {
+                totalSecond = (hours * 3600L) - (minutes * 60L) - seconds;
+                totalNanos = micros * -1000L;
+            } else {
+                totalSecond = (hours * 3600L) + (minutes * 60L) + seconds;
+                totalNanos = micros * 1000L;
+            }
+            return Duration.ofSeconds(totalSecond, totalNanos);
+        } catch (NumberFormatException e) {
+            throw new DateTimeException(createTimeFormatErrorMessage(timeText), e);
+        }
+
+
+    }
+
+    private static String createTimeFormatErrorMessage(final String timeText) {
+        return String.format("MySQL TIME[%s] format error.", timeText);
+    }
 
 
 }

@@ -16,7 +16,10 @@ public abstract class MySQLConvertUtils {
     }
 
 
-    public static boolean convertObjectToBoolean(Object nonNull) {
+    /**
+     * @throws IllegalArgumentException throw when convert failure.
+     */
+    public static Boolean convertObjectToBoolean(Object nonNull) {
         Boolean boolValue;
         if (nonNull instanceof String) {
             boolValue = tryConvertToBoolean((String) nonNull);
@@ -25,14 +28,17 @@ public abstract class MySQLConvertUtils {
                 try {
                     decimal = new BigDecimal((String) nonNull);
                 } catch (NumberFormatException e) {
-                    throw createNotSupportedException(nonNull, Boolean.class, e);
+                    throw new IllegalArgumentException("Can't convert value to boolean,pleas check value range.");
                 }
                 boolValue = tryConvertToBoolean(decimal);
             }
         } else if (nonNull instanceof Number) {
             boolValue = tryConvertToBoolean((Number) nonNull);
         } else {
-            throw createNotSupportedException(nonNull, Boolean.class, null);
+            throw new IllegalArgumentException("Can't convert value to boolean,pleas check value type and range.");
+        }
+        if (boolValue == null) {
+            throw new IllegalArgumentException("Can't convert value to boolean,pleas check value type and range.");
         }
         return boolValue;
     }
