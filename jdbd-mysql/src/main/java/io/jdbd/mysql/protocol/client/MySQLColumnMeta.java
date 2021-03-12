@@ -73,7 +73,7 @@ public final class MySQLColumnMeta {
             , int collationIndex, Charset columnCharset
             , long fixedLength, long length
             , int typeFlag, int definitionFlags
-            , short decimals, Properties properties) {
+            , short decimals, Properties<PropertyKey> properties) {
 
         this.catalogName = catalogName;
         this.schemaName = schemaName;

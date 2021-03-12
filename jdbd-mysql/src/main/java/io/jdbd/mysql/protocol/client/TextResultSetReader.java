@@ -10,8 +10,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import reactor.util.annotation.Nullable;
 
+import java.io.StringReader;
 import java.math.BigDecimal;
 import java.math.BigInteger;
+import java.nio.charset.Charset;
 import java.time.*;
 import java.time.format.DateTimeFormatter;
 import java.util.Objects;
@@ -97,37 +99,57 @@ final class TextResultSetReader extends AbstractResultSetReader {
     @Nullable
     @Override
     Object internalReadColumnValue(final ByteBuf payload, final MySQLColumnMeta columnMeta) {
+
+        final Charset columnCharset = this.adjutant.obtainColumnCharset(columnMeta.columnCharset);
+
         String columnText;
         final Object columnValue;
         switch (columnMeta.typeFlag) {
-            case ProtocolConstants.TYPE_STRING:
-            case ProtocolConstants.TYPE_VARCHAR:
-            case ProtocolConstants.TYPE_VAR_STRING:
+
             case ProtocolConstants.TYPE_TINY_BLOB:
             case ProtocolConstants.TYPE_BLOB:
             case ProtocolConstants.TYPE_MEDIUM_BLOB:
             case ProtocolConstants.TYPE_LONG_BLOB:
-            case ProtocolConstants.TYPE_GEOMETRY:
+            case ProtocolConstants.TYPE_GEOMETRY: {
+                switch (columnMeta.mysqlType) {
+                    case TINYTEXT:
+                    case TEXT:
+                    case MEDIUMTEXT:
+                    case LONGTEXT: {
+                        columnText = PacketUtils.readStringLenEnc(payload, columnCharset);
+                        if (columnText != null && columnMeta.mysqlType == MySQLType.LONGTEXT) {
+                            columnValue = new StringReader(columnText);
+                        } else {
+                            columnValue = columnText;
+                        }
+                    }
+                    break;
+                    default:
+                        columnValue = PacketUtils.readTextBytes(payload);
+                }
+
+            }
+            break;
+            case ProtocolConstants.TYPE_STRING:
+            case ProtocolConstants.TYPE_VARCHAR:
+            case ProtocolConstants.TYPE_VAR_STRING:
+            case ProtocolConstants.TYPE_ENUM:
             case ProtocolConstants.TYPE_JSON: {
-                columnValue = PacketUtils.readTextBytes(payload);
+                columnValue = PacketUtils.readStringLenEnc(payload, columnCharset);
             }
             break;
             case ProtocolConstants.TYPE_NEWDECIMAL:
             case ProtocolConstants.TYPE_DECIMAL: {
-                columnText = PacketUtils.readStringLenEnc(payload, columnMeta.columnCharset);
+                columnText = PacketUtils.readStringLenEnc(payload, columnCharset);
                 columnValue = columnText == null ? null : new BigDecimal(columnText);
             }
             break;
             case ProtocolConstants.TYPE_BIT: {
-                columnValue = PacketUtils.readTextBitTypeAsLong(payload, columnMeta.columnCharset);
-            }
-            break;
-            case ProtocolConstants.TYPE_ENUM: {
-                columnValue = PacketUtils.readStringLenEnc(payload, columnMeta.columnCharset);
+                columnValue = PacketUtils.readTextBitTypeAsLong(payload, columnCharset);
             }
             break;
             case ProtocolConstants.TYPE_SET: {
-                columnText = PacketUtils.readStringLenEnc(payload, columnMeta.columnCharset);
+                columnText = PacketUtils.readStringLenEnc(payload, columnCharset);
                 if (columnText == null) {
                     columnValue = null;
                 } else {
@@ -136,7 +158,7 @@ final class TextResultSetReader extends AbstractResultSetReader {
             }
             break;
             case ProtocolConstants.TYPE_LONGLONG: {
-                columnText = PacketUtils.readStringLenEnc(payload, columnMeta.columnCharset);
+                columnText = PacketUtils.readStringLenEnc(payload, columnCharset);
                 if (columnText == null) {
                     columnValue = null;
                 } else if (columnMeta.isUnsigned()) {
@@ -147,7 +169,7 @@ final class TextResultSetReader extends AbstractResultSetReader {
             }
             break;
             case ProtocolConstants.TYPE_LONG: {
-                columnText = PacketUtils.readStringLenEnc(payload, columnMeta.columnCharset);
+                columnText = PacketUtils.readStringLenEnc(payload, columnCharset);
                 if (columnText == null) {
                     columnValue = null;
                 } else if (columnMeta.isUnsigned()) {
@@ -158,7 +180,7 @@ final class TextResultSetReader extends AbstractResultSetReader {
             }
             break;
             case ProtocolConstants.TYPE_INT24: {
-                columnText = PacketUtils.readStringLenEnc(payload, columnMeta.columnCharset);
+                columnText = PacketUtils.readStringLenEnc(payload, columnCharset);
                 if (columnText == null) {
                     columnValue = null;
                 } else {
@@ -167,7 +189,7 @@ final class TextResultSetReader extends AbstractResultSetReader {
             }
             break;
             case ProtocolConstants.TYPE_SHORT: {
-                columnText = PacketUtils.readStringLenEnc(payload, columnMeta.columnCharset);
+                columnText = PacketUtils.readStringLenEnc(payload, columnCharset);
                 if (columnText == null) {
                     columnValue = null;
                 } else if (columnMeta.isUnsigned()) {
@@ -178,7 +200,7 @@ final class TextResultSetReader extends AbstractResultSetReader {
             }
             break;
             case ProtocolConstants.TYPE_YEAR: {
-                columnText = PacketUtils.readStringLenEnc(payload, columnMeta.columnCharset);
+                columnText = PacketUtils.readStringLenEnc(payload, columnCharset);
                 if (columnText == null) {
                     columnValue = null;
                 } else {
@@ -187,7 +209,7 @@ final class TextResultSetReader extends AbstractResultSetReader {
             }
             break;
             case ProtocolConstants.TYPE_BOOL: {
-                columnText = PacketUtils.readStringLenEnc(payload, columnMeta.columnCharset);
+                columnText = PacketUtils.readStringLenEnc(payload, columnCharset);
                 if (columnText == null) {
                     columnValue = null;
                 } else {
@@ -196,7 +218,7 @@ final class TextResultSetReader extends AbstractResultSetReader {
             }
             break;
             case ProtocolConstants.TYPE_TINY: {
-                columnText = PacketUtils.readStringLenEnc(payload, columnMeta.columnCharset);
+                columnText = PacketUtils.readStringLenEnc(payload, columnCharset);
                 final boolean bitIsBoolean = columnMeta.length == 1L
                         && this.properties.getOrDefault(PropertyKey.transformedBitIsBoolean, Boolean.class);
                 if (columnText == null) {
@@ -217,7 +239,7 @@ final class TextResultSetReader extends AbstractResultSetReader {
             }
             break;
             case ProtocolConstants.TYPE_DOUBLE: {
-                columnText = PacketUtils.readStringLenEnc(payload, columnMeta.columnCharset);
+                columnText = PacketUtils.readStringLenEnc(payload, columnCharset);
                 if (columnText == null) {
                     columnValue = null;
                 } else if (columnMeta.isUnsigned()) {
@@ -228,7 +250,7 @@ final class TextResultSetReader extends AbstractResultSetReader {
             }
             break;
             case ProtocolConstants.TYPE_FLOAT: {
-                columnText = PacketUtils.readStringLenEnc(payload, columnMeta.columnCharset);
+                columnText = PacketUtils.readStringLenEnc(payload, columnCharset);
                 if (columnText == null) {
                     columnValue = null;
                 } else if (columnMeta.isUnsigned()) {
@@ -239,7 +261,7 @@ final class TextResultSetReader extends AbstractResultSetReader {
             }
             break;
             case ProtocolConstants.TYPE_DATE: {
-                columnText = PacketUtils.readStringLenEnc(payload, columnMeta.columnCharset);
+                columnText = PacketUtils.readStringLenEnc(payload, columnCharset);
                 if (columnText == null) {
                     columnValue = null;
                 } else if (columnText.equals("0000-00-00")) {
@@ -251,7 +273,7 @@ final class TextResultSetReader extends AbstractResultSetReader {
             break;
             case ProtocolConstants.TYPE_TIMESTAMP:
             case ProtocolConstants.TYPE_DATETIME: {
-                columnText = PacketUtils.readStringLenEnc(payload, columnMeta.columnCharset);
+                columnText = PacketUtils.readStringLenEnc(payload, columnCharset);
                 if (columnText == null) {
                     columnValue = null;
                 } else if (columnText.startsWith("0000-00-00")) {
@@ -265,9 +287,11 @@ final class TextResultSetReader extends AbstractResultSetReader {
             }
             break;
             case ProtocolConstants.TYPE_TIME: {
-                columnText = PacketUtils.readStringLenEnc(payload, columnMeta.columnCharset);
+                columnText = PacketUtils.readStringLenEnc(payload, columnCharset);
                 if (columnText == null) {
                     columnValue = null;
+                } else if (MySQLTimeUtils.isDuration(columnText)) {
+                    columnValue = MySQLTimeUtils.parseTimeAsDuration(columnText);
                 } else {
                     LocalTime time = LocalTime.parse(columnText, MySQLTimeUtils.MYSQL_TIME_FORMATTER);
                     columnValue = OffsetTime.of(time, this.adjutant.obtainZoneOffsetDatabase())

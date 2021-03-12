@@ -291,6 +291,7 @@ abstract class AbstractResultSetReader implements ResultSetReader {
         this.sequenceIdUpdater.accept(sequenceId);
     }
 
+
     /**
      * @see #readResultRows(ByteBuf, Consumer)
      */

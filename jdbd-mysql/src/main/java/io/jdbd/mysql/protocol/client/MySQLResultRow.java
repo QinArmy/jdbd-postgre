@@ -57,6 +57,22 @@ abstract class MySQLResultRow extends AbstractResultRow<MySQLRowMeta> {
         }
     }
 
+    /**
+     * @see <a href="https://dev.mysql.com/doc/refman/8.0/en/time.html">The TIME Type</a>
+     */
+    @Override
+    protected Duration convertToDuration(int indexBaseZero, Object sourceValue)
+            throws UnsupportedConvertingException {
+        final Duration duration;
+        if (sourceValue instanceof LocalTime) {
+            String timeText = ((LocalTime) sourceValue).format(MySQLTimeUtils.MYSQL_TIME_FORMATTER);
+            duration = MySQLTimeUtils.parseTimeAsDuration(timeText);
+        } else {
+            duration = super.convertToDuration(indexBaseZero, sourceValue);
+        }
+        return duration;
+    }
+
     @Override
     protected int convertToIndex(String columnAlias) {
         return this.rowMeta.convertToIndex(columnAlias);

@@ -206,6 +206,14 @@ final class MySQLTaskExecutor extends CommunicationTaskExecutor<MySQLTaskAdjutan
             return charset;
         }
 
+        @Override
+        public Charset obtainColumnCharset(Charset columnCharset) {
+            Charset charset = getCharsetResults();
+            if (charset == null) {
+                charset = columnCharset;
+            }
+            return charset;
+        }
 
         /**
          * @see <a href="https://dev.mysql.com/doc/refman/8.0/en/charset-errors.html">Error Message Character Set</a>

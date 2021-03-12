@@ -4,7 +4,6 @@ import org.qinarmy.util.TimeUtils;
 
 import java.time.DateTimeException;
 import java.time.Duration;
-import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeFormatterBuilder;
 import java.util.Locale;
@@ -117,17 +116,20 @@ public abstract class MySQLTimeUtils extends TimeUtils {
 
 
     /**
-     * @return {@link java.time.LocalTime} or {@link Duration}
+     * @return true: timeText representing {@link Duration}.
      * @see <a href="https://dev.mysql.com/doc/refman/8.0/en/time.html">The TIME Type</a>
      */
-    public static Object parseTime(final String timeText) throws DateTimeException {
-        Object timeValue;
-        try {
-            timeValue = LocalTime.parse(timeText, MYSQL_TIME_FORMATTER);
-        } catch (DateTimeException e) {
-            timeValue = parseTimeAsDuration(timeText);
+    public static boolean isDuration(final String timeText) {
+        int index = timeText.indexOf(':');
+        final boolean duration;
+        if (index < 0) {
+            duration = false;
+        } else {
+            final int hours;
+            hours = Integer.parseInt(timeText.substring(0, index));
+            duration = hours < 0 || hours > 23;
         }
-        return timeValue;
+        return duration;
     }
 
 
@@ -156,7 +158,12 @@ public abstract class MySQLTimeUtils extends TimeUtils {
                 seconds = Integer.parseInt(itemArray[2]);
                 micros = 0;
             }
-            if (minutes < 0 || seconds < 0 || micros < 0) {
+            if (hours < -838 || hours > 838
+                    || minutes < 0 || minutes > 59
+                    || seconds < 0 || seconds > 59
+                    || micros < 0 || micros > 999_999) {
+                throw new DateTimeException(createTimeFormatErrorMessage(timeText));
+            } else if (hours == -838 && minutes == 59 && seconds == 59 && micros != 0) {
                 throw new DateTimeException(createTimeFormatErrorMessage(timeText));
             }
             final long totalSecond;
@@ -166,7 +173,7 @@ public abstract class MySQLTimeUtils extends TimeUtils {
                 totalSecond = (hours * 3600L) + (minutes * 60L) + seconds;
             }
             return Duration.ofSeconds(totalSecond, micros * 1000L);
-        } catch (NumberFormatException e) {
+        } catch (Throwable e) {
             throw new DateTimeException(createTimeFormatErrorMessage(timeText), e);
         }
 
