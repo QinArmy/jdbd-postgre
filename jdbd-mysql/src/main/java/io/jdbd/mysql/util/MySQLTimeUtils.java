@@ -159,15 +159,13 @@ public abstract class MySQLTimeUtils extends TimeUtils {
             if (minutes < 0 || seconds < 0 || micros < 0) {
                 throw new DateTimeException(createTimeFormatErrorMessage(timeText));
             }
-            final long totalSecond, totalNanos;
+            final long totalSecond;
             if (hours < 0) {
                 totalSecond = (hours * 3600L) - (minutes * 60L) - seconds;
-                totalNanos = micros * -1000L;
             } else {
                 totalSecond = (hours * 3600L) + (minutes * 60L) + seconds;
-                totalNanos = micros * 1000L;
             }
-            return Duration.ofSeconds(totalSecond, totalNanos);
+            return Duration.ofSeconds(totalSecond, micros * 1000L);
         } catch (NumberFormatException e) {
             throw new DateTimeException(createTimeFormatErrorMessage(timeText), e);
         }

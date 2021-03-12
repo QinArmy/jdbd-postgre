@@ -2,12 +2,15 @@
 <suite name="jdbd-mysql" verbose="1" parallel="methods" thread-count="20">
     <test name="feature">
         <classes>
+            <class name="io.jdbd.mysql.util.MySQLTimeUtilsSuiteTests"/>
+
             <class name="io.jdbd.mysql.protocol.conf.MySQLUrlParserSuiteTests"/>
             <class name="io.jdbd.mysql.syntax.MySQLParserSuiteTests"/>
             <class name="io.jdbd.mysql.protocol.client.AuthenticatePluginSuiteTests"/>
             <class name="io.jdbd.mysql.protocol.client.SessionInitializerSuiteTests"/>
 
             <class name="io.jdbd.mysql.protocol.client.ComQueryTaskSuiteTests"/>
+
         </classes>
     </test>
 </suite>

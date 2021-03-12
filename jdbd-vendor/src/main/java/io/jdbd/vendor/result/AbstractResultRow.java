@@ -122,10 +122,6 @@ public abstract class AbstractResultRow<R extends ResultRowMeta> implements Resu
     /*################################## blow protected template method ##################################*/
 
 
-    protected abstract JdbdSQLException createNotRequiredException(String columnAlias);
-
-    protected abstract JdbdSQLException createNotRequiredException(int indexBaseZero);
-
     protected abstract int convertToIndex(String columnAlias);
 
     protected abstract UnsupportedConvertingException createNotSupportedException(int indexBasedZero
@@ -154,7 +150,8 @@ public abstract class AbstractResultRow<R extends ResultRowMeta> implements Resu
 
 
     @SuppressWarnings("unchecked")
-    protected <T> T convertValue(final int indexBaseZero, final Object nonValue, final Class<T> targetClass) {
+    protected <T> T convertValue(final int indexBaseZero, final Object nonValue, final Class<T> targetClass)
+            throws UnsupportedConvertingException {
         final Object convertedValue;
 
         if (targetClass == String.class) {

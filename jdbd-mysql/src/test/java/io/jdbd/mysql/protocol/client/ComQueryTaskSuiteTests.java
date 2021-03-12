@@ -28,7 +28,7 @@ import java.util.Random;
 
 import static org.testng.Assert.*;
 
-@Test(groups = {Groups.COM_QUERY}, dependsOnGroups = {Groups.SESSION_INITIALIZER})
+@Test(groups = {Groups.COM_QUERY}, dependsOnGroups = {Groups.SESSION_INITIALIZER, Groups.UTILS})
 public class ComQueryTaskSuiteTests extends AbstractConnectionBasedSuiteTests {
 
     private static final Logger LOG = LoggerFactory.getLogger(ComQueryTaskSuiteTests.class);
@@ -191,6 +191,7 @@ public class ComQueryTaskSuiteTests extends AbstractConnectionBasedSuiteTests {
             resultRow.get("create_time", DayOfWeek.class);
             resultRow.get("create_time", String.class);
 
+            resultRow.get("create_time", Instant.class);
             resultRow.get("update_time", LocalDateTime.class);
             resultRow.get("birthday", LocalDate.class);
 

@@ -24,7 +24,7 @@ import java.util.Map;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 
-@Test(groups = {Groups.AUTHENTICATE_PLUGIN}, dependsOnGroups = {Groups.MYSQL_URL, Groups.SQL_PARSER})
+@Test(groups = {Groups.AUTHENTICATE_PLUGIN}, dependsOnGroups = {Groups.MYSQL_URL, Groups.SQL_PARSER, Groups.UTILS})
 public class AuthenticatePluginSuiteTests extends AbstractConnectionBasedSuiteTests {
 
     private static final Logger LOG = LoggerFactory.getLogger(AuthenticatePluginSuiteTests.class);
@@ -52,10 +52,12 @@ public class AuthenticatePluginSuiteTests extends AbstractConnectionBasedSuiteTe
 
     @Test(timeOut = TIME_OUT)
     public void cachingSha2PasswordPublicKeyAuthenticate() {
+        final long startTime = System.currentTimeMillis();
+
         LOG.info("cachingSha2PasswordPublicKeyAuthenticate test start.");
         final Path serverRSAPublicKeyPath;
-        serverRSAPublicKeyPath = Paths.get(System.getProperty("user.dir")
-                , "jdbd-mysql/src/test/resources/my-local/mysql-server/public_key.pem");
+        serverRSAPublicKeyPath = Paths.get(ClientTestUtils.getTestResourcesPath().toString()
+                , "my-local/mysql-server/public_key.pem");
 
         if (Files.notExists(serverRSAPublicKeyPath)) {
             LOG.warn("{} not exists,ignore cachingSha2PasswordPublicKeyAuthenticate.", serverRSAPublicKeyPath);
@@ -75,13 +77,18 @@ public class AuthenticatePluginSuiteTests extends AbstractConnectionBasedSuiteTe
 
         MySQLSessionAdjutant sessionAdjutant = getSessionAdjutantForSingleHost(propMap);
 
-        AuthenticateResult result = MySQLTaskExecutor.create(0, sessionAdjutant)
-                .flatMap(executor -> MySQLConnectionTask.authenticate(executor.getAdjutant()))
-                .block();
+        try {
+            AuthenticateResult result = MySQLTaskExecutor.create(0, sessionAdjutant)
+                    .flatMap(executor -> MySQLConnectionTask.authenticate(executor.getAdjutant()))
+                    .block();
 
-        assertNotNull(result, "result");
+            assertNotNull(result, "result");
+        } catch (Throwable e) {
+            LOG.error("cachingSha2PasswordPublicKeyAuthenticate cost {}ms", System.currentTimeMillis() - startTime);
+            throw e;
+        }
 
-        LOG.info("cachingSha2PasswordPublicKeyAuthenticate test end.");
+        LOG.info("cachingSha2PasswordPublicKeyAuthenticate test end,cost {} ms", System.currentTimeMillis() - startTime);
     }
 
 

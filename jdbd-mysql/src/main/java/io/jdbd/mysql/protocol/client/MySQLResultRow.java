@@ -1,13 +1,11 @@
 package io.jdbd.mysql.protocol.client;
 
-import io.jdbd.JdbdSQLException;
 import io.jdbd.UnsupportedConvertingException;
 import io.jdbd.mysql.util.MySQLConvertUtils;
 import io.jdbd.mysql.util.MySQLTimeUtils;
 import io.jdbd.vendor.result.AbstractResultRow;
 
 import java.nio.charset.Charset;
-import java.sql.SQLException;
 import java.time.*;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeFormatterBuilder;
@@ -77,19 +75,6 @@ abstract class MySQLResultRow extends AbstractResultRow<MySQLRowMeta> {
             charset = this.rowMeta.getColumnCharset(indexBaseZero);
         }
         return charset;
-    }
-
-
-    @Override
-    protected JdbdSQLException createNotRequiredException(int indexBaseZero) {
-        return new JdbdSQLException(new SQLException(
-                String.format("Expected Object at index[%s] non-null,but null.", indexBaseZero)));
-    }
-
-    @Override
-    protected JdbdSQLException createNotRequiredException(String alias) {
-        return new JdbdSQLException(new SQLException(
-                String.format("Expected Object at alias[%s] non-null,but null.", alias)));
     }
 
     @Override

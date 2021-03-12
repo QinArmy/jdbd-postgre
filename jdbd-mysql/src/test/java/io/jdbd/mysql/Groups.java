@@ -13,5 +13,6 @@ public interface Groups {
 
     String COM_QUERY = "comQuery";
 
+    String UTILS = "utils";
 
 }

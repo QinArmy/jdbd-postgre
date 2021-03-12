@@ -15,7 +15,7 @@ public abstract class AbstractConnectionBasedSuiteTests {
     private final static EventLoopGroup EVENT_LOOP_GROUP = LoopResources.create("jdbd-mysql", 20, true)
             .onClient(true);
 
-    static final long TIME_OUT = 5L * 1000L;
+    static final long TIME_OUT = 5 * 1000L;
 
 
     protected static EventLoopGroup getEventLoopGroup() {
