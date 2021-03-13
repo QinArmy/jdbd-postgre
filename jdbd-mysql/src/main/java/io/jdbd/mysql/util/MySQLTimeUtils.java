@@ -4,6 +4,7 @@ import org.qinarmy.util.TimeUtils;
 
 import java.time.DateTimeException;
 import java.time.Duration;
+import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeFormatterBuilder;
 import java.util.Locale;
@@ -135,6 +136,7 @@ public abstract class MySQLTimeUtils extends TimeUtils {
 
     /**
      * @see <a href="https://dev.mysql.com/doc/refman/8.0/en/time.html">The TIME Type</a>
+     * @see #convertToDuration(LocalTime)
      */
     public static Duration parseTimeAsDuration(final String timeText) throws DateTimeException {
 
@@ -163,7 +165,7 @@ public abstract class MySQLTimeUtils extends TimeUtils {
                     || seconds < 0 || seconds > 59
                     || micros < 0 || micros > 999_999) {
                 throw new DateTimeException(createTimeFormatErrorMessage(timeText));
-            } else if (hours == -838 && minutes == 59 && seconds == 59 && micros != 0) {
+            } else if (Math.abs(hours) == 838 && minutes == 59 && seconds == 59 && micros != 0) {
                 throw new DateTimeException(createTimeFormatErrorMessage(timeText));
             }
             final long totalSecond;
@@ -172,12 +174,29 @@ public abstract class MySQLTimeUtils extends TimeUtils {
             } else {
                 totalSecond = (hours * 3600L) + (minutes * 60L) + seconds;
             }
+            //nanoAdjustment must be positive ,java.lang.Math.floorDiv(long, long) bug ,if negative (-999_999 / 1_000_000_000) get -1 not 0.
             return Duration.ofSeconds(totalSecond, micros * 1000L);
         } catch (Throwable e) {
             throw new DateTimeException(createTimeFormatErrorMessage(timeText), e);
         }
 
 
+    }
+
+    /**
+     * @param time {@link LocalTime} that underlying {@link java.time.ZoneOffset} match with database.
+     * @throws IllegalArgumentException throw when {@link LocalTime#getNano()} great than {@code 999_999_000}.
+     * @see #parseTimeAsDuration(String)
+     * @see <a href="https://dev.mysql.com/doc/refman/8.0/en/time.html">The TIME Type</a>
+     */
+    public static Duration convertToDuration(LocalTime time) throws IllegalArgumentException {
+        final long totalSecond, nano;
+        totalSecond = time.getHour() * 3600L + time.getMinute() * 60L + time.getSecond();
+        nano = time.getNano();
+        if (nano > 999_999_000) {
+            throw new IllegalArgumentException("time can't convert to Duration.");
+        }
+        return Duration.ofSeconds(totalSecond, nano);
     }
 
     private static String createTimeFormatErrorMessage(final String timeText) {

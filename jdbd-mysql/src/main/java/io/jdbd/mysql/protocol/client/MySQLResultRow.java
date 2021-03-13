@@ -61,12 +61,19 @@ abstract class MySQLResultRow extends AbstractResultRow<MySQLRowMeta> {
      * @see <a href="https://dev.mysql.com/doc/refman/8.0/en/time.html">The TIME Type</a>
      */
     @Override
-    protected Duration convertToDuration(int indexBaseZero, Object sourceValue)
+    protected Duration convertToDuration(final int indexBaseZero, final Object sourceValue)
             throws UnsupportedConvertingException {
         final Duration duration;
         if (sourceValue instanceof LocalTime) {
-            String timeText = ((LocalTime) sourceValue).format(MySQLTimeUtils.MYSQL_TIME_FORMATTER);
-            duration = MySQLTimeUtils.parseTimeAsDuration(timeText);
+            try {
+                //if convert to Duration,must be converted back to ZoneOffset of database.
+                LocalTime time = OffsetTime.of((LocalTime) sourceValue, this.adjutant.obtainZoneOffsetClient())
+                        .withOffsetSameInstant(this.adjutant.obtainZoneOffsetDatabase())
+                        .toLocalTime();
+                duration = MySQLTimeUtils.convertToDuration(time);
+            } catch (Throwable e) {
+                throw createValueCannotConvertException(e, indexBaseZero, Duration.class);
+            }
         } else {
             duration = super.convertToDuration(indexBaseZero, sourceValue);
         }
@@ -86,11 +93,7 @@ abstract class MySQLResultRow extends AbstractResultRow<MySQLRowMeta> {
 
     @Override
     protected Charset obtainColumnCharset(final int indexBaseZero) {
-        Charset charset = this.adjutant.getCharsetResults();
-        if (charset == null) {
-            charset = this.rowMeta.getColumnCharset(indexBaseZero);
-        }
-        return charset;
+        return this.adjutant.obtainColumnCharset(this.rowMeta.getColumnCharset(indexBaseZero));
     }
 
     @Override

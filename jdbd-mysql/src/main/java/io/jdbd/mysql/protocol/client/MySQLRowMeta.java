@@ -12,7 +12,9 @@ import reactor.util.annotation.Nullable;
 import java.nio.charset.Charset;
 import java.sql.JDBCType;
 import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -34,15 +36,31 @@ abstract class MySQLRowMeta implements ResultRowMeta {
     int metaIndex = 0;
 
 
-    private MySQLRowMeta(MySQLColumnMeta[] columnMetaArray
+    private MySQLRowMeta(final MySQLColumnMeta[] columnMetaArray
             , Map<Integer, CharsetMapping.CustomCollation> customCollationMap) {
         this.columnMetaArray = columnMetaArray;
         this.customCollationMap = customCollationMap;
+
     }
 
     @Override
     public final int getColumnCount() {
         return this.columnMetaArray.length;
+    }
+
+    @Override
+    public List<String> getColumnAliasList() {
+        List<String> columnAliaList;
+        if (this.columnMetaArray.length == 1) {
+            columnAliaList = Collections.singletonList(this.columnMetaArray[0].columnAlias);
+        } else {
+            columnAliaList = new ArrayList<>(this.columnMetaArray.length);
+            for (MySQLColumnMeta columnMeta : this.columnMetaArray) {
+                columnAliaList.add(columnMeta.columnAlias);
+            }
+            columnAliaList = Collections.unmodifiableList(columnAliaList);
+        }
+        return columnAliaList;
     }
 
     @Override

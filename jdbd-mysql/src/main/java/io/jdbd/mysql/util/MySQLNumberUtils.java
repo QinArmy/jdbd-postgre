@@ -1,8 +1,8 @@
 package io.jdbd.mysql.util;
 
-import org.qinarmy.util.NumberUtils;
+import io.jdbd.vendor.util.JdbdNumberUtils;
 
-public abstract class MySQLNumberUtils extends NumberUtils {
+public abstract class MySQLNumberUtils extends JdbdNumberUtils {
 
 
 }

@@ -83,7 +83,7 @@ final class PrepareExecuteCommandWriter implements StatementCommandWriter {
                 bindValue = MySQLBindValue.create(bindValue, paramMetaArray[i].mysqlType);
             }
             tempParameterGroup.add(bindValue);
-            if (bindValue.isLongData()) {
+            if (bindValue.isStream()) {
                 if (longParamList == null) {
                     longParamList = new ArrayList<>();
                 }
@@ -136,7 +136,7 @@ final class PrepareExecuteCommandWriter implements StatementCommandWriter {
                 BindValue bindValue = parameterGroup.get(i);
                 if (bindValue.getValue() == null || bindValue.getType() == MySQLType.NULL) {
                     nullBitsMap[i / 8] |= (1 << (i & 7));
-                } else if (!bindValue.isLongData()) {
+                } else if (!bindValue.isStream()) {
                     parameterValueLength += obtainParameterValueLength(parameterMetaArray[i], bindValue);
                 }
             }
@@ -166,7 +166,7 @@ final class PrepareExecuteCommandWriter implements StatementCommandWriter {
 
             for (i = 0; i < parameterCount; i++) {
                 BindValue bindValue = parameterGroup.get(i);
-                if (bindValue.isLongData() || bindValue.getValue() == null) {
+                if (bindValue.isStream() || bindValue.getValue() == null) {
                     continue;
                 }
                 // bind parameter bto packet buffer

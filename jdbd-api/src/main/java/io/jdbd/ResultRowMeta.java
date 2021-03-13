@@ -4,6 +4,7 @@ import io.jdbd.lang.Nullable;
 import io.jdbd.meta.SQLType;
 
 import java.sql.JDBCType;
+import java.util.List;
 
 /**
  * @see ResultRow
@@ -16,6 +17,11 @@ public interface ResultRowMeta {
      * @return the number of columns
      */
     int getColumnCount();
+
+    /**
+     * @return a unmodifiable list
+     */
+    List<String> getColumnAliasList();
 
     /**
      * Gets the designated column's suggested title for use in printouts and

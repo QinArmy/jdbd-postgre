@@ -28,6 +28,10 @@ import java.util.Random;
 
 import static org.testng.Assert.*;
 
+
+/**
+ * @see ComQueryTask
+ */
 @Test(groups = {Groups.COM_QUERY}, dependsOnGroups = {Groups.SESSION_INITIALIZER, Groups.UTILS})
 public class ComQueryTaskSuiteTests extends AbstractConnectionBasedSuiteTests {
 

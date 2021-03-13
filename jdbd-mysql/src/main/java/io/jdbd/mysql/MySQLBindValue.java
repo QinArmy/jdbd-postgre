@@ -40,7 +40,7 @@ public final class MySQLBindValue implements BindValue {
     }
 
     @Override
-    public boolean isLongData() {
+    public boolean isStream() {
         return false;
     }
 

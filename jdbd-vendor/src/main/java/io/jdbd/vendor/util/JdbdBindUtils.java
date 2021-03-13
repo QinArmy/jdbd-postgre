@@ -14,7 +14,7 @@ public abstract class JdbdBindUtils {
     public static boolean hasLongData(List<? extends IBindValue> parameterGroup) {
         boolean has = false;
         for (IBindValue bindValue : parameterGroup) {
-            if (bindValue.isLongData()) {
+            if (bindValue.isStream()) {
                 has = true;
                 break;
             }

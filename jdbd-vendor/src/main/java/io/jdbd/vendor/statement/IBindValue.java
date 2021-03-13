@@ -8,7 +8,7 @@ public interface IBindValue {
 
     int getParamIndex();
 
-    boolean isLongData();
+    boolean isStream();
 
     /**
      * @return one of blow:

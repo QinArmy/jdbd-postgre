@@ -301,7 +301,7 @@ final class ComQueryCommandWriter {
                     if (bindValue.getParamIndex() != j) {
                         // hear invoker has bug
                         throw MySQLExceptions.createBindValueParamIndexNotMatchError(i, bindValue, j);
-                    } else if (bindValue.isLongData() && !supportStream) {
+                    } else if (bindValue.isStream() && !supportStream) {
                         throw MySQLExceptions.createUnsupportedParamTypeError(i, bindValue);
                     } else if (bindValue.getValue() == null || bindValue.getType() == MySQLType.NULL) {
                         packet.writeBytes(nullBytes);
@@ -363,7 +363,7 @@ final class ComQueryCommandWriter {
             if (bindValue.getParamIndex() != i) {
                 // hear invoker has bug
                 throw MySQLExceptions.createBindValueParamIndexNotMatchError(stmtIndex, bindValue, i);
-            } else if (bindValue.isLongData() && !supportStream) {
+            } else if (bindValue.isStream() && !supportStream) {
                 throw MySQLExceptions.createUnsupportedParamTypeError(stmtIndex, bindValue);
             } else if (bindValue.getValue() == null || bindValue.getType() == MySQLType.NULL) {
                 packet.writeBytes(nullBytes);

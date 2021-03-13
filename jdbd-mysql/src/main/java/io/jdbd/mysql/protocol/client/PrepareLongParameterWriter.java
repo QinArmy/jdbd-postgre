@@ -70,7 +70,7 @@ final class PrepareLongParameterWriter implements PrepareExecuteCommandWriter.Lo
     @Override
     public final Flux<ByteBuf> write(List<BindValue> valueList) {
         return Flux.fromIterable(valueList)
-                .filter(BindValue::isLongData)
+                .filter(BindValue::isStream)
                 .flatMap(this::sendLongData);
     }
 
