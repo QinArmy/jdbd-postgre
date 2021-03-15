@@ -573,8 +573,18 @@ public enum MySQLType implements SQLType {
     }
 
     private static MySQLType fromVarcharOrVarString(MySQLColumnMeta columnMeta, Properties<PropertyKey> properties) {
-        return (isOpaqueBinary(columnMeta) && !isFunctionsNeverReturnBlobs(columnMeta, properties))
-                ? VARBINARY : VARCHAR;
+        final MySQLType mySQLType;
+        if (columnMeta.isEnum()) {
+            mySQLType = ENUM;
+        } else if (columnMeta.isSetType()) {
+            mySQLType = SET;
+        } else if (isOpaqueBinary(columnMeta)
+                && !isFunctionsNeverReturnBlobs(columnMeta, properties)) {
+            mySQLType = VARBINARY;
+        } else {
+            mySQLType = VARCHAR;
+        }
+        return mySQLType;
     }
 
     private static MySQLType fromBit(MySQLColumnMeta columnMeta, Properties<PropertyKey> properties) {
@@ -629,10 +639,18 @@ public enum MySQLType implements SQLType {
     }
 
     private static MySQLType fromString(MySQLColumnMeta columnMeta, Properties<PropertyKey> properties) {
-        return (isOpaqueBinary(columnMeta)
-                && !properties.getOrDefault(PropertyKey.blobsAreStrings, Boolean.class))
-                ? BINARY
-                : CHAR;
+        final MySQLType mySQLType;
+        if (columnMeta.isEnum()) {
+            mySQLType = ENUM;
+        } else if (columnMeta.isSetType()) {
+            mySQLType = SET;
+        } else if (isOpaqueBinary(columnMeta)
+                && !properties.getOrDefault(PropertyKey.blobsAreStrings, Boolean.class)) {
+            mySQLType = BINARY;
+        } else {
+            mySQLType = CHAR;
+        }
+        return mySQLType;
     }
 
     private static MySQLType fromGeometry(MySQLColumnMeta columnMeta, Properties<PropertyKey> properties) {

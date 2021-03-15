@@ -1,7 +1,9 @@
 package io.jdbd.mysql.protocol.client;
 
 import io.jdbd.UnsupportedConvertingException;
+import io.jdbd.mysql.util.MySQLCollections;
 import io.jdbd.mysql.util.MySQLConvertUtils;
+import io.jdbd.mysql.util.MySQLStringUtils;
 import io.jdbd.mysql.util.MySQLTimeUtils;
 import io.jdbd.vendor.result.AbstractResultRow;
 
@@ -11,7 +13,10 @@ import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeFormatterBuilder;
 import java.time.temporal.TemporalAccessor;
 import java.time.temporal.TemporalAmount;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 
 abstract class MySQLResultRow extends AbstractResultRow<MySQLRowMeta> {
 
@@ -29,12 +34,61 @@ abstract class MySQLResultRow extends AbstractResultRow<MySQLRowMeta> {
 
     /*################################## blow protected method ##################################*/
 
+
+    @SuppressWarnings("unchecked")
+    @Override
+    protected <T> Set<T> convertNonNullToSet(final int indexBaseZero, final Object nonValue, final Class<T> elementClass)
+            throws UnsupportedConvertingException {
+        final Set<T> set;
+        if (nonValue instanceof Set) {
+            if (this.rowMeta.columnMetaArray[indexBaseZero].isSetType()) {
+                Set<String> stringSet = (Set<String>) nonValue;
+                if (elementClass == String.class) {
+                    set = (Set<T>) stringSet;
+                } else if (elementClass.isEnum()) {
+                    Set<T> tempSet = MySQLStringUtils.convertStringsToEnumSet(stringSet, elementClass);
+                    set = MySQLCollections.unmodifiableSet(tempSet);
+                } else {
+                    throw createNotSupportedException(indexBaseZero, elementClass);
+                }
+            } else {
+                throw createNotSupportedException(indexBaseZero, elementClass);
+            }
+        } else {
+            set = super.convertNonNullToSet(indexBaseZero, nonValue, elementClass);
+        }
+        return set;
+    }
+
+    @SuppressWarnings("unchecked")
+    @Override
+    protected <T> List<T> convertNonNullToList(final int indexBaseZero, final Object nonValue
+            , final Class<T> elementClass)
+            throws UnsupportedConvertingException {
+        final List<T> list;
+        if (nonValue instanceof Set) {
+            if (this.rowMeta.columnMetaArray[indexBaseZero].isSetType()) {
+                if (elementClass == String.class) {
+                    list = (List<T>) MySQLCollections.unmodifiableList(new ArrayList<>((Set<String>) nonValue));
+                } else if (elementClass.isEnum()) {
+                    List<T> tempList = MySQLStringUtils.convertStringsToEnumList((Set<String>) nonValue, elementClass);
+                    list = MySQLCollections.unmodifiableList(tempList);
+                } else {
+                    throw createNotSupportedException(indexBaseZero, elementClass);
+                }
+            } else {
+                throw createNotSupportedException(indexBaseZero, elementClass);
+            }
+        } else {
+            list = super.convertNonNullToList(indexBaseZero, nonValue, elementClass);
+        }
+        return list;
+    }
+
     /**
      * <p>
      * see {@code com.mysql.cj.result.BooleanValueFactory}
      * </p>
-     *
-     * @see #convertValue(int, Object, Class)
      */
     @Override
     protected boolean convertToBoolean(final int indexBaseZero, final Object sourceValue) {

@@ -2,6 +2,9 @@ package io.jdbd;
 
 import io.jdbd.lang.Nullable;
 
+import java.util.List;
+import java.util.Set;
+
 /**
  * @see MultiResults
  */
@@ -24,6 +27,29 @@ public interface ResultRow {
     @Nullable
     <T> T get(String alias, Class<T> columnClass) throws JdbdSQLException, UnsupportedConvertingException;
 
+    /**
+     * @return a unmodifiable set.
+     */
+    <T> Set<T> getSet(int indexBaseZero, Class<T> elementClass)
+            throws JdbdSQLException, UnsupportedConvertingException;
+
+    /**
+     * @see #getSet(int, Class)
+     */
+    <T> Set<T> getSet(String columnAlias, Class<T> elementClass)
+            throws JdbdSQLException, UnsupportedConvertingException;
+
+    /**
+     * @return a unmodifiable list.
+     */
+    <T> List<T> getList(int indexBaseZero, Class<T> elementClass)
+            throws JdbdSQLException, UnsupportedConvertingException;
+
+    /**
+     * @see #getSet(int, Class)
+     */
+    <T> List<T> getList(String columnAlias, Class<T> elementClass)
+            throws JdbdSQLException, UnsupportedConvertingException;
 
     Object getNonNull(int indexBaseZero) throws JdbdSQLException, NullPointerException;
 

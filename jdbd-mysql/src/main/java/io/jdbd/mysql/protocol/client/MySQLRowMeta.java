@@ -88,12 +88,14 @@ abstract class MySQLRowMeta implements ResultRowMeta {
     }
 
     @Override
-    public final NullMode getNullMode(int indexBaseZero) throws JdbdSQLException {
-        return (this.columnMetaArray[checkIndex(indexBaseZero)].definitionFlags & MySQLColumnMeta.NOT_NULL_FLAG) != 0
-                ? NullMode.NON_NULL
-                : NullMode.NULLABLE;
+    public final NullMode getNullMode(final int indexBaseZero) throws JdbdSQLException {
+        return this.columnMetaArray[checkIndex(indexBaseZero)].getNullMode();
     }
 
+    @Override
+    public NullMode getNullMode(final String columnAlias) throws JdbdSQLException {
+        return getNullMode(convertToIndex(columnAlias));
+    }
 
     @Override
     public final boolean isUnsigned(int indexBaseZero) throws JdbdSQLException {
@@ -107,9 +109,13 @@ abstract class MySQLRowMeta implements ResultRowMeta {
 
     @Override
     public final boolean isAutoIncrement(int indexBaseZero) throws JdbdSQLException {
-        return (this.columnMetaArray[checkIndex(indexBaseZero)].definitionFlags & MySQLColumnMeta.AUTO_INCREMENT_FLAG) != 0;
+        return this.columnMetaArray[checkIndex(indexBaseZero)].isAutoIncrement();
     }
 
+    @Override
+    public final boolean isAutoIncrement(final String columnAlias) throws JdbdSQLException {
+        return isAutoIncrement(convertToIndex(columnAlias));
+    }
 
     @Override
     public final boolean isCaseSensitive(int indexBaseZero) throws JdbdSQLException {
@@ -169,61 +175,61 @@ abstract class MySQLRowMeta implements ResultRowMeta {
 
 
     @Override
-    public final Class<?> getColumnClass(int indexBaseZero) throws JdbdSQLException {
+    public final Class<?> getColumnClass(final int indexBaseZero) throws JdbdSQLException {
         return this.columnMetaArray[checkIndex(indexBaseZero)].mysqlType.javaType();
     }
 
 
     @Override
-    public final long getPrecision(int indexBaseZero) throws JdbdSQLException {
+    public final long getPrecision(final int indexBaseZero) throws JdbdSQLException {
         return this.columnMetaArray[checkIndex(indexBaseZero)]
                 .obtainPrecision(this.customCollationMap);
     }
 
-
     @Override
-    public int getScale(int indexBaseZero) throws JdbdSQLException {
-        final MySQLColumnMeta columnMeta = this.columnMetaArray[checkIndex(indexBaseZero)];
-        final int scale;
-        switch (columnMeta.mysqlType) {
-            case DECIMAL:
-            case DECIMAL_UNSIGNED:
-                scale = columnMeta.decimals;
-                break;
-            case TIME: {
-                scale = columnMeta.obtainTimeTypePrecision();
-            }
-            break;
-            case DATETIME:
-            case TIMESTAMP: {
-                scale = columnMeta.obtainDateTimeTypePrecision();
-            }
-            break;
-            default:
-                scale = 0;
-        }
-        return scale;
+    public final long getPrecision(final String columnAlias) throws JdbdSQLException {
+        return this.columnMetaArray[convertToIndex(columnAlias)]
+                .obtainPrecision(this.customCollationMap);
     }
 
     @Override
-    public final int getScale(String columnAlias) throws JdbdSQLException {
-        return getScale(getColumnIndex(columnAlias));
+    public int getScale(final int indexBaseZero) throws JdbdSQLException {
+        return this.columnMetaArray[checkIndex(indexBaseZero)].getScale();
     }
 
     @Override
-    public boolean isPrimaryKey(int indexBaseZero) throws JdbdSQLException {
-        return (this.columnMetaArray[checkIndex(indexBaseZero)].definitionFlags & MySQLColumnMeta.PRI_KEY_FLAG) != 0;
-    }
-
-
-    @Override
-    public boolean isUniqueKey(int indexBaseZero) throws JdbdSQLException {
-        return (this.columnMetaArray[checkIndex(indexBaseZero)].definitionFlags & MySQLColumnMeta.UNIQUE_KEY_FLAG) != 0;
+    public final int getScale(final String columnAlias) throws JdbdSQLException {
+        return this.columnMetaArray[convertToIndex(columnAlias)].getScale();
     }
 
     @Override
-    public boolean isMultipleKey(int indexBaseZero) throws JdbdSQLException {
-        return (this.columnMetaArray[checkIndex(indexBaseZero)].definitionFlags & MySQLColumnMeta.MULTIPLE_KEY_FLAG) != 0;
+    public final boolean isPrimaryKey(final int indexBaseZero) throws JdbdSQLException {
+        return this.columnMetaArray[checkIndex(indexBaseZero)].isPrimaryKey();
+    }
+
+    @Override
+    public final boolean isPrimaryKey(final String columnAlias) throws JdbdSQLException {
+        return this.columnMetaArray[convertToIndex(columnAlias)].isPrimaryKey();
+    }
+
+    @Override
+    public final boolean isUniqueKey(final int indexBaseZero) throws JdbdSQLException {
+        return this.columnMetaArray[checkIndex(indexBaseZero)].isUniqueKey();
+    }
+
+    @Override
+    public final boolean isUniqueKey(final String columnAlias) throws JdbdSQLException {
+        return this.columnMetaArray[convertToIndex(columnAlias)].isUniqueKey();
+    }
+
+    @Override
+    public final boolean isMultipleKey(final int indexBaseZero) throws JdbdSQLException {
+        return this.columnMetaArray[checkIndex(indexBaseZero)].isMultipleKey();
+    }
+
+    @Override
+    public final boolean isMultipleKey(final String columnAlias) throws JdbdSQLException {
+        return this.columnMetaArray[convertToIndex(columnAlias)].isMultipleKey();
     }
 
     boolean isReady() {

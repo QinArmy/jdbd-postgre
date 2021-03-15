@@ -33,7 +33,7 @@ CREATE TABLE IF NOT EXISTS mysql_types (
     my_medium_text        mediumtext                                                          NULL,
     my_long_text          longtext                                                            NULL,
     my_enum               enum ('T','F')                                                      NOT NULL DEFAULT 'F',
-    my_set                set ('beijing','shanghai','shenzhen','xianggang','taiwan','aomeng') NOT NULL DEFAULT 'beijing',
+    my_set                set ('BEIJING','SHANGHAI','SHENZHEN','XIANGGANG','TAIBEI','AOMENG') NOT NULL DEFAULT 'BEIJING',
     my_json               json                                                                NULL,
 
     my_tinyblob           tinyblob                                                            NULL,

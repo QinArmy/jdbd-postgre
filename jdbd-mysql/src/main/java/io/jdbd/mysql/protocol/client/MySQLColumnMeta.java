@@ -1,5 +1,6 @@
 package io.jdbd.mysql.protocol.client;
 
+import io.jdbd.NullMode;
 import io.jdbd.mysql.protocol.CharsetMapping;
 import io.jdbd.mysql.protocol.conf.PropertyKey;
 import io.jdbd.vendor.conf.Properties;
@@ -99,6 +100,7 @@ public final class MySQLColumnMeta {
         return (this.definitionFlags & UNSIGNED_FLAG) != 0;
     }
 
+
     long obtainPrecision(Map<Integer, CharsetMapping.CustomCollation> customCollationMap) {
         long precision;
         // Protocol returns precision and scale differently for some types. We need to align then to I_S.
@@ -156,6 +158,66 @@ public final class MySQLColumnMeta {
 
         }
         return precision;
+    }
+
+    final boolean isEnum() {
+        return (this.definitionFlags & ENUM_FLAG) != 0;
+    }
+
+    final boolean isSetType() {
+        return (this.definitionFlags & SET_FLAG) != 0;
+    }
+
+    final boolean isBinary() {
+        return (this.definitionFlags & BINARY_FLAG) != 0;
+    }
+
+    final boolean isAutoIncrement() {
+        return (this.definitionFlags & AUTO_INCREMENT_FLAG) != 0;
+    }
+
+    final boolean isPrimaryKey() {
+        return (this.definitionFlags & PRI_KEY_FLAG) != 0;
+    }
+
+    final boolean isMultipleKey() {
+        return (this.definitionFlags & MULTIPLE_KEY_FLAG) != 0;
+    }
+
+    final boolean isUniqueKey() {
+        return (this.definitionFlags & UNIQUE_KEY_FLAG) != 0;
+    }
+
+    final int getScale() {
+        final int scale;
+        switch (mysqlType) {
+            case DECIMAL:
+            case DECIMAL_UNSIGNED:
+                scale = this.decimals;
+                break;
+            case TIME: {
+                scale = this.obtainTimeTypePrecision();
+            }
+            break;
+            case DATETIME:
+            case TIMESTAMP: {
+                scale = this.obtainDateTimeTypePrecision();
+            }
+            break;
+            default:
+                scale = 0;
+        }
+        return scale;
+    }
+
+    final NullMode getNullMode() {
+        final NullMode nullMode;
+        if ((this.definitionFlags & NOT_NULL_FLAG) != 0 || (this.definitionFlags & PRI_KEY_FLAG) != 0) {
+            nullMode = NullMode.NON_NULL;
+        } else {
+            nullMode = NullMode.NULLABLE;
+        }
+        return nullMode;
     }
 
 

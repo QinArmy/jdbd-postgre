@@ -4,6 +4,7 @@ import io.jdbd.ResultRow;
 import io.jdbd.mysql.protocol.conf.PropertyKey;
 import io.jdbd.mysql.util.MySQLConvertUtils;
 import io.jdbd.mysql.util.MySQLExceptions;
+import io.jdbd.mysql.util.MySQLStringUtils;
 import io.jdbd.mysql.util.MySQLTimeUtils;
 import io.netty.buffer.ByteBuf;
 import org.slf4j.Logger;
@@ -16,6 +17,7 @@ import java.math.BigInteger;
 import java.nio.charset.Charset;
 import java.time.*;
 import java.time.format.DateTimeFormatter;
+import java.util.Collections;
 import java.util.Objects;
 import java.util.function.Consumer;
 
@@ -139,9 +141,19 @@ final class TextResultSetReader extends AbstractResultSetReader {
                         columnValue = PacketUtils.readBytesLenEnc(payload);
                         break;
                     case CHAR:
+                    case ENUM:
                     case VARCHAR:
                         columnValue = PacketUtils.readStringLenEnc(payload, columnCharset);
                         break;
+                    case SET: {
+                        columnText = PacketUtils.readStringLenEnc(payload, columnCharset);
+                        if (columnText == null) {
+                            columnValue = Collections.<String>emptySet();
+                        } else {
+                            columnValue = MySQLStringUtils.spitAsSet(columnText, ",", true);
+                        }
+                    }
+                    break;
                     default:
                         throw new IllegalStateException(
                                 String.format("Not found MySQL type for column meta:%s", columnMeta));

@@ -75,6 +75,10 @@ public interface ResultRowMeta {
      */
     NullMode getNullMode(int indexBaseZero) throws JdbdSQLException;
 
+    /**
+     * @see #getNullMode(int)
+     */
+    NullMode getNullMode(String columnAlias) throws JdbdSQLException;
 
     /**
      * @param indexBaseZero base 0,the first column is 0, the second is 1, ...
@@ -96,6 +100,10 @@ public interface ResultRowMeta {
      */
     boolean isAutoIncrement(int indexBaseZero) throws JdbdSQLException;
 
+    /**
+     * @see #isAutoIncrement(int)
+     */
+    boolean isAutoIncrement(String columnAlias) throws JdbdSQLException;
 
     /**
      * Indicates whether a column's case matters.
@@ -210,6 +218,10 @@ public interface ResultRowMeta {
      */
     long getPrecision(int indexBaseZero) throws JdbdSQLException;
 
+    /**
+     * @see #getPrecision(int)
+     */
+    long getPrecision(String columnAlias) throws JdbdSQLException;
 
     /**
      * Gets the designated column's number of digits to right of the decimal point.
@@ -233,12 +245,18 @@ public interface ResultRowMeta {
     boolean isPrimaryKey(int indexBaseZero) throws JdbdSQLException;
 
     /**
+     * @see #isPrimaryKey(int)
+     */
+    boolean isPrimaryKey(String columnAlias) throws JdbdSQLException;
+
+    /**
      * @param indexBaseZero base 0,the first column is 0, the second is 1, ...
      * @throws JdbdSQLException if a database access error occurs
      * @see #getColumnIndex(String)
      */
     boolean isUniqueKey(int indexBaseZero) throws JdbdSQLException;
 
+    boolean isUniqueKey(String columnAlias) throws JdbdSQLException;
 
     /**
      * @param indexBaseZero base 0,the first column is 0, the second is 1, ...
@@ -247,5 +265,6 @@ public interface ResultRowMeta {
      */
     boolean isMultipleKey(int indexBaseZero) throws JdbdSQLException;
 
+    boolean isMultipleKey(String columnAlias) throws JdbdSQLException;
 
 }

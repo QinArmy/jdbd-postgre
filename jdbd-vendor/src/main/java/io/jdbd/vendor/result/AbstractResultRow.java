@@ -4,7 +4,10 @@ import io.jdbd.JdbdSQLException;
 import io.jdbd.ResultRow;
 import io.jdbd.ResultRowMeta;
 import io.jdbd.UnsupportedConvertingException;
+import io.jdbd.type.CodeEnum;
 import io.jdbd.type.geometry.Geometry;
+import io.jdbd.vendor.util.JdbdCollections;
+import io.jdbd.vendor.util.JdbdStringUtils;
 import reactor.util.annotation.Nullable;
 
 import java.math.BigDecimal;
@@ -14,6 +17,9 @@ import java.sql.SQLException;
 import java.time.*;
 import java.time.temporal.TemporalAccessor;
 import java.time.temporal.TemporalAmount;
+import java.util.Collections;
+import java.util.List;
+import java.util.Set;
 
 public abstract class AbstractResultRow<R extends ResultRowMeta> implements ResultRow {
 
@@ -51,7 +57,7 @@ public abstract class AbstractResultRow<R extends ResultRowMeta> implements Resu
         if (value == null || columnClass == value.getClass()) {
             convertedValue = (T) value;
         } else {
-            convertedValue = convertValue(indexBaseZero, value, columnClass);
+            convertedValue = convertNonNullValue(indexBaseZero, value, columnClass);
         }
         return convertedValue;
     }
@@ -77,6 +83,43 @@ public abstract class AbstractResultRow<R extends ResultRowMeta> implements Resu
         }
     }
 
+    @Override
+    public final <T> Set<T> getSet(int indexBaseZero, Class<T> elementClass)
+            throws JdbdSQLException, UnsupportedConvertingException {
+        final Object value = this.columnValues[checkIndex(indexBaseZero)];
+        final Set<T> set;
+        if (value == null) {
+            set = Collections.emptySet();
+        } else {
+            set = convertNonNullToSet(indexBaseZero, value, elementClass);
+        }
+        return set;
+    }
+
+    @Override
+    public final <T> Set<T> getSet(String columnAlias, Class<T> elementClass)
+            throws JdbdSQLException, UnsupportedConvertingException {
+        return getSet(convertToIndex(columnAlias), elementClass);
+    }
+
+    @Override
+    public <T> List<T> getList(int indexBaseZero, Class<T> elementClass)
+            throws JdbdSQLException, UnsupportedConvertingException {
+        final Object value = this.columnValues[checkIndex(indexBaseZero)];
+        final List<T> list;
+        if (value == null) {
+            list = Collections.emptyList();
+        } else {
+            list = convertNonNullToList(indexBaseZero, value, elementClass);
+        }
+        return list;
+    }
+
+    @Override
+    public final <T> List<T> getList(String columnAlias, Class<T> elementClass)
+            throws JdbdSQLException, UnsupportedConvertingException {
+        return getList(convertToIndex(columnAlias), elementClass);
+    }
 
     @Override
     public final Object getNonNull(final int indexBaseZero)
@@ -151,7 +194,7 @@ public abstract class AbstractResultRow<R extends ResultRowMeta> implements Resu
 
 
     @SuppressWarnings("unchecked")
-    protected <T> T convertValue(final int indexBaseZero, final Object nonValue, final Class<T> targetClass)
+    private <T> T convertNonNullValue(final int indexBaseZero, final Object nonValue, final Class<T> targetClass)
             throws UnsupportedConvertingException {
         final Object convertedValue;
 
@@ -175,7 +218,7 @@ public abstract class AbstractResultRow<R extends ResultRowMeta> implements Resu
             } else if (targetClass == Float.class) {
                 convertedValue = convertToFloat(indexBaseZero, nonValue);
             } else {
-                throw createNotSupportedException(indexBaseZero, targetClass);
+                convertedValue = convertToOtherNumber(indexBaseZero, nonValue, (Class<? extends Number>) targetClass);
             }
         } else if (TemporalAccessor.class.isAssignableFrom(targetClass)) {
             if (targetClass == LocalDateTime.class) {
@@ -203,7 +246,8 @@ public abstract class AbstractResultRow<R extends ResultRowMeta> implements Resu
             } else if (targetClass == Month.class) {
                 convertedValue = convertToMonth(indexBaseZero, nonValue);
             } else {
-                throw createNotSupportedException(indexBaseZero, targetClass);
+                convertedValue = convertToOtherTemporalAccessor(indexBaseZero, nonValue
+                        , (Class<? extends TemporalAccessor>) targetClass);
             }
         } else if (TemporalAmount.class.isAssignableFrom(targetClass)) {
             if (targetClass == Duration.class) {
@@ -211,7 +255,8 @@ public abstract class AbstractResultRow<R extends ResultRowMeta> implements Resu
             } else if (targetClass == Period.class) {
                 convertedValue = convertToPeriod(indexBaseZero, nonValue);
             } else {
-                throw createNotSupportedException(indexBaseZero, targetClass);
+                convertedValue = convertToOtherTemporalAmount(indexBaseZero, nonValue
+                        , (Class<? extends TemporalAmount>) targetClass);
             }
         } else if (targetClass == Boolean.class) {
             convertedValue = convertToBoolean(indexBaseZero, nonValue);
@@ -219,14 +264,141 @@ public abstract class AbstractResultRow<R extends ResultRowMeta> implements Resu
             convertedValue = convertToGeometry(indexBaseZero, nonValue);
         } else if (targetClass == byte[].class) {
             convertedValue = convertToByteArray(indexBaseZero, nonValue);
+        } else if (targetClass.isEnum()) {
+            final Enum<?> enumValue;
+            enumValue = convertToEnum(indexBaseZero, nonValue, targetClass);
+            convertedValue = enumValue;
         } else {
-            throw createNotSupportedException(indexBaseZero, targetClass);
+            convertedValue = convertToOther(indexBaseZero, nonValue, targetClass);
         }
         return (T) convertedValue;
     }
 
     /**
-     * @see #convertValue(int, Object, Class)
+     * @see #convertNonNullValue(int, Object, Class)
+     */
+    @SuppressWarnings("unchecked")
+    protected <T> Set<T> convertNonNullToSet(final int indexBaseZero, final Object nonValue
+            , final Class<T> elementClass)
+            throws UnsupportedConvertingException {
+        try {
+            final Set<T> set;
+            if (nonValue instanceof String) {
+                Set<String> stringSet = JdbdStringUtils.spitAsSet((String) nonValue, ",");
+                if (elementClass.isEnum()) {
+                    Set<T> tempSet = JdbdStringUtils.convertStringsToEnumSet(stringSet, elementClass);
+                    set = JdbdCollections.unmodifiableSet(tempSet);
+                } else if (elementClass == String.class) {
+                    set = (Set<T>) JdbdCollections.unmodifiableSet(stringSet);
+                } else {
+                    throw createNotSupportedException(indexBaseZero, elementClass);
+                }
+            } else {
+                throw createNotSupportedException(indexBaseZero, elementClass);
+            }
+            return set;
+        } catch (UnsupportedConvertingException e) {
+            throw e;
+        } catch (Throwable e) {
+            throw createValueCannotConvertException(e, indexBaseZero, Set.class);
+        }
+    }
+
+
+    /**
+     * @see #convertNonNullValue(int, Object, Class)
+     */
+    @SuppressWarnings("unchecked")
+    protected <T> List<T> convertNonNullToList(final int indexBaseZero, final Object nonValue
+            , final Class<T> elementClass)
+            throws UnsupportedConvertingException {
+        try {
+            final List<T> list;
+            if (nonValue instanceof String) {
+                List<String> stringList = JdbdStringUtils.spitAsList((String) nonValue, ",");
+                if (elementClass.isEnum()) {
+                    List<T> tempList = JdbdStringUtils.convertStringsToEnumList(stringList, elementClass);
+                    list = JdbdCollections.unmodifiableList(tempList);
+                } else if (elementClass == String.class) {
+                    list = (List<T>) JdbdCollections.unmodifiableList(stringList);
+                } else {
+                    throw createNotSupportedException(indexBaseZero, elementClass);
+                }
+            } else {
+                throw createNotSupportedException(indexBaseZero, elementClass);
+            }
+            return list;
+        } catch (UnsupportedConvertingException e) {
+            throw e;
+        } catch (Throwable e) {
+            throw createValueCannotConvertException(e, indexBaseZero, Set.class);
+        }
+    }
+
+    /**
+     * @see #convertNonNullValue(int, Object, Class)
+     */
+    protected <T> T convertToOther(final int indexBaseZero, final Object sourceValue
+            , final Class<T> targetClass) throws UnsupportedConvertingException {
+        throw createNotSupportedException(indexBaseZero, targetClass);
+    }
+
+    /**
+     * @see #convertNonNullValue(int, Object, Class)
+     */
+    protected Number convertToOtherNumber(final int indexBaseZero, final Object sourceValue
+            , final Class<? extends Number> targetClass) {
+        throw createNotSupportedException(indexBaseZero, targetClass);
+    }
+
+    /**
+     * @see #convertNonNullValue(int, Object, Class)
+     */
+    protected TemporalAccessor convertToOtherTemporalAccessor(final int indexBaseZero, final Object sourceValue
+            , final Class<? extends TemporalAccessor> targetClass) {
+        throw createNotSupportedException(indexBaseZero, targetClass);
+    }
+
+    /**
+     * @see #convertNonNullValue(int, Object, Class)
+     */
+    protected TemporalAmount convertToOtherTemporalAmount(final int indexBaseZero, final Object sourceValue
+            , final Class<? extends TemporalAmount> targetClass) {
+        throw createNotSupportedException(indexBaseZero, targetClass);
+    }
+
+
+    /**
+     * @see #convertNonNullValue(int, Object, Class)
+     */
+    @SuppressWarnings("unchecked")
+    protected <T extends Enum<T>> T convertToEnum(final int indexBaseZero, final Object sourceValue
+            , final Class<?> enumClass) throws UnsupportedConvertingException {
+        final T enumValue;
+        try {
+            final Class<T> clazz = (Class<T>) enumClass;
+            if (sourceValue instanceof Integer && CodeEnum.class.isAssignableFrom(enumClass)) {
+                enumValue = (T) CodeEnum.resolve(enumClass, (Integer) sourceValue);
+            } else if (sourceValue instanceof String) {
+
+                enumValue = Enum.valueOf(clazz, (String) sourceValue);
+            } else if (sourceValue instanceof byte[]) {
+                String textValue = new String((byte[]) sourceValue, obtainColumnCharset(indexBaseZero));
+                enumValue = Enum.valueOf(clazz, textValue);
+            } else {
+                throw createNotSupportedException(indexBaseZero, enumClass);
+            }
+            return enumValue;
+        } catch (UnsupportedConvertingException e) {
+            throw e;
+        } catch (Throwable e) {
+            throw createValueCannotConvertException(e, indexBaseZero, enumClass);
+        }
+    }
+
+
+    /**
+     * @see #convertNonNullValue(int, Object, Class)
      */
     protected Geometry convertToGeometry(final int indexBaseZero, final Object sourceValue)
             throws UnsupportedConvertingException {
@@ -235,7 +407,7 @@ public abstract class AbstractResultRow<R extends ResultRowMeta> implements Resu
     }
 
     /**
-     * @see #convertValue(int, Object, Class)
+     * @see #convertNonNullValue(int, Object, Class)
      */
     protected byte[] convertToByteArray(final int indexBaseZero, final Object sourceValue)
             throws UnsupportedConvertingException {
@@ -252,7 +424,7 @@ public abstract class AbstractResultRow<R extends ResultRowMeta> implements Resu
     }
 
     /**
-     * @see #convertValue(int, Object, Class)
+     * @see #convertNonNullValue(int, Object, Class)
      */
     protected String convertToString(final int indexBaseZero, final Object sourceValue) {
         final String value;
@@ -279,7 +451,7 @@ public abstract class AbstractResultRow<R extends ResultRowMeta> implements Resu
     }
 
     /**
-     * @see #convertValue(int, Object, Class)
+     * @see #convertNonNullValue(int, Object, Class)
      */
     protected Duration convertToDuration(final int indexBaseZero, final Object sourceValue)
             throws UnsupportedConvertingException {
@@ -311,7 +483,7 @@ public abstract class AbstractResultRow<R extends ResultRowMeta> implements Resu
     }
 
     /**
-     * @see #convertValue(int, Object, Class)
+     * @see #convertNonNullValue(int, Object, Class)
      */
     protected Period convertToPeriod(final int indexBaseZero, final Object sourceValue)
             throws UnsupportedConvertingException {
@@ -343,7 +515,7 @@ public abstract class AbstractResultRow<R extends ResultRowMeta> implements Resu
     }
 
     /**
-     * @see #convertValue(int, Object, Class)
+     * @see #convertNonNullValue(int, Object, Class)
      */
     protected OffsetTime convertToOffsetTime(final int indexBaseZero, final Object sourceValue)
             throws UnsupportedConvertingException {
@@ -407,7 +579,7 @@ public abstract class AbstractResultRow<R extends ResultRowMeta> implements Resu
 
 
     /**
-     * @see #convertValue(int, Object, Class)
+     * @see #convertNonNullValue(int, Object, Class)
      */
     protected Instant convertToInstant(final int indexBaseZero, final Object sourceValue)
             throws UnsupportedConvertingException {
@@ -465,7 +637,7 @@ public abstract class AbstractResultRow<R extends ResultRowMeta> implements Resu
     }
 
     /**
-     * @see #convertValue(int, Object, Class)
+     * @see #convertNonNullValue(int, Object, Class)
      */
     protected Year convertToYear(final int indexBaseZero, final Object sourceValue)
             throws UnsupportedConvertingException {
@@ -521,7 +693,7 @@ public abstract class AbstractResultRow<R extends ResultRowMeta> implements Resu
     }
 
     /**
-     * @see #convertValue(int, Object, Class)
+     * @see #convertNonNullValue(int, Object, Class)
      */
     protected YearMonth convertToYearMonth(final int indexBaseZero, final Object sourceValue)
             throws UnsupportedConvertingException {
@@ -578,7 +750,7 @@ public abstract class AbstractResultRow<R extends ResultRowMeta> implements Resu
 
 
     /**
-     * @see #convertValue(int, Object, Class)
+     * @see #convertNonNullValue(int, Object, Class)
      */
     protected MonthDay convertToMonthDay(final int indexBaseZero, final Object sourceValue)
             throws UnsupportedConvertingException {
@@ -636,7 +808,7 @@ public abstract class AbstractResultRow<R extends ResultRowMeta> implements Resu
     }
 
     /**
-     * @see #convertValue(int, Object, Class)
+     * @see #convertNonNullValue(int, Object, Class)
      */
     protected DayOfWeek convertToDayOfWeek(final int indexBaseZero, final Object sourceValue)
             throws UnsupportedConvertingException {
@@ -694,7 +866,7 @@ public abstract class AbstractResultRow<R extends ResultRowMeta> implements Resu
     }
 
     /**
-     * @see #convertValue(int, Object, Class)
+     * @see #convertNonNullValue(int, Object, Class)
      */
     protected Month convertToMonth(final int indexBaseZero, final Object sourceValue)
             throws UnsupportedConvertingException {
@@ -754,7 +926,7 @@ public abstract class AbstractResultRow<R extends ResultRowMeta> implements Resu
 
 
     /**
-     * @see #convertValue(int, Object, Class)
+     * @see #convertNonNullValue(int, Object, Class)
      */
     protected OffsetDateTime convertToOffsetDateTime(final int indexBaseZero, final Object sourceValue)
             throws UnsupportedConvertingException {
@@ -809,7 +981,7 @@ public abstract class AbstractResultRow<R extends ResultRowMeta> implements Resu
     }
 
     /**
-     * @see #convertValue(int, Object, Class)
+     * @see #convertNonNullValue(int, Object, Class)
      */
     protected ZonedDateTime convertToZonedDateTime(final int indexBaseZero, final Object sourceValue)
             throws UnsupportedConvertingException {
@@ -861,7 +1033,7 @@ public abstract class AbstractResultRow<R extends ResultRowMeta> implements Resu
     }
 
     /**
-     * @see #convertValue(int, Object, Class)
+     * @see #convertNonNullValue(int, Object, Class)
      */
     protected LocalTime convertToLocalTime(final int indexBaseZero, final Object sourceValue)
             throws UnsupportedConvertingException {
@@ -923,7 +1095,7 @@ public abstract class AbstractResultRow<R extends ResultRowMeta> implements Resu
     }
 
     /**
-     * @see #convertValue(int, Object, Class)
+     * @see #convertNonNullValue(int, Object, Class)
      */
     protected LocalDateTime convertToLocalDateTime(final int indexBaseZero, final Object sourceValue)
             throws UnsupportedConvertingException {
@@ -982,7 +1154,7 @@ public abstract class AbstractResultRow<R extends ResultRowMeta> implements Resu
     }
 
     /**
-     * @see #convertValue(int, Object, Class)
+     * @see #convertNonNullValue(int, Object, Class)
      */
     protected LocalDate convertToLocalDate(final int indexBaseZero, final Object sourceValue)
             throws UnsupportedConvertingException {
@@ -1045,7 +1217,7 @@ public abstract class AbstractResultRow<R extends ResultRowMeta> implements Resu
 
 
     /**
-     * @see #convertValue(int, Object, Class)
+     * @see #convertNonNullValue(int, Object, Class)
      */
     protected Double convertToDouble(final int indexBaseZero, final Object sourceValue) {
         final double newValue;
@@ -1075,7 +1247,7 @@ public abstract class AbstractResultRow<R extends ResultRowMeta> implements Resu
 
 
     /**
-     * @see #convertValue(int, Object, Class)
+     * @see #convertNonNullValue(int, Object, Class)
      */
     protected Float convertToFloat(final int indexBaseZero, final Object sourceValue) {
         final float newValue;
@@ -1104,7 +1276,7 @@ public abstract class AbstractResultRow<R extends ResultRowMeta> implements Resu
 
 
     /**
-     * @see #convertValue(int, Object, Class)
+     * @see #convertNonNullValue(int, Object, Class)
      */
     protected BigDecimal convertToBigDecimal(final int indexBaseZero, final Object sourceValue) {
         final BigDecimal newValue;
@@ -1145,7 +1317,7 @@ public abstract class AbstractResultRow<R extends ResultRowMeta> implements Resu
     }
 
     /**
-     * @see #convertValue(int, Object, Class)
+     * @see #convertNonNullValue(int, Object, Class)
      */
     protected BigInteger convertToBigInteger(final int indexBaseZero, final Object sourceValue)
             throws UnsupportedConvertingException {
@@ -1186,7 +1358,7 @@ public abstract class AbstractResultRow<R extends ResultRowMeta> implements Resu
     }
 
     /**
-     * @see #convertValue(int, Object, Class)
+     * @see #convertNonNullValue(int, Object, Class)
      */
     protected Long convertToLong(final int indexBaseZero, final Object sourceValue) {
         final long newValue;
@@ -1215,7 +1387,7 @@ public abstract class AbstractResultRow<R extends ResultRowMeta> implements Resu
     }
 
     /**
-     * @see #convertValue(int, Object, Class)
+     * @see #convertNonNullValue(int, Object, Class)
      */
     protected Integer convertToInteger(final int indexBaseZero, final Object sourceValue) {
         final int newValue;
@@ -1246,7 +1418,7 @@ public abstract class AbstractResultRow<R extends ResultRowMeta> implements Resu
     }
 
     /**
-     * @see #convertValue(int, Object, Class)
+     * @see #convertNonNullValue(int, Object, Class)
      */
     protected Short convertToShort(final int indexBaseZero, final Object sourceValue) {
         final short newValue;
@@ -1275,7 +1447,7 @@ public abstract class AbstractResultRow<R extends ResultRowMeta> implements Resu
     }
 
     /**
-     * @see #convertValue(int, Object, Class)
+     * @see #convertNonNullValue(int, Object, Class)
      */
     protected Byte convertToByte(final int indexBaseZero, final Object sourceValue) {
         final byte newValue;
