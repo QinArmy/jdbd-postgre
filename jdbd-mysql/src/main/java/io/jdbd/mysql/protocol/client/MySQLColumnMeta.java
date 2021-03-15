@@ -145,11 +145,11 @@ public final class MySQLColumnMeta {
                 precision = 0L;
                 break;
             case TIME:
-                precision = obtainTimeTypePrecision(this);
+                precision = obtainTimeTypePrecision();
                 break;
             case TIMESTAMP:
             case DATETIME:
-                precision = obtainDateTimeTypePrecision(this);
+                precision = obtainDateTimeTypePrecision();
                 break;
             default:
                 precision = -1;
@@ -179,27 +179,27 @@ public final class MySQLColumnMeta {
         return sb.toString();
     }
 
-    static int obtainTimeTypePrecision(MySQLColumnMeta columnMeta) {
+    int obtainTimeTypePrecision() {
         final int precision;
-        if (columnMeta.decimals > 0 && columnMeta.decimals < 7) {
-            precision = columnMeta.decimals;
+        if (this.decimals >= 0 && this.decimals < 7) {
+            precision = this.decimals;
         } else {
-            precision = (int) (columnMeta.length - 11L);
+            precision = (int) (this.length - 11L);
             if (precision < 0 || precision > 6) {
-                throw new IllegalArgumentException(String.format("MySQLColumnMeta[%s] isn't time type.", columnMeta));
+                throw new IllegalArgumentException(String.format("MySQLColumnMeta[%s] isn't time type.", this));
             }
         }
         return precision;
     }
 
-    static int obtainDateTimeTypePrecision(MySQLColumnMeta columnMeta) {
+    int obtainDateTimeTypePrecision() {
         final int precision;
-        if (columnMeta.decimals > 0 && columnMeta.decimals < 7) {
-            precision = columnMeta.decimals;
+        if (this.decimals >= 0 && this.decimals < 7) {
+            precision = this.decimals;
         } else {
-            precision = (int) (columnMeta.length - 20L);
+            precision = (int) (this.length - 20L);
             if (precision < 0 || precision > 6) {
-                throw new IllegalArgumentException(String.format("MySQLColumnMeta[%s] isn't time type.", columnMeta));
+                throw new IllegalArgumentException(String.format("MySQLColumnMeta[%s] isn't time type.", this));
             }
         }
         return precision;

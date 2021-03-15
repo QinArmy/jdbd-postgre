@@ -82,6 +82,10 @@ abstract class MySQLRowMeta implements ResultRowMeta {
         return this.columnMetaArray[checkIndex(indexBaseZero)].mysqlType;
     }
 
+    @Override
+    public final SQLType getSQLType(String columnAlias) throws JdbdSQLException {
+        return getSQLType(getColumnIndex(columnAlias));
+    }
 
     @Override
     public final NullMode getNullMode(int indexBaseZero) throws JdbdSQLException {
@@ -92,10 +96,14 @@ abstract class MySQLRowMeta implements ResultRowMeta {
 
 
     @Override
-    public final boolean isSigned(int indexBaseZero) throws JdbdSQLException {
-        return (this.columnMetaArray[checkIndex(indexBaseZero)].definitionFlags & MySQLColumnMeta.UNSIGNED_FLAG) == 0;
+    public final boolean isUnsigned(int indexBaseZero) throws JdbdSQLException {
+        return (this.columnMetaArray[checkIndex(indexBaseZero)].definitionFlags & MySQLColumnMeta.UNSIGNED_FLAG) != 0;
     }
 
+    @Override
+    public final boolean isUnsigned(String columnAlias) throws JdbdSQLException {
+        return isUnsigned(convertToIndex(columnAlias));
+    }
 
     @Override
     public final boolean isAutoIncrement(int indexBaseZero) throws JdbdSQLException {
@@ -175,12 +183,32 @@ abstract class MySQLRowMeta implements ResultRowMeta {
 
     @Override
     public int getScale(int indexBaseZero) throws JdbdSQLException {
-        MySQLColumnMeta columnMeta = this.columnMetaArray[checkIndex(indexBaseZero)];
-        return (columnMeta.mysqlType == MySQLType.DECIMAL || columnMeta.mysqlType == MySQLType.DECIMAL_UNSIGNED)
-                ? columnMeta.decimals
-                : 0;
+        final MySQLColumnMeta columnMeta = this.columnMetaArray[checkIndex(indexBaseZero)];
+        final int scale;
+        switch (columnMeta.mysqlType) {
+            case DECIMAL:
+            case DECIMAL_UNSIGNED:
+                scale = columnMeta.decimals;
+                break;
+            case TIME: {
+                scale = columnMeta.obtainTimeTypePrecision();
+            }
+            break;
+            case DATETIME:
+            case TIMESTAMP: {
+                scale = columnMeta.obtainDateTimeTypePrecision();
+            }
+            break;
+            default:
+                scale = 0;
+        }
+        return scale;
     }
 
+    @Override
+    public final int getScale(String columnAlias) throws JdbdSQLException {
+        return getScale(getColumnIndex(columnAlias));
+    }
 
     @Override
     public boolean isPrimaryKey(int indexBaseZero) throws JdbdSQLException {
@@ -202,16 +230,16 @@ abstract class MySQLRowMeta implements ResultRowMeta {
         return this.metaIndex == this.columnMetaArray.length;
     }
 
-    int convertToIndex(String columnLabel) {
+    int convertToIndex(String columnAlias) throws JdbdSQLException {
         MySQLColumnMeta[] columnMetas = this.columnMetaArray;
         int len = columnMetas.length;
         for (int i = 0; i < len; i++) {
-            if (columnMetas[i].columnAlias.equals(columnLabel)) {
+            if (columnMetas[i].columnAlias.equals(columnAlias)) {
                 return i;
             }
         }
         throw new JdbdSQLException(
-                new SQLException(String.format("not found index for columnLabel[%s]", columnLabel)));
+                new SQLException(String.format("Not found column for columnAlias[%s]", columnAlias)));
     }
 
     final MySQLType getMySQLType(int indexBaseZero) {

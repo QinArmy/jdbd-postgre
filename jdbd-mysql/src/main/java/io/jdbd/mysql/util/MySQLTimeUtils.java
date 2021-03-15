@@ -174,7 +174,7 @@ public abstract class MySQLTimeUtils extends TimeUtils {
             } else {
                 totalSecond = (hours * 3600L) + (minutes * 60L) + seconds;
             }
-            //nanoAdjustment must be positive ,java.lang.Math.floorDiv(long, long) bug ,if negative (-999_999 / 1_000_000_000) get -1 not 0.
+            //nanoAdjustment must be positive ,java.time.Duration.ofSeconds(long, long) method invoke java.lang.Math.floorDiv(long, long) cause bug.
             return Duration.ofSeconds(totalSecond, micros * 1000L);
         } catch (Throwable e) {
             throw new DateTimeException(createTimeFormatErrorMessage(timeText), e);

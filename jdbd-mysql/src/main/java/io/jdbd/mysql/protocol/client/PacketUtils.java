@@ -4,7 +4,6 @@ import io.jdbd.mysql.MySQLJdbdException;
 import io.jdbd.mysql.util.MySQLExceptions;
 import io.jdbd.mysql.util.MySQLNumberUtils;
 import io.netty.buffer.ByteBuf;
-import io.netty.buffer.ByteBufAllocator;
 import reactor.core.publisher.FluxSink;
 import reactor.util.annotation.Nullable;
 
@@ -372,7 +371,7 @@ public abstract class PacketUtils {
     /**
      * read {@code string<lenenc>} with binary protocol.
      */
-    public static byte[] readBytesLenEnc(ByteBuf byteBuf) {
+    public static byte[] readBinaryColumn(ByteBuf byteBuf) {
         int len = readLenEncAsInt(byteBuf);
         if (len == NULL_LENGTH) {
             throw new IllegalArgumentException("byteBuf no Bytes length encode");
@@ -382,7 +381,10 @@ public abstract class PacketUtils {
         return bytes;
     }
 
-    public static long readBinaryBitTypeAsLong(byte[] bytes) {
+    public static long readBitTypeAsLong(final byte[] bytes) {
+        if (bytes.length == 0 || bytes.length > 8) {
+            throw new IllegalArgumentException(String.format("bytes length[%s] error.", bytes.length));
+        }
         long bitLong = 0L;
         for (int i = 0, bitCount = 0; i < bytes.length; i++, bitCount += 8) {
             bitLong = (bitLong << bitCount) | bytes[i];
@@ -390,22 +392,6 @@ public abstract class PacketUtils {
         return bitLong;
     }
 
-    @Nullable
-    public static Long readTextBitTypeAsLong(ByteBuf byteBuf, Charset charset) {
-        String text = readStringLenEnc(byteBuf, charset);
-        if (text == null) {
-            return null;
-        }
-        boolean negative = text.length() == 64 && text.charAt(0) == '1';
-        if (negative) {
-            text = text.substring(1);
-        }
-        long bitResult = Long.parseLong(text, 2);
-        if (negative) {
-            bitResult |= LONG_SIGNED_BIT;
-        }
-        return bitResult;
-    }
 
     /**
      * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_binary_resultset.html#sect_protocol_binary_resultset_row_value_time">ProtocolBinary::MYSQL_TYPE_TIME</a>
@@ -523,7 +509,7 @@ public abstract class PacketUtils {
      */
     @Nullable
     public static String readStringLenEnc(ByteBuf byteBuf, Charset charset) {
-        final byte[] bytes = readTextBytes(byteBuf);
+        final byte[] bytes = readBytesLenEnc(byteBuf);
         final String text;
         if (bytes == null) {
             text = null;
@@ -535,8 +521,11 @@ public abstract class PacketUtils {
         return text;
     }
 
+    /**
+     * @see #readStringLenEnc(ByteBuf, Charset)
+     */
     @Nullable
-    public static byte[] readTextBytes(ByteBuf byteBuf) {
+    public static byte[] readBytesLenEnc(ByteBuf byteBuf) {
         final int len = readLenEncAsInt(byteBuf);
         final byte[] bytes;
         if (len == NULL_LENGTH) {
@@ -550,13 +539,6 @@ public abstract class PacketUtils {
         return bytes;
     }
 
-
-    public static ByteBuf createPacketBuffer(ByteBufAllocator allocator, int payloadCapacity) {
-        ByteBuf packetBuffer = allocator.buffer(HEADER_SIZE + payloadCapacity);
-        // reserve header 4 bytes.
-        packetBuffer.writeZero(HEADER_SIZE);
-        return packetBuffer;
-    }
 
     /**
      * <p>

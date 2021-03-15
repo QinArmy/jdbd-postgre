@@ -4,6 +4,7 @@ import io.jdbd.JdbdSQLException;
 import io.jdbd.ResultRow;
 import io.jdbd.ResultRowMeta;
 import io.jdbd.UnsupportedConvertingException;
+import io.jdbd.type.geometry.Geometry;
 import reactor.util.annotation.Nullable;
 
 import java.math.BigDecimal;
@@ -72,7 +73,7 @@ public abstract class AbstractResultRow<R extends ResultRowMeta> implements Resu
         try {
             return get(convertToIndex(columnAlias), columnClass);
         } catch (Throwable e) {
-            throw new JdbdSQLException(new SQLException(String.format("alias[%s] access error.", columnAlias), e));
+            throw new JdbdSQLException(new SQLException(String.format("Column alias[%s] access error.", columnAlias), e));
         }
     }
 
@@ -213,11 +214,41 @@ public abstract class AbstractResultRow<R extends ResultRowMeta> implements Resu
                 throw createNotSupportedException(indexBaseZero, targetClass);
             }
         } else if (targetClass == Boolean.class) {
-            convertedValue = convertToBoolean(indexBaseZero, targetClass);
+            convertedValue = convertToBoolean(indexBaseZero, nonValue);
+        } else if (Geometry.class.isAssignableFrom(targetClass)) {
+            convertedValue = convertToGeometry(indexBaseZero, nonValue);
+        } else if (targetClass == byte[].class) {
+            convertedValue = convertToByteArray(indexBaseZero, nonValue);
         } else {
             throw createNotSupportedException(indexBaseZero, targetClass);
         }
         return (T) convertedValue;
+    }
+
+    /**
+     * @see #convertValue(int, Object, Class)
+     */
+    protected Geometry convertToGeometry(final int indexBaseZero, final Object sourceValue)
+            throws UnsupportedConvertingException {
+
+        return null;
+    }
+
+    /**
+     * @see #convertValue(int, Object, Class)
+     */
+    protected byte[] convertToByteArray(final int indexBaseZero, final Object sourceValue)
+            throws UnsupportedConvertingException {
+        final byte[] value;
+
+        if (sourceValue instanceof byte[]) {
+            value = (byte[]) sourceValue;
+        } else if (sourceValue instanceof String) {
+            value = ((String) sourceValue).getBytes(obtainColumnCharset(indexBaseZero));
+        } else {
+            throw createNotSupportedException(indexBaseZero, byte[].class);
+        }
+        return value;
     }
 
     /**
@@ -1018,7 +1049,10 @@ public abstract class AbstractResultRow<R extends ResultRowMeta> implements Resu
      */
     protected Double convertToDouble(final int indexBaseZero, final Object sourceValue) {
         final double newValue;
-        if (sourceValue instanceof String) {
+        if (sourceValue instanceof Double
+                || sourceValue instanceof Float) {
+            newValue = ((Number) sourceValue).doubleValue();
+        } else if (sourceValue instanceof String) {
             try {
                 newValue = Double.parseDouble((String) sourceValue);
             } catch (NumberFormatException e) {
@@ -1031,8 +1065,8 @@ public abstract class AbstractResultRow<R extends ResultRowMeta> implements Resu
             } catch (NumberFormatException e) {
                 throw createValueCannotConvertException(e, indexBaseZero, Double.class);
             }
-        } else if (sourceValue instanceof Number) {
-            newValue = ((Number) sourceValue).doubleValue();
+        } else if (sourceValue instanceof Boolean) {
+            newValue = ((Boolean) sourceValue) ? 1.0D : 0.0D;
         } else {
             throw createNotSupportedException(indexBaseZero, Double.class);
         }
@@ -1045,7 +1079,9 @@ public abstract class AbstractResultRow<R extends ResultRowMeta> implements Resu
      */
     protected Float convertToFloat(final int indexBaseZero, final Object sourceValue) {
         final float newValue;
-        if (sourceValue instanceof String) {
+        if (sourceValue instanceof Float) {
+            newValue = (Float) sourceValue;
+        } else if (sourceValue instanceof String) {
             try {
                 newValue = Float.parseFloat((String) sourceValue);
             } catch (NumberFormatException e) {
@@ -1058,8 +1094,8 @@ public abstract class AbstractResultRow<R extends ResultRowMeta> implements Resu
             } catch (NumberFormatException e) {
                 throw createValueCannotConvertException(e, indexBaseZero, Float.class);
             }
-        } else if (sourceValue instanceof Number) {
-            newValue = ((Number) sourceValue).floatValue();
+        } else if (sourceValue instanceof Boolean) {
+            newValue = ((Boolean) sourceValue) ? 1.0F : 0.0F;
         } else {
             throw createNotSupportedException(indexBaseZero, Float.class);
         }
@@ -1100,6 +1136,8 @@ public abstract class AbstractResultRow<R extends ResultRowMeta> implements Resu
             } catch (NumberFormatException e) {
                 throw createValueCannotConvertException(e, indexBaseZero, BigDecimal.class);
             }
+        } else if (sourceValue instanceof Boolean) {
+            newValue = ((Boolean) sourceValue) ? BigDecimal.ONE : BigDecimal.ZERO;
         } else {
             throw createNotSupportedException(indexBaseZero, BigDecimal.class);
         }
@@ -1139,6 +1177,8 @@ public abstract class AbstractResultRow<R extends ResultRowMeta> implements Resu
             } catch (NumberFormatException e) {
                 throw createValueCannotConvertException(e, indexBaseZero, BigInteger.class);
             }
+        } else if (sourceValue instanceof Boolean) {
+            newValue = ((Boolean) sourceValue) ? BigInteger.ONE : BigInteger.ZERO;
         } else {
             throw createNotSupportedException(indexBaseZero, BigInteger.class);
         }
@@ -1166,6 +1206,8 @@ public abstract class AbstractResultRow<R extends ResultRowMeta> implements Resu
             } catch (NumberFormatException e) {
                 throw createValueCannotConvertException(e, indexBaseZero, Long.class);
             }
+        } else if (sourceValue instanceof Boolean) {
+            newValue = ((Boolean) sourceValue) ? 1L : 0L;
         } else {
             throw createNotSupportedException(indexBaseZero, Long.class);
         }
@@ -1193,6 +1235,8 @@ public abstract class AbstractResultRow<R extends ResultRowMeta> implements Resu
             } catch (NumberFormatException e) {
                 throw createValueCannotConvertException(e, indexBaseZero, Integer.class);
             }
+        } else if (sourceValue instanceof Boolean) {
+            newValue = ((Boolean) sourceValue) ? 1 : 0;
         } else {
             throw createNotSupportedException(indexBaseZero, Integer.class);
         }
@@ -1222,6 +1266,8 @@ public abstract class AbstractResultRow<R extends ResultRowMeta> implements Resu
             } catch (NumberFormatException e) {
                 throw createValueCannotConvertException(e, indexBaseZero, Short.class);
             }
+        } else if (sourceValue instanceof Boolean) {
+            newValue = ((Boolean) sourceValue) ? (short) 1 : (short) 0;
         } else {
             throw createNotSupportedException(indexBaseZero, Short.class);
         }
@@ -1248,6 +1294,8 @@ public abstract class AbstractResultRow<R extends ResultRowMeta> implements Resu
             } catch (NumberFormatException e) {
                 throw createValueCannotConvertException(e, indexBaseZero, Byte.class);
             }
+        } else if (sourceValue instanceof Boolean) {
+            newValue = ((Boolean) sourceValue) ? (byte) 1 : (byte) 0;
         } else {
             throw createNotSupportedException(indexBaseZero, Byte.class);
         }

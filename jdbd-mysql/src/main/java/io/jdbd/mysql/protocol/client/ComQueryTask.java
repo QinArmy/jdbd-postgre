@@ -721,6 +721,7 @@ final class ComQueryTask extends MySQLCommandTask {
 
 
     private void addError(JdbdException e) {
+        //TODO filter same error.
         List<JdbdException> errorList = this.errorList;
         if (errorList == null) {
             errorList = new ArrayList<>();

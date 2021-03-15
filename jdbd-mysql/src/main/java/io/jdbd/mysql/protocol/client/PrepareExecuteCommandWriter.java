@@ -8,7 +8,7 @@ import io.jdbd.mysql.util.MySQLCollections;
 import io.jdbd.mysql.util.MySQLExceptions;
 import io.jdbd.mysql.util.MySQLNumberUtils;
 import io.jdbd.mysql.util.MySQLTimeUtils;
-import io.jdbd.type.Geometry;
+import io.jdbd.type.geometry.Geometry;
 import io.jdbd.vendor.conf.Properties;
 import io.netty.buffer.ByteBuf;
 import org.reactivestreams.Publisher;
@@ -677,7 +677,7 @@ final class PrepareExecuteCommandWriter implements StatementCommandWriter {
     private void bindToTime(final ByteBuf buffer, final MySQLColumnMeta parameterMeta, final BindValue bindValue) {
         final Object nonNullValue = bindValue.getRequiredValue();
 
-        final int microPrecision = MySQLColumnMeta.obtainDateTimeTypePrecision(parameterMeta);
+        final int microPrecision = parameterMeta.obtainDateTimeTypePrecision();
         final int length = microPrecision > 0 ? 12 : 8;
 
         if (nonNullValue instanceof Duration) {
@@ -811,7 +811,7 @@ final class PrepareExecuteCommandWriter implements StatementCommandWriter {
             throw BindUtils.createTypeNotMatchException(bindValue);
         }
 
-        final int microPrecision = MySQLColumnMeta.obtainDateTimeTypePrecision(parameterMeta);
+        final int microPrecision = parameterMeta.obtainDateTimeTypePrecision();
         final int length = microPrecision > 0 ? 11 : 7;
         buffer.writeByte(length); // length
 

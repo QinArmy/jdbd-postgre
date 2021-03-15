@@ -125,14 +125,29 @@ final class TextResultSetReader extends AbstractResultSetReader {
                     }
                     break;
                     default:
-                        columnValue = PacketUtils.readTextBytes(payload);
+                        columnValue = PacketUtils.readBytesLenEnc(payload);
                 }
 
             }
             break;
             case ProtocolConstants.TYPE_STRING:
             case ProtocolConstants.TYPE_VARCHAR:
-            case ProtocolConstants.TYPE_VAR_STRING:
+            case ProtocolConstants.TYPE_VAR_STRING: {
+                switch (columnMeta.mysqlType) {
+                    case BINARY:
+                    case VARBINARY:
+                        columnValue = PacketUtils.readBytesLenEnc(payload);
+                        break;
+                    case CHAR:
+                    case VARCHAR:
+                        columnValue = PacketUtils.readStringLenEnc(payload, columnCharset);
+                        break;
+                    default:
+                        throw new IllegalStateException(
+                                String.format("Not found MySQL type for column meta:%s", columnMeta));
+                }
+            }
+            break;
             case ProtocolConstants.TYPE_ENUM:
             case ProtocolConstants.TYPE_JSON: {
                 columnValue = PacketUtils.readStringLenEnc(payload, columnCharset);
@@ -145,7 +160,12 @@ final class TextResultSetReader extends AbstractResultSetReader {
             }
             break;
             case ProtocolConstants.TYPE_BIT: {
-                columnValue = PacketUtils.readTextBitTypeAsLong(payload, columnCharset);
+                byte[] bytes = PacketUtils.readBytesLenEnc(payload);
+                if (bytes == null) {
+                    columnValue = null;
+                } else {
+                    columnValue = PacketUtils.readBitTypeAsLong(bytes);
+                }
             }
             break;
             case ProtocolConstants.TYPE_SET: {
@@ -220,15 +240,12 @@ final class TextResultSetReader extends AbstractResultSetReader {
             case ProtocolConstants.TYPE_TINY: {
                 columnText = PacketUtils.readStringLenEnc(payload, columnCharset);
                 final boolean bitIsBoolean = columnMeta.length == 1L
+                        && this.properties.getOrDefault(PropertyKey.tinyInt1isBit, Boolean.class)
                         && this.properties.getOrDefault(PropertyKey.transformedBitIsBoolean, Boolean.class);
                 if (columnText == null) {
                     columnValue = null;
                 } else if (columnMeta.isUnsigned()) {
-                    if (bitIsBoolean) {
-                        columnValue = MySQLConvertUtils.tryConvertToBoolean(Integer.parseInt(columnText));
-                    } else {
-                        columnValue = Integer.parseInt(columnText);
-                    }
+                    columnValue = Integer.parseInt(columnText);
                 } else {
                     if (bitIsBoolean) {
                         columnValue = MySQLConvertUtils.tryConvertToBoolean(Byte.parseByte(columnText));

@@ -91,26 +91,26 @@ final class BinaryResultSetReader extends AbstractResultSetReader {
             case ProtocolConstants.TYPE_LONG_BLOB:
             case ProtocolConstants.TYPE_GEOMETRY:
             case ProtocolConstants.TYPE_JSON: {
-                columnValue = PacketUtils.readBytesLenEnc(payload);
+                columnValue = PacketUtils.readBinaryColumn(payload);
             }
             break;
             case ProtocolConstants.TYPE_NEWDECIMAL:
             case ProtocolConstants.TYPE_DECIMAL: {
-                byte[] bytes = PacketUtils.readBytesLenEnc(payload);
+                byte[] bytes = PacketUtils.readBinaryColumn(payload);
                 columnValue = new BigDecimal(new String(bytes, columnMeta.columnCharset));
             }
             break;
             case ProtocolConstants.TYPE_BIT: {
-                columnValue = PacketUtils.readBinaryBitTypeAsLong(PacketUtils.readBytesLenEnc(payload));
+                columnValue = PacketUtils.readBitTypeAsLong(PacketUtils.readBinaryColumn(payload));
             }
             break;
             case ProtocolConstants.TYPE_ENUM: {
-                columnValue = new String(PacketUtils.readBytesLenEnc(payload), columnMeta.columnCharset);
+                columnValue = new String(PacketUtils.readBinaryColumn(payload), columnMeta.columnCharset);
             }
             break;
             case ProtocolConstants.TYPE_SET: {
                 columnValue = MySQLConvertUtils.convertToSetType(
-                        new String(PacketUtils.readBytesLenEnc(payload), columnMeta.columnCharset));
+                        new String(PacketUtils.readBinaryColumn(payload), columnMeta.columnCharset));
             }
             break;
             case ProtocolConstants.TYPE_LONGLONG: {

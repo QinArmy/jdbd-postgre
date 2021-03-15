@@ -9,7 +9,12 @@ import org.testng.annotations.Test;
 
 import java.time.DateTimeException;
 import java.time.Duration;
+import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeFormatterBuilder;
+import java.util.Locale;
 
+import static java.time.temporal.ChronoField.*;
 import static org.testng.Assert.*;
 
 @Test(groups = {Groups.UTILS})
@@ -160,6 +165,65 @@ public class MySQLTimeUtilsSuiteTests {
         MySQLTimeUtils.parseTimeAsDuration("33:59:59.9999999");
 
         fail("errorDurationText8 failure.");
+    }
+
+    /**
+     * test {@link MySQLTimeUtils#convertToDuration(LocalTime)}
+     */
+    @Test
+    public void convertLocalTimeToDuration() {
+        LOG.info("convertLocalTimeToDuration test start");
+
+        String timeText = "23:59:59.999999";
+        LocalTime time = LocalTime.parse(timeText, MySQLTimeUtils.MYSQL_TIME_FORMATTER);
+
+        Duration duration = MySQLTimeUtils.convertToDuration(time);
+        long totalSeconds, totalNano;
+        totalSeconds = 23L * 3600L + 59L * 60L + 59L;
+        totalNano = 999_999L * 1000L;
+        assertNotNull(duration, "duration");
+        assertEquals(duration.getSeconds(), totalSeconds, "totalSeconds");
+        assertEquals(duration.getNano(), totalNano, "totalNano");
+
+        timeText = "00:00:00.000000";
+        time = LocalTime.parse(timeText, MySQLTimeUtils.MYSQL_TIME_FORMATTER);
+        duration = MySQLTimeUtils.convertToDuration(time);
+
+        assertNotNull(duration, "duration");
+        assertEquals(duration.getSeconds(), 0L, "totalSeconds");
+        assertEquals(duration.getNano(), 0L, "totalNano");
+
+        LOG.info("convertLocalTimeToDuration test end");
+    }
+
+    /**
+     * test {@link MySQLTimeUtils#convertToDuration(LocalTime)}
+     */
+    @Test(expectedExceptions = IllegalArgumentException.class)
+    public void errorLocalTimeConvertToDuration() {
+        LOG.info("errorLocalTimeConvertToDuration test start");
+
+        String timeText = "23:59:59.999999999";
+
+        final DateTimeFormatter formatter = new DateTimeFormatterBuilder()
+                .appendValue(HOUR_OF_DAY, 2)
+                .appendLiteral(':')
+                .appendValue(MINUTE_OF_HOUR, 2)
+                .optionalStart()
+                .appendLiteral(':')
+                .appendValue(SECOND_OF_MINUTE, 2)
+
+                .optionalStart()
+                .appendFraction(NANO_OF_SECOND, 0, 9, true)
+                .optionalEnd()
+                .toFormatter(Locale.ENGLISH);
+
+        LocalTime time = LocalTime.parse(timeText, formatter);
+
+        MySQLTimeUtils.convertToDuration(time);
+
+        fail(String.format("errorLocalTimeConvertToDuration test failure ,time:%s ,nano:%s", time
+                .format(formatter), time.getNano()));
     }
 
 

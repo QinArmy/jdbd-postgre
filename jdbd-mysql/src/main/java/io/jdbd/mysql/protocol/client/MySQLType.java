@@ -3,7 +3,7 @@ package io.jdbd.mysql.protocol.client;
 import io.jdbd.meta.SQLType;
 import io.jdbd.mysql.protocol.CharsetMapping;
 import io.jdbd.mysql.protocol.conf.PropertyKey;
-import io.jdbd.type.Geometry;
+import io.jdbd.type.geometry.Geometry;
 import io.jdbd.vendor.conf.Properties;
 import org.qinarmy.util.StringUtils;
 
@@ -496,12 +496,14 @@ public enum MySQLType implements SQLType {
     private static MySQLType fromTiny(MySQLColumnMeta columnMeta, Properties<PropertyKey> properties) {
         final boolean isUnsigned = columnMeta.isUnsigned();
         // Adjust for pseudo-boolean
-        MySQLType mySQLType;
+        final MySQLType mySQLType;
         if (!isUnsigned && columnMeta.length == 1
                 && properties.getOrDefault(PropertyKey.tinyInt1isBit, Boolean.class)) {
-            mySQLType = properties.getOrDefault(PropertyKey.transformedBitIsBoolean, Boolean.class)
-                    ? BOOLEAN
-                    : BIT;
+            if (properties.getOrDefault(PropertyKey.transformedBitIsBoolean, Boolean.class)) {
+                mySQLType = BOOLEAN;
+            } else {
+                mySQLType = BIT;
+            }
         } else {
             mySQLType = isUnsigned ? MySQLType.TINYINT_UNSIGNED : MySQLType.TINYINT;
         }
@@ -551,9 +553,7 @@ public enum MySQLType implements SQLType {
     }
 
     private static MySQLType fromInt24(MySQLColumnMeta columnMeta, Properties<PropertyKey> properties) {
-        return columnMeta.isUnsigned()
-                ? MEDIUMINT_UNSIGNED
-                : MEDIUMINT;
+        return columnMeta.isUnsigned() ? MEDIUMINT_UNSIGNED : MEDIUMINT;
     }
 
     private static MySQLType fromDate(MySQLColumnMeta columnMeta, Properties<PropertyKey> properties) {
@@ -630,7 +630,7 @@ public enum MySQLType implements SQLType {
 
     private static MySQLType fromString(MySQLColumnMeta columnMeta, Properties<PropertyKey> properties) {
         return (isOpaqueBinary(columnMeta)
-                && !properties.getRequiredProperty(PropertyKey.blobsAreStrings, Boolean.class))
+                && !properties.getOrDefault(PropertyKey.blobsAreStrings, Boolean.class))
                 ? BINARY
                 : CHAR;
     }
@@ -667,7 +667,7 @@ public enum MySQLType implements SQLType {
 
     private static boolean isFunctionsNeverReturnBlobs(MySQLColumnMeta columnMeta, Properties<PropertyKey> properties) {
         return StringUtils.isEmpty(columnMeta.tableName)
-                && properties.getRequiredProperty(PropertyKey.functionsNeverReturnBlobs, Boolean.class);
+                && properties.getOrDefault(PropertyKey.functionsNeverReturnBlobs, Boolean.class);
     }
 
     private static boolean isBlobTypeReturnText(MySQLColumnMeta columnMeta, Properties<PropertyKey> properties) {

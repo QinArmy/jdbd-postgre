@@ -52,9 +52,23 @@ abstract class MySQLResultRow extends AbstractResultRow<MySQLRowMeta> {
                 throw createNotSupportedException(indexBaseZero, Boolean.class);
             }
             return value;
+        } catch (UnsupportedConvertingException e) {
+            throw e;
         } catch (Throwable e) {
             throw createValueCannotConvertException(e, indexBaseZero, Boolean.class);
         }
+    }
+
+
+    @Override
+    protected String convertToString(final int indexBaseZero, final Object sourceValue) {
+        final String text;
+        if (sourceValue instanceof Long && this.rowMeta.getMySQLType(indexBaseZero) == MySQLType.BIT) {
+            text = Long.toBinaryString((Long) sourceValue);
+        } else {
+            text = super.convertToString(indexBaseZero, sourceValue);
+        }
+        return text;
     }
 
     /**

@@ -5,6 +5,7 @@ import io.jdbd.mysql.protocol.authentication.PluginUtils;
 import io.jdbd.mysql.protocol.conf.MySQLUrl;
 import io.jdbd.mysql.session.MySQLSessionAdjutant;
 import io.netty.channel.EventLoopGroup;
+import reactor.core.publisher.Mono;
 import reactor.netty.resources.LoopResources;
 
 import java.util.Map;
@@ -22,8 +23,13 @@ public abstract class AbstractConnectionBasedSuiteTests {
         return EVENT_LOOP_GROUP;
     }
 
+
     protected static MySQLSessionAdjutant getSessionAdjutantForSingleHost(Map<String, String> propMap) {
         return new SessionAdjutantForSingleHostTest(ClientTestUtils.singleUrl(propMap));
+    }
+
+    protected static Mono<Void> quitConnection(MySQLTaskAdjutant adjutant) {
+        return QuitTask.quit(adjutant);
     }
 
 

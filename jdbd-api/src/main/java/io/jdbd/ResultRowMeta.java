@@ -66,6 +66,7 @@ public interface ResultRowMeta {
      */
     SQLType getSQLType(int indexBaseZero) throws JdbdSQLException;
 
+    SQLType getSQLType(String columnAlias) throws JdbdSQLException;
 
     /**
      * @param indexBaseZero base 0,the first column is 0, the second is 1, ...
@@ -80,7 +81,12 @@ public interface ResultRowMeta {
      * @throws JdbdSQLException if a database access error occurs
      * @see #getColumnIndex(String)
      */
-    boolean isSigned(int indexBaseZero) throws JdbdSQLException;
+    boolean isUnsigned(int indexBaseZero) throws JdbdSQLException;
+
+    /**
+     * @see #isUnsigned(int)
+     */
+    boolean isUnsigned(String columnAlias) throws JdbdSQLException;
 
 
     /**
@@ -215,6 +221,8 @@ public interface ResultRowMeta {
      * @see #getColumnIndex(String)
      */
     int getScale(int indexBaseZero) throws JdbdSQLException;
+
+    int getScale(String columnAlias) throws JdbdSQLException;
 
 
     /**
