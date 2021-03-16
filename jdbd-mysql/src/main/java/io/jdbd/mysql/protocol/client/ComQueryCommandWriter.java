@@ -11,6 +11,8 @@ import io.jdbd.mysql.util.MySQLExceptions;
 import io.jdbd.mysql.util.MySQLTimeUtils;
 import io.jdbd.vendor.conf.Properties;
 import io.netty.buffer.ByteBuf;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -31,6 +33,7 @@ import java.time.format.DateTimeParseException;
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Queue;
 import java.util.function.Supplier;
 
 
@@ -43,7 +46,7 @@ final class ComQueryCommandWriter {
     /**
      * @return a unmodifiable list.
      */
-    static List<ByteBuf> createPrepareMultiCommand(final List<StmtWrapper> stmtWrapperList
+    static List<ByteBuf> createBindableMultiCommand(final List<StmtWrapper> stmtWrapperList
             , Supplier<Integer> sequenceIdSupplier, MySQLTaskAdjutant adjutant)
             throws SQLException, LongDataReadException {
         return new ComQueryCommandWriter(sequenceIdSupplier, adjutant)
@@ -53,20 +56,20 @@ final class ComQueryCommandWriter {
     /**
      * @return a unmodifiable list.
      */
-    static List<ByteBuf> createPrepareCommand(StmtWrapper stmtWrapper, Supplier<Integer> sequenceIdSupplier
+    static List<ByteBuf> createBindableCommand(StmtWrapper stmtWrapper, Supplier<Integer> sequenceIdSupplier
             , MySQLTaskAdjutant adjutant) throws SQLException, LongDataReadException {
         return new ComQueryCommandWriter(sequenceIdSupplier, adjutant)
-                .writePrepareCommand(stmtWrapper);
+                .writeBindableCommand(stmtWrapper);
     }
 
     /**
      * @return a unmodifiable list.
      */
-    static List<ByteBuf> createPrepareBatchCommand(BatchWrapper wrapper, Supplier<Integer> sequenceIdSupplier
+    static List<ByteBuf> createBindableBatchCommand(BatchWrapper wrapper, Supplier<Integer> sequenceIdSupplier
             , MySQLTaskAdjutant adjutant) throws SQLException, LongDataReadException {
 
         return new ComQueryCommandWriter(sequenceIdSupplier, adjutant)
-                .writePrepareBatchCommand(wrapper);
+                .writeBindableBatchCommand(wrapper);
     }
 
     /**
@@ -89,13 +92,18 @@ final class ComQueryCommandWriter {
             PacketUtils.writePacketHeader(packet, sequenceIdSupplier.get());
             packetList = Collections.singletonList(packet);
         } else {
-            List<ByteBuf> tempPacketList = new LinkedList<>();
-            packet = writeStaticCommand(commandBytes, packet, tempPacketList, sequenceIdSupplier, adjutant);
+            final LinkedList<ByteBuf> tempPacketList = new LinkedList<>();
+            try {
+                packet = writeStaticCommand(commandBytes, packet, tempPacketList, sequenceIdSupplier, adjutant);
 
-            PacketUtils.writePacketHeader(packet, sequenceIdSupplier.get());
-            tempPacketList.add(packet);
+                PacketUtils.writePacketHeader(packet, sequenceIdSupplier.get());
+                tempPacketList.add(packet);
 
-            packetList = MySQLCollections.unmodifiableList(tempPacketList);
+                packetList = MySQLCollections.unmodifiableList(tempPacketList);
+            } catch (Throwable e) {
+                releaseOnError(tempPacketList, packet);
+                throw e;
+            }
         }
         return packetList;
     }
@@ -112,7 +120,7 @@ final class ComQueryCommandWriter {
         final int size = sqlList.size();
         final Charset clientCharset = adjutant.obtainCharsetClient();
 
-        LinkedList<ByteBuf> packetList = new LinkedList<>();
+        final LinkedList<ByteBuf> packetList = new LinkedList<>();
 
         ByteBuf packet = adjutant.createPacketBuffer(2048);
         packet.writeByte(PacketUtils.COM_QUERY);
@@ -136,14 +144,7 @@ final class ComQueryCommandWriter {
             packetList.add(packet);
             return MySQLCollections.unmodifiableList(packetList);
         } catch (Throwable e) {
-            ByteBuf byteBuf;
-            while ((byteBuf = packetList.poll()) != null) {
-                byteBuf.release();
-            }
-            packetList.clear();
-            if (packet.refCnt() > 0) {
-                packet.release();
-            }
+            releaseOnError(packetList, packet);
             throw e;
         }
     }
@@ -170,6 +171,8 @@ final class ComQueryCommandWriter {
         }
         return packet;
     }
+
+    private static final Logger LOG = LoggerFactory.getLogger(ComQueryCommandWriter.class);
 
     private final static byte[] HEX_DIGITS = new byte[]{
             (byte) '0', (byte) '1', (byte) '2', (byte) '3'
@@ -213,11 +216,12 @@ final class ComQueryCommandWriter {
 
     /**
      * @return a unmodifiable list.
+     * @see #createBindableMultiCommand(List, Supplier, MySQLTaskAdjutant)
      */
     private List<ByteBuf> writeMultiCommand(final List<StmtWrapper> stmtWrapperList)
             throws SQLException, LongDataReadException {
         final int size = stmtWrapperList.size();
-        LinkedList<ByteBuf> packetList = new LinkedList<>();
+        final LinkedList<ByteBuf> packetList = new LinkedList<>();
         ByteBuf packet = this.adjutant.createPacketBuffer(2048);
         packet.writeByte(PacketUtils.COM_QUERY);
         try {
@@ -226,7 +230,7 @@ final class ComQueryCommandWriter {
                 if (i > 0) {
                     packet.writeBytes(semicolonBytes);
                 }
-                packet = doWritePrepareCommand(i, stmtWrapperList.get(i), packetList, packet);
+                packet = doWriteBindableCommand(i, stmtWrapperList.get(i), packetList, packet);
                 if (packet.readableBytes() >= PacketUtils.MAX_PACKET) {
                     packet = PacketUtils.addAndCutBigPacket(packet, packetList, this.sequenceIdSupplier
                             , this.adjutant.allocator()::buffer);
@@ -234,39 +238,38 @@ final class ComQueryCommandWriter {
             }
             PacketUtils.writePacketHeader(packet, this.sequenceIdSupplier.get());
             packetList.add(packet);
-
             return MySQLCollections.unmodifiableList(packetList);
-        } catch (SQLException | LongDataReadException e) {
-            ByteBuf byteBuf;
-            while ((byteBuf = packetList.poll()) != null) {
-                byteBuf.release();
-            }
-            packetList.clear();
-            if (packet.refCnt() > 0) {
-                packet.release();
-            }
+        } catch (Throwable e) {
+            releaseOnError(packetList, packet);
             throw e;
         }
     }
 
     /**
      * @return a unmodifiable list.
+     * @see #createBindableCommand(StmtWrapper, Supplier, MySQLTaskAdjutant)
      */
-    private List<ByteBuf> writePrepareCommand(StmtWrapper stmtWrapper) throws SQLException, LongDataReadException {
-        List<ByteBuf> packetList = new LinkedList<>();
-        ByteBuf packet = this.adjutant.createPacketBuffer(2048);
-        packet.writeByte(PacketUtils.COM_QUERY);
-        packet = doWritePrepareCommand(-1, stmtWrapper, packetList, packet);
-        PacketUtils.writePacketHeader(packet, this.sequenceIdSupplier.get());
-        packetList.add(packet);
-        return MySQLCollections.unmodifiableList(packetList);
+    private List<ByteBuf> writeBindableCommand(StmtWrapper stmtWrapper) throws SQLException, LongDataReadException {
+        LinkedList<ByteBuf> packetList = new LinkedList<>();
+        int capacity = stmtWrapper.getSql().length() * this.adjutant.obtainMaxBytesPerCharClient() + 100;
+        ByteBuf packet = this.adjutant.createPacketBuffer(capacity);
+        try {
+            packet.writeByte(PacketUtils.COM_QUERY);
+            packet = doWriteBindableCommand(-1, stmtWrapper, packetList, packet);
+            PacketUtils.writePacketHeader(packet, this.sequenceIdSupplier.get());
+            packetList.add(packet);
+            return MySQLCollections.unmodifiableList(packetList);
+        } catch (Throwable e) {
+            releaseOnError(packetList, packet);
+            throw e;
+        }
     }
 
     /**
      * @return a unmodifiable list.
-     * @see #createPrepareBatchCommand(BatchWrapper, Supplier, MySQLTaskAdjutant)
+     * @see #createBindableBatchCommand(BatchWrapper, Supplier, MySQLTaskAdjutant)
      */
-    private List<ByteBuf> writePrepareBatchCommand(BatchWrapper wrapper) throws SQLException, LongDataReadException {
+    private List<ByteBuf> writeBindableBatchCommand(BatchWrapper wrapper) throws SQLException, LongDataReadException {
         final MySQLStatement stmt;
         stmt = this.adjutant.parse(wrapper.getSql());
 
@@ -280,7 +283,7 @@ final class ComQueryCommandWriter {
         final byte[] nullBytes = Constants.NULL.getBytes(clientCharset);
         final byte[] semicolonBytes = Constants.SEMICOLON.getBytes(clientCharset);
 
-        LinkedList<ByteBuf> packetList = new LinkedList<>();
+        final LinkedList<ByteBuf> packetList = new LinkedList<>();
         ByteBuf packet = this.adjutant.createPacketBuffer(2048);
         packet.writeByte(PacketUtils.COM_QUERY);
 
@@ -324,14 +327,7 @@ final class ComQueryCommandWriter {
             packetList.add(packet);
             return MySQLCollections.unmodifiableList(packetList);
         } catch (Throwable e) {
-            ByteBuf byteBuf;
-            while ((byteBuf = packetList.poll()) != null) {
-                byteBuf.release();
-            }
-            packetList.clear();
-            if (packet.refCnt() > 0) {
-                packet.release();
-            }
+            releaseOnError(packetList, packet);
             throw e;
         }
     }
@@ -339,9 +335,9 @@ final class ComQueryCommandWriter {
 
     /**
      * @see #writeMultiCommand(List)
-     * @see #writePrepareCommand(StmtWrapper)
+     * @see #writeBindableCommand(StmtWrapper)
      */
-    private ByteBuf doWritePrepareCommand(final int stmtIndex, StmtWrapper stmtWrapper, final List<ByteBuf> packetList
+    private ByteBuf doWriteBindableCommand(final int stmtIndex, StmtWrapper stmtWrapper, final List<ByteBuf> packetList
             , final ByteBuf currentPacket) throws SQLException, LongDataReadException {
 
         MySQLStatement stmt = this.adjutant.parse(stmtWrapper.getSql());
@@ -358,7 +354,7 @@ final class ComQueryCommandWriter {
         final byte[] nullBytes = Constants.NULL.getBytes(clientCharset);
 
         for (int i = 0; i < paramCount; i++) {
-            packet.writeCharSequence(staticSqlList.get(i), clientCharset);
+            packet.writeBytes(staticSqlList.get(i).getBytes(clientCharset));
             BindValue bindValue = parameterGroup.get(i);
             if (bindValue.getParamIndex() != i) {
                 // hear invoker has bug
@@ -378,7 +374,7 @@ final class ComQueryCommandWriter {
 
 
     /**
-     * @see #doWritePrepareCommand(int, StmtWrapper, List, ByteBuf)
+     * @see #doWriteBindableCommand(int, StmtWrapper, List, ByteBuf)
      */
     private ByteBuf bindParameter(final int stmtIndex, final BindValue bindValue, final ByteBuf buffer
             , final List<ByteBuf> packetList) throws SQLException, LongDataReadException {
@@ -472,8 +468,10 @@ final class ComQueryCommandWriter {
         if (nonNull instanceof String) {
             try {
                 text = (String) nonNull;
-                new BigDecimal(text);
-                buffer.writeBytes(text.getBytes(this.clientCharset));
+                BigDecimal number = new BigDecimal(text);
+                if (LOG.isTraceEnabled()) {
+                    LOG.trace("bind number :{}", number);
+                }
             } catch (NumberFormatException e) {
                 throw MySQLExceptions.createUnsupportedParamTypeError(stmtIndex, bindValue);
             }
@@ -530,7 +528,10 @@ final class ComQueryCommandWriter {
                 writeByteEscapes(packetBuffer, bytes, bytes.length);
             } else if (nonNull instanceof CharSequence) {
                 byte[] bytes = nonNull.toString().getBytes(this.clientCharset);
+
+                packetBuffer.writeByte(Constants.QUOTE_CHAR_BYTE);
                 writeByteEscapes(packetBuffer, bytes, bytes.length);
+                packetBuffer.writeByte(Constants.QUOTE_CHAR_BYTE);
             } else if (nonNull instanceof InputStream) {
                 newPacket = writeInputStream(packetBuffer, (InputStream) nonNull, packetList
                         , this.properties.getOrDefault(PropertyKey.autoClosePStmtStreams, Boolean.class));
@@ -634,8 +635,8 @@ final class ComQueryCommandWriter {
         } else {
             throw MySQLExceptions.createUnsupportedParamTypeError(stmtIndex, bindValue);
         }
-
-        packetBuffer.writeBytes(text.getBytes(this.clientCharset));
+        final String timeParamText = "'" + text + "'";
+        packetBuffer.writeBytes(timeParamText.getBytes(this.clientCharset));
 
     }
 
@@ -903,11 +904,28 @@ final class ComQueryCommandWriter {
         }
 
         final int index = dateTimeText.lastIndexOf('.');
-        return dateTime.format(BindUtils.obtainDateTimeFormatter(index < 0 ? 0 : dateTimeText.length() - index));
+        return dateTime.format(BindUtils.obtainDateTimeFormatter(index < 0 ? 0 : (dateTimeText.length() - index) - 1));
 
     }
 
     /*################################## blow private static method ##################################*/
 
+    /**
+     * @see #writeBindableCommand(StmtWrapper)
+     * @see #writeMultiCommand(List)
+     * @see #writeBindableBatchCommand(BatchWrapper)
+     * @see #createStaticSingleCommand(String, Supplier, MySQLTaskAdjutant)
+     * @see #createStaticMultiCommand(List, Supplier, MySQLTaskAdjutant)
+     */
+    private static void releaseOnError(Queue<ByteBuf> queue, ByteBuf packet) {
+        ByteBuf byteBuf;
+        while ((byteBuf = queue.poll()) != null) {
+            byteBuf.release();
+        }
+        queue.clear();
+        if (packet.refCnt() > 0) {
+            packet.release();
+        }
+    }
 
 }

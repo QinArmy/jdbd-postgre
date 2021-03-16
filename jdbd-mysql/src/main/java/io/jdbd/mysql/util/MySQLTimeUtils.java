@@ -115,6 +115,11 @@ public abstract class MySQLTimeUtils extends TimeUtils {
             .append(MYSQL_TIME_FORMATTER)
             .toFormatter(Locale.ENGLISH);
 
+    public static final DateTimeFormatter MYSQL_DATETIME_OFFSET_FORMATTER = new DateTimeFormatterBuilder()
+            .append(MYSQL_DATETIME_FORMATTER)
+            .appendOffset("+HH:MM", "+00:00")
+            .toFormatter(Locale.ENGLISH);
+
 
     /**
      * @return true: timeText representing {@link Duration}.

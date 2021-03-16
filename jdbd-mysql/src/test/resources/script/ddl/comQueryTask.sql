@@ -2,9 +2,11 @@ CREATE TABLE IF NOT EXISTS mysql_types (
     id                    bigint                                                              NOT NULL AUTO_INCREMENT,
     create_time           datetime                                                            NOT NULL DEFAULT CURRENT_TIMESTAMP,
     update_time           datetime(6)                                                         NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+    my_timestamp          timestamp                                                           NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    my_timestamp1         timestamp(1)                                                        NOT NULL DEFAULT CURRENT_TIMESTAMP(1),
 
-    name                  varchar(30)                                                         NOT NULL DEFAULT '',
-    my_char               char(30)                                                            NOT NULL DEFAULT '',
+    name                  varchar(200)                                                        NOT NULL DEFAULT '',
+    my_char               char(200)                                                           NOT NULL DEFAULT '',
     my_binary             BINARY(60)                                                          NOT NULL DEFAULT '0',
     my_var_binary         varbinary(60)                                                       NOT NULL DEFAULT '0',
 

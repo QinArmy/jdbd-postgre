@@ -34,6 +34,19 @@ public abstract class MySQLStringUtils extends org.qinarmy.util.StringUtils {
         return true;
     }
 
+    public static String trimTrailingSpace(final String text) {
+        String newText = null;
+        final int length = text.length();
+        for (int i = length - 1; i > -1; i--) {
+            char ch = text.charAt(i);
+            if (ch != ' ') {
+                newText = text.substring(0, i + 1);
+                break;
+            }
+        }
+        return newText == null ? "" : newText;
+    }
+
     /**
      * Splits input into a list, using the given delimiter and skipping all between the given markers.
      * <p>

@@ -163,7 +163,8 @@ final class ComQueryTask extends MySQLCommandTask {
         Flux<ResultRow> flux;
 
         Properties<PropertyKey> properties = adjutant.obtainHostInfo().getProperties();
-        if (!properties.getOrDefault(PropertyKey.clientPrepare, Boolean.class)
+        if (properties.getOrDefault(PropertyKey.clientPrepare, Enums.ClientPrepare.class)
+                == Enums.ClientPrepare.UN_SUPPORT_STREAM
                 && BindUtils.hasLongData(wrapper.getParameterGroup())) {
             // has long data ,can't use client prepare statement.
             flux = ComPreparedTask.query(wrapper, adjutant);
@@ -328,7 +329,7 @@ final class ComQueryTask extends MySQLCommandTask {
         super(adjutant);
         this.sqlCount = 1;
         this.mode = Mode.SINGLE_STMT;
-        final List<ByteBuf> packetList = ComQueryCommandWriter.createPrepareCommand(
+        final List<ByteBuf> packetList = ComQueryCommandWriter.createBindableCommand(
                 wrapper, this::addAndGetSequenceId, adjutant);
         this.packetPublisher = Flux.fromIterable(packetList);
         this.downstreamSink = new SingleUpdateSink(resultSink);
@@ -347,7 +348,7 @@ final class ComQueryTask extends MySQLCommandTask {
         super(adjutant);
         this.sqlCount = 1;
         this.mode = Mode.SINGLE_STMT;
-        final List<ByteBuf> packetList = ComQueryCommandWriter.createPrepareCommand(
+        final List<ByteBuf> packetList = ComQueryCommandWriter.createBindableCommand(
                 wrapper, this::addAndGetSequenceId, adjutant);
         this.packetPublisher = Flux.fromIterable(packetList);
         this.downstreamSink = new SingleQuerySink(sink, wrapper.getStatesConsumer());
@@ -374,7 +375,7 @@ final class ComQueryTask extends MySQLCommandTask {
             throw new IllegalArgumentException("batch <= 3 not support");
         }
         final List<ByteBuf> packetList;
-        packetList = ComQueryCommandWriter.createPrepareBatchCommand(wrapper, this::addAndGetSequenceId, adjutant);
+        packetList = ComQueryCommandWriter.createBindableBatchCommand(wrapper, this::addAndGetSequenceId, adjutant);
         this.downstreamSink = new MultiStatementBatchUpdateSink(sink);
         this.packetPublisher = Flux.fromIterable(packetList);
 
@@ -396,7 +397,7 @@ final class ComQueryTask extends MySQLCommandTask {
             throw MySQLExceptions.createMultiStatementError();
         }
 
-        final List<ByteBuf> packetList = ComQueryCommandWriter.createPrepareMultiCommand(
+        final List<ByteBuf> packetList = ComQueryCommandWriter.createBindableMultiCommand(
                 stmtWrapperList, this::addAndGetSequenceId, adjutant);
 
         this.packetPublisher = Flux.fromIterable(packetList);

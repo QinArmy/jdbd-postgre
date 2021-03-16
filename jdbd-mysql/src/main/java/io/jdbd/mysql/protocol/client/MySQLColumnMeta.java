@@ -172,6 +172,10 @@ public final class MySQLColumnMeta {
         return (this.definitionFlags & BINARY_FLAG) != 0;
     }
 
+    final boolean isBlob() {
+        return (this.definitionFlags & BLOB_FLAG) != 0;
+    }
+
     final boolean isAutoIncrement() {
         return (this.definitionFlags & AUTO_INCREMENT_FLAG) != 0;
     }

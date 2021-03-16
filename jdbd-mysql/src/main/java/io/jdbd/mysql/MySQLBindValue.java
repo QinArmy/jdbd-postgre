@@ -2,6 +2,12 @@ package io.jdbd.mysql;
 
 import io.jdbd.lang.Nullable;
 import io.jdbd.mysql.protocol.client.MySQLType;
+import org.reactivestreams.Publisher;
+
+import java.io.InputStream;
+import java.io.Reader;
+import java.nio.channels.ReadableByteChannel;
+import java.nio.file.Path;
 
 
 public final class MySQLBindValue implements BindValue {
@@ -41,7 +47,18 @@ public final class MySQLBindValue implements BindValue {
 
     @Override
     public boolean isStream() {
-        return false;
+        Object value = this.value;
+        final boolean stream;
+        if (value == null) {
+            stream = false;
+        } else {
+            stream = value instanceof InputStream
+                    || value instanceof Reader
+                    || value instanceof ReadableByteChannel
+                    || value instanceof Path
+                    || value instanceof Publisher;
+        }
+        return stream;
     }
 
     @Nullable

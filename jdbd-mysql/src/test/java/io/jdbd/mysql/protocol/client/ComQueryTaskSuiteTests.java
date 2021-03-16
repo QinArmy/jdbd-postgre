@@ -4,11 +4,18 @@ package io.jdbd.mysql.protocol.client;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.jdbd.*;
 import io.jdbd.meta.SQLType;
+import io.jdbd.mysql.BindValue;
 import io.jdbd.mysql.Groups;
+import io.jdbd.mysql.MySQLBindValue;
+import io.jdbd.mysql.SQLMode;
 import io.jdbd.mysql.protocol.conf.PropertyKey;
 import io.jdbd.mysql.session.MySQLSessionAdjutant;
+import io.jdbd.mysql.stmt.StmtWrappers;
 import io.jdbd.mysql.type.City;
 import io.jdbd.mysql.type.TrueOrFalse;
+import io.jdbd.mysql.util.MySQLCollections;
+import io.jdbd.mysql.util.MySQLStringUtils;
+import io.jdbd.mysql.util.MySQLTimeUtils;
 import io.jdbd.vendor.JdbdCompositeException;
 import io.jdbd.vendor.conf.Properties;
 import org.slf4j.Logger;
@@ -25,7 +32,7 @@ import java.math.BigInteger;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.time.LocalDateTime;
+import java.time.*;
 import java.util.*;
 import java.util.concurrent.LinkedBlockingQueue;
 
@@ -138,6 +145,7 @@ public class ComQueryTaskSuiteTests extends AbstractConnectionBasedSuiteTests {
 
         assertFalse(resultStates.hasMoreResults(), "hasMoreResult");
 
+        releaseConnection(adjutant);
         LOG.info("update test success");
 
     }
@@ -168,10 +176,11 @@ public class ComQueryTaskSuiteTests extends AbstractConnectionBasedSuiteTests {
         assertTrue(resultRowList.isEmpty(), "resultRowList is empty");
 
         LOG.info("delete test success");
+        releaseConnection(adjutant);
     }
 
     @Test
-    public void mysqlTypeMatch() {
+    public void mysqlTypeMetadataMatch() {
         LOG.info("mysqlTypeMatch test start");
         final MySQLTaskAdjutant adjutant = obtainTaskAdjutant();
 
@@ -187,16 +196,237 @@ public class ComQueryTaskSuiteTests extends AbstractConnectionBasedSuiteTests {
         for (ResultRow resultRow : resultRowList) {
             assertQueryResultRowMySQLTypeMatch(resultRow, properties);
         }
-        releaseConnection(adjutant);
+
         LOG.info("mysqlTypeMatch test success");
+        releaseConnection(adjutant);
     }
+
+    @Test
+    public void bigIntBindAndExtract() {
+        LOG.info("bigIntBindAndExtract test start");
+
+        final String sql = "SELECT t.id as id, t.create_time as createTime FROM mysql_types as t WHERE t.id  = ?";
+        BindValue bindValue = MySQLBindValue.create(0, MySQLType.BIGINT, 2);
+        final MySQLTaskAdjutant taskAdjutant = obtainTaskAdjutant();
+
+        List<ResultRow> resultRowList;
+        resultRowList = ComQueryTask.bindableQuery(StmtWrappers.single(sql, bindValue), taskAdjutant)
+                .collectList()
+                .block();
+
+        assertFalse(MySQLCollections.isEmpty(resultRowList), "resultRowList");
+        ResultRow resultRow = resultRowList.get(0);
+        assertNotNull(resultRow, "resultRow");
+        Long id = resultRow.get("id", Long.class);
+
+        assertEquals(id, Long.valueOf(2L), "id");
+
+        // string bigint
+        bindValue = MySQLBindValue.create(0, MySQLType.BIGINT, "2");
+        resultRowList = ComQueryTask.bindableQuery(StmtWrappers.single(sql, bindValue), taskAdjutant)
+                .collectList()
+                .block();
+
+        assertFalse(MySQLCollections.isEmpty(resultRowList), "resultRowList");
+        resultRow = resultRowList.get(0);
+        assertNotNull(resultRow, "resultRow");
+        id = resultRow.get("id", Long.class);
+
+        assertEquals(id, Long.valueOf(2L), "id");
+
+        LOG.info("bigIntBindAndExtract test success");
+        releaseConnection(taskAdjutant);
+    }
+
+    @Test(timeOut = TIME_OUT)
+    public void datetimeBindAndExtract() {
+        LOG.info("datetimeBindAndExtract test start");
+        final MySQLTaskAdjutant taskAdjutant = obtainTaskAdjutant();
+
+        assertDateTimeModify(taskAdjutant, "2021-03-16 19:26:00.999999", "create_time");
+        assertDateTimeModify(taskAdjutant, LocalDateTime.now(), "create_time");
+        assertDateTimeModify(taskAdjutant, OffsetDateTime.now(ZoneOffset.of("+03:00")), "create_time");
+        assertDateTimeModify(taskAdjutant, ZonedDateTime.now(ZoneOffset.of("+04:00")), "create_time");
+
+        assertDateTimeModify(taskAdjutant, "2021-03-16 19:26:00.999999", "update_time");
+        assertDateTimeModify(taskAdjutant, LocalDateTime.now(), "update_time");
+        assertDateTimeModify(taskAdjutant, OffsetDateTime.now(ZoneOffset.of("+03:00")), "update_time");
+        assertDateTimeModify(taskAdjutant, ZonedDateTime.now(ZoneOffset.of("+04:00")), "update_time");
+
+        assertDateTimeModify(taskAdjutant, "2021-03-16 19:26:00.999999", "my_timestamp");
+        assertDateTimeModify(taskAdjutant, LocalDateTime.parse("2021-03-16 19:26:00.999999", MySQLTimeUtils.MYSQL_DATETIME_FORMATTER), "my_timestamp");
+        assertDateTimeModify(taskAdjutant, OffsetDateTime.parse("2021-03-16 19:26:00.999999+03:00", MySQLTimeUtils.MYSQL_DATETIME_OFFSET_FORMATTER), "my_timestamp");
+        assertDateTimeModify(taskAdjutant, ZonedDateTime.parse("2021-03-16 19:26:00.999999+04:00", MySQLTimeUtils.MYSQL_DATETIME_OFFSET_FORMATTER), "my_timestamp");
+
+        assertDateTimeModify(taskAdjutant, "2021-03-16 19:26:00.999999", "my_timestamp1");
+        assertDateTimeModify(taskAdjutant, LocalDateTime.parse("2021-03-16 19:26:00.999999", MySQLTimeUtils.MYSQL_DATETIME_FORMATTER), "my_timestamp1");
+        assertDateTimeModify(taskAdjutant, OffsetDateTime.parse("2021-03-16 19:26:00.999999+03:00", MySQLTimeUtils.MYSQL_DATETIME_OFFSET_FORMATTER), "my_timestamp1");
+        assertDateTimeModify(taskAdjutant, ZonedDateTime.parse("2021-03-16 19:26:00.999999+04:00", MySQLTimeUtils.MYSQL_DATETIME_OFFSET_FORMATTER), "my_timestamp1");
+
+        LOG.info("datetimeBindAndExtract test success");
+        releaseConnection(taskAdjutant);
+    }
+
+    @Test(timeOut = TIME_OUT)
+    public void stringBindAndExtract() {
+        LOG.info("stringBindAndExtract test start");
+        final MySQLTaskAdjutant taskAdjutant = obtainTaskAdjutant();
+
+        String bindParma = "  \"\\'zoro索隆\\'\\'\\'\\'\\'\\'\"\\z\n\r update mysql_types as t set t.name = 'evil' where t.id = 5  " + '\032';
+
+        assertStringBindAndExtract(taskAdjutant, MySQLType.VARCHAR, bindParma, "name");
+        assertStringBindAndExtract(taskAdjutant, MySQLType.CHAR, bindParma, "my_char");
+
+        bindParma = "  'evil' , t.my_decimal = 999999.00   ";
+        assertStringBindAndExtract(taskAdjutant, MySQLType.VARCHAR, bindParma, "name");
+        assertStringBindAndExtract(taskAdjutant, MySQLType.CHAR, bindParma, "my_char");
+
+        assertStringBindAndExtract(taskAdjutant, MySQLType.CHAR, "             ", "my_char");
+
+
+        LOG.info("stringBindAndExtract test success");
+        releaseConnection(taskAdjutant);
+
+    }
+
+    @Test(timeOut = TIME_OUT)
+    public void binaryBindAndExtract() {
+
+    }
+
+
 
 
 
     /*################################## blow private method ##################################*/
 
     /**
-     * @see #mysqlTypeMatch()
+     * @see #stringBindAndExtract()
+     */
+    private void assertStringBindAndExtract(final MySQLTaskAdjutant taskAdjutant, final MySQLType mySQLType
+            , final String bindParam, final String field) {
+        String sql = String.format("UPDATE mysql_types as t SET t.%s =? WHERE t.id = ?", field);
+        List<BindValue> bindValueList = new ArrayList<>(2);
+        BindValue bindValue = MySQLBindValue.create(0, mySQLType, bindParam);
+        bindValueList.add(bindValue);
+        bindValue = MySQLBindValue.create(1, MySQLType.BIGINT, "3");
+        bindValueList.add(bindValue);
+
+        ResultStates resultStates;
+        resultStates = ComQueryTask.bindableUpdate(StmtWrappers.multi(sql, bindValueList), taskAdjutant)
+                .block();
+
+        assertNotNull(resultStates, "resultStates");
+        assertEquals(resultStates.getAffectedRows(), 1L, "getAffectedRows");
+
+        // assert DATETIME type update result.
+        sql = String.format("SELECT t.%s as string FROM mysql_types as t WHERE t.id = ?", field);
+        bindValue = MySQLBindValue.create(0, MySQLType.BIGINT, "3");
+
+        List<ResultRow> resultRowList;
+        resultRowList = ComQueryTask.bindableQuery(StmtWrappers.single(sql, bindValue), taskAdjutant)
+                .collectList()
+                .block();
+        assertNotNull(resultRowList, "resultRowList");
+        assertEquals(resultRowList.size(), 1L, "resultRowList size");
+        final ResultRow resultRow = resultRowList.get(0);
+        assertNotNull(resultRow, "resultRow");
+
+        final String string = resultRow.get("string", String.class);
+        assertNotNull(string, "string");
+        if (mySQLType == MySQLType.CHAR) {
+            final String actualBindParam = MySQLStringUtils.trimTrailingSpace(bindParam);
+            if (taskAdjutant.obtainServer().containSqlMode(SQLMode.PAD_CHAR_TO_FULL_LENGTH)) {
+                assertTrue(string.startsWith(actualBindParam), "string");
+                final String tailingSpaces = string.substring(actualBindParam.length());
+                assertFalse(MySQLStringUtils.hasText(tailingSpaces), "tailingSpaces");
+            } else {
+                assertEquals(string, actualBindParam, "string");
+            }
+        } else {
+            assertEquals(string, bindParam, "string");
+        }
+
+
+    }
+
+    /**
+     * @see #datetimeBindAndExtract()
+     */
+    private void assertDateTimeModify(final MySQLTaskAdjutant taskAdjutant, final Object bindDatetime
+            , final String field) {
+        String sql = String.format("UPDATE mysql_types as t SET t.%s = ? WHERE t.id = ?", field);
+
+        BindValue bindValue;
+        List<BindValue> bindValueList = new ArrayList<>(2);
+
+        bindValue = MySQLBindValue.create(0, MySQLType.DATETIME, bindDatetime);
+        bindValueList.add(bindValue);
+        bindValue = MySQLBindValue.create(1, MySQLType.BIGINT, "2");
+        bindValueList.add(bindValue);
+
+        ResultStates resultStates;
+        resultStates = ComQueryTask.bindableUpdate(StmtWrappers.multi(sql, bindValueList), taskAdjutant)
+                .block();
+
+        assertNotNull(resultStates, "resultStates");
+        assertEquals(resultStates.getAffectedRows(), 1L, "getAffectedRows");
+
+        final LocalDateTime expectDateTime;
+
+        if (bindDatetime instanceof LocalDateTime) {
+            expectDateTime = (LocalDateTime) bindDatetime;
+        } else if (bindDatetime instanceof String) {
+            expectDateTime = LocalDateTime.parse((String) bindDatetime, MySQLTimeUtils.MYSQL_DATETIME_FORMATTER);
+        } else if (bindDatetime instanceof OffsetDateTime) {
+            expectDateTime = ((OffsetDateTime) bindDatetime)
+                    .withOffsetSameInstant(taskAdjutant.obtainZoneOffsetClient())
+                    .toLocalDateTime();
+        } else if (bindDatetime instanceof ZonedDateTime) {
+            expectDateTime = ((ZonedDateTime) bindDatetime)
+                    .withZoneSameInstant(taskAdjutant.obtainZoneOffsetClient())
+                    .toLocalDateTime();
+        } else {
+            // never here
+            throw new IllegalArgumentException("bindDatetime type error");
+        }
+
+        // assert DATETIME type update result.
+        sql = String.format("SELECT t.%s as dateTime FROM mysql_types as t WHERE t.id = ?", field);
+        bindValue = MySQLBindValue.create(0, MySQLType.BIGINT, "2");
+
+        List<ResultRow> resultRowList;
+        resultRowList = ComQueryTask.bindableQuery(StmtWrappers.single(sql, bindValue), taskAdjutant)
+                .collectList()
+                .block();
+        assertNotNull(resultRowList, "resultRowList");
+        assertEquals(resultRowList.size(), 1L, "resultRowList size");
+        ResultRow resultRow = resultRowList.get(0);
+        assertNotNull(resultRow, "resultRow");
+
+        final LocalDateTime dateTime = resultRow.get("dateTime", LocalDateTime.class);
+        assertNotNull(dateTime, "dateTime");
+        final String dateTimeText = dateTime.format(MySQLTimeUtils.MYSQL_DATETIME_FORMATTER);
+
+        Properties<PropertyKey> properties = taskAdjutant.obtainHostInfo().getProperties();
+        if (properties.getOrDefault(PropertyKey.timeTruncateFractional, Boolean.class)) {
+            String bindDateTimeText = expectDateTime.format(MySQLTimeUtils.MYSQL_DATETIME_FORMATTER);
+            if (!bindDateTimeText.startsWith(dateTimeText)) {
+                fail(String.format("dateTimeText[%s] and bindDateTimeText[%s] not match.", dateTimeText, bindDateTimeText));
+            }
+        } else {
+            Duration duration = Duration.between(expectDateTime, dateTime);
+            if (duration.isNegative() || duration.getSeconds() > 1L) {
+                fail(String.format("create time[%s] and expectDateTime[%s] not match.", dateTime, expectDateTime));
+            }
+        }
+
+
+    }
+
+
+    /**
+     * @see #mysqlTypeMetadataMatch()
      */
     private String createQuerySqlForMySQLTypeMatch() {
         StringBuilder builder = new StringBuilder("SELECT")
@@ -245,7 +475,9 @@ public class ComQueryTaskSuiteTests extends AbstractConnectionBasedSuiteTests {
                 .append(",t.my_multilinestring as myMultilinestring")
                 .append(",t.my_multipolygon as myMultipolygon")
 
-                .append(",t.my_geometrycollection as myGeometrycollection");
+                .append(",t.my_geometrycollection as myGeometrycollection")
+                .append(",t.my_timestamp as myTimestamp")
+                .append(",t.my_timestamp1 as myTimestamp1");
 
         return builder
                 .append(" FROM mysql_types as t ORDER BY t.id DESC LIMIT 10")
@@ -268,13 +500,13 @@ public class ComQueryTaskSuiteTests extends AbstractConnectionBasedSuiteTests {
         final LocalDateTime createTime = row.get("createTime", LocalDateTime.class);
         assertNotNull(createTime, "createTime");
         assertEquals(rowMeta.getSQLType("createTime"), MySQLType.DATETIME, "createTime mysql type");
-        assertEquals(rowMeta.getScale("createTime"), 0, "createTime precision");
+        assertEquals(rowMeta.getPrecision("createTime"), 0, "createTime precision");
         assertEquals(rowMeta.getNullMode("createTime"), NullMode.NON_NULL, "createTime null mode.");
 
         final LocalDateTime updateTime = row.get("updateTime", LocalDateTime.class);
         assertNotNull(updateTime, "updateTime");
         assertEquals(rowMeta.getSQLType("updateTime"), MySQLType.DATETIME, "updateTime mysql type");
-        assertEquals(rowMeta.getScale("updateTime"), 6, "updateTime precision");
+        assertEquals(rowMeta.getPrecision("updateTime"), 6, "updateTime precision");
         assertEquals(rowMeta.getNullMode("updateTime"), NullMode.NON_NULL, "updateTime null mode.");
 
         final String name = row.get("name", String.class);
@@ -315,17 +547,20 @@ public class ComQueryTaskSuiteTests extends AbstractConnectionBasedSuiteTests {
         assertFalse(rowMeta.isUnsigned("myTinyint"), "myTinyint isUnsigned");
         assertEquals(rowMeta.getNullMode("myTinyint"), NullMode.NON_NULL, "myTinyint null mode.");
 
+        // below tiny_unsigned assert
         final Integer myTinyintUnsigned = row.get("myTinyintUnsigned", Integer.class);
         assertNotNull(myTinyintUnsigned, "myTinyintUnsigned");
         assertEquals(rowMeta.getSQLType("myTinyintUnsigned"), MySQLType.TINYINT_UNSIGNED, "myTinyintUnsigned mysql type");
         assertTrue(rowMeta.isUnsigned("myTinyintUnsigned"), "myTinyintUnsigned isUnsigned");
         assertEquals(rowMeta.getNullMode("myTinyintUnsigned"), NullMode.NON_NULL, "myTinyintUnsigned null mode.");
 
+        // below boolean assert
         final Object myBoolean = row.get("myBoolean");
         assertNotNull(myBoolean, "myBoolean");
         assertTinyInt1Type(row, "myBoolean", properties);
         assertEquals(rowMeta.getNullMode("myBoolean"), NullMode.NON_NULL, "myBoolean null mode.");
 
+        // below smallint assert
         final Object mySmallint = row.get("mySmallint");
         assertNotNull(mySmallint, "mySmallint");
         assertTrue(mySmallint instanceof Short, "mySmallint java class.");
@@ -333,6 +568,7 @@ public class ComQueryTaskSuiteTests extends AbstractConnectionBasedSuiteTests {
         assertFalse(rowMeta.isUnsigned("mySmallint"), "mySmallint isUnsigned");
         assertEquals(rowMeta.getNullMode("mySmallint"), NullMode.NON_NULL, "mySmallint null mode.");
 
+        // below smallint_unsigned assert
         final Object mySmallintUnsigned = row.get("mySmallintUnsigned");
         assertNotNull(mySmallintUnsigned, "mySmallintUnsigned");
         assertTrue(mySmallintUnsigned instanceof Integer, "mySmallintUnsigned java class.");
@@ -340,6 +576,7 @@ public class ComQueryTaskSuiteTests extends AbstractConnectionBasedSuiteTests {
         assertTrue(rowMeta.isUnsigned("mySmallintUnsigned"), "mySmallintUnsigned isUnsigned");
         assertEquals(rowMeta.getNullMode("mySmallintUnsigned"), NullMode.NON_NULL, "mySmallintUnsigned null mode.");
 
+        // below mediumint assert
         final Object myMediumint = row.get("myMediumint");
         assertNotNull(myMediumint, "myMediumint");
         assertTrue(myMediumint instanceof Integer, "myMediumint java class.");
@@ -347,6 +584,7 @@ public class ComQueryTaskSuiteTests extends AbstractConnectionBasedSuiteTests {
         assertFalse(rowMeta.isUnsigned("myMediumint"), "myMediumint isUnsigned");
         assertEquals(rowMeta.getNullMode("myMediumint"), NullMode.NON_NULL, "myMediumint null mode.");
 
+        // below mediumint_unsigned  assert
         final Object myMediumintUnsigned = row.get("myMediumintUnsigned");
         assertNotNull(myMediumintUnsigned, "myMediumintUnsigned");
         assertTrue(myMediumintUnsigned instanceof Integer, "myMediumintUnsigned java class.");
@@ -354,6 +592,7 @@ public class ComQueryTaskSuiteTests extends AbstractConnectionBasedSuiteTests {
         assertTrue(rowMeta.isUnsigned("myMediumintUnsigned"), "myMediumintUnsigned isUnsigned");
         assertEquals(rowMeta.getNullMode("myMediumintUnsigned"), NullMode.NON_NULL, "myMediumintUnsigned null mode.");
 
+        // blow int assert
         final Object myInt = row.get("myInt");
         assertNotNull(myInt, "myInt");
         assertTrue(myInt instanceof Integer, "myInt java class.");
@@ -361,6 +600,7 @@ public class ComQueryTaskSuiteTests extends AbstractConnectionBasedSuiteTests {
         assertFalse(rowMeta.isUnsigned("myInt"), "myInt isUnsigned");
         assertEquals(rowMeta.getNullMode("myInt"), NullMode.NON_NULL, "myInt null mode.");
 
+        // below int_unsigned assert
         final Object myIntUnsigned = row.get("myIntUnsigned");
         assertNotNull(myIntUnsigned, "myIntUnsigned");
         assertTrue(myIntUnsigned instanceof Long, "myIntUnsigned java class.");
@@ -368,7 +608,7 @@ public class ComQueryTaskSuiteTests extends AbstractConnectionBasedSuiteTests {
         assertTrue(rowMeta.isUnsigned("myIntUnsigned"), "myIntUnsigned isUnsigned");
         assertEquals(rowMeta.getNullMode("myIntUnsigned"), NullMode.NON_NULL, "myIntUnsigned null mode.");
 
-
+        // below bigint_unsigned assert
         final Object myBigintUnsigned = row.get("myBigintUnsigned");
         assertNotNull(myBigintUnsigned, "myBigintUnsigned");
         assertTrue(myBigintUnsigned instanceof BigInteger, "myBigintUnsigned java class.");
@@ -376,7 +616,7 @@ public class ComQueryTaskSuiteTests extends AbstractConnectionBasedSuiteTests {
         assertTrue(rowMeta.isUnsigned("myBigintUnsigned"), "myBigintUnsigned isUnsigned");
         assertEquals(rowMeta.getNullMode("myBigintUnsigned"), NullMode.NON_NULL, "myBigintUnsigned null mode.");
 
-
+        // below decimal assert
         final Object myDecimal = row.get("myDecimal");
         assertNotNull(myDecimal, "myDecimal");
         assertTrue(myDecimal instanceof BigDecimal, "myDecimal java class.");
@@ -386,7 +626,7 @@ public class ComQueryTaskSuiteTests extends AbstractConnectionBasedSuiteTests {
         assertEquals(rowMeta.getScale("myDecimal"), 2, "myDecimal scale");
         assertEquals(rowMeta.getNullMode("myDecimal"), NullMode.NON_NULL, "myDecimal null mode.");
 
-
+        // below decimal_unsigned
         final Object myDecimalUnsigned = row.get("myDecimalUnsigned");
         assertNotNull(myDecimalUnsigned, "myDecimalUnsigned");
         assertTrue(myDecimalUnsigned instanceof BigDecimal, "myDecimalUnsigned java class.");
@@ -396,7 +636,7 @@ public class ComQueryTaskSuiteTests extends AbstractConnectionBasedSuiteTests {
         assertEquals(rowMeta.getScale("myDecimalUnsigned"), 2, "myDecimalUnsigned scale");
         assertEquals(rowMeta.getNullMode("myDecimalUnsigned"), NullMode.NON_NULL, "myDecimalUnsigned null mode.");
 
-
+        // below float assert
         final Object myFloat = row.get("myFloat");
         assertNotNull(myFloat, "myFloat");
         assertTrue(myFloat instanceof Float, "myFloat java class.");
@@ -404,6 +644,7 @@ public class ComQueryTaskSuiteTests extends AbstractConnectionBasedSuiteTests {
         assertFalse(rowMeta.isUnsigned("myFloat"), "myFloat isUnsigned");
         assertEquals(rowMeta.getNullMode("myFloat"), NullMode.NON_NULL, "myFloat null mode.");
 
+        // below float_unsigned
         final Object myFloatUnsigned = row.get("myFloatUnsigned");
         assertNotNull(myFloatUnsigned, "myFloatUnsigned");
         assertTrue(myFloatUnsigned instanceof Double, "myFloatUnsigned java class.");
@@ -411,7 +652,7 @@ public class ComQueryTaskSuiteTests extends AbstractConnectionBasedSuiteTests {
         assertTrue(rowMeta.isUnsigned("myFloatUnsigned"), "myFloatUnsigned isUnsigned");
         assertEquals(rowMeta.getNullMode("myFloatUnsigned"), NullMode.NON_NULL, "myFloatUnsigned null mode.");
 
-
+        // below double assert
         final Object myDouble = row.get("myDouble");
         assertNotNull(myDouble, "myDouble");
         assertTrue(myDouble instanceof Double, "myDouble java class.");
@@ -419,6 +660,7 @@ public class ComQueryTaskSuiteTests extends AbstractConnectionBasedSuiteTests {
         assertFalse(rowMeta.isUnsigned("myDouble"), "myDouble isUnsigned");
         assertEquals(rowMeta.getNullMode("myDouble"), NullMode.NON_NULL, "myDouble null mode.");
 
+        // below double_unsigned assert
         final Object myDoubleUnsigned = row.get("myDoubleUnsigned");
         assertNotNull(myDoubleUnsigned, "myDoubleUnsigned");
         assertTrue(myDoubleUnsigned instanceof BigDecimal, "myDoubleUnsigned java class.");
@@ -426,7 +668,7 @@ public class ComQueryTaskSuiteTests extends AbstractConnectionBasedSuiteTests {
         assertTrue(rowMeta.isUnsigned("myDoubleUnsigned"), "myDoubleUnsigned isUnsigned");
         assertEquals(rowMeta.getNullMode("myDoubleUnsigned"), NullMode.NON_NULL, "myDoubleUnsigned null mode.");
 
-
+        // below enum assert
         final Object myEnum = row.get("myEnum");
         assertNotNull(myEnum, "myEnum");
         assertTrue(myEnum instanceof String, "myEnum java class.");
@@ -436,7 +678,7 @@ public class ComQueryTaskSuiteTests extends AbstractConnectionBasedSuiteTests {
         assertFalse(rowMeta.isUnsigned("myEnum"), "myEnum isUnsigned");
         assertEquals(rowMeta.getNullMode("myEnum"), NullMode.NON_NULL, "myEnum null mode.");
 
-        // set type assert start
+        // below set type assert
 
         final Object mySet = row.get("mySet");
         assertNotNull(myEnum, "mySet");
@@ -464,8 +706,70 @@ public class ComQueryTaskSuiteTests extends AbstractConnectionBasedSuiteTests {
                 fail(String.format("city[%s] not exits.", city));
             }
         }
-        // set type assert end
 
+
+        // below json type assert
+        final Object myJson = row.get("myJson");
+        assertNotNull(myJson, "myJson");
+        assertTrue(myJson instanceof String, "myJson java class.");
+        assertNotNull(trueOrFalse, "myJson");
+        assertEquals(rowMeta.getSQLType("myJson"), MySQLType.JSON, "myJson mysql type");
+        assertFalse(rowMeta.isUnsigned("myJson"), "myJson isUnsigned");
+        assertEquals(rowMeta.getNullMode("myJson"), NullMode.NULLABLE, "myJson null mode.");
+
+        // below geometry type assert
+        assertEquals(rowMeta.getSQLType("myGeometry"), MySQLType.GEOMETRY, "myGeometry mysql type");
+        assertFalse(rowMeta.isUnsigned("myGeometry"), "myGeometry isUnsigned");
+        assertEquals(rowMeta.getNullMode("myGeometry"), NullMode.NULLABLE, "myGeometry null mode.");
+
+        // below point type assert
+        assertEquals(rowMeta.getSQLType("myPoint"), MySQLType.GEOMETRY, "myPoint mysql type");
+        assertFalse(rowMeta.isUnsigned("myPoint"), "myPoint isUnsigned");
+        assertEquals(rowMeta.getNullMode("myPoint"), NullMode.NULLABLE, "myPoint null mode.");
+
+
+        // below linestring type assert
+        assertEquals(rowMeta.getSQLType("myLinestring"), MySQLType.GEOMETRY, "myLinestring mysql type");
+        assertFalse(rowMeta.isUnsigned("myLinestring"), "myLinestring isUnsigned");
+        assertEquals(rowMeta.getNullMode("myLinestring"), NullMode.NULLABLE, "myLinestring null mode.");
+
+        // below polygon type assert
+        assertEquals(rowMeta.getSQLType("myPolygon"), MySQLType.GEOMETRY, "myPolygon mysql type");
+        assertFalse(rowMeta.isUnsigned("myPolygon"), "myPolygon isUnsigned");
+        assertEquals(rowMeta.getNullMode("myPolygon"), NullMode.NULLABLE, "myPolygon null mode.");
+
+        // below multipoint type assert
+        assertEquals(rowMeta.getSQLType("myMultipoint"), MySQLType.GEOMETRY, "myMultipoint mysql type");
+        assertFalse(rowMeta.isUnsigned("myMultipoint"), "myMultipoint isUnsigned");
+        assertEquals(rowMeta.getNullMode("myMultipoint"), NullMode.NULLABLE, "myMultipoint null mode.");
+
+        // below multilinestring type assert
+        assertEquals(rowMeta.getSQLType("myMultilinestring"), MySQLType.GEOMETRY, "myMultilinestring mysql type");
+        assertFalse(rowMeta.isUnsigned("myMultilinestring"), "myMultilinestring isUnsigned");
+        assertEquals(rowMeta.getNullMode("myMultilinestring"), NullMode.NULLABLE, "myMultilinestring null mode.");
+
+        // below multipolygon type assert
+        assertEquals(rowMeta.getSQLType("myMultipolygon"), MySQLType.GEOMETRY, "myMultipolygon mysql type");
+        assertFalse(rowMeta.isUnsigned("myMultipolygon"), "myMultipolygon isUnsigned");
+        assertEquals(rowMeta.getNullMode("myMultipolygon"), NullMode.NULLABLE, "myMultipolygon null mode.");
+
+        // below geometrycollection type assert
+        assertEquals(rowMeta.getSQLType("myGeometrycollection"), MySQLType.GEOMETRY, "myGeometrycollection mysql type");
+        assertFalse(rowMeta.isUnsigned("myGeometrycollection"), "myGeometrycollection isUnsigned");
+        assertEquals(rowMeta.getNullMode("myGeometrycollection"), NullMode.NULLABLE, "myGeometrycollection null mode.");
+
+        final LocalDateTime myTimestamp = row.get("myTimestamp", LocalDateTime.class);
+        assertNotNull(myTimestamp, "myTimestamp");
+        assertEquals(rowMeta.getSQLType("myTimestamp"), MySQLType.TIMESTAMP, "myTimestamp mysql type");
+        assertEquals(rowMeta.getPrecision("myTimestamp"), 0, "myTimestamp precision");
+        assertEquals(rowMeta.getNullMode("myTimestamp"), NullMode.NON_NULL, "myTimestamp null mode.");
+
+        final Object myTimestamp1 = row.get("myTimestamp1");
+        assertNotNull(myTimestamp1, "myTimestamp1");
+        assertEquals(row.get("myTimestamp1"), myTimestamp1, "myTimestamp1 convert");
+        assertEquals(rowMeta.getSQLType("myTimestamp1"), MySQLType.TIMESTAMP, "myTimestamp1 mysql type");
+        assertEquals(rowMeta.getPrecision("myTimestamp1"), 1, "myTimestamp1 precision");
+        assertEquals(rowMeta.getNullMode("myTimestamp1"), NullMode.NON_NULL, "myTimestamp1 null mode.");
 
     }
 
@@ -510,7 +814,13 @@ public class ComQueryTaskSuiteTests extends AbstractConnectionBasedSuiteTests {
 
         taskAdjutant = TASK_ADJUTANT_QUEUE.poll();
         if (taskAdjutant == null) {
-            MySQLSessionAdjutant sessionAdjutant = getSessionAdjutantForSingleHost(Collections.emptyMap());
+            Map<String, String> map = new HashMap<>();
+            if (ClientTestUtils.existsServerPublicKey()) {
+                map.put(PropertyKey.sslMode.getKey(), Enums.SslMode.DISABLED.name());
+            }
+            ClientTestUtils.appendZoneConfig(map);
+
+            MySQLSessionAdjutant sessionAdjutant = getSessionAdjutantForSingleHost(map);
             ClientConnectionProtocolImpl protocol = ClientConnectionProtocolImpl.create(0, sessionAdjutant)
                     .block();
             assertNotNull(protocol, "protocol");
