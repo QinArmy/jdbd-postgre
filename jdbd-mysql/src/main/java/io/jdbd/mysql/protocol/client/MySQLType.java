@@ -613,7 +613,15 @@ public enum MySQLType implements SQLType {
 
     private static MySQLType fromLongBlob(MySQLColumnMeta columnMeta, Properties<PropertyKey> properties) {
         //return isBlobTypeReturnText(columnMeta, properties) ? LONGTEXT : LONGBLOB;
-        return columnMeta.isBlob() ? LONGBLOB : LONGTEXT;
+        final MySQLType mySQLType;
+        if (columnMeta.isBlob()
+                || columnMeta.isBinary()
+                || !isBlobTypeReturnText(columnMeta, properties)) {
+            mySQLType = LONGBLOB;
+        } else {
+            mySQLType = LONGTEXT;
+        }
+        return mySQLType;
     }
 
     private static MySQLType fromBlob(MySQLColumnMeta columnMeta, Properties<PropertyKey> properties) {

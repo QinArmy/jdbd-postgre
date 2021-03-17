@@ -1,7 +1,11 @@
 package io.jdbd.mysql.protocol.client;
 
 import io.jdbd.ResultRow;
-import io.jdbd.mysql.util.*;
+import io.jdbd.mysql.util.MySQLConvertUtils;
+import io.jdbd.mysql.util.MySQLNumberUtils;
+import io.jdbd.mysql.util.MySQLStringUtils;
+import io.jdbd.mysql.util.MySQLTimeUtils;
+import io.jdbd.type.geometry.Geometries;
 import io.netty.buffer.ByteBuf;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -102,141 +106,68 @@ final class TextResultSetReader extends AbstractResultSetReader {
 
         String columnText;
         final Object columnValue;
-        switch (columnMeta.typeFlag) {
-
-            case ProtocolConstants.TYPE_TINY_BLOB:
-            case ProtocolConstants.TYPE_BLOB:
-            case ProtocolConstants.TYPE_MEDIUM_BLOB:
-            case ProtocolConstants.TYPE_LONG_BLOB:
-            case ProtocolConstants.TYPE_GEOMETRY: {
-                switch (columnMeta.mysqlType) {
-                    case TINYTEXT:
-                    case TEXT:
-                    case MEDIUMTEXT:
-                    case LONGTEXT: {
-                        columnText = PacketUtils.readStringLenEnc(payload, columnCharset);
-                        if (columnText != null && columnMeta.mysqlType == MySQLType.LONGTEXT) {
-                            columnValue = new StringReader(columnText);
-                        } else {
-                            columnValue = columnText;
-                        }
-                    }
-                    break;
-                    default:
-                        columnValue = PacketUtils.readBytesLenEnc(payload);
-                }
-
-            }
-            break;
-            case ProtocolConstants.TYPE_STRING:
-            case ProtocolConstants.TYPE_VARCHAR:
-            case ProtocolConstants.TYPE_VAR_STRING: {
-                switch (columnMeta.mysqlType) {
-                    case BINARY:
-                    case VARBINARY:
-                        columnValue = PacketUtils.readBytesLenEnc(payload);
-                        break;
-                    case CHAR:
-                    case ENUM:
-                    case VARCHAR:
-                        columnValue = PacketUtils.readStringLenEnc(payload, columnCharset);
-                        break;
-                    case SET: {
-                        columnText = PacketUtils.readStringLenEnc(payload, columnCharset);
-                        if (columnText == null) {
-                            columnValue = Collections.<String>emptySet();
-                        } else {
-                            columnValue = MySQLStringUtils.spitAsSet(columnText, ",", true);
-                        }
-                    }
-                    break;
-                    default:
-                        throw new IllegalStateException(
-                                String.format("Not found MySQL type for column meta:%s", columnMeta));
-                }
-            }
-            break;
-            case ProtocolConstants.TYPE_ENUM:
-            case ProtocolConstants.TYPE_JSON: {
+        switch (columnMeta.mysqlType) {
+            case CHAR:
+            case VARCHAR:
+            case JSON:
+            case ENUM: {
                 columnValue = PacketUtils.readStringLenEnc(payload, columnCharset);
             }
             break;
-            case ProtocolConstants.TYPE_NEWDECIMAL:
-            case ProtocolConstants.TYPE_DECIMAL: {
+            case SET: {
+                columnText = PacketUtils.readStringLenEnc(payload, columnCharset);
+                if (columnText == null) {
+                    columnValue = Collections.<String>emptySet();
+                } else {
+                    columnValue = MySQLStringUtils.spitAsSet(columnText, ",", true);
+                }
+            }
+            break;
+            case DECIMAL_UNSIGNED:
+            case DECIMAL: {
                 columnText = PacketUtils.readStringLenEnc(payload, columnCharset);
                 columnValue = columnText == null ? null : new BigDecimal(columnText);
             }
             break;
-            case ProtocolConstants.TYPE_BIT: {
-                byte[] bytes = PacketUtils.readBytesLenEnc(payload);
-                if (bytes == null) {
-                    columnValue = null;
-                } else {
-                    columnValue = MySQLNumberUtils.readLongFromBigEndian(bytes);
-                }
-            }
-            break;
-            case ProtocolConstants.TYPE_SET: {
+            case BIGINT_UNSIGNED:
+            case BIGINT: {
                 columnText = PacketUtils.readStringLenEnc(payload, columnCharset);
                 if (columnText == null) {
                     columnValue = null;
-                } else {
-                    columnValue = MySQLConvertUtils.convertToSetType(columnText);
-                }
-            }
-            break;
-            case ProtocolConstants.TYPE_LONGLONG: {
-                columnText = PacketUtils.readStringLenEnc(payload, columnCharset);
-                if (columnText == null) {
-                    columnValue = null;
-                } else if (columnMeta.isUnsigned()) {
+                } else if (columnMeta.mysqlType == MySQLType.BIGINT_UNSIGNED) {
                     columnValue = new BigInteger(columnText);
                 } else {
                     columnValue = Long.parseLong(columnText);
                 }
             }
             break;
-            case ProtocolConstants.TYPE_LONG: {
+            case MEDIUMINT:
+            case MEDIUMINT_UNSIGNED:
+            case INT_UNSIGNED:
+            case INT: {
                 columnText = PacketUtils.readStringLenEnc(payload, columnCharset);
                 if (columnText == null) {
                     columnValue = null;
-                } else if (columnMeta.isUnsigned()) {
+                } else if (columnMeta.mysqlType == MySQLType.INT_UNSIGNED) {
                     columnValue = Long.parseLong(columnText);
                 } else {
                     columnValue = Integer.parseInt(columnText);
                 }
             }
             break;
-            case ProtocolConstants.TYPE_INT24: {
+            case SMALLINT_UNSIGNED:
+            case SMALLINT: {
                 columnText = PacketUtils.readStringLenEnc(payload, columnCharset);
                 if (columnText == null) {
                     columnValue = null;
-                } else {
-                    columnValue = Integer.parseInt(columnText);
-                }
-            }
-            break;
-            case ProtocolConstants.TYPE_SHORT: {
-                columnText = PacketUtils.readStringLenEnc(payload, columnCharset);
-                if (columnText == null) {
-                    columnValue = null;
-                } else if (columnMeta.isUnsigned()) {
+                } else if (columnMeta.mysqlType == MySQLType.SMALLINT_UNSIGNED) {
                     columnValue = Integer.parseInt(columnText);
                 } else {
                     columnValue = Short.parseShort(columnText);
                 }
             }
             break;
-            case ProtocolConstants.TYPE_YEAR: {
-                columnText = PacketUtils.readStringLenEnc(payload, columnCharset);
-                if (columnText == null) {
-                    columnValue = null;
-                } else {
-                    columnValue = Year.of(Integer.parseInt(columnText));
-                }
-            }
-            break;
-            case ProtocolConstants.TYPE_BOOL: {
+            case BOOLEAN: {
                 columnText = PacketUtils.readStringLenEnc(payload, columnCharset);
                 if (columnText == null) {
                     columnValue = null;
@@ -245,50 +176,61 @@ final class TextResultSetReader extends AbstractResultSetReader {
                 }
             }
             break;
-            case ProtocolConstants.TYPE_TINY: {
-                columnText = PacketUtils.readStringLenEnc(payload, columnCharset);
-
-                if (columnText == null) {
-                    columnValue = null;
-                } else if (columnMeta.isUnsigned()) {
-                    columnValue = Integer.parseInt(columnText);
+            case BIT: {
+                if (columnMeta.typeFlag == ProtocolConstants.TYPE_TINY && columnMeta.length == 1L) {
+                    columnText = PacketUtils.readStringLenEnc(payload, columnCharset);
+                    if (columnText == null) {
+                        columnValue = null;
+                    } else {
+                        columnValue = Byte.parseByte(columnText) == 0 ? 0L : 1L;
+                    }
                 } else {
-                    switch (columnMeta.mysqlType) {
-                        case BIT:
-                            columnValue = Byte.parseByte(columnText) == 0 ? 0L : 1L;
-                            break;
-                        case BOOLEAN:
-                            columnValue = MySQLConvertUtils.tryConvertToBoolean(Byte.parseByte(columnText));
-                            break;
-                        default:
-                            columnValue = Byte.parseByte(columnText);
+                    byte[] bytes = PacketUtils.readBytesLenEnc(payload);
+                    if (bytes == null) {
+                        columnValue = null;
+                    } else {
+                        columnValue = MySQLNumberUtils.readLongFromBigEndian(bytes);
                     }
                 }
             }
             break;
-            case ProtocolConstants.TYPE_DOUBLE: {
+            case TINYINT_UNSIGNED:
+            case TINYINT: {
                 columnText = PacketUtils.readStringLenEnc(payload, columnCharset);
                 if (columnText == null) {
                     columnValue = null;
-                } else if (columnMeta.isUnsigned()) {
+                } else if (columnMeta.mysqlType == MySQLType.TINYINT_UNSIGNED) {
+                    columnValue = Short.parseShort(columnText);
+                } else {
+                    columnValue = Byte.parseByte(columnText);
+                }
+            }
+            break;
+            case DOUBLE_UNSIGNED:
+            case DOUBLE: {
+                columnText = PacketUtils.readStringLenEnc(payload, columnCharset);
+                if (columnText == null) {
+                    columnValue = null;
+                } else if (columnMeta.mysqlType == MySQLType.DOUBLE_UNSIGNED) {
                     columnValue = new BigDecimal(columnText);
                 } else {
                     columnValue = Double.parseDouble(columnText);
                 }
             }
             break;
-            case ProtocolConstants.TYPE_FLOAT: {
+            case FLOAT_UNSIGNED:
+            case FLOAT: {
                 columnText = PacketUtils.readStringLenEnc(payload, columnCharset);
                 if (columnText == null) {
                     columnValue = null;
-                } else if (columnMeta.isUnsigned()) {
+                } else if (columnMeta.mysqlType == MySQLType.FLOAT_UNSIGNED) {
                     columnValue = Double.parseDouble(columnText);
                 } else {
                     columnValue = Float.parseFloat(columnText);
                 }
             }
             break;
-            case ProtocolConstants.TYPE_DATE: {
+            case DATE: {
                 columnText = PacketUtils.readStringLenEnc(payload, columnCharset);
                 if (columnText == null) {
                     columnValue = null;
@@ -299,13 +241,31 @@ final class TextResultSetReader extends AbstractResultSetReader {
                 }
             }
             break;
-            case ProtocolConstants.TYPE_TIMESTAMP:
-            case ProtocolConstants.TYPE_DATETIME: {
+            case YEAR: {
+                columnText = PacketUtils.readStringLenEnc(payload, columnCharset);
+                if (columnText == null) {
+                    columnValue = null;
+                } else {
+                    columnValue = Year.of(Integer.parseInt(columnText));
+                }
+            }
+            break;
+            case TIMESTAMP:
+            case DATETIME: {
                 columnText = PacketUtils.readStringLenEnc(payload, columnCharset);
                 if (columnText == null) {
                     columnValue = null;
                 } else if (columnText.startsWith("0000-00-00")) {
-                    columnValue = handleZeroDateBehavior();
+                    LocalDate date = handleZeroDateBehavior();
+                    if (date == null) {
+                        columnValue = null;
+                    } else {
+                        LocalDateTime dateTime;
+                        String timeText = columnText.substring(10);
+                        LocalTime time = LocalTime.parse(timeText, MySQLTimeUtils.MYSQL_TIME_FORMATTER);
+                        dateTime = LocalDateTime.of(date, time);
+                        columnValue = dateTime;
+                    }
                 } else {
                     LocalDateTime dateTime = LocalDateTime.parse(columnText, MySQLTimeUtils.MYSQL_DATETIME_FORMATTER);
                     columnValue = OffsetDateTime.of(dateTime, this.adjutant.obtainZoneOffsetDatabase())
@@ -314,7 +274,7 @@ final class TextResultSetReader extends AbstractResultSetReader {
                 }
             }
             break;
-            case ProtocolConstants.TYPE_TIME: {
+            case TIME: {
                 columnText = PacketUtils.readStringLenEnc(payload, columnCharset);
                 if (columnText == null) {
                     columnValue = null;
@@ -328,9 +288,38 @@ final class TextResultSetReader extends AbstractResultSetReader {
                 }
             }
             break;
+            case GEOMETRY: {
+                byte[] bytes = PacketUtils.readBytesLenEnc(payload);
+                if (bytes == null) {
+                    columnValue = null;
+                } else {
+                    columnValue = Geometries.geometryFromWKB(bytes, 4);
+                }
+            }
+            break;
+            case TINYTEXT:
+            case TEXT:
+            case MEDIUMTEXT:
+            case LONGTEXT: {
+                columnText = PacketUtils.readStringLenEnc(payload, columnCharset);
+                if (columnText != null && columnMeta.mysqlType == MySQLType.LONGTEXT) {
+                    columnValue = new StringReader(columnText);
+                } else {
+                    columnValue = columnText;
+                }
+            }
+            break;
+            case TINYBLOB:
+            case BLOB:
+            case MEDIUMBLOB:
+            case LONGBLOB:
+            case BINARY:
+            case VARBINARY:
+            case UNKNOWN:
+            case NULL:
             default:
-                throw MySQLExceptions.createFatalIoException("Server send unknown type[%s]"
-                        , columnMeta.typeFlag);
+                // unknown
+                columnValue = PacketUtils.readBytesLenEnc(payload);
 
         }
         return columnValue;

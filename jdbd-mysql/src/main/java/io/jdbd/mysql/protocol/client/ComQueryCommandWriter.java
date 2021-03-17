@@ -9,6 +9,7 @@ import io.jdbd.mysql.util.MySQLCollections;
 import io.jdbd.mysql.util.MySQLConvertUtils;
 import io.jdbd.mysql.util.MySQLExceptions;
 import io.jdbd.mysql.util.MySQLTimeUtils;
+import io.jdbd.type.geometry.Geometry;
 import io.jdbd.vendor.conf.Properties;
 import io.netty.buffer.ByteBuf;
 import org.slf4j.Logger;
@@ -29,10 +30,7 @@ import java.sql.SQLException;
 import java.time.*;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
-import java.util.Collections;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Queue;
+import java.util.*;
 import java.util.function.Supplier;
 
 
@@ -414,7 +412,6 @@ final class ComQueryCommandWriter {
             break;
             case VARCHAR:
             case CHAR:
-            case SET:
             case JSON:
             case ENUM:
             case TINYTEXT:
@@ -430,6 +427,15 @@ final class ComQueryCommandWriter {
             case LONGBLOB:
                 newBuffer = bindToBytes(stmtIndex, bindValue, buffer, packetList);
                 break;
+            case SET: {
+                if (bindValue.getValue() instanceof Set) {
+                    bindToSetType(stmtIndex, bindValue, buffer);
+                    newBuffer = buffer;
+                } else {
+                    newBuffer = bindToBytes(stmtIndex, bindValue, buffer, packetList);
+                }
+            }
+            break;
             case TIME: {
                 bindToTime(stmtIndex, bindValue, buffer);
                 newBuffer = buffer;
@@ -446,14 +452,83 @@ final class ComQueryCommandWriter {
                 newBuffer = buffer;
             }
             break;
+            case GEOMETRY: {
+                if (bindValue.getValue() instanceof Geometry) {
+                    newBuffer = bindToGeometry(stmtIndex, bindValue, buffer);
+                } else {
+                    newBuffer = bindToBytes(stmtIndex, bindValue, buffer, packetList);
+                }
+            }
+            break;
             case UNKNOWN:
-            case GEOMETRY:
                 //TODO add code
                 throw BindUtils.createTypeNotMatchException(bindValue);
             default:
                 throw MySQLExceptions.createUnknownEnumException(bindValue.getType());
         }
         return newBuffer;
+    }
+
+    /**
+     * @see #bindParameter(int, BindValue, ByteBuf, List)
+     */
+    private ByteBuf bindToGeometry(final int stmtIndex, final BindValue bindValue, final ByteBuf packetBuffer)
+            throws SQLException {
+        final Object nonNull = bindValue.getRequiredValue();
+        if (!(nonNull instanceof Geometry)) {
+            throw MySQLExceptions.createUnsupportedParamTypeError(stmtIndex, bindValue);
+        }
+        packetBuffer.writeBytes("ST_GeometryFromWKB(".getBytes(this.clientCharset));
+        final byte[] wkbBytes = ((Geometry) nonNull).asWKB(false);
+        if (this.hexEscape) {
+            packetBuffer.writeByte('X');
+            packetBuffer.writeByte(Constants.QUOTE_CHAR_BYTE);
+            writeHexEscapes(packetBuffer, wkbBytes, wkbBytes.length);
+        } else {
+            packetBuffer.writeByte(Constants.QUOTE_CHAR_BYTE);
+            writeByteEscapes(packetBuffer, wkbBytes, wkbBytes.length);
+        }
+        packetBuffer.writeBytes("')".getBytes(this.clientCharset));
+        return packetBuffer;
+    }
+
+    /**
+     * @see #bindParameter(int, BindValue, ByteBuf, List)
+     */
+    private ByteBuf bindToSetType(final int stmtIndex, final BindValue bindValue, final ByteBuf packetBuffer)
+            throws SQLException {
+        final Object nonNull = bindValue.getRequiredValue();
+        if (!(nonNull instanceof Set)) {
+            throw MySQLExceptions.createUnsupportedParamTypeError(stmtIndex, bindValue);
+        }
+        Set<?> set = (Set<?>) nonNull;
+        if (this.hexEscape) {
+            packetBuffer.writeByte('X');
+        }
+        packetBuffer.writeByte(Constants.QUOTE_CHAR_BYTE); //1. write start quote
+        StringBuilder builder = new StringBuilder();
+        int count = 0;
+        for (Object o : set) {
+            if (count > 0) {
+                builder.append(",");
+            }
+            if (o instanceof String) {
+                builder.append(o);
+            } else if (o instanceof Enum) {
+                builder.append(((Enum<?>) o).name());
+            } else {
+                throw MySQLExceptions.createUnsupportedParamTypeError(stmtIndex, bindValue);
+            }
+            count++;
+        }
+        final byte[] bytes = builder.toString().getBytes(this.clientCharset);
+        if (this.hexEscape) {
+            writeHexEscapes(packetBuffer, bytes, bytes.length);
+        } else {
+            writeByteEscapes(packetBuffer, bytes, bytes.length);
+        }
+        packetBuffer.writeByte(Constants.QUOTE_CHAR_BYTE);//3. write end quote
+        return packetBuffer;
     }
 
     /**
@@ -543,6 +618,8 @@ final class ComQueryCommandWriter {
                 } else {
                     writeByteEscapes(packet, bytes, bytes.length);
                 }
+            } else if (nonNull instanceof Enum) {
+                packet.writeBytes(((Enum<?>) nonNull).name().getBytes(this.clientCharset));
             } else if (nonNull instanceof InputStream) {
                 packet = writeInputStream(packet, (InputStream) nonNull, packetList
                         , this.properties.getOrDefault(PropertyKey.autoClosePStmtStreams, Boolean.class));

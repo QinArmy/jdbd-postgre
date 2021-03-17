@@ -1,6 +1,7 @@
 package io.jdbd.mysql.protocol.client;
 
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.jdbd.*;
 import io.jdbd.meta.SQLType;
@@ -14,6 +15,8 @@ import io.jdbd.mysql.stmt.StmtWrappers;
 import io.jdbd.mysql.type.City;
 import io.jdbd.mysql.type.TrueOrFalse;
 import io.jdbd.mysql.util.*;
+import io.jdbd.type.geometry.Geometries;
+import io.jdbd.type.geometry.Point;
 import io.jdbd.vendor.JdbdCompositeException;
 import io.jdbd.vendor.conf.Properties;
 import org.slf4j.Logger;
@@ -578,10 +581,183 @@ public class ComQueryTaskSuiteTests extends AbstractConnectionBasedSuiteTests {
         releaseConnection(taskAdjutant);
     }
 
+    @Test(timeOut = TIME_OUT)
+    public void enumBindAndExtract() {
+        LOG.info("enumBindAndExtract test start");
+        final MySQLTaskAdjutant taskAdjutant = obtainTaskAdjutant();
+
+        assertEnumBindExtract(taskAdjutant, MySQLType.CHAR, TrueOrFalse.T.name());
+        assertEnumBindExtract(taskAdjutant, MySQLType.CHAR, TrueOrFalse.F.name());
+        assertEnumBindExtract(taskAdjutant, MySQLType.ENUM, TrueOrFalse.T.name());
+        assertEnumBindExtract(taskAdjutant, MySQLType.ENUM, TrueOrFalse.F.name());
+
+        assertEnumBindExtract(taskAdjutant, MySQLType.ENUM, TrueOrFalse.T);
+        assertEnumBindExtract(taskAdjutant, MySQLType.ENUM, TrueOrFalse.F);
+
+        LOG.info("enumBindAndExtract test success");
+        releaseConnection(taskAdjutant);
+    }
+
+    @Test(timeOut = TIME_OUT)
+    public void setTypeBindAndExtract() {
+        LOG.info("setTypeBindAndExtract test start");
+        final MySQLTaskAdjutant taskAdjutant = obtainTaskAdjutant();
+
+        assertSetTypeBindAndExtract(taskAdjutant, MySQLType.CHAR, City.BEIJING.name());
+        assertSetTypeBindAndExtract(taskAdjutant, MySQLType.CHAR, City.AOMENG.name());
+        assertSetTypeBindAndExtract(taskAdjutant, MySQLType.CHAR, City.SHANGHAI);
+        assertSetTypeBindAndExtract(taskAdjutant, MySQLType.SET, MySQLArrayUtils.asUnmodifiableSet(City.BEIJING.name(), City.SHANGHAI.name(), City.SHENZHEN.name(), City.TAIBEI.name()));
+
+        assertSetTypeBindAndExtract(taskAdjutant, MySQLType.SET, EnumSet.of(City.BEIJING, City.SHANGHAI, City.SHENZHEN, City.TAIBEI));
+        assertSetTypeBindAndExtract(taskAdjutant, MySQLType.SET, City.AOMENG);
+        assertSetTypeBindAndExtract(taskAdjutant, MySQLType.SET, "AOMENG,SHANGHAI");
+        assertSetTypeBindAndExtract(taskAdjutant, MySQLType.SET, "AOMENG");
+
+        LOG.info("setTypeBindAndExtract test success");
+        releaseConnection(taskAdjutant);
+    }
+
+    @Test(timeOut = TIME_OUT)
+    public void jsonBindAndExtract() throws Exception {
+        LOG.info("jsonBindAndExtract test start");
+        final MySQLTaskAdjutant taskAdjutant = obtainTaskAdjutant();
+
+
+        Map<String, Object> map = new HashMap<>();
+        map.put("id", 1L);
+        map.put("name", "''''\"\",\\,_%\032     ");
+
+        final String id = "10", field = "my_json";
+        final ObjectMapper mapper = new ObjectMapper();
+        String json = mapper.writeValueAsString(map);
+        //1. update filed
+        updateSingleField(taskAdjutant, MySQLType.JSON, json, field, id);
+        //2. query filed
+        final ResultRow resultRow;
+        resultRow = querySingleField(taskAdjutant, field, id);
+        final String resultJson = resultRow.get("field", String.class);
+
+        final JsonNode root = mapper.readTree(resultJson);
+        assertEquals(root.at("/id").asLong(), map.get("id"));
+        assertEquals(root.at("/name").asText(), map.get("name"), field);
+
+        LOG.info("jsonBindAndExtract test success");
+        releaseConnection(taskAdjutant);
+    }
+
+    @Test(timeOut = TIME_OUT)
+    public void geometryBindAndExtract() {
+        LOG.info("geometryBindAndExtract test start");
+        final MySQLTaskAdjutant taskAdjutant = obtainTaskAdjutant();
+
+        final String id = "11", field = "my_geometry";
+
+
+        LOG.info("geometryBindAndExtract test success");
+        releaseConnection(taskAdjutant);
+    }
+
+    @Test(timeOut = TIME_OUT)
+    public void pointBindAndExtract() {
+        LOG.info("pointBindAndExtract test start");
+        final MySQLTaskAdjutant taskAdjutant = obtainTaskAdjutant();
+
+
+        Point point = Geometries.point(0.0, 0.0);
+
+        assertPointBindAndExtract(taskAdjutant, point);
+
+        point = Geometries.point(Double.MAX_VALUE, Double.MIN_VALUE);
+
+        assertPointBindAndExtract(taskAdjutant, point);
+
+        point = Geometries.point(-1, 0);
+
+        assertPointBindAndExtract(taskAdjutant, point);
+
+        LOG.info("pointBindAndExtract test success");
+        releaseConnection(taskAdjutant);
+    }
 
 
 
     /*################################## blow private method ##################################*/
+
+    /**
+     * @see #pointBindAndExtract()
+     */
+    private void assertPointBindAndExtract(final MySQLTaskAdjutant taskAdjutant, final Point bindParam) {
+        final String id = "12", field = "my_point";
+
+        //1. update filed
+        updateSingleField(taskAdjutant, MySQLType.GEOMETRY, bindParam, field, id);
+        //2. query filed
+        final ResultRow resultRow;
+        resultRow = querySingleField(taskAdjutant, field, id);
+
+        final Object resultValue = resultRow.get("field");
+
+        assertEquals(resultValue, bindParam, field);
+    }
+
+
+    /**
+     * @see #assertSetTypeBindAndExtract(MySQLTaskAdjutant, MySQLType, Object)
+     */
+    private void assertSetTypeBindAndExtract(final MySQLTaskAdjutant taskAdjutant, final MySQLType mySQLType
+            , final Object bindParam) {
+
+        final String id = "9", field = "my_set";
+
+        //1. update filed
+        updateSingleField(taskAdjutant, mySQLType, bindParam, field, id);
+        //2. query filed
+        final ResultRow resultRow;
+        resultRow = querySingleField(taskAdjutant, field, id);
+        final Set<City> citySet = resultRow.getSet("field", City.class);
+        assertNotNull(citySet, field);
+
+        final Set<City> bindSet;
+        if (bindParam instanceof String) {
+            Set<String> itemSet = MySQLStringUtils.spitAsSet((String) bindParam, ",");
+            bindSet = MySQLStringUtils.convertStringsToEnumSet(itemSet, City.class);
+        } else if (bindParam instanceof City) {
+            bindSet = Collections.singleton((City) bindParam);
+        } else if (bindParam instanceof Set) {
+            Set<?> paramSet = (Set<?>) bindParam;
+            Set<City> tempSet = new HashSet<>((int) (paramSet.size() / 0.75F));
+            for (Object s : paramSet) {
+                if (s instanceof String) {
+                    tempSet.add(City.valueOf((String) s));
+                } else if (s instanceof City) {
+                    tempSet.add((City) s);
+                }
+            }
+            bindSet = Collections.unmodifiableSet(tempSet);
+        } else {
+            throw new IllegalArgumentException("bindParam type error");
+        }
+
+        assertEquals(citySet, bindSet, field);
+
+    }
+
+    private void assertEnumBindExtract(final MySQLTaskAdjutant taskAdjutant, final MySQLType mySQLType
+            , final Object bindParam) {
+        final String id = "8", field = "my_enum";
+        //1. update filed
+        updateSingleField(taskAdjutant, mySQLType, bindParam, field, id);
+        //2. query filed
+        final ResultRow resultRow;
+        resultRow = querySingleField(taskAdjutant, field, id);
+        final TrueOrFalse trueOrFalse = resultRow.get("field", TrueOrFalse.class);
+        assertNotNull(trueOrFalse, field);
+        if (bindParam instanceof String) {
+            assertEquals(trueOrFalse, TrueOrFalse.valueOf((String) bindParam), field);
+        } else {
+            assertEquals(trueOrFalse, bindParam, field);
+        }
+    }
 
     /**
      * @see #numberBindAndExtract()
@@ -1277,7 +1453,7 @@ public class ComQueryTaskSuiteTests extends AbstractConnectionBasedSuiteTests {
     }
 
     private static void prepareData(MySQLTaskAdjutant taskAdjutant) throws Exception {
-        final int rowCount = 10;
+        final int rowCount = 100;
 
         StringBuilder builder = new StringBuilder(40 * rowCount)
                 .append("INSERT INTO mysql_types(name,my_char,my_bit,my_boolean,my_json) VALUES");
