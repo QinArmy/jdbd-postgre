@@ -13,9 +13,7 @@ import io.jdbd.mysql.session.MySQLSessionAdjutant;
 import io.jdbd.mysql.stmt.StmtWrappers;
 import io.jdbd.mysql.type.City;
 import io.jdbd.mysql.type.TrueOrFalse;
-import io.jdbd.mysql.util.MySQLCollections;
-import io.jdbd.mysql.util.MySQLStringUtils;
-import io.jdbd.mysql.util.MySQLTimeUtils;
+import io.jdbd.mysql.util.*;
 import io.jdbd.vendor.JdbdCompositeException;
 import io.jdbd.vendor.conf.Properties;
 import org.slf4j.Logger;
@@ -243,25 +241,25 @@ public class ComQueryTaskSuiteTests extends AbstractConnectionBasedSuiteTests {
         LOG.info("datetimeBindAndExtract test start");
         final MySQLTaskAdjutant taskAdjutant = obtainTaskAdjutant();
 
-        assertDateTimeModify(taskAdjutant, "2021-03-16 19:26:00.999999", "create_time");
-        assertDateTimeModify(taskAdjutant, LocalDateTime.now(), "create_time");
-        assertDateTimeModify(taskAdjutant, OffsetDateTime.now(ZoneOffset.of("+03:00")), "create_time");
-        assertDateTimeModify(taskAdjutant, ZonedDateTime.now(ZoneOffset.of("+04:00")), "create_time");
+        assertDateTimeModify(taskAdjutant, MySQLType.DATETIME, "2021-03-16 19:26:00.999999", "create_time");
+        assertDateTimeModify(taskAdjutant, MySQLType.DATETIME, LocalDateTime.now(), "create_time");
+        assertDateTimeModify(taskAdjutant, MySQLType.DATETIME, OffsetDateTime.now(ZoneOffset.of("+03:00")), "create_time");
+        assertDateTimeModify(taskAdjutant, MySQLType.DATETIME, ZonedDateTime.now(ZoneOffset.of("+04:00")), "create_time");
 
-        assertDateTimeModify(taskAdjutant, "2021-03-16 19:26:00.999999", "update_time");
-        assertDateTimeModify(taskAdjutant, LocalDateTime.now(), "update_time");
-        assertDateTimeModify(taskAdjutant, OffsetDateTime.now(ZoneOffset.of("+03:00")), "update_time");
-        assertDateTimeModify(taskAdjutant, ZonedDateTime.now(ZoneOffset.of("+04:00")), "update_time");
+        assertDateTimeModify(taskAdjutant, MySQLType.DATETIME, "2021-03-16 19:26:00.999999", "update_time");
+        assertDateTimeModify(taskAdjutant, MySQLType.DATETIME, LocalDateTime.now(), "update_time");
+        assertDateTimeModify(taskAdjutant, MySQLType.DATETIME, OffsetDateTime.now(ZoneOffset.of("+03:00")), "update_time");
+        assertDateTimeModify(taskAdjutant, MySQLType.DATETIME, ZonedDateTime.now(ZoneOffset.of("+04:00")), "update_time");
 
-        assertDateTimeModify(taskAdjutant, "2021-03-16 19:26:00.999999", "my_timestamp");
-        assertDateTimeModify(taskAdjutant, LocalDateTime.parse("2021-03-16 19:26:00.999999", MySQLTimeUtils.MYSQL_DATETIME_FORMATTER), "my_timestamp");
-        assertDateTimeModify(taskAdjutant, OffsetDateTime.parse("2021-03-16 19:26:00.999999+03:00", MySQLTimeUtils.MYSQL_DATETIME_OFFSET_FORMATTER), "my_timestamp");
-        assertDateTimeModify(taskAdjutant, ZonedDateTime.parse("2021-03-16 19:26:00.999999+04:00", MySQLTimeUtils.MYSQL_DATETIME_OFFSET_FORMATTER), "my_timestamp");
+        assertDateTimeModify(taskAdjutant, MySQLType.TIMESTAMP, "2021-03-16 19:26:00.999999", "my_timestamp");
+        assertDateTimeModify(taskAdjutant, MySQLType.TIMESTAMP, LocalDateTime.parse("2021-03-16 19:26:00.999999", MySQLTimeUtils.MYSQL_DATETIME_FORMATTER), "my_timestamp");
+        assertDateTimeModify(taskAdjutant, MySQLType.TIMESTAMP, OffsetDateTime.parse("2021-03-16 19:26:00.999999+03:00", MySQLTimeUtils.MYSQL_DATETIME_OFFSET_FORMATTER), "my_timestamp");
+        assertDateTimeModify(taskAdjutant, MySQLType.TIMESTAMP, ZonedDateTime.parse("2021-03-16 19:26:00.999999+04:00", MySQLTimeUtils.MYSQL_DATETIME_OFFSET_FORMATTER), "my_timestamp");
 
-        assertDateTimeModify(taskAdjutant, "2021-03-16 19:26:00.999999", "my_timestamp1");
-        assertDateTimeModify(taskAdjutant, LocalDateTime.parse("2021-03-16 19:26:00.999999", MySQLTimeUtils.MYSQL_DATETIME_FORMATTER), "my_timestamp1");
-        assertDateTimeModify(taskAdjutant, OffsetDateTime.parse("2021-03-16 19:26:00.999999+03:00", MySQLTimeUtils.MYSQL_DATETIME_OFFSET_FORMATTER), "my_timestamp1");
-        assertDateTimeModify(taskAdjutant, ZonedDateTime.parse("2021-03-16 19:26:00.999999+04:00", MySQLTimeUtils.MYSQL_DATETIME_OFFSET_FORMATTER), "my_timestamp1");
+        assertDateTimeModify(taskAdjutant, MySQLType.TIMESTAMP, "2021-03-16 19:26:00.999999", "my_timestamp1");
+        assertDateTimeModify(taskAdjutant, MySQLType.TIMESTAMP, LocalDateTime.parse("2021-03-16 19:26:00.999999", MySQLTimeUtils.MYSQL_DATETIME_FORMATTER), "my_timestamp1");
+        assertDateTimeModify(taskAdjutant, MySQLType.TIMESTAMP, OffsetDateTime.parse("2021-03-16 19:26:00.999999+03:00", MySQLTimeUtils.MYSQL_DATETIME_OFFSET_FORMATTER), "my_timestamp1");
+        assertDateTimeModify(taskAdjutant, MySQLType.TIMESTAMP, ZonedDateTime.parse("2021-03-16 19:26:00.999999+04:00", MySQLTimeUtils.MYSQL_DATETIME_OFFSET_FORMATTER), "my_timestamp1");
 
         LOG.info("datetimeBindAndExtract test success");
         releaseConnection(taskAdjutant);
@@ -272,7 +270,7 @@ public class ComQueryTaskSuiteTests extends AbstractConnectionBasedSuiteTests {
         LOG.info("stringBindAndExtract test start");
         final MySQLTaskAdjutant taskAdjutant = obtainTaskAdjutant();
 
-        String bindParma = "  \"\\'zoro索隆\\'\\'\\'\\'\\'\\'\"\\z\n\r update mysql_types as t set t.name = 'evil' where t.id = 5  " + '\032';
+        String bindParma = "  \"\\'秦军\\'\\'\\'\\'\\'\\'\"\\Z\n\r update mysql_types as t set t.name = 'evil' where t.id = 5 %% " + '\032';
 
         assertStringBindAndExtract(taskAdjutant, MySQLType.VARCHAR, bindParma, "name");
         assertStringBindAndExtract(taskAdjutant, MySQLType.CHAR, bindParma, "my_char");
@@ -291,9 +289,294 @@ public class ComQueryTaskSuiteTests extends AbstractConnectionBasedSuiteTests {
 
     @Test(timeOut = TIME_OUT)
     public void binaryBindAndExtract() {
+        LOG.info("binaryBindAndExtract test start");
+        final MySQLTaskAdjutant taskAdjutant = obtainTaskAdjutant();
+
+        String bindParam = "'china' %_#\\'\\' \" '秦军' '中国' \00   ";
+        assertBinaryBindAndExtract(taskAdjutant, MySQLType.VARBINARY, bindParam, "my_var_binary");
+        assertBinaryBindAndExtract(taskAdjutant, MySQLType.BINARY, bindParam, "my_binary");
+
+        bindParam = "  'evil' , t.my_decimal = 999999.00   ";
+        assertBinaryBindAndExtract(taskAdjutant, MySQLType.VARBINARY, bindParam, "my_var_binary");
+        assertBinaryBindAndExtract(taskAdjutant, MySQLType.BINARY, bindParam, "my_binary");
+
+        LOG.info("binaryBindAndExtract test success");
+        releaseConnection(taskAdjutant);
+    }
+
+    @Test(timeOut = TIME_OUT)
+    public void bitBindAndExtract() {
+        LOG.info("bitBindAndExtract test start");
+        final MySQLTaskAdjutant taskAdjutant = obtainTaskAdjutant();
+
+        assertBitBindAndExtract(taskAdjutant, MySQLType.BIT, -1L, "my_bit");
+        assertBitBindAndExtract(taskAdjutant, MySQLType.BIT, Long.MAX_VALUE, "my_bit");
+        assertBitBindAndExtract(taskAdjutant, MySQLType.BIT, Long.MIN_VALUE, "my_bit");
+        assertBitBindAndExtract(taskAdjutant, MySQLType.BIT, 0L, "my_bit");
+
+        assertBitBindAndExtract(taskAdjutant, MySQLType.BIT, -1, "my_bit");
+        assertBitBindAndExtract(taskAdjutant, MySQLType.BIT, Integer.MAX_VALUE, "my_bit");
+        assertBitBindAndExtract(taskAdjutant, MySQLType.BIT, Integer.MIN_VALUE, "my_bit");
+        assertBitBindAndExtract(taskAdjutant, MySQLType.BIT, 0, "my_bit");
+
+        assertBitBindAndExtract(taskAdjutant, MySQLType.BIT, (short) -1, "my_bit");
+        assertBitBindAndExtract(taskAdjutant, MySQLType.BIT, Short.MAX_VALUE, "my_bit");
+        assertBitBindAndExtract(taskAdjutant, MySQLType.BIT, Short.MIN_VALUE, "my_bit");
+        assertBitBindAndExtract(taskAdjutant, MySQLType.BIT, (short) 0, "my_bit");
+
+        assertBitBindAndExtract(taskAdjutant, MySQLType.BIT, (byte) -1, "my_bit");
+        assertBitBindAndExtract(taskAdjutant, MySQLType.BIT, Byte.MAX_VALUE, "my_bit");
+        assertBitBindAndExtract(taskAdjutant, MySQLType.BIT, Byte.MIN_VALUE, "my_bit");
+        assertBitBindAndExtract(taskAdjutant, MySQLType.BIT, (byte) 0, "my_bit");
+
+        assertBitBindAndExtract(taskAdjutant, MySQLType.BIT, "101001010010101", "my_bit");
+        assertBitBindAndExtract(taskAdjutant, MySQLType.BIT, MySQLNumberUtils.longToBigEndianBytes(-1L), "my_bit");
+        assertBitBindAndExtract(taskAdjutant, MySQLType.BIT, MySQLNumberUtils.longToBigEndianBytes(0L), "my_bit");
+
+        LOG.info("bitBindAndExtract test success");
+        releaseConnection(taskAdjutant);
+    }
+
+    @Test(timeOut = TIME_OUT)
+    public void tinyint1BindExtract() {
+        LOG.info("tinyint1BindExtract test start");
+
+        Map<String, String> map = new HashMap<>();
+        map.put(PropertyKey.tinyInt1isBit.getKey(), "true");
+        map.put(PropertyKey.transformedBitIsBoolean.getKey(), "false");
+
+        MySQLSessionAdjutant sessionAdjutant = getSessionAdjutantForSingleHost(map);
+        ClientConnectionProtocolImpl protocol = ClientConnectionProtocolImpl.create(0, sessionAdjutant)
+                .block();
+        assertNotNull(protocol, "protocol");
+
+        MySQLTaskAdjutant taskAdjutant;
+        taskAdjutant = protocol.taskExecutor.getAdjutant();
+
+        assertTinyInt1BindAndExtract(taskAdjutant, MySQLType.TINYINT, 0);
+        assertTinyInt1BindAndExtract(taskAdjutant, MySQLType.BIT, 0);
+        assertTinyInt1BindAndExtract(taskAdjutant, MySQLType.BOOLEAN, 0);
+        assertTinyInt1BindAndExtract(taskAdjutant, MySQLType.BOOLEAN, false);
+        assertTinyInt1BindAndExtract(taskAdjutant, MySQLType.BOOLEAN, "true");
+        assertTinyInt1BindAndExtract(taskAdjutant, MySQLType.BOOLEAN, "T");
+        assertTinyInt1BindAndExtract(taskAdjutant, MySQLType.BOOLEAN, "Y");
+
+        protocol.closeGracefully()
+                .block();
+
+        map.put(PropertyKey.transformedBitIsBoolean.getKey(), "true");
+        sessionAdjutant = getSessionAdjutantForSingleHost(map);
+        protocol = ClientConnectionProtocolImpl.create(0, sessionAdjutant)
+                .block();
+        assertNotNull(protocol, "protocol");
+        taskAdjutant = protocol.taskExecutor.getAdjutant();
+
+        assertTinyInt1BindAndExtract(taskAdjutant, MySQLType.TINYINT, 1);
+        assertTinyInt1BindAndExtract(taskAdjutant, MySQLType.BIT, 1);
+        assertTinyInt1BindAndExtract(taskAdjutant, MySQLType.BOOLEAN, 1);
+        assertTinyInt1BindAndExtract(taskAdjutant, MySQLType.BOOLEAN, true);
+        assertTinyInt1BindAndExtract(taskAdjutant, MySQLType.BOOLEAN, "true");
+        assertTinyInt1BindAndExtract(taskAdjutant, MySQLType.BOOLEAN, "T");
+        assertTinyInt1BindAndExtract(taskAdjutant, MySQLType.BOOLEAN, "Y");
+
+        protocol.closeGracefully()
+                .block();
+
+        map.put(PropertyKey.tinyInt1isBit.getKey(), "false");
+        map.put(PropertyKey.transformedBitIsBoolean.getKey(), "false");
+        sessionAdjutant = getSessionAdjutantForSingleHost(map);
+        protocol = ClientConnectionProtocolImpl.create(0, sessionAdjutant)
+                .block();
+        assertNotNull(protocol, "protocol");
+        taskAdjutant = protocol.taskExecutor.getAdjutant();
+
+        assertTinyInt1BindAndExtract(taskAdjutant, MySQLType.TINYINT, 1);
+        assertTinyInt1BindAndExtract(taskAdjutant, MySQLType.BIT, 1);
+        assertTinyInt1BindAndExtract(taskAdjutant, MySQLType.BOOLEAN, 1);
+        assertTinyInt1BindAndExtract(taskAdjutant, MySQLType.BOOLEAN, true);
+        assertTinyInt1BindAndExtract(taskAdjutant, MySQLType.BOOLEAN, "true");
+        assertTinyInt1BindAndExtract(taskAdjutant, MySQLType.BOOLEAN, "T");
+        assertTinyInt1BindAndExtract(taskAdjutant, MySQLType.BOOLEAN, "Y");
+
+        protocol.closeGracefully()
+                .block();
+
+        LOG.info("tinyint1BindExtract test success");
 
     }
 
+    @Test(timeOut = 10 * 1000L)
+    public void numberBindAndExtract() {
+        LOG.info("numberBindAndExtract test start");
+        final MySQLTaskAdjutant taskAdjutant = obtainTaskAdjutant();
+        final String id = "7";
+        String field = "my_tinyint";
+        MySQLType mySQLType = MySQLType.TINYINT;
+
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, (byte) 0, field, id);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, (byte) -1, field, id);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, Byte.MAX_VALUE, field, id);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, Byte.MIN_VALUE, field, id);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, "0", field, id);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, "-1", field, id);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, BigInteger.ONE, field, id);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, BigDecimal.ONE, field, id);
+
+        field = "my_tinyint_unsigned";
+        mySQLType = MySQLType.TINYINT_UNSIGNED;
+
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, (short) 0, field, id);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, (short) 1, field, id);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, 0xFF, field, id);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, "0", field, id);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, BigInteger.ONE, field, id);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, BigDecimal.ONE, field, id);
+
+        field = "my_smallint";
+        mySQLType = MySQLType.SMALLINT;
+
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, (short) 0, field, id);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, (short) -1, field, id);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, Short.MAX_VALUE, field, id);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, Short.MIN_VALUE, field, id);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, "0", field, id);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, "-1", field, id);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, BigInteger.ONE, field, id);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, BigDecimal.ONE, field, id);
+
+        field = "my_smallint_unsigned";
+        mySQLType = MySQLType.SMALLINT_UNSIGNED;
+
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, 0, field, id);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, 1, field, id);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, 0xFFFF, field, id);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, "0", field, id);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, BigInteger.ONE, field, id);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, BigDecimal.ONE, field, id);
+
+        field = "my_mediumint";
+        mySQLType = MySQLType.MEDIUMINT;
+
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, 0, field, id);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, -1, field, id);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, -0x7FFF_FF, field, id);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, 0x7FFF_FF, field, id);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, "0", field, id);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, "-1", field, id);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, BigInteger.ONE, field, id);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, BigDecimal.ONE, field, id);
+
+        field = "my_mediumint_unsigned";
+        mySQLType = MySQLType.MEDIUMINT_UNSIGNED;
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, 0, field, id);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, 1, field, id);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, 0xFFFF_FF, field, id);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, "0", field, id);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, BigInteger.ONE, field, id);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, BigDecimal.ONE, field, id);
+
+        field = "my_int";
+        mySQLType = MySQLType.INT;
+
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, 0, field, id);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, -1, field, id);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, Integer.MIN_VALUE, field, id);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, Integer.MAX_VALUE, field, id);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, "0", field, id);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, "-1", field, id);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, BigInteger.ONE, field, id);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, BigDecimal.ONE, field, id);
+
+        field = "my_int_unsigned";
+        mySQLType = MySQLType.INT_UNSIGNED;
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, 0L, field, id);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, 1L, field, id);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, 0xFFFF_FFFFL, field, id);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, "0", field, id);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, BigInteger.ONE, field, id);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, BigDecimal.ONE, field, id);
+
+        field = "my_bigint";
+        mySQLType = MySQLType.BIGINT;
+
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, 0L, field, id);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, -1L, field, id);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, Long.MIN_VALUE, field, id);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, Long.MAX_VALUE, field, id);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, "0", field, id);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, "-1", field, id);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, BigInteger.ONE, field, id);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, BigDecimal.ONE, field, id);
+
+        field = "my_bigint_unsigned";
+        mySQLType = MySQLType.BIGINT_UNSIGNED;
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, 0L, field, id);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, 1L, field, id);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, MySQLNumberUtils.UNSIGNED_MAX_LONG, field, id);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, "0", field, id);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, BigInteger.ONE, field, id);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, BigDecimal.ONE, field, id);
+
+        field = "my_decimal";
+        mySQLType = MySQLType.DECIMAL;
+
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, 0L, field, id);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, -1L, field, id);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, new BigDecimal("34234234.09"), field, id);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, new BigDecimal("-34234234.09"), field, id);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, "0", field, id);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, "-1", field, id);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, BigInteger.ONE, field, id);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, BigDecimal.ONE, field, id);
+
+        field = "my_decimal_unsigned";
+        mySQLType = MySQLType.DECIMAL_UNSIGNED;
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, 0L, field, id);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, 1L, field, id);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, new BigDecimal("34234234.09"), field, id);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, new BigDecimal("34234234.1"), field, id);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, "0", field, id);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, BigInteger.ONE, field, id);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, BigDecimal.ONE, field, id);
+
+
+        field = "my_float";
+        mySQLType = MySQLType.FLOAT;
+
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, 0.0F, field, id);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, -1.0F, field, id);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, "0", field, id);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, "-1", field, id);
+
+        field = "my_float_unsigned";
+        mySQLType = MySQLType.FLOAT_UNSIGNED;
+
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, 0.0F, field, id);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, 1.0F, field, id);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, "0", field, id);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, "1", field, id);
+
+        field = "my_double";
+        mySQLType = MySQLType.DOUBLE;
+
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, 0.0D, field, id);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, -1.0F, field, id);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, "0", field, id);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, "-1", field, id);
+
+        field = "my_double_unsigned";
+        mySQLType = MySQLType.DOUBLE_UNSIGNED;
+
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, 0.0D, field, id);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, 1.0D, field, id);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, BigDecimal.ONE, field, id);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, "0", field, id);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, "1", field, id);
+
+
+        LOG.info("numberBindAndExtract test success");
+        releaseConnection(taskAdjutant);
+    }
 
 
 
@@ -301,50 +584,196 @@ public class ComQueryTaskSuiteTests extends AbstractConnectionBasedSuiteTests {
     /*################################## blow private method ##################################*/
 
     /**
+     * @see #numberBindAndExtract()
+     */
+    private void assertNumberBindAndExtract(final MySQLTaskAdjutant taskAdjutant, final MySQLType mySQLType
+            , final Object bindParam, final String field, final String id) {
+        //1. update filed
+        updateSingleField(taskAdjutant, mySQLType, bindParam, field, id);
+        //2. query filed
+        final ResultRow resultRow;
+        resultRow = querySingleField(taskAdjutant, field, id);
+
+        final MySQLType fieldType = (MySQLType) resultRow.getRowMeta().getSQLType("field");
+        final Number resultValue = (Number) resultRow.get("field", fieldType.javaType());
+        assertNotNull(resultValue, field);
+        if (resultValue instanceof BigDecimal) {
+            if (bindParam instanceof Float) {
+                throw new IllegalArgumentException("bindParam type error");
+            }
+            final BigDecimal bindValue;
+            if (bindParam instanceof String) {
+                bindValue = new BigDecimal((String) bindParam);
+            } else if (mySQLType == MySQLType.DOUBLE_UNSIGNED && bindParam instanceof Double) {
+                bindValue = BigDecimal.valueOf((Double) bindParam);
+            } else {
+                bindValue = MySQLNumberUtils.convertNumberToBigDecimal((Number) bindParam);
+            }
+            assertEquals(((BigDecimal) resultValue).compareTo(bindValue), 0, field);
+        } else if (resultValue instanceof BigInteger) {
+            if (bindParam instanceof Double || bindParam instanceof Float) {
+                throw new IllegalArgumentException("bindParam type error");
+            }
+            if (bindParam instanceof String) {
+                assertEquals(resultValue, new BigInteger((String) bindParam), field);
+            } else {
+                assertEquals(resultValue, MySQLNumberUtils.convertNumberToBigInteger((Number) bindParam), field);
+            }
+        } else if (resultValue instanceof Double) {
+            double bindValue;
+            if (bindParam instanceof String) {
+                bindValue = Double.parseDouble((String) bindParam);
+            } else if (bindParam instanceof Double || bindParam instanceof Float) {
+                bindValue = ((Number) bindParam).doubleValue();
+            } else {
+                throw new IllegalArgumentException("bindParam type error");
+            }
+            assertEquals(resultValue.doubleValue(), bindValue, field);
+        } else if (resultValue instanceof Float) {
+            float bindValue;
+            if (bindParam instanceof String) {
+                bindValue = Float.parseFloat((String) bindParam);
+            } else if (bindParam instanceof Float) {
+                bindValue = ((Number) bindParam).floatValue();
+            } else {
+                throw new IllegalArgumentException("bindParam type error");
+            }
+            assertEquals(resultValue.floatValue(), bindValue, field);
+        } else {
+            long bindValue;
+            if (bindParam instanceof String) {
+                bindValue = Long.parseLong((String) bindParam);
+            } else {
+                bindValue = MySQLNumberUtils.convertNumberToLong((Number) bindParam);
+            }
+            assertEquals(resultValue.longValue(), bindValue, field);
+        }
+
+    }
+
+    /**
+     * @see #tinyint1BindExtract()
+     */
+    private void assertTinyInt1BindAndExtract(final MySQLTaskAdjutant taskAdjutant, final MySQLType mySQLType
+            , final Object bindParam) {
+
+        final String field = "my_tinyint1";
+        final String id = "6";
+        //1. update filed
+        updateSingleField(taskAdjutant, mySQLType, bindParam, field, id);
+        //2. query filed
+        final ResultRow resultRow;
+        resultRow = querySingleField(taskAdjutant, field, id);
+
+        if (bindParam instanceof Boolean) {
+            assertEquals(resultRow.get("field", Boolean.class), bindParam, field);
+        } else if (bindParam instanceof String) {
+            Boolean bindValue = MySQLConvertUtils.tryConvertToBoolean((String) bindParam);
+            assertEquals(resultRow.get("field", Boolean.class), bindValue, field);
+        } else {
+            Long resultValue = resultRow.get("field", Long.class);
+            assertNotNull(resultValue, field);
+            assertEquals(resultValue.longValue(), ((Number) bindParam).longValue(), field);
+        }
+
+    }
+
+    /**
+     * @see #bitBindAndExtract()
+     */
+    private void assertBitBindAndExtract(final MySQLTaskAdjutant taskAdjutant, final MySQLType mySQLType
+            , final Object bindParam, final String field) {
+        final String id = "5";
+        //1. update filed
+        updateSingleField(taskAdjutant, mySQLType, bindParam, field, id);
+        //2. query filed
+        final ResultRow resultRow;
+        resultRow = querySingleField(taskAdjutant, field, id);
+
+        final Long bits = resultRow.get("field", Long.class);
+        assertNotNull(bits, field);
+
+        if (bindParam instanceof Long) {
+            assertEquals(bits, bindParam, field);
+        } else if (bindParam instanceof Integer) {
+            long bindBits = (Integer) bindParam & 0xFFFF_FFFFL;
+            assertEquals(bits.longValue(), bindBits, field);
+        } else if (bindParam instanceof Short) {
+            long bindBits = (Short) bindParam & 0xFFFFL;
+            assertEquals(bits.longValue(), bindBits, field);
+        } else if (bindParam instanceof Byte) {
+            long bindBits = (Byte) bindParam & 0xFFL;
+            assertEquals(bits.longValue(), bindBits, field);
+        } else if (bindParam instanceof String) {
+            long bindBits = Long.parseLong((String) bindParam, 2);
+            assertEquals(bits.longValue(), bindBits, field);
+        } else if (bindParam instanceof byte[]) {
+            long bindBits = MySQLNumberUtils.readLongFromBigEndian((byte[]) bindParam);
+            assertEquals(bits.longValue(), bindBits, field);
+        } else {
+            // never here
+            throw new IllegalArgumentException("bindParam error");
+        }
+
+
+    }
+
+    /**
+     * @see #stringBindAndExtract()
+     */
+    private void assertBinaryBindAndExtract(final MySQLTaskAdjutant taskAdjutant, final MySQLType mySQLType
+            , final String bindParam, final String field) {
+        final String id = "4";
+        //1. update filed
+        updateSingleField(taskAdjutant, mySQLType, bindParam, field, id);
+        //2. query filed
+        final ResultRow resultRow;
+        resultRow = querySingleField(taskAdjutant, field, id);
+        // 3. compare
+        final byte[] bytes = resultRow.get("field", byte[].class);
+        assertNotNull(bytes, field);
+        final byte[] bindByteArray = bindParam.getBytes(taskAdjutant.obtainCharsetClient());
+        if (mySQLType == MySQLType.BINARY) {
+            final int length = Math.min(bindByteArray.length, bytes.length);
+            for (int i = 0; i < length; i++) {
+                if (bytes[i] != bindByteArray[i]) {
+                    fail("binary type assert failure");
+                }
+            }
+        } else {
+            assertTrue(Arrays.equals(bytes, bindByteArray), field);
+        }
+
+
+    }
+
+
+    /**
      * @see #stringBindAndExtract()
      */
     private void assertStringBindAndExtract(final MySQLTaskAdjutant taskAdjutant, final MySQLType mySQLType
             , final String bindParam, final String field) {
-        String sql = String.format("UPDATE mysql_types as t SET t.%s =? WHERE t.id = ?", field);
-        List<BindValue> bindValueList = new ArrayList<>(2);
-        BindValue bindValue = MySQLBindValue.create(0, mySQLType, bindParam);
-        bindValueList.add(bindValue);
-        bindValue = MySQLBindValue.create(1, MySQLType.BIGINT, "3");
-        bindValueList.add(bindValue);
+        final String id = "3";
 
-        ResultStates resultStates;
-        resultStates = ComQueryTask.bindableUpdate(StmtWrappers.multi(sql, bindValueList), taskAdjutant)
-                .block();
+        //1. update filed
+        updateSingleField(taskAdjutant, mySQLType, bindParam, field, id);
+        //2. query filed
+        final ResultRow resultRow;
+        resultRow = querySingleField(taskAdjutant, field, id);
 
-        assertNotNull(resultStates, "resultStates");
-        assertEquals(resultStates.getAffectedRows(), 1L, "getAffectedRows");
-
-        // assert DATETIME type update result.
-        sql = String.format("SELECT t.%s as string FROM mysql_types as t WHERE t.id = ?", field);
-        bindValue = MySQLBindValue.create(0, MySQLType.BIGINT, "3");
-
-        List<ResultRow> resultRowList;
-        resultRowList = ComQueryTask.bindableQuery(StmtWrappers.single(sql, bindValue), taskAdjutant)
-                .collectList()
-                .block();
-        assertNotNull(resultRowList, "resultRowList");
-        assertEquals(resultRowList.size(), 1L, "resultRowList size");
-        final ResultRow resultRow = resultRowList.get(0);
-        assertNotNull(resultRow, "resultRow");
-
-        final String string = resultRow.get("string", String.class);
-        assertNotNull(string, "string");
+        final String string = resultRow.get("field", String.class);
+        assertNotNull(string, field);
         if (mySQLType == MySQLType.CHAR) {
             final String actualBindParam = MySQLStringUtils.trimTrailingSpace(bindParam);
             if (taskAdjutant.obtainServer().containSqlMode(SQLMode.PAD_CHAR_TO_FULL_LENGTH)) {
-                assertTrue(string.startsWith(actualBindParam), "string");
+                assertTrue(string.startsWith(actualBindParam), field);
                 final String tailingSpaces = string.substring(actualBindParam.length());
                 assertFalse(MySQLStringUtils.hasText(tailingSpaces), "tailingSpaces");
             } else {
-                assertEquals(string, actualBindParam, "string");
+                assertEquals(string, actualBindParam, field);
             }
         } else {
-            assertEquals(string, bindParam, "string");
+            assertEquals(string, bindParam, field);
         }
 
 
@@ -353,24 +782,15 @@ public class ComQueryTaskSuiteTests extends AbstractConnectionBasedSuiteTests {
     /**
      * @see #datetimeBindAndExtract()
      */
-    private void assertDateTimeModify(final MySQLTaskAdjutant taskAdjutant, final Object bindDatetime
-            , final String field) {
-        String sql = String.format("UPDATE mysql_types as t SET t.%s = ? WHERE t.id = ?", field);
+    private void assertDateTimeModify(final MySQLTaskAdjutant taskAdjutant, final MySQLType mySQLType
+            , final Object bindDatetime, final String field) {
+        final String id = "2";
+        //1. update filed
+        updateSingleField(taskAdjutant, mySQLType, bindDatetime, field, id);
+        //2. query filed
+        final ResultRow resultRow;
+        resultRow = querySingleField(taskAdjutant, field, id);
 
-        BindValue bindValue;
-        List<BindValue> bindValueList = new ArrayList<>(2);
-
-        bindValue = MySQLBindValue.create(0, MySQLType.DATETIME, bindDatetime);
-        bindValueList.add(bindValue);
-        bindValue = MySQLBindValue.create(1, MySQLType.BIGINT, "2");
-        bindValueList.add(bindValue);
-
-        ResultStates resultStates;
-        resultStates = ComQueryTask.bindableUpdate(StmtWrappers.multi(sql, bindValueList), taskAdjutant)
-                .block();
-
-        assertNotNull(resultStates, "resultStates");
-        assertEquals(resultStates.getAffectedRows(), 1L, "getAffectedRows");
 
         final LocalDateTime expectDateTime;
 
@@ -391,21 +811,9 @@ public class ComQueryTaskSuiteTests extends AbstractConnectionBasedSuiteTests {
             throw new IllegalArgumentException("bindDatetime type error");
         }
 
-        // assert DATETIME type update result.
-        sql = String.format("SELECT t.%s as dateTime FROM mysql_types as t WHERE t.id = ?", field);
-        bindValue = MySQLBindValue.create(0, MySQLType.BIGINT, "2");
 
-        List<ResultRow> resultRowList;
-        resultRowList = ComQueryTask.bindableQuery(StmtWrappers.single(sql, bindValue), taskAdjutant)
-                .collectList()
-                .block();
-        assertNotNull(resultRowList, "resultRowList");
-        assertEquals(resultRowList.size(), 1L, "resultRowList size");
-        ResultRow resultRow = resultRowList.get(0);
-        assertNotNull(resultRow, "resultRow");
-
-        final LocalDateTime dateTime = resultRow.get("dateTime", LocalDateTime.class);
-        assertNotNull(dateTime, "dateTime");
+        final LocalDateTime dateTime = resultRow.get("field", LocalDateTime.class);
+        assertNotNull(dateTime, field);
         final String dateTimeText = dateTime.format(MySQLTimeUtils.MYSQL_DATETIME_FORMATTER);
 
         Properties<PropertyKey> properties = taskAdjutant.obtainHostInfo().getProperties();
@@ -422,6 +830,39 @@ public class ComQueryTaskSuiteTests extends AbstractConnectionBasedSuiteTests {
         }
 
 
+    }
+
+    private void updateSingleField(final MySQLTaskAdjutant taskAdjutant, final MySQLType mySQLType
+            , final Object bindParam, final String field, final String id) {
+
+        String sql = String.format("UPDATE mysql_types as t SET t.%s =? WHERE t.id = ?", field);
+        List<BindValue> bindValueList = new ArrayList<>(2);
+        BindValue bindValue = MySQLBindValue.create(0, mySQLType, bindParam);
+        bindValueList.add(bindValue);
+        bindValue = MySQLBindValue.create(1, MySQLType.BIGINT, id);
+        bindValueList.add(bindValue);
+
+        ResultStates resultStates;
+        resultStates = ComQueryTask.bindableUpdate(StmtWrappers.multi(sql, bindValueList), taskAdjutant)
+                .block();
+
+        assertNotNull(resultStates, "resultStates");
+        assertEquals(resultStates.getAffectedRows(), 1L, "getAffectedRows");
+    }
+
+    private ResultRow querySingleField(final MySQLTaskAdjutant taskAdjutant, final String field, final String id) {
+        String sql = String.format("SELECT t.id as id, t.%s as field FROM mysql_types as t WHERE t.id = ?", field);
+        BindValue bindValue = MySQLBindValue.create(0, MySQLType.BIGINT, id);
+
+        List<ResultRow> resultRowList;
+        resultRowList = ComQueryTask.bindableQuery(StmtWrappers.single(sql, bindValue), taskAdjutant)
+                .collectList()
+                .block();
+        assertNotNull(resultRowList, "resultRowList");
+        assertEquals(resultRowList.size(), 1L, "resultRowList size");
+        ResultRow resultRow = resultRowList.get(0);
+        assertNotNull(resultRow, "resultRow");
+        return resultRow;
     }
 
 
@@ -786,7 +1227,7 @@ public class ComQueryTaskSuiteTests extends AbstractConnectionBasedSuiteTests {
                 assertTrue(row.get(columnAlias) instanceof Boolean, columnAlias + " is boolean type.");
             } else {
                 assertEquals(myBooleanType, MySQLType.BIT, columnAlias + " mysql type");
-                assertTrue(row.get(columnAlias) instanceof Byte, columnAlias + " is Byte type.");
+                assertTrue(row.get(columnAlias) instanceof Long, columnAlias + " is Byte type.");
             }
 
         } else {

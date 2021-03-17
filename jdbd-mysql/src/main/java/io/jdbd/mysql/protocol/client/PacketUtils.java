@@ -381,16 +381,6 @@ public abstract class PacketUtils {
         return bytes;
     }
 
-    public static long readBitTypeAsLong(final byte[] bytes) {
-        if (bytes.length == 0 || bytes.length > 8) {
-            throw new IllegalArgumentException(String.format("bytes length[%s] error.", bytes.length));
-        }
-        long bitLong = 0L;
-        for (int i = 0, bitCount = 0; i < bytes.length; i++, bitCount += 8) {
-            bitLong = (bitLong << bitCount) | bytes[i];
-        }
-        return bitLong;
-    }
 
 
     /**

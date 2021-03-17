@@ -18,7 +18,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.Reader;
 import java.math.BigDecimal;
-import java.math.BigInteger;
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
 import java.nio.channels.ReadableByteChannel;
@@ -187,7 +186,7 @@ final class ComQueryCommandWriter {
 
     private final Properties<PropertyKey> properties;
 
-    private final boolean noAnsiQuotes;
+    private final boolean ansiQuotes;
 
     private final boolean hexEscape;
 
@@ -203,7 +202,7 @@ final class ComQueryCommandWriter {
 
         Server server = this.adjutant.obtainServer();
 
-        this.noAnsiQuotes = server.containSqlMode(SQLMode.ANSI_QUOTES);
+        this.ansiQuotes = server.containSqlMode(SQLMode.ANSI_QUOTES);
         this.hexEscape = server.containSqlMode(SQLMode.NO_BACKSLASH_ESCAPES);
         this.clientCharset = adjutant.obtainCharsetClient();
         this.supportStream = this.properties.getOrDefault(PropertyKey.clientPrepare, Enums.ClientPrepare.class)
@@ -481,6 +480,8 @@ final class ComQueryCommandWriter {
             text = nonNull.toString();
         } else if (nonNull instanceof Year) {
             text = Integer.toString(((Year) nonNull).getValue());
+        } else if (nonNull instanceof Boolean) {
+            text = (Boolean) nonNull ? "1" : "0";
         } else {
             throw MySQLExceptions.createUnsupportedParamTypeError(stmtIndex, bindValue);
         }
@@ -503,7 +504,7 @@ final class ComQueryCommandWriter {
             String text = ((String) nonNull);
             b = MySQLConvertUtils.tryConvertToBoolean(text);
         } else if (nonNull instanceof Number) {
-            b = MySQLConvertUtils.tryConvertToBoolean(((BigInteger) nonNull));
+            b = MySQLConvertUtils.tryConvertToBoolean(((Number) nonNull));
         } else {
             throw MySQLExceptions.createUnsupportedParamTypeError(stmtIndex, bindValue);
         }
@@ -521,35 +522,50 @@ final class ComQueryCommandWriter {
             , final List<ByteBuf> packetList) throws SQLException, LongDataReadException {
         final Object nonNull = bindValue.getRequiredValue();
 
-        ByteBuf newPacket = packetBuffer;
+        ByteBuf packet = packetBuffer;
         try {
+            if (this.hexEscape) {
+                packet.writeByte('X');
+            }
+            packet.writeByte(Constants.QUOTE_CHAR_BYTE); //1. write start quote
+            // 2. below if-else block write bytes.
             if (nonNull instanceof byte[]) {
                 byte[] bytes = (byte[]) nonNull;
-                writeByteEscapes(packetBuffer, bytes, bytes.length);
+                if (this.hexEscape) {
+                    writeHexEscapes(packet, bytes, bytes.length);
+                } else {
+                    writeByteEscapes(packet, bytes, bytes.length);
+                }
             } else if (nonNull instanceof CharSequence) {
                 byte[] bytes = nonNull.toString().getBytes(this.clientCharset);
-
-                packetBuffer.writeByte(Constants.QUOTE_CHAR_BYTE);
-                writeByteEscapes(packetBuffer, bytes, bytes.length);
-                packetBuffer.writeByte(Constants.QUOTE_CHAR_BYTE);
+                if (this.hexEscape) {
+                    writeHexEscapes(packet, bytes, bytes.length);
+                } else {
+                    writeByteEscapes(packet, bytes, bytes.length);
+                }
             } else if (nonNull instanceof InputStream) {
-                newPacket = writeInputStream(packetBuffer, (InputStream) nonNull, packetList
+                packet = writeInputStream(packet, (InputStream) nonNull, packetList
                         , this.properties.getOrDefault(PropertyKey.autoClosePStmtStreams, Boolean.class));
             } else if (nonNull instanceof Reader) {
-                newPacket = writeReader(packetBuffer, (Reader) nonNull, packetList);
+                packet = writeReader(packet, (Reader) nonNull, packetList);
             } else if (nonNull instanceof char[]) {
                 byte[] bytes = new String((char[]) nonNull).getBytes(this.clientCharset);
-                writeByteEscapes(packetBuffer, bytes, bytes.length);
+                if (this.hexEscape) {
+                    writeHexEscapes(packet, bytes, bytes.length);
+                } else {
+                    writeByteEscapes(packet, bytes, bytes.length);
+                }
             } else if (nonNull instanceof ReadableByteChannel) {
-                newPacket = writeChannel(packetBuffer, (ReadableByteChannel) nonNull, packetList);
+                packet = writeChannel(packet, (ReadableByteChannel) nonNull, packetList);
             } else if (nonNull instanceof Path) {
                 try (InputStream input = Files.newInputStream((Path) nonNull, StandardOpenOption.READ)) {
-                    newPacket = writeInputStream(packetBuffer, input, packetList, false);
+                    packet = writeInputStream(packet, input, packetList, false);
                 }
             } else {
                 throw MySQLExceptions.createUnsupportedParamTypeError(stmtIndex, bindValue);
             }
-            return newPacket;
+            packet.writeByte(Constants.QUOTE_CHAR_BYTE);//3. write end quote
+            return packet;
         } catch (IOException e) {
             throw MySQLExceptions.createLongDataReadException(stmtIndex, bindValue, e);
         }
@@ -649,12 +665,6 @@ final class ComQueryCommandWriter {
         ByteBuf packet = packetBuffer;
         try {
             final boolean hexEscapes = this.hexEscape;
-            // 1. write quote char
-            if (hexEscapes) {
-                packet.writeByte('X');
-            }
-            packet.writeByte(Constants.QUOTE_CHAR_BYTE);
-            // 2. write hex or bytes with escapes.
             final byte[] bufferArray = new byte[2048];
             final ByteBuffer byteBuffer = ByteBuffer.wrap(bufferArray);
             while (channel.read(byteBuffer) > 0) {
@@ -669,8 +679,6 @@ final class ComQueryCommandWriter {
                             , this.adjutant.allocator()::buffer);
                 }
             }
-            // 3. write quote char
-            packet.writeByte(Constants.QUOTE_CHAR_BYTE);
             return packet;
         } catch (IOException e) {
             if (packet != packetBuffer) {
@@ -700,21 +708,15 @@ final class ComQueryCommandWriter {
         ByteBuf packet = packetBuffer;
         try {
             final boolean hexEscapes = this.hexEscape;
-            // 1. write quote char
-            if (hexEscapes) {
-                packet.writeByte('X');
-            }
-            packet.writeByte(Constants.QUOTE_CHAR_BYTE);
 
-            // 2. write hex or bytes with escapes.
             final CharBuffer charBuffer = CharBuffer.allocate(1024);
             final Charset clientCharset = this.clientCharset;
             ByteBuffer byteBuffer;
             byte[] bufferArray;
-            while (reader.read(charBuffer) > 0) {//2-1. read char
-                byteBuffer = clientCharset.encode(charBuffer); // 2-2. encode char
+            while (reader.read(charBuffer) > 0) {//1. read char
+                byteBuffer = clientCharset.encode(charBuffer); // 2. encode char
 
-                //2-3. write bytes with escapes.
+                //3. write bytes with escapes.
                 bufferArray = new byte[byteBuffer.remaining()];
                 byteBuffer.get(bufferArray);
 
@@ -723,7 +725,7 @@ final class ComQueryCommandWriter {
                 } else {
                     writeByteEscapes(packet, bufferArray, bufferArray.length);
                 }
-                //2-4. clear charBuffer for next
+                //24. clear charBuffer for next
                 charBuffer.clear();
 
                 if (packet.readableBytes() >= PacketUtils.MAX_PACKET) {
@@ -731,8 +733,6 @@ final class ComQueryCommandWriter {
                             , this.adjutant.allocator()::buffer);
                 }
             }
-            // 3. write quote char
-            packet.writeByte(Constants.QUOTE_CHAR_BYTE);
             return packet;
         } catch (IOException e) {
             if (packet != packetBuffer) {
@@ -761,18 +761,11 @@ final class ComQueryCommandWriter {
             , final List<ByteBuf> packetList, final boolean autoClose) throws IOException {
         ByteBuf packet = packetBuffer;
         try {
-            final boolean hexEscapes = this.hexEscape;
-            // 1. write quote char
-            if (hexEscapes) {
-                packet.writeByte('X');
-            }
-            packet.writeByte(Constants.QUOTE_CHAR_BYTE);
-
-            // 2. write hex or bytes with escapes.
+            final boolean hexEscape = this.hexEscape;
             int length;
             final byte[] bufferArray = new byte[2048];
             while ((length = input.read(bufferArray)) > 0) {
-                if (hexEscapes) {
+                if (hexEscape) {
                     writeHexEscapes(packet, bufferArray, length);
                 } else {
                     writeByteEscapes(packet, bufferArray, length);
@@ -781,11 +774,8 @@ final class ComQueryCommandWriter {
                 if (packet.readableBytes() >= PacketUtils.MAX_PACKET) {
                     packet = PacketUtils.addAndCutBigPacket(packet, packetList, this.sequenceIdSupplier
                             , this.adjutant.allocator()::buffer);
-
                 }
             }
-            // 3. write quote char
-            packet.writeByte(Constants.QUOTE_CHAR_BYTE);
             return packet;
         } catch (IOException e) {
             if (packet != packetBuffer) {
@@ -821,7 +811,6 @@ final class ComQueryCommandWriter {
                     "length[%s] and bytes.length[%s] not match.", length, bytes.length));
         }
         int lastWritten = 0;
-        final boolean noAnsiQuotes = this.noAnsiQuotes;
         for (int i = 0; i < length; i++) {
             byte b = bytes[i];
             if (b == Constants.EMPTY_CHAR_BYTE) {
@@ -831,9 +820,16 @@ final class ComQueryCommandWriter {
                 packet.writeByte(Constants.BACK_SLASH_BYTE);
                 packet.writeByte('0');
                 lastWritten = i + 1;
+            } else if (b == '\032') {
+                if (i > lastWritten) {
+                    packet.writeBytes(bytes, lastWritten, i - lastWritten);
+                }
+                packet.writeByte(Constants.BACK_SLASH_BYTE);
+                packet.writeByte('Z');
+                lastWritten = i + 1;
             } else if (b == Constants.BACK_SLASH_BYTE
                     || b == Constants.QUOTE_CHAR_BYTE
-                    || (noAnsiQuotes && b == Constants.DOUBLE_QUOTE_BYTE)) {
+                    || b == Constants.DOUBLE_QUOTE_BYTE) {
                 if (i > lastWritten) {
                     packet.writeBytes(bytes, lastWritten, i - lastWritten);
                 }

@@ -1,11 +1,7 @@
 package io.jdbd.mysql.protocol.client;
 
 import io.jdbd.ResultRow;
-import io.jdbd.mysql.protocol.conf.PropertyKey;
-import io.jdbd.mysql.util.MySQLConvertUtils;
-import io.jdbd.mysql.util.MySQLExceptions;
-import io.jdbd.mysql.util.MySQLStringUtils;
-import io.jdbd.mysql.util.MySQLTimeUtils;
+import io.jdbd.mysql.util.*;
 import io.netty.buffer.ByteBuf;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -176,7 +172,7 @@ final class TextResultSetReader extends AbstractResultSetReader {
                 if (bytes == null) {
                     columnValue = null;
                 } else {
-                    columnValue = PacketUtils.readBitTypeAsLong(bytes);
+                    columnValue = MySQLNumberUtils.readLongFromBigEndian(bytes);
                 }
             }
             break;
@@ -251,18 +247,21 @@ final class TextResultSetReader extends AbstractResultSetReader {
             break;
             case ProtocolConstants.TYPE_TINY: {
                 columnText = PacketUtils.readStringLenEnc(payload, columnCharset);
-                final boolean bitIsBoolean = columnMeta.length == 1L
-                        && this.properties.getOrDefault(PropertyKey.tinyInt1isBit, Boolean.class)
-                        && this.properties.getOrDefault(PropertyKey.transformedBitIsBoolean, Boolean.class);
+
                 if (columnText == null) {
                     columnValue = null;
                 } else if (columnMeta.isUnsigned()) {
                     columnValue = Integer.parseInt(columnText);
                 } else {
-                    if (bitIsBoolean) {
-                        columnValue = MySQLConvertUtils.tryConvertToBoolean(Byte.parseByte(columnText));
-                    } else {
-                        columnValue = Byte.parseByte(columnText);
+                    switch (columnMeta.mysqlType) {
+                        case BIT:
+                            columnValue = Byte.parseByte(columnText) == 0 ? 0L : 1L;
+                            break;
+                        case BOOLEAN:
+                            columnValue = MySQLConvertUtils.tryConvertToBoolean(Byte.parseByte(columnText));
+                            break;
+                        default:
+                            columnValue = Byte.parseByte(columnText);
                     }
                 }
             }

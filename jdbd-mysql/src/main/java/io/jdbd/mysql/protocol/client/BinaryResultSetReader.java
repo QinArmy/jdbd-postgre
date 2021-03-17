@@ -3,6 +3,7 @@ package io.jdbd.mysql.protocol.client;
 import io.jdbd.ResultRow;
 import io.jdbd.mysql.util.MySQLConvertUtils;
 import io.jdbd.mysql.util.MySQLExceptions;
+import io.jdbd.mysql.util.MySQLNumberUtils;
 import io.netty.buffer.ByteBuf;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -101,7 +102,7 @@ final class BinaryResultSetReader extends AbstractResultSetReader {
             }
             break;
             case ProtocolConstants.TYPE_BIT: {
-                columnValue = PacketUtils.readBitTypeAsLong(PacketUtils.readBinaryColumn(payload));
+                columnValue = MySQLNumberUtils.readLongFromBigEndian(PacketUtils.readBinaryColumn(payload));
             }
             break;
             case ProtocolConstants.TYPE_ENUM: {
