@@ -1,14 +1,19 @@
 package io.jdbd.type.geometry;
 
-/**
- * @see Geometries#point(double, double)
- * @see Geometries#pointFromWKB(byte[], int)
- * @see Geometries#pointFromWKT(String)
- */
-public interface Point extends Geometry {
+
+public interface Point extends SmallGeometry {
+
+    /**
+     * WKB-TYPE point,unsigned int.
+     */
+    int WKB_TYPE_POINT = 1;
+
+    int WKB_BYTES = 21;
 
     double getX();
 
     double getY();
+
+    int getTextLength();
 
 }

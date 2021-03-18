@@ -102,7 +102,8 @@ final class BinaryResultSetReader extends AbstractResultSetReader {
             }
             break;
             case ProtocolConstants.TYPE_BIT: {
-                columnValue = MySQLNumberUtils.readLongFromBigEndian(PacketUtils.readBinaryColumn(payload));
+                byte[] bytes = PacketUtils.readBinaryColumn(payload);
+                columnValue = MySQLNumberUtils.readLongFromBigEndian(bytes, 0, bytes.length);
             }
             break;
             case ProtocolConstants.TYPE_ENUM: {

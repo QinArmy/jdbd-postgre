@@ -5,11 +5,9 @@ package io.jdbd.type.geometry;
  * non-instantiable
  * </p>
  *
- * @see SmallGeometry
- * @see LargeGeometry
- * @see Point
  * @see LineString
  */
-public interface Geometry {
+public interface Curve extends Geometry {
+
 
 }

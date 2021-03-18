@@ -10,6 +10,7 @@ import io.jdbd.mysql.util.MySQLConvertUtils;
 import io.jdbd.mysql.util.MySQLExceptions;
 import io.jdbd.mysql.util.MySQLTimeUtils;
 import io.jdbd.type.geometry.Geometry;
+import io.jdbd.type.geometry.SmallGeometry;
 import io.jdbd.vendor.conf.Properties;
 import io.netty.buffer.ByteBuf;
 import org.slf4j.Logger;
@@ -475,11 +476,11 @@ final class ComQueryCommandWriter {
     private ByteBuf bindToGeometry(final int stmtIndex, final BindValue bindValue, final ByteBuf packetBuffer)
             throws SQLException {
         final Object nonNull = bindValue.getRequiredValue();
-        if (!(nonNull instanceof Geometry)) {
+        if (!(nonNull instanceof SmallGeometry)) {
             throw MySQLExceptions.createUnsupportedParamTypeError(stmtIndex, bindValue);
         }
         packetBuffer.writeBytes("ST_GeometryFromWKB(".getBytes(this.clientCharset));
-        final byte[] wkbBytes = ((Geometry) nonNull).asWKB(false);
+        final byte[] wkbBytes = ((SmallGeometry) nonNull).asWkbBytes(false);
         if (this.hexEscape) {
             packetBuffer.writeByte('X');
             packetBuffer.writeByte(Constants.QUOTE_CHAR_BYTE);

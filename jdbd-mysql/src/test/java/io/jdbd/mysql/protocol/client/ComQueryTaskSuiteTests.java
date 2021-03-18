@@ -15,10 +15,10 @@ import io.jdbd.mysql.stmt.StmtWrappers;
 import io.jdbd.mysql.type.City;
 import io.jdbd.mysql.type.TrueOrFalse;
 import io.jdbd.mysql.util.*;
-import io.jdbd.type.geometry.Geometries;
 import io.jdbd.type.geometry.Point;
 import io.jdbd.vendor.JdbdCompositeException;
 import io.jdbd.vendor.conf.Properties;
+import io.jdbd.vendor.geometry.Geometries;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.ITestContext;
@@ -884,7 +884,8 @@ public class ComQueryTaskSuiteTests extends AbstractConnectionBasedSuiteTests {
             long bindBits = Long.parseLong((String) bindParam, 2);
             assertEquals(bits.longValue(), bindBits, field);
         } else if (bindParam instanceof byte[]) {
-            long bindBits = MySQLNumberUtils.readLongFromBigEndian((byte[]) bindParam);
+            byte[] bytes = (byte[]) bindParam;
+            long bindBits = MySQLNumberUtils.readLongFromBigEndian(bytes, 0, bytes.length);
             assertEquals(bits.longValue(), bindBits, field);
         } else {
             // never here

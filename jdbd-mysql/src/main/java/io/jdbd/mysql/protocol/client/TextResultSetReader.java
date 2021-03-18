@@ -5,7 +5,7 @@ import io.jdbd.mysql.util.MySQLConvertUtils;
 import io.jdbd.mysql.util.MySQLNumberUtils;
 import io.jdbd.mysql.util.MySQLStringUtils;
 import io.jdbd.mysql.util.MySQLTimeUtils;
-import io.jdbd.type.geometry.Geometries;
+import io.jdbd.vendor.geometry.Geometries;
 import io.netty.buffer.ByteBuf;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -186,10 +186,10 @@ final class TextResultSetReader extends AbstractResultSetReader {
                     }
                 } else {
                     byte[] bytes = PacketUtils.readBytesLenEnc(payload);
-                    if (bytes == null) {
+                    if (bytes == null || bytes.length == 0) {
                         columnValue = null;
                     } else {
-                        columnValue = MySQLNumberUtils.readLongFromBigEndian(bytes);
+                        columnValue = MySQLNumberUtils.readLongFromBigEndian(bytes, 0, bytes.length);
                     }
                 }
             }
@@ -293,7 +293,7 @@ final class TextResultSetReader extends AbstractResultSetReader {
                 if (bytes == null) {
                     columnValue = null;
                 } else {
-                    columnValue = Geometries.geometryFromWKB(bytes, 4);
+                    columnValue = Geometries.geometryFromWkb(bytes, 4);
                 }
             }
             break;
