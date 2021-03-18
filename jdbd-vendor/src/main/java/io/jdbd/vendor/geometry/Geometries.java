@@ -1,10 +1,7 @@
 package io.jdbd.vendor.geometry;
 
 import io.jdbd.lang.Nullable;
-import io.jdbd.type.geometry.Geometry;
-import io.jdbd.type.geometry.LineString;
-import io.jdbd.type.geometry.Point;
-import io.jdbd.type.geometry.SmallLineString;
+import io.jdbd.type.geometry.*;
 import io.jdbd.vendor.util.JdbdNumberUtils;
 
 import java.util.ArrayList;
@@ -39,7 +36,8 @@ public abstract class Geometries {
     }
 
 
-    public static Geometry geometryFromWkb(final byte[] wkbBytes, final int offset) throws IllegalArgumentException {
+    public static SmallGeometry geometryFromWkb(final byte[] wkbBytes, final int offset)
+            throws IllegalArgumentException {
         if (wkbBytes.length < 5) {
             throw createWkbBytesError(wkbBytes.length, 5);
         }
@@ -58,12 +56,14 @@ public abstract class Geometries {
         } else {
             throw createIllegalByteOrderError(byteOrder);
         }
-        final Geometry geometry;
+        final SmallGeometry geometry;
         switch (wkbType) {
             case Point.WKB_TYPE_POINT:
                 geometry = pointFromWkb(wkbBytes, offset);
                 break;
             case LineString.WKB_TYPE_LINE_STRING:
+                geometry = lineStringFromWkb(wkbBytes, offset);
+                break;
             default:
                 throw createUnknownWkbTypeError(wkbType);
         }
@@ -128,7 +128,7 @@ public abstract class Geometries {
         if (!wkt.startsWith(startMarker) || !wkt.endsWith(endMarker)) {
             throw createWktFormatError(null, wkt);
         }
-        final int index = wkt.indexOf(" ");
+        final int index = wkt.indexOf(" ", startMarker.length());
         if (index < 0) {
             throw createWktFormatError(null, wkt);
         }
@@ -176,21 +176,53 @@ public abstract class Geometries {
         }
         offset += 4;
         if (pointSize < 2 || pointSize > SmallLineString.MAX_POINT_LiST_SIZE) {
-            throw new IllegalArgumentException(String.format("SmallLineString point size[%s] must in [2,%s]"
-                    , pointSize, SmallLineString.MAX_POINT_LiST_SIZE));
+            throw createSmallLineSizeError(pointSize);
         }
 
-        // 2. below parse point list.¬
+        // 2. below parse point list.
         final int end = offset + (pointSize * Point.WKB_BYTES);
         if (wkbBytes.length < end) {
             throw createWkbBytesError(wkbBytes.length, end);
         }
         List<Point> pointList = new ArrayList<>(pointSize);
-        for (int i = 0; i < end; i++) {
+        for (int i = 0; i < pointSize; i++) {
             pointList.add(pointFromWkb(wkbBytes, offset));
             offset += Point.WKB_BYTES;
         }
         return lineString(pointList, false);
+    }
+
+
+    public static SmallLineString lineStringFromWkt(final String wkt) {
+        final String startMarker = "LINESTRING(", endMarker = ")";
+        if (!wkt.startsWith(startMarker) || !wkt.endsWith(endMarker)) {
+            throw createWktFormatError(null, wkt);
+        }
+
+        String pointsSegment = wkt.substring(startMarker.length(), wkt.length() - 1);
+        final String[] pairArray = pointsSegment.split(",");
+        if (pairArray.length < 2 || pairArray.length > SmallLineString.MAX_POINT_LiST_SIZE) {
+            throw createSmallLineSizeError(pairArray.length);
+        }
+
+        try {
+            List<Point> pointList = new ArrayList<>(pairArray.length);
+            String pair;
+            double x, y;
+            for (int i = 0, spaceIndex; i < pairArray.length; i++) {
+                pair = pairArray[i];
+                spaceIndex = pair.indexOf(' ');
+                if (spaceIndex < 0) {
+                    throw createWktFormatError(null, wkt);
+                }
+                x = Double.parseDouble(pair.substring(0, spaceIndex));
+                y = Double.parseDouble(pair.substring(spaceIndex + 1));
+                pointList.add(point(x, y));
+            }
+            return lineString(pointList, false);
+        } catch (NumberFormatException e) {
+            throw createWktFormatError(e, wkt);
+        }
     }
 
     /*################################## blow packet static method ##################################*/
@@ -250,18 +282,23 @@ public abstract class Geometries {
 
     static void lineStringAsWkbBytes(final List<Point> pointList, final boolean bigEndian, final byte[] wkbBytes
             , int offset) throws IllegalArgumentException {
-        if (wkbBytes.length < Point.WKB_BYTES) {
-            throw createWkbBytesError(wkbBytes.length, Point.WKB_BYTES);
+        final int size = pointList.size();
+        if (size < 2) {
+            throw createSmallLineSizeError(size);
         }
-        if (wkbBytes.length - offset < Point.WKB_BYTES) {
+        final int wkbTotalLength = 9 + (size * Point.WKB_BYTES);
+        if (wkbBytes.length < wkbTotalLength) {
+            throw createWkbBytesError(wkbBytes.length, wkbTotalLength);
+        }
+        if (wkbBytes.length - offset < wkbTotalLength) {
             throw createOffsetError(offset, wkbBytes.length);
         }
-        final int size = pointList.size();
+
         if (bigEndian) {
             wkbBytes[offset++] = 0;
-            JdbdNumberUtils.intToBigEndian(LineString.WKB_TYPE_LINE_STRING, wkbBytes, offset);
+            JdbdNumberUtils.intToBigEndian(LineString.WKB_TYPE_LINE_STRING, wkbBytes, offset, 4);
             offset += 4;
-            JdbdNumberUtils.intToBigEndian(size, wkbBytes, offset);
+            JdbdNumberUtils.intToBigEndian(size, wkbBytes, offset, 4);
         } else {
             wkbBytes[offset++] = 1;
             JdbdNumberUtils.intToLittleEndian(LineString.WKB_TYPE_LINE_STRING, wkbBytes, offset, 4);
@@ -303,6 +340,15 @@ public abstract class Geometries {
             e = new IllegalArgumentException(message, cause);
         }
         return e;
+    }
+
+    private static IllegalArgumentException createSmallLineSizeError(int pointSize) {
+        return new IllegalArgumentException(String.format(
+                "%s point size[%s] must in [2,%s],please use %s ."
+                , SmallLineString.class.getSimpleName()
+                , pointSize
+                , SmallLineString.MAX_POINT_LiST_SIZE
+                , LargeLineString.class.getName()));
     }
 
 
