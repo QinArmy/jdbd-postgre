@@ -1,19 +1,21 @@
 package io.jdbd.type.geometry;
 
 
-public interface Point extends SmallGeometry {
+/**
+ * @see PointZ
+ * @see PointM
+ * @see PointZM
+ */
+public interface Point extends GenericPoint {
 
     /**
      * WKB-TYPE point,unsigned int.
      */
-    int WKB_TYPE_POINT = 1;
+    byte WKB_TYPE_POINT = 1;
 
-    int WKB_BYTES = 21;
+    byte WKB_BYTES = 21;
 
-    double getX();
+    byte getPointTextLength();
 
-    double getY();
-
-    int getTextLength();
 
 }

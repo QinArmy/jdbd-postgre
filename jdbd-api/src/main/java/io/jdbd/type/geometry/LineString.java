@@ -1,15 +1,30 @@
 package io.jdbd.type.geometry;
 
+import org.reactivestreams.Publisher;
+
+import java.util.List;
+
 /**
- * @see SmallLineString
- * @see LargeLineString
+ *
  */
 public interface LineString extends Curve {
+
+    int BOUNDARY_POINT_LIST_SIZE = ((1 << 30) - 12) / (22 * 2 + 2);
+    // max wkb byte count / Point.WKB_BYTES
+    int MAX_POINT_LIST_SIZE = ((1 << 30) - 9) / Point.WKB_BYTES;
 
     /**
      * WKB-TYPE linestring,unsigned int.
      */
-    int WKB_TYPE_LINE_STRING = 2;
+    byte WKB_TYPE_LINE_STRING = 2;
+
+
+    /**
+     * @return a unmodifiable list ,{@link List#size()} always great or equals {@code 2}.
+     */
+    List<Point> pointList() throws IllegalStateException;
+
+    Publisher<Point> pointStream();
 
 
     Point startPoint();

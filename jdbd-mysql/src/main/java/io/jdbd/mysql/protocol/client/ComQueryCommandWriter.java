@@ -10,8 +10,8 @@ import io.jdbd.mysql.util.MySQLConvertUtils;
 import io.jdbd.mysql.util.MySQLExceptions;
 import io.jdbd.mysql.util.MySQLTimeUtils;
 import io.jdbd.type.geometry.Geometry;
-import io.jdbd.type.geometry.SmallGeometry;
 import io.jdbd.vendor.conf.Properties;
+import io.jdbd.vendor.util.BufferUtils;
 import io.netty.buffer.ByteBuf;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -172,11 +172,7 @@ final class ComQueryCommandWriter {
 
     private static final Logger LOG = LoggerFactory.getLogger(ComQueryCommandWriter.class);
 
-    private final static byte[] HEX_DIGITS = new byte[]{
-            (byte) '0', (byte) '1', (byte) '2', (byte) '3'
-            , (byte) '4', (byte) '5', (byte) '6', (byte) '7'
-            , (byte) '8', (byte) '9', (byte) 'A', (byte) 'B'
-            , (byte) 'C', (byte) 'D', (byte) 'E', (byte) 'F'};
+
 
 
     private final Supplier<Integer> sequenceIdSupplier;
@@ -476,15 +472,15 @@ final class ComQueryCommandWriter {
     private ByteBuf bindToGeometry(final int stmtIndex, final BindValue bindValue, final ByteBuf packetBuffer)
             throws SQLException {
         final Object nonNull = bindValue.getRequiredValue();
-        if (!(nonNull instanceof SmallGeometry)) {
+        if (!(nonNull instanceof Geometry)) {
             throw MySQLExceptions.createUnsupportedParamTypeError(stmtIndex, bindValue);
         }
         packetBuffer.writeBytes("ST_GeometryFromWKB(".getBytes(this.clientCharset));
-        final byte[] wkbBytes = ((SmallGeometry) nonNull).asWkbBytes(false);
+        final byte[] wkbBytes = ((Geometry) nonNull).asWkb(false);
         if (this.hexEscape) {
             packetBuffer.writeByte('X');
             packetBuffer.writeByte(Constants.QUOTE_CHAR_BYTE);
-            writeHexEscapes(packetBuffer, wkbBytes, wkbBytes.length);
+            BufferUtils.writeHexEscapes(packetBuffer, wkbBytes, wkbBytes.length);
         } else {
             packetBuffer.writeByte(Constants.QUOTE_CHAR_BYTE);
             writeByteEscapes(packetBuffer, wkbBytes, wkbBytes.length);
@@ -524,7 +520,7 @@ final class ComQueryCommandWriter {
         }
         final byte[] bytes = builder.toString().getBytes(this.clientCharset);
         if (this.hexEscape) {
-            writeHexEscapes(packetBuffer, bytes, bytes.length);
+            BufferUtils.writeHexEscapes(packetBuffer, bytes, bytes.length);
         } else {
             writeByteEscapes(packetBuffer, bytes, bytes.length);
         }
@@ -608,14 +604,14 @@ final class ComQueryCommandWriter {
             if (nonNull instanceof byte[]) {
                 byte[] bytes = (byte[]) nonNull;
                 if (this.hexEscape) {
-                    writeHexEscapes(packet, bytes, bytes.length);
+                    BufferUtils.writeHexEscapes(packet, bytes, bytes.length);
                 } else {
                     writeByteEscapes(packet, bytes, bytes.length);
                 }
             } else if (nonNull instanceof CharSequence) {
                 byte[] bytes = nonNull.toString().getBytes(this.clientCharset);
                 if (this.hexEscape) {
-                    writeHexEscapes(packet, bytes, bytes.length);
+                    BufferUtils.writeHexEscapes(packet, bytes, bytes.length);
                 } else {
                     writeByteEscapes(packet, bytes, bytes.length);
                 }
@@ -629,7 +625,7 @@ final class ComQueryCommandWriter {
             } else if (nonNull instanceof char[]) {
                 byte[] bytes = new String((char[]) nonNull).getBytes(this.clientCharset);
                 if (this.hexEscape) {
-                    writeHexEscapes(packet, bytes, bytes.length);
+                    BufferUtils.writeHexEscapes(packet, bytes, bytes.length);
                 } else {
                     writeByteEscapes(packet, bytes, bytes.length);
                 }
@@ -747,7 +743,7 @@ final class ComQueryCommandWriter {
             final ByteBuffer byteBuffer = ByteBuffer.wrap(bufferArray);
             while (channel.read(byteBuffer) > 0) {
                 if (hexEscapes) {
-                    writeHexEscapes(packet, bufferArray, byteBuffer.remaining());
+                    BufferUtils.writeHexEscapes(packet, bufferArray, byteBuffer.remaining());
                 } else {
                     writeByteEscapes(packet, bufferArray, byteBuffer.remaining());
                 }
@@ -799,7 +795,7 @@ final class ComQueryCommandWriter {
                 byteBuffer.get(bufferArray);
 
                 if (hexEscapes) {
-                    writeHexEscapes(packet, bufferArray, bufferArray.length);
+                    BufferUtils.writeHexEscapes(packet, bufferArray, bufferArray.length);
                 } else {
                     writeByteEscapes(packet, bufferArray, bufferArray.length);
                 }
@@ -844,7 +840,7 @@ final class ComQueryCommandWriter {
             final byte[] bufferArray = new byte[2048];
             while ((length = input.read(bufferArray)) > 0) {
                 if (hexEscape) {
-                    writeHexEscapes(packet, bufferArray, length);
+                    BufferUtils.writeHexEscapes(packet, bufferArray, length);
                 } else {
                     writeByteEscapes(packet, bufferArray, length);
                 }
@@ -921,24 +917,6 @@ final class ComQueryCommandWriter {
             packet.writeBytes(bytes, lastWritten, length - lastWritten);
         }
 
-
-    }
-
-    /**
-     * @see #writeInputStream(ByteBuf, InputStream, List, boolean)
-     * @see #writeReader(ByteBuf, Reader, List)
-     * @see #writeChannel(ByteBuf, ReadableByteChannel, List)
-     * @see #bindToBytes(int, BindValue, ByteBuf, List)
-     */
-    private void writeHexEscapes(final ByteBuf buffer, final byte[] bytes, final int length) {
-
-        final byte[] hexDigits = HEX_DIGITS;
-        for (int i = 0; i < length; i++) {
-            byte b = bytes[i];
-
-            buffer.writeByte(hexDigits[(b >> 4) & 0xF]); // write highBits
-            buffer.writeByte(hexDigits[b & 0xF]);          // write lowBits
-        }
 
     }
 

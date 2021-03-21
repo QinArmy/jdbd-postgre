@@ -1,6 +1,6 @@
 package io.jdbd.type.geometry;
 
-public interface LinearRing extends SmallLineString {
+public interface LinearRing extends LineString, Geometry {
 
     /**
      * @return always true.

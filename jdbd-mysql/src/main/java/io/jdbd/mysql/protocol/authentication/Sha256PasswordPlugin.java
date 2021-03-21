@@ -8,6 +8,7 @@ import io.jdbd.mysql.protocol.conf.PropertyKey;
 import io.jdbd.mysql.util.MySQLStringUtils;
 import io.jdbd.vendor.conf.HostInfo;
 import io.jdbd.vendor.conf.Properties;
+import io.jdbd.vendor.util.JdbdStreamUtils;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import org.qinarmy.util.security.KeyPairType;
@@ -20,12 +21,7 @@ import javax.crypto.BadPaddingException;
 import javax.crypto.Cipher;
 import javax.crypto.IllegalBlockSizeException;
 import javax.crypto.NoSuchPaddingException;
-import java.io.IOException;
-import java.nio.ByteBuffer;
-import java.nio.channels.SeekableByteChannel;
 import java.nio.charset.Charset;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
@@ -224,7 +220,7 @@ public class Sha256PasswordPlugin implements AuthenticationPlugin {
         String publicKeyString = null;
         try {
             if (serverRSAPublicKeyPath != null) {
-                publicKeyString = readPathAsText(Paths.get(serverRSAPublicKeyPath));
+                publicKeyString = JdbdStreamUtils.readAsString(Paths.get(serverRSAPublicKeyPath));
             }
             return publicKeyString;
         } catch (Throwable e) {
@@ -232,22 +228,6 @@ public class Sha256PasswordPlugin implements AuthenticationPlugin {
         }
     }
 
-
-    private static String readPathAsText(Path path) throws IOException {
-        try (SeekableByteChannel channel = Files.newByteChannel(path)) {
-
-            Charset charset = Charset.forName(System.getProperty("file.encoding"));
-
-            ByteBuffer buffer = ByteBuffer.allocate(1024);
-            StringBuilder builder = new StringBuilder();
-            while (channel.read(buffer) > 0) {
-                buffer.rewind();
-                builder.append(charset.decode(buffer));
-                buffer.flip();
-            }
-            return builder.toString();
-        }
-    }
 
 
 }
