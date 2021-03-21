@@ -92,7 +92,7 @@ final class DefaultSmallPolygon implements Polygon, Geometry {
     }
 
     @Override
-    public boolean isMemory() {
+    public boolean isSmall() {
         return false;
     }
 
@@ -109,6 +109,11 @@ final class DefaultSmallPolygon implements Polygon, Geometry {
     @Override
     public void asWkbToPath(boolean bigEndian, Path path) throws IOException {
 
+    }
+
+    @Override
+    public long elementCountAsLong() {
+        return 0;
     }
 
     @Override

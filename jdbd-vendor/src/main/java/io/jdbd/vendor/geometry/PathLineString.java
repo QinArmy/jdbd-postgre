@@ -15,10 +15,7 @@ import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.charset.Charset;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
-import java.nio.file.StandardOpenOption;
+import java.nio.file.*;
 import java.security.MessageDigest;
 import java.util.Arrays;
 import java.util.List;
@@ -210,9 +207,14 @@ class PathLineString extends AbstractGeometry implements LineString {
     }
 
     @Override
-    public final boolean isMemory() {
+    public final boolean isSmall() {
         // always false.
         return false;
+    }
+
+    @Override
+    public final boolean isValid() {
+        return Files.exists(this.path, LinkOption.NOFOLLOW_LINKS);
     }
 
     @Override

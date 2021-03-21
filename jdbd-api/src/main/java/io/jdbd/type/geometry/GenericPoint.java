@@ -16,6 +16,6 @@ public interface GenericPoint extends Geometry {
      * @return always true.
      */
     @Override
-    boolean isMemory();
+    boolean isSmall();
 
 }

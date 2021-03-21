@@ -102,7 +102,7 @@ class MemoryLineString extends AbstractGeometry implements LineString {
     }
 
     @Override
-    public boolean isMemory() {
+    public boolean isSmall() {
         return this.small;
     }
 
@@ -153,7 +153,7 @@ class MemoryLineString extends AbstractGeometry implements LineString {
             match = true;
         } else if (obj instanceof LineString) {
             LineString ls = (LineString) obj;
-            if (ls.isMemory()) {
+            if (ls.isSmall()) {
                 match = this.pointList.equals(((LineString) obj).pointList());
             } else {
                 try {
@@ -172,7 +172,7 @@ class MemoryLineString extends AbstractGeometry implements LineString {
 
     @Override
     public final String asWkt() throws IllegalStateException {
-        if (!isMemory()) {
+        if (!isSmall()) {
             throw createCannotAsWktStringException();
         }
         return Geometries.lineStringAsWkt(this, new StringBuilder(this.textLength + WRAPPER_LENGTH))
@@ -182,7 +182,7 @@ class MemoryLineString extends AbstractGeometry implements LineString {
 
     @Override
     public final byte[] asWkb(final boolean bigEndian) throws IllegalStateException {
-        if (!isMemory()) {
+        if (!isSmall()) {
             throw createCannotAsWkbArrayException();
         }
         final byte[] wkbBytes = new byte[(int) getWkbLength()];

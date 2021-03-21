@@ -108,7 +108,7 @@ final class DefaultPoint extends AbstractGeometry implements Point {
     }
 
     @Override
-    public boolean isMemory() {
+    public boolean isSmall() {
         // always true
         return true;
     }

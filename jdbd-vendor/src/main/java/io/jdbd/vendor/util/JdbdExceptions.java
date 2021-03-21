@@ -38,4 +38,5 @@ public abstract class JdbdExceptions extends ExceptionUtils {
         return je;
     }
 
+
 }

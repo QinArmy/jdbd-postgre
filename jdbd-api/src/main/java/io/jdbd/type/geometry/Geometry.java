@@ -3,6 +3,7 @@ package io.jdbd.type.geometry;
 import org.reactivestreams.Publisher;
 
 import java.io.IOException;
+import java.nio.channels.FileChannel;
 import java.nio.file.Path;
 
 /**
@@ -23,7 +24,7 @@ public interface Geometry {
      */
     String asWkt() throws IllegalStateException;
 
-    boolean isMemory();
+    boolean isSmall();
 
     /**
      * @return a unsigned int .
@@ -47,12 +48,20 @@ public interface Geometry {
 
     void asWkbToPath(boolean bigEndian, Path path) throws IOException;
 
+    long asWkbToChannel(boolean bigEndian, FileChannel out) throws IOException;
+
     void asWktToPath(Path path) throws IOException;
 
+    long asWktToChannel(FileChannel out) throws IOException;
+
     /**
-     * @return exists underlying file and delete success.
+     * @return true: exists underlying file and delete success.
      */
     boolean deleteIfExists() throws IOException;
 
+    /**
+     * @return false: if exists underlying file and deleted.
+     */
+    boolean isValid();
 
 }
