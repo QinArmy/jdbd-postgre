@@ -15,7 +15,5 @@ public interface Point extends GenericPoint {
 
     byte WKB_BYTES = 21;
 
-    byte getPointTextLength();
-
 
 }

@@ -1,10 +1,11 @@
 package io.jdbd.vendor.geometry;
 
+import io.jdbd.type.geometry.GeometryFactory;
 import io.jdbd.type.geometry.LineString;
 import io.jdbd.type.geometry.Point;
 import io.jdbd.vendor.Groups;
 import io.jdbd.vendor.TestUtils;
-import io.jdbd.vendor.util.BufferUtils;
+import io.jdbd.vendor.util.JdbdBufferUtils;
 import io.jdbd.vendor.util.JdbdDigestUtils;
 import io.jdbd.vendor.util.JdbdTimeUtils;
 import org.slf4j.Logger;
@@ -29,18 +30,22 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 
 /**
- * @see Geometries
+ * @see DefaultGeometryFactory
  */
 @Test(groups = {Groups.GEOMETRIES})
-public class GeometriesSuiteTests {
+public class DefaultGeometryFactorySuiteTests {
 
-    private static final Logger LOG = LoggerFactory.getLogger(GeometriesSuiteTests.class);
+    private static final Logger LOG = LoggerFactory.getLogger(DefaultGeometryFactorySuiteTests.class);
 
     private static final Queue<Path> PATH_QUEUE = new LinkedBlockingDeque<>();
 
+    private static GeometryFactory geometryFactory;
+
     @BeforeClass
     public static void beforeClass() {
-        Runtime.getRuntime().addShutdownHook(new Thread(GeometriesSuiteTests::deletePathQueue));
+        Runtime.getRuntime().addShutdownHook(new Thread(DefaultGeometryFactorySuiteTests::deletePathQueue));
+        geometryFactory = GeometryFactoryBuilder.builder()
+                .build();
     }
 
     public static void deletePathQueue() {
@@ -56,7 +61,7 @@ public class GeometriesSuiteTests {
 
 
     /**
-     * @see Geometries#pointFromWkb(byte[], int)
+     * @see DefaultGeometryFactory#pointFromWkb(byte[], int)
      */
     @Test
     public void pointFromWkb() {
@@ -67,31 +72,31 @@ public class GeometriesSuiteTests {
         Point point, result;
         byte[] wkbBytes;
 
-        point = Geometries.point(x, y);
+        point = geometryFactory.point(x, y);
         wkbBytes = point.asWkb(true);
-        result = Geometries.pointFromWkb(wkbBytes, 0);
+        result = DefaultGeometryFactory.pointFromWkb(wkbBytes, 0);
         assertEquals(result, point, "result");
 
         wkbBytes = result.asWkb(false);
-        result = Geometries.pointFromWkb(wkbBytes, 0);
+        result = DefaultGeometryFactory.pointFromWkb(wkbBytes, 0);
         assertEquals(result, point, "result");
 
 
         x = Double.MAX_VALUE;
         y = Double.MIN_VALUE;
 
-        point = Geometries.point(x, y);
+        point = geometryFactory.point(x, y);
         wkbBytes = point.asWkb(false);
-        result = Geometries.pointFromWkb(wkbBytes, 0);
+        result = geometryFactory.pointFromWkb(wkbBytes, 0);
         assertEquals(result, point, "result");
 
         wkbBytes = result.asWkb(true);
-        result = Geometries.pointFromWkb(wkbBytes, 0);
+        result = geometryFactory.pointFromWkb(wkbBytes, 0);
         assertEquals(result, point, "result");
     }
 
     /**
-     * @see Geometries#pointFromWkt(String)
+     * @see DefaultGeometryFactory#pointFromWkt(String)
      */
     @Test
     public void pointFromWkt() {
@@ -99,29 +104,29 @@ public class GeometriesSuiteTests {
         Point point, result;
 
         wkt = "POINT(0 0)";
-        point = Geometries.point(0, 0);
-        result = Geometries.pointFromWkt(wkt);
+        point = geometryFactory.point(0, 0);
+        result = DefaultGeometryFactory.pointFromWkt(wkt);
         assertEquals(result, point, "result");
 
         wkt = point.asWkt();
-        result = Geometries.pointFromWkt(wkt);
+        result = geometryFactory.pointFromWkt(wkt, 0);
         assertEquals(result, point, "result");
 
 
         wkt = String.format("POINT(%s %s)", Double.MAX_VALUE, Double.MIN_VALUE);
-        point = Geometries.point(Double.MAX_VALUE, Double.MIN_VALUE);
-        result = Geometries.pointFromWkt(wkt);
+        point = geometryFactory.point(Double.MAX_VALUE, Double.MIN_VALUE);
+        result = geometryFactory.pointFromWkt(wkt, 0);
         assertEquals(result, point, "result");
 
         wkt = point.asWkt();
-        result = Geometries.pointFromWkt(wkt);
+        result = geometryFactory.pointFromWkt(wkt, 0);
         assertEquals(result, point, "result");
 
 
     }
 
     /**
-     * @see Geometries#lineStringFromWkb(byte[], int)
+     * @see DefaultGeometryFactory#lineStringFromWkb(byte[], int)
      */
     @Test(dependsOnMethods = {"pointFromWkb"})
     public void lineStringFromWkb() {
@@ -130,43 +135,43 @@ public class GeometriesSuiteTests {
         byte[] wkbBytes;
 
         pointList = new ArrayList<>(2);
-        pointList.add(Geometries.point(0, 0));
-        pointList.add(Geometries.point(Double.MAX_VALUE, Double.MIN_VALUE));
+        pointList.add(geometryFactory.point(0, 0));
+        pointList.add(geometryFactory.point(Double.MAX_VALUE, Double.MIN_VALUE));
 
-        lineString = Geometries.lineString(pointList);
+        lineString = geometryFactory.lineString(pointList);
 
         wkbBytes = lineString.asWkb(false);
         LOG.info("wkt text:{}", lineString.asWkt());
-        String wkb = BufferUtils.hexEscapesText(wkbBytes, wkbBytes.length);
+        String wkb = JdbdBufferUtils.hexEscapesText(wkbBytes, wkbBytes.length);
         LOG.info("wkb text:{}", wkb);
         LOG.info("wkb length:{}", wkb.length());
-        result = Geometries.lineStringFromWkb(wkbBytes, 0);
+        result = geometryFactory.lineStringFromWkb(wkbBytes, 0);
         assertEquals(result, lineString, "result");
 
         wkbBytes = result.asWkb(false);
-        result = Geometries.lineStringFromWkb(wkbBytes, 0);
+        result = geometryFactory.lineStringFromWkb(wkbBytes, 0);
         assertEquals(result, lineString, "result");
 
         pointList = new ArrayList<>(4);
-        pointList.add(Geometries.point(Double.MAX_VALUE, Double.MIN_VALUE));
-        pointList.add(Geometries.point(0, 0));
-        pointList.add(Geometries.point(-1, 3));
-        pointList.add(Geometries.point(-1, -1));
+        pointList.add(geometryFactory.point(Double.MAX_VALUE, Double.MIN_VALUE));
+        pointList.add(geometryFactory.point(0, 0));
+        pointList.add(geometryFactory.point(-1, 3));
+        pointList.add(geometryFactory.point(-1, -1));
 
-        lineString = Geometries.lineString(pointList);
+        lineString = geometryFactory.lineString(pointList);
 
         wkbBytes = lineString.asWkb(true);
-        result = Geometries.lineStringFromWkb(wkbBytes, 0);
+        result = geometryFactory.lineStringFromWkb(wkbBytes, 0);
         assertEquals(result, lineString, "result");
 
         wkbBytes = result.asWkb(false);
-        result = Geometries.lineStringFromWkb(wkbBytes, 0);
+        result = geometryFactory.lineStringFromWkb(wkbBytes, 0);
         assertEquals(result, lineString, "result");
 
     }
 
     /**
-     * @see Geometries#lineStringFromWkt(String)
+     * @see DefaultGeometryFactory#lineStringFromWkt(String)
      */
     @Test
     public void lineStringFromWkt() {
@@ -175,43 +180,43 @@ public class GeometriesSuiteTests {
         List<Point> pointList;
 
         wkt = String.format("LINESTRING(0 0,%s %s)", Double.MAX_VALUE, Double.MIN_VALUE);
-        lineString = Geometries.lineStringFromWkt(wkt);
+        lineString = geometryFactory.lineStringFromWkt(wkt, 0);
         resultWkt = lineString.asWkt();
-        result = Geometries.lineStringFromWkt(resultWkt);
+        result = geometryFactory.lineStringFromWkt(resultWkt, 0);
         assertEquals(result, lineString, "resultWkt");
 
         pointList = lineString.pointList();
         assertEquals(pointList.size(), 2, "pointList size");
-        assertEquals(pointList.get(0), Geometries.point(0, 0), "zero point");
-        assertEquals(pointList.get(1), Geometries.point(Double.MAX_VALUE, Double.MIN_VALUE), "POINT(MIN_VALUE MIN_VALUE)");
+        assertEquals(pointList.get(0), geometryFactory.point(0, 0), "zero point");
+        assertEquals(pointList.get(1), geometryFactory.point(Double.MAX_VALUE, Double.MIN_VALUE), "POINT(MIN_VALUE MIN_VALUE)");
 
 
         wkt = String.format("LINESTRING(1 1,2 2,3 3,-1 -5,%s %s)", Double.MIN_VALUE, Double.MIN_VALUE);
-        lineString = Geometries.lineStringFromWkt(wkt);
+        lineString = geometryFactory.lineStringFromWkt(wkt, 0);
         resultWkt = lineString.asWkt();
-        result = Geometries.lineStringFromWkt(resultWkt);
+        result = geometryFactory.lineStringFromWkt(resultWkt, 0);
         assertEquals(result, lineString, "resultWkt");
 
         pointList = lineString.pointList();
         assertEquals(pointList.size(), 5, "pointList size");
 
-        assertEquals(pointList.get(0), Geometries.point(1, 1), "POINT(1 1)");
-        assertEquals(pointList.get(1), Geometries.point(2, 2), "POINT(2 2)");
-        assertEquals(pointList.get(2), Geometries.point(3, 3), "POINT(3 3)");
-        assertEquals(pointList.get(3), Geometries.point(-1, -5), "POINT(-1 -5)");
+        assertEquals(pointList.get(0), geometryFactory.point(1, 1), "POINT(1 1)");
+        assertEquals(pointList.get(1), geometryFactory.point(2, 2), "POINT(2 2)");
+        assertEquals(pointList.get(2), geometryFactory.point(3, 3), "POINT(3 3)");
+        assertEquals(pointList.get(3), geometryFactory.point(-1, -5), "POINT(-1 -5)");
 
-        assertEquals(pointList.get(4), Geometries.point(Double.MIN_VALUE, Double.MIN_VALUE), "POINT(MIN_VALUE MIN_VALUE)");
+        assertEquals(pointList.get(4), geometryFactory.point(Double.MIN_VALUE, Double.MIN_VALUE), "POINT(MIN_VALUE MIN_VALUE)");
 
     }
 
     /**
-     * @see Geometries#lineStringFromWkt(String)
+     * @see DefaultGeometryFactory#lineStringFromWkt(String)
      */
     @Test(expectedExceptions = IllegalArgumentException.class)
     public void errorLineStringWkt() {
         String wkt;
         wkt = "LINESTRING(0,0)";
-        Geometries.lineStringFromWkt(wkt);
+        geometryFactory.lineStringFromWkt(wkt, 0);
 
     }
 
@@ -225,7 +230,7 @@ public class GeometriesSuiteTests {
         Point point;
 
         for (int i = 0; i < pointSize; i++) {
-            point = Geometries.point(random.nextDouble(), random.nextDouble());
+            point = geometryFactory.point(random.nextDouble(), random.nextDouble());
             textLength += point.getPointTextLength();
             pointList.add(point);
         }
@@ -239,17 +244,17 @@ public class GeometriesSuiteTests {
         wkbPath = Files.createTempFile(pathFix, null);
 
         lineString.asWkbToPath(true, originalPath);
-        result = Geometries.lineStringFromWkbPath(originalPath, 0L);
+        result = geometryFactory.lineStringFromWkbPath(originalPath, 0L);
         result.asWkbToPath(true, wkbPath);
 
         assertTrue(JdbdDigestUtils.compareMd5(originalPath, wkbPath), "originalPath and wkbPath md5");
 
-        result = Geometries.lineStringFromWkbPath(wkbPath, 0L);
+        result = geometryFactory.lineStringFromWkbPath(wkbPath, 0L);
         assertEquals(result, lineString, "result");
 
         result.asWkbToPath(false, wkbPath);
 
-        result = Geometries.lineStringFromWkbPath(wkbPath, 0L);
+        result = geometryFactory.lineStringFromWkbPath(wkbPath, 0L);
 
         assertEquals(result, lineString, "result");
 
@@ -273,7 +278,7 @@ public class GeometriesSuiteTests {
         }
         LOG.info("original size:{}", Files.size(original));
         LineString lineString;
-        lineString = PathLineString.fromWkbPath(original, 0L);
+        lineString = geometryFactory.lineStringFromWkbPath(original, 0L);
 
         lineString.asWkbToPath(bigEndian, wkbPath);
 
@@ -287,7 +292,7 @@ public class GeometriesSuiteTests {
 
         LineString result;
         LOG.info("read new wkbPath");
-        result = PathLineString.fromWkbPath(wkbPath, 0L);
+        result = geometryFactory.lineStringFromWkbPath(wkbPath, 0L);
         result.asWkbToPath(bigEndian, wkbPath);
 
         assertEquals(Files.size(wkbPath), Files.size(original), "original and wkbPath size");
@@ -295,7 +300,7 @@ public class GeometriesSuiteTests {
         assertTrue(JdbdDigestUtils.compareMd5(original, wkbPath), "original and wkbPath MD5");
 
         for (int i = 0; i < 1000000; i++) {
-            PathLineString.fromWkbPath(wkbPath, 0L);
+            geometryFactory.lineStringFromWkbPath(wkbPath, 0L);
         }
     }
 
@@ -326,16 +331,16 @@ public class GeometriesSuiteTests {
         try (OutputStream out = Files.newOutputStream(path, StandardOpenOption.WRITE)) {
 
             final long pointSize = 44;
-            out.write(Geometries.createWkbPrefix(bigEndian, LineString.WKB_TYPE_LINE_STRING, (int) pointSize));
+            out.write(DefaultGeometryFactory.createWkbPrefix(bigEndian, LineString.WKB_TYPE_LINE_STRING, (int) pointSize));
             final Random random = new Random();
-            final byte[] buffer = new byte[Geometries.get16BufferLength(pointSize << 4)];
+            final byte[] buffer = new byte[DefaultGeometryFactory.get16BufferLength(pointSize << 4)];
             int length = 0, offset = 0;
             for (long i = 0; i < pointSize; i++) {
                 if (length == 0) {
                     length = (int) Math.min(buffer.length >> 4, pointSize - i) << 4;
                     offset = 0;
                 }
-                Geometries.doPointAsWkb(random.nextDouble(), random.nextDouble(), bigEndian, buffer, offset);
+                DefaultGeometryFactory.doPointAsWkb(random.nextDouble(), random.nextDouble(), bigEndian, buffer, offset);
                 offset += 16;
 
                 if (offset == length) {

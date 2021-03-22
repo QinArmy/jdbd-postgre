@@ -11,7 +11,7 @@ import io.jdbd.mysql.util.MySQLExceptions;
 import io.jdbd.mysql.util.MySQLTimeUtils;
 import io.jdbd.type.geometry.Geometry;
 import io.jdbd.vendor.conf.Properties;
-import io.jdbd.vendor.util.BufferUtils;
+import io.jdbd.vendor.util.JdbdBufferUtils;
 import io.netty.buffer.ByteBuf;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -480,7 +480,7 @@ final class ComQueryCommandWriter {
         if (this.hexEscape) {
             packetBuffer.writeByte('X');
             packetBuffer.writeByte(Constants.QUOTE_CHAR_BYTE);
-            BufferUtils.writeHexEscapes(packetBuffer, wkbBytes, wkbBytes.length);
+            JdbdBufferUtils.writeHexEscapes(packetBuffer, wkbBytes, wkbBytes.length);
         } else {
             packetBuffer.writeByte(Constants.QUOTE_CHAR_BYTE);
             writeByteEscapes(packetBuffer, wkbBytes, wkbBytes.length);
@@ -520,7 +520,7 @@ final class ComQueryCommandWriter {
         }
         final byte[] bytes = builder.toString().getBytes(this.clientCharset);
         if (this.hexEscape) {
-            BufferUtils.writeHexEscapes(packetBuffer, bytes, bytes.length);
+            JdbdBufferUtils.writeHexEscapes(packetBuffer, bytes, bytes.length);
         } else {
             writeByteEscapes(packetBuffer, bytes, bytes.length);
         }
@@ -604,14 +604,14 @@ final class ComQueryCommandWriter {
             if (nonNull instanceof byte[]) {
                 byte[] bytes = (byte[]) nonNull;
                 if (this.hexEscape) {
-                    BufferUtils.writeHexEscapes(packet, bytes, bytes.length);
+                    JdbdBufferUtils.writeHexEscapes(packet, bytes, bytes.length);
                 } else {
                     writeByteEscapes(packet, bytes, bytes.length);
                 }
             } else if (nonNull instanceof CharSequence) {
                 byte[] bytes = nonNull.toString().getBytes(this.clientCharset);
                 if (this.hexEscape) {
-                    BufferUtils.writeHexEscapes(packet, bytes, bytes.length);
+                    JdbdBufferUtils.writeHexEscapes(packet, bytes, bytes.length);
                 } else {
                     writeByteEscapes(packet, bytes, bytes.length);
                 }
@@ -625,7 +625,7 @@ final class ComQueryCommandWriter {
             } else if (nonNull instanceof char[]) {
                 byte[] bytes = new String((char[]) nonNull).getBytes(this.clientCharset);
                 if (this.hexEscape) {
-                    BufferUtils.writeHexEscapes(packet, bytes, bytes.length);
+                    JdbdBufferUtils.writeHexEscapes(packet, bytes, bytes.length);
                 } else {
                     writeByteEscapes(packet, bytes, bytes.length);
                 }
@@ -743,7 +743,7 @@ final class ComQueryCommandWriter {
             final ByteBuffer byteBuffer = ByteBuffer.wrap(bufferArray);
             while (channel.read(byteBuffer) > 0) {
                 if (hexEscapes) {
-                    BufferUtils.writeHexEscapes(packet, bufferArray, byteBuffer.remaining());
+                    JdbdBufferUtils.writeHexEscapes(packet, bufferArray, byteBuffer.remaining());
                 } else {
                     writeByteEscapes(packet, bufferArray, byteBuffer.remaining());
                 }
@@ -795,7 +795,7 @@ final class ComQueryCommandWriter {
                 byteBuffer.get(bufferArray);
 
                 if (hexEscapes) {
-                    BufferUtils.writeHexEscapes(packet, bufferArray, bufferArray.length);
+                    JdbdBufferUtils.writeHexEscapes(packet, bufferArray, bufferArray.length);
                 } else {
                     writeByteEscapes(packet, bufferArray, bufferArray.length);
                 }
@@ -840,7 +840,7 @@ final class ComQueryCommandWriter {
             final byte[] bufferArray = new byte[2048];
             while ((length = input.read(bufferArray)) > 0) {
                 if (hexEscape) {
-                    BufferUtils.writeHexEscapes(packet, bufferArray, length);
+                    JdbdBufferUtils.writeHexEscapes(packet, bufferArray, length);
                 } else {
                     writeByteEscapes(packet, bufferArray, length);
                 }

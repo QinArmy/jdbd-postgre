@@ -90,9 +90,9 @@ class MemoryLineString extends AbstractGeometry implements LineString {
         }
         this.pointList = Collections.unmodifiableList(pointList);
 
-        this.small = getWkbLength() < Geometries.MAX_ARRAY_LENGTH
+        this.small = getWkbLength() < DefaultGeometryFactory.MAX_ARRAY_LENGTH
                 && textLength > 0
-                && (textLength + WRAPPER_LENGTH) < Geometries.MAX_ARRAY_LENGTH;
+                && (textLength + WRAPPER_LENGTH) < DefaultGeometryFactory.MAX_ARRAY_LENGTH;
         this.textLength = textLength;
     }
 
@@ -175,7 +175,7 @@ class MemoryLineString extends AbstractGeometry implements LineString {
         if (!isSmall()) {
             throw createCannotAsWktStringException();
         }
-        return Geometries.lineStringAsWkt(this, new StringBuilder(this.textLength + WRAPPER_LENGTH))
+        return DefaultGeometryFactory.lineStringAsWkt(this, new StringBuilder(this.textLength + WRAPPER_LENGTH))
                 .toString();
     }
 
@@ -186,7 +186,7 @@ class MemoryLineString extends AbstractGeometry implements LineString {
             throw createCannotAsWkbArrayException();
         }
         final byte[] wkbBytes = new byte[(int) getWkbLength()];
-        Geometries.lineStringAsWkb(this.pointList, bigEndian, wkbBytes, 0);
+        DefaultGeometryFactory.lineStringAsWkb(this.pointList, bigEndian, wkbBytes, 0);
         return wkbBytes;
     }
 
@@ -195,7 +195,7 @@ class MemoryLineString extends AbstractGeometry implements LineString {
         final List<Point> pointList = this.pointList;
         final int size = pointList.size();
 
-        consumer.next(Geometries.createWkbPrefix(bigEndian, LineString.WKB_TYPE_LINE_STRING, size));
+        consumer.next(DefaultGeometryFactory.createWkbPrefix(bigEndian, LineString.WKB_TYPE_LINE_STRING, size));
 
         byte[] buffer = null;
         Point point;
@@ -206,7 +206,7 @@ class MemoryLineString extends AbstractGeometry implements LineString {
                 offset = 0;
             }
             point = pointList.get(i);
-            Geometries.doPointAsWkb(point.getX(), point.getY(), bigEndian, buffer, offset);
+            DefaultGeometryFactory.doPointAsWkb(point.getX(), point.getY(), bigEndian, buffer, offset);
             offset += 16;
 
             if (offset == buffer.length) {
@@ -265,7 +265,7 @@ class MemoryLineString extends AbstractGeometry implements LineString {
         final List<Point> pointList = this.pointList;
         final int size = pointList.size();
         final MessageDigest digest = JdbdDigestUtils.createMd5Digest();
-        digest.update(Geometries.createWkbPrefix(bigEndian, LineString.WKB_TYPE_LINE_STRING, size));
+        digest.update(DefaultGeometryFactory.createWkbPrefix(bigEndian, LineString.WKB_TYPE_LINE_STRING, size));
         final byte[] buffer = new byte[Math.min(size << 4, 2048)];
         Point point;
         for (int i = 0, offset = 0, length = 0; i < size; i++) {
@@ -274,7 +274,7 @@ class MemoryLineString extends AbstractGeometry implements LineString {
                 offset = 0;
             }
             point = pointList.get(i);
-            Geometries.doPointAsWkb(point.getX(), point.getY(), bigEndian, buffer, offset);
+            DefaultGeometryFactory.doPointAsWkb(point.getX(), point.getY(), bigEndian, buffer, offset);
             offset += 16;
 
             if (offset == length) {

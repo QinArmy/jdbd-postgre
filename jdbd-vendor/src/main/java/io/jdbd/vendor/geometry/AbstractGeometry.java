@@ -11,6 +11,7 @@ import reactor.core.publisher.Mono;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
+import java.nio.channels.NonWritableChannelException;
 import java.nio.file.*;
 import java.time.LocalDate;
 import java.util.concurrent.ConcurrentHashMap;
@@ -103,10 +104,8 @@ abstract class AbstractGeometry implements Geometry {
             }
         } catch (Throwable e) {
             Logger logger = obtainLogger();
-            if (!fileExists) {
-                if (Files.deleteIfExists(path) && logger.isDebugEnabled()) {
-                    logger.debug("delete created file[{}] after error occur.", path);
-                }
+            if (!fileExists && Files.deleteIfExists(path) && logger.isDebugEnabled()) {
+                logger.debug("delete created file[{}] after error occur.", path);
             }
             if (e instanceof Error) {
                 throw (Error) e;
@@ -134,15 +133,7 @@ abstract class AbstractGeometry implements Geometry {
             }
             return out.position() - originalPosition;
         } catch (Throwable e) {
-            final long position;
-            position = out.position();
-            out.truncate(originalPosition);
-            out.position(originalPosition);
-
-            Logger logger = obtainLogger();
-            if (logger.isDebugEnabled()) {
-                logger.debug("Truncate truncate size[{}] after error occur.", position - originalPosition);
-            }
+            truncateOnError(e, out, originalPosition);
             if (e instanceof Error) {
                 throw (Error) e;
             } else if (e instanceof IOException) {
@@ -202,15 +193,7 @@ abstract class AbstractGeometry implements Geometry {
             }
             return out.position() - originalPosition;
         } catch (Throwable e) {
-            final long position;
-            position = out.position();
-            out.truncate(originalPosition);
-            out.position(originalPosition);
-
-            Logger logger = obtainLogger();
-            if (logger.isDebugEnabled()) {
-                logger.debug("Truncate truncate size[{}] after error occur.", position - originalPosition);
-            }
+            truncateOnError(e, out, originalPosition);
             if (e instanceof Error) {
                 throw (Error) e;
             } else if (e instanceof IOException) {
@@ -255,7 +238,7 @@ abstract class AbstractGeometry implements Geometry {
     boolean copyWkbIfEndianMatch(boolean bigEndian, Path target) throws IOException {
         return false;
     }
-    
+
 
     @Override
     public boolean isValid() {
@@ -263,6 +246,31 @@ abstract class AbstractGeometry implements Geometry {
             return true;
         }
         throw new UnsupportedOperationException();
+    }
+
+
+
+    /*################################## blow private method ##################################*/
+
+    private void truncateOnError(Throwable e, final FileChannel out, final long originalPosition)
+            throws IOException {
+        if (!(e instanceof NonWritableChannelException)) {
+            final long position;
+            position = out.position();
+
+            out.truncate(originalPosition);
+            out.position(originalPosition);
+
+            Logger logger = obtainLogger();
+            if (logger.isDebugEnabled()) {
+                logger.debug("Truncate truncate size[{}] after error occur.", position - originalPosition);
+            }
+        }
+
+    }
+
+    protected final IOException createUnderlyingFileModified(Path path) {
+        return new IOException(String.format("%s underlying file[%s] is modified.", getClass().getName(), path));
     }
 
     static IllegalStateException createCannotAsWkbArrayException() {
@@ -282,9 +290,8 @@ abstract class AbstractGeometry implements Geometry {
         return dir;
     }
 
-
-    protected final IOException createUnderlyingFileModified(Path path) {
-        return new IOException(String.format("%s underlying file[%s] is modified.", getClass().getName(), path));
+    static Path createWkbTempFile(String prefix) throws IOException {
+        return Files.createTempFile(getTempDirectory(), prefix, ".wkb");
     }
 
 

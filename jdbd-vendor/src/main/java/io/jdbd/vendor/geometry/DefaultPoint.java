@@ -29,7 +29,7 @@ final class DefaultPoint extends AbstractGeometry implements Point {
 
     @Override
     public String asWkt() {
-        return Geometries.pointAsWkt(this, new StringBuilder())
+        return DefaultGeometryFactory.pointAsWkt(this, new StringBuilder())
                 .toString();
     }
 
@@ -117,7 +117,7 @@ final class DefaultPoint extends AbstractGeometry implements Point {
     @Override
     public byte[] asWkb(final boolean bigEndian) {
         final byte[] wkbBytes = new byte[WKB_BYTES];
-        Geometries.pointAsWkb(this, bigEndian, wkbBytes, 0);
+        DefaultGeometryFactory.pointAsWkb(this, bigEndian, wkbBytes, 0);
         return wkbBytes;
     }
 

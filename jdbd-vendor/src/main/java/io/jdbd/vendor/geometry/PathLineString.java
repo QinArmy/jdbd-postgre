@@ -2,7 +2,9 @@ package io.jdbd.vendor.geometry;
 
 import io.jdbd.type.geometry.LineString;
 import io.jdbd.type.geometry.Point;
+import io.jdbd.vendor.util.JdbdBufferUtils;
 import io.jdbd.vendor.util.JdbdDigestUtils;
+import io.jdbd.vendor.util.JdbdNumberUtils;
 import io.jdbd.vendor.util.JdbdStreamUtils;
 import org.qinarmy.util.Pair;
 import org.reactivestreams.Publisher;
@@ -12,9 +14,7 @@ import reactor.core.publisher.Flux;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.nio.CharBuffer;
 import java.nio.channels.FileChannel;
-import java.nio.charset.Charset;
 import java.nio.file.*;
 import java.security.MessageDigest;
 import java.util.Arrays;
@@ -31,42 +31,42 @@ class PathLineString extends AbstractGeometry implements LineString {
         try (FileChannel channel = FileChannel.open(path, StandardOpenOption.READ)) {
             // 1. handle hasBytes.
             final long hasBytes;
-            hasBytes = Geometries.handleOffset(channel, offset);
+            hasBytes = DefaultGeometryFactory.handleOffset(channel, offset);
             // record start position.
             final long startPosition = channel.position();
             // 2. read LineString prefix(byteOrder,WKB-TYPE,pointCount)
             final byte[] wkbArray = new byte[9];
             int length;
             if ((length = channel.read(ByteBuffer.wrap(wkbArray))) < wkbArray.length) {
-                throw Geometries.createWkbFormatError(length, wkbArray.length);
+                throw DefaultGeometryFactory.createWkbFormatError(length, wkbArray.length);
             }
             final Pair<Boolean, Integer> pair;
-            pair = Geometries.readWkbHead(wkbArray, 0, LineString.WKB_TYPE_LINE_STRING);
+            pair = DefaultGeometryFactory.readWkbHead(wkbArray, 0, LineString.WKB_TYPE_LINE_STRING);
             if (pair.getSecond() == 0 || pair.getSecond() == 1) {
-                throw Geometries.createWkbFormatError(9 + (pair.getSecond() << 4), 9 + (2 << 4));
+                throw DefaultGeometryFactory.createWkbFormatError(9 + (pair.getSecond() << 4), 9 + (2 << 4));
             }
 
-            final long pointsNeedBytes = (pair.getSecond() & Geometries.MAX_UNSIGNED_INT) << 4;
+            final long pointsNeedBytes = (pair.getSecond() & DefaultGeometryFactory.MAX_UNSIGNED_INT) << 4;
             final long needBytes = 9L + pointsNeedBytes;
             if (hasBytes < needBytes) {
-                throw Geometries.createWkbFormatError(hasBytes, needBytes);
+                throw DefaultGeometryFactory.createWkbFormatError(hasBytes, needBytes);
             }
             // 3. read start point and end point.
             final byte[] pointBufferArray = new byte[16];
             final ByteBuffer pointBuffer = ByteBuffer.wrap(pointBufferArray);
             if (channel.read(pointBuffer) != pointBufferArray.length) {
-                throw Geometries.createWkbFormatError(hasBytes, needBytes);
+                throw DefaultGeometryFactory.createWkbFormatError(hasBytes, needBytes);
             }
             final Point startPoint, endPoint;
-            startPoint = Geometries.doPointFromWkb(pointBufferArray, pair.getFirst(), 0);
+            startPoint = DefaultGeometryFactory.doPointFromWkb(pointBufferArray, pair.getFirst(), 0);
             // clear buffer for endPoint
             pointBuffer.clear();
             // position to last point start index
             channel.position(startPosition + needBytes - 16L);
             if (channel.read(pointBuffer) != pointBufferArray.length) {
-                throw Geometries.createWkbFormatError(hasBytes, pointsNeedBytes);
+                throw DefaultGeometryFactory.createWkbFormatError(hasBytes, pointsNeedBytes);
             }
-            endPoint = Geometries.doPointFromWkb(pointBufferArray, pair.getFirst(), 0);
+            endPoint = DefaultGeometryFactory.doPointFromWkb(pointBufferArray, pair.getFirst(), 0);
             // 4. copy WKB to temp file and get MD5.
             final Path lineStringPath;
             lineStringPath = Files.createTempFile(getTempDirectory(), "linestring", ".wkb");
@@ -85,30 +85,97 @@ class PathLineString extends AbstractGeometry implements LineString {
     }
 
     static LineString fromWktPath(final Path path, final long offset) throws IOException {
-        try (FileChannel in = FileChannel.open(path)) {
+        Path tempPath = null;
+        try (FileChannel in = FileChannel.open(path, StandardOpenOption.READ)) {
             final long hasBytes;
-            hasBytes = Geometries.handleOffset(in, offset);
-            final byte[] bufferArray = new byte[(int) Math.min(hasBytes, 2048)];
-            final ByteBuffer buffer = ByteBuffer.wrap(bufferArray);
+            hasBytes = DefaultGeometryFactory.handleOffset(in, offset);
+            final byte[] inArray = new byte[(int) Math.min(hasBytes, 2048)];
+            final ByteBuffer inBuffer = ByteBuffer.wrap(inArray);
 
-            final Charset charset = JdbdStreamUtils.fileEncodingOrUtf8();
-            CharBuffer charBuffer;
-            if (in.read(buffer) < 1) {
-                throw Geometries.createWktFormatError(null, "");
-            }
-            buffer.flip();
-            charBuffer = charset.decode(buffer);
-            buffer.clear();
+            //1.read wkt type.
+            DefaultGeometryFactory.readWktType(in, inBuffer, inArray, Constant.LINESTRING);
 
-            for (int i = 0; in.read(buffer) > 0; i++) {
-                charBuffer = charset.decode(buffer);
+            //2. create temp file for output wkb .
+            tempPath = createWkbTempFile(Constant.LINESTRING.toLowerCase());
+
+            try (FileChannel out = FileChannel.open(tempPath, StandardOpenOption.WRITE, StandardOpenOption.READ)) {
+                // 3. parse and write wkb temp file.
+                writeWktToTempFile(in, out, inBuffer, inArray);
+                // 4. read start point and end point .
+                out.position(9L);
             }
             return null;
-        } catch (IllegalArgumentException | IOException e) {
-            throw e;
         } catch (Throwable e) {
-            throw new IOException(e.getMessage(), e);
+            if (tempPath != null) {
+                Files.deleteIfExists(tempPath);
+            }
+            if (e instanceof Error) {
+                throw (Error) e;
+            } else if (e instanceof IOException) {
+                throw (IOException) e;
+            } else {
+                throw new IOException(e.getMessage(), e);
+            }
+
         }
+
+
+    }
+
+    /**
+     * @return temp file md5.
+     */
+    private static byte[] writeWktToTempFile(final FileChannel in, final FileChannel out
+            , final ByteBuffer inBuffer, final byte[] inArray) throws IOException, IllegalArgumentException {
+
+        final byte[] outArray = new byte[inArray.length];
+        final ByteBuffer outBuffer = ByteBuffer.wrap(outArray);
+        final MessageDigest digest = JdbdDigestUtils.createMd5Digest();
+        //1. write wkb header
+        // 0 is  placeholder of element count.
+        DefaultGeometryFactory.writeWkbPrefix(false, LineString.WKB_TYPE_LINE_STRING, 0, outArray, 0);
+        outBuffer.position(9);
+        //2. read and write points.
+        long elementCount = 0L;
+        boolean lineStringEnd = false;
+        // cumulate for read points
+        JdbdBufferUtils.cumulate(inBuffer, false);
+        for (int endIndex; in.read(inBuffer) > 0; ) {
+            inBuffer.flip();
+            elementCount += DefaultGeometryFactory.readAndWritePoints(false, 2, inBuffer, inArray, outBuffer, outArray);
+            endIndex = inBuffer.position() - 1;
+            if (endIndex > -1 && inBuffer.get(endIndex) == ')') {
+                lineStringEnd = true;
+                outBuffer.flip();
+                digest.update(outArray, 0, outBuffer.limit());
+                out.write(outBuffer);
+                outBuffer.clear();
+                break;
+            }
+            if (outBuffer.remaining() < 16) {
+                outBuffer.flip();
+                digest.update(outArray, 0, outBuffer.limit());
+                out.write(outBuffer);
+                outBuffer.clear();
+            }
+            JdbdBufferUtils.cumulate(inBuffer, true);
+
+        }
+        if (!lineStringEnd) {
+            throw DefaultGeometryFactory.createWktFormatErrorWithDetail("LineString not end.");
+        }
+        if (elementCount < 2 || elementCount > JdbdNumberUtils.MAX_UNSIGNED_INT) {
+            throw DefaultGeometryFactory.createIllegalLineStringElementCountError(elementCount);
+        }
+        // 3. write element count.
+        out.position(5L); // to element count position.
+        JdbdNumberUtils.intToLittleEndian((int) elementCount, outArray, 0, 4);
+        outBuffer.position(4);
+        outBuffer.flip();
+        digest.update(outArray, 0, outBuffer.limit());
+        out.write(outBuffer);
+
+        return digest.digest();
     }
 
 
@@ -251,7 +318,7 @@ class PathLineString extends AbstractGeometry implements LineString {
                     return;
                 }
                 // 2. read points
-                Geometries.readLineStringPoints(in, this.bigEndian, this.pointCount, sink::next, digest);
+                DefaultGeometryFactory.readLineStringPoints(in, this.bigEndian, this.pointCount, sink::next, digest);
 
                 // 3. validate md5 of underlying fil.
                 if (Arrays.equals(digest.digest(), this.fileMd5)) {
@@ -313,17 +380,17 @@ class PathLineString extends AbstractGeometry implements LineString {
                 throw createUnderlyingFileModified(this.path);
             }
             // 2. write prefix
-            consumer.next(Geometries.createWkbPrefix(bigEndian, LineString.WKB_TYPE_LINE_STRING
+            consumer.next(DefaultGeometryFactory.createWkbPrefix(bigEndian, LineString.WKB_TYPE_LINE_STRING
                     , this.pointCount));
 
             final IoConsumer<byte[]> wrapper;
             if (bigEndian == this.bigEndian) {
                 wrapper = consumer;
             } else {
-                wrapper = consumer.after(Geometries::notPointEndian);
+                wrapper = consumer.after(DefaultGeometryFactory::notPointEndian);
             }
             // 3. write point data.
-            Geometries.readPointsWkbAndConsumer(in, this.pointCount, wrapper, digest, true);
+            DefaultGeometryFactory.readPointsWkbAndConsumer(in, this.pointCount, wrapper, digest, true);
             md5Bytes = digest.digest();
         } catch (IOException e) {
             throw e;
@@ -350,14 +417,14 @@ class PathLineString extends AbstractGeometry implements LineString {
             final boolean[] comma = new boolean[]{false};
             final IoConsumer<byte[]> wkbConsumer = wkb -> {
                 StringBuilder builder = new StringBuilder((wkb.length >> 3) * 10);
-                Geometries.doPointsWkbToWkt(wkb, this.bigEndian, builder, comma[0]);
+                DefaultGeometryFactory.doPointsWkbToWkt(wkb, this.bigEndian, builder, comma[0]);
                 if (!comma[0]) {
                     comma[0] = true;
                 }
                 consumer.next(builder.toString());
             };
             // 3. write point data.
-            Geometries.readPointsWkbAndConsumer(in, this.pointCount, wkbConsumer, digest, false);
+            DefaultGeometryFactory.readPointsWkbAndConsumer(in, this.pointCount, wkbConsumer, digest, false);
             consumer.next(")");
             if (!Arrays.equals(digest.digest(), this.fileMd5)) {
                 throw createUnderlyingFileModified(this.path);
@@ -394,7 +461,7 @@ class PathLineString extends AbstractGeometry implements LineString {
             return true;
         }
         final Pair<Boolean, Integer> pair;
-        pair = Geometries.readWkbHead(bufferArray, 0, LineString.WKB_TYPE_LINE_STRING);
+        pair = DefaultGeometryFactory.readWkbHead(bufferArray, 0, LineString.WKB_TYPE_LINE_STRING);
         if (pair.getFirst() != this.bigEndian || pair.getSecond() != this.pointCount) {
             return true;
         }

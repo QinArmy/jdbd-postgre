@@ -1,11 +1,11 @@
 package io.jdbd.vendor.util;
 
 import io.netty.buffer.ByteBuf;
-import org.qinarmy.util.HexUtils;
+import org.qinarmy.util.BufferUtils;
 
-public abstract class BufferUtils extends HexUtils {
+public abstract class JdbdBufferUtils extends BufferUtils {
 
-    protected BufferUtils() {
+    protected JdbdBufferUtils() {
         throw new UnsupportedOperationException();
     }
 

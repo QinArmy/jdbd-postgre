@@ -5,7 +5,7 @@ import io.jdbd.mysql.util.MySQLConvertUtils;
 import io.jdbd.mysql.util.MySQLNumberUtils;
 import io.jdbd.mysql.util.MySQLStringUtils;
 import io.jdbd.mysql.util.MySQLTimeUtils;
-import io.jdbd.vendor.geometry.Geometries;
+import io.jdbd.vendor.geometry.DefaultGeometryFactory;
 import io.netty.buffer.ByteBuf;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -293,7 +293,7 @@ final class TextResultSetReader extends AbstractResultSetReader {
                 if (bytes == null) {
                     columnValue = null;
                 } else {
-                    columnValue = Geometries.geometryFromWkb(bytes, 4);
+                    columnValue = DefaultGeometryFactory.geometryFromWkb(bytes, 4);
                 }
             }
             break;

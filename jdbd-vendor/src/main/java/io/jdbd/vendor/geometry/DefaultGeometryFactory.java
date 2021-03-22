@@ -1,8 +1,10 @@
 package io.jdbd.vendor.geometry;
 
 import io.jdbd.type.geometry.Geometry;
+import io.jdbd.type.geometry.GeometryFactory;
 import io.jdbd.type.geometry.LineString;
 import io.jdbd.type.geometry.Point;
+import io.jdbd.vendor.util.JdbdBufferUtils;
 import io.jdbd.vendor.util.JdbdDigestUtils;
 import io.jdbd.vendor.util.JdbdNumberUtils;
 import org.qinarmy.util.Pair;
@@ -21,9 +23,9 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.function.Consumer;
 
-public abstract class Geometries {
+public abstract class DefaultGeometryFactory implements GeometryFactory {
 
-    protected Geometries() {
+    protected DefaultGeometryFactory() {
         throw new UnsupportedOperationException();
     }
 
@@ -31,23 +33,27 @@ public abstract class Geometries {
 
     static final long MAX_UNSIGNED_INT = 0xFFFF_FFFFL;
 
-    private static final Logger LOG = LoggerFactory.getLogger(Geometries.class);
+    private static final Logger LOG = LoggerFactory.getLogger(DefaultGeometryFactory.class);
 
 
-    public static Point point(double x, double y) {
+    public final Point point(double x, double y) {
         return (x == 0.0D && y == 0.0D) ? DefaultPoint.ZERO : new DefaultPoint(x, y);
     }
 
-    public static LineString line(Point one, Point two) {
+    public LineString line(Point one, Point two) {
         return MemoryLineString.line(one, two);
     }
 
-    public static LineString lineString(List<Point> pointList) {
+    public LineString lineString(List<Point> pointList) {
         return MemoryLineString.create(pointList);
     }
 
+    @Override
+    public LineString lineStringFromWkt(String wkt, int offset) {
+        return null;
+    }
 
-    public static Geometry geometryFromWkb(final byte[] wkbBytes, final int offset)
+    public Geometry geometryFromWkb(final byte[] wkbBytes, final int offset)
             throws IllegalArgumentException {
         if (wkbBytes.length < 5) {
             throw createWkbFormatError(wkbBytes.length, 5);
@@ -92,7 +98,7 @@ public abstract class Geometries {
      *     </ol>
      * </p>
      */
-    public static Point pointFromWkb(final byte[] wkbBytes, int offset) throws IllegalArgumentException {
+    public Point pointFromWkb(final byte[] wkbBytes, int offset) throws IllegalArgumentException {
         if (wkbBytes.length < Point.WKB_BYTES) {
             throw createWkbFormatError(wkbBytes.length, Point.WKB_BYTES);
         }
@@ -173,7 +179,8 @@ public abstract class Geometries {
      * eg: {@code POINT(0.0 0.1)}
      * </p>
      */
-    public static Point pointFromWkt(final String wkt) throws IllegalArgumentException {
+    @Override
+    public Point pointFromWkt(final String wkt, int offset) throws IllegalArgumentException {
         final String startMarker = "POINT(", endMarker = ")";
         if (!wkt.startsWith(startMarker) || !wkt.endsWith(endMarker)) {
             throw createWktFormatError(null, wkt);
@@ -193,7 +200,8 @@ public abstract class Geometries {
         }
     }
 
-    public static LineString lineStringFromWkb(final byte[] wkbBytes, int offset) {
+    @Override
+    public LineString lineStringFromWkb(final byte[] wkbBytes, int offset) {
         final Pair<Boolean, Integer> pair;
         pair = readWkbHead(wkbBytes, offset, LineString.WKB_TYPE_LINE_STRING);
         offset += 9;
@@ -282,6 +290,174 @@ public abstract class Geometries {
     }
 
     /*################################## blow packet static method ##################################*/
+
+    /**
+     * @see PathLineString#fromWktPath(Path, long)
+     */
+    static void readWktType(final FileChannel in, ByteBuffer buffer, byte[] bufferArray, final String wktType)
+            throws IOException, IllegalArgumentException {
+
+        final int typeLength = wktType.length();
+        for (int limit, position, headerIndex; ; ) {
+            if (in.read(buffer) < typeLength) {
+                throw createNoWktHeaderError(wktType);
+            }
+
+            buffer.flip();
+
+            limit = buffer.limit();
+            for (position = buffer.position(); position < limit; position++) {
+                if (!Character.isWhitespace(bufferArray[position])) {
+                    break;
+                }
+            }
+            if (limit - position < typeLength) {
+                buffer.position(position);
+                JdbdBufferUtils.cumulate(buffer, false);
+                continue;
+            }
+            headerIndex = position;
+            for (int i = 0; i < typeLength; i++, position++) {
+                if (bufferArray[position] != wktType.charAt(i)) {
+                    throw createWktTypeNotMatch(wktType);
+                }
+            }
+            for (; position < limit; position++) {
+                if (!Character.isWhitespace(bufferArray[position])) {
+                    break;
+                }
+            }
+            if (limit - position < 1) {
+                buffer.position(headerIndex);
+                JdbdBufferUtils.cumulate(buffer, true);
+                continue;
+            }
+            if (bufferArray[position] != '(') {
+                throw createNoWktHeaderError(wktType);
+            }
+            buffer.position(position + 1);
+            break;
+        }
+
+    }
+
+    /**
+     * @param outBuffer always out little endian .
+     * @see PathLineString#fromWktPath(Path, long)
+     */
+    static int readAndWritePoints(final boolean pointText, final int coordinates, ByteBuffer inBuffer, byte[] inArray
+            , ByteBuffer outBuffer, byte[] outArray) throws IllegalArgumentException {
+
+        if (coordinates < 2 || coordinates > 4) {
+            throw new IllegalArgumentException(String.format("coordinates[%s] error.", coordinates));
+        }
+        final int inLimit = inBuffer.limit(), outLimit = outBuffer.limit();
+
+        int codePoint, pointCount = 0, inPosition = inBuffer.position(), outPosition = outBuffer.position();
+        topFor:
+        for (int tempOutPosition, tempInPosition, pointEndIndex; inPosition < inLimit; ) {
+            codePoint = inArray[inPosition];
+            if (Character.isWhitespace(codePoint)) {
+                inPosition++;
+                continue;
+            }
+            if (outLimit - outPosition < coordinates << 3) {
+                break;
+            }
+            tempInPosition = inPosition;
+            tempOutPosition = outPosition;
+            if (pointText) {
+                if (codePoint != '(') {
+                    throw createWktFormatErrorWithDetail("Not found '(' for point text.");
+                }
+                tempInPosition++;
+            }
+
+            //parse coordinates and write to outArray.
+            for (int i = 1, startIndex, endIndex = inPosition - 1, tempEndIndex; i <= coordinates; i++) {
+                startIndex = -1;
+                for (tempInPosition = endIndex + 1; tempInPosition < inLimit; tempInPosition++) {
+                    if (!Character.isWhitespace(inArray[tempInPosition])) {
+                        startIndex = tempInPosition;
+                        break;
+                    }
+                }
+                if (startIndex < 0) {
+                    break topFor;
+                }
+                endIndex = -1;
+                for (tempInPosition = startIndex + 1; tempInPosition < inLimit; tempInPosition++) {
+                    if (i == coordinates) {
+                        // last coordinate.
+                        codePoint = inArray[tempInPosition];
+                        if (pointText) {
+                            if (codePoint == ')' || Character.isWhitespace(codePoint)) {
+                                endIndex = tempInPosition;
+                            }
+                        } else if (codePoint == ',' || codePoint == ')' || Character.isWhitespace(codePoint)) {
+                            endIndex = tempInPosition;
+                        }
+                    } else if (Character.isWhitespace(inArray[tempInPosition])) {
+                        endIndex = tempInPosition;
+                        break;
+                    }
+                }
+                if (endIndex < 0) {
+                    if (tempInPosition - startIndex > 24) {
+                        // non-double number
+                        byte[] nonDoubleBytes = Arrays.copyOfRange(inArray, startIndex, tempInPosition);
+                        throw DefaultGeometryFactory.createNonDoubleError(new String(nonDoubleBytes));
+                    }
+                    break topFor;
+                }
+                double d = Double.parseDouble(new String(Arrays.copyOfRange(inArray, startIndex, endIndex)));
+                JdbdNumberUtils.doubleToEndian(false, d, outArray, tempOutPosition);
+                tempOutPosition += 8;
+            }// parse coordinates and write to outArray.
+            // below find point end index
+            pointEndIndex = -1;
+            for (int parenthesisCount = 0; tempInPosition < inLimit; tempInPosition++) {
+                codePoint = inArray[tempInPosition];
+                if (Character.isWhitespace(codePoint)) {
+                    continue;
+                }
+                if (codePoint == ')') {
+                    parenthesisCount++;
+                    if (pointText) {
+                        if (parenthesisCount == 2) {
+                            pointEndIndex = tempInPosition;
+                            break;
+                        }
+                    } else {
+                        pointEndIndex = tempInPosition;
+                        break;
+                    }
+                } else if (codePoint == ',') {
+                    if (pointText && parenthesisCount == 0) {
+                        throw createWktFormatErrorWithDetail("point text not close.");
+                    }
+                    pointEndIndex = tempInPosition;
+                    break;
+                } else {
+                    throw createWktFormatErrorWithDetail(String.format("point end with %s.", (char) codePoint));
+                }
+            }
+            if (pointEndIndex < 0) {
+                break;
+            }
+            outPosition = tempOutPosition;
+            inPosition = pointEndIndex + 1;
+            pointCount++;
+            if (inArray[pointEndIndex] == ')') {
+                // invoker
+                break;
+            }
+        }
+        inBuffer.position(inPosition);
+        outBuffer.position(outPosition);
+
+        return pointCount;
+    }
 
     /**
      * @return byte count of {@link FileChannel} hold.
@@ -431,7 +607,7 @@ public abstract class Geometries {
         final long startTime = System.currentTimeMillis();
         final boolean infoEnabled = LOG.isInfoEnabled();
 
-        final long needBytes = (pointCount & Geometries.MAX_UNSIGNED_INT) << 4;
+        final long needBytes = (pointCount & DefaultGeometryFactory.MAX_UNSIGNED_INT) << 4;
         final byte[] bufferArray = new byte[2048];
         final ByteBuffer buffer = ByteBuffer.wrap(bufferArray);
 
@@ -441,14 +617,14 @@ public abstract class Geometries {
             readLength = (int) Math.min(bufferArray.length, needBytes - readBytes);
             if ((readLength & 0xF) != 0) {
                 // mean length % 16 != 0
-                throw Geometries.createWkbFormatError(readBytes, 9L + needBytes);
+                throw DefaultGeometryFactory.createWkbFormatError(readBytes, 9L + needBytes);
             }
             if (readLength < bufferArray.length) {
                 buffer.limit(readLength);
             }
 
             if (in.read(buffer) != readLength) {
-                throw Geometries.createWkbFormatError(readBytes, 9L + needBytes);
+                throw DefaultGeometryFactory.createWkbFormatError(readBytes, 9L + needBytes);
             }
             if (copyArray || readLength < bufferArray.length) {
                 consumer.next(Arrays.copyOfRange(bufferArray, 0, readLength));
@@ -607,8 +783,17 @@ public abstract class Geometries {
         return new IllegalArgumentException(String.format("Unknown WKB-Type[%s]", wkbType));
     }
 
-    private static IllegalArgumentException createIllegalByteOrderError(byte byteOrder) {
+    static IllegalArgumentException createIllegalByteOrderError(byte byteOrder) {
         return new IllegalArgumentException(String.format("Illegal byte order[%s]", byteOrder));
+    }
+
+    static IllegalArgumentException createWktTypeNotMatch(String wktType) {
+        return new IllegalArgumentException(String.format("WKT isn't %s.", wktType));
+    }
+
+    static IllegalArgumentException createIllegalLineStringElementCountError(long elementCount) {
+        return new IllegalArgumentException(String.format("WKT[%s] element count[%s] not in [2,%s]."
+                , Constant.LINESTRING, elementCount, JdbdNumberUtils.MAX_UNSIGNED_INT));
     }
 
     static IllegalArgumentException createWktFormatError(@Nullable Throwable cause, String wkt) {
@@ -620,6 +805,18 @@ public abstract class Geometries {
             e = new IllegalArgumentException(message, cause);
         }
         return e;
+    }
+
+    static IllegalArgumentException createWktFormatErrorWithDetail(String detail) {
+        return new IllegalArgumentException(String.format("WKT format error,%s", detail));
+    }
+
+    static IllegalArgumentException createNonDoubleError(String nonDouble) {
+        return new IllegalArgumentException(String.format("%s isn't double number.", nonDouble));
+    }
+
+    static IllegalArgumentException createNoWktHeaderError(String wktType) {
+        return new IllegalArgumentException(String.format("Not found key words[%s].", wktType));
     }
 
     private static IllegalArgumentException createSmallLineSizeError(int pointSize) {

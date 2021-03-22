@@ -18,7 +18,7 @@ import io.jdbd.mysql.util.*;
 import io.jdbd.type.geometry.Point;
 import io.jdbd.vendor.JdbdCompositeException;
 import io.jdbd.vendor.conf.Properties;
-import io.jdbd.vendor.geometry.Geometries;
+import io.jdbd.vendor.geometry.DefaultGeometryFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.ITestContext;
@@ -515,7 +515,7 @@ public class ComQueryTaskSuiteTests extends AbstractConnectionBasedSuiteTests {
         mySQLType = MySQLType.BIGINT_UNSIGNED;
         assertNumberBindAndExtract(taskAdjutant, mySQLType, 0L, field, id);
         assertNumberBindAndExtract(taskAdjutant, mySQLType, 1L, field, id);
-        assertNumberBindAndExtract(taskAdjutant, mySQLType, MySQLNumberUtils.UNSIGNED_MAX_LONG, field, id);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, MySQLNumberUtils.MAX_UNSIGNED_LONG, field, id);
         assertNumberBindAndExtract(taskAdjutant, mySQLType, "0", field, id);
         assertNumberBindAndExtract(taskAdjutant, mySQLType, BigInteger.ONE, field, id);
         assertNumberBindAndExtract(taskAdjutant, mySQLType, BigDecimal.ONE, field, id);
@@ -663,15 +663,15 @@ public class ComQueryTaskSuiteTests extends AbstractConnectionBasedSuiteTests {
         final MySQLTaskAdjutant taskAdjutant = obtainTaskAdjutant();
 
 
-        Point point = Geometries.point(0.0, 0.0);
+        Point point = DefaultGeometryFactory.point(0.0, 0.0);
 
         assertPointBindAndExtract(taskAdjutant, point);
 
-        point = Geometries.point(Double.MAX_VALUE, Double.MIN_VALUE);
+        point = DefaultGeometryFactory.point(Double.MAX_VALUE, Double.MIN_VALUE);
 
         assertPointBindAndExtract(taskAdjutant, point);
 
-        point = Geometries.point(-1, 0);
+        point = DefaultGeometryFactory.point(-1, 0);
 
         assertPointBindAndExtract(taskAdjutant, point);
 

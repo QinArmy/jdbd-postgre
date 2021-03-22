@@ -598,7 +598,7 @@ final class PrepareExecuteCommandWriter implements StatementCommandWriter {
         if (nonNullValue instanceof Long) {
             long num = (Long) nonNullValue;
             if (parameterMeta.isUnsigned() && num < 0) {
-                throw BindUtils.createNumberRangErrorException(bindValue, 0, MySQLNumberUtils.UNSIGNED_MAX_LONG);
+                throw BindUtils.createNumberRangErrorException(bindValue, 0, MySQLNumberUtils.MAX_UNSIGNED_LONG);
             }
             int8 = num;
         } else if (nonNullValue instanceof BigInteger) {
@@ -606,19 +606,19 @@ final class PrepareExecuteCommandWriter implements StatementCommandWriter {
         } else if (nonNullValue instanceof Integer) {
             int num = (Integer) nonNullValue;
             if (parameterMeta.isUnsigned() && num < 0) {
-                throw BindUtils.createNumberRangErrorException(bindValue, 0, MySQLNumberUtils.UNSIGNED_MAX_LONG);
+                throw BindUtils.createNumberRangErrorException(bindValue, 0, MySQLNumberUtils.MAX_UNSIGNED_LONG);
             }
             int8 = num;
         } else if (nonNullValue instanceof Short) {
             int num = (Short) nonNullValue;
             if (parameterMeta.isUnsigned() && num < 0) {
-                throw BindUtils.createNumberRangErrorException(bindValue, 0, MySQLNumberUtils.UNSIGNED_MAX_LONG);
+                throw BindUtils.createNumberRangErrorException(bindValue, 0, MySQLNumberUtils.MAX_UNSIGNED_LONG);
             }
             int8 = num;
         } else if (nonNullValue instanceof Byte) {
             int num = (Byte) nonNullValue;
             if (parameterMeta.isUnsigned() && num < 0) {
-                throw BindUtils.createNumberRangErrorException(bindValue, 0, MySQLNumberUtils.UNSIGNED_MAX_LONG);
+                throw BindUtils.createNumberRangErrorException(bindValue, 0, MySQLNumberUtils.MAX_UNSIGNED_LONG);
             }
             int8 = num;
         } else if (nonNullValue instanceof String) {
@@ -941,8 +941,8 @@ final class PrepareExecuteCommandWriter implements StatementCommandWriter {
      */
     private static long bigIntegerToInt8(BindValue bindValue, MySQLType mySQLType, final BigInteger num) {
         if (mySQLType.isUnsigned()) {
-            if (num.compareTo(BigInteger.ZERO) < 0 || num.compareTo(MySQLNumberUtils.UNSIGNED_MAX_LONG) > 0) {
-                throw BindUtils.createNumberRangErrorException(bindValue, 0, MySQLNumberUtils.UNSIGNED_MAX_LONG);
+            if (num.compareTo(BigInteger.ZERO) < 0 || num.compareTo(MySQLNumberUtils.MAX_UNSIGNED_LONG) > 0) {
+                throw BindUtils.createNumberRangErrorException(bindValue, 0, MySQLNumberUtils.MAX_UNSIGNED_LONG);
             }
         } else if (num.compareTo(BigInteger.valueOf(Long.MIN_VALUE)) < 0
                 || num.compareTo(BigInteger.valueOf(Long.MAX_VALUE)) > 0) {

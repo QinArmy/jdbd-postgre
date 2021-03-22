@@ -13,6 +13,7 @@ import java.nio.file.Path;
  *
  * @see Point
  * @see LineString
+ * @see <a href="https://www.ogc.org/standards/sfa">Simple Feature Access - Part 1: Common Architecture pdf</a>
  */
 public interface Geometry {
 
