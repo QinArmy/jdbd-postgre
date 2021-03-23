@@ -12,8 +12,8 @@ public interface Text {
 
     String asString() throws IllegalStateException;
 
-    Publisher<CharBuffer> asStream();
+    Publisher<CharBuffer> asStream(boolean deleteOnComplete);
 
-    FileChannel openReadOnlyChannel() throws IOException;
+    FileChannel openReadOnlyChannel(boolean deleteOnClose) throws IOException;
 
 }

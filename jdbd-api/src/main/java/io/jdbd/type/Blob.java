@@ -12,8 +12,9 @@ public interface Blob {
 
     byte[] asArray() throws IllegalStateException;
 
-    Publisher<ByteBuffer> asStream();
+    Publisher<ByteBuffer> asStream(boolean deleteOnComplete);
 
-    FileChannel openReadOnlyChannel() throws IOException;
+    FileChannel openReadOnlyChannel(boolean deleteOnClose) throws IOException;
+
 
 }
