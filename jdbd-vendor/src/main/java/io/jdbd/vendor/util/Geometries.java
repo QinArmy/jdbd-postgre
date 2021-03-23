@@ -8,6 +8,17 @@ public abstract class Geometries {
         throw new UnsupportedOperationException();
     }
 
+    public static final byte WKB_POINT = 1;
+
+    public static final byte WKB_LINE_STRING = 2;
+
+    public static final byte WKB_POINT_BYTES = 21;
+
+    public static final String POINT = "POINT";
+
+    public static final String LINE_STRING = "LINESTRING";
+
+
     public boolean equals(final byte[] geometryOne, final byte[] geometryTwo) {
         final boolean match;
         if (geometryOne.length != geometryTwo.length) {
