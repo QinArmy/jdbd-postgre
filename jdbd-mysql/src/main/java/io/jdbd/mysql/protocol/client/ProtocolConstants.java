@@ -1,6 +1,6 @@
 package io.jdbd.mysql.protocol.client;
 
-interface ProtocolConstants {
+public interface ProtocolConstants {
 
 
     /**

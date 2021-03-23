@@ -1,7 +1,6 @@
 package io.jdbd.meta;
 
 import java.sql.JDBCType;
-import java.util.List;
 
 public interface SQLType extends java.sql.SQLType {
 
@@ -28,7 +27,5 @@ public interface SQLType extends java.sql.SQLType {
     String getVendor();
 
     boolean isUnsigned();
-
-    List<? extends SQLType> getFamily();
 
 }

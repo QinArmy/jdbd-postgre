@@ -1,7 +1,6 @@
 package io.jdbd.mysql;
 
 import io.jdbd.lang.Nullable;
-import io.jdbd.mysql.protocol.client.MySQLType;
 import org.reactivestreams.Publisher;
 
 import java.io.InputStream;

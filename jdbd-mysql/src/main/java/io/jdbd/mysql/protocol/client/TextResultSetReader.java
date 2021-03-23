@@ -1,11 +1,11 @@
 package io.jdbd.mysql.protocol.client;
 
 import io.jdbd.ResultRow;
+import io.jdbd.mysql.MySQLType;
 import io.jdbd.mysql.util.MySQLConvertUtils;
 import io.jdbd.mysql.util.MySQLNumberUtils;
 import io.jdbd.mysql.util.MySQLStringUtils;
 import io.jdbd.mysql.util.MySQLTimeUtils;
-import io.jdbd.vendor.geometry.DefaultGeometryFactory;
 import io.netty.buffer.ByteBuf;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -17,6 +17,7 @@ import java.math.BigInteger;
 import java.nio.charset.Charset;
 import java.time.*;
 import java.time.format.DateTimeFormatter;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Objects;
 import java.util.function.Consumer;
@@ -293,7 +294,8 @@ final class TextResultSetReader extends AbstractResultSetReader {
                 if (bytes == null) {
                     columnValue = null;
                 } else {
-                    columnValue = DefaultGeometryFactory.geometryFromWkb(bytes, 4);
+                    // drop MySQL internal 4 bytes for integer SRID
+                    columnValue = Arrays.copyOfRange(bytes, 4, bytes.length);
                 }
             }
             break;

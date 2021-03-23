@@ -5,20 +5,16 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.jdbd.*;
 import io.jdbd.meta.SQLType;
-import io.jdbd.mysql.BindValue;
-import io.jdbd.mysql.Groups;
-import io.jdbd.mysql.MySQLBindValue;
-import io.jdbd.mysql.SQLMode;
+import io.jdbd.mysql.*;
 import io.jdbd.mysql.protocol.conf.PropertyKey;
 import io.jdbd.mysql.session.MySQLSessionAdjutant;
 import io.jdbd.mysql.stmt.StmtWrappers;
 import io.jdbd.mysql.type.City;
 import io.jdbd.mysql.type.TrueOrFalse;
 import io.jdbd.mysql.util.*;
-import io.jdbd.type.geometry.Point;
 import io.jdbd.vendor.JdbdCompositeException;
 import io.jdbd.vendor.conf.Properties;
-import io.jdbd.vendor.geometry.DefaultGeometryFactory;
+import io.jdbd.vendor.util.JdbdNumberUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.ITestContext;
@@ -651,53 +647,50 @@ public class ComQueryTaskSuiteTests extends AbstractConnectionBasedSuiteTests {
         final MySQLTaskAdjutant taskAdjutant = obtainTaskAdjutant();
 
         final String id = "11", field = "my_geometry";
+        //1. update filed
+        updateSingleField(taskAdjutant, MySQLType.GEOMETRY, "POINT(0 0)", field, id);
+        //2. query filed
+        ResultRow resultRow;
+        resultRow = querySingleField(taskAdjutant, field, id);
+
+        byte[] resultWkb = resultRow.get("field", byte[].class);
+        assertNotNull(resultWkb, field);
+
+        final byte[] pointWkb = new byte[21];
+        int offset = 0;
+        pointWkb[offset++] = 1;
+        JdbdNumberUtils.intToLittleEndian(1, pointWkb, offset, 4);
+        offset += 4;
+        JdbdNumberUtils.doubleToEndian(false, Double.MAX_VALUE, pointWkb, offset);
+        offset += 8;
+        JdbdNumberUtils.doubleToEndian(false, Double.MIN_VALUE, pointWkb, offset);
+
+        assertEquals(resultWkb, pointWkb, field);
 
 
         LOG.info("geometryBindAndExtract test success");
         releaseConnection(taskAdjutant);
     }
 
-    @Test(timeOut = TIME_OUT)
-    public void pointBindAndExtract() {
-        LOG.info("pointBindAndExtract test start");
-        final MySQLTaskAdjutant taskAdjutant = obtainTaskAdjutant();
 
-
-        Point point = DefaultGeometryFactory.point(0.0, 0.0);
-
-        assertPointBindAndExtract(taskAdjutant, point);
-
-        point = DefaultGeometryFactory.point(Double.MAX_VALUE, Double.MIN_VALUE);
-
-        assertPointBindAndExtract(taskAdjutant, point);
-
-        point = DefaultGeometryFactory.point(-1, 0);
-
-        assertPointBindAndExtract(taskAdjutant, point);
-
-        LOG.info("pointBindAndExtract test success");
-        releaseConnection(taskAdjutant);
-    }
 
 
 
     /*################################## blow private method ##################################*/
 
-    /**
-     * @see #pointBindAndExtract()
-     */
-    private void assertPointBindAndExtract(final MySQLTaskAdjutant taskAdjutant, final Point bindParam) {
-        final String id = "12", field = "my_point";
+    private void assertPointsBindAndExtract(final MySQLTaskAdjutant taskAdjutant, final MySQLType mySQLType
+            , final Object bindParam, final String field, String id) {
 
         //1. update filed
-        updateSingleField(taskAdjutant, MySQLType.GEOMETRY, bindParam, field, id);
+        updateSingleField(taskAdjutant, mySQLType, bindParam, field, id);
         //2. query filed
         final ResultRow resultRow;
         resultRow = querySingleField(taskAdjutant, field, id);
-
-        final Object resultValue = resultRow.get("field");
-
-        assertEquals(resultValue, bindParam, field);
+        final byte[] pointWkb = resultRow.get("field", byte[].class);
+        assertNotNull(pointWkb, field);
+        if (bindParam instanceof byte[]) {
+            assertEquals(pointWkb, (byte[]) bindParam, field);
+        }
     }
 
 

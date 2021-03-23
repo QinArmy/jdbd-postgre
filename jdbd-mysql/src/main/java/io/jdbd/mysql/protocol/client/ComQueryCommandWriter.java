@@ -5,11 +5,7 @@ import io.jdbd.mysql.*;
 import io.jdbd.mysql.protocol.Constants;
 import io.jdbd.mysql.protocol.conf.PropertyKey;
 import io.jdbd.mysql.syntax.MySQLStatement;
-import io.jdbd.mysql.util.MySQLCollections;
-import io.jdbd.mysql.util.MySQLConvertUtils;
-import io.jdbd.mysql.util.MySQLExceptions;
-import io.jdbd.mysql.util.MySQLTimeUtils;
-import io.jdbd.type.geometry.Geometry;
+import io.jdbd.mysql.util.*;
 import io.jdbd.vendor.conf.Properties;
 import io.jdbd.vendor.util.JdbdBufferUtils;
 import io.netty.buffer.ByteBuf;
@@ -173,15 +169,12 @@ final class ComQueryCommandWriter {
     private static final Logger LOG = LoggerFactory.getLogger(ComQueryCommandWriter.class);
 
 
-
-
     private final Supplier<Integer> sequenceIdSupplier;
 
     private final MySQLTaskAdjutant adjutant;
 
     private final Properties<PropertyKey> properties;
 
-    private final boolean ansiQuotes;
 
     private final boolean hexEscape;
 
@@ -197,7 +190,6 @@ final class ComQueryCommandWriter {
 
         Server server = this.adjutant.obtainServer();
 
-        this.ansiQuotes = server.containSqlMode(SQLMode.ANSI_QUOTES);
         this.hexEscape = server.containSqlMode(SQLMode.NO_BACKSLASH_ESCAPES);
         this.clientCharset = adjutant.obtainCharsetClient();
         this.supportStream = this.properties.getOrDefault(PropertyKey.clientPrepare, Enums.ClientPrepare.class)
@@ -450,11 +442,7 @@ final class ComQueryCommandWriter {
             }
             break;
             case GEOMETRY: {
-                if (bindValue.getValue() instanceof Geometry) {
-                    newBuffer = bindToGeometry(stmtIndex, bindValue, buffer);
-                } else {
-                    newBuffer = bindToBytes(stmtIndex, bindValue, buffer, packetList);
-                }
+                newBuffer = bindToGeometry(stmtIndex, bindValue, buffer, packetList);
             }
             break;
             case UNKNOWN:
@@ -469,24 +457,59 @@ final class ComQueryCommandWriter {
     /**
      * @see #bindParameter(int, BindValue, ByteBuf, List)
      */
-    private ByteBuf bindToGeometry(final int stmtIndex, final BindValue bindValue, final ByteBuf packetBuffer)
-            throws SQLException {
+    private ByteBuf bindToGeometry(final int stmtIndex, final BindValue bindValue, final ByteBuf packetBuffer
+            , final List<ByteBuf> packetList) throws SQLException {
         final Object nonNull = bindValue.getRequiredValue();
-        if (!(nonNull instanceof Geometry)) {
+        ByteBuf packet = packetBuffer;
+        if (nonNull instanceof byte[]
+                || nonNull instanceof InputStream
+                || nonNull instanceof ReadableByteChannel
+                || nonNull instanceof Path) {
+            packet.writeBytes("ST_GeometryFromWKB(".getBytes(this.clientCharset));
+        } else if (nonNull instanceof String
+                || nonNull instanceof Reader) {
+            packet.writeBytes("ST_GeomFromText(".getBytes(this.clientCharset));
+        } else {
             throw MySQLExceptions.createUnsupportedParamTypeError(stmtIndex, bindValue);
         }
-        packetBuffer.writeBytes("ST_GeometryFromWKB(".getBytes(this.clientCharset));
-        final byte[] wkbBytes = ((Geometry) nonNull).asWkb(false);
         if (this.hexEscape) {
-            packetBuffer.writeByte('X');
-            packetBuffer.writeByte(Constants.QUOTE_CHAR_BYTE);
-            JdbdBufferUtils.writeHexEscapes(packetBuffer, wkbBytes, wkbBytes.length);
-        } else {
-            packetBuffer.writeByte(Constants.QUOTE_CHAR_BYTE);
-            writeByteEscapes(packetBuffer, wkbBytes, wkbBytes.length);
+            packet.writeByte('X');
         }
-        packetBuffer.writeBytes("')".getBytes(this.clientCharset));
-        return packetBuffer;
+        packet.writeByte(Constants.QUOTE_CHAR_BYTE);
+
+        try {
+            if (nonNull instanceof byte[]) {
+                byte[] bytes = (byte[]) nonNull;
+                if (this.hexEscape) {
+                    MySQLBufferUtils.writeHexEscapes(packet, bytes, bytes.length);
+                } else {
+                    writeByteEscapes(packet, bytes, bytes.length);
+                }
+            } else if (nonNull instanceof InputStream) {
+                boolean autoClose = this.properties.getOrDefault(PropertyKey.autoClosePStmtStreams, Boolean.class);
+                packet = writeInputStream(packet, (InputStream) nonNull, packetList, autoClose);
+            } else if (nonNull instanceof ReadableByteChannel) {
+                packet = writeChannel(packet, (ReadableByteChannel) nonNull, packetList);
+            } else if (nonNull instanceof Path) {
+                try (InputStream in = Files.newInputStream((Path) nonNull, StandardOpenOption.READ)) {
+                    packet = writeInputStream(packet, in, packetList, true);
+                }
+            } else if (nonNull instanceof String) {
+                byte[] bytes = ((String) nonNull).getBytes(this.clientCharset);
+                if (this.hexEscape) {
+                    MySQLBufferUtils.writeHexEscapes(packet, bytes, bytes.length);
+                } else {
+                    writeByteEscapes(packet, bytes, bytes.length);
+                }
+            } else {
+                // Reader
+                packet = writeReader(packet, (Reader) nonNull, packetList);
+            }
+        } catch (IOException e) {
+            throw MySQLExceptions.createLongDataReadException(stmtIndex, bindValue, e);
+        }
+        packet.writeBytes("')".getBytes(this.clientCharset));
+        return packet;
     }
 
     /**
@@ -830,6 +853,7 @@ final class ComQueryCommandWriter {
 
     /**
      * @see #bindToBytes(int, BindValue, ByteBuf, List)
+     * @see #bindToGeometry(int, BindValue, ByteBuf, List)
      */
     private ByteBuf writeInputStream(final ByteBuf packetBuffer, final InputStream input
             , final List<ByteBuf> packetList, final boolean autoClose) throws IOException {

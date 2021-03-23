@@ -4,6 +4,7 @@ import io.jdbd.JdbdSQLException;
 import io.jdbd.NullMode;
 import io.jdbd.ResultRowMeta;
 import io.jdbd.meta.SQLType;
+import io.jdbd.mysql.MySQLType;
 import io.jdbd.mysql.protocol.CharsetMapping;
 import io.jdbd.mysql.util.MySQLStringUtils;
 import org.qinarmy.util.StringUtils;

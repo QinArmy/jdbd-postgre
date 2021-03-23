@@ -1,14 +1,13 @@
-package io.jdbd.mysql.protocol.client;
+package io.jdbd.mysql;
 
 import io.jdbd.meta.SQLType;
 import io.jdbd.mysql.protocol.CharsetMapping;
+import io.jdbd.mysql.protocol.client.MySQLColumnMeta;
+import io.jdbd.mysql.protocol.client.ProtocolConstants;
 import io.jdbd.mysql.protocol.conf.PropertyKey;
-import io.jdbd.type.geometry.Geometry;
 import io.jdbd.vendor.conf.Properties;
 import org.qinarmy.util.StringUtils;
 
-import java.io.InputStream;
-import java.io.Reader;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.sql.JDBCType;
@@ -16,8 +15,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.Year;
-import java.util.*;
-import java.util.function.BiFunction;
+import java.util.Set;
 
 /**
  * @see <a href="https://dev.mysql.com/doc/refman/8.0/en/data-types.html"> Data Types</a>
@@ -116,13 +114,13 @@ public enum MySQLType implements SQLType {
      * If p is from 25 to 53, the data type becomes DOUBLE with no M or D values. The range of the resulting column is the same as
      * for the single-precision FLOAT or double-precision DOUBLE data types.
      */
-    FLOAT(ProtocolConstants.TYPE_FLOAT, JDBCType.REAL, Float.class),
+    FLOAT(ProtocolConstants.TYPE_FLOAT, JDBCType.FLOAT, Float.class),
     /**
      * FLOAT[(M,D)] UNSIGNED [ZEROFILL]
      *
      * @see #FLOAT
      */
-    FLOAT_UNSIGNED(ProtocolConstants.TYPE_FLOAT, true, JDBCType.REAL, Double.class),
+    FLOAT_UNSIGNED(ProtocolConstants.TYPE_FLOAT, true, JDBCType.FLOAT, Double.class),
 
     /**
      * DOUBLE[(M,D)] [UNSIGNED] [ZEROFILL]
@@ -339,7 +337,7 @@ public enum MySQLType implements SQLType {
      * <p>
      * Protocol: TYPE_LONG_BLOB = 251
      */
-    LONGBLOB(ProtocolConstants.TYPE_LONG_BLOB, JDBCType.LONGVARBINARY, InputStream.class),
+    LONGBLOB(ProtocolConstants.TYPE_LONG_BLOB, JDBCType.LONGVARBINARY, io.jdbd.type.Blob.class),
     /**
      * LONGTEXT [CHARACTER SET charset_name] [COLLATE collation_name]
      * A TEXT column with a maximum length of 4,294,967,295 or 4GB (232 - 1) characters. The effective
@@ -350,7 +348,7 @@ public enum MySQLType implements SQLType {
      * <p>
      * Protocol: TYPE_LONG_BLOB = 251
      */
-    LONGTEXT(ProtocolConstants.TYPE_LONG_BLOB, JDBCType.LONGVARCHAR, Reader.class),
+    LONGTEXT(ProtocolConstants.TYPE_LONG_BLOB, JDBCType.LONGVARCHAR, io.jdbd.type.Text.class),
     /**
      * BLOB[(M)]
      * A BLOB column with a maximum length of 65,535 (216 - 1) bytes. Each BLOB value is stored using
@@ -405,7 +403,7 @@ public enum MySQLType implements SQLType {
      * <p>
      * Protocol: TYPE_GEOMETRY = 255
      */
-    GEOMETRY(ProtocolConstants.TYPE_GEOMETRY, JDBCType.OTHER, Geometry.class), // TODO check precision, it isn't well documented, only mentioned that WKB format is represented by BLOB
+    GEOMETRY(ProtocolConstants.TYPE_GEOMETRY, JDBCType.BLOB, io.jdbd.type.Blob.class), // TODO check precision, it isn't well documented, only mentioned that WKB format is represented by BLOB
     /**
      * Fall-back type for those MySQL data types which c/J can't recognize.
      * Handled the same as BLOB.
@@ -413,10 +411,6 @@ public enum MySQLType implements SQLType {
      * Has no protocol ID.
      */
     UNKNOWN(-1, JDBCType.OTHER, Object.class);
-
-    private static final Map<Integer, BiFunction<MySQLColumnMeta, Properties<PropertyKey>, MySQLType>> CONVERT_FUNCTION_MAP = createConverterMap();
-
-    private static final List<MySQLType> VALUE_LIST = Collections.unmodifiableList(Arrays.asList(values()));
 
     private final JDBCType jdbcType;
 
@@ -473,23 +467,97 @@ public enum MySQLType implements SQLType {
     }
 
 
-    @Override
-    public List<? extends SQLType> getFamily() {
-        return VALUE_LIST;
-    }
-
-
     public static MySQLType from(MySQLColumnMeta columnMeta, Properties<PropertyKey> properties) {
-        BiFunction<MySQLColumnMeta, Properties<PropertyKey>, MySQLType> function;
-        function = CONVERT_FUNCTION_MAP.get(columnMeta.typeFlag);
-        return function == null ? UNKNOWN : function.apply(columnMeta, properties);
-    }
-
-
-    private static MySQLType fromDecimal(MySQLColumnMeta columnMeta, Properties<PropertyKey> properties) {
-        return isUnsigned(columnMeta)
-                ? DECIMAL_UNSIGNED
-                : DECIMAL;
+        final MySQLType mySQLType;
+        switch (columnMeta.typeFlag) {
+            case ProtocolConstants.TYPE_DECIMAL:
+            case ProtocolConstants.TYPE_NEWDECIMAL:
+                mySQLType = columnMeta.isUnsigned() ? DECIMAL_UNSIGNED : DECIMAL;
+                break;
+            case ProtocolConstants.TYPE_TINY:
+                mySQLType = fromTiny(columnMeta, properties);
+                break;
+            case ProtocolConstants.TYPE_LONG:
+                mySQLType = columnMeta.isUnsigned() ? INT_UNSIGNED : INT;
+                break;
+            case ProtocolConstants.TYPE_LONGLONG:
+                mySQLType = columnMeta.isUnsigned() ? BIGINT_UNSIGNED : BIGINT;
+                break;
+            case ProtocolConstants.TYPE_TIMESTAMP:
+                mySQLType = TIMESTAMP;
+                break;
+            case ProtocolConstants.TYPE_INT24:
+                mySQLType = columnMeta.isUnsigned() ? MEDIUMINT_UNSIGNED : MEDIUMINT;
+                break;
+            case ProtocolConstants.TYPE_DATE:
+                mySQLType = DATE;
+                break;
+            case ProtocolConstants.TYPE_TIME:
+                mySQLType = TIME;
+                break;
+            case ProtocolConstants.TYPE_DATETIME:
+                mySQLType = DATETIME;
+                break;
+            case ProtocolConstants.TYPE_YEAR:
+                mySQLType = YEAR;
+                break;
+            case ProtocolConstants.TYPE_VARCHAR:
+            case ProtocolConstants.TYPE_VAR_STRING:
+                mySQLType = fromVarcharOrVarString(columnMeta, properties);
+                break;
+            case ProtocolConstants.TYPE_STRING:
+                mySQLType = fromString(columnMeta, properties);
+                break;
+            case ProtocolConstants.TYPE_SHORT: {
+                mySQLType = columnMeta.isUnsigned() ? SMALLINT_UNSIGNED : SMALLINT;
+            }
+            break;
+            case ProtocolConstants.TYPE_BIT:
+                mySQLType = BIT;
+                break;
+            case ProtocolConstants.TYPE_JSON:
+                mySQLType = JSON;
+                break;
+            case ProtocolConstants.TYPE_ENUM:
+                mySQLType = ENUM;
+                break;
+            case ProtocolConstants.TYPE_SET:
+                mySQLType = SET;
+                break;
+            case ProtocolConstants.TYPE_NULL:
+                mySQLType = NULL;
+                break;
+            case ProtocolConstants.TYPE_FLOAT:
+                mySQLType = columnMeta.isUnsigned() ? FLOAT_UNSIGNED : FLOAT;
+                break;
+            case ProtocolConstants.TYPE_DOUBLE:
+                mySQLType = columnMeta.isUnsigned() ? DOUBLE_UNSIGNED : DOUBLE;
+                break;
+            case ProtocolConstants.TYPE_TINY_BLOB: {
+                mySQLType = fromTinyBlob(columnMeta, properties);
+            }
+            break;
+            case ProtocolConstants.TYPE_MEDIUM_BLOB: {
+                mySQLType = fromMediumBlob(columnMeta, properties);
+            }
+            break;
+            case ProtocolConstants.TYPE_LONG_BLOB: {
+                mySQLType = fromLongBlob(columnMeta, properties);
+            }
+            break;
+            case ProtocolConstants.TYPE_BLOB:
+                mySQLType = fromBlob(columnMeta, properties);
+                break;
+            case ProtocolConstants.TYPE_BOOL:
+                mySQLType = BOOLEAN;
+                break;
+            case ProtocolConstants.TYPE_GEOMETRY:
+                mySQLType = GEOMETRY;
+                break;
+            default:
+                mySQLType = UNKNOWN;
+        }
+        return mySQLType;
     }
 
 
@@ -510,67 +578,6 @@ public enum MySQLType implements SQLType {
         return mySQLType;
     }
 
-    private static MySQLType fromBool(MySQLColumnMeta columnMeta, Properties<PropertyKey> properties) {
-        return BOOLEAN;
-    }
-
-    private static MySQLType fromShort(MySQLColumnMeta columnMeta, Properties<PropertyKey> properties) {
-        return columnMeta.isUnsigned()
-                ? SMALLINT_UNSIGNED
-                : SMALLINT;
-    }
-
-    private static MySQLType fromLong(MySQLColumnMeta columnMeta, Properties<PropertyKey> properties) {
-        return columnMeta.isUnsigned()
-                ? INT_UNSIGNED
-                : INT;
-    }
-
-    private static MySQLType fromFloat(MySQLColumnMeta columnMeta, Properties<PropertyKey> properties) {
-        return columnMeta.isUnsigned()
-                ? FLOAT_UNSIGNED
-                : FLOAT;
-    }
-
-    private static MySQLType fromDouble(MySQLColumnMeta columnMeta, Properties<PropertyKey> properties) {
-        return columnMeta.isUnsigned()
-                ? DOUBLE_UNSIGNED
-                : DOUBLE;
-    }
-
-    private static MySQLType fromNull(MySQLColumnMeta columnMeta, Properties<PropertyKey> properties) {
-        return MySQLType.NULL;
-    }
-
-    private static MySQLType fromTimestamp(MySQLColumnMeta columnMeta, Properties<PropertyKey> properties) {
-        return MySQLType.TIMESTAMP;
-    }
-
-    private static MySQLType fromLongLong(MySQLColumnMeta columnMeta, Properties<PropertyKey> properties) {
-        return columnMeta.isUnsigned()
-                ? BIGINT_UNSIGNED
-                : BIGINT;
-    }
-
-    private static MySQLType fromInt24(MySQLColumnMeta columnMeta, Properties<PropertyKey> properties) {
-        return columnMeta.isUnsigned() ? MEDIUMINT_UNSIGNED : MEDIUMINT;
-    }
-
-    private static MySQLType fromDate(MySQLColumnMeta columnMeta, Properties<PropertyKey> properties) {
-        return MySQLType.DATE;
-    }
-
-    private static MySQLType fromTime(MySQLColumnMeta columnMeta, Properties<PropertyKey> properties) {
-        return MySQLType.TIME;
-    }
-
-    private static MySQLType fromDatetime(MySQLColumnMeta columnMeta, Properties<PropertyKey> properties) {
-        return MySQLType.DATETIME;
-    }
-
-    private static MySQLType fromYear(MySQLColumnMeta columnMeta, Properties<PropertyKey> properties) {
-        return MySQLType.YEAR;
-    }
 
     private static MySQLType fromVarcharOrVarString(MySQLColumnMeta columnMeta, Properties<PropertyKey> properties) {
         final MySQLType mySQLType;
@@ -587,64 +594,57 @@ public enum MySQLType implements SQLType {
         return mySQLType;
     }
 
-    private static MySQLType fromBit(MySQLColumnMeta columnMeta, Properties<PropertyKey> properties) {
-        return BIT;
-    }
-
-    private static MySQLType fromJson(MySQLColumnMeta columnMeta, Properties<PropertyKey> properties) {
-        return JSON;
-    }
-
-    private static MySQLType fromEnum(MySQLColumnMeta columnMeta, Properties<PropertyKey> properties) {
-        return ENUM;
-    }
-
-    private static MySQLType fromSet(MySQLColumnMeta columnMeta, Properties<PropertyKey> properties) {
-        return SET;
-    }
-
-    private static MySQLType fromTinyBlob(MySQLColumnMeta columnMeta, Properties<PropertyKey> properties) {
-        return isBlobTypeReturnText(columnMeta, properties) ? TINYTEXT : TINYBLOB;
-    }
-
-    private static MySQLType fromMediumBlob(MySQLColumnMeta columnMeta, Properties<PropertyKey> properties) {
-        return isBlobTypeReturnText(columnMeta, properties) ? MEDIUMTEXT : MEDIUMBLOB;
-    }
-
-    private static MySQLType fromLongBlob(MySQLColumnMeta columnMeta, Properties<PropertyKey> properties) {
-        //return isBlobTypeReturnText(columnMeta, properties) ? LONGTEXT : LONGBLOB;
-        final MySQLType mySQLType;
-        if (columnMeta.isBlob()
-                || columnMeta.isBinary()
-                || !isBlobTypeReturnText(columnMeta, properties)) {
-            mySQLType = LONGBLOB;
-        } else {
-            mySQLType = LONGTEXT;
-        }
-        return mySQLType;
-    }
 
     private static MySQLType fromBlob(MySQLColumnMeta columnMeta, Properties<PropertyKey> properties) {
         // Sometimes MySQL uses this protocol-level type for all possible BLOB variants,
         // we can divine what the actual type is by the length reported
 
-        int newMysqlTypeId;
+
+        final MySQLType mySQLType;
 
         final long maxLength = columnMeta.length;
         // fixing initial type according to length
         if (maxLength <= 255L) {
-            newMysqlTypeId = ProtocolConstants.TYPE_TINY_BLOB;
+            mySQLType = fromTinyBlob(columnMeta, properties);
         } else if (columnMeta.length <= (1 << 16) - 1) {
-            return isBlobTypeReturnText(columnMeta, properties) ? TEXT : BLOB;
+            mySQLType = (columnMeta.isBlob() || columnMeta.isBinary() || isBlobTypeReturnText(columnMeta, properties))
+                    ? TEXT : BLOB;
         } else if (maxLength <= (1 << 24) - 1) {
-            newMysqlTypeId = ProtocolConstants.TYPE_MEDIUM_BLOB;
+            mySQLType = fromMediumBlob(columnMeta, properties);
         } else {
-            newMysqlTypeId = ProtocolConstants.TYPE_LONG_BLOB;
+            mySQLType = fromLongBlob(columnMeta, properties);
         }
+        return mySQLType;
+    }
 
-        // call this method again with correct this.mysqlType set
-        return Objects.requireNonNull(CONVERT_FUNCTION_MAP.get(newMysqlTypeId), "TypeFlag no function")
-                .apply(columnMeta, properties);
+    private static MySQLType fromTinyBlob(MySQLColumnMeta columnMeta, Properties<PropertyKey> properties) {
+        final MySQLType mySQLType;
+        if (columnMeta.isBlob() || columnMeta.isBinary() || !isBlobTypeReturnText(columnMeta, properties)) {
+            mySQLType = TINYBLOB;
+        } else {
+            mySQLType = TINYTEXT;
+        }
+        return mySQLType;
+    }
+
+    private static MySQLType fromMediumBlob(MySQLColumnMeta columnMeta, Properties<PropertyKey> properties) {
+        final MySQLType mySQLType;
+        if (columnMeta.isBlob() || columnMeta.isBinary() || !isBlobTypeReturnText(columnMeta, properties)) {
+            mySQLType = MEDIUMBLOB;
+        } else {
+            mySQLType = MEDIUMTEXT;
+        }
+        return mySQLType;
+    }
+
+    private static MySQLType fromLongBlob(MySQLColumnMeta columnMeta, Properties<PropertyKey> properties) {
+        final MySQLType mySQLType;
+        if (columnMeta.isBlob() || columnMeta.isBinary() || !isBlobTypeReturnText(columnMeta, properties)) {
+            mySQLType = LONGBLOB;
+        } else {
+            mySQLType = LONGTEXT;
+        }
+        return mySQLType;
     }
 
     private static MySQLType fromString(MySQLColumnMeta columnMeta, Properties<PropertyKey> properties) {
@@ -653,17 +653,14 @@ public enum MySQLType implements SQLType {
             mySQLType = ENUM;
         } else if (columnMeta.isSetType()) {
             mySQLType = SET;
-        } else if (isOpaqueBinary(columnMeta)
-                && !properties.getOrDefault(PropertyKey.blobsAreStrings, Boolean.class)) {
+        } else if (columnMeta.isBinary()
+                || (isOpaqueBinary(columnMeta)
+                && !properties.getOrDefault(PropertyKey.blobsAreStrings, Boolean.class))) {
             mySQLType = BINARY;
         } else {
             mySQLType = CHAR;
         }
         return mySQLType;
-    }
-
-    private static MySQLType fromGeometry(MySQLColumnMeta columnMeta, Properties<PropertyKey> properties) {
-        return GEOMETRY;
     }
 
 
@@ -672,11 +669,11 @@ public enum MySQLType implements SQLType {
         boolean isImplicitTemporaryTable = columnMeta.tableName != null
                 && columnMeta.tableName.startsWith("#sql_"); //TODO check tableName or tableAlias
 
-        boolean isBinaryString = (isBinary(columnMeta.definitionFlags)
+        boolean isBinaryString = columnMeta.isBinary()
                 && columnMeta.collationIndex == CharsetMapping.MYSQL_COLLATION_INDEX_binary
                 && (columnMeta.typeFlag == ProtocolConstants.TYPE_STRING
                 || columnMeta.typeFlag == ProtocolConstants.TYPE_VAR_STRING
-                || columnMeta.typeFlag == ProtocolConstants.TYPE_VARCHAR));
+                || columnMeta.typeFlag == ProtocolConstants.TYPE_VARCHAR);
 
         return isBinaryString
                 // queries resolved by temp tables also have this 'signature', check for that
@@ -684,13 +681,6 @@ public enum MySQLType implements SQLType {
 
     }
 
-    private static boolean isUnsigned(MySQLColumnMeta columnMeta) {
-        return ((columnMeta.definitionFlags & MySQLColumnMeta.UNSIGNED_FLAG) != 0);
-    }
-
-    private static boolean isBinary(final int definitionFlags) {
-        return (definitionFlags & MySQLColumnMeta.BINARY_FLAG) != 0;
-    }
 
     private static boolean isFunctionsNeverReturnBlobs(MySQLColumnMeta columnMeta, Properties<PropertyKey> properties) {
         return StringUtils.isEmpty(columnMeta.tableName)
@@ -698,53 +688,10 @@ public enum MySQLType implements SQLType {
     }
 
     private static boolean isBlobTypeReturnText(MySQLColumnMeta columnMeta, Properties<PropertyKey> properties) {
-        return !isBinary(columnMeta.definitionFlags)
+        return !columnMeta.isBinary()
                 || columnMeta.collationIndex != CharsetMapping.MYSQL_COLLATION_INDEX_binary
                 || properties.getOrDefault(PropertyKey.blobsAreStrings, Boolean.class)
                 || isFunctionsNeverReturnBlobs(columnMeta, properties);
-    }
-
-    private static Map<Integer, BiFunction<MySQLColumnMeta, Properties<PropertyKey>, MySQLType>> createConverterMap() {
-        Map<Integer, BiFunction<MySQLColumnMeta, Properties<PropertyKey>, MySQLType>> map;
-        map = new HashMap<>();
-
-        map.put(ProtocolConstants.TYPE_DECIMAL, MySQLType::fromDecimal);
-        map.put(ProtocolConstants.TYPE_TINY, MySQLType::fromTiny);
-        map.put(ProtocolConstants.TYPE_SHORT, MySQLType::fromShort);
-        map.put(ProtocolConstants.TYPE_LONG, MySQLType::fromLong);
-
-        map.put(ProtocolConstants.TYPE_FLOAT, MySQLType::fromFloat);
-        map.put(ProtocolConstants.TYPE_DOUBLE, MySQLType::fromDouble);
-        map.put(ProtocolConstants.TYPE_NULL, MySQLType::fromNull);
-        map.put(ProtocolConstants.TYPE_TIMESTAMP, MySQLType::fromTimestamp);
-
-        map.put(ProtocolConstants.TYPE_LONGLONG, MySQLType::fromLongLong);
-        map.put(ProtocolConstants.TYPE_INT24, MySQLType::fromInt24);
-        map.put(ProtocolConstants.TYPE_DATE, MySQLType::fromDate);
-        map.put(ProtocolConstants.TYPE_TIME, MySQLType::fromTime);
-
-        map.put(ProtocolConstants.TYPE_DATETIME, MySQLType::fromDatetime);
-        map.put(ProtocolConstants.TYPE_YEAR, MySQLType::fromYear);
-        map.put(ProtocolConstants.TYPE_VARCHAR, MySQLType::fromVarcharOrVarString);
-        map.put(ProtocolConstants.TYPE_BIT, MySQLType::fromBit);
-
-        map.put(ProtocolConstants.TYPE_JSON, MySQLType::fromJson);
-        map.put(ProtocolConstants.TYPE_NEWDECIMAL, MySQLType::fromDecimal);
-        map.put(ProtocolConstants.TYPE_ENUM, MySQLType::fromEnum);
-        map.put(ProtocolConstants.TYPE_SET, MySQLType::fromSet);
-
-        map.put(ProtocolConstants.TYPE_TINY_BLOB, MySQLType::fromTinyBlob);
-        map.put(ProtocolConstants.TYPE_MEDIUM_BLOB, MySQLType::fromMediumBlob);
-        map.put(ProtocolConstants.TYPE_LONG_BLOB, MySQLType::fromLongBlob);
-        map.put(ProtocolConstants.TYPE_BLOB, MySQLType::fromBlob);
-
-        map.put(ProtocolConstants.TYPE_VAR_STRING, MySQLType::fromVarcharOrVarString);
-        map.put(ProtocolConstants.TYPE_STRING, MySQLType::fromString);
-        map.put(ProtocolConstants.TYPE_BOOL, MySQLType::fromBool);
-        map.put(ProtocolConstants.TYPE_GEOMETRY, MySQLType::fromGeometry);
-
-
-        return Collections.unmodifiableMap(map);
     }
 
 

@@ -3,12 +3,12 @@ package io.jdbd.mysql.protocol.client;
 import io.jdbd.BindParameterException;
 import io.jdbd.mysql.BindValue;
 import io.jdbd.mysql.MySQLBindValue;
+import io.jdbd.mysql.MySQLType;
 import io.jdbd.mysql.protocol.Constants;
 import io.jdbd.mysql.util.MySQLCollections;
 import io.jdbd.mysql.util.MySQLExceptions;
 import io.jdbd.mysql.util.MySQLNumberUtils;
 import io.jdbd.mysql.util.MySQLTimeUtils;
-import io.jdbd.type.geometry.Geometry;
 import io.jdbd.vendor.conf.Properties;
 import io.netty.buffer.ByteBuf;
 import org.reactivestreams.Publisher;
@@ -856,9 +856,6 @@ final class PrepareExecuteCommandWriter implements StatementCommandWriter {
             PacketUtils.writeStringLenEnc(buffer, (byte[]) nonNullValue);
         } else if (nonNullValue instanceof Enum) {
             PacketUtils.writeStringLenEnc(buffer, ((Enum<?>) nonNullValue).name().getBytes(charset));
-        } else if (nonNullValue instanceof Geometry) {
-            // TODO add code
-            throw BindUtils.createTypeNotMatchException(bindValue);
         } else {
             throw BindUtils.createTypeNotMatchException(bindValue);
         }

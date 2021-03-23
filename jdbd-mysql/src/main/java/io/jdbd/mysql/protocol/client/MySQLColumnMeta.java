@@ -1,6 +1,7 @@
 package io.jdbd.mysql.protocol.client;
 
 import io.jdbd.NullMode;
+import io.jdbd.mysql.MySQLType;
 import io.jdbd.mysql.protocol.CharsetMapping;
 import io.jdbd.mysql.protocol.conf.PropertyKey;
 import io.jdbd.vendor.conf.Properties;
@@ -39,33 +40,33 @@ public final class MySQLColumnMeta {
     static final int PART_KEY_FLAG = 1 << 14;
     static final int NUM_FLAG = 1 << 15;
 
-    final String catalogName;
+    public final String catalogName;
 
-    final String schemaName;
+    public final String schemaName;
 
-    final String tableName;
+    public final String tableName;
 
-    final String tableAlias;
+    public final String tableAlias;
 
-    final String columnName;
+    public final String columnName;
 
-    final String columnAlias;
+    public final String columnAlias;
 
-    final int collationIndex;
+    public final int collationIndex;
 
-    final Charset columnCharset;
+    public final Charset columnCharset;
 
     final long fixedLength;
 
-    final long length;
+    public final long length;
 
-    final int typeFlag;
+    public final int typeFlag;
 
-    final int definitionFlags;
+    public final int definitionFlags;
 
-    final short decimals;
+    public final short decimals;
 
-    final MySQLType mysqlType;
+    public final MySQLType mysqlType;
 
     private MySQLColumnMeta(
             @Nullable String catalogName, @Nullable String schemaName
@@ -101,7 +102,7 @@ public final class MySQLColumnMeta {
     }
 
 
-    long obtainPrecision(Map<Integer, CharsetMapping.CustomCollation> customCollationMap) {
+    public long obtainPrecision(Map<Integer, CharsetMapping.CustomCollation> customCollationMap) {
         long precision;
         // Protocol returns precision and scale differently for some types. We need to align then to I_S.
         switch (this.mysqlType) {
@@ -160,39 +161,39 @@ public final class MySQLColumnMeta {
         return precision;
     }
 
-    final boolean isEnum() {
+    public final boolean isEnum() {
         return (this.definitionFlags & ENUM_FLAG) != 0;
     }
 
-    final boolean isSetType() {
+    public final boolean isSetType() {
         return (this.definitionFlags & SET_FLAG) != 0;
     }
 
-    final boolean isBinary() {
+    public final boolean isBinary() {
         return (this.definitionFlags & BINARY_FLAG) != 0;
     }
 
-    final boolean isBlob() {
+    public final boolean isBlob() {
         return (this.definitionFlags & BLOB_FLAG) != 0;
     }
 
-    final boolean isAutoIncrement() {
+    public final boolean isAutoIncrement() {
         return (this.definitionFlags & AUTO_INCREMENT_FLAG) != 0;
     }
 
-    final boolean isPrimaryKey() {
+    public final boolean isPrimaryKey() {
         return (this.definitionFlags & PRI_KEY_FLAG) != 0;
     }
 
-    final boolean isMultipleKey() {
+    public final boolean isMultipleKey() {
         return (this.definitionFlags & MULTIPLE_KEY_FLAG) != 0;
     }
 
-    final boolean isUniqueKey() {
+    public final boolean isUniqueKey() {
         return (this.definitionFlags & UNIQUE_KEY_FLAG) != 0;
     }
 
-    final int getScale() {
+    public final int getScale() {
         final int scale;
         switch (mysqlType) {
             case DECIMAL:
@@ -214,7 +215,7 @@ public final class MySQLColumnMeta {
         return scale;
     }
 
-    final NullMode getNullMode() {
+    public final NullMode getNullMode() {
         final NullMode nullMode;
         if ((this.definitionFlags & NOT_NULL_FLAG) != 0 || (this.definitionFlags & PRI_KEY_FLAG) != 0) {
             nullMode = NullMode.NON_NULL;
@@ -274,7 +275,7 @@ public final class MySQLColumnMeta {
     /**
      * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_com_query_response_text_resultset_column_definition.html">Protocol::ColumnDefinition41</a>
      */
-    static MySQLColumnMeta readFor41(ByteBuf payloadBuf, ClientProtocolAdjutant adjutant) {
+    public static MySQLColumnMeta readFor41(ByteBuf payloadBuf, ClientProtocolAdjutant adjutant) {
         final Charset metaCharset = adjutant.obtainCharsetMeta();
         final Properties<PropertyKey> properties = adjutant.obtainHostInfo().getProperties();
         // 1. catalog

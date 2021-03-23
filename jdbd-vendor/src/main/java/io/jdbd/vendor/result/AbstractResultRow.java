@@ -4,8 +4,8 @@ import io.jdbd.JdbdSQLException;
 import io.jdbd.ResultRow;
 import io.jdbd.ResultRowMeta;
 import io.jdbd.UnsupportedConvertingException;
+import io.jdbd.meta.SQLType;
 import io.jdbd.type.CodeEnum;
-import io.jdbd.type.geometry.Geometry;
 import io.jdbd.vendor.util.JdbdCollections;
 import io.jdbd.vendor.util.JdbdStringUtils;
 import reactor.util.annotation.Nullable;
@@ -44,7 +44,18 @@ public abstract class AbstractResultRow<R extends ResultRowMeta> implements Resu
     @Nullable
     @Override
     public final Object get(final int indexBaseZero) throws JdbdSQLException {
-        return this.columnValues[checkIndex(indexBaseZero)];
+        final Object value = this.columnValues[checkIndex(indexBaseZero)];
+        if (value == null) {
+            return null;
+        }
+        final Object convertedValue;
+        final SQLType sqlType = this.rowMeta.getSQLType(indexBaseZero);
+        if (value.getClass() == sqlType.javaType()) {
+            convertedValue = value;
+        } else {
+            convertedValue = convertNonNullValue(indexBaseZero, value, sqlType.getClass());
+        }
+        return convertedValue;
     }
 
     @SuppressWarnings("unchecked")
@@ -260,8 +271,6 @@ public abstract class AbstractResultRow<R extends ResultRowMeta> implements Resu
             }
         } else if (targetClass == Boolean.class) {
             convertedValue = convertToBoolean(indexBaseZero, nonValue);
-        } else if (Geometry.class.isAssignableFrom(targetClass)) {
-            convertedValue = convertToGeometry(indexBaseZero, nonValue);
         } else if (targetClass == byte[].class) {
             convertedValue = convertToByteArray(indexBaseZero, nonValue);
         } else if (targetClass.isEnum()) {
@@ -396,15 +405,6 @@ public abstract class AbstractResultRow<R extends ResultRowMeta> implements Resu
         }
     }
 
-
-    /**
-     * @see #convertNonNullValue(int, Object, Class)
-     */
-    protected Geometry convertToGeometry(final int indexBaseZero, final Object sourceValue)
-            throws UnsupportedConvertingException {
-
-        return null;
-    }
 
     /**
      * @see #convertNonNullValue(int, Object, Class)
