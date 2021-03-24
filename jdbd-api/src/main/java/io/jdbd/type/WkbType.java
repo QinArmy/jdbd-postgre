@@ -16,25 +16,26 @@ public enum WkbType implements CodeEnum {
 
     GEOMETRY(Constant.GEOMETRY),
     POINT(Constant.POINT),
-    LINESTRING(Constant.LINESTRING),
+    LINE_STRING(Constant.LINE_STRING),
     POLYGON(Constant.POLYGON),
 
-    MULTIPOINT(Constant.MULTIPOINT),
-    MULTILINESTRING(Constant.MULTILINESTRING),
-    MULTIPOLYGON(Constant.MULTIPOLYGON),
-    GEOMETRYCOLLECTION(Constant.GEOMETRYCOLLECTION),
+    MULTI_POINT(Constant.MULTI_POINT),
+    MULTI_LINE_STRING(Constant.MULTI_LINE_STRING),
+    MULTI_POLYGON(Constant.MULTI_POLYGON),
+    GEOMETRY_COLLECTION(Constant.GEOMETRY_COLLECTION),
 
-    CIRCULARSTRING(Constant.CIRCULARSTRING),
-    COMPOUNDCURVE(Constant.COMPOUNDCURVE),
-    CURVEPOLYGON(Constant.CURVEPOLYGON),
-    MULTICURVE(Constant.MULTICURVE),
+    CIRCULAR_STRING(Constant.CIRCULAR_STRING), // future use
+    COMPOUND_CURVE(Constant.COMPOUND_CURVE), // future use
+    CURVE_POLYGON(Constant.CURVE_POLYGON), // future use
+    MULTI_CURVE(Constant.MULTI_CURVE),
 
-    MULTISURFACE(Constant.MULTISURFACE),
+    MULTI_SURFACE(Constant.MULTI_SURFACE),
     CURVE(Constant.CURVE),
     SURFACE(Constant.SURFACE),
-    POLYHEDRALSURFACE(Constant.POLYHEDRALSURFACE),
+    POLYHEDRAL_SURFACE(Constant.POLYHEDRAL_SURFACE),
 
-    TIN(Constant.TIN);
+    TIN(Constant.TIN),
+    TRIANGLE(Constant.TRIANGLE);
 
 
     private static final Map<Integer, WkbType> CODE_MAP = CodeEnum.getCodeMap(WkbType.class);
@@ -42,8 +43,11 @@ public enum WkbType implements CodeEnum {
 
     public final int code;
 
+    public final String wktType;
+
     WkbType(int code) {
         this.code = code;
+        this.wktType = wktTypeName(name());
     }
 
     @Override
@@ -51,30 +55,36 @@ public enum WkbType implements CodeEnum {
         return this.code;
     }
 
+    @Override
+    public String display() {
+        return this.wktType;
+    }
+
 
     public interface Constant {
 
         byte GEOMETRY = 0;
         byte POINT = 1;
-        byte LINESTRING = 2;
+        byte LINE_STRING = 2;
         byte POLYGON = 3;
 
-        byte MULTIPOINT = 4;
-        byte MULTILINESTRING = 5;
-        byte MULTIPOLYGON = 6;
-        byte GEOMETRYCOLLECTION = 7;
+        byte MULTI_POINT = 4;
+        byte MULTI_LINE_STRING = 5;
+        byte MULTI_POLYGON = 6;
+        byte GEOMETRY_COLLECTION = 7;
 
-        byte CIRCULARSTRING = 8;
-        byte COMPOUNDCURVE = 9;
-        byte CURVEPOLYGON = 10;
-        byte MULTICURVE = 11;
+        byte CIRCULAR_STRING = 8;
+        byte COMPOUND_CURVE = 9;
+        byte CURVE_POLYGON = 10;
+        byte MULTI_CURVE = 11;
 
-        byte MULTISURFACE = 12;
+        byte MULTI_SURFACE = 12;
         byte CURVE = 13;
         byte SURFACE = 14;
-        byte POLYHEDRALSURFACE = 15;
+        byte POLYHEDRAL_SURFACE = 15;
 
         byte TIN = 16;
+        byte TRIANGLE = 17;
 
     }
 
@@ -133,6 +143,33 @@ public enum WkbType implements CodeEnum {
                     | ((wkbArray[offset] & 0xFF) << 24);
         }
         return num;
+    }
+
+    private static String wktTypeName(String name) {
+        final int len = name.length();
+        int underlineCount = 0;
+        for (int i = 0; i < len; i++) {
+            if (name.charAt(i) == '_') {
+                underlineCount++;
+            }
+        }
+        final String wktType;
+        if (underlineCount > 0) {
+            char[] charArray = new char[len - underlineCount];
+            char ch;
+            for (int i = 0, chIndex = 0; i < len; i++) {
+                ch = name.charAt(i);
+                if (ch != '_') {
+                    charArray[chIndex] = ch;
+                    chIndex++;
+                }
+            }
+            wktType = new String(charArray);
+        } else {
+            wktType = name;
+        }
+        return wktType;
+
     }
 
 
