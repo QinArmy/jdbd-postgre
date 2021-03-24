@@ -2,6 +2,9 @@ package io.jdbd.type;
 
 import io.jdbd.lang.Nullable;
 
+import java.util.Collections;
+import java.util.Map;
+
 
 /**
  * <p>
@@ -22,6 +25,10 @@ public interface CodeEnum {
     @Nullable
     static <T extends Enum<T> & CodeEnum> T resolve(Class<?> enumClass, int code) {
         throw new UnsupportedOperationException();
+    }
+
+    static <T extends Enum<T> & CodeEnum> Map<Integer, T> getCodeMap(Class<T> clazz) {
+        return Collections.emptyMap();
     }
 
 }
