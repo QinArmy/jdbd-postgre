@@ -25,19 +25,42 @@ abstract class GenericGeometries {
             if (oneByteOrder == towByteOrder) {
                 match = Arrays.equals(geometryOne, geometryTwo);
             } else {
-                byte[] copyTwo = Arrays.copyOf(geometryTwo, geometryTwo.length);
-                reverseWkb(copyTwo);
-                match = Arrays.equals(geometryOne, copyTwo);
+                final WkbType wkbTypeOne = WkbType.resolveWkbType(geometryOne, 0);
+                final WkbType wkbTypeTwo = WkbType.resolveWkbType(geometryTwo, 0);
+                if (wkbTypeOne != WkbType.POINT && geometryOne.length < HEADER_LENGTH) {
+                    throw createWkbLengthError(wkbTypeOne.name(), geometryOne.length, HEADER_LENGTH);
+                }
+                if (wkbTypeOne == wkbTypeTwo) {
+                    switch (wkbTypeOne) {
+                        case POINT:
+                            match = Geometries.pointReverseEquals(geometryOne, geometryTwo);
+                            break;
+                        case LINE_STRING:
+                            match = Geometries.lineStringReverseEquals(geometryOne, geometryTwo);
+                            break;
+                        case POLYGON:
+                            match = Geometries.polygonReverseEquals(geometryOne, geometryTwo);
+                            break;
+                        case MULTI_POINT:
+
+                        case MULTI_LINE_STRING:
+                        case MULTI_POLYGON:
+                        case GEOMETRY_COLLECTION:
+                        default:
+                            throw new IllegalArgumentException(String.format("not support %s now.", wkbTypeOne));
+                    }
+                } else {
+                    match = false;
+                }
             }
         }
-
         return match;
     }
 
-    public static void reverseWkb(final byte[] wkbArray) {
-        final WkbType wkbType = WkbType.resolveWkbType(wkbArray);
+    public static void reverseWkb(final byte[] wkbArray, final int offset) {
+        final WkbType wkbType = WkbType.resolveWkbType(wkbArray, offset);
         if (wkbType.code < 1000) {
-            Geometries.geometryWkbReverse(wkbType, wkbArray);
+            Geometries.geometryWkbReverse(wkbType, wkbArray, offset);
         } else {
             throw new IllegalArgumentException(String.format("Unknown WKB type[%s]", wkbType.code));
         }
@@ -45,25 +68,30 @@ abstract class GenericGeometries {
     }
 
 
-    static byte checkByteOrder(byte byteOrder) {
+    protected static byte checkByteOrder(byte byteOrder) {
         if (byteOrder != 0 && byteOrder != 1) {
             throw createIllegalByteOrderError(byteOrder);
         }
         return byteOrder;
     }
 
-    static int checkAndReverseHeader(final byte[] wkbArray, WkbType wkbType, Function<Integer, Integer> function) {
+    /**
+     * @return element count.
+     */
+    protected static int checkAndReverseHeader(final byte[] wkbArray, int offset, WkbType wkbType, Function<Integer, Integer> function) {
         if (wkbArray.length < 5) {
             throw createIllegalWkbLengthError(wkbArray.length, 5);
         }
-        final byte byteOrder = checkByteOrder(wkbArray[0]);
+        final byte byteOrder = checkByteOrder(wkbArray[offset++]);
         final int wkbTypeCode, elementCount;
         if (byteOrder == 1) {
-            wkbTypeCode = JdbdNumberUtils.readIntFromBigEndian(wkbArray, 1, 4);
-            elementCount = JdbdNumberUtils.readIntFromBigEndian(wkbArray, 5, 4);
+            wkbTypeCode = JdbdNumberUtils.readIntFromBigEndian(wkbArray, offset, 4);
+            offset += 4;
+            elementCount = JdbdNumberUtils.readIntFromBigEndian(wkbArray, offset, 4);
         } else {
-            wkbTypeCode = JdbdNumberUtils.readIntFromLittleEndian(wkbArray, 1, 4);
-            elementCount = JdbdNumberUtils.readIntFromLittleEndian(wkbArray, 5, 4);
+            wkbTypeCode = JdbdNumberUtils.readIntFromLittleEndian(wkbArray, offset, 4);
+            offset += 4;
+            elementCount = JdbdNumberUtils.readIntFromLittleEndian(wkbArray, offset, 4);
         }
         if (wkbTypeCode != wkbType.code) {
             throw createWkbTypeNotMatchError(wkbType.name(), wkbTypeCode);
@@ -79,6 +107,7 @@ abstract class GenericGeometries {
         JdbdArrayUtils.reverse(wkbArray, 1, 4, 2);
         return elementCount;
     }
+
 
     protected static IllegalArgumentException createIllegalByteOrderError(byte byteOrder) {
         return new IllegalArgumentException(String.format("Illegal byteOrder[%s].", byteOrder));
@@ -100,6 +129,26 @@ abstract class GenericGeometries {
 
     protected static IllegalArgumentException createUnknownWkbTypeError(int wkbType) {
         return new IllegalArgumentException(String.format("Unknown WKB-Type[%s].", wkbType));
+    }
+
+    protected static IllegalArgumentException createOffsetError(int offset, int arrayLength) {
+        return new IllegalArgumentException(String.format("offset[%s] not in [0,%s).", offset, arrayLength));
+    }
+
+    protected static IllegalArgumentException createIllegalElementCount(int elementCount) {
+        return new IllegalArgumentException(String.format("elementCount[%s] error", elementCount));
+    }
+
+    protected static IllegalArgumentException createIllegalLinearRingCountError(int linearRingCount) {
+        return new IllegalArgumentException(String.format("linearRingCount[%s] error", linearRingCount));
+    }
+
+    protected static IllegalArgumentException createIllegalLinearPointCountError(int pointCount) {
+        return new IllegalArgumentException(String.format("pointCount[%s] error", pointCount));
+    }
+
+    protected static IllegalArgumentException createNonLinearRingError(int linearRingIndex) {
+        return new IllegalArgumentException(String.format("Polygon LinearRing[%s] isn't LinearRing", linearRingIndex));
     }
 
 

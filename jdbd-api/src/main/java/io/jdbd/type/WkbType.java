@@ -94,18 +94,19 @@ public enum WkbType implements CodeEnum {
         return CODE_MAP.get(code);
     }
 
-    public static WkbType resolveWkbType(final byte[] wkbArray) throws IllegalArgumentException {
-        final byte byteOrder = wkbArray[0];
+    public static WkbType resolveWkbType(final byte[] wkbArray, int offset) throws IllegalArgumentException {
+        final byte byteOrder = wkbArray[offset++];
         if (byteOrder != 0 && byteOrder != 1) {
             throw new IllegalArgumentException(String.format("Illegal byteOrder[%s].", byteOrder));
         }
-        int typeCode = readInt(byteOrder == 1, wkbArray);
+        int typeCode = readInt(byteOrder == 0, wkbArray, offset);
         WkbType wkbType = resolve(typeCode);
         if (wkbType == null) {
             throw new IllegalArgumentException(String.format("Unknown WKB type[%s].", typeCode));
         }
         return wkbType;
     }
+
 
 
     public static WkbType resolveWkbType(final Path path) throws IllegalArgumentException, IOException {
@@ -116,7 +117,7 @@ public enum WkbType implements CodeEnum {
                 throw new IllegalArgumentException("Empty path");
             }
             buffer.flip();
-            return resolveWkbType(bufferArray);
+            return resolveWkbType(bufferArray, 0);
         } catch (IOException | IllegalArgumentException e) {
             throw e;
         } catch (Throwable e) {
@@ -125,12 +126,11 @@ public enum WkbType implements CodeEnum {
     }
 
 
-    private static int readInt(final boolean bigEndian, byte[] wkbArray) {
+    private static int readInt(final boolean bigEndian, final byte[] wkbArray, int offset) {
         if (wkbArray.length < 5) {
             throw new IllegalArgumentException("WKB length < 5 .");
         }
         final int num;
-        int offset = 1;
         if (bigEndian) {
             num = ((wkbArray[offset++] & 0xFF) << 24)
                     | ((wkbArray[offset++] & 0xFF) << 16)
