@@ -1,6 +1,5 @@
 package io.jdbd.vendor.util;
 
-import io.jdbd.type.WkbType;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
 import org.qinarmy.util.BufferWrapper;
@@ -21,6 +20,12 @@ import java.security.MessageDigest;
 import java.util.Arrays;
 import java.util.Stack;
 
+
+/**
+ * This class design for geometry sql type test.
+ *
+ * @see <a href="https://www.ogc.org/standards/sfa">Simple Feature Access - Part 1: Common Architecture PDF</a>
+ */
 public abstract class Geometries extends GenericGeometries {
 
 
@@ -277,44 +282,7 @@ public abstract class Geometries extends GenericGeometries {
     }
 
     public static String lineStringToWkt(final byte[] wkbArray, int offset) {
-        if (wkbArray.length < HEADER_LENGTH) {
-            throw createWkbLengthError(WkbType.LINE_STRING.wktType, wkbArray.length, HEADER_LENGTH);
-        }
-        if (offset < 0 || offset >= wkbArray.length) {
-            throw createOffsetError(offset, wkbArray.length);
-        }
-        final boolean bigEndian = checkByteOrder(wkbArray[offset++]) == 0;
-        final int wkbTypeCode, elementCount;
-        wkbTypeCode = JdbdNumberUtils.readIntFromEndian(bigEndian, wkbArray, offset, 4);
-        if (wkbTypeCode != WkbType.LINE_STRING.code) {
-            throw createWkbTypeNotMatchError(WkbType.LINE_STRING.wktType, wkbTypeCode);
-        }
-        offset += 4;
-        elementCount = JdbdNumberUtils.readIntFromEndian(bigEndian, wkbArray, offset, 4);
-        if (elementCount < 2) {
-            throw createIllegalElementCount(elementCount);
-        }
-        offset += 4;
-        if (wkbArray.length < (HEADER_LENGTH + (elementCount << 4))) {
-            throw createWkbLengthError(WkbType.LINE_STRING.wktType, wkbArray.length
-                    , (HEADER_LENGTH + ((long) elementCount << 4)));
-        }
-        StringBuilder builder = new StringBuilder(elementCount << 3)
-                .append(WkbType.LINE_STRING.wktType)
-                .append("(");
-
-        for (int i = 0; i < elementCount; i++) {
-            if (i > 0) {
-                builder.append(",");
-            }
-            builder.append(JdbdNumberUtils.readDoubleFromEndian(bigEndian, wkbArray, offset, 8))
-                    .append(" ");
-            offset += 8;
-            builder.append(JdbdNumberUtils.readDoubleFromEndian(bigEndian, wkbArray, offset, 8));
-            offset += 8;
-        }
-        builder.append(")");
-        return builder.toString();
+        return lineStringOrMultiPointToWkt(WkbType.LINE_STRING, wkbArray, offset);
     }
 
     /**
@@ -381,45 +349,22 @@ public abstract class Geometries extends GenericGeometries {
                 .toString();
     }
 
+    /**
+     * @see #multiPointToWkb(String, boolean)
+     */
+    public static String multiPointToWkt(final byte[] wkbArray, int offset) {
+        return lineStringOrMultiPointToWkt(WkbType.MULTI_POINT, wkbArray, offset);
+    }
+
+    /**
+     * @see #multiLineStringToWkb(String, boolean)
+     */
+    public static String multiLineStringToWkt(final byte[] wkbArray, int offset) {
+        return null;
+    }
+
     public static byte[] lineStringToWkb(final String wktText, final boolean bigEndian) {
-
-        final BufferWrapper inWrapper = new BufferWrapper(wktText.getBytes(StandardCharsets.US_ASCII));
-        //1.read wkt type.
-        if (!readWktType(inWrapper, WkbType.LINE_STRING.display())) {
-            throw createWktFormatError(WkbType.LINE_STRING.display());
-        }
-        final ByteBuffer inBuffer = inWrapper.buffer;
-        if (!inBuffer.hasRemaining()) {
-            throw createWktFormatError(WkbType.LINE_STRING.display());
-        }
-
-        try (ByteArrayOutputStream out = new ByteArrayOutputStream(inWrapper.bufferArray.length)) {
-            final BufferWrapper outWrapper = new BufferWrapper(inWrapper.bufferArray.length);
-            writeWkbPrefix(bigEndian, WkbType.LINE_STRING.code, 0, outWrapper.bufferArray, 0);
-            out.write(outWrapper.bufferArray, 0, 9);
-
-            int elementCount = 0;
-            while (inBuffer.hasRemaining()) {
-                elementCount += readAndWritePoints(bigEndian, 2, false, inWrapper, outWrapper);
-                outWrapper.buffer.flip();
-                out.write(outWrapper.bufferArray, 0, outWrapper.buffer.limit());
-                outWrapper.buffer.clear();
-                if (inBuffer.get(inBuffer.position() - 1) == ')') {
-                    break;
-                }
-            }
-            if (elementCount < 2) {
-                throw new IllegalArgumentException("LineString elementCount must great or equals than 2 .");
-            }
-            // write elementCount
-            byte[] wkbArray = out.toByteArray();
-            JdbdNumberUtils.intToEndian(bigEndian, elementCount, wkbArray, 5, 4);
-            return wkbArray;
-        } catch (IOException e) {
-            // no bug ,never here.
-            throw new IllegalStateException(e.getMessage(), e);
-        }
-
+        return lineStringOrMultiPointToWkb(WkbType.LINE_STRING, wktText, bigEndian);
     }
 
     public static byte[] polygonToWkb(final String wktText, final boolean bigEndian) {
@@ -439,7 +384,7 @@ public abstract class Geometries extends GenericGeometries {
         final byte[] startPointArray = new byte[16], endPointArray = new byte[startPointArray.length];
         final int inLimit = inBuffer.limit();
         final ByteBuffer outBuffer = outWrapper.buffer;
-
+        //2. write WKB header
         final ByteBuf outChannel = ByteBufAllocator.DEFAULT.buffer(inArray.length, (1 << 30));
         if (bigEndian) {
             outChannel.writeByte(0);
@@ -452,15 +397,18 @@ public abstract class Geometries extends GenericGeometries {
 
         int linearRingCount = 0;
         boolean ringEnd;
-        for (int inPosition = inBuffer.position(), linearCountIndex; inPosition < inLimit; ) {
+        //3. read and write linearRing
+        for (int inPosition = inBuffer.position(), pointCountWriterIndex; inPosition < inLimit; ) {
             if (Character.isWhitespace(inArray[inPosition])) {
                 inPosition++;
                 continue;
             }
             if (linearRingCount > 0) {
                 if (inArray[inPosition] == ')') {
+                    //polygon right parenthesis.
                     break;
                 } else if (inArray[inPosition] != ',') {
+                    // linearRing separator
                     throw createWktFormatError(WkbType.POLYGON.wktType);
                 }
                 inPosition++;
@@ -476,10 +424,11 @@ public abstract class Geometries extends GenericGeometries {
             if (inArray[inPosition] != '(') {
                 throw createWktFormatError(WkbType.POLYGON.wktType);
             }
+            //3-1 read and write linearRing
             inPosition++;
             inBuffer.position(inPosition);
-            linearCountIndex = outChannel.writerIndex();
-            outChannel.writeZero(4);// placeholder of pointCount
+            pointCountWriterIndex = outChannel.writerIndex();
+            outChannel.writeZero(4);//3-2 write placeholder of pointCount
             ringEnd = false;
             for (int i = 0, p = inBuffer.position(), startPosition, pointCount = 0; ; i++) {
                 startPosition = outBuffer.position();
@@ -496,14 +445,7 @@ public abstract class Geometries extends GenericGeometries {
                         throw createWktFormatError(WkbType.POLYGON.wktType);
                     }
                     // output LinearRing count
-                    outChannel.markWriterIndex();
-                    outChannel.writerIndex(linearCountIndex);
-                    if (bigEndian) {
-                        outChannel.writeInt(pointCount);
-                    } else {
-                        outChannel.writeIntLE(pointCount);
-                    }
-                    outChannel.resetWriterIndex();
+                    writeInt(outChannel, pointCountWriterIndex, bigEndian, pointCount);
                 }
 
                 outBuffer.flip();
@@ -513,7 +455,7 @@ public abstract class Geometries extends GenericGeometries {
                     break;
                 }
                 if (inBuffer.position() == p) {
-                    throw createWktFormatError(WkbType.LINE_STRING.wktType);
+                    throw createWktFormatError(WkbType.POLYGON.wktType);
                 }
                 p = inBuffer.position();
             }
@@ -523,16 +465,100 @@ public abstract class Geometries extends GenericGeometries {
         if (linearRingCount < 1) {
             throw new IllegalArgumentException("polygon elementCount must great or equals than 1 .");
         }
-        // write elementCount
+        //4.  write linearRing count
+        writeInt(outChannel, 5, bigEndian, linearRingCount);
+        byte[] wkbArray = new byte[outChannel.readableBytes()];
+        outChannel.readBytes(wkbArray);
+        return wkbArray;
+    }
 
-        outChannel.markWriterIndex();
-        outChannel.writerIndex(5);
-        if (bigEndian) {
-            outChannel.writeInt(linearRingCount);
-        } else {
-            outChannel.writeIntLE(linearRingCount);
+    public static byte[] multiPointToWkb(final String wktText, final boolean bigEndian) {
+        return lineStringOrMultiPointToWkb(WkbType.MULTI_POINT, wktText, bigEndian);
+    }
+
+    public static byte[] multiLineStringToWkb(final String wktText, final boolean bigEndian) {
+
+        final BufferWrapper inWrapper = new BufferWrapper(wktText.getBytes(StandardCharsets.US_ASCII));
+        //1.read wkt type.
+        if (!readWktType(inWrapper, WkbType.MULTI_LINE_STRING.wktType)) {
+            throw createWktFormatError(WkbType.MULTI_LINE_STRING.wktType);
         }
-        outChannel.resetWriterIndex();
+        final ByteBuffer inBuffer = inWrapper.buffer;
+        if (!inBuffer.hasRemaining()) {
+            throw createWktFormatError(WkbType.MULTI_LINE_STRING.wktType);
+        }
+        final BufferWrapper outWrapper = new BufferWrapper(inWrapper.bufferArray.length + 8);
+
+        final byte[] inArray = inWrapper.bufferArray, outArray = outWrapper.bufferArray;
+        final int inLimit = inBuffer.limit();
+        final ByteBuffer outBuffer = outWrapper.buffer;
+
+        final ByteBuf outChannel = ByteBufAllocator.DEFAULT.buffer(inArray.length, (1 << 30));
+        //2. write WKB header
+        writeWkbHeader(outChannel, bigEndian, WkbType.MULTI_LINE_STRING);
+        int lineStringCount = 0;
+        boolean ringEnd;
+        //3. read and write linearRing
+        for (int inPosition = inBuffer.position(), pointCountWriterIndex; inPosition < inLimit; ) {
+            if (Character.isWhitespace(inArray[inPosition])) {
+                inPosition++;
+                continue;
+            }
+            if (lineStringCount > 0) {
+                if (inArray[inPosition] == ')') {
+                    //polygon right parenthesis.
+                    break;
+                } else if (inArray[inPosition] != ',') {
+                    // linearRing separator
+                    throw createWktFormatError(WkbType.MULTI_LINE_STRING.wktType);
+                }
+                inPosition++;
+                for (; inPosition < inLimit; inPosition++) {
+                    if (!Character.isWhitespace(inArray[inPosition])) {
+                        break;
+                    }
+                }
+            }
+            if (inPosition == inLimit) {
+                throw createWktFormatError(WkbType.MULTI_LINE_STRING.wktType);
+            }
+            if (inArray[inPosition] != '(') {
+                throw createWktFormatError(WkbType.MULTI_LINE_STRING.wktType);
+            }
+            //3-1 read and write linearRing
+            inPosition++;
+            inBuffer.position(inPosition);
+            pointCountWriterIndex = outChannel.writerIndex();
+            outChannel.writeZero(4);//3-2 write placeholder of pointCount
+            ringEnd = false;
+            for (int i = 0, p = inBuffer.position(), pointCount = 0; ; i++) {
+                pointCount += readAndWritePoints(bigEndian, 2, false, inWrapper, outWrapper);
+                if (inBuffer.get(inBuffer.position() - 1) == ')') {
+                    ringEnd = true;
+                    lineStringCount++;
+                    // output LinearRing count
+                    writeInt(outChannel, pointCountWriterIndex, bigEndian, pointCount);
+                }
+
+                outBuffer.flip();
+                outChannel.writeBytes(outArray, 0, outBuffer.limit());
+                outBuffer.clear();
+                if (ringEnd) {
+                    break;
+                }
+                if (inBuffer.position() == p) {
+                    throw createWktFormatError(WkbType.MULTI_LINE_STRING.wktType);
+                }
+                p = inBuffer.position();
+            }
+            inPosition = inBuffer.position();
+
+        }
+        if (lineStringCount < 1) {
+            throw new IllegalArgumentException("multiLineString lineString count must great or equals than 1 .");
+        }
+        //4.  write linearRing count
+        writeInt(outChannel, 5, bigEndian, lineStringCount);
         byte[] wkbArray = new byte[outChannel.readableBytes()];
         outChannel.readBytes(wkbArray);
         return wkbArray;
@@ -653,8 +679,118 @@ public abstract class Geometries extends GenericGeometries {
 
     /*################################## blow protected method ##################################*/
 
+
+    protected static String lineStringOrMultiPointToWkt(final WkbType wkbType, final byte[] wkbArray, int offset) {
+        if (wkbType != WkbType.LINE_STRING && wkbType != WkbType.MULTI_POINT) {
+            throw new IllegalArgumentException("wkbType error.");
+        }
+        if (wkbArray.length < HEADER_LENGTH) {
+            throw createWkbLengthError(wkbType.wktType, wkbArray.length, HEADER_LENGTH);
+        }
+        if (offset < 0 || offset >= wkbArray.length) {
+            throw createOffsetError(offset, wkbArray.length);
+        }
+        final boolean bigEndian = checkByteOrder(wkbArray[offset++]) == 0;
+        final int wkbTypeCode, elementCount;
+        wkbTypeCode = JdbdNumberUtils.readIntFromEndian(bigEndian, wkbArray, offset, 4);
+        if (wkbTypeCode != wkbType.code) {
+            throw createWkbTypeNotMatchError(wkbType.wktType, wkbTypeCode);
+        }
+        offset += 4;
+        elementCount = JdbdNumberUtils.readIntFromEndian(bigEndian, wkbArray, offset, 4);
+        offset += 4;
+        if (wkbArray.length < (HEADER_LENGTH + (elementCount << 4))) {
+            throw createWkbLengthError(wkbType.wktType, wkbArray.length
+                    , (HEADER_LENGTH + ((long) elementCount << 4)));
+        }
+        StringBuilder builder = new StringBuilder(elementCount << 3)
+                .append(wkbType.wktType);
+
+        if (wkbType == WkbType.LINE_STRING) {
+            if (elementCount < 2) {
+                throw createIllegalElementCount(elementCount);
+            }
+        } else if (elementCount == 0) {
+            builder.append(" EMPTY");
+        }
+        if (elementCount > 0) {
+            builder.append("(");
+        }
+
+        for (int i = 0; i < elementCount; i++) {
+            if (i > 0) {
+                builder.append(",");
+            }
+            if (wkbType == WkbType.MULTI_POINT) {
+                builder.append("(");
+            }
+
+            builder.append(JdbdNumberUtils.readDoubleFromEndian(bigEndian, wkbArray, offset, 8))
+                    .append(" ");
+            offset += 8;
+            builder.append(JdbdNumberUtils.readDoubleFromEndian(bigEndian, wkbArray, offset, 8));
+            offset += 8;
+
+            if (wkbType == WkbType.MULTI_POINT) {
+                builder.append(")");
+            }
+        }
+
+        builder.append(")");
+        return builder.toString();
+    }
+
     /**
-     * @see #equals(byte[], byte[])
+     * @see #multiPointToWkb(String, boolean)
+     * @see #lineStringToWkb(String, boolean)
+     */
+    protected static byte[] lineStringOrMultiPointToWkb(final WkbType wkbType, final String wktText,
+                                                        final boolean bigEndian) {
+
+        if (wkbType != WkbType.LINE_STRING && wkbType != WkbType.MULTI_POINT) {
+            throw new IllegalArgumentException("wkbType error.");
+        }
+        final BufferWrapper inWrapper = new BufferWrapper(wktText.getBytes(StandardCharsets.US_ASCII));
+        final BufferWrapper outWrapper = new BufferWrapper(inWrapper.bufferArray.length);
+
+        //1.read wkt type.
+        if (!readWktType(inWrapper, wkbType.wktType)) {
+            throw createWktFormatError(wkbType.wktType);
+        }
+        final ByteBuffer inBuffer = inWrapper.buffer;
+        if (!inBuffer.hasRemaining()) {
+            throw createWktFormatError(wkbType.wktType);
+        }
+
+        try (ByteArrayOutputStream out = new ByteArrayOutputStream(inWrapper.bufferArray.length)) {
+            writeWkbPrefix(bigEndian, wkbType.code, 0, outWrapper.bufferArray, 0);
+            out.write(outWrapper.bufferArray, 0, HEADER_LENGTH);
+
+            int elementCount = 0;
+            while (inBuffer.hasRemaining()) {
+                elementCount += readAndWritePoints(bigEndian, 2, wkbType == WkbType.MULTI_POINT, inWrapper, outWrapper);
+                outWrapper.buffer.flip();
+                out.write(outWrapper.bufferArray, 0, outWrapper.buffer.limit());
+                outWrapper.buffer.clear();
+                if (inBuffer.get(inBuffer.position() - 1) == ')') {
+                    break;
+                }
+            }
+            if (wkbType == WkbType.LINE_STRING && elementCount < 2) {
+                throw new IllegalArgumentException("LineString elementCount must great or equals than 2 .");
+            }
+            byte[] wkbArray = out.toByteArray();
+            JdbdNumberUtils.intToEndian(bigEndian, elementCount, wkbArray, 5, 4);
+            return wkbArray;
+        } catch (IOException e) {
+            // no bug ,never here.
+            throw new IllegalStateException(e.getMessage(), e);
+        }
+    }
+
+
+    /**
+     * @see #wkbEquals(byte[], byte[])
      */
     protected static boolean pointReverseEquals(final byte[] pointOne, final byte[] pointTwo) {
         if (pointOne.length != WKB_POINT_BYTES) {
@@ -663,46 +799,29 @@ public abstract class Geometries extends GenericGeometries {
         return JdbdArrayUtils.reverseEquals(pointOne, pointTwo, 5, 8, 2);
     }
 
+
     /**
-     * @see #equals(byte[], byte[])
+     * @param wkbType <ul>
+     *                <li>{@link WkbType#POLYGON}</li>
+     *                <li>{@link WkbType#MULTI_LINE_STRING}</li>
+     *                </ul>
+     * @see #wkbEquals(byte[], byte[])
      */
-    protected static boolean lineStringReverseEquals(final byte[] lineStringOne, final byte[] lineStringTwo) {
-
-        int offset = 5;
-        final int elementCount;
-        elementCount = JdbdNumberUtils.readIntFromEndian(lineStringOne[0] == 0, lineStringOne, offset, 4);
-
-        boolean match;
-        match = JdbdArrayUtils.reverseEquals(lineStringOne, lineStringTwo, offset, 4, 1);
-        offset += 4;
-        if (match) {
-            match = JdbdArrayUtils.reverseEquals(lineStringOne, lineStringTwo, offset, 8, elementCount << 1);
+    protected static boolean lineStringElementReverseEquals(final WkbType wkbType, final byte[] polygonOne
+            , final byte[] polygonTwo, final int elementCount) {
+        if (wkbType != WkbType.POLYGON && wkbType != WkbType.MULTI_LINE_STRING) {
+            throw new IllegalArgumentException("wkbType error.");
         }
-        return match;
-    }
-
-    /**
-     * @see #equals(byte[], byte[])
-     */
-    protected static boolean polygonReverseEquals(final byte[] polygonOne, final byte[] polygonTwo) {
         final boolean bigEndian = polygonOne[0] == 0;
-        int offset = 5;
-        final int elementCount;
-        elementCount = JdbdNumberUtils.readIntFromEndian(bigEndian, polygonOne, offset, 4);
-
-        boolean match;
-        match = JdbdArrayUtils.reverseEquals(polygonOne, polygonTwo, offset, 4, 1);
-        offset += 4;
-        if (!match) {
-            return false;
-        }
+        boolean match = true;
+        int offset = HEADER_LENGTH;
         for (int i = 0, pointCount; i < elementCount; i++) {
             if (!JdbdArrayUtils.reverseEquals(polygonOne, polygonTwo, offset, 4, 1)) {
                 match = false;
                 break;
             }
             pointCount = JdbdNumberUtils.readIntFromEndian(bigEndian, polygonOne, offset, 4);
-            if (pointCount < 4) {
+            if (pointCount < 4 && wkbType == WkbType.POLYGON) {
                 throw createIllegalLinearPointCountError(pointCount);
             }
             offset += 4;
@@ -710,6 +829,47 @@ public abstract class Geometries extends GenericGeometries {
                 match = false;
                 break;
             }
+            offset += (pointCount << 4);
+        }
+        return match;
+    }
+
+    /**
+     * @see #wkbEquals(byte[], byte[])
+     */
+    protected static boolean multiPolygonWkbReverseEquals(final byte[] wkbOne, final byte[] wkbTwo
+            , final int elementCount) {
+        final boolean bigEndian = wkbOne[0] == 0;
+        boolean match = true;
+        int offset = HEADER_LENGTH;
+        topFor:
+        for (int i = 0, linearRingCount; i < elementCount; i++) {
+            if (!JdbdArrayUtils.reverseEquals(wkbOne, wkbTwo, offset, 4, 1)) {
+                match = false;
+                break;
+            }
+            linearRingCount = JdbdNumberUtils.readIntFromEndian(bigEndian, wkbOne, offset, 4);
+            if (linearRingCount < 1) {
+                throw createIllegalLinearRingCountError(linearRingCount);
+            }
+            offset += 4;
+            for (int j = 0, pointCount; j < linearRingCount; j++) {
+                if (!JdbdArrayUtils.reverseEquals(wkbOne, wkbTwo, offset, 4, 1)) {
+                    match = false;
+                    break topFor;
+                }
+                pointCount = JdbdNumberUtils.readIntFromEndian(bigEndian, wkbOne, offset, 4);
+                if (pointCount < 4) {
+                    throw createIllegalLinearPointCountError(pointCount);
+                }
+                offset += 4;
+                if (!JdbdArrayUtils.reverseEquals(wkbOne, wkbTwo, offset, 8, pointCount << 1)) {
+                    match = false;
+                    break topFor;
+                }
+                offset += (pointCount << 4);
+            }
+
         }
         return match;
     }

@@ -1,6 +1,6 @@
 package io.jdbd.vendor.util;
 
-import io.jdbd.type.WkbType;
+import io.netty.buffer.ByteBuf;
 
 import java.util.Arrays;
 import java.util.function.Function;
@@ -14,7 +14,7 @@ abstract class GenericGeometries {
     static final byte HEADER_LENGTH = 9;
 
 
-    public static boolean equals(final byte[] geometryOne, final byte[] geometryTwo) {
+    public static boolean wkbEquals(final byte[] geometryOne, final byte[] geometryTwo) {
         final boolean match;
         if (geometryOne.length != geometryTwo.length) {
             match = false;
@@ -31,23 +31,12 @@ abstract class GenericGeometries {
                     throw createWkbLengthError(wkbTypeOne.name(), geometryOne.length, HEADER_LENGTH);
                 }
                 if (wkbTypeOne == wkbTypeTwo) {
-                    switch (wkbTypeOne) {
-                        case POINT:
-                            match = Geometries.pointReverseEquals(geometryOne, geometryTwo);
-                            break;
-                        case LINE_STRING:
-                            match = Geometries.lineStringReverseEquals(geometryOne, geometryTwo);
-                            break;
-                        case POLYGON:
-                            match = Geometries.polygonReverseEquals(geometryOne, geometryTwo);
-                            break;
-                        case MULTI_POINT:
-
-                        case MULTI_LINE_STRING:
-                        case MULTI_POLYGON:
-                        case GEOMETRY_COLLECTION:
-                        default:
-                            throw new IllegalArgumentException(String.format("not support %s now.", wkbTypeOne));
+                    if (wkbTypeOne == WkbType.POINT) {
+                        match = Geometries.pointReverseEquals(geometryOne, geometryTwo);
+                    } else if (!JdbdArrayUtils.reverseEquals(geometryOne, geometryTwo, 5, 4, 1)) {
+                        match = false;
+                    } else {
+                        match = reverseEquals(wkbTypeOne, geometryOne, geometryTwo);
                     }
                 } else {
                     match = false;
@@ -56,6 +45,7 @@ abstract class GenericGeometries {
         }
         return match;
     }
+
 
     public static void reverseWkb(final byte[] wkbArray, final int offset) {
         final WkbType wkbType = WkbType.resolveWkbType(wkbArray, offset);
@@ -108,6 +98,28 @@ abstract class GenericGeometries {
         return elementCount;
     }
 
+    protected static void writeInt(ByteBuf buffer, int writerIndex, boolean bigEndian, int intNum) {
+        buffer.markWriterIndex();
+        buffer.writerIndex(writerIndex);
+        if (bigEndian) {
+            buffer.writeInt(intNum);
+        } else {
+            buffer.writeIntLE(intNum);
+        }
+        buffer.resetWriterIndex();
+    }
+
+    protected static void writeWkbHeader(ByteBuf buffer, boolean bigEndian, WkbType wkbType) {
+        if (bigEndian) {
+            buffer.writeByte(0);
+            buffer.writeInt(wkbType.code);
+        } else {
+            buffer.writeByte(1);
+            buffer.writeIntLE(wkbType.code);
+        }
+        buffer.writeZero(4);// placeholder of elementCount
+    }
+
 
     protected static IllegalArgumentException createIllegalByteOrderError(byte byteOrder) {
         return new IllegalArgumentException(String.format("Illegal byteOrder[%s].", byteOrder));
@@ -147,8 +159,38 @@ abstract class GenericGeometries {
         return new IllegalArgumentException(String.format("pointCount[%s] error", pointCount));
     }
 
+
     protected static IllegalArgumentException createNonLinearRingError(int linearRingIndex) {
         return new IllegalArgumentException(String.format("Polygon LinearRing[%s] isn't LinearRing", linearRingIndex));
+    }
+
+    /*################################## blow private method ##################################*/
+
+
+    /**
+     * @see #wkbEquals(byte[], byte[])
+     */
+    private static boolean reverseEquals(final WkbType wkbType, final byte[] geometryOne, final byte[] geometryTwo) {
+        final int elementCount;
+        elementCount = JdbdNumberUtils.readIntFromEndian(geometryOne[0] == 0, geometryOne, 5, 4);
+        boolean match;
+        switch (wkbType) {
+            case MULTI_POINT:
+            case LINE_STRING:
+                match = JdbdArrayUtils.reverseEquals(geometryOne, geometryTwo, HEADER_LENGTH, 8, elementCount << 1);
+                break;
+            case POLYGON:
+            case MULTI_LINE_STRING:
+                match = Geometries.lineStringElementReverseEquals(wkbType, geometryOne, geometryTwo, elementCount);
+                break;
+            case MULTI_POLYGON:
+                match = Geometries.multiPolygonWkbReverseEquals(geometryOne, geometryTwo, elementCount);
+                break;
+            case GEOMETRY_COLLECTION:
+            default:
+                throw new IllegalArgumentException(String.format("not support %s now.", wkbType));
+        }
+        return match;
     }
 
 

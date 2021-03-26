@@ -1,6 +1,7 @@
-package io.jdbd.type;
+package io.jdbd.vendor.util;
 
 import io.jdbd.lang.Nullable;
+import io.jdbd.type.CodeEnum;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -10,6 +11,8 @@ import java.nio.file.StandardOpenOption;
 import java.util.Map;
 
 /**
+ * This class design for geometry sql type test.
+ *
  * @see <a href="https://www.ogc.org/standards/sfa">Simple Feature Access - Part 1: Common Architecture PDF</a>
  */
 public enum WkbType implements CodeEnum {
