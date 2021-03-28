@@ -1,7 +1,9 @@
 package io.jdbd.vendor.util;
 
 import io.netty.buffer.ByteBuf;
+import org.qinarmy.util.BufferWrapper;
 
+import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.function.Function;
 
@@ -121,6 +123,170 @@ abstract class GenericGeometries {
     }
 
 
+    /**
+     * @return count of points.
+     */
+    protected static int readAndWritePoints(final boolean bigEndian, final int coordinates, final boolean pointText
+            , final BufferWrapper inWrapper, final BufferWrapper outWrapper)
+            throws IllegalArgumentException {
+
+        if (coordinates < 2 || coordinates > 4) {
+            throw createIllegalCoordinatesError(coordinates);
+        }
+        final byte[] inArray = inWrapper.bufferArray, outArray = outWrapper.bufferArray;
+        final ByteBuffer inBuffer = inWrapper.buffer, outBuffer = outWrapper.buffer;
+
+        final int inLimit = inBuffer.limit(), outLimit = outBuffer.limit();
+
+        int codePoint, pointCount = 0, inPosition = inBuffer.position(), outPosition = outBuffer.position();
+        topFor:
+        for (int tempOutPosition, tempInPosition, pointEndIndex; inPosition < inLimit; ) {
+            codePoint = inArray[inPosition];
+            if (Character.isWhitespace(codePoint)) {
+                inPosition++;
+                continue;
+            }
+            if (outLimit - outPosition < (coordinates << 3)) {
+                break;
+            }
+            tempInPosition = inPosition;
+            tempOutPosition = outPosition;
+            if (pointText) {
+                if (codePoint != '(') {
+                    throw new IllegalArgumentException("Not found '(' for point text.");
+                }
+                tempInPosition++;
+            }
+
+            //parse coordinates and write to outArray.
+            for (int coor = 1, startIndex, endIndex = tempInPosition - 1, p; coor <= coordinates; coor++) {
+                startIndex = -1;
+                for (p = endIndex + 1; p < inLimit; p++) {
+                    if (!Character.isWhitespace(inArray[p])) {
+                        startIndex = p;
+                        break;
+                    }
+                }
+                if (startIndex < 0) {
+                    break topFor;
+                }
+                endIndex = -1;
+                for (p = startIndex + 1; p < inLimit; p++) {
+                    if (coor == coordinates) {
+                        // last coordinate.
+                        codePoint = inArray[p];
+                        if (pointText) {
+                            if (codePoint == ')' || Character.isWhitespace(codePoint)) {
+                                endIndex = p;
+                                break;
+                            }
+                        } else if (codePoint == ',' || codePoint == ')' || Character.isWhitespace(codePoint)) {
+                            endIndex = p;
+                            break;
+                        }
+                    } else if (Character.isWhitespace(inArray[p])) {
+                        endIndex = p;
+                        break;
+                    }
+                }
+                if (endIndex < 0) {
+                    if (p - startIndex > 24) {
+                        // non-double number
+                        byte[] nonDoubleBytes = Arrays.copyOfRange(inArray, startIndex, p);
+                        throw createNonDoubleError(new String(nonDoubleBytes));
+                    }
+                    break topFor;
+                }
+                double d = Double.parseDouble(new String(Arrays.copyOfRange(inArray, startIndex, endIndex)));
+                JdbdNumberUtils.doubleToEndian(bigEndian, d, outArray, tempOutPosition);
+                tempOutPosition += 8;
+                tempInPosition = endIndex;
+            }// parse coordinates and write to outArray.
+            // below find point end index
+            pointEndIndex = -1;
+            for (int parenthesisCount = 0; tempInPosition < inLimit; tempInPosition++) {
+                codePoint = inArray[tempInPosition];
+                if (Character.isWhitespace(codePoint)) {
+                    continue;
+                }
+                if (codePoint == ')') {
+                    parenthesisCount++;
+                    if (pointText) {
+                        if (parenthesisCount == 2) {
+                            pointEndIndex = tempInPosition;
+                            break;
+                        }
+                    } else {
+                        pointEndIndex = tempInPosition;
+                        break;
+                    }
+                } else if (codePoint == ',') {
+                    if (pointText && parenthesisCount == 0) {
+                        throw new IllegalArgumentException("point text not close.");
+                    }
+                    pointEndIndex = tempInPosition;
+                    break;
+                } else {
+                    throw new IllegalArgumentException(String.format("point end with %s.", (char) codePoint));
+                }
+            }
+            if (pointEndIndex < 0) {
+                break;
+            }
+            outPosition = tempOutPosition;
+            inPosition = pointEndIndex;
+            pointCount++;
+            if (inArray[pointEndIndex] == ')') {
+                break;
+            }
+        }
+        inBuffer.position(inPosition);
+        outBuffer.position(outPosition);
+
+        return pointCount;
+    }
+
+    /**
+     * @return count of LinearRing than read from inWrapper.
+     * @see #readAndWritePoints(boolean, int, boolean, BufferWrapper, BufferWrapper)
+     */
+    protected static int readAndWriteLinearRings(final boolean bigEndian, final int coordinates
+            , final BufferWrapper inWrapper, final BufferWrapper outWrapper) {
+        if (coordinates < 2 || coordinates > 4) {
+            throw createIllegalCoordinatesError(coordinates);
+        }
+        final byte[] inArray = inWrapper.bufferArray, outArray = outWrapper.bufferArray;
+        final ByteBuffer inBuffer = inWrapper.buffer, outBuffer = outWrapper.buffer;
+
+        final int inLimit = inBuffer.limit(), outLimit = outBuffer.limit();
+        int codePoint, inPosition = inBuffer.position(), outPosition = outBuffer.position();
+        int linearRingCount = 0;
+        for (int i = 0, pointCount = 0; inPosition < inLimit; ) {
+            codePoint = inArray[inPosition];
+            if (Character.isWhitespace(codePoint)) {
+                inPosition++;
+                continue;
+            }
+            if (codePoint != '(') {
+                throw new IllegalArgumentException("Not found '(' for linestring text.");
+            }
+            pointCount += readAndWritePoints(bigEndian, coordinates, false, inWrapper, outWrapper);
+
+            inPosition = inWrapper.buffer.position();
+            if (inWrapper.buffer.get(inPosition) == ')') {
+                linearRingCount++;
+            }
+
+        }
+        return linearRingCount;
+    }
+
+
+    protected static IllegalArgumentException createIllegalCoordinatesError(int coordinates) {
+        return new IllegalArgumentException(String.format("coordinates[%s] error.", coordinates));
+    }
+
+
     protected static IllegalArgumentException createIllegalByteOrderError(byte byteOrder) {
         return new IllegalArgumentException(String.format("Illegal byteOrder[%s].", byteOrder));
     }
@@ -156,13 +322,22 @@ abstract class GenericGeometries {
     }
 
     protected static IllegalArgumentException createIllegalLinearPointCountError(int pointCount) {
-        return new IllegalArgumentException(String.format("pointCount[%s] error", pointCount));
+        return new IllegalArgumentException(String.format("LinearRing pointCount[%s] error", pointCount));
+    }
+
+    protected static IllegalArgumentException createIllegalLineStringPointCountError(int pointCount) {
+        return new IllegalArgumentException(String.format("LineString pointCount[%s] error", pointCount));
     }
 
 
     protected static IllegalArgumentException createNonLinearRingError(int linearRingIndex) {
         return new IllegalArgumentException(String.format("Polygon LinearRing[%s] isn't LinearRing", linearRingIndex));
     }
+
+    protected static IllegalArgumentException createNonDoubleError(String nonDouble) {
+        return new IllegalArgumentException(String.format("%s isn't double number.", nonDouble));
+    }
+
 
     /*################################## blow private method ##################################*/
 

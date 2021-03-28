@@ -149,7 +149,7 @@ public class GeometriesSuiteTests {
         String wktText;
         byte[] wkbArrayOne, wkbArrayTow;
 
-        wktText = "";
+        wktText = "MULTILINESTRING((0.0 1.3 ,3 3))";
         wkbArrayOne = Geometries.multiLineStringToWkb(wktText, true);
         wkbArrayTow = Geometries.multiLineStringToWkb(wktText, false);
 
@@ -159,6 +159,24 @@ public class GeometriesSuiteTests {
         LOG.info("WKT tow : {}", Geometries.multiLineStringToWkt(wkbArrayTow, 0));
 
         LOG.info("multiLineString test success");
+    }
+
+    @Test
+    public void multiPolygon() {
+        LOG.info("multiPolygon test start");
+        String wktText;
+        byte[] wkbArrayOne, wkbArrayTow;
+
+        wktText = "MULTILINESTRING((0.0 1.3 ,3 3))";
+        wkbArrayOne = Geometries.multiPolygonToWkb(wktText, true);
+        wkbArrayTow = Geometries.multiPolygonToWkb(wktText, false);
+
+        assertTrue(Geometries.wkbEquals(wkbArrayOne, wkbArrayTow), wktText);
+
+        LOG.info("WKT one : {}", Geometries.multiLineStringToWkt(wkbArrayOne, 0));
+        LOG.info("WKT tow : {}", Geometries.multiLineStringToWkt(wkbArrayTow, 0));
+
+        LOG.info("multiPolygon test success");
     }
 
 
