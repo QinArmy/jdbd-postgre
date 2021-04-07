@@ -15,8 +15,8 @@
     </modules>
 
     <organization>
-        <name>QinArmy-common</name>
-        <url>http://qinarmy.org/</url>
+        <name>jdbd</name>
+        <url>https://jdbd.io/</url>
     </organization>
 
     <properties>

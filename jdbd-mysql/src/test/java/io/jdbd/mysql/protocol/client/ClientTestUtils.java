@@ -30,7 +30,7 @@ public abstract class ClientTestUtils {
 
     public static MySQLUrl singleUrl(Map<String, String> propertiesMap) {
         // PREFERRED ,DISABLED
-        String url = "jdbc:mysql://localhost:3306/army";
+        String url = "jdbc:mysql://localhost:3306/army_test";
         Map<String, String> properties = new HashMap<>();
         properties.put("user", "army_w");
         properties.put("password", "army123");
