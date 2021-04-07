@@ -511,18 +511,10 @@ public enum WkbType implements CodeEnum {
     public boolean supportPointText() {
         final boolean pointText;
         switch (this) {
-            case POLYGON:
-            case POLYGON_Z:
-            case POLYGON_M:
-            case POLYGON_ZM:
             case MULTI_POINT:
             case MULTI_POINT_Z:
             case MULTI_POINT_M:
             case MULTI_POINT_ZM:
-            case MULTI_POLYGON:
-            case MULTI_POLYGON_Z:
-            case MULTI_POLYGON_M:
-            case MULTI_POLYGON_ZM:
                 pointText = true;
                 break;
             default:
@@ -531,25 +523,6 @@ public enum WkbType implements CodeEnum {
         return pointText;
     }
 
-
-    public boolean supportLinearRing() {
-        final boolean linearRing;
-        switch (this) {
-            case POLYGON:
-            case POLYGON_Z:
-            case POLYGON_M:
-            case POLYGON_ZM:
-            case MULTI_POLYGON:
-            case MULTI_POLYGON_Z:
-            case MULTI_POLYGON_M:
-            case MULTI_POLYGON_ZM:
-                linearRing = true;
-                break;
-            default:
-                linearRing = false;
-        }
-        return linearRing;
-    }
 
 
     public interface Constant {

@@ -81,7 +81,7 @@ public abstract class Geometries extends GenericGeometries {
 
     public static byte[] polygonToWkb(final String wktText, final boolean bigEndian) {
         BufferWrapper inWrapper = new BufferWrapper(wktText.getBytes(StandardCharsets.US_ASCII));
-        WkbMemoryWrapper outWrapper = new WkbMemoryWrapper(inWrapper.bufferArray.length, bigEndian);
+        WkbMemoryWrapper outWrapper = new WkbMemoryWrapper(128, bigEndian);
 
         final WkbType wkbType = WkbType.POLYGON;
 
