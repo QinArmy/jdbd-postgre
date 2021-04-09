@@ -4,19 +4,19 @@ import io.jdbd.mysql.protocol.conf.MySQLUrl;
 import io.jdbd.mysql.protocol.conf.PropertyKey;
 import io.jdbd.mysql.util.MySQLStringUtils;
 import io.jdbd.mysql.util.MySQLTimeUtils;
+import org.qinarmy.env.Environment;
+import org.qinarmy.env.ImmutableMapEnvironment;
 import org.testng.annotations.Test;
 
+import java.io.IOException;
+import java.io.InputStream;
 import java.nio.charset.Charset;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
+import java.nio.file.*;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeFormatterBuilder;
-import java.util.HashMap;
-import java.util.Locale;
-import java.util.Map;
+import java.util.*;
 
 @Test(enabled = false)
 public abstract class ClientTestUtils {
@@ -26,6 +26,8 @@ public abstract class ClientTestUtils {
     }
 
     private static final Path SERVER_PUBLIC_KEY_PATH = Paths.get(ClientTestUtils.getTestResourcesPath().toString(), "my-local/mysql-server/public_key.pem");
+
+    private static final Environment ENV = loadTestConfig();
 
 
     public static MySQLUrl singleUrl(Map<String, String> propertiesMap) {
@@ -45,6 +47,15 @@ public abstract class ClientTestUtils {
             path = Paths.get(path.toString(), "jdbd-mysql");
         }
         return path;
+    }
+
+    public static Path getTestMyLocalPath() {
+        Path modelPath = getModulePath();
+        return Paths.get(modelPath.toString(), "target/test-classes/my-local");
+    }
+
+    public static Path getBigColumnTestPath() {
+        return Paths.get(getTestMyLocalPath().toString(), "bigColumn");
     }
 
     public static Path getServerPublicKeyPath() {
@@ -92,5 +103,33 @@ public abstract class ClientTestUtils {
         return Charset.forName(System.getProperty("file.encoding"));
     }
 
+
+    public static Environment getTestConfig() {
+        return ENV;
+    }
+
+    /*################################## blow private method ##################################*/
+
+    private static Environment loadTestConfig() {
+        final Path path = Paths.get(getTestResourcesPath().toString(), "mysqlTestConfig.properties");
+        Map<String, String> map;
+        if (Files.exists(path, LinkOption.NOFOLLOW_LINKS)) {
+            Properties properties = new Properties();
+            try (InputStream in = Files.newInputStream(path, StandardOpenOption.READ)) {
+                properties.load(in);
+                map = new HashMap<>((int) (properties.size() / 0.75F));
+                for (Object key : properties.keySet()) {
+                    String k = key.toString();
+                    map.put(k, properties.getProperty(k));
+                }
+            } catch (IOException e) {
+                throw new RuntimeException(String.format("load %s failure.", path), e);
+            }
+
+        } else {
+            map = Collections.emptyMap();
+        }
+        return ImmutableMapEnvironment.create(map);
+    }
 
 }

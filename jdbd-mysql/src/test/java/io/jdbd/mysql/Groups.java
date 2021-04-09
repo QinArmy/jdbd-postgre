@@ -11,7 +11,13 @@ public interface Groups {
 
     String SESSION_INITIALIZER = "sessionInitializer";
 
+    String DATA_PREPARE = "dataPrepare";
+
     String COM_QUERY = "comQuery";
+
+    String TEXT_RESULT_SET_READER = "TextResultSetReader";
+
+    String MULTI_STMT = "multiStatement";
 
     String UTILS = "utils";
 

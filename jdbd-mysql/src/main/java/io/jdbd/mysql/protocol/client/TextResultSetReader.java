@@ -33,7 +33,7 @@ final class TextResultSetReader extends AbstractResultSetReader {
 
     @Override
     final boolean isResettable() {
-        return false;
+        return true;
     }
 
     @Override

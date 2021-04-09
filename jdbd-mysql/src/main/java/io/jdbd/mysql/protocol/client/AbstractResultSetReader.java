@@ -115,7 +115,7 @@ abstract class AbstractResultSetReader implements ResultSetReader {
             }
         }
         if (resultSetEnd) {
-            if (noError() && isResettable()) {
+            if (isResettable()) {
                 resetReader();
             } else {
                 this.resultSetEnd = true;

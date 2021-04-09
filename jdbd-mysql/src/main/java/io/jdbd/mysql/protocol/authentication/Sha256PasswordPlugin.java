@@ -46,7 +46,7 @@ public class Sha256PasswordPlugin implements AuthenticationPlugin {
 
     public static final String PLUGIN_NAME = "sha256_password";
 
-    protected final Logger LOG = LoggerFactory.getLogger(getClass());
+    private static final Logger LOG = LoggerFactory.getLogger(Sha256PasswordPlugin.class);
 
     protected final AuthenticateAssistant protocolAssistant;
 
@@ -216,9 +216,10 @@ public class Sha256PasswordPlugin implements AuthenticationPlugin {
 
     @Nullable
     protected static String tryLoadPublicKeyString(HostInfo<PropertyKey> hostInfo) {
-        String serverRSAPublicKeyPath = hostInfo.getProperties().getProperty(PropertyKey.serverRSAPublicKeyFile);
-        String publicKeyString = null;
+
         try {
+            String serverRSAPublicKeyPath = hostInfo.getProperties().getProperty(PropertyKey.serverRSAPublicKeyFile);
+            String publicKeyString = null;
             if (serverRSAPublicKeyPath != null) {
                 publicKeyString = JdbdStreamUtils.readAsString(Paths.get(serverRSAPublicKeyPath));
             }

@@ -57,7 +57,7 @@ public enum Isolation {
     SERIALIZABLE(Connection.TRANSACTION_SERIALIZABLE, "SERIALIZABLE");
 
 
-    private final int level;
+    public final int level;
 
     private final String display;
 

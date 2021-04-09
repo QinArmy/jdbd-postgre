@@ -1,8 +1,8 @@
 package io.jdbd.mysql.util;
 
-import org.qinarmy.util.ArrayUtils;
+import io.jdbd.vendor.util.JdbdArrayUtils;
 
-public abstract class MySQLArrayUtils extends ArrayUtils {
+public abstract class MySQLArrayUtils extends JdbdArrayUtils {
 
     protected MySQLArrayUtils() {
         throw new UnsupportedOperationException();

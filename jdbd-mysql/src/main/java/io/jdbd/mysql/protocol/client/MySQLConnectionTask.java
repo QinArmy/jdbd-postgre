@@ -95,6 +95,7 @@ final class MySQLConnectionTask extends AbstractCommunicationTask implements Aut
 
     private MySQLConnectionTask(MySQLTaskAdjutant adjutant, MonoSink<AuthenticateResult> sink) {
         super(adjutant);
+        this.sink = sink;
 
         this.adjutant = adjutant;
         this.hostInfo = adjutant.obtainHostInfo();
@@ -103,7 +104,7 @@ final class MySQLConnectionTask extends AbstractCommunicationTask implements Aut
 
         this.maxPayloadSize = obtainMaxPacketBytes(this.properties);
 
-        this.sink = sink;
+
         Charset charset = this.properties.getProperty(PropertyKey.characterEncoding, Charset.class);
         if (charset == null || CharsetMapping.isUnsupportedCharsetClient(charset.name())) {
             charset = StandardCharsets.UTF_8;
@@ -747,7 +748,6 @@ final class MySQLConnectionTask extends AbstractCommunicationTask implements Aut
     private Map<String, AuthenticationPlugin> loadAuthenticationPluginMap() {
         Map<String, Class<? extends AuthenticationPlugin>> pluginClassMap = this.adjutant.obtainPluginMechanismMap();
         Map<String, AuthenticationPlugin> map = new HashMap<>((int) (pluginClassMap.size() / 0.75F));
-
         try {
             for (Map.Entry<String, Class<? extends AuthenticationPlugin>> e : pluginClassMap.entrySet()) {
                 map.put(e.getKey(), loadPlugin(e.getValue(), this));
@@ -771,7 +771,7 @@ final class MySQLConnectionTask extends AbstractCommunicationTask implements Aut
             , AuthenticateAssistant assistant) {
         try {
 
-            Method method = pluginClass.getMethod("getInstance", AuthenticateAssistant.class);
+            Method method = pluginClass.getDeclaredMethod("getInstance", AuthenticateAssistant.class);
             if (!pluginClass.isAssignableFrom(method.getReturnType())) {
                 String message = String.format("plugin[%s] getInstance return error type.", pluginClass.getName());
                 throw new MySQLJdbdException(message);

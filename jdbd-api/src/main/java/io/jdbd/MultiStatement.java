@@ -7,7 +7,7 @@ import java.sql.JDBCType;
 public interface MultiStatement extends Statement, AutoCloseable {
 
 
-    MultiStatement add(String sql);
+    MultiStatement addBindable(String sql);
 
     MultiStatement bind(int index, JDBCType jdbcType, @Nullable Object nullableValue);
 

@@ -4,8 +4,12 @@ CREATE TABLE IF NOT EXISTS mysql_types (
     update_time           datetime(6)                                                         NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
     my_timestamp          timestamp                                                           NOT NULL DEFAULT CURRENT_TIMESTAMP,
     my_timestamp1         timestamp(1)                                                        NOT NULL DEFAULT CURRENT_TIMESTAMP(1),
+    my_date               date                                                                NOT NULL DEFAULT '1970-01-01',
+    my_time               time                                                                NOT NULL DEFAULT '00:00:00',
+    my_time1              time(1)                                                             NOT NULL DEFAULT '00:00:00.0',
 
-    name                  varchar(200)                                                        NOT NULL DEFAULT '',
+
+    NAME                  VARCHAR(200)                                                        NOT NULL DEFAULT '',
     my_char               char(200)                                                           NOT NULL DEFAULT '',
     my_binary             BINARY(60)                                                          NOT NULL DEFAULT '0',
     my_var_binary         varbinary(60)                                                       NOT NULL DEFAULT '0',

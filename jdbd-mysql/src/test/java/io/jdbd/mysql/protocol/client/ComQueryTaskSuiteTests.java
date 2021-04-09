@@ -17,21 +17,12 @@ import io.jdbd.vendor.conf.Properties;
 import io.jdbd.vendor.util.Geometries;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.testng.ITestContext;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
-import reactor.core.publisher.Flux;
 
-import java.io.BufferedReader;
 import java.math.BigDecimal;
 import java.math.BigInteger;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.time.*;
 import java.util.*;
-import java.util.concurrent.LinkedBlockingQueue;
 
 import static org.testng.Assert.*;
 
@@ -39,75 +30,11 @@ import static org.testng.Assert.*;
 /**
  * @see ComQueryTask
  */
-@Test(groups = {Groups.COM_QUERY}, dependsOnGroups = {Groups.SESSION_INITIALIZER, Groups.UTILS})
+@Test(groups = {Groups.COM_QUERY}, dependsOnGroups = {Groups.SESSION_INITIALIZER, Groups.UTILS, Groups.DATA_PREPARE})
 public class ComQueryTaskSuiteTests extends AbstractConnectionBasedSuiteTests {
 
     private static final Logger LOG = LoggerFactory.getLogger(ComQueryTaskSuiteTests.class);
 
-    private static final String PROTOCOL_KEY = "my$protocol";
-
-    private static final Queue<MySQLTaskAdjutant> TASK_ADJUTANT_QUEUE = new LinkedBlockingQueue<>();
-
-    @BeforeClass
-    public static void beforeClass(ITestContext context) throws Exception {
-        LOG.info("\n {} group test start.\n", Groups.COM_QUERY);
-
-        MySQLSessionAdjutant sessionAdjutant = getSessionAdjutantForSingleHost(Collections.emptyMap());
-        ClientConnectionProtocolImpl protocol = ClientConnectionProtocolImpl.create(0, sessionAdjutant)
-                .block();
-        assertNotNull(protocol, "protocol");
-
-        context.setAttribute(PROTOCOL_KEY, protocol);
-
-        MySQLTaskAdjutant taskAdjutant = protocol.taskExecutor.getAdjutant();
-
-        Path path = Paths.get(ClientTestUtils.getTestResourcesPath().toString(), "script/ddl/comQueryTask.sql");
-        StringBuilder builder = new StringBuilder();
-        try (BufferedReader reader = Files.newBufferedReader(path, ClientTestUtils.getSystemFileCharset())) {
-            String line;
-            while ((line = reader.readLine()) != null) {
-                builder.append(line);
-            }
-
-        }
-
-        List<String> commandList = new ArrayList<>(2);
-        commandList.add(builder.toString());
-        commandList.add("TRUNCATE mysql_types");
-
-        ComQueryTask.batchUpdate(commandList, taskAdjutant)
-                .then()
-                .block();
-
-        prepareData(taskAdjutant);
-
-        LOG.info("create mysql_types table success");
-    }
-
-    @AfterClass
-    public static void afterClass(ITestContext context) {
-        LOG.info("\n {} group test end.\n", Groups.COM_QUERY);
-        LOG.info("close {}", ClientConnectionProtocol.class.getName());
-
-        ClientConnectionProtocolImpl protocol = (ClientConnectionProtocolImpl) context.removeAttribute(PROTOCOL_KEY);
-        assertNotNull(protocol, "protocol");
-        MySQLTaskAdjutant adjutant = protocol.taskExecutor.getAdjutant();
-
-//        ComQueryTask.update("TRUNCATE mysql_types", adjutant)
-//                .then(Mono.defer(protocol::closeGracefully))
-//                .block();
-
-        protocol.closeGracefully()
-                .block();
-
-        Flux.fromIterable(TASK_ADJUTANT_QUEUE)
-                .flatMap(ComQueryTaskSuiteTests::quitConnection)
-                .then()
-                .block();
-
-        TASK_ADJUTANT_QUEUE.clear();
-
-    }
 
 
     @Test
@@ -115,7 +42,7 @@ public class ComQueryTaskSuiteTests extends AbstractConnectionBasedSuiteTests {
         LOG.info("update test start");
         final MySQLTaskAdjutant adjutant = obtainTaskAdjutant();
 
-        final String newName = "simonyi";
+        final String newName = "simonyi4";
         String sql = "UPDATE mysql_types as u SET u.name = '%s' WHERE u.id = 1";
         ResultStates resultStates = ComQueryTask.update(String.format(sql, newName), adjutant)
                 .block();
@@ -758,7 +685,7 @@ public class ComQueryTaskSuiteTests extends AbstractConnectionBasedSuiteTests {
         assertGeometryBindAndExtract(taskAdjutant, MySQLType.GEOMETRY, wktText);
         assertGeometryBindAndExtract(taskAdjutant, MySQLType.VARCHAR, wktText);
 
-        //MySQL 8.0.23 bug ,can't parse GEOMETRY_COLLECTION with big endian .
+        //MySQL 8.0.23 bug ,can't parse GEOMETRY_COLLECTION with big endian . @see https://bugs.mysql.com/bug.php?id=103262&thanks=4
 //        wkbArray = Geometries.geometryToWkb(wktText, true);
 //        assertGeometryBindAndExtract(taskAdjutant, MySQLType.GEOMETRY, wkbArray);
 //        assertGeometryBindAndExtract(taskAdjutant, MySQLType.VARBINARY, wkbArray);
@@ -855,7 +782,7 @@ public class ComQueryTaskSuiteTests extends AbstractConnectionBasedSuiteTests {
         assertMultiPointBindAndExtract(taskAdjutant, MySQLType.GEOMETRY, wktText);
         assertMultiPointBindAndExtract(taskAdjutant, MySQLType.VARCHAR, wktText);
 
-        //MySQL 8.0.23 bug ,can't parse MULTI_POINT with big endian .
+        //MySQL 8.0.23 bug ,can't parse MULTI_POINT with big endian . @see https://bugs.mysql.com/bug.php?id=103262&thanks=4
 //        wkbArray = Geometries.multiPointToWkb(wktText, true);
 //        assertMultiPointBindAndExtract(taskAdjutant, MySQLType.GEOMETRY, wkbArray);
 //        assertMultiPointBindAndExtract(taskAdjutant, MySQLType.VARBINARY, wkbArray);
@@ -1905,74 +1832,7 @@ public class ComQueryTaskSuiteTests extends AbstractConnectionBasedSuiteTests {
     }
 
 
-    private MySQLTaskAdjutant obtainTaskAdjutant() {
-        MySQLTaskAdjutant taskAdjutant;
 
-        taskAdjutant = TASK_ADJUTANT_QUEUE.poll();
-        if (taskAdjutant == null) {
-            Map<String, String> map = new HashMap<>();
-            if (ClientTestUtils.existsServerPublicKey()) {
-                map.put(PropertyKey.sslMode.getKey(), Enums.SslMode.DISABLED.name());
-            }
-            ClientTestUtils.appendZoneConfig(map);
-
-            MySQLSessionAdjutant sessionAdjutant = getSessionAdjutantForSingleHost(map);
-            ClientConnectionProtocolImpl protocol = ClientConnectionProtocolImpl.create(0, sessionAdjutant)
-                    .block();
-            assertNotNull(protocol, "protocol");
-
-            taskAdjutant = protocol.taskExecutor.getAdjutant();
-        }
-
-        return taskAdjutant;
-    }
-
-    private void releaseConnection(MySQLTaskAdjutant adjutant) {
-        TASK_ADJUTANT_QUEUE.add(adjutant);
-    }
-
-    private static void prepareData(MySQLTaskAdjutant taskAdjutant) throws Exception {
-        final int rowCount = 100;
-
-        StringBuilder builder = new StringBuilder(40 * rowCount)
-                .append("INSERT INTO mysql_types(name,my_char,my_bit,my_boolean,my_json) VALUES");
-
-        final Random random = new Random();
-
-        final ObjectMapper mapper = new ObjectMapper();
-
-        for (int i = 1; i <= rowCount; i++) {
-            if (i > 1) {
-                builder.append(",");
-            }
-            builder.append("(")
-                    //.append(i)//id
-                    .append("'zoro")//name
-                    .append(i)
-                    .append("','simonyi")//my_char
-                    .append(i)
-                    .append("',B'")
-                    .append(Long.toBinaryString(random.nextLong()))
-                    .append("',TRUE")
-                    .append(",'")
-                    .append(mapper.writeValueAsString(Collections.singletonMap("name", "zoro")))
-                    .append("')");
-        }
-
-        final String command = builder.toString();
-        // LOG.info("prepare data command:\n {}", builder.toString());
-//        byte[] bytes = command.getBytes(taskAdjutant.obtainCharsetClient());
-//        LOG.info("prepare data command bytes:{}, times:{}",bytes.length,bytes.length / PacketUtils.MAX_PAYLOAD);
-//
-        ResultStates resultStates = ComQueryTask.update(command, taskAdjutant)
-                .block();
-
-        assertNotNull(resultStates, "resultStates");
-        assertEquals(resultStates.getAffectedRows(), rowCount, "affectedRows");
-        assertFalse(resultStates.hasMoreResults(), "hasMoreResults");
-        LOG.info("InsertId:{}", resultStates.getInsertId());
-
-    }
 
 
 }

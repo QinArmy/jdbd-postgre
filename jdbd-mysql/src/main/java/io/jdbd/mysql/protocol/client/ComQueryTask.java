@@ -192,7 +192,7 @@ final class ComQueryTask extends MySQLCommandTask {
      */
     static ReactorMultiResults bindableMultiStmt(final List<StmtWrapper> stmtWrapperList
             , final MySQLTaskAdjutant adjutant) {
-        ReactorMultiResults multiResults;
+        final ReactorMultiResults multiResults;
         if (stmtWrapperList.isEmpty()) {
             multiResults = JdbdMultiResults.error(MySQLExceptions.createEmptySqlException());
         } else if (Capabilities.supportMultiStatement(adjutant)) {
@@ -670,9 +670,6 @@ final class ComQueryTask extends MySQLCommandTask {
      */
     private boolean readTextResultSet(final ByteBuf cumulateBuffer, final Consumer<Object> serverStatusConsumer) {
         assertPhase(Phase.READ_TEXT_RESULT_SET);
-        if (LOG.isTraceEnabled()) {
-            LOG.trace("read COM_QUERY TEXT ResultSet,readableBytes[{}]", cumulateBuffer.readableBytes());
-        }
 
         final int resultSequenceId = this.currentResultSequenceId;
         final boolean resultSetEnd;
@@ -1430,13 +1427,13 @@ final class ComQueryTask extends MySQLCommandTask {
     }
 
 
-    private final class MultiStmtSink implements DownstreamSink {
+    private final class MultiStmtSink implements DownstreamSink, ResultRowSink {
 
         private final MultiResultsSink sink;
 
         private final int statementCount;
 
-        private ResultSetReader resultSetReader;
+        private final ResultSetReader resultSetReader;
 
         private QuerySink querySink;
 
@@ -1449,6 +1446,14 @@ final class ComQueryTask extends MySQLCommandTask {
             }
             this.sink = sink;
             this.statementCount = ComQueryTask.this.sqlCount;
+            this.resultSetReader = ResultSetReaderBuilder.builder()
+                    .rowSink(this)
+                    .adjutant(ComQueryTask.this.adjutant)
+                    .sequenceIdUpdater(ComQueryTask.this::updateSequenceId)
+                    .errorConsumer(ComQueryTask.this::addError)
+
+                    .errorJudger(ComQueryTask.this::hasError)
+                    .build(TextResultSetReader.class);
         }
 
         @Override
@@ -1463,6 +1468,31 @@ final class ComQueryTask extends MySQLCommandTask {
                         "%s has more results,current sequenceId[%s],expect result count[%s], reject complete."
                         , this, this.currentSequenceId, this.statementCount));
             }
+        }
+
+        /**
+         * @see ResultRowSink#next(ResultRow)
+         */
+        @Override
+        public void next(ResultRow resultRow) {
+            this.querySink.next(resultRow);
+        }
+
+        /**
+         * @see ResultRowSink#isCancelled()
+         */
+        @Override
+        public boolean isCancelled() {
+            return this.querySink.isCancelled();
+        }
+
+        /**
+         * @see ResultRowSink#accept(ResultStates)
+         */
+        @Override
+        public void accept(ResultStates resultStates) throws IllegalStateException {
+            updateLastResultStates(this.currentSequenceId, resultStates);
+            this.querySink.accept(resultStates);
         }
 
         @Override
@@ -1486,31 +1516,17 @@ final class ComQueryTask extends MySQLCommandTask {
         @Override
         public boolean readTextResultSet(final int resultSequenceId, ByteBuf cumulateBuffer
                 , final Consumer<Object> serverStatusConsumer) {
-            boolean resultEnd;
+            final boolean resultEnd;
             if (resultSequenceId == this.currentSequenceId) {
-                ResultSetReader resultSetReader = this.resultSetReader;
-                if (resultSetReader == null) {
+                if (this.querySink == null) {
                     this.querySink = this.sink.nextQuery();
-                    resultSetReader = ResultSetReaderBuilder.builder()
-
-                            .rowSink(this.querySink)
-                            .adjutant(ComQueryTask.this.adjutant)
-                            .sequenceIdUpdater(ComQueryTask.this::updateSequenceId)
-                            .errorConsumer(ComQueryTask.this::addError)
-
-                            .errorJudger(ComQueryTask.this::hasError)
-                            .build(TextResultSetReader.class);
-                    this.resultSetReader = resultSetReader;
                 }
-
-                resultEnd = resultSetReader.read(cumulateBuffer, serverStatusConsumer);
+                resultEnd = this.resultSetReader.read(cumulateBuffer, serverStatusConsumer);
                 if (resultEnd) {
-                    final QuerySink querySink = this.querySink;
                     if (!hasError()) {
-                        querySink.complete();
+                        this.querySink.complete();
                     }
                     this.querySink = null;
-                    this.resultSetReader = null;
                     this.currentSequenceId++;
                 }
 
