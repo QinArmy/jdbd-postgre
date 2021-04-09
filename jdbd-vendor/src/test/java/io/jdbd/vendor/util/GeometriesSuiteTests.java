@@ -171,6 +171,7 @@ public class GeometriesSuiteTests {
         wkbArrayOne = Geometries.lineStringToWkb(wktText, true);
         wkbArrayTow = Geometries.lineStringToWkb(wktText, false);
         assertTrue(Geometries.wkbEquals(wkbArrayOne, wkbArrayTow), wktText);
+
         wktTextTwo = Geometries.lineStringToWkt(wkbArrayOne);
         LOG.info("'{}' WKT : {}", wktText, wktTextTwo);
 
@@ -227,61 +228,159 @@ public class GeometriesSuiteTests {
 
     /**
      * @see Geometries#multiPointToWkb(String, boolean)
+     * @see Geometries#multiPointToWkt(byte[])
      */
     @Test
     public void multiPointToWkb() {
-        //TODO test
         LOG.info("multiPointToWkb test start");
-        String wktText;
+        String wktText, wktTextTwo;
         byte[] wkbArrayOne, wkbArrayTow;
 
-        wktText = "MULTIPOINT((0 0),(0 1),(0 3),(0 0))";
+        wktText = "MULTIPOINT EMPTY";
         wkbArrayOne = Geometries.multiPointToWkb(wktText, true);
         wkbArrayTow = Geometries.multiPointToWkb(wktText, false);
-
         assertTrue(Geometries.wkbEquals(wkbArrayOne, wkbArrayTow), wktText);
 
-        LOG.info("WKT one : {}", Geometries.multiPointToWkt(wkbArrayOne));
-        LOG.info("WKT tow : {}", Geometries.multiPointToWkt(wkbArrayTow));
+        wktTextTwo = Geometries.multiPointToWkt(wkbArrayOne);
+        LOG.info("MULTIPOINT WKT compare:\n{}\n{}", wktText, wktTextTwo);
+        wkbArrayTow = Geometries.multiPointToWkb(wktTextTwo, true);
+        assertTrue(Geometries.wkbEquals(wkbArrayTow, wkbArrayOne), wktTextTwo);
 
+        wktText = " MULTIPOINT ( ( 0 0 ) , (1 1),(1 3), (0 0))  ";
+        wkbArrayOne = Geometries.multiPointToWkb(wktText, true);
+        wkbArrayTow = Geometries.multiPointToWkb(wktText, false);
+        assertTrue(Geometries.wkbEquals(wkbArrayOne, wkbArrayTow), wktText);
+
+        wktTextTwo = Geometries.multiPointToWkt(wkbArrayOne);
+        LOG.info("MULTIPOINT WKT compare:\n{}\n{}", wktText, wktTextTwo);
+        wkbArrayTow = Geometries.multiPointToWkb(wktTextTwo, true);
+        assertTrue(Geometries.wkbEquals(wkbArrayTow, wkbArrayOne), wktTextTwo);
 
         LOG.info("multiPointToWkb test success");
     }
 
+
+    /**
+     * @see Geometries#multiLineStringToWkb(String, boolean)
+     * @see Geometries#multiLineStringToWkt(byte[])
+     */
     @Test
     public void multiLineString() {
         LOG.info("multiLineString test start");
-        String wktText;
+        String wktText, wktTextTwo;
         byte[] wkbArrayOne, wkbArrayTow;
 
-        wktText = "MULTILINESTRING((0.0 1.3 ,3 3))";
+        wktText = " MULTILINESTRING EMPTY";
         wkbArrayOne = Geometries.multiLineStringToWkb(wktText, true);
         wkbArrayTow = Geometries.multiLineStringToWkb(wktText, false);
-
         assertTrue(Geometries.wkbEquals(wkbArrayOne, wkbArrayTow), wktText);
 
-        LOG.info("WKT one : {}", Geometries.multiLineStringToWkt(wkbArrayOne));
-        LOG.info("WKT tow : {}", Geometries.multiLineStringToWkt(wkbArrayTow));
+        wktTextTwo = Geometries.multiLineStringToWkt(wkbArrayOne);
+        LOG.info("MULTILINESTRING WKT compare:\n{}\n{}", wktText, wktTextTwo);
+        wkbArrayTow = Geometries.multiLineStringToWkb(wktTextTwo, true);
+        assertTrue(Geometries.wkbEquals(wkbArrayTow, wkbArrayOne), wktTextTwo);
+
+
+        wktText = String.format(" MULTILINESTRING ( EMPTY,(0.0 1.3 ,3 3),(3.4 34.5 ,%s %s),EMPTY )"
+                , Double.MAX_VALUE, Double.MIN_VALUE);
+        wkbArrayOne = Geometries.multiLineStringToWkb(wktText, true);
+        wkbArrayTow = Geometries.multiLineStringToWkb(wktText, false);
+        assertTrue(Geometries.wkbEquals(wkbArrayOne, wkbArrayTow), wktText);
+
+        wktTextTwo = Geometries.multiLineStringToWkt(wkbArrayOne);
+        LOG.info("MULTILINESTRING WKT compare:\n{}\n{}", wktText, wktTextTwo);
+        wkbArrayTow = Geometries.multiLineStringToWkb(wktTextTwo, true);
+        assertTrue(Geometries.wkbEquals(wkbArrayTow, wkbArrayOne), wktTextTwo);
+
 
         LOG.info("multiLineString test success");
     }
 
+    /**
+     * @see Geometries#multiPolygonToWkb(String, boolean)
+     * @see Geometries#multiPolygonToWkt(byte[])
+     */
     @Test
     public void multiPolygon() {
         LOG.info("multiPolygon test start");
-        String wktText;
+        String wktText, wktTextTwo;
         byte[] wkbArrayOne, wkbArrayTow;
 
-        wktText = "MULTILINESTRING((0.0 1.3 ,3 3))";
+        wktText = "MULTIPOLYGON EMPTY";
         wkbArrayOne = Geometries.multiPolygonToWkb(wktText, true);
         wkbArrayTow = Geometries.multiPolygonToWkb(wktText, false);
-
         assertTrue(Geometries.wkbEquals(wkbArrayOne, wkbArrayTow), wktText);
 
-        LOG.info("WKT one : {}", Geometries.multiLineStringToWkt(wkbArrayOne));
-        LOG.info("WKT tow : {}", Geometries.multiLineStringToWkt(wkbArrayTow));
+        wktTextTwo = Geometries.multiPolygonToWkt(wkbArrayOne);
+        LOG.info("MULTIPOLYGON WKT compare:\n{}\n{}", wktText, wktTextTwo);
+        wkbArrayTow = Geometries.multiPolygonToWkb(wktTextTwo, true);
+        assertTrue(Geometries.wkbEquals(wkbArrayTow, wkbArrayOne), wktTextTwo);
+
+
+        wktText = String.format("MULTIPOLYGON ( EMPTY,((0 0 ,3 4,5 8 , 0 0)) , EMPTY ,((1.3 3.5 ,7 4,5 9 ,%s %s,1.3 3.5)) ) "
+                , Double.MAX_VALUE, Double.MIN_VALUE);
+        wkbArrayOne = Geometries.multiPolygonToWkb(wktText, true);
+        wkbArrayTow = Geometries.multiPolygonToWkb(wktText, false);
+        assertTrue(Geometries.wkbEquals(wkbArrayOne, wkbArrayTow), wktText);
+
+        wktTextTwo = Geometries.multiPolygonToWkt(wkbArrayOne);
+        LOG.info("MULTIPOLYGON WKT compare:\n{}\n{}", wktText, wktTextTwo);
+        wkbArrayTow = Geometries.multiPolygonToWkb(wktTextTwo, true);
+        assertTrue(Geometries.wkbEquals(wkbArrayTow, wkbArrayOne), wktTextTwo);
 
         LOG.info("multiPolygon test success");
+    }
+
+    @Test
+    public void geometryCollection() {
+        LOG.info("geometryCollection test start");
+        String wktText, wktTextTwo;
+        byte[] wkbArrayOne, wkbArrayTow;
+
+        wktText = "GEOMETRYCOLLECTION EMPTY";
+        wkbArrayOne = Geometries.geometryCollectionToWkb(wktText, true);
+        wkbArrayTow = Geometries.geometryCollectionToWkb(wktText, false);
+        assertTrue(Geometries.wkbEquals(wkbArrayOne, wkbArrayTow), wktText);
+
+        wktTextTwo = Geometries.geometryCollectionToWkt(wkbArrayOne);
+        LOG.info("GEOMETRYCOLLECTION WKT compare:\n{}\n{}", wktText, wktTextTwo);
+        wkbArrayTow = Geometries.geometryCollectionToWkb(wktTextTwo, true);
+        assertTrue(Geometries.wkbEquals(wkbArrayTow, wkbArrayOne), wktTextTwo);
+
+        final String point, lineString, polygon, multiPoint, multiLineString, multiPolygon, geometryCollection;
+
+        point = String.format(" POINT  ( %s %s)  ", Double.MAX_VALUE, Double.MIN_VALUE);
+        lineString = String.format(" LINESTRING (  0 0, 1.0 3.3 ,   %s %s  )", Double.MAX_VALUE, Double.MIN_VALUE);
+        polygon = String.format("POLYGON((0 0,0 1,0 3,0 0),(3 4,0 1,0 3,%s %s,3 4))"
+                , Double.MAX_VALUE, Double.MIN_VALUE);
+        multiPoint = " MULTIPOINT ( ( 0 0 ) , (1 1),(1 3), (0 0))  ";
+        multiLineString = String.format(" MULTILINESTRING ( (0.0 1.3 ,3 3),(3.4 34.5 ,%s %s) )"
+                , Double.MAX_VALUE, Double.MIN_VALUE);
+        multiPolygon = String.format("MULTIPOLYGON ( ((0 0 ,3 4,5 8 , 0 0))  ,((1.3 3.5 ,7 4,5 9 ,%s %s,1.3 3.5)) ) "
+                , Double.MAX_VALUE, Double.MIN_VALUE);
+        geometryCollection = "GEOMETRYCOLLECTION(POINT(0 0))";
+
+
+        wktText = String.format("GEOMETRYCOLLECTION (%s,%s,%s,%s ,%s,%s,%s) "
+                , point
+                , lineString
+                , polygon
+                , multiPoint
+
+                , multiLineString
+                , multiPolygon
+                , geometryCollection
+        );
+        wkbArrayOne = Geometries.geometryCollectionToWkb(wktText, true);
+        wkbArrayTow = Geometries.geometryCollectionToWkb(wktText, false);
+        assertTrue(Geometries.wkbEquals(wkbArrayOne, wkbArrayTow), wktText);
+
+        wktTextTwo = Geometries.geometryCollectionToWkt(wkbArrayOne);
+        LOG.info("GEOMETRYCOLLECTION WKT compare:\n{}\n{}", wktText, wktTextTwo);
+        wkbArrayTow = Geometries.geometryCollectionToWkb(wktTextTwo, true);
+        assertTrue(Geometries.wkbEquals(wkbArrayTow, wkbArrayOne), wktTextTwo);
+
+        LOG.info("geometryCollection test success");
     }
 
 

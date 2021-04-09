@@ -28,17 +28,23 @@ public abstract class Geometries extends GenericGeometries {
         outWrapper = new WkbOUtWrapper(WKB_POINT_BYTES, bigEndian);
 
         final WkbType wkbType = WkbType.POINT;
+        readNonNullWkb(inWrapper, wkbType);
 
-        doPointToWkb(inWrapper, outWrapper, wkbType);
+        outWrapper.bufferArray[0] = outWrapper.bigEndian ? (byte) 0 : (byte) 1;
+        JdbdNumberUtils.intToEndian(outWrapper.bigEndian, wkbType.code, outWrapper.bufferArray, 1, 4);
+        outWrapper.buffer.position(5);
+
+        int pointCount;
+        pointCount = pointTextToWkb(inWrapper, outWrapper, wkbType);
         assertWhitespaceSuffix(inWrapper, wkbType);
 
         outWrapper.buffer.flip();
         final byte[] wkbArray;
-        if (outWrapper.buffer.remaining() == 5) {
+        if (pointCount == 1) {
+            wkbArray = outWrapper.bufferArray;
+        } else {
             wkbArray = new byte[5];
             outWrapper.buffer.get(wkbArray);
-        } else {
-            wkbArray = outWrapper.bufferArray;
         }
         return wkbArray;
     }
@@ -67,72 +73,118 @@ public abstract class Geometries extends GenericGeometries {
 
     public static byte[] lineStringToWkb(final String wktText, final boolean bigEndian) {
         BufferWrapper inWrapper = new BufferWrapper(wktText.getBytes(StandardCharsets.US_ASCII));
-        WkbMemoryWrapper outWrapper = new WkbMemoryWrapper(inWrapper.bufferArray.length, bigEndian);
+        WkbMemoryWrapper outWrapper = new WkbMemoryWrapper(256, bigEndian);
 
-        final WkbType wkbType = WkbType.LINE_STRING;
+        final WkbType expectType = WkbType.LINE_STRING;
+        readNonNullWkb(inWrapper, expectType);
 
-        doLineStringToWkb(inWrapper, outWrapper, wkbType);
-        assertWhitespaceSuffix(inWrapper, wkbType);
+        final int pointCount, headerIndex;
+        headerIndex = writeGeometryHeader(outWrapper, expectType);
+        pointCount = lineStringTextToWkb(inWrapper, outWrapper, expectType);
+        assertWhitespaceSuffix(inWrapper, expectType);
 
-        byte[] wkb = new byte[outWrapper.outChannel.readableBytes()];
-        outWrapper.outChannel.readBytes(wkb);
-        return wkb;
+        if (pointCount != 0) {
+            writeInt(outWrapper.outChannel, headerIndex, outWrapper.bigEndian, pointCount);
+        }
+        return channelToByteArray(outWrapper.outChannel);
     }
 
     public static byte[] polygonToWkb(final String wktText, final boolean bigEndian) {
         BufferWrapper inWrapper = new BufferWrapper(wktText.getBytes(StandardCharsets.US_ASCII));
-        WkbMemoryWrapper outWrapper = new WkbMemoryWrapper(128, bigEndian);
+        WkbMemoryWrapper outWrapper = new WkbMemoryWrapper(256, bigEndian);
 
         final WkbType wkbType = WkbType.POLYGON;
+        readNonNullWkb(inWrapper, wkbType);
 
-        doPolygonToWkb(inWrapper, outWrapper, wkbType);
+        final int writerIndex, linearRingCount;
+        writerIndex = writeGeometryHeader(outWrapper, wkbType);
+        linearRingCount = polygonTextToWkb(inWrapper, outWrapper, wkbType);
         assertWhitespaceSuffix(inWrapper, wkbType);
-
-        byte[] wkb = new byte[outWrapper.outChannel.readableBytes()];
-        outWrapper.outChannel.readBytes(wkb);
-        return wkb;
+        if (linearRingCount != 0) {
+            writeInt(outWrapper.outChannel, writerIndex, bigEndian, linearRingCount);
+        }
+        return channelToByteArray(outWrapper.outChannel);
     }
 
 
     public static byte[] multiPointToWkb(final String wktText, final boolean bigEndian) {
         BufferWrapper inWrapper = new BufferWrapper(wktText.getBytes(StandardCharsets.US_ASCII));
-        WkbMemoryWrapper outWrapper = new WkbMemoryWrapper(inWrapper.bufferArray.length, bigEndian);
+        WkbMemoryWrapper outWrapper = new WkbMemoryWrapper(256, bigEndian);
 
-        final WkbType wkbType = WkbType.MULTI_POINT;
-        doMultiPointToWkb(inWrapper, outWrapper, wkbType);
-        assertWhitespaceSuffix(inWrapper, wkbType);
+        final WkbType expectType = WkbType.MULTI_POINT;
+        readNonNullWkb(inWrapper, expectType);
 
-        byte[] wkb = new byte[outWrapper.outChannel.readableBytes()];
-        outWrapper.outChannel.readBytes(wkb);
-        return wkb;
+        final int writerIndex, pointCount;
+        writerIndex = writeGeometryHeader(outWrapper, expectType);
+        pointCount = multiPointTextToWkb(inWrapper, outWrapper, expectType);
+        assertWhitespaceSuffix(inWrapper, expectType);
+
+        if (pointCount != 0) {
+            writeInt(outWrapper.outChannel, writerIndex, bigEndian, pointCount);
+        }
+        return channelToByteArray(outWrapper.outChannel);
     }
 
     public static byte[] multiLineStringToWkb(final String wktText, final boolean bigEndian) {
         BufferWrapper inWrapper = new BufferWrapper(wktText.getBytes(StandardCharsets.US_ASCII));
-        WkbMemoryWrapper outWrapper = new WkbMemoryWrapper(inWrapper.bufferArray.length, bigEndian);
+        WkbMemoryWrapper outWrapper = new WkbMemoryWrapper(256, bigEndian);
 
-        final WkbType wkbType = WkbType.MULTI_LINE_STRING;
+        final WkbType expectType = WkbType.MULTI_LINE_STRING;
+        readNonNullWkb(inWrapper, expectType);
 
-        doMultiLineStringToWkb(inWrapper, outWrapper, wkbType);
-        assertWhitespaceSuffix(inWrapper, wkbType);
+        final int writerIndex, elementCount;
 
-        byte[] wkb = new byte[outWrapper.outChannel.readableBytes()];
-        outWrapper.outChannel.readBytes(wkb);
-        return wkb;
+        writerIndex = writeGeometryHeader(outWrapper, expectType);
+        elementCount = multiLineStringTextToWkb(inWrapper, outWrapper, expectType);
+        assertWhitespaceSuffix(inWrapper, expectType);
+        if (elementCount != 0) {
+            writeInt(outWrapper.outChannel, writerIndex, bigEndian, elementCount);
+        }
+        return channelToByteArray(outWrapper.outChannel);
     }
 
     public static byte[] multiPolygonToWkb(final String wktText, final boolean bigEndian) {
         BufferWrapper inWrapper = new BufferWrapper(wktText.getBytes(StandardCharsets.US_ASCII));
-        WkbMemoryWrapper outWrapper = new WkbMemoryWrapper(inWrapper.bufferArray.length, bigEndian);
+        WkbMemoryWrapper outWrapper = new WkbMemoryWrapper(256, bigEndian);
 
         final WkbType wkbType = WkbType.MULTI_POLYGON;
+        readNonNullWkb(inWrapper, wkbType);
 
-        doMultiPolygonToWkb(inWrapper, outWrapper, wkbType);
+        final int writerIndex, polygonCount;
+
+        writerIndex = writeGeometryHeader(outWrapper, wkbType);
+        polygonCount = multiPolygonTextToWkb(inWrapper, outWrapper, wkbType);
         assertWhitespaceSuffix(inWrapper, wkbType);
+        if (polygonCount != 0) {
+            writeInt(outWrapper.outChannel, writerIndex, bigEndian, polygonCount);
+        }
+        return channelToByteArray(outWrapper.outChannel);
+    }
 
-        byte[] wkb = new byte[outWrapper.outChannel.readableBytes()];
-        outWrapper.outChannel.readBytes(wkb);
-        return wkb;
+    /**
+     * @param wktText <ul>
+     *                <li>{@link WkbType#GEOMETRY_COLLECTION}</li>
+     *                <li>{@link WkbType#GEOMETRY_COLLECTION_Z}</li>
+     *                <li>{@link WkbType#GEOMETRY_COLLECTION_M}</li>
+     *                <li>{@link WkbType#GEOMETRY_COLLECTION_ZM}</li>
+     *                </ul>
+     */
+    public static byte[] geometryCollectionToWkb(final String wktText, final boolean bigEndian) {
+        BufferWrapper inWrapper = new BufferWrapper(wktText.getBytes(StandardCharsets.US_ASCII));
+        WkbMemoryWrapper outWrapper = new WkbMemoryWrapper(256, bigEndian);
+
+        final WkbType wktType = WkbType.GEOMETRY_COLLECTION;
+        readNonNullWkb(inWrapper, wktType);
+
+        final int elementCountWriterIndex, geometryCount;
+        elementCountWriterIndex = writeGeometryHeader(outWrapper, wktType);
+        geometryCount = geometryCollectionTextToWkb(inWrapper, outWrapper, wktType);
+
+        assertWhitespaceSuffix(inWrapper, wktType);
+        if (geometryCount != 0) {
+            writeInt(outWrapper.outChannel, elementCountWriterIndex, outWrapper.bigEndian, geometryCount);
+        }
+        return channelToByteArray(outWrapper.outChannel);
     }
 
     /*################################## blow protected method ##################################*/

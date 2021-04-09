@@ -8,6 +8,8 @@ import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.Map;
 
 /**
@@ -22,11 +24,21 @@ public enum WkbType implements CodeEnum {
         public WkbType elementType() {
             return null;
         }
+
+        @Override
+        public WkbType family() {
+            return this;
+        }
     },
     POINT(Constant.POINT, "POINT") {
         @Override
         public WkbType elementType() {
             return null;
+        }
+
+        @Override
+        public WkbType family() {
+            return this;
         }
     },
     LINE_STRING(Constant.LINE_STRING, "LINESTRING") {
@@ -34,11 +46,21 @@ public enum WkbType implements CodeEnum {
         public WkbType elementType() {
             return POINT;
         }
+
+        @Override
+        public WkbType family() {
+            return this;
+        }
     },
     POLYGON(Constant.POLYGON, "POLYGON") {
         @Override
         public WkbType elementType() {
             return LINE_STRING;
+        }
+
+        @Override
+        public WkbType family() {
+            return this;
         }
     },
 
@@ -47,11 +69,21 @@ public enum WkbType implements CodeEnum {
         public WkbType elementType() {
             return POINT;
         }
+
+        @Override
+        public WkbType family() {
+            return this;
+        }
     },
     MULTI_LINE_STRING(Constant.MULTI_LINE_STRING, "MULTILINESTRING") {
         @Override
         public WkbType elementType() {
             return LINE_STRING;
+        }
+
+        @Override
+        public WkbType family() {
+            return this;
         }
     },
     MULTI_POLYGON(Constant.MULTI_POLYGON, "MULTIPOLYGON") {
@@ -59,11 +91,21 @@ public enum WkbType implements CodeEnum {
         public WkbType elementType() {
             return POLYGON;
         }
+
+        @Override
+        public WkbType family() {
+            return this;
+        }
     },
     GEOMETRY_COLLECTION(Constant.GEOMETRY_COLLECTION, "GEOMETRYCOLLECTION") {
         @Override
         public WkbType elementType() {
             return GEOMETRY;
+        }
+
+        @Override
+        public WkbType family() {
+            return this;
         }
     },
 
@@ -72,11 +114,21 @@ public enum WkbType implements CodeEnum {
         public WkbType elementType() {
             throw new UnsupportedOperationException();
         }
+
+        @Override
+        public WkbType family() {
+            return this;
+        }
     }, // future use
     COMPOUND_CURVE(Constant.COMPOUND_CURVE, "COMPOUNDCURVE") {
         @Override
         public WkbType elementType() {
             throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public WkbType family() {
+            return this;
         }
     }, // future use
     CURVE_POLYGON(Constant.CURVE_POLYGON, "CURVEPOLYGON") {
@@ -84,11 +136,21 @@ public enum WkbType implements CodeEnum {
         public WkbType elementType() {
             throw new UnsupportedOperationException();
         }
+
+        @Override
+        public WkbType family() {
+            return this;
+        }
     }, // future use
     MULTI_CURVE(Constant.MULTI_CURVE, "MULTICURVE") {
         @Override
         public WkbType elementType() {
             return CURVE;
+        }
+
+        @Override
+        public WkbType family() {
+            return this;
         }
     },
 
@@ -97,11 +159,21 @@ public enum WkbType implements CodeEnum {
         public WkbType elementType() {
             return SURFACE;
         }
+
+        @Override
+        public WkbType family() {
+            return this;
+        }
     },
     CURVE(Constant.CURVE, "CURVE") {
         @Override
         public WkbType elementType() {
             throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public WkbType family() {
+            return this;
         }
     },
     SURFACE(Constant.SURFACE, "SURFACE") {
@@ -109,11 +181,21 @@ public enum WkbType implements CodeEnum {
         public WkbType elementType() {
             throw new UnsupportedOperationException();
         }
+
+        @Override
+        public WkbType family() {
+            return this;
+        }
     },
     POLYHEDRAL_SURFACE(Constant.POLYHEDRAL_SURFACE, "POLYHEDRALSURFACE") {
         @Override
         public WkbType elementType() {
             throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public WkbType family() {
+            return this;
         }
     },
 
@@ -122,11 +204,21 @@ public enum WkbType implements CodeEnum {
         public WkbType elementType() {
             throw new UnsupportedOperationException();
         }
+
+        @Override
+        public WkbType family() {
+            return this;
+        }
     },
     TRIANGLE(Constant.TRIANGLE, "TRIANGLE") {
         @Override
         public WkbType elementType() {
             return LINE_STRING;
+        }
+
+        @Override
+        public WkbType family() {
+            return this;
         }
     },
 
@@ -136,11 +228,21 @@ public enum WkbType implements CodeEnum {
         public WkbType elementType() {
             return null;
         }
+
+        @Override
+        public WkbType family() {
+            return GEOMETRY;
+        }
     },
     POINT_Z(Constant.POINT_Z, "POINT Z") {
         @Override
         public WkbType elementType() {
             return null;
+        }
+
+        @Override
+        public WkbType family() {
+            return POINT;
         }
     },
     LINE_STRING_Z(Constant.LINE_STRING_Z, "LINESTRING Z") {
@@ -148,11 +250,21 @@ public enum WkbType implements CodeEnum {
         public WkbType elementType() {
             return POINT_Z;
         }
+
+        @Override
+        public WkbType family() {
+            return LINE_STRING;
+        }
     },
     POLYGON_Z(Constant.POLYGON_Z, "POLYGON Z") {
         @Override
         public WkbType elementType() {
             return LINE_STRING_Z;
+        }
+
+        @Override
+        public WkbType family() {
+            return POLYGON;
         }
     },
 
@@ -161,11 +273,21 @@ public enum WkbType implements CodeEnum {
         public WkbType elementType() {
             return POINT_Z;
         }
+
+        @Override
+        public WkbType family() {
+            return MULTI_POINT;
+        }
     },
     MULTI_LINE_STRING_Z(Constant.MULTI_LINE_STRING_Z, "MULTILINESTRING Z") {
         @Override
         public WkbType elementType() {
             return LINE_STRING_Z;
+        }
+
+        @Override
+        public WkbType family() {
+            return MULTI_LINE_STRING;
         }
     },
     MULTI_POLYGON_Z(Constant.MULTI_POLYGON_Z, "MULTIPOLYGON Z") {
@@ -173,11 +295,21 @@ public enum WkbType implements CodeEnum {
         public WkbType elementType() {
             return POLYGON_Z;
         }
+
+        @Override
+        public WkbType family() {
+            return MULTI_POLYGON;
+        }
     },
     GEOMETRY_COLLECTION_Z(Constant.GEOMETRY_COLLECTION_Z, "GEOMETRYCOLLECTION Z") {
         @Override
         public WkbType elementType() {
             return GEOMETRY_Z;
+        }
+
+        @Override
+        public WkbType family() {
+            return GEOMETRY_COLLECTION;
         }
     },
 
@@ -186,11 +318,21 @@ public enum WkbType implements CodeEnum {
         public WkbType elementType() {
             throw new UnsupportedOperationException();
         }
+
+        @Override
+        public WkbType family() {
+            return CIRCULAR_STRING;
+        }
     }, // future use
     COMPOUND_CURVE_Z(Constant.COMPOUND_CURVE_Z, "COMPOUNDCURVE Z") {
         @Override
         public WkbType elementType() {
             throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public WkbType family() {
+            return COMPOUND_CURVE;
         }
     }, // future use
     CURVE_POLYGON_Z(Constant.CURVE_POLYGON_Z, "CURVEPOLYGON Z") {
@@ -198,11 +340,21 @@ public enum WkbType implements CodeEnum {
         public WkbType elementType() {
             throw new UnsupportedOperationException();
         }
+
+        @Override
+        public WkbType family() {
+            return CURVE_POLYGON;
+        }
     }, // future use
     MULTI_CURVE_Z(Constant.MULTI_CURVE_Z, "MULTICURVE Z") {
         @Override
         public WkbType elementType() {
             return CURVE_Z;
+        }
+
+        @Override
+        public WkbType family() {
+            return MULTI_CURVE;
         }
     },
     MULTI_SURFACE_Z(Constant.MULTI_SURFACE_Z, "MULTISURFACE Z") {
@@ -210,11 +362,21 @@ public enum WkbType implements CodeEnum {
         public WkbType elementType() {
             return SURFACE_Z;
         }
+
+        @Override
+        public WkbType family() {
+            return MULTI_SURFACE;
+        }
     },
     CURVE_Z(Constant.CURVE_Z, "CURVE Z") {
         @Override
         public WkbType elementType() {
             throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public WkbType family() {
+            return CURVE;
         }
     },
     SURFACE_Z(Constant.SURFACE_Z, "SURFACE Z") {
@@ -222,11 +384,21 @@ public enum WkbType implements CodeEnum {
         public WkbType elementType() {
             throw new UnsupportedOperationException();
         }
+
+        @Override
+        public WkbType family() {
+            return SURFACE;
+        }
     },
     POLYHEDRAL_SURFACE_Z(Constant.POLYHEDRAL_SURFACE_Z, "POLYHEDRALSURFACE Z") {
         @Override
         public WkbType elementType() {
             throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public WkbType family() {
+            return POLYHEDRAL_SURFACE;
         }
     },
 
@@ -235,11 +407,21 @@ public enum WkbType implements CodeEnum {
         public WkbType elementType() {
             throw new UnsupportedOperationException();
         }
+
+        @Override
+        public WkbType family() {
+            return TIN;
+        }
     },
     TRIANGLE_Z(Constant.TRIANGLE_Z, "TRIANGLE Z") {
         @Override
         public WkbType elementType() {
             return LINE_STRING_Z;
+        }
+
+        @Override
+        public WkbType family() {
+            return TRIANGLE;
         }
     },
 
@@ -250,11 +432,21 @@ public enum WkbType implements CodeEnum {
         public WkbType elementType() {
             return null;
         }
+
+        @Override
+        public WkbType family() {
+            return GEOMETRY;
+        }
     },
     POINT_M(Constant.POINT_M, "POINT M") {
         @Override
         public WkbType elementType() {
             return null;
+        }
+
+        @Override
+        public WkbType family() {
+            return POINT;
         }
     },
     LINE_STRING_M(Constant.LINE_STRING_M, "LINESTRING M") {
@@ -262,11 +454,21 @@ public enum WkbType implements CodeEnum {
         public WkbType elementType() {
             return POINT_M;
         }
+
+        @Override
+        public WkbType family() {
+            return LINE_STRING;
+        }
     },
     POLYGON_M(Constant.POLYGON_M, "POLYGON M") {
         @Override
         public WkbType elementType() {
             return LINE_STRING_M;
+        }
+
+        @Override
+        public WkbType family() {
+            return POLYGON;
         }
     },
 
@@ -275,11 +477,21 @@ public enum WkbType implements CodeEnum {
         public WkbType elementType() {
             return POINT_M;
         }
+
+        @Override
+        public WkbType family() {
+            return MULTI_POINT;
+        }
     },
     MULTI_LINE_STRING_M(Constant.MULTI_LINE_STRING_M, "MULTILINESTRING M") {
         @Override
         public WkbType elementType() {
             return LINE_STRING_M;
+        }
+
+        @Override
+        public WkbType family() {
+            return MULTI_LINE_STRING;
         }
     },
     MULTI_POLYGON_M(Constant.MULTI_POLYGON_M, "MULTIPOLYGON M") {
@@ -287,11 +499,21 @@ public enum WkbType implements CodeEnum {
         public WkbType elementType() {
             return POLYGON_M;
         }
+
+        @Override
+        public WkbType family() {
+            return MULTI_POLYGON;
+        }
     },
     GEOMETRY_COLLECTION_M(Constant.GEOMETRY_COLLECTION_M, "GEOMETRYCOLLECTION M") {
         @Override
         public WkbType elementType() {
             return GEOMETRY_M;
+        }
+
+        @Override
+        public WkbType family() {
+            return GEOMETRY_COLLECTION;
         }
     },
 
@@ -300,11 +522,21 @@ public enum WkbType implements CodeEnum {
         public WkbType elementType() {
             throw new UnsupportedOperationException();
         }
+
+        @Override
+        public WkbType family() {
+            return CIRCULAR_STRING;
+        }
     }, // future use
     COMPOUND_CURVE_M(Constant.COMPOUND_CURVE_M, "COMPOUNDCURVE M") {
         @Override
         public WkbType elementType() {
             throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public WkbType family() {
+            return COMPOUND_CURVE;
         }
     }, // future use
     CURVE_POLYGON_M(Constant.CURVE_POLYGON_M, "CURVEPOLYGON M") {
@@ -312,11 +544,21 @@ public enum WkbType implements CodeEnum {
         public WkbType elementType() {
             throw new UnsupportedOperationException();
         }
+
+        @Override
+        public WkbType family() {
+            return CURVE_POLYGON;
+        }
     }, // future use
     MULTI_CURVE_M(Constant.MULTI_CURVE_M, "MULTICURVE M") {
         @Override
         public WkbType elementType() {
             return CURVE_M;
+        }
+
+        @Override
+        public WkbType family() {
+            return MULTI_CURVE;
         }
     },
     MULTI_SURFACE_M(Constant.MULTI_SURFACE_M, "MULTISURFACE M") {
@@ -324,11 +566,21 @@ public enum WkbType implements CodeEnum {
         public WkbType elementType() {
             return SURFACE_M;
         }
+
+        @Override
+        public WkbType family() {
+            return MULTI_SURFACE;
+        }
     },
     CURVE_M(Constant.CURVE_M, "CURVE M") {
         @Override
         public WkbType elementType() {
             throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public WkbType family() {
+            return CURVE;
         }
     },
     SURFACE_M(Constant.SURFACE_M, "SURFACE M") {
@@ -336,11 +588,21 @@ public enum WkbType implements CodeEnum {
         public WkbType elementType() {
             throw new UnsupportedOperationException();
         }
+
+        @Override
+        public WkbType family() {
+            return SURFACE;
+        }
     },
     POLYHEDRAL_SURFACE_M(Constant.POLYHEDRAL_SURFACE_M, "POLYHEDRALSURFACE M") {
         @Override
         public WkbType elementType() {
             throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public WkbType family() {
+            return POLYHEDRAL_SURFACE;
         }
     },
 
@@ -349,11 +611,21 @@ public enum WkbType implements CodeEnum {
         public WkbType elementType() {
             throw new UnsupportedOperationException();
         }
+
+        @Override
+        public WkbType family() {
+            return TIN;
+        }
     },
     TRIANGLE_M(Constant.TRIANGLE_M, "TRIANGLE M") {
         @Override
         public WkbType elementType() {
             return LINE_STRING_M;
+        }
+
+        @Override
+        public WkbType family() {
+            return TRIANGLE;
         }
     },
 
@@ -365,11 +637,21 @@ public enum WkbType implements CodeEnum {
         public WkbType elementType() {
             return null;
         }
+
+        @Override
+        public WkbType family() {
+            return GEOMETRY;
+        }
     },
     POINT_ZM(Constant.POINT_ZM, "POINT ZM") {
         @Override
         public WkbType elementType() {
             return null;
+        }
+
+        @Override
+        public WkbType family() {
+            return POINT;
         }
     },
     LINE_STRING_ZM(Constant.LINE_STRING_ZM, "LINESTRING ZM") {
@@ -377,11 +659,21 @@ public enum WkbType implements CodeEnum {
         public WkbType elementType() {
             return POINT_ZM;
         }
+
+        @Override
+        public WkbType family() {
+            return LINE_STRING;
+        }
     },
     POLYGON_ZM(Constant.POLYGON_ZM, "POLYGON ZM") {
         @Override
         public WkbType elementType() {
             return LINE_STRING_ZM;
+        }
+
+        @Override
+        public WkbType family() {
+            return POLYGON;
         }
     },
     MULTI_POINT_ZM(Constant.MULTI_POINT_ZM, "MULTIPOINT ZM") {
@@ -389,11 +681,21 @@ public enum WkbType implements CodeEnum {
         public WkbType elementType() {
             return POINT_ZM;
         }
+
+        @Override
+        public WkbType family() {
+            return MULTI_POINT;
+        }
     },
     MULTI_LINE_STRING_ZM(Constant.MULTI_LINE_STRING_ZM, "MULTILINESTRING ZM") {
         @Override
         public WkbType elementType() {
             return LINE_STRING_ZM;
+        }
+
+        @Override
+        public WkbType family() {
+            return MULTI_LINE_STRING;
         }
     },
     MULTI_POLYGON_ZM(Constant.MULTI_POLYGON_ZM, "MULTIPOLYGON ZM") {
@@ -401,11 +703,21 @@ public enum WkbType implements CodeEnum {
         public WkbType elementType() {
             return POLYGON_ZM;
         }
+
+        @Override
+        public WkbType family() {
+            return MULTI_POLYGON;
+        }
     },
     GEOMETRY_COLLECTION_ZM(Constant.GEOMETRY_COLLECTION_ZM, "GEOMETRYCOLLECTION ZM") {
         @Override
         public WkbType elementType() {
             return GEOMETRY_ZM;
+        }
+
+        @Override
+        public WkbType family() {
+            return GEOMETRY_COLLECTION;
         }
     },
     CIRCULAR_STRING_ZM(Constant.CIRCULAR_STRING_ZM, "CIRCULARSTRING ZM") {
@@ -413,11 +725,21 @@ public enum WkbType implements CodeEnum {
         public WkbType elementType() {
             throw new UnsupportedOperationException();
         }
+
+        @Override
+        public WkbType family() {
+            return CIRCULAR_STRING;
+        }
     }, // future use
     COMPOUND_CURVE_ZM(Constant.COMPOUND_CURVE_ZM, "COMPOUNDCURVE ZM") {
         @Override
         public WkbType elementType() {
             throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public WkbType family() {
+            return COMPOUND_CURVE;
         }
     }, // future use
     CURVE_POLYGON_ZM(Constant.CURVE_POLYGON_ZM, "CURVEPOLYGON ZM") {
@@ -425,11 +747,21 @@ public enum WkbType implements CodeEnum {
         public WkbType elementType() {
             throw new UnsupportedOperationException();
         }
+
+        @Override
+        public WkbType family() {
+            return CURVE_POLYGON;
+        }
     }, // future use
     MULTI_CURVE_ZM(Constant.MULTI_CURVE_ZM, "MULTICURVE ZM") {
         @Override
         public WkbType elementType() {
             return CURVE_ZM;
+        }
+
+        @Override
+        public WkbType family() {
+            return MULTI_CURVE;
         }
     },
     MULTI_SURFACE_ZM(Constant.MULTI_SURFACE_ZM, "MULTISURFACE ZM") {
@@ -437,11 +769,21 @@ public enum WkbType implements CodeEnum {
         public WkbType elementType() {
             return SURFACE_ZM;
         }
+
+        @Override
+        public WkbType family() {
+            return MULTI_SURFACE;
+        }
     },
     CURVE_ZM(Constant.CURVE_ZM, "CURVE ZM") {
         @Override
         public WkbType elementType() {
             throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public WkbType family() {
+            return CURVE;
         }
     },
     SURFACE_ZM(Constant.SURFACE_ZM, "SURFACE ZM") {
@@ -449,11 +791,21 @@ public enum WkbType implements CodeEnum {
         public WkbType elementType() {
             throw new UnsupportedOperationException();
         }
+
+        @Override
+        public WkbType family() {
+            return SURFACE;
+        }
     },
     POLYHEDRAL_SURFACE_ZM(Constant.POLYHEDRAL_SURFACE_ZM, "POLYHEDRALSURFACE ZM") {
         @Override
         public WkbType elementType() {
             throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public WkbType family() {
+            return POLYHEDRAL_SURFACE;
         }
     },
 
@@ -462,16 +814,28 @@ public enum WkbType implements CodeEnum {
         public WkbType elementType() {
             throw new UnsupportedOperationException();
         }
+
+        @Override
+        public WkbType family() {
+            return TIN;
+        }
     },
     TRIANGLE_ZM(Constant.TRIANGLE_ZM, "TRIANGLE ZM") {
         @Override
         public WkbType elementType() {
             return LINE_STRING_ZM;
         }
+
+        @Override
+        public WkbType family() {
+            return TRIANGLE;
+        }
     };
 
 
     private static final Map<Integer, WkbType> CODE_MAP = CodeEnum.getCodeMap(WkbType.class);
+
+    private static final Map<String, WkbType> WKT_MAP = createWktMap();
 
 
     public final int code;
@@ -496,6 +860,9 @@ public enum WkbType implements CodeEnum {
     @Nullable
     public abstract WkbType elementType();
 
+    @Override
+    public abstract WkbType family();
+
     public int coordinates() {
         final int coordinateCount;
         if (this.code < 1000) {
@@ -506,6 +873,20 @@ public enum WkbType implements CodeEnum {
             coordinateCount = 4;
         }
         return coordinateCount;
+    }
+
+    public boolean sameDimension(WkbType wkbType) {
+        final boolean match;
+        if (this.code < 1000) {
+            match = wkbType.code < 1000;
+        } else if (this.code < 2000) {
+            match = wkbType.code < 2000;
+        } else if (this.code < 3000) {
+            match = wkbType.code < 3000;
+        } else {
+            match = true;
+        }
+        return match;
     }
 
     public boolean supportPointText() {
@@ -522,7 +903,6 @@ public enum WkbType implements CodeEnum {
         }
         return pointText;
     }
-
 
 
     public interface Constant {
@@ -629,38 +1009,54 @@ public enum WkbType implements CodeEnum {
 
 
     @Nullable
-    public static WkbType resolve(int code) {
+    public static WkbType fromCode(int code) {
         return CODE_MAP.get(code);
     }
 
-    public static WkbType resolveWkbType(final byte[] wkbArray, int offset) throws IllegalArgumentException {
+    public static WkbType fromWkbArray(final byte[] wkbArray, int offset) throws IllegalArgumentException {
+        if (offset < 0 || offset >= wkbArray.length) {
+            throw new IllegalArgumentException(String.format("offset[%s] not in [0,%s)", offset, wkbArray.length));
+        }
+        if (wkbArray.length < offset + 5) {
+            throw new IllegalArgumentException(
+                    String.format("wkbArray length[%s] error ,expect length[%s]", wkbArray.length, offset + 5));
+        }
         final byte byteOrder = wkbArray[offset++];
         if (byteOrder != 0 && byteOrder != 1) {
             throw new IllegalArgumentException(String.format("Illegal byteOrder[%s].", byteOrder));
         }
         int typeCode = readInt(byteOrder == 0, wkbArray, offset);
-        WkbType wkbType = resolve(typeCode);
+        WkbType wkbType = fromCode(typeCode);
         if (wkbType == null) {
             throw new IllegalArgumentException(String.format("Unknown WKB type[%s].", typeCode));
         }
         return wkbType;
     }
 
+    @Nullable
+    public static WkbType fromWkt(String wktType) {
+        return WKT_MAP.get(wktType.toUpperCase());
+    }
 
-    public static WkbType resolveWkbType(final Path path) throws IllegalArgumentException, IOException {
+
+    public static WkbType fromPath(final Path path) throws IllegalArgumentException, IOException {
         try (FileChannel in = FileChannel.open(path, StandardOpenOption.READ)) {
-            byte[] bufferArray = new byte[5];
-            ByteBuffer buffer = ByteBuffer.wrap(bufferArray);
-            if (in.read(buffer) < 5) {
-                throw new IllegalArgumentException("Empty path");
-            }
-            buffer.flip();
-            return resolveWkbType(bufferArray, 0);
+            return fromChannel(in);
         } catch (IOException | IllegalArgumentException e) {
             throw e;
         } catch (Throwable e) {
             throw new IOException(e.getMessage(), e);
         }
+    }
+
+    public static WkbType fromChannel(FileChannel in) throws IllegalArgumentException, IOException {
+        byte[] bufferArray = new byte[5];
+        ByteBuffer buffer = ByteBuffer.wrap(bufferArray);
+        if (in.read(buffer) < 5) {
+            throw new IllegalArgumentException("Empty path");
+        }
+        buffer.flip();
+        return fromWkbArray(bufferArray, 0);
     }
 
 
@@ -686,31 +1082,16 @@ public enum WkbType implements CodeEnum {
         return num;
     }
 
-    private static String wktTypeName(String name) {
-        final int len = name.length();
-        int underlineCount = 0;
-        for (int i = 0; i < len; i++) {
-            if (name.charAt(i) == '_') {
-                underlineCount++;
-            }
-        }
-        final String wktType;
-        if (underlineCount > 0) {
-            char[] charArray = new char[len - underlineCount];
-            char ch;
-            for (int i = 0, chIndex = 0; i < len; i++) {
-                ch = name.charAt(i);
-                if (ch != '_') {
-                    charArray[chIndex] = ch;
-                    chIndex++;
-                }
-            }
-            wktType = new String(charArray);
-        } else {
-            wktType = name;
-        }
-        return wktType;
+    private static Map<String, WkbType> createWktMap() {
+        WkbType[] wkbTypes = WkbType.values();
+        Map<String, WkbType> wktMap = new HashMap<>((int) (wkbTypes.length / 0.75F));
 
+        for (WkbType wkbType : wkbTypes) {
+            if (wktMap.putIfAbsent(wkbType.wktType, wkbType) != null) {
+                throw new IllegalStateException(String.format("WKB[%s] wkt duplication.", wkbType));
+            }
+        }
+        return Collections.unmodifiableMap(wktMap);
     }
 
 

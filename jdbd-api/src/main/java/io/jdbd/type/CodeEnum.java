@@ -30,6 +30,10 @@ public interface CodeEnum {
         return name();
     }
 
+    default CodeEnum family() {
+        return this;
+    }
+
     @SuppressWarnings("unchecked")
     @Nullable
     static <T extends Enum<T> & CodeEnum> T resolve(Class<?> enumClass, int code) {
