@@ -20,6 +20,42 @@ public abstract class Geometries extends GenericGeometries {
 
     public static final byte WKB_POINT_BYTES = 21;
 
+    public static byte[] geometryToWkb(final String wktText, final boolean bigEndian) {
+        BufferWrapper inWrapper = new BufferWrapper(wktText.getBytes(StandardCharsets.US_ASCII));
+
+        final WkbType wkbType = readWkb(inWrapper);
+        if (wkbType == null) {
+            throw new IllegalArgumentException("wktText not geometry.");
+        }
+        final byte[] wkbArray;
+        switch (wkbType) {
+            case POINT:
+                wkbArray = pointToWkb(wktText, bigEndian);
+                break;
+            case LINE_STRING:
+                wkbArray = lineStringToWkb(wktText, bigEndian);
+                break;
+            case POLYGON:
+                wkbArray = polygonToWkb(wktText, bigEndian);
+                break;
+            case MULTI_POINT:
+                wkbArray = multiPointToWkb(wktText, bigEndian);
+                break;
+            case MULTI_LINE_STRING:
+                wkbArray = multiLineStringToWkb(wktText, bigEndian);
+                break;
+            case MULTI_POLYGON:
+                wkbArray = multiPolygonToWkb(wktText, bigEndian);
+                break;
+            case GEOMETRY_COLLECTION:
+                wkbArray = geometryCollectionToWkb(wktText, bigEndian);
+                break;
+            default:
+                throw createUnsupportedWkb(wkbType);
+        }
+        return wkbArray;
+    }
+
 
     public static byte[] pointToWkb(final String pointWkt, final boolean bigEndian) {
         final BufferWrapper inWrapper = new BufferWrapper(pointWkt.getBytes(StandardCharsets.US_ASCII));

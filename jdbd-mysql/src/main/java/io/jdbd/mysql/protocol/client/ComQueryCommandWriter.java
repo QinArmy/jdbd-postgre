@@ -414,6 +414,7 @@ final class ComQueryCommandWriter {
             case MEDIUMBLOB:
             case BLOB:
             case LONGBLOB:
+            case GEOMETRY:
                 newBuffer = bindToBytes(stmtIndex, bindValue, buffer, packetList);
                 break;
             case SET: {
@@ -439,10 +440,6 @@ final class ComQueryCommandWriter {
             case TIMESTAMP: {
                 bindToDateTime(stmtIndex, bindValue, buffer);
                 newBuffer = buffer;
-            }
-            break;
-            case GEOMETRY: {
-                newBuffer = bindToGeometry(stmtIndex, bindValue, buffer, packetList);
             }
             break;
             case UNKNOWN:

@@ -14,7 +14,7 @@ import io.jdbd.mysql.type.TrueOrFalse;
 import io.jdbd.mysql.util.*;
 import io.jdbd.vendor.JdbdCompositeException;
 import io.jdbd.vendor.conf.Properties;
-import io.jdbd.vendor.util.JdbdNumberUtils;
+import io.jdbd.vendor.util.Geometries;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.ITestContext;
@@ -645,54 +645,517 @@ public class ComQueryTaskSuiteTests extends AbstractConnectionBasedSuiteTests {
     public void geometryBindAndExtract() {
         LOG.info("geometryBindAndExtract test start");
         final MySQLTaskAdjutant taskAdjutant = obtainTaskAdjutant();
+        String wktText;
+        byte[] wkbArray;
 
-        final String id = "11", field = "my_geometry";
-        //1. update filed
-        updateSingleField(taskAdjutant, MySQLType.GEOMETRY, "POINT(0 0)", field, id);
-        //2. query filed
-        ResultRow resultRow;
-        resultRow = querySingleField(taskAdjutant, field, id);
+        wktText = String.format("POINT(%s %s)", Double.MAX_VALUE, Double.MIN_VALUE);
+        assertGeometryBindAndExtract(taskAdjutant, MySQLType.GEOMETRY, wktText);
+        assertGeometryBindAndExtract(taskAdjutant, MySQLType.VARCHAR, wktText);
 
-        byte[] resultWkb = resultRow.get("field", byte[].class);
-        assertNotNull(resultWkb, field);
+        wkbArray = Geometries.geometryToWkb(wktText, true);
+        assertGeometryBindAndExtract(taskAdjutant, MySQLType.GEOMETRY, wkbArray);
+        assertGeometryBindAndExtract(taskAdjutant, MySQLType.VARBINARY, wkbArray);
 
-        final byte[] pointWkb = new byte[21];
-        int offset = 0;
-        pointWkb[offset++] = 1;
-        JdbdNumberUtils.intToLittleEndian(1, pointWkb, offset, 4);
-        offset += 4;
-        JdbdNumberUtils.doubleToEndian(false, Double.MAX_VALUE, pointWkb, offset);
-        offset += 8;
-        JdbdNumberUtils.doubleToEndian(false, Double.MIN_VALUE, pointWkb, offset);
+        wkbArray = Geometries.geometryToWkb(wktText, false);
+        assertGeometryBindAndExtract(taskAdjutant, MySQLType.GEOMETRY, wkbArray);
+        assertGeometryBindAndExtract(taskAdjutant, MySQLType.VARBINARY, wkbArray);
 
-        assertEquals(resultWkb, pointWkb, field);
 
+        wktText = String.format(" LINESTRING (  0 0, 1.0 3.3 ,   %s %s  )", Double.MAX_VALUE, Double.MIN_VALUE);
+        assertGeometryBindAndExtract(taskAdjutant, MySQLType.GEOMETRY, wktText);
+        assertGeometryBindAndExtract(taskAdjutant, MySQLType.VARCHAR, wktText);
+
+        wkbArray = Geometries.geometryToWkb(wktText, true);
+        assertGeometryBindAndExtract(taskAdjutant, MySQLType.GEOMETRY, wkbArray);
+        assertGeometryBindAndExtract(taskAdjutant, MySQLType.VARBINARY, wkbArray);
+
+        wkbArray = Geometries.geometryToWkb(wktText, false);
+        assertGeometryBindAndExtract(taskAdjutant, MySQLType.GEOMETRY, wkbArray);
+        assertGeometryBindAndExtract(taskAdjutant, MySQLType.VARBINARY, wkbArray);
+
+
+        wktText = "POLYGON((0 0,0 1,0 3,0 0))";
+        assertGeometryBindAndExtract(taskAdjutant, MySQLType.GEOMETRY, wktText);
+        assertGeometryBindAndExtract(taskAdjutant, MySQLType.VARCHAR, wktText);
+
+        wkbArray = Geometries.geometryToWkb(wktText, true);
+        assertGeometryBindAndExtract(taskAdjutant, MySQLType.GEOMETRY, wkbArray);
+        assertGeometryBindAndExtract(taskAdjutant, MySQLType.VARBINARY, wkbArray);
+
+        wkbArray = Geometries.geometryToWkb(wktText, false);
+        assertGeometryBindAndExtract(taskAdjutant, MySQLType.GEOMETRY, wkbArray);
+        assertGeometryBindAndExtract(taskAdjutant, MySQLType.VARBINARY, wkbArray);
+
+
+        wktText = " MULTIPOINT ( ( 0 0 ) , (1 1),(1 3), (0 0))  ";
+        assertGeometryBindAndExtract(taskAdjutant, MySQLType.GEOMETRY, wktText);
+        assertGeometryBindAndExtract(taskAdjutant, MySQLType.VARCHAR, wktText);
+
+        //MySQL 8.0.23 bug ,can't parse MULTI_POINT with big endian .
+//        wkbArray = Geometries.geometryToWkb(wktText, true);
+//        assertGeometryBindAndExtract(taskAdjutant, MySQLType.GEOMETRY, wkbArray);
+//        assertGeometryBindAndExtract(taskAdjutant, MySQLType.VARBINARY, wkbArray);
+
+        wkbArray = Geometries.geometryToWkb(wktText, false);
+        assertGeometryBindAndExtract(taskAdjutant, MySQLType.GEOMETRY, wkbArray);
+        assertGeometryBindAndExtract(taskAdjutant, MySQLType.VARBINARY, wkbArray);
+
+
+        wktText = String.format(" MULTILINESTRING ( (0.0 1.3 ,3 3),(3.4 34.5 ,%s %s) )"
+                , Double.MAX_VALUE, Double.MIN_VALUE);
+        assertGeometryBindAndExtract(taskAdjutant, MySQLType.GEOMETRY, wktText);
+        assertGeometryBindAndExtract(taskAdjutant, MySQLType.VARCHAR, wktText);
+
+        //MySQL 8.0.23 bug ,can't parse MULTI_LINE_STRING with big endian .
+//        wkbArray = Geometries.geometryToWkb(wktText, true);
+//        assertGeometryBindAndExtract(taskAdjutant, MySQLType.GEOMETRY, wkbArray);
+//        assertGeometryBindAndExtract(taskAdjutant, MySQLType.VARBINARY, wkbArray);
+
+        wkbArray = Geometries.geometryToWkb(wktText, false);
+        assertGeometryBindAndExtract(taskAdjutant, MySQLType.GEOMETRY, wkbArray);
+        assertGeometryBindAndExtract(taskAdjutant, MySQLType.VARBINARY, wkbArray);
+
+
+        wktText = String.format("MULTIPOLYGON ( ((0 0 ,3 4,5 8 , 0 0))  ,((1.3 3.5 ,7 4,5 9 ,%s %s,1.3 3.5)) ) "
+                , Double.MAX_VALUE, Double.MIN_VALUE);
+        assertGeometryBindAndExtract(taskAdjutant, MySQLType.GEOMETRY, wktText);
+        assertGeometryBindAndExtract(taskAdjutant, MySQLType.VARCHAR, wktText);
+
+        //MySQL 8.0.23 bug ,can't parse MULTI_POLYGON with big endian .
+//        wkbArray = Geometries.geometryToWkb(wktText, true);
+//        assertGeometryBindAndExtract(taskAdjutant, MySQLType.GEOMETRY, wkbArray);
+//        assertGeometryBindAndExtract(taskAdjutant, MySQLType.VARBINARY, wkbArray);
+
+        wkbArray = Geometries.geometryToWkb(wktText, false);
+        assertGeometryBindAndExtract(taskAdjutant, MySQLType.GEOMETRY, wkbArray);
+        assertGeometryBindAndExtract(taskAdjutant, MySQLType.VARBINARY, wkbArray);
+
+
+        final String point, lineString, polygon, multiPoint, multiLineString, multiPolygon, geometryCollection;
+
+        point = String.format(" POINT  ( %s %s)  ", Double.MAX_VALUE, Double.MIN_VALUE);
+        lineString = String.format(" LINESTRING (  0 0, 1.0 3.3 ,   %s %s  )", Double.MAX_VALUE, Double.MIN_VALUE);
+        polygon = String.format("POLYGON((0 0,0 1,0 3,0 0),(3 4,0 1,0 3,%s %s,3 4))"
+                , Double.MAX_VALUE, Double.MIN_VALUE);
+        multiPoint = " MULTIPOINT ( ( 0 0 ) , (1 1),(1 3), (0 0))  ";
+        multiLineString = String.format(" MULTILINESTRING ( (0.0 1.3 ,3 3),(3.4 34.5 ,%s %s) )"
+                , Double.MAX_VALUE, Double.MIN_VALUE);
+        multiPolygon = String.format("MULTIPOLYGON ( ((0 0 ,3 4,5 8 , 0 0))  ,((1.3 3.5 ,7 4,5 9 ,%s %s,1.3 3.5)) ) "
+                , Double.MAX_VALUE, Double.MIN_VALUE);
+        geometryCollection = "GEOMETRYCOLLECTION(POINT(0 0))";
+
+
+        wktText = String.format("GEOMETRYCOLLECTION (%s,%s,%s,%s ,%s,%s,%s) "
+                , point
+                , lineString
+                , polygon
+                , multiPoint
+
+                , multiLineString
+                , multiPolygon
+                , geometryCollection
+        );
+        assertGeometryBindAndExtract(taskAdjutant, MySQLType.GEOMETRY, wktText);
+        assertGeometryBindAndExtract(taskAdjutant, MySQLType.VARCHAR, wktText);
+
+        //MySQL 8.0.23 bug ,can't parse GEOMETRY_COLLECTION with big endian .
+//        wkbArray = Geometries.geometryToWkb(wktText, true);
+//        assertGeometryBindAndExtract(taskAdjutant, MySQLType.GEOMETRY, wkbArray);
+//        assertGeometryBindAndExtract(taskAdjutant, MySQLType.VARBINARY, wkbArray);
+
+        wkbArray = Geometries.geometryToWkb(wktText, false);
+        assertGeometryBindAndExtract(taskAdjutant, MySQLType.GEOMETRY, wkbArray);
+        assertGeometryBindAndExtract(taskAdjutant, MySQLType.VARBINARY, wkbArray);
 
         LOG.info("geometryBindAndExtract test success");
+        releaseConnection(taskAdjutant);
+
+    }
+
+    @Test(timeOut = TIME_OUT)
+    public void pointBindAndExtract() {
+        LOG.info("pointBindAndExtract test start");
+        final MySQLTaskAdjutant taskAdjutant = obtainTaskAdjutant();
+        String wktText;
+        byte[] wkbArray;
+
+        wktText = String.format("POINT(%s %s)", Double.MAX_VALUE, Double.MIN_VALUE);
+        assertPointsBindAndExtract(taskAdjutant, MySQLType.GEOMETRY, wktText);
+        assertPointsBindAndExtract(taskAdjutant, MySQLType.VARCHAR, wktText);
+
+        wkbArray = Geometries.pointToWkb(wktText, true);
+        assertPointsBindAndExtract(taskAdjutant, MySQLType.GEOMETRY, wkbArray);
+        assertPointsBindAndExtract(taskAdjutant, MySQLType.VARBINARY, wkbArray);
+
+        wkbArray = Geometries.pointToWkb(wktText, false);
+        assertPointsBindAndExtract(taskAdjutant, MySQLType.GEOMETRY, wkbArray);
+        assertPointsBindAndExtract(taskAdjutant, MySQLType.VARBINARY, wkbArray);
+
+
+        LOG.info("pointBindAndExtract test success");
+        releaseConnection(taskAdjutant);
+    }
+
+    @Test(timeOut = TIME_OUT)
+    public void lineStringBindAndExtract() {
+        LOG.info("lineStringBindAndExtract test start");
+        final MySQLTaskAdjutant taskAdjutant = obtainTaskAdjutant();
+        String wktText;
+        byte[] wkbArray;
+
+        wktText = String.format(" LINESTRING (  0 0, 1.0 3.3 ,   %s %s  )", Double.MAX_VALUE, Double.MIN_VALUE);
+        assertLineStringBindAndExtract(taskAdjutant, MySQLType.GEOMETRY, wktText);
+        assertLineStringBindAndExtract(taskAdjutant, MySQLType.VARCHAR, wktText);
+
+        wkbArray = Geometries.lineStringToWkb(wktText, true);
+        assertLineStringBindAndExtract(taskAdjutant, MySQLType.GEOMETRY, wkbArray);
+        assertLineStringBindAndExtract(taskAdjutant, MySQLType.VARBINARY, wkbArray);
+
+        wkbArray = Geometries.lineStringToWkb(wktText, false);
+        assertLineStringBindAndExtract(taskAdjutant, MySQLType.GEOMETRY, wkbArray);
+        assertLineStringBindAndExtract(taskAdjutant, MySQLType.VARBINARY, wkbArray);
+
+        LOG.info("lineStringBindAndExtract test success");
+        releaseConnection(taskAdjutant);
+    }
+
+    @Test(timeOut = TIME_OUT)
+    public void polygonBindAndExtract() {
+        LOG.info("polygonBindAndExtract test start");
+        final MySQLTaskAdjutant taskAdjutant = obtainTaskAdjutant();
+        String wktText;
+        byte[] wkbArray;
+
+        wktText = String.format("POLYGON((0 0,0 1,0 3,0 0),(3 4,0 1,0 3,%s %s,3 4))"
+                , Double.MAX_VALUE, Double.MIN_VALUE);
+
+        assertPolygonBindAndExtract(taskAdjutant, MySQLType.GEOMETRY, wktText);
+        assertPolygonBindAndExtract(taskAdjutant, MySQLType.VARCHAR, wktText);
+
+        wkbArray = Geometries.polygonToWkb(wktText, true);
+        assertPolygonBindAndExtract(taskAdjutant, MySQLType.GEOMETRY, wkbArray);
+        assertPolygonBindAndExtract(taskAdjutant, MySQLType.VARBINARY, wkbArray);
+
+        wkbArray = Geometries.polygonToWkb(wktText, false);
+        assertPolygonBindAndExtract(taskAdjutant, MySQLType.GEOMETRY, wkbArray);
+        assertPolygonBindAndExtract(taskAdjutant, MySQLType.VARBINARY, wkbArray);
+        LOG.info("polygonBindAndExtract test success");
+        releaseConnection(taskAdjutant);
+    }
+
+    @Test(timeOut = TIME_OUT)
+    public void multiPointBindExtract() {
+        LOG.info("multiPointBindExtract test start");
+        final MySQLTaskAdjutant taskAdjutant = obtainTaskAdjutant();
+        String wktText;
+        byte[] wkbArray;
+
+        wktText = String.format("MULTIPOINT(( 0 0 ),(1 1),(1 3), (0 0),(%s %s)) "
+                , Double.MIN_VALUE, Double.MAX_VALUE);
+        assertMultiPointBindAndExtract(taskAdjutant, MySQLType.GEOMETRY, wktText);
+        assertMultiPointBindAndExtract(taskAdjutant, MySQLType.VARCHAR, wktText);
+
+        //MySQL 8.0.23 bug ,can't parse MULTI_POINT with big endian .
+//        wkbArray = Geometries.multiPointToWkb(wktText, true);
+//        assertMultiPointBindAndExtract(taskAdjutant, MySQLType.GEOMETRY, wkbArray);
+//        assertMultiPointBindAndExtract(taskAdjutant, MySQLType.VARBINARY, wkbArray);
+
+        wkbArray = Geometries.multiPointToWkb(wktText, false);
+        assertMultiPointBindAndExtract(taskAdjutant, MySQLType.GEOMETRY, wkbArray);
+        assertMultiPointBindAndExtract(taskAdjutant, MySQLType.VARBINARY, wkbArray);
+
+        LOG.info("multiPointBindExtract test success");
+        releaseConnection(taskAdjutant);
+    }
+
+    @Test(timeOut = TIME_OUT)
+    public void multiLineStringBindExtract() {
+        LOG.info("multiLineStringBindExtract test start");
+        final MySQLTaskAdjutant taskAdjutant = obtainTaskAdjutant();
+        String wktText;
+        byte[] wkbArray;
+
+        wktText = String.format(" MULTILINESTRING ( (0.0 1.3 ,3 3),(3.4 34.5 ,%s %s) )"
+                , Double.MAX_VALUE, Double.MIN_VALUE);
+        assertMultiLineStringBindAndExtract(taskAdjutant, MySQLType.GEOMETRY, wktText);
+        assertMultiLineStringBindAndExtract(taskAdjutant, MySQLType.VARCHAR, wktText);
+
+        //MySQL 8.0.23 bug ,can't parse MULTI_LINE_STRING with big endian .
+//        wkbArray = Geometries.multiLineStringToWkb(wktText, true);
+//        assertMultiLineStringBindAndExtract(taskAdjutant, MySQLType.GEOMETRY, wkbArray);
+//        assertMultiLineStringBindAndExtract(taskAdjutant, MySQLType.VARBINARY, wkbArray);
+
+        wkbArray = Geometries.multiLineStringToWkb(wktText, false);
+        assertMultiLineStringBindAndExtract(taskAdjutant, MySQLType.GEOMETRY, wkbArray);
+        assertMultiLineStringBindAndExtract(taskAdjutant, MySQLType.VARBINARY, wkbArray);
+
+        LOG.info("multiLineStringBindExtract test success");
+        releaseConnection(taskAdjutant);
+    }
+
+    @Test(timeOut = TIME_OUT)
+    public void multiPolygonBindExtract() {
+        LOG.info("multiPolygonBindExtract test start");
+        final MySQLTaskAdjutant taskAdjutant = obtainTaskAdjutant();
+        String wktText;
+        byte[] wkbArray;
+
+        wktText = String.format("MULTIPOLYGON ( ((0 0 ,3 4,5 8 , 0 0))  ,((1.3 3.5 ,7 4,5 9 ,%s %s,1.3 3.5)) ) "
+                , Double.MAX_VALUE, Double.MIN_VALUE);
+        assertMultiPolygonBindAndExtract(taskAdjutant, MySQLType.GEOMETRY, wktText);
+        assertMultiPolygonBindAndExtract(taskAdjutant, MySQLType.VARCHAR, wktText);
+
+        //MySQL 8.0.23 bug ,can't parse MULTI_POLYGON with big endian .
+//        wkbArray = Geometries.multiPolygonToWkb(wktText, true);
+//        assertMultiPolygonBindAndExtract(taskAdjutant, MySQLType.GEOMETRY, wkbArray);
+//        assertMultiPolygonBindAndExtract(taskAdjutant, MySQLType.VARBINARY, wkbArray);
+
+        wkbArray = Geometries.multiPolygonToWkb(wktText, false);
+        assertMultiPolygonBindAndExtract(taskAdjutant, MySQLType.GEOMETRY, wkbArray);
+        assertMultiPolygonBindAndExtract(taskAdjutant, MySQLType.VARBINARY, wkbArray);
+
+        LOG.info("multiPolygonBindExtract test success");
+        releaseConnection(taskAdjutant);
+    }
+
+    @Test(timeOut = TIME_OUT)
+    public void geometryCollectionBindExtract() {
+        LOG.info("geometryCollectionBindExtract test start");
+        final MySQLTaskAdjutant taskAdjutant = obtainTaskAdjutant();
+        String wktText;
+        byte[] wkbArray;
+
+
+        final String point, lineString, polygon, multiPoint, multiLineString, multiPolygon, geometryCollection;
+
+        point = String.format(" POINT  ( %s %s)  ", Double.MAX_VALUE, Double.MIN_VALUE);
+        lineString = String.format(" LINESTRING (  0 0, 1.0 3.3 ,   %s %s  )", Double.MAX_VALUE, Double.MIN_VALUE);
+        polygon = String.format("POLYGON((0 0,0 1,0 3,0 0),(3 4,0 1,0 3,%s %s,3 4))"
+                , Double.MAX_VALUE, Double.MIN_VALUE);
+        multiPoint = " MULTIPOINT ( ( 0 0 ) , (1 1),(1 3), (0 0))  ";
+        multiLineString = String.format(" MULTILINESTRING ( (0.0 1.3 ,3 3),(3.4 34.5 ,%s %s) )"
+                , Double.MAX_VALUE, Double.MIN_VALUE);
+        multiPolygon = String.format("MULTIPOLYGON ( ((0 0 ,3 4,5 8 , 0 0))  ,((1.3 3.5 ,7 4,5 9 ,%s %s,1.3 3.5)) ) "
+                , Double.MAX_VALUE, Double.MIN_VALUE);
+        geometryCollection = "GEOMETRYCOLLECTION(POINT(0 0))";
+
+
+        wktText = String.format("GEOMETRYCOLLECTION (%s,%s,%s,%s ,%s,%s,%s) "
+                , point
+                , lineString
+                , polygon
+                , multiPoint
+
+                , multiLineString
+                , multiPolygon
+                , geometryCollection
+        );
+        assertGeometryCollectionBindAndExtract(taskAdjutant, MySQLType.GEOMETRY, wktText);
+        assertGeometryCollectionBindAndExtract(taskAdjutant, MySQLType.VARCHAR, wktText);
+
+        //MySQL 8.0.23 bug ,can't parse GEOMETRY_COLLECTION with big endian .
+//        wkbArray = Geometries.geometryCollectionToWkb(wktText, true);
+//        assertGeometryCollectionBindAndExtract(taskAdjutant, MySQLType.GEOMETRY, wkbArray);
+//        assertGeometryCollectionBindAndExtract(taskAdjutant, MySQLType.VARBINARY, wkbArray);
+
+        wkbArray = Geometries.geometryCollectionToWkb(wktText, false);
+        assertGeometryCollectionBindAndExtract(taskAdjutant, MySQLType.GEOMETRY, wkbArray);
+        assertGeometryCollectionBindAndExtract(taskAdjutant, MySQLType.VARBINARY, wkbArray);
+
+        LOG.info("geometryCollectionBindExtract test success");
         releaseConnection(taskAdjutant);
     }
 
 
-
-
-
     /*################################## blow private method ##################################*/
 
-    private void assertPointsBindAndExtract(final MySQLTaskAdjutant taskAdjutant, final MySQLType mySQLType
-            , final Object bindParam, final String field, String id) {
-
+    /**
+     * @see #geometryBindAndExtract()
+     */
+    private void assertGeometryBindAndExtract(final MySQLTaskAdjutant taskAdjutant, final MySQLType mySQLType
+            , final Object bindParam) {
+        final String id = "11", field = "my_geometry";
         //1. update filed
         updateSingleField(taskAdjutant, mySQLType, bindParam, field, id);
         //2. query filed
         final ResultRow resultRow;
         resultRow = querySingleField(taskAdjutant, field, id);
-        final byte[] pointWkb = resultRow.get("field", byte[].class);
-        assertNotNull(pointWkb, field);
-        if (bindParam instanceof byte[]) {
-            assertEquals(pointWkb, (byte[]) bindParam, field);
+
+        final byte[] resultWkb = resultRow.getNonNull("field", byte[].class);
+
+        final byte[] bindWkb;
+        if (bindParam instanceof String) {
+            bindWkb = Geometries.geometryToWkb((String) bindParam, true);
+        } else {
+            bindWkb = (byte[]) bindParam;
         }
+        assertTrue(Geometries.wkbEquals(resultWkb, bindWkb), field);
     }
 
+    /**
+     * @see #pointBindAndExtract()
+     */
+    private void assertPointsBindAndExtract(final MySQLTaskAdjutant taskAdjutant, final MySQLType mySQLType
+            , final Object bindParam) {
+
+        final String id = "12", field = "my_point";
+        //1. update filed
+        updateSingleField(taskAdjutant, mySQLType, bindParam, field, id);
+        //2. query filed
+        final ResultRow resultRow;
+        resultRow = querySingleField(taskAdjutant, field, id);
+
+        final byte[] resultWkb = resultRow.getNonNull("field", byte[].class);
+
+        final byte[] bindWkb;
+        if (bindParam instanceof String) {
+            bindWkb = Geometries.pointToWkb((String) bindParam, true);
+        } else {
+            bindWkb = (byte[]) bindParam;
+        }
+        assertTrue(Geometries.wkbEquals(resultWkb, bindWkb), field);
+    }
+
+    /**
+     * @see #lineStringBindAndExtract()
+     */
+    private void assertLineStringBindAndExtract(final MySQLTaskAdjutant taskAdjutant, final MySQLType mySQLType
+            , final Object bindParam) {
+
+        final String id = "13", field = "my_linestring";
+        //1. update filed
+        updateSingleField(taskAdjutant, mySQLType, bindParam, field, id);
+        //2. query filed
+        final ResultRow resultRow;
+        resultRow = querySingleField(taskAdjutant, field, id);
+
+        final byte[] resultWkb = resultRow.getNonNull("field", byte[].class);
+
+        final byte[] bindWkb;
+        if (bindParam instanceof String) {
+            bindWkb = Geometries.lineStringToWkb((String) bindParam, true);
+        } else {
+            bindWkb = (byte[]) bindParam;
+        }
+        assertTrue(Geometries.wkbEquals(resultWkb, bindWkb), field);
+    }
+
+    /**
+     * @see #polygonBindAndExtract()
+     */
+    private void assertPolygonBindAndExtract(final MySQLTaskAdjutant taskAdjutant, final MySQLType mySQLType
+            , final Object bindParam) {
+
+        final String id = "14", field = "my_polygon";
+        //1. update filed
+        updateSingleField(taskAdjutant, mySQLType, bindParam, field, id);
+        //2. query filed
+        final ResultRow resultRow;
+        resultRow = querySingleField(taskAdjutant, field, id);
+
+        final byte[] resultWkb = resultRow.getNonNull("field", byte[].class);
+
+        final byte[] bindWkb;
+        if (bindParam instanceof String) {
+            bindWkb = Geometries.polygonToWkb((String) bindParam, true);
+        } else {
+            bindWkb = (byte[]) bindParam;
+        }
+        assertTrue(Geometries.wkbEquals(resultWkb, bindWkb), field);
+    }
+
+    /**
+     * @see #multiPointBindExtract()
+     */
+    private void assertMultiPointBindAndExtract(final MySQLTaskAdjutant taskAdjutant, final MySQLType mySQLType
+            , final Object bindParam) {
+        final String id = "15", field = "my_multipoint";
+        //1. update filed
+        updateSingleField(taskAdjutant, mySQLType, bindParam, field, id);
+        //2. query filed
+        final ResultRow resultRow;
+        resultRow = querySingleField(taskAdjutant, field, id);
+
+        final byte[] resultWkb = resultRow.getNonNull("field", byte[].class);
+
+        final byte[] bindWkb;
+        if (bindParam instanceof String) {
+            bindWkb = Geometries.multiPointToWkb((String) bindParam, true);
+        } else {
+            bindWkb = (byte[]) bindParam;
+        }
+        assertTrue(Geometries.wkbEquals(resultWkb, bindWkb), field);
+    }
+
+
+    /**
+     * @see #multiLineStringBindExtract()
+     */
+    private void assertMultiLineStringBindAndExtract(final MySQLTaskAdjutant taskAdjutant, final MySQLType mySQLType
+            , final Object bindParam) {
+        final String id = "16", field = "my_multilinestring";
+        //1. update filed
+        updateSingleField(taskAdjutant, mySQLType, bindParam, field, id);
+        //2. query filed
+        final ResultRow resultRow;
+        resultRow = querySingleField(taskAdjutant, field, id);
+
+        final byte[] resultWkb = resultRow.getNonNull("field", byte[].class);
+
+        final byte[] bindWkb;
+        if (bindParam instanceof String) {
+            bindWkb = Geometries.multiLineStringToWkb((String) bindParam, true);
+        } else {
+            bindWkb = (byte[]) bindParam;
+        }
+        assertTrue(Geometries.wkbEquals(resultWkb, bindWkb), field);
+    }
+
+    /**
+     * @see #multiPolygonBindExtract()
+     */
+    private void assertMultiPolygonBindAndExtract(final MySQLTaskAdjutant taskAdjutant, final MySQLType mySQLType
+            , final Object bindParam) {
+        final String id = "17", field = "my_multipolygon";
+        //1. update filed
+        updateSingleField(taskAdjutant, mySQLType, bindParam, field, id);
+        //2. query filed
+        final ResultRow resultRow;
+        resultRow = querySingleField(taskAdjutant, field, id);
+
+        final byte[] resultWkb = resultRow.getNonNull("field", byte[].class);
+
+        final byte[] bindWkb;
+        if (bindParam instanceof String) {
+            bindWkb = Geometries.multiPolygonToWkb((String) bindParam, true);
+        } else {
+            bindWkb = (byte[]) bindParam;
+        }
+        assertTrue(Geometries.wkbEquals(resultWkb, bindWkb), field);
+    }
+
+    /**
+     * @see #geometryCollectionBindExtract()
+     */
+    private void assertGeometryCollectionBindAndExtract(final MySQLTaskAdjutant taskAdjutant, final MySQLType mySQLType
+            , final Object bindParam) {
+        final String id = "18", field = "my_geometrycollection";
+        //1. update filed
+        updateSingleField(taskAdjutant, mySQLType, bindParam, field, id);
+        //2. query filed
+        final ResultRow resultRow;
+        resultRow = querySingleField(taskAdjutant, field, id);
+
+        final byte[] resultWkb = resultRow.getNonNull("field", byte[].class);
+
+        final byte[] bindWkb;
+        if (bindParam instanceof String) {
+            bindWkb = Geometries.geometryCollectionToWkb((String) bindParam, true);
+        } else {
+            bindWkb = (byte[]) bindParam;
+        }
+        assertTrue(Geometries.wkbEquals(resultWkb, bindWkb), field);
+    }
 
     /**
      * @see #assertSetTypeBindAndExtract(MySQLTaskAdjutant, MySQLType, Object)
@@ -1005,9 +1468,31 @@ public class ComQueryTaskSuiteTests extends AbstractConnectionBasedSuiteTests {
     private void updateSingleField(final MySQLTaskAdjutant taskAdjutant, final MySQLType mySQLType
             , final Object bindParam, final String field, final String id) {
 
-        String sql = String.format("UPDATE mysql_types as t SET t.%s =? WHERE t.id = ?", field);
+        final String paramExp;
+        switch (field) {
+            case "my_geometry":
+            case "my_point":
+            case "my_polygon":
+            case "my_linestring":
+            case "my_multipoint":
+            case "my_multilinestring":
+            case "my_multipolygon":
+            case "my_geometrycollection":
+                if (bindParam instanceof String) {
+                    paramExp = "ST_GEOMETRYFROMTEXT(?)";
+                } else {
+                    paramExp = "ST_GEOMETRYFROMWKB(?)";
+                }
+                break;
+            default:
+                paramExp = "?";
+        }
+        String sql = String.format("UPDATE mysql_types as t SET t.%s = %s WHERE t.id = ?", field, paramExp);
+
         List<BindValue> bindValueList = new ArrayList<>(2);
+
         BindValue bindValue = MySQLBindValue.create(0, mySQLType, bindParam);
+
         bindValueList.add(bindValue);
         bindValue = MySQLBindValue.create(1, MySQLType.BIGINT, id);
         bindValueList.add(bindValue);
