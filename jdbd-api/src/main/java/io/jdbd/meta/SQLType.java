@@ -2,6 +2,9 @@ package io.jdbd.meta;
 
 import java.sql.JDBCType;
 
+/**
+ * @since 1.0
+ */
 public interface SQLType extends java.sql.SQLType {
 
     /**
@@ -18,13 +21,6 @@ public interface SQLType extends java.sql.SQLType {
      */
     Class<?> javaType();
 
-    /**
-     * Returns the name of the vendor that supports this data type. The value
-     * returned typically is the package name for this vendor.
-     *
-     * @return The name of the vendor for this data type
-     */
-    String getVendor();
 
     boolean isUnsigned();
 

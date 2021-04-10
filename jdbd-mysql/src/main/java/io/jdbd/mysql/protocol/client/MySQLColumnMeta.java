@@ -6,6 +6,7 @@ import io.jdbd.mysql.protocol.CharsetMapping;
 import io.jdbd.mysql.protocol.conf.PropertyKey;
 import io.jdbd.vendor.conf.Properties;
 import io.netty.buffer.ByteBuf;
+import org.qinarmy.util.StringUtils;
 import reactor.util.annotation.Nullable;
 
 import java.nio.charset.Charset;
@@ -16,7 +17,7 @@ import java.util.Objects;
  * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/group__group__cs__column__definition__flags.html"> Column Definition Flags</a>
  * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_com_query_response_text_resultset_column_definition.html"> Column Definition Protocol</a>
  */
-public final class MySQLColumnMeta {
+final class MySQLColumnMeta {
 
     static final MySQLColumnMeta[] EMPTY = new MySQLColumnMeta[0];
 
@@ -40,33 +41,33 @@ public final class MySQLColumnMeta {
     static final int PART_KEY_FLAG = 1 << 14;
     static final int NUM_FLAG = 1 << 15;
 
-    public final String catalogName;
+    final String catalogName;
 
-    public final String schemaName;
+    final String schemaName;
 
-    public final String tableName;
+    final String tableName;
 
-    public final String tableAlias;
+    final String tableAlias;
 
-    public final String columnName;
+    final String columnName;
 
-    public final String columnAlias;
+    final String columnAlias;
 
-    public final int collationIndex;
+    final int collationIndex;
 
-    public final Charset columnCharset;
+    final Charset columnCharset;
 
     final long fixedLength;
 
-    public final long length;
+    final long length;
 
-    public final int typeFlag;
+    final int typeFlag;
 
-    public final int definitionFlags;
+    final int definitionFlags;
 
-    public final short decimals;
+    final short decimals;
 
-    public final MySQLType mysqlType;
+    final MySQLType mysqlType;
 
     private MySQLColumnMeta(
             @Nullable String catalogName, @Nullable String schemaName
@@ -94,7 +95,7 @@ public final class MySQLColumnMeta {
 
         this.decimals = decimals;
         // mysqlType must be last
-        this.mysqlType = MySQLType.from(this, properties);
+        this.mysqlType = from(this, properties);
     }
 
     public boolean isUnsigned() {
@@ -158,39 +159,39 @@ public final class MySQLColumnMeta {
         return precision;
     }
 
-    public final boolean isEnum() {
+    final boolean isEnum() {
         return (this.definitionFlags & ENUM_FLAG) != 0;
     }
 
-    public final boolean isSetType() {
+    final boolean isSetType() {
         return (this.definitionFlags & SET_FLAG) != 0;
     }
 
-    public final boolean isBinary() {
+    final boolean isBinary() {
         return (this.definitionFlags & BINARY_FLAG) != 0;
     }
 
-    public final boolean isBlob() {
+    final boolean isBlob() {
         return (this.definitionFlags & BLOB_FLAG) != 0;
     }
 
-    public final boolean isAutoIncrement() {
+    final boolean isAutoIncrement() {
         return (this.definitionFlags & AUTO_INCREMENT_FLAG) != 0;
     }
 
-    public final boolean isPrimaryKey() {
+    final boolean isPrimaryKey() {
         return (this.definitionFlags & PRI_KEY_FLAG) != 0;
     }
 
-    public final boolean isMultipleKey() {
+    final boolean isMultipleKey() {
         return (this.definitionFlags & MULTIPLE_KEY_FLAG) != 0;
     }
 
-    public final boolean isUniqueKey() {
+    final boolean isUniqueKey() {
         return (this.definitionFlags & UNIQUE_KEY_FLAG) != 0;
     }
 
-    public final int getScale() {
+    final int getScale() {
         final int scale;
         switch (mysqlType) {
             case DECIMAL:
@@ -212,7 +213,7 @@ public final class MySQLColumnMeta {
         return scale;
     }
 
-    public final NullMode getNullMode() {
+    final NullMode getNullMode() {
         final NullMode nullMode;
         if ((this.definitionFlags & NOT_NULL_FLAG) != 0 || (this.definitionFlags & PRI_KEY_FLAG) != 0) {
             nullMode = NullMode.NON_NULL;
@@ -317,6 +318,229 @@ public final class MySQLColumnMeta {
                 , typeFlag, definitionFlags
                 , decimals, properties
         );
+    }
+
+
+    static MySQLType from(MySQLColumnMeta columnMeta, Properties<PropertyKey> properties) {
+        final MySQLType mySQLType;
+        switch (columnMeta.typeFlag) {
+            case ProtocolConstants.TYPE_DECIMAL:
+            case ProtocolConstants.TYPE_NEWDECIMAL:
+                mySQLType = columnMeta.isUnsigned() ? MySQLType.DECIMAL_UNSIGNED : MySQLType.DECIMAL;
+                break;
+            case ProtocolConstants.TYPE_TINY:
+                mySQLType = fromTiny(columnMeta, properties);
+                break;
+            case ProtocolConstants.TYPE_LONG:
+                mySQLType = columnMeta.isUnsigned() ? MySQLType.INT_UNSIGNED : MySQLType.INT;
+                break;
+            case ProtocolConstants.TYPE_LONGLONG:
+                mySQLType = columnMeta.isUnsigned() ? MySQLType.BIGINT_UNSIGNED : MySQLType.BIGINT;
+                break;
+            case ProtocolConstants.TYPE_TIMESTAMP:
+                mySQLType = MySQLType.TIMESTAMP;
+                break;
+            case ProtocolConstants.TYPE_INT24:
+                mySQLType = columnMeta.isUnsigned() ? MySQLType.MEDIUMINT_UNSIGNED : MySQLType.MEDIUMINT;
+                break;
+            case ProtocolConstants.TYPE_DATE:
+                mySQLType = MySQLType.DATE;
+                break;
+            case ProtocolConstants.TYPE_TIME:
+                mySQLType = MySQLType.TIME;
+                break;
+            case ProtocolConstants.TYPE_DATETIME:
+                mySQLType = MySQLType.DATETIME;
+                break;
+            case ProtocolConstants.TYPE_YEAR:
+                mySQLType = MySQLType.YEAR;
+                break;
+            case ProtocolConstants.TYPE_VARCHAR:
+            case ProtocolConstants.TYPE_VAR_STRING:
+                mySQLType = fromVarcharOrVarString(columnMeta, properties);
+                break;
+            case ProtocolConstants.TYPE_STRING:
+                mySQLType = fromString(columnMeta, properties);
+                break;
+            case ProtocolConstants.TYPE_SHORT: {
+                mySQLType = columnMeta.isUnsigned() ? MySQLType.SMALLINT_UNSIGNED : MySQLType.SMALLINT;
+            }
+            break;
+            case ProtocolConstants.TYPE_BIT:
+                mySQLType = MySQLType.BIT;
+                break;
+            case ProtocolConstants.TYPE_JSON:
+                mySQLType = MySQLType.JSON;
+                break;
+            case ProtocolConstants.TYPE_ENUM:
+                mySQLType = MySQLType.ENUM;
+                break;
+            case ProtocolConstants.TYPE_SET:
+                mySQLType = MySQLType.SET;
+                break;
+            case ProtocolConstants.TYPE_NULL:
+                mySQLType = MySQLType.NULL;
+                break;
+            case ProtocolConstants.TYPE_FLOAT:
+                mySQLType = columnMeta.isUnsigned() ? MySQLType.FLOAT_UNSIGNED : MySQLType.FLOAT;
+                break;
+            case ProtocolConstants.TYPE_DOUBLE:
+                mySQLType = columnMeta.isUnsigned() ? MySQLType.DOUBLE_UNSIGNED : MySQLType.DOUBLE;
+                break;
+            case ProtocolConstants.TYPE_TINY_BLOB: {
+                mySQLType = fromTinyBlob(columnMeta, properties);
+            }
+            break;
+            case ProtocolConstants.TYPE_MEDIUM_BLOB: {
+                mySQLType = fromMediumBlob(columnMeta, properties);
+            }
+            break;
+            case ProtocolConstants.TYPE_LONG_BLOB: {
+                mySQLType = fromLongBlob(columnMeta, properties);
+            }
+            break;
+            case ProtocolConstants.TYPE_BLOB:
+                mySQLType = fromBlob(columnMeta, properties);
+                break;
+            case ProtocolConstants.TYPE_BOOL:
+                mySQLType = MySQLType.BOOLEAN;
+                break;
+            case ProtocolConstants.TYPE_GEOMETRY:
+                mySQLType = MySQLType.GEOMETRY;
+                break;
+            default:
+                mySQLType = MySQLType.UNKNOWN;
+        }
+        return mySQLType;
+    }
+
+    private static MySQLType fromTiny(MySQLColumnMeta columnMeta, Properties<PropertyKey> properties) {
+        final boolean isUnsigned = columnMeta.isUnsigned();
+        // Adjust for pseudo-boolean
+        final MySQLType mySQLType;
+        if (!isUnsigned && columnMeta.length == 1
+                && properties.getOrDefault(PropertyKey.tinyInt1isBit, Boolean.class)) {
+            if (properties.getOrDefault(PropertyKey.transformedBitIsBoolean, Boolean.class)) {
+                mySQLType = MySQLType.BOOLEAN;
+            } else {
+                mySQLType = MySQLType.BIT;
+            }
+        } else {
+            mySQLType = isUnsigned ? MySQLType.TINYINT_UNSIGNED : MySQLType.TINYINT;
+        }
+        return mySQLType;
+    }
+
+    private static MySQLType fromVarcharOrVarString(MySQLColumnMeta columnMeta, Properties<PropertyKey> properties) {
+        final MySQLType mySQLType;
+        if (columnMeta.isEnum()) {
+            mySQLType = MySQLType.ENUM;
+        } else if (columnMeta.isSetType()) {
+            mySQLType = MySQLType.SET;
+        } else if (isOpaqueBinary(columnMeta)
+                && !isFunctionsNeverReturnBlobs(columnMeta, properties)) {
+            mySQLType = MySQLType.VARBINARY;
+        } else {
+            mySQLType = MySQLType.VARCHAR;
+        }
+        return mySQLType;
+    }
+
+    private static MySQLType fromBlob(MySQLColumnMeta columnMeta, Properties<PropertyKey> properties) {
+        // Sometimes MySQL uses this protocol-level type for all possible BLOB variants,
+        // we can divine what the actual type is by the length reported
+
+
+        final MySQLType mySQLType;
+
+        final long maxLength = columnMeta.length;
+        // fixing initial type according to length
+        if (maxLength <= 255L) {
+            mySQLType = fromTinyBlob(columnMeta, properties);
+        } else if (columnMeta.length <= (1 << 16) - 1) {
+            mySQLType = (columnMeta.isBlob() || columnMeta.isBinary() || isBlobTypeReturnText(columnMeta, properties))
+                    ? MySQLType.TEXT : MySQLType.BLOB;
+        } else if (maxLength <= (1 << 24) - 1) {
+            mySQLType = fromMediumBlob(columnMeta, properties);
+        } else {
+            mySQLType = fromLongBlob(columnMeta, properties);
+        }
+        return mySQLType;
+    }
+
+    private static MySQLType fromTinyBlob(MySQLColumnMeta columnMeta, Properties<PropertyKey> properties) {
+        final MySQLType mySQLType;
+        if (columnMeta.isBlob() || columnMeta.isBinary() || !isBlobTypeReturnText(columnMeta, properties)) {
+            mySQLType = MySQLType.TINYBLOB;
+        } else {
+            mySQLType = MySQLType.TINYTEXT;
+        }
+        return mySQLType;
+    }
+
+    private static MySQLType fromMediumBlob(MySQLColumnMeta columnMeta, Properties<PropertyKey> properties) {
+        final MySQLType mySQLType;
+        if (columnMeta.isBlob() || columnMeta.isBinary() || !isBlobTypeReturnText(columnMeta, properties)) {
+            mySQLType = MySQLType.MEDIUMBLOB;
+        } else {
+            mySQLType = MySQLType.MEDIUMTEXT;
+        }
+        return mySQLType;
+    }
+
+    private static MySQLType fromLongBlob(MySQLColumnMeta columnMeta, Properties<PropertyKey> properties) {
+        final MySQLType mySQLType;
+        if (columnMeta.isBlob() || columnMeta.isBinary() || !isBlobTypeReturnText(columnMeta, properties)) {
+            mySQLType = MySQLType.LONGBLOB;
+        } else {
+            mySQLType = MySQLType.LONGTEXT;
+        }
+        return mySQLType;
+    }
+
+    private static MySQLType fromString(MySQLColumnMeta columnMeta, Properties<PropertyKey> properties) {
+        final MySQLType mySQLType;
+        if (columnMeta.isEnum()) {
+            mySQLType = MySQLType.ENUM;
+        } else if (columnMeta.isSetType()) {
+            mySQLType = MySQLType.SET;
+        } else if (columnMeta.isBinary()
+                || (isOpaqueBinary(columnMeta)
+                && !properties.getOrDefault(PropertyKey.blobsAreStrings, Boolean.class))) {
+            mySQLType = MySQLType.BINARY;
+        } else {
+            mySQLType = MySQLType.CHAR;
+        }
+        return mySQLType;
+    }
+
+    private static boolean isOpaqueBinary(MySQLColumnMeta columnMeta) {
+
+        boolean isImplicitTemporaryTable = columnMeta.tableName != null
+                && columnMeta.tableName.startsWith("#sql_"); //TODO check tableName or tableAlias
+
+        boolean isBinaryString = columnMeta.isBinary()
+                && columnMeta.collationIndex == CharsetMapping.MYSQL_COLLATION_INDEX_binary
+                && (columnMeta.typeFlag == ProtocolConstants.TYPE_STRING
+                || columnMeta.typeFlag == ProtocolConstants.TYPE_VAR_STRING
+                || columnMeta.typeFlag == ProtocolConstants.TYPE_VARCHAR);
+
+        return isBinaryString
+                // queries resolved by temp tables also have this 'signature', check for that
+                ? !isImplicitTemporaryTable : columnMeta.collationIndex == CharsetMapping.MYSQL_COLLATION_INDEX_binary;
+
+    }
+
+    private static boolean isFunctionsNeverReturnBlobs(MySQLColumnMeta columnMeta, Properties<PropertyKey> properties) {
+        return StringUtils.isEmpty(columnMeta.tableName)
+                && properties.getOrDefault(PropertyKey.functionsNeverReturnBlobs, Boolean.class);
+    }
+
+    private static boolean isBlobTypeReturnText(MySQLColumnMeta columnMeta, Properties<PropertyKey> properties) {
+        return !columnMeta.isBinary()
+                || columnMeta.collationIndex != CharsetMapping.MYSQL_COLLATION_INDEX_binary
+                || properties.getOrDefault(PropertyKey.blobsAreStrings, Boolean.class)
+                || isFunctionsNeverReturnBlobs(columnMeta, properties);
     }
 
 

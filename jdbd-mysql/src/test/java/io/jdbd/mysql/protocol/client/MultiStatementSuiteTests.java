@@ -21,7 +21,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 
 import static org.testng.Assert.assertNotNull;
 
-@Test(groups = {Groups.MULTI_STMT}, dependsOnGroups = {Groups.COM_QUERY, Groups.DATA_PREPARE})
+@Test(groups = {Groups.MULTI_STMT}, dependsOnGroups = {Groups.COM_QUERY, Groups.DATA_PREPARE/*,Groups.COM_STMT_PREPARE*/})
 public class MultiStatementSuiteTests extends AbstractConnectionBasedSuiteTests {
 
     private static final Logger LOG = LoggerFactory.getLogger(MultiStatementSuiteTests.class);
@@ -29,6 +29,16 @@ public class MultiStatementSuiteTests extends AbstractConnectionBasedSuiteTests 
     static final Queue<MySQLTaskAdjutant> MULTI_STMT_TASK_ADJUTANT_QUEUE = new LinkedBlockingQueue<>();
 
     private static final MySQLSessionAdjutant MULTI_STMT_SESSION_ADJUTANT = createMultiStmtSessionAdjutant();
+
+    @Test
+    public void afterClass() {
+        Flux.fromIterable(MULTI_STMT_TASK_ADJUTANT_QUEUE)
+                .flatMap(QuitTask::quit)
+                .then()
+                .block();
+
+        MULTI_STMT_TASK_ADJUTANT_QUEUE.clear();
+    }
 
 
     @Test(timeOut = TIME_OUT)

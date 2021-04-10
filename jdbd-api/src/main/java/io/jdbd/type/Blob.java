@@ -1,9 +1,6 @@
 package io.jdbd.type;
 
-import org.reactivestreams.Publisher;
-
 import java.io.IOException;
-import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 
 public interface Blob {
@@ -12,7 +9,8 @@ public interface Blob {
 
     byte[] asArray() throws IllegalStateException;
 
-    Publisher<ByteBuffer> asStream(boolean deleteOnComplete);
+
+    FileChannel openReadOnlyChannel() throws IOException;
 
     FileChannel openReadOnlyChannel(boolean deleteOnClose) throws IOException;
 

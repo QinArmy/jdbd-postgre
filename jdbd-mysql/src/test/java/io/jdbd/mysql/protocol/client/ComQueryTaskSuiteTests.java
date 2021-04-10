@@ -166,6 +166,26 @@ public class ComQueryTaskSuiteTests extends AbstractStmtTaskSuiteTests {
     }
 
     @Test(timeOut = TIME_OUT)
+    public void tinyBlobBindAndExtract() {
+        doTinyBlobBindExtract(LOG);
+    }
+
+    @Test(timeOut = TIME_OUT)
+    public void blobBindAndExtract() {
+        doBlobBindExtract(LOG);
+    }
+
+    @Test(timeOut = TIME_OUT)
+    public void mediumBlobBindAndExtract() {
+        doMediumBlobBindExtract(LOG);
+    }
+
+    @Test(timeOut = TIME_OUT)
+    public void longBlobBindAndExtract() {
+        doLongBlobBindExtract(LOG);
+    }
+
+    @Test(timeOut = TIME_OUT)
     public void geometryBindAndExtract() {
         doGeometryBindAndExtract(LOG);
     }
