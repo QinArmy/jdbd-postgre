@@ -3,12 +3,10 @@ package io.jdbd.mysql.protocol.client;
 import io.jdbd.BindParameterException;
 import io.jdbd.mysql.BindValue;
 import io.jdbd.mysql.util.MySQLExceptions;
-import io.jdbd.mysql.util.MySQLTimeUtils;
 import io.jdbd.vendor.util.JdbdBindUtils;
 import reactor.util.annotation.Nullable;
 
 import java.sql.SQLException;
-import java.time.format.DateTimeFormatter;
 
 abstract class BindUtils extends JdbdBindUtils {
 
@@ -49,73 +47,6 @@ abstract class BindUtils extends JdbdBindUtils {
             throw MySQLExceptions.createUnsupportedParamTypeError(stmtIndex, bindValue);
         }
         return ("B'" + bits + "'");
-    }
-
-
-    static DateTimeFormatter obtainTimeFormatter(final int microPrecision) {
-        final DateTimeFormatter formatter;
-        switch (microPrecision) {
-            case 0:
-                formatter = MySQLTimeUtils.MYSQL_TIME_FORMATTER_0;
-                break;
-            case 6:
-                formatter = MySQLTimeUtils.MYSQL_TIME_FORMATTER;
-                break;
-            case 1:
-                formatter = MySQLTimeUtils.MYSQL_TIME_FORMATTER_1;
-                break;
-            case 2:
-                formatter = MySQLTimeUtils.MYSQL_TIME_FORMATTER_2;
-                break;
-            case 3:
-                formatter = MySQLTimeUtils.MYSQL_TIME_FORMATTER_3;
-                break;
-            case 4:
-                formatter = MySQLTimeUtils.MYSQL_TIME_FORMATTER_4;
-                break;
-            case 5:
-                formatter = MySQLTimeUtils.MYSQL_TIME_FORMATTER_5;
-                break;
-            default:
-                throw new IllegalArgumentException(String.format("microPrecision[%s] error", microPrecision));
-
-        }
-
-        return formatter;
-    }
-
-    static DateTimeFormatter obtainDateTimeFormatter(final int microPrecision) {
-        final DateTimeFormatter formatter;
-
-        switch (microPrecision) {
-            case 0:
-                formatter = MySQLTimeUtils.MYSQL_DATETIME_FORMATTER_0;
-                break;
-            case 6:
-                formatter = MySQLTimeUtils.MYSQL_DATETIME_FORMATTER;
-                break;
-            case 1:
-                formatter = MySQLTimeUtils.MYSQL_DATETIME_FORMATTER_1;
-                break;
-            case 2:
-                formatter = MySQLTimeUtils.MYSQL_DATETIME_FORMATTER_2;
-                break;
-            case 3:
-                formatter = MySQLTimeUtils.MYSQL_DATETIME_FORMATTER_3;
-                break;
-            case 4:
-                formatter = MySQLTimeUtils.MYSQL_DATETIME_FORMATTER_4;
-                break;
-            case 5:
-                formatter = MySQLTimeUtils.MYSQL_DATETIME_FORMATTER_5;
-                break;
-            default:
-                throw new IllegalArgumentException(String.format("microPrecision[%s] error.", microPrecision));
-
-        }
-
-        return formatter;
-
     }
 
 

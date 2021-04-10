@@ -8,7 +8,6 @@ import io.jdbd.mysql.session.MySQLSessionAdjutant;
 import io.netty.channel.EventLoopGroup;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import reactor.core.publisher.Mono;
 import reactor.netty.resources.LoopResources;
 
 import java.util.HashMap;
@@ -29,11 +28,7 @@ public abstract class AbstractConnectionBasedSuiteTests {
 
     static final Queue<MySQLTaskAdjutant> TASK_ADJUTANT_QUEUE = new LinkedBlockingQueue<>();
 
-    static final Queue<MySQLTaskAdjutant> MULTI_STMT_TASK_ADJUTANT_QUEUE = new LinkedBlockingQueue<>();
-
     private static final MySQLSessionAdjutant DEFAULT_SESSION_ADJUTANT = createDefaultSessionAdjutant();
-
-    private static final MySQLSessionAdjutant MULTI_STMT_SESSION_ADJUTANT = createMultiStmtSessionAdjutant();
 
     protected static final String PROTOCOL_KEY = "my$protocol";
 
@@ -41,6 +36,7 @@ public abstract class AbstractConnectionBasedSuiteTests {
     protected static EventLoopGroup getEventLoopGroup() {
         return EVENT_LOOP_GROUP;
     }
+
 
     protected MySQLTaskAdjutant obtainTaskAdjutant() {
         MySQLTaskAdjutant taskAdjutant;
@@ -58,29 +54,9 @@ public abstract class AbstractConnectionBasedSuiteTests {
         return taskAdjutant;
     }
 
-    protected MySQLTaskAdjutant obtainMultiStmtTaskAdjutant() {
-        MySQLTaskAdjutant taskAdjutant;
-
-        taskAdjutant = MULTI_STMT_TASK_ADJUTANT_QUEUE.poll();
-        if (taskAdjutant == null) {
-
-            ClientConnectionProtocolImpl protocol = ClientConnectionProtocolImpl.create(0, MULTI_STMT_SESSION_ADJUTANT)
-                    .block();
-            assertNotNull(protocol, "protocol");
-
-            taskAdjutant = protocol.taskExecutor.getAdjutant();
-        }
-
-        return taskAdjutant;
-    }
-
 
     protected void releaseConnection(MySQLTaskAdjutant adjutant) {
         TASK_ADJUTANT_QUEUE.add(adjutant);
-    }
-
-    protected void releaseMultiStmtConnection(MySQLTaskAdjutant adjutant) {
-        MULTI_STMT_TASK_ADJUTANT_QUEUE.add(adjutant);
     }
 
 
@@ -88,9 +64,6 @@ public abstract class AbstractConnectionBasedSuiteTests {
         return new SessionAdjutantForSingleHostTest(ClientTestUtils.singleUrl(propMap));
     }
 
-    protected static Mono<Void> quitConnection(MySQLTaskAdjutant adjutant) {
-        return QuitTask.quit(adjutant);
-    }
 
     /*################################## blow private method ##################################*/
 
@@ -101,16 +74,6 @@ public abstract class AbstractConnectionBasedSuiteTests {
         }
         ClientTestUtils.appendZoneConfig(map);
 
-        return getSessionAdjutantForSingleHost(map);
-    }
-
-    private static MySQLSessionAdjutant createMultiStmtSessionAdjutant() {
-        Map<String, String> map = new HashMap<>();
-        if (ClientTestUtils.existsServerPublicKey()) {
-            map.put(PropertyKey.sslMode.getKey(), Enums.SslMode.DISABLED.name());
-        }
-        ClientTestUtils.appendZoneConfig(map);
-        map.put(PropertyKey.allowMultiQueries.getKey(), "true");
         return getSessionAdjutantForSingleHost(map);
     }
 

@@ -17,6 +17,12 @@ public abstract class MySQLTimeUtils extends JdbdTimeUtils {
         throw new UnsupportedOperationException();
     }
 
+    /**
+     * @see <a href="https://dev.mysql.com/doc/refman/8.0/en/time.html">The TIME Type</a>
+     */
+    public static final int DURATION_MAX_SECOND = 838 * 3600 + 59 * 60 + 59;
+
+
     /*################################## blow time formatter ##################################*/
 
     public static final DateTimeFormatter MYSQL_TIME_FORMATTER_0 = new DateTimeFormatterBuilder()
@@ -188,21 +194,151 @@ public abstract class MySQLTimeUtils extends JdbdTimeUtils {
 
     }
 
+
+    public static boolean canConvertToTimeType(Duration duration) {
+        final long abs = Math.abs(duration.getSeconds());
+        return (abs < DURATION_MAX_SECOND) || (abs == DURATION_MAX_SECOND && duration.getNano() == 0L);
+    }
+
+    public static String durationToTimeText(Duration duration) {
+        if (!canConvertToTimeType(duration)) {
+            throw new IllegalArgumentException("duration too big,can't convert to MySQL TIME type.");
+        }
+        int restSecond = (int) Math.abs(duration.getSeconds());
+        final int hours, minutes, seconds;
+        hours = restSecond / 3600;
+        restSecond %= 3600;
+        minutes = restSecond / 60;
+        seconds = restSecond % 60;
+
+        StringBuilder builder = new StringBuilder(17);
+        if (duration.isNegative()) {
+            builder.append("-");
+        }
+        if (hours < 10) {
+            builder.append("0");
+        }
+        builder.append(hours)
+                .append(":");
+        if (minutes < 10) {
+            builder.append("0");
+        }
+        builder.append(minutes)
+                .append(":");
+        if (seconds < 10) {
+            builder.append("0");
+        }
+        builder.append(seconds);
+
+        final long micro = duration.getNano() / 1000L;
+        if (micro > 999_999L) {
+            throw new IllegalArgumentException(String.format("duration nano[%s] too big", duration.getNano()));
+        }
+        if (micro > 0L) {
+            builder.append(".");
+            String microText = Long.toString(micro);
+            for (int i = 0, count = 6 - microText.length(); i < count; i++) {
+                builder.append('0');
+            }
+            builder.append(microText);
+        }
+        return builder.toString();
+    }
+
     /**
      * @param time {@link LocalTime} that underlying {@link java.time.ZoneOffset} match with database.
-     * @throws IllegalArgumentException throw when {@link LocalTime#getNano()} great than {@code 999_999_000}.
      * @see #parseTimeAsDuration(String)
      * @see <a href="https://dev.mysql.com/doc/refman/8.0/en/time.html">The TIME Type</a>
      */
     public static Duration convertToDuration(LocalTime time) throws IllegalArgumentException {
-        final long totalSecond, nano;
+        final long totalSecond;
         totalSecond = time.getHour() * 3600L + time.getMinute() * 60L + time.getSecond();
-        nano = time.getNano();
-        if (nano > 999_999_000) {
-            throw new IllegalArgumentException("time can't convert to Duration.");
-        }
-        return Duration.ofSeconds(totalSecond, nano);
+        return Duration.ofSeconds(totalSecond, time.getNano());
     }
+
+    /**
+     * @param timeText MySQL time text
+     */
+    public static DateTimeFormatter obtainTimeFormatterByText(String timeText) {
+        final int index = timeText.lastIndexOf('.');
+        return MySQLTimeUtils.obtainTimeFormatter(index < 0 ? 0 : (timeText.length() - index - 1));
+    }
+
+    /**
+     * @param dateTimeText MySQL datetime text
+     */
+    public static DateTimeFormatter obtainDateTimeFormatterByText(String dateTimeText) {
+        final int index = dateTimeText.lastIndexOf('.');
+        return MySQLTimeUtils.obtainDateTimeFormatter(index < 0 ? 0 : (dateTimeText.length() - index - 1));
+    }
+
+
+    public static DateTimeFormatter obtainTimeFormatter(final int microPrecision) {
+        final DateTimeFormatter formatter;
+        switch (microPrecision) {
+            case 0:
+                formatter = MYSQL_TIME_FORMATTER_0;
+                break;
+            case 6:
+                formatter = MYSQL_TIME_FORMATTER;
+                break;
+            case 1:
+                formatter = MYSQL_TIME_FORMATTER_1;
+                break;
+            case 2:
+                formatter = MYSQL_TIME_FORMATTER_2;
+                break;
+            case 3:
+                formatter = MYSQL_TIME_FORMATTER_3;
+                break;
+            case 4:
+                formatter = MYSQL_TIME_FORMATTER_4;
+                break;
+            case 5:
+                formatter = MYSQL_TIME_FORMATTER_5;
+                break;
+            default:
+                throw new IllegalArgumentException(String.format("microPrecision[%s] error", microPrecision));
+
+        }
+
+        return formatter;
+    }
+
+    public static DateTimeFormatter obtainDateTimeFormatter(final int microPrecision) {
+        final DateTimeFormatter formatter;
+
+        switch (microPrecision) {
+            case 0:
+                formatter = MYSQL_DATETIME_FORMATTER_0;
+                break;
+            case 6:
+                formatter = MYSQL_DATETIME_FORMATTER;
+                break;
+            case 1:
+                formatter = MYSQL_DATETIME_FORMATTER_1;
+                break;
+            case 2:
+                formatter = MYSQL_DATETIME_FORMATTER_2;
+                break;
+            case 3:
+                formatter = MYSQL_DATETIME_FORMATTER_3;
+                break;
+            case 4:
+                formatter = MYSQL_DATETIME_FORMATTER_4;
+                break;
+            case 5:
+                formatter = MYSQL_DATETIME_FORMATTER_5;
+                break;
+            default:
+                throw new IllegalArgumentException(String.format("microPrecision[%s] error.", microPrecision));
+
+        }
+
+        return formatter;
+
+    }
+
 
     private static String createTimeFormatErrorMessage(final String timeText) {
         return String.format("MySQL TIME[%s] format error.", timeText);

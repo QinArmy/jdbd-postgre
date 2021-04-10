@@ -1,26 +1,34 @@
 package io.jdbd.mysql.protocol.client;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.jdbd.ResultStates;
+import io.jdbd.*;
+import io.jdbd.meta.SQLType;
 import io.jdbd.mysql.Groups;
+import io.jdbd.mysql.MySQLType;
+import io.jdbd.mysql.protocol.conf.PropertyKey;
 import io.jdbd.mysql.session.MySQLSessionAdjutant;
+import io.jdbd.mysql.type.City;
+import io.jdbd.mysql.type.TrueOrFalse;
+import io.jdbd.vendor.JdbdCompositeException;
+import io.jdbd.vendor.conf.Properties;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.ITestContext;
 import org.testng.annotations.AfterSuite;
-import org.testng.annotations.BeforeSuite;
 import org.testng.annotations.Test;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.io.BufferedReader;
+import java.math.BigDecimal;
+import java.math.BigInteger;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Random;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.util.*;
 
 import static org.testng.Assert.*;
 
@@ -29,8 +37,36 @@ public class DataPrepareSuiteTests extends AbstractConnectionBasedSuiteTests {
 
     private static final Logger LOG = LoggerFactory.getLogger(ComQueryTaskSuiteTests.class);
 
-    @BeforeSuite
-    public static void beforeSuite(ITestContext context) throws Exception {
+
+    @AfterSuite
+    public static void afterSuite(ITestContext context) {
+        LOG.info("\n MySQL feature suite test end.\n");
+        LOG.info("close {}", ClientConnectionProtocol.class.getName());
+
+        ClientConnectionProtocolImpl protocol = (ClientConnectionProtocolImpl) context.removeAttribute(PROTOCOL_KEY);
+        assertNotNull(protocol, "protocol");
+        MySQLTaskAdjutant adjutant = protocol.taskExecutor.getAdjutant();
+
+        if (ClientTestUtils.getTestConfig().getProperty("truncate.after.suite", Boolean.class, Boolean.TRUE)) {
+            ComQueryTask.update("TRUNCATE mysql_types", adjutant)
+                    .then(Mono.defer(protocol::closeGracefully))
+                    .block();
+        } else {
+            protocol.closeGracefully()
+                    .block();
+        }
+
+        Flux.fromIterable(TASK_ADJUTANT_QUEUE)
+                .flatMap(QuitTask::quit)
+                .then()
+                .block();
+
+        TASK_ADJUTANT_QUEUE.clear();
+
+    }
+
+    @Test
+    public void prepareData(ITestContext context) throws Exception {
         LOG.info("\n {} group test start.\n", Groups.DATA_PREPARE);
 
         MySQLSessionAdjutant sessionAdjutant = getSessionAdjutantForSingleHost(Collections.emptyMap());
@@ -65,37 +101,29 @@ public class DataPrepareSuiteTests extends AbstractConnectionBasedSuiteTests {
         LOG.info("create mysql_types table success");
     }
 
-    @AfterSuite
-    public static void afterSuite(ITestContext context) {
-        LOG.info("\n {} group test end.\n", Groups.COM_QUERY);
-        LOG.info("close {}", ClientConnectionProtocol.class.getName());
+    @Test(dependsOnMethods = "prepareData")
+    public void mysqlTypeMetadataMatch() {
+        LOG.info("mysqlTypeMatch test start");
+        final MySQLTaskAdjutant adjutant = obtainTaskAdjutant();
 
-        ClientConnectionProtocolImpl protocol = (ClientConnectionProtocolImpl) context.removeAttribute(PROTOCOL_KEY);
-        assertNotNull(protocol, "protocol");
-        MySQLTaskAdjutant adjutant = protocol.taskExecutor.getAdjutant();
-
-        if (ClientTestUtils.getTestConfig().getProperty("truncate.after.suite", Boolean.class, Boolean.TRUE)) {
-            ComQueryTask.update("TRUNCATE mysql_types", adjutant)
-                    .then(Mono.defer(protocol::closeGracefully))
-                    .block();
-        } else {
-            protocol.closeGracefully()
-                    .block();
-        }
-
-        Flux.fromIterable(TASK_ADJUTANT_QUEUE)
-                .flatMap(ComQueryTaskSuiteTests::quitConnection)
-                .then()
+        List<ResultRow> resultRowList = ComQueryTask.query(createQuerySqlForMySQLTypeMatch(), MultiResults.EMPTY_CONSUMER, adjutant)
+                .collectList()
+                .doOnError(this::printMultiError)
                 .block();
 
-        TASK_ADJUTANT_QUEUE.clear();
+        assertNotNull(resultRowList, "resultRowList");
+        assertFalse(resultRowList.isEmpty(), "resultRowList is empty");
 
+        final Properties<PropertyKey> properties = adjutant.obtainHostInfo().getProperties();
+        for (ResultRow resultRow : resultRowList) {
+            assertQueryResultRowMySQLTypeMatch(resultRow, properties);
+        }
+
+        LOG.info("mysqlTypeMatch test success");
+        releaseConnection(adjutant);
     }
 
-    @Test
-    public void prepare() {
-        //no-op
-    }
+    /*################################## blow private method ##################################*/
 
     private static void prepareData(MySQLTaskAdjutant taskAdjutant) throws Exception {
         final int rowCount = 100;
@@ -139,5 +167,429 @@ public class DataPrepareSuiteTests extends AbstractConnectionBasedSuiteTests {
         LOG.info("InsertId:{}", resultStates.getInsertId());
 
     }
+
+    /**
+     * @see #mysqlTypeMetadataMatch()
+     */
+    private String createQuerySqlForMySQLTypeMatch() {
+        StringBuilder builder = new StringBuilder("SELECT")
+                .append(" t.id as id")
+                .append(",t.create_time as createTime")
+                .append(",t.update_time as updateTime")
+                .append(",t.name as name")
+
+                .append(",t.my_char as myChar")
+                .append(",t.my_binary as myBinary")
+                .append(",t.my_var_binary as myVarBinary")
+                .append(",t.my_bit as myBit")
+
+                .append(",t.my_tinyint1 as myTinyint1")
+                .append(",t.my_tinyint as myTinyint")
+                .append(",t.my_tinyint_unsigned as myTinyintUnsigned")
+                .append(",t.my_boolean as myBoolean")
+
+                .append(",t.my_smallint as mySmallint")
+                .append(",t.my_smallint_unsigned as mySmallintUnsigned")
+                .append(",t.my_mediumint as myMediumint")
+                .append(",t.my_mediumint_unsigned as myMediumintUnsigned")
+
+                .append(",t.my_int as myInt")
+                .append(",t.my_int_unsigned as myIntUnsigned")
+                .append(",t.my_bigint_unsigned as myBigintUnsigned")
+                .append(",t.my_decimal as myDecimal")
+
+                .append(",t.my_decimal_unsigned as myDecimalUnsigned")
+                .append(",t.my_float as myFloat")
+                .append(",t.my_float_unsigned as myFloatUnsigned")
+                .append(",t.my_double as myDouble")
+
+                .append(",t.my_double_unsigned as myDoubleUnsigned")
+                .append(",t.my_tiny_text as myTinyText")
+                .append(",t.my_enum as myEnum")
+                .append(",t.my_set as mySet")
+
+                .append(",t.my_json as myJson")
+                .append(",t.my_geometry as myGeometry")
+                .append(",t.my_point as myPoint")
+                .append(",t.my_linestring as myLinestring")
+
+                .append(",t.my_polygon as myPolygon")
+                .append(",t.my_multipoint as myMultipoint")
+                .append(",t.my_multilinestring as myMultilinestring")
+                .append(",t.my_multipolygon as myMultipolygon")
+
+                .append(",t.my_geometrycollection as myGeometrycollection")
+                .append(",t.my_timestamp as myTimestamp")
+                .append(",t.my_timestamp1 as myTimestamp1")
+                .append(",t.my_date as myDate")
+
+                .append(",t.my_time as myTime")
+                .append(",t.my_time1 as myTime1")
+                .append(",t.my_bit20 as myBit20");
+
+        return builder
+                .append(" FROM mysql_types as t ORDER BY t.id DESC LIMIT 10")
+                .toString();
+    }
+
+
+    private void assertQueryResultRowMySQLTypeMatch(final ResultRow row, final Properties<PropertyKey> properties) {
+        final ResultRowMeta rowMeta = row.getRowMeta();
+
+        final Object id = row.get("id");
+        assertNotNull(id, "id");
+        assertTrue(id instanceof Long, "id java class");
+        assertEquals(rowMeta.getSQLType("id"), MySQLType.BIGINT, "id mysql type");
+        assertFalse(rowMeta.isUnsigned("id"), "id isUnsigned");
+        assertEquals(rowMeta.getNullMode("id"), NullMode.NON_NULL, "id null mode.");
+        assertTrue(rowMeta.isAutoIncrement("id"), "id isAutoIncrement");
+
+
+        final LocalDateTime createTime = row.get("createTime", LocalDateTime.class);
+        assertNotNull(createTime, "createTime");
+        assertEquals(rowMeta.getSQLType("createTime"), MySQLType.DATETIME, "createTime mysql type");
+        assertEquals(rowMeta.getPrecision("createTime"), 0, "createTime precision");
+        assertEquals(rowMeta.getNullMode("createTime"), NullMode.NON_NULL, "createTime null mode.");
+
+        final LocalDateTime updateTime = row.get("updateTime", LocalDateTime.class);
+        assertNotNull(updateTime, "updateTime");
+        assertEquals(rowMeta.getSQLType("updateTime"), MySQLType.DATETIME, "updateTime mysql type");
+        assertEquals(rowMeta.getPrecision("updateTime"), 6, "updateTime precision");
+        assertEquals(rowMeta.getNullMode("updateTime"), NullMode.NON_NULL, "updateTime null mode.");
+
+        final String name = row.get("name", String.class);
+        assertNotNull(name, "name");
+        assertEquals(rowMeta.getSQLType("name"), MySQLType.VARCHAR, "name mysql type");
+        assertEquals(rowMeta.getNullMode("name"), NullMode.NON_NULL, "name null mode.");
+
+        final String myChar = row.get("myChar", String.class);
+        assertNotNull(myChar, "myChar");
+        assertEquals(rowMeta.getSQLType("myChar"), MySQLType.CHAR, "myChar mysql type");
+        assertEquals(rowMeta.getNullMode("myChar"), NullMode.NON_NULL, "myChar null mode.");
+
+        final byte[] myBinary = row.get("myBinary", byte[].class);
+        assertNotNull(myBinary, "myBinary");
+        assertEquals(rowMeta.getSQLType("myBinary"), MySQLType.BINARY, "myBinary mysql type");
+        assertEquals(rowMeta.getNullMode("myBinary"), NullMode.NON_NULL, "myBinary null mode.");
+
+        final byte[] myVarBinary = row.get("myVarBinary", byte[].class);
+        assertNotNull(myVarBinary, "myVarBinary");
+        assertEquals(rowMeta.getSQLType("myVarBinary"), MySQLType.VARBINARY, "myVarBinary mysql type");
+        assertEquals(rowMeta.getNullMode("myVarBinary"), NullMode.NON_NULL, "myVarBinary null mode.");
+
+        final Long myBit = row.get("myBit", Long.class);
+        assertNotNull(myBit, "myBit");
+        assertEquals(rowMeta.getSQLType("myBit"), MySQLType.BIT, "myBit mysql type");
+        assertEquals(Long.toBinaryString(myBit), row.get("myBit", String.class), "myBit string");
+        assertEquals(rowMeta.getPrecision("myBit"), 64, "myBit precision");
+        assertEquals(rowMeta.getNullMode("myBit"), NullMode.NON_NULL, "myBit null mode.");
+
+        final Byte myTinyint1 = row.get("myTinyint1", Byte.class);
+        assertNotNull(myTinyint1, "myTinyint1");
+        assertTinyInt1Type(row, "myTinyint1", properties);
+        assertFalse(rowMeta.isUnsigned("myTinyint1"), "myTinyint1 isUnsigned");
+        assertEquals(rowMeta.getNullMode("myTinyint1"), NullMode.NON_NULL, "myTinyint1 null mode.");
+
+        final Byte myTinyint = row.get("myTinyint", Byte.class);
+        assertNotNull(myTinyint, "myTinyint");
+        assertEquals(rowMeta.getSQLType("myTinyint"), MySQLType.TINYINT, "myTinyint mysql type");
+        assertFalse(rowMeta.isUnsigned("myTinyint"), "myTinyint isUnsigned");
+        assertEquals(rowMeta.getNullMode("myTinyint"), NullMode.NON_NULL, "myTinyint null mode.");
+
+        // below tiny_unsigned assert
+        final Integer myTinyintUnsigned = row.get("myTinyintUnsigned", Integer.class);
+        assertNotNull(myTinyintUnsigned, "myTinyintUnsigned");
+        assertEquals(rowMeta.getSQLType("myTinyintUnsigned"), MySQLType.TINYINT_UNSIGNED, "myTinyintUnsigned mysql type");
+        assertTrue(rowMeta.isUnsigned("myTinyintUnsigned"), "myTinyintUnsigned isUnsigned");
+        assertEquals(rowMeta.getNullMode("myTinyintUnsigned"), NullMode.NON_NULL, "myTinyintUnsigned null mode.");
+
+        // below boolean assert
+        final Object myBoolean = row.get("myBoolean");
+        assertNotNull(myBoolean, "myBoolean");
+        assertTinyInt1Type(row, "myBoolean", properties);
+        assertEquals(rowMeta.getNullMode("myBoolean"), NullMode.NON_NULL, "myBoolean null mode.");
+
+        // below smallint assert
+        final Object mySmallint = row.get("mySmallint");
+        assertNotNull(mySmallint, "mySmallint");
+        assertTrue(mySmallint instanceof Short, "mySmallint java class.");
+        assertEquals(rowMeta.getSQLType("mySmallint"), MySQLType.SMALLINT, "mySmallint mysql type");
+        assertFalse(rowMeta.isUnsigned("mySmallint"), "mySmallint isUnsigned");
+        assertEquals(rowMeta.getNullMode("mySmallint"), NullMode.NON_NULL, "mySmallint null mode.");
+
+        // below smallint_unsigned assert
+        final Object mySmallintUnsigned = row.get("mySmallintUnsigned");
+        assertNotNull(mySmallintUnsigned, "mySmallintUnsigned");
+        assertTrue(mySmallintUnsigned instanceof Integer, "mySmallintUnsigned java class.");
+        assertEquals(rowMeta.getSQLType("mySmallintUnsigned"), MySQLType.SMALLINT_UNSIGNED, "mySmallintUnsigned mysql type");
+        assertTrue(rowMeta.isUnsigned("mySmallintUnsigned"), "mySmallintUnsigned isUnsigned");
+        assertEquals(rowMeta.getNullMode("mySmallintUnsigned"), NullMode.NON_NULL, "mySmallintUnsigned null mode.");
+
+        // below mediumint assert
+        final Object myMediumint = row.get("myMediumint");
+        assertNotNull(myMediumint, "myMediumint");
+        assertTrue(myMediumint instanceof Integer, "myMediumint java class.");
+        assertEquals(rowMeta.getSQLType("myMediumint"), MySQLType.MEDIUMINT, "myMediumint mysql type");
+        assertFalse(rowMeta.isUnsigned("myMediumint"), "myMediumint isUnsigned");
+        assertEquals(rowMeta.getNullMode("myMediumint"), NullMode.NON_NULL, "myMediumint null mode.");
+
+        // below mediumint_unsigned  assert
+        final Object myMediumintUnsigned = row.get("myMediumintUnsigned");
+        assertNotNull(myMediumintUnsigned, "myMediumintUnsigned");
+        assertTrue(myMediumintUnsigned instanceof Integer, "myMediumintUnsigned java class.");
+        assertEquals(rowMeta.getSQLType("myMediumintUnsigned"), MySQLType.MEDIUMINT_UNSIGNED, "myMediumintUnsigned mysql type");
+        assertTrue(rowMeta.isUnsigned("myMediumintUnsigned"), "myMediumintUnsigned isUnsigned");
+        assertEquals(rowMeta.getNullMode("myMediumintUnsigned"), NullMode.NON_NULL, "myMediumintUnsigned null mode.");
+
+        // blow int assert
+        final Object myInt = row.get("myInt");
+        assertNotNull(myInt, "myInt");
+        assertTrue(myInt instanceof Integer, "myInt java class.");
+        assertEquals(rowMeta.getSQLType("myInt"), MySQLType.INT, "myInt mysql type");
+        assertFalse(rowMeta.isUnsigned("myInt"), "myInt isUnsigned");
+        assertEquals(rowMeta.getNullMode("myInt"), NullMode.NON_NULL, "myInt null mode.");
+
+        // below int_unsigned assert
+        final Object myIntUnsigned = row.get("myIntUnsigned");
+        assertNotNull(myIntUnsigned, "myIntUnsigned");
+        assertTrue(myIntUnsigned instanceof Long, "myIntUnsigned java class.");
+        assertEquals(rowMeta.getSQLType("myIntUnsigned"), MySQLType.INT_UNSIGNED, "myIntUnsigned mysql type");
+        assertTrue(rowMeta.isUnsigned("myIntUnsigned"), "myIntUnsigned isUnsigned");
+        assertEquals(rowMeta.getNullMode("myIntUnsigned"), NullMode.NON_NULL, "myIntUnsigned null mode.");
+
+        // below bigint_unsigned assert
+        final Object myBigintUnsigned = row.get("myBigintUnsigned");
+        assertNotNull(myBigintUnsigned, "myBigintUnsigned");
+        assertTrue(myBigintUnsigned instanceof BigInteger, "myBigintUnsigned java class.");
+        assertEquals(rowMeta.getSQLType("myBigintUnsigned"), MySQLType.BIGINT_UNSIGNED, "myBigintUnsigned mysql type");
+        assertTrue(rowMeta.isUnsigned("myBigintUnsigned"), "myBigintUnsigned isUnsigned");
+        assertEquals(rowMeta.getNullMode("myBigintUnsigned"), NullMode.NON_NULL, "myBigintUnsigned null mode.");
+
+        // below decimal assert
+        final Object myDecimal = row.get("myDecimal");
+        assertNotNull(myDecimal, "myDecimal");
+        assertTrue(myDecimal instanceof BigDecimal, "myDecimal java class.");
+        assertEquals(rowMeta.getSQLType("myDecimal"), MySQLType.DECIMAL, "myDecimal mysql type");
+        assertFalse(rowMeta.isUnsigned("myDecimal"), "myDecimal isUnsigned");
+        assertEquals(rowMeta.getPrecision("myDecimal"), 14, "myDecimal precision");
+        assertEquals(rowMeta.getScale("myDecimal"), 2, "myDecimal scale");
+        assertEquals(rowMeta.getNullMode("myDecimal"), NullMode.NON_NULL, "myDecimal null mode.");
+
+        // below decimal_unsigned
+        final Object myDecimalUnsigned = row.get("myDecimalUnsigned");
+        assertNotNull(myDecimalUnsigned, "myDecimalUnsigned");
+        assertTrue(myDecimalUnsigned instanceof BigDecimal, "myDecimalUnsigned java class.");
+        assertEquals(rowMeta.getSQLType("myDecimalUnsigned"), MySQLType.DECIMAL_UNSIGNED, "myDecimalUnsigned mysql type");
+        assertTrue(rowMeta.isUnsigned("myDecimalUnsigned"), "myDecimalUnsigned isUnsigned");
+        assertEquals(rowMeta.getPrecision("myDecimalUnsigned"), 14, "myDecimalUnsigned precision");
+        assertEquals(rowMeta.getScale("myDecimalUnsigned"), 2, "myDecimalUnsigned scale");
+        assertEquals(rowMeta.getNullMode("myDecimalUnsigned"), NullMode.NON_NULL, "myDecimalUnsigned null mode.");
+
+        // below float assert
+        final Object myFloat = row.get("myFloat");
+        assertNotNull(myFloat, "myFloat");
+        assertTrue(myFloat instanceof Float, "myFloat java class.");
+        assertEquals(rowMeta.getSQLType("myFloat"), MySQLType.FLOAT, "myFloat mysql type");
+        assertFalse(rowMeta.isUnsigned("myFloat"), "myFloat isUnsigned");
+        assertEquals(rowMeta.getNullMode("myFloat"), NullMode.NON_NULL, "myFloat null mode.");
+
+        // below float_unsigned
+        final Object myFloatUnsigned = row.get("myFloatUnsigned");
+        assertNotNull(myFloatUnsigned, "myFloatUnsigned");
+        assertTrue(myFloatUnsigned instanceof Double, "myFloatUnsigned java class.");
+        assertEquals(rowMeta.getSQLType("myFloatUnsigned"), MySQLType.FLOAT_UNSIGNED, "myFloatUnsigned mysql type");
+        assertTrue(rowMeta.isUnsigned("myFloatUnsigned"), "myFloatUnsigned isUnsigned");
+        assertEquals(rowMeta.getNullMode("myFloatUnsigned"), NullMode.NON_NULL, "myFloatUnsigned null mode.");
+
+        // below double assert
+        final Object myDouble = row.get("myDouble");
+        assertNotNull(myDouble, "myDouble");
+        assertTrue(myDouble instanceof Double, "myDouble java class.");
+        assertEquals(rowMeta.getSQLType("myDouble"), MySQLType.DOUBLE, "myDouble mysql type");
+        assertFalse(rowMeta.isUnsigned("myDouble"), "myDouble isUnsigned");
+        assertEquals(rowMeta.getNullMode("myDouble"), NullMode.NON_NULL, "myDouble null mode.");
+
+        // below double_unsigned assert
+        final Object myDoubleUnsigned = row.get("myDoubleUnsigned");
+        assertNotNull(myDoubleUnsigned, "myDoubleUnsigned");
+        assertTrue(myDoubleUnsigned instanceof BigDecimal, "myDoubleUnsigned java class.");
+        assertEquals(rowMeta.getSQLType("myDoubleUnsigned"), MySQLType.DOUBLE_UNSIGNED, "myDoubleUnsigned mysql type");
+        assertTrue(rowMeta.isUnsigned("myDoubleUnsigned"), "myDoubleUnsigned isUnsigned");
+        assertEquals(rowMeta.getNullMode("myDoubleUnsigned"), NullMode.NON_NULL, "myDoubleUnsigned null mode.");
+
+        // below enum assert
+        final Object myEnum = row.get("myEnum");
+        assertNotNull(myEnum, "myEnum");
+        assertTrue(myEnum instanceof String, "myEnum java class.");
+        final TrueOrFalse trueOrFalse = row.get("myEnum", TrueOrFalse.class);
+        assertNotNull(trueOrFalse, "myEnum");
+        assertEquals(rowMeta.getSQLType("myEnum"), MySQLType.ENUM, "myEnum mysql type");
+        assertFalse(rowMeta.isUnsigned("myEnum"), "myEnum isUnsigned");
+        assertEquals(rowMeta.getNullMode("myEnum"), NullMode.NON_NULL, "myEnum null mode.");
+
+        // below set type assert
+
+        final Object mySet = row.get("mySet");
+        assertNotNull(myEnum, "mySet");
+        assertTrue(mySet instanceof Set, "mySet java class.");
+        assertEquals(rowMeta.getSQLType("mySet"), MySQLType.SET, "mySet mysql type");
+        assertFalse(rowMeta.isUnsigned("mySet"), "mySet isUnsigned");
+        assertEquals(rowMeta.getNullMode("mySet"), NullMode.NON_NULL, "mySet null mode.");
+
+        @SuppressWarnings("unchecked") final Set<String> stringSet = (Set<String>) mySet;
+        final Set<City> citySet = row.getSet("mySet", City.class);
+        final List<City> cityList = row.getList("mySet", City.class);
+        assertNotNull(citySet, "citySet");
+        assertNotNull(cityList, "cityList");
+        assertEquals(citySet.size(), stringSet.size(), "citySet size");
+        assertEquals(cityList.size(), stringSet.size(), "cityList size");
+
+        for (City city : citySet) {
+            if (!stringSet.contains(city.name())) {
+                fail(String.format("city[%s] not exits.", city));
+            }
+        }
+
+        for (City city : cityList) {
+            if (!stringSet.contains(city.name())) {
+                fail(String.format("city[%s] not exits.", city));
+            }
+        }
+
+
+        // below json type assert
+        final Object myJson = row.get("myJson");
+        assertNotNull(myJson, "myJson");
+        assertTrue(myJson instanceof String, "myJson java class.");
+        assertNotNull(trueOrFalse, "myJson");
+        assertEquals(rowMeta.getSQLType("myJson"), MySQLType.JSON, "myJson mysql type");
+        assertFalse(rowMeta.isUnsigned("myJson"), "myJson isUnsigned");
+        assertEquals(rowMeta.getNullMode("myJson"), NullMode.NULLABLE, "myJson null mode.");
+
+        // below geometry type assert
+        assertEquals(rowMeta.getSQLType("myGeometry"), MySQLType.GEOMETRY, "myGeometry mysql type");
+        assertFalse(rowMeta.isUnsigned("myGeometry"), "myGeometry isUnsigned");
+        assertEquals(rowMeta.getNullMode("myGeometry"), NullMode.NULLABLE, "myGeometry null mode.");
+
+        // below point type assert
+        assertEquals(rowMeta.getSQLType("myPoint"), MySQLType.GEOMETRY, "myPoint mysql type");
+        assertFalse(rowMeta.isUnsigned("myPoint"), "myPoint isUnsigned");
+        assertEquals(rowMeta.getNullMode("myPoint"), NullMode.NULLABLE, "myPoint null mode.");
+
+
+        // below linestring type assert
+        assertEquals(rowMeta.getSQLType("myLinestring"), MySQLType.GEOMETRY, "myLinestring mysql type");
+        assertFalse(rowMeta.isUnsigned("myLinestring"), "myLinestring isUnsigned");
+        assertEquals(rowMeta.getNullMode("myLinestring"), NullMode.NULLABLE, "myLinestring null mode.");
+
+        // below polygon type assert
+        assertEquals(rowMeta.getSQLType("myPolygon"), MySQLType.GEOMETRY, "myPolygon mysql type");
+        assertFalse(rowMeta.isUnsigned("myPolygon"), "myPolygon isUnsigned");
+        assertEquals(rowMeta.getNullMode("myPolygon"), NullMode.NULLABLE, "myPolygon null mode.");
+
+        // below multipoint type assert
+        assertEquals(rowMeta.getSQLType("myMultipoint"), MySQLType.GEOMETRY, "myMultipoint mysql type");
+        assertFalse(rowMeta.isUnsigned("myMultipoint"), "myMultipoint isUnsigned");
+        assertEquals(rowMeta.getNullMode("myMultipoint"), NullMode.NULLABLE, "myMultipoint null mode.");
+
+        // below multilinestring type assert
+        assertEquals(rowMeta.getSQLType("myMultilinestring"), MySQLType.GEOMETRY, "myMultilinestring mysql type");
+        assertFalse(rowMeta.isUnsigned("myMultilinestring"), "myMultilinestring isUnsigned");
+        assertEquals(rowMeta.getNullMode("myMultilinestring"), NullMode.NULLABLE, "myMultilinestring null mode.");
+
+        // below multipolygon type assert
+        assertEquals(rowMeta.getSQLType("myMultipolygon"), MySQLType.GEOMETRY, "myMultipolygon mysql type");
+        assertFalse(rowMeta.isUnsigned("myMultipolygon"), "myMultipolygon isUnsigned");
+        assertEquals(rowMeta.getNullMode("myMultipolygon"), NullMode.NULLABLE, "myMultipolygon null mode.");
+
+        // below geometrycollection type assert
+        assertEquals(rowMeta.getSQLType("myGeometrycollection"), MySQLType.GEOMETRY, "myGeometrycollection mysql type");
+        assertFalse(rowMeta.isUnsigned("myGeometrycollection"), "myGeometrycollection isUnsigned");
+        assertEquals(rowMeta.getNullMode("myGeometrycollection"), NullMode.NULLABLE, "myGeometrycollection null mode.");
+
+        final LocalDateTime myTimestamp = row.get("myTimestamp", LocalDateTime.class);
+        assertNotNull(myTimestamp, "myTimestamp");
+        assertEquals(rowMeta.getSQLType("myTimestamp"), MySQLType.TIMESTAMP, "myTimestamp mysql type");
+        assertEquals(rowMeta.getPrecision("myTimestamp"), 0, "myTimestamp precision");
+        assertEquals(rowMeta.getNullMode("myTimestamp"), NullMode.NON_NULL, "myTimestamp null mode.");
+
+        final Object myTimestamp1 = row.get("myTimestamp1");
+        assertNotNull(myTimestamp1, "myTimestamp1");
+        assertEquals(row.get("myTimestamp1", LocalDateTime.class), myTimestamp1, "myTimestamp1 convert");
+        assertEquals(rowMeta.getSQLType("myTimestamp1"), MySQLType.TIMESTAMP, "myTimestamp1 mysql type");
+        assertEquals(rowMeta.getPrecision("myTimestamp1"), 1, "myTimestamp1 precision");
+        assertEquals(rowMeta.getNullMode("myTimestamp1"), NullMode.NON_NULL, "myTimestamp1 null mode.");
+
+        final Object myDate = row.get("myDate");
+        assertNotNull(myDate, "myDate");
+        assertEquals(row.get("myDate", LocalDate.class), myDate, "myDate convert");
+        assertEquals(rowMeta.getSQLType("myDate"), MySQLType.DATE, "myDate mysql type");
+        assertEquals(rowMeta.getPrecision("myDate"), -1, "myDate precision");
+        assertEquals(rowMeta.getNullMode("myDate"), NullMode.NON_NULL, "myDate null mode.");
+
+        final Object myTime = row.get("myTime");
+        assertNotNull(myTime, "myTime");
+        assertEquals(row.get("myTime", LocalTime.class), myTime, "myTime convert");
+        assertEquals(rowMeta.getSQLType("myTime"), MySQLType.TIME, "myTime mysql type");
+        assertEquals(rowMeta.getPrecision("myTime"), 0, "myTime precision");
+        assertEquals(rowMeta.getNullMode("myTime"), NullMode.NON_NULL, "myTime null mode.");
+
+        final Object myTime1 = row.get("myTime1");
+        assertNotNull(myTime1, "myTime1");
+        assertEquals(row.get("myTime1", LocalTime.class), myTime1, "myTime1 convert");
+        assertEquals(rowMeta.getSQLType("myTime1"), MySQLType.TIME, "myTime1 mysql type");
+        assertEquals(rowMeta.getPrecision("myTime1"), 1, "myTime1 precision");
+        assertEquals(rowMeta.getNullMode("myTime1"), NullMode.NON_NULL, "myTime1 null mode.");
+
+
+        final Object myBit20 = row.get("myBit20");
+        assertNotNull(myBit20, "myBit20");
+        assertEquals(row.get("myBit20", Long.class), myBit20, "myBit20 convert");
+        assertEquals(rowMeta.getSQLType("myBit20"), MySQLType.BIT, "myBit20 mysql type");
+        assertEquals(Long.toBinaryString((Long) myBit20), row.get("myBit20", String.class), "myBit20 string");
+        assertEquals(rowMeta.getPrecision("myBit20"), 20, "myBit20 precision");
+        assertEquals(rowMeta.getNullMode("myBit20"), NullMode.NON_NULL, "myBit20 null mode.");
+
+    }
+
+
+    private void printMultiError(Throwable e) {
+        if (e instanceof JdbdCompositeException) {
+            int index = 0;
+            for (Throwable throwable : ((JdbdCompositeException) e).getErrorList()) {
+                LOG.error("multi error:{} :\n", index, throwable);
+                index++;
+            }
+        }
+
+
+    }
+
+    /**
+     * @see #assertQueryResultRowMySQLTypeMatch(ResultRow, Properties)
+     */
+    private void assertTinyInt1Type(ResultRow row, String columnAlias, Properties<PropertyKey> properties) {
+        final ResultRowMeta rowMeta = row.getRowMeta();
+
+        assertFalse(rowMeta.isUnsigned(columnAlias), columnAlias + " isSigned");
+        final SQLType myBooleanType = rowMeta.getSQLType(columnAlias);
+        assertNotNull(row.get(columnAlias, Boolean.class), columnAlias + " convert to boolean");
+
+        if (properties.getOrDefault(PropertyKey.tinyInt1isBit, Boolean.class)) {
+            if (properties.getOrDefault(PropertyKey.transformedBitIsBoolean, Boolean.class)) {
+                assertEquals(myBooleanType, MySQLType.BOOLEAN, columnAlias + " mysql type");
+                assertTrue(row.get(columnAlias) instanceof Boolean, columnAlias + " is boolean type.");
+            } else {
+                assertEquals(myBooleanType, MySQLType.BIT, columnAlias + " mysql type");
+                assertTrue(row.get(columnAlias) instanceof Long, columnAlias + " is Byte type.");
+            }
+
+        } else {
+            assertEquals(myBooleanType, MySQLType.TINYINT, columnAlias + " mysql type");
+            assertTrue(row.get(columnAlias) instanceof Byte, columnAlias + " is Byte type.");
+        }
+
+    }
+
 
 }

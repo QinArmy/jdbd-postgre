@@ -123,6 +123,7 @@ public final class MySQLColumnMeta {
             case BLOB:
             case MEDIUMBLOB:
             case LONGBLOB:
+            case BIT:
                 precision = this.length;
                 break;
             case CHAR:
@@ -142,10 +143,6 @@ public final class MySQLColumnMeta {
                     mblen = CharsetMapping.getMblen(collationIndex);
                 }
                 precision = this.length / mblen;
-                break;
-            case YEAR:
-            case DATE:
-                precision = 0L;
                 break;
             case TIME:
                 precision = obtainTimeTypePrecision();

@@ -4,6 +4,8 @@ import io.jdbd.MultiResults;
 import io.jdbd.ResultRow;
 import io.jdbd.ResultStates;
 import io.jdbd.mysql.Groups;
+import io.jdbd.mysql.protocol.conf.PropertyKey;
+import io.jdbd.mysql.session.MySQLSessionAdjutant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
@@ -14,14 +16,19 @@ import reactor.core.publisher.Mono;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
+import java.util.*;
+import java.util.concurrent.LinkedBlockingQueue;
 
-@Test(groups = {Groups.MULTI_STMT}, dependsOnGroups = {Groups.COM_QUERY})
+import static org.testng.Assert.assertNotNull;
+
+@Test(groups = {Groups.MULTI_STMT}, dependsOnGroups = {Groups.COM_QUERY, Groups.DATA_PREPARE})
 public class MultiStatementSuiteTests extends AbstractConnectionBasedSuiteTests {
 
     private static final Logger LOG = LoggerFactory.getLogger(MultiStatementSuiteTests.class);
+
+    static final Queue<MySQLTaskAdjutant> MULTI_STMT_TASK_ADJUTANT_QUEUE = new LinkedBlockingQueue<>();
+
+    private static final MySQLSessionAdjutant MULTI_STMT_SESSION_ADJUTANT = createMultiStmtSessionAdjutant();
 
 
     @Test(timeOut = TIME_OUT)
@@ -100,6 +107,38 @@ public class MultiStatementSuiteTests extends AbstractConnectionBasedSuiteTests 
 
     private Mono<ResultRow> emptyError() {
         return Mono.defer(() -> Mono.error(new RuntimeException("Query result set is empty.")));
+    }
+
+
+    protected static MySQLTaskAdjutant obtainMultiStmtTaskAdjutant() {
+        MySQLTaskAdjutant taskAdjutant;
+
+        taskAdjutant = MULTI_STMT_TASK_ADJUTANT_QUEUE.poll();
+        if (taskAdjutant == null) {
+
+            ClientConnectionProtocolImpl protocol = ClientConnectionProtocolImpl.create(0, MULTI_STMT_SESSION_ADJUTANT)
+                    .block();
+            assertNotNull(protocol, "protocol");
+
+            taskAdjutant = protocol.taskExecutor.getAdjutant();
+        }
+
+        return taskAdjutant;
+    }
+
+    protected static void releaseMultiStmtConnection(MySQLTaskAdjutant adjutant) {
+        MULTI_STMT_TASK_ADJUTANT_QUEUE.add(adjutant);
+    }
+
+
+    private static MySQLSessionAdjutant createMultiStmtSessionAdjutant() {
+        Map<String, String> map = new HashMap<>();
+        if (ClientTestUtils.existsServerPublicKey()) {
+            map.put(PropertyKey.sslMode.getKey(), Enums.SslMode.DISABLED.name());
+        }
+        ClientTestUtils.appendZoneConfig(map);
+        map.put(PropertyKey.allowMultiQueries.getKey(), "true");
+        return getSessionAdjutantForSingleHost(map);
     }
 
 

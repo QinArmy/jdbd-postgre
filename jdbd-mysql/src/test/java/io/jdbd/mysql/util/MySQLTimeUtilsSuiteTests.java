@@ -10,11 +10,7 @@ import org.testng.annotations.Test;
 import java.time.DateTimeException;
 import java.time.Duration;
 import java.time.LocalTime;
-import java.time.format.DateTimeFormatter;
-import java.time.format.DateTimeFormatterBuilder;
-import java.util.Locale;
 
-import static java.time.temporal.ChronoField.*;
 import static org.testng.Assert.*;
 
 @Test(groups = {Groups.UTILS})
@@ -196,34 +192,57 @@ public class MySQLTimeUtilsSuiteTests {
         LOG.info("convertLocalTimeToDuration test end");
     }
 
+
     /**
-     * test {@link MySQLTimeUtils#convertToDuration(LocalTime)}
+     * @see MySQLTimeUtils#durationToTimeText(Duration)
      */
-    @Test(expectedExceptions = IllegalArgumentException.class)
-    public void errorLocalTimeConvertToDuration() {
-        LOG.info("errorLocalTimeConvertToDuration test start");
+    @Test(dependsOnMethods = "parseTimeAsDuration")
+    public void durationToTimeText() {
+        Duration duration;
+        String text, timeText;
 
-        String timeText = "23:59:59.999999999";
+        duration = Duration.ZERO;
+        timeText = MySQLTimeUtils.durationToTimeText(duration);
+        assertEquals(timeText, "00:00:00", duration.toString());
 
-        final DateTimeFormatter formatter = new DateTimeFormatterBuilder()
-                .appendValue(HOUR_OF_DAY, 2)
-                .appendLiteral(':')
-                .appendValue(MINUTE_OF_HOUR, 2)
-                .optionalStart()
-                .appendLiteral(':')
-                .appendValue(SECOND_OF_MINUTE, 2)
+        text = "23:59:59.000000";
+        duration = MySQLTimeUtils.parseTimeAsDuration(text);
+        timeText = MySQLTimeUtils.durationToTimeText(duration);
+        assertEquals(timeText, "23:59:59", text);
 
-                .optionalStart()
-                .appendFraction(NANO_OF_SECOND, 0, 9, true)
-                .optionalEnd()
-                .toFormatter(Locale.ENGLISH);
+        text = "23:59:59.000001";
+        duration = MySQLTimeUtils.parseTimeAsDuration(text);
+        timeText = MySQLTimeUtils.durationToTimeText(duration);
+        assertEquals(timeText, text, text);
 
-        LocalTime time = LocalTime.parse(timeText, formatter);
+        text = "838:59:59.000000";
+        duration = MySQLTimeUtils.parseTimeAsDuration(text);
+        timeText = MySQLTimeUtils.durationToTimeText(duration);
+        assertEquals(timeText, "838:59:59", text);
 
-        MySQLTimeUtils.convertToDuration(time);
+        text = "-838:59:59.000000";
+        duration = MySQLTimeUtils.parseTimeAsDuration(text);
+        timeText = MySQLTimeUtils.durationToTimeText(duration);
+        assertEquals(timeText, "-838:59:59", text);
 
-        fail(String.format("errorLocalTimeConvertToDuration test failure ,time:%s ,nano:%s", time
-                .format(formatter), time.getNano()));
+    }
+
+    @Test(dependsOnMethods = "parseTimeAsDuration", expectedExceptions = IllegalArgumentException.class)
+    public void errorDurationToTimeText1() {
+        Duration duration;
+        duration = Duration.ofSeconds(MySQLTimeUtils.DURATION_MAX_SECOND, 1L);
+        MySQLTimeUtils.durationToTimeText(duration);
+        fail("errorDurationToTimeText1 failure.");
+
+    }
+
+    @Test(dependsOnMethods = "parseTimeAsDuration", expectedExceptions = IllegalArgumentException.class)
+    public void errorDurationToTimeText2() {
+        Duration duration;
+        duration = Duration.ofSeconds(-MySQLTimeUtils.DURATION_MAX_SECOND, 1L);
+        MySQLTimeUtils.durationToTimeText(duration);
+        fail("errorDurationToTimeText2 failure.");
+
     }
 
 

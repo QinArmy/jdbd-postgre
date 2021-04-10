@@ -666,6 +666,7 @@ final class ComQueryCommandWriter {
 
     }
 
+
     /**
      * @see #bindParameter(int, BindValue, ByteBuf, List)
      */
@@ -686,11 +687,18 @@ final class ComQueryCommandWriter {
                     .format(MySQLTimeUtils.MYSQL_TIME_FORMATTER);
         } else if (nonNull instanceof String) {
             text = parseAndFormatTime(stmtIndex, (String) nonNull, bindValue);
+        } else if (nonNull instanceof Duration) {
+            try {
+                text = MySQLTimeUtils.durationToTimeText((Duration) nonNull);
+            } catch (Throwable e) {
+                throw MySQLExceptions.createUnsupportedParamTypeError(stmtIndex, bindValue);
+            }
         } else {
             throw MySQLExceptions.createUnsupportedParamTypeError(stmtIndex, bindValue);
         }
-
+        packetBuffer.writeByte(Constants.QUOTE_CHAR_BYTE);
         packetBuffer.writeBytes(text.getBytes(this.clientCharset));
+        packetBuffer.writeByte(Constants.QUOTE_CHAR_BYTE);
 
     }
 
@@ -714,9 +722,9 @@ final class ComQueryCommandWriter {
         } else {
             throw MySQLExceptions.createUnsupportedParamTypeError(stmtIndex, bindValue);
         }
-
+        packetBuffer.writeByte(Constants.QUOTE_CHAR_BYTE);
         packetBuffer.writeBytes(text.getBytes(this.clientCharset));
-
+        packetBuffer.writeByte(Constants.QUOTE_CHAR_BYTE);
     }
 
     /**
@@ -745,8 +753,9 @@ final class ComQueryCommandWriter {
         } else {
             throw MySQLExceptions.createUnsupportedParamTypeError(stmtIndex, bindValue);
         }
-        final String timeParamText = "'" + text + "'";
-        packetBuffer.writeBytes(timeParamText.getBytes(this.clientCharset));
+        packetBuffer.writeByte(Constants.QUOTE_CHAR_BYTE);
+        packetBuffer.writeBytes(text.getBytes(this.clientCharset));
+        packetBuffer.writeByte(Constants.QUOTE_CHAR_BYTE);
 
     }
 
@@ -955,8 +964,7 @@ final class ComQueryCommandWriter {
         } catch (DateTimeParseException e) {
             throw MySQLExceptions.createUnsupportedParamTypeError(stmtIndex, bindValue);
         }
-        final int index = timeText.lastIndexOf('.');
-        return time.format(BindUtils.obtainTimeFormatter(index < 0 ? 0 : timeText.length() - index));
+        return time.format(MySQLTimeUtils.obtainTimeFormatterByText(timeText));
 
     }
 
@@ -976,8 +984,7 @@ final class ComQueryCommandWriter {
             throw MySQLExceptions.createUnsupportedParamTypeError(stmtIndex, bindValue);
         }
 
-        final int index = dateTimeText.lastIndexOf('.');
-        return dateTime.format(BindUtils.obtainDateTimeFormatter(index < 0 ? 0 : (dateTimeText.length() - index) - 1));
+        return dateTime.format(MySQLTimeUtils.obtainDateTimeFormatterByText(dateTimeText));
 
     }
 
@@ -1000,5 +1007,6 @@ final class ComQueryCommandWriter {
             packet.release();
         }
     }
+
 
 }
