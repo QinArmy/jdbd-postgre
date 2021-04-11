@@ -26,4 +26,5 @@ public interface MultiResultsSink {
      */
     QuerySink nextQuery() throws IllegalStateException;
 
+
 }

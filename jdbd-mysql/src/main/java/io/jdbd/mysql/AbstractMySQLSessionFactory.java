@@ -1,7 +1,7 @@
 package io.jdbd.mysql;
 
-import io.jdbd.JdbdSession;
 import io.jdbd.JdbdSessionFactory;
+import io.jdbd.TxDatabaseSession;
 import reactor.core.publisher.Mono;
 import reactor.netty.Connection;
 
@@ -9,7 +9,7 @@ abstract class AbstractMySQLSessionFactory implements JdbdSessionFactory {
 
 
     @Override
-    public final Mono<JdbdSession> getSession() {
+    public final Mono<TxDatabaseSession> getSession() {
         return null;
     }
 

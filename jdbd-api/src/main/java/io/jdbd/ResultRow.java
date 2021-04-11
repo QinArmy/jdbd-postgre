@@ -1,6 +1,7 @@
 package io.jdbd;
 
 import io.jdbd.lang.Nullable;
+import io.jdbd.result.ResultRowMeta;
 
 import java.util.List;
 import java.util.Set;

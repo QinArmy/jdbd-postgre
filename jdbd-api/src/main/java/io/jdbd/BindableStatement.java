@@ -1,6 +1,7 @@
 package io.jdbd;
 
 import io.jdbd.lang.Nullable;
+import io.jdbd.stmt.ExecutableStatement;
 import org.reactivestreams.Publisher;
 
 import java.sql.JDBCType;

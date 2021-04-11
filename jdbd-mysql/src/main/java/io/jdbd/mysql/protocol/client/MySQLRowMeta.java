@@ -2,11 +2,12 @@ package io.jdbd.mysql.protocol.client;
 
 import io.jdbd.JdbdSQLException;
 import io.jdbd.NullMode;
-import io.jdbd.ResultRowMeta;
 import io.jdbd.meta.SQLType;
 import io.jdbd.mysql.MySQLType;
 import io.jdbd.mysql.protocol.CharsetMapping;
 import io.jdbd.mysql.util.MySQLStringUtils;
+import io.jdbd.result.FieldType;
+import io.jdbd.result.ResultRowMeta;
 import org.qinarmy.util.StringUtils;
 import reactor.util.annotation.Nullable;
 
@@ -47,6 +48,12 @@ abstract class MySQLRowMeta implements ResultRowMeta {
     @Override
     public final int getColumnCount() {
         return this.columnMetaArray.length;
+    }
+
+    @Override
+    public FieldType getFieldType() {
+        //TODO zoro add feaure
+        throw new UnsupportedOperationException();
     }
 
     @Override

@@ -2,17 +2,17 @@ package io.jdbd.mysql.protocol.client;
 
 import io.jdbd.ResultStates;
 
-public abstract class MySQLResultStates implements ResultStates {
+ abstract class MySQLResultStates implements ResultStates {
 
-    public static MySQLResultStates from(TerminatorPacket terminator) {
-        return new TerminalResultStatus(terminator);
-    }
+     public static MySQLResultStates from(TerminatorPacket terminator) {
+         return new TerminalResultStatus(terminator);
+     }
 
-    private final int serverStatus;
+     private final int serverStatus;
 
-    private final long affectedRows;
+     private final long affectedRows;
 
-    private final long insertedId;
+     private final long insertedId;
 
     private final int warnings;
 

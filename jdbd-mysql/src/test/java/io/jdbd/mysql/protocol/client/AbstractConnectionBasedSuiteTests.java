@@ -38,7 +38,7 @@ public abstract class AbstractConnectionBasedSuiteTests {
     }
 
 
-    protected MySQLTaskAdjutant obtainTaskAdjutant() {
+    protected static MySQLTaskAdjutant obtainTaskAdjutant() {
         MySQLTaskAdjutant taskAdjutant;
 
         taskAdjutant = TASK_ADJUTANT_QUEUE.poll();

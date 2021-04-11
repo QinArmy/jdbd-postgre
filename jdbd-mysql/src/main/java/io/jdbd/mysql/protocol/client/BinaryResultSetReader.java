@@ -28,6 +28,9 @@ final class BinaryResultSetReader extends AbstractResultSetReader {
 
     BinaryResultSetReader(ResultSetReaderBuilder builder) {
         super(builder);
+        if (builder.resettable) {
+            throw new IllegalArgumentException(String.format("%s can't reset.", this.getClass().getName()));
+        }
     }
 
     @Override

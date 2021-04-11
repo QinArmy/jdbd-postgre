@@ -1,7 +1,7 @@
 package io.jdbd.mysql;
 
-import io.jdbd.JdbdSession;
 import io.jdbd.JdbdSessionFactory;
+import io.jdbd.TxDatabaseSession;
 import io.jdbd.mysql.protocol.client.ClientCommandProtocol;
 import io.jdbd.mysql.protocol.conf.MySQLUrl;
 import reactor.core.publisher.Mono;
@@ -21,7 +21,7 @@ public class MySQLSessionFactory implements JdbdSessionFactory {
     }
 
     @Override
-    public Mono<JdbdSession> getSession() {
+    public Mono<TxDatabaseSession> getSession() {
         return Mono.empty();
     }
 
@@ -30,7 +30,7 @@ public class MySQLSessionFactory implements JdbdSessionFactory {
         return Mono.empty();
     }
 
-    private Mono<JdbdSession> createClientSession() {
+    private Mono<TxDatabaseSession> createClientSession() {
         return Mono.empty();
     }
 

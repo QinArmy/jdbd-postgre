@@ -1,5 +1,8 @@
-package io.jdbd;
+package io.jdbd.result;
 
+import io.jdbd.JdbdSQLException;
+import io.jdbd.NullMode;
+import io.jdbd.ResultRow;
 import io.jdbd.lang.Nullable;
 import io.jdbd.meta.SQLType;
 
@@ -17,6 +20,9 @@ public interface ResultRowMeta {
      * @return the number of columns
      */
     int getColumnCount();
+
+
+    FieldType getFieldType();
 
     /**
      * @return a unmodifiable list

@@ -454,6 +454,7 @@ final class ComQueryCommandWriter {
     /**
      * @see #bindParameter(int, BindValue, ByteBuf, List)
      */
+    @Deprecated
     private ByteBuf bindToGeometry(final int stmtIndex, final BindValue bindValue, final ByteBuf packetBuffer
             , final List<ByteBuf> packetList) throws SQLException {
         final Object nonNull = bindValue.getRequiredValue();

@@ -26,14 +26,17 @@ final class TextResultSetReader extends AbstractResultSetReader {
 
     private static final Logger LOG = LoggerFactory.getLogger(TextResultSetReader.class);
 
+    private final boolean resettable;
+
     TextResultSetReader(ResultSetReaderBuilder builder) {
         super(builder);
+        this.resettable = builder.resettable;
     }
 
 
     @Override
     final boolean isResettable() {
-        return true;
+        return this.resettable;
     }
 
     @Override

@@ -88,9 +88,11 @@ final class MultiResultsCreate implements MultiResultsSink {
 
     /**
      * <p>
+     * result sequence id,based zero
+     * </p>
+     * <p>
      * below methods can modify this field:
      * <ul>
-     *     <li>{@link #nextUpdate(ResultStates)}</li>
      *     <li>{@link #nextUpdate(ResultStates)}</li>
      * </ul>
      * </p>
@@ -146,6 +148,7 @@ final class MultiResultsCreate implements MultiResultsSink {
                 if (realSink == null) {
                     addBufferDownstreamSink(createBufferUpdateSink(resultSequenceId, resultStates));
                 } else {
+                    this.currentSink = realSink;
                     realSink.nextUpdate(resultSequenceId, resultStates);
                 }
             }
@@ -296,6 +299,7 @@ final class MultiResultsCreate implements MultiResultsSink {
         } else if (isMultiResultEnd()) {
             sink.error(new NoMoreResultException("MultiResults have ended."));
         } else if (hasAnyBuffer()) {
+            LOG.debug("this.currentSink non null,add to downstream queue.");
             addRealDownstreamSink(createRealUpdateSink(sink));
             drainReceiver();
         } else if (this.currentSink == null) {
@@ -324,10 +328,11 @@ final class MultiResultsCreate implements MultiResultsSink {
         } else if (isMultiResultEnd()) {
             sink.error(new NoMoreResultException("MultiResults have ended."));
         } else if (hasAnyBuffer()) {
+            LOG.debug("this.currentSink non null,add to downstream queue.");
             addRealDownstreamSink(createRealQuerySink(sink, statesConsumer));
             drainReceiver();
         } else if (currentSink == null) {
-            LOG.debug("this.currentSink is null, set this.currentSink = RealUpdateSink");
+            LOG.debug("this.currentSink is null, set this.currentSink = RealQuerySink");
             this.currentSink = createRealQuerySink(sink, statesConsumer);
             if (!this.publishSubscribeEvent) {
                 this.publishSubscribeEvent = true;

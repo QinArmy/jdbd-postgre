@@ -1,13 +1,13 @@
 package io.jdbd.mysql;
 
 import io.jdbd.BindableStatement;
-import io.jdbd.JdbdSession;
 import io.jdbd.StaticStatement;
 import io.jdbd.TransactionOption;
+import io.jdbd.TxDatabaseSession;
 import io.jdbd.mysql.protocol.client.ClientCommandProtocol;
 import reactor.core.publisher.Mono;
 
-class MySQLSession extends AbstractStatelessSession implements JdbdSession {
+class MySQLSession extends AbstractStatelessSession implements TxDatabaseSession {
 
     public static MySQLSession getInstance(ClientCommandProtocol clientProtocol) {
         return new MySQLSession(clientProtocol);
@@ -41,7 +41,7 @@ class MySQLSession extends AbstractStatelessSession implements JdbdSession {
     }
 
     @Override
-    public BindableStatement bindableStmt() {
+    public BindableStatement bindableStmt(String sql) {
         return null;
     }
 }

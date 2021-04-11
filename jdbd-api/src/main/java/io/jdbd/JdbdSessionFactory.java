@@ -5,8 +5,8 @@ import org.reactivestreams.Publisher;
 public interface JdbdSessionFactory extends ReactiveCloseable {
 
     /**
-     * @return {@link JdbdSession} or {@link java.sql.SQLException}
+     * @return {@link TxDatabaseSession} or {@link java.sql.SQLException}
      */
-    Publisher<JdbdSession> getSession();
+    Publisher<TxDatabaseSession> getSession();
 
 }

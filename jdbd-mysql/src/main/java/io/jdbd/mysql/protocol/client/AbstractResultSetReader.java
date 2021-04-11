@@ -24,7 +24,6 @@ import java.sql.SQLException;
 import java.time.LocalDate;
 import java.util.Objects;
 import java.util.function.Consumer;
-import java.util.function.Supplier;
 
 abstract class AbstractResultSetReader implements ResultSetReader {
 
@@ -39,8 +38,6 @@ abstract class AbstractResultSetReader implements ResultSetReader {
     private final Consumer<JdbdException> errorConsumer;
 
     private final Consumer<Integer> sequenceIdUpdater;
-
-    private final Supplier<Boolean> errorJudger;
 
     final Properties<PropertyKey> properties;
 
@@ -64,7 +61,6 @@ abstract class AbstractResultSetReader implements ResultSetReader {
         this.errorConsumer = Objects.requireNonNull(builder.errorConsumer, "builder.errorConsumer");
 
         this.sequenceIdUpdater = Objects.requireNonNull(builder.sequenceIdUpdater, "builder.sequenceIdUpdater");
-        this.errorJudger = Objects.requireNonNull(builder.errorJudger, "builder.errorJudger");
         this.properties = adjutant.obtainHostInfo().getProperties();
     }
 
@@ -237,7 +233,7 @@ abstract class AbstractResultSetReader implements ResultSetReader {
             } else {
                 final int payloadStartIndex = payload.readerIndex();
                 ResultRow row = readOneRow(payload);
-                if (notCancelled && noError()) {
+                if (notCancelled && this.error == null) {
                     //if no error,publish to downstream
                     sink.next(row);
                 }
@@ -306,10 +302,6 @@ abstract class AbstractResultSetReader implements ResultSetReader {
             this.error = e;
         }
         this.errorConsumer.accept(e);
-    }
-
-    final boolean noError() {
-        return this.error == null && !this.errorJudger.get();
     }
 
 
@@ -498,7 +490,7 @@ abstract class AbstractResultSetReader implements ResultSetReader {
             bigRowData.payloadEnd = true;
             bigRowData.cachePayload.release();
             this.bigRowData = null;
-            if (noError()) {
+            if (this.error == null && !this.sink.isCancelled()) {
                 this.sink.next(MySQLResultRow.from(bigRowData.bigRowValues, this.rowMeta, this.adjutant));
             }
         }

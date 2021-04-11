@@ -1,11 +1,11 @@
 package io.jdbd.mysql.protocol.client;
 
-import io.jdbd.MultiResults;
 import io.jdbd.ResultRow;
 import io.jdbd.ResultStates;
 import io.jdbd.mysql.Groups;
 import io.jdbd.mysql.protocol.conf.PropertyKey;
 import io.jdbd.mysql.session.MySQLSessionAdjutant;
+import io.jdbd.vendor.result.ReactorMultiResults;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
@@ -48,10 +48,10 @@ public class MultiStatementSuiteTests extends AbstractConnectionBasedSuiteTests 
         String sql;
         List<String> sqlList = new ArrayList<>();
 
-        sql = "UPDATE mysql_types as t SET t.name = 'mysql' WHERE t.id = 20";
+        sql = "UPDATE mysql_types as t SET t.name = 'mysql' WHERE t.id = 30";
         sqlList.add(sql);
 
-        sql = String.format("UPDATE mysql_types as t SET t.my_date = '%s' WHERE t.id = 21", LocalDate.now());
+        sql = String.format("UPDATE mysql_types as t SET t.my_date = '%s' WHERE t.id = 31", LocalDate.now());
         sqlList.add(sql);
 
         sql = "SELECT t.id as id ,t.name as name,t.create_time as createTime FROM mysql_types as t ORDER BY t.id LIMIT 50";
@@ -66,18 +66,53 @@ public class MultiStatementSuiteTests extends AbstractConnectionBasedSuiteTests 
         sql = String.format("UPDATE mysql_types as t SET t.my_time= '%s' WHERE t.id = 23", LocalTime.now());
         sqlList.add(sql);
 
-        final MultiResults multiResults1 = ComQueryTask.multiStmt(Collections.unmodifiableList(sqlList), adjutant);
-        Mono.from(multiResults1.nextUpdate())
+        //below defer serially subscribe
+        final ReactorMultiResults multiResults1 = ComQueryTask.multiStmt(Collections.unmodifiableList(sqlList), adjutant);
+        multiResults1.nextUpdate()//1. immediately subscribe update
                 .map(this::assertUpdateSuccess)
 
-                .then(assertNextUpdateSuccess(multiResults1))
-                .then(assertNextQuerySuccess(multiResults1))
-                .then(assertNextUpdateSuccess(multiResults1))
-                .then(assertNextQuerySuccess(multiResults1))
+                .then(multiResults1.nextUpdate())// 2.defer subscribe  update
+                .map(this::assertUpdateSuccess)
 
-                .then(assertNextUpdateSuccess(multiResults1))
+                .thenMany(multiResults1.nextQuery())// 3.defer subscribe  query
+                .switchIfEmpty(emptyError())
+                .map(this::assertResultRow)
+
+                .then(multiResults1.nextUpdate())// 4.defer subscribe  update
+                .map(this::assertUpdateSuccess)
+
+                .thenMany(multiResults1.nextQuery())// 5.defer subscribe  query
+                .switchIfEmpty(emptyError())
+                .map(this::assertResultRow)
+
+                .then(multiResults1.nextUpdate())// 6.defer subscribe  update
+                .map(this::assertUpdateSuccess)
+
                 .block();
 
+        //below immediately serially subscribe
+        final ReactorMultiResults multiResults2;
+        multiResults2 = ComQueryTask.multiStmt(Collections.unmodifiableList(sqlList), adjutant);
+
+        multiResults2.nextUpdate()
+                .subscribe();// 1. immediately subscribe [1] update
+        multiResults2.nextUpdate()
+                .subscribe();//2. immediately subscribe [2] update
+
+
+        multiResults2.nextQuery()
+                .switchIfEmpty(emptyError())
+                .subscribe();//3. immediately subscribe [3] query
+
+        multiResults2.nextUpdate()
+                .subscribe();//4. immediately subscribe [4] update
+
+        multiResults2.nextQuery()
+                .switchIfEmpty(emptyError())
+                .subscribe();//5. immediately subscribe [5] query
+
+        multiResults2.nextUpdate()
+                .block();//6. immediately subscribe [6] update
 
         LOG.info("multiStatement test success");
         releaseMultiStmtConnection(adjutant);
@@ -90,19 +125,6 @@ public class MultiStatementSuiteTests extends AbstractConnectionBasedSuiteTests 
     private ResultStates assertUpdateSuccess(ResultStates states) {
         Assert.assertEquals(states.getAffectedRows(), 1L, "update rows");
         return states;
-    }
-
-    private Mono<Void> assertNextUpdateSuccess(MultiResults results) {
-        return Mono.defer(() -> Mono.from(results.nextUpdate()))
-                .map(this::assertUpdateSuccess)
-                .then();
-    }
-
-    private Mono<Void> assertNextQuerySuccess(MultiResults results) {
-        return Flux.defer(() -> Flux.from(results.nextQuery()))
-                .switchIfEmpty(emptyError())
-                .map(this::assertResultRow)
-                .then();
     }
 
 

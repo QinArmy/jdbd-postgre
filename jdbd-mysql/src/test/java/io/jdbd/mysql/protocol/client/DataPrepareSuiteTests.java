@@ -1,14 +1,18 @@
 package io.jdbd.mysql.protocol.client;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.jdbd.*;
+import io.jdbd.MultiResults;
+import io.jdbd.NullMode;
+import io.jdbd.ResultRow;
+import io.jdbd.ResultStates;
 import io.jdbd.meta.SQLType;
 import io.jdbd.mysql.Groups;
 import io.jdbd.mysql.MySQLType;
 import io.jdbd.mysql.protocol.conf.PropertyKey;
-import io.jdbd.mysql.session.MySQLSessionAdjutant;
 import io.jdbd.mysql.type.City;
 import io.jdbd.mysql.type.TrueOrFalse;
+import io.jdbd.mysql.util.MySQLStreamUtils;
+import io.jdbd.result.ResultRowMeta;
 import io.jdbd.vendor.JdbdCompositeException;
 import io.jdbd.vendor.conf.Properties;
 import org.slf4j.Logger;
@@ -17,12 +21,9 @@ import org.testng.ITestContext;
 import org.testng.annotations.AfterSuite;
 import org.testng.annotations.Test;
 import reactor.core.publisher.Flux;
-import reactor.core.publisher.Mono;
 
-import java.io.BufferedReader;
 import java.math.BigDecimal;
 import java.math.BigInteger;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.LocalDate;
@@ -43,16 +44,10 @@ public class DataPrepareSuiteTests extends AbstractConnectionBasedSuiteTests {
         LOG.info("\n MySQL feature suite test end.\n");
         LOG.info("close {}", ClientConnectionProtocol.class.getName());
 
-        ClientConnectionProtocolImpl protocol = (ClientConnectionProtocolImpl) context.removeAttribute(PROTOCOL_KEY);
-        assertNotNull(protocol, "protocol");
-        MySQLTaskAdjutant adjutant = protocol.taskExecutor.getAdjutant();
-
         if (ClientTestUtils.getTestConfig().getProperty("truncate.after.suite", Boolean.class, Boolean.TRUE)) {
+            final MySQLTaskAdjutant adjutant = obtainTaskAdjutant();
             ComQueryTask.update("TRUNCATE mysql_types", adjutant)
-                    .then(Mono.defer(protocol::closeGracefully))
-                    .block();
-        } else {
-            protocol.closeGracefully()
+                    .then(QuitTask.quit(adjutant))
                     .block();
         }
 
@@ -66,42 +61,27 @@ public class DataPrepareSuiteTests extends AbstractConnectionBasedSuiteTests {
     }
 
     @Test
-    public void prepareData(ITestContext context) throws Exception {
+    public void prepareData() throws Exception {
         LOG.info("\n {} group test start.\n", Groups.DATA_PREPARE);
 
-        MySQLSessionAdjutant sessionAdjutant = getSessionAdjutantForSingleHost(Collections.emptyMap());
-        ClientConnectionProtocolImpl protocol = ClientConnectionProtocolImpl.create(0, sessionAdjutant)
-                .block();
-        assertNotNull(protocol, "protocol");
+        final MySQLTaskAdjutant adjutant = obtainTaskAdjutant();
 
-        context.setAttribute(PROTOCOL_KEY, protocol);
-
-        MySQLTaskAdjutant taskAdjutant = protocol.taskExecutor.getAdjutant();
-
-        Path path = Paths.get(ClientTestUtils.getTestResourcesPath().toString(), "script/ddl/comQueryTask.sql");
-        StringBuilder builder = new StringBuilder();
-        try (BufferedReader reader = Files.newBufferedReader(path, ClientTestUtils.getSystemFileCharset())) {
-            String line;
-            while ((line = reader.readLine()) != null) {
-                builder.append(line);
-            }
-
-        }
+        final Path path = Paths.get(ClientTestUtils.getTestResourcesPath().toString(), "script/ddl/comQueryTask.sql");
 
         List<String> commandList = new ArrayList<>(2);
-        commandList.add(builder.toString());
+        commandList.add(MySQLStreamUtils.readAsString(path));
         commandList.add("TRUNCATE mysql_types");
 
-        ComQueryTask.batchUpdate(commandList, taskAdjutant)
+        ComQueryTask.batchUpdate(commandList, adjutant)
                 .then()
                 .block();
 
-        prepareData(taskAdjutant);
+        prepareData(adjutant);
 
         LOG.info("create mysql_types table success");
     }
 
-    @Test(dependsOnMethods = "prepareData")
+    @Test(enabled = false, dependsOnMethods = "prepareData")
     public void mysqlTypeMetadataMatch() {
         LOG.info("mysqlTypeMatch test start");
         final MySQLTaskAdjutant adjutant = obtainTaskAdjutant();
@@ -164,6 +144,7 @@ public class DataPrepareSuiteTests extends AbstractConnectionBasedSuiteTests {
         assertNotNull(resultStates, "resultStates");
         assertEquals(resultStates.getAffectedRows(), rowCount, "affectedRows");
         assertFalse(resultStates.hasMoreResults(), "hasMoreResults");
+        LOG.info("prepared data rows:{}", resultStates.getAffectedRows());
         LOG.info("InsertId:{}", resultStates.getInsertId());
 
     }

@@ -3,7 +3,7 @@ package io.jdbd;
 import org.reactivestreams.Publisher;
 
 
-public interface JdbdSession extends StatelessSession {
+public interface TxDatabaseSession extends DatabaseSession {
 
 
     Publisher<Void> startTransaction(TransactionOption option);
@@ -13,9 +13,7 @@ public interface JdbdSession extends StatelessSession {
     Publisher<Void> rollback();
 
 
-    StaticStatement staticStmt();
 
-    BindableStatement bindableStmt();
 
 
 }

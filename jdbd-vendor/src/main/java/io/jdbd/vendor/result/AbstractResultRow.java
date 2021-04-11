@@ -2,9 +2,9 @@ package io.jdbd.vendor.result;
 
 import io.jdbd.JdbdSQLException;
 import io.jdbd.ResultRow;
-import io.jdbd.ResultRowMeta;
 import io.jdbd.UnsupportedConvertingException;
 import io.jdbd.meta.SQLType;
+import io.jdbd.result.ResultRowMeta;
 import io.jdbd.type.CodeEnum;
 import io.jdbd.vendor.util.JdbdCollections;
 import io.jdbd.vendor.util.JdbdStringUtils;

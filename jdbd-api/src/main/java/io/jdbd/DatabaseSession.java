@@ -6,7 +6,7 @@ import org.reactivestreams.Publisher;
 import java.sql.Connection;
 import java.sql.Savepoint;
 
-public interface StatelessSession extends ReactiveCloseable{
+public interface DatabaseSession extends ReactiveCloseable {
 
     DatabaseMetaData getDatabaseMetaData();
 
@@ -27,6 +27,10 @@ public interface StatelessSession extends ReactiveCloseable{
      */
     Publisher<PreparedStatement> prepareStatement(String sql);
 
+    StaticStatement staticStmt();
+
+    BindableStatement bindableStmt(String sql);
+
     /**
      * @see java.sql.DatabaseMetaData#supportsSavepoints()
      */
@@ -35,12 +39,12 @@ public interface StatelessSession extends ReactiveCloseable{
     /**
      * @see java.sql.Connection#setSavepoint()
      */
-    Publisher<? extends Savepoint> setSavepoint();
+    Publisher<Savepoint> setSavepoint();
 
     /**
      * @see java.sql.Connection#setSavepoint(String)
      */
-    Publisher<? extends Savepoint> setSavepoint(String name);
+    Publisher<Savepoint> setSavepoint(String name);
 
     /**
      * @see java.sql.Connection#releaseSavepoint(Savepoint)

@@ -1,5 +1,7 @@
-package io.jdbd;
+package io.jdbd.stmt;
 
+import io.jdbd.AutoCloseable;
+import io.jdbd.*;
 import io.jdbd.lang.Nullable;
 import org.reactivestreams.Publisher;
 

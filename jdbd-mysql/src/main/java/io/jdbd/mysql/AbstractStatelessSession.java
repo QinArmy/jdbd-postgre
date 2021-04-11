@@ -1,7 +1,7 @@
 package io.jdbd.mysql;
 
+import io.jdbd.DatabaseSession;
 import io.jdbd.PreparedStatement;
-import io.jdbd.StatelessSession;
 import io.jdbd.StaticStatement;
 import io.jdbd.TransactionOption;
 import io.jdbd.meta.DatabaseMetaData;
@@ -9,9 +9,9 @@ import reactor.core.publisher.Mono;
 
 import java.sql.Savepoint;
 
-abstract class AbstractStatelessSession implements StatelessSession {
+abstract class AbstractStatelessSession implements DatabaseSession {
 
-     AbstractStatelessSession() {
+    AbstractStatelessSession() {
     }
 
     @Override
@@ -40,12 +40,12 @@ abstract class AbstractStatelessSession implements StatelessSession {
     }
 
     @Override
-    public Mono<? extends Savepoint> setSavepoint() {
+    public Mono<Savepoint> setSavepoint() {
         return null;
     }
 
     @Override
-    public Mono<? extends Savepoint> setSavepoint(String name) {
+    public Mono<Savepoint> setSavepoint(String name) {
         return null;
     }
 

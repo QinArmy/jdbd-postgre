@@ -70,19 +70,19 @@ public abstract class PacketUtils {
         return (byteBuf.readByte() & BIT_8);
     }
 
+
     public static int getInt1(ByteBuf byteBuf, int index) {
         return (byteBuf.getByte(index) & BIT_8);
     }
 
 
     public static int readInt2(ByteBuf byteBuf) {
-        return (byteBuf.readByte() & BIT_8)
-                | ((byteBuf.readByte() & BIT_8) << 8);
+        return byteBuf.readUnsignedShortLE();
     }
 
+
     public static int getInt2(ByteBuf byteBuf, int index) {
-        return (byteBuf.getByte(index++) & BIT_8)
-                | ((byteBuf.getByte(index) & BIT_8) << 8);
+        return byteBuf.getUnsignedShortLE(index);
     }
 
 
@@ -100,30 +100,21 @@ public abstract class PacketUtils {
                 ;
     }
 
-
     public static long readInt4AsLong(ByteBuf byteBuf) {
-        return readInt4(byteBuf) & BIT_32;
+        return byteBuf.readUnsignedIntLE();
     }
 
     public static int readInt4(ByteBuf byteBuf) {
-        return (byteBuf.readByte() & BIT_8)
-                | ((byteBuf.readByte() & BIT_8) << 8)
-                | ((byteBuf.readByte() & BIT_8) << 16)
-                | ((byteBuf.readByte() & BIT_8) << 24)
-                ;
+        return byteBuf.readIntLE();
     }
 
     public static long getInt4AsLong(ByteBuf byteBuf, int index) {
-        return getInt4(byteBuf, index) & BIT_32;
+        return byteBuf.getUnsignedIntLE(index);
     }
 
 
     public static int getInt4(ByteBuf byteBuf, int index) {
-        return (byteBuf.getByte(index++) & BIT_8)
-                | ((byteBuf.getByte(index++) & BIT_8) << 8)
-                | ((byteBuf.getByte(index++) & BIT_8) << 16)
-                | ((byteBuf.getByte(index) & BIT_8) << 24)
-                ;
+        return byteBuf.getIntLE(index);
     }
 
 
@@ -147,32 +138,17 @@ public abstract class PacketUtils {
                 ;
     }
 
+
     public static long readInt8(ByteBuf byteBuf) {
-        return (byteBuf.readByte() & BIT_8L)
-                | ((byteBuf.readByte() & BIT_8L) << 8)
-                | ((byteBuf.readByte() & BIT_8L) << 16)
-                | ((byteBuf.readByte() & BIT_8L) << 24)
-                | ((byteBuf.readByte() & BIT_8L) << 32)
-                | ((byteBuf.readByte() & BIT_8L) << 40)
-                | ((byteBuf.readByte() & BIT_8L) << 48)
-                | ((byteBuf.readByte() & BIT_8L) << 56)
-                ;
+        return byteBuf.readLongLE();
     }
 
     public static BigInteger readInt8AsBigInteger(ByteBuf byteBuf) {
-        return MySQLNumberUtils.unsignedLongToBigInteger(readInt8(byteBuf));
+        return MySQLNumberUtils.unsignedLongToBigInteger(byteBuf.readLongLE());
     }
 
     public static long getInt8(ByteBuf byteBuf, int index) {
-        return (byteBuf.getByte(index++) & BIT_8L)
-                | ((byteBuf.getByte(index++) & BIT_8L) << 8)
-                | ((byteBuf.getByte(index++) & BIT_8L) << 16)
-                | ((byteBuf.getByte(index++) & BIT_8L) << 24)
-                | ((byteBuf.getByte(index++) & BIT_8L) << 32)
-                | ((byteBuf.getByte(index++) & BIT_8L) << 40)
-                | ((byteBuf.getByte(index++) & BIT_8L) << 48)
-                | ((byteBuf.getByte(index) & BIT_8L) << 56)
-                ;
+        return byteBuf.getLongLE(index);
     }
 
     /**
@@ -380,7 +356,6 @@ public abstract class PacketUtils {
         byteBuf.readBytes(bytes);
         return bytes;
     }
-
 
 
     /**
