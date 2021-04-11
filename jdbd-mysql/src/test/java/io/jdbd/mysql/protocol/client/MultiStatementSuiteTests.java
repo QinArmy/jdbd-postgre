@@ -9,6 +9,7 @@ import io.jdbd.vendor.result.ReactorMultiResults;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
+import org.testng.annotations.AfterClass;
 import org.testng.annotations.Test;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -21,7 +22,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 
 import static org.testng.Assert.assertNotNull;
 
-@Test(groups = {Groups.MULTI_STMT}, dependsOnGroups = {Groups.COM_QUERY, Groups.DATA_PREPARE/*,Groups.COM_STMT_PREPARE*/})
+@Test(groups = {Groups.MULTI_STMT}, dependsOnGroups = {Groups.COM_QUERY, Groups.DATA_PREPARE})
 public class MultiStatementSuiteTests extends AbstractConnectionBasedSuiteTests {
 
     private static final Logger LOG = LoggerFactory.getLogger(MultiStatementSuiteTests.class);
@@ -30,7 +31,7 @@ public class MultiStatementSuiteTests extends AbstractConnectionBasedSuiteTests 
 
     private static final MySQLSessionAdjutant MULTI_STMT_SESSION_ADJUTANT = createMultiStmtSessionAdjutant();
 
-    @Test
+    @AfterClass
     public void afterClass() {
         Flux.fromIterable(MULTI_STMT_TASK_ADJUTANT_QUEUE)
                 .flatMap(QuitTask::quit)
@@ -48,22 +49,22 @@ public class MultiStatementSuiteTests extends AbstractConnectionBasedSuiteTests 
         String sql;
         List<String> sqlList = new ArrayList<>();
 
-        sql = "UPDATE mysql_types as t SET t.name = 'mysql' WHERE t.id = 30";
+        sql = "UPDATE mysql_types as t SET t.name = 'mysql' WHERE t.id = 30";//[1] update
         sqlList.add(sql);
 
-        sql = String.format("UPDATE mysql_types as t SET t.my_date = '%s' WHERE t.id = 31", LocalDate.now());
+        sql = String.format("UPDATE mysql_types as t SET t.my_date = '%s' WHERE t.id = 31", LocalDate.now());//[2] update
         sqlList.add(sql);
 
-        sql = "SELECT t.id as id ,t.name as name,t.create_time as createTime FROM mysql_types as t ORDER BY t.id LIMIT 50";
+        sql = "SELECT t.id as id ,t.name as name,t.create_time as createTime FROM mysql_types as t ORDER BY t.id LIMIT 50";// [3] query
         sqlList.add(sql);
 
-        sql = String.format("UPDATE mysql_types as t SET t.my_time= '%s' WHERE t.id = 22", LocalTime.now());
+        sql = String.format("UPDATE mysql_types as t SET t.my_time= '%s' WHERE t.id = 22", LocalTime.now());// [4] update
         sqlList.add(sql);
 
-        sql = "SELECT t.id as id ,t.name as name,t.create_time as createTime FROM mysql_types as t ORDER BY t.id LIMIT 50";
+        sql = "SELECT t.id as id ,t.name as name,t.create_time as createTime FROM mysql_types as t ORDER BY t.id LIMIT 50"; //[5] query
         sqlList.add(sql);
 
-        sql = String.format("UPDATE mysql_types as t SET t.my_time= '%s' WHERE t.id = 23", LocalTime.now());
+        sql = String.format("UPDATE mysql_types as t SET t.my_time= '%s' WHERE t.id = 23", LocalTime.now());//[6] update
         sqlList.add(sql);
 
         //below defer serially subscribe

@@ -19,6 +19,10 @@ public class ComPreparedTaskSuiteTests extends AbstractStmtTaskSuiteTests {
 
     private static final Logger LOG = LoggerFactory.getLogger(ComPreparedTaskSuiteTests.class);
 
+    public ComPreparedTaskSuiteTests() {
+        super(SubType.COM_PREPARE_STMT);
+    }
+
     @Override
     Mono<ResultStates> executeUpdate(StmtWrapper wrapper, MySQLTaskAdjutant taskAdjutant) {
         return ComPreparedTask.update(wrapper, taskAdjutant);

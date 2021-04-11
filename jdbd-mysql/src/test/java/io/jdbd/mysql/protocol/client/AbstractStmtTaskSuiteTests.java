@@ -25,19 +25,25 @@ import java.util.*;
 
 import static org.testng.Assert.*;
 
-abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBasedSuiteTests {
+public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBasedSuiteTests {
 
 
     abstract Mono<ResultStates> executeUpdate(StmtWrapper wrapper, MySQLTaskAdjutant taskAdjutant);
 
     abstract Flux<ResultRow> executeQuery(StmtWrapper wrapper, MySQLTaskAdjutant taskAdjutant);
 
+    private final SubType subType;
+
+    protected AbstractStmtTaskSuiteTests(SubType subType) {
+        this.subType = subType;
+    }
 
     final void doBigIntBindAndExtract(Logger LOG) {
         LOG.info("bigIntBindAndExtract test start");
 
         final String sql = "SELECT t.id as id, t.create_time as createTime FROM mysql_types as t WHERE t.id  = ?";
-        BindValue bindValue = MySQLBindValue.create(0, MySQLType.BIGINT, 2);
+        final long id = convertId(2);
+        BindValue bindValue = MySQLBindValue.create(0, MySQLType.BIGINT, id);
         final MySQLTaskAdjutant taskAdjutant = obtainTaskAdjutant();
 
         List<ResultRow> resultRowList;
@@ -48,12 +54,12 @@ abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBasedSuiteTe
         assertFalse(MySQLCollections.isEmpty(resultRowList), "resultRowList");
         ResultRow resultRow = resultRowList.get(0);
         assertNotNull(resultRow, "resultRow");
-        Long id = resultRow.get("id", Long.class);
+        Long resultId = resultRow.get("id", Long.class);
 
-        assertEquals(id, Long.valueOf(2L), "id");
+        assertEquals(resultId, Long.valueOf(id), "id");
 
         // string bigint
-        bindValue = MySQLBindValue.create(0, MySQLType.BIGINT, "2");
+        bindValue = MySQLBindValue.create(0, MySQLType.BIGINT, Long.toString(id));
         resultRowList = ComQueryTask.bindableQuery(StmtWrappers.single(sql, bindValue), taskAdjutant)
                 .collectList()
                 .block();
@@ -61,9 +67,9 @@ abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBasedSuiteTe
         assertFalse(MySQLCollections.isEmpty(resultRowList), "resultRowList");
         resultRow = resultRowList.get(0);
         assertNotNull(resultRow, "resultRow");
-        id = resultRow.get("id", Long.class);
+        resultId = resultRow.get("id", Long.class);
 
-        assertEquals(id, Long.valueOf(2L), "id");
+        assertEquals(resultId, Long.valueOf(id), "id");
 
         LOG.info("bigIntBindAndExtract test success");
         releaseConnection(taskAdjutant);
@@ -300,169 +306,168 @@ abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBasedSuiteTe
     final void doNumberBindAndExtract(Logger LOG) {
         LOG.info("numberBindAndExtract test start");
         final MySQLTaskAdjutant taskAdjutant = obtainTaskAdjutant();
-        final String id = "7";
         String field = "my_tinyint";
         MySQLType mySQLType = MySQLType.TINYINT;
 
-        assertNumberBindAndExtract(taskAdjutant, mySQLType, (byte) 0, field, id);
-        assertNumberBindAndExtract(taskAdjutant, mySQLType, (byte) -1, field, id);
-        assertNumberBindAndExtract(taskAdjutant, mySQLType, Byte.MAX_VALUE, field, id);
-        assertNumberBindAndExtract(taskAdjutant, mySQLType, Byte.MIN_VALUE, field, id);
-        assertNumberBindAndExtract(taskAdjutant, mySQLType, "0", field, id);
-        assertNumberBindAndExtract(taskAdjutant, mySQLType, "-1", field, id);
-        assertNumberBindAndExtract(taskAdjutant, mySQLType, BigInteger.ONE, field, id);
-        assertNumberBindAndExtract(taskAdjutant, mySQLType, BigDecimal.ONE, field, id);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, (byte) 0, field);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, (byte) -1, field);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, Byte.MAX_VALUE, field);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, Byte.MIN_VALUE, field);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, "0", field);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, "-1", field);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, BigInteger.ONE, field);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, BigDecimal.ONE, field);
 
         field = "my_tinyint_unsigned";
         mySQLType = MySQLType.TINYINT_UNSIGNED;
 
-        assertNumberBindAndExtract(taskAdjutant, mySQLType, (short) 0, field, id);
-        assertNumberBindAndExtract(taskAdjutant, mySQLType, (short) 1, field, id);
-        assertNumberBindAndExtract(taskAdjutant, mySQLType, 0xFF, field, id);
-        assertNumberBindAndExtract(taskAdjutant, mySQLType, "0", field, id);
-        assertNumberBindAndExtract(taskAdjutant, mySQLType, BigInteger.ONE, field, id);
-        assertNumberBindAndExtract(taskAdjutant, mySQLType, BigDecimal.ONE, field, id);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, (short) 0, field);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, (short) 1, field);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, 0xFF, field);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, "0", field);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, BigInteger.ONE, field);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, BigDecimal.ONE, field);
 
         field = "my_smallint";
         mySQLType = MySQLType.SMALLINT;
 
-        assertNumberBindAndExtract(taskAdjutant, mySQLType, (short) 0, field, id);
-        assertNumberBindAndExtract(taskAdjutant, mySQLType, (short) -1, field, id);
-        assertNumberBindAndExtract(taskAdjutant, mySQLType, Short.MAX_VALUE, field, id);
-        assertNumberBindAndExtract(taskAdjutant, mySQLType, Short.MIN_VALUE, field, id);
-        assertNumberBindAndExtract(taskAdjutant, mySQLType, "0", field, id);
-        assertNumberBindAndExtract(taskAdjutant, mySQLType, "-1", field, id);
-        assertNumberBindAndExtract(taskAdjutant, mySQLType, BigInteger.ONE, field, id);
-        assertNumberBindAndExtract(taskAdjutant, mySQLType, BigDecimal.ONE, field, id);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, (short) 0, field);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, (short) -1, field);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, Short.MAX_VALUE, field);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, Short.MIN_VALUE, field);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, "0", field);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, "-1", field);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, BigInteger.ONE, field);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, BigDecimal.ONE, field);
 
         field = "my_smallint_unsigned";
         mySQLType = MySQLType.SMALLINT_UNSIGNED;
 
-        assertNumberBindAndExtract(taskAdjutant, mySQLType, 0, field, id);
-        assertNumberBindAndExtract(taskAdjutant, mySQLType, 1, field, id);
-        assertNumberBindAndExtract(taskAdjutant, mySQLType, 0xFFFF, field, id);
-        assertNumberBindAndExtract(taskAdjutant, mySQLType, "0", field, id);
-        assertNumberBindAndExtract(taskAdjutant, mySQLType, BigInteger.ONE, field, id);
-        assertNumberBindAndExtract(taskAdjutant, mySQLType, BigDecimal.ONE, field, id);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, 0, field);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, 1, field);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, 0xFFFF, field);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, "0", field);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, BigInteger.ONE, field);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, BigDecimal.ONE, field);
 
         field = "my_mediumint";
         mySQLType = MySQLType.MEDIUMINT;
 
-        assertNumberBindAndExtract(taskAdjutant, mySQLType, 0, field, id);
-        assertNumberBindAndExtract(taskAdjutant, mySQLType, -1, field, id);
-        assertNumberBindAndExtract(taskAdjutant, mySQLType, -0x7FFF_FF, field, id);
-        assertNumberBindAndExtract(taskAdjutant, mySQLType, 0x7FFF_FF, field, id);
-        assertNumberBindAndExtract(taskAdjutant, mySQLType, "0", field, id);
-        assertNumberBindAndExtract(taskAdjutant, mySQLType, "-1", field, id);
-        assertNumberBindAndExtract(taskAdjutant, mySQLType, BigInteger.ONE, field, id);
-        assertNumberBindAndExtract(taskAdjutant, mySQLType, BigDecimal.ONE, field, id);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, 0, field);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, -1, field);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, -0x7FFF_FF, field);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, 0x7FFF_FF, field);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, "0", field);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, "-1", field);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, BigInteger.ONE, field);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, BigDecimal.ONE, field);
 
         field = "my_mediumint_unsigned";
         mySQLType = MySQLType.MEDIUMINT_UNSIGNED;
-        assertNumberBindAndExtract(taskAdjutant, mySQLType, 0, field, id);
-        assertNumberBindAndExtract(taskAdjutant, mySQLType, 1, field, id);
-        assertNumberBindAndExtract(taskAdjutant, mySQLType, 0xFFFF_FF, field, id);
-        assertNumberBindAndExtract(taskAdjutant, mySQLType, "0", field, id);
-        assertNumberBindAndExtract(taskAdjutant, mySQLType, BigInteger.ONE, field, id);
-        assertNumberBindAndExtract(taskAdjutant, mySQLType, BigDecimal.ONE, field, id);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, 0, field);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, 1, field);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, 0xFFFF_FF, field);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, "0", field);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, BigInteger.ONE, field);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, BigDecimal.ONE, field);
 
         field = "my_int";
         mySQLType = MySQLType.INT;
 
-        assertNumberBindAndExtract(taskAdjutant, mySQLType, 0, field, id);
-        assertNumberBindAndExtract(taskAdjutant, mySQLType, -1, field, id);
-        assertNumberBindAndExtract(taskAdjutant, mySQLType, Integer.MIN_VALUE, field, id);
-        assertNumberBindAndExtract(taskAdjutant, mySQLType, Integer.MAX_VALUE, field, id);
-        assertNumberBindAndExtract(taskAdjutant, mySQLType, "0", field, id);
-        assertNumberBindAndExtract(taskAdjutant, mySQLType, "-1", field, id);
-        assertNumberBindAndExtract(taskAdjutant, mySQLType, BigInteger.ONE, field, id);
-        assertNumberBindAndExtract(taskAdjutant, mySQLType, BigDecimal.ONE, field, id);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, 0, field);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, -1, field);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, Integer.MIN_VALUE, field);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, Integer.MAX_VALUE, field);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, "0", field);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, "-1", field);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, BigInteger.ONE, field);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, BigDecimal.ONE, field);
 
         field = "my_int_unsigned";
         mySQLType = MySQLType.INT_UNSIGNED;
-        assertNumberBindAndExtract(taskAdjutant, mySQLType, 0L, field, id);
-        assertNumberBindAndExtract(taskAdjutant, mySQLType, 1L, field, id);
-        assertNumberBindAndExtract(taskAdjutant, mySQLType, 0xFFFF_FFFFL, field, id);
-        assertNumberBindAndExtract(taskAdjutant, mySQLType, "0", field, id);
-        assertNumberBindAndExtract(taskAdjutant, mySQLType, BigInteger.ONE, field, id);
-        assertNumberBindAndExtract(taskAdjutant, mySQLType, BigDecimal.ONE, field, id);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, 0L, field);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, 1L, field);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, 0xFFFF_FFFFL, field);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, "0", field);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, BigInteger.ONE, field);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, BigDecimal.ONE, field);
 
         field = "my_bigint";
         mySQLType = MySQLType.BIGINT;
 
-        assertNumberBindAndExtract(taskAdjutant, mySQLType, 0L, field, id);
-        assertNumberBindAndExtract(taskAdjutant, mySQLType, -1L, field, id);
-        assertNumberBindAndExtract(taskAdjutant, mySQLType, Long.MIN_VALUE, field, id);
-        assertNumberBindAndExtract(taskAdjutant, mySQLType, Long.MAX_VALUE, field, id);
-        assertNumberBindAndExtract(taskAdjutant, mySQLType, "0", field, id);
-        assertNumberBindAndExtract(taskAdjutant, mySQLType, "-1", field, id);
-        assertNumberBindAndExtract(taskAdjutant, mySQLType, BigInteger.ONE, field, id);
-        assertNumberBindAndExtract(taskAdjutant, mySQLType, BigDecimal.ONE, field, id);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, 0L, field);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, -1L, field);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, Long.MIN_VALUE, field);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, Long.MAX_VALUE, field);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, "0", field);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, "-1", field);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, BigInteger.ONE, field);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, BigDecimal.ONE, field);
 
         field = "my_bigint_unsigned";
         mySQLType = MySQLType.BIGINT_UNSIGNED;
-        assertNumberBindAndExtract(taskAdjutant, mySQLType, 0L, field, id);
-        assertNumberBindAndExtract(taskAdjutant, mySQLType, 1L, field, id);
-        assertNumberBindAndExtract(taskAdjutant, mySQLType, MySQLNumberUtils.MAX_UNSIGNED_LONG, field, id);
-        assertNumberBindAndExtract(taskAdjutant, mySQLType, "0", field, id);
-        assertNumberBindAndExtract(taskAdjutant, mySQLType, BigInteger.ONE, field, id);
-        assertNumberBindAndExtract(taskAdjutant, mySQLType, BigDecimal.ONE, field, id);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, 0L, field);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, 1L, field);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, MySQLNumberUtils.MAX_UNSIGNED_LONG, field);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, "0", field);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, BigInteger.ONE, field);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, BigDecimal.ONE, field);
 
         field = "my_decimal";
         mySQLType = MySQLType.DECIMAL;
 
-        assertNumberBindAndExtract(taskAdjutant, mySQLType, 0L, field, id);
-        assertNumberBindAndExtract(taskAdjutant, mySQLType, -1L, field, id);
-        assertNumberBindAndExtract(taskAdjutant, mySQLType, new BigDecimal("34234234.09"), field, id);
-        assertNumberBindAndExtract(taskAdjutant, mySQLType, new BigDecimal("-34234234.09"), field, id);
-        assertNumberBindAndExtract(taskAdjutant, mySQLType, "0", field, id);
-        assertNumberBindAndExtract(taskAdjutant, mySQLType, "-1", field, id);
-        assertNumberBindAndExtract(taskAdjutant, mySQLType, BigInteger.ONE, field, id);
-        assertNumberBindAndExtract(taskAdjutant, mySQLType, BigDecimal.ONE, field, id);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, 0L, field);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, -1L, field);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, new BigDecimal("34234234.09"), field);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, new BigDecimal("-34234234.09"), field);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, "0", field);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, "-1", field);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, BigInteger.ONE, field);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, BigDecimal.ONE, field);
 
         field = "my_decimal_unsigned";
         mySQLType = MySQLType.DECIMAL_UNSIGNED;
-        assertNumberBindAndExtract(taskAdjutant, mySQLType, 0L, field, id);
-        assertNumberBindAndExtract(taskAdjutant, mySQLType, 1L, field, id);
-        assertNumberBindAndExtract(taskAdjutant, mySQLType, new BigDecimal("34234234.09"), field, id);
-        assertNumberBindAndExtract(taskAdjutant, mySQLType, new BigDecimal("34234234.1"), field, id);
-        assertNumberBindAndExtract(taskAdjutant, mySQLType, "0", field, id);
-        assertNumberBindAndExtract(taskAdjutant, mySQLType, BigInteger.ONE, field, id);
-        assertNumberBindAndExtract(taskAdjutant, mySQLType, BigDecimal.ONE, field, id);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, 0L, field);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, 1L, field);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, new BigDecimal("34234234.09"), field);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, new BigDecimal("34234234.1"), field);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, "0", field);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, BigInteger.ONE, field);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, BigDecimal.ONE, field);
 
 
         field = "my_float";
         mySQLType = MySQLType.FLOAT;
 
-        assertNumberBindAndExtract(taskAdjutant, mySQLType, 0.0F, field, id);
-        assertNumberBindAndExtract(taskAdjutant, mySQLType, -1.0F, field, id);
-        assertNumberBindAndExtract(taskAdjutant, mySQLType, "0", field, id);
-        assertNumberBindAndExtract(taskAdjutant, mySQLType, "-1", field, id);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, 0.0F, field);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, -1.0F, field);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, "0", field);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, "-1", field);
 
         field = "my_float_unsigned";
         mySQLType = MySQLType.FLOAT_UNSIGNED;
 
-        assertNumberBindAndExtract(taskAdjutant, mySQLType, 0.0F, field, id);
-        assertNumberBindAndExtract(taskAdjutant, mySQLType, 1.0F, field, id);
-        assertNumberBindAndExtract(taskAdjutant, mySQLType, "0", field, id);
-        assertNumberBindAndExtract(taskAdjutant, mySQLType, "1", field, id);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, 0.0F, field);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, 1.0F, field);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, "0", field);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, "1", field);
 
         field = "my_double";
         mySQLType = MySQLType.DOUBLE;
 
-        assertNumberBindAndExtract(taskAdjutant, mySQLType, 0.0D, field, id);
-        assertNumberBindAndExtract(taskAdjutant, mySQLType, -1.0F, field, id);
-        assertNumberBindAndExtract(taskAdjutant, mySQLType, "0", field, id);
-        assertNumberBindAndExtract(taskAdjutant, mySQLType, "-1", field, id);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, 0.0D, field);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, -1.0F, field);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, "0", field);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, "-1", field);
 
         field = "my_double_unsigned";
         mySQLType = MySQLType.DOUBLE_UNSIGNED;
 
-        assertNumberBindAndExtract(taskAdjutant, mySQLType, 0.0D, field, id);
-        assertNumberBindAndExtract(taskAdjutant, mySQLType, 1.0D, field, id);
-        assertNumberBindAndExtract(taskAdjutant, mySQLType, BigDecimal.ONE, field, id);
-        assertNumberBindAndExtract(taskAdjutant, mySQLType, "0", field, id);
-        assertNumberBindAndExtract(taskAdjutant, mySQLType, "1", field, id);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, 0.0D, field);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, 1.0D, field);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, BigDecimal.ONE, field);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, "0", field);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, "1", field);
 
 
         LOG.info("numberBindAndExtract test success");
@@ -1136,7 +1141,8 @@ abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBasedSuiteTe
      * @see #doDateBindAndExtract(Logger)
      */
     private void assertDateBindAndExtract(final MySQLTaskAdjutant taskAdjutant, final Object bindParam) {
-        final String id = "19", field = "my_date";
+        final long id = convertId(19);
+        final String field = "my_date";
         //1. update filed
         updateSingleField(taskAdjutant, MySQLType.DATE, bindParam, field, id);
         //2. query filed
@@ -1159,7 +1165,7 @@ abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBasedSuiteTe
      */
     private void assertTimeBindAndExtract(final MySQLTaskAdjutant taskAdjutant, final Object bindParam
             , final String field) {
-        final String id = "20";
+        final long id = convertId(20);
         //1. update filed
         updateSingleField(taskAdjutant, MySQLType.TIME, bindParam, field, id);
         //2. query filed
@@ -1202,7 +1208,8 @@ abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBasedSuiteTe
      * @see #doTinyBlobBindExtract(Logger)
      */
     private void assertTinyBlobBindAndExtract(final MySQLTaskAdjutant taskAdjutant, final Object bindParam) {
-        final String id = "21", field = "my_tinyblob";
+        final long id = convertId(21);
+        final String field = "my_tinyblob";
         //1. update filed
         updateSingleField(taskAdjutant, MySQLType.TINYBLOB, bindParam, field, id);
         //2. query filed
@@ -1222,7 +1229,8 @@ abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBasedSuiteTe
      * @see #doBlobBindExtract(Logger)
      */
     private void assertBlobBindAndExtract(final MySQLTaskAdjutant taskAdjutant, final Object bindParam) {
-        final String id = "22", field = "my_blob";
+        final long id = convertId(22);
+        final String field = "my_blob";
         //1. update filed
         updateSingleField(taskAdjutant, MySQLType.BLOB, bindParam, field, id);
         //2. query filed
@@ -1242,7 +1250,8 @@ abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBasedSuiteTe
      * @see #doMediumBlobBindExtract(Logger)
      */
     private void assertMediumBlobBindAndExtract(final MySQLTaskAdjutant taskAdjutant, final Object bindParam) {
-        final String id = "23", field = "my_medium_blob";
+        final long id = convertId(23);
+        final String field = "my_medium_blob";
         //1. update filed
         updateSingleField(taskAdjutant, MySQLType.MEDIUMBLOB, bindParam, field, id);
         //2. query filed
@@ -1262,7 +1271,8 @@ abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBasedSuiteTe
      * @see #doLongBlobBindExtract(Logger)
      */
     private void assertLongBlobBindAndExtract(final MySQLTaskAdjutant taskAdjutant, final Object bindParam) {
-        final String id = "24", field = "my_long_blob";
+        final long id = convertId(24);
+        final String field = "my_long_blob";
         //1. update filed
         updateSingleField(taskAdjutant, MySQLType.LONGBLOB, bindParam, field, id);
         //2. query filed
@@ -1284,8 +1294,8 @@ abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBasedSuiteTe
      */
     private void assertSetTypeBindAndExtract(final MySQLTaskAdjutant taskAdjutant, final MySQLType mySQLType
             , final Object bindParam) {
-
-        final String id = "9", field = "my_set";
+        final long id = convertId(9);
+        final String field = "my_set";
 
         //1. update filed
         updateSingleField(taskAdjutant, mySQLType, bindParam, field, id);
@@ -1325,7 +1335,8 @@ abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBasedSuiteTe
      */
     private void assertEnumBindExtract(final MySQLTaskAdjutant taskAdjutant, final MySQLType mySQLType
             , final Object bindParam) {
-        final String id = "8", field = "my_enum";
+        final long id = convertId(8);
+        final String field = "my_enum";
         //1. update filed
         updateSingleField(taskAdjutant, mySQLType, bindParam, field, id);
         //2. query filed
@@ -1344,7 +1355,8 @@ abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBasedSuiteTe
      * @see #doNumberBindAndExtract(Logger)
      */
     private void assertNumberBindAndExtract(final MySQLTaskAdjutant taskAdjutant, final MySQLType mySQLType
-            , final Object bindParam, final String field, final String id) {
+            , final Object bindParam, final String field) {
+        final long id = convertId(7);
         //1. update filed
         updateSingleField(taskAdjutant, mySQLType, bindParam, field, id);
         //2. query filed
@@ -1413,9 +1425,8 @@ abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBasedSuiteTe
      */
     private void assertTinyInt1BindAndExtract(final MySQLTaskAdjutant taskAdjutant, final MySQLType mySQLType
             , final Object bindParam) {
-
+        final long id = convertId(6);
         final String field = "my_tinyint1";
-        final String id = "6";
         //1. update filed
         updateSingleField(taskAdjutant, mySQLType, bindParam, field, id);
         //2. query filed
@@ -1440,7 +1451,7 @@ abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBasedSuiteTe
      */
     private void assertBitBindAndExtract(final MySQLTaskAdjutant taskAdjutant, final Object bindParam
             , final String field) {
-        final String id = "5";
+        final long id = convertId(5);
         //1. update filed
         updateSingleField(taskAdjutant, MySQLType.BIT, bindParam, field, id);
         //2. query filed
@@ -1481,7 +1492,7 @@ abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBasedSuiteTe
      */
     private void assertBinaryBindAndExtract(final MySQLTaskAdjutant taskAdjutant, final MySQLType mySQLType
             , final String bindParam, final String field) {
-        final String id = "4";
+        final long id = convertId(4);
         //1. update filed
         updateSingleField(taskAdjutant, mySQLType, bindParam, field, id);
         //2. query filed
@@ -1511,7 +1522,7 @@ abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBasedSuiteTe
      */
     private void assertStringBindAndExtract(final MySQLTaskAdjutant taskAdjutant, final MySQLType mySQLType
             , final String bindParam, final String field) {
-        final String id = "3";
+        final long id = convertId(3);
 
         //1. update filed
         updateSingleField(taskAdjutant, mySQLType, bindParam, field, id);
@@ -1543,7 +1554,7 @@ abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBasedSuiteTe
      */
     private void assertDateTimeModify(final MySQLTaskAdjutant taskAdjutant, final MySQLType mySQLType
             , final Object bindDatetime, final String field) {
-        final String id = "2";
+        final long id = convertId(2);
         //1. update filed
         updateSingleField(taskAdjutant, mySQLType, bindDatetime, field, id);
         //2. query filed
@@ -1593,7 +1604,7 @@ abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBasedSuiteTe
 
 
     private void updateSingleField(final MySQLTaskAdjutant taskAdjutant, final MySQLType mySQLType
-            , final Object bindParam, final String field, final String id) {
+            , final Object bindParam, final String field, final Object id) {
 
         final String paramExp;
         switch (field) {
@@ -1632,7 +1643,7 @@ abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBasedSuiteTe
         assertEquals(resultStates.getAffectedRows(), 1L, "getAffectedRows");
     }
 
-    private ResultRow querySingleField(final MySQLTaskAdjutant taskAdjutant, final String field, final String id) {
+    private ResultRow querySingleField(final MySQLTaskAdjutant taskAdjutant, final String field, final Object id) {
         String sql = String.format("SELECT t.id as id, t.%s as field FROM mysql_types as t WHERE t.id = ?", field);
         BindValue bindValue = MySQLBindValue.create(0, MySQLType.BIGINT, id);
 
@@ -1645,6 +1656,38 @@ abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBasedSuiteTe
         ResultRow resultRow = resultRowList.get(0);
         assertNotNull(resultRow, "resultRow");
         return resultRow;
+    }
+
+
+    private long convertId(final long id) {
+        final long newId;
+        switch (this.subType) {
+            case COM_QUERY:
+                newId = id;
+                break;
+            case COM_PREPARE_STMT:
+                newId = id + 50L;
+                break;
+            case PREPARE:
+                newId = id + 100L;
+                break;
+            case BINDABLE:
+                newId = id + 150L;
+                break;
+            default:
+                throw MySQLExceptions.createUnknownEnumException(this.subType);
+
+        }
+        return newId;
+    }
+
+
+    protected enum SubType {
+        COM_QUERY,
+        COM_PREPARE_STMT,
+        BINDABLE,
+        PREPARE
+
     }
 
 

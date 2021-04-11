@@ -72,11 +72,16 @@ public class DataPrepareSuiteTests extends AbstractConnectionBasedSuiteTests {
         commandList.add(MySQLStreamUtils.readAsString(path));
         commandList.add("TRUNCATE mysql_types");
 
-        ComQueryTask.batchUpdate(commandList, adjutant)
-                .then()
+        // single statement mode batch update
+        final List<ResultStates> resultStatesList;
+        resultStatesList = ComQueryTask.batchUpdate(commandList, adjutant)
+                .collectList()
                 .block();
 
-        prepareData(adjutant);
+        assertNotNull(resultStatesList, "resultStatesList");
+        assertEquals(resultStatesList.size(), 2, "resultStatesList size");
+
+        doPrepareData(adjutant);
 
         LOG.info("create mysql_types table success");
     }
@@ -105,8 +110,8 @@ public class DataPrepareSuiteTests extends AbstractConnectionBasedSuiteTests {
 
     /*################################## blow private method ##################################*/
 
-    private static void prepareData(MySQLTaskAdjutant taskAdjutant) throws Exception {
-        final int rowCount = 100;
+    private static void doPrepareData(MySQLTaskAdjutant taskAdjutant) throws Exception {
+        final int rowCount = 300;
 
         StringBuilder builder = new StringBuilder(40 * rowCount)
                 .append("INSERT INTO mysql_types(name,my_char,my_bit,my_boolean,my_json) VALUES");

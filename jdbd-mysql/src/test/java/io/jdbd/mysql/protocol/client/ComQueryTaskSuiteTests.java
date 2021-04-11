@@ -12,7 +12,11 @@ import org.testng.annotations.Test;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Consumer;
 
 import static org.testng.Assert.*;
 
@@ -25,6 +29,10 @@ public class ComQueryTaskSuiteTests extends AbstractStmtTaskSuiteTests {
 
     private static final Logger LOG = LoggerFactory.getLogger(ComQueryTaskSuiteTests.class);
 
+    public ComQueryTaskSuiteTests() {
+        super(SubType.COM_QUERY);
+    }
+
     @Override
     Mono<ResultStates> executeUpdate(StmtWrapper wrapper, MySQLTaskAdjutant taskAdjutant) {
         return ComQueryTask.bindableUpdate(wrapper, taskAdjutant);
@@ -36,7 +44,10 @@ public class ComQueryTaskSuiteTests extends AbstractStmtTaskSuiteTests {
     }
 
 
-    @Test
+    /**
+     * @see ComQueryTask#update(String, MySQLTaskAdjutant)
+     */
+    @Test(timeOut = TIME_OUT)
     public void update() {
         LOG.info("update test start");
         final MySQLTaskAdjutant adjutant = obtainTaskAdjutant();
@@ -53,27 +64,53 @@ public class ComQueryTaskSuiteTests extends AbstractStmtTaskSuiteTests {
 
         assertFalse(resultStates.hasMoreResults(), "hasMoreResult");
 
-        sql = "SELECT u.id,u.name FROM mysql_types as u WHERE u.id = 1";
-        List<ResultRow> resultRowList = ComQueryTask.query(sql, MultiResults.EMPTY_CONSUMER, adjutant)
-                .collectList()
-                .block();
-
-        assertNotNull(resultRowList, "resultRowList");
-        assertEquals(resultRowList.size(), 1, "resultRowList size");
-
-        ResultRow resultRow = resultRowList.get(0);
-
-        assertEquals(resultRow.getNonNull("id", Long.class), (Object) 1L, "id");
-        assertEquals(resultRow.getNonNull("name", String.class), newName, "name");
-
-        assertFalse(resultStates.hasMoreResults(), "hasMoreResult");
 
         releaseConnection(adjutant);
         LOG.info("update test success");
 
     }
 
-    @Test(dependsOnMethods = {"update"})
+
+    /**
+     * @see ComQueryTask#query(String, Consumer, MySQLTaskAdjutant)
+     */
+    @Test(timeOut = TIME_OUT)
+    public void query() {
+        LOG.info("query test start");
+        final MySQLTaskAdjutant adjutant = obtainTaskAdjutant();
+        String sql;
+        AtomicReference<ResultStates> resultStatesHolder = new AtomicReference<>(null);
+
+        sql = "SELECT t.id,t.name,t.create_time as createTime FROM mysql_types as t ORDER BY t.id LIMIT 50";
+        List<ResultRow> resultRowList = ComQueryTask.query(sql, resultStatesHolder::set, adjutant)
+                .collectList()
+                .block();
+
+        final ResultStates resultStates = resultStatesHolder.get();
+
+        assertNotNull(resultStates, "resultStates");
+
+        assertEquals(resultStates.getAffectedRows(), 0L, "getAffectedRows");
+        assertEquals(resultStates.getWarnings(), 0, "getWarnings");
+        assertEquals(resultStates.getInsertId(), 0L, "getInsertId");
+        assertFalse(resultStates.hasMoreResults(), "hasMoreResults");
+
+
+        assertNotNull(resultRowList, "resultRowList");
+        assertEquals(resultRowList.size(), 50, "resultRowList size");
+        for (ResultRow row : resultRowList) {
+            assertNotNull(row.getNonNull("id"));
+            assertNotNull(row.getNonNull("name"));
+            assertNotNull(row.getNonNull("createTime"));
+        }
+        releaseConnection(adjutant);
+        LOG.info("query test success");
+    }
+
+    /**
+     * @see ComQueryTask#update(String, MySQLTaskAdjutant)
+     */
+    @Test(timeOut = TIME_OUT, dependsOnMethods = {"update"})
     public void delete() {
         LOG.info("delete test start");
         final MySQLTaskAdjutant adjutant = obtainTaskAdjutant();
@@ -99,6 +136,78 @@ public class ComQueryTaskSuiteTests extends AbstractStmtTaskSuiteTests {
         assertTrue(resultRowList.isEmpty(), "resultRowList is empty");
 
         LOG.info("delete test success");
+        releaseConnection(adjutant);
+    }
+
+    /**
+     * @see ComQueryTask#batchUpdate(List, MySQLTaskAdjutant)
+     */
+    @Test(timeOut = TIME_OUT)
+    public void batchUpdateWithSingleStmtMode() {
+        LOG.info("batchUpdateWithSingleStmtMode test start");
+        final MySQLTaskAdjutant adjutant = obtainTaskAdjutant();
+
+        String sql;
+        final List<String> sqlList = new ArrayList<>(3);
+        sql = "UPDATE mysql_types as t SET t.name = 'batch update 0' WHERE t.id = 30";
+        sqlList.add(sql);
+        sql = "UPDATE mysql_types as t SET t.name = 'batch update 1' WHERE t.id = 31";
+        sqlList.add(sql);
+        sql = "UPDATE mysql_types as t SET t.name = 'batch update 2' WHERE t.id = 32";
+        sqlList.add(sql);
+
+        List<ResultStates> resultStatesList;
+
+        resultStatesList = ComQueryTask.batchUpdate(Collections.unmodifiableList(sqlList), adjutant)
+                .collectList()
+                .block();
+
+        assertNotNull(resultStatesList, "resultStatesList");
+        assertEquals(resultStatesList.size(), 3, "resultStatesList");
+
+        for (ResultStates states : resultStatesList) {
+            assertEquals(states.getAffectedRows(), 1L, "getAffectedRows");
+        }
+
+        LOG.info("batchUpdateWithSingleStmtMode test success");
+        releaseConnection(adjutant);
+    }
+
+    /**
+     * @see ComQueryTask#batchUpdate(List, MySQLTaskAdjutant)
+     */
+    @Test(timeOut = TIME_OUT)
+    public void batchUpdateWithTempMultiStmtMode() {
+        LOG.info("batchUpdateWithSingleStmtMode test start");
+        final MySQLTaskAdjutant adjutant = obtainTaskAdjutant();
+
+        String sql;
+        final List<String> sqlList = new ArrayList<>(5);
+        sql = "UPDATE mysql_types as t SET t.name = 'batch update 0' WHERE t.id = 30";
+        sqlList.add(sql);
+        sql = "UPDATE mysql_types as t SET t.name = 'batch update 1' WHERE t.id = 31";
+        sqlList.add(sql);
+        sql = "UPDATE mysql_types as t SET t.name = 'batch update 2' WHERE t.id = 32";
+        sqlList.add(sql);
+        sql = "UPDATE mysql_types as t SET t.name = 'batch update 3' WHERE t.id = 33";
+        sqlList.add(sql);
+        sql = "UPDATE mysql_types as t SET t.name = 'batch update 4' WHERE t.id = 34";
+        sqlList.add(sql);
+
+        List<ResultStates> resultStatesList;
+
+        resultStatesList = ComQueryTask.batchUpdate(Collections.unmodifiableList(sqlList), adjutant)
+                .collectList()
+                .block();
+
+        assertNotNull(resultStatesList, "resultStatesList");
+        assertEquals(resultStatesList.size(), 5, "resultStatesList");
+
+        for (ResultStates states : resultStatesList) {
+            assertEquals(states.getAffectedRows(), 1L, "getAffectedRows");
+        }
+
+        LOG.info("batchUpdateWithSingleStmtMode test success");
         releaseConnection(adjutant);
     }
 

@@ -9,6 +9,7 @@ import io.jdbd.mysql.BindValue;
 import io.jdbd.mysql.MySQLJdbdException;
 import io.jdbd.mysql.protocol.MySQLFatalIoException;
 import io.jdbd.mysql.protocol.client.ErrorPacket;
+import io.jdbd.mysql.protocol.conf.PropertyKey;
 import io.jdbd.vendor.util.JdbdExceptions;
 
 import java.sql.SQLException;
@@ -98,6 +99,13 @@ public abstract class MySQLExceptions extends JdbdExceptions {
 
     public static JdbdSQLException createMultiStatementException() {
         return new JdbdSQLException(createMultiStatementError());
+    }
+
+    public static JdbdSQLException notSupportMultiStatementException() {
+        String m;
+        m = String.format("Not support multi statement,please config MySQL property[%s] in jdbc url or properties map."
+                , PropertyKey.allowMultiQueries);
+        return new JdbdSQLException(createSyntaxError(m));
     }
 
 
