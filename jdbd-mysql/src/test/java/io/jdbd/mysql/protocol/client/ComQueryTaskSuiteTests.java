@@ -141,6 +141,79 @@ public class ComQueryTaskSuiteTests extends AbstractStmtTaskSuiteTests {
     }
 
     /**
+     * @see ComQueryTask#update(String, MySQLTaskAdjutant)
+     */
+    @Test(timeOut = TIME_OUT)
+    public void updateIsQuery() {
+        LOG.info("updateIsQuery test start");
+        final MySQLTaskAdjutant adjutant = obtainTaskAdjutant();
+
+        final String sql = "SELECT t.id,t.name,t.create_time as createTime FROM mysql_types as t WHERE t.id > 50 ORDER BY t.id LIMIT 50";
+        try {
+            ComQueryTask.update(sql, adjutant)
+                    .block();
+            fail("updateIsQuery test failure.");
+        } catch (ErrorSubscribeException e) {
+            assertEquals(e.getSubscribeType(), ResultType.UPDATE, "getSubscribeType");
+            assertEquals(e.getActualType(), ResultType.QUERY, "getActualType");
+        } catch (Throwable e) {
+            fail("updateIsQuery test failure.", e);
+        }
+        LOG.info("updateIsQuery test success");
+        releaseConnection(adjutant);
+    }
+
+    /**
+     * @see ComQueryTask#bindableUpdate(StmtWrapper, MySQLTaskAdjutant)
+     */
+    @Test(timeOut = TIME_OUT)
+    public void bindableUpdateIsQuery() {
+        LOG.info("bindableUpdateIsQuery test start");
+        final MySQLTaskAdjutant adjutant = obtainTaskAdjutant();
+
+        final String sql = "SELECT t.id,t.name,t.create_time as createTime FROM mysql_types as t WHERE t.id > ? ORDER BY t.id LIMIT 50";
+        try {
+            ComQueryTask.bindableUpdate(StmtWrappers.single(sql, MySQLBindValue.create(0, MySQLType.BIGINT, 50L)), adjutant)
+                    .block();
+            fail("bindableUpdateIsQuery test failure.");
+        } catch (ErrorSubscribeException e) {
+            assertEquals(e.getSubscribeType(), ResultType.UPDATE, "getSubscribeType");
+            assertEquals(e.getActualType(), ResultType.QUERY, "getActualType");
+        } catch (Throwable e) {
+            fail("bindableUpdateIsQuery test failure.", e);
+        }
+        LOG.info("bindableUpdateIsQuery test success");
+        releaseConnection(adjutant);
+    }
+
+    /**
+     * @see ComQueryTask#query(String, Consumer, MySQLTaskAdjutant)
+     */
+    @Test(timeOut = TIME_OUT)
+    public void queryIsUpdate() {
+        LOG.info("queryIsUpdate test start");
+        final MySQLTaskAdjutant adjutant = obtainTaskAdjutant();
+        String sql = "UPDATE mysql_types as u SET u.name = 'simonyi4' WHERE u.id = 30";
+
+        try {
+            ComQueryTask.query(sql, MultiResults.EMPTY_CONSUMER, adjutant)
+                    .map(row -> {
+                        fail("queryIsUpdate test failure.");
+                        return row;
+                    })
+                    .then()
+                    .block();
+        } catch (ErrorSubscribeException e) {
+            assertEquals(e.getSubscribeType(), ResultType.QUERY, "getSubscribeType");
+            assertEquals(e.getActualType(), ResultType.UPDATE, "getActualType");
+        } catch (Throwable e) {
+            fail("queryIsUpdate test failure.", e);
+        }
+        LOG.info("queryIsUpdate test success");
+        releaseConnection(adjutant);
+    }
+
+    /**
      * @see ComQueryTask#batchUpdate(List, MySQLTaskAdjutant)
      */
     @Test(timeOut = TIME_OUT)
@@ -895,6 +968,26 @@ public class ComQueryTaskSuiteTests extends AbstractStmtTaskSuiteTests {
     @Test(timeOut = TIME_OUT)
     public void longBlobBindAndExtract() {
         doLongBlobBindExtract(LOG);
+    }
+
+    @Test(timeOut = TIME_OUT)
+    public void tinyTextBindAndExtract() {
+        doTinyTextBindAndExtract(LOG);
+    }
+
+    @Test(timeOut = TIME_OUT)
+    public void textBindAndExtract() {
+        doTextBindAndExtract(LOG);
+    }
+
+    @Test(timeOut = TIME_OUT)
+    public void mediumTextBindAndExtract() {
+        doMediumTextBindAndExtract(LOG);
+    }
+
+    @Test(timeOut = TIME_OUT)
+    public void longTextBindAndExtract() {
+        doLongTextBindAndExtract(LOG);
     }
 
     @Test(timeOut = TIME_OUT)

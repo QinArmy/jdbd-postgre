@@ -621,6 +621,90 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBased
         releaseConnection(taskAdjutant);
     }
 
+    final void doTinyTextBindAndExtract(Logger LOG) {
+        LOG.info("doTinyTextBindAndExtract test start");
+        final MySQLTaskAdjutant taskAdjutant = obtainTaskAdjutant();
+        final Charset charset = taskAdjutant.obtainCharsetClient();
+        String text;
+        byte[] array;
+
+        text = "'evil,\"sql inject\"' '\\0' \u001a,set my_decimal = '9999.0'";
+        assertTinyTextBindAndExtract(taskAdjutant, text);
+        array = text.getBytes(charset);
+        assertTinyTextBindAndExtract(taskAdjutant, array);
+
+        text = "'''''' \"\"\" \u001a \u001a % _";
+        assertTinyTextBindAndExtract(taskAdjutant, text);
+        array = text.getBytes(charset);
+        assertTinyTextBindAndExtract(taskAdjutant, array);
+
+        LOG.info("doTinyTextBindAndExtract test success");
+        releaseConnection(taskAdjutant);
+    }
+
+    final void doTextBindAndExtract(Logger LOG) {
+        LOG.info("doTextBindAndExtract test start");
+        final MySQLTaskAdjutant taskAdjutant = obtainTaskAdjutant();
+        final Charset charset = taskAdjutant.obtainCharsetClient();
+        String text;
+        byte[] array;
+
+        text = "'evil,\"sql inject\"' '\\0' \u001a,set my_decimal = '9999.0'";
+        assertTextBindAndExtract(taskAdjutant, text);
+        array = text.getBytes(charset);
+        assertTextBindAndExtract(taskAdjutant, array);
+
+        text = "'''''' \"\"\" \u001a \u001a % _";
+        assertTextBindAndExtract(taskAdjutant, text);
+        array = text.getBytes(charset);
+        assertTextBindAndExtract(taskAdjutant, array);
+
+        LOG.info("doTextBindAndExtract test success");
+        releaseConnection(taskAdjutant);
+    }
+
+    final void doMediumTextBindAndExtract(Logger LOG) {
+        LOG.info("doMediumTextBindAndExtract test start");
+        final MySQLTaskAdjutant taskAdjutant = obtainTaskAdjutant();
+        final Charset charset = taskAdjutant.obtainCharsetClient();
+        String text;
+        byte[] array;
+
+        text = "'evil,\"sql inject\"' '\\0' \u001a,set my_decimal = '9999.0'";
+        assertMediumTextBindAndExtract(taskAdjutant, text);
+        array = text.getBytes(charset);
+        assertMediumTextBindAndExtract(taskAdjutant, array);
+
+        text = "'''''' \"\"\" \u001a \u001a % _";
+        assertMediumTextBindAndExtract(taskAdjutant, text);
+        array = text.getBytes(charset);
+        assertMediumTextBindAndExtract(taskAdjutant, array);
+
+        LOG.info("doMediumTextBindAndExtract test success");
+        releaseConnection(taskAdjutant);
+    }
+
+    final void doLongTextBindAndExtract(Logger LOG) {
+        LOG.info("doLongTextBindAndExtract test start");
+        final MySQLTaskAdjutant taskAdjutant = obtainTaskAdjutant();
+        final Charset charset = taskAdjutant.obtainCharsetClient();
+        String text;
+        byte[] array;
+
+        text = "'evil,\"sql inject\"' '\\0' \u001a,set my_decimal = '9999.0'";
+        assertLongTextBindAndExtract(taskAdjutant, text);
+        array = text.getBytes(charset);
+        assertLongTextBindAndExtract(taskAdjutant, array);
+
+        text = "'''''' \"\"\" \u001a \u001a % _";
+        assertLongTextBindAndExtract(taskAdjutant, text);
+        array = text.getBytes(charset);
+        assertLongTextBindAndExtract(taskAdjutant, array);
+
+        LOG.info("doLongTextBindAndExtract test success");
+        releaseConnection(taskAdjutant);
+    }
+
     final void doGeometryBindAndExtract(Logger LOG) {
         LOG.info("geometryBindAndExtract test start");
         final MySQLTaskAdjutant taskAdjutant = obtainTaskAdjutant();
@@ -1285,6 +1369,90 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBased
             bindBinary = (byte[]) bindParam;
         }
         assertEquals(resultRow.getNonNull("field", byte[].class), bindBinary, field);
+    }
+
+    /**
+     * @see #doTinyTextBindAndExtract(Logger)
+     */
+    private void assertTinyTextBindAndExtract(final MySQLTaskAdjutant taskAdjutant, final Object bindParam) {
+        final long id = convertId(25);
+        final String field = "my_tiny_text";
+        //1. update filed
+        updateSingleField(taskAdjutant, MySQLType.TINYTEXT, bindParam, field, id);
+        //2. query filed
+        final ResultRow resultRow;
+        resultRow = querySingleField(taskAdjutant, field, id);
+
+        final String bindText;
+        if (bindParam instanceof String) {
+            bindText = ((String) bindParam);
+        } else {
+            bindText = new String((byte[]) bindParam, taskAdjutant.obtainCharsetClient());
+        }
+        assertEquals(resultRow.getNonNull("field", String.class), bindText, field);
+    }
+
+    /**
+     * @see #doTextBindAndExtract(Logger)
+     */
+    private void assertTextBindAndExtract(final MySQLTaskAdjutant taskAdjutant, final Object bindParam) {
+        final long id = convertId(26);
+        final String field = "my_text";
+        //1. update filed
+        updateSingleField(taskAdjutant, MySQLType.TEXT, bindParam, field, id);
+        //2. query filed
+        final ResultRow resultRow;
+        resultRow = querySingleField(taskAdjutant, field, id);
+
+        final String bindText;
+        if (bindParam instanceof String) {
+            bindText = ((String) bindParam);
+        } else {
+            bindText = new String((byte[]) bindParam, taskAdjutant.obtainCharsetClient());
+        }
+        assertEquals(resultRow.getNonNull("field", String.class), bindText, field);
+    }
+
+    /**
+     * @see #doMediumTextBindAndExtract(Logger)
+     */
+    private void assertMediumTextBindAndExtract(final MySQLTaskAdjutant taskAdjutant, final Object bindParam) {
+        final long id = convertId(27);
+        final String field = "my_medium_text";
+        //1. update filed
+        updateSingleField(taskAdjutant, MySQLType.MEDIUMTEXT, bindParam, field, id);
+        //2. query filed
+        final ResultRow resultRow;
+        resultRow = querySingleField(taskAdjutant, field, id);
+
+        final String bindText;
+        if (bindParam instanceof String) {
+            bindText = ((String) bindParam);
+        } else {
+            bindText = new String((byte[]) bindParam, taskAdjutant.obtainCharsetClient());
+        }
+        assertEquals(resultRow.getNonNull("field", String.class), bindText, field);
+    }
+
+    /**
+     * @see #doLongTextBindAndExtract(Logger)
+     */
+    private void assertLongTextBindAndExtract(final MySQLTaskAdjutant taskAdjutant, final Object bindParam) {
+        final long id = convertId(28);
+        final String field = "my_long_text";
+        //1. update filed
+        updateSingleField(taskAdjutant, MySQLType.LONGTEXT, bindParam, field, id);
+        //2. query filed
+        final ResultRow resultRow;
+        resultRow = querySingleField(taskAdjutant, field, id);
+
+        final String bindText;
+        if (bindParam instanceof String) {
+            bindText = ((String) bindParam);
+        } else {
+            bindText = new String((byte[]) bindParam, taskAdjutant.obtainCharsetClient());
+        }
+        assertEquals(resultRow.getNonNull("field", String.class), bindText, field);
     }
 
 

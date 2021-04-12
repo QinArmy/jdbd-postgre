@@ -82,7 +82,7 @@ final class MultiResultsCreate implements MultiResultsSink {
      * </ul>
      * </p>
      */
-    private List<JdbdException> errorList;
+    private List<JdbdException> downstreamErrorList;
 
     private JdbdException upstreamError;
 
@@ -198,16 +198,16 @@ final class MultiResultsCreate implements MultiResultsSink {
     /*################################## blow private method ##################################*/
 
     private void addDownstreamError(JdbdException e) {
-        List<JdbdException> errorList = this.errorList;
+        List<JdbdException> errorList = this.downstreamErrorList;
         if (errorList == null) {
             errorList = new ArrayList<>();
-            this.errorList = errorList;
+            this.downstreamErrorList = errorList;
         }
         errorList.add(e);
     }
 
     private boolean hasDownstreamError() {
-        List<JdbdException> list = this.errorList;
+        List<JdbdException> list = this.downstreamErrorList;
         return list != null && !list.isEmpty();
     }
 
@@ -296,12 +296,13 @@ final class MultiResultsCreate implements MultiResultsSink {
 
         if (hasError()) {
             sink.error(createException());
-        } else if (isMultiResultEnd()) {
-            sink.error(new NoMoreResultException("MultiResults have ended."));
         } else if (hasAnyBuffer()) {
             LOG.debug("this.currentSink non null,add to downstream queue.");
             addRealDownstreamSink(createRealUpdateSink(sink));
             drainReceiver();
+        } else if (isMultiResultEnd()) {
+            String m = String.format("MultiResults have ended,resultSequenceId(based 1):%s", this.resultSequenceId);
+            sink.error(new NoMoreResultException(m));
         } else if (this.currentSink == null) {
             LOG.debug("this.currentSink is null, set this.currentSink = RealUpdateSink");
             this.currentSink = createRealUpdateSink(sink);
@@ -325,12 +326,13 @@ final class MultiResultsCreate implements MultiResultsSink {
 
         if (hasError()) {
             sink.error(createException());
-        } else if (isMultiResultEnd()) {
-            sink.error(new NoMoreResultException("MultiResults have ended."));
         } else if (hasAnyBuffer()) {
             LOG.debug("this.currentSink non null,add to downstream queue.");
             addRealDownstreamSink(createRealQuerySink(sink, statesConsumer));
             drainReceiver();
+        } else if (isMultiResultEnd()) {
+            String m = String.format("MultiResults have ended,resultSequenceId(based 1):%s", this.resultSequenceId);
+            sink.error(new NoMoreResultException(m));
         } else if (currentSink == null) {
             LOG.debug("this.currentSink is null, set this.currentSink = RealQuerySink");
             this.currentSink = createRealQuerySink(sink, statesConsumer);
@@ -378,7 +380,7 @@ final class MultiResultsCreate implements MultiResultsSink {
             bufferSink = bufferSinkQueue.poll();
 
             if (bufferSink instanceof BufferUpdateSink && realSink instanceof RealUpdateSink) {
-                realSink.nextUpdate(bufferSink.getSequenceId(), ((BufferUpdateSink) bufferSink).resultStates);
+                ((RealUpdateSink) realSink).fromBuffer((BufferUpdateSink) bufferSink);
             } else if (bufferSink instanceof BufferQuerySink && realSink instanceof RealQuerySink) {
                 RealQuerySink realQuerySink = (RealQuerySink) realSink;
                 ((BufferQuerySink) bufferSink).drainToDownstream(realQuerySink.sink
@@ -404,14 +406,14 @@ final class MultiResultsCreate implements MultiResultsSink {
             }
         }
 
-        if (!JdbdCollections.isEmpty(this.errorList)) {
+        if (!JdbdCollections.isEmpty(this.downstreamErrorList)) {
             emitErrorToSinkQueue(createException());
         }
     }
 
     private JdbdException createException() {
         JdbdException upstreamError = this.upstreamError;
-        List<JdbdException> errorList = this.errorList;
+        List<JdbdException> errorList = this.downstreamErrorList;
         if (upstreamError == null && (errorList == null || errorList.isEmpty())) {
             throw new IllegalStateException("No error.");
         }
@@ -862,13 +864,17 @@ final class MultiResultsCreate implements MultiResultsSink {
         }
 
         @Override
-        public void nextUpdate(final int sequenceId, ResultStates resultStates) {
+        public final void nextUpdate(final int sequenceId, ResultStates resultStates) {
             if (MultiResultsCreate.this.currentSink != this) {
                 throw new IllegalStateException(String.format("%s have ended.", this));
             }
             this.sequenceId = sequenceId;
             MultiResultsCreate.this.currentSink = null;
             this.sink.success(resultStates);
+        }
+
+        final void fromBuffer(BufferUpdateSink buffer) {
+            this.sink.success(Objects.requireNonNull(buffer.resultStates, "buffer.resultStates"));
         }
 
         @Override
@@ -882,7 +888,7 @@ final class MultiResultsCreate implements MultiResultsSink {
             }
             this.sequenceId = sequenceId;
             // here, downstream subscribe error,should subscribe io.jdbd.MultiResults.nextUpdate.
-            ErrorSubscribeException e = new ErrorSubscribeException(QUERY, UPDATE
+            ErrorSubscribeException e = new ErrorSubscribeException(UPDATE, QUERY
                     , "Result[sequenceId(based one):%s] Expect subscribe nextQuery,but subscribe nextUpdate."
                     , sequenceId);
 
@@ -950,8 +956,15 @@ final class MultiResultsCreate implements MultiResultsSink {
             MultiResultsCreate.this.currentSink = null;
             // secondly
             if (MultiResultsCreate.this.hasError()) {
-                if (currentSink instanceof RealDownstreamSink) {
-                    this.actualSink.error(MultiResultsCreate.this.createException());
+                final Throwable e = MultiResultsCreate.this.createException();
+                if (this.downstreamSink instanceof RealUpdateSink) {
+                    if (this.actualSink instanceof DirtyFluxSink) {
+                        ((RealUpdateSink) this.downstreamSink).sink.error(e);
+                    } else {
+                        this.actualSink.error(e);
+                    }
+                } else {
+                    this.actualSink.error(e);
                 }
             } else {
                 this.actualSink.complete();

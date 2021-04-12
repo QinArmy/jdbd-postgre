@@ -214,9 +214,8 @@ final class ComQueryTask extends MySQLCommandTask {
             multiResults = JdbdMultiResults.error(MySQLExceptions.createEmptySqlException());
         } else if (Capabilities.supportMultiStatement(adjutant.obtainNegotiatedCapability())) {
             multiResults = JdbdMultiResults.create(adjutant, sink -> {
-                ComQueryTask task;
                 try {
-                    task = new ComQueryTask(sink, sqlList, adjutant);
+                    ComQueryTask task = new ComQueryTask(sink, sqlList, adjutant);
                     task.submit(sink::error);
                 } catch (Throwable e) {
                     sink.error(MySQLExceptions.wrap(e));
