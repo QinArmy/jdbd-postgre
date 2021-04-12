@@ -102,10 +102,9 @@ final class ComQueryTask extends MySQLCommandTask {
      */
     static Mono<ResultStates> bindableUpdate(final StmtWrapper wrapper, final MySQLTaskAdjutant adjutant) {
         Mono<ResultStates> mono;
-        final List<BindValue> parameterGroup = wrapper.getParameterGroup();
         Properties<PropertyKey> properties = adjutant.obtainHostInfo().getProperties();
-        if (!properties.getOrDefault(PropertyKey.clientPrepare, Boolean.class)
-                && BindUtils.hasLongData(parameterGroup)) {
+        if (properties.getOrDefault(PropertyKey.useServerPrepStmts, Boolean.class)
+                || BindUtils.hasLongData(wrapper.getParameterGroup())) {
             // has long data ,can't use client prepare statement.
             mono = ComPreparedTask.update(wrapper, adjutant);
         } else {
@@ -129,18 +128,16 @@ final class ComQueryTask extends MySQLCommandTask {
     static Flux<ResultStates> bindableBatch(final BatchWrapper wrapper, final MySQLTaskAdjutant adjutant) {
         final List<List<BindValue>> parameterGroupList = wrapper.getParameterGroupList();
         Properties<PropertyKey> properties = adjutant.obtainHostInfo().getProperties();
-
-        Flux<ResultStates> flux;
-        if (parameterGroupList.size() < 4
-                || (properties.getOrDefault(PropertyKey.clientPrepare, Enums.ClientPrepare.class) == Enums.ClientPrepare.UN_SUPPORT_STREAM
-                && BindUtils.hasLongDataGroup(parameterGroupList))) {
+        final Flux<ResultStates> flux;
+        if (parameterGroupList.size() > 1000 //TODO decide max size by PropertyKey.maxAllowedPacket
+                || properties.getOrDefault(PropertyKey.useServerPrepStmts, Boolean.class)
+                || BindUtils.hasLongDataGroup(parameterGroupList)) {
             // has long data ,can't use client prepare statement.
             flux = ComPreparedTask.batchUpdate(wrapper, adjutant);
         } else {
             flux = Flux.create(sink -> {
-                ComQueryTask task;
                 try {
-                    task = new ComQueryTask(wrapper, sink, adjutant);
+                    ComQueryTask task = new ComQueryTask(wrapper, sink, adjutant);
                     task.submit(sink::error);
                 } catch (Throwable e) {
                     sink.error(MySQLExceptions.wrap(e));
@@ -159,12 +156,10 @@ final class ComQueryTask extends MySQLCommandTask {
      * @see #ComQueryTask(StmtWrapper, FluxSink, MySQLTaskAdjutant)
      */
     static Flux<ResultRow> bindableQuery(final StmtWrapper wrapper, final MySQLTaskAdjutant adjutant) {
-        Flux<ResultRow> flux;
-
+        final Flux<ResultRow> flux;
         Properties<PropertyKey> properties = adjutant.obtainHostInfo().getProperties();
-        if (properties.getOrDefault(PropertyKey.clientPrepare, Enums.ClientPrepare.class)
-                == Enums.ClientPrepare.UN_SUPPORT_STREAM
-                && BindUtils.hasLongData(wrapper.getParameterGroup())) {
+        if (properties.getOrDefault(PropertyKey.useServerPrepStmts, Boolean.class)
+                || BindUtils.hasLongData(wrapper.getParameterGroup())) {
             // has long data ,can't use client prepare statement.
             flux = ComPreparedTask.query(wrapper, adjutant);
         } else {
@@ -306,7 +301,7 @@ final class ComQueryTask extends MySQLCommandTask {
         } else if (this.sqlCount > 3) {
             this.mode = Mode.TEMP_MULTI;
             packetList = ComQueryCommandWriter.createStaticMultiCommand(sqlList, this::addAndGetSequenceId, adjutant);
-            this.downstreamSink = new TempMultiStmtBatchStaticUpdateSink(sqlList, resultSink);
+            this.downstreamSink = new MultiStatementBatchUpdateSink(resultSink);
         } else {
             this.mode = Mode.SINGLE_STMT;
             packetList = ComQueryCommandWriter.createStaticSingleCommand(sqlList.get(0), this::addAndGetSequenceId
@@ -366,18 +361,24 @@ final class ComQueryTask extends MySQLCommandTask {
         final List<List<BindValue>> parameterGroupList = wrapper.getParameterGroupList();
         this.sqlCount = parameterGroupList.size();
 
+        final List<ByteBuf> packetList;
         if (Capabilities.supportMultiStatement(this.negotiatedCapability)) {
             this.mode = Mode.MULTI_STMT;
+            packetList = ComQueryCommandWriter.createBindableBatchCommand(wrapper, this::addAndGetSequenceId, adjutant);
+            this.downstreamSink = new MultiStatementBatchUpdateSink(sink);
         } else if (this.sqlCount > 3) {
             this.mode = Mode.TEMP_MULTI;
+            packetList = ComQueryCommandWriter.createBindableBatchCommand(wrapper, this::addAndGetSequenceId, adjutant);
+            this.downstreamSink = new MultiStatementBatchUpdateSink(sink);
         } else {
-            throw new IllegalArgumentException("batch <= 3 not support");
+            this.mode = Mode.SINGLE_STMT;
+            StmtWrapper stmtWrapper = StmtWrappers.multi(wrapper.getSql(), parameterGroupList.get(0));
+            packetList = ComQueryCommandWriter.createBindableCommand(stmtWrapper, this::addAndGetSequenceId
+                    , adjutant);
+            this.downstreamSink = new BindableSingleStatementBatchUpdate(wrapper, sink);
         }
-        final List<ByteBuf> packetList;
-        packetList = ComQueryCommandWriter.createBindableBatchCommand(wrapper, this::addAndGetSequenceId, adjutant);
-        this.downstreamSink = new MultiStatementBatchUpdateSink(sink);
-        this.packetPublisher = Flux.fromIterable(packetList);
 
+        this.packetPublisher = Flux.fromIterable(packetList);
     }
 
 
@@ -492,7 +493,6 @@ final class ComQueryTask extends MySQLCommandTask {
             if (LOG.isTraceEnabled()) {
                 LOG.trace("COM_QUERY instant[{}] task end.", this.hashCode());
             }
-
             if (hasError()) {
                 this.downstreamSink.error(createException());
             } else {
@@ -541,13 +541,8 @@ final class ComQueryTask extends MySQLCommandTask {
                         .subscribe();
                 this.packetPublisher = null;
                 this.tempMultiStmtStatus = TempMultiStmtStatus.ENABLE_FAILURE;
-                if (this.downstreamSink instanceof TempMultiStmtBatchUpdateSink) {
-                    ((TempMultiStmtBatchUpdateSink) this.downstreamSink).switchSingleStmtMode();
-                    taskEnd = false;
-                } else {
-                    addError(MySQLExceptions.createErrorPacketException(error));
-                    taskEnd = true;
-                }
+                addError(MySQLExceptions.createErrorPacketException(error));
+                taskEnd = true;
             }
             break;
             case EofPacket.EOF_HEADER:
@@ -648,7 +643,7 @@ final class ComQueryTask extends MySQLCommandTask {
                 }
                 if (!taskEnd) {
                     if (this.mode == Mode.SINGLE_STMT) {
-                        taskEnd = resultSequenceId == this.sqlCount;
+                        taskEnd = resultSequenceId == this.sqlCount || hasError();
                     } else {
                         taskEnd = !resultStates.hasMoreResults();
                     }
@@ -682,9 +677,7 @@ final class ComQueryTask extends MySQLCommandTask {
         final int resultSequenceId = this.currentResultSequenceId;
         final boolean resultSetEnd;
         if (this.dirtyResultSetReader != null || this.downstreamSink.skipRestResults()) {
-            if (!hasException(StatementException.class)) {
-                addError(new StatementException("Expect single statement ,but multi statement."));
-            }
+            addMultiStatementException();
             resultSetEnd = skipTextResultSet(cumulateBuffer, serverStatusConsumer);
         } else {
             resultSetEnd = this.downstreamSink.readTextResultSet(resultSequenceId, cumulateBuffer
@@ -697,7 +690,7 @@ final class ComQueryTask extends MySQLCommandTask {
             }
             this.phase = Phase.READ_RESPONSE_RESULT_SET;
             if (this.mode == Mode.SINGLE_STMT) {
-                taskEnd = resultSequenceId == this.sqlCount;
+                taskEnd = resultSequenceId == this.sqlCount || hasError();
             } else {
                 taskEnd = !hasMoreResults();
             }
@@ -745,7 +738,7 @@ final class ComQueryTask extends MySQLCommandTask {
         if (errorList.size() == 1) {
             e = errorList.get(0);
         } else {
-            e = new JdbdCompositeException(errorList, "occur multi error.");
+            e = new JdbdCompositeException(errorList, "occur multi error");
         }
         return e;
     }
@@ -937,11 +930,26 @@ final class ComQueryTask extends MySQLCommandTask {
         return packet;
     }
 
+    /**
+     * @see SingleStatementBatchUpdate#nextUpdate(int, ResultStates)
+     */
     private void sendStaticCommand(final String sql) throws SQLException {
         // result sequence_id
         this.updateSequenceId(-1);
         this.packetPublisher = Flux.fromIterable(
                 ComQueryCommandWriter.createStaticSingleCommand(sql, this::addAndGetSequenceId, this.adjutant)
+        );
+    }
+
+    /**
+     * @see BindableSingleStatementBatchUpdate#nextUpdate(int, ResultStates)
+     */
+    private void sendBindableCommand(final String sql, final List<BindValue> paramGroup) throws SQLException {
+        // result sequence_id
+        this.updateSequenceId(-1);
+        StmtWrapper stmtWrapper = StmtWrappers.multi(sql, paramGroup);
+        this.packetPublisher = Flux.fromIterable(
+                ComQueryCommandWriter.createBindableCommand(stmtWrapper, this::addAndGetSequenceId, this.adjutant)
         );
     }
 
@@ -1029,11 +1037,6 @@ final class ComQueryTask extends MySQLCommandTask {
 
     }
 
-    private interface TempMultiStmtBatchUpdateSink extends DownstreamSink {
-
-        void switchSingleStmtMode();
-    }
-
 
     private final class SingleQuerySink implements DownstreamSink, ResultRowSink {
 
@@ -1047,6 +1050,10 @@ final class ComQueryTask extends MySQLCommandTask {
 
         private boolean resultEnd;
 
+        /**
+         * @see #ComQueryTask(String, FluxSink, Consumer, MySQLTaskAdjutant)
+         * @see #ComQueryTask(StmtWrapper, FluxSink, MySQLTaskAdjutant)
+         */
         private SingleQuerySink(FluxSink<ResultRow> sink, Consumer<ResultStates> statesConsumer) {
             assertSingleMode(this);
 
@@ -1163,6 +1170,10 @@ final class ComQueryTask extends MySQLCommandTask {
 
         private boolean resultEnd;
 
+        /**
+         * @see #ComQueryTask(String, MonoSink, MySQLTaskAdjutant)
+         * @see #ComQueryTask(StmtWrapper, MonoSink, MySQLTaskAdjutant)
+         */
         private SingleUpdateSink(MonoSink<ResultStates> sink) {
             assertSingleMode(this);
             this.sink = sink;
@@ -1224,9 +1235,16 @@ final class ComQueryTask extends MySQLCommandTask {
 
         private int currentSequenceId = 1;
 
+        /**
+         * @see #ComQueryTask(List, FluxSink, MySQLTaskAdjutant)
+         */
         private SingleStatementBatchUpdate(List<String> sqlList, FluxSink<ResultStates> sink) {
             this.sqlList = sqlList;
             this.sink = sink;
+            if (sqlList.size() != ComQueryTask.this.sqlCount) {
+                throw new IllegalArgumentException(String.format("sqlList size[%s] ans sqlCount[%s] not match."
+                        , sqlList.size(), ComQueryTask.this.sqlCount));
+            }
         }
 
         @Override
@@ -1236,11 +1254,13 @@ final class ComQueryTask extends MySQLCommandTask {
 
         @Override
         public boolean nextUpdate(final int resultSequenceId, final ResultStates resultStates) {
-            final int batchCount = this.sqlList.size();
+            final int batchCount = ComQueryTask.this.sqlCount;
             boolean taskEnd = false;
             if (resultSequenceId > batchCount) {
-                // TODO handle task
                 addMultiStatementException();
+                taskEnd = true;
+            } else if (ComQueryTask.this.hasError()) {
+                taskEnd = true;
             } else if (this.currentSequenceId == resultSequenceId) {
                 this.sink.next(resultStates);
                 try {
@@ -1248,11 +1268,8 @@ final class ComQueryTask extends MySQLCommandTask {
                     if (index < batchCount) {
                         ComQueryTask.this.sendStaticCommand(this.sqlList.get(index));
                     }
-                } catch (SQLException e) {
-                    ComQueryTask.this.addError(new JdbdSQLException(e));
-                    taskEnd = true;
-                } catch (LongDataReadException e) {
-                    ComQueryTask.this.addError(e);
+                } catch (Throwable e) {
+                    ComQueryTask.this.addError(MySQLExceptions.wrap(e));
                     taskEnd = true;
                 }
             } else if (!hasError()) {
@@ -1269,12 +1286,12 @@ final class ComQueryTask extends MySQLCommandTask {
             if (!hasException(ErrorSubscribeException.class)) {
                 addError(new ErrorSubscribeException(ResultType.BATCH_UPDATE, ResultType.QUERY));
             }
-
             boolean resultEnd;
             resultEnd = ComQueryTask.this.skipTextResultSet(cumulateBuffer, serverStatusConsumer);
             if (resultEnd) {
-                this.currentSequenceId = this.sqlList.size() + 1;
+                this.currentSequenceId = ComQueryTask.this.sqlCount + 1;
             }
+            LOG.debug("temp multi stmt error :{} , {}", resultSequenceId, resultEnd);
             return resultEnd;
         }
 
@@ -1285,7 +1302,7 @@ final class ComQueryTask extends MySQLCommandTask {
 
         @Override
         public boolean skipRestResults() {
-            return this.currentSequenceId > this.sqlList.size();
+            return this.currentSequenceId > ComQueryTask.this.sqlCount;
         }
 
         @Override
@@ -1294,18 +1311,108 @@ final class ComQueryTask extends MySQLCommandTask {
         }
     }
 
+    private final class BindableSingleStatementBatchUpdate implements DownstreamSink {
+
+        private final String sql;
+
+        private final List<List<BindValue>> parameterGroupList;
+
+        private final FluxSink<ResultStates> sink;
+
+        private int currentSequenceId = 1;
+
+        /**
+         * @see #ComQueryTask(BatchWrapper, FluxSink, MySQLTaskAdjutant)
+         */
+        private BindableSingleStatementBatchUpdate(final BatchWrapper wrapper, FluxSink<ResultStates> sink) {
+            this.sql = wrapper.getSql();
+            this.parameterGroupList = wrapper.getParameterGroupList();
+            this.sink = sink;
+            if (parameterGroupList.size() != ComQueryTask.this.sqlCount) {
+                String message = String.format("parameterGroupList size[%s] ans sqlCount[%s] not match."
+                        , parameterGroupList.size(), ComQueryTask.this.sqlCount);
+                throw new IllegalArgumentException(message);
+            }
+        }
+
+        @Override
+        public void error(JdbdException e) {
+            this.sink.error(e);
+        }
+
+        @Override
+        public boolean nextUpdate(final int resultSequenceId, final ResultStates resultStates) {
+            final int batchCount = ComQueryTask.this.sqlCount;
+            boolean taskEnd = false;
+            if (resultSequenceId > batchCount) {
+                addMultiStatementException();
+                taskEnd = true;
+            } else if (ComQueryTask.this.hasError()) {
+                taskEnd = true;
+            } else if (this.currentSequenceId == resultSequenceId) {
+                this.sink.next(resultStates);
+                final int index = this.currentSequenceId++;
+                try {
+                    if (index < batchCount) {
+                        ComQueryTask.this.sendBindableCommand(this.sql, this.parameterGroupList.get(index));
+                    }
+                } catch (Throwable e) {
+                    ComQueryTask.this.addError(MySQLExceptions.wrap(e, "paramGroup[%s]", index));
+                    taskEnd = true;
+                }
+            } else if (!hasError()) {
+                throw new IllegalStateException(String.format(
+                        "resultSequenceId[%s] and this.currentSequenceId[%s] not match."
+                        , resultSequenceId, this.currentSequenceId));
+            }
+            return taskEnd;
+        }
+
+        @Override
+        public boolean readTextResultSet(final int resultSequenceId, ByteBuf cumulateBuffer
+                , Consumer<Object> serverStatusConsumer) {
+            if (!hasException(ErrorSubscribeException.class)) {
+                addError(new ErrorSubscribeException(ResultType.BATCH_UPDATE, ResultType.QUERY));
+            }
+            boolean resultEnd;
+            resultEnd = ComQueryTask.this.skipTextResultSet(cumulateBuffer, serverStatusConsumer);
+            if (resultEnd) {
+                this.currentSequenceId = ComQueryTask.this.sqlCount + 1;
+            }
+            LOG.debug("temp multi stmt error :{} , {}", resultSequenceId, resultEnd);
+            return resultEnd;
+        }
+
+        @Override
+        public void complete() {
+            this.sink.complete();
+        }
+
+        @Override
+        public boolean skipRestResults() {
+            return this.currentSequenceId > ComQueryTask.this.sqlCount;
+        }
+
+        @Override
+        public String toString() {
+            return this.getClass().getSimpleName();
+        }
+    }
 
     private final class MultiStatementBatchUpdateSink implements DownstreamSink {
 
         private final FluxSink<ResultStates> sink;
 
-        private final int batchCount;
-
         private int currentSequenceId = 1;
 
+        /**
+         * @see #ComQueryTask(BatchWrapper, FluxSink, MySQLTaskAdjutant)
+         */
         private MultiStatementBatchUpdateSink(FluxSink<ResultStates> sink) {
+            if (ComQueryTask.this.mode == Mode.SINGLE_STMT) {
+                throw new IllegalStateException(String.format("mode[%s] error.", ComQueryTask.this.mode));
+            }
             this.sink = sink;
-            this.batchCount = ComQueryTask.this.sqlCount;
         }
 
         @Override
@@ -1316,7 +1423,9 @@ final class ComQueryTask extends MySQLCommandTask {
         @Override
         public boolean nextUpdate(final int resultSequenceId, final ResultStates resultStates) {
             if (resultSequenceId == this.currentSequenceId) {
-                this.sink.next(resultStates);
+                if (!ComQueryTask.this.hasError()) {
+                    this.sink.next(resultStates);
+                }
                 this.currentSequenceId++;
             } else if (!hasError()) {
                 throw new IllegalStateException(String.format(
@@ -1335,138 +1444,22 @@ final class ComQueryTask extends MySQLCommandTask {
             boolean resultEnd;
             resultEnd = skipTextResultSet(cumulateBuffer, serverStatusConsumer);
             if (resultEnd) {
-                this.currentSequenceId = this.batchCount + 1;
+                this.currentSequenceId = ComQueryTask.this.sqlCount + 1;
             }
             return resultEnd;
         }
 
         @Override
         public void complete() {
-            this.sink.complete();
-        }
-
-        @Override
-        public boolean skipRestResults() {
-            return this.currentSequenceId > this.batchCount;
-        }
-
-        @Override
-        public String toString() {
-            return this.getClass().getSimpleName();
-        }
-    }
-
-
-    private final class TempMultiStmtBatchStaticUpdateSink implements TempMultiStmtBatchUpdateSink {
-
-        private final List<String> sqlList;
-
-        private final FluxSink<ResultStates> sink;
-
-        private int resultSequenceId = 1;
-
-        private TempMultiStmtBatchStaticUpdateSink(List<String> sqlList
-                , FluxSink<ResultStates> sink) {
-            if (ComQueryTask.this.mode != Mode.TEMP_MULTI) {
-                throw new IllegalStateException(String.format("Mode[%s] isn't %s."
-                        , ComQueryTask.this.mode, Mode.TEMP_MULTI));
-            }
-            this.sqlList = sqlList;
-            this.sink = sink;
-        }
-
-        @Override
-        public void error(JdbdException e) {
-            this.sink.error(e);
-        }
-
-        @Override
-        public void switchSingleStmtMode() {
-            if (ComQueryTask.this.tempMultiStmtStatus != TempMultiStmtStatus.ENABLE_FAILURE
-                    || this.resultSequenceId > 1) {
-                throw new IllegalStateException(String.format("tempMultiStmtStatus[%s] isn't %s or index[%s] > 1"
-                        , ComQueryTask.this.tempMultiStmtStatus
-                        , TempMultiStmtStatus.ENABLE_FAILURE
-                        , this.resultSequenceId));
-            }
-            try {
-                ComQueryTask.this.sendStaticCommand(this.sqlList.get(0));
-            } catch (SQLException e) {
-                ComQueryTask.this.addError(new JdbdSQLException(e));
-                // here ,ComQueryTask Constructor has bug.
-                throw new IllegalStateException(e);
-            }
-        }
-
-        @Override
-        public boolean nextUpdate(final int resultSequenceId, final ResultStates resultStates) {
-            LOG.debug("temp multi stmt resultSequenceId:{}", resultSequenceId);
-            boolean taskEnd = false;
-            if (resultSequenceId == this.resultSequenceId) {
-                if (!ComQueryTask.this.hasError()) {
-                    this.sink.next(resultStates);
-                }
-                switch (ComQueryTask.this.tempMultiStmtStatus) {
-                    case ENABLE_SUCCESS: {
-                        this.resultSequenceId++;
-                    }
-                    break;
-                    case ENABLE_FAILURE: {
-                        try {
-                            int sqlIndex = this.resultSequenceId++;
-                            if (sqlIndex < this.sqlList.size()) {
-                                ComQueryTask.this.sendStaticCommand(this.sqlList.get(sqlIndex));
-                            }
-                        } catch (SQLException e) {
-                            ComQueryTask.this.addError(new JdbdSQLException(e));
-                            // here ,ComQueryTask Constructor has bug.
-                            taskEnd = true;
-                        } catch (LongDataReadException e) {
-                            ComQueryTask.this.addError(e);
-                            taskEnd = true;
-                        }
-                    }
-                    break;
-                    default:
-                        // here bug
-                        throw new IllegalStateException(String.format("tempMultiStmtStatus[%s] error."
-                                , ComQueryTask.this.tempMultiStmtStatus));
-                }
-
-            } else if (!hasError()) {
-                throw new IllegalStateException(String.format(
-                        "resultSequenceId[%s] and current index[%s] not match."
-                        , resultSequenceId, this.resultSequenceId));
-            }
-            return taskEnd;
-        }
-
-        @Override
-        public boolean readTextResultSet(int resultSequenceId, ByteBuf cumulateBuffer
-                , Consumer<Object> serverStatusConsumer) {
-            if (!hasException(ErrorSubscribeException.class)) {
-                addError(new ErrorSubscribeException(ResultType.BATCH_UPDATE, ResultType.QUERY));
-            }
-            boolean resultSetEnd;
-            resultSetEnd = ComQueryTask.this.skipTextResultSet(cumulateBuffer, serverStatusConsumer);
-            if (resultSetEnd) {
-                this.resultSequenceId = this.sqlList.size() + 1;
-            }
-            return resultSetEnd;
-        }
-
-        @Override
-        public void complete() {
-            if (this.resultSequenceId <= this.sqlList.size()) {
-                throw new IllegalStateException(String.format("resultSequenceId[%s] and sqlList size[%s] not match."
-                        , this.resultSequenceId, this.sqlList.size()));
+            if (this.currentSequenceId <= ComQueryTask.this.sqlCount) {
+                throw new IllegalStateException(String.format("currentSequenceId[%s] error.", this.currentSequenceId));
             }
             this.sink.complete();
         }
 
         @Override
         public boolean skipRestResults() {
-            return this.resultSequenceId > this.sqlList.size();
+            return this.currentSequenceId > ComQueryTask.this.sqlCount;
         }
 
         @Override
@@ -1486,6 +1479,10 @@ final class ComQueryTask extends MySQLCommandTask {
 
         private int currentSequenceId = 1;
 
+        /**
+         * @see #ComQueryTask(List, MultiResultsSink, MySQLTaskAdjutant)
+         * @see #ComQueryTask(MultiResultsSink, List, MySQLTaskAdjutant)
+         */
         private MultiStmtSink(MultiResultsSink sink) {
             if (ComQueryTask.this.mode != Mode.MULTI_STMT) {
                 throw new IllegalStateException(String.format("%s mode[%s] error,reject create instance."

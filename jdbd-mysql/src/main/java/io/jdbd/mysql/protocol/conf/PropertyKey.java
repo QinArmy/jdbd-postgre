@@ -104,7 +104,7 @@ public enum PropertyKey implements IPropertyKey {
     socketTimeout("socketTimeout", "0", true), //
     dnsSrv("dnsSrv", "false", true), //
     localSocketAddress("localSocketAddress", null, true), //
-    maxAllowedPacketMultiple("maxAllowedPacketMultiple", Integer.toString(1 << 14), true), //
+    maxAllowedPacket("maxAllowedPacket", Integer.toString(1 << 24), true), //
     tcpKeepAlive("tcpKeepAlive", "true", true), //
     tcpNoDelay("tcpNoDelay", "true", true), //
     tcpRcvBuf("tcpRcvBuf", "0", true), //

@@ -138,7 +138,7 @@ public abstract class MySQLExceptions extends JdbdExceptions {
     }
 
     public static SQLException createSyntaxError(String message) {
-        return new SQLException(message, "42000", 1149);
+        return new SQLException(message, MySQLStates.SYNTAX_ERROR, MySQLCodes.ER_SYNTAX_ERROR);
     }
 
     public static SQLException createQueryIsEmptyError() {

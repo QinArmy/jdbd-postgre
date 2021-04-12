@@ -19,6 +19,7 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.*;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.testng.Assert.assertNotNull;
 
@@ -31,6 +32,8 @@ public class MultiStatementSuiteTests extends AbstractConnectionBasedSuiteTests 
 
     private static final MySQLSessionAdjutant MULTI_STMT_SESSION_ADJUTANT = createMultiStmtSessionAdjutant();
 
+    private final int ROW_COUNT = 50;
+
     @AfterClass
     public void afterClass() {
         Flux.fromIterable(MULTI_STMT_TASK_ADJUTANT_QUEUE)
@@ -41,11 +44,14 @@ public class MultiStatementSuiteTests extends AbstractConnectionBasedSuiteTests 
         MULTI_STMT_TASK_ADJUTANT_QUEUE.clear();
     }
 
-
+    /**
+     * @see ComQueryTask#multiStmt(List, MySQLTaskAdjutant)
+     */
     @Test(timeOut = TIME_OUT)
-    public void multiStatement() {
+    public void multiStatement() throws Throwable {
         LOG.info("multiStatement test start");
         final MySQLTaskAdjutant adjutant = obtainMultiStmtTaskAdjutant();
+
         String sql;
         List<String> sqlList = new ArrayList<>();
 
@@ -55,13 +61,13 @@ public class MultiStatementSuiteTests extends AbstractConnectionBasedSuiteTests 
         sql = String.format("UPDATE mysql_types as t SET t.my_date = '%s' WHERE t.id = 31", LocalDate.now());//[2] update
         sqlList.add(sql);
 
-        sql = "SELECT t.id as id ,t.name as name,t.create_time as createTime FROM mysql_types as t ORDER BY t.id LIMIT 50";// [3] query
+        sql = String.format("SELECT t.id as id ,t.name as name,t.create_time as createTime FROM mysql_types as t ORDER BY t.id LIMIT %s", ROW_COUNT);// [3] query
         sqlList.add(sql);
 
         sql = String.format("UPDATE mysql_types as t SET t.my_time= '%s' WHERE t.id = 22", LocalTime.now());// [4] update
         sqlList.add(sql);
 
-        sql = "SELECT t.id as id ,t.name as name,t.create_time as createTime FROM mysql_types as t ORDER BY t.id LIMIT 50"; //[5] query
+        sql = String.format("SELECT t.id as id ,t.name as name,t.create_time as createTime FROM mysql_types as t ORDER BY t.id LIMIT %s", ROW_COUNT); //[5] query
         sqlList.add(sql);
 
         sql = String.format("UPDATE mysql_types as t SET t.my_time= '%s' WHERE t.id = 23", LocalTime.now());//[6] update
@@ -78,6 +84,8 @@ public class MultiStatementSuiteTests extends AbstractConnectionBasedSuiteTests 
                 .thenMany(multiResults1.nextQuery())// 3.defer subscribe  query
                 .switchIfEmpty(emptyError())
                 .map(this::assertResultRow)
+                .count()
+                .flatMap(this::assertQueryRowCount)
 
                 .then(multiResults1.nextUpdate())// 4.defer subscribe  update
                 .map(this::assertUpdateSuccess)
@@ -85,6 +93,8 @@ public class MultiStatementSuiteTests extends AbstractConnectionBasedSuiteTests 
                 .thenMany(multiResults1.nextQuery())// 5.defer subscribe  query
                 .switchIfEmpty(emptyError())
                 .map(this::assertResultRow)
+                .count()
+                .flatMap(this::assertQueryRowCount)
 
                 .then(multiResults1.nextUpdate())// 6.defer subscribe  update
                 .map(this::assertUpdateSuccess)
@@ -95,32 +105,56 @@ public class MultiStatementSuiteTests extends AbstractConnectionBasedSuiteTests 
         final ReactorMultiResults multiResults2;
         multiResults2 = ComQueryTask.multiStmt(Collections.unmodifiableList(sqlList), adjutant);
 
+        final AtomicReference<Throwable> errorHolder = new AtomicReference<>(null);
+
         multiResults2.nextUpdate()
+                .doOnError(errorHolder::set)
                 .subscribe();// 1. immediately subscribe [1] update
+
         multiResults2.nextUpdate()
+                .doOnError(errorHolder::set)
                 .subscribe();//2. immediately subscribe [2] update
 
 
         multiResults2.nextQuery()
                 .switchIfEmpty(emptyError())
+                .map(this::assertResultRow)
+                .count()
+                .flatMap(this::assertQueryRowCount)
+                .doOnError(errorHolder::set)
                 .subscribe();//3. immediately subscribe [3] query
 
         multiResults2.nextUpdate()
+                .doOnError(errorHolder::set)
                 .subscribe();//4. immediately subscribe [4] update
 
         multiResults2.nextQuery()
                 .switchIfEmpty(emptyError())
+                .map(this::assertResultRow)
+                .count()
+                .flatMap(this::assertQueryRowCount)
+                .doOnError(errorHolder::set)
                 .subscribe();//5. immediately subscribe [5] query
 
         multiResults2.nextUpdate()
                 .block();//6. immediately subscribe [6] update
 
+        final Throwable error = errorHolder.get();
+        if (error != null) {
+            throw error;
+        }
         LOG.info("multiStatement test success");
         releaseMultiStmtConnection(adjutant);
     }
 
 
     /*################################## blow private method ##################################*/
+
+    private Mono<Void> assertQueryRowCount(Long resultRowCount) {
+        return resultRowCount == ROW_COUNT
+                ? Mono.empty()
+                : Mono.error(new RuntimeException(String.format("Query result row count[%s] error", resultRowCount)));
+    }
 
 
     private ResultStates assertUpdateSuccess(ResultStates states) {

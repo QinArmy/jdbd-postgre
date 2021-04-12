@@ -796,7 +796,7 @@ final class MySQLConnectionTask extends AbstractCommunicationTask implements Aut
     private static int obtainMaxPacketBytes(final Properties<PropertyKey> properties) {
         // because @@session.max_allowed_packet must be multiple of 1024,and single packet maxPayload is ((1<<24) - 1)
         final int minMultiple = (1 << 14), maxMultiple = 1 << 20;
-        int multiple = properties.getOrDefault(PropertyKey.maxAllowedPacketMultiple, Integer.class);
+        int multiple = properties.getOrDefault(PropertyKey.maxAllowedPacket, Integer.class);
         if (multiple < minMultiple) {
             multiple = minMultiple;
         } else if (multiple > maxMultiple) {

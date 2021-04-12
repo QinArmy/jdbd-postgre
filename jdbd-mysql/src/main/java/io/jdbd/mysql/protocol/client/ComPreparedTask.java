@@ -64,7 +64,7 @@ import java.util.function.Consumer;
  * @see BinaryResultSetReader
  * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_command_phase_ps.html">Prepared Statements</a>
  */
-final class ComPreparedTask extends MySQLCommandTask implements StatementTask {
+final class ComPreparedTask extends MySQLPrepareCommandTask implements StatementTask {
 
 
     /**

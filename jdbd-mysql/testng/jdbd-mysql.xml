@@ -9,6 +9,8 @@
             <class name="io.jdbd.mysql.protocol.client.AuthenticatePluginSuiteTests"/>
             <class name="io.jdbd.mysql.protocol.client.SessionInitializerSuiteTests"/>
 
+            <class name="io.jdbd.mysql.protocol.client.ComQueryCommandWriterSuiteTests"/>
+
             <class name="io.jdbd.mysql.protocol.client.DataPrepareSuiteTests"/>
             <class name="io.jdbd.mysql.protocol.client.ComQueryTaskSuiteTests"/>
             <class name="io.jdbd.mysql.protocol.client.MultiStatementSuiteTests"/>

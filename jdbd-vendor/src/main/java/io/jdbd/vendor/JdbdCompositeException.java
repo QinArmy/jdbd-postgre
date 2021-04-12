@@ -13,7 +13,7 @@ public class JdbdCompositeException extends JdbdNonSQLException {
 
 
     public JdbdCompositeException(List<? extends Throwable> errorList, String messageFormat, Object... args) {
-        super(getFirstError(errorList), messageFormat, args);
+        super(createErrorMessage(messageFormat, errorList), messageFormat, args);
         this.errorList = JdbdCollections.unmodifiableList(new ArrayList<>(errorList));
     }
 
@@ -33,6 +33,25 @@ public class JdbdCompositeException extends JdbdNonSQLException {
     @Nullable
     protected static Throwable getFirstError(List<? extends Throwable> errorList) {
         return errorList.isEmpty() ? null : errorList.get(0);
+    }
+
+    protected static String createErrorMessage(String message, List<? extends Throwable> errorList) {
+        StringBuilder builder = new StringBuilder(message.length() + 15 * errorList.size())
+                .append(message)
+                .append(":\n");
+        int count = 0;
+        String m;
+        for (Throwable throwable : errorList) {
+            if (count > 0) {
+                builder.append("\n; ");
+            }
+            m = throwable.getMessage();
+            if (m != null) {
+                builder.append(m);
+            }
+            count++;
+        }
+        return builder.toString();
     }
 
 
