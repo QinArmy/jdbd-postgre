@@ -679,9 +679,10 @@ public abstract class CharsetMapping {
 
     /**
      * @return a unmodifiable collection
+     * @see <a href="https://dev.mysql.com/doc/refman/8.0/en/charset-connection.html#charset-connection-impermissible-client-charset">Impermissible Client Character Sets</a>
      */
     private static Collection<String> createUnsupportedCharsetClients() {
-        List<String> list = new ArrayList<>(8);
+        List<String> list = new ArrayList<>();
 
         list.add("ucs2");
         list.add("utf16");
@@ -692,7 +693,20 @@ public abstract class CharsetMapping {
         list.add("utf-16");
         list.add("utf-16le");
         list.add("utf-32");
-        return Collections.unmodifiableCollection(list);
+
+        final String quote = "'";
+        byte[] bytes;
+        for (Charset charset : Charset.availableCharsets().values()) {
+            try {
+                bytes = quote.getBytes(charset);
+                if (bytes.length != 1) {
+                    list.add(charset.name());
+                }
+            } catch (Throwable e) {
+                list.add(charset.name());
+            }
+        }
+        return Collections.unmodifiableCollection(new ArrayList<>(list));
     }
 
 

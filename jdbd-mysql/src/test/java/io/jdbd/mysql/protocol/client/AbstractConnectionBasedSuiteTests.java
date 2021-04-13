@@ -60,7 +60,7 @@ public abstract class AbstractConnectionBasedSuiteTests {
     }
 
 
-    protected static MySQLSessionAdjutant getSessionAdjutantForSingleHost(Map<String, String> propMap) {
+    protected static MySQLSessionAdjutant createSessionAdjutantForSingleHost(Map<String, String> propMap) {
         return new SessionAdjutantForSingleHostTest(ClientTestUtils.singleUrl(propMap));
     }
 
@@ -73,8 +73,7 @@ public abstract class AbstractConnectionBasedSuiteTests {
             map.put(PropertyKey.sslMode.getKey(), Enums.SslMode.DISABLED.name());
         }
         ClientTestUtils.appendZoneConfig(map);
-
-        return getSessionAdjutantForSingleHost(map);
+        return createSessionAdjutantForSingleHost(map);
     }
 
 

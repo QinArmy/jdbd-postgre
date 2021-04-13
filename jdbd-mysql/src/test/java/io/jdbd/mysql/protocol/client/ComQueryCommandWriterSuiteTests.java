@@ -40,10 +40,10 @@ public class ComQueryCommandWriterSuiteTests extends AbstractStmtTaskSuiteTests 
     @Test(timeOut = TIME_OUT)
     public void createStaticSingleCommand() {
         LOG.info("createStaticSingleCommand test start");
-        final MySQLTaskAdjutant adjutant = obtainTaskAdjutant();
+        //final MySQLTaskAdjutant adjutant = obtainTaskAdjutant();
         //TODO zoro add test code
         LOG.info("createStaticSingleCommand test success");
-        releaseConnection(adjutant);
+        // releaseConnection(adjutant);
     }
 
 

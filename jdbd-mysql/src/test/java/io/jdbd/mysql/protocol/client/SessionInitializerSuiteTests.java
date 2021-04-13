@@ -198,7 +198,7 @@ public class SessionInitializerSuiteTests extends AbstractConnectionBasedSuiteTe
     /*################################## blow private method ##################################*/
 
     private MySQLTaskAdjutant doConnectionTest(Map<String, String> propMap) {
-        MySQLSessionAdjutant sessionAdjutant = getSessionAdjutantForSingleHost(propMap);
+        MySQLSessionAdjutant sessionAdjutant = createSessionAdjutantForSingleHost(propMap);
 
         ClientConnectionProtocolImpl protocol = ClientConnectionProtocolImpl.create(0, sessionAdjutant)
                 .block();

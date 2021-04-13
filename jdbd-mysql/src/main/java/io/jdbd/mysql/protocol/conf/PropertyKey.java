@@ -4,7 +4,7 @@ import io.jdbd.mysql.protocol.Constants;
 import io.jdbd.mysql.protocol.authentication.MySQLNativePasswordPlugin;
 import io.jdbd.mysql.protocol.client.Enums;
 import io.jdbd.vendor.conf.IPropertyKey;
-import io.jdbd.vendor.conf.NewAdd;
+import io.jdbd.vendor.conf.OnlyReactor;
 import io.jdbd.vendor.conf.Redefine;
 import reactor.util.annotation.Nullable;
 
@@ -24,15 +24,15 @@ public enum PropertyKey implements IPropertyKey {
      */
     //below Authentication Group
     /** The database user name. */
-    USER(String.class, false),
+    USER("user", null, null, String.class, false),
     /** The database user password. */
-    PASSWORD(String.class, false),
+    PASSWORD("password", null, null, String.class, false),
 
     //below  Group
     /** The hostname value from the properties instance passed to the driver. */
-    HOST(String.class, false),
+    HOST("host", null, null, String.class, false),
     /** The port number value from the properties instance passed to the driver. */
-    PORT(Integer.class, false),
+    PORT("port", null, null, Integer.class, false),
 
     /** The communications protocol. Possible values: "tcp" and "pipe". */
     PROTOCOL(String.class, false),
@@ -46,7 +46,7 @@ public enum PropertyKey implements IPropertyKey {
     /** The host priority in a list of hosts. */
     PRIORITY(String.class, false),
     /** The database value from the properties instance passed to the driver. */
-    DBNAME(String.class, false), //
+    DBNAME("dbname", null, null, String.class, false), //
 
     // blow Connection Group
     connectionAttributes(String.class), //
@@ -351,22 +351,24 @@ public enum PropertyKey implements IPropertyKey {
     xdevapiAsyncResponseTimeout("xdevapi.asyncResponseTimeout", "xdevapiAsyncResponseTimeout", null, Object.class), //
     xdevapiUseAsyncProtocol("xdevapi.useAsyncProtocol", "xdevapiUseAsyncProtocol", null, Object.class), //
 
-    @NewAdd
-    timeTruncateFractional("timeTruncateFractional", "true", Boolean.class);
+    @OnlyReactor
+    timeTruncateFractional("timeTruncateFractional", "true", Boolean.class),
+    @OnlyReactor
+    clientPrepareSupportStream("false", Boolean.class);
 
     private final String keyName;
     private final String ccAlias;
     private final String defaultValue;
     private final Class<?> javaType;
-    private final boolean isCaseSensitive;
+    private final boolean caseSensitive;
 
 
     PropertyKey(Class<?> javaType) {
         this(null, null, null, javaType, true);
     }
 
-    PropertyKey(Class<?> javaType, boolean isCaseSensitive) {
-        this(null, null, null, javaType, isCaseSensitive);
+    PropertyKey(Class<?> javaType, boolean caseSensitive) {
+        this(null, null, null, javaType, caseSensitive);
     }
 
 
@@ -374,8 +376,8 @@ public enum PropertyKey implements IPropertyKey {
         this(null, null, defaultValue, javaType, true);
     }
 
-    PropertyKey(@Nullable String defaultValue, Class<?> javaType, boolean isCaseSensitive) {
-        this(null, null, defaultValue, javaType, isCaseSensitive);
+    PropertyKey(@Nullable String defaultValue, Class<?> javaType, boolean caseSensitive) {
+        this(null, null, defaultValue, javaType, caseSensitive);
     }
 
     /**
@@ -394,18 +396,18 @@ public enum PropertyKey implements IPropertyKey {
     /**
      * Initializes each enum element with the proper key name to be used in the connection string or properties maps.
      *
-     * @param keyName         the key name for the enum element.
-     * @param alias           camel-case alias key name
-     * @param isCaseSensitive is this name case sensitive
+     * @param keyName       the key name for the enum element.
+     * @param alias         camel-case alias key name
+     * @param caseSensitive is this name case sensitive
      */
     PropertyKey(@Nullable String keyName, @Nullable String alias, @Nullable String defaultValue, Class<?> javaType
-            , boolean isCaseSensitive) {
+            , boolean caseSensitive) {
         this.keyName = keyName == null ? name() : keyName;
         this.ccAlias = alias;
         this.defaultValue = defaultValue;
         this.javaType = javaType;
 
-        this.isCaseSensitive = isCaseSensitive;
+        this.caseSensitive = caseSensitive;
     }
 
 
@@ -445,4 +447,11 @@ public enum PropertyKey implements IPropertyKey {
     public Class<?> getJavaType() {
         return this.javaType;
     }
+
+    @Override
+    public boolean isCaseSensitive() {
+        return this.caseSensitive;
+    }
+
+
 }

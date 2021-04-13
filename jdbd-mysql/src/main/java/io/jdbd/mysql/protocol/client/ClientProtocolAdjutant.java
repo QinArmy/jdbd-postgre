@@ -2,8 +2,7 @@ package io.jdbd.mysql.protocol.client;
 
 import io.jdbd.mysql.Server;
 import io.jdbd.mysql.protocol.CharsetMapping;
-import io.jdbd.mysql.protocol.conf.PropertyKey;
-import io.jdbd.vendor.conf.HostInfo;
+import io.jdbd.mysql.protocol.conf.MySQLHost;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
 import reactor.util.annotation.Nullable;
@@ -44,7 +43,7 @@ interface ClientProtocolAdjutant extends ResultRowAdjutant {
 
     ByteBufAllocator allocator();
 
-    HostInfo<PropertyKey> obtainHostInfo();
+    MySQLHost obtainHostInfo();
 
     Server obtainServer();
 

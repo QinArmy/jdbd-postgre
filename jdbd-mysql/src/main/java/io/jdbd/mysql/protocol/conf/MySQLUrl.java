@@ -3,6 +3,7 @@ package io.jdbd.mysql.protocol.conf;
 
 import io.jdbd.UrlException;
 import io.jdbd.vendor.conf.AbstractJdbcUrl;
+import io.jdbd.vendor.conf.IPropertyKey;
 import io.jdbd.vendor.conf.JdbcUrlParser;
 import reactor.util.annotation.Nullable;
 
@@ -43,6 +44,10 @@ public final class MySQLUrl extends AbstractJdbcUrl<PropertyKey, MySQLHost> {
         return MySQLHost.create(parser, index);
     }
 
+    @Override
+    protected IPropertyKey getDbNameKey() {
+        return PropertyKey.DBNAME;
+    }
 
     /**
      * The rules describing the number of hosts a database URL may contain.

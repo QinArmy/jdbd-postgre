@@ -5,7 +5,6 @@ import io.jdbd.mysql.Server;
 import io.jdbd.mysql.protocol.CharsetMapping;
 import io.jdbd.mysql.protocol.authentication.AuthenticationPlugin;
 import io.jdbd.mysql.protocol.conf.MySQLHost;
-import io.jdbd.mysql.protocol.conf.PropertyKey;
 import io.jdbd.mysql.session.MySQLSessionAdjutant;
 import io.jdbd.mysql.syntax.DefaultMySQLParser;
 import io.jdbd.mysql.syntax.MySQLParser;
@@ -36,7 +35,7 @@ final class MySQLTaskExecutor extends CommunicationTaskExecutor<MySQLTaskAdjutan
 
         final Mono<MySQLTaskExecutor> mono;
         if (hostIndex > -1 && hostIndex < hostInfoList.size()) {
-            final HostInfo<PropertyKey> hostInfo = hostInfoList.get(hostIndex);
+            final MySQLHost hostInfo = hostInfoList.get(hostIndex);
             mono = TcpClient.create()
                     .runOn(sessionAdjutant.obtainEventLoopGroup())
                     .host(hostInfo.getHost())
@@ -106,13 +105,13 @@ final class MySQLTaskExecutor extends CommunicationTaskExecutor<MySQLTaskAdjutan
 
     private static final Logger LOG = LoggerFactory.getLogger(MySQLTaskExecutor.class);
 
-    final HostInfo<PropertyKey> hostInfo;
+    final MySQLHost hostInfo;
 
     final MySQLSessionAdjutant sessionAdjutant;
 
     private volatile int serverStatus;
 
-    private MySQLTaskExecutor(Connection connection, HostInfo<PropertyKey> hostInfo
+    private MySQLTaskExecutor(Connection connection, MySQLHost hostInfo
             , MySQLSessionAdjutant sessionAdjutant) {
         super(connection);
         this.hostInfo = hostInfo;
@@ -278,7 +277,7 @@ final class MySQLTaskExecutor extends CommunicationTaskExecutor<MySQLTaskAdjutan
         }
 
         @Override
-        public HostInfo<PropertyKey> obtainHostInfo() {
+        public MySQLHost obtainHostInfo() {
             return this.taskExecutor.hostInfo;
         }
 

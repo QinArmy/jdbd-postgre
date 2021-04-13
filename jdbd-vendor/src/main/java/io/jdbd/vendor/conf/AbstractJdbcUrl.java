@@ -28,7 +28,7 @@ public abstract class AbstractJdbcUrl<K extends IPropertyKey, H extends HostInfo
         if (!JdbdStringUtils.hasText(this.originalUrl) || !JdbdStringUtils.hasText(this.protocol)) {
             throw new IllegalArgumentException("originalUrl or protocol  is empty.");
         }
-        this.dbName = parser.getGlobalProperties().get(HostInfo.DB_NAME);
+        this.dbName = getValue(parser.getGlobalProperties(), getDbNameKey());
         this.hostInfoList = JdbdCollections.unmodifiableList(createHostInfoList(parser));
         if (this.hostInfoList.isEmpty()) {
             throw new IllegalArgumentException("hostInfoList can't is empty.");
@@ -74,6 +74,7 @@ public abstract class AbstractJdbcUrl<K extends IPropertyKey, H extends HostInfo
         return this.protocol;
     }
 
+    @Nullable
     @Override
     public final String getDbName() {
         return this.dbName;
@@ -98,6 +99,8 @@ public abstract class AbstractJdbcUrl<K extends IPropertyKey, H extends HostInfo
 
     protected abstract H createHostInfo(JdbcUrlParser parser, int index);
 
+    protected abstract IPropertyKey getDbNameKey();
+
 
     private List<H> createHostInfoList(final JdbcUrlParser parser) {
 
@@ -109,6 +112,20 @@ public abstract class AbstractJdbcUrl<K extends IPropertyKey, H extends HostInfo
             hostInfoList.add(createHostInfo(parser, i));
         }
         return hostInfoList;
+    }
+
+
+    @Nullable
+    protected static String getValue(Map<String, String> map, IPropertyKey propertyKey) {
+        String keyName = propertyKey.getKey();
+        String value = map.get(keyName);
+        if (value == null && !propertyKey.isCaseSensitive()) {
+            value = map.get(keyName.toLowerCase());
+            if (value == null) {
+                value = map.get(keyName.toUpperCase());
+            }
+        }
+        return value;
     }
 
 }

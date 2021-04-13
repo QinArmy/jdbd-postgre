@@ -680,7 +680,7 @@ public class MultiStatementSuiteTests extends AbstractConnectionBasedSuiteTests 
         }
         ClientTestUtils.appendZoneConfig(map);
         map.put(PropertyKey.allowMultiQueries.getKey(), "true");
-        return getSessionAdjutantForSingleHost(map);
+        return createSessionAdjutantForSingleHost(map);
     }
 
 

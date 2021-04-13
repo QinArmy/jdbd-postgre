@@ -4,13 +4,13 @@ import io.jdbd.JdbdSQLException;
 import io.jdbd.LongDataReadException;
 import io.jdbd.PreparedStatement;
 import io.jdbd.StaticStatement;
-import io.jdbd.lang.Nullable;
 import io.jdbd.mysql.BindValue;
 import io.jdbd.mysql.MySQLJdbdException;
 import io.jdbd.mysql.protocol.MySQLFatalIoException;
 import io.jdbd.mysql.protocol.client.ErrorPacket;
 import io.jdbd.mysql.protocol.conf.PropertyKey;
 import io.jdbd.vendor.util.JdbdExceptions;
+import reactor.util.annotation.Nullable;
 
 import java.sql.SQLException;
 
@@ -200,6 +200,15 @@ public abstract class MySQLExceptions extends JdbdExceptions {
     }
 
 
+    public static JdbdSQLException createNetPacketTooLargeException(int maxAllowedPayload) {
+        String message = String.format("sql length larger than %s[%s]"
+                , PropertyKey.maxAllowedPacket, maxAllowedPayload);
+        return new JdbdSQLException(createNetPacketTooLargeError(null), message);
+    }
+
+
+    /*################################## blow private static method ##################################*/
+
     private static SQLException createParseError(String message) {
         return new SQLException(message, "42000", 1064);
     }
@@ -209,9 +218,17 @@ public abstract class MySQLExceptions extends JdbdExceptions {
         return new SQLException(message, null, 2034);
     }
 
-
-
-    /*################################## blow private static method ##################################*/
+    public static SQLException createNetPacketTooLargeError(@Nullable Throwable cause) {
+        final SQLException e;
+        if (cause == null) {
+            e = new SQLException("Got a packet bigger than 'max_allowed_packet' bytes"
+                    , MySQLStates.COMMUNICATION_LINK_FAILURE, MySQLCodes.ER_NET_PACKET_TOO_LARGE);
+        } else {
+            e = new SQLException("Got a packet bigger than 'max_allowed_packet' bytes"
+                    , MySQLStates.COMMUNICATION_LINK_FAILURE, MySQLCodes.ER_NET_PACKET_TOO_LARGE, cause);
+        }
+        return e;
+    }
 
 
 }

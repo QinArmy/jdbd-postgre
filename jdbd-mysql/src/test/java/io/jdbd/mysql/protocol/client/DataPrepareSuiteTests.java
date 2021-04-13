@@ -62,7 +62,7 @@ public class DataPrepareSuiteTests extends AbstractConnectionBasedSuiteTests {
 
     }
 
-    @Test
+    @Test(timeOut = TIME_OUT)
     public void prepareData() throws Exception {
         LOG.info("\n {} group test start.\n", Groups.DATA_PREPARE);
 
@@ -74,6 +74,8 @@ public class DataPrepareSuiteTests extends AbstractConnectionBasedSuiteTests {
         commandList.add(MySQLStreamUtils.readAsString(path));
         commandList.add("TRUNCATE mysql_types");
 
+        LOG.info("start create mysql_types table.");
+
         // single statement mode batch update
         final List<ResultStates> resultStatesList;
         resultStatesList = ComQueryTask.batchUpdate(commandList, adjutant)
@@ -82,6 +84,8 @@ public class DataPrepareSuiteTests extends AbstractConnectionBasedSuiteTests {
 
         assertNotNull(resultStatesList, "resultStatesList");
         assertEquals(resultStatesList.size(), 2, "resultStatesList size");
+
+        LOG.info("have truncated mysql_types");
 
         doPrepareData(adjutant);
 

@@ -43,23 +43,28 @@ public abstract class AbstractHostInfo<K extends IPropertyKey> implements HostIn
         map.putAll(hostProperties);
 
 
-        String host = map.remove(HOST);
+        final String host = removeValue(map, getHostKey());
 
         this.host = JdbdStringUtils.hasText(host) ? host : DEFAULT_HOST;
-        final String portText = map.remove(PORT);
-        try {
-            this.port = Integer.parseInt(portText);
-        } catch (NumberFormatException e) {
-            throw new UrlException(e, this.originalUrl, "post[%s] format error", portText);
+        final String portText = removeValue(map, getPortKey());
+        if (portText == null) {
+            this.port = getDefaultPort();
+        } else {
+            try {
+                this.port = Integer.parseInt(portText);
+            } catch (NumberFormatException e) {
+                throw new UrlException(e, this.originalUrl, "post[%s] format error", portText);
+            }
         }
-        this.user = map.remove(USER);
-        this.password = map.remove(PASSWORD);
+
+        this.user = removeValue(map, getUserKey());
+        this.password = removeValue(map, getPasswordKey());
 
         if (!JdbdStringUtils.hasText(this.user)) {
-            throw new UrlException(this.originalUrl, "%s property must be not empty", USER);
+            throw new UrlException(this.originalUrl, "%s property must be not empty", getUserKey().name());
         }
         this.isPasswordLess = !JdbdStringUtils.hasText(this.password);
-        this.dbName = map.remove(DB_NAME);
+        this.dbName = removeValue(map, getDbNameKey());
 
         this.properties = createProperties(map);
     }
@@ -126,6 +131,33 @@ public abstract class AbstractHostInfo<K extends IPropertyKey> implements HostIn
 
     protected Properties<K> createProperties(Map<String, String> map) {
         return ImmutableMapProperties.getInstance(map);
+    }
+
+    protected abstract IPropertyKey getUserKey();
+
+    protected abstract IPropertyKey getPasswordKey();
+
+    protected abstract IPropertyKey getHostKey();
+
+    protected abstract IPropertyKey getPortKey();
+
+    protected abstract IPropertyKey getDbNameKey();
+
+
+    protected abstract int getDefaultPort();
+
+
+    @Nullable
+    protected static String removeValue(Map<String, String> map, IPropertyKey propertyKey) {
+        String keyName = propertyKey.getKey();
+        String value = map.remove(keyName);
+        if (value == null && !propertyKey.isCaseSensitive()) {
+            value = map.remove(keyName.toLowerCase());
+            if (value == null) {
+                value = map.remove(keyName.toUpperCase());
+            }
+        }
+        return value;
     }
 
 

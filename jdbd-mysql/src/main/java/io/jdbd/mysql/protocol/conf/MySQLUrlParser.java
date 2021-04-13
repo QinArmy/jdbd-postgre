@@ -81,7 +81,7 @@ final class MySQLUrlParser implements JdbcUrlParser {
 
         //2-2 parse user and password from url
         String actualAuthority = this.authority;
-        if (!properties.containsKey(HostInfo.USER)) {
+        if (!properties.containsKey(PropertyKey.USER.getKey())) {
             actualAuthority = parseUserInfo(parseProperties);
         }
         // override query properties wih host
@@ -96,9 +96,9 @@ final class MySQLUrlParser implements JdbcUrlParser {
         globalProperties.putAll(properties);
         // thirdly dbname
         if (this.path == null) {
-            globalProperties.remove(HostInfo.DB_NAME);
+            globalProperties.remove(PropertyKey.DBNAME.getKey());
         } else {
-            globalProperties.put(HostInfo.DB_NAME, this.path);
+            globalProperties.put(PropertyKey.DBNAME.getKey(), this.path);
         }
         this.globalProperties = Collections.unmodifiableMap(globalProperties);
 
@@ -354,10 +354,10 @@ final class MySQLUrlParser implements JdbcUrlParser {
             throw createFormatException(hostPortHost);
         }
         Map<String, String> hostKeyValueMap = new HashMap<>(4);
-        hostKeyValueMap.put(HostInfo.HOST, hostPortPair[0].trim());
+        hostKeyValueMap.put(PropertyKey.HOST.getKey(), hostPortPair[0].trim());
 
         if (hostPortPair.length == 2) {
-            hostKeyValueMap.put(HostInfo.PORT, hostPortPair[1].trim());
+            hostKeyValueMap.put(PropertyKey.PORT.getKey(), hostPortPair[1].trim());
         }
         return Collections.unmodifiableMap(hostKeyValueMap);
     }
@@ -411,8 +411,8 @@ final class MySQLUrlParser implements JdbcUrlParser {
 
     private List<Map<String, String>> createDefaultHostList() {
         Map<String, String> props = new HashMap<>(4);
-        props.put(HostInfo.HOST, HostInfo.DEFAULT_HOST);
-        props.put(HostInfo.PORT, Integer.toString(MySQLUrl.DEFAULT_PORT));
+        props.put(PropertyKey.HOST.getKey(), HostInfo.DEFAULT_HOST);
+        props.put(PropertyKey.PORT.getKey(), Integer.toString(MySQLUrl.DEFAULT_PORT));
         return Collections.singletonList(props);
     }
 

@@ -1,15 +1,21 @@
 package io.jdbd.mysql.protocol.client;
 
+import io.jdbd.JdbdSQLException;
 import io.jdbd.mysql.MySQLJdbdException;
 import io.jdbd.mysql.util.MySQLExceptions;
 import io.jdbd.mysql.util.MySQLNumberUtils;
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufAllocator;
+import org.reactivestreams.Publisher;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.FluxSink;
+import reactor.core.publisher.Mono;
 import reactor.util.annotation.Nullable;
 
 import java.math.BigInteger;
 import java.nio.charset.Charset;
 import java.time.*;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -37,19 +43,19 @@ public abstract class PacketUtils {
     public static final int ENC_3_MAX_VALUE = 0xFF_FF_FF;
 
     public static final int LOCAL_INFILE = 0xFB;
-    public static final int COM_QUERY = 0x03;
-    public static final int COM_STMT_PREPARE = 0x16;
-    public static final int COM_STMT_EXECUTE = 0x17;
+    public static final byte COM_QUERY = 0x03;
+    public static final byte COM_STMT_PREPARE = 0x16;
+    public static final byte COM_STMT_EXECUTE = 0x17;
 
-    public static final int COM_STMT_SEND_LONG_DATA = 0x18;
-    public static final int COM_STMT_CLOSE = 0x19;
-    public static final int COM_STMT_FETCH = 0x1C;
+    public static final byte COM_STMT_SEND_LONG_DATA = 0x18;
+    public static final byte COM_STMT_CLOSE = 0x19;
+    public static final byte COM_STMT_FETCH = 0x1C;
 
-    public static final int COM_RESET_CONNECTION = 0x1F;
-    public static final int COM_SET_OPTION = 0x1B;
+    public static final byte COM_RESET_CONNECTION = 0x1F;
+    public static final byte COM_SET_OPTION = 0x1B;
 
-    public static final int COM_STMT_RESET = 0x1A;
-    public static final int COM_QUIT_HEADER = 0x01;
+    public static final byte COM_STMT_RESET = 0x1A;
+    public static final byte COM_QUIT_HEADER = 0x01;
 
 
     public static final int ENC_0 = 0xFB;
@@ -527,7 +533,7 @@ public abstract class PacketUtils {
         final int originalWriterIndex = packetBuf.writerIndex();
         packetBuf.writerIndex(packetBuf.readerIndex());
 
-        writeInt3(packetBuf, Math.min(readableBytes - HEADER_SIZE, MAX_PAYLOAD));
+        writeInt3(packetBuf, readableBytes - HEADER_SIZE);
         packetBuf.writeByte(sequenceId);
 
         packetBuf.writerIndex(originalWriterIndex);
@@ -691,6 +697,107 @@ public abstract class PacketUtils {
         return packet;
     }
 
+    public static Publisher<ByteBuf> createSimpleCommand(final byte cmdFlag, byte[] commandArray
+            , MySQLTaskAdjutant adjutant, Supplier<Integer> sequenceIdSupplier) throws JdbdSQLException {
+
+        if (cmdFlag != COM_QUERY && cmdFlag != COM_STMT_PREPARE) {
+            throw new IllegalArgumentException("command error");
+        }
+        final int maxAllowedPayload = adjutant.obtainHostInfo().maxAllowedPayload();
+        final int actualPayload = commandArray.length + 1;
+
+        if (actualPayload > maxAllowedPayload) {
+            throw MySQLExceptions.createNetPacketTooLargeException(maxAllowedPayload);
+        }
+        final Publisher<ByteBuf> publisher;
+        final ByteBufAllocator allocator = adjutant.allocator();
+
+        if (actualPayload < MAX_PAYLOAD) {
+            ByteBuf packet = allocator.buffer(HEADER_SIZE + actualPayload);
+            writeInt3(packet, actualPayload);
+            packet.writeByte(sequenceIdSupplier.get());
+
+            packet.writeByte(cmdFlag);
+            packet.writeBytes(commandArray);
+
+            publisher = Mono.just(packet);
+        } else {
+            List<ByteBuf> list = new LinkedList<>();
+            ByteBuf packet = allocator.buffer(MAX_PACKET);
+            writeInt3(packet, MAX_PAYLOAD);
+            packet.writeByte(sequenceIdSupplier.get());
+
+            packet.writeByte(cmdFlag);
+            int length = MAX_PAYLOAD - 1;
+            packet.writeBytes(commandArray, 0, length);
+            list.add(packet);
+
+            if (actualPayload == MAX_PAYLOAD) {
+                list.add(createEmptyPacket(allocator, sequenceIdSupplier.get()));
+            } else {
+                for (int offset = length; offset < commandArray.length; offset += length) {
+                    length = Math.min(MAX_PAYLOAD, commandArray.length - offset);
+                    packet = allocator.buffer(HEADER_SIZE + length);
+                    writeInt3(packet, length);
+                    packet.writeByte(sequenceIdSupplier.get());
+
+                    packet.writeBytes(commandArray, offset, length);
+                    list.add(packet);
+                }
+                if (length == MAX_PAYLOAD) {
+                    list.add(createEmptyPacket(allocator, sequenceIdSupplier.get()));
+                }
+            }
+            publisher = Flux.fromIterable(list);
+        }
+        return publisher;
+    }
+
+    public static Publisher<ByteBuf> createMultiPacket(ByteBuf multiPacket, Supplier<Integer> sequenceIdSupplier
+            , ByteBufAllocator allocator) {
+
+        final Publisher<ByteBuf> publisher;
+
+        if (multiPacket.readableBytes() < PacketUtils.MAX_PACKET) {
+            PacketUtils.writePacketHeader(multiPacket, sequenceIdSupplier.get());
+            publisher = Mono.just(multiPacket);
+        } else {
+            LinkedList<ByteBuf> packetList = new LinkedList<>();
+
+            ByteBuf packet = multiPacket.readRetainedSlice(PacketUtils.MAX_PACKET);
+            PacketUtils.writePacketHeader(packet, sequenceIdSupplier.get());
+            packetList.add(packet);
+
+            for (int readableBytes = multiPacket.readableBytes(), payloadLength; readableBytes > 0; ) {
+                payloadLength = Math.min(readableBytes, PacketUtils.MAX_PAYLOAD);
+
+                packet = allocator.buffer(PacketUtils.HEADER_SIZE + payloadLength);
+                PacketUtils.writeInt3(packet, payloadLength);
+                packet.writeByte(sequenceIdSupplier.get());
+
+                packet.writeBytes(multiPacket, payloadLength);
+                packetList.add(packet);
+
+                readableBytes = multiPacket.readableBytes();
+            }
+            packet = packetList.getLast();
+            if (packet.readableBytes() == MAX_PACKET) {
+                packetList.add(createEmptyPacket(allocator, sequenceIdSupplier.get()));
+            }
+            publisher = Flux.fromIterable(packetList);
+        }
+        return publisher;
+    }
+
+
+    public static ByteBuf createEmptyPacket(ByteBufAllocator allocator, int sequenceId) {
+        // append empty packet.
+        ByteBuf packet = allocator.buffer(HEADER_SIZE);
+        writeInt3(packet, 0);
+        packet.writeByte(sequenceId);
+        return packet;
+    }
+
 
     /**
      * @return <ul>
@@ -786,12 +893,11 @@ public abstract class PacketUtils {
 
 
     public static void writeInt1(ByteBuf byteBuffer, final int int1) {
-        byteBuffer.writeByte(int1 & BIT_8);
+        byteBuffer.writeByte(int1);
     }
 
     public static void writeInt2(ByteBuf byteBuffer, final int int2) {
-        byteBuffer.writeByte(int2);
-        byteBuffer.writeByte((int2 >> 8));
+        byteBuffer.writeShortLE(int2);
     }
 
     public static void writeInt3(ByteBuf byteBuffer, final int int3) {
@@ -801,22 +907,11 @@ public abstract class PacketUtils {
     }
 
     public static void writeInt4(ByteBuf byteBuffer, final int int4) {
-        byteBuffer.writeByte(int4);
-        byteBuffer.writeByte((int4 >> 8));
-        byteBuffer.writeByte((int4 >> 16));
-        byteBuffer.writeByte((int4 >> 24));
+        byteBuffer.writeIntLE(int4);
     }
 
     public static void writeInt8(ByteBuf byteBuffer, final long int8) {
-        byteBuffer.writeByte((byte) int8);
-        byteBuffer.writeByte((byte) (int8 >> 8));
-        byteBuffer.writeByte((byte) (int8 >> 16));
-        byteBuffer.writeByte((byte) (int8 >> 24));
-
-        byteBuffer.writeByte((byte) (int8 >> 32));
-        byteBuffer.writeByte((byte) (int8 >> 40));
-        byteBuffer.writeByte((byte) (int8 >> 42));
-        byteBuffer.writeByte((byte) (int8 >> 56));
+        byteBuffer.writeLongLE(int8);
     }
 
     public static void writeInt8(ByteBuf byteBuffer, BigInteger int8) {

@@ -11,7 +11,6 @@ import io.jdbd.vendor.JdbdCompositeException;
 import io.jdbd.vendor.result.ResultRowSink;
 import io.jdbd.vendor.task.MorePacketSignal;
 import io.netty.buffer.ByteBuf;
-import io.netty.buffer.ByteBufAllocator;
 import org.reactivestreams.Publisher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -86,8 +85,8 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
     static Flux<ResultRow> query(final StmtWrapper wrapper, final MySQLTaskAdjutant adjutant) {
         return Flux.create(sink -> {
             try {
-                new ComPreparedTask(wrapper, sink, adjutant)
-                        .submit(sink::error);
+                ComPreparedTask task = new ComPreparedTask(wrapper, sink, adjutant);
+                task.submit(sink::error);
             } catch (Throwable e) {
                 sink.error(MySQLExceptions.wrap(e));
             }
@@ -100,8 +99,8 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
     static Flux<ResultStates> batchUpdate(final BatchWrapper wrapper, final MySQLTaskAdjutant adjutant) {
         return Flux.create(sink -> {
             try {
-                new ComPreparedTask(sink, wrapper, adjutant)
-                        .submit(sink::error);
+                ComPreparedTask task = new ComPreparedTask(sink, wrapper, adjutant);
+                task.submit(sink::error);
             } catch (Throwable e) {
                 sink.error(MySQLExceptions.wrap(e));
             }
@@ -113,8 +112,6 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
     }
 
     private static final Logger LOG = LoggerFactory.getLogger(ComPreparedTask.class);
-
-    private final String sql;
 
     private final DownstreamSink downstreamSink;
 
@@ -144,11 +141,7 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
             , final MySQLTaskAdjutant adjutant) throws SQLException {
         super(adjutant);
 
-        final String sql = wrapper.getSql();
-        if (!adjutant.isSingleStmt(sql)) {
-            throw MySQLExceptions.createMultiStatementError();
-        }
-        this.sql = sql;
+        this.packetPublisher = createPrepareCommand(wrapper.getSql());
         this.fetchSize = -1;
         this.downstreamSink = new UpdateDownstreamSink(wrapper, sink);
     }
@@ -163,11 +156,7 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
     private ComPreparedTask(final StmtWrapper wrapper, final FluxSink<ResultRow> sink
             , final MySQLTaskAdjutant adjutant) throws SQLException {
         super(adjutant);
-        String sql = wrapper.getSql();
-        if (!adjutant.isSingleStmt(sql)) {
-            throw MySQLExceptions.createMultiStatementError();
-        }
-        this.sql = wrapper.getSql();
+        this.packetPublisher = createPrepareCommand(wrapper.getSql());
         if (this.properties.getOrDefault(PropertyKey.useCursorFetch, Boolean.class)) {
             // we only create cursor-backed result sets if
             // a) The query is a SELECT
@@ -187,11 +176,7 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
     private ComPreparedTask(final FluxSink<ResultStates> sink, final BatchWrapper wrapper
             , final MySQLTaskAdjutant adjutant) throws SQLException {
         super(adjutant);
-        String sql = wrapper.getSql();
-        if (!adjutant.isSingleStmt(sql)) {
-            throw MySQLExceptions.createMultiStatementError();
-        }
-        this.sql = wrapper.getSql();
+        this.packetPublisher = createPrepareCommand(wrapper.getSql());
         this.fetchSize = -1;
         this.downstreamSink = new BatchUpdateSink(wrapper.getParameterGroupList(), sink);
 
@@ -227,27 +212,12 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
      */
     @Override
     protected Publisher<ByteBuf> internalStart(MorePacketSignal signal) {
-        assertPhase(Phase.PREPARED);
-
-        byte[] commandArray = this.sql.getBytes(this.adjutant.obtainCharsetClient());
-        final ByteBufAllocator allocator = this.adjutant.allocator();
-        final ByteBuf packetBuffer = allocator.buffer(PacketUtils.HEADER_SIZE + commandArray.length, 1 << 30);
-        packetBuffer.writeZero(4);
-
-        packetBuffer.writeByte(PacketUtils.COM_STMT_PREPARE); // command
-        packetBuffer.writeBytes(sql.getBytes(this.adjutant.obtainCharsetClient()));// query
-
-        final Publisher<ByteBuf> publisher;
-        if (packetBuffer.readableBytes() < PacketUtils.MAX_PACKET) {
-            PacketUtils.writePacketHeader(packetBuffer, addAndGetSequenceId());
-            publisher = Mono.just(packetBuffer);
-        } else {
-            publisher = Flux.create(sink -> PacketUtils.publishBigPacket(packetBuffer, sink, this::addAndGetSequenceId
-                    , allocator::buffer, true));
-        }
+        final Publisher<ByteBuf> publisher = Objects.requireNonNull(this.packetPublisher, "(this.packetPublisher");
+        this.packetPublisher = null;
         this.phase = Phase.READ_PREPARE_RESPONSE;
         return publisher;
     }
+
 
     /**
      * @see #decode(ByteBuf, Consumer)
@@ -385,6 +355,16 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
 
     /*################################## blow private method ##################################*/
 
+    private Publisher<ByteBuf> createPrepareCommand(String sql) throws SQLException, JdbdSQLException {
+        if (!this.adjutant.isSingleStmt(sql)) {
+            throw MySQLExceptions.createMultiStatementError();
+        }
+        assertPhase(Phase.PREPARED);
+        final byte[] commandArray = sql.getBytes(this.adjutant.obtainCharsetClient());
+        return PacketUtils.createSimpleCommand(PacketUtils.COM_STMT_PREPARE, commandArray
+                , this.adjutant, this::addAndGetSequenceId);
+    }
+
 
     private boolean hasError() {
         return !MySQLCollections.isEmpty(this.errorList);
@@ -427,10 +407,7 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
                 resetColumnMeta(PacketUtils.readInt2(cumulateBuffer));//3. num_columns
                 resetParameterMetas(PacketUtils.readInt2(cumulateBuffer));//4. num_params
                 cumulateBuffer.skipBytes(1); //5. skip filler
-                int prepareWarningCount = PacketUtils.readInt2(cumulateBuffer);//6. warning_count
-                if (prepareWarningCount > 0 && LOG.isWarnEnabled()) {
-                    LOG.warn("sql[{}] prepare occur {} warning.", this.sql, prepareWarningCount);
-                }
+                PacketUtils.readInt2(cumulateBuffer);//6. warning_count
                 if ((this.negotiatedCapability & ClientProtocol.CLIENT_OPTIONAL_RESULTSET_METADATA) != 0) {
                     throw new IllegalStateException("Not support CLIENT_OPTIONAL_RESULTSET_METADATA"); //7. metadata_follows
                 }

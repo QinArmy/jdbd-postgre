@@ -247,8 +247,6 @@ final class ComQueryTask extends MySQLCommandTask {
 
     private Pair<Integer, ResultStates> lastResultStates;
 
-    private Publisher<ByteBuf> packetPublisher;
-
     private List<JdbdException> errorList;
 
     private ResultSetReader dirtyResultSetReader;
@@ -261,10 +259,8 @@ final class ComQueryTask extends MySQLCommandTask {
         super(adjutant);
         this.sqlCount = 1;
         this.mode = Mode.SINGLE_STMT;
-        final List<ByteBuf> packetList = ComQueryCommandWriter.createStaticSingleCommand(sql, this::addAndGetSequenceId
+        this.packetPublisher = ComQueryCommandWriter.createStaticSingleCommand(sql, this::addAndGetSequenceId
                 , adjutant);
-
-        this.packetPublisher = Flux.fromIterable(packetList);
         this.downstreamSink = new SingleUpdateSink(sink);
     }
 
@@ -277,10 +273,9 @@ final class ComQueryTask extends MySQLCommandTask {
         LOG.trace("create single statement query task.");
         this.sqlCount = 1;
         this.mode = Mode.SINGLE_STMT;
-        final List<ByteBuf> packetList = ComQueryCommandWriter.createStaticSingleCommand(sql, this::addAndGetSequenceId
+        this.packetPublisher = ComQueryCommandWriter.createStaticSingleCommand(sql, this::addAndGetSequenceId
                 , adjutant);
 
-        this.packetPublisher = Flux.fromIterable(packetList);
         this.downstreamSink = new SingleQuerySink(sink, statesConsumer);
     }
 
@@ -292,22 +287,23 @@ final class ComQueryTask extends MySQLCommandTask {
         super(adjutant);
         this.sqlCount = sqlList.size();
 
-        final List<ByteBuf> packetList;
         if (Capabilities.supportMultiStatement(this.negotiatedCapability)) {
             this.mode = Mode.MULTI_STMT;
-            packetList = ComQueryCommandWriter.createStaticMultiCommand(sqlList, this::addAndGetSequenceId, adjutant);
+            this.packetPublisher = ComQueryCommandWriter.createStaticMultiCommand(sqlList, this::addAndGetSequenceId
+                    , adjutant);
             this.downstreamSink = new MultiStatementBatchUpdateSink(resultSink);
         } else if (this.sqlCount > 3) {
             this.mode = Mode.TEMP_MULTI;
-            packetList = ComQueryCommandWriter.createStaticMultiCommand(sqlList, this::addAndGetSequenceId, adjutant);
+            this.packetPublisher = ComQueryCommandWriter.createStaticMultiCommand(sqlList, this::addAndGetSequenceId
+                    , adjutant);
             this.downstreamSink = new MultiStatementBatchUpdateSink(resultSink);
         } else {
             this.mode = Mode.SINGLE_STMT;
-            packetList = ComQueryCommandWriter.createStaticSingleCommand(sqlList.get(0), this::addAndGetSequenceId
-                    , adjutant);
+            this.packetPublisher = ComQueryCommandWriter.createStaticSingleCommand(sqlList.get(0)
+                    , this::addAndGetSequenceId, adjutant);
             this.downstreamSink = new SingleStatementBatchUpdate(sqlList, resultSink);
         }
-        this.packetPublisher = Flux.fromIterable(packetList);
+
     }
 
     /**
@@ -415,10 +411,8 @@ final class ComQueryTask extends MySQLCommandTask {
         if (!Capabilities.supportMultiStatement(this.negotiatedCapability)) {
             throw MySQLExceptions.createMultiStatementError();
         }
-        final List<ByteBuf> packetList = ComQueryCommandWriter.createStaticMultiCommand(
-                sqlList, this::addAndGetSequenceId, adjutant);
-
-        this.packetPublisher = Flux.fromIterable(packetList);
+        this.packetPublisher = ComQueryCommandWriter.createStaticMultiCommand(sqlList, this::addAndGetSequenceId
+                , adjutant);
         this.sqlCount = sqlList.size();
         this.mode = Mode.MULTI_STMT;
         this.downstreamSink = new MultiStmtSink(resultSink);
@@ -939,9 +933,8 @@ final class ComQueryTask extends MySQLCommandTask {
     private void sendStaticCommand(final String sql) throws SQLException {
         // result sequence_id
         this.updateSequenceId(-1);
-        this.packetPublisher = Flux.fromIterable(
-                ComQueryCommandWriter.createStaticSingleCommand(sql, this::addAndGetSequenceId, this.adjutant)
-        );
+        this.packetPublisher = ComQueryCommandWriter.createStaticSingleCommand(sql, this::addAndGetSequenceId
+                , this.adjutant);
     }
 
     /**

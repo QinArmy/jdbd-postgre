@@ -242,7 +242,7 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBased
         map.put(PropertyKey.tinyInt1isBit.getKey(), "true");
         map.put(PropertyKey.transformedBitIsBoolean.getKey(), "false");
 
-        MySQLSessionAdjutant sessionAdjutant = getSessionAdjutantForSingleHost(map);
+        MySQLSessionAdjutant sessionAdjutant = createSessionAdjutantForSingleHost(map);
         ClientConnectionProtocolImpl protocol = ClientConnectionProtocolImpl.create(0, sessionAdjutant)
                 .block();
         assertNotNull(protocol, "protocol");
@@ -262,7 +262,7 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBased
                 .block();
 
         map.put(PropertyKey.transformedBitIsBoolean.getKey(), "true");
-        sessionAdjutant = getSessionAdjutantForSingleHost(map);
+        sessionAdjutant = createSessionAdjutantForSingleHost(map);
         protocol = ClientConnectionProtocolImpl.create(0, sessionAdjutant)
                 .block();
         assertNotNull(protocol, "protocol");
@@ -281,7 +281,7 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBased
 
         map.put(PropertyKey.tinyInt1isBit.getKey(), "false");
         map.put(PropertyKey.transformedBitIsBoolean.getKey(), "false");
-        sessionAdjutant = getSessionAdjutantForSingleHost(map);
+        sessionAdjutant = createSessionAdjutantForSingleHost(map);
         protocol = ClientConnectionProtocolImpl.create(0, sessionAdjutant)
                 .block();
         assertNotNull(protocol, "protocol");
@@ -593,6 +593,7 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBased
 
         text = "'''''' \"\"\" \u001a \u001a % _";
         assertMediumBlobBindAndExtract(taskAdjutant, text);
+
         array = text.getBytes(charset);
         assertMediumBlobBindAndExtract(taskAdjutant, array);
 

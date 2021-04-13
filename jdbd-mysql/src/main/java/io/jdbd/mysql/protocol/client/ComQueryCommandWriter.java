@@ -1,14 +1,18 @@
 package io.jdbd.mysql.protocol.client;
 
+import io.jdbd.JdbdSQLException;
 import io.jdbd.LongDataReadException;
 import io.jdbd.mysql.*;
 import io.jdbd.mysql.protocol.Constants;
+import io.jdbd.mysql.protocol.conf.MySQLHost;
 import io.jdbd.mysql.protocol.conf.PropertyKey;
 import io.jdbd.mysql.syntax.MySQLStatement;
 import io.jdbd.mysql.util.*;
 import io.jdbd.vendor.conf.Properties;
 import io.jdbd.vendor.util.JdbdBufferUtils;
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufAllocator;
+import org.reactivestreams.Publisher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -27,7 +31,10 @@ import java.sql.SQLException;
 import java.time.*;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
-import java.util.*;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Queue;
+import java.util.Set;
 import java.util.function.Supplier;
 
 
@@ -69,102 +76,52 @@ final class ComQueryCommandWriter {
     /**
      * @return a unmodifiable list.
      */
-    static List<ByteBuf> createStaticSingleCommand(final String sql, Supplier<Integer> sequenceIdSupplier
-            , final MySQLTaskAdjutant adjutant) throws SQLException {
+    static Publisher<ByteBuf> createStaticSingleCommand(final String sql, Supplier<Integer> sequenceIdSupplier
+            , final MySQLTaskAdjutant adjutant) throws SQLException, JdbdSQLException {
 
         if (!adjutant.isSingleStmt(sql)) {
             throw MySQLExceptions.createMultiStatementError();
         }
-
         final byte[] commandBytes = sql.getBytes(adjutant.obtainCharsetClient());
-        ByteBuf packet = adjutant.createPacketBuffer(2048);
-        packet.writeByte(PacketUtils.COM_QUERY);
-
-        final List<ByteBuf> packetList;
-        if (commandBytes.length < PacketUtils.MAX_PAYLOAD) {
-            packet.writeBytes(commandBytes);
-            PacketUtils.writePacketHeader(packet, sequenceIdSupplier.get());
-            packetList = Collections.singletonList(packet);
-        } else {
-            final LinkedList<ByteBuf> tempPacketList = new LinkedList<>();
-            try {
-                packet = writeStaticCommand(commandBytes, packet, tempPacketList, sequenceIdSupplier, adjutant);
-
-                PacketUtils.writePacketHeader(packet, sequenceIdSupplier.get());
-                tempPacketList.add(packet);
-
-                packetList = MySQLCollections.unmodifiableList(tempPacketList);
-            } catch (Throwable e) {
-                releaseOnError(tempPacketList, packet);
-                throw e;
-            }
-        }
-        return packetList;
+        return PacketUtils.createSimpleCommand(PacketUtils.COM_QUERY, commandBytes, adjutant, sequenceIdSupplier);
     }
 
     /**
      * @return a unmodifiable list.
      */
-    static List<ByteBuf> createStaticMultiCommand(final List<String> sqlList, Supplier<Integer> sequenceIdSupplier
-            , final MySQLTaskAdjutant adjutant) throws SQLException {
+    static Publisher<ByteBuf> createStaticMultiCommand(final List<String> sqlList, Supplier<Integer> sequenceIdSupplier
+            , final MySQLTaskAdjutant adjutant) throws SQLException, JdbdSQLException {
         if (sqlList.isEmpty()) {
             throw MySQLExceptions.createQueryIsEmptyError();
         }
+        final int sqlSize = sqlList.size(), maxAllowedPayload = adjutant.obtainHostInfo().maxAllowedPayload();
+        byte[] commandBytes;
+        String sql;
+        final Charset charset = adjutant.obtainCharsetClient();
+        ByteBufAllocator allocator = adjutant.allocator();
+        ByteBuf multiPacket = allocator.buffer(1024, 1 << 30);
+        multiPacket.writeZero(PacketUtils.HEADER_SIZE);
+        multiPacket.writeByte(PacketUtils.COM_QUERY);
 
-        final int size = sqlList.size();
-        final Charset clientCharset = adjutant.obtainCharsetClient();
-
-        final LinkedList<ByteBuf> packetList = new LinkedList<>();
-
-        ByteBuf packet = adjutant.createPacketBuffer(2048);
-        packet.writeByte(PacketUtils.COM_QUERY);
-
-        final byte[] semicolonBytes = Constants.SEMICOLON.getBytes(clientCharset);
-
-        try {
-            for (int i = 0; i < size; i++) {
-                String sql = sqlList.get(i);
-                if (!adjutant.isSingleStmt(sql)) {
-                    throw MySQLExceptions.createMultiStatementError();
-                }
-                if (i > 0) {
-                    packet.writeBytes(semicolonBytes);
-                }
-                byte[] commandBytes = sql.getBytes(clientCharset);
-                packet = writeStaticCommand(commandBytes, packet, packetList, sequenceIdSupplier, adjutant);
-
+        for (int i = 0, wroteBytes = 1; i < sqlSize; i++) {
+            sql = sqlList.get(i);
+            if (!adjutant.isSingleStmt(sql)) {
+                throw MySQLExceptions.createMultiStatementError();
             }
-            PacketUtils.writePacketHeader(packet, sequenceIdSupplier.get());
-            packetList.add(packet);
-            return MySQLCollections.unmodifiableList(packetList);
-        } catch (Throwable e) {
-            releaseOnError(packetList, packet);
-            throw e;
+            if (i > 0) {
+                multiPacket.writeByte(Constants.SEMICOLON_BYTE);
+                wroteBytes++;
+            }
+            commandBytes = sql.getBytes(charset);
+            wroteBytes += commandBytes.length;
+            if (wroteBytes > maxAllowedPayload) {
+                throw MySQLExceptions.createNetPacketTooLargeException(maxAllowedPayload);
+            }
+            multiPacket.writeBytes(commandBytes);
         }
+        return PacketUtils.createMultiPacket(multiPacket, sequenceIdSupplier, allocator);
     }
 
-
-    private static ByteBuf writeStaticCommand(final byte[] commandBytes, ByteBuf currentPack
-            , final List<ByteBuf> packetList, Supplier<Integer> sequenceIdSupplier
-            , final MySQLTaskAdjutant adjutant) {
-
-        ByteBuf packet = currentPack;
-        for (int offset = 0, length; offset < commandBytes.length; ) {
-            if (offset == 0 && packet.readableBytes() == 5) {
-                length = Math.min(PacketUtils.MAX_PAYLOAD - 1, commandBytes.length - offset);
-            } else {
-                length = Math.min(PacketUtils.MAX_PAYLOAD, commandBytes.length - offset);
-            }
-            packet.writeBytes(commandBytes, offset, length);
-            offset += length;
-
-            if (packet.readableBytes() >= PacketUtils.MAX_PACKET) {
-                packet = PacketUtils.addAndCutBigPacket(packet, packetList, sequenceIdSupplier
-                        , adjutant.allocator()::buffer);
-            }
-        }
-        return packet;
-    }
 
     private static final Logger LOG = LoggerFactory.getLogger(ComQueryCommandWriter.class);
 
@@ -183,17 +140,16 @@ final class ComQueryCommandWriter {
     private final boolean supportStream;
 
     private ComQueryCommandWriter(Supplier<Integer> sequenceIdSupplier, MySQLTaskAdjutant adjutant) {
-
         this.sequenceIdSupplier = sequenceIdSupplier;
         this.adjutant = adjutant;
-        this.properties = adjutant.obtainHostInfo().getProperties();
+        MySQLHost host = adjutant.obtainHostInfo();
+        this.properties = host.getProperties();
 
         Server server = this.adjutant.obtainServer();
 
         this.hexEscape = server.containSqlMode(SQLMode.NO_BACKSLASH_ESCAPES);
         this.clientCharset = adjutant.obtainCharsetClient();
-        this.supportStream = this.properties.getOrDefault(PropertyKey.clientPrepare, Enums.ClientPrepare.class)
-                != Enums.ClientPrepare.UN_SUPPORT_STREAM;
+        this.supportStream = host.clientPrepareSupportStream();
     }
 
 

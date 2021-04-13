@@ -49,7 +49,7 @@ public class MySQLUrlParserSuiteTests {
     public void singleConnection() {
         LOG.info("test SINGLE_CONNECTION start.");
         String url = "jdbc:mysql://192.168.0.106:3306/army?sslMode=REQUIRED";
-        final Map<String, String> propMap = Collections.singletonMap(HostInfo.USER, "army_w");
+        final Map<String, String> propMap = Collections.singletonMap(PropertyKey.USER.getKey(), "army_w");
 
         MySQLUrl mySQLUrl = MySQLUrl.getInstance(url, propMap);
         Assert.assertEquals(mySQLUrl.getProtocolType(), MySQLUrl.Protocol.SINGLE_CONNECTION, "protocolType");
@@ -108,7 +108,7 @@ public class MySQLUrlParserSuiteTests {
 
         final String url = builder.toString();
         //LOG.info("url:{}", url);
-        final Map<String, String> propMap = Collections.singletonMap(HostInfo.USER, "army");
+        final Map<String, String> propMap = Collections.singletonMap(PropertyKey.USER.getKey(), "army");
         final long start = System.currentTimeMillis();
         MySQLUrl mySQLUrl = MySQLUrl.getInstance(url, propMap);
         LOG.info("mysql url parse cost {} ms", System.currentTimeMillis() - start);
@@ -125,7 +125,7 @@ public class MySQLUrlParserSuiteTests {
         // host 1 assert
         HostInfo<PropertyKey> hostInfo1 = hostInfoList.get(0);
 
-        Assert.assertEquals(hostInfo1.getUser(), propMap.get(HostInfo.USER), "host1 user");
+        Assert.assertEquals(hostInfo1.getUser(), propMap.get(PropertyKey.USER.getKey()), "host1 user");
         Assert.assertEquals(hostInfo1.getHost(), "kafka", "host1 host");
         Assert.assertEquals(hostInfo1.getPort(), 3435, "host1 port");
         Properties<PropertyKey> properties = hostInfo1.getProperties();
@@ -141,7 +141,7 @@ public class MySQLUrlParserSuiteTests {
         //host 2 assert
         HostInfo<PropertyKey> hostInfo2 = hostInfoList.get(1);
 
-        Assert.assertEquals(hostInfo2.getUser(), propMap.get(HostInfo.USER), "host2 user");
+        Assert.assertEquals(hostInfo2.getUser(), propMap.get(PropertyKey.USER.getKey()), "host2 user");
         Assert.assertEquals(hostInfo2.getHost(), HostInfo.DEFAULT_HOST, "host2 host");
         Assert.assertEquals(hostInfo2.getPort(), 8080, "host2 port");
         properties = hostInfo2.getProperties();
@@ -151,7 +151,7 @@ public class MySQLUrlParserSuiteTests {
         //host 3 assert
         HostInfo<PropertyKey> hostInfo3 = hostInfoList.get(2);
 
-        Assert.assertEquals(hostInfo3.getUser(), propMap.get(HostInfo.USER), "host3 user");
+        Assert.assertEquals(hostInfo3.getUser(), propMap.get(PropertyKey.USER.getKey()), "host3 user");
         Assert.assertEquals(hostInfo3.getHost(), "kosmo", "host3 host");
         Assert.assertEquals(hostInfo3.getPort(), MySQLUrl.DEFAULT_PORT, "host3 port");
         properties = hostInfo3.getProperties();
@@ -161,7 +161,7 @@ public class MySQLUrlParserSuiteTests {
         //host 4 assert
         HostInfo<PropertyKey> hostInfo4 = hostInfoList.get(3);
 
-        Assert.assertEquals(hostInfo4.getUser(), propMap.get(HostInfo.USER), "host4 user");
+        Assert.assertEquals(hostInfo4.getUser(), propMap.get(PropertyKey.USER.getKey()), "host4 user");
         Assert.assertEquals(hostInfo4.getHost(), "simonyi", "host4 host");
         Assert.assertEquals(hostInfo4.getPort(), 9987, "host4 port");
         properties = hostInfo4.getProperties();
@@ -171,7 +171,7 @@ public class MySQLUrlParserSuiteTests {
         //host 5 assert
         HostInfo<PropertyKey> hostInfo5 = hostInfoList.get(4);
 
-        Assert.assertEquals(hostInfo4.getUser(), propMap.get(HostInfo.USER), "host5 user");
+        Assert.assertEquals(hostInfo4.getUser(), propMap.get(PropertyKey.USER.getKey()), "host5 user");
         Assert.assertEquals(hostInfo5.getHost(), "zoro", "host5 host");
         Assert.assertEquals(hostInfo5.getPort(), MySQLUrl.DEFAULT_PORT, "host5 port");
         properties = hostInfo5.getProperties();
@@ -181,7 +181,7 @@ public class MySQLUrlParserSuiteTests {
         //host 6 assert
         HostInfo<PropertyKey> hostInfo6 = hostInfoList.get(5);
 
-        Assert.assertEquals(hostInfo6.getUser(), propMap.get(HostInfo.USER), "host6 user");
+        Assert.assertEquals(hostInfo6.getUser(), propMap.get(PropertyKey.USER.getKey()), "host6 user");
         Assert.assertEquals(hostInfo6.getHost(), "myhost2", "host6 host");
         Assert.assertEquals(hostInfo6.getPort(), 2222, "host6 port");
         properties = hostInfo6.getProperties();
@@ -250,7 +250,7 @@ public class MySQLUrlParserSuiteTests {
         LOG.info("test schema error test start.");
 
         String url = "jdbc:oracle://192.168.0.106:3306/army?sslMode=REQUIRED";
-        final Map<String, String> propMap = Collections.singletonMap(HostInfo.USER, "army_w");
+        final Map<String, String> propMap = Collections.singletonMap(PropertyKey.USER.getKey(), "army_w");
         MySQLUrl.getInstance(url, propMap);
 
         LOG.info("test schema error test success.");

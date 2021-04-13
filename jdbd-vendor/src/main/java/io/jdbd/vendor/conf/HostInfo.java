@@ -12,16 +12,6 @@ public interface HostInfo<K extends IPropertyKey> {
 
     String DEFAULT_HOST = "localhost";
 
-    String HOST = "host";
-
-    String PORT = "port";
-
-    String USER = "user";
-
-    String PASSWORD = "password";
-
-    String DB_NAME = "dbname";
-
     String getOriginalUrl();
 
     String getHostPortPair();

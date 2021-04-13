@@ -70,8 +70,6 @@ final class MySQLConnectionTask extends AbstractCommunicationTask implements Aut
 
     private final Properties<PropertyKey> properties;
 
-    private final int maxPayloadSize;
-
     private Charset handshakeCharset;
 
     private byte handshakeCollationIndex;
@@ -101,8 +99,6 @@ final class MySQLConnectionTask extends AbstractCommunicationTask implements Aut
         this.hostInfo = adjutant.obtainHostInfo();
         this.properties = this.hostInfo.getProperties();
         this.pluginMap = loadAuthenticationPluginMap();
-
-        this.maxPayloadSize = obtainMaxPacketBytes(this.properties);
 
         Charset charset = this.properties.getProperty(PropertyKey.characterEncoding, Charset.class);
         if (charset == null || CharsetMapping.isUnsupportedCharsetClient(charset.name())) {
@@ -389,7 +385,7 @@ final class MySQLConnectionTask extends AbstractCommunicationTask implements Aut
         // 1. client_flag
         PacketUtils.writeInt4(packet, this.negotiatedCapability);
         // 2. max_packet_size
-        PacketUtils.writeInt4(packet, this.maxPayloadSize);
+        PacketUtils.writeInt4(packet, this.adjutant.obtainHostInfo().maxAllowedPayload());
         // 3.handshake character_set,
         packet.writeByte(this.handshakeCollationIndex);
         // 4. filler
@@ -472,7 +468,7 @@ final class MySQLConnectionTask extends AbstractCommunicationTask implements Aut
         // 1. client_flag,Capabilities Flags, CLIENT_PROTOCOL_41 always set.
         PacketUtils.writeInt4(packetBuffer, clientFlag);
         // 2. max_packet_size
-        PacketUtils.writeInt4(packetBuffer, this.maxPayloadSize);
+        PacketUtils.writeInt4(packetBuffer, this.adjutant.obtainHostInfo().maxAllowedPayload());
         // 3. character_set
         PacketUtils.writeInt1(packetBuffer, this.handshakeCollationIndex);
         // 4. filler,Set of bytes reserved for future use.

@@ -12,9 +12,10 @@ public final class SslWrapper {
             , Object sslObject) {
         if (sslObject instanceof SslProvider
                 || sslObject instanceof SslHandler) {
+            return new SslWrapper(currentTask, publisher, sslObject);
+        } else {
             throw new IllegalArgumentException("sslObject error.");
         }
-        return new SslWrapper(currentTask, publisher, sslObject);
     }
 
 

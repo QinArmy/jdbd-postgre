@@ -10,6 +10,6 @@ import static java.lang.annotation.ElementType.FIELD;
 @Documented
 @Retention(RetentionPolicy.RUNTIME)
 @Target(value = {FIELD})
-public @interface NewAdd {
+public @interface OnlyReactor {
 
 }

@@ -376,8 +376,7 @@ public abstract class CommunicationTaskExecutor<T extends TaskAdjutant> implemen
                         }
                     })
                     .subscribe();
-        }
-        if (this.eventLoop.inEventLoop()) {
+        } else if (this.eventLoop.inEventLoop()) {
             doAddSslHandler(sslWrapper.getSslObject());
         } else {
             this.eventLoop.execute(() -> doAddSslHandler(sslWrapper.getSslObject()));

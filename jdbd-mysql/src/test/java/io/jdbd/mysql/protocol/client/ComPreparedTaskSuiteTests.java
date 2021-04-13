@@ -3,10 +3,7 @@ package io.jdbd.mysql.protocol.client;
 
 import io.jdbd.ResultRow;
 import io.jdbd.ResultStates;
-import io.jdbd.mysql.BindValue;
-import io.jdbd.mysql.MySQLBindValue;
-import io.jdbd.mysql.MySQLType;
-import io.jdbd.mysql.StmtWrapper;
+import io.jdbd.mysql.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.annotations.Test;
@@ -26,8 +23,7 @@ import static org.testng.Assert.assertNotNull;
  *
  * @see ComPreparedTask
  */
-@Test
-//(groups = {Groups.COM_STMT_PREPARE}, dependsOnGroups = {Groups.SESSION_INITIALIZER, Groups.UTILS, Groups.DATA_PREPARE})
+@Test(groups = {Groups.COM_STMT_PREPARE}, dependsOnGroups = {Groups.SESSION_INITIALIZER, Groups.UTILS, Groups.DATA_PREPARE})
 public class ComPreparedTaskSuiteTests extends AbstractStmtTaskSuiteTests {
 
     private static final Logger LOG = LoggerFactory.getLogger(ComPreparedTaskSuiteTests.class);

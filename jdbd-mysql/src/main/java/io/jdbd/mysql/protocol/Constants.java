@@ -66,4 +66,6 @@ public interface Constants {
 
     char EMPTY_CHAR = '\0';
 
+    byte SEMICOLON_BYTE = ';';
+
 }

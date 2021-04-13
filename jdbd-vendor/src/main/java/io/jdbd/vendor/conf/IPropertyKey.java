@@ -16,5 +16,7 @@ public interface IPropertyKey {
 
     Class<?> getJavaType();
 
+    boolean isCaseSensitive();
+
 
 }
