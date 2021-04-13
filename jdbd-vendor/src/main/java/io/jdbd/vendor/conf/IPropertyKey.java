@@ -9,9 +9,12 @@ public interface IPropertyKey {
     String getKey();
 
     @Nullable
+    String getAlias();
+
+    @Nullable
     String getDefault();
 
-    Class<?> getType();
+    Class<?> getJavaType();
 
 
 }

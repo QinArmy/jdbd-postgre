@@ -8,20 +8,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-public class DefaultJdbcUrl<K extends IPropertyKey> implements JdbcUrl<K> {
-
-    private static <K extends IPropertyKey> List<HostInfo<K>> createHostInfo(final JdbcUrlParser parser) {
-        Map<String, String> globalMap = parser.getGlobalProperties();
-        List<Map<String, String>> hostMapList = parser.getHostInfo();
-        final String url = parser.getOriginalUrl();
-
-        List<HostInfo<K>> hostInfoList = new ArrayList<>(hostMapList.size());
-        for (Map<String, String> hostMap : hostMapList) {
-            HostInfo<K> hostInfo = DefaultHostInfo.create(url, globalMap, hostMap);
-            hostInfoList.add(hostInfo);
-        }
-        return hostInfoList;
-    }
+public abstract class AbstractJdbcUrl<K extends IPropertyKey, H extends HostInfo<K>> implements JdbcUrl<K, H> {
 
     private final String originalUrl;
 
@@ -31,9 +18,9 @@ public class DefaultJdbcUrl<K extends IPropertyKey> implements JdbcUrl<K> {
 
     private final String dbName;
 
-    private final List<HostInfo<K>> hostInfoList;
+    private final List<H> hostInfoList;
 
-    protected DefaultJdbcUrl(final JdbcUrlParser parser) {
+    protected AbstractJdbcUrl(final JdbcUrlParser parser) {
 
         this.originalUrl = parser.getOriginalUrl();
         this.protocol = parser.getProtocol();
@@ -42,7 +29,7 @@ public class DefaultJdbcUrl<K extends IPropertyKey> implements JdbcUrl<K> {
             throw new IllegalArgumentException("originalUrl or protocol  is empty.");
         }
         this.dbName = parser.getGlobalProperties().get(HostInfo.DB_NAME);
-        this.hostInfoList = JdbdCollections.unmodifiableList(createHostInfo(parser));
+        this.hostInfoList = JdbdCollections.unmodifiableList(createHostInfoList(parser));
         if (this.hostInfoList.isEmpty()) {
             throw new IllegalArgumentException("hostInfoList can't is empty.");
         }
@@ -99,14 +86,29 @@ public class DefaultJdbcUrl<K extends IPropertyKey> implements JdbcUrl<K> {
     }
 
     @Override
-    public final HostInfo<K> getPrimaryHost() {
+    public final H getPrimaryHost() {
         return this.hostInfoList.get(0);
     }
 
     @Override
-    public final List<HostInfo<K>> getHostList() {
+    public final List<H> getHostList() {
         return this.hostInfoList;
     }
 
+
+    protected abstract H createHostInfo(JdbcUrlParser parser, int index);
+
+
+    private List<H> createHostInfoList(final JdbcUrlParser parser) {
+
+        List<Map<String, String>> hostMapList = parser.getHostInfo();
+
+        final int hostSize = hostMapList.size();
+        List<H> hostInfoList = new ArrayList<>(hostSize);
+        for (int i = 0; i < hostSize; i++) {
+            hostInfoList.add(createHostInfo(parser, i));
+        }
+        return hostInfoList;
+    }
 
 }

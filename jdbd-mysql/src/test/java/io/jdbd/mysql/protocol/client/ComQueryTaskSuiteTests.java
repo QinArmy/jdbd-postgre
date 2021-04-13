@@ -276,7 +276,7 @@ public class ComQueryTaskSuiteTests extends AbstractStmtTaskSuiteTests {
                 .block();
 
         assertNotNull(resultStatesList, "resultStatesList");
-        assertEquals(resultStatesList.size(), 5, "resultStatesList");
+        assertEquals(resultStatesList.size(), sqlList.size(), "resultStatesList");
 
         for (ResultStates states : resultStatesList) {
             assertEquals(states.getAffectedRows(), 1L, "getAffectedRows");

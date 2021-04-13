@@ -24,8 +24,6 @@ import java.util.Map;
  */
 abstract class MySQLRowMeta implements ResultRowMeta {
 
-    static final MySQLRowMeta EMPTY = from(MySQLColumnMeta.EMPTY, Collections.emptyMap());
-
     static MySQLRowMeta from(MySQLColumnMeta[] mySQLColumnMetas
             , Map<Integer, CharsetMapping.CustomCollation> customCollationMap) {
         return new SimpleIndexMySQLRowMeta(mySQLColumnMetas, customCollationMap);

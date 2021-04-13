@@ -8,32 +8,29 @@ import reactor.util.annotation.Nullable;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 
-public final class DefaultHostInfo<K extends IPropertyKey> implements HostInfo<K> {
-
-
-    public static <K extends IPropertyKey> DefaultHostInfo<K> create(final String originalUrl
-            , final Map<String, String> globalProperties
-            , final Map<String, String> hostProperties) {
-        return new DefaultHostInfo<>(originalUrl, globalProperties, hostProperties);
-    }
+public abstract class AbstractHostInfo<K extends IPropertyKey> implements HostInfo<K> {
 
 
-    private final String originalUrl;
-    private final String host;
-    private final int port;
-    private final String user;
+    protected final String originalUrl;
+    protected final String host;
+    protected final int port;
+    protected final String user;
 
-    private final String password;
-    private final boolean isPasswordLess;
-    private final Properties<K> properties;
+    protected final String password;
+    protected final boolean isPasswordLess;
+    protected final Properties<K> properties;
 
-    private final String dbName;
+    protected final String dbName;
 
 
-    protected DefaultHostInfo(final String originalUrl, final Map<String, String> globalProperties
-            , final Map<String, String> hostProperties) {
-        if (!JdbdStringUtils.hasText(originalUrl)
+    protected AbstractHostInfo(JdbcUrlParser parser, int index) {
+        this.originalUrl = Objects.requireNonNull(parser.getOriginalUrl(), "getOriginalUrl");
+        final Map<String, String> globalProperties = parser.getGlobalProperties();
+        final Map<String, String> hostProperties = parser.getHostInfo().get(index);
+
+        if (!JdbdStringUtils.hasText(this.originalUrl)
                 || JdbdCollections.isEmpty(hostProperties)
                 || JdbdCollections.isEmpty(globalProperties)) {
             throw new IllegalArgumentException("please check arguments.");
@@ -45,7 +42,7 @@ public final class DefaultHostInfo<K extends IPropertyKey> implements HostInfo<K
         // secondly
         map.putAll(hostProperties);
 
-        this.originalUrl = originalUrl;
+
         String host = map.remove(HOST);
 
         this.host = JdbdStringUtils.hasText(host) ? host : DEFAULT_HOST;
@@ -64,7 +61,7 @@ public final class DefaultHostInfo<K extends IPropertyKey> implements HostInfo<K
         this.isPasswordLess = !JdbdStringUtils.hasText(this.password);
         this.dbName = map.remove(DB_NAME);
 
-        this.properties = ImmutableMapProperties.getInstance(map);
+        this.properties = createProperties(map);
     }
 
     @Override
@@ -84,6 +81,7 @@ public final class DefaultHostInfo<K extends IPropertyKey> implements HostInfo<K
     public String getHostPortPair() {
         return this.host + HOST_PORT_SEPARATOR + this.port;
     }
+
 
     @Override
     public String getOriginalUrl() {
@@ -124,4 +122,11 @@ public final class DefaultHostInfo<K extends IPropertyKey> implements HostInfo<K
     public String getDbName() {
         return this.dbName;
     }
+
+
+    protected Properties<K> createProperties(Map<String, String> map) {
+        return ImmutableMapProperties.getInstance(map);
+    }
+
+
 }

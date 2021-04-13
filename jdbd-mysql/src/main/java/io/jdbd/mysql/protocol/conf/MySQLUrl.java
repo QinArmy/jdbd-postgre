@@ -2,7 +2,8 @@ package io.jdbd.mysql.protocol.conf;
 
 
 import io.jdbd.UrlException;
-import io.jdbd.vendor.conf.DefaultJdbcUrl;
+import io.jdbd.vendor.conf.AbstractJdbcUrl;
+import io.jdbd.vendor.conf.JdbcUrlParser;
 import reactor.util.annotation.Nullable;
 
 import java.util.Map;
@@ -12,7 +13,7 @@ import java.util.Map;
  * see {@code com.mysql.cj.conf.ConnectionUrl}
  * </p>
  */
-public final class MySQLUrl extends DefaultJdbcUrl<PropertyKey> {
+public final class MySQLUrl extends AbstractJdbcUrl<PropertyKey, MySQLHost> {
 
     public static final int DEFAULT_PORT = 3306;
 
@@ -36,6 +37,12 @@ public final class MySQLUrl extends DefaultJdbcUrl<PropertyKey> {
     protected String internalToString() {
         return this.protocolType.name();
     }
+
+    @Override
+    protected MySQLHost createHostInfo(JdbcUrlParser parser, int index) {
+        return MySQLHost.create(parser, index);
+    }
+
 
     /**
      * The rules describing the number of hosts a database URL may contain.

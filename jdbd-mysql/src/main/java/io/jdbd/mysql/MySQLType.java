@@ -2,6 +2,8 @@ package io.jdbd.mysql;
 
 import io.jdbd.meta.SQLType;
 import io.jdbd.mysql.protocol.client.ProtocolConstants;
+import io.jdbd.type.LongBinary;
+import io.jdbd.type.LongString;
 
 import java.math.BigDecimal;
 import java.math.BigInteger;
@@ -333,7 +335,7 @@ public enum MySQLType implements SQLType {
      * <p>
      * Protocol: TYPE_LONG_BLOB = 251
      */
-    LONGBLOB(ProtocolConstants.TYPE_LONG_BLOB, JDBCType.LONGVARBINARY, io.jdbd.type.Blob.class),
+    LONGBLOB(ProtocolConstants.TYPE_LONG_BLOB, JDBCType.LONGVARBINARY, LongBinary.class),
     /**
      * LONGTEXT [CHARACTER SET charset_name] [COLLATE collation_name]
      * A TEXT column with a maximum length of 4,294,967,295 or 4GB (232 - 1) characters. The effective
@@ -344,7 +346,7 @@ public enum MySQLType implements SQLType {
      * <p>
      * Protocol: TYPE_LONG_BLOB = 251
      */
-    LONGTEXT(ProtocolConstants.TYPE_LONG_BLOB, JDBCType.LONGVARCHAR, io.jdbd.type.Text.class),
+    LONGTEXT(ProtocolConstants.TYPE_LONG_BLOB, JDBCType.LONGVARCHAR, LongString.class),
     /**
      * BLOB[(M)]
      * A BLOB column with a maximum length of 65,535 (216 - 1) bytes. Each BLOB value is stored using
@@ -399,7 +401,7 @@ public enum MySQLType implements SQLType {
      * <p>
      * Protocol: TYPE_GEOMETRY = 255
      */
-    GEOMETRY(ProtocolConstants.TYPE_GEOMETRY, JDBCType.LONGVARBINARY, io.jdbd.type.Blob.class),
+    GEOMETRY(ProtocolConstants.TYPE_GEOMETRY, JDBCType.LONGVARBINARY, LongBinary.class),
     /**
      * Fall-back type for those MySQL data types which c/J can't recognize.
      * Handled the same as BLOB.

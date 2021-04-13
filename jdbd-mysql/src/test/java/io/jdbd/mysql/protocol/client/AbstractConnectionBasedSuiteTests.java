@@ -103,6 +103,11 @@ public abstract class AbstractConnectionBasedSuiteTests {
         public EventLoopGroup obtainEventLoopGroup() {
             return EVENT_LOOP_GROUP;
         }
+
+        @Override
+        public int maxAllowedPayload() {
+            return 0;
+        }
     }
 
 

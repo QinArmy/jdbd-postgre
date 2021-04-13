@@ -4,6 +4,8 @@ import io.jdbd.mysql.util.MySQLExceptions;
 import io.jdbd.vendor.task.MorePacketSignal;
 import io.netty.buffer.ByteBuf;
 import org.reactivestreams.Publisher;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import reactor.core.publisher.Mono;
 import reactor.core.publisher.MonoSink;
 
@@ -15,14 +17,22 @@ import java.util.function.Consumer;
 final class QuitTask extends MySQLCommandTask {
 
     static Mono<Void> quit(MySQLTaskAdjutant adjutant) {
-        return Mono.create(sink ->
-                new QuitTask(adjutant, sink)
-                        .submit(sink::error)
+        return Mono.create(sink -> {
+            try {
+                QuitTask task = new QuitTask(adjutant, sink);
+                task.submit(sink::error);
+            } catch (Throwable e) {
+                sink.error(MySQLExceptions.wrap(e));
+            }
 
-        );
+        });
     }
 
+    private static final Logger LOG = LoggerFactory.getLogger(QuitTask.class);
+
     private final MonoSink<Void> sink;
+
+    private boolean taskEnd;
 
     private QuitTask(MySQLTaskAdjutant adjutant, MonoSink<Void> sink) {
         super(adjutant);
@@ -55,13 +65,25 @@ final class QuitTask extends MySQLCommandTask {
         updateSequenceId(sequenceId);
 
         this.sink.error(MySQLExceptions.createErrorPacketException(error));
+        this.taskEnd = true;
         return true;
     }
 
+    @Override
+    protected Action internalError(Throwable e) {
+        if (this.taskEnd) {
+            LOG.error("Unknown error.", e);
+        } else {
+            this.sink.error(MySQLExceptions.wrap(e));
+        }
+        return Action.TASK_END;
+    }
 
     @Override
     public void internalOnChannelClose() {
+        this.taskEnd = true;
         this.sink.success();
     }
+
 
 }

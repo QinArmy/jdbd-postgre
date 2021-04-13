@@ -193,6 +193,8 @@ final class DefaultSessionResetter implements SessionResetter {
     /**
      * config {@link #zoneOffsetClient} and {@link #zoneOffsetDatabase}
      *
+     * @see PropertyKey#cacheDefaultTimezone
+     * @see PropertyKey#connectionTimeZone
      * @see #reset()
      */
     Mono<Void> configZoneOffsets() {

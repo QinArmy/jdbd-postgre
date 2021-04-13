@@ -15,6 +15,8 @@
             <class name="io.jdbd.mysql.protocol.client.ComQueryTaskSuiteTests"/>
             <class name="io.jdbd.mysql.protocol.client.MultiStatementSuiteTests"/>
             <class name="io.jdbd.mysql.protocol.client.ComQueryTaskBigColumnSuiteTests"/>
+
+            <class name="io.jdbd.mysql.protocol.client.ComPreparedTaskSuiteTests"/>
         </classes>
     </test>
 </suite>

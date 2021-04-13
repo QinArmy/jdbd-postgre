@@ -20,13 +20,8 @@ public interface CommunicationTask {
     @Nullable
     Publisher<ByteBuf> moreSendPacket();
 
-    /**
-     * @return true :immediately invoke {@link #moreSendPacket()}
-     */
-    boolean onSendSuccess();
 
-    @Nullable
-    Publisher<ByteBuf> error(Throwable e);
+    Action error(Throwable e);
 
     void onChannelClose();
 
@@ -34,5 +29,10 @@ public interface CommunicationTask {
         SUBMITTED,
         STARTED,
         END
+    }
+
+    enum Action {
+        MORE_SEND_PACKET,
+        TASK_END
     }
 }

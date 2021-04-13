@@ -390,11 +390,11 @@ public class MultiStatementSuiteTests extends AbstractConnectionBasedSuiteTests 
                     })
                     .block();
 
-            fail("multiStmtError error.");
+            fail("multiStmtError test failure.");
         } catch (JdbdSQLException e) {
             LOG.info("multiStmtError test success");
         } catch (Throwable e) {
-            fail("multiStmtError error.", e);
+            fail("multiStmtError test failure.", e);
         } finally {
             releaseMultiStmtConnection(adjutant);
         }
@@ -469,6 +469,157 @@ public class MultiStatementSuiteTests extends AbstractConnectionBasedSuiteTests 
 
         LOG.info("multiStmtErrorSubscribe test success");
         releaseMultiStmtConnection(adjutant);
+    }
+
+    /**
+     * @see ComQueryTask#multiStmt(List, MySQLTaskAdjutant)
+     */
+    @Test(timeOut = TIME_OUT)
+    public void multiStmtTooManySubscribe() {
+        LOG.info("multiStmtTooManySubscribe test start");
+        final MySQLTaskAdjutant adjutant = obtainMultiStmtTaskAdjutant();
+        String sql;
+        final List<String> sqlList = new ArrayList<>(3);
+
+        sql = "UPDATE mysql_types as t SET t.name = 'mysql' WHERE t.id = 268";//[1] update
+        sqlList.add(sql);
+
+        sql = String.format("UPDATE mysql_types as t SET t.my_date = '%s' WHERE t.id = 269", LocalDate.now());//[2] update
+        sqlList.add(sql);
+
+        sql = String.format("SELECT t.id as id ,t.name as name,t.create_time as createTime FROM mysql_types as t WHERE t.id > 270 ORDER BY t.id LIMIT %s", ROW_COUNT);// [3] query
+        sqlList.add(sql);
+
+        final AtomicReference<ResultStates> statesHolder = new AtomicReference<>(null);
+
+        try {
+            //below defer serially subscribe
+            final ReactorMultiResults multiResults1 = ComQueryTask.multiStmt(Collections.unmodifiableList(sqlList), adjutant);
+            multiResults1.nextUpdate()//1. immediately subscribe update
+                    .switchIfEmpty(emptyError())
+                    .map(this::assertUpdateSuccess)
+
+                    .then(multiResults1.nextUpdate())// 2.defer subscribe  update
+                    .switchIfEmpty(emptyError())
+                    .map(this::assertUpdateSuccess)
+
+                    .thenMany(multiResults1.nextQuery())// 3.defer subscribe  query
+                    .switchIfEmpty(emptyError())
+                    .map(this::assertResultRow)
+                    .count()
+                    .flatMap(this::assertQueryRowCount)
+                    .doOnNext(count -> {
+                        assertNotNull(statesHolder.get(), "3.defer subscribe  query states.");
+                        statesHolder.set(null);
+                    })
+
+                    .then(multiResults1.nextUpdate())// 4. error no more result
+                    .map(states -> {
+                        fail("multiStmtTooManySubscribe");
+                        return states;
+                    })
+
+                    .block();
+
+            fail("multiStmtTooManySubscribe test failure.");
+        } catch (NoMoreResultException e) {
+            LOG.info("multiStmtTooManySubscribe test success");
+        } catch (Throwable e) {
+            fail("multiStmtTooManySubscribe test failure.", e);
+        } finally {
+            releaseMultiStmtConnection(adjutant);
+        }
+
+        LOG.info("multiStmtTooManySubscribe test success");
+        releaseMultiStmtConnection(adjutant);
+    }
+
+    /**
+     * @see ComQueryTask#bindableBatch(BatchWrapper, MySQLTaskAdjutant)
+     */
+    @Test(timeOut = TIME_OUT)
+    public void bindableBatchWithMultiStmtMode() {
+        LOG.info("bindableBatchWithMultiStmtMode test start");
+        final MySQLTaskAdjutant adjutant = obtainMultiStmtTaskAdjutant();
+        assertTrue(Capabilities.supportMultiStatement(adjutant.obtainNegotiatedCapability()), "negotiatedCapability");
+
+        final String sql = "UPDATE mysql_types as t SET t.my_long_text = ? WHERE t.id = ?";
+        final List<List<BindValue>> groupList = new ArrayList<>(4);
+        List<BindValue> paramGroup;
+
+        paramGroup = new ArrayList<>(2);
+        paramGroup.add(MySQLBindValue.create(0, MySQLType.LONGTEXT, "bindable batch update 1"));
+        paramGroup.add(MySQLBindValue.create(1, MySQLType.BIGINT, 271));
+        groupList.add(paramGroup);
+
+        paramGroup = new ArrayList<>(2);
+        paramGroup.add(MySQLBindValue.create(0, MySQLType.LONGTEXT, "bindable batch update 2"));
+        paramGroup.add(MySQLBindValue.create(1, MySQLType.BIGINT, 272));
+        groupList.add(paramGroup);
+
+        paramGroup = new ArrayList<>(2);
+        paramGroup.add(MySQLBindValue.create(0, MySQLType.LONGTEXT, "bindable batch update 3"));
+        paramGroup.add(MySQLBindValue.create(1, MySQLType.BIGINT, 273));
+        groupList.add(paramGroup);
+
+        paramGroup = new ArrayList<>(2);
+        paramGroup.add(MySQLBindValue.create(0, MySQLType.LONGTEXT, "bindable batch update 4"));
+        paramGroup.add(MySQLBindValue.create(1, MySQLType.BIGINT, 274));
+        groupList.add(paramGroup);
+
+        final List<ResultStates> resultStatesList;
+        resultStatesList = ComQueryTask.bindableBatch(StmtWrappers.batch(sql, groupList), adjutant)
+                .collectList()
+                .block();
+
+        assertNotNull(resultStatesList, "resultStatesList");
+        assertEquals(resultStatesList.size(), groupList.size(), "resultStatesList");
+
+        for (ResultStates states : resultStatesList) {
+            assertEquals(states.getAffectedRows(), 1L, "getAffectedRows");
+        }
+
+        LOG.info("bindableBatchWithMultiStmtMode test success");
+        releaseConnection(adjutant);
+    }
+
+    /**
+     * @see ComQueryTask#batchUpdate(List, MySQLTaskAdjutant)
+     */
+    @Test(timeOut = TIME_OUT)
+    public void batchUpdateWithMultiStmtMode() {
+        LOG.info("batchUpdateWithMultiStmtMode test start");
+        final MySQLTaskAdjutant adjutant = obtainMultiStmtTaskAdjutant();
+        assertTrue(Capabilities.supportMultiStatement(adjutant.obtainNegotiatedCapability()), "negotiatedCapability");
+
+        String sql;
+        final List<String> sqlList = new ArrayList<>(5);
+        sql = "UPDATE mysql_types as t SET t.my_long_text = 'batch update 0' WHERE t.id = 275";
+        sqlList.add(sql);
+        sql = "UPDATE mysql_types as t SET t.my_long_text = 'batch update 1' WHERE t.id = 276";
+        sqlList.add(sql);
+        sql = "UPDATE mysql_types as t SET t.my_long_text = 'batch update 2' WHERE t.id = 277";
+        sqlList.add(sql);
+        sql = "UPDATE mysql_types as t SET t.my_long_text = 'batch update 3' WHERE t.id = 278";
+        sqlList.add(sql);
+        sql = "UPDATE mysql_types as t SET t.my_long_text = 'batch update 4' WHERE t.id = 279";
+        sqlList.add(sql);
+
+        List<ResultStates> resultStatesList;
+
+        resultStatesList = ComQueryTask.batchUpdate(Collections.unmodifiableList(sqlList), adjutant)
+                .collectList()
+                .block();
+
+        assertNotNull(resultStatesList, "resultStatesList");
+        assertEquals(resultStatesList.size(), sqlList.size(), "resultStatesList");
+
+        for (ResultStates states : resultStatesList) {
+            assertEquals(states.getAffectedRows(), 1L, "getAffectedRows");
+        }
+
+        LOG.info("batchUpdateWithMultiStmtMode test success");
+        releaseConnection(adjutant);
     }
 
 

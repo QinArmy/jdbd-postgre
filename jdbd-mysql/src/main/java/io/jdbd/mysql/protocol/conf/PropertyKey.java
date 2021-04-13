@@ -1,14 +1,16 @@
 package io.jdbd.mysql.protocol.conf;
 
-import io.jdbd.mysql.protocol.ClientConstants;
 import io.jdbd.mysql.protocol.Constants;
 import io.jdbd.mysql.protocol.authentication.MySQLNativePasswordPlugin;
 import io.jdbd.mysql.protocol.client.Enums;
-import io.jdbd.vendor.conf.HostInfo;
 import io.jdbd.vendor.conf.IPropertyKey;
-import reactor.netty.resources.ConnectionProvider;
+import io.jdbd.vendor.conf.NewAdd;
+import io.jdbd.vendor.conf.Redefine;
 import reactor.util.annotation.Nullable;
 
+import java.nio.charset.Charset;
+import java.nio.file.Path;
+import java.time.ZoneOffset;
 import java.util.Objects;
 
 /**
@@ -22,361 +24,371 @@ public enum PropertyKey implements IPropertyKey {
      */
     //below Authentication Group
     /** The database user name. */
-    USER(HostInfo.USER, null, false),
+    USER(String.class, false),
     /** The database user password. */
-    PASSWORD(HostInfo.PASSWORD, null, false),
+    PASSWORD(String.class, false),
 
-
+    //below  Group
     /** The hostname value from the properties instance passed to the driver. */
-    HOST(HostInfo.HOST, null, false),
+    HOST(String.class, false),
     /** The port number value from the properties instance passed to the driver. */
-    PORT(HostInfo.PORT, null, false),
+    PORT(Integer.class, false),
 
     /** The communications protocol. Possible values: "tcp" and "pipe". */
-    PROTOCOL("protocol", null, false),
+    PROTOCOL(String.class, false),
     /** The name pipes path to use when "protocol=pipe'. */
-    PATH("path", "namedPipePath", false),
+    PATH("namedPipePath", String.class, false),
     /** The server type in a replication setup. Possible values: "master" and "slave". */
-    TYPE("type", null, false),
+    TYPE(String.class, false),
     /** The address value ("host:port") from the properties instance passed to the driver. */
-    ADDRESS("address", null, false),
+    ADDRESS(String.class, false),
 
     /** The host priority in a list of hosts. */
-    PRIORITY("priority", null, false),
+    PRIORITY(String.class, false),
     /** The database value from the properties instance passed to the driver. */
-    DBNAME("dbname", null, false), //
+    DBNAME(String.class, false), //
 
     // blow Connection Group
-    connectionAttributes("connectionAttributes", null, true), //
-    connectionLifecycleInterceptors("connectionLifecycleInterceptors", null, true), //
-    useConfigs("useConfigs", null, true), //
-    authenticationPlugins("authenticationPlugins", null, true), //
-
-    /** @deprecated discard in jdbd */
+    connectionAttributes(String.class), //
     @Deprecated
-    clientInfoProvider("clientInfoProvider", "com.mysql.cj.jdbc.CommentClientInfoProvider", true), //
-    createDatabaseIfNotExist("createDatabaseIfNotExist", "false", true), //
+    connectionLifecycleInterceptors(Class.class), //
+    useConfigs(String.class), //
+    authenticationPlugins(String.class), //
+
+    @Deprecated
+    clientInfoProvider("com.mysql.cj.jdbc.CommentClientInfoProvider", Class.class), //
+    createDatabaseIfNotExist("false", Boolean.class), //
     /** @deprecated always CATALOG in jdbd */
     @Deprecated
-    databaseTerm("databaseTerm", "CATALOG", true), //
-    defaultAuthenticationPlugin("defaultAuthenticationPlugin", MySQLNativePasswordPlugin.PLUGIN_NAME, true), //
+    databaseTerm("CATALOG", String.class), //
+    defaultAuthenticationPlugin(MySQLNativePasswordPlugin.PLUGIN_NAME, String.class), //
 
-    detectCustomCollations("detectCustomCollations", "false", true), //
-    disabledAuthenticationPlugins("disabledAuthenticationPlugins", null, true), //
-    disconnectOnExpiredPasswords("disconnectOnExpiredPasswords", "true", true), //
-    interactiveClient("interactiveClient", "false", true), //
-    passwordCharacterEncoding("passwordCharacterEncoding", null, true), //
-    propertiesTransform("propertiesTransform", null, true), //
-    rollbackOnPooledClose("rollbackOnPooledClose", "true", true), //
-    useAffectedRows("useAffectedRows", "false", true), //
+    detectCustomCollations("false", Boolean.class), //
+    disabledAuthenticationPlugins(null, String.class), //
+    disconnectOnExpiredPasswords("true", Boolean.class), //
+    interactiveClient("false", Boolean.class), //
+
+    ldapServerHostname(String.class), //
+    passwordCharacterEncoding(Charset.class), //
+    propertiesTransform(Class.class), //
+    rollbackOnPooledClose("true", Boolean.class), //
+
+    useAffectedRows("false", Boolean.class), //
 
 
-    // blow Session Group
-    sessionVariables("sessionVariables", null, true), //
-    /**
-     * relation to System Variables {@code character_set_client}
-     *
-     * @see <a href="https://dev.mysql.com/doc/refman/8.0/en/charset-connection.html">character_set_client</a>
-     */
-    characterEncoding("characterEncoding", null, true), //
-    /**
-     * relation to System Variables {@code character_set_results }
-     *
-     * @see <a href="https://dev.mysql.com/doc/refman/8.0/en/charset-connection.html">character_set_results</a>
-     */
-    characterSetResults("characterSetResults", null, true), //
-    /**
-     * relation to System Variables {@code collation_connection  }
-     *
-     * @see <a href="https://dev.mysql.com/doc/refman/8.0/en/charset-connection.html">collation_connection </a>
-     */
-    connectionCollation("connectionCollation", null, true), //
+    // blow Session Group https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-session.html
+    sessionVariables(String.class), //
+    characterEncoding(Charset.class), //
+    characterSetResults(String.class), //
+    connectionCollation(String.class), //
 
-    // blow Networking Group
-    socksProxyHost("socksProxyHost", null, true), //
-    socksProxyPort("socksProxyPort", "1080", true), //
-    /** @deprecated use {@link #connectionProvider} */
+
+    // blow Networking Group https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-networking.html
+    socksProxyHost(String.class), //
+    socksProxyPort("1080", Integer.class), //
+    @Redefine
+    socketFactory(null, Class.class), //
+    connectTimeout("0", Long.class), //
+
+    socketTimeout("0", Long.class), //
+    dnsSrv("false", Boolean.class), //
+    localSocketAddress(null, String.class), //
+    maxAllowedPacket("maxAllowedPacket", Integer.toString(1 << 26), Integer.class), //
+
+    tcpKeepAlive("true", Boolean.class), //
+    tcpNoDelay("true", Boolean.class), //
+    tcpRcvBuf("0", Integer.class), //
+    tcpSndBuf("0", Integer.class), //
+
+    tcpTrafficClass("0", Integer.class), //
+    useCompression("false", Boolean.class), //
+    useUnbufferedInput("true", Boolean.class), //
+
+    // blow Security Group https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-security.html
+    paranoid("false", Boolean.class, false), //
+    serverRSAPublicKeyFile(null, Path.class), //
+    allowPublicKeyRetrieval("false", Boolean.class), //
+    sslMode("PREFERRED", Enums.SslMode.class), //
+
+    trustCertificateKeyStoreUrl(null, Path.class), //
+    trustCertificateKeyStoreType("JKS", String.class), //
+    trustCertificateKeyStorePassword(null, String.class), //
+    fallbackToSystemTrustStore("true", Boolean.class), //
+
+    clientCertificateKeyStoreUrl(null, Path.class), //
+    clientCertificateKeyStoreType("JKS", String.class), //
+    clientCertificateKeyStorePassword(null, String.class), //
+    fallbackToSystemKeyStore("true", Boolean.class), //
+
+    enabledSSLCipherSuites(null, String.class), //
+    enabledTLSProtocols(null, String.class), //
+    allowLoadLocalInfile("false", Boolean.class), //
+    allowLoadLocalInfileInPath(null, Path.class), //
+
+    allowMultiQueries("false", Boolean.class), //
+    allowUrlInLocalInfile("false", Boolean.class), //
     @Deprecated
-    socketFactory("socketFactory", null, true), //
-    /** must be class name of implementation of {@link ConnectionProvider } */
-    connectionProvider("connectionProvider", null, true),
-    connectTimeout("connectTimeout", "0", true), //
-    socketTimeout("socketTimeout", "0", true), //
-    dnsSrv("dnsSrv", "false", true), //
-    localSocketAddress("localSocketAddress", null, true), //
-    maxAllowedPacket("maxAllowedPacket", Integer.toString(1 << 24), true), //
-    tcpKeepAlive("tcpKeepAlive", "true", true), //
-    tcpNoDelay("tcpNoDelay", "true", true), //
-    tcpRcvBuf("tcpRcvBuf", "0", true), //
-    tcpSndBuf("tcpSndBuf", "0", true), //
-
-
-    // blow Security Group
-    /**
-     * @see Enums.SslMode
-     */
-    sslMode("sslMode", "PREFERRED", true), //
-    /** @deprecated use {@link #sslMode} */
+    requireSSL("false", Boolean.class), //
     @Deprecated
-    useSSL("useSSL", "true", true), //
-    /** @deprecated use {@link #sslMode} */
+    useSSL("true", Boolean.class), //
+
     @Deprecated
-    requireSSL("requireSSL", "false", true), //
-    /** @deprecated use {@link #sslMode} */
-    @Deprecated
-    verifyServerCertificate("verifyServerCertificate", "false", true), //
-
-    fallbackToSystemKeyStore("fallbackToSystemKeyStore", "true", true), //
-    fallbackToSystemTrustStore("fallbackToSystemTrustStore", "true", true), //
-    bigRowMemoryUpperBoundary("bigRowMemoryUpperBoundary", Integer.toString(ClientConstants.MIN_BIG_ROW_UPPER), true),
-
-    allowLoadLocalInfile("allowLoadLocalInfile", "false", true), //
-    allowMasterDownConnections("allowMasterDownConnections", "false", true), //
-
-    allowMultiQueries("allowMultiQueries", "false", true), //
-    allowNanAndInf("allowNanAndInf", "", true), //
-    allowPublicKeyRetrieval("allowPublicKeyRetrieval", "false", true), //
-    allowSlaveDownConnections("allowSlaveDownConnections", "false", true), //
-
-    allowUrlInLocalInfile("allowUrlInLocalInfile", "false", true), //
-    alwaysSendSetIsolation("alwaysSendSetIsolation", "true", true), //
-
-    autoClosePStmtStreams("autoClosePStmtStreams", "false", true), //
-
-    autoDeserialize("autoDeserialize", "false", true), //
-    autoGenerateTestcaseScript("autoGenerateTestcaseScript", "false", true), //
-    autoReconnect("autoReconnect", "false", true), //
-    autoReconnectForPools("autoReconnectForPools", "false", true), //
-
-    autoSlowLog("autoSlowLog", "true", true), //
-    blobsAreStrings("blobsAreStrings", "false", true), //
-    blobSendChunkSize("blobSendChunkSize", "1048576", true), //
-    cacheCallableStmts("cacheCallableStmts", "false", true), //
-
-    cacheDefaultTimezone("cacheDefaultTimezone", "true", true), //
-    cachePrepStmts("cachePrepStmts", "false", true), //
-    cacheResultSetMetadata("cacheResultSetMetadata", "false", true), //
-    cacheServerConfiguration("cacheServerConfiguration", "false", true), //
-
-    callableStmtCacheSize("callableStmtCacheSize", "100", true), //
-
-
-    clientCertificateKeyStorePassword("clientCertificateKeyStorePassword", null, true), //
-
-    clientCertificateKeyStoreType("clientCertificateKeyStoreType", "JKS", true), //
-    clientCertificateKeyStoreUrl("clientCertificateKeyStoreUrl", null, true), //
-
-    clobberStreamingResults("clobberStreamingResults", "false", true), //
-
-    clobCharacterEncoding("clobCharacterEncoding", null, true), //
-    compensateOnDuplicateKeyUpdateCounts("compensateOnDuplicateKeyUpdateCounts", "false", true), //
-
-
-    continueBatchOnError("continueBatchOnError", "true", true), //
-
-
-    defaultFetchSize("defaultFetchSize", "0", true), //
-
-
-    dontCheckOnDuplicateKeyUpdateInSQL("dontCheckOnDuplicateKeyUpdateInSQL", "false", true), //
-
-    dontTrackOpenResources("dontTrackOpenResources", "false", true), //
-    dumpQueriesOnException("dumpQueriesOnException", "false", true), //
-    elideSetAutoCommits("elideSetAutoCommits", "false", true), //
-    emptyStringsConvertToZero("emptyStringsConvertToZero", "true", true), //
-
-    emulateLocators("emulateLocators", "false", true), //
-    emulateUnsupportedPstmts("emulateUnsupportedPstmts", "true", true), //
-    enabledSSLCipherSuites("enabledSSLCipherSuites", null, true), //
-    enabledTLSProtocols("enabledTLSProtocols", null, true), //
-    enableEscapeProcessing("enableEscapeProcessing", "true", true), //
-
-    enablePacketDebug("enablePacketDebug", "false", true), //
-    enableQueryTimeouts("enableQueryTimeouts", "true", true), //
-    exceptionInterceptors("exceptionInterceptors", null, true), //
-    explainSlowQueries("explainSlowQueries", "false", true), //
-
-    failOverReadOnly("failOverReadOnly", "true", true), //
-    functionsNeverReturnBlobs("functionsNeverReturnBlobs", "false", true), //
-    gatherPerfMetrics("gatherPerfMetrics", "false", true), //
-    generateSimpleParameterMetadata("generateSimpleParameterMetadata", "false", true), //
-
-    getProceduresReturnsFunctions("getProceduresReturnsFunctions", "true", true), //
-    holdResultsOpenOverStatementClose("holdResultsOpenOverStatementClose", "false", true), //
-    ha_enableJMX("ha.enableJMX", "haEnableJMX", "false", true), //
-    ha_loadBalanceStrategy("ha.loadBalanceStrategy", "haLoadBalanceStrategy", "random", true), //
-
-    ignoreNonTxTables("ignoreNonTxTables", "false", true), //
-    includeInnodbStatusInDeadlockExceptions("includeInnodbStatusInDeadlockExceptions", "false", true), //
-    includeThreadDumpInDeadlockExceptions("includeThreadDumpInDeadlockExceptions", "false", true), //
-    includeThreadNamesAsStatementComment("includeThreadNamesAsStatementComment", "false", true), //
-
-    initialTimeout("initialTimeout", "2", true), //
-
-    jdbcCompliantTruncation("jdbcCompliantTruncation", "true", true), //
-    largeRowSizeThreshold("largeRowSizeThreshold", "2048", true), //
-
-    loadBalanceAutoCommitStatementRegex("loadBalanceAutoCommitStatementRegex", null, true), //
-    loadBalanceAutoCommitStatementThreshold("loadBalanceAutoCommitStatementThreshold", "0", true), //
-    loadBalanceBlacklistTimeout("loadBalanceBlacklistTimeout", "0", true), //
-    loadBalanceConnectionGroup("loadBalanceConnectionGroup", null, true), //
-
-    loadBalanceExceptionChecker("loadBalanceExceptionChecker", "com.mysql.cj.jdbc.ha.StandardLoadBalanceExceptionChecker", true), //
-    loadBalanceHostRemovalGracePeriod("loadBalanceHostRemovalGracePeriod", "15000", true), //
-    loadBalancePingTimeout("loadBalancePingTimeout", "0", true), //
-    loadBalanceSQLStateFailover("loadBalanceSQLStateFailover", null, true), //
-
-    loadBalanceSQLExceptionSubclassFailover("loadBalanceSQLExceptionSubclassFailover", null, true), //
-    loadBalanceValidateConnectionOnSwapServer("loadBalanceValidateConnectionOnSwapServer", "false", true), //
-
-    locatorFetchBufferSize("locatorFetchBufferSize", "1048576", true), //
-
-    logger("logger", "com.mysql.cj.log.StandardLogger", true), //
-    logSlowQueries("logSlowQueries", "false", true), //
-    logXaCommands("logXaCommands", "false", true), //
-    maintainTimeStats("maintainTimeStats", "true", true), //
-
-
-    maxQuerySizeToLog("maxQuerySizeToLog", "2048", true), //
-    maxReconnects("maxReconnects", "3", true), //
-    maxRows("maxRows", "-1", true), //
-
-    metadataCacheSize("metadataCacheSize", "50", true), //
-    netTimeoutForStreamingResults("netTimeoutForStreamingResults", "600", true), //
-    noAccessToProcedureBodies("noAccessToProcedureBodies", "false", true), //
-    noDatetimeStringSync("noDatetimeStringSync", "false", true), //
-
-    nullDatabaseMeansCurrent("nullDatabaseMeansCurrent", "nullCatalogMeansCurrent", "false", true), //
-    overrideSupportsIntegrityEnhancementFacility("overrideSupportsIntegrityEnhancementFacility", "false", true), //
-    packetDebugBufferSize("packetDebugBufferSize", "20", true), //
-    padCharsWithSpace("padCharsWithSpace", "false", true), //
-
-    paranoid("paranoid", "false", false), //
-    parseInfoCacheFactory("parseInfoCacheFactory", "com.mysql.cj.PerConnectionLRUFactory", true), //
-
-    pedantic("pedantic", "false", true), //
-
-    pinGlobalTxToPhysicalConnection("pinGlobalTxToPhysicalConnection", "false", true), //
-    populateInsertRowWithDefaultValues("populateInsertRowWithDefaultValues", "false", true), //
-    prepStmtCacheSize("prepStmtCacheSize", "25", true), //
-    prepStmtCacheSqlLimit("prepStmtCacheSqlLimit", "256", true), //
-
-    processEscapeCodesForPrepStmts("processEscapeCodesForPrepStmts", "true", true), //
-    profilerEventHandler("profilerEventHandler", "com.mysql.cj.log.LoggingProfilerEventHandler", true), //
-    profileSQL("profileSQL", "false", true), //
-
-
-    queriesBeforeRetryMaster("queriesBeforeRetryMaster", "50", true), //
-    queryInterceptors("queryInterceptors", null, true), //
-    queryTimeoutKillsConnection("queryTimeoutKillsConnection", "false", true), //
-    readFromMasterWhenNoSlaves("readFromMasterWhenNoSlaves", "false", true), //
-
-    readOnlyPropagatesToServer("readOnlyPropagatesToServer", "true", true), //
-    reconnectAtTxEnd("reconnectAtTxEnd", "false", true), //
-    replicationConnectionGroup("replicationConnectionGroup", null, true), //
-    reportMetricsIntervalMillis("reportMetricsIntervalMillis", "30000", true), //
-
-
-    resourceId("resourceId", null, true), //
-    resultSetSizeThreshold("resultSetSizeThreshold", "100", true), //
-    retriesAllDown("retriesAllDown", "120", true), //
-
-    rewriteBatchedStatements("rewriteBatchedStatements", "false", true), //
-
-    secondsBeforeRetryMaster("secondsBeforeRetryMaster", "30", true), //
-    selfDestructOnPingMaxOperations("selfDestructOnPingMaxOperations", "0", true), //
-
-    selfDestructOnPingSecondsLifetime("selfDestructOnPingSecondsLifetime", "0", true), //
-    sendFractionalSeconds("sendFractionalSeconds", "true", true), //
-    serverAffinityOrder("serverAffinityOrder", null, true), //
-    serverConfigCacheFactory("serverConfigCacheFactory", "com.mysql.cj.util.PerVmServerConfigCacheFactory", true), //
-
-    /**
-     * @see <a href="https://dev.mysql.com/doc/refman/8.0/en/server-system-variables.html#sysvar_sha256_password_public_key_path">sha256_password_public_key_path</a>
-     */
-    serverRSAPublicKeyFile("serverRSAPublicKeyFile", null, true), //
-
-    slowQueryThresholdMillis("slowQueryThresholdMillis", "2000", true), //
-    slowQueryThresholdNanos("slowQueryThresholdNanos", "0", true), //
-
-
-    strictUpdates("strictUpdates", "true", true), //
-
-    connectionTimeZone(null, Constants.LOCAL, true),
-
-    tcpTrafficClass("tcpTrafficClass", "0", true), //
-    tinyInt1isBit("tinyInt1isBit", "true", true), //
-    traceProtocol("traceProtocol", "false", true), //
-
-    transformedBitIsBoolean("transformedBitIsBoolean", "false", true), //
-    treatUtilDateAsTimestamp("treatUtilDateAsTimestamp", "true", true), //
-    trustCertificateKeyStorePassword("trustCertificateKeyStorePassword", null, true), //
-    trustCertificateKeyStoreType("trustCertificateKeyStoreType", "JKS", true), //
-
-    trustCertificateKeyStoreUrl("trustCertificateKeyStoreUrl", null, true), //
-    ultraDevHack("ultraDevHack", "false", true), //
-
-    useColumnNamesInFindColumn("useColumnNamesInFindColumn", "false", true), //
-
-    useCompression("useCompression", "false", true), //
-
-    useCursorFetch("useCursorFetch", "false", true), //
-    useHostsInPrivileges("useHostsInPrivileges", "true", true), //
-
-    useInformationSchema("useInformationSchema", "false", true), //
-    useLocalSessionState("useLocalSessionState", "false", true), //
-    useLocalTransactionState("useLocalTransactionState", "false", true), //
-    useNanosForElapsedTime("useNanosForElapsedTime", "false", true), //
-
-    useOldAliasMetadataBehavior("useOldAliasMetadataBehavior", "false", true), //
-    useOnlyServerErrorMessages("useOnlyServerErrorMessages", "true", true), //
-    useReadAheadInput("useReadAheadInput", "true", true), //
-    useServerPrepStmts("useServerPrepStmts", "false", true), //
-
-
-    useStreamLengthsInPrepStmts("useStreamLengthsInPrepStmts", "true", true), //
-    useUnbufferedInput("useUnbufferedInput", "true", true), //
-    useUsageAdvisor("useUsageAdvisor", "false", true), //
-
-
-    xdevapiAsyncResponseTimeout("xdevapi.asyncResponseTimeout", "xdevapiAsyncResponseTimeout", null, true), //
-    xdevapiAuth("xdevapi.auth", "xdevapiAuth", "PLAIN", true), //
-    xdevapiConnectTimeout("xdevapi.connect-timeout", "xdevapiConnectTimeout", "10000", true), //
-
-    xdevapiConnectionAttributes("xdevapi.connection-attributes", "xdevapiConnectionAttributes", true), //
-    xdevapiCompression("xdevapi.compression", "xdevapiCompression", "PREFERRED", true), //
-    xdevapiCompressionAlgorithm("xdevapi.compression-algorithm", "xdevapiCompressionAlgorithm", null, true), //
-    xdevapiDnsSrv("xdevapi.dns-srv", "xdevapiDnsSrv", "false", true), //
-
-    xdevapiSSLMode("xdevapi.ssl-mode", "xdevapiSSLMode", "REQUIRED", true), //
-    xdevapiTlsCiphersuites("xdevapi.tls-ciphersuites", "xdevapiTlsCiphersuites", null, true), //
-    xdevapiTlsVersions("xdevapi.tls-versions", "xdevapiTlsVersions", null, true), //
-    xdevapiSSLTrustStoreUrl("xdevapi.ssl-truststore", "xdevapiSSLTruststore", null, true), //
-
-    xdevapiSSLTrustStoreType("xdevapi.ssl-truststore-type", "xdevapiSSLTruststoreType", "JKS", true), //
-    xdevapiSSLTrustStorePassword("xdevapi.ssl-truststore-password", "xdevapiSSLTruststorePassword", null, true), //
-    xdevapiUseAsyncProtocol("xdevapi.useAsyncProtocol", "xdevapiUseAsyncProtocol", null, true), //
-    yearIsDateType("yearIsDateType", "true", true), //
-
-    zeroDateTimeBehavior("zeroDateTimeBehavior", "EXCEPTION", true), //
-
-    // new add
-    clientPrepare("clientPrepare", "UN_SUPPORT_STREAM", true),
-    timeTruncateFractional("timeTruncateFractional", "true", true);
+    verifyServerCertificate("false", Boolean.class), //
+
+    //below Statements Group https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-statements.html
+
+    cacheDefaultTimezone("true", Boolean.class), //
+    continueBatchOnError("true", Boolean.class), //
+    dontTrackOpenResources("false", Boolean.class), //
+    queryInterceptors(null, String.class), //
+    queryTimeoutKillsConnection("false", Boolean.class), //
+
+    //below  Prepared Statements https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-prepared-statements.html
+    allowNanAndInf("false", Boolean.class), //
+    autoClosePStmtStreams("false", Boolean.class), //
+    compensateOnDuplicateKeyUpdateCounts("false", Boolean.class), //
+    emulateUnsupportedPstmts("true", Boolean.class), //
+
+    generateSimpleParameterMetadata("false", Boolean.class), //
+    processEscapeCodesForPrepStmts("true", Boolean.class), //
+    useServerPrepStmts("false", Boolean.class), //
+    useStreamLengthsInPrepStmts("true", Boolean.class), //
+
+    //below  Result Sets https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-result-sets.html
+    clobberStreamingResults("false", Boolean.class), //
+    emptyStringsConvertToZero("true", Boolean.class), //
+    holdResultsOpenOverStatementClose("false", Boolean.class), //
+    jdbcCompliantTruncation("true", Boolean.class), //
+
+    maxRows("-1", Integer.class), //
+    netTimeoutForStreamingResults("600", Integer.class), //
+    padCharsWithSpace("false", Boolean.class), //
+    populateInsertRowWithDefaultValues("false", Boolean.class), //
+
+    strictUpdates("true", Boolean.class), //
+    tinyInt1isBit("true", Boolean.class), //
+    transformedBitIsBoolean("false", Boolean.class), //
+
+    //below Metadata Group https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-metadata.html
+
+    getProceduresReturnsFunctions("true", Boolean.class), //
+    noAccessToProcedureBodies("false", Boolean.class), //
+    nullDatabaseMeansCurrent("nullDatabaseMeansCurrent", "nullCatalogMeansCurrent", "false", Boolean.class), //
+    useHostsInPrivileges("true", Boolean.class), //
+
+    useInformationSchema("false", Boolean.class), //
+
+    //below BLOB/CLOB processing https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-blob-clob-processing.html
+    autoDeserialize("false", Boolean.class), //
+    blobSendChunkSize("1048576", Integer.class), //
+    blobsAreStrings("false", Boolean.class), //
+    clobCharacterEncoding(null, Charset.class), //
+
+    emulateLocators("false", Boolean.class), //
+    functionsNeverReturnBlobs("false", Boolean.class), //
+    locatorFetchBufferSize("1048576", Integer.class), //
+
+    //below Datetime types processing
+    connectionTimeZone(Constants.LOCAL, ZoneOffset.class),
+    forceConnectionTimeZoneToSession("false", Boolean.class), //
+    noDatetimeStringSync("false", Boolean.class), //
+    preserveInstants("true", Boolean.class), //
+
+    sendFractionalSeconds("true", Boolean.class), //
+    sendFractionalSecondsForTime("true", Boolean.class), //
+    treatUtilDateAsTimestamp("true", Boolean.class), //
+    yearIsDateType("true", Boolean.class), //
+
+    zeroDateTimeBehavior("EXCEPTION", Enums.ZeroDatetimeBehavior.class), //
+
+    //below High Availability and Clustering https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-high-availability-and-clustering.html
+
+    autoReconnect("false", Boolean.class), //
+    autoReconnectForPools("false", Boolean.class), //
+    failOverReadOnly("true", Boolean.class), //
+    maxReconnects("3", Integer.class), //
+
+    reconnectAtTxEnd("false", Boolean.class), //
+    retriesAllDown("120", Integer.class), //
+    initialTimeout("2", Integer.class), //
+    queriesBeforeRetrySource("50", Integer.class), //
+
+    secondsBeforeRetrySource("30", Integer.class), //
+    allowReplicaDownConnections("false", Boolean.class), //
+    allowSourceDownConnections("false", Boolean.class), //
+    ha_enableJMX("ha.enableJMX", "haEnableJMX", "false", Boolean.class), //
+
+    loadBalanceHostRemovalGracePeriod("15000", Integer.class), //
+    readFromSourceWhenNoReplicas("readFromSourceWhenNoReplicas", "readFromMasterWhenNoSlaves", "false", Boolean.class), //
+    selfDestructOnPingMaxOperations("0", Integer.class), //
+    selfDestructOnPingSecondsLifetime("0", Integer.class), //
+
+    ha_loadBalanceStrategy("ha.loadBalanceStrategy", "haLoadBalanceStrategy", "random", String.class), //
+    loadBalanceAutoCommitStatementRegex(null, String.class), //
+    loadBalanceAutoCommitStatementThreshold("0", Integer.class), //
+    loadBalanceBlocklistTimeout("loadBalanceBlocklistTimeout", "loadBalanceBlacklistTimeout", "0", Integer.class),
+
+    loadBalanceConnectionGroup(null, String.class), //
+    loadBalanceExceptionChecker("com.mysql.cj.jdbc.ha.StandardLoadBalanceExceptionChecker", Class.class), //
+    loadBalancePingTimeout("0", Long.class), //
+    loadBalanceSQLExceptionSubclassFailover(null, String.class), //
+
+    loadBalanceSQLStateFailover(null, String.class), //
+    loadBalanceValidateConnectionOnSwapServer("false", Boolean.class), //
+    pinGlobalTxToPhysicalConnection("false", Boolean.class), //
+    replicationConnectionGroup(null, String.class), //
+
+    resourceId(null, String.class), //
+    serverAffinityOrder(null, String.class), //
+
+    //below Performance Extensions
+    callableStmtCacheSize("100", Integer.class), //
+    metadataCacheSize("50", Integer.class), //
+    useLocalSessionState("false", Boolean.class), //
+    useLocalTransactionState("false", Boolean.class), //
+
+    prepStmtCacheSize("25", Integer.class), //
+    prepStmtCacheSqlLimit("256", Integer.class), //
+    parseInfoCacheFactory("com.mysql.cj.PerConnectionLRUFactory", Class.class), //
+    serverConfigCacheFactory("com.mysql.cj.util.PerVmServerConfigCacheFactory", Class.class), //
+
+    alwaysSendSetIsolation("true", Boolean.class), //
+    maintainTimeStats("true", Boolean.class), //
+    useCursorFetch("false", Boolean.class), //
+    cacheCallableStmts("false", Boolean.class), //
+
+    cachePrepStmts("false", Boolean.class), //
+    cacheResultSetMetadata("false", Boolean.class), //
+    cacheServerConfiguration("false", Boolean.class), //
+    defaultFetchSize("0", Boolean.class), //
+
+    dontCheckOnDuplicateKeyUpdateInSQL("false", Boolean.class), //
+    elideSetAutoCommits("false", Boolean.class), //
+    enableEscapeProcessing("true", Boolean.class), //
+    enableQueryTimeouts("true", Boolean.class), //
+
+    largeRowSizeThreshold("2048", Integer.class), //
+    readOnlyPropagatesToServer("true", Boolean.class), //
+    rewriteBatchedStatements("false", Boolean.class), //
+    useReadAheadInput("true", Boolean.class), //
+
+    //below  Debugging/Profiling https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-debugging-profiling.html
+    logger("com.mysql.cj.log.StandardLogger", Class.class), //
+    profilerEventHandler("com.mysql.cj.log.LoggingProfilerEventHandler", Class.class), //
+    useNanosForElapsedTime("false", Boolean.class), //
+    maxQuerySizeToLog("2048", Integer.class), //
+
+    profileSQL("false", Boolean.class), //
+    logSlowQueries("false", Boolean.class), //
+    slowQueryThresholdMillis("2000", Long.class), //
+    slowQueryThresholdNanos("0", Long.class), //
+
+    autoSlowLog("true", Boolean.class), //
+    explainSlowQueries("false", Boolean.class), //
+    gatherPerfMetrics("false", Boolean.class), //
+    reportMetricsIntervalMillis("30000", Long.class), //
+
+    logXaCommands("false", Boolean.class), //
+    traceProtocol("false", Boolean.class), //
+    enablePacketDebug("false", Boolean.class), //
+    packetDebugBufferSize("20", Integer.class), //
+
+    useUsageAdvisor("false", Boolean.class), //
+    resultSetSizeThreshold("100", Integer.class), //
+    autoGenerateTestcaseScript("false", Boolean.class), //
+
+    //below  Exceptions/Warnings https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-exceptions-warnings.html
+    dumpQueriesOnException("false", Boolean.class), //
+    exceptionInterceptors(null, String.class), //
+    ignoreNonTxTables("false", Boolean.class), //
+    includeInnodbStatusInDeadlockExceptions("false", Boolean.class), //
+
+    includeThreadDumpInDeadlockExceptions("false", Boolean.class), //
+    includeThreadNamesAsStatementComment("false", Boolean.class), //
+    useOnlyServerErrorMessages("true", Boolean.class), //
+
+    //below Tunes for integration with other products https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-tunes-for-integration-with-other-products.html
+    overrideSupportsIntegrityEnhancementFacility("false", Boolean.class), //
+    ultraDevHack("false", Boolean.class), //
+
+    //below JDBC compliance https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-jdbc-compliance.html
+    useColumnNamesInFindColumn("false", Boolean.class), //
+    pedantic("false", Boolean.class), //
+    useOldAliasMetadataBehavior("false", Boolean.class), //
+
+    //below X Protocol and X DevAPI https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-x-protocol-and-x-devapi.html
+    xdevapiAuth("xdevapi.auth", "xdevapiAuth", "PLAIN", String.class), //
+    xdevapiCompression("xdevapi.compression", "xdevapiCompression", "PREFERRED", Enums.Compression.class), //
+    xdevapiCompressionAlgorithm("xdevapi.compression-algorithm", "xdevapiCompressionAlgorithm", null, String.class), //
+    xdevapiCompressionExtensions("xdevapi.compression-extensions", "xdevapiCompressionExtensions", null, String.class), //
+
+    xdevapiConnectTimeout("xdevapi.connect-timeout", "xdevapiConnectTimeout", "10000", Long.class), //
+    xdevapiConnectionAttributes("xdevapi.connection-attributes", "xdevapiConnectionAttributes", null, String.class), //
+    xdevapiDnsSrv("xdevapi.dns-srv", "xdevapiDnsSrv", "false", Boolean.class), //
+    xdevapiFallbackToSystemKeyStore("xdevapi.fallback-to-system-keystore", "xdevapiFallbackToSystemKeyStore", "true", Boolean.class), //
+
+    xdevapiFallbackToSystemTrustStore("xdevapi.fallback-to-system-truststore", "xdevapiFallbackToSystemTrustStore", "true", Boolean.class), //
+    xdevapiSslKeyStoreUrl("xdevapi.ssl-keystore", "xdevapiSslKeystore", null, String.class), //
+    xdevapiSslKeyStorePassword("xdevapi.ssl-keystore-password", "xdevapiSslKeystorePassword", null, String.class), //
+    xdevapiSslKeyStoreType("xdevapi.ssl-keystore-type", "xdevapiSslKeystoreType", "JKS", String.class), //
+
+    xdevapiSslMode("xdevapi.ssl-mode", "xdevapiSslMode", "", Enums.XdevapiSslMode.class), //
+    xdevapiSSLTrustStoreUrl("xdevapi.ssl-truststore", "xdevapiSSLTruststore", null, String.class), //
+    xdevapiSSLTrustStorePassword("xdevapi.ssl-truststore-password", "xdevapiSSLTruststorePassword", null, String.class), //
+    xdevapiSSLTrustStoreType("xdevapi.ssl-truststore-type", "xdevapiSSLTruststoreType", "JKS", String.class), //
+
+    xdevapiTlsCiphersuites("xdevapi.tls-ciphersuites", "xdevapiTlsCiphersuites", null, String.class), //
+    xdevapiTlsVersions("xdevapi.tls-versions", "xdevapiTlsVersions", null, String.class), //
+
+
+    //below unknown
+    allowMasterDownConnections("allowMasterDownConnections", "false", Boolean.class), //
+    allowSlaveDownConnections("allowSlaveDownConnections", "false", Boolean.class), //
+    loadBalanceBlacklistTimeout("loadBalanceBlacklistTimeout", "0", Integer.class), //
+    queriesBeforeRetryMaster("queriesBeforeRetryMaster", "50", Integer.class), //
+    readFromMasterWhenNoSlaves("readFromMasterWhenNoSlaves", "false", Boolean.class), //
+    secondsBeforeRetryMaster("secondsBeforeRetryMaster", "30", Object.class), //
+    xdevapiAsyncResponseTimeout("xdevapi.asyncResponseTimeout", "xdevapiAsyncResponseTimeout", null, Object.class), //
+    xdevapiUseAsyncProtocol("xdevapi.useAsyncProtocol", "xdevapiUseAsyncProtocol", null, Object.class), //
+
+    @NewAdd
+    timeTruncateFractional("timeTruncateFractional", "true", Boolean.class);
 
     private final String keyName;
     private final String ccAlias;
     private final String defaultValue;
+    private final Class<?> javaType;
     private final boolean isCaseSensitive;
+
+
+    PropertyKey(Class<?> javaType) {
+        this(null, null, null, javaType, true);
+    }
+
+    PropertyKey(Class<?> javaType, boolean isCaseSensitive) {
+        this(null, null, null, javaType, isCaseSensitive);
+    }
+
+
+    PropertyKey(@Nullable String defaultValue, Class<?> javaType) {
+        this(null, null, defaultValue, javaType, true);
+    }
+
+    PropertyKey(@Nullable String defaultValue, Class<?> javaType, boolean isCaseSensitive) {
+        this(null, null, defaultValue, javaType, isCaseSensitive);
+    }
 
     /**
      * Initializes each enum element with the proper key name to be used in the connection string or properties maps.
      *
-     * @param keyName         the key name for the enum element.
-     * @param isCaseSensitive is this name case sensitive
+     * @param keyName the key name for the enum element.
      */
-    PropertyKey(String keyName, @Nullable String defaultValue, boolean isCaseSensitive) {
-        this(keyName, null, defaultValue, isCaseSensitive);
+    PropertyKey(String keyName, @Nullable String defaultValue, Class<?> javaType) {
+        this(keyName, null, defaultValue, javaType, true);
+    }
+
+    PropertyKey(String keyName, @Nullable String alias, @Nullable String defaultValue, Class<?> javaType) {
+        this(keyName, alias, defaultValue, javaType, true);
     }
 
     /**
@@ -386,10 +398,13 @@ public enum PropertyKey implements IPropertyKey {
      * @param alias           camel-case alias key name
      * @param isCaseSensitive is this name case sensitive
      */
-    PropertyKey(String keyName, @Nullable String alias, @Nullable String defaultValue, boolean isCaseSensitive) {
-        this.keyName = keyName;
+    PropertyKey(@Nullable String keyName, @Nullable String alias, @Nullable String defaultValue, Class<?> javaType
+            , boolean isCaseSensitive) {
+        this.keyName = keyName == null ? name() : keyName;
         this.ccAlias = alias;
         this.defaultValue = defaultValue;
+        this.javaType = javaType;
+
         this.isCaseSensitive = isCaseSensitive;
     }
 
@@ -409,15 +424,12 @@ public enum PropertyKey implements IPropertyKey {
         return this.keyName;
     }
 
-    /**
-     * Gets the camel-case alias key name of this enum element.
-     *
-     * @return the camel-case alias key name associated with the enum element or null.
-     */
     @Nullable
-    public String getCcAlias() {
+    @Override
+    public String getAlias() {
         return this.ccAlias;
     }
+
 
     @Nullable
     public String getDefault() {
@@ -430,7 +442,7 @@ public enum PropertyKey implements IPropertyKey {
 
 
     @Override
-    public Class<?> getType() {
-        return null;
+    public Class<?> getJavaType() {
+        return this.javaType;
     }
 }

@@ -20,6 +20,7 @@ import io.jdbd.vendor.conf.Properties;
 import io.jdbd.vendor.task.AbstractCommunicationTask;
 import io.jdbd.vendor.task.ConnectionTask;
 import io.jdbd.vendor.task.MorePacketSignal;
+import io.jdbd.vendor.task.SslWrapper;
 import io.jdbd.vendor.util.SQLStates;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
@@ -42,7 +43,6 @@ import java.nio.charset.StandardCharsets;
 import java.sql.SQLException;
 import java.util.*;
 import java.util.function.Consumer;
-import java.util.function.Function;
 
 /**
  * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_connection_phase.html">Connection Phase</a>
@@ -91,7 +91,7 @@ final class MySQLConnectionTask extends AbstractCommunicationTask implements Aut
 
     private String errorMessage;
 
-    private Function<Object, Mono<Void>> sslFunction;
+    private Consumer<SslWrapper> sslConsumer;
 
     private MySQLConnectionTask(MySQLTaskAdjutant adjutant, MonoSink<AuthenticateResult> sink) {
         super(adjutant);
@@ -103,7 +103,6 @@ final class MySQLConnectionTask extends AbstractCommunicationTask implements Aut
         this.pluginMap = loadAuthenticationPluginMap();
 
         this.maxPayloadSize = obtainMaxPacketBytes(this.properties);
-
 
         Charset charset = this.properties.getProperty(PropertyKey.characterEncoding, Charset.class);
         if (charset == null || CharsetMapping.isUnsupportedCharsetClient(charset.name())) {
@@ -152,17 +151,8 @@ final class MySQLConnectionTask extends AbstractCommunicationTask implements Aut
     }
 
     @Override
-    public Publisher<ByteBuf> moreSendPacket() {
-        Publisher<ByteBuf> publisher = this.packetPublisher;
-        if (publisher != null) {
-            this.packetPublisher = null;
-        }
-        return publisher;
-    }
-
-    @Override
-    public void connectSignal(Function<Object, Mono<Void>> sslFunction) {
-        this.sslFunction = sslFunction;
+    public void addSsl(Consumer<SslWrapper> sslConsumer) {
+        this.sslConsumer = sslConsumer;
     }
 
     @Override
@@ -233,44 +223,12 @@ final class MySQLConnectionTask extends AbstractCommunicationTask implements Aut
         return taskEnd;
     }
 
-
-    /**
-     * <p>
-     * maybe modify {@link #phase}
-     * </p>
-     *
-     * @see #onSendSuccess()
-     */
     @Override
-    protected boolean internalOnSendSuccess() {
-        boolean hasMorePacket = false;
-        switch (this.phase) {
-            case SSL_REQUEST: {
-                //  maybe modify this.phase.
-                hasMorePacket = handleSslRequestSendSuccess();
-            }
-            break;
-            case HANDSHAKE_RESPONSE: {
-                LOG.trace("handshake response send success.");
-            }
-            break;
-            case AUTHENTICATE: {
-                if (LOG.isTraceEnabled()) {
-                    LOG.trace("send authenticate packet success,authCounter={} .", this.authCounter);
-                }
-            }
-            break;
-            default:
+    protected Action internalError(Throwable e) {
+        if (this.phase != Phase.END) {
+            this.sink.error(MySQLExceptions.wrap(e));
         }
-        return hasMorePacket;
-    }
-
-
-    @Nullable
-    @Override
-    protected Publisher<ByteBuf> internalError(Throwable e) {
-        this.sink.error(MySQLExceptions.wrap(e));
-        return null;
+        return Action.TASK_END;
     }
 
     @Override
@@ -288,13 +246,14 @@ final class MySQLConnectionTask extends AbstractCommunicationTask implements Aut
      */
     private void receiveHandshakeAndSendResponse(final ByteBuf cumulateBuffer) {
         //1. read handshake packet
-        int payloadLength = PacketUtils.readInt3(cumulateBuffer);
+        final int payloadLength = PacketUtils.readInt3(cumulateBuffer);
         updateSequenceId(PacketUtils.readInt1(cumulateBuffer));
         HandshakeV10Packet handshake;
         handshake = HandshakeV10Packet.readHandshake(cumulateBuffer.readSlice(payloadLength));
         this.handshake = handshake;
-        LOG.debug("receive handshake success:\n{}", handshake);
-
+        if (LOG.isDebugEnabled()) {
+            LOG.debug("receive handshake success:\n{}", handshake);
+        }
         //2. negotiate capabilities
         final int negotiatedCapability = createNegotiatedCapability(handshake);
         this.negotiatedCapability = negotiatedCapability;
@@ -312,15 +271,12 @@ final class MySQLConnectionTask extends AbstractCommunicationTask implements Aut
         //4. optional ssl request or send plaintext handshake response.
         if (Capabilities.supportSsl(negotiatedCapability)) {
             LOG.debug("send ssl request.");
-            this.packetPublisher = createSendSSlRequestPacket();
-            this.phase = Phase.SSL_REQUEST;
+            sendSslRequest();
         } else {
             LOG.debug("plaintext send handshake response.");
-            this.packetPublisher = createHandshakeResponsePacket();
-            this.phase = Phase.HANDSHAKE_RESPONSE;
         }
-
-
+        this.packetPublisher = createHandshakeResponsePacket();
+        this.phase = Phase.HANDSHAKE_RESPONSE;
     }
 
     /**
@@ -369,61 +325,19 @@ final class MySQLConnectionTask extends AbstractCommunicationTask implements Aut
     }
 
 
-    /**
-     * <p>
-     * maybe modify {@link #phase}
-     * </p>
-     *
-     * @return true: has more packet send.
-     * @see #internalOnSendSuccess()
-     */
-    private boolean handleSslRequestSendSuccess() {
-        LOG.debug("ssl request send success.");
-        try {
-            Object sslObject = ReactorSslProviderBuilder.builder()
-                    .allocator(this.adjutant.allocator())
-                    .hostInfo(this.hostInfo)
-                    .serverVersion(this.handshake.getServerVersion())
-                    .buildSslHandler();
-
-            // add sslHandler to channel line.
-            Objects.requireNonNull(this.sslFunction, "this.sslFunction").apply(sslObject)
-                    .doOnSuccess(this::sendHandshakeResponseAfterSslHandshakeSuccess)
-                    .subscribe();
-
-            if (LOG.isDebugEnabled()) {
-                LOG.debug("add {} to ChannelPipeline complete.", SslHandler.class.getName());
-            }
-        } catch (SQLException e) {
-            handleAuthenticateFailure(MySQLExceptions.wrap(e));
-        }
-        return false;
-    }
-
-    /**
-     * @see #handleSslRequestSendSuccess()
-     */
-    private void sendHandshakeResponseAfterSslHandshakeSuccess(Void v) {
-        LOG.debug("Ssl handshake success,send handshake response.");
-        this.packetPublisher = createHandshakeResponsePacket();
-        this.phase = Phase.HANDSHAKE_RESPONSE;
-    }
-
     private int addAndGetSequenceId() {
         int sequenceId = this.sequenceId;
-        sequenceId = (++sequenceId) & 0XFF;
+        sequenceId = (++sequenceId) & 0xFF;
         this.sequenceId = sequenceId;
         return sequenceId;
     }
 
     private void updateSequenceId(int sequenceId) {
-        this.sequenceId = sequenceId & 0XFF;
+        this.sequenceId = sequenceId & 0xFF;
     }
 
 
     /**
-     * @see #handleSslRequestSendSuccess()
-     * @see #sendHandshakeResponseAfterSslHandshakeSuccess(Void)
      * @see #receiveHandshakeAndSendResponse(ByteBuf)
      */
     @Nullable
@@ -446,6 +360,28 @@ final class MySQLConnectionTask extends AbstractCommunicationTask implements Aut
 
     /**
      * @see #receiveHandshakeAndSendResponse(ByteBuf)
+     */
+    private void sendSslRequest() {
+        try {
+            Object sslObject = ReactorSslProviderBuilder.builder()
+                    .allocator(this.adjutant.allocator())
+                    .hostInfo(this.hostInfo)
+                    .serverVersion(this.handshake.getServerVersion())
+                    .buildSslHandler();
+
+            // add sslHandler to channel line.
+            Objects.requireNonNull(this.sslConsumer, "this.sslConsumer")
+                    .accept(SslWrapper.create(this, createSendSSlRequestPacket(), sslObject));
+            if (LOG.isDebugEnabled()) {
+                LOG.debug("add {} to ChannelPipeline complete.", SslHandler.class.getName());
+            }
+        } catch (SQLException e) {
+            handleAuthenticateFailure(MySQLExceptions.wrap(e));
+        }
+    }
+
+    /**
+     * @see #sendSslRequest()
      * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_connection_phase_packets_protocol_ssl_request.html">Protocol::SSLRequest</a>
      */
     private Mono<ByteBuf> createSendSSlRequestPacket() {
@@ -679,7 +615,7 @@ final class MySQLConnectionTask extends AbstractCommunicationTask implements Aut
         // props.setProperty("_platform", NonRegisteringDriver.PLATFORM);
         String clientVersion = ClientProtocol.class.getPackage().getImplementationVersion();
         if (clientVersion == null) {
-            clientVersion = "jdbd-test";
+            clientVersion = "jdbd-mysql-test";
         }
         attMap.put("_client_name", "JDBD-MySQL");
         attMap.put("_client_version", clientVersion);
@@ -813,7 +749,6 @@ final class MySQLConnectionTask extends AbstractCommunicationTask implements Aut
 
     private enum Phase {
         RECEIVE_HANDSHAKE,
-        SSL_REQUEST,
         HANDSHAKE_RESPONSE,
         AUTHENTICATE,
         DISCONNECT,

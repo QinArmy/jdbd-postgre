@@ -4,9 +4,13 @@ import io.jdbd.NullMode;
 import io.jdbd.mysql.MySQLType;
 import io.jdbd.mysql.protocol.CharsetMapping;
 import io.jdbd.mysql.protocol.conf.PropertyKey;
+import io.jdbd.mysql.util.MySQLStringUtils;
+import io.jdbd.result.FieldType;
 import io.jdbd.vendor.conf.Properties;
 import io.netty.buffer.ByteBuf;
 import org.qinarmy.util.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import reactor.util.annotation.Nullable;
 
 import java.nio.charset.Charset;
@@ -19,7 +23,7 @@ import java.util.Objects;
  */
 final class MySQLColumnMeta {
 
-    static final MySQLColumnMeta[] EMPTY = new MySQLColumnMeta[0];
+    private static final Logger LOG = LoggerFactory.getLogger(MySQLColumnMeta.class);
 
     static final int NOT_NULL_FLAG = 1;
     static final int PRI_KEY_FLAG = 1 << 1;
@@ -67,6 +71,8 @@ final class MySQLColumnMeta {
 
     final short decimals;
 
+    final FieldType fieldType;
+
     final MySQLType mysqlType;
 
     private MySQLColumnMeta(
@@ -94,6 +100,7 @@ final class MySQLColumnMeta {
         this.definitionFlags = definitionFlags;
 
         this.decimals = decimals;
+        this.fieldType = parseFieldType(this);
         // mysqlType must be last
         this.mysqlType = from(this, properties);
     }
@@ -198,17 +205,8 @@ final class MySQLColumnMeta {
             case DECIMAL_UNSIGNED:
                 scale = this.decimals;
                 break;
-            case TIME: {
-                scale = this.obtainTimeTypePrecision();
-            }
-            break;
-            case DATETIME:
-            case TIMESTAMP: {
-                scale = this.obtainDateTimeTypePrecision();
-            }
-            break;
             default:
-                scale = 0;
+                scale = -1;
         }
         return scale;
     }
@@ -270,10 +268,26 @@ final class MySQLColumnMeta {
         return precision;
     }
 
+    private FieldType parseFieldType(MySQLColumnMeta columnMeta) {
+        final String tableName = columnMeta.tableName;
+        final FieldType fieldType;
+        if (MySQLStringUtils.hasText(tableName)) {
+            // TODO zoro complete
+            if (tableName.startsWith("#sql_")) {
+                fieldType = FieldType.TEMP_FILED;
+            } else {
+                fieldType = FieldType.FIELD;
+            }
+        } else {
+            fieldType = FieldType.EXPRESSION;
+        }
+        return fieldType;
+    }
+
     /**
      * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_com_query_response_text_resultset_column_definition.html">Protocol::ColumnDefinition41</a>
      */
-    public static MySQLColumnMeta readFor41(ByteBuf payloadBuf, ClientProtocolAdjutant adjutant) {
+    static MySQLColumnMeta readFor41(ByteBuf payloadBuf, ClientProtocolAdjutant adjutant) {
         final Charset metaCharset = adjutant.obtainCharsetMeta();
         final Properties<PropertyKey> properties = adjutant.obtainHostInfo().getProperties();
         // 1. catalog
@@ -321,7 +335,7 @@ final class MySQLColumnMeta {
     }
 
 
-    static MySQLType from(MySQLColumnMeta columnMeta, Properties<PropertyKey> properties) {
+    private MySQLType from(MySQLColumnMeta columnMeta, Properties<PropertyKey> properties) {
         final MySQLType mySQLType;
         switch (columnMeta.typeFlag) {
             case ProtocolConstants.TYPE_DECIMAL:
@@ -458,8 +472,11 @@ final class MySQLColumnMeta {
         if (maxLength <= 255L) {
             mySQLType = fromTinyBlob(columnMeta, properties);
         } else if (columnMeta.length <= (1 << 16) - 1) {
-            mySQLType = (columnMeta.isBlob() || columnMeta.isBinary() || isBlobTypeReturnText(columnMeta, properties))
-                    ? MySQLType.TEXT : MySQLType.BLOB;
+            if (columnMeta.isBinary() || !isBlobTypeReturnText(columnMeta, properties)) {
+                mySQLType = MySQLType.BLOB;
+            } else {
+                mySQLType = MySQLType.TEXT;
+            }
         } else if (maxLength <= (1 << 24) - 1) {
             mySQLType = fromMediumBlob(columnMeta, properties);
         } else {
@@ -470,7 +487,7 @@ final class MySQLColumnMeta {
 
     private static MySQLType fromTinyBlob(MySQLColumnMeta columnMeta, Properties<PropertyKey> properties) {
         final MySQLType mySQLType;
-        if (columnMeta.isBlob() || columnMeta.isBinary() || !isBlobTypeReturnText(columnMeta, properties)) {
+        if (columnMeta.isBinary() || !isBlobTypeReturnText(columnMeta, properties)) {
             mySQLType = MySQLType.TINYBLOB;
         } else {
             mySQLType = MySQLType.TINYTEXT;
@@ -480,7 +497,7 @@ final class MySQLColumnMeta {
 
     private static MySQLType fromMediumBlob(MySQLColumnMeta columnMeta, Properties<PropertyKey> properties) {
         final MySQLType mySQLType;
-        if (columnMeta.isBlob() || columnMeta.isBinary() || !isBlobTypeReturnText(columnMeta, properties)) {
+        if (columnMeta.isBinary() || !isBlobTypeReturnText(columnMeta, properties)) {
             mySQLType = MySQLType.MEDIUMBLOB;
         } else {
             mySQLType = MySQLType.MEDIUMTEXT;
@@ -490,7 +507,7 @@ final class MySQLColumnMeta {
 
     private static MySQLType fromLongBlob(MySQLColumnMeta columnMeta, Properties<PropertyKey> properties) {
         final MySQLType mySQLType;
-        if (columnMeta.isBlob() || columnMeta.isBinary() || !isBlobTypeReturnText(columnMeta, properties)) {
+        if (columnMeta.isBinary() || !isBlobTypeReturnText(columnMeta, properties)) {
             mySQLType = MySQLType.LONGBLOB;
         } else {
             mySQLType = MySQLType.LONGTEXT;

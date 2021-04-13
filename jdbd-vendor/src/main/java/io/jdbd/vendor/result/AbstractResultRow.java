@@ -6,6 +6,8 @@ import io.jdbd.UnsupportedConvertingException;
 import io.jdbd.meta.SQLType;
 import io.jdbd.result.ResultRowMeta;
 import io.jdbd.type.CodeEnum;
+import io.jdbd.type.LongBinary;
+import io.jdbd.type.LongString;
 import io.jdbd.vendor.util.JdbdCollections;
 import io.jdbd.vendor.util.JdbdStringUtils;
 import reactor.util.annotation.Nullable;
@@ -417,6 +419,13 @@ public abstract class AbstractResultRow<R extends ResultRowMeta> implements Resu
             value = (byte[]) sourceValue;
         } else if (sourceValue instanceof String) {
             value = ((String) sourceValue).getBytes(obtainColumnCharset(indexBaseZero));
+        } else if (sourceValue instanceof LongBinary) {
+            LongBinary longBinary = (LongBinary) sourceValue;
+            if (longBinary.isArray()) {
+                value = longBinary.asArray();
+            } else {
+                throw createNotSupportedException(indexBaseZero, byte[].class);
+            }
         } else {
             throw createNotSupportedException(indexBaseZero, byte[].class);
         }
@@ -437,6 +446,13 @@ public abstract class AbstractResultRow<R extends ResultRowMeta> implements Resu
                 value = ((BigDecimal) sourceValue).toPlainString();
             } else if (sourceValue instanceof Number) {
                 value = sourceValue.toString();
+            } else if (sourceValue instanceof LongString) {
+                LongString longString = (LongString) sourceValue;
+                if (longString.isString()) {
+                    value = longString.asString();
+                } else {
+                    throw createNotSupportedException(indexBaseZero, String.class);
+                }
             } else if (sourceValue instanceof TemporalAccessor) {
                 value = formatTemporalAccessor((TemporalAccessor) sourceValue);
             } else {

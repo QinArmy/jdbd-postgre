@@ -19,7 +19,7 @@ public interface Groups {
 
     String COM_STMT_PREPARE = "comStmtPrepare";
 
-    String TEXT_RESULT_SET_READER = "TextResultSetReader";
+    String TEXT_RESULT_BIG_COLUMN = "TextResultSetReader";
 
     String MULTI_STMT = "multiStatement";
 

@@ -13,6 +13,8 @@ import io.jdbd.mysql.type.City;
 import io.jdbd.mysql.type.TrueOrFalse;
 import io.jdbd.mysql.util.MySQLStreamUtils;
 import io.jdbd.result.ResultRowMeta;
+import io.jdbd.type.LongBinary;
+import io.jdbd.type.LongString;
 import io.jdbd.vendor.JdbdCompositeException;
 import io.jdbd.vendor.conf.Properties;
 import org.slf4j.Logger;
@@ -111,7 +113,7 @@ public class DataPrepareSuiteTests extends AbstractConnectionBasedSuiteTests {
     /*################################## blow private method ##################################*/
 
     private static void doPrepareData(MySQLTaskAdjutant taskAdjutant) throws Exception {
-        final int rowCount = 300;
+        final int rowCount = 500;
 
         StringBuilder builder = new StringBuilder(40 * rowCount)
                 .append("INSERT INTO mysql_types(name,my_char,my_bit,my_boolean,my_json) VALUES");
@@ -190,28 +192,37 @@ public class DataPrepareSuiteTests extends AbstractConnectionBasedSuiteTests {
                 .append(",t.my_double as myDouble")
 
                 .append(",t.my_double_unsigned as myDoubleUnsigned")
-                .append(",t.my_tiny_text as myTinyText")
                 .append(",t.my_enum as myEnum")
                 .append(",t.my_set as mySet")
-
                 .append(",t.my_json as myJson")
+
                 .append(",t.my_geometry as myGeometry")
                 .append(",t.my_point as myPoint")
                 .append(",t.my_linestring as myLinestring")
-
                 .append(",t.my_polygon as myPolygon")
+
                 .append(",t.my_multipoint as myMultipoint")
                 .append(",t.my_multilinestring as myMultilinestring")
                 .append(",t.my_multipolygon as myMultipolygon")
-
                 .append(",t.my_geometrycollection as myGeometrycollection")
+
                 .append(",t.my_timestamp as myTimestamp")
                 .append(",t.my_timestamp1 as myTimestamp1")
                 .append(",t.my_date as myDate")
-
                 .append(",t.my_time as myTime")
+
                 .append(",t.my_time1 as myTime1")
-                .append(",t.my_bit20 as myBit20");
+                .append(",t.my_bit20 as myBit20")
+                .append(",t.my_tiny_text as myTinyText")
+                .append(",t.my_text as myText")
+
+                .append(",t.my_medium_text as myMediumText")
+                .append(",t.my_long_text as myLongText")
+                .append(",t.my_tinyblob as myTinyBlob")
+                .append(",t.my_blob as myBlob")
+
+                .append(",t.my_medium_blob as myMediumBlob")
+                .append(",t.my_long_blob as myLongBlob");
 
         return builder
                 .append(" FROM mysql_types as t ORDER BY t.id DESC LIMIT 10")
@@ -536,6 +547,63 @@ public class DataPrepareSuiteTests extends AbstractConnectionBasedSuiteTests {
         assertEquals(rowMeta.getPrecision("myBit20"), 20, "myBit20 precision");
         assertEquals(rowMeta.getNullMode("myBit20"), NullMode.NON_NULL, "myBit20 null mode.");
 
+        final Object myTinyBlob = row.get("myTinyBlob");
+        assertNotNull(myTinyBlob, "myTinyBlob");
+        assertTrue(myTinyBlob instanceof byte[], "myBlob java type");
+        assertEquals(rowMeta.getSQLType("myTinyBlob"), MySQLType.TINYBLOB, "myTinyBlob mysql type");
+        assertEquals(rowMeta.getPrecision("myTinyBlob"), (1L << 8) - 1L, "myTinyBlob precision");
+        assertEquals(rowMeta.getScale("myTinyBlob"), -1, "myTinyBlob scale");
+        assertEquals(rowMeta.getNullMode("myTinyBlob"), NullMode.NON_NULL, "myTinyBlob null mode.");
+
+        final Object myBlob = row.get("myBlob");
+        assertNotNull(myBlob, "myBlob");
+        assertTrue(myBlob instanceof byte[], "myBlob java type");
+        assertEquals(rowMeta.getSQLType("myBlob"), MySQLType.BLOB, "myBlob mysql type");
+        assertEquals(rowMeta.getPrecision("myBlob"), (1L << 16) - 1L, "myBlob precision");
+        assertEquals(rowMeta.getNullMode("myBlob"), NullMode.NON_NULL, "myBlob null mode.");
+
+        final Object myMediumBlob = row.get("myMediumBlob");
+        assertNotNull(myMediumBlob, "myMediumBlob");
+        assertTrue(myMediumBlob instanceof byte[], "myMediumBlob java type");
+        assertEquals(rowMeta.getSQLType("myMediumBlob"), MySQLType.MEDIUMBLOB, "myMediumBlob mysql type");
+        assertEquals(rowMeta.getPrecision("myMediumBlob"), (1L << 24) - 1L, "myMediumBlob precision");
+        assertEquals(rowMeta.getNullMode("myMediumBlob"), NullMode.NON_NULL, "myMediumBlob null mode.");
+
+        final Object myLongBlob = row.get("myLongBlob");
+        assertNotNull(myLongBlob, "myLongBlob");
+        assertTrue(myLongBlob instanceof LongBinary, "myLongBlob java type");
+        assertEquals(rowMeta.getSQLType("myLongBlob"), MySQLType.MEDIUMBLOB, "myLongBlob mysql type");
+        assertEquals(rowMeta.getPrecision("myLongBlob"), (1L << 32) - 1L, "myLongBlob precision");
+        assertEquals(rowMeta.getNullMode("myLongBlob"), NullMode.NON_NULL, "myLongBlob null mode.");
+
+        final Object myTinyText = row.get("myTinyText");
+        assertNotNull(myTinyText, "myTinyText");
+        assertTrue(myTinyText instanceof String, "myTinyText java type");
+        assertEquals(rowMeta.getSQLType("myTinyText"), MySQLType.TINYTEXT, "myTinyText mysql type");
+        assertEquals(rowMeta.getPrecision("myTinyText"), (1L << 8) - 1L, "myTinyText precision");
+        assertEquals(rowMeta.getScale("myTinyText"), -1, "myTinyText scale");
+        assertEquals(rowMeta.getNullMode("myTinyText"), NullMode.NON_NULL, "myTinyText null mode.");
+
+        final Object myText = row.get("myText");
+        assertNotNull(myText, "myText");
+        assertTrue(myText instanceof String, "myText java type");
+        assertEquals(rowMeta.getSQLType("myText"), MySQLType.TEXT, "myText mysql type");
+        assertEquals(rowMeta.getPrecision("myText"), (1L << 16) - 1L, "myText precision");
+        assertEquals(rowMeta.getNullMode("myText"), NullMode.NON_NULL, "myText null mode.");
+
+        final Object myMediumText = row.get("myMediumText");
+        assertNotNull(myMediumText, "myMediumText");
+        assertTrue(myMediumText instanceof String, "myMediumText java type");
+        assertEquals(rowMeta.getSQLType("myMediumText"), MySQLType.MEDIUMTEXT, "myMediumText mysql type");
+        assertEquals(rowMeta.getPrecision("myMediumText"), (1L << 24) - 1L, "myMediumText precision");
+        assertEquals(rowMeta.getNullMode("myMediumText"), NullMode.NON_NULL, "myMediumText null mode.");
+
+        final Object myLongText = row.get("myLongText");
+        assertNotNull(myLongText, "myLongText");
+        assertTrue(myLongText instanceof LongString, "myLongText java type");
+        assertEquals(rowMeta.getSQLType("myLongText"), MySQLType.LONGTEXT, "myLongText mysql type");
+        assertEquals(rowMeta.getPrecision("myLongText"), (1L << 32) - 1L, "myLongText precision");
+        assertEquals(rowMeta.getNullMode("myLongText"), NullMode.NON_NULL, "myLongText null mode.");
     }
 
 

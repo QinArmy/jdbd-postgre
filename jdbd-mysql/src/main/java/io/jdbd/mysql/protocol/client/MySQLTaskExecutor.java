@@ -4,6 +4,7 @@ import io.jdbd.mysql.MySQLJdbdException;
 import io.jdbd.mysql.Server;
 import io.jdbd.mysql.protocol.CharsetMapping;
 import io.jdbd.mysql.protocol.authentication.AuthenticationPlugin;
+import io.jdbd.mysql.protocol.conf.MySQLHost;
 import io.jdbd.mysql.protocol.conf.PropertyKey;
 import io.jdbd.mysql.session.MySQLSessionAdjutant;
 import io.jdbd.mysql.syntax.DefaultMySQLParser;
@@ -31,7 +32,7 @@ import java.util.Objects;
 final class MySQLTaskExecutor extends CommunicationTaskExecutor<MySQLTaskAdjutant> {
 
     static Mono<MySQLTaskExecutor> create(final int hostIndex, MySQLSessionAdjutant sessionAdjutant) {
-        List<HostInfo<PropertyKey>> hostInfoList = sessionAdjutant.obtainUrl().getHostList();
+        List<MySQLHost> hostInfoList = sessionAdjutant.obtainUrl().getHostList();
 
         final Mono<MySQLTaskExecutor> mono;
         if (hostIndex > -1 && hostIndex < hostInfoList.size()) {
@@ -173,6 +174,13 @@ final class MySQLTaskExecutor extends CommunicationTaskExecutor<MySQLTaskAdjutan
 
         }
 
+        @Override
+        public ByteBuf createPacketBuffer(int initialPayloadCapacity, int maxCapacity) {
+            ByteBuf packetBuffer = this.allocator().buffer(PacketUtils.HEADER_SIZE + initialPayloadCapacity
+                    , maxCapacity);
+            packetBuffer.writeZero(PacketUtils.HEADER_SIZE);
+            return packetBuffer;
+        }
 
         @Override
         public int obtainMaxBytesPerCharClient() {

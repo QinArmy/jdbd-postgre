@@ -2,6 +2,7 @@ package io.jdbd.vendor.session;
 
 import io.jdbd.DatabaseSession;
 import io.jdbd.SessionFactory;
+import io.jdbd.vendor.conf.HostInfo;
 import io.jdbd.vendor.conf.IPropertyKey;
 import io.jdbd.vendor.conf.JdbcUrl;
 import io.netty.channel.EventLoopGroup;
@@ -14,9 +15,9 @@ import io.netty.channel.EventLoopGroup;
  * @param <K> {@link io.jdbd.vendor.conf.IPropertyKey} type.
  * @see SessionFactory
  */
-public interface SessionAdjutant<K extends IPropertyKey> {
+public interface SessionAdjutant<K extends IPropertyKey, H extends HostInfo<K>> {
 
-    JdbcUrl<K> obtainUrl();
+    JdbcUrl<K, H> obtainUrl();
 
     EventLoopGroup obtainEventLoopGroup();
 

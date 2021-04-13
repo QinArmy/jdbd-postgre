@@ -16,6 +16,8 @@ interface ClientProtocolAdjutant extends ResultRowAdjutant {
 
     ByteBuf createPacketBuffer(int initialPayloadCapacity);
 
+    ByteBuf createPacketBuffer(int initialPayloadCapacity, int maxCapacity);
+
     int obtainMaxBytesPerCharClient();
 
     Charset obtainCharsetClient();

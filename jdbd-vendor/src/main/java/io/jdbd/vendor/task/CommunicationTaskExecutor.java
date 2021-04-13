@@ -26,7 +26,6 @@ import reactor.util.concurrent.Queues;
 import java.net.InetSocketAddress;
 import java.util.Queue;
 import java.util.function.Consumer;
-import java.util.function.Function;
 
 public abstract class CommunicationTaskExecutor<T extends TaskAdjutant> implements CoreSubscriber<ByteBuf>
         , TaskExecutor<T> {
@@ -52,7 +51,7 @@ public abstract class CommunicationTaskExecutor<T extends TaskAdjutant> implemen
 
     private CommunicationTask currentTask;
 
-    private Throwable taskErrorMethodError;
+    private TaskStatusException taskErrorMethodError;
 
 
     protected CommunicationTaskExecutor(Connection connection) {
@@ -89,8 +88,8 @@ public abstract class CommunicationTaskExecutor<T extends TaskAdjutant> implemen
         if (this.eventLoop.inEventLoop()) {
             doOnNextInEventLoop(byteBufFromPeer);
         } else {
-            if (obtainLogger().isDebugEnabled()) {
-                Logger LOG = obtainLogger();
+            final Logger LOG = obtainLogger();
+            if (LOG.isDebugEnabled()) {
                 LOG.debug("{} onNext(),current thread not in EventLoop.", this);
             }
             this.eventLoop.execute(() -> doOnNextInEventLoop(byteBufFromPeer));
@@ -102,6 +101,10 @@ public abstract class CommunicationTaskExecutor<T extends TaskAdjutant> implemen
         if (this.eventLoop.inEventLoop()) {
             doOnErrorInEventLoop(t);
         } else {
+            final Logger LOG = obtainLogger();
+            if (LOG.isDebugEnabled()) {
+                LOG.debug("{} onError(Throwable),current thread not in EventLoop.", this);
+            }
             this.eventLoop.execute(() -> doOnErrorInEventLoop(t));
         }
     }
@@ -111,6 +114,10 @@ public abstract class CommunicationTaskExecutor<T extends TaskAdjutant> implemen
         if (this.eventLoop.inEventLoop()) {
             doOnCompleteInEventLoop();
         } else {
+            final Logger LOG = obtainLogger();
+            if (LOG.isDebugEnabled()) {
+                LOG.debug("{} onComplete(),current thread not in EventLoop.", this);
+            }
             this.eventLoop.execute(this::doOnCompleteInEventLoop);
         }
     }
@@ -119,38 +126,55 @@ public abstract class CommunicationTaskExecutor<T extends TaskAdjutant> implemen
 
     /**
      * must invoke in {@link #eventLoop}
+     *
+     * @see #startHeadIfNeed()
+     * @see #doOnNextInEventLoop(ByteBuf)
      */
     protected final void drainToTask() {
         final ByteBuf cumulateBuffer = this.cumulateBuffer;
-        if (cumulateBuffer == null) {
+        if (cumulateBuffer == null || !cumulateBuffer.isReadable()) {
             return;
         }
-        CommunicationTask currentTask;
-        while ((currentTask = this.currentTask) != null) {
-            if (!cumulateBuffer.isReadable()) {
-                break;
-            }
-            if (currentTask.decode(cumulateBuffer, this::updateServerStatus)) {
-                if (currentTask instanceof ConnectionTask) {
-                    ConnectionTask connectionTask = (ConnectionTask) currentTask;
-                    if (connectionTask.disconnect()) {
-                        disconnection();
-                        return;
-                    }
-                }
-                this.currentTask = null; // current task end.
-                if (!startHeadIfNeed()) {  // start next task
-                    break;
-                }
-            } else {
-                Publisher<ByteBuf> bufPublisher = currentTask.moreSendPacket();
-                if (bufPublisher != null) {
-                    // send packet
-                    sendPacket(currentTask, bufPublisher);
-                }
-                break;
+        CommunicationTask currentTask = this.currentTask;
+        if (currentTask == null) {
+            currentTask = this.taskQueue.poll();
+            this.currentTask = currentTask;
+        }
+        if (currentTask == null) {
+            return;
+        }
+
+        final boolean taskEnd;
+        taskEnd = currentTask.decode(cumulateBuffer, this::updateServerStatus);
+        if (taskEnd && currentTask instanceof ConnectionTask) {
+            ConnectionTask connectionTask = (ConnectionTask) currentTask;
+            if (connectionTask.disconnect()) {
+                disconnection();
+                return;
             }
         }
+        final Publisher<ByteBuf> bufPublisher;
+        bufPublisher = currentTask.moreSendPacket();
+        if (bufPublisher != null) {
+            // send packet
+            sendPacket(currentTask, bufPublisher);
+        }
+        if (taskEnd) {
+            if (cumulateBuffer.isReadable()) {
+                // TODO maybe has notify from server.
+                try {
+                    currentTask.error(new TaskStatusException("Not read all packet,but task end."));
+                } catch (TaskStatusException e) {
+                    this.taskErrorMethodError = e;
+                } catch (Throwable e) {
+                    this.taskErrorMethodError = new TaskStatusException(e, "error(Throwable) throw exception.");
+                }
+            }
+            this.currentTask = null; // current task end.
+            // start next task
+            startHeadIfNeed();
+        }
+
     }
 
 
@@ -173,9 +197,7 @@ public abstract class CommunicationTaskExecutor<T extends TaskAdjutant> implemen
         }
         if (this.taskQueue.offer(task)) {
             offerCall.accept(Boolean.TRUE);
-            if (startHeadIfNeed()) {
-                drainToTask();
-            }
+            startHeadIfNeed();
         } else {
             offerCall.accept(Boolean.FALSE);
         }
@@ -186,8 +208,9 @@ public abstract class CommunicationTaskExecutor<T extends TaskAdjutant> implemen
      * @see #onNext(ByteBuf)
      */
     private void doOnNextInEventLoop(final ByteBuf byteBufFromPeer) {
-        if (obtainLogger().isTraceEnabled()) {
-            obtainLogger().trace("doOnNextInEventLoop() readableBytes={}", byteBufFromPeer.readableBytes());
+        final Logger LOG = obtainLogger();
+        if (LOG.isTraceEnabled()) {
+            LOG.trace("doOnNextInEventLoop() readableBytes={}", byteBufFromPeer.readableBytes());
         }
         if (byteBufFromPeer == this.cumulateBuffer) {
             // subclass bug
@@ -203,6 +226,15 @@ public abstract class CommunicationTaskExecutor<T extends TaskAdjutant> implemen
         }
         this.cumulateBuffer = cumulateBuffer;
         drainToTask();
+
+        if (!cumulateBuffer.isReadable()) {
+            cumulateBuffer.release();
+            if (this.cumulateBuffer == cumulateBuffer) {
+                this.cumulateBuffer = null;
+            }
+        }
+
+
     }
 
     private void doOnErrorInEventLoop(Throwable e) {
@@ -234,7 +266,7 @@ public abstract class CommunicationTaskExecutor<T extends TaskAdjutant> implemen
      * must invoke in {@link #eventLoop}
      */
     private void doOnCompleteInEventLoop() {
-        Logger LOG = obtainLogger();
+        final Logger LOG = obtainLogger();
         if (LOG.isDebugEnabled()) {
             LOG.debug("Connection close.");
         }
@@ -249,18 +281,15 @@ public abstract class CommunicationTaskExecutor<T extends TaskAdjutant> implemen
 
     /**
      * must invoke in {@link #eventLoop}
-     *
-     * @return true : need decode
      */
-    private boolean startHeadIfNeed() {
+    private void startHeadIfNeed() {
         CommunicationTask currentTask = this.currentTask;
         if (currentTask != null) {
-            return false;
+            return;
         }
 
-        Throwable taskErrorMethodError = this.taskErrorMethodError;
+        TaskStatusException taskErrorMethodError = this.taskErrorMethodError;
 
-        boolean needDecode = false;
         while ((currentTask = this.taskQueue.poll()) != null) {
 
             if (currentTask.getTaskPhase() != CommunicationTask.TaskPhase.SUBMITTED) {
@@ -269,8 +298,7 @@ public abstract class CommunicationTaskExecutor<T extends TaskAdjutant> implemen
                 continue;
             }
             if (taskErrorMethodError != null) {
-                currentTask.error(JdbdExceptions.wrap(taskErrorMethodError
-                        , "last task error(Throwable) method throw error."));
+                currentTask.error(taskErrorMethodError);
                 // TODO optimize handle last task error.
                 this.taskErrorMethodError = null;
                 taskErrorMethodError = null;
@@ -282,16 +310,20 @@ public abstract class CommunicationTaskExecutor<T extends TaskAdjutant> implemen
                 ConnectionTask connectionTask = ((ConnectionTask) currentTask);
                 if (connectionTask.disconnect()) {
                     disconnection();
-                    return false;
+                    return;
                 }
-                connectionTask.connectSignal(this::addSslHandler);
+                connectionTask.addSsl(this::addSslHandler);
             }
             Publisher<ByteBuf> bufPublisher;
             try {
                 // invoke task start() method.
                 bufPublisher = currentTask.start(this.morePacketSignal);
+            } catch (TaskStatusException e) {
+                handleTaskError(currentTask, e);
+                continue;
             } catch (Throwable e) {
-                handleTaskError(currentTask, new TaskStatusException(e, "%s start failure.", currentTask));
+                handleTaskError(currentTask, new TaskStatusException(e, "%s start(morePacketSignal) failure."
+                        , currentTask));
                 continue;
             }
             if (bufPublisher != null) {
@@ -299,18 +331,22 @@ public abstract class CommunicationTaskExecutor<T extends TaskAdjutant> implemen
                 sendPacket(currentTask, bufPublisher);
             } else {
                 this.upstream.request(128L);
-                needDecode = true;
+                drainToTask();
             }
             break;
         }
-        return needDecode;
+
     }
 
+    /**
+     * @see #startHeadIfNeed()
+     * @see #drainToTask()
+     */
     private void disconnection() {
         if (this.currentTask instanceof ConnectionTask) {
             Logger LOG = obtainLogger();
             if (LOG.isTraceEnabled()) {
-                LOG.trace("Task[{}] demand disconnect.", this.currentTask);
+                LOG.trace("Task[{}] disconnect.", this.currentTask);
             }
             this.connection.channel()
                     .close();
@@ -321,26 +357,43 @@ public abstract class CommunicationTaskExecutor<T extends TaskAdjutant> implemen
     }
 
     /**
-     * @see ConnectionTask#connectSignal(Function)
+     * @see ConnectionTask#addSsl(Consumer)
      */
-    private Mono<Void> addSslHandler(final Object sslObject) {
-        return Mono.create(sink -> {
-            if (this.eventLoop.inEventLoop()) {
-                doAddSslHandler(sink, sslObject);
-            } else {
-                this.eventLoop.execute(() -> doAddSslHandler(sink, sslObject));
-            }
-
-        });
+    private void addSslHandler(final SslWrapper sslWrapper) {
+        final ConnectionTask currentTask = sslWrapper.getCurrentTask();
+        if (currentTask != this.currentTask) {
+            return;
+        }
+        final Publisher<ByteBuf> publisher = sslWrapper.getPublisher();
+        if (publisher != null) {
+            Mono.from(this.connection.outbound().send(publisher))
+                    .doOnError(e -> disconnection())
+                    .doOnSuccess(v -> {
+                        if (this.eventLoop.inEventLoop()) {
+                            doAddSslHandler(sslWrapper.getSslObject());
+                        } else {
+                            this.eventLoop.execute(() -> doAddSslHandler(sslWrapper.getSslObject()));
+                        }
+                    })
+                    .subscribe();
+        }
+        if (this.eventLoop.inEventLoop()) {
+            doAddSslHandler(sslWrapper.getSslObject());
+        } else {
+            this.eventLoop.execute(() -> doAddSslHandler(sslWrapper.getSslObject()));
+        }
     }
 
-    private void doAddSslHandler(final MonoSink<Void> sink, final Object sslObject) {
+    /**
+     * @see #addSslHandler(SslWrapper)
+     */
+    private void doAddSslHandler(final Object sslObject) {
 
         final Logger LOG = obtainLogger();
         final boolean traceEnabled = LOG.isTraceEnabled();
         final ChannelPipeline pipeline = this.connection.channel().pipeline();
 
-        addSslHandshakeSuccessListener(sink, pipeline, LOG);
+        addSslHandshakeSuccessListener(pipeline, LOG);
 
         if (sslObject instanceof SslProvider) {
             SslProvider sslProvider = (SslProvider) sslObject;
@@ -354,15 +407,16 @@ public abstract class CommunicationTaskExecutor<T extends TaskAdjutant> implemen
             } else {
                 pipeline.addFirst(NettyPipeline.SslHandler, sslHandler);
             }
+        } else {
+            throw new IllegalArgumentException(String.format("Not support %s type.", sslObject.getClass().getName()));
         }
-
         this.upstream.request(512L);
     }
 
     /**
-     * @see #doAddSslHandler(MonoSink, Object)
+     * @see #doAddSslHandler(Object)
      */
-    private void addSslHandshakeSuccessListener(MonoSink<Void> sink, ChannelPipeline pipeline, Logger LOG) {
+    private void addSslHandshakeSuccessListener(ChannelPipeline pipeline, Logger LOG) {
         final String handlerName = "jdbd.mysql.ssl.handshake.success.event.handler";
         pipeline.addBefore(NettyPipeline.ReactiveBridge, handlerName, new ChannelInboundHandlerAdapter() {
             @Override
@@ -373,7 +427,6 @@ public abstract class CommunicationTaskExecutor<T extends TaskAdjutant> implemen
                     sslHandshakeSuccess = event.isSuccess();
                     if (sslHandshakeSuccess) {
                         LOG.debug("SSL handshake success");
-                        sink.success();
                         sendPacketAfterSslHandshakeSuccess();
                     }
                 } else {
@@ -393,7 +446,7 @@ public abstract class CommunicationTaskExecutor<T extends TaskAdjutant> implemen
     }
 
     /**
-     * @see #addSslHandshakeSuccessListener(MonoSink, ChannelPipeline, Logger)
+     * @see #addSslHandshakeSuccessListener(ChannelPipeline, Logger)
      */
     private void sendPacketAfterSslHandshakeSuccess() {
         final CommunicationTask currentTask = this.currentTask;
@@ -436,66 +489,44 @@ public abstract class CommunicationTaskExecutor<T extends TaskAdjutant> implemen
                         this.eventLoop.execute(() -> handleTaskError(headTask, e));
                     }
                 })
-                .doOnSuccess(v -> {
-                    if (this.eventLoop.inEventLoop()) {
-                        handleTaskPacketSendSuccess(headTask);
-                    } else {
-                        obtainLogger().trace("send packet success,but current thread not in EventLoop.");
-                        this.eventLoop.execute(() -> handleTaskPacketSendSuccess(headTask));
-                    }
-                })
-                .subscribe(v -> this.upstream.request(128L))
-        ;
+                .subscribe(v -> this.upstream.request(128L));
     }
 
     /**
      * @see #sendPacket(CommunicationTask, Publisher)
-     * @see #handleTaskPacketSendSuccess(CommunicationTask)
      * @see #startHeadIfNeed()
      * @see #doSendPacketSignal(MonoSink, CommunicationTask)
      */
     private void handleTaskError(final CommunicationTask task, final Throwable e) {
         try {
-            task.error(JdbdExceptions.wrap(e));
+            final CommunicationTask.Action action;
+            action = task.error(e);
+            switch (action) {
+                case TASK_END:
+                    this.currentTask = null;
+                    startHeadIfNeed();
+                    break;
+                case MORE_SEND_PACKET:
+                    break;
+                default:
+                    throw JdbdExceptions.createUnknownEnumException(action);
+            }
             currentTaskEndIfNeed(task);
+        } catch (TaskStatusException te) {
+            this.taskErrorMethodError = te;
         } catch (Throwable te) {
             this.taskErrorMethodError = new TaskStatusException(e, "%s error(Throwable) method throw error.", task);
         }
 
     }
 
-    private void handleTaskPacketSendSuccess(final CommunicationTask task) {
-        boolean hasMorePacket = false;
-        try {
-            hasMorePacket = task.onSendSuccess();
-        } catch (Throwable e) {
-            handleTaskError(task, new TaskStatusException(e, "%s onSendSuccess() method throw error.", task));
-        }
-
-        if (hasMorePacket) {
-            Publisher<ByteBuf> publisher = null;
-            try {
-                publisher = task.moreSendPacket();
-            } catch (Throwable e) {
-                handleTaskError(task, new TaskStatusException(e, "%s moreSendPacket() method throw error.", task));
-            }
-            if (publisher != null) {
-                sendPacket(task, publisher);
-            }
-        } else if (task instanceof ConnectionTask) {
-            ConnectionTask connectionTask = (ConnectionTask) task;
-            if (connectionTask == this.currentTask && connectionTask.disconnect()) {
-                disconnection();
-            }
-        }
-
-    }
 
     private void currentTaskEndIfNeed(final CommunicationTask task) {
         if (task == this.currentTask) {
 
-            ByteBuf cumulate = this.cumulateBuffer;
+            final ByteBuf cumulate = this.cumulateBuffer;
             if (cumulate != null) {
+                // TODO sub class handle clear channel
                 if (cumulate.isReadable()) {
                     cumulate.readerIndex(cumulate.writerIndex());
                 }
@@ -504,10 +535,7 @@ public abstract class CommunicationTaskExecutor<T extends TaskAdjutant> implemen
             }
 
             this.currentTask = null;
-
-            if (startHeadIfNeed()) {
-                drainToTask();
-            }
+            startHeadIfNeed();
 
         }
 

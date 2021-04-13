@@ -21,7 +21,7 @@ import static org.testng.Assert.assertEquals;
  * @see ComQueryTask
  * @see TextResultSetReader
  */
-@Test(groups = {Groups.TEXT_RESULT_SET_READER}, dependsOnGroups = {Groups.COM_QUERY, Groups.DATA_PREPARE})
+@Test(groups = {Groups.TEXT_RESULT_BIG_COLUMN}, dependsOnGroups = {Groups.COM_QUERY, Groups.DATA_PREPARE, Groups.COM_STMT_PREPARE})
 public class ComQueryTaskBigColumnSuiteTests extends AbstractConnectionBasedSuiteTests {
 
     private static final Logger LOG = LoggerFactory.getLogger(ComQueryTaskBigColumnSuiteTests.class);

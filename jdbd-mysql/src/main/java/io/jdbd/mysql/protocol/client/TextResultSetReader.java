@@ -6,12 +6,13 @@ import io.jdbd.mysql.util.MySQLConvertUtils;
 import io.jdbd.mysql.util.MySQLNumberUtils;
 import io.jdbd.mysql.util.MySQLStringUtils;
 import io.jdbd.mysql.util.MySQLTimeUtils;
+import io.jdbd.vendor.type.LongBinaries;
+import io.jdbd.vendor.type.LongStrings;
 import io.netty.buffer.ByteBuf;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import reactor.util.annotation.Nullable;
 
-import java.io.StringReader;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.nio.charset.Charset;
@@ -293,12 +294,12 @@ final class TextResultSetReader extends AbstractResultSetReader {
             }
             break;
             case GEOMETRY: {
-                byte[] bytes = PacketUtils.readBytesLenEnc(payload);
+                final byte[] bytes = PacketUtils.readBytesLenEnc(payload);
                 if (bytes == null) {
                     columnValue = null;
                 } else {
                     // drop MySQL internal 4 bytes for integer SRID
-                    columnValue = Arrays.copyOfRange(bytes, 4, bytes.length);
+                    columnValue = LongBinaries.fromArray(Arrays.copyOfRange(bytes, 4, bytes.length));
                 }
             }
             break;
@@ -308,16 +309,24 @@ final class TextResultSetReader extends AbstractResultSetReader {
             case LONGTEXT: {
                 columnText = PacketUtils.readStringLenEnc(payload, columnCharset);
                 if (columnText != null && columnMeta.mysqlType == MySQLType.LONGTEXT) {
-                    columnValue = new StringReader(columnText);
+                    columnValue = LongStrings.fromString(columnText);
                 } else {
                     columnValue = columnText;
+                }
+            }
+            break;
+            case LONGBLOB: {
+                final byte[] array = PacketUtils.readBytesLenEnc(payload);
+                if (array == null) {
+                    columnValue = null;
+                } else {
+                    columnValue = LongBinaries.fromArray(array);
                 }
             }
             break;
             case TINYBLOB:
             case BLOB:
             case MEDIUMBLOB:
-            case LONGBLOB:
             case BINARY:
             case VARBINARY:
             case UNKNOWN:

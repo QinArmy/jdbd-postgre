@@ -3,7 +3,7 @@ package io.jdbd.type;
 import java.io.IOException;
 import java.nio.channels.FileChannel;
 
-public interface Text {
+public interface LongString {
 
     boolean isString();
 
@@ -11,6 +11,5 @@ public interface Text {
 
     FileChannel openReadOnlyChannel() throws IOException;
 
-    FileChannel openReadOnlyChannel(boolean deleteOnClose) throws IOException;
 
 }

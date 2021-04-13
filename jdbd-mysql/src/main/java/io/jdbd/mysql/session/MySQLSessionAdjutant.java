@@ -1,13 +1,14 @@
 package io.jdbd.mysql.session;
 
 import io.jdbd.mysql.protocol.authentication.AuthenticationPlugin;
+import io.jdbd.mysql.protocol.conf.MySQLHost;
 import io.jdbd.mysql.protocol.conf.MySQLUrl;
 import io.jdbd.mysql.protocol.conf.PropertyKey;
 import io.jdbd.vendor.session.SessionAdjutant;
 
 import java.util.Map;
 
-public interface MySQLSessionAdjutant extends SessionAdjutant<PropertyKey> {
+public interface MySQLSessionAdjutant extends SessionAdjutant<PropertyKey, MySQLHost> {
 
     @Override
     MySQLUrl obtainUrl();
@@ -28,5 +29,10 @@ public interface MySQLSessionAdjutant extends SessionAdjutant<PropertyKey> {
      */
     Map<String, Class<? extends AuthenticationPlugin>> obtainPluginClassMap();
 
+    /**
+     * @see PropertyKey#maxAllowedPacket
+     * @see <a href="https://dev.mysql.com/doc/refman/8.0/en/server-system-variables.html#sysvar_max_allowed_packet">max_allowed_packet</a>
+     */
+    int maxAllowedPayload();
 
 }

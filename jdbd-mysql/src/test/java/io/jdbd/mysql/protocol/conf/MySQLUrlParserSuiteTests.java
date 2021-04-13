@@ -54,7 +54,7 @@ public class MySQLUrlParserSuiteTests {
         MySQLUrl mySQLUrl = MySQLUrl.getInstance(url, propMap);
         Assert.assertEquals(mySQLUrl.getProtocolType(), MySQLUrl.Protocol.SINGLE_CONNECTION, "protocolType");
         Assert.assertEquals(mySQLUrl.getProtocol(), MySQLUrl.Protocol.SINGLE_CONNECTION.getScheme(), "protocol");
-        List<HostInfo<PropertyKey>> hostInfoList = mySQLUrl.getHostList();
+        List<MySQLHost> hostInfoList = mySQLUrl.getHostList();
 
         Assert.assertEquals(hostInfoList.size(), 1, "hostList size");
         HostInfo<PropertyKey> hostInfo = hostInfoList.get(0);
@@ -119,7 +119,7 @@ public class MySQLUrlParserSuiteTests {
         Assert.assertEquals(mySQLUrl.getProtocol(), MySQLUrl.Protocol.FAILOVER_CONNECTION.getScheme(), "protocol");
         Assert.assertNull(mySQLUrl.getSubProtocol(), "subProtocol");
 
-        List<HostInfo<PropertyKey>> hostInfoList = mySQLUrl.getHostList();
+        List<MySQLHost> hostInfoList = mySQLUrl.getHostList();
         Assert.assertEquals(hostInfoList.size(), 6, "hostInfoList size");
 
         // host 1 assert
@@ -203,7 +203,7 @@ public class MySQLUrlParserSuiteTests {
 
         Assert.assertEquals(mySQLUrl.getProtocolType(), MySQLUrl.Protocol.SINGLE_CONNECTION, "protocolType");
         Assert.assertEquals(mySQLUrl.getProtocol(), MySQLUrl.Protocol.SINGLE_CONNECTION.getScheme(), "schema");
-        List<HostInfo<PropertyKey>> hostInfoList = mySQLUrl.getHostList();
+        List<MySQLHost> hostInfoList = mySQLUrl.getHostList();
         Assert.assertEquals(hostInfoList.size(), 1, "hostList size");
 
         HostInfo<PropertyKey> hostInfo = hostInfoList.get(0);

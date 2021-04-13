@@ -492,6 +492,7 @@ final class ComQueryTask extends MySQLCommandTask {
             if (LOG.isTraceEnabled()) {
                 LOG.trace("COM_QUERY instant[{}] task end.", this.hashCode());
             }
+            this.phase = Phase.TASK_EN;
             if (hasError()) {
                 this.downstreamSink.error(createException());
             } else {
@@ -502,12 +503,15 @@ final class ComQueryTask extends MySQLCommandTask {
     }
 
     @Override
-    public Publisher<ByteBuf> moreSendPacket() {
-        final Publisher<ByteBuf> packetPublisher = this.packetPublisher;
-        if (packetPublisher != null) {
-            this.packetPublisher = null;
+    protected Action internalError(Throwable e) {
+        if (this.phase == Phase.TASK_EN) {
+            LOG.error("Unknown error.", e);
+        } else {
+            this.phase = Phase.TASK_EN;
+            addError(MySQLExceptions.wrap(e));
+            this.downstreamSink.error(createException());
         }
-        return packetPublisher;
+        return Action.TASK_END;
     }
 
 
@@ -1648,7 +1652,8 @@ final class ComQueryTask extends MySQLCommandTask {
         READ_TEXT_RESULT_SET,
         LOCAL_INFILE_REQUEST,
         READ_MULTI_STMT_ENABLE_RESULT,
-        READ_MULTI_STMT_DISABLE_RESULT
+        READ_MULTI_STMT_DISABLE_RESULT,
+        TASK_EN
     }
 
 

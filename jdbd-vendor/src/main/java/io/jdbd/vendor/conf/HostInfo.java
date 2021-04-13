@@ -26,6 +26,7 @@ public interface HostInfo<K extends IPropertyKey> {
 
     String getHostPortPair();
 
+
     String getHost();
 
     int getPort();

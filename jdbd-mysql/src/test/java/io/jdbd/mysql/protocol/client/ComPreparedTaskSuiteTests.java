@@ -3,7 +3,9 @@ package io.jdbd.mysql.protocol.client;
 
 import io.jdbd.ResultRow;
 import io.jdbd.ResultStates;
-import io.jdbd.mysql.Groups;
+import io.jdbd.mysql.BindValue;
+import io.jdbd.mysql.MySQLBindValue;
+import io.jdbd.mysql.MySQLType;
 import io.jdbd.mysql.StmtWrapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -11,10 +13,21 @@ import org.testng.annotations.Test;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+import java.util.ArrayList;
+import java.util.List;
+
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotNull;
+
 /**
+ * <p>
+ * id range [51,99]
+ * </p>
+ *
  * @see ComPreparedTask
  */
-@Test(enabled = false, groups = {Groups.COM_STMT_PREPARE}, dependsOnGroups = {Groups.SESSION_INITIALIZER, Groups.UTILS, Groups.DATA_PREPARE})
+@Test
+//(groups = {Groups.COM_STMT_PREPARE}, dependsOnGroups = {Groups.SESSION_INITIALIZER, Groups.UTILS, Groups.DATA_PREPARE})
 public class ComPreparedTaskSuiteTests extends AbstractStmtTaskSuiteTests {
 
     private static final Logger LOG = LoggerFactory.getLogger(ComPreparedTaskSuiteTests.class);
@@ -33,107 +46,30 @@ public class ComPreparedTaskSuiteTests extends AbstractStmtTaskSuiteTests {
         return ComPreparedTask.query(wrapper, taskAdjutant);
     }
 
-
+    /**
+     * @see ComPreparedTask#update(StmtWrapper, MySQLTaskAdjutant)
+     */
     @Test(timeOut = TIME_OUT)
-    public void bigIntBindAndExtract() {
-        doBigIntBindAndExtract(LOG);
-    }
+    public void update() {
+        LOG.info("prepare update test start");
+        final MySQLTaskAdjutant adjutant = obtainTaskAdjutant();
+        String sql;
+        List<BindValue> bindValueList;
+        ResultStates states;
 
+        sql = "UPDATE mysql_types as t SET t.my_tiny_text = ? WHERE t.id = ?";
+        bindValueList = new ArrayList<>(2);
+        bindValueList.add(MySQLBindValue.create(0, MySQLType.TINYTEXT, "prepare update 1"));
+        bindValueList.add(MySQLBindValue.create(1, MySQLType.BIGINT, 80L));
 
-    @Test(timeOut = TIME_OUT)
-    public void dateBindAndExtract() {
-        doDateBindAndExtract(LOG);
-    }
+        states = ComPreparedTask.update(StmtWrappers.multi(sql, bindValueList), adjutant)
+                .block();
 
-    @Test(timeOut = TIME_OUT)
-    public void timeBindAndExtract() {
-        doTimeBindAndExtract(LOG);
-    }
+        assertNotNull(states, "states");
+        assertEquals(states.getAffectedRows(), 1L, "getAffectedRows");
 
-
-    @Test(timeOut = TIME_OUT)
-    public void datetimeBindAndExtract() {
-        doDatetimeBindAndExtract(LOG);
-    }
-
-    @Test(timeOut = TIME_OUT)
-    public void stringBindAndExtract() {
-        doStringBindAndExtract(LOG);
-    }
-
-    @Test(timeOut = TIME_OUT)
-    public void binaryBindAndExtract() {
-        doBinaryBindAndExtract(LOG);
-    }
-
-    @Test(timeOut = TIME_OUT)
-    public void doBitBindAndExtract() {
-        doBitBindAndExtract(LOG);
-    }
-
-    @Test(timeOut = TIME_OUT)
-    public void tinyint1BindExtract() {
-        doTinyint1BindExtract(LOG);
-    }
-
-    @Test(timeOut = TIME_OUT)
-    public void numberBindAndExtract() {
-        doNumberBindAndExtract(LOG);
-    }
-
-    @Test(timeOut = TIME_OUT)
-    public void enumBindAndExtract() {
-        doEnumBindAndExtract(LOG);
-    }
-
-    @Test(timeOut = TIME_OUT)
-    public void setTypeBindAndExtract() {
-        doSetTypeBindAndExtract(LOG);
-    }
-
-    @Test(timeOut = TIME_OUT)
-    public void jsonBindAndExtract() throws Exception {
-        doJsonBindAndExtract(LOG);
-    }
-
-    @Test(timeOut = TIME_OUT)
-    public void geometryBindAndExtract() {
-        doGeometryBindAndExtract(LOG);
-    }
-
-    @Test(timeOut = TIME_OUT)
-    public void pointBindAndExtract() {
-        doPointBindAndExtract(LOG);
-    }
-
-    @Test(timeOut = TIME_OUT)
-    public void lineStringBindAndExtract() {
-        doLineStringBindAndExtract(LOG);
-    }
-
-    @Test(timeOut = TIME_OUT)
-    public void polygonBindAndExtract() {
-        doPolygonBindAndExtract(LOG);
-    }
-
-    @Test(timeOut = TIME_OUT)
-    public void multiPointBindExtract() {
-        doMultiPointBindExtract(LOG);
-    }
-
-    @Test(timeOut = TIME_OUT)
-    public void multiLineStringBindExtract() {
-        doMultiLineStringBindExtract(LOG);
-    }
-
-    @Test(timeOut = TIME_OUT)
-    public void multiPolygonBindExtract() {
-        doMultiPolygonBindExtract(LOG);
-    }
-
-    @Test(timeOut = TIME_OUT)
-    public void geometryCollectionBindExtract() {
-        doGeometryCollectionBindExtract(LOG);
+        LOG.info("prepare update test success");
+        releaseConnection(adjutant);
     }
 
 

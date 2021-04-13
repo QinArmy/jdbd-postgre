@@ -24,35 +24,46 @@ public abstract class AbstractCommunicationTask implements CommunicationTask {
     @Override
     public final Publisher<ByteBuf> start(MorePacketSignal signal) {
         if (!this.adjutant.inEventLoop()) {
-            throw new IllegalStateException("start() isn't in EventLoop.");
+            throw new IllegalStateException("start(MorePacketSignal) isn't in EventLoop.");
         }
         if (this.taskPhase != TaskPhase.SUBMITTED) {
             throw new IllegalStateException("taskPhase not null");
         }
-        Publisher<ByteBuf> publisher = internalStart(signal);
-        this.taskPhase = TaskPhase.STARTED;
-        return publisher;
+        try {
+            Publisher<ByteBuf> publisher = internalStart(signal);
+            this.taskPhase = TaskPhase.STARTED;
+            return publisher;
+        } catch (Throwable e) {
+            throw new TaskStatusException(e, "start(MorePacketSignal) method throw exception.");
+        }
     }
 
     @Override
     public final boolean decode(ByteBuf cumulateBuffer, Consumer<Object> serverStatusConsumer) {
         if (!this.adjutant.inEventLoop()) {
-            throw new IllegalStateException("decode(ByteBuf) isn't in EventLoop.");
+            throw new IllegalStateException("decode(ByteBuf, Consumer<Object>) isn't in EventLoop.");
         }
         if (this.taskPhase != TaskPhase.STARTED) {
             throw new IllegalStateException("Communication task not start.");
         }
-        boolean taskEnd;
-        taskEnd = internalDecode(cumulateBuffer, serverStatusConsumer);
-        if (taskEnd) {
-            this.taskPhase = TaskPhase.END;
+        try {
+            boolean taskEnd;
+            taskEnd = internalDecode(cumulateBuffer, serverStatusConsumer);
+            if (taskEnd) {
+                this.taskPhase = TaskPhase.END;
+            }
+            return taskEnd;
+        } catch (Throwable e) {
+            throw new TaskStatusException(e, "decode(ByteBuf, Consumer<Object>) method throw exception.");
         }
-        return taskEnd;
     }
 
     @Nullable
     @Override
-    public Publisher<ByteBuf> moreSendPacket() {
+    public final Publisher<ByteBuf> moreSendPacket() {
+        if (!this.adjutant.inEventLoop()) {
+            throw new IllegalStateException("moreSendPacket() isn't in EventLoop.");
+        }
         Publisher<ByteBuf> publisher = this.packetPublisher;
         if (publisher != null) {
             this.packetPublisher = null;
@@ -61,18 +72,17 @@ public abstract class AbstractCommunicationTask implements CommunicationTask {
     }
 
     @Override
-    public final boolean onSendSuccess() {
+    public final Action error(Throwable e) {
         if (!this.adjutant.inEventLoop()) {
-            throw new IllegalStateException("decode(ByteBuf) isn't in EventLoop.");
+            throw new IllegalStateException("error(Throwable) isn't in EventLoop.");
         }
-        return internalOnSendSuccess();
-    }
-
-    @Nullable
-    @Override
-    public final Publisher<ByteBuf> error(Throwable e) {
         this.taskPhase = TaskPhase.END;
-        return internalError(e);
+        try {
+            return internalError(e);
+        } catch (Throwable t) {
+            throw new TaskStatusException(t, "error(Throwable) method throw exception.");
+        }
+
     }
 
     @Override
@@ -82,9 +92,16 @@ public abstract class AbstractCommunicationTask implements CommunicationTask {
 
     @Override
     public final void onChannelClose() {
+        if (!this.adjutant.inEventLoop()) {
+            throw new IllegalStateException("onChannelClose() isn't in EventLoop.");
+        }
         this.taskPhase = TaskPhase.END;
         // TODO optimize
-        internalOnChannelClose();
+        try {
+            internalOnChannelClose();
+        } catch (Throwable t) {
+            throw new TaskStatusException(t, "onChannelClose() method throw exception.");
+        }
 
     }
 
@@ -96,18 +113,12 @@ public abstract class AbstractCommunicationTask implements CommunicationTask {
         }
     }
 
-    @Nullable
-    protected Publisher<ByteBuf> internalError(Throwable e) {
-        return null;
-    }
+    protected abstract Action internalError(Throwable e);
 
     protected void internalOnChannelClose() {
 
     }
 
-    protected boolean internalOnSendSuccess() {
-        return false;
-    }
 
     @Nullable
     protected abstract Publisher<ByteBuf> internalStart(MorePacketSignal signal);

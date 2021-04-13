@@ -59,9 +59,9 @@ final class PrepareLongParameterWriter implements PrepareExecuteCommandWriter.Lo
         this.statementTask = statementTask;
         this.statementId = statementTask.obtainStatementId();
         this.adjutant = statementTask.obtainAdjutant();
-        this.blobSendChunkSize = obtainBlobSendChunkSize();
-
         this.properties = this.adjutant.obtainHostInfo().getProperties();
+
+        this.blobSendChunkSize = obtainBlobSendChunkSize();
         this.maxPacketCapacity = PacketUtils.HEADER_SIZE + LONG_DATA_PREFIX_SIZE + blobSendChunkSize;
 
     }

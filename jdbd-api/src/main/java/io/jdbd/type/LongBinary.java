@@ -3,16 +3,18 @@ package io.jdbd.type;
 import java.io.IOException;
 import java.nio.channels.FileChannel;
 
-public interface Blob {
+public interface LongBinary {
 
     boolean isArray();
 
     byte[] asArray() throws IllegalStateException;
 
-
+    /**
+     * <p>
+     * equivalence {@code openReadOnlyChannel(true)}
+     * </p>
+     */
     FileChannel openReadOnlyChannel() throws IOException;
-
-    FileChannel openReadOnlyChannel(boolean deleteOnClose) throws IOException;
 
 
 }
