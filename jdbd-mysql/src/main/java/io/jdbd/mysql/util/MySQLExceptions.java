@@ -233,13 +233,7 @@ public abstract class MySQLExceptions extends JdbdExceptions {
                     , mySQLType
                     , paramValue.getRequiredValue().getClass().getName());
         }
-        SQLException e;
-        if (cause == null) {
-            e = new SQLException(message, null, MySQLCodes.CR_UNSUPPORTED_PARAM_TYPE);
-        } else {
-            e = new SQLException(message, null, MySQLCodes.CR_UNSUPPORTED_PARAM_TYPE, cause);
-        }
-        return new JdbdSQLException(e);
+        return new JdbdSQLException(createTruncatedWrongValueForField(message, cause));
     }
 
     public static JdbdSQLException createDurationRangeException(int stmtIndex, MySQLType mySQLType
@@ -254,10 +248,10 @@ public abstract class MySQLExceptions extends JdbdExceptions {
                     "Parameter Group[%s] Bind parameter[%s] MySQLType[%s] Duration[%s] beyond [-838:59:59,838:59:59]"
                     , stmtIndex, paramValue.getParamIndex(), mySQLType, paramValue.getValue());
         }
-        return new JdbdSQLException(new SQLException(message, null, MySQLCodes.CR_UNSUPPORTED_PARAM_TYPE));
+        return new JdbdSQLException(createTruncatedWrongValue(message, null));
     }
 
-    public static JdbdSQLException createNotSupportFractionException(int stmtIndex, MySQLType mySQLType
+    public static JdbdSQLException createNotSupportScaleException(int stmtIndex, MySQLType mySQLType
             , ParamValue paramValue) {
         final String message;
         if (stmtIndex < 0) {
@@ -267,21 +261,44 @@ public abstract class MySQLExceptions extends JdbdExceptions {
             message = String.format("Parameter Group[%s] Bind parameter[%s] is MySQLType[%s],not support fraction."
                     , stmtIndex, paramValue.getParamIndex(), mySQLType);
         }
-        return new JdbdSQLException(new SQLException(message, null, MySQLCodes.CR_UNSUPPORTED_PARAM_TYPE));
+        return new JdbdSQLException(createDataOutOfRangeError(message, null));
     }
 
     public static JdbdSQLException createNumberRangErrorException(int stmtIndex, MySQLType mySQLType
-            , ParamValue bindValue, Number lower, Number upper) {
+            , ParamValue bindValue, @Nullable Throwable cause, Number lower, Number upper) {
         final String message;
         if (stmtIndex < 0) {
             message = String.format("Bind parameter[%s] MySQLType[%s] beyond rang[%s,%s]."
                     , bindValue.getParamIndex(), mySQLType, lower, upper);
         } else {
-            message = String.format("Parameter Group[%s] Bind parameter[%s] MySQLType[%s] beyond rang[%s,%s]."
+            message = String.format("Parameter Group[%s] Bind parameter[%s] MySQLType[%s] out range[%s,%s]."
                     , stmtIndex, bindValue.getParamIndex(), mySQLType, lower, upper);
         }
-        return new JdbdSQLException(new SQLException(message, null, MySQLCodes.CR_UNSUPPORTED_PARAM_TYPE));
+        return new JdbdSQLException(createDataOutOfRangeError(message, cause));
+    }
 
+    public static JdbdSQLException createNumberRangErrorException(int stmtIndex, MySQLType mySQLType
+            , ParamValue bindValue, Number lower, Number upper) {
+        return createNumberRangErrorException(stmtIndex, mySQLType, bindValue, null, lower, upper);
+    }
+
+    public static SQLException createDataOutOfRangeError(String message, @Nullable Throwable cause) {
+        return new SQLException(message
+                , MySQLCodes.ERROR_TO_SQL_STATES_MAP.get(MySQLCodes.ER_DATA_OUT_OF_RANGE)
+                , MySQLCodes.ER_DATA_OUT_OF_RANGE, cause);
+
+    }
+
+    public static SQLException createTruncatedWrongValue(String message, @Nullable Throwable cause) {
+        return new SQLException(message
+                , MySQLCodes.ERROR_TO_SQL_STATES_MAP.get(MySQLCodes.ER_TRUNCATED_WRONG_VALUE)
+                , MySQLCodes.ER_TRUNCATED_WRONG_VALUE, cause);
+    }
+
+    public static SQLException createTruncatedWrongValueForField(String message, @Nullable Throwable cause) {
+        return new SQLException(message
+                , MySQLCodes.ERROR_TO_SQL_STATES_MAP.get(MySQLCodes.ER_TRUNCATED_WRONG_VALUE_FOR_FIELD)
+                , MySQLCodes.ER_TRUNCATED_WRONG_VALUE_FOR_FIELD, cause);
     }
 
 

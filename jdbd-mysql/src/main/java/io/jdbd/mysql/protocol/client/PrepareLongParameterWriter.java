@@ -126,8 +126,7 @@ final class PrepareLongParameterWriter implements PrepareExecuteCommandWriter.Lo
             ByteBuf packet;
             if (string.length() < (1 << 26)) {
                 packet = createLongDataPacket(paramIndex, string.length());
-                final Charset charset = obtainCharset(paramIndex);
-                byte[] bytes = string.getBytes(charset);
+                byte[] bytes = string.getBytes(obtainCharset(paramIndex));
                 packet = writeByteArray(packet, sink, paramIndex, bytes, bytes.length);
             } else {
                 packet = createLongDataPacket(paramIndex, this.blobSendChunkSize);
@@ -284,14 +283,13 @@ final class PrepareLongParameterWriter implements PrepareExecuteCommandWriter.Lo
      * @return the pack that {@link ByteBuf#readableBytes()} less than {@link #maxPacket}.
      * @see #sendByteArrayParameter(int, byte[])
      */
-    private ByteBuf writeByteArray(final ByteBuf packetBuffer, FluxSink<ByteBuf> sink, final int paramIndex
+    private ByteBuf writeByteArray(ByteBuf packet, FluxSink<ByteBuf> sink, final int paramIndex
             , final byte[] input, final int arrayLength) {
 
         if (arrayLength < 0 || arrayLength > input.length) {
             throw new IllegalArgumentException("arrayLength error");
         }
         final int maxPacket = this.maxPacket;
-        ByteBuf packet = packetBuffer;
         for (int offset = 0, length; offset < arrayLength; offset += length) {
 
             if (packet.readableBytes() == maxPacket) {

@@ -33,7 +33,6 @@ import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Queue;
 import java.util.Set;
 import java.util.function.Supplier;
 
@@ -218,7 +217,7 @@ final class ComQueryCommandWriter {
             packetList.add(packet);
             return MySQLCollections.unmodifiableList(packetList);
         } catch (Throwable e) {
-            releaseOnError(packetList, packet);
+            BindUtils.releaseOnError(packetList, packet);
             throw e;
         }
     }
@@ -238,7 +237,7 @@ final class ComQueryCommandWriter {
             packetList.add(packet);
             return MySQLCollections.unmodifiableList(packetList);
         } catch (Throwable e) {
-            releaseOnError(packetList, packet);
+            BindUtils.releaseOnError(packetList, packet);
             throw e;
         }
     }
@@ -305,7 +304,7 @@ final class ComQueryCommandWriter {
             packetList.add(packet);
             return MySQLCollections.unmodifiableList(packetList);
         } catch (Throwable e) {
-            releaseOnError(packetList, packet);
+            BindUtils.releaseOnError(packetList, packet);
             throw e;
         }
     }
@@ -982,24 +981,6 @@ final class ComQueryCommandWriter {
     }
 
     /*################################## blow private static method ##################################*/
-
-    /**
-     * @see #writeBindableCommand(StmtWrapper)
-     * @see #writeMultiCommand(List)
-     * @see #writeBindableBatchCommand(BatchWrapper)
-     * @see #createStaticSingleCommand(String, Supplier, MySQLTaskAdjutant)
-     * @see #createStaticMultiCommand(List, Supplier, MySQLTaskAdjutant)
-     */
-    private static void releaseOnError(Queue<ByteBuf> queue, ByteBuf packet) {
-        ByteBuf byteBuf;
-        while ((byteBuf = queue.poll()) != null) {
-            byteBuf.release();
-        }
-        queue.clear();
-        if (packet.refCnt() > 0) {
-            packet.release();
-        }
-    }
 
 
 }

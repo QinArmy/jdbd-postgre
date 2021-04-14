@@ -4,8 +4,10 @@ import io.jdbd.mysql.MySQLType;
 import io.jdbd.mysql.util.MySQLExceptions;
 import io.jdbd.vendor.statement.ParamValue;
 import io.jdbd.vendor.util.JdbdBindUtils;
+import io.netty.buffer.ByteBuf;
 
 import java.sql.SQLException;
+import java.util.Queue;
 
 abstract class BindUtils extends JdbdBindUtils {
 
@@ -63,6 +65,18 @@ abstract class BindUtils extends JdbdBindUtils {
             } else {
                 throw MySQLExceptions.createInvalidParameterNoError(stmtIndex, paramCount);
             }
+        }
+    }
+
+
+    static void releaseOnError(Queue<ByteBuf> queue, final ByteBuf packet) {
+        ByteBuf byteBuf;
+        while ((byteBuf = queue.poll()) != null) {
+            byteBuf.release();
+        }
+        queue.clear();
+        if (packet.refCnt() > 0) {
+            packet.release();
         }
     }
 

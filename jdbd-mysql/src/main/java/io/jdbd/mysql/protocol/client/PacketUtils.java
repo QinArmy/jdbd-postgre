@@ -972,21 +972,6 @@ public abstract class PacketUtils {
     }
 
 
-    public static byte[] convertInt8ToMySQLBytes(long int8) {
-        byte[] bytes = new byte[8];
-        int index = 7;
-        bytes[index--] = (byte) (int8 >> 56);
-        bytes[index--] = (byte) (int8 >> 48);
-        bytes[index--] = (byte) (int8 >> 40);
-        bytes[index--] = (byte) (int8 >> 32);
-
-        bytes[index--] = (byte) (int8 >> 24);
-        bytes[index--] = (byte) (int8 >> 16);
-        bytes[index--] = (byte) (int8 >> 8);
-        bytes[index] = (byte) int8;
-        return bytes;
-    }
-
     public static boolean isAuthSwitchRequestPacket(ByteBuf payloadBuf) {
         return getInt1(payloadBuf, payloadBuf.readerIndex()) == 0xFE;
     }
