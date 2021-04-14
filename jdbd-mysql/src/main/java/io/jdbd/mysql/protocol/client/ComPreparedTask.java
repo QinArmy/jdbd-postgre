@@ -356,12 +356,8 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
     /*################################## blow private method ##################################*/
 
     private Publisher<ByteBuf> createPrepareCommand(String sql) throws SQLException, JdbdSQLException {
-        if (!this.adjutant.isSingleStmt(sql)) {
-            throw MySQLExceptions.createMultiStatementError();
-        }
         assertPhase(Phase.PREPARED);
-        final byte[] commandArray = sql.getBytes(this.adjutant.obtainCharsetClient());
-        return PacketUtils.createSimpleCommand(PacketUtils.COM_STMT_PREPARE, commandArray
+        return PacketUtils.createSimpleCommand(PacketUtils.COM_STMT_PREPARE, sql
                 , this.adjutant, this::addAndGetSequenceId);
     }
 

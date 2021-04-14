@@ -53,13 +53,13 @@ public interface Constants {
 
     String LOCAL = "LOCAL";
 
-    byte EMPTY_CHAR_BYTE = (byte) '\0';
+    byte EMPTY_CHAR_BYTE = '\0';
 
-    byte BACK_SLASH_BYTE = (byte) '\\';
+    byte BACK_SLASH_BYTE = '\\';
 
-    byte QUOTE_CHAR_BYTE = (byte) '\'';
+    byte QUOTE_CHAR_BYTE = '\'';
 
-    byte DOUBLE_QUOTE_BYTE = (byte) '"';
+    byte DOUBLE_QUOTE_BYTE = '"';
 
     String SEMICOLON = ";";
 

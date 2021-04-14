@@ -11,10 +11,10 @@ import io.jdbd.mysql.util.*;
 import io.jdbd.vendor.conf.Properties;
 import io.jdbd.vendor.util.JdbdBufferUtils;
 import io.netty.buffer.ByteBuf;
-import io.netty.buffer.ByteBufAllocator;
 import org.reactivestreams.Publisher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import reactor.core.publisher.Flux;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -78,12 +78,7 @@ final class ComQueryCommandWriter {
      */
     static Publisher<ByteBuf> createStaticSingleCommand(final String sql, Supplier<Integer> sequenceIdSupplier
             , final MySQLTaskAdjutant adjutant) throws SQLException, JdbdSQLException {
-
-        if (!adjutant.isSingleStmt(sql)) {
-            throw MySQLExceptions.createMultiStatementError();
-        }
-        final byte[] commandBytes = sql.getBytes(adjutant.obtainCharsetClient());
-        return PacketUtils.createSimpleCommand(PacketUtils.COM_QUERY, commandBytes, adjutant, sequenceIdSupplier);
+        return PacketUtils.createSimpleCommand(PacketUtils.COM_QUERY, sql, adjutant, sequenceIdSupplier);
     }
 
     /**
@@ -95,31 +90,72 @@ final class ComQueryCommandWriter {
             throw MySQLExceptions.createQueryIsEmptyError();
         }
         final int sqlSize = sqlList.size(), maxAllowedPayload = adjutant.obtainHostInfo().maxAllowedPayload();
-        byte[] commandBytes;
-        String sql;
-        final Charset charset = adjutant.obtainCharsetClient();
-        ByteBufAllocator allocator = adjutant.allocator();
-        ByteBuf multiPacket = allocator.buffer(1024, 1 << 30);
-        multiPacket.writeZero(PacketUtils.HEADER_SIZE);
-        multiPacket.writeByte(PacketUtils.COM_QUERY);
+        final Charset charsetClient = adjutant.obtainCharsetClient();
+        final byte[][] commandArray = new byte[sqlSize][];
 
-        for (int i = 0, wroteBytes = 1; i < sqlSize; i++) {
-            sql = sqlList.get(i);
+        int payloadLength = 1; // COM_QUERY command
+        for (int i = 0; i < sqlSize; i++) {
+            String sql = sqlList.get(i);
             if (!adjutant.isSingleStmt(sql)) {
                 throw MySQLExceptions.createMultiStatementError();
             }
             if (i > 0) {
-                multiPacket.writeByte(Constants.SEMICOLON_BYTE);
-                wroteBytes++;
+                payloadLength++; // SEMICOLON_BYTE
             }
-            commandBytes = sql.getBytes(charset);
-            wroteBytes += commandBytes.length;
-            if (wroteBytes > maxAllowedPayload) {
-                throw MySQLExceptions.createNetPacketTooLargeException(maxAllowedPayload);
-            }
-            multiPacket.writeBytes(commandBytes);
+            byte[] bytes = sql.getBytes(charsetClient);
+            commandArray[i] = bytes;
+            payloadLength += bytes.length;
         }
-        return PacketUtils.createMultiPacket(multiPacket, sequenceIdSupplier, allocator);
+        if (payloadLength < 0 || payloadLength > maxAllowedPayload) {
+            throw MySQLExceptions.createNetPacketTooLargeException(maxAllowedPayload);
+        }
+        return writeStaticMultiCommand(commandArray, payloadLength, adjutant, sequenceIdSupplier);
+    }
+
+    /**
+     * @see #createStaticMultiCommand(List, Supplier, MySQLTaskAdjutant)
+     */
+    private static Publisher<ByteBuf> writeStaticMultiCommand(final byte[][] commandArray, final int payloadLength
+            , MySQLTaskAdjutant adjutant, Supplier<Integer> sequenceIdSupplier) {
+
+        ByteBuf packet;
+        if (payloadLength < PacketUtils.MAX_PAYLOAD) {
+            packet = adjutant.createPacketBuffer(payloadLength);
+        } else {
+            packet = adjutant.createPacketBuffer(PacketUtils.MAX_PAYLOAD);
+        }
+        packet.writeByte(PacketUtils.COM_QUERY);
+        LinkedList<ByteBuf> packetList = new LinkedList<>();
+
+        for (int i = 0, restPayloadLength = payloadLength - 1; i < commandArray.length; i++) {
+            if (i > 0) {
+                if (packet.readableBytes() == PacketUtils.MAX_PACKET) {
+                    PacketUtils.writePacketHeader(packet, sequenceIdSupplier.get());
+                    packetList.add(packet);
+                    packet = adjutant.createPacketBuffer(Math.min(PacketUtils.MAX_PAYLOAD, restPayloadLength));
+                }
+                packet.writeByte(Constants.SEMICOLON_BYTE);
+                restPayloadLength--;
+            }
+            byte[] command = commandArray[i];
+
+            for (int offset = 0, length; offset < command.length; offset += length) {
+                if (packet.readableBytes() == PacketUtils.MAX_PACKET) {
+                    PacketUtils.writePacketHeader(packet, sequenceIdSupplier.get());
+                    packetList.add(packet);
+                    packet = adjutant.createPacketBuffer(Math.min(PacketUtils.MAX_PAYLOAD, restPayloadLength));
+                }
+                length = Math.min(PacketUtils.MAX_PACKET - packet.readableBytes(), command.length - offset);
+                packet.writeBytes(command, offset, length);
+                restPayloadLength -= length;
+            }
+        }
+        PacketUtils.writePacketHeader(packet, sequenceIdSupplier.get());
+        packetList.add(packet);
+        if (packet.readableBytes() == PacketUtils.MAX_PACKET) {
+            packetList.add(PacketUtils.createEmptyPacket(adjutant.allocator(), sequenceIdSupplier.get()));
+        }
+        return Flux.fromIterable(packetList);
     }
 
 

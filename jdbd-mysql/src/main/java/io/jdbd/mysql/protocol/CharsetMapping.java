@@ -6,6 +6,7 @@ import io.jdbd.mysql.MySQLJdbdException;
 import reactor.util.annotation.Nullable;
 
 import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.sql.SQLException;
 import java.util.*;
 
@@ -285,7 +286,8 @@ public abstract class CharsetMapping {
     }
 
     public static boolean isUnsupportedCharsetClient(String javaCharset) {
-        return UNSUPPORTED_CHARSET_CLIENTS.contains(javaCharset.toLowerCase(Locale.ENGLISH));
+        return UNSUPPORTED_CHARSET_CLIENTS.contains(javaCharset.toUpperCase(Locale.ENGLISH))
+                || UNSUPPORTED_CHARSET_CLIENTS.contains(javaCharset.toLowerCase(Locale.ENGLISH));
     }
 
 
@@ -679,20 +681,27 @@ public abstract class CharsetMapping {
 
     /**
      * @return a unmodifiable collection
+     * @see #UNSUPPORTED_CHARSET_CLIENTS
+     * @see #isUnsupportedCharsetClient(String)
      * @see <a href="https://dev.mysql.com/doc/refman/8.0/en/charset-connection.html#charset-connection-impermissible-client-charset">Impermissible Client Character Sets</a>
      */
     private static Collection<String> createUnsupportedCharsetClients() {
-        List<String> list = new ArrayList<>();
+        Set<String> set = new HashSet<>();
 
-        list.add("ucs2");
-        list.add("utf16");
-        list.add("utf16le");
-        list.add("utf32");
+        set.add(StandardCharsets.UTF_16.name());
+        set.addAll(StandardCharsets.UTF_16.aliases());
+        set.add(StandardCharsets.UTF_16LE.name());
+        set.addAll(StandardCharsets.UTF_16LE.aliases());
 
-        list.add("ucs-2");
-        list.add("utf-16");
-        list.add("utf-16le");
-        list.add("utf-32");
+        set.add("utf32");
+        set.add("utf-32");
+        set.add("UTF32");
+        set.add("UTF-32");
+
+        set.add("ucs2");
+        set.add("ucs-2");
+        set.add("UCS2");
+        set.add("UCS-2");
 
         final String quote = "'";
         byte[] bytes;
@@ -700,13 +709,15 @@ public abstract class CharsetMapping {
             try {
                 bytes = quote.getBytes(charset);
                 if (bytes.length != 1) {
-                    list.add(charset.name());
+                    set.add(charset.name());
+                    set.addAll(charset.aliases());
                 }
             } catch (Throwable e) {
-                list.add(charset.name());
+                set.add(charset.name());
+                set.addAll(charset.aliases());
             }
         }
-        return Collections.unmodifiableCollection(new ArrayList<>(list));
+        return Collections.unmodifiableCollection(set);
     }
 
 

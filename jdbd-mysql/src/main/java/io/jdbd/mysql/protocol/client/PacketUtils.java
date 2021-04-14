@@ -14,6 +14,7 @@ import reactor.util.annotation.Nullable;
 
 import java.math.BigInteger;
 import java.nio.charset.Charset;
+import java.sql.SQLException;
 import java.time.*;
 import java.util.LinkedList;
 import java.util.List;
@@ -697,12 +698,16 @@ public abstract class PacketUtils {
         return packet;
     }
 
-    public static Publisher<ByteBuf> createSimpleCommand(final byte cmdFlag, byte[] commandArray
-            , MySQLTaskAdjutant adjutant, Supplier<Integer> sequenceIdSupplier) throws JdbdSQLException {
+    public static Publisher<ByteBuf> createSimpleCommand(final byte cmdFlag, String sql
+            , MySQLTaskAdjutant adjutant, Supplier<Integer> sequenceIdSupplier) throws SQLException, JdbdSQLException {
 
         if (cmdFlag != COM_QUERY && cmdFlag != COM_STMT_PREPARE) {
             throw new IllegalArgumentException("command error");
         }
+        if (!adjutant.isSingleStmt(sql)) {
+            throw MySQLExceptions.createMultiStatementError();
+        }
+        final byte[] commandArray = sql.getBytes(adjutant.obtainCharsetClient());
         final int maxAllowedPayload = adjutant.obtainHostInfo().maxAllowedPayload();
         final int actualPayload = commandArray.length + 1;
 
@@ -752,6 +757,7 @@ public abstract class PacketUtils {
         }
         return publisher;
     }
+
 
     public static Publisher<ByteBuf> createMultiPacket(ByteBuf multiPacket, Supplier<Integer> sequenceIdSupplier
             , ByteBufAllocator allocator) {

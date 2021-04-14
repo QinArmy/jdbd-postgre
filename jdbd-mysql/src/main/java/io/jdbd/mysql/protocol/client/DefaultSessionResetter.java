@@ -149,6 +149,7 @@ final class DefaultSessionResetter implements SessionResetter {
      *
      * @see #reset()
      * @see #configResultsCharset()
+     * @see <a href="https://dev.mysql.com/doc/refman/8.0/en/charset-connection.html">Connection Character Sets and Collations</a>
      */
     Mono<Void> configSessionCharset() {
 
