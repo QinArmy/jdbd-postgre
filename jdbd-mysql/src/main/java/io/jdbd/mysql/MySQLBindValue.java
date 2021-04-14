@@ -1,15 +1,11 @@
 package io.jdbd.mysql;
 
 import io.jdbd.lang.Nullable;
-import org.reactivestreams.Publisher;
-
-import java.io.InputStream;
-import java.io.Reader;
-import java.nio.channels.ReadableByteChannel;
-import java.nio.file.Path;
+import io.jdbd.mysql.protocol.client.ClientCommandProtocol;
+import io.jdbd.vendor.statement.AbstractParamValue;
 
 
-public final class MySQLBindValue implements BindValue {
+public final class MySQLBindValue extends AbstractParamValue implements BindValue {
 
     public static MySQLBindValue create(int parameterIndex, MySQLType type, @Nullable Object value) {
         if (parameterIndex < 0) {
@@ -22,56 +18,31 @@ public final class MySQLBindValue implements BindValue {
         return new MySQLBindValue(bindValue.getParamIndex(), newType, bindValue.getValue());
     }
 
-    private final int parameterIndex;
 
     private final MySQLType type;
 
-    private final Object value;
 
     private MySQLBindValue(int parameterIndex, MySQLType type, @Nullable Object value) {
-        this.parameterIndex = parameterIndex;
+        super(parameterIndex, value);
         this.type = type;
-        this.value = value;
     }
 
     @Override
-    public MySQLType getType() {
+    public final MySQLType getType() {
         return this.type;
     }
 
+
     @Override
-    public int getParamIndex() {
-        return this.parameterIndex;
+    protected int getByteLengthBoundary() {
+        return ClientCommandProtocol.MAX_PAYLOAD_SIZE;
     }
 
     @Override
-    public boolean isStream() {
-        Object value = this.value;
-        final boolean stream;
-        if (value == null) {
-            stream = false;
-        } else {
-            stream = value instanceof InputStream
-                    || value instanceof Reader
-                    || value instanceof ReadableByteChannel
-                    || value instanceof Path
-                    || value instanceof Publisher;
-        }
-        return stream;
+    protected int getStringLengthBoundary() {
+        return ClientCommandProtocol.MAX_PAYLOAD_SIZE;
     }
 
-    @Nullable
-    @Override
-    public Object getValue() {
-        return this.value;
-    }
 
-    @Override
-    public Object getRequiredValue() throws NullPointerException {
-        Object value = this.value;
-        if (value == null) {
-            throw new NullPointerException(String.format("Bind parameter[%s] value is null.", this.parameterIndex));
-        }
-        return value;
-    }
+
 }

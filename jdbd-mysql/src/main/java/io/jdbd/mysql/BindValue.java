@@ -1,9 +1,7 @@
 package io.jdbd.mysql;
 
 
-import io.jdbd.vendor.statement.IBindValue;
-
-public interface BindValue extends IBindValue {
+public interface BindValue extends io.jdbd.vendor.statement.BindValue {
 
     @Override
     MySQLType getType();

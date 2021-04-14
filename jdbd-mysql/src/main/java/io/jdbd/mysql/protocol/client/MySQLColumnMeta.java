@@ -23,6 +23,8 @@ import java.util.Objects;
  */
 final class MySQLColumnMeta {
 
+    static final MySQLColumnMeta[] EMPTY = new MySQLColumnMeta[0];
+
     private static final Logger LOG = LoggerFactory.getLogger(MySQLColumnMeta.class);
 
     static final int NOT_NULL_FLAG = 1;

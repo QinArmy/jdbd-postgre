@@ -24,4 +24,16 @@ public interface SQLType extends java.sql.SQLType {
 
     boolean isUnsigned();
 
+    boolean isNumber();
+
+    boolean isText();
+
+    boolean isBlob();
+
+    boolean isString();
+
+    boolean isBinary();
+
+    boolean isTimeType();
+
 }

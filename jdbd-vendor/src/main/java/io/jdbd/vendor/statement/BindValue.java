@@ -1,14 +1,8 @@
 package io.jdbd.vendor.statement;
 
 
-import io.jdbd.lang.Nullable;
+public interface BindValue extends ParamValue {
 
-
-public interface IBindValue {
-
-    int getParamIndex();
-
-    boolean isStream();
 
     /**
      * @return one of blow:
@@ -19,9 +13,6 @@ public interface IBindValue {
      */
     java.sql.SQLType getType();
 
-    @Nullable
-    Object getValue();
 
-    Object getRequiredValue() throws NullPointerException;
 
 }

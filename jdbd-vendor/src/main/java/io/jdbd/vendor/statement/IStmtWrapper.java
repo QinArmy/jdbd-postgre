@@ -5,7 +5,7 @@ import io.jdbd.ResultStates;
 import java.util.List;
 import java.util.function.Consumer;
 
-public interface IStmtWrapper<T extends IBindValue> {
+public interface IStmtWrapper<T extends BindValue> {
 
     String getSql();
 

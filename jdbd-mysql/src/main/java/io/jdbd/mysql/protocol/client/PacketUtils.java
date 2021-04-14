@@ -43,7 +43,7 @@ public abstract class PacketUtils {
      */
     public static final int ENC_3_MAX_VALUE = 0xFF_FF_FF;
 
-    public static final int LOCAL_INFILE = 0xFB;
+    public static final short LOCAL_INFILE = 0xFB;
     public static final byte COM_QUERY = 0x03;
     public static final byte COM_STMT_PREPARE = 0x16;
     public static final byte COM_STMT_EXECUTE = 0x17;
@@ -59,10 +59,10 @@ public abstract class PacketUtils {
     public static final byte COM_QUIT_HEADER = 0x01;
 
 
-    public static final int ENC_0 = 0xFB;
-    public static final int ENC_3 = 0xFC;
-    public static final int ENC_4 = 0xFD;
-    public static final int ENC_9 = 0xFE;
+    public static final short ENC_0 = 0xFB;
+    public static final short ENC_3 = 0xFC;
+    public static final short ENC_4 = 0xFD;
+    public static final short ENC_9 = 0xFE;
 
     public static final int BIT_8 = 0xFF;
 

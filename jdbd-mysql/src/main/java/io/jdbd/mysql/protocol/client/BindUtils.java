@@ -1,10 +1,9 @@
 package io.jdbd.mysql.protocol.client;
 
-import io.jdbd.BindParameterException;
-import io.jdbd.mysql.BindValue;
+import io.jdbd.mysql.MySQLType;
 import io.jdbd.mysql.util.MySQLExceptions;
+import io.jdbd.vendor.statement.ParamValue;
 import io.jdbd.vendor.util.JdbdBindUtils;
-import reactor.util.annotation.Nullable;
 
 import java.sql.SQLException;
 
@@ -15,7 +14,8 @@ abstract class BindUtils extends JdbdBindUtils {
     }
 
 
-    public static String bindToBits(final int stmtIndex, final BindValue bindValue) throws SQLException {
+    public static String bindToBits(final int stmtIndex, MySQLType mySQLType, final ParamValue bindValue)
+            throws SQLException {
         final Object nonNullValue = bindValue.getRequiredValue();
 
         final String bits;
@@ -44,41 +44,13 @@ abstract class BindUtils extends JdbdBindUtils {
                 throw MySQLExceptions.createInvalidParameterNoError(stmtIndex, bindValue.getParamIndex());
             }
         } else {
-            throw MySQLExceptions.createUnsupportedParamTypeError(stmtIndex, bindValue);
+            throw MySQLExceptions.createUnsupportedParamTypeError(stmtIndex, mySQLType, bindValue);
         }
         return ("B'" + bits + "'");
     }
 
 
     /*################################## blow private exception ##################################*/
-
-    static BindParameterException createTypeNotMatchException(BindValue bindValue) {
-        return createTypeNotMatchException(bindValue, null);
-    }
-
-    static BindParameterException createTypeNotMatchException(BindValue bindValue, @Nullable Throwable cause) {
-        return new BindParameterException(cause, bindValue.getParamIndex()
-                , "Bind parameter[%s] MySQLType[%s] and JavaType[%s] value not match."
-                , bindValue.getParamIndex()
-                , bindValue.getType()
-                , bindValue.getRequiredValue().getClass().getName()
-        );
-    }
-
-    static BindParameterException createNotSupportFractionException(BindValue bindValue) {
-        throw new BindParameterException(String.format("Bind parameter[%s] is MySQLType[%s],not support fraction."
-                , bindValue.getParamIndex()
-                , bindValue.getType())
-                , bindValue.getParamIndex());
-    }
-
-    static BindParameterException createNumberRangErrorException(BindValue bindValue, Number lower
-            , Number upper) {
-        return new BindParameterException(String.format("Bind parameter[%s] MySQLType[%s] beyond rang[%s,%s]."
-                , bindValue.getParamIndex(), bindValue.getType(), lower, upper)
-                , bindValue.getParamIndex());
-
-    }
 
     static void assertParamCountMatch(int stmtIndex, int paramCount, int bindCount)
             throws SQLException {
@@ -93,4 +65,6 @@ abstract class BindUtils extends JdbdBindUtils {
             }
         }
     }
+
+
 }

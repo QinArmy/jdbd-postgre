@@ -39,7 +39,7 @@ import java.util.function.Consumer;
  *         <li>send COM_STMT_EXECUTE :
  *              <ul>
  *                  <li>{@link #executeStatement()}</li>
- *                  <li> {@link PrepareExecuteCommandWriter#writeCommand(List)}</li>
+ *                  <li> {@link PrepareExecuteCommandWriter#writeCommand(int, List)}</li>
  *                  <li>send COM_STMT_SEND_LONG_DATA:{@link PrepareLongParameterWriter#write(List)}</li>
  *              </ul>
  *         </li>
@@ -660,7 +660,7 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
                     taskEnd = true;
                 } else {
                     List<BindValue> parameterGroup = ((QueryDownstreamSink) downStreamSink).parameterGroup;
-                    this.packetPublisher = new PrepareExecuteCommandWriter(this).writeCommand(parameterGroup);
+                    this.packetPublisher = new PrepareExecuteCommandWriter(this).writeCommand(-1, parameterGroup);
                 }
             } else if (downStreamSink instanceof UpdateDownstreamSink) {
                 if (columnMetaArray.length > 0) {
@@ -668,7 +668,7 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
                     taskEnd = true;
                 } else {
                     List<BindValue> parameterGroup = ((UpdateDownstreamSink) downStreamSink).parameterGroup;
-                    this.packetPublisher = new PrepareExecuteCommandWriter(this).writeCommand(parameterGroup);
+                    this.packetPublisher = new PrepareExecuteCommandWriter(this).writeCommand(-1, parameterGroup);
                 }
             } else if (downStreamSink instanceof BatchUpdateSink) {
                 if (columnMetaArray.length > 0) {
@@ -708,7 +708,7 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
             }
             parameterGroup = groupList.get(index);
             try {
-                this.packetPublisher = commandWriter.writeCommand(parameterGroup); // write command
+                this.packetPublisher = commandWriter.writeCommand(index, parameterGroup); // write command
             } catch (SQLException e) {
                 throw new JdbdSQLException(e, "Batch update[batchIndex:%s] write error.", index);
             }
@@ -778,17 +778,27 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
     /**
      * @see #readPrepareColumnMeta(ByteBuf, Consumer)
      * @see #readExecuteResponse(ByteBuf, Consumer)
+     * @see #readPrepareResponse(ByteBuf)
      */
     private void resetColumnMeta(final int columnCount) {
-        this.prepareColumnMetas = new MySQLColumnMeta[columnCount];
+        if (columnCount == 0) {
+            this.prepareColumnMetas = MySQLColumnMeta.EMPTY;
+        } else {
+            this.prepareColumnMetas = new MySQLColumnMeta[columnCount];
+        }
         this.columnMetaIndex = 0;
     }
 
     /**
+     * @see #readPrepareParameterMeta(ByteBuf, Consumer) (ByteBuf)
      * @see #readPrepareResponse(ByteBuf)
      */
-    private void resetParameterMetas(int parameterCount) {
-        this.parameterMetas = new MySQLColumnMeta[parameterCount];
+    private void resetParameterMetas(final int parameterCount) {
+        if (parameterCount == 0) {
+            this.parameterMetas = MySQLColumnMeta.EMPTY;
+        } else {
+            this.parameterMetas = new MySQLColumnMeta[parameterCount];
+        }
         this.parameterMetaIndex = 0;
     }
 

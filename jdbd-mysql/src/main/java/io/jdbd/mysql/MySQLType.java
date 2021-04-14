@@ -464,5 +464,60 @@ public enum MySQLType implements SQLType {
         return this.typeFlag;
     }
 
+    @Override
+    public boolean isText() {
+        return this == TINYTEXT
+                || this == TEXT
+                || this == MEDIUMINT
+                || this == LONGTEXT;
+    }
+
+    @Override
+    public boolean isBlob() {
+        return this == TINYBLOB
+                || this == BLOB
+                || this == MEDIUMBLOB
+                || this == LONGBLOB;
+    }
+
+    @Override
+    public boolean isString() {
+        return this == CHAR
+                || this == VARCHAR;
+    }
+
+    @Override
+    public boolean isBinary() {
+        return this == BINARY
+                || this == VARBINARY;
+    }
+
+    @Override
+    public boolean isTimeType() {
+        return this == TIME
+                || this == DATE
+                || this == YEAR
+                || this == DATETIME
+                || this == TIMESTAMP;
+    }
+
+    @Override
+    public boolean isNumber() {
+        return this == TINYINT
+                || this == TINYINT_UNSIGNED
+                || this == SMALLINT
+                || this == SMALLINT_UNSIGNED
+                || this == INT
+                || this == INT_UNSIGNED
+                || this == BIGINT
+                || this == BIGINT_UNSIGNED
+                || this == DECIMAL
+                || this == DECIMAL_UNSIGNED
+                || this == FLOAT
+                || this == FLOAT_UNSIGNED
+                || this == DOUBLE
+                || this == DOUBLE_UNSIGNED;
+    }
+
 
 }

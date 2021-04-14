@@ -282,8 +282,8 @@ final class ComQueryCommandWriter {
                     if (bindValue.getParamIndex() != j) {
                         // hear invoker has bug
                         throw MySQLExceptions.createBindValueParamIndexNotMatchError(i, bindValue, j);
-                    } else if (bindValue.isStream() && !supportStream) {
-                        throw MySQLExceptions.createUnsupportedParamTypeError(i, bindValue);
+                    } else if (bindValue.isLongData() && !supportStream) {
+                        throw MySQLExceptions.createUnsupportedParamTypeError(i, bindValue.getType(), bindValue);
                     } else if (bindValue.getValue() == null || bindValue.getType() == MySQLType.NULL) {
                         packet.writeBytes(nullBytes);
                         continue;
@@ -337,8 +337,8 @@ final class ComQueryCommandWriter {
             if (bindValue.getParamIndex() != i) {
                 // hear invoker has bug
                 throw MySQLExceptions.createBindValueParamIndexNotMatchError(stmtIndex, bindValue, i);
-            } else if (bindValue.isStream() && !supportStream) {
-                throw MySQLExceptions.createUnsupportedParamTypeError(stmtIndex, bindValue);
+            } else if (bindValue.isLongData() && !supportStream) {
+                throw MySQLExceptions.createUnsupportedParamTypeError(stmtIndex, bindValue.getType(), bindValue);
             } else if (bindValue.getValue() == null || bindValue.getType() == MySQLType.NULL) {
                 packet.writeBytes(nullBytes);
                 continue;
@@ -387,7 +387,8 @@ final class ComQueryCommandWriter {
             }
             break;
             case BIT: {
-                buffer.writeBytes(BindUtils.bindToBits(stmtIndex, bindValue).getBytes(this.clientCharset));
+                buffer.writeBytes(BindUtils.bindToBits(stmtIndex, bindValue.getType(), bindValue)
+                        .getBytes(this.clientCharset));
                 newBuffer = buffer;
             }
             break;
@@ -435,8 +436,7 @@ final class ComQueryCommandWriter {
             }
             break;
             case UNKNOWN:
-                //TODO add code
-                throw BindUtils.createTypeNotMatchException(bindValue);
+                throw MySQLExceptions.createUnsupportedParamTypeError(stmtIndex, bindValue.getType(), bindValue);
             default:
                 throw MySQLExceptions.createUnknownEnumException(bindValue.getType());
         }
@@ -460,7 +460,7 @@ final class ComQueryCommandWriter {
                 || nonNull instanceof Reader) {
             packet.writeBytes("ST_GeomFromText(".getBytes(this.clientCharset));
         } else {
-            throw MySQLExceptions.createUnsupportedParamTypeError(stmtIndex, bindValue);
+            throw MySQLExceptions.createUnsupportedParamTypeError(stmtIndex, bindValue.getType(), bindValue);
         }
         if (this.hexEscape) {
             packet.writeByte('X');
@@ -509,7 +509,7 @@ final class ComQueryCommandWriter {
             throws SQLException {
         final Object nonNull = bindValue.getRequiredValue();
         if (!(nonNull instanceof Set)) {
-            throw MySQLExceptions.createUnsupportedParamTypeError(stmtIndex, bindValue);
+            throw MySQLExceptions.createUnsupportedParamTypeError(stmtIndex, bindValue.getType(), bindValue);
         }
         Set<?> set = (Set<?>) nonNull;
         if (this.hexEscape) {
@@ -527,7 +527,7 @@ final class ComQueryCommandWriter {
             } else if (o instanceof Enum) {
                 builder.append(((Enum<?>) o).name());
             } else {
-                throw MySQLExceptions.createUnsupportedParamTypeError(stmtIndex, bindValue);
+                throw MySQLExceptions.createUnsupportedParamTypeError(stmtIndex, bindValue.getType(), bindValue);
             }
             count++;
         }
@@ -557,7 +557,7 @@ final class ComQueryCommandWriter {
                     LOG.trace("bind number :{}", number);
                 }
             } catch (NumberFormatException e) {
-                throw MySQLExceptions.createUnsupportedParamTypeError(stmtIndex, bindValue);
+                throw MySQLExceptions.createUnsupportedParamTypeError(stmtIndex, bindValue.getType(), bindValue);
             }
         } else if (nonNull instanceof BigDecimal) {
             text = ((BigDecimal) nonNull).toPlainString();
@@ -568,7 +568,7 @@ final class ComQueryCommandWriter {
         } else if (nonNull instanceof Boolean) {
             text = (Boolean) nonNull ? "1" : "0";
         } else {
-            throw MySQLExceptions.createUnsupportedParamTypeError(stmtIndex, bindValue);
+            throw MySQLExceptions.createUnsupportedParamTypeError(stmtIndex, bindValue.getType(), bindValue);
         }
 
         buffer.writeBytes(text.getBytes(this.clientCharset));
@@ -591,10 +591,10 @@ final class ComQueryCommandWriter {
         } else if (nonNull instanceof Number) {
             b = MySQLConvertUtils.tryConvertToBoolean(((Number) nonNull));
         } else {
-            throw MySQLExceptions.createUnsupportedParamTypeError(stmtIndex, bindValue);
+            throw MySQLExceptions.createUnsupportedParamTypeError(stmtIndex, bindValue.getType(), bindValue);
         }
         if (b == null) {
-            throw MySQLExceptions.createUnsupportedParamTypeError(stmtIndex, bindValue);
+            throw MySQLExceptions.createUnsupportedParamTypeError(stmtIndex, bindValue.getType(), bindValue);
         }
         buffer.writeBytes(b.toString().getBytes(this.clientCharset));
 
@@ -649,7 +649,7 @@ final class ComQueryCommandWriter {
                     packet = writeInputStream(packet, input, packetList, false);
                 }
             } else {
-                throw MySQLExceptions.createUnsupportedParamTypeError(stmtIndex, bindValue);
+                throw MySQLExceptions.createUnsupportedParamTypeError(stmtIndex, bindValue.getType(), bindValue);
             }
             packet.writeByte(Constants.QUOTE_CHAR_BYTE);//3. write end quote
             return packet;
@@ -684,10 +684,10 @@ final class ComQueryCommandWriter {
             try {
                 text = MySQLTimeUtils.durationToTimeText((Duration) nonNull);
             } catch (Throwable e) {
-                throw MySQLExceptions.createUnsupportedParamTypeError(stmtIndex, bindValue);
+                throw MySQLExceptions.createUnsupportedParamTypeError(stmtIndex, bindValue.getType(), bindValue);
             }
         } else {
-            throw MySQLExceptions.createUnsupportedParamTypeError(stmtIndex, bindValue);
+            throw MySQLExceptions.createUnsupportedParamTypeError(stmtIndex, bindValue.getType(), bindValue);
         }
         packetBuffer.writeByte(Constants.QUOTE_CHAR_BYTE);
         packetBuffer.writeBytes(text.getBytes(this.clientCharset));
@@ -710,10 +710,10 @@ final class ComQueryCommandWriter {
                 text = (String) nonNull;
                 LocalDate.parse(text, DateTimeFormatter.ISO_LOCAL_DATE);
             } catch (DateTimeParseException e) {
-                throw BindUtils.createTypeNotMatchException(bindValue, e);
+                throw MySQLExceptions.createTypeNotMatchException(stmtIndex, bindValue.getType(), bindValue, e);
             }
         } else {
-            throw MySQLExceptions.createUnsupportedParamTypeError(stmtIndex, bindValue);
+            throw MySQLExceptions.createUnsupportedParamTypeError(stmtIndex, bindValue.getType(), bindValue);
         }
         packetBuffer.writeByte(Constants.QUOTE_CHAR_BYTE);
         packetBuffer.writeBytes(text.getBytes(this.clientCharset));
@@ -744,7 +744,7 @@ final class ComQueryCommandWriter {
         } else if (nonNull instanceof String) {
             text = parseAndFormatDateTime(stmtIndex, (String) nonNull, bindValue);
         } else {
-            throw MySQLExceptions.createUnsupportedParamTypeError(stmtIndex, bindValue);
+            throw MySQLExceptions.createUnsupportedParamTypeError(stmtIndex, bindValue.getType(), bindValue);
         }
         packetBuffer.writeByte(Constants.QUOTE_CHAR_BYTE);
         packetBuffer.writeBytes(text.getBytes(this.clientCharset));
@@ -955,7 +955,7 @@ final class ComQueryCommandWriter {
                     .withOffsetSameInstant(this.adjutant.obtainZoneOffsetDatabase())
                     .toLocalTime();
         } catch (DateTimeParseException e) {
-            throw MySQLExceptions.createUnsupportedParamTypeError(stmtIndex, bindValue);
+            throw MySQLExceptions.createUnsupportedParamTypeError(stmtIndex, bindValue.getType(), bindValue);
         }
         return time.format(MySQLTimeUtils.obtainTimeFormatterByText(timeText));
 
@@ -974,7 +974,7 @@ final class ComQueryCommandWriter {
                     .withOffsetSameInstant(this.adjutant.obtainZoneOffsetDatabase())
                     .toLocalDateTime();
         } catch (DateTimeParseException e) {
-            throw MySQLExceptions.createUnsupportedParamTypeError(stmtIndex, bindValue);
+            throw MySQLExceptions.createUnsupportedParamTypeError(stmtIndex, bindValue.getType(), bindValue);
         }
 
         return dateTime.format(MySQLTimeUtils.obtainDateTimeFormatterByText(dateTimeText));

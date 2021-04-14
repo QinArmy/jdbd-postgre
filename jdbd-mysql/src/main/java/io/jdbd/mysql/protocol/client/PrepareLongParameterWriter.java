@@ -1,27 +1,25 @@
 package io.jdbd.mysql.protocol.client;
 
-import io.jdbd.BindParameterException;
 import io.jdbd.LongDataReadException;
 import io.jdbd.lang.Nullable;
-import io.jdbd.mysql.BindValue;
+import io.jdbd.mysql.MySQLType;
 import io.jdbd.mysql.protocol.ClientConstants;
 import io.jdbd.mysql.protocol.conf.PropertyKey;
 import io.jdbd.mysql.util.MySQLExceptions;
 import io.jdbd.vendor.conf.Properties;
+import io.jdbd.vendor.statement.ParamValue;
 import io.netty.buffer.ByteBuf;
 import org.reactivestreams.Publisher;
 import org.reactivestreams.Subscription;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import reactor.core.CoreSubscriber;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.FluxSink;
 
-import java.io.Closeable;
-import java.io.IOException;
 import java.io.InputStream;
-import java.io.Reader;
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
-import java.nio.channels.ReadableByteChannel;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -32,6 +30,8 @@ import java.util.List;
  * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_com_stmt_send_long_data.html">Protocol::COM_STMT_SEND_LONG_DATA</a>
  */
 final class PrepareLongParameterWriter implements PrepareExecuteCommandWriter.LongParameterWriter {
+
+    private static final Logger LOG = LoggerFactory.getLogger(PrepareLongParameterWriter.class);
 
     private static final int LONG_DATA_PREFIX_SIZE = 7;
 
@@ -52,7 +52,7 @@ final class PrepareLongParameterWriter implements PrepareExecuteCommandWriter.Lo
 
     private final int blobSendChunkSize;
 
-    private final int maxPacketCapacity;
+    private final int maxPacket;
 
 
     PrepareLongParameterWriter(final StatementTask statementTask) {
@@ -62,189 +62,96 @@ final class PrepareLongParameterWriter implements PrepareExecuteCommandWriter.Lo
         this.properties = this.adjutant.obtainHostInfo().getProperties();
 
         this.blobSendChunkSize = obtainBlobSendChunkSize();
-        this.maxPacketCapacity = PacketUtils.HEADER_SIZE + LONG_DATA_PREFIX_SIZE + blobSendChunkSize;
+        this.maxPacket = PacketUtils.HEADER_SIZE + blobSendChunkSize;
 
     }
 
 
     @Override
-    public final Flux<ByteBuf> write(List<BindValue> valueList) {
+    public final Flux<ByteBuf> write(final int stmtIndex, List<? extends ParamValue> valueList) {
         return Flux.fromIterable(valueList)
-                .filter(BindValue::isStream)
-                .flatMap(this::sendLongData);
+                .filter(ParamValue::isLongData)
+                .flatMap(paramValue -> sendLongData(stmtIndex, paramValue));
     }
 
 
     /*################################## blow private method ##################################*/
 
+
     /**
-     * @see #write(List)
+     * @see #write(int, List)
      */
-    private Flux<ByteBuf> sendLongData(final BindValue bindValue) {
-        final Object value = bindValue.getRequiredValue();
+    private Flux<ByteBuf> sendLongData(final int stmtIndex, final ParamValue paramValue) {
+        final Object value = paramValue.getRequiredValue();
 
-        Flux<ByteBuf> flux;
+        final Flux<ByteBuf> flux;
         if (value instanceof byte[]) {
-            flux = sendByteArrayParameter(bindValue.getParamIndex(), (byte[]) value);
-        } else if (value instanceof InputStream) {
-            flux = sendInputStreamParameter(bindValue.getParamIndex(), (InputStream) value);
-        } else if (value instanceof ReadableByteChannel) {
-            flux = sendReadByteChannelParameter(bindValue.getParamIndex(), (ReadableByteChannel) value);
-        } else if (value instanceof Reader) {
-            flux = sendReaderParameter(bindValue.getParamIndex(), (Reader) value);
-        } else if (value instanceof char[]) {
-            flux = sendCharArrayParameter(bindValue.getParamIndex(), (char[]) value);
+            flux = sendByteArrayParameter(paramValue.getParamIndex(), (byte[]) value);
         } else if (value instanceof String) {
-            flux = sendStringParameter(bindValue.getParamIndex(), (String) value);
+            flux = sendStringParameter(paramValue.getParamIndex(), (String) value);
         } else if (value instanceof Path) {
-            flux = sendPathParameter(bindValue.getParamIndex(), (Path) value);
+            flux = sendPathParameter(stmtIndex, paramValue.getParamIndex(), (Path) value);
         } else if (value instanceof Publisher) {
-            flux = sendPublisher(bindValue.getParamIndex(), (Publisher<?>) value);
+            flux = sendPublisher(stmtIndex, paramValue.getParamIndex(), (Publisher<?>) value);
         } else {
-            flux = Flux.error(MySQLExceptions.createUnsupportedParamTypeError(-1, bindValue));
+            MySQLColumnMeta[] paramMetaArray = this.statementTask.obtainParameterMetas();
+            MySQLType mySQLType = paramMetaArray[paramValue.getParamIndex()].mysqlType;
+            flux = Flux.error(MySQLExceptions.createUnsupportedParamTypeError(stmtIndex, mySQLType, paramValue));
         }
-
         return flux;
     }
 
     /**
-     * @see #sendLongData(BindValue)
+     * @see #sendLongData(int, ParamValue)
      */
     private Flux<ByteBuf> sendByteArrayParameter(final int paramIndex, final byte[] input) {
         return Flux.create(sink -> {
-
             ByteBuf packet = createLongDataPacket(paramIndex, input.length);
-            packet = publishByteArray(packet, sink, paramIndex, input, input.length);
-            publishLastPacket(packet, sink);
 
+            packet = writeByteArray(packet, sink, paramIndex, input, input.length);
+            PacketUtils.writePacketHeader(packet, this.statementTask.addAndGetSequenceId());
+            sink.next(packet);
+
+            sink.complete();
         });
 
     }
 
-    /**
-     * @see #sendLongData(BindValue)
-     */
-    private Flux<ByteBuf> sendCharArrayParameter(final int paramIndex, final char[] input) {
-        return Flux.create(sink -> {
-            ByteBuf packet = createLongDataPacket(paramIndex, Math.min(this.blobSendChunkSize, input.length));
-
-            packet = writeCharArray(packet, sink, paramIndex, input, input.length);
-            publishLastPacket(packet, sink);
-
-        });
-    }
 
     /**
-     * @see #sendLongData(BindValue)
+     * @see #sendLongData(int, ParamValue)
      */
     private Flux<ByteBuf> sendStringParameter(final int paramIndex, final String string) {
         return Flux.create(sink -> {
-            final long byteLength = (long) string.length() * this.adjutant.obtainMaxBytesPerCharClient();
             ByteBuf packet;
-            if (byteLength > (1 << 30)) {
+            if (string.length() < (1 << 26)) {
+                packet = createLongDataPacket(paramIndex, string.length());
+                final Charset charset = obtainCharset(paramIndex);
+                byte[] bytes = string.getBytes(charset);
+                packet = writeByteArray(packet, sink, paramIndex, bytes, bytes.length);
+            } else {
                 packet = createLongDataPacket(paramIndex, this.blobSendChunkSize);
                 char[] charArray = string.toCharArray();
                 packet = writeCharArray(packet, sink, paramIndex, charArray, charArray.length);
-            } else {
-                packet = createLongDataPacket(paramIndex, (int) byteLength);
-                byte[] bytes = string.getBytes(this.adjutant.obtainCharsetClient());
-                packet = publishByteArray(packet, sink, paramIndex, bytes, bytes.length);
             }
+            PacketUtils.writePacketHeader(packet, this.statementTask.addAndGetSequenceId());
+            sink.next(packet);
 
-            publishLastPacket(packet, sink);
-
-
+            sink.complete();
         });
     }
 
 
     /**
-     * @see #sendLongData(BindValue)
+     * @see #sendLongData(int, ParamValue)
      */
-    private Flux<ByteBuf> sendInputStreamParameter(final int paramIndex, InputStream input) {
-        return Flux.create(sink -> writeInputStream(paramIndex, input, sink
-                , this.properties.getOrDefault(PropertyKey.autoClosePStmtStreams, Boolean.class)));
-    }
-
-    /**
-     * @see #sendLongData(BindValue)
-     */
-    private Flux<ByteBuf> sendReadByteChannelParameter(final int paramIndex, final ReadableByteChannel input) {
+    private Flux<ByteBuf> sendPathParameter(final int stmtIndex, final int paramIndex, final Path path) {
         return Flux.create(sink -> {
-            ByteBuf packet = null;
-            try {
-                packet = createLongDataPacket(paramIndex, ClientConstants.BUFFER_LENGTH);
-                final ByteBuffer buffer = ByteBuffer.allocate(ClientConstants.BUFFER_LENGTH);
-                final int maxPacketCapacity = this.maxPacketCapacity;
-                while (input.read(buffer) > 0) {
-                    packet.writeBytes(buffer);
-                    if (packet.readableBytes() >= maxPacketCapacity) {
-                        packet = publishLongDataPacketAndCut(packet, paramIndex, sink);
-                    }
-                    buffer.clear();
-                }
 
-                publishLastPacket(packet, sink);
-            } catch (Throwable e) {
-                if (packet != null) {
-                    packet.release();
-                }
-                publishLonDataReadException(sink, e, paramIndex, input);
-            } finally {
-                autoClose(input, paramIndex, sink);
-            }
-
-
-        });
-    }
-
-    /**
-     * @see #sendLongData(BindValue)
-     */
-    private Flux<ByteBuf> sendReaderParameter(final int paramIndex, final Reader input) {
-        return Flux.create(sink -> {
-            ByteBuf packet = null;
-            try {
-                final Charset readerCharset = obtainReaderCharset();
-                final CharBuffer charBuffer = CharBuffer.allocate(ClientConstants.BUFFER_LENGTH >> 1);
-                final int maxPacketCapacity = this.maxPacketCapacity;
-                packet = createLongDataPacket(paramIndex, ClientConstants.BUFFER_LENGTH);
-
-                ByteBuffer byteBuffer;
-                while (input.read(charBuffer) > 0) { //1. read char stream
-                    byteBuffer = readerCharset.encode(charBuffer);   //2. encode char to byte
-                    packet.writeBytes(byteBuffer); // 3.write byte to packet.
-                    if (packet.readableBytes() >= maxPacketCapacity) {
-                        packet = publishLongDataPacketAndCut(packet, paramIndex, sink);
-                    }
-                    charBuffer.clear(); // 4. clear charBuffer
-                }
-
-                publishLastPacket(packet, sink);
-
-            } catch (Throwable e) {
-                if (packet != null) {
-                    packet.release();
-                }
-                publishLonDataReadException(sink, e, paramIndex, input);
-            } finally {
-                autoClose(input, paramIndex, sink);
-            }
-
-
-        });
-    }
-
-
-    /**
-     * @see #sendLongData(BindValue)
-     */
-    private Flux<ByteBuf> sendPathParameter(final int paramIndex, final Path path) {
-        return Flux.create(sink -> {
             try (InputStream input = Files.newInputStream(path, StandardOpenOption.READ)) {
-                writeInputStream(paramIndex, input, sink, false);
+                writeInputStream(stmtIndex, paramIndex, input, sink);
             } catch (Throwable e) {
-                publishLonDataReadException(sink, e, paramIndex, path);
+                publishLonDataReadException(sink, e, stmtIndex, paramIndex, path);
             }
 
         });
@@ -252,208 +159,189 @@ final class PrepareLongParameterWriter implements PrepareExecuteCommandWriter.Lo
 
 
     /**
-     * @see #sendLongData(BindValue)
+     * @see #sendLongData(int, ParamValue)
      */
-    private Flux<ByteBuf> sendPublisher(final int paramIndex, Publisher<?> input) {
-        return Flux.create(sink -> Flux.from(input)
-                .subscribeWith(new PublisherLongDataSubscriber(sink, paramIndex)));
+    private Flux<ByteBuf> sendPublisher(final int stmtIndex, final int paramIndex, final Publisher<?> publisher) {
+        return Flux.create(sink -> {
+            if (LOG.isTraceEnabled()) {
+                LOG.trace("handle publisher parameter.");
+            }
+            Flux.from(publisher)
+                    .map(ByteBuffer.class::cast)
+                    .subscribe(new ByteBufferSubscriber(sink, stmtIndex, paramIndex));
+        });
+
     }
 
 
     private ByteBuf createLongDataPacket(final int parameterIndex, final int chunkSize) {
-        int payloadCapacity;
+        final int payloadCapacity;
         if (chunkSize == 0) {
             payloadCapacity = LONG_DATA_PREFIX_SIZE;
         } else if (chunkSize < 1024) {
             payloadCapacity = 1024;
         } else {
-            payloadCapacity = LONG_DATA_PREFIX_SIZE + Math.min(this.blobSendChunkSize, chunkSize);
+            payloadCapacity = Math.min(this.blobSendChunkSize, chunkSize);
         }
-        ByteBuf packetBuffer = this.adjutant.allocator().buffer(payloadCapacity, PacketUtils.MAX_PAYLOAD << 2);
+        ByteBuf packet = this.adjutant.allocator()
+                .buffer(PacketUtils.HEADER_SIZE + payloadCapacity, PacketUtils.MAX_PAYLOAD << 1);
 
-        packetBuffer.writeByte(PacketUtils.COM_STMT_SEND_LONG_DATA); //status
-        PacketUtils.writeInt4(packetBuffer, this.statementId); //statement_id
-        PacketUtils.writeInt2(packetBuffer, parameterIndex);//param_id
-        return packetBuffer;
+        packet.writeZero(PacketUtils.HEADER_SIZE);
+        packet.writeByte(PacketUtils.COM_STMT_SEND_LONG_DATA); //status
+        PacketUtils.writeInt4(packet, this.statementId); //statement_id
+        PacketUtils.writeInt2(packet, parameterIndex);//param_id
+        return packet;
 
     }
 
     private int obtainBlobSendChunkSize() {
-        int packetChunkSize = this.properties.getOrDefault(PropertyKey.blobSendChunkSize, Integer.class);
-        if (packetChunkSize < MIN_CHUNK_SIZE) {
-            packetChunkSize = MIN_CHUNK_SIZE;
-        } else if (packetChunkSize > MAX_CHUNK_SIZE) {
-            packetChunkSize = MAX_CHUNK_SIZE;
+        int chunkSize = this.properties.getOrDefault(PropertyKey.blobSendChunkSize, Integer.class);
+        final int maxChunkSize = Math.min(this.adjutant.obtainHostInfo().maxAllowedPayload(), MAX_CHUNK_SIZE);
+        if (chunkSize < MIN_CHUNK_SIZE) {
+            chunkSize = MIN_CHUNK_SIZE;
+        } else if (chunkSize > maxChunkSize) {
+            chunkSize = maxChunkSize;
         }
-        return packetChunkSize;
+        return chunkSize;
     }
 
     /**
-     * @see #sendInputStreamParameter(int, InputStream)
+     * @see #sendPathParameter(int, int, Path)
      */
-    private void writeInputStream(final int parameterIndex, final InputStream input, FluxSink<ByteBuf> sink
-            , final boolean autoClose) {
+    private void writeInputStream(final int stmtIndex, final int parameterIndex, final InputStream input
+            , FluxSink<ByteBuf> sink) {
         ByteBuf packet = null;
         try {
             packet = createLongDataPacket(parameterIndex, ClientConstants.BUFFER_LENGTH);
             final byte[] buffer = new byte[ClientConstants.BUFFER_LENGTH];
-            final int maxPacketCapacity = this.maxPacketCapacity;
+            final int maxPacket = this.maxPacket;
             for (int length; (length = input.read(buffer)) > 0; ) {
-                packet.writeBytes(buffer, 0, length);
-                if (packet.readableBytes() >= maxPacketCapacity) {
-                    packet = publishLongDataPacketAndCut(packet, parameterIndex, sink);
+                if (packet.readableBytes() == maxPacket) {
+                    PacketUtils.writePacketHeader(packet, this.statementTask.addAndGetSequenceId());
+                    sink.next(packet);
+
+                    packet = createLongDataPacket(parameterIndex, ClientConstants.BUFFER_LENGTH);
                 }
-
+                packet.writeBytes(buffer, 0, length);
             }
+            PacketUtils.writePacketHeader(packet, this.statementTask.addAndGetSequenceId());
+            sink.next(packet);
 
-            publishLastPacket(packet, sink);
+            sink.complete();
         } catch (Throwable e) {
             if (packet != null) {
                 packet.release();
             }
-            publishLonDataReadException(sink, e, parameterIndex, input);
-        } finally {
-            if (autoClose) {
-                try {
-                    input.close();
-                } catch (IOException e) {
-                    sink.error(new LongDataReadException(e
-                            , "Bind long parameter(index:%s) InputStream close occur error.", parameterIndex));
-                }
-            }
+            publishLonDataReadException(sink, e, stmtIndex, parameterIndex, input);
         }
+
+
     }
 
 
     /**
-     * @see #sendCharArrayParameter(int, char[])
+     * @see #sendStringParameter(int, String)
      */
-    private ByteBuf writeCharArray(final ByteBuf packetBuffer, FluxSink<ByteBuf> sink
-            , final int paramIndex, final char[] input, final int arrayLength) {
+    private ByteBuf writeCharArray(ByteBuf packet, FluxSink<ByteBuf> sink
+            , final int paramIndex, final char[] charArray, final int arrayLength) {
 
-        if (arrayLength < 0 || arrayLength > input.length) {
+        if (arrayLength < 0 || arrayLength > charArray.length) {
             throw new IllegalArgumentException("arrayLength error");
         }
 
-        final Charset clientCharset = this.adjutant.obtainCharsetClient();
-        final int bufferLength = ClientConstants.BUFFER_LENGTH / this.adjutant.obtainMaxBytesPerCharClient();
-        final int maxPacketCapacity = this.maxPacketCapacity;
-        ByteBuf packet = packetBuffer;
-
-        final CharBuffer charBuffer = CharBuffer.allocate(Math.min(bufferLength, arrayLength));
+        final Charset charset;
+        if (this.statementTask.obtainParameterMetas()[paramIndex].mysqlType.isText()) {
+            charset = obtainClobCharset();
+        } else {
+            charset = this.adjutant.obtainCharsetClient();
+        }
+        final int maxPacket = this.maxPacket;
+        final CharBuffer charBuffer = CharBuffer.allocate(ClientConstants.BUFFER_LENGTH);
         ByteBuffer byteBuffer;
-        for (int offset = 0, length; offset < arrayLength; ) {
-
-            length = Math.min(charBuffer.capacity(), arrayLength - offset);
-
-            // 1. read char array
-            charBuffer.put(input, offset, length);
-            // 2. encode
-            byteBuffer = clientCharset.encode(charBuffer);
-            // 3. write to packet
-            packet.writeBytes(byteBuffer);
-
-            offset += length;
-
-            if (packet.readableBytes() >= maxPacketCapacity) {
-                packet = publishLongDataPacketAndCut(packet, paramIndex, sink);
+        byte[] byteArray;
+        for (int offset = 0, length; offset < arrayLength; offset += length) {
+            if (packet.readableBytes() == maxPacket) {
+                PacketUtils.writePacketHeader(packet, this.statementTask.addAndGetSequenceId());
+                sink.next(packet);
+                packet = createLongDataPacket(paramIndex, arrayLength - offset);
             }
+            length = Math.min(ClientConstants.BUFFER_LENGTH, arrayLength - offset);
+            // 1. read char array
+            charBuffer.put(charArray, offset, length);
+            charBuffer.flip();
+            // 2. encode
+            byteBuffer = charset.encode(charBuffer);
+            // 3. write to packet
+            byteArray = new byte[byteBuffer.remaining()];
+            byteBuffer.get(byteArray);
+            packet = writeByteArray(packet, sink, paramIndex, byteArray, byteArray.length);
             charBuffer.clear();
         }
         return packet;
     }
 
     /**
-     * @return the pack that {@link ByteBuf#readableBytes()} less than {@link #maxPacketCapacity}.
+     * @return the pack that {@link ByteBuf#readableBytes()} less than {@link #maxPacket}.
      * @see #sendByteArrayParameter(int, byte[])
      */
-    private ByteBuf publishByteArray(final ByteBuf packetBuffer, FluxSink<ByteBuf> sink
-            , final int paramIndex, final byte[] input, final int arrayLength) {
+    private ByteBuf writeByteArray(final ByteBuf packetBuffer, FluxSink<ByteBuf> sink, final int paramIndex
+            , final byte[] input, final int arrayLength) {
 
         if (arrayLength < 0 || arrayLength > input.length) {
             throw new IllegalArgumentException("arrayLength error");
         }
-        final int maxPacketCapacity = this.maxPacketCapacity;
+        final int maxPacket = this.maxPacket;
         ByteBuf packet = packetBuffer;
-        for (int offset = 0, length; offset < arrayLength; ) {
+        for (int offset = 0, length; offset < arrayLength; offset += length) {
 
-            length = Math.min(ClientConstants.BUFFER_LENGTH, arrayLength - offset);
-
+            if (packet.readableBytes() == maxPacket) {
+                PacketUtils.writePacketHeader(packet, this.statementTask.addAndGetSequenceId());
+                sink.next(packet);
+                packet = createLongDataPacket(paramIndex, arrayLength - offset);
+            }
+            length = Math.min(maxPacket - packet.readableBytes(), arrayLength - offset);
             //  write to packet
             packet.writeBytes(input, offset, length);
-
-            offset += length;
-
-            if (packet.readableBytes() >= maxPacketCapacity) {
-                packet = publishLongDataPacketAndCut(packet, paramIndex, sink);
-            }
         }
         return packet;
     }
 
 
     /**
-     * @see #writeInputStream(int, InputStream, FluxSink, boolean)
-     * @see #sendByteArrayParameter(int, byte[])
-     */
-    private ByteBuf publishLongDataPacketAndCut(final ByteBuf bigPacket, final int paramIndex
-            , final FluxSink<ByteBuf> sink) {
-
-        final int maxPacketCapacity = this.maxPacketCapacity;
-        ByteBuf packet;
-        if (bigPacket.readableBytes() >= maxPacketCapacity) {
-            packet = bigPacket.readRetainedSlice(maxPacketCapacity);
-            PacketUtils.writePacketHeader(packet, this.statementTask.addAndGetSequenceId());
-            sink.next(packet);
-        }
-        packet = createLongDataPacket(paramIndex, bigPacket.readableBytes());
-        packet.writeBytes(bigPacket);
-        bigPacket.release();
-        return packet;
-    }
-
-    /**
-     * @see #writeInputStream(int, InputStream, FluxSink, boolean)
-     * @see #sendByteArrayParameter(int, byte[])
-     */
-    private void publishLastPacket(final ByteBuf packet, final FluxSink<ByteBuf> sink) {
-        if (packet.readableBytes() > (PacketUtils.HEADER_SIZE + LONG_DATA_PREFIX_SIZE)) {
-            PacketUtils.publishBigPacket(packet, sink, this.statementTask::addAndGetSequenceId
-                    , this.adjutant.allocator()::buffer, true);
-        } else {
-            packet.release();
-        }
-    }
-
-
-    /**
-     * @see #writeInputStream(int, InputStream, FluxSink, boolean)
+     * @see #writeInputStream(int, int, InputStream, FluxSink)
      * @see ComPreparedTask#internalError(Throwable)
      */
-    private void publishLonDataReadException(FluxSink<ByteBuf> sink, Throwable cause
+    private void publishLonDataReadException(FluxSink<ByteBuf> sink, Throwable cause, final int stmtIndex
             , int parameterIndex, final @Nullable Object input) {
         Class<?> javaType = input == null ? Object.class : input.getClass();
-        LongDataReadException e = new LongDataReadException(cause
-                , "Bind parameter[%s](%s) read error.", parameterIndex, javaType.getName());
+        LongDataReadException e;
+        if (stmtIndex < 0) {
+            String message = String.format("Bind parameter[%s](%s) read error.", parameterIndex, javaType.getName());
+            e = new LongDataReadException(cause, message);
+        } else {
+            String message = String.format("Parameter Group[%s] Bind parameter[%s](%s) read error."
+                    , stmtIndex, parameterIndex, javaType.getName());
+            e = new LongDataReadException(cause, message);
+        }
         sink.error(e);
     }
 
-    /**
-     * @see #writeInputStream(int, InputStream, FluxSink, boolean)
-     */
-    private void autoClose(final Closeable input, final int parameterIndex, final FluxSink<ByteBuf> sink) {
-        if (this.properties.getOrDefault(PropertyKey.autoClosePStmtStreams, Boolean.class)) {
-            try {
-                input.close();
-            } catch (Throwable e) {
-                sink.error(new LongDataReadException(
-                        e, "Bind parameter[%s] %s close failure.", parameterIndex, input.getClass().getName()));
-            }
+
+    private Charset obtainCharset(final int paramIndex) {
+        final Charset charset;
+        if (this.statementTask.obtainParameterMetas()[paramIndex].mysqlType.isText()) {
+            charset = obtainClobCharset();
+        } else {
+            charset = this.adjutant.obtainCharsetClient();
         }
+        return charset;
     }
 
-    private Charset obtainReaderCharset() {
-        Charset charset = this.properties.getOrDefault(PropertyKey.clobCharacterEncoding, Charset.class);
+    /**
+     * @see #writeCharArray(ByteBuf, FluxSink, int, char[], int)
+     */
+    private Charset obtainClobCharset() {
+        Charset charset = this.properties.getProperty(PropertyKey.clobCharacterEncoding, Charset.class);
         if (charset == null) {
             charset = this.adjutant.obtainCharsetClient();
         }
@@ -461,21 +349,26 @@ final class PrepareLongParameterWriter implements PrepareExecuteCommandWriter.Lo
     }
 
 
-
-
     /*################################## blow private instance inner class ##################################*/
 
-    private final class PublisherLongDataSubscriber implements CoreSubscriber<Object> {
+    /**
+     * @see #sendPublisher(int, int, Publisher)
+     */
+    private final class ByteBufferSubscriber implements CoreSubscriber<ByteBuffer> {
 
         private final FluxSink<ByteBuf> sink;
 
+        private final int stmtIndex;
+
         private final int parameterIndex;
 
-        ByteBuf packet;
+        private ByteBuf packet;
 
-        private PublisherLongDataSubscriber(FluxSink<ByteBuf> sink, int parameterIndex) {
+        private ByteBufferSubscriber(FluxSink<ByteBuf> sink, int stmtIndex, int parameterIndex) {
             this.sink = sink;
+            this.stmtIndex = stmtIndex;
             this.parameterIndex = parameterIndex;
+            this.packet = createLongDataPacket(this.parameterIndex, ClientConstants.BUFFER_LENGTH);
         }
 
         @Override
@@ -484,115 +377,45 @@ final class PrepareLongParameterWriter implements PrepareExecuteCommandWriter.Lo
         }
 
         @Override
-        public void onNext(final Object data) {
-            if (data instanceof byte[]) {
-                byte[] bytes = (byte[]) data;
-                writeBytes(bytes, bytes.length);
-            } else if (data instanceof ByteBuffer) {
-                writeByteBuffer((ByteBuffer) data);
-            } else if (data instanceof ByteBuf) {
-                writeByteBuf((ByteBuf) data);
+        public void onNext(ByteBuffer buffer) {
+            final byte[] bytes;
+            final int length = buffer.remaining();
+            if (buffer.hasArray() && buffer.position() == 0) {
+                bytes = buffer.array();
             } else {
-                BindParameterException e = new BindParameterException(this.parameterIndex
-                        , "Publisher<%s> is supported.", data.getClass().getName());
-                PrepareLongParameterWriter.this.publishLonDataReadException(this.sink, e, this.parameterIndex, data);
+                bytes = new byte[length];
+                buffer.get(bytes);
             }
-
+            this.packet = writeByteArray(this.packet, this.sink, this.parameterIndex, bytes, length);
         }
-
 
         @Override
         public void onError(Throwable t) {
             ByteBuf packet = this.packet;
             if (packet != null) {
                 packet.release();
+                this.packet = null;
             }
-            PrepareLongParameterWriter.this.publishLonDataReadException(this.sink, t, this.parameterIndex, null);
+            final String message;
+            if (this.stmtIndex < 0) {
+                message = String.format("Bind parameter[%s] Publisher read error.", this.parameterIndex);
+            } else {
+                message = String.format("Parameter Group[%s] Bind parameter[%s] Publisher read error,\nbecause %s"
+                        , this.stmtIndex, this.parameterIndex, t.getMessage());
+            }
+            this.sink.error(new LongDataReadException(t, message));
         }
 
         @Override
         public void onComplete() {
-            ByteBuf packet = this.packet;
-            if (packet != null) {
-                PrepareLongParameterWriter.this.publishLastPacket(packet, this.sink);
-                this.packet = null;
-            }
-        }
-
-        private void writeBytes(final byte[] dataBytes, final int arrayLength) {
-            final int blobSendChunkSize = PrepareLongParameterWriter.this.blobSendChunkSize;
-            int length = Math.min(blobSendChunkSize, arrayLength);
-
-            ByteBuf packet = this.packet;
-            if (packet == null) {
-                packet = createLongDataPacket(this.parameterIndex, length);
-            }
-
-            final int maxPacketCapacity = PrepareLongParameterWriter.this.maxPacketCapacity;
-
-            for (int offset = 0; offset < arrayLength; ) {
-                packet.writeBytes(dataBytes, offset, length);
-                offset += length;
-                length = Math.min(blobSendChunkSize, arrayLength - offset);
-
-                if (packet.readableBytes() >= maxPacketCapacity) {
-                    packet = publishLongDataPacketAndCut(packet, this.parameterIndex, this.sink);
-                }
-
-            }
-
-            this.packet = packet;
-
-        }
-
-        private void writeByteBuffer(final ByteBuffer dataBuffer) {
-
-            if (dataBuffer.remaining() < PrepareLongParameterWriter.this.blobSendChunkSize) {
-                ByteBuf packet = this.packet;
-                if (packet == null) {
-                    packet = createLongDataPacket(this.parameterIndex, dataBuffer.remaining());
-                }
-                packet.writeBytes(dataBuffer);
-                if (packet.readableBytes() >= PrepareLongParameterWriter.this.maxPacketCapacity) {
-                    packet = publishLongDataPacketAndCut(packet, this.parameterIndex, this.sink);
-                }
-                this.packet = packet;
-            } else {
-                final byte[] bufferArray = new byte[Math.min(dataBuffer.remaining(), ClientConstants.BUFFER_LENGTH)];
-                for (int length; dataBuffer.hasRemaining(); ) {
-                    length = Math.min(bufferArray.length, dataBuffer.remaining());
-                    dataBuffer.get(bufferArray, 0, length);
-                    writeBytes(bufferArray, length);
-                }
-            }
-
-        }
-
-
-        private void writeByteBuf(final ByteBuf dataBuffer) {
-            final int blobSendChunkSize = PrepareLongParameterWriter.this.blobSendChunkSize;
-            ByteBuf packet = this.packet;
-            if (packet == null) {
-                packet = createLongDataPacket(this.parameterIndex
-                        , Math.min(dataBuffer.readableBytes(), blobSendChunkSize));
-            }
-            final int maxPacketCapacity = PrepareLongParameterWriter.this.maxPacketCapacity;
-
-            for (int length; dataBuffer.isReadable(); ) {
-                length = Math.min(dataBuffer.readableBytes(), blobSendChunkSize);
-                packet.writeBytes(dataBuffer, length);
-
-                if (packet.readableBytes() >= maxPacketCapacity) {
-                    packet = publishLongDataPacketAndCut(packet, this.parameterIndex, this.sink);
-                }
-
-
-            }
-            this.packet = packet;
+            this.sink.complete();
         }
 
 
     }
+
+
+
 
 
 }

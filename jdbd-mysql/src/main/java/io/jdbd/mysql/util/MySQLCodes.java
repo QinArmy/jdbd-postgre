@@ -300,6 +300,8 @@ public abstract class MySQLCodes {
 
     public static final int CR_UNKNOWN_ERROR = 2000;
 
+    public static final int CR_UNSUPPORTED_PARAM_TYPE = 2036;
+
 
     /**
      * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-reference-error-sqlstates.html">Mapping MySQL Error Numbers to JDBC SQLState Codes</a>

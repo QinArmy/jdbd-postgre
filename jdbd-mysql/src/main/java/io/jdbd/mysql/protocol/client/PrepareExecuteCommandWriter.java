@@ -1,19 +1,16 @@
 package io.jdbd.mysql.protocol.client;
 
-import io.jdbd.BindParameterException;
+import io.jdbd.JdbdException;
 import io.jdbd.mysql.BindValue;
-import io.jdbd.mysql.MySQLBindValue;
 import io.jdbd.mysql.MySQLType;
-import io.jdbd.mysql.protocol.Constants;
 import io.jdbd.mysql.util.MySQLCollections;
 import io.jdbd.mysql.util.MySQLExceptions;
 import io.jdbd.mysql.util.MySQLNumberUtils;
 import io.jdbd.mysql.util.MySQLTimeUtils;
-import io.jdbd.vendor.conf.Properties;
+import io.jdbd.vendor.statement.ParamValue;
 import io.netty.buffer.ByteBuf;
 import org.reactivestreams.Publisher;
 import reactor.core.publisher.Flux;
-import reactor.core.publisher.FluxSink;
 import reactor.core.publisher.Mono;
 
 import java.math.BigDecimal;
@@ -24,7 +21,6 @@ import java.time.*;
 import java.time.format.DateTimeParseException;
 import java.time.temporal.ChronoField;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 
@@ -41,10 +37,7 @@ final class PrepareExecuteCommandWriter implements StatementCommandWriter {
 
     private final MySQLColumnMeta[] paramMetaArray;
 
-
     private final ClientProtocolAdjutant adjutant;
-
-    private final Properties properties;
 
     private final LongParameterWriter longParameterWriter;
 
@@ -55,57 +48,50 @@ final class PrepareExecuteCommandWriter implements StatementCommandWriter {
         this.statementTask = statementTask;
         this.statementId = statementTask.obtainStatementId();
         this.paramMetaArray = statementTask.obtainParameterMetas();
-
         this.adjutant = statementTask.obtainAdjutant();
-        this.properties = this.adjutant.obtainHostInfo().getProperties();
+
         this.fetchResultSet = statementTask.isFetchResult();
         this.longParameterWriter = new PrepareLongParameterWriter(statementTask);
     }
 
 
     @Override
-    public Publisher<ByteBuf> writeCommand(final List<BindValue> originalParameterGroup) throws SQLException {
-        final int bindParamSize = originalParameterGroup.size();
+    public Publisher<ByteBuf> writeCommand(final int stmtIndex, final List<? extends ParamValue> parameterGroup)
+            throws SQLException {
         final MySQLColumnMeta[] paramMetaArray = this.paramMetaArray;
-        BindUtils.assertParamCountMatch(-1, paramMetaArray.length, bindParamSize);
+        BindUtils.assertParamCountMatch(stmtIndex, paramMetaArray.length, parameterGroup.size());
 
-        List<BindValue> longParamList = null;
-
-        List<BindValue> tempParameterGroup = new ArrayList<>(bindParamSize);
-        for (int i = 0; i < bindParamSize; i++) {
-            BindValue bindValue = originalParameterGroup.get(i);
-            if (bindValue.getParamIndex() != i) {
+        final List<ParamValue> tempNonStreamParamGroup = new ArrayList<>(paramMetaArray.length);
+        for (int i = 0; i < paramMetaArray.length; i++) {
+            ParamValue paramValue = parameterGroup.get(i);
+            if (paramValue.getParamIndex() != i) {
                 // hear invoker has bug
-                throw MySQLExceptions.createBindValueParamIndexNotMatchError(-1, bindValue, i);
+                throw MySQLExceptions.createBindValueParamIndexNotMatchError(stmtIndex, paramValue, i);
 
             }
-            if (bindValue.getType() != paramMetaArray[i].mysqlType) {
-                bindValue = MySQLBindValue.create(bindValue, paramMetaArray[i].mysqlType);
+            if (!paramValue.isLongData()) {
+                tempNonStreamParamGroup.add(paramValue);
             }
-            tempParameterGroup.add(bindValue);
-            if (bindValue.isStream()) {
-                if (longParamList == null) {
-                    longParamList = new ArrayList<>();
-                }
-                longParamList.add(bindValue);
-            }
-
         }
 
-        final List<BindValue> parameterGroup = MySQLCollections.unmodifiableList(tempParameterGroup);
+        final List<ParamValue> nonStreamParamGroup = MySQLCollections.unmodifiableList(tempNonStreamParamGroup);
 
         final Publisher<ByteBuf> publisher;
-        if (bindParamSize == 0) {
+        if (paramMetaArray.length == 0) {
             // this 'if' block handle no bind parameter.
             ByteBuf packet = createExecutePacketBuffer(10);
             PacketUtils.writePacketHeader(packet, this.statementTask.addAndGetSequenceId());
             publisher = Mono.just(packet);
-        } else if (longParamList == null) {
-            // this 'if' block handle no long parameter.
-            publisher = createExecutionPacketPublisher(parameterGroup);
         } else {
-            publisher = this.longParameterWriter.write(Collections.unmodifiableList(longParamList))
-                    .concatWith(Flux.defer(() -> createExecutionPacketPublisher(parameterGroup)));
+            final Publisher<ByteBuf> nonStreamPublisher;
+            nonStreamPublisher = createExecutionPacketPublisher(stmtIndex, nonStreamParamGroup);
+            if (nonStreamParamGroup.size() == paramMetaArray.length) {
+                // this 'if' block handle no long parameter.
+                publisher = nonStreamPublisher;
+            } else {
+                publisher = this.longParameterWriter.write(stmtIndex, parameterGroup)
+                        .concatWith(nonStreamPublisher);
+            }
         }
         return publisher;
     }
@@ -114,77 +100,86 @@ final class PrepareExecuteCommandWriter implements StatementCommandWriter {
 
 
     /**
-     * @see #writeCommand(List)
+     * @see #writeCommand(int, List)
      */
-    private Flux<ByteBuf> createExecutionPacketPublisher(final List<BindValue> parameterGroup) {
-        return Flux.create(sink -> emitExecutionPackets(parameterGroup, sink));
+    private Flux<ByteBuf> createExecutionPacketPublisher(final int stmtIndex, final List<ParamValue> parameterGroup) {
+        Flux<ByteBuf> flux;
+        try {
+            flux = doCreateExecutionPackets(stmtIndex, parameterGroup);
+        } catch (Throwable e) {
+            flux = Flux.error(MySQLExceptions.wrap(e));
+        }
+        return flux;
     }
 
     /**
-     * @see #createExecutionPacketPublisher(List)
+     * @return {@link Flux} that is created by {@link Flux#fromIterable(Iterable)} method.
+     * @see #createExecutionPacketPublisher(int, List)
      */
-    private void emitExecutionPackets(final List<BindValue> parameterGroup, final FluxSink<ByteBuf> sink) {
+    private Flux<ByteBuf> doCreateExecutionPackets(final int stmtIndex, final List<ParamValue> parameterGroup)
+            throws JdbdException {
         final MySQLColumnMeta[] parameterMetaArray = this.paramMetaArray;
         final byte[] nullBitsMap = new byte[(parameterMetaArray.length + 7) / 8];
 
         final int parameterCount = parameterGroup.size();
         //1. make nullBitsMap and parameterValueLength
         long parameterValueLength = 0L;
-        int i = 0;
+        int paramIndex = 0;
         try {
-            for (; i < parameterCount; i++) {
-                BindValue bindValue = parameterGroup.get(i);
-                if (bindValue.getValue() == null || bindValue.getType() == MySQLType.NULL) {
-                    nullBitsMap[i / 8] |= (1 << (i & 7));
-                } else if (!bindValue.isStream()) {
-                    parameterValueLength += obtainParameterValueLength(parameterMetaArray[i], bindValue);
+            ParamValue paramValue;
+            for (; paramIndex < parameterCount; paramIndex++) {
+                paramValue = parameterGroup.get(paramIndex);
+                if (paramValue.getValue() == null) {
+                    nullBitsMap[paramIndex / 8] |= (1 << (paramIndex & 7));
+                } else if (!paramValue.isLongData()) {
+                    parameterValueLength += obtainParameterValueLength(stmtIndex, parameterMetaArray[paramIndex]
+                            , paramValue);
                 }
             }
-            i = 0;
         } catch (Throwable e) {
-            sink.error(MySQLExceptions.wrap(e, "Bind param[index(based zero):%s] type error.", i));
-            return;
+            throw MySQLExceptions.wrap(e, "Bind param[index(based zero):%s] type error.", paramIndex);
         }
-
-        final int prefixLength = 10 + nullBitsMap.length + 1 + (parameterCount << 1);
+        final int maxAllowedPayload = this.adjutant.obtainHostInfo().maxAllowedPayload();
+        final long prefixLength = 10L + nullBitsMap.length + 1L + ((long) parameterCount << 1);
+        final long payloadLength = prefixLength + parameterValueLength;
+        if (payloadLength > maxAllowedPayload) {
+            throw MySQLExceptions.createNetPacketTooLargeException(maxAllowedPayload);
+        }
 
         ByteBuf packet;
-        if ((prefixLength + parameterValueLength) < PacketUtils.MAX_PAYLOAD) {
-            packet = createExecutePacketBuffer((int) (prefixLength + parameterValueLength));
-        } else {
-            packet = createExecutePacketBuffer(PacketUtils.MAX_PAYLOAD);
-        }
+        packet = createExecutePacketBuffer((int) payloadLength);
+
         packet.writeBytes(nullBitsMap); //fill null_bitmap
         packet.writeByte(1); //fill new_params_bind_flag
         //fill  parameter_types
-        for (BindValue value : parameterGroup) {
-            PacketUtils.writeInt2(packet, value.getType().parameterType);
+        for (int i = 0; i < parameterMetaArray.length; i++) {
+            PacketUtils.writeInt2(packet, parameterMetaArray[i].mysqlType.parameterType);
         }
+
         //fill parameter_values
         LinkedList<ByteBuf> packetList = new LinkedList<>();
+        Flux<ByteBuf> flux;
         try {
-
-            for (i = 0; i < parameterCount; i++) {
-                BindValue bindValue = parameterGroup.get(i);
-                if (bindValue.isStream() || bindValue.getValue() == null) {
+            int resetBytes = ((int) payloadLength) - (int) prefixLength;
+            ParamValue paramValue;
+            for (int i = 0; i < parameterCount; i++) {
+                paramValue = parameterGroup.get(paramIndex);
+                if (paramValue.isLongData() || paramValue.getValue() == null) {
                     continue;
                 }
-                // bind parameter bto packet buffer
-                bindParameter(packet, parameterMetaArray[i], bindValue);
-                if (packet.readableBytes() >= PacketUtils.MAX_PACKET) {
-                    packet = PacketUtils.addAndCutBigPacket(packet, packetList, this.statementTask::addAndGetSequenceId
-                            , this.adjutant.allocator()::buffer);
+                if (packet.readableBytes() == PacketUtils.MAX_PACKET) {
+                    PacketUtils.writePacketHeader(packet, this.statementTask.addAndGetSequenceId());
+                    packetList.add(packet);
+                    resetBytes -= PacketUtils.MAX_PAYLOAD;
+                    packet = this.adjutant.createPacketBuffer(Math.min(PacketUtils.MAX_PAYLOAD, resetBytes));
                 }
+                // bind parameter bto packet buffer
+                bindParameter(packet, stmtIndex, parameterMetaArray[paramIndex], paramValue);
             }
             PacketUtils.writePacketHeader(packet, this.statementTask.addAndGetSequenceId());
             packetList.add(packet);
 
-            // finally emit to sink
-            ByteBuf byteBuf;
-            while ((byteBuf = packetList.poll()) != null) {
-                sink.next(byteBuf);
-            }
-            sink.complete();
+            flux = Flux.fromIterable(packetList);
         } catch (Throwable e) {
             ByteBuf byteBuf;
             while ((byteBuf = packetList.poll()) != null) {
@@ -193,16 +188,17 @@ final class PrepareExecuteCommandWriter implements StatementCommandWriter {
             if (packet.refCnt() > 0) {
                 packet.release();
             }
-            sink.error(MySQLExceptions.wrap(e, "Bind parameter[index(based zero):%s] write error.", i));
+            flux = Flux.error(MySQLExceptions.wrap(e, "Bind parameter[index(based zero):%s] write error.", paramIndex));
         }
+        return flux;
     }
 
     /**
-     * @see #createExecutionPacketPublisher(List)
+     *
      */
     private ByteBuf createExecutePacketBuffer(int initialPayloadCapacity) {
 
-        ByteBuf packet = this.adjutant.createPacketBuffer(initialPayloadCapacity);
+        ByteBuf packet = this.adjutant.createPacketBuffer(Math.min(initialPayloadCapacity, PacketUtils.MAX_PAYLOAD));
 
         packet.writeByte(PacketUtils.COM_STMT_EXECUTE); // 1.status
         PacketUtils.writeInt4(packet, this.statementId);// 2. statement_id
@@ -220,13 +216,13 @@ final class PrepareExecuteCommandWriter implements StatementCommandWriter {
     /**
      * @return parameter value byte length ,if return {@link Integer#MIN_VALUE} ,then parameter error,should end task.
      * @throws IllegalArgumentException when {@link BindValue#getValue()} is null.
-     * @see #emitExecutionPackets(List, FluxSink)
+     * @see #createExecutePacketBuffer(int)
      */
-    private long obtainParameterValueLength(MySQLColumnMeta parameterMeta, BindValue bindValue)
+    private long obtainParameterValueLength(final int stmtIndex, MySQLColumnMeta parameterMeta, ParamValue paramValue)
             throws SQLException {
-        final Object value = bindValue.getRequiredValue();
+        final Object value = paramValue.getRequiredValue();
         final long length;
-        switch (bindValue.getType()) {
+        switch (parameterMeta.mysqlType) {
             case INT:
             case FLOAT:
             case FLOAT_UNSIGNED:
@@ -280,7 +276,8 @@ final class PrepareExecuteCommandWriter implements StatementCommandWriter {
                 } else if (value instanceof byte[]) {
                     lenEncBytes = ((byte[]) value).length;
                 } else {
-                    throw MySQLExceptions.createUnsupportedParamTypeError(-1, bindValue);
+                    throw MySQLExceptions.createUnsupportedParamTypeError(stmtIndex, parameterMeta.mysqlType
+                            , paramValue);
                 }
                 length = PacketUtils.obtainIntLenEncLength(lenEncBytes) + lenEncBytes;
             }
@@ -292,10 +289,18 @@ final class PrepareExecuteCommandWriter implements StatementCommandWriter {
             case TIME:
                 length = (parameterMeta.decimals > 0 && parameterMeta.decimals < 7) ? 12 : 8;
                 break;
+            case GEOMETRY: {
+                if (value instanceof byte[]) {
+                    byte[] bytes = (byte[]) value;
+                    length = bytes.length;
+                } else {
+                    length = 0;
+                }
+            }
+            break;
             case NULL:
             case UNKNOWN:
-            case GEOMETRY:
-                length = 0; // TODO 优化
+                length = 0;
                 break;
             default:
                 throw MySQLExceptions.createUnknownEnumException(parameterMeta.mysqlType);
@@ -305,45 +310,46 @@ final class PrepareExecuteCommandWriter implements StatementCommandWriter {
     }
 
     /**
-     * @see #emitExecutionPackets(List, FluxSink)
+     * @see #createExecutePacketBuffer(int)
      */
-    private void bindParameter(ByteBuf buffer, MySQLColumnMeta parameterMeta, BindValue bindValue) throws SQLException {
+    private void bindParameter(ByteBuf buffer, int stmtIndex, MySQLColumnMeta parameterMeta, ParamValue bindValue)
+            throws SQLException {
 
         switch (parameterMeta.mysqlType) {
             case INT:
             case MEDIUMINT:
             case INT_UNSIGNED:
             case MEDIUMINT_UNSIGNED:
-                bindToInt4(buffer, parameterMeta, bindValue);
+                bindToInt4(buffer, stmtIndex, parameterMeta, bindValue);
                 break;
             case BIGINT:
             case BIGINT_UNSIGNED:
-                bindToInt8(buffer, parameterMeta, bindValue);
+                bindToInt8(buffer, stmtIndex, parameterMeta, bindValue);
                 break;
             case FLOAT:
             case FLOAT_UNSIGNED:
-                bindToFloat(buffer, bindValue);
+                bindToFloat(buffer, stmtIndex, parameterMeta, bindValue);
                 break;
             case DOUBLE:
             case DOUBLE_UNSIGNED:
-                bindToDouble(buffer, bindValue);
+                bindToDouble(buffer, stmtIndex, parameterMeta, bindValue);
                 break;
             case BIT:
-                bindToBit(buffer, parameterMeta, bindValue);
+                bindToBit(buffer, stmtIndex, parameterMeta, bindValue);
                 break;
             case BOOLEAN:
             case TINYINT:
             case TINYINT_UNSIGNED:
-                bindToInt1(buffer, parameterMeta, bindValue);
+                bindToInt1(buffer, stmtIndex, parameterMeta, bindValue);
                 break;
             case SMALLINT:
             case SMALLINT_UNSIGNED:
             case YEAR:
-                bindInt2(buffer, parameterMeta, bindValue);
+                bindInt2(buffer, stmtIndex, parameterMeta, bindValue);
                 break;
             case DECIMAL:
             case DECIMAL_UNSIGNED:
-                bindToDecimal(buffer, bindValue);
+                bindToDecimal(buffer, stmtIndex, parameterMeta, bindValue);
                 break;
             case VARCHAR:
             case CHAR:
@@ -361,38 +367,40 @@ final class PrepareExecuteCommandWriter implements StatementCommandWriter {
             case MEDIUMBLOB:
             case BLOB:
             case LONGBLOB:
-                bindToStringType(buffer, bindValue);
+            case GEOMETRY:
+                bindToStringType(buffer, stmtIndex, parameterMeta.mysqlType, bindValue);
                 break;
             case TIME:
-                bindToTime(buffer, parameterMeta, bindValue);
+                bindToTime(buffer, stmtIndex, parameterMeta, bindValue);
                 break;
             case DATE:
-                bindToDate(buffer, bindValue);
+                bindToDate(buffer, stmtIndex, parameterMeta, bindValue);
                 break;
             case DATETIME:
             case TIMESTAMP:
-                bindToDatetime(buffer, parameterMeta, bindValue);
+                bindToDatetime(buffer, stmtIndex, parameterMeta, bindValue);
                 break;
+            case NULL:
             case UNKNOWN:
-            case GEOMETRY:
-                //TODO add code
-                throw BindUtils.createTypeNotMatchException(bindValue);
+                throw MySQLExceptions.createUnsupportedParamTypeError(stmtIndex, parameterMeta.mysqlType, bindValue);
             default:
                 throw MySQLExceptions.createUnknownEnumException(parameterMeta.mysqlType);
         }
     }
 
     /**
-     * @see #bindParameter(ByteBuf, MySQLColumnMeta, BindValue)
+     * @see #bindParameter(ByteBuf, int, MySQLColumnMeta, ParamValue)
      */
-    private void bindToInt1(final ByteBuf buffer, final MySQLColumnMeta parameterMeta, final BindValue bindValue) {
+    private void bindToInt1(final ByteBuf buffer, final int stmtIndex, final MySQLColumnMeta parameterMeta
+            , final ParamValue bindValue) {
         final Object nonNullValue = bindValue.getRequiredValue();
         final int int1;
         final int unsignedMaxByte = Byte.toUnsignedInt((byte) -1);
         if (nonNullValue instanceof Byte) {
             byte num = (Byte) nonNullValue;
             if (parameterMeta.isUnsigned() && num < 0) {
-                throw BindUtils.createNumberRangErrorException(bindValue, 0, unsignedMaxByte);
+                throw MySQLExceptions.createNumberRangErrorException(stmtIndex, parameterMeta.mysqlType, bindValue
+                        , 0, unsignedMaxByte);
             }
             int1 = num;
         } else if (nonNullValue instanceof Boolean) {
@@ -400,39 +408,41 @@ final class PrepareExecuteCommandWriter implements StatementCommandWriter {
         } else if (nonNullValue instanceof Integer
                 || nonNullValue instanceof Long
                 || nonNullValue instanceof Short) {
-            int1 = longTotInt1(bindValue, parameterMeta.mysqlType, ((Number) nonNullValue).longValue());
+            int1 = longTotInt1(bindValue, stmtIndex, parameterMeta.mysqlType, ((Number) nonNullValue).longValue());
         } else if (nonNullValue instanceof String) {
             Number num;
             try {
-                num = longTotInt1(bindValue, parameterMeta.mysqlType, Integer.parseInt((String) nonNullValue));
+                num = longTotInt1(bindValue, stmtIndex, parameterMeta.mysqlType, Integer.parseInt((String) nonNullValue));
             } catch (NumberFormatException e) {
                 try {
-                    num = bigIntegerTotInt1(bindValue, parameterMeta.mysqlType, new BigInteger((String) nonNullValue));
+                    num = bigIntegerTotInt1(bindValue, stmtIndex, parameterMeta.mysqlType
+                            , new BigInteger((String) nonNullValue));
                 } catch (NumberFormatException ne) {
-                    throw BindUtils.createTypeNotMatchException(bindValue);
+                    throw MySQLExceptions.createTypeNotMatchException(stmtIndex, parameterMeta.mysqlType, bindValue);
                 }
             }
             int1 = num.intValue();
         } else if (nonNullValue instanceof BigInteger) {
-            int1 = bigIntegerTotInt1(bindValue, parameterMeta.mysqlType, (BigInteger) nonNullValue);
+            int1 = bigIntegerTotInt1(bindValue, stmtIndex, parameterMeta.mysqlType, (BigInteger) nonNullValue);
         } else if (nonNullValue instanceof BigDecimal) {
             BigDecimal num = (BigDecimal) nonNullValue;
             if (num.scale() != 0) {
-                throw BindUtils.createNotSupportFractionException(bindValue);
+                throw MySQLExceptions.createNotSupportFractionException(stmtIndex, parameterMeta.mysqlType, bindValue);
             } else {
-                int1 = bigIntegerTotInt1(bindValue, parameterMeta.mysqlType, num.toBigInteger());
+                int1 = bigIntegerTotInt1(bindValue, stmtIndex, parameterMeta.mysqlType, num.toBigInteger());
             }
         } else {
-            throw BindUtils.createTypeNotMatchException(bindValue);
+            throw MySQLExceptions.createTypeNotMatchException(stmtIndex, parameterMeta.mysqlType, bindValue);
         }
 
         PacketUtils.writeInt1(buffer, int1);
     }
 
     /**
-     * @see #bindParameter(ByteBuf, MySQLColumnMeta, BindValue)
+     * @see #bindParameter(ByteBuf, int, MySQLColumnMeta, ParamValue)
      */
-    private void bindInt2(final ByteBuf buffer, final MySQLColumnMeta parameterMeta, final BindValue bindValue) {
+    private void bindInt2(final ByteBuf buffer, int stmtIndex, final MySQLColumnMeta parameterMeta
+            , final ParamValue bindValue) {
         final Object nonNullValue = bindValue.getRequiredValue();
 
         final int unsignedMaxShort = Short.toUnsignedInt((short) -1);
@@ -442,45 +452,49 @@ final class PrepareExecuteCommandWriter implements StatementCommandWriter {
         } else if (nonNullValue instanceof Short) {
             short num = (Short) nonNullValue;
             if (parameterMeta.isUnsigned() && num < 0) {
-                throw BindUtils.createNumberRangErrorException(bindValue, 0, unsignedMaxShort);
+                throw MySQLExceptions.createNumberRangErrorException(stmtIndex, parameterMeta.mysqlType, bindValue
+                        , 0, unsignedMaxShort);
             }
             int2 = num;
         } else if (nonNullValue instanceof Integer
                 || nonNullValue instanceof Byte
                 || nonNullValue instanceof Long) {
-            int2 = longTotInt2(bindValue, parameterMeta.mysqlType, ((Number) nonNullValue).longValue());
+            int2 = longTotInt2(bindValue, stmtIndex, parameterMeta.mysqlType, ((Number) nonNullValue).longValue());
         } else if (nonNullValue instanceof String) {
             Number num;
             try {
-                num = longTotInt2(bindValue, parameterMeta.mysqlType, Integer.parseInt((String) nonNullValue));
+                num = longTotInt2(bindValue, stmtIndex, parameterMeta.mysqlType
+                        , Integer.parseInt((String) nonNullValue));
             } catch (NumberFormatException e) {
                 try {
-                    num = bigIntegerTotInt1(bindValue, parameterMeta.mysqlType, new BigInteger((String) nonNullValue));
+                    num = bigIntegerTotInt1(bindValue, stmtIndex, parameterMeta.mysqlType
+                            , new BigInteger((String) nonNullValue));
                 } catch (NumberFormatException ne) {
-                    throw BindUtils.createTypeNotMatchException(bindValue);
+                    throw MySQLExceptions.createTypeNotMatchException(stmtIndex, parameterMeta.mysqlType, bindValue);
                 }
             }
             int2 = num.intValue();
         } else if (nonNullValue instanceof BigInteger) {
-            int2 = bigIntegerTotInt2(bindValue, parameterMeta.mysqlType, (BigInteger) nonNullValue);
+            int2 = bigIntegerTotInt2(bindValue, stmtIndex, parameterMeta.mysqlType, (BigInteger) nonNullValue);
         } else if (nonNullValue instanceof BigDecimal) {
             BigDecimal num = (BigDecimal) nonNullValue;
             if (num.scale() != 0) {
-                throw BindUtils.createNotSupportFractionException(bindValue);
+                throw MySQLExceptions.createNotSupportFractionException(stmtIndex, parameterMeta.mysqlType, bindValue);
             } else {
-                int2 = bigIntegerTotInt2(bindValue, parameterMeta.mysqlType, num.toBigInteger());
+                int2 = bigIntegerTotInt2(bindValue, stmtIndex, parameterMeta.mysqlType, num.toBigInteger());
             }
         } else {
-            throw BindUtils.createTypeNotMatchException(bindValue);
+            throw MySQLExceptions.createTypeNotMatchException(stmtIndex, parameterMeta.mysqlType, bindValue);
         }
         PacketUtils.writeInt2(buffer, int2);
     }
 
     /**
-     * @see #bindParameter(ByteBuf, MySQLColumnMeta, BindValue)
+     * @see #bindParameter(ByteBuf, int, MySQLColumnMeta, ParamValue)
      */
-    private void bindToDecimal(final ByteBuf buffer, final BindValue bindValue) {
-        final Object nonNullValue = bindValue.getRequiredValue();
+    private void bindToDecimal(final ByteBuf buffer, final int stmtIndex, final MySQLColumnMeta parameterMeta
+            , final ParamValue paramValue) {
+        final Object nonNullValue = paramValue.getRequiredValue();
         final String decimal;
         if (nonNullValue instanceof BigDecimal) {
             BigDecimal num = (BigDecimal) nonNullValue;
@@ -501,73 +515,81 @@ final class PrepareExecuteCommandWriter implements StatementCommandWriter {
         } else if (nonNullValue instanceof Double || nonNullValue instanceof Float) {
             decimal = nonNullValue.toString();
         } else {
-            throw BindUtils.createTypeNotMatchException(bindValue);
+            throw MySQLExceptions.createTypeNotMatchException(stmtIndex, parameterMeta.mysqlType, paramValue);
         }
         PacketUtils.writeStringLenEnc(buffer, decimal.getBytes(this.adjutant.obtainCharsetClient()));
     }
 
     /**
-     * @see #bindParameter(ByteBuf, MySQLColumnMeta, BindValue)
+     * @see #bindParameter(ByteBuf, int, MySQLColumnMeta, ParamValue)
      */
-    private void bindToInt4(final ByteBuf buffer, final MySQLColumnMeta parameterMeta, final BindValue bindValue) {
-        final Object nonNullValue = bindValue.getRequiredValue();
+    private void bindToInt4(final ByteBuf buffer, final int stmtIndex, final MySQLColumnMeta parameterMeta
+            , final ParamValue paramValue) {
+        final Object nonNullValue = paramValue.getRequiredValue();
         final long unsignedMaxInt = Integer.toUnsignedLong(-1);
         final int int4;
         if (nonNullValue instanceof Integer) {
             int num = (Integer) nonNullValue;
             if (parameterMeta.isUnsigned() && num < 0) {
-                throw BindUtils.createNumberRangErrorException(bindValue, 0, unsignedMaxInt);
+                throw MySQLExceptions.createNumberRangErrorException(stmtIndex, parameterMeta.mysqlType, paramValue
+                        , 0, unsignedMaxInt);
             }
             int4 = num;
         } else if (nonNullValue instanceof Long) {
-            int4 = longToInt4(bindValue, parameterMeta.mysqlType, (Long) nonNullValue);
+            int4 = longToInt4(stmtIndex, paramValue, parameterMeta.mysqlType, (Long) nonNullValue);
         } else if (nonNullValue instanceof String) {
             int num;
             try {
-                num = longToInt4(bindValue, parameterMeta.mysqlType, Long.parseLong((String) nonNullValue));
+                num = longToInt4(stmtIndex, paramValue, parameterMeta.mysqlType, Long.parseLong((String) nonNullValue));
             } catch (NumberFormatException e) {
-                throw BindUtils.createNumberRangErrorException(bindValue, 0, unsignedMaxInt);
+                throw MySQLExceptions.createNumberRangErrorException(stmtIndex, parameterMeta.mysqlType, paramValue
+                        , 0, unsignedMaxInt);
             }
             int4 = num;
         } else if (nonNullValue instanceof BigInteger) {
-            int4 = bigIntegerToIn4(bindValue, parameterMeta.mysqlType, (BigInteger) nonNullValue);
+            int4 = bigIntegerToIn4(stmtIndex, paramValue, parameterMeta.mysqlType, (BigInteger) nonNullValue);
         } else if (nonNullValue instanceof Short) {
             short num = ((Short) nonNullValue);
             if (parameterMeta.isUnsigned() && num < 0) {
-                throw BindUtils.createNumberRangErrorException(bindValue, 0, unsignedMaxInt);
+                throw MySQLExceptions.createNumberRangErrorException(stmtIndex, parameterMeta.mysqlType, paramValue
+                        , 0, unsignedMaxInt);
             }
             int4 = num;
         } else if (nonNullValue instanceof Byte) {
             byte num = ((Byte) nonNullValue);
             if (parameterMeta.isUnsigned() && num < 0) {
-                throw BindUtils.createNumberRangErrorException(bindValue, 0, unsignedMaxInt);
+                throw MySQLExceptions.createNumberRangErrorException(stmtIndex, parameterMeta.mysqlType, paramValue
+                        , 0, unsignedMaxInt);
             }
             int4 = num;
         } else if (nonNullValue instanceof BigDecimal) {
             BigDecimal num = (BigDecimal) nonNullValue;
             if (num.scale() != 0) {
-                throw BindUtils.createNotSupportFractionException(bindValue);
+                throw MySQLExceptions.createNotSupportFractionException(stmtIndex, parameterMeta.mysqlType, paramValue);
             } else if (parameterMeta.isUnsigned()) {
                 if (num.compareTo(BigDecimal.ZERO) < 0
                         || num.compareTo(BigDecimal.valueOf(unsignedMaxInt)) > 0) {
-                    throw BindUtils.createNumberRangErrorException(bindValue, 0, unsignedMaxInt);
+                    throw MySQLExceptions.createNumberRangErrorException(stmtIndex, parameterMeta.mysqlType, paramValue
+                            , 0, unsignedMaxInt);
                 }
             } else if (num.compareTo(BigDecimal.valueOf(Integer.MIN_VALUE)) < 0
                     || num.compareTo(BigDecimal.valueOf(Integer.MAX_VALUE)) > 0) {
-                throw BindUtils.createNumberRangErrorException(bindValue, 0, unsignedMaxInt);
+                throw MySQLExceptions.createNumberRangErrorException(stmtIndex, parameterMeta.mysqlType, paramValue
+                        , 0, unsignedMaxInt);
             }
             int4 = num.intValue();
         } else {
-            throw BindUtils.createTypeNotMatchException(bindValue);
+            throw MySQLExceptions.createTypeNotMatchException(stmtIndex, parameterMeta.mysqlType, paramValue);
         }
 
         PacketUtils.writeInt4(buffer, int4);
     }
 
     /**
-     * @see #bindParameter(ByteBuf, MySQLColumnMeta, BindValue)
+     * @see #bindParameter(ByteBuf, int, MySQLColumnMeta, ParamValue)
      */
-    private void bindToFloat(final ByteBuf buffer, final BindValue bindValue) {
+    private void bindToFloat(final ByteBuf buffer, int stmtIndex, final MySQLColumnMeta meta
+            , final ParamValue bindValue) {
         final Object nonNullValue = bindValue.getRequiredValue();
         final float floatValue;
         if (nonNullValue instanceof Float) {
@@ -576,76 +598,82 @@ final class PrepareExecuteCommandWriter implements StatementCommandWriter {
             try {
                 floatValue = Float.parseFloat((String) nonNullValue);
             } catch (NumberFormatException e) {
-                throw BindUtils.createTypeNotMatchException(bindValue);
+                throw MySQLExceptions.createTypeNotMatchException(stmtIndex, meta.mysqlType, bindValue);
             }
         } else if (nonNullValue instanceof Short) {
             floatValue = ((Short) nonNullValue).floatValue();
         } else if (nonNullValue instanceof Byte) {
             floatValue = ((Byte) nonNullValue).floatValue();
         } else {
-            throw BindUtils.createTypeNotMatchException(bindValue);
+            throw MySQLExceptions.createTypeNotMatchException(stmtIndex, meta.mysqlType, bindValue);
         }
 
         PacketUtils.writeInt4(buffer, Float.floatToIntBits(floatValue));
     }
 
     /**
-     * @see #bindParameter(ByteBuf, MySQLColumnMeta, BindValue)
+     * @see #bindParameter(ByteBuf, int, MySQLColumnMeta, ParamValue)
      */
-    private void bindToInt8(final ByteBuf buffer, final MySQLColumnMeta parameterMeta, final BindValue bindValue) {
+    private void bindToInt8(final ByteBuf buffer, int stmtIndex, final MySQLColumnMeta meta
+            , final ParamValue bindValue) {
         final Object nonNullValue = bindValue.getRequiredValue();
         final long int8;
         if (nonNullValue instanceof Long) {
             long num = (Long) nonNullValue;
-            if (parameterMeta.isUnsigned() && num < 0) {
-                throw BindUtils.createNumberRangErrorException(bindValue, 0, MySQLNumberUtils.MAX_UNSIGNED_LONG);
+            if (meta.isUnsigned() && num < 0) {
+                throw MySQLExceptions.createNumberRangErrorException(stmtIndex, meta.mysqlType, bindValue
+                        , 0, MySQLNumberUtils.MAX_UNSIGNED_LONG);
             }
             int8 = num;
         } else if (nonNullValue instanceof BigInteger) {
-            int8 = bigIntegerToInt8(bindValue, parameterMeta.mysqlType, (BigInteger) nonNullValue);
+            int8 = bigIntegerToInt8(bindValue, stmtIndex, meta.mysqlType, (BigInteger) nonNullValue);
         } else if (nonNullValue instanceof Integer) {
             int num = (Integer) nonNullValue;
-            if (parameterMeta.isUnsigned() && num < 0) {
-                throw BindUtils.createNumberRangErrorException(bindValue, 0, MySQLNumberUtils.MAX_UNSIGNED_LONG);
+            if (meta.isUnsigned() && num < 0) {
+                throw MySQLExceptions.createNumberRangErrorException(stmtIndex, meta.mysqlType, bindValue
+                        , 0, MySQLNumberUtils.MAX_UNSIGNED_LONG);
             }
             int8 = num;
         } else if (nonNullValue instanceof Short) {
             int num = (Short) nonNullValue;
-            if (parameterMeta.isUnsigned() && num < 0) {
-                throw BindUtils.createNumberRangErrorException(bindValue, 0, MySQLNumberUtils.MAX_UNSIGNED_LONG);
+            if (meta.isUnsigned() && num < 0) {
+                throw MySQLExceptions.createNumberRangErrorException(stmtIndex, meta.mysqlType, bindValue
+                        , 0, MySQLNumberUtils.MAX_UNSIGNED_LONG);
             }
             int8 = num;
         } else if (nonNullValue instanceof Byte) {
             int num = (Byte) nonNullValue;
-            if (parameterMeta.isUnsigned() && num < 0) {
-                throw BindUtils.createNumberRangErrorException(bindValue, 0, MySQLNumberUtils.MAX_UNSIGNED_LONG);
+            if (meta.isUnsigned() && num < 0) {
+                throw MySQLExceptions.createNumberRangErrorException(stmtIndex, meta.mysqlType, bindValue
+                        , 0, MySQLNumberUtils.MAX_UNSIGNED_LONG);
             }
             int8 = num;
         } else if (nonNullValue instanceof String) {
             try {
                 BigInteger big = new BigInteger((String) nonNullValue);
-                int8 = bigIntegerToInt8(bindValue, parameterMeta.mysqlType, big);
+                int8 = bigIntegerToInt8(bindValue, stmtIndex, meta.mysqlType, big);
             } catch (NumberFormatException e) {
-                throw BindUtils.createTypeNotMatchException(bindValue);
+                throw MySQLExceptions.createTypeNotMatchException(stmtIndex, meta.mysqlType, bindValue);
             }
         } else if (nonNullValue instanceof BigDecimal) {
             BigDecimal num = (BigDecimal) nonNullValue;
             if (num.scale() != 0) {
-                throw BindUtils.createNotSupportFractionException(bindValue);
+                throw MySQLExceptions.createNotSupportFractionException(stmtIndex, meta.mysqlType, bindValue);
             } else {
-                int8 = bigIntegerToInt8(bindValue, parameterMeta.mysqlType, num.toBigInteger());
+                int8 = bigIntegerToInt8(bindValue, stmtIndex, meta.mysqlType, num.toBigInteger());
             }
         } else {
-            throw BindUtils.createTypeNotMatchException(bindValue);
+            throw MySQLExceptions.createTypeNotMatchException(stmtIndex, meta.mysqlType, bindValue);
         }
 
         PacketUtils.writeInt8(buffer, int8);
     }
 
     /**
-     * @see #bindParameter(ByteBuf, MySQLColumnMeta, BindValue)
+     * @see #bindParameter(ByteBuf, int, MySQLColumnMeta, ParamValue)
      */
-    private void bindToDouble(final ByteBuf buffer, final BindValue bindValue) {
+    private void bindToDouble(final ByteBuf buffer, int stmtIndex, final MySQLColumnMeta parameterMeta
+            , final ParamValue bindValue) {
         final Object nonNullValue = bindValue.getRequiredValue();
         final double value;
         if (nonNullValue instanceof Double) {
@@ -656,7 +684,7 @@ final class PrepareExecuteCommandWriter implements StatementCommandWriter {
             try {
                 value = Double.parseDouble((String) nonNullValue);
             } catch (NumberFormatException e) {
-                throw BindUtils.createTypeNotMatchException(bindValue);
+                throw MySQLExceptions.createTypeNotMatchException(stmtIndex, parameterMeta.mysqlType, bindValue);
             }
         } else if (nonNullValue instanceof Integer) {
             value = ((Integer) nonNullValue).doubleValue();
@@ -665,16 +693,17 @@ final class PrepareExecuteCommandWriter implements StatementCommandWriter {
         } else if (nonNullValue instanceof Byte) {
             value = ((Byte) nonNullValue).doubleValue();
         } else {
-            throw BindUtils.createTypeNotMatchException(bindValue);
+            throw MySQLExceptions.createTypeNotMatchException(stmtIndex, parameterMeta.mysqlType, bindValue);
         }
 
         PacketUtils.writeInt8(buffer, Double.doubleToLongBits(value));
     }
 
     /**
-     * @see #bindParameter(ByteBuf, MySQLColumnMeta, BindValue)
+     * @see #bindParameter(ByteBuf, int, MySQLColumnMeta, ParamValue)
      */
-    private void bindToTime(final ByteBuf buffer, final MySQLColumnMeta parameterMeta, final BindValue bindValue) {
+    private void bindToTime(final ByteBuf buffer, int stmtIndex, final MySQLColumnMeta parameterMeta
+            , final ParamValue bindValue) {
         final Object nonNullValue = bindValue.getRequiredValue();
 
         final int microPrecision = parameterMeta.obtainDateTimeTypePrecision();
@@ -686,10 +715,8 @@ final class PrepareExecuteCommandWriter implements StatementCommandWriter {
 
             buffer.writeByte(duration.isNegative() ? 1 : 0); //2. is_negative
             duration = duration.abs();
-            if (duration.compareTo(Constants.MAX_DURATION) > 0) {
-                throw new BindParameterException(String.format(
-                        "Bind parameter[%s] MySQLType[%s] Duration[%s] beyond [-838:59:59,838:59:59]"
-                        , bindValue.getParamIndex(), bindValue.getType(), duration), bindValue.getParamIndex());
+            if (!MySQLTimeUtils.canConvertToTimeType(duration)) {
+                throw MySQLExceptions.createDurationRangeException(stmtIndex, parameterMeta.mysqlType, bindValue);
             }
             long temp;
             temp = duration.toDays();
@@ -730,10 +757,10 @@ final class PrepareExecuteCommandWriter implements StatementCommandWriter {
                         .withOffsetSameInstant(this.adjutant.obtainZoneOffsetDatabase())
                         .toLocalTime();
             } catch (DateTimeParseException e) {
-                throw BindUtils.createTypeNotMatchException(bindValue, e);
+                throw MySQLExceptions.createTypeNotMatchException(stmtIndex, parameterMeta.mysqlType, bindValue, e);
             }
         } else {
-            throw BindUtils.createTypeNotMatchException(bindValue);
+            throw MySQLExceptions.createTypeNotMatchException(stmtIndex, parameterMeta.mysqlType, bindValue);
         }
         if (time != null) {
             buffer.writeByte(length); //1. length
@@ -754,9 +781,9 @@ final class PrepareExecuteCommandWriter implements StatementCommandWriter {
     }
 
     /**
-     * @see #bindParameter(ByteBuf, MySQLColumnMeta, BindValue)
+     * @see #bindParameter(ByteBuf, int, MySQLColumnMeta, ParamValue)
      */
-    private void bindToDate(final ByteBuf buffer, final BindValue bindValue) {
+    private void bindToDate(final ByteBuf buffer, int stmtIndex, MySQLColumnMeta columnMeta, ParamValue bindValue) {
         final Object nonNullValue = bindValue.getRequiredValue();
 
         final LocalDate date;
@@ -767,10 +794,10 @@ final class PrepareExecuteCommandWriter implements StatementCommandWriter {
             try {
                 date = LocalDate.parse((String) nonNullValue);
             } catch (DateTimeParseException e) {
-                throw BindUtils.createTypeNotMatchException(bindValue, e);
+                throw MySQLExceptions.createTypeNotMatchException(stmtIndex, columnMeta.mysqlType, bindValue, e);
             }
         } else {
-            throw BindUtils.createTypeNotMatchException(bindValue);
+            throw MySQLExceptions.createTypeNotMatchException(stmtIndex, columnMeta.mysqlType, bindValue);
         }
         buffer.writeByte(4); // length
         PacketUtils.writeInt2(buffer, date.getYear()); // year
@@ -779,9 +806,10 @@ final class PrepareExecuteCommandWriter implements StatementCommandWriter {
     }
 
     /**
-     * @see #bindParameter(ByteBuf, MySQLColumnMeta, BindValue)
+     * @see #bindParameter(ByteBuf, int, MySQLColumnMeta, ParamValue)
      */
-    private void bindToDatetime(final ByteBuf buffer, final MySQLColumnMeta parameterMeta, final BindValue bindValue) {
+    private void bindToDatetime(final ByteBuf buffer, int stmtIndex, final MySQLColumnMeta parameterMeta
+            , final ParamValue bindValue) {
         final Object nonNullValue = bindValue.getRequiredValue();
 
         final LocalDateTime dateTime;
@@ -805,10 +833,10 @@ final class PrepareExecuteCommandWriter implements StatementCommandWriter {
                         .withOffsetSameInstant(this.adjutant.obtainZoneOffsetDatabase())
                         .toLocalDateTime();
             } catch (DateTimeParseException e) {
-                throw BindUtils.createTypeNotMatchException(bindValue, e);
+                throw MySQLExceptions.createTypeNotMatchException(stmtIndex, parameterMeta.mysqlType, bindValue, e);
             }
         } else {
-            throw BindUtils.createTypeNotMatchException(bindValue);
+            throw MySQLExceptions.createTypeNotMatchException(stmtIndex, parameterMeta.mysqlType, bindValue);
         }
 
         final int microPrecision = parameterMeta.obtainDateTimeTypePrecision();
@@ -833,21 +861,24 @@ final class PrepareExecuteCommandWriter implements StatementCommandWriter {
 
 
     /**
-     * @see #bindParameter(ByteBuf, MySQLColumnMeta, BindValue)
+     * @see #bindParameter(ByteBuf, int, MySQLColumnMeta, ParamValue)
      */
-    private void bindToBit(final ByteBuf buffer, final MySQLColumnMeta parameterMeta, final BindValue bindValue)
+    private void bindToBit(final ByteBuf buffer, int stmtIndex, final MySQLColumnMeta parameterMeta
+            , final ParamValue bindValue)
             throws SQLException {
-        final String bits = BindUtils.bindToBits(-1, bindValue);
+        final String bits = BindUtils.bindToBits(-1, parameterMeta.mysqlType, bindValue);
         if (bits.length() < 4 || bits.length() > (parameterMeta.length + 3)) {
-            throw BindUtils.createNumberRangErrorException(bindValue, 1, parameterMeta.length);
+            throw MySQLExceptions.createNumberRangErrorException(stmtIndex, parameterMeta.mysqlType, bindValue
+                    , 1, parameterMeta.length);
         }
         PacketUtils.writeStringLenEnc(buffer, bits.getBytes(this.adjutant.obtainCharsetClient()));
     }
 
     /**
-     * @see #bindParameter(ByteBuf, MySQLColumnMeta, BindValue)
+     * @see #bindParameter(ByteBuf, int, MySQLColumnMeta, ParamValue)
      */
-    private void bindToStringType(final ByteBuf buffer, final BindValue bindValue) {
+    private void bindToStringType(final ByteBuf buffer, final int stmtIndex, final MySQLType mySQLType
+            , final ParamValue bindValue) {
         final Object nonNullValue = bindValue.getRequiredValue();
         final Charset charset = this.adjutant.obtainCharsetClient();
         if (nonNullValue instanceof CharSequence || nonNullValue instanceof Character) {
@@ -857,7 +888,7 @@ final class PrepareExecuteCommandWriter implements StatementCommandWriter {
         } else if (nonNullValue instanceof Enum) {
             PacketUtils.writeStringLenEnc(buffer, ((Enum<?>) nonNullValue).name().getBytes(charset));
         } else {
-            throw BindUtils.createTypeNotMatchException(bindValue);
+            throw MySQLExceptions.createTypeNotMatchException(stmtIndex, mySQLType, bindValue);
         }
 
     }
@@ -866,8 +897,8 @@ final class PrepareExecuteCommandWriter implements StatementCommandWriter {
     /*################################## blow private static method ##################################*/
 
     /**
-     * @see #bindToTime(ByteBuf, MySQLColumnMeta, BindValue)
-     * @see #bindToDatetime(ByteBuf, MySQLColumnMeta, BindValue)
+     * @see #bindToTime(ByteBuf, int, MySQLColumnMeta, ParamValue)
+     * @see #bindToDatetime(ByteBuf, int, MySQLColumnMeta, ParamValue)
      */
     private static int truncateMicroSeconds(final int microSeconds, final int precision) {
         final int newMicroSeconds;
@@ -903,109 +934,119 @@ final class PrepareExecuteCommandWriter implements StatementCommandWriter {
     /*################################## blow private static convert method ##################################*/
 
     /**
-     * @see #bindToInt4(ByteBuf, MySQLColumnMeta, BindValue)
+     * @see #bindToInt4(ByteBuf, int, MySQLColumnMeta, ParamValue)
      */
-    private static int longToInt4(BindValue bindValue, MySQLType mySQLType, final long num) {
+    private static int longToInt4(int stmtIndex, ParamValue bindValue, MySQLType mySQLType, final long num) {
         if (mySQLType.isUnsigned()) {
             long unsignedMaxInt = Integer.toUnsignedLong(-1);
             if (num < 0 || num > unsignedMaxInt) {
-                throw BindUtils.createNumberRangErrorException(bindValue, 0, unsignedMaxInt);
+                throw MySQLExceptions.createNumberRangErrorException(stmtIndex, mySQLType, bindValue
+                        , 0, unsignedMaxInt);
             }
         } else if (num < Integer.MIN_VALUE || num > Integer.MAX_VALUE) {
-            throw BindUtils.createNumberRangErrorException(bindValue, Integer.MIN_VALUE, Integer.MAX_VALUE);
+            throw MySQLExceptions.createNumberRangErrorException(stmtIndex, mySQLType, bindValue
+                    , Integer.MIN_VALUE, Integer.MAX_VALUE);
         }
         return (int) num;
     }
 
     /**
-     * @see #bindToInt4(ByteBuf, MySQLColumnMeta, BindValue)
+     * @see #bindToInt4(ByteBuf, int, MySQLColumnMeta, ParamValue)
      */
-    private static int bigIntegerToIn4(BindValue bindValue, MySQLType mySQLType, final BigInteger num) {
+    private static int bigIntegerToIn4(int stmtIndex, ParamValue paramValue, MySQLType mySQLType
+            , final BigInteger num) {
         if (mySQLType.isUnsigned()) {
             BigInteger unsignedMaxInt = BigInteger.valueOf(Integer.toUnsignedLong(-1));
             if (num.compareTo(BigInteger.ZERO) < 0 || num.compareTo(unsignedMaxInt) > 0) {
-                throw BindUtils.createNumberRangErrorException(bindValue, 0, unsignedMaxInt);
+                throw MySQLExceptions.createNumberRangErrorException(stmtIndex, mySQLType, paramValue
+                        , 0, unsignedMaxInt);
             }
         } else if (num.compareTo(BigInteger.valueOf(Integer.MIN_VALUE)) < 0
                 || num.compareTo(BigInteger.valueOf(Integer.MAX_VALUE)) > 0) {
-            throw BindUtils.createNumberRangErrorException(bindValue, Integer.MIN_VALUE, Integer.MAX_VALUE);
+            throw MySQLExceptions.createNumberRangErrorException(stmtIndex, mySQLType, paramValue
+                    , Integer.MIN_VALUE, Integer.MAX_VALUE);
         }
         return num.intValue();
     }
 
     /**
-     * @see #bindToInt8(ByteBuf, MySQLColumnMeta, BindValue)
+     * @see #bindToInt8(ByteBuf, int, MySQLColumnMeta, ParamValue)
      */
-    private static long bigIntegerToInt8(BindValue bindValue, MySQLType mySQLType, final BigInteger num) {
+    private static long bigIntegerToInt8(ParamValue bindValue, int stmtIndex, MySQLType mySQLType
+            , final BigInteger num) {
         if (mySQLType.isUnsigned()) {
             if (num.compareTo(BigInteger.ZERO) < 0 || num.compareTo(MySQLNumberUtils.MAX_UNSIGNED_LONG) > 0) {
-                throw BindUtils.createNumberRangErrorException(bindValue, 0, MySQLNumberUtils.MAX_UNSIGNED_LONG);
+                throw MySQLExceptions.createNumberRangErrorException(stmtIndex, mySQLType, bindValue
+                        , 0, MySQLNumberUtils.MAX_UNSIGNED_LONG);
             }
         } else if (num.compareTo(BigInteger.valueOf(Long.MIN_VALUE)) < 0
                 || num.compareTo(BigInteger.valueOf(Long.MAX_VALUE)) > 0) {
-            throw BindUtils.createNumberRangErrorException(bindValue, Long.MIN_VALUE, Long.MAX_VALUE);
+            throw MySQLExceptions.createNumberRangErrorException(stmtIndex, mySQLType, bindValue
+                    , Long.MIN_VALUE, Long.MAX_VALUE);
         }
         return num.longValue();
     }
 
-    private static int longTotInt1(BindValue bindValue, MySQLType mySQLType, final long num) {
+    private static int longTotInt1(ParamValue bindValue, int stmtIndex, MySQLType mySQLType, final long num) {
 
         if (mySQLType.isUnsigned()) {
             int unsignedMaxByte = Byte.toUnsignedInt((byte) -1);
             if (num < 0 || num > unsignedMaxByte) {
-                throw BindUtils.createNumberRangErrorException(bindValue, 0, unsignedMaxByte);
+                throw MySQLExceptions.createNumberRangErrorException(stmtIndex, mySQLType, bindValue, 0, unsignedMaxByte);
             }
         } else if (num < Byte.MIN_VALUE || num > Byte.MAX_VALUE) {
-            throw BindUtils.createNumberRangErrorException(bindValue, Byte.MIN_VALUE, Byte.MAX_VALUE);
+            throw MySQLExceptions.createNumberRangErrorException(stmtIndex, mySQLType, bindValue
+                    , Byte.MIN_VALUE, Byte.MAX_VALUE);
         }
         return (int) num;
     }
 
-    private static int longTotInt2(BindValue bindValue, MySQLType mySQLType, final long num) {
+    private static int longTotInt2(ParamValue bindValue, int stmtIndex, MySQLType mySQLType, final long num) {
 
         if (mySQLType.isUnsigned()) {
             int unsignedMaxShort = Short.toUnsignedInt((short) -1);
             if (num < 0 || num > unsignedMaxShort) {
-                throw BindUtils.createNumberRangErrorException(bindValue, 0, unsignedMaxShort);
+                throw MySQLExceptions.createNumberRangErrorException(stmtIndex, mySQLType, bindValue
+                        , 0, unsignedMaxShort);
             }
         } else if (num < Short.MIN_VALUE || num > Short.MAX_VALUE) {
-            throw BindUtils.createNumberRangErrorException(bindValue, Short.MIN_VALUE, Short.MAX_VALUE);
+            throw MySQLExceptions.createNumberRangErrorException(stmtIndex, mySQLType, bindValue
+                    , Short.MIN_VALUE, Short.MAX_VALUE);
         }
         return (int) num;
     }
 
-    private static int bigIntegerTotInt1(BindValue bindValue, MySQLType mySQLType, final BigInteger num) {
+    private static int bigIntegerTotInt1(ParamValue bindValue, int stmtIndex, MySQLType mySQLType
+            , final BigInteger num) {
 
         if (mySQLType.isUnsigned()) {
             BigInteger unsignedMaxByte = BigInteger.valueOf(Byte.toUnsignedInt((byte) -1));
             if (num.compareTo(BigInteger.ZERO) < 0 || num.compareTo(unsignedMaxByte) > 0) {
-                throw BindUtils.createNumberRangErrorException(bindValue, 0, unsignedMaxByte);
+                throw MySQLExceptions.createNumberRangErrorException(stmtIndex, mySQLType, bindValue
+                        , 0, unsignedMaxByte);
             }
         } else if (num.compareTo(BigInteger.valueOf(Byte.MIN_VALUE)) < 0
                 || num.compareTo(BigInteger.valueOf(Byte.MAX_VALUE)) > 0) {
-            throw BindUtils.createNumberRangErrorException(bindValue, Byte.MIN_VALUE, Byte.MAX_VALUE);
+            throw MySQLExceptions.createNumberRangErrorException(stmtIndex, mySQLType, bindValue
+                    , Byte.MIN_VALUE, Byte.MAX_VALUE);
         }
         return num.intValue();
     }
 
-    private static int bigIntegerTotInt2(BindValue bindValue, MySQLType mySQLType, final BigInteger num) {
+    private static int bigIntegerTotInt2(ParamValue bindValue, int stmtIndex, MySQLType mySQLType
+            , final BigInteger num) {
 
         if (mySQLType.isUnsigned()) {
             BigInteger unsignedMaxInt2 = BigInteger.valueOf(Short.toUnsignedInt((byte) -1));
             if (num.compareTo(BigInteger.ZERO) < 0 || num.compareTo(unsignedMaxInt2) > 0) {
-                throw BindUtils.createNumberRangErrorException(bindValue, 0, unsignedMaxInt2);
+                throw MySQLExceptions.createNumberRangErrorException(stmtIndex, mySQLType, bindValue, 0, unsignedMaxInt2);
             }
         } else if (num.compareTo(BigInteger.valueOf(Short.MIN_VALUE)) < 0
                 || num.compareTo(BigInteger.valueOf(Short.MAX_VALUE)) > 0) {
-            throw BindUtils.createNumberRangErrorException(bindValue, Short.MIN_VALUE, Short.MAX_VALUE);
+            throw MySQLExceptions.createNumberRangErrorException(stmtIndex, mySQLType, bindValue
+                    , Short.MIN_VALUE, Short.MAX_VALUE);
         }
         return num.intValue();
-    }
-
-
-    interface LongParameterWriter {
-
-        Flux<ByteBuf> write(List<BindValue> valueList);
     }
 
 

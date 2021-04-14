@@ -4,6 +4,7 @@ import io.jdbd.JdbdException;
 import io.jdbd.JdbdSQLException;
 import io.jdbd.vendor.JdbdUnknownException;
 import org.qinarmy.util.ExceptionUtils;
+import reactor.util.annotation.Nullable;
 
 import java.sql.SQLException;
 
@@ -26,14 +27,20 @@ public abstract class JdbdExceptions extends ExceptionUtils {
         return je;
     }
 
-    public static JdbdException wrap(Throwable e, String format, Object... args) {
+    public static JdbdException wrap(Throwable e, String format, @Nullable Object... args) {
+        final String message;
+        if (args == null || args.length == 0) {
+            message = format;
+        } else {
+            message = String.format(format, args);
+        }
         JdbdException je;
         if (e instanceof JdbdException) {
             je = (JdbdException) e;
         } else if (e instanceof SQLException) {
-            je = new JdbdSQLException((SQLException) e, format, args);
+            je = new JdbdSQLException((SQLException) e, message);
         } else {
-            je = new JdbdUnknownException(e, format, args);
+            je = new JdbdUnknownException(e, message);
         }
         return je;
     }

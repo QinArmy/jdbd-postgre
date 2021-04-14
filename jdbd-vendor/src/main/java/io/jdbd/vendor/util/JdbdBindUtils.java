@@ -1,6 +1,6 @@
 package io.jdbd.vendor.util;
 
-import io.jdbd.vendor.statement.IBindValue;
+import io.jdbd.vendor.statement.BindValue;
 
 import java.util.List;
 
@@ -11,10 +11,10 @@ public abstract class JdbdBindUtils {
     }
 
 
-    public static boolean hasLongData(List<? extends IBindValue> parameterGroup) {
+    public static boolean hasLongData(List<? extends BindValue> parameterGroup) {
         boolean has = false;
-        for (IBindValue bindValue : parameterGroup) {
-            if (bindValue.isStream()) {
+        for (BindValue bindValue : parameterGroup) {
+            if (bindValue.isLongData()) {
                 has = true;
                 break;
             }
@@ -22,7 +22,7 @@ public abstract class JdbdBindUtils {
         return has;
     }
 
-    public static <T extends IBindValue> boolean hasLongDataGroup(List<List<T>> parameterGroupList) {
+    public static <T extends BindValue> boolean hasLongDataGroup(List<List<T>> parameterGroupList) {
         boolean has = false;
         for (List<T> list : parameterGroupList) {
             if (hasLongData(list)) {
