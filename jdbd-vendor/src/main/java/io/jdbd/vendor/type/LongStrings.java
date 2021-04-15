@@ -7,30 +7,31 @@ import java.nio.channels.FileChannel;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
+import java.util.Objects;
 
 public abstract class LongStrings implements LongString {
 
 
     public static LongString fromString(String text) {
-        return new ArrayLongString(text);
+        return new StringLongString(Objects.requireNonNull(text, "text"));
     }
 
     /**
      * @param path should in {@code java.io.tmpdir} directory or sub directory.
      */
     public static LongString fromTempPath(Path path) {
-        return new PathLongString(path);
+        return new PathLongString(Objects.requireNonNull(path, "path"));
     }
 
     private LongStrings() {
     }
 
 
-    private static final class ArrayLongString implements LongString {
+    private static final class StringLongString implements LongString {
 
         private final String text;
 
-        private ArrayLongString(String text) {
+        private StringLongString(String text) {
             this.text = text;
         }
 

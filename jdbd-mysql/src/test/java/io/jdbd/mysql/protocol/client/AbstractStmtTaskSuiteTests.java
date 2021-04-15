@@ -1632,7 +1632,7 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBased
         if (bindParam instanceof Long) {
             assertEquals(bits, bindParam, field);
         } else if (bindParam instanceof Integer) {
-            long bindBits = (Integer) bindParam & 0xFFFF_FFFFL;
+            long bindBits = Integer.toUnsignedLong((Integer) bindParam);
             assertEquals(bits.longValue(), bindBits, field);
         } else if (bindParam instanceof Short) {
             long bindBits = (Short) bindParam & 0xFFFFL;
@@ -1730,18 +1730,18 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBased
         resultRow = querySingleField(taskAdjutant, field, id);
 
 
-        final LocalDateTime expectDateTime;
+        final LocalDateTime resultDateTime;
 
         if (bindDatetime instanceof LocalDateTime) {
-            expectDateTime = (LocalDateTime) bindDatetime;
+            resultDateTime = (LocalDateTime) bindDatetime;
         } else if (bindDatetime instanceof String) {
-            expectDateTime = LocalDateTime.parse((String) bindDatetime, MySQLTimeUtils.MYSQL_DATETIME_FORMATTER);
+            resultDateTime = LocalDateTime.parse((String) bindDatetime, MySQLTimeUtils.MYSQL_DATETIME_FORMATTER);
         } else if (bindDatetime instanceof OffsetDateTime) {
-            expectDateTime = ((OffsetDateTime) bindDatetime)
+            resultDateTime = ((OffsetDateTime) bindDatetime)
                     .withOffsetSameInstant(taskAdjutant.obtainZoneOffsetClient())
                     .toLocalDateTime();
         } else if (bindDatetime instanceof ZonedDateTime) {
-            expectDateTime = ((ZonedDateTime) bindDatetime)
+            resultDateTime = ((ZonedDateTime) bindDatetime)
                     .withZoneSameInstant(taskAdjutant.obtainZoneOffsetClient())
                     .toLocalDateTime();
         } else {
@@ -1756,14 +1756,14 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBased
 
         io.jdbd.vendor.conf.Properties<PropertyKey> properties = taskAdjutant.obtainHostInfo().getProperties();
         if (properties.getOrDefault(PropertyKey.timeTruncateFractional, Boolean.class)) {
-            String bindDateTimeText = expectDateTime.format(MySQLTimeUtils.MYSQL_DATETIME_FORMATTER);
+            String bindDateTimeText = resultDateTime.format(MySQLTimeUtils.MYSQL_DATETIME_FORMATTER);
             if (!bindDateTimeText.startsWith(dateTimeText)) {
                 fail(String.format("dateTimeText[%s] and bindDateTimeText[%s] not match.", dateTimeText, bindDateTimeText));
             }
         } else {
-            Duration duration = Duration.between(expectDateTime, dateTime);
+            Duration duration = Duration.between(resultDateTime, dateTime);
             if (duration.isNegative() || duration.getSeconds() > 1L) {
-                fail(String.format("create time[%s] and expectDateTime[%s] not match.", dateTime, expectDateTime));
+                fail(String.format("create time[%s] and expectDateTime[%s] not match.", dateTime, resultDateTime));
             }
         }
 

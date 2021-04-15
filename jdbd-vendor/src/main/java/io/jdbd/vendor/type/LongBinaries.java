@@ -8,18 +8,19 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.util.Arrays;
+import java.util.Objects;
 
 public abstract class LongBinaries implements LongBinary {
 
     public static LongBinary fromArray(byte[] array) {
-        return new ArrayLongBinary(array);
+        return new ArrayLongBinary(Objects.requireNonNull(array, "array"));
     }
 
     /**
      * @param path should in {@code java.io.tmpdir} directory or sub directory.
      */
     public static LongBinary fromTempPath(Path path) {
-        return new PathLongBinary(path);
+        return new PathLongBinary(Objects.requireNonNull(path, "path"));
     }
 
 

@@ -243,7 +243,7 @@ final class MySQLConnectionTask extends AbstractCommunicationTask implements Aut
     private void receiveHandshakeAndSendResponse(final ByteBuf cumulateBuffer) {
         //1. read handshake packet
         final int payloadLength = PacketUtils.readInt3(cumulateBuffer);
-        updateSequenceId(PacketUtils.readInt1(cumulateBuffer));
+        updateSequenceId(PacketUtils.readInt1AsInt(cumulateBuffer));
         HandshakeV10Packet handshake;
         handshake = HandshakeV10Packet.readHandshake(cumulateBuffer.readSlice(payloadLength));
         this.handshake = handshake;
@@ -286,7 +286,7 @@ final class MySQLConnectionTask extends AbstractCommunicationTask implements Aut
         assertPhase(Phase.AUTHENTICATE);
 
         final int payloadLength = PacketUtils.readInt3(cumulateBuffer);
-        updateSequenceId(PacketUtils.readInt1(cumulateBuffer));
+        updateSequenceId(PacketUtils.readInt1AsInt(cumulateBuffer));
         final ByteBuf payload = cumulateBuffer.readSlice(payloadLength);
         boolean taskEnd;
         if (++this.authCounter > 100) {

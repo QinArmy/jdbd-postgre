@@ -1,11 +1,16 @@
 package io.jdbd.mysql.protocol.client;
 
+import io.jdbd.JdbdSQLException;
 import io.jdbd.mysql.MySQLType;
 import io.jdbd.mysql.util.MySQLExceptions;
+import io.jdbd.mysql.util.MySQLNumberUtils;
 import io.jdbd.vendor.statement.ParamValue;
 import io.jdbd.vendor.util.JdbdBindUtils;
 import io.netty.buffer.ByteBuf;
 
+import java.math.BigDecimal;
+import java.math.BigInteger;
+import java.nio.charset.Charset;
 import java.sql.SQLException;
 import java.util.Queue;
 
@@ -16,39 +21,41 @@ abstract class BindUtils extends JdbdBindUtils {
     }
 
 
-    public static String bindToBits(final int stmtIndex, MySQLType mySQLType, final ParamValue bindValue)
-            throws SQLException {
-        final Object nonNullValue = bindValue.getRequiredValue();
+    public static long bindToBits(final int stmtIndex, MySQLType mySQLType, ParamValue bindValue
+            , Charset clientCharset)
+            throws JdbdSQLException {
+        final Object nonNull = bindValue.getNonNullValue();
 
-        final String bits;
-        if (nonNullValue instanceof Long) {
-            bits = Long.toBinaryString((Long) nonNullValue);
-        } else if (nonNullValue instanceof Integer) {
-            bits = Long.toBinaryString((Integer) nonNullValue & 0xFFFF_FFFFL);
-        } else if (nonNullValue instanceof Short) {
-            bits = Long.toBinaryString((Short) nonNullValue & 0xFFFF);
-        } else if (nonNullValue instanceof Byte) {
-            bits = Long.toBinaryString((Byte) nonNullValue & 0xFF);
-        } else if (nonNullValue instanceof byte[]) {
-            final byte[] bytes = (byte[]) nonNullValue;
-            StringBuilder builder = new StringBuilder(bytes.length * 8);
-            for (byte b : bytes) {
-                for (int i = 0; i < 8; i++) {
-                    builder.append((b & (1 << i)) != 0 ? 1 : 0);
-                }
-            }
-            bits = builder.toString();
-        } else if (nonNullValue instanceof String) {
-            try {
-                bits = Long.toBinaryString(Long.parseLong((String) nonNullValue, 2));
-            } catch (NumberFormatException e) {
-                //TODO optimize exception
-                throw MySQLExceptions.createInvalidParameterNoError(stmtIndex, bindValue.getParamIndex());
-            }
+        final long bits;
+        if (nonNull instanceof Long) {
+            bits = (Long) nonNull;
+        } else if (nonNull instanceof Integer
+                || nonNull instanceof Short
+                || nonNull instanceof Byte) {
+            bits = ((Number) nonNull).longValue();
         } else {
-            throw MySQLExceptions.createUnsupportedParamTypeError(stmtIndex, mySQLType, bindValue);
+
+            final byte[] bytes;
+            if (nonNull instanceof String) {
+                bytes = ((String) nonNull).getBytes(clientCharset);
+            } else if (nonNull instanceof BigDecimal) {
+                bytes = ((BigDecimal) nonNull).toPlainString().getBytes(clientCharset);
+            } else if (nonNull instanceof BigInteger) {
+                bytes = nonNull.toString().getBytes(clientCharset);
+            } else if (nonNull instanceof byte[]) {
+                bytes = (byte[]) nonNull;
+            } else {
+                throw MySQLExceptions.createTypeNotMatchException(stmtIndex, mySQLType, bindValue);
+            }
+            if (bytes.length == 0) {
+                throw MySQLExceptions.createWrongArgumentsException(stmtIndex, mySQLType, bindValue, null);
+            } else if (bytes.length < 9) {
+                bits = MySQLNumberUtils.readLongFromBigEndian(bytes, 0, bytes.length);
+            } else {
+                throw MySQLExceptions.createDataTooLongException(stmtIndex, mySQLType, bindValue);
+            }
         }
-        return ("B'" + bits + "'");
+        return bits;
     }
 
 

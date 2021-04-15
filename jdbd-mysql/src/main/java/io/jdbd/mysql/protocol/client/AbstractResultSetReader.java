@@ -200,10 +200,10 @@ abstract class AbstractResultSetReader implements ResultSetReader {
                 }
             } else {
                 cumulateBuffer.skipBytes(3); // skip payload length
-                sequenceId = PacketUtils.readInt1(cumulateBuffer); // read packet sequence_id
+                sequenceId = PacketUtils.readInt1AsInt(cumulateBuffer); // read packet sequence_id
                 payload = cumulateBuffer;
             }
-            header = PacketUtils.getInt1(payload, payload.readerIndex());
+            header = PacketUtils.getInt1AsInt(payload, payload.readerIndex());
             if (header == ErrorPacket.ERROR_HEADER) {
                 ByteBuf errorPayload = (payload == cumulateBuffer) ? cumulateBuffer.readSlice(payloadLength) : payload;
                 ErrorPacket error;
@@ -227,7 +227,7 @@ abstract class AbstractResultSetReader implements ResultSetReader {
                 sink.accept(MySQLResultStates.from(tp));
                 resultSetEnd = true;
                 if (LOG.isDebugEnabled()) {
-                    LOG.debug("read text ResultSet end.");
+                    LOG.debug("read  ResultSet end.");
                 }
                 break;
             } else {
@@ -260,7 +260,7 @@ abstract class AbstractResultSetReader implements ResultSetReader {
         MySQLRowMeta rowMeta = this.rowMeta;
         if (rowMeta == null) {
             int payloadLength = PacketUtils.readInt3(cumulateBuffer);
-            updateSequenceId(PacketUtils.readInt1(cumulateBuffer));
+            updateSequenceId(PacketUtils.readInt1AsInt(cumulateBuffer));
 
             int payloadStartIndex = cumulateBuffer.readerIndex();
             int columnCount = PacketUtils.readLenEncAsInt(cumulateBuffer);
@@ -306,14 +306,16 @@ abstract class AbstractResultSetReader implements ResultSetReader {
 
 
     @Nullable
-    final LocalDate handleZeroDateBehavior() {
+    final LocalDate handleZeroDateBehavior(String type) {
         Enums.ZeroDatetimeBehavior behavior;
-        behavior = this.adjutant.obtainHostInfo().getProperties().getOrDefault(PropertyKey.zeroDateTimeBehavior
+        behavior = this.properties.getOrDefault(PropertyKey.zeroDateTimeBehavior
                 , Enums.ZeroDatetimeBehavior.class);
         LocalDate date = null;
         switch (behavior) {
             case EXCEPTION: {
-                emitError(new JdbdSQLException(new SQLException("DATETIME type can't is 0.")));
+                String message = String.format("%s type can't is 0,@see jdbc property[%s]."
+                        , type, PropertyKey.zeroDateTimeBehavior);
+                emitError(new JdbdSQLException(MySQLExceptions.createTruncatedWrongValue(message, null)));
             }
             break;
             case ROUND: {
@@ -394,7 +396,7 @@ abstract class AbstractResultSetReader implements ResultSetReader {
                 payloadLength = cachePayload.readableBytes();
             } else if (PacketUtils.hasOnePacket(cumulateBuffer)) {
                 payloadLength = PacketUtils.readInt3(cumulateBuffer);
-                sequenceId = PacketUtils.readInt1(cumulateBuffer);
+                sequenceId = PacketUtils.readInt1AsInt(cumulateBuffer);
                 if (i == 0) {
                     // this block handle first payload of big row.
                     if (payloadLength != ClientProtocol.MAX_PAYLOAD_SIZE) {
@@ -460,7 +462,7 @@ abstract class AbstractResultSetReader implements ResultSetReader {
                     break ourFor;
                 }
                 payloadLength = PacketUtils.readInt3(cumulateBuffer);
-                sequenceId = PacketUtils.readInt1(cumulateBuffer);
+                sequenceId = PacketUtils.readInt1AsInt(cumulateBuffer);
                 packetPayload = cumulateBuffer.readSlice(payloadLength);
             }
 
@@ -588,7 +590,7 @@ abstract class AbstractResultSetReader implements ResultSetReader {
             int payloadLength, sequenceId = -1, writeBytes;
             while (PacketUtils.hasOnePacket(cumulateBuffer)) {
                 payloadLength = PacketUtils.readInt3(cumulateBuffer);
-                sequenceId = PacketUtils.readInt1(cumulateBuffer);
+                sequenceId = PacketUtils.readInt1AsInt(cumulateBuffer);
 
                 writeBytes = (int) Math.min(totalBytes - writtenBytes, payloadLength);
                 cumulateBuffer.readBytes(out, writeBytes);
@@ -659,7 +661,7 @@ abstract class AbstractResultSetReader implements ResultSetReader {
                 break;
             }
             payloadLength = PacketUtils.readInt3(cumulateBuffer);//skip payload length
-            sequenceId = PacketUtils.readInt1(cumulateBuffer);
+            sequenceId = PacketUtils.readInt1AsInt(cumulateBuffer);
             payloadStartIndex = cumulateBuffer.readerIndex();
 
             columnMetaArray[metaIndex++] = MySQLColumnMeta.readFor41(cumulateBuffer, adjutant);

@@ -21,7 +21,7 @@ public final class OkPacket extends TerminatorPacket {
      * @throws IllegalArgumentException packet error.
      */
     public static OkPacket read(ByteBuf payloadBuf, final int capability) {
-        int type = PacketUtils.readInt1(payloadBuf);
+        int type = PacketUtils.readInt1AsInt(payloadBuf);
         if (type != OK_HEADER && type != EofPacket.EOF_HEADER) {
             throw new IllegalArgumentException("packetBuf isn't ok packet.");
         }
@@ -31,9 +31,9 @@ public final class OkPacket extends TerminatorPacket {
         long lastInsertId = PacketUtils.readLenEnc(payloadBuf);
         //3. status_flags and warnings
         final int statusFags, warnings;
-        statusFags = PacketUtils.readInt2(payloadBuf);
+        statusFags = PacketUtils.readInt2AsInt(payloadBuf);
         if ((capability & ClientCommandProtocol.CLIENT_PROTOCOL_41) != 0) {
-            warnings = PacketUtils.readInt2(payloadBuf);
+            warnings = PacketUtils.readInt2AsInt(payloadBuf);
         } else {
             warnings = 0;
         }
@@ -92,7 +92,7 @@ public final class OkPacket extends TerminatorPacket {
 
 
     public static boolean isOkPacket(ByteBuf payloadBuf) {
-        return PacketUtils.getInt1(payloadBuf, payloadBuf.readerIndex()) == OK_HEADER;
+        return PacketUtils.getInt1AsInt(payloadBuf, payloadBuf.readerIndex()) == OK_HEADER;
     }
 
 }

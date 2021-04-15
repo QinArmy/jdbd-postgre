@@ -1,6 +1,10 @@
 package io.jdbd.mysql.protocol.client;
 
-import io.jdbd.mysql.Groups;
+import io.jdbd.ResultRow;
+import io.jdbd.ResultStates;
+import io.jdbd.mysql.BindValue;
+import io.jdbd.mysql.MySQLBindValue;
+import io.jdbd.mysql.MySQLType;
 import io.jdbd.mysql.util.MySQLNumberUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -11,9 +15,12 @@ import java.nio.channels.FileChannel;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Random;
 
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotNull;
 
 /**
  * This class test query big column ,eg: {@link io.jdbd.mysql.MySQLType#LONGBLOB}
@@ -21,7 +28,8 @@ import static org.testng.Assert.assertEquals;
  * @see ComQueryTask
  * @see TextResultSetReader
  */
-@Test(groups = {Groups.TEXT_RESULT_BIG_COLUMN}, dependsOnGroups = {Groups.COM_QUERY, Groups.DATA_PREPARE, Groups.COM_STMT_PREPARE})
+@Test
+//(groups = {Groups.TEXT_RESULT_BIG_COLUMN}, dependsOnGroups = {Groups.COM_QUERY, Groups.DATA_PREPARE, Groups.COM_STMT_PREPARE})
 public class ComQueryTaskBigColumnSuiteTests extends AbstractConnectionBasedSuiteTests {
 
     private static final Logger LOG = LoggerFactory.getLogger(ComQueryTaskBigColumnSuiteTests.class);
@@ -34,6 +42,37 @@ public class ComQueryTaskBigColumnSuiteTests extends AbstractConnectionBasedSuit
 
         Files.deleteIfExists(longBlobFile);
         LOG.info("longBlob test end");
+    }
+
+    @Test
+    public void myBit20() {
+        final MySQLTaskAdjutant adjutant = obtainTaskAdjutant();
+        String sql;
+        List<BindValue> list;
+        sql = "UPDATE mysql_types as t SET t.my_bit20 = ? WHERE t.id = ?";
+        list = new ArrayList<>(2);
+        list.add(MySQLBindValue.create(0, MySQLType.BIT, (1 << 20) - 1));
+        list.add(MySQLBindValue.create(1, MySQLType.BIGINT, 52L));
+        ResultStates states;
+        states = ComPreparedTask.update(StmtWrappers.multi(sql, list), adjutant)
+                .block();
+        assertNotNull(states, "myBit20");
+        assertEquals(states.getAffectedRows(), 1L, "myBit20");
+
+
+        sql = "SELECT t.my_bit20 as myBit20 FROM mysql_types as t WHERE t.id = ?";
+        list = new ArrayList<>(2);
+        list.add(MySQLBindValue.create(0, MySQLType.BIGINT, 52L));
+
+        ResultRow row;
+        row = ComPreparedTask.query(StmtWrappers.multi(sql, list), adjutant)
+                .elementAt(0)
+                .block();
+        assertNotNull(row, "myBit20");
+        long myBit;
+        myBit = row.getNonNull("myBit20", Long.class);
+        LOG.info("myBit20:{}", Long.toBinaryString(myBit));
+        releaseConnection(adjutant);
     }
 
 

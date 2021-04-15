@@ -57,7 +57,7 @@ abstract class MySQLCommandTask extends AbstractCommunicationTask implements MyS
         return MySQLExceptions.createFatalIoException(
                 (Throwable) null
                 , "MySQL server row packet return sequence_id error,expected[%s] actual[%s]"
-                , expected, PacketUtils.getInt1(cumulateBuffer, cumulateBuffer.readerIndex() - 1));
+                , expected, PacketUtils.getInt1AsInt(cumulateBuffer, cumulateBuffer.readerIndex() - 1));
     }
 
 }

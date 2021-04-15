@@ -54,7 +54,7 @@ final class QuitTask extends MySQLCommandTask {
             return false;
         }
         int payloadLength = PacketUtils.readInt3(cumulateBuffer);
-        int sequenceId = PacketUtils.readInt1(cumulateBuffer);
+        int sequenceId = PacketUtils.readInt1AsInt(cumulateBuffer);
         int payloadStartIndex = cumulateBuffer.readerIndex();
 
         ErrorPacket error;

@@ -310,20 +310,20 @@ final class MySQLColumnMeta {
         //
         long fixLength = PacketUtils.readLenEnc(payloadBuf);
         // 8. character_set of column
-        int collationIndex = PacketUtils.readInt2(payloadBuf);
+        int collationIndex = PacketUtils.readInt2AsInt(payloadBuf);
         Charset columnCharset = CharsetMapping.getJavaCharsetByCollationIndex(collationIndex
                 , adjutant.obtainCustomCollationMap());
         // 9. column_length,maximum length of the field
         long length = PacketUtils.readInt4AsLong(payloadBuf);
         // 10. type,type of the column as defined in enum_field_types,type of the column as defined in enum_field_types
-        int typeFlag = PacketUtils.readInt1(payloadBuf);
+        int typeFlag = PacketUtils.readInt1AsInt(payloadBuf);
         // 11. flags,Flags as defined in Column Definition Flags
-        int definitionFlags = PacketUtils.readInt2(payloadBuf);
+        int definitionFlags = PacketUtils.readInt2AsInt(payloadBuf);
         // 12. decimals,max shown decimal digits:
         //0x00 for integers and static strings
         //0x1f for dynamic strings, double, float
         //0x00 to 0x51 for decimals
-        short decimals = (short) PacketUtils.readInt1(payloadBuf);
+        short decimals = (short) PacketUtils.readInt1AsInt(payloadBuf);
 
         return new MySQLColumnMeta(
                 catalogName, schemaName

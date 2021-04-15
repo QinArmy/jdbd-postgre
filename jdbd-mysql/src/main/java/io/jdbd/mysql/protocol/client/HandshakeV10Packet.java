@@ -25,22 +25,22 @@ final class HandshakeV10Packet implements MySQLPacket {
         // 3. auth-plugin-data-part-1,first 8 bytes of the plugin provided data (scramble)
         String authPluginDataPart1 = PacketUtils.readStringFixed(payload, 8, StandardCharsets.US_ASCII);
         // 4. filler,0x00 byte, terminating the first part of a scramble
-        short filler = (short) PacketUtils.readInt1(payload);
+        short filler = (short) PacketUtils.readInt1AsInt(payload);
 
         // 5. The lower 2 bytes of the Capabilities Flags
-        int capabilityFlags = PacketUtils.readInt2(payload);
+        int capabilityFlags = PacketUtils.readInt2AsInt(payload);
         // 6. character_set,default server a_protocol_character_set, only the lower 8-bits
-        short characterSet = (short) PacketUtils.readInt1(payload);
+        short characterSet = (short) PacketUtils.readInt1AsInt(payload);
         // 7. status_flags,SERVER_STATUS_flags_enum
-        int statusFlags = PacketUtils.readInt2(payload);
+        int statusFlags = PacketUtils.readInt2AsInt(payload);
         // 8. read the upper 2 bytes of the Capabilities Flags and OR operation
-        capabilityFlags |= (PacketUtils.readInt2(payload) << 16);
+        capabilityFlags |= (PacketUtils.readInt2AsInt(payload) << 16);
 
         // 9. auth_plugin_data_len or skip.
         short authPluginDataLen;
         if ((capabilityFlags & ClientCommandProtocol.CLIENT_PLUGIN_AUTH) != 0) {
             //length of the combined auth_plugin_data (scramble), if auth_plugin_data_len is > 0
-            authPluginDataLen = (short) PacketUtils.readInt1(payload);
+            authPluginDataLen = (short) PacketUtils.readInt1AsInt(payload);
         } else {
             //skip constant 0x00
             payload.readByte();

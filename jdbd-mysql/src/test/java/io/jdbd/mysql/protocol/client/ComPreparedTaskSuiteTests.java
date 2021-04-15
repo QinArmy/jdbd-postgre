@@ -1,6 +1,7 @@
 package io.jdbd.mysql.protocol.client;
 
 
+import io.jdbd.JdbdSQLException;
 import io.jdbd.ResultRow;
 import io.jdbd.ResultStates;
 import io.jdbd.mysql.*;
@@ -66,6 +67,154 @@ public class ComPreparedTaskSuiteTests extends AbstractStmtTaskSuiteTests {
 
         LOG.info("prepare update test success");
         releaseConnection(adjutant);
+    }
+
+
+    @Test(timeOut = TIME_OUT)
+    public void bigIntBindAndExtract() {
+        doBigIntBindAndExtract(LOG);
+    }
+
+
+    @Test(timeOut = TIME_OUT)
+    public void dateBindAndExtract() {
+        doDateBindAndExtract(LOG);
+    }
+
+    @Test(timeOut = TIME_OUT)
+    public void timeBindAndExtract() {
+        doTimeBindAndExtract(LOG);
+    }
+
+
+    @Test(timeOut = TIME_OUT)
+    public void datetimeBindAndExtract() {
+        doDatetimeBindAndExtract(LOG);
+    }
+
+    @Test(timeOut = TIME_OUT)
+    public void stringBindAndExtract() {
+        doStringBindAndExtract(LOG);
+    }
+
+    @Test(timeOut = TIME_OUT)
+    public void binaryBindAndExtract() {
+        doBinaryBindAndExtract(LOG);
+    }
+
+    @Test(timeOut = TIME_OUT)
+    public void doBitBindAndExtract() {
+        try {
+            doBitBindAndExtract(LOG);
+        } catch (JdbdSQLException e) {
+            LOG.error("doBitBindAndExtract code:{},states:{}", e.getVendorCode(), e.getSQLState());
+            throw e;
+        }
+    }
+
+    @Test(timeOut = TIME_OUT)
+    public void tinyint1BindExtract() {
+        doTinyint1BindExtract(LOG);
+    }
+
+    @Test(timeOut = TIME_OUT)
+    public void numberBindAndExtract() {
+        doNumberBindAndExtract(LOG);
+    }
+
+    @Test(timeOut = TIME_OUT)
+    public void enumBindAndExtract() {
+        doEnumBindAndExtract(LOG);
+    }
+
+    @Test(timeOut = TIME_OUT)
+    public void setTypeBindAndExtract() {
+        doSetTypeBindAndExtract(LOG);
+    }
+
+    @Test(timeOut = TIME_OUT)
+    public void jsonBindAndExtract() throws Exception {
+        doJsonBindAndExtract(LOG);
+    }
+
+    @Test(timeOut = TIME_OUT)
+    public void tinyBlobBindAndExtract() {
+        doTinyBlobBindExtract(LOG);
+    }
+
+    @Test(timeOut = TIME_OUT)
+    public void blobBindAndExtract() {
+        doBlobBindExtract(LOG);
+    }
+
+    @Test(timeOut = TIME_OUT)
+    public void mediumBlobBindAndExtract() {
+        doMediumBlobBindExtract(LOG);
+    }
+
+    @Test(timeOut = TIME_OUT)
+    public void longBlobBindAndExtract() {
+        doLongBlobBindExtract(LOG);
+    }
+
+    @Test(timeOut = TIME_OUT)
+    public void tinyTextBindAndExtract() {
+        doTinyTextBindAndExtract(LOG);
+    }
+
+    @Test(timeOut = TIME_OUT)
+    public void textBindAndExtract() {
+        doTextBindAndExtract(LOG);
+    }
+
+    @Test(timeOut = TIME_OUT)
+    public void mediumTextBindAndExtract() {
+        doMediumTextBindAndExtract(LOG);
+    }
+
+    @Test(timeOut = TIME_OUT)
+    public void longTextBindAndExtract() {
+        doLongTextBindAndExtract(LOG);
+    }
+
+    @Test(timeOut = TIME_OUT)
+    public void geometryBindAndExtract() {
+        doGeometryBindAndExtract(LOG);
+    }
+
+    @Test(timeOut = TIME_OUT)
+    public void pointBindAndExtract() {
+        doPointBindAndExtract(LOG);
+    }
+
+    @Test(timeOut = TIME_OUT)
+    public void lineStringBindAndExtract() {
+        doLineStringBindAndExtract(LOG);
+    }
+
+    @Test(timeOut = TIME_OUT)
+    public void polygonBindAndExtract() {
+        doPolygonBindAndExtract(LOG);
+    }
+
+    @Test(timeOut = TIME_OUT)
+    public void multiPointBindExtract() {
+        doMultiPointBindExtract(LOG);
+    }
+
+    @Test(timeOut = TIME_OUT)
+    public void multiLineStringBindExtract() {
+        doMultiLineStringBindExtract(LOG);
+    }
+
+    @Test(timeOut = TIME_OUT)
+    public void multiPolygonBindExtract() {
+        doMultiPolygonBindExtract(LOG);
+    }
+
+    @Test(timeOut = TIME_OUT)
+    public void geometryCollectionBindExtract() {
+        doGeometryCollectionBindExtract(LOG);
     }
 
 

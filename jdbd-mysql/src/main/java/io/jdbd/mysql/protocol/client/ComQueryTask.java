@@ -522,7 +522,7 @@ final class ComQueryTask extends MySQLCommandTask {
         final int payloadLength = PacketUtils.readInt3(cumulateBuffer);
         cumulateBuffer.skipBytes(1); // skip sequence id
 
-        final int status = PacketUtils.getInt1(cumulateBuffer, cumulateBuffer.readerIndex());
+        final int status = PacketUtils.getInt1AsInt(cumulateBuffer, cumulateBuffer.readerIndex());
         boolean taskEnd;
         switch (status) {
             case ErrorPacket.ERROR_HEADER: {
@@ -571,7 +571,7 @@ final class ComQueryTask extends MySQLCommandTask {
         final int payloadLength = PacketUtils.readInt3(cumulateBuffer);
         cumulateBuffer.skipBytes(1); // skip sequence_id
 
-        final int status = PacketUtils.getInt1(cumulateBuffer, cumulateBuffer.readerIndex());
+        final int status = PacketUtils.getInt1AsInt(cumulateBuffer, cumulateBuffer.readerIndex());
         switch (status) {
             case ErrorPacket.ERROR_HEADER: {
                 ErrorPacket error;
@@ -613,7 +613,7 @@ final class ComQueryTask extends MySQLCommandTask {
         switch (response) {
             case ERROR: {
                 final int payloadLength = PacketUtils.readInt3(cumulateBuffer);
-                updateSequenceId(PacketUtils.readInt1(cumulateBuffer)); //  sequence_id
+                updateSequenceId(PacketUtils.readInt1AsInt(cumulateBuffer)); //  sequence_id
                 ErrorPacket error;
                 error = ErrorPacket.readPacket(cumulateBuffer.readSlice(payloadLength)
                         , this.negotiatedCapability, this.adjutant.obtainCharsetError());
@@ -623,7 +623,7 @@ final class ComQueryTask extends MySQLCommandTask {
             break;
             case OK: {
                 final int payloadLength = PacketUtils.readInt3(cumulateBuffer);
-                updateSequenceId(PacketUtils.readInt1(cumulateBuffer));
+                updateSequenceId(PacketUtils.readInt1AsInt(cumulateBuffer));
                 OkPacket ok;
                 ok = OkPacket.read(cumulateBuffer.readSlice(payloadLength), this.negotiatedCapability);
 
@@ -824,8 +824,8 @@ final class ComQueryTask extends MySQLCommandTask {
         assertPhase(Phase.LOCAL_INFILE_REQUEST);
 
         final int payloadLength = PacketUtils.readInt3(cumulateBuffer);
-        updateSequenceId(PacketUtils.readInt1(cumulateBuffer));
-        if (PacketUtils.readInt1(cumulateBuffer) != PacketUtils.LOCAL_INFILE) {
+        updateSequenceId(PacketUtils.readInt1AsInt(cumulateBuffer));
+        if (PacketUtils.readInt1AsInt(cumulateBuffer) != PacketUtils.LOCAL_INFILE) {
             throw new IllegalStateException(String.format("%s invoke sendLocalFile method error.", this));
         }
         String localFilePath;
@@ -1604,7 +1604,7 @@ final class ComQueryTask extends MySQLCommandTask {
         ComQueryResponse responseType;
         final boolean metadata = (negotiatedCapability & ClientProtocol.CLIENT_OPTIONAL_RESULTSET_METADATA) != 0;
 
-        switch (PacketUtils.getInt1(cumulateBuffer, readerIndex++)) {
+        switch (PacketUtils.getInt1AsInt(cumulateBuffer, readerIndex++)) {
             case 0: {
                 if (metadata && PacketUtils.obtainLenEncIntByteCount(cumulateBuffer, readerIndex) + 1 == payloadLength) {
                     responseType = ComQueryResponse.TEXT_RESULT;

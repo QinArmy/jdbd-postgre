@@ -47,7 +47,7 @@ public abstract class AbstractParamValue implements ParamValue {
     }
 
     @Override
-    public final Object getRequiredValue() throws NullPointerException {
+    public final Object getNonNullValue() throws NullPointerException {
         Object value = this.value;
         if (value == null) {
             throw new NullPointerException(String.format("Bind parameter[%s] value is null.", this.parameterIndex));

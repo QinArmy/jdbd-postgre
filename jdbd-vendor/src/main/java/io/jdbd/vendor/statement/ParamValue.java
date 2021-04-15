@@ -11,6 +11,6 @@ public interface ParamValue {
     @Nullable
     Object getValue();
 
-    Object getRequiredValue() throws NullPointerException;
+    Object getNonNullValue() throws NullPointerException;
 
 }

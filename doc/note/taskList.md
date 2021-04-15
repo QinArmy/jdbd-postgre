@@ -5,5 +5,6 @@
 5. COM_STMT_PREPARE BIG_COLUMN test
 6. COM_STMT_PREPARE cursor test
 7. COM_QUERY BIG_COLUMN test
+8. custom data type test
 8. postgre JDBC 协议 学习
 9. postgre JDBD 架构设计

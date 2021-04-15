@@ -105,6 +105,7 @@ public abstract class MySQLStates extends SQLStates {
 
     public static final String XAER_DUPID = "XAE08";
     public static final String XAER_OUTSIDE = "XAE09";
-    public static final String ER_TRUNCATED_WRONG_VALUE_FOR_FIELD = "HY000";
+    public static final String ER_WRONG_ARGUMENTS = "HY000";
+
 
 }

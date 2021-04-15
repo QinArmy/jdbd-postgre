@@ -102,7 +102,9 @@ public abstract class MySQLConvertUtils {
             set = Collections.emptySet();
         } else {
             set = new HashSet<>((int) (array.length / 0.75F));
-            Collections.addAll(set, array);
+            for (String s : array) {
+                set.add(s.trim());
+            }
             set = Collections.unmodifiableSet(set);
         }
         return set;

@@ -22,9 +22,16 @@ public interface SQLType extends java.sql.SQLType {
     Class<?> javaType();
 
 
+    /**
+     * @return tue : type is number and unsigned.
+     */
     boolean isUnsigned();
 
     boolean isNumber();
+
+    boolean isIntegerType();
+
+    boolean isFloatType();
 
     boolean isText();
 
@@ -35,5 +42,7 @@ public interface SQLType extends java.sql.SQLType {
     boolean isBinary();
 
     boolean isTimeType();
+
+    boolean isDecimal();
 
 }

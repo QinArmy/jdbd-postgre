@@ -53,7 +53,7 @@ final class TextResultSetReader extends AbstractResultSetReader {
         if (metaEnd && (negotiatedCapability & ClientProtocol.CLIENT_DEPRECATE_EOF) == 0) {
             if (PacketUtils.hasOnePacket(cumulateBuffer)) {
                 int payloadLength = PacketUtils.readInt3(cumulateBuffer);
-                updateSequenceId(PacketUtils.readInt1(cumulateBuffer));
+                updateSequenceId(PacketUtils.readInt1AsInt(cumulateBuffer));
                 EofPacket eof = EofPacket.read(cumulateBuffer.readSlice(payloadLength), negotiatedCapability);
                 serverStatusConsumer.accept(eof);
             } else {
@@ -73,7 +73,7 @@ final class TextResultSetReader extends AbstractResultSetReader {
         int i = columnIndex;
         final MySQLColumnMeta[] columnMetaArray = this.rowMeta.columnMetaArray;
         for (; i < columnMetaArray.length; i++) {
-            if (PacketUtils.getInt1(payload, payload.readerIndex()) != PacketUtils.ENC_0) {
+            if (PacketUtils.getInt1AsInt(payload, payload.readerIndex()) != PacketUtils.ENC_0) {
                 break;
             }
             payload.readByte();
@@ -88,7 +88,7 @@ final class TextResultSetReader extends AbstractResultSetReader {
         final Object[] rowValues = new Object[columnMetaArray.length];
 
         for (int i = 0; i < columnMetaArray.length; i++) {
-            if (PacketUtils.getInt1(payload, payload.readerIndex()) == PacketUtils.ENC_0) {
+            if (PacketUtils.getInt1AsInt(payload, payload.readerIndex()) == PacketUtils.ENC_0) {
                 payload.readByte();
                 continue;
             }
@@ -240,7 +240,7 @@ final class TextResultSetReader extends AbstractResultSetReader {
                 if (columnText == null) {
                     columnValue = null;
                 } else if (columnText.equals("0000-00-00")) {
-                    columnValue = handleZeroDateBehavior();
+                    columnValue = handleZeroDateBehavior("DATE");
                 } else {
                     columnValue = LocalDate.parse(columnText, DateTimeFormatter.ISO_LOCAL_DATE);
                 }
@@ -261,7 +261,7 @@ final class TextResultSetReader extends AbstractResultSetReader {
                 if (columnText == null) {
                     columnValue = null;
                 } else if (columnText.startsWith("0000-00-00")) {
-                    LocalDate date = handleZeroDateBehavior();
+                    LocalDate date = handleZeroDateBehavior("DATETIME");
                     if (date == null) {
                         columnValue = null;
                     } else {

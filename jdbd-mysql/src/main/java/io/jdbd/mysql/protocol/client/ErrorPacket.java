@@ -17,10 +17,10 @@ public final class ErrorPacket implements MySQLPacket {
 
 
     public static ErrorPacket readPacket(ByteBuf payloadBuf, final int capability, Charset errorMessageCharset) {
-        if (PacketUtils.readInt1(payloadBuf) != ERROR_HEADER) {
+        if (PacketUtils.readInt1AsInt(payloadBuf) != ERROR_HEADER) {
             throw new IllegalArgumentException("packetBuf isn't error packet.");
         }
-        int errorCode = PacketUtils.readInt2(payloadBuf);
+        int errorCode = PacketUtils.readInt2AsInt(payloadBuf);
 
         String sqlStateMarker = null, sqlState = null, errorMessage;
         if ((capability & ClientProtocol.CLIENT_PROTOCOL_41) != 0) {
@@ -80,7 +80,7 @@ public final class ErrorPacket implements MySQLPacket {
     }
 
     public static boolean isErrorPacket(ByteBuf byteBuf) {
-        return PacketUtils.getInt1(byteBuf, byteBuf.readerIndex()) == ERROR_HEADER;
+        return PacketUtils.getInt1AsInt(byteBuf, byteBuf.readerIndex()) == ERROR_HEADER;
     }
 
 }

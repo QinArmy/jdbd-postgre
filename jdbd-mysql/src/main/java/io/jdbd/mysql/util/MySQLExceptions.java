@@ -140,7 +140,11 @@ public abstract class MySQLExceptions extends JdbdExceptions {
     }
 
     public static SQLException createSyntaxError(String message) {
-        return new SQLException(message, MySQLStates.SYNTAX_ERROR, MySQLCodes.ER_SYNTAX_ERROR);
+        return createSyntaxError(message, null);
+    }
+
+    public static SQLException createSyntaxError(String message, @Nullable Throwable cause) {
+        return new SQLException(message, MySQLStates.SYNTAX_ERROR, MySQLCodes.ER_SYNTAX_ERROR, cause);
     }
 
     public static SQLException createQueryIsEmptyError() {
@@ -152,7 +156,7 @@ public abstract class MySQLExceptions extends JdbdExceptions {
      */
     public static SQLException createUnsupportedParamTypeError(int stmtIndex, MySQLType mySQLType
             , ParamValue paramValue) {
-        Class<?> clazz = paramValue.getRequiredValue().getClass();
+        Class<?> clazz = paramValue.getNonNullValue().getClass();
         String message;
         if (stmtIndex < 0) {
             message = String.format("Using unsupported param type:%s for MySQLType[%s] at (parameter:%s),please check type or value rang."
@@ -224,14 +228,14 @@ public abstract class MySQLExceptions extends JdbdExceptions {
             message = String.format("Bind parameter[%s] MySQLType[%s] and JavaType[%s] value not match."
                     , paramValue.getParamIndex()
                     , mySQLType
-                    , paramValue.getRequiredValue().getClass().getName());
+                    , paramValue.getNonNullValue().getClass().getName());
         } else {
             message = String.format(
                     "Parameter Group[%s] Bind parameter[%s] MySQLType[%s] and JavaType[%s] value not match."
                     , stmtIndex
                     , paramValue.getParamIndex()
                     , mySQLType
-                    , paramValue.getRequiredValue().getClass().getName());
+                    , paramValue.getNonNullValue().getClass().getName());
         }
         return new JdbdSQLException(createTruncatedWrongValueForField(message, cause));
     }
@@ -264,6 +268,19 @@ public abstract class MySQLExceptions extends JdbdExceptions {
         return new JdbdSQLException(createDataOutOfRangeError(message, null));
     }
 
+    public static JdbdSQLException createDataTooLongException(int stmtIndex, MySQLType mySQLType
+            , ParamValue paramValue) {
+        final String message;
+        if (stmtIndex < 0) {
+            message = String.format("Bind parameter[%s] MySQLType[%s] too long."
+                    , paramValue.getParamIndex(), mySQLType);
+        } else {
+            message = String.format("Parameter Group[%s] Bind parameter[%s] MySQLType[%s] too long."
+                    , stmtIndex, paramValue.getParamIndex(), mySQLType);
+        }
+        return new JdbdSQLException(createDataTooLongError(message, null));
+    }
+
     public static JdbdSQLException createNumberRangErrorException(int stmtIndex, MySQLType mySQLType
             , ParamValue bindValue, @Nullable Throwable cause, Number lower, Number upper) {
         final String message;
@@ -280,6 +297,19 @@ public abstract class MySQLExceptions extends JdbdExceptions {
     public static JdbdSQLException createNumberRangErrorException(int stmtIndex, MySQLType mySQLType
             , ParamValue bindValue, Number lower, Number upper) {
         return createNumberRangErrorException(stmtIndex, mySQLType, bindValue, null, lower, upper);
+    }
+
+    public static JdbdSQLException createWrongArgumentsException(int stmtIndex, MySQLType mySQLType
+            , ParamValue paramValue, @Nullable Throwable cause) {
+        String message;
+        if (stmtIndex < 0) {
+            message = String.format("Bind parameter[%s] MySQLType[%s] param value error."
+                    , paramValue.getParamIndex(), mySQLType);
+        } else {
+            message = String.format("Parameter Group[%s] Bind parameter[%s] MySQLType[%s]  param value error."
+                    , stmtIndex, paramValue.getParamIndex(), mySQLType);
+        }
+        return new JdbdSQLException(createWrongArgumentsError(message, cause));
     }
 
     public static SQLException createDataOutOfRangeError(String message, @Nullable Throwable cause) {
@@ -299,6 +329,19 @@ public abstract class MySQLExceptions extends JdbdExceptions {
         return new SQLException(message
                 , MySQLCodes.ERROR_TO_SQL_STATES_MAP.get(MySQLCodes.ER_TRUNCATED_WRONG_VALUE_FOR_FIELD)
                 , MySQLCodes.ER_TRUNCATED_WRONG_VALUE_FOR_FIELD, cause);
+    }
+
+    public static SQLException createWrongArgumentsError(String message, @Nullable Throwable cause) {
+        return new SQLException(message
+                , MySQLCodes.ERROR_TO_SQL_STATES_MAP.get(MySQLCodes.ER_WRONG_ARGUMENTS)
+                , MySQLCodes.ER_WRONG_ARGUMENTS, cause);
+    }
+
+
+    public static SQLException createDataTooLongError(String message, @Nullable Throwable cause) {
+        return new SQLException(message
+                , MySQLCodes.ERROR_TO_SQL_STATES_MAP.get(MySQLCodes.ER_DATA_TOO_LONG)
+                , MySQLCodes.ER_DATA_TOO_LONG, cause);
     }
 
 

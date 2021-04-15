@@ -82,7 +82,7 @@ final class PrepareLongParameterWriter implements PrepareExecuteCommandWriter.Lo
      * @see #write(int, List)
      */
     private Flux<ByteBuf> sendLongData(final int stmtIndex, final ParamValue paramValue) {
-        final Object value = paramValue.getRequiredValue();
+        final Object value = paramValue.getNonNullValue();
 
         final Flux<ByteBuf> flux;
         if (value instanceof byte[]) {

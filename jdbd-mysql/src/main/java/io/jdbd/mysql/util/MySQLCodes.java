@@ -304,6 +304,7 @@ public abstract class MySQLCodes {
 
     public static final int ER_TRUNCATED_WRONG_VALUE_FOR_FIELD = 1366;
 
+    public static final int ER_WRONG_ARGUMENTS = 1210;
 
     /**
      * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-reference-error-sqlstates.html">Mapping MySQL Error Numbers to JDBC SQLState Codes</a>
@@ -604,7 +605,8 @@ public abstract class MySQLCodes {
         map.put(ER_GET_STACKED_DA_WITHOUT_ACTIVE_HANDLER, MySQLStates.STACKED_DIAGNOSTICS_ACCESSED_WITHOUT_ACTIVE_HANDLER);
         map.put(ER_INVALID_ARGUMENT_FOR_LOGARITHM, MySQLStates.INVALID_LOGARITHM_ARGUMENT);
 
-        map.put(ER_TRUNCATED_WRONG_VALUE_FOR_FIELD, MySQLStates.ER_TRUNCATED_WRONG_VALUE_FOR_FIELD);
+        map.put(ER_TRUNCATED_WRONG_VALUE_FOR_FIELD, MySQLStates.ER_WRONG_ARGUMENTS);
+        map.put(ER_WRONG_ARGUMENTS, MySQLStates.ER_WRONG_ARGUMENTS);
         return Collections.unmodifiableMap(map);
     }
 

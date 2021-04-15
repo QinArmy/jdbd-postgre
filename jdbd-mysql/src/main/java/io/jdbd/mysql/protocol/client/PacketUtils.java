@@ -7,6 +7,8 @@ import io.jdbd.mysql.util.MySQLNumberUtils;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
 import org.reactivestreams.Publisher;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.FluxSink;
 import reactor.core.publisher.Mono;
@@ -15,7 +17,6 @@ import reactor.util.annotation.Nullable;
 import java.math.BigInteger;
 import java.nio.charset.Charset;
 import java.sql.SQLException;
-import java.time.*;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.function.Consumer;
@@ -23,6 +24,8 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 
 public abstract class PacketUtils {
+
+    private static final Logger LOG = LoggerFactory.getLogger(PacketUtils.class);
 
 
     public static final long NULL_LENGTH = -1L;
@@ -73,24 +76,25 @@ public abstract class PacketUtils {
     private static final long LONG_SIGNED_BIT = (1L << 63);
 
 
-    public static int readInt1(ByteBuf byteBuf) {
+    public static int readInt1AsInt(ByteBuf byteBuf) {
         return (byteBuf.readByte() & BIT_8);
     }
 
 
-    public static int getInt1(ByteBuf byteBuf, int index) {
+    public static int getInt1AsInt(ByteBuf byteBuf, int index) {
         return (byteBuf.getByte(index) & BIT_8);
     }
 
 
-    public static int readInt2(ByteBuf byteBuf) {
+    public static int readInt2AsInt(ByteBuf byteBuf) {
         return byteBuf.readUnsignedShortLE();
     }
 
 
-    public static int getInt2(ByteBuf byteBuf, int index) {
+    public static int getInt2AsInt(ByteBuf byteBuf, int index) {
         return byteBuf.getUnsignedShortLE(index);
     }
+
 
 
     public static int readInt3(ByteBuf byteBuf) {
@@ -162,7 +166,7 @@ public abstract class PacketUtils {
      * see {@code com.mysql.cj.protocol.a.NativePacketPayload#readInteger(com.mysql.cj.protocol.a.NativeConstants.IntegerDataType)}
      */
     public static long getLenEnc(ByteBuf byteBuf, int index) {
-        final int sw = getInt1(byteBuf, index++);
+        final int sw = getInt1AsInt(byteBuf, index++);
         long int8;
         switch (sw) {
             case ENC_0:
@@ -170,7 +174,7 @@ public abstract class PacketUtils {
                 int8 = NULL_LENGTH;
                 break;
             case ENC_3:
-                int8 = getInt2(byteBuf, index);
+                int8 = getInt2AsInt(byteBuf, index);
                 break;
             case ENC_4:
                 int8 = getInt3(byteBuf, index);
@@ -191,7 +195,7 @@ public abstract class PacketUtils {
      */
     public static long getLenEncTotalByteLength(ByteBuf byteBuf) {
         int index = byteBuf.readerIndex();
-        final int sw = getInt1(byteBuf, index++);
+        final int sw = getInt1AsInt(byteBuf, index++);
         final long totalLength;
         switch (sw) {
             case ENC_0:
@@ -202,7 +206,7 @@ public abstract class PacketUtils {
                 if (byteBuf.readableBytes() < 3) {
                     totalLength = -1L;
                 } else {
-                    totalLength = 3L + getInt2(byteBuf, index);
+                    totalLength = 3L + getInt2AsInt(byteBuf, index);
                 }
             }
             break;
@@ -232,7 +236,7 @@ public abstract class PacketUtils {
 
     public static int obtainLenEncIntByteCount(ByteBuf byteBuf, final int index) {
         int byteCount;
-        switch (getInt1(byteBuf, index)) {
+        switch (getInt1AsInt(byteBuf, index)) {
             case ENC_0:
                 // represents a NULL in a ProtocolText::ResultsetRow
                 byteCount = 0;
@@ -272,7 +276,7 @@ public abstract class PacketUtils {
      * see {@code com.mysql.cj.protocol.a.NativePacketPayload#readInteger(com.mysql.cj.protocol.a.NativeConstants.IntegerDataType)}
      */
     public static long readLenEnc(ByteBuf byteBuf) {
-        final int sw = readInt1(byteBuf);
+        final int sw = readInt1AsInt(byteBuf);
         long int8;
         switch (sw) {
             case ENC_0:
@@ -280,7 +284,7 @@ public abstract class PacketUtils {
                 int8 = NULL_LENGTH;
                 break;
             case ENC_3:
-                int8 = readInt2(byteBuf);
+                int8 = readInt2AsInt(byteBuf);
                 break;
             case ENC_4:
                 int8 = readInt3(byteBuf);
@@ -349,128 +353,6 @@ public abstract class PacketUtils {
 
     public static String readStringEof(ByteBuf byteBuf, Charset charset) {
         return readStringFixed(byteBuf, byteBuf.readableBytes(), charset);
-    }
-
-    /**
-     * read {@code string<lenenc>} with binary protocol.
-     */
-    public static byte[] readBinaryColumn(ByteBuf byteBuf) {
-        int len = readLenEncAsInt(byteBuf);
-        if (len == NULL_LENGTH) {
-            throw new IllegalArgumentException("byteBuf no Bytes length encode");
-        }
-        byte[] bytes = new byte[len];
-        byteBuf.readBytes(bytes);
-        return bytes;
-    }
-
-
-    /**
-     * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_binary_resultset.html#sect_protocol_binary_resultset_row_value_time">ProtocolBinary::MYSQL_TYPE_TIME</a>
-     */
-    public static LocalTime readBinaryTime(ByteBuf byteBuf, ClientProtocolAdjutant adjutant) {
-        byte length = byteBuf.readByte();
-        final LocalTime time;
-        switch (length) {
-            case 8: {
-                time = LocalTime.of(byteBuf.readByte(), byteBuf.readByte(), byteBuf.readByte());
-            }
-            break;
-            case 12: {
-                time = LocalTime.of(byteBuf.readByte(), byteBuf.readByte(), byteBuf.readByte()
-                        , PacketUtils.readInt4(byteBuf));
-            }
-            break;
-            case 0: {
-                time = LocalTime.MIN;
-            }
-            break;
-            default:
-                throw MySQLExceptions.createFatalIoException(
-                        "Server send binary MYSQL_TYPE_DATE length[%s] error.", length);
-        }
-        return OffsetTime.of(time, adjutant.obtainZoneOffsetDatabase())
-                .withOffsetSameInstant(adjutant.obtainZoneOffsetClient())
-                .toLocalTime()
-                ;
-    }
-
-    /**
-     * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_binary_resultset.html#sect_protocol_binary_resultset_row_value_date">ProtocolBinary::MYSQL_TYPE_DATE</a>
-     */
-    @Nullable
-    public static LocalDate readBinaryDate(ByteBuf byteBuf) {
-        byte length = byteBuf.readByte();
-        LocalDate date;
-        switch (length) {
-            case 4: {
-                date = LocalDate.of(PacketUtils.readInt2(byteBuf), byteBuf.readByte(), byteBuf.readByte());
-            }
-            break;
-            case 0: {
-                date = null;
-            }
-            break;
-            default:
-                throw MySQLExceptions.createFatalIoException(
-                        "Server send binary MYSQL_TYPE_DATE length[%s] error.", length);
-        }
-        return date;
-    }
-
-    /**
-     * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_binary_resultset.html#sect_protocol_binary_resultset_row_value_date">ProtocolBinary::MYSQL_TYPE_DATETIME</a>
-     */
-    @Nullable
-    public static LocalDateTime readBinaryDateTime(ByteBuf byteBuf, ClientProtocolAdjutant adjutant) {
-        LocalDateTime dateTime;
-        final byte length = byteBuf.readByte();
-        switch (length) {
-            case 7: {
-                dateTime = LocalDateTime.of(
-                        PacketUtils.readInt2(byteBuf) // year
-                        , byteBuf.readByte()           // month
-                        , byteBuf.readByte()           // day
-
-                        , byteBuf.readByte()           // hour
-                        , byteBuf.readByte()           // minute
-                        , byteBuf.readByte()           // second
-                );
-            }
-            break;
-            case 11: {
-                dateTime = LocalDateTime.of(
-                        PacketUtils.readInt2(byteBuf) // year
-                        , byteBuf.readByte()           // month
-                        , byteBuf.readByte()           // day
-
-                        , byteBuf.readByte()           // hour
-                        , byteBuf.readByte()           // minute
-                        , byteBuf.readByte()           // second
-
-                        , PacketUtils.readInt4(byteBuf)// micro second
-                );
-            }
-            break;
-            case 4: {
-                LocalDate date = LocalDate.of(PacketUtils.readInt2(byteBuf), byteBuf.readByte(), byteBuf.readByte());
-                dateTime = LocalDateTime.of(date, LocalTime.MIN);
-            }
-            break;
-            case 0: {
-                dateTime = null;
-            }
-            break;
-            default:
-                throw MySQLExceptions.createFatalIoException(
-                        "Server send binary MYSQL_TYPE_DATETIME length[%s] error.", length);
-        }
-        if (dateTime != null) {
-            dateTime = OffsetDateTime.of(dateTime, adjutant.obtainZoneOffsetDatabase())
-                    .withOffsetSameInstant(adjutant.obtainZoneOffsetClient())
-                    .toLocalDateTime();
-        }
-        return dateTime;
     }
 
 
@@ -859,7 +741,7 @@ public abstract class PacketUtils {
             for (int payloadLength; ; ) {
 
                 payloadLength = readInt3(cumulateBuffer);
-                sequenceId = readInt1(cumulateBuffer);
+                sequenceId = readInt1AsInt(cumulateBuffer);
                 payload.writeBytes(cumulateBuffer, payloadLength);
                 if (payloadLength < MAX_PAYLOAD) {
                     break;
@@ -973,7 +855,7 @@ public abstract class PacketUtils {
 
 
     public static boolean isAuthSwitchRequestPacket(ByteBuf payloadBuf) {
-        return getInt1(payloadBuf, payloadBuf.readerIndex()) == 0xFE;
+        return getInt1AsInt(payloadBuf, payloadBuf.readerIndex()) == 0xFE;
     }
 
     /*################################## blow private static method ##################################*/
