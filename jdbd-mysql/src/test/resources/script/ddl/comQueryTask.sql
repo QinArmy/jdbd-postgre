@@ -9,7 +9,7 @@ CREATE TABLE IF NOT EXISTS mysql_types (
     my_time1              time(1)                 NOT NULL DEFAULT '00:00:00.0',
 
 
-    NAME                  VARCHAR(200)            NOT NULL DEFAULT '',
+    name                  VARCHAR(200)            NOT NULL DEFAULT '',
     my_char               char(200)               NOT NULL DEFAULT '',
     my_binary             BINARY(60)              NOT NULL DEFAULT '0',
     my_var_binary         varbinary(60)           NOT NULL DEFAULT '0',
@@ -26,10 +26,10 @@ CREATE TABLE IF NOT EXISTS mysql_types (
     my_mediumint_unsigned mediumint UNSIGNED      NOT NULL DEFAULT 0,
     my_int                int                     NOT NULL DEFAULT 0,
     my_int_unsigned       int UNSIGNED            NOT NULL DEFAULT 0,
-    my_bigint             bigint                                                              NOT NULL DEFAULT 0,
-    my_bigint_unsigned    bigint UNSIGNED                                                     NOT NULL DEFAULT 0,
-    my_decimal            decimal(14, 2)                                                      NOT NULL DEFAULT 0.00,
-    my_decimal_unsigned   decimal(14, 2) UNSIGNED                                             NOT NULL DEFAULT 0.00,
+    my_bigint             bigint                  NOT NULL DEFAULT 0,
+    my_bigint_unsigned    bigint UNSIGNED         NOT NULL DEFAULT 0,
+    my_decimal            decimal(14, 2)          NOT NULL DEFAULT 0.00,
+    my_decimal_unsigned   decimal(14, 2) UNSIGNED NOT NULL DEFAULT 0.00,
     my_float              float                                                               NOT NULL DEFAULT 0.00,
     my_float_unsigned     float UNSIGNED                                                      NOT NULL DEFAULT 0.00,
     my_double             double                                                              NOT NULL DEFAULT 0.00,

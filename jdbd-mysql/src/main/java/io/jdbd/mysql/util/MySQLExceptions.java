@@ -303,11 +303,12 @@ public abstract class MySQLExceptions extends JdbdExceptions {
             , ParamValue paramValue, @Nullable Throwable cause) {
         String message;
         if (stmtIndex < 0) {
-            message = String.format("Bind parameter[%s] MySQLType[%s] param value error."
-                    , paramValue.getParamIndex(), mySQLType);
+            message = String.format("Bind parameter[%s] MySQLType[%s] param type[%s] error."
+                    , paramValue.getParamIndex(), mySQLType, paramValue.getNonNullValue().getClass().getName());
         } else {
-            message = String.format("Parameter Group[%s] Bind parameter[%s] MySQLType[%s]  param value error."
-                    , stmtIndex, paramValue.getParamIndex(), mySQLType);
+            message = String.format("Parameter Group[%s] Bind parameter[%s] MySQLType[%s]  param type[%s] error."
+                    , stmtIndex, paramValue.getParamIndex(), mySQLType
+                    , paramValue.getNonNullValue().getClass().getName());
         }
         return new JdbdSQLException(createWrongArgumentsError(message, cause));
     }

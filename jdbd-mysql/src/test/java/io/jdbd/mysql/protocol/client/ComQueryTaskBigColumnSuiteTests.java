@@ -47,31 +47,32 @@ public class ComQueryTaskBigColumnSuiteTests extends AbstractConnectionBasedSuit
     @Test
     public void myBit20() {
         final MySQLTaskAdjutant adjutant = obtainTaskAdjutant();
-        String sql;
+        String sql, alias;
         List<BindValue> list;
-        sql = "UPDATE mysql_types as t SET t.my_bit20 = ? WHERE t.id = ?";
+
+        alias = "myTinyInt1";
+
+        sql = "UPDATE mysql_types as t SET t.my_tinyint1 = ? WHERE t.id = ?";
         list = new ArrayList<>(2);
-        list.add(MySQLBindValue.create(0, MySQLType.BIT, (1 << 20) - 1));
+        list.add(MySQLBindValue.create(0, MySQLType.TINYINT, Boolean.TRUE));
         list.add(MySQLBindValue.create(1, MySQLType.BIGINT, 52L));
         ResultStates states;
         states = ComPreparedTask.update(StmtWrappers.multi(sql, list), adjutant)
                 .block();
-        assertNotNull(states, "myBit20");
+        assertNotNull(states, alias);
         assertEquals(states.getAffectedRows(), 1L, "myBit20");
 
 
-        sql = "SELECT t.my_bit20 as myBit20 FROM mysql_types as t WHERE t.id = ?";
+        sql = "SELECT t.my_tinyint1 as myTinyInt1 FROM mysql_types as t WHERE t.id = ?";
         list = new ArrayList<>(2);
-        list.add(MySQLBindValue.create(0, MySQLType.BIGINT, 52L));
+        list.add(MySQLBindValue.create(0, MySQLType.BIGINT, 70L));
 
         ResultRow row;
         row = ComPreparedTask.query(StmtWrappers.multi(sql, list), adjutant)
                 .elementAt(0)
                 .block();
-        assertNotNull(row, "myBit20");
-        long myBit;
-        myBit = row.getNonNull("myBit20", Long.class);
-        LOG.info("myBit20:{}", Long.toBinaryString(myBit));
+        assertNotNull(row, alias);
+        LOG.info("{}:{}", alias, row.getNonNull(alias));
         releaseConnection(adjutant);
     }
 

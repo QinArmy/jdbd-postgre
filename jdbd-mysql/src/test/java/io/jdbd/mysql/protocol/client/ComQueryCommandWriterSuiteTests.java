@@ -34,6 +34,11 @@ public class ComQueryCommandWriterSuiteTests extends AbstractStmtTaskSuiteTests 
         throw new UnsupportedOperationException();
     }
 
+    @Override
+    Logger obtainLogger() {
+        return LOG;
+    }
+
     /**
      * @see ComQueryCommandWriter#createStaticSingleCommand(String, Supplier, MySQLTaskAdjutant)
      */

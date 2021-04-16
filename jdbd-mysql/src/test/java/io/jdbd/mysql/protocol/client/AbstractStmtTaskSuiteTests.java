@@ -27,15 +27,17 @@ import static org.testng.Assert.*;
 public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBasedSuiteTests {
 
 
-    abstract Mono<ResultStates> executeUpdate(StmtWrapper wrapper, MySQLTaskAdjutant taskAdjutant);
-
-    abstract Flux<ResultRow> executeQuery(StmtWrapper wrapper, MySQLTaskAdjutant taskAdjutant);
-
     private final SubType subType;
 
     protected AbstractStmtTaskSuiteTests(SubType subType) {
         this.subType = subType;
     }
+
+    abstract Mono<ResultStates> executeUpdate(StmtWrapper wrapper, MySQLTaskAdjutant taskAdjutant);
+
+    abstract Flux<ResultRow> executeQuery(StmtWrapper wrapper, MySQLTaskAdjutant taskAdjutant);
+
+    abstract Logger obtainLogger();
 
     final void doBigIntBindAndExtract(Logger LOG) {
         LOG.info("bigIntBindAndExtract test start");
@@ -195,43 +197,44 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBased
 
     final void doBitBindAndExtract(Logger LOG) {
         LOG.info("bitBindAndExtract test start");
-        final MySQLTaskAdjutant taskAdjutant = obtainTaskAdjutant();
+        final MySQLTaskAdjutant adjutant = obtainTaskAdjutant();
         String field;
+        field = "my_bit";
 
-        assertBitBindAndExtract(taskAdjutant, -1L, "my_bit");
-        assertBitBindAndExtract(taskAdjutant, Long.MAX_VALUE, "my_bit");
-        assertBitBindAndExtract(taskAdjutant, Long.MIN_VALUE, "my_bit");
-        assertBitBindAndExtract(taskAdjutant, 0L, "my_bit");
+        assertBitBindAndExtract(adjutant, -1L, field);
+        assertBitBindAndExtract(adjutant, Long.MAX_VALUE, field);
+        assertBitBindAndExtract(adjutant, Long.MIN_VALUE, field);
+        assertBitBindAndExtract(adjutant, 0L, field);
 
-        assertBitBindAndExtract(taskAdjutant, -1, "my_bit");
-        assertBitBindAndExtract(taskAdjutant, Integer.MAX_VALUE, "my_bit");
-        assertBitBindAndExtract(taskAdjutant, Integer.MIN_VALUE, "my_bit");
-        assertBitBindAndExtract(taskAdjutant, 0, "my_bit");
+        assertBitBindAndExtract(adjutant, -1, field);
+        assertBitBindAndExtract(adjutant, Integer.MAX_VALUE, field);
+        assertBitBindAndExtract(adjutant, Integer.MIN_VALUE, field);
+        assertBitBindAndExtract(adjutant, 0, field);
 
-        assertBitBindAndExtract(taskAdjutant, (short) -1, "my_bit");
-        assertBitBindAndExtract(taskAdjutant, Short.MAX_VALUE, "my_bit");
-        assertBitBindAndExtract(taskAdjutant, Short.MIN_VALUE, "my_bit");
-        assertBitBindAndExtract(taskAdjutant, (short) 0, "my_bit");
+        assertBitBindAndExtract(adjutant, (short) -1, field);
+        assertBitBindAndExtract(adjutant, Short.MAX_VALUE, field);
+        assertBitBindAndExtract(adjutant, Short.MIN_VALUE, field);
+        assertBitBindAndExtract(adjutant, (short) 0, field);
 
-        assertBitBindAndExtract(taskAdjutant, (byte) -1, "my_bit");
-        assertBitBindAndExtract(taskAdjutant, Byte.MAX_VALUE, "my_bit");
-        assertBitBindAndExtract(taskAdjutant, Byte.MIN_VALUE, "my_bit");
-        assertBitBindAndExtract(taskAdjutant, (byte) 0, "my_bit");
+        assertBitBindAndExtract(adjutant, (byte) -1, field);
+        assertBitBindAndExtract(adjutant, Byte.MAX_VALUE, field);
+        assertBitBindAndExtract(adjutant, Byte.MIN_VALUE, field);
+        assertBitBindAndExtract(adjutant, (byte) 0, field);
 
-        assertBitBindAndExtract(taskAdjutant, "101001010010101", "my_bit");
-        assertBitBindAndExtract(taskAdjutant, MySQLNumberUtils.longToBigEndianBytes(-1L), "my_bit");
-        assertBitBindAndExtract(taskAdjutant, MySQLNumberUtils.longToBigEndianBytes(0L), "my_bit");
+        assertBitBindAndExtract(adjutant, "秦军", field);
+        assertBitBindAndExtract(adjutant, MySQLNumberUtils.longToBigEndianBytes(-1L), field);
+        assertBitBindAndExtract(adjutant, MySQLNumberUtils.longToBigEndianBytes(0L), field);
 
 
         field = "my_bit20";
-        assertBitBindAndExtract(taskAdjutant, Long.parseLong("10101101001101", 2), field);
-        assertBitBindAndExtract(taskAdjutant, 0B1111_1111_1111_1111_1111L, field);
-        assertBitBindAndExtract(taskAdjutant, 0L, field);
+        assertBitBindAndExtract(adjutant, Long.parseLong("10101101001101", 2), field);
+        assertBitBindAndExtract(adjutant, 0B1111_1111_1111_1111_1111L, field);
+        assertBitBindAndExtract(adjutant, 0L, field);
 
-        assertBitBindAndExtract(taskAdjutant, MySQLNumberUtils.longToBigEndianBytes(0B0000_0000_0000_0000L), field);
+        assertBitBindAndExtract(adjutant, MySQLNumberUtils.longToBigEndianBytes(0B0000_0000_0000_0000L), field);
 
         LOG.info("bitBindAndExtract test success");
-        releaseConnection(taskAdjutant);
+        releaseConnection(adjutant);
     }
 
 
@@ -254,9 +257,6 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBased
         assertTinyInt1BindAndExtract(taskAdjutant, MySQLType.BIT, 0);
         assertTinyInt1BindAndExtract(taskAdjutant, MySQLType.BOOLEAN, 0);
         assertTinyInt1BindAndExtract(taskAdjutant, MySQLType.BOOLEAN, false);
-        assertTinyInt1BindAndExtract(taskAdjutant, MySQLType.BOOLEAN, "true");
-        assertTinyInt1BindAndExtract(taskAdjutant, MySQLType.BOOLEAN, "T");
-        assertTinyInt1BindAndExtract(taskAdjutant, MySQLType.BOOLEAN, "Y");
 
         protocol.closeGracefully()
                 .block();
@@ -272,9 +272,6 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBased
         assertTinyInt1BindAndExtract(taskAdjutant, MySQLType.BIT, 1);
         assertTinyInt1BindAndExtract(taskAdjutant, MySQLType.BOOLEAN, 1);
         assertTinyInt1BindAndExtract(taskAdjutant, MySQLType.BOOLEAN, true);
-        assertTinyInt1BindAndExtract(taskAdjutant, MySQLType.BOOLEAN, "true");
-        assertTinyInt1BindAndExtract(taskAdjutant, MySQLType.BOOLEAN, "T");
-        assertTinyInt1BindAndExtract(taskAdjutant, MySQLType.BOOLEAN, "Y");
 
         protocol.closeGracefully()
                 .block();
@@ -291,9 +288,6 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBased
         assertTinyInt1BindAndExtract(taskAdjutant, MySQLType.BIT, 1);
         assertTinyInt1BindAndExtract(taskAdjutant, MySQLType.BOOLEAN, 1);
         assertTinyInt1BindAndExtract(taskAdjutant, MySQLType.BOOLEAN, true);
-        assertTinyInt1BindAndExtract(taskAdjutant, MySQLType.BOOLEAN, "true");
-        assertTinyInt1BindAndExtract(taskAdjutant, MySQLType.BOOLEAN, "T");
-        assertTinyInt1BindAndExtract(taskAdjutant, MySQLType.BOOLEAN, "Y");
 
         protocol.closeGracefully()
                 .block();
@@ -1038,7 +1032,8 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBased
      */
     private void assertGeometryBindAndExtract(final MySQLTaskAdjutant taskAdjutant, final MySQLType mySQLType
             , final Object bindParam) {
-        final String id = "11", field = "my_geometry";
+        final long id = convertId(11);
+        final String field = "my_geometry";
         //1. update filed
         updateSingleField(taskAdjutant, mySQLType, bindParam, field, id);
         //2. query filed
@@ -1061,8 +1056,8 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBased
      */
     private void assertPointsBindAndExtract(final MySQLTaskAdjutant taskAdjutant, final MySQLType mySQLType
             , final Object bindParam) {
-
-        final String id = "12", field = "my_point";
+        final long id = convertId(12);
+        final String field = "my_point";
         //1. update filed
         updateSingleField(taskAdjutant, mySQLType, bindParam, field, id);
         //2. query filed
@@ -1085,8 +1080,8 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBased
      */
     private void assertLineStringBindAndExtract(final MySQLTaskAdjutant taskAdjutant, final MySQLType mySQLType
             , final Object bindParam) {
-
-        final String id = "13", field = "my_linestring";
+        final long id = convertId(13);
+        final String field = "my_linestring";
         //1. update filed
         updateSingleField(taskAdjutant, mySQLType, bindParam, field, id);
         //2. query filed
@@ -1109,8 +1104,8 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBased
      */
     private void assertPolygonBindAndExtract(final MySQLTaskAdjutant taskAdjutant, final MySQLType mySQLType
             , final Object bindParam) {
-
-        final String id = "14", field = "my_polygon";
+        final long id = convertId(14);
+        final String field = "my_polygon";
         //1. update filed
         updateSingleField(taskAdjutant, mySQLType, bindParam, field, id);
         //2. query filed
@@ -1133,7 +1128,8 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBased
      */
     private void assertMultiPointBindAndExtract(final MySQLTaskAdjutant taskAdjutant, final MySQLType mySQLType
             , final Object bindParam) {
-        final String id = "15", field = "my_multipoint";
+        final long id = convertId(15);
+        final String field = "my_multipoint";
         //1. update filed
         updateSingleField(taskAdjutant, mySQLType, bindParam, field, id);
         //2. query filed
@@ -1157,7 +1153,8 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBased
      */
     private void assertMultiLineStringBindAndExtract(final MySQLTaskAdjutant taskAdjutant, final MySQLType mySQLType
             , final Object bindParam) {
-        final String id = "16", field = "my_multilinestring";
+        final long id = convertId(16);
+        final String field = "my_multilinestring";
         //1. update filed
         updateSingleField(taskAdjutant, mySQLType, bindParam, field, id);
         //2. query filed
@@ -1180,7 +1177,8 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBased
      */
     private void assertMultiPolygonBindAndExtract(final MySQLTaskAdjutant taskAdjutant, final MySQLType mySQLType
             , final Object bindParam) {
-        final String id = "17", field = "my_multipolygon";
+        final long id = convertId(17);
+        final String field = "my_multipolygon";
         //1. update filed
         updateSingleField(taskAdjutant, mySQLType, bindParam, field, id);
         //2. query filed
@@ -1203,7 +1201,8 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBased
      */
     private void assertGeometryCollectionBindAndExtract(final MySQLTaskAdjutant taskAdjutant, final MySQLType mySQLType
             , final Object bindParam) {
-        final String id = "18", field = "my_geometrycollection";
+        final long id = convertId(18);
+        final String field = "my_geometrycollection";
         //1. update filed
         updateSingleField(taskAdjutant, mySQLType, bindParam, field, id);
         //2. query filed
@@ -1557,20 +1556,24 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBased
                 assertEquals(resultValue, MySQLNumberUtils.convertNumberToBigInteger((Number) bindParam), field);
             }
         } else if (resultValue instanceof Double) {
-            double bindValue;
+            final double bindValue;
             if (bindParam instanceof String) {
                 bindValue = Double.parseDouble((String) bindParam);
             } else if (bindParam instanceof Double || bindParam instanceof Float) {
+                bindValue = ((Number) bindParam).doubleValue();
+            } else if (bindParam instanceof Number) {
                 bindValue = ((Number) bindParam).doubleValue();
             } else {
                 throw new IllegalArgumentException("bindParam type error");
             }
             assertEquals(resultValue.doubleValue(), bindValue, field);
         } else if (resultValue instanceof Float) {
-            float bindValue;
+            final float bindValue;
             if (bindParam instanceof String) {
                 bindValue = Float.parseFloat((String) bindParam);
             } else if (bindParam instanceof Float) {
+                bindValue = ((Number) bindParam).floatValue();
+            } else if (bindParam instanceof Number) {
                 bindValue = ((Number) bindParam).floatValue();
             } else {
                 throw new IllegalArgumentException("bindParam type error");
@@ -1617,41 +1620,50 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBased
     /**
      * @see #doBitBindAndExtract(Logger)
      */
-    private void assertBitBindAndExtract(final MySQLTaskAdjutant taskAdjutant, final Object bindParam
+    private void assertBitBindAndExtract(final MySQLTaskAdjutant adjutant, final Object bindParam
             , final String field) {
         final long id = convertId(5);
         //1. update filed
-        updateSingleField(taskAdjutant, MySQLType.BIT, bindParam, field, id);
+        updateSingleField(adjutant, MySQLType.BIT, bindParam, field, id);
         //2. query filed
-        final ResultRow resultRow;
-        resultRow = querySingleField(taskAdjutant, field, id);
+        final ResultRow row;
+        row = querySingleField(adjutant, field, id);
 
-        final Long bits = resultRow.get("field", Long.class);
-        assertNotNull(bits, field);
+        assertEquals(row.getRowMeta().getSQLType("field"), MySQLType.BIT, field);
 
-        if (bindParam instanceof Long) {
-            assertEquals(bits, bindParam, field);
-        } else if (bindParam instanceof Integer) {
-            long bindBits = Integer.toUnsignedLong((Integer) bindParam);
-            assertEquals(bits.longValue(), bindBits, field);
-        } else if (bindParam instanceof Short) {
-            long bindBits = (Short) bindParam & 0xFFFFL;
-            assertEquals(bits.longValue(), bindBits, field);
-        } else if (bindParam instanceof Byte) {
-            long bindBits = (Byte) bindParam & 0xFFL;
-            assertEquals(bits.longValue(), bindBits, field);
+        final Object result = row.get("field");
+        assertNotNull(result, field);
+        assertEquals(result.getClass(), MySQLType.BIT.javaType(), field);
+
+        final long resultBit = (Long) result;
+
+        final long bindBits;
+        if (bindParam instanceof Long
+                || bindParam instanceof Integer
+                || bindParam instanceof Short
+                || bindParam instanceof Byte) {
+            // because MySQL server do a widening primitive conversion
+            bindBits = ((Number) bindParam).longValue();
         } else if (bindParam instanceof String) {
-            long bindBits = Long.parseLong((String) bindParam, 2);
-            assertEquals(bits.longValue(), bindBits, field);
+            // because MySQL server store binary
+            byte[] bytes = ((String) bindParam).getBytes(adjutant.obtainCharsetClient());
+            bindBits = MySQLNumberUtils.readLongFromBigEndian(bytes, 0, bytes.length);
         } else if (bindParam instanceof byte[]) {
             byte[] bytes = (byte[]) bindParam;
-            long bindBits = MySQLNumberUtils.readLongFromBigEndian(bytes, 0, bytes.length);
-            assertEquals(bits.longValue(), bindBits, field);
+            bindBits = MySQLNumberUtils.readLongFromBigEndian(bytes, 0, bytes.length);
+        } else if (bindParam instanceof BigInteger) {
+            bindBits = ((BigInteger) bindParam).longValueExact();
+        } else if (bindParam instanceof Double
+                || bindParam instanceof Float) {
+            // because MySQL server do  round
+            bindBits = Math.round(((Number) bindParam).doubleValue());
+        } else if (bindParam instanceof BigDecimal) {
+            bindBits = ((BigDecimal) bindParam).longValueExact();
         } else {
             // never here
             throw new IllegalArgumentException("bindParam error");
         }
-
+        assertEquals(resultBit, bindBits, field);
 
     }
 

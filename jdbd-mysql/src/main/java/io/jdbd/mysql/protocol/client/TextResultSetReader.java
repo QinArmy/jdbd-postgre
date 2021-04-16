@@ -2,10 +2,7 @@ package io.jdbd.mysql.protocol.client;
 
 import io.jdbd.ResultRow;
 import io.jdbd.mysql.MySQLType;
-import io.jdbd.mysql.util.MySQLConvertUtils;
-import io.jdbd.mysql.util.MySQLNumberUtils;
-import io.jdbd.mysql.util.MySQLStringUtils;
-import io.jdbd.mysql.util.MySQLTimeUtils;
+import io.jdbd.mysql.util.*;
 import io.jdbd.vendor.type.LongBinaries;
 import io.jdbd.vendor.type.LongStrings;
 import io.netty.buffer.ByteBuf;
@@ -87,12 +84,17 @@ final class TextResultSetReader extends AbstractResultSetReader {
         final MySQLColumnMeta[] columnMetaArray = rowMeta.columnMetaArray;
         final Object[] rowValues = new Object[columnMetaArray.length];
 
-        for (int i = 0; i < columnMetaArray.length; i++) {
-            if (PacketUtils.getInt1AsInt(payload, payload.readerIndex()) == PacketUtils.ENC_0) {
-                payload.readByte();
-                continue;
+        try {
+            for (int i = 0; i < columnMetaArray.length; i++) {
+                if (PacketUtils.getInt1AsInt(payload, payload.readerIndex()) == PacketUtils.ENC_0) {
+                    payload.readByte();
+                    continue;
+                }
+                rowValues[i] = readColumnValue(payload, columnMetaArray[i]);
             }
-            rowValues[i] = readColumnValue(payload, columnMetaArray[i]);
+        } catch (Throwable e) {
+            //TODO zoro optimize
+            emitError(MySQLExceptions.wrap(e));
         }
         return MySQLResultRow.from(rowValues, rowMeta, this.adjutant);
     }
@@ -182,7 +184,7 @@ final class TextResultSetReader extends AbstractResultSetReader {
             }
             break;
             case BIT: {
-                if (columnMeta.typeFlag == ProtocolConstants.TYPE_TINY && columnMeta.length == 1L) {
+                if (columnMeta.isTiny1AsBit()) {
                     columnText = PacketUtils.readStringLenEnc(payload, columnCharset);
                     if (columnText == null) {
                         columnValue = null;
@@ -191,7 +193,7 @@ final class TextResultSetReader extends AbstractResultSetReader {
                     }
                 } else {
                     byte[] bytes = PacketUtils.readBytesLenEnc(payload);
-                    if (bytes == null || bytes.length == 0) {
+                    if (bytes == null) {
                         columnValue = null;
                     } else {
                         columnValue = MySQLNumberUtils.readLongFromBigEndian(bytes, 0, bytes.length);
@@ -216,8 +218,6 @@ final class TextResultSetReader extends AbstractResultSetReader {
                 columnText = PacketUtils.readStringLenEnc(payload, columnCharset);
                 if (columnText == null) {
                     columnValue = null;
-                } else if (columnMeta.mysqlType == MySQLType.DOUBLE_UNSIGNED) {
-                    columnValue = new BigDecimal(columnText);
                 } else {
                     columnValue = Double.parseDouble(columnText);
                 }
@@ -228,8 +228,6 @@ final class TextResultSetReader extends AbstractResultSetReader {
                 columnText = PacketUtils.readStringLenEnc(payload, columnCharset);
                 if (columnText == null) {
                     columnValue = null;
-                } else if (columnMeta.mysqlType == MySQLType.FLOAT_UNSIGNED) {
-                    columnValue = Double.parseDouble(columnText);
                 } else {
                     columnValue = Float.parseFloat(columnText);
                 }

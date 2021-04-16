@@ -69,14 +69,19 @@ final class BinaryResultSetReader extends AbstractResultSetReader {
 
         final Object[] columnValues = new Object[columnMetas.length];
 
-        for (int i = 0, byteIndex, bitIndex; i < columnMetas.length; i++) {
-            MySQLColumnMeta columnMeta = columnMetas[i];
-            byteIndex = (i + 2) & (~7);
-            bitIndex = (i + 2) & 7;
-            if ((nullBitMap[byteIndex] & (1 << bitIndex)) != 0) {
-                continue;
+        try {
+            for (int i = 0, byteIndex, bitIndex; i < columnMetas.length; i++) {
+                MySQLColumnMeta columnMeta = columnMetas[i];
+                byteIndex = (i + 2) & (~7);
+                bitIndex = (i + 2) & 7;
+                if ((nullBitMap[byteIndex] & (1 << bitIndex)) != 0) {
+                    continue;
+                }
+                columnValues[i] = readColumnValue(payload, columnMeta);
             }
-            columnValues[i] = readColumnValue(payload, columnMeta);
+        } catch (Throwable e) {
+            //TODO zoro optimize ,return mepty row
+            emitError(MySQLExceptions.wrap(e));
         }
         return MySQLResultRow.from(columnValues, rowMeta, this.adjutant);
     }
@@ -133,7 +138,7 @@ final class BinaryResultSetReader extends AbstractResultSetReader {
                 columnValue = readBinaryDateTime(payload);
                 break;
             case TIME:
-                columnValue = readBinaryTime(payload);
+                columnValue = readBinaryTimeType(payload);
                 break;
             case CHAR:
             case VARCHAR:
@@ -154,13 +159,15 @@ final class BinaryResultSetReader extends AbstractResultSetReader {
             }
             break;
             case BIT: {
-                bytes = PacketUtils.readBytesLenEnc(payload);
-                if (bytes == null) {
-                    columnValue = null;
+                if (columnMeta.isTiny1AsBit()) {
+                    columnValue = (long) payload.readByte();
                 } else {
-                    LOG.debug("from server bit:{}", bytes.length);
-                    columnValue = MySQLNumberUtils.readLongFromBigEndian(bytes, 0, bytes.length);
-                    LOG.debug("from server bit number:{}", columnValue);
+                    bytes = PacketUtils.readBytesLenEnc(payload);
+                    if (bytes == null) {
+                        columnValue = null;
+                    } else {
+                        columnValue = MySQLNumberUtils.readLongFromBigEndian(bytes, 0, bytes.length);
+                    }
                 }
             }
             break;
@@ -192,18 +199,13 @@ final class BinaryResultSetReader extends AbstractResultSetReader {
                 columnValue = payload.readUnsignedByte();
                 break;
             case DOUBLE:
-            case FLOAT_UNSIGNED:
+            case DOUBLE_UNSIGNED://UNSIGNED, if specified, disallows negative values. As of MySQL 8.0.17, the UNSIGNED attribute is deprecated
                 columnValue = Double.longBitsToDouble(PacketUtils.readInt8(payload));
                 break;
             case FLOAT:
+            case FLOAT_UNSIGNED:// UNSIGNED, if specified, disallows negative values. As of MySQL 8.0.17, the UNSIGNED attribute is deprecated for columns
                 columnValue = Float.intBitsToFloat(PacketUtils.readInt4(payload));
                 break;
-            case DOUBLE_UNSIGNED: {
-                bytes = new byte[8];
-                payload.readBytes(bytes);
-                columnValue = new BigDecimal(new String(bytes, columnCharset));
-            }
-            break;
             case BINARY:
             case VARBINARY:
             case TINYBLOB:
@@ -325,32 +327,47 @@ final class BinaryResultSetReader extends AbstractResultSetReader {
 
 
     /**
+     * @return {@link LocalTime} or {@link Duration}
      * @see #readColumnValue(ByteBuf, MySQLColumnMeta)
      * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_binary_resultset.html#sect_protocol_binary_resultset_row_value_time">ProtocolBinary::MYSQL_TYPE_TIME</a>
      */
-    private LocalTime readBinaryTime(ByteBuf byteBuf) {
-        byte length = byteBuf.readByte();
-        final LocalTime time;
-        switch (length) {
-            case 8:
-                time = LocalTime.of(byteBuf.readByte(), byteBuf.readByte(), byteBuf.readByte());
-                break;
-            case 12: {
-                time = LocalTime.of(byteBuf.readByte(), byteBuf.readByte(), byteBuf.readByte()
-                        , PacketUtils.readInt4(byteBuf));
+    private Object readBinaryTimeType(ByteBuf byteBuf) {
+        final int length = byteBuf.readByte();
+        Object value;
+        if (length == 0) {
+            value = LocalTime.MIN;
+        } else {
+            final boolean negative = byteBuf.readByte() == 1;
+            final int days, hours, minutes, seconds;
+            days = PacketUtils.readInt4(byteBuf);
+            hours = byteBuf.readByte();
+            minutes = byteBuf.readByte();
+            seconds = byteBuf.readByte();
+
+            if (negative || days != 0 || hours > 23) {
+                int totalSeconds = (days * 24 * 3600) + (hours * 3600) + (minutes * 60) + seconds;
+                if (negative) {
+                    totalSeconds = -totalSeconds;
+                }
+                if (length == 8) {
+                    value = Duration.ofSeconds(totalSeconds);
+                } else {
+                    value = Duration.ofSeconds(totalSeconds, PacketUtils.readInt4(byteBuf) * 1000L);
+                }
+            } else if (length == 8) {
+                value = LocalTime.of(hours, minutes, seconds);
+            } else {
+                value = LocalTime.of(hours, minutes, seconds, PacketUtils.readInt4(byteBuf) * 1000);
             }
-            break;
-            case 0:
-                time = LocalTime.MIN;
-                break;
-            default:
-                throw MySQLExceptions.createFatalIoException(
-                        "Server send binary MYSQL_TYPE_DATE length[%s] error.", length);
         }
-        return OffsetTime.of(time, this.adjutant.obtainZoneOffsetDatabase())
-                .withOffsetSameInstant(this.adjutant.obtainZoneOffsetClient())
-                .toLocalTime();
+        if (value instanceof LocalTime) {
+            value = OffsetTime.of((LocalTime) value, this.adjutant.obtainZoneOffsetDatabase())
+                    .withOffsetSameInstant(this.adjutant.obtainZoneOffsetClient())
+                    .toLocalTime();
+        }
+        return value;
     }
+
 
     /**
      * @see #readColumnValue(ByteBuf, MySQLColumnMeta)

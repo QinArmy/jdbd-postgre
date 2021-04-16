@@ -43,6 +43,11 @@ public class ComPreparedTaskSuiteTests extends AbstractStmtTaskSuiteTests {
         return ComPreparedTask.query(wrapper, taskAdjutant);
     }
 
+    @Override
+    Logger obtainLogger() {
+        return LOG;
+    }
+
     /**
      * @see ComPreparedTask#update(StmtWrapper, MySQLTaskAdjutant)
      */

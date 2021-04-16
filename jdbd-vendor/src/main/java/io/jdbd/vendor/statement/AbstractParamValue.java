@@ -4,6 +4,8 @@ package io.jdbd.vendor.statement;
 import org.reactivestreams.Publisher;
 import reactor.util.annotation.Nullable;
 
+import java.nio.file.Path;
+
 public abstract class AbstractParamValue implements ParamValue {
 
     protected final int parameterIndex;
@@ -27,7 +29,8 @@ public abstract class AbstractParamValue implements ParamValue {
         final boolean longData;
         if (value == null) {
             longData = false;
-        } else if (value instanceof Publisher) {
+        } else if (value instanceof Publisher
+                || value instanceof Path) {
             longData = true;
         } else if (value instanceof byte[]) {
             longData = ((byte[]) value).length > getByteLengthBoundary();

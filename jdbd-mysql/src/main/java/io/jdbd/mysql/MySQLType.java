@@ -146,10 +146,13 @@ public enum MySQLType implements SQLType {
     FLOAT(ProtocolConstants.TYPE_FLOAT, JDBCType.FLOAT, Float.class),
     /**
      * FLOAT[(M,D)] UNSIGNED [ZEROFILL]
+     * <p>
+     * UNSIGNED,disallows negative values. As of MySQL 8.0.17, the UNSIGNED attribute is deprecated
+     * </p>
      *
      * @see #FLOAT
      */
-    FLOAT_UNSIGNED(ProtocolConstants.TYPE_FLOAT, true, JDBCType.FLOAT, Double.class),
+    FLOAT_UNSIGNED(ProtocolConstants.TYPE_FLOAT, true, JDBCType.FLOAT, Float.class),
     /**
      * DOUBLE[(M,D)] [UNSIGNED] [ZEROFILL]
      * A normal-size (double-precision) floating-point number. Permissible values are -1.7976931348623157E+308 to
@@ -169,10 +172,13 @@ public enum MySQLType implements SQLType {
     DOUBLE(ProtocolConstants.TYPE_DOUBLE, JDBCType.DOUBLE, Double.class),
     /**
      * DOUBLE[(M,D)] UNSIGNED [ZEROFILL]
+     * <p>
+     * UNSIGNED, disallows negative values. As of MySQL 8.0.17, the UNSIGNED attribute is deprecated
+     * </p>
      *
      * @see #DOUBLE
      */
-    DOUBLE_UNSIGNED(ProtocolConstants.TYPE_DOUBLE, true, JDBCType.DOUBLE, BigDecimal.class),
+    DOUBLE_UNSIGNED(ProtocolConstants.TYPE_DOUBLE, true, JDBCType.DOUBLE, Double.class),
 
     /**
      * TIME[(fsp)]

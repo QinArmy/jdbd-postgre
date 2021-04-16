@@ -337,7 +337,7 @@ abstract class AbstractResultSetReader implements ResultSetReader {
             value = internalReadColumnValue(payload, columnMeta);
         } catch (Throwable e) {
             value = null;
-            String m = String.format("Read Text ResultSet column[%s] error,", columnMeta.columnAlias);
+            String m = String.format("Read ResultSet column[%s] error,", columnMeta.columnAlias);
             emitError(new JdbdSQLException(new SQLException(m, e)));
         }
         return value;

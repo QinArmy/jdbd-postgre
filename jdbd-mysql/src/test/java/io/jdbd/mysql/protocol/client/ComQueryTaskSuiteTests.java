@@ -44,6 +44,10 @@ public class ComQueryTaskSuiteTests extends AbstractStmtTaskSuiteTests {
         return ComQueryTask.bindableQuery(wrapper, taskAdjutant);
     }
 
+    @Override
+    Logger obtainLogger() {
+        return LOG;
+    }
 
     /**
      * @see ComQueryTask#update(String, MySQLTaskAdjutant)

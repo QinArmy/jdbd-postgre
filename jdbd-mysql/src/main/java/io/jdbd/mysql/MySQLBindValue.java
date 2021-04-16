@@ -23,7 +23,7 @@ public final class MySQLBindValue extends AbstractParamValue implements BindValu
 
 
     private MySQLBindValue(int parameterIndex, MySQLType type, @Nullable Object value) {
-        super(parameterIndex, value);
+        super(parameterIndex, type == MySQLType.NULL ? null : value);
         this.type = type;
     }
 

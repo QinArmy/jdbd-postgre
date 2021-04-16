@@ -257,9 +257,9 @@ final class MySQLColumnMeta {
         return precision;
     }
 
-    int obtainDateTimeTypePrecision() {
+    final int obtainDateTimeTypePrecision() {
         final int precision;
-        if (this.decimals >= 0 && this.decimals < 7) {
+        if (this.decimals > 0 && this.decimals < 7) {
             precision = this.decimals;
         } else {
             precision = (int) (this.length - 20L);
@@ -269,6 +269,11 @@ final class MySQLColumnMeta {
         }
         return precision;
     }
+
+    final boolean isTiny1AsBit() {
+        return this.typeFlag == ProtocolConstants.TYPE_TINY && this.length == 1 && !this.isUnsigned();
+    }
+
 
     private FieldType parseFieldType(MySQLColumnMeta columnMeta) {
         final String tableName = columnMeta.tableName;
@@ -431,10 +436,10 @@ final class MySQLColumnMeta {
     }
 
     private static MySQLType fromTiny(MySQLColumnMeta columnMeta, Properties<PropertyKey> properties) {
-        final boolean isUnsigned = columnMeta.isUnsigned();
         // Adjust for pseudo-boolean
+        final boolean unsigned = columnMeta.isUnsigned();
         final MySQLType mySQLType;
-        if (!isUnsigned && columnMeta.length == 1
+        if (columnMeta.isTiny1AsBit()
                 && properties.getOrDefault(PropertyKey.tinyInt1isBit, Boolean.class)) {
             if (properties.getOrDefault(PropertyKey.transformedBitIsBoolean, Boolean.class)) {
                 mySQLType = MySQLType.BOOLEAN;
@@ -442,10 +447,11 @@ final class MySQLColumnMeta {
                 mySQLType = MySQLType.BIT;
             }
         } else {
-            mySQLType = isUnsigned ? MySQLType.TINYINT_UNSIGNED : MySQLType.TINYINT;
+            mySQLType = unsigned ? MySQLType.TINYINT_UNSIGNED : MySQLType.TINYINT;
         }
         return mySQLType;
     }
+
 
     private static MySQLType fromVarcharOrVarString(MySQLColumnMeta columnMeta, Properties<PropertyKey> properties) {
         final MySQLType mySQLType;
