@@ -4,10 +4,10 @@ import io.jdbd.MultiResults;
 import io.jdbd.PreparedStatement;
 import io.jdbd.ResultRow;
 import io.jdbd.ResultStates;
-import io.jdbd.mysql.BatchWrapper;
-import io.jdbd.mysql.StmtWrapper;
 import io.jdbd.mysql.protocol.conf.PropertyKey;
 import io.jdbd.mysql.session.MySQLSessionAdjutant;
+import io.jdbd.mysql.stmt.BatchBindWrapper;
+import io.jdbd.mysql.stmt.StmtWrapper;
 import io.jdbd.vendor.conf.HostInfo;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -75,7 +75,7 @@ public final class ClientCommandProtocolImpl implements ClientCommandProtocol {
     }
 
     @Override
-    public final Flux<ResultStates> bindableBatch(BatchWrapper wrapper) {
+    public final Flux<ResultStates> bindableBatch(BatchBindWrapper wrapper) {
         return ComQueryTask.bindableBatch(wrapper, this.taskExecutor.getAdjutant());
     }
 

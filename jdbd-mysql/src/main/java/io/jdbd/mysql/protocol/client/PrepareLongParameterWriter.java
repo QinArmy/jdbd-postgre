@@ -7,7 +7,7 @@ import io.jdbd.mysql.protocol.ClientConstants;
 import io.jdbd.mysql.protocol.conf.PropertyKey;
 import io.jdbd.mysql.util.MySQLExceptions;
 import io.jdbd.vendor.conf.Properties;
-import io.jdbd.vendor.statement.ParamValue;
+import io.jdbd.vendor.stmt.ParamValue;
 import io.netty.buffer.ByteBuf;
 import org.reactivestreams.Publisher;
 import org.reactivestreams.Subscription;

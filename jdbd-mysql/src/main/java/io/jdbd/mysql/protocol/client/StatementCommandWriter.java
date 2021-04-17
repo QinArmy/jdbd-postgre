@@ -1,6 +1,6 @@
 package io.jdbd.mysql.protocol.client;
 
-import io.jdbd.vendor.statement.ParamValue;
+import io.jdbd.vendor.stmt.ParamValue;
 import io.netty.buffer.ByteBuf;
 import org.reactivestreams.Publisher;
 import reactor.core.publisher.Flux;

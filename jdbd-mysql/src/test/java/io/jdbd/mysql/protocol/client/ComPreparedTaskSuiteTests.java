@@ -4,7 +4,12 @@ package io.jdbd.mysql.protocol.client;
 import io.jdbd.JdbdSQLException;
 import io.jdbd.ResultRow;
 import io.jdbd.ResultStates;
-import io.jdbd.mysql.*;
+import io.jdbd.mysql.Groups;
+import io.jdbd.mysql.stmt.MySQLParamValue;
+import io.jdbd.mysql.stmt.StmtWrapper;
+import io.jdbd.mysql.stmt.StmtWrappers;
+import io.jdbd.vendor.stmt.ParamValue;
+import io.jdbd.vendor.stmt.PrepareWrapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.annotations.Test;
@@ -49,22 +54,22 @@ public class ComPreparedTaskSuiteTests extends AbstractStmtTaskSuiteTests {
     }
 
     /**
-     * @see ComPreparedTask#update(StmtWrapper, MySQLTaskAdjutant)
+     * @see ComPreparedTask#update(PrepareWrapper, MySQLTaskAdjutant)
      */
     @Test(timeOut = TIME_OUT)
     public void update() {
         LOG.info("prepare update test start");
         final MySQLTaskAdjutant adjutant = obtainTaskAdjutant();
         String sql;
-        List<BindValue> bindValueList;
+        List<ParamValue> bindValueList;
         ResultStates states;
 
         sql = "UPDATE mysql_types as t SET t.my_tiny_text = ? WHERE t.id = ?";
         bindValueList = new ArrayList<>(2);
-        bindValueList.add(MySQLBindValue.create(0, MySQLType.TINYTEXT, "prepare update 1"));
-        bindValueList.add(MySQLBindValue.create(1, MySQLType.BIGINT, 80L));
+        bindValueList.add(MySQLParamValue.create(0, "prepare update 1"));
+        bindValueList.add(MySQLParamValue.create(1, 80L));
 
-        states = ComPreparedTask.update(StmtWrappers.multi(sql, bindValueList), adjutant)
+        states = ComPreparedTask.update(StmtWrappers.multiPrepare(sql, bindValueList), adjutant)
                 .block();
 
         assertNotNull(states, "states");

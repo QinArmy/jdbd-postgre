@@ -4,6 +4,7 @@ import io.jdbd.ResultRow;
 import io.jdbd.mysql.util.MySQLConvertUtils;
 import io.jdbd.mysql.util.MySQLExceptions;
 import io.jdbd.mysql.util.MySQLNumberUtils;
+import io.jdbd.vendor.result.ErrorResultRow;
 import io.jdbd.vendor.type.LongBinaries;
 import io.jdbd.vendor.type.LongStrings;
 import io.netty.buffer.ByteBuf;
@@ -68,7 +69,7 @@ final class BinaryResultSetReader extends AbstractResultSetReader {
         payload.readBytes(nullBitMap); // null_bitmap
 
         final Object[] columnValues = new Object[columnMetas.length];
-
+        ResultRow resultRow;
         try {
             for (int i = 0, byteIndex, bitIndex; i < columnMetas.length; i++) {
                 MySQLColumnMeta columnMeta = columnMetas[i];
@@ -79,11 +80,12 @@ final class BinaryResultSetReader extends AbstractResultSetReader {
                 }
                 columnValues[i] = readColumnValue(payload, columnMeta);
             }
+            resultRow = MySQLResultRow.from(columnValues, rowMeta, this.adjutant);
         } catch (Throwable e) {
-            //TODO zoro optimize ,return mepty row
             emitError(MySQLExceptions.wrap(e));
+            resultRow = ErrorResultRow.INSTANCE;
         }
-        return MySQLResultRow.from(columnValues, rowMeta, this.adjutant);
+        return resultRow;
     }
 
     /**

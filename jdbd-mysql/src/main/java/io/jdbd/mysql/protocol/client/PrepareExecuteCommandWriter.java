@@ -6,7 +6,7 @@ import io.jdbd.mysql.util.MySQLConvertUtils;
 import io.jdbd.mysql.util.MySQLExceptions;
 import io.jdbd.mysql.util.MySQLTimeUtils;
 import io.jdbd.type.CodeEnum;
-import io.jdbd.vendor.statement.ParamValue;
+import io.jdbd.vendor.stmt.ParamValue;
 import io.netty.buffer.ByteBuf;
 import org.reactivestreams.Publisher;
 import reactor.core.publisher.Flux;

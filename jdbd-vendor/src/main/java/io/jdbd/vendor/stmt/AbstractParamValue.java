@@ -1,4 +1,4 @@
-package io.jdbd.vendor.statement;
+package io.jdbd.vendor.stmt;
 
 
 import org.reactivestreams.Publisher;

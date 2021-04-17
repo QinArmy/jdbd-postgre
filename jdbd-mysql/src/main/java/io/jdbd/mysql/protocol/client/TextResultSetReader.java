@@ -3,6 +3,7 @@ package io.jdbd.mysql.protocol.client;
 import io.jdbd.ResultRow;
 import io.jdbd.mysql.MySQLType;
 import io.jdbd.mysql.util.*;
+import io.jdbd.vendor.result.ErrorResultRow;
 import io.jdbd.vendor.type.LongBinaries;
 import io.jdbd.vendor.type.LongStrings;
 import io.netty.buffer.ByteBuf;
@@ -84,6 +85,7 @@ final class TextResultSetReader extends AbstractResultSetReader {
         final MySQLColumnMeta[] columnMetaArray = rowMeta.columnMetaArray;
         final Object[] rowValues = new Object[columnMetaArray.length];
 
+        ResultRow resultRow;
         try {
             for (int i = 0; i < columnMetaArray.length; i++) {
                 if (PacketUtils.getInt1AsInt(payload, payload.readerIndex()) == PacketUtils.ENC_0) {
@@ -92,11 +94,12 @@ final class TextResultSetReader extends AbstractResultSetReader {
                 }
                 rowValues[i] = readColumnValue(payload, columnMetaArray[i]);
             }
+            resultRow = MySQLResultRow.from(rowValues, rowMeta, this.adjutant);
         } catch (Throwable e) {
-            //TODO zoro optimize
             emitError(MySQLExceptions.wrap(e));
+            resultRow = ErrorResultRow.INSTANCE;
         }
-        return MySQLResultRow.from(rowValues, rowMeta, this.adjutant);
+        return resultRow;
     }
 
     @Override

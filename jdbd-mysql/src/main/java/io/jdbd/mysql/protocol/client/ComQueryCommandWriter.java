@@ -2,10 +2,15 @@ package io.jdbd.mysql.protocol.client;
 
 import io.jdbd.JdbdSQLException;
 import io.jdbd.LongDataReadException;
-import io.jdbd.mysql.*;
+import io.jdbd.mysql.MySQLType;
+import io.jdbd.mysql.SQLMode;
+import io.jdbd.mysql.Server;
 import io.jdbd.mysql.protocol.Constants;
 import io.jdbd.mysql.protocol.conf.MySQLHost;
 import io.jdbd.mysql.protocol.conf.PropertyKey;
+import io.jdbd.mysql.stmt.BatchBindWrapper;
+import io.jdbd.mysql.stmt.BindValue;
+import io.jdbd.mysql.stmt.StmtWrapper;
 import io.jdbd.mysql.syntax.MySQLStatement;
 import io.jdbd.mysql.util.*;
 import io.jdbd.vendor.conf.Properties;
@@ -65,7 +70,7 @@ final class ComQueryCommandWriter {
     /**
      * @return a unmodifiable list.
      */
-    static List<ByteBuf> createBindableBatchCommand(BatchWrapper wrapper, Supplier<Integer> sequenceIdSupplier
+    static List<ByteBuf> createBindableBatchCommand(BatchBindWrapper wrapper, Supplier<Integer> sequenceIdSupplier
             , MySQLTaskAdjutant adjutant) throws SQLException, LongDataReadException {
 
         return new ComQueryCommandWriter(sequenceIdSupplier, adjutant)
@@ -244,13 +249,13 @@ final class ComQueryCommandWriter {
 
     /**
      * @return a unmodifiable list.
-     * @see #createBindableBatchCommand(BatchWrapper, Supplier, MySQLTaskAdjutant)
+     * @see #createBindableBatchCommand(BatchBindWrapper, Supplier, MySQLTaskAdjutant)
      */
-    private List<ByteBuf> writeBindableBatchCommand(BatchWrapper wrapper) throws SQLException, LongDataReadException {
+    private List<ByteBuf> writeBindableBatchCommand(BatchBindWrapper wrapper) throws SQLException, LongDataReadException {
         final MySQLStatement stmt;
         stmt = this.adjutant.parse(wrapper.getSql());
 
-        final List<List<BindValue>> parameterGroupList = wrapper.getParameterGroupList();
+        final List<List<BindValue>> parameterGroupList = wrapper.getParamGroupList();
         final int stmtCount = parameterGroupList.size();
         final List<String> staticSqlList = stmt.getStaticSql();
 
@@ -318,7 +323,7 @@ final class ComQueryCommandWriter {
             , final ByteBuf currentPacket) throws SQLException, LongDataReadException {
 
         MySQLStatement stmt = this.adjutant.parse(stmtWrapper.getSql());
-        final List<BindValue> parameterGroup = stmtWrapper.getParameterGroup();
+        final List<BindValue> parameterGroup = stmtWrapper.getParamGroup();
         final int paramCount = parameterGroup.size();
 
         BindUtils.assertParamCountMatch(stmtIndex, stmt.getParamCount(), paramCount);

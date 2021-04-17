@@ -4,7 +4,7 @@ import io.jdbd.JdbdSQLException;
 import io.jdbd.mysql.MySQLType;
 import io.jdbd.mysql.util.MySQLExceptions;
 import io.jdbd.mysql.util.MySQLNumberUtils;
-import io.jdbd.vendor.statement.ParamValue;
+import io.jdbd.vendor.stmt.ParamValue;
 import io.jdbd.vendor.util.JdbdBindUtils;
 import io.netty.buffer.ByteBuf;
 

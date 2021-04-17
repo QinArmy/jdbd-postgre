@@ -2,9 +2,9 @@ package io.jdbd.mysql.protocol.client;
 
 import io.jdbd.ResultRow;
 import io.jdbd.ResultStates;
-import io.jdbd.mysql.BindValue;
-import io.jdbd.mysql.MySQLBindValue;
 import io.jdbd.mysql.MySQLType;
+import io.jdbd.mysql.stmt.BindValue;
+import io.jdbd.mysql.stmt.StmtWrappers;
 import io.jdbd.mysql.util.MySQLNumberUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -54,8 +54,8 @@ public class ComQueryTaskBigColumnSuiteTests extends AbstractConnectionBasedSuit
 
         sql = "UPDATE mysql_types as t SET t.my_tinyint1 = ? WHERE t.id = ?";
         list = new ArrayList<>(2);
-        list.add(MySQLBindValue.create(0, MySQLType.TINYINT, Boolean.TRUE));
-        list.add(MySQLBindValue.create(1, MySQLType.BIGINT, 52L));
+        list.add(BindValue.create(0, MySQLType.TINYINT, Boolean.TRUE));
+        list.add(BindValue.create(1, MySQLType.BIGINT, 52L));
         ResultStates states;
         states = ComPreparedTask.update(StmtWrappers.multi(sql, list), adjutant)
                 .block();
@@ -65,7 +65,7 @@ public class ComQueryTaskBigColumnSuiteTests extends AbstractConnectionBasedSuit
 
         sql = "SELECT t.my_tinyint1 as myTinyInt1 FROM mysql_types as t WHERE t.id = ?";
         list = new ArrayList<>(2);
-        list.add(MySQLBindValue.create(0, MySQLType.BIGINT, 70L));
+        list.add(BindValue.create(0, MySQLType.BIGINT, 70L));
 
         ResultRow row;
         row = ComPreparedTask.query(StmtWrappers.multi(sql, list), adjutant)

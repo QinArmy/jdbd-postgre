@@ -1,15 +1,17 @@
 package io.jdbd.mysql.protocol.client;
 
 import io.jdbd.*;
-import io.jdbd.mysql.BatchWrapper;
-import io.jdbd.mysql.BindValue;
-import io.jdbd.mysql.StmtWrapper;
 import io.jdbd.mysql.protocol.conf.PropertyKey;
+import io.jdbd.mysql.stmt.BatchBindWrapper;
+import io.jdbd.mysql.stmt.BindValue;
+import io.jdbd.mysql.stmt.StmtWrapper;
+import io.jdbd.mysql.stmt.StmtWrappers;
 import io.jdbd.mysql.util.MySQLCollections;
 import io.jdbd.mysql.util.MySQLExceptions;
 import io.jdbd.vendor.JdbdCompositeException;
 import io.jdbd.vendor.conf.Properties;
 import io.jdbd.vendor.result.*;
+import io.jdbd.vendor.stmt.PrepareWrapper;
 import io.jdbd.vendor.task.MorePacketSignal;
 import io.netty.buffer.ByteBuf;
 import org.qinarmy.util.Pair;
@@ -98,13 +100,13 @@ final class ComQueryTask extends MySQLCommandTask {
 
     /**
      * @see #ComQueryTask(StmtWrapper, MonoSink, MySQLTaskAdjutant)
-     * @see ComPreparedTask#update(StmtWrapper, MySQLTaskAdjutant)
+     * @see ComPreparedTask#update(PrepareWrapper, MySQLTaskAdjutant)
      */
     static Mono<ResultStates> bindableUpdate(final StmtWrapper wrapper, final MySQLTaskAdjutant adjutant) {
         Mono<ResultStates> mono;
         Properties<PropertyKey> properties = adjutant.obtainHostInfo().getProperties();
         if (properties.getOrDefault(PropertyKey.useServerPrepStmts, Boolean.class)
-                || BindUtils.hasLongData(wrapper.getParameterGroup())) {
+                || BindUtils.hasLongData(wrapper.getParamGroup())) {
             // has long data ,can't use client prepare statement.
             mono = ComPreparedTask.update(wrapper, adjutant);
         } else {
@@ -123,10 +125,10 @@ final class ComQueryTask extends MySQLCommandTask {
     }
 
     /**
-     * @see #ComQueryTask(BatchWrapper, FluxSink, MySQLTaskAdjutant)
+     * @see #ComQueryTask(BatchBindWrapper, FluxSink, MySQLTaskAdjutant)
      */
-    static Flux<ResultStates> bindableBatch(final BatchWrapper wrapper, final MySQLTaskAdjutant adjutant) {
-        final List<List<BindValue>> parameterGroupList = wrapper.getParameterGroupList();
+    static Flux<ResultStates> bindableBatch(final BatchBindWrapper wrapper, final MySQLTaskAdjutant adjutant) {
+        final List<List<BindValue>> parameterGroupList = wrapper.getParamGroupList();
         Properties<PropertyKey> properties = adjutant.obtainHostInfo().getProperties();
         final Flux<ResultStates> flux;
         if (parameterGroupList.size() > 1000 //TODO decide max size by PropertyKey.maxAllowedPacket
@@ -159,7 +161,7 @@ final class ComQueryTask extends MySQLCommandTask {
         final Flux<ResultRow> flux;
         Properties<PropertyKey> properties = adjutant.obtainHostInfo().getProperties();
         if (properties.getOrDefault(PropertyKey.useServerPrepStmts, Boolean.class)
-                || BindUtils.hasLongData(wrapper.getParameterGroup())) {
+                || BindUtils.hasLongData(wrapper.getParamGroup())) {
             // has long data ,can't use client prepare statement.
             flux = ComPreparedTask.query(wrapper, adjutant);
         } else {
@@ -348,12 +350,12 @@ final class ComQueryTask extends MySQLCommandTask {
      * this method create task for prepare batch update statement.
      * </p>
      *
-     * @see #bindableBatch(BatchWrapper, MySQLTaskAdjutant)
+     * @see #bindableBatch(BatchBindWrapper, MySQLTaskAdjutant)
      */
-    private ComQueryTask(final BatchWrapper wrapper, final FluxSink<ResultStates> sink
+    private ComQueryTask(final BatchBindWrapper wrapper, final FluxSink<ResultStates> sink
             , final MySQLTaskAdjutant adjutant) throws SQLException, LongDataReadException {
         super(adjutant);
-        final List<List<BindValue>> parameterGroupList = wrapper.getParameterGroupList();
+        final List<List<BindValue>> parameterGroupList = wrapper.getParamGroupList();
         this.sqlCount = parameterGroupList.size();
 
         final List<ByteBuf> packetList;
@@ -1318,11 +1320,11 @@ final class ComQueryTask extends MySQLCommandTask {
         private int currentSequenceId = 1;
 
         /**
-         * @see #ComQueryTask(BatchWrapper, FluxSink, MySQLTaskAdjutant)
+         * @see #ComQueryTask(BatchBindWrapper, FluxSink, MySQLTaskAdjutant)
          */
-        private BindableSingleStatementBatchUpdate(final BatchWrapper wrapper, FluxSink<ResultStates> sink) {
+        private BindableSingleStatementBatchUpdate(final BatchBindWrapper wrapper, FluxSink<ResultStates> sink) {
             this.sql = wrapper.getSql();
-            this.parameterGroupList = wrapper.getParameterGroupList();
+            this.parameterGroupList = wrapper.getParamGroupList();
             this.sink = sink;
             if (parameterGroupList.size() != ComQueryTask.this.sqlCount) {
                 String message = String.format("parameterGroupList size[%s] ans sqlCount[%s] not match."
@@ -1402,7 +1404,7 @@ final class ComQueryTask extends MySQLCommandTask {
         private int currentSequenceId = 1;
 
         /**
-         * @see #ComQueryTask(BatchWrapper, FluxSink, MySQLTaskAdjutant)
+         * @see #ComQueryTask(BatchBindWrapper, FluxSink, MySQLTaskAdjutant)
          */
         private MultiStatementBatchUpdateSink(FluxSink<ResultStates> sink) {
             if (ComQueryTask.this.mode == Mode.SINGLE_STMT) {

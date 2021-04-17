@@ -105,7 +105,7 @@ abstract class MySQLRowMeta implements ResultRowMeta {
 
     @Override
     public final boolean isUnsigned(int indexBaseZero) throws JdbdSQLException {
-        return (this.columnMetaArray[checkIndex(indexBaseZero)].definitionFlags & MySQLColumnMeta.UNSIGNED_FLAG) != 0;
+        return this.columnMetaArray[checkIndex(indexBaseZero)].mysqlType.isUnsigned();
     }
 
     @Override

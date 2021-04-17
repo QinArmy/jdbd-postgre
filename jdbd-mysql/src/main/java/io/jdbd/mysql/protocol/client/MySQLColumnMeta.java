@@ -246,8 +246,10 @@ final class MySQLColumnMeta {
 
     int obtainTimeTypePrecision() {
         final int precision;
-        if (this.decimals >= 0 && this.decimals < 7) {
+        if (this.decimals > 0 && this.decimals < 7) {
             precision = this.decimals;
+        } else if (this.length == 10) {
+            precision = 0;
         } else {
             precision = (int) (this.length - 11L);
             if (precision < 0 || precision > 6) {
@@ -261,6 +263,8 @@ final class MySQLColumnMeta {
         final int precision;
         if (this.decimals > 0 && this.decimals < 7) {
             precision = this.decimals;
+        } else if (this.length == 19) {
+            precision = 0;
         } else {
             precision = (int) (this.length - 20L);
             if (precision < 0 || precision > 6) {

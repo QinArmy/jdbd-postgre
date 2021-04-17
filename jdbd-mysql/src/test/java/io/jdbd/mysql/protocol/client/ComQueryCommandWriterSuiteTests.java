@@ -3,7 +3,7 @@ package io.jdbd.mysql.protocol.client;
 import io.jdbd.ResultRow;
 import io.jdbd.ResultStates;
 import io.jdbd.mysql.Groups;
-import io.jdbd.mysql.StmtWrapper;
+import io.jdbd.mysql.stmt.StmtWrapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.annotations.Test;

@@ -1,2 +1,2 @@
 @reactor.util.annotation.NonNullApi
-package io.jdbd.vendor.statement;
+package io.jdbd.mysql.stmt;

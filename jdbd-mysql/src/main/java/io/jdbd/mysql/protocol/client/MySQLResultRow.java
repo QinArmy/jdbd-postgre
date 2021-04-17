@@ -287,4 +287,6 @@ abstract class MySQLResultRow extends AbstractResultRow<MySQLRowMeta> {
             super(columnValues, rowMeta, adjutant);
         }
     }
+
+
 }

@@ -1,6 +1,6 @@
 package io.jdbd.mysql.syntax;
 
-import io.jdbd.vendor.statement.SQLStatement;
+import io.jdbd.vendor.stmt.SQLStatement;
 
 public interface MySQLStatement extends SQLStatement {
 

@@ -4,9 +4,13 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.jdbd.ResultRow;
 import io.jdbd.ResultStates;
-import io.jdbd.mysql.*;
+import io.jdbd.mysql.MySQLType;
+import io.jdbd.mysql.SQLMode;
 import io.jdbd.mysql.protocol.conf.PropertyKey;
 import io.jdbd.mysql.session.MySQLSessionAdjutant;
+import io.jdbd.mysql.stmt.BindValue;
+import io.jdbd.mysql.stmt.StmtWrapper;
+import io.jdbd.mysql.stmt.StmtWrappers;
 import io.jdbd.mysql.type.City;
 import io.jdbd.mysql.type.TrueOrFalse;
 import io.jdbd.mysql.util.*;
@@ -44,7 +48,7 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBased
 
         final String sql = "SELECT t.id as id, t.create_time as createTime FROM mysql_types as t WHERE t.id  = ?";
         final long id = convertId(2);
-        BindValue bindValue = MySQLBindValue.create(0, MySQLType.BIGINT, id);
+        BindValue bindValue = BindValue.create(0, MySQLType.BIGINT, id);
         final MySQLTaskAdjutant taskAdjutant = obtainTaskAdjutant();
 
         List<ResultRow> resultRowList;
@@ -60,7 +64,7 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBased
         assertEquals(resultId, Long.valueOf(id), "id");
 
         // string bigint
-        bindValue = MySQLBindValue.create(0, MySQLType.BIGINT, Long.toString(id));
+        bindValue = BindValue.create(0, MySQLType.BIGINT, Long.toString(id));
         resultRowList = ComQueryTask.bindableQuery(StmtWrappers.single(sql, bindValue), taskAdjutant)
                 .collectList()
                 .block();
@@ -1733,27 +1737,31 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBased
      * @see #doDatetimeBindAndExtract(Logger)
      */
     private void assertDateTimeModify(final MySQLTaskAdjutant taskAdjutant, final MySQLType mySQLType
-            , final Object bindDatetime, final String field) {
+            , final Object bindParam, final String field) {
         final long id = convertId(2);
         //1. update filed
-        updateSingleField(taskAdjutant, mySQLType, bindDatetime, field, id);
+        updateSingleField(taskAdjutant, mySQLType, bindParam, field, id);
         //2. query filed
         final ResultRow resultRow;
         resultRow = querySingleField(taskAdjutant, field, id);
+        final int precision = (int) resultRow.getRowMeta().getPrecision("field");
 
 
-        final LocalDateTime resultDateTime;
+        final LocalDateTime resultDateTime = resultRow.get("field", LocalDateTime.class);
+        assertNotNull(resultDateTime, field);
 
-        if (bindDatetime instanceof LocalDateTime) {
-            resultDateTime = (LocalDateTime) bindDatetime;
-        } else if (bindDatetime instanceof String) {
-            resultDateTime = LocalDateTime.parse((String) bindDatetime, MySQLTimeUtils.MYSQL_DATETIME_FORMATTER);
-        } else if (bindDatetime instanceof OffsetDateTime) {
-            resultDateTime = ((OffsetDateTime) bindDatetime)
+        final LocalDateTime bindDateTime;
+
+        if (bindParam instanceof LocalDateTime) {
+            bindDateTime = (LocalDateTime) bindParam;
+        } else if (bindParam instanceof String) {
+            bindDateTime = LocalDateTime.parse((String) bindParam, MySQLTimeUtils.MYSQL_DATETIME_FORMATTER);
+        } else if (bindParam instanceof OffsetDateTime) {
+            bindDateTime = ((OffsetDateTime) bindParam)
                     .withOffsetSameInstant(taskAdjutant.obtainZoneOffsetClient())
                     .toLocalDateTime();
-        } else if (bindDatetime instanceof ZonedDateTime) {
-            resultDateTime = ((ZonedDateTime) bindDatetime)
+        } else if (bindParam instanceof ZonedDateTime) {
+            bindDateTime = ((ZonedDateTime) bindParam)
                     .withZoneSameInstant(taskAdjutant.obtainZoneOffsetClient())
                     .toLocalDateTime();
         } else {
@@ -1762,20 +1770,17 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBased
         }
 
 
-        final LocalDateTime dateTime = resultRow.get("field", LocalDateTime.class);
-        assertNotNull(dateTime, field);
-        final String dateTimeText = dateTime.format(MySQLTimeUtils.MYSQL_DATETIME_FORMATTER);
-
         io.jdbd.vendor.conf.Properties<PropertyKey> properties = taskAdjutant.obtainHostInfo().getProperties();
         if (properties.getOrDefault(PropertyKey.timeTruncateFractional, Boolean.class)) {
-            String bindDateTimeText = resultDateTime.format(MySQLTimeUtils.MYSQL_DATETIME_FORMATTER);
-            if (!bindDateTimeText.startsWith(dateTimeText)) {
-                fail(String.format("dateTimeText[%s] and bindDateTimeText[%s] not match.", dateTimeText, bindDateTimeText));
-            }
+            DateTimeFormatter formatter = MySQLTimeUtils.obtainDateTimeFormatter(precision);
+            final String resultText, bindText;
+            resultText = resultDateTime.format(formatter);
+            bindText = bindDateTime.format(formatter);
+            assertEquals(resultText, bindText, field);
         } else {
-            Duration duration = Duration.between(resultDateTime, dateTime);
+            Duration duration = Duration.between(bindDateTime, resultDateTime);
             if (duration.isNegative() || duration.getSeconds() > 1L) {
-                fail(String.format("create time[%s] and expectDateTime[%s] not match.", dateTime, resultDateTime));
+                fail(String.format("result datetime[%s] and bind datetime[%s] not match.", resultDateTime, bindDateTime));
             }
         }
 
@@ -1809,10 +1814,10 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBased
 
         List<BindValue> bindValueList = new ArrayList<>(2);
 
-        BindValue bindValue = MySQLBindValue.create(0, mySQLType, bindParam);
+        BindValue bindValue = BindValue.create(0, mySQLType, bindParam);
 
         bindValueList.add(bindValue);
-        bindValue = MySQLBindValue.create(1, MySQLType.BIGINT, id);
+        bindValue = BindValue.create(1, MySQLType.BIGINT, id);
         bindValueList.add(bindValue);
 
         ResultStates resultStates;
@@ -1825,7 +1830,7 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBased
 
     private ResultRow querySingleField(final MySQLTaskAdjutant taskAdjutant, final String field, final Object id) {
         String sql = String.format("SELECT t.id as id, t.%s as field FROM mysql_types as t WHERE t.id = ?", field);
-        BindValue bindValue = MySQLBindValue.create(0, MySQLType.BIGINT, id);
+        BindValue bindValue = BindValue.create(0, MySQLType.BIGINT, id);
 
         List<ResultRow> resultRowList;
         resultRowList = executeQuery(StmtWrappers.single(sql, bindValue), taskAdjutant)

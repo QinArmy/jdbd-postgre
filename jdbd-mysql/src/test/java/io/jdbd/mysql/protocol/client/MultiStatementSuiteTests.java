@@ -1,9 +1,14 @@
 package io.jdbd.mysql.protocol.client;
 
 import io.jdbd.*;
-import io.jdbd.mysql.*;
+import io.jdbd.mysql.Groups;
+import io.jdbd.mysql.MySQLType;
 import io.jdbd.mysql.protocol.conf.PropertyKey;
 import io.jdbd.mysql.session.MySQLSessionAdjutant;
+import io.jdbd.mysql.stmt.BatchBindWrapper;
+import io.jdbd.mysql.stmt.BindValue;
+import io.jdbd.mysql.stmt.StmtWrapper;
+import io.jdbd.mysql.stmt.StmtWrappers;
 import io.jdbd.vendor.result.ReactorMultiResults;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -31,7 +36,7 @@ import static org.testng.Assert.*;
  * @see ComQueryTask#multiStmt(List, MySQLTaskAdjutant)
  * @see ComQueryTask#bindableMultiStmt(List, MySQLTaskAdjutant)
  * @see ComQueryTask#batchUpdate(List, MySQLTaskAdjutant)
- * @see ComQueryTask#bindableBatch(BatchWrapper, MySQLTaskAdjutant)
+ * @see ComQueryTask#bindableBatch(BatchBindWrapper, MySQLTaskAdjutant)
  */
 @Test(groups = {Groups.MULTI_STMT}, dependsOnGroups = {Groups.COM_QUERY, Groups.DATA_PREPARE})
 public class MultiStatementSuiteTests extends AbstractConnectionBasedSuiteTests {
@@ -197,22 +202,22 @@ public class MultiStatementSuiteTests extends AbstractConnectionBasedSuiteTests 
         final List<StmtWrapper> stmtWrapperList = new ArrayList<>(6);
 
         sql = "UPDATE mysql_types as t SET t.name = 'mysql' WHERE t.id = ?";//[1] update
-        stmtWrapperList.add(StmtWrappers.single(sql, MySQLBindValue.create(0, MySQLType.BIGINT, 264)));
+        stmtWrapperList.add(StmtWrappers.single(sql, BindValue.create(0, MySQLType.BIGINT, 264)));
 
         sql = String.format("UPDATE mysql_types as t SET t.my_date = '%s' WHERE t.id = ?", LocalDate.now());//[2] update
-        stmtWrapperList.add(StmtWrappers.single(sql, MySQLBindValue.create(0, MySQLType.BIGINT, 265)));
+        stmtWrapperList.add(StmtWrappers.single(sql, BindValue.create(0, MySQLType.BIGINT, 265)));
 
         sql = String.format("SELECT t.id as id ,t.name as name,t.create_time as createTime FROM mysql_types as t WHERE t.id > ? ORDER BY t.id LIMIT %s", ROW_COUNT);// [3] query
-        stmtWrapperList.add(StmtWrappers.single(sql, MySQLBindValue.create(0, MySQLType.BIGINT, 260)));
+        stmtWrapperList.add(StmtWrappers.single(sql, BindValue.create(0, MySQLType.BIGINT, 260)));
 
         sql = String.format("UPDATE mysql_types as t SET t.my_time= '%s' WHERE t.id = ?", LocalTime.now());// [4] update
-        stmtWrapperList.add(StmtWrappers.single(sql, MySQLBindValue.create(0, MySQLType.BIGINT, 266)));
+        stmtWrapperList.add(StmtWrappers.single(sql, BindValue.create(0, MySQLType.BIGINT, 266)));
 
         sql = String.format("SELECT t.id as id ,t.name as name,t.create_time as createTime FROM mysql_types as t WHERE t.id > ? ORDER BY t.id LIMIT %s", ROW_COUNT); //[5] query
-        stmtWrapperList.add(StmtWrappers.single(sql, MySQLBindValue.create(0, MySQLType.BIGINT, 260)));
+        stmtWrapperList.add(StmtWrappers.single(sql, BindValue.create(0, MySQLType.BIGINT, 260)));
 
         sql = String.format("UPDATE mysql_types as t SET t.my_time= '%s' WHERE t.id = ?", LocalTime.now());//[6] update
-        stmtWrapperList.add(StmtWrappers.single(sql, MySQLBindValue.create(0, MySQLType.BIGINT, 267)));
+        stmtWrapperList.add(StmtWrappers.single(sql, BindValue.create(0, MySQLType.BIGINT, 267)));
 
         final AtomicReference<ResultStates> statesHolder = new AtomicReference<>(null);
 
@@ -535,7 +540,7 @@ public class MultiStatementSuiteTests extends AbstractConnectionBasedSuiteTests 
     }
 
     /**
-     * @see ComQueryTask#bindableBatch(BatchWrapper, MySQLTaskAdjutant)
+     * @see ComQueryTask#bindableBatch(BatchBindWrapper, MySQLTaskAdjutant)
      */
     @Test(timeOut = TIME_OUT)
     public void bindableBatchWithMultiStmtMode() {
@@ -548,27 +553,27 @@ public class MultiStatementSuiteTests extends AbstractConnectionBasedSuiteTests 
         List<BindValue> paramGroup;
 
         paramGroup = new ArrayList<>(2);
-        paramGroup.add(MySQLBindValue.create(0, MySQLType.LONGTEXT, "bindable batch update 1"));
-        paramGroup.add(MySQLBindValue.create(1, MySQLType.BIGINT, 271));
+        paramGroup.add(BindValue.create(0, MySQLType.LONGTEXT, "bindable batch update 1"));
+        paramGroup.add(BindValue.create(1, MySQLType.BIGINT, 271));
         groupList.add(paramGroup);
 
         paramGroup = new ArrayList<>(2);
-        paramGroup.add(MySQLBindValue.create(0, MySQLType.LONGTEXT, "bindable batch update 2"));
-        paramGroup.add(MySQLBindValue.create(1, MySQLType.BIGINT, 272));
+        paramGroup.add(BindValue.create(0, MySQLType.LONGTEXT, "bindable batch update 2"));
+        paramGroup.add(BindValue.create(1, MySQLType.BIGINT, 272));
         groupList.add(paramGroup);
 
         paramGroup = new ArrayList<>(2);
-        paramGroup.add(MySQLBindValue.create(0, MySQLType.LONGTEXT, "bindable batch update 3"));
-        paramGroup.add(MySQLBindValue.create(1, MySQLType.BIGINT, 273));
+        paramGroup.add(BindValue.create(0, MySQLType.LONGTEXT, "bindable batch update 3"));
+        paramGroup.add(BindValue.create(1, MySQLType.BIGINT, 273));
         groupList.add(paramGroup);
 
         paramGroup = new ArrayList<>(2);
-        paramGroup.add(MySQLBindValue.create(0, MySQLType.LONGTEXT, "bindable batch update 4"));
-        paramGroup.add(MySQLBindValue.create(1, MySQLType.BIGINT, 274));
+        paramGroup.add(BindValue.create(0, MySQLType.LONGTEXT, "bindable batch update 4"));
+        paramGroup.add(BindValue.create(1, MySQLType.BIGINT, 274));
         groupList.add(paramGroup);
 
         final List<ResultStates> resultStatesList;
-        resultStatesList = ComQueryTask.bindableBatch(StmtWrappers.batch(sql, groupList), adjutant)
+        resultStatesList = ComQueryTask.bindableBatch(StmtWrappers.batchBind(sql, groupList), adjutant)
                 .collectList()
                 .block();
 
