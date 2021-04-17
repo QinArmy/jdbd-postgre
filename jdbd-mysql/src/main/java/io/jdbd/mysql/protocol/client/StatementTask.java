@@ -10,6 +10,6 @@ interface StatementTask {
 
     int addAndGetSequenceId();
 
-    boolean isFetchResult();
+    boolean supportFetch();
 
 }

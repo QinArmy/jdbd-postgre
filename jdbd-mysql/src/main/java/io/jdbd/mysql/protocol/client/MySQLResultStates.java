@@ -2,17 +2,17 @@ package io.jdbd.mysql.protocol.client;
 
 import io.jdbd.ResultStates;
 
- abstract class MySQLResultStates implements ResultStates {
+abstract class MySQLResultStates implements ResultStates {
 
-     public static MySQLResultStates from(TerminatorPacket terminator) {
-         return new TerminalResultStatus(terminator);
-     }
+    static MySQLResultStates from(TerminatorPacket terminator) {
+        return new TerminalResultStatus(terminator);
+    }
 
-     private final int serverStatus;
+    private final int serverStatus;
 
-     private final long affectedRows;
+    private final long affectedRows;
 
-     private final long insertedId;
+    private final long insertedId;
 
     private final int warnings;
 
@@ -67,6 +67,12 @@ import io.jdbd.ResultStates;
         return (this.serverStatus & ClientProtocol.SERVER_MORE_RESULTS_EXISTS) != 0;
     }
 
+    @Override
+    public final boolean hasMoreFetch() {
+        final int serverStatus = this.serverStatus;
+        return (serverStatus & ClientProtocol.SERVER_STATUS_CURSOR_EXISTS) != 0
+                && (serverStatus & ClientProtocol.SERVER_STATUS_LAST_ROW_SENT) == 0;
+    }
 
     private static final class TerminalResultStatus extends MySQLResultStates {
 

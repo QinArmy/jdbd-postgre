@@ -31,7 +31,7 @@ import java.util.Set;
  * @see ComPreparedTask
  * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_com_stmt_execute.html">Protocol::COM_STMT_EXECUTE</a>
  */
-final class PrepareExecuteCommandWriter implements StatementCommandWriter {
+final class PrepareExecuteCommandWriter implements ExecuteCommandWriter {
 
 
     private final StatementTask statementTask;
@@ -51,7 +51,7 @@ final class PrepareExecuteCommandWriter implements StatementCommandWriter {
         this.paramMetaArray = statementTask.obtainParameterMetas();
         this.adjutant = statementTask.obtainAdjutant();
 
-        this.fetchResultSet = statementTask.isFetchResult();
+        this.fetchResultSet = statementTask.supportFetch();
     }
 
 

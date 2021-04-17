@@ -6,7 +6,7 @@ import io.jdbd.PreparedStatement;
 import io.jdbd.ResultRow;
 import io.jdbd.ResultStates;
 import io.jdbd.mysql.stmt.BatchBindWrapper;
-import io.jdbd.mysql.stmt.StmtWrapper;
+import io.jdbd.mysql.stmt.BindableWrapper;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -23,9 +23,9 @@ public interface ClientCommandProtocol extends ClientProtocol {
 
     Flux<ResultStates> batchUpdate(List<String> sqlList);
 
-    Mono<ResultStates> bindableUpdate(StmtWrapper wrapper);
+    Mono<ResultStates> bindableUpdate(BindableWrapper wrapper);
 
-    Flux<ResultRow> bindableQuery(StmtWrapper wrapper);
+    Flux<ResultRow> bindableQuery(BindableWrapper wrapper);
 
     Flux<ResultStates> bindableBatch(BatchBindWrapper wrapper);
 
@@ -33,7 +33,7 @@ public interface ClientCommandProtocol extends ClientProtocol {
 
     MultiResults multiStmt(List<String> commandList);
 
-    MultiResults multiBindable(List<StmtWrapper> wrapperList);
+    MultiResults multiBindable(List<BindableWrapper> wrapperList);
 
     Mono<Void> reset();
 

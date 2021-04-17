@@ -7,7 +7,7 @@ import io.jdbd.ResultStates;
 import io.jdbd.mysql.protocol.conf.PropertyKey;
 import io.jdbd.mysql.session.MySQLSessionAdjutant;
 import io.jdbd.mysql.stmt.BatchBindWrapper;
-import io.jdbd.mysql.stmt.StmtWrapper;
+import io.jdbd.mysql.stmt.BindableWrapper;
 import io.jdbd.vendor.conf.HostInfo;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -65,12 +65,12 @@ public final class ClientCommandProtocolImpl implements ClientCommandProtocol {
     }
 
     @Override
-    public final Mono<ResultStates> bindableUpdate(StmtWrapper wrapper) {
+    public final Mono<ResultStates> bindableUpdate(BindableWrapper wrapper) {
         return ComQueryTask.bindableUpdate(wrapper, this.taskExecutor.getAdjutant());
     }
 
     @Override
-    public final Flux<ResultRow> bindableQuery(StmtWrapper wrapper) {
+    public final Flux<ResultRow> bindableQuery(BindableWrapper wrapper) {
         return ComQueryTask.bindableQuery(wrapper, this.taskExecutor.getAdjutant());
     }
 
@@ -90,7 +90,7 @@ public final class ClientCommandProtocolImpl implements ClientCommandProtocol {
     }
 
     @Override
-    public final MultiResults multiBindable(List<StmtWrapper> wrapperList) {
+    public final MultiResults multiBindable(List<BindableWrapper> wrapperList) {
         return ComQueryTask.bindableMultiStmt(wrapperList, this.taskExecutor.getAdjutant());
     }
 

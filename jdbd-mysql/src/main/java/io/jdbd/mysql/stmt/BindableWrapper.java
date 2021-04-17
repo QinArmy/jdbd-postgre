@@ -1,10 +1,10 @@
 package io.jdbd.mysql.stmt;
 
-import io.jdbd.vendor.stmt.PrepareWrapper;
+import io.jdbd.vendor.stmt.ParamWrapper;
 
 import java.util.List;
 
-public interface StmtWrapper extends PrepareWrapper {
+public interface BindableWrapper extends ParamWrapper {
 
     /**
      * @return a unmodifiable list

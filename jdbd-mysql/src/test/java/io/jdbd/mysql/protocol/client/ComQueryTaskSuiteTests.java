@@ -6,7 +6,7 @@ import io.jdbd.mysql.Groups;
 import io.jdbd.mysql.MySQLType;
 import io.jdbd.mysql.stmt.BatchBindWrapper;
 import io.jdbd.mysql.stmt.BindValue;
-import io.jdbd.mysql.stmt.StmtWrapper;
+import io.jdbd.mysql.stmt.BindableWrapper;
 import io.jdbd.mysql.stmt.StmtWrappers;
 import io.jdbd.mysql.util.MySQLCodes;
 import io.jdbd.mysql.util.MySQLStates;
@@ -40,12 +40,12 @@ public class ComQueryTaskSuiteTests extends AbstractStmtTaskSuiteTests {
     }
 
     @Override
-    Mono<ResultStates> executeUpdate(StmtWrapper wrapper, MySQLTaskAdjutant taskAdjutant) {
+    Mono<ResultStates> executeUpdate(BindableWrapper wrapper, MySQLTaskAdjutant taskAdjutant) {
         return ComQueryTask.bindableUpdate(wrapper, taskAdjutant);
     }
 
     @Override
-    Flux<ResultRow> executeQuery(StmtWrapper wrapper, MySQLTaskAdjutant taskAdjutant) {
+    Flux<ResultRow> executeQuery(BindableWrapper wrapper, MySQLTaskAdjutant taskAdjutant) {
         return ComQueryTask.bindableQuery(wrapper, taskAdjutant);
     }
 
@@ -173,7 +173,7 @@ public class ComQueryTaskSuiteTests extends AbstractStmtTaskSuiteTests {
     }
 
     /**
-     * @see ComQueryTask#bindableUpdate(StmtWrapper, MySQLTaskAdjutant)
+     * @see ComQueryTask#bindableUpdate(BindableWrapper, MySQLTaskAdjutant)
      */
     @Test(timeOut = TIME_OUT)
     public void bindableUpdateIsQuery() {
@@ -884,7 +884,7 @@ public class ComQueryTaskSuiteTests extends AbstractStmtTaskSuiteTests {
 
     /**
      * @see ComQueryTask#update(String, MySQLTaskAdjutant)
-     * @see ComQueryTask#bindableUpdate(StmtWrapper, MySQLTaskAdjutant)
+     * @see ComQueryTask#bindableUpdate(BindableWrapper, MySQLTaskAdjutant)
      */
     @Test(timeOut = TIME_OUT)
     public void localInFile() {

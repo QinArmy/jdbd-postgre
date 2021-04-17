@@ -19,8 +19,8 @@ import io.jdbd.vendor.conf.HostInfo;
 import io.jdbd.vendor.conf.Properties;
 import io.jdbd.vendor.task.AbstractCommunicationTask;
 import io.jdbd.vendor.task.ConnectionTask;
-import io.jdbd.vendor.task.MorePacketSignal;
 import io.jdbd.vendor.task.SslWrapper;
+import io.jdbd.vendor.task.TaskSignal;
 import io.jdbd.vendor.util.SQLStates;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
@@ -170,7 +170,7 @@ final class MySQLConnectionTask extends AbstractCommunicationTask implements Aut
 
     @Nullable
     @Override
-    protected Publisher<ByteBuf> internalStart(final MorePacketSignal signal) {
+    protected Publisher<ByteBuf> internalStart(final TaskSignal signal) {
         if (this.phase == null) {
             //may be load plugin occur error.
             this.phase = Phase.RECEIVE_HANDSHAKE;

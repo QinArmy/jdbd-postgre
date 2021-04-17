@@ -59,8 +59,7 @@ public abstract class MySQLExceptions extends JdbdExceptions {
      * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-reference-error-sqlstates.html">Mapping MySQL Error Numbers to JDBC SQLState Codes</a>
      */
     public static SQLException createSQLException(ErrorPacket error) {
-        String sqlState = MySQLCodes.ERROR_TO_SQL_STATES_MAP.getOrDefault(error.getErrorCode(), error.getSqlState());
-        return new SQLException(error.getErrorMessage(), sqlState, error.getErrorCode());
+        return new SQLException(error.getErrorMessage(), error.getSqlState(), error.getErrorCode());
     }
 
     public static JdbdSQLException createNonResultSetCommandException() {

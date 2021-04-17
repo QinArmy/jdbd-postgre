@@ -15,12 +15,12 @@ public abstract class StmtWrappers extends JdbdStmtWrappers {
     }
 
 
-    public static StmtWrapper single(String sql, BindValue bindValue) {
-        return new SimpleStmtWrapper(sql, bindValue);
+    public static BindableWrapper single(String sql, BindValue bindValue) {
+        return new SimpleBindableWrapper(sql, bindValue);
     }
 
-    public static StmtWrapper multi(String sql, List<BindValue> paramGroup) {
-        return new SimpleStmtWrapper(sql, paramGroup);
+    public static BindableWrapper multi(String sql, List<BindValue> paramGroup) {
+        return new SimpleBindableWrapper(sql, paramGroup);
     }
 
     public static BatchBindWrapper batchBind(String sql, List<List<BindValue>> paramGroupList) {
@@ -28,18 +28,18 @@ public abstract class StmtWrappers extends JdbdStmtWrappers {
     }
 
 
-    private static final class SimpleStmtWrapper implements StmtWrapper {
+    private static final class SimpleBindableWrapper implements BindableWrapper {
 
         private final String sql;
 
         private final List<BindValue> paramGroup;
 
-        private SimpleStmtWrapper(String sql, List<BindValue> paramGroup) {
+        private SimpleBindableWrapper(String sql, List<BindValue> paramGroup) {
             this.sql = sql;
             this.paramGroup = Collections.unmodifiableList(paramGroup);
         }
 
-        private SimpleStmtWrapper(String sql, BindValue bindValue) {
+        private SimpleBindableWrapper(String sql, BindValue bindValue) {
             this.sql = sql;
             this.paramGroup = Collections.singletonList(bindValue);
         }

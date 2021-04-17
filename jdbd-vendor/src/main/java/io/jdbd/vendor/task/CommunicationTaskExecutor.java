@@ -21,6 +21,7 @@ import reactor.core.publisher.MonoSink;
 import reactor.netty.Connection;
 import reactor.netty.NettyPipeline;
 import reactor.netty.tcp.SslProvider;
+import reactor.util.annotation.Nullable;
 import reactor.util.concurrent.Queues;
 
 import java.net.InetSocketAddress;
@@ -45,7 +46,7 @@ public abstract class CommunicationTaskExecutor<T extends TaskAdjutant> implemen
 
     private final Queue<CommunicationTask> taskQueue = Queues.<CommunicationTask>small().get();
 
-    private final MorePacketSignal morePacketSignal;
+    private final TaskSignal taskSignal;
 
     private Subscription upstream;
 
@@ -53,12 +54,14 @@ public abstract class CommunicationTaskExecutor<T extends TaskAdjutant> implemen
 
     private TaskStatusException taskErrorMethodError;
 
+    private int packetIndex = -1;
+
 
     protected CommunicationTaskExecutor(Connection connection) {
         this.connection = connection;
         this.eventLoop = connection.channel().eventLoop();
         this.allocator = connection.channel().alloc();
-        this.morePacketSignal = new MorePacketSingleImpl(this);
+        this.taskSignal = new TaskSingleImpl(this);
 
         this.taskAdjutant = createTaskAdjutant();
         connection.inbound()
@@ -143,36 +146,68 @@ public abstract class CommunicationTaskExecutor<T extends TaskAdjutant> implemen
         if (currentTask == null) {
             return;
         }
+        //store packet start index.
+        this.packetIndex = cumulateBuffer.readerIndex();
 
-        final boolean taskEnd;
-        taskEnd = currentTask.decode(cumulateBuffer, this::updateServerStatus);
-        if (taskEnd && currentTask instanceof ConnectionTask) {
-            ConnectionTask connectionTask = (ConnectionTask) currentTask;
-            if (connectionTask.disconnect()) {
-                disconnection();
-                return;
+
+        try {
+            boolean taskEnd;
+
+            try {
+                taskEnd = currentTask.decode(cumulateBuffer, this::updateServerStatus);
+            } catch (TaskStatusException e) {
+                throw e;
+            } catch (Throwable e) {
+                String message = String.format("%s[%s] decode(ByteBuf,Consumer) method throw exception."
+                        , CommunicationTask.class.getSimpleName(), currentTask);
+                throw new TaskStatusException(e, message);
             }
-        }
-        final Publisher<ByteBuf> bufPublisher;
-        bufPublisher = currentTask.moreSendPacket();
-        if (bufPublisher != null) {
-            // send packet
-            sendPacket(currentTask, bufPublisher);
-        }
-        if (taskEnd) {
-            if (cumulateBuffer.isReadable()) {
-                // TODO maybe has notify from server.
-                try {
-                    currentTask.error(new TaskStatusException("Not read all packet,but task end."));
-                } catch (TaskStatusException e) {
-                    this.taskErrorMethodError = e;
-                } catch (Throwable e) {
-                    this.taskErrorMethodError = new TaskStatusException(e, "error(Throwable) throw exception.");
+
+            if (taskEnd && currentTask instanceof ConnectionTask) {
+                ConnectionTask connectionTask = (ConnectionTask) currentTask;
+                if (connectionTask.disconnect()) {
+                    disconnection();
+                    return;
                 }
             }
-            this.currentTask = null; // current task end.
-            // start next task
-            startHeadIfNeed();
+
+            Publisher<ByteBuf> bufPublisher = null;
+
+            try {
+                bufPublisher = currentTask.moreSendPacket();
+                if (bufPublisher != null) {
+                    // send packet
+                    sendPacket(currentTask, bufPublisher);
+                }
+            } catch (TaskStatusException e) {
+                throw e;
+            } catch (Throwable e) {
+                String message = String.format("%s[%s] moreSendPacket() method throw exception."
+                        , CommunicationTask.class.getSimpleName(), currentTask);
+                throw new TaskStatusException(e, message);
+            }
+
+            if (taskEnd) {
+                if (cumulateBuffer.isReadable()) {
+                    // TODO maybe has notify from server.
+                    try {
+                        currentTask.error(new TaskStatusException("Not read all packet,but task end."));
+                    } catch (TaskStatusException e) {
+                        this.taskErrorMethodError = e;
+                    } catch (Throwable e) {
+                        this.taskErrorMethodError = new TaskStatusException(e, "error(Throwable) throw exception.");
+                    }
+                }
+                this.currentTask = null; // current task end.
+                // start next task
+                startHeadIfNeed();
+            }
+        } catch (TaskStatusException e) {
+            this.taskErrorMethodError = e;
+        } catch (Throwable e) {
+            // here executor has bug.
+            String message = String.format("%s executor throw error,", CommunicationTask.class.getSimpleName());
+            throw new TaskStatusException(message, e);
         }
 
     }
@@ -183,6 +218,11 @@ public abstract class CommunicationTaskExecutor<T extends TaskAdjutant> implemen
     protected abstract T createTaskAdjutant();
 
     protected abstract HostInfo<?> obtainHostInfo();
+
+    /**
+     * @return true : clear channel complement
+     */
+    protected abstract boolean clearChannel(ByteBuf cumulateBuffer, int packetIndex);
 
 
     /*################################## blow private method ##################################*/
@@ -317,7 +357,7 @@ public abstract class CommunicationTaskExecutor<T extends TaskAdjutant> implemen
             Publisher<ByteBuf> bufPublisher;
             try {
                 // invoke task start() method.
-                bufPublisher = currentTask.start(this.morePacketSignal);
+                bufPublisher = currentTask.start(this.taskSignal);
             } catch (TaskStatusException e) {
                 handleTaskError(currentTask, e);
                 continue;
@@ -458,6 +498,7 @@ public abstract class CommunicationTaskExecutor<T extends TaskAdjutant> implemen
         }
     }
 
+
     private void doSendPacketSignal(final MonoSink<Void> sink, final CommunicationTask signalTask) {
         if (obtainLogger().isDebugEnabled()) {
             obtainLogger().debug("{} send packet signal", signalTask);
@@ -468,6 +509,8 @@ public abstract class CommunicationTaskExecutor<T extends TaskAdjutant> implemen
                 packetPublisher = signalTask.moreSendPacket();
             } catch (Throwable e) {
                 sink.error(new TaskStatusException(e, "%s moreSendPacket() method throw error.", signalTask));
+                // here task has bug.
+                this.currentTask = null;
                 return;
             }
             if (packetPublisher != null) {
@@ -477,6 +520,15 @@ public abstract class CommunicationTaskExecutor<T extends TaskAdjutant> implemen
         } else {
             sink.error(new IllegalArgumentException(String.format("task[%s] isn't current task.", signalTask)));
         }
+    }
+
+    private void doSendEndPacketSignal(final MonoSink<Void> sink, final CommunicationTask signalTask) {
+        doSendPacketSignal(sink, signalTask);
+        if (this.currentTask == signalTask) {
+            this.currentTask = null;
+            this.eventLoop.execute(this::startHeadIfNeed);
+        }
+
     }
 
     private void sendPacket(final CommunicationTask headTask, final Publisher<ByteBuf> packetPublisher) {
@@ -541,6 +593,85 @@ public abstract class CommunicationTaskExecutor<T extends TaskAdjutant> implemen
 
     }
 
+    /**
+     * @see CommunicationTask#start(TaskSignal)
+     */
+    @Nullable
+    private Publisher<ByteBuf> invokeTaskStart(CommunicationTask task) throws TaskStatusException {
+        try {
+            return task.start(this.taskSignal);
+        } catch (TaskStatusException e) {
+            throw e;
+        } catch (Throwable e) {
+            String message = String.format("%s start(%s) method throw exception."
+                    , CommunicationTask.class.getSimpleName(), TaskSignal.class.getSimpleName());
+            throw new TaskStatusException(e, message);
+        }
+
+    }
+
+    /**
+     * @return true: task end,see {@link CommunicationTask#decode(ByteBuf, Consumer)}
+     * @see CommunicationTask#decode(ByteBuf, Consumer)
+     */
+    private boolean invokeDecode(ByteBuf cumulateBuffer, CommunicationTask task) throws TaskStatusException {
+        try {
+            this.packetIndex = cumulateBuffer.readerIndex();
+            return task.decode(cumulateBuffer, this::updateServerStatus);
+        } catch (TaskStatusException e) {
+            throw e;
+        } catch (Throwable e) {
+            String message = String.format("%s decode(%s,%s) method throw exception."
+                    , CommunicationTask.class.getSimpleName()
+                    , ByteBuf.class.getSimpleName()
+                    , Consumer.class.getSimpleName());
+            throw new TaskStatusException(e, message);
+        }
+
+    }
+
+
+    /**
+     * @see CommunicationTask#moreSendPacket()
+     */
+    private void invokeMoreSendPacket(CommunicationTask task) throws TaskStatusException {
+        Publisher<ByteBuf> publisher;
+        try {
+            publisher = task.moreSendPacket();
+        } catch (TaskStatusException e) {
+            throw e;
+        } catch (Throwable e) {
+            String message = String.format("%s moreSendPacket() method throw exception."
+                    , CommunicationTask.class.getSimpleName());
+            throw new TaskStatusException(e, message);
+        }
+
+        if (publisher != null) {
+            sendPacket(task, publisher);
+        }
+
+    }
+
+    /**
+     * @see CommunicationTask#getTaskPhase()
+     */
+    @Nullable
+    private CommunicationTask.TaskPhase invokeGetTaskPhase(CommunicationTask task) throws TaskStatusException {
+        try {
+            return task.getTaskPhase();
+        } catch (TaskStatusException e) {
+            throw e;
+        } catch (Throwable e) {
+            String message = String.format("%s getTaskPhase() method throw exception."
+                    , CommunicationTask.class.getSimpleName());
+            throw new TaskStatusException(e, message);
+        }
+
+    }
+
+
+
+
     /*################################## blow private static class ##################################*/
 
     protected static abstract class AbstractTaskAdjutant implements TaskAdjutant {
@@ -574,11 +705,25 @@ public abstract class CommunicationTaskExecutor<T extends TaskAdjutant> implemen
 
     }
 
-    private static final class MorePacketSingleImpl implements MorePacketSignal {
+
+    protected static final class TaskExecutorException extends IllegalStateException {
+
+        public TaskExecutorException(String s) {
+            super(s);
+        }
+
+        public TaskExecutorException(String message, Throwable cause) {
+            super(message, cause);
+        }
+
+
+    }
+
+    private static final class TaskSingleImpl implements TaskSignal {
 
         private final CommunicationTaskExecutor<?> taskExecutor;
 
-        private MorePacketSingleImpl(CommunicationTaskExecutor<?> taskExecutor) {
+        private TaskSingleImpl(CommunicationTaskExecutor<?> taskExecutor) {
             this.taskExecutor = taskExecutor;
         }
 
@@ -592,6 +737,18 @@ public abstract class CommunicationTaskExecutor<T extends TaskAdjutant> implemen
                     this.taskExecutor.eventLoop.execute(() -> this.taskExecutor.doSendPacketSignal(sink, task));
                 }
             });
+        }
+
+        @Override
+        public Mono<Void> sendEndPacket(CommunicationTask task) {
+            return Mono.create(sink -> {
+                if (this.taskExecutor.eventLoop.inEventLoop()) {
+                    this.taskExecutor.doSendEndPacketSignal(sink, task);
+                } else {
+                    this.taskExecutor.eventLoop.execute(() -> this.taskExecutor.doSendEndPacketSignal(sink, task));
+                }
+            });
+
         }
     }
 

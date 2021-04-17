@@ -5,9 +5,7 @@ import io.jdbd.ResultStates;
 import java.util.List;
 import java.util.function.Consumer;
 
-public interface PrepareWrapper {
-
-    String getSql();
+public interface ParamWrapper extends StmtWrapper {
 
     /**
      * @return a unmodifiable list
@@ -21,7 +19,6 @@ public interface PrepareWrapper {
      */
     int getFetchSize();
 
-    int getTimeout();
 
 
 }

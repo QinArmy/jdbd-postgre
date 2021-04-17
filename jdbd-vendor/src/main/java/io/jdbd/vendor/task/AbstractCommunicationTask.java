@@ -22,7 +22,7 @@ public abstract class AbstractCommunicationTask implements CommunicationTask {
 
     @Nullable
     @Override
-    public final Publisher<ByteBuf> start(MorePacketSignal signal) {
+    public final Publisher<ByteBuf> start(TaskSignal signal) {
         if (!this.adjutant.inEventLoop()) {
             throw new IllegalStateException("start(MorePacketSignal) isn't in EventLoop.");
         }
@@ -121,7 +121,7 @@ public abstract class AbstractCommunicationTask implements CommunicationTask {
 
 
     @Nullable
-    protected abstract Publisher<ByteBuf> internalStart(MorePacketSignal signal);
+    protected abstract Publisher<ByteBuf> internalStart(TaskSignal signal);
 
     protected abstract boolean internalDecode(ByteBuf cumulateBuffer, Consumer<Object> serverStatusConsumer);
 

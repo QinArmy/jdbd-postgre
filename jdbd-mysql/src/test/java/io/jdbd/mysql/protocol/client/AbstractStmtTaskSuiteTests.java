@@ -9,7 +9,7 @@ import io.jdbd.mysql.SQLMode;
 import io.jdbd.mysql.protocol.conf.PropertyKey;
 import io.jdbd.mysql.session.MySQLSessionAdjutant;
 import io.jdbd.mysql.stmt.BindValue;
-import io.jdbd.mysql.stmt.StmtWrapper;
+import io.jdbd.mysql.stmt.BindableWrapper;
 import io.jdbd.mysql.stmt.StmtWrappers;
 import io.jdbd.mysql.type.City;
 import io.jdbd.mysql.type.TrueOrFalse;
@@ -37,9 +37,9 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBased
         this.subType = subType;
     }
 
-    abstract Mono<ResultStates> executeUpdate(StmtWrapper wrapper, MySQLTaskAdjutant taskAdjutant);
+    abstract Mono<ResultStates> executeUpdate(BindableWrapper wrapper, MySQLTaskAdjutant taskAdjutant);
 
-    abstract Flux<ResultRow> executeQuery(StmtWrapper wrapper, MySQLTaskAdjutant taskAdjutant);
+    abstract Flux<ResultRow> executeQuery(BindableWrapper wrapper, MySQLTaskAdjutant taskAdjutant);
 
     abstract Logger obtainLogger();
 

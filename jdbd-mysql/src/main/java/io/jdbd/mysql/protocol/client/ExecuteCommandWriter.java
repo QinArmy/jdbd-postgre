@@ -8,7 +8,7 @@ import reactor.core.publisher.Flux;
 import java.sql.SQLException;
 import java.util.List;
 
-interface StatementCommandWriter {
+interface ExecuteCommandWriter {
 
     Publisher<ByteBuf> writeCommand(int stmtIndex, List<? extends ParamValue> parameterGroup)
             throws SQLException;

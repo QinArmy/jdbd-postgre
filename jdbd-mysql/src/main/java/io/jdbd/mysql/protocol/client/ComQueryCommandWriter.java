@@ -10,7 +10,7 @@ import io.jdbd.mysql.protocol.conf.MySQLHost;
 import io.jdbd.mysql.protocol.conf.PropertyKey;
 import io.jdbd.mysql.stmt.BatchBindWrapper;
 import io.jdbd.mysql.stmt.BindValue;
-import io.jdbd.mysql.stmt.StmtWrapper;
+import io.jdbd.mysql.stmt.BindableWrapper;
 import io.jdbd.mysql.syntax.MySQLStatement;
 import io.jdbd.mysql.util.*;
 import io.jdbd.vendor.conf.Properties;
@@ -51,20 +51,20 @@ final class ComQueryCommandWriter {
     /**
      * @return a unmodifiable list.
      */
-    static List<ByteBuf> createBindableMultiCommand(final List<StmtWrapper> stmtWrapperList
+    static List<ByteBuf> createBindableMultiCommand(final List<BindableWrapper> bindableWrapperList
             , Supplier<Integer> sequenceIdSupplier, MySQLTaskAdjutant adjutant)
             throws SQLException, LongDataReadException {
         return new ComQueryCommandWriter(sequenceIdSupplier, adjutant)
-                .writeMultiCommand(stmtWrapperList);
+                .writeMultiCommand(bindableWrapperList);
     }
 
     /**
      * @return a unmodifiable list.
      */
-    static List<ByteBuf> createBindableCommand(StmtWrapper stmtWrapper, Supplier<Integer> sequenceIdSupplier
+    static List<ByteBuf> createBindableCommand(BindableWrapper bindableWrapper, Supplier<Integer> sequenceIdSupplier
             , MySQLTaskAdjutant adjutant) throws SQLException, LongDataReadException {
         return new ComQueryCommandWriter(sequenceIdSupplier, adjutant)
-                .writeBindableCommand(stmtWrapper);
+                .writeBindableCommand(bindableWrapper);
     }
 
     /**
@@ -200,9 +200,9 @@ final class ComQueryCommandWriter {
      * @return a unmodifiable list.
      * @see #createBindableMultiCommand(List, Supplier, MySQLTaskAdjutant)
      */
-    private List<ByteBuf> writeMultiCommand(final List<StmtWrapper> stmtWrapperList)
+    private List<ByteBuf> writeMultiCommand(final List<BindableWrapper> bindableWrapperList)
             throws SQLException, LongDataReadException {
-        final int size = stmtWrapperList.size();
+        final int size = bindableWrapperList.size();
         final LinkedList<ByteBuf> packetList = new LinkedList<>();
         ByteBuf packet = this.adjutant.createPacketBuffer(2048);
         packet.writeByte(PacketUtils.COM_QUERY);
@@ -212,7 +212,7 @@ final class ComQueryCommandWriter {
                 if (i > 0) {
                     packet.writeBytes(semicolonBytes);
                 }
-                packet = doWriteBindableCommand(i, stmtWrapperList.get(i), packetList, packet);
+                packet = doWriteBindableCommand(i, bindableWrapperList.get(i), packetList, packet);
                 if (packet.readableBytes() >= PacketUtils.MAX_PACKET) {
                     packet = PacketUtils.addAndCutBigPacket(packet, packetList, this.sequenceIdSupplier
                             , this.adjutant.allocator()::buffer);
@@ -229,15 +229,15 @@ final class ComQueryCommandWriter {
 
     /**
      * @return a unmodifiable list.
-     * @see #createBindableCommand(StmtWrapper, Supplier, MySQLTaskAdjutant)
+     * @see #createBindableCommand(BindableWrapper, Supplier, MySQLTaskAdjutant)
      */
-    private List<ByteBuf> writeBindableCommand(StmtWrapper stmtWrapper) throws SQLException, LongDataReadException {
+    private List<ByteBuf> writeBindableCommand(BindableWrapper bindableWrapper) throws SQLException, LongDataReadException {
         LinkedList<ByteBuf> packetList = new LinkedList<>();
-        int capacity = stmtWrapper.getSql().length() * this.adjutant.obtainMaxBytesPerCharClient() + 100;
+        int capacity = bindableWrapper.getSql().length() * this.adjutant.obtainMaxBytesPerCharClient() + 100;
         ByteBuf packet = this.adjutant.createPacketBuffer(capacity);
         try {
             packet.writeByte(PacketUtils.COM_QUERY);
-            packet = doWriteBindableCommand(-1, stmtWrapper, packetList, packet);
+            packet = doWriteBindableCommand(-1, bindableWrapper, packetList, packet);
             PacketUtils.writePacketHeader(packet, this.sequenceIdSupplier.get());
             packetList.add(packet);
             return MySQLCollections.unmodifiableList(packetList);
@@ -317,13 +317,13 @@ final class ComQueryCommandWriter {
 
     /**
      * @see #writeMultiCommand(List)
-     * @see #writeBindableCommand(StmtWrapper)
+     * @see #writeBindableCommand(BindableWrapper)
      */
-    private ByteBuf doWriteBindableCommand(final int stmtIndex, StmtWrapper stmtWrapper, final List<ByteBuf> packetList
+    private ByteBuf doWriteBindableCommand(final int stmtIndex, BindableWrapper bindableWrapper, final List<ByteBuf> packetList
             , final ByteBuf currentPacket) throws SQLException, LongDataReadException {
 
-        MySQLStatement stmt = this.adjutant.parse(stmtWrapper.getSql());
-        final List<BindValue> parameterGroup = stmtWrapper.getParamGroup();
+        MySQLStatement stmt = this.adjutant.parse(bindableWrapper.getSql());
+        final List<BindValue> parameterGroup = bindableWrapper.getParamGroup();
         final int paramCount = parameterGroup.size();
 
         BindUtils.assertParamCountMatch(stmtIndex, stmt.getParamCount(), paramCount);
@@ -356,7 +356,7 @@ final class ComQueryCommandWriter {
 
 
     /**
-     * @see #doWriteBindableCommand(int, StmtWrapper, List, ByteBuf)
+     * @see #doWriteBindableCommand(int, BindableWrapper, List, ByteBuf)
      */
     private ByteBuf bindParameter(final int stmtIndex, final BindValue bindValue, final ByteBuf buffer
             , final List<ByteBuf> packetList) throws SQLException, LongDataReadException {

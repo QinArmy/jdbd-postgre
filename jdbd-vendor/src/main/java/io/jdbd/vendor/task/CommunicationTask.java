@@ -7,10 +7,14 @@ import org.reactivestreams.Publisher;
 import java.util.function.Consumer;
 
 
+/**
+ * @see AbstractCommunicationTask
+ * @see TaskStatusException
+ */
 public interface CommunicationTask {
 
     @Nullable
-    Publisher<ByteBuf> start(MorePacketSignal signal);
+    Publisher<ByteBuf> start(TaskSignal signal);
 
     @Nullable
     TaskPhase getTaskPhase();

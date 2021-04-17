@@ -138,6 +138,11 @@ final class MySQLTaskExecutor extends CommunicationTaskExecutor<MySQLTaskAdjutan
         return this.hostInfo;
     }
 
+    @Override
+    protected boolean clearChannel(ByteBuf cumulateBuffer, int packetIndex) {
+        //TODO zoro complement this method.
+        return true;
+    }
 
     /*################################## blow private method ##################################*/
 

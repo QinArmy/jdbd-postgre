@@ -29,12 +29,12 @@ public abstract class JdbdStmtWrappers {
         return new BatchWrapperImpl(sql, groupList, timeOut);
     }
 
-    public static PrepareWrapper singlePrepare(String sql, ParamValue paramValue) {
-        return new SimplePrepareWrapper(sql, paramValue);
+    public static ParamWrapper singlePrepare(String sql, ParamValue paramValue) {
+        return new SimpleParamWrapper(sql, paramValue);
     }
 
-    public static PrepareWrapper multiPrepare(String sql, List<? extends ParamValue> paramGroup) {
-        return new SimplePrepareWrapper(sql, paramGroup);
+    public static ParamWrapper multiPrepare(String sql, List<? extends ParamValue> paramGroup) {
+        return new SimpleParamWrapper(sql, paramGroup);
     }
 
 
@@ -71,18 +71,18 @@ public abstract class JdbdStmtWrappers {
     }
 
 
-    private static final class SimplePrepareWrapper implements PrepareWrapper {
+    private static final class SimpleParamWrapper implements ParamWrapper {
 
         private final String sql;
 
         private final List<? extends ParamValue> paramGroup;
 
-        private SimplePrepareWrapper(String sql, ParamValue paramValue) {
+        private SimpleParamWrapper(String sql, ParamValue paramValue) {
             this.sql = sql;
             this.paramGroup = Collections.singletonList(paramValue);
         }
 
-        private SimplePrepareWrapper(String sql, List<? extends ParamValue> paramGroup) {
+        private SimpleParamWrapper(String sql, List<? extends ParamValue> paramGroup) {
             this.sql = sql;
             this.paramGroup = Collections.unmodifiableList(paramGroup);
         }
@@ -113,7 +113,7 @@ public abstract class JdbdStmtWrappers {
         }
     }
 
-    protected static final class PrepareWrapperImpl implements PrepareWrapper {
+    protected static final class ParamWrapperImpl implements ParamWrapper {
 
         @Override
         public String getSql() {

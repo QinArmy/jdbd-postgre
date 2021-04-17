@@ -7,7 +7,7 @@ import io.jdbd.mysql.protocol.conf.PropertyKey;
 import io.jdbd.mysql.session.MySQLSessionAdjutant;
 import io.jdbd.mysql.stmt.BatchBindWrapper;
 import io.jdbd.mysql.stmt.BindValue;
-import io.jdbd.mysql.stmt.StmtWrapper;
+import io.jdbd.mysql.stmt.BindableWrapper;
 import io.jdbd.mysql.stmt.StmtWrappers;
 import io.jdbd.vendor.result.ReactorMultiResults;
 import org.slf4j.Logger;
@@ -199,30 +199,30 @@ public class MultiStatementSuiteTests extends AbstractConnectionBasedSuiteTests 
         final MySQLTaskAdjutant adjutant = obtainMultiStmtTaskAdjutant();
 
         String sql;
-        final List<StmtWrapper> stmtWrapperList = new ArrayList<>(6);
+        final List<BindableWrapper> bindableWrapperList = new ArrayList<>(6);
 
         sql = "UPDATE mysql_types as t SET t.name = 'mysql' WHERE t.id = ?";//[1] update
-        stmtWrapperList.add(StmtWrappers.single(sql, BindValue.create(0, MySQLType.BIGINT, 264)));
+        bindableWrapperList.add(StmtWrappers.single(sql, BindValue.create(0, MySQLType.BIGINT, 264)));
 
         sql = String.format("UPDATE mysql_types as t SET t.my_date = '%s' WHERE t.id = ?", LocalDate.now());//[2] update
-        stmtWrapperList.add(StmtWrappers.single(sql, BindValue.create(0, MySQLType.BIGINT, 265)));
+        bindableWrapperList.add(StmtWrappers.single(sql, BindValue.create(0, MySQLType.BIGINT, 265)));
 
         sql = String.format("SELECT t.id as id ,t.name as name,t.create_time as createTime FROM mysql_types as t WHERE t.id > ? ORDER BY t.id LIMIT %s", ROW_COUNT);// [3] query
-        stmtWrapperList.add(StmtWrappers.single(sql, BindValue.create(0, MySQLType.BIGINT, 260)));
+        bindableWrapperList.add(StmtWrappers.single(sql, BindValue.create(0, MySQLType.BIGINT, 260)));
 
         sql = String.format("UPDATE mysql_types as t SET t.my_time= '%s' WHERE t.id = ?", LocalTime.now());// [4] update
-        stmtWrapperList.add(StmtWrappers.single(sql, BindValue.create(0, MySQLType.BIGINT, 266)));
+        bindableWrapperList.add(StmtWrappers.single(sql, BindValue.create(0, MySQLType.BIGINT, 266)));
 
         sql = String.format("SELECT t.id as id ,t.name as name,t.create_time as createTime FROM mysql_types as t WHERE t.id > ? ORDER BY t.id LIMIT %s", ROW_COUNT); //[5] query
-        stmtWrapperList.add(StmtWrappers.single(sql, BindValue.create(0, MySQLType.BIGINT, 260)));
+        bindableWrapperList.add(StmtWrappers.single(sql, BindValue.create(0, MySQLType.BIGINT, 260)));
 
         sql = String.format("UPDATE mysql_types as t SET t.my_time= '%s' WHERE t.id = ?", LocalTime.now());//[6] update
-        stmtWrapperList.add(StmtWrappers.single(sql, BindValue.create(0, MySQLType.BIGINT, 267)));
+        bindableWrapperList.add(StmtWrappers.single(sql, BindValue.create(0, MySQLType.BIGINT, 267)));
 
         final AtomicReference<ResultStates> statesHolder = new AtomicReference<>(null);
 
         //below defer serially subscribe
-        final ReactorMultiResults multiResults1 = ComQueryTask.bindableMultiStmt(stmtWrapperList, adjutant);
+        final ReactorMultiResults multiResults1 = ComQueryTask.bindableMultiStmt(bindableWrapperList, adjutant);
         multiResults1.nextUpdate()//1. immediately subscribe update
                 .switchIfEmpty(emptyError())
                 .map(this::assertUpdateSuccess)
@@ -263,7 +263,7 @@ public class MultiStatementSuiteTests extends AbstractConnectionBasedSuiteTests 
 
         //below immediately serially subscribe
         final ReactorMultiResults multiResults2;
-        multiResults2 = ComQueryTask.bindableMultiStmt(stmtWrapperList, adjutant);
+        multiResults2 = ComQueryTask.bindableMultiStmt(bindableWrapperList, adjutant);
 
         final AtomicReference<Throwable> errorHolder = new AtomicReference<>(null);
 

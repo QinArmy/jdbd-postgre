@@ -5,7 +5,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-reference-error-MySQLStates.html">Mapping MySQL Error Numbers to JDBC SQLState Codes</a>
+ * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-reference-error-sqlstates.html">Mapping MySQL Error Numbers to JDBC SQLState Codes</a>
  */
 public abstract class MySQLCodes {
 

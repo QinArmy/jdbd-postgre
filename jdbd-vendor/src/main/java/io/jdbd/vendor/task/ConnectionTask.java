@@ -13,7 +13,7 @@ public interface ConnectionTask extends CommunicationTask {
      * <p>
      * This will invoke :
      *     <ul>
-     *         <li>before {@link #start(MorePacketSignal)}</li>
+     *         <li>before {@link #start(TaskSignal)}</li>
      *         <li>after {@link #decode(ByteBuf, Consumer)},if return value is {@code true}</li>
      *     </ul>
      * </p>
