@@ -2,6 +2,7 @@ package io.jdbd.stmt;
 
 import io.jdbd.lang.Nullable;
 import io.jdbd.result.MultiResults;
+import org.reactivestreams.Publisher;
 
 import java.sql.JDBCType;
 
@@ -34,7 +35,10 @@ public interface MultiStatement extends BindableMultiResultStatement, ReusableSt
 
 
     @Override
-    MultiResults execute();
+    MultiResults executeMulti();
+
+    @Override
+    Publisher<MultiResults> executeBatchMulti();
 
 
 }

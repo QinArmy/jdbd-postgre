@@ -30,35 +30,35 @@ import static io.jdbd.stmt.ResultType.UPDATE;
  *     <ul>
  *         <li>below handle update result subscribe event
  *         <ol>
- *             <li>{@link DefaultMultiResults#nextUpdate()} </li>
+ *             <li>{@link DefaultMultiResult#nextUpdate()} </li>
  *             <li>{@link #subscribeNextUpdate(MonoSink)}</li>
  *         </ol>
  *         </li>
  *         <li>below handle query result subscribe event
  *         <ol>
- *             <li>{@link DefaultMultiResults#nextQuery(Consumer)}</li>
+ *             <li>{@link DefaultMultiResult#nextQuery(Consumer)}</li>
  *             <li>{@link #subscribeNextQuery(FluxSink, Consumer)}</li>
  *         </ol>
  *         </li>
  *     </ul>
  * </p>
  */
-final class MultiResultsCreate implements MultiResultsSink {
+final class MultiResultCreate implements MultiResultSink {
 
 
-    static ReactorMultiResults create(TaskAdjutant adjutant, Consumer<MultiResultsSink> callback) {
-        return new MultiResultsCreate(adjutant, callback)
+    static ReactorMultiResult create(TaskAdjutant adjutant, Consumer<MultiResultSink> callback) {
+        return new MultiResultCreate(adjutant, callback)
                 .multiResults;
     }
 
-    private static final Logger LOG = LoggerFactory.getLogger(MultiResultsCreate.class);
+    private static final Logger LOG = LoggerFactory.getLogger(MultiResultCreate.class);
 
 
     private final TaskAdjutant adjutant;
 
-    private final Consumer<MultiResultsSink> subscribeConsumer;
+    private final Consumer<MultiResultSink> subscribeConsumer;
 
-    private final ReactorMultiResults multiResults;
+    private final ReactorMultiResult multiResults;
 
     private volatile boolean publishSubscribeEvent;
 
@@ -104,10 +104,10 @@ final class MultiResultsCreate implements MultiResultsSink {
      */
     private int resultSequenceId = 1;
 
-    private MultiResultsCreate(TaskAdjutant adjutant, Consumer<MultiResultsSink> subscribeConsumer) {
+    private MultiResultCreate(TaskAdjutant adjutant, Consumer<MultiResultSink> subscribeConsumer) {
         this.adjutant = adjutant;
         this.subscribeConsumer = subscribeConsumer;
-        this.multiResults = new DefaultMultiResults(this);
+        this.multiResults = new DefaultMultiResult(this);
     }
 
 
@@ -295,7 +295,7 @@ final class MultiResultsCreate implements MultiResultsSink {
 
 
     /**
-     * @see DefaultMultiResults#nextUpdate()
+     * @see DefaultMultiResult#nextUpdate()
      */
     private void subscribeNextUpdate(final MonoSink<ResultStates> sink) {
 
@@ -323,7 +323,7 @@ final class MultiResultsCreate implements MultiResultsSink {
     }
 
     /**
-     * @see DefaultMultiResults#nextQuery(Consumer)
+     * @see DefaultMultiResult#nextQuery(Consumer)
      */
     private void subscribeNextQuery(final FluxSink<ResultRow> sink, final Consumer<ResultStates> statesConsumer) {
 
@@ -609,7 +609,7 @@ final class MultiResultsCreate implements MultiResultsSink {
 
         @Override
         public void nextUpdate(final int sequenceId, ResultStates resultStates) {
-            if (MultiResultsCreate.this.currentSink != this) {
+            if (MultiResultCreate.this.currentSink != this) {
                 throw new IllegalStateException(String.format("%s have ended.", this));
             } else {
                 throw new IllegalStateException(
@@ -620,7 +620,7 @@ final class MultiResultsCreate implements MultiResultsSink {
 
         @Override
         public QuerySink nextQuery(final int sequenceId) throws IllegalStateException {
-            if (MultiResultsCreate.this.currentSink != this) {
+            if (MultiResultCreate.this.currentSink != this) {
                 throw new IllegalStateException(String.format("%s have ended.", this));
             }
             if (sequenceId != this.sequenceId) {
@@ -639,7 +639,7 @@ final class MultiResultsCreate implements MultiResultsSink {
          */
         @Override
         public void clearBuffer() {
-            if (!MultiResultsCreate.this.hasError()) {
+            if (!MultiResultCreate.this.hasError()) {
                 throw new IllegalStateException(String.format("No error ,%s reject clear buffer.", this));
             }
             this.resultStates = null;
@@ -661,7 +661,7 @@ final class MultiResultsCreate implements MultiResultsSink {
         }
 
         /**
-         * @see MultiResultsCreate#drainReceiver()
+         * @see MultiResultCreate#drainReceiver()
          */
         private void drainToDownstream(final FluxSink<ResultRow> sink, final Consumer<ResultStates> statesConsumer) {
             if (this.actualSink != null || this.statesConsumer != null) {
@@ -682,10 +682,10 @@ final class MultiResultsCreate implements MultiResultsSink {
         }
 
         /**
-         * @see MultiResultsCreate#subscribeNextQuery(FluxSink, Consumer)
+         * @see MultiResultCreate#subscribeNextQuery(FluxSink, Consumer)
          */
         private void subscribe(final FluxSink<ResultRow> sink, final Consumer<ResultStates> statesConsumer) {
-            if (MultiResultsCreate.this.currentSink != this) {
+            if (MultiResultCreate.this.currentSink != this) {
                 throw new IllegalStateException(String.format("%s have ended.", this));
             }
             if (this.actualSink != null || this.statesConsumer != null) {
@@ -719,7 +719,7 @@ final class MultiResultsCreate implements MultiResultsSink {
                 throw new IllegalStateException(String.format("%s Duplication ResultStates", this));
             }
             this.resultStates = resultStates;
-            MultiResultsCreate.this.updateLastResultStates(resultStates);
+            MultiResultCreate.this.updateLastResultStates(resultStates);
 
             Consumer<ResultStates> statesConsumer = this.statesConsumer;
 
@@ -731,7 +731,7 @@ final class MultiResultsCreate implements MultiResultsSink {
 
         @Override
         public void complete() {
-            if (MultiResultsCreate.this.currentSink != this) {
+            if (MultiResultCreate.this.currentSink != this) {
                 throw new IllegalStateException(String.format("%s have ended.", this));
             }
             if (this.resultStates == null) {
@@ -740,11 +740,11 @@ final class MultiResultsCreate implements MultiResultsSink {
                                 , this, QuerySink.class.getName()));
             }
             // firstly
-            MultiResultsCreate.this.currentSink = null;
+            MultiResultCreate.this.currentSink = null;
 
             FluxSink<ResultRow> actualSink = this.actualSink;
             if (actualSink == null) {
-                MultiResultsCreate.this.addBufferDownstreamSink(this);
+                MultiResultCreate.this.addBufferDownstreamSink(this);
             } else {
                 actualSink.complete();
             }
@@ -805,7 +805,7 @@ final class MultiResultsCreate implements MultiResultsSink {
 
         @Override
         public void nextUpdate(final int sequenceId, ResultStates resultStates) {
-            if (MultiResultsCreate.this.currentSink != this) {
+            if (MultiResultCreate.this.currentSink != this) {
                 throw new IllegalStateException(String.format("%s have ended.", this));
             }
             if (this.sequenceId > 0) {
@@ -813,7 +813,7 @@ final class MultiResultsCreate implements MultiResultsSink {
                         , this, this.sequenceId));
             }
             this.sequenceId = sequenceId;
-            MultiResultsCreate.this.currentSink = null;
+            MultiResultCreate.this.currentSink = null;
             ErrorSubscribeException e = new ErrorSubscribeException(QUERY, UPDATE
                     , "Query result[sequenceId(based one):%s] expect subscribe nextQuery ,but subscribe nextUpdate."
                     , sequenceId);
@@ -825,7 +825,7 @@ final class MultiResultsCreate implements MultiResultsSink {
 
         @Override
         public QuerySink nextQuery(final int sequenceId) throws IllegalStateException {
-            if (MultiResultsCreate.this.currentSink != this) {
+            if (MultiResultCreate.this.currentSink != this) {
                 throw new IllegalStateException(String.format("%s have ended.", this));
             }
             if (this.sequenceId > 0) {
@@ -870,11 +870,11 @@ final class MultiResultsCreate implements MultiResultsSink {
 
         @Override
         public final void nextUpdate(final int sequenceId, ResultStates resultStates) {
-            if (MultiResultsCreate.this.currentSink != this) {
+            if (MultiResultCreate.this.currentSink != this) {
                 throw new IllegalStateException(String.format("%s have ended.", this));
             }
             this.sequenceId = sequenceId;
-            MultiResultsCreate.this.currentSink = null;
+            MultiResultCreate.this.currentSink = null;
             this.sink.success(resultStates);
         }
 
@@ -884,7 +884,7 @@ final class MultiResultsCreate implements MultiResultsSink {
 
         @Override
         public QuerySink nextQuery(final int sequenceId) {
-            if (MultiResultsCreate.this.currentSink != this) {
+            if (MultiResultCreate.this.currentSink != this) {
                 throw new IllegalStateException(String.format("%s have ended.", this));
             }
             if (this.sequenceId > 0) {
@@ -897,7 +897,7 @@ final class MultiResultsCreate implements MultiResultsSink {
                     , "Result[sequenceId(based one):%s] Expect subscribe nextQuery,but subscribe nextUpdate."
                     , sequenceId);
 
-            MultiResultsCreate.this.addDownstreamError(e);
+            MultiResultCreate.this.addDownstreamError(e);
             // delay emit error . when query result complete ,emit error.
             // @see io.jdbd.vendor.result.MultiResultsCreate.DefaultQuerySink.complete
             return new DefaultQuerySink(this, DirtyFluxSink.INSTANCE);
@@ -939,7 +939,7 @@ final class MultiResultsCreate implements MultiResultsSink {
 
         @Override
         public void next(ResultRow resultRow) {
-            if (!MultiResultsCreate.this.hasDownstreamError()) {
+            if (!MultiResultCreate.this.hasDownstreamError()) {
                 this.actualSink.next(resultRow);
             }
         }
@@ -947,7 +947,7 @@ final class MultiResultsCreate implements MultiResultsSink {
 
         @Override
         public void complete() throws IllegalStateException {
-            final DownstreamSink currentSink = MultiResultsCreate.this.currentSink;
+            final DownstreamSink currentSink = MultiResultCreate.this.currentSink;
             if (currentSink != this.downstreamSink) {
                 throw new IllegalStateException(String.format("%s have ended.", this));
             }
@@ -958,10 +958,10 @@ final class MultiResultsCreate implements MultiResultsSink {
                                 , this, QuerySink.class.getName()));
             }
             // firstly
-            MultiResultsCreate.this.currentSink = null;
+            MultiResultCreate.this.currentSink = null;
             // secondly
-            if (MultiResultsCreate.this.hasError()) {
-                final Throwable e = MultiResultsCreate.this.createException();
+            if (MultiResultCreate.this.hasError()) {
+                final Throwable e = MultiResultCreate.this.createException();
                 if (this.downstreamSink instanceof RealUpdateSink) {
                     if (this.actualSink instanceof DirtyFluxSink) {
                         ((RealUpdateSink) this.downstreamSink).sink.error(e);
@@ -983,8 +983,8 @@ final class MultiResultsCreate implements MultiResultsSink {
                 throw new IllegalStateException(String.format("%s have ended.", this));
             }
             this.resultStates = resultStates;
-            MultiResultsCreate.this.updateLastResultStates(resultStates);
-            if (!MultiResultsCreate.this.hasError()) {
+            MultiResultCreate.this.updateLastResultStates(resultStates);
+            if (!MultiResultCreate.this.hasError()) {
                 this.downstreamSink.accept(resultStates);
             }
 
@@ -1002,11 +1002,11 @@ final class MultiResultsCreate implements MultiResultsSink {
     /*################################## blow private static inner class  ##################################*/
 
 
-    private static final class DefaultMultiResults implements ReactorMultiResults {
+    private static final class DefaultMultiResult implements ReactorMultiResult {
 
-        private final MultiResultsCreate resultsSink;
+        private final MultiResultCreate resultsSink;
 
-        private DefaultMultiResults(MultiResultsCreate resultsSink) {
+        private DefaultMultiResult(MultiResultCreate resultsSink) {
             this.resultsSink = resultsSink;
         }
 

@@ -39,7 +39,7 @@ public interface BindableStatement extends BindableSingleStatement, BindableMult
 
 
     @Override
-    void bind(int indexBasedZero, @Nullable Object nullableValue);
+    void bind(int indexBasedZero, @Nullable Object nullable);
 
 
     @Override
@@ -62,7 +62,10 @@ public interface BindableStatement extends BindableSingleStatement, BindableMult
 
 
     @Override
-    MultiResults execute();
+    MultiResults executeMulti();
+
+    @Override
+    Publisher<MultiResults> executeBatchMulti();
 
 
 }

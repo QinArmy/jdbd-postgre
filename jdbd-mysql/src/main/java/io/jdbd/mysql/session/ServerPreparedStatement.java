@@ -47,7 +47,7 @@ public final class ServerPreparedStatement implements PreparedStatement {
     }
 
     @Override
-    public MultiResults execute() {
+    public MultiResults executeMulti() {
         return null;
     }
 

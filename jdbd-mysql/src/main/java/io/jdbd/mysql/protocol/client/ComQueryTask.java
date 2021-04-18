@@ -12,10 +12,7 @@ import io.jdbd.mysql.util.MySQLCollections;
 import io.jdbd.mysql.util.MySQLExceptions;
 import io.jdbd.result.ResultRow;
 import io.jdbd.result.ResultStates;
-import io.jdbd.stmt.ErrorSubscribeException;
-import io.jdbd.stmt.LocalFileException;
-import io.jdbd.stmt.LongDataReadException;
-import io.jdbd.stmt.ResultType;
+import io.jdbd.stmt.*;
 import io.jdbd.vendor.JdbdCompositeException;
 import io.jdbd.vendor.conf.Properties;
 import io.jdbd.vendor.result.*;
@@ -106,6 +103,10 @@ final class ComQueryTask extends MySQLCommandTask {
     }
 
     /**
+     * <p>
+     * This method is one of underlying api of {@link BindableStatement#executeUpdate()} method:
+     * </p>
+     *
      * @see #ComQueryTask(BindableWrapper, MonoSink, MySQLTaskAdjutant)
      * @see ComPreparedTask#update(ParamWrapper, MySQLTaskAdjutant)
      */
@@ -191,11 +192,11 @@ final class ComQueryTask extends MySQLCommandTask {
      * this method create task for multi statement.
      * </p>
      *
-     * @see #ComQueryTask(List, MultiResultsSink, MySQLTaskAdjutant)
+     * @see #ComQueryTask(List, MultiResultSink, MySQLTaskAdjutant)
      */
-    static ReactorMultiResults bindableMultiStmt(final List<BindableWrapper> bindableWrapperList
+    static ReactorMultiResult bindableMultiStmt(final List<BindableWrapper> bindableWrapperList
             , final MySQLTaskAdjutant adjutant) {
-        final ReactorMultiResults multiResults;
+        final ReactorMultiResult multiResults;
         if (bindableWrapperList.isEmpty()) {
             multiResults = JdbdMultiResults.error(MySQLExceptions.createEmptySqlException());
         } else if (Capabilities.supportMultiStatement(adjutant.obtainNegotiatedCapability())) {
@@ -215,10 +216,10 @@ final class ComQueryTask extends MySQLCommandTask {
     }
 
     /**
-     * @see #ComQueryTask(MultiResultsSink, List, MySQLTaskAdjutant)
+     * @see #ComQueryTask(MultiResultSink, List, MySQLTaskAdjutant)
      */
-    static ReactorMultiResults multiStmt(final List<String> sqlList, final MySQLTaskAdjutant adjutant) {
-        ReactorMultiResults multiResults;
+    static ReactorMultiResult multiStmt(final List<String> sqlList, final MySQLTaskAdjutant adjutant) {
+        ReactorMultiResult multiResults;
         if (sqlList.isEmpty()) {
             multiResults = JdbdMultiResults.error(MySQLExceptions.createEmptySqlException());
         } else if (Capabilities.supportMultiStatement(adjutant.obtainNegotiatedCapability())) {
@@ -393,7 +394,7 @@ final class ComQueryTask extends MySQLCommandTask {
      *
      * @see #bindableMultiStmt(List, MySQLTaskAdjutant)
      */
-    private ComQueryTask(final List<BindableWrapper> bindableWrapperList, final MultiResultsSink resultSink
+    private ComQueryTask(final List<BindableWrapper> bindableWrapperList, final MultiResultSink resultSink
             , final MySQLTaskAdjutant adjutant)
             throws SQLException, LongDataReadException {
         super(adjutant);
@@ -414,7 +415,7 @@ final class ComQueryTask extends MySQLCommandTask {
     /**
      * @see #multiStmt(List, MySQLTaskAdjutant)
      */
-    private ComQueryTask(final MultiResultsSink resultSink, final List<String> sqlList
+    private ComQueryTask(final MultiResultSink resultSink, final List<String> sqlList
             , final MySQLTaskAdjutant adjutant) throws SQLException {
         super(adjutant);
         if (!Capabilities.supportMultiStatement(this.negotiatedCapability)) {
@@ -1477,7 +1478,7 @@ final class ComQueryTask extends MySQLCommandTask {
 
     private final class MultiStmtSink implements DownstreamSink, ResultRowSink {
 
-        private final MultiResultsSink sink;
+        private final MultiResultSink sink;
 
         private final ResultSetReader resultSetReader;
 
@@ -1486,10 +1487,10 @@ final class ComQueryTask extends MySQLCommandTask {
         private int currentSequenceId = 1;
 
         /**
-         * @see #ComQueryTask(List, MultiResultsSink, MySQLTaskAdjutant)
-         * @see #ComQueryTask(MultiResultsSink, List, MySQLTaskAdjutant)
+         * @see #ComQueryTask(List, MultiResultSink, MySQLTaskAdjutant)
+         * @see #ComQueryTask(MultiResultSink, List, MySQLTaskAdjutant)
          */
-        private MultiStmtSink(MultiResultsSink sink) {
+        private MultiStmtSink(MultiResultSink sink) {
             if (ComQueryTask.this.mode != Mode.MULTI_STMT) {
                 throw new IllegalStateException(String.format("%s mode[%s] error,reject create instance."
                         , this, ComQueryTask.this.mode));

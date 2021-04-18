@@ -8,7 +8,7 @@ import reactor.core.publisher.Mono;
 
 import java.util.function.Consumer;
 
-public interface ReactorMultiResults extends MultiResults {
+public interface ReactorMultiResult extends MultiResults {
 
     @Override
     Mono<ResultStates> nextUpdate();

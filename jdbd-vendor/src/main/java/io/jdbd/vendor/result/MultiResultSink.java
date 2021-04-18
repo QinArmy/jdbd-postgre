@@ -3,16 +3,16 @@ package io.jdbd.vendor.result;
 import io.jdbd.result.ResultStates;
 
 
-public interface MultiResultsSink {
+public interface MultiResultSink {
 
     /**
-     * @throws IllegalStateException when {@link MultiResultsSink} is terminated
+     * @throws IllegalStateException when {@link MultiResultSink} is terminated
      */
     void error(Throwable e) throws IllegalStateException;
 
     /**
      * @throws IllegalStateException when <ul>
-     *                               <li>{@link MultiResultsSink} is terminated</li>
+     *                               <li>{@link MultiResultSink} is terminated</li>
      *                               <li>current result is query result and not complete.</li>
      *                               </ul>
      */
@@ -20,7 +20,7 @@ public interface MultiResultsSink {
 
     /**
      * @throws IllegalStateException when <ul>
-     *     <li>{@link MultiResultsSink} is terminated</li>
+     *     <li>{@link MultiResultSink} is terminated</li>
      *     <li>current result is query result and not complete.</li>
      * </ul>
      */

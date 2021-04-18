@@ -1,5 +1,6 @@
 package io.jdbd.stmt;
 
+import io.jdbd.lang.Nullable;
 import io.jdbd.result.MultiResults;
 import io.jdbd.result.ResultRow;
 import io.jdbd.result.ResultStates;
@@ -18,14 +19,14 @@ import java.util.function.Consumer;
  *     <li>{@link #executeBatch()}</li>
  *     <li>{@link #executeUpdate()}</li>
  *     <li>{@link #executeQuery()}</li>
- *     <li>{@link #execute()}</li>
+ *     <li>{@link #executeMulti()}</li>
  * </ul>
  * </p>
  */
 public interface PreparedStatement extends BindableSingleStatement, BindableMultiResultStatement {
 
     @Override
-    void bind(int indexBasedZero, Object nullable);
+    void bind(int indexBasedZero, @Nullable Object nullable);
 
     @Override
     void addBatch();
@@ -46,7 +47,10 @@ public interface PreparedStatement extends BindableSingleStatement, BindableMult
     Publisher<ResultRow> executeQuery(Consumer<ResultStates> statesConsumer);
 
     @Override
-    MultiResults execute();
+    MultiResults executeMulti();
+
+    @Override
+    Publisher<MultiResults> executeBatchMulti();
 
     void setFetchSize(int fetchSize);
 

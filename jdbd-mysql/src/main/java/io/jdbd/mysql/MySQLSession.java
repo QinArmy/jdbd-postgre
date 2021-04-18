@@ -4,7 +4,6 @@ import io.jdbd.TransactionOption;
 import io.jdbd.TxDatabaseSession;
 import io.jdbd.mysql.protocol.client.ClientCommandProtocol;
 import io.jdbd.stmt.BindableStatement;
-import io.jdbd.stmt.StaticStatement;
 import reactor.core.publisher.Mono;
 
 class MySQLSession extends AbstractStatelessSession implements TxDatabaseSession {
@@ -36,12 +35,7 @@ class MySQLSession extends AbstractStatelessSession implements TxDatabaseSession
 
 
     @Override
-    public StaticStatement staticStmt() {
-        return null;
-    }
-
-    @Override
-    public BindableStatement bindableStmt(String sql) {
+    public BindableStatement bindable(String sql) {
         return null;
     }
 }

@@ -3,7 +3,7 @@ package io.jdbd.vendor.result;
 import io.jdbd.result.ResultStates;
 
 /**
- * @see MultiResultsSink#nextQuery()
+ * @see MultiResultSink#nextQuery()
  */
 public interface QuerySink extends ResultRowSink {
 

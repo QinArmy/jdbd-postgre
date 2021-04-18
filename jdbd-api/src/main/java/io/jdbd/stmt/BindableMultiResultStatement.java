@@ -1,6 +1,7 @@
 package io.jdbd.stmt;
 
 import io.jdbd.result.MultiResults;
+import org.reactivestreams.Publisher;
 
 /**
  * <p>
@@ -11,9 +12,6 @@ import io.jdbd.result.MultiResults;
  *         <li>{@link MultiStatement}</li>
  *     </ul>
  * </p>
- * <p>
- *     This interface only definite one method {@link #execute()},don't add new method in the future.
- * </p>
  *
  * @see BindableStatement
  * @see PreparedStatement
@@ -22,10 +20,17 @@ import io.jdbd.result.MultiResults;
 public interface BindableMultiResultStatement extends Statement {
 
     /**
-     * @see BindableStatement#execute()
-     * @see PreparedStatement#execute()
-     * @see MultiStatement#execute()
+     * @see BindableStatement#executeMulti()
+     * @see PreparedStatement#executeMulti()
+     * @see MultiStatement#executeMulti()
      */
-    MultiResults execute();
+    MultiResults executeMulti();
+
+    /**
+     * @see BindableStatement#executeBatchMulti()
+     * @see PreparedStatement#executeBatchMulti()
+     * @see MultiStatement#executeBatchMulti()
+     */
+    Publisher<MultiResults> executeBatchMulti();
 
 }

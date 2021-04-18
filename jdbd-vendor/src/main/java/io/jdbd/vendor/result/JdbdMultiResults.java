@@ -12,12 +12,12 @@ public abstract class JdbdMultiResults {
     }
 
 
-    public static ReactorMultiResults error(JdbdException e) {
-        return new ErrorMultiResults(e);
+    public static ReactorMultiResult error(JdbdException e) {
+        return new ErrorMultiResult(e);
     }
 
-    public static ReactorMultiResults create(TaskAdjutant adjutant, Consumer<MultiResultsSink> callback) {
-        return MultiResultsCreate.create(adjutant, callback);
+    public static ReactorMultiResult create(TaskAdjutant adjutant, Consumer<MultiResultSink> callback) {
+        return MultiResultCreate.create(adjutant, callback);
     }
 
 

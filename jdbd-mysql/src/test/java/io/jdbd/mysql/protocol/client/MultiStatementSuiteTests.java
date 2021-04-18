@@ -14,7 +14,7 @@ import io.jdbd.result.ResultRow;
 import io.jdbd.result.ResultStates;
 import io.jdbd.stmt.ErrorSubscribeException;
 import io.jdbd.stmt.ResultType;
-import io.jdbd.vendor.result.ReactorMultiResults;
+import io.jdbd.vendor.result.ReactorMultiResult;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
@@ -96,7 +96,7 @@ public class MultiStatementSuiteTests extends AbstractConnectionBasedSuiteTests 
         final AtomicReference<ResultStates> statesHolder = new AtomicReference<>(null);
 
         //below defer serially subscribe
-        final ReactorMultiResults multiResults1 = ComQueryTask.multiStmt(Collections.unmodifiableList(sqlList), adjutant);
+        final ReactorMultiResult multiResults1 = ComQueryTask.multiStmt(Collections.unmodifiableList(sqlList), adjutant);
         multiResults1.nextUpdate()//1. immediately subscribe update
                 .switchIfEmpty(emptyError())
                 .map(this::assertUpdateSuccess)
@@ -136,7 +136,7 @@ public class MultiStatementSuiteTests extends AbstractConnectionBasedSuiteTests 
                 .block();
 
         //below immediately serially subscribe
-        final ReactorMultiResults multiResults2;
+        final ReactorMultiResult multiResults2;
         multiResults2 = ComQueryTask.multiStmt(Collections.unmodifiableList(sqlList), adjutant);
 
         final AtomicReference<Throwable> errorHolder = new AtomicReference<>(null);
@@ -227,7 +227,7 @@ public class MultiStatementSuiteTests extends AbstractConnectionBasedSuiteTests 
         final AtomicReference<ResultStates> statesHolder = new AtomicReference<>(null);
 
         //below defer serially subscribe
-        final ReactorMultiResults multiResults1 = ComQueryTask.bindableMultiStmt(bindableWrapperList, adjutant);
+        final ReactorMultiResult multiResults1 = ComQueryTask.bindableMultiStmt(bindableWrapperList, adjutant);
         multiResults1.nextUpdate()//1. immediately subscribe update
                 .switchIfEmpty(emptyError())
                 .map(this::assertUpdateSuccess)
@@ -267,7 +267,7 @@ public class MultiStatementSuiteTests extends AbstractConnectionBasedSuiteTests 
                 .block();
 
         //below immediately serially subscribe
-        final ReactorMultiResults multiResults2;
+        final ReactorMultiResult multiResults2;
         multiResults2 = ComQueryTask.bindableMultiStmt(bindableWrapperList, adjutant);
 
         final AtomicReference<Throwable> errorHolder = new AtomicReference<>(null);
@@ -360,7 +360,7 @@ public class MultiStatementSuiteTests extends AbstractConnectionBasedSuiteTests 
 
         try {
             //below defer serially subscribe
-            final ReactorMultiResults multiResults1 = ComQueryTask.multiStmt(Collections.unmodifiableList(sqlList), adjutant);
+            final ReactorMultiResult multiResults1 = ComQueryTask.multiStmt(Collections.unmodifiableList(sqlList), adjutant);
             multiResults1.nextUpdate()//1. immediately subscribe update
                     .switchIfEmpty(emptyError())
                     .map(this::assertUpdateSuccess)
@@ -441,7 +441,7 @@ public class MultiStatementSuiteTests extends AbstractConnectionBasedSuiteTests 
         sqlList.add(sql);
 
         try {
-            final ReactorMultiResults multiResults = ComQueryTask.multiStmt(sqlList, adjutant);
+            final ReactorMultiResult multiResults = ComQueryTask.multiStmt(sqlList, adjutant);
             multiResults.nextUpdate()//[1] update
                     .map(this::assertUpdateSuccess)
 
@@ -460,7 +460,7 @@ public class MultiStatementSuiteTests extends AbstractConnectionBasedSuiteTests 
         }
 
         try {
-            final ReactorMultiResults multiResults = ComQueryTask.multiStmt(sqlList, adjutant);
+            final ReactorMultiResult multiResults = ComQueryTask.multiStmt(sqlList, adjutant);
             multiResults.nextUpdate()//[1] update
                     .map(this::assertUpdateSuccess)
 
@@ -504,7 +504,7 @@ public class MultiStatementSuiteTests extends AbstractConnectionBasedSuiteTests 
 
         try {
             //below defer serially subscribe
-            final ReactorMultiResults multiResults1 = ComQueryTask.multiStmt(Collections.unmodifiableList(sqlList), adjutant);
+            final ReactorMultiResult multiResults1 = ComQueryTask.multiStmt(Collections.unmodifiableList(sqlList), adjutant);
             multiResults1.nextUpdate()//1. immediately subscribe update
                     .switchIfEmpty(emptyError())
                     .map(this::assertUpdateSuccess)

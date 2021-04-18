@@ -59,18 +59,12 @@ public enum Isolation {
 
     public final int level;
 
-    private final String display;
+    public final String command;
 
-    Isolation(int level, String display) {
+    Isolation(int level, String command) {
         this.level = level;
-        this.display = display;
+        this.command = command;
     }
 
-    public int getLevel(){
-        return this.level;
-    }
 
-    public String getDisplay() {
-        return this.display;
-    }
 }

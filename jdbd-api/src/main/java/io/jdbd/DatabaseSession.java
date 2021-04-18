@@ -1,13 +1,16 @@
 package io.jdbd;
 
 import io.jdbd.meta.DatabaseMetaData;
+import io.jdbd.result.MultiResults;
 import io.jdbd.stmt.BindableStatement;
+import io.jdbd.stmt.MultiStatement;
 import io.jdbd.stmt.PreparedStatement;
 import io.jdbd.stmt.StaticStatement;
 import org.reactivestreams.Publisher;
 
 import java.sql.Connection;
 import java.sql.Savepoint;
+import java.util.List;
 
 public interface DatabaseSession extends ReactiveCloseable {
 
@@ -18,21 +21,28 @@ public interface DatabaseSession extends ReactiveCloseable {
      * @see Connection#getTransactionIsolation()
      * @see Connection#getAutoCommit()
      */
-    Publisher<? extends TransactionOption> getTransactionOption();
+    Publisher<TransactionOption> getTransactionOption();
 
     /**
      * @see Connection#createStatement()
      */
-    Publisher<StaticStatement> createStatement();
+    StaticStatement statement();
 
     /**
      * @see java.sql.Connection#prepareStatement(String)
      */
-    Publisher<PreparedStatement> prepareStatement(String sql);
+    Publisher<PreparedStatement> prepare(String sql);
 
-    StaticStatement staticStmt();
+    /**
+     * @see java.sql.Connection#prepareStatement(String)
+     */
+    Publisher<PreparedStatement> prepare(String sql, int executeTimeout);
 
-    BindableStatement bindableStmt(String sql);
+    BindableStatement bindable(String sql);
+
+    MultiStatement multi();
+
+    MultiResults multi(List<String> sqlList);
 
     /**
      * @see java.sql.DatabaseMetaData#supportsSavepoints()

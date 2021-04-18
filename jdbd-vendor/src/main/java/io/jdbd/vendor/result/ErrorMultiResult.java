@@ -8,11 +8,11 @@ import reactor.core.publisher.Mono;
 
 import java.util.function.Consumer;
 
-final class ErrorMultiResults implements ReactorMultiResults {
+final class ErrorMultiResult implements ReactorMultiResult {
 
     private final JdbdException error;
 
-    ErrorMultiResults(JdbdException error) {
+    ErrorMultiResult(JdbdException error) {
         this.error = error;
     }
 

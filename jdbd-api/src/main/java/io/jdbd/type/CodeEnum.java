@@ -10,7 +10,7 @@ import java.util.Map;
  * see Book Effective Java item (Use instance fields instead of ordinals).
  * </p>
  * <p>
- * Code should isn't consecutive numbers,like 0,1,2,3.... because you should consider add new enum instance.
+ * Code shouldn't consecutive numbers,like 0,1,2,3.... because you should consider add new enum instance.
  * code should like below :
  *      <ul>
  *          <li>0</li>
