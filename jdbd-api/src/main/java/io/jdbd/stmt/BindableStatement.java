@@ -1,7 +1,7 @@
 package io.jdbd.stmt;
 
 import io.jdbd.lang.Nullable;
-import io.jdbd.result.MultiResults;
+import io.jdbd.result.MultiResult;
 import io.jdbd.result.ResultRow;
 import io.jdbd.result.ResultStates;
 import org.reactivestreams.Publisher;
@@ -62,10 +62,10 @@ public interface BindableStatement extends BindableSingleStatement, BindableMult
 
 
     @Override
-    MultiResults executeMulti();
+    MultiResult executeMulti();
 
-    @Override
-    Publisher<MultiResults> executeBatchMulti();
+
+    Publisher<MultiResult> executeBatchMulti();
 
 
 }

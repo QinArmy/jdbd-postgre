@@ -10,7 +10,7 @@ import io.jdbd.mysql.protocol.conf.PropertyKey;
 import io.jdbd.mysql.util.MySQLCodes;
 import io.jdbd.mysql.util.MySQLStringUtils;
 import io.jdbd.mysql.util.MySQLTimeUtils;
-import io.jdbd.result.MultiResults;
+import io.jdbd.result.MultiResult;
 import io.jdbd.result.ResultRow;
 import io.jdbd.vendor.conf.Properties;
 import io.jdbd.vendor.util.SQLStates;
@@ -202,7 +202,7 @@ final class DefaultSessionResetter implements SessionResetter {
         final long utcEpochSecond = OffsetDateTime.now(ZoneOffset.UTC).toEpochSecond();
         String command = String.format("SELECT @@SESSION.time_zone as timeZone,DATE_FORMAT(FROM_UNIXTIME(%s),'%s') as databaseNow"
                 , utcEpochSecond, "%Y-%m-%d %T");
-        return ComQueryTask.query(command, MultiResults.EMPTY_CONSUMER, this.adjutant)
+        return ComQueryTask.query(command, MultiResult.EMPTY_CONSUMER, this.adjutant)
                 .elementAt(0)
                 .flatMap(resultRow -> handleDatabaseTimeZoneAndConnectionZone(resultRow, utcEpochSecond))
                 ;
@@ -214,7 +214,7 @@ final class DefaultSessionResetter implements SessionResetter {
      */
     Mono<Void> configSqlMode() {
         String command = "SELECT @@SESSION.sql_mode";
-        return ComQueryTask.query(command, MultiResults.EMPTY_CONSUMER, this.adjutant)
+        return ComQueryTask.query(command, MultiResult.EMPTY_CONSUMER, this.adjutant)
                 .elementAt(0)
                 .flatMap(this::appendSqlModeIfNeed)
                 .then()

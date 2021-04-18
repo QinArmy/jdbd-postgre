@@ -1,12 +1,13 @@
 package io.jdbd.stmt;
 
 import io.jdbd.lang.Nullable;
-import io.jdbd.result.MultiResults;
-import org.reactivestreams.Publisher;
+import io.jdbd.result.MultiResult;
 
 import java.sql.JDBCType;
 
-public interface MultiStatement extends BindableMultiResultStatement, ReusableStatement {
+public interface MultiStatement extends BindableMultiResultStatement {
+
+    void addStmt(String sql);
 
     /**
      * <p>
@@ -35,10 +36,7 @@ public interface MultiStatement extends BindableMultiResultStatement, ReusableSt
 
 
     @Override
-    MultiResults executeMulti();
-
-    @Override
-    Publisher<MultiResults> executeBatchMulti();
+    MultiResult executeMulti();
 
 
 }

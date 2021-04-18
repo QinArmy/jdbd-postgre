@@ -1,7 +1,7 @@
 package io.jdbd;
 
 import io.jdbd.meta.DatabaseMetaData;
-import io.jdbd.result.MultiResults;
+import io.jdbd.result.MultiResult;
 import io.jdbd.stmt.BindableStatement;
 import io.jdbd.stmt.MultiStatement;
 import io.jdbd.stmt.PreparedStatement;
@@ -42,7 +42,7 @@ public interface DatabaseSession extends ReactiveCloseable {
 
     MultiStatement multi();
 
-    MultiResults multi(List<String> sqlList);
+    MultiResult multi(List<String> sqlList);
 
     /**
      * @see java.sql.DatabaseMetaData#supportsSavepoints()

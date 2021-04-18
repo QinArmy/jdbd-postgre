@@ -4,7 +4,7 @@ import io.jdbd.mysql.protocol.conf.PropertyKey;
 import io.jdbd.mysql.session.MySQLSessionAdjutant;
 import io.jdbd.mysql.stmt.BatchBindWrapper;
 import io.jdbd.mysql.stmt.BindableWrapper;
-import io.jdbd.result.MultiResults;
+import io.jdbd.result.MultiResult;
 import io.jdbd.result.ResultRow;
 import io.jdbd.result.ResultStates;
 import io.jdbd.stmt.PreparedStatement;
@@ -86,12 +86,12 @@ public final class ClientCommandProtocolImpl implements ClientCommandProtocol {
     }
 
     @Override
-    public final MultiResults multiStmt(List<String> commandList) {
+    public final MultiResult multiStmt(List<String> commandList) {
         return ComQueryTask.multiStmt(commandList, this.taskExecutor.getAdjutant());
     }
 
     @Override
-    public final MultiResults multiBindable(List<BindableWrapper> wrapperList) {
+    public final MultiResult bindableMultiStmt(List<BindableWrapper> wrapperList) {
         return ComQueryTask.bindableMultiStmt(wrapperList, this.taskExecutor.getAdjutant());
     }
 

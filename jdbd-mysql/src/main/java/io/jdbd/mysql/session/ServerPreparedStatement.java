@@ -1,15 +1,18 @@
 package io.jdbd.mysql.session;
 
 import io.jdbd.mysql.stmt.PrepareStmtTask;
-import io.jdbd.result.MultiResults;
+import io.jdbd.result.MultiResult;
 import io.jdbd.result.ResultRow;
 import io.jdbd.result.ResultStates;
 import io.jdbd.stmt.PreparedStatement;
-import org.reactivestreams.Publisher;
+import io.jdbd.vendor.result.ReactorMultiResult;
+import io.jdbd.vendor.stmt.ReactorPreparedStatement;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
 import java.util.function.Consumer;
 
-public final class ServerPreparedStatement implements PreparedStatement {
+public final class ServerPreparedStatement implements ReactorPreparedStatement {
 
     public static PreparedStatement create(PrepareStmtTask task) {
         throw new UnsupportedOperationException();
@@ -27,27 +30,32 @@ public final class ServerPreparedStatement implements PreparedStatement {
     }
 
     @Override
-    public Publisher<ResultStates> executeBatch() {
+    public Flux<ResultStates> executeBatch() {
         return null;
     }
 
     @Override
-    public Publisher<ResultStates> executeUpdate() {
+    public Mono<ResultStates> executeUpdate() {
         return null;
     }
 
     @Override
-    public Publisher<ResultRow> executeQuery() {
+    public Flux<ResultRow> executeQuery() {
         return null;
     }
 
     @Override
-    public Publisher<ResultRow> executeQuery(Consumer<ResultStates> statesConsumer) {
+    public Flux<ResultRow> executeQuery(Consumer<ResultStates> statesConsumer) {
         return null;
     }
 
     @Override
-    public MultiResults executeMulti() {
+    public ReactorMultiResult executeMulti() {
+        return null;
+    }
+
+    @Override
+    public Flux<MultiResult> executeBatchMulti() {
         return null;
     }
 

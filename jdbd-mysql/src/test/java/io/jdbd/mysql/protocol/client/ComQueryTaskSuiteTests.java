@@ -10,7 +10,7 @@ import io.jdbd.mysql.stmt.BindableWrapper;
 import io.jdbd.mysql.stmt.StmtWrappers;
 import io.jdbd.mysql.util.MySQLCodes;
 import io.jdbd.mysql.util.MySQLStates;
-import io.jdbd.result.MultiResults;
+import io.jdbd.result.MultiResult;
 import io.jdbd.result.ResultRow;
 import io.jdbd.result.ResultStates;
 import io.jdbd.stmt.ErrorSubscribeException;
@@ -143,7 +143,7 @@ public class ComQueryTaskSuiteTests extends AbstractStmtTaskSuiteTests {
 
         sql = "SELECT u.id,u.name FROM mysql_types as u WHERE u.id = 1";
 
-        List<ResultRow> resultRowList = ComQueryTask.query(sql, MultiResults.EMPTY_CONSUMER, adjutant)
+        List<ResultRow> resultRowList = ComQueryTask.query(sql, MultiResult.EMPTY_CONSUMER, adjutant)
                 .collectList()
                 .block();
 
@@ -210,7 +210,7 @@ public class ComQueryTaskSuiteTests extends AbstractStmtTaskSuiteTests {
         String sql = "UPDATE mysql_types as u SET u.name = 'simonyi4' WHERE u.id = 30";
 
         try {
-            ComQueryTask.query(sql, MultiResults.EMPTY_CONSUMER, adjutant)
+            ComQueryTask.query(sql, MultiResult.EMPTY_CONSUMER, adjutant)
                     .map(row -> {
                         fail("queryIsUpdate test failure.");
                         return row;

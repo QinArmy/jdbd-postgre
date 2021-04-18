@@ -6,7 +6,7 @@ import io.jdbd.mysql.Server;
 import io.jdbd.mysql.protocol.conf.PropertyKey;
 import io.jdbd.mysql.session.MySQLSessionAdjutant;
 import io.jdbd.mysql.util.MySQLTimeUtils;
-import io.jdbd.result.MultiResults;
+import io.jdbd.result.MultiResult;
 import io.jdbd.result.ResultRow;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -161,7 +161,7 @@ public class SessionInitializerSuiteTests extends AbstractConnectionBasedSuiteTe
         String sql = "SELECT @@character_set_connection as  characterSetConnection" +
                 ", @@character_set_results as characterSetResults," +
                 "@@character_set_client as characterSetClient";
-        ResultRow resultRow = ComQueryTask.query(sql, MultiResults.EMPTY_CONSUMER, adjutant)
+        ResultRow resultRow = ComQueryTask.query(sql, MultiResult.EMPTY_CONSUMER, adjutant)
                 .elementAt(0)
                 .block();
         assertNotNull(resultRow);

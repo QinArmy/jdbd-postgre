@@ -6,7 +6,7 @@ import org.reactivestreams.Publisher;
 
 import java.util.function.Consumer;
 
-public interface MultiResults {
+public interface MultiResult {
 
     Consumer<ResultStates> EMPTY_CONSUMER = resultStates -> {
     };
@@ -14,7 +14,7 @@ public interface MultiResults {
     /**
      * @return A Reactive Streams {@link Publisher} with rx operators that emits 0 to 1 elements
      * ,like {@code reactor.core.publisher.Mono}.
-     * @throws NoMoreResultException  emit when {@link MultiResults} end and no buffer.
+     * @throws NoMoreResultException  emit when {@link MultiResult} end and no buffer.
      * @throws TooManyResultException emit when database return result set count more than expect
      */
     Publisher<ResultStates> nextUpdate();

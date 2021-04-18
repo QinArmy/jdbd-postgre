@@ -1,7 +1,7 @@
 package io.jdbd.stmt;
 
 import io.jdbd.lang.Nullable;
-import io.jdbd.result.MultiResults;
+import io.jdbd.result.MultiResult;
 import io.jdbd.result.ResultRow;
 import io.jdbd.result.ResultStates;
 import org.reactivestreams.Publisher;
@@ -13,13 +13,15 @@ import java.util.function.Consumer;
  * This interface is reactive version of {@code java.sql.PreparedStatement}
  * </p>
  * <p>
- * You must invoke one of below method,or {@link io.jdbd.DatabaseSession} of this {@link PreparedStatement}
+ * You must invoke one of below methods,or {@link io.jdbd.DatabaseSession} of this {@link PreparedStatement}
  * can't execute any new {@link Statement}.
  * <ul>
  *     <li>{@link #executeBatch()}</li>
  *     <li>{@link #executeUpdate()}</li>
  *     <li>{@link #executeQuery()}</li>
+ *     <li>{@link #executeQuery(Consumer)}</li>
  *     <li>{@link #executeMulti()}</li>
+ *     <li>{@link #executeBatchMulti()}</li>
  * </ul>
  * </p>
  */
@@ -47,10 +49,9 @@ public interface PreparedStatement extends BindableSingleStatement, BindableMult
     Publisher<ResultRow> executeQuery(Consumer<ResultStates> statesConsumer);
 
     @Override
-    MultiResults executeMulti();
+    MultiResult executeMulti();
 
-    @Override
-    Publisher<MultiResults> executeBatchMulti();
+    Publisher<MultiResult> executeBatchMulti();
 
     void setFetchSize(int fetchSize);
 

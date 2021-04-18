@@ -1,5 +1,6 @@
 package io.jdbd.mysql.protocol.client;
 
+import io.jdbd.DatabaseSession;
 import io.jdbd.JdbdException;
 import io.jdbd.JdbdSQLException;
 import io.jdbd.ResultStateConsumerException;
@@ -54,7 +55,12 @@ import java.util.function.Consumer;
 final class ComQueryTask extends MySQLCommandTask {
 
     /**
+     * <p>
+     * This method is underlying api of {@link StaticStatement#executeUpdate(String)} method.
+     * </p>
+     *
      * @see #ComQueryTask(String, MonoSink, MySQLTaskAdjutant)
+     * @see ClientCommandProtocol#update(String)
      */
     static Mono<ResultStates> update(final String sql, final MySQLTaskAdjutant adjutant) {
         return Mono.create(sink -> {
@@ -68,7 +74,16 @@ final class ComQueryTask extends MySQLCommandTask {
     }
 
     /**
+     * <p>
+     * This method is underlying api of below methods:
+     * <ul>
+     *     <li>{@link StaticStatement#executeQuery(String)}</li>
+     *     <li>{@link StaticStatement#executeQuery(String, Consumer)}</li>
+     * </ul>
+     * </p>
+     *
      * @see #ComQueryTask(String, FluxSink, Consumer, MySQLTaskAdjutant)
+     * @see ClientCommandProtocol#query(String, Consumer)
      */
     static Flux<ResultRow> query(final String sql, Consumer<ResultStates> statesConsumer, MySQLTaskAdjutant adjutant) {
         return Flux.create(sink -> {
@@ -82,7 +97,12 @@ final class ComQueryTask extends MySQLCommandTask {
     }
 
     /**
+     * <p>
+     * This method is underlying api of {@link StaticStatement#executeBatch(List)} method.
+     * </p>
+     *
      * @see #ComQueryTask(List, FluxSink, MySQLTaskAdjutant)
+     * @see ClientCommandProtocol#batchUpdate(List)
      */
     static Flux<ResultStates> batchUpdate(final List<String> sqlList, final MySQLTaskAdjutant adjutant) {
         final Flux<ResultStates> flux;
@@ -104,11 +124,12 @@ final class ComQueryTask extends MySQLCommandTask {
 
     /**
      * <p>
-     * This method is one of underlying api of {@link BindableStatement#executeUpdate()} method:
+     * This method is one of underlying api of {@link BindableStatement#executeUpdate()} method.
      * </p>
      *
      * @see #ComQueryTask(BindableWrapper, MonoSink, MySQLTaskAdjutant)
      * @see ComPreparedTask#update(ParamWrapper, MySQLTaskAdjutant)
+     * @see ClientCommandProtocol#bindableUpdate(BindableWrapper)
      */
     static Mono<ResultStates> bindableUpdate(final BindableWrapper wrapper, final MySQLTaskAdjutant adjutant) {
         Mono<ResultStates> mono;
@@ -133,7 +154,12 @@ final class ComQueryTask extends MySQLCommandTask {
     }
 
     /**
+     * <p>
+     * This method is one of underlying api of {@link BindableStatement#executeBatch()} method.
+     * </p>
+     *
      * @see #ComQueryTask(BatchBindWrapper, FluxSink, MySQLTaskAdjutant)
+     * @see ClientCommandProtocol#bindableBatch(BatchBindWrapper)
      */
     static Flux<ResultStates> bindableBatch(final BatchBindWrapper wrapper, final MySQLTaskAdjutant adjutant) {
         final List<List<BindValue>> parameterGroupList = wrapper.getParamGroupList();
@@ -160,10 +186,15 @@ final class ComQueryTask extends MySQLCommandTask {
 
     /**
      * <p>
-     * this method create task for client query prepare statement.
+     * This method is one of underlying api of below methods:
+     * <ul>
+     *     <li>{@link BindableStatement#executeQuery()}</li>
+     *     <li>{@link BindableStatement#executeQuery(Consumer)}</li>
+     * </ul>
      * </p>
      *
      * @see #ComQueryTask(BindableWrapper, FluxSink, MySQLTaskAdjutant)
+     * @see ClientCommandProtocol#bindableQuery(BindableWrapper)
      */
     static Flux<ResultRow> bindableQuery(final BindableWrapper wrapper, final MySQLTaskAdjutant adjutant) {
         final Flux<ResultRow> flux;
@@ -189,10 +220,11 @@ final class ComQueryTask extends MySQLCommandTask {
 
     /**
      * <p>
-     * this method create task for multi statement.
+     * This method is underlying api of {@link MultiStatement#executeMulti()} method.
      * </p>
      *
      * @see #ComQueryTask(List, MultiResultSink, MySQLTaskAdjutant)
+     * @see ClientCommandProtocol#bindableMultiStmt(List)
      */
     static ReactorMultiResult bindableMultiStmt(final List<BindableWrapper> bindableWrapperList
             , final MySQLTaskAdjutant adjutant) {
@@ -216,7 +248,12 @@ final class ComQueryTask extends MySQLCommandTask {
     }
 
     /**
+     * <p>
+     * This method is underlying api of {@link DatabaseSession#multi(List)} method.
+     * </p>
+     *
      * @see #ComQueryTask(MultiResultSink, List, MySQLTaskAdjutant)
+     * @see ClientCommandProtocol#multiStmt(List)
      */
     static ReactorMultiResult multiStmt(final List<String> sqlList, final MySQLTaskAdjutant adjutant) {
         ReactorMultiResult multiResults;

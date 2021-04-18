@@ -3,7 +3,7 @@ package io.jdbd.mysql;
 import io.jdbd.DatabaseSession;
 import io.jdbd.TransactionOption;
 import io.jdbd.meta.DatabaseMetaData;
-import io.jdbd.result.MultiResults;
+import io.jdbd.result.MultiResult;
 import io.jdbd.stmt.BindableStatement;
 import io.jdbd.stmt.MultiStatement;
 import io.jdbd.stmt.PreparedStatement;
@@ -55,7 +55,7 @@ abstract class AbstractStatelessSession implements DatabaseSession {
     }
 
     @Override
-    public MultiResults multi(List<String> sqlList) {
+    public MultiResult multi(List<String> sqlList) {
         return null;
     }
 

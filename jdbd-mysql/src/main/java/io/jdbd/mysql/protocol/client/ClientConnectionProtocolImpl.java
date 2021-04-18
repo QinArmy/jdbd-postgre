@@ -4,7 +4,7 @@ import io.jdbd.JdbdSQLException;
 import io.jdbd.mysql.protocol.CharsetMapping;
 import io.jdbd.mysql.protocol.conf.PropertyKey;
 import io.jdbd.mysql.session.MySQLSessionAdjutant;
-import io.jdbd.result.MultiResults;
+import io.jdbd.result.MultiResult;
 import io.jdbd.result.ResultRow;
 import io.jdbd.vendor.conf.HostInfo;
 import io.jdbd.vendor.conf.Properties;
@@ -105,7 +105,7 @@ final class ClientConnectionProtocolImpl implements ClientConnectionProtocol {
         if (this.properties.getOrDefault(PropertyKey.detectCustomCollations, Boolean.class)) {
             LOG.debug("detectCustomCollations start");
             // blow tow phase: SHOW COLLATION phase and SHOW CHARACTER SET phase
-            mono = ComQueryTask.query("SHOW COLLATION", MultiResults.EMPTY_CONSUMER, this.taskExecutor.getAdjutant())
+            mono = ComQueryTask.query("SHOW COLLATION", MultiResult.EMPTY_CONSUMER, this.taskExecutor.getAdjutant())
                     .filter(this::isCustomCollation)
                     .doOnNext(this::printCustomCollationLog)
                     .collectMap(this::customCollationMapKeyFunction, this::customCollationMapValueFunction)
@@ -199,7 +199,7 @@ final class ClientConnectionProtocolImpl implements ClientConnectionProtocol {
             mono = Mono.just(Collections.emptyMap());
         } else {
 
-            mono = ComQueryTask.query("SHOW CHARACTER SET", MultiResults.EMPTY_CONSUMER, this.taskExecutor.getAdjutant())
+            mono = ComQueryTask.query("SHOW CHARACTER SET", MultiResult.EMPTY_CONSUMER, this.taskExecutor.getAdjutant())
                     .filter(resultRow -> charsetNameSet.contains(resultRow.getNonNull("Charset", String.class)))
                     .collectMap(resultRow -> resultRow.getNonNull("Charset", String.class)
                             , resultRow -> resultRow.getNonNull("Maxlen", Integer.class))

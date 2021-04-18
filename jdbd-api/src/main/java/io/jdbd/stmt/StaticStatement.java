@@ -1,6 +1,7 @@
 package io.jdbd.stmt;
 
 import io.jdbd.JdbdSQLException;
+import io.jdbd.result.MultiResult;
 import io.jdbd.result.ResultRow;
 import io.jdbd.result.ResultStates;
 import org.reactivestreams.Publisher;
@@ -62,6 +63,12 @@ public interface StaticStatement extends Statement, ReusableStatement {
      * @see java.sql.PreparedStatement#executeQuery()
      */
     Publisher<ResultRow> executeQuery(String sql, Consumer<ResultStates> statesConsumer);
+
+
+    MultiResult executeMulti(String sql);
+
+
+    Publisher<MultiResult> executeBatchMulti(List<String> sqlList);
 
 
 }

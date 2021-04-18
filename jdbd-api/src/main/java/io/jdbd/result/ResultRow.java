@@ -7,7 +7,7 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * @see MultiResults
+ * @see MultiResult
  */
 public interface ResultRow {
 

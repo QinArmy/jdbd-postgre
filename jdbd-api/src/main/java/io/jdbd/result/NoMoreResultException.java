@@ -3,7 +3,7 @@ package io.jdbd.result;
 import io.jdbd.JdbdNonSQLException;
 
 /**
- * @see MultiResults
+ * @see MultiResult
  */
 public final class NoMoreResultException extends JdbdNonSQLException {
 

@@ -3,7 +3,7 @@ package io.jdbd.mysql.protocol.client;
 
 import io.jdbd.mysql.stmt.BatchBindWrapper;
 import io.jdbd.mysql.stmt.BindableWrapper;
-import io.jdbd.result.MultiResults;
+import io.jdbd.result.MultiResult;
 import io.jdbd.result.ResultRow;
 import io.jdbd.result.ResultStates;
 import io.jdbd.stmt.PreparedStatement;
@@ -32,9 +32,9 @@ public interface ClientCommandProtocol extends ClientProtocol {
 
     Mono<PreparedStatement> prepare(StmtWrapper wrapper);
 
-    MultiResults multiStmt(List<String> commandList);
+    MultiResult multiStmt(List<String> commandList);
 
-    MultiResults multiBindable(List<BindableWrapper> wrapperList);
+    MultiResult bindableMultiStmt(List<BindableWrapper> wrapperList);
 
     Mono<Void> reset();
 

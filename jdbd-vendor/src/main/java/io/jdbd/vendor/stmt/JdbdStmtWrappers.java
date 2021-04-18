@@ -1,7 +1,7 @@
 package io.jdbd.vendor.stmt;
 
 
-import io.jdbd.result.MultiResults;
+import io.jdbd.result.MultiResult;
 import io.jdbd.result.ResultStates;
 
 import java.util.Collections;
@@ -99,7 +99,7 @@ public abstract class JdbdStmtWrappers {
 
         @Override
         public Consumer<ResultStates> getStatesConsumer() {
-            return MultiResults.EMPTY_CONSUMER;
+            return MultiResult.EMPTY_CONSUMER;
         }
 
         @Override

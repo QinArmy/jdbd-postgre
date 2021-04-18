@@ -9,7 +9,7 @@ import io.jdbd.mysql.protocol.conf.PropertyKey;
 import io.jdbd.mysql.type.City;
 import io.jdbd.mysql.type.TrueOrFalse;
 import io.jdbd.mysql.util.MySQLStreamUtils;
-import io.jdbd.result.MultiResults;
+import io.jdbd.result.MultiResult;
 import io.jdbd.result.ResultRow;
 import io.jdbd.result.ResultRowMeta;
 import io.jdbd.result.ResultStates;
@@ -97,7 +97,7 @@ public class DataPrepareSuiteTests extends AbstractConnectionBasedSuiteTests {
         LOG.info("mysqlTypeMatch test start");
         final MySQLTaskAdjutant adjutant = obtainTaskAdjutant();
 
-        List<ResultRow> resultRowList = ComQueryTask.query(createQuerySqlForMySQLTypeMatch(), MultiResults.EMPTY_CONSUMER, adjutant)
+        List<ResultRow> resultRowList = ComQueryTask.query(createQuerySqlForMySQLTypeMatch(), MultiResult.EMPTY_CONSUMER, adjutant)
                 .collectList()
                 .doOnError(this::printMultiError)
                 .block();
