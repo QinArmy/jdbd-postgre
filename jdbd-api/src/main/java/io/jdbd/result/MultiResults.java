@@ -1,6 +1,7 @@
-package io.jdbd;
+package io.jdbd.result;
 
 
+import io.jdbd.stmt.TooManyResultException;
 import org.reactivestreams.Publisher;
 
 import java.util.function.Consumer;

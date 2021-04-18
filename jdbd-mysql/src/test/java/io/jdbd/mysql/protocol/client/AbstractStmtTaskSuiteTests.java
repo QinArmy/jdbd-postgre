@@ -2,8 +2,6 @@ package io.jdbd.mysql.protocol.client;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.jdbd.ResultRow;
-import io.jdbd.ResultStates;
 import io.jdbd.mysql.MySQLType;
 import io.jdbd.mysql.SQLMode;
 import io.jdbd.mysql.protocol.conf.PropertyKey;
@@ -14,6 +12,8 @@ import io.jdbd.mysql.stmt.StmtWrappers;
 import io.jdbd.mysql.type.City;
 import io.jdbd.mysql.type.TrueOrFalse;
 import io.jdbd.mysql.util.*;
+import io.jdbd.result.ResultRow;
+import io.jdbd.result.ResultStates;
 import io.jdbd.vendor.util.Geometries;
 import org.slf4j.Logger;
 import reactor.core.publisher.Flux;

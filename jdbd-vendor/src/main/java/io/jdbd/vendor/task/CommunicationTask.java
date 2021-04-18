@@ -21,7 +21,7 @@ public abstract class CommunicationTask {
 
     private TaskSignal taskSignal;
 
-    private boolean inDecodeStack;
+    private MethodStack methodStack;
 
     protected CommunicationTask(TaskAdjutant adjutant) {
         this.adjutant = adjutant;
@@ -34,19 +34,22 @@ public abstract class CommunicationTask {
      *
      * @return <ul>
      * <li>if non-null {@link CommunicationTaskExecutor} will send this {@link Publisher}.</li>
-     * <li>if null {@link CommunicationTaskExecutor} immediately invoke {@link #decode(ByteBuf, Consumer)}</li>
+     * <li>if null {@link CommunicationTaskExecutor} immediately invoke {@link #decodePackets(ByteBuf, Consumer)}</li>
      * </ul>
      */
     @Nullable
-    final Publisher<ByteBuf> start(TaskSignal signal) {
+    final Publisher<ByteBuf> startTask(TaskSignal signal) {
         if (this.taskPhase != TaskPhase.SUBMITTED) {
             throw createTaskPhaseException(TaskPhase.SUBMITTED);
         }
         this.taskSignal = Objects.requireNonNull(signal, "signal");
         this.taskPhase = TaskPhase.STARTED;
+        this.methodStack = MethodStack.START;
 
         Publisher<ByteBuf> publisher;
-        publisher = internalStart();
+        publisher = start();
+
+        this.methodStack = null;
         return publisher;
     }
 
@@ -58,16 +61,16 @@ public abstract class CommunicationTask {
      *
      * @return true : task end.
      */
-    final boolean decode(ByteBuf cumulateBuffer, Consumer<Object> serverStatusConsumer)
+    final boolean decodePackets(ByteBuf cumulateBuffer, Consumer<Object> serverStatusConsumer)
             throws TaskStatusException {
         if (this.taskPhase != TaskPhase.STARTED) {
             throw createTaskPhaseException(TaskPhase.STARTED);
         }
-        this.inDecodeStack = true;
+        this.methodStack = MethodStack.DECODE;
         try {
 
             boolean taskEnd;
-            taskEnd = internalDecode(cumulateBuffer, serverStatusConsumer);
+            taskEnd = decode(cumulateBuffer, serverStatusConsumer);
             if (taskEnd) {
                 this.taskPhase = TaskPhase.END;
             }
@@ -75,7 +78,7 @@ public abstract class CommunicationTask {
         } catch (Throwable e) {
             throw new TaskStatusException(e, "decode(ByteBuf, Consumer<Object>) method throw exception.");
         } finally {
-            this.inDecodeStack = false;
+            this.methodStack = null;
         }
 
     }
@@ -102,9 +105,9 @@ public abstract class CommunicationTask {
      * when network channel close,{@link CommunicationTaskExecutor} invoke this method.
      * </p>
      */
-    final void onChannelClose() {
+    final void channelCloseEvent() {
         this.taskPhase = TaskPhase.END;
-        internalOnChannelClose();
+        onChannelClose();
     }
 
 
@@ -135,10 +138,10 @@ public abstract class CommunicationTask {
      *         <li>packet send failure: handle return {@link Action}</li>
      *         <li>
      *             <ol>
-     *                  <li>{@link #decode(ByteBuf, Consumer)} throw {@link TaskStatusException}:
+     *                  <li>{@link #decodePackets(ByteBuf, Consumer)} throw {@link TaskStatusException}:
      *                  ignore return {@link Action} and invoke {@link #moreSendPacket()}
      *                  after {@link CommunicationTaskExecutor#clearChannel} return true.</li>
-     *                  <li>{@link #decode(ByteBuf, Consumer)} return true, but cumulateBuffer {@link ByteBuf#isReadable()}:ignore return {@link Action}</li>
+     *                  <li>{@link #decodePackets(ByteBuf, Consumer)} return true, but cumulateBuffer {@link ByteBuf#isReadable()}:ignore return {@link Action}</li>
      *             </ol>
      *         </li>
      *     </ul>
@@ -149,12 +152,19 @@ public abstract class CommunicationTask {
      *      <li>{@link Action#TASK_END} :task immediately end </li>
      * </ul>
      */
-    protected final Action error(Throwable e) {
+    final Action errorEvent(Throwable e) {
         if (this.taskPhase == TaskPhase.END) {
             return Action.TASK_END;
         }
         this.taskPhase = TaskPhase.END;
-        return internalError(e);
+        this.methodStack = MethodStack.ERROR;
+
+        Action action;
+        action = onError(e);
+
+        this.methodStack = null;
+
+        return action;
     }
 
     /**
@@ -171,8 +181,15 @@ public abstract class CommunicationTask {
      */
     protected final Mono<Void> sendPacketSignal(boolean endTask) {
         final Mono<Void> mono;
-        if (this.adjutant.inEventLoop() && this.inDecodeStack) {
-            mono = Mono.empty();
+        if (this.adjutant.inEventLoop()) {
+            if (this.methodStack == MethodStack.DECODE) {
+                mono = Mono.empty();
+            } else if (this.methodStack != null) {
+                mono = Mono.error(new IllegalStateException
+                        (String.format("Unsupported invoke in %s method stack.", this.methodStack)));
+            } else {
+                mono = this.taskSignal.sendPacket(this, endTask);
+            }
         } else {
             mono = this.taskSignal.sendPacket(this, endTask);
         }
@@ -181,9 +198,9 @@ public abstract class CommunicationTask {
 
 
     /**
-     * @see #onChannelClose()
+     * @see #channelCloseEvent()
      */
-    protected void internalOnChannelClose() {
+    protected void onChannelClose() {
 
     }
 
@@ -192,7 +209,7 @@ public abstract class CommunicationTask {
      * this method shouldn't throw {@link Throwable} ,because that will cause network channel close.
      * </p>
      */
-    protected abstract Action internalError(Throwable e);
+    protected abstract Action onError(Throwable e);
 
 
     /**
@@ -201,20 +218,20 @@ public abstract class CommunicationTask {
      * </p>
      */
     @Nullable
-    protected abstract Publisher<ByteBuf> internalStart();
+    protected abstract Publisher<ByteBuf> start();
 
 
     /**
      * <p>
      * this method shouldn't throw {@link Throwable} ,that mean bug.
      * But if this method throw {@link Throwable} ,{@link CommunicationTaskExecutor} will invoke
-     * {@link CommunicationTaskExecutor#clearChannel(ByteBuf, int, Class)} clear network channel,
+     * {@link CommunicationTaskExecutor#clearChannel(ByteBuf, Class)} clear network channel,
      *
      * </p>
      *
      * @return true ,task end.
      */
-    protected abstract boolean internalDecode(ByteBuf cumulateBuffer, Consumer<Object> serverStatusConsumer);
+    protected abstract boolean decode(ByteBuf cumulateBuffer, Consumer<Object> serverStatusConsumer);
 
 
 
@@ -235,6 +252,7 @@ public abstract class CommunicationTask {
         }
     }
 
+
     private void updateSubmitResult(Void v) {
         if (this.taskPhase != null) {
             throw new IllegalStateException(String.format("this.taskPhase[%s] isn't null", this.taskPhase));
@@ -249,15 +267,22 @@ public abstract class CommunicationTask {
     }
 
 
-    protected enum TaskPhase {
+    protected enum Action {
+        MORE_SEND_AND_END,
+        TASK_END
+    }
+
+
+    enum TaskPhase {
         SUBMITTED,
         STARTED,
         END
     }
 
-    protected enum Action {
-        MORE_SEND_AND_END,
-        TASK_END
+    private enum MethodStack {
+        START,
+        DECODE,
+        ERROR,
     }
 
 

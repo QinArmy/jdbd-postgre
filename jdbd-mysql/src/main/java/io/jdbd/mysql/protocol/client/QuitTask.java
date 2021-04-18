@@ -40,7 +40,7 @@ final class QuitTask extends MySQLCommandTask {
 
 
     @Override
-    protected Publisher<ByteBuf> internalStart() {
+    protected Publisher<ByteBuf> start() {
         ByteBuf packetBuf = adjutant.createPacketBuffer(1);
         packetBuf.writeByte(PacketUtils.COM_QUIT_HEADER);
         PacketUtils.writePacketHeader(packetBuf, addAndGetSequenceId());
@@ -48,7 +48,7 @@ final class QuitTask extends MySQLCommandTask {
     }
 
     @Override
-    protected boolean internalDecode(ByteBuf cumulateBuffer, Consumer<Object> serverStatusConsumer) {
+    protected boolean decode(ByteBuf cumulateBuffer, Consumer<Object> serverStatusConsumer) {
         if (!PacketUtils.hasOnePacket(cumulateBuffer)) {
             return false;
         }
@@ -69,7 +69,7 @@ final class QuitTask extends MySQLCommandTask {
     }
 
     @Override
-    protected Action internalError(Throwable e) {
+    protected Action onError(Throwable e) {
         if (this.taskEnd) {
             LOG.error("Unknown error.", e);
         } else {
@@ -79,7 +79,7 @@ final class QuitTask extends MySQLCommandTask {
     }
 
     @Override
-    public void internalOnChannelClose() {
+    public void onChannelClose() {
         this.taskEnd = true;
         this.sink.success();
     }

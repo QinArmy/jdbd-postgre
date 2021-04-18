@@ -1,7 +1,6 @@
 package io.jdbd.mysql.protocol.client;
 
 import io.jdbd.JdbdSQLException;
-import io.jdbd.LongDataReadException;
 import io.jdbd.mysql.MySQLType;
 import io.jdbd.mysql.SQLMode;
 import io.jdbd.mysql.Server;
@@ -13,6 +12,7 @@ import io.jdbd.mysql.stmt.BindValue;
 import io.jdbd.mysql.stmt.BindableWrapper;
 import io.jdbd.mysql.syntax.MySQLStatement;
 import io.jdbd.mysql.util.*;
+import io.jdbd.stmt.LongDataReadException;
 import io.jdbd.vendor.conf.Properties;
 import io.jdbd.vendor.util.JdbdBufferUtils;
 import io.netty.buffer.ByteBuf;

@@ -1,6 +1,11 @@
 package io.jdbd.vendor.result;
 
-import io.jdbd.*;
+import io.jdbd.JdbdException;
+import io.jdbd.ResultStateConsumerException;
+import io.jdbd.result.NoMoreResultException;
+import io.jdbd.result.ResultRow;
+import io.jdbd.result.ResultStates;
+import io.jdbd.stmt.ErrorSubscribeException;
 import io.jdbd.vendor.JdbdCompositeException;
 import io.jdbd.vendor.task.TaskAdjutant;
 import io.jdbd.vendor.util.JdbdCollections;
@@ -16,8 +21,8 @@ import reactor.util.annotation.Nullable;
 import java.util.*;
 import java.util.function.Consumer;
 
-import static io.jdbd.ResultType.QUERY;
-import static io.jdbd.ResultType.UPDATE;
+import static io.jdbd.stmt.ResultType.QUERY;
+import static io.jdbd.stmt.ResultType.UPDATE;
 
 
 /**
@@ -887,7 +892,7 @@ final class MultiResultsCreate implements MultiResultsSink {
                         , this, this.sequenceId));
             }
             this.sequenceId = sequenceId;
-            // here, downstream subscribe error,should subscribe io.jdbd.MultiResults.nextUpdate.
+            // here, downstream subscribe error,should subscribe io.jdbd.result.MultiResults.nextUpdate.
             ErrorSubscribeException e = new ErrorSubscribeException(UPDATE, QUERY
                     , "Result[sequenceId(based one):%s] Expect subscribe nextQuery,but subscribe nextUpdate."
                     , sequenceId);

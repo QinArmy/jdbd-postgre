@@ -1,6 +1,6 @@
 package io.jdbd.vendor.stmt;
 
-import io.jdbd.ResultStates;
+import io.jdbd.result.ResultStates;
 
 import java.util.List;
 import java.util.function.Consumer;

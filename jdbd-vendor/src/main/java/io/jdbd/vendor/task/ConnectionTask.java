@@ -9,7 +9,7 @@ public interface ConnectionTask {
 
     /**
      * <p>
-     * this method invoke before {@link CommunicationTask#start(TaskSignal)}.
+     * this method invoke before {@link CommunicationTask#startTask(TaskSignal)}.
      * </p>
      *
      * @param sslConsumer function ,implementation can add ssl by this function.
@@ -20,7 +20,7 @@ public interface ConnectionTask {
      * <p>
      * This will invoke :
      *     <ul>
-     *         <li>after {@link CommunicationTask#decode(ByteBuf, Consumer)},if return value is {@code true}</li>
+     *         <li>after {@link CommunicationTask#decodePackets(ByteBuf, Consumer)},if return value is {@code true}</li>
      *         <li>after send packet failure</li>
      *     </ul>
      * </p>

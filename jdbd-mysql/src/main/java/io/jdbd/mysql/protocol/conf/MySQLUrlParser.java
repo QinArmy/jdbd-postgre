@@ -1,6 +1,6 @@
 package io.jdbd.mysql.protocol.conf;
 
-import io.jdbd.UrlException;
+import io.jdbd.config.UrlException;
 import io.jdbd.mysql.util.MySQLCollections;
 import io.jdbd.mysql.util.MySQLStringUtils;
 import io.jdbd.vendor.conf.HostInfo;
@@ -81,7 +81,7 @@ final class MySQLUrlParser implements JdbcUrlParser {
 
         //2-2 parse user and password from url
         String actualAuthority = this.authority;
-        if (!properties.containsKey(PropertyKey.USER.getKey())) {
+        if (!properties.containsKey(PropertyKey.user.getKey())) {
             actualAuthority = parseUserInfo(parseProperties);
         }
         // override query properties wih host
@@ -96,9 +96,9 @@ final class MySQLUrlParser implements JdbcUrlParser {
         globalProperties.putAll(properties);
         // thirdly dbname
         if (this.path == null) {
-            globalProperties.remove(PropertyKey.DBNAME.getKey());
+            globalProperties.remove(PropertyKey.dbname.getKey());
         } else {
-            globalProperties.put(PropertyKey.DBNAME.getKey(), this.path);
+            globalProperties.put(PropertyKey.dbname.getKey(), this.path);
         }
         this.globalProperties = Collections.unmodifiableMap(globalProperties);
 
@@ -189,9 +189,9 @@ final class MySQLUrlParser implements JdbcUrlParser {
             throw new UrlException(this.originalUrl, "user info[%s] error of url.", userInfo);
         }
         try {
-            properties.put(PropertyKey.USER.getKey(), URLDecoder.decode(userInfoPair[0], "UTF-8"));
+            properties.put(PropertyKey.user.getKey(), URLDecoder.decode(userInfoPair[0], "UTF-8"));
             if (userInfoPair.length == 2) {
-                properties.put(PropertyKey.PASSWORD.getKey(), URLDecoder.decode(userInfoPair[1], "UTF-8"));
+                properties.put(PropertyKey.password.getKey(), URLDecoder.decode(userInfoPair[1], "UTF-8"));
             }
         } catch (UnsupportedEncodingException e) {
             //never here
@@ -354,10 +354,10 @@ final class MySQLUrlParser implements JdbcUrlParser {
             throw createFormatException(hostPortHost);
         }
         Map<String, String> hostKeyValueMap = new HashMap<>(4);
-        hostKeyValueMap.put(PropertyKey.HOST.getKey(), hostPortPair[0].trim());
+        hostKeyValueMap.put(PropertyKey.host.getKey(), hostPortPair[0].trim());
 
         if (hostPortPair.length == 2) {
-            hostKeyValueMap.put(PropertyKey.PORT.getKey(), hostPortPair[1].trim());
+            hostKeyValueMap.put(PropertyKey.port.getKey(), hostPortPair[1].trim());
         }
         return Collections.unmodifiableMap(hostKeyValueMap);
     }
@@ -411,8 +411,8 @@ final class MySQLUrlParser implements JdbcUrlParser {
 
     private List<Map<String, String>> createDefaultHostList() {
         Map<String, String> props = new HashMap<>(4);
-        props.put(PropertyKey.HOST.getKey(), HostInfo.DEFAULT_HOST);
-        props.put(PropertyKey.PORT.getKey(), Integer.toString(MySQLUrl.DEFAULT_PORT));
+        props.put(PropertyKey.host.getKey(), HostInfo.DEFAULT_HOST);
+        props.put(PropertyKey.port.getKey(), Integer.toString(MySQLUrl.DEFAULT_PORT));
         return Collections.singletonList(props);
     }
 

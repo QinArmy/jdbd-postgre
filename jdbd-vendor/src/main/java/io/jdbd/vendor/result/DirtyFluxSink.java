@@ -1,6 +1,6 @@
 package io.jdbd.vendor.result;
 
-import io.jdbd.ResultRow;
+import io.jdbd.result.ResultRow;
 import reactor.core.Disposable;
 import reactor.core.publisher.FluxSink;
 import reactor.util.context.Context;

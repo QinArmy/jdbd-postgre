@@ -1,9 +1,9 @@
 package io.jdbd.mysql.protocol.client;
 
-import io.jdbd.ResultRow;
-import io.jdbd.ResultStates;
 import io.jdbd.mysql.Groups;
 import io.jdbd.mysql.stmt.BindableWrapper;
+import io.jdbd.result.ResultRow;
+import io.jdbd.result.ResultStates;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.annotations.Test;

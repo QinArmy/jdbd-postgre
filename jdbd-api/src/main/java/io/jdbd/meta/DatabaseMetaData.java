@@ -1,6 +1,5 @@
 package io.jdbd.meta;
 
-import io.jdbd.DatabaseProductMetaData;
 import org.reactivestreams.Publisher;
 
 public interface DatabaseMetaData {

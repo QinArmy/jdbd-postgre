@@ -1,5 +1,6 @@
-package io.jdbd;
+package io.jdbd.config;
 
+import io.jdbd.JdbdNonSQLException;
 import io.jdbd.lang.Nullable;
 
 public class PropertyException extends JdbdNonSQLException {

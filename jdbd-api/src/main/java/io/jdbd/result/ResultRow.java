@@ -1,7 +1,7 @@
-package io.jdbd;
+package io.jdbd.result;
 
+import io.jdbd.JdbdSQLException;
 import io.jdbd.lang.Nullable;
-import io.jdbd.result.ResultRowMeta;
 
 import java.util.List;
 import java.util.Set;

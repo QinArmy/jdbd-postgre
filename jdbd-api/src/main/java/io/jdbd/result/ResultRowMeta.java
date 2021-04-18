@@ -1,9 +1,8 @@
 package io.jdbd.result;
 
 import io.jdbd.JdbdSQLException;
-import io.jdbd.NullMode;
-import io.jdbd.ResultRow;
 import io.jdbd.lang.Nullable;
+import io.jdbd.meta.NullMode;
 import io.jdbd.meta.SQLType;
 
 import java.sql.JDBCType;
@@ -186,13 +185,13 @@ public interface ResultRowMeta {
      * <p>Returns the fully-qualified name of the Java class whose instances
      * are manufactured if the method <code>ResultSet.getObject</code>
      * is called to retrieve a value
-     * from the column.  <code>io.jdbd.ResultRow.getObject</code> may return a subclass of the
+     * from the column.  <code>io.jdbd.result.ResultRow.getObject</code> may return a subclass of the
      * class returned by this method.
      *
      * @param indexBaseZero base 0,the first column is 0, the second is 1, ..
      * @return the class in the Java programming
      * language that would be used by the method
-     * <code>io.jdbd.ResultRow.getObject</code> to retrieve the value in the specified
+     * <code>io.jdbd.result.ResultRow.getObject</code> to retrieve the value in the specified
      * column. This is the class name used for custom mapping.
      * @throws JdbdSQLException if a database access error occurs
      * @see #getColumnIndex(String)

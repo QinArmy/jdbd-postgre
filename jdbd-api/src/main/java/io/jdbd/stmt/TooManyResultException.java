@@ -1,4 +1,6 @@
-package io.jdbd;
+package io.jdbd.stmt;
+
+import io.jdbd.JdbdNonSQLException;
 
 public final class TooManyResultException extends JdbdNonSQLException {
 

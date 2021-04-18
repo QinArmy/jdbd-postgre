@@ -1,6 +1,9 @@
 package io.jdbd;
 
 import io.jdbd.meta.DatabaseMetaData;
+import io.jdbd.stmt.BindableStatement;
+import io.jdbd.stmt.PreparedStatement;
+import io.jdbd.stmt.StaticStatement;
 import org.reactivestreams.Publisher;
 
 import java.sql.Connection;

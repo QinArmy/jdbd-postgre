@@ -1,4 +1,6 @@
-package io.jdbd;
+package io.jdbd.stmt;
+
+import io.jdbd.JdbdNonSQLException;
 
 import java.nio.file.Path;
 

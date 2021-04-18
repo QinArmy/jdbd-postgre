@@ -1,6 +1,8 @@
 package io.jdbd.mysql.protocol.client;
 
-import io.jdbd.*;
+import io.jdbd.JdbdException;
+import io.jdbd.JdbdSQLException;
+import io.jdbd.ResultStateConsumerException;
 import io.jdbd.mysql.protocol.conf.PropertyKey;
 import io.jdbd.mysql.stmt.BatchBindWrapper;
 import io.jdbd.mysql.stmt.BindValue;
@@ -8,11 +10,16 @@ import io.jdbd.mysql.stmt.BindableWrapper;
 import io.jdbd.mysql.stmt.StmtWrappers;
 import io.jdbd.mysql.util.MySQLCollections;
 import io.jdbd.mysql.util.MySQLExceptions;
+import io.jdbd.result.ResultRow;
+import io.jdbd.result.ResultStates;
+import io.jdbd.stmt.ErrorSubscribeException;
+import io.jdbd.stmt.LocalFileException;
+import io.jdbd.stmt.LongDataReadException;
+import io.jdbd.stmt.ResultType;
 import io.jdbd.vendor.JdbdCompositeException;
 import io.jdbd.vendor.conf.Properties;
 import io.jdbd.vendor.result.*;
 import io.jdbd.vendor.stmt.ParamWrapper;
-import io.jdbd.vendor.task.TaskSignal;
 import io.netty.buffer.ByteBuf;
 import org.qinarmy.util.Pair;
 import org.reactivestreams.Publisher;
@@ -424,7 +431,7 @@ final class ComQueryTask extends MySQLCommandTask {
     /*################################## blow package template method ##################################*/
 
     @Override
-    protected Publisher<ByteBuf> internalStart() {
+    protected Publisher<ByteBuf> start() {
         final Publisher<ByteBuf> publisher;
         if (this.mode == Mode.TEMP_MULTI) {
             this.phase = Phase.READ_MULTI_STMT_ENABLE_RESULT;
@@ -435,13 +442,14 @@ final class ComQueryTask extends MySQLCommandTask {
             this.packetPublisher = null;
         }
         if (LOG.isTraceEnabled()) {
-            LOG.trace("send COM_QUERY packet with mode[{}]", this.mode);
+            LOG.trace("send COM_QUERY packet with mode[{}],downstream[{}]", this.mode, this.downstreamSink);
         }
         return publisher;
     }
 
+
     @Override
-    protected boolean internalDecode(final ByteBuf cumulateBuffer, final Consumer<Object> serverStatusConsumer) {
+    protected boolean decode(final ByteBuf cumulateBuffer, final Consumer<Object> serverStatusConsumer) {
         boolean taskEnd = false;
         boolean continueRead = true;
         while (continueRead) {
@@ -499,7 +507,7 @@ final class ComQueryTask extends MySQLCommandTask {
     }
 
     @Override
-    protected Action internalError(Throwable e) {
+    protected Action onError(Throwable e) {
         if (this.phase == Phase.TASK_EN) {
             LOG.error("Unknown error.", e);
         } else {
@@ -515,7 +523,7 @@ final class ComQueryTask extends MySQLCommandTask {
 
     /**
      * @return true: task end.
-     * @see #internalDecode(ByteBuf, Consumer)
+     * @see #decode(ByteBuf, Consumer)
      */
     private boolean readEnableMultiStmtResponse(final ByteBuf cumulateBuffer
             , final Consumer<Object> serverStatusConsumer) {
@@ -564,7 +572,7 @@ final class ComQueryTask extends MySQLCommandTask {
 
 
     /**
-     * @see #internalDecode(ByteBuf, Consumer)
+     * @see #decode(ByteBuf, Consumer)
      */
     private void readDisableMultiStmtResponse(final ByteBuf cumulateBuffer
             , final Consumer<Object> serverStatusConsumer) {
@@ -604,7 +612,7 @@ final class ComQueryTask extends MySQLCommandTask {
 
     /**
      * @return true: task end.
-     * @see #internalDecode(ByteBuf, Consumer)
+     * @see #decode(ByteBuf, Consumer)
      * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_com_query_response.html">Protocol::COM_QUERY Response</a>
      */
     private boolean readResponseResultSet(final ByteBuf cumulateBuffer, final Consumer<Object> serverStatusConsumer) {
@@ -700,7 +708,7 @@ final class ComQueryTask extends MySQLCommandTask {
     }
 
     /**
-     * @see #internalStart(TaskSignal)
+     * @see #start()
      * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_com_set_option.html">Protocol::COM_SET_OPTION</a>
      * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/mysql__com_8h.html#a53f60000da139fc7d547db96635a2c02">enum_mysql_set_option</a>
      */
@@ -1596,7 +1604,7 @@ final class ComQueryTask extends MySQLCommandTask {
     /**
      * invoke this method after invoke {@link PacketUtils#hasOnePacket(ByteBuf)}.
      *
-     * @see #internalDecode(ByteBuf, Consumer)
+     * @see #decode(ByteBuf, Consumer)
      */
     static ComQueryResponse detectComQueryResponseType(final ByteBuf cumulateBuffer, final int negotiatedCapability) {
         int readerIndex = cumulateBuffer.readerIndex();

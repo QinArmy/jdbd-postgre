@@ -1,4 +1,4 @@
-package io.jdbd;
+package io.jdbd.stmt;
 
 public enum ResultType {
     UPDATE,

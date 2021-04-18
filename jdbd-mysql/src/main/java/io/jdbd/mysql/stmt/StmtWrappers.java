@@ -1,7 +1,7 @@
 package io.jdbd.mysql.stmt;
 
-import io.jdbd.MultiResults;
-import io.jdbd.ResultStates;
+import io.jdbd.result.MultiResults;
+import io.jdbd.result.ResultStates;
 import io.jdbd.vendor.stmt.JdbdStmtWrappers;
 
 import java.util.Collections;

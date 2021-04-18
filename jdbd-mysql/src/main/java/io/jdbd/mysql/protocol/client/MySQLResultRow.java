@@ -1,11 +1,11 @@
 package io.jdbd.mysql.protocol.client;
 
-import io.jdbd.UnsupportedConvertingException;
 import io.jdbd.mysql.MySQLType;
 import io.jdbd.mysql.util.MySQLCollections;
 import io.jdbd.mysql.util.MySQLConvertUtils;
 import io.jdbd.mysql.util.MySQLStringUtils;
 import io.jdbd.mysql.util.MySQLTimeUtils;
+import io.jdbd.result.UnsupportedConvertingException;
 import io.jdbd.vendor.result.AbstractResultRow;
 
 import java.nio.charset.Charset;

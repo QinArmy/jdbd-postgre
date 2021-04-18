@@ -1,13 +1,13 @@
 package io.jdbd.mysql.protocol.client;
 
-import io.jdbd.MultiResults;
-import io.jdbd.PreparedStatement;
-import io.jdbd.ResultRow;
-import io.jdbd.ResultStates;
 import io.jdbd.mysql.protocol.conf.PropertyKey;
 import io.jdbd.mysql.session.MySQLSessionAdjutant;
 import io.jdbd.mysql.stmt.BatchBindWrapper;
 import io.jdbd.mysql.stmt.BindableWrapper;
+import io.jdbd.result.MultiResults;
+import io.jdbd.result.ResultRow;
+import io.jdbd.result.ResultStates;
+import io.jdbd.stmt.PreparedStatement;
 import io.jdbd.vendor.conf.HostInfo;
 import io.jdbd.vendor.stmt.StmtWrapper;
 import reactor.core.publisher.Flux;

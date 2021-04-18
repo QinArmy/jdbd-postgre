@@ -1,11 +1,11 @@
 package io.jdbd.mysql.protocol.client;
 
-import io.jdbd.LongDataReadException;
 import io.jdbd.lang.Nullable;
 import io.jdbd.mysql.MySQLType;
 import io.jdbd.mysql.protocol.ClientConstants;
 import io.jdbd.mysql.protocol.conf.PropertyKey;
 import io.jdbd.mysql.util.MySQLExceptions;
+import io.jdbd.stmt.LongDataReadException;
 import io.jdbd.vendor.conf.Properties;
 import io.jdbd.vendor.stmt.ParamValue;
 import io.netty.buffer.ByteBuf;
@@ -109,7 +109,7 @@ final class PrepareLongParameterWriter implements PrepareExecuteCommandWriter.Lo
             ByteBuf packet = createLongDataPacket(paramIndex, input.length);
 
             packet = writeByteArray(packet, sink, paramIndex, input, input.length);
-            PacketUtils.writePacketHeader(packet, this.statementTask.addAndGetSequenceId());
+            PacketUtils.writePacketHeader(packet, this.statementTask.safelyAddAndGetSequenceId());
             sink.next(packet);
 
             sink.complete();
@@ -133,7 +133,7 @@ final class PrepareLongParameterWriter implements PrepareExecuteCommandWriter.Lo
                 char[] charArray = string.toCharArray();
                 packet = writeCharArray(packet, sink, paramIndex, charArray, charArray.length);
             }
-            PacketUtils.writePacketHeader(packet, this.statementTask.addAndGetSequenceId());
+            PacketUtils.writePacketHeader(packet, this.statementTask.safelyAddAndGetSequenceId());
             sink.next(packet);
 
             sink.complete();
@@ -216,14 +216,14 @@ final class PrepareLongParameterWriter implements PrepareExecuteCommandWriter.Lo
             final int maxPacket = this.maxPacket;
             for (int length; (length = input.read(buffer)) > 0; ) {
                 if (packet.readableBytes() == maxPacket) {
-                    PacketUtils.writePacketHeader(packet, this.statementTask.addAndGetSequenceId());
+                    PacketUtils.writePacketHeader(packet, this.statementTask.safelyAddAndGetSequenceId());
                     sink.next(packet);
 
                     packet = createLongDataPacket(parameterIndex, ClientConstants.BUFFER_LENGTH);
                 }
                 packet.writeBytes(buffer, 0, length);
             }
-            PacketUtils.writePacketHeader(packet, this.statementTask.addAndGetSequenceId());
+            PacketUtils.writePacketHeader(packet, this.statementTask.safelyAddAndGetSequenceId());
             sink.next(packet);
 
             sink.complete();
@@ -260,7 +260,7 @@ final class PrepareLongParameterWriter implements PrepareExecuteCommandWriter.Lo
         byte[] byteArray;
         for (int offset = 0, length; offset < arrayLength; offset += length) {
             if (packet.readableBytes() == maxPacket) {
-                PacketUtils.writePacketHeader(packet, this.statementTask.addAndGetSequenceId());
+                PacketUtils.writePacketHeader(packet, this.statementTask.safelyAddAndGetSequenceId());
                 sink.next(packet);
                 packet = createLongDataPacket(paramIndex, arrayLength - offset);
             }
@@ -293,7 +293,7 @@ final class PrepareLongParameterWriter implements PrepareExecuteCommandWriter.Lo
         for (int offset = 0, length; offset < arrayLength; offset += length) {
 
             if (packet.readableBytes() == maxPacket) {
-                PacketUtils.writePacketHeader(packet, this.statementTask.addAndGetSequenceId());
+                PacketUtils.writePacketHeader(packet, this.statementTask.safelyAddAndGetSequenceId());
                 sink.next(packet);
                 packet = createLongDataPacket(paramIndex, arrayLength - offset);
             }
@@ -307,7 +307,7 @@ final class PrepareLongParameterWriter implements PrepareExecuteCommandWriter.Lo
 
     /**
      * @see #writeInputStream(int, int, InputStream, FluxSink)
-     * @see ComPreparedTask#internalError(Throwable)
+     * @see ComPreparedTask#onError(Throwable)
      */
     private void publishLonDataReadException(FluxSink<ByteBuf> sink, Throwable cause, final int stmtIndex
             , int parameterIndex, final @Nullable Object input) {

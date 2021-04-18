@@ -8,7 +8,11 @@ interface StatementTask {
 
     ClientProtocolAdjutant obtainAdjutant();
 
-    int addAndGetSequenceId();
+    void startSafeSequenceId();
+
+    void endSafeSequenceId();
+
+    int safelyAddAndGetSequenceId();
 
     boolean supportFetch();
 

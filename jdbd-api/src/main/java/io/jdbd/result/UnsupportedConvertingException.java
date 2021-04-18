@@ -1,5 +1,6 @@
-package io.jdbd;
+package io.jdbd.result;
 
+import io.jdbd.JdbdNonSQLException;
 import io.jdbd.meta.SQLType;
 
 public class UnsupportedConvertingException extends JdbdNonSQLException {

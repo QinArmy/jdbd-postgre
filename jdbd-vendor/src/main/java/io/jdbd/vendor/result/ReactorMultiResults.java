@@ -1,8 +1,8 @@
 package io.jdbd.vendor.result;
 
-import io.jdbd.MultiResults;
-import io.jdbd.ResultRow;
-import io.jdbd.ResultStates;
+import io.jdbd.result.MultiResults;
+import io.jdbd.result.ResultRow;
+import io.jdbd.result.ResultStates;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 

@@ -1,9 +1,9 @@
 package io.jdbd.mysql.protocol.client;
 
-import io.jdbd.ResultRow;
 import io.jdbd.mysql.util.MySQLConvertUtils;
 import io.jdbd.mysql.util.MySQLExceptions;
 import io.jdbd.mysql.util.MySQLNumberUtils;
+import io.jdbd.result.ResultRow;
 import io.jdbd.vendor.result.ErrorResultRow;
 import io.jdbd.vendor.type.LongBinaries;
 import io.jdbd.vendor.type.LongStrings;

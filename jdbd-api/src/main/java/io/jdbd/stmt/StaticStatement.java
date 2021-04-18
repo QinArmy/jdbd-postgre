@@ -1,5 +1,8 @@
-package io.jdbd;
+package io.jdbd.stmt;
 
+import io.jdbd.JdbdSQLException;
+import io.jdbd.result.ResultRow;
+import io.jdbd.result.ResultStates;
 import org.reactivestreams.Publisher;
 
 import java.util.List;
@@ -10,7 +13,7 @@ import java.util.function.Consumer;
  * This interface is reactive version of {@link java.sql.Statement}
  * </p>
  */
-public interface StaticStatement extends Statement {
+public interface StaticStatement extends Statement, ReusableStatement {
 
 
     /**
@@ -19,10 +22,7 @@ public interface StaticStatement extends Statement {
     @Override
     boolean supportLongData();
 
-    Publisher<Long> executeBatchUpdate(List<String> sqlList);
-
-
-    Publisher<ResultStates> executeBatchUpdateAsStates(List<String> sqlList);
+    Publisher<ResultStates> executeBatch(List<String> sqlList);
 
 
     /**
@@ -41,10 +41,12 @@ public interface StaticStatement extends Statement {
      * or (2) 0 for SQL statements that return nothing
      * @see java.sql.PreparedStatement#executeUpdate()
      */
-    Publisher<Long> executeUpdate(String sql);
+    Publisher<ResultStates> executeUpdate(String sql);
 
-
-    Publisher<ResultStates> executeUpdateAsStates(String sql);
+    /**
+     * @see #executeQuery(String, Consumer)
+     */
+    Publisher<ResultRow> executeQuery(String sql);
 
     /**
      * Executes the SQL query in this <code>PreparedStatement</code> object
@@ -60,5 +62,6 @@ public interface StaticStatement extends Statement {
      * @see java.sql.PreparedStatement#executeQuery()
      */
     Publisher<ResultRow> executeQuery(String sql, Consumer<ResultStates> statesConsumer);
+
 
 }

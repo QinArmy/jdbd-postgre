@@ -1,6 +1,6 @@
 package io.jdbd.vendor.result;
 
-import io.jdbd.ResultStates;
+import io.jdbd.result.ResultStates;
 
 
 public interface MultiResultsSink {

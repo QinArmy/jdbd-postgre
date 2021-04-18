@@ -140,8 +140,7 @@ final class MySQLTaskExecutor extends CommunicationTaskExecutor<MySQLTaskAdjutan
     }
 
     @Override
-    protected boolean clearChannel(ByteBuf cumulateBuffer, int packetIndex
-            , Class<? extends CommunicationTask> taskClass) {
+    protected boolean clearChannel(ByteBuf cumulateBuffer, Class<? extends CommunicationTask> taskClass) {
         //TODO zoro complement this method.
         return true;
     }

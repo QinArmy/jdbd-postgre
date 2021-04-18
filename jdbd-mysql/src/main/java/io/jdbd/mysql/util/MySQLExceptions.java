@@ -1,15 +1,15 @@
 package io.jdbd.mysql.util;
 
 import io.jdbd.JdbdSQLException;
-import io.jdbd.LongDataReadException;
-import io.jdbd.PreparedStatement;
-import io.jdbd.StaticStatement;
 import io.jdbd.mysql.MySQLJdbdException;
 import io.jdbd.mysql.MySQLType;
 import io.jdbd.mysql.protocol.MySQLFatalIoException;
 import io.jdbd.mysql.protocol.client.ErrorPacket;
 import io.jdbd.mysql.protocol.conf.PropertyKey;
 import io.jdbd.mysql.stmt.BindValue;
+import io.jdbd.stmt.LongDataReadException;
+import io.jdbd.stmt.PreparedStatement;
+import io.jdbd.stmt.StaticStatement;
 import io.jdbd.vendor.stmt.ParamValue;
 import io.jdbd.vendor.util.JdbdExceptions;
 import reactor.util.annotation.Nullable;

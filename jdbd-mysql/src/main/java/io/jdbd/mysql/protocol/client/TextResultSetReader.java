@@ -1,8 +1,8 @@
 package io.jdbd.mysql.protocol.client;
 
-import io.jdbd.ResultRow;
 import io.jdbd.mysql.MySQLType;
 import io.jdbd.mysql.util.*;
+import io.jdbd.result.ResultRow;
 import io.jdbd.vendor.result.ErrorResultRow;
 import io.jdbd.vendor.type.LongBinaries;
 import io.jdbd.vendor.type.LongStrings;

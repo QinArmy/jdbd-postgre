@@ -1,10 +1,10 @@
 package io.jdbd.mysql;
 
-import io.jdbd.BindableStatement;
-import io.jdbd.StaticStatement;
 import io.jdbd.TransactionOption;
 import io.jdbd.TxDatabaseSession;
 import io.jdbd.mysql.protocol.client.ClientCommandProtocol;
+import io.jdbd.stmt.BindableStatement;
+import io.jdbd.stmt.StaticStatement;
 import reactor.core.publisher.Mono;
 
 class MySQLSession extends AbstractStatelessSession implements TxDatabaseSession {

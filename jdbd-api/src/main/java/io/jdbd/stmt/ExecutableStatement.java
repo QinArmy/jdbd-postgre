@@ -1,8 +1,10 @@
 package io.jdbd.stmt;
 
 import io.jdbd.AutoCloseable;
-import io.jdbd.*;
+import io.jdbd.JdbdSQLException;
 import io.jdbd.lang.Nullable;
+import io.jdbd.result.ResultRow;
+import io.jdbd.result.ResultStates;
 import org.reactivestreams.Publisher;
 
 import java.sql.BatchUpdateException;

@@ -47,27 +47,27 @@ public final class MySQLHost extends AbstractHostInfo<PropertyKey> {
 
     @Override
     protected IPropertyKey getUserKey() {
-        return PropertyKey.USER;
+        return PropertyKey.user;
     }
 
     @Override
     protected IPropertyKey getPasswordKey() {
-        return PropertyKey.PASSWORD;
+        return PropertyKey.password;
     }
 
     @Override
     protected IPropertyKey getHostKey() {
-        return PropertyKey.HOST;
+        return PropertyKey.host;
     }
 
     @Override
     protected IPropertyKey getPortKey() {
-        return PropertyKey.PORT;
+        return PropertyKey.port;
     }
 
     @Override
     protected IPropertyKey getDbNameKey() {
-        return PropertyKey.DBNAME;
+        return PropertyKey.dbname;
     }
 
     @Override

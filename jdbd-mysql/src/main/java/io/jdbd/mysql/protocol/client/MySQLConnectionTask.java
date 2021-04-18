@@ -172,7 +172,7 @@ final class MySQLConnectionTask extends CommunicationTask implements Authenticat
 
     @Nullable
     @Override
-    protected Publisher<ByteBuf> internalStart() {
+    protected Publisher<ByteBuf> start() {
         if (this.phase == null) {
             //may be load plugin occur error.
             this.phase = Phase.RECEIVE_HANDSHAKE;
@@ -183,7 +183,7 @@ final class MySQLConnectionTask extends CommunicationTask implements Authenticat
 
 
     @Override
-    protected boolean internalDecode(final ByteBuf cumulateBuffer, final Consumer<Object> serverStatusConsumer) {
+    protected boolean decode(final ByteBuf cumulateBuffer, final Consumer<Object> serverStatusConsumer) {
         if (!PacketUtils.hasOnePacket(cumulateBuffer)) {
             return false;
         }
@@ -222,7 +222,7 @@ final class MySQLConnectionTask extends CommunicationTask implements Authenticat
     }
 
     @Override
-    protected Action internalError(Throwable e) {
+    protected Action onError(Throwable e) {
         if (this.phase != Phase.END) {
             this.sink.error(MySQLExceptions.wrap(e));
         }
@@ -230,7 +230,7 @@ final class MySQLConnectionTask extends CommunicationTask implements Authenticat
     }
 
     @Override
-    protected void internalOnChannelClose() {
+    protected void onChannelClose() {
         if (this.phase != Phase.DISCONNECT) {
             handleAuthenticateFailure(new SessionCloseException("Channel unexpected close."));
         }
@@ -240,7 +240,7 @@ final class MySQLConnectionTask extends CommunicationTask implements Authenticat
 
 
     /**
-     * @see #internalDecode(ByteBuf, Consumer)
+     * @see #decode(ByteBuf, Consumer)
      */
     private void receiveHandshakeAndSendResponse(final ByteBuf cumulateBuffer) {
         //1. read handshake packet
@@ -279,7 +279,7 @@ final class MySQLConnectionTask extends CommunicationTask implements Authenticat
 
     /**
      * @return true : task end.
-     * @see #internalDecode(ByteBuf, Consumer)
+     * @see #decode(ByteBuf, Consumer)
      */
     private boolean authenticateDecode(final ByteBuf cumulateBuffer, final Consumer<Object> serverConsumer) {
         if (LOG.isTraceEnabled()) {
@@ -547,7 +547,7 @@ final class MySQLConnectionTask extends CommunicationTask implements Authenticat
     /**
      * @see #loadAuthenticationPluginMap()
      * @see #authenticateDecode(ByteBuf, Consumer)
-     * @see #internalOnChannelClose()
+     * @see #onChannelClose()
      * @see #processNextAuthenticationNegotiation(ByteBuf)
      */
     private void handleAuthenticateFailure(JdbdException e) {

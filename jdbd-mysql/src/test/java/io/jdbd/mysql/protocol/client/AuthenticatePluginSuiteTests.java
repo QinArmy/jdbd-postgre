@@ -145,7 +145,7 @@ public class AuthenticatePluginSuiteTests extends AbstractConnectionBasedSuiteTe
         propMap.put(PropertyKey.sslMode.getKey(), Enums.SslMode.DISABLED.name());
         propMap.put(PropertyKey.defaultAuthenticationPlugin.getKey(), CachingSha2PasswordPlugin.PLUGIN_NAME);
         propMap.put(PropertyKey.authenticationPlugins.getKey(), CachingSha2PasswordPlugin.class.getName());
-        propMap.put(PropertyKey.PASSWORD.getKey(), "");
+        propMap.put(PropertyKey.password.getKey(), "");
 
         MySQLSessionAdjutant sessionAdjutant = createSessionAdjutantForSingleHost(propMap);
 

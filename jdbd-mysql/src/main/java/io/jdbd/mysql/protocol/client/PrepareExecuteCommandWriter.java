@@ -77,19 +77,21 @@ final class PrepareExecuteCommandWriter implements ExecuteCommandWriter {
         if (paramMetaArray.length == 0) {
             // this 'if' block handle no bind parameter.
             ByteBuf packet = createExecutePacketBuffer(10);
-            PacketUtils.writePacketHeader(packet, this.statementTask.addAndGetSequenceId());
+            PacketUtils.writePacketHeader(packet, this.statementTask.safelyAddAndGetSequenceId());
             publisher = Mono.just(packet);
         } else {
-            final Publisher<ByteBuf> nonStreamPublisher;
-            // firstly create nonStream param publisher
-            nonStreamPublisher = createExecutionPackets(stmtIndex, parameterGroup);
             if (nonLongDataCount == paramMetaArray.length) {
                 // this 'if' block handle no long parameter.
-                publisher = nonStreamPublisher;
+                publisher = createExecutionPackets(stmtIndex, parameterGroup);
             } else {
+                // start safe sequence id
+                this.statementTask.startSafeSequenceId();
                 publisher = new PrepareLongParameterWriter(this.statementTask)
                         .write(stmtIndex, parameterGroup)
-                        .concatWith(nonStreamPublisher);
+                        .concatWith(defferCreateExecutionPackets(stmtIndex, parameterGroup))
+                        // below end safe sequence id
+                        .doOnError(error -> this.statementTask.endSafeSequenceId())
+                        .doOnComplete(this.statementTask::endSafeSequenceId);
             }
         }
         return publisher;
@@ -97,12 +99,27 @@ final class PrepareExecuteCommandWriter implements ExecuteCommandWriter {
 
     /*################################## blow private method ##################################*/
 
+    private Flux<ByteBuf> defferCreateExecutionPackets(final int stmtIndex
+            , final List<? extends ParamValue> parameterGroup) {
+        return Flux.defer(() -> {
+            Flux<ByteBuf> flux;
+            try {
+                flux = createExecutionPackets(stmtIndex, parameterGroup);
+            } catch (Throwable e) {
+                flux = Flux.error(MySQLExceptions.wrap(e));
+            }
+            return flux;
+        });
+    }
+
 
     /**
      * @return {@link Flux} that is created by {@link Flux#fromIterable(Iterable)} method.
+     * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_com_stmt_execute.html">Protocol::COM_STMT_EXECUTE</a>
      */
     private Flux<ByteBuf> createExecutionPackets(final int stmtIndex, final List<? extends ParamValue> parameterGroup)
             throws JdbdException, SQLException {
+
 
         final MySQLColumnMeta[] parameterMetaArray = this.paramMetaArray;
         BindUtils.assertParamCountMatch(stmtIndex, parameterMetaArray.length, parameterGroup.size());
@@ -150,7 +167,7 @@ final class PrepareExecuteCommandWriter implements ExecuteCommandWriter {
                 }
                 while (packet.readableBytes() >= PacketUtils.MAX_PACKET) {
                     ByteBuf temp = packet.readRetainedSlice(PacketUtils.MAX_PACKET);
-                    PacketUtils.writePacketHeader(temp, this.statementTask.addAndGetSequenceId());
+                    PacketUtils.writePacketHeader(temp, this.statementTask.safelyAddAndGetSequenceId());
                     packetList.add(temp);
                     wroteBytes += PacketUtils.MAX_PAYLOAD;
 
@@ -172,7 +189,7 @@ final class PrepareExecuteCommandWriter implements ExecuteCommandWriter {
                 throw MySQLExceptions.createNetPacketTooLargeException(maxAllowedPayload);
             }
 
-            PacketUtils.writePacketHeader(packet, this.statementTask.addAndGetSequenceId());
+            PacketUtils.writePacketHeader(packet, this.statementTask.safelyAddAndGetSequenceId());
             packetList.add(packet);
 
 
@@ -187,6 +204,7 @@ final class PrepareExecuteCommandWriter implements ExecuteCommandWriter {
 
     /**
      * @see #createExecutionPackets(int, List)
+     * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_com_stmt_execute.html">Protocol::COM_STMT_EXECUTE</a>
      */
     private ByteBuf createExecutePacketBuffer(int initialPayloadCapacity) {
 

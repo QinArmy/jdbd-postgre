@@ -1,10 +1,10 @@
 package io.jdbd.mysql;
 
 import io.jdbd.DatabaseSession;
-import io.jdbd.PreparedStatement;
-import io.jdbd.StaticStatement;
 import io.jdbd.TransactionOption;
 import io.jdbd.meta.DatabaseMetaData;
+import io.jdbd.stmt.PreparedStatement;
+import io.jdbd.stmt.StaticStatement;
 import reactor.core.publisher.Mono;
 
 import java.sql.Savepoint;

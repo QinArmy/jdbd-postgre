@@ -1,10 +1,7 @@
 package io.jdbd.mysql.protocol.client;
 
-import io.jdbd.JdbdSQLException;
 import io.jdbd.mysql.protocol.conf.PropertyKey;
-import io.jdbd.mysql.util.MySQLExceptions;
 import io.jdbd.vendor.conf.Properties;
-import io.netty.buffer.ByteBuf;
 
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 
@@ -12,10 +9,11 @@ import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
  * @see ComPreparedTask
  * @see MySQLCommandTask
  */
-abstract class MySQLPrepareCommandTask extends MySQLCommandTask {
+abstract class MySQLPrepareCommandTask extends MySQLCommandTask implements StatementTask {
 
     private static final AtomicIntegerFieldUpdater<MySQLPrepareCommandTask> SEQUENCE_ID =
-            AtomicIntegerFieldUpdater.newUpdater(MySQLPrepareCommandTask.class, "sequenceId");
+            AtomicIntegerFieldUpdater.newUpdater(MySQLPrepareCommandTask.class, "safeSequenceId");
+
 
     final MySQLTaskAdjutant adjutant;
 
@@ -23,7 +21,9 @@ abstract class MySQLPrepareCommandTask extends MySQLCommandTask {
 
     final Properties<PropertyKey> properties;
 
-    private volatile int sequenceId = -1;
+    private boolean useSafeSequenceId;
+
+    private volatile int safeSequenceId = -1;
 
     MySQLPrepareCommandTask(MySQLTaskAdjutant adjutant) {
         super(adjutant);
@@ -32,32 +32,34 @@ abstract class MySQLPrepareCommandTask extends MySQLCommandTask {
         this.properties = adjutant.obtainHostInfo().getProperties();
     }
 
-
-    public final int safelyUpdateSequenceId(final int sequenceId) {
-        final int newSequenceId;
-        if (sequenceId < 0) {
-            newSequenceId = -1;
-        } else {
-            newSequenceId = sequenceId & 0XFF;
-        }
-        SEQUENCE_ID.set(this, newSequenceId);
-        return newSequenceId;
-    }
-
-    public final int safelyObtainSequenceId() {
-        return SEQUENCE_ID.get(this);
-    }
-
-
+    @Override
     public final int safelyAddAndGetSequenceId() {
-        return SEQUENCE_ID.updateAndGet(this, operand -> (++operand) & 0XFF);
+        return this.useSafeSequenceId
+                ? SEQUENCE_ID.updateAndGet(this, operand -> (++operand) & 0XFF)
+                : addAndGetSequenceId();
+    }
+
+    @Override
+    public final void startSafeSequenceId() {
+        if (!this.useSafeSequenceId) {
+            synchronized (this) {
+                SEQUENCE_ID.set(this, obtainSequenceId());
+                this.useSafeSequenceId = true;
+            }
+        }
+
+    }
+
+    @Override
+    public final void endSafeSequenceId() {
+        if (this.useSafeSequenceId) {
+            synchronized (this) {
+                updateSequenceId(SEQUENCE_ID.get(this));
+                this.useSafeSequenceId = false;
+            }
+        }
+
     }
 
 
-    static JdbdSQLException createSequenceIdError(int expected, ByteBuf cumulateBuffer) {
-        return MySQLExceptions.createFatalIoException(
-                (Throwable) null
-                , "MySQL server row packet return sequence_id error,expected[%s] actual[%s]"
-                , expected, PacketUtils.getInt1AsInt(cumulateBuffer, cumulateBuffer.readerIndex() - 1));
-    }
 }

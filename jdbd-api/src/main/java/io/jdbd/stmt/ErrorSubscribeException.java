@@ -1,4 +1,6 @@
-package io.jdbd;
+package io.jdbd.stmt;
+
+import io.jdbd.JdbdNonSQLException;
 
 public final class ErrorSubscribeException extends JdbdNonSQLException {
 

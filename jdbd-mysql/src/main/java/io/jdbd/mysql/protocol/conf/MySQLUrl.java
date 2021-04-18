@@ -1,7 +1,7 @@
 package io.jdbd.mysql.protocol.conf;
 
 
-import io.jdbd.UrlException;
+import io.jdbd.config.UrlException;
 import io.jdbd.vendor.conf.AbstractJdbcUrl;
 import io.jdbd.vendor.conf.IPropertyKey;
 import io.jdbd.vendor.conf.JdbcUrlParser;
@@ -46,7 +46,7 @@ public final class MySQLUrl extends AbstractJdbcUrl<PropertyKey, MySQLHost> {
 
     @Override
     protected IPropertyKey getDbNameKey() {
-        return PropertyKey.DBNAME;
+        return PropertyKey.dbname;
     }
 
     /**

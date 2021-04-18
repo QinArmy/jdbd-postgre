@@ -1,7 +1,7 @@
 package io.jdbd.vendor.conf;
 
 
-import io.jdbd.UrlException;
+import io.jdbd.config.UrlException;
 import io.jdbd.vendor.util.JdbdCollections;
 import io.jdbd.vendor.util.JdbdStringUtils;
 import reactor.util.annotation.Nullable;

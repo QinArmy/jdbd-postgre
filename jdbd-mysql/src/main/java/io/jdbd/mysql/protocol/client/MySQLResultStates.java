@@ -1,6 +1,6 @@
 package io.jdbd.mysql.protocol.client;
 
-import io.jdbd.ResultStates;
+import io.jdbd.result.ResultStates;
 
 abstract class MySQLResultStates implements ResultStates {
 

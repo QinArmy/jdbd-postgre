@@ -1,11 +1,10 @@
 package io.jdbd.mysql.protocol.client;
 
-import io.jdbd.ResultRow;
-import io.jdbd.ResultStates;
-import io.jdbd.mysql.MySQLType;
-import io.jdbd.mysql.stmt.BindValue;
+import io.jdbd.mysql.stmt.MySQLParamValue;
 import io.jdbd.mysql.stmt.StmtWrappers;
 import io.jdbd.mysql.util.MySQLNumberUtils;
+import io.jdbd.result.ResultStates;
+import io.jdbd.vendor.stmt.ParamValue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.annotations.Test;
@@ -44,35 +43,36 @@ public class ComQueryTaskBigColumnSuiteTests extends AbstractConnectionBasedSuit
         LOG.info("longBlob test end");
     }
 
-    @Test
+    @Test(timeOut = TIME_OUT)
     public void myBit20() {
         final MySQLTaskAdjutant adjutant = obtainTaskAdjutant();
         String sql, alias;
-        List<BindValue> list;
+        List<ParamValue> list;
 
-        alias = "myTinyInt1";
+        alias = "call";
 
-        sql = "UPDATE mysql_types as t SET t.my_tinyint1 = ? WHERE t.id = ?";
+        sql = "CALL queryNow(?,?)";
         list = new ArrayList<>(2);
-        list.add(BindValue.create(0, MySQLType.TINYINT, Boolean.TRUE));
-        list.add(BindValue.create(1, MySQLType.BIGINT, 52L));
+        list.add(MySQLParamValue.create(0, 0));
+        list.add(MySQLParamValue.create(1, ""));
         ResultStates states;
-        states = ComPreparedTask.update(StmtWrappers.multi(sql, list), adjutant)
+        states = ComPreparedTask.update(StmtWrappers.multiPrepare(sql, list), adjutant)
                 .block();
         assertNotNull(states, alias);
-        assertEquals(states.getAffectedRows(), 1L, "myBit20");
+        // assertEquals(states.getAffectedRows(), 1L, "myBit20");
 
-
-        sql = "SELECT t.my_tinyint1 as myTinyInt1 FROM mysql_types as t WHERE t.id = ?";
-        list = new ArrayList<>(2);
-        list.add(BindValue.create(0, MySQLType.BIGINT, 70L));
-
-        ResultRow row;
-        row = ComPreparedTask.query(StmtWrappers.multi(sql, list), adjutant)
-                .elementAt(0)
-                .block();
-        assertNotNull(row, alias);
-        LOG.info("{}:{}", alias, row.getNonNull(alias));
+//        alias = "call";
+//        sql = "CALL queryNow(?,?)";
+//        list = new ArrayList<>(2);
+//        list.add(MySQLParamValue.create(0, 0));
+//        list.add(MySQLParamValue.create(0, ""));
+//      List<ResultRow> rowList;
+//        rowList = ComPreparedTask.query(StmtWrappers.multiPrepare(sql, list), adjutant)
+//                .collectList()
+//                .block();
+//        assertNotNull(rowList, alias);
+//        assertFalse(rowList.isEmpty(),alias);
+//        LOG.info("{}:{}", alias, rowList.get(0).getNonNull(alias));
         releaseConnection(adjutant);
     }
 

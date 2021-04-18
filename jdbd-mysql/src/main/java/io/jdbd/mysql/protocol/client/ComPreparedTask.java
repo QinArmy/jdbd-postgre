@@ -1,16 +1,25 @@
 package io.jdbd.mysql.protocol.client;
 
-import io.jdbd.*;
+import io.jdbd.JdbdException;
+import io.jdbd.JdbdSQLException;
+import io.jdbd.ResultStateConsumerException;
+import io.jdbd.SessionCloseException;
 import io.jdbd.mysql.protocol.conf.PropertyKey;
+import io.jdbd.mysql.session.ServerPreparedStatement;
+import io.jdbd.mysql.stmt.PrepareStmtTask;
 import io.jdbd.mysql.util.MySQLCollections;
 import io.jdbd.mysql.util.MySQLExceptions;
+import io.jdbd.result.ResultRow;
+import io.jdbd.result.ResultStates;
+import io.jdbd.stmt.ErrorSubscribeException;
+import io.jdbd.stmt.PreparedStatement;
+import io.jdbd.stmt.ResultType;
 import io.jdbd.vendor.JdbdCompositeException;
 import io.jdbd.vendor.result.ResultRowSink;
 import io.jdbd.vendor.stmt.BatchWrapper;
 import io.jdbd.vendor.stmt.ParamValue;
 import io.jdbd.vendor.stmt.ParamWrapper;
 import io.jdbd.vendor.stmt.StmtWrapper;
-import io.jdbd.vendor.task.TaskSignal;
 import io.netty.buffer.ByteBuf;
 import org.reactivestreams.Publisher;
 import org.slf4j.Logger;
@@ -30,8 +39,8 @@ import java.util.function.Supplier;
 /**
  * <p>  code navigation :
  *     <ol>
- *         <li>decode entrance method : {@link #internalDecode(ByteBuf, Consumer)}</li>
- *         <li>send COM_STMT_PREPARE : {@link #internalStart()} </li>
+ *         <li>decode entrance method : {@link #decode(ByteBuf, Consumer)}</li>
+ *         <li>send COM_STMT_PREPARE : {@link #start()} </li>
  *         <li>read COM_STMT_PREPARE Response : {@link #readPrepareResponse(ByteBuf)}
  *              <ol>
  *                  <li>read parameter meta : {@link #readPrepareParameterMeta(ByteBuf, Consumer)}</li>
@@ -128,8 +137,6 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
     private static final Logger LOG = LoggerFactory.getLogger(ComPreparedTask.class);
 
     private final DownstreamSink downstreamSink;
-
-    private TaskSignal taskSignal;
 
     private int statementId;
 
@@ -248,8 +255,15 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
         });
     }
 
-
-
+    @Override
+    public int getWarnings() {
+        final DownstreamSink downstreamSink = this.downstreamSink;
+        if (!(downstreamSink instanceof DownstreamAdapter)) {
+            throw new IllegalStateException(
+                    String.format("%s isn't %s", downstreamSink, DownstreamAdapter.class.getSimpleName()));
+        }
+        return ((DownstreamAdapter) downstreamSink).warnings;
+    }
 
     /*################################## blow protected  method ##################################*/
 
@@ -257,10 +271,10 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
      * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_com_stmt_prepare.html">Protocol::COM_STMT_PREPARE</a>
      */
     @Override
-    protected Publisher<ByteBuf> internalStart() {
+    protected Publisher<ByteBuf> start() {
 
         final Publisher<ByteBuf> publisher;
-        publisher = Objects.requireNonNull(this.packetPublisher, "(this.packetPublisher");
+        publisher = Objects.requireNonNull(this.packetPublisher, "this.packetPublisher");
         this.packetPublisher = null;
         this.phase = Phase.READ_PREPARE_RESPONSE;
         return publisher;
@@ -268,7 +282,7 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
 
 
     @Override
-    protected boolean internalDecode(final ByteBuf cumulateBuffer, final Consumer<Object> serverStatusConsumer) {
+    protected boolean decode(final ByteBuf cumulateBuffer, final Consumer<Object> serverStatusConsumer) {
         if (!PacketUtils.hasOnePacket(cumulateBuffer)) {
             return false;
         }
@@ -287,16 +301,11 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
                 break;
                 case READ_PREPARE_PARAM_META: {
                     if (readPrepareParameterMeta(cumulateBuffer, serverStatusConsumer)) {
-                        MySQLColumnMeta[] columnMetas = this.prepareColumnMetas;
-                        if (columnMetas != null && columnMetas.length > 0) {
+                        if (hasReturnColumns()) {
                             this.phase = Phase.READ_PREPARE_COLUMN_META;
                             continueDecode = PacketUtils.hasOnePacket(cumulateBuffer);
                         } else {
-                            this.phase = Phase.EXECUTE;
-                            taskEnd = executeStatement(); // execute command
-                            if (!taskEnd) {
-                                this.phase = Phase.READ_EXECUTE_RESPONSE;
-                            }
+                            taskEnd = handleReadPrepareComplete();
                             continueDecode = false;
                         }
                     } else {
@@ -306,11 +315,7 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
                 break;
                 case READ_PREPARE_COLUMN_META: {
                     if (readPrepareColumnMeta(cumulateBuffer, serverStatusConsumer)) {
-                        this.phase = Phase.EXECUTE;
-                        taskEnd = executeStatement(); // execute command
-                        if (!taskEnd) {
-                            this.phase = Phase.READ_EXECUTE_RESPONSE;
-                        }
+                        taskEnd = handleReadPrepareComplete();
                     }
                     continueDecode = false;
                 }
@@ -355,8 +360,10 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
             }
         }
         if (taskEnd) {
-            this.packetPublisher = Mono.just(createCloseStatementPacket());
-            this.phase = Phase.CLOSE_STMT;
+            if (this.phase != Phase.CLOSE_STMT) {
+                this.phase = Phase.CLOSE_STMT;
+                this.packetPublisher = Mono.just(createCloseStatementPacket());
+            }
             if (hasError()) {
                 this.downstreamSink.error(createException());
             } else {
@@ -367,11 +374,8 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
     }
 
 
-    /**
-     * @see #error(Throwable)
-     */
     @Override
-    protected Action internalError(Throwable e) {
+    protected Action onError(Throwable e) {
         final Action action;
         switch (this.phase) {
             case PREPARED:
@@ -392,7 +396,7 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
     }
 
     @Override
-    protected void internalOnChannelClose() {
+    protected void onChannelClose() {
         if (this.phase != Phase.CLOSE_STMT) {
             this.downstreamSink.error(new SessionCloseException("Database session have closed."));
         }
@@ -424,7 +428,7 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
 
     /**
      * @return true: prepare error,task end.
-     * @see #internalDecode(ByteBuf, Consumer)
+     * @see #decode(ByteBuf, Consumer)
      * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_com_stmt_prepare.html#sect_protocol_com_stmt_prepare_response">COM_STMT_PREPARE Response</a>
      */
     private boolean readPrepareResponse(final ByteBuf cumulateBuffer) {
@@ -449,7 +453,10 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
                 resetColumnMeta(PacketUtils.readInt2AsInt(cumulateBuffer));//3. num_columns
                 resetParameterMetas(PacketUtils.readInt2AsInt(cumulateBuffer));//4. num_params
                 cumulateBuffer.skipBytes(1); //5. skip filler
-                PacketUtils.readInt2AsInt(cumulateBuffer);//6. warning_count
+                final int warnings = PacketUtils.readInt2AsInt(cumulateBuffer);//6. warning_count
+                if (this.downstreamSink instanceof DownstreamAdapter) {
+                    ((DownstreamAdapter) this.downstreamSink).warnings = warnings;
+                }
                 if ((this.negotiatedCapability & ClientProtocol.CLIENT_OPTIONAL_RESULTSET_METADATA) != 0) {
                     throw new IllegalStateException("Not support CLIENT_OPTIONAL_RESULTSET_METADATA"); //7. metadata_follows
                 }
@@ -465,11 +472,38 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
         return taskEnd;
     }
 
+    /**
+     * <p>
+     * this method will update {@link #phase}.
+     * </p>
+     *
+     * @return true : task end.
+     * @see #decode(ByteBuf, Consumer)
+     */
+    private boolean handleReadPrepareComplete() {
+        final DownstreamSink downstreamSink = this.downstreamSink;
+        final boolean taskEnd;
+        if (downstreamSink instanceof DownstreamAdapter) {
+            taskEnd = false;
+            this.phase = Phase.WAIT_PARAMS;
+            ((DownstreamAdapter) downstreamSink).emitStatement();
+        } else {
+            this.phase = Phase.EXECUTE;
+            if (executeStatement()) {
+                taskEnd = true;
+            } else {
+                taskEnd = false;
+                this.phase = Phase.READ_EXECUTE_RESPONSE;
+            }
+        }
+        return taskEnd;
+    }
+
 
     /**
      * @return true:read parameter meta end.
      * @see #readPrepareResponse(ByteBuf)
-     * @see #internalDecode(ByteBuf, Consumer)
+     * @see #decode(ByteBuf, Consumer)
      * @see #resetParameterMetas(int)
      */
     private boolean readPrepareParameterMeta(final ByteBuf cumulateBuffer
@@ -489,7 +523,7 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
     /**
      * @return true:read column meta end.
      * @see #readPrepareColumnMeta(ByteBuf, Consumer)
-     * @see #internalDecode(ByteBuf, Consumer)
+     * @see #decode(ByteBuf, Consumer)
      * @see #resetColumnMeta(int)
      */
     private boolean readPrepareColumnMeta(ByteBuf cumulateBuffer, Consumer<Object> serverStatusConsumer) {
@@ -528,8 +562,8 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
 
 
     /**
-     * @see #internalDecode(ByteBuf, Consumer)
-     * @see #internalError(Throwable)
+     * @see #decode(ByteBuf, Consumer)
+     * @see #onError(Throwable)
      * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_com_stmt_close.html">Protocol::COM_STMT_CLOSE</a>
      */
     private ByteBuf createCloseStatementPacket() {
@@ -550,7 +584,7 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
      * </p>
      *
      * @return true: task end.
-     * @see #internalDecode(ByteBuf, Consumer)
+     * @see #decode(ByteBuf, Consumer)
      * @see #executeStatement()
      */
     private boolean readExecuteResponse(final ByteBuf cumulateBuffer, final Consumer<Object> serverStatusConsumer) {
@@ -560,7 +594,7 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
         final boolean taskEnd;
         switch (header) {
             case ErrorPacket.ERROR_HEADER: {
-                int payloadLength = PacketUtils.readInt3(cumulateBuffer);
+                final int payloadLength = PacketUtils.readInt3(cumulateBuffer);
                 updateSequenceId(PacketUtils.readInt1AsInt(cumulateBuffer));
 
                 ErrorPacket error = ErrorPacket.readPacket(cumulateBuffer.readSlice(payloadLength)
@@ -570,7 +604,7 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
             }
             break;
             case OkPacket.OK_HEADER: {
-                int payloadLength = PacketUtils.readInt3(cumulateBuffer);
+                final int payloadLength = PacketUtils.readInt3(cumulateBuffer);
                 updateSequenceId(PacketUtils.readInt1AsInt(cumulateBuffer));
 
                 OkPacket ok = OkPacket.read(cumulateBuffer.readSlice(payloadLength), this.negotiatedCapability);
@@ -594,7 +628,7 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
      *
      * @return true: task end.
      * @see #readExecuteResponse(ByteBuf, Consumer)
-     * @see #internalDecode(ByteBuf, Consumer)
+     * @see #decode(ByteBuf, Consumer)
      */
     private boolean readResultSet(final ByteBuf cumulateBuffer, final Consumer<Object> serverStatusConsumer) {
         assertPhase(Phase.READ_RESULT_SET);
@@ -607,7 +641,7 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
      * </p>
      *
      * @return true: task end.
-     * @see #internalDecode(ByteBuf, Consumer)
+     * @see #decode(ByteBuf, Consumer)
      */
     private boolean readFetchResponse(final ByteBuf cumulateBuffer) {
         final int flag = PacketUtils.getInt1AsInt(cumulateBuffer, cumulateBuffer.readerIndex() + PacketUtils.HEADER_SIZE);
@@ -625,7 +659,7 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
 
     /**
      * @return true : reset occur error,task end.
-     * @see #internalDecode(ByteBuf, Consumer)
+     * @see #decode(ByteBuf, Consumer)
      * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_com_stmt_reset.html">Protocol::COM_STMT_RESET</a>
      */
     private boolean readResetResponse(final ByteBuf cumulateBuffer, final Consumer<Object> serverStatusConsumer) {
@@ -654,13 +688,23 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
         return taskEnd;
     }
 
+    /**
+     * @see #decode(ByteBuf, Consumer)
+     * @see UpdateDownstreamSink#executeCommand()
+     * @see BatchUpdateSink#executeCommand()
+     */
+    boolean hasReturnColumns() {
+        MySQLColumnMeta[] columnMetas = this.prepareColumnMetas;
+        return columnMetas != null && columnMetas.length > 0;
+    }
+
 
     /**
      * @return true : task end:<ul>
      * <li>bind parameter error</li>
      * <li>batch update end</li>
      * </ul>
-     * @see #internalDecode(ByteBuf, Consumer)
+     * @see #decode(ByteBuf, Consumer)
      * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_com_stmt_execute.html">Protocol::COM_STMT_EXECUTE</a>
      */
     private boolean executeStatement() {
@@ -786,7 +830,7 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
 
 
     /**
-     * @see #internalDecode(ByteBuf, Consumer)
+     * @see #decode(ByteBuf, Consumer)
      */
     private JdbdException createException() {
         final List<JdbdException> errorList = this.errorList;
@@ -841,13 +885,24 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
             errorConsumer.accept(new IllegalStateException(
                     String.format("%s isn't %s.", downstreamSink, DownstreamAdapter.class.getSimpleName())));
         } else {
-
+            final DownstreamAdapter downstreamAdapter = (DownstreamAdapter) downstreamSink;
             try {
 
-                ((DownstreamAdapter) downstreamSink).setDownstreamSink(supplier.get());
+                if (downstreamAdapter.downstreamSink != null) {
+                    throw new IllegalStateException(String.format("%s downstreamSink duplicate.", this));
+                }
+                final DownstreamSink actualDownstreamSink = supplier.get();
+                if (actualDownstreamSink instanceof DownstreamAdapter) {
+                    throw new IllegalArgumentException(String.format("downstreamSink type[%s] error."
+                            , downstreamSink.getClass().getSimpleName()));
+                }
+                if (ComPreparedTask.this.phase != Phase.WAIT_PARAMS) {
+                    throw new IllegalStateException(String.format("%s is executing ,reject execute again."
+                            , ComPreparedTask.class.getSimpleName()));
+                }
 
+                downstreamAdapter.downstreamSink = actualDownstreamSink;
                 this.phase = Phase.EXECUTE;
-
                 if (executeStatement()) {
                     this.phase = Phase.CLOSE_STMT;
                     this.packetPublisher = Mono.just(createCloseStatementPacket());
@@ -921,6 +976,7 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
 
         int getFetchSize();
     }
+
 
     private class QueryDownstreamSink implements FetchAbleDownstreamSink, ResultRowSink {
 
@@ -1096,10 +1152,8 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
                 // here bug.
                 throw new IllegalStateException(String.format("%s have ended.", this));
             }
-            MySQLColumnMeta[] columnMetaArray = Objects.requireNonNull(
-                    ComPreparedTask.this.prepareColumnMetas, "ComPreparedTask.this.prepareColumnMetas");
             boolean taskEnd;
-            if (columnMetaArray.length > 0) {
+            if (hasReturnColumns()) {
                 ComPreparedTask.this.addError(new ErrorSubscribeException(ResultType.UPDATE, ResultType.QUERY));
                 taskEnd = true;
             } else {
@@ -1174,27 +1228,20 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
                 // here bug.
                 throw new IllegalStateException(String.format("%s have ended.", this));
             }
-            boolean taskEnd = false;
-            if (currentIndex == 0) {
-                MySQLColumnMeta[] columnMetaArray = Objects.requireNonNull(
-                        ComPreparedTask.this.prepareColumnMetas, "ComPreparedTask.this.prepareColumnMetas");
-                if (columnMetaArray.length > 0) {
-                    ComPreparedTask.this.addError(new ErrorSubscribeException(
-                            ResultType.BATCH_UPDATE, ResultType.QUERY));
-                    taskEnd = true;
-                }
+
+            if (currentIndex == 0 && hasReturnColumns()) {
+                ComPreparedTask.this.addError(new ErrorSubscribeException(
+                        ResultType.BATCH_UPDATE, ResultType.QUERY));
+                return true;
             }
             if (this.lastHasLongData) {
                 throw new IllegalStateException(
                         String.format("%s last group has long data,reject execute command.", this));
             }
-            if (!taskEnd) {
-                final int groupIndex = this.index++;
-                final List<T> group = this.groupList.get(groupIndex);
-                this.lastHasLongData = BindUtils.hasLongData(group);
-                taskEnd = ComPreparedTask.this.sendExecuteCommand(this.commandWriter, groupIndex, group);
-            }
-            return taskEnd;
+            final int groupIndex = this.index++;
+            final List<T> group = this.groupList.get(groupIndex);
+            this.lastHasLongData = BindUtils.hasLongData(group);
+            return ComPreparedTask.this.sendExecuteCommand(this.commandWriter, groupIndex, group);
         }
 
         @Override
@@ -1270,6 +1317,12 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
 
         private final MonoSink<PreparedStatement> sink;
 
+        //non-volatile,because update once and don't update again after emit PreparedStatement.
+        private int warnings = -1;
+
+        /**
+         * @see #doPreparedExecute(Consumer, Supplier)
+         */
         private DownstreamSink downstreamSink;
 
         /**
@@ -1279,20 +1332,13 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
             this.sink = sink;
         }
 
-        private void setDownstreamSink(DownstreamSink downstreamSink) {
-            if (this.downstreamSink != null) {
-                throw new IllegalStateException(String.format("%s downstreamSink duplicate.", this));
+        private void emitStatement() {
+            if (this.warnings < 0) {
+                throw new IllegalStateException("warnings not set.");
             }
-            if (downstreamSink instanceof DownstreamAdapter) {
-                throw new IllegalArgumentException(String.format("downstreamSink type[%s] error."
-                        , downstreamSink.getClass().getSimpleName()));
-            }
-            if (ComPreparedTask.this.phase != Phase.WAIT_PARAM_GROUP) {
-                throw new IllegalStateException(String.format("%s is executing ,reject execute again."
-                        , ComPreparedTask.class.getSimpleName()));
-            }
-            this.downstreamSink = downstreamSink;
+            this.sink.success(ServerPreparedStatement.create(ComPreparedTask.this));
         }
+
 
         @Override
         public boolean executeCommand() {
@@ -1314,8 +1360,11 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
 
         @Override
         public void error(JdbdException e) {
-            Objects.requireNonNull(this.downstreamSink, "this.downstreamSink")
-                    .error(e);
+            if (this.downstreamSink == null) {
+                this.sink.error(e);
+            } else {
+                this.downstreamSink.error(e);
+            }
         }
 
         @Override
@@ -1369,7 +1418,7 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
         READ_PREPARE_PARAM_META,
         READ_PREPARE_COLUMN_META,
 
-        WAIT_PARAM_GROUP,
+        WAIT_PARAMS,
 
         EXECUTE,
         READ_EXECUTE_RESPONSE,

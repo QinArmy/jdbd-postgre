@@ -1,6 +1,6 @@
 package io.jdbd.mysql.protocol.authentication;
 
-import io.jdbd.PropertyException;
+import io.jdbd.config.PropertyException;
 import io.jdbd.mysql.protocol.conf.PropertyKey;
 import io.jdbd.mysql.session.MySQLSessionAdjutant;
 import io.jdbd.mysql.util.MySQLCollections;

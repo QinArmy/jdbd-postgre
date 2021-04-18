@@ -1,8 +1,8 @@
 package io.jdbd.vendor.stmt;
 
 
-import io.jdbd.MultiResults;
-import io.jdbd.ResultStates;
+import io.jdbd.result.MultiResults;
+import io.jdbd.result.ResultStates;
 
 import java.util.Collections;
 import java.util.List;

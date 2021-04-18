@@ -1,7 +1,7 @@
 package io.jdbd.vendor.result;
 
-import io.jdbd.ResultRow;
-import io.jdbd.ResultStates;
+import io.jdbd.result.ResultRow;
+import io.jdbd.result.ResultStates;
 import io.jdbd.stmt.ExecutableStatement;
 import reactor.core.publisher.FluxSink;
 

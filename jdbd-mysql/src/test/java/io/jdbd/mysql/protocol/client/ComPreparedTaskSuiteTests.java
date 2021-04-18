@@ -2,12 +2,12 @@ package io.jdbd.mysql.protocol.client;
 
 
 import io.jdbd.JdbdSQLException;
-import io.jdbd.ResultRow;
-import io.jdbd.ResultStates;
 import io.jdbd.mysql.Groups;
 import io.jdbd.mysql.stmt.BindableWrapper;
 import io.jdbd.mysql.stmt.MySQLParamValue;
 import io.jdbd.mysql.stmt.StmtWrappers;
+import io.jdbd.result.ResultRow;
+import io.jdbd.result.ResultStates;
 import io.jdbd.vendor.stmt.ParamValue;
 import io.jdbd.vendor.stmt.ParamWrapper;
 import org.slf4j.Logger;

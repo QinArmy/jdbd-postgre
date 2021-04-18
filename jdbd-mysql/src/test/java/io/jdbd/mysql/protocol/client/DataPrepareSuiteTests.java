@@ -1,10 +1,7 @@
 package io.jdbd.mysql.protocol.client;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.jdbd.MultiResults;
-import io.jdbd.NullMode;
-import io.jdbd.ResultRow;
-import io.jdbd.ResultStates;
+import io.jdbd.meta.NullMode;
 import io.jdbd.meta.SQLType;
 import io.jdbd.mysql.Groups;
 import io.jdbd.mysql.MySQLType;
@@ -12,7 +9,10 @@ import io.jdbd.mysql.protocol.conf.PropertyKey;
 import io.jdbd.mysql.type.City;
 import io.jdbd.mysql.type.TrueOrFalse;
 import io.jdbd.mysql.util.MySQLStreamUtils;
+import io.jdbd.result.MultiResults;
+import io.jdbd.result.ResultRow;
 import io.jdbd.result.ResultRowMeta;
+import io.jdbd.result.ResultStates;
 import io.jdbd.vendor.JdbdCompositeException;
 import io.jdbd.vendor.conf.Properties;
 import org.slf4j.Logger;
@@ -39,7 +39,7 @@ public class DataPrepareSuiteTests extends AbstractConnectionBasedSuiteTests {
     private static final Logger LOG = LoggerFactory.getLogger(ComQueryTaskSuiteTests.class);
 
 
-    @AfterSuite
+    @AfterSuite(timeOut = 10 * 1000)
     public static void afterSuite(ITestContext context) {
         LOG.info("\n MySQL feature suite test end.\n");
         LOG.info("close {}", ClientConnectionProtocol.class.getName());
@@ -50,12 +50,13 @@ public class DataPrepareSuiteTests extends AbstractConnectionBasedSuiteTests {
                     .then(QuitTask.quit(adjutant))
                     .block();
         }
-
+        LOG.info("start release connection.");
         Flux.fromIterable(TASK_ADJUTANT_QUEUE)
                 .flatMap(QuitTask::quit)
                 .then()
                 .block();
 
+        LOG.info("release connection complete.");
         TASK_ADJUTANT_QUEUE.clear();
 
     }
@@ -88,6 +89,7 @@ public class DataPrepareSuiteTests extends AbstractConnectionBasedSuiteTests {
         doPrepareData(adjutant);
 
         LOG.info("create mysql_types table success");
+        releaseConnection(adjutant);
     }
 
     @Test(dependsOnMethods = "prepareData")

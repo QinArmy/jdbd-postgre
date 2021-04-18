@@ -1,13 +1,13 @@
 package io.jdbd.mysql.protocol.client;
 
-import io.jdbd.MultiResults;
-import io.jdbd.ResultRow;
 import io.jdbd.mysql.Groups;
 import io.jdbd.mysql.SQLMode;
 import io.jdbd.mysql.Server;
 import io.jdbd.mysql.protocol.conf.PropertyKey;
 import io.jdbd.mysql.session.MySQLSessionAdjutant;
 import io.jdbd.mysql.util.MySQLTimeUtils;
+import io.jdbd.result.MultiResults;
+import io.jdbd.result.ResultRow;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterClass;

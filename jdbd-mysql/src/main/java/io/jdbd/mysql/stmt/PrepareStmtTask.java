@@ -1,7 +1,7 @@
-package io.jdbd.mysql.protocol.client;
+package io.jdbd.mysql.stmt;
 
-import io.jdbd.ResultRow;
-import io.jdbd.ResultStates;
+import io.jdbd.result.ResultRow;
+import io.jdbd.result.ResultStates;
 import io.jdbd.vendor.stmt.BatchWrapper;
 import io.jdbd.vendor.stmt.ParamValue;
 import io.jdbd.vendor.stmt.ParamWrapper;
@@ -15,5 +15,7 @@ public interface PrepareStmtTask {
     Flux<ResultRow> executeQuery(ParamWrapper wrapper);
 
     Flux<ResultStates> executeBatch(BatchWrapper<? extends ParamValue> wrapper);
+
+    int getWarnings();
 
 }

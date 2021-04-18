@@ -1,5 +1,7 @@
 package io.jdbd.meta;
 
+import io.jdbd.result.ResultRow;
+
 import java.sql.JDBCType;
 
 /**
@@ -17,7 +19,7 @@ public interface SQLType extends java.sql.SQLType {
     JDBCType jdbcType();
 
     /**
-     * @see io.jdbd.ResultRow#get(String)
+     * @see ResultRow#get(String)
      */
     Class<?> javaType();
 

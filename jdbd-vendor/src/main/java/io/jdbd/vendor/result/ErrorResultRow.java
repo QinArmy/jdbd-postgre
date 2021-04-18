@@ -1,9 +1,9 @@
 package io.jdbd.vendor.result;
 
 import io.jdbd.JdbdSQLException;
-import io.jdbd.ResultRow;
-import io.jdbd.UnsupportedConvertingException;
+import io.jdbd.result.ResultRow;
 import io.jdbd.result.ResultRowMeta;
+import io.jdbd.result.UnsupportedConvertingException;
 
 import java.util.List;
 import java.util.Set;

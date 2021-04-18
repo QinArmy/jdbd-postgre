@@ -24,29 +24,29 @@ public enum PropertyKey implements IPropertyKey {
      */
     //below Authentication Group
     /** The database user name. */
-    USER("user", null, null, String.class, false),
+    user(String.class, false),
     /** The database user password. */
-    PASSWORD("password", null, null, String.class, false),
+    password(String.class, false),
 
     //below  Group
     /** The hostname value from the properties instance passed to the driver. */
-    HOST("host", null, null, String.class, false),
+    host(String.class, false),
     /** The port number value from the properties instance passed to the driver. */
-    PORT("port", null, null, Integer.class, false),
+    port(Integer.class, false),
 
     /** The communications protocol. Possible values: "tcp" and "pipe". */
-    PROTOCOL(String.class, false),
+    protocol(String.class, false),
     /** The name pipes path to use when "protocol=pipe'. */
-    PATH("namedPipePath", String.class, false),
+    path("namedPipePath", String.class, false),
     /** The server type in a replication setup. Possible values: "master" and "slave". */
-    TYPE(String.class, false),
+    type(String.class, false),
     /** The address value ("host:port") from the properties instance passed to the driver. */
-    ADDRESS(String.class, false),
+    address(String.class, false),
 
     /** The host priority in a list of hosts. */
-    PRIORITY(String.class, false),
+    priority(String.class, false),
     /** The database value from the properties instance passed to the driver. */
-    DBNAME("dbname", null, null, String.class, false), //
+    dbname(String.class, false), //
 
     // blow Connection Group
     connectionAttributes(String.class), //
