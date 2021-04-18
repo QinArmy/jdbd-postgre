@@ -17,10 +17,9 @@ import io.jdbd.mysql.util.MySQLExceptions;
 import io.jdbd.mysql.util.MySQLStringUtils;
 import io.jdbd.vendor.conf.HostInfo;
 import io.jdbd.vendor.conf.Properties;
-import io.jdbd.vendor.task.AbstractCommunicationTask;
+import io.jdbd.vendor.task.CommunicationTask;
 import io.jdbd.vendor.task.ConnectionTask;
 import io.jdbd.vendor.task.SslWrapper;
-import io.jdbd.vendor.task.TaskSignal;
 import io.jdbd.vendor.util.SQLStates;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
@@ -47,15 +46,18 @@ import java.util.function.Consumer;
 /**
  * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_connection_phase.html">Connection Phase</a>
  */
-final class MySQLConnectionTask extends AbstractCommunicationTask implements AuthenticateAssistant
-        , ConnectionTask, MySQLTask {
+final class MySQLConnectionTask extends CommunicationTask implements AuthenticateAssistant
+        , ConnectionTask {
 
     static Mono<AuthenticateResult> authenticate(MySQLTaskAdjutant adjutant) {
-        return Mono.create(sink ->
-                new MySQLConnectionTask(adjutant, sink)
-                        .submit(sink::error)
-
-        );
+        return Mono.create(sink -> {
+            try {
+                MySQLConnectionTask task = new MySQLConnectionTask(adjutant, sink);
+                task.submit(sink::error);
+            } catch (Throwable e) {
+                sink.error(MySQLExceptions.wrap(e));
+            }
+        });
     }
 
     private static final Logger LOG = LoggerFactory.getLogger(MySQLConnectionTask.class);
@@ -170,7 +172,7 @@ final class MySQLConnectionTask extends AbstractCommunicationTask implements Aut
 
     @Nullable
     @Override
-    protected Publisher<ByteBuf> internalStart(final TaskSignal signal) {
+    protected Publisher<ByteBuf> internalStart() {
         if (this.phase == null) {
             //may be load plugin occur error.
             this.phase = Phase.RECEIVE_HANDSHAKE;
@@ -680,15 +682,10 @@ final class MySQLConnectionTask extends AbstractCommunicationTask implements Aut
     private Map<String, AuthenticationPlugin> loadAuthenticationPluginMap() {
         Map<String, Class<? extends AuthenticationPlugin>> pluginClassMap = this.adjutant.obtainPluginMechanismMap();
         Map<String, AuthenticationPlugin> map = new HashMap<>((int) (pluginClassMap.size() / 0.75F));
-        try {
-            for (Map.Entry<String, Class<? extends AuthenticationPlugin>> e : pluginClassMap.entrySet()) {
-                map.put(e.getKey(), loadPlugin(e.getValue(), this));
-            }
-            map = MySQLCollections.unmodifiableMap(map);
-        } catch (Throwable e) {
-            handleAuthenticateFailure(MySQLExceptions.wrap(e));
-            map = Collections.emptyMap();
+        for (Map.Entry<String, Class<? extends AuthenticationPlugin>> e : pluginClassMap.entrySet()) {
+            map.put(e.getKey(), loadPlugin(e.getValue(), this));
         }
+        map = MySQLCollections.unmodifiableMap(map);
         return map;
     }
 

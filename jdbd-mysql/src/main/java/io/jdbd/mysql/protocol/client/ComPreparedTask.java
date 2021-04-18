@@ -31,7 +31,7 @@ import java.util.function.Supplier;
  * <p>  code navigation :
  *     <ol>
  *         <li>decode entrance method : {@link #internalDecode(ByteBuf, Consumer)}</li>
- *         <li>send COM_STMT_PREPARE : {@link #internalStart(TaskSignal)} </li>
+ *         <li>send COM_STMT_PREPARE : {@link #internalStart()} </li>
  *         <li>read COM_STMT_PREPARE Response : {@link #readPrepareResponse(ByteBuf)}
  *              <ol>
  *                  <li>read parameter meta : {@link #readPrepareParameterMeta(ByteBuf, Consumer)}</li>
@@ -257,8 +257,7 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
      * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_com_stmt_prepare.html">Protocol::COM_STMT_PREPARE</a>
      */
     @Override
-    protected Publisher<ByteBuf> internalStart(TaskSignal signal) {
-        this.taskSignal = Objects.requireNonNull(signal, "signal");
+    protected Publisher<ByteBuf> internalStart() {
 
         final Publisher<ByteBuf> publisher;
         publisher = Objects.requireNonNull(this.packetPublisher, "(this.packetPublisher");
@@ -268,9 +267,6 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
     }
 
 
-    /**
-     * @see #decode(ByteBuf, Consumer)
-     */
     @Override
     protected boolean internalDecode(final ByteBuf cumulateBuffer, final Consumer<Object> serverStatusConsumer) {
         if (!PacketUtils.hasOnePacket(cumulateBuffer)) {
@@ -388,7 +384,7 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
                 addError(MySQLExceptions.wrap(e));
                 this.downstreamSink.error(createException());
                 this.packetPublisher = Mono.just(createCloseStatementPacket());
-                action = Action.MORE_SEND_PACKET;
+                action = Action.MORE_SEND_AND_END;
             }
 
         }
@@ -846,7 +842,6 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
                     String.format("%s isn't %s.", downstreamSink, DownstreamAdapter.class.getSimpleName())));
         } else {
 
-            final TaskSignal taskSignal = Objects.requireNonNull(this.taskSignal, "this.taskSignal");
             try {
 
                 ((DownstreamAdapter) downstreamSink).setDownstreamSink(supplier.get());
@@ -869,15 +864,9 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
                 }
             }
 
-            if (this.phase == Phase.CLOSE_STMT) {
-                taskSignal.sendEndPacket(this)
-                        .doOnError(errorConsumer)
-                        .subscribe();
-            } else {
-                taskSignal.sendPacket(this)
-                        .doOnError(errorConsumer)
-                        .subscribe();
-            }
+            this.sendPacketSignal(this.phase == Phase.CLOSE_STMT)
+                    .doOnError(errorConsumer)
+                    .subscribe();
 
         }
 

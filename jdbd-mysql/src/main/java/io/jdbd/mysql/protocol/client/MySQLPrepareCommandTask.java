@@ -4,7 +4,6 @@ import io.jdbd.JdbdSQLException;
 import io.jdbd.mysql.protocol.conf.PropertyKey;
 import io.jdbd.mysql.util.MySQLExceptions;
 import io.jdbd.vendor.conf.Properties;
-import io.jdbd.vendor.task.AbstractCommunicationTask;
 import io.netty.buffer.ByteBuf;
 
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
@@ -13,7 +12,7 @@ import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
  * @see ComPreparedTask
  * @see MySQLCommandTask
  */
-abstract class MySQLPrepareCommandTask extends AbstractCommunicationTask implements MySQLTask {
+abstract class MySQLPrepareCommandTask extends MySQLCommandTask {
 
     private static final AtomicIntegerFieldUpdater<MySQLPrepareCommandTask> SEQUENCE_ID =
             AtomicIntegerFieldUpdater.newUpdater(MySQLPrepareCommandTask.class, "sequenceId");
@@ -34,7 +33,7 @@ abstract class MySQLPrepareCommandTask extends AbstractCommunicationTask impleme
     }
 
 
-    public final int updateSequenceId(final int sequenceId) {
+    public final int safelyUpdateSequenceId(final int sequenceId) {
         final int newSequenceId;
         if (sequenceId < 0) {
             newSequenceId = -1;
@@ -45,12 +44,12 @@ abstract class MySQLPrepareCommandTask extends AbstractCommunicationTask impleme
         return newSequenceId;
     }
 
-    public final int obtainSequenceId() {
+    public final int safelyObtainSequenceId() {
         return SEQUENCE_ID.get(this);
     }
 
 
-    public final int addAndGetSequenceId() {
+    public final int safelyAddAndGetSequenceId() {
         return SEQUENCE_ID.updateAndGet(this, operand -> (++operand) & 0XFF);
     }
 

@@ -10,6 +10,7 @@ import io.jdbd.mysql.syntax.DefaultMySQLParser;
 import io.jdbd.mysql.syntax.MySQLParser;
 import io.jdbd.mysql.syntax.MySQLStatement;
 import io.jdbd.vendor.conf.HostInfo;
+import io.jdbd.vendor.task.CommunicationTask;
 import io.jdbd.vendor.task.CommunicationTaskExecutor;
 import io.netty.buffer.ByteBuf;
 import org.slf4j.Logger;
@@ -139,10 +140,12 @@ final class MySQLTaskExecutor extends CommunicationTaskExecutor<MySQLTaskAdjutan
     }
 
     @Override
-    protected boolean clearChannel(ByteBuf cumulateBuffer, int packetIndex) {
+    protected boolean clearChannel(ByteBuf cumulateBuffer, int packetIndex
+            , Class<? extends CommunicationTask> taskClass) {
         //TODO zoro complement this method.
         return true;
     }
+
 
     /*################################## blow private method ##################################*/
 

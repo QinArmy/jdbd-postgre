@@ -5,16 +5,23 @@ import io.netty.buffer.ByteBuf;
 
 import java.util.function.Consumer;
 
-public interface ConnectionTask extends CommunicationTask {
+public interface ConnectionTask {
 
+    /**
+     * <p>
+     * this method invoke before {@link CommunicationTask#start(TaskSignal)}.
+     * </p>
+     *
+     * @param sslConsumer function ,implementation can add ssl by this function.
+     */
     void addSsl(Consumer<SslWrapper> sslConsumer);
 
     /**
      * <p>
      * This will invoke :
      *     <ul>
-     *         <li>before {@link #start(TaskSignal)}</li>
-     *         <li>after {@link #decode(ByteBuf, Consumer)},if return value is {@code true}</li>
+     *         <li>after {@link CommunicationTask#decode(ByteBuf, Consumer)},if return value is {@code true}</li>
+     *         <li>after send packet failure</li>
      *     </ul>
      * </p>
      *

@@ -7,6 +7,7 @@ import io.jdbd.ResultRow;
 import io.jdbd.ResultStates;
 import io.jdbd.mysql.stmt.BatchBindWrapper;
 import io.jdbd.mysql.stmt.BindableWrapper;
+import io.jdbd.vendor.stmt.StmtWrapper;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -29,7 +30,7 @@ public interface ClientCommandProtocol extends ClientProtocol {
 
     Flux<ResultStates> bindableBatch(BatchBindWrapper wrapper);
 
-    Mono<PreparedStatement> prepare(String sql);
+    Mono<PreparedStatement> prepare(StmtWrapper wrapper);
 
     MultiResults multiStmt(List<String> commandList);
 

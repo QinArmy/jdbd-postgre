@@ -4,7 +4,7 @@ import io.jdbd.JdbdSQLException;
 import io.jdbd.mysql.protocol.conf.PropertyKey;
 import io.jdbd.mysql.util.MySQLExceptions;
 import io.jdbd.vendor.conf.Properties;
-import io.jdbd.vendor.task.AbstractCommunicationTask;
+import io.jdbd.vendor.task.CommunicationTask;
 import io.netty.buffer.ByteBuf;
 
 /**
@@ -15,7 +15,7 @@ import io.netty.buffer.ByteBuf;
  * @see MySQLPrepareCommandTask
  * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_command_phase.html">Command Phase</a>
  */
-abstract class MySQLCommandTask extends AbstractCommunicationTask implements MySQLTask {
+abstract class MySQLCommandTask extends CommunicationTask {
 
     final MySQLTaskAdjutant adjutant;
 

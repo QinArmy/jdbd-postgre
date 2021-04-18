@@ -9,6 +9,7 @@ import io.jdbd.mysql.session.MySQLSessionAdjutant;
 import io.jdbd.mysql.stmt.BatchBindWrapper;
 import io.jdbd.mysql.stmt.BindableWrapper;
 import io.jdbd.vendor.conf.HostInfo;
+import io.jdbd.vendor.stmt.StmtWrapper;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -80,8 +81,8 @@ public final class ClientCommandProtocolImpl implements ClientCommandProtocol {
     }
 
     @Override
-    public final Mono<PreparedStatement> prepare(String sql) {
-        return ComPreparedTask.prepare(sql, this.taskExecutor.getAdjutant());
+    public final Mono<PreparedStatement> prepare(StmtWrapper wrapper) {
+        return ComPreparedTask.prepare(wrapper, this.taskExecutor.getAdjutant());
     }
 
     @Override

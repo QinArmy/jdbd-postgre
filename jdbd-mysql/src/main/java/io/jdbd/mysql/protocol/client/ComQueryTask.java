@@ -424,7 +424,7 @@ final class ComQueryTask extends MySQLCommandTask {
     /*################################## blow package template method ##################################*/
 
     @Override
-    protected Publisher<ByteBuf> internalStart(TaskSignal signal) {
+    protected Publisher<ByteBuf> internalStart() {
         final Publisher<ByteBuf> publisher;
         if (this.mode == Mode.TEMP_MULTI) {
             this.phase = Phase.READ_MULTI_STMT_ENABLE_RESULT;
