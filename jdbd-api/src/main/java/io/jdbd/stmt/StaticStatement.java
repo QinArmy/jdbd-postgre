@@ -14,7 +14,7 @@ import java.util.function.Consumer;
  * This interface is reactive version of {@link java.sql.Statement}
  * </p>
  */
-public interface StaticStatement extends Statement, ReusableStatement {
+public interface StaticStatement extends Statement {
 
 
     /**
@@ -67,8 +67,7 @@ public interface StaticStatement extends Statement, ReusableStatement {
 
     MultiResult executeMulti(String sql);
 
-
-    Publisher<MultiResult> executeBatchMulti(List<String> sqlList);
+    MultiResult executeBatchMulti(String sql);
 
 
 }

@@ -20,11 +20,15 @@ public interface MultiResultSink {
 
     /**
      * @throws IllegalStateException when <ul>
-     *     <li>{@link MultiResultSink} is terminated</li>
-     *     <li>current result is query result and not complete.</li>
-     * </ul>
+     *                               <li>{@link MultiResultSink} is terminated</li>
+     *                               <li>current result is query result and not complete.</li>
+     *                               </ul>
      */
     QuerySink nextQuery() throws IllegalStateException;
 
+    /**
+     * @throws IllegalStateException emit ,when last {@link ResultStates#hasMoreResults()}  of update or query return true.
+     */
+    void complete();
 
 }

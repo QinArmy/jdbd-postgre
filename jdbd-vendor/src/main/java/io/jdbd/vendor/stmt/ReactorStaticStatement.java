@@ -1,6 +1,5 @@
 package io.jdbd.vendor.stmt;
 
-import io.jdbd.result.MultiResult;
 import io.jdbd.result.ResultRow;
 import io.jdbd.result.ResultStates;
 import io.jdbd.stmt.StaticStatement;
@@ -21,7 +20,6 @@ import java.util.function.Consumer;
  *         <li>{@link #executeQuery(String)}</li>
  *         <li>{@link #executeQuery(String, Consumer)}</li>
  *         <li>{@link #executeMulti(String)}</li>
- *         <li>{@link #executeBatchMulti(List)}</li>
  *     </ul>
  * </p>
  */
@@ -42,8 +40,7 @@ public interface ReactorStaticStatement extends StaticStatement {
     @Override
     ReactorMultiResult executeMulti(String sql);
 
+
     @Override
-    Flux<MultiResult> executeBatchMulti(List<String> sqlList);
-
-
+    ReactorMultiResult executeBatchMulti(String sql);
 }

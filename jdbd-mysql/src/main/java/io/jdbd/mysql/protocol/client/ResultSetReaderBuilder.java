@@ -70,15 +70,13 @@ final class ResultSetReaderBuilder {
         return this;
     }
 
-    public <T extends ResultSetReader> ResultSetReader build(Class<T> typeClass) {
-        ResultSetReader reader;
+    @SuppressWarnings("unchecked")
+    public <T extends ResultSetReader> T build(Class<T> typeClass) {
+        final T reader;
         if (typeClass == TextResultSetReader.class) {
-            reader = new TextResultSetReader(this);
+            reader = (T) new TextResultSetReader(this);
         } else if (typeClass == BinaryResultSetReader.class) {
-            if (this.resettable) {
-                throw new IllegalArgumentException(String.format("%s can't reset.", typeClass.getName()));
-            }
-            reader = new BinaryResultSetReader(this);
+            reader = (T) new BinaryResultSetReader(this);
         } else {
             throw new IllegalArgumentException(String.format("Unknown type[%s]", typeClass.getName()));
         }

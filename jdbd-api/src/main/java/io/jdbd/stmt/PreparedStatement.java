@@ -51,7 +51,7 @@ public interface PreparedStatement extends BindableSingleStatement, BindableMult
     @Override
     MultiResult executeMulti();
 
-    Publisher<MultiResult> executeBatchMulti();
+    MultiResult executeBatchMulti();
 
     void setFetchSize(int fetchSize);
 

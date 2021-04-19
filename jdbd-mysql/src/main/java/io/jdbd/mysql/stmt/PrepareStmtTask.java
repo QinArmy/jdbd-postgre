@@ -17,7 +17,9 @@ public interface PrepareStmtTask {
 
     Flux<ResultStates> executeBatch(BatchWrapper<? extends ParamValue> wrapper);
 
-    ReactorMultiResult execute(ParamWrapper wrapper);
+    ReactorMultiResult executeMulti(ParamWrapper wrapper);
+
+    ReactorMultiResult executeBatchMulti(BatchWrapper<? extends ParamValue> wrapper);
 
     int getWarnings();
 

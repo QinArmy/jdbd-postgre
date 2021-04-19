@@ -31,9 +31,6 @@ final class BinaryResultSetReader extends AbstractResultSetReader {
 
     BinaryResultSetReader(ResultSetReaderBuilder builder) {
         super(builder);
-        if (builder.resettable) {
-            throw new IllegalArgumentException(String.format("%s can't reset.", this.getClass().getName()));
-        }
     }
 
 
@@ -48,10 +45,6 @@ final class BinaryResultSetReader extends AbstractResultSetReader {
         return LOG;
     }
 
-    @Override
-    final boolean isResettable() {
-        return true;
-    }
 
     /**
      * @see #readResultRows(ByteBuf, Consumer)

@@ -1,6 +1,5 @@
 package io.jdbd.vendor.stmt;
 
-import io.jdbd.result.MultiResult;
 import io.jdbd.result.ResultRow;
 import io.jdbd.result.ResultStates;
 import io.jdbd.stmt.PreparedStatement;
@@ -42,7 +41,7 @@ public interface ReactorPreparedStatement extends PreparedStatement {
     ReactorMultiResult executeMulti();
 
     @Override
-    Flux<MultiResult> executeBatchMulti();
+    ReactorMultiResult executeBatchMulti();
 
 
 }

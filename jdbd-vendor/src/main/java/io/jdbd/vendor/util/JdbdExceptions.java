@@ -22,7 +22,7 @@ public abstract class JdbdExceptions extends ExceptionUtils {
         } else if (e instanceof SQLException) {
             je = new JdbdSQLException((SQLException) e);
         } else {
-            je = new JdbdUnknownException(e, "Unknown error,%s", e.getMessage());
+            je = new JdbdUnknownException(String.format("Unknown error,%s", e.getMessage()), e);
         }
         return je;
     }
@@ -40,7 +40,7 @@ public abstract class JdbdExceptions extends ExceptionUtils {
         } else if (e instanceof SQLException) {
             je = new JdbdSQLException((SQLException) e, message);
         } else {
-            je = new JdbdUnknownException(e, message);
+            je = new JdbdUnknownException(message, e);
         }
         return je;
     }

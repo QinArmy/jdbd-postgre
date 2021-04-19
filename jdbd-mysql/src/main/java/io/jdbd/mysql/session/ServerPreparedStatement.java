@@ -1,7 +1,6 @@
 package io.jdbd.mysql.session;
 
 import io.jdbd.mysql.stmt.PrepareStmtTask;
-import io.jdbd.result.MultiResult;
 import io.jdbd.result.ResultRow;
 import io.jdbd.result.ResultStates;
 import io.jdbd.stmt.PreparedStatement;
@@ -55,7 +54,7 @@ public final class ServerPreparedStatement implements ReactorPreparedStatement {
     }
 
     @Override
-    public Flux<MultiResult> executeBatchMulti() {
+    public ReactorMultiResult executeBatchMulti() {
         return null;
     }
 

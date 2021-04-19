@@ -14,10 +14,14 @@ public abstract class JdbdException extends RuntimeException {
         super(message);
     }
 
+
     JdbdException(String message, @Nullable Throwable cause) {
         super(message, cause);
     }
 
+    JdbdException(@Nullable Throwable cause, String message) {
+        super(message, cause);
+    }
 
     JdbdException(String message, @Nullable Throwable cause
             , boolean enableSuppression, boolean writableStackTrace) {
@@ -25,10 +29,6 @@ public abstract class JdbdException extends RuntimeException {
     }
 
 
-    JdbdException(@Nullable Throwable cause, String messageFormat, Object... args) {
-        super(createMessage(messageFormat, args), cause);
-
-    }
 
 
 

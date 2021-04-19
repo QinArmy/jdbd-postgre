@@ -1012,7 +1012,7 @@ final class ComQueryTask extends MySQLCommandTask {
 
     private ResultSetReader createResettableDirtyResultReader() {
         return ResultSetReaderBuilder.builder()
-                .rowSink(createDirtyRowSink())
+                .rowSink(createSkipRowSink())
                 .adjutant(ComQueryTask.this.adjutant)
                 .sequenceIdUpdater(ComQueryTask.this::updateSequenceId)
 
@@ -1021,7 +1021,7 @@ final class ComQueryTask extends MySQLCommandTask {
                 .build(TextResultSetReader.class);
     }
 
-    private ResultRowSink createDirtyRowSink() {
+    private ResultRowSink createSkipRowSink() {
         return new ResultRowSink() {
             @Override
             public void next(ResultRow resultRow) {

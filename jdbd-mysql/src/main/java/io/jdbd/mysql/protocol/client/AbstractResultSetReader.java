@@ -39,6 +39,8 @@ abstract class AbstractResultSetReader implements ResultSetReader {
 
     private final Consumer<Integer> sequenceIdUpdater;
 
+    private final boolean resettable;
+
     final Properties<PropertyKey> properties;
 
     MySQLRowMeta rowMeta;
@@ -62,6 +64,7 @@ abstract class AbstractResultSetReader implements ResultSetReader {
 
         this.sequenceIdUpdater = Objects.requireNonNull(builder.sequenceIdUpdater, "builder.sequenceIdUpdater");
         this.properties = adjutant.obtainHostInfo().getProperties();
+        this.resettable = builder.resettable;
     }
 
     @Override
@@ -121,11 +124,12 @@ abstract class AbstractResultSetReader implements ResultSetReader {
     }
 
 
-
+    public final boolean isResettable() {
+        return this.resettable;
+    }
 
     /*################################## blow packet template method ##################################*/
 
-    abstract boolean isResettable();
 
     /**
      * @return true: read result set meta end.

@@ -109,6 +109,8 @@ final class MultiResultCreate implements MultiResultSink {
      */
     private int resultSequenceId = 1;
 
+    private boolean complete;
+
     private MultiResultCreate(TaskAdjutant adjutant, Consumer<MultiResultSink> subscribeConsumer) {
         this.adjutant = adjutant;
         this.subscribeConsumer = subscribeConsumer;
@@ -135,7 +137,7 @@ final class MultiResultCreate implements MultiResultSink {
 
 
     @Override
-    public void nextUpdate(final ResultStates resultStates) throws IllegalStateException {
+    public final void nextUpdate(final ResultStates resultStates) throws IllegalStateException {
         if (isTerminated()) {
             // upstream bug
             throw new IllegalStateException("MultiResults is terminated,reject update result,upstream bug.");
@@ -174,7 +176,7 @@ final class MultiResultCreate implements MultiResultSink {
     }
 
     @Override
-    public QuerySink nextQuery() throws IllegalStateException {
+    public final QuerySink nextQuery() throws IllegalStateException {
         if (isTerminated()) {
             // upstream bug
             throw new IllegalStateException("MultiResults is terminated,reject query result,upstream bug.");
@@ -203,6 +205,10 @@ final class MultiResultCreate implements MultiResultSink {
         return querySink;
     }
 
+    @Override
+    public final void complete() {
+        this.complete = true;
+    }
 
 
     /*################################## blow private method ##################################*/
@@ -230,7 +236,7 @@ final class MultiResultCreate implements MultiResultSink {
     }
 
     private boolean isTerminated() {
-        return this.upstreamError != null || isMultiResultEnd();
+        return this.upstreamError != null || this.complete;
     }
 
     private void addBufferDownstreamSink(BufferDownstreamSink bufferSink) {

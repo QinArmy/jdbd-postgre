@@ -9,7 +9,7 @@ import org.reactivestreams.Publisher;
 import java.sql.JDBCType;
 import java.util.function.Consumer;
 
-public interface BindableStatement extends BindableSingleStatement, BindableMultiResultStatement, ReusableStatement {
+public interface BindableStatement extends BindableSingleStatement, BindableMultiResultStatement {
 
 
     boolean supportLongData();
@@ -64,8 +64,6 @@ public interface BindableStatement extends BindableSingleStatement, BindableMult
     @Override
     MultiResult executeMulti();
 
-
-    Publisher<MultiResult> executeBatchMulti();
-
+    MultiResult executeBatchMulti();
 
 }
