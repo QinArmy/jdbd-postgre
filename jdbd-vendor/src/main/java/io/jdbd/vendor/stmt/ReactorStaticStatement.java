@@ -1,7 +1,8 @@
 package io.jdbd.vendor.stmt;
 
 import io.jdbd.result.ResultRow;
-import io.jdbd.result.ResultStates;
+import io.jdbd.result.ResultStatus;
+import io.jdbd.result.SingleResult;
 import io.jdbd.stmt.StaticStatement;
 import io.jdbd.vendor.result.ReactorMultiResult;
 import reactor.core.publisher.Flux;
@@ -19,28 +20,28 @@ import java.util.function.Consumer;
  *         <li>{@link #executeUpdate(String)}</li>
  *         <li>{@link #executeQuery(String)}</li>
  *         <li>{@link #executeQuery(String, Consumer)}</li>
- *         <li>{@link #executeMulti(String)}</li>
+ *         <li>{@link #executeAsMulti(List)}</li>
+ *         <li>{@link #executeAsFlux(List)}</li>
  *     </ul>
  * </p>
  */
 public interface ReactorStaticStatement extends StaticStatement {
 
     @Override
-    Flux<ResultStates> executeBatch(List<String> sqlList);
+    Flux<ResultStatus> executeBatch(List<String> sqlList);
 
     @Override
-    Mono<ResultStates> executeUpdate(String sql);
+    Mono<ResultStatus> executeUpdate(String sql);
 
     @Override
     Flux<ResultRow> executeQuery(String sql);
 
     @Override
-    Flux<ResultRow> executeQuery(String sql, Consumer<ResultStates> statesConsumer);
+    Flux<ResultRow> executeQuery(String sql, Consumer<ResultStatus> statesConsumer);
 
     @Override
-    ReactorMultiResult executeMulti(String sql);
-
+    ReactorMultiResult executeAsMulti(List<String> sqlList);
 
     @Override
-    ReactorMultiResult executeBatchMulti(String sql);
+    Flux<SingleResult> executeAsFlux(List<String> sqlList);
 }

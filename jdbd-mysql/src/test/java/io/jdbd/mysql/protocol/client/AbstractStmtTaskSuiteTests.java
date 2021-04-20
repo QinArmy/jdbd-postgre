@@ -7,13 +7,13 @@ import io.jdbd.mysql.SQLMode;
 import io.jdbd.mysql.protocol.conf.PropertyKey;
 import io.jdbd.mysql.session.MySQLSessionAdjutant;
 import io.jdbd.mysql.stmt.BindValue;
-import io.jdbd.mysql.stmt.BindableWrapper;
+import io.jdbd.mysql.stmt.BindableStmt;
 import io.jdbd.mysql.stmt.StmtWrappers;
 import io.jdbd.mysql.type.City;
 import io.jdbd.mysql.type.TrueOrFalse;
 import io.jdbd.mysql.util.*;
 import io.jdbd.result.ResultRow;
-import io.jdbd.result.ResultStates;
+import io.jdbd.result.ResultStatus;
 import io.jdbd.vendor.util.Geometries;
 import org.slf4j.Logger;
 import reactor.core.publisher.Flux;
@@ -37,9 +37,9 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBased
         this.subType = subType;
     }
 
-    abstract Mono<ResultStates> executeUpdate(BindableWrapper wrapper, MySQLTaskAdjutant taskAdjutant);
+    abstract Mono<ResultStatus> executeUpdate(BindableStmt wrapper, MySQLTaskAdjutant taskAdjutant);
 
-    abstract Flux<ResultRow> executeQuery(BindableWrapper wrapper, MySQLTaskAdjutant taskAdjutant);
+    abstract Flux<ResultRow> executeQuery(BindableStmt wrapper, MySQLTaskAdjutant taskAdjutant);
 
     abstract Logger obtainLogger();
 
@@ -1820,12 +1820,12 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBased
         bindValue = BindValue.create(1, MySQLType.BIGINT, id);
         bindValueList.add(bindValue);
 
-        ResultStates resultStates;
-        resultStates = executeUpdate(StmtWrappers.multi(sql, bindValueList), taskAdjutant)
+        ResultStatus resultStatus;
+        resultStatus = executeUpdate(StmtWrappers.multi(sql, bindValueList), taskAdjutant)
                 .block();
 
-        assertNotNull(resultStates, "resultStates");
-        assertEquals(resultStates.getAffectedRows(), 1L, "getAffectedRows");
+        assertNotNull(resultStatus, "resultStates");
+        assertEquals(resultStatus.getAffectedRows(), 1L, "getAffectedRows");
     }
 
     private ResultRow querySingleField(final MySQLTaskAdjutant taskAdjutant, final String field, final Object id) {

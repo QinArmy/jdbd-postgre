@@ -3,7 +3,8 @@ package io.jdbd.stmt;
 import io.jdbd.JdbdSQLException;
 import io.jdbd.result.MultiResult;
 import io.jdbd.result.ResultRow;
-import io.jdbd.result.ResultStates;
+import io.jdbd.result.ResultStatus;
+import io.jdbd.result.SingleResult;
 import org.reactivestreams.Publisher;
 
 import java.util.List;
@@ -11,19 +12,18 @@ import java.util.function.Consumer;
 
 /**
  * <p>
- * This interface is reactive version of {@link java.sql.Statement}
+ * This interface is reactive version of {@code java.sql.Statement}
  * </p>
  */
 public interface StaticStatement extends Statement {
 
-
-    /**
-     * @return always false.
-     */
     @Override
     boolean supportLongData();
 
-    Publisher<ResultStates> executeBatch(List<String> sqlList);
+    @Override
+    boolean supportOutParameter();
+
+    Publisher<ResultStatus> executeBatch(List<String> sqlList);
 
 
     /**
@@ -42,7 +42,7 @@ public interface StaticStatement extends Statement {
      * or (2) 0 for SQL statements that return nothing
      * @see java.sql.PreparedStatement#executeUpdate()
      */
-    Publisher<ResultStates> executeUpdate(String sql);
+    Publisher<ResultStatus> executeUpdate(String sql);
 
     /**
      * @see #executeQuery(String, Consumer)
@@ -60,14 +60,15 @@ public interface StaticStatement extends Statement {
      * this method is called on a closed  <code>PreparedStatement</code> or the SQL
      * statement does not return a <code>ResultSet</code> object
      * </p>
-     * @see java.sql.PreparedStatement#executeQuery()
      */
-    Publisher<ResultRow> executeQuery(String sql, Consumer<ResultStates> statesConsumer);
+    Publisher<ResultRow> executeQuery(String sql, Consumer<ResultStatus> statesConsumer);
 
 
-    MultiResult executeMulti(String sql);
+    MultiResult executeAsMulti(List<String> sqlList);
 
-    MultiResult executeBatchMulti(String sql);
+    Publisher<SingleResult> executeAsFlux(List<String> sqlList);
+
+    boolean setExecuteTimeout(int seconds);
 
 
 }

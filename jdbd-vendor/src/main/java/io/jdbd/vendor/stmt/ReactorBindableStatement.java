@@ -1,7 +1,8 @@
 package io.jdbd.vendor.stmt;
 
 import io.jdbd.result.ResultRow;
-import io.jdbd.result.ResultStates;
+import io.jdbd.result.ResultStatus;
+import io.jdbd.result.SingleResult;
 import io.jdbd.stmt.BindableStatement;
 import io.jdbd.vendor.result.ReactorMultiResult;
 import reactor.core.publisher.Flux;
@@ -17,29 +18,29 @@ import java.util.function.Consumer;
  *         <li>{@link #executeUpdate()}</li>
  *         <li>{@link #executeQuery()}</li>
  *         <li>{@link #executeQuery(Consumer)}</li>
- *         <li>{@link #executeMulti()}</li>
- *         <li>{@link #executeBatchMulti()}</li>
+ *         <li>{@link #executeAsMulti()}</li>
+ *         <li>{@link #executeAsFlux()}</li>
  *     </ul>
  * </p>
  */
 public interface ReactorBindableStatement extends BindableStatement {
 
     @Override
-    Flux<ResultStates> executeBatch();
+    Flux<ResultStatus> executeBatch();
 
     @Override
-    Mono<ResultStates> executeUpdate();
+    Mono<ResultStatus> executeUpdate();
 
     @Override
     Flux<ResultRow> executeQuery();
 
     @Override
-    Flux<ResultRow> executeQuery(Consumer<ResultStates> statesConsumer);
+    Flux<ResultRow> executeQuery(Consumer<ResultStatus> statesConsumer);
 
     @Override
-    ReactorMultiResult executeMulti();
+    ReactorMultiResult executeAsMulti();
 
     @Override
-    ReactorMultiResult executeBatchMulti();
+    Flux<SingleResult> executeAsFlux();
 
 }

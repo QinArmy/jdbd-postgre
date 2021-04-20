@@ -4,17 +4,17 @@ package io.jdbd.mysql.protocol.client;
 import io.jdbd.JdbdSQLException;
 import io.jdbd.mysql.Groups;
 import io.jdbd.mysql.MySQLType;
-import io.jdbd.mysql.stmt.BatchBindWrapper;
+import io.jdbd.mysql.stmt.BatchBindStmt;
 import io.jdbd.mysql.stmt.BindValue;
-import io.jdbd.mysql.stmt.BindableWrapper;
+import io.jdbd.mysql.stmt.BindableStmt;
 import io.jdbd.mysql.stmt.StmtWrappers;
 import io.jdbd.mysql.util.MySQLCodes;
 import io.jdbd.mysql.util.MySQLStates;
 import io.jdbd.result.MultiResult;
 import io.jdbd.result.ResultRow;
-import io.jdbd.result.ResultStates;
-import io.jdbd.stmt.ErrorSubscribeException;
+import io.jdbd.result.ResultStatus;
 import io.jdbd.stmt.ResultType;
+import io.jdbd.stmt.SubscribeException;
 import io.jdbd.vendor.JdbdCompositeException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -45,12 +45,12 @@ public class ComQueryTaskSuiteTests extends AbstractStmtTaskSuiteTests {
     }
 
     @Override
-    Mono<ResultStates> executeUpdate(BindableWrapper wrapper, MySQLTaskAdjutant taskAdjutant) {
+    Mono<ResultStatus> executeUpdate(BindableStmt wrapper, MySQLTaskAdjutant taskAdjutant) {
         return ComQueryTask.bindableUpdate(wrapper, taskAdjutant);
     }
 
     @Override
-    Flux<ResultRow> executeQuery(BindableWrapper wrapper, MySQLTaskAdjutant taskAdjutant) {
+    Flux<ResultRow> executeQuery(BindableStmt wrapper, MySQLTaskAdjutant taskAdjutant) {
         return ComQueryTask.bindableQuery(wrapper, taskAdjutant);
     }
 
@@ -69,15 +69,15 @@ public class ComQueryTaskSuiteTests extends AbstractStmtTaskSuiteTests {
 
         final String newName = "simonyi4";
         String sql = "UPDATE mysql_types as u SET u.name = '%s' WHERE u.id = 1";
-        ResultStates resultStates = ComQueryTask.update(String.format(sql, newName), adjutant)
+        ResultStatus resultStatus = ComQueryTask.update(String.format(sql, newName), adjutant)
                 .block();
 
-        assertNotNull(resultStates, "resultStates");
-        assertEquals(resultStates.getAffectedRows(), 1L, "affectedRows");
-        assertEquals(resultStates.getInsertId(), 0L, "insertedId");
-        assertEquals(resultStates.getWarnings(), 0, "warnings");
+        assertNotNull(resultStatus, "resultStates");
+        assertEquals(resultStatus.getAffectedRows(), 1L, "affectedRows");
+        assertEquals(resultStatus.getInsertId(), 0L, "insertedId");
+        assertEquals(resultStatus.getWarnings(), 0, "warnings");
 
-        assertFalse(resultStates.hasMoreResults(), "hasMoreResult");
+        assertFalse(resultStatus.hasMoreResults(), "hasMoreResult");
 
 
         releaseConnection(adjutant);
@@ -94,21 +94,21 @@ public class ComQueryTaskSuiteTests extends AbstractStmtTaskSuiteTests {
         LOG.info("query test start");
         final MySQLTaskAdjutant adjutant = obtainTaskAdjutant();
         String sql;
-        AtomicReference<ResultStates> resultStatesHolder = new AtomicReference<>(null);
+        AtomicReference<ResultStatus> resultStatesHolder = new AtomicReference<>(null);
 
         sql = "SELECT t.id,t.name,t.create_time as createTime FROM mysql_types as t ORDER BY t.id LIMIT 50";
         List<ResultRow> resultRowList = ComQueryTask.query(sql, resultStatesHolder::set, adjutant)
                 .collectList()
                 .block();
 
-        final ResultStates resultStates = resultStatesHolder.get();
+        final ResultStatus resultStatus = resultStatesHolder.get();
 
-        assertNotNull(resultStates, "resultStates");
+        assertNotNull(resultStatus, "resultStates");
 
-        assertEquals(resultStates.getAffectedRows(), 0L, "getAffectedRows");
-        assertEquals(resultStates.getWarnings(), 0, "getWarnings");
-        assertEquals(resultStates.getInsertId(), 0L, "getInsertId");
-        assertFalse(resultStates.hasMoreResults(), "hasMoreResults");
+        assertEquals(resultStatus.getAffectedRows(), 0L, "getAffectedRows");
+        assertEquals(resultStatus.getWarnings(), 0, "getWarnings");
+        assertEquals(resultStatus.getInsertId(), 0L, "getInsertId");
+        assertFalse(resultStatus.hasMoreResults(), "hasMoreResults");
 
 
         assertNotNull(resultRowList, "resultRowList");
@@ -131,15 +131,15 @@ public class ComQueryTaskSuiteTests extends AbstractStmtTaskSuiteTests {
         final MySQLTaskAdjutant adjutant = obtainTaskAdjutant();
         String sql = "DELETE FROM mysql_types WHERE mysql_types.id = 1";
 
-        ResultStates resultStates = ComQueryTask.update(sql, adjutant)
+        ResultStatus resultStatus = ComQueryTask.update(sql, adjutant)
                 .block();
 
-        assertNotNull(resultStates, "resultStates");
-        assertEquals(resultStates.getAffectedRows(), 1L, "affectedRows");
-        assertEquals(resultStates.getInsertId(), 0L, "inserted");
-        assertEquals(resultStates.getWarnings(), 0, "warnings");
+        assertNotNull(resultStatus, "resultStates");
+        assertEquals(resultStatus.getAffectedRows(), 1L, "affectedRows");
+        assertEquals(resultStatus.getInsertId(), 0L, "inserted");
+        assertEquals(resultStatus.getWarnings(), 0, "warnings");
 
-        assertFalse(resultStates.hasMoreResults(), "hasMoreResults");
+        assertFalse(resultStatus.hasMoreResults(), "hasMoreResults");
 
         sql = "SELECT u.id,u.name FROM mysql_types as u WHERE u.id = 1";
 
@@ -167,7 +167,7 @@ public class ComQueryTaskSuiteTests extends AbstractStmtTaskSuiteTests {
             ComQueryTask.update(sql, adjutant)
                     .block();
             fail("updateIsQuery test failure.");
-        } catch (ErrorSubscribeException e) {
+        } catch (SubscribeException e) {
             assertEquals(e.getSubscribeType(), ResultType.UPDATE, "getSubscribeType");
             assertEquals(e.getActualType(), ResultType.QUERY, "getActualType");
         } catch (Throwable e) {
@@ -178,7 +178,7 @@ public class ComQueryTaskSuiteTests extends AbstractStmtTaskSuiteTests {
     }
 
     /**
-     * @see ComQueryTask#bindableUpdate(BindableWrapper, MySQLTaskAdjutant)
+     * @see ComQueryTask#bindableUpdate(BindableStmt, MySQLTaskAdjutant)
      */
     @Test(timeOut = TIME_OUT)
     public void bindableUpdateIsQuery() {
@@ -190,7 +190,7 @@ public class ComQueryTaskSuiteTests extends AbstractStmtTaskSuiteTests {
             ComQueryTask.bindableUpdate(StmtWrappers.single(sql, BindValue.create(0, MySQLType.BIGINT, 50L)), adjutant)
                     .block();
             fail("bindableUpdateIsQuery test failure.");
-        } catch (ErrorSubscribeException e) {
+        } catch (SubscribeException e) {
             assertEquals(e.getSubscribeType(), ResultType.UPDATE, "getSubscribeType");
             assertEquals(e.getActualType(), ResultType.QUERY, "getActualType");
         } catch (Throwable e) {
@@ -217,7 +217,7 @@ public class ComQueryTaskSuiteTests extends AbstractStmtTaskSuiteTests {
                     })
                     .then()
                     .block();
-        } catch (ErrorSubscribeException e) {
+        } catch (SubscribeException e) {
             assertEquals(e.getSubscribeType(), ResultType.QUERY, "getSubscribeType");
             assertEquals(e.getActualType(), ResultType.UPDATE, "getActualType");
         } catch (Throwable e) {
@@ -244,16 +244,15 @@ public class ComQueryTaskSuiteTests extends AbstractStmtTaskSuiteTests {
         sql = "UPDATE mysql_types as t SET t.my_long_text = 'batch update 2' WHERE t.id = 32";
         sqlList.add(sql);
 
-        List<ResultStates> resultStatesList;
-
-        resultStatesList = ComQueryTask.batchUpdate(Collections.unmodifiableList(sqlList), adjutant)
+        List<ResultStatus> resultStatusList;
+        resultStatusList = ComQueryTask.batchUpdate(StmtWrappers.stmts(sqlList, 0), adjutant)
                 .collectList()
                 .block();
 
-        assertNotNull(resultStatesList, "resultStatesList");
-        assertEquals(resultStatesList.size(), 3, "resultStatesList");
+        assertNotNull(resultStatusList, "resultStatesList");
+        assertEquals(resultStatusList.size(), 3, "resultStatesList");
 
-        for (ResultStates states : resultStatesList) {
+        for (ResultStatus states : resultStatusList) {
             assertEquals(states.getAffectedRows(), 1L, "getAffectedRows");
         }
 
@@ -283,16 +282,16 @@ public class ComQueryTaskSuiteTests extends AbstractStmtTaskSuiteTests {
         sql = "UPDATE mysql_types as t SET t.my_long_text = 'batch update 4' WHERE t.id = 34";
         sqlList.add(sql);
 
-        List<ResultStates> resultStatesList;
+        List<ResultStatus> resultStatusList;
 
-        resultStatesList = ComQueryTask.batchUpdate(Collections.unmodifiableList(sqlList), adjutant)
+        resultStatusList = ComQueryTask.batchUpdate(StmtWrappers.stmts(sqlList, 0), adjutant)
                 .collectList()
                 .block();
 
-        assertNotNull(resultStatesList, "resultStatesList");
-        assertEquals(resultStatesList.size(), sqlList.size(), "resultStatesList");
+        assertNotNull(resultStatusList, "resultStatesList");
+        assertEquals(resultStatusList.size(), sqlList.size(), "resultStatesList");
 
-        for (ResultStates states : resultStatesList) {
+        for (ResultStatus states : resultStatusList) {
             assertEquals(states.getAffectedRows(), 1L, "getAffectedRows");
         }
 
@@ -324,7 +323,7 @@ public class ComQueryTaskSuiteTests extends AbstractStmtTaskSuiteTests {
         sqlList.add(sql);
 
         try {
-            ComQueryTask.batchUpdate(Collections.unmodifiableList(sqlList), adjutant)
+            ComQueryTask.batchUpdate(StmtWrappers.stmts(sqlList, 0), adjutant)
                     .switchIfEmpty(Mono.defer(() -> Mono.error(new RuntimeException("update results is empty"))))
                     .index()
                     .map(tuple2 -> {
@@ -339,7 +338,7 @@ public class ComQueryTaskSuiteTests extends AbstractStmtTaskSuiteTests {
                     .block();
 
             fail("batchUpdateContainQueryWithSingleStmtMode test failure.");
-        } catch (ErrorSubscribeException e) {
+        } catch (SubscribeException e) {
             assertEquals(e.getSubscribeType(), ResultType.BATCH_UPDATE, "getSubscribeType");
             assertEquals(e.getActualType(), ResultType.QUERY, "getActualType");
         } catch (Throwable e) {
@@ -355,7 +354,7 @@ public class ComQueryTaskSuiteTests extends AbstractStmtTaskSuiteTests {
         sql = "UPDATE mysql_types as t SET t.my_long_text = 'batch update 1' WHERE t.id = 31";
         sqlList.add(sql);
         try {
-            ComQueryTask.batchUpdate(Collections.unmodifiableList(sqlList), adjutant)
+            ComQueryTask.batchUpdate(StmtWrappers.stmts(sqlList), adjutant)
                     .map(states -> {
                         fail("batchUpdateContainQueryWithSingleStmtMode has update result,test failure.");
                         return states;
@@ -364,7 +363,7 @@ public class ComQueryTaskSuiteTests extends AbstractStmtTaskSuiteTests {
                     .block();
 
             fail("batchUpdateContainQueryWithSingleStmtMode test failure.");
-        } catch (ErrorSubscribeException e) {
+        } catch (SubscribeException e) {
             assertEquals(e.getSubscribeType(), ResultType.BATCH_UPDATE, "getSubscribeType");
             assertEquals(e.getActualType(), ResultType.QUERY, "getActualType");
         } catch (Throwable e) {
@@ -399,7 +398,7 @@ public class ComQueryTaskSuiteTests extends AbstractStmtTaskSuiteTests {
         sqlList.add(sql);
 
         try {
-            ComQueryTask.batchUpdate(Collections.unmodifiableList(sqlList), adjutant)
+            ComQueryTask.batchUpdate(StmtWrappers.stmts(sqlList, 0), adjutant)
                     .switchIfEmpty(Mono.defer(() -> Mono.error(new RuntimeException("update results is empty"))))
                     .index()
                     .map(tuple2 -> {
@@ -429,7 +428,7 @@ public class ComQueryTaskSuiteTests extends AbstractStmtTaskSuiteTests {
         sql = "UPDATE mysql_types as t SET t.my_long_text = 'batch update 2' WHERE t.id = 32";
         sqlList.add(sql);
         try {
-            ComQueryTask.batchUpdate(Collections.unmodifiableList(sqlList), adjutant)
+            ComQueryTask.batchUpdate(StmtWrappers.stmts(sqlList), adjutant)
                     .map(states -> {
                         fail("batchUpdateSyntaxWithSingleStmtMode has update result,test failure.");
                         return states;
@@ -475,7 +474,7 @@ public class ComQueryTaskSuiteTests extends AbstractStmtTaskSuiteTests {
         sqlList.add(sql);
 
         try {
-            ComQueryTask.batchUpdate(Collections.unmodifiableList(sqlList), adjutant)
+            ComQueryTask.batchUpdate(StmtWrappers.stmts(sqlList, 0), adjutant)
                     .switchIfEmpty(Mono.defer(() -> Mono.error(new RuntimeException("update results is empty"))))
                     .index()
                     .map(tuple2 -> {
@@ -490,7 +489,7 @@ public class ComQueryTaskSuiteTests extends AbstractStmtTaskSuiteTests {
                     .block();
 
             fail("batchUpdateContainQueryWithTempMultiMode test failure.");
-        } catch (ErrorSubscribeException e) {
+        } catch (SubscribeException e) {
             assertEquals(e.getSubscribeType(), ResultType.BATCH_UPDATE, "getSubscribeType");
             assertEquals(e.getActualType(), ResultType.QUERY, "getActualType");
         } catch (Throwable e) {
@@ -513,7 +512,7 @@ public class ComQueryTaskSuiteTests extends AbstractStmtTaskSuiteTests {
         sql = "UPDATE mysql_types as t SET t.my_long_text = 'batch update 2' WHERE t.id = 32";
         sqlList.add(sql);
         try {
-            ComQueryTask.batchUpdate(Collections.unmodifiableList(sqlList), adjutant)
+            ComQueryTask.batchUpdate(StmtWrappers.stmts(sqlList), adjutant)
                     .map(states -> {
                         fail("batchUpdateContainQueryWithTempMultiMode has update result,test failure.");
                         return states;
@@ -522,7 +521,7 @@ public class ComQueryTaskSuiteTests extends AbstractStmtTaskSuiteTests {
                     .block();
 
             fail("batchUpdateContainQueryWithTempMultiMode test failure.");
-        } catch (ErrorSubscribeException e) {
+        } catch (SubscribeException e) {
             assertEquals(e.getSubscribeType(), ResultType.BATCH_UPDATE, "getSubscribeType");
             assertEquals(e.getActualType(), ResultType.QUERY, "getActualType");
         } catch (Throwable e) {
@@ -565,7 +564,7 @@ public class ComQueryTaskSuiteTests extends AbstractStmtTaskSuiteTests {
         sqlList.add(sql);
 
         try {
-            ComQueryTask.batchUpdate(Collections.unmodifiableList(sqlList), adjutant)
+            ComQueryTask.batchUpdate(StmtWrappers.stmts(sqlList), adjutant)
                     .map(states -> {
                         fail("batchUpdateSyntaxWithTempMultiMode don't recognize error statement.");
                         return states;
@@ -596,7 +595,7 @@ public class ComQueryTaskSuiteTests extends AbstractStmtTaskSuiteTests {
         sql = "UPDATE mysql_types as t SET t.my_long_text = 'batch update 3' WHERE t.id = 33";
         sqlList.add(sql);
         try {
-            ComQueryTask.batchUpdate(Collections.unmodifiableList(sqlList), adjutant)
+            ComQueryTask.batchUpdate(StmtWrappers.stmts(sqlList), adjutant)
                     .map(states -> {
                         fail("batchUpdateSyntaxWithSingleStmtMode has update result,test failure.");
                         return states;
@@ -617,7 +616,7 @@ public class ComQueryTaskSuiteTests extends AbstractStmtTaskSuiteTests {
 
 
     /**
-     * @see ComQueryTask#bindableBatch(BatchBindWrapper, MySQLTaskAdjutant)
+     * @see ComQueryTask#bindableBatch(BatchBindStmt, MySQLTaskAdjutant)
      */
     @Test(timeOut = TIME_OUT)
     public void bindableBatchWithSingleStmtMode() {
@@ -643,15 +642,15 @@ public class ComQueryTaskSuiteTests extends AbstractStmtTaskSuiteTests {
         paramGroup.add(BindValue.create(1, MySQLType.BIGINT, 36L));
         groupList.add(paramGroup);
 
-        final List<ResultStates> resultStatesList;
-        resultStatesList = ComQueryTask.bindableBatch(StmtWrappers.batchBind(sql, groupList), adjutant)
+        final List<ResultStatus> resultStatusList;
+        resultStatusList = ComQueryTask.bindableBatch(StmtWrappers.batchBind(sql, groupList), adjutant)
                 .collectList()
                 .block();
 
-        assertNotNull(resultStatesList, "resultStatesList");
-        assertEquals(resultStatesList.size(), groupList.size(), "resultStatesList");
+        assertNotNull(resultStatusList, "resultStatesList");
+        assertEquals(resultStatusList.size(), groupList.size(), "resultStatesList");
 
-        for (ResultStates states : resultStatesList) {
+        for (ResultStatus states : resultStatusList) {
             assertEquals(states.getAffectedRows(), 1L, "getAffectedRows");
         }
 
@@ -660,7 +659,7 @@ public class ComQueryTaskSuiteTests extends AbstractStmtTaskSuiteTests {
     }
 
     /**
-     * @see ComQueryTask#bindableBatch(BatchBindWrapper, MySQLTaskAdjutant)
+     * @see ComQueryTask#bindableBatch(BatchBindStmt, MySQLTaskAdjutant)
      */
     @Test(timeOut = TIME_OUT)
     public void bindableBatchWithTempMultiMode() {
@@ -692,15 +691,15 @@ public class ComQueryTaskSuiteTests extends AbstractStmtTaskSuiteTests {
         paramGroup.add(BindValue.create(1, MySQLType.BIGINT, 37L));
         groupList.add(paramGroup);
 
-        final List<ResultStates> resultStatesList;
-        resultStatesList = ComQueryTask.bindableBatch(StmtWrappers.batchBind(sql, groupList), adjutant)
+        final List<ResultStatus> resultStatusList;
+        resultStatusList = ComQueryTask.bindableBatch(StmtWrappers.batchBind(sql, groupList), adjutant)
                 .collectList()
                 .block();
 
-        assertNotNull(resultStatesList, "resultStatesList");
-        assertEquals(resultStatesList.size(), groupList.size(), "resultStatesList");
+        assertNotNull(resultStatusList, "resultStatesList");
+        assertEquals(resultStatusList.size(), groupList.size(), "resultStatesList");
 
-        for (ResultStates states : resultStatesList) {
+        for (ResultStatus states : resultStatusList) {
             assertEquals(states.getAffectedRows(), 1L, "getAffectedRows");
         }
 
@@ -713,7 +712,7 @@ public class ComQueryTaskSuiteTests extends AbstractStmtTaskSuiteTests {
      * test error use case.
      * </p>
      *
-     * @see ComQueryTask#bindableBatch(BatchBindWrapper, MySQLTaskAdjutant)
+     * @see ComQueryTask#bindableBatch(BatchBindStmt, MySQLTaskAdjutant)
      */
     @Test(timeOut = TIME_OUT)
     public void bindableBatchIsQueryWithSingleStmtMode() {
@@ -737,7 +736,7 @@ public class ComQueryTaskSuiteTests extends AbstractStmtTaskSuiteTests {
                     .block();
 
             fail("bindableBatchIsQueryWithSingleStmtMode test failure.");
-        } catch (ErrorSubscribeException e) {
+        } catch (SubscribeException e) {
             assertEquals(e.getSubscribeType(), ResultType.BATCH_UPDATE, "getSubscribeType");
             assertEquals(e.getActualType(), ResultType.QUERY, "getActualType");
         } catch (Throwable e) {
@@ -757,7 +756,7 @@ public class ComQueryTaskSuiteTests extends AbstractStmtTaskSuiteTests {
      * test error use case.
      * </p>
      *
-     * @see ComQueryTask#bindableBatch(BatchBindWrapper, MySQLTaskAdjutant)
+     * @see ComQueryTask#bindableBatch(BatchBindStmt, MySQLTaskAdjutant)
      */
     @Test(timeOut = TIME_OUT)
     public void bindableBatchIsQueryWithTempMultiMode() {
@@ -783,7 +782,7 @@ public class ComQueryTaskSuiteTests extends AbstractStmtTaskSuiteTests {
                     .block();
 
             fail("bindableBatchIsQueryWithTempMultiMode test failure.");
-        } catch (ErrorSubscribeException e) {
+        } catch (SubscribeException e) {
             assertEquals(e.getSubscribeType(), ResultType.BATCH_UPDATE, "getSubscribeType");
             assertEquals(e.getActualType(), ResultType.QUERY, "getActualType");
         } catch (Throwable e) {
@@ -803,7 +802,7 @@ public class ComQueryTaskSuiteTests extends AbstractStmtTaskSuiteTests {
      * test error use case.
      * </p>
      *
-     * @see ComQueryTask#bindableBatch(BatchBindWrapper, MySQLTaskAdjutant)
+     * @see ComQueryTask#bindableBatch(BatchBindStmt, MySQLTaskAdjutant)
      */
     @Test(timeOut = TIME_OUT)
     public void bindableBatchSyntaxWithSingleStmtMode() {
@@ -846,7 +845,7 @@ public class ComQueryTaskSuiteTests extends AbstractStmtTaskSuiteTests {
      * test error use case.
      * </p>
      *
-     * @see ComQueryTask#bindableBatch(BatchBindWrapper, MySQLTaskAdjutant)
+     * @see ComQueryTask#bindableBatch(BatchBindStmt, MySQLTaskAdjutant)
      */
     @Test(timeOut = TIME_OUT)
     public void bindableBatchSyntaxWithTempMultiMode() {
@@ -889,7 +888,7 @@ public class ComQueryTaskSuiteTests extends AbstractStmtTaskSuiteTests {
 
     /**
      * @see ComQueryTask#update(String, MySQLTaskAdjutant)
-     * @see ComQueryTask#bindableUpdate(BindableWrapper, MySQLTaskAdjutant)
+     * @see ComQueryTask#bindableUpdate(BindableStmt, MySQLTaskAdjutant)
      */
     @Test(timeOut = TIME_OUT)
     public void localInFile() {

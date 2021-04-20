@@ -4,6 +4,7 @@ import io.jdbd.TransactionOption;
 import io.jdbd.TxDatabaseSession;
 import io.jdbd.mysql.protocol.client.ClientCommandProtocol;
 import io.jdbd.stmt.BindableStatement;
+import org.reactivestreams.Publisher;
 import reactor.core.publisher.Mono;
 
 class MySQLSession extends AbstractStatelessSession implements TxDatabaseSession {
@@ -33,6 +34,10 @@ class MySQLSession extends AbstractStatelessSession implements TxDatabaseSession
         return null;
     }
 
+    @Override
+    public Publisher<TransactionOption> getTransactionOption() {
+        return null;
+    }
 
     @Override
     public BindableStatement bindable(String sql) {

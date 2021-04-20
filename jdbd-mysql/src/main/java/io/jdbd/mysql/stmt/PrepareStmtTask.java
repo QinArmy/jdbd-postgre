@@ -1,25 +1,25 @@
 package io.jdbd.mysql.stmt;
 
 import io.jdbd.result.ResultRow;
-import io.jdbd.result.ResultStates;
+import io.jdbd.result.ResultStatus;
 import io.jdbd.vendor.result.ReactorMultiResult;
-import io.jdbd.vendor.stmt.BatchWrapper;
+import io.jdbd.vendor.stmt.BatchStmt;
+import io.jdbd.vendor.stmt.ParamStmt;
 import io.jdbd.vendor.stmt.ParamValue;
-import io.jdbd.vendor.stmt.ParamWrapper;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 public interface PrepareStmtTask {
 
-    Mono<ResultStates> executeUpdate(ParamWrapper wrapper);
+    Mono<ResultStatus> executeUpdate(ParamStmt wrapper);
 
-    Flux<ResultRow> executeQuery(ParamWrapper wrapper);
+    Flux<ResultRow> executeQuery(ParamStmt wrapper);
 
-    Flux<ResultStates> executeBatch(BatchWrapper<? extends ParamValue> wrapper);
+    Flux<ResultStatus> executeBatch(BatchStmt<? extends ParamValue> wrapper);
 
-    ReactorMultiResult executeMulti(ParamWrapper wrapper);
+    ReactorMultiResult executeMulti(ParamStmt wrapper);
 
-    ReactorMultiResult executeBatchMulti(BatchWrapper<? extends ParamValue> wrapper);
+    ReactorMultiResult executeBatchMulti(BatchStmt<? extends ParamValue> wrapper);
 
     int getWarnings();
 

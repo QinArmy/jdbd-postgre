@@ -1,7 +1,6 @@
 package io.jdbd.mysql;
 
 import io.jdbd.DatabaseSession;
-import io.jdbd.TransactionOption;
 import io.jdbd.meta.DatabaseMetaData;
 import io.jdbd.result.MultiResult;
 import io.jdbd.stmt.BindableStatement;
@@ -24,10 +23,6 @@ abstract class AbstractStatelessSession implements DatabaseSession {
         return null;
     }
 
-    @Override
-    public Mono<TransactionOption> getTransactionOption() {
-        return null;
-    }
 
     @Override
     public StaticStatement statement() {

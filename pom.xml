@@ -142,6 +142,30 @@
                 <scope>test</scope>
             </dependency>
             <dependency>
+                <groupId>com.microsoft.sqlserver</groupId>
+                <artifactId>mssql-jdbc</artifactId>
+                <version>9.2.1.jre15</version>
+                <scope>test</scope>
+            </dependency>
+            <dependency>
+                <groupId>org.mariadb.jdbc</groupId>
+                <artifactId>mariadb-java-client</artifactId>
+                <version>2.7.2</version>
+                <scope>test</scope>
+            </dependency>
+            <dependency>
+                <groupId>com.oracle.database.jdbc</groupId>
+                <artifactId>ojdbc8</artifactId>
+                <version>21.1.0.0</version>
+                <scope>test</scope>
+            </dependency>
+            <dependency>
+                <groupId>com.h2database</groupId>
+                <artifactId>h2</artifactId>
+                <version>1.4.200</version>
+                <scope>test</scope>
+            </dependency>
+            <dependency>
                 <groupId>io.r2dbc</groupId>
                 <artifactId>r2dbc-postgresql</artifactId>
                 <version>${r2dbc-postgresql.version}</version>

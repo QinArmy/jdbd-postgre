@@ -3,20 +3,22 @@ package io.jdbd.mysql.protocol.client;
 import io.jdbd.*;
 import io.jdbd.mysql.MySQLJdbdException;
 import io.jdbd.mysql.protocol.conf.PropertyKey;
+import io.jdbd.mysql.session.MySQLDatabaseSession;
 import io.jdbd.mysql.session.ServerPreparedStatement;
-import io.jdbd.mysql.stmt.BatchBindWrapper;
-import io.jdbd.mysql.stmt.BindableWrapper;
+import io.jdbd.mysql.stmt.BatchBindStmt;
+import io.jdbd.mysql.stmt.BindableStmt;
 import io.jdbd.mysql.stmt.PrepareStmtTask;
 import io.jdbd.mysql.util.MySQLCollections;
 import io.jdbd.mysql.util.MySQLExceptions;
 import io.jdbd.result.ResultRow;
-import io.jdbd.result.ResultStates;
+import io.jdbd.result.ResultStatus;
+import io.jdbd.result.SingleResult;
 import io.jdbd.stmt.*;
 import io.jdbd.vendor.JdbdCompositeException;
 import io.jdbd.vendor.result.*;
-import io.jdbd.vendor.stmt.BatchWrapper;
+import io.jdbd.vendor.stmt.BatchStmt;
+import io.jdbd.vendor.stmt.ParamStmt;
 import io.jdbd.vendor.stmt.ParamValue;
-import io.jdbd.vendor.stmt.ParamWrapper;
 import io.jdbd.vendor.stmt.StmtWrapper;
 import io.jdbd.vendor.task.TaskAdjutant;
 import io.netty.buffer.ByteBuf;
@@ -27,7 +29,6 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.FluxSink;
 import reactor.core.publisher.Mono;
 import reactor.core.publisher.MonoSink;
-import reactor.util.annotation.Nullable;
 
 import java.sql.SQLException;
 import java.util.ArrayList;
@@ -83,10 +84,10 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
      * This method is one of underlying api of {@link BindableStatement#executeUpdate()} method:
      * </p>
      *
-     * @see #ComPreparedTask(ParamWrapper, MonoSink, MySQLTaskAdjutant)
-     * @see ComQueryTask#bindableUpdate(BindableWrapper, MySQLTaskAdjutant)
+     * @see #ComPreparedTask(ParamStmt, MonoSink, MySQLTaskAdjutant)
+     * @see ComQueryTask#bindableUpdate(BindableStmt, MySQLTaskAdjutant)
      */
-    static Mono<ResultStates> update(final ParamWrapper wrapper, final MySQLTaskAdjutant adjutant) {
+    static Mono<ResultStatus> update(final ParamStmt wrapper, final MySQLTaskAdjutant adjutant) {
         return Mono.create(sink -> {
             try {
                 ComPreparedTask task = new ComPreparedTask(wrapper, sink, adjutant);
@@ -102,10 +103,10 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
      * This method is one of underlying api of {@link BindableStatement#executeQuery()} method:
      * </p>
      *
-     * @see #ComPreparedTask(ParamWrapper, FluxSink, MySQLTaskAdjutant)
-     * @see ComQueryTask#bindableQuery(BindableWrapper, MySQLTaskAdjutant)
+     * @see #ComPreparedTask(ParamStmt, FluxSink, MySQLTaskAdjutant)
+     * @see ComQueryTask#bindableQuery(BindableStmt, MySQLTaskAdjutant)
      */
-    static Flux<ResultRow> query(final ParamWrapper wrapper, final MySQLTaskAdjutant adjutant) {
+    static Flux<ResultRow> query(final ParamStmt wrapper, final MySQLTaskAdjutant adjutant) {
         return Flux.create(sink -> {
             try {
                 ComPreparedTask task = new ComPreparedTask(wrapper, sink, adjutant);
@@ -121,10 +122,10 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
      * This method is one of underlying api of {@link BindableStatement#executeBatch()} method.
      * </p>
      *
-     * @see #ComPreparedTask(FluxSink, BatchWrapper, MySQLTaskAdjutant)
-     * @see ComQueryTask#bindableBatch(BatchBindWrapper, MySQLTaskAdjutant)
+     * @see #ComPreparedTask(FluxSink, BatchStmt, MySQLTaskAdjutant)
+     * @see ComQueryTask#bindableBatch(BatchBindStmt, MySQLTaskAdjutant)
      */
-    static Flux<ResultStates> batchUpdate(final BatchWrapper<? extends ParamValue> wrapper
+    static Flux<ResultStatus> batchUpdate(final BatchStmt<? extends ParamValue> wrapper
             , final MySQLTaskAdjutant adjutant) {
         return Flux.create(sink -> {
             try {
@@ -141,16 +142,16 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
      * <p>
      * This method is one of underlying api of below methods:
      * <ul>
-     *     <li>{@link BindableStatement#executeMulti()}</li>
-     *     <li>{@link MultiStatement#executeMulti()}</li>
+     *     <li>{@link BindableStatement#executeAsMulti()}</li>
+     *     <li>{@link MultiStatement#executeAsMulti()}</li>
      * </ul>
      * </p>
      *
      * @return deferred {@link ReactorMultiResult} created by {@link JdbdMultiResults#create(TaskAdjutant, Consumer)} method.
-     * @see #ComPreparedTask(ParamWrapper, MultiResultSink, MySQLTaskAdjutant)
+     * @see #ComPreparedTask(ParamStmt, MultiResultSink, MySQLTaskAdjutant)
      * @see ComQueryTask#bindableMultiStmt(List, MySQLTaskAdjutant)
      */
-    static ReactorMultiResult multiResults(final ParamWrapper wrapper, final MySQLTaskAdjutant adjutant) {
+    static ReactorMultiResult multiResults(final ParamStmt wrapper, final MySQLTaskAdjutant adjutant) {
         return JdbdMultiResults.create(adjutant, sink -> {
             try {
                 ComPreparedTask task = new ComPreparedTask(wrapper, sink, adjutant);
@@ -166,9 +167,9 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
      * This method is one of underlying api of {@link BindableStatement#executeBatchMulti()} method.
      * </p>
      *
-     * @see #ComPreparedTask(MySQLTaskAdjutant, MultiResultSink, BatchWrapper)
+     * @see #ComPreparedTask(MySQLTaskAdjutant, MultiResultSink, BatchStmt)
      */
-    static ReactorMultiResult batchMultiResult(final BatchWrapper<? extends ParamValue> wrapper
+    static ReactorMultiResult asMulti(final BatchStmt<? extends ParamValue> wrapper
             , final MySQLTaskAdjutant adjutant) {
         return JdbdMultiResults.create(adjutant, sink -> {
             try {
@@ -178,6 +179,11 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
                 sink.error(MySQLExceptions.wrap(e));
             }
         });
+    }
+
+    static Flux<SingleResult> asFlux(final BatchStmt<? extends ParamValue> wrapper
+            , final MySQLTaskAdjutant adjutant) {
+        return Flux.empty();
     }
 
 
@@ -192,12 +198,13 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
      *
      * @see DatabaseSession#prepare(String)
      * @see DatabaseSession#prepare(String, int)
-     * @see #ComPreparedTask(MySQLTaskAdjutant, MonoSink, StmtWrapper)
+     * @see #ComPreparedTask(MySQLDatabaseSession, MySQLTaskAdjutant, MonoSink, StmtWrapper)
      */
-    static Mono<PreparedStatement> prepare(final StmtWrapper wrapper, final MySQLTaskAdjutant adjutant) {
+    static Mono<PreparedStatement> prepare(final MySQLDatabaseSession session, final StmtWrapper wrapper
+            , final MySQLTaskAdjutant adjutant) {
         return Mono.create(sink -> {
             try {
-                ComPreparedTask task = new ComPreparedTask(adjutant, sink, wrapper);
+                ComPreparedTask task = new ComPreparedTask(session, adjutant, sink, wrapper);
                 task.submit(sink::error);
             } catch (Throwable e) {
                 sink.error(MySQLExceptions.wrap(e));
@@ -226,9 +233,9 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
 
 
     /**
-     * @see #update(ParamWrapper, MySQLTaskAdjutant)
+     * @see #update(ParamStmt, MySQLTaskAdjutant)
      */
-    private ComPreparedTask(final ParamWrapper wrapper, final MonoSink<ResultStates> sink
+    private ComPreparedTask(final ParamStmt wrapper, final MonoSink<ResultStatus> sink
             , final MySQLTaskAdjutant adjutant) throws SQLException {
         super(adjutant);
 
@@ -241,9 +248,9 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
      * create a prepare statement task for query.
      * </p>
      *
-     * @see #query(ParamWrapper, MySQLTaskAdjutant)
+     * @see #query(ParamStmt, MySQLTaskAdjutant)
      */
-    private ComPreparedTask(final ParamWrapper wrapper, final FluxSink<ResultRow> sink
+    private ComPreparedTask(final ParamStmt wrapper, final FluxSink<ResultRow> sink
             , final MySQLTaskAdjutant adjutant) throws SQLException {
         super(adjutant);
         this.packetPublisher = createPrepareCommand(wrapper);
@@ -251,9 +258,9 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
     }
 
     /**
-     * @see #batchUpdate(BatchWrapper, MySQLTaskAdjutant)
+     * @see #batchUpdate(BatchStmt, MySQLTaskAdjutant)
      */
-    private ComPreparedTask(final FluxSink<ResultStates> sink, final BatchWrapper<? extends ParamValue> wrapper
+    private ComPreparedTask(final FluxSink<ResultStatus> sink, final BatchStmt<? extends ParamValue> wrapper
             , final MySQLTaskAdjutant adjutant) throws SQLException {
         super(adjutant);
         this.packetPublisher = createPrepareCommand(wrapper);
@@ -261,19 +268,20 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
     }
 
     /**
-     * @see #prepare(StmtWrapper, MySQLTaskAdjutant)
+     * @see #prepare(MySQLDatabaseSession, StmtWrapper, MySQLTaskAdjutant)
      */
-    private ComPreparedTask(final MySQLTaskAdjutant adjutant, MonoSink<PreparedStatement> sink, StmtWrapper wrapper)
+    private ComPreparedTask(final MySQLDatabaseSession session, final MySQLTaskAdjutant adjutant
+            , MonoSink<PreparedStatement> sink, StmtWrapper wrapper)
             throws SQLException {
         super(adjutant);
         this.packetPublisher = createPrepareCommand(wrapper);
-        this.downstreamSink = new DownstreamAdapter(this, sink);
+        this.downstreamSink = new DownstreamAdapter(session, this, sink);
     }
 
     /**
-     * @see #multiResults(ParamWrapper, MySQLTaskAdjutant)
+     * @see #multiResults(ParamStmt, MySQLTaskAdjutant)
      */
-    private ComPreparedTask(final ParamWrapper wrapper, MultiResultSink sink, final MySQLTaskAdjutant adjutant)
+    private ComPreparedTask(final ParamStmt wrapper, MultiResultSink sink, final MySQLTaskAdjutant adjutant)
             throws SQLException {
         super(adjutant);
         this.packetPublisher = createPrepareCommand(wrapper);
@@ -281,10 +289,10 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
     }
 
     /**
-     * @see #batchMultiResult(BatchWrapper, MySQLTaskAdjutant)
+     * @see #batchMultiResult(BatchStmt, MySQLTaskAdjutant)
      */
     private ComPreparedTask(final MySQLTaskAdjutant adjutant, final MultiResultSink sink
-            , final BatchWrapper<? extends ParamValue> wrapper) throws SQLException {
+            , final BatchStmt<? extends ParamValue> wrapper) throws SQLException {
         super(adjutant);
         this.packetPublisher = createPrepareCommand(wrapper);
         this.downstreamSink = new BatchMultiResultDownstreamSink<>(this, wrapper, sink);
@@ -317,10 +325,10 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
     /*################################## blow PrepareStmtTask method ##################################*/
 
     /**
-     * @see PrepareStmtTask#executeUpdate(ParamWrapper)
+     * @see PrepareStmtTask#executeUpdate(ParamStmt)
      */
     @Override
-    public final Mono<ResultStates> executeUpdate(final ParamWrapper wrapper) {
+    public final Mono<ResultStatus> executeUpdate(final ParamStmt wrapper) {
         return Mono.create(sink -> {
             if (this.adjutant.inEventLoop()) {
                 doPreparedUpdate(wrapper, sink);
@@ -331,10 +339,10 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
     }
 
     /**
-     * @see PrepareStmtTask#executeQuery(ParamWrapper)
+     * @see PrepareStmtTask#executeQuery(ParamStmt)
      */
     @Override
-    public final Flux<ResultRow> executeQuery(ParamWrapper wrapper) {
+    public final Flux<ResultRow> executeQuery(ParamStmt wrapper) {
         return Flux.create(sink -> {
             if (this.adjutant.inEventLoop()) {
                 doPreparedQuery(wrapper, sink);
@@ -345,10 +353,10 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
     }
 
     /**
-     * @see PrepareStmtTask#executeBatch(BatchWrapper)
+     * @see PrepareStmtTask#executeBatch(BatchStmt)
      */
     @Override
-    public final Flux<ResultStates> executeBatch(final BatchWrapper<? extends ParamValue> wrapper) {
+    public final Flux<ResultStatus> executeBatch(final BatchStmt<? extends ParamValue> wrapper) {
         return Flux.create(sink -> {
             if (this.adjutant.inEventLoop()) {
                 doPreparedBatchUpdate(wrapper, sink);
@@ -359,18 +367,18 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
     }
 
     /**
-     * @see PrepareStmtTask#executeMulti(ParamWrapper)
+     * @see PrepareStmtTask#executeMulti(ParamStmt)
      */
     @Override
-    public final ReactorMultiResult executeMulti(ParamWrapper wrapper) {
+    public final ReactorMultiResult executeMulti(ParamStmt wrapper) {
         throw new UnsupportedOperationException();
     }
 
     /**
-     * @see PrepareStmtTask#executeBatchMulti(BatchWrapper)
+     * @see PrepareStmtTask#executeBatchMulti(BatchStmt)
      */
     @Override
-    public ReactorMultiResult executeBatchMulti(BatchWrapper<? extends ParamValue> wrapper) {
+    public ReactorMultiResult executeBatchMulti(BatchStmt<? extends ParamValue> wrapper) {
         throw new UnsupportedOperationException();
     }
 
@@ -526,7 +534,7 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
     private Publisher<ByteBuf> createPrepareCommand(StmtWrapper wrapper) throws SQLException, JdbdSQLException {
         assertPhase(Phase.PREPARED);
         String sql = wrapper.getSql();
-        return PacketUtils.createSimpleCommand(PacketUtils.COM_STMT_PREPARE, sql
+        return PacketUtils.createSimpleCommand(PacketUtils.COM_STMT_PREPARE, wrapper
                 , this.adjutant, this::addAndGetSequenceId);
     }
 
@@ -546,7 +554,7 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
 
 
     /**
-     * @see UpdateDownstreamSink#nextUpdate(ResultStates)
+     * @see UpdateDownstreamSink#nextUpdate(ResultStatus)
      */
     private boolean replaceIfNeed(Function<JdbdException, JdbdException> function) {
         final List<JdbdException> errorList = this.errorList;
@@ -768,7 +776,7 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
                 OkPacket ok = OkPacket.read(cumulateBuffer.readSlice(payloadLength), this.negotiatedCapability);
                 serverStatusConsumer.accept(ok.getStatusFags());
                 // emit update result
-                taskEnd = this.downstreamSink.nextUpdate(MySQLResultStates.from(ok));
+                taskEnd = this.downstreamSink.nextUpdate(MySQLResultStatus.from(ok));
             }
             break;
             default: {
@@ -836,7 +844,7 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
             break;
             case OkPacket.OK_HEADER: {
                 OkPacket ok = OkPacket.read(cumulateBuffer.readSlice(payloadLength), this.negotiatedCapability);
-                serverStatusConsumer.accept(MySQLResultStates.from(ok));
+                serverStatusConsumer.accept(MySQLResultStatus.from(ok));
                 taskEnd = false;
             }
             break;
@@ -890,7 +898,7 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
     }
 
     /**
-     * @see BatchUpdateSink#nextUpdate(ResultStates)
+     * @see BatchUpdateSink#nextUpdate(ResultStatus)
      */
     private void sendResetCommand() {
         this.phase = Phase.RESET_STMT;
@@ -1020,31 +1028,31 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
 
 
     /**
-     * @see #executeUpdate(ParamWrapper)
+     * @see #executeUpdate(ParamStmt)
      */
-    private void doPreparedUpdate(final ParamWrapper wrapper, final MonoSink<ResultStates> sink) {
+    private void doPreparedUpdate(final ParamStmt wrapper, final MonoSink<ResultStatus> sink) {
         doPreparedExecute(sink::error, () -> new UpdateDownstreamSink(ComPreparedTask.this, wrapper, sink));
     }
 
     /**
-     * @see #executeQuery(ParamWrapper)
+     * @see #executeQuery(ParamStmt)
      */
-    private void doPreparedQuery(final ParamWrapper wrapper, final FluxSink<ResultRow> sink) {
+    private void doPreparedQuery(final ParamStmt wrapper, final FluxSink<ResultRow> sink) {
         doPreparedExecute(sink::error, () -> new QueryDownstreamSink(ComPreparedTask.this, wrapper, sink));
     }
 
     /**
-     * @see #executeBatch(BatchWrapper)
+     * @see #executeBatch(BatchStmt)
      */
-    private void doPreparedBatchUpdate(BatchWrapper<? extends ParamValue> wrapper, FluxSink<ResultStates> sink) {
+    private void doPreparedBatchUpdate(BatchStmt<? extends ParamValue> wrapper, FluxSink<ResultStatus> sink) {
         doPreparedExecute(sink::error, () -> new BatchUpdateSink<>(ComPreparedTask.this, wrapper, sink));
     }
 
 
     /**
-     * @see #doPreparedUpdate(ParamWrapper, MonoSink)
-     * @see #doPreparedQuery(ParamWrapper, FluxSink)
-     * @see #doPreparedBatchUpdate(BatchWrapper, FluxSink)
+     * @see #doPreparedUpdate(ParamStmt, MonoSink)
+     * @see #doPreparedQuery(ParamStmt, FluxSink)
+     * @see #doPreparedBatchUpdate(BatchStmt, FluxSink)
      */
     private void doPreparedExecute(final Consumer<Throwable> errorConsumer, final Supplier<DownstreamSink> supplier) {
         final DownstreamSink downstreamSink = this.downstreamSink;
@@ -1124,7 +1132,7 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
         /**
          * @return true : task end.
          */
-        boolean nextUpdate(ResultStates states);
+        boolean nextUpdate(ResultStatus states);
 
         /**
          * @return true : task end.
@@ -1155,7 +1163,7 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
 
         private BinaryResultSetReader skipResultSetReader;
 
-        private ResultStates lastResultStates;
+        private ResultStatus lastResultStatus;
 
         AbstractDownstreamSink(ComPreparedTask task) {
             this.task = task;
@@ -1170,11 +1178,11 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
                 resultSetReader = this.task.createSkipResultReader(this);
                 this.skipResultSetReader = resultSetReader;
             }
-            final ResultStates oldResultStates = this.lastResultStates;
+            final ResultStatus oldResultStatus = this.lastResultStatus;
             final boolean resultSetEnd;
             resultSetEnd = resultSetReader.read(cumulateBuffer, serverStatusConsumer);
             if (resultSetEnd) {
-                if (this.lastResultStates == oldResultStates) {
+                if (this.lastResultStatus == oldResultStatus) {
                     addResultSetReaderExceptionIfNeed(resultSetReader);
                 }
             }
@@ -1182,8 +1190,8 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
         }
 
         @Override
-        public final boolean nextUpdate(ResultStates states) {
-            this.lastResultStates = states;
+        public final boolean nextUpdate(ResultStatus states) {
+            this.lastResultStatus = states;
             return this.internalNextUpdate(states);
         }
 
@@ -1203,14 +1211,14 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
         }
 
         @Override
-        public final void accept(ResultStates resultStates) throws IllegalStateException {
-            this.lastResultStates = resultStates;
+        public final void accept(ResultStatus resultStatus) throws IllegalStateException {
+            this.lastResultStatus = resultStatus;
             if (this.skipResultSetReader == null) {
-                internalAccept(resultStates);
+                internalAccept(resultStatus);
             }
         }
 
-        void internalAccept(ResultStates resultStates) throws IllegalStateException {
+        void internalAccept(ResultStatus resultStatus) throws IllegalStateException {
             if (this instanceof QueryDownstreamSink
                     || this instanceof MultiResultDownstreamSink
                     || this instanceof BatchMultiResultDownstreamSink) {
@@ -1221,7 +1229,7 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
         /**
          * @return true: taskEnd.
          */
-        abstract boolean internalNextUpdate(ResultStates states);
+        abstract boolean internalNextUpdate(ResultStatus states);
 
         /**
          * @return true: taskEnd.
@@ -1287,7 +1295,7 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
         }
 
         final boolean lastHasMoreResult() {
-            return Objects.requireNonNull(this.lastResultStates, "this.lastResultStates")
+            return Objects.requireNonNull(this.lastResultStatus, "this.lastResultStates")
                     .hasMoreResults();
         }
 
@@ -1342,7 +1350,7 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
 
 
     /**
-     * @see ComPreparedTask#ComPreparedTask(ParamWrapper, FluxSink, MySQLTaskAdjutant)
+     * @see ComPreparedTask#ComPreparedTask(ParamStmt, FluxSink, MySQLTaskAdjutant)
      */
     private static final class QueryDownstreamSink extends AbstractDownstreamSink implements FetchAbleDownstreamSink {
 
@@ -1352,19 +1360,19 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
 
         private final FluxSink<ResultRow> sink;
 
-        private final Consumer<ResultStates> statesConsumer;
+        private final Consumer<ResultStatus> statesConsumer;
 
         private final int fetchSize;
 
         /**
          * query result status
          */
-        private ResultStates resultStates;
+        private ResultStatus resultStatus;
 
         /**
-         * @see ComPreparedTask#ComPreparedTask(ParamWrapper, FluxSink, MySQLTaskAdjutant)
+         * @see ComPreparedTask#ComPreparedTask(ParamStmt, FluxSink, MySQLTaskAdjutant)
          */
-        private QueryDownstreamSink(final ComPreparedTask task, ParamWrapper wrapper, FluxSink<ResultRow> sink) {
+        private QueryDownstreamSink(final ComPreparedTask task, ParamStmt wrapper, FluxSink<ResultRow> sink) {
             super(task);
             if (task.properties.getOrDefault(PropertyKey.useCursorFetch, Boolean.class)
                     && Capabilities.supportPsMultiResult(task.negotiatedCapability)) {
@@ -1380,7 +1388,7 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
             this.resultSetReader = this.createResultSetReader();
             this.parameterGroup = wrapper.getParamGroup();
             this.sink = sink;
-            this.statesConsumer = wrapper.getStatesConsumer();
+            this.statesConsumer = wrapper.getStatusConsumer();
         }
 
         @Override
@@ -1392,13 +1400,13 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
         @Override
         public boolean executeCommand() {
             final boolean taskEnd;
-            if (this.resultStates != null) {
+            if (this.resultStatus != null) {
                 // here bug.
                 addCommandSentExceptionIfNeed();
                 taskEnd = true;
             } else if (!this.task.hasReturnColumns()) {
-                if (!this.task.containException(ErrorSubscribeException.class)) {
-                    this.task.addError(new ErrorSubscribeException(ResultType.QUERY, ResultType.UPDATE));
+                if (!this.task.containException(SubscribeException.class)) {
+                    this.task.addError(new SubscribeException(ResultType.QUERY, ResultType.UPDATE));
                 }
                 taskEnd = true;
             } else {
@@ -1410,53 +1418,39 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
 
 
         @Override
-        boolean internalNextUpdate(final ResultStates states) {
+        boolean internalNextUpdate(final ResultStatus states) {
             // here ,sql is that call stored procedure,skip rest results.
-            if (this.task.containException(ErrorSubscribeException.class)) {
-                this.task.replaceIfNeed(this::replaceAsMultiResultError);
+            if (this.task.containException(SubscribeException.class)) {
+                this.task.replaceIfNeed(TaskUtils::replaceAsQueryMultiError);
             } else {
-                this.task.addError(new ErrorSubscribeException(ResultType.QUERY, ResultType.MULTI_RESULT));
+                this.task.addError(new SubscribeException(ResultType.QUERY, ResultType.MULTI_RESULT));
             }
             return !states.hasMoreResults();
         }
 
-        /**
-         * @see #internalNextUpdate(ResultStates)
-         */
-        @Nullable
-        private ErrorSubscribeException replaceAsMultiResultError(final JdbdException e) {
-            ErrorSubscribeException newError = null;
-            if (e instanceof ErrorSubscribeException) {
-                ErrorSubscribeException es = (ErrorSubscribeException) e;
-                if (es.getSubscribeType() != ResultType.QUERY || es.getActualType() != ResultType.MULTI_RESULT) {
-                    newError = new ErrorSubscribeException(ResultType.QUERY, ResultType.MULTI_RESULT);
-                }
-            }
-            return newError;
-        }
 
         @Override
         final boolean lastResultSetEnd() {
-            return this.resultStates != null;
+            return this.resultStatus != null;
         }
 
         @Override
         final boolean internalReadResultSet(ByteBuf cumulateBuffer, Consumer<Object> serverStatusConsumer) {
-            final ResultStates oldResultStates = this.resultStates;
+            final ResultStatus oldResultStatus = this.resultStatus;
             final boolean taskEnd;
             if (this.resultSetReader.read(cumulateBuffer, serverStatusConsumer)) {
-                final ResultStates resultStates = this.resultStates;
-                if (resultStates == oldResultStates) {
+                final ResultStatus resultStatus = this.resultStatus;
+                if (resultStatus == oldResultStatus) {
                     // here resultSetReader bug.
                     addResultSetReaderExceptionIfNeed(this.resultSetReader);
-                    taskEnd = !resultStates.hasMoreResults();
-                } else if (resultStates.hasMoreResults()) {
+                    taskEnd = !resultStatus.hasMoreResults();
+                } else if (resultStatus.hasMoreResults()) {
                     // here ,sql is that call stored procedure,skip rest results.
-                    if (!this.task.containException(ErrorSubscribeException.class)) {
-                        this.task.addError(new ErrorSubscribeException(ResultType.QUERY, ResultType.MULTI_RESULT));
+                    if (!this.task.containException(SubscribeException.class)) {
+                        this.task.addError(new SubscribeException(ResultType.QUERY, ResultType.MULTI_RESULT));
                     }
                     taskEnd = false;
-                } else if (resultStates.hasMoreFetch()) {
+                } else if (resultStatus.hasMoreFetch()) {
                     if (this.sink.isCancelled()) {
                         taskEnd = true;
                     } else {
@@ -1485,13 +1479,13 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
 
         @Override
         public final void complete() {
-            ResultStates resultStates = Objects.requireNonNull(this.resultStates, "this.resultStates");
+            ResultStatus resultStatus = Objects.requireNonNull(this.resultStatus, "this.resultStates");
             try {
-                this.statesConsumer.accept(resultStates);
+                this.statesConsumer.accept(resultStatus);
                 this.sink.complete();
             } catch (Throwable e) {
                 this.sink.error(new ResultStateConsumerException(e, "%s[%s] consumer occur error."
-                        , ResultStates.class.getName(), resultStates));
+                        , ResultStatus.class.getName(), resultStatus));
             }
         }
 
@@ -1513,37 +1507,37 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
         }
 
         /**
-         * @see ResultRowSink#accept(ResultStates)
+         * @see ResultRowSink#accept(ResultStatus)
          */
         @Override
-        final void internalAccept(final ResultStates resultStates) throws IllegalStateException {
-            if (this.resultStates != null && this.fetchSize <= 0) {
+        final void internalAccept(final ResultStatus resultStatus) throws IllegalStateException {
+            if (this.resultStatus != null && this.fetchSize <= 0) {
                 String message = String.format("%s this.resultStates duplicate.", this);
                 if (!this.task.containException(MySQLJdbdException.class)) {
                     this.task.addError(new MySQLJdbdException(message, new IllegalStateException(message)));
                 }
             }
-            this.resultStates = resultStates;
+            this.resultStatus = resultStatus;
         }
 
 
     } // QueryDownstreamSink
 
     /**
-     * @see #ComPreparedTask(ParamWrapper, MonoSink, MySQLTaskAdjutant)
+     * @see #ComPreparedTask(ParamStmt, MonoSink, MySQLTaskAdjutant)
      */
     private final static class UpdateDownstreamSink extends AbstractDownstreamSink {
 
         private final List<? extends ParamValue> parameterGroup;
 
-        private final MonoSink<ResultStates> sink;
+        private final MonoSink<ResultStatus> sink;
 
-        private ResultStates resultStates;
+        private ResultStatus resultStatus;
 
         /**
-         * @see #ComPreparedTask(ParamWrapper, MonoSink, MySQLTaskAdjutant)
+         * @see #ComPreparedTask(ParamStmt, MonoSink, MySQLTaskAdjutant)
          */
-        private UpdateDownstreamSink(final ComPreparedTask task, ParamWrapper wrapper, MonoSink<ResultStates> sink) {
+        private UpdateDownstreamSink(final ComPreparedTask task, ParamStmt wrapper, MonoSink<ResultStatus> sink) {
             super(task);
             this.parameterGroup = wrapper.getParamGroup();
             this.sink = sink;
@@ -1552,13 +1546,13 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
         @Override
         public boolean executeCommand() {
             final boolean taskEnd;
-            if (this.resultStates != null) {
+            if (this.resultStatus != null) {
                 // here bug.
                 addCommandSentExceptionIfNeed();
                 taskEnd = true;
             } else if (this.task.hasReturnColumns()) {
-                if (!this.task.containException(ErrorSubscribeException.class)) {
-                    this.task.addError(new ErrorSubscribeException(ResultType.UPDATE, ResultType.QUERY));
+                if (!this.task.containException(SubscribeException.class)) {
+                    this.task.addError(new SubscribeException(ResultType.UPDATE, ResultType.QUERY));
                 }
                 taskEnd = true;
             } else {
@@ -1569,18 +1563,18 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
         }
 
         @Override
-        boolean internalNextUpdate(final ResultStates states) {
-            if (this.resultStates == null) {
-                this.resultStates = states;
-            } else if (!this.task.containException(ErrorSubscribeException.class)) {
+        boolean internalNextUpdate(final ResultStatus states) {
+            if (this.resultStatus == null) {
+                this.resultStatus = states;
+            } else if (!this.task.containException(SubscribeException.class)) {
                 // here sql is call stored procedure
                 this.task.addError(createMultiResultException());
             }
             return !states.hasMoreResults();
         }
 
-        private ErrorSubscribeException createMultiResultException() {
-            return new ErrorSubscribeException(ResultType.UPDATE, ResultType.MULTI_RESULT);
+        private SubscribeException createMultiResultException() {
+            return new SubscribeException(ResultType.UPDATE, ResultType.MULTI_RESULT);
         }
 
         @Override
@@ -1588,7 +1582,7 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
             // here ,sql is that call stored procedure,skip rest results.
             final boolean taskEnd;
             if (this.skipResultSet(cumulateBuffer, serverStatusConsumer)) {
-                if (!this.task.containException(ErrorSubscribeException.class)) {
+                if (!this.task.containException(SubscribeException.class)) {
                     this.task.addError(this.createMultiResultException());
                 }
                 taskEnd = !this.lastHasMoreResult();
@@ -1611,14 +1605,14 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
 
         @Override
         public void complete() {
-            this.sink.success(Objects.requireNonNull(this.resultStates, "this.resultStates"));
+            this.sink.success(Objects.requireNonNull(this.resultStatus, "this.resultStates"));
         }
 
 
     } // UpdateDownstreamSink
 
     /**
-     * @see #ComPreparedTask(FluxSink, BatchWrapper, MySQLTaskAdjutant)
+     * @see #ComPreparedTask(FluxSink, BatchStmt, MySQLTaskAdjutant)
      */
     private static final class BatchUpdateSink<T extends ParamValue> extends AbstractDownstreamSink
             implements BatchDownstreamSink {
@@ -1627,18 +1621,18 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
 
         private int index = 0;
 
-        private final FluxSink<ResultStates> sink;
+        private final FluxSink<ResultStatus> sink;
 
         private final ExecuteCommandWriter commandWriter;
 
         private boolean lastHasLongData;
 
         /**
-         * @see #ComPreparedTask(FluxSink, BatchWrapper, MySQLTaskAdjutant)
+         * @see #ComPreparedTask(FluxSink, BatchStmt, MySQLTaskAdjutant)
          */
-        private BatchUpdateSink(final ComPreparedTask task, BatchWrapper<T> wrapper, FluxSink<ResultStates> sink) {
+        private BatchUpdateSink(final ComPreparedTask task, BatchStmt<T> wrapper, FluxSink<ResultStatus> sink) {
             super(task);
-            this.groupList = wrapper.getParamGroupList();
+            this.groupList = wrapper.getGroupList();
             this.sink = sink;
             this.commandWriter = new PrepareExecuteCommandWriter(task);
         }
@@ -1655,7 +1649,7 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
                 }
                 taskEnd = true;
             } else if (currentIndex == 0 && this.task.hasReturnColumns()) {
-                this.task.addError(new ErrorSubscribeException(ResultType.BATCH_UPDATE, ResultType.QUERY));
+                this.task.addError(new SubscribeException(ResultType.BATCH_UPDATE, ResultType.QUERY));
                 taskEnd = true;
             } else if (this.lastHasLongData) {
                 final String message;
@@ -1678,13 +1672,13 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
         }
 
         @Override
-        boolean internalNextUpdate(final ResultStates states) {
+        boolean internalNextUpdate(final ResultStatus states) {
             final boolean taskEnd;
             if (this.task.hasError()) {
                 // if sql is that call stored procedure,skip rest results.
                 taskEnd = !states.hasMoreResults();
             } else if (states.hasMoreResults()) {
-                if (!this.task.containException(ErrorSubscribeException.class)) {
+                if (!this.task.containException(SubscribeException.class)) {
                     this.task.addError(this.createMultiResultException());
                 }
                 taskEnd = false;
@@ -1706,8 +1700,8 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
             return taskEnd;
         }
 
-        private ErrorSubscribeException createMultiResultException() {
-            return new ErrorSubscribeException(ResultType.BATCH_UPDATE, ResultType.MULTI_RESULT);
+        private SubscribeException createMultiResultException() {
+            return new SubscribeException(ResultType.BATCH_UPDATE, ResultType.MULTI_RESULT);
         }
 
         @Override
@@ -1724,7 +1718,7 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
             //here, sql is that call stored procedure,skip rest results.
             final boolean taskEnd;
             if (this.skipResultSet(cumulateBuffer, serverStatusConsumer)) {
-                if (!this.task.containException(ErrorSubscribeException.class)) {
+                if (!this.task.containException(SubscribeException.class)) {
                     this.task.addError(this.createMultiResultException());
                 }
                 taskEnd = !this.lastHasMoreResult();
@@ -1765,7 +1759,7 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
 
 
     /**
-     * @see ComPreparedTask#ComPreparedTask(ParamWrapper, MultiResultSink, MySQLTaskAdjutant)
+     * @see ComPreparedTask#ComPreparedTask(ParamStmt, MultiResultSink, MySQLTaskAdjutant)
      */
     private final static class MultiResultDownstreamSink extends AbstractDownstreamSink {
 
@@ -1780,14 +1774,14 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
         /**
          * query result status.
          */
-        private ResultStates resultStates;
+        private ResultStatus resultStatus;
 
         private ResultSetReader resultSetReader;
 
         /**
-         * @see ComPreparedTask#ComPreparedTask(ParamWrapper, MultiResultSink, MySQLTaskAdjutant)
+         * @see ComPreparedTask#ComPreparedTask(ParamStmt, MultiResultSink, MySQLTaskAdjutant)
          */
-        private MultiResultDownstreamSink(final ComPreparedTask task, ParamWrapper wrapper, MultiResultSink sink) {
+        private MultiResultDownstreamSink(final ComPreparedTask task, ParamStmt wrapper, MultiResultSink sink) {
             super(task);
             this.paramGroup = wrapper.getParamGroup();
             this.sink = sink;
@@ -1808,7 +1802,7 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
         }
 
         @Override
-        final boolean internalNextUpdate(final ResultStates states) {
+        final boolean internalNextUpdate(final ResultStatus states) {
             if (!this.task.hasError()) {
                 this.sink.nextUpdate(states);
             }
@@ -1833,19 +1827,19 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
                 querySink = this.sink.nextQuery();
                 this.querySink = querySink;
             }
-            final ResultStates oldResultStates = this.resultStates;
+            final ResultStatus oldResultStatus = this.resultStatus;
             if (resultSetReader.read(cumulateBuffer, serverStatusConsumer)) {
-                final ResultStates resultStates = this.resultStates;
-                if (resultStates == oldResultStates) {
+                final ResultStatus resultStatus = this.resultStatus;
+                if (resultStatus == oldResultStatus) {
                     // here resultSetReader bug.
                     addResultSetReaderExceptionIfNeed(resultSetReader);
                 } else if (!this.task.hasError()) {
-                    querySink.accept(resultStates);
+                    querySink.accept(resultStatus);
                     querySink.complete();
                 }
                 this.querySink = null; // clear for next query
-                this.resultStates = null;// clear for next query
-                taskEnd = !resultStates.hasMoreResults();
+                this.resultStatus = null;// clear for next query
+                taskEnd = !resultStatus.hasMoreResults();
             } else {
                 taskEnd = false;
             }
@@ -1869,8 +1863,8 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
         }
 
         @Override
-        final void internalAccept(ResultStates resultStates) throws IllegalStateException {
-            this.resultStates = resultStates;
+        final void internalAccept(ResultStatus resultStatus) throws IllegalStateException {
+            this.resultStatus = resultStatus;
         }
 
         @Override
@@ -1913,18 +1907,18 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
         /**
          * query result status.
          */
-        private ResultStates resultStates;
+        private ResultStatus resultStatus;
 
         private ResultSetReader resultSetReader;
 
         /**
-         * @see #ComPreparedTask(MySQLTaskAdjutant, MultiResultSink, BatchWrapper)
+         * @see #ComPreparedTask(MySQLTaskAdjutant, MultiResultSink, BatchStmt)
          */
-        private BatchMultiResultDownstreamSink(final ComPreparedTask task, BatchWrapper<T> wrapper
+        private BatchMultiResultDownstreamSink(final ComPreparedTask task, BatchStmt<T> wrapper
                 , MultiResultSink sink) {
             super(task);
             this.sink = sink;
-            this.groupList = wrapper.getParamGroupList();
+            this.groupList = wrapper.getGroupList();
             this.commandWriter = new PrepareExecuteCommandWriter(task);
         }
 
@@ -1960,7 +1954,7 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
         }
 
         @Override
-        final boolean internalNextUpdate(final ResultStates states) {
+        final boolean internalNextUpdate(final ResultStatus states) {
             final boolean taskEnd;
             if (this.task.hasError()) {
                 // if sql is that call stored procedure,skip rest results.
@@ -1997,19 +1991,19 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
                 querySink = this.sink.nextQuery();
                 this.querySink = querySink;
             }
-            final ResultStates oldResultStates = this.resultStates;
+            final ResultStatus oldResultStatus = this.resultStatus;
             if (resultSetReader.read(cumulateBuffer, serverStatusConsumer)) {
-                final ResultStates resultStates = this.resultStates;
-                if (resultStates == oldResultStates) {
+                final ResultStatus resultStatus = this.resultStatus;
+                if (resultStatus == oldResultStatus) {
                     // here resultSetReader bug.
                     addResultSetReaderExceptionIfNeed(resultSetReader);
-                    taskEnd = !resultStates.hasMoreResults();
+                    taskEnd = !resultStatus.hasMoreResults();
                 } else if (this.task.hasError()) {
-                    taskEnd = !resultStates.hasMoreResults();
+                    taskEnd = !resultStatus.hasMoreResults();
                 } else {
-                    querySink.accept(resultStates);
+                    querySink.accept(resultStatus);
                     querySink.complete();
-                    if (resultStates.hasMoreResults()) {
+                    if (resultStatus.hasMoreResults()) {
                         taskEnd = false;
                     } else if (this.hasMoreGroup()) {
                         if (this.lastHasLongData) {
@@ -2023,7 +2017,7 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
                     }
                 }
                 this.querySink = null; // clear for next query
-                this.resultStates = null;// clear for next query
+                this.resultStatus = null;// clear for next query
             } else {
                 taskEnd = false;
             }
@@ -2031,8 +2025,8 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
         }
 
         @Override
-        final void internalAccept(ResultStates resultStates) throws IllegalStateException {
-            this.resultStates = resultStates;
+        final void internalAccept(ResultStatus resultStatus) throws IllegalStateException {
+            this.resultStatus = resultStatus;
         }
 
         @Override
@@ -2096,6 +2090,8 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
      */
     private static final class DownstreamAdapter implements FetchAbleDownstreamSink, BatchDownstreamSink {
 
+        private final MySQLDatabaseSession session;
+
         private final ComPreparedTask task;
 
         private final MonoSink<PreparedStatement> sink;
@@ -2109,9 +2105,11 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
         private DownstreamSink downstreamSink;
 
         /**
-         * @see #ComPreparedTask(MySQLTaskAdjutant, MonoSink, StmtWrapper)
+         * @see #ComPreparedTask(MySQLDatabaseSession, MySQLTaskAdjutant, MonoSink, StmtWrapper)
          */
-        private DownstreamAdapter(final ComPreparedTask task, MonoSink<PreparedStatement> sink) {
+        private DownstreamAdapter(MySQLDatabaseSession session, ComPreparedTask task
+                , MonoSink<PreparedStatement> sink) {
+            this.session = session;
             this.task = task;
             this.sink = sink;
         }
@@ -2120,7 +2118,7 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
             if (this.warnings < 0) {
                 throw new IllegalStateException("warnings not set.");
             }
-            this.sink.success(ServerPreparedStatement.create(this.task));
+            this.sink.success(ServerPreparedStatement.create(this.session, this.task));
         }
 
 
@@ -2131,7 +2129,7 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
         }
 
         @Override
-        public boolean nextUpdate(ResultStates states) {
+        public boolean nextUpdate(ResultStatus states) {
             return Objects.requireNonNull(this.downstreamSink, "this.downstreamSink")
                     .nextUpdate(states);
         }

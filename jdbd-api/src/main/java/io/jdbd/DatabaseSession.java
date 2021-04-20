@@ -16,12 +16,6 @@ public interface DatabaseSession extends ReactiveCloseable {
 
     DatabaseMetaData getDatabaseMetaData();
 
-    /**
-     * @see Connection#isReadOnly()
-     * @see Connection#getTransactionIsolation()
-     * @see Connection#getAutoCommit()
-     */
-    Publisher<TransactionOption> getTransactionOption();
 
     /**
      * @see Connection#createStatement()

@@ -5,15 +5,15 @@ import io.jdbd.mysql.Groups;
 import io.jdbd.mysql.MySQLType;
 import io.jdbd.mysql.protocol.conf.PropertyKey;
 import io.jdbd.mysql.session.MySQLSessionAdjutant;
-import io.jdbd.mysql.stmt.BatchBindWrapper;
+import io.jdbd.mysql.stmt.BatchBindStmt;
 import io.jdbd.mysql.stmt.BindValue;
-import io.jdbd.mysql.stmt.BindableWrapper;
+import io.jdbd.mysql.stmt.BindableStmt;
 import io.jdbd.mysql.stmt.StmtWrappers;
 import io.jdbd.result.NoMoreResultException;
 import io.jdbd.result.ResultRow;
-import io.jdbd.result.ResultStates;
-import io.jdbd.stmt.ErrorSubscribeException;
+import io.jdbd.result.ResultStatus;
 import io.jdbd.stmt.ResultType;
+import io.jdbd.stmt.SubscribeException;
 import io.jdbd.vendor.result.ReactorMultiResult;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -41,7 +41,7 @@ import static org.testng.Assert.*;
  * @see ComQueryTask#multiStmt(List, MySQLTaskAdjutant)
  * @see ComQueryTask#bindableMultiStmt(List, MySQLTaskAdjutant)
  * @see ComQueryTask#batchUpdate(List, MySQLTaskAdjutant)
- * @see ComQueryTask#bindableBatch(BatchBindWrapper, MySQLTaskAdjutant)
+ * @see ComQueryTask#bindableBatch(BatchBindStmt, MySQLTaskAdjutant)
  */
 @Test(groups = {Groups.MULTI_STMT}, dependsOnGroups = {Groups.COM_QUERY, Groups.DATA_PREPARE})
 public class MultiStatementSuiteTests extends AbstractConnectionBasedSuiteTests {
@@ -93,7 +93,7 @@ public class MultiStatementSuiteTests extends AbstractConnectionBasedSuiteTests 
         sql = String.format("UPDATE mysql_types as t SET t.my_time= '%s' WHERE t.id = 263", LocalTime.now());//[6] update
         sqlList.add(sql);
 
-        final AtomicReference<ResultStates> statesHolder = new AtomicReference<>(null);
+        final AtomicReference<ResultStatus> statesHolder = new AtomicReference<>(null);
 
         //below defer serially subscribe
         final ReactorMultiResult multiResults1 = ComQueryTask.multiStmt(Collections.unmodifiableList(sqlList), adjutant);
@@ -204,30 +204,30 @@ public class MultiStatementSuiteTests extends AbstractConnectionBasedSuiteTests 
         final MySQLTaskAdjutant adjutant = obtainMultiStmtTaskAdjutant();
 
         String sql;
-        final List<BindableWrapper> bindableWrapperList = new ArrayList<>(6);
+        final List<BindableStmt> bindableStmtList = new ArrayList<>(6);
 
         sql = "UPDATE mysql_types as t SET t.name = 'mysql' WHERE t.id = ?";//[1] update
-        bindableWrapperList.add(StmtWrappers.single(sql, BindValue.create(0, MySQLType.BIGINT, 264)));
+        bindableStmtList.add(StmtWrappers.single(sql, BindValue.create(0, MySQLType.BIGINT, 264)));
 
         sql = String.format("UPDATE mysql_types as t SET t.my_date = '%s' WHERE t.id = ?", LocalDate.now());//[2] update
-        bindableWrapperList.add(StmtWrappers.single(sql, BindValue.create(0, MySQLType.BIGINT, 265)));
+        bindableStmtList.add(StmtWrappers.single(sql, BindValue.create(0, MySQLType.BIGINT, 265)));
 
         sql = String.format("SELECT t.id as id ,t.name as name,t.create_time as createTime FROM mysql_types as t WHERE t.id > ? ORDER BY t.id LIMIT %s", ROW_COUNT);// [3] query
-        bindableWrapperList.add(StmtWrappers.single(sql, BindValue.create(0, MySQLType.BIGINT, 260)));
+        bindableStmtList.add(StmtWrappers.single(sql, BindValue.create(0, MySQLType.BIGINT, 260)));
 
         sql = String.format("UPDATE mysql_types as t SET t.my_time= '%s' WHERE t.id = ?", LocalTime.now());// [4] update
-        bindableWrapperList.add(StmtWrappers.single(sql, BindValue.create(0, MySQLType.BIGINT, 266)));
+        bindableStmtList.add(StmtWrappers.single(sql, BindValue.create(0, MySQLType.BIGINT, 266)));
 
         sql = String.format("SELECT t.id as id ,t.name as name,t.create_time as createTime FROM mysql_types as t WHERE t.id > ? ORDER BY t.id LIMIT %s", ROW_COUNT); //[5] query
-        bindableWrapperList.add(StmtWrappers.single(sql, BindValue.create(0, MySQLType.BIGINT, 260)));
+        bindableStmtList.add(StmtWrappers.single(sql, BindValue.create(0, MySQLType.BIGINT, 260)));
 
         sql = String.format("UPDATE mysql_types as t SET t.my_time= '%s' WHERE t.id = ?", LocalTime.now());//[6] update
-        bindableWrapperList.add(StmtWrappers.single(sql, BindValue.create(0, MySQLType.BIGINT, 267)));
+        bindableStmtList.add(StmtWrappers.single(sql, BindValue.create(0, MySQLType.BIGINT, 267)));
 
-        final AtomicReference<ResultStates> statesHolder = new AtomicReference<>(null);
+        final AtomicReference<ResultStatus> statesHolder = new AtomicReference<>(null);
 
         //below defer serially subscribe
-        final ReactorMultiResult multiResults1 = ComQueryTask.bindableMultiStmt(bindableWrapperList, adjutant);
+        final ReactorMultiResult multiResults1 = ComQueryTask.bindableMultiStmt(bindableStmtList, adjutant);
         multiResults1.nextUpdate()//1. immediately subscribe update
                 .switchIfEmpty(emptyError())
                 .map(this::assertUpdateSuccess)
@@ -268,7 +268,7 @@ public class MultiStatementSuiteTests extends AbstractConnectionBasedSuiteTests 
 
         //below immediately serially subscribe
         final ReactorMultiResult multiResults2;
-        multiResults2 = ComQueryTask.bindableMultiStmt(bindableWrapperList, adjutant);
+        multiResults2 = ComQueryTask.bindableMultiStmt(bindableStmtList, adjutant);
 
         final AtomicReference<Throwable> errorHolder = new AtomicReference<>(null);
 
@@ -356,7 +356,7 @@ public class MultiStatementSuiteTests extends AbstractConnectionBasedSuiteTests 
         sql = String.format("UPDATE mysql_types as t SET t.not_exits_column= '%s' WHERE t.id = 271", LocalTime.now());//[6] error update sql
         sqlList.add(sql);
 
-        final AtomicReference<ResultStates> statesHolder = new AtomicReference<>(null);
+        final AtomicReference<ResultStatus> statesHolder = new AtomicReference<>(null);
 
         try {
             //below defer serially subscribe
@@ -452,7 +452,7 @@ public class MultiStatementSuiteTests extends AbstractConnectionBasedSuiteTests 
                     .map(this::assertUpdateSuccess)
                     .block();
             fail("multiStmtErrorSubscribe test failure");
-        } catch (ErrorSubscribeException e) {
+        } catch (SubscribeException e) {
             assertEquals(e.getSubscribeType(), ResultType.UPDATE, "getSubscribeType");
             assertEquals(e.getActualType(), ResultType.QUERY, "getActualType");
         } catch (Throwable e) {
@@ -470,7 +470,7 @@ public class MultiStatementSuiteTests extends AbstractConnectionBasedSuiteTests 
                     .then()
                     .block();
             fail("multiStmtErrorSubscribe test failure");
-        } catch (ErrorSubscribeException e) {
+        } catch (SubscribeException e) {
             assertEquals(e.getSubscribeType(), ResultType.QUERY, "getSubscribeType");
             assertEquals(e.getActualType(), ResultType.UPDATE, "getActualType");
         } catch (Throwable e) {
@@ -500,7 +500,7 @@ public class MultiStatementSuiteTests extends AbstractConnectionBasedSuiteTests 
         sql = String.format("SELECT t.id as id ,t.name as name,t.create_time as createTime FROM mysql_types as t WHERE t.id > 270 ORDER BY t.id LIMIT %s", ROW_COUNT);// [3] query
         sqlList.add(sql);
 
-        final AtomicReference<ResultStates> statesHolder = new AtomicReference<>(null);
+        final AtomicReference<ResultStatus> statesHolder = new AtomicReference<>(null);
 
         try {
             //below defer serially subscribe
@@ -545,7 +545,7 @@ public class MultiStatementSuiteTests extends AbstractConnectionBasedSuiteTests 
     }
 
     /**
-     * @see ComQueryTask#bindableBatch(BatchBindWrapper, MySQLTaskAdjutant)
+     * @see ComQueryTask#bindableBatch(BatchBindStmt, MySQLTaskAdjutant)
      */
     @Test(timeOut = TIME_OUT)
     public void bindableBatchWithMultiStmtMode() {
@@ -577,15 +577,15 @@ public class MultiStatementSuiteTests extends AbstractConnectionBasedSuiteTests 
         paramGroup.add(BindValue.create(1, MySQLType.BIGINT, 274));
         groupList.add(paramGroup);
 
-        final List<ResultStates> resultStatesList;
-        resultStatesList = ComQueryTask.bindableBatch(StmtWrappers.batchBind(sql, groupList), adjutant)
+        final List<ResultStatus> resultStatusList;
+        resultStatusList = ComQueryTask.bindableBatch(StmtWrappers.batchBind(sql, groupList), adjutant)
                 .collectList()
                 .block();
 
-        assertNotNull(resultStatesList, "resultStatesList");
-        assertEquals(resultStatesList.size(), groupList.size(), "resultStatesList");
+        assertNotNull(resultStatusList, "resultStatesList");
+        assertEquals(resultStatusList.size(), groupList.size(), "resultStatesList");
 
-        for (ResultStates states : resultStatesList) {
+        for (ResultStatus states : resultStatusList) {
             assertEquals(states.getAffectedRows(), 1L, "getAffectedRows");
         }
 
@@ -615,16 +615,16 @@ public class MultiStatementSuiteTests extends AbstractConnectionBasedSuiteTests 
         sql = "UPDATE mysql_types as t SET t.my_long_text = 'batch update 4' WHERE t.id = 279";
         sqlList.add(sql);
 
-        List<ResultStates> resultStatesList;
+        List<ResultStatus> resultStatusList;
 
-        resultStatesList = ComQueryTask.batchUpdate(Collections.unmodifiableList(sqlList), adjutant)
+        resultStatusList = ComQueryTask.batchUpdate(StmtWrappers.stmts(sqlList, 0), adjutant)
                 .collectList()
                 .block();
 
-        assertNotNull(resultStatesList, "resultStatesList");
-        assertEquals(resultStatesList.size(), sqlList.size(), "resultStatesList");
+        assertNotNull(resultStatusList, "resultStatesList");
+        assertEquals(resultStatusList.size(), sqlList.size(), "resultStatesList");
 
-        for (ResultStates states : resultStatesList) {
+        for (ResultStatus states : resultStatusList) {
             assertEquals(states.getAffectedRows(), 1L, "getAffectedRows");
         }
 
@@ -642,7 +642,7 @@ public class MultiStatementSuiteTests extends AbstractConnectionBasedSuiteTests 
     }
 
 
-    private ResultStates assertUpdateSuccess(ResultStates states) {
+    private ResultStatus assertUpdateSuccess(ResultStatus states) {
         Assert.assertEquals(states.getAffectedRows(), 1L, "update rows");
         return states;
     }

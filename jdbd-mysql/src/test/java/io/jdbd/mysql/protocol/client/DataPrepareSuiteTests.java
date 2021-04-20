@@ -6,13 +6,14 @@ import io.jdbd.meta.SQLType;
 import io.jdbd.mysql.Groups;
 import io.jdbd.mysql.MySQLType;
 import io.jdbd.mysql.protocol.conf.PropertyKey;
+import io.jdbd.mysql.stmt.StmtWrappers;
 import io.jdbd.mysql.type.City;
 import io.jdbd.mysql.type.TrueOrFalse;
 import io.jdbd.mysql.util.MySQLStreamUtils;
 import io.jdbd.result.MultiResult;
 import io.jdbd.result.ResultRow;
 import io.jdbd.result.ResultRowMeta;
-import io.jdbd.result.ResultStates;
+import io.jdbd.result.ResultStatus;
 import io.jdbd.vendor.JdbdCompositeException;
 import io.jdbd.vendor.conf.Properties;
 import org.slf4j.Logger;
@@ -76,13 +77,13 @@ public class DataPrepareSuiteTests extends AbstractConnectionBasedSuiteTests {
         LOG.info("start create mysql_types table.");
 
         // single statement mode batch update
-        final List<ResultStates> resultStatesList;
-        resultStatesList = ComQueryTask.batchUpdate(commandList, adjutant)
+        final List<ResultStatus> resultStatusList;
+        resultStatusList = ComQueryTask.batchUpdate(StmtWrappers.stmts(commandList, 0), adjutant)
                 .collectList()
                 .block();
 
-        assertNotNull(resultStatesList, "resultStatesList");
-        assertEquals(resultStatesList.size(), 2, "resultStatesList size");
+        assertNotNull(resultStatusList, "resultStatesList");
+        assertEquals(resultStatusList.size(), 2, "resultStatesList size");
 
         LOG.info("have truncated mysql_types");
 
@@ -149,14 +150,14 @@ public class DataPrepareSuiteTests extends AbstractConnectionBasedSuiteTests {
 //        byte[] bytes = command.getBytes(taskAdjutant.obtainCharsetClient());
 //        LOG.info("prepare data command bytes:{}, times:{}",bytes.length,bytes.length / PacketUtils.MAX_PAYLOAD);
 //
-        ResultStates resultStates = ComQueryTask.update(command, taskAdjutant)
+        ResultStatus resultStatus = ComQueryTask.update(command, taskAdjutant)
                 .block();
 
-        assertNotNull(resultStates, "resultStates");
-        assertEquals(resultStates.getAffectedRows(), rowCount, "affectedRows");
-        assertFalse(resultStates.hasMoreResults(), "hasMoreResults");
-        LOG.info("prepared data rows:{}", resultStates.getAffectedRows());
-        LOG.info("InsertId:{}", resultStates.getInsertId());
+        assertNotNull(resultStatus, "resultStates");
+        assertEquals(resultStatus.getAffectedRows(), rowCount, "affectedRows");
+        assertFalse(resultStatus.hasMoreResults(), "hasMoreResults");
+        LOG.info("prepared data rows:{}", resultStatus.getAffectedRows());
+        LOG.info("InsertId:{}", resultStatus.getInsertId());
 
     }
 

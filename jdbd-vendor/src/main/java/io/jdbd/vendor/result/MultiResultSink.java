@@ -1,6 +1,6 @@
 package io.jdbd.vendor.result;
 
-import io.jdbd.result.ResultStates;
+import io.jdbd.result.ResultStatus;
 
 
 public interface MultiResultSink {
@@ -16,7 +16,7 @@ public interface MultiResultSink {
      *                               <li>current result is query result and not complete.</li>
      *                               </ul>
      */
-    void nextUpdate(ResultStates resultStates) throws IllegalStateException;
+    void nextUpdate(ResultStatus resultStatus) throws IllegalStateException;
 
     /**
      * @throws IllegalStateException when <ul>
@@ -27,7 +27,7 @@ public interface MultiResultSink {
     QuerySink nextQuery() throws IllegalStateException;
 
     /**
-     * @throws IllegalStateException emit ,when last {@link ResultStates#hasMoreResults()}  of update or query return true.
+     * @throws IllegalStateException emit ,when last {@link ResultStatus#hasMoreResults()}  of update or query return true.
      */
     void complete();
 

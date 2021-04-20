@@ -1,9 +1,9 @@
 package io.jdbd.mysql.protocol.client;
 
 import io.jdbd.mysql.Groups;
-import io.jdbd.mysql.stmt.BindableWrapper;
+import io.jdbd.mysql.stmt.BindableStmt;
 import io.jdbd.result.ResultRow;
-import io.jdbd.result.ResultStates;
+import io.jdbd.result.ResultStatus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.annotations.Test;
@@ -25,12 +25,12 @@ public class ComQueryCommandWriterSuiteTests extends AbstractStmtTaskSuiteTests 
     }
 
     @Override
-    Mono<ResultStates> executeUpdate(BindableWrapper wrapper, MySQLTaskAdjutant taskAdjutant) {
+    Mono<ResultStatus> executeUpdate(BindableStmt wrapper, MySQLTaskAdjutant taskAdjutant) {
         throw new UnsupportedOperationException();
     }
 
     @Override
-    Flux<ResultRow> executeQuery(BindableWrapper wrapper, MySQLTaskAdjutant taskAdjutant) {
+    Flux<ResultRow> executeQuery(BindableStmt wrapper, MySQLTaskAdjutant taskAdjutant) {
         throw new UnsupportedOperationException();
     }
 

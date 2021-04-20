@@ -4,6 +4,7 @@ import io.jdbd.JdbdSQLException;
 import io.jdbd.mysql.MySQLJdbdException;
 import io.jdbd.mysql.util.MySQLExceptions;
 import io.jdbd.mysql.util.MySQLNumberUtils;
+import io.jdbd.vendor.stmt.StmtWrapper;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
 import org.reactivestreams.Publisher;
@@ -580,15 +581,17 @@ public abstract class PacketUtils {
         return packet;
     }
 
-    public static Publisher<ByteBuf> createSimpleCommand(final byte cmdFlag, String sql
+    public static Publisher<ByteBuf> createSimpleCommand(final byte cmdFlag, StmtWrapper stmt
             , MySQLTaskAdjutant adjutant, Supplier<Integer> sequenceIdSupplier) throws SQLException, JdbdSQLException {
 
         if (cmdFlag != COM_QUERY && cmdFlag != COM_STMT_PREPARE) {
             throw new IllegalArgumentException("command error");
         }
+        final String sql = stmt.getSql();
         if (!adjutant.isSingleStmt(sql)) {
             throw MySQLExceptions.createMultiStatementError();
         }
+        //TODO zoro append sql timeout hint.
         final byte[] commandArray = sql.getBytes(adjutant.obtainCharsetClient());
         final int maxAllowedPayload = adjutant.obtainHostInfo().maxAllowedPayload();
         final int actualPayload = commandArray.length + 1;

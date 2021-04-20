@@ -3,13 +3,13 @@ package io.jdbd.mysql.protocol.client;
 
 import io.jdbd.JdbdSQLException;
 import io.jdbd.mysql.Groups;
-import io.jdbd.mysql.stmt.BindableWrapper;
+import io.jdbd.mysql.stmt.BindableStmt;
 import io.jdbd.mysql.stmt.MySQLParamValue;
 import io.jdbd.mysql.stmt.StmtWrappers;
 import io.jdbd.result.ResultRow;
-import io.jdbd.result.ResultStates;
+import io.jdbd.result.ResultStatus;
+import io.jdbd.vendor.stmt.ParamStmt;
 import io.jdbd.vendor.stmt.ParamValue;
-import io.jdbd.vendor.stmt.ParamWrapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.annotations.Test;
@@ -39,12 +39,12 @@ public class ComPreparedTaskSuiteTests extends AbstractStmtTaskSuiteTests {
     }
 
     @Override
-    Mono<ResultStates> executeUpdate(BindableWrapper wrapper, MySQLTaskAdjutant taskAdjutant) {
+    Mono<ResultStatus> executeUpdate(BindableStmt wrapper, MySQLTaskAdjutant taskAdjutant) {
         return ComPreparedTask.update(wrapper, taskAdjutant);
     }
 
     @Override
-    Flux<ResultRow> executeQuery(BindableWrapper wrapper, MySQLTaskAdjutant taskAdjutant) {
+    Flux<ResultRow> executeQuery(BindableStmt wrapper, MySQLTaskAdjutant taskAdjutant) {
         return ComPreparedTask.query(wrapper, taskAdjutant);
     }
 
@@ -54,7 +54,7 @@ public class ComPreparedTaskSuiteTests extends AbstractStmtTaskSuiteTests {
     }
 
     /**
-     * @see ComPreparedTask#update(ParamWrapper, MySQLTaskAdjutant)
+     * @see ComPreparedTask#update(ParamStmt, MySQLTaskAdjutant)
      */
     @Test(timeOut = TIME_OUT)
     public void update() {
@@ -62,7 +62,7 @@ public class ComPreparedTaskSuiteTests extends AbstractStmtTaskSuiteTests {
         final MySQLTaskAdjutant adjutant = obtainTaskAdjutant();
         String sql;
         List<ParamValue> bindValueList;
-        ResultStates states;
+        ResultStatus states;
 
         sql = "UPDATE mysql_types as t SET t.my_tiny_text = ? WHERE t.id = ?";
         bindValueList = new ArrayList<>(2);

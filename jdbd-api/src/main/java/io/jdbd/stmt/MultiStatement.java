@@ -2,10 +2,19 @@ package io.jdbd.stmt;
 
 import io.jdbd.lang.Nullable;
 import io.jdbd.result.MultiResult;
+import io.jdbd.result.SingleResult;
+import org.reactivestreams.Publisher;
 
 import java.sql.JDBCType;
 
 public interface MultiStatement extends BindableMultiResultStatement {
+
+
+    @Override
+    boolean supportLongData();
+
+    @Override
+    boolean supportOutParameter();
 
     void addStmt(String sql);
 
@@ -32,11 +41,13 @@ public interface MultiStatement extends BindableMultiResultStatement {
     void bind(int indexBasedZero, io.jdbd.meta.SQLType sqlType, @Nullable Object nullable);
 
 
+    @Override
     void bind(int index, @Nullable Object nullable);
 
 
     @Override
-    MultiResult executeMulti();
+    MultiResult executeAsMulti();
 
-
+    @Override
+    Publisher<SingleResult> executeAsFlux();
 }

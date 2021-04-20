@@ -2,6 +2,7 @@ package io.jdbd.mysql.protocol.client;
 
 import io.jdbd.JdbdSQLException;
 import io.jdbd.mysql.MySQLType;
+import io.jdbd.mysql.stmt.BatchBindStmt;
 import io.jdbd.mysql.util.MySQLExceptions;
 import io.jdbd.mysql.util.MySQLNumberUtils;
 import io.jdbd.vendor.stmt.ParamValue;
@@ -21,7 +22,12 @@ abstract class BindUtils extends JdbdBindUtils {
     }
 
 
-    public static long bindToBits(final int stmtIndex, MySQLType mySQLType, ParamValue bindValue
+    static boolean usePrepare(BatchBindStmt stmt, MySQLTaskAdjutant adjutant) {
+        return false;
+    }
+
+
+    static long bindToBits(final int stmtIndex, MySQLType mySQLType, ParamValue bindValue
             , Charset clientCharset)
             throws JdbdSQLException {
         final Object nonNull = bindValue.getNonNullValue();

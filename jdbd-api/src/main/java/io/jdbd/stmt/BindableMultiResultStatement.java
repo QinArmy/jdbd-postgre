@@ -1,6 +1,9 @@
 package io.jdbd.stmt;
 
+import io.jdbd.lang.Nullable;
 import io.jdbd.result.MultiResult;
+import io.jdbd.result.SingleResult;
+import org.reactivestreams.Publisher;
 
 /**
  * <p>
@@ -12,22 +15,26 @@ import io.jdbd.result.MultiResult;
  *     </ul>
  * </p>
  *
- * <p>
- *     This interface only definite {@link #executeMulti()} method,don't add new method in the future
- *     ,because {@link MultiStatement} isn't compatible.
- * </p>
- *
  * @see BindableStatement
  * @see PreparedStatement
  * @see MultiStatement
  */
 public interface BindableMultiResultStatement extends Statement {
 
+    void bind(int index, @Nullable Object nullable);
+
     /**
-     * @see BindableStatement#executeMulti()
-     * @see PreparedStatement#executeMulti()
-     * @see MultiStatement#executeMulti()
+     * @see BindableStatement#executeAsMulti()
+     * @see PreparedStatement#executeAsMulti()
+     * @see MultiStatement#executeAsMulti()
      */
-    MultiResult executeMulti();
+    MultiResult executeAsMulti();
+
+    /**
+     * @see BindableStatement#executeAsMulti()
+     * @see PreparedStatement#executeAsMulti()
+     * @see MultiStatement#executeAsMulti()
+     */
+    Publisher<SingleResult> executeAsFlux();
 
 }

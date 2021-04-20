@@ -1,25 +1,28 @@
 package io.jdbd.mysql.protocol.client;
 
+import io.jdbd.mysql.Server;
 import io.jdbd.mysql.protocol.conf.PropertyKey;
+import io.jdbd.mysql.session.MySQLDatabaseSession;
 import io.jdbd.mysql.session.MySQLSessionAdjutant;
-import io.jdbd.mysql.stmt.BatchBindWrapper;
-import io.jdbd.mysql.stmt.BindableWrapper;
+import io.jdbd.mysql.stmt.BatchBindStmt;
+import io.jdbd.mysql.stmt.BindableStmt;
 import io.jdbd.result.MultiResult;
 import io.jdbd.result.ResultRow;
-import io.jdbd.result.ResultStates;
+import io.jdbd.result.ResultStatus;
+import io.jdbd.result.SingleResult;
 import io.jdbd.stmt.PreparedStatement;
 import io.jdbd.vendor.conf.HostInfo;
+import io.jdbd.vendor.result.ReactorMultiResult;
 import io.jdbd.vendor.stmt.StmtWrapper;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.util.List;
-import java.util.function.Consumer;
 
 /**
  * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_command_phase.html">Command Phase</a>
  */
-public final class ClientCommandProtocolImpl implements ClientCommandProtocol {
+final class ClientCommandProtocolImpl implements ClientCommandProtocol {
 
 
     public static Mono<ClientCommandProtocol> create(HostInfo<PropertyKey> hostInfo
@@ -30,85 +33,148 @@ public final class ClientCommandProtocolImpl implements ClientCommandProtocol {
 
     }
 
-    private final MySQLTaskExecutor taskExecutor;
+    private final MySQLTaskExecutor executor;
+
+    private final MySQLTaskAdjutant adjutant;
 
     private final SessionResetter sessionResetter;
 
 
     private ClientCommandProtocolImpl(ClientConnectionProtocolImpl cp) {
-        this.taskExecutor = cp.taskExecutor;
+        this.executor = cp.taskExecutor;
+        this.adjutant = this.executor.getAdjutant();
         this.sessionResetter = cp.sessionResetter;
     }
 
 
     /*################################## blow ClientCommandProtocol method ##################################*/
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
-    public long getId() {
-        return this.taskExecutor.getAdjutant()
+    public final long getId() {
+        return this.adjutant
                 .obtainHandshakeV10Packet()
                 .getThreadId();
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
-    public final Mono<ResultStates> update(String sql) {
-        return ComQueryTask.update(sql, this.taskExecutor.getAdjutant());
+    public final Mono<ResultStatus> update(StmtWrapper stmt) {
+        return ComQueryTask.update(stmt, this.adjutant);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public final Flux<ResultRow> query(StmtWrapper stmt) {
+        return ComQueryTask.query(stmt, this.adjutant);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public final Flux<ResultStatus> batchUpdate(List<StmtWrapper> stmtList) {
+        return ComQueryTask.batchUpdate(stmtList, this.adjutant);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public final ReactorMultiResult executeAsMulti(List<StmtWrapper> stmtList) {
+        return ComQueryTask.asMulti(stmtList, this.adjutant);
     }
 
     @Override
-    public final Flux<ResultRow> query(String sql, Consumer<ResultStates> statesConsumer) {
-        return ComQueryTask.query(sql, statesConsumer, this.taskExecutor.getAdjutant());
+    public Flux<SingleResult> executeAsFlux(List<StmtWrapper> stmtList) {
+        return ComQueryTask.asFlux(stmtList, this.adjutant);
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
-    public final Flux<ResultStates> batchUpdate(List<String> sqlList) {
-        return ComQueryTask.batchUpdate(sqlList, this.taskExecutor.getAdjutant());
+    public final Mono<ResultStatus> bindableUpdate(BindableStmt wrapper) {
+        return ComQueryTask.bindableUpdate(wrapper, this.adjutant);
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
-    public final Mono<ResultStates> bindableUpdate(BindableWrapper wrapper) {
-        return ComQueryTask.bindableUpdate(wrapper, this.taskExecutor.getAdjutant());
+    public final Flux<ResultRow> bindableQuery(BindableStmt wrapper) {
+        return ComQueryTask.bindableQuery(wrapper, this.adjutant);
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
-    public final Flux<ResultRow> bindableQuery(BindableWrapper wrapper) {
-        return ComQueryTask.bindableQuery(wrapper, this.taskExecutor.getAdjutant());
+    public final Flux<ResultStatus> bindableBatch(BatchBindStmt stmt) {
+        return ComQueryTask.bindableBatch(stmt, this.adjutant);
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
-    public final Flux<ResultStates> bindableBatch(BatchBindWrapper wrapper) {
-        return ComQueryTask.bindableBatch(wrapper, this.taskExecutor.getAdjutant());
+    public final ReactorMultiResult bindableAsMulti(BatchBindStmt stmt) {
+        return ComQueryTask.bindableAsMulti(stmt, this.adjutant);
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
-    public final Mono<PreparedStatement> prepare(StmtWrapper wrapper) {
-        return ComPreparedTask.prepare(wrapper, this.taskExecutor.getAdjutant());
+    public final Flux<SingleResult> bindableAsFlux(BatchBindStmt stmt) {
+        return ComQueryTask.bindableAsFlux(stmt, this.adjutant);
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
-    public final MultiResult multiStmt(List<String> commandList) {
-        return ComQueryTask.multiStmt(commandList, this.taskExecutor.getAdjutant());
+    public final Mono<PreparedStatement> prepare(MySQLDatabaseSession session, StmtWrapper stmt) {
+        return ComPreparedTask.prepare(session, stmt, this.adjutant);
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
-    public final MultiResult bindableMultiStmt(List<BindableWrapper> wrapperList) {
-        return ComQueryTask.bindableMultiStmt(wrapperList, this.taskExecutor.getAdjutant());
+    public final MultiResult bindableMultiStmt(List<BindableStmt> wrapperList) {
+        return ComQueryTask.bindableMultiStmt(wrapperList, this.adjutant);
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
-    public Mono<Void> closeGracefully() {
-        return QuitTask.quit(this.taskExecutor.getAdjutant());
+    public final Mono<Void> closeGracefully() {
+        return QuitTask.quit(this.executor.getAdjutant());
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
-    public Mono<Void> reset() {
+    public final Mono<Void> reset() {
         return this.sessionResetter.reset()
-                .doOnSuccess(server -> MySQLTaskExecutor.resetTaskAdjutant(this.taskExecutor, server))
-                .then()
-                ;
+                .doOnSuccess(this::resetTaskAdjutant)
+                .then();
     }
 
     /*################################## blow private method ##################################*/
+
+    private void resetTaskAdjutant(Server server) {
+        MySQLTaskExecutor.resetTaskAdjutant(this.executor, server);
+    }
 
 
 }
