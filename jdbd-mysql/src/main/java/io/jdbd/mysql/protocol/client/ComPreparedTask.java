@@ -843,7 +843,26 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
      */
     private boolean readResultSet(final ByteBuf cumulateBuffer, final Consumer<Object> serverStatusConsumer) {
         assertPhase(Phase.READ_RESULT_SET);
-        return this.downstreamSink.readResultSet(cumulateBuffer, serverStatusConsumer);
+        if (!this.downstreamSink.readResultSet(cumulateBuffer, serverStatusConsumer)) {
+            return false;
+        }
+        final boolean taskEnd;
+        if (this.downstreamSink.hasMoreResult()) {
+            taskEnd = false;
+        } else if (hasError()) {
+            taskEnd = true;
+        } else if (this.downstreamSink instanceof BatchDownstreamSink) {
+            if (this.phase == Phase.READ_RESET_RESPONSE) {
+                taskEnd = false;
+            } else {
+                final BatchDownstreamSink sink = (BatchDownstreamSink) this.downstreamSink;
+                taskEnd = !sink.hasMoreGroup() || sink.executeCommand();
+            }
+        } else {
+            // maybe more fetch or reset
+            taskEnd = this.phase != Phase.READ_FETCH_RESPONSE;
+        }
+        return taskEnd;
     }
 
     /**
@@ -1174,7 +1193,7 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
         boolean nextUpdate(ResultStatus states);
 
         /**
-         * @return true : task end.
+         * @return true : ResultSet end
          */
         boolean readResultSet(ByteBuf cumulateBuffer, Consumer<Object> serverStatusConsumer);
 
@@ -1230,17 +1249,13 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
 
         @Override
         public final boolean readResultSet(ByteBuf cumulateBuffer, Consumer<Object> serverStatusConsumer) {
-            final boolean taskEnd;
+            final boolean resultSetEnd;
             if (this.task.hasError() && this.lastResultSetEnd()) {
-                if (this.skipResultSet(cumulateBuffer, serverStatusConsumer)) {
-                    taskEnd = !this.hasMoreResult();
-                } else {
-                    taskEnd = false;
-                }
+                resultSetEnd = this.skipResultSet(cumulateBuffer, serverStatusConsumer);
             } else {
-                taskEnd = this.internalReadResultSet(cumulateBuffer, serverStatusConsumer);
+                resultSetEnd = this.internalReadResultSet(cumulateBuffer, serverStatusConsumer);
             }
-            return taskEnd;
+            return resultSetEnd;
         }
 
         @Override
@@ -1265,7 +1280,7 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
         abstract boolean internalNextUpdate(ResultStatus states);
 
         /**
-         * @return true: taskEnd.
+         * @return true: ResultSet end.
          */
         abstract boolean internalReadResultSet(ByteBuf cumulateBuffer, Consumer<Object> serverStatusConsumer);
 
@@ -1352,25 +1367,10 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
 
         }
 
-        final void addResultSetReaderExceptionIfNeed(ResultSetReader resultSetReader) {
-            // here resultSetReader bug.
-            final String message = String.format("%s not invoke %s.accept(ResultStates) method."
-                    , resultSetReader, ResultRowSink.class.getName());
-            if (this.task.containException(MySQLJdbdException.class)) {
-                if (LOG.isDebugEnabled()) {
-                    LOG.error(message);
-                }
-            } else {
-                this.task.addError(new MySQLJdbdException(message, new IllegalStateException(message)));
-            }
-        }
-
-
         @Override
         public final String toString() {
             return this.getClass().getSimpleName();
         }
-
 
     }
 
@@ -1403,7 +1403,7 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
         /**
          * query result status
          */
-        private ResultStatus resultStatus;
+        private ResultStatus queryStatus;
 
         /**
          * @see ComPreparedTask#ComPreparedTask(ParamStmt, FluxSink, MySQLTaskAdjutant)
@@ -1436,7 +1436,7 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
         @Override
         public final boolean executeCommand() {
             final boolean taskEnd;
-            if (this.resultStatus != null) {
+            if (this.queryStatus != null) {
                 // here bug.
                 addCommandSentExceptionIfNeed();
                 taskEnd = true;
@@ -1457,7 +1457,7 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
         final boolean internalNextUpdate(final ResultStatus states) {
             // here ,sql is that call stored procedure,skip rest results.
             if (!this.task.containException(SubscribeException.class)) {
-                this.task.addError(new SubscribeException(ResultType.QUERY, ResultType.MULTI_RESULT));
+                this.task.addError(TaskUtils.createQueryMultiError());
             }
             return !states.hasMoreResult();
         }
@@ -1465,46 +1465,38 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
 
         @Override
         final boolean lastResultSetEnd() {
-            return this.resultStatus != null;
+            return this.queryStatus != null;
         }
 
         @Override
         final boolean internalReadResultSet(ByteBuf cumulateBuffer, Consumer<Object> serverStatusConsumer) {
-            final boolean taskEnd;
-            if (this.resultSetReader.read(cumulateBuffer, serverStatusConsumer)) {
-                final ResultStatus status = Objects.requireNonNull(this.resultStatus, "this.resultStatus");
-                this.resultStatus = null; //clear for next query result.
-
-                if (this.task.hasError()) {
-                    taskEnd = !status.hasMoreResult();
-                } else if (status.hasMoreResult()) {
-                    if (this.fetchSize > 0) {
-                        try {
-                            this.statesConsumer.accept(status);
-                        } catch (Throwable e) {
-                            if (!this.task.containException(ResultStatusConsumerException.class)) {
-                                this.task.addError(ResultStatusConsumerException.create(this.statesConsumer, e));
-                            }
-                        }
-                    } else if (!this.task.containException(SubscribeException.class)) {
-                        // here ,sql is that call stored procedure,skip rest results.
-                        this.task.addError(new SubscribeException(ResultType.QUERY, ResultType.MULTI_RESULT));
-                    }
-                    taskEnd = false;
-                } else if (status.hasMoreFetch()) {
-                    if (this.sink.isCancelled()) {
-                        taskEnd = true;
-                    } else {
-                        taskEnd = false;
-                        this.task.sendFetchCommand(); // fetch more results.
-                    }
-                } else {
-                    taskEnd = true;
-                }
-            } else {
-                taskEnd = false;
+            if (!this.resultSetReader.read(cumulateBuffer, serverStatusConsumer)) {
+                return false;
             }
-            return taskEnd;
+            final ResultStatus status = Objects.requireNonNull(this.queryStatus, "this.queryStatus");
+            this.queryStatus = null; //clear for next query result.
+            if (this.task.hasError()) {
+                // do nothing
+                if (LOG.isTraceEnabled()) {
+                    LOG.trace("{} occur error.", this);
+                }
+            } else if (status.hasMoreResult()) {
+                if (this.fetchSize > 0) {
+                    try {
+                        this.statesConsumer.accept(status);
+                    } catch (Throwable e) {
+                        if (!this.task.containException(ResultStatusConsumerException.class)) {
+                            this.task.addError(ResultStatusConsumerException.create(this.statesConsumer, e));
+                        }
+                    }
+                } else if (!this.task.containException(SubscribeException.class)) {
+                    // here ,sql is that call stored procedure,skip rest results.
+                    this.task.addError(TaskUtils.createQueryMultiError());
+                }
+            } else if (status.hasMoreFetch()) {
+                this.task.sendFetchCommand(); // fetch more results.
+            }
+            return true;
         }
 
 
@@ -1520,7 +1512,7 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
 
         @Override
         public final void complete() {
-            final ResultStatus resultStatus = Objects.requireNonNull(this.resultStatus, "this.resultStates");
+            final ResultStatus resultStatus = Objects.requireNonNull(this.queryStatus, "this.queryStatus");
             try {
                 this.statesConsumer.accept(resultStatus);
                 this.sink.complete();
@@ -1551,8 +1543,8 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
          */
         @Override
         final void internalAccept(final ResultStatus status) {
-            if (this.resultStatus == null) {
-                this.resultStatus = status;
+            if (this.queryStatus == null) {
+                this.queryStatus = status;
             } else {
                 throw new IllegalStateException(String.format("%s resultSetStatus non-null.", this));
             }
@@ -1579,7 +1571,7 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
         private final MonoSink<ResultStatus> sink;
 
         // update status
-        private ResultStatus resultStatus;
+        private ResultStatus updateStatus;
 
         // query result status
         private ResultStatus queryStatus;
@@ -1596,7 +1588,7 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
         @Override
         public final boolean executeCommand() {
             final boolean taskEnd;
-            if (this.resultStatus != null) {
+            if (this.updateStatus != null) {
                 // here bug.
                 addCommandSentExceptionIfNeed();
                 taskEnd = true;
@@ -1624,8 +1616,8 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
                 }
                 taskEnd = false;
             } else {
-                if (this.resultStatus == null) {
-                    this.resultStatus = states;
+                if (this.updateStatus == null) {
+                    this.updateStatus = states;
                 } else if (!this.task.containException(SubscribeException.class)) {
                     // here sql is call stored procedure
                     this.task.addError(TaskUtils.createUpdateMultiError());
@@ -1639,17 +1631,16 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
         @Override
         final boolean internalReadResultSet(ByteBuf cumulateBuffer, Consumer<Object> serverStatusConsumer) {
             // here ,sql is that call stored procedure,skip rest results.
-            final boolean taskEnd;
+            final boolean resultSetEnd;
             if (this.skipResultSet(cumulateBuffer, serverStatusConsumer)) {
-                final ResultStatus status = Objects.requireNonNull(this.queryStatus, "this.queryStatus");
                 if (!this.task.containException(SubscribeException.class)) {
                     this.task.addError(TaskUtils.createUpdateMultiError());
                 }
-                taskEnd = !status.hasMoreResult();
+                resultSetEnd = true;
             } else {
-                taskEnd = false;
+                resultSetEnd = false;
             }
-            return taskEnd;
+            return resultSetEnd;
         }
 
         @Override
@@ -1678,7 +1669,7 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
 
         @Override
         public final void complete() {
-            this.sink.success(Objects.requireNonNull(this.resultStatus, "this.resultStates"));
+            this.sink.success(Objects.requireNonNull(this.updateStatus, "this.resultStates"));
         }
 
 
@@ -1749,14 +1740,14 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
         @Override
         final boolean internalNextUpdate(final ResultStatus states) {
             final boolean taskEnd;
-            if (this.task.hasError()) {
-                // if sql is that call stored procedure,skip rest results.
-                taskEnd = !states.hasMoreResult();
-            } else if (states.hasMoreResult()) {
+            if (states.hasMoreResult()) {
                 if (!this.task.containException(SubscribeException.class)) {
                     this.task.addError(TaskUtils.createBatchUpdateMultiError());
                 }
                 taskEnd = false;
+            } else if (this.task.hasError()) {
+                // if sql is that call stored procedure,skip rest results.
+                taskEnd = true;
             } else {
                 this.sink.next(states);// drain to downstream
 
@@ -1786,7 +1777,7 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
         @Override
         final boolean internalReadResultSet(ByteBuf cumulateBuffer, Consumer<Object> serverStatusConsumer) {
             //here, sql is that call stored procedure,skip rest results.
-            final boolean taskEnd;
+            final boolean resultSetEnd;
             if (this.skipResultSet(cumulateBuffer, serverStatusConsumer)) {
                 final ResultStatus status = Objects.requireNonNull(this.queryStatus, "this.queryStatus");
                 if (status.hasMoreResult()) {
@@ -1798,11 +1789,11 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
                 } else if (!this.task.containException(SubscribeException.class)) {
                     this.task.addError(TaskUtils.createBatchUpdateQueryError());
                 }
-                taskEnd = !status.hasMoreResult();
+                resultSetEnd = true;
             } else {
-                taskEnd = false;
+                resultSetEnd = false;
             }
-            return taskEnd;
+            return resultSetEnd;
         }
 
         @Override
@@ -1951,40 +1942,32 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
 
         @Override
         final boolean internalReadResultSet(ByteBuf cumulateBuffer, Consumer<Object> serverStatusConsumer) {
-            final boolean taskEnd;
+
             QuerySink querySink = this.querySink;
             if (querySink == null) {
                 querySink = this.sink.nextQuery();
                 this.querySink = querySink;
             }
-            if (this.resultSetReader.read(cumulateBuffer, serverStatusConsumer)) {
-                final ResultStatus status = Objects.requireNonNull(this.queryStatus, "this.queryStatus");
-                this.querySink = null; // clear for next query
-                this.queryStatus = null;// clear for next query
+            if (!this.resultSetReader.read(cumulateBuffer, serverStatusConsumer)) {
+                return false;
+            }
+            final ResultStatus status = Objects.requireNonNull(this.queryStatus, "this.queryStatus");
+            this.querySink = null; // clear for next query
+            this.queryStatus = null;// clear for next query
 
-                if (this.task.hasError()) {
-                    taskEnd = !status.hasMoreResult();
-                } else {
-                    querySink.accept(status); // drain to downstream
-                    querySink.complete();// clear for next query
+            if (!this.task.hasError()) {
+                querySink.accept(status); // drain to downstream
+                querySink.complete();// clear for next query
 
-                    if (status.hasMoreResult()) {
-                        taskEnd = false;
-                    } else if (this.hasMoreGroup()) {
-                        if (this.lastHasLongData) {
-                            taskEnd = false;
-                            this.task.sendResetCommand();
-                        } else {
-                            taskEnd = this.executeCommand();
-                        }
+                if (!status.hasMoreResult() && this.hasMoreGroup() && !this.sink.isCancelled()) {
+                    if (this.lastHasLongData) {
+                        this.task.sendResetCommand();
                     } else {
-                        taskEnd = true;
+                        this.executeCommand();
                     }
                 }
-            } else {
-                taskEnd = false;
             }
-            return taskEnd;
+            return true;
         }
 
         @Override
@@ -2011,7 +1994,7 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
             if (querySink == null) {
                 throw new NullPointerException(String.format("%s this.querySink", this));
             }
-            return this.task.hasError() || querySink.isCancelled();
+            return querySink.isCancelled();
         }
 
         @Override

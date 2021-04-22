@@ -960,7 +960,7 @@ final class ComQueryTask extends MySQLCommandTask {
                 taskEnd = true;
             } else if (this.downstreamSink instanceof SingleModeBatchDownstreamSink) {
                 final SingleModeBatchDownstreamSink sink = (SingleModeBatchDownstreamSink) this.downstreamSink;
-                taskEnd = !sink.hasGroup() || sink.sendCommand();
+                taskEnd = !sink.hasMoreGroup() || sink.sendCommand();
                 if (!taskEnd) {
                     this.phase = Phase.READ_RESPONSE_RESULT_SET;
                 }
@@ -1255,7 +1255,7 @@ final class ComQueryTask extends MySQLCommandTask {
 
     private interface SingleModeBatchDownstreamSink extends DownstreamSink {
 
-        boolean hasGroup();
+        boolean hasMoreGroup();
 
         /**
          * @return true: task end
@@ -1428,7 +1428,7 @@ final class ComQueryTask extends MySQLCommandTask {
                 this.sink.next(status); // drain to downstream
                 if (this instanceof SingleModeBatchDownstreamSink) {
                     final SingleModeBatchDownstreamSink sink = (SingleModeBatchDownstreamSink) this;
-                    taskEnd = !sink.hasGroup() || sink.sendCommand();
+                    taskEnd = !sink.hasMoreGroup() || sink.sendCommand();
                 } else {
                     taskEnd = true;
                 }
@@ -1747,7 +1747,7 @@ final class ComQueryTask extends MySQLCommandTask {
         }
 
         @Override
-        public final boolean hasGroup() {
+        public final boolean hasMoreGroup() {
             return this.index < this.stmtList.size();
         }
 
@@ -1806,7 +1806,7 @@ final class ComQueryTask extends MySQLCommandTask {
         }
 
         @Override
-        public final boolean hasGroup() {
+        public final boolean hasMoreGroup() {
             return this.index < this.groupList.size();
         }
 
@@ -1969,7 +1969,7 @@ final class ComQueryTask extends MySQLCommandTask {
                     taskEnd = false;
                 } else if (this instanceof SingleModeBatchDownstreamSink) {
                     final SingleModeBatchDownstreamSink sink = (SingleModeBatchDownstreamSink) this;
-                    taskEnd = !sink.hasGroup() || sink.sendCommand();
+                    taskEnd = !sink.hasMoreGroup() || sink.sendCommand();
                 } else {
                     taskEnd = true;
                 }
@@ -2120,7 +2120,7 @@ final class ComQueryTask extends MySQLCommandTask {
         }
 
         @Override
-        public final boolean hasGroup() {
+        public final boolean hasMoreGroup() {
             return this.index < this.stmtList.size();
         }
 
@@ -2181,7 +2181,7 @@ final class ComQueryTask extends MySQLCommandTask {
         }
 
         @Override
-        public final boolean hasGroup() {
+        public final boolean hasMoreGroup() {
             return this.index < this.groupList.size();
         }
 
