@@ -1,7 +1,7 @@
 package io.jdbd.mysql.session;
 
 import io.jdbd.mysql.protocol.client.ClientCommandProtocol;
-import io.jdbd.mysql.stmt.StmtWrappers;
+import io.jdbd.mysql.stmt.Stmts;
 import io.jdbd.stmt.PreparedStatement;
 import io.jdbd.vendor.result.ReactorMultiResult;
 import io.jdbd.vendor.session.ReactorDatabaseSession;
@@ -30,12 +30,12 @@ public abstract class MySQLDatabaseSession implements ReactorDatabaseSession {
 
     @Override
     public final Mono<PreparedStatement> prepare(String sql) {
-        return this.protocol.prepare(this, StmtWrappers.stmt(sql));
+        return this.protocol.prepare(this, Stmts.stmt(sql));
     }
 
     @Override
     public final Mono<PreparedStatement> prepare(String sql, int executeTimeout) {
-        return this.protocol.prepare(this, StmtWrappers.stmt(sql, executeTimeout));
+        return this.protocol.prepare(this, Stmts.stmt(sql, executeTimeout));
     }
 
     @Override

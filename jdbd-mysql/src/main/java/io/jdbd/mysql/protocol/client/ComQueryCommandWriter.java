@@ -14,13 +14,11 @@ import io.jdbd.mysql.syntax.MySQLStatement;
 import io.jdbd.mysql.util.*;
 import io.jdbd.stmt.LongDataReadException;
 import io.jdbd.vendor.conf.Properties;
-import io.jdbd.vendor.stmt.StmtWrapper;
+import io.jdbd.vendor.stmt.Stmt;
 import io.jdbd.vendor.util.JdbdBufferUtils;
 import io.netty.buffer.ByteBuf;
-import org.reactivestreams.Publisher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import reactor.core.publisher.Flux;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -37,6 +35,7 @@ import java.sql.SQLException;
 import java.time.*;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
+import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
@@ -50,9 +49,9 @@ final class ComQueryCommandWriter {
 
 
     /**
-     * @return a unmodifiable list.
+     * @return a unmodifiable Iterable.
      */
-    static List<ByteBuf> createBindableMultiCommand(final List<BindableStmt> bindableStmtList
+    static Iterable<ByteBuf> createBindableMultiCommand(final List<BindableStmt> bindableStmtList
             , Supplier<Integer> sequenceIdSupplier, MySQLTaskAdjutant adjutant)
             throws SQLException, LongDataReadException {
         return new ComQueryCommandWriter(sequenceIdSupplier, adjutant)
@@ -79,17 +78,17 @@ final class ComQueryCommandWriter {
     }
 
     /**
-     * @return a unmodifiable list.
+     * @return a unmodifiable Iterable.
      */
-    static Publisher<ByteBuf> createStaticSingleCommand(final StmtWrapper stmt, Supplier<Integer> sequenceIdSupplier
+    static Iterable<ByteBuf> createStaticSingleCommand(final Stmt stmt, Supplier<Integer> sequenceIdSupplier
             , final MySQLTaskAdjutant adjutant) throws SQLException, JdbdSQLException {
         return PacketUtils.createSimpleCommand(PacketUtils.COM_QUERY, stmt, adjutant, sequenceIdSupplier);
     }
 
     /**
-     * @return a unmodifiable list.
+     * @return a unmodifiable Iterable.
      */
-    static Publisher<ByteBuf> createStaticMultiCommand(final List<StmtWrapper> stmtList, Supplier<Integer> sequenceIdSupplier
+    static Iterable<ByteBuf> createStaticMultiCommand(final List<Stmt> stmtList, Supplier<Integer> sequenceIdSupplier
             , final MySQLTaskAdjutant adjutant) throws SQLException, JdbdSQLException {
         if (stmtList.isEmpty()) {
             throw MySQLExceptions.createQueryIsEmptyError();
@@ -101,7 +100,7 @@ final class ComQueryCommandWriter {
         int payloadLength = 1; // COM_QUERY command
 
         for (int i = 0; i < sqlSize; i++) {
-            StmtWrapper stmt = stmtList.get(i);
+            Stmt stmt = stmtList.get(i);
             String sql = stmt.getSql();
             if (!adjutant.isSingleStmt(sql)) {
                 throw MySQLExceptions.createMultiStatementError();
@@ -123,7 +122,7 @@ final class ComQueryCommandWriter {
     /**
      * @see #createStaticMultiCommand(List, Supplier, MySQLTaskAdjutant)
      */
-    private static Publisher<ByteBuf> writeStaticMultiCommand(final byte[][] commandArray, final int payloadLength
+    private static Iterable<ByteBuf> writeStaticMultiCommand(final byte[][] commandArray, final int payloadLength
             , MySQLTaskAdjutant adjutant, Supplier<Integer> sequenceIdSupplier) {
 
         ByteBuf packet;
@@ -133,7 +132,7 @@ final class ComQueryCommandWriter {
             packet = adjutant.createPacketBuffer(PacketUtils.MAX_PAYLOAD);
         }
         packet.writeByte(PacketUtils.COM_QUERY);
-        LinkedList<ByteBuf> packetList = new LinkedList<>();
+        List<ByteBuf> packetList = new LinkedList<>();
 
         for (int i = 0, restPayloadLength = payloadLength - 1; i < commandArray.length; i++) {
             if (i > 0) {
@@ -163,7 +162,13 @@ final class ComQueryCommandWriter {
         if (packet.readableBytes() == PacketUtils.MAX_PACKET) {
             packetList.add(PacketUtils.createEmptyPacket(adjutant.allocator(), sequenceIdSupplier.get()));
         }
-        return Flux.fromIterable(packetList);
+
+        if (packetList.size() == 1) {
+            packetList = Collections.singletonList(packetList.get(0));
+        } else {
+            packetList = Collections.unmodifiableList(packetList);
+        }
+        return packetList;
     }
 
 

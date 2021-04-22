@@ -2,6 +2,10 @@ package io.jdbd;
 
 public class SessionCloseException extends JdbdNonSQLException {
 
+    public static SessionCloseException create() {
+        return new SessionCloseException("database session closed.");
+    }
+
     public SessionCloseException(String messageFormat, Object... args) {
         super(messageFormat, args);
     }

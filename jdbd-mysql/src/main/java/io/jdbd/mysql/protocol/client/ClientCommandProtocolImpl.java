@@ -13,7 +13,7 @@ import io.jdbd.result.SingleResult;
 import io.jdbd.stmt.PreparedStatement;
 import io.jdbd.vendor.conf.HostInfo;
 import io.jdbd.vendor.result.ReactorMultiResult;
-import io.jdbd.vendor.stmt.StmtWrapper;
+import io.jdbd.vendor.stmt.Stmt;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -63,7 +63,7 @@ final class ClientCommandProtocolImpl implements ClientCommandProtocol {
      * {@inheritDoc}
      */
     @Override
-    public final Mono<ResultStatus> update(StmtWrapper stmt) {
+    public final Mono<ResultStatus> update(Stmt stmt) {
         return ComQueryTask.update(stmt, this.adjutant);
     }
 
@@ -71,7 +71,7 @@ final class ClientCommandProtocolImpl implements ClientCommandProtocol {
      * {@inheritDoc}
      */
     @Override
-    public final Flux<ResultRow> query(StmtWrapper stmt) {
+    public final Flux<ResultRow> query(Stmt stmt) {
         return ComQueryTask.query(stmt, this.adjutant);
     }
 
@@ -79,7 +79,7 @@ final class ClientCommandProtocolImpl implements ClientCommandProtocol {
      * {@inheritDoc}
      */
     @Override
-    public final Flux<ResultStatus> batchUpdate(List<StmtWrapper> stmtList) {
+    public final Flux<ResultStatus> batchUpdate(List<Stmt> stmtList) {
         return ComQueryTask.batchUpdate(stmtList, this.adjutant);
     }
 
@@ -87,12 +87,12 @@ final class ClientCommandProtocolImpl implements ClientCommandProtocol {
      * {@inheritDoc}
      */
     @Override
-    public final ReactorMultiResult executeAsMulti(List<StmtWrapper> stmtList) {
+    public final ReactorMultiResult executeAsMulti(List<Stmt> stmtList) {
         return ComQueryTask.asMulti(stmtList, this.adjutant);
     }
 
     @Override
-    public Flux<SingleResult> executeAsFlux(List<StmtWrapper> stmtList) {
+    public Flux<SingleResult> executeAsFlux(List<Stmt> stmtList) {
         return ComQueryTask.asFlux(stmtList, this.adjutant);
     }
 
@@ -140,7 +140,7 @@ final class ClientCommandProtocolImpl implements ClientCommandProtocol {
      * {@inheritDoc}
      */
     @Override
-    public final Mono<PreparedStatement> prepare(MySQLDatabaseSession session, StmtWrapper stmt) {
+    public final Mono<PreparedStatement> prepare(MySQLDatabaseSession session, Stmt stmt) {
         return ComPreparedTask.prepare(session, stmt, this.adjutant);
     }
 
@@ -148,8 +148,16 @@ final class ClientCommandProtocolImpl implements ClientCommandProtocol {
      * {@inheritDoc}
      */
     @Override
-    public final MultiResult bindableMultiStmt(List<BindableStmt> wrapperList) {
-        return ComQueryTask.bindableMultiStmt(wrapperList, this.adjutant);
+    public final MultiResult multiStmtAsMulti(List<BindableStmt> wrapperList) {
+        return ComQueryTask.multiStmtAsMulti(wrapperList, this.adjutant);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public final Flux<SingleResult> multiStmtAsFlux(List<BindableStmt> wrapperList) {
+        return ComQueryTask.multiStmtAsFlux(wrapperList, this.adjutant);
     }
 
     /**

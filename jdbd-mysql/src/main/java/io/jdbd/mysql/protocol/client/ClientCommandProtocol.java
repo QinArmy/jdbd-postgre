@@ -14,7 +14,7 @@ import io.jdbd.stmt.MultiStatement;
 import io.jdbd.stmt.PreparedStatement;
 import io.jdbd.stmt.StaticStatement;
 import io.jdbd.vendor.result.ReactorMultiResult;
-import io.jdbd.vendor.stmt.StmtWrapper;
+import io.jdbd.vendor.stmt.Stmt;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -44,9 +44,9 @@ public interface ClientCommandProtocol extends ClientProtocol {
      * This method is underlying api of {@link StaticStatement#executeUpdate(String)} method.
      * </p>
      *
-     * @see ComQueryTask#update(StmtWrapper, MySQLTaskAdjutant)
+     * @see ComQueryTask#update(Stmt, MySQLTaskAdjutant)
      */
-    Mono<ResultStatus> update(StmtWrapper stmt);
+    Mono<ResultStatus> update(Stmt stmt);
 
     /**
      * <p>
@@ -57,9 +57,9 @@ public interface ClientCommandProtocol extends ClientProtocol {
      * </ul>
      * </p>
      *
-     * @see ComQueryTask#query(StmtWrapper, MySQLTaskAdjutant)
+     * @see ComQueryTask#query(Stmt, MySQLTaskAdjutant)
      */
-    Flux<ResultRow> query(StmtWrapper stmt);
+    Flux<ResultRow> query(Stmt stmt);
 
 
     /**
@@ -69,7 +69,7 @@ public interface ClientCommandProtocol extends ClientProtocol {
      *
      * @see ComQueryTask#batchUpdate(List, MySQLTaskAdjutant)
      */
-    Flux<ResultStatus> batchUpdate(List<StmtWrapper> stmtList);
+    Flux<ResultStatus> batchUpdate(List<Stmt> stmtList);
 
     /**
      * <p>
@@ -78,14 +78,14 @@ public interface ClientCommandProtocol extends ClientProtocol {
      *
      * @see ComQueryTask#asMulti(List, MySQLTaskAdjutant)
      */
-    ReactorMultiResult executeAsMulti(List<StmtWrapper> stmtList);
+    ReactorMultiResult executeAsMulti(List<Stmt> stmtList);
 
     /**
      * <p>
      * This method is underlying api of {@link StaticStatement#executeAsFlux(List)} method.
      * </p>
      */
-    Flux<SingleResult> executeAsFlux(List<StmtWrapper> stmtList);
+    Flux<SingleResult> executeAsFlux(List<Stmt> stmtList);
 
     /**
      * <p>
@@ -145,9 +145,9 @@ public interface ClientCommandProtocol extends ClientProtocol {
      * </ul>
      * </p>
      *
-     * @see ComPreparedTask#prepare(MySQLDatabaseSession, StmtWrapper, MySQLTaskAdjutant)
+     * @see ComPreparedTask#prepare(MySQLDatabaseSession, Stmt, MySQLTaskAdjutant)
      */
-    Mono<PreparedStatement> prepare(MySQLDatabaseSession session, StmtWrapper stmt);
+    Mono<PreparedStatement> prepare(MySQLDatabaseSession session, Stmt stmt);
 
 
     /**
@@ -155,9 +155,18 @@ public interface ClientCommandProtocol extends ClientProtocol {
      * This method is underlying api of {@link MultiStatement#executeAsMulti()} method.
      * </p>
      *
-     * @see ComQueryTask#bindableMultiStmt(List, MySQLTaskAdjutant)
+     * @see ComQueryTask#multiStmtAsMulti(List, MySQLTaskAdjutant)
      */
-    MultiResult bindableMultiStmt(List<BindableStmt> wrapperList);
+    MultiResult multiStmtAsMulti(List<BindableStmt> wrapperList);
+
+    /**
+     * <p>
+     * This method is underlying api of {@link MultiStatement#executeAsFlux()} method.
+     * </p>
+     *
+     * @see ComQueryTask#multiStmtAsFlux(List, MySQLTaskAdjutant)
+     */
+    Flux<SingleResult> multiStmtAsFlux(List<BindableStmt> wrapperList);
 
     Mono<Void> reset();
 

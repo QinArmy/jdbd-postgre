@@ -2,7 +2,7 @@ package io.jdbd.vendor.stmt;
 
 import java.util.List;
 
-public interface ParamStmt extends StmtWrapper {
+public interface ParamStmt extends Stmt {
 
     /**
      * @return a unmodifiable list

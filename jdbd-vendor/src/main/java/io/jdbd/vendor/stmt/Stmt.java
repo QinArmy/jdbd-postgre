@@ -4,7 +4,7 @@ import io.jdbd.result.ResultStatus;
 
 import java.util.function.Consumer;
 
-public interface StmtWrapper {
+public interface Stmt {
 
     String getSql();
 

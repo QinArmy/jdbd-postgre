@@ -583,6 +583,11 @@ public abstract class CommunicationTaskExecutor<T extends TaskAdjutant> implemen
         }
 
         @Override
+        public final boolean isActive() {
+            return this.taskExecutor.connection.channel().isActive();
+        }
+
+        @Override
         public final boolean inEventLoop() {
             return this.taskExecutor.eventLoop.inEventLoop();
         }

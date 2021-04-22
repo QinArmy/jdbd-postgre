@@ -13,7 +13,7 @@ public interface QuerySink extends ResultRowSink {
      * </p>
      */
     @Override
-    void accept(ResultStatus resultStatus) throws IllegalStateException;
+    void accept(ResultStatus resultStatus);
 
 
     void complete();

@@ -6,11 +6,10 @@ import io.jdbd.meta.SQLType;
 import io.jdbd.mysql.Groups;
 import io.jdbd.mysql.MySQLType;
 import io.jdbd.mysql.protocol.conf.PropertyKey;
-import io.jdbd.mysql.stmt.StmtWrappers;
+import io.jdbd.mysql.stmt.Stmts;
 import io.jdbd.mysql.type.City;
 import io.jdbd.mysql.type.TrueOrFalse;
 import io.jdbd.mysql.util.MySQLStreamUtils;
-import io.jdbd.result.MultiResult;
 import io.jdbd.result.ResultRow;
 import io.jdbd.result.ResultRowMeta;
 import io.jdbd.result.ResultStatus;
@@ -47,7 +46,7 @@ public class DataPrepareSuiteTests extends AbstractConnectionBasedSuiteTests {
 
         if (ClientTestUtils.getTestConfig().getProperty("truncate.after.suite", Boolean.class, Boolean.TRUE)) {
             final MySQLTaskAdjutant adjutant = obtainTaskAdjutant();
-            ComQueryTask.update("TRUNCATE mysql_types", adjutant)
+            ComQueryTask.update(Stmts.stmt("TRUNCATE mysql_types"), adjutant)
                     .then(QuitTask.quit(adjutant))
                     .block();
         }
@@ -78,7 +77,7 @@ public class DataPrepareSuiteTests extends AbstractConnectionBasedSuiteTests {
 
         // single statement mode batch update
         final List<ResultStatus> resultStatusList;
-        resultStatusList = ComQueryTask.batchUpdate(StmtWrappers.stmts(commandList, 0), adjutant)
+        resultStatusList = ComQueryTask.batchUpdate(Stmts.stmts(commandList, 0), adjutant)
                 .collectList()
                 .block();
 
@@ -98,7 +97,7 @@ public class DataPrepareSuiteTests extends AbstractConnectionBasedSuiteTests {
         LOG.info("mysqlTypeMatch test start");
         final MySQLTaskAdjutant adjutant = obtainTaskAdjutant();
 
-        List<ResultRow> resultRowList = ComQueryTask.query(createQuerySqlForMySQLTypeMatch(), MultiResult.EMPTY_CONSUMER, adjutant)
+        List<ResultRow> resultRowList = ComQueryTask.query(Stmts.stmt(createQuerySqlForMySQLTypeMatch()), adjutant)
                 .collectList()
                 .doOnError(this::printMultiError)
                 .block();
@@ -150,12 +149,12 @@ public class DataPrepareSuiteTests extends AbstractConnectionBasedSuiteTests {
 //        byte[] bytes = command.getBytes(taskAdjutant.obtainCharsetClient());
 //        LOG.info("prepare data command bytes:{}, times:{}",bytes.length,bytes.length / PacketUtils.MAX_PAYLOAD);
 //
-        ResultStatus resultStatus = ComQueryTask.update(command, taskAdjutant)
+        ResultStatus resultStatus = ComQueryTask.update(Stmts.stmt(command), taskAdjutant)
                 .block();
 
         assertNotNull(resultStatus, "resultStates");
         assertEquals(resultStatus.getAffectedRows(), rowCount, "affectedRows");
-        assertFalse(resultStatus.hasMoreResults(), "hasMoreResults");
+        assertFalse(resultStatus.hasMoreResult(), "hasMoreResults");
         LOG.info("prepared data rows:{}", resultStatus.getAffectedRows());
         LOG.info("InsertId:{}", resultStatus.getInsertId());
 

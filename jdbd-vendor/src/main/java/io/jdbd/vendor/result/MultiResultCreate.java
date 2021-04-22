@@ -1,7 +1,7 @@
 package io.jdbd.vendor.result;
 
 import io.jdbd.JdbdException;
-import io.jdbd.ResultStateConsumerException;
+import io.jdbd.ResultStatusConsumerException;
 import io.jdbd.result.NoMoreResultException;
 import io.jdbd.result.ResultRow;
 import io.jdbd.result.ResultStatus;
@@ -47,7 +47,9 @@ import static io.jdbd.stmt.ResultType.UPDATE;
  * below is chinese signature:<br/>
  * 当你在阅读这段代码时,我才真正在写这段代码,你阅读到哪里,我便写到哪里.
  * </p>
+ * @deprecated use {@link ReactorMultiResults#fromFlux(Flux, TaskAdjutant)}
  */
+@Deprecated
 final class MultiResultCreate implements MultiResultSink {
 
 
@@ -117,6 +119,10 @@ final class MultiResultCreate implements MultiResultSink {
         this.multiResults = new DefaultMultiResult(this);
     }
 
+    @Override
+    public final boolean isCancelled() {
+        return this.hasDownstreamError();
+    }
 
     @Override
     public void error(final Throwable e) throws IllegalStateException {
@@ -373,7 +379,7 @@ final class MultiResultCreate implements MultiResultSink {
 
     private boolean isMultiResultEnd() {
         final ResultStatus resultStatus = this.lastResultStatus;
-        return resultStatus != null && !resultStatus.hasMoreResults();
+        return resultStatus != null && !resultStatus.hasMoreResult();
     }
 
     private boolean hasAnyBuffer() {
@@ -403,8 +409,8 @@ final class MultiResultCreate implements MultiResultSink {
                         , realQuerySink.statesConsumer);
             } else if (bufferSink instanceof BufferUpdateSink) {
                 if (realSink != null) {
-                    SubscribeException e = new SubscribeException(UPDATE, QUERY
-                            , "Update result[sequenceId(based one):%s] expect subscribe nextUpdate() but subscribe nextQuery()");
+                    String message = String.format("Update result[sequenceId(based one):%s] expect subscribe nextUpdate() but subscribe nextQuery()");
+                    SubscribeException e = new SubscribeException(UPDATE, QUERY, message);
                     addDownstreamError(e);
                     realSink.error(e);
                 }
@@ -686,7 +692,7 @@ final class MultiResultCreate implements MultiResultSink {
                 this.resultStatus = null;
                 sink.complete();
             } catch (Throwable e) {
-                sink.error(new ResultStateConsumerException(
+                sink.error(new ResultStatusConsumerException(
                         e, "ResultStatus[sequenceId(based one):%s] consumer error.", this.sequenceId));
             }
 
@@ -825,9 +831,8 @@ final class MultiResultCreate implements MultiResultSink {
             }
             this.sequenceId = sequenceId;
             MultiResultCreate.this.currentSink = null;
-            SubscribeException e = new SubscribeException(QUERY, UPDATE
-                    , "Query result[sequenceId(based one):%s] expect subscribe nextQuery ,but subscribe nextUpdate."
-                    , sequenceId);
+            String message = String.format("Query result[sequenceId(based one):%s] expect subscribe nextQuery ,but subscribe nextUpdate.", sequenceId);
+            SubscribeException e = new SubscribeException(QUERY, UPDATE, message);
 
             addDownstreamError(e);
 
@@ -904,9 +909,9 @@ final class MultiResultCreate implements MultiResultSink {
             }
             this.sequenceId = sequenceId;
             // here, downstream subscribe error,should subscribe io.jdbd.result.MultiResults.nextUpdate.
-            SubscribeException e = new SubscribeException(UPDATE, QUERY
-                    , "Result[sequenceId(based one):%s] Expect subscribe nextQuery,but subscribe nextUpdate."
+            String message = String.format("Result[sequenceId(based one):%s] Expect subscribe nextQuery,but subscribe nextUpdate."
                     , sequenceId);
+            SubscribeException e = new SubscribeException(UPDATE, QUERY, message);
 
             MultiResultCreate.this.addDownstreamError(e);
             // delay emit error . when query result complete ,emit error.

@@ -8,7 +8,7 @@ public interface ResultStatus {
 
     int getWarnings();
 
-    boolean hasMoreResults();
+    boolean hasMoreResult();
 
     boolean hasMoreFetch();
 

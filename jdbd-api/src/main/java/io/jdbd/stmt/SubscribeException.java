@@ -23,7 +23,7 @@ public final class SubscribeException extends JdbdNonSQLException {
     @Deprecated
     public static SubscribeException errorSubscribe(ResultType expect, ResultType actual
             , String format, Object... args) {
-        return new SubscribeException(expect, actual, format, args);
+        return new SubscribeException(expect, actual, format);
     }
 
     private final ResultType subscribeType;
@@ -37,8 +37,8 @@ public final class SubscribeException extends JdbdNonSQLException {
     }
 
     public SubscribeException(ResultType subscribeType, ResultType actualType
-            , String format, Object... args) {
-        super(createMessage(format, args));
+            , String message) {
+        super(message);
         this.subscribeType = subscribeType;
         this.actualType = actualType;
     }

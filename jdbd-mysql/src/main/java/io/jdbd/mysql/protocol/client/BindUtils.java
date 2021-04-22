@@ -3,6 +3,7 @@ package io.jdbd.mysql.protocol.client;
 import io.jdbd.JdbdSQLException;
 import io.jdbd.mysql.MySQLType;
 import io.jdbd.mysql.stmt.BatchBindStmt;
+import io.jdbd.mysql.stmt.BindableStmt;
 import io.jdbd.mysql.util.MySQLExceptions;
 import io.jdbd.mysql.util.MySQLNumberUtils;
 import io.jdbd.vendor.stmt.ParamValue;
@@ -22,7 +23,13 @@ abstract class BindUtils extends JdbdBindUtils {
     }
 
 
-    static boolean usePrepare(BatchBindStmt stmt, MySQLTaskAdjutant adjutant) {
+    static boolean useBatchPrepare(BatchBindStmt stmt, MySQLTaskAdjutant adjutant) {
+        //TODO zoro ,fill code
+        return false;
+    }
+
+    static boolean usePrepare(BindableStmt stmt, MySQLTaskAdjutant adjutant) {
+        //TODO zoro ,fill code
         return false;
     }
 

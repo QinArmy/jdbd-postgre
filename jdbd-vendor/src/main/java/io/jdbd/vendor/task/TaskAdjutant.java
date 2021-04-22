@@ -7,6 +7,8 @@ import java.util.function.Consumer;
 
 public interface TaskAdjutant {
 
+    boolean isActive();
+
     boolean inEventLoop();
 
     /**

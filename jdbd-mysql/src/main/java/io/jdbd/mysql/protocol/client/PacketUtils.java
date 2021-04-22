@@ -4,7 +4,7 @@ import io.jdbd.JdbdSQLException;
 import io.jdbd.mysql.MySQLJdbdException;
 import io.jdbd.mysql.util.MySQLExceptions;
 import io.jdbd.mysql.util.MySQLNumberUtils;
-import io.jdbd.vendor.stmt.StmtWrapper;
+import io.jdbd.vendor.stmt.Stmt;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
 import org.reactivestreams.Publisher;
@@ -18,6 +18,7 @@ import reactor.util.annotation.Nullable;
 import java.math.BigInteger;
 import java.nio.charset.Charset;
 import java.sql.SQLException;
+import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.function.Consumer;
@@ -581,7 +582,7 @@ public abstract class PacketUtils {
         return packet;
     }
 
-    public static Publisher<ByteBuf> createSimpleCommand(final byte cmdFlag, StmtWrapper stmt
+    public static Iterable<ByteBuf> createSimpleCommand(final byte cmdFlag, Stmt stmt
             , MySQLTaskAdjutant adjutant, Supplier<Integer> sequenceIdSupplier) throws SQLException, JdbdSQLException {
 
         if (cmdFlag != COM_QUERY && cmdFlag != COM_STMT_PREPARE) {
@@ -599,7 +600,7 @@ public abstract class PacketUtils {
         if (actualPayload > maxAllowedPayload) {
             throw MySQLExceptions.createNetPacketTooLargeException(maxAllowedPayload);
         }
-        final Publisher<ByteBuf> publisher;
+        final List<ByteBuf> packetList;
         final ByteBufAllocator allocator = adjutant.allocator();
 
         if (actualPayload < MAX_PAYLOAD) {
@@ -610,7 +611,7 @@ public abstract class PacketUtils {
             packet.writeByte(cmdFlag);
             packet.writeBytes(commandArray);
 
-            publisher = Mono.just(packet);
+            packetList = Collections.singletonList(packet);
         } else {
             List<ByteBuf> list = new LinkedList<>();
             ByteBuf packet = allocator.buffer(MAX_PACKET);
@@ -638,9 +639,14 @@ public abstract class PacketUtils {
                     list.add(createEmptyPacket(allocator, sequenceIdSupplier.get()));
                 }
             }
-            publisher = Flux.fromIterable(list);
+
+            if (list.size() == 1) {
+                packetList = Collections.singletonList(list.get(0));
+            } else {
+                packetList = Collections.unmodifiableList(list);
+            }
         }
-        return publisher;
+        return packetList;
     }
 
 

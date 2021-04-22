@@ -8,7 +8,7 @@ import io.jdbd.mysql.protocol.conf.PropertyKey;
 import io.jdbd.mysql.session.MySQLSessionAdjutant;
 import io.jdbd.mysql.stmt.BindValue;
 import io.jdbd.mysql.stmt.BindableStmt;
-import io.jdbd.mysql.stmt.StmtWrappers;
+import io.jdbd.mysql.stmt.Stmts;
 import io.jdbd.mysql.type.City;
 import io.jdbd.mysql.type.TrueOrFalse;
 import io.jdbd.mysql.util.*;
@@ -52,7 +52,7 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBased
         final MySQLTaskAdjutant taskAdjutant = obtainTaskAdjutant();
 
         List<ResultRow> resultRowList;
-        resultRowList = ComQueryTask.bindableQuery(StmtWrappers.single(sql, bindValue), taskAdjutant)
+        resultRowList = ComQueryTask.bindableQuery(Stmts.single(sql, bindValue), taskAdjutant)
                 .collectList()
                 .block();
 
@@ -65,7 +65,7 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBased
 
         // string bigint
         bindValue = BindValue.create(0, MySQLType.BIGINT, Long.toString(id));
-        resultRowList = ComQueryTask.bindableQuery(StmtWrappers.single(sql, bindValue), taskAdjutant)
+        resultRowList = ComQueryTask.bindableQuery(Stmts.single(sql, bindValue), taskAdjutant)
                 .collectList()
                 .block();
 
@@ -1821,7 +1821,7 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBased
         bindValueList.add(bindValue);
 
         ResultStatus resultStatus;
-        resultStatus = executeUpdate(StmtWrappers.multi(sql, bindValueList), taskAdjutant)
+        resultStatus = executeUpdate(Stmts.multi(sql, bindValueList), taskAdjutant)
                 .block();
 
         assertNotNull(resultStatus, "resultStates");
@@ -1833,7 +1833,7 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBased
         BindValue bindValue = BindValue.create(0, MySQLType.BIGINT, id);
 
         List<ResultRow> resultRowList;
-        resultRowList = executeQuery(StmtWrappers.single(sql, bindValue), taskAdjutant)
+        resultRowList = executeQuery(Stmts.single(sql, bindValue), taskAdjutant)
                 .collectList()
                 .block();
         assertNotNull(resultRowList, "resultRowList");

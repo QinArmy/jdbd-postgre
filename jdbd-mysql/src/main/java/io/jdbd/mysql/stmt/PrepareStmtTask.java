@@ -2,6 +2,7 @@ package io.jdbd.mysql.stmt;
 
 import io.jdbd.result.ResultRow;
 import io.jdbd.result.ResultStatus;
+import io.jdbd.result.SingleResult;
 import io.jdbd.vendor.result.ReactorMultiResult;
 import io.jdbd.vendor.stmt.BatchStmt;
 import io.jdbd.vendor.stmt.ParamStmt;
@@ -11,15 +12,15 @@ import reactor.core.publisher.Mono;
 
 public interface PrepareStmtTask {
 
-    Mono<ResultStatus> executeUpdate(ParamStmt wrapper);
+    Mono<ResultStatus> executeUpdate(ParamStmt stmt);
 
-    Flux<ResultRow> executeQuery(ParamStmt wrapper);
+    Flux<ResultRow> executeQuery(ParamStmt stmt);
 
-    Flux<ResultStatus> executeBatch(BatchStmt<? extends ParamValue> wrapper);
+    Flux<ResultStatus> executeBatch(BatchStmt<? extends ParamValue> stmt);
 
-    ReactorMultiResult executeMulti(ParamStmt wrapper);
+    ReactorMultiResult executeAsMulti(BatchStmt<? extends ParamValue> stmt);
 
-    ReactorMultiResult executeBatchMulti(BatchStmt<? extends ParamValue> wrapper);
+    Flux<SingleResult> executeAsFlux(BatchStmt<? extends ParamValue> stmt);
 
     int getWarnings();
 

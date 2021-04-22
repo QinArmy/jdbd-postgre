@@ -1,6 +1,6 @@
 package io.jdbd.mysql.session;
 
-import io.jdbd.mysql.stmt.StmtWrappers;
+import io.jdbd.mysql.stmt.Stmts;
 import io.jdbd.result.ResultRow;
 import io.jdbd.result.ResultStatus;
 import io.jdbd.result.SingleResult;
@@ -49,32 +49,32 @@ final class MySQLStaticStatement<S extends MySQLDatabaseSession> extends MySQLSt
 
     @Override
     public final Flux<ResultStatus> executeBatch(final List<String> sqlList) {
-        return this.session.protocol.batchUpdate(StmtWrappers.stmts(sqlList, this.timeout));
+        return this.session.protocol.batchUpdate(Stmts.stmts(sqlList, this.timeout));
     }
 
     @Override
     public final Mono<ResultStatus> executeUpdate(String sql) {
-        return this.session.protocol.update(StmtWrappers.stmt(sql, this.timeout));
+        return this.session.protocol.update(Stmts.stmt(sql, this.timeout));
     }
 
     @Override
     public final Flux<ResultRow> executeQuery(String sql) {
-        return this.session.protocol.query(StmtWrappers.stmt(sql, this.timeout));
+        return this.session.protocol.query(Stmts.stmt(sql, this.timeout));
     }
 
     @Override
     public final Flux<ResultRow> executeQuery(String sql, Consumer<ResultStatus> statesConsumer) {
-        return this.session.protocol.query(StmtWrappers.stmt(sql, statesConsumer, this.timeout));
+        return this.session.protocol.query(Stmts.stmt(sql, statesConsumer, this.timeout));
     }
 
     @Override
     public final ReactorMultiResult executeAsMulti(final List<String> sqlList) {
-        return this.session.protocol.executeAsMulti(StmtWrappers.stmts(sqlList, this.timeout));
+        return this.session.protocol.executeAsMulti(Stmts.stmts(sqlList, this.timeout));
     }
 
     @Override
     public final Flux<SingleResult> executeAsFlux(List<String> sqlList) {
-        return this.session.protocol.executeAsFlux(StmtWrappers.stmts(sqlList, this.timeout));
+        return this.session.protocol.executeAsFlux(Stmts.stmts(sqlList, this.timeout));
     }
 
     @Override

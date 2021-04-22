@@ -5,7 +5,7 @@ import io.jdbd.JdbdSQLException;
 import io.jdbd.mysql.Groups;
 import io.jdbd.mysql.stmt.BindableStmt;
 import io.jdbd.mysql.stmt.MySQLParamValue;
-import io.jdbd.mysql.stmt.StmtWrappers;
+import io.jdbd.mysql.stmt.Stmts;
 import io.jdbd.result.ResultRow;
 import io.jdbd.result.ResultStatus;
 import io.jdbd.vendor.stmt.ParamStmt;
@@ -69,7 +69,7 @@ public class ComPreparedTaskSuiteTests extends AbstractStmtTaskSuiteTests {
         bindValueList.add(MySQLParamValue.create(0, "prepare update 1"));
         bindValueList.add(MySQLParamValue.create(1, 80L));
 
-        states = ComPreparedTask.update(StmtWrappers.multiPrepare(sql, bindValueList), adjutant)
+        states = ComPreparedTask.update(Stmts.multiPrepare(sql, bindValueList), adjutant)
                 .block();
 
         assertNotNull(states, "states");

@@ -63,7 +63,7 @@ abstract class MySQLResultStatus implements ResultStatus {
 
 
     @Override
-    public final boolean hasMoreResults() {
+    public final boolean hasMoreResult() {
         return (this.serverStatus & ClientProtocol.SERVER_MORE_RESULTS_EXISTS) != 0;
     }
 

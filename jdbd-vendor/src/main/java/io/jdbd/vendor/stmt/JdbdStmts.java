@@ -11,9 +11,9 @@ import java.util.List;
 import java.util.Objects;
 import java.util.function.Consumer;
 
-public abstract class JdbdStmtWrappers {
+public abstract class JdbdStmts {
 
-    protected JdbdStmtWrappers() {
+    protected JdbdStmts() {
         throw new UnsupportedOperationException();
     }
 
@@ -32,38 +32,44 @@ public abstract class JdbdStmtWrappers {
         return new BatchStmtImpl(sql, groupList, timeOut);
     }
 
-    public static StmtWrapper stmt(String sql) {
-        return new StmtWrapperImpl1(sql);
-    }
-
-    public static StmtWrapper stmt(String sql, int timeout) {
+    public static Stmt stmt(String sql) {
         Objects.requireNonNull(sql, "sql");
-        return timeout > 0 ? new StmtWrapperImpl2(sql, timeout) : new StmtWrapperImpl1(sql);
+        return new StmtImpl1(sql);
     }
 
-    public static StmtWrapper stmt(String sql, Consumer<ResultStatus> statusConsumer, int timeout) {
+    public static Stmt stmt(String sql, int timeout) {
+        Objects.requireNonNull(sql, "sql");
+        return timeout > 0 ? new StmtImpl2(sql, timeout) : new StmtImpl1(sql);
+    }
+
+    public static Stmt stmt(String sql, Consumer<ResultStatus> statusConsumer) {
+        Objects.requireNonNull(sql, "sql");
+        return new StmtImpl2C(sql, statusConsumer);
+    }
+
+    public static Stmt stmt(String sql, Consumer<ResultStatus> statusConsumer, int timeout) {
         Objects.requireNonNull(sql, "sql");
         Objects.requireNonNull(statusConsumer, "statusConsumer");
         return timeout > 0
-                ? new StmtWrapperImpl3(sql, timeout, statusConsumer)
-                : new StmtWrapperImpl2c(sql, statusConsumer);
+                ? new StmtImpl3(sql, timeout, statusConsumer)
+                : new StmtImpl2C(sql, statusConsumer);
     }
 
-    public static List<StmtWrapper> stmts(List<String> sqlList) {
+    public static List<Stmt> stmts(List<String> sqlList) {
         return stmts(sqlList, 0);
     }
 
-    public static List<StmtWrapper> stmts(List<String> sqlList, int timeout) {
+    public static List<Stmt> stmts(List<String> sqlList, int timeout) {
         Objects.requireNonNull(sqlList, "sqlList");
         if (sqlList.isEmpty()) {
             throw new IllegalArgumentException("sqlList is empty.");
         }
-        final List<StmtWrapper> list;
+        final List<Stmt> list;
         final int size = sqlList.size();
         if (size == 1) {
             list = Collections.singletonList(stmt(sqlList.get(0), timeout));
         } else {
-            List<StmtWrapper> tempList = new ArrayList<>(size);
+            List<Stmt> tempList = new ArrayList<>(size);
             for (String sql : sqlList) {
                 tempList.add(stmt(sql, timeout));
             }
@@ -159,42 +165,14 @@ public abstract class JdbdStmtWrappers {
         }
     }
 
-    private static final class ParamStmtImpl implements ParamStmt {
 
-        @Override
-        public String getSql() {
-            return null;
-        }
-
-        @Override
-        public List<? extends ParamValue> getParamGroup() {
-            return null;
-        }
-
-        @Override
-        public Consumer<ResultStatus> getStatusConsumer() {
-            return null;
-        }
-
-        @Override
-        public int getFetchSize() {
-            return 0;
-        }
-
-
-        @Override
-        public int getTimeout() {
-            return 0;
-        }
-    }
-
-    private static class StmtWrapperImpl2 implements StmtWrapper {
+    private static class StmtImpl2 implements Stmt {
 
         private final String sql;
 
         private final int timeout;
 
-        private StmtWrapperImpl2(String sql, int timeout) {
+        private StmtImpl2(String sql, int timeout) {
             this.sql = sql;
             this.timeout = timeout;
         }
@@ -216,13 +194,13 @@ public abstract class JdbdStmtWrappers {
 
     }
 
-    private static class StmtWrapperImpl2c implements StmtWrapper {
+    private static class StmtImpl2C implements Stmt {
 
         private final String sql;
 
         private final Consumer<ResultStatus> consumer;
 
-        private StmtWrapperImpl2c(String sql, Consumer<ResultStatus> consumer) {
+        private StmtImpl2C(String sql, Consumer<ResultStatus> consumer) {
             this.sql = sql;
             this.consumer = consumer;
         }
@@ -245,11 +223,11 @@ public abstract class JdbdStmtWrappers {
     }
 
 
-    private static class StmtWrapperImpl1 implements StmtWrapper {
+    private static class StmtImpl1 implements Stmt {
 
         private final String sql;
 
-        private StmtWrapperImpl1(String sql) {
+        private StmtImpl1(String sql) {
             this.sql = sql;
         }
 
@@ -271,7 +249,7 @@ public abstract class JdbdStmtWrappers {
     }
 
 
-    private static class StmtWrapperImpl3 implements StmtWrapper {
+    private static class StmtImpl3 implements Stmt {
 
         private final String sql;
 
@@ -279,7 +257,7 @@ public abstract class JdbdStmtWrappers {
 
         private final Consumer<ResultStatus> consumer;
 
-        private StmtWrapperImpl3(String sql, int timeout, Consumer<ResultStatus> consumer) {
+        private StmtImpl3(String sql, int timeout, Consumer<ResultStatus> consumer) {
             this.sql = sql;
             this.timeout = timeout;
             this.consumer = consumer;

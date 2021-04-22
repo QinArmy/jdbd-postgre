@@ -7,10 +7,10 @@ import io.jdbd.mysql.protocol.CharsetMapping;
 import io.jdbd.mysql.protocol.Constants;
 import io.jdbd.mysql.protocol.ServerVersion;
 import io.jdbd.mysql.protocol.conf.PropertyKey;
+import io.jdbd.mysql.stmt.Stmts;
 import io.jdbd.mysql.util.MySQLCodes;
 import io.jdbd.mysql.util.MySQLStringUtils;
 import io.jdbd.mysql.util.MySQLTimeUtils;
-import io.jdbd.result.MultiResult;
 import io.jdbd.result.ResultRow;
 import io.jdbd.vendor.conf.Properties;
 import io.jdbd.vendor.util.SQLStates;
@@ -130,11 +130,11 @@ final class DefaultSessionResetter implements SessionResetter {
         if (!MySQLStringUtils.hasText(pairString)) {
             return Mono.empty();
         }
-        String command = Commands.buildSetVariableCommand(pairString);
+        final String command = Commands.buildSetVariableCommand(pairString);
         if (LOG.isDebugEnabled() && !this.properties.getOrDefault(PropertyKey.paranoid, Boolean.class)) {
             LOG.debug("execute set session variables:{}", command);
         }
-        return ComQueryTask.update(command, this.adjutant)
+        return ComQueryTask.update(Stmts.stmt(command), this.adjutant)
                 .then();
 
     }
@@ -186,7 +186,7 @@ final class DefaultSessionResetter implements SessionResetter {
         if (LOG.isDebugEnabled()) {
             LOG.debug("config session charset:{}", namesCommand);
         }
-        return ComQueryTask.update(namesCommand, this.adjutant)
+        return ComQueryTask.update(Stmts.stmt(namesCommand), this.adjutant)
                 .then(Mono.defer(this::configResultsCharset));
     }
 
@@ -202,7 +202,7 @@ final class DefaultSessionResetter implements SessionResetter {
         final long utcEpochSecond = OffsetDateTime.now(ZoneOffset.UTC).toEpochSecond();
         String command = String.format("SELECT @@SESSION.time_zone as timeZone,DATE_FORMAT(FROM_UNIXTIME(%s),'%s') as databaseNow"
                 , utcEpochSecond, "%Y-%m-%d %T");
-        return ComQueryTask.query(command, MultiResult.EMPTY_CONSUMER, this.adjutant)
+        return ComQueryTask.query(Stmts.stmt(command), this.adjutant)
                 .elementAt(0)
                 .flatMap(resultRow -> handleDatabaseTimeZoneAndConnectionZone(resultRow, utcEpochSecond))
                 ;
@@ -214,7 +214,7 @@ final class DefaultSessionResetter implements SessionResetter {
      */
     Mono<Void> configSqlMode() {
         String command = "SELECT @@SESSION.sql_mode";
-        return ComQueryTask.query(command, MultiResult.EMPTY_CONSUMER, this.adjutant)
+        return ComQueryTask.query(Stmts.stmt(command), this.adjutant)
                 .elementAt(0)
                 .flatMap(this::appendSqlModeIfNeed)
                 .then()
@@ -241,13 +241,12 @@ final class DefaultSessionResetter implements SessionResetter {
     Mono<Void> initializeTransaction() {
         final String autoCommitCommand = "SET autocommit = 1";
         final String isolationCommand = "SET TRANSACTION ISOLATION LEVEL REPEATABLE READ";
-        return ComQueryTask.update(autoCommitCommand, this.adjutant)
+        return ComQueryTask.update(Stmts.stmt(autoCommitCommand), this.adjutant)
                 .doOnSuccess(states -> LOG.debug("Command [{}] execute success.", autoCommitCommand))
                 // blow 2 step
-                .flatMap(resultStates -> ComQueryTask.update(isolationCommand, this.adjutant))
+                .then(ComQueryTask.update(Stmts.stmt(isolationCommand), this.adjutant))
                 .doOnSuccess(states -> LOG.debug("Command [{}] execute success.", isolationCommand))
-                .then()
-                ;
+                .then();
     }
 
     /*################################## blow private method ##################################*/
@@ -288,7 +287,7 @@ final class DefaultSessionResetter implements SessionResetter {
         if (LOG.isDebugEnabled()) {
             LOG.debug("config charset result:{}", command);
         }
-        return ComQueryTask.update(command, this.adjutant)
+        return ComQueryTask.update(Stmts.stmt(command), this.adjutant)
                 .then();
     }
 
@@ -317,7 +316,7 @@ final class DefaultSessionResetter implements SessionResetter {
             }
             commandBuilder.append("'");
             final Set<String> unmodifiableSet = Collections.unmodifiableSet(sqlModeSet);
-            mono = ComQueryTask.update(commandBuilder.toString(), this.adjutant)
+            mono = ComQueryTask.update(Stmts.stmt(commandBuilder.toString()), this.adjutant)
                     .doOnSuccess(states -> this.sqlModeSet.set(unmodifiableSet))
                     .then();
         }

@@ -2,15 +2,15 @@ package io.jdbd.mysql.stmt;
 
 import io.jdbd.result.MultiResult;
 import io.jdbd.result.ResultStatus;
-import io.jdbd.vendor.stmt.JdbdStmtWrappers;
+import io.jdbd.vendor.stmt.JdbdStmts;
 
 import java.util.Collections;
 import java.util.List;
 import java.util.function.Consumer;
 
-public abstract class StmtWrappers extends JdbdStmtWrappers {
+public abstract class Stmts extends JdbdStmts {
 
-    protected StmtWrappers() {
+    protected Stmts() {
         throw new UnsupportedOperationException();
     }
 
@@ -77,11 +77,16 @@ public abstract class StmtWrappers extends JdbdStmtWrappers {
 
         private final String sql;
 
-        private final List<List<BindValue>> paramGroupList;
+        private final List<List<BindValue>> groupList;
 
-        private SimpleBatchBindStmt(String sql, List<List<BindValue>> paramGroupList) {
+        private SimpleBatchBindStmt(String sql, List<List<BindValue>> groupList) {
             this.sql = sql;
-            this.paramGroupList = Collections.unmodifiableList(paramGroupList);
+            if (groupList.size() == 1) {
+                this.groupList = Collections.singletonList(groupList.get(0));
+            } else {
+                this.groupList = Collections.unmodifiableList(groupList);
+            }
+
         }
 
         @Override
@@ -91,9 +96,13 @@ public abstract class StmtWrappers extends JdbdStmtWrappers {
 
         @Override
         public List<List<BindValue>> getGroupList() {
-            return this.paramGroupList;
+            return this.groupList;
         }
 
+        @Override
+        public final Consumer<ResultStatus> getStatusConsumer() {
+            return MultiResult.EMPTY_CONSUMER;
+        }
 
         @Override
         public int getTimeout() {
