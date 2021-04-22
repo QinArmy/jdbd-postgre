@@ -2,17 +2,23 @@ package io.jdbd.vendor.util;
 
 import io.jdbd.JdbdException;
 import io.jdbd.JdbdSQLException;
+import io.jdbd.vendor.JdbdCompositeException;
 import io.jdbd.vendor.JdbdUnknownException;
 import org.qinarmy.util.ExceptionUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import reactor.util.annotation.Nullable;
 
 import java.sql.SQLException;
+import java.util.List;
 
 public abstract class JdbdExceptions extends ExceptionUtils {
 
     protected JdbdExceptions() {
         throw new UnsupportedOperationException();
     }
+
+    private static final Logger LOG = LoggerFactory.getLogger(JdbdExceptions.class);
 
 
     public static JdbdException wrap(Throwable e) {
@@ -43,6 +49,17 @@ public abstract class JdbdExceptions extends ExceptionUtils {
             je = new JdbdUnknownException(message, e);
         }
         return je;
+    }
+
+    public static void printCompositeException(final JdbdCompositeException ce) {
+        Throwable e;
+        List<? extends Throwable> list = ce.getErrorList();
+        final int size = list.size();
+        for (int i = 0; i < size; i++) {
+            e = list.get(i);
+            LOG.error("JdbdCompositeException element {} : ", i, e);
+        }
+
     }
 
 

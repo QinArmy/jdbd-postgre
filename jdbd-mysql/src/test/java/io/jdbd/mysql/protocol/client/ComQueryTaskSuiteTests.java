@@ -9,6 +9,7 @@ import io.jdbd.mysql.stmt.BindValue;
 import io.jdbd.mysql.stmt.BindableStmt;
 import io.jdbd.mysql.stmt.Stmts;
 import io.jdbd.mysql.util.MySQLCodes;
+import io.jdbd.mysql.util.MySQLExceptions;
 import io.jdbd.mysql.util.MySQLStates;
 import io.jdbd.result.ResultRow;
 import io.jdbd.result.ResultStatus;
@@ -526,9 +527,7 @@ public class ComQueryTaskSuiteTests extends AbstractStmtTaskSuiteTests {
             assertEquals(e.getActualType(), ResultType.QUERY, "getActualType");
         } catch (Throwable e) {
             if (e instanceof JdbdCompositeException) {
-                for (Throwable throwable : ((JdbdCompositeException) e).getErrorList()) {
-                    LOG.error("", throwable);
-                }
+                MySQLExceptions.printCompositeException((JdbdCompositeException) e);
             }
             fail("batchUpdateContainQueryWithTempMultiMode test failure.", e);
         }

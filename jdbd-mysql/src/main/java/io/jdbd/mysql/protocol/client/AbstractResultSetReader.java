@@ -49,8 +49,6 @@ abstract class AbstractResultSetReader implements ResultSetReader {
 
     private boolean resultSetEnd;
 
-    private int serverStatus;
-
     private Phase phase = Phase.READ_RESULT_META;
 
     private BigRowData bigRowData;
@@ -225,7 +223,6 @@ abstract class AbstractResultSetReader implements ResultSetReader {
                 } else {
                     tp = EofPacket.read(eofPayload, negotiatedCapability);
                 }
-                this.serverStatus = tp.getStatusFags();
                 serverStatesConsumer.accept(tp.getStatusFags());
 
                 sink.accept(MySQLResultStatus.from(tp));
@@ -353,23 +350,13 @@ abstract class AbstractResultSetReader implements ResultSetReader {
      * @see #read(ByteBuf, Consumer)
      */
     private void resetReader() {
-        final int serverStatus = this.serverStatus;
-        final boolean hasMoreResults = (serverStatus & ClientProtocol.SERVER_MORE_RESULTS_EXISTS) != 0;
-        final boolean hasMoreFetch = (serverStatus & ClientProtocol.SERVER_STATUS_CURSOR_EXISTS) != 0
-                && (serverStatus & ClientProtocol.SERVER_STATUS_LAST_ROW_SENT) == 0;
-        if (hasMoreResults || hasMoreFetch) {
+        this.phase = Phase.READ_RESULT_META;
+        this.resultSetEnd = false;
+        this.sequenceId = -1;
 
-            this.phase = Phase.READ_RESULT_META;
-            this.resultSetEnd = false;
-            this.sequenceId = -1;
-            this.serverStatus = 0;
-
-            this.bigRowData = null;
-            this.rowMeta = null;
-            this.error = null;
-        } else {
-            this.resultSetEnd = true;
-        }
+        this.bigRowData = null;
+        this.rowMeta = null;
+        this.error = null;
     }
 
 
@@ -648,7 +635,7 @@ abstract class AbstractResultSetReader implements ResultSetReader {
     static int readColumnMeta(final ByteBuf cumulateBuffer, final MySQLColumnMeta[] columnMetaArray, int metaIndex
             , Consumer<Integer> sequenceIdUpdater, ClientProtocolAdjutant adjutant) {
         if (metaIndex < 0 || metaIndex >= columnMetaArray.length) {
-            throw new IllegalArgumentException("metaIndex  error.");
+            throw new IllegalArgumentException(String.format("metaIndex[%s]  error.", metaIndex));
         }
         final boolean traceEnabled = LOG.isTraceEnabled();
         if (traceEnabled) {
