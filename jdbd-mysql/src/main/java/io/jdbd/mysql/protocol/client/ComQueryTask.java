@@ -708,6 +708,10 @@ final class ComQueryTask extends MySQLCommandTask {
 
     }
 
+    @Override
+    public final String toString() {
+        return this.getClass().getSimpleName() + "@" + this.hashCode();
+    }
 
 
     /*################################## blow package template method ##################################*/
@@ -724,7 +728,7 @@ final class ComQueryTask extends MySQLCommandTask {
             this.packetPublisher = null;
         }
         if (LOG.isTraceEnabled()) {
-            LOG.trace("send COM_QUERY packet with mode[{}],downstream[{}]", this.mode, this.downstreamSink);
+            LOG.trace("{} send COM_QUERY packet with mode[{}],downstream[{}]", this, this.mode, this.downstreamSink);
         }
         return publisher;
     }
@@ -822,7 +826,7 @@ final class ComQueryTask extends MySQLCommandTask {
                 error = ErrorPacket.readPacket(cumulateBuffer.readSlice(payloadLength)
                         , this.negotiatedCapability, this.adjutant.obtainCharsetError());
                 if (LOG.isDebugEnabled()) {
-                    LOG.debug("COM_SET_OPTION enable failure,{}", error);
+                    LOG.debug("{} COM_SET_OPTION enable failure,{}", this, error);
                 }
                 // release ByteBuf
                 Flux.from(Objects.requireNonNull(this.packetPublisher, "this.packetPublisher"))
@@ -842,7 +846,7 @@ final class ComQueryTask extends MySQLCommandTask {
                 this.tempMultiStmtStatus = TempMultiStmtStatus.ENABLE_SUCCESS;
                 taskEnd = false;
                 if (LOG.isDebugEnabled()) {
-                    LOG.debug("COM_SET_OPTION enable success.");
+                    LOG.debug("{} COM_SET_OPTION enable success.", this);
                 }
             }
             break;
@@ -1961,6 +1965,9 @@ final class ComQueryTask extends MySQLCommandTask {
         final boolean internalNextUpdate(final ResultStatus status) {
             final boolean taskEnd;
             if (this.task.hasError()) {
+                if (LOG.isTraceEnabled()) {
+                    LOG.trace("{} downstream[{}] has error", this.task, this);
+                }
                 taskEnd = !status.hasMoreResult();
             } else {
                 this.sink.nextUpdate(status);// drain to downstream

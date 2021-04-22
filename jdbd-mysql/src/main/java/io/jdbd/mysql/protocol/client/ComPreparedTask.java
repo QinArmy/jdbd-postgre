@@ -311,6 +311,11 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
                 && ((FetchAbleDownstreamSink) downstreamSink).getFetchSize() > 0;
     }
 
+    @Override
+    public final String toString() {
+        return this.getClass().getSimpleName();
+    }
+
     /*################################## blow PrepareStmtTask method ##################################*/
 
     /**
@@ -448,6 +453,10 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
         publisher = Objects.requireNonNull(this.packetPublisher, "this.packetPublisher");
         this.packetPublisher = null;
         this.phase = Phase.READ_PREPARE_RESPONSE;
+
+        if (LOG.isTraceEnabled()) {
+            LOG.trace("start {} with downstream[{}]", this, this.downstreamSink);
+        }
         return publisher;
     }
 
@@ -553,7 +562,7 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
                 action = Action.TASK_END;
                 break;
             case CLOSE_STMT: {
-                throw new IllegalStateException("CLOSE_STM command send error.");
+                throw new IllegalStateException("CLOSE_STMT command send error.", e);
             }
             default: {
                 addError(MySQLExceptions.wrap(e));
@@ -692,17 +701,31 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
      * @see #decode(ByteBuf, Consumer)
      */
     private boolean handleReadPrepareComplete() {
+        if (LOG.isTraceEnabled()) {
+            LOG.trace("{} read prepare complete, downstream[{}]", this, this.downstreamSink);
+        }
         final DownstreamSink downstreamSink = this.downstreamSink;
         final boolean taskEnd;
         if (downstreamSink instanceof DownstreamAdapter) {
             taskEnd = false;
             this.phase = Phase.WAIT_PARAMS;
             ((DownstreamAdapter) downstreamSink).emitStatement();
+            if (LOG.isTraceEnabled()) {
+                LOG.trace("{} wait for parameters, downstream[{}]", this, this.downstreamSink);
+            }
         } else {
             this.phase = Phase.EXECUTE;
             if (executeStatement()) {
                 taskEnd = true;
+
+                if (LOG.isTraceEnabled()) {
+                    LOG.trace("{} create execute command packet failure,task end, downstream[{}]"
+                            , this, this.downstreamSink);
+                }
             } else {
+                if (LOG.isTraceEnabled()) {
+                    LOG.trace("{} create execute command packet success, downstream[{}]", this, this.downstreamSink);
+                }
                 taskEnd = false;
                 this.phase = Phase.READ_EXECUTE_RESPONSE;
             }
@@ -801,6 +824,10 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
     private boolean readExecuteResponse(final ByteBuf cumulateBuffer, final Consumer<Object> serverStatusConsumer) {
         assertPhase(Phase.READ_EXECUTE_RESPONSE);
 
+        final boolean traceEnabled = LOG.isTraceEnabled();
+        if (traceEnabled) {
+            LOG.trace("{} start read execute response, downstream[{}]", this, this.downstreamSink);
+        }
         final int header = PacketUtils.getInt1AsInt(cumulateBuffer, cumulateBuffer.readerIndex() + PacketUtils.HEADER_SIZE);
         final boolean taskEnd;
         switch (header) {
@@ -812,6 +839,10 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
                         , this.negotiatedCapability, this.adjutant.obtainCharsetError());
                 addError(MySQLExceptions.createErrorPacketException(error));
                 taskEnd = true;
+                if (traceEnabled) {
+                    LOG.trace("{} read execute error,{}, downstream[{}]", this, error.getErrorMessage()
+                            , this.downstreamSink);
+                }
             }
             break;
             case OkPacket.OK_HEADER: {
@@ -822,6 +853,10 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
                 serverStatusConsumer.accept(ok.getStatusFags());
                 // emit update result
                 taskEnd = this.downstreamSink.nextUpdate(MySQLResultStatus.from(ok));
+                if (traceEnabled) {
+                    LOG.trace("{} start read execute update result,haMoreResult[{}], downstream[{}]"
+                            , this, this.downstreamSink.hasMoreResult(), this.downstreamSink);
+                }
             }
             break;
             default: {
@@ -843,11 +878,21 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
      */
     private boolean readResultSet(final ByteBuf cumulateBuffer, final Consumer<Object> serverStatusConsumer) {
         assertPhase(Phase.READ_RESULT_SET);
+
+        final boolean traceEnabled = LOG.isTraceEnabled();
+        if (traceEnabled) {
+            LOG.trace("{}  read binary ResultSet, downstream[{}]", this, this.downstreamSink);
+        }
         if (!this.downstreamSink.readResultSet(cumulateBuffer, serverStatusConsumer)) {
             return false;
         }
         final boolean taskEnd;
         if (this.downstreamSink.hasMoreResult()) {
+            if (traceEnabled) {
+                LOG.trace("{}  read ResultSet end,hasMoreResult[{}], downstream[{}]"
+                        , this, this.downstreamSink.hasMoreResult(), this.downstreamSink);
+            }
+            this.phase = Phase.READ_EXECUTE_RESPONSE;
             taskEnd = false;
         } else if (hasError()) {
             taskEnd = true;
@@ -946,14 +991,17 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
      * @return true : send occur error,task end.
      * @see DownstreamSink#executeCommand()
      */
-    private boolean sendExecuteCommand(ExecuteCommandWriter writer, int stmtIndex
+    private boolean sendExecuteCommand(ExecuteCommandWriter writer, final int stmtIndex
             , List<? extends ParamValue> parameterGroup) {
-        assertPhase(Phase.EXECUTE);
         updateSequenceId(-1); // reset sequenceId
 
+        if (LOG.isTraceEnabled()) {
+            LOG.trace("{}  send execute command,stmtIndex[{}] downstream[{}]", this, stmtIndex, this.downstreamSink);
+        }
         boolean taskEnd = false;
         try {
             this.packetPublisher = writer.writeCommand(stmtIndex, parameterGroup);
+            this.phase = Phase.READ_EXECUTE_RESPONSE;
         } catch (Throwable e) {
             addError(MySQLExceptions.wrap(e));
             taskEnd = true;
@@ -1474,12 +1522,12 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
                 return false;
             }
             final ResultStatus status = Objects.requireNonNull(this.queryStatus, "this.queryStatus");
-            this.queryStatus = null; //clear for next query result.
+
             if (this.task.hasError()) {
-                // do nothing
                 if (LOG.isTraceEnabled()) {
                     LOG.trace("{} occur error.", this);
                 }
+                this.queryStatus = null; //clear for next query result.
             } else if (status.hasMoreResult()) {
                 if (this.fetchSize > 0) {
                     try {
@@ -1493,8 +1541,14 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
                     // here ,sql is that call stored procedure,skip rest results.
                     this.task.addError(TaskUtils.createQueryMultiError());
                 }
+                this.queryStatus = null; //clear for next query result.
             } else if (status.hasMoreFetch()) {
                 this.task.sendFetchCommand(); // fetch more results.
+                this.queryStatus = null; //clear for next query result.
+            } else {
+                if (LOG.isTraceEnabled()) {
+                    LOG.trace("{} downstream[{}] read complete.", this.task, this);
+                }
             }
             return true;
         }

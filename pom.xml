@@ -37,8 +37,8 @@
         <mysql.versioin>8.0.23</mysql.versioin>
         <r2dbc-postgresql.version>0.8.4.RELEASE</r2dbc-postgresql.version>
 
-        <slf4.version>1.7.28</slf4.version>
-        <log4j2.version>2.13.3</log4j2.version>
+        <slf4.version>1.7.30</slf4.version>
+        <log4j2.version>2.12.1</log4j2.version>
 
         <testng.version>7.1.0</testng.version>
     </properties>

@@ -22,14 +22,5 @@ public abstract class JdbdBindUtils {
         return has;
     }
 
-    public static <T extends ParamValue> boolean hasLongDataGroup(List<List<T>> parameterGroupList) {
-        boolean has = false;
-        for (List<T> list : parameterGroupList) {
-            if (hasLongData(list)) {
-                has = true;
-                break;
-            }
-        }
-        return has;
-    }
+
 }

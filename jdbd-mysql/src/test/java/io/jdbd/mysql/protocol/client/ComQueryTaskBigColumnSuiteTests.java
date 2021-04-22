@@ -43,7 +43,7 @@ public class ComQueryTaskBigColumnSuiteTests extends AbstractConnectionBasedSuit
         LOG.info("longBlob test end");
     }
 
-    @Test(timeOut = TIME_OUT)
+    @Test(enabled = false, timeOut = TIME_OUT)
     public void myBit20() {
         final MySQLTaskAdjutant adjutant = obtainTaskAdjutant();
         String sql, alias;

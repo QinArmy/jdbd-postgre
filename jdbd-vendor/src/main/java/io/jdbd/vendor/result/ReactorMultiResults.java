@@ -53,9 +53,7 @@ abstract class ReactorMultiResults {
 
         private volatile boolean done;
 
-        private Throwable upstreamError;
-
-        private Throwable downstreamError;
+        private ErrorPair errorPair;
 
         private Subscription s;
 
@@ -77,22 +75,38 @@ abstract class ReactorMultiResults {
         }
 
         @Override
-        public final void onError(Throwable t) {
-
-            if (this.upstreamError == null) {
+        public final void onError(final Throwable t) {
+            if (this.errorPair == null) {
                 drain(); // first drain ,second store upstreamError
-                this.upstreamError = t;
-            } else if (LOG.isDebugEnabled()) {
-                LOG.error("upstream duplicate invoke error(Throwable) method.", this.upstreamError);
+                this.errorPair = new ErrorPair(t, true);
+                doOnError();
             }
-
 
         }
 
         @Override
         public final void onComplete() {
             this.done = true;
-            drain();
+            if (this.errorPair == null) {
+                drain();
+                final Queue<Object> sinkQueue = this.sinkQueue;
+                if (sinkQueue.isEmpty()) {
+                    return;
+                }
+
+                Object sinkObj;
+                final Throwable error = new NoMoreResultException("No more result.");
+                while ((sinkObj = sinkQueue.poll()) != null) {
+                    if (sinkObj instanceof MonoSink) {
+                        ((MonoSink<?>) sinkObj).error(error);
+                    } else {
+                        SinkPair sinkPair = (SinkPair) sinkObj;
+                        sinkPair.sink.error(error);
+                    }
+                }
+
+            }
+
         }
 
 
@@ -100,48 +114,72 @@ abstract class ReactorMultiResults {
             this.upstream.subscribe(this);
         }
 
+        private void doOnError() {
+            final ErrorPair errorPair = this.errorPair;
+            if (errorPair == null) {
+                throw new IllegalStateException("No error,reject execute.");
+            }
+
+            final Queue<SingleResult> resultQueue = this.resultQueue;
+            SingleResult result;
+            while ((result = resultQueue.poll()) != null) {
+                if (result.isQuery()) {
+                    Flux.from(result.receiveQuery())
+                            .ignoreElements()
+                            .subscribe();
+                } else {
+                    Mono.from(result.receiveUpdate())
+                            .ignoreElement()
+                            .subscribe();
+                }
+
+            }
+
+            final Queue<Object> sinkQueue = this.sinkQueue;
+            Object sinkObj;
+
+            while ((sinkObj = sinkQueue.poll()) != null) {
+                if (sinkObj instanceof MonoSink) {
+                    ((MonoSink<?>) sinkObj).error(errorPair.error);
+                } else {
+                    ((SinkPair) sinkObj).sink.error(errorPair.error);
+                }
+            }
+
+
+        }
+
         @SuppressWarnings("unchecked")
         private void drain() {
+            if (this.errorPair != null) {
+                doOnError();
+                return;
+            }
+
+            final Queue<Object> sinkQueue = this.sinkQueue;
+            final Queue<SingleResult> resultQueue = this.resultQueue;
+
             Object sinkObj;
             SingleResult result;
 
-
-            Throwable downstreamError = this.downstreamError;
-            final Throwable originalDownstreamError = downstreamError;
-            final Throwable upstreamError = this.upstreamError;
-
-            while (!this.sinkQueue.isEmpty() && !this.resultQueue.isEmpty()) {
+            while (!sinkQueue.isEmpty() && !resultQueue.isEmpty()) {
                 sinkObj = this.sinkQueue.poll();
                 result = this.resultQueue.poll();
 
                 assert sinkObj != null;
                 assert result != null;
 
-                if (upstreamError != null) {
-                    if (sinkObj instanceof MonoSink) {
-                        ((MonoSink<?>) sinkObj).error(upstreamError);
-                    } else {
-                        ((SinkPair) sinkObj).sink.error(upstreamError);
-                    }
-                    continue;
-                } else if (downstreamError != null) {
-                    if (sinkObj instanceof MonoSink) {
-                        ((MonoSink<?>) sinkObj).error(downstreamError);
-                    } else {
-                        ((SinkPair) sinkObj).sink.error(downstreamError);
-                    }
-                    continue;
-                }
-
                 if (sinkObj instanceof MonoSink) {
                     if (result.isQuery()) {
                         String message = String.format("Subscribe Update[index(based 0):%s] ,but actual Query."
                                 , result.getIndex());
-                        downstreamError = new SubscribeException(ResultType.UPDATE, ResultType.QUERY, message);
-                        this.downstreamError = downstreamError;
-                        ((MonoSink<?>) sinkObj).error(downstreamError);
+                        Throwable error = new SubscribeException(ResultType.UPDATE, ResultType.QUERY, message);
+                        this.errorPair = new ErrorPair(error, false);
+                        ((MonoSink<?>) sinkObj).error(error);
                         Flux.from(result.receiveQuery())
-                                .subscribe(cancelSubscribe());
+                                .ignoreElements()
+                                .subscribe();
+                        break;
                     } else {
                         MonoSink<ResultStatus> sink = ((MonoSink<ResultStatus>) sinkObj);
                         Mono.from(result.receiveUpdate())
@@ -161,54 +199,61 @@ abstract class ReactorMultiResults {
                     } else {
                         String message = String.format("Subscribe Query[index(based 0):%s] ,but actual Update."
                                 , result.getIndex());
-                        downstreamError = new SubscribeException(ResultType.QUERY, ResultType.UPDATE, message);
-                        this.downstreamError = downstreamError;
-                        pair.sink.error(downstreamError);
+                        Throwable error = new SubscribeException(ResultType.QUERY, ResultType.UPDATE, message);
+                        this.errorPair = new ErrorPair(error, false);
+                        pair.sink.error(error);
                         Mono.from(result.receiveUpdate())
+                                .ignoreElement()
                                 .subscribe();
+                        break;
                     }
                 }
 
 
             }
 
-            if (originalDownstreamError == null && downstreamError != null) {
+            if (this.errorPair != null) {
                 s.cancel();
+                doOnError();
             }
 
         }
 
+
         private void subscribeUpdate(MonoSink<ResultStatus> sink) {
-            if (this.s == null) {
-                subscribeUpstream();
-            } else if (this.done && this.resultQueue.isEmpty()) {
+            if (this.done && this.resultQueue.isEmpty()) {
                 sink.error(new NoMoreResultException("No more result."));
             } else {
                 this.sinkQueue.add(sink);
-                drain();
+                if (this.s == null) {
+                    subscribeUpstream();
+                } else if (this.errorPair != null) {
+                    doOnError();
+                } else {
+                    drain();
+                }
             }
 
         }
 
+
         private void subscribeQuery(FluxSink<ResultRow> sink, Consumer<ResultStatus> statesConsumer) {
-            if (this.s == null) {
-                subscribeUpstream();
-            } else if (this.done && this.resultQueue.isEmpty()) {
+            if (this.done && this.resultQueue.isEmpty()) {
                 sink.error(new NoMoreResultException("No more result."));
             } else {
                 this.sinkQueue.add(new SinkPair(sink, statesConsumer));
-                drain();
+                if (s == null) {
+                    subscribeUpstream();
+                } else if (this.errorPair != null) {
+                    doOnError();
+                } else {
+                    drain();
+                }
             }
 
         }
 
     } // SingleResultFluxSubscriber
-
-
-    @SuppressWarnings("unchecked")
-    static <T> Subscriber<T> cancelSubscribe() {
-        return (Subscriber<T>) CancelSubscribe.INSTANCE;
-    }
 
 
     private static final class ReactorMultiResultImpl implements ReactorMultiResult {
@@ -294,6 +339,19 @@ abstract class ReactorMultiResults {
         private SinkPair(FluxSink<ResultRow> sink, Consumer<ResultStatus> statesConsumer) {
             this.sink = sink;
             this.statesConsumer = statesConsumer;
+        }
+
+    }
+
+    private static final class ErrorPair {
+
+        private final Throwable error;
+
+        private final boolean upstream;
+
+        private ErrorPair(Throwable error, boolean upstream) {
+            this.error = error;
+            this.upstream = upstream;
         }
 
     }

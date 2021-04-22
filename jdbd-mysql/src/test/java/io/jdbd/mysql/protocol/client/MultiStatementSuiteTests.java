@@ -485,7 +485,7 @@ public class MultiStatementSuiteTests extends AbstractConnectionBasedSuiteTests 
     /**
      * @see ComQueryTask#asMulti(List, MySQLTaskAdjutant)
      */
-    @Test(timeOut = TIME_OUT)
+    @Test(timeOut = TIME_OUT, invocationCount = 3)
     public void multiStmtTooManySubscribe() {
         LOG.info("multiStmtTooManySubscribe test start");
         final MySQLTaskAdjutant adjutant = obtainMultiStmtTaskAdjutant();
@@ -506,23 +506,27 @@ public class MultiStatementSuiteTests extends AbstractConnectionBasedSuiteTests 
         try {
             //below defer serially subscribe
             final ReactorMultiResult multiResults1 = ComQueryTask.asMulti(Collections.unmodifiableList(sqlList), adjutant);
-            multiResults1.nextUpdate()//1. immediately subscribe update
+            multiResults1.nextUpdate()//1. defer subscribe update
                     .switchIfEmpty(emptyError())
                     .map(this::assertUpdateSuccess)
+                    .doOnNext(r -> LOG.debug("multiStmtTooManySubscribe 1. immediately subscribe update"))
 
                     .then(multiResults1.nextUpdate())// 2.defer subscribe  update
                     .switchIfEmpty(emptyError())
                     .map(this::assertUpdateSuccess)
+                    .doOnNext(r -> LOG.debug("multiStmtTooManySubscribe  2.defer subscribe  update"))
 
-                    .thenMany(multiResults1.nextQuery())// 3.defer subscribe  query
+                    .thenMany(multiResults1.nextQuery(statesHolder::set))// 3.defer subscribe  query
                     .switchIfEmpty(emptyError())
                     .map(this::assertResultRow)
                     .count()
-                    .flatMap(this::assertQueryRowCount)
                     .doOnNext(count -> {
                         assertNotNull(statesHolder.get(), "3.defer subscribe  query states.");
                         statesHolder.set(null);
                     })
+                    .doOnNext(r -> LOG.debug("multiStmtTooManySubscribe   3.defer subscribe  query"))
+                    .flatMap(this::assertQueryRowCount)
+
 
                     .then(multiResults1.nextUpdate())// 4. error no more result
                     .map(states -> {
@@ -541,7 +545,6 @@ public class MultiStatementSuiteTests extends AbstractConnectionBasedSuiteTests 
             releaseMultiStmtConnection(adjutant);
         }
 
-        LOG.info("multiStmtTooManySubscribe test success");
         releaseMultiStmtConnection(adjutant);
     }
 
