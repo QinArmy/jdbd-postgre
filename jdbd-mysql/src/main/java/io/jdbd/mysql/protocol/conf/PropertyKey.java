@@ -188,7 +188,7 @@ public enum PropertyKey implements IPropertyKey {
     functionsNeverReturnBlobs("false", Boolean.class), //
     locatorFetchBufferSize("1048576", Integer.class), //
 
-    //below Datetime types processing
+    //below Datetime types processing  https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-datetime-types-processing.html
     connectionTimeZone(Constants.LOCAL, ZoneOffset.class),
     forceConnectionTimeZoneToSession("false", Boolean.class), //
     noDatetimeStringSync("false", Boolean.class), //

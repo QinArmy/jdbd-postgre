@@ -117,7 +117,7 @@ public class DataPrepareSuiteTests extends AbstractConnectionBasedSuiteTests {
     /*################################## blow private method ##################################*/
 
     private static void doPrepareData(MySQLTaskAdjutant taskAdjutant) throws Exception {
-        final int rowCount = 500;
+        final int rowCount = 10000;
 
         StringBuilder builder = new StringBuilder(40 * rowCount)
                 .append("INSERT INTO mysql_types(name,my_char,my_bit,my_boolean,my_json) VALUES");

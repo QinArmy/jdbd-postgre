@@ -1,6 +1,7 @@
 package io.jdbd.stmt;
 
 import io.jdbd.JdbdNonSQLException;
+import io.jdbd.lang.Nullable;
 
 import java.nio.file.Path;
 
@@ -10,14 +11,20 @@ public class LocalFileException extends JdbdNonSQLException {
 
     private final long sentBytes;
 
-    public LocalFileException(Path localFile, String messageFormat, Object... args) {
-        super(messageFormat, args);
+    public LocalFileException(Path localFile, String message) {
+        super(message);
         this.localFile = localFile;
         this.sentBytes = 0L;
     }
 
-    public LocalFileException(Throwable cause, Path localFile, long sentBytes, String messageFormat, Object... args) {
-        super(cause, messageFormat, args);
+    public LocalFileException(Path localFile, String message, @Nullable Throwable cause) {
+        super(message, cause);
+        this.localFile = localFile;
+        this.sentBytes = 0L;
+    }
+
+    public LocalFileException(Path localFile, long sentBytes, String message, @Nullable Throwable cause) {
+        super(message, cause);
         this.localFile = localFile;
         this.sentBytes = sentBytes;
     }

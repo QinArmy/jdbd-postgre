@@ -8,7 +8,7 @@ import io.jdbd.mysql.protocol.Constants;
 import io.jdbd.mysql.protocol.ServerVersion;
 import io.jdbd.mysql.protocol.conf.PropertyKey;
 import io.jdbd.mysql.stmt.Stmts;
-import io.jdbd.mysql.util.MySQLCodes;
+import io.jdbd.mysql.util.MySQLExceptions;
 import io.jdbd.mysql.util.MySQLStringUtils;
 import io.jdbd.mysql.util.MySQLTimeUtils;
 import io.jdbd.result.ResultRow;
@@ -26,8 +26,10 @@ import java.sql.SQLException;
 import java.time.*;
 import java.util.Collections;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
-import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 
 final class DefaultSessionResetter implements SessionResetter {
 
@@ -42,15 +44,7 @@ final class DefaultSessionResetter implements SessionResetter {
 
     private final MySQLTaskAdjutant adjutant;
 
-    private final AtomicReference<Charset> charsetClient = new AtomicReference<>(null);
-
-    private final AtomicReference<Charset> charsetResults = new AtomicReference<>(null);
-
-    private final AtomicReference<ZoneOffset> zoneOffsetDatabase = new AtomicReference<>(null);
-
-    private final AtomicReference<ZoneOffset> zoneOffsetClient = new AtomicReference<>(null);
-
-    private final AtomicReference<Set<String>> sqlModeSet = new AtomicReference<>(null);
+    private final ConcurrentMap<Key, Object> configCacheMap = new ConcurrentHashMap<>(9);
 
     private DefaultSessionResetter(MySQLTaskAdjutant adjutant) {
         this.adjutant = adjutant;
@@ -59,63 +53,38 @@ final class DefaultSessionResetter implements SessionResetter {
 
     @Override
     public Mono<Server> reset() {
-        this.charsetClient.set(null);
-        this.charsetResults.set(null);
-        this.zoneOffsetDatabase.set(null);
-        this.zoneOffsetClient.set(null);
-
-        this.sqlModeSet.set(null);
-
-        return executeSetSessionVariables()//1.
-                .then(Mono.defer(this::configSessionCharset))//2.
-                .then(Mono.defer(this::configZoneOffsets))//3.
-                .then(Mono.defer(this::configSqlMode))//4.
-
-                .then(Mono.defer(this::initializeTransaction))//5.
-                .then(Mono.defer(this::createServer))//
-                ;
-
+        return Mono.defer(this::executeReset);
     }
 
 
     /*################################## blow private method ##################################*/
 
+    private Mono<Server> executeReset() {
+        this.configCacheMap.clear();
+
+        return executeSetSessionVariables()//1.
+                .then(configSessionCharset())//2.
+                .then(configZoneOffsets())//3.
+                .then(configSqlMode())//4.
+
+                .then(initializeTransaction())//5.
+                .then(cacheGlobalLocalInfileVariable())//6.
+                .then(Mono.defer(this::createServer))//
+                ;
+    }
+
 
     private Mono<Server> createServer() {
-
-        Charset charsetClient = this.charsetClient.get();
-        Charset charsetResults = this.charsetResults.get();
-        ZoneOffset zoneOffsetDatabase = this.zoneOffsetDatabase.get();
-        ZoneOffset zoneOffsetClient = this.zoneOffsetClient.get();
-
-        Set<String> sqlModeSet = this.sqlModeSet.get();
-
         Mono<Server> mono;
-        final String message;
-        if (charsetClient == null) {
-            message = String.format("%s config failure.", PropertyKey.characterEncoding);
-        } else if (zoneOffsetDatabase == null) {
-            message = "obtain database time_zone failure";
-        } else if (zoneOffsetClient == null) {
-            message = String.format("%s config failure.", PropertyKey.connectionTimeZone);
-        } else if (sqlModeSet == null) {
-            message = "obtain database sql_mode failure";
-        } else {
-            message = null;
-        }
-
-        if (message == null) {
-            assert charsetClient != null;
-            assert zoneOffsetClient != null;
-            Server server = new DefaultServer(charsetClient, charsetResults, zoneOffsetDatabase, zoneOffsetClient
-                    , sqlModeSet);
-            if (LOG.isDebugEnabled() && !this.properties.getOrDefault(PropertyKey.paranoid, Boolean.class)) {
-                LOG.debug("after reset ,server :\n{}", server);
-            }
+        try {
+            Server server = new DefaultServer(this.configCacheMap, this.properties);
             mono = Mono.just(server);
-        } else {
-            mono = Mono.error(new JdbdSQLException(new SQLException(message, SQLStates.CONNECTION_EXCEPTION
-                    , MySQLCodes.CR_UNKNOWN_ERROR)));
+            if (LOG.isDebugEnabled()) {
+                LOG.debug("Database session[{}] reset success,{}"
+                        , this.adjutant.obtainHandshakeV10Packet().getThreadId(), server);
+            }
+        } catch (Throwable e) {
+            mono = Mono.error(MySQLExceptions.wrap(e));
         }
         return mono;
     }
@@ -182,7 +151,7 @@ final class DefaultSessionResetter implements SessionResetter {
                     , connectionCollation.collationName);
             clientCharset = Charset.forName(connectionCollation.mySQLCharset.javaEncodingsUcList.get(0));
         }
-        this.charsetClient.set(clientCharset);
+        this.configCacheMap.put(Key.CHARSET_CLIENT, clientCharset);
         if (LOG.isDebugEnabled()) {
             LOG.debug("config session charset:{}", namesCommand);
         }
@@ -192,7 +161,7 @@ final class DefaultSessionResetter implements SessionResetter {
 
 
     /**
-     * config {@link #zoneOffsetClient} and {@link #zoneOffsetDatabase}
+     * config {@link Key#ZONE_OFFSET_CLIENT} and {@link Key#ZONE_OFFSET_DATABASE}
      *
      * @see PropertyKey#cacheDefaultTimezone
      * @see PropertyKey#connectionTimeZone
@@ -249,6 +218,24 @@ final class DefaultSessionResetter implements SessionResetter {
                 .then();
     }
 
+    /**
+     * @see #reset()
+     */
+    Mono<Void> cacheGlobalLocalInfileVariable() {
+        // now only cache local_infile
+        return ComQueryTask.query(Stmts.stmt("SELECT @@GLOBAL.local_infile"), this.adjutant)
+                .elementAt(0)
+                .doOnSuccess(this::storeGlobalLocalInfileVariable)
+                .then();
+    }
+
+    /**
+     * @see <a href="https://dev.mysql.com/doc/refman/8.0/en/server-system-variables.html#sysvar_local_infile">local_infile</a>
+     */
+    private void storeGlobalLocalInfileVariable(ResultRow row) {
+        this.configCacheMap.put(Key.LOCAL_INFILE, row.getNonNull(0, Boolean.class));
+    }
+
     /*################################## blow private method ##################################*/
 
     /**
@@ -282,8 +269,11 @@ final class DefaultSessionResetter implements SessionResetter {
             command = String.format("SET character_set_results = '%s'", mySQLCharset.charsetName);
             charsetResults = Charset.forName(mySQLCharset.javaEncodingsUcList.get(0));
         }
-        this.charsetResults.set(charsetResults);
-
+        if (charsetResults == null) {
+            this.configCacheMap.remove(Key.CHARSET_RESULTS);
+        } else {
+            this.configCacheMap.put(Key.CHARSET_RESULTS, charsetResults);
+        }
         if (LOG.isDebugEnabled()) {
             LOG.debug("config charset result:{}", command);
         }
@@ -301,7 +291,7 @@ final class DefaultSessionResetter implements SessionResetter {
         final Mono<Void> mono;
         if (!this.properties.getOrDefault(PropertyKey.timeTruncateFractional, Boolean.class)
                 || sqlModeSet.contains(SQLMode.TIME_TRUNCATE_FRACTIONAL.name())) {
-            this.sqlModeSet.set(Collections.unmodifiableSet(sqlModeSet));
+            this.configCacheMap.put(Key.SQL_MODE_SET, Collections.unmodifiableSet(sqlModeSet));
             mono = Mono.empty();
         } else {
             sqlModeSet.add(SQLMode.TIME_TRUNCATE_FRACTIONAL.name());
@@ -317,7 +307,7 @@ final class DefaultSessionResetter implements SessionResetter {
             commandBuilder.append("'");
             final Set<String> unmodifiableSet = Collections.unmodifiableSet(sqlModeSet);
             mono = ComQueryTask.update(Stmts.stmt(commandBuilder.toString()), this.adjutant)
-                    .doOnSuccess(states -> this.sqlModeSet.set(unmodifiableSet))
+                    .doOnSuccess(states -> this.configCacheMap.put(Key.SQL_MODE_SET, unmodifiableSet))
                     .then();
         }
         return mono;
@@ -340,12 +330,12 @@ final class DefaultSessionResetter implements SessionResetter {
 
             int totalSeconds = (int) (databaseNow.toEpochSecond() - utcEpochSecond);
             zoneOffsetDatabase = ZoneOffset.ofTotalSeconds(totalSeconds);
-            this.zoneOffsetDatabase.set(zoneOffsetDatabase);
+            this.configCacheMap.put(Key.ZONE_OFFSET_DATABASE, zoneOffsetDatabase);
         } else {
             try {
                 ZoneId databaseZone = ZoneId.of(databaseZoneText, ZoneId.SHORT_IDS);
                 zoneOffsetDatabase = MySQLTimeUtils.toZoneOffset(databaseZone);
-                this.zoneOffsetDatabase.set(zoneOffsetDatabase);
+                this.configCacheMap.put(Key.ZONE_OFFSET_DATABASE, zoneOffsetDatabase);
             } catch (DateTimeException e) {
                 String message = String.format("MySQL time_zone[%s] cannot convert to %s ."
                         , databaseZoneText, ZoneId.class.getName());
@@ -356,13 +346,17 @@ final class DefaultSessionResetter implements SessionResetter {
         // 2. handle connectionTimeZone
         String connectionTimeZone = this.properties.getOrDefault(PropertyKey.connectionTimeZone);
         final ZoneOffset zoneOffsetClient;
+        final ClientZoneMode clientZoneMode;
         if (Constants.LOCAL.equals(connectionTimeZone)) {
             zoneOffsetClient = MySQLTimeUtils.systemZoneOffset();
+            clientZoneMode = ClientZoneMode.LOCAL;
         } else if ("SERVER".equals(connectionTimeZone)) {
             zoneOffsetClient = zoneOffsetDatabase;
+            clientZoneMode = ClientZoneMode.SERVER;
         } else {
             try {
                 zoneOffsetClient = MySQLTimeUtils.toZoneOffset(ZoneId.of(connectionTimeZone, ZoneId.SHORT_IDS));
+                clientZoneMode = ClientZoneMode.OFFSET;
             } catch (DateTimeException e) {
                 String message = String.format("Value[%s] of Property[%s] cannot convert to ZoneOffset."
                         , connectionTimeZone, PropertyKey.connectionTimeZone);
@@ -370,7 +364,8 @@ final class DefaultSessionResetter implements SessionResetter {
                 return Mono.error(new JdbdSQLException(se));
             }
         }
-        this.zoneOffsetClient.set(zoneOffsetClient);
+        this.configCacheMap.put(Key.CLIENT_ZONE_MODE, clientZoneMode);
+        this.configCacheMap.put(Key.ZONE_OFFSET_CLIENT, zoneOffsetClient);
         return Mono.empty();
     }
 
@@ -440,6 +435,28 @@ final class DefaultSessionResetter implements SessionResetter {
 
     }
 
+    private enum Key {
+        CHARSET_CLIENT,
+        CHARSET_RESULTS,
+
+        ZONE_OFFSET_DATABASE,
+        ZONE_OFFSET_CLIENT,
+
+        SQL_MODE_SET,
+        LOCAL_INFILE,
+
+        /**
+         * @see ClientZoneMode
+         */
+        CLIENT_ZONE_MODE
+    }
+
+    private enum ClientZoneMode {
+        LOCAL,
+        SERVER,
+        OFFSET
+    }
+
 
     private static final class DefaultServer implements Server {
 
@@ -452,51 +469,75 @@ final class DefaultSessionResetter implements SessionResetter {
 
         private final Set<String> sqlModeSet;
 
-        private DefaultServer(Charset charsetClient, @Nullable Charset charsetResults
-                , ZoneOffset zoneOffsetDatabase, ZoneOffset zoneOffsetClient
-                , Set<String> sqlModeSet) {
-            this.charsetClient = charsetClient;
-            this.charsetResults = charsetResults;
-            this.zoneOffsetDatabase = zoneOffsetDatabase;
-            this.zoneOffsetClient = zoneOffsetClient;
-            this.sqlModeSet = sqlModeSet;
+        private final boolean supportLocalInfile;
+
+        private final boolean cacheDefaultTimezone;
+
+        private final ClientZoneMode clientZoneMode;
+
+        @SuppressWarnings("unchecked")
+        private DefaultServer(final ConcurrentMap<Key, Object> map, final Properties<PropertyKey> properties) {
+            this.charsetClient = (Charset) Objects.requireNonNull(map.get(Key.CHARSET_CLIENT), Key.CHARSET_CLIENT.name());
+            this.charsetResults = (Charset) map.get(Key.CHARSET_RESULTS);
+            this.zoneOffsetDatabase = (ZoneOffset) Objects.requireNonNull(map.get(Key.ZONE_OFFSET_DATABASE), Key.ZONE_OFFSET_DATABASE.name());
+            this.zoneOffsetClient = (ZoneOffset) Objects.requireNonNull(map.get(Key.ZONE_OFFSET_CLIENT), Key.ZONE_OFFSET_CLIENT.name());
+
+            this.sqlModeSet = (Set<String>) Objects.requireNonNull(map.get(Key.SQL_MODE_SET), Key.SQL_MODE_SET.name());
+            this.supportLocalInfile = (Boolean) Objects.requireNonNull(map.get(Key.LOCAL_INFILE), Key.LOCAL_INFILE.name());
+
+            this.cacheDefaultTimezone = properties.getOrDefault(PropertyKey.cacheDefaultTimezone, Boolean.class);
+            this.clientZoneMode = (ClientZoneMode) Objects.requireNonNull(map.get(Key.CLIENT_ZONE_MODE), Key.CLIENT_ZONE_MODE.name());
         }
 
         @Override
-        public String toString() {
+        public final String toString() {
             return new StringBuilder("DefaultServer{")
                     .append("\n charsetClient=").append(this.charsetClient)
                     .append("\n charsetResults=").append(this.charsetResults)
                     .append("\n zoneOffsetDatabase=").append(this.zoneOffsetDatabase)
                     .append("\n zoneOffsetClient=").append(this.zoneOffsetClient)
+                    .append("\n clientZoneMode=").append(this.clientZoneMode)
+                    .append("\n cacheDefaultTimezone=").append(this.cacheDefaultTimezone)
                     .append("\n sqlModeSet=").append(this.sqlModeSet)
+                    .append("\n supportLocalInfile=").append(this.supportLocalInfile)
                     .append("\n}").toString();
         }
 
         @Override
-        public boolean containSqlMode(SQLMode sqlMode) {
+        public final boolean containSqlMode(SQLMode sqlMode) {
             return this.sqlModeSet.contains(sqlMode.name());
         }
 
         @Override
-        public Charset obtainCharsetClient() {
+        public final Charset obtainCharsetClient() {
             return this.charsetClient;
         }
 
         @Nullable
         @Override
-        public Charset obtainCharsetResults() {
+        public final Charset obtainCharsetResults() {
             return this.charsetResults;
         }
 
         @Override
-        public ZoneOffset obtainZoneOffsetDatabase() {
+        public final ZoneOffset obtainZoneOffsetDatabase() {
             return this.zoneOffsetDatabase;
         }
 
         @Override
-        public ZoneOffset obtainZoneOffsetClient() {
-            return this.zoneOffsetClient;
+        public final ZoneOffset obtainZoneOffsetClient() {
+            final ZoneOffset zoneOffset;
+            if (this.clientZoneMode == ClientZoneMode.LOCAL && this.cacheDefaultTimezone) {
+                zoneOffset = MySQLTimeUtils.systemZoneOffset();
+            } else {
+                zoneOffset = this.zoneOffsetClient;
+            }
+            return zoneOffset;
+        }
+
+        @Override
+        public final boolean supportLocalInfile() {
+            return this.supportLocalInfile;
         }
 
 

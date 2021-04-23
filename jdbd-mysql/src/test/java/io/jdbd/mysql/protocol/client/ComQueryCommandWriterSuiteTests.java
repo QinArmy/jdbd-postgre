@@ -25,12 +25,12 @@ public class ComQueryCommandWriterSuiteTests extends AbstractStmtTaskSuiteTests 
     }
 
     @Override
-    Mono<ResultStatus> executeUpdate(BindableStmt wrapper, MySQLTaskAdjutant taskAdjutant) {
+    Mono<ResultStatus> executeUpdate(BindableStmt stmt, MySQLTaskAdjutant adjutant) {
         throw new UnsupportedOperationException();
     }
 
     @Override
-    Flux<ResultRow> executeQuery(BindableStmt wrapper, MySQLTaskAdjutant taskAdjutant) {
+    Flux<ResultRow> executeQuery(BindableStmt stmt, MySQLTaskAdjutant adjutant) {
         throw new UnsupportedOperationException();
     }
 

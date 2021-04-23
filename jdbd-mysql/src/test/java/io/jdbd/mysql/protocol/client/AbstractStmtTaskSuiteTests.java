@@ -37,9 +37,9 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBased
         this.subType = subType;
     }
 
-    abstract Mono<ResultStatus> executeUpdate(BindableStmt wrapper, MySQLTaskAdjutant taskAdjutant);
+    abstract Mono<ResultStatus> executeUpdate(BindableStmt stmt, MySQLTaskAdjutant adjutant);
 
-    abstract Flux<ResultRow> executeQuery(BindableStmt wrapper, MySQLTaskAdjutant taskAdjutant);
+    abstract Flux<ResultRow> executeQuery(BindableStmt stmt, MySQLTaskAdjutant adjutant);
 
     abstract Logger obtainLogger();
 

@@ -9,6 +9,7 @@ import io.jdbd.mysql.stmt.BindableStmt;
 import io.jdbd.mysql.stmt.Stmts;
 import io.jdbd.mysql.util.MySQLCollections;
 import io.jdbd.mysql.util.MySQLExceptions;
+import io.jdbd.mysql.util.MySQLStreamUtils;
 import io.jdbd.result.ResultRow;
 import io.jdbd.result.ResultStatus;
 import io.jdbd.result.SingleResult;
@@ -28,14 +29,11 @@ import reactor.core.publisher.Mono;
 import reactor.core.publisher.MonoSink;
 
 import java.io.IOException;
-import java.io.Reader;
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
+import java.nio.channels.FileChannel;
 import java.nio.charset.Charset;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
+import java.nio.file.*;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
@@ -1099,24 +1097,34 @@ final class ComQueryTask extends MySQLCommandTask {
         final Path filePath = Paths.get(localFilePath);
 
         Publisher<ByteBuf> publisher = null;
-        if (Files.exists(filePath)) {
-            if (Files.isDirectory(filePath)) {
-                addError(new LocalFileException(filePath, "Local file[%s] isn directory.", filePath));
-            } else if (Files.isReadable(filePath)) {
+
+        try {
+            if (Files.notExists(filePath, LinkOption.NOFOLLOW_LINKS)) {
+                String message = String.format("Local file[%s] not exits.", filePath);
+                throw new LocalFileException(filePath, message);
+            } else if (Files.isDirectory(filePath)) {
+                String message = String.format("Local file[%s] isn directory.", filePath);
+                throw new LocalFileException(filePath, message);
+            } else if (!Files.isReadable(filePath)) {
+                String message = String.format("Local file[%s] isn't readable.", filePath);
+                throw new LocalFileException(filePath, message);
+            } else {
                 try {
                     if (Files.size(filePath) > 0L) {
-                        publisher = Flux.create(sink -> doSendLocalFile(sink, filePath));
+                        publisher = createLocalFilePacketFlux(filePath);
                     }
                 } catch (IOException e) {
-                    addError(new LocalFileException(e, filePath, 0L, "Local file[%s] isn't readable.", filePath));
+                    String message = String.format("Local file[%s] isn't readable.", filePath);
+                    throw new LocalFileException(filePath, 0L, message, e);
                 }
-
-            } else {
-                addError(new LocalFileException(filePath, "Local file[%s] isn't readable.", filePath));
             }
-        } else {
-            addError(new LocalFileException(filePath, "Local file[%s] not exits.", filePath));
-
+        } catch (Throwable e) {
+            if (e instanceof LocalFileException) {
+                addError(MySQLExceptions.wrap(e));
+            } else {
+                String message = String.format("Local file[%s] read occur error.", filePath);
+                addError(new LocalFileException(filePath, message));
+            }
         }
         if (publisher == null) {
             publisher = Mono.just(PacketUtils.createEmptyPacket(this.adjutant.allocator(), addAndGetSequenceId()));
@@ -1125,57 +1133,108 @@ final class ComQueryTask extends MySQLCommandTask {
     }
 
 
+    private Flux<ByteBuf> createLocalFilePacketFlux(final Path localPath) {
+        return Flux.create(sink -> {
+
+            try {
+                if (this.adjutant.inEventLoop()) {
+                    doSendLocalFile(sink, localPath);
+                } else {
+                    synchronized (ComQueryTask.this) {
+                        doSendLocalFile(sink, localPath);
+                    }
+                }
+            } catch (Throwable e) {
+                if (e instanceof LocalFileException) {
+                    sink.error(e);
+                } else {
+                    String message = String.format("Local file[%s] send occur error.", localPath);
+                    sink.error(new LocalFileException(localPath, message));
+                }
+            }
+
+        });
+    }
+
     /**
-     * @see #sendLocalFile(ByteBuf)
+     * @see #createLocalFilePacketFlux(Path)
      */
     private void doSendLocalFile(final FluxSink<ByteBuf> sink, final Path localPath) {
-        long sentBytes = 0L;
+
         ByteBuf packet = null;
-        try (Reader reader = Files.newBufferedReader(localPath, StandardCharsets.UTF_8)) {
+        long sentBytes = 0L;
+
+        try (FileChannel channel = FileChannel.open(localPath, StandardOpenOption.READ)) {
+            //1. firstly obtain file encoding
+            final Charset fileEncoding = MySQLStreamUtils.fileEncodingOrUtf8();
             final Charset clientCharset = this.adjutant.obtainCharsetClient();
-            final CharBuffer charBuffer = CharBuffer.allocate(1024);
-            ByteBuffer byteBuffer;
 
-            // use single packet send local file.
-            final int maxPacket = Math.min(PacketUtils.MAX_PACKET - 1
-                    , this.adjutant.obtainHostInfo().maxAllowedPayload());
+            // 2. obtain maxPayload
+            final long fileSize = channel.size();
+            // (PacketUtils.MAX_PAYLOAD - 1 ) mean always send file bytes with single packet.
+            final int maxAllowedPayload = Math.min(this.adjutant.obtainHostInfo().maxAllowedPayload()
+                    , PacketUtils.MAX_PAYLOAD - 1);
+            final int maxPayload;
+            if (fileSize < maxAllowedPayload) {
+                maxPayload = (int) fileSize;
+            } else {
+                maxPayload = maxAllowedPayload;
+            }
+            // 3. create first packet buffer
+            packet = this.adjutant.createPacketBuffer(maxPayload);
 
-            packet = this.adjutant.createPacketBuffer(2048);
-            while (reader.read(charBuffer) > 0) { // 1. read chars
-                byteBuffer = clientCharset.encode(charBuffer); // 2.encode
-                packet.writeBytes(byteBuffer);                // 3. write bytes
-                charBuffer.clear();                           // 4. clear char buffer.
+            long restFileBytes = fileSize;
 
-                //5. send single packet(not multi packet).
-                while (packet.readableBytes() >= maxPacket) {
-                    ByteBuf tempPacket = packet.readRetainedSlice(maxPacket);
+            final ByteBuffer inputBuffer = ByteBuffer.allocate(2048);
+            CharBuffer charBuffer;
+            //4. read file bytes and write to packet
+            while (channel.read(inputBuffer) > 0) {// 4.1 - read file bytes
+                inputBuffer.flip();
+                sentBytes += inputBuffer.remaining();
+
+                //4.2 - decode file bytes with fileEncoding.
+                charBuffer = fileEncoding.decode(inputBuffer);
+                //4.3 - encode file bytes with client charset and  write encode file bytes
+                packet.writeBytes(clientCharset.encode(charBuffer));
+                //4.4 - dividing packet to multi single packet.
+                while (packet.readableBytes() > maxPayload) {
+                    ByteBuf tempPacket = packet.readRetainedSlice(maxPayload);
                     PacketUtils.writePacketHeader(tempPacket, addAndGetSequenceId());
                     sink.next(tempPacket);
-                    sentBytes += (maxPacket - PacketUtils.HEADER_SIZE);
 
-                    tempPacket = this.adjutant.createPacketBuffer(Math.max(2048, packet.readableBytes()));
+                    restFileBytes -= maxPayload;
+
+                    if (restFileBytes > maxPayload) {
+                        tempPacket = this.adjutant.createPacketBuffer(maxPayload);
+                    } else {
+                        tempPacket = this.adjutant.createPacketBuffer((int) restFileBytes);
+                    }
                     tempPacket.writeBytes(packet);
+
                     packet.release();
                     packet = tempPacket;
                 }
+
+                //4.5 -  clear inputBuffer for next read.
+                inputBuffer.clear();
+
             }
             PacketUtils.writePacketHeader(packet, addAndGetSequenceId());
             sink.next(packet);
-            sentBytes += (packet.readableBytes() - PacketUtils.HEADER_SIZE);
             if (packet.readableBytes() > PacketUtils.HEADER_SIZE) {
-                // send empty packet, tell server file end.
+                //5. write empty packet for end
                 sink.next(PacketUtils.createEmptyPacket(this.adjutant.allocator(), addAndGetSequenceId()));
             }
+
+            sink.complete();
         } catch (Throwable e) {
             if (packet != null) {
                 packet.release();
             }
-            addError(new LocalFileException(e, localPath, sentBytes, "Local file[%s] send failure,sent %s bytes."
-                    , localPath, sentBytes));
-            sink.next(PacketUtils.createEmptyPacket(this.adjutant.allocator(), addAndGetSequenceId()));
-        } finally {
-            sink.complete();
+            String message = String.format("Local file[%s] read error,have sent %s bytes.", localPath, sentBytes);
+            sink.error(new LocalFileException(localPath, sentBytes, message, e));
         }
+
 
     }
 

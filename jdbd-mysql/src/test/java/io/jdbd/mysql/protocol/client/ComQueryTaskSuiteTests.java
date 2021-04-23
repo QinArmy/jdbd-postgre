@@ -45,13 +45,13 @@ public class ComQueryTaskSuiteTests extends AbstractStmtTaskSuiteTests {
     }
 
     @Override
-    Mono<ResultStatus> executeUpdate(BindableStmt wrapper, MySQLTaskAdjutant taskAdjutant) {
-        return ComQueryTask.bindableUpdate(wrapper, taskAdjutant);
+    Mono<ResultStatus> executeUpdate(BindableStmt stmt, MySQLTaskAdjutant adjutant) {
+        return ComQueryTask.bindableUpdate(stmt, adjutant);
     }
 
     @Override
-    Flux<ResultRow> executeQuery(BindableStmt wrapper, MySQLTaskAdjutant taskAdjutant) {
-        return ComQueryTask.bindableQuery(wrapper, taskAdjutant);
+    Flux<ResultRow> executeQuery(BindableStmt stmt, MySQLTaskAdjutant adjutant) {
+        return ComQueryTask.bindableQuery(stmt, adjutant);
     }
 
     @Override

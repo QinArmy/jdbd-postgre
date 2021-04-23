@@ -55,7 +55,7 @@ public abstract class AbstractConnectionBasedSuiteTests {
     }
 
 
-    protected void releaseConnection(MySQLTaskAdjutant adjutant) {
+    protected static void releaseConnection(MySQLTaskAdjutant adjutant) {
         TASK_ADJUTANT_QUEUE.offer(adjutant);
     }
 

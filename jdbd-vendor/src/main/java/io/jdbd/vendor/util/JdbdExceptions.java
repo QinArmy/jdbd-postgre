@@ -44,7 +44,7 @@ public abstract class JdbdExceptions extends ExceptionUtils {
         if (e instanceof JdbdException) {
             je = (JdbdException) e;
         } else if (e instanceof SQLException) {
-            je = new JdbdSQLException((SQLException) e, message);
+            je = new JdbdSQLException(message, (SQLException) e);
         } else {
             je = new JdbdUnknownException(message, e);
         }

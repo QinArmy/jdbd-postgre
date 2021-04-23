@@ -15,6 +15,8 @@ public interface Groups {
 
     String COM_QUERY = "comQuery";
 
+    String LOAD_DATA = "loadData";
+
     String COM_QUERY_WRITER = "comQueryWriter";
 
     String COM_STMT_PREPARE = "comStmtPrepare";

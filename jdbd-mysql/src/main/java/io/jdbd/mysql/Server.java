@@ -18,4 +18,6 @@ public interface Server {
 
     ZoneOffset obtainZoneOffsetClient();
 
+    boolean supportLocalInfile();
+
 }

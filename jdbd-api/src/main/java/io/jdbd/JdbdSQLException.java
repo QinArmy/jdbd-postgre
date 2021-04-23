@@ -12,10 +12,16 @@ public final class JdbdSQLException extends JdbdException {
         super(cause, cause.getMessage());
     }
 
+    public JdbdSQLException(String message, SQLException cause) {
+        super(message, cause);
+    }
+
+    @Deprecated
     public JdbdSQLException(SQLException cause, String messageFormat, Object... args) {
         super(createMessage(messageFormat, args), cause);
     }
 
+    @Deprecated
     public JdbdSQLException(SQLException cause, boolean enableSuppression
             , boolean writableStackTrace, String messageFormat, Object... args) {
         super(createMessage(messageFormat, args), cause, enableSuppression, writableStackTrace);

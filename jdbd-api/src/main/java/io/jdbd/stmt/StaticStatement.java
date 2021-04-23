@@ -54,14 +54,22 @@ public interface StaticStatement extends Statement {
      *         </code>
      *         <code>
      *              //correct example 3:
+     *              StaticStatement stmt = databaseSession.statement();
+     *              stmt.setExecuteTimeout(10) // you can reuse stmt ,if you don't invoke any setXxx method again.
+     *
      *              CREATE PROCEDURE single_result_procedure()
      *              BEGIN
      *                  UPDATE user as u SET u.name = 'qin' WHERE u.id = 1
      *              END;
      *
-     *              String sql == "CALL single_result_procedure()";
-     *              Mono.from(stmt.executeUpdate(sql))  // stmt is io.jdbd.stmt.StaticStatement instance.
+     *              String sql1 == "CALL single_result_procedure()";
+     *              String sql2 == "UPDATE user as u SET u.name = 'qin' WHERE u.id = 1";
+     *              Mono.from(stmt.executeUpdate(sql1))  // stmt is io.jdbd.stmt.StaticStatement instance.
+     *                  .map(this::handleFirstUpdate) // handleFirstUpdate is a method
+     *                  .then( Mono.from(stmt.executeUpdate(sql2)) ) // you can directly use 'then' method,because executeUpdate method return a deferred publisher.
+     *                  .map(this::handleSecondUpdate) // handleSecondUpdate is a method
      *                  .subscribe() // if no subscribe ,don't communication with database server
+     *              // you don't need consider stmt close after execution.
      *         </code>
      *         <code>
      *              //correct example 4:
@@ -75,6 +83,7 @@ public interface StaticStatement extends Statement {
      *                  .then( Mono.from(stmt.executeUpdate(sql2)) ) // you can directly use 'then' method,because executeUpdate method return a deferred publisher.
      *                  .map(this::handleSecondUpdate) // handleSecondUpdate is a method
      *                  .subscribe() // if no subscribe ,don't communication with database server
+     *               // you don't need consider stmt close after execution.
      *         </code>
      *     </pre>
      *
@@ -124,7 +133,7 @@ public interface StaticStatement extends Statement {
      *         </code>
      *         <code>
      *              //error example 5:
-     *              String sql == "UPDATE user as u SET u.name = 'qin' WHERE u.id = 1;INSERT INTO user(name,age) VALUE('qinarmy',1)";
+     *              String sql == "UPDATE user as u SET u.name = 'qin' WHERE u.id = 1 ; INSERT INTO user(name,age) VALUE('qinarmy',1)";
      *              // can't execute any sql that is multi-statement
      *              Mono.from(stmt.executeUpdate(sql))  // stmt is io.jdbd.stmt.StaticStatement instance.
      *                  .subscribe() // if no subscribe ,don't communication with database server
@@ -141,7 +150,7 @@ public interface StaticStatement extends Statement {
      * </p>
      *
      * @param sql sql thant can only producer one update result.
-     * @return a deferred publisher that emit at most one element, for example {@code reactor.core.publisher.Mono},
+     * @return a deferred publisher that emit at most one element, like {@code reactor.core.publisher.Mono},
      * no communication with database server util subscribe.
      * @throws io.jdbd.SessionCloseException emit when {@link io.jdbd.DatabaseSession} has closed.
      * @throws SubscribeException            emit when sql produce query result or multi-result.

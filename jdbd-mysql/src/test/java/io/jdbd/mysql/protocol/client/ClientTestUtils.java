@@ -38,8 +38,11 @@ public abstract class ClientTestUtils {
         properties.put("password", "army123");
 
         properties.putAll(propertiesMap);
+        properties.put(PropertyKey.serverRSAPublicKeyFile.getKey(), SERVER_PUBLIC_KEY_PATH.toString());
+        properties.put(PropertyKey.allowLoadLocalInfile.getKey(), "true");
         return MySQLUrl.getInstance(url, properties);
     }
+
 
     public static Path getModulePath() {
         Path path = Paths.get(System.getProperty("user.dir"));
@@ -131,5 +134,6 @@ public abstract class ClientTestUtils {
         }
         return ImmutableMapEnvironment.create(map);
     }
+
 
 }

@@ -36,9 +36,10 @@ public final class MySQLHost extends AbstractHostInfo<PropertyKey> {
     /**
      * @see <a href="https://dev.mysql.com/doc/refman/8.0/en/server-system-variables.html#sysvar_max_allowed_packet">max_allowed_packet</a>
      */
-    public int maxAllowedPayload() {
+    public final int maxAllowedPayload() {
         return this.maxAllowedPayload;
     }
+
 
     public boolean clientPrepareSupportStream() {
         return this.clientPrepareSupportStream;
