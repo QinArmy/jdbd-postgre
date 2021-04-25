@@ -7,7 +7,7 @@ import io.jdbd.mysql.stmt.BindableStmt;
 import io.jdbd.mysql.stmt.MySQLParamValue;
 import io.jdbd.mysql.stmt.Stmts;
 import io.jdbd.result.ResultRow;
-import io.jdbd.result.ResultStatus;
+import io.jdbd.result.ResultState;
 import io.jdbd.vendor.stmt.ParamStmt;
 import io.jdbd.vendor.stmt.ParamValue;
 import org.slf4j.Logger;
@@ -39,7 +39,7 @@ public class ComPreparedTaskSuiteTests extends AbstractStmtTaskSuiteTests {
     }
 
     @Override
-    Mono<ResultStatus> executeUpdate(BindableStmt stmt, MySQLTaskAdjutant adjutant) {
+    Mono<ResultState> executeUpdate(BindableStmt stmt, MySQLTaskAdjutant adjutant) {
         return ComPreparedTask.update(stmt, adjutant);
     }
 
@@ -62,7 +62,7 @@ public class ComPreparedTaskSuiteTests extends AbstractStmtTaskSuiteTests {
         final MySQLTaskAdjutant adjutant = obtainTaskAdjutant();
         String sql;
         List<ParamValue> bindValueList;
-        ResultStatus states;
+        ResultState states;
 
         sql = "UPDATE mysql_types as t SET t.my_tiny_text = ? WHERE t.id = ?";
         bindValueList = new ArrayList<>(2);

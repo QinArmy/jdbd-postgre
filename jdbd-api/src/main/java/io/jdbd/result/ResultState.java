@@ -1,6 +1,6 @@
 package io.jdbd.result;
 
-public interface ResultStatus {
+public interface ResultState {
 
     long getAffectedRows();
 

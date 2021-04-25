@@ -8,7 +8,7 @@ import io.jdbd.mysql.stmt.BatchBindStmt;
 import io.jdbd.mysql.stmt.BindableStmt;
 import io.jdbd.result.MultiResult;
 import io.jdbd.result.ResultRow;
-import io.jdbd.result.ResultStatus;
+import io.jdbd.result.ResultState;
 import io.jdbd.result.SingleResult;
 import io.jdbd.stmt.PreparedStatement;
 import io.jdbd.vendor.conf.HostInfo;
@@ -63,7 +63,7 @@ final class ClientCommandProtocolImpl implements ClientCommandProtocol {
      * {@inheritDoc}
      */
     @Override
-    public final Mono<ResultStatus> update(Stmt stmt) {
+    public final Mono<ResultState> update(Stmt stmt) {
         return ComQueryTask.update(stmt, this.adjutant);
     }
 
@@ -79,7 +79,7 @@ final class ClientCommandProtocolImpl implements ClientCommandProtocol {
      * {@inheritDoc}
      */
     @Override
-    public final Flux<ResultStatus> batchUpdate(List<Stmt> stmtList) {
+    public final Flux<ResultState> batchUpdate(List<Stmt> stmtList) {
         return ComQueryTask.batchUpdate(stmtList, this.adjutant);
     }
 
@@ -100,7 +100,7 @@ final class ClientCommandProtocolImpl implements ClientCommandProtocol {
      * {@inheritDoc}
      */
     @Override
-    public final Mono<ResultStatus> bindableUpdate(BindableStmt wrapper) {
+    public final Mono<ResultState> bindableUpdate(BindableStmt wrapper) {
         return ComQueryTask.bindableUpdate(wrapper, this.adjutant);
     }
 
@@ -116,7 +116,7 @@ final class ClientCommandProtocolImpl implements ClientCommandProtocol {
      * {@inheritDoc}
      */
     @Override
-    public final Flux<ResultStatus> bindableBatch(BatchBindStmt stmt) {
+    public final Flux<ResultState> bindableBatch(BatchBindStmt stmt) {
         return ComQueryTask.bindableBatch(stmt, this.adjutant);
     }
 

@@ -1,6 +1,6 @@
 package io.jdbd.vendor.stmt;
 
-import io.jdbd.result.ResultStatus;
+import io.jdbd.result.ResultState;
 
 import java.util.function.Consumer;
 
@@ -10,6 +10,6 @@ public interface Stmt {
 
     int getTimeout();
 
-    Consumer<ResultStatus> getStatusConsumer();
+    Consumer<ResultState> getStatusConsumer();
 
 }

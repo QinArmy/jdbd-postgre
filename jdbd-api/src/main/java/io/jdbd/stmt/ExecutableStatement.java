@@ -4,7 +4,7 @@ import io.jdbd.AutoCloseable;
 import io.jdbd.JdbdSQLException;
 import io.jdbd.lang.Nullable;
 import io.jdbd.result.ResultRow;
-import io.jdbd.result.ResultStatus;
+import io.jdbd.result.ResultState;
 import org.reactivestreams.Publisher;
 
 import java.sql.BatchUpdateException;
@@ -77,7 +77,7 @@ public interface ExecutableStatement extends Statement, AutoCloseable {
      */
     Publisher<Long> executeBatch();
 
-    Publisher<ResultStatus> executeBatchAsStates();
+    Publisher<ResultState> executeBatchAsStates();
 
     /**
      * Executes the SQL statement in this <code>PreparedStatement</code> object,
@@ -98,7 +98,7 @@ public interface ExecutableStatement extends Statement, AutoCloseable {
     Publisher<Long> executeUpdate();
 
 
-    Publisher<ResultStatus> executeUpdateAsStates();
+    Publisher<ResultState> executeUpdateAsStates();
 
     /**
      * Executes the SQL query in this <code>PreparedStatement</code> object
@@ -113,7 +113,7 @@ public interface ExecutableStatement extends Statement, AutoCloseable {
      * </p>
      * @see java.sql.PreparedStatement#executeQuery()
      */
-    Publisher<ResultRow> executeQuery(Consumer<ResultStatus> statesConsumer);
+    Publisher<ResultRow> executeQuery(Consumer<ResultState> statesConsumer);
 
 
     /**

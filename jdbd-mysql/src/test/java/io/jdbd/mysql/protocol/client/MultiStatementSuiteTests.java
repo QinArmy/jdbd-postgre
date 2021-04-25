@@ -11,7 +11,7 @@ import io.jdbd.mysql.stmt.BindableStmt;
 import io.jdbd.mysql.stmt.Stmts;
 import io.jdbd.result.NoMoreResultException;
 import io.jdbd.result.ResultRow;
-import io.jdbd.result.ResultStatus;
+import io.jdbd.result.ResultState;
 import io.jdbd.stmt.ResultType;
 import io.jdbd.stmt.SubscribeException;
 import io.jdbd.vendor.result.ReactorMultiResult;
@@ -94,7 +94,7 @@ public class MultiStatementSuiteTests extends AbstractConnectionBasedSuiteTests 
         sql = String.format("UPDATE mysql_types as t SET t.my_time= '%s' WHERE t.id = 263", LocalTime.now());//[6] update
         sqlList.add(Stmts.stmt(sql));
 
-        final AtomicReference<ResultStatus> statesHolder = new AtomicReference<>(null);
+        final AtomicReference<ResultState> statesHolder = new AtomicReference<>(null);
 
         //below defer serially subscribe
         final ReactorMultiResult multiResults1 = ComQueryTask.asMulti(Collections.unmodifiableList(sqlList), adjutant);
@@ -225,7 +225,7 @@ public class MultiStatementSuiteTests extends AbstractConnectionBasedSuiteTests 
         sql = String.format("UPDATE mysql_types as t SET t.my_time= '%s' WHERE t.id = ?", LocalTime.now());//[6] update
         bindableStmtList.add(Stmts.single(sql, BindValue.create(0, MySQLType.BIGINT, 267)));
 
-        final AtomicReference<ResultStatus> statesHolder = new AtomicReference<>(null);
+        final AtomicReference<ResultState> statesHolder = new AtomicReference<>(null);
 
         //below defer serially subscribe
         final ReactorMultiResult multiResults1 = ComQueryTask.multiStmtAsMulti(bindableStmtList, adjutant);
@@ -357,7 +357,7 @@ public class MultiStatementSuiteTests extends AbstractConnectionBasedSuiteTests 
         sql = String.format("UPDATE mysql_types as t SET t.not_exits_column= '%s' WHERE t.id = 271", LocalTime.now());//[6] error update sql
         sqlList.add(Stmts.stmt(sql));
 
-        final AtomicReference<ResultStatus> statesHolder = new AtomicReference<>(null);
+        final AtomicReference<ResultState> statesHolder = new AtomicReference<>(null);
 
         try {
             //below defer serially subscribe
@@ -501,7 +501,7 @@ public class MultiStatementSuiteTests extends AbstractConnectionBasedSuiteTests 
         sql = String.format("SELECT t.id as id ,t.name as name,t.create_time as createTime FROM mysql_types as t WHERE t.id > 270 ORDER BY t.id LIMIT %s", ROW_COUNT);// [3] query
         sqlList.add(Stmts.stmt(sql));
 
-        final AtomicReference<ResultStatus> statesHolder = new AtomicReference<>(null);
+        final AtomicReference<ResultState> statesHolder = new AtomicReference<>(null);
 
         try {
             //below defer serially subscribe
@@ -581,15 +581,15 @@ public class MultiStatementSuiteTests extends AbstractConnectionBasedSuiteTests 
         paramGroup.add(BindValue.create(1, MySQLType.BIGINT, 274));
         groupList.add(paramGroup);
 
-        final List<ResultStatus> resultStatusList;
-        resultStatusList = ComQueryTask.bindableBatch(Stmts.batchBind(sql, groupList), adjutant)
+        final List<ResultState> resultStateList;
+        resultStateList = ComQueryTask.bindableBatch(Stmts.batchBind(sql, groupList), adjutant)
                 .collectList()
                 .block();
 
-        assertNotNull(resultStatusList, "resultStatesList");
-        assertEquals(resultStatusList.size(), groupList.size(), "resultStatesList");
+        assertNotNull(resultStateList, "resultStatesList");
+        assertEquals(resultStateList.size(), groupList.size(), "resultStatesList");
 
-        for (ResultStatus states : resultStatusList) {
+        for (ResultState states : resultStateList) {
             assertEquals(states.getAffectedRows(), 1L, "getAffectedRows");
         }
 
@@ -619,16 +619,16 @@ public class MultiStatementSuiteTests extends AbstractConnectionBasedSuiteTests 
         sql = "UPDATE mysql_types as t SET t.my_long_text = 'batch update 4' WHERE t.id = 279";
         sqlList.add(sql);
 
-        List<ResultStatus> resultStatusList;
+        List<ResultState> resultStateList;
 
-        resultStatusList = ComQueryTask.batchUpdate(Stmts.stmts(sqlList, 0), adjutant)
+        resultStateList = ComQueryTask.batchUpdate(Stmts.stmts(sqlList, 0), adjutant)
                 .collectList()
                 .block();
 
-        assertNotNull(resultStatusList, "resultStatesList");
-        assertEquals(resultStatusList.size(), sqlList.size(), "resultStatesList");
+        assertNotNull(resultStateList, "resultStatesList");
+        assertEquals(resultStateList.size(), sqlList.size(), "resultStatesList");
 
-        for (ResultStatus states : resultStatusList) {
+        for (ResultState states : resultStateList) {
             assertEquals(states.getAffectedRows(), 1L, "getAffectedRows");
         }
 
@@ -646,7 +646,7 @@ public class MultiStatementSuiteTests extends AbstractConnectionBasedSuiteTests 
     }
 
 
-    private ResultStatus assertUpdateSuccess(ResultStatus states) {
+    private ResultState assertUpdateSuccess(ResultState states) {
         Assert.assertEquals(states.getAffectedRows(), 1L, "update rows");
         return states;
     }

@@ -13,7 +13,7 @@ import io.jdbd.mysql.type.City;
 import io.jdbd.mysql.type.TrueOrFalse;
 import io.jdbd.mysql.util.*;
 import io.jdbd.result.ResultRow;
-import io.jdbd.result.ResultStatus;
+import io.jdbd.result.ResultState;
 import io.jdbd.vendor.util.Geometries;
 import org.slf4j.Logger;
 import reactor.core.publisher.Flux;
@@ -37,7 +37,7 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBased
         this.subType = subType;
     }
 
-    abstract Mono<ResultStatus> executeUpdate(BindableStmt stmt, MySQLTaskAdjutant adjutant);
+    abstract Mono<ResultState> executeUpdate(BindableStmt stmt, MySQLTaskAdjutant adjutant);
 
     abstract Flux<ResultRow> executeQuery(BindableStmt stmt, MySQLTaskAdjutant adjutant);
 
@@ -1820,12 +1820,12 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBased
         bindValue = BindValue.create(1, MySQLType.BIGINT, id);
         bindValueList.add(bindValue);
 
-        ResultStatus resultStatus;
-        resultStatus = executeUpdate(Stmts.multi(sql, bindValueList), taskAdjutant)
+        ResultState resultState;
+        resultState = executeUpdate(Stmts.multi(sql, bindValueList), taskAdjutant)
                 .block();
 
-        assertNotNull(resultStatus, "resultStates");
-        assertEquals(resultStatus.getAffectedRows(), 1L, "getAffectedRows");
+        assertNotNull(resultState, "resultStates");
+        assertEquals(resultState.getAffectedRows(), 1L, "getAffectedRows");
     }
 
     private ResultRow querySingleField(final MySQLTaskAdjutant taskAdjutant, final String field, final Object id) {

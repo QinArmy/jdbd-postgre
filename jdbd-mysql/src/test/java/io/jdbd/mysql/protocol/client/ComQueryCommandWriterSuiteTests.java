@@ -3,7 +3,7 @@ package io.jdbd.mysql.protocol.client;
 import io.jdbd.mysql.Groups;
 import io.jdbd.mysql.stmt.BindableStmt;
 import io.jdbd.result.ResultRow;
-import io.jdbd.result.ResultStatus;
+import io.jdbd.result.ResultState;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.annotations.Test;
@@ -25,7 +25,7 @@ public class ComQueryCommandWriterSuiteTests extends AbstractStmtTaskSuiteTests 
     }
 
     @Override
-    Mono<ResultStatus> executeUpdate(BindableStmt stmt, MySQLTaskAdjutant adjutant) {
+    Mono<ResultState> executeUpdate(BindableStmt stmt, MySQLTaskAdjutant adjutant) {
         throw new UnsupportedOperationException();
     }
 

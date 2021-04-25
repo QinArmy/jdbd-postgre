@@ -1,7 +1,7 @@
 package io.jdbd.vendor.stmt;
 
 import io.jdbd.result.ResultRow;
-import io.jdbd.result.ResultStatus;
+import io.jdbd.result.ResultState;
 import io.jdbd.result.SingleResult;
 import io.jdbd.stmt.PreparedStatement;
 import io.jdbd.vendor.result.ReactorMultiResult;
@@ -27,16 +27,16 @@ import java.util.function.Consumer;
 public interface ReactorPreparedStatement extends PreparedStatement {
 
     @Override
-    Flux<ResultStatus> executeBatch();
+    Flux<ResultState> executeBatch();
 
     @Override
-    Mono<ResultStatus> executeUpdate();
+    Mono<ResultState> executeUpdate();
 
     @Override
     Flux<ResultRow> executeQuery();
 
     @Override
-    Flux<ResultRow> executeQuery(Consumer<ResultStatus> statesConsumer);
+    Flux<ResultRow> executeQuery(Consumer<ResultState> statesConsumer);
 
     @Override
     ReactorMultiResult executeAsMulti();

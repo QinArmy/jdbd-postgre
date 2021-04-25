@@ -1,11 +1,11 @@
 package io.jdbd.mysql.protocol.client;
 
-import io.jdbd.result.ResultStatus;
+import io.jdbd.result.ResultState;
 
-abstract class MySQLResultStatus implements ResultStatus {
+abstract class MySQLResultState implements ResultState {
 
-    static MySQLResultStatus from(TerminatorPacket terminator) {
-        return new TerminalResultStatus(terminator);
+    static MySQLResultState from(TerminatorPacket terminator) {
+        return new TerminalResultState(terminator);
     }
 
     private final int serverStatus;
@@ -17,7 +17,7 @@ abstract class MySQLResultStatus implements ResultStatus {
     private final int warnings;
 
 
-    private MySQLResultStatus(final TerminatorPacket terminator) {
+    private MySQLResultState(final TerminatorPacket terminator) {
         if (terminator instanceof OkPacket) {
             OkPacket ok = (OkPacket) terminator;
 
@@ -74,9 +74,9 @@ abstract class MySQLResultStatus implements ResultStatus {
                 && (serverStatus & ClientProtocol.SERVER_STATUS_LAST_ROW_SENT) == 0;
     }
 
-    private static final class TerminalResultStatus extends MySQLResultStatus {
+    private static final class TerminalResultState extends MySQLResultState {
 
-        private TerminalResultStatus(TerminatorPacket terminator) {
+        private TerminalResultState(TerminatorPacket terminator) {
             super(terminator);
         }
 

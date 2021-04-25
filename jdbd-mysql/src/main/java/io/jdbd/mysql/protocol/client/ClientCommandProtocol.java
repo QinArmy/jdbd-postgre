@@ -7,7 +7,7 @@ import io.jdbd.mysql.stmt.BatchBindStmt;
 import io.jdbd.mysql.stmt.BindableStmt;
 import io.jdbd.result.MultiResult;
 import io.jdbd.result.ResultRow;
-import io.jdbd.result.ResultStatus;
+import io.jdbd.result.ResultState;
 import io.jdbd.result.SingleResult;
 import io.jdbd.stmt.BindableStatement;
 import io.jdbd.stmt.MultiStatement;
@@ -46,7 +46,7 @@ public interface ClientCommandProtocol extends ClientProtocol {
      *
      * @see ComQueryTask#update(Stmt, MySQLTaskAdjutant)
      */
-    Mono<ResultStatus> update(Stmt stmt);
+    Mono<ResultState> update(Stmt stmt);
 
     /**
      * <p>
@@ -69,7 +69,7 @@ public interface ClientCommandProtocol extends ClientProtocol {
      *
      * @see ComQueryTask#batchUpdate(List, MySQLTaskAdjutant)
      */
-    Flux<ResultStatus> batchUpdate(List<Stmt> stmtList);
+    Flux<ResultState> batchUpdate(List<Stmt> stmtList);
 
     /**
      * <p>
@@ -94,7 +94,7 @@ public interface ClientCommandProtocol extends ClientProtocol {
      *
      * @see ComQueryTask#bindableUpdate(BindableStmt, MySQLTaskAdjutant)
      */
-    Mono<ResultStatus> bindableUpdate(BindableStmt wrapper);
+    Mono<ResultState> bindableUpdate(BindableStmt wrapper);
 
     /**
      * <p>
@@ -116,7 +116,7 @@ public interface ClientCommandProtocol extends ClientProtocol {
      *
      * @see ComQueryTask#bindableBatch(BatchBindStmt, MySQLTaskAdjutant)
      */
-    Flux<ResultStatus> bindableBatch(BatchBindStmt wrapper);
+    Flux<ResultState> bindableBatch(BatchBindStmt wrapper);
 
     /**
      * <p>

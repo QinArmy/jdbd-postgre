@@ -225,7 +225,7 @@ abstract class AbstractResultSetReader implements ResultSetReader {
                 }
                 serverStatesConsumer.accept(tp.getStatusFags());
 
-                sink.accept(MySQLResultStatus.from(tp));
+                sink.accept(MySQLResultState.from(tp));
                 resultSetEnd = true;
                 if (LOG.isDebugEnabled()) {
                     LOG.debug("read  ResultSet end.");

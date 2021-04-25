@@ -2,7 +2,7 @@ package io.jdbd.mysql.session;
 
 import io.jdbd.mysql.stmt.Stmts;
 import io.jdbd.result.ResultRow;
-import io.jdbd.result.ResultStatus;
+import io.jdbd.result.ResultState;
 import io.jdbd.result.SingleResult;
 import io.jdbd.stmt.StaticStatement;
 import io.jdbd.vendor.result.ReactorMultiResult;
@@ -48,12 +48,12 @@ final class MySQLStaticStatement<S extends MySQLDatabaseSession> extends MySQLSt
     }
 
     @Override
-    public final Flux<ResultStatus> executeBatch(final List<String> sqlList) {
+    public final Flux<ResultState> executeBatch(final List<String> sqlList) {
         return this.session.protocol.batchUpdate(Stmts.stmts(sqlList, this.timeout));
     }
 
     @Override
-    public final Mono<ResultStatus> executeUpdate(String sql) {
+    public final Mono<ResultState> executeUpdate(String sql) {
         return this.session.protocol.update(Stmts.stmt(sql, this.timeout));
     }
 
@@ -63,7 +63,7 @@ final class MySQLStaticStatement<S extends MySQLDatabaseSession> extends MySQLSt
     }
 
     @Override
-    public final Flux<ResultRow> executeQuery(String sql, Consumer<ResultStatus> statesConsumer) {
+    public final Flux<ResultRow> executeQuery(String sql, Consumer<ResultState> statesConsumer) {
         return this.session.protocol.query(Stmts.stmt(sql, statesConsumer, this.timeout));
     }
 

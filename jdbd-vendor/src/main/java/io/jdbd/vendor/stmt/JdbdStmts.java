@@ -2,7 +2,7 @@ package io.jdbd.vendor.stmt;
 
 
 import io.jdbd.result.MultiResult;
-import io.jdbd.result.ResultStatus;
+import io.jdbd.result.ResultState;
 import io.jdbd.vendor.util.JdbdCollections;
 
 import java.util.ArrayList;
@@ -42,12 +42,12 @@ public abstract class JdbdStmts {
         return timeout > 0 ? new StmtImpl2(sql, timeout) : new StmtImpl1(sql);
     }
 
-    public static Stmt stmt(String sql, Consumer<ResultStatus> statusConsumer) {
+    public static Stmt stmt(String sql, Consumer<ResultState> statusConsumer) {
         Objects.requireNonNull(sql, "sql");
         return new StmtImpl2C(sql, statusConsumer);
     }
 
-    public static Stmt stmt(String sql, Consumer<ResultStatus> statusConsumer, int timeout) {
+    public static Stmt stmt(String sql, Consumer<ResultState> statusConsumer, int timeout) {
         Objects.requireNonNull(sql, "sql");
         Objects.requireNonNull(statusConsumer, "statusConsumer");
         return timeout > 0
@@ -117,7 +117,7 @@ public abstract class JdbdStmts {
         }
 
         @Override
-        public final Consumer<ResultStatus> getStatusConsumer() {
+        public final Consumer<ResultState> getStatusConsumer() {
             return MultiResult.EMPTY_CONSUMER;
         }
     }
@@ -150,7 +150,7 @@ public abstract class JdbdStmts {
         }
 
         @Override
-        public Consumer<ResultStatus> getStatusConsumer() {
+        public Consumer<ResultState> getStatusConsumer() {
             return MultiResult.EMPTY_CONSUMER;
         }
 
@@ -188,7 +188,7 @@ public abstract class JdbdStmts {
         }
 
         @Override
-        public final Consumer<ResultStatus> getStatusConsumer() {
+        public final Consumer<ResultState> getStatusConsumer() {
             return MultiResult.EMPTY_CONSUMER;
         }
 
@@ -198,9 +198,9 @@ public abstract class JdbdStmts {
 
         private final String sql;
 
-        private final Consumer<ResultStatus> consumer;
+        private final Consumer<ResultState> consumer;
 
-        private StmtImpl2C(String sql, Consumer<ResultStatus> consumer) {
+        private StmtImpl2C(String sql, Consumer<ResultState> consumer) {
             this.sql = sql;
             this.consumer = consumer;
         }
@@ -216,7 +216,7 @@ public abstract class JdbdStmts {
         }
 
         @Override
-        public final Consumer<ResultStatus> getStatusConsumer() {
+        public final Consumer<ResultState> getStatusConsumer() {
             return this.consumer;
         }
 
@@ -242,7 +242,7 @@ public abstract class JdbdStmts {
         }
 
         @Override
-        public final Consumer<ResultStatus> getStatusConsumer() {
+        public final Consumer<ResultState> getStatusConsumer() {
             return MultiResult.EMPTY_CONSUMER;
         }
 
@@ -255,9 +255,9 @@ public abstract class JdbdStmts {
 
         private final int timeout;
 
-        private final Consumer<ResultStatus> consumer;
+        private final Consumer<ResultState> consumer;
 
-        private StmtImpl3(String sql, int timeout, Consumer<ResultStatus> consumer) {
+        private StmtImpl3(String sql, int timeout, Consumer<ResultState> consumer) {
             this.sql = sql;
             this.timeout = timeout;
             this.consumer = consumer;
@@ -274,7 +274,7 @@ public abstract class JdbdStmts {
         }
 
         @Override
-        public final Consumer<ResultStatus> getStatusConsumer() {
+        public final Consumer<ResultState> getStatusConsumer() {
             return this.consumer;
         }
 

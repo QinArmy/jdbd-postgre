@@ -2,7 +2,7 @@ package io.jdbd.mysql.protocol.client;
 
 import io.jdbd.JdbdException;
 import io.jdbd.ResultStatusConsumerException;
-import io.jdbd.result.ResultStatus;
+import io.jdbd.result.ResultState;
 import io.jdbd.stmt.ResultType;
 import io.jdbd.stmt.SubscribeException;
 import reactor.util.annotation.Nullable;
@@ -86,8 +86,8 @@ abstract class TaskUtils {
         return new SubscribeException(ResultType.QUERY, ResultType.UPDATE);
     }
 
-    static ResultStatusConsumerException createStateConsumerError(Throwable cause, Consumer<ResultStatus> consumer) {
-        String message = String.format("%s consumer[%s] throw exception.", ResultStatus.class.getName(), consumer);
+    static ResultStatusConsumerException createStateConsumerError(Throwable cause, Consumer<ResultState> consumer) {
+        String message = String.format("%s consumer[%s] throw exception.", ResultState.class.getName(), consumer);
         return new ResultStatusConsumerException(message, cause);
     }
 

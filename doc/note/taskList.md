@@ -8,3 +8,5 @@
 8. custom data type test
 8. postgre JDBC 协议 学习
 9. postgre JDBD 架构设计
+10. server kill query ,unit test.
+11. client timeout kill query unit test.

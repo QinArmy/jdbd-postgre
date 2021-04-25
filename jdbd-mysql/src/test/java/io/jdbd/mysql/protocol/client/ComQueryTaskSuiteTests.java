@@ -12,7 +12,7 @@ import io.jdbd.mysql.util.MySQLCodes;
 import io.jdbd.mysql.util.MySQLExceptions;
 import io.jdbd.mysql.util.MySQLStates;
 import io.jdbd.result.ResultRow;
-import io.jdbd.result.ResultStatus;
+import io.jdbd.result.ResultState;
 import io.jdbd.stmt.ResultType;
 import io.jdbd.stmt.SubscribeException;
 import io.jdbd.vendor.JdbdCompositeException;
@@ -45,7 +45,7 @@ public class ComQueryTaskSuiteTests extends AbstractStmtTaskSuiteTests {
     }
 
     @Override
-    Mono<ResultStatus> executeUpdate(BindableStmt stmt, MySQLTaskAdjutant adjutant) {
+    Mono<ResultState> executeUpdate(BindableStmt stmt, MySQLTaskAdjutant adjutant) {
         return ComQueryTask.bindableUpdate(stmt, adjutant);
     }
 
@@ -69,15 +69,15 @@ public class ComQueryTaskSuiteTests extends AbstractStmtTaskSuiteTests {
 
         final String newName = "simonyi4";
         String sql = "UPDATE mysql_types as u SET u.name = '%s' WHERE u.id = 1";
-        ResultStatus resultStatus = ComQueryTask.update(Stmts.stmt(String.format(sql, newName)), adjutant)
+        ResultState resultState = ComQueryTask.update(Stmts.stmt(String.format(sql, newName)), adjutant)
                 .block();
 
-        assertNotNull(resultStatus, "resultStates");
-        assertEquals(resultStatus.getAffectedRows(), 1L, "affectedRows");
-        assertEquals(resultStatus.getInsertId(), 0L, "insertedId");
-        assertEquals(resultStatus.getWarnings(), 0, "warnings");
+        assertNotNull(resultState, "resultStates");
+        assertEquals(resultState.getAffectedRows(), 1L, "affectedRows");
+        assertEquals(resultState.getInsertId(), 0L, "insertedId");
+        assertEquals(resultState.getWarnings(), 0, "warnings");
 
-        assertFalse(resultStatus.hasMoreResult(), "hasMoreResult");
+        assertFalse(resultState.hasMoreResult(), "hasMoreResult");
 
 
         releaseConnection(adjutant);
@@ -94,7 +94,7 @@ public class ComQueryTaskSuiteTests extends AbstractStmtTaskSuiteTests {
         LOG.info("query test start");
         final MySQLTaskAdjutant adjutant = obtainTaskAdjutant();
         String sql;
-        AtomicReference<ResultStatus> resultStatesHolder = new AtomicReference<>(null);
+        AtomicReference<ResultState> resultStatesHolder = new AtomicReference<>(null);
 
         sql = "SELECT t.id,t.name,t.create_time as createTime FROM mysql_types as t ORDER BY t.id LIMIT 50";
 
@@ -102,14 +102,14 @@ public class ComQueryTaskSuiteTests extends AbstractStmtTaskSuiteTests {
                 .collectList()
                 .block();
 
-        final ResultStatus resultStatus = resultStatesHolder.get();
+        final ResultState resultState = resultStatesHolder.get();
 
-        assertNotNull(resultStatus, "resultStates");
+        assertNotNull(resultState, "resultStates");
 
-        assertEquals(resultStatus.getAffectedRows(), 0L, "getAffectedRows");
-        assertEquals(resultStatus.getWarnings(), 0, "getWarnings");
-        assertEquals(resultStatus.getInsertId(), 0L, "getInsertId");
-        assertFalse(resultStatus.hasMoreResult(), "hasMoreResults");
+        assertEquals(resultState.getAffectedRows(), 0L, "getAffectedRows");
+        assertEquals(resultState.getWarnings(), 0, "getWarnings");
+        assertEquals(resultState.getInsertId(), 0L, "getInsertId");
+        assertFalse(resultState.hasMoreResult(), "hasMoreResults");
 
 
         assertNotNull(resultRowList, "resultRowList");
@@ -132,15 +132,15 @@ public class ComQueryTaskSuiteTests extends AbstractStmtTaskSuiteTests {
         final MySQLTaskAdjutant adjutant = obtainTaskAdjutant();
         String sql = "DELETE FROM mysql_types WHERE mysql_types.id = 1";
 
-        ResultStatus resultStatus = ComQueryTask.update(Stmts.stmt(sql), adjutant)
+        ResultState resultState = ComQueryTask.update(Stmts.stmt(sql), adjutant)
                 .block();
 
-        assertNotNull(resultStatus, "resultStates");
-        assertEquals(resultStatus.getAffectedRows(), 1L, "affectedRows");
-        assertEquals(resultStatus.getInsertId(), 0L, "inserted");
-        assertEquals(resultStatus.getWarnings(), 0, "warnings");
+        assertNotNull(resultState, "resultStates");
+        assertEquals(resultState.getAffectedRows(), 1L, "affectedRows");
+        assertEquals(resultState.getInsertId(), 0L, "inserted");
+        assertEquals(resultState.getWarnings(), 0, "warnings");
 
-        assertFalse(resultStatus.hasMoreResult(), "hasMoreResults");
+        assertFalse(resultState.hasMoreResult(), "hasMoreResults");
 
         sql = "SELECT u.id,u.name FROM mysql_types as u WHERE u.id = 1";
 
@@ -245,15 +245,15 @@ public class ComQueryTaskSuiteTests extends AbstractStmtTaskSuiteTests {
         sql = "UPDATE mysql_types as t SET t.my_long_text = 'batch update 2' WHERE t.id = 32";
         sqlList.add(sql);
 
-        List<ResultStatus> resultStatusList;
-        resultStatusList = ComQueryTask.batchUpdate(Stmts.stmts(sqlList, 0), adjutant)
+        List<ResultState> resultStateList;
+        resultStateList = ComQueryTask.batchUpdate(Stmts.stmts(sqlList, 0), adjutant)
                 .collectList()
                 .block();
 
-        assertNotNull(resultStatusList, "resultStatesList");
-        assertEquals(resultStatusList.size(), 3, "resultStatesList");
+        assertNotNull(resultStateList, "resultStatesList");
+        assertEquals(resultStateList.size(), 3, "resultStatesList");
 
-        for (ResultStatus states : resultStatusList) {
+        for (ResultState states : resultStateList) {
             assertEquals(states.getAffectedRows(), 1L, "getAffectedRows");
         }
 
@@ -283,16 +283,16 @@ public class ComQueryTaskSuiteTests extends AbstractStmtTaskSuiteTests {
         sql = "UPDATE mysql_types as t SET t.my_long_text = 'batch update 4' WHERE t.id = 34";
         sqlList.add(sql);
 
-        List<ResultStatus> resultStatusList;
+        List<ResultState> resultStateList;
 
-        resultStatusList = ComQueryTask.batchUpdate(Stmts.stmts(sqlList, 0), adjutant)
+        resultStateList = ComQueryTask.batchUpdate(Stmts.stmts(sqlList, 0), adjutant)
                 .collectList()
                 .block();
 
-        assertNotNull(resultStatusList, "resultStatesList");
-        assertEquals(resultStatusList.size(), sqlList.size(), "resultStatesList");
+        assertNotNull(resultStateList, "resultStatesList");
+        assertEquals(resultStateList.size(), sqlList.size(), "resultStatesList");
 
-        for (ResultStatus states : resultStatusList) {
+        for (ResultState states : resultStateList) {
             assertEquals(states.getAffectedRows(), 1L, "getAffectedRows");
         }
 
@@ -641,15 +641,15 @@ public class ComQueryTaskSuiteTests extends AbstractStmtTaskSuiteTests {
         paramGroup.add(BindValue.create(1, MySQLType.BIGINT, 36L));
         groupList.add(paramGroup);
 
-        final List<ResultStatus> resultStatusList;
-        resultStatusList = ComQueryTask.bindableBatch(Stmts.batchBind(sql, groupList), adjutant)
+        final List<ResultState> resultStateList;
+        resultStateList = ComQueryTask.bindableBatch(Stmts.batchBind(sql, groupList), adjutant)
                 .collectList()
                 .block();
 
-        assertNotNull(resultStatusList, "resultStatesList");
-        assertEquals(resultStatusList.size(), groupList.size(), "resultStatesList");
+        assertNotNull(resultStateList, "resultStatesList");
+        assertEquals(resultStateList.size(), groupList.size(), "resultStatesList");
 
-        for (ResultStatus states : resultStatusList) {
+        for (ResultState states : resultStateList) {
             assertEquals(states.getAffectedRows(), 1L, "getAffectedRows");
         }
 
@@ -690,15 +690,15 @@ public class ComQueryTaskSuiteTests extends AbstractStmtTaskSuiteTests {
         paramGroup.add(BindValue.create(1, MySQLType.BIGINT, 37L));
         groupList.add(paramGroup);
 
-        final List<ResultStatus> resultStatusList;
-        resultStatusList = ComQueryTask.bindableBatch(Stmts.batchBind(sql, groupList), adjutant)
+        final List<ResultState> resultStateList;
+        resultStateList = ComQueryTask.bindableBatch(Stmts.batchBind(sql, groupList), adjutant)
                 .collectList()
                 .block();
 
-        assertNotNull(resultStatusList, "resultStatesList");
-        assertEquals(resultStatusList.size(), groupList.size(), "resultStatesList");
+        assertNotNull(resultStateList, "resultStatesList");
+        assertEquals(resultStateList.size(), groupList.size(), "resultStatesList");
 
-        for (ResultStatus states : resultStatusList) {
+        for (ResultState states : resultStateList) {
             assertEquals(states.getAffectedRows(), 1L, "getAffectedRows");
         }
 

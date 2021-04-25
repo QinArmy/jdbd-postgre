@@ -3,7 +3,7 @@ package io.jdbd.stmt;
 import io.jdbd.lang.Nullable;
 import io.jdbd.result.MultiResult;
 import io.jdbd.result.ResultRow;
-import io.jdbd.result.ResultStatus;
+import io.jdbd.result.ResultState;
 import io.jdbd.result.SingleResult;
 import org.reactivestreams.Publisher;
 
@@ -49,10 +49,10 @@ public interface PreparedStatement extends BindableSingleStatement, BindableMult
     void addBatch();
 
     @Override
-    Publisher<ResultStatus> executeBatch();
+    Publisher<ResultState> executeBatch();
 
     @Override
-    Publisher<ResultStatus> executeUpdate();
+    Publisher<ResultState> executeUpdate();
 
     /**
      * @see #executeQuery(Consumer)
@@ -61,7 +61,7 @@ public interface PreparedStatement extends BindableSingleStatement, BindableMult
     Publisher<ResultRow> executeQuery();
 
     @Override
-    Publisher<ResultRow> executeQuery(Consumer<ResultStatus> statesConsumer);
+    Publisher<ResultRow> executeQuery(Consumer<ResultState> statesConsumer);
 
     @Override
     MultiResult executeAsMulti();

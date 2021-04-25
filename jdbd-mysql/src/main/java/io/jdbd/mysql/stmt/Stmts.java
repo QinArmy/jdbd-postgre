@@ -1,7 +1,7 @@
 package io.jdbd.mysql.stmt;
 
 import io.jdbd.result.MultiResult;
-import io.jdbd.result.ResultStatus;
+import io.jdbd.result.ResultState;
 import io.jdbd.vendor.stmt.JdbdStmts;
 
 import java.util.Collections;
@@ -56,7 +56,7 @@ public abstract class Stmts extends JdbdStmts {
 
 
         @Override
-        public Consumer<ResultStatus> getStatusConsumer() {
+        public Consumer<ResultState> getStatusConsumer() {
             return MultiResult.EMPTY_CONSUMER;
         }
 
@@ -100,7 +100,7 @@ public abstract class Stmts extends JdbdStmts {
         }
 
         @Override
-        public final Consumer<ResultStatus> getStatusConsumer() {
+        public final Consumer<ResultState> getStatusConsumer() {
             return MultiResult.EMPTY_CONSUMER;
         }
 

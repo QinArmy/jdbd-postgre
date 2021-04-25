@@ -52,7 +52,7 @@ public class AuthenticatePluginSuiteTests extends AbstractConnectionBasedSuiteTe
     @Test(timeOut = TIME_OUT)
     public void cachingSha2PasswordPublicKeyAuthenticate() {
         final long startTime = System.currentTimeMillis();
-
+        //TODO zoro add unit test
         LOG.info("cachingSha2PasswordPublicKeyAuthenticate test start.");
         final Path serverRSAPublicKeyPath;
         serverRSAPublicKeyPath = Paths.get(ClientTestUtils.getTestResourcesPath().toString()

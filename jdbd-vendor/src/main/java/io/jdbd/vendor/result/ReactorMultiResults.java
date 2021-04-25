@@ -181,7 +181,7 @@ abstract class ReactorMultiResults {
                                 .subscribe();
                         break;
                     } else {
-                        MonoSink<ResultStatus> sink = ((MonoSink<ResultStatus>) sinkObj);
+                        MonoSink<ResultState> sink = ((MonoSink<ResultState>) sinkObj);
                         Mono.from(result.receiveUpdate())
                                 .doOnError(sink::error)
                                 .doOnSuccess(sink::success)
@@ -220,7 +220,7 @@ abstract class ReactorMultiResults {
         }
 
 
-        private void subscribeUpdate(MonoSink<ResultStatus> sink) {
+        private void subscribeUpdate(MonoSink<ResultState> sink) {
             if (this.done && this.resultQueue.isEmpty()) {
                 sink.error(new NoMoreResultException("No more result."));
             } else {
@@ -237,7 +237,7 @@ abstract class ReactorMultiResults {
         }
 
 
-        private void subscribeQuery(FluxSink<ResultRow> sink, Consumer<ResultStatus> statesConsumer) {
+        private void subscribeQuery(FluxSink<ResultRow> sink, Consumer<ResultState> statesConsumer) {
             if (this.done && this.resultQueue.isEmpty()) {
                 sink.error(new NoMoreResultException("No more result."));
             } else {
@@ -265,7 +265,7 @@ abstract class ReactorMultiResults {
         }
 
         @Override
-        public final Mono<ResultStatus> nextUpdate() {
+        public final Mono<ResultState> nextUpdate() {
             return Mono.create(sink -> {
                 if (this.upstream.adjutant.isActive()) {
                     if (this.upstream.adjutant.inEventLoop()) {
@@ -280,7 +280,7 @@ abstract class ReactorMultiResults {
         }
 
         @Override
-        public final Flux<ResultRow> nextQuery(Consumer<ResultStatus> statesConsumer) {
+        public final Flux<ResultRow> nextQuery(Consumer<ResultState> statesConsumer) {
             Objects.requireNonNull(statesConsumer, "statesConsumer");
             return Flux.create(sink -> {
                 if (this.upstream.adjutant.isActive()) {
@@ -334,9 +334,9 @@ abstract class ReactorMultiResults {
 
         private final FluxSink<ResultRow> sink;
 
-        private final Consumer<ResultStatus> statesConsumer;
+        private final Consumer<ResultState> statesConsumer;
 
-        private SinkPair(FluxSink<ResultRow> sink, Consumer<ResultStatus> statesConsumer) {
+        private SinkPair(FluxSink<ResultRow> sink, Consumer<ResultState> statesConsumer) {
             this.sink = sink;
             this.statesConsumer = statesConsumer;
         }

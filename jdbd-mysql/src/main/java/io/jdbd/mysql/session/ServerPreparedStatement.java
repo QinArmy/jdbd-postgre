@@ -2,7 +2,7 @@ package io.jdbd.mysql.session;
 
 import io.jdbd.mysql.stmt.PrepareStmtTask;
 import io.jdbd.result.ResultRow;
-import io.jdbd.result.ResultStatus;
+import io.jdbd.result.ResultState;
 import io.jdbd.result.SingleResult;
 import io.jdbd.vendor.result.ReactorMultiResult;
 import io.jdbd.vendor.stmt.ReactorPreparedStatement;
@@ -56,12 +56,12 @@ public final class ServerPreparedStatement<S extends MySQLDatabaseSession> exten
     }
 
     @Override
-    public final Flux<ResultStatus> executeBatch() {
+    public final Flux<ResultState> executeBatch() {
         return null;
     }
 
     @Override
-    public Mono<ResultStatus> executeUpdate() {
+    public Mono<ResultState> executeUpdate() {
         return null;
     }
 
@@ -71,7 +71,7 @@ public final class ServerPreparedStatement<S extends MySQLDatabaseSession> exten
     }
 
     @Override
-    public Flux<ResultRow> executeQuery(Consumer<ResultStatus> statesConsumer) {
+    public Flux<ResultRow> executeQuery(Consumer<ResultState> statesConsumer) {
         return null;
     }
 

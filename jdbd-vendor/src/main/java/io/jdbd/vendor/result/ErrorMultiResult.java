@@ -2,7 +2,7 @@ package io.jdbd.vendor.result;
 
 import io.jdbd.JdbdException;
 import io.jdbd.result.ResultRow;
-import io.jdbd.result.ResultStatus;
+import io.jdbd.result.ResultState;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -17,12 +17,12 @@ final class ErrorMultiResult implements ReactorMultiResult {
     }
 
     @Override
-    public final Mono<ResultStatus> nextUpdate() {
+    public final Mono<ResultState> nextUpdate() {
         return Mono.error(this.error);
     }
 
     @Override
-    public final Flux<ResultRow> nextQuery(Consumer<ResultStatus> statesConsumer) {
+    public final Flux<ResultRow> nextQuery(Consumer<ResultState> statesConsumer) {
         return Flux.error(this.error);
     }
 

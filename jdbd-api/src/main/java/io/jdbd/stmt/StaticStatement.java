@@ -3,7 +3,7 @@ package io.jdbd.stmt;
 import io.jdbd.JdbdSQLException;
 import io.jdbd.result.MultiResult;
 import io.jdbd.result.ResultRow;
-import io.jdbd.result.ResultStatus;
+import io.jdbd.result.ResultState;
 import io.jdbd.result.SingleResult;
 import org.reactivestreams.Publisher;
 
@@ -23,7 +23,7 @@ public interface StaticStatement extends Statement {
     @Override
     boolean supportOutParameter();
 
-    Publisher<ResultStatus> executeBatch(List<String> sqlList);
+    Publisher<ResultState> executeBatch(List<String> sqlList);
 
 
     /**
@@ -157,7 +157,7 @@ public interface StaticStatement extends Statement {
      * @throws JdbdSQLException              emit when sql execution occur error.
      * @throws io.jdbd.JdbdNonSQLException   emit when if occur other error.
      */
-    Publisher<ResultStatus> executeUpdate(String sql);
+    Publisher<ResultState> executeUpdate(String sql);
 
     /**
      * @see #executeQuery(String, Consumer)
@@ -176,7 +176,7 @@ public interface StaticStatement extends Statement {
      * statement does not return a <code>ResultSet</code> object
      * </p>
      */
-    Publisher<ResultRow> executeQuery(String sql, Consumer<ResultStatus> statesConsumer);
+    Publisher<ResultRow> executeQuery(String sql, Consumer<ResultState> statesConsumer);
 
 
     MultiResult executeAsMulti(List<String> sqlList);

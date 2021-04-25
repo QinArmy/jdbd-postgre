@@ -1,12 +1,12 @@
 package io.jdbd;
 
-import io.jdbd.result.ResultStatus;
+import io.jdbd.result.ResultState;
 
 import java.util.function.Consumer;
 
 public final class ResultStatusConsumerException extends JdbdNonSQLException {
 
-    public static ResultStatusConsumerException create(Consumer<ResultStatus> consumer, Throwable cause) {
+    public static ResultStatusConsumerException create(Consumer<ResultState> consumer, Throwable cause) {
         String message = String.format("%s Consumer throw exception:%s", consumer, cause.getMessage());
         return new ResultStatusConsumerException(message, cause);
     }

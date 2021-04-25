@@ -3,7 +3,7 @@ package io.jdbd.mysql.protocol.client;
 import io.jdbd.mysql.stmt.MySQLParamValue;
 import io.jdbd.mysql.stmt.Stmts;
 import io.jdbd.mysql.util.MySQLNumberUtils;
-import io.jdbd.result.ResultStatus;
+import io.jdbd.result.ResultState;
 import io.jdbd.vendor.stmt.ParamValue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -55,7 +55,7 @@ public class ComQueryTaskBigColumnSuiteTests extends AbstractConnectionBasedSuit
         list = new ArrayList<>(2);
         list.add(MySQLParamValue.create(0, 0));
         list.add(MySQLParamValue.create(1, ""));
-        ResultStatus states;
+        ResultState states;
         states = ComPreparedTask.update(Stmts.multiPrepare(sql, list), adjutant)
                 .block();
         assertNotNull(states, alias);

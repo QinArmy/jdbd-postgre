@@ -1,7 +1,7 @@
 package io.jdbd.vendor.stmt;
 
 import io.jdbd.result.ResultRow;
-import io.jdbd.result.ResultStatus;
+import io.jdbd.result.ResultState;
 import io.jdbd.result.SingleResult;
 import io.jdbd.stmt.StaticStatement;
 import io.jdbd.vendor.result.ReactorMultiResult;
@@ -28,16 +28,16 @@ import java.util.function.Consumer;
 public interface ReactorStaticStatement extends StaticStatement {
 
     @Override
-    Flux<ResultStatus> executeBatch(List<String> sqlList);
+    Flux<ResultState> executeBatch(List<String> sqlList);
 
     @Override
-    Mono<ResultStatus> executeUpdate(String sql);
+    Mono<ResultState> executeUpdate(String sql);
 
     @Override
     Flux<ResultRow> executeQuery(String sql);
 
     @Override
-    Flux<ResultRow> executeQuery(String sql, Consumer<ResultStatus> statesConsumer);
+    Flux<ResultRow> executeQuery(String sql, Consumer<ResultState> statesConsumer);
 
     @Override
     ReactorMultiResult executeAsMulti(List<String> sqlList);

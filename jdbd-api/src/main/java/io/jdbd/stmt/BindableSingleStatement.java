@@ -3,7 +3,7 @@ package io.jdbd.stmt;
 
 import io.jdbd.lang.Nullable;
 import io.jdbd.result.ResultRow;
-import io.jdbd.result.ResultStatus;
+import io.jdbd.result.ResultState;
 import org.reactivestreams.Publisher;
 
 import java.util.function.Consumer;
@@ -38,13 +38,13 @@ public interface BindableSingleStatement extends Statement {
      * @see BindableStatement#executeBatch()
      * @see PreparedStatement#executeBatch()
      */
-    Publisher<ResultStatus> executeBatch();
+    Publisher<ResultState> executeBatch();
 
     /**
      * @see BindableStatement#executeUpdate()
      * @see PreparedStatement#executeUpdate()
      */
-    Publisher<ResultStatus> executeUpdate();
+    Publisher<ResultState> executeUpdate();
 
     /**
      * @see BindableStatement#executeQuery()
@@ -56,6 +56,6 @@ public interface BindableSingleStatement extends Statement {
      * @see BindableStatement#executeQuery(Consumer)
      * @see PreparedStatement#executeQuery(Consumer)
      */
-    Publisher<ResultRow> executeQuery(Consumer<ResultStatus> statesConsumer);
+    Publisher<ResultRow> executeQuery(Consumer<ResultState> statesConsumer);
 
 }

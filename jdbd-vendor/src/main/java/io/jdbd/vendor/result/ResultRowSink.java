@@ -1,7 +1,7 @@
 package io.jdbd.vendor.result;
 
 import io.jdbd.result.ResultRow;
-import io.jdbd.result.ResultStatus;
+import io.jdbd.result.ResultState;
 import io.jdbd.stmt.ExecutableStatement;
 import reactor.core.publisher.FluxSink;
 
@@ -22,6 +22,6 @@ public interface ResultRowSink {
     /**
      * @see ExecutableStatement#executeQuery(Consumer)
      */
-    void accept(ResultStatus resultStatus);
+    void accept(ResultState resultState);
 
 }

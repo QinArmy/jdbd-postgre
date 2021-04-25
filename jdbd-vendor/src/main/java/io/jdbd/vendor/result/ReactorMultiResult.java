@@ -2,7 +2,7 @@ package io.jdbd.vendor.result;
 
 import io.jdbd.result.MultiResult;
 import io.jdbd.result.ResultRow;
-import io.jdbd.result.ResultStatus;
+import io.jdbd.result.ResultState;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -12,10 +12,10 @@ public interface ReactorMultiResult extends MultiResult {
 
 
     @Override
-    Mono<ResultStatus> nextUpdate();
+    Mono<ResultState> nextUpdate();
 
     @Override
-    Flux<ResultRow> nextQuery(Consumer<ResultStatus> statesConsumer);
+    Flux<ResultRow> nextQuery(Consumer<ResultState> statesConsumer);
 
     @Override
     Flux<ResultRow> nextQuery();
