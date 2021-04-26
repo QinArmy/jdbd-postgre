@@ -31,7 +31,7 @@ public abstract class AbstractHostInfo<K extends IPropertyKey> implements HostIn
         final Map<String, String> hostProperties = parser.getHostInfo().get(index);
 
         if (!JdbdStringUtils.hasText(this.originalUrl)
-                || JdbdCollections.isEmpty(hostProperties)
+                || hostProperties == null
                 || JdbdCollections.isEmpty(globalProperties)) {
             throw new IllegalArgumentException("please check arguments.");
         }
@@ -53,7 +53,8 @@ public abstract class AbstractHostInfo<K extends IPropertyKey> implements HostIn
             try {
                 this.port = Integer.parseInt(portText);
             } catch (NumberFormatException e) {
-                throw new UrlException(e, this.originalUrl, "post[%s] format error", portText);
+                String message = String.format("post[%s] format error", portText);
+                throw new UrlException(this.originalUrl, message, e);
             }
         }
 
@@ -61,7 +62,8 @@ public abstract class AbstractHostInfo<K extends IPropertyKey> implements HostIn
         this.password = removeValue(map, getPasswordKey());
 
         if (!JdbdStringUtils.hasText(this.user)) {
-            throw new UrlException(this.originalUrl, "%s property must be not empty", getUserKey().name());
+            String message = String.format("%s property must be not empty", getUserKey().name());
+            throw new UrlException(this.originalUrl, message);
         }
         this.isPasswordLess = !JdbdStringUtils.hasText(this.password);
         this.dbName = removeValue(map, getDbNameKey());

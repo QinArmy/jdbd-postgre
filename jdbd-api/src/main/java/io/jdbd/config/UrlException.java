@@ -7,15 +7,17 @@ public class UrlException extends JdbdNonSQLException {
 
     private final String url;
 
-    public UrlException(String url, String message, Object... args) {
-        super(message, args);
+    public UrlException(String url, String message) {
+        super(message);
         this.url = url;
     }
 
-    public UrlException(@Nullable Throwable cause, String url, String messageFormat, Object... args) {
-        super(cause, messageFormat, args);
+
+    public UrlException(String url, String message, @Nullable Throwable cause) {
+        super(message, cause);
         this.url = url;
     }
+
 
     public final String getUrl() {
         return this.url;

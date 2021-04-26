@@ -12,6 +12,7 @@
         <module>jdbd-api</module>
         <module>jdbd-mysql</module>
         <module>jdbd-vendor</module>
+        <module>jdbd-postgre</module>
     </modules>
 
     <organization>

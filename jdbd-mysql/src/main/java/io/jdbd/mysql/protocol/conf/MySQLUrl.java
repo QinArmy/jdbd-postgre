@@ -152,7 +152,8 @@ public final class MySQLUrl extends AbstractJdbcUrl<PropertyKey, MySQLHost> {
                     return t;
                 }
             }
-            throw new UrlException(url, "unsupported scheme[%s] and hosts cardinality[%s]", scheme, n);
+            String message = String.format("unsupported scheme[%s] and hosts cardinality[%s]", scheme, n);
+            throw new UrlException(url, message);
         }
 
         /**

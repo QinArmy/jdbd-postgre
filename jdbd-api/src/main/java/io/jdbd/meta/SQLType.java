@@ -13,6 +13,7 @@ public interface SQLType extends java.sql.SQLType {
      * Returns the {@code SQLType} upper case name that represents a SQL data type.
      *
      * @return The upper case name of this {@code SQLType}.
+     * @see #getName()
      */
     String name();
 

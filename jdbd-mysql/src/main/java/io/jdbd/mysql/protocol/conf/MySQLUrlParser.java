@@ -172,7 +172,7 @@ final class MySQLUrlParser implements JdbcUrlParser {
             }
         } catch (UnsupportedEncodingException e) {
             // use UTF-8 never here
-            throw new UrlException(e, this.originalUrl, "Unsupported charset");
+            throw new UrlException(this.originalUrl, "Unsupported charset", e);
         }
         return properties;
     }
@@ -186,7 +186,8 @@ final class MySQLUrlParser implements JdbcUrlParser {
         String userInfo = authority.substring(0, index);
         String[] userInfoPair = userInfo.split(":");
         if (userInfoPair.length == 0 || userInfoPair.length > 2) {
-            throw new UrlException(this.originalUrl, "user info[%s] error of url.", userInfo);
+            String message = String.format("user info[%s] error of url.", userInfo);
+            throw new UrlException(this.originalUrl, message);
         }
         try {
             properties.put(PropertyKey.user.getKey(), URLDecoder.decode(userInfoPair[0], "UTF-8"));
@@ -195,7 +196,7 @@ final class MySQLUrlParser implements JdbcUrlParser {
             }
         } catch (UnsupportedEncodingException e) {
             //never here
-            throw new UrlException(e, this.originalUrl, "Unsupported charset.");
+            throw new UrlException(this.originalUrl, "Unsupported charset.", e);
         }
         return authority.substring(index + 1);
     }
@@ -220,8 +221,8 @@ final class MySQLUrlParser implements JdbcUrlParser {
                 // this 'if'  block for key-value host
                 int index = authority.indexOf(')', openingMarkIndex);
                 if (index < 0) {
-                    throw new UrlException(this.originalUrl, "%s no closing mark"
-                            , authority.substring(openingMarkIndex));
+                    String message = String.format("%s no closing mark", authority.substring(openingMarkIndex));
+                    throw new UrlException(this.originalUrl, message);
                 }
                 index++; // right shift to comma or ending.
                 hostPropertiesList.add(parseKeyValueHost(authority.substring(openingMarkIndex, index)));
@@ -417,15 +418,18 @@ final class MySQLUrlParser implements JdbcUrlParser {
     }
 
     private UrlException createAuthorityEndWithCommaException() {
-        throw new UrlException(this.originalUrl, "\"%s\" can't end with comma", this.authority);
+        String message = String.format("\"%s\" can't end with comma", this.authority);
+        throw new UrlException(this.originalUrl, message);
     }
 
     private UrlException createParenthesisNotMatchException(String hostSegment) {
-        return new UrlException(this.originalUrl, "\"%s\" parenthesis count not match.", hostSegment);
+        String message = String.format("\"%s\" parenthesis count not match.", hostSegment);
+        return new UrlException(this.originalUrl, message);
     }
 
     private UrlException createFormatException(String hostSegment) {
-        return new UrlException(this.originalUrl, "\"%s\" format error.", hostSegment);
+        String message = String.format("\"%s\" format error.", hostSegment);
+        return new UrlException(this.originalUrl, message);
     }
 
 
