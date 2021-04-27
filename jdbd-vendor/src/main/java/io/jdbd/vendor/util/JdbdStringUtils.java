@@ -24,11 +24,11 @@ public abstract class JdbdStringUtils extends StringUtils {
                 String message = String.format("Postgre url query pair[%s] error. ", pair);
                 throw new UrlException(originalUrl, message);
             }
-            key = decodeQueryKeyOrValue(keyValue[0].trim());
+            key = decodeUrlPart(keyValue[0].trim());
             if (keyValue.length == 1) {
                 value = "";
             } else {
-                value = decodeQueryKeyOrValue(keyValue[1].trim());
+                value = decodeUrlPart(keyValue[1].trim());
             }
             map.put(key, value);
         }
@@ -36,13 +36,13 @@ public abstract class JdbdStringUtils extends StringUtils {
     }
 
 
-    protected static String decodeQueryKeyOrValue(final String keyOrValue) {
+    public static String decodeUrlPart(final String urlPart) {
         final String decoded;
-        if (!hasText(keyOrValue)) {
-            decoded = keyOrValue;
+        if (!hasText(urlPart)) {
+            decoded = urlPart;
         } else {
             try {
-                decoded = URLDecoder.decode(keyOrValue, StandardCharsets.UTF_8.name());
+                decoded = URLDecoder.decode(urlPart, StandardCharsets.UTF_8.name());
             } catch (UnsupportedEncodingException e) {
                 // Won't happen.
                 throw new RuntimeException(e);

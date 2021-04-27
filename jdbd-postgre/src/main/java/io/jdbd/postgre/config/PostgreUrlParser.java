@@ -1,8 +1,10 @@
 package io.jdbd.postgre.config;
 
 import io.jdbd.config.UrlException;
+import io.jdbd.postgre.util.PostgreCollections;
 import io.jdbd.postgre.util.PostgreStringUtils;
 import io.jdbd.vendor.conf.JdbcUrlParser;
+import reactor.util.annotation.Nullable;
 
 import java.util.*;
 import java.util.regex.Matcher;
@@ -16,11 +18,14 @@ final class PostgreUrlParser implements JdbcUrlParser {
     }
 
 
+    static final Pattern HOST_PATTERN = Pattern.compile(
+            "(?:(?<host>[^/\\[?#;@:]+)|(?:\\[(?<hostIpv6>[^/?#;@]+)]))(?::(?<port>\\d+))?");
+
     /**
      * @see <a href="https://jdbc.postgresql.org/documentation/head/connect.html">postgre url</a>
      */
     static final Pattern URL_PATTERN = Pattern.compile(PostgreUrl.PROTOCOL
-            + "(?://(?:(?<host>(?:[^/?#;@:]+))|(?:\\[(?<hostIpv6>[^/?#;@]+)]))(?::(?<port>\\d+))?/)?" // 'host' or 'host:port'
+            + "(?://(?<hostList>[^,/?#;@]+(?:,[^,/?#;@]+)*)/)?" // 'host' or 'host:port'
             + "(?<database>[^/?#;]+)?/?"
             + "(?:\\?(?<query>[^#]*))?"
     );
@@ -43,8 +48,8 @@ final class PostgreUrlParser implements JdbcUrlParser {
             throw new UrlException(url, message);
         }
         this.globalProperties = createGlobalProperties(matcher, propMap);
-        this.dbName = this.globalProperties.get(Property.PGDBNAME.getKey());
-        this.hostInfoList = createHostInfoList();
+        this.dbName = this.globalProperties.get(PGKey.PGDBNAME.getKey());
+        this.hostInfoList = parseHostList(matcher.group("hostList"));
     }
 
 
@@ -81,9 +86,9 @@ final class PostgreUrlParser implements JdbcUrlParser {
     /**
      * @return a unmodifiable map
      */
-    private Map<String, String> createGlobalProperties(final Matcher matcher, final Map<String, String> propMap) {
+    private Map<String, String> createGlobalProperties(final Matcher urlMatcher, final Map<String, String> propMap) {
         // 1. parse query
-        final String query = matcher.group("query");
+        final String query = urlMatcher.group("query");
         final String[] pairArray;
         if (query == null) {
             pairArray = new String[0];
@@ -91,34 +96,57 @@ final class PostgreUrlParser implements JdbcUrlParser {
             pairArray = query.split("&");
         }
 
-        final Map<String, String> map = new HashMap<>((int) ((3 + pairArray.length + propMap.size()) / 0.75F));
+        final Map<String, String> globalMap = new HashMap<>((int) ((pairArray.length + propMap.size()) / 0.75F));
         // first parse query pair.
-        PostgreStringUtils.parseQueryPair(this.originalUrl, pairArray, map);
+        PostgreStringUtils.parseQueryPair(this.originalUrl, pairArray, globalMap);
 
         // 2. put all propMap
-        map.putAll(propMap); // propMap can override query properties.
+        globalMap.putAll(propMap); // propMap can override query properties.
 
-        //3. parse host,port,database
-        String hostStr;
-        hostStr = matcher.group("host");
-        if (hostStr == null) {
-            hostStr = matcher.group("hostIpv6");
-        }
-        if (hostStr != null) {
-            map.put(Property.PGHOST.getKey(), hostStr);
-            map.put(Property.PGPORT.getKey(), matcher.group("port"));
-        }
-
+        // 3. put database
         String database;
-        database = matcher.group("database");
+        database = urlMatcher.group("database");
         if (database != null) {
-            map.put(Property.PGDBNAME.getKey(), database);
+            globalMap.put(PGKey.PGDBNAME.getKey(), PostgreStringUtils.decodeUrlPart(database));
         }
-        return Collections.unmodifiableMap(map);
+        return Collections.unmodifiableMap(globalMap);
     }
 
-    private List<Map<String, String>> createHostInfoList() {
-        return Collections.singletonList(Collections.emptyMap());
+    /**
+     * @return a unmodifiable list
+     */
+    private List<Map<String, String>> parseHostList(@Nullable String hostList) {
+        final List<Map<String, String>> list;
+        if (hostList == null) {
+            list = Collections.singletonList(Collections.emptyMap());
+        } else {
+            String[] pairArray = hostList.split(",");
+            List<Map<String, String>> tempList = new ArrayList<>(pairArray.length);
+            Map<String, String> map;
+            Matcher matcher;
+            String host, port;
+            for (String pair : pairArray) {
+                matcher = HOST_PATTERN.matcher(pair);
+                if (!matcher.matches()) {
+                    String message = String.format("host[%s] error.", pair);
+                    throw new UrlException(this.originalUrl, message);
+                }
+                host = matcher.group("host");
+                if (host == null) {
+                    host = matcher.group("hostIpv6");
+                }
+                map = new HashMap<>(4);
+                map.put(PGKey.PGHOST.getKey(), PostgreStringUtils.decodeUrlPart(host));
+                port = matcher.group("port");
+                if (port != null) {
+                    map.put(PGKey.PGPORT.getKey(), port);
+                }
+                tempList.add(Collections.unmodifiableMap(map));
+            }
+
+            list = PostgreCollections.unmodifiableList(tempList);
+        }
+        return list;
     }
 
 

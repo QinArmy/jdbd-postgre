@@ -3,7 +3,7 @@ package io.jdbd.postgre.config;
 import io.jdbd.vendor.conf.AbstractHostInfo;
 import io.jdbd.vendor.conf.JdbcUrlParser;
 
-public final class PostgreHost extends AbstractHostInfo<Property> {
+public final class PostgreHost extends AbstractHostInfo<PGKey> {
 
     public static PostgreHost create(JdbcUrlParser parser, int index) {
         return new PostgreHost(parser, index);
@@ -18,28 +18,28 @@ public final class PostgreHost extends AbstractHostInfo<Property> {
     }
 
     @Override
-    protected final Property getUserKey() {
-        return Property.user;
+    protected final PGKey getUserKey() {
+        return PGKey.user;
     }
 
     @Override
-    protected final Property getPasswordKey() {
-        return Property.password;
+    protected final PGKey getPasswordKey() {
+        return PGKey.password;
     }
 
     @Override
-    protected final Property getHostKey() {
-        return Property.PGHOST;
+    protected final PGKey getHostKey() {
+        return PGKey.PGHOST;
     }
 
     @Override
-    protected final Property getPortKey() {
-        return Property.PGPORT;
+    protected final PGKey getPortKey() {
+        return PGKey.PGPORT;
     }
 
     @Override
-    protected final Property getDbNameKey() {
-        return Property.PGDBNAME;
+    protected final PGKey getDbNameKey() {
+        return PGKey.PGDBNAME;
     }
 
     @Override

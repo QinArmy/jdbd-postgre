@@ -8,7 +8,7 @@ import java.nio.file.Path;
 /**
  * @see <a href="https://jdbc.postgresql.org/documentation/head/connect.html">properties</a>
  */
-public enum Property implements IPropertyKey {
+public enum PGKey implements IPropertyKey {
 
     user(String.class),
     password(String.class),
@@ -108,16 +108,16 @@ public enum Property implements IPropertyKey {
     private final Class<?> javaType;
 
 
-    Property(Class<?> javaType) {
+    PGKey(Class<?> javaType) {
         this(null, javaType, null);
     }
 
 
-    Property(Class<?> javaType, @Nullable String defaultValue) {
+    PGKey(Class<?> javaType, @Nullable String defaultValue) {
         this(null, javaType, defaultValue);
     }
 
-    Property(@Nullable String key, Class<?> javaType, @Nullable String defaultValue) {
+    PGKey(@Nullable String key, Class<?> javaType, @Nullable String defaultValue) {
         this.key = key == null ? this.name() : key;
         this.javaType = javaType;
         this.defaultValue = defaultValue;
