@@ -4,11 +4,11 @@ import io.jdbd.mysql.protocol.authentication.AuthenticationPlugin;
 import io.jdbd.mysql.protocol.conf.MySQLHost;
 import io.jdbd.mysql.protocol.conf.MySQLUrl;
 import io.jdbd.mysql.protocol.conf.PropertyKey;
-import io.jdbd.vendor.session.SessionAdjutant;
+import io.jdbd.vendor.session.ISessionAdjutant;
 
 import java.util.Map;
 
-public interface MySQLSessionAdjutant extends SessionAdjutant<PropertyKey, MySQLHost> {
+public interface SessionAdjutant extends ISessionAdjutant<PropertyKey, MySQLHost> {
 
     @Override
     MySQLUrl obtainUrl();

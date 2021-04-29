@@ -4,7 +4,7 @@ import io.jdbd.mysql.protocol.authentication.AuthenticationPlugin;
 import io.jdbd.mysql.protocol.authentication.PluginUtils;
 import io.jdbd.mysql.protocol.conf.MySQLUrl;
 import io.jdbd.mysql.protocol.conf.PropertyKey;
-import io.jdbd.mysql.session.MySQLSessionAdjutant;
+import io.jdbd.mysql.session.SessionAdjutant;
 import io.netty.channel.EventLoopGroup;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -26,9 +26,9 @@ public abstract class AbstractConnectionBasedSuiteTests {
 
     static final long TIME_OUT = 5 * 1000L;
 
-    static final Queue<MySQLTaskAdjutant> TASK_ADJUTANT_QUEUE = new LinkedBlockingQueue<>();
+    static final Queue<TaskAdjutant> TASK_ADJUTANT_QUEUE = new LinkedBlockingQueue<>();
 
-    private static final MySQLSessionAdjutant DEFAULT_SESSION_ADJUTANT = createDefaultSessionAdjutant();
+    private static final SessionAdjutant DEFAULT_SESSION_ADJUTANT = createDefaultSessionAdjutant();
 
     protected static final String PROTOCOL_KEY = "my$protocol";
 
@@ -38,8 +38,8 @@ public abstract class AbstractConnectionBasedSuiteTests {
     }
 
 
-    protected static MySQLTaskAdjutant obtainTaskAdjutant() {
-        MySQLTaskAdjutant taskAdjutant;
+    protected static TaskAdjutant obtainTaskAdjutant() {
+        TaskAdjutant taskAdjutant;
 
         taskAdjutant = TASK_ADJUTANT_QUEUE.poll();
         if (taskAdjutant == null) {
@@ -55,19 +55,19 @@ public abstract class AbstractConnectionBasedSuiteTests {
     }
 
 
-    protected static void releaseConnection(MySQLTaskAdjutant adjutant) {
+    protected static void releaseConnection(TaskAdjutant adjutant) {
         TASK_ADJUTANT_QUEUE.offer(adjutant);
     }
 
 
-    protected static MySQLSessionAdjutant createSessionAdjutantForSingleHost(Map<String, String> propMap) {
+    protected static SessionAdjutant createSessionAdjutantForSingleHost(Map<String, String> propMap) {
         return new SessionAdjutantForSingleHostTest(ClientTestUtils.singleUrl(propMap));
     }
 
 
     /*################################## blow private method ##################################*/
 
-    private static MySQLSessionAdjutant createDefaultSessionAdjutant() {
+    private static SessionAdjutant createDefaultSessionAdjutant() {
         Map<String, String> map = new HashMap<>();
         if (ClientTestUtils.existsServerPublicKey()) {
             map.put(PropertyKey.sslMode.getKey(), Enums.SslMode.DISABLED.name());
@@ -77,7 +77,7 @@ public abstract class AbstractConnectionBasedSuiteTests {
     }
 
 
-    private static final class SessionAdjutantForSingleHostTest implements MySQLSessionAdjutant {
+    private static final class SessionAdjutantForSingleHostTest implements SessionAdjutant {
 
         private final MySQLUrl mySQLUrl;
 

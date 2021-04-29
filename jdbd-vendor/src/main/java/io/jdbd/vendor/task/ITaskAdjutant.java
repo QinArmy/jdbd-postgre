@@ -5,7 +5,7 @@ import io.netty.buffer.ByteBufAllocator;
 
 import java.util.function.Consumer;
 
-public interface TaskAdjutant {
+public interface ITaskAdjutant {
 
     boolean isActive();
 

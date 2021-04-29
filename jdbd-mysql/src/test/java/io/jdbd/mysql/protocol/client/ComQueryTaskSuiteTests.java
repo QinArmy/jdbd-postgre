@@ -45,12 +45,12 @@ public class ComQueryTaskSuiteTests extends AbstractStmtTaskSuiteTests {
     }
 
     @Override
-    Mono<ResultState> executeUpdate(BindableStmt stmt, MySQLTaskAdjutant adjutant) {
+    Mono<ResultState> executeUpdate(BindableStmt stmt, TaskAdjutant adjutant) {
         return ComQueryTask.bindableUpdate(stmt, adjutant);
     }
 
     @Override
-    Flux<ResultRow> executeQuery(BindableStmt stmt, MySQLTaskAdjutant adjutant) {
+    Flux<ResultRow> executeQuery(BindableStmt stmt, TaskAdjutant adjutant) {
         return ComQueryTask.bindableQuery(stmt, adjutant);
     }
 
@@ -60,12 +60,12 @@ public class ComQueryTaskSuiteTests extends AbstractStmtTaskSuiteTests {
     }
 
     /**
-     * @see ComQueryTask#update(Stmt, MySQLTaskAdjutant)
+     * @see ComQueryTask#update(Stmt, TaskAdjutant)
      */
     @Test(timeOut = TIME_OUT)
     public void update() {
         LOG.info("update test start");
-        final MySQLTaskAdjutant adjutant = obtainTaskAdjutant();
+        final TaskAdjutant adjutant = obtainTaskAdjutant();
 
         final String newName = "simonyi4";
         String sql = "UPDATE mysql_types as u SET u.name = '%s' WHERE u.id = 1";
@@ -87,12 +87,12 @@ public class ComQueryTaskSuiteTests extends AbstractStmtTaskSuiteTests {
 
 
     /**
-     * @see ComQueryTask#query(Stmt, MySQLTaskAdjutant)
+     * @see ComQueryTask#query(Stmt, TaskAdjutant)
      */
     @Test(timeOut = TIME_OUT)
     public void query() {
         LOG.info("query test start");
-        final MySQLTaskAdjutant adjutant = obtainTaskAdjutant();
+        final TaskAdjutant adjutant = obtainTaskAdjutant();
         String sql;
         AtomicReference<ResultState> resultStatesHolder = new AtomicReference<>(null);
 
@@ -124,12 +124,12 @@ public class ComQueryTaskSuiteTests extends AbstractStmtTaskSuiteTests {
     }
 
     /**
-     * @see ComQueryTask#update(Stmt, MySQLTaskAdjutant)
+     * @see ComQueryTask#update(Stmt, TaskAdjutant)
      */
     @Test(timeOut = TIME_OUT, dependsOnMethods = {"update"})
     public void delete() {
         LOG.info("delete test start");
-        final MySQLTaskAdjutant adjutant = obtainTaskAdjutant();
+        final TaskAdjutant adjutant = obtainTaskAdjutant();
         String sql = "DELETE FROM mysql_types WHERE mysql_types.id = 1";
 
         ResultState resultState = ComQueryTask.update(Stmts.stmt(sql), adjutant)
@@ -156,12 +156,12 @@ public class ComQueryTaskSuiteTests extends AbstractStmtTaskSuiteTests {
     }
 
     /**
-     * @see ComQueryTask#update(Stmt, MySQLTaskAdjutant)
+     * @see ComQueryTask#update(Stmt, TaskAdjutant)
      */
     @Test(timeOut = TIME_OUT)
     public void updateIsQuery() {
         LOG.info("updateIsQuery test start");
-        final MySQLTaskAdjutant adjutant = obtainTaskAdjutant();
+        final TaskAdjutant adjutant = obtainTaskAdjutant();
 
         final String sql = "SELECT t.id,t.name,t.create_time as createTime FROM mysql_types as t WHERE t.id > 50 ORDER BY t.id LIMIT 50";
         try {
@@ -179,12 +179,12 @@ public class ComQueryTaskSuiteTests extends AbstractStmtTaskSuiteTests {
     }
 
     /**
-     * @see ComQueryTask#bindableUpdate(BindableStmt, MySQLTaskAdjutant)
+     * @see ComQueryTask#bindableUpdate(BindableStmt, TaskAdjutant)
      */
     @Test(timeOut = TIME_OUT)
     public void bindableUpdateIsQuery() {
         LOG.info("bindableUpdateIsQuery test start");
-        final MySQLTaskAdjutant adjutant = obtainTaskAdjutant();
+        final TaskAdjutant adjutant = obtainTaskAdjutant();
 
         final String sql = "SELECT t.id,t.name,t.create_time as createTime FROM mysql_types as t WHERE t.id > ? ORDER BY t.id LIMIT 50";
         try {
@@ -202,12 +202,12 @@ public class ComQueryTaskSuiteTests extends AbstractStmtTaskSuiteTests {
     }
 
     /**
-     * @see ComQueryTask#query(Stmt, MySQLTaskAdjutant)
+     * @see ComQueryTask#query(Stmt, TaskAdjutant)
      */
     @Test(timeOut = TIME_OUT)
     public void queryIsUpdate() {
         LOG.info("queryIsUpdate test start");
-        final MySQLTaskAdjutant adjutant = obtainTaskAdjutant();
+        final TaskAdjutant adjutant = obtainTaskAdjutant();
         String sql = "UPDATE mysql_types as u SET u.name = 'simonyi4' WHERE u.id = 30";
 
         try {
@@ -229,12 +229,12 @@ public class ComQueryTaskSuiteTests extends AbstractStmtTaskSuiteTests {
     }
 
     /**
-     * @see ComQueryTask#batchUpdate(List, MySQLTaskAdjutant)
+     * @see ComQueryTask#batchUpdate(List, TaskAdjutant)
      */
     @Test(timeOut = TIME_OUT)
     public void batchUpdateWithSingleStmtMode() {
         LOG.info("batchUpdateWithSingleStmtMode test start");
-        final MySQLTaskAdjutant adjutant = obtainTaskAdjutant();
+        final TaskAdjutant adjutant = obtainTaskAdjutant();
 
         String sql;
         final List<String> sqlList = new ArrayList<>(3);
@@ -262,12 +262,12 @@ public class ComQueryTaskSuiteTests extends AbstractStmtTaskSuiteTests {
     }
 
     /**
-     * @see ComQueryTask#batchUpdate(List, MySQLTaskAdjutant)
+     * @see ComQueryTask#batchUpdate(List, TaskAdjutant)
      */
     @Test(timeOut = TIME_OUT)
     public void batchUpdateWithTempMultiStmtMode() {
         LOG.info("batchUpdateWithSingleStmtMode test start");
-        final MySQLTaskAdjutant adjutant = obtainTaskAdjutant();
+        final TaskAdjutant adjutant = obtainTaskAdjutant();
         assertFalse(Capabilities.supportMultiStatement(adjutant.obtainNegotiatedCapability()), "negotiatedCapability");
 
         String sql;
@@ -305,12 +305,12 @@ public class ComQueryTaskSuiteTests extends AbstractStmtTaskSuiteTests {
      * test error use cate.
      * </p>
      *
-     * @see ComQueryTask#batchUpdate(List, MySQLTaskAdjutant)
+     * @see ComQueryTask#batchUpdate(List, TaskAdjutant)
      */
     @Test(timeOut = TIME_OUT)
     public void batchUpdateContainQueryWithSingleStmtMode() {
         LOG.info("batchUpdateContainQuery test start");
-        final MySQLTaskAdjutant adjutant = obtainTaskAdjutant();
+        final TaskAdjutant adjutant = obtainTaskAdjutant();
 
         String sql;
         List<String> sqlList;
@@ -380,12 +380,12 @@ public class ComQueryTaskSuiteTests extends AbstractStmtTaskSuiteTests {
      * test error use cate.
      * </p>
      *
-     * @see ComQueryTask#batchUpdate(List, MySQLTaskAdjutant)
+     * @see ComQueryTask#batchUpdate(List, TaskAdjutant)
      */
     @Test(timeOut = TIME_OUT)
     public void batchUpdateSyntaxWithSingleStmtMode() {
         LOG.info("batchUpdateSyntaxWithSingleStmtMode test start");
-        final MySQLTaskAdjutant adjutant = obtainTaskAdjutant();
+        final TaskAdjutant adjutant = obtainTaskAdjutant();
 
         String sql;
         List<String> sqlList;
@@ -453,12 +453,12 @@ public class ComQueryTaskSuiteTests extends AbstractStmtTaskSuiteTests {
      * test error use cate.
      * </p>
      *
-     * @see ComQueryTask#batchUpdate(List, MySQLTaskAdjutant)
+     * @see ComQueryTask#batchUpdate(List, TaskAdjutant)
      */
     @Test(timeOut = TIME_OUT)
     public void batchUpdateContainQueryWithTempMultiMode() {
         LOG.info("batchUpdateContainQueryWithTempMultiMode test start");
-        final MySQLTaskAdjutant adjutant = obtainTaskAdjutant();
+        final TaskAdjutant adjutant = obtainTaskAdjutant();
         assertFalse(Capabilities.supportMultiStatement(adjutant.obtainNegotiatedCapability()), "negotiatedCapability");
 
         String sql;
@@ -541,12 +541,12 @@ public class ComQueryTaskSuiteTests extends AbstractStmtTaskSuiteTests {
      * test error use cate.
      * </p>
      *
-     * @see ComQueryTask#batchUpdate(List, MySQLTaskAdjutant)
+     * @see ComQueryTask#batchUpdate(List, TaskAdjutant)
      */
     @Test(timeOut = TIME_OUT)
     public void batchUpdateSyntaxWithTempMultiMode() {
         LOG.info("batchUpdateSyntaxWithTempMultiMode test start");
-        final MySQLTaskAdjutant adjutant = obtainTaskAdjutant();
+        final TaskAdjutant adjutant = obtainTaskAdjutant();
         assertFalse(Capabilities.supportMultiStatement(adjutant.obtainNegotiatedCapability()), "negotiatedCapability");
 
         String sql;
@@ -615,12 +615,12 @@ public class ComQueryTaskSuiteTests extends AbstractStmtTaskSuiteTests {
 
 
     /**
-     * @see ComQueryTask#bindableBatch(BatchBindStmt, MySQLTaskAdjutant)
+     * @see ComQueryTask#bindableBatch(BatchBindStmt, TaskAdjutant)
      */
     @Test(timeOut = TIME_OUT)
     public void bindableBatchWithSingleStmtMode() {
         LOG.info("bindableBatchWithSingleStmtMode test start");
-        final MySQLTaskAdjutant adjutant = obtainTaskAdjutant();
+        final TaskAdjutant adjutant = obtainTaskAdjutant();
 
         final String sql = "UPDATE mysql_types as t SET t.my_long_text = ? WHERE t.id = ?";
         final List<List<BindValue>> groupList = new ArrayList<>(3);
@@ -658,12 +658,12 @@ public class ComQueryTaskSuiteTests extends AbstractStmtTaskSuiteTests {
     }
 
     /**
-     * @see ComQueryTask#bindableBatch(BatchBindStmt, MySQLTaskAdjutant)
+     * @see ComQueryTask#bindableBatch(BatchBindStmt, TaskAdjutant)
      */
     @Test(timeOut = TIME_OUT)
     public void bindableBatchWithTempMultiMode() {
         LOG.info("bindableBatchWithTempMultiMode test start");
-        final MySQLTaskAdjutant adjutant = obtainTaskAdjutant();
+        final TaskAdjutant adjutant = obtainTaskAdjutant();
         assertFalse(Capabilities.supportMultiStatement(adjutant.obtainNegotiatedCapability()), "negotiatedCapability");
 
         final String sql = "UPDATE mysql_types as t SET t.my_long_text = ? WHERE t.id = ?";
@@ -711,12 +711,12 @@ public class ComQueryTaskSuiteTests extends AbstractStmtTaskSuiteTests {
      * test error use case.
      * </p>
      *
-     * @see ComQueryTask#bindableBatch(BatchBindStmt, MySQLTaskAdjutant)
+     * @see ComQueryTask#bindableBatch(BatchBindStmt, TaskAdjutant)
      */
     @Test(timeOut = TIME_OUT)
     public void bindableBatchIsQueryWithSingleStmtMode() {
         LOG.info("bindableBatchIsQueryWithSingleStmtMode test start");
-        final MySQLTaskAdjutant adjutant = obtainTaskAdjutant();
+        final TaskAdjutant adjutant = obtainTaskAdjutant();
 
         final String sql = "SELECT t.id,t.name FROM mysql_types as t WHERE t.id > ?  ORDER BY t.id  LIMIT 10";
         final List<List<BindValue>> groupList = new ArrayList<>(3);
@@ -755,12 +755,12 @@ public class ComQueryTaskSuiteTests extends AbstractStmtTaskSuiteTests {
      * test error use case.
      * </p>
      *
-     * @see ComQueryTask#bindableBatch(BatchBindStmt, MySQLTaskAdjutant)
+     * @see ComQueryTask#bindableBatch(BatchBindStmt, TaskAdjutant)
      */
     @Test(timeOut = TIME_OUT)
     public void bindableBatchIsQueryWithTempMultiMode() {
         LOG.info("bindableBatchIsQueryWithTempMultiMode test start");
-        final MySQLTaskAdjutant adjutant = obtainTaskAdjutant();
+        final TaskAdjutant adjutant = obtainTaskAdjutant();
         assertFalse(Capabilities.supportMultiStatement(adjutant.obtainNegotiatedCapability()), "negotiatedCapability");
 
         final String sql = "SELECT t.id,t.name FROM mysql_types as t WHERE t.id > ?  ORDER BY t.id  LIMIT 10";
@@ -801,12 +801,12 @@ public class ComQueryTaskSuiteTests extends AbstractStmtTaskSuiteTests {
      * test error use case.
      * </p>
      *
-     * @see ComQueryTask#bindableBatch(BatchBindStmt, MySQLTaskAdjutant)
+     * @see ComQueryTask#bindableBatch(BatchBindStmt, TaskAdjutant)
      */
     @Test(timeOut = TIME_OUT)
     public void bindableBatchSyntaxWithSingleStmtMode() {
         LOG.info("bindableBatchSyntaxWithSingleStmtMode test start");
-        final MySQLTaskAdjutant adjutant = obtainTaskAdjutant();
+        final TaskAdjutant adjutant = obtainTaskAdjutant();
 
         final String sql = "UPDATE mysql_types as t SET t.my_long_text = 'error string WHERE t.id = ?";
         final List<List<BindValue>> groupList = new ArrayList<>(3);
@@ -844,12 +844,12 @@ public class ComQueryTaskSuiteTests extends AbstractStmtTaskSuiteTests {
      * test error use case.
      * </p>
      *
-     * @see ComQueryTask#bindableBatch(BatchBindStmt, MySQLTaskAdjutant)
+     * @see ComQueryTask#bindableBatch(BatchBindStmt, TaskAdjutant)
      */
     @Test(timeOut = TIME_OUT)
     public void bindableBatchSyntaxWithTempMultiMode() {
         LOG.info("bindableBatchSyntaxWithTempMultiMode test start");
-        final MySQLTaskAdjutant adjutant = obtainTaskAdjutant();
+        final TaskAdjutant adjutant = obtainTaskAdjutant();
         assertFalse(Capabilities.supportMultiStatement(adjutant.obtainNegotiatedCapability()), "negotiatedCapability");
 
         final String sql = "UPDATE mysql_types as t SET t.my_long_text = 'error string WHERE t.id = ?";
@@ -886,13 +886,13 @@ public class ComQueryTaskSuiteTests extends AbstractStmtTaskSuiteTests {
 
 
     /**
-     * @see ComQueryTask#update(Stmt, MySQLTaskAdjutant)
-     * @see ComQueryTask#bindableUpdate(BindableStmt, MySQLTaskAdjutant)
+     * @see ComQueryTask#update(Stmt, TaskAdjutant)
+     * @see ComQueryTask#bindableUpdate(BindableStmt, TaskAdjutant)
      */
     @Test(timeOut = TIME_OUT)
     public void localInFile() {
         LOG.info("localInFile test start");
-        final MySQLTaskAdjutant adjutant = obtainTaskAdjutant();
+        final TaskAdjutant adjutant = obtainTaskAdjutant();
 
 
         LOG.info("localInFile test success");

@@ -15,7 +15,7 @@ abstract class MySQLPrepareCommandTask extends MySQLCommandTask implements State
             AtomicIntegerFieldUpdater.newUpdater(MySQLPrepareCommandTask.class, "safeSequenceId");
 
 
-    final MySQLTaskAdjutant adjutant;
+    final TaskAdjutant adjutant;
 
     final int negotiatedCapability;
 
@@ -25,7 +25,7 @@ abstract class MySQLPrepareCommandTask extends MySQLCommandTask implements State
 
     private volatile int safeSequenceId = -1;
 
-    MySQLPrepareCommandTask(MySQLTaskAdjutant adjutant) {
+    MySQLPrepareCommandTask(TaskAdjutant adjutant) {
         super(adjutant);
         this.negotiatedCapability = adjutant.obtainNegotiatedCapability();
         this.adjutant = adjutant;

@@ -30,7 +30,7 @@ import java.util.Objects;
 import java.util.Queue;
 import java.util.function.Consumer;
 
-public abstract class CommunicationTaskExecutor<T extends TaskAdjutant> implements CoreSubscriber<ByteBuf>
+public abstract class CommunicationTaskExecutor<T extends ITaskAdjutant> implements CoreSubscriber<ByteBuf>
         , TaskExecutor<T> {
 
     protected final Connection connection;
@@ -574,7 +574,7 @@ public abstract class CommunicationTaskExecutor<T extends TaskAdjutant> implemen
 
     /*################################## blow private static class ##################################*/
 
-    protected static abstract class AbstractTaskAdjutant implements TaskAdjutant {
+    protected static abstract class AbstractTaskAdjutant implements ITaskAdjutant {
 
         private final CommunicationTaskExecutor<?> taskExecutor;
 

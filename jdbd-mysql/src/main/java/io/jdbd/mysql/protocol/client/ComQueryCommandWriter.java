@@ -52,7 +52,7 @@ final class ComQueryCommandWriter {
      * @return a unmodifiable Iterable.
      */
     static Iterable<ByteBuf> createBindableMultiCommand(final List<BindableStmt> bindableStmtList
-            , Supplier<Integer> sequenceIdSupplier, MySQLTaskAdjutant adjutant)
+            , Supplier<Integer> sequenceIdSupplier, TaskAdjutant adjutant)
             throws SQLException, LongDataReadException {
         return new ComQueryCommandWriter(sequenceIdSupplier, adjutant)
                 .writeMultiCommand(bindableStmtList);
@@ -62,7 +62,7 @@ final class ComQueryCommandWriter {
      * @return a unmodifiable list.
      */
     static Iterable<ByteBuf> createBindableCommand(BindableStmt bindableStmt, Supplier<Integer> sequenceIdSupplier
-            , MySQLTaskAdjutant adjutant) throws SQLException, LongDataReadException {
+            , TaskAdjutant adjutant) throws SQLException, LongDataReadException {
         return new ComQueryCommandWriter(sequenceIdSupplier, adjutant)
                 .writeBindableCommand(bindableStmt);
     }
@@ -71,7 +71,7 @@ final class ComQueryCommandWriter {
      * @return a unmodifiable list.
      */
     static Iterable<ByteBuf> createBindableBatchCommand(BatchBindStmt wrapper, Supplier<Integer> sequenceIdSupplier
-            , MySQLTaskAdjutant adjutant) throws SQLException, LongDataReadException {
+            , TaskAdjutant adjutant) throws SQLException, LongDataReadException {
 
         return new ComQueryCommandWriter(sequenceIdSupplier, adjutant)
                 .writeBindableBatchCommand(wrapper);
@@ -81,7 +81,7 @@ final class ComQueryCommandWriter {
      * @return a unmodifiable Iterable.
      */
     static Iterable<ByteBuf> createStaticSingleCommand(final Stmt stmt, Supplier<Integer> sequenceIdSupplier
-            , final MySQLTaskAdjutant adjutant) throws SQLException, JdbdSQLException {
+            , final TaskAdjutant adjutant) throws SQLException, JdbdSQLException {
         return PacketUtils.createSimpleCommand(PacketUtils.COM_QUERY, stmt, adjutant, sequenceIdSupplier);
     }
 
@@ -89,7 +89,7 @@ final class ComQueryCommandWriter {
      * @return a unmodifiable Iterable.
      */
     static Iterable<ByteBuf> createStaticMultiCommand(final List<Stmt> stmtList, Supplier<Integer> sequenceIdSupplier
-            , final MySQLTaskAdjutant adjutant) throws SQLException, JdbdSQLException {
+            , final TaskAdjutant adjutant) throws SQLException, JdbdSQLException {
         if (stmtList.isEmpty()) {
             throw MySQLExceptions.createQueryIsEmptyError();
         }
@@ -120,10 +120,10 @@ final class ComQueryCommandWriter {
     }
 
     /**
-     * @see #createStaticMultiCommand(List, Supplier, MySQLTaskAdjutant)
+     * @see #createStaticMultiCommand(List, Supplier, TaskAdjutant)
      */
     private static Iterable<ByteBuf> writeStaticMultiCommand(final byte[][] commandArray, final int payloadLength
-            , MySQLTaskAdjutant adjutant, Supplier<Integer> sequenceIdSupplier) {
+            , TaskAdjutant adjutant, Supplier<Integer> sequenceIdSupplier) {
 
         ByteBuf packet;
         if (payloadLength < PacketUtils.MAX_PAYLOAD) {
@@ -177,7 +177,7 @@ final class ComQueryCommandWriter {
 
     private final Supplier<Integer> sequenceIdSupplier;
 
-    private final MySQLTaskAdjutant adjutant;
+    private final TaskAdjutant adjutant;
 
     private final Properties<PropertyKey> properties;
 
@@ -188,7 +188,7 @@ final class ComQueryCommandWriter {
 
     private final boolean supportStream;
 
-    private ComQueryCommandWriter(Supplier<Integer> sequenceIdSupplier, MySQLTaskAdjutant adjutant) {
+    private ComQueryCommandWriter(Supplier<Integer> sequenceIdSupplier, TaskAdjutant adjutant) {
         this.sequenceIdSupplier = sequenceIdSupplier;
         this.adjutant = adjutant;
         MySQLHost host = adjutant.obtainHostInfo();
@@ -207,7 +207,7 @@ final class ComQueryCommandWriter {
 
     /**
      * @return a unmodifiable list.
-     * @see #createBindableMultiCommand(List, Supplier, MySQLTaskAdjutant)
+     * @see #createBindableMultiCommand(List, Supplier, TaskAdjutant)
      */
     private List<ByteBuf> writeMultiCommand(final List<BindableStmt> bindableStmtList)
             throws SQLException, LongDataReadException {
@@ -238,7 +238,7 @@ final class ComQueryCommandWriter {
 
     /**
      * @return a unmodifiable list.
-     * @see #createBindableCommand(BindableStmt, Supplier, MySQLTaskAdjutant)
+     * @see #createBindableCommand(BindableStmt, Supplier, TaskAdjutant)
      */
     private Iterable<ByteBuf> writeBindableCommand(BindableStmt bindableStmt) throws SQLException, LongDataReadException {
         LinkedList<ByteBuf> packetList = new LinkedList<>();
@@ -258,7 +258,7 @@ final class ComQueryCommandWriter {
 
     /**
      * @return a unmodifiable list.
-     * @see #createBindableBatchCommand(BatchBindStmt, Supplier, MySQLTaskAdjutant)
+     * @see #createBindableBatchCommand(BatchBindStmt, Supplier, TaskAdjutant)
      */
     private Iterable<ByteBuf> writeBindableBatchCommand(BatchBindStmt wrapper) throws SQLException, LongDataReadException {
         final MySQLStatement stmt;

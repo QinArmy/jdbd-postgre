@@ -3,7 +3,7 @@ package io.jdbd.mysql.protocol.client;
 import io.jdbd.JdbdSQLException;
 import io.jdbd.mysql.protocol.CharsetMapping;
 import io.jdbd.mysql.protocol.conf.PropertyKey;
-import io.jdbd.mysql.session.MySQLSessionAdjutant;
+import io.jdbd.mysql.session.SessionAdjutant;
 import io.jdbd.mysql.stmt.Stmts;
 import io.jdbd.result.ResultRow;
 import io.jdbd.vendor.conf.HostInfo;
@@ -22,7 +22,7 @@ final class ClientConnectionProtocolImpl implements ClientConnectionProtocol {
     private static final Logger LOG = LoggerFactory.getLogger(ClientConnectionProtocolImpl.class);
 
 
-    static Mono<ClientConnectionProtocolImpl> create(final int hostIndex, MySQLSessionAdjutant sessionAdjutant) {
+    static Mono<ClientConnectionProtocolImpl> create(final int hostIndex, SessionAdjutant sessionAdjutant) {
         return MySQLTaskExecutor.create(hostIndex, sessionAdjutant)
                 .flatMap(taskExecutor -> {
                     ClientConnectionProtocolImpl protocol;
@@ -48,7 +48,7 @@ final class ClientConnectionProtocolImpl implements ClientConnectionProtocol {
     final SessionResetter sessionResetter;
 
 
-    private ClientConnectionProtocolImpl(final MySQLSessionAdjutant sessionAdjutant
+    private ClientConnectionProtocolImpl(final SessionAdjutant sessionAdjutant
             , int hostIndex, final MySQLTaskExecutor taskExecutor) {
         this.hostInfo = sessionAdjutant.obtainUrl().getHostList().get(hostIndex);
         this.taskExecutor = taskExecutor;

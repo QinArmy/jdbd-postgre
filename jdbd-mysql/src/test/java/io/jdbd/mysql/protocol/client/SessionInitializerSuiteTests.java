@@ -4,7 +4,7 @@ import io.jdbd.mysql.Groups;
 import io.jdbd.mysql.SQLMode;
 import io.jdbd.mysql.Server;
 import io.jdbd.mysql.protocol.conf.PropertyKey;
-import io.jdbd.mysql.session.MySQLSessionAdjutant;
+import io.jdbd.mysql.session.SessionAdjutant;
 import io.jdbd.mysql.stmt.Stmts;
 import io.jdbd.mysql.util.MySQLTimeUtils;
 import io.jdbd.result.ResultRow;
@@ -91,7 +91,7 @@ public class SessionInitializerSuiteTests extends AbstractConnectionBasedSuiteTe
     @Test
     public void configConnectionZone() {
         LOG.info("configConnectionZone test start.");
-        MySQLTaskAdjutant adjutant;
+        TaskAdjutant adjutant;
 
         final Map<String, String> propMap;
         propMap = new HashMap<>();
@@ -134,7 +134,7 @@ public class SessionInitializerSuiteTests extends AbstractConnectionBasedSuiteTe
     @Test
     public void configSessionCharsets() {
         LOG.info("configSessionCharsets test start.");
-        MySQLTaskAdjutant adjutant;
+        TaskAdjutant adjutant;
 
         final Map<String, String> propMap;
         propMap = new HashMap<>();
@@ -177,7 +177,7 @@ public class SessionInitializerSuiteTests extends AbstractConnectionBasedSuiteTe
     @Test
     public void configSqlMode() {
         LOG.info("configSqlMode test start.");
-        MySQLTaskAdjutant adjutant;
+        TaskAdjutant adjutant;
 
         final Map<String, String> propMap;
         propMap = new HashMap<>();
@@ -197,8 +197,8 @@ public class SessionInitializerSuiteTests extends AbstractConnectionBasedSuiteTe
 
     /*################################## blow private method ##################################*/
 
-    private MySQLTaskAdjutant doConnectionTest(Map<String, String> propMap) {
-        MySQLSessionAdjutant sessionAdjutant = createSessionAdjutantForSingleHost(propMap);
+    private TaskAdjutant doConnectionTest(Map<String, String> propMap) {
+        SessionAdjutant sessionAdjutant = createSessionAdjutantForSingleHost(propMap);
 
         ClientConnectionProtocolImpl protocol = ClientConnectionProtocolImpl.create(0, sessionAdjutant)
                 .block();
@@ -207,7 +207,7 @@ public class SessionInitializerSuiteTests extends AbstractConnectionBasedSuiteTe
         assertNotNull(protocol.taskExecutor, "protocol.taskExecutor");
         assertNotNull(protocol.sessionResetter, "protocol.sessionResetter");
 
-        MySQLTaskAdjutant adjutant = protocol.taskExecutor.getAdjutant();
+        TaskAdjutant adjutant = protocol.taskExecutor.getAdjutant();
         protocolMap.put(adjutant.obtainHandshakeV10Packet().getThreadId(), protocol);
         return adjutant;
     }

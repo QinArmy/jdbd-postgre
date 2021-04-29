@@ -45,7 +45,7 @@ public class ComQueryTaskBigColumnSuiteTests extends AbstractConnectionBasedSuit
 
     @Test(enabled = false, timeOut = TIME_OUT)
     public void myBit20() {
-        final MySQLTaskAdjutant adjutant = obtainTaskAdjutant();
+        final TaskAdjutant adjutant = obtainTaskAdjutant();
         String sql, alias;
         List<ParamValue> list;
 

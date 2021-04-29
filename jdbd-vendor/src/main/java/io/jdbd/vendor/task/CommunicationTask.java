@@ -13,7 +13,7 @@ import java.util.function.Consumer;
  */
 public abstract class CommunicationTask {
 
-    final TaskAdjutant adjutant;
+    final ITaskAdjutant adjutant;
 
     protected Publisher<ByteBuf> packetPublisher;
 
@@ -23,7 +23,7 @@ public abstract class CommunicationTask {
 
     private MethodStack methodStack;
 
-    protected CommunicationTask(TaskAdjutant adjutant) {
+    protected CommunicationTask(ITaskAdjutant adjutant) {
         this.adjutant = adjutant;
     }
 
@@ -65,6 +65,9 @@ public abstract class CommunicationTask {
             throws TaskStatusException {
         if (this.taskPhase != TaskPhase.STARTED) {
             throw createTaskPhaseException(TaskPhase.STARTED);
+        }
+        if (!hasOnePacket(cumulateBuffer)) {
+            return false;
         }
         this.methodStack = MethodStack.DECODE;
         try {
@@ -232,6 +235,9 @@ public abstract class CommunicationTask {
      * @return true ,task end.
      */
     protected abstract boolean decode(ByteBuf cumulateBuffer, Consumer<Object> serverStatusConsumer);
+
+
+    protected abstract boolean hasOnePacket(ByteBuf cumulateBuffer);
 
 
 

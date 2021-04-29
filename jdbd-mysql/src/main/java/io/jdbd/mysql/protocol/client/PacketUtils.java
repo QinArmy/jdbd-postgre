@@ -583,7 +583,7 @@ public abstract class PacketUtils {
     }
 
     public static Iterable<ByteBuf> createSimpleCommand(final byte cmdFlag, Stmt stmt
-            , MySQLTaskAdjutant adjutant, Supplier<Integer> sequenceIdSupplier) throws SQLException, JdbdSQLException {
+            , TaskAdjutant adjutant, Supplier<Integer> sequenceIdSupplier) throws SQLException, JdbdSQLException {
 
         if (cmdFlag != COM_QUERY && cmdFlag != COM_STMT_PREPARE) {
             throw new IllegalArgumentException("command error");

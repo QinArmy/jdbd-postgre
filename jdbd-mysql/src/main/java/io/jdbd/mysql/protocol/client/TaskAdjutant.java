@@ -1,18 +1,18 @@
 package io.jdbd.mysql.protocol.client;
 
 import io.jdbd.mysql.protocol.authentication.AuthenticationPlugin;
-import io.jdbd.mysql.session.MySQLSessionAdjutant;
+import io.jdbd.mysql.session.SessionAdjutant;
 import io.jdbd.mysql.syntax.MySQLParser;
-import io.jdbd.vendor.task.TaskAdjutant;
+import io.jdbd.vendor.task.ITaskAdjutant;
 
 import java.util.Map;
 
-interface MySQLTaskAdjutant extends TaskAdjutant, ClientProtocolAdjutant, MySQLParser {
+interface TaskAdjutant extends ITaskAdjutant, ClientProtocolAdjutant, MySQLParser {
 
     int getServerStatus();
 
     /**
-     * @see MySQLSessionAdjutant#obtainPluginClassMap()
+     * @see SessionAdjutant#obtainPluginClassMap()
      */
     Map<String, Class<? extends AuthenticationPlugin>> obtainPluginMechanismMap();
 

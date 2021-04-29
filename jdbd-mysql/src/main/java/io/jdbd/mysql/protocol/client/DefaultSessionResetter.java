@@ -35,18 +35,18 @@ final class DefaultSessionResetter implements SessionResetter {
 
     private static final Logger LOG = LoggerFactory.getLogger(DefaultSessionResetter.class);
 
-    static SessionResetter create(MySQLTaskAdjutant adjutant) {
+    static SessionResetter create(TaskAdjutant adjutant) {
         return new DefaultSessionResetter(adjutant);
     }
 
 
     private final Properties<PropertyKey> properties;
 
-    private final MySQLTaskAdjutant adjutant;
+    private final TaskAdjutant adjutant;
 
     private final ConcurrentMap<Key, Object> configCacheMap = new ConcurrentHashMap<>(9);
 
-    private DefaultSessionResetter(MySQLTaskAdjutant adjutant) {
+    private DefaultSessionResetter(TaskAdjutant adjutant) {
         this.adjutant = adjutant;
         this.properties = adjutant.obtainHostInfo().getProperties();
     }

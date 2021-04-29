@@ -74,7 +74,7 @@ public class MySQLUrlParserSuiteTests {
     public void failoverConnection() throws Exception {
 
         String protocol = MySQLUrl.Protocol.FAILOVER_CONNECTION.getScheme();
-        String host1 = "address=(host=kafka)(port=3435)(key2=value2)";
+        String host1 = "address=(host=kafka)(port=3435)(paranoid=false)";
         String host2 = "localhost:8080";
         String host3 = "( host  =  kosmo , port = 3306 )";
         String host4 = "( host  =  simonyi , port = 9987 )";
@@ -132,7 +132,7 @@ public class MySQLUrlParserSuiteTests {
         Assert.assertEquals(properties.size(), 3, "host1 prop size");
         Assert.assertEquals(properties.getOrDefault(PropertyKey.sslMode, Enums.SslMode.class), Enums.SslMode.REQUIRED, " sslMode");
         Assert.assertEquals(properties.getOrDefault(PropertyKey.xdevapiSSLTrustStoreType), PropertyKey.xdevapiSSLTrustStoreType.getDefault(), "xdevapiSSLTrustStoreType");
-        Assert.assertEquals(properties.getProperty("key2"), "value2", "host1 key2");
+        Assert.assertEquals(properties.getProperty(PropertyKey.paranoid), "false", "host1 key2");
 
         Assert.assertEquals(hostInfo1.getDbName(), "army", "dbName");
 
@@ -187,7 +187,7 @@ public class MySQLUrlParserSuiteTests {
 
         Assert.assertEquals(properties.size(), 3, "host6 prop size");
 
-        Assert.assertEquals(properties.getProperty("key2"), "value2", "host6 key2");
+        Assert.assertEquals(properties.getProperty(PropertyKey.paranoid), "false", "host6 key2");
 
 
     }

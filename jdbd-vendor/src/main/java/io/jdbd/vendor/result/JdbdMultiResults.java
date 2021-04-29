@@ -2,7 +2,7 @@ package io.jdbd.vendor.result;
 
 import io.jdbd.JdbdException;
 import io.jdbd.result.SingleResult;
-import io.jdbd.vendor.task.TaskAdjutant;
+import io.jdbd.vendor.task.ITaskAdjutant;
 import io.jdbd.vendor.util.JdbdExceptions;
 import reactor.core.publisher.Flux;
 
@@ -19,7 +19,7 @@ public abstract class JdbdMultiResults {
         return new ErrorMultiResult(e);
     }
 
-    public static ReactorMultiResult create(TaskAdjutant adjutant, Consumer<MultiResultSink> callback) {
+    public static ReactorMultiResult create(ITaskAdjutant adjutant, Consumer<MultiResultSink> callback) {
         return ReactorMultiResults.create(adjutant, callback);
     }
 
@@ -29,7 +29,7 @@ public abstract class JdbdMultiResults {
      * {@link MultiResultSink} isn't thread safe ,must invoke in {@link io.netty.channel.EventLoop}.
      * </p>
      */
-    public static Flux<SingleResult> createAsFlux(TaskAdjutant adjutant, Consumer<MultiResultSink> callback) {
+    public static Flux<SingleResult> createAsFlux(ITaskAdjutant adjutant, Consumer<MultiResultSink> callback) {
         return Flux.create(sink -> {
             try {
                 callback.accept(MultiResultFluxSink.create(sink, adjutant));

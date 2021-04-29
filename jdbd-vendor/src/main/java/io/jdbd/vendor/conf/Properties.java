@@ -1,6 +1,6 @@
 package io.jdbd.vendor.conf;
 
-import org.qinarmy.env.Environment;
+import io.jdbd.config.PropertyException;
 import reactor.util.annotation.Nullable;
 
 import java.util.Collections;
@@ -8,7 +8,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-public interface Properties<K extends IPropertyKey> extends Environment {
+public interface Properties<K extends IPropertyKey> {
 
     /**
      * @return actual property pair count( not contain {@link System#getProperties()} and {@link System#getenv()})
@@ -52,7 +52,7 @@ public interface Properties<K extends IPropertyKey> extends Environment {
      * @see #getRequiredProperty(String, Class)
      */
     @Nullable
-    <T> T getProperty(K key, Class<T> targetType);
+    <T> T getProperty(K key, Class<T> targetType) throws PropertyException;
 
     /**
      * Return the property value associated with the given key,
@@ -63,7 +63,7 @@ public interface Properties<K extends IPropertyKey> extends Environment {
      * @param defaultValue the default value to return if no value is found
      * @see #getRequiredProperty(String, Class)
      */
-    <T> T getProperty(K key, Class<T> targetType, T defaultValue);
+    <T> T getProperty(K key, Class<T> targetType, T defaultValue) throws PropertyException;
 
     /**
      * Return the property value associated with the given key,but not {@link String} ,the the property value showSQL:
@@ -86,7 +86,7 @@ public interface Properties<K extends IPropertyKey> extends Environment {
      * @return a  list
      * @see #getRequiredProperty(String, Class)
      */
-    <T> List<T> getPropertyList(K key, Class<T> targetArrayType);
+    <T> List<T> getPropertyList(K key, Class<T> targetArrayType) throws PropertyException;
 
     /**
      * Return the property value associated with the given key,
@@ -98,7 +98,7 @@ public interface Properties<K extends IPropertyKey> extends Environment {
      * @return a  list
      * @see #getRequiredProperty(String, Class)
      */
-    <T> List<T> getPropertyList(K key, Class<T> targetArrayType, List<T> defaultList);
+    <T> List<T> getPropertyList(K key, Class<T> targetArrayType, List<T> defaultList) throws PropertyException;
 
     /**
      * Return the property value associated with the given key,but not {@link String} ,the the property value showSQL:
@@ -110,7 +110,7 @@ public interface Properties<K extends IPropertyKey> extends Environment {
      * @return a  list
      * @see #getRequiredProperty(String, Class)
      */
-    <T> Set<T> getPropertySet(K key, Class<T> targetArrayType);
+    <T> Set<T> getPropertySet(K key, Class<T> targetArrayType) throws PropertyException;
 
     Set<String> getPropertySet(K key);
 
@@ -125,7 +125,7 @@ public interface Properties<K extends IPropertyKey> extends Environment {
      * @return a  list
      * @see #getRequiredProperty(String, Class)
      */
-    <T> Set<T> getPropertySet(K key, Class<T> targetArrayType, Set<T> defaultSet);
+    <T> Set<T> getPropertySet(K key, Class<T> targetArrayType, Set<T> defaultSet) throws PropertyException;
 
     /**
      * Return the property value associated with the given key (never {@code null}).
@@ -133,7 +133,7 @@ public interface Properties<K extends IPropertyKey> extends Environment {
      * @throws IllegalStateException if the key cannot be resolved
      * @see #getRequiredProperty(String, Class)
      */
-    String getRequiredProperty(K key) throws IllegalStateException;
+    String getRequiredProperty(K key) throws PropertyException;
 
     /**
      * Return the property value associated with the given key, converted to the given
@@ -141,11 +141,11 @@ public interface Properties<K extends IPropertyKey> extends Environment {
      *
      * @throws IllegalStateException if the given key cannot be resolved
      */
-    <T> T getRequiredProperty(K key, Class<T> targetType) throws IllegalStateException;
+    <T> T getRequiredProperty(K key, Class<T> targetType) throws PropertyException;
 
-    String getOrDefault(K key) throws IllegalStateException;
+    String getOrDefault(K key) throws PropertyException;
 
-    <T> T getOrDefault(K key, Class<T> targetType) throws IllegalStateException;
+    <T> T getOrDefault(K key, Class<T> targetType) throws PropertyException;
 
 
 }

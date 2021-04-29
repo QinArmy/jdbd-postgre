@@ -4,7 +4,7 @@ import io.jdbd.JdbdSQLException;
 import io.jdbd.mysql.Groups;
 import io.jdbd.mysql.MySQLType;
 import io.jdbd.mysql.protocol.conf.PropertyKey;
-import io.jdbd.mysql.session.MySQLSessionAdjutant;
+import io.jdbd.mysql.session.SessionAdjutant;
 import io.jdbd.mysql.stmt.BatchBindStmt;
 import io.jdbd.mysql.stmt.BindValue;
 import io.jdbd.mysql.stmt.BindableStmt;
@@ -39,19 +39,19 @@ import static org.testng.Assert.*;
  * id range [260,299]
  * </p>
  *
- * @see ComQueryTask#multiStmt(List, MySQLTaskAdjutant)
- * @see ComQueryTask#multiStmtAsMulti(List, MySQLTaskAdjutant)
- * @see ComQueryTask#batchUpdate(List, MySQLTaskAdjutant)
- * @see ComQueryTask#bindableBatch(BatchBindStmt, MySQLTaskAdjutant)
+ * @see ComQueryTask#multiStmt(List, TaskAdjutant)
+ * @see ComQueryTask#multiStmtAsMulti(List, TaskAdjutant)
+ * @see ComQueryTask#batchUpdate(List, TaskAdjutant)
+ * @see ComQueryTask#bindableBatch(BatchBindStmt, TaskAdjutant)
  */
 @Test(groups = {Groups.MULTI_STMT}, dependsOnGroups = {Groups.COM_QUERY, Groups.DATA_PREPARE})
 public class MultiStatementSuiteTests extends AbstractConnectionBasedSuiteTests {
 
     private static final Logger LOG = LoggerFactory.getLogger(MultiStatementSuiteTests.class);
 
-    static final Queue<MySQLTaskAdjutant> MULTI_STMT_TASK_ADJUTANT_QUEUE = new LinkedBlockingQueue<>();
+    static final Queue<TaskAdjutant> MULTI_STMT_TASK_ADJUTANT_QUEUE = new LinkedBlockingQueue<>();
 
-    private static final MySQLSessionAdjutant MULTI_STMT_SESSION_ADJUTANT = createMultiStmtSessionAdjutant();
+    private static final SessionAdjutant MULTI_STMT_SESSION_ADJUTANT = createMultiStmtSessionAdjutant();
 
     private final int ROW_COUNT = 10;
 
@@ -66,12 +66,12 @@ public class MultiStatementSuiteTests extends AbstractConnectionBasedSuiteTests 
     }
 
     /**
-     * @see ComQueryTask#asMulti(List, MySQLTaskAdjutant)
+     * @see ComQueryTask#asMulti(List, TaskAdjutant)
      */
     @Test(timeOut = TIME_OUT)
     public void multiStatement() throws Throwable {
         LOG.info("multiStatement test start");
-        final MySQLTaskAdjutant adjutant = obtainMultiStmtTaskAdjutant();
+        final TaskAdjutant adjutant = obtainMultiStmtTaskAdjutant();
 
         String sql;
         List<Stmt> sqlList = new ArrayList<>(6);
@@ -197,12 +197,12 @@ public class MultiStatementSuiteTests extends AbstractConnectionBasedSuiteTests 
 
 
     /**
-     * @see ComQueryTask#multiStmtAsMulti(List, MySQLTaskAdjutant)
+     * @see ComQueryTask#multiStmtAsMulti(List, TaskAdjutant)
      */
     @Test(timeOut = TIME_OUT)
     public void bindableMultiStatement() throws Throwable {
         LOG.info("multiStatement test start");
-        final MySQLTaskAdjutant adjutant = obtainMultiStmtTaskAdjutant();
+        final TaskAdjutant adjutant = obtainMultiStmtTaskAdjutant();
 
         String sql;
         final List<BindableStmt> bindableStmtList = new ArrayList<>(6);
@@ -330,12 +330,12 @@ public class MultiStatementSuiteTests extends AbstractConnectionBasedSuiteTests 
     }
 
     /**
-     * @see ComQueryTask#asMulti(List, MySQLTaskAdjutant)
+     * @see ComQueryTask#asMulti(List, TaskAdjutant)
      */
     @Test(timeOut = TIME_OUT)
     public void multiStmtError() {
         LOG.info("multiStmtError test start");
-        final MySQLTaskAdjutant adjutant = obtainMultiStmtTaskAdjutant();
+        final TaskAdjutant adjutant = obtainMultiStmtTaskAdjutant();
         String sql;
         final List<Stmt> sqlList = new ArrayList<>(6);
 
@@ -413,12 +413,12 @@ public class MultiStatementSuiteTests extends AbstractConnectionBasedSuiteTests 
     }
 
     /**
-     * @see ComQueryTask#asMulti(List, MySQLTaskAdjutant)
+     * @see ComQueryTask#asMulti(List, TaskAdjutant)
      */
     @Test(timeOut = TIME_OUT)
     public void multiStmtErrorSubscribe() {
         LOG.info("multiStmtErrorSubscribe test start");
-        final MySQLTaskAdjutant adjutant = obtainMultiStmtTaskAdjutant();
+        final TaskAdjutant adjutant = obtainMultiStmtTaskAdjutant();
 
         String sql;
         final List<Stmt> sqlList = new ArrayList<>(6);
@@ -483,12 +483,12 @@ public class MultiStatementSuiteTests extends AbstractConnectionBasedSuiteTests 
     }
 
     /**
-     * @see ComQueryTask#asMulti(List, MySQLTaskAdjutant)
+     * @see ComQueryTask#asMulti(List, TaskAdjutant)
      */
     @Test(timeOut = TIME_OUT, invocationCount = 3)
     public void multiStmtTooManySubscribe() {
         LOG.info("multiStmtTooManySubscribe test start");
-        final MySQLTaskAdjutant adjutant = obtainMultiStmtTaskAdjutant();
+        final TaskAdjutant adjutant = obtainMultiStmtTaskAdjutant();
         String sql;
         final List<Stmt> sqlList = new ArrayList<>(3);
 
@@ -549,12 +549,12 @@ public class MultiStatementSuiteTests extends AbstractConnectionBasedSuiteTests 
     }
 
     /**
-     * @see ComQueryTask#bindableBatch(BatchBindStmt, MySQLTaskAdjutant)
+     * @see ComQueryTask#bindableBatch(BatchBindStmt, TaskAdjutant)
      */
     @Test(timeOut = TIME_OUT)
     public void bindableBatchWithMultiStmtMode() {
         LOG.info("bindableBatchWithMultiStmtMode test start");
-        final MySQLTaskAdjutant adjutant = obtainMultiStmtTaskAdjutant();
+        final TaskAdjutant adjutant = obtainMultiStmtTaskAdjutant();
         assertTrue(Capabilities.supportMultiStatement(adjutant.obtainNegotiatedCapability()), "negotiatedCapability");
 
         final String sql = "UPDATE mysql_types as t SET t.my_long_text = ? WHERE t.id = ?";
@@ -598,12 +598,12 @@ public class MultiStatementSuiteTests extends AbstractConnectionBasedSuiteTests 
     }
 
     /**
-     * @see ComQueryTask#batchUpdate(List, MySQLTaskAdjutant)
+     * @see ComQueryTask#batchUpdate(List, TaskAdjutant)
      */
     @Test(timeOut = TIME_OUT)
     public void batchUpdateWithMultiStmtMode() {
         LOG.info("batchUpdateWithMultiStmtMode test start");
-        final MySQLTaskAdjutant adjutant = obtainMultiStmtTaskAdjutant();
+        final TaskAdjutant adjutant = obtainMultiStmtTaskAdjutant();
         assertTrue(Capabilities.supportMultiStatement(adjutant.obtainNegotiatedCapability()), "negotiatedCapability");
 
         String sql;
@@ -666,8 +666,8 @@ public class MultiStatementSuiteTests extends AbstractConnectionBasedSuiteTests 
     }
 
 
-    protected static MySQLTaskAdjutant obtainMultiStmtTaskAdjutant() {
-        MySQLTaskAdjutant taskAdjutant;
+    protected static TaskAdjutant obtainMultiStmtTaskAdjutant() {
+        TaskAdjutant taskAdjutant;
 
         taskAdjutant = MULTI_STMT_TASK_ADJUTANT_QUEUE.poll();
         if (taskAdjutant == null) {
@@ -682,12 +682,12 @@ public class MultiStatementSuiteTests extends AbstractConnectionBasedSuiteTests 
         return taskAdjutant;
     }
 
-    protected static void releaseMultiStmtConnection(MySQLTaskAdjutant adjutant) {
+    protected static void releaseMultiStmtConnection(TaskAdjutant adjutant) {
         MULTI_STMT_TASK_ADJUTANT_QUEUE.add(adjutant);
     }
 
 
-    private static MySQLSessionAdjutant createMultiStmtSessionAdjutant() {
+    private static SessionAdjutant createMultiStmtSessionAdjutant() {
         Map<String, String> map = new HashMap<>();
         if (ClientTestUtils.existsServerPublicKey()) {
             map.put(PropertyKey.sslMode.getKey(), Enums.SslMode.DISABLED.name());

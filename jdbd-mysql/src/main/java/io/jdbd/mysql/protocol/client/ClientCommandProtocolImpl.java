@@ -3,7 +3,7 @@ package io.jdbd.mysql.protocol.client;
 import io.jdbd.mysql.Server;
 import io.jdbd.mysql.protocol.conf.PropertyKey;
 import io.jdbd.mysql.session.MySQLDatabaseSession;
-import io.jdbd.mysql.session.MySQLSessionAdjutant;
+import io.jdbd.mysql.session.SessionAdjutant;
 import io.jdbd.mysql.stmt.BatchBindStmt;
 import io.jdbd.mysql.stmt.BindableStmt;
 import io.jdbd.result.MultiResult;
@@ -26,7 +26,7 @@ final class ClientCommandProtocolImpl implements ClientCommandProtocol {
 
 
     public static Mono<ClientCommandProtocol> create(HostInfo<PropertyKey> hostInfo
-            , MySQLSessionAdjutant sessionAdjutant) {
+            , SessionAdjutant sessionAdjutant) {
 //        return ClientConnectionProtocolImpl.create(hostInfo, sessionAdjutant)
 //                .map(ClientCommandProtocolImpl::new);
         return Mono.empty();
@@ -35,7 +35,7 @@ final class ClientCommandProtocolImpl implements ClientCommandProtocol {
 
     private final MySQLTaskExecutor executor;
 
-    private final MySQLTaskAdjutant adjutant;
+    private final TaskAdjutant adjutant;
 
     private final SessionResetter sessionResetter;
 

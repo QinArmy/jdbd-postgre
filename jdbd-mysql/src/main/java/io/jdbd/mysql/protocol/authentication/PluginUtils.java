@@ -2,7 +2,7 @@ package io.jdbd.mysql.protocol.authentication;
 
 import io.jdbd.config.PropertyException;
 import io.jdbd.mysql.protocol.conf.PropertyKey;
-import io.jdbd.mysql.session.MySQLSessionAdjutant;
+import io.jdbd.mysql.session.SessionAdjutant;
 import io.jdbd.mysql.util.MySQLCollections;
 import io.jdbd.mysql.util.MySQLStringUtils;
 import io.jdbd.vendor.conf.Properties;
@@ -41,7 +41,7 @@ public abstract class PluginUtils {
      *                           <li>{@link PropertyKey#authenticationPlugins}</li>
      *                           <li>{@link PropertyKey#disabledAuthenticationPlugins}</li>
      *                           </ul>
-     * @see MySQLSessionAdjutant#obtainPluginClassMap()
+     * @see SessionAdjutant#obtainPluginClassMap()
      */
     public static Map<String, Class<? extends AuthenticationPlugin>> createPluginClassMap(Properties<PropertyKey> properties)
             throws PropertyException {

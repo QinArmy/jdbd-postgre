@@ -5,7 +5,7 @@ import io.jdbd.mysql.Server;
 import io.jdbd.mysql.protocol.CharsetMapping;
 import io.jdbd.mysql.protocol.authentication.AuthenticationPlugin;
 import io.jdbd.mysql.protocol.conf.MySQLHost;
-import io.jdbd.mysql.session.MySQLSessionAdjutant;
+import io.jdbd.mysql.session.SessionAdjutant;
 import io.jdbd.mysql.syntax.DefaultMySQLParser;
 import io.jdbd.mysql.syntax.MySQLParser;
 import io.jdbd.mysql.syntax.MySQLStatement;
@@ -29,9 +29,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
-final class MySQLTaskExecutor extends CommunicationTaskExecutor<MySQLTaskAdjutant> {
+final class MySQLTaskExecutor extends CommunicationTaskExecutor<TaskAdjutant> {
 
-    static Mono<MySQLTaskExecutor> create(final int hostIndex, MySQLSessionAdjutant sessionAdjutant) {
+    static Mono<MySQLTaskExecutor> create(final int hostIndex, SessionAdjutant sessionAdjutant) {
         List<MySQLHost> hostInfoList = sessionAdjutant.obtainUrl().getHostList();
 
         final Mono<MySQLTaskExecutor> mono;
@@ -42,8 +42,7 @@ final class MySQLTaskExecutor extends CommunicationTaskExecutor<MySQLTaskAdjutan
                     .host(hostInfo.getHost())
                     .port(hostInfo.getPort())
                     .connect()
-                    .map(connection -> new MySQLTaskExecutor(connection, hostInfo, sessionAdjutant))
-            ;
+                    .map(connection -> new MySQLTaskExecutor(connection, hostInfo, sessionAdjutant));
         } else {
             IllegalArgumentException e = new IllegalArgumentException(
                     String.format("hostIndex[%s] not in [0,%s)", hostIndex, hostInfoList.size()));
@@ -55,7 +54,7 @@ final class MySQLTaskExecutor extends CommunicationTaskExecutor<MySQLTaskAdjutan
 
     static void resetTaskAdjutant(MySQLTaskExecutor taskExecutor, final Server server) {
         synchronized (taskExecutor.taskAdjutant) {
-            MySQLTaskAdjutantWrapper taskAdjutant = (MySQLTaskAdjutantWrapper) taskExecutor.taskAdjutant;
+            TaskAdjutantWrapper taskAdjutant = (TaskAdjutantWrapper) taskExecutor.taskAdjutant;
             // 1.
             taskAdjutant.server = server;
             //2.
@@ -69,7 +68,7 @@ final class MySQLTaskExecutor extends CommunicationTaskExecutor<MySQLTaskAdjutan
 
     static void setAuthenticateResult(MySQLTaskExecutor taskExecutor, AuthenticateResult result) {
         synchronized (taskExecutor.taskAdjutant) {
-            MySQLTaskAdjutantWrapper adjutantWrapper = (MySQLTaskAdjutantWrapper) taskExecutor.taskAdjutant;
+            TaskAdjutantWrapper adjutantWrapper = (TaskAdjutantWrapper) taskExecutor.taskAdjutant;
             if (adjutantWrapper.handshakeV10Packet == null
                     && adjutantWrapper.negotiatedCapability == 0) {
                 // 1.
@@ -99,7 +98,7 @@ final class MySQLTaskExecutor extends CommunicationTaskExecutor<MySQLTaskAdjutan
 
     static void setCustomCollation(MySQLTaskExecutor taskExecutor, Map<Integer, CharsetMapping.CustomCollation> map) {
         synchronized (taskExecutor.taskAdjutant) {
-            MySQLTaskAdjutantWrapper taskAdjutant = (MySQLTaskAdjutantWrapper) taskExecutor.taskAdjutant;
+            TaskAdjutantWrapper taskAdjutant = (TaskAdjutantWrapper) taskExecutor.taskAdjutant;
             taskAdjutant.customCollationMap = map;
         }
     }
@@ -108,12 +107,12 @@ final class MySQLTaskExecutor extends CommunicationTaskExecutor<MySQLTaskAdjutan
 
     final MySQLHost hostInfo;
 
-    final MySQLSessionAdjutant sessionAdjutant;
+    final SessionAdjutant sessionAdjutant;
 
     private volatile int serverStatus;
 
     private MySQLTaskExecutor(Connection connection, MySQLHost hostInfo
-            , MySQLSessionAdjutant sessionAdjutant) {
+            , SessionAdjutant sessionAdjutant) {
         super(connection);
         this.hostInfo = hostInfo;
         this.sessionAdjutant = sessionAdjutant;
@@ -125,8 +124,8 @@ final class MySQLTaskExecutor extends CommunicationTaskExecutor<MySQLTaskAdjutan
     }
 
     @Override
-    protected MySQLTaskAdjutant createTaskAdjutant() {
-        return new MySQLTaskAdjutantWrapper(this);
+    protected TaskAdjutant createTaskAdjutant() {
+        return new TaskAdjutantWrapper(this);
     }
 
 
@@ -148,7 +147,7 @@ final class MySQLTaskExecutor extends CommunicationTaskExecutor<MySQLTaskAdjutan
 
     /*################################## blow private method ##################################*/
 
-    private static final class MySQLTaskAdjutantWrapper extends AbstractTaskAdjutant implements MySQLTaskAdjutant {
+    private static final class TaskAdjutantWrapper extends AbstractTaskAdjutant implements TaskAdjutant {
 
         private final MySQLTaskExecutor taskExecutor;
 
@@ -166,7 +165,7 @@ final class MySQLTaskExecutor extends CommunicationTaskExecutor<MySQLTaskAdjutan
 
         private Map<Integer, CharsetMapping.CustomCollation> customCollationMap = Collections.emptyMap();
 
-        private MySQLTaskAdjutantWrapper(MySQLTaskExecutor taskExecutor) {
+        private TaskAdjutantWrapper(MySQLTaskExecutor taskExecutor) {
             super(taskExecutor);
             this.taskExecutor = taskExecutor;
         }

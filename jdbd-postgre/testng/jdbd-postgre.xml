@@ -3,8 +3,10 @@
     <test name="feature">
         <classes>
             <class name="io.jdbd.postgre.config.PostgreUrlParserSuiteTests"/>
+            <class name="io.jdbd.postgre.config.PostgreUrlSuiteTests"/>
 
             <!--unit test-->
+            <class name="io.jdbd.postgre.ServerVersionSuiteTests"/>
 
         </classes>
     </test>

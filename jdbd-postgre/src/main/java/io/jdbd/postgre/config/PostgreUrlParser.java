@@ -4,6 +4,8 @@ import io.jdbd.config.UrlException;
 import io.jdbd.postgre.util.PostgreCollections;
 import io.jdbd.postgre.util.PostgreStringUtils;
 import io.jdbd.vendor.conf.JdbcUrlParser;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import reactor.util.annotation.Nullable;
 
 import java.util.*;
@@ -16,6 +18,8 @@ final class PostgreUrlParser implements JdbcUrlParser {
     static PostgreUrlParser create(String url, Map<String, String> propMap) {
         return new PostgreUrlParser(url, propMap);
     }
+
+    private static final Logger LOG = LoggerFactory.getLogger(PostgreUrlParser.class);
 
 
     static final Pattern HOST_PATTERN = Pattern.compile(

@@ -17,7 +17,7 @@ import io.netty.buffer.ByteBuf;
  */
 abstract class MySQLCommandTask extends CommunicationTask {
 
-    final MySQLTaskAdjutant adjutant;
+    final TaskAdjutant adjutant;
 
     final int negotiatedCapability;
 
@@ -25,7 +25,7 @@ abstract class MySQLCommandTask extends CommunicationTask {
 
     private int sequenceId = -1;
 
-    MySQLCommandTask(MySQLTaskAdjutant adjutant) {
+    MySQLCommandTask(TaskAdjutant adjutant) {
         super(adjutant);
         this.negotiatedCapability = adjutant.obtainNegotiatedCapability();
         this.adjutant = adjutant;
@@ -52,6 +52,10 @@ abstract class MySQLCommandTask extends CommunicationTask {
         return ++this.sequenceId;
     }
 
+    @Override
+    protected final boolean hasOnePacket(ByteBuf cumulateBuffer) {
+        return PacketUtils.hasOnePacket(cumulateBuffer);
+    }
 
     static JdbdSQLException createSequenceIdError(int expected, ByteBuf cumulateBuffer) {
         return MySQLExceptions.createFatalIoException(

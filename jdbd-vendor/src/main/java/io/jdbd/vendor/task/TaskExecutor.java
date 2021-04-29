@@ -1,6 +1,6 @@
 package io.jdbd.vendor.task;
 
-public interface TaskExecutor<T extends TaskAdjutant> {
+public interface TaskExecutor<T extends ITaskAdjutant> {
 
     /**
      * @return always same instance.

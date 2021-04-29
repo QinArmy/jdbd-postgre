@@ -2,6 +2,7 @@ package io.jdbd.vendor.conf;
 
 import org.qinarmy.env.ImmutableMapEnvironment;
 import org.qinarmy.env.convert.Converter;
+import org.qinarmy.env.convert.ConverterManager;
 import reactor.util.annotation.Nullable;
 
 import java.util.List;
@@ -15,8 +16,18 @@ public final class ImmutableMapProperties<K extends IPropertyKey>
         return new ImmutableMapProperties<>(source);
     }
 
+
+    public static <K extends IPropertyKey> ImmutableMapProperties<K> getInstance(Map<String, String> source
+            , ConverterManager converterManager) {
+        return new ImmutableMapProperties<>(source, converterManager);
+    }
+
     private ImmutableMapProperties(Map<String, String> source) {
         super(source);
+    }
+
+    private ImmutableMapProperties(Map<String, String> source, ConverterManager converterManager) {
+        super(source, converterManager);
     }
 
     @Override

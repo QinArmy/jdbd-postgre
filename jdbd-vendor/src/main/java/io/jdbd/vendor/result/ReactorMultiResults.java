@@ -4,7 +4,7 @@ import io.jdbd.SessionCloseException;
 import io.jdbd.result.*;
 import io.jdbd.stmt.ResultType;
 import io.jdbd.stmt.SubscribeException;
-import io.jdbd.vendor.task.TaskAdjutant;
+import io.jdbd.vendor.task.ITaskAdjutant;
 import io.jdbd.vendor.util.JdbdExceptions;
 import org.reactivestreams.Subscriber;
 import org.reactivestreams.Subscription;
@@ -22,7 +22,7 @@ import java.util.function.Consumer;
 
 abstract class ReactorMultiResults {
 
-    static ReactorMultiResult create(TaskAdjutant adjutant, Consumer<MultiResultSink> callback) {
+    static ReactorMultiResult create(ITaskAdjutant adjutant, Consumer<MultiResultSink> callback) {
         final Flux<SingleResult> flux = Flux.create(sink -> {
             try {
                 callback.accept(MultiResultFluxSink.create(sink, adjutant));
@@ -49,7 +49,7 @@ abstract class ReactorMultiResults {
 
         private final Flux<SingleResult> upstream;
 
-        private final TaskAdjutant adjutant;
+        private final ITaskAdjutant adjutant;
 
         private volatile boolean done;
 
@@ -57,7 +57,7 @@ abstract class ReactorMultiResults {
 
         private Subscription s;
 
-        private SingleResultFluxSubscriber(Flux<SingleResult> upstream, TaskAdjutant adjutant) {
+        private SingleResultFluxSubscriber(Flux<SingleResult> upstream, ITaskAdjutant adjutant) {
             this.upstream = upstream;
             this.adjutant = adjutant;
         }

@@ -23,12 +23,12 @@ abstract class BindUtils extends JdbdBindUtils {
     }
 
 
-    static boolean useBatchPrepare(BatchBindStmt stmt, MySQLTaskAdjutant adjutant) {
+    static boolean useBatchPrepare(BatchBindStmt stmt, TaskAdjutant adjutant) {
         //TODO zoro ,fill code
         return false;
     }
 
-    static boolean usePrepare(BindableStmt stmt, MySQLTaskAdjutant adjutant) {
+    static boolean usePrepare(BindableStmt stmt, TaskAdjutant adjutant) {
         //TODO zoro ,fill code
         return false;
     }

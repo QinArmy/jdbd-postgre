@@ -14,7 +14,7 @@ final class ResultSetReaderBuilder {
 
     ResultRowSink rowSink;
 
-    MySQLTaskAdjutant adjutant;
+    TaskAdjutant adjutant;
 
     boolean fetchResult;
 
@@ -36,7 +36,7 @@ final class ResultSetReaderBuilder {
         return this;
     }
 
-    public ResultSetReaderBuilder adjutant(MySQLTaskAdjutant adjutant) {
+    public ResultSetReaderBuilder adjutant(TaskAdjutant adjutant) {
         this.adjutant = adjutant;
         return this;
     }

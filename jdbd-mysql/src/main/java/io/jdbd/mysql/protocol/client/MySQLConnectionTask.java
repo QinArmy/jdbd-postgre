@@ -49,7 +49,7 @@ import java.util.function.Consumer;
 final class MySQLConnectionTask extends CommunicationTask implements AuthenticateAssistant
         , ConnectionTask {
 
-    static Mono<AuthenticateResult> authenticate(MySQLTaskAdjutant adjutant) {
+    static Mono<AuthenticateResult> authenticate(TaskAdjutant adjutant) {
         return Mono.create(sink -> {
             try {
                 MySQLConnectionTask task = new MySQLConnectionTask(adjutant, sink);
@@ -62,7 +62,7 @@ final class MySQLConnectionTask extends CommunicationTask implements Authenticat
 
     private static final Logger LOG = LoggerFactory.getLogger(MySQLConnectionTask.class);
 
-    private final MySQLTaskAdjutant adjutant;
+    private final TaskAdjutant adjutant;
 
     private final MonoSink<AuthenticateResult> sink;
 
@@ -93,7 +93,7 @@ final class MySQLConnectionTask extends CommunicationTask implements Authenticat
 
     private Consumer<SslWrapper> sslConsumer;
 
-    private MySQLConnectionTask(MySQLTaskAdjutant adjutant, MonoSink<AuthenticateResult> sink) {
+    private MySQLConnectionTask(TaskAdjutant adjutant, MonoSink<AuthenticateResult> sink) {
         super(adjutant);
         this.sink = sink;
 
@@ -219,6 +219,11 @@ final class MySQLConnectionTask extends CommunicationTask implements Authenticat
             this.phase = Phase.END;
         }
         return taskEnd;
+    }
+
+    @Override
+    protected final boolean hasOnePacket(ByteBuf cumulateBuffer) {
+        return PacketUtils.hasOnePacket(cumulateBuffer);
     }
 
     @Override

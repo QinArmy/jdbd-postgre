@@ -63,7 +63,7 @@ public enum PGKey implements IPropertyKey {
     unknownLength(Integer.class),
     stringtype(Integer.class),
 
-    ApplicationName(Integer.class),
+    ApplicationName(String.class, "jdbd-postgre"),
     kerberosServerName(Integer.class),
     jaasApplicationName(Integer.class),
     jaasLogin(Integer.class),
@@ -80,7 +80,7 @@ public enum PGKey implements IPropertyKey {
     readOnlyMode(Integer.class),
 
     disableColumnSanitiser(Integer.class),
-    assumeMinServerVersion(Integer.class),
+    assumeMinServerVersion(String.class),
     currentSchema(Integer.class),
     targetServerType(Integer.class),
 

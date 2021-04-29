@@ -44,7 +44,7 @@ public interface ClientCommandProtocol extends ClientProtocol {
      * This method is underlying api of {@link StaticStatement#executeUpdate(String)} method.
      * </p>
      *
-     * @see ComQueryTask#update(Stmt, MySQLTaskAdjutant)
+     * @see ComQueryTask#update(Stmt, TaskAdjutant)
      */
     Mono<ResultState> update(Stmt stmt);
 
@@ -57,7 +57,7 @@ public interface ClientCommandProtocol extends ClientProtocol {
      * </ul>
      * </p>
      *
-     * @see ComQueryTask#query(Stmt, MySQLTaskAdjutant)
+     * @see ComQueryTask#query(Stmt, TaskAdjutant)
      */
     Flux<ResultRow> query(Stmt stmt);
 
@@ -67,7 +67,7 @@ public interface ClientCommandProtocol extends ClientProtocol {
      * This method is underlying api of {@link StaticStatement#executeBatch(List)} method.
      * </p>
      *
-     * @see ComQueryTask#batchUpdate(List, MySQLTaskAdjutant)
+     * @see ComQueryTask#batchUpdate(List, TaskAdjutant)
      */
     Flux<ResultState> batchUpdate(List<Stmt> stmtList);
 
@@ -76,7 +76,7 @@ public interface ClientCommandProtocol extends ClientProtocol {
      * This method is underlying api of {@link StaticStatement#executeAsMulti(List)} method.
      * </p>
      *
-     * @see ComQueryTask#asMulti(List, MySQLTaskAdjutant)
+     * @see ComQueryTask#asMulti(List, TaskAdjutant)
      */
     ReactorMultiResult executeAsMulti(List<Stmt> stmtList);
 
@@ -92,7 +92,7 @@ public interface ClientCommandProtocol extends ClientProtocol {
      * This method is one of underlying api of {@link BindableStatement#executeUpdate()} method.
      * </p>
      *
-     * @see ComQueryTask#bindableUpdate(BindableStmt, MySQLTaskAdjutant)
+     * @see ComQueryTask#bindableUpdate(BindableStmt, TaskAdjutant)
      */
     Mono<ResultState> bindableUpdate(BindableStmt wrapper);
 
@@ -105,7 +105,7 @@ public interface ClientCommandProtocol extends ClientProtocol {
      * </ul>
      * </p>
      *
-     * @see ComQueryTask#bindableQuery(BindableStmt, MySQLTaskAdjutant)
+     * @see ComQueryTask#bindableQuery(BindableStmt, TaskAdjutant)
      */
     Flux<ResultRow> bindableQuery(BindableStmt wrapper);
 
@@ -114,7 +114,7 @@ public interface ClientCommandProtocol extends ClientProtocol {
      * This method is one of underlying api of {@link BindableStatement#executeBatch()} method.
      * </p>
      *
-     * @see ComQueryTask#bindableBatch(BatchBindStmt, MySQLTaskAdjutant)
+     * @see ComQueryTask#bindableBatch(BatchBindStmt, TaskAdjutant)
      */
     Flux<ResultState> bindableBatch(BatchBindStmt wrapper);
 
@@ -123,7 +123,7 @@ public interface ClientCommandProtocol extends ClientProtocol {
      * This method is one of underlying api of {@link BindableStatement#executeAsMulti()} method.
      * </p>
      *
-     * @see ComQueryTask#bindableAsMulti(BatchBindStmt, MySQLTaskAdjutant)
+     * @see ComQueryTask#bindableAsMulti(BatchBindStmt, TaskAdjutant)
      */
     ReactorMultiResult bindableAsMulti(BatchBindStmt stmt);
 
@@ -132,7 +132,7 @@ public interface ClientCommandProtocol extends ClientProtocol {
      * This method is one of underlying api of {@link BindableStatement#executeAsFlux()} method.
      * </p>
      *
-     * @see ComQueryTask#bindableAsFlux(BatchBindStmt, MySQLTaskAdjutant)
+     * @see ComQueryTask#bindableAsFlux(BatchBindStmt, TaskAdjutant)
      */
     Flux<SingleResult> bindableAsFlux(BatchBindStmt stmt);
 
@@ -145,7 +145,7 @@ public interface ClientCommandProtocol extends ClientProtocol {
      * </ul>
      * </p>
      *
-     * @see ComPreparedTask#prepare(MySQLDatabaseSession, Stmt, MySQLTaskAdjutant)
+     * @see ComPreparedTask#prepare(MySQLDatabaseSession, Stmt, TaskAdjutant)
      */
     Mono<PreparedStatement> prepare(MySQLDatabaseSession session, Stmt stmt);
 
@@ -155,7 +155,7 @@ public interface ClientCommandProtocol extends ClientProtocol {
      * This method is underlying api of {@link MultiStatement#executeAsMulti()} method.
      * </p>
      *
-     * @see ComQueryTask#multiStmtAsMulti(List, MySQLTaskAdjutant)
+     * @see ComQueryTask#multiStmtAsMulti(List, TaskAdjutant)
      */
     MultiResult multiStmtAsMulti(List<BindableStmt> wrapperList);
 
@@ -164,7 +164,7 @@ public interface ClientCommandProtocol extends ClientProtocol {
      * This method is underlying api of {@link MultiStatement#executeAsFlux()} method.
      * </p>
      *
-     * @see ComQueryTask#multiStmtAsFlux(List, MySQLTaskAdjutant)
+     * @see ComQueryTask#multiStmtAsFlux(List, TaskAdjutant)
      */
     Flux<SingleResult> multiStmtAsFlux(List<BindableStmt> wrapperList);
 

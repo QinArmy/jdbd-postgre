@@ -39,12 +39,12 @@ public class ComPreparedTaskSuiteTests extends AbstractStmtTaskSuiteTests {
     }
 
     @Override
-    Mono<ResultState> executeUpdate(BindableStmt stmt, MySQLTaskAdjutant adjutant) {
+    Mono<ResultState> executeUpdate(BindableStmt stmt, TaskAdjutant adjutant) {
         return ComPreparedTask.update(stmt, adjutant);
     }
 
     @Override
-    Flux<ResultRow> executeQuery(BindableStmt stmt, MySQLTaskAdjutant adjutant) {
+    Flux<ResultRow> executeQuery(BindableStmt stmt, TaskAdjutant adjutant) {
         return ComPreparedTask.query(stmt, adjutant);
     }
 
@@ -54,12 +54,12 @@ public class ComPreparedTaskSuiteTests extends AbstractStmtTaskSuiteTests {
     }
 
     /**
-     * @see ComPreparedTask#update(ParamStmt, MySQLTaskAdjutant)
+     * @see ComPreparedTask#update(ParamStmt, TaskAdjutant)
      */
     @Test(timeOut = TIME_OUT)
     public void update() {
         LOG.info("prepare update test start");
-        final MySQLTaskAdjutant adjutant = obtainTaskAdjutant();
+        final TaskAdjutant adjutant = obtainTaskAdjutant();
         String sql;
         List<ParamValue> bindValueList;
         ResultState states;

@@ -47,12 +47,12 @@ public class LoadDataLocalSuiteTests extends AbstractStmtTaskSuiteTests {
     }
 
     @Override
-    Mono<ResultState> executeUpdate(BindableStmt stmt, MySQLTaskAdjutant adjutant) {
+    Mono<ResultState> executeUpdate(BindableStmt stmt, TaskAdjutant adjutant) {
         return ComQueryTask.bindableUpdate(stmt, adjutant);
     }
 
     @Override
-    Flux<ResultRow> executeQuery(BindableStmt stmt, MySQLTaskAdjutant adjutant) {
+    Flux<ResultRow> executeQuery(BindableStmt stmt, TaskAdjutant adjutant) {
         return ComQueryTask.bindableQuery(stmt, adjutant);
     }
 
@@ -65,7 +65,7 @@ public class LoadDataLocalSuiteTests extends AbstractStmtTaskSuiteTests {
     public static void beforeClass() {
         LOG.info("{} beforeClass test start", Groups.LOAD_DATA);
 
-        final MySQLTaskAdjutant adjutant = obtainTaskAdjutant();
+        final TaskAdjutant adjutant = obtainTaskAdjutant();
 
         final String ddl = "CREATE TABLE IF NOT EXISTS mysql_load_data(\n" +
                 "    id bigint AUTO_INCREMENT,\n" +
@@ -93,7 +93,7 @@ public class LoadDataLocalSuiteTests extends AbstractStmtTaskSuiteTests {
 
         if (ClientTestUtils.getTestConfig().getProperty("truncate.after.suite", Boolean.class, Boolean.TRUE)) {
 
-            final MySQLTaskAdjutant adjutant = obtainTaskAdjutant();
+            final TaskAdjutant adjutant = obtainTaskAdjutant();
             final String sql = "TRUNCATE mysql_load_data";
 
             ResultState status;
@@ -171,7 +171,7 @@ public class LoadDataLocalSuiteTests extends AbstractStmtTaskSuiteTests {
     }
 
     private void doLoadData(Path path, long rows) {
-        final MySQLTaskAdjutant adjutant = obtainTaskAdjutant();
+        final TaskAdjutant adjutant = obtainTaskAdjutant();
         if (!adjutant.obtainHostInfo().getProperties().getOrDefault(PropertyKey.allowLoadLocalInfile, Boolean.class)) {
             fail(String.format("client no support Load data local statement,please config property[%s]"
                     , PropertyKey.allowLoadLocalInfile));

@@ -25,12 +25,12 @@ public class ComQueryCommandWriterSuiteTests extends AbstractStmtTaskSuiteTests 
     }
 
     @Override
-    Mono<ResultState> executeUpdate(BindableStmt stmt, MySQLTaskAdjutant adjutant) {
+    Mono<ResultState> executeUpdate(BindableStmt stmt, TaskAdjutant adjutant) {
         throw new UnsupportedOperationException();
     }
 
     @Override
-    Flux<ResultRow> executeQuery(BindableStmt stmt, MySQLTaskAdjutant adjutant) {
+    Flux<ResultRow> executeQuery(BindableStmt stmt, TaskAdjutant adjutant) {
         throw new UnsupportedOperationException();
     }
 
@@ -40,7 +40,7 @@ public class ComQueryCommandWriterSuiteTests extends AbstractStmtTaskSuiteTests 
     }
 
     /**
-     * @see ComQueryCommandWriter#createStaticSingleCommand(String, Supplier, MySQLTaskAdjutant)
+     * @see ComQueryCommandWriter#createStaticSingleCommand(String, Supplier, TaskAdjutant)
      */
     @Test(timeOut = TIME_OUT)
     public void createStaticSingleCommand() {

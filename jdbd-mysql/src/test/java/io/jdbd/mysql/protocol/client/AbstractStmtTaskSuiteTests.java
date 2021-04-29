@@ -5,7 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.jdbd.mysql.MySQLType;
 import io.jdbd.mysql.SQLMode;
 import io.jdbd.mysql.protocol.conf.PropertyKey;
-import io.jdbd.mysql.session.MySQLSessionAdjutant;
+import io.jdbd.mysql.session.SessionAdjutant;
 import io.jdbd.mysql.stmt.BindValue;
 import io.jdbd.mysql.stmt.BindableStmt;
 import io.jdbd.mysql.stmt.Stmts;
@@ -37,9 +37,9 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBased
         this.subType = subType;
     }
 
-    abstract Mono<ResultState> executeUpdate(BindableStmt stmt, MySQLTaskAdjutant adjutant);
+    abstract Mono<ResultState> executeUpdate(BindableStmt stmt, TaskAdjutant adjutant);
 
-    abstract Flux<ResultRow> executeQuery(BindableStmt stmt, MySQLTaskAdjutant adjutant);
+    abstract Flux<ResultRow> executeQuery(BindableStmt stmt, TaskAdjutant adjutant);
 
     abstract Logger obtainLogger();
 
@@ -49,7 +49,7 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBased
         final String sql = "SELECT t.id as id, t.create_time as createTime FROM mysql_types as t WHERE t.id  = ?";
         final long id = convertId(2);
         BindValue bindValue = BindValue.create(0, MySQLType.BIGINT, id);
-        final MySQLTaskAdjutant taskAdjutant = obtainTaskAdjutant();
+        final TaskAdjutant taskAdjutant = obtainTaskAdjutant();
 
         List<ResultRow> resultRowList;
         resultRowList = ComQueryTask.bindableQuery(Stmts.single(sql, bindValue), taskAdjutant)
@@ -83,7 +83,7 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBased
 
     final void doDateBindAndExtract(Logger LOG) {
         LOG.info("doDateBindAndExtract test start");
-        final MySQLTaskAdjutant taskAdjutant = obtainTaskAdjutant();
+        final TaskAdjutant taskAdjutant = obtainTaskAdjutant();
 
         assertDateBindAndExtract(taskAdjutant, LocalDate.now());
         assertDateBindAndExtract(taskAdjutant, "2021-04-10");
@@ -94,7 +94,7 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBased
 
     final void doTimeBindAndExtract(Logger LOG) {
         LOG.info("doTimeBindAndExtract test start");
-        final MySQLTaskAdjutant taskAdjutant = obtainTaskAdjutant();
+        final TaskAdjutant taskAdjutant = obtainTaskAdjutant();
         String field;
 
         field = "my_time";
@@ -135,7 +135,7 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBased
 
     final void doDatetimeBindAndExtract(Logger LOG) {
         LOG.info("datetimeBindAndExtract test start");
-        final MySQLTaskAdjutant taskAdjutant = obtainTaskAdjutant();
+        final TaskAdjutant taskAdjutant = obtainTaskAdjutant();
 
         assertDateTimeModify(taskAdjutant, MySQLType.DATETIME, "2021-03-16 19:26:00.999999", "create_time");
         assertDateTimeModify(taskAdjutant, MySQLType.DATETIME, LocalDateTime.now(), "create_time");
@@ -163,7 +163,7 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBased
 
     final void doStringBindAndExtract(Logger LOG) {
         LOG.info("stringBindAndExtract test start");
-        final MySQLTaskAdjutant taskAdjutant = obtainTaskAdjutant();
+        final TaskAdjutant taskAdjutant = obtainTaskAdjutant();
 
         String bindParma = "  \"\\'秦军\\'\\'\\'\\'\\'\\'\"\\Z\n\r update mysql_types as t set t.name = 'evil' where t.id = 5 %% " + '\032';
 
@@ -184,7 +184,7 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBased
 
     final void doBinaryBindAndExtract(Logger LOG) {
         LOG.info("binaryBindAndExtract test start");
-        final MySQLTaskAdjutant taskAdjutant = obtainTaskAdjutant();
+        final TaskAdjutant taskAdjutant = obtainTaskAdjutant();
 
         String bindParam = "'china' %_#\\'\\' \" '秦军' '中国' \00   ";
         assertBinaryBindAndExtract(taskAdjutant, MySQLType.VARBINARY, bindParam, "my_var_binary");
@@ -201,7 +201,7 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBased
 
     final void doBitBindAndExtract(Logger LOG) {
         LOG.info("bitBindAndExtract test start");
-        final MySQLTaskAdjutant adjutant = obtainTaskAdjutant();
+        final TaskAdjutant adjutant = obtainTaskAdjutant();
         String field;
         field = "my_bit";
 
@@ -249,12 +249,12 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBased
         map.put(PropertyKey.tinyInt1isBit.getKey(), "true");
         map.put(PropertyKey.transformedBitIsBoolean.getKey(), "false");
 
-        MySQLSessionAdjutant sessionAdjutant = createSessionAdjutantForSingleHost(map);
+        SessionAdjutant sessionAdjutant = createSessionAdjutantForSingleHost(map);
         ClientConnectionProtocolImpl protocol = ClientConnectionProtocolImpl.create(0, sessionAdjutant)
                 .block();
         assertNotNull(protocol, "protocol");
 
-        MySQLTaskAdjutant taskAdjutant;
+        TaskAdjutant taskAdjutant;
         taskAdjutant = protocol.taskExecutor.getAdjutant();
 
         assertTinyInt1BindAndExtract(taskAdjutant, MySQLType.TINYINT, 0);
@@ -302,7 +302,7 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBased
 
     final void doNumberBindAndExtract(Logger LOG) {
         LOG.info("numberBindAndExtract test start");
-        final MySQLTaskAdjutant taskAdjutant = obtainTaskAdjutant();
+        final TaskAdjutant taskAdjutant = obtainTaskAdjutant();
         String field = "my_tinyint";
         MySQLType mySQLType = MySQLType.TINYINT;
 
@@ -473,7 +473,7 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBased
 
     final void doEnumBindAndExtract(Logger LOG) {
         LOG.info("enumBindAndExtract test start");
-        final MySQLTaskAdjutant taskAdjutant = obtainTaskAdjutant();
+        final TaskAdjutant taskAdjutant = obtainTaskAdjutant();
 
         assertEnumBindExtract(taskAdjutant, MySQLType.CHAR, TrueOrFalse.T.name());
         assertEnumBindExtract(taskAdjutant, MySQLType.CHAR, TrueOrFalse.F.name());
@@ -490,7 +490,7 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBased
 
     final void doSetTypeBindAndExtract(Logger LOG) {
         LOG.info("setTypeBindAndExtract test start");
-        final MySQLTaskAdjutant taskAdjutant = obtainTaskAdjutant();
+        final TaskAdjutant taskAdjutant = obtainTaskAdjutant();
 
         assertSetTypeBindAndExtract(taskAdjutant, MySQLType.CHAR, City.BEIJING.name());
         assertSetTypeBindAndExtract(taskAdjutant, MySQLType.CHAR, City.AOMENG.name());
@@ -508,7 +508,7 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBased
 
     final void doJsonBindAndExtract(Logger LOG) throws Exception {
         LOG.info("jsonBindAndExtract test start");
-        final MySQLTaskAdjutant taskAdjutant = obtainTaskAdjutant();
+        final TaskAdjutant taskAdjutant = obtainTaskAdjutant();
 
 
         Map<String, Object> map = new HashMap<>();
@@ -536,7 +536,7 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBased
 
     final void doTinyBlobBindExtract(Logger LOG) {
         LOG.info("doTinyBlobBindExtract test start");
-        final MySQLTaskAdjutant taskAdjutant = obtainTaskAdjutant();
+        final TaskAdjutant taskAdjutant = obtainTaskAdjutant();
         final Charset charset = taskAdjutant.obtainCharsetClient();
         String text;
         byte[] array;
@@ -557,7 +557,7 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBased
 
     final void doBlobBindExtract(Logger LOG) {
         LOG.info("doBlobBindExtract test start");
-        final MySQLTaskAdjutant taskAdjutant = obtainTaskAdjutant();
+        final TaskAdjutant taskAdjutant = obtainTaskAdjutant();
         final Charset charset = taskAdjutant.obtainCharsetClient();
         String text;
         byte[] array;
@@ -579,7 +579,7 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBased
 
     final void doMediumBlobBindExtract(Logger LOG) {
         LOG.info("doMediumBlobBindExtract test start");
-        final MySQLTaskAdjutant taskAdjutant = obtainTaskAdjutant();
+        final TaskAdjutant taskAdjutant = obtainTaskAdjutant();
         final Charset charset = taskAdjutant.obtainCharsetClient();
         String text;
         byte[] array;
@@ -601,7 +601,7 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBased
 
     final void doLongBlobBindExtract(Logger LOG) {
         LOG.info("doLongBlobBindExtract test start");
-        final MySQLTaskAdjutant taskAdjutant = obtainTaskAdjutant();
+        final TaskAdjutant taskAdjutant = obtainTaskAdjutant();
         final Charset charset = taskAdjutant.obtainCharsetClient();
         String text;
         byte[] array;
@@ -622,7 +622,7 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBased
 
     final void doTinyTextBindAndExtract(Logger LOG) {
         LOG.info("doTinyTextBindAndExtract test start");
-        final MySQLTaskAdjutant taskAdjutant = obtainTaskAdjutant();
+        final TaskAdjutant taskAdjutant = obtainTaskAdjutant();
         final Charset charset = taskAdjutant.obtainCharsetClient();
         String text;
         byte[] array;
@@ -643,7 +643,7 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBased
 
     final void doTextBindAndExtract(Logger LOG) {
         LOG.info("doTextBindAndExtract test start");
-        final MySQLTaskAdjutant taskAdjutant = obtainTaskAdjutant();
+        final TaskAdjutant taskAdjutant = obtainTaskAdjutant();
         final Charset charset = taskAdjutant.obtainCharsetClient();
         String text;
         byte[] array;
@@ -664,7 +664,7 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBased
 
     final void doMediumTextBindAndExtract(Logger LOG) {
         LOG.info("doMediumTextBindAndExtract test start");
-        final MySQLTaskAdjutant taskAdjutant = obtainTaskAdjutant();
+        final TaskAdjutant taskAdjutant = obtainTaskAdjutant();
         final Charset charset = taskAdjutant.obtainCharsetClient();
         String text;
         byte[] array;
@@ -685,7 +685,7 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBased
 
     final void doLongTextBindAndExtract(Logger LOG) {
         LOG.info("doLongTextBindAndExtract test start");
-        final MySQLTaskAdjutant taskAdjutant = obtainTaskAdjutant();
+        final TaskAdjutant taskAdjutant = obtainTaskAdjutant();
         final Charset charset = taskAdjutant.obtainCharsetClient();
         String text;
         byte[] array;
@@ -706,7 +706,7 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBased
 
     final void doGeometryBindAndExtract(Logger LOG) {
         LOG.info("geometryBindAndExtract test start");
-        final MySQLTaskAdjutant taskAdjutant = obtainTaskAdjutant();
+        final TaskAdjutant taskAdjutant = obtainTaskAdjutant();
         String wktText;
         byte[] wkbArray;
 
@@ -837,7 +837,7 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBased
 
     final void doPointBindAndExtract(Logger LOG) {
         LOG.info("pointBindAndExtract test start");
-        final MySQLTaskAdjutant taskAdjutant = obtainTaskAdjutant();
+        final TaskAdjutant taskAdjutant = obtainTaskAdjutant();
         String wktText;
         byte[] wkbArray;
 
@@ -861,7 +861,7 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBased
 
     final void doLineStringBindAndExtract(Logger LOG) {
         LOG.info("lineStringBindAndExtract test start");
-        final MySQLTaskAdjutant taskAdjutant = obtainTaskAdjutant();
+        final TaskAdjutant taskAdjutant = obtainTaskAdjutant();
         String wktText;
         byte[] wkbArray;
 
@@ -884,7 +884,7 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBased
 
     final void doPolygonBindAndExtract(Logger LOG) {
         LOG.info("polygonBindAndExtract test start");
-        final MySQLTaskAdjutant taskAdjutant = obtainTaskAdjutant();
+        final TaskAdjutant taskAdjutant = obtainTaskAdjutant();
         String wktText;
         byte[] wkbArray;
 
@@ -908,7 +908,7 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBased
 
     final void doMultiPointBindExtract(Logger LOG) {
         LOG.info("multiPointBindExtract test start");
-        final MySQLTaskAdjutant taskAdjutant = obtainTaskAdjutant();
+        final TaskAdjutant taskAdjutant = obtainTaskAdjutant();
         String wktText;
         byte[] wkbArray;
 
@@ -933,7 +933,7 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBased
 
     final void doMultiLineStringBindExtract(Logger LOG) {
         LOG.info("multiLineStringBindExtract test start");
-        final MySQLTaskAdjutant taskAdjutant = obtainTaskAdjutant();
+        final TaskAdjutant taskAdjutant = obtainTaskAdjutant();
         String wktText;
         byte[] wkbArray;
 
@@ -958,7 +958,7 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBased
 
     final void doMultiPolygonBindExtract(Logger LOG) {
         LOG.info("multiPolygonBindExtract test start");
-        final MySQLTaskAdjutant taskAdjutant = obtainTaskAdjutant();
+        final TaskAdjutant taskAdjutant = obtainTaskAdjutant();
         String wktText;
         byte[] wkbArray;
 
@@ -983,7 +983,7 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBased
 
     final void doGeometryCollectionBindExtract(Logger LOG) {
         LOG.info("geometryCollectionBindExtract test start");
-        final MySQLTaskAdjutant taskAdjutant = obtainTaskAdjutant();
+        final TaskAdjutant taskAdjutant = obtainTaskAdjutant();
         String wktText;
         byte[] wkbArray;
 
@@ -1034,7 +1034,7 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBased
     /**
      * @see #doGeometryBindAndExtract(Logger)
      */
-    private void assertGeometryBindAndExtract(final MySQLTaskAdjutant taskAdjutant, final MySQLType mySQLType
+    private void assertGeometryBindAndExtract(final TaskAdjutant taskAdjutant, final MySQLType mySQLType
             , final Object bindParam) {
         final long id = convertId(11);
         final String field = "my_geometry";
@@ -1058,7 +1058,7 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBased
     /**
      * @see #doPointBindAndExtract(Logger)
      */
-    private void assertPointsBindAndExtract(final MySQLTaskAdjutant taskAdjutant, final MySQLType mySQLType
+    private void assertPointsBindAndExtract(final TaskAdjutant taskAdjutant, final MySQLType mySQLType
             , final Object bindParam) {
         final long id = convertId(12);
         final String field = "my_point";
@@ -1082,7 +1082,7 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBased
     /**
      * @see #doLineStringBindAndExtract(Logger)
      */
-    private void assertLineStringBindAndExtract(final MySQLTaskAdjutant taskAdjutant, final MySQLType mySQLType
+    private void assertLineStringBindAndExtract(final TaskAdjutant taskAdjutant, final MySQLType mySQLType
             , final Object bindParam) {
         final long id = convertId(13);
         final String field = "my_linestring";
@@ -1106,7 +1106,7 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBased
     /**
      * @see #doPolygonBindAndExtract(Logger)
      */
-    private void assertPolygonBindAndExtract(final MySQLTaskAdjutant taskAdjutant, final MySQLType mySQLType
+    private void assertPolygonBindAndExtract(final TaskAdjutant taskAdjutant, final MySQLType mySQLType
             , final Object bindParam) {
         final long id = convertId(14);
         final String field = "my_polygon";
@@ -1130,7 +1130,7 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBased
     /**
      * @see #doMultiPointBindExtract(Logger)
      */
-    private void assertMultiPointBindAndExtract(final MySQLTaskAdjutant taskAdjutant, final MySQLType mySQLType
+    private void assertMultiPointBindAndExtract(final TaskAdjutant taskAdjutant, final MySQLType mySQLType
             , final Object bindParam) {
         final long id = convertId(15);
         final String field = "my_multipoint";
@@ -1155,7 +1155,7 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBased
     /**
      * @see #doMultiLineStringBindExtract(Logger)
      */
-    private void assertMultiLineStringBindAndExtract(final MySQLTaskAdjutant taskAdjutant, final MySQLType mySQLType
+    private void assertMultiLineStringBindAndExtract(final TaskAdjutant taskAdjutant, final MySQLType mySQLType
             , final Object bindParam) {
         final long id = convertId(16);
         final String field = "my_multilinestring";
@@ -1179,7 +1179,7 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBased
     /**
      * @see #doMultiPolygonBindExtract(Logger)
      */
-    private void assertMultiPolygonBindAndExtract(final MySQLTaskAdjutant taskAdjutant, final MySQLType mySQLType
+    private void assertMultiPolygonBindAndExtract(final TaskAdjutant taskAdjutant, final MySQLType mySQLType
             , final Object bindParam) {
         final long id = convertId(17);
         final String field = "my_multipolygon";
@@ -1203,7 +1203,7 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBased
     /**
      * @see #doGeometryCollectionBindExtract(Logger)
      */
-    private void assertGeometryCollectionBindAndExtract(final MySQLTaskAdjutant taskAdjutant, final MySQLType mySQLType
+    private void assertGeometryCollectionBindAndExtract(final TaskAdjutant taskAdjutant, final MySQLType mySQLType
             , final Object bindParam) {
         final long id = convertId(18);
         final String field = "my_geometrycollection";
@@ -1227,7 +1227,7 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBased
     /**
      * @see #doDateBindAndExtract(Logger)
      */
-    private void assertDateBindAndExtract(final MySQLTaskAdjutant taskAdjutant, final Object bindParam) {
+    private void assertDateBindAndExtract(final TaskAdjutant taskAdjutant, final Object bindParam) {
         final long id = convertId(19);
         final String field = "my_date";
         //1. update filed
@@ -1250,7 +1250,7 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBased
     /**
      * @see #doTimeBindAndExtract(Logger)
      */
-    private void assertTimeBindAndExtract(final MySQLTaskAdjutant taskAdjutant, final Object bindParam
+    private void assertTimeBindAndExtract(final TaskAdjutant taskAdjutant, final Object bindParam
             , final String field) {
         final long id = convertId(20);
         //1. update filed
@@ -1294,7 +1294,7 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBased
     /**
      * @see #doTinyBlobBindExtract(Logger)
      */
-    private void assertTinyBlobBindAndExtract(final MySQLTaskAdjutant taskAdjutant, final Object bindParam) {
+    private void assertTinyBlobBindAndExtract(final TaskAdjutant taskAdjutant, final Object bindParam) {
         final long id = convertId(21);
         final String field = "my_tinyblob";
         //1. update filed
@@ -1315,7 +1315,7 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBased
     /**
      * @see #doBlobBindExtract(Logger)
      */
-    private void assertBlobBindAndExtract(final MySQLTaskAdjutant taskAdjutant, final Object bindParam) {
+    private void assertBlobBindAndExtract(final TaskAdjutant taskAdjutant, final Object bindParam) {
         final long id = convertId(22);
         final String field = "my_blob";
         //1. update filed
@@ -1336,7 +1336,7 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBased
     /**
      * @see #doMediumBlobBindExtract(Logger)
      */
-    private void assertMediumBlobBindAndExtract(final MySQLTaskAdjutant taskAdjutant, final Object bindParam) {
+    private void assertMediumBlobBindAndExtract(final TaskAdjutant taskAdjutant, final Object bindParam) {
         final long id = convertId(23);
         final String field = "my_medium_blob";
         //1. update filed
@@ -1357,7 +1357,7 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBased
     /**
      * @see #doLongBlobBindExtract(Logger)
      */
-    private void assertLongBlobBindAndExtract(final MySQLTaskAdjutant taskAdjutant, final Object bindParam) {
+    private void assertLongBlobBindAndExtract(final TaskAdjutant taskAdjutant, final Object bindParam) {
         final long id = convertId(24);
         final String field = "my_long_blob";
         //1. update filed
@@ -1378,7 +1378,7 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBased
     /**
      * @see #doTinyTextBindAndExtract(Logger)
      */
-    private void assertTinyTextBindAndExtract(final MySQLTaskAdjutant taskAdjutant, final Object bindParam) {
+    private void assertTinyTextBindAndExtract(final TaskAdjutant taskAdjutant, final Object bindParam) {
         final long id = convertId(25);
         final String field = "my_tiny_text";
         //1. update filed
@@ -1399,7 +1399,7 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBased
     /**
      * @see #doTextBindAndExtract(Logger)
      */
-    private void assertTextBindAndExtract(final MySQLTaskAdjutant taskAdjutant, final Object bindParam) {
+    private void assertTextBindAndExtract(final TaskAdjutant taskAdjutant, final Object bindParam) {
         final long id = convertId(26);
         final String field = "my_text";
         //1. update filed
@@ -1420,7 +1420,7 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBased
     /**
      * @see #doMediumTextBindAndExtract(Logger)
      */
-    private void assertMediumTextBindAndExtract(final MySQLTaskAdjutant taskAdjutant, final Object bindParam) {
+    private void assertMediumTextBindAndExtract(final TaskAdjutant taskAdjutant, final Object bindParam) {
         final long id = convertId(27);
         final String field = "my_medium_text";
         //1. update filed
@@ -1441,7 +1441,7 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBased
     /**
      * @see #doLongTextBindAndExtract(Logger)
      */
-    private void assertLongTextBindAndExtract(final MySQLTaskAdjutant taskAdjutant, final Object bindParam) {
+    private void assertLongTextBindAndExtract(final TaskAdjutant taskAdjutant, final Object bindParam) {
         final long id = convertId(28);
         final String field = "my_long_text";
         //1. update filed
@@ -1461,9 +1461,9 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBased
 
 
     /**
-     * @see #assertSetTypeBindAndExtract(MySQLTaskAdjutant, MySQLType, Object)
+     * @see #assertSetTypeBindAndExtract(TaskAdjutant, MySQLType, Object)
      */
-    private void assertSetTypeBindAndExtract(final MySQLTaskAdjutant taskAdjutant, final MySQLType mySQLType
+    private void assertSetTypeBindAndExtract(final TaskAdjutant taskAdjutant, final MySQLType mySQLType
             , final Object bindParam) {
         final long id = convertId(9);
         final String field = "my_set";
@@ -1504,7 +1504,7 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBased
     /**
      * @see #doEnumBindAndExtract(Logger)
      */
-    private void assertEnumBindExtract(final MySQLTaskAdjutant taskAdjutant, final MySQLType mySQLType
+    private void assertEnumBindExtract(final TaskAdjutant taskAdjutant, final MySQLType mySQLType
             , final Object bindParam) {
         final long id = convertId(8);
         final String field = "my_enum";
@@ -1525,7 +1525,7 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBased
     /**
      * @see #doNumberBindAndExtract(Logger)
      */
-    private void assertNumberBindAndExtract(final MySQLTaskAdjutant taskAdjutant, final MySQLType mySQLType
+    private void assertNumberBindAndExtract(final TaskAdjutant taskAdjutant, final MySQLType mySQLType
             , final Object bindParam, final String field) {
         final long id = convertId(7);
         //1. update filed
@@ -1598,7 +1598,7 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBased
     /**
      * @see #doTinyint1BindExtract(Logger)
      */
-    private void assertTinyInt1BindAndExtract(final MySQLTaskAdjutant taskAdjutant, final MySQLType mySQLType
+    private void assertTinyInt1BindAndExtract(final TaskAdjutant taskAdjutant, final MySQLType mySQLType
             , final Object bindParam) {
         final long id = convertId(6);
         final String field = "my_tinyint1";
@@ -1624,7 +1624,7 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBased
     /**
      * @see #doBitBindAndExtract(Logger)
      */
-    private void assertBitBindAndExtract(final MySQLTaskAdjutant adjutant, final Object bindParam
+    private void assertBitBindAndExtract(final TaskAdjutant adjutant, final Object bindParam
             , final String field) {
         final long id = convertId(5);
         //1. update filed
@@ -1674,7 +1674,7 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBased
     /**
      * @see #doStringBindAndExtract(Logger)
      */
-    private void assertBinaryBindAndExtract(final MySQLTaskAdjutant taskAdjutant, final MySQLType mySQLType
+    private void assertBinaryBindAndExtract(final TaskAdjutant taskAdjutant, final MySQLType mySQLType
             , final String bindParam, final String field) {
         final long id = convertId(4);
         //1. update filed
@@ -1704,7 +1704,7 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBased
     /**
      * @see #doStringBindAndExtract(Logger)
      */
-    private void assertStringBindAndExtract(final MySQLTaskAdjutant taskAdjutant, final MySQLType mySQLType
+    private void assertStringBindAndExtract(final TaskAdjutant taskAdjutant, final MySQLType mySQLType
             , final String bindParam, final String field) {
         final long id = convertId(3);
 
@@ -1736,7 +1736,7 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBased
     /**
      * @see #doDatetimeBindAndExtract(Logger)
      */
-    private void assertDateTimeModify(final MySQLTaskAdjutant taskAdjutant, final MySQLType mySQLType
+    private void assertDateTimeModify(final TaskAdjutant taskAdjutant, final MySQLType mySQLType
             , final Object bindParam, final String field) {
         final long id = convertId(2);
         //1. update filed
@@ -1788,7 +1788,7 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBased
     }
 
 
-    private void updateSingleField(final MySQLTaskAdjutant taskAdjutant, final MySQLType mySQLType
+    private void updateSingleField(final TaskAdjutant taskAdjutant, final MySQLType mySQLType
             , final Object bindParam, final String field, final Object id) {
 
         final String paramExp;
@@ -1828,7 +1828,7 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBased
         assertEquals(resultState.getAffectedRows(), 1L, "getAffectedRows");
     }
 
-    private ResultRow querySingleField(final MySQLTaskAdjutant taskAdjutant, final String field, final Object id) {
+    private ResultRow querySingleField(final TaskAdjutant taskAdjutant, final String field, final Object id) {
         String sql = String.format("SELECT t.id as id, t.%s as field FROM mysql_types as t WHERE t.id = ?", field);
         BindValue bindValue = BindValue.create(0, MySQLType.BIGINT, id);
 

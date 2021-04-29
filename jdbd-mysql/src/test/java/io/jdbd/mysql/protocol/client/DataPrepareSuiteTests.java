@@ -45,7 +45,7 @@ public class DataPrepareSuiteTests extends AbstractConnectionBasedSuiteTests {
         LOG.info("close {}", ClientConnectionProtocol.class.getName());
 
         if (ClientTestUtils.getTestConfig().getProperty("truncate.after.suite", Boolean.class, Boolean.TRUE)) {
-            final MySQLTaskAdjutant adjutant = obtainTaskAdjutant();
+            final TaskAdjutant adjutant = obtainTaskAdjutant();
             ComQueryTask.update(Stmts.stmt("TRUNCATE mysql_types"), adjutant)
                     .then(QuitTask.quit(adjutant))
                     .block();
@@ -65,7 +65,7 @@ public class DataPrepareSuiteTests extends AbstractConnectionBasedSuiteTests {
     public void prepareData() throws Exception {
         LOG.info("\n {} group test start.\n", Groups.DATA_PREPARE);
 
-        final MySQLTaskAdjutant adjutant = obtainTaskAdjutant();
+        final TaskAdjutant adjutant = obtainTaskAdjutant();
 
         final Path path = Paths.get(ClientTestUtils.getTestResourcesPath().toString(), "script/ddl/comQueryTask.sql");
 
@@ -95,7 +95,7 @@ public class DataPrepareSuiteTests extends AbstractConnectionBasedSuiteTests {
     @Test(dependsOnMethods = "prepareData")
     public void mysqlTypeMetadataMatch() {
         LOG.info("mysqlTypeMatch test start");
-        final MySQLTaskAdjutant adjutant = obtainTaskAdjutant();
+        final TaskAdjutant adjutant = obtainTaskAdjutant();
 
         List<ResultRow> resultRowList = ComQueryTask.query(Stmts.stmt(createQuerySqlForMySQLTypeMatch()), adjutant)
                 .collectList()
@@ -116,7 +116,7 @@ public class DataPrepareSuiteTests extends AbstractConnectionBasedSuiteTests {
 
     /*################################## blow private method ##################################*/
 
-    private static void doPrepareData(MySQLTaskAdjutant taskAdjutant) throws Exception {
+    private static void doPrepareData(TaskAdjutant taskAdjutant) throws Exception {
         final int rowCount = 10000;
 
         StringBuilder builder = new StringBuilder(40 * rowCount)

@@ -10,7 +10,7 @@ import io.jdbd.result.SingleResult;
 import io.jdbd.stmt.ResultType;
 import io.jdbd.stmt.SubscribeException;
 import io.jdbd.vendor.JdbdUnknownException;
-import io.jdbd.vendor.task.TaskAdjutant;
+import io.jdbd.vendor.task.ITaskAdjutant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import reactor.core.publisher.Flux;
@@ -25,7 +25,7 @@ import java.util.function.Consumer;
 
 final class MultiResultFluxSink implements MultiResultSink {
 
-    static MultiResultSink create(FluxSink<SingleResult> sink, TaskAdjutant adjutant) {
+    static MultiResultSink create(FluxSink<SingleResult> sink, ITaskAdjutant adjutant) {
         return new MultiResultFluxSink(sink, adjutant);
     }
 
@@ -33,7 +33,7 @@ final class MultiResultFluxSink implements MultiResultSink {
 
     private final FluxSink<SingleResult> sink;
 
-    private final TaskAdjutant adjutant;
+    private final ITaskAdjutant adjutant;
 
     // non-volatile ,upstream in netty EventLoop
     private int index = 0;
@@ -42,7 +42,7 @@ final class MultiResultFluxSink implements MultiResultSink {
     private Throwable upstreamError;
 
 
-    private MultiResultFluxSink(FluxSink<SingleResult> sink, TaskAdjutant adjutant) {
+    private MultiResultFluxSink(FluxSink<SingleResult> sink, ITaskAdjutant adjutant) {
         this.sink = sink;
         this.adjutant = adjutant;
     }
@@ -131,11 +131,11 @@ final class MultiResultFluxSink implements MultiResultSink {
 
         private final ResultState resultState;
 
-        private final TaskAdjutant adjutant;
+        private final ITaskAdjutant adjutant;
 
         private boolean done;
 
-        private UpdateSingleResult(int index, ResultState resultState, TaskAdjutant adjutant) {
+        private UpdateSingleResult(int index, ResultState resultState, ITaskAdjutant adjutant) {
             this.index = index;
             this.resultState = resultState;
             this.adjutant = adjutant;
@@ -196,11 +196,11 @@ final class MultiResultFluxSink implements MultiResultSink {
 
         private final int index;
 
-        private final TaskAdjutant adjutant;
+        private final ITaskAdjutant adjutant;
 
         private final QuerySinkImpl querySink;
 
-        private QuerySingleResult(final int index, TaskAdjutant adjutant) {
+        private QuerySingleResult(final int index, ITaskAdjutant adjutant) {
             this.index = index;
             this.adjutant = adjutant;
             this.querySink = new QuerySinkImpl(this);

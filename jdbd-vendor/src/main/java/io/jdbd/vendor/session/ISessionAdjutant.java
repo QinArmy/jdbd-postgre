@@ -15,7 +15,7 @@ import io.netty.channel.EventLoopGroup;
  * @param <K> {@link io.jdbd.vendor.conf.IPropertyKey} type.
  * @see SessionFactory
  */
-public interface SessionAdjutant<K extends IPropertyKey, H extends HostInfo<K>> {
+public interface ISessionAdjutant<K extends IPropertyKey, H extends HostInfo<K>> {
 
     JdbcUrl<K, H> obtainUrl();
 

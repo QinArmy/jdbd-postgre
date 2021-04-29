@@ -86,10 +86,10 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
      * This method is one of underlying api of {@link BindableStatement#executeUpdate()} method:
      * </p>
      *
-     * @see #ComPreparedTask(ParamStmt, MonoSink, MySQLTaskAdjutant)
-     * @see ComQueryTask#bindableUpdate(BindableStmt, MySQLTaskAdjutant)
+     * @see #ComPreparedTask(ParamStmt, MonoSink, TaskAdjutant)
+     * @see ComQueryTask#bindableUpdate(BindableStmt, TaskAdjutant)
      */
-    static Mono<ResultState> update(final ParamStmt stmt, final MySQLTaskAdjutant adjutant) {
+    static Mono<ResultState> update(final ParamStmt stmt, final TaskAdjutant adjutant) {
         return Mono.create(sink -> {
             try {
                 ComPreparedTask task = new ComPreparedTask(stmt, sink, adjutant);
@@ -109,10 +109,10 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
      * </ul>
      * </p>
      *
-     * @see #ComPreparedTask(ParamStmt, FluxSink, MySQLTaskAdjutant)
-     * @see ComQueryTask#bindableQuery(BindableStmt, MySQLTaskAdjutant)
+     * @see #ComPreparedTask(ParamStmt, FluxSink, TaskAdjutant)
+     * @see ComQueryTask#bindableQuery(BindableStmt, TaskAdjutant)
      */
-    static Flux<ResultRow> query(final ParamStmt stmt, final MySQLTaskAdjutant adjutant) {
+    static Flux<ResultRow> query(final ParamStmt stmt, final TaskAdjutant adjutant) {
         return Flux.create(sink -> {
             try {
                 ComPreparedTask task = new ComPreparedTask(stmt, sink, adjutant);
@@ -128,11 +128,11 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
      * This method is one of underlying api of {@link BindableStatement#executeBatch()} method.
      * </p>
      *
-     * @see #ComPreparedTask(FluxSink, BatchStmt, MySQLTaskAdjutant)
-     * @see ComQueryTask#bindableBatch(BatchBindStmt, MySQLTaskAdjutant)
+     * @see #ComPreparedTask(FluxSink, BatchStmt, TaskAdjutant)
+     * @see ComQueryTask#bindableBatch(BatchBindStmt, TaskAdjutant)
      */
     static Flux<ResultState> batchUpdate(final BatchStmt<? extends ParamValue> stmt
-            , final MySQLTaskAdjutant adjutant) {
+            , final TaskAdjutant adjutant) {
         return Flux.create(sink -> {
             try {
                 ComPreparedTask task = new ComPreparedTask(sink, stmt, adjutant);
@@ -150,10 +150,10 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
      * This method is one of underlying api of {@link BindableStatement#executeAsMulti()} method.
      * </p>
      *
-     * @see #ComPreparedTask(BatchStmt, MultiResultSink, MySQLTaskAdjutant)
-     * @see ComQueryTask#bindableAsMulti(BatchBindStmt, MySQLTaskAdjutant)
+     * @see #ComPreparedTask(BatchStmt, MultiResultSink, TaskAdjutant)
+     * @see ComQueryTask#bindableAsMulti(BatchBindStmt, TaskAdjutant)
      */
-    static ReactorMultiResult asMulti(final BatchStmt<? extends ParamValue> stmt, final MySQLTaskAdjutant adjutant) {
+    static ReactorMultiResult asMulti(final BatchStmt<? extends ParamValue> stmt, final TaskAdjutant adjutant) {
         return JdbdMultiResults.create(adjutant, sink -> {
             try {
                 ComPreparedTask task = new ComPreparedTask(stmt, sink, adjutant);
@@ -169,10 +169,10 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
      * This method is one of underlying api of {@link BindableStatement#executeAsFlux()} method.
      * </p>
      *
-     * @see #ComPreparedTask(BatchStmt, MultiResultSink, MySQLTaskAdjutant)
-     * @see ComQueryTask#bindableAsFlux(BatchBindStmt, MySQLTaskAdjutant)
+     * @see #ComPreparedTask(BatchStmt, MultiResultSink, TaskAdjutant)
+     * @see ComQueryTask#bindableAsFlux(BatchBindStmt, TaskAdjutant)
      */
-    static Flux<SingleResult> asFlux(final BatchStmt<? extends ParamValue> stmt, final MySQLTaskAdjutant adjutant) {
+    static Flux<SingleResult> asFlux(final BatchStmt<? extends ParamValue> stmt, final TaskAdjutant adjutant) {
         return JdbdMultiResults.createAsFlux(adjutant, sink -> {
             try {
                 ComPreparedTask task = new ComPreparedTask(stmt, sink, adjutant);
@@ -195,10 +195,10 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
      *
      * @see DatabaseSession#prepare(String)
      * @see DatabaseSession#prepare(String, int)
-     * @see #ComPreparedTask(MySQLDatabaseSession, MySQLTaskAdjutant, MonoSink, Stmt)
+     * @see #ComPreparedTask(MySQLDatabaseSession, TaskAdjutant, MonoSink, Stmt)
      */
     static Mono<PreparedStatement> prepare(final MySQLDatabaseSession session, final Stmt stmt
-            , final MySQLTaskAdjutant adjutant) {
+            , final TaskAdjutant adjutant) {
         return Mono.create(sink -> {
             try {
                 ComPreparedTask task = new ComPreparedTask(session, adjutant, sink, stmt);
@@ -230,9 +230,9 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
 
 
     /**
-     * @see #update(ParamStmt, MySQLTaskAdjutant)
+     * @see #update(ParamStmt, TaskAdjutant)
      */
-    private ComPreparedTask(final ParamStmt stmt, final MonoSink<ResultState> sink, final MySQLTaskAdjutant adjutant)
+    private ComPreparedTask(final ParamStmt stmt, final MonoSink<ResultState> sink, final TaskAdjutant adjutant)
             throws SQLException {
         super(adjutant);
 
@@ -245,20 +245,20 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
      * create a prepare statement task for query.
      * </p>
      *
-     * @see #query(ParamStmt, MySQLTaskAdjutant)
+     * @see #query(ParamStmt, TaskAdjutant)
      */
     private ComPreparedTask(final ParamStmt wrapper, final FluxSink<ResultRow> sink
-            , final MySQLTaskAdjutant adjutant) throws SQLException {
+            , final TaskAdjutant adjutant) throws SQLException {
         super(adjutant);
         this.packetPublisher = createPrepareCommand(wrapper);
         this.downstreamSink = new QueryDownstreamSink(this, wrapper, sink);
     }
 
     /**
-     * @see #batchUpdate(BatchStmt, MySQLTaskAdjutant)
+     * @see #batchUpdate(BatchStmt, TaskAdjutant)
      */
     private ComPreparedTask(final FluxSink<ResultState> sink, final BatchStmt<? extends ParamValue> wrapper
-            , final MySQLTaskAdjutant adjutant) throws SQLException {
+            , final TaskAdjutant adjutant) throws SQLException {
         super(adjutant);
         this.packetPublisher = createPrepareCommand(wrapper);
         this.downstreamSink = new BatchUpdateSink<>(this, wrapper, sink);
@@ -266,10 +266,10 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
 
 
     /**
-     * @see #asMulti(BatchStmt, MySQLTaskAdjutant)
-     * @see #asFlux(BatchStmt, MySQLTaskAdjutant)
+     * @see #asMulti(BatchStmt, TaskAdjutant)
+     * @see #asFlux(BatchStmt, TaskAdjutant)
      */
-    private ComPreparedTask(BatchStmt<? extends ParamValue> stmt, MultiResultSink sink, MySQLTaskAdjutant adjutant)
+    private ComPreparedTask(BatchStmt<? extends ParamValue> stmt, MultiResultSink sink, TaskAdjutant adjutant)
             throws SQLException {
         super(adjutant);
         this.packetPublisher = createPrepareCommand(stmt);
@@ -277,9 +277,9 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
     }
 
     /**
-     * @see #prepare(MySQLDatabaseSession, Stmt, MySQLTaskAdjutant)
+     * @see #prepare(MySQLDatabaseSession, Stmt, TaskAdjutant)
      */
-    private ComPreparedTask(final MySQLDatabaseSession session, final MySQLTaskAdjutant adjutant
+    private ComPreparedTask(final MySQLDatabaseSession session, final TaskAdjutant adjutant
             , MonoSink<PreparedStatement> sink, Stmt stmt)
             throws SQLException {
         super(adjutant);
@@ -1434,7 +1434,7 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
      *     </ul>
      * </p>
      *
-     * @see ComPreparedTask#ComPreparedTask(ParamStmt, FluxSink, MySQLTaskAdjutant)
+     * @see ComPreparedTask#ComPreparedTask(ParamStmt, FluxSink, TaskAdjutant)
      */
     private static final class QueryDownstreamSink extends AbstractDownstreamSink implements FetchAbleDownstreamSink {
 
@@ -1454,7 +1454,7 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
         private ResultState queryStatus;
 
         /**
-         * @see ComPreparedTask#ComPreparedTask(ParamStmt, FluxSink, MySQLTaskAdjutant)
+         * @see ComPreparedTask#ComPreparedTask(ParamStmt, FluxSink, TaskAdjutant)
          */
         private QueryDownstreamSink(final ComPreparedTask task, ParamStmt wrapper, FluxSink<ResultRow> sink) {
             super(task);
@@ -1616,7 +1616,7 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
      *     </ul>
      * </p>
      *
-     * @see #ComPreparedTask(ParamStmt, MonoSink, MySQLTaskAdjutant)
+     * @see #ComPreparedTask(ParamStmt, MonoSink, TaskAdjutant)
      */
     private final static class UpdateDownstreamSink extends AbstractDownstreamSink {
 
@@ -1631,7 +1631,7 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
         private ResultState queryStatus;
 
         /**
-         * @see #ComPreparedTask(ParamStmt, MonoSink, MySQLTaskAdjutant)
+         * @see #ComPreparedTask(ParamStmt, MonoSink, TaskAdjutant)
          */
         private UpdateDownstreamSink(final ComPreparedTask task, ParamStmt wrapper, MonoSink<ResultState> sink) {
             super(task);
@@ -1730,7 +1730,7 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
     } // UpdateDownstreamSink
 
     /**
-     * @see #ComPreparedTask(FluxSink, BatchStmt, MySQLTaskAdjutant)
+     * @see #ComPreparedTask(FluxSink, BatchStmt, TaskAdjutant)
      */
     private static final class BatchUpdateSink<T extends ParamValue> extends AbstractDownstreamSink
             implements BatchDownstreamSink {
@@ -1748,7 +1748,7 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
         private ResultState queryStatus;
 
         /**
-         * @see #ComPreparedTask(FluxSink, BatchStmt, MySQLTaskAdjutant)
+         * @see #ComPreparedTask(FluxSink, BatchStmt, TaskAdjutant)
          */
         private BatchUpdateSink(final ComPreparedTask task, BatchStmt<T> wrapper, FluxSink<ResultState> sink) {
             super(task);
@@ -1927,7 +1927,7 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
 
 
         /**
-         * @see #ComPreparedTask(BatchStmt, MultiResultSink, MySQLTaskAdjutant)
+         * @see #ComPreparedTask(BatchStmt, MultiResultSink, TaskAdjutant)
          */
         private BatchMultiResultDownstreamSink(final ComPreparedTask task, BatchStmt<T> wrapper
                 , MultiResultSink sink) {
@@ -2115,7 +2115,7 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
         private DownstreamSink downstreamSink;
 
         /**
-         * @see #ComPreparedTask(MySQLDatabaseSession, MySQLTaskAdjutant, MonoSink, Stmt)
+         * @see #ComPreparedTask(MySQLDatabaseSession, TaskAdjutant, MonoSink, Stmt)
          */
         private DownstreamAdapter(MySQLDatabaseSession session, ComPreparedTask task
                 , MonoSink<PreparedStatement> sink) {

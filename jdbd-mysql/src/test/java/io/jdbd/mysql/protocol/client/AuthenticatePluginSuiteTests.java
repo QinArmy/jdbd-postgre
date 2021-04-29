@@ -5,7 +5,7 @@ import io.jdbd.mysql.Groups;
 import io.jdbd.mysql.protocol.authentication.CachingSha2PasswordPlugin;
 import io.jdbd.mysql.protocol.authentication.MySQLNativePasswordPlugin;
 import io.jdbd.mysql.protocol.conf.PropertyKey;
-import io.jdbd.mysql.session.MySQLSessionAdjutant;
+import io.jdbd.mysql.session.SessionAdjutant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
@@ -74,7 +74,7 @@ public class AuthenticatePluginSuiteTests extends AbstractConnectionBasedSuiteTe
 
         // propMap.put(PropertyKey.allowPublicKeyRetrieval.getKey(), serverRSAPublicKeyPath.toString());
 
-        MySQLSessionAdjutant sessionAdjutant = createSessionAdjutantForSingleHost(propMap);
+        SessionAdjutant sessionAdjutant = createSessionAdjutantForSingleHost(propMap);
 
         try {
             AuthenticateResult result = MySQLTaskExecutor.create(0, sessionAdjutant)
@@ -100,7 +100,7 @@ public class AuthenticatePluginSuiteTests extends AbstractConnectionBasedSuiteTe
         //propMap.put(PropertyKey.detectCustomCollations.getKey(), "true");
         //propMap.put(PropertyKey.sslMode.getKey(),  Enums.SslMode.PREFERRED.name());
 
-        MySQLSessionAdjutant sessionAdjutant = createSessionAdjutantForSingleHost(propMap);
+        SessionAdjutant sessionAdjutant = createSessionAdjutantForSingleHost(propMap);
 
         AuthenticateResult result = MySQLTaskExecutor.create(0, sessionAdjutant)
                 .flatMap(executor -> MySQLConnectionTask.authenticate(executor.getAdjutant()))
@@ -124,7 +124,7 @@ public class AuthenticatePluginSuiteTests extends AbstractConnectionBasedSuiteTe
         propMap = Collections.singletonMap(PropertyKey.sslMode.getKey()
                 , Enums.SslMode.DISABLED.name());
 
-        MySQLSessionAdjutant sessionAdjutant = createSessionAdjutantForSingleHost(propMap);
+        SessionAdjutant sessionAdjutant = createSessionAdjutantForSingleHost(propMap);
 
         AuthenticateResult result = MySQLTaskExecutor.create(0, sessionAdjutant)
                 .flatMap(executor -> MySQLConnectionTask.authenticate(executor.getAdjutant()))
@@ -147,7 +147,7 @@ public class AuthenticatePluginSuiteTests extends AbstractConnectionBasedSuiteTe
         propMap.put(PropertyKey.authenticationPlugins.getKey(), CachingSha2PasswordPlugin.class.getName());
         propMap.put(PropertyKey.password.getKey(), "");
 
-        MySQLSessionAdjutant sessionAdjutant = createSessionAdjutantForSingleHost(propMap);
+        SessionAdjutant sessionAdjutant = createSessionAdjutantForSingleHost(propMap);
 
         AuthenticateResult result = MySQLTaskExecutor.create(0, sessionAdjutant)
                 .flatMap(executor -> MySQLConnectionTask.authenticate(executor.getAdjutant()))
@@ -172,7 +172,7 @@ public class AuthenticatePluginSuiteTests extends AbstractConnectionBasedSuiteTe
         propMap.put(PropertyKey.defaultAuthenticationPlugin.getKey(), MySQLNativePasswordPlugin.PLUGIN_NAME);
         propMap.put(PropertyKey.authenticationPlugins.getKey(), MySQLNativePasswordPlugin.class.getName());
 
-        MySQLSessionAdjutant sessionAdjutant = createSessionAdjutantForSingleHost(propMap);
+        SessionAdjutant sessionAdjutant = createSessionAdjutantForSingleHost(propMap);
 
         AuthenticateResult result = MySQLTaskExecutor.create(0, sessionAdjutant)
                 .flatMap(executor -> MySQLConnectionTask.authenticate(executor.getAdjutant()))
