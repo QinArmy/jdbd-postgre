@@ -46,7 +46,7 @@ import java.util.function.Consumer;
 /**
  * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_connection_phase.html">Connection Phase</a>
  */
-final class MySQLConnectionTask extends CommunicationTask implements AuthenticateAssistant
+final class MySQLConnectionTask extends CommunicationTask<TaskAdjutant> implements AuthenticateAssistant
         , ConnectionTask {
 
     static Mono<AuthenticateResult> authenticate(TaskAdjutant adjutant) {
@@ -151,6 +151,11 @@ final class MySQLConnectionTask extends CommunicationTask implements Authenticat
     @Override
     public void addSsl(Consumer<SslWrapper> sslConsumer) {
         this.sslConsumer = sslConsumer;
+    }
+
+    @Override
+    public final boolean reconnect() {
+        return false;
     }
 
     @Override
@@ -669,9 +674,8 @@ final class MySQLConnectionTask extends CommunicationTask implements Authenticat
                 | (Constants.NONE.equals(env.getProperty(PropertyKey.connectionAttributes)) ? 0 : (serverCapability & ClientProtocol.CLIENT_CONNECT_ATTRS))
                 | (env.getOrDefault(PropertyKey.sslMode, Enums.SslMode.class) != Enums.SslMode.DISABLED ? (serverCapability & ClientProtocol.CLIENT_SSL) : 0)
 
-                // TODO MYSQLCONNJ-437
-                // clientParam |= (capabilityFlags & NativeServerSession.CLIENT_SESSION_TRACK);
-
+                // TODO ZORO MYSQLCONNJ-437?
+                | (serverCapability & ClientProtocol.CLIENT_SESSION_TRACK)
                 ;
     }
 

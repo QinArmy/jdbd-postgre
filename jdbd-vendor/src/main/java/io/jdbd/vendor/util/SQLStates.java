@@ -15,7 +15,7 @@ public abstract class SQLStates {
     public static final String WARNING_STRING_DATA_RIGHT_TRUNCATION = "01004";
     public static final String WARNING_PRIVILEGE_NOT_REVOKED = "01006";
 
-    public static final String WARNING_PRIVILEGE_NOT_GRANTED = "01007";
+    public static final String WARNING_PRI08004VILEGE_NOT_GRANTED = "01007";
     public static final String WARNING_PRIVILEGE_ALREADY_GRANTED = "01008";
     public static final String WARNING_PRIVILEGE_ALREADY_REVOKED = "01009";
     public static final String WARNING_DYNAMIC_RESULT_SETS_RETURNED = "0100C";

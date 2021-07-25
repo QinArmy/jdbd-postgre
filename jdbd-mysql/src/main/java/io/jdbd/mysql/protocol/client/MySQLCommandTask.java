@@ -15,7 +15,7 @@ import io.netty.buffer.ByteBuf;
  * @see MySQLPrepareCommandTask
  * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_command_phase.html">Command Phase</a>
  */
-abstract class MySQLCommandTask extends CommunicationTask {
+abstract class MySQLCommandTask extends CommunicationTask<TaskAdjutant> {
 
     final TaskAdjutant adjutant;
 

@@ -29,4 +29,5 @@ public interface ConnectionTask {
      */
     boolean disconnect();
 
+     boolean reconnect();
 }

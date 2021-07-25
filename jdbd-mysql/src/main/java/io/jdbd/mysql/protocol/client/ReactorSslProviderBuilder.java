@@ -220,11 +220,11 @@ final class ReactorSslProviderBuilder {
      * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-security.html">Security</a>
      */
     @Nullable
-    private Pair<KeyStore, char[]> tryObtainKeyStorePasswordPairForSsl(final boolean client) throws SQLException {
+    private Pair<KeyStore, char[]> tryObtainKeyStorePasswordPairForSsl(final boolean key) throws SQLException {
         // 1. below obtain three storeUrl,storeType,storePassword
         final PropertyKey storeUrlKey, storeTypeKey, passwordKey;
         final String systemStoreUrlKey, systemStoreTypeKey, systemPasswordKey;
-        if (client) {
+        if (key) {
             storeUrlKey = PropertyKey.clientCertificateKeyStoreUrl;
             storeTypeKey = PropertyKey.clientCertificateKeyStoreType;
             passwordKey = PropertyKey.clientCertificateKeyStorePassword;
@@ -250,8 +250,8 @@ final class ReactorSslProviderBuilder {
         storePwd = properties.getProperty(passwordKey);
 
         if (!MySQLStringUtils.hasText(storeUrl)) {
-            boolean useSystem = (client && properties.getOrDefault(PropertyKey.fallbackToSystemKeyStore, Boolean.class))
-                    || (!client && properties.getOrDefault(PropertyKey.fallbackToSystemTrustStore, Boolean.class));
+            boolean useSystem = (key && properties.getOrDefault(PropertyKey.fallbackToSystemKeyStore, Boolean.class))
+                    || (!key && properties.getOrDefault(PropertyKey.fallbackToSystemTrustStore, Boolean.class));
             if (useSystem) {
                 storeUrl = System.getProperty(systemStoreUrlKey);
                 storeType = System.getProperty(systemStoreTypeKey);

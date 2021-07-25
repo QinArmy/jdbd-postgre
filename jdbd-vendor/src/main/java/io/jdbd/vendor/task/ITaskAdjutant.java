@@ -3,6 +3,7 @@ package io.jdbd.vendor.task;
 import io.jdbd.SessionCloseException;
 import io.netty.buffer.ByteBufAllocator;
 
+import java.util.Set;
 import java.util.function.Consumer;
 
 public interface ITaskAdjutant {
@@ -26,11 +27,16 @@ public interface ITaskAdjutant {
      * @throws SessionCloseException    throw then network channel closed
      * @see CommunicationTask#submit(Consumer)
      */
-    void syncSubmitTask(CommunicationTask task, Consumer<Void> errorConsumer);
+    void syncSubmitTask(CommunicationTask<?> task, Consumer<Void> errorConsumer);
 
     void execute(Runnable runnable);
 
     ByteBufAllocator allocator();
+
+    /**
+     * @return a unmodifiable set.
+     */
+    Set<EncryptMode> encryptModes();
 
 
 }

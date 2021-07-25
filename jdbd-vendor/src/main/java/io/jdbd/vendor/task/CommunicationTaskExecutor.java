@@ -26,18 +26,24 @@ import reactor.netty.tcp.SslProvider;
 import reactor.util.concurrent.Queues;
 
 import java.net.InetSocketAddress;
+import java.util.Collections;
 import java.util.Objects;
 import java.util.Queue;
+import java.util.Set;
 import java.util.function.Consumer;
 
+/**
+ * @param <T> {@link ITaskAdjutant} type.
+ * @see CommunicationTask
+ */
 public abstract class CommunicationTaskExecutor<T extends ITaskAdjutant> implements CoreSubscriber<ByteBuf>
         , TaskExecutor<T> {
 
-    protected final Connection connection;
+    protected Connection connection;
 
-    protected final EventLoop eventLoop;
+    protected EventLoop eventLoop;
 
-    protected final ByteBufAllocator allocator;
+    protected ByteBufAllocator allocator;
 
     protected final T taskAdjutant;
 
@@ -56,13 +62,11 @@ public abstract class CommunicationTaskExecutor<T extends ITaskAdjutant> impleme
 
     private int packetIndex = -1;
 
-    private TaskStack taskStack;
+    private Set<EncryptMode> encryptModes = Collections.emptySet();
 
 
     protected CommunicationTaskExecutor(Connection connection) {
-        this.connection = connection;
-        this.eventLoop = connection.channel().eventLoop();
-        this.allocator = connection.channel().alloc();
+        updateConnection(connection);
         this.taskSignal = new TaskSingleImpl(this);
 
         this.taskAdjutant = createTaskAdjutant();
@@ -71,6 +75,12 @@ public abstract class CommunicationTaskExecutor<T extends ITaskAdjutant> impleme
                 .retain() // for cumulate
                 .subscribe(this);
 
+    }
+
+    private void updateConnection(Connection connection) {
+        this.connection = connection;
+        this.eventLoop = connection.channel().eventLoop();
+        this.allocator = connection.channel().alloc();
     }
 
 
@@ -145,11 +155,9 @@ public abstract class CommunicationTaskExecutor<T extends ITaskAdjutant> impleme
         }
         //1. store packet start index.
         this.packetIndex = cumulateBuffer.readerIndex();
-        this.taskStack = TaskStack.DECODE;
         //2. decode packet from database server.
         final boolean taskEnd;
         taskEnd = currentTask.decodePackets(cumulateBuffer, this::updateServerStatus);
-        this.taskStack = null;
         if (taskEnd && currentTask instanceof ConnectionTask) {
             ConnectionTask connectionTask = (ConnectionTask) currentTask;
             if (connectionTask.disconnect()) {
@@ -251,8 +259,6 @@ public abstract class CommunicationTaskExecutor<T extends ITaskAdjutant> impleme
                         .errorEvent(e); //invoke error method and ignore action
                 handleTaskStatusException();
                 return;
-            } finally {
-                this.taskStack = null;
             }
             cumulateBuffer = this.cumulateBuffer;
             //3. release cumulateBuffer
@@ -261,11 +267,7 @@ public abstract class CommunicationTaskExecutor<T extends ITaskAdjutant> impleme
                 this.cumulateBuffer = null;
             }
         } else {
-            try {
-                handleTaskStatusException();
-            } finally {
-                this.taskStack = null;
-            }
+            handleTaskStatusException();
         }
 
     }
@@ -282,7 +284,7 @@ public abstract class CommunicationTaskExecutor<T extends ITaskAdjutant> impleme
         cumulateBuffer.readerIndex(this.packetIndex);
         if (this.clearChannel(cumulateBuffer, currentTask.getClass())) {
             if (cumulateBuffer.isReadable()) {
-                throw new TaskExecutorException(String.format("%s clearChannel method error.", this));
+                throw new TaskExecutorException(String.format("%s clearChannel method error.", this), this.taskError);
             }
             cumulateBuffer.release();
             this.cumulateBuffer = null;
@@ -305,32 +307,26 @@ public abstract class CommunicationTaskExecutor<T extends ITaskAdjutant> impleme
 
     private void doOnErrorInEventLoop(Throwable e) {
         obtainLogger().debug("channel channel error.");
-        this.taskStack = TaskStack.ERROR;
-        try {
-            if (!this.connection.channel().isActive()) {
-                CommunicationTask task = this.currentTask;
-                final JdbdException exception = JdbdExceptions.wrap(e
-                        , "TCP connection close,cannot execute CommunicationTask.");
-                if (task != null) {
-                    this.currentTask = null;
-                    task.errorEvent(exception);
-                }
-                while ((task = this.taskQueue.poll()) != null) {
-                    task.errorEvent(exception);
-                }
-            } else {
-                // TODO optimize handle netty Handler error.
-                CommunicationTask task = this.currentTask;
-                if (task != null) {
-                    this.currentTask = null;
-                    task.errorEvent(JdbdExceptions.wrap(e, "Channel upstream throw error."));
-                }
-
+        if (!this.connection.channel().isActive()) {
+            CommunicationTask task = this.currentTask;
+            final JdbdException exception = JdbdExceptions.wrap(e
+                    , "TCP connection close,cannot execute CommunicationTask.");
+            if (task != null) {
+                this.currentTask = null;
+                task.errorEvent(exception);
             }
-        } finally {
-            this.taskStack = null;
-        }
+            while ((task = this.taskQueue.poll()) != null) {
+                task.errorEvent(exception);
+            }
+        } else {
+            // TODO optimize handle netty Handler error.
+            CommunicationTask task = this.currentTask;
+            if (task != null) {
+                this.currentTask = null;
+                task.errorEvent(JdbdExceptions.wrap(e, "Channel upstream throw error."));
+            }
 
+        }
     }
 
     /**
@@ -364,10 +360,8 @@ public abstract class CommunicationTaskExecutor<T extends ITaskAdjutant> impleme
             if (currentTask instanceof ConnectionTask) {
                 ((ConnectionTask) currentTask).addSsl(this::addSslHandler);
             }
-            this.taskStack = TaskStack.START;
             Publisher<ByteBuf> publisher;
             publisher = currentTask.startTask(this.taskSignal);
-            this.taskStack = null;
             if (publisher == null) {
                 this.upstream.request(128L);
                 drainToTask();
@@ -593,7 +587,7 @@ public abstract class CommunicationTaskExecutor<T extends ITaskAdjutant> impleme
         }
 
         @Override
-        public void syncSubmitTask(CommunicationTask task, Consumer<Void> errorConsumer) {
+        public void syncSubmitTask(CommunicationTask<?> task, Consumer<Void> errorConsumer) {
             this.taskExecutor.syncPushTask(task, errorConsumer);
         }
 
@@ -607,6 +601,16 @@ public abstract class CommunicationTaskExecutor<T extends ITaskAdjutant> impleme
         public final ByteBufAllocator allocator() {
             return this.taskExecutor.allocator;
         }
+
+        @Override
+        public final Set<EncryptMode> encryptModes() {
+            Set<EncryptMode> modes = this.taskExecutor.encryptModes;
+            if (modes == null) {
+                modes = Collections.emptySet();
+            }
+            return modes;
+        }
+
 
     }
 
@@ -647,10 +651,8 @@ public abstract class CommunicationTaskExecutor<T extends ITaskAdjutant> impleme
     }
 
 
-    private enum TaskStack {
-        START,
-        DECODE,
-        ERROR
+    private enum Phase {
+        RECONNECT
     }
 
 

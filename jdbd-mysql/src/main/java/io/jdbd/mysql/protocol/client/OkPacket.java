@@ -1,6 +1,8 @@
 package io.jdbd.mysql.protocol.client;
 
 import io.netty.buffer.ByteBuf;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import reactor.util.annotation.Nullable;
 
 import java.nio.charset.Charset;
@@ -13,46 +15,51 @@ public final class OkPacket extends TerminatorPacket {
     public static final int OK_HEADER = 0x00;
 
     /**
-     * @param payloadBuf a packet buffer than skip header .
+     * @param payload    a packet buffer than skip header .
      * @param capability <ul>
      *                   <li>before server receive handshake response packet: server capability</li>
      *                   <li>after server receive handshake response packet: negotiated capability</li>
      *                   </ul>
      * @throws IllegalArgumentException packet error.
      */
-    public static OkPacket read(ByteBuf payloadBuf, final int capability) {
-        int type = PacketUtils.readInt1AsInt(payloadBuf);
+    public static OkPacket read(ByteBuf payload, final int capability) {
+        int type = PacketUtils.readInt1AsInt(payload);
         if (type != OK_HEADER && type != EofPacket.EOF_HEADER) {
             throw new IllegalArgumentException("packetBuf isn't ok packet.");
         }
         //1. affected_rows
-        long affectedRows = PacketUtils.readLenEnc(payloadBuf);
+        long affectedRows = PacketUtils.readLenEnc(payload);
         //2. last_insert_id
-        long lastInsertId = PacketUtils.readLenEnc(payloadBuf);
+        long lastInsertId = PacketUtils.readLenEnc(payload);
         //3. status_flags and warnings
         final int statusFags, warnings;
-        statusFags = PacketUtils.readInt2AsInt(payloadBuf);
+        statusFags = PacketUtils.readInt2AsInt(payload);
         if ((capability & ClientCommandProtocol.CLIENT_PROTOCOL_41) != 0) {
-            warnings = PacketUtils.readInt2AsInt(payloadBuf);
+            warnings = PacketUtils.readInt2AsInt(payload);
         } else {
             warnings = 0;
         }
         //4.
-        String info, sessionStateInfo = null;
+        String info = null, sessionStateInfo = null;
         if ((capability & ClientCommandProtocol.CLIENT_SESSION_TRACK) != 0) {
-            info = PacketUtils.readStringLenEnc(payloadBuf, Charset.defaultCharset());
+            if (payload.isReadable()) {
+                // here , avoid ResultSet terminator.
+                info = PacketUtils.readStringLenEnc(payload, Charset.defaultCharset());
+            }
             if (info == null) {
                 info = "";
             }
             if ((statusFags & ClientCommandProtocol.SERVER_SESSION_STATE_CHANGED) != 0) {
-                sessionStateInfo = PacketUtils.readStringLenEnc(payloadBuf, Charset.defaultCharset());
+                sessionStateInfo = PacketUtils.readStringLenEnc(payload, Charset.defaultCharset());
             }
         } else {
-            info = PacketUtils.readStringEof(payloadBuf, Charset.defaultCharset());
+            info = PacketUtils.readStringEof(payload, Charset.defaultCharset());
         }
         return new OkPacket(affectedRows, lastInsertId
                 , statusFags, warnings, info, sessionStateInfo);
     }
+
+    private static final Logger LOG = LoggerFactory.getLogger(OkPacket.class);
 
     private final long affectedRows;
 

@@ -5,40 +5,46 @@ import io.netty.buffer.ByteBuf;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 
-abstract class Packets {
+abstract class Messages {
 
 
     static final Charset CLIENT_CHARSET = StandardCharsets.UTF_8;
 
     static final byte TERMINATOR = 0;
 
-    static final byte ERROR = 'E';
+    static final byte E = 'E';
+
+    static final byte R = 'R';
+
+    static final byte N = 'N';
+
+    static final byte S = 'S';
 
     static void writeString(ByteBuf packet, String string) {
         packet.writeBytes(string.getBytes(CLIENT_CHARSET));
         packet.writeByte(TERMINATOR);
     }
 
-    static String readString(final ByteBuf packet) {
-        return new String(readBytesTerm(packet), StandardCharsets.UTF_8);
+    static String readString(final ByteBuf message) {
+        return new String(readBytesTerm(message), StandardCharsets.UTF_8);
     }
 
-    static byte[] readBytesTerm(final ByteBuf packet) {
+    static byte[] readBytesTerm(final ByteBuf message) {
         final int len;
-        len = packet.bytesBefore(TERMINATOR);
+        len = message.bytesBefore(TERMINATOR);
         if (len < 0) {
             throw new IllegalArgumentException("Not found terminator of string.");
         }
         final byte[] bytes = new byte[len];
-        packet.readBytes(bytes);
+        message.readBytes(bytes);
 
-        if (packet.readByte() != 0) {
+        if (message.readByte() != 0) {
             throw new IllegalArgumentException("Not found terminator of string.");
         }
         return bytes;
     }
 
-    static boolean hasOnePacket(ByteBuf cumulateBuffer) {
+    static boolean hasOneMessage(ByteBuf cumulateBuffer) {
         final int readableBytes = cumulateBuffer.readableBytes();
         return readableBytes > 5
                 && readableBytes >= (1 + cumulateBuffer.getInt(cumulateBuffer.readerIndex() + 1));

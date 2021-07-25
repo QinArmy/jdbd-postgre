@@ -8,7 +8,6 @@ import io.jdbd.mysql.session.ServerPreparedStatement;
 import io.jdbd.mysql.stmt.BatchBindStmt;
 import io.jdbd.mysql.stmt.BindableStmt;
 import io.jdbd.mysql.stmt.PrepareStmtTask;
-import io.jdbd.mysql.util.MySQLCollections;
 import io.jdbd.mysql.util.MySQLExceptions;
 import io.jdbd.result.ResultRow;
 import io.jdbd.result.ResultState;
@@ -33,7 +32,6 @@ import reactor.core.publisher.Mono;
 import reactor.core.publisher.MonoSink;
 
 import java.sql.SQLException;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.function.Consumer;
@@ -593,18 +591,6 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
     }
 
 
-    private boolean hasError() {
-        return !MySQLCollections.isEmpty(this.errorList);
-    }
-
-    private void addError(JdbdException e) {
-        List<JdbdException> errorList = this.errorList;
-        if (errorList == null) {
-            errorList = new ArrayList<>();
-            this.errorList = errorList;
-        }
-        errorList.add(e);
-    }
 
 
     /**

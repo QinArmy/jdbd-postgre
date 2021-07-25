@@ -26,7 +26,7 @@ import java.util.concurrent.ConcurrentMap;
 
 import static org.testng.Assert.*;
 
-@Test(groups = {Groups.SESSION_INITIALIZER}, dependsOnGroups = {Groups.AUTHENTICATE_PLUGIN})
+@Test//(groups = {Groups.SESSION_INITIALIZER}, dependsOnGroups = {Groups.AUTHENTICATE_PLUGIN})
 public class SessionInitializerSuiteTests extends AbstractConnectionBasedSuiteTests {
 
     private static final Logger LOG = LoggerFactory.getLogger(SessionInitializerSuiteTests.class);
@@ -55,7 +55,7 @@ public class SessionInitializerSuiteTests extends AbstractConnectionBasedSuiteTe
     @Test(timeOut = TIME_OUT)
     public void connectAndInitializing() {
         LOG.info("connectAndInitializing test start.");
-        doConnectionTest(Collections.emptyMap());
+        doConnectionTest(Collections.singletonMap(PropertyKey.sslMode.getKey(), "DISABLED"));
 
         LOG.info("connectAndInitializing test success.");
 

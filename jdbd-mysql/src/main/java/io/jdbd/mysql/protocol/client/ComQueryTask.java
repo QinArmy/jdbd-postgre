@@ -35,7 +35,6 @@ import java.nio.channels.FileChannel;
 import java.nio.charset.Charset;
 import java.nio.file.*;
 import java.sql.SQLException;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.function.Consumer;
@@ -997,16 +996,6 @@ final class ComQueryTask extends MySQLCommandTask {
     }
 
 
-    private void addError(JdbdException e) {
-        //TODO filter same error.
-        List<JdbdException> errorList = this.errorList;
-        if (errorList == null) {
-            errorList = new ArrayList<>();
-            this.errorList = errorList;
-        }
-        errorList.add(e);
-    }
-
     private JdbdException createException() {
         List<JdbdException> errorList = this.errorList;
         if (MySQLCollections.isEmpty(errorList)) {
@@ -1045,10 +1034,6 @@ final class ComQueryTask extends MySQLCommandTask {
         addError(e);
     }
 
-    private boolean hasError() {
-        List<JdbdException> list = this.errorList;
-        return list != null && list.size() > 0;
-    }
 
     private boolean containException(Class<? extends JdbdException> clazz) {
         List<JdbdException> errorList = this.errorList;

@@ -1,21 +1,28 @@
 package io.jdbd.vendor.task;
 
+import io.jdbd.JdbdException;
+import io.jdbd.vendor.JdbdCompositeException;
 import io.netty.buffer.ByteBuf;
 import org.reactivestreams.Publisher;
 import reactor.core.publisher.Mono;
 import reactor.util.annotation.Nullable;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
 import java.util.function.Consumer;
 
 /**
  * @see CommunicationTaskExecutor
+ * @see ConnectionTask
  */
-public abstract class CommunicationTask {
+public abstract class CommunicationTask<T extends ITaskAdjutant> {
 
-    final ITaskAdjutant adjutant;
+    protected final T adjutant;
 
     protected Publisher<ByteBuf> packetPublisher;
+
+    protected List<JdbdException> errorList;
 
     private TaskPhase taskPhase;
 
@@ -23,7 +30,8 @@ public abstract class CommunicationTask {
 
     private MethodStack methodStack;
 
-    protected CommunicationTask(ITaskAdjutant adjutant) {
+
+    protected CommunicationTask(T adjutant) {
         this.adjutant = adjutant;
     }
 
@@ -88,7 +96,7 @@ public abstract class CommunicationTask {
 
     /**
      * <p>
-     * {@link CommunicationTaskExecutor} invoke this method get more send packet.
+     * This is package method ,{@link CommunicationTaskExecutor} invoke this method get more send packet.
      * </p>
      *
      * @return if non-null {@link CommunicationTaskExecutor} will send this {@link Publisher}.
@@ -197,6 +205,66 @@ public abstract class CommunicationTask {
             mono = this.taskSignal.sendPacket(this, endTask);
         }
         return mono;
+    }
+
+
+    /**
+     * <p>
+     * for {@link Consumer} interface.
+     * </p>
+     */
+    protected final void sendPacket(Publisher<ByteBuf> publisher) {
+        this.packetPublisher = publisher;
+    }
+
+
+    protected final boolean hasError() {
+        List<JdbdException> errorList = this.errorList;
+        return errorList != null && errorList.size() > 0;
+    }
+
+    protected final boolean containsError(Class<JdbdException> errorType) {
+        List<JdbdException> errorList = this.errorList;
+        boolean contains = false;
+        if (errorList != null) {
+            for (JdbdException error : errorList) {
+                if (errorType.isAssignableFrom(error.getClass())) {
+                    contains = true;
+                    break;
+                }
+            }
+        }
+        return contains;
+    }
+
+    protected final void addError(JdbdException error) {
+        List<JdbdException> errorList = this.errorList;
+        if (errorList == null) {
+            errorList = new ArrayList<>();
+            this.errorList = errorList;
+        }
+        errorList.add(error);
+    }
+
+
+    /**
+     * @param errorConsumer <ul>
+     *                      <li>{@link reactor.core.publisher.MonoSink#error(Throwable)}</li>
+     *                      <li>{@link reactor.core.publisher.FluxSink#error(Throwable)}</li>
+     *                      <li>other</li>
+     *                      </ul>
+     */
+    protected final void publishError(Consumer<Throwable> errorConsumer) {
+        final List<JdbdException> errorList = this.errorList;
+        if (errorList == null || errorList.isEmpty()) {
+            throw new IllegalStateException("No error,cannot publish error.");
+        }
+        if (errorList.size() == 1) {
+            errorConsumer.accept(errorList.get(0));
+        } else {
+            JdbdCompositeException e = new JdbdCompositeException(errorList, errorList.get(0).getMessage());
+            errorConsumer.accept(e);
+        }
     }
 
 

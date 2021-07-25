@@ -11,26 +11,27 @@ import java.util.Map;
  * @see <a href="https://www.postgresql.org/docs/11/protocol-message-formats.html">ErrorResponse</a>
  * @see <a href="https://www.postgresql.org/docs/11/protocol-error-fields.html">Error and Notice Message Fields</a>
  */
-final class ErrorPacket implements PostgrePacket {
+public final class ErrorMessage extends PostgreMessage {
 
 
-    static ErrorPacket read(final ByteBuf packet) {
-        if (packet.readByte() != Packets.ERROR) {
-            throw new IllegalArgumentException("payload isn't error packet");
+    static ErrorMessage read(final ByteBuf message) {
+        if (message.readByte() != Messages.E) {
+            throw new IllegalArgumentException("payload isn't error message.");
         }
-        final int startIndex = packet.readerIndex();
-        final int length = packet.readInt(), end = packet.readerIndex() + length - 4;
+        final int startIndex = message.readerIndex();
+        final int length = message.readInt(), end = message.readerIndex() + length - 4;
         final Map<Byte, String> map = new HashMap<>();
 
-        while (packet.readerIndex() < end) {
-            final byte field = packet.readByte();
+        byte field;
+        while (message.readerIndex() < end) {
+            field = message.readByte();
             if (field == 0) {
                 break;
             }
-            map.put(field, Packets.readString(packet));
+            map.put(field, Messages.readString(message));
         }
-        packet.readerIndex(startIndex + length);// avoid filler.
-        return new ErrorPacket(map);
+        message.readerIndex(startIndex + length);// avoid filler.
+        return new ErrorMessage(Messages.E, map);
     }
 
 
@@ -59,7 +60,8 @@ final class ErrorPacket implements PostgrePacket {
 
     final Map<Byte, String> messageParts;
 
-    private ErrorPacket(Map<Byte, String> messageParts) {
+    private ErrorMessage(byte type, Map<Byte, String> messageParts) {
+        super(type);
         this.messageParts = Collections.unmodifiableMap(messageParts);
     }
 
@@ -80,12 +82,12 @@ final class ErrorPacket implements PostgrePacket {
 
 
     @Nullable
-    final String getSQLState() {
+    public final String getSQLState() {
         return this.messageParts.get(SQLSTATE);
     }
 
     @Nullable
-    final String getMessage() {
+    public final String getMessage() {
         return this.messageParts.get(MESSAGE);
     }
 
@@ -192,28 +194,28 @@ final class ErrorPacket implements PostgrePacket {
 
     private enum ErrorField {
 
-        SEVERITY(ErrorPacket.SEVERITY),
-        SEVERITY_V(ErrorPacket.SEVERITY_V),
-        SQLSTATE(ErrorPacket.SQLSTATE),
-        MESSAGE(ErrorPacket.MESSAGE),
+        SEVERITY(ErrorMessage.SEVERITY),
+        SEVERITY_V(ErrorMessage.SEVERITY_V),
+        SQLSTATE(ErrorMessage.SQLSTATE),
+        MESSAGE(ErrorMessage.MESSAGE),
 
-        DETAIL(ErrorPacket.DETAIL),
-        HINT(ErrorPacket.HINT),
-        POSITION(ErrorPacket.POSITION),
-        INTERNAL_POSITION(ErrorPacket.INTERNAL_POSITION),
+        DETAIL(ErrorMessage.DETAIL),
+        HINT(ErrorMessage.HINT),
+        POSITION(ErrorMessage.POSITION),
+        INTERNAL_POSITION(ErrorMessage.INTERNAL_POSITION),
 
-        INTERNAL_QUERY(ErrorPacket.INTERNAL_QUERY),
-        WHERE(ErrorPacket.WHERE),
-        SCHEMA(ErrorPacket.SCHEMA),
-        TABLE(ErrorPacket.TABLE),
+        INTERNAL_QUERY(ErrorMessage.INTERNAL_QUERY),
+        WHERE(ErrorMessage.WHERE),
+        SCHEMA(ErrorMessage.SCHEMA),
+        TABLE(ErrorMessage.TABLE),
 
-        COLUMN(ErrorPacket.COLUMN),
-        DATATYPE(ErrorPacket.DATATYPE),
-        CONSTRAINT(ErrorPacket.CONSTRAINT),
-        FILE(ErrorPacket.FILE),
+        COLUMN(ErrorMessage.COLUMN),
+        DATATYPE(ErrorMessage.DATATYPE),
+        CONSTRAINT(ErrorMessage.CONSTRAINT),
+        FILE(ErrorMessage.FILE),
 
-        LINE(ErrorPacket.LINE),
-        ROUTINE(ErrorPacket.ROUTINE);
+        LINE(ErrorMessage.LINE),
+        ROUTINE(ErrorMessage.ROUTINE);
 
         final byte type;
 

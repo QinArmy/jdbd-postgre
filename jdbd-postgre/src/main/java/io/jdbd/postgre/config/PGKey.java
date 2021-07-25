@@ -66,13 +66,13 @@ public enum PGKey implements IPropertyKey {
     ApplicationName(String.class, "jdbd-postgre"),
     kerberosServerName(Integer.class),
     jaasApplicationName(Integer.class),
-    jaasLogin(Integer.class),
+    jaasLogin(Integer.class, "true"),
 
-    gssEncMode(Integer.class),
+    gssEncMode(Enums.GSSEncMode.class, "allow"),
     gsslib(Integer.class),
     // Since: 9.4
     sspiServiceClass(Integer.class),
-    useSpnego(Integer.class),
+    useSpnego(Boolean.class, "false"),
 
     sendBufferSize(Integer.class),
     receiveBufferSize(Integer.class),

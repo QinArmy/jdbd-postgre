@@ -79,7 +79,7 @@ public class MySQLUrlParserSuiteTests {
         String host3 = "( host  =  kosmo , port = 3306 )";
         String host4 = "( host  =  simonyi , port = 9987 )";
         String host5 = "zoro:3306";
-        String host6 = "address=(host=myhost2)(port=2222)(key2=value2)";
+        String host6 = "address=(host=myhost2)(port=2222)(paranoid=false)";
         String dbName = "army";
 
         StringBuilder builder = new StringBuilder(protocol)
