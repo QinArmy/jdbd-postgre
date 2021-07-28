@@ -1,6 +1,7 @@
 package io.jdbd.postgre.config;
 
 import io.jdbd.vendor.conf.IPropertyKey;
+import io.jdbd.vendor.task.SslMode;
 import reactor.util.annotation.Nullable;
 
 import java.nio.file.Path;
@@ -19,7 +20,7 @@ public enum PGKey implements IPropertyKey {
     sslfactory(Class.class),
     @Deprecated
     sslfactoryarg(String.class),
-    sslmode(Enums.SslMode.class),
+    sslmode(SslMode.class),
 
     sslcert(Path.class),
     sslkey(Path.class),
@@ -99,7 +100,17 @@ public enum PGKey implements IPropertyKey {
     PGDBNAME("PGDBNAME", String.class, null),
     PGHOST("PGHOST", String.class, null),
     PGPORT("PGPORT", String.class, null),
-    xmlFactoryFactory(String.class);
+    xmlFactoryFactory(String.class),
+
+    keyStoreType(String.class),
+    keyStoreUrl(String.class),
+    keyStorePassword(String.class),
+
+    trustStoreType(String.class),
+    trustStoreUrl(String.class),
+    trustStorePassword(String.class),
+
+    fallbackToSystemKeyStore(Boolean.class, "false");
 
     private final String key;
 
