@@ -1,7 +1,7 @@
 package io.jdbd.postgre.config;
 
 import io.jdbd.config.UrlException;
-import io.jdbd.postgre.util.PostgreCollections;
+import io.jdbd.postgre.util.PgCollections;
 import io.jdbd.postgre.util.PostgreStringUtils;
 import io.jdbd.vendor.conf.JdbcUrlParser;
 import org.slf4j.Logger;
@@ -148,7 +148,7 @@ final class PostgreUrlParser implements JdbcUrlParser {
                 tempList.add(Collections.unmodifiableMap(map));
             }
 
-            list = PostgreCollections.unmodifiableList(tempList);
+            list = PgCollections.unmodifiableList(tempList);
         }
         return list;
     }

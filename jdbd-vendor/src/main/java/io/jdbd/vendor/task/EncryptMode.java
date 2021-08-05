@@ -10,7 +10,8 @@ package io.jdbd.vendor.task;
  */
 public enum EncryptMode {
 
-    GSS,
-    SSL
+    NONE,
+    SSL,
+    GSS
 
 }

@@ -1,6 +1,6 @@
 package io.jdbd.postgre.protocol.client;
 
-import io.jdbd.postgre.PostgreReConnectableException;
+import io.jdbd.postgre.PgReConnectableException;
 import io.jdbd.postgre.config.Enums;
 import io.jdbd.postgre.config.PGKey;
 import io.jdbd.vendor.task.SslWrapper;
@@ -58,12 +58,12 @@ final class SslUnitTask extends PostgreUnitTask {
             case Messages.E: {
                 String message = "Postgre server response error,not support SSL encryption.";
                 LOG.debug(message);
-                addException(new PostgreReConnectableException(reConnect, message));
+                addException(new PgReConnectableException(reConnect, message));
             }
             break;
             case Messages.N: {
                 if (!reConnect) {
-                    addException(new PostgreReConnectableException(false, "Postgre server not support ssl."));
+                    addException(new PgReConnectableException(false, "Postgre server not support ssl."));
                 }
             }
             break;

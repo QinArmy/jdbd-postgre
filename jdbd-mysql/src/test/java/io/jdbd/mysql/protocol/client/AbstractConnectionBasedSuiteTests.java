@@ -107,6 +107,7 @@ public abstract class AbstractConnectionBasedSuiteTests {
         public int maxAllowedPayload() {
             return 0;
         }
+
     }
 
 

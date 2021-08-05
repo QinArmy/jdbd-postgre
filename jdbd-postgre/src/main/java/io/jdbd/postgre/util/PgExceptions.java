@@ -7,7 +7,7 @@ import io.jdbd.vendor.util.JdbdExceptions;
 import java.sql.SQLException;
 
 
-public abstract class PostgreExceptions extends JdbdExceptions {
+public abstract class PgExceptions extends JdbdExceptions {
 
 
     public static JdbdSQLException createErrorException(ErrorMessage error) {

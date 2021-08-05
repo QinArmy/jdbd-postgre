@@ -1,10 +1,10 @@
 package io.jdbd.postgre.protocol.client;
 
-import io.jdbd.postgre.PostgreJdbdException;
+import io.jdbd.postgre.PgJdbdException;
 import io.jdbd.postgre.config.Enums;
 import io.jdbd.postgre.config.PGKey;
 import io.jdbd.postgre.config.PostgreHost;
-import io.jdbd.postgre.util.PostgreExceptions;
+import io.jdbd.postgre.util.PgExceptions;
 import io.jdbd.postgre.util.PostgreFunctions;
 import io.jdbd.vendor.task.GssWrapper;
 import io.netty.buffer.ByteBuf;
@@ -167,7 +167,7 @@ final class GssUnitTask extends PostgreUnitTask {
             break;
             default: {
                 taskEnd = true;
-                PostgreGssException e = new PostgreGssException(
+                PgGssException e = new PgGssException(
                         notRequiredGss, "An error occurred while setting up the GSS Encoded connection.");
                 addException(e);
             }
@@ -207,7 +207,7 @@ final class GssUnitTask extends PostgreUnitTask {
             taskEnd = true;
             LOG.debug("GssContext is established because last ConnectionTask.");
         } else if (token == null) {
-            throw new PostgreGssException(false, "GssContext no established,but initiate token is null.");
+            throw new PgGssException(false, "GssContext no established,but initiate token is null.");
         } else {
             final ByteBuf message;
             if (this.encryption) {
@@ -232,7 +232,7 @@ final class GssUnitTask extends PostgreUnitTask {
      * @see #decode(ByteBuf, Consumer)
      * @see #startupGssContext()
      */
-    private boolean continueEncryptInitSecurityContext(ByteBuf cumulateBuffer) throws PostgreGssException {
+    private boolean continueEncryptInitSecurityContext(ByteBuf cumulateBuffer) throws PgGssException {
         final GSSContext gssContext = Objects.requireNonNull(this.gssContext, "this.gssContext");
 
         byte[] token = new byte[cumulateBuffer.readInt()];
@@ -240,7 +240,7 @@ final class GssUnitTask extends PostgreUnitTask {
         try {
             token = gssContext.initSecContext(token, 0, token.length);
         } catch (GSSException e) {
-            throw new PostgreGssException(notRequiredGss(), e.getMessage(), e);
+            throw new PgGssException(notRequiredGss(), e.getMessage(), e);
         }
 
         if (token != null) {
@@ -267,13 +267,13 @@ final class GssUnitTask extends PostgreUnitTask {
      * @see <a href="https://www.postgresql.org/docs/current/protocol-message-formats.html">Message::ErrorResponse</a>
      */
     private boolean continueAuthenticateInitSecurityContext(final ByteBuf cumulateBuffer)
-            throws PostgreGssException {
+            throws PgGssException {
         final boolean taskEnd;
         final int type = cumulateBuffer.getChar(cumulateBuffer.readerIndex());
         switch (type) {
             case Messages.E: {
                 ErrorMessage error = ErrorMessage.read(cumulateBuffer);
-                addException(PostgreExceptions.createErrorException(error));
+                addException(PgExceptions.createErrorException(error));
                 taskEnd = true;
             }
             break;
@@ -281,7 +281,7 @@ final class GssUnitTask extends PostgreUnitTask {
                 taskEnd = handleAuthenticationGSSContinueMessage(cumulateBuffer);
                 break;
             default:
-                throw new PostgreGssException(notRequiredGss()
+                throw new PgGssException(notRequiredGss()
                         , "Postgre server error response of GSSResponse message, Session setup failed.");
         }
         return taskEnd;
@@ -341,10 +341,10 @@ final class GssUnitTask extends PostgreUnitTask {
     }
 
     /**
-     * @throws PostgreJdbdException login failure.
+     * @throws PgJdbdException login failure.
      * @see #startupGssContext()
      */
-    private Subject jaasLogin() throws PostgreJdbdException {
+    private Subject jaasLogin() throws PgJdbdException {
         final String entryName = this.properties.getProperty(PGKey.jaasApplicationName, "pgjdbc");
         try {
             LoginContext lc = new LoginContext(entryName, this::jaasCallbackHandler);
@@ -352,7 +352,7 @@ final class GssUnitTask extends PostgreUnitTask {
             this.loginContext = lc;
             return lc.getSubject();
         } catch (Throwable cause) {
-            throw new PostgreJdbdException("JAAS Authentication failed", cause);
+            throw new PgJdbdException("JAAS Authentication failed", cause);
         }
 
     }
@@ -393,7 +393,7 @@ final class GssUnitTask extends PostgreUnitTask {
         try {
             token = gssContext.initSecContext(token, 0, token.length);
         } catch (GSSException e) {
-            throw new PostgreGssException(notRequiredGss(), e.getMessage(), e);
+            throw new PgGssException(notRequiredGss(), e.getMessage(), e);
         }
         if (token != null) {
             // send token to postgre server.
@@ -447,19 +447,19 @@ final class GssUnitTask extends PostgreUnitTask {
     /**
      * @see #readGssEncResponse(ByteBuf)
      */
-    private static PostgreGssException createNotSupportGssEncryption(boolean reconnect) {
-        return new PostgreGssException(reconnect, "The server does not support GSS Encoding.");
+    private static PgGssException createNotSupportGssEncryption(boolean reconnect) {
+        return new PgGssException(reconnect, "The server does not support GSS Encoding.");
     }
 
     /**
      * @see #readGssEncResponse(ByteBuf)
      */
-    private static PostgreGssException wrapAsGssException(boolean reconnect, Throwable cause) {
-        final PostgreGssException e;
-        if (cause instanceof PostgreGssException) {
-            e = (PostgreGssException) cause;
+    private static PgGssException wrapAsGssException(boolean reconnect, Throwable cause) {
+        final PgGssException e;
+        if (cause instanceof PgGssException) {
+            e = (PgGssException) cause;
         } else {
-            e = new PostgreGssException(reconnect, cause.getMessage(), cause);
+            e = new PgGssException(reconnect, cause.getMessage(), cause);
         }
         return e;
     }

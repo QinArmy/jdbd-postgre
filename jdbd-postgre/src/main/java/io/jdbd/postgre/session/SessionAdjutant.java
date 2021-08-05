@@ -10,4 +10,6 @@ public interface SessionAdjutant extends ISessionAdjutant<PGKey, PostgreHost> {
 
     @Override
     PostgreUrl obtainUrl();
+
+
 }

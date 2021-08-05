@@ -47,7 +47,7 @@ public abstract class CommunicationTaskExecutor<T extends ITaskAdjutant> impleme
 
     protected final T taskAdjutant;
 
-    private final Queue<CommunicationTask> taskQueue = Queues.<CommunicationTask>small().get();
+    private final Queue<CommunicationTask<?>> taskQueue = Queues.<CommunicationTask<?>>small().get();
 
     private final TaskSignal taskSignal;
 
@@ -56,7 +56,7 @@ public abstract class CommunicationTaskExecutor<T extends ITaskAdjutant> impleme
 
     private Subscription upstream;
 
-    private CommunicationTask currentTask;
+    private CommunicationTask<?> currentTask;
 
     private TaskStatusException taskError;
 
@@ -637,7 +637,7 @@ public abstract class CommunicationTaskExecutor<T extends ITaskAdjutant> impleme
 
 
         @Override
-        public Mono<Void> sendPacket(final CommunicationTask task, final boolean endTask) {
+        public Mono<Void> sendPacket(final CommunicationTask<?> task, final boolean endTask) {
             return Mono.create(sink -> {
                 if (this.taskExecutor.eventLoop.inEventLoop()) {
                     this.taskExecutor.doSendPacketSignal(sink, task, endTask);

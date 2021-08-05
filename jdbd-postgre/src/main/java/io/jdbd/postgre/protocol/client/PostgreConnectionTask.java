@@ -2,12 +2,15 @@ package io.jdbd.postgre.protocol.client;
 
 import io.jdbd.JdbdException;
 import io.jdbd.config.PropertyException;
-import io.jdbd.postgre.PostgreReConnectableException;
+import io.jdbd.postgre.PgJdbdException;
+import io.jdbd.postgre.PgReConnectableException;
 import io.jdbd.postgre.ServerVersion;
 import io.jdbd.postgre.config.Enums;
 import io.jdbd.postgre.config.PGKey;
 import io.jdbd.postgre.config.PostgreHost;
-import io.jdbd.postgre.util.PostgreExceptions;
+import io.jdbd.postgre.util.PgCollections;
+import io.jdbd.postgre.util.PgExceptions;
+import io.jdbd.postgre.util.PostgreStringUtils;
 import io.jdbd.postgre.util.PostgreTimes;
 import io.jdbd.vendor.task.ChannelEncryptor;
 import io.jdbd.vendor.task.ConnectionTask;
@@ -39,7 +42,7 @@ final class PostgreConnectionTask extends PostgreTask implements ConnectionTask 
                 PostgreConnectionTask task = new PostgreConnectionTask(sink, adjutant);
                 task.submit(sink::error);
             } catch (Throwable e) {
-                sink.error(PostgreExceptions.wrap(e));
+                sink.error(PgExceptions.wrap(e));
             }
 
         });
@@ -57,6 +60,8 @@ final class PostgreConnectionTask extends PostgreTask implements ConnectionTask 
     private GssWrapper gssWrapper;
 
     private Phase phase;
+
+    private Map<String, String> serverStatusMap;
 
     private PostgreConnectionTask(MonoSink<AuthResult> sink, TaskAdjutant adjutant) {
         super(adjutant);
@@ -87,10 +92,10 @@ final class PostgreConnectionTask extends PostgreTask implements ConnectionTask 
         JdbdException error;
         while (iterator.hasNext()) {
             error = iterator.next();
-            if (!(error instanceof PostgreReConnectableException)) {
+            if (!(error instanceof PgReConnectableException)) {
                 continue;
             }
-            PostgreReConnectableException e = (PostgreReConnectableException) error;
+            PgReConnectableException e = (PgReConnectableException) error;
             if (e.isReconnect()) {
                 iterator.remove();
                 reconnect = true;
@@ -108,18 +113,20 @@ final class PostgreConnectionTask extends PostgreTask implements ConnectionTask 
     @Override
     protected final Publisher<ByteBuf> start() {
         final Publisher<ByteBuf> publisher;
-        if (this.properties.getOrDefault(PGKey.gssEncMode, Enums.GSSEncMode.class).needGssEnc()) {
-            PostgreUnitTask unitTask;
-            unitTask = GssUnitTask.encryption(this, this::configGssContext);
-            this.unitTask = unitTask;
-            publisher = unitTask.start();
-            this.phase = Phase.GSS_ENCRYPTION_TASK;
-        } else if (this.properties.getOrDefault(PGKey.sslmode, Enums.SslMode.class).needSslEnc()) {
-            publisher = startSslEncryptionUnitTask();
-        } else {
-            publisher = startStartupMessage();
-            this.phase = Phase.READ_START_UP_RESPONSE;
-        }
+//        if (this.properties.getOrDefault(PGKey.gssEncMode, Enums.GSSEncMode.class).needGssEnc()) {
+//            PostgreUnitTask unitTask;
+//            unitTask = GssUnitTask.encryption(this, this::configGssContext);
+//            this.unitTask = unitTask;
+//            publisher = unitTask.start();
+//            this.phase = Phase.GSS_ENCRYPTION_TASK;
+//        } else if (this.properties.getOrDefault(PGKey.sslmode, Enums.SslMode.class).needSslEnc()) {
+//            publisher = startSslEncryptionUnitTask();
+//        } else {
+//            publisher = startStartupMessage();
+//            this.phase = Phase.READ_START_UP_RESPONSE;
+//        }
+        publisher = startStartupMessage();
+        this.phase = Phase.READ_START_UP_RESPONSE;
         return publisher;
     }
 
@@ -149,30 +156,180 @@ final class PostgreConnectionTask extends PostgreTask implements ConnectionTask 
                 break;
                 case READ_START_UP_RESPONSE: {
                     taskEnd = readStartUpResponse(cumulateBuffer, serverStatusConsumer);
-
+                    continueDecode = false;
                 }
                 break;
-                default:
+                case READ_MSG_AFTER_OK: {
+                    taskEnd = readMessageAfterAuthenticationOk(cumulateBuffer, serverStatusConsumer);
+                    continueDecode = false;
+                }
+                break;
+                default: {
+
+                }
 
             }
 
         }
-
         return taskEnd;
     }
 
+
+
     /*################################## blow private method ##################################*/
 
-    private boolean readStartUpResponse(ByteBuf cumulateBuffer, Consumer<Object> serverStatusConsumer) {
-        return false;
+    /**
+     * <p>
+     * Read possible response of StartupMessage:
+     *     <ul>
+     *         <li>AuthenticationOk</li>
+     *         <li>ErrorResponse</li>
+     *         <li>AuthenticationMD5Password</li>
+     *         <li>AuthenticationCleartextPassword</li>
+     *         <li>AuthenticationKerberosV5</li>
+     *         <li>AuthenticationSCMCredential</li>
+     *         <li>AuthenticationGSS</li>
+     *         <li>AuthenticationSSPI</li>
+     *         <li>AuthenticationGSSContinue</li>
+     *         <li>AuthenticationSASL</li>
+     *         <li>AuthenticationSASLContinue</li>
+     *         <li>AuthenticationSASLFinal</li>
+     *         <li>NegotiateProtocolVersion</li>
+     *     </ul>
+     * </p>
+     *
+     * @return true : task end.
+     */
+    private boolean readStartUpResponse(final ByteBuf cumulateBuffer, final Consumer<Object> serverStatusConsumer) {
+        final int byte1 = cumulateBuffer.readByte(), startIndex = cumulateBuffer.readerIndex();
+        final int length = cumulateBuffer.readInt();
+        boolean taskEnd = false;
+        switch (byte1) {
+            case Messages.E: {
+                // error,server close connection.
+                taskEnd = true;
+                ErrorMessage message = ErrorMessage.readBody(cumulateBuffer, startIndex + length);
+                addError(PgExceptions.createErrorException(message));
+            }
+            break;
+            case Messages.R: {
+                switch (cumulateBuffer.readInt()) {
+                    case Messages.AUTH_OK: {
+                        LOG.debug("Authentication success,receiving message from server.");
+                        this.phase = Phase.READ_MSG_AFTER_OK;
+                        taskEnd = readMessageAfterAuthenticationOk(cumulateBuffer, serverStatusConsumer);
+                    }
+                    break;
+                    case Messages.AUTH_KRB5:
+                    case Messages.AUTH_CLEAR_TEXT:
+                        taskEnd = true;
+                        addError(new PgJdbdException("Not support authentication method. "));
+                        break;
+                    case Messages.AUTH_MD5: {
+                        PostgreHost host = this.adjutant.obtainHost();
+                        final String password = host.getPassword();
+                        if (PostgreStringUtils.hasText(password)) {
+                            byte[] salt = new byte[length - 4];
+                            cumulateBuffer.readBytes(salt);
+                            this.packetPublisher = Mono.just(
+                                    Messages.md5Password(host.getUser(), password, salt, this.adjutant.allocator())
+                            );
+                        } else {
+                            String m;
+                            m = "The server requested password-based authentication, but no password was provided.";
+                            taskEnd = true;
+                            addError(new PgJdbdException(m));
+                        }
+                    }
+                    break;
+                    case Messages.AUTH_SCM:
+                    case Messages.AUTH_GSS:
+                    case Messages.AUTH_GSS_CONTINUE:
+                    case Messages.AUTH_SSPI:
+                    case Messages.AUTH_SASL:
+                    case Messages.AUTH_SASL_CONTINUE:
+                    case Messages.AUTH_SASL_FINAL:
+                    default: {
+                        taskEnd = true;
+                        String m = String.format("Client not support authentication method(%s).", byte1);
+                        addError(new PgJdbdException(m));
+                    }
+                }
+            }
+            break;
+            case Messages.v: {
+
+            }
+            break;
+            default:
+        }
+        cumulateBuffer.readerIndex(startIndex + length); // avoid to tailor.
+        return taskEnd;
     }
 
     /**
-     * @see #start()
+     * @see #readStartUpResponse(ByteBuf, Consumer)
+     * @see #decode(ByteBuf, Consumer)
      */
-    private void configGssContext(GssWrapper gssWrapper) {
-        this.gssWrapper = gssWrapper;
-        this.channelEncryptor.addGssContext(gssWrapper);
+    private boolean readMessageAfterAuthenticationOk(final ByteBuf cumulateBuffer
+            , final Consumer<Object> serverStatusConsumer) {
+        assertPhase(Phase.READ_MSG_AFTER_OK);
+        // read ParameterStatus messages
+        Map<String, String> serverStatusMap = null;
+        boolean taskEnd = false;
+        while (Messages.hasOneMessage(cumulateBuffer)) {
+            final int msgType = cumulateBuffer.readByte(), bodyIndex = cumulateBuffer.readerIndex();
+            final int nextMsgIndex = bodyIndex + cumulateBuffer.readInt();
+
+            switch (msgType) {
+                case Messages.E: { // ErrorResponse message
+                    taskEnd = true;
+                    ErrorMessage error = ErrorMessage.readBody(cumulateBuffer, nextMsgIndex);
+                    addError(PgExceptions.createErrorException(error));
+                }
+                break;
+                case Messages.S: {// ParameterStatus message
+                    if (serverStatusMap == null) {
+                        serverStatusMap = new HashMap<>();
+                    }
+                    serverStatusMap.put(
+                            Messages.readString(cumulateBuffer)
+                            , Messages.readString(cumulateBuffer)
+                    );
+                }
+                break;
+                case Messages.Z: {// ReadyForQuery message
+                    // here , session build success.
+                    TxStatus txStatus = TxStatus.from(cumulateBuffer.readByte());
+                    serverStatusConsumer.accept(txStatus); // modify server transaction status.
+                    taskEnd = true;
+                    LOG.debug("Session build success,transaction status[{}].", txStatus);
+                }
+                break;
+                case Messages.K: {// BackendKeyData message
+                    // modify server BackendKeyData
+                    serverStatusConsumer.accept(BackendKeyData.readBody(cumulateBuffer));
+                }
+                break;
+                case Messages.N: { // NoticeResponse message
+                    // modify server status.
+                    serverStatusConsumer.accept(NoticeMessage.readBody(cumulateBuffer, nextMsgIndex));
+                }
+                break;
+                default: { // Unknown message
+                    String msg = String.format("Unknown message type [%s] after authentication ok.", (char) msgType);
+                    addError(new PgJdbdException(msg));
+                }
+            }// switch
+            cumulateBuffer.readerIndex(nextMsgIndex); // avoid tail filler.
+        }
+
+        if (!PgCollections.isEmpty(serverStatusMap)) {
+            // modify server status.
+            serverStatusConsumer.accept(serverStatusMap);
+        }
+        return taskEnd;
+
     }
 
 
@@ -218,10 +375,10 @@ final class PostgreConnectionTask extends PostgreTask implements ConnectionTask 
         }
         boolean has = false;
         for (Throwable error : errorList) {
-            if (!(error instanceof PostgreReConnectableException)) {
+            if (!(error instanceof PgReConnectableException)) {
                 continue;
             }
-            PostgreReConnectableException e = (PostgreReConnectableException) error;
+            PgReConnectableException e = (PgReConnectableException) error;
             if (e.isReconnect()) {
                 has = true;
                 break;
@@ -368,14 +525,6 @@ final class PostgreConnectionTask extends PostgreTask implements ConnectionTask 
         return Collections.unmodifiableList(list);
     }
 
-    /**
-     * @see #start()
-     */
-    private void handleError(Throwable e) {
-        this.phase = Phase.DISCONNECT;
-        this.sink.error(PostgreExceptions.wrap(e));
-
-    }
 
     /**
      * @see #obtainStartUpParamList()
@@ -403,6 +552,7 @@ final class PostgreConnectionTask extends PostgreTask implements ConnectionTask 
     private enum Phase {
         SSL_ENCRYPTION_TASK,
         READ_START_UP_RESPONSE,
+        READ_MSG_AFTER_OK,
         GSS_ENCRYPTION_TASK,
         DISCONNECT
     }
