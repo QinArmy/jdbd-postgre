@@ -1,6 +1,7 @@
 package io.jdbd.postgre.config;
 
 import io.jdbd.vendor.conf.IPropertyKey;
+import io.jdbd.vendor.conf.Redefine;
 import io.jdbd.vendor.task.SslMode;
 import reactor.util.annotation.Nullable;
 
@@ -9,7 +10,7 @@ import java.nio.file.Path;
 /**
  * @see <a href="https://jdbc.postgresql.org/documentation/head/connect.html">properties</a>
  */
-public enum PGKey implements IPropertyKey {
+public enum PgKey implements IPropertyKey {
 
     user(String.class),
     password(String.class),
@@ -20,7 +21,8 @@ public enum PGKey implements IPropertyKey {
     sslfactory(Class.class),
     @Deprecated
     sslfactoryarg(String.class),
-    sslmode(SslMode.class),
+    @Redefine
+    sslmode(SslMode.class, "DISABLED"),
 
     sslcert(Path.class),
     sslkey(Path.class),
@@ -64,12 +66,12 @@ public enum PGKey implements IPropertyKey {
     unknownLength(Integer.class),
     stringtype(Integer.class),
 
-    ApplicationName(String.class, "jdbd-postgre"),
+    ApplicationName(String.class),
     kerberosServerName(Integer.class),
     jaasApplicationName(Integer.class),
     jaasLogin(Integer.class, "true"),
 
-    gssEncMode(Enums.GSSEncMode.class, "allow"),
+    gssEncMode(Enums.GSSEncMode.class, "DISABLE"),
     gsslib(Integer.class),
     // Since: 9.4
     sspiServiceClass(Integer.class),
@@ -119,16 +121,16 @@ public enum PGKey implements IPropertyKey {
     private final Class<?> javaType;
 
 
-    PGKey(Class<?> javaType) {
+    PgKey(Class<?> javaType) {
         this(null, javaType, null);
     }
 
 
-    PGKey(Class<?> javaType, @Nullable String defaultValue) {
+    PgKey(Class<?> javaType, @Nullable String defaultValue) {
         this(null, javaType, defaultValue);
     }
 
-    PGKey(@Nullable String key, Class<?> javaType, @Nullable String defaultValue) {
+    PgKey(@Nullable String key, Class<?> javaType, @Nullable String defaultValue) {
         this.key = key == null ? this.name() : key;
         this.javaType = javaType;
         this.defaultValue = defaultValue;

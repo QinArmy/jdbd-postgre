@@ -5,7 +5,7 @@ import io.jdbd.vendor.conf.JdbcUrlParser;
 
 import java.util.Map;
 
-public final class PostgreUrl extends AbstractJdbcUrl<PGKey, PostgreHost> {
+public final class PostgreUrl extends AbstractJdbcUrl<PgKey, PostgreHost> {
 
     public static PostgreUrl create(String url, Map<String, String> propMap) {
         return new PostgreUrl(PostgreUrlParser.create(url, propMap));
@@ -24,8 +24,8 @@ public final class PostgreUrl extends AbstractJdbcUrl<PGKey, PostgreHost> {
     }
 
     @Override
-    protected final PGKey getDbNameKey() {
-        return PGKey.PGDBNAME;
+    protected final PgKey getDbNameKey() {
+        return PgKey.PGDBNAME;
     }
 
 

@@ -52,7 +52,7 @@ final class PostgreUrlParser implements JdbcUrlParser {
             throw new UrlException(url, message);
         }
         this.globalProperties = createGlobalProperties(matcher, propMap);
-        this.dbName = this.globalProperties.get(PGKey.PGDBNAME.getKey());
+        this.dbName = this.globalProperties.get(PgKey.PGDBNAME.getKey());
         this.hostInfoList = parseHostList(matcher.group("hostList"));
     }
 
@@ -111,7 +111,7 @@ final class PostgreUrlParser implements JdbcUrlParser {
         String database;
         database = urlMatcher.group("database");
         if (database != null) {
-            globalMap.put(PGKey.PGDBNAME.getKey(), PostgreStringUtils.decodeUrlPart(database));
+            globalMap.put(PgKey.PGDBNAME.getKey(), PostgreStringUtils.decodeUrlPart(database));
         }
         return Collections.unmodifiableMap(globalMap);
     }
@@ -140,10 +140,10 @@ final class PostgreUrlParser implements JdbcUrlParser {
                     host = matcher.group("hostIpv6");
                 }
                 map = new HashMap<>(4);
-                map.put(PGKey.PGHOST.getKey(), PostgreStringUtils.decodeUrlPart(host));
+                map.put(PgKey.PGHOST.getKey(), PostgreStringUtils.decodeUrlPart(host));
                 port = matcher.group("port");
                 if (port != null) {
-                    map.put(PGKey.PGPORT.getKey(), port);
+                    map.put(PgKey.PGPORT.getKey(), port);
                 }
                 tempList.add(Collections.unmodifiableMap(map));
             }

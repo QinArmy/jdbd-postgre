@@ -14,7 +14,7 @@ abstract class Messages {
 
     static final Charset CLIENT_CHARSET = StandardCharsets.UTF_8;
 
-    static final byte TERMINATOR = 0;
+    static final byte STRING_TERMINATOR = 0;
 
     static final byte E = 'E';
 
@@ -71,7 +71,7 @@ abstract class Messages {
 
     static void writeString(ByteBuf packet, String string) {
         packet.writeBytes(string.getBytes(CLIENT_CHARSET));
-        packet.writeByte(TERMINATOR);
+        packet.writeByte(STRING_TERMINATOR);
     }
 
     static String readString(final ByteBuf message) {
@@ -80,14 +80,14 @@ abstract class Messages {
 
     static byte[] readBytesTerm(final ByteBuf message) {
         final int len;
-        len = message.bytesBefore(TERMINATOR);
+        len = message.bytesBefore(STRING_TERMINATOR);
         if (len < 0) {
             throw new IllegalArgumentException("Not found terminator of string.");
         }
         final byte[] bytes = new byte[len];
         message.readBytes(bytes);
 
-        if (message.readByte() != TERMINATOR) {
+        if (message.readByte() != STRING_TERMINATOR) {
             throw new IllegalArgumentException("Not found terminator of string.");
         }
         return bytes;
@@ -115,33 +115,42 @@ abstract class Messages {
             digest.update(password.getBytes(StandardCharsets.UTF_8));
             digest.update(user.getBytes(StandardCharsets.UTF_8));
             tempBytes = digest.digest();
-            tempBytes = HexUtils.hexEscapes(tempBytes, tempBytes.length);
+            tempBytes = HexUtils.hexEscapes(false, tempBytes, tempBytes.length);
 
             // [2]. get  md5([1], random-salt))
             digest.update(tempBytes);
             digest.update(salt);
             tempBytes = digest.digest();
-            tempBytes = HexUtils.hexEscapes(tempBytes, tempBytes.length);
+            tempBytes = HexUtils.hexEscapes(false, tempBytes, tempBytes.length);
 
             // [3]. get concat('md5', [2]) and create PasswordMessage
-            ByteBuf message = allocator.buffer();
+            final ByteBuf message = allocator.buffer(8 + tempBytes.length + 1);
 
             message.writeByte('p'); // Byte1('p')
-            message.writeInt(4 + 3 + tempBytes.length);
+            message.writeZero(4); // length placeholder.
 
-            message.writeChar('m');
-            message.writeChar('d');
-            message.writeChar('5');
+            message.writeByte('m');
+            message.writeByte('d');
+            message.writeByte('5');
             message.writeBytes(tempBytes);
 
-            message.writeByte(TERMINATOR);
+            message.writeByte(STRING_TERMINATOR);
 
+            writeLength(message);
             return message;
         } catch (NoSuchAlgorithmException e) {
             // never here.
             throw new RuntimeException(e);
         }
 
+    }
+
+
+    static void writeLength(ByteBuf message) {
+        final int length = message.readableBytes() - 1, writerIndex = message.writerIndex();
+        message.writerIndex(message.readerIndex() + 1);
+        message.writeInt(length);
+        message.writerIndex(writerIndex);
     }
 
 

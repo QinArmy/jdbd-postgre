@@ -1,10 +1,13 @@
 package io.jdbd.vendor.result;
 
 import io.jdbd.JdbdException;
+import io.jdbd.result.ResultRow;
+import io.jdbd.result.ResultState;
 import io.jdbd.result.SingleResult;
 import io.jdbd.vendor.task.ITaskAdjutant;
 import io.jdbd.vendor.util.JdbdExceptions;
 import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
 import java.util.function.Consumer;
 
@@ -38,6 +41,14 @@ public abstract class JdbdMultiResults {
             }
 
         });
+    }
+
+    public static Mono<ResultState> update(ITaskAdjutant adjutant, Flux<SingleResult> resultFlux) {
+        return Mono.empty();
+    }
+
+    public static Flux<ResultRow> query(ITaskAdjutant adjutant, Flux<SingleResult> resultFlux) {
+        return Flux.empty();
     }
 
 

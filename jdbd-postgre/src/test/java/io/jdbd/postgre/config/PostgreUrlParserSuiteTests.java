@@ -80,8 +80,8 @@ public class PostgreUrlParserSuiteTests {
 
         final Map<String, String> host = hostList.get(0);
 
-        assertEquals(host.get(PGKey.PGHOST.getKey()), "2001:DB8:0:23:8:800:200C:417A", "host");
-        assertEquals(host.get(PGKey.PGPORT.getKey()), "5432", "port");
+        assertEquals(host.get(PgKey.PGHOST.getKey()), "2001:DB8:0:23:8:800:200C:417A", "host");
+        assertEquals(host.get(PgKey.PGPORT.getKey()), "5432", "port");
 
         LOG.info("{} group  urlParserIpv6 test success", Group.URL);
     }
@@ -110,8 +110,8 @@ public class PostgreUrlParserSuiteTests {
 
         final Map<String, String> host = hostList.get(0);
 
-        assertEquals(host.get(PGKey.PGHOST.getKey()), "192.168.0.102", "host");
-        assertEquals(host.get(PGKey.PGPORT.getKey()), "5432", "port");
+        assertEquals(host.get(PgKey.PGHOST.getKey()), "192.168.0.102", "host");
+        assertEquals(host.get(PgKey.PGPORT.getKey()), "5432", "port");
 
 
         LOG.info("{} group  urlParserIpv4 test success", Group.URL);
@@ -142,8 +142,8 @@ public class PostgreUrlParserSuiteTests {
 
         final Map<String, String> host = hostList.get(0);
 
-        assertEquals(host.get(PGKey.PGHOST.getKey()), "192.168.0.102", "host");
-        assertNull(host.get(PGKey.PGPORT.getKey()), "port");
+        assertEquals(host.get(PgKey.PGHOST.getKey()), "192.168.0.102", "host");
+        assertNull(host.get(PgKey.PGPORT.getKey()), "port");
 
         LOG.info("{} group  urlParserDefaultPort test success", Group.URL);
     }
@@ -173,8 +173,8 @@ public class PostgreUrlParserSuiteTests {
 
         final Map<String, String> host = hostList.get(0);
 
-        assertEquals(host.get(PGKey.PGHOST.getKey()), "192.168.0.102", "host");
-        assertNull(host.get(PGKey.PGPORT.getKey()), "port");
+        assertEquals(host.get(PgKey.PGHOST.getKey()), "192.168.0.102", "host");
+        assertNull(host.get(PgKey.PGPORT.getKey()), "port");
 
         LOG.info("{} group  urlParserPortNoDatabase test success", Group.URL);
     }
@@ -203,8 +203,8 @@ public class PostgreUrlParserSuiteTests {
 
         final Map<String, String> host = hostList.get(0);
 
-        assertNull(host.get(PGKey.PGHOST.getKey()), "host");
-        assertNull(host.get(PGKey.PGPORT.getKey()), "port");
+        assertNull(host.get(PgKey.PGHOST.getKey()), "host");
+        assertNull(host.get(PgKey.PGPORT.getKey()), "port");
 
         LOG.info("{} group  urlParser5 test success", Group.URL);
     }
@@ -234,23 +234,23 @@ public class PostgreUrlParserSuiteTests {
 
         final Map<String, String> host1 = hostList.get(0);
 
-        assertEquals(host1.get(PGKey.PGHOST.getKey()), "192.168.0.102", "host1");
-        assertNull(host1.get(PGKey.PGPORT.getKey()), "port1");
+        assertEquals(host1.get(PgKey.PGHOST.getKey()), "192.168.0.102", "host1");
+        assertNull(host1.get(PgKey.PGPORT.getKey()), "port1");
 
         final Map<String, String> host2 = hostList.get(1);
 
-        assertEquals(host2.get(PGKey.PGHOST.getKey()), "2001:DB8:0:23:8:800:200C:417A", "host2");
-        assertNull(host2.get(PGKey.PGPORT.getKey()), "port2");
+        assertEquals(host2.get(PgKey.PGHOST.getKey()), "2001:DB8:0:23:8:800:200C:417A", "host2");
+        assertNull(host2.get(PgKey.PGPORT.getKey()), "port2");
 
         final Map<String, String> host3 = hostList.get(2);
 
-        assertEquals(host3.get(PGKey.PGHOST.getKey()), "localhost", "host3");
-        assertEquals(host3.get(PGKey.PGPORT.getKey()), "7878", "port3");
+        assertEquals(host3.get(PgKey.PGHOST.getKey()), "localhost", "host3");
+        assertEquals(host3.get(PgKey.PGPORT.getKey()), "7878", "port3");
 
         final Map<String, String> host4 = hostList.get(3);
 
-        assertEquals(host4.get(PGKey.PGHOST.getKey()), "2002:DB8:0:23:8:233:200C:417A", "host4");
-        assertEquals(host4.get(PGKey.PGPORT.getKey()), "5656", "port4");
+        assertEquals(host4.get(PgKey.PGHOST.getKey()), "2002:DB8:0:23:8:233:200C:417A", "host4");
+        assertEquals(host4.get(PgKey.PGPORT.getKey()), "5656", "port4");
 
         LOG.info("{} group  failOverHostList test success", Group.URL);
     }

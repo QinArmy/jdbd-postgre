@@ -5,6 +5,6 @@ public interface TaskExecutor<T extends ITaskAdjutant> {
     /**
      * @return always same instance.
      */
-    T getAdjutant();
+    T taskAdjutant();
 
 }

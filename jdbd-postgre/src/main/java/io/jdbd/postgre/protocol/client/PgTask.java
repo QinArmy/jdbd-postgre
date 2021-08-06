@@ -1,24 +1,19 @@
 package io.jdbd.postgre.protocol.client;
 
-import io.jdbd.JdbdException;
-import io.jdbd.postgre.config.PGKey;
+import io.jdbd.postgre.config.PgKey;
 import io.jdbd.vendor.conf.Properties;
 import io.jdbd.vendor.task.CommunicationTask;
 import io.netty.buffer.ByteBuf;
 
-import java.util.List;
+
+abstract class PgTask extends CommunicationTask<TaskAdjutant> {
 
 
-abstract class PostgreTask extends CommunicationTask<TaskAdjutant> {
-
-
-    final Properties<PGKey> properties;
-
-    List<JdbdException> errorList;
+    final Properties<PgKey> properties;
 
     PostgreUnitTask unitTask;
 
-    PostgreTask(final TaskAdjutant adjutant) {
+    PgTask(final TaskAdjutant adjutant) {
         super(adjutant);
         this.properties = adjutant.obtainHost().getProperties();
     }

@@ -255,7 +255,7 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBased
         assertNotNull(protocol, "protocol");
 
         TaskAdjutant taskAdjutant;
-        taskAdjutant = protocol.taskExecutor.getAdjutant();
+        taskAdjutant = protocol.taskExecutor.taskAdjutant();
 
         assertTinyInt1BindAndExtract(taskAdjutant, MySQLType.TINYINT, 0);
         assertTinyInt1BindAndExtract(taskAdjutant, MySQLType.BIT, 0);
@@ -270,7 +270,7 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBased
         protocol = ClientConnectionProtocolImpl.create(0, sessionAdjutant)
                 .block();
         assertNotNull(protocol, "protocol");
-        taskAdjutant = protocol.taskExecutor.getAdjutant();
+        taskAdjutant = protocol.taskExecutor.taskAdjutant();
 
         assertTinyInt1BindAndExtract(taskAdjutant, MySQLType.TINYINT, 1);
         assertTinyInt1BindAndExtract(taskAdjutant, MySQLType.BIT, 1);
@@ -286,7 +286,7 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBased
         protocol = ClientConnectionProtocolImpl.create(0, sessionAdjutant)
                 .block();
         assertNotNull(protocol, "protocol");
-        taskAdjutant = protocol.taskExecutor.getAdjutant();
+        taskAdjutant = protocol.taskExecutor.taskAdjutant();
 
         assertTinyInt1BindAndExtract(taskAdjutant, MySQLType.TINYINT, 1);
         assertTinyInt1BindAndExtract(taskAdjutant, MySQLType.BIT, 1);

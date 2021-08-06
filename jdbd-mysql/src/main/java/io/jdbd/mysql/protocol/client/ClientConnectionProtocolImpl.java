@@ -52,14 +52,14 @@ final class ClientConnectionProtocolImpl implements ClientConnectionProtocol {
             , int hostIndex, final MySQLTaskExecutor taskExecutor) {
         this.hostInfo = sessionAdjutant.obtainUrl().getHostList().get(hostIndex);
         this.taskExecutor = taskExecutor;
-        this.sessionResetter = DefaultSessionResetter.create(this.taskExecutor.getAdjutant());
+        this.sessionResetter = DefaultSessionResetter.create(this.taskExecutor.taskAdjutant());
         this.properties = this.hostInfo.getProperties();
     }
 
 
     @Override
     public Mono<Void> authenticateAndInitializing() {
-        return MySQLConnectionTask.authenticate(this.taskExecutor.getAdjutant())
+        return MySQLConnectionTask.authenticate(this.taskExecutor.taskAdjutant())
                 .doOnSuccess(result -> MySQLTaskExecutor.setAuthenticateResult(this.taskExecutor, result))
                 .then(Mono.defer(this::detectCustomCollations))
                 .doOnSuccess(map -> MySQLTaskExecutor.setCustomCollation(this.taskExecutor, map))
@@ -73,7 +73,7 @@ final class ClientConnectionProtocolImpl implements ClientConnectionProtocol {
 
     @Override
     public Mono<Void> closeGracefully() {
-        return QuitTask.quit(this.taskExecutor.getAdjutant());
+        return QuitTask.quit(this.taskExecutor.taskAdjutant());
     }
 
 
@@ -84,7 +84,7 @@ final class ClientConnectionProtocolImpl implements ClientConnectionProtocol {
      */
     private Mono<Void> handleInitializingError(Throwable e) {
         Mono<Void> mono;
-        if (this.taskExecutor.getAdjutant().isAuthenticated()) {
+        if (this.taskExecutor.taskAdjutant().isAuthenticated()) {
             if (LOG.isDebugEnabled()) {
                 LOG.debug("initializing occur error,quit session.");
             }
@@ -105,7 +105,7 @@ final class ClientConnectionProtocolImpl implements ClientConnectionProtocol {
         if (this.properties.getOrDefault(PropertyKey.detectCustomCollations, Boolean.class)) {
             LOG.debug("detectCustomCollations start");
             // blow tow phase: SHOW COLLATION phase and SHOW CHARACTER SET phase
-            mono = ComQueryTask.query(Stmts.stmt("SHOW COLLATION"), this.taskExecutor.getAdjutant())
+            mono = ComQueryTask.query(Stmts.stmt("SHOW COLLATION"), this.taskExecutor.taskAdjutant())
                     .filter(this::isCustomCollation)
                     .doOnNext(this::printCustomCollationLog)
                     .collectMap(this::customCollationMapKeyFunction, this::customCollationMapValueFunction)
@@ -199,7 +199,7 @@ final class ClientConnectionProtocolImpl implements ClientConnectionProtocol {
             mono = Mono.just(Collections.emptyMap());
         } else {
 
-            mono = ComQueryTask.query(Stmts.stmt("SHOW CHARACTER SET"), this.taskExecutor.getAdjutant())
+            mono = ComQueryTask.query(Stmts.stmt("SHOW CHARACTER SET"), this.taskExecutor.taskAdjutant())
                     .filter(resultRow -> charsetNameSet.contains(resultRow.getNonNull("Charset", String.class)))
                     .collectMap(resultRow -> resultRow.getNonNull("Charset", String.class)
                             , resultRow -> resultRow.getNonNull("Maxlen", Integer.class))

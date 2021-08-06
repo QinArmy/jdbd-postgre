@@ -85,7 +85,7 @@ public abstract class CommunicationTaskExecutor<T extends ITaskAdjutant> impleme
 
 
     @Override
-    public final T getAdjutant() {
+    public final T taskAdjutant() {
         return this.taskAdjutant;
     }
 

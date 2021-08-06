@@ -15,12 +15,12 @@ import reactor.netty.tcp.TcpClient;
 
 import java.util.List;
 
-final class PostgreTaskExecutor extends CommunicationTaskExecutor<TaskAdjutant> {
+final class PgTaskExecutor extends CommunicationTaskExecutor<TaskAdjutant> {
 
-    static Mono<PostgreTaskExecutor> create(final SessionAdjutant sessionAdjutant, final int hostIndex) {
+    static Mono<PgTaskExecutor> create(final SessionAdjutant sessionAdjutant, final int hostIndex) {
         final List<PostgreHost> hostList = sessionAdjutant.obtainUrl().getHostList();
 
-        final Mono<PostgreTaskExecutor> mono;
+        final Mono<PgTaskExecutor> mono;
         if (hostIndex > -1 && hostIndex < hostList.size()) {
             final PostgreHost host = hostList.get(hostIndex);
             mono = TcpClient.create()
@@ -28,7 +28,7 @@ final class PostgreTaskExecutor extends CommunicationTaskExecutor<TaskAdjutant> 
                     .host(host.getHost())
                     .port(host.getPort())
                     .connect()
-                    .map(connection -> new PostgreTaskExecutor(connection, host, sessionAdjutant));
+                    .map(connection -> new PgTaskExecutor(connection, host, sessionAdjutant));
         } else {
             IllegalArgumentException e = new IllegalArgumentException(
                     String.format("hostIndex[%s] not in [0,%s)", hostIndex, hostList.size()));
@@ -37,15 +37,19 @@ final class PostgreTaskExecutor extends CommunicationTaskExecutor<TaskAdjutant> 
         return mono;
     }
 
+    static void handleAuthenticationSuccess(PgTaskExecutor executor, AuthResult result) {
+        LOG.debug("Authentication success.");
+    }
 
-    private static final Logger LOG = LoggerFactory.getLogger(PostgreTaskExecutor.class);
+
+    private static final Logger LOG = LoggerFactory.getLogger(PgTaskExecutor.class);
 
 
     private final PostgreHost host;
 
     private final SessionAdjutant sessionAdjutant;
 
-    private PostgreTaskExecutor(Connection connection, PostgreHost host, SessionAdjutant sessionAdjutant) {
+    private PgTaskExecutor(Connection connection, PostgreHost host, SessionAdjutant sessionAdjutant) {
         super(connection);
         this.host = host;
         this.sessionAdjutant = sessionAdjutant;
@@ -82,9 +86,9 @@ final class PostgreTaskExecutor extends CommunicationTaskExecutor<TaskAdjutant> 
 
     private static final class TaskAdjutantWrapper extends AbstractTaskAdjutant implements TaskAdjutant {
 
-        private final PostgreTaskExecutor taskExecutor;
+        private final PgTaskExecutor taskExecutor;
 
-        private TaskAdjutantWrapper(PostgreTaskExecutor taskExecutor) {
+        private TaskAdjutantWrapper(PgTaskExecutor taskExecutor) {
             super(taskExecutor);
             this.taskExecutor = taskExecutor;
         }

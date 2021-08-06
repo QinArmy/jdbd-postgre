@@ -14,6 +14,7 @@ public enum SslMode {
      */
     VERIFY_IDENTITY,
     /** Do not use encrypted connections. */
-    DISABLED
+    DISABLED;
+
 
 }

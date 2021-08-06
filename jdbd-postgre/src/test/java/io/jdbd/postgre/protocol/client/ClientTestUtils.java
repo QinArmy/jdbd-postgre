@@ -20,10 +20,12 @@ public abstract class ClientTestUtils {
 
 
     public static PostgreUrl createUrl(Map<String, String> propertiesMap) {
-        String url = "jdbc:postgresql://localhost:5433/army_test";
+        String url = "jdbc:postgresql://localhost:5432/army_test";
         Map<String, String> properties = new HashMap<>();
         properties.put("user", "army_w");
         properties.put("password", "army123");
+        properties.put("sslmode", "DISABLED");
+
         properties.putAll(propertiesMap);
 
         return PostgreUrl.create(url, properties);

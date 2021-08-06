@@ -48,7 +48,7 @@ public abstract class AbstractConnectionBasedSuiteTests {
                     .block();
             assertNotNull(protocol, "protocol");
 
-            taskAdjutant = protocol.taskExecutor.getAdjutant();
+            taskAdjutant = protocol.taskExecutor.taskAdjutant();
         }
 
         return taskAdjutant;

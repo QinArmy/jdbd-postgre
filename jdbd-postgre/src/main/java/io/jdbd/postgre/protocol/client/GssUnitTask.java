@@ -2,7 +2,7 @@ package io.jdbd.postgre.protocol.client;
 
 import io.jdbd.postgre.PgJdbdException;
 import io.jdbd.postgre.config.Enums;
-import io.jdbd.postgre.config.PGKey;
+import io.jdbd.postgre.config.PgKey;
 import io.jdbd.postgre.config.PostgreHost;
 import io.jdbd.postgre.util.PgExceptions;
 import io.jdbd.postgre.util.PostgreFunctions;
@@ -26,21 +26,21 @@ import java.util.Objects;
 import java.util.function.Consumer;
 
 /**
- * @see PostgreConnectionTask
+ * @see PgConnectionTask
  */
 final class GssUnitTask extends PostgreUnitTask {
 
     /**
-     * @see #GssUnitTask(PostgreConnectionTask, Consumer)
+     * @see #GssUnitTask(PgConnectionTask, Consumer)
      */
-    static GssUnitTask encryption(PostgreConnectionTask task, Consumer<GssWrapper> gssWrapperConsumer) {
+    static GssUnitTask encryption(PgConnectionTask task, Consumer<GssWrapper> gssWrapperConsumer) {
         return new GssUnitTask(task, gssWrapperConsumer);
     }
 
     /**
-     * @see #GssUnitTask(PostgreConnectionTask)
+     * @see #GssUnitTask(PgConnectionTask)
      */
-    static GssUnitTask authentication(PostgreConnectionTask task) {
+    static GssUnitTask authentication(PgConnectionTask task) {
         return new GssUnitTask(task);
     }
 
@@ -57,18 +57,18 @@ final class GssUnitTask extends PostgreUnitTask {
     private GSSContext gssContext;
 
     /**
-     * @see #authentication(PostgreConnectionTask)
+     * @see #authentication(PgConnectionTask)
      */
-    private GssUnitTask(PostgreConnectionTask task) {
+    private GssUnitTask(PgConnectionTask task) {
         super(task);
         this.gssWrapperConsumer = PostgreFunctions.noActionConsumer();
         this.encryption = false;
     }
 
     /**
-     * @see #encryption(PostgreConnectionTask, Consumer)
+     * @see #encryption(PgConnectionTask, Consumer)
      */
-    private GssUnitTask(PostgreConnectionTask task, Consumer<GssWrapper> gssWrapperConsumer) {
+    private GssUnitTask(PgConnectionTask task, Consumer<GssWrapper> gssWrapperConsumer) {
         super(task);
         this.gssWrapperConsumer = gssWrapperConsumer;
         this.encryption = true;
@@ -182,7 +182,7 @@ final class GssUnitTask extends PostgreUnitTask {
     private boolean startupGssContext() throws Throwable {
         //1. below obtain authenticated Subject
         Subject subject = tryGetAuthenticatedSubject();
-        if (subject == null && this.properties.getOrDefault(PGKey.jaasLogin, Boolean.class)) {
+        if (subject == null && this.properties.getOrDefault(PgKey.jaasLogin, Boolean.class)) {
             subject = jaasLogin();
         }
 
@@ -289,7 +289,7 @@ final class GssUnitTask extends PostgreUnitTask {
 
 
     private boolean notRequiredGss() {
-        return !this.properties.getOrDefault(PGKey.gssEncMode, Enums.GSSEncMode.class).requireEncryption();
+        return !this.properties.getOrDefault(PgKey.gssEncMode, Enums.GSSEncMode.class).requireEncryption();
     }
 
     /**
@@ -300,7 +300,7 @@ final class GssUnitTask extends PostgreUnitTask {
         PostgreHost hostInfo = this.adjutant.obtainHost();
 
         final Oid desiredMech;
-        if (this.properties.getOrDefault(PGKey.useSpnego, Boolean.class)
+        if (this.properties.getOrDefault(PgKey.useSpnego, Boolean.class)
                 && ConnectionTaskUtils.supportSpnego(manager)) {
             desiredMech = ConnectionTaskUtils.SPNEGO_MECHANISM;
         } else {
@@ -345,7 +345,7 @@ final class GssUnitTask extends PostgreUnitTask {
      * @see #startupGssContext()
      */
     private Subject jaasLogin() throws PgJdbdException {
-        final String entryName = this.properties.getProperty(PGKey.jaasApplicationName, "pgjdbc");
+        final String entryName = this.properties.getProperty(PgKey.jaasApplicationName, "pgjdbc");
         try {
             LoginContext lc = new LoginContext(entryName, this::jaasCallbackHandler);
             lc.login();
@@ -369,7 +369,7 @@ final class GssUnitTask extends PostgreUnitTask {
      * @return database server kerberos principal name,that bases hose.
      */
     private String getServerPrincipalName() {
-        return this.properties.getProperty(PGKey.kerberosServerName, "postgres") + "@"
+        return this.properties.getProperty(PgKey.kerberosServerName, "postgres") + "@"
                 + this.adjutant.obtainHost().getHost();
     }
 

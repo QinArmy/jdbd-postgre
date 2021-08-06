@@ -42,7 +42,7 @@ final class ClientCommandProtocolImpl implements ClientCommandProtocol {
 
     private ClientCommandProtocolImpl(ClientConnectionProtocolImpl cp) {
         this.executor = cp.taskExecutor;
-        this.adjutant = this.executor.getAdjutant();
+        this.adjutant = this.executor.taskAdjutant();
         this.sessionResetter = cp.sessionResetter;
     }
 
@@ -165,7 +165,7 @@ final class ClientCommandProtocolImpl implements ClientCommandProtocol {
      */
     @Override
     public final Mono<Void> closeGracefully() {
-        return QuitTask.quit(this.executor.getAdjutant());
+        return QuitTask.quit(this.executor.taskAdjutant());
     }
 
     /**

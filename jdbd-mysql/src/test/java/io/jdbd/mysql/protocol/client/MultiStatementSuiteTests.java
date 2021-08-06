@@ -676,7 +676,7 @@ public class MultiStatementSuiteTests extends AbstractConnectionBasedSuiteTests 
                     .block();
             assertNotNull(protocol, "protocol");
 
-            taskAdjutant = protocol.taskExecutor.getAdjutant();
+            taskAdjutant = protocol.taskExecutor.taskAdjutant();
         }
 
         return taskAdjutant;

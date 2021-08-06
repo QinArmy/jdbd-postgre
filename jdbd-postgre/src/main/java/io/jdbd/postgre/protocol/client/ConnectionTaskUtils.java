@@ -7,7 +7,7 @@ import org.ietf.jgss.GSSManager;
 import org.ietf.jgss.Oid;
 
 /**
- * @see PostgreConnectionTask
+ * @see PgConnectionTask
  * @see GssUnitTask
  */
 abstract class ConnectionTaskUtils {

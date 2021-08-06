@@ -9,7 +9,7 @@ import org.qinarmy.env.convert.ImmutableConverterManager;
 
 import java.util.Map;
 
-public final class PostgreHost extends AbstractHostInfo<PGKey> {
+public final class PostgreHost extends AbstractHostInfo<PgKey> {
 
     public static PostgreHost create(JdbcUrlParser parser, int index) {
         return new PostgreHost(parser, index);
@@ -24,28 +24,28 @@ public final class PostgreHost extends AbstractHostInfo<PGKey> {
     }
 
     @Override
-    protected final PGKey getUserKey() {
-        return PGKey.user;
+    protected final PgKey getUserKey() {
+        return PgKey.user;
     }
 
     @Override
-    protected final PGKey getPasswordKey() {
-        return PGKey.password;
+    protected final PgKey getPasswordKey() {
+        return PgKey.password;
     }
 
     @Override
-    protected final PGKey getHostKey() {
-        return PGKey.PGHOST;
+    protected final PgKey getHostKey() {
+        return PgKey.PGHOST;
     }
 
     @Override
-    protected final PGKey getPortKey() {
-        return PGKey.PGPORT;
+    protected final PgKey getPortKey() {
+        return PgKey.PGPORT;
     }
 
     @Override
-    protected final PGKey getDbNameKey() {
-        return PGKey.PGDBNAME;
+    protected final PgKey getDbNameKey() {
+        return PgKey.PGDBNAME;
     }
 
     @Override
@@ -60,7 +60,7 @@ public final class PostgreHost extends AbstractHostInfo<PGKey> {
 
 
     @Override
-    protected final Properties<PGKey> createProperties(Map<String, String> map) {
+    protected final Properties<PgKey> createProperties(Map<String, String> map) {
         ConverterManager converterManager = ImmutableConverterManager.create(Converters::registerConverter);
         return ImmutableMapProperties.getInstance(map, converterManager);
     }

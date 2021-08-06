@@ -6,16 +6,12 @@ import io.jdbd.postgre.PgJdbdException;
 import io.jdbd.postgre.PgReConnectableException;
 import io.jdbd.postgre.ServerVersion;
 import io.jdbd.postgre.config.Enums;
-import io.jdbd.postgre.config.PGKey;
+import io.jdbd.postgre.config.PgKey;
 import io.jdbd.postgre.config.PostgreHost;
-import io.jdbd.postgre.util.PgCollections;
 import io.jdbd.postgre.util.PgExceptions;
 import io.jdbd.postgre.util.PostgreStringUtils;
 import io.jdbd.postgre.util.PostgreTimes;
-import io.jdbd.vendor.task.ChannelEncryptor;
-import io.jdbd.vendor.task.ConnectionTask;
-import io.jdbd.vendor.task.GssWrapper;
-import io.jdbd.vendor.task.SslWrapper;
+import io.jdbd.vendor.task.*;
 import io.netty.buffer.ByteBuf;
 import org.qinarmy.util.Pair;
 import org.reactivestreams.Publisher;
@@ -33,13 +29,12 @@ import java.util.function.Consumer;
  * @see <a href="https://www.postgresql.org/docs/11/protocol-flow.html#id-1.10.5.7.3">Protocol::Start-up</a>
  * @see <a href="https://www.postgresql.org/docs/11/protocol-message-formats.html">Message::StartupMessage (F)</a>
  */
-final class PostgreConnectionTask extends PostgreTask implements ConnectionTask {
+final class PgConnectionTask extends PgTask implements ConnectionTask {
 
     static Mono<AuthResult> authenticate(TaskAdjutant adjutant) {
         return Mono.create(sink -> {
-
             try {
-                PostgreConnectionTask task = new PostgreConnectionTask(sink, adjutant);
+                PgConnectionTask task = new PgConnectionTask(sink, adjutant);
                 task.submit(sink::error);
             } catch (Throwable e) {
                 sink.error(PgExceptions.wrap(e));
@@ -48,7 +43,7 @@ final class PostgreConnectionTask extends PostgreTask implements ConnectionTask 
         });
     }
 
-    private static final Logger LOG = LoggerFactory.getLogger(PostgreConnectionTask.class);
+    private static final Logger LOG = LoggerFactory.getLogger(PgConnectionTask.class);
 
 
     private final MonoSink<AuthResult> sink;
@@ -63,7 +58,13 @@ final class PostgreConnectionTask extends PostgreTask implements ConnectionTask 
 
     private Map<String, String> serverStatusMap;
 
-    private PostgreConnectionTask(MonoSink<AuthResult> sink, TaskAdjutant adjutant) {
+    private BackendKeyData backendKeyData;
+
+    private TxStatus txStatus;
+
+    private NoticeMessage noticeMessage;
+
+    private PgConnectionTask(MonoSink<AuthResult> sink, TaskAdjutant adjutant) {
         super(adjutant);
         this.sink = sink;
     }
@@ -109,24 +110,22 @@ final class PostgreConnectionTask extends PostgreTask implements ConnectionTask 
 
     /*################################## blow protected template method ##################################*/
 
-    @Nullable
+
     @Override
     protected final Publisher<ByteBuf> start() {
         final Publisher<ByteBuf> publisher;
-//        if (this.properties.getOrDefault(PGKey.gssEncMode, Enums.GSSEncMode.class).needGssEnc()) {
-//            PostgreUnitTask unitTask;
-//            unitTask = GssUnitTask.encryption(this, this::configGssContext);
-//            this.unitTask = unitTask;
-//            publisher = unitTask.start();
-//            this.phase = Phase.GSS_ENCRYPTION_TASK;
-//        } else if (this.properties.getOrDefault(PGKey.sslmode, Enums.SslMode.class).needSslEnc()) {
-//            publisher = startSslEncryptionUnitTask();
-//        } else {
-//            publisher = startStartupMessage();
-//            this.phase = Phase.READ_START_UP_RESPONSE;
-//        }
-        publisher = startStartupMessage();
-        this.phase = Phase.READ_START_UP_RESPONSE;
+        if (this.properties.getOrDefault(PgKey.gssEncMode, Enums.GSSEncMode.class).needGssEnc()) {
+            PostgreUnitTask unitTask;
+            unitTask = GssUnitTask.encryption(this, null);
+            this.unitTask = unitTask;
+            publisher = unitTask.start();
+            this.phase = Phase.GSS_ENCRYPTION_TASK;
+        } else if (this.properties.getOrDefault(PgKey.sslmode, SslMode.class) != SslMode.DISABLED) {
+            publisher = startSslEncryptionUnitTask();
+        } else {
+            publisher = startStartupMessage();
+            this.phase = Phase.READ_START_UP_RESPONSE;
+        }
         return publisher;
     }
 
@@ -155,12 +154,12 @@ final class PostgreConnectionTask extends PostgreTask implements ConnectionTask 
                 }
                 break;
                 case READ_START_UP_RESPONSE: {
-                    taskEnd = readStartUpResponse(cumulateBuffer, serverStatusConsumer);
+                    taskEnd = readStartUpResponse(cumulateBuffer);
                     continueDecode = false;
                 }
                 break;
                 case READ_MSG_AFTER_OK: {
-                    taskEnd = readMessageAfterAuthenticationOk(cumulateBuffer, serverStatusConsumer);
+                    taskEnd = readMessageAfterAuthenticationOk(cumulateBuffer);
                     continueDecode = false;
                 }
                 break;
@@ -171,8 +170,17 @@ final class PostgreConnectionTask extends PostgreTask implements ConnectionTask 
             }
 
         }
+        if (taskEnd) {
+            if (hasError()) {
+                this.phase = Phase.DISCONNECT;
+                publishError(this.sink::error);
+            } else {
+                emitAuthResult();
+            }
+        }
         return taskEnd;
     }
+
 
 
 
@@ -199,17 +207,22 @@ final class PostgreConnectionTask extends PostgreTask implements ConnectionTask 
      * </p>
      *
      * @return true : task end.
+     * @see #decode(ByteBuf, Consumer)
      */
-    private boolean readStartUpResponse(final ByteBuf cumulateBuffer, final Consumer<Object> serverStatusConsumer) {
-        final int byte1 = cumulateBuffer.readByte(), startIndex = cumulateBuffer.readerIndex();
-        final int length = cumulateBuffer.readInt();
+    private boolean readStartUpResponse(final ByteBuf cumulateBuffer) {
+        assertPhase(Phase.READ_START_UP_RESPONSE);
+        final int msgType = cumulateBuffer.readByte(), startIndex = cumulateBuffer.readerIndex();
+        final int length = cumulateBuffer.readInt(), nextMsgIndex = startIndex + length;
         boolean taskEnd = false;
-        switch (byte1) {
+
+        switch (msgType) {
             case Messages.E: {
                 // error,server close connection.
                 taskEnd = true;
-                ErrorMessage message = ErrorMessage.readBody(cumulateBuffer, startIndex + length);
-                addError(PgExceptions.createErrorException(message));
+                LOG.debug("readStartUpResponse type");
+                ErrorMessage error = ErrorMessage.readBody(cumulateBuffer, nextMsgIndex);
+                addError(PgExceptions.createErrorException(error));
+                LOG.debug("readStartUpResponse error:{}", error);
             }
             break;
             case Messages.R: {
@@ -217,7 +230,13 @@ final class PostgreConnectionTask extends PostgreTask implements ConnectionTask 
                     case Messages.AUTH_OK: {
                         LOG.debug("Authentication success,receiving message from server.");
                         this.phase = Phase.READ_MSG_AFTER_OK;
-                        taskEnd = readMessageAfterAuthenticationOk(cumulateBuffer, serverStatusConsumer);
+                        // below 4 row initializing auth result properties.
+                        this.serverStatusMap = null;
+                        this.backendKeyData = null;
+                        this.txStatus = null;
+                        this.noticeMessage = null;
+
+                        taskEnd = readMessageAfterAuthenticationOk(cumulateBuffer);
                     }
                     break;
                     case Messages.AUTH_KRB5:
@@ -226,20 +245,7 @@ final class PostgreConnectionTask extends PostgreTask implements ConnectionTask 
                         addError(new PgJdbdException("Not support authentication method. "));
                         break;
                     case Messages.AUTH_MD5: {
-                        PostgreHost host = this.adjutant.obtainHost();
-                        final String password = host.getPassword();
-                        if (PostgreStringUtils.hasText(password)) {
-                            byte[] salt = new byte[length - 4];
-                            cumulateBuffer.readBytes(salt);
-                            this.packetPublisher = Mono.just(
-                                    Messages.md5Password(host.getUser(), password, salt, this.adjutant.allocator())
-                            );
-                        } else {
-                            String m;
-                            m = "The server requested password-based authentication, but no password was provided.";
-                            taskEnd = true;
-                            addError(new PgJdbdException(m));
-                        }
+                        taskEnd = handleMd5PasswordAuthentication(cumulateBuffer, length - 8);
                     }
                     break;
                     case Messages.AUTH_SCM:
@@ -251,7 +257,7 @@ final class PostgreConnectionTask extends PostgreTask implements ConnectionTask 
                     case Messages.AUTH_SASL_FINAL:
                     default: {
                         taskEnd = true;
-                        String m = String.format("Client not support authentication method(%s).", byte1);
+                        String m = String.format("Client not support authentication method(%s).", msgType);
                         addError(new PgJdbdException(m));
                     }
                 }
@@ -261,21 +267,56 @@ final class PostgreConnectionTask extends PostgreTask implements ConnectionTask 
 
             }
             break;
-            default:
+            default: {
+
+            }
         }
-        cumulateBuffer.readerIndex(startIndex + length); // avoid to tailor.
+        cumulateBuffer.readerIndex(nextMsgIndex); // avoid to tailor.
+        return taskEnd;
+    }
+
+
+    /**
+     * <p>
+     * send PasswordMessage
+     * </p>
+     *
+     * @return true : task end.
+     * @see #readStartUpResponse(ByteBuf)
+     */
+    private boolean handleMd5PasswordAuthentication(final ByteBuf cumulateBuffer, final int saltLength) {
+        LOG.debug("MD5 password authentication.");
+
+        boolean taskEnd = false;
+        PostgreHost host = this.adjutant.obtainHost();
+        final String password = host.getPassword();
+        if (PostgreStringUtils.hasText(password)) {
+            byte[] salt = new byte[saltLength];
+            cumulateBuffer.readBytes(salt);
+            this.packetPublisher = Mono.just(
+                    Messages.md5Password(host.getUser(), password, salt, this.adjutant.allocator())
+            );
+        } else {
+            String m;
+            m = "The server requested password-based authentication, but no password was provided.";
+            taskEnd = true;
+            addError(new PgJdbdException(m));
+        }
         return taskEnd;
     }
 
     /**
-     * @see #readStartUpResponse(ByteBuf, Consumer)
+     * @see #readStartUpResponse(ByteBuf)
      * @see #decode(ByteBuf, Consumer)
      */
-    private boolean readMessageAfterAuthenticationOk(final ByteBuf cumulateBuffer
-            , final Consumer<Object> serverStatusConsumer) {
+    private boolean readMessageAfterAuthenticationOk(final ByteBuf cumulateBuffer) {
         assertPhase(Phase.READ_MSG_AFTER_OK);
         // read ParameterStatus messages
-        Map<String, String> serverStatusMap = null;
+        Map<String, String> serverStatusMap = this.serverStatusMap;
+        if (serverStatusMap == null) {
+            serverStatusMap = new HashMap<>();
+            this.serverStatusMap = serverStatusMap;
+        }
         boolean taskEnd = false;
         while (Messages.hasOneMessage(cumulateBuffer)) {
             final int msgType = cumulateBuffer.readByte(), bodyIndex = cumulateBuffer.readerIndex();
@@ -284,14 +325,12 @@ final class PostgreConnectionTask extends PostgreTask implements ConnectionTask 
             switch (msgType) {
                 case Messages.E: { // ErrorResponse message
                     taskEnd = true;
+                    LOG.debug("receive message response");
                     ErrorMessage error = ErrorMessage.readBody(cumulateBuffer, nextMsgIndex);
                     addError(PgExceptions.createErrorException(error));
                 }
                 break;
                 case Messages.S: {// ParameterStatus message
-                    if (serverStatusMap == null) {
-                        serverStatusMap = new HashMap<>();
-                    }
                     serverStatusMap.put(
                             Messages.readString(cumulateBuffer)
                             , Messages.readString(cumulateBuffer)
@@ -301,19 +340,19 @@ final class PostgreConnectionTask extends PostgreTask implements ConnectionTask 
                 case Messages.Z: {// ReadyForQuery message
                     // here , session build success.
                     TxStatus txStatus = TxStatus.from(cumulateBuffer.readByte());
-                    serverStatusConsumer.accept(txStatus); // modify server transaction status.
+                    this.txStatus = txStatus;
                     taskEnd = true;
                     LOG.debug("Session build success,transaction status[{}].", txStatus);
                 }
                 break;
                 case Messages.K: {// BackendKeyData message
                     // modify server BackendKeyData
-                    serverStatusConsumer.accept(BackendKeyData.readBody(cumulateBuffer));
+                    this.backendKeyData = BackendKeyData.readBody(cumulateBuffer);
                 }
                 break;
                 case Messages.N: { // NoticeResponse message
                     // modify server status.
-                    serverStatusConsumer.accept(NoticeMessage.readBody(cumulateBuffer, nextMsgIndex));
+                    this.noticeMessage = NoticeMessage.readBody(cumulateBuffer, nextMsgIndex);
                 }
                 break;
                 default: { // Unknown message
@@ -322,11 +361,6 @@ final class PostgreConnectionTask extends PostgreTask implements ConnectionTask 
                 }
             }// switch
             cumulateBuffer.readerIndex(nextMsgIndex); // avoid tail filler.
-        }
-
-        if (!PgCollections.isEmpty(serverStatusMap)) {
-            // modify server status.
-            serverStatusConsumer.accept(serverStatusMap);
         }
         return taskEnd;
 
@@ -354,7 +388,7 @@ final class PostgreConnectionTask extends PostgreTask implements ConnectionTask 
         if (hasError()) {
             taskEnd = !hasReConnectableError();
         } else if (this.gssWrapper == null
-                && this.properties.getOrDefault(PGKey.sslmode, Enums.SslMode.class).needSslEnc()) {
+                && this.properties.getOrDefault(PgKey.sslmode, Enums.SslMode.class).needSslEnc()) {
             taskEnd = false;
             this.packetPublisher = startSslEncryptionUnitTask();
         } else {
@@ -410,14 +444,6 @@ final class PostgreConnectionTask extends PostgreTask implements ConnectionTask 
         return publisher;
     }
 
-    /**
-     * @see #decode(ByteBuf, Consumer)
-     * @see #startSslEncryptionUnitTask()
-     */
-    private boolean handleSslEncryptionTaskEnd() {
-        return false;
-    }
-
 
     /**
      * <p>
@@ -427,7 +453,6 @@ final class PostgreConnectionTask extends PostgreTask implements ConnectionTask 
      * @throws PropertyException property can't convert
      * @see #start()
      * @see #handleGssEncryptionTaskEnd()
-     * @see #handleSslEncryptionTaskEnd()
      * @see <a href="https://www.postgresql.org/docs/current/protocol-message-formats.html">Protocol::StartupMessage</a>
      * @see <a href="https://www.postgresql.org/docs/current/protocol-overview.html#PROTOCOL-MESSAGE-CONCEPTS">Messaging Overview</a>
      */
@@ -470,7 +495,7 @@ final class PostgreConnectionTask extends PostgreTask implements ConnectionTask 
     private List<Pair<String, String>> obtainStartUpParamList() {
         final PostgreHost host = this.adjutant.obtainHost();
         final ServerVersion minVersion;
-        minVersion = this.properties.getProperty(PGKey.assumeMinServerVersion, ServerVersion.class
+        minVersion = this.properties.getProperty(PgKey.assumeMinServerVersion, ServerVersion.class
                 , ServerVersion.INVALID);
 
         List<Pair<String, String>> list = new ArrayList<>();
@@ -481,27 +506,26 @@ final class PostgreConnectionTask extends PostgreTask implements ConnectionTask 
         list.add(new Pair<>("DateStyle", "ISO"));
 
         list.add(new Pair<>("TimeZone", PostgreTimes.systemZoneOffset().normalized().getId()));
-        list.add(new Pair<>("jdbd", getDriverName()));
 
         if (minVersion.compareTo(ServerVersion.V9_0) >= 0) {
             list.add(new Pair<>("extra_float_digits", "3"));
-            list.add(new Pair<>("application_name", this.properties.getOrDefault(PGKey.ApplicationName)));
+            list.add(new Pair<>("application_name", getApplicationName()));
         } else {
             list.add(new Pair<>("extra_float_digits", "2"));
         }
 
         if (minVersion.compareTo(ServerVersion.V9_4) >= 0) {
-            String replication = this.properties.getProperty(PGKey.replication);
+            String replication = this.properties.getProperty(PgKey.replication);
             if (replication != null) {
                 list.add(new Pair<>("replication", replication));
             }
         }
 
-        final String currentSchema = this.properties.getProperty(PGKey.currentSchema);
+        final String currentSchema = this.properties.getProperty(PgKey.currentSchema);
         if (currentSchema != null) {
             list.add(new Pair<>("search_path", currentSchema));
         }
-        final String options = this.properties.getProperty(PGKey.options);
+        final String options = this.properties.getProperty(PgKey.options);
         if (options != null) {
             list.add(new Pair<>("search_path", options));
         }
@@ -520,6 +544,7 @@ final class PostgreConnectionTask extends PostgreTask implements ConnectionTask 
                         .append(pair.getSecond());
                 count++;
             }
+            builder.append(separator);
             LOG.debug("StartupPacket[{}]", builder);
         }
         return Collections.unmodifiableList(list);
@@ -529,17 +554,40 @@ final class PostgreConnectionTask extends PostgreTask implements ConnectionTask 
     /**
      * @see #obtainStartUpParamList()
      */
-    private String getDriverName() {
-        String driverName = ClientProtocol.class.getPackage().getImplementationVersion();
-        if (driverName == null) {
-            driverName = "jdbd-postgre-test";
+    private String getApplicationName() {
+        String applicationName = this.properties.getProperty(PgKey.ApplicationName);
+        if (applicationName == null) {
+            applicationName = ClientProtocol.class.getPackage().getImplementationVersion();
+            if (applicationName == null) {
+                applicationName = "jdbd-postgre-test";
+            }
         }
-        return driverName;
+        return applicationName;
     }
 
     private void assertPhase(Phase expected) {
         if (this.phase != expected) {
             throw new IllegalStateException(String.format("this.phase[%s] isn't expected[%s]", this.phase, expected));
+        }
+    }
+
+    /**
+     * @see #decode(ByteBuf, Consumer)
+     */
+    private void emitAuthResult() {
+        try {
+            AuthResult result = new AuthResult(
+                    Objects.requireNonNull(this.serverStatusMap, "this.serverStatusMap")
+                    , Objects.requireNonNull(this.backendKeyData, "this.backendKeyData")
+                    , Objects.requireNonNull(this.txStatus, "this.txStatus")
+                    , this.noticeMessage
+            );
+            this.sink.success(result);
+            this.phase = Phase.END;
+        } catch (NullPointerException e) {
+            // here bug
+            this.phase = Phase.DISCONNECT;
+            this.sink.error(new PgJdbdException("Create AuthResult error", e));
         }
     }
 
@@ -554,7 +602,8 @@ final class PostgreConnectionTask extends PostgreTask implements ConnectionTask 
         READ_START_UP_RESPONSE,
         READ_MSG_AFTER_OK,
         GSS_ENCRYPTION_TASK,
-        DISCONNECT
+        DISCONNECT,
+        END
     }
 
 }

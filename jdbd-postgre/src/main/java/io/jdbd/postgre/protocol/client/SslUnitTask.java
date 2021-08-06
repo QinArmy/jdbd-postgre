@@ -2,7 +2,7 @@ package io.jdbd.postgre.protocol.client;
 
 import io.jdbd.postgre.PgReConnectableException;
 import io.jdbd.postgre.config.Enums;
-import io.jdbd.postgre.config.PGKey;
+import io.jdbd.postgre.config.PgKey;
 import io.jdbd.vendor.task.SslWrapper;
 import io.netty.buffer.ByteBuf;
 import org.reactivestreams.Publisher;
@@ -14,7 +14,7 @@ import java.util.function.Consumer;
 
 final class SslUnitTask extends PostgreUnitTask {
 
-    static SslUnitTask ssl(PostgreConnectionTask task, Consumer<SslWrapper> sslWrapperConsumer) {
+    static SslUnitTask ssl(PgConnectionTask task, Consumer<SslWrapper> sslWrapperConsumer) {
         return new SslUnitTask(task, sslWrapperConsumer);
     }
 
@@ -24,7 +24,7 @@ final class SslUnitTask extends PostgreUnitTask {
 
     private Phase phase;
 
-    private SslUnitTask(PostgreConnectionTask task, Consumer<SslWrapper> sslWrapperConsumer) {
+    private SslUnitTask(PgConnectionTask task, Consumer<SslWrapper> sslWrapperConsumer) {
         super(task);
         this.sslWrapperConsumer = sslWrapperConsumer;
     }
@@ -53,7 +53,7 @@ final class SslUnitTask extends PostgreUnitTask {
     @Override
     public final boolean decode(ByteBuf cumulateBuffer, Consumer<Object> serverStatusConsumer) {
         final int singleByte = cumulateBuffer.readChar();
-        final boolean reConnect = !this.properties.getOrDefault(PGKey.sslmode, Enums.SslMode.class).needSslEnc();
+        final boolean reConnect = !this.properties.getOrDefault(PgKey.sslmode, Enums.SslMode.class).needSslEnc();
         switch (singleByte) {
             case Messages.E: {
                 String message = "Postgre server response error,not support SSL encryption.";

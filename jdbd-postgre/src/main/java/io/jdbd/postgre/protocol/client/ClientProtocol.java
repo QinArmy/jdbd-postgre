@@ -11,6 +11,8 @@ import java.util.function.Consumer;
 
 public interface ClientProtocol {
 
+    long getId();
+
 
     /**
      * <p>
@@ -29,6 +31,9 @@ public interface ClientProtocol {
      * </p>
      */
     Flux<ResultRow> query(Stmt stmt);
+
+
+    Mono<Void> reset();
 
 
     Mono<Void> close();

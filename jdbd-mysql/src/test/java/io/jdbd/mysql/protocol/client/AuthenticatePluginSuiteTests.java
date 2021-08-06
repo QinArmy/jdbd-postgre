@@ -78,7 +78,7 @@ public class AuthenticatePluginSuiteTests extends AbstractConnectionBasedSuiteTe
 
         try {
             AuthenticateResult result = MySQLTaskExecutor.create(0, sessionAdjutant)
-                    .flatMap(executor -> MySQLConnectionTask.authenticate(executor.getAdjutant()))
+                    .flatMap(executor -> MySQLConnectionTask.authenticate(executor.taskAdjutant()))
                     .block();
 
             assertNotNull(result, "result");
@@ -103,7 +103,7 @@ public class AuthenticatePluginSuiteTests extends AbstractConnectionBasedSuiteTe
         SessionAdjutant sessionAdjutant = createSessionAdjutantForSingleHost(propMap);
 
         AuthenticateResult result = MySQLTaskExecutor.create(0, sessionAdjutant)
-                .flatMap(executor -> MySQLConnectionTask.authenticate(executor.getAdjutant()))
+                .flatMap(executor -> MySQLConnectionTask.authenticate(executor.taskAdjutant()))
                 .block();
 
         assertNotNull(result, "result");
@@ -127,7 +127,7 @@ public class AuthenticatePluginSuiteTests extends AbstractConnectionBasedSuiteTe
         SessionAdjutant sessionAdjutant = createSessionAdjutantForSingleHost(propMap);
 
         AuthenticateResult result = MySQLTaskExecutor.create(0, sessionAdjutant)
-                .flatMap(executor -> MySQLConnectionTask.authenticate(executor.getAdjutant()))
+                .flatMap(executor -> MySQLConnectionTask.authenticate(executor.taskAdjutant()))
                 .block();
 
         assertNotNull(result, "result");
@@ -150,7 +150,7 @@ public class AuthenticatePluginSuiteTests extends AbstractConnectionBasedSuiteTe
         SessionAdjutant sessionAdjutant = createSessionAdjutantForSingleHost(propMap);
 
         AuthenticateResult result = MySQLTaskExecutor.create(0, sessionAdjutant)
-                .flatMap(executor -> MySQLConnectionTask.authenticate(executor.getAdjutant()))
+                .flatMap(executor -> MySQLConnectionTask.authenticate(executor.taskAdjutant()))
                 .block();
 
         assertNotNull(result, "result");
@@ -175,7 +175,7 @@ public class AuthenticatePluginSuiteTests extends AbstractConnectionBasedSuiteTe
         SessionAdjutant sessionAdjutant = createSessionAdjutantForSingleHost(propMap);
 
         AuthenticateResult result = MySQLTaskExecutor.create(0, sessionAdjutant)
-                .flatMap(executor -> MySQLConnectionTask.authenticate(executor.getAdjutant()))
+                .flatMap(executor -> MySQLConnectionTask.authenticate(executor.taskAdjutant()))
                 .block();
 
         assertNotNull(result, "result");
