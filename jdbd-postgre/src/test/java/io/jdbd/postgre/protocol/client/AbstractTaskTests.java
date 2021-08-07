@@ -25,7 +25,7 @@ class AbstractTaskTests {
     static ClientProtocolImpl obtainProtocol() {
         ClientProtocolImpl protocol = PROTOCOL_QUEUE.poll();
         if (protocol == null) {
-            protocol = ClientProtocols.single(DEFAULT_SESSION_ADJUTANT, 0)
+            protocol = ClientProtocolFactory.single(DEFAULT_SESSION_ADJUTANT, 0)
                     .cast(ClientProtocolImpl.class)
                     .block();
             Assert.assertNotNull(protocol, "protocol");

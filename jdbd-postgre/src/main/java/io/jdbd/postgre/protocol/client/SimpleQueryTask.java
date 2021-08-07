@@ -12,11 +12,14 @@ import org.reactivestreams.Publisher;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+import java.sql.SQLException;
 import java.util.Collections;
 import java.util.List;
 import java.util.function.Consumer;
 
-
+/**
+ * @see <a href="https://www.postgresql.org/docs/current/protocol-message-formats.html">Query</a>
+ */
 final class SimpleQueryTask extends PgTask {
 
 
@@ -42,19 +45,21 @@ final class SimpleQueryTask extends PgTask {
 
     private final DownstreamSink downstreamSink;
 
-    private SimpleQueryTask(List<Stmt> stmtList, MultiResultSink sink, TaskAdjutant adjutant) {
+    private SimpleQueryTask(List<Stmt> stmtList, MultiResultSink sink, TaskAdjutant adjutant)
+            throws SQLException {
         super(adjutant);
-        this.downstreamSink = new BatchMultiResultSink(sink);
+        this.packetPublisher = Flux.fromIterable(QueryCommandWriter.createStaticSingleCommand(stmtList, adjutant));
+        this.downstreamSink = new MultiResultDownstreamSink(sink);
     }
 
 
     @Override
-    protected Publisher<ByteBuf> start() {
+    protected final Publisher<ByteBuf> start() {
         return null;
     }
 
     @Override
-    protected boolean decode(ByteBuf cumulateBuffer, Consumer<Object> serverStatusConsumer) {
+    protected final boolean decode(ByteBuf cumulateBuffer, Consumer<Object> serverStatusConsumer) {
         return false;
     }
 
@@ -76,11 +81,11 @@ final class SimpleQueryTask extends PgTask {
 
     }
 
-    private final class BatchMultiResultSink extends AbstractDownstreamSink {
+    private final class MultiResultDownstreamSink extends AbstractDownstreamSink {
 
-        private final MultiResultSink sink;
+        private final io.jdbd.vendor.result.MultiResultSink sink;
 
-        private BatchMultiResultSink(MultiResultSink sink) {
+        private MultiResultDownstreamSink(MultiResultSink sink) {
             this.sink = sink;
         }
 

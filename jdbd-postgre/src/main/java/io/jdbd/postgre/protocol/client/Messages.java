@@ -1,18 +1,16 @@
 package io.jdbd.postgre.protocol.client;
 
+import io.jdbd.postgre.Encoding;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
 import org.qinarmy.util.HexUtils;
 
-import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 
 abstract class Messages {
 
-
-    static final Charset CLIENT_CHARSET = StandardCharsets.UTF_8;
 
     static final byte STRING_TERMINATOR = 0;
 
@@ -33,6 +31,8 @@ abstract class Messages {
     static final byte I = 'I';
 
     static final byte K = 'K';
+
+    static final byte Q = 'Q';
 
 
     /** Specifies that the authentication was successful. See AuthenticationOk message format. */
@@ -70,7 +70,7 @@ abstract class Messages {
 
 
     static void writeString(ByteBuf packet, String string) {
-        packet.writeBytes(string.getBytes(CLIENT_CHARSET));
+        packet.writeBytes(string.getBytes(Encoding.CLIENT_CHARSET));
         packet.writeByte(STRING_TERMINATOR);
     }
 

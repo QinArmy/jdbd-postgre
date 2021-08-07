@@ -24,17 +24,17 @@ final class ClientProtocolImpl implements ClientProtocol {
 
     @Override
     public final long getId() {
-        throw new UnsupportedOperationException();
+        return this.adjutant.processId();
     }
 
     @Override
-    public Mono<ResultState> update(Stmt stmt) {
-        return Mono.empty();
+    public final Mono<ResultState> update(Stmt stmt) {
+        return SimpleQueryTask.update(stmt, this.adjutant);
     }
 
     @Override
-    public Flux<ResultRow> query(Stmt stmt) {
-        return Flux.empty();
+    public final Flux<ResultRow> query(Stmt stmt) {
+        return SimpleQueryTask.query(stmt, this.adjutant);
     }
 
     @Override
@@ -43,7 +43,7 @@ final class ClientProtocolImpl implements ClientProtocol {
     }
 
     @Override
-    public Mono<Void> close() {
+    public final Mono<Void> close() {
         return Mono.empty();
     }
 

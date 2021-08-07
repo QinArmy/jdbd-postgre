@@ -2,6 +2,7 @@ package io.jdbd.postgre.protocol.client;
 
 import io.jdbd.JdbdException;
 import io.jdbd.config.PropertyException;
+import io.jdbd.postgre.Encoding;
 import io.jdbd.postgre.PgJdbdException;
 import io.jdbd.postgre.PgReConnectableException;
 import io.jdbd.postgre.ServerVersion;
@@ -467,8 +468,9 @@ final class PgConnectionTask extends PgTask implements ConnectionTask {
             Messages.writeString(message, pair.getFirst());
             Messages.writeString(message, pair.getSecond());
         }
-        message.writeByte(0);// Terminating \0
+        message.writeByte(Messages.STRING_TERMINATOR);// Terminating \0
 
+        //no initial message-type byte
         final int readableBytes = message.readableBytes(), writerIndex = message.writerIndex();
         message.writerIndex(message.readerIndex());
         message.writeInt(readableBytes);
@@ -502,7 +504,7 @@ final class PgConnectionTask extends PgTask implements ConnectionTask {
 
         list.add(new Pair<>("user", host.getUser()));
         list.add(new Pair<>("database", host.getNonNullDbName()));
-        list.add(new Pair<>("client_encoding", Messages.CLIENT_CHARSET.name()));
+        list.add(new Pair<>("client_encoding", Encoding.CLIENT_CHARSET.name()));
         list.add(new Pair<>("DateStyle", "ISO"));
 
         list.add(new Pair<>("TimeZone", PostgreTimes.systemZoneOffset().normalized().getId()));
@@ -513,7 +515,6 @@ final class PgConnectionTask extends PgTask implements ConnectionTask {
         } else {
             list.add(new Pair<>("extra_float_digits", "2"));
         }
-
         if (minVersion.compareTo(ServerVersion.V9_4) >= 0) {
             String replication = this.properties.getProperty(PgKey.replication);
             if (replication != null) {
@@ -545,7 +546,7 @@ final class PgConnectionTask extends PgTask implements ConnectionTask {
                 count++;
             }
             builder.append(separator);
-            LOG.debug("StartupPacket[{}]", builder);
+            LOG.debug("StartupMessage[{}]", builder);
         }
         return Collections.unmodifiableList(list);
     }

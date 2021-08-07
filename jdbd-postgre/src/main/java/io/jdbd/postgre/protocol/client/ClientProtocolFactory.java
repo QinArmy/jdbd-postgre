@@ -4,9 +4,9 @@ import io.jdbd.postgre.Server;
 import io.jdbd.postgre.session.SessionAdjutant;
 import reactor.core.publisher.Mono;
 
-public abstract class ClientProtocols {
+public abstract class ClientProtocolFactory {
 
-    private ClientProtocols() {
+    private ClientProtocolFactory() {
         throw new UnsupportedOperationException();
     }
 

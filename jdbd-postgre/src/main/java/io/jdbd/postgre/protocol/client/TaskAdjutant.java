@@ -8,4 +8,6 @@ interface TaskAdjutant extends ITaskAdjutant {
 
     PostgreHost obtainHost();
 
+    long processId();
+
 }

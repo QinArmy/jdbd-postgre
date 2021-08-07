@@ -98,7 +98,10 @@ final class PgTaskExecutor extends CommunicationTaskExecutor<TaskAdjutant> {
             return this.taskExecutor.host;
         }
 
-
+        @Override
+        public final long processId() {
+            return 0;
+        }
     }
 
 

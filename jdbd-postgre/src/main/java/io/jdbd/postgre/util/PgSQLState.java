@@ -2,9 +2,9 @@ package io.jdbd.postgre.util;
 
 import reactor.util.annotation.Nullable;
 
-public abstract class PSQLState {
+public abstract class PgSQLState {
 
-    private PSQLState() {
+    private PgSQLState() {
     }
 
 
