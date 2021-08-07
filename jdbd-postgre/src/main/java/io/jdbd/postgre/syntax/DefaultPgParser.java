@@ -8,11 +8,16 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
 import java.util.function.Function;
 
 final class DefaultPgParser implements PgParser {
 
+    static DefaultPgParser create(Function<ServerParameter, String> paramFunction) {
+        return new DefaultPgParser(paramFunction);
+    }
 
     private static final Logger LOG = LoggerFactory.getLogger(DefaultPgParser.class);
 
@@ -28,77 +33,88 @@ final class DefaultPgParser implements PgParser {
 
     private static final char BACK_SLASH = '\\';
 
-    private final Function<ServerParameter, String> paramFunction = s -> "";
+    private final Function<ServerParameter, String> paramFunction;
 
 
-    private DefaultPgParser() {
-
+    private DefaultPgParser(Function<ServerParameter, String> paramFunction) {
+        this.paramFunction = paramFunction;
     }
 
     @Override
     public final PgStatement parse(final String sql) throws SQLException {
+        final boolean isTrace = LOG.isTraceEnabled();
+        final long startMillis = isTrace ? System.currentTimeMillis() : 0;
+
         boolean inQuoteString = false, inCStyleEscapes = false, inUnicodeEscapes = false, inDoubleIdentifier = false;
 
         final boolean confirmStringOff = confirmStringIsOff();
         final int sqlLength = sql.length();
         char ch;
+        List<String> endpointList = new ArrayList<>();
+        int lastParamEnd = 0;
         for (int i = 0; i < sqlLength; i++) {
             ch = sql.charAt(i);
             if (inQuoteString) {
-                int index = sql.indexOf(QUOTE, i + 1);
+                int index = sql.indexOf(QUOTE, i);
                 if (index < 0) {
-                    throw PgExceptions.createSyntaxError("syntax error,string constants not close.");
+                    String m = String.format("syntax error,string constants not close at near %s .", fragment(sql, i));
+                    throw PgExceptions.createSyntaxError(m);
                 }
                 if ((confirmStringOff || inCStyleEscapes) && sql.charAt(index - 1) == BACK_SLASH) {
+                    // C-Style Escapes
                     i = index;
-                } else if (i + 1 < sqlLength && sql.charAt(i + 1) == QUOTE) {
-
-                }
-                if (ch == QUOTE) {
-
-                    if (i + 1 < sqlLength && sql.charAt(i + 1) == QUOTE) {
-                        i++;
-                        continue;
-                    }
+                } else if (index + 1 < sqlLength && sql.charAt(index + 1) == QUOTE) {
+                    // double quote Escapes
+                    i = index + 1;
+                } else {
+                    i = index;
+                    // LOG.debug("QUOTE end c-style[{}] unicode[{}]  ,current char[{}] at near {}",inCStyleEscapes,inUnicodeEscapes,ch,fragment(sql,i));
                     inQuoteString = false; // string constant end.
                     if (inUnicodeEscapes) {
                         inUnicodeEscapes = false;
                     } else if (inCStyleEscapes) {
                         inCStyleEscapes = false;
                     }
-                } else if (ch == BACK_SLASH && (confirmStringOff || inCStyleEscapes)) {
-                    // backslash is valid
-                    i++;
                 }
                 continue;
             } else if (inDoubleIdentifier) {
-                if (ch == DOUBLE_QUOTE) {
-                    inDoubleIdentifier = false;
-                    if (inUnicodeEscapes) {
-                        inUnicodeEscapes = false;
-                    }
+                int index = sql.indexOf(DOUBLE_QUOTE, i);
+                if (index < 0) {
+                    String m = String.format(
+                            "syntax error,double quoted identifier not close,at near %s", fragment(sql, i));
+                    throw PgExceptions.createSyntaxError(m);
                 }
-                continue;
-            }
-
-            if (Character.isWhitespace(ch)) {
+                inDoubleIdentifier = false;
+                if (inUnicodeEscapes) {
+                    inUnicodeEscapes = false;
+                }
+                // LOG.debug("DOUBLE_QUOTE end ,current char[{}] sql fragment :{}",ch, fragment(sql,index));
+                i = index;
                 continue;
             }
 
             if (ch == QUOTE) {
                 inQuoteString = true;
+                //LOG.debug("QUOTE start ,current char[{}] sql fragment :{}",ch, fragment(sql,i));
             } else if ((ch == 'E' || ch == 'e') && i + 1 < sqlLength && sql.charAt(i + 1) == QUOTE) {
                 inQuoteString = inCStyleEscapes = true;
+                //LOG.debug("QUOTE c-style start ,current char[{}] sql fragment :{}",ch, fragment(sql,i));
+                i++;
             } else if ((ch == 'U' || ch == 'u')
                     && i + 1 < sqlLength && sql.charAt(i + 1) == '&'
                     && i + 2 < sqlLength && sql.charAt(i + 2) == QUOTE) {
                 inQuoteString = inUnicodeEscapes = true;
+                // LOG.debug("QUOTE unicode start ,current char[{}] sql fragment :{}",ch, fragment(sql,i));
+                i += 2;
             } else if (ch == DOUBLE_QUOTE) {
+                //LOG.debug("DOUBLE_QUOTE current char[{}] sql fragment :{}",ch, fragment(sql,i));
                 inDoubleIdentifier = true;
             } else if ((ch == 'U' || ch == 'u')
                     && i + 1 < sqlLength && sql.charAt(i + 1) == '&'
                     && i + 2 < sqlLength && sql.charAt(i + 2) == DOUBLE_QUOTE) {
+                // LOG.debug("DOUBLE_QUOTE with unicode ,current char[{}] sql fragment :{}",ch, fragment(sql,i));
                 inDoubleIdentifier = inUnicodeEscapes = true;
+                i += 2;
             } else if (ch == '$') {
                 // Dollar-Quoted String Constants
                 int index = sql.indexOf('$', i + 1);
@@ -113,14 +129,38 @@ final class DefaultPgParser implements PgParser {
                     throw PgExceptions.createSyntaxError(msg);
                 }
                 i = index + dollarTag.length() - 1;
-            } else if (sql.startsWith(DOUBLE_DASH_COMMENT_MARKER, i)) {
-                i = skipBlockComment(sql, i);
             } else if (sql.startsWith(BLOCK_COMMENT_START_MARKER, i)) {
+                i = skipBlockComment(sql, i);
+            } else if (sql.startsWith(DOUBLE_DASH_COMMENT_MARKER, i)) {
                 int index = sql.indexOf('\n', i + DOUBLE_DASH_COMMENT_MARKER.length());
                 i = index > 0 ? index : sqlLength;
+            } else if (ch == '?') {
+                endpointList.add(sql.substring(lastParamEnd, i));
+                lastParamEnd = i + 1;
+            } else if (ch == ';') {
+                String m = String.format(
+                        "Detect multiple statements,multiple statements can't be bind,please check [%s].", sql);
+                throw PgExceptions.createSyntaxError(m);
             }
+
         }
-        return null;
+
+        if (inQuoteString) {
+            throw PgExceptions.createSyntaxError("syntax error,last string constants not close.");
+        }
+        if (inDoubleIdentifier) {
+            throw PgExceptions.createSyntaxError("syntax error,last double quoted identifier not close.");
+        }
+
+        if (lastParamEnd < sqlLength) {
+            endpointList.add(sql.substring(lastParamEnd));
+        } else {
+            endpointList.add("");
+        }
+        if (isTrace) {
+            LOG.trace("SQL[{}] \nparse cost {} ms.", sql, System.currentTimeMillis() - startMillis);
+        }
+        return PgStatementImpl.create(sql, endpointList);
     }
 
 
@@ -161,22 +201,9 @@ final class DefaultPgParser implements PgParser {
         throw PgExceptions.createSyntaxError(errorMsg);
     }
 
-    /**
-     * @return the index of line end char.
-     */
-    private static int skipLineComment(final String sql, final int searchIndex) {
-        final int length = sql.length();
-        int index = sql.indexOf('\n', searchIndex);
-        if (index < 0) {
-            index = sql.indexOf('\r', searchIndex);
-        }
-        int i;
-        if (index < 0) {
-            i = sql.length();
-        } else {
-            i = index;
-        }
-        return i;
+
+    private static String fragment(String sql, int index) {
+        return sql.substring(Math.max(index - 10, 0), Math.min(index + 10, sql.length()));
     }
 
 

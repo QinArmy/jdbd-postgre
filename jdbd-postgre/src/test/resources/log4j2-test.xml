@@ -22,6 +22,9 @@
         <Logger name="reactor.netty.tcp.ssl" level="INFO" additivity="false">
             <AppenderRef ref="Console"/>
         </Logger>
+        <Logger name="io.jdbd.postgre.syntax.DefaultPgParser" level="TRACE" additivity="false">
+            <AppenderRef ref="Console"/>
+        </Logger>
         <Logger name="io.jdbd.postgre" level="TRACE" additivity="false">
             <AppenderRef ref="Console"/>
         </Logger>
