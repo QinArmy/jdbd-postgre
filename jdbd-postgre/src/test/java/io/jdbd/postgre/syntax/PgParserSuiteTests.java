@@ -254,6 +254,12 @@ public class PgParserSuiteTests {
         }
     }
 
+    @Test
+    public void uescapeClauseErrorEscapes() {
+        //TODO zoro 测试 UESCAPE '\' 和 UESCAPE ''' 的静态 sql 的解析
+        //TODO zoro 测试 UESCAPE '\' 和 UESCAPE ''' 的 bindable sql 的 string parameter 解析 .
+    }
+
 
     /**
      * @see #simpleBlockComment()
