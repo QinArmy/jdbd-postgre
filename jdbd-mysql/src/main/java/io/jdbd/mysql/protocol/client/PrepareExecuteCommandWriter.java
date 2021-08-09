@@ -77,7 +77,7 @@ final class PrepareExecuteCommandWriter implements ExecuteCommandWriter {
         if (paramMetaArray.length == 0) {
             // this 'if' block handle no bind parameter.
             ByteBuf packet = createExecutePacketBuffer(10);
-            PacketUtils.writePacketHeader(packet, this.statementTask.safelyAddAndGetSequenceId());
+            Packets.writePacketHeader(packet, this.statementTask.safelyAddAndGetSequenceId());
             publisher = Mono.just(packet);
         } else {
             if (nonLongDataCount == paramMetaArray.length) {
@@ -146,7 +146,7 @@ final class PrepareExecuteCommandWriter implements ExecuteCommandWriter {
                 MySQLType bindType = decideBindType(stmtIndex, parameterMetaArray[i], paramValue);
                 bindTypeList.add(bindType);
                 //fill  parameter_types
-                PacketUtils.writeInt2(packet, bindType.parameterType);
+                Packets.writeInt2(packet, bindType.parameterType);
             }
 
             final int writeIndex = packet.writerIndex();
@@ -165,11 +165,11 @@ final class PrepareExecuteCommandWriter implements ExecuteCommandWriter {
                 if (paramValue.isLongData() || paramValue.getValue() == null) {
                     continue;
                 }
-                while (packet.readableBytes() >= PacketUtils.MAX_PACKET) {
-                    ByteBuf temp = packet.readRetainedSlice(PacketUtils.MAX_PACKET);
-                    PacketUtils.writePacketHeader(temp, this.statementTask.safelyAddAndGetSequenceId());
+                while (packet.readableBytes() >= Packets.MAX_PACKET) {
+                    ByteBuf temp = packet.readRetainedSlice(Packets.MAX_PACKET);
+                    Packets.writePacketHeader(temp, this.statementTask.safelyAddAndGetSequenceId());
                     packetList.add(temp);
-                    wroteBytes += PacketUtils.MAX_PAYLOAD;
+                    wroteBytes += Packets.MAX_PAYLOAD;
 
                     temp = this.adjutant.createPacketBuffer(Math.min(1024, packet.readableBytes()));
                     temp.writeBytes(packet);
@@ -184,12 +184,12 @@ final class PrepareExecuteCommandWriter implements ExecuteCommandWriter {
                 // bind parameter bto packet buffer
                 bindParameter(packet, stmtIndex, bindTypeList.get(i), parameterMetaArray[i], paramValue);
             }
-            wroteBytes += (packet.readableBytes() - PacketUtils.HEADER_SIZE);
+            wroteBytes += (packet.readableBytes() - Packets.HEADER_SIZE);
             if (wroteBytes < 0 || wroteBytes > maxAllowedPayload) {
                 throw MySQLExceptions.createNetPacketTooLargeException(maxAllowedPayload);
             }
 
-            PacketUtils.writePacketHeader(packet, this.statementTask.safelyAddAndGetSequenceId());
+            Packets.writePacketHeader(packet, this.statementTask.safelyAddAndGetSequenceId());
             packetList.add(packet);
 
 
@@ -208,17 +208,17 @@ final class PrepareExecuteCommandWriter implements ExecuteCommandWriter {
      */
     private ByteBuf createExecutePacketBuffer(int initialPayloadCapacity) {
 
-        ByteBuf packet = this.adjutant.createPacketBuffer(Math.min(initialPayloadCapacity, PacketUtils.MAX_PAYLOAD));
+        ByteBuf packet = this.adjutant.createPacketBuffer(Math.min(initialPayloadCapacity, Packets.MAX_PAYLOAD));
 
-        packet.writeByte(PacketUtils.COM_STMT_EXECUTE); // 1.status
-        PacketUtils.writeInt4(packet, this.statementId);// 2. statement_id
+        packet.writeByte(Packets.COM_STMT_EXECUTE); // 1.status
+        Packets.writeInt4(packet, this.statementId);// 2. statement_id
         //3.cursor Flags, reactive api not support cursor
         if (this.fetchResultSet) {
             packet.writeByte(ProtocolConstants.CURSOR_TYPE_READ_ONLY);
         } else {
             packet.writeByte(ProtocolConstants.CURSOR_TYPE_NO_CURSOR);
         }
-        PacketUtils.writeInt4(packet, 1);//4. iteration_count,Number of times to execute the statement. Currently always 1.
+        Packets.writeInt4(packet, 1);//4. iteration_count,Number of times to execute the statement. Currently always 1.
 
         return packet;
     }
@@ -441,7 +441,7 @@ final class PrepareExecuteCommandWriter implements ExecuteCommandWriter {
         } else {
             throw MySQLExceptions.createTypeNotMatchException(stmtIndex, parameterMeta.mysqlType, bindValue);
         }
-        PacketUtils.writeInt1(buffer, int1);
+        Packets.writeInt1(buffer, int1);
     }
 
     /**
@@ -458,7 +458,7 @@ final class PrepareExecuteCommandWriter implements ExecuteCommandWriter {
         } else {
             throw MySQLExceptions.createTypeNotMatchException(stmtIndex, parameterMeta.mysqlType, bindValue);
         }
-        PacketUtils.writeInt2(buffer, int2);
+        Packets.writeInt2(buffer, int2);
     }
 
     /**
@@ -478,7 +478,7 @@ final class PrepareExecuteCommandWriter implements ExecuteCommandWriter {
         } else {
             throw MySQLExceptions.createTypeNotMatchException(stmtIndex, parameterMeta.mysqlType, paramValue);
         }
-        PacketUtils.writeStringLenEnc(buffer, decimal.getBytes(this.adjutant.obtainCharsetClient()));
+        Packets.writeStringLenEnc(buffer, decimal.getBytes(this.adjutant.obtainCharsetClient()));
     }
 
     /**
@@ -500,7 +500,7 @@ final class PrepareExecuteCommandWriter implements ExecuteCommandWriter {
         } else {
             throw MySQLExceptions.createTypeNotMatchException(stmtIndex, meta.mysqlType, paramValue);
         }
-        PacketUtils.writeInt4(buffer, int4);
+        Packets.writeInt4(buffer, int4);
     }
 
     /**
@@ -510,7 +510,7 @@ final class PrepareExecuteCommandWriter implements ExecuteCommandWriter {
             , final ParamValue bindValue) {
         final Object nonNullValue = bindValue.getNonNullValue();
         if (nonNullValue instanceof Float) {
-            PacketUtils.writeInt4(buffer, Float.floatToIntBits((Float) nonNullValue));
+            Packets.writeInt4(buffer, Float.floatToIntBits((Float) nonNullValue));
         } else {
             throw MySQLExceptions.createTypeNotMatchException(stmtIndex, meta.mysqlType, bindValue);
         }
@@ -531,7 +531,7 @@ final class PrepareExecuteCommandWriter implements ExecuteCommandWriter {
         } else {
             throw MySQLExceptions.createTypeNotMatchException(stmtIndex, meta.mysqlType, bindValue);
         }
-        PacketUtils.writeInt8(buffer, int8);
+        Packets.writeInt8(buffer, int8);
     }
 
 
@@ -542,7 +542,7 @@ final class PrepareExecuteCommandWriter implements ExecuteCommandWriter {
             , final ParamValue bindValue) {
         final Object nonNull = bindValue.getNonNullValue();
         if (nonNull instanceof Double) {
-            PacketUtils.writeInt8(buffer, Double.doubleToLongBits((Double) nonNull));
+            Packets.writeInt8(buffer, Double.doubleToLongBits((Double) nonNull));
         } else {
             throw MySQLExceptions.createTypeNotMatchException(stmtIndex, parameterMeta.mysqlType, bindValue);
         }
@@ -568,7 +568,7 @@ final class PrepareExecuteCommandWriter implements ExecuteCommandWriter {
             buffer.writeByte(duration.isNegative() ? 1 : 0); //2. is_negative
 
             long totalSeconds = Math.abs(duration.getSeconds());
-            PacketUtils.writeInt4(buffer, (int) (totalSeconds / (3600 * 24))); //3. days
+            Packets.writeInt4(buffer, (int) (totalSeconds / (3600 * 24))); //3. days
             totalSeconds %= (3600 * 24);
 
             buffer.writeByte((int) (totalSeconds / 3600)); //4. hour
@@ -580,7 +580,7 @@ final class PrepareExecuteCommandWriter implements ExecuteCommandWriter {
             buffer.writeByte((int) totalSeconds); //6. second
             if (length == 12) {
                 //7, micro seconds
-                PacketUtils.writeInt4(buffer, truncateMicroSeconds(duration.getNano() / 1000, microPrecision));
+                Packets.writeInt4(buffer, truncateMicroSeconds(duration.getNano() / 1000, microPrecision));
             }
             return;
         }
@@ -617,7 +617,7 @@ final class PrepareExecuteCommandWriter implements ExecuteCommandWriter {
 
             if (length == 12) {
                 //7, micro seconds
-                PacketUtils.writeInt4(buffer
+                Packets.writeInt4(buffer
                         , truncateMicroSeconds(time.get(ChronoField.MICRO_OF_SECOND), microPrecision));
             }
         }
@@ -643,7 +643,7 @@ final class PrepareExecuteCommandWriter implements ExecuteCommandWriter {
             throw MySQLExceptions.createTypeNotMatchException(stmtIndex, columnMeta.mysqlType, bindValue);
         }
         buffer.writeByte(4); // length
-        PacketUtils.writeInt2(buffer, date.getYear()); // year
+        Packets.writeInt2(buffer, date.getYear()); // year
         buffer.writeByte(date.getMonthValue()); // month
         buffer.writeByte(date.getDayOfMonth()); // day
     }
@@ -684,7 +684,7 @@ final class PrepareExecuteCommandWriter implements ExecuteCommandWriter {
 
         final int microPrecision = parameterMeta.obtainDateTimeTypePrecision();
         buffer.writeByte(microPrecision > 0 ? 11 : 7); // length
-        PacketUtils.writeInt2(buffer, dateTime.getYear()); // year
+        Packets.writeInt2(buffer, dateTime.getYear()); // year
         buffer.writeByte(dateTime.getMonthValue()); // month
         buffer.writeByte(dateTime.getDayOfMonth()); // day
 
@@ -694,7 +694,7 @@ final class PrepareExecuteCommandWriter implements ExecuteCommandWriter {
 
         if (microPrecision > 0) {
             // micro second
-            PacketUtils.writeInt4(buffer
+            Packets.writeInt4(buffer
                     , truncateMicroSeconds(dateTime.get(ChronoField.MICRO_OF_SECOND), microPrecision));
         }
 
@@ -708,11 +708,11 @@ final class PrepareExecuteCommandWriter implements ExecuteCommandWriter {
             , final ParamValue bindValue) {
         final Object nonNull = bindValue.getNonNullValue();
         if (nonNull instanceof CharSequence || nonNull instanceof Character) {
-            PacketUtils.writeStringLenEnc(buffer, nonNull.toString().getBytes(this.adjutant.obtainCharsetClient()));
+            Packets.writeStringLenEnc(buffer, nonNull.toString().getBytes(this.adjutant.obtainCharsetClient()));
         } else if (nonNull instanceof byte[]) {
-            PacketUtils.writeStringLenEnc(buffer, (byte[]) nonNull);
+            Packets.writeStringLenEnc(buffer, (byte[]) nonNull);
         } else if (nonNull instanceof Enum) {
-            PacketUtils.writeStringLenEnc(buffer, ((Enum<?>) nonNull).name()
+            Packets.writeStringLenEnc(buffer, ((Enum<?>) nonNull).name()
                     .getBytes(this.adjutant.obtainCharsetClient()));
         } else if (nonNull instanceof Set) {
             Set<?> set = (Set<?>) nonNull;
@@ -731,7 +731,7 @@ final class PrepareExecuteCommandWriter implements ExecuteCommandWriter {
                 }
                 index++;
             }
-            PacketUtils.writeStringLenEnc(buffer, builder.toString().getBytes(this.adjutant.obtainCharsetClient()));
+            Packets.writeStringLenEnc(buffer, builder.toString().getBytes(this.adjutant.obtainCharsetClient()));
         } else {
             throw MySQLExceptions.createTypeNotMatchException(stmtIndex, meta.mysqlType, bindValue);
         }

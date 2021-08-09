@@ -6,6 +6,7 @@ import org.testng.annotations.Test;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
+import java.sql.ResultSet;
 import java.sql.Statement;
 import java.util.Properties;
 
@@ -19,12 +20,26 @@ public class JdbcTests {
         String url = "jdbc:postgresql://localhost:5432/army_test";
 
         Properties properties = new Properties();
-        properties.put("user", "postgres");
-        properties.put("password", "ITvtwm8341");
+        properties.put("user", "army_w");
+        properties.put("password", "army123");
+        properties.put("preferQueryMode", "simple");
+        properties.put("currentSchema", "army");
 
         try (Connection conn = DriverManager.getConnection(url, properties)) {
             try (Statement stmt = conn.createStatement()) {
-                LOG.info("test success {}", stmt.execute("SELECT 1 AS tests"));
+                String sql;
+                sql = "SET search_path = army";
+                LOG.info("test success {}", stmt.executeUpdate(sql));
+                sql = "UPDATE table_name AS t SET create_time = '2021-08-08 10:54:30' WHERE t.id = 1";
+                LOG.info("test success {}", stmt.execute(sql));
+                sql = "SELECT current_database() AS DATABASE, current_schemas(FALSE) AS SCHEMA";
+                try (ResultSet resultSet = stmt.executeQuery(sql)) {
+                    while (resultSet.next()) {
+                        LOG.info("{},{}", resultSet.getString("database"), resultSet.getString("schema"));
+                    }
+                }
+
+
             }
         }
 

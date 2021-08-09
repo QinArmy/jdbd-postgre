@@ -173,17 +173,17 @@ final class MySQLTaskExecutor extends CommunicationTaskExecutor<TaskAdjutant> {
 
         @Override
         public ByteBuf createPacketBuffer(int initialPayloadCapacity) {
-            ByteBuf packetBuffer = this.allocator().buffer(PacketUtils.HEADER_SIZE + initialPayloadCapacity, 1 << 30);
-            packetBuffer.writeZero(PacketUtils.HEADER_SIZE);
+            ByteBuf packetBuffer = this.allocator().buffer(Packets.HEADER_SIZE + initialPayloadCapacity, 1 << 30);
+            packetBuffer.writeZero(Packets.HEADER_SIZE);
             return packetBuffer;
 
         }
 
         @Override
         public ByteBuf createPacketBuffer(int initialPayloadCapacity, int maxCapacity) {
-            ByteBuf packetBuffer = this.allocator().buffer(PacketUtils.HEADER_SIZE + initialPayloadCapacity
+            ByteBuf packetBuffer = this.allocator().buffer(Packets.HEADER_SIZE + initialPayloadCapacity
                     , maxCapacity);
-            packetBuffer.writeZero(PacketUtils.HEADER_SIZE);
+            packetBuffer.writeZero(Packets.HEADER_SIZE);
             return packetBuffer;
         }
 

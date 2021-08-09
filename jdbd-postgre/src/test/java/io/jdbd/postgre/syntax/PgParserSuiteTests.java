@@ -1,5 +1,6 @@
 package io.jdbd.postgre.syntax;
 
+import io.jdbd.postgre.Group;
 import io.jdbd.postgre.ServerParameter;
 import io.jdbd.postgre.util.PgArrays;
 import org.slf4j.Logger;
@@ -18,6 +19,7 @@ import static org.testng.Assert.*;
  *
  * @see PgParser
  */
+@Test(groups = {Group.PARSER})
 public class PgParserSuiteTests {
 
     private static final Logger LOG = LoggerFactory.getLogger(PgParserSuiteTests.class);

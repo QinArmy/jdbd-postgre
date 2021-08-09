@@ -17,17 +17,17 @@ public final class ErrorPacket implements MySQLPacket {
 
 
     public static ErrorPacket readPacket(ByteBuf payloadBuf, final int capability, Charset errorMessageCharset) {
-        if (PacketUtils.readInt1AsInt(payloadBuf) != ERROR_HEADER) {
+        if (Packets.readInt1AsInt(payloadBuf) != ERROR_HEADER) {
             throw new IllegalArgumentException("packetBuf isn't error packet.");
         }
-        int errorCode = PacketUtils.readInt2AsInt(payloadBuf);
+        int errorCode = Packets.readInt2AsInt(payloadBuf);
 
         String sqlStateMarker = null, sqlState = null, errorMessage;
         if ((capability & ClientProtocol.CLIENT_PROTOCOL_41) != 0) {
-            sqlStateMarker = PacketUtils.readStringFixed(payloadBuf, 1, errorMessageCharset);
-            sqlState = PacketUtils.readStringFixed(payloadBuf, 5, errorMessageCharset);
+            sqlStateMarker = Packets.readStringFixed(payloadBuf, 1, errorMessageCharset);
+            sqlState = Packets.readStringFixed(payloadBuf, 5, errorMessageCharset);
         }
-        errorMessage = PacketUtils.readStringEof(payloadBuf, payloadBuf.readableBytes(), errorMessageCharset);
+        errorMessage = Packets.readStringEof(payloadBuf, payloadBuf.readableBytes(), errorMessageCharset);
 
         return new ErrorPacket(errorCode, sqlStateMarker
                 , sqlState, errorMessage
@@ -80,7 +80,7 @@ public final class ErrorPacket implements MySQLPacket {
     }
 
     public static boolean isErrorPacket(ByteBuf byteBuf) {
-        return PacketUtils.getInt1AsInt(byteBuf, byteBuf.readerIndex()) == ERROR_HEADER;
+        return Packets.getInt1AsInt(byteBuf, byteBuf.readerIndex()) == ERROR_HEADER;
     }
 
 }

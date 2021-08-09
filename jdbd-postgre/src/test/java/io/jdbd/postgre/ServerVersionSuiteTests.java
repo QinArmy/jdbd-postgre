@@ -9,6 +9,7 @@ import static org.testng.Assert.assertEquals;
 /**
  * @see ServerVersion
  */
+@Test(groups = {Group.UTILS})
 public class ServerVersionSuiteTests {
 
     private static final Logger LOG = LoggerFactory.getLogger(ServerVersionSuiteTests.class);

@@ -93,7 +93,7 @@ final class BinaryResultSetReader extends AbstractResultSetReader {
         switch (columnMeta.mysqlType) {
             case DECIMAL:
             case DECIMAL_UNSIGNED: {
-                bytes = PacketUtils.readBytesLenEnc(payload);
+                bytes = Packets.readBytesLenEnc(payload);
                 if (bytes == null) {
                     columnValue = null;
                 } else {
@@ -104,13 +104,13 @@ final class BinaryResultSetReader extends AbstractResultSetReader {
             case INT:
             case MEDIUMINT:
             case MEDIUMINT_UNSIGNED:
-                columnValue = PacketUtils.readInt4(payload);
+                columnValue = Packets.readInt4(payload);
                 break;
             case INT_UNSIGNED:
-                columnValue = PacketUtils.readInt4AsLong(payload);
+                columnValue = Packets.readInt4AsLong(payload);
                 break;
             case BIGINT:
-                columnValue = PacketUtils.readInt8(payload);
+                columnValue = Packets.readInt8(payload);
                 break;
             case BIGINT_UNSIGNED: {
                 bytes = new byte[9];
@@ -141,11 +141,11 @@ final class BinaryResultSetReader extends AbstractResultSetReader {
             case TINYTEXT:
             case TEXT:
             case MEDIUMTEXT:
-                columnValue = PacketUtils.readStringLenEnc(payload, columnCharset);
+                columnValue = Packets.readStringLenEnc(payload, columnCharset);
                 break;
             case LONGTEXT:
             case JSON: {
-                bytes = PacketUtils.readBytesLenEnc(payload);
+                bytes = Packets.readBytesLenEnc(payload);
                 if (bytes == null) {
                     columnValue = null;
                 } else {
@@ -157,7 +157,7 @@ final class BinaryResultSetReader extends AbstractResultSetReader {
                 if (columnMeta.isTiny1AsBit()) {
                     columnValue = (long) payload.readByte();
                 } else {
-                    bytes = PacketUtils.readBytesLenEnc(payload);
+                    bytes = Packets.readBytesLenEnc(payload);
                     if (bytes == null) {
                         columnValue = null;
                     } else {
@@ -167,7 +167,7 @@ final class BinaryResultSetReader extends AbstractResultSetReader {
             }
             break;
             case SET: {
-                bytes = PacketUtils.readBytesLenEnc(payload);
+                bytes = Packets.readBytesLenEnc(payload);
                 if (bytes == null) {
                     columnValue = null;
                 } else {
@@ -176,13 +176,13 @@ final class BinaryResultSetReader extends AbstractResultSetReader {
             }
             break;
             case SMALLINT:
-                columnValue = (short) PacketUtils.readInt2AsInt(payload);
+                columnValue = (short) Packets.readInt2AsInt(payload);
                 break;
             case SMALLINT_UNSIGNED:
-                columnValue = PacketUtils.readInt2AsInt(payload);
+                columnValue = Packets.readInt2AsInt(payload);
                 break;
             case YEAR:
-                columnValue = Year.of(PacketUtils.readInt2AsInt(payload));
+                columnValue = Year.of(Packets.readInt2AsInt(payload));
                 break;
             case BOOLEAN:
                 columnValue = MySQLConvertUtils.tryConvertToBoolean(payload.readByte());
@@ -195,21 +195,21 @@ final class BinaryResultSetReader extends AbstractResultSetReader {
                 break;
             case DOUBLE:
             case DOUBLE_UNSIGNED://UNSIGNED, if specified, disallows negative values. As of MySQL 8.0.17, the UNSIGNED attribute is deprecated
-                columnValue = Double.longBitsToDouble(PacketUtils.readInt8(payload));
+                columnValue = Double.longBitsToDouble(Packets.readInt8(payload));
                 break;
             case FLOAT:
             case FLOAT_UNSIGNED:// UNSIGNED, if specified, disallows negative values. As of MySQL 8.0.17, the UNSIGNED attribute is deprecated for columns
-                columnValue = Float.intBitsToFloat(PacketUtils.readInt4(payload));
+                columnValue = Float.intBitsToFloat(Packets.readInt4(payload));
                 break;
             case BINARY:
             case VARBINARY:
             case TINYBLOB:
             case BLOB:
             case MEDIUMBLOB:
-                columnValue = PacketUtils.readBytesLenEnc(payload);
+                columnValue = Packets.readBytesLenEnc(payload);
                 break;
             case LONGBLOB: {
-                bytes = PacketUtils.readBytesLenEnc(payload);
+                bytes = Packets.readBytesLenEnc(payload);
                 if (bytes == null) {
                     columnValue = null;
                 } else {
@@ -218,7 +218,7 @@ final class BinaryResultSetReader extends AbstractResultSetReader {
             }
             break;
             case GEOMETRY: {
-                bytes = PacketUtils.readBytesLenEnc(payload);
+                bytes = Packets.readBytesLenEnc(payload);
                 if (bytes == null) {
                     columnValue = null;
                 } else {
@@ -279,7 +279,7 @@ final class BinaryResultSetReader extends AbstractResultSetReader {
             case ProtocolConstants.TYPE_ENUM:
             case ProtocolConstants.TYPE_SET:
             case ProtocolConstants.TYPE_JSON: {
-                columnBytes = PacketUtils.getLenEncTotalByteLength(bigPayloadBuffer);
+                columnBytes = Packets.getLenEncTotalByteLength(bigPayloadBuffer);
             }
             break;
             case ProtocolConstants.TYPE_DOUBLE:
@@ -334,7 +334,7 @@ final class BinaryResultSetReader extends AbstractResultSetReader {
         } else {
             final boolean negative = byteBuf.readByte() == 1;
             final int days, hours, minutes, seconds;
-            days = PacketUtils.readInt4(byteBuf);
+            days = Packets.readInt4(byteBuf);
             hours = byteBuf.readByte();
             minutes = byteBuf.readByte();
             seconds = byteBuf.readByte();
@@ -347,12 +347,12 @@ final class BinaryResultSetReader extends AbstractResultSetReader {
                 if (length == 8) {
                     value = Duration.ofSeconds(totalSeconds);
                 } else {
-                    value = Duration.ofSeconds(totalSeconds, PacketUtils.readInt4(byteBuf) * 1000L);
+                    value = Duration.ofSeconds(totalSeconds, Packets.readInt4(byteBuf) * 1000L);
                 }
             } else if (length == 8) {
                 value = LocalTime.of(hours, minutes, seconds);
             } else {
-                value = LocalTime.of(hours, minutes, seconds, PacketUtils.readInt4(byteBuf) * 1000);
+                value = LocalTime.of(hours, minutes, seconds, Packets.readInt4(byteBuf) * 1000);
             }
         }
         if (value instanceof LocalTime) {
@@ -375,7 +375,7 @@ final class BinaryResultSetReader extends AbstractResultSetReader {
         switch (length) {
             case 7: {
                 dateTime = LocalDateTime.of(
-                        PacketUtils.readInt2AsInt(payload) // year
+                        Packets.readInt2AsInt(payload) // year
                         , payload.readByte()           // month
                         , payload.readByte()           // day
 
@@ -387,7 +387,7 @@ final class BinaryResultSetReader extends AbstractResultSetReader {
             break;
             case 11: {
                 dateTime = LocalDateTime.of(
-                        PacketUtils.readInt2AsInt(payload) // year
+                        Packets.readInt2AsInt(payload) // year
                         , payload.readByte()           // month
                         , payload.readByte()           // day
 
@@ -395,12 +395,12 @@ final class BinaryResultSetReader extends AbstractResultSetReader {
                         , payload.readByte()           // minute
                         , payload.readByte()           // second
 
-                        , PacketUtils.readInt4(payload) * 1000 // micro second
+                        , Packets.readInt4(payload) * 1000 // micro second
                 );
             }
             break;
             case 4: {
-                LocalDate date = LocalDate.of(PacketUtils.readInt2AsInt(payload), payload.readByte(), payload.readByte());
+                LocalDate date = LocalDate.of(Packets.readInt2AsInt(payload), payload.readByte(), payload.readByte());
                 dateTime = LocalDateTime.of(date, LocalTime.MIN);
             }
             break;
@@ -441,7 +441,7 @@ final class BinaryResultSetReader extends AbstractResultSetReader {
         LocalDate date;
         switch (length) {
             case 4:
-                date = LocalDate.of(PacketUtils.readInt2AsInt(payload), payload.readByte(), payload.readByte());
+                date = LocalDate.of(Packets.readInt2AsInt(payload), payload.readByte(), payload.readByte());
                 break;
             case 0:
                 date = null;

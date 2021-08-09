@@ -82,7 +82,7 @@ final class ComQueryCommandWriter {
      */
     static Iterable<ByteBuf> createStaticSingleCommand(final Stmt stmt, Supplier<Integer> sequenceIdSupplier
             , final TaskAdjutant adjutant) throws SQLException, JdbdSQLException {
-        return PacketUtils.createSimpleCommand(PacketUtils.COM_QUERY, stmt, adjutant, sequenceIdSupplier);
+        return Packets.createSimpleCommand(Packets.COM_QUERY, stmt, adjutant, sequenceIdSupplier);
     }
 
     /**
@@ -126,20 +126,20 @@ final class ComQueryCommandWriter {
             , TaskAdjutant adjutant, Supplier<Integer> sequenceIdSupplier) {
 
         ByteBuf packet;
-        if (payloadLength < PacketUtils.MAX_PAYLOAD) {
+        if (payloadLength < Packets.MAX_PAYLOAD) {
             packet = adjutant.createPacketBuffer(payloadLength);
         } else {
-            packet = adjutant.createPacketBuffer(PacketUtils.MAX_PAYLOAD);
+            packet = adjutant.createPacketBuffer(Packets.MAX_PAYLOAD);
         }
-        packet.writeByte(PacketUtils.COM_QUERY);
+        packet.writeByte(Packets.COM_QUERY);
         List<ByteBuf> packetList = new LinkedList<>();
 
         for (int i = 0, restPayloadLength = payloadLength - 1; i < commandArray.length; i++) {
             if (i > 0) {
-                if (packet.readableBytes() == PacketUtils.MAX_PACKET) {
-                    PacketUtils.writePacketHeader(packet, sequenceIdSupplier.get());
+                if (packet.readableBytes() == Packets.MAX_PACKET) {
+                    Packets.writePacketHeader(packet, sequenceIdSupplier.get());
                     packetList.add(packet);
-                    packet = adjutant.createPacketBuffer(Math.min(PacketUtils.MAX_PAYLOAD, restPayloadLength));
+                    packet = adjutant.createPacketBuffer(Math.min(Packets.MAX_PAYLOAD, restPayloadLength));
                 }
                 packet.writeByte(Constants.SEMICOLON_BYTE);
                 restPayloadLength--;
@@ -147,20 +147,20 @@ final class ComQueryCommandWriter {
             byte[] command = commandArray[i];
 
             for (int offset = 0, length; offset < command.length; offset += length) {
-                if (packet.readableBytes() == PacketUtils.MAX_PACKET) {
-                    PacketUtils.writePacketHeader(packet, sequenceIdSupplier.get());
+                if (packet.readableBytes() == Packets.MAX_PACKET) {
+                    Packets.writePacketHeader(packet, sequenceIdSupplier.get());
                     packetList.add(packet);
-                    packet = adjutant.createPacketBuffer(Math.min(PacketUtils.MAX_PAYLOAD, restPayloadLength));
+                    packet = adjutant.createPacketBuffer(Math.min(Packets.MAX_PAYLOAD, restPayloadLength));
                 }
-                length = Math.min(PacketUtils.MAX_PACKET - packet.readableBytes(), command.length - offset);
+                length = Math.min(Packets.MAX_PACKET - packet.readableBytes(), command.length - offset);
                 packet.writeBytes(command, offset, length);
                 restPayloadLength -= length;
             }
         }
-        PacketUtils.writePacketHeader(packet, sequenceIdSupplier.get());
+        Packets.writePacketHeader(packet, sequenceIdSupplier.get());
         packetList.add(packet);
-        if (packet.readableBytes() == PacketUtils.MAX_PACKET) {
-            packetList.add(PacketUtils.createEmptyPacket(adjutant.allocator(), sequenceIdSupplier.get()));
+        if (packet.readableBytes() == Packets.MAX_PACKET) {
+            packetList.add(Packets.createEmptyPacket(adjutant.allocator(), sequenceIdSupplier.get()));
         }
 
         if (packetList.size() == 1) {
@@ -214,7 +214,7 @@ final class ComQueryCommandWriter {
         final int size = bindableStmtList.size();
         final LinkedList<ByteBuf> packetList = new LinkedList<>();
         ByteBuf packet = this.adjutant.createPacketBuffer(2048);
-        packet.writeByte(PacketUtils.COM_QUERY);
+        packet.writeByte(Packets.COM_QUERY);
         try {
             final byte[] semicolonBytes = Constants.SEMICOLON.getBytes(clientCharset);
             for (int i = 0; i < size; i++) {
@@ -222,12 +222,12 @@ final class ComQueryCommandWriter {
                     packet.writeBytes(semicolonBytes);
                 }
                 packet = doWriteBindableCommand(i, bindableStmtList.get(i), packetList, packet);
-                if (packet.readableBytes() >= PacketUtils.MAX_PACKET) {
-                    packet = PacketUtils.addAndCutBigPacket(packet, packetList, this.sequenceIdSupplier
+                if (packet.readableBytes() >= Packets.MAX_PACKET) {
+                    packet = Packets.addAndCutBigPacket(packet, packetList, this.sequenceIdSupplier
                             , this.adjutant.allocator()::buffer);
                 }
             }
-            PacketUtils.writePacketHeader(packet, this.sequenceIdSupplier.get());
+            Packets.writePacketHeader(packet, this.sequenceIdSupplier.get());
             packetList.add(packet);
             return MySQLCollections.unmodifiableList(packetList);
         } catch (Throwable e) {
@@ -245,9 +245,9 @@ final class ComQueryCommandWriter {
         int capacity = bindableStmt.getSql().length() * this.adjutant.obtainMaxBytesPerCharClient() + 100;
         ByteBuf packet = this.adjutant.createPacketBuffer(capacity);
         try {
-            packet.writeByte(PacketUtils.COM_QUERY);
+            packet.writeByte(Packets.COM_QUERY);
             packet = doWriteBindableCommand(-1, bindableStmt, packetList, packet);
-            PacketUtils.writePacketHeader(packet, this.sequenceIdSupplier.get());
+            Packets.writePacketHeader(packet, this.sequenceIdSupplier.get());
             packetList.add(packet);
             return MySQLCollections.unmodifiableList(packetList);
         } catch (Throwable e) {
@@ -276,7 +276,7 @@ final class ComQueryCommandWriter {
 
         final LinkedList<ByteBuf> packetList = new LinkedList<>();
         ByteBuf packet = this.adjutant.createPacketBuffer(2048);
-        packet.writeByte(PacketUtils.COM_QUERY);
+        packet.writeByte(Packets.COM_QUERY);
 
         try {
             for (int i = 0; i < stmtCount; i++) {
@@ -307,14 +307,14 @@ final class ComQueryCommandWriter {
                 // write last static sql
                 packet.writeCharSequence(staticSqlList.get(paramCount), clientCharset);
 
-                if (packet.readableBytes() >= PacketUtils.MAX_PACKET) {
-                    packet = PacketUtils.addAndCutBigPacket(packet, packetList, this.sequenceIdSupplier
+                if (packet.readableBytes() >= Packets.MAX_PACKET) {
+                    packet = Packets.addAndCutBigPacket(packet, packetList, this.sequenceIdSupplier
                             , this.adjutant.allocator()::buffer);
                 }
 
             }
 
-            PacketUtils.writePacketHeader(packet, this.sequenceIdSupplier.get());
+            Packets.writePacketHeader(packet, this.sequenceIdSupplier.get());
             packetList.add(packet);
             return MySQLCollections.unmodifiableList(packetList);
         } catch (Throwable e) {
@@ -784,8 +784,8 @@ final class ComQueryCommandWriter {
                     writeByteEscapes(packet, bufferArray, byteBuffer.remaining());
                 }
                 byteBuffer.clear();
-                if (packet.readableBytes() >= PacketUtils.MAX_PACKET) {
-                    packet = PacketUtils.addAndCutBigPacket(packet, packetList, this.sequenceIdSupplier
+                if (packet.readableBytes() >= Packets.MAX_PACKET) {
+                    packet = Packets.addAndCutBigPacket(packet, packetList, this.sequenceIdSupplier
                             , this.adjutant.allocator()::buffer);
                 }
             }
@@ -838,8 +838,8 @@ final class ComQueryCommandWriter {
                 //24. clear charBuffer for next
                 charBuffer.clear();
 
-                if (packet.readableBytes() >= PacketUtils.MAX_PACKET) {
-                    packet = PacketUtils.addAndCutBigPacket(packet, packetList, this.sequenceIdSupplier
+                if (packet.readableBytes() >= Packets.MAX_PACKET) {
+                    packet = Packets.addAndCutBigPacket(packet, packetList, this.sequenceIdSupplier
                             , this.adjutant.allocator()::buffer);
                 }
             }
@@ -882,8 +882,8 @@ final class ComQueryCommandWriter {
                     writeByteEscapes(packet, bufferArray, length);
                 }
 
-                if (packet.readableBytes() >= PacketUtils.MAX_PACKET) {
-                    packet = PacketUtils.addAndCutBigPacket(packet, packetList, this.sequenceIdSupplier
+                if (packet.readableBytes() >= Packets.MAX_PACKET) {
+                    packet = Packets.addAndCutBigPacket(packet, packetList, this.sequenceIdSupplier
                             , this.adjutant.allocator()::buffer);
                 }
             }

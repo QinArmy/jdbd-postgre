@@ -189,7 +189,7 @@ final class MySQLConnectionTask extends CommunicationTask<TaskAdjutant> implemen
 
     @Override
     protected boolean decode(final ByteBuf cumulateBuffer, final Consumer<Object> serverStatusConsumer) {
-        if (!PacketUtils.hasOnePacket(cumulateBuffer)) {
+        if (!Packets.hasOnePacket(cumulateBuffer)) {
             return false;
         }
         boolean taskEnd = false, continueDecode = true;
@@ -208,12 +208,12 @@ final class MySQLConnectionTask extends CommunicationTask<TaskAdjutant> implemen
                 case HANDSHAKE_RESPONSE: {
                     this.phase = Phase.AUTHENTICATE;
                     taskEnd = authenticateDecode(cumulateBuffer, serverStatusConsumer);
-                    continueDecode = !taskEnd && PacketUtils.hasOnePacket(cumulateBuffer);
+                    continueDecode = !taskEnd && Packets.hasOnePacket(cumulateBuffer);
                 }
                 break;
                 case AUTHENTICATE: {
                     taskEnd = authenticateDecode(cumulateBuffer, serverStatusConsumer);
-                    continueDecode = !taskEnd && PacketUtils.hasOnePacket(cumulateBuffer);
+                    continueDecode = !taskEnd && Packets.hasOnePacket(cumulateBuffer);
                 }
                 break;
                 default:
@@ -227,8 +227,8 @@ final class MySQLConnectionTask extends CommunicationTask<TaskAdjutant> implemen
     }
 
     @Override
-    protected final boolean hasOnePacket(ByteBuf cumulateBuffer) {
-        return PacketUtils.hasOnePacket(cumulateBuffer);
+    protected final boolean canDecode(ByteBuf cumulateBuffer) {
+        return Packets.hasOnePacket(cumulateBuffer);
     }
 
     @Override
@@ -254,8 +254,8 @@ final class MySQLConnectionTask extends CommunicationTask<TaskAdjutant> implemen
      */
     private void receiveHandshakeAndSendResponse(final ByteBuf cumulateBuffer) {
         //1. read handshake packet
-        final int payloadLength = PacketUtils.readInt3(cumulateBuffer);
-        updateSequenceId(PacketUtils.readInt1AsInt(cumulateBuffer));
+        final int payloadLength = Packets.readInt3(cumulateBuffer);
+        updateSequenceId(Packets.readInt1AsInt(cumulateBuffer));
         HandshakeV10Packet handshake;
         handshake = HandshakeV10Packet.readHandshake(cumulateBuffer.readSlice(payloadLength));
         this.handshake = handshake;
@@ -297,8 +297,8 @@ final class MySQLConnectionTask extends CommunicationTask<TaskAdjutant> implemen
         }
         assertPhase(Phase.AUTHENTICATE);
 
-        final int payloadLength = PacketUtils.readInt3(cumulateBuffer);
-        updateSequenceId(PacketUtils.readInt1AsInt(cumulateBuffer));
+        final int payloadLength = Packets.readInt3(cumulateBuffer);
+        updateSequenceId(Packets.readInt1AsInt(cumulateBuffer));
         final ByteBuf payload = cumulateBuffer.readSlice(payloadLength);
         boolean taskEnd;
         if (++this.authCounter > 100) {
@@ -395,14 +395,14 @@ final class MySQLConnectionTask extends CommunicationTask<TaskAdjutant> implemen
     private Mono<ByteBuf> createSendSSlRequestPacket() {
         ByteBuf packet = this.adjutant.createPacketBuffer(32);
         // 1. client_flag
-        PacketUtils.writeInt4(packet, this.negotiatedCapability);
+        Packets.writeInt4(packet, this.negotiatedCapability);
         // 2. max_packet_size
-        PacketUtils.writeInt4(packet, this.adjutant.obtainHostInfo().maxAllowedPayload());
+        Packets.writeInt4(packet, this.adjutant.obtainHostInfo().maxAllowedPayload());
         // 3.handshake character_set,
         packet.writeByte(this.handshakeCollationIndex);
         // 4. filler
         packet.writeZero(23);
-        PacketUtils.writePacketHeader(packet, addAndGetSequenceId());
+        Packets.writePacketHeader(packet, addAndGetSequenceId());
         return Mono.just(packet);
     }
 
@@ -414,9 +414,9 @@ final class MySQLConnectionTask extends CommunicationTask<TaskAdjutant> implemen
     private boolean processNextAuthenticationNegotiation(final ByteBuf payload) {
 
         final AuthenticationPlugin authPlugin;
-        if (PacketUtils.isAuthSwitchRequestPacket(payload)) {
+        if (Packets.isAuthSwitchRequestPacket(payload)) {
             payload.skipBytes(1); // skip type header
-            String pluginName = PacketUtils.readStringTerm(payload, StandardCharsets.US_ASCII);
+            String pluginName = Packets.readStringTerm(payload, StandardCharsets.US_ASCII);
             LOG.debug("Auth switch request method[{}]", pluginName);
             if (this.plugin.getProtocolPluginName().equals(pluginName)) {
                 authPlugin = this.plugin;
@@ -453,10 +453,10 @@ final class MySQLConnectionTask extends CommunicationTask<TaskAdjutant> implemen
     private ByteBuf writeAuthPayload(final ByteBuf payload) {
         final ByteBuf packet;
         final int readableBytes = payload.readableBytes();
-        if (readableBytes < PacketUtils.MAX_PAYLOAD) {
-            packet = this.adjutant.allocator().buffer(PacketUtils.HEADER_SIZE + readableBytes);
+        if (readableBytes < Packets.MAX_PAYLOAD) {
+            packet = this.adjutant.allocator().buffer(Packets.HEADER_SIZE + readableBytes);
 
-            PacketUtils.writeInt3(packet, readableBytes);
+            Packets.writeInt3(packet, readableBytes);
             packet.writeByte(addAndGetSequenceId());
             packet.writeBytes(payload);
 
@@ -478,20 +478,20 @@ final class MySQLConnectionTask extends CommunicationTask<TaskAdjutant> implemen
         final ByteBuf packetBuffer = this.adjutant.createPacketBuffer(1024);
 
         // 1. client_flag,Capabilities Flags, CLIENT_PROTOCOL_41 always set.
-        PacketUtils.writeInt4(packetBuffer, clientFlag);
+        Packets.writeInt4(packetBuffer, clientFlag);
         // 2. max_packet_size
-        PacketUtils.writeInt4(packetBuffer, this.adjutant.obtainHostInfo().maxAllowedPayload());
+        Packets.writeInt4(packetBuffer, this.adjutant.obtainHostInfo().maxAllowedPayload());
         // 3. character_set
-        PacketUtils.writeInt1(packetBuffer, this.handshakeCollationIndex);
+        Packets.writeInt1(packetBuffer, this.handshakeCollationIndex);
         // 4. filler,Set of bytes reserved for future use.
         packetBuffer.writeZero(23);
 
         // 5. username,login user name
-        PacketUtils.writeStringTerm(packetBuffer, this.hostInfo.getUser().getBytes(clientCharset));
+        Packets.writeStringTerm(packetBuffer, this.hostInfo.getUser().getBytes(clientCharset));
 
         // 6. auth_response or (auth_response_length and auth_response)
         if ((clientFlag & ClientProtocol.CLIENT_PLUGIN_AUTH_LENENC_CLIENT_DATA) != 0) {
-            PacketUtils.writeStringLenEnc(packetBuffer, pluginOut);
+            Packets.writeStringLenEnc(packetBuffer, pluginOut);
         } else {
             packetBuffer.writeByte(pluginOut.readableBytes());
             packetBuffer.writeBytes(pluginOut);
@@ -504,28 +504,28 @@ final class MySQLConnectionTask extends CommunicationTask<TaskAdjutant> implemen
             if (!MySQLStringUtils.hasText(database)) {
                 throw new MySQLJdbdException("client flag error,check this.getClientFlat() method.");
             }
-            PacketUtils.writeStringTerm(packetBuffer, database.getBytes(clientCharset));
+            Packets.writeStringTerm(packetBuffer, database.getBytes(clientCharset));
         }
         // 8. client_plugin_name
         if ((clientFlag & ClientProtocol.CLIENT_PLUGIN_AUTH) != 0) {
-            PacketUtils.writeStringTerm(packetBuffer, authPluginName.getBytes(clientCharset));
+            Packets.writeStringTerm(packetBuffer, authPluginName.getBytes(clientCharset));
         }
         // 9. client connection attributes
         if ((clientFlag & ClientProtocol.CLIENT_CONNECT_ATTRS) != 0) {
             Map<String, String> propertySource = createConnectionAttributes();
             // length of all key-values,affected rows
-            PacketUtils.writeIntLenEnc(packetBuffer, propertySource.size());
+            Packets.writeIntLenEnc(packetBuffer, propertySource.size());
             for (Map.Entry<String, String> e : propertySource.entrySet()) {
                 // write key
-                PacketUtils.writeStringLenEnc(packetBuffer, e.getKey().getBytes(clientCharset));
+                Packets.writeStringLenEnc(packetBuffer, e.getKey().getBytes(clientCharset));
                 // write value
-                PacketUtils.writeStringLenEnc(packetBuffer, e.getValue().getBytes(clientCharset));
+                Packets.writeStringLenEnc(packetBuffer, e.getValue().getBytes(clientCharset));
             }
 
         }
         //TODO 10.zstd_compression_level,compression level for zstd compression algorithm
         //packetBuffer.writeByte(0);
-        PacketUtils.writePacketHeader(packetBuffer, addAndGetSequenceId());
+        Packets.writePacketHeader(packetBuffer, addAndGetSequenceId());
         return packetBuffer;
     }
 

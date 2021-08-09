@@ -1,7 +1,7 @@
 package io.jdbd.mysql.protocol.authentication;
 
 import io.jdbd.mysql.protocol.AuthenticateAssistant;
-import io.jdbd.mysql.protocol.client.PacketUtils;
+import io.jdbd.mysql.protocol.client.Packets;
 import io.jdbd.mysql.protocol.conf.PropertyKey;
 import io.jdbd.vendor.conf.HostInfo;
 import io.netty.buffer.ByteBuf;
@@ -53,7 +53,7 @@ public class MySQLClearPasswordPlugin implements AuthenticationPlugin {
                 : password.getBytes(passwordCharset);
 
         ByteBuf payloadBuf = protocolAssistant.allocator().buffer(passwordBytes.length + 1);
-        PacketUtils.writeStringTerm(payloadBuf, passwordBytes);
+        Packets.writeStringTerm(payloadBuf, passwordBytes);
 
         return Collections.singletonList(payloadBuf);
     }

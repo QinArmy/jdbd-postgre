@@ -461,7 +461,7 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
 
     @Override
     protected boolean decode(final ByteBuf cumulateBuffer, final Consumer<Object> serverStatusConsumer) {
-        if (!PacketUtils.hasOnePacket(cumulateBuffer)) {
+        if (!Packets.hasOnePacket(cumulateBuffer)) {
             return false;
         }
         boolean taskEnd = false, continueDecode = true;
@@ -473,7 +473,7 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
                         continueDecode = false;
                     } else {
                         this.phase = Phase.READ_PREPARE_PARAM_META;
-                        continueDecode = PacketUtils.hasOnePacket(cumulateBuffer);
+                        continueDecode = Packets.hasOnePacket(cumulateBuffer);
                     }
                 }
                 break;
@@ -481,7 +481,7 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
                     if (readPrepareParameterMeta(cumulateBuffer, serverStatusConsumer)) {
                         if (hasReturnColumns()) {
                             this.phase = Phase.READ_PREPARE_COLUMN_META;
-                            continueDecode = PacketUtils.hasOnePacket(cumulateBuffer);
+                            continueDecode = Packets.hasOnePacket(cumulateBuffer);
                         } else {
                             taskEnd = handleReadPrepareComplete();
                             continueDecode = false;
@@ -529,7 +529,7 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
                         continueDecode = false;
                     } else {
                         this.phase = Phase.READ_RESULT_SET;
-                        continueDecode = PacketUtils.hasOnePacket(cumulateBuffer);
+                        continueDecode = Packets.hasOnePacket(cumulateBuffer);
                     }
                 }
                 break;
@@ -585,7 +585,7 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
     private Publisher<ByteBuf> createPrepareCommand(Stmt stmt) throws SQLException, JdbdSQLException {
         assertPhase(Phase.PREPARED);
         return Flux.fromIterable(
-                PacketUtils.createSimpleCommand(PacketUtils.COM_STMT_PREPARE, stmt
+                Packets.createSimpleCommand(Packets.COM_STMT_PREPARE, stmt
                         , this.adjutant, this::addAndGetSequenceId)
         );
     }
@@ -640,9 +640,9 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
     private boolean readPrepareResponse(final ByteBuf cumulateBuffer) {
         assertPhase(Phase.READ_PREPARE_RESPONSE);
 
-        final int payloadLength = PacketUtils.readInt3(cumulateBuffer);
-        updateSequenceId(PacketUtils.readInt1AsInt(cumulateBuffer));
-        final int headFlag = PacketUtils.getInt1AsInt(cumulateBuffer, cumulateBuffer.readerIndex()); //1. status/error header
+        final int payloadLength = Packets.readInt3(cumulateBuffer);
+        updateSequenceId(Packets.readInt1AsInt(cumulateBuffer));
+        final int headFlag = Packets.getInt1AsInt(cumulateBuffer, cumulateBuffer.readerIndex()); //1. status/error header
         final boolean taskEnd;
         switch (headFlag) {
             case ErrorPacket.ERROR_HEADER: {
@@ -655,11 +655,11 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
             case 0: {
                 final int payloadStartIndex = cumulateBuffer.readerIndex();
                 cumulateBuffer.skipBytes(1);//skip status
-                this.statementId = PacketUtils.readInt4(cumulateBuffer);//2. statement_id
-                resetColumnMeta(PacketUtils.readInt2AsInt(cumulateBuffer));//3. num_columns
-                resetParameterMetas(PacketUtils.readInt2AsInt(cumulateBuffer));//4. num_params
+                this.statementId = Packets.readInt4(cumulateBuffer);//2. statement_id
+                resetColumnMeta(Packets.readInt2AsInt(cumulateBuffer));//3. num_columns
+                resetParameterMetas(Packets.readInt2AsInt(cumulateBuffer));//4. num_params
                 cumulateBuffer.skipBytes(1); //5. skip filler
-                final int warnings = PacketUtils.readInt2AsInt(cumulateBuffer);//6. warning_count
+                final int warnings = Packets.readInt2AsInt(cumulateBuffer);//6. warning_count
                 if (this.downstreamSink instanceof DownstreamAdapter) {
                     ((DownstreamAdapter) this.downstreamSink).warnings = warnings;
                 }
@@ -767,9 +767,9 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
     private boolean tryReadEof(ByteBuf cumulateBuffer, Consumer<Object> serverStatusConsumer) {
         boolean end = true;
         if ((this.negotiatedCapability & ClientProtocol.CLIENT_DEPRECATE_EOF) == 0) {
-            if (PacketUtils.hasOnePacket(cumulateBuffer)) {
-                int payloadLength = PacketUtils.readInt3(cumulateBuffer);
-                updateSequenceId(PacketUtils.readInt1AsInt(cumulateBuffer));
+            if (Packets.hasOnePacket(cumulateBuffer)) {
+                int payloadLength = Packets.readInt3(cumulateBuffer);
+                updateSequenceId(Packets.readInt1AsInt(cumulateBuffer));
                 EofPacket eof;
                 eof = EofPacket.read(cumulateBuffer.readSlice(payloadLength), this.negotiatedCapability);
                 serverStatusConsumer.accept(eof.getStatusFags());
@@ -789,11 +789,11 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
     private ByteBuf createCloseStatementPacket() {
         ByteBuf packet = this.adjutant.allocator().buffer(9);
 
-        PacketUtils.writeInt3(packet, 5);
+        Packets.writeInt3(packet, 5);
         packet.writeByte(0);// use 0 sequence_id
 
-        packet.writeByte(PacketUtils.COM_STMT_CLOSE);
-        PacketUtils.writeInt4(packet, this.statementId);
+        packet.writeByte(Packets.COM_STMT_CLOSE);
+        Packets.writeInt4(packet, this.statementId);
         return packet;
     }
 
@@ -814,12 +814,12 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
         if (traceEnabled) {
             LOG.trace("{} start read execute response, downstream[{}]", this, this.downstreamSink);
         }
-        final int header = PacketUtils.getInt1AsInt(cumulateBuffer, cumulateBuffer.readerIndex() + PacketUtils.HEADER_SIZE);
+        final int header = Packets.getInt1AsInt(cumulateBuffer, cumulateBuffer.readerIndex() + Packets.HEADER_SIZE);
         final boolean taskEnd;
         switch (header) {
             case ErrorPacket.ERROR_HEADER: {
-                final int payloadLength = PacketUtils.readInt3(cumulateBuffer);
-                updateSequenceId(PacketUtils.readInt1AsInt(cumulateBuffer));
+                final int payloadLength = Packets.readInt3(cumulateBuffer);
+                updateSequenceId(Packets.readInt1AsInt(cumulateBuffer));
 
                 ErrorPacket error = ErrorPacket.readPacket(cumulateBuffer.readSlice(payloadLength)
                         , this.negotiatedCapability, this.adjutant.obtainCharsetError());
@@ -832,8 +832,8 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
             }
             break;
             case OkPacket.OK_HEADER: {
-                final int payloadLength = PacketUtils.readInt3(cumulateBuffer);
-                updateSequenceId(PacketUtils.readInt1AsInt(cumulateBuffer));
+                final int payloadLength = Packets.readInt3(cumulateBuffer);
+                updateSequenceId(Packets.readInt1AsInt(cumulateBuffer));
 
                 OkPacket ok = OkPacket.read(cumulateBuffer.readSlice(payloadLength), this.negotiatedCapability);
                 serverStatusConsumer.accept(ok.getStatusFags());
@@ -905,11 +905,11 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
      * @see #decode(ByteBuf, Consumer)
      */
     private boolean readFetchResponse(final ByteBuf cumulateBuffer) {
-        final int flag = PacketUtils.getInt1AsInt(cumulateBuffer, cumulateBuffer.readerIndex() + PacketUtils.HEADER_SIZE);
+        final int flag = Packets.getInt1AsInt(cumulateBuffer, cumulateBuffer.readerIndex() + Packets.HEADER_SIZE);
         boolean taskEnd = false;
         if (flag == ErrorPacket.ERROR_HEADER) {
-            final int payloadLength = PacketUtils.readInt3(cumulateBuffer);
-            updateSequenceId(PacketUtils.readInt1AsInt(cumulateBuffer));
+            final int payloadLength = Packets.readInt3(cumulateBuffer);
+            updateSequenceId(Packets.readInt1AsInt(cumulateBuffer));
             ErrorPacket error = ErrorPacket.readPacket(cumulateBuffer.readSlice(payloadLength)
                     , this.negotiatedCapability, this.adjutant.obtainCharsetError());
             addError(MySQLExceptions.createErrorPacketException(error));
@@ -924,10 +924,10 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
      * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_com_stmt_reset.html">Protocol::COM_STMT_RESET</a>
      */
     private boolean readResetResponse(final ByteBuf cumulateBuffer, final Consumer<Object> serverStatusConsumer) {
-        final int payloadLength = PacketUtils.readInt3(cumulateBuffer);
-        updateSequenceId(PacketUtils.readInt1AsInt(cumulateBuffer));
+        final int payloadLength = Packets.readInt3(cumulateBuffer);
+        updateSequenceId(Packets.readInt1AsInt(cumulateBuffer));
 
-        final int flag = PacketUtils.getInt1AsInt(cumulateBuffer, cumulateBuffer.readerIndex());
+        final int flag = Packets.getInt1AsInt(cumulateBuffer, cumulateBuffer.readerIndex());
         final boolean taskEnd;
         switch (flag) {
             case ErrorPacket.ERROR_HEADER: {
@@ -1029,12 +1029,12 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
         }
 
         ByteBuf packet = this.adjutant.allocator().buffer(13);
-        PacketUtils.writeInt3(packet, 9);
+        Packets.writeInt3(packet, 9);
         packet.writeByte(addAndGetSequenceId());
 
-        packet.writeByte(PacketUtils.COM_STMT_FETCH);
-        PacketUtils.writeInt4(packet, this.statementId);
-        PacketUtils.writeInt4(packet, ((FetchAbleDownstreamSink) downstreamSink).getFetchSize());
+        packet.writeByte(Packets.COM_STMT_FETCH);
+        Packets.writeInt4(packet, this.statementId);
+        Packets.writeInt4(packet, ((FetchAbleDownstreamSink) downstreamSink).getFetchSize());
         return packet;
     }
 
@@ -1056,11 +1056,11 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
         }
         ByteBuf packet = this.adjutant.allocator().buffer(9);
 
-        PacketUtils.writeInt3(packet, 5);
+        Packets.writeInt3(packet, 5);
         packet.writeByte(0);// use 0 sequence id
 
-        packet.writeByte(PacketUtils.COM_STMT_RESET);
-        PacketUtils.writeInt4(packet, this.statementId);
+        packet.writeByte(Packets.COM_STMT_RESET);
+        Packets.writeInt4(packet, this.statementId);
         return packet;
     }
 

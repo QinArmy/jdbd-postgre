@@ -78,7 +78,7 @@ abstract class AbstractResultSetReader implements ResultSetReader {
                 case READ_RESULT_META: {
                     if (readResultSetMeta(cumulateBuffer, statesConsumer)) {
                         this.phase = Phase.READ_RESULT_ROW;
-                        continueRead = PacketUtils.hasOnePacket(cumulateBuffer);
+                        continueRead = Packets.hasOnePacket(cumulateBuffer);
                     } else {
                         continueRead = false;
                     }
@@ -92,7 +92,7 @@ abstract class AbstractResultSetReader implements ResultSetReader {
                 case READ_BIG_ROW: {
                     if (readBigRow(cumulateBuffer)) {
                         this.phase = Phase.READ_RESULT_ROW;
-                        continueRead = PacketUtils.hasOnePacket(cumulateBuffer);
+                        continueRead = Packets.hasOnePacket(cumulateBuffer);
                     } else {
                         continueRead = this.phase == Phase.READ_BIG_COLUMN;
                     }
@@ -175,17 +175,17 @@ abstract class AbstractResultSetReader implements ResultSetReader {
         outFor:
         for (int payloadLength, readableBytes, header; ; ) {
             readableBytes = cumulateBuffer.readableBytes();
-            if (readableBytes < PacketUtils.HEADER_SIZE) {
+            if (readableBytes < Packets.HEADER_SIZE) {
                 break;
             }
-            payloadLength = PacketUtils.getInt3(cumulateBuffer, cumulateBuffer.readerIndex()); // read payload length
-            if (readableBytes < (PacketUtils.HEADER_SIZE + payloadLength)) {
+            payloadLength = Packets.getInt3(cumulateBuffer, cumulateBuffer.readerIndex()); // read payload length
+            if (readableBytes < (Packets.HEADER_SIZE + payloadLength)) {
                 break;
             }
             final ByteBuf payload;
-            if (payloadLength == PacketUtils.MAX_PAYLOAD) {
+            if (payloadLength == Packets.MAX_PAYLOAD) {
                 // this 'if' block handle multi packet
-                final int multiPayloadLength = PacketUtils.obtainMultiPayloadLength(cumulateBuffer);
+                final int multiPayloadLength = Packets.obtainMultiPayloadLength(cumulateBuffer);
                 switch (multiPayloadLength) {
                     case -1:
                         break outFor; // more cumulate
@@ -194,7 +194,7 @@ abstract class AbstractResultSetReader implements ResultSetReader {
                     }
                     break outFor;
                     default: {
-                        payload = PacketUtils.readBigPayload(cumulateBuffer, multiPayloadLength
+                        payload = Packets.readBigPayload(cumulateBuffer, multiPayloadLength
                                 , this::updateSequenceId, this.adjutant.allocator()::buffer);
                         payloadLength = payload.readableBytes();
                         sequenceId = this.sequenceId;
@@ -202,10 +202,10 @@ abstract class AbstractResultSetReader implements ResultSetReader {
                 }
             } else {
                 cumulateBuffer.skipBytes(3); // skip payload length
-                sequenceId = PacketUtils.readInt1AsInt(cumulateBuffer); // read packet sequence_id
+                sequenceId = Packets.readInt1AsInt(cumulateBuffer); // read packet sequence_id
                 payload = cumulateBuffer;
             }
-            header = PacketUtils.getInt1AsInt(payload, payload.readerIndex());
+            header = Packets.getInt1AsInt(payload, payload.readerIndex());
             if (header == ErrorPacket.ERROR_HEADER) {
                 ByteBuf errorPayload = (payload == cumulateBuffer) ? cumulateBuffer.readSlice(payloadLength) : payload;
                 ErrorPacket error;
@@ -214,7 +214,7 @@ abstract class AbstractResultSetReader implements ResultSetReader {
                 emitError(MySQLExceptions.createErrorPacketException(error));
                 resultSetEnd = true;
                 break;
-            } else if (header == EofPacket.EOF_HEADER && (binaryReader || payloadLength < PacketUtils.MAX_PAYLOAD)) {
+            } else if (header == EofPacket.EOF_HEADER && (binaryReader || payloadLength < Packets.MAX_PAYLOAD)) {
                 ByteBuf eofPayload = (payload == cumulateBuffer) ? cumulateBuffer.readSlice(payloadLength) : payload;
                 // binary row terminator
                 final TerminatorPacket tp;
@@ -260,11 +260,11 @@ abstract class AbstractResultSetReader implements ResultSetReader {
 
         MySQLRowMeta rowMeta = this.rowMeta;
         if (rowMeta == null) {
-            int payloadLength = PacketUtils.readInt3(cumulateBuffer);
-            updateSequenceId(PacketUtils.readInt1AsInt(cumulateBuffer));
+            int payloadLength = Packets.readInt3(cumulateBuffer);
+            updateSequenceId(Packets.readInt1AsInt(cumulateBuffer));
 
             int payloadStartIndex = cumulateBuffer.readerIndex();
-            int columnCount = PacketUtils.readLenEncAsInt(cumulateBuffer);
+            int columnCount = Packets.readLenEncAsInt(cumulateBuffer);
             cumulateBuffer.readerIndex(payloadStartIndex + payloadLength);//to next packet,avoid tail filler
 
             rowMeta = MySQLRowMeta.from(new MySQLColumnMeta[columnCount], adjutant.obtainCustomCollationMap());
@@ -385,9 +385,9 @@ abstract class AbstractResultSetReader implements ResultSetReader {
             if (rowPayloadEnd) {
                 packetPayload = cachePayload;
                 payloadLength = cachePayload.readableBytes();
-            } else if (PacketUtils.hasOnePacket(cumulateBuffer)) {
-                payloadLength = PacketUtils.readInt3(cumulateBuffer);
-                sequenceId = PacketUtils.readInt1AsInt(cumulateBuffer);
+            } else if (Packets.hasOnePacket(cumulateBuffer)) {
+                payloadLength = Packets.readInt3(cumulateBuffer);
+                sequenceId = Packets.readInt1AsInt(cumulateBuffer);
                 if (i == 0) {
                     // this block handle first payload of big row.
                     if (payloadLength != ClientProtocol.MAX_PAYLOAD_SIZE) {
@@ -435,7 +435,7 @@ abstract class AbstractResultSetReader implements ResultSetReader {
                 } else if (columnMeta.typeFlag == ProtocolConstants.TYPE_LONG_BLOB
                         || columnMeta.typeFlag == ProtocolConstants.TYPE_BLOB) {
                     // this 'if' block handle big column.
-                    BigColumn bigColumn = createBigColumn(PacketUtils.readLenEnc(payloadBuffer));
+                    BigColumn bigColumn = createBigColumn(Packets.readLenEnc(payloadBuffer));
                     bigRowValues[i] = bigColumn;
                     if (payloadBuffer != cachePayload) {
                         cachePayload = cumulateCachePayloadBuffer(cachePayload, packetPayload);
@@ -446,18 +446,18 @@ abstract class AbstractResultSetReader implements ResultSetReader {
                     throw MySQLExceptions.createFatalIoException("Server send binary column[%s] length error."
                             , columnMeta.columnAlias);
                 }
-                if (payloadLength < PacketUtils.MAX_PAYLOAD) {
+                if (payloadLength < Packets.MAX_PAYLOAD) {
                     break; // break while
                 }
-                if (!PacketUtils.hasOnePacket(cumulateBuffer)) {
+                if (!Packets.hasOnePacket(cumulateBuffer)) {
                     break ourFor;
                 }
-                payloadLength = PacketUtils.readInt3(cumulateBuffer);
-                sequenceId = PacketUtils.readInt1AsInt(cumulateBuffer);
+                payloadLength = Packets.readInt3(cumulateBuffer);
+                sequenceId = Packets.readInt1AsInt(cumulateBuffer);
                 packetPayload = cumulateBuffer.readSlice(payloadLength);
             }
 
-            if (payloadLength < PacketUtils.MAX_PAYLOAD && i > 0) {
+            if (payloadLength < Packets.MAX_PAYLOAD && i > 0) {
                 // big row read end.
                 bigRowData.payloadEnd = true;
                 bigRowEnd = true;
@@ -579,9 +579,9 @@ abstract class AbstractResultSetReader implements ResultSetReader {
             }
 
             int payloadLength, sequenceId = -1, writeBytes;
-            while (PacketUtils.hasOnePacket(cumulateBuffer)) {
-                payloadLength = PacketUtils.readInt3(cumulateBuffer);
-                sequenceId = PacketUtils.readInt1AsInt(cumulateBuffer);
+            while (Packets.hasOnePacket(cumulateBuffer)) {
+                payloadLength = Packets.readInt3(cumulateBuffer);
+                sequenceId = Packets.readInt1AsInt(cumulateBuffer);
 
                 writeBytes = (int) Math.min(totalBytes - writtenBytes, payloadLength);
                 cumulateBuffer.readBytes(out, writeBytes);
@@ -594,7 +594,7 @@ abstract class AbstractResultSetReader implements ResultSetReader {
                     bigRowData.index++;
                     bigColumnEnd = true;
 
-                    if (payloadLength < PacketUtils.MAX_PAYLOAD) {
+                    if (payloadLength < Packets.MAX_PAYLOAD) {
                         bigRowData.payloadEnd = true;
                     }
                     final int restPayload = payloadLength - writeBytes;
@@ -645,14 +645,14 @@ abstract class AbstractResultSetReader implements ResultSetReader {
 
         int sequenceId = -1;
         for (int payloadStartIndex, payloadLength; metaIndex < columnMetaArray.length; ) {
-            if (!PacketUtils.hasOnePacket(cumulateBuffer)) {
+            if (!Packets.hasOnePacket(cumulateBuffer)) {
                 if (traceEnabled) {
                     LOG.trace("read column meta,no packet,more cumulate.");
                 }
                 break;
             }
-            payloadLength = PacketUtils.readInt3(cumulateBuffer);//skip payload length
-            sequenceId = PacketUtils.readInt1AsInt(cumulateBuffer);
+            payloadLength = Packets.readInt3(cumulateBuffer);//skip payload length
+            sequenceId = Packets.readInt1AsInt(cumulateBuffer);
             payloadStartIndex = cumulateBuffer.readerIndex();
 
             columnMetaArray[metaIndex++] = MySQLColumnMeta.readFor41(cumulateBuffer, adjutant);

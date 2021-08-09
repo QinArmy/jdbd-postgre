@@ -2,6 +2,7 @@ package io.jdbd.postgre.syntax;
 
 import io.jdbd.postgre.ServerParameter;
 import io.jdbd.postgre.util.PgExceptions;
+import io.jdbd.postgre.util.PgStringUtils;
 import org.qinarmy.util.FastStack;
 import org.qinarmy.util.Stack;
 import org.slf4j.Logger;
@@ -42,13 +43,25 @@ final class DefaultPgParser implements PgParser {
 
     @Override
     public final PgStatement parse(final String sql) throws SQLException {
+        return (PgStatement) doParse(sql, true);
+    }
+
+    @Override
+    public final boolean isSingle(String sql) throws SQLException {
+        return (Boolean) doParse(sql, false);
+    }
+
+    private Object doParse(final String sql, final boolean createStmt) throws SQLException {
+        if (!PgStringUtils.hasText(sql)) {
+            throw PgExceptions.createSyntaxError("Statement couldn't be empty.");
+        }
         final boolean isTrace = LOG.isTraceEnabled();
         final long startMillis = isTrace ? System.currentTimeMillis() : 0;
-
-        boolean inQuoteString = false, inCStyleEscapes = false, inUnicodeEscapes = false, inDoubleIdentifier = false;
-
         final boolean confirmStringOff = confirmStringIsOff();
         final int sqlLength = sql.length();
+
+        boolean inQuoteString = false, inCStyleEscapes = false, inUnicodeEscapes = false, inDoubleIdentifier = false;
+        int stmtCount = 1;
         char ch;
         List<String> endpointList = new ArrayList<>();
         int lastParamEnd = 0;
@@ -135,12 +148,18 @@ final class DefaultPgParser implements PgParser {
                 int index = sql.indexOf('\n', i + DOUBLE_DASH_COMMENT_MARKER.length());
                 i = index > 0 ? index : sqlLength;
             } else if (ch == '?') {
-                endpointList.add(sql.substring(lastParamEnd, i));
-                lastParamEnd = i + 1;
+                if (createStmt) {
+                    endpointList.add(sql.substring(lastParamEnd, i));
+                    lastParamEnd = i + 1;
+                }
             } else if (ch == ';') {
-                String m = String.format(
-                        "Detect multiple statements,multiple statements can't be bind,please check [%s].", sql);
-                throw PgExceptions.createSyntaxError(m);
+                if (createStmt) {
+                    String m = String.format(
+                            "Detect multiple statements,multiple statements can't be bind,please check [%s].", sql);
+                    throw PgExceptions.createSyntaxError(m);
+                } else {
+                    stmtCount++;
+                }
             }
 
         }
@@ -151,18 +170,23 @@ final class DefaultPgParser implements PgParser {
         if (inDoubleIdentifier) {
             throw PgExceptions.createSyntaxError("syntax error,last double quoted identifier not close.");
         }
-
-        if (lastParamEnd < sqlLength) {
-            endpointList.add(sql.substring(lastParamEnd));
+        final Object parseResult;
+        if (createStmt) {
+            if (lastParamEnd < sqlLength) {
+                endpointList.add(sql.substring(lastParamEnd));
+            } else {
+                endpointList.add("");
+            }
+            parseResult = PgStatementImpl.create(sql, endpointList);
         } else {
-            endpointList.add("");
+            parseResult = stmtCount == 1;
         }
+
         if (isTrace) {
             LOG.trace("SQL[{}] \nparse cost {} ms.", sql, System.currentTimeMillis() - startMillis);
         }
-        return PgStatementImpl.create(sql, endpointList);
+        return parseResult;
     }
-
 
     private boolean confirmStringIsOff() {
         String status = this.paramFunction.apply(ServerParameter.standard_conforming_strings);

@@ -1,12 +1,16 @@
 package io.jdbd.result;
 
+
 public interface ResultState {
 
     long getAffectedRows();
 
     long getInsertId();
 
-    int getWarnings();
+    /**
+     * @return success info(maybe contain warning info)
+     */
+    String getMessage();
 
     boolean hasMoreResult();
 

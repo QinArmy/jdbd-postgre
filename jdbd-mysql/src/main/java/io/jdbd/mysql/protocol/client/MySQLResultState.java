@@ -14,7 +14,7 @@ abstract class MySQLResultState implements ResultState {
 
     private final long insertedId;
 
-    private final int warnings;
+    private final String message;
 
 
     private MySQLResultState(final TerminatorPacket terminator) {
@@ -24,7 +24,7 @@ abstract class MySQLResultState implements ResultState {
             this.serverStatus = ok.getStatusFags();
             this.affectedRows = ok.getAffectedRows();
             this.insertedId = ok.getLastInsertId();
-            this.warnings = ok.getWarnings();
+            this.message = ok.getInfo();
 
             //  this.sqlState = ok.getSessionStateInfo();
         } else if (terminator instanceof EofPacket) {
@@ -33,17 +33,13 @@ abstract class MySQLResultState implements ResultState {
             this.serverStatus = eof.getStatusFags();
             this.affectedRows = 0L;
             this.insertedId = 0L;
-            this.warnings = eof.getWarnings();
+            this.message = "";
         } else {
             throw new IllegalArgumentException(String.format("terminator isn't %s or %s"
                     , OkPacket.class.getName(), EofPacket.class.getName()));
         }
     }
 
-
-    public final int getServerStatus() {
-        return this.serverStatus;
-    }
 
 
     @Override
@@ -57,8 +53,8 @@ abstract class MySQLResultState implements ResultState {
     }
 
     @Override
-    public final int getWarnings() {
-        return this.warnings;
+    public final String getMessage() {
+        return this.message;
     }
 
 

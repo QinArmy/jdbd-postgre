@@ -51,6 +51,17 @@ public abstract class JdbdExceptions extends ExceptionUtils {
         return je;
     }
 
+
+    public static JdbdException createException(List<? extends Throwable> errorList) {
+        final JdbdException e;
+        if (errorList.size() == 1) {
+            e = wrap(errorList.get(0));
+        } else {
+            e = new JdbdCompositeException(errorList, errorList.get(0).getMessage());
+        }
+        return e;
+    }
+
     public static void printCompositeException(final JdbdCompositeException ce) {
         Throwable e;
         List<? extends Throwable> list = ce.getErrorList();

@@ -42,9 +42,9 @@ final class TextResultSetReader extends AbstractResultSetReader {
         metaEnd = doReadRowMeta(cumulateBuffer);
 
         if (metaEnd && (negotiatedCapability & ClientProtocol.CLIENT_DEPRECATE_EOF) == 0) {
-            if (PacketUtils.hasOnePacket(cumulateBuffer)) {
-                int payloadLength = PacketUtils.readInt3(cumulateBuffer);
-                updateSequenceId(PacketUtils.readInt1AsInt(cumulateBuffer));
+            if (Packets.hasOnePacket(cumulateBuffer)) {
+                int payloadLength = Packets.readInt3(cumulateBuffer);
+                updateSequenceId(Packets.readInt1AsInt(cumulateBuffer));
                 EofPacket eof = EofPacket.read(cumulateBuffer.readSlice(payloadLength), negotiatedCapability);
                 serverStatusConsumer.accept(eof);
             } else {
@@ -64,7 +64,7 @@ final class TextResultSetReader extends AbstractResultSetReader {
         int i = columnIndex;
         final MySQLColumnMeta[] columnMetaArray = this.rowMeta.columnMetaArray;
         for (; i < columnMetaArray.length; i++) {
-            if (PacketUtils.getInt1AsInt(payload, payload.readerIndex()) != PacketUtils.ENC_0) {
+            if (Packets.getInt1AsInt(payload, payload.readerIndex()) != Packets.ENC_0) {
                 break;
             }
             payload.readByte();
@@ -81,7 +81,7 @@ final class TextResultSetReader extends AbstractResultSetReader {
         ResultRow resultRow;
         try {
             for (int i = 0; i < columnMetaArray.length; i++) {
-                if (PacketUtils.getInt1AsInt(payload, payload.readerIndex()) == PacketUtils.ENC_0) {
+                if (Packets.getInt1AsInt(payload, payload.readerIndex()) == Packets.ENC_0) {
                     payload.readByte();
                     continue;
                 }
@@ -97,7 +97,7 @@ final class TextResultSetReader extends AbstractResultSetReader {
 
     @Override
     long obtainColumnBytes(final MySQLColumnMeta columnMeta, final ByteBuf bigPayloadBuffer) {
-        return PacketUtils.getLenEncTotalByteLength(bigPayloadBuffer);
+        return Packets.getLenEncTotalByteLength(bigPayloadBuffer);
     }
 
 
@@ -114,11 +114,11 @@ final class TextResultSetReader extends AbstractResultSetReader {
             case VARCHAR:
             case JSON:
             case ENUM: {
-                columnValue = PacketUtils.readStringLenEnc(payload, columnCharset);
+                columnValue = Packets.readStringLenEnc(payload, columnCharset);
             }
             break;
             case SET: {
-                columnText = PacketUtils.readStringLenEnc(payload, columnCharset);
+                columnText = Packets.readStringLenEnc(payload, columnCharset);
                 if (columnText == null) {
                     columnValue = Collections.<String>emptySet();
                 } else {
@@ -128,13 +128,13 @@ final class TextResultSetReader extends AbstractResultSetReader {
             break;
             case DECIMAL_UNSIGNED:
             case DECIMAL: {
-                columnText = PacketUtils.readStringLenEnc(payload, columnCharset);
+                columnText = Packets.readStringLenEnc(payload, columnCharset);
                 columnValue = columnText == null ? null : new BigDecimal(columnText);
             }
             break;
             case BIGINT_UNSIGNED:
             case BIGINT: {
-                columnText = PacketUtils.readStringLenEnc(payload, columnCharset);
+                columnText = Packets.readStringLenEnc(payload, columnCharset);
                 if (columnText == null) {
                     columnValue = null;
                 } else if (columnMeta.mysqlType == MySQLType.BIGINT_UNSIGNED) {
@@ -148,7 +148,7 @@ final class TextResultSetReader extends AbstractResultSetReader {
             case MEDIUMINT_UNSIGNED:
             case INT_UNSIGNED:
             case INT: {
-                columnText = PacketUtils.readStringLenEnc(payload, columnCharset);
+                columnText = Packets.readStringLenEnc(payload, columnCharset);
                 if (columnText == null) {
                     columnValue = null;
                 } else if (columnMeta.mysqlType == MySQLType.INT_UNSIGNED) {
@@ -160,7 +160,7 @@ final class TextResultSetReader extends AbstractResultSetReader {
             break;
             case SMALLINT_UNSIGNED:
             case SMALLINT: {
-                columnText = PacketUtils.readStringLenEnc(payload, columnCharset);
+                columnText = Packets.readStringLenEnc(payload, columnCharset);
                 if (columnText == null) {
                     columnValue = null;
                 } else if (columnMeta.mysqlType == MySQLType.SMALLINT_UNSIGNED) {
@@ -171,7 +171,7 @@ final class TextResultSetReader extends AbstractResultSetReader {
             }
             break;
             case BOOLEAN: {
-                columnText = PacketUtils.readStringLenEnc(payload, columnCharset);
+                columnText = Packets.readStringLenEnc(payload, columnCharset);
                 if (columnText == null) {
                     columnValue = null;
                 } else {
@@ -181,14 +181,14 @@ final class TextResultSetReader extends AbstractResultSetReader {
             break;
             case BIT: {
                 if (columnMeta.isTiny1AsBit()) {
-                    columnText = PacketUtils.readStringLenEnc(payload, columnCharset);
+                    columnText = Packets.readStringLenEnc(payload, columnCharset);
                     if (columnText == null) {
                         columnValue = null;
                     } else {
                         columnValue = Byte.parseByte(columnText) == 0 ? 0L : 1L;
                     }
                 } else {
-                    byte[] bytes = PacketUtils.readBytesLenEnc(payload);
+                    byte[] bytes = Packets.readBytesLenEnc(payload);
                     if (bytes == null) {
                         columnValue = null;
                     } else {
@@ -199,7 +199,7 @@ final class TextResultSetReader extends AbstractResultSetReader {
             break;
             case TINYINT_UNSIGNED:
             case TINYINT: {
-                columnText = PacketUtils.readStringLenEnc(payload, columnCharset);
+                columnText = Packets.readStringLenEnc(payload, columnCharset);
                 if (columnText == null) {
                     columnValue = null;
                 } else if (columnMeta.mysqlType == MySQLType.TINYINT_UNSIGNED) {
@@ -211,7 +211,7 @@ final class TextResultSetReader extends AbstractResultSetReader {
             break;
             case DOUBLE_UNSIGNED:
             case DOUBLE: {
-                columnText = PacketUtils.readStringLenEnc(payload, columnCharset);
+                columnText = Packets.readStringLenEnc(payload, columnCharset);
                 if (columnText == null) {
                     columnValue = null;
                 } else {
@@ -221,7 +221,7 @@ final class TextResultSetReader extends AbstractResultSetReader {
             break;
             case FLOAT_UNSIGNED:
             case FLOAT: {
-                columnText = PacketUtils.readStringLenEnc(payload, columnCharset);
+                columnText = Packets.readStringLenEnc(payload, columnCharset);
                 if (columnText == null) {
                     columnValue = null;
                 } else {
@@ -230,7 +230,7 @@ final class TextResultSetReader extends AbstractResultSetReader {
             }
             break;
             case DATE: {
-                columnText = PacketUtils.readStringLenEnc(payload, columnCharset);
+                columnText = Packets.readStringLenEnc(payload, columnCharset);
                 if (columnText == null) {
                     columnValue = null;
                 } else if (columnText.equals("0000-00-00")) {
@@ -241,7 +241,7 @@ final class TextResultSetReader extends AbstractResultSetReader {
             }
             break;
             case YEAR: {
-                columnText = PacketUtils.readStringLenEnc(payload, columnCharset);
+                columnText = Packets.readStringLenEnc(payload, columnCharset);
                 if (columnText == null) {
                     columnValue = null;
                 } else {
@@ -251,7 +251,7 @@ final class TextResultSetReader extends AbstractResultSetReader {
             break;
             case TIMESTAMP:
             case DATETIME: {
-                columnText = PacketUtils.readStringLenEnc(payload, columnCharset);
+                columnText = Packets.readStringLenEnc(payload, columnCharset);
                 if (columnText == null) {
                     columnValue = null;
                 } else if (columnText.startsWith("0000-00-00")) {
@@ -274,7 +274,7 @@ final class TextResultSetReader extends AbstractResultSetReader {
             }
             break;
             case TIME: {
-                columnText = PacketUtils.readStringLenEnc(payload, columnCharset);
+                columnText = Packets.readStringLenEnc(payload, columnCharset);
                 if (columnText == null) {
                     columnValue = null;
                 } else if (MySQLTimeUtils.isDuration(columnText)) {
@@ -288,7 +288,7 @@ final class TextResultSetReader extends AbstractResultSetReader {
             }
             break;
             case GEOMETRY: {
-                final byte[] bytes = PacketUtils.readBytesLenEnc(payload);
+                final byte[] bytes = Packets.readBytesLenEnc(payload);
                 if (bytes == null) {
                     columnValue = null;
                 } else {
@@ -301,7 +301,7 @@ final class TextResultSetReader extends AbstractResultSetReader {
             case TEXT:
             case MEDIUMTEXT:
             case LONGTEXT: {
-                columnText = PacketUtils.readStringLenEnc(payload, columnCharset);
+                columnText = Packets.readStringLenEnc(payload, columnCharset);
                 if (columnText != null && columnMeta.mysqlType == MySQLType.LONGTEXT) {
                     columnValue = LongStrings.fromString(columnText);
                 } else {
@@ -310,7 +310,7 @@ final class TextResultSetReader extends AbstractResultSetReader {
             }
             break;
             case LONGBLOB: {
-                final byte[] array = PacketUtils.readBytesLenEnc(payload);
+                final byte[] array = Packets.readBytesLenEnc(payload);
                 if (array == null) {
                     columnValue = null;
                 } else {
@@ -327,7 +327,7 @@ final class TextResultSetReader extends AbstractResultSetReader {
             case NULL:
             default:
                 // unknown
-                columnValue = PacketUtils.readBytesLenEnc(payload);
+                columnValue = Packets.readBytesLenEnc(payload);
 
         }
         return columnValue;

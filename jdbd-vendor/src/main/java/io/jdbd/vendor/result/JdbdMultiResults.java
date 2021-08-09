@@ -43,12 +43,13 @@ public abstract class JdbdMultiResults {
         });
     }
 
-    public static Mono<ResultState> update(ITaskAdjutant adjutant, Flux<SingleResult> resultFlux) {
-        return Mono.empty();
+    public static Mono<ResultState> update(ITaskAdjutant adjutant, Consumer<MultiResultSink> callback) {
+        return UpdateResultSubscriber.create(adjutant, callback);
     }
 
-    public static Flux<ResultRow> query(ITaskAdjutant adjutant, Flux<SingleResult> resultFlux) {
-        return Flux.empty();
+    public static Flux<ResultRow> query(ITaskAdjutant adjutant, Consumer<ResultState> stateConsumer
+            , Consumer<MultiResultSink> callback) {
+        return QueryResultSubscriber.create(adjutant, stateConsumer, callback);
     }
 
 

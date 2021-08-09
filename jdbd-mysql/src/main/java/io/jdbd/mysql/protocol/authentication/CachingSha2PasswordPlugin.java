@@ -2,7 +2,7 @@ package io.jdbd.mysql.protocol.authentication;
 
 import io.jdbd.mysql.MySQLJdbdException;
 import io.jdbd.mysql.protocol.AuthenticateAssistant;
-import io.jdbd.mysql.protocol.client.PacketUtils;
+import io.jdbd.mysql.protocol.client.Packets;
 import io.netty.buffer.ByteBuf;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -51,7 +51,7 @@ public class CachingSha2PasswordPlugin extends Sha256PasswordPlugin {
         try {
             if (stage == AuthStage.FAST_AUTH_SEND_SCRAMBLE) {
                 // send a scramble for fast auth
-                String seedString = PacketUtils.readStringTerm(fromServer, Charset.defaultCharset());
+                String seedString = Packets.readStringTerm(fromServer, Charset.defaultCharset());
                 this.seed = seedString;
 
                 byte[] passwordBytes = password.getBytes(this.protocolAssistant.getPasswordCharset());
@@ -63,7 +63,7 @@ public class CachingSha2PasswordPlugin extends Sha256PasswordPlugin {
                 LOG.trace("use fast auth send scramble.");
                 return payloadBuffer.asReadOnly();
             } else if (stage == AuthStage.FAST_AUTH_READ_RESULT) {
-                int flag = PacketUtils.readInt1AsInt(fromServer);
+                int flag = Packets.readInt1AsInt(fromServer);
                 switch (flag) {
                     case 3:
                         this.stage = AuthStage.FAST_AUTH_COMPLETE;

@@ -23,19 +23,19 @@ public final class OkPacket extends TerminatorPacket {
      * @throws IllegalArgumentException packet error.
      */
     public static OkPacket read(ByteBuf payload, final int capability) {
-        int type = PacketUtils.readInt1AsInt(payload);
+        int type = Packets.readInt1AsInt(payload);
         if (type != OK_HEADER && type != EofPacket.EOF_HEADER) {
             throw new IllegalArgumentException("packetBuf isn't ok packet.");
         }
         //1. affected_rows
-        long affectedRows = PacketUtils.readLenEnc(payload);
+        long affectedRows = Packets.readLenEnc(payload);
         //2. last_insert_id
-        long lastInsertId = PacketUtils.readLenEnc(payload);
+        long lastInsertId = Packets.readLenEnc(payload);
         //3. status_flags and warnings
         final int statusFags, warnings;
-        statusFags = PacketUtils.readInt2AsInt(payload);
+        statusFags = Packets.readInt2AsInt(payload);
         if ((capability & ClientCommandProtocol.CLIENT_PROTOCOL_41) != 0) {
-            warnings = PacketUtils.readInt2AsInt(payload);
+            warnings = Packets.readInt2AsInt(payload);
         } else {
             warnings = 0;
         }
@@ -44,16 +44,16 @@ public final class OkPacket extends TerminatorPacket {
         if ((capability & ClientCommandProtocol.CLIENT_SESSION_TRACK) != 0) {
             if (payload.isReadable()) {
                 // here , avoid ResultSet terminator.
-                info = PacketUtils.readStringLenEnc(payload, Charset.defaultCharset());
+                info = Packets.readStringLenEnc(payload, Charset.defaultCharset());
             }
             if (info == null) {
                 info = "";
             }
             if ((statusFags & ClientCommandProtocol.SERVER_SESSION_STATE_CHANGED) != 0) {
-                sessionStateInfo = PacketUtils.readStringLenEnc(payload, Charset.defaultCharset());
+                sessionStateInfo = Packets.readStringLenEnc(payload, Charset.defaultCharset());
             }
         } else {
-            info = PacketUtils.readStringEof(payload, Charset.defaultCharset());
+            info = Packets.readStringEof(payload, Charset.defaultCharset());
         }
         return new OkPacket(affectedRows, lastInsertId
                 , statusFags, warnings, info, sessionStateInfo);
@@ -99,7 +99,7 @@ public final class OkPacket extends TerminatorPacket {
 
 
     public static boolean isOkPacket(ByteBuf payloadBuf) {
-        return PacketUtils.getInt1AsInt(payloadBuf, payloadBuf.readerIndex()) == OK_HEADER;
+        return Packets.getInt1AsInt(payloadBuf, payloadBuf.readerIndex()) == OK_HEADER;
     }
 
 }

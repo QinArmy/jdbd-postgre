@@ -2,9 +2,9 @@ package io.jdbd.postgre.util;
 
 import io.jdbd.vendor.util.JdbdStringUtils;
 
-public abstract class PostgreStringUtils extends JdbdStringUtils {
+public abstract class PgStringUtils extends JdbdStringUtils {
 
-    protected PostgreStringUtils() {
+    protected PgStringUtils() {
         throw new UnsupportedOperationException();
     }
 

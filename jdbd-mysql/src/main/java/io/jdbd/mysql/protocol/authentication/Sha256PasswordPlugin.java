@@ -3,7 +3,7 @@ package io.jdbd.mysql.protocol.authentication;
 import io.jdbd.mysql.MySQLJdbdException;
 import io.jdbd.mysql.protocol.AuthenticateAssistant;
 import io.jdbd.mysql.protocol.ClientConstants;
-import io.jdbd.mysql.protocol.client.PacketUtils;
+import io.jdbd.mysql.protocol.client.Packets;
 import io.jdbd.mysql.protocol.conf.PropertyKey;
 import io.jdbd.mysql.util.MySQLStringUtils;
 import io.jdbd.vendor.conf.HostInfo;
@@ -121,7 +121,7 @@ public class Sha256PasswordPlugin implements AuthenticationPlugin {
         } else if (this.publicKeyString != null) {
             // encrypt with given key, don't use "Public Key Retrieval"
             LOG.trace("authenticate with server public key.");
-            this.seed = PacketUtils.readStringTerm(fromServer, Charset.defaultCharset());
+            this.seed = Packets.readStringTerm(fromServer, Charset.defaultCharset());
             payload = createEncryptPasswordPacketWithPublicKey(password);
         } else if (!this.env.getOrDefault(PropertyKey.allowPublicKeyRetrieval, Boolean.class)) {
             throw new MySQLJdbdException("Don't allow public key retrieval ,can't connect.");
@@ -131,13 +131,13 @@ public class Sha256PasswordPlugin implements AuthenticationPlugin {
             // so we check payload length to detect that.
             LOG.trace("authenticate with request server public key.");
             // read key response
-            this.publicKeyString = PacketUtils.readStringTerm(fromServer, Charset.defaultCharset());
+            this.publicKeyString = Packets.readStringTerm(fromServer, Charset.defaultCharset());
             payload = createEncryptPasswordPacketWithPublicKey(password);
 
             this.publicKeyRequested = false;
         } else {
             // build and send Public Key Retrieval packet
-            this.seed = PacketUtils.readStringTerm(fromServer, Charset.defaultCharset());
+            this.seed = Packets.readStringTerm(fromServer, Charset.defaultCharset());
             payload = createPublicKeyRetrievalPacket(getPublicKeyRetrievalPacketFlag());
             this.publicKeyRequested = true;
         }
@@ -184,7 +184,7 @@ public class Sha256PasswordPlugin implements AuthenticationPlugin {
     protected final ByteBuf cratePlainTextPasswordPacket(String password) {
         byte[] passwordBytes = password.getBytes(this.protocolAssistant.getHandshakeCharset());
         ByteBuf packetBuffer = this.protocolAssistant.allocator().buffer(passwordBytes.length + 1);
-        PacketUtils.writeStringTerm(packetBuffer, passwordBytes);
+        Packets.writeStringTerm(packetBuffer, passwordBytes);
         return packetBuffer.asReadOnly();
     }
 

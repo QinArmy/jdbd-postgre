@@ -5,7 +5,7 @@ import io.jdbd.postgre.config.Enums;
 import io.jdbd.postgre.config.PgKey;
 import io.jdbd.postgre.config.PostgreHost;
 import io.jdbd.postgre.util.PgExceptions;
-import io.jdbd.postgre.util.PostgreFunctions;
+import io.jdbd.postgre.util.PgFunctions;
 import io.jdbd.vendor.task.GssWrapper;
 import io.netty.buffer.ByteBuf;
 import org.ietf.jgss.*;
@@ -61,7 +61,7 @@ final class GssUnitTask extends PostgreUnitTask {
      */
     private GssUnitTask(PgConnectionTask task) {
         super(task);
-        this.gssWrapperConsumer = PostgreFunctions.noActionConsumer();
+        this.gssWrapperConsumer = PgFunctions.noActionConsumer();
         this.encryption = false;
     }
 

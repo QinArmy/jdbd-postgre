@@ -53,15 +53,15 @@ abstract class MySQLCommandTask extends CommunicationTask<TaskAdjutant> {
     }
 
     @Override
-    protected final boolean hasOnePacket(ByteBuf cumulateBuffer) {
-        return PacketUtils.hasOnePacket(cumulateBuffer);
+    protected final boolean canDecode(ByteBuf cumulateBuffer) {
+        return Packets.hasOnePacket(cumulateBuffer);
     }
 
     static JdbdSQLException createSequenceIdError(int expected, ByteBuf cumulateBuffer) {
         return MySQLExceptions.createFatalIoException(
                 (Throwable) null
                 , "MySQL server row packet return sequence_id error,expected[%s] actual[%s]"
-                , expected, PacketUtils.getInt1AsInt(cumulateBuffer, cumulateBuffer.readerIndex() - 1));
+                , expected, Packets.getInt1AsInt(cumulateBuffer, cumulateBuffer.readerIndex() - 1));
     }
 
 }

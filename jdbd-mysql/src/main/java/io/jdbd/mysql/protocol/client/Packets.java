@@ -8,8 +8,6 @@ import io.jdbd.vendor.stmt.Stmt;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
 import org.reactivestreams.Publisher;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.FluxSink;
 import reactor.core.publisher.Mono;
@@ -25,9 +23,7 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
-public abstract class PacketUtils {
-
-    private static final Logger LOG = LoggerFactory.getLogger(PacketUtils.class);
+public abstract class Packets {
 
 
     public static final long NULL_LENGTH = -1L;
@@ -555,7 +551,7 @@ public abstract class PacketUtils {
             packet.writeBytes(bigPacket, MAX_PAYLOAD);
         } else {
             packet = bigPacket.readRetainedSlice(MAX_PACKET);
-            PacketUtils.writePacketHeader(packet, sequenceIdSupplier.get());
+            Packets.writePacketHeader(packet, sequenceIdSupplier.get());
         }
         packetList.add(packet);
 
@@ -655,21 +651,21 @@ public abstract class PacketUtils {
 
         final Publisher<ByteBuf> publisher;
 
-        if (multiPacket.readableBytes() < PacketUtils.MAX_PACKET) {
-            PacketUtils.writePacketHeader(multiPacket, sequenceIdSupplier.get());
+        if (multiPacket.readableBytes() < Packets.MAX_PACKET) {
+            Packets.writePacketHeader(multiPacket, sequenceIdSupplier.get());
             publisher = Mono.just(multiPacket);
         } else {
             LinkedList<ByteBuf> packetList = new LinkedList<>();
 
-            ByteBuf packet = multiPacket.readRetainedSlice(PacketUtils.MAX_PACKET);
-            PacketUtils.writePacketHeader(packet, sequenceIdSupplier.get());
+            ByteBuf packet = multiPacket.readRetainedSlice(Packets.MAX_PACKET);
+            Packets.writePacketHeader(packet, sequenceIdSupplier.get());
             packetList.add(packet);
 
             for (int readableBytes = multiPacket.readableBytes(), payloadLength; readableBytes > 0; ) {
-                payloadLength = Math.min(readableBytes, PacketUtils.MAX_PAYLOAD);
+                payloadLength = Math.min(readableBytes, Packets.MAX_PAYLOAD);
 
-                packet = allocator.buffer(PacketUtils.HEADER_SIZE + payloadLength);
-                PacketUtils.writeInt3(packet, payloadLength);
+                packet = allocator.buffer(Packets.HEADER_SIZE + payloadLength);
+                Packets.writeInt3(packet, payloadLength);
                 packet.writeByte(sequenceIdSupplier.get());
 
                 packet.writeBytes(multiPacket, payloadLength);

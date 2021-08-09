@@ -14,18 +14,54 @@ abstract class Messages {
 
     static final byte STRING_TERMINATOR = 0;
 
+    static final int LENGTH_SIZE = 4;
+
+    /**
+     * <ul>
+     *     <li>CommandComplete</li>
+     * </ul>
+     */
+    static final byte C = 'C';
+
+    /**
+     * <ul>
+     *     <li>DataRow</li>
+     * </ul>
+     */
+    static final byte D = 'D';
+
+    /**
+     * <ul>
+     *     <li>ErrorResponse</li>
+     * </ul>
+     */
     static final byte E = 'E';
 
     static final byte R = 'R';
 
+    /**
+     * <ul>
+     *     <li>NoticeResponse</li>
+     * </ul>
+     */
     static final byte N = 'N';
 
     static final byte S = 'S';
 
     static final byte v = 'v';
 
+    /**
+     * <ul>
+     *     <li>ReadyForQuery</li>
+     * </ul>
+     */
     static final byte Z = 'Z';
 
+    /**
+     * <ul>
+     *     <li>RowDescription</li>
+     * </ul>
+     */
     static final byte T = 'T';
 
     static final byte I = 'I';
@@ -69,13 +105,13 @@ abstract class Messages {
     static final byte AUTH_SASL_FINAL = 12;
 
 
-    static void writeString(ByteBuf packet, String string) {
-        packet.writeBytes(string.getBytes(Encoding.CLIENT_CHARSET));
-        packet.writeByte(STRING_TERMINATOR);
+    static void writeString(ByteBuf message, String string) {
+        message.writeBytes(string.getBytes(Encoding.CLIENT_CHARSET));
+        message.writeByte(STRING_TERMINATOR);
     }
 
     static String readString(final ByteBuf message) {
-        return new String(readBytesTerm(message), StandardCharsets.UTF_8);
+        return new String(readBytesTerm(message), Encoding.CLIENT_CHARSET);
     }
 
     static byte[] readBytesTerm(final ByteBuf message) {
@@ -93,11 +129,30 @@ abstract class Messages {
         return bytes;
     }
 
+    /**
+     * <p>
+     * Read CommandComplete message body(not include message type byte)
+     * </p>
+     *
+     * @return command tag
+     * @see <a href="https://www.postgresql.org/docs/current/protocol-message-formats.html">CommandComplete</a>
+     */
+    static String readCommandComplete(ByteBuf message) {
+        byte[] bytes = new byte[message.readInt() - LENGTH_SIZE];
+        message.readBytes(bytes);
+        return new String(bytes, Encoding.CLIENT_CHARSET);
+    }
+
 
     static boolean hasOneMessage(ByteBuf cumulateBuffer) {
         final int readableBytes = cumulateBuffer.readableBytes();
         return readableBytes > 5
                 && readableBytes >= (1 + cumulateBuffer.getInt(cumulateBuffer.readerIndex() + 1));
+    }
+
+    static void skipOneMessage(ByteBuf message) {
+        message.readByte();
+        message.skipBytes(message.getInt(message.readerIndex()));
     }
 
     /**

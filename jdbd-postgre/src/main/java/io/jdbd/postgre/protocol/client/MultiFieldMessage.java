@@ -2,6 +2,7 @@ package io.jdbd.postgre.protocol.client;
 
 import io.jdbd.postgre.util.PgCollections;
 import io.netty.buffer.ByteBuf;
+import reactor.util.annotation.Nullable;
 
 import java.util.Collections;
 import java.util.HashMap;
@@ -51,6 +52,10 @@ abstract class MultiFieldMessage extends PostgreMessage {
         this.fieldMap = PgCollections.unmodifiableMap(fieldMap);
     }
 
+    @Nullable
+    public final String getMessage() {
+        return this.fieldMap.get(MultiFieldMessage.MESSAGE);
+    }
 
     @Override
     public final String toString() {

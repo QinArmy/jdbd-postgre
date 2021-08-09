@@ -74,7 +74,7 @@ public abstract class CommunicationTask<T extends ITaskAdjutant> {
         if (this.taskPhase != TaskPhase.STARTED) {
             throw createTaskPhaseException(TaskPhase.STARTED);
         }
-        if (!hasOnePacket(cumulateBuffer)) {
+        if (!canDecode(cumulateBuffer)) {
             return false;
         }
         this.methodStack = MethodStack.DECODE;
@@ -305,7 +305,7 @@ public abstract class CommunicationTask<T extends ITaskAdjutant> {
     protected abstract boolean decode(ByteBuf cumulateBuffer, Consumer<Object> serverStatusConsumer);
 
 
-    protected abstract boolean hasOnePacket(ByteBuf cumulateBuffer);
+    protected abstract boolean canDecode(ByteBuf cumulateBuffer);
 
 
 

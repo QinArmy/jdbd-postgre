@@ -3,7 +3,7 @@ package io.jdbd.postgre;
 
 import java.sql.JDBCType;
 
-public enum PostgreType implements io.jdbd.meta.SQLType {
+public enum PgType implements io.jdbd.meta.SQLType {
 
 
     ;

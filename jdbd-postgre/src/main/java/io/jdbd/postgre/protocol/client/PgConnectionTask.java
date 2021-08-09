@@ -10,8 +10,8 @@ import io.jdbd.postgre.config.Enums;
 import io.jdbd.postgre.config.PgKey;
 import io.jdbd.postgre.config.PostgreHost;
 import io.jdbd.postgre.util.PgExceptions;
-import io.jdbd.postgre.util.PostgreStringUtils;
-import io.jdbd.postgre.util.PostgreTimes;
+import io.jdbd.postgre.util.PgStringUtils;
+import io.jdbd.postgre.util.PgTimes;
 import io.jdbd.vendor.task.*;
 import io.netty.buffer.ByteBuf;
 import org.qinarmy.util.Pair;
@@ -291,7 +291,7 @@ final class PgConnectionTask extends PgTask implements ConnectionTask {
         boolean taskEnd = false;
         PostgreHost host = this.adjutant.obtainHost();
         final String password = host.getPassword();
-        if (PostgreStringUtils.hasText(password)) {
+        if (PgStringUtils.hasText(password)) {
             byte[] salt = new byte[saltLength];
             cumulateBuffer.readBytes(salt);
             this.packetPublisher = Mono.just(
@@ -321,7 +321,7 @@ final class PgConnectionTask extends PgTask implements ConnectionTask {
         boolean taskEnd = false;
         while (Messages.hasOneMessage(cumulateBuffer)) {
             final int msgType = cumulateBuffer.readByte(), bodyIndex = cumulateBuffer.readerIndex();
-            final int nextMsgIndex = bodyIndex + cumulateBuffer.readInt();
+            final int nextMsgIndex = bodyIndex + cumulateBuffer.getInt(bodyIndex);
 
             switch (msgType) {
                 case Messages.E: { // ErrorResponse message
@@ -353,7 +353,7 @@ final class PgConnectionTask extends PgTask implements ConnectionTask {
                 break;
                 case Messages.N: { // NoticeResponse message
                     // modify server status.
-                    this.noticeMessage = NoticeMessage.readBody(cumulateBuffer, nextMsgIndex);
+                    this.noticeMessage = NoticeMessage.readBody(cumulateBuffer);
                 }
                 break;
                 default: { // Unknown message
@@ -507,7 +507,7 @@ final class PgConnectionTask extends PgTask implements ConnectionTask {
         list.add(new Pair<>("client_encoding", Encoding.CLIENT_CHARSET.name()));
         list.add(new Pair<>("DateStyle", "ISO"));
 
-        list.add(new Pair<>("TimeZone", PostgreTimes.systemZoneOffset().normalized().getId()));
+        list.add(new Pair<>("TimeZone", PgTimes.systemZoneOffset().normalized().getId()));
 
         if (minVersion.compareTo(ServerVersion.V9_0) >= 0) {
             list.add(new Pair<>("extra_float_digits", "3"));

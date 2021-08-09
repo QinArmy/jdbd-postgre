@@ -302,37 +302,37 @@ final class MySQLColumnMeta {
         final Charset metaCharset = adjutant.obtainCharsetMeta();
         final Properties<PropertyKey> properties = adjutant.obtainHostInfo().getProperties();
         // 1. catalog
-        String catalogName = PacketUtils.readStringLenEnc(payloadBuf, metaCharset);
+        String catalogName = Packets.readStringLenEnc(payloadBuf, metaCharset);
         // 2. schema
-        String schemaName = PacketUtils.readStringLenEnc(payloadBuf, metaCharset);
+        String schemaName = Packets.readStringLenEnc(payloadBuf, metaCharset);
         // 3. table,virtual table name
-        String tableAlias = PacketUtils.readStringLenEnc(payloadBuf, metaCharset);
+        String tableAlias = Packets.readStringLenEnc(payloadBuf, metaCharset);
         // 4. org_table,physical table name
-        String tableName = PacketUtils.readStringLenEnc(payloadBuf, metaCharset);
+        String tableName = Packets.readStringLenEnc(payloadBuf, metaCharset);
 
         // 5. name ,virtual column name,alias in select statement
-        String columnAlias = Objects.requireNonNull(PacketUtils.readStringLenEnc(payloadBuf, metaCharset)
+        String columnAlias = Objects.requireNonNull(Packets.readStringLenEnc(payloadBuf, metaCharset)
                 , "columnAlias");
         // 6. org_name,physical column name
-        String columnName = PacketUtils.readStringLenEnc(payloadBuf, metaCharset);
+        String columnName = Packets.readStringLenEnc(payloadBuf, metaCharset);
         // 7. length of fixed length fields ,[0x0c]
         //
-        long fixLength = PacketUtils.readLenEnc(payloadBuf);
+        long fixLength = Packets.readLenEnc(payloadBuf);
         // 8. character_set of column
-        int collationIndex = PacketUtils.readInt2AsInt(payloadBuf);
+        int collationIndex = Packets.readInt2AsInt(payloadBuf);
         Charset columnCharset = CharsetMapping.getJavaCharsetByCollationIndex(collationIndex
                 , adjutant.obtainCustomCollationMap());
         // 9. column_length,maximum length of the field
-        long length = PacketUtils.readInt4AsLong(payloadBuf);
+        long length = Packets.readInt4AsLong(payloadBuf);
         // 10. type,type of the column as defined in enum_field_types,type of the column as defined in enum_field_types
-        int typeFlag = PacketUtils.readInt1AsInt(payloadBuf);
+        int typeFlag = Packets.readInt1AsInt(payloadBuf);
         // 11. flags,Flags as defined in Column Definition Flags
-        int definitionFlags = PacketUtils.readInt2AsInt(payloadBuf);
+        int definitionFlags = Packets.readInt2AsInt(payloadBuf);
         // 12. decimals,max shown decimal digits:
         //0x00 for integers and static strings
         //0x1f for dynamic strings, double, float
         //0x00 to 0x51 for decimals
-        short decimals = (short) PacketUtils.readInt1AsInt(payloadBuf);
+        short decimals = (short) Packets.readInt1AsInt(payloadBuf);
 
         return new MySQLColumnMeta(
                 catalogName, schemaName

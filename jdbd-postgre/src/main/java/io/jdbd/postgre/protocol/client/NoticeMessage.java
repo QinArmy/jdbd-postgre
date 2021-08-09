@@ -13,8 +13,9 @@ final class NoticeMessage extends MultiFieldMessage {
     /**
      * @param endIndex message end index,exclusive.
      */
-    static NoticeMessage readBody(final ByteBuf messageBody, final int endIndex) {
-        return new NoticeMessage(MultiFieldMessage.readMultiFields(messageBody, endIndex));
+    static NoticeMessage readBody(final ByteBuf messageBody) {
+        int index = messageBody.readerIndex();
+        return new NoticeMessage(MultiFieldMessage.readMultiFields(messageBody, index + messageBody.readInt() - 4));
     }
 
     private NoticeMessage(Map<Byte, String> fieldMap) {

@@ -1,7 +1,7 @@
 package io.jdbd.mysql.protocol.authentication;
 
 import io.jdbd.mysql.protocol.AuthenticateAssistant;
-import io.jdbd.mysql.protocol.client.PacketUtils;
+import io.jdbd.mysql.protocol.client.Packets;
 import io.jdbd.mysql.protocol.conf.PropertyKey;
 import io.jdbd.mysql.util.MySQLStringUtils;
 import io.jdbd.vendor.conf.HostInfo;
@@ -54,7 +54,7 @@ public class MySQLOldPasswordPlugin implements AuthenticationPlugin {
         if (MySQLStringUtils.isEmpty(password)) {
             payloadBuf = Unpooled.EMPTY_BUFFER;
         } else {
-            String seed = PacketUtils.readStringTerm(fromServer, Charset.defaultCharset()).substring(0, 8);
+            String seed = Packets.readStringTerm(fromServer, Charset.defaultCharset()).substring(0, 8);
             String cryptString = newCrypt(password, seed, this.protocolAssistant.getPasswordCharset());
             byte[] payloadBytes = cryptString.getBytes();
 

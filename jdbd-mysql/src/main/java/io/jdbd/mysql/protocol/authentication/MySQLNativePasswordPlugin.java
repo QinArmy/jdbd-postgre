@@ -1,7 +1,7 @@
 package io.jdbd.mysql.protocol.authentication;
 
 import io.jdbd.mysql.protocol.AuthenticateAssistant;
-import io.jdbd.mysql.protocol.client.PacketUtils;
+import io.jdbd.mysql.protocol.client.Packets;
 import io.jdbd.mysql.protocol.conf.PropertyKey;
 import io.jdbd.mysql.util.MySQLStringUtils;
 import io.jdbd.vendor.conf.HostInfo;
@@ -49,7 +49,7 @@ public class MySQLNativePasswordPlugin implements AuthenticationPlugin {
             payloadBuf = Unpooled.EMPTY_BUFFER;
         } else {
             byte[] passwordBytes = password.getBytes(this.protocolAssistant.getPasswordCharset());
-            byte[] seed = PacketUtils.readStringTermBytes(fromServer);
+            byte[] seed = Packets.readStringTermBytes(fromServer);
             byte[] scrambleBytes = AuthenticateUtils.scramble411(passwordBytes, seed);
 
             payloadBuf = this.protocolAssistant.allocator().buffer(scrambleBytes.length);

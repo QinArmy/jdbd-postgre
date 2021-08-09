@@ -42,18 +42,18 @@ final class QuitTask extends MySQLCommandTask {
     @Override
     protected Publisher<ByteBuf> start() {
         ByteBuf packetBuf = adjutant.createPacketBuffer(1);
-        packetBuf.writeByte(PacketUtils.COM_QUIT_HEADER);
-        PacketUtils.writePacketHeader(packetBuf, addAndGetSequenceId());
+        packetBuf.writeByte(Packets.COM_QUIT_HEADER);
+        Packets.writePacketHeader(packetBuf, addAndGetSequenceId());
         return Mono.just(packetBuf);
     }
 
     @Override
     protected boolean decode(ByteBuf cumulateBuffer, Consumer<Object> serverStatusConsumer) {
-        if (!PacketUtils.hasOnePacket(cumulateBuffer)) {
+        if (!Packets.hasOnePacket(cumulateBuffer)) {
             return false;
         }
-        int payloadLength = PacketUtils.readInt3(cumulateBuffer);
-        int sequenceId = PacketUtils.readInt1AsInt(cumulateBuffer);
+        int payloadLength = Packets.readInt3(cumulateBuffer);
+        int sequenceId = Packets.readInt1AsInt(cumulateBuffer);
         int payloadStartIndex = cumulateBuffer.readerIndex();
 
         ErrorPacket error;

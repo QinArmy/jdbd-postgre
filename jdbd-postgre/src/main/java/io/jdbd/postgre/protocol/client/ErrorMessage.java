@@ -3,7 +3,6 @@ package io.jdbd.postgre.protocol.client;
 import io.netty.buffer.ByteBuf;
 import reactor.util.annotation.Nullable;
 
-import java.util.Collections;
 import java.util.Map;
 
 /**
@@ -29,37 +28,30 @@ public final class ErrorMessage extends MultiFieldMessage {
     }
 
 
-    final Map<Byte, String> messageParts;
-
     private ErrorMessage(Map<Byte, String> messageParts) {
         super(Messages.E, messageParts);
-        this.messageParts = Collections.unmodifiableMap(messageParts);
     }
 
 
     @Nullable
     public final String getSQLState() {
-        return this.messageParts.get(MultiFieldMessage.SQLSTATE);
+        return this.fieldMap.get(MultiFieldMessage.SQLSTATE);
     }
 
-    @Nullable
-    public final String getMessage() {
-        return this.messageParts.get(MultiFieldMessage.MESSAGE);
-    }
 
     @Nullable
     final String getSeverity() {
-        return this.messageParts.get(MultiFieldMessage.SEVERITY);
+        return this.fieldMap.get(MultiFieldMessage.SEVERITY);
     }
 
     @Nullable
     final String getDetail() {
-        return this.messageParts.get(MultiFieldMessage.DETAIL);
+        return this.fieldMap.get(MultiFieldMessage.DETAIL);
     }
 
     @Nullable
     final String getHint() {
-        return this.messageParts.get(MultiFieldMessage.HINT);
+        return this.fieldMap.get(MultiFieldMessage.HINT);
     }
 
     @Nullable
@@ -69,37 +61,37 @@ public final class ErrorMessage extends MultiFieldMessage {
 
     @Nullable
     final String getWhere() {
-        return this.messageParts.get(MultiFieldMessage.WHERE);
+        return this.fieldMap.get(MultiFieldMessage.WHERE);
     }
 
     @Nullable
     final String getSchema() {
-        return this.messageParts.get(MultiFieldMessage.SCHEMA);
+        return this.fieldMap.get(MultiFieldMessage.SCHEMA);
     }
 
     @Nullable
     final String getTable() {
-        return this.messageParts.get(MultiFieldMessage.TABLE);
+        return this.fieldMap.get(MultiFieldMessage.TABLE);
     }
 
     @Nullable
     final String getColumn() {
-        return this.messageParts.get(MultiFieldMessage.COLUMN);
+        return this.fieldMap.get(MultiFieldMessage.COLUMN);
     }
 
     @Nullable
     final String getDatatype() {
-        return this.messageParts.get(MultiFieldMessage.DATATYPE);
+        return this.fieldMap.get(MultiFieldMessage.DATATYPE);
     }
 
     @Nullable
     final String getConstraint() {
-        return this.messageParts.get(MultiFieldMessage.CONSTRAINT);
+        return this.fieldMap.get(MultiFieldMessage.CONSTRAINT);
     }
 
     @Nullable
     final String getFile() {
-        return this.messageParts.get(MultiFieldMessage.FILE);
+        return this.fieldMap.get(MultiFieldMessage.FILE);
     }
 
     final int getLine() {
@@ -108,21 +100,21 @@ public final class ErrorMessage extends MultiFieldMessage {
 
     @Nullable
     final String getRoutine() {
-        return this.messageParts.get(MultiFieldMessage.ROUTINE);
+        return this.fieldMap.get(MultiFieldMessage.ROUTINE);
     }
 
     @Nullable
     final String getInternalQuery() {
-        return this.messageParts.get(MultiFieldMessage.INTERNAL_QUERY);
+        return this.fieldMap.get(MultiFieldMessage.INTERNAL_QUERY);
     }
 
     final String getNonSensitiveErrorMessage() {
         StringBuilder builder = new StringBuilder();
-        String message = this.messageParts.get(MultiFieldMessage.SEVERITY);
+        String message = this.fieldMap.get(MultiFieldMessage.SEVERITY);
         if (message != null) {
             builder.append(message).append(": ");
         }
-        message = this.messageParts.get(MultiFieldMessage.MESSAGE);
+        message = this.fieldMap.get(MultiFieldMessage.MESSAGE);
         if (message != null) {
             builder.append(message);
         }
@@ -131,7 +123,7 @@ public final class ErrorMessage extends MultiFieldMessage {
 
 
     private int getIntegerPart(byte type) {
-        final String s = this.messageParts.get(type);
+        final String s = this.fieldMap.get(type);
         final int integer;
         if (s == null) {
             integer = 0;
