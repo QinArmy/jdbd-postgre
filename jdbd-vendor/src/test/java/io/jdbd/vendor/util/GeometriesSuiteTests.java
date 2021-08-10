@@ -1,11 +1,11 @@
 package io.jdbd.vendor.util;
 
-import org.qinarmy.util.BufferWrapper;
 import org.qinarmy.util.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.annotations.Test;
 
+import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 
 import static org.testng.Assert.assertEquals;
@@ -20,13 +20,13 @@ public class GeometriesSuiteTests {
     private static final Logger LOG = LoggerFactory.getLogger(GeometriesSuiteTests.class);
 
     /**
-     * @see Geometries#readAndWritePoints(BufferWrapper, GenericGeometries.WkbOUtWrapper, WkbType)
+     * @see Geometries#readAndWritePoints(ByteBuffer, GenericGeometries.WkbOUtWrapper, WkbType)
      */
     @Test
     public void readAndWritePoints() {
         WkbType wkbType;
         String pointText;
-        BufferWrapper inWrapper;
+        ByteBuffer inBuffer;
         GenericGeometries.WkbOUtWrapper outWrapper;
         int pointCount;
 
@@ -34,45 +34,45 @@ public class GeometriesSuiteTests {
         wkbType = WkbType.LINE_STRING;
         pointText = String.format("0 0, 1.3 3.4 , %s %s ,0 0)", Double.MAX_VALUE, Double.MIN_VALUE);
 
-        inWrapper = new BufferWrapper(pointText.getBytes(StandardCharsets.US_ASCII));
+        inBuffer = ByteBuffer.wrap(pointText.getBytes(StandardCharsets.US_ASCII));
         outWrapper = new GenericGeometries.WkbOUtWrapper(1024, true);
-        pointCount = Geometries.readAndWritePoints(inWrapper, outWrapper, wkbType);
+        pointCount = Geometries.readAndWritePoints(inBuffer, outWrapper, wkbType);
 
-        assertEquals(inWrapper.buffer.get(), ')', pointText);
+        assertEquals(inBuffer.get(), ')', pointText);
         assertEquals(pointCount, 4, pointText);
 
 
         wkbType = WkbType.MULTI_POINT;
         pointText = String.format("  (   0 0),( 1.3 3.4 ), (%s %s)  )", Double.MAX_VALUE, Double.MIN_VALUE);
 
-        inWrapper = new BufferWrapper(pointText.getBytes(StandardCharsets.US_ASCII));
+        inBuffer = ByteBuffer.wrap(pointText.getBytes(StandardCharsets.US_ASCII));
         outWrapper = new GenericGeometries.WkbOUtWrapper(wkbType.coordinates() * 8 * 3, true);
-        pointCount = Geometries.readAndWritePoints(inWrapper, outWrapper, wkbType);
+        pointCount = Geometries.readAndWritePoints(inBuffer, outWrapper, wkbType);
 
-        assertEquals(inWrapper.buffer.get(), ')', pointText);
+        assertEquals(inBuffer.get(), ')', pointText);
         assertEquals(pointCount, 3, pointText);
 
     }
 
     /**
-     * @see Geometries#readAndWriteLinearRing(BufferWrapper, GenericGeometries.WkbMemoryWrapper, WkbType)
+     * @see Geometries#readAndWriteLinearRing(ByteBuffer, GenericGeometries.WkbMemoryWrapper, WkbType)
      */
     @Test
     public void readAndWriteLinearRing() {
         WkbType wkbType;
         String linearRingText;
-        BufferWrapper inWrapper;
+        ByteBuffer inBuffer;
         GenericGeometries.WkbMemoryWrapper outWrapper;
         int linearRingCount;
 
         wkbType = WkbType.POLYGON;
         linearRingText = " ( 0 0,1.3 3.4, 5.2 5.7, 0 0) )  ";
 
-        inWrapper = new BufferWrapper(linearRingText.getBytes(StandardCharsets.US_ASCII));
+        inBuffer = ByteBuffer.wrap(linearRingText.getBytes(StandardCharsets.US_ASCII));
         outWrapper = new GenericGeometries.WkbMemoryWrapper(1024, true);
-        linearRingCount = Geometries.readAndWriteLinearRing(inWrapper, outWrapper, wkbType);
+        linearRingCount = Geometries.readAndWriteLinearRing(inBuffer, outWrapper, wkbType);
 
-        assertEquals(inWrapper.buffer.get(), ')', linearRingText);
+        assertEquals(inBuffer.get(), ')', linearRingText);
         assertEquals(linearRingCount, 1, linearRingText);
 
 
@@ -80,11 +80,11 @@ public class GeometriesSuiteTests {
         linearRingText = String.format(" ( 0 0,1.3 3.4, 5.2 5.7, 0 0) , ( 0 0,1.3 3.4, %s %s, 0 0))  "
                 , Double.MAX_VALUE, Double.MIN_VALUE);
 
-        inWrapper = new BufferWrapper(linearRingText.getBytes(StandardCharsets.US_ASCII));
+        inBuffer = ByteBuffer.wrap(linearRingText.getBytes(StandardCharsets.US_ASCII));
         outWrapper = new GenericGeometries.WkbMemoryWrapper(1024, true);
-        linearRingCount = Geometries.readAndWriteLinearRing(inWrapper, outWrapper, wkbType);
+        linearRingCount = Geometries.readAndWriteLinearRing(inBuffer, outWrapper, wkbType);
 
-        assertEquals(inWrapper.buffer.get(), ')', linearRingText);
+        assertEquals(inBuffer.get(), ')', linearRingText);
         assertEquals(linearRingCount, 2, linearRingText);
     }
 

@@ -75,7 +75,7 @@ public class ComQueryTaskSuiteTests extends AbstractStmtTaskSuiteTests {
         assertNotNull(resultState, "resultStates");
         assertEquals(resultState.getAffectedRows(), 1L, "affectedRows");
         assertEquals(resultState.getInsertId(), 0L, "insertedId");
-        assertEquals(resultState.getWarnings(), 0, "warnings");
+        assertNotNull(resultState.getMessage(), "message");
 
         assertFalse(resultState.hasMoreResult(), "hasMoreResult");
 
@@ -107,7 +107,7 @@ public class ComQueryTaskSuiteTests extends AbstractStmtTaskSuiteTests {
         assertNotNull(resultState, "resultStates");
 
         assertEquals(resultState.getAffectedRows(), 0L, "getAffectedRows");
-        assertEquals(resultState.getWarnings(), 0, "getWarnings");
+        assertNotNull(resultState.getMessage(), "message");
         assertEquals(resultState.getInsertId(), 0L, "getInsertId");
         assertFalse(resultState.hasMoreResult(), "hasMoreResults");
 
@@ -138,7 +138,7 @@ public class ComQueryTaskSuiteTests extends AbstractStmtTaskSuiteTests {
         assertNotNull(resultState, "resultStates");
         assertEquals(resultState.getAffectedRows(), 1L, "affectedRows");
         assertEquals(resultState.getInsertId(), 0L, "inserted");
-        assertEquals(resultState.getWarnings(), 0, "warnings");
+        assertNotNull(resultState.getMessage(), "message");
 
         assertFalse(resultState.hasMoreResult(), "hasMoreResults");
 

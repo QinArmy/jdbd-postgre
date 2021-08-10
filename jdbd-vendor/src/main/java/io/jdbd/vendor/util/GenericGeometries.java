@@ -2,7 +2,6 @@ package io.jdbd.vendor.util;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
-import org.qinarmy.util.BufferWrapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import reactor.util.annotation.Nullable;
@@ -301,29 +300,30 @@ abstract class GenericGeometries {
     /*################################## blow package method ##################################*/
 
     /**
-     * @param wkbType <ul>
-     *                <li>{@link WkbType#POINT}</li>
-     *                <li>{@link WkbType#POINT_Z}</li>
-     *                <li>{@link WkbType#POINT_M}</li>
-     *                <li>{@link WkbType#POINT_ZM}</li>
-     *                </ul>
+     * @param inBuffer must be created by {@link ByteBuffer#wrap(byte[])} method.
+     * @param wkbType  <ul>
+     *                 <li>{@link WkbType#POINT}</li>
+     *                 <li>{@link WkbType#POINT_Z}</li>
+     *                 <li>{@link WkbType#POINT_M}</li>
+     *                 <li>{@link WkbType#POINT_ZM}</li>
+     *                 </ul>
      */
-    static int pointTextToWkb(final BufferWrapper inWrapper, final WkbOUtWrapper outWrapper
+    static int pointTextToWkb(final ByteBuffer inBuffer, final WkbOUtWrapper outWrapper
             , final WkbType wkbType) {
         if (wkbType.family() != WkbType.POINT) {
             throw createUnsupportedWkb(wkbType);
         }
-        skipWhitespace(inWrapper);
-        if (isEmptySet(inWrapper)) {
+        skipWhitespace(inBuffer);
+        if (isEmptySet(inBuffer)) {
             return 0;
         }
-        if (inWrapper.buffer.get() != '(') {
+        if (inBuffer.get() != '(') {
             throw createWktFormatError(wkbType.wktType);
         }
-        if (readAndWritePoints(inWrapper, outWrapper, wkbType) != 1) {
+        if (readAndWritePoints(inBuffer, outWrapper, wkbType) != 1) {
             throw createWktFormatError(wkbType.wktType);
         }
-        if (inWrapper.buffer.get() != ')') {
+        if (inBuffer.get() != ')') {
             throw new IllegalArgumentException("Point text not close.");
         }
         return 1;
@@ -331,18 +331,19 @@ abstract class GenericGeometries {
 
 
     /**
+     * @param inBuffer must be created by {@link ByteBuffer#wrap(byte[])} method.
      * @return point count.
      */
-    static int lineStringTextToWkb(final BufferWrapper inWrapper, final WkbMemoryWrapper outWrapper
+    static int lineStringTextToWkb(final ByteBuffer inBuffer, final WkbMemoryWrapper outWrapper
             , final WkbType wkbType) {
 
         if (wkbType.family() != WkbType.LINE_STRING) {
             throw createUnsupportedWkb(wkbType);
         }
-        if (prepareGeometryText(inWrapper, outWrapper, wkbType)) {
+        if (prepareGeometryText(inBuffer, outWrapper, wkbType)) {
             return 0;
         }
-        final ByteBuffer inBuffer = inWrapper.buffer, outBuffer = outWrapper.buffer;
+        final ByteBuffer outBuffer = outWrapper.buffer;
         final ByteBuf outChannel = outWrapper.outChannel;
         final int inLimit = inBuffer.limit();
 
@@ -350,7 +351,7 @@ abstract class GenericGeometries {
         boolean lineStringEnd = false;
         for (int inPosition = inBuffer.position(), outPosition; inPosition < inLimit; ) {
             outPosition = outBuffer.position();
-            pointCount += readAndWritePoints(inWrapper, outWrapper, wkbType);
+            pointCount += readAndWritePoints(inBuffer, outWrapper, wkbType);
             if (outBuffer.position() == outPosition) {
                 throw createWktFormatError(wkbType.wktType);
             }
@@ -481,22 +482,23 @@ abstract class GenericGeometries {
 
 
     /**
-     * @param wkbType <ul>
-     *                <li>MultiPoint</li>
-     *                <li>MultiPoint Z</li>
-     *                <li>MultiPoint M</li>
-     *                <li>MultiPoint ZM</li>
-     *                </ul>
+     * @param inBuffer must be created by {@link ByteBuffer#wrap(byte[])} method.
+     * @param wkbType  <ul>
+     *                 <li>MultiPoint</li>
+     *                 <li>MultiPoint Z</li>
+     *                 <li>MultiPoint M</li>
+     *                 <li>MultiPoint ZM</li>
+     *                 </ul>
      */
-    static int multiPointTextToWkb(final BufferWrapper inWrapper, final WkbMemoryWrapper outWrapper
+    static int multiPointTextToWkb(final ByteBuffer inBuffer, final WkbMemoryWrapper outWrapper
             , final WkbType wkbType) {
         if (wkbType.family() != WkbType.MULTI_POINT) {
             throw createUnsupportedWkb(wkbType);
         }
-        if (prepareGeometryText(inWrapper, outWrapper, wkbType)) {
+        if (prepareGeometryText(inBuffer, outWrapper, wkbType)) {
             return 0;
         }
-        final ByteBuffer inBuffer = inWrapper.buffer, outBuffer = outWrapper.buffer;
+        final ByteBuffer outBuffer = outWrapper.buffer;
         final ByteBuf outChannel = outWrapper.outChannel;
 
         final int inLimit = inBuffer.limit();
@@ -508,7 +510,7 @@ abstract class GenericGeometries {
         boolean multiPointEnd = false;
         for (int inPosition = inBuffer.position(), outPosition, pointNum; inPosition < inLimit; ) {
             outPosition = outBuffer.position();
-            pointNum = readAndWritePoints(inWrapper, outWrapper, wkbType);
+            pointNum = readAndWritePoints(inBuffer, outWrapper, wkbType);
             if (outBuffer.position() == outPosition) {
                 throw createWktFormatError(wkbType.wktType);
             }
@@ -541,26 +543,26 @@ abstract class GenericGeometries {
     }
 
     /**
-     * @param wkbType <ul>
-     *                <li>{@link WkbType#MULTI_LINE_STRING}</li>
-     *                <li>{@link WkbType#MULTI_LINE_STRING_Z}</li>
-     *                <li>{@link WkbType#MULTI_LINE_STRING_M}</li>
-     *                <li>{@link WkbType#MULTI_LINE_STRING_ZM}</li>
-     *                </ul>
+     * @param inBuffer must be created by {@link ByteBuffer#wrap(byte[])} method.
+     * @param wkbType  <ul>
+     *                 <li>{@link WkbType#MULTI_LINE_STRING}</li>
+     *                 <li>{@link WkbType#MULTI_LINE_STRING_Z}</li>
+     *                 <li>{@link WkbType#MULTI_LINE_STRING_M}</li>
+     *                 <li>{@link WkbType#MULTI_LINE_STRING_ZM}</li>
+     *                 </ul>
      * @return LINE_STRING count.
      */
-    static int multiLineStringTextToWkb(final BufferWrapper inWrapper, final WkbMemoryWrapper outWrapper
+    static int multiLineStringTextToWkb(final ByteBuffer inBuffer, final WkbMemoryWrapper outWrapper
             , final WkbType wkbType) {
         if (wkbType.family() != WkbType.MULTI_LINE_STRING) {
             throw createUnsupportedWkb(wkbType);
         }
-        if (prepareGeometryText(inWrapper, outWrapper, wkbType)) {
+        if (prepareGeometryText(inBuffer, outWrapper, wkbType)) {
             return 0;
         }
-        final ByteBuffer inBuffer = inWrapper.buffer;
         int lineStringCount = 0, inPosition = inBuffer.position();
         final WkbType elementType = Objects.requireNonNull(wkbType.elementType());
-        final byte[] inArray = inWrapper.bufferArray;
+        final byte[] inArray = inBuffer.array();
         final int inLimit = inBuffer.limit();
         //2. write LineString wkb
         boolean multiLineStringEnd = false;
@@ -595,7 +597,7 @@ abstract class GenericGeometries {
             //2-1 write LineString WKB header.
             writerIndex = writeGeometryHeader(outWrapper, elementType);
             //2-2 write LineString text WKB.
-            pointCount = lineStringTextToWkb(inWrapper, outWrapper, elementType);
+            pointCount = lineStringTextToWkb(inBuffer, outWrapper, elementType);
             //2-3 write point count.
             if (pointCount != 0) {
                 writeInt(outWrapper.outChannel, writerIndex, outWrapper.bigEndian, pointCount);
@@ -612,29 +614,29 @@ abstract class GenericGeometries {
 
 
     /**
-     * @param wkbType <ul>
-     *                <li>{@link WkbType#MULTI_POLYGON}</li>
-     *                <li>{@link WkbType#MULTI_POLYGON_Z}</li>
-     *                <li>{@link WkbType#MULTI_POLYGON_M}</li>
-     *                <li>{@link WkbType#MULTI_POLYGON_ZM}</li>
-     *                </ul>
+     * @param inBuffer must be created by {@link ByteBuffer#wrap(byte[])} method.
+     * @param wkbType  <ul>
+     *                 <li>{@link WkbType#MULTI_POLYGON}</li>
+     *                 <li>{@link WkbType#MULTI_POLYGON_Z}</li>
+     *                 <li>{@link WkbType#MULTI_POLYGON_M}</li>
+     *                 <li>{@link WkbType#MULTI_POLYGON_ZM}</li>
+     *                 </ul>
      * @return polygon count
      */
-    static int multiPolygonTextToWkb(final BufferWrapper inWrapper, final WkbMemoryWrapper outWrapper
+    static int multiPolygonTextToWkb(final ByteBuffer inBuffer, final WkbMemoryWrapper outWrapper
             , final WkbType wkbType) {
         if (wkbType.family() != WkbType.MULTI_POLYGON) {
             throw new IllegalArgumentException(String.format("Unsupported WKB[%s]", wkbType));
         }
-        if (prepareGeometryText(inWrapper, outWrapper, wkbType)) {
+        if (prepareGeometryText(inBuffer, outWrapper, wkbType)) {
             return 0;
         }
-        final ByteBuffer inBuffer = inWrapper.buffer;
         final ByteBuf outChannel = outWrapper.outChannel;
 
         final WkbType elementType = Objects.requireNonNull(wkbType.elementType());
         int polygonCount = 0;
         final int inLimit = inBuffer.limit();
-        final byte[] inArray = inWrapper.bufferArray;
+        final byte[] inArray = inBuffer.array();
         //2. write MULTI_POLYGON wkb
         boolean multiPolygonEnd = false;
         for (int codePoint, writerIndex, linearRingCount, inPosition = inBuffer.position(); inPosition < inLimit; ) {
@@ -668,7 +670,7 @@ abstract class GenericGeometries {
             //2-1 write POLYGON WKB header.
             writerIndex = writeGeometryHeader(outWrapper, elementType);
             //2-2 write POLYGON text WKB.
-            linearRingCount = polygonTextToWkb(inWrapper, outWrapper, elementType);
+            linearRingCount = polygonTextToWkb(inBuffer, outWrapper, elementType);
             //2-3 write LinearRing count.
             if (linearRingCount != 0) {
                 writeInt(outChannel, writerIndex, outWrapper.bigEndian, linearRingCount);
@@ -684,28 +686,29 @@ abstract class GenericGeometries {
     }
 
     /**
-     * @param wkbType <ul>
-     *                <li>{@link WkbType#GEOMETRY_COLLECTION}</li>
-     *                <li>{@link WkbType#GEOMETRY_COLLECTION_Z}</li>
-     *                <li>{@link WkbType#GEOMETRY_COLLECTION_M}</li>
-     *                <li>{@link WkbType#GEOMETRY_COLLECTION_ZM}</li>
-     *                </ul>
+     * @param inBuffer must be created by {@link ByteBuffer#wrap(byte[])} method.
+     * @param wkbType  <ul>
+     *                 <li>{@link WkbType#GEOMETRY_COLLECTION}</li>
+     *                 <li>{@link WkbType#GEOMETRY_COLLECTION_Z}</li>
+     *                 <li>{@link WkbType#GEOMETRY_COLLECTION_M}</li>
+     *                 <li>{@link WkbType#GEOMETRY_COLLECTION_ZM}</li>
+     *                 </ul>
      * @return geometry count.
      */
-    static int geometryCollectionTextToWkb(final BufferWrapper inWrapper, final WkbMemoryWrapper outWrapper
+    protected static int geometryCollectionTextToWkb(final ByteBuffer inBuffer, final WkbMemoryWrapper outWrapper
             , final WkbType wkbType) {
 
         if (wkbType.family() != WkbType.GEOMETRY_COLLECTION) {
             throw createUnsupportedWkb(wkbType);
         }
-        if (prepareGeometryText(inWrapper, outWrapper, wkbType)) {
+        if (prepareGeometryText(inBuffer, outWrapper, wkbType)) {
             return 0;
         }
-        final ByteBuffer inBuffer = inWrapper.buffer, outBuffer = outWrapper.buffer;
+        final ByteBuffer outBuffer = outWrapper.buffer;
         final ByteBuf outChannel = outWrapper.outChannel;
 
         final int inLimit = inBuffer.limit();
-        final byte[] inArray = inWrapper.bufferArray;
+        final byte[] inArray = inBuffer.array();
         int geometryCount = 0;
         WkbType geometryType;
         //2. write GEOMETRY wkb
@@ -738,7 +741,7 @@ abstract class GenericGeometries {
                 throw createWktFormatError(wkbType.wktType);
             }
             inBuffer.position(inPosition);
-            geometryType = readWkbFromWkt(inWrapper);
+            geometryType = readWkbFromWkt(inBuffer);
             if (geometryType == null || !geometryType.sameDimension(wkbType)) {
                 throw createWktFormatError(wkbType.wktType);
             }
@@ -750,7 +753,7 @@ abstract class GenericGeometries {
             outBuffer.clear();
             switch (geometryType.family()) {
                 case POINT: {
-                    pointTextToWkb(inWrapper, outWrapper, geometryType);
+                    pointTextToWkb(inBuffer, outWrapper, geometryType);
 
                     outBuffer.flip();
                     outChannel.writerIndex(elementWriterIndex);
@@ -762,22 +765,22 @@ abstract class GenericGeometries {
                 }
                 continue;
                 case LINE_STRING:
-                    elementCount = lineStringTextToWkb(inWrapper, outWrapper, geometryType);
+                    elementCount = lineStringTextToWkb(inBuffer, outWrapper, geometryType);
                     break;
                 case POLYGON:
-                    elementCount = polygonTextToWkb(inWrapper, outWrapper, geometryType);
+                    elementCount = polygonTextToWkb(inBuffer, outWrapper, geometryType);
                     break;
                 case MULTI_POINT:
-                    elementCount = multiPointTextToWkb(inWrapper, outWrapper, geometryType);
+                    elementCount = multiPointTextToWkb(inBuffer, outWrapper, geometryType);
                     break;
                 case MULTI_LINE_STRING:
-                    elementCount = multiLineStringTextToWkb(inWrapper, outWrapper, geometryType);
+                    elementCount = multiLineStringTextToWkb(inBuffer, outWrapper, geometryType);
                     break;
                 case MULTI_POLYGON:
-                    elementCount = multiPolygonTextToWkb(inWrapper, outWrapper, geometryType);
+                    elementCount = multiPolygonTextToWkb(inBuffer, outWrapper, geometryType);
                     break;
                 case GEOMETRY_COLLECTION:
-                    elementCount = geometryCollectionTextToWkb(inWrapper, outWrapper, geometryType);
+                    elementCount = geometryCollectionTextToWkb(inBuffer, outWrapper, geometryType);
                     break;
                 default:
                     throw createUnsupportedWkb(geometryType);
@@ -1074,21 +1077,24 @@ abstract class GenericGeometries {
         return offset;
     }
 
-    static void readNonNullWkb(final BufferWrapper inWrapper, final WkbType expectType) {
+    /**
+     * @param inBuffer must be created by {@link ByteBuffer#wrap(byte[])} method.
+     */
+    static void readNonNullWkb(final ByteBuffer inBuffer, final WkbType expectType) {
         final WkbType wkbType;
-        wkbType = readWkbFromWkt(inWrapper);
+        wkbType = readWkbFromWkt(inBuffer);
         if (wkbType != expectType) {
             throw new IllegalArgumentException(String.format("WKT isn't %s .", expectType));
         }
     }
 
     /**
-     * @see #readNonNullWkb(BufferWrapper, WkbType)
+     * @param inBuffer must be created by {@link ByteBuffer#wrap(byte[])} method.
+     * @see #readNonNullWkb(ByteBuffer, WkbType)
      */
     @Nullable
-    static WkbType readWkbFromWkt(final BufferWrapper inWrapper) {
-        final ByteBuffer inBuffer = inWrapper.buffer;
-        final byte[] inArray = inWrapper.bufferArray;
+    static WkbType readWkbFromWkt(final ByteBuffer inBuffer) {
+        final byte[] inArray = inBuffer.array();
         final int inLimit = inBuffer.limit();
 
         WkbType wkbType = null;
@@ -1156,16 +1162,17 @@ abstract class GenericGeometries {
 
 
     /**
+     * @param inBuffer must be created by {@link ByteBuffer#wrap(byte[])} method.
      * @return count of points.
      */
-    protected static int readAndWritePoints(final BufferWrapper inWrapper, final WkbOUtWrapper outWrapper
+    protected static int readAndWritePoints(ByteBuffer inBuffer, final WkbOUtWrapper outWrapper
             , final WkbType wkbType) throws IllegalArgumentException {
 
         final int coordinates = wkbType.coordinates();
         final boolean pointText = wkbType.supportPointText(), bigEndian = outWrapper.bigEndian;
 
-        final byte[] inArray = inWrapper.bufferArray, outArray = outWrapper.bufferArray;
-        final ByteBuffer inBuffer = inWrapper.buffer, outBuffer = outWrapper.buffer;
+        final byte[] inArray = inBuffer.array(), outArray = outWrapper.buffer.array();
+        final ByteBuffer outBuffer = outWrapper.buffer;
 
         final int inLimit = inBuffer.limit(), outLimit = outBuffer.limit();
 
@@ -1302,25 +1309,26 @@ abstract class GenericGeometries {
 
 
     /**
+     * @param inBuffer must be created by {@link ByteBuffer#wrap(byte[])} method.
      * @return LinearRing count
      */
-    static int polygonTextToWkb(final BufferWrapper inWrapper, final WkbMemoryWrapper outWrapper
+    protected static int polygonTextToWkb(final ByteBuffer inBuffer, final WkbMemoryWrapper outWrapper
             , final WkbType wkbType) {
         if (wkbType.family() != WkbType.POLYGON) {
             throw createUnsupportedWkb(wkbType);
         }
-        if (prepareGeometryText(inWrapper, outWrapper, wkbType)) {
+        if (prepareGeometryText(inBuffer, outWrapper, wkbType)) {
             return 0;
         }
 
-        final ByteBuffer inBuffer = inWrapper.buffer, outBuffer = outWrapper.buffer;
+        final ByteBuffer outBuffer = outWrapper.buffer;
         final ByteBuf outChannel = outWrapper.outChannel;
         final int inLimit = inBuffer.limit();
 
         int linearRingCount = 0;
         boolean polygonEnd = false;
         for (int inPosition = inBuffer.position(); inPosition < inLimit; ) {
-            linearRingCount += readAndWriteLinearRing(inWrapper, outWrapper, wkbType);
+            linearRingCount += readAndWriteLinearRing(inBuffer, outWrapper, wkbType);
 
             outBuffer.flip();
             outChannel.writeBytes(outBuffer);
@@ -1345,14 +1353,15 @@ abstract class GenericGeometries {
 
 
     /**
+     * @param inBuffer must be created by {@link ByteBuffer#wrap(byte[])} method.
      * @return count of LinearRing
-     * @see #readAndWritePoints(BufferWrapper, WkbOUtWrapper, WkbType)
+     * @see #readAndWritePoints(ByteBuffer, WkbOUtWrapper, WkbType)
      */
-    static int readAndWriteLinearRing(final BufferWrapper inWrapper, final WkbMemoryWrapper outWrapper
+    protected static int readAndWriteLinearRing(final ByteBuffer inBuffer, final WkbMemoryWrapper outWrapper
             , final WkbType wkbType) {
 
-        final byte[] inArray = inWrapper.bufferArray;
-        final ByteBuffer inBuffer = inWrapper.buffer, outBuffer = outWrapper.buffer;
+        final byte[] inArray = inBuffer.array();
+        final ByteBuffer outBuffer = outWrapper.buffer;
         final ByteBuf outChannel = outWrapper.outChannel;
 
         final byte[] startPoint = new byte[wkbType.coordinates() << 3], endPoint = new byte[startPoint.length];
@@ -1401,7 +1410,7 @@ abstract class GenericGeometries {
             linearRingEnd = false;
             for (int j = 0, outPosition, oldPosition; tempInPosition < inLimit; j++) {
                 outPosition = outBuffer.position();
-                pointCount += readAndWritePoints(inWrapper, outWrapper, wkbType);
+                pointCount += readAndWritePoints(inBuffer, outWrapper, wkbType);
                 if (outBuffer.position() == outPosition) {
                     throw createWktFormatError(wkbType.wktType);
                 }
@@ -1449,19 +1458,21 @@ abstract class GenericGeometries {
         return linearRingCount;
     }
 
-
-    static void assertWhitespaceSuffix(BufferWrapper inWrapper, WkbType wkbType) {
-        final byte[] inArray = inWrapper.bufferArray;
-        for (int i = inWrapper.buffer.position(); i < inArray.length; i++) {
+    /**
+     * @param inBuffer must be created by {@link ByteBuffer#wrap(byte[])} method.
+     */
+    static void assertWhitespaceSuffix(ByteBuffer inBuffer, WkbType wkbType) {
+        final byte[] inArray = inBuffer.array();
+        for (int i = inBuffer.position(); i < inArray.length; i++) {
             if (!Character.isWhitespace(inArray[i])) {
                 throw createWktFormatError(wkbType.wktType);
             }
         }
     }
 
-    static boolean isEmptySet(BufferWrapper inWrapper) {
-        final byte[] inArray = inWrapper.bufferArray;
-        int offset = inWrapper.buffer.position();
+    static boolean isEmptySet(ByteBuffer inBuffer) {
+        final byte[] inArray = inBuffer.array();
+        int offset = inBuffer.position();
         final boolean match;
         if (inArray.length - offset < 5) {
             match = false;
@@ -1473,7 +1484,7 @@ abstract class GenericGeometries {
                     && inArray[offset++] == 'Y';
         }
         if (match) {
-            inWrapper.buffer.position(offset);
+            inBuffer.position(offset);
         }
         return match;
     }
@@ -1489,16 +1500,17 @@ abstract class GenericGeometries {
     }
 
     /**
+     * @param inBuffer must be created by {@link ByteBuffer#wrap(byte[])} method.
      * @return true : empty set.
      */
-    static boolean prepareGeometryText(final BufferWrapper inWrapper, final WkbMemoryWrapper outWrapper
+    static boolean prepareGeometryText(final ByteBuffer inBuffer, final WkbMemoryWrapper outWrapper
             , WkbType wkbType) {
 
-        skipWhitespace(inWrapper);
-        if (isEmptySet(inWrapper)) {
+        skipWhitespace(inBuffer);
+        if (isEmptySet(inBuffer)) {
             return true;
         }
-        if (inWrapper.buffer.get() != '(') { // skip  left parenthesis.
+        if (inBuffer.get() != '(') { // skip  left parenthesis.
             throw createWktFormatError(wkbType.wktType);
         }
         outWrapper.buffer.flip();
@@ -1510,9 +1522,11 @@ abstract class GenericGeometries {
     }
 
 
-    static void skipWhitespace(final BufferWrapper inWrapper) {
-        final byte[] inArray = inWrapper.bufferArray;
-        final ByteBuffer inBuffer = inWrapper.buffer;
+    /**
+     * @param inBuffer must be created by {@link ByteBuffer#wrap(byte[])} method.
+     */
+    static void skipWhitespace(final ByteBuffer inBuffer) {
+        final byte[] inArray = inBuffer.array();
         final int inLimit = inBuffer.limit();
 
         int inPosition = inBuffer.position();
@@ -1576,22 +1590,24 @@ abstract class GenericGeometries {
     }
 
 
-    static class WkbOUtWrapper extends BufferWrapper {
+    protected static class WkbOUtWrapper {
 
-        protected final boolean bigEndian;
+        public final ByteBuffer buffer;
 
-        protected WkbOUtWrapper(int arrayLength, boolean bigEndian) {
-            super(arrayLength);
+        public final boolean bigEndian;
+
+        public WkbOUtWrapper(int arrayLength, boolean bigEndian) {
+            this.buffer = ByteBuffer.wrap(new byte[arrayLength]);
             this.bigEndian = bigEndian;
         }
 
     }
 
-    static class WkbMemoryWrapper extends WkbOUtWrapper {
+    protected static class WkbMemoryWrapper extends WkbOUtWrapper {
 
-        protected final ByteBuf outChannel;
+        public final ByteBuf outChannel;
 
-        protected WkbMemoryWrapper(int arrayLength, boolean bigEndian) {
+        public WkbMemoryWrapper(int arrayLength, boolean bigEndian) {
             super(arrayLength, bigEndian);
             this.outChannel = ByteBufAllocator.DEFAULT.buffer(arrayLength, (1 << 30));
         }
