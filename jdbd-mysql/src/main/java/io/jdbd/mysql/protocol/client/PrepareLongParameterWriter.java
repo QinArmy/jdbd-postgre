@@ -249,7 +249,7 @@ final class PrepareLongParameterWriter implements PrepareExecuteCommandWriter.Lo
         }
 
         final Charset charset;
-        if (this.statementTask.obtainParameterMetas()[paramIndex].mysqlType.isText()) {
+        if (this.statementTask.obtainParameterMetas()[paramIndex].mysqlType.isLongString()) {
             charset = obtainClobCharset();
         } else {
             charset = this.adjutant.obtainCharsetClient();
@@ -327,7 +327,7 @@ final class PrepareLongParameterWriter implements PrepareExecuteCommandWriter.Lo
 
     private Charset obtainCharset(final int paramIndex) {
         final Charset charset;
-        if (this.statementTask.obtainParameterMetas()[paramIndex].mysqlType.isText()) {
+        if (this.statementTask.obtainParameterMetas()[paramIndex].mysqlType.isLongString()) {
             charset = obtainClobCharset();
         } else {
             charset = this.adjutant.obtainCharsetClient();

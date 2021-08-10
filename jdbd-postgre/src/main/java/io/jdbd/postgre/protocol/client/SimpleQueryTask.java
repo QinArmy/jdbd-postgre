@@ -1,6 +1,7 @@
 package io.jdbd.postgre.protocol.client;
 
 import io.jdbd.JdbdException;
+import io.jdbd.postgre.Encoding;
 import io.jdbd.postgre.PgJdbdException;
 import io.jdbd.postgre.util.PgExceptions;
 import io.jdbd.result.ResultRow;
@@ -14,6 +15,7 @@ import org.reactivestreams.Publisher;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+import java.nio.charset.Charset;
 import java.sql.SQLException;
 import java.util.List;
 import java.util.function.Consumer;
@@ -99,8 +101,7 @@ final class SimpleQueryTask extends PgTask {
 
     @Override
     protected final boolean decode(final ByteBuf cumulateBuffer, final Consumer<Object> serverStatusConsumer) {
-
-
+        final Charset clientCharset = this.adjutant.clientCharset();
         boolean taskEnd = false, continueDecode = true;
         while (continueDecode) {
             final int msgType = cumulateBuffer.readByte(), bodyIndex = cumulateBuffer.readerIndex();
@@ -108,7 +109,7 @@ final class SimpleQueryTask extends PgTask {
 
             switch (msgType) {
                 case Messages.E: {// ErrorResponse message
-                    ErrorMessage error = ErrorMessage.readBody(cumulateBuffer, nextMsgIndex);
+                    ErrorMessage error = ErrorMessage.readBody(cumulateBuffer, nextMsgIndex, clientCharset);
                     addError(PgExceptions.createErrorException(error));
                 }
                 break;
@@ -122,12 +123,12 @@ final class SimpleQueryTask extends PgTask {
                 }
                 break;
                 case Messages.C: {// CommandComplete message
-                    final String commandTag = Messages.readCommandComplete(cumulateBuffer);
+                    final String commandTag = Messages.readCommandComplete(cumulateBuffer, clientCharset);
                     final PgResultState state;
                     if (cumulateBuffer.getInt(nextMsgIndex) == Messages.N) {
                         // next is NoticeResponse
                         cumulateBuffer.readByte();//skip message type byte
-                        NoticeMessage nm = NoticeMessage.readBody(cumulateBuffer);
+                        NoticeMessage nm = NoticeMessage.readBody(cumulateBuffer, Encoding.CLIENT_CHARSET);
                         serverStatusConsumer.accept(nm);
                         state = PgResultState.create(commandTag, nm);
                     } else {

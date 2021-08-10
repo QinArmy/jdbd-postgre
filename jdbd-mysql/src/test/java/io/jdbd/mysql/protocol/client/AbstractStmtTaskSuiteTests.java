@@ -109,8 +109,8 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBased
         assertTimeBindAndExtract(taskAdjutant, "23:59:59.999999", field);
 
         assertTimeBindAndExtract(taskAdjutant, Duration.ZERO, field);
-        assertTimeBindAndExtract(taskAdjutant, MySQLTimeUtils.parseTimeAsDuration("838:59:59"), field);
-        assertTimeBindAndExtract(taskAdjutant, MySQLTimeUtils.parseTimeAsDuration("-838:59:59.000000"), field);
+        assertTimeBindAndExtract(taskAdjutant, MySQLTimes.parseTimeAsDuration("838:59:59"), field);
+        assertTimeBindAndExtract(taskAdjutant, MySQLTimes.parseTimeAsDuration("-838:59:59.000000"), field);
 
 
         field = "my_time1";
@@ -125,8 +125,8 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBased
         assertTimeBindAndExtract(taskAdjutant, "23:59:59.999999", field);
 
         assertTimeBindAndExtract(taskAdjutant, Duration.ZERO, field);
-        assertTimeBindAndExtract(taskAdjutant, MySQLTimeUtils.parseTimeAsDuration("838:59:59"), field);
-        assertTimeBindAndExtract(taskAdjutant, MySQLTimeUtils.parseTimeAsDuration("-838:59:59.000000"), field);
+        assertTimeBindAndExtract(taskAdjutant, MySQLTimes.parseTimeAsDuration("838:59:59"), field);
+        assertTimeBindAndExtract(taskAdjutant, MySQLTimes.parseTimeAsDuration("-838:59:59.000000"), field);
 
 
         LOG.info("doTimeBindAndExtract test success");
@@ -148,14 +148,14 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBased
         assertDateTimeModify(taskAdjutant, MySQLType.DATETIME, ZonedDateTime.now(ZoneOffset.of("+04:00")), "update_time");
 
         assertDateTimeModify(taskAdjutant, MySQLType.TIMESTAMP, "2021-03-16 19:26:00.999999", "my_timestamp");
-        assertDateTimeModify(taskAdjutant, MySQLType.TIMESTAMP, LocalDateTime.parse("2021-03-16 19:26:00.999999", MySQLTimeUtils.MYSQL_DATETIME_FORMATTER), "my_timestamp");
-        assertDateTimeModify(taskAdjutant, MySQLType.TIMESTAMP, OffsetDateTime.parse("2021-03-16 19:26:00.999999+03:00", MySQLTimeUtils.MYSQL_DATETIME_OFFSET_FORMATTER), "my_timestamp");
-        assertDateTimeModify(taskAdjutant, MySQLType.TIMESTAMP, ZonedDateTime.parse("2021-03-16 19:26:00.999999+04:00", MySQLTimeUtils.MYSQL_DATETIME_OFFSET_FORMATTER), "my_timestamp");
+        assertDateTimeModify(taskAdjutant, MySQLType.TIMESTAMP, LocalDateTime.parse("2021-03-16 19:26:00.999999", MySQLTimes.MYSQL_DATETIME_FORMATTER), "my_timestamp");
+        assertDateTimeModify(taskAdjutant, MySQLType.TIMESTAMP, OffsetDateTime.parse("2021-03-16 19:26:00.999999+03:00", MySQLTimes.MYSQL_DATETIME_OFFSET_FORMATTER), "my_timestamp");
+        assertDateTimeModify(taskAdjutant, MySQLType.TIMESTAMP, ZonedDateTime.parse("2021-03-16 19:26:00.999999+04:00", MySQLTimes.MYSQL_DATETIME_OFFSET_FORMATTER), "my_timestamp");
 
         assertDateTimeModify(taskAdjutant, MySQLType.TIMESTAMP, "2021-03-16 19:26:00.999999", "my_timestamp1");
-        assertDateTimeModify(taskAdjutant, MySQLType.TIMESTAMP, LocalDateTime.parse("2021-03-16 19:26:00.999999", MySQLTimeUtils.MYSQL_DATETIME_FORMATTER), "my_timestamp1");
-        assertDateTimeModify(taskAdjutant, MySQLType.TIMESTAMP, OffsetDateTime.parse("2021-03-16 19:26:00.999999+03:00", MySQLTimeUtils.MYSQL_DATETIME_OFFSET_FORMATTER), "my_timestamp1");
-        assertDateTimeModify(taskAdjutant, MySQLType.TIMESTAMP, ZonedDateTime.parse("2021-03-16 19:26:00.999999+04:00", MySQLTimeUtils.MYSQL_DATETIME_OFFSET_FORMATTER), "my_timestamp1");
+        assertDateTimeModify(taskAdjutant, MySQLType.TIMESTAMP, LocalDateTime.parse("2021-03-16 19:26:00.999999", MySQLTimes.MYSQL_DATETIME_FORMATTER), "my_timestamp1");
+        assertDateTimeModify(taskAdjutant, MySQLType.TIMESTAMP, OffsetDateTime.parse("2021-03-16 19:26:00.999999+03:00", MySQLTimes.MYSQL_DATETIME_OFFSET_FORMATTER), "my_timestamp1");
+        assertDateTimeModify(taskAdjutant, MySQLType.TIMESTAMP, ZonedDateTime.parse("2021-03-16 19:26:00.999999+04:00", MySQLTimes.MYSQL_DATETIME_OFFSET_FORMATTER), "my_timestamp1");
 
         LOG.info("datetimeBindAndExtract test success");
         releaseConnection(taskAdjutant);
@@ -1268,17 +1268,17 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBased
 
         final LocalTime bindTime, resultTime = resultRow.getNonNull("field", LocalTime.class);
         if (bindParam instanceof String) {
-            bindTime = LocalTime.parse((String) bindParam, MySQLTimeUtils.MYSQL_TIME_FORMATTER);
+            bindTime = LocalTime.parse((String) bindParam, MySQLTimes.MYSQL_TIME_FORMATTER);
         } else if (bindParam instanceof OffsetTime) {
             bindTime = ((OffsetTime) bindParam).withOffsetSameInstant(taskAdjutant.obtainZoneOffsetClient())
                     .toLocalTime();
         } else {
             bindTime = (LocalTime) bindParam;
         }
-        final DateTimeFormatter formatter = MySQLTimeUtils.obtainTimeFormatter(
+        final DateTimeFormatter formatter = MySQLTimes.obtainTimeFormatter(
                 (int) resultRow.getRowMeta().getPrecision("field"));
 
-        final LocalTime time = LocalTime.parse(bindTime.format(formatter), MySQLTimeUtils.MYSQL_TIME_FORMATTER);
+        final LocalTime time = LocalTime.parse(bindTime.format(formatter), MySQLTimes.MYSQL_TIME_FORMATTER);
         if (taskAdjutant.obtainHostInfo().getProperties()
                 .getOrDefault(PropertyKey.timeTruncateFractional, Boolean.class)) {
             assertEquals(resultTime, time, field);
@@ -1755,7 +1755,7 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBased
         if (bindParam instanceof LocalDateTime) {
             bindDateTime = (LocalDateTime) bindParam;
         } else if (bindParam instanceof String) {
-            bindDateTime = LocalDateTime.parse((String) bindParam, MySQLTimeUtils.MYSQL_DATETIME_FORMATTER);
+            bindDateTime = LocalDateTime.parse((String) bindParam, MySQLTimes.MYSQL_DATETIME_FORMATTER);
         } else if (bindParam instanceof OffsetDateTime) {
             bindDateTime = ((OffsetDateTime) bindParam)
                     .withOffsetSameInstant(taskAdjutant.obtainZoneOffsetClient())
@@ -1772,7 +1772,7 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBased
 
         io.jdbd.vendor.conf.Properties<PropertyKey> properties = taskAdjutant.obtainHostInfo().getProperties();
         if (properties.getOrDefault(PropertyKey.timeTruncateFractional, Boolean.class)) {
-            DateTimeFormatter formatter = MySQLTimeUtils.obtainDateTimeFormatter(precision);
+            DateTimeFormatter formatter = MySQLTimes.obtainDateTimeFormatter(precision);
             final String resultText, bindText;
             resultText = resultDateTime.format(formatter);
             bindText = bindDateTime.format(formatter);

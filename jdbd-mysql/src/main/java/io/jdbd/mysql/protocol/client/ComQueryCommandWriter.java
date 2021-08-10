@@ -687,16 +687,16 @@ final class ComQueryCommandWriter {
             text = OffsetTime.of(time, this.adjutant.obtainZoneOffsetClient())
                     .withOffsetSameInstant(this.adjutant.obtainZoneOffsetDatabase())
                     .toLocalTime()
-                    .format(MySQLTimeUtils.MYSQL_TIME_FORMATTER);
+                    .format(MySQLTimes.MYSQL_TIME_FORMATTER);
         } else if (nonNull instanceof OffsetTime) {
             text = ((OffsetTime) nonNull).withOffsetSameInstant(this.adjutant.obtainZoneOffsetDatabase())
                     .toLocalTime()
-                    .format(MySQLTimeUtils.MYSQL_TIME_FORMATTER);
+                    .format(MySQLTimes.MYSQL_TIME_FORMATTER);
         } else if (nonNull instanceof String) {
             text = parseAndFormatTime(stmtIndex, (String) nonNull, bindValue);
         } else if (nonNull instanceof Duration) {
             try {
-                text = MySQLTimeUtils.durationToTimeText((Duration) nonNull);
+                text = MySQLTimes.durationToTimeText((Duration) nonNull);
             } catch (Throwable e) {
                 throw MySQLExceptions.createUnsupportedParamTypeError(stmtIndex, bindValue.getType(), bindValue);
             }
@@ -746,15 +746,15 @@ final class ComQueryCommandWriter {
             text = OffsetDateTime.of((LocalDateTime) nonNull, this.adjutant.obtainZoneOffsetClient())
                     .withOffsetSameInstant(this.adjutant.obtainZoneOffsetDatabase())
                     .toLocalDateTime()
-                    .format(MySQLTimeUtils.MYSQL_DATETIME_FORMATTER);
+                    .format(MySQLTimes.MYSQL_DATETIME_FORMATTER);
         } else if (nonNull instanceof OffsetDateTime) {
             text = ((OffsetDateTime) nonNull).withOffsetSameInstant(this.adjutant.obtainZoneOffsetDatabase())
                     .toLocalDateTime()
-                    .format(MySQLTimeUtils.MYSQL_DATETIME_FORMATTER);
+                    .format(MySQLTimes.MYSQL_DATETIME_FORMATTER);
         } else if (nonNull instanceof ZonedDateTime) {
             text = ((ZonedDateTime) nonNull).withZoneSameInstant(this.adjutant.obtainZoneOffsetDatabase())
                     .toLocalDateTime()
-                    .format(MySQLTimeUtils.MYSQL_DATETIME_FORMATTER);
+                    .format(MySQLTimes.MYSQL_DATETIME_FORMATTER);
         } else if (nonNull instanceof String) {
             text = parseAndFormatDateTime(stmtIndex, (String) nonNull, bindValue);
         } else {
@@ -964,14 +964,14 @@ final class ComQueryCommandWriter {
             throws SQLException {
         final LocalTime time;
         try {
-            time = OffsetTime.of(LocalTime.parse(timeText, MySQLTimeUtils.MYSQL_TIME_FORMATTER)
+            time = OffsetTime.of(LocalTime.parse(timeText, MySQLTimes.MYSQL_TIME_FORMATTER)
                     , this.adjutant.obtainZoneOffsetClient())
                     .withOffsetSameInstant(this.adjutant.obtainZoneOffsetDatabase())
                     .toLocalTime();
         } catch (DateTimeParseException e) {
             throw MySQLExceptions.createUnsupportedParamTypeError(stmtIndex, bindValue.getType(), bindValue);
         }
-        return time.format(MySQLTimeUtils.obtainTimeFormatterByText(timeText));
+        return time.format(MySQLTimes.obtainTimeFormatterByText(timeText));
 
     }
 
@@ -983,7 +983,7 @@ final class ComQueryCommandWriter {
             throws SQLException {
         final LocalDateTime dateTime;
         try {
-            dateTime = OffsetDateTime.of(LocalDateTime.parse(dateTimeText, MySQLTimeUtils.MYSQL_DATETIME_FORMATTER)
+            dateTime = OffsetDateTime.of(LocalDateTime.parse(dateTimeText, MySQLTimes.MYSQL_DATETIME_FORMATTER)
                     , this.adjutant.obtainZoneOffsetClient())
                     .withOffsetSameInstant(this.adjutant.obtainZoneOffsetDatabase())
                     .toLocalDateTime();
@@ -991,7 +991,7 @@ final class ComQueryCommandWriter {
             throw MySQLExceptions.createUnsupportedParamTypeError(stmtIndex, bindValue.getType(), bindValue);
         }
 
-        return dateTime.format(MySQLTimeUtils.obtainDateTimeFormatterByText(dateTimeText));
+        return dateTime.format(MySQLTimes.obtainDateTimeFormatterByText(dateTimeText));
 
     }
 

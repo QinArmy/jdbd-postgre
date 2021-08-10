@@ -3,6 +3,7 @@ package io.jdbd.postgre.protocol.client;
 import io.netty.buffer.ByteBuf;
 import reactor.util.annotation.Nullable;
 
+import java.nio.charset.Charset;
 import java.util.Map;
 
 /**
@@ -12,19 +13,19 @@ import java.util.Map;
 public final class ErrorMessage extends MultiFieldMessage {
 
 
-    static ErrorMessage read(final ByteBuf message) {
+    static ErrorMessage read(final ByteBuf message, Charset charset) {
         if (message.readByte() != Messages.E) {
             char type = (char) message.getByte(message.readerIndex() - 1);
             String msg = String.format("Message type[%s] isn't ErrorResponse.", type);
             throw new IllegalArgumentException(msg);
         }
         final int readIndex = message.readerIndex();
-        return readBody(message, readIndex + message.readInt());
+        return readBody(message, readIndex + message.readInt(), charset);
     }
 
 
-    static ErrorMessage readBody(final ByteBuf messageBody, final int nextMsgIndex) {
-        return new ErrorMessage(MultiFieldMessage.readMultiFields(messageBody, nextMsgIndex));
+    static ErrorMessage readBody(final ByteBuf messageBody, final int nextMsgIndex, Charset charset) {
+        return new ErrorMessage(MultiFieldMessage.readMultiFields(messageBody, nextMsgIndex, charset));
     }
 
 

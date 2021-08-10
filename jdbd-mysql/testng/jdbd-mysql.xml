@@ -2,7 +2,7 @@
 <suite name="jdbd-mysql" verbose="1" parallel="methods" thread-count="30">
     <test name="feature">
         <classes>
-            <class name="io.jdbd.mysql.util.MySQLTimeUtilsSuiteTests"/>
+            <class name="io.jdbd.mysql.util.MySQLTimesSuiteTests"/>
 
             <class name="io.jdbd.mysql.protocol.conf.MySQLUrlParserSuiteTests"/>
             <class name="io.jdbd.mysql.syntax.MySQLParserSuiteTests"/>

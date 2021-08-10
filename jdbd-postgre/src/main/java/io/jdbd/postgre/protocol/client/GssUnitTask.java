@@ -272,7 +272,7 @@ final class GssUnitTask extends PostgreUnitTask {
         final int type = cumulateBuffer.getChar(cumulateBuffer.readerIndex());
         switch (type) {
             case Messages.E: {
-                ErrorMessage error = ErrorMessage.read(cumulateBuffer);
+                ErrorMessage error = ErrorMessage.read(cumulateBuffer, this.adjutant.clientCharset());
                 addException(PgExceptions.createErrorException(error));
                 taskEnd = true;
             }

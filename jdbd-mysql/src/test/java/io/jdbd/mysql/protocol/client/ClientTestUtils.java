@@ -3,7 +3,7 @@ package io.jdbd.mysql.protocol.client;
 import io.jdbd.mysql.protocol.conf.MySQLUrl;
 import io.jdbd.mysql.protocol.conf.PropertyKey;
 import io.jdbd.mysql.util.MySQLStringUtils;
-import io.jdbd.mysql.util.MySQLTimeUtils;
+import io.jdbd.mysql.util.MySQLTimes;
 import org.qinarmy.env.Environment;
 import org.qinarmy.env.ImmutableMapEnvironment;
 import org.testng.annotations.Test;
@@ -73,7 +73,7 @@ public abstract class ClientTestUtils {
         OffsetDateTime now = OffsetDateTime.now();
         OffsetDateTime utcNow = now.withOffsetSameInstant(ZoneOffset.UTC);
 
-        final ZoneOffset clientZoneOffset = MySQLTimeUtils.systemZoneOffset(), databaseZoneOffset;
+        final ZoneOffset clientZoneOffset = MySQLTimes.systemZoneOffset(), databaseZoneOffset;
         if (utcNow.equals(now)) {
             databaseZoneOffset = ZoneOffset.of("+08:00");
         } else {

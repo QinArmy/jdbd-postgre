@@ -5,6 +5,7 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
 import org.qinarmy.util.HexUtils;
 
+import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -12,7 +13,7 @@ import java.security.NoSuchAlgorithmException;
 abstract class Messages {
 
 
-    static final byte STRING_TERMINATOR = 0;
+    static final byte STRING_TERMINATOR = '\0';
 
     static final int LENGTH_SIZE = 4;
 
@@ -110,8 +111,9 @@ abstract class Messages {
         message.writeByte(STRING_TERMINATOR);
     }
 
-    static String readString(final ByteBuf message) {
-        return new String(readBytesTerm(message), Encoding.CLIENT_CHARSET);
+
+    static String readString(final ByteBuf message, Charset charset) {
+        return new String(readBytesTerm(message), charset);
     }
 
     static byte[] readBytesTerm(final ByteBuf message) {
@@ -137,10 +139,10 @@ abstract class Messages {
      * @return command tag
      * @see <a href="https://www.postgresql.org/docs/current/protocol-message-formats.html">CommandComplete</a>
      */
-    static String readCommandComplete(ByteBuf message) {
+    static String readCommandComplete(ByteBuf message, Charset charset) {
         byte[] bytes = new byte[message.readInt() - LENGTH_SIZE];
         message.readBytes(bytes);
-        return new String(bytes, Encoding.CLIENT_CHARSET);
+        return new String(bytes, charset);
     }
 
 

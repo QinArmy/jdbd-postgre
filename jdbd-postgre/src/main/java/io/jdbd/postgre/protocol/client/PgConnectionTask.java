@@ -22,6 +22,7 @@ import reactor.core.publisher.Mono;
 import reactor.core.publisher.MonoSink;
 import reactor.util.annotation.Nullable;
 
+import java.nio.charset.Charset;
 import java.util.*;
 import java.util.function.Consumer;
 
@@ -221,7 +222,7 @@ final class PgConnectionTask extends PgTask implements ConnectionTask {
                 // error,server close connection.
                 taskEnd = true;
                 LOG.debug("readStartUpResponse type");
-                ErrorMessage error = ErrorMessage.readBody(cumulateBuffer, nextMsgIndex);
+                ErrorMessage error = ErrorMessage.readBody(cumulateBuffer, nextMsgIndex, this.adjutant.clientCharset());
                 addError(PgExceptions.createErrorException(error));
                 LOG.debug("readStartUpResponse error:{}", error);
             }
@@ -318,6 +319,7 @@ final class PgConnectionTask extends PgTask implements ConnectionTask {
             serverStatusMap = new HashMap<>();
             this.serverStatusMap = serverStatusMap;
         }
+        final Charset clientCharset = this.adjutant.clientCharset();
         boolean taskEnd = false;
         while (Messages.hasOneMessage(cumulateBuffer)) {
             final int msgType = cumulateBuffer.readByte(), bodyIndex = cumulateBuffer.readerIndex();
@@ -327,14 +329,14 @@ final class PgConnectionTask extends PgTask implements ConnectionTask {
                 case Messages.E: { // ErrorResponse message
                     taskEnd = true;
                     LOG.debug("receive message response");
-                    ErrorMessage error = ErrorMessage.readBody(cumulateBuffer, nextMsgIndex);
+                    ErrorMessage error = ErrorMessage.readBody(cumulateBuffer, nextMsgIndex, clientCharset);
                     addError(PgExceptions.createErrorException(error));
                 }
                 break;
                 case Messages.S: {// ParameterStatus message
                     serverStatusMap.put(
-                            Messages.readString(cumulateBuffer)
-                            , Messages.readString(cumulateBuffer)
+                            Messages.readString(cumulateBuffer, clientCharset)
+                            , Messages.readString(cumulateBuffer, clientCharset)
                     );
                 }
                 break;
@@ -353,7 +355,7 @@ final class PgConnectionTask extends PgTask implements ConnectionTask {
                 break;
                 case Messages.N: { // NoticeResponse message
                     // modify server status.
-                    this.noticeMessage = NoticeMessage.readBody(cumulateBuffer);
+                    this.noticeMessage = NoticeMessage.readBody(cumulateBuffer, clientCharset);
                 }
                 break;
                 default: { // Unknown message
@@ -505,7 +507,7 @@ final class PgConnectionTask extends PgTask implements ConnectionTask {
         list.add(new Pair<>("user", host.getUser()));
         list.add(new Pair<>("database", host.getNonNullDbName()));
         list.add(new Pair<>("client_encoding", Encoding.CLIENT_CHARSET.name()));
-        list.add(new Pair<>("DateStyle", "ISO"));
+        list.add(new Pair<>("DateStyle", this.adjutant.dateStyle().name()));
 
         list.add(new Pair<>("TimeZone", PgTimes.systemZoneOffset().normalized().getId()));
 

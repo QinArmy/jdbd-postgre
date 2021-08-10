@@ -492,7 +492,7 @@ public enum MySQLType implements SQLType {
     }
 
     @Override
-    public boolean isText() {
+    public boolean isLongString() {
         return this == TINYTEXT
                 || this == TEXT
                 || this == MEDIUMINT
@@ -500,7 +500,7 @@ public enum MySQLType implements SQLType {
     }
 
     @Override
-    public boolean isBlob() {
+    public boolean isLongBinary() {
         return this == TINYBLOB
                 || this == BLOB
                 || this == MEDIUMBLOB

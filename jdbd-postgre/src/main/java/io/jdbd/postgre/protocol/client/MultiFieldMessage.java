@@ -4,6 +4,7 @@ import io.jdbd.postgre.util.PgCollections;
 import io.netty.buffer.ByteBuf;
 import reactor.util.annotation.Nullable;
 
+import java.nio.charset.Charset;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -91,7 +92,7 @@ abstract class MultiFieldMessage extends PostgreMessage {
      * @return map, key : field name,value : field value.
      * @see ErrorMessage
      */
-    static Map<Byte, String> readMultiFields(final ByteBuf messageBody, final int endIndex) {
+    static Map<Byte, String> readMultiFields(final ByteBuf messageBody, final int endIndex, Charset charset) {
         if (messageBody.readerIndex() >= endIndex) {
             throw new IllegalArgumentException(String.format("readerIndex() >= endIndex[%s]", endIndex));
         }
@@ -103,7 +104,7 @@ abstract class MultiFieldMessage extends PostgreMessage {
             if (field == 0) {
                 break;
             }
-            map.put(field, Messages.readString(messageBody));
+            map.put(field, Messages.readString(messageBody, charset));
         }
         messageBody.readerIndex(endIndex);// avoid filler.
         return map;

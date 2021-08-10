@@ -32,10 +32,14 @@ public class JdbcTests {
                 LOG.info("test success {}", stmt.executeUpdate(sql));
                 sql = "UPDATE table_name AS t SET create_time = '2021-08-08 10:54:30' WHERE t.id = 1";
                 LOG.info("test success {}", stmt.execute(sql));
-                sql = "SELECT current_database() AS DATABASE, current_schemas(FALSE) AS SCHEMA";
+                sql = "SELECT *\n" +
+                        "    FROM\n" +
+                        "        my_types AS t\n" +
+                        "    WHERE\n" +
+                        "            t.id = 1";
                 try (ResultSet resultSet = stmt.executeQuery(sql)) {
                     while (resultSet.next()) {
-                        LOG.info("{},{}", resultSet.getString("database"), resultSet.getString("schema"));
+                        LOG.info("{}", resultSet.getString("my_zoned_time1"));
                     }
                 }
 

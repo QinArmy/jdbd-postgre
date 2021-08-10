@@ -9,6 +9,6 @@ public interface SQLParser {
     SQLStatement parse(String singleSql) throws SQLException;
 
 
-    boolean isSingle(String sql) throws SQLException;
+    boolean isSingleStmt(String sql) throws SQLException;
 
 }

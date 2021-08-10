@@ -47,7 +47,7 @@ final class DefaultPgParser implements PgParser {
     }
 
     @Override
-    public final boolean isSingle(String sql) throws SQLException {
+    public final boolean isSingleStmt(String sql) throws SQLException {
         return (Boolean) doParse(sql, false);
     }
 

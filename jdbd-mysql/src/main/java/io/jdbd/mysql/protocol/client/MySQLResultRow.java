@@ -4,7 +4,7 @@ import io.jdbd.mysql.MySQLType;
 import io.jdbd.mysql.util.MySQLCollections;
 import io.jdbd.mysql.util.MySQLConvertUtils;
 import io.jdbd.mysql.util.MySQLStringUtils;
-import io.jdbd.mysql.util.MySQLTimeUtils;
+import io.jdbd.mysql.util.MySQLTimes;
 import io.jdbd.result.UnsupportedConvertingException;
 import io.jdbd.vendor.result.AbstractResultRow;
 
@@ -139,7 +139,7 @@ abstract class MySQLResultRow extends AbstractResultRow<MySQLRowMeta> {
                 LocalTime time = OffsetTime.of((LocalTime) sourceValue, this.adjutant.obtainZoneOffsetClient())
                         .withOffsetSameInstant(this.adjutant.obtainZoneOffsetDatabase())
                         .toLocalTime();
-                duration = MySQLTimeUtils.convertToDuration(time);
+                duration = MySQLTimes.convertToDuration(time);
             } catch (Throwable e) {
                 throw createValueCannotConvertException(e, indexBaseZero, Duration.class);
             }
@@ -176,7 +176,7 @@ abstract class MySQLResultRow extends AbstractResultRow<MySQLRowMeta> {
             case DATETIME:
             case TIMESTAMP: {
                 LocalDateTime dateTime;
-                dateTime = LocalDateTime.parse(sourceValue, MySQLTimeUtils.MYSQL_DATETIME_FORMATTER);
+                dateTime = LocalDateTime.parse(sourceValue, MySQLTimes.MYSQL_DATETIME_FORMATTER);
                 accessor = OffsetDateTime.of(dateTime, this.adjutant.obtainZoneOffsetDatabase())
                         .withOffsetSameInstant(obtainZoneOffsetClient())
                         .toLocalDateTime();
@@ -186,7 +186,7 @@ abstract class MySQLResultRow extends AbstractResultRow<MySQLRowMeta> {
                 accessor = LocalDate.parse(sourceValue);
                 break;
             case TIME: {
-                LocalTime databaseTime = LocalTime.parse(sourceValue, MySQLTimeUtils.MYSQL_TIME_FORMATTER);
+                LocalTime databaseTime = LocalTime.parse(sourceValue, MySQLTimes.MYSQL_TIME_FORMATTER);
                 accessor = OffsetTime.of(databaseTime, this.adjutant.obtainZoneOffsetDatabase())
                         .withOffsetSameInstant(obtainZoneOffsetClient())
                         .toLocalTime();
@@ -206,7 +206,7 @@ abstract class MySQLResultRow extends AbstractResultRow<MySQLRowMeta> {
             , final Class<?> targetClass) throws DateTimeException, UnsupportedConvertingException {
         final Duration duration;
         if (this.rowMeta.getMySQLType(indexBaseZero) == MySQLType.TIME) {
-            duration = MySQLTimeUtils.parseTimeAsDuration(sourceValue);
+            duration = MySQLTimes.parseTimeAsDuration(sourceValue);
         } else {
             throw createNotSupportedException(indexBaseZero, targetClass);
         }
@@ -217,13 +217,13 @@ abstract class MySQLResultRow extends AbstractResultRow<MySQLRowMeta> {
     protected String formatTemporalAccessor(final TemporalAccessor temporalAccessor) throws DateTimeException {
         final String text;
         if (temporalAccessor instanceof LocalDateTime) {
-            text = ((LocalDateTime) temporalAccessor).format(MySQLTimeUtils.MYSQL_DATETIME_FORMATTER);
+            text = ((LocalDateTime) temporalAccessor).format(MySQLTimes.MYSQL_DATETIME_FORMATTER);
         } else if (temporalAccessor instanceof LocalTime) {
-            text = ((LocalTime) temporalAccessor).format(MySQLTimeUtils.MYSQL_TIME_FORMATTER);
+            text = ((LocalTime) temporalAccessor).format(MySQLTimes.MYSQL_TIME_FORMATTER);
         } else if (temporalAccessor instanceof ZonedDateTime) {
             //no bug never here
             DateTimeFormatter formatter = new DateTimeFormatterBuilder()
-                    .append(MySQLTimeUtils.MYSQL_DATETIME_FORMATTER)
+                    .append(MySQLTimes.MYSQL_DATETIME_FORMATTER)
                     .appendOffsetId()
                     .toFormatter(Locale.ENGLISH);
 
@@ -231,7 +231,7 @@ abstract class MySQLResultRow extends AbstractResultRow<MySQLRowMeta> {
         } else if (temporalAccessor instanceof OffsetDateTime) {
             //no bug  never here
             DateTimeFormatter formatter = new DateTimeFormatterBuilder()
-                    .append(MySQLTimeUtils.MYSQL_DATETIME_FORMATTER)
+                    .append(MySQLTimes.MYSQL_DATETIME_FORMATTER)
                     .appendZoneId()
                     .toFormatter(Locale.ENGLISH);
 
@@ -239,7 +239,7 @@ abstract class MySQLResultRow extends AbstractResultRow<MySQLRowMeta> {
         } else if (temporalAccessor instanceof OffsetTime) {
             //no bug  never here
             DateTimeFormatter formatter = new DateTimeFormatterBuilder()
-                    .append(MySQLTimeUtils.MYSQL_TIME_FORMATTER)
+                    .append(MySQLTimes.MYSQL_TIME_FORMATTER)
                     .appendOffsetId()
                     .toFormatter(Locale.ENGLISH);
 

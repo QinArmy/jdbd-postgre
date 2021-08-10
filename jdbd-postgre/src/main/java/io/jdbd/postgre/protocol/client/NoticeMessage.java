@@ -2,6 +2,7 @@ package io.jdbd.postgre.protocol.client;
 
 import io.netty.buffer.ByteBuf;
 
+import java.nio.charset.Charset;
 import java.util.Map;
 
 /**
@@ -13,9 +14,9 @@ final class NoticeMessage extends MultiFieldMessage {
     /**
      * @param endIndex message end index,exclusive.
      */
-    static NoticeMessage readBody(final ByteBuf messageBody) {
+    static NoticeMessage readBody(final ByteBuf messageBody, Charset charset) {
         int index = messageBody.readerIndex();
-        return new NoticeMessage(MultiFieldMessage.readMultiFields(messageBody, index + messageBody.readInt() - 4));
+        return new NoticeMessage(MultiFieldMessage.readMultiFields(messageBody, index + messageBody.readInt(), charset));
     }
 
     private NoticeMessage(Map<Byte, String> fieldMap) {

@@ -261,12 +261,12 @@ final class TextResultSetReader extends AbstractResultSetReader {
                     } else {
                         LocalDateTime dateTime;
                         String timeText = columnText.substring(10);
-                        LocalTime time = LocalTime.parse(timeText, MySQLTimeUtils.MYSQL_TIME_FORMATTER);
+                        LocalTime time = LocalTime.parse(timeText, MySQLTimes.MYSQL_TIME_FORMATTER);
                         dateTime = LocalDateTime.of(date, time);
                         columnValue = dateTime;
                     }
                 } else {
-                    LocalDateTime dateTime = LocalDateTime.parse(columnText, MySQLTimeUtils.MYSQL_DATETIME_FORMATTER);
+                    LocalDateTime dateTime = LocalDateTime.parse(columnText, MySQLTimes.MYSQL_DATETIME_FORMATTER);
                     columnValue = OffsetDateTime.of(dateTime, this.adjutant.obtainZoneOffsetDatabase())
                             .withOffsetSameInstant(this.adjutant.obtainZoneOffsetClient())
                             .toLocalDateTime();
@@ -277,10 +277,10 @@ final class TextResultSetReader extends AbstractResultSetReader {
                 columnText = Packets.readStringLenEnc(payload, columnCharset);
                 if (columnText == null) {
                     columnValue = null;
-                } else if (MySQLTimeUtils.isDuration(columnText)) {
-                    columnValue = MySQLTimeUtils.parseTimeAsDuration(columnText);
+                } else if (MySQLTimes.isDuration(columnText)) {
+                    columnValue = MySQLTimes.parseTimeAsDuration(columnText);
                 } else {
-                    LocalTime time = LocalTime.parse(columnText, MySQLTimeUtils.MYSQL_TIME_FORMATTER);
+                    LocalTime time = LocalTime.parse(columnText, MySQLTimes.MYSQL_TIME_FORMATTER);
                     columnValue = OffsetTime.of(time, this.adjutant.obtainZoneOffsetDatabase())
                             .withOffsetSameInstant(this.adjutant.obtainZoneOffsetClient())
                             .toLocalTime();

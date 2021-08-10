@@ -14,9 +14,9 @@ import java.time.LocalTime;
 import static org.testng.Assert.*;
 
 @Test(groups = {Groups.UTILS})
-public class MySQLTimeUtilsSuiteTests {
+public class MySQLTimesSuiteTests {
 
-    private static final Logger LOG = LoggerFactory.getLogger(MySQLTimeUtilsSuiteTests.class);
+    private static final Logger LOG = LoggerFactory.getLogger(MySQLTimesSuiteTests.class);
 
     @BeforeClass
     public static void beforeClass() {
@@ -38,7 +38,7 @@ public class MySQLTimeUtilsSuiteTests {
         String timeText = "838:59:59";
         totalSecond = 838L * 3600L + 59 * 60 + 59;
         totalNanos = 0L;
-        Duration duration = MySQLTimeUtils.parseTimeAsDuration(timeText);
+        Duration duration = MySQLTimes.parseTimeAsDuration(timeText);
         assertNotNull(duration, "duration");
         assertEquals(duration.getSeconds(), totalSecond, "seconds");
         assertEquals(duration.getNano(), totalNanos, "totalNanos");
@@ -47,7 +47,7 @@ public class MySQLTimeUtilsSuiteTests {
         totalSecond = 838L * 3600L + 59 * 60 + 59;
         totalNanos = 0L;
 
-        duration = MySQLTimeUtils.parseTimeAsDuration(timeText);
+        duration = MySQLTimes.parseTimeAsDuration(timeText);
 
         assertNotNull(duration, "duration");
         assertEquals(duration.getSeconds(), totalSecond, "seconds");
@@ -57,7 +57,7 @@ public class MySQLTimeUtilsSuiteTests {
         totalSecond = -838L * 3600L - 59 * 60 - 59;
         totalNanos = 0L;
 
-        duration = MySQLTimeUtils.parseTimeAsDuration(timeText);
+        duration = MySQLTimes.parseTimeAsDuration(timeText);
 
         assertNotNull(duration, "duration");
         assertTrue(duration.isNegative(), "isNegative");
@@ -68,7 +68,7 @@ public class MySQLTimeUtilsSuiteTests {
         totalSecond = -838L * 3600L - 59 * 60 - 59;
         totalNanos = 0L;
 
-        duration = MySQLTimeUtils.parseTimeAsDuration(timeText);
+        duration = MySQLTimes.parseTimeAsDuration(timeText);
 
         assertNotNull(duration, "duration");
         assertTrue(duration.isNegative(), "isNegative");
@@ -80,7 +80,7 @@ public class MySQLTimeUtilsSuiteTests {
         totalSecond = 23L * 3600L + 59L * 60L + 59L;
         totalNanos = 999_999L * 1000L;
 
-        duration = MySQLTimeUtils.parseTimeAsDuration(timeText);
+        duration = MySQLTimes.parseTimeAsDuration(timeText);
 
         assertNotNull(duration, "duration");
         assertFalse(duration.isNegative(), "isNegative");
@@ -95,7 +95,7 @@ public class MySQLTimeUtilsSuiteTests {
     public void errorDurationText1() {
         LOG.info("errorDurationText1 test start");
 
-        MySQLTimeUtils.parseTimeAsDuration("343:-34:34");
+        MySQLTimes.parseTimeAsDuration("343:-34:34");
 
         fail("errorDurationText1 failure.");
     }
@@ -104,7 +104,7 @@ public class MySQLTimeUtilsSuiteTests {
     public void errorDurationText2() {
         LOG.info("errorDurationText2 test start");
 
-        MySQLTimeUtils.parseTimeAsDuration("839:34:34");
+        MySQLTimes.parseTimeAsDuration("839:34:34");
 
         fail("errorDurationText2 failure.");
     }
@@ -113,7 +113,7 @@ public class MySQLTimeUtilsSuiteTests {
     public void errorDurationText3() {
         LOG.info("errorDurationText3 test start");
 
-        MySQLTimeUtils.parseTimeAsDuration("33:60:34");
+        MySQLTimes.parseTimeAsDuration("33:60:34");
 
         fail("errorDurationText3 failure.");
     }
@@ -122,7 +122,7 @@ public class MySQLTimeUtilsSuiteTests {
     public void errorDurationText4() {
         LOG.info("errorDurationText4 test start");
 
-        MySQLTimeUtils.parseTimeAsDuration("33:59:60");
+        MySQLTimes.parseTimeAsDuration("33:59:60");
 
         fail("errorDurationText4 failure.");
     }
@@ -131,7 +131,7 @@ public class MySQLTimeUtilsSuiteTests {
     public void errorDurationText5() {
         LOG.info("errorDurationText4 test start");
 
-        MySQLTimeUtils.parseTimeAsDuration("33:59:59.9999999");
+        MySQLTimes.parseTimeAsDuration("33:59:59.9999999");
 
         fail("errorDurationText4 failure.");
     }
@@ -140,7 +140,7 @@ public class MySQLTimeUtilsSuiteTests {
     public void errorDurationText6() {
         LOG.info("errorDurationText6 test start");
 
-        MySQLTimeUtils.parseTimeAsDuration("33:59:-59.999999");
+        MySQLTimes.parseTimeAsDuration("33:59:-59.999999");
 
         fail("errorDurationText6 failure.");
     }
@@ -149,7 +149,7 @@ public class MySQLTimeUtilsSuiteTests {
     public void errorDurationText7() {
         LOG.info("errorDurationText7 test start");
 
-        MySQLTimeUtils.parseTimeAsDuration("33:59:59.-9999");
+        MySQLTimes.parseTimeAsDuration("33:59:59.-9999");
 
         fail("errorDurationText7 failure.");
     }
@@ -158,22 +158,22 @@ public class MySQLTimeUtilsSuiteTests {
     public void errorDurationText8() {
         LOG.info("errorDurationText8 test start");
 
-        MySQLTimeUtils.parseTimeAsDuration("33:59:59.9999999");
+        MySQLTimes.parseTimeAsDuration("33:59:59.9999999");
 
         fail("errorDurationText8 failure.");
     }
 
     /**
-     * test {@link MySQLTimeUtils#convertToDuration(LocalTime)}
+     * test {@link MySQLTimes#convertToDuration(LocalTime)}
      */
     @Test
     public void convertLocalTimeToDuration() {
         LOG.info("convertLocalTimeToDuration test start");
 
         String timeText = "23:59:59.999999";
-        LocalTime time = LocalTime.parse(timeText, MySQLTimeUtils.MYSQL_TIME_FORMATTER);
+        LocalTime time = LocalTime.parse(timeText, MySQLTimes.MYSQL_TIME_FORMATTER);
 
-        Duration duration = MySQLTimeUtils.convertToDuration(time);
+        Duration duration = MySQLTimes.convertToDuration(time);
         long totalSeconds, totalNano;
         totalSeconds = 23L * 3600L + 59L * 60L + 59L;
         totalNano = 999_999L * 1000L;
@@ -182,8 +182,8 @@ public class MySQLTimeUtilsSuiteTests {
         assertEquals(duration.getNano(), totalNano, "totalNano");
 
         timeText = "00:00:00.000000";
-        time = LocalTime.parse(timeText, MySQLTimeUtils.MYSQL_TIME_FORMATTER);
-        duration = MySQLTimeUtils.convertToDuration(time);
+        time = LocalTime.parse(timeText, MySQLTimes.MYSQL_TIME_FORMATTER);
+        duration = MySQLTimes.convertToDuration(time);
 
         assertNotNull(duration, "duration");
         assertEquals(duration.getSeconds(), 0L, "totalSeconds");
@@ -194,7 +194,7 @@ public class MySQLTimeUtilsSuiteTests {
 
 
     /**
-     * @see MySQLTimeUtils#durationToTimeText(Duration)
+     * @see MySQLTimes#durationToTimeText(Duration)
      */
     @Test(dependsOnMethods = "parseTimeAsDuration")
     public void durationToTimeText() {
@@ -202,27 +202,27 @@ public class MySQLTimeUtilsSuiteTests {
         String text, timeText;
 
         duration = Duration.ZERO;
-        timeText = MySQLTimeUtils.durationToTimeText(duration);
+        timeText = MySQLTimes.durationToTimeText(duration);
         assertEquals(timeText, "00:00:00", duration.toString());
 
         text = "23:59:59.000000";
-        duration = MySQLTimeUtils.parseTimeAsDuration(text);
-        timeText = MySQLTimeUtils.durationToTimeText(duration);
+        duration = MySQLTimes.parseTimeAsDuration(text);
+        timeText = MySQLTimes.durationToTimeText(duration);
         assertEquals(timeText, "23:59:59", text);
 
         text = "23:59:59.000001";
-        duration = MySQLTimeUtils.parseTimeAsDuration(text);
-        timeText = MySQLTimeUtils.durationToTimeText(duration);
+        duration = MySQLTimes.parseTimeAsDuration(text);
+        timeText = MySQLTimes.durationToTimeText(duration);
         assertEquals(timeText, text, text);
 
         text = "838:59:59.000000";
-        duration = MySQLTimeUtils.parseTimeAsDuration(text);
-        timeText = MySQLTimeUtils.durationToTimeText(duration);
+        duration = MySQLTimes.parseTimeAsDuration(text);
+        timeText = MySQLTimes.durationToTimeText(duration);
         assertEquals(timeText, "838:59:59", text);
 
         text = "-838:59:59.000000";
-        duration = MySQLTimeUtils.parseTimeAsDuration(text);
-        timeText = MySQLTimeUtils.durationToTimeText(duration);
+        duration = MySQLTimes.parseTimeAsDuration(text);
+        timeText = MySQLTimes.durationToTimeText(duration);
         assertEquals(timeText, "-838:59:59", text);
 
     }
@@ -230,8 +230,8 @@ public class MySQLTimeUtilsSuiteTests {
     @Test(dependsOnMethods = "parseTimeAsDuration", expectedExceptions = IllegalArgumentException.class)
     public void errorDurationToTimeText1() {
         Duration duration;
-        duration = Duration.ofSeconds(MySQLTimeUtils.DURATION_MAX_SECOND, 1L);
-        MySQLTimeUtils.durationToTimeText(duration);
+        duration = Duration.ofSeconds(MySQLTimes.DURATION_MAX_SECOND, 1L);
+        MySQLTimes.durationToTimeText(duration);
         fail("errorDurationToTimeText1 failure.");
 
     }
@@ -239,8 +239,8 @@ public class MySQLTimeUtilsSuiteTests {
     @Test(dependsOnMethods = "parseTimeAsDuration", expectedExceptions = IllegalArgumentException.class)
     public void errorDurationToTimeText2() {
         Duration duration;
-        duration = Duration.ofSeconds(-MySQLTimeUtils.DURATION_MAX_SECOND, 1L);
-        MySQLTimeUtils.durationToTimeText(duration);
+        duration = Duration.ofSeconds(-MySQLTimes.DURATION_MAX_SECOND, 1L);
+        MySQLTimes.durationToTimeText(duration);
         fail("errorDurationToTimeText2 failure.");
 
     }

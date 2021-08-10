@@ -11,9 +11,9 @@ import java.util.Locale;
 
 import static java.time.temporal.ChronoField.*;
 
-public abstract class MySQLTimeUtils extends JdbdTimeUtils {
+public abstract class MySQLTimes extends JdbdTimeUtils {
 
-    protected MySQLTimeUtils() {
+    protected MySQLTimes() {
         throw new UnsupportedOperationException();
     }
 
@@ -261,7 +261,7 @@ public abstract class MySQLTimeUtils extends JdbdTimeUtils {
      */
     public static DateTimeFormatter obtainTimeFormatterByText(String timeText) {
         final int index = timeText.lastIndexOf('.');
-        return MySQLTimeUtils.obtainTimeFormatter(index < 0 ? 0 : (timeText.length() - index - 1));
+        return MySQLTimes.obtainTimeFormatter(index < 0 ? 0 : (timeText.length() - index - 1));
     }
 
     /**
@@ -269,7 +269,7 @@ public abstract class MySQLTimeUtils extends JdbdTimeUtils {
      */
     public static DateTimeFormatter obtainDateTimeFormatterByText(String dateTimeText) {
         final int index = dateTimeText.lastIndexOf('.');
-        return MySQLTimeUtils.obtainDateTimeFormatter(index < 0 ? 0 : (dateTimeText.length() - index - 1));
+        return MySQLTimes.obtainDateTimeFormatter(index < 0 ? 0 : (dateTimeText.length() - index - 1));
     }
 
 

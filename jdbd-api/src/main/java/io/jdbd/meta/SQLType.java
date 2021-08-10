@@ -36,9 +36,9 @@ public interface SQLType extends java.sql.SQLType {
 
     boolean isFloatType();
 
-    boolean isText();
+    boolean isLongString();
 
-    boolean isBlob();
+    boolean isLongBinary();
 
     boolean isString();
 

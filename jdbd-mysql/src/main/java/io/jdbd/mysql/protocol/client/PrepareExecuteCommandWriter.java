@@ -4,7 +4,7 @@ import io.jdbd.JdbdException;
 import io.jdbd.mysql.MySQLType;
 import io.jdbd.mysql.util.MySQLConvertUtils;
 import io.jdbd.mysql.util.MySQLExceptions;
-import io.jdbd.mysql.util.MySQLTimeUtils;
+import io.jdbd.mysql.util.MySQLTimes;
 import io.jdbd.type.CodeEnum;
 import io.jdbd.vendor.stmt.ParamValue;
 import io.netty.buffer.ByteBuf;
@@ -496,7 +496,7 @@ final class PrepareExecuteCommandWriter implements ExecuteCommandWriter {
         } else if (nonNull instanceof ZoneOffset) {
             int4 = ((ZoneOffset) nonNull).getTotalSeconds();
         } else if (nonNull instanceof ZoneId) {
-            int4 = MySQLTimeUtils.toZoneOffset((ZoneId) nonNull).getTotalSeconds();
+            int4 = MySQLTimes.toZoneOffset((ZoneId) nonNull).getTotalSeconds();
         } else {
             throw MySQLExceptions.createTypeNotMatchException(stmtIndex, meta.mysqlType, paramValue);
         }
@@ -561,7 +561,7 @@ final class PrepareExecuteCommandWriter implements ExecuteCommandWriter {
 
         if (nonNull instanceof Duration) {
             final Duration duration = (Duration) nonNull;
-            if (!MySQLTimeUtils.canConvertToTimeType(duration)) {
+            if (!MySQLTimes.canConvertToTimeType(duration)) {
                 throw MySQLExceptions.createDurationRangeException(stmtIndex, parameterMeta.mysqlType, bindValue);
             }
             buffer.writeByte(length); //1. length
@@ -596,7 +596,7 @@ final class PrepareExecuteCommandWriter implements ExecuteCommandWriter {
         } else if (nonNull instanceof String) {
             String timeText = (String) nonNull;
             try {
-                time = OffsetTime.of(LocalTime.parse(timeText, MySQLTimeUtils.MYSQL_TIME_FORMATTER)
+                time = OffsetTime.of(LocalTime.parse(timeText, MySQLTimes.MYSQL_TIME_FORMATTER)
                         , this.adjutant.obtainZoneOffsetClient())
                         .withOffsetSameInstant(this.adjutant.obtainZoneOffsetDatabase())
                         .toLocalTime();
@@ -671,7 +671,7 @@ final class PrepareExecuteCommandWriter implements ExecuteCommandWriter {
         } else if (nonNull instanceof String) {
             try {
                 LocalDateTime localDateTime = LocalDateTime.parse((String) nonNull
-                        , MySQLTimeUtils.MYSQL_DATETIME_FORMATTER);
+                        , MySQLTimes.MYSQL_DATETIME_FORMATTER);
                 dateTime = OffsetDateTime.of(localDateTime, this.adjutant.obtainZoneOffsetClient())
                         .withOffsetSameInstant(this.adjutant.obtainZoneOffsetDatabase())
                         .toLocalDateTime();

@@ -5,7 +5,7 @@ import io.jdbd.mysql.Groups;
 import io.jdbd.mysql.protocol.conf.PropertyKey;
 import io.jdbd.mysql.stmt.BindableStmt;
 import io.jdbd.mysql.stmt.Stmts;
-import io.jdbd.mysql.util.MySQLTimeUtils;
+import io.jdbd.mysql.util.MySQLTimes;
 import io.jdbd.result.ResultRow;
 import io.jdbd.result.ResultState;
 import org.slf4j.Logger;
@@ -150,7 +150,7 @@ public class LoadDataLocalSuiteTests extends AbstractStmtTaskSuiteTests {
         final Path path = Files.createTempFile(prefix, ".csv");
 
         try (FileChannel channel = FileChannel.open(path, StandardOpenOption.WRITE)) {
-            final String now = LocalDateTime.now().format(MySQLTimeUtils.MYSQL_DATETIME_FORMATTER_0);
+            final String now = LocalDateTime.now().format(MySQLTimes.MYSQL_DATETIME_FORMATTER_0);
             StringBuilder builder = new StringBuilder(rowCount * 25);
             for (int i = 0; i < rowCount; i++) {
                 if (i > 0) {

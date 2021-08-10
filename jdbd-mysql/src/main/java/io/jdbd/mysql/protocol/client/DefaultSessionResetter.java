@@ -10,7 +10,7 @@ import io.jdbd.mysql.protocol.conf.PropertyKey;
 import io.jdbd.mysql.stmt.Stmts;
 import io.jdbd.mysql.util.MySQLExceptions;
 import io.jdbd.mysql.util.MySQLStringUtils;
-import io.jdbd.mysql.util.MySQLTimeUtils;
+import io.jdbd.mysql.util.MySQLTimes;
 import io.jdbd.result.ResultRow;
 import io.jdbd.vendor.conf.Properties;
 import io.jdbd.vendor.util.SQLStates;
@@ -325,7 +325,7 @@ final class DefaultSessionResetter implements SessionResetter {
         final ZoneOffset zoneOffsetDatabase;
         if ("SYSTEM".equals(databaseZoneText)) {
             LocalDateTime dateTime = LocalDateTime.parse(resultRow.getNonNull("databaseNow", String.class)
-                    , MySQLTimeUtils.MYSQL_DATETIME_FORMATTER);
+                    , MySQLTimes.MYSQL_DATETIME_FORMATTER);
             OffsetDateTime databaseNow = OffsetDateTime.of(dateTime, ZoneOffset.UTC);
 
             int totalSeconds = (int) (databaseNow.toEpochSecond() - utcEpochSecond);
@@ -334,7 +334,7 @@ final class DefaultSessionResetter implements SessionResetter {
         } else {
             try {
                 ZoneId databaseZone = ZoneId.of(databaseZoneText, ZoneId.SHORT_IDS);
-                zoneOffsetDatabase = MySQLTimeUtils.toZoneOffset(databaseZone);
+                zoneOffsetDatabase = MySQLTimes.toZoneOffset(databaseZone);
                 this.configCacheMap.put(Key.ZONE_OFFSET_DATABASE, zoneOffsetDatabase);
             } catch (DateTimeException e) {
                 String message = String.format("MySQL time_zone[%s] cannot convert to %s ."
@@ -348,14 +348,14 @@ final class DefaultSessionResetter implements SessionResetter {
         final ZoneOffset zoneOffsetClient;
         final ClientZoneMode clientZoneMode;
         if (Constants.LOCAL.equals(connectionTimeZone)) {
-            zoneOffsetClient = MySQLTimeUtils.systemZoneOffset();
+            zoneOffsetClient = MySQLTimes.systemZoneOffset();
             clientZoneMode = ClientZoneMode.LOCAL;
         } else if ("SERVER".equals(connectionTimeZone)) {
             zoneOffsetClient = zoneOffsetDatabase;
             clientZoneMode = ClientZoneMode.SERVER;
         } else {
             try {
-                zoneOffsetClient = MySQLTimeUtils.toZoneOffset(ZoneId.of(connectionTimeZone, ZoneId.SHORT_IDS));
+                zoneOffsetClient = MySQLTimes.toZoneOffset(ZoneId.of(connectionTimeZone, ZoneId.SHORT_IDS));
                 clientZoneMode = ClientZoneMode.OFFSET;
             } catch (DateTimeException e) {
                 String message = String.format("Value[%s] of Property[%s] cannot convert to ZoneOffset."
@@ -528,7 +528,7 @@ final class DefaultSessionResetter implements SessionResetter {
         public final ZoneOffset obtainZoneOffsetClient() {
             final ZoneOffset zoneOffset;
             if (this.clientZoneMode == ClientZoneMode.LOCAL && this.cacheDefaultTimezone) {
-                zoneOffset = MySQLTimeUtils.systemZoneOffset();
+                zoneOffset = MySQLTimes.systemZoneOffset();
             } else {
                 zoneOffset = this.zoneOffsetClient;
             }

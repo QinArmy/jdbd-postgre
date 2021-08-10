@@ -1,12 +1,23 @@
 package io.jdbd.postgre.protocol.client;
 
+import io.jdbd.JdbdSQLException;
+import io.jdbd.postgre.PgConstant;
 import io.jdbd.postgre.PgJdbdException;
+import io.jdbd.postgre.util.DateStyle;
 import io.jdbd.postgre.util.PgExceptions;
+import io.jdbd.postgre.util.PgTimes;
 import io.jdbd.vendor.result.ResultRowSink;
 import io.jdbd.vendor.result.ResultSetReader;
+import io.jdbd.vendor.type.LongBinaries;
 import io.netty.buffer.ByteBuf;
 
+import java.math.BigDecimal;
+import java.nio.charset.Charset;
+import java.sql.SQLException;
+import java.time.*;
+import java.time.format.DateTimeFormatter;
 import java.util.Objects;
+import java.util.UUID;
 import java.util.function.Consumer;
 
 final class DefaultResultSetReader implements ResultSetReader {
@@ -20,6 +31,10 @@ final class DefaultResultSetReader implements ResultSetReader {
 
     private final ResultRowSink sink;
 
+    private final DateStyle dateStyle;
+
+    private final Charset clientCharset;
+
     PgRowMeta rowMeta;
 
     private Phase phase = Phase.READ_ROW_META;
@@ -28,6 +43,8 @@ final class DefaultResultSetReader implements ResultSetReader {
         this.stmtTask = stmtTask;
         this.adjutant = stmtTask.adjutant();
         this.sink = sink;
+        this.dateStyle = this.adjutant.dateStyle();
+        this.clientCharset = this.adjutant.clientCharset();
     }
 
     @Override
@@ -123,9 +140,9 @@ final class DefaultResultSetReader implements ResultSetReader {
                 }
                 meta = columnMetaArray[i];
                 if (meta.textFormat) {
-                    columnValueArray[i] = convertTextToColumn(valueBytes, meta);
+                    columnValueArray[i] = parseColumnFromText(valueBytes, meta);
                 } else {
-                    columnValueArray[i] = convertBinaryToColumn(valueBytes, meta);
+                    columnValueArray[i] = parseColumnFromBinary(valueBytes, meta);
                 }
 
             }
@@ -140,14 +157,220 @@ final class DefaultResultSetReader implements ResultSetReader {
     }
 
 
-    private Object convertTextToColumn(final byte[] valueBytes, final PgColumnMeta meta) {
+    private Object parseColumnFromText(final byte[] bytesValue, final PgColumnMeta meta) {
+        final String textValue = new String(bytesValue, this.clientCharset);
+        final Object value;
+        switch (meta.columnTypeOid) {
+            case PgConstant.TYPE_INT2: {
+                value = Short.parseShort(textValue);
+            }
+            break;
+            case PgConstant.TYPE_INT4: {
+                value = Integer.parseInt(textValue);
+            }
+            break;
+            case PgConstant.TYPE_OID:
+            case PgConstant.TYPE_INT8: {
+                value = Long.parseLong(textValue);
+            }
+            break;
+            case PgConstant.TYPE_NUMERIC: {
+                value = new BigDecimal(textValue);
+            }
+            break;
+            case PgConstant.TYPE_FLOAT4: {
+                value = Float.parseFloat(textValue);
+            }
+            break;
+            case PgConstant.TYPE_FLOAT8: {
+                value = Double.parseDouble(textValue);
+            }
+            break;
+            case PgConstant.TYPE_BOOLEAN: {
+                if (textValue.equals("t")) {
+                    value = Boolean.TRUE;
+                } else if (textValue.equals("f")) {
+                    value = Boolean.FALSE;
+                } else {
+                    throw createResponseTextColumnValueError(meta, textValue);
+                }
+            }
+            break;
+            case PgConstant.TYPE_TIMESTAMP: {
+                value = LocalDateTime.parse(textValue, PgTimes.ISO_LOCAL_DATETIME_FORMATTER);
+            }
+            break;
+            case PgConstant.TYPE_DATE: {
+                value = LocalDate.parse(textValue, DateTimeFormatter.ISO_LOCAL_DATE);
+            }
+            break;
+            case PgConstant.TYPE_TIME: {
+                value = LocalTime.parse(textValue, PgTimes.ISO_LOCAL_TIME_FORMATTER);
+            }
+            break;
+            case PgConstant.TYPE_TIMESTAMPTZ: {
+                value = OffsetDateTime.parse(textValue, PgTimes.ISO_OFFSET_DATETIME__FORMATTER);
+            }
+            break;
+            case PgConstant.TYPE_TIMETZ: {
+                value = OffsetTime.parse(textValue, PgTimes.ISO_OFFSET_TIME__FORMATTER);
+            }
+            break;
+            case PgConstant.TYPE_CHAR:
+            case PgConstant.TYPE_VARCHAR:
+            case PgConstant.TYPE_JSON:
+            case PgConstant.TYPE_XML: {
+                value = textValue;
+            }
+            break;
+            case PgConstant.TYPE_JSONB:
+            case PgConstant.TYPE_BYTEA: {
+                value = LongBinaries.fromArray(bytesValue);
+            }
+            break;
+            case PgConstant.TYPE_VARBIT:
+            case PgConstant.TYPE_BIT: {
+                final int length = textValue.length();
+                byte[] bytes = new byte[length];
+                char ch;
+                for (int i = 0; i < length; i++) {
+                    ch = textValue.charAt(i);
+                    if (ch == '0') {
+
+                    } else if (ch == '1') {
+
+                    } else {
+                        throw createResponseTextColumnValueError(meta, textValue);
+                    }
+                }
+            }
+            break;
+            case PgConstant.TYPE_UUID: {
+                value = UUID.fromString(textValue);
+            }
+            break;
+//            case PgConstant.TYPE_INT4: {
+//
+//            }
+//            break;
+//            case PgConstant.TYPE_INT4: {
+//
+//            }
+//            break;
+//            case PgConstant.TYPE_INT4: {
+//
+//            }
+//            break;
+//            case PgConstant.TYPE_INT4: {
+//
+//            }
+//            break;
+//            case PgConstant.TYPE_INT4: {
+//
+//            }
+//            break;
+//            case PgConstant.TYPE_INT4: {
+//
+//            }
+//            break;
+//            case PgConstant.TYPE_INT4: {
+//
+//            }
+//            break;
+//            case PgConstant.TYPE_INT4: {
+//
+//            }
+//            break;
+//            case PgConstant.TYPE_INT4: {
+//
+//            }
+//            break;
+//            case PgConstant.TYPE_INT4: {
+//
+//            }
+//            break;
+//            case PgConstant.TYPE_INT4: {
+//
+//            }
+//            break;
+//            case PgConstant.TYPE_INT4: {
+//
+//            }
+//            break;
+//            default: {
+//                value = bytesValue;
+//            }
+        }
+        return null;
+    }
+
+    private Object parseColumnFromBinary(final byte[] valueBytes, final PgColumnMeta meta) {
 
         return null;
     }
 
-    private Object convertBinaryToColumn(final byte[] valueBytes, final PgColumnMeta meta) {
 
-        return null;
+    /**
+     * @see #parseColumnFromText(byte[], PgColumnMeta)
+     */
+    private LocalDate parseLocalDateFromText(String textValue) {
+        final LocalDate date;
+        switch (this.dateStyle) {
+            case ISO: {
+                date = LocalDate.parse(textValue, DateTimeFormatter.ISO_LOCAL_DATE);
+            }
+            break;
+            case SQL:
+            case German:
+            case Postgres:
+                // TODO fill
+            default:
+                throw PgExceptions.createUnknownEnumException(this.dateStyle);
+        }
+        return date;
+    }
+
+
+    private LocalDateTime parseLocalDateTimeFromText(String textValue) {
+        final LocalDateTime dateTime;
+        switch (this.dateStyle) {
+            case ISO: {
+                dateTime = LocalDateTime.parse(textValue, DateTimeFormatter.ISO_LOCAL_DATE_TIME);
+            }
+            break;
+            case SQL:
+            case German:
+            case Postgres:
+            default:
+                throw PgExceptions.createUnknownEnumException(this.dateStyle);
+        }
+        return dateTime;
+    }
+
+    public static JdbdSQLException createResponseTextColumnValueError(PgColumnMeta meta, String textValue) {
+        String m = String.format("Server response text value[%s] error for PgColumnMeta[%s].", textValue, meta);
+        return new JdbdSQLException(new SQLException(m));
+    }
+
+
+    private static boolean convertToBoolean(String textValue) {
+        final boolean value;
+        switch (textValue) {
+            case "true":
+            case "yes":
+            case "on":
+            case "1":
+                value = true;
+                break;
+            case "false":
+            case "no":
+            case "off":
+            case "0":
+                value = false;
+            default:
+                throw new IllegalArgumentException(String.format("text[%s] couldn't convert to boolean.", textValue));
+        }
+        return value;
     }
 
 

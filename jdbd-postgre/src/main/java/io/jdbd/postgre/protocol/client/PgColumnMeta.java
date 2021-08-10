@@ -1,7 +1,11 @@
 package io.jdbd.postgre.protocol.client;
 
+import io.jdbd.postgre.PgConstant;
+import io.jdbd.postgre.PgJdbdException;
 import io.jdbd.postgre.PgType;
 import io.netty.buffer.ByteBuf;
+
+import java.nio.charset.Charset;
 
 /**
  * @see <a href="https://www.postgresql.org/docs/current/protocol-message-formats.html">RowDescription</a>
@@ -45,6 +49,45 @@ final class PgColumnMeta {
     }
 
 
+    final int getTimePrecision() {
+        int precision;
+        switch (this.columnTypeOid) {
+            case PgConstant.TYPE_TIME:
+            case PgConstant.TYPE_TIMETZ:
+            case PgConstant.TYPE_TIMESTAMP:
+            case PgConstant.TYPE_TIMESTAMPTZ: {
+                switch (this.columnModifier) {
+                    case -1:
+                        precision = 6;
+                        break;
+                    case 1:
+                        // Bizarrely SELECT '0:0:0.1'::time(1); returns 2 digits.
+                        precision = 2 + 1;
+                        break;
+                    case 0:
+                    case 2:
+                    case 3:
+                    case 4:
+                    case 5:
+                    case 6:
+                        precision = this.columnModifier;
+                        break;
+                    default:
+                        throw createServerResponseError();
+                }
+            }
+            break;
+            default:
+                throw new IllegalStateException(String.format("ColumnMeta[%s] not time or timestamp type.", this));
+        }
+        return precision;
+    }
+
+    private PgJdbdException createServerResponseError() {
+        return new PgJdbdException(String.format("Server response column meat data[%s] error.", this));
+    }
+
+
     /**
      * @see <a href="https://www.postgresql.org/docs/current/protocol-message-formats.html">RowDescription</a>
      */
@@ -60,12 +103,12 @@ final class PgColumnMeta {
             return EMPTY;
         }
 
-
+        final Charset charset = adjutant.clientCharset();
         final PgColumnMeta[] columnMetas = new PgColumnMeta[columnCount];
 
         for (int i = 0; i < columnCount; i++) {
 
-            String columnAlias = Messages.readString(message);
+            String columnAlias = Messages.readString(message, charset);
             int tableOid = message.readInt();
             short columnAttrNum = message.readShort();
             int columnTypeOid = message.readInt();

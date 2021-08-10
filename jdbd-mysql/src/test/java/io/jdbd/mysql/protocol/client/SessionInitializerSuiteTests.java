@@ -6,7 +6,7 @@ import io.jdbd.mysql.Server;
 import io.jdbd.mysql.protocol.conf.PropertyKey;
 import io.jdbd.mysql.session.SessionAdjutant;
 import io.jdbd.mysql.stmt.Stmts;
-import io.jdbd.mysql.util.MySQLTimeUtils;
+import io.jdbd.mysql.util.MySQLTimes;
 import io.jdbd.result.ResultRow;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -111,7 +111,7 @@ public class SessionInitializerSuiteTests extends AbstractConnectionBasedSuiteTe
         propMap.put(PropertyKey.connectionTimeZone.getKey(), "LOCAL");
         adjutant = doConnectionTest(propMap);
         zoneOffsetClient = adjutant.obtainZoneOffsetClient();
-        assertEquals(zoneOffsetClient, MySQLTimeUtils.systemZoneOffset(), "zoneOffsetClient");
+        assertEquals(zoneOffsetClient, MySQLTimes.systemZoneOffset(), "zoneOffsetClient");
 
         propMap.put(PropertyKey.connectionTimeZone.getKey(), "+03:17");
         adjutant = doConnectionTest(propMap);
@@ -121,7 +121,7 @@ public class SessionInitializerSuiteTests extends AbstractConnectionBasedSuiteTe
         propMap.put(PropertyKey.connectionTimeZone.getKey(), "Australia/Sydney");
         adjutant = doConnectionTest(propMap);
         zoneOffsetClient = adjutant.obtainZoneOffsetClient();
-        assertEquals(zoneOffsetClient, MySQLTimeUtils.toZoneOffset(ZoneOffset.of("Australia/Sydney", ZoneOffset.SHORT_IDS)), "zoneOffsetClient");
+        assertEquals(zoneOffsetClient, MySQLTimes.toZoneOffset(ZoneOffset.of("Australia/Sydney", ZoneOffset.SHORT_IDS)), "zoneOffsetClient");
 
         LOG.info("configConnectionZone test success.");
 
