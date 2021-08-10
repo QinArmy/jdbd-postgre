@@ -53,7 +53,7 @@ public interface PgConstant {
     int TYPE_BIT = 1560;
 
     int TYPE_BIT_ARRAY = 1561;
-    int TYPE_VOID = 2278;
+    int TYPE_VOID = 2278; // maybe function out parameter
     int TYPE_INTERVAL = 1186;
     int TYPE_INTERVAL_ARRAY = 1187;
 
@@ -69,6 +69,12 @@ public interface PgConstant {
 
     int TYPE_POINT = 600;
     int TYPE_POINT_ARRAY = 1017;
+    int TYPE_LINE = 628;//Values of type line are output in the following form : { A, B, C } ,so can't convert to WKB,not support now.
+    int TYPE_LSEG = 601;
+
+    int TYPE_PATH = 602;
+    int TYPE_POLYGON = 604;
+    int TYPE_CIRCLE = 718;
     int TYPE_BOX = 603;
     int TYPE_JSONB = 3802;
 

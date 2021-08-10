@@ -23,7 +23,7 @@ public abstract class Geometries extends GenericGeometries {
     public static byte[] geometryToWkb(final String wktText, final boolean bigEndian) {
         BufferWrapper inWrapper = new BufferWrapper(wktText.getBytes(StandardCharsets.US_ASCII));
 
-        final WkbType wkbType = readWkb(inWrapper);
+        final WkbType wkbType = readWkbFromWkt(inWrapper);
         if (wkbType == null) {
             throw new IllegalArgumentException("wktText not geometry.");
         }
@@ -56,34 +56,20 @@ public abstract class Geometries extends GenericGeometries {
         return wkbArray;
     }
 
-
+    /**
+     * @param pointWkt like POINT(0,0)
+     */
     public static byte[] pointToWkb(final String pointWkt, final boolean bigEndian) {
-        final BufferWrapper inWrapper = new BufferWrapper(pointWkt.getBytes(StandardCharsets.US_ASCII));
-
-        final WkbOUtWrapper outWrapper;
-        outWrapper = new WkbOUtWrapper(WKB_POINT_BYTES, bigEndian);
-
-        final WkbType wkbType = WkbType.POINT;
-        readNonNullWkb(inWrapper, wkbType);
-
-        outWrapper.bufferArray[0] = outWrapper.bigEndian ? (byte) 0 : (byte) 1;
-        JdbdNumberUtils.intToEndian(outWrapper.bigEndian, wkbType.code, outWrapper.bufferArray, 1, 4);
-        outWrapper.buffer.position(5);
-
-        int pointCount;
-        pointCount = pointTextToWkb(inWrapper, outWrapper, wkbType);
-        assertWhitespaceSuffix(inWrapper, wkbType);
-
-        outWrapper.buffer.flip();
-        final byte[] wkbArray;
-        if (pointCount == 1) {
-            wkbArray = outWrapper.bufferArray;
-        } else {
-            wkbArray = new byte[5];
-            outWrapper.buffer.get(wkbArray);
-        }
-        return wkbArray;
+        return doPointToWkb(pointWkt, bigEndian, true);
     }
+
+    /**
+     * @param pointValue like (0,0)
+     */
+    public static byte[] pointValueToWkb(String pointValue, final boolean bigEndian) {
+        return doPointToWkb(pointValue, bigEndian, false);
+    }
+
 
     public static Pair<Double, Double> readPointAsPair(final byte[] wkbArray, int offset) {
         if (offset < 0 || offset >= wkbArray.length) {
@@ -228,6 +214,40 @@ public abstract class Geometries extends GenericGeometries {
 
 
     /*################################## blow private method ##################################*/
+
+    /**
+     * @see #pointToWkb(String, boolean)
+     * @see #pointValueToWkb(String, boolean)
+     */
+    private static byte[] doPointToWkb(final String pointWkt, final boolean bigEndian, final boolean hasTag) {
+        final BufferWrapper inWrapper = new BufferWrapper(pointWkt.getBytes(StandardCharsets.US_ASCII));
+
+        final WkbOUtWrapper outWrapper;
+        outWrapper = new WkbOUtWrapper(WKB_POINT_BYTES, bigEndian);
+
+        final WkbType wkbType = WkbType.POINT;
+        if (hasTag) {
+            readNonNullWkb(inWrapper, wkbType);
+        }
+
+        outWrapper.bufferArray[0] = outWrapper.bigEndian ? (byte) 0 : (byte) 1;
+        JdbdNumberUtils.intToEndian(outWrapper.bigEndian, wkbType.code, outWrapper.bufferArray, 1, 4);
+        outWrapper.buffer.position(5);
+
+        int pointCount;
+        pointCount = pointTextToWkb(inWrapper, outWrapper, wkbType);
+        assertWhitespaceSuffix(inWrapper, wkbType);
+
+        outWrapper.buffer.flip();
+        final byte[] wkbArray;
+        if (pointCount == 1) {
+            wkbArray = outWrapper.bufferArray;
+        } else {
+            wkbArray = new byte[5];
+            outWrapper.buffer.get(wkbArray);
+        }
+        return wkbArray;
+    }
 
 
 }

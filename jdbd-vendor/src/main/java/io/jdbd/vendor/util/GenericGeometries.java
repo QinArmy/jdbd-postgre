@@ -738,7 +738,7 @@ abstract class GenericGeometries {
                 throw createWktFormatError(wkbType.wktType);
             }
             inBuffer.position(inPosition);
-            geometryType = readWkb(inWrapper);
+            geometryType = readWkbFromWkt(inWrapper);
             if (geometryType == null || !geometryType.sameDimension(wkbType)) {
                 throw createWktFormatError(wkbType.wktType);
             }
@@ -1076,7 +1076,7 @@ abstract class GenericGeometries {
 
     static void readNonNullWkb(final BufferWrapper inWrapper, final WkbType expectType) {
         final WkbType wkbType;
-        wkbType = readWkb(inWrapper);
+        wkbType = readWkbFromWkt(inWrapper);
         if (wkbType != expectType) {
             throw new IllegalArgumentException(String.format("WKT isn't %s .", expectType));
         }
@@ -1086,7 +1086,7 @@ abstract class GenericGeometries {
      * @see #readNonNullWkb(BufferWrapper, WkbType)
      */
     @Nullable
-    static WkbType readWkb(final BufferWrapper inWrapper) {
+    static WkbType readWkbFromWkt(final BufferWrapper inWrapper) {
         final ByteBuffer inBuffer = inWrapper.buffer;
         final byte[] inArray = inWrapper.bufferArray;
         final int inLimit = inBuffer.limit();
@@ -1158,7 +1158,7 @@ abstract class GenericGeometries {
     /**
      * @return count of points.
      */
-    static int readAndWritePoints(final BufferWrapper inWrapper, final WkbOUtWrapper outWrapper
+    protected static int readAndWritePoints(final BufferWrapper inWrapper, final WkbOUtWrapper outWrapper
             , final WkbType wkbType) throws IllegalArgumentException {
 
         final int coordinates = wkbType.coordinates();

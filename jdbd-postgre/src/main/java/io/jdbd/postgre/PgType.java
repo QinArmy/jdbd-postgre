@@ -8,6 +8,8 @@ import java.math.BigDecimal;
 import java.sql.JDBCType;
 import java.time.*;
 import java.util.BitSet;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.UUID;
 
 public enum PgType implements io.jdbd.meta.SQLType {
@@ -52,9 +54,9 @@ public enum PgType implements io.jdbd.meta.SQLType {
     VARCHAR_ARRAY(PgConstant.TYPE_VARCHAR_ARRAY, JDBCType.ARRAY, String[].class),
     BPCHAR(PgConstant.TYPE_BPCHAR, JDBCType.NULL, Object.class),
     BPCHAR_ARRAY(PgConstant.TYPE_BPCHAR_ARRAY, JDBCType.NULL, Object.class),
-    MONEY(PgConstant.TYPE_MONEY, JDBCType.DECIMAL, BigDecimal.class),
+    MONEY(PgConstant.TYPE_MONEY, JDBCType.VARCHAR, String.class),//java.lang.String because format dependent on locale
 
-    MONEY_ARRAY(PgConstant.TYPE_MONEY_ARRAY, JDBCType.ARRAY, BigDecimal[].class),
+    MONEY_ARRAY(PgConstant.TYPE_MONEY_ARRAY, JDBCType.ARRAY, String[].class),
     BIT(PgConstant.TYPE_BIT, JDBCType.BIT, BitSet.class),
     OID(PgConstant.TYPE_OID, JDBCType.BIGINT, Long.class),
 
@@ -167,13 +169,27 @@ public enum PgType implements io.jdbd.meta.SQLType {
     }
 
     @Override
-    public String getVendor() {
-        return null;
+    public final String getVendor() {
+        return PgType.class.getPackage().getName();
     }
 
     @Override
-    public Integer getVendorTypeNumber() {
-        return null;
+    public final Integer getVendorTypeNumber() {
+        return this.typeOid;
+    }
+
+    static {
+        checkTypeOid();
+    }
+
+    private static void checkTypeOid() {
+        Set<Integer> set = new HashSet<>();
+        for (PgType type : PgType.values()) {
+            if (set.contains(type.typeOid)) {
+                throw new IllegalStateException(String.format("Type[%s] oid[%s] duplication.", type, type.typeOid));
+            }
+            set.add(type.typeOid);
+        }
     }
 
 

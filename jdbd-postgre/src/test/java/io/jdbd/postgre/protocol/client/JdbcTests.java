@@ -17,7 +17,7 @@ public class JdbcTests {
 
     @Test
     public void connect() throws Exception {
-        String url = "jdbc:postgresql://localhost:5432/army_test";
+        String url = "jdbc:postgresql://localhost:5432/army_test?options=-c%20IntervalStyle=iso_8601";
 
         Properties properties = new Properties();
         properties.put("user", "army_w");
@@ -28,18 +28,14 @@ public class JdbcTests {
         try (Connection conn = DriverManager.getConnection(url, properties)) {
             try (Statement stmt = conn.createStatement()) {
                 String sql;
-                sql = "SET search_path = army";
+                sql = "SET IntervalStyle = 'postgres'";
                 LOG.info("test success {}", stmt.executeUpdate(sql));
                 sql = "UPDATE table_name AS t SET create_time = '2021-08-08 10:54:30' WHERE t.id = 1";
                 LOG.info("test success {}", stmt.execute(sql));
-                sql = "SELECT *\n" +
-                        "    FROM\n" +
-                        "        my_types AS t\n" +
-                        "    WHERE\n" +
-                        "            t.id = 1";
+                sql = "SHOW IntervalStyle";
                 try (ResultSet resultSet = stmt.executeQuery(sql)) {
                     while (resultSet.next()) {
-                        LOG.info("{}", resultSet.getString("my_zoned_time1"));
+                        LOG.info("{}", resultSet.getString(1));
                     }
                 }
 

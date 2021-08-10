@@ -507,9 +507,10 @@ final class PgConnectionTask extends PgTask implements ConnectionTask {
         list.add(new Pair<>("user", host.getUser()));
         list.add(new Pair<>("database", host.getNonNullDbName()));
         list.add(new Pair<>("client_encoding", Encoding.CLIENT_CHARSET.name()));
-        list.add(new Pair<>("DateStyle", this.adjutant.dateStyle().name()));
+        list.add(new Pair<>("DateStyle", "ISO")); // must be  ISO,because simplify program
 
         list.add(new Pair<>("TimeZone", PgTimes.systemZoneOffset().normalized().getId()));
+        list.add(new Pair<>("IntervalStyle", "iso_8601"));// must be  ISO,because simplify program
 
         if (minVersion.compareTo(ServerVersion.V9_0) >= 0) {
             list.add(new Pair<>("extra_float_digits", "3"));
