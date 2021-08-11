@@ -1,5 +1,6 @@
 package io.jdbd.postgre.type;
 
+import io.jdbd.type.geometry.Line;
 import io.jdbd.type.geometry.Point;
 import io.jdbd.vendor.type.Geometries;
 import io.jdbd.vendor.util.GeometryUtils;
@@ -18,9 +19,9 @@ import static org.testng.Assert.*;
 /**
  * @see PgGeometries
  */
-public class PgGeometryUtilsUnitTests {
+public class PgGeometriesUnitTests {
 
-    private static final Logger LOG = LoggerFactory.getLogger(PgGeometryUtilsUnitTests.class);
+    private static final Logger LOG = LoggerFactory.getLogger(PgGeometriesUnitTests.class);
 
 
     /**
@@ -212,6 +213,31 @@ public class PgGeometryUtilsUnitTests {
         assertEquals(box.toString(), text, "toString()");
         assertEquals(box, PgBox.create(point1, point2), "equals()");
 
+    }
+
+    @Test
+    public void lineSegment() {
+        final Point point1, point2;
+        String text;
+        Line line;
+
+        point1 = Geometries.point(1.1, 3.3);
+        point2 = Geometries.point(Double.MAX_VALUE, Double.MIN_VALUE);
+
+        text = String.format("[(%s,%s),(%s,%s)]", point1.getX(), point1.getY()
+                , point2.getX(), point2.getY());
+        line = PgGeometries.lineSegment(text);
+
+        assertEquals(line.getPoint1(), point1, "point1");
+        assertEquals(line.getPoint2(), point2, "point2");
+
+        text = String.format("LINESTRING(%s %s,%s %s)", point1.getX(), point1.getY()
+                , point2.getX(), point2.getY());
+
+        assertEquals(line.toString(), text, "wkt");
+
+        boolean equals = GeometryUtils.wkbEquals(line.asArray(), GeometryUtils.lineStringToWkb(text, false));
+        assertTrue(equals, "wkb");
     }
 
 

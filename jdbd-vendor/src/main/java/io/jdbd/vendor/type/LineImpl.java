@@ -47,23 +47,22 @@ final class LineImpl implements Line {
     @Override
     public final byte[] asArray() throws IllegalStateException {
         final byte[] wkb = new byte[41];
-        final boolean bigEndian = false;
         int offset = 0;
 
-        wkb[offset++] = bigEndian ? 0 : 1;
-        JdbdNumbers.intToEndian(bigEndian, WkbType.LINE_STRING.code, wkb, offset, 4);
+        wkb[offset++] = 1;
+        JdbdNumbers.intToEndian(false, WkbType.LINE_STRING.code, wkb, offset, 4);
         offset += 4;
-        JdbdNumbers.intToEndian(bigEndian, 2, wkb, offset, 4);
+        JdbdNumbers.intToEndian(false, 2, wkb, offset, 4);
         offset += 4;
 
-        JdbdNumbers.doubleToEndian(bigEndian, this.point1.getX(), wkb, offset);
+        JdbdNumbers.doubleToEndian(false, this.point1.getX(), wkb, offset);
         offset += 8;
-        JdbdNumbers.doubleToEndian(bigEndian, this.point1.getY(), wkb, offset);
+        JdbdNumbers.doubleToEndian(false, this.point1.getY(), wkb, offset);
         offset += 8;
 
-        JdbdNumbers.doubleToEndian(bigEndian, this.point2.getX(), wkb, offset);
+        JdbdNumbers.doubleToEndian(false, this.point2.getX(), wkb, offset);
         offset += 8;
-        JdbdNumbers.doubleToEndian(bigEndian, this.point2.getY(), wkb, offset);
+        JdbdNumbers.doubleToEndian(false, this.point2.getY(), wkb, offset);
         return wkb;
     }
 
