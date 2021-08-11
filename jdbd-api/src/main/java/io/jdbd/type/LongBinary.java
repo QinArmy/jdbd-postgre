@@ -14,7 +14,7 @@ public interface LongBinary {
      * equivalence {@code openReadOnlyChannel(true)}
      * </p>
      */
-    FileChannel openReadOnlyChannel() throws IOException;
+    FileChannel openReadOnlyChannel() throws IOException, IllegalStateException;
 
 
 }

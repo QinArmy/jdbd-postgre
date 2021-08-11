@@ -1,5 +1,6 @@
 package io.jdbd.vendor.util;
 
+import io.jdbd.type.Point;
 import org.qinarmy.util.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -19,6 +20,14 @@ public abstract class Geometries extends GenericGeometries {
     private final static Logger LOG = LoggerFactory.getLogger(Geometries.class);
 
     public static final byte WKB_POINT_BYTES = 21;
+
+    public static String pointToWkt(Point point) {
+        return new StringBuilder("POINT(")
+                .append(point.getX())
+                .append(" ")
+                .append(point.getY())
+                .toString();
+    }
 
     public static byte[] geometryToWkb(final String wktText, final boolean bigEndian) {
         ByteBuffer inBuffer = ByteBuffer.wrap(wktText.getBytes(StandardCharsets.US_ASCII));

@@ -1,6 +1,7 @@
 package io.jdbd.postgre;
 
 
+import io.jdbd.postgre.type.PgLine;
 import io.jdbd.type.LongBinary;
 import io.jdbd.type.LongString;
 
@@ -77,6 +78,8 @@ public enum PgType implements io.jdbd.meta.SQLType {
 
     POINT(PgConstant.TYPE_POINT, JDBCType.OTHER, LongBinary.class),
     POINT_ARRAY(PgConstant.TYPE_POINT_ARRAY, JDBCType.ARRAY, LongBinary[].class),
+    LINE(PgConstant.TYPE_LINE, JDBCType.OTHER, PgLine.class),
+
     BOX(PgConstant.TYPE_BOX, JDBCType.OTHER, LongBinary.class),
     JSONB(PgConstant.TYPE_JSONB, JDBCType.LONGVARBINARY, LongBinary.class),
 
