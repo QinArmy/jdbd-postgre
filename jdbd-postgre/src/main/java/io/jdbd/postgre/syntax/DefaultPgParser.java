@@ -2,7 +2,7 @@ package io.jdbd.postgre.syntax;
 
 import io.jdbd.postgre.ServerParameter;
 import io.jdbd.postgre.util.PgExceptions;
-import io.jdbd.postgre.util.PgStringUtils;
+import io.jdbd.postgre.util.PgStrings;
 import org.qinarmy.util.FastStack;
 import org.qinarmy.util.Stack;
 import org.slf4j.Logger;
@@ -52,7 +52,7 @@ final class DefaultPgParser implements PgParser {
     }
 
     private Object doParse(final String sql, final boolean createStmt) throws SQLException {
-        if (!PgStringUtils.hasText(sql)) {
+        if (!PgStrings.hasText(sql)) {
             throw PgExceptions.createSyntaxError("Statement couldn't be empty.");
         }
         final boolean isTrace = LOG.isTraceEnabled();

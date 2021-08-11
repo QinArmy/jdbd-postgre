@@ -2,7 +2,7 @@ package io.jdbd.mysql.protocol.client;
 
 import io.jdbd.mysql.stmt.MySQLParamValue;
 import io.jdbd.mysql.stmt.Stmts;
-import io.jdbd.mysql.util.MySQLNumberUtils;
+import io.jdbd.mysql.util.MySQLNumbers;
 import io.jdbd.result.ResultState;
 import io.jdbd.vendor.stmt.ParamValue;
 import org.slf4j.Logger;
@@ -81,7 +81,7 @@ public class ComQueryTaskBigColumnSuiteTests extends AbstractConnectionBasedSuit
         final Random random = new Random();
         final byte[] blockArray = new byte[1024];
         for (int i = 0, offset = 0; i < 128; i++) {
-            MySQLNumberUtils.longToBigEndian(random.nextLong(), blockArray, offset, 8);
+            MySQLNumbers.longToBigEndian(random.nextLong(), blockArray, offset, 8);
             offset += 8;
         }
         final Path dir = ClientTestUtils.getBigColumnTestPath();

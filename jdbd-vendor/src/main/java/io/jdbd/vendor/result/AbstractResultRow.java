@@ -7,9 +7,9 @@ import io.jdbd.result.ResultRowMeta;
 import io.jdbd.result.UnsupportedConvertingException;
 import io.jdbd.type.CodeEnum;
 import io.jdbd.type.LongBinary;
-import io.jdbd.type.LongString;
+import io.jdbd.type.geometry.LongString;
 import io.jdbd.vendor.util.JdbdCollections;
-import io.jdbd.vendor.util.JdbdStringUtils;
+import io.jdbd.vendor.util.JdbdStrings;
 import reactor.util.annotation.Nullable;
 
 import java.math.BigDecimal;
@@ -295,9 +295,9 @@ public abstract class AbstractResultRow<R extends ResultRowMeta> implements Resu
         try {
             final Set<T> set;
             if (nonValue instanceof String) {
-                Set<String> stringSet = JdbdStringUtils.spitAsSet((String) nonValue, ",");
+                Set<String> stringSet = JdbdStrings.spitAsSet((String) nonValue, ",");
                 if (elementClass.isEnum()) {
-                    Set<T> tempSet = JdbdStringUtils.convertStringsToEnumSet(stringSet, elementClass);
+                    Set<T> tempSet = JdbdStrings.convertStringsToEnumSet(stringSet, elementClass);
                     set = JdbdCollections.unmodifiableSet(tempSet);
                 } else if (elementClass == String.class) {
                     set = (Set<T>) JdbdCollections.unmodifiableSet(stringSet);
@@ -326,9 +326,9 @@ public abstract class AbstractResultRow<R extends ResultRowMeta> implements Resu
         try {
             final List<T> list;
             if (nonValue instanceof String) {
-                List<String> stringList = JdbdStringUtils.spitAsList((String) nonValue, ",");
+                List<String> stringList = JdbdStrings.spitAsList((String) nonValue, ",");
                 if (elementClass.isEnum()) {
-                    List<T> tempList = JdbdStringUtils.convertStringsToEnumList(stringList, elementClass);
+                    List<T> tempList = JdbdStrings.convertStringsToEnumList(stringList, elementClass);
                     list = JdbdCollections.unmodifiableList(tempList);
                 } else if (elementClass == String.class) {
                     list = (List<T>) JdbdCollections.unmodifiableList(stringList);

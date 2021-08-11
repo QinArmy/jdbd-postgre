@@ -1,7 +1,7 @@
 package io.jdbd.vendor.conf;
 
 import io.jdbd.vendor.util.JdbdCollections;
-import io.jdbd.vendor.util.JdbdStringUtils;
+import io.jdbd.vendor.util.JdbdStrings;
 import reactor.util.annotation.Nullable;
 
 import java.util.ArrayList;
@@ -25,7 +25,7 @@ public abstract class AbstractJdbcUrl<K extends IPropertyKey, H extends HostInfo
         this.originalUrl = parser.getOriginalUrl();
         this.protocol = parser.getProtocol();
         this.subProtocol = parser.getSubProtocol();
-        if (!JdbdStringUtils.hasText(this.originalUrl) || !JdbdStringUtils.hasText(this.protocol)) {
+        if (!JdbdStrings.hasText(this.originalUrl) || !JdbdStrings.hasText(this.protocol)) {
             throw new IllegalArgumentException("originalUrl or protocol  is empty.");
         }
         this.dbName = getValue(parser.getGlobalProperties(), getDbNameKey());

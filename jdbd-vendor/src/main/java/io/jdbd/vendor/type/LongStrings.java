@@ -1,6 +1,6 @@
 package io.jdbd.vendor.type;
 
-import io.jdbd.type.LongString;
+import io.jdbd.type.geometry.LongString;
 
 import java.io.IOException;
 import java.nio.channels.FileChannel;

@@ -192,7 +192,7 @@ final class TextResultSetReader extends AbstractResultSetReader {
                     if (bytes == null) {
                         columnValue = null;
                     } else {
-                        columnValue = MySQLNumberUtils.readLongFromBigEndian(bytes, 0, bytes.length);
+                        columnValue = MySQLNumbers.readLongFromBigEndian(bytes, 0, bytes.length);
                     }
                 }
             }

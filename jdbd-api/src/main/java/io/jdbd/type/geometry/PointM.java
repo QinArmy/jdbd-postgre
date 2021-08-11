@@ -1,4 +1,4 @@
-package io.jdbd.type;
+package io.jdbd.type.geometry;
 
 public interface PointM extends Point {
 

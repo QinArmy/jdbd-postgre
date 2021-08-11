@@ -2,7 +2,7 @@ package io.jdbd.postgre.config;
 
 import io.jdbd.config.UrlException;
 import io.jdbd.postgre.util.PgCollections;
-import io.jdbd.postgre.util.PgStringUtils;
+import io.jdbd.postgre.util.PgStrings;
 import io.jdbd.vendor.conf.JdbcUrlParser;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -102,7 +102,7 @@ final class PostgreUrlParser implements JdbcUrlParser {
 
         final Map<String, String> globalMap = new HashMap<>((int) ((pairArray.length + propMap.size()) / 0.75F));
         // first parse query pair.
-        PgStringUtils.parseQueryPair(this.originalUrl, pairArray, globalMap);
+        PgStrings.parseQueryPair(this.originalUrl, pairArray, globalMap);
 
         // 2. put all propMap
         globalMap.putAll(propMap); // propMap can override query properties.
@@ -111,7 +111,7 @@ final class PostgreUrlParser implements JdbcUrlParser {
         String database;
         database = urlMatcher.group("database");
         if (database != null) {
-            globalMap.put(PgKey.PGDBNAME.getKey(), PgStringUtils.decodeUrlPart(database));
+            globalMap.put(PgKey.PGDBNAME.getKey(), PgStrings.decodeUrlPart(database));
         }
         return Collections.unmodifiableMap(globalMap);
     }
@@ -140,7 +140,7 @@ final class PostgreUrlParser implements JdbcUrlParser {
                     host = matcher.group("hostIpv6");
                 }
                 map = new HashMap<>(4);
-                map.put(PgKey.PGHOST.getKey(), PgStringUtils.decodeUrlPart(host));
+                map.put(PgKey.PGHOST.getKey(), PgStrings.decodeUrlPart(host));
                 port = matcher.group("port");
                 if (port != null) {
                     map.put(PgKey.PGPORT.getKey(), port);

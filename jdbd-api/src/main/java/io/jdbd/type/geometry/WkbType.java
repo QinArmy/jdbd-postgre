@@ -1,4 +1,4 @@
-package io.jdbd.vendor.util;
+package io.jdbd.type.geometry;
 
 import io.jdbd.type.CodeEnum;
 import reactor.util.annotation.Nullable;

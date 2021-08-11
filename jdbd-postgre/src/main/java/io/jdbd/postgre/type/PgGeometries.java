@@ -1,10 +1,12 @@
 package io.jdbd.postgre.type;
 
-import io.jdbd.type.LongBinary;
-import io.jdbd.vendor.util.WkbType;
+import io.jdbd.type.geometry.Line;
+import io.jdbd.type.geometry.WkbType;
+import io.jdbd.vendor.type.Geometries;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
 
+import java.util.Objects;
 import java.util.function.Consumer;
 
 public abstract class PgGeometries {
@@ -16,8 +18,34 @@ public abstract class PgGeometries {
     /**
      * @see <a href="https://www.postgresql.org/docs/current/datatype-geometric.html#DATATYPE-LSEG">Lines</a>
      */
-    public static LongBinary lineSegment(String textValue, boolean bigEndian) {
-        return PgLineSegment.parse(textValue, bigEndian);
+    public static Line lineSegment(String textValue) {
+        if (!textValue.startsWith("[") || !textValue.endsWith("]")) {
+            throw createGeometricFormatError(textValue);
+        }
+        final Double[] coordinate = new Double[4];
+        final int[] index = new int[]{0};
+        Consumer<Double> consumer = d -> {
+            if (index[0] < coordinate.length) {
+                coordinate[index[0]++] = Objects.requireNonNull(d, "d");
+            } else {
+                throw createGeometricFormatError(textValue);
+            }
+        };
+
+        final int newIndex;
+        newIndex = PgGeometries.doReadPoints(textValue, 0, consumer);
+
+        if (index[0] < coordinate.length) {
+            throw createGeometricFormatError(textValue);
+        } else if (newIndex < textValue.length()) {
+            for (int i = newIndex, end = textValue.length() - 1; i < end; i++) {
+                if (!Character.isWhitespace(textValue.charAt(i))) {
+                    throw createGeometricFormatError(textValue);
+                }
+            }
+        }
+        return Geometries.line(Geometries.point(coordinate[0], coordinate[1])
+                , Geometries.point(coordinate[2], coordinate[3]));
     }
 
 
@@ -126,7 +154,7 @@ public abstract class PgGeometries {
     }
 
 
-    private static IllegalArgumentException createGeometricFormatError(String textValue) {
+    protected static IllegalArgumentException createGeometricFormatError(String textValue) {
         return new IllegalArgumentException(String.format("Geometric[%s] format error.", textValue));
     }
 

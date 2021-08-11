@@ -4,7 +4,7 @@ import io.jdbd.JdbdSQLException;
 import io.jdbd.mysql.SQLMode;
 import io.jdbd.mysql.protocol.Constants;
 import io.jdbd.mysql.util.MySQLExceptions;
-import io.jdbd.vendor.util.JdbdStringUtils;
+import io.jdbd.vendor.util.JdbdStrings;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -111,7 +111,7 @@ public final class DefaultMySQLParser implements MySQLParser {
     }
 
     private Object doParse(final String sql, final Mode mode) throws SQLException {
-        if (!JdbdStringUtils.hasText(sql)) {
+        if (!JdbdStrings.hasText(sql)) {
             throw MySQLExceptions.createEmptySqlException();
         }
         final boolean ansiQuotes = this.sqlModeFunction.apply(SQLMode.ANSI_QUOTES);

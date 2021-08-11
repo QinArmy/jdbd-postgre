@@ -5,7 +5,7 @@ import io.jdbd.mysql.MySQLType;
 import io.jdbd.mysql.stmt.BatchBindStmt;
 import io.jdbd.mysql.stmt.BindableStmt;
 import io.jdbd.mysql.util.MySQLExceptions;
-import io.jdbd.mysql.util.MySQLNumberUtils;
+import io.jdbd.mysql.util.MySQLNumbers;
 import io.jdbd.vendor.stmt.ParamValue;
 import io.jdbd.vendor.util.JdbdBindUtils;
 import io.netty.buffer.ByteBuf;
@@ -63,7 +63,7 @@ abstract class BindUtils extends JdbdBindUtils {
             if (bytes.length == 0) {
                 throw MySQLExceptions.createWrongArgumentsException(stmtIndex, mySQLType, bindValue, null);
             } else if (bytes.length < 9) {
-                bits = MySQLNumberUtils.readLongFromBigEndian(bytes, 0, bytes.length);
+                bits = MySQLNumbers.readLongFromBigEndian(bytes, 0, bytes.length);
             } else {
                 throw MySQLExceptions.createDataTooLongException(stmtIndex, mySQLType, bindValue);
             }

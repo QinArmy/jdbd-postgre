@@ -4,7 +4,6 @@ import io.jdbd.postgre.Encoding;
 import io.jdbd.postgre.PgJdbdException;
 import io.jdbd.postgre.config.PostgreHost;
 import io.jdbd.postgre.session.SessionAdjutant;
-import io.jdbd.postgre.util.DateStyle;
 import io.jdbd.vendor.conf.HostInfo;
 import io.jdbd.vendor.task.CommunicationTask;
 import io.jdbd.vendor.task.CommunicationTaskExecutor;
@@ -109,11 +108,6 @@ final class PgTaskExecutor extends CommunicationTaskExecutor<TaskAdjutant> {
         @Override
         public final Charset clientCharset() {
             return Encoding.CLIENT_CHARSET;
-        }
-
-        @Override
-        public final DateStyle dateStyle() {
-            return DateStyle.ISO;
         }
 
 

@@ -1,7 +1,7 @@
 package io.jdbd.vendor.type;
 
-import io.jdbd.type.Point;
-import io.jdbd.vendor.util.Geometries;
+import io.jdbd.type.geometry.Point;
+import io.jdbd.vendor.util.GeometryUtils;
 
 import java.util.Objects;
 
@@ -53,7 +53,7 @@ final class PointImpl implements Point {
 
     @Override
     public final String toString() {
-        return Geometries.pointToWkt(this);
+        return GeometryUtils.pointToWkt(this);
     }
 
 

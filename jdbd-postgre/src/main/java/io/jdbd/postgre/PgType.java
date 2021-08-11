@@ -1,9 +1,12 @@
 package io.jdbd.postgre;
 
 
+import io.jdbd.postgre.type.PgBox;
 import io.jdbd.postgre.type.PgLine;
 import io.jdbd.type.LongBinary;
-import io.jdbd.type.LongString;
+import io.jdbd.type.geometry.Line;
+import io.jdbd.type.geometry.LongString;
+import io.jdbd.type.geometry.Point;
 
 import java.math.BigDecimal;
 import java.sql.JDBCType;
@@ -76,14 +79,15 @@ public enum PgType implements io.jdbd.meta.SQLType {
     XML(PgConstant.TYPE_XML, JDBCType.SQLXML, String.class),
     XML_ARRAY(PgConstant.TYPE_XML_ARRAY, JDBCType.ARRAY, String[].class),
 
-    POINT(PgConstant.TYPE_POINT, JDBCType.OTHER, LongBinary.class),
-    POINT_ARRAY(PgConstant.TYPE_POINT_ARRAY, JDBCType.ARRAY, LongBinary[].class),
+    POINT(PgConstant.TYPE_POINT, JDBCType.OTHER, Point.class),
+    POINT_ARRAY(PgConstant.TYPE_POINT_ARRAY, JDBCType.ARRAY, Point[].class),
     LINE(PgConstant.TYPE_LINE, JDBCType.OTHER, PgLine.class),
+    LINE_SEGMENT(PgConstant.TYPE_LSEG, JDBCType.OTHER, Line.class),
 
-    BOX(PgConstant.TYPE_BOX, JDBCType.OTHER, LongBinary.class),
-    JSONB(PgConstant.TYPE_JSONB, JDBCType.LONGVARBINARY, LongBinary.class),
+    BOX(PgConstant.TYPE_BOX, JDBCType.OTHER, PgBox.class),
+    JSONB(PgConstant.TYPE_JSONB, JDBCType.LONGVARCHAR, LongString.class),
 
-    JSONB_ARRAY(PgConstant.TYPE_JSONB_ARRAY, JDBCType.ARRAY, LongBinary[].class),
+    JSONB_ARRAY(PgConstant.TYPE_JSONB_ARRAY, JDBCType.ARRAY, LongString[].class),
     JSON(PgConstant.TYPE_JSON, JDBCType.LONGVARCHAR, LongString.class),
     JSON_ARRAY(PgConstant.TYPE_JSON_ARRAY, JDBCType.ARRAY, LongString[].class),
     REF_CURSOR(PgConstant.TYPE_REF_CURSOR, JDBCType.REF_CURSOR, Object.class),

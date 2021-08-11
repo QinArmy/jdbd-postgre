@@ -2,7 +2,7 @@ package io.jdbd.mysql.protocol.client;
 
 import io.jdbd.mysql.util.MySQLConvertUtils;
 import io.jdbd.mysql.util.MySQLExceptions;
-import io.jdbd.mysql.util.MySQLNumberUtils;
+import io.jdbd.mysql.util.MySQLNumbers;
 import io.jdbd.result.ResultRow;
 import io.jdbd.vendor.result.ErrorResultRow;
 import io.jdbd.vendor.type.LongBinaries;
@@ -161,7 +161,7 @@ final class BinaryResultSetReader extends AbstractResultSetReader {
                     if (bytes == null) {
                         columnValue = null;
                     } else {
-                        columnValue = MySQLNumberUtils.readLongFromBigEndian(bytes, 0, bytes.length);
+                        columnValue = MySQLNumbers.readLongFromBigEndian(bytes, 0, bytes.length);
                     }
                 }
             }

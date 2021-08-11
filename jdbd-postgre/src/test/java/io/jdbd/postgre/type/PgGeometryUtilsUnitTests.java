@@ -1,9 +1,9 @@
 package io.jdbd.postgre.type;
 
-import io.jdbd.type.Point;
-import io.jdbd.vendor.type.Points;
-import io.jdbd.vendor.util.Geometries;
-import io.jdbd.vendor.util.JdbdNumberUtils;
+import io.jdbd.type.geometry.Point;
+import io.jdbd.vendor.type.Geometries;
+import io.jdbd.vendor.util.GeometryUtils;
+import io.jdbd.vendor.util.JdbdNumbers;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
 import org.slf4j.Logger;
@@ -18,9 +18,9 @@ import static org.testng.Assert.*;
 /**
  * @see PgGeometries
  */
-public class PgGeometriesUnitTests {
+public class PgGeometryUtilsUnitTests {
 
-    private static final Logger LOG = LoggerFactory.getLogger(PgGeometriesUnitTests.class);
+    private static final Logger LOG = LoggerFactory.getLogger(PgGeometryUtilsUnitTests.class);
 
 
     /**
@@ -137,10 +137,10 @@ public class PgGeometriesUnitTests {
 
         pointsText = "[ (0, 0 ) , (1, 1)]";
         wkb = PgGeometries.lineSegmentToWkb(pointsText, bigEndian);
-        LOG.info("WKB type:{}", JdbdNumberUtils.readIntFromEndian(false, wkb, 1, 4));
+        LOG.info("WKB type:{}", JdbdNumbers.readIntFromEndian(false, wkb, 1, 4));
         final String wkt = "LINESTRING(0 0,1 1)";
 
-        assertTrue(Arrays.equals(wkb, Geometries.lineStringToWkb(wkt, bigEndian)), "wkb error");
+        assertTrue(Arrays.equals(wkb, GeometryUtils.lineStringToWkb(wkt, bigEndian)), "wkb error");
         LOG.info("lineSegmentToWbk test success.");
     }
 
@@ -199,7 +199,7 @@ public class PgGeometriesUnitTests {
      */
     @Test
     public void pgBoxParse() {
-        final Point point1 = Points.point(1, 1.3), point2 = Points.point(Double.MAX_VALUE, Double.MIN_VALUE);
+        final Point point1 = Geometries.point(1, 1.3), point2 = Geometries.point(Double.MAX_VALUE, Double.MIN_VALUE);
         String text;
         PgBox box;
         text = String.format("(%s,%s),(%s,%s)", point1.getX(), point1.getY()

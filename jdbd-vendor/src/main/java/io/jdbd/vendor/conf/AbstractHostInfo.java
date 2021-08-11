@@ -3,7 +3,7 @@ package io.jdbd.vendor.conf;
 
 import io.jdbd.config.UrlException;
 import io.jdbd.vendor.util.JdbdCollections;
-import io.jdbd.vendor.util.JdbdStringUtils;
+import io.jdbd.vendor.util.JdbdStrings;
 import reactor.util.annotation.Nullable;
 
 import java.util.HashMap;
@@ -30,7 +30,7 @@ public abstract class AbstractHostInfo<K extends IPropertyKey> implements HostIn
         final Map<String, String> globalProperties = parser.getGlobalProperties();
         final Map<String, String> hostProperties = parser.getHostInfo().get(index);
 
-        if (!JdbdStringUtils.hasText(this.originalUrl)
+        if (!JdbdStrings.hasText(this.originalUrl)
                 || hostProperties == null
                 || JdbdCollections.isEmpty(globalProperties)) {
             throw new IllegalArgumentException("please check arguments.");
@@ -45,7 +45,7 @@ public abstract class AbstractHostInfo<K extends IPropertyKey> implements HostIn
 
         final String host = removeValue(map, getHostKey());
 
-        this.host = JdbdStringUtils.hasText(host) ? host : DEFAULT_HOST;
+        this.host = JdbdStrings.hasText(host) ? host : DEFAULT_HOST;
         final String portText = removeValue(map, getPortKey());
         if (portText == null) {
             this.port = getDefaultPort();
@@ -61,11 +61,11 @@ public abstract class AbstractHostInfo<K extends IPropertyKey> implements HostIn
         this.user = removeValue(map, getUserKey());
         this.password = removeValue(map, getPasswordKey());
 
-        if (!JdbdStringUtils.hasText(this.user)) {
+        if (!JdbdStrings.hasText(this.user)) {
             String message = String.format("%s property must be not empty", getUserKey().name());
             throw new UrlException(this.originalUrl, message);
         }
-        this.isPasswordLess = !JdbdStringUtils.hasText(this.password);
+        this.isPasswordLess = !JdbdStrings.hasText(this.password);
         this.dbName = removeValue(map, getDbNameKey());
 
         this.properties = createProperties(map);

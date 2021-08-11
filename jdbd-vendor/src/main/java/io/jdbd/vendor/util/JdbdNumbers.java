@@ -2,9 +2,9 @@ package io.jdbd.vendor.util;
 
 import org.qinarmy.util.NumberUtils;
 
-public abstract class JdbdNumberUtils extends NumberUtils {
+public abstract class JdbdNumbers extends NumberUtils {
 
-    protected JdbdNumberUtils() {
+    protected JdbdNumbers() {
         throw new UnsupportedOperationException();
     }
 

@@ -14,7 +14,7 @@ import io.jdbd.mysql.type.TrueOrFalse;
 import io.jdbd.mysql.util.*;
 import io.jdbd.result.ResultRow;
 import io.jdbd.result.ResultState;
-import io.jdbd.vendor.util.Geometries;
+import io.jdbd.vendor.util.GeometryUtils;
 import org.slf4j.Logger;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -226,8 +226,8 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBased
         assertBitBindAndExtract(adjutant, (byte) 0, field);
 
         assertBitBindAndExtract(adjutant, "秦军", field);
-        assertBitBindAndExtract(adjutant, MySQLNumberUtils.longToBigEndianBytes(-1L), field);
-        assertBitBindAndExtract(adjutant, MySQLNumberUtils.longToBigEndianBytes(0L), field);
+        assertBitBindAndExtract(adjutant, MySQLNumbers.longToBigEndianBytes(-1L), field);
+        assertBitBindAndExtract(adjutant, MySQLNumbers.longToBigEndianBytes(0L), field);
 
 
         field = "my_bit20";
@@ -235,7 +235,7 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBased
         assertBitBindAndExtract(adjutant, 0B1111_1111_1111_1111_1111L, field);
         assertBitBindAndExtract(adjutant, 0L, field);
 
-        assertBitBindAndExtract(adjutant, MySQLNumberUtils.longToBigEndianBytes(0B0000_0000_0000_0000L), field);
+        assertBitBindAndExtract(adjutant, MySQLNumbers.longToBigEndianBytes(0B0000_0000_0000_0000L), field);
 
         LOG.info("bitBindAndExtract test success");
         releaseConnection(adjutant);
@@ -405,7 +405,7 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBased
         mySQLType = MySQLType.BIGINT_UNSIGNED;
         assertNumberBindAndExtract(taskAdjutant, mySQLType, 0L, field);
         assertNumberBindAndExtract(taskAdjutant, mySQLType, 1L, field);
-        assertNumberBindAndExtract(taskAdjutant, mySQLType, MySQLNumberUtils.MAX_UNSIGNED_LONG, field);
+        assertNumberBindAndExtract(taskAdjutant, mySQLType, MySQLNumbers.MAX_UNSIGNED_LONG, field);
         assertNumberBindAndExtract(taskAdjutant, mySQLType, "0", field);
         assertNumberBindAndExtract(taskAdjutant, mySQLType, BigInteger.ONE, field);
         assertNumberBindAndExtract(taskAdjutant, mySQLType, BigDecimal.ONE, field);
@@ -714,11 +714,11 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBased
         assertGeometryBindAndExtract(taskAdjutant, MySQLType.GEOMETRY, wktText);
         assertGeometryBindAndExtract(taskAdjutant, MySQLType.VARCHAR, wktText);
 
-        wkbArray = Geometries.geometryToWkb(wktText, true);
+        wkbArray = GeometryUtils.geometryToWkb(wktText, true);
         assertGeometryBindAndExtract(taskAdjutant, MySQLType.GEOMETRY, wkbArray);
         assertGeometryBindAndExtract(taskAdjutant, MySQLType.VARBINARY, wkbArray);
 
-        wkbArray = Geometries.geometryToWkb(wktText, false);
+        wkbArray = GeometryUtils.geometryToWkb(wktText, false);
         assertGeometryBindAndExtract(taskAdjutant, MySQLType.GEOMETRY, wkbArray);
         assertGeometryBindAndExtract(taskAdjutant, MySQLType.VARBINARY, wkbArray);
 
@@ -727,11 +727,11 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBased
         assertGeometryBindAndExtract(taskAdjutant, MySQLType.GEOMETRY, wktText);
         assertGeometryBindAndExtract(taskAdjutant, MySQLType.VARCHAR, wktText);
 
-        wkbArray = Geometries.geometryToWkb(wktText, true);
+        wkbArray = GeometryUtils.geometryToWkb(wktText, true);
         assertGeometryBindAndExtract(taskAdjutant, MySQLType.GEOMETRY, wkbArray);
         assertGeometryBindAndExtract(taskAdjutant, MySQLType.VARBINARY, wkbArray);
 
-        wkbArray = Geometries.geometryToWkb(wktText, false);
+        wkbArray = GeometryUtils.geometryToWkb(wktText, false);
         assertGeometryBindAndExtract(taskAdjutant, MySQLType.GEOMETRY, wkbArray);
         assertGeometryBindAndExtract(taskAdjutant, MySQLType.VARBINARY, wkbArray);
 
@@ -740,11 +740,11 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBased
         assertGeometryBindAndExtract(taskAdjutant, MySQLType.GEOMETRY, wktText);
         assertGeometryBindAndExtract(taskAdjutant, MySQLType.VARCHAR, wktText);
 
-        wkbArray = Geometries.geometryToWkb(wktText, true);
+        wkbArray = GeometryUtils.geometryToWkb(wktText, true);
         assertGeometryBindAndExtract(taskAdjutant, MySQLType.GEOMETRY, wkbArray);
         assertGeometryBindAndExtract(taskAdjutant, MySQLType.VARBINARY, wkbArray);
 
-        wkbArray = Geometries.geometryToWkb(wktText, false);
+        wkbArray = GeometryUtils.geometryToWkb(wktText, false);
         assertGeometryBindAndExtract(taskAdjutant, MySQLType.GEOMETRY, wkbArray);
         assertGeometryBindAndExtract(taskAdjutant, MySQLType.VARBINARY, wkbArray);
 
@@ -758,7 +758,7 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBased
 //        assertGeometryBindAndExtract(taskAdjutant, MySQLType.GEOMETRY, wkbArray);
 //        assertGeometryBindAndExtract(taskAdjutant, MySQLType.VARBINARY, wkbArray);
 
-        wkbArray = Geometries.geometryToWkb(wktText, false);
+        wkbArray = GeometryUtils.geometryToWkb(wktText, false);
         assertGeometryBindAndExtract(taskAdjutant, MySQLType.GEOMETRY, wkbArray);
         assertGeometryBindAndExtract(taskAdjutant, MySQLType.VARBINARY, wkbArray);
 
@@ -773,7 +773,7 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBased
 //        assertGeometryBindAndExtract(taskAdjutant, MySQLType.GEOMETRY, wkbArray);
 //        assertGeometryBindAndExtract(taskAdjutant, MySQLType.VARBINARY, wkbArray);
 
-        wkbArray = Geometries.geometryToWkb(wktText, false);
+        wkbArray = GeometryUtils.geometryToWkb(wktText, false);
         assertGeometryBindAndExtract(taskAdjutant, MySQLType.GEOMETRY, wkbArray);
         assertGeometryBindAndExtract(taskAdjutant, MySQLType.VARBINARY, wkbArray);
 
@@ -788,7 +788,7 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBased
 //        assertGeometryBindAndExtract(taskAdjutant, MySQLType.GEOMETRY, wkbArray);
 //        assertGeometryBindAndExtract(taskAdjutant, MySQLType.VARBINARY, wkbArray);
 
-        wkbArray = Geometries.geometryToWkb(wktText, false);
+        wkbArray = GeometryUtils.geometryToWkb(wktText, false);
         assertGeometryBindAndExtract(taskAdjutant, MySQLType.GEOMETRY, wkbArray);
         assertGeometryBindAndExtract(taskAdjutant, MySQLType.VARBINARY, wkbArray);
 
@@ -825,7 +825,7 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBased
 //        assertGeometryBindAndExtract(taskAdjutant, MySQLType.GEOMETRY, wkbArray);
 //        assertGeometryBindAndExtract(taskAdjutant, MySQLType.VARBINARY, wkbArray);
 
-        wkbArray = Geometries.geometryToWkb(wktText, false);
+        wkbArray = GeometryUtils.geometryToWkb(wktText, false);
         assertGeometryBindAndExtract(taskAdjutant, MySQLType.GEOMETRY, wkbArray);
         assertGeometryBindAndExtract(taskAdjutant, MySQLType.VARBINARY, wkbArray);
 
@@ -845,11 +845,11 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBased
         assertPointsBindAndExtract(taskAdjutant, MySQLType.GEOMETRY, wktText);
         assertPointsBindAndExtract(taskAdjutant, MySQLType.VARCHAR, wktText);
 
-        wkbArray = Geometries.pointToWkb(wktText, true);
+        wkbArray = GeometryUtils.pointToWkb(wktText, true);
         assertPointsBindAndExtract(taskAdjutant, MySQLType.GEOMETRY, wkbArray);
         assertPointsBindAndExtract(taskAdjutant, MySQLType.VARBINARY, wkbArray);
 
-        wkbArray = Geometries.pointToWkb(wktText, false);
+        wkbArray = GeometryUtils.pointToWkb(wktText, false);
         assertPointsBindAndExtract(taskAdjutant, MySQLType.GEOMETRY, wkbArray);
         assertPointsBindAndExtract(taskAdjutant, MySQLType.VARBINARY, wkbArray);
 
@@ -869,11 +869,11 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBased
         assertLineStringBindAndExtract(taskAdjutant, MySQLType.GEOMETRY, wktText);
         assertLineStringBindAndExtract(taskAdjutant, MySQLType.VARCHAR, wktText);
 
-        wkbArray = Geometries.lineStringToWkb(wktText, true);
+        wkbArray = GeometryUtils.lineStringToWkb(wktText, true);
         assertLineStringBindAndExtract(taskAdjutant, MySQLType.GEOMETRY, wkbArray);
         assertLineStringBindAndExtract(taskAdjutant, MySQLType.VARBINARY, wkbArray);
 
-        wkbArray = Geometries.lineStringToWkb(wktText, false);
+        wkbArray = GeometryUtils.lineStringToWkb(wktText, false);
         assertLineStringBindAndExtract(taskAdjutant, MySQLType.GEOMETRY, wkbArray);
         assertLineStringBindAndExtract(taskAdjutant, MySQLType.VARBINARY, wkbArray);
 
@@ -894,11 +894,11 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBased
         assertPolygonBindAndExtract(taskAdjutant, MySQLType.GEOMETRY, wktText);
         assertPolygonBindAndExtract(taskAdjutant, MySQLType.VARCHAR, wktText);
 
-        wkbArray = Geometries.polygonToWkb(wktText, true);
+        wkbArray = GeometryUtils.polygonToWkb(wktText, true);
         assertPolygonBindAndExtract(taskAdjutant, MySQLType.GEOMETRY, wkbArray);
         assertPolygonBindAndExtract(taskAdjutant, MySQLType.VARBINARY, wkbArray);
 
-        wkbArray = Geometries.polygonToWkb(wktText, false);
+        wkbArray = GeometryUtils.polygonToWkb(wktText, false);
         assertPolygonBindAndExtract(taskAdjutant, MySQLType.GEOMETRY, wkbArray);
         assertPolygonBindAndExtract(taskAdjutant, MySQLType.VARBINARY, wkbArray);
         LOG.info("polygonBindAndExtract test success");
@@ -922,7 +922,7 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBased
 //        assertMultiPointBindAndExtract(taskAdjutant, MySQLType.GEOMETRY, wkbArray);
 //        assertMultiPointBindAndExtract(taskAdjutant, MySQLType.VARBINARY, wkbArray);
 
-        wkbArray = Geometries.multiPointToWkb(wktText, false);
+        wkbArray = GeometryUtils.multiPointToWkb(wktText, false);
         assertMultiPointBindAndExtract(taskAdjutant, MySQLType.GEOMETRY, wkbArray);
         assertMultiPointBindAndExtract(taskAdjutant, MySQLType.VARBINARY, wkbArray);
 
@@ -947,7 +947,7 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBased
 //        assertMultiLineStringBindAndExtract(taskAdjutant, MySQLType.GEOMETRY, wkbArray);
 //        assertMultiLineStringBindAndExtract(taskAdjutant, MySQLType.VARBINARY, wkbArray);
 
-        wkbArray = Geometries.multiLineStringToWkb(wktText, false);
+        wkbArray = GeometryUtils.multiLineStringToWkb(wktText, false);
         assertMultiLineStringBindAndExtract(taskAdjutant, MySQLType.GEOMETRY, wkbArray);
         assertMultiLineStringBindAndExtract(taskAdjutant, MySQLType.VARBINARY, wkbArray);
 
@@ -972,7 +972,7 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBased
 //        assertMultiPolygonBindAndExtract(taskAdjutant, MySQLType.GEOMETRY, wkbArray);
 //        assertMultiPolygonBindAndExtract(taskAdjutant, MySQLType.VARBINARY, wkbArray);
 
-        wkbArray = Geometries.multiPolygonToWkb(wktText, false);
+        wkbArray = GeometryUtils.multiPolygonToWkb(wktText, false);
         assertMultiPolygonBindAndExtract(taskAdjutant, MySQLType.GEOMETRY, wkbArray);
         assertMultiPolygonBindAndExtract(taskAdjutant, MySQLType.VARBINARY, wkbArray);
 
@@ -1020,7 +1020,7 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBased
 //        assertGeometryCollectionBindAndExtract(taskAdjutant, MySQLType.GEOMETRY, wkbArray);
 //        assertGeometryCollectionBindAndExtract(taskAdjutant, MySQLType.VARBINARY, wkbArray);
 
-        wkbArray = Geometries.geometryCollectionToWkb(wktText, false);
+        wkbArray = GeometryUtils.geometryCollectionToWkb(wktText, false);
         assertGeometryCollectionBindAndExtract(taskAdjutant, MySQLType.GEOMETRY, wkbArray);
         assertGeometryCollectionBindAndExtract(taskAdjutant, MySQLType.VARBINARY, wkbArray);
 
@@ -1048,11 +1048,11 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBased
 
         final byte[] bindWkb;
         if (bindParam instanceof String) {
-            bindWkb = Geometries.geometryToWkb((String) bindParam, true);
+            bindWkb = GeometryUtils.geometryToWkb((String) bindParam, true);
         } else {
             bindWkb = (byte[]) bindParam;
         }
-        assertTrue(Geometries.wkbEquals(resultWkb, bindWkb), field);
+        assertTrue(GeometryUtils.wkbEquals(resultWkb, bindWkb), field);
     }
 
     /**
@@ -1072,11 +1072,11 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBased
 
         final byte[] bindWkb;
         if (bindParam instanceof String) {
-            bindWkb = Geometries.pointToWkb((String) bindParam, true);
+            bindWkb = GeometryUtils.pointToWkb((String) bindParam, true);
         } else {
             bindWkb = (byte[]) bindParam;
         }
-        assertTrue(Geometries.wkbEquals(resultWkb, bindWkb), field);
+        assertTrue(GeometryUtils.wkbEquals(resultWkb, bindWkb), field);
     }
 
     /**
@@ -1096,11 +1096,11 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBased
 
         final byte[] bindWkb;
         if (bindParam instanceof String) {
-            bindWkb = Geometries.lineStringToWkb((String) bindParam, true);
+            bindWkb = GeometryUtils.lineStringToWkb((String) bindParam, true);
         } else {
             bindWkb = (byte[]) bindParam;
         }
-        assertTrue(Geometries.wkbEquals(resultWkb, bindWkb), field);
+        assertTrue(GeometryUtils.wkbEquals(resultWkb, bindWkb), field);
     }
 
     /**
@@ -1120,11 +1120,11 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBased
 
         final byte[] bindWkb;
         if (bindParam instanceof String) {
-            bindWkb = Geometries.polygonToWkb((String) bindParam, true);
+            bindWkb = GeometryUtils.polygonToWkb((String) bindParam, true);
         } else {
             bindWkb = (byte[]) bindParam;
         }
-        assertTrue(Geometries.wkbEquals(resultWkb, bindWkb), field);
+        assertTrue(GeometryUtils.wkbEquals(resultWkb, bindWkb), field);
     }
 
     /**
@@ -1144,11 +1144,11 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBased
 
         final byte[] bindWkb;
         if (bindParam instanceof String) {
-            bindWkb = Geometries.multiPointToWkb((String) bindParam, true);
+            bindWkb = GeometryUtils.multiPointToWkb((String) bindParam, true);
         } else {
             bindWkb = (byte[]) bindParam;
         }
-        assertTrue(Geometries.wkbEquals(resultWkb, bindWkb), field);
+        assertTrue(GeometryUtils.wkbEquals(resultWkb, bindWkb), field);
     }
 
 
@@ -1169,11 +1169,11 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBased
 
         final byte[] bindWkb;
         if (bindParam instanceof String) {
-            bindWkb = Geometries.multiLineStringToWkb((String) bindParam, true);
+            bindWkb = GeometryUtils.multiLineStringToWkb((String) bindParam, true);
         } else {
             bindWkb = (byte[]) bindParam;
         }
-        assertTrue(Geometries.wkbEquals(resultWkb, bindWkb), field);
+        assertTrue(GeometryUtils.wkbEquals(resultWkb, bindWkb), field);
     }
 
     /**
@@ -1193,11 +1193,11 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBased
 
         final byte[] bindWkb;
         if (bindParam instanceof String) {
-            bindWkb = Geometries.multiPolygonToWkb((String) bindParam, true);
+            bindWkb = GeometryUtils.multiPolygonToWkb((String) bindParam, true);
         } else {
             bindWkb = (byte[]) bindParam;
         }
-        assertTrue(Geometries.wkbEquals(resultWkb, bindWkb), field);
+        assertTrue(GeometryUtils.wkbEquals(resultWkb, bindWkb), field);
     }
 
     /**
@@ -1217,11 +1217,11 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBased
 
         final byte[] bindWkb;
         if (bindParam instanceof String) {
-            bindWkb = Geometries.geometryCollectionToWkb((String) bindParam, true);
+            bindWkb = GeometryUtils.geometryCollectionToWkb((String) bindParam, true);
         } else {
             bindWkb = (byte[]) bindParam;
         }
-        assertTrue(Geometries.wkbEquals(resultWkb, bindWkb), field);
+        assertTrue(GeometryUtils.wkbEquals(resultWkb, bindWkb), field);
     }
 
     /**
@@ -1547,7 +1547,7 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBased
             } else if (mySQLType == MySQLType.DOUBLE_UNSIGNED && bindParam instanceof Double) {
                 bindValue = BigDecimal.valueOf((Double) bindParam);
             } else {
-                bindValue = MySQLNumberUtils.convertNumberToBigDecimal((Number) bindParam);
+                bindValue = MySQLNumbers.convertNumberToBigDecimal((Number) bindParam);
             }
             assertEquals(((BigDecimal) resultValue).compareTo(bindValue), 0, field);
         } else if (resultValue instanceof BigInteger) {
@@ -1557,7 +1557,7 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBased
             if (bindParam instanceof String) {
                 assertEquals(resultValue, new BigInteger((String) bindParam), field);
             } else {
-                assertEquals(resultValue, MySQLNumberUtils.convertNumberToBigInteger((Number) bindParam), field);
+                assertEquals(resultValue, MySQLNumbers.convertNumberToBigInteger((Number) bindParam), field);
             }
         } else if (resultValue instanceof Double) {
             final double bindValue;
@@ -1588,7 +1588,7 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBased
             if (bindParam instanceof String) {
                 bindValue = Long.parseLong((String) bindParam);
             } else {
-                bindValue = MySQLNumberUtils.convertNumberToLong((Number) bindParam);
+                bindValue = MySQLNumbers.convertNumberToLong((Number) bindParam);
             }
             assertEquals(resultValue.longValue(), bindValue, field);
         }
@@ -1651,10 +1651,10 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBased
         } else if (bindParam instanceof String) {
             // because MySQL server store binary
             byte[] bytes = ((String) bindParam).getBytes(adjutant.obtainCharsetClient());
-            bindBits = MySQLNumberUtils.readLongFromBigEndian(bytes, 0, bytes.length);
+            bindBits = MySQLNumbers.readLongFromBigEndian(bytes, 0, bytes.length);
         } else if (bindParam instanceof byte[]) {
             byte[] bytes = (byte[]) bindParam;
-            bindBits = MySQLNumberUtils.readLongFromBigEndian(bytes, 0, bytes.length);
+            bindBits = MySQLNumbers.readLongFromBigEndian(bytes, 0, bytes.length);
         } else if (bindParam instanceof BigInteger) {
             bindBits = ((BigInteger) bindParam).longValueExact();
         } else if (bindParam instanceof Double

@@ -1,7 +1,7 @@
 package io.jdbd.postgre.type;
 
-import io.jdbd.type.Point;
-import io.jdbd.vendor.type.Points;
+import io.jdbd.type.geometry.Point;
+import io.jdbd.vendor.type.Geometries;
 
 import java.util.Objects;
 import java.util.function.Consumer;
@@ -33,14 +33,14 @@ public final class PgBox {
         if (index[0] < coordinate.length) {
             throw new IllegalArgumentException(String.format(format, textValue));
         } else if (newIndex < textValue.length()) {
-            for (int i = 0, end = textValue.length(); i < end; i++) {
+            for (int i = newIndex, end = textValue.length(); i < end; i++) {
                 if (!Character.isWhitespace(textValue.charAt(i))) {
                     throw new IllegalArgumentException(String.format(format, textValue));
                 }
             }
         }
-        return new PgBox(Points.point(coordinate[0], coordinate[1])
-                , Points.point(coordinate[2], coordinate[3]));
+        return new PgBox(Geometries.point(coordinate[0], coordinate[1])
+                , Geometries.point(coordinate[2], coordinate[3]));
     }
 
     public static PgBox create(Point point1, Point point2) {

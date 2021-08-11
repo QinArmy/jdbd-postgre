@@ -10,7 +10,7 @@ import io.jdbd.postgre.config.Enums;
 import io.jdbd.postgre.config.PgKey;
 import io.jdbd.postgre.config.PostgreHost;
 import io.jdbd.postgre.util.PgExceptions;
-import io.jdbd.postgre.util.PgStringUtils;
+import io.jdbd.postgre.util.PgStrings;
 import io.jdbd.postgre.util.PgTimes;
 import io.jdbd.vendor.task.*;
 import io.netty.buffer.ByteBuf;
@@ -292,7 +292,7 @@ final class PgConnectionTask extends PgTask implements ConnectionTask {
         boolean taskEnd = false;
         PostgreHost host = this.adjutant.obtainHost();
         final String password = host.getPassword();
-        if (PgStringUtils.hasText(password)) {
+        if (PgStrings.hasText(password)) {
             byte[] salt = new byte[saltLength];
             cumulateBuffer.readBytes(salt);
             this.packetPublisher = Mono.just(

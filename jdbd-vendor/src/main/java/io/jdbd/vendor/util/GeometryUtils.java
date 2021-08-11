@@ -1,6 +1,7 @@
 package io.jdbd.vendor.util;
 
-import io.jdbd.type.Point;
+import io.jdbd.type.geometry.Point;
+import io.jdbd.type.geometry.WkbType;
 import org.qinarmy.util.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -14,10 +15,10 @@ import java.nio.charset.StandardCharsets;
  *
  * @see <a href="https://www.ogc.org/standards/sfa">Simple Feature Access - Part 1: Common Architecture PDF</a>
  */
-public abstract class Geometries extends GenericGeometries {
+public abstract class GeometryUtils extends GenericGeometries {
 
 
-    private final static Logger LOG = LoggerFactory.getLogger(Geometries.class);
+    private final static Logger LOG = LoggerFactory.getLogger(GeometryUtils.class);
 
     public static final byte WKB_POINT_BYTES = 21;
 
@@ -27,6 +28,18 @@ public abstract class Geometries extends GenericGeometries {
                 .append(" ")
                 .append(point.getY())
                 .toString();
+    }
+
+    public static boolean parseEndian(byte endianByte) {
+        final boolean bigEndian;
+        if (endianByte == 0) {
+            bigEndian = true;
+        } else if (endianByte == 1) {
+            bigEndian = false;
+        } else {
+            throw new IllegalArgumentException("Error endian order byte.");
+        }
+        return bigEndian;
     }
 
     public static byte[] geometryToWkb(final String wktText, final boolean bigEndian) {
@@ -89,15 +102,15 @@ public abstract class Geometries extends GenericGeometries {
         }
 
         final boolean bigEndian = checkByteOrder(wkbArray[offset++]) == 0;
-        final int wkbType = JdbdNumberUtils.readIntFromEndian(bigEndian, wkbArray, offset, 4);
+        final int wkbType = JdbdNumbers.readIntFromEndian(bigEndian, wkbArray, offset, 4);
         if (wkbType != WkbType.POINT.code) {
             throw createWktFormatError(WkbType.POINT.name());
         }
         offset += 4;
         final double x, y;
-        x = JdbdNumberUtils.readDoubleFromEndian(bigEndian, wkbArray, offset, 8);
+        x = JdbdNumbers.readDoubleFromEndian(bigEndian, wkbArray, offset, 8);
         offset += 8;
-        y = JdbdNumberUtils.readDoubleFromEndian(bigEndian, wkbArray, offset, 8);
+        y = JdbdNumbers.readDoubleFromEndian(bigEndian, wkbArray, offset, 8);
         return new Pair<>(x, y);
     }
 
@@ -240,7 +253,7 @@ public abstract class Geometries extends GenericGeometries {
         }
 
         outWrapper.buffer.put(0, outWrapper.bigEndian ? (byte) 0 : (byte) 1);
-        JdbdNumberUtils.intToEndian(outWrapper.bigEndian, wkbType.code, outWrapper.buffer.array(), 1, 4);
+        JdbdNumbers.intToEndian(outWrapper.bigEndian, wkbType.code, outWrapper.buffer.array(), 1, 4);
         outWrapper.buffer.position(5);
 
         int pointCount;

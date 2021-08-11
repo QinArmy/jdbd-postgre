@@ -3,13 +3,12 @@ package io.jdbd.postgre.protocol.client;
 import io.jdbd.JdbdSQLException;
 import io.jdbd.postgre.PgConstant;
 import io.jdbd.postgre.PgJdbdException;
-import io.jdbd.postgre.util.DateStyle;
 import io.jdbd.postgre.util.PgExceptions;
 import io.jdbd.postgre.util.PgTimes;
 import io.jdbd.vendor.result.ResultRowSink;
 import io.jdbd.vendor.result.ResultSetReader;
 import io.jdbd.vendor.type.LongBinaries;
-import io.jdbd.vendor.util.Geometries;
+import io.jdbd.vendor.util.GeometryUtils;
 import io.jdbd.vendor.util.JdbdBufferUtils;
 import io.netty.buffer.ByteBuf;
 import org.slf4j.Logger;
@@ -39,8 +38,6 @@ final class DefaultResultSetReader implements ResultSetReader {
 
     private final ResultRowSink sink;
 
-    private final DateStyle dateStyle;
-
     private final Charset clientCharset;
 
     PgRowMeta rowMeta;
@@ -51,7 +48,6 @@ final class DefaultResultSetReader implements ResultSetReader {
         this.stmtTask = stmtTask;
         this.adjutant = stmtTask.adjutant();
         this.sink = sink;
-        this.dateStyle = this.adjutant.dateStyle();
         this.clientCharset = this.adjutant.clientCharset();
     }
 
@@ -274,7 +270,7 @@ final class DefaultResultSetReader implements ResultSetReader {
             }
             break;
             case PgConstant.TYPE_POINT: {
-                value = LongBinaries.fromArray(Geometries.pointValueToWkb(textValue, false));
+                value = LongBinaries.fromArray(GeometryUtils.pointValueToWkb(textValue, false));
             }
             break;
             // case PgConstant.TYPE_LINE: //Values of type line are output in the following form : { A, B, C } ,so can't convert to WKB,not support now.

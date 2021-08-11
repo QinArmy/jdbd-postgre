@@ -8,9 +8,9 @@ import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
 
-public abstract class JdbdStringUtils extends StringUtils {
+public abstract class JdbdStrings extends StringUtils {
 
-    protected JdbdStringUtils() {
+    protected JdbdStrings() {
         throw new UnsupportedOperationException();
     }
 

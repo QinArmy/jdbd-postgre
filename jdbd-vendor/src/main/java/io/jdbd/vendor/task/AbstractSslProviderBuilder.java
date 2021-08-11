@@ -3,7 +3,7 @@ package io.jdbd.vendor.task;
 import io.jdbd.vendor.conf.HostInfo;
 import io.jdbd.vendor.conf.IPropertyKey;
 import io.jdbd.vendor.conf.Properties;
-import io.jdbd.vendor.util.JdbdStringUtils;
+import io.jdbd.vendor.util.JdbdStrings;
 import io.netty.buffer.ByteBufAllocator;
 import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslContextBuilder;
@@ -195,7 +195,7 @@ public abstract class AbstractSslProviderBuilder<K extends IPropertyKey> {
         try (InputStream in = url.openStream()) {
 
             final KeyStore keyStore;
-            if (JdbdStringUtils.hasText(storeType)) {
+            if (JdbdStrings.hasText(storeType)) {
                 keyStore = KeyStore.getInstance(storeType);
             } else {
                 keyStore = KeyStore.getInstance(KeyStore.getDefaultType());

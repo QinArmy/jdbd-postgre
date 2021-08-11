@@ -1,5 +1,6 @@
 package io.jdbd.vendor.util;
 
+import io.jdbd.type.geometry.WkbType;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
 import org.slf4j.Logger;
@@ -53,7 +54,7 @@ abstract class GenericGeometries {
             if (wkbArray.length < HEADER_LENGTH) {
                 throw createIllegalWkbLengthError(wkbArray.length, HEADER_LENGTH);
             } else {
-                elementCount = JdbdNumberUtils.readIntFromEndian(wkbArray[0] == 0, wkbArray, 5, 4);
+                elementCount = JdbdNumbers.readIntFromEndian(wkbArray[0] == 0, wkbArray, 5, 4);
             }
         }
         return elementCount;
@@ -125,7 +126,7 @@ abstract class GenericGeometries {
         }
 
         final boolean bigEndian = wkbArray[offset] == 0;
-        final int pointCount = JdbdNumberUtils.readIntFromEndian(bigEndian, wkbArray, offset + 5, 4);
+        final int pointCount = JdbdNumbers.readIntFromEndian(bigEndian, wkbArray, offset + 5, 4);
         StringBuilder builder = new StringBuilder(wkbType.coordinates() * pointCount * 8)
                 .append(wkbType.wktType);
         offsetOut[0] = lineStringTextToWkt(builder, wkbArray, wkbType, offset);
@@ -156,7 +157,7 @@ abstract class GenericGeometries {
         final boolean bigEndian = wkbArray[offset] == 0;
 
         final int lineStringCount;
-        lineStringCount = JdbdNumberUtils.readIntFromEndian(bigEndian, wkbArray, offset + 5, 4);
+        lineStringCount = JdbdNumbers.readIntFromEndian(bigEndian, wkbArray, offset + 5, 4);
 
         StringBuilder builder = new StringBuilder(wkbType.coordinates() * 8 * 4 * lineStringCount)
                 .append(wkbType.wktType);
@@ -195,7 +196,7 @@ abstract class GenericGeometries {
             throw createWkbLengthError(wkbType.wktType, wkbArray.length, offset + HEADER_LENGTH);
         }
         final int pointCount;
-        pointCount = JdbdNumberUtils.readIntFromEndian(wkbArray[offset] == 0, wkbArray, offset + 5, 4);
+        pointCount = JdbdNumbers.readIntFromEndian(wkbArray[offset] == 0, wkbArray, offset + 5, 4);
         StringBuilder builder = new StringBuilder((wkbType.coordinates() << 3) * pointCount)
                 .append(wkbType.wktType);
         offsetOut[0] = multiPointTextToWkt(builder, wkbArray, wkbType, offset);
@@ -229,7 +230,7 @@ abstract class GenericGeometries {
             throw createWkbLengthError(wkbType.wktType, wkbArray.length, offset + HEADER_LENGTH);
         }
         boolean bigEndian = wkbArray[offset] == 0;
-        final int lineStringCount = JdbdNumberUtils.readIntFromEndian(bigEndian, wkbArray, offset + 5, 4);
+        final int lineStringCount = JdbdNumbers.readIntFromEndian(bigEndian, wkbArray, offset + 5, 4);
         StringBuilder builder = new StringBuilder((wkbType.coordinates() << 3) * lineStringCount)
                 .append(wkbType.wktType);
 
@@ -255,7 +256,7 @@ abstract class GenericGeometries {
             throw createWkbLengthError(wkbType.wktType, wkbArray.length, offset + HEADER_LENGTH);
         }
         final boolean bigEndian = wkbArray[offset] == 0;
-        final int polygonCount = JdbdNumberUtils.readIntFromEndian(bigEndian, wkbArray, offset + 5, 4);
+        final int polygonCount = JdbdNumbers.readIntFromEndian(bigEndian, wkbArray, offset + 5, 4);
         StringBuilder builder = new StringBuilder((wkbType.coordinates() << 3) * polygonCount)
                 .append(wkbType.wktType);
         offsetOut[0] = multiPolygonTextToWkt(builder, wkbArray, wkbType, offset);
@@ -287,7 +288,7 @@ abstract class GenericGeometries {
             throw createUnsupportedWkb(wkbType);
         }
         final boolean bigEndian = wkbArray[offset] == 0;
-        final int geometryCount = JdbdNumberUtils.readIntFromEndian(bigEndian, wkbArray, offset + 5, 4);
+        final int geometryCount = JdbdNumbers.readIntFromEndian(bigEndian, wkbArray, offset + 5, 4);
 
         StringBuilder builder = new StringBuilder(geometryCount * 10)
                 .append(wkbType.wktType);
@@ -396,7 +397,7 @@ abstract class GenericGeometries {
                 if (i > 0) {
                     builder.append(" ");
                 }
-                builder.append(JdbdNumberUtils.readDoubleFromEndian(bigEndian, wkbArray, offset, 8));
+                builder.append(JdbdNumbers.readDoubleFromEndian(bigEndian, wkbArray, offset, 8));
                 offset += 8;
             }
             builder.append(")");
@@ -424,7 +425,7 @@ abstract class GenericGeometries {
         final boolean bigEndian = wkbArray[offset] == 0;
         offset += 5;
         final int lineStringCount;
-        lineStringCount = JdbdNumberUtils.readIntFromEndian(bigEndian, wkbArray, offset, 4);
+        lineStringCount = JdbdNumbers.readIntFromEndian(bigEndian, wkbArray, offset, 4);
         offset += 4;
         if (lineStringCount < 0) {
             throw createIllegalElementCount(lineStringCount);
@@ -442,7 +443,7 @@ abstract class GenericGeometries {
             if (i > 0) {
                 builder.append(",");
             }
-            pointCount = JdbdNumberUtils.readIntFromEndian(bigEndian, wkbArray, offset, 4);
+            pointCount = JdbdNumbers.readIntFromEndian(bigEndian, wkbArray, offset, 4);
             if (pointCount < 4) {
                 throw createIllegalLinearPointCountError(pointCount);
             }
@@ -470,7 +471,7 @@ abstract class GenericGeometries {
                     if (k > 0) {
                         builder.append(" ");
                     }
-                    builder.append(JdbdNumberUtils.readDoubleFromEndian(bigEndian, wkbArray, offset, 8));
+                    builder.append(JdbdNumbers.readDoubleFromEndian(bigEndian, wkbArray, offset, 8));
                     offset += 8;
                 }
             }
@@ -809,7 +810,7 @@ abstract class GenericGeometries {
         }
         final boolean bigEndian = wkbArray[offset] == 0;
         offset += 5;
-        final int pointCount = JdbdNumberUtils.readIntFromEndian(bigEndian, wkbArray, offset, 4);
+        final int pointCount = JdbdNumbers.readIntFromEndian(bigEndian, wkbArray, offset, 4);
         offset += 4;
         if (pointCount < 0) {
             throw createIllegalElementCount(pointCount);
@@ -830,7 +831,7 @@ abstract class GenericGeometries {
                 if (j > 0) {
                     builder.append(" ");
                 }
-                builder.append(JdbdNumberUtils.readDoubleFromEndian(bigEndian, wkbArray, offset, 8));
+                builder.append(JdbdNumbers.readDoubleFromEndian(bigEndian, wkbArray, offset, 8));
                 offset += 8;
             }
         }
@@ -850,7 +851,7 @@ abstract class GenericGeometries {
         }
         boolean bigEndian = wkbArray[offset] == 0;
         offset += 5;
-        final int pointCount = JdbdNumberUtils.readIntFromEndian(bigEndian, wkbArray, offset, 4);
+        final int pointCount = JdbdNumbers.readIntFromEndian(bigEndian, wkbArray, offset, 4);
         offset += 4;
         if (pointCount < 0) {
             throw createIllegalElementCount(pointCount);
@@ -885,7 +886,7 @@ abstract class GenericGeometries {
                 if (j > 0) {
                     builder.append(" ");
                 }
-                builder.append(JdbdNumberUtils.readDoubleFromEndian(bigEndian, wkbArray, offset, 8));
+                builder.append(JdbdNumbers.readDoubleFromEndian(bigEndian, wkbArray, offset, 8));
                 offset += 8;
             }
             builder.append(")");
@@ -907,7 +908,7 @@ abstract class GenericGeometries {
         }
         boolean bigEndian = wkbArray[offset] == 0;
         offset += 5;
-        final int lineStringCount = JdbdNumberUtils.readIntFromEndian(bigEndian, wkbArray, offset, 4);
+        final int lineStringCount = JdbdNumbers.readIntFromEndian(bigEndian, wkbArray, offset, 4);
         offset += 4;
         if (lineStringCount < 0) {
             throw createIllegalElementCount(lineStringCount);
@@ -934,7 +935,7 @@ abstract class GenericGeometries {
             }
             bigEndian = wkbArray[offset] == 0;
             offset += 5;
-            pointCount = JdbdNumberUtils.readIntFromEndian(bigEndian, wkbArray, offset, 4);
+            pointCount = JdbdNumbers.readIntFromEndian(bigEndian, wkbArray, offset, 4);
             offset += 4;
             if (pointCount < 0) {
                 throw createIllegalLinearPointCountError(pointCount);
@@ -956,7 +957,7 @@ abstract class GenericGeometries {
                     if (k > 0) {
                         builder.append(" ");
                     }
-                    builder.append(JdbdNumberUtils.readDoubleFromEndian(bigEndian, wkbArray, offset, 8));
+                    builder.append(JdbdNumbers.readDoubleFromEndian(bigEndian, wkbArray, offset, 8));
                     offset += 8;
                 }
             }
@@ -978,7 +979,7 @@ abstract class GenericGeometries {
         }
         final boolean bigEndian = wkbArray[offset] == 0;
         offset += 5;
-        final int polygonCount = JdbdNumberUtils.readIntFromEndian(bigEndian, wkbArray, offset, 4);
+        final int polygonCount = JdbdNumbers.readIntFromEndian(bigEndian, wkbArray, offset, 4);
         offset += 4;
         if (polygonCount < 0) {
             throw createIllegalElementCount(polygonCount);
@@ -1024,7 +1025,7 @@ abstract class GenericGeometries {
         boolean bigEndian = wkbArray[offset] == 0;
         offset += 5;
         final int geometryCount;
-        geometryCount = JdbdNumberUtils.readIntFromEndian(bigEndian, wkbArray, offset, 4);
+        geometryCount = JdbdNumbers.readIntFromEndian(bigEndian, wkbArray, offset, 4);
         offset += 4;
         if (geometryCount < 0) {
             throw createIllegalElementCount(geometryCount);
@@ -1259,7 +1260,7 @@ abstract class GenericGeometries {
                     break topFor;
                 }
                 d = Double.parseDouble(new String(Arrays.copyOfRange(inArray, startIndex, endIndex)));
-                JdbdNumberUtils.doubleToEndian(bigEndian, d, outArray, tempOutPosition);
+                JdbdNumbers.doubleToEndian(bigEndian, d, outArray, tempOutPosition);
                 tempOutPosition += 8;
                 tempInPosition = endIndex;
             }// parse coordinates and write to outArray.
@@ -1855,7 +1856,7 @@ abstract class GenericGeometries {
                 WkbType wkbType = WkbType.fromWkbArray(geometryOne, headerOffset);
                 throw createWkbLengthError(wkbType.wktType, geometryOne.length, offset + 4);
             }
-            elementCount = JdbdNumberUtils.readIntFromEndian(geometryOne[headerOffset] == 0, geometryOne, offset, 4);
+            elementCount = JdbdNumbers.readIntFromEndian(geometryOne[headerOffset] == 0, geometryOne, offset, 4);
             if (elementCount < 0) {
                 throw createIllegalElementCount(elementCount);
             }

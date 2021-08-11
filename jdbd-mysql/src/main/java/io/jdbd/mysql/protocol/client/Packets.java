@@ -3,7 +3,7 @@ package io.jdbd.mysql.protocol.client;
 import io.jdbd.JdbdSQLException;
 import io.jdbd.mysql.MySQLJdbdException;
 import io.jdbd.mysql.util.MySQLExceptions;
-import io.jdbd.mysql.util.MySQLNumberUtils;
+import io.jdbd.mysql.util.MySQLNumbers;
 import io.jdbd.vendor.stmt.Stmt;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
@@ -153,7 +153,7 @@ public abstract class Packets {
     }
 
     public static BigInteger readInt8AsBigInteger(ByteBuf byteBuf) {
-        return MySQLNumberUtils.unsignedLongToBigInteger(byteBuf.readLongLE());
+        return MySQLNumbers.unsignedLongToBigInteger(byteBuf.readLongLE());
     }
 
     public static long getInt8(ByteBuf byteBuf, int index) {
