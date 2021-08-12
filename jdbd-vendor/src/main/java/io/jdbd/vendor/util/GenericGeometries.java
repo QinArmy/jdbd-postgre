@@ -22,6 +22,47 @@ abstract class GenericGeometries {
     static final byte HEADER_LENGTH = 9;
 
 
+    public static boolean readEndian(final byte endianByte) {
+        final boolean endian;
+        switch (endianByte) {
+            case 0:
+                endian = true;
+                break;
+            case 1:
+                endian = false;
+                break;
+            default:
+                throw new IllegalArgumentException(String.format("endianByte[%s] error.", endianByte));
+        }
+        return endian;
+    }
+
+    /**
+     * <p>
+     * Check LINESTRING wkb and return point count.
+     * </p>
+     *
+     * @param wkb inclusive point
+     * @return element count
+     */
+    public static int checkLineStringWkb(byte[] wkb, WkbType expect) {
+        if (wkb.length < 9) {
+            throw new IllegalArgumentException("wkb length less than 9");
+        } else if (expect.family() != WkbType.LINE_STRING) {
+            throw new IllegalArgumentException("expect error");
+        }
+
+        final boolean endian = readEndian(wkb[0]);
+        if (WkbType.fromWkbArray(wkb, 0) != expect) {
+            throw new IllegalArgumentException(String.format("wkb type isn't expect type[%s]", expect));
+        }
+        final int elementCount = JdbdNumbers.readIntFromEndian(endian, wkb, 5, 4);
+        if (wkb.length != (9 + (elementCount * 8 * expect.coordinates()))) {
+            throw new IllegalArgumentException("wkb length error.");
+        }
+        return elementCount;
+    }
+
     public static boolean wkbEquals(final byte[] geometryOne, final byte[] geometryTwo) {
         final boolean match;
         if (geometryOne.length != geometryTwo.length) {
@@ -100,6 +141,7 @@ abstract class GenericGeometries {
     public static String lineStringToWkt(final byte[] wkbArray) {
         return lineStringToWkt(wkbArray, new int[]{0});
     }
+
 
 
     /**

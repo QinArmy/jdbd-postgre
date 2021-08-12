@@ -1,6 +1,7 @@
 package io.jdbd.vendor.type;
 
 import io.jdbd.type.geometry.Line;
+import io.jdbd.type.geometry.LineString;
 import io.jdbd.type.geometry.Point;
 import io.jdbd.type.geometry.WkbType;
 import io.jdbd.vendor.util.GeometryUtils;
@@ -28,7 +29,7 @@ public abstract class Geometries {
             throw new IllegalArgumentException("Non LineString.");
         }
         int offset = 0;
-        final boolean bigEndian = GeometryUtils.parseEndian(wkb[offset]);
+        final boolean bigEndian = GeometryUtils.readEndian(wkb[offset]);
         offset += 5;
         if (JdbdNumbers.readIntFromEndian(bigEndian, wkb, offset, 4) != 2) {
             throw new IllegalArgumentException("Non LineString.");
@@ -48,6 +49,10 @@ public abstract class Geometries {
         y = JdbdNumbers.readDoubleFromEndian(bigEndian, wkb, offset, 8);
 
         return LineImpl.create(point, point(x, y));
+    }
+
+    public static LineString lineStringFromWkb(final byte[] wkb) {
+        return LineStrings.fromWkbBytes(wkb);
     }
 
 

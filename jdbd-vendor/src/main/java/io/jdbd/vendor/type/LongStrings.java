@@ -23,6 +23,16 @@ public abstract class LongStrings implements LongString {
         return new PathLongString(Objects.requireNonNull(path, "path"));
     }
 
+
+    static IllegalStateException creteNotSupportStringError() {
+        return new IllegalStateException("Non-underlying String,use openReadOnlyChannel() method.");
+    }
+
+    static IllegalStateException creteNotSupportFileChannel() {
+        return new IllegalStateException("Non-underlying file,use asString() method.");
+    }
+
+
     private LongStrings() {
     }
 
@@ -47,7 +57,7 @@ public abstract class LongStrings implements LongString {
 
         @Override
         public FileChannel openReadOnlyChannel() {
-            throw new IllegalStateException(String.format("Not support %s", FileChannel.class.getName()));
+            throw creteNotSupportFileChannel();
         }
 
     }
@@ -78,7 +88,7 @@ public abstract class LongStrings implements LongString {
 
         @Override
         public String asString() throws IllegalStateException {
-            throw new IllegalStateException(String.format("Not support %s", String.class.getName()));
+            throw creteNotSupportStringError();
         }
 
         @Override

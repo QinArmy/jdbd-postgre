@@ -23,6 +23,14 @@ public abstract class LongBinaries implements LongBinary {
         return new PathLongBinary(Objects.requireNonNull(path, "path"));
     }
 
+    static IllegalStateException creteNotSupportArrayError() {
+        return new IllegalStateException("Non-underlying byte array,use openReadOnlyChannel() method.");
+    }
+
+    static IllegalStateException createNotSupportFileChannel() {
+        return new IllegalStateException("Non-underlying file,use asArray() method.");
+    }
+
 
     private LongBinaries() {
 
@@ -49,23 +57,23 @@ public abstract class LongBinaries implements LongBinary {
 
         @Override
         public FileChannel openReadOnlyChannel() {
-            throw new IllegalStateException(String.format("Not support %s", FileChannel.class.getName()));
+            throw createNotSupportFileChannel();
         }
 
 
     }
 
-    private static final class PathLongBinary implements LongBinary {
+    static class PathLongBinary implements LongBinary {
 
-        private final Path path;
+        final Path path;
 
-        private PathLongBinary(Path path) {
+        protected PathLongBinary(Path path) {
             this.path = path;
             TempFiles.addTempPath(path);
         }
 
         @Override
-        protected void finalize() throws Throwable {
+        protected final void finalize() throws Throwable {
             try {
                 TempFiles.removeTempPath(this.path);
                 Files.deleteIfExists(this.path);
@@ -75,17 +83,17 @@ public abstract class LongBinaries implements LongBinary {
         }
 
         @Override
-        public boolean isArray() {
+        public final boolean isArray() {
             return false;
         }
 
         @Override
-        public byte[] asArray() throws IllegalStateException {
-            throw new IllegalStateException(String.format("Not support %s", byte[].class.getName()));
+        public final byte[] asArray() throws IllegalStateException {
+            throw creteNotSupportArrayError();
         }
 
         @Override
-        public FileChannel openReadOnlyChannel() throws IOException {
+        public final FileChannel openReadOnlyChannel() throws IOException {
             return FileChannel.open(this.path, StandardOpenOption.READ, StandardOpenOption.DELETE_ON_CLOSE);
 
         }

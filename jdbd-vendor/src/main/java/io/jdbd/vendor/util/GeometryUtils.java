@@ -2,12 +2,18 @@ package io.jdbd.vendor.util;
 
 import io.jdbd.type.geometry.Point;
 import io.jdbd.type.geometry.WkbType;
+import io.jdbd.vendor.type.Geometries;
 import org.qinarmy.util.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import reactor.core.publisher.Flux;
 
+import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.channels.FileChannel;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
 
 
 /**
@@ -30,17 +36,87 @@ public abstract class GeometryUtils extends GenericGeometries {
                 .toString();
     }
 
-    public static boolean parseEndian(byte endianByte) {
-        final boolean bigEndian;
-        if (endianByte == 0) {
-            bigEndian = true;
-        } else if (endianByte == 1) {
-            bigEndian = false;
-        } else {
-            throw new IllegalArgumentException("Error endian order byte.");
-        }
-        return bigEndian;
+    public static Flux<Point> lineStringToPoints(final byte[] wkbArray) {
+        final int pintCount = checkLineStringWkb(wkbArray, WkbType.LINE_STRING);
+        final boolean bigEndian = wkbArray[0] == 0;
+
+        return Flux.create(sink -> {
+            double x, y;
+            final int endIndex = 9 + (pintCount << 4);
+
+            try {
+                for (int i = 9; i < endIndex; ) {
+                    x = JdbdNumbers.readDoubleFromEndian(bigEndian, wkbArray, i, 8);
+                    i += 8;
+                    y = JdbdNumbers.readDoubleFromEndian(bigEndian, wkbArray, i, 8);
+                    i += 8;
+                    sink.next(Geometries.point(x, y));
+                }
+                sink.complete();
+            } catch (Throwable e) {
+                sink.error(JdbdExceptions.wrap(e));
+            }
+        });
+
     }
+
+    public static Flux<Point> lineStringToPoints(final Path path) {
+        return Flux.create(sink -> {
+            try (FileChannel channel = FileChannel.open(path, StandardOpenOption.READ)) {
+                final long totalSize = channel.size();
+                final byte[] array = new byte[1024];
+                final ByteBuffer buffer = ByteBuffer.wrap(array);
+                if (channel.read(buffer) < 9) {
+                    sink.error(JdbdExceptions.wrap(new IOException(String.format("path[%s] size < 9", path))));
+                    return;
+                }
+                buffer.flip();
+                int offset = buffer.position(), limit = buffer.limit();
+
+                if (WkbType.fromWkbArray(array, offset) != WkbType.LINE_STRING) {
+                    sink.error(JdbdExceptions.wrap(new IOException(String.format("path[%s] non LINESTRING .", path))));
+                    return;
+                }
+                final boolean endian = readEndian(array[offset]);
+                offset += 5;
+                final long count = JdbdNumbers.readIntFromEndian(endian, array, offset, 4) & 0xFFFF_FFFFL;
+                if (totalSize != (9 + (count << 4))) {
+                    sink.error(JdbdExceptions.wrap(new IOException(String.format("path[%s] non LINESTRING.", path))));
+                    return;
+                }
+                offset += 4;
+                long actualCount = 0L;
+                while (true) {
+                    final int endIndex = offset + ((limit - offset) << 4);
+                    double x, y;
+                    for (int i = offset; i < endIndex; i++) {
+                        x = JdbdNumbers.readDoubleFromEndian(endian, array, i, 8);
+                        i += 8;
+                        y = JdbdNumbers.readDoubleFromEndian(endian, array, i, 8);
+                        i += 8;
+                        sink.next(Geometries.point(x, y));
+                        actualCount++;
+                    }
+
+                    JdbdBuffers.cumulateBuffer(buffer);
+                    if (channel.read(buffer) < 1) {
+                        break;
+                    }
+                    buffer.flip();
+                }
+
+                if (count == actualCount) {
+                    sink.complete();
+                } else {
+                    String m = String.format("path[%s] expect point count[%s] but %s.", path, count, actualCount);
+                    sink.error(JdbdExceptions.wrap(new IOException(m)));
+                }
+            } catch (Throwable e) {
+                sink.error(JdbdExceptions.wrap(e));
+            }
+        });
+    }
+
 
     public static byte[] geometryToWkb(final String wktText, final boolean bigEndian) {
         ByteBuffer inBuffer = ByteBuffer.wrap(wktText.getBytes(StandardCharsets.US_ASCII));

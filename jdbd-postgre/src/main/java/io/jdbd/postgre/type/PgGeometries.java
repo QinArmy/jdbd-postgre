@@ -1,6 +1,7 @@
 package io.jdbd.postgre.type;
 
 import io.jdbd.type.geometry.Line;
+import io.jdbd.type.geometry.LineString;
 import io.jdbd.type.geometry.WkbType;
 import io.jdbd.vendor.type.Geometries;
 import io.netty.buffer.ByteBuf;
@@ -46,6 +47,51 @@ public abstract class PgGeometries {
         }
         return Geometries.line(Geometries.point(coordinate[0], coordinate[1])
                 , Geometries.point(coordinate[2], coordinate[3]));
+    }
+
+    /**
+     * @param textValue format : ( ( x1 , y1 ) , ... , ( xn , yn ) )
+     * @return {@link LineString} that created by
+     * @see <a href="https://www.postgresql.org/docs/current/datatype-geometric.html#id-1.5.7.16.9">Paths</a>
+     */
+    public static LineString path(String textValue, final boolean bigEndian) {
+        if (!textValue.startsWith("(") || !textValue.endsWith(")")) {
+            throw createGeometricFormatError(textValue);
+        }
+        final ByteBuf out = ByteBufAllocator.DEFAULT.buffer(1024, 1 << 30);
+
+        //placeholder
+        if (bigEndian) {
+            out.writeByte(0);
+            out.writeInt(WkbType.LINE_STRING.code);
+        } else {
+            out.writeByte(1);
+            out.writeIntLE(WkbType.LINE_STRING.code);
+        }
+        out.writeZero(4); //placeholder
+        Consumer<Double> consumer = d -> {
+            if (bigEndian) {
+                out.writeLong(Double.doubleToLongBits(d));
+            } else {
+                out.writeLongLE(Double.doubleToLongBits(d));
+            }
+        };
+
+        final int newIndex;
+        newIndex = PgGeometries.doReadPoints(textValue, 0, consumer);
+        checkPgGeometricSuffix(textValue, newIndex);
+        return null;
+    }
+
+
+    protected static void checkPgGeometricSuffix(final String textValue, final int from) {
+        if (from < textValue.length()) {
+            for (int i = from, end = textValue.length() - 1; i < end; i++) {
+                if (!Character.isWhitespace(textValue.charAt(i))) {
+                    throw createGeometricFormatError(textValue);
+                }
+            }
+        }
     }
 
 

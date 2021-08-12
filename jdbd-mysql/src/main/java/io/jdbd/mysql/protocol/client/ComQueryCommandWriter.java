@@ -15,7 +15,7 @@ import io.jdbd.mysql.util.*;
 import io.jdbd.stmt.LongDataReadException;
 import io.jdbd.vendor.conf.Properties;
 import io.jdbd.vendor.stmt.Stmt;
-import io.jdbd.vendor.util.JdbdBufferUtils;
+import io.jdbd.vendor.util.JdbdBuffers;
 import io.netty.buffer.ByteBuf;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -485,7 +485,7 @@ final class ComQueryCommandWriter {
             if (nonNull instanceof byte[]) {
                 byte[] bytes = (byte[]) nonNull;
                 if (this.hexEscape) {
-                    MySQLBufferUtils.writeUpperCaseHexEscapes(packet, bytes, bytes.length);
+                    MySQLBuffers.writeUpperCaseHexEscapes(packet, bytes, bytes.length);
                 } else {
                     writeByteEscapes(packet, bytes, bytes.length);
                 }
@@ -501,7 +501,7 @@ final class ComQueryCommandWriter {
             } else if (nonNull instanceof String) {
                 byte[] bytes = ((String) nonNull).getBytes(this.clientCharset);
                 if (this.hexEscape) {
-                    MySQLBufferUtils.writeUpperCaseHexEscapes(packet, bytes, bytes.length);
+                    MySQLBuffers.writeUpperCaseHexEscapes(packet, bytes, bytes.length);
                 } else {
                     writeByteEscapes(packet, bytes, bytes.length);
                 }
@@ -547,7 +547,7 @@ final class ComQueryCommandWriter {
         }
         final byte[] bytes = builder.toString().getBytes(this.clientCharset);
         if (this.hexEscape) {
-            JdbdBufferUtils.writeUpperCaseHexEscapes(packetBuffer, bytes, bytes.length);
+            JdbdBuffers.writeUpperCaseHexEscapes(packetBuffer, bytes, bytes.length);
         } else {
             writeByteEscapes(packetBuffer, bytes, bytes.length);
         }
@@ -631,14 +631,14 @@ final class ComQueryCommandWriter {
             if (nonNull instanceof byte[]) {
                 byte[] bytes = (byte[]) nonNull;
                 if (this.hexEscape) {
-                    JdbdBufferUtils.writeUpperCaseHexEscapes(packet, bytes, bytes.length);
+                    JdbdBuffers.writeUpperCaseHexEscapes(packet, bytes, bytes.length);
                 } else {
                     writeByteEscapes(packet, bytes, bytes.length);
                 }
             } else if (nonNull instanceof CharSequence) {
                 byte[] bytes = nonNull.toString().getBytes(this.clientCharset);
                 if (this.hexEscape) {
-                    JdbdBufferUtils.writeUpperCaseHexEscapes(packet, bytes, bytes.length);
+                    JdbdBuffers.writeUpperCaseHexEscapes(packet, bytes, bytes.length);
                 } else {
                     writeByteEscapes(packet, bytes, bytes.length);
                 }
@@ -652,7 +652,7 @@ final class ComQueryCommandWriter {
             } else if (nonNull instanceof char[]) {
                 byte[] bytes = new String((char[]) nonNull).getBytes(this.clientCharset);
                 if (this.hexEscape) {
-                    JdbdBufferUtils.writeUpperCaseHexEscapes(packet, bytes, bytes.length);
+                    JdbdBuffers.writeUpperCaseHexEscapes(packet, bytes, bytes.length);
                 } else {
                     writeByteEscapes(packet, bytes, bytes.length);
                 }
@@ -779,7 +779,7 @@ final class ComQueryCommandWriter {
             final ByteBuffer byteBuffer = ByteBuffer.wrap(bufferArray);
             while (channel.read(byteBuffer) > 0) {
                 if (hexEscapes) {
-                    JdbdBufferUtils.writeUpperCaseHexEscapes(packet, bufferArray, byteBuffer.remaining());
+                    JdbdBuffers.writeUpperCaseHexEscapes(packet, bufferArray, byteBuffer.remaining());
                 } else {
                     writeByteEscapes(packet, bufferArray, byteBuffer.remaining());
                 }
@@ -831,7 +831,7 @@ final class ComQueryCommandWriter {
                 byteBuffer.get(bufferArray);
 
                 if (hexEscapes) {
-                    JdbdBufferUtils.writeUpperCaseHexEscapes(packet, bufferArray, bufferArray.length);
+                    JdbdBuffers.writeUpperCaseHexEscapes(packet, bufferArray, bufferArray.length);
                 } else {
                     writeByteEscapes(packet, bufferArray, bufferArray.length);
                 }
@@ -877,7 +877,7 @@ final class ComQueryCommandWriter {
             final byte[] bufferArray = new byte[2048];
             while ((length = input.read(bufferArray)) > 0) {
                 if (hexEscape) {
-                    JdbdBufferUtils.writeUpperCaseHexEscapes(packet, bufferArray, length);
+                    JdbdBuffers.writeUpperCaseHexEscapes(packet, bufferArray, length);
                 } else {
                     writeByteEscapes(packet, bufferArray, length);
                 }

@@ -9,7 +9,7 @@ import io.jdbd.vendor.result.ResultRowSink;
 import io.jdbd.vendor.result.ResultSetReader;
 import io.jdbd.vendor.type.LongBinaries;
 import io.jdbd.vendor.util.GeometryUtils;
-import io.jdbd.vendor.util.JdbdBufferUtils;
+import io.jdbd.vendor.util.JdbdBuffers;
 import io.netty.buffer.ByteBuf;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -247,7 +247,7 @@ final class DefaultResultSetReader implements ResultSetReader {
                 byte[] bytes;
                 if (textValue.startsWith("\\x")) {
                     bytes = textValue.substring(2).getBytes(StandardCharsets.UTF_8);
-                    bytes = JdbdBufferUtils.decodeHex(bytes, bytes.length);
+                    bytes = JdbdBuffers.decodeHex(bytes, bytes.length);
                 } else {
                     bytes = bytesValue;
                 }
