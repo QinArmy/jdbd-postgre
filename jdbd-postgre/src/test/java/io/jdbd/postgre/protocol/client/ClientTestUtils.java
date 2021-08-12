@@ -6,6 +6,7 @@ import org.qinarmy.env.ImmutableMapEnvironment;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.URL;
 import java.nio.file.*;
 import java.util.Collections;
 import java.util.HashMap;
@@ -42,6 +43,22 @@ public abstract class ClientTestUtils {
     public static Path getTestMyLocalPath() {
         Path modelPath = getModulePath();
         return Paths.get(modelPath.toString(), "target/test-classes/my-local");
+    }
+
+    public static Path getClassPath() {
+        URL url = ClientTestUtils.class.getClassLoader().getResource("");
+        if (url == null) {
+            throw new RuntimeException("no class path");
+        }
+        String urlText = url.toString();
+        String prefix = "file:";
+        Path path;
+        if (urlText.startsWith(prefix)) {
+            path = Paths.get(urlText.substring(prefix.length()));
+        } else {
+            path = Paths.get(urlText);
+        }
+        return path;
     }
 
     public static Path getTestResourcesPath() {

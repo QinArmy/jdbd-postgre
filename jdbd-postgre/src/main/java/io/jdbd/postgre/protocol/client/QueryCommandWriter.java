@@ -20,7 +20,7 @@ final class QueryCommandWriter {
 
     static Iterable<ByteBuf> createStaticSingleCommand(Stmt stmt, TaskAdjutant adjutant) {
         final byte[] sqlBytes = stmt.getSql().getBytes(Encoding.CLIENT_CHARSET);
-
+         //couldn't create byte[Integer.MAX_VALUE] ,because  java.lang.OutOfMemoryError: Requested array size exceeds VM limit
         ByteBuf message = adjutant.allocator().buffer(6 + sqlBytes.length);
 
         message.writeByte(Messages.Q);

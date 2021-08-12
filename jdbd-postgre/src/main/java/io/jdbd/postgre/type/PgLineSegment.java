@@ -12,7 +12,7 @@ final class PgLineSegment implements LongBinary, PrintableData {
 
     static PgLineSegment parse(final String textValue, final boolean bigEndian)
             throws IllegalArgumentException {
-        return new PgLineSegment(textValue, PgGeometries.lineSegmentToWkb(textValue, bigEndian));
+        return new PgLineSegment(textValue, PgTypes.lineSegmentToWkb(textValue, bigEndian));
     }
 
     private final String textValue;

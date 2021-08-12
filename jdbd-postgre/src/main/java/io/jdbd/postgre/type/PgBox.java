@@ -4,7 +4,7 @@ import io.jdbd.type.geometry.Point;
 import io.jdbd.vendor.type.Geometries;
 
 import java.util.Objects;
-import java.util.function.Consumer;
+import java.util.function.BiConsumer;
 
 /**
  * @see <a href="https://www.postgresql.org/docs/current/datatype-geometric.html#id-1.5.7.16.8">Boxes</a>
@@ -17,20 +17,20 @@ public final class PgBox {
     public static PgBox parse(final String textValue) {
         final String format = "Text[%s] isn't postgre box.";
 
-        final Double[] coordinate = new Double[4];
-        final int[] index = new int[]{0};
-        Consumer<Double> consumer = d -> {
-            if (index[0] < coordinate.length) {
-                coordinate[index[0]++] = Objects.requireNonNull(d, "d");
+        final Point[] points = new Point[2];
+        final BiConsumer<Double, Double> pointConsumer = (x, y) -> {
+            if (points[0] == null) {
+                points[0] = Geometries.point(x, y);
+            } else if (points[1] == null) {
+                points[1] = Geometries.point(x, y);
             } else {
                 throw new IllegalArgumentException(String.format(format, textValue));
             }
         };
-
         final int newIndex;
-        newIndex = PgGeometries.doReadPoints(textValue, 0, consumer);
+        newIndex = PgTypes.doReadPoints(textValue, 0, pointConsumer);
 
-        if (index[0] < coordinate.length) {
+        if (points[1] == null) {
             throw new IllegalArgumentException(String.format(format, textValue));
         } else if (newIndex < textValue.length()) {
             for (int i = newIndex, end = textValue.length(); i < end; i++) {
@@ -39,8 +39,7 @@ public final class PgBox {
                 }
             }
         }
-        return new PgBox(Geometries.point(coordinate[0], coordinate[1])
-                , Geometries.point(coordinate[2], coordinate[3]));
+        return new PgBox(points[0], points[1]);
     }
 
     public static PgBox create(Point point1, Point point2) {

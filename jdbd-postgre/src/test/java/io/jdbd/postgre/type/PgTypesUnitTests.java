@@ -12,20 +12,20 @@ import org.slf4j.LoggerFactory;
 import org.testng.annotations.Test;
 
 import java.util.Arrays;
-import java.util.function.Consumer;
+import java.util.function.BiConsumer;
 
 import static org.testng.Assert.*;
 
 /**
- * @see PgGeometries
+ * @see PgTypes
  */
-public class PgGeometriesUnitTests {
+public class PgTypesUnitTests {
 
-    private static final Logger LOG = LoggerFactory.getLogger(PgGeometriesUnitTests.class);
+    private static final Logger LOG = LoggerFactory.getLogger(PgTypesUnitTests.class);
 
 
     /**
-     * @see PgGeometries#doReadPoints(String, int, Consumer)
+     * @see PgTypes#doReadPoints(String, int, BiConsumer)
      */
     @Test
     public void doReadPoints() {
@@ -33,17 +33,17 @@ public class PgGeometriesUnitTests {
         String pointsText;
         final ByteBuf out = ByteBufAllocator.DEFAULT.buffer(100);
         int newIndex;
-        final Consumer<Double> consumer = d -> out.writeLong(Double.doubleToLongBits(d));
+        final BiConsumer<Double, Double> pointConsumer = PgTypes.writePointWkbFunction(false, out);
         try {
             pointsText = " (0, 0 ) , (1, 1)     ";
-            newIndex = PgGeometries.doReadPoints(pointsText, 0, consumer);
+            newIndex = PgTypes.doReadPoints(pointsText, 0, pointConsumer);
 
             assertTrue(newIndex > pointsText.lastIndexOf(')'), "newIndex");
             assertEquals(out.readableBytes(), 2 * 16, "point count");
             out.clear();
 
             pointsText = String.format(" (0, 0 ) , (1, 1),(%s,%s)  ,(454.0,32.2)   ", Double.MAX_VALUE, Double.MIN_VALUE);
-            newIndex = PgGeometries.doReadPoints(pointsText, 0, consumer);
+            newIndex = PgTypes.doReadPoints(pointsText, 0, pointConsumer);
 
             assertTrue(newIndex > pointsText.lastIndexOf(')'), "newIndex");
             assertEquals(out.readableBytes(), 4 * 16, "point count");
@@ -55,7 +55,7 @@ public class PgGeometriesUnitTests {
     }
 
     /**
-     * @see PgGeometries#doReadPoints(String, int, Consumer)
+     * @see PgTypes#doReadPoints(String, int, BiConsumer)
      */
     @Test(expectedExceptions = IllegalArgumentException.class)
     public void doReadPointsWithError1() {
@@ -64,9 +64,9 @@ public class PgGeometriesUnitTests {
         final ByteBuf out = ByteBufAllocator.DEFAULT.buffer(100);
 
         pointsText = " (0, 0 ) , (1, 1) ,    ";
-        final Consumer<Double> consumer = d -> out.writeLong(Double.doubleToLongBits(d));
+        final BiConsumer<Double, Double> pointConsumer = PgTypes.writePointWkbFunction(false, out);
         try {
-            PgGeometries.doReadPoints(pointsText, 0, consumer);
+            PgTypes.doReadPoints(pointsText, 0, pointConsumer);
             fail("doReadPointsWithError1 test failure.");
         } catch (IllegalArgumentException e) {
             LOG.info("doReadPointsWithError1 test success. message : {}", e.getMessage());
@@ -78,7 +78,7 @@ public class PgGeometriesUnitTests {
     }
 
     /**
-     * @see PgGeometries#doReadPoints(String, int, Consumer)
+     * @see PgTypes#doReadPoints(String, int, BiConsumer)
      */
     @Test(expectedExceptions = IllegalArgumentException.class)
     public void doReadPointsWithError2() {
@@ -87,9 +87,9 @@ public class PgGeometriesUnitTests {
         final ByteBuf out = ByteBufAllocator.DEFAULT.buffer(100);
 
         pointsText = " (0, 0 ) , (1, 1) ()    ";
-        final Consumer<Double> consumer = d -> out.writeLong(Double.doubleToLongBits(d));
+        final BiConsumer<Double, Double> pointConsumer = PgTypes.writePointWkbFunction(false, out);
         try {
-            PgGeometries.doReadPoints(pointsText, 0, consumer);
+            PgTypes.doReadPoints(pointsText, 0, pointConsumer);
             fail("doReadPointsWithError2 test failure.");
         } catch (IllegalArgumentException e) {
             LOG.info("doReadPointsWithError2 test success. message : {}", e.getMessage());
@@ -101,7 +101,7 @@ public class PgGeometriesUnitTests {
     }
 
     /**
-     * @see PgGeometries#doReadPoints(String, int, Consumer)
+     * @see PgTypes#doReadPoints(String, int, BiConsumer)
      */
     @Test(expectedExceptions = IllegalArgumentException.class)
     public void doReadPointsWithError3() {
@@ -110,11 +110,9 @@ public class PgGeometriesUnitTests {
         final ByteBuf out = ByteBufAllocator.DEFAULT.buffer(100);
 
         pointsText = " (0, 0 ) , (1, 1) ,(3434,    ";
-        final Consumer<Double> consumer = d -> {
-            out.writeLong(Double.doubleToLongBits(d));
-        };
+        final BiConsumer<Double, Double> pointConsumer = PgTypes.writePointWkbFunction(false, out);
         try {
-            PgGeometries.doReadPoints(pointsText, 0, consumer);
+            PgTypes.doReadPoints(pointsText, 0, pointConsumer);
             fail("doReadPointsWithError3 test failure.");
         } catch (IllegalArgumentException e) {
             LOG.info("doReadPointsWithError3 test success. message : {}", e.getMessage());
@@ -126,7 +124,7 @@ public class PgGeometriesUnitTests {
     }
 
     /**
-     * @see PgGeometries#lineSegmentToWkb(String, boolean)
+     * @see PgTypes#lineSegmentToWkb(String, boolean)
      */
     @Test
     public void lineSegmentToWbk() {
@@ -137,7 +135,7 @@ public class PgGeometriesUnitTests {
         final boolean bigEndian = false;
 
         pointsText = "[ (0, 0 ) , (1, 1)]";
-        wkb = PgGeometries.lineSegmentToWkb(pointsText, bigEndian);
+        wkb = PgTypes.lineSegmentToWkb(pointsText, bigEndian);
         LOG.info("WKB type:{}", JdbdNumbers.readIntFromEndian(false, wkb, 1, 4));
         final String wkt = "LINESTRING(0 0,1 1)";
 
@@ -146,7 +144,7 @@ public class PgGeometriesUnitTests {
     }
 
     /**
-     * @see PgGeometries#doReadPoints(String, int, Consumer)
+     * @see PgTypes#doReadPoints(String, int, BiConsumer)
      */
     @Test(expectedExceptions = IllegalArgumentException.class)
     public void lineSegmentToWbkWithError1() {
@@ -157,7 +155,7 @@ public class PgGeometriesUnitTests {
         pointsText = "[ (0, 0 ) , (1, 1) this is evil. ]";
 
         try {
-            PgGeometries.lineSegmentToWkb(pointsText, false);
+            PgTypes.lineSegmentToWkb(pointsText, false);
             fail("lineSegmentToWbkWithError1 test failure.");
         } catch (IllegalArgumentException e) {
             LOG.info("lineSegmentToWbkWithError1 test success. message : {}", e.getMessage());
@@ -226,7 +224,7 @@ public class PgGeometriesUnitTests {
 
         text = String.format("[(%s,%s),(%s,%s)]", point1.getX(), point1.getY()
                 , point2.getX(), point2.getY());
-        line = PgGeometries.lineSegment(text);
+        line = PgTypes.lineSegment(text);
 
         assertEquals(line.getPoint1(), point1, "point1");
         assertEquals(line.getPoint2(), point2, "point2");

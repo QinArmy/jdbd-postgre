@@ -1,9 +1,6 @@
 package io.jdbd.vendor.type;
 
-import io.jdbd.type.geometry.Line;
-import io.jdbd.type.geometry.LineString;
-import io.jdbd.type.geometry.Point;
-import io.jdbd.type.geometry.WkbType;
+import io.jdbd.type.geometry.*;
 import io.jdbd.vendor.util.GeometryUtils;
 import io.jdbd.vendor.util.JdbdNumbers;
 
@@ -55,5 +52,8 @@ public abstract class Geometries {
         return LineStrings.fromWkbBytes(wkb);
     }
 
+    public static Circle circle(Point center, double radius) {
+        return CircleImpl.create(center, radius);
+    }
 
 }

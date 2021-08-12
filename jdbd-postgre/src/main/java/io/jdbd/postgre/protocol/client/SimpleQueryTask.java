@@ -81,6 +81,7 @@ final class SimpleQueryTask extends PgTask {
     private SimpleQueryTask(List<Stmt> stmtList, MultiResultSink sink, TaskAdjutant adjutant)
             throws SQLException {
         super(adjutant);
+        // Object is too large to send over the protocol.
         this.packetPublisher = Flux.fromIterable(QueryCommandWriter.createStaticSingleCommand(stmtList, adjutant));
         this.downstreamSink = new MultiResultDownstreamSink(this, sink);
     }
