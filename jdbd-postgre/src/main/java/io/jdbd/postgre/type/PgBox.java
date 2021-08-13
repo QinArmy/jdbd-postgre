@@ -14,7 +14,7 @@ public final class PgBox implements PGobject {
     /**
      * @param textValue like ( x1 , y1 ) , ( x2 , y2 )
      */
-    public static PgBox parse(final String textValue) {
+    public static PgBox from(final String textValue) {
         final String format = "Text[%s] isn't postgre box.";
 
         final Point[] points = new Point[2];
@@ -28,7 +28,7 @@ public final class PgBox implements PGobject {
             }
         };
         final int newIndex;
-        newIndex = PgGeometries.doReadPoints(textValue, 0, pointConsumer);
+        newIndex = PgGeometries.readPoints(textValue, 0, pointConsumer);
 
         if (points[1] == null) {
             throw new IllegalArgumentException(String.format(format, textValue));

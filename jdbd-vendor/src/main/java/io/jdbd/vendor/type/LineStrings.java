@@ -41,6 +41,12 @@ abstract class LineStrings {
 
         @Override
         public final byte[] asArray() throws IllegalStateException {
+            return toWkb();
+        }
+
+
+        @Override
+        public final byte[] toWkb() throws IllegalStateException {
             return Arrays.copyOf(this.wkbArray, this.wkbArray.length);
         }
 
@@ -57,6 +63,16 @@ abstract class LineStrings {
         @Override
         public final String toString() {
             return GeometryUtils.lineStringToWkt(this.wkbArray);
+        }
+
+        @Override
+        public final int hashCode() {
+            return super.hashCode();
+        }
+
+        @Override
+        public final boolean equals(Object obj) {
+            return super.equals(obj);
         }
 
     }

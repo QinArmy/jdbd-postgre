@@ -6,10 +6,5 @@ public interface Circle {
 
     double getRadius();
 
-    /**
-     * @return format : Circle(center:x,y;radius:r)
-     */
-    @Override
-    String toString();
 
 }

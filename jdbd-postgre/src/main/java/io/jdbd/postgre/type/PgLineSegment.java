@@ -1,14 +1,12 @@
 package io.jdbd.postgre.type;
 
 import io.jdbd.type.geometry.Line;
-import io.jdbd.type.geometry.LineString;
 import io.jdbd.type.geometry.Point;
 import io.jdbd.vendor.type.Geometries;
 import io.jdbd.vendor.util.GeometryUtils;
 import reactor.core.publisher.Flux;
 
 import java.nio.channels.FileChannel;
-import java.util.Objects;
 import java.util.function.BiConsumer;
 
 /**
@@ -33,7 +31,7 @@ final class PgLineSegment implements Line {
         };
 
         final int newIndex;
-        newIndex = PgGeometries.doReadPoints(textValue, 1, pointConsumer);
+        newIndex = PgGeometries.readPoints(textValue, 1, pointConsumer);
 
         if (points[1] == null) {
             throw PgGeometries.createGeometricFormatError(textValue);
@@ -67,8 +65,8 @@ final class PgLineSegment implements Line {
 
 
     @Override
-    public byte[] toWkb(boolean bigEndian) throws IllegalStateException {
-        return GeometryUtils.lineToWkb(this.point1, this.point2, bigEndian);
+    public byte[] toWkb() throws IllegalStateException {
+        return GeometryUtils.lineToWkb(this.point1, this.point2, true);
     }
 
 
@@ -79,7 +77,7 @@ final class PgLineSegment implements Line {
 
     @Override
     public final byte[] asArray() throws IllegalStateException {
-        return toWkb(false);
+        return toWkb();
     }
 
 
@@ -100,25 +98,14 @@ final class PgLineSegment implements Line {
 
     @Override
     public final int hashCode() {
-        return Objects.hash(this.point1, this.point2);
+        return super.hashCode();
     }
 
     @Override
     public final boolean equals(Object obj) {
-        final boolean match;
-        if (obj == this) {
-            match = true;
-        } else if (obj instanceof Line) {
-            Line line = (Line) obj;
-            match = this.point1.equals(line.getPoint1())
-                    && this.point2.equals(line.getPoint2());
-        } else if (obj instanceof LineString) {
-            match = GeometryUtils.lineStringEquals(this, (LineString) obj);
-        } else {
-            match = false;
-        }
-        return match;
+        return super.equals(obj);
     }
+
 
     @Override
     public final String toString() {

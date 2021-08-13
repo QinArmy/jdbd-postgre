@@ -31,9 +31,10 @@ final class PointImpl implements Point {
         return this.y;
     }
 
+
     @Override
-    public final byte[] toWkb(boolean bigEndian) {
-        return GeometryUtils.pointToWkb(this, bigEndian);
+    public final byte[] toWkb() {
+        return GeometryUtils.pointToWkb(this, false);
     }
 
     @Override

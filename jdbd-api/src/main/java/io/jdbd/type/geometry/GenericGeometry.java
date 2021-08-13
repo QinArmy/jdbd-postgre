@@ -3,10 +3,10 @@ package io.jdbd.type.geometry;
 public interface GenericGeometry {
 
     /**
-     * @return wkb
+     * @return wkb with big endian.
      * @throws IllegalStateException when content too long.
      */
-    byte[] toWkb(boolean bigEndian) throws IllegalStateException;
+    byte[] toWkb() throws IllegalStateException;
 
 
     /**

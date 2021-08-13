@@ -30,4 +30,16 @@ public interface LongGenericGeometry extends GenericGeometry, LongBinary {
      */
     String toWkt();
 
+    /**
+     * @return always same with {@link Object#hashCode()}, because maybe too long and driver shouldn't do this.
+     */
+    @Override
+    int hashCode();
+
+    /**
+     * @return always same with {@link Object#equals(Object)}, because maybe too long and driver shouldn't do this.
+     */
+    @Override
+    boolean equals(Object obj);
+
 }

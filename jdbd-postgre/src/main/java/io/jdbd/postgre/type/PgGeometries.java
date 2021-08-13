@@ -35,57 +35,8 @@ public abstract class PgGeometries {
      * @return {@link LineString} that created by
      * @see <a href="https://www.postgresql.org/docs/current/datatype-geometric.html#id-1.5.7.16.9">Paths</a>
      */
-    public static LineString path(final String textValue, final boolean bigEndian) {
-        if (!(textValue.startsWith("(") && textValue.endsWith(")"))
-                && !(textValue.startsWith("[") && textValue.endsWith("]"))) {
-            throw createGeometricFormatError(textValue);
-        }
-        // assume 5 byte each number, initialCapacity = WKB header(9) + point count * 16 .
-        // one pont char count = 5 * 2 + '(' + ',' + ')' + ',' = 14
-        // so below
-        final int initialCapacity = 9 + (((textValue.length() - 2) / 14) << 4);
-        final ByteBuf out = ByteBufAllocator.DEFAULT.buffer(initialCapacity, Integer.MAX_VALUE);
-
-        // 1. write wkb header
-        if (bigEndian) {
-            out.writeByte(0);
-            out.writeInt(WkbType.LINE_STRING.code);
-        } else {
-            out.writeByte(1);
-            out.writeIntLE(WkbType.LINE_STRING.code);
-        }
-        out.writeZero(4); //placeholder
-
-        // 2. create consumer function
-        final BiConsumer<Double, Double> pointConsumer = writePointWkbFunction(bigEndian, out);
-
-        try {
-            // 3. read points
-            final int newIndex;
-            newIndex = PgGeometries.doReadPoints(textValue, 1, pointConsumer);
-            checkPgGeometricSuffix(textValue, newIndex);
-            // 4. validate point count
-            final int pointCount = (out.readableBytes() - 9) >> 4;
-            if (pointCount < 2) {
-                throw new IllegalArgumentException(String.format("textValue[%s] isn't postgre path.", textValue));
-            }
-            // 5 write point count.
-            final int writerIndex = out.writerIndex();
-            out.writerIndex(5); // index of placeholder
-            if (bigEndian) {
-                out.writeInt(pointCount);
-            } else {
-                out.writeIntLE(pointCount);
-            }
-            out.writerIndex(writerIndex);
-
-            // 6. copy wkb as array
-            byte[] wkbBytes = new byte[out.readableBytes()];
-            out.readBytes(wkbBytes);
-            return Geometries.lineStringFromWkb(wkbBytes);
-        } finally {
-            out.release();
-        }
+    public static LineString path(final String textValue) {
+        return PgPath.wrap(textValue);
 
     }
 
@@ -93,27 +44,7 @@ public abstract class PgGeometries {
      * @see <a href="https://www.postgresql.org/docs/current/datatype-geometric.html#DATATYPE-CIRCLE">Circles</a>
      */
     public static Circle circle(String textValue) {
-        if (!textValue.startsWith("<") || !textValue.endsWith(">")) {
-            throw createGeometricFormatError(textValue);
-        }
-        int leftIndex, rightIndex, commaIndex;
-        leftIndex = textValue.indexOf('(', 1);
-        rightIndex = textValue.indexOf(')', 1);
-        commaIndex = textValue.indexOf(',', 1);
-        if (leftIndex > 0 && commaIndex > leftIndex && rightIndex > commaIndex) {
-            double x, y, r;
-            x = Double.parseDouble(textValue.substring(leftIndex + 1, commaIndex).trim());
-            y = Double.parseDouble(textValue.substring(commaIndex + 1, rightIndex).trim());
-            commaIndex = textValue.indexOf(',', rightIndex + 1);
-            if (commaIndex < 0) {
-                throw createGeometricFormatError(textValue);
-            }
-            r = Double.parseDouble(textValue.substring(commaIndex + 1, textValue.length() - 1).trim());
-            return Geometries.circle(Geometries.point(x, y), r);
-        } else {
-            throw createGeometricFormatError(textValue);
-        }
-
+        return PgCircle.from(textValue);
     }
 
 
@@ -121,7 +52,7 @@ public abstract class PgGeometries {
      * @param textValue format : ( ( x1 , y1 ) , ... , ( xn , yn ) )
      * @see <a href="https://www.postgresql.org/docs/current/datatype-geometric.html#DATATYPE-POLYGON">Polygons</a>
      */
-    public static void polygonToPoints(final String textValue, FluxSink<Point> sink) {
+    protected static void polygonToPoints(final String textValue, FluxSink<Point> sink) {
 
         if (!textValue.startsWith("(") || !textValue.endsWith(")")) {
             sink.error(JdbdExceptions.wrap(createGeometricFormatError(textValue)));
@@ -130,7 +61,7 @@ public abstract class PgGeometries {
             try {
                 // 3. read points
                 final int newIndex;
-                newIndex = PgGeometries.doReadPoints(textValue, 1, pointConsumer);
+                newIndex = PgGeometries.readPoints(textValue, 1, pointConsumer);
                 checkPgGeometricSuffix(textValue, newIndex);
                 sink.complete();
             } catch (Throwable e) {
@@ -190,7 +121,7 @@ public abstract class PgGeometries {
             }
             final int newIndex, writerIndex = out.writerIndex();
             final BiConsumer<Double, Double> pointConsumer = writePointWkbFunction(bigEndian, out);
-            newIndex = doReadPoints(textValue, 1, pointConsumer);
+            newIndex = readPoints(textValue, 1, pointConsumer);
             if ((out.writerIndex() - writerIndex) != 32) {
                 throw createGeometricFormatError(textValue);
             }
@@ -211,7 +142,7 @@ public abstract class PgGeometries {
     /**
      * @return new index of text
      */
-    protected static int doReadPoints(final String text, final int from
+    protected static int readPoints(final String text, final int from
             , final BiConsumer<Double, Double> pointConsumer) {
         final int length = text.length();
         double x, y;
@@ -245,7 +176,7 @@ public abstract class PgGeometries {
             commaIndex = text.indexOf(',', index);
             leftIndex = text.indexOf('(', index);
             if (commaIndex < 0) {
-                if (text.indexOf('(', index) < text.indexOf(')', index)) {
+                if (leftIndex > 0 && leftIndex < text.indexOf(')', index)) {
                     throw createGeometricFormatError(text);
                 }
                 // no more point

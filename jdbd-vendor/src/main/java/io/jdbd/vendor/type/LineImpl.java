@@ -49,39 +49,29 @@ final class LineImpl implements Line {
     }
 
     @Override
-    public final byte[] toWkb(boolean bigEndian) throws IllegalStateException {
-        return GeometryUtils.lineToWkb(this.point1, this.point2, bigEndian);
+    public final byte[] toWkb() throws IllegalStateException {
+        return GeometryUtils.lineToWkb(this.point1, this.point2, false);
     }
 
     @Override
     public final byte[] asArray() throws IllegalStateException {
-        return toWkb(false);
+        return toWkb();
     }
 
     @Override
     public final FileChannel openReadOnlyChannel() throws IllegalStateException {
-        throw new IllegalStateException("Non-underlying file,use asArray() method.");
+        throw LongBinaries.createNotSupportFileChannel();
     }
 
 
     @Override
     public final int hashCode() {
-        return Objects.hash(this.point1, this.point2);
+        return super.hashCode();
     }
 
     @Override
     public final boolean equals(Object obj) {
-        final boolean match;
-        if (obj == this) {
-            match = true;
-        } else if (obj instanceof Line) {
-            Line l = (Line) obj;
-            match = this.point1.equals(l.getPoint1())
-                    && this.point2.equals(l.getPoint2());
-        } else {
-            match = false;
-        }
-        return match;
+        return super.equals(obj);
     }
 
     @Override

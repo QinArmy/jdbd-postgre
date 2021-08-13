@@ -9,6 +9,8 @@ import java.util.Objects;
  * <p>
  * JDBD statement bind method not don't support this type,only supported by {@link io.jdbd.result.ResultRow}.
  * </p>
+ *
+ * @see <a href="https://www.postgresql.org/docs/current/datatype-geometric.html#DATATYPE-POLYGON">Polygons</a>
  */
 public final class PgPolygon implements PGobject {
 
@@ -19,7 +21,10 @@ public final class PgPolygon implements PGobject {
      *
      * @param textValue format : ( ( x1 , y1 ) , ... , ( xn , yn ) )
      */
-    public static PgPolygon create(String textValue) {
+    public static PgPolygon wrap(String textValue) {
+        if (!textValue.startsWith("(") || !textValue.endsWith(")")) {
+            throw PgGeometries.createGeometricFormatError(textValue);
+        }
         return new PgPolygon(textValue);
     }
 
@@ -47,6 +52,7 @@ public final class PgPolygon implements PGobject {
             match = true;
         } else if (obj instanceof PgPolygon) {
             PgPolygon p = (PgPolygon) obj;
+            // this class value from postgre database
             match = this.textValue.equals(p.textValue);
         } else {
             match = false;

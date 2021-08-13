@@ -1,5 +1,5 @@
 package io.jdbd.type.geometry;
 
-public interface Geometry {
+public interface Geometry extends GenericGeometry {
 
 }
