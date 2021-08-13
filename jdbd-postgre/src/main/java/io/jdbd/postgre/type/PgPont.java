@@ -1,22 +1,40 @@
-package io.jdbd.vendor.type;
+package io.jdbd.postgre.type;
 
 import io.jdbd.type.geometry.Point;
 import io.jdbd.vendor.util.GeometryUtils;
 
 import java.util.Objects;
 
-final class PointImpl implements Point {
+final class PgPont implements Point {
 
-    static PointImpl create(double x, double y) {
-        return new PointImpl(x, y);
+    /**
+     * @param textValue format: ( x , y )
+     * @throws IllegalArgumentException when textValue error.
+     * @see <a href="https://www.postgresql.org/docs/current/datatype-geometric.html#id-1.5.7.16.5">Points</a>
+     */
+    static PgPont from(final String textValue) {
+        if (!textValue.startsWith("(") || !textValue.endsWith(")")) {
+            throw PgGeometries.createGeometricFormatError(textValue);
+        }
+        final int commaIndex;
+        commaIndex = textValue.indexOf(',', 1);
+        if (commaIndex < 0) {
+            throw PgGeometries.createGeometricFormatError(textValue);
+        }
+        final double x, y;
+        x = Double.parseDouble(textValue.substring(1, commaIndex).trim());
+        y = Double.parseDouble(textValue.substring(commaIndex + 1, textValue.length() - 1).trim());
+        return new PgPont(textValue, x, y);
     }
 
+    private final String textValue;
 
     private final double x;
 
     private final double y;
 
-    private PointImpl(double x, double y) {
+    private PgPont(String textValue, double x, double y) {
+        this.textValue = textValue;
         this.x = x;
         this.y = y;
     }
@@ -62,7 +80,7 @@ final class PointImpl implements Point {
 
     @Override
     public final String toString() {
-        return GeometryUtils.pointToWkt(this);
+        return this.textValue;
     }
 
 

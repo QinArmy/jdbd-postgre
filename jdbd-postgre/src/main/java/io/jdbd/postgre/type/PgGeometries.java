@@ -9,39 +9,25 @@ import reactor.core.publisher.FluxSink;
 
 import java.util.function.BiConsumer;
 
-public abstract class PgTypes {
+public abstract class PgGeometries {
 
-    protected PgTypes() {
+    protected PgGeometries() {
         throw new UnsupportedOperationException();
+    }
+
+    /**
+     * @param textValue format: ( x , y )
+     * @see <a href="https://www.postgresql.org/docs/current/datatype-geometric.html#id-1.5.7.16.5">Points</a>
+     */
+    public static Point point(final String textValue) {
+        return PgPont.from(textValue);
     }
 
     /**
      * @see <a href="https://www.postgresql.org/docs/current/datatype-geometric.html#DATATYPE-LSEG">Lines</a>
      */
     public static Line lineSegment(String textValue) {
-        if (!textValue.startsWith("[") || !textValue.endsWith("]")) {
-            throw createGeometricFormatError(textValue);
-        }
-        final Point[] points = new Point[2];
-        final BiConsumer<Double, Double> pointConsumer = (x, y) -> {
-            if (points[0] == null) {
-                points[0] = Geometries.point(x, y);
-            } else if (points[1] == null) {
-                points[1] = Geometries.point(x, y);
-            } else {
-                throw createGeometricFormatError(textValue);
-            }
-        };
-
-        final int newIndex;
-        newIndex = PgTypes.doReadPoints(textValue, 1, pointConsumer);
-
-        if (points[1] == null) {
-            throw createGeometricFormatError(textValue);
-        } else {
-            checkPgGeometricSuffix(textValue, newIndex);
-        }
-        return Geometries.line(points[0], points[1]);
+        return PgLineSegment.from(textValue);
     }
 
     /**
@@ -76,7 +62,7 @@ public abstract class PgTypes {
         try {
             // 3. read points
             final int newIndex;
-            newIndex = PgTypes.doReadPoints(textValue, 1, pointConsumer);
+            newIndex = PgGeometries.doReadPoints(textValue, 1, pointConsumer);
             checkPgGeometricSuffix(textValue, newIndex);
             // 4. validate point count
             final int pointCount = (out.readableBytes() - 9) >> 4;
@@ -144,7 +130,7 @@ public abstract class PgTypes {
             try {
                 // 3. read points
                 final int newIndex;
-                newIndex = PgTypes.doReadPoints(textValue, 1, pointConsumer);
+                newIndex = PgGeometries.doReadPoints(textValue, 1, pointConsumer);
                 checkPgGeometricSuffix(textValue, newIndex);
                 sink.complete();
             } catch (Throwable e) {

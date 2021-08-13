@@ -7,7 +7,6 @@ import io.jdbd.vendor.util.GeometryUtils;
 import reactor.core.publisher.Flux;
 
 import java.nio.channels.FileChannel;
-import java.nio.file.Path;
 import java.util.Arrays;
 
 abstract class LineStrings {
@@ -51,6 +50,11 @@ abstract class LineStrings {
         }
 
         @Override
+        public final String toWkt() {
+            return GeometryUtils.lineStringToWkt(this.wkbArray);
+        }
+
+        @Override
         public final String toString() {
             return GeometryUtils.lineStringToWkt(this.wkbArray);
         }
@@ -58,27 +62,6 @@ abstract class LineStrings {
     }
 
 
-    private static final class PathLineString extends LongBinaries.PathLongBinary implements LineString {
-
-
-        private PathLineString(Path path) {
-            super(path);
-        }
-
-        @Override
-        public final Flux<Point> points() {
-            return GeometryUtils.lineStringToPoints(this.path);
-        }
-
-
-        @Override
-        public final String toString() {
-            //TODO
-            return "";
-        }
-
-
-    }
 
 
 }

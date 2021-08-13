@@ -1,5 +1,8 @@
 package io.jdbd.type.geometry;
 
+import java.io.IOException;
+import java.nio.channels.FileChannel;
+
 /**
  * This representing LINE that is special LINESTRING (it consists of exactly two points.).
  * <p>
@@ -13,9 +16,10 @@ public interface Line extends LineString {
     Point getPoint2();
 
     /**
-     * @return WKT of LINESTRING.
+     * @throws IllegalStateException always
      */
     @Override
-    String toString();
+    FileChannel openReadOnlyChannel() throws IOException, IllegalStateException;
+
 
 }

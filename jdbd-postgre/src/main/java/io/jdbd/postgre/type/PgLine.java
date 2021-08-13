@@ -5,14 +5,14 @@ import java.util.Objects;
 /**
  * @see <a href="https://www.postgresql.org/docs/current/datatype-geometric.html#DATATYPE-LINE">Lines</a>
  */
-public final class PgLine {
+public final class PgLine implements PGobject {
 
 
     /**
      * @param textValue like { A, B, C }
      * @throws IllegalArgumentException when textValue format error.
      */
-    public static PgLine parse(final String textValue) {
+    public static PgLine from(final String textValue) {
         final String format = "Text[%s] isn't postgre line";
         if (!textValue.startsWith("{") || !textValue.endsWith("}")) {
             throw new IllegalArgumentException(String.format(format, textValue));
@@ -40,12 +40,11 @@ public final class PgLine {
         // c
         left = right + 1;
         c = Double.parseDouble(textValue.substring(left, end).trim());
-        return new PgLine(a, b, c);
+        return new PgLine(textValue, a, b, c);
     }
 
-    public static PgLine create(double a, double b, double c) {
-        return new PgLine(a, b, c);
-    }
+
+    private final String textValue;
 
     private final double a;
 
@@ -53,10 +52,11 @@ public final class PgLine {
 
     private final double c;
 
-    private PgLine(double a, double b, double c) {
+    private PgLine(String textValue, double a, double b, double c) {
         if (a == 0 && b == 0) {
             throw new IllegalArgumentException(String.format("A[%s] and B[%s] are not both zero", a, b));
         }
+        this.textValue = textValue;
         this.a = a;
         this.b = b;
         this.c = c;
@@ -97,14 +97,7 @@ public final class PgLine {
 
     @Override
     public final String toString() {
-        return new StringBuilder("{")
-                .append(this.a)
-                .append(",")
-                .append(this.b)
-                .append(",")
-                .append(this.c)
-                .append("}")
-                .toString();
+        return this.textValue;
     }
 
 

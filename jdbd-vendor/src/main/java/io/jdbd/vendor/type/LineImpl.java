@@ -2,8 +2,7 @@ package io.jdbd.vendor.type;
 
 import io.jdbd.type.geometry.Line;
 import io.jdbd.type.geometry.Point;
-import io.jdbd.type.geometry.WkbType;
-import io.jdbd.vendor.util.JdbdNumbers;
+import io.jdbd.vendor.util.GeometryUtils;
 import reactor.core.publisher.Flux;
 
 import java.nio.channels.FileChannel;
@@ -45,25 +44,18 @@ final class LineImpl implements Line {
     }
 
     @Override
+    public final String toWkt() {
+        return GeometryUtils.lineToWkt(this.point1, this.point2);
+    }
+
+    @Override
+    public final byte[] toWkb(boolean bigEndian) throws IllegalStateException {
+        return GeometryUtils.lineToWkb(this.point1, this.point2, bigEndian);
+    }
+
+    @Override
     public final byte[] asArray() throws IllegalStateException {
-        final byte[] wkb = new byte[41];
-        int offset = 0;
-
-        wkb[offset++] = 1;
-        JdbdNumbers.intToEndian(false, WkbType.LINE_STRING.code, wkb, offset, 4);
-        offset += 4;
-        JdbdNumbers.intToEndian(false, 2, wkb, offset, 4);
-        offset += 4;
-
-        JdbdNumbers.doubleToEndian(false, this.point1.getX(), wkb, offset);
-        offset += 8;
-        JdbdNumbers.doubleToEndian(false, this.point1.getY(), wkb, offset);
-        offset += 8;
-
-        JdbdNumbers.doubleToEndian(false, this.point2.getX(), wkb, offset);
-        offset += 8;
-        JdbdNumbers.doubleToEndian(false, this.point2.getY(), wkb, offset);
-        return wkb;
+        return toWkb(false);
     }
 
     @Override
@@ -82,7 +74,7 @@ final class LineImpl implements Line {
         final boolean match;
         if (obj == this) {
             match = true;
-        } else if (obj instanceof Point) {
+        } else if (obj instanceof Line) {
             Line l = (Line) obj;
             match = this.point1.equals(l.getPoint1())
                     && this.point2.equals(l.getPoint2());
@@ -94,17 +86,7 @@ final class LineImpl implements Line {
 
     @Override
     public final String toString() {
-        return new StringBuilder()
-                .append("LINESTRING(")
-                .append(this.getPoint1().getX())
-                .append(" ")
-                .append(this.getPoint1().getY())
-                .append(",")
-                .append(this.getPoint2().getX())
-                .append(" ")
-                .append(this.getPoint2().getY())
-                .append(")")
-                .toString();
+        return toWkt();
     }
 
 

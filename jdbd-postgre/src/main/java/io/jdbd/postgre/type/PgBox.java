@@ -9,7 +9,7 @@ import java.util.function.BiConsumer;
 /**
  * @see <a href="https://www.postgresql.org/docs/current/datatype-geometric.html#id-1.5.7.16.8">Boxes</a>
  */
-public final class PgBox {
+public final class PgBox implements PGobject {
 
     /**
      * @param textValue like ( x1 , y1 ) , ( x2 , y2 )
@@ -28,7 +28,7 @@ public final class PgBox {
             }
         };
         final int newIndex;
-        newIndex = PgTypes.doReadPoints(textValue, 0, pointConsumer);
+        newIndex = PgGeometries.doReadPoints(textValue, 0, pointConsumer);
 
         if (points[1] == null) {
             throw new IllegalArgumentException(String.format(format, textValue));

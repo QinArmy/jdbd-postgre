@@ -7,6 +7,7 @@ import java.nio.channels.FileChannel;
 
 public interface LongGenericGeometry extends GenericGeometry, LongBinary {
 
+
     /**
      * @return WKB bytes
      */
@@ -19,5 +20,14 @@ public interface LongGenericGeometry extends GenericGeometry, LongBinary {
     @Override
     FileChannel openReadOnlyChannel() throws IOException, IllegalStateException;
 
+
+    /**
+     * <p>
+     * if {@link #isArray()}  is true ,return full upper case wkt, or upper case wkt omitted suffix part.
+     * </p>
+     *
+     * @return wkt or wkt omitted suffix part
+     */
+    String toWkt();
 
 }

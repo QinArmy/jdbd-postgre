@@ -1,5 +1,6 @@
 package io.jdbd.vendor.util;
 
+import io.jdbd.type.geometry.LineString;
 import io.jdbd.type.geometry.Point;
 import io.jdbd.type.geometry.WkbType;
 import io.jdbd.vendor.type.Geometries;
@@ -34,6 +35,52 @@ public abstract class GeometryUtils extends GenericGeometries {
                 .append(" ")
                 .append(point.getY())
                 .toString();
+    }
+
+    public static byte[] pointToWkb(Point point, boolean bigEndian) {
+        byte[] wkb = new byte[21];
+        int offset = 0;
+
+        wkb[offset++] = (byte) (bigEndian ? 0 : 1);
+        JdbdNumbers.intToEndian(bigEndian, WkbType.POINT.code, wkb, offset, 4);
+        offset += 4;
+
+        JdbdNumbers.doubleToEndian(bigEndian, point.getX(), wkb, offset);
+        offset += 8;
+        JdbdNumbers.doubleToEndian(bigEndian, point.getY(), wkb, offset);
+        return wkb;
+    }
+
+    public static String lineToWkt(Point point1, Point point2) {
+        return String.format("LINESTRING(%s %s,%s %s)"
+                , point1.getX(), point1.getY()
+                , point2.getX(), point2.getY());
+    }
+
+    public static byte[] lineToWkb(final Point point1, final Point point2, final boolean bigEndian) {
+        final byte[] wkb = new byte[41];
+        int offset = 0;
+
+        wkb[offset++] = (byte) (bigEndian ? 0 : 1);
+        JdbdNumbers.intToEndian(bigEndian, WkbType.LINE_STRING.code, wkb, offset, 4);
+        offset += 4;
+        JdbdNumbers.intToEndian(bigEndian, 2, wkb, offset, 4);
+        offset += 4;
+
+        JdbdNumbers.doubleToEndian(bigEndian, point1.getX(), wkb, offset);
+        offset += 8;
+        JdbdNumbers.doubleToEndian(bigEndian, point1.getY(), wkb, offset);
+        offset += 8;
+
+        JdbdNumbers.doubleToEndian(bigEndian, point2.getX(), wkb, offset);
+        offset += 8;
+        JdbdNumbers.doubleToEndian(bigEndian, point2.getY(), wkb, offset);
+        return wkb;
+    }
+
+    public static boolean lineStringEquals(LineString ls1, LineString ls2) {
+        // TODO zoro
+        throw new UnsupportedOperationException();
     }
 
     public static Flux<Point> lineStringToPoints(final byte[] wkbArray) {

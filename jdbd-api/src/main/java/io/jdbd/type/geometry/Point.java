@@ -6,4 +6,14 @@ public interface Point extends Geometry {
 
     double getY();
 
+    byte[] toWkb(boolean bigEndian);
+
+    String toWkt();
+
+    /**
+     * @return wkt or database vendor output
+     */
+    @Override
+    String toString();
+
 }

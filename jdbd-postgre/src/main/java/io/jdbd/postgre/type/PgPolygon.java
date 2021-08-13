@@ -10,7 +10,7 @@ import java.util.Objects;
  * JDBD statement bind method not don't support this type,only supported by {@link io.jdbd.result.ResultRow}.
  * </p>
  */
-public final class PgPolygon {
+public final class PgPolygon implements PGobject {
 
     /**
      * <p>
@@ -31,7 +31,7 @@ public final class PgPolygon {
 
 
     public final Flux<Point> toPoints() {
-        return Flux.create(sink -> PgTypes.polygonToPoints(this.textValue, sink));
+        return Flux.create(sink -> PgGeometries.polygonToPoints(this.textValue, sink));
     }
 
 

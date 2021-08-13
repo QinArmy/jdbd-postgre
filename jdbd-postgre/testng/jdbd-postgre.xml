@@ -10,7 +10,7 @@
 
             <!--unit test-->
 
-            <class name="io.jdbd.postgre.type.PgTypesUnitTests"/>
+            <class name="io.jdbd.postgre.type.PgGeometriesUnitTests"/>
         </classes>
     </test>
 </suite>
