@@ -4,9 +4,7 @@ package io.jdbd.postgre;
 import io.jdbd.postgre.type.PgBox;
 import io.jdbd.postgre.type.PgLine;
 import io.jdbd.type.LongBinary;
-import io.jdbd.type.geometry.Line;
-import io.jdbd.type.geometry.LongString;
-import io.jdbd.type.geometry.Point;
+import io.jdbd.type.geometry.*;
 
 import java.math.BigDecimal;
 import java.sql.JDBCType;
@@ -85,13 +83,16 @@ public enum PgType implements io.jdbd.meta.SQLType {
     LINE_SEGMENT(PgConstant.TYPE_LSEG, JDBCType.OTHER, Line.class),
 
     BOX(PgConstant.TYPE_BOX, JDBCType.OTHER, PgBox.class),
-    JSONB(PgConstant.TYPE_JSONB, JDBCType.LONGVARCHAR, LongString.class),
+    PATH(PgConstant.TYPE_PATH, JDBCType.OTHER, LineString.class),
+    POLYGON(PgConstant.TYPE_POLYGON, JDBCType.OTHER, LongString.class),
+    CIRCLE(PgConstant.TYPE_CIRCLE, JDBCType.OTHER, Circle.class),
 
+    JSONB(PgConstant.TYPE_JSONB, JDBCType.LONGVARCHAR, LongString.class),
     JSONB_ARRAY(PgConstant.TYPE_JSONB_ARRAY, JDBCType.ARRAY, LongString[].class),
     JSON(PgConstant.TYPE_JSON, JDBCType.LONGVARCHAR, LongString.class),
     JSON_ARRAY(PgConstant.TYPE_JSON_ARRAY, JDBCType.ARRAY, LongString[].class),
-    REF_CURSOR(PgConstant.TYPE_REF_CURSOR, JDBCType.REF_CURSOR, Object.class),
 
+    REF_CURSOR(PgConstant.TYPE_REF_CURSOR, JDBCType.REF_CURSOR, Object.class),
     REF_CURSOR_ARRAY(PgConstant.TYPE_REF_CURSOR_ARRAY, JDBCType.ARRAY, Object[].class);
 
     private final int typeOid;

@@ -13,5 +13,9 @@ How to clear channel?
 4. 为什么一定要坚持在创建 packet 的过程中使用 List<ByteBuf> 表示 multi packet?
     1. 因为 byte[] 数组的长度最大为 (1<< 30)(超出此长度将抛出异常),但 MySQL最大的包是 (1<< 30)
        ,这就使用是无法发送最大的包,因为每个单包必须有 header.
-    2. 因为 可以避免不必要的复制.   
+    2. 因为 可以避免不必要的复制.
+
+5. 为什么要放弃 Geometric type 的定义
+    1. jdbd 本身只驱动,把 驱动层的数据结构返回到上层应用是不明智的 就像也很少有人把 java.sql.Blob java.sql.Clob java.sql.SQLXML 返回到上层应用一样.
+    2. Geometric type 理论上可以是 byte[] 也可以是 大到 几 T 的数据. hashCode 和 equals 方法的实现是困难的也是没有必要的,因为 驱动的本质只是封装 和数据库的通信细节.
     

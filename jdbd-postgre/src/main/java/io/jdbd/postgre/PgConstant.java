@@ -76,14 +76,19 @@ public interface PgConstant {
     int TYPE_POLYGON = 604;
     int TYPE_CIRCLE = 718;
     int TYPE_BOX = 603;
-    int TYPE_JSONB = 3802;
 
+    int TYPE_JSONB = 3802;
     int TYPE_JSONB_ARRAY = 3807;
     int TYPE_JSON = 114;
     int TYPE_JSON_ARRAY = 199;
-    int TYPE_REF_CURSOR = 1790;
 
+    int TYPE_REF_CURSOR = 1790;
     int TYPE_REF_CURSOR_ARRAY = 2201;
+    int TYPE_MAC_ADDR = 829;
+    int TYPE_MAC_ADDR8 = 774;
+
+    int TYPE_INET = 869;
+    int TYPE_CIDR = 650;
 
 
 }

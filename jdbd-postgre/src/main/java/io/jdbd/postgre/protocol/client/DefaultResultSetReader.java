@@ -3,12 +3,13 @@ package io.jdbd.postgre.protocol.client;
 import io.jdbd.JdbdSQLException;
 import io.jdbd.postgre.PgConstant;
 import io.jdbd.postgre.PgJdbdException;
+import io.jdbd.postgre.type.PgBox;
+import io.jdbd.postgre.type.PgGeometries;
 import io.jdbd.postgre.util.PgExceptions;
 import io.jdbd.postgre.util.PgTimes;
 import io.jdbd.vendor.result.ResultRowSink;
 import io.jdbd.vendor.result.ResultSetReader;
 import io.jdbd.vendor.type.LongBinaries;
-import io.jdbd.vendor.util.GeometryUtils;
 import io.jdbd.vendor.util.JdbdBuffers;
 import io.netty.buffer.ByteBuf;
 import org.slf4j.Logger;
@@ -239,6 +240,10 @@ final class DefaultResultSetReader implements ResultSetReader {
             case PgConstant.TYPE_JSONB:
             case PgConstant.TYPE_MONEY:// money format dependent on locale,so can't(also don't need) convert.
             case PgConstant.TYPE_NAME:
+            case PgConstant.TYPE_MAC_ADDR:
+            case PgConstant.TYPE_MAC_ADDR8:
+            case PgConstant.TYPE_INET:
+            case PgConstant.TYPE_CIDR:
             case PgConstant.TYPE_XML: {
                 value = textValue;
             }
@@ -270,47 +275,30 @@ final class DefaultResultSetReader implements ResultSetReader {
             }
             break;
             case PgConstant.TYPE_POINT: {
-                value = LongBinaries.fromArray(GeometryUtils.pointValueToWkb(textValue, false));
+                value = PgGeometries.point(textValue);
             }
             break;
             // case PgConstant.TYPE_LINE: //Values of type line are output in the following form : { A, B, C } ,so can't convert to WKB,not support now.
             case PgConstant.TYPE_LSEG: {
-                value = "";
+                value = PgGeometries.lineSegment(textValue);
             }
             break;
-            case PgConstant.TYPE_PATH:
-            case PgConstant.TYPE_POLYGON:
-            case PgConstant.TYPE_CIRCLE: {
-                throw new PgJdbdException("Not Support");
+            case PgConstant.TYPE_BOX: {
+                value = PgBox.from(textValue);
             }
-//            case PgConstant.TYPE_INT4: {
-//
-//            }
-//            break;
-//            case PgConstant.TYPE_INT4: {
-//
-//            }
-//            break;
-//            case PgConstant.TYPE_INT4: {
-//
-//            }
-//            break;
-//            case PgConstant.TYPE_INT4: {
-//
-//            }
-//            break;
-//            case PgConstant.TYPE_INT4: {
-//
-//            }
-//            break;
-//            case PgConstant.TYPE_INT4: {
-//
-//            }
-//            break;
-//            case PgConstant.TYPE_INT4: {
-//
-//            }
-//            break;
+            break;
+            case PgConstant.TYPE_PATH: {
+                value = PgGeometries.path(textValue);
+            }
+            break;
+            case PgConstant.TYPE_POLYGON: {
+                value = textValue;
+            }
+            break;
+            case PgConstant.TYPE_CIRCLE: {
+                value = PgGeometries.circle(textValue);
+            }
+            break;
             default: {
                 // unknown type
                 LOG.debug("Unknown postgre data type, Meta[{}].", meta);

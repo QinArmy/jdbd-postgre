@@ -12,7 +12,8 @@ import java.util.Objects;
  *
  * @see <a href="https://www.postgresql.org/docs/current/datatype-geometric.html#DATATYPE-POLYGON">Polygons</a>
  */
-public final class PgPolygon implements PGobject {
+@Deprecated
+final class PgPolygon implements PGobject {
 
     /**
      * <p>
@@ -42,22 +43,14 @@ public final class PgPolygon implements PGobject {
 
     @Override
     public final int hashCode() {
-        return this.textValue.hashCode();
+        // this class only wrap Polygon for toPoints()  method
+        return super.hashCode();
     }
 
     @Override
     public final boolean equals(Object obj) {
-        final boolean match;
-        if (obj == this) {
-            match = true;
-        } else if (obj instanceof PgPolygon) {
-            PgPolygon p = (PgPolygon) obj;
-            // this class value from postgre database
-            match = this.textValue.equals(p.textValue);
-        } else {
-            match = false;
-        }
-        return match;
+        // this class only wrap Polygon for toPoints()  method
+        return super.equals(obj);
     }
 
     @Override
