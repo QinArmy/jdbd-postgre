@@ -1,6 +1,6 @@
 package io.jdbd.vendor.result;
 
-import io.jdbd.result.SingleResult;
+import io.jdbd.result.Result;
 import io.jdbd.stmt.ResultType;
 import io.jdbd.stmt.SubscribeException;
 import io.jdbd.vendor.task.ITaskAdjutant;
@@ -9,13 +9,13 @@ import reactor.core.CoreSubscriber;
 import java.util.ArrayList;
 import java.util.List;
 
-abstract class AbstractSingleResultSubscriber implements CoreSubscriber<SingleResult> {
+abstract class AbstractResultSubscriber<T> implements CoreSubscriber<T> {
 
     final ITaskAdjutant adjutant;
 
     List<Throwable> errorList;
 
-    AbstractSingleResultSubscriber(ITaskAdjutant adjutant) {
+    AbstractResultSubscriber(ITaskAdjutant adjutant) {
         this.adjutant = adjutant;
     }
 
@@ -31,25 +31,6 @@ abstract class AbstractSingleResultSubscriber implements CoreSubscriber<SingleRe
     }
 
     final void addError(ResultType resultType) {
-        if (this.adjutant.inEventLoop()) {
-            doAddErrorInEventLoop(resultType);
-        } else {
-            this.adjutant.execute(() -> doAddErrorInEventLoop(resultType));
-        }
-    }
-
-
-    final void doAddErrorInEventLoop(Throwable error) {
-        List<Throwable> errorList = this.errorList;
-        if (errorList == null) {
-            errorList = new ArrayList<>();
-            this.errorList = errorList;
-        }
-        errorList.add(error);
-    }
-
-
-    private void doAddErrorInEventLoop(ResultType resultType) {
         List<Throwable> errorList = this.errorList;
         if (errorList == null || errorList.isEmpty()) {
             doAddErrorInEventLoop(new SubscribeException(getSubscribeType(), resultType));
@@ -58,6 +39,7 @@ abstract class AbstractSingleResultSubscriber implements CoreSubscriber<SingleRe
         boolean add = true;
         switch (resultType) {
             case UPDATE:
+            case BATCH_UPDATE:
             case QUERY: {
                 for (Throwable e : errorList) {
                     if (e.getClass() == SubscribeException.class) {
@@ -90,8 +72,26 @@ abstract class AbstractSingleResultSubscriber implements CoreSubscriber<SingleRe
         if (add) {
             doAddErrorInEventLoop(new SubscribeException(getSubscribeType(), resultType));
         }
-
     }
 
+
+    final void doAddErrorInEventLoop(Throwable error) {
+        List<Throwable> errorList = this.errorList;
+        if (errorList == null) {
+            errorList = new ArrayList<>();
+            this.errorList = errorList;
+        }
+        errorList.add(error);
+    }
+
+    final boolean hasError() {
+        List<Throwable> errorList = this.errorList;
+        return errorList != null && !errorList.isEmpty();
+    }
+
+
+    static IllegalArgumentException createUnknownTypeError(Result result) {
+        return new IllegalArgumentException(String.format("Unknown type[%s]", result.getClass().getName()));
+    }
 
 }

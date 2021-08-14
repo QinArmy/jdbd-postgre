@@ -3,13 +3,13 @@ package io.jdbd.postgre.protocol.client;
 import io.jdbd.JdbdSQLException;
 import io.jdbd.postgre.PgConstant;
 import io.jdbd.postgre.PgJdbdException;
-import io.jdbd.postgre.type.PgBox;
 import io.jdbd.postgre.type.PgGeometries;
 import io.jdbd.postgre.util.PgExceptions;
 import io.jdbd.postgre.util.PgTimes;
-import io.jdbd.vendor.result.ResultRowSink;
+import io.jdbd.vendor.result.ResultRowSink_0;
 import io.jdbd.vendor.result.ResultSetReader;
 import io.jdbd.vendor.type.LongBinaries;
+import io.jdbd.vendor.type.LongStrings;
 import io.jdbd.vendor.util.JdbdBuffers;
 import io.netty.buffer.ByteBuf;
 import org.slf4j.Logger;
@@ -30,14 +30,25 @@ final class DefaultResultSetReader implements ResultSetReader {
 
     private static final Logger LOG = LoggerFactory.getLogger(DefaultResultSetReader.class);
 
-    private static final byte[] ZERO_BYTE = new byte[0];
+    // We can't use Long.MAX_VALUE or Long.MIN_VALUE for java.sql.date
+    // because this would break the 'normalization contract' of the
+    // java.sql.Date API.
+    // The follow values are the nearest MAX/MIN values with hour,
+    // minute, second, millisecond set to 0 - this is used for
+    // -infinity / infinity representation in Java
+    private static final long DATE_POSITIVE_INFINITY = 9223372036825200000L;
+    private static final long DATE_NEGATIVE_INFINITY = -9223372036832400000L;
+    private static final long DATE_POSITIVE_SMALLER_INFINITY = 185543533774800000L;
+    private static final long DATE_NEGATIVE_SMALLER_INFINITY = -185543533774800000L;
 
 
     private final StmtTask stmtTask;
 
+    private boolean integerDatetimeOn;
+
     final TaskAdjutant adjutant;
 
-    private final ResultRowSink sink;
+    private final ResultRowSink_0 sink;
 
     private final Charset clientCharset;
 
@@ -45,7 +56,7 @@ final class DefaultResultSetReader implements ResultSetReader {
 
     private Phase phase = Phase.READ_ROW_META;
 
-    private DefaultResultSetReader(StmtTask stmtTask, ResultRowSink sink) {
+    private DefaultResultSetReader(StmtTask stmtTask, ResultRowSink_0 sink) {
         this.stmtTask = stmtTask;
         this.adjutant = stmtTask.adjutant();
         this.sink = sink;
@@ -104,7 +115,8 @@ final class DefaultResultSetReader implements ResultSetReader {
     private boolean readRowData(final ByteBuf cumulateBuffer) {
         final PgRowMeta rowMeta = Objects.requireNonNull(this.rowMeta, "this.rowMeta");
         final PgColumnMeta[] columnMetaArray = rowMeta.columnMetaArray;
-        final ResultRowSink sink = this.sink;
+        final ResultRowSink_0 sink = this.sink;
+        // if 'true' maybe user cancel or occur error
         final boolean isCanceled = sink.isCancelled();
 
         Object[] columnValueArray;
@@ -117,19 +129,18 @@ final class DefaultResultSetReader implements ResultSetReader {
             bodyIndex = cumulateBuffer.readerIndex();
             nextRowIndex = bodyIndex + cumulateBuffer.readInt();
 
+            if (isCanceled) {
+                cumulateBuffer.readerIndex(nextRowIndex);// skip row
+                continue;
+            }
             if (cumulateBuffer.readShort() != columnMetaArray.length) {
                 String m = String.format("Server RowData message column count[%s] and RowDescription[%s] not match."
                         , cumulateBuffer.getShort(cumulateBuffer.readerIndex() - 2), columnMetaArray.length);
                 throw new PgJdbdException(m);
             }
 
-            if (isCanceled) {
-                cumulateBuffer.readerIndex(nextRowIndex);// skip row
-                continue;
-            }
             columnValueArray = new Object[columnMetaArray.length];
             PgColumnMeta meta;
-            byte[] bytesValue;
             for (int i = 0, valueLength; i < columnMetaArray.length; i++) {
                 valueLength = cumulateBuffer.readInt();
                 if (valueLength == -1) {
@@ -137,17 +148,13 @@ final class DefaultResultSetReader implements ResultSetReader {
                     continue;
                 }
 
-                if (valueLength == 0) {
-                    bytesValue = ZERO_BYTE;
-                } else {
-                    bytesValue = new byte[valueLength];
-                    cumulateBuffer.readBytes(bytesValue);
-                }
                 meta = columnMetaArray[i];
                 if (meta.textFormat) {
-                    columnValueArray[i] = parseColumnFromText(bytesValue, meta);
+                    columnValueArray[i] = parseColumnFromText(
+                            cumulateBuffer.readCharSequence(valueLength, this.clientCharset).toString()
+                            , meta);
                 } else {
-                    columnValueArray[i] = parseColumnFromBinary(bytesValue, meta);
+                    columnValueArray[i] = parseColumnFromBinary(cumulateBuffer, valueLength, meta);
                 }
 
             }
@@ -165,8 +172,7 @@ final class DefaultResultSetReader implements ResultSetReader {
     /**
      * @see #readRowData(ByteBuf)
      */
-    private Object parseColumnFromText(final byte[] bytesValue, final PgColumnMeta meta) {
-        final String textValue = new String(bytesValue, this.clientCharset);
+    private Object parseColumnFromText(final String textValue, final PgColumnMeta meta) {
         final Object value;
         switch (meta.columnTypeOid) {
             case PgConstant.TYPE_INT2: {
@@ -244,6 +250,10 @@ final class DefaultResultSetReader implements ResultSetReader {
             case PgConstant.TYPE_MAC_ADDR8:
             case PgConstant.TYPE_INET:
             case PgConstant.TYPE_CIDR:
+            case PgConstant.TYPE_LINE:
+            case PgConstant.TYPE_LSEG:
+            case PgConstant.TYPE_BOX:
+
             case PgConstant.TYPE_XML: {
                 value = textValue;
             }
@@ -254,7 +264,8 @@ final class DefaultResultSetReader implements ResultSetReader {
                     bytes = textValue.substring(2).getBytes(StandardCharsets.UTF_8);
                     bytes = JdbdBuffers.decodeHex(bytes, bytes.length);
                 } else {
-                    bytes = bytesValue;
+                    //TODO validate this
+                    bytes = textValue.getBytes(this.clientCharset);
                 }
                 value = LongBinaries.fromArray(bytes);
             }
@@ -278,21 +289,9 @@ final class DefaultResultSetReader implements ResultSetReader {
                 value = PgGeometries.point(textValue);
             }
             break;
-            // case PgConstant.TYPE_LINE: //Values of type line are output in the following form : { A, B, C } ,so can't convert to WKB,not support now.
-            case PgConstant.TYPE_LSEG: {
-                value = PgGeometries.lineSegment(textValue);
-            }
-            break;
-            case PgConstant.TYPE_BOX: {
-                value = PgBox.from(textValue);
-            }
-            break;
+            case PgConstant.TYPE_POLYGON:
             case PgConstant.TYPE_PATH: {
-                value = PgGeometries.path(textValue);
-            }
-            break;
-            case PgConstant.TYPE_POLYGON: {
-                value = textValue;
+                value = LongStrings.fromString(textValue);
             }
             break;
             case PgConstant.TYPE_CIRCLE: {
@@ -308,22 +307,95 @@ final class DefaultResultSetReader implements ResultSetReader {
         return value;
     }
 
-    private Object parseColumnFromBinary(final byte[] valueBytes, final PgColumnMeta meta) {
+    /**
+     * @see #readRowData(ByteBuf)
+     */
+    private Object parseColumnFromBinary(final ByteBuf cumulateBuffer, final int valueLength, final PgColumnMeta meta) {
 
-        return null;
+        final Object value;
+        switch (meta.columnTypeOid) {
+            case PgConstant.TYPE_INT2: {
+                if (valueLength != 2) {
+                    throw createResponseBinaryColumnValueError(cumulateBuffer, valueLength, meta);
+                }
+                value = cumulateBuffer.readShort();
+            }
+            break;
+            case PgConstant.TYPE_INT4: {
+                if (valueLength != 4) {
+                    throw createResponseBinaryColumnValueError(cumulateBuffer, valueLength, meta);
+                }
+                value = cumulateBuffer.readInt();
+            }
+            break;
+            case PgConstant.TYPE_OID:
+            case PgConstant.TYPE_INT8: {
+                if (valueLength != 8) {
+                    throw createResponseBinaryColumnValueError(cumulateBuffer, valueLength, meta);
+                }
+                value = cumulateBuffer.readLong();
+            }
+            break;
+            case PgConstant.TYPE_NUMERIC: {
+                value = parseBinaryDecimal(cumulateBuffer, valueLength, meta);
+            }
+            break;
+            case PgConstant.TYPE_FLOAT4: {
+                if (valueLength != 4) {
+                    throw createResponseBinaryColumnValueError(cumulateBuffer, valueLength, meta);
+                }
+                value = Float.intBitsToFloat(cumulateBuffer.readInt());
+            }
+            break;
+            case PgConstant.TYPE_FLOAT8: {
+                if (valueLength != 8) {
+                    throw createResponseBinaryColumnValueError(cumulateBuffer, valueLength, meta);
+                }
+                value = Double.longBitsToDouble(cumulateBuffer.readLong());
+            }
+            break;
+            case PgConstant.TYPE_BOOLEAN: {
+                if (valueLength != 1) {
+                    throw createResponseBinaryColumnValueError(cumulateBuffer, valueLength, meta);
+                }
+                value = cumulateBuffer.readByte() == 1;
+            }
+            break;
+            case PgConstant.TYPE_TIMESTAMP: {
+                if (valueLength != 8) {
+                    throw createResponseBinaryColumnValueError(cumulateBuffer, valueLength, meta);
+                }
+                if (this.integerDatetimeOn) {
+                    value = parseLocalDateTimeFromBinaryLong(cumulateBuffer)
+                            .withOffsetSameInstant(this.adjutant.clientOffset())
+                            .toLocalDateTime();
+                } else {
+                    value = parseLocalDateTimeFromBinaryDouble(cumulateBuffer)
+                            .withOffsetSameInstant(this.adjutant.clientOffset())
+                            .toLocalDateTime();
+                }
+            }
+            break;
+            default: {
+                byte[] bytes = new byte[valueLength];
+                value = cumulateBuffer.readBytes(bytes);
+            }
+
+        }
+        return value;
     }
 
     /**
-     * @see #parseColumnFromText(byte[], PgColumnMeta)
+     * @see #parseColumnFromText(String, PgColumnMeta)
      */
     private BitSet parseBitSetFromText(final String textValue, final PgColumnMeta meta) {
         final int length = textValue.length();
         final byte[] bytes = new byte[(length + 7) >> 3];
         char ch;
-        for (int i = 0; i < length; i++) {
-            ch = textValue.charAt(i);
+        for (int bitIndex = 0, charIndex = length - 1; bitIndex < length; bitIndex++, charIndex--) {
+            ch = textValue.charAt(charIndex);
             if (ch == '1') {
-                bytes[i >> 3] |= (1 << (i & 7));
+                bytes[bitIndex >> 3] |= (1 << (bitIndex & 7));
             } else if (ch != '0') {
                 throw createResponseTextColumnValueError(meta, textValue);
             }
@@ -331,9 +403,82 @@ final class DefaultResultSetReader implements ResultSetReader {
         return BitSet.valueOf(bytes);
     }
 
+    private BigDecimal parseBinaryDecimal(final ByteBuf cumulateBuffer, final int valueLength, final PgColumnMeta meta) {
 
-    public static JdbdSQLException createResponseTextColumnValueError(PgColumnMeta meta, String textValue) {
+        return null;
+    }
+
+    /**
+     * @see #parseColumnFromBinary(ByteBuf, int, PgColumnMeta)
+     */
+    private OffsetDateTime parseLocalDateTimeFromBinaryLong(final ByteBuf cumulateBuffer) {
+        final long seconds;
+        final int nanos;
+
+        final long time = cumulateBuffer.readLong();
+        if (time == Long.MAX_VALUE) {
+            seconds = DATE_POSITIVE_INFINITY / 1000;
+            nanos = 0;
+        } else if (time == Long.MIN_VALUE) {
+            seconds = DATE_NEGATIVE_INFINITY / 1000;
+            nanos = 0;
+        } else {
+            final int million = 1000_000;
+            long secondPart = time / million;
+            int nanoPart = (int) (time - secondPart * million);
+            if (nanoPart < 0) {
+                secondPart--;
+                nanoPart += million;
+            }
+            nanoPart *= 1000;
+
+            seconds = PgTimes.toJavaSeconds(secondPart);
+            nanos = nanoPart;
+        }
+        return OffsetDateTime.of(LocalDateTime.ofEpochSecond(seconds, nanos, ZoneOffset.UTC), ZoneOffset.UTC);
+    }
+
+    /**
+     * @see #parseColumnFromBinary(ByteBuf, int, PgColumnMeta)
+     */
+    private OffsetDateTime parseLocalDateTimeFromBinaryDouble(final ByteBuf cumulateBuffer) {
+        final long seconds;
+        final int nanos;
+
+        final double time = Double.longBitsToDouble(cumulateBuffer.readLong());
+        if (time == Double.POSITIVE_INFINITY) {
+            seconds = DATE_POSITIVE_INFINITY / 1000;
+            nanos = 0;
+        } else if (time == Double.NEGATIVE_INFINITY) {
+            seconds = DATE_NEGATIVE_INFINITY / 1000;
+            nanos = 0;
+        } else {
+            final int million = 1000_000;
+            long secondPart = (long) time;
+            int nanoPart = (int) ((time - secondPart) * million);
+            if (nanoPart < 0) {
+                secondPart--;
+                nanoPart += million;
+            }
+            nanoPart *= 1000;
+
+            seconds = PgTimes.toJavaSeconds(secondPart);
+            nanos = nanoPart;
+        }
+        return OffsetDateTime.of(LocalDateTime.ofEpochSecond(seconds, nanos, ZoneOffset.UTC), ZoneOffset.UTC);
+    }
+
+
+    private static JdbdSQLException createResponseTextColumnValueError(PgColumnMeta meta, String textValue) {
         String m = String.format("Server response text value[%s] error for PgColumnMeta[%s].", textValue, meta);
+        return new JdbdSQLException(new SQLException(m));
+    }
+
+    private static JdbdSQLException createResponseBinaryColumnValueError(final ByteBuf cumulateBuffer
+            , final int valueLength, final PgColumnMeta meta) {
+        byte[] bytes = new byte[valueLength];
+        cumulateBuffer.readBytes(bytes);
+        String m = String.format("Server response binary value[%s] error for PgColumnMeta[%s].", bytes, meta);
         return new JdbdSQLException(new SQLException(m));
     }
 

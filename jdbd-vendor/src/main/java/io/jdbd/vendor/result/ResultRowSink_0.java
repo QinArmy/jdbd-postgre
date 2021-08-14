@@ -7,7 +7,8 @@ import reactor.core.publisher.FluxSink;
 
 import java.util.function.Consumer;
 
-public interface ResultRowSink {
+@Deprecated
+public interface ResultRowSink_0 {
 
     /**
      * @see reactor.core.publisher.FluxSink#next(Object)

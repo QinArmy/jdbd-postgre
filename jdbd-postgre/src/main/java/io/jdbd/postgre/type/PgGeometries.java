@@ -1,6 +1,8 @@
 package io.jdbd.postgre.type;
 
-import io.jdbd.type.geometry.*;
+import io.jdbd.type.geometry.Circle;
+import io.jdbd.type.geometry.Point;
+import io.jdbd.type.geometry.WkbType;
 import io.jdbd.vendor.type.Geometries;
 import io.jdbd.vendor.util.JdbdExceptions;
 import io.netty.buffer.ByteBuf;
@@ -23,22 +25,22 @@ public abstract class PgGeometries {
         return PgPont.from(textValue);
     }
 
-    /**
-     * @see <a href="https://www.postgresql.org/docs/current/datatype-geometric.html#DATATYPE-LSEG">Lines</a>
-     */
-    public static Line lineSegment(String textValue) {
-        return PgLineSegment.from(textValue);
-    }
+//    /**
+//     * @see <a href="https://www.postgresql.org/docs/current/datatype-geometric.html#DATATYPE-LSEG">Lines</a>
+//     */
+//    public static Line lineSegment(String textValue) {
+//        return PgLineSegment.from(textValue);
+//    }
 
-    /**
-     * @param textValue format : ( ( x1 , y1 ) , ... , ( xn , yn ) )
-     * @return {@link LineString} that created by
-     * @see <a href="https://www.postgresql.org/docs/current/datatype-geometric.html#id-1.5.7.16.9">Paths</a>
-     */
-    public static LineString path(final String textValue) {
-        return PgPath.wrap(textValue);
-
-    }
+//    /**
+//     * @param textValue format : ( ( x1 , y1 ) , ... , ( xn , yn ) )
+//     * @return {@link LineString} that created by
+//     * @see <a href="https://www.postgresql.org/docs/current/datatype-geometric.html#id-1.5.7.16.9">Paths</a>
+//     */
+//    public static LineString path(final String textValue) {
+//        return PgPath.wrap(textValue);
+//
+//    }
 
     /**
      * @see <a href="https://www.postgresql.org/docs/current/datatype-geometric.html#DATATYPE-CIRCLE">Circles</a>
@@ -52,7 +54,7 @@ public abstract class PgGeometries {
      * @param textValue format : ( ( x1 , y1 ) , ... , ( xn , yn ) )
      * @see <a href="https://www.postgresql.org/docs/current/datatype-geometric.html#DATATYPE-POLYGON">Polygons</a>
      */
-    protected static void polygonToPoints(final String textValue, FluxSink<Point> sink) {
+    private static void polygonToPoints(final String textValue, FluxSink<Point> sink) {
 
         if (!textValue.startsWith("(") || !textValue.endsWith(")")) {
             sink.error(JdbdExceptions.wrap(createGeometricFormatError(textValue)));

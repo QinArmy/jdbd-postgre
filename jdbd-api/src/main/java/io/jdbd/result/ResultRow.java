@@ -9,7 +9,7 @@ import java.util.Set;
 /**
  * @see MultiResult
  */
-public interface ResultRow {
+public interface ResultRow extends Result {
 
     ResultRowMeta getRowMeta();
 

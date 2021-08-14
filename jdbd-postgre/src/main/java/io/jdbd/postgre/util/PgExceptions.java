@@ -16,8 +16,8 @@ public abstract class PgExceptions extends JdbdExceptions {
     }
 
 
-    public static SQLException createSyntaxError(String reason) {
-        return new SQLException(reason, PgSQLState.SYNTAX_ERROR);
+    public static SQLException createObjectTooLargeError() {
+        return new SQLException("SQL too large to send over the protocol");
     }
 
 

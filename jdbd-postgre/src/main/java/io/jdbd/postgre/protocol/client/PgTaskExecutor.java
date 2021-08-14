@@ -4,7 +4,9 @@ import io.jdbd.postgre.Encoding;
 import io.jdbd.postgre.PgJdbdException;
 import io.jdbd.postgre.config.PostgreHost;
 import io.jdbd.postgre.session.SessionAdjutant;
+import io.jdbd.postgre.util.PgTimes;
 import io.jdbd.vendor.conf.HostInfo;
+import io.jdbd.vendor.syntax.SQLStatement;
 import io.jdbd.vendor.task.CommunicationTask;
 import io.jdbd.vendor.task.CommunicationTaskExecutor;
 import io.netty.buffer.ByteBuf;
@@ -15,6 +17,8 @@ import reactor.netty.Connection;
 import reactor.netty.tcp.TcpClient;
 
 import java.nio.charset.Charset;
+import java.sql.SQLException;
+import java.time.ZoneOffset;
 import java.util.List;
 
 final class PgTaskExecutor extends CommunicationTaskExecutor<TaskAdjutant> {
@@ -90,6 +94,7 @@ final class PgTaskExecutor extends CommunicationTaskExecutor<TaskAdjutant> {
 
         private final PgTaskExecutor taskExecutor;
 
+
         private TaskAdjutantWrapper(PgTaskExecutor taskExecutor) {
             super(taskExecutor);
             this.taskExecutor = taskExecutor;
@@ -110,6 +115,20 @@ final class PgTaskExecutor extends CommunicationTaskExecutor<TaskAdjutant> {
             return Encoding.CLIENT_CHARSET;
         }
 
+        @Override
+        public final ZoneOffset clientOffset() {
+            return PgTimes.systemZoneOffset();
+        }
+
+        @Override
+        public SQLStatement parse(String singleSql) throws SQLException {
+            return null;
+        }
+
+        @Override
+        public boolean isSingleStmt(String sql) throws SQLException {
+            return false;
+        }
 
     }
 

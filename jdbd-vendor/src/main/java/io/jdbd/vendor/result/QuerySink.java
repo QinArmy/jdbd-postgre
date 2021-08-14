@@ -5,7 +5,7 @@ import io.jdbd.result.ResultState;
 /**
  * @see MultiResultSink#nextQuery()
  */
-public interface QuerySink extends ResultRowSink {
+public interface QuerySink extends ResultRowSink_0 {
 
     /**
      * <p>

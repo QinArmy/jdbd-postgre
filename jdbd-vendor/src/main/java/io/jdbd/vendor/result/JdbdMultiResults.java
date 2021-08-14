@@ -1,12 +1,14 @@
 package io.jdbd.vendor.result;
 
 import io.jdbd.JdbdException;
+import io.jdbd.result.Result;
 import io.jdbd.result.ResultRow;
 import io.jdbd.result.ResultState;
 import io.jdbd.result.SingleResult;
 import io.jdbd.vendor.task.ITaskAdjutant;
 import io.jdbd.vendor.util.JdbdExceptions;
 import reactor.core.publisher.Flux;
+import reactor.core.publisher.FluxSink;
 import reactor.core.publisher.Mono;
 
 import java.util.function.Consumer;
@@ -43,13 +45,22 @@ public abstract class JdbdMultiResults {
         });
     }
 
-    public static Mono<ResultState> update(ITaskAdjutant adjutant, Consumer<MultiResultSink> callback) {
+    @Deprecated
+    public static Mono<ResultState> update_0(ITaskAdjutant adjutant, Consumer<MultiResultSink> callback) {
+        return UpdateResultSubscriber_0.create(adjutant, callback);
+    }
+
+    public static Mono<ResultState> update(ITaskAdjutant adjutant, Consumer<FluxResultSink> callback) {
         return UpdateResultSubscriber.create(adjutant, callback);
     }
 
     public static Flux<ResultRow> query(ITaskAdjutant adjutant, Consumer<ResultState> stateConsumer
             , Consumer<MultiResultSink> callback) {
-        return QueryResultSubscriber.create(adjutant, stateConsumer, callback);
+        return QueryResultSubscriber_0.create(adjutant, stateConsumer, callback);
+    }
+
+    public static Flux<ResultState> batchUpdate(ITaskAdjutant adjutant, Consumer<FluxSink<Result>> consumer) {
+        return BatchUpdateResultSubscriber.create(adjutant, consumer);
     }
 
 

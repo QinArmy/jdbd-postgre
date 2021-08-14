@@ -1,10 +1,11 @@
 package io.jdbd.postgre;
 
 
-import io.jdbd.postgre.type.PgBox;
-import io.jdbd.postgre.type.PgLine;
 import io.jdbd.type.LongBinary;
-import io.jdbd.type.geometry.*;
+import io.jdbd.type.geometry.Circle;
+import io.jdbd.type.geometry.LineString;
+import io.jdbd.type.geometry.LongString;
+import io.jdbd.type.geometry.Point;
 
 import java.math.BigDecimal;
 import java.sql.JDBCType;
@@ -79,10 +80,10 @@ public enum PgType implements io.jdbd.meta.SQLType {
 
     POINT(PgConstant.TYPE_POINT, JDBCType.OTHER, Point.class),
     POINT_ARRAY(PgConstant.TYPE_POINT_ARRAY, JDBCType.ARRAY, Point[].class),
-    LINE(PgConstant.TYPE_LINE, JDBCType.OTHER, PgLine.class),
-    LINE_SEGMENT(PgConstant.TYPE_LSEG, JDBCType.OTHER, Line.class),
+    LINE(PgConstant.TYPE_LINE, JDBCType.OTHER, String.class),
+    LINE_SEGMENT(PgConstant.TYPE_LSEG, JDBCType.OTHER, String.class),
 
-    BOX(PgConstant.TYPE_BOX, JDBCType.OTHER, PgBox.class),
+    BOX(PgConstant.TYPE_BOX, JDBCType.OTHER, String.class),
     PATH(PgConstant.TYPE_PATH, JDBCType.OTHER, LineString.class),
     POLYGON(PgConstant.TYPE_POLYGON, JDBCType.OTHER, LongString.class),
     CIRCLE(PgConstant.TYPE_CIRCLE, JDBCType.OTHER, Circle.class),

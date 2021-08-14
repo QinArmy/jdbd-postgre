@@ -7,7 +7,7 @@ import io.jdbd.mysql.protocol.conf.PropertyKey;
 import io.jdbd.mysql.util.MySQLExceptions;
 import io.jdbd.result.ResultRow;
 import io.jdbd.vendor.conf.Properties;
-import io.jdbd.vendor.result.ResultRowSink;
+import io.jdbd.vendor.result.ResultRowSink_0;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import org.slf4j.Logger;
@@ -33,7 +33,7 @@ abstract class AbstractResultSetReader implements ResultSetReader {
 
     final ClientProtocolAdjutant adjutant;
 
-    private final ResultRowSink sink;
+    private final ResultRowSink_0 sink;
 
     private final Consumer<JdbdException> errorConsumer;
 
@@ -165,7 +165,7 @@ abstract class AbstractResultSetReader implements ResultSetReader {
         }
 
         assertPhase(Phase.READ_RESULT_ROW);
-        final ResultRowSink sink = Objects.requireNonNull(this.sink, "this.sink");
+        final ResultRowSink_0 sink = Objects.requireNonNull(this.sink, "this.sink");
 
         boolean resultSetEnd = false;
         int sequenceId = -1;

@@ -14,6 +14,14 @@ import java.util.List;
 public interface ResultRowMeta {
 
     /**
+     * @return index of this Query result, based zero.
+     * @see Result
+     */
+    default int getResultIndex() {
+        throw new UnsupportedOperationException();
+    }
+
+    /**
      * Returns the number of columns
      *
      * @return the number of columns
@@ -219,7 +227,7 @@ public interface ResultRowMeta {
      * @param indexBaseZero base 0,the first column is 0, the second is 1, ..
      * @return precision
      * @throws JdbdSQLException if a database access error occurs
-     *                              @see #getColumnIndex(String)
+     *                          @see #getColumnIndex(String)
      */
     long getPrecision(int indexBaseZero) throws JdbdSQLException;
 

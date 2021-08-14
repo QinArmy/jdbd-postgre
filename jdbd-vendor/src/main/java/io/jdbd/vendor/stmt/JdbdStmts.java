@@ -18,14 +18,14 @@ public abstract class JdbdStmts {
     }
 
 
-    public static BatchStmt<ParamValue> batch(String sql, List<List<ParamValue>> groupList) {
+    public static BatchParamStmt<ParamValue> batch(String sql, List<List<ParamValue>> groupList) {
         if (groupList.size() < 1) {
             throw new IllegalArgumentException("groupList is empty.");
         }
         return new BatchStmtImpl(sql, groupList, 0);
     }
 
-    public static BatchStmt<ParamValue> batch(String sql, List<List<ParamValue>> groupList, int timeOut) {
+    public static BatchParamStmt<ParamValue> batch(String sql, List<List<ParamValue>> groupList, int timeOut) {
         if (groupList.size() < 2) {
             throw new IllegalArgumentException("groupList size < 2");
         }
@@ -87,7 +87,7 @@ public abstract class JdbdStmts {
     }
 
 
-    private static final class BatchStmtImpl implements BatchStmt<ParamValue> {
+    private static final class BatchStmtImpl implements BatchParamStmt<ParamValue> {
 
         private final String sql;
 

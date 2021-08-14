@@ -1317,7 +1317,7 @@ final class ComQueryTask extends MySQLCommandTask {
     }
 
 
-    private static abstract class AbstractDownstreamSink implements DownstreamSink, ResultRowSink {
+    private static abstract class AbstractDownstreamSink implements DownstreamSink, ResultRowSink_0 {
 
         final ComQueryTask task;
 
@@ -1630,7 +1630,7 @@ final class ComQueryTask extends MySQLCommandTask {
         }
 
         /**
-         * @see ResultRowSink#next(ResultRow)
+         * @see ResultRowSink_0#next(ResultRow)
          */
         @Override
         final void internalNext(ResultRow row) {
@@ -1638,7 +1638,7 @@ final class ComQueryTask extends MySQLCommandTask {
         }
 
         /**
-         * @see ResultRowSink#isCancelled()
+         * @see ResultRowSink_0#isCancelled()
          */
         @Override
         final boolean internalIsCancelled() {

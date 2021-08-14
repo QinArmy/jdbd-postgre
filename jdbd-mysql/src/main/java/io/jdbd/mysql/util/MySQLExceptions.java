@@ -134,9 +134,6 @@ public abstract class MySQLExceptions extends JdbdExceptions {
 
     /*################################## blow create SQLException method ##################################*/
 
-    public static SQLException createMultiStatementError() {
-        return createSyntaxError("You have an error in your SQL syntax,sql is multi statement; near ';' ");
-    }
 
     public static SQLException createSyntaxError(String message) {
         return createSyntaxError(message, null);

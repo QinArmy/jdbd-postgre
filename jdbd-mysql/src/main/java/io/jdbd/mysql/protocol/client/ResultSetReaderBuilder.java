@@ -1,7 +1,7 @@
 package io.jdbd.mysql.protocol.client;
 
 import io.jdbd.JdbdException;
-import io.jdbd.vendor.result.ResultRowSink;
+import io.jdbd.vendor.result.ResultRowSink_0;
 
 import java.util.function.Consumer;
 import java.util.function.Supplier;
@@ -12,7 +12,7 @@ final class ResultSetReaderBuilder {
         return new ResultSetReaderBuilder();
     }
 
-    ResultRowSink rowSink;
+    ResultRowSink_0 rowSink;
 
     TaskAdjutant adjutant;
 
@@ -31,7 +31,7 @@ final class ResultSetReaderBuilder {
 
     }
 
-    public ResultSetReaderBuilder rowSink(ResultRowSink rowSink) {
+    public ResultSetReaderBuilder rowSink(ResultRowSink_0 rowSink) {
         this.rowSink = rowSink;
         return this;
     }
@@ -57,7 +57,7 @@ final class ResultSetReaderBuilder {
     }
 
     /**
-     * @deprecated use {@link ResultRowSink#isCancelled()}
+     * @deprecated use {@link ResultRowSink_0#isCancelled()}
      */
     @Deprecated
     public ResultSetReaderBuilder errorJudger(Supplier<Boolean> errorJudger) {

@@ -1,7 +1,8 @@
 package io.jdbd.result;
 
 
-public interface ResultState {
+public interface ResultState extends Result {
+
 
     long getAffectedRows();
 
@@ -16,5 +17,8 @@ public interface ResultState {
 
     boolean hasMoreFetch();
 
+    default boolean hasReturnColumn() {
+        throw new UnsupportedOperationException();
+    }
 
 }

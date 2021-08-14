@@ -10,8 +10,14 @@ import io.netty.buffer.ByteBuf;
 import java.sql.JDBCType;
 import java.util.List;
 
+/**
+ * @see <a href="https://www.postgresql.org/docs/current/protocol-message-formats.html">RowDescription</a>
+ */
 final class PgRowMeta implements ResultRowMeta {
 
+    /**
+     * @see <a href="https://www.postgresql.org/docs/current/protocol-message-formats.html">RowDescription</a>
+     */
     static PgRowMeta read(ByteBuf message, TaskAdjutant adjutant) {
         PgColumnMeta[] columnMetaArray = PgColumnMeta.read(message, adjutant);
         return columnMetaArray.length == 0 ? EMPTY : new PgRowMeta(columnMetaArray);

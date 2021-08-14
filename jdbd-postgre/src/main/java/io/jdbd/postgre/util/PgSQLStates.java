@@ -1,11 +1,9 @@
 package io.jdbd.postgre.util;
 
+import io.jdbd.vendor.util.SQLStates;
 import reactor.util.annotation.Nullable;
 
-public abstract class PgSQLState {
-
-    private PgSQLState() {
-    }
+public abstract class PgSQLStates extends SQLStates {
 
 
     public static final String UNKNOWN_STATE = "";

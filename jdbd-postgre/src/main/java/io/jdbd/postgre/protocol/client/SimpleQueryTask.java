@@ -9,6 +9,7 @@ import io.jdbd.result.ResultState;
 import io.jdbd.result.SingleResult;
 import io.jdbd.vendor.result.JdbdMultiResults;
 import io.jdbd.vendor.result.MultiResultSink;
+import io.jdbd.vendor.stmt.GroupStmt;
 import io.jdbd.vendor.stmt.Stmt;
 import io.netty.buffer.ByteBuf;
 import org.reactivestreams.Publisher;
@@ -17,7 +18,6 @@ import reactor.core.publisher.Mono;
 
 import java.nio.charset.Charset;
 import java.sql.SQLException;
-import java.util.List;
 import java.util.function.Consumer;
 
 /**
@@ -27,7 +27,7 @@ final class SimpleQueryTask extends PgTask {
 
 
     static Mono<ResultState> update(Stmt stmt, TaskAdjutant adjutant) {
-        return JdbdMultiResults.update(adjutant, sink -> {
+        return JdbdMultiResults.update_0(adjutant, sink -> {
             try {
                 SimpleQueryTask task = new SimpleQueryTask(stmt, sink, adjutant);
                 task.submit(sink::error);
@@ -48,10 +48,11 @@ final class SimpleQueryTask extends PgTask {
         });
     }
 
-    static Flux<SingleResult> asFlux(List<Stmt> stmtList, TaskAdjutant adjutant) {
+
+    static Flux<SingleResult> asFlux(GroupStmt stmt, TaskAdjutant adjutant) {
         return JdbdMultiResults.createAsFlux(adjutant, sink -> {
             try {
-                SimpleQueryTask task = new SimpleQueryTask(stmtList, sink, adjutant);
+                SimpleQueryTask task = new SimpleQueryTask(stmt, sink, adjutant);
                 task.submit(sink::error);
             } catch (Throwable e) {
                 sink.error(PgExceptions.wrap(e));
@@ -72,17 +73,16 @@ final class SimpleQueryTask extends PgTask {
      * @see #update(Stmt, TaskAdjutant)
      * @see #query(Stmt, TaskAdjutant)
      */
-    private SimpleQueryTask(Stmt stmt, MultiResultSink sink, TaskAdjutant adjutant) {
+    private SimpleQueryTask(Stmt stmt, MultiResultSink sink, TaskAdjutant adjutant) throws SQLException {
         super(adjutant);
-        this.packetPublisher = Flux.fromIterable(QueryCommandWriter.createStaticSingleCommand(stmt, adjutant));
+        this.packetPublisher = QueryCommandWriter.createStaticSingleCommand(stmt, adjutant);
         this.downstreamSink = new MultiResultDownstreamSink(this, sink);
     }
 
-    private SimpleQueryTask(List<Stmt> stmtList, MultiResultSink sink, TaskAdjutant adjutant)
+    private SimpleQueryTask(GroupStmt stmt, MultiResultSink sink, TaskAdjutant adjutant)
             throws SQLException {
         super(adjutant);
-        // Object is too large to send over the protocol.
-        this.packetPublisher = Flux.fromIterable(QueryCommandWriter.createStaticSingleCommand(stmtList, adjutant));
+        this.packetPublisher = QueryCommandWriter.createStaticBatchCommand(stmt, adjutant);
         this.downstreamSink = new MultiResultDownstreamSink(this, sink);
     }
 

@@ -18,7 +18,7 @@ import io.jdbd.stmt.ResultType;
 import io.jdbd.stmt.SubscribeException;
 import io.jdbd.vendor.JdbdCompositeException;
 import io.jdbd.vendor.result.*;
-import io.jdbd.vendor.stmt.BatchStmt;
+import io.jdbd.vendor.stmt.BatchParamStmt;
 import io.jdbd.vendor.stmt.ParamStmt;
 import io.jdbd.vendor.stmt.ParamValue;
 import io.jdbd.vendor.stmt.Stmt;
@@ -126,10 +126,10 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
      * This method is one of underlying api of {@link BindableStatement#executeBatch()} method.
      * </p>
      *
-     * @see #ComPreparedTask(FluxSink, BatchStmt, TaskAdjutant)
+     * @see #ComPreparedTask(FluxSink, BatchParamStmt, TaskAdjutant)
      * @see ComQueryTask#bindableBatch(BatchBindStmt, TaskAdjutant)
      */
-    static Flux<ResultState> batchUpdate(final BatchStmt<? extends ParamValue> stmt
+    static Flux<ResultState> batchUpdate(final BatchParamStmt<? extends ParamValue> stmt
             , final TaskAdjutant adjutant) {
         return Flux.create(sink -> {
             try {
@@ -148,10 +148,10 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
      * This method is one of underlying api of {@link BindableStatement#executeAsMulti()} method.
      * </p>
      *
-     * @see #ComPreparedTask(BatchStmt, MultiResultSink, TaskAdjutant)
+     * @see #ComPreparedTask(BatchParamStmt, MultiResultSink, TaskAdjutant)
      * @see ComQueryTask#bindableAsMulti(BatchBindStmt, TaskAdjutant)
      */
-    static ReactorMultiResult asMulti(final BatchStmt<? extends ParamValue> stmt, final TaskAdjutant adjutant) {
+    static ReactorMultiResult asMulti(final BatchParamStmt<? extends ParamValue> stmt, final TaskAdjutant adjutant) {
         return JdbdMultiResults.create(adjutant, sink -> {
             try {
                 ComPreparedTask task = new ComPreparedTask(stmt, sink, adjutant);
@@ -167,10 +167,10 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
      * This method is one of underlying api of {@link BindableStatement#executeAsFlux()} method.
      * </p>
      *
-     * @see #ComPreparedTask(BatchStmt, MultiResultSink, TaskAdjutant)
+     * @see #ComPreparedTask(BatchParamStmt, MultiResultSink, TaskAdjutant)
      * @see ComQueryTask#bindableAsFlux(BatchBindStmt, TaskAdjutant)
      */
-    static Flux<SingleResult> asFlux(final BatchStmt<? extends ParamValue> stmt, final TaskAdjutant adjutant) {
+    static Flux<SingleResult> asFlux(final BatchParamStmt<? extends ParamValue> stmt, final TaskAdjutant adjutant) {
         return JdbdMultiResults.createAsFlux(adjutant, sink -> {
             try {
                 ComPreparedTask task = new ComPreparedTask(stmt, sink, adjutant);
@@ -253,9 +253,9 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
     }
 
     /**
-     * @see #batchUpdate(BatchStmt, TaskAdjutant)
+     * @see #batchUpdate(BatchParamStmt, TaskAdjutant)
      */
-    private ComPreparedTask(final FluxSink<ResultState> sink, final BatchStmt<? extends ParamValue> wrapper
+    private ComPreparedTask(final FluxSink<ResultState> sink, final BatchParamStmt<? extends ParamValue> wrapper
             , final TaskAdjutant adjutant) throws SQLException {
         super(adjutant);
         this.packetPublisher = createPrepareCommand(wrapper);
@@ -264,10 +264,10 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
 
 
     /**
-     * @see #asMulti(BatchStmt, TaskAdjutant)
-     * @see #asFlux(BatchStmt, TaskAdjutant)
+     * @see #asMulti(BatchParamStmt, TaskAdjutant)
+     * @see #asFlux(BatchParamStmt, TaskAdjutant)
      */
-    private ComPreparedTask(BatchStmt<? extends ParamValue> stmt, MultiResultSink sink, TaskAdjutant adjutant)
+    private ComPreparedTask(BatchParamStmt<? extends ParamValue> stmt, MultiResultSink sink, TaskAdjutant adjutant)
             throws SQLException {
         super(adjutant);
         this.packetPublisher = createPrepareCommand(stmt);
@@ -355,10 +355,10 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
     }
 
     /**
-     * @see PrepareStmtTask#executeBatch(BatchStmt)
+     * @see PrepareStmtTask#executeBatch(BatchParamStmt)
      */
     @Override
-    public final Flux<ResultState> executeBatch(final BatchStmt<? extends ParamValue> stmt) {
+    public final Flux<ResultState> executeBatch(final BatchParamStmt<? extends ParamValue> stmt) {
         final Flux<ResultState> flux;
 
         if (stmt.getGroupList().isEmpty()) {
@@ -382,10 +382,10 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
     }
 
     /**
-     * @see PrepareStmtTask#executeAsMulti(BatchStmt)
+     * @see PrepareStmtTask#executeAsMulti(BatchParamStmt)
      */
     @Override
-    public final ReactorMultiResult executeAsMulti(BatchStmt<? extends ParamValue> stmt) {
+    public final ReactorMultiResult executeAsMulti(BatchParamStmt<? extends ParamValue> stmt) {
         final ReactorMultiResult result;
         if (stmt.getGroupList().isEmpty()) {
             result = JdbdMultiResults.error(MySQLExceptions.createEmptySqlException());
@@ -406,10 +406,10 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
     }
 
     /**
-     * @see PrepareStmtTask#executeAsFlux(BatchStmt)
+     * @see PrepareStmtTask#executeAsFlux(BatchParamStmt)
      */
     @Override
-    public final Flux<SingleResult> executeAsFlux(BatchStmt<? extends ParamValue> stmt) {
+    public final Flux<SingleResult> executeAsFlux(BatchParamStmt<? extends ParamValue> stmt) {
         final Flux<SingleResult> flux;
         if (stmt.getGroupList().isEmpty()) {
             flux = Flux.error(MySQLExceptions.createEmptySqlException());
@@ -1127,16 +1127,16 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
     }
 
     /**
-     * @see #executeBatch(BatchStmt)
+     * @see #executeBatch(BatchParamStmt)
      */
-    private void doPreparedBatchUpdate(BatchStmt<? extends ParamValue> stmt, FluxSink<ResultState> sink) {
+    private void doPreparedBatchUpdate(BatchParamStmt<? extends ParamValue> stmt, FluxSink<ResultState> sink) {
         doPreparedExecute(sink::error, () -> new BatchUpdateSink<>(ComPreparedTask.this, stmt, sink));
     }
 
     /**
-     * @see #executeAsMulti(BatchStmt)
+     * @see #executeAsMulti(BatchParamStmt)
      */
-    private void doPrepareAsMultiOrFlux(BatchStmt<? extends ParamValue> stmt, MultiResultSink sink) {
+    private void doPrepareAsMultiOrFlux(BatchParamStmt<? extends ParamValue> stmt, MultiResultSink sink) {
         doPreparedExecute(sink::error, () -> new BatchMultiResultDownstreamSink<>(ComPreparedTask.this, stmt, sink));
     }
 
@@ -1144,7 +1144,7 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
     /**
      * @see #doPreparedUpdate(ParamStmt, MonoSink)
      * @see #doPreparedQuery(ParamStmt, FluxSink)
-     * @see #doPreparedBatchUpdate(BatchStmt, FluxSink)
+     * @see #doPreparedBatchUpdate(BatchParamStmt, FluxSink)
      */
     private void doPreparedExecute(final Consumer<Throwable> errorConsumer, final Supplier<DownstreamSink> supplier) {
         final DownstreamSink downstreamSink = this.downstreamSink;
@@ -1251,7 +1251,7 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
     }
 
 
-    private static abstract class AbstractDownstreamSink implements DownstreamSink, ResultRowSink {
+    private static abstract class AbstractDownstreamSink implements DownstreamSink, ResultRowSink_0 {
 
         final ComPreparedTask task;
 
@@ -1563,7 +1563,7 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
 
 
         /**
-         * @see ResultRowSink#next(ResultRow)
+         * @see ResultRowSink_0#next(ResultRow)
          */
         @Override
         final void internalNext(ResultRow resultRow) {
@@ -1571,7 +1571,7 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
         }
 
         /**
-         * @see ResultRowSink#isCancelled()
+         * @see ResultRowSink_0#isCancelled()
          */
         @Override
         final boolean internalIsCancelled() {
@@ -1579,7 +1579,7 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
         }
 
         /**
-         * @see ResultRowSink#accept(ResultState)
+         * @see ResultRowSink_0#accept(ResultState)
          */
         @Override
         final void internalAccept(final ResultState status) {
@@ -1716,7 +1716,7 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
     } // UpdateDownstreamSink
 
     /**
-     * @see #ComPreparedTask(FluxSink, BatchStmt, TaskAdjutant)
+     * @see #ComPreparedTask(FluxSink, BatchParamStmt, TaskAdjutant)
      */
     private static final class BatchUpdateSink<T extends ParamValue> extends AbstractDownstreamSink
             implements BatchDownstreamSink {
@@ -1734,9 +1734,9 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
         private ResultState queryStatus;
 
         /**
-         * @see #ComPreparedTask(FluxSink, BatchStmt, TaskAdjutant)
+         * @see #ComPreparedTask(FluxSink, BatchParamStmt, TaskAdjutant)
          */
-        private BatchUpdateSink(final ComPreparedTask task, BatchStmt<T> wrapper, FluxSink<ResultState> sink) {
+        private BatchUpdateSink(final ComPreparedTask task, BatchParamStmt<T> wrapper, FluxSink<ResultState> sink) {
             super(task);
             this.groupList = wrapper.getGroupList();
             this.sink = sink;
@@ -1913,9 +1913,9 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
 
 
         /**
-         * @see #ComPreparedTask(BatchStmt, MultiResultSink, TaskAdjutant)
+         * @see #ComPreparedTask(BatchParamStmt, MultiResultSink, TaskAdjutant)
          */
-        private BatchMultiResultDownstreamSink(final ComPreparedTask task, BatchStmt<T> wrapper
+        private BatchMultiResultDownstreamSink(final ComPreparedTask task, BatchParamStmt<T> wrapper
                 , MultiResultSink sink) {
             super(task);
             this.sink = sink;

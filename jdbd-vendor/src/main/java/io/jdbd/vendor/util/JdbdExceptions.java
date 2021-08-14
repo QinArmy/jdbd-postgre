@@ -73,5 +73,13 @@ public abstract class JdbdExceptions extends ExceptionUtils {
 
     }
 
+    public static SQLException createMultiStatementError() {
+        return createSyntaxError("You have an error in your SQL syntax,sql is multi statement; near ';' ");
+    }
+
+    public static SQLException createSyntaxError(String reason) {
+        return new SQLException(reason, SQLStates.SYNTAX_ERROR);
+    }
+
 
 }
