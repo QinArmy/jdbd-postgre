@@ -55,7 +55,7 @@ final class QueryResultSubscriber_0 extends AbstractResultSubscriber<SingleResul
     @Override
     public final void onNext(SingleResult singleResult) {
         if (!singleResult.isQuery()) {
-            addError(ResultType.UPDATE);
+            addSubscribeError(ResultType.UPDATE);
             Mono.from(singleResult.receiveUpdate())
                     .doOnError(this::printUpstreamErrorAfterSkip)
                     .subscribe();
@@ -70,7 +70,7 @@ final class QueryResultSubscriber_0 extends AbstractResultSubscriber<SingleResul
                     .doOnError(this::addUpstreamError)
                     .subscribe();
         } else {
-            addError(ResultType.MULTI_RESULT);
+            addSubscribeError(ResultType.MULTI_RESULT);
         }
     }
 

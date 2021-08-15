@@ -2,7 +2,7 @@ package io.jdbd.vendor.result;
 
 import io.jdbd.result.ResultState;
 
-
+@Deprecated
 public interface MultiResultSink {
 
     boolean isCancelled();

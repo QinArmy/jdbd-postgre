@@ -1,39 +1,52 @@
 package io.jdbd.vendor.result;
 
+import io.jdbd.ResultStatusConsumerException;
 import io.jdbd.result.Result;
+import io.jdbd.result.ResultRow;
+import io.jdbd.result.ResultState;
 import io.jdbd.stmt.ResultType;
 import io.jdbd.stmt.SubscribeException;
-import io.jdbd.vendor.task.ITaskAdjutant;
 import reactor.core.CoreSubscriber;
+import reactor.core.publisher.FluxSink;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Consumer;
 
 abstract class AbstractResultSubscriber<T> implements CoreSubscriber<T> {
 
-    final ITaskAdjutant adjutant;
-
     List<Throwable> errorList;
 
-    AbstractResultSubscriber(ITaskAdjutant adjutant) {
-        this.adjutant = adjutant;
+    AbstractResultSubscriber() {
     }
 
 
     abstract ResultType getSubscribeType();
 
-    final void addUpstreamError(Throwable error) {
-        if (this.adjutant.inEventLoop()) {
-            doAddErrorInEventLoop(error);
-        } else {
-            this.adjutant.execute(() -> doAddErrorInEventLoop(error));
+    /**
+     * @return true : stateConsumer throw error
+     */
+    final boolean fluxSinkComplete(FluxSink<ResultRow> sink, Consumer<ResultState> stateConsumer, ResultState state) {
+        Throwable consumerError = null;
+        try {
+            stateConsumer.accept(state);
+        } catch (Throwable e) {
+            consumerError = e;
         }
+        if (consumerError == null) {
+            sink.complete();
+        } else {
+            ResultStatusConsumerException re = ResultStatusConsumerException.create(stateConsumer, consumerError);
+            addError(re);
+            sink.error(re);
+        }
+        return consumerError != null;
     }
 
-    final void addError(ResultType resultType) {
+    final void addSubscribeError(ResultType resultType) {
         List<Throwable> errorList = this.errorList;
         if (errorList == null || errorList.isEmpty()) {
-            doAddErrorInEventLoop(new SubscribeException(getSubscribeType(), resultType));
+            addError(new SubscribeException(getSubscribeType(), resultType));
             return;
         }
         boolean add = true;
@@ -70,12 +83,12 @@ abstract class AbstractResultSubscriber<T> implements CoreSubscriber<T> {
         }
 
         if (add) {
-            doAddErrorInEventLoop(new SubscribeException(getSubscribeType(), resultType));
+            addError(new SubscribeException(getSubscribeType(), resultType));
         }
     }
 
 
-    final void doAddErrorInEventLoop(Throwable error) {
+    final void addError(Throwable error) {
         List<Throwable> errorList = this.errorList;
         if (errorList == null) {
             errorList = new ArrayList<>();
@@ -86,12 +99,16 @@ abstract class AbstractResultSubscriber<T> implements CoreSubscriber<T> {
 
     final boolean hasError() {
         List<Throwable> errorList = this.errorList;
-        return errorList != null && !errorList.isEmpty();
+        return !(errorList == null || errorList.isEmpty());
     }
 
 
     static IllegalArgumentException createUnknownTypeError(Result result) {
         return new IllegalArgumentException(String.format("Unknown type[%s]", result.getClass().getName()));
+    }
+
+    static IllegalArgumentException createDuplicationResultState(ResultState state) {
+        return new IllegalArgumentException(String.format("ResultState [%s] duplication", state.getClass().getName()));
     }
 
 }

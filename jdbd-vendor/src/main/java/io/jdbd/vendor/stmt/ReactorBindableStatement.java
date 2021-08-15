@@ -23,6 +23,7 @@ import java.util.function.Consumer;
  *     </ul>
  * </p>
  */
+@Deprecated
 public interface ReactorBindableStatement extends BindableStatement {
 
     @Override

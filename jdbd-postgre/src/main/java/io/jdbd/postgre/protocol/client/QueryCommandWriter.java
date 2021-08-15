@@ -1,6 +1,9 @@
 package io.jdbd.postgre.protocol.client;
 
 import io.jdbd.JdbdException;
+import io.jdbd.postgre.stmt.BatchBindStmt;
+import io.jdbd.postgre.stmt.BindableStmt;
+import io.jdbd.postgre.stmt.MultiBindStmt;
 import io.jdbd.postgre.util.PgExceptions;
 import io.jdbd.vendor.stmt.GroupStmt;
 import io.jdbd.vendor.stmt.Stmt;
@@ -69,6 +72,20 @@ final class QueryCommandWriter {
 
         Messages.writeLength(message);
         return Mono.just(message);
+    }
+
+
+    static Publisher<ByteBuf> createBindableSingleCommand(BindableStmt stmt, TaskAdjutant adjutant)
+            throws SQLException {
+        return Mono.empty();
+    }
+
+    static Publisher<ByteBuf> createBindableMultiCommand(BatchBindStmt stmt, TaskAdjutant adjutant) {
+        return Mono.empty();
+    }
+
+    static Publisher<ByteBuf> createMultiStmtCommand(MultiBindStmt stmt, TaskAdjutant adjutant) {
+        return Mono.empty();
     }
 
 

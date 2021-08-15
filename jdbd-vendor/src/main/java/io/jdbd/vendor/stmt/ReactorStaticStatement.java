@@ -25,6 +25,7 @@ import java.util.function.Consumer;
  *     </ul>
  * </p>
  */
+@Deprecated
 public interface ReactorStaticStatement extends StaticStatement {
 
     @Override

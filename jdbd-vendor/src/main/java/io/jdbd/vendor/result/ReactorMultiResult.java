@@ -8,6 +8,7 @@ import reactor.core.publisher.Mono;
 
 import java.util.function.Consumer;
 
+@Deprecated
 public interface ReactorMultiResult extends MultiResult {
 
 

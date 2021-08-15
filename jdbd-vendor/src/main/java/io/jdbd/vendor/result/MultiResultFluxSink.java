@@ -23,6 +23,7 @@ import java.util.Objects;
 import java.util.Queue;
 import java.util.function.Consumer;
 
+@Deprecated
 final class MultiResultFluxSink implements MultiResultSink {
 
     static MultiResultSink create(FluxSink<SingleResult> sink, ITaskAdjutant adjutant) {

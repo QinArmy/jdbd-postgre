@@ -15,18 +15,21 @@ import reactor.core.publisher.FluxSink;
 import java.util.List;
 import java.util.function.Consumer;
 
+/**
+ * @see FluxResult
+ */
 final class QueryResultSubscriber extends AbstractResultSubscriber<Result> {
 
     static Flux<ResultRow> create(ITaskAdjutant adjutant, Consumer<ResultState> stateConsumer
-            , Consumer<FluxSink<Result>> callback) {
-        final Flux<Result> flux = Flux.create(sink -> {
+            , Consumer<FluxResultSink> callback) {
+        final FluxResult result = FluxResult.create(adjutant, sink -> {
             try {
                 callback.accept(sink);
             } catch (Throwable e) {
                 sink.error(JdbdExceptions.wrap(e));
             }
         });
-        return Flux.create(sink -> flux.subscribe(new QueryResultSubscriber(adjutant, sink, stateConsumer)));
+        return Flux.create(sink -> result.subscribe(new QueryResultSubscriber(sink, stateConsumer)));
     }
 
 
@@ -36,9 +39,7 @@ final class QueryResultSubscriber extends AbstractResultSubscriber<Result> {
 
     private ResultState state;
 
-    private QueryResultSubscriber(ITaskAdjutant adjutant, FluxSink<ResultRow> sink
-            , Consumer<ResultState> stateConsumer) {
-        super(adjutant);
+    private QueryResultSubscriber(FluxSink<ResultRow> sink, Consumer<ResultState> stateConsumer) {
         this.sink = sink;
         this.stateConsumer = stateConsumer;
     }
@@ -50,26 +51,29 @@ final class QueryResultSubscriber extends AbstractResultSubscriber<Result> {
 
     @Override
     public final void onNext(final Result result) {
-        if (result.getResultIndex() != 0) {
-            addError(ResultType.MULTI_RESULT);
+        // this method invoker in EventLoop
+        if (hasError()) {
             return;
         }
-        if (result instanceof ResultRow) {
+
+        if (result.getResultIndex() != 0) {
+            addSubscribeError(ResultType.MULTI_RESULT);
+        } else if (result instanceof ResultRow) {
             this.sink.next((ResultRow) result);
         } else if (result instanceof ResultState) {
             final ResultState state = (ResultState) result;
             if (!state.hasReturnColumn()) {
-                addError(ResultType.UPDATE);
-            } else if (this.adjutant.inEventLoop()) {
-                if (!hasError()) {
-                    this.state = state;
+                addSubscribeError(ResultType.UPDATE);
+            } else if (state.hasMoreFetch()) {
+                try {
+                    this.stateConsumer.accept(state);
+                } catch (Throwable e) {
+                    addError(ResultStatusConsumerException.create(this.stateConsumer, e));
                 }
+            } else if (this.state == null) {
+                this.state = state;
             } else {
-                this.adjutant.execute(() -> {
-                    if (!hasError()) {
-                        this.state = state;
-                    }
-                });
+                throw createDuplicationResultState(state);
             }
         } else {
             throw createUnknownTypeError(result);
@@ -78,45 +82,34 @@ final class QueryResultSubscriber extends AbstractResultSubscriber<Result> {
 
     @Override
     public final void onError(Throwable t) {
-        this.sink.error(JdbdExceptions.wrap(t));
+        // this method invoker in EventLoop
+        this.sink.error(t);
     }
 
     @Override
     public final void onComplete() {
-        if (this.adjutant.inEventLoop()) {
-            doCompleteInEventLoop();
+        // this method invoker in EventLoop
+        final List<Throwable> errorList = this.errorList;
+
+        if (errorList == null || errorList.isEmpty()) {
+            final ResultState state = this.state;
+            if (state == null) {
+                this.sink.error(new NoMoreResultException("No receive terminator query ResultState from upstream."));
+            } else if (fluxSinkComplete(this.sink, stateConsumer, state)) {
+                final List<Throwable> newErrorList = this.errorList;
+                assert newErrorList != null;
+                this.sink.error(JdbdExceptions.createException(newErrorList));
+            } else {
+                this.sink.complete();
+            }
         } else {
-            this.adjutant.execute(this::doCompleteInEventLoop);
+            this.sink.error(JdbdExceptions.createException(errorList));
         }
     }
 
     @Override
     final ResultType getSubscribeType() {
         return ResultType.QUERY;
-    }
-
-    private void doCompleteInEventLoop() {
-        final List<Throwable> errorList = this.errorList;
-
-        if (errorList == null || errorList.isEmpty()) {
-            if (this.state == null) {
-                this.sink.error(new NoMoreResultException("No receive query ResultState from upstream."));
-            } else {
-                Throwable error = null;
-                try {
-                    this.stateConsumer.accept(this.state);
-                } catch (Throwable e) {
-                    error = e;
-                    this.sink.error(ResultStatusConsumerException.create(this.stateConsumer, e));
-                }
-                if (error == null) {
-                    this.sink.complete();
-                }
-            }
-        } else {
-            this.sink.error(JdbdExceptions.createException(errorList));
-        }
-
     }
 
 

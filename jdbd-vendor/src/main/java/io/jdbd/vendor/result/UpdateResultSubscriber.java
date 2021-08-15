@@ -14,17 +14,20 @@ import reactor.core.publisher.MonoSink;
 import java.util.List;
 import java.util.function.Consumer;
 
+/**
+ * @see FluxResult
+ */
 final class UpdateResultSubscriber extends AbstractResultSubscriber<Result> {
 
     static Mono<ResultState> create(ITaskAdjutant adjutant, Consumer<FluxResultSink> callback) {
-        final FluxResult flux = FluxResult.create(adjutant, sink -> {
+        final FluxResult result = FluxResult.create(adjutant, sink -> {
             try {
                 callback.accept(sink);
             } catch (Throwable e) {
                 sink.error(JdbdExceptions.wrap(e));
             }
         });
-        return Mono.create(sink -> flux.subscribe(new UpdateResultSubscriber(adjutant, sink)));
+        return Mono.create(sink -> result.subscribe(new UpdateResultSubscriber(sink)));
     }
 
 
@@ -32,8 +35,7 @@ final class UpdateResultSubscriber extends AbstractResultSubscriber<Result> {
 
     private ResultState state;
 
-    private UpdateResultSubscriber(ITaskAdjutant adjutant, MonoSink<ResultState> sink) {
-        super(adjutant);
+    private UpdateResultSubscriber(MonoSink<ResultState> sink) {
         this.sink = sink;
     }
 
@@ -45,16 +47,21 @@ final class UpdateResultSubscriber extends AbstractResultSubscriber<Result> {
     @Override
     public final void onNext(final Result result) {
         // this method invoker in EventLoop
+        if (hasError()) {
+            return;
+        }
         if (result.getResultIndex() != 0) {
-            addError(ResultType.MULTI_RESULT);
+            addSubscribeError(ResultType.MULTI_RESULT);
         } else if (result instanceof ResultRow) {
-            addError(ResultType.QUERY);
+            addSubscribeError(ResultType.QUERY);
         } else if (result instanceof ResultState) {
             final ResultState state = (ResultState) result;
             if (state.hasReturnColumn()) {
-                addError(ResultType.QUERY);
-            } else if (!hasError()) {
+                addSubscribeError(ResultType.QUERY);
+            } else if (this.state == null) {
                 this.state = state;
+            } else {
+                throw createDuplicationResultState(state);
             }
         } else {
             throw createUnknownTypeError(result);
@@ -88,7 +95,6 @@ final class UpdateResultSubscriber extends AbstractResultSubscriber<Result> {
     final ResultType getSubscribeType() {
         return ResultType.UPDATE;
     }
-
 
 
 }

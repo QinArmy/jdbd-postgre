@@ -152,7 +152,7 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
      * @see ComQueryTask#bindableAsMulti(BatchBindStmt, TaskAdjutant)
      */
     static ReactorMultiResult asMulti(final BatchParamStmt<? extends ParamValue> stmt, final TaskAdjutant adjutant) {
-        return JdbdMultiResults.create(adjutant, sink -> {
+        return MultiResults.create(adjutant, sink -> {
             try {
                 ComPreparedTask task = new ComPreparedTask(stmt, sink, adjutant);
                 task.submit(sink::error);
@@ -171,7 +171,7 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
      * @see ComQueryTask#bindableAsFlux(BatchBindStmt, TaskAdjutant)
      */
     static Flux<SingleResult> asFlux(final BatchParamStmt<? extends ParamValue> stmt, final TaskAdjutant adjutant) {
-        return JdbdMultiResults.createAsFlux(adjutant, sink -> {
+        return MultiResults.createAsFlux(adjutant, sink -> {
             try {
                 ComPreparedTask task = new ComPreparedTask(stmt, sink, adjutant);
                 task.submit(sink::error);
@@ -388,9 +388,9 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
     public final ReactorMultiResult executeAsMulti(BatchParamStmt<? extends ParamValue> stmt) {
         final ReactorMultiResult result;
         if (stmt.getGroupList().isEmpty()) {
-            result = JdbdMultiResults.error(MySQLExceptions.createEmptySqlException());
+            result = MultiResults.error(MySQLExceptions.createEmptySqlException());
         } else {
-            result = JdbdMultiResults.create(this.adjutant, sink -> {
+            result = MultiResults.create(this.adjutant, sink -> {
                 if (this.adjutant.isActive()) {
                     if (this.adjutant.inEventLoop()) {
                         doPrepareAsMultiOrFlux(stmt, sink);
@@ -414,7 +414,7 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
         if (stmt.getGroupList().isEmpty()) {
             flux = Flux.error(MySQLExceptions.createEmptySqlException());
         } else {
-            flux = JdbdMultiResults.createAsFlux(this.adjutant, sink -> {
+            flux = MultiResults.createAsFlux(this.adjutant, sink -> {
                 if (this.adjutant.isActive()) {
                     if (this.adjutant.inEventLoop()) {
                         doPrepareAsMultiOrFlux(stmt, sink);

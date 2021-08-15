@@ -46,7 +46,7 @@ final class BatchUpdateResultSubscriber_0 extends AbstractResultSubscriber<Singl
     @Override
     public final void onNext(SingleResult singleResult) {
         if (singleResult.isQuery()) {
-            addError(ResultType.QUERY);
+            addSubscribeError(ResultType.QUERY);
             Flux.from(singleResult.receiveQuery())
                     .doOnError(this::printUpstreamErrorAfterSkip)
                     .subscribe();

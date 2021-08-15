@@ -1,6 +1,5 @@
 package io.jdbd.vendor.result;
 
-import io.jdbd.result.NoMoreResultException;
 import io.jdbd.result.ResultState;
 import io.jdbd.result.SingleResult;
 import io.jdbd.stmt.ResultType;
@@ -13,9 +12,9 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.core.publisher.MonoSink;
 
-import java.util.List;
 import java.util.function.Consumer;
 
+@Deprecated
 final class UpdateResultSubscriber_0 extends AbstractResultSubscriber<SingleResult> {
 
     static Mono<ResultState> create(ITaskAdjutant adjutant, Consumer<MultiResultSink> callback) {
@@ -33,11 +32,8 @@ final class UpdateResultSubscriber_0 extends AbstractResultSubscriber<SingleResu
 
     private final MonoSink<ResultState> sink;
 
-    private ResultState resultState;
-
 
     private UpdateResultSubscriber_0(ITaskAdjutant adjutant, MonoSink<ResultState> sink) {
-        super(adjutant);
         this.sink = sink;
     }
 
@@ -49,17 +45,16 @@ final class UpdateResultSubscriber_0 extends AbstractResultSubscriber<SingleResu
     @Override
     public final void onNext(SingleResult singleResult) {
         if (singleResult.isQuery()) {
-            addError(ResultType.QUERY);
+            addSubscribeError(ResultType.QUERY);
             Flux.from(singleResult.receiveQuery())
                     .doOnError(this::printUpstreamErrorAfterSkip)
                     .subscribe();
         } else if (singleResult.getIndex() == 0) {
             Mono.from(singleResult.receiveUpdate())
                     .doOnSuccess(this::setResultState)
-                    .doOnError(this::addUpstreamError)
                     .subscribe();
         } else {
-            addError(ResultType.MULTI_RESULT);
+            addSubscribeError(ResultType.MULTI_RESULT);
         }
     }
 
@@ -70,11 +65,6 @@ final class UpdateResultSubscriber_0 extends AbstractResultSubscriber<SingleResu
 
     @Override
     public final void onComplete() {
-        if (this.adjutant.inEventLoop()) {
-            doCompleteInEventLoop();
-        } else {
-            this.adjutant.execute(this::doCompleteInEventLoop);
-        }
     }
 
     @Override
@@ -88,28 +78,9 @@ final class UpdateResultSubscriber_0 extends AbstractResultSubscriber<SingleResu
         }
     }
 
-    private void doCompleteInEventLoop() {
-        final List<Throwable> errorList = this.errorList;
-
-        if (errorList == null || errorList.isEmpty()) {
-            final ResultState resultState = this.resultState;
-            if (resultState == null) {
-                this.sink.error(new NoMoreResultException("No receive any result from upstream."));
-            } else {
-                this.sink.success(resultState);
-            }
-        } else {
-            this.sink.error(JdbdExceptions.createException(errorList));
-        }
-
-    }
 
     private void setResultState(ResultState resultState) {
-        if (this.adjutant.inEventLoop()) {
-            this.resultState = resultState;
-        } else {
-            this.adjutant.execute(() -> this.resultState = resultState);
-        }
+
     }
 
 

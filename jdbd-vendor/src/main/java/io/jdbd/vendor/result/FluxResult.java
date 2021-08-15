@@ -10,6 +10,12 @@ import reactor.core.Exceptions;
 
 import java.util.function.Consumer;
 
+/**
+ * @see UpdateResultSubscriber
+ * @see QueryResultSubscriber
+ * @see BatchUpdateResultSubscriber
+ * @see MultiResultSubscriber
+ */
 final class FluxResult implements Publisher<Result> {
 
     static FluxResult create(ITaskAdjutant adjutant, Consumer<FluxResultSink> callBack) {
@@ -120,7 +126,9 @@ final class FluxResult implements Publisher<Result> {
         public final void request(long n) {
             //no-op ,because subscriber :
             // 1. io.jdbd.vendor.result.UpdateResultSubscriber
-            // 2.
+            // 2. io.jdbd.vendor.result.QueryResultSubscriber
+            // 3. io.jdbd.vendor.result.BatchUpdateResultSubscriber
+            // 4. io.jdbd.vendor.result.MultiResultSubscriber
             // always Long.MAX_VALUE
         }
 

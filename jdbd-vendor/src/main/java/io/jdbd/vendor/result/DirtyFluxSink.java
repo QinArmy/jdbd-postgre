@@ -7,6 +7,7 @@ import reactor.util.context.Context;
 
 import java.util.function.LongConsumer;
 
+@Deprecated
 final class DirtyFluxSink implements FluxSink<ResultRow> {
 
     static final DirtyFluxSink INSTANCE = new DirtyFluxSink();

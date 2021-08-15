@@ -24,6 +24,7 @@ import java.util.function.Consumer;
  *     </ul>
  * </p>
  */
+@Deprecated
 public interface ReactorPreparedStatement extends PreparedStatement {
 
     @Override

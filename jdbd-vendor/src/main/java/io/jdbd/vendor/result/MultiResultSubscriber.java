@@ -1,55 +1,54 @@
 package io.jdbd.vendor.result;
 
 import io.jdbd.JdbdException;
-import io.jdbd.ResultStatusConsumerException;
-import io.jdbd.SessionCloseException;
-import io.jdbd.result.NoMoreResultException;
-import io.jdbd.result.Result;
-import io.jdbd.result.ResultRow;
-import io.jdbd.result.ResultState;
+import io.jdbd.result.*;
 import io.jdbd.stmt.ResultType;
 import io.jdbd.stmt.SubscribeException;
 import io.jdbd.vendor.task.ITaskAdjutant;
 import io.jdbd.vendor.util.JdbdExceptions;
 import io.jdbd.vendor.util.JdbdFunctions;
-import org.reactivestreams.Subscriber;
+import org.reactivestreams.Publisher;
 import org.reactivestreams.Subscription;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.FluxSink;
 import reactor.core.publisher.Mono;
 import reactor.core.publisher.MonoSink;
 
-import java.util.*;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Objects;
+import java.util.Queue;
 import java.util.function.Consumer;
 
-final class MultiResultSubscriber implements Subscriber<Result> {
+/**
+ * @see FluxResult
+ */
+final class MultiResultSubscriber extends AbstractResultSubscriber<Result> {
 
 
-    static ReactorMultiResult create(ITaskAdjutant adjutant, Consumer<FluxSink<Result>> callback) {
-        final Flux<Result> flux = Flux.create(sink -> {
+    static MultiResult create(ITaskAdjutant adjutant, Consumer<FluxResultSink> callback) {
+        final FluxResult result = FluxResult.create(adjutant, sink -> {
             try {
                 callback.accept(sink);
             } catch (Throwable e) {
                 sink.error(JdbdExceptions.wrap(e));
             }
         });
-        return new ReactorMultiResultImpl(adjutant, flux);
+        return new ReactorMultiResultImpl(adjutant, result);
     }
 
-    private final Flux<Result> source;
+    private final Publisher<Result> source;
 
     private final Queue<Result> resultQueue = new LinkedList<>();
 
     private final Queue<SinkWrapper> sinkQueue = new LinkedList<>();
-
-    private List<JdbdException> errorList;
 
     private Subscription subscription;
 
     private boolean done;
 
 
-    private MultiResultSubscriber(Flux<Result> source) {
+    private MultiResultSubscriber(Publisher<Result> source) {
         this.source = source;
     }
 
@@ -65,14 +64,16 @@ final class MultiResultSubscriber implements Subscriber<Result> {
         // this method invoker in EventLoop
         if (!hasError()) {
             this.resultQueue.offer(result);
-            drain();
+            drainResult();
         }
     }
 
     @Override
     public final void onError(Throwable t) {
         // this method invoker in EventLoop
-        drain();
+        if (!hasError()) {
+            drainResult();
+        }
         addError(t);
         drainError();
     }
@@ -84,27 +85,18 @@ final class MultiResultSubscriber implements Subscriber<Result> {
         if (hasError()) {
             drainError();
         } else {
-            drain();
+            drainResult();
         }
     }
 
-
-    private void fluxSinkComplete(FluxSink<ResultRow> sink, Consumer<ResultState> stateConsumer, ResultState state) {
-        Throwable consumerError = null;
-        try {
-            stateConsumer.accept(state);
-        } catch (Throwable e) {
-            consumerError = e;
-        }
-        if (consumerError == null) {
-            sink.complete();
-        } else {
-            sink.error(ResultStatusConsumerException.create(stateConsumer, consumerError));
-        }
+    @Override
+    final ResultType getSubscribeType() {
+        return ResultType.MULTI_RESULT;
     }
+
 
     private void drainError() {
-        final List<JdbdException> errorList = this.errorList;
+        final List<Throwable> errorList = this.errorList;
         if (errorList == null || errorList.isEmpty()) {
             throw new IllegalStateException("No error");
         }
@@ -122,8 +114,10 @@ final class MultiResultSubscriber implements Subscriber<Result> {
     }
 
 
-    private void drain() {
-
+    private void drainResult() {
+        if (hasError()) {
+            throw new IllegalStateException("has error ,reject drain result.");
+        }
         final Queue<SinkWrapper> sinkQueue = this.sinkQueue;
         final Queue<Result> resultQueue = this.resultQueue;
 
@@ -155,7 +149,9 @@ final class MultiResultSubscriber implements Subscriber<Result> {
                     } else {
                         final Consumer<ResultState> stateConsumer = sink.stateConsumer;
                         assert stateConsumer != null;
-                        fluxSinkComplete(fluxSink, stateConsumer, state);
+                        if (fluxSinkComplete(fluxSink, stateConsumer, state)) {
+                            break;
+                        }
                     }
                 } else {
                     final MonoSink<ResultState> monoSink = sink.updateSink;
@@ -173,16 +169,15 @@ final class MultiResultSubscriber implements Subscriber<Result> {
         }
 
         if (nonExpectedType != null) {
-            addSubscribeError(nonExpectedType);
-            drainError();
+            addMultiResultSubscribeError(nonExpectedType);
         }
 
     }
 
-    private void addSubscribeError(final ResultType nonExpectedType) {
-        final List<JdbdException> errorList = this.errorList;
+    private void addMultiResultSubscribeError(final ResultType nonExpectedType) {
+        final List<Throwable> errorList = this.errorList;
         if (errorList != null) {
-            for (JdbdException e : errorList) {
+            for (Throwable e : errorList) {
                 if (e instanceof SubscribeException) {
                     return;
                 }
@@ -203,21 +198,6 @@ final class MultiResultSubscriber implements Subscriber<Result> {
 
     }
 
-    private boolean hasError() {
-        List<JdbdException> errorList = this.errorList;
-        return errorList != null && !errorList.isEmpty();
-    }
-
-    private void addError(Throwable t) {
-        List<JdbdException> errorList = this.errorList;
-        if (errorList == null) {
-            errorList = new ArrayList<>();
-            this.errorList = errorList;
-        }
-        errorList.add(JdbdExceptions.wrap(t));
-
-    }
-
 
     private void subscribeInEventLoop(SinkWrapper sink) {
         if (hasError()) {
@@ -231,20 +211,20 @@ final class MultiResultSubscriber implements Subscriber<Result> {
                 // first subscribe
                 this.source.subscribe(this);
             } else {
-                drain();
+                drainResult();
             }
 
         }
     }
 
 
-    private static final class ReactorMultiResultImpl implements ReactorMultiResult {
+    private static final class ReactorMultiResultImpl implements MultiResult {
 
         private final ITaskAdjutant adjutant;
 
         private final MultiResultSubscriber subscriber;
 
-        private ReactorMultiResultImpl(ITaskAdjutant adjutant, Flux<Result> source) {
+        private ReactorMultiResultImpl(ITaskAdjutant adjutant, Publisher<Result> source) {
             this.adjutant = adjutant;
             this.subscriber = new MultiResultSubscriber(source);
         }
@@ -252,14 +232,10 @@ final class MultiResultSubscriber implements Subscriber<Result> {
         @Override
         public final Mono<ResultState> nextUpdate() {
             return Mono.create(sink -> {
-                if (this.adjutant.isActive()) {
-                    if (this.adjutant.inEventLoop()) {
-                        this.subscriber.subscribeInEventLoop(new SinkWrapper(sink));
-                    } else {
-                        this.adjutant.execute(() -> this.subscriber.subscribeInEventLoop(new SinkWrapper(sink)));
-                    }
+                if (this.adjutant.inEventLoop()) {
+                    this.subscriber.subscribeInEventLoop(new SinkWrapper(sink));
                 } else {
-                    sink.error(SessionCloseException.create());
+                    this.adjutant.execute(() -> this.subscriber.subscribeInEventLoop(new SinkWrapper(sink)));
                 }
             });
         }
@@ -267,15 +243,11 @@ final class MultiResultSubscriber implements Subscriber<Result> {
         @Override
         public final Flux<ResultRow> nextQuery(final Consumer<ResultState> statesConsumer) {
             return Flux.create(sink -> {
-                if (this.adjutant.isActive()) {
-                    if (this.adjutant.inEventLoop()) {
-                        this.subscriber.subscribeInEventLoop(new SinkWrapper(sink, statesConsumer));
-                    } else {
-                        this.adjutant.execute(() ->
-                                this.subscriber.subscribeInEventLoop(new SinkWrapper(sink, statesConsumer)));
-                    }
+                if (this.adjutant.inEventLoop()) {
+                    this.subscriber.subscribeInEventLoop(new SinkWrapper(sink, statesConsumer));
                 } else {
-                    sink.error(SessionCloseException.create());
+                    this.adjutant.execute(() ->
+                            this.subscriber.subscribeInEventLoop(new SinkWrapper(sink, statesConsumer)));
                 }
             });
         }

@@ -7,6 +7,7 @@ import java.util.function.Consumer;
 /**
  * @see MultiResult
  */
+@Deprecated
 public interface SingleResult {
 
     boolean isQuery();

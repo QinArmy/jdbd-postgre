@@ -1,5 +1,6 @@
 package io.jdbd.vendor.result;
 
+import io.jdbd.result.NoMoreResultException;
 import io.jdbd.result.Result;
 import io.jdbd.result.ResultRow;
 import io.jdbd.result.ResultState;
@@ -13,26 +14,27 @@ import reactor.core.publisher.FluxSink;
 import java.util.List;
 import java.util.function.Consumer;
 
+/**
+ * @see FluxResult
+ */
 final class BatchUpdateResultSubscriber extends AbstractResultSubscriber<Result> {
 
-    static Flux<ResultState> create(ITaskAdjutant adjutant, Consumer<FluxSink<Result>> callback) {
-        final Flux<Result> flux = Flux.create(sink -> {
+    static Flux<ResultState> create(ITaskAdjutant adjutant, Consumer<FluxResultSink> callback) {
+        final FluxResult result = FluxResult.create(adjutant, sink -> {
             try {
                 callback.accept(sink);
             } catch (Throwable e) {
                 sink.error(JdbdExceptions.wrap(e));
             }
         });
-        return Flux.create(sink -> flux.subscribe(new BatchUpdateResultSubscriber(adjutant, sink)));
+        return Flux.create(sink -> result.subscribe(new BatchUpdateResultSubscriber(sink)));
     }
-
-    private final ITaskAdjutant adjutant;
 
     private final FluxSink<ResultState> sink;
 
-    private BatchUpdateResultSubscriber(ITaskAdjutant adjutant, FluxSink<ResultState> sink) {
-        super(adjutant);
-        this.adjutant = adjutant;
+    private boolean receiveResult;
+
+    private BatchUpdateResultSubscriber(FluxSink<ResultState> sink) {
         this.sink = sink;
     }
 
@@ -43,22 +45,21 @@ final class BatchUpdateResultSubscriber extends AbstractResultSubscriber<Result>
 
     @Override
     public final void onNext(final Result result) {
+        // this method invoker in EventLoop
+        if (hasError()) {
+            return;
+        }
         if (result instanceof ResultRow) {
-            addError(ResultType.QUERY);
+            addSubscribeError(ResultType.QUERY);
         } else if (result instanceof ResultState) {
             final ResultState state = (ResultState) result;
             if (state.hasReturnColumn()) {
-                addError(ResultType.QUERY);
-            } else if (this.adjutant.inEventLoop()) {
-                if (!hasError()) {
-                    this.sink.next(state);
-                }
+                addSubscribeError(ResultType.QUERY);
             } else {
-                this.adjutant.execute(() -> {
-                    if (!hasError()) {
-                        this.sink.next(state);
-                    }
-                });
+                if (!this.receiveResult) {
+                    this.receiveResult = true;
+                }
+                this.sink.next(state);
             }
         } else {
             throw createUnknownTypeError(result);
@@ -67,32 +68,27 @@ final class BatchUpdateResultSubscriber extends AbstractResultSubscriber<Result>
 
     @Override
     public final void onError(Throwable t) {
-        this.sink.error(JdbdExceptions.wrap(t));
+        // this method invoker in EventLoop
+        this.sink.error(t);
     }
 
     @Override
     public final void onComplete() {
-        if (this.adjutant.inEventLoop()) {
-            doCompleteInEventLoop();
+        // this method invoker in EventLoop
+        final List<Throwable> errorList = this.errorList;
+        if (errorList != null && !errorList.isEmpty()) {
+            this.sink.error(JdbdExceptions.createException(errorList));
+        } else if (this.receiveResult) {
+            this.sink.complete();
         } else {
-            this.adjutant.execute(this::doCompleteInEventLoop);
+            this.sink.error(new NoMoreResultException("No receive any result from upstream."));
         }
+
     }
 
     @Override
     final ResultType getSubscribeType() {
         return ResultType.BATCH_UPDATE;
-    }
-
-
-    private void doCompleteInEventLoop() {
-        final List<Throwable> errorList = this.errorList;
-        if (errorList == null || errorList.isEmpty()) {
-            this.sink.complete();
-        } else {
-            this.sink.error(JdbdExceptions.createException(errorList));
-        }
-
     }
 
 

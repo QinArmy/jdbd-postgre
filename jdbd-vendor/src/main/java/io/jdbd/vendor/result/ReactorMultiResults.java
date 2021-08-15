@@ -20,6 +20,7 @@ import java.util.Objects;
 import java.util.Queue;
 import java.util.function.Consumer;
 
+@Deprecated
 abstract class ReactorMultiResults {
 
     static ReactorMultiResult create(ITaskAdjutant adjutant, Consumer<MultiResultSink> callback) {

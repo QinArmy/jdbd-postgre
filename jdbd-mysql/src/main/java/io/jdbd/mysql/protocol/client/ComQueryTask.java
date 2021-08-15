@@ -132,9 +132,9 @@ final class ComQueryTask extends MySQLCommandTask {
     static ReactorMultiResult asMulti(List<Stmt> stmtList, final TaskAdjutant adjutant) {
         final ReactorMultiResult result;
         if (stmtList.isEmpty()) {
-            result = JdbdMultiResults.error(MySQLExceptions.createEmptySqlException());
+            result = MultiResults.error(MySQLExceptions.createEmptySqlException());
         } else {
-            result = JdbdMultiResults.create(adjutant, sink -> {
+            result = MultiResults.create(adjutant, sink -> {
                 try {
                     ComQueryTask task = new ComQueryTask(stmtList, sink, adjutant);
                     task.submit(sink::error);
@@ -159,7 +159,7 @@ final class ComQueryTask extends MySQLCommandTask {
         if (stmtList.isEmpty()) {
             flux = Flux.error(MySQLExceptions.createEmptySqlException());
         } else {
-            flux = JdbdMultiResults.createAsFlux(adjutant, sink -> {
+            flux = MultiResults.createAsFlux(adjutant, sink -> {
                 try {
                     ComQueryTask task = new ComQueryTask(stmtList, sink, adjutant);
                     task.submit(sink::error);
@@ -271,7 +271,7 @@ final class ComQueryTask extends MySQLCommandTask {
         if (BindUtils.useBatchPrepare(stmt, adjutant)) {
             result = ComPreparedTask.asMulti(stmt, adjutant);
         } else {
-            result = JdbdMultiResults.create(adjutant, sink -> {
+            result = MultiResults.create(adjutant, sink -> {
                 try {
                     ComQueryTask task = new ComQueryTask(sink, stmt, adjutant);
                     task.submit(sink::error);
@@ -295,7 +295,7 @@ final class ComQueryTask extends MySQLCommandTask {
         if (BindUtils.useBatchPrepare(stmt, adjutant)) {
             flux = ComPreparedTask.asFlux(stmt, adjutant);
         } else {
-            flux = JdbdMultiResults.createAsFlux(adjutant, sink -> {
+            flux = MultiResults.createAsFlux(adjutant, sink -> {
                 try {
                     ComQueryTask task = new ComQueryTask(sink, stmt, adjutant);
                     task.submit(sink::error);
@@ -321,9 +321,9 @@ final class ComQueryTask extends MySQLCommandTask {
     static ReactorMultiResult multiStmtAsMulti(final List<BindableStmt> stmtList, final TaskAdjutant adjutant) {
         final ReactorMultiResult multiResults;
         if (stmtList.isEmpty()) {
-            multiResults = JdbdMultiResults.error(MySQLExceptions.createEmptySqlException());
+            multiResults = MultiResults.error(MySQLExceptions.createEmptySqlException());
         } else if (Capabilities.supportMultiStatement(adjutant.obtainNegotiatedCapability())) {
-            multiResults = JdbdMultiResults.create(adjutant, sink -> {
+            multiResults = MultiResults.create(adjutant, sink -> {
                 try {
                     ComQueryTask task = new ComQueryTask(adjutant, stmtList, sink);
                     task.submit(sink::error);
@@ -333,7 +333,7 @@ final class ComQueryTask extends MySQLCommandTask {
 
             });
         } else {
-            multiResults = JdbdMultiResults.error(MySQLExceptions.notSupportMultiStatementException());
+            multiResults = MultiResults.error(MySQLExceptions.notSupportMultiStatementException());
         }
         return multiResults;
     }
@@ -351,7 +351,7 @@ final class ComQueryTask extends MySQLCommandTask {
         if (stmtList.isEmpty()) {
             flux = Flux.error(MySQLExceptions.createEmptySqlException());
         } else if (Capabilities.supportMultiStatement(adjutant.obtainNegotiatedCapability())) {
-            flux = JdbdMultiResults.createAsFlux(adjutant, sink -> {
+            flux = MultiResults.createAsFlux(adjutant, sink -> {
                 try {
                     ComQueryTask task = new ComQueryTask(adjutant, stmtList, sink);
                     task.submit(sink::error);

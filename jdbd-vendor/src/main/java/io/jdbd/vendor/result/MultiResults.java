@@ -1,21 +1,17 @@
 package io.jdbd.vendor.result;
 
 import io.jdbd.JdbdException;
-import io.jdbd.result.Result;
-import io.jdbd.result.ResultRow;
-import io.jdbd.result.ResultState;
-import io.jdbd.result.SingleResult;
+import io.jdbd.result.*;
 import io.jdbd.vendor.task.ITaskAdjutant;
 import io.jdbd.vendor.util.JdbdExceptions;
 import reactor.core.publisher.Flux;
-import reactor.core.publisher.FluxSink;
 import reactor.core.publisher.Mono;
 
 import java.util.function.Consumer;
 
-public abstract class JdbdMultiResults {
+public abstract class MultiResults {
 
-    protected JdbdMultiResults() {
+    protected MultiResults() {
         throw new UnsupportedOperationException();
     }
 
@@ -34,6 +30,7 @@ public abstract class JdbdMultiResults {
      * {@link MultiResultSink} isn't thread safe ,must invoke in {@link io.netty.channel.EventLoop}.
      * </p>
      */
+    @Deprecated
     public static Flux<SingleResult> createAsFlux(ITaskAdjutant adjutant, Consumer<MultiResultSink> callback) {
         return Flux.create(sink -> {
             try {
@@ -55,12 +52,25 @@ public abstract class JdbdMultiResults {
     }
 
     public static Flux<ResultRow> query(ITaskAdjutant adjutant, Consumer<ResultState> stateConsumer
-            , Consumer<MultiResultSink> callback) {
-        return QueryResultSubscriber_0.create(adjutant, stateConsumer, callback);
+            , Consumer<FluxResultSink> callback) {
+        return QueryResultSubscriber.create(adjutant, stateConsumer, callback);
     }
 
-    public static Flux<ResultState> batchUpdate(ITaskAdjutant adjutant, Consumer<FluxSink<Result>> consumer) {
+    public static Flux<ResultState> batchUpdate(ITaskAdjutant adjutant, Consumer<FluxResultSink> consumer) {
         return BatchUpdateResultSubscriber.create(adjutant, consumer);
+    }
+
+    public static MultiResult asMulti(ITaskAdjutant adjutant, Consumer<FluxResultSink> consumer) {
+        return MultiResultSubscriber.create(adjutant, consumer);
+    }
+
+    public static Flux<Result> asFlux(ITaskAdjutant adjutant, Consumer<FluxResultSink> consumer) {
+        return Flux.create(sink -> Flux.from(FluxResult.create(adjutant, consumer))
+                .doOnNext(sink::next)
+                .doOnError(sink::error)
+                .doOnComplete(sink::complete)
+                .subscribe()
+        );
     }
 
 
