@@ -11,12 +11,16 @@ import java.util.Map;
  */
 final class NoticeMessage extends MultiFieldMessage {
 
-    /**
-     * @param endIndex message end index,exclusive.
-     */
-    static NoticeMessage readBody(final ByteBuf messageBody, Charset charset) {
-        int index = messageBody.readerIndex();
-        return new NoticeMessage(MultiFieldMessage.readMultiFields(messageBody, index + messageBody.readInt(), charset));
+    static NoticeMessage read(ByteBuf message, Charset charset) {
+        if (message.readByte() != Messages.N) {
+            throw new IllegalArgumentException("Non Notice message.");
+        }
+        int index = message.readerIndex();
+        return new NoticeMessage(readMultiFields(message, index + message.readInt(), charset));
+    }
+
+    static NoticeMessage readBody(ByteBuf message, final int nextMsgIndex, Charset charset) {
+        return new NoticeMessage(readMultiFields(message, nextMsgIndex, charset));
     }
 
     private NoticeMessage(Map<Byte, String> fieldMap) {

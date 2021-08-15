@@ -4,7 +4,10 @@ import io.jdbd.JdbdException;
 
 interface StmtTask {
 
-     void addError(JdbdException error);
+     void addResultSetError(JdbdException error);
 
      TaskAdjutant adjutant();
+
+     int getAndIncrementResultIndex();
+
 }

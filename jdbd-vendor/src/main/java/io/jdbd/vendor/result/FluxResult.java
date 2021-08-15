@@ -1,13 +1,13 @@
 package io.jdbd.vendor.result;
 
 import io.jdbd.result.Result;
-import io.jdbd.vendor.task.ITaskAdjutant;
 import io.jdbd.vendor.util.JdbdExceptions;
 import org.reactivestreams.Publisher;
 import org.reactivestreams.Subscriber;
 import org.reactivestreams.Subscription;
 import reactor.core.Exceptions;
 
+import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.function.Consumer;
 
 /**
@@ -18,23 +18,19 @@ import java.util.function.Consumer;
  */
 final class FluxResult implements Publisher<Result> {
 
-    static FluxResult create(ITaskAdjutant adjutant, Consumer<FluxResultSink> callBack) {
-        return new FluxResult(adjutant, callBack);
+    static FluxResult create(Consumer<FluxResultSink> callBack) {
+        return new FluxResult(callBack);
     }
-
-
-    private final ITaskAdjutant adjutant;
 
     private final Consumer<FluxResultSink> callBack;
 
-    private FluxResult(ITaskAdjutant adjutant, Consumer<FluxResultSink> callBack) {
-        this.adjutant = adjutant;
+    private FluxResult(Consumer<FluxResultSink> callBack) {
         this.callBack = callBack;
     }
 
     @Override
     public final void subscribe(Subscriber<? super Result> actual) {
-        FluxResultSinkImpl sink = new FluxResultSinkImpl(actual, this.adjutant);
+        FluxResultSinkImpl sink = new FluxResultSinkImpl(actual);
         actual.onSubscribe(sink.subscription);
 
         try {
@@ -52,9 +48,9 @@ final class FluxResult implements Publisher<Result> {
 
         private final SubscriptionImpl subscription;
 
-        private FluxResultSinkImpl(Subscriber<? super Result> subscriber, ITaskAdjutant adjutant) {
+        private FluxResultSinkImpl(Subscriber<? super Result> subscriber) {
             this.subscriber = subscriber;
-            this.subscription = new SubscriptionImpl(adjutant);
+            this.subscription = new SubscriptionImpl();
         }
 
         @Override
@@ -72,7 +68,7 @@ final class FluxResult implements Publisher<Result> {
         @Override
         public final boolean isCancelled() {
             // this method invoker in EventLoop
-            return this.subscription.canceled;
+            return this.subscription.canceled == 1;
         }
 
         @Override
@@ -101,7 +97,7 @@ final class FluxResult implements Publisher<Result> {
         @Override
         public final boolean isCancelled() {
             // this method invoker in EventLoop
-            return this.subscription.canceled;
+            return this.subscription.canceled == 1;
         }
 
         @Override
@@ -114,13 +110,14 @@ final class FluxResult implements Publisher<Result> {
 
     private static final class SubscriptionImpl implements Subscription {
 
-        private final ITaskAdjutant adjutant;
+        private static final AtomicIntegerFieldUpdater<SubscriptionImpl> CANCELED =
+                AtomicIntegerFieldUpdater.newUpdater(SubscriptionImpl.class, "canceled");
 
-        private SubscriptionImpl(ITaskAdjutant adjutant) {
-            this.adjutant = adjutant;
+
+        private SubscriptionImpl() {
         }
 
-        private boolean canceled;
+        private volatile int canceled;
 
         @Override
         public final void request(long n) {
@@ -134,14 +131,8 @@ final class FluxResult implements Publisher<Result> {
 
         @Override
         public final void cancel() {
-            if (!this.canceled) {
-                if (this.adjutant.inEventLoop()) {
-                    this.canceled = true;
-                } else {
-                    this.adjutant.execute(() -> this.canceled = true);
-                }
-            }
-
+            // this method invoker in EventLoop
+            CANCELED.set(this, 1);
         }
 
     }

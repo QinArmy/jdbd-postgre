@@ -27,7 +27,7 @@ final class MultiResultSubscriber extends AbstractResultSubscriber<Result> {
 
 
     static MultiResult create(ITaskAdjutant adjutant, Consumer<FluxResultSink> callback) {
-        final FluxResult result = FluxResult.create(adjutant, sink -> {
+        final FluxResult result = FluxResult.create(sink -> {
             try {
                 callback.accept(sink);
             } catch (Throwable e) {

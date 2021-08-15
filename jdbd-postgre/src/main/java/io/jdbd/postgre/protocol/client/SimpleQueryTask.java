@@ -1,7 +1,6 @@
 package io.jdbd.postgre.protocol.client;
 
 import io.jdbd.JdbdException;
-import io.jdbd.postgre.Encoding;
 import io.jdbd.postgre.PgJdbdException;
 import io.jdbd.postgre.stmt.BatchBindStmt;
 import io.jdbd.postgre.stmt.BindableStmt;
@@ -16,6 +15,7 @@ import io.jdbd.stmt.MultiStatement;
 import io.jdbd.stmt.StaticStatement;
 import io.jdbd.vendor.result.FluxResultSink;
 import io.jdbd.vendor.result.MultiResults;
+import io.jdbd.vendor.result.ResultSetReader;
 import io.jdbd.vendor.stmt.GroupStmt;
 import io.jdbd.vendor.stmt.Stmt;
 import io.netty.buffer.ByteBuf;
@@ -30,7 +30,7 @@ import java.util.function.Consumer;
 /**
  * @see <a href="https://www.postgresql.org/docs/current/protocol-message-formats.html">Query</a>
  */
-final class SimpleQueryTask extends PgTask {
+final class SimpleQueryTask extends PgTask implements StmtTask {
 
     /*################################## blow for static stmt ##################################*/
 
@@ -40,7 +40,7 @@ final class SimpleQueryTask extends PgTask {
      * </p>
      */
     static Mono<ResultState> update(Stmt stmt, TaskAdjutant adjutant) {
-        return MultiResults.update(adjutant, sink -> {
+        return MultiResults.update(sink -> {
             try {
                 SimpleQueryTask task = new SimpleQueryTask(stmt, sink, adjutant);
                 task.submit(sink::error);
@@ -56,7 +56,7 @@ final class SimpleQueryTask extends PgTask {
      * </p>
      */
     static Flux<ResultRow> query(Stmt stmt, TaskAdjutant adjutant) {
-        return MultiResults.query(adjutant, stmt.getStatusConsumer(), sink -> {
+        return MultiResults.query(stmt.getStatusConsumer(), sink -> {
             try {
                 SimpleQueryTask task = new SimpleQueryTask(stmt, sink, adjutant);
                 task.submit(sink::error);
@@ -72,7 +72,7 @@ final class SimpleQueryTask extends PgTask {
      * </p>
      */
     static Flux<ResultState> batchUpdate(GroupStmt stmt, TaskAdjutant adjutant) {
-        return MultiResults.batchUpdate(adjutant, sink -> {
+        return MultiResults.batchUpdate(sink -> {
             try {
                 SimpleQueryTask task = new SimpleQueryTask(stmt, sink, adjutant);
                 task.submit(sink::error);
@@ -105,7 +105,7 @@ final class SimpleQueryTask extends PgTask {
      * </p>
      */
     static Flux<Result> staticAsFlux(GroupStmt stmt, TaskAdjutant adjutant) {
-        return MultiResults.asFlux(adjutant, sink -> {
+        return MultiResults.asFlux(sink -> {
             try {
                 SimpleQueryTask task = new SimpleQueryTask(stmt, sink, adjutant);
                 task.submit(sink::error);
@@ -123,7 +123,7 @@ final class SimpleQueryTask extends PgTask {
      * </p>
      */
     static Mono<ResultState> bindableUpdate(BindableStmt stmt, TaskAdjutant adjutant) {
-        return MultiResults.update(adjutant, sink -> {
+        return MultiResults.update(sink -> {
             try {
                 SimpleQueryTask task = new SimpleQueryTask(sink, stmt, adjutant);
                 task.submit(sink::error);
@@ -143,7 +143,7 @@ final class SimpleQueryTask extends PgTask {
      * </p>
      */
     static Flux<ResultRow> bindableQuery(BindableStmt stmt, TaskAdjutant adjutant) {
-        return MultiResults.query(adjutant, stmt.getStatusConsumer(), sink -> {
+        return MultiResults.query(stmt.getStatusConsumer(), sink -> {
             try {
                 SimpleQueryTask task = new SimpleQueryTask(sink, stmt, adjutant);
                 task.submit(sink::error);
@@ -159,7 +159,7 @@ final class SimpleQueryTask extends PgTask {
      * </p>
      */
     static Flux<ResultState> bindableBatchUpdate(BatchBindStmt stmt, TaskAdjutant adjutant) {
-        return MultiResults.batchUpdate(adjutant, sink -> {
+        return MultiResults.batchUpdate(sink -> {
             try {
                 SimpleQueryTask task = new SimpleQueryTask(adjutant, sink, stmt);
                 task.submit(sink::error);
@@ -193,7 +193,7 @@ final class SimpleQueryTask extends PgTask {
      * </p>
      */
     static Flux<Result> bindableAsFlux(BatchBindStmt stmt, TaskAdjutant adjutant) {
-        return MultiResults.asFlux(adjutant, sink -> {
+        return MultiResults.asFlux(sink -> {
             try {
                 SimpleQueryTask task = new SimpleQueryTask(adjutant, sink, stmt);
                 task.submit(sink::error);
@@ -229,7 +229,7 @@ final class SimpleQueryTask extends PgTask {
      * </p>
      */
     static Flux<Result> multiStmtAsFlux(MultiBindStmt stmt, TaskAdjutant adjutant) {
-        return MultiResults.asFlux(adjutant, sink -> {
+        return MultiResults.asFlux(sink -> {
             try {
                 SimpleQueryTask task = new SimpleQueryTask(adjutant, stmt, sink);
                 task.submit(sink::error);
@@ -240,7 +240,13 @@ final class SimpleQueryTask extends PgTask {
     }
 
 
-    private final DownstreamSink downstreamSink;
+    private final FluxResultSink sink;
+
+    private int readerIndexBeforeError;
+
+    private int resultIndex = 0;
+
+    private final ResultSetReader resultSetReader;
 
     private Phase phase;
 
@@ -255,7 +261,8 @@ final class SimpleQueryTask extends PgTask {
     private SimpleQueryTask(Stmt stmt, FluxResultSink sink, TaskAdjutant adjutant) throws SQLException {
         super(adjutant);
         this.packetPublisher = QueryCommandWriter.createStaticSingleCommand(stmt, adjutant);
-        this.downstreamSink = new MultiResultDownstreamSink(this, sink);
+        this.sink = sink;
+        this.resultSetReader = DefaultResultSetReader.create(this, sink.froResultSet());
     }
 
     /**
@@ -267,7 +274,8 @@ final class SimpleQueryTask extends PgTask {
             throws SQLException {
         super(adjutant);
         this.packetPublisher = QueryCommandWriter.createStaticBatchCommand(stmt, adjutant);
-        this.downstreamSink = new MultiResultDownstreamSink(this, sink);
+        this.sink = sink;
+        this.resultSetReader = DefaultResultSetReader.create(this, sink.froResultSet());
     }
 
     /*################################## blow for bindable single stmt ##################################*/
@@ -280,7 +288,8 @@ final class SimpleQueryTask extends PgTask {
             throws SQLException {
         super(adjutant);
         this.packetPublisher = QueryCommandWriter.createBindableSingleCommand(stmt, adjutant);
-        this.downstreamSink = new MultiResultDownstreamSink(this, sink);
+        this.sink = sink;
+        this.resultSetReader = DefaultResultSetReader.create(this, sink.froResultSet());
     }
 
     /**
@@ -291,7 +300,8 @@ final class SimpleQueryTask extends PgTask {
     private SimpleQueryTask(TaskAdjutant adjutant, FluxResultSink sink, BatchBindStmt stmt) {
         super(adjutant);
         this.packetPublisher = QueryCommandWriter.createBindableMultiCommand(stmt, adjutant);
-        this.downstreamSink = new MultiResultDownstreamSink(this, sink);
+        this.sink = sink;
+        this.resultSetReader = DefaultResultSetReader.create(this, sink.froResultSet());
     }
 
     /*################################## blow for bindable multi stmt ##################################*/
@@ -303,7 +313,25 @@ final class SimpleQueryTask extends PgTask {
     private SimpleQueryTask(TaskAdjutant adjutant, MultiBindStmt stmt, FluxResultSink sink) {
         super(adjutant);
         this.packetPublisher = QueryCommandWriter.createMultiStmtCommand(stmt, adjutant);
-        this.downstreamSink = new MultiResultDownstreamSink(this, sink);
+        this.sink = sink;
+        this.resultSetReader = DefaultResultSetReader.create(this, sink.froResultSet());
+    }
+
+    /*################################## blow io.jdbd.postgre.protocol.client.StmtTask method ##################################*/
+
+    @Override
+    public final void addResultSetError(JdbdException error) {
+        addError(error);
+    }
+
+    @Override
+    public final TaskAdjutant adjutant() {
+        return this.adjutant;
+    }
+
+    @Override
+    public final int getAndIncrementResultIndex() {
+        return this.resultIndex++;
     }
 
 
@@ -312,7 +340,7 @@ final class SimpleQueryTask extends PgTask {
         final Publisher<ByteBuf> publisher = this.packetPublisher;
         if (publisher == null) {
             this.phase = Phase.END;
-            this.downstreamSink.error(new PgJdbdException("No found command message publisher."));
+            this.sink.error(new PgJdbdException("No found command message publisher."));
         } else {
             this.phase = Phase.READ_COMMAND_RESPONSE;
             this.packetPublisher = null;
@@ -322,88 +350,56 @@ final class SimpleQueryTask extends PgTask {
 
     @Override
     protected final boolean decode(final ByteBuf cumulateBuffer, final Consumer<Object> serverStatusConsumer) {
-        final Charset clientCharset = this.adjutant.clientCharset();
-        boolean taskEnd = false, continueDecode = true;
-        while (continueDecode) {
-            final int msgType = cumulateBuffer.readByte(), bodyIndex = cumulateBuffer.readerIndex();
-            final int length = cumulateBuffer.readInt(), nextMsgIndex = bodyIndex + length - 4;
+        if (!Messages.hasOneMessage(cumulateBuffer)) {
+            return false;
+        }
 
-            switch (msgType) {
-                case Messages.E: {// ErrorResponse message
-                    ErrorMessage error = ErrorMessage.readBody(cumulateBuffer, nextMsgIndex, clientCharset);
-                    addError(PgExceptions.createErrorException(error));
+        this.readerIndexBeforeError = cumulateBuffer.readerIndex();
+
+        boolean taskEnd = false, continueRead = true;
+        while (continueRead) {
+            switch (this.phase) {
+                case READ_COMMAND_RESPONSE: {
+                    taskEnd = readCommandResponse(cumulateBuffer, serverStatusConsumer);
+                    continueRead = !taskEnd && Messages.hasOneMessage(cumulateBuffer);
                 }
                 break;
-                case Messages.Z: {// ReadyForQuery message
-                    taskEnd = true;
-                    serverStatusConsumer.accept(TxStatus.from(cumulateBuffer.readByte()));
-                }
-                break;
-                case Messages.I: {// EmptyQueryResponse message
-                    this.downstreamSink.nextUpdate(PgResultState.EMPTY_STATE);
-                }
-                break;
-                case Messages.C: {// CommandComplete message
-                    final String commandTag = Messages.readCommandComplete(cumulateBuffer, clientCharset);
-                    final PgResultState state;
-                    if (cumulateBuffer.getInt(nextMsgIndex) == Messages.N) {
-                        // next is NoticeResponse
-                        cumulateBuffer.readByte();//skip message type byte
-                        NoticeMessage nm = NoticeMessage.readBody(cumulateBuffer, Encoding.CLIENT_CHARSET);
-                        serverStatusConsumer.accept(nm);
-                        state = PgResultState.create(commandTag, nm);
+                case READ_ROW_SET: {
+                    if (this.resultSetReader.read(cumulateBuffer, serverStatusConsumer)) {
+                        this.phase = Phase.READ_COMMAND_RESPONSE;
+                        continueRead = Messages.hasOneMessage(cumulateBuffer);
                     } else {
-                        state = PgResultState.create(commandTag);
+                        continueRead = false;
                     }
-                    this.downstreamSink.nextUpdate(state);
                 }
                 break;
-                case Messages.T: {// RowDescription message
-
-                }
-                break;
-                case Messages.N: {// NoticeResponse message
-
-                }
+                case END:
+                    throw new IllegalStateException("Task have ended.");
                 default: {
-
+                    throw PgExceptions.createUnknownEnumException(this.phase);
                 }
-
-
-            } //  switch (msgType)
-
-            if (msgType != Messages.C) {
-                cumulateBuffer.readerIndex(nextMsgIndex); // avoid tail filler
-            }
-            if (continueDecode) {
-                continueDecode = Messages.hasOneMessage(cumulateBuffer);
             }
         }
 
+        if (taskEnd) {
+            this.phase = Phase.END;
+            if (hasError()) {
+                publishError(this.sink::error);
+            } else {
+                this.sink.complete();
+            }
+        }
         return taskEnd;
     }
 
     @Override
     protected final boolean canDecode(ByteBuf cumulateBuffer) {
-        if (!Messages.hasOneMessage(cumulateBuffer)) {
-            return false;
-        }
-        final int originalIndex = cumulateBuffer.readerIndex();
-        boolean canDecode = false;
-        if (cumulateBuffer.getByte(originalIndex) == Messages.C) {
-            Messages.skipOneMessage(cumulateBuffer);
-            if (Messages.hasOneMessage(cumulateBuffer)) {
-                switch (cumulateBuffer.readByte()) {
-                    case Messages.N:// NoticeResponse
-                    case Messages.T:// RowDescription
-                    case Messages.Z:// ReadyForQuery
-                        canDecode = true;
-                        break;
-                }
-            }
-            cumulateBuffer.readerIndex(originalIndex);
-        }
-        return canDecode;
+        return true;
+    }
+
+    @Override
+    protected final void onChannelClose() {
+        super.onChannelClose();
     }
 
     @Override
@@ -411,10 +407,112 @@ final class SimpleQueryTask extends PgTask {
         return null;
     }
 
-    private boolean readCommandResponse(ByteBuf cumulateBuffer, Consumer<Object> serverStatusConsumer) {
-        assertPhase(Phase.READ_COMMAND_RESPONSE);
+    private boolean hasMoreResult(ByteBuf cumulateBuffer) {
         return false;
     }
+
+    /**
+     * @return true: task end.
+     * @see #decode(ByteBuf, Consumer)
+     */
+    private boolean readCommandResponse(final ByteBuf cumulateBuffer, final Consumer<Object> serverStatusConsumer) {
+        assertPhase(Phase.READ_COMMAND_RESPONSE);
+
+        final Charset clientCharset = this.adjutant.clientCharset();
+        boolean taskEnd = false, continueRead = true;
+        while (continueRead) {
+            final int msgStartIndex = cumulateBuffer.readerIndex();
+            final int msgType = cumulateBuffer.readByte(), bodyIndex = cumulateBuffer.readerIndex();
+            final int nextMsgIndex = bodyIndex + cumulateBuffer.readInt();
+
+            switch (msgType) {
+                case Messages.E: {// ErrorResponse message
+                    ErrorMessage error = ErrorMessage.readBody(cumulateBuffer, nextMsgIndex, clientCharset);
+                    addError(PgExceptions.createErrorException(error));
+                    continueRead = Messages.hasOneMessage(cumulateBuffer);
+                }
+                break;
+                case Messages.Z: {// ReadyForQuery message
+                    serverStatusConsumer.accept(TxStatus.from(cumulateBuffer.readByte()));
+                    cumulateBuffer.readerIndex(nextMsgIndex); // avoid tail filler
+                    taskEnd = true;
+                    continueRead = false;
+                }
+                break;
+                case Messages.I: {// EmptyQueryResponse message
+                    this.sink.next(PgResultStates.empty(getAndIncrementResultIndex(), hasMoreResult(cumulateBuffer)));
+                    cumulateBuffer.readerIndex(nextMsgIndex); // avoid tail filler
+                    continueRead = Messages.hasOneMessage(cumulateBuffer);
+                }
+                break;
+                case Messages.C: {// CommandComplete message
+                    continueRead = readCommandComplete(cumulateBuffer, msgStartIndex, nextMsgIndex)
+                            && Messages.hasOneMessage(cumulateBuffer);
+                }
+                break;
+                case Messages.T: {// RowDescription message
+                    this.phase = Phase.READ_ROW_SET;
+                    if (this.resultSetReader.read(cumulateBuffer, serverStatusConsumer)) {
+                        this.phase = Phase.READ_COMMAND_RESPONSE;
+                        continueRead = Messages.hasOneMessage(cumulateBuffer);
+                    } else {
+                        continueRead = false;
+                    }
+                }
+                break;
+                case Messages.N: {// NoticeResponse message
+                    NoticeMessage noticeMessage = NoticeMessage.readBody(cumulateBuffer, nextMsgIndex, clientCharset);
+                    serverStatusConsumer.accept(noticeMessage);
+                    //TODO validate here
+                    continueRead = Messages.hasOneMessage(cumulateBuffer);
+                }
+                break;
+                default: {
+                    throw new PgJdbdException(String.format("Server response unknown message type[%s]"
+                            , (char) msgType));
+                }
+
+
+            } //  switch (msgType)
+
+        }
+
+        return taskEnd;
+    }
+
+    /**
+     * @return true: read CommandComplete message end , false : more cumulate.
+     * @see #readCommandResponse(ByteBuf, Consumer)
+     */
+    private boolean readCommandComplete(final ByteBuf cumulateBuffer, final int msgStartIndex, final int nextMsgIndex) {
+        final boolean readEnd;
+        final ResultSetStatus status = Messages.getResultSetStatus(cumulateBuffer);
+        if (status == ResultSetStatus.MORE_CUMULATE) {
+            readEnd = false;
+            // back to message start index
+            cumulateBuffer.readerIndex(msgStartIndex);
+        } else {
+            final Charset clientCharset = this.adjutant.clientCharset();
+            final boolean moreResult = status == ResultSetStatus.MORE_RESULT;
+            final String commandTag = Messages.readString(cumulateBuffer, clientCharset);
+            cumulateBuffer.readerIndex(nextMsgIndex); // avoid tail filler
+
+            final PgResultStates state;
+            final int resultIndex = getAndIncrementResultIndex();
+            if (cumulateBuffer.getInt(nextMsgIndex) == Messages.N) {
+                // next is warning NoticeResponse
+                NoticeMessage nm = NoticeMessage.read(cumulateBuffer, clientCharset);
+                state = PgResultStates.create(resultIndex, moreResult, commandTag, nm);
+            } else {
+                state = PgResultStates.create(resultIndex, moreResult, commandTag);
+            }
+            readEnd = true;
+            this.sink.next(state);
+
+        }
+        return readEnd;
+    }
+
 
     private void assertPhase(Phase expected) {
         if (this.phase != expected) {
@@ -428,43 +526,6 @@ final class SimpleQueryTask extends PgTask {
         READ_COMMAND_RESPONSE,
         READ_ROW_SET,
         END
-    }
-
-    private interface DownstreamSink {
-
-        void error(JdbdException error);
-
-        void nextUpdate(ResultState resultState);
-    }
-
-    private static abstract class AbstractDownstreamSink implements DownstreamSink {
-
-
-    }
-
-
-    private static final class MultiResultDownstreamSink implements DownstreamSink {
-
-        private final SimpleQueryTask task;
-
-        private final FluxResultSink sink;
-
-        private MultiResultDownstreamSink(SimpleQueryTask task, FluxResultSink sink) {
-            this.task = task;
-            this.sink = sink;
-        }
-
-        @Override
-        public final void error(JdbdException error) {
-            this.sink.error(error);
-        }
-
-        @Override
-        public final void nextUpdate(ResultState resultState) {
-
-        }
-
-
     }
 
 

@@ -47,25 +47,25 @@ public abstract class MultiResults {
         return UpdateResultSubscriber_0.create(adjutant, callback);
     }
 
-    public static Mono<ResultState> update(ITaskAdjutant adjutant, Consumer<FluxResultSink> callback) {
-        return UpdateResultSubscriber.create(adjutant, callback);
+    public static Mono<ResultState> update(Consumer<FluxResultSink> callback) {
+        return UpdateResultSubscriber.create(callback);
     }
 
-    public static Flux<ResultRow> query(ITaskAdjutant adjutant, Consumer<ResultState> stateConsumer
+    public static Flux<ResultRow> query(Consumer<ResultState> stateConsumer
             , Consumer<FluxResultSink> callback) {
-        return QueryResultSubscriber.create(adjutant, stateConsumer, callback);
+        return QueryResultSubscriber.create(stateConsumer, callback);
     }
 
-    public static Flux<ResultState> batchUpdate(ITaskAdjutant adjutant, Consumer<FluxResultSink> consumer) {
-        return BatchUpdateResultSubscriber.create(adjutant, consumer);
+    public static Flux<ResultState> batchUpdate(Consumer<FluxResultSink> consumer) {
+        return BatchUpdateResultSubscriber.create(consumer);
     }
 
     public static MultiResult asMulti(ITaskAdjutant adjutant, Consumer<FluxResultSink> consumer) {
         return MultiResultSubscriber.create(adjutant, consumer);
     }
 
-    public static Flux<Result> asFlux(ITaskAdjutant adjutant, Consumer<FluxResultSink> consumer) {
-        return Flux.create(sink -> Flux.from(FluxResult.create(adjutant, consumer))
+    public static Flux<Result> asFlux(Consumer<FluxResultSink> consumer) {
+        return Flux.create(sink -> Flux.from(FluxResult.create(consumer))
                 .doOnNext(sink::next)
                 .doOnError(sink::error)
                 .doOnComplete(sink::complete)

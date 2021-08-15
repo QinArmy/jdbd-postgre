@@ -22,6 +22,7 @@ public class PgResultRow extends AbstractResultRow<PgRowMeta> {
         this.adjutant = adjutant;
     }
 
+
     @Override
     protected int convertToIndex(String columnAlias) {
         return 0;

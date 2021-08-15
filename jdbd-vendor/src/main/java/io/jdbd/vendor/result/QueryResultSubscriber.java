@@ -6,7 +6,6 @@ import io.jdbd.result.Result;
 import io.jdbd.result.ResultRow;
 import io.jdbd.result.ResultState;
 import io.jdbd.stmt.ResultType;
-import io.jdbd.vendor.task.ITaskAdjutant;
 import io.jdbd.vendor.util.JdbdExceptions;
 import org.reactivestreams.Subscription;
 import reactor.core.publisher.Flux;
@@ -20,9 +19,9 @@ import java.util.function.Consumer;
  */
 final class QueryResultSubscriber extends AbstractResultSubscriber<Result> {
 
-    static Flux<ResultRow> create(ITaskAdjutant adjutant, Consumer<ResultState> stateConsumer
+    static Flux<ResultRow> create(Consumer<ResultState> stateConsumer
             , Consumer<FluxResultSink> callback) {
-        final FluxResult result = FluxResult.create(adjutant, sink -> {
+        final FluxResult result = FluxResult.create(sink -> {
             try {
                 callback.accept(sink);
             } catch (Throwable e) {
@@ -46,6 +45,7 @@ final class QueryResultSubscriber extends AbstractResultSubscriber<Result> {
 
     @Override
     public final void onSubscribe(Subscription s) {
+        this.subscription = s;
         s.request(Long.MAX_VALUE);
     }
 

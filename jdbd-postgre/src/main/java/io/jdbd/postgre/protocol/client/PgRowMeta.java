@@ -18,19 +18,27 @@ final class PgRowMeta implements ResultRowMeta {
     /**
      * @see <a href="https://www.postgresql.org/docs/current/protocol-message-formats.html">RowDescription</a>
      */
-    static PgRowMeta read(ByteBuf message, TaskAdjutant adjutant) {
-        PgColumnMeta[] columnMetaArray = PgColumnMeta.read(message, adjutant);
-        return columnMetaArray.length == 0 ? EMPTY : new PgRowMeta(columnMetaArray);
+    static PgRowMeta read(ByteBuf message, StmtTask stmtTask) {
+        PgColumnMeta[] columnMetaArray = PgColumnMeta.read(message, stmtTask.adjutant());
+        return new PgRowMeta(stmtTask.getAndIncrementResultIndex(), columnMetaArray);
     }
 
-    static final PgRowMeta EMPTY = new PgRowMeta(PgColumnMeta.EMPTY);
+    final int resultIndex;
 
     final PgColumnMeta[] columnMetaArray;
 
-    private PgRowMeta(PgColumnMeta[] columnMetaArray) {
+    private PgRowMeta(int resultIndex, PgColumnMeta[] columnMetaArray) {
+        if (resultIndex < 0) {
+            throw new IllegalArgumentException(String.format("resultIndex[%s] less than 0 .", resultIndex));
+        }
+        this.resultIndex = resultIndex;
         this.columnMetaArray = columnMetaArray;
     }
 
+    @Override
+    public final int getResultIndex() {
+        return this.resultIndex;
+    }
 
     @Override
     public int getColumnCount() {

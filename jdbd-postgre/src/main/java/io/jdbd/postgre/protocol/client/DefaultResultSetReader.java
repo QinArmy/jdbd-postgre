@@ -6,8 +6,8 @@ import io.jdbd.postgre.PgJdbdException;
 import io.jdbd.postgre.type.PgGeometries;
 import io.jdbd.postgre.util.PgExceptions;
 import io.jdbd.postgre.util.PgTimes;
-import io.jdbd.vendor.result.ResultRowSink_0;
 import io.jdbd.vendor.result.ResultSetReader;
+import io.jdbd.vendor.result.ResultSink;
 import io.jdbd.vendor.type.LongBinaries;
 import io.jdbd.vendor.type.LongStrings;
 import io.jdbd.vendor.util.JdbdBuffers;
@@ -27,6 +27,10 @@ import java.util.UUID;
 import java.util.function.Consumer;
 
 final class DefaultResultSetReader implements ResultSetReader {
+
+    static DefaultResultSetReader create(StmtTask stmtTask, ResultSink sink) {
+        return new DefaultResultSetReader(stmtTask, sink);
+    }
 
     private static final Logger LOG = LoggerFactory.getLogger(DefaultResultSetReader.class);
 
@@ -48,15 +52,15 @@ final class DefaultResultSetReader implements ResultSetReader {
 
     final TaskAdjutant adjutant;
 
-    private final ResultRowSink_0 sink;
+    private final ResultSink sink;
 
     private final Charset clientCharset;
 
-    PgRowMeta rowMeta;
+    private PgRowMeta rowMeta;
 
     private Phase phase = Phase.READ_ROW_META;
 
-    private DefaultResultSetReader(StmtTask stmtTask, ResultRowSink_0 sink) {
+    private DefaultResultSetReader(StmtTask stmtTask, ResultSink sink) {
         this.stmtTask = stmtTask;
         this.adjutant = stmtTask.adjutant();
         this.sink = sink;
@@ -69,7 +73,7 @@ final class DefaultResultSetReader implements ResultSetReader {
         while (continueRead) {
             switch (this.phase) {
                 case READ_ROW_META: {
-                    this.rowMeta = PgRowMeta.read(cumulateBuffer, this.adjutant);
+                    this.rowMeta = PgRowMeta.read(cumulateBuffer, this.stmtTask);
                     if (this.rowMeta.getColumnCount() == 0) {
                         this.phase = Phase.READ_RESULT_TERMINATOR;
                     } else {
@@ -115,7 +119,7 @@ final class DefaultResultSetReader implements ResultSetReader {
     private boolean readRowData(final ByteBuf cumulateBuffer) {
         final PgRowMeta rowMeta = Objects.requireNonNull(this.rowMeta, "this.rowMeta");
         final PgColumnMeta[] columnMetaArray = rowMeta.columnMetaArray;
-        final ResultRowSink_0 sink = this.sink;
+        final ResultSink sink = this.sink;
         // if 'true' maybe user cancel or occur error
         final boolean isCanceled = sink.isCancelled();
 

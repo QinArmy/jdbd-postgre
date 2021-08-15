@@ -5,7 +5,6 @@ import io.jdbd.result.Result;
 import io.jdbd.result.ResultRow;
 import io.jdbd.result.ResultState;
 import io.jdbd.stmt.ResultType;
-import io.jdbd.vendor.task.ITaskAdjutant;
 import io.jdbd.vendor.util.JdbdExceptions;
 import org.reactivestreams.Subscription;
 import reactor.core.publisher.Mono;
@@ -19,8 +18,8 @@ import java.util.function.Consumer;
  */
 final class UpdateResultSubscriber extends AbstractResultSubscriber<Result> {
 
-    static Mono<ResultState> create(ITaskAdjutant adjutant, Consumer<FluxResultSink> callback) {
-        final FluxResult result = FluxResult.create(adjutant, sink -> {
+    static Mono<ResultState> create(Consumer<FluxResultSink> callback) {
+        final FluxResult result = FluxResult.create(sink -> {
             try {
                 callback.accept(sink);
             } catch (Throwable e) {
@@ -41,6 +40,7 @@ final class UpdateResultSubscriber extends AbstractResultSubscriber<Result> {
 
     @Override
     public final void onSubscribe(Subscription s) {
+        this.subscription = s;
         s.request(Long.MAX_VALUE);
     }
 
@@ -71,7 +71,13 @@ final class UpdateResultSubscriber extends AbstractResultSubscriber<Result> {
     @Override
     public final void onError(Throwable t) {
         // this method invoker in EventLoop
-        this.sink.error(t);
+        final List<Throwable> errorList = this.errorList;
+        if (errorList == null || errorList.isEmpty()) {
+            this.sink.error(t);
+        } else {
+            this.sink.error(JdbdExceptions.createException(errorList));
+        }
+
     }
 
     @Override

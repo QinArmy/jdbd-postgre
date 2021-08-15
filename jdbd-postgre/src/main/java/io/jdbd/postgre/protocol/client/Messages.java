@@ -131,18 +131,9 @@ abstract class Messages {
         return bytes;
     }
 
-    /**
-     * <p>
-     * Read CommandComplete message body(not include message type byte)
-     * </p>
-     *
-     * @return command tag
-     * @see <a href="https://www.postgresql.org/docs/current/protocol-message-formats.html">CommandComplete</a>
-     */
-    static String readCommandComplete(ByteBuf message, Charset charset) {
-        byte[] bytes = new byte[message.readInt() - LENGTH_SIZE];
-        message.readBytes(bytes);
-        return new String(bytes, charset);
+
+    static ResultSetStatus getResultSetStatus(ByteBuf cumulateBuffer) {
+        return ResultSetStatus.MORE_CUMULATE;
     }
 
 

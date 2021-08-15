@@ -6,6 +6,7 @@ import io.jdbd.result.ResultRow;
 import io.jdbd.result.ResultState;
 import io.jdbd.stmt.ResultType;
 import io.jdbd.stmt.SubscribeException;
+import org.reactivestreams.Subscription;
 import reactor.core.CoreSubscriber;
 import reactor.core.publisher.FluxSink;
 
@@ -16,6 +17,8 @@ import java.util.function.Consumer;
 abstract class AbstractResultSubscriber<T> implements CoreSubscriber<T> {
 
     List<Throwable> errorList;
+
+    Subscription subscription;
 
     AbstractResultSubscriber() {
     }
@@ -93,6 +96,10 @@ abstract class AbstractResultSubscriber<T> implements CoreSubscriber<T> {
         if (errorList == null) {
             errorList = new ArrayList<>();
             this.errorList = errorList;
+            final Subscription s = this.subscription;
+            if (s != null) {
+                s.cancel();
+            }
         }
         errorList.add(error);
     }

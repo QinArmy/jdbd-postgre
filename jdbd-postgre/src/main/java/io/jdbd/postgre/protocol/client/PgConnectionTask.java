@@ -355,7 +355,7 @@ final class PgConnectionTask extends PgTask implements ConnectionTask {
                 break;
                 case Messages.N: { // NoticeResponse message
                     // modify server status.
-                    this.noticeMessage = NoticeMessage.readBody(cumulateBuffer, clientCharset);
+                    this.noticeMessage = NoticeMessage.read(cumulateBuffer, clientCharset);
                 }
                 break;
                 default: { // Unknown message
