@@ -21,7 +21,7 @@ public class JdbcUnitTests {
     private static final Logger LOG = LoggerFactory.getLogger(JdbcUnitTests.class);
 
 
-    private static final String url = "jdbc:postgresql://localhost:5432/army_test?options=-c%20IntervalStyle=iso_8601";
+    private static final String url = "jdbc:postgresql://localhost:5432/army_test?options=-c%20IntervalStyle=iso_8601&currentSchema=army";
     private ByteBuffer buffer;
 
     @Test
@@ -32,9 +32,9 @@ public class JdbcUnitTests {
                 String sql;
                 sql = "SET IntervalStyle = 'postgres'";
                 LOG.info("test success {}", stmt.executeUpdate(sql));
-                sql = "UPDATE table_name AS t SET create_time = '2021-08-08 10:54:30' WHERE t.id = 1";
+                sql = "SELECT t.id AS id,t.create_time AS createTime FROM my_types AS t WHERE t.id = 1";
                 LOG.info("test success {}", stmt.execute(sql));
-                sql = "SHOW IntervalStyle";
+                sql = "SHOW SEARCH_PATH ";
                 try (ResultSet resultSet = stmt.executeQuery(sql)) {
                     while (resultSet.next()) {
                         LOG.info("{}", resultSet.getString(1));
@@ -49,8 +49,22 @@ public class JdbcUnitTests {
 
 
     @Test
-    public void createJson() throws Exception {
+    public void prepare() throws Exception {
 
+        try (Connection conn = DriverManager.getConnection(url, createProperties())) {
+            final String sql = "SELECT t.id AS id,t.create_time AS createTime FROM my_types AS t WHERE t.id = ?";
+            try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+                //  stmt.setLong(1, 1);
+
+                try (ResultSet resultSet = stmt.executeQuery()) {
+                    while (resultSet.next()) {
+                        LOG.info("id:{},createTime:{}", resultSet.getLong("id"), resultSet.getString("createTime"));
+                    }
+
+                }
+
+            }
+        }
     }
 
 

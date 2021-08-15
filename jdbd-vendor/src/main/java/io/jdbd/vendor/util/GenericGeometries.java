@@ -1742,10 +1742,10 @@ abstract class GenericGeometries {
             throw createWkbLengthError(wkbType.wktType, pointOne.length, offset + coordinateBytes);
         }
         if (sameEndian) {
-            if (!JdbdArrayUtils.equals(pointOne, pointTwo, offset, coordinateBytes)) {
+            if (!JdbdArrays.equals(pointOne, pointTwo, offset, coordinateBytes)) {
                 offset = -1;
             }
-        } else if (!JdbdArrayUtils.reverseEquals(pointOne, pointTwo, offset, 8, coordinates)) {
+        } else if (!JdbdArrays.reverseEquals(pointOne, pointTwo, offset, 8, coordinates)) {
             offset = -1;
         }
         if (offset > 0) {
@@ -1766,10 +1766,10 @@ abstract class GenericGeometries {
         offset += HEADER_LENGTH;
         final int coordinates = wkbType.coordinates(), coordinateBytes = (coordinates << 3) * elementCount;
         if (sameEndian) {
-            if (!JdbdArrayUtils.equals(lineStringOne, lineStringTwo, offset, coordinateBytes)) {
+            if (!JdbdArrays.equals(lineStringOne, lineStringTwo, offset, coordinateBytes)) {
                 offset = -1;
             }
-        } else if (!JdbdArrayUtils.reverseEquals(lineStringOne, lineStringTwo, offset, 8, coordinates * elementCount)) {
+        } else if (!JdbdArrays.reverseEquals(lineStringOne, lineStringTwo, offset, 8, coordinates * elementCount)) {
             offset = -1;
         }
         if (offset > 0) {
@@ -1810,11 +1810,11 @@ abstract class GenericGeometries {
                 throw createWkbLengthError(wkbType.wktType, polygonOne.length, offset + coordinateTotalBytes);
             }
             if (sameEndian) {
-                if (!JdbdArrayUtils.equals(polygonOne, polygonTwo, offset, coordinateTotalBytes)) {
+                if (!JdbdArrays.equals(polygonOne, polygonTwo, offset, coordinateTotalBytes)) {
                     offset = -1;
                     break;
                 }
-            } else if (!JdbdArrayUtils.reverseEquals(polygonOne, polygonTwo, offset, 8, coordinates * pointCount)) {
+            } else if (!JdbdArrays.reverseEquals(polygonOne, polygonTwo, offset, 8, coordinates * pointCount)) {
                 offset = -1;
                 break;
             }
@@ -1888,9 +1888,9 @@ abstract class GenericGeometries {
             , final int headerOffset, final int offset) {
         final boolean match;
         if (geometryOne[headerOffset] == geometryTwo[headerOffset]) {
-            match = JdbdArrayUtils.equals(geometryOne, geometryTwo, offset, 4);
+            match = JdbdArrays.equals(geometryOne, geometryTwo, offset, 4);
         } else {
-            match = JdbdArrayUtils.reverseEquals(geometryOne, geometryTwo, offset, 4, 1);
+            match = JdbdArrays.reverseEquals(geometryOne, geometryTwo, offset, 4, 1);
         }
         int elementCount;
         if (match) {

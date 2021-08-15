@@ -24,7 +24,6 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.nio.charset.Charset;
-import java.sql.SQLException;
 import java.util.function.Consumer;
 
 /**
@@ -258,7 +257,7 @@ final class SimpleQueryTask extends PgTask implements StmtTask {
      * @see #update(Stmt, TaskAdjutant)
      * @see #query(Stmt, TaskAdjutant)
      */
-    private SimpleQueryTask(Stmt stmt, FluxResultSink sink, TaskAdjutant adjutant) throws SQLException {
+    private SimpleQueryTask(Stmt stmt, FluxResultSink sink, TaskAdjutant adjutant) throws Throwable {
         super(adjutant);
         this.packetPublisher = QueryCommandWriter.createStaticSingleCommand(stmt, adjutant);
         this.sink = sink;
@@ -271,7 +270,7 @@ final class SimpleQueryTask extends PgTask implements StmtTask {
      * @see #staticAsFlux(GroupStmt, TaskAdjutant)
      */
     private SimpleQueryTask(GroupStmt stmt, FluxResultSink sink, TaskAdjutant adjutant)
-            throws SQLException {
+            throws Throwable {
         super(adjutant);
         this.packetPublisher = QueryCommandWriter.createStaticBatchCommand(stmt, adjutant);
         this.sink = sink;
@@ -285,9 +284,9 @@ final class SimpleQueryTask extends PgTask implements StmtTask {
      * @see #bindableQuery(BindableStmt, TaskAdjutant)
      */
     private SimpleQueryTask(FluxResultSink sink, BindableStmt stmt, TaskAdjutant adjutant)
-            throws SQLException {
+            throws Throwable {
         super(adjutant);
-        this.packetPublisher = QueryCommandWriter.createBindableSingleCommand(stmt, adjutant);
+        this.packetPublisher = QueryCommandWriter.createBindableCommand(stmt, adjutant);
         this.sink = sink;
         this.resultSetReader = DefaultResultSetReader.create(this, sink.froResultSet());
     }
@@ -297,9 +296,10 @@ final class SimpleQueryTask extends PgTask implements StmtTask {
      * @see #bindableAsMulti(BatchBindStmt, TaskAdjutant)
      * @see #bindableAsFlux(BatchBindStmt, TaskAdjutant)
      */
-    private SimpleQueryTask(TaskAdjutant adjutant, FluxResultSink sink, BatchBindStmt stmt) {
+    private SimpleQueryTask(TaskAdjutant adjutant, FluxResultSink sink, BatchBindStmt stmt)
+            throws Throwable {
         super(adjutant);
-        this.packetPublisher = QueryCommandWriter.createBindableMultiCommand(stmt, adjutant);
+        this.packetPublisher = QueryCommandWriter.createBindableBatchCommand(stmt, adjutant);
         this.sink = sink;
         this.resultSetReader = DefaultResultSetReader.create(this, sink.froResultSet());
     }
@@ -310,7 +310,8 @@ final class SimpleQueryTask extends PgTask implements StmtTask {
      * @see #multiStmtAsMulti(MultiBindStmt, TaskAdjutant)
      * @see #multiStmtAsFlux(MultiBindStmt, TaskAdjutant)
      */
-    private SimpleQueryTask(TaskAdjutant adjutant, MultiBindStmt stmt, FluxResultSink sink) {
+    private SimpleQueryTask(TaskAdjutant adjutant, MultiBindStmt stmt, FluxResultSink sink)
+            throws Throwable {
         super(adjutant);
         this.packetPublisher = QueryCommandWriter.createMultiStmtCommand(stmt, adjutant);
         this.sink = sink;

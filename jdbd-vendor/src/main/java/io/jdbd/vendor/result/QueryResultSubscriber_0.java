@@ -12,7 +12,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.FluxSink;
-import reactor.core.publisher.Mono;
 
 import java.util.List;
 import java.util.function.Consumer;
@@ -42,7 +41,6 @@ final class QueryResultSubscriber_0 extends AbstractResultSubscriber<SingleResul
 
     private QueryResultSubscriber_0(ITaskAdjutant adjutant, FluxSink<ResultRow> sink
             , Consumer<ResultState> stateConsumer) {
-        super(adjutant);
         this.sink = sink;
         this.stateConsumer = stateConsumer;
     }
@@ -54,24 +52,7 @@ final class QueryResultSubscriber_0 extends AbstractResultSubscriber<SingleResul
 
     @Override
     public final void onNext(SingleResult singleResult) {
-        if (!singleResult.isQuery()) {
-            addSubscribeError(ResultType.UPDATE);
-            Mono.from(singleResult.receiveUpdate())
-                    .doOnError(this::printUpstreamErrorAfterSkip)
-                    .subscribe();
-        } else if (singleResult.getIndex() == 0) {
-            if (this.adjutant.inEventLoop()) {
-                this.receiveFirstResult = true;
-            } else {
-                this.adjutant.execute(() -> this.receiveFirstResult = true);
-            }
-            Flux.from(singleResult.receiveQuery(this.stateConsumer))
-                    .doOnNext(this.sink::next)
-                    .doOnError(this::addUpstreamError)
-                    .subscribe();
-        } else {
-            addSubscribeError(ResultType.MULTI_RESULT);
-        }
+
     }
 
     @Override
@@ -81,11 +62,7 @@ final class QueryResultSubscriber_0 extends AbstractResultSubscriber<SingleResul
 
     @Override
     public final void onComplete() {
-        if (this.adjutant.inEventLoop()) {
-            doCompleteInEventLoop();
-        } else {
-            this.adjutant.execute(this::doCompleteInEventLoop);
-        }
+
     }
 
 

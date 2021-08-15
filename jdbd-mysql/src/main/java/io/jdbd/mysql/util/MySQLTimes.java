@@ -1,6 +1,6 @@
 package io.jdbd.mysql.util;
 
-import io.jdbd.vendor.util.JdbdTimeUtils;
+import io.jdbd.vendor.util.JdbdTimes;
 
 import java.time.DateTimeException;
 import java.time.Duration;
@@ -11,7 +11,7 @@ import java.util.Locale;
 
 import static java.time.temporal.ChronoField.*;
 
-public abstract class MySQLTimes extends JdbdTimeUtils {
+public abstract class MySQLTimes extends JdbdTimes {
 
     protected MySQLTimes() {
         throw new UnsupportedOperationException();

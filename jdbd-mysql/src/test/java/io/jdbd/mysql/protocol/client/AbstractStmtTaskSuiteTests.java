@@ -495,7 +495,7 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBased
         assertSetTypeBindAndExtract(taskAdjutant, MySQLType.CHAR, City.BEIJING.name());
         assertSetTypeBindAndExtract(taskAdjutant, MySQLType.CHAR, City.AOMENG.name());
         assertSetTypeBindAndExtract(taskAdjutant, MySQLType.CHAR, City.SHANGHAI);
-        assertSetTypeBindAndExtract(taskAdjutant, MySQLType.SET, MySQLArrayUtils.asUnmodifiableSet(City.BEIJING.name(), City.SHANGHAI.name(), City.SHENZHEN.name(), City.TAIBEI.name()));
+        assertSetTypeBindAndExtract(taskAdjutant, MySQLType.SET, MySQLArrays.asUnmodifiableSet(City.BEIJING.name(), City.SHANGHAI.name(), City.SHENZHEN.name(), City.TAIBEI.name()));
 
         assertSetTypeBindAndExtract(taskAdjutant, MySQLType.SET, EnumSet.of(City.BEIJING, City.SHANGHAI, City.SHENZHEN, City.TAIBEI));
         assertSetTypeBindAndExtract(taskAdjutant, MySQLType.SET, City.AOMENG);

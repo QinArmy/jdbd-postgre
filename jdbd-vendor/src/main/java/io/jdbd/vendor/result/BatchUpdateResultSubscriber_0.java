@@ -34,7 +34,6 @@ final class BatchUpdateResultSubscriber_0 extends AbstractResultSubscriber<Singl
     private final FluxSink<ResultState> sink;
 
     private BatchUpdateResultSubscriber_0(ITaskAdjutant adjutant, FluxSink<ResultState> sink) {
-        super(adjutant);
         this.sink = sink;
     }
 
@@ -65,11 +64,7 @@ final class BatchUpdateResultSubscriber_0 extends AbstractResultSubscriber<Singl
 
     @Override
     public final void onComplete() {
-        if (this.adjutant.inEventLoop()) {
-            doCompleteInEventLoop();
-        } else {
-            this.adjutant.execute(this::doCompleteInEventLoop);
-        }
+
     }
 
     @Override

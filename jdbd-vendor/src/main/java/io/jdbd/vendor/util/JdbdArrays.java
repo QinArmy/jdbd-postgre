@@ -2,9 +2,9 @@ package io.jdbd.vendor.util;
 
 import org.qinarmy.util.ArrayUtils;
 
-public abstract class JdbdArrayUtils extends ArrayUtils {
+public abstract class JdbdArrays extends ArrayUtils {
 
-    protected JdbdArrayUtils() {
+    protected JdbdArrays() {
         throw new UnsupportedOperationException();
     }
 

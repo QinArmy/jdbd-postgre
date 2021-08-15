@@ -2,9 +2,9 @@ package io.jdbd.vendor.util;
 
 import org.qinarmy.util.TimeUtils;
 
-public abstract class JdbdTimeUtils extends TimeUtils {
+public abstract class JdbdTimes extends TimeUtils {
 
-    protected JdbdTimeUtils() {
+    protected JdbdTimes() {
         throw new UnsupportedOperationException();
     }
 

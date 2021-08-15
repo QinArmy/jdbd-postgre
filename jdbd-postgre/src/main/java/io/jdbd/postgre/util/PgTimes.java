@@ -1,6 +1,6 @@
 package io.jdbd.postgre.util;
 
-import io.jdbd.vendor.util.JdbdTimeUtils;
+import io.jdbd.vendor.util.JdbdTimes;
 
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeFormatterBuilder;
@@ -8,7 +8,7 @@ import java.util.Locale;
 
 import static java.time.temporal.ChronoField.*;
 
-public abstract class PgTimes extends JdbdTimeUtils {
+public abstract class PgTimes extends JdbdTimes {
 
 
     public static final DateTimeFormatter ISO_LOCAL_TIME_FORMATTER = new DateTimeFormatterBuilder()

@@ -51,6 +51,17 @@ public abstract class JdbdExceptions extends ExceptionUtils {
         return je;
     }
 
+    public static Throwable wrapIfNonJvmFatal(Throwable e) {
+        return isJvmFatal(e) ? e : wrap(e);
+    }
+
+
+    public static boolean isJvmFatal(@Nullable Throwable e) {
+        return e instanceof VirtualMachineError
+                || e instanceof ThreadDeath
+                || e instanceof LinkageError;
+    }
+
 
     public static JdbdException createException(List<? extends Throwable> errorList) {
         final JdbdException e;
