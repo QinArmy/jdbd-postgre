@@ -35,7 +35,7 @@ public enum PgType implements io.jdbd.meta.SQLType {
     FLOAT4_ARRAY(PgConstant.TYPE_FLOAT4_ARRAY, JDBCType.ARRAY, Float[].class),
     FLOAT8(PgConstant.TYPE_FLOAT8, JDBCType.DOUBLE, Double.class),
     FLOAT8_ARRAY(PgConstant.TYPE_FLOAT8_ARRAY, JDBCType.ARRAY, Double[].class),
-    BOOL(PgConstant.TYPE_BOOLEAN, JDBCType.BOOLEAN, Boolean.class),
+    BOOLEAN(PgConstant.TYPE_BOOLEAN, JDBCType.BOOLEAN, Boolean.class),
 
     BOOL_ARRAY(PgConstant.TYPE_BOOL_ARRAY, JDBCType.ARRAY, Boolean[].class),
     DATE(PgConstant.TYPE_DATE, JDBCType.DATE, LocalDate.class),
@@ -92,6 +92,11 @@ public enum PgType implements io.jdbd.meta.SQLType {
     JSONB_ARRAY(PgConstant.TYPE_JSONB_ARRAY, JDBCType.ARRAY, LongString[].class),
     JSON(PgConstant.TYPE_JSON, JDBCType.LONGVARCHAR, LongString.class),
     JSON_ARRAY(PgConstant.TYPE_JSON_ARRAY, JDBCType.ARRAY, LongString[].class),
+
+    MAC_ADDR(PgConstant.TYPE_MAC_ADDR, JDBCType.VARCHAR, String.class),
+    MAC_ADDR8(PgConstant.TYPE_MAC_ADDR8, JDBCType.VARCHAR, String.class),
+    INET(PgConstant.TYPE_INET, JDBCType.VARCHAR, String.class),
+    CIDR(PgConstant.TYPE_CIDR, JDBCType.VARCHAR, String.class),
 
     REF_CURSOR(PgConstant.TYPE_REF_CURSOR, JDBCType.REF_CURSOR, Object.class),
     REF_CURSOR_ARRAY(PgConstant.TYPE_REF_CURSOR_ARRAY, JDBCType.ARRAY, Object[].class);

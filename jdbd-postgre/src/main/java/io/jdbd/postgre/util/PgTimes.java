@@ -35,7 +35,7 @@ public abstract class PgTimes extends JdbdTimes {
             .appendOffset("+HH:MM", "+00:00")
             .toFormatter(Locale.ENGLISH);
 
-    public static final DateTimeFormatter ISO_OFFSET_TIME__FORMATTER = new DateTimeFormatterBuilder()
+    public static final DateTimeFormatter ISO_OFFSET_TIME_FORMATTER = new DateTimeFormatterBuilder()
             .append(ISO_LOCAL_TIME_FORMATTER)
             .appendOffset("+HH:MM", "+00:00")
             .toFormatter(Locale.ENGLISH);

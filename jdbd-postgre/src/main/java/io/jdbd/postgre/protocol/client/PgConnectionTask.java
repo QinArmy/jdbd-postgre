@@ -2,7 +2,6 @@ package io.jdbd.postgre.protocol.client;
 
 import io.jdbd.JdbdException;
 import io.jdbd.config.PropertyException;
-import io.jdbd.postgre.Encoding;
 import io.jdbd.postgre.PgJdbdException;
 import io.jdbd.postgre.PgReConnectableException;
 import io.jdbd.postgre.ServerVersion;
@@ -506,7 +505,7 @@ final class PgConnectionTask extends PgTask implements ConnectionTask {
 
         list.add(new Pair<>("user", host.getUser()));
         list.add(new Pair<>("database", host.getNonNullDbName()));
-        list.add(new Pair<>("client_encoding", Encoding.CLIENT_CHARSET.name()));
+        list.add(new Pair<>("client_encoding", this.adjutant.clientCharset().name()));
         list.add(new Pair<>("DateStyle", "ISO")); // must be  ISO,because simplify program
 
         list.add(new Pair<>("TimeZone", PgTimes.systemZoneOffset().normalized().getId()));

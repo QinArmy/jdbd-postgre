@@ -241,7 +241,7 @@ final class DefaultResultSetReader implements ResultSetReader {
             case PgConstant.TYPE_TIMETZ: {
                 // @see PgConnectionTask
                 // startStartup Message set to default ISO
-                value = OffsetTime.parse(textValue, PgTimes.ISO_OFFSET_TIME__FORMATTER);
+                value = OffsetTime.parse(textValue, PgTimes.ISO_OFFSET_TIME_FORMATTER);
             }
             break;
             case PgConstant.TYPE_CHAR:
