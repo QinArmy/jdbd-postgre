@@ -78,6 +78,14 @@ public abstract class JdbdStmts {
         return list;
     }
 
+    public static GroupStmt group(List<String> sqlGroup, int timeout) {
+        return timeout == 0 ? new GroupStmtZeroTimeout(sqlGroup) : new GroupStmtImpl(sqlGroup, timeout);
+    }
+
+    public static GroupStmt group(List<String> sqlGroup) {
+        return new GroupStmtZeroTimeout(sqlGroup);
+    }
+
     public static ParamStmt singlePrepare(String sql, ParamValue paramValue) {
         return new SimpleParamStmt(sql, paramValue);
     }
@@ -278,6 +286,49 @@ public abstract class JdbdStmts {
             return this.consumer;
         }
 
+
+    }
+
+    private static final class GroupStmtZeroTimeout implements GroupStmt {
+
+        private final List<String> sqlGroup;
+
+        private GroupStmtZeroTimeout(List<String> sqlGroup) {
+            this.sqlGroup = Collections.unmodifiableList(sqlGroup);
+        }
+
+        @Override
+        public final List<String> getSqlGroup() {
+            return this.sqlGroup;
+        }
+
+        @Override
+        public final int getTimeout() {
+            return 0;
+        }
+
+    }
+
+    private static final class GroupStmtImpl implements GroupStmt {
+
+        private final List<String> sqlGroup;
+
+        private final int timeout;
+
+        private GroupStmtImpl(List<String> sqlGroup, int timeout) {
+            this.sqlGroup = Collections.unmodifiableList(sqlGroup);
+            this.timeout = timeout;
+        }
+
+        @Override
+        public final List<String> getSqlGroup() {
+            return this.sqlGroup;
+        }
+
+        @Override
+        public final int getTimeout() {
+            return this.timeout;
+        }
 
     }
 

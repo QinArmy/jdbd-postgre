@@ -1,5 +1,6 @@
 package io.jdbd.postgre.protocol.client;
 
+import io.jdbd.postgre.Server;
 import io.jdbd.postgre.config.PostgreHost;
 import io.jdbd.postgre.syntax.PgParser;
 import io.jdbd.vendor.task.ITaskAdjutant;
@@ -24,6 +25,8 @@ interface TaskAdjutant extends ITaskAdjutant {
     PgParser sqlParser();
 
     TxStatus txStatus();
+
+    Server server();
 
 
 }

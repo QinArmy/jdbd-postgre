@@ -141,7 +141,7 @@ final class MultiResultSubscriber extends AbstractResultSubscriber<Result> {
             } else if (currentResult instanceof ResultState) {
                 final ResultState state = (ResultState) currentResult;
                 sinkQueue.poll();
-                if (state.hasReturnColumn()) {
+                if (state.hasReturningColumn()) {
                     final FluxSink<ResultRow> fluxSink = sink.fluxSink;
                     if (fluxSink == null) {
                         nonExpectedType = ResultType.QUERY;

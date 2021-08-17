@@ -56,7 +56,7 @@ final class UpdateResultSubscriber extends AbstractResultSubscriber<Result> {
             addSubscribeError(ResultType.QUERY);
         } else if (result instanceof ResultState) {
             final ResultState state = (ResultState) result;
-            if (state.hasReturnColumn()) {
+            if (state.hasReturningColumn()) {
                 addSubscribeError(ResultType.QUERY);
             } else if (this.state == null) {
                 this.state = state;

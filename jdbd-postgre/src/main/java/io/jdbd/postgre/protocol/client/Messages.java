@@ -8,6 +8,8 @@ import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.Collections;
+import java.util.Map;
 
 abstract class Messages {
 
@@ -105,7 +107,6 @@ abstract class Messages {
     static final byte AUTH_SASL_FINAL = 12;
 
 
-
     static String readString(final ByteBuf message, Charset charset) {
         return new String(readBytesTerm(message), charset);
     }
@@ -139,6 +140,26 @@ abstract class Messages {
         }
         cumulateBuffer.readerIndex(originalIndex);
         return has;
+    }
+
+    /**
+     * @see <a href="https://www.postgresql.org/docs/current/protocol-message-formats.html">ParameterStatus</a>
+     */
+    static Map<String, String> readParameterStatus(ByteBuf cumulateBuffer, Charset charset) {
+        final int msgIndex = cumulateBuffer.readerIndex();
+        if (cumulateBuffer.readByte() != S) {
+            throw new IllegalArgumentException("Non ParameterStatus");
+        }
+        final int nextMsgIndex = msgIndex + 1 + cumulateBuffer.readInt();
+
+        final Map<String, String> map;
+        map = Collections.singletonMap(
+                Messages.readString(cumulateBuffer, charset)
+                , Messages.readString(cumulateBuffer, charset)
+        );
+
+        cumulateBuffer.readerIndex(nextMsgIndex);
+        return map;
     }
 
 

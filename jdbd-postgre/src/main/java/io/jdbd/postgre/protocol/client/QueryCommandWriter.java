@@ -16,6 +16,8 @@ import io.jdbd.vendor.util.JdbdBuffers;
 import io.jdbd.vendor.util.JdbdExceptions;
 import io.netty.buffer.ByteBuf;
 import org.reactivestreams.Publisher;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import reactor.core.publisher.Mono;
 
 import java.io.IOException;
@@ -49,7 +51,6 @@ final class QueryCommandWriter {
         message.writeZero(Messages.LENGTH_SIZE); // placeholder of length
         try {
             final Charset charset = adjutant.clientCharset();
-            final byte[] semicolonBytes = SEMICOLON.getBytes(charset);
             final SQLParser sqlParser = adjutant.sqlParser();
             int count = 0;
             for (String sql : sqlGroup) {
@@ -57,7 +58,7 @@ final class QueryCommandWriter {
                     throw PgExceptions.createMultiStatementError();
                 }
                 if (count > 0) {
-                    message.writeBytes(semicolonBytes);
+                    message.writeByte(SEMICOLON_BYTE);
                 }
                 message.writeBytes(sql.getBytes(charset));
                 count++;
@@ -119,8 +120,9 @@ final class QueryCommandWriter {
         return t;
     }
 
+    private static final Logger LOG = LoggerFactory.getLogger(QueryCommandWriter.class);
 
-    private static final String SEMICOLON = ";", NULL = "NULL", TRUE = "TRUE", FALSE = "FALSE", B = "B";
+    private static final String NULL = "NULL", TRUE = "TRUE", FALSE = "FALSE", B = "B";
 
     private static final byte BACK_SLASH_BYTE = '\\';
 

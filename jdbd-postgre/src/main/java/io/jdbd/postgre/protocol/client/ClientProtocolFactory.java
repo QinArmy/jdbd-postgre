@@ -1,8 +1,17 @@
 package io.jdbd.postgre.protocol.client;
 
+import io.jdbd.postgre.PgJdbdException;
 import io.jdbd.postgre.Server;
+import io.jdbd.postgre.ServerVersion;
+import io.jdbd.postgre.config.PgKey;
 import io.jdbd.postgre.session.SessionAdjutant;
+import io.jdbd.postgre.util.PgStrings;
+import io.jdbd.vendor.conf.Properties;
+import io.jdbd.vendor.stmt.JdbdStmts;
 import reactor.core.publisher.Mono;
+
+import java.util.ArrayList;
+import java.util.List;
 
 public abstract class ClientProtocolFactory {
 
@@ -62,8 +71,47 @@ public abstract class ClientProtocolFactory {
         }
 
         private Mono<Void> initializing() {
-            return Mono.empty();
+            final TaskAdjutant adjutant = this.executor.taskAdjutant();
+            final Properties<PgKey> properties = adjutant.obtainHost().getProperties();
+            final Server server = adjutant.server();
+            final ServerVersion serverVersion = server.serverVersion();
+
+            final List<String> sqlGroup = new ArrayList<>(2);
+
+            if (serverVersion.compareTo(ServerVersion.V9_0) >= 0) {
+                sqlGroup.add("SET extra_float_digits = 3");
+
+                final String applicationName = properties.getProperty(PgKey.ApplicationName);
+                if (PgStrings.hasText(applicationName)) {
+                    sqlGroup.add(String.format("SET application_name = '%s'", applicationName));
+                }
+            }
+
+
+            final Mono<Void> resultMono;
+            if (sqlGroup.isEmpty()) {
+                resultMono = Mono.empty();
+            } else {
+                resultMono = SimpleQueryTask.batchUpdate(JdbdStmts.group(sqlGroup), adjutant)
+                        .switchIfEmpty(Mono.defer(this::publishUpdateFailure))
+                        .count()
+                        .flatMap(count -> {
+                            final Mono<Void> mono;
+                            if (count == sqlGroup.size()) {
+                                mono = Mono.empty();
+                            } else {
+                                mono = publishUpdateFailure();
+                            }
+                            return mono;
+                        });
+            }
+            return resultMono;
         }
+
+        private <T> Mono<T> publishUpdateFailure() {
+            return Mono.error(new PgJdbdException("Session initializing failure,SimpleQueryTask response error."));
+        }
+
 
     }
 

@@ -46,7 +46,7 @@ final class SimpleQueryTask extends PgTask implements StmtTask {
                 SimpleQueryTask task = new SimpleQueryTask(stmt, sink, adjutant);
                 task.submit(sink::error);
             } catch (Throwable e) {
-                sink.error(PgExceptions.wrap(e));
+                sink.error(PgExceptions.wrapIfNonJvmFatal(e));
             }
         });
     }
@@ -62,7 +62,7 @@ final class SimpleQueryTask extends PgTask implements StmtTask {
                 SimpleQueryTask task = new SimpleQueryTask(stmt, sink, adjutant);
                 task.submit(sink::error);
             } catch (Throwable e) {
-                sink.error(PgExceptions.wrap(e));
+                sink.error(PgExceptions.wrapIfNonJvmFatal(e));
             }
         });
     }
@@ -78,7 +78,7 @@ final class SimpleQueryTask extends PgTask implements StmtTask {
                 SimpleQueryTask task = new SimpleQueryTask(stmt, sink, adjutant);
                 task.submit(sink::error);
             } catch (Throwable e) {
-                sink.error(PgExceptions.wrap(e));
+                sink.error(PgExceptions.wrapIfNonJvmFatal(e));
             }
         });
     }
@@ -95,7 +95,7 @@ final class SimpleQueryTask extends PgTask implements StmtTask {
                 SimpleQueryTask task = new SimpleQueryTask(stmt, sink, adjutant);
                 task.submit(sink::error);
             } catch (Throwable e) {
-                sink.error(PgExceptions.wrap(e));
+                sink.error(PgExceptions.wrapIfNonJvmFatal(e));
             }
         });
     }
@@ -111,7 +111,7 @@ final class SimpleQueryTask extends PgTask implements StmtTask {
                 SimpleQueryTask task = new SimpleQueryTask(stmt, sink, adjutant);
                 task.submit(sink::error);
             } catch (Throwable e) {
-                sink.error(PgExceptions.wrap(e));
+                sink.error(PgExceptions.wrapIfNonJvmFatal(e));
             }
         });
     }
@@ -129,7 +129,7 @@ final class SimpleQueryTask extends PgTask implements StmtTask {
                 SimpleQueryTask task = new SimpleQueryTask(sink, stmt, adjutant);
                 task.submit(sink::error);
             } catch (Throwable e) {
-                sink.error(PgExceptions.wrap(e));
+                sink.error(PgExceptions.wrapIfNonJvmFatal(e));
             }
         });
     }
@@ -149,7 +149,7 @@ final class SimpleQueryTask extends PgTask implements StmtTask {
                 SimpleQueryTask task = new SimpleQueryTask(sink, stmt, adjutant);
                 task.submit(sink::error);
             } catch (Throwable e) {
-                sink.error(PgExceptions.wrap(e));
+                sink.error(PgExceptions.wrapIfNonJvmFatal(e));
             }
         });
     }
@@ -165,7 +165,7 @@ final class SimpleQueryTask extends PgTask implements StmtTask {
                 SimpleQueryTask task = new SimpleQueryTask(adjutant, sink, stmt);
                 task.submit(sink::error);
             } catch (Throwable e) {
-                sink.error(PgExceptions.wrap(e));
+                sink.error(PgExceptions.wrapIfNonJvmFatal(e));
             }
         });
     }
@@ -183,7 +183,7 @@ final class SimpleQueryTask extends PgTask implements StmtTask {
                 SimpleQueryTask task = new SimpleQueryTask(adjutant, sink, stmt);
                 task.submit(sink::error);
             } catch (Throwable e) {
-                sink.error(PgExceptions.wrap(e));
+                sink.error(PgExceptions.wrapIfNonJvmFatal(e));
             }
         });
     }
@@ -199,7 +199,7 @@ final class SimpleQueryTask extends PgTask implements StmtTask {
                 SimpleQueryTask task = new SimpleQueryTask(adjutant, sink, stmt);
                 task.submit(sink::error);
             } catch (Throwable e) {
-                sink.error(PgExceptions.wrap(e));
+                sink.error(PgExceptions.wrapIfNonJvmFatal(e));
             }
         });
     }
@@ -219,7 +219,7 @@ final class SimpleQueryTask extends PgTask implements StmtTask {
                 SimpleQueryTask task = new SimpleQueryTask(adjutant, stmt, sink);
                 task.submit(sink::error);
             } catch (Throwable e) {
-                sink.error(PgExceptions.wrap(e));
+                sink.error(PgExceptions.wrapIfNonJvmFatal(e));
             }
         });
     }
@@ -235,7 +235,7 @@ final class SimpleQueryTask extends PgTask implements StmtTask {
                 SimpleQueryTask task = new SimpleQueryTask(adjutant, stmt, sink);
                 task.submit(sink::error);
             } catch (Throwable e) {
-                sink.error(PgExceptions.wrap(e));
+                sink.error(PgExceptions.wrapIfNonJvmFatal(e));
             }
         });
     }
@@ -432,6 +432,7 @@ final class SimpleQueryTask extends PgTask implements StmtTask {
         } else {
             isCanceled = false;
         }
+        LOG.trace("Read command response,isCanceled:{}", isCanceled);
 
         final Charset clientCharset = this.adjutant.clientCharset();
 
@@ -464,6 +465,7 @@ final class SimpleQueryTask extends PgTask implements StmtTask {
                     serverStatusConsumer.accept(TxStatus.read(cumulateBuffer));
                     taskEnd = true;
                     continueRead = false;
+                    LOG.trace("Simple query command end,read optional notice.");
                     readNoticeAfterReadyForQuery(cumulateBuffer, serverStatusConsumer);
                 }
                 break;
@@ -479,6 +481,10 @@ final class SimpleQueryTask extends PgTask implements StmtTask {
                         cumulateBuffer.readerIndex(nextMsgIndex); // avoid tail filler
                         continueRead = Messages.hasOneMessage(cumulateBuffer);
                     }
+                }
+                break;
+                case Messages.S: {// ParameterStatus message
+                    serverStatusConsumer.accept(Messages.readParameterStatus(cumulateBuffer, clientCharset));
                 }
                 break;
                 case Messages.C: {// CommandComplete message
@@ -534,6 +540,8 @@ final class SimpleQueryTask extends PgTask implements StmtTask {
         final boolean moreResult = status == ResultSetStatus.MORE_RESULT;
         final String commandTag = Messages.readString(cumulateBuffer, clientCharset);
         cumulateBuffer.readerIndex(nextMsgIndex); // avoid tail filler
+
+        LOG.trace("Read CommandComplete commandTag[{}]", commandTag);
 
         final PgResultStates state;
         final int resultIndex = getAndIncrementResultIndex();

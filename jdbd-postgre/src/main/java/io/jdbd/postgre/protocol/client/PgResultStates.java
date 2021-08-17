@@ -1,7 +1,12 @@
 package io.jdbd.postgre.protocol.client;
 
+import io.jdbd.postgre.PgJdbdException;
+import io.jdbd.postgre.util.PgArrays;
 import io.jdbd.result.ResultState;
 import reactor.util.annotation.Nullable;
+
+import java.util.Set;
+import java.util.StringTokenizer;
 
 abstract class PgResultStates implements ResultState {
 
@@ -10,14 +15,15 @@ abstract class PgResultStates implements ResultState {
     }
 
     static PgResultStates create(int resultIndex, boolean moreResult, String commandTag) {
-        return null;
+        return create(resultIndex, moreResult, commandTag, null);
     }
 
     static PgResultStates create(int resultIndex, boolean moreResult, String commandTag
             , @Nullable NoticeMessage noticeMessage) {
-        return null;
+        return new CommandResultState(resultIndex, moreResult, commandTag, noticeMessage);
     }
 
+    private static final Set<String> QUERY_COMMAND = PgArrays.asUnmodifiableSet("SELECT", "SHOW");
 
     private final int resultIndex;
 
@@ -67,11 +73,17 @@ abstract class PgResultStates implements ResultState {
             return false;
         }
 
+        @Override
+        public final boolean hasReturningColumn() {
+            return false;
+        }
+
     }
 
 
     private static final class CommandResultState extends PgResultStates {
 
+        private final boolean moreResult;
 
         private final long affectedRows;
 
@@ -79,12 +91,42 @@ abstract class PgResultStates implements ResultState {
 
         private final NoticeMessage noticeMessage;
 
-        private CommandResultState(int resultIndex, long affectedRows, long insertId
+        private final boolean hasReturningColumn;
+
+        private CommandResultState(int resultIndex, boolean moreResult, String commandTag
                 , @Nullable NoticeMessage noticeMessage) {
             super(resultIndex);
+            this.moreResult = moreResult;
+            this.noticeMessage = noticeMessage;
+
+            final StringTokenizer tokenizer = new StringTokenizer(commandTag, " ");
+            final String command;
+            final long affectedRows, insertId;
+            switch (tokenizer.countTokens()) {
+                case 1:
+                    command = tokenizer.nextToken();
+                    affectedRows = insertId = 0L;
+                    break;
+                case 2:
+                    command = tokenizer.nextToken();
+                    affectedRows = Long.parseLong(tokenizer.nextToken());
+                    insertId = 0L;
+                    break;
+                case 3:
+                    command = tokenizer.nextToken();
+                    insertId = Long.parseLong(tokenizer.nextToken());
+                    affectedRows = Long.parseLong(tokenizer.nextToken());
+                    break;
+                default:
+                    String m = String.format("Server response CommandComplete command tag[%s] format error."
+                            , commandTag);
+                    throw new PgJdbdException(m);
+            }
+
             this.affectedRows = affectedRows;
             this.insertId = insertId;
-            this.noticeMessage = noticeMessage;
+
+            this.hasReturningColumn = QUERY_COMMAND.contains(command.toUpperCase());
         }
 
         @Override
@@ -112,12 +154,17 @@ abstract class PgResultStates implements ResultState {
 
         @Override
         public final boolean hasMoreResult() {
-            return false;
+            return this.moreResult;
         }
 
         @Override
         public final boolean hasMoreFetch() {
             return false;
+        }
+
+        @Override
+        public final boolean hasReturningColumn() {
+            return this.hasReturningColumn;
         }
 
     }

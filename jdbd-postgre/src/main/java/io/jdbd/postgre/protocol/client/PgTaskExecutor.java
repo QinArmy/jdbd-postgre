@@ -165,6 +165,15 @@ final class PgTaskExecutor extends CommunicationTaskExecutor<TaskAdjutant> {
             return txStatus;
         }
 
+        @Override
+        public final Server server() {
+            final Server server = this.server;
+            if (server == null) {
+                throw new IllegalStateException("this.server is null");
+            }
+            return server;
+        }
+
         private void authenticationSuccess(AuthResult result) {
             synchronized (this) {
                 this.server = new ServerImpl(result.serverStatusMap);

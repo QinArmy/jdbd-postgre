@@ -1,5 +1,6 @@
 package io.jdbd.postgre.protocol.client;
 
+import io.jdbd.postgre.config.PgKey;
 import io.jdbd.postgre.config.PostgreUrl;
 import org.qinarmy.env.Environment;
 import org.qinarmy.env.ImmutableMapEnvironment;
@@ -23,9 +24,11 @@ public abstract class ClientTestUtils {
     public static PostgreUrl createUrl(Map<String, String> propertiesMap) {
         String url = "jdbc:postgresql://localhost:5432/army_test";
         Map<String, String> properties = new HashMap<>();
+
         properties.put("user", "army_w");
         properties.put("password", "army123");
         properties.put("sslmode", "DISABLED");
+        properties.put(PgKey.ApplicationName.getKey(), "jdbd-postgre-test");
 
         properties.putAll(propertiesMap);
 
