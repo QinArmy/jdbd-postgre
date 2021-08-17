@@ -1,6 +1,5 @@
 package io.jdbd.postgre.protocol.client;
 
-import io.jdbd.postgre.Encoding;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
 import org.qinarmy.util.HexUtils;
@@ -105,12 +104,6 @@ abstract class Messages {
     /** Specifies that SASL authentication has completed. See AuthenticationSASLFinal message format. */
     static final byte AUTH_SASL_FINAL = 12;
 
-
-    @Deprecated
-    static void writeString(ByteBuf message, String string) {
-        message.writeBytes(string.getBytes(Encoding.CLIENT_CHARSET));
-        message.writeByte(STRING_TERMINATOR);
-    }
 
 
     static String readString(final ByteBuf message, Charset charset) {

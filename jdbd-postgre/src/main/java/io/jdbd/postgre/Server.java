@@ -1,6 +1,13 @@
 package io.jdbd.postgre;
 
+import java.time.ZoneOffset;
+
 public interface Server {
 
-    boolean isParameterOn(ServerParameter parameter);
+    ServerVersion serverVersion();
+
+    String parameter(ServerParameter parameter);
+
+    ZoneOffset zoneOffset();
+
 }

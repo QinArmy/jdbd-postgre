@@ -1,7 +1,6 @@
 package io.jdbd.postgre.protocol.client;
 
-import io.jdbd.postgre.Encoding;
-import io.jdbd.postgre.PgJdbdException;
+import io.jdbd.postgre.*;
 import io.jdbd.postgre.config.PostgreHost;
 import io.jdbd.postgre.session.SessionAdjutant;
 import io.jdbd.postgre.syntax.PgParser;
@@ -17,8 +16,9 @@ import reactor.netty.Connection;
 import reactor.netty.tcp.TcpClient;
 
 import java.nio.charset.Charset;
+import java.time.ZoneId;
 import java.time.ZoneOffset;
-import java.util.List;
+import java.util.*;
 
 final class PgTaskExecutor extends CommunicationTaskExecutor<TaskAdjutant> {
 
@@ -43,7 +43,7 @@ final class PgTaskExecutor extends CommunicationTaskExecutor<TaskAdjutant> {
     }
 
     static void handleAuthenticationSuccess(PgTaskExecutor executor, AuthResult result) {
-        LOG.debug("Authentication success.");
+        ((TaskAdjutantWrapper) executor.taskAdjutant).authenticationSuccess(result);
     }
 
 
@@ -66,7 +66,15 @@ final class PgTaskExecutor extends CommunicationTaskExecutor<TaskAdjutant> {
     }
 
     @Override
-    protected final void updateServerStatus(Object serverStatus) {
+    protected final void updateServerStatus(final Object serverStatus) {
+        final TaskAdjutantWrapper adjutant = (TaskAdjutantWrapper) this.taskAdjutant;
+        if (serverStatus instanceof Map) {
+            @SuppressWarnings("unchecked")
+            Map<String, String> statusMap = (Map<String, String>) serverStatus;
+            adjutant.updateServerParameterStatus(statusMap);
+        } else if (serverStatus instanceof TxStatus) {
+            adjutant.updateTxStatus((TxStatus) serverStatus);
+        }
 
     }
 
@@ -93,6 +101,13 @@ final class PgTaskExecutor extends CommunicationTaskExecutor<TaskAdjutant> {
 
         private final PgTaskExecutor taskExecutor;
 
+        private ServerImpl server;
+
+        private TxStatus txStatus;
+
+        private PgParser parser;
+
+        private BackendKeyData backendKeyData;
 
         private TaskAdjutantWrapper(PgTaskExecutor taskExecutor) {
             super(taskExecutor);
@@ -106,7 +121,20 @@ final class PgTaskExecutor extends CommunicationTaskExecutor<TaskAdjutant> {
 
         @Override
         public final long processId() {
-            return 0;
+            final BackendKeyData keyData = this.backendKeyData;
+            if (keyData == null) {
+                throw new IllegalStateException("this.backendKeyData is null.");
+            }
+            return keyData.processId;
+        }
+
+        @Override
+        public final int serverSecretKey() {
+            final BackendKeyData keyData = this.backendKeyData;
+            if (keyData == null) {
+                throw new IllegalStateException("this.backendKeyData is null.");
+            }
+            return keyData.secretKey;
         }
 
         @Override
@@ -121,8 +149,85 @@ final class PgTaskExecutor extends CommunicationTaskExecutor<TaskAdjutant> {
 
         @Override
         public final PgParser sqlParser() {
-            return null;
+            final PgParser parser = this.parser;
+            if (parser == null) {
+                throw new IllegalStateException("this.parser is null.");
+            }
+            return parser;
         }
+
+        @Override
+        public final TxStatus txStatus() {
+            final TxStatus txStatus = this.txStatus;
+            if (txStatus == null) {
+                throw new IllegalStateException("this.txStatus is null");
+            }
+            return txStatus;
+        }
+
+        private void authenticationSuccess(AuthResult result) {
+            synchronized (this) {
+                this.server = new ServerImpl(result.serverStatusMap);
+                this.backendKeyData = Objects.requireNonNull(result.backendKeyData, "result.backendKeyData");
+                this.txStatus = Objects.requireNonNull(result.txStatus, "txStatus");
+                this.parser = PgParser.create(this.server::parameter);
+            }
+        }
+
+        private void updateServerParameterStatus(Map<String, String> paramStatusMap) {
+            ServerImpl oldServer = Objects.requireNonNull(this.server, "this.server");
+            this.server = new ServerImpl(oldServer, paramStatusMap);
+        }
+
+        private void updateTxStatus(TxStatus txStatus) {
+            this.txStatus = txStatus;
+        }
+
+
+    }
+
+    private static final class ServerImpl implements Server {
+
+        private final ServerVersion serverVersion;
+
+        private final Map<String, String> paramStatusMap;
+
+        private final ZoneOffset zoneOffset;
+
+        private ServerImpl(final Map<String, String> paramStatusMap) {
+            this.paramStatusMap = Collections.unmodifiableMap(paramStatusMap);
+            this.serverVersion = ServerVersion.from(paramStatusMap.get(ServerParameter.server_version.name()));
+            final ZoneId zoneId = ZoneId.of(paramStatusMap.get(ServerParameter.TimeZone.name()), ZoneId.SHORT_IDS);
+            this.zoneOffset = PgTimes.toZoneOffset(zoneId);
+        }
+
+        private ServerImpl(ServerImpl server, final Map<String, String> newStatusMap) {
+            final Map<String, String> paramMap = new HashMap<>(server.paramStatusMap);
+            paramMap.putAll(newStatusMap);
+
+            this.paramStatusMap = Collections.unmodifiableMap(paramMap);
+            this.serverVersion = server.serverVersion;
+
+            final ZoneId zoneId = ZoneId.of(paramStatusMap.get(ServerParameter.TimeZone.name()), ZoneId.SHORT_IDS);
+            this.zoneOffset = PgTimes.toZoneOffset(zoneId);
+        }
+
+
+        @Override
+        public final ServerVersion serverVersion() {
+            return this.serverVersion;
+        }
+
+        @Override
+        public final String parameter(ServerParameter parameter) {
+            return this.paramStatusMap.get(parameter.name());
+        }
+
+        @Override
+        public final ZoneOffset zoneOffset() {
+            return this.zoneOffset;
+        }
+
 
     }
 

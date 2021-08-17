@@ -14,11 +14,16 @@ interface TaskAdjutant extends ITaskAdjutant {
 
     long processId();
 
+    int serverSecretKey();
+
     Charset clientCharset();
 
+    @Deprecated
     ZoneOffset clientOffset();
 
     PgParser sqlParser();
+
+    TxStatus txStatus();
 
 
 }
