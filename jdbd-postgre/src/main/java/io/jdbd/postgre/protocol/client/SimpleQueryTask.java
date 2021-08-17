@@ -20,6 +20,8 @@ import io.jdbd.vendor.stmt.GroupStmt;
 import io.jdbd.vendor.stmt.Stmt;
 import io.netty.buffer.ByteBuf;
 import org.reactivestreams.Publisher;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -238,14 +240,18 @@ final class SimpleQueryTask extends PgTask implements StmtTask {
         });
     }
 
+    private static final Logger LOG = LoggerFactory.getLogger(SimpleQueryTask.class);
+
 
     private final FluxResultSink sink;
+
+    private final ResultSetReader resultSetReader;
 
     private int readerIndexBeforeError;
 
     private int resultIndex = 0;
 
-    private final ResultSetReader resultSetReader;
+    private boolean downstreamCanceled;
 
     private Phase phase;
 
@@ -408,9 +414,6 @@ final class SimpleQueryTask extends PgTask implements StmtTask {
         return null;
     }
 
-    private boolean hasMoreResult(ByteBuf cumulateBuffer) {
-        return false;
-    }
 
     /**
      * @return true: task end.
@@ -419,36 +422,67 @@ final class SimpleQueryTask extends PgTask implements StmtTask {
     private boolean readCommandResponse(final ByteBuf cumulateBuffer, final Consumer<Object> serverStatusConsumer) {
         assertPhase(Phase.READ_COMMAND_RESPONSE);
 
+        final boolean isCanceled;
+        if (this.downstreamCanceled || hasError()) {
+            isCanceled = true;
+        } else if (this.sink.isCancelled()) {
+            LOG.trace("Downstream cancel subscribe.");
+            isCanceled = true;
+            this.downstreamCanceled = true;
+        } else {
+            isCanceled = false;
+        }
+
         final Charset clientCharset = this.adjutant.clientCharset();
+
         boolean taskEnd = false, continueRead = true;
         while (continueRead) {
             final int msgStartIndex = cumulateBuffer.readerIndex();
-            final int msgType = cumulateBuffer.readByte(), bodyIndex = cumulateBuffer.readerIndex();
-            final int nextMsgIndex = bodyIndex + cumulateBuffer.readInt();
+            final int msgType = cumulateBuffer.getByte(msgStartIndex);
+            final int nextMsgIndex = msgStartIndex + 1 + cumulateBuffer.getInt(msgStartIndex + 1);
 
+            if (isCanceled) {
+                if (msgType == Messages.Z) {// ReadyForQuery message
+                    serverStatusConsumer.accept(TxStatus.read(cumulateBuffer));
+                    taskEnd = true;
+                    continueRead = false;
+                    readNoticeAfterReadyForQuery(cumulateBuffer, serverStatusConsumer);
+                } else {
+                    cumulateBuffer.readerIndex(nextMsgIndex);
+                    continueRead = Messages.hasOneMessage(cumulateBuffer);
+                }
+                continue;
+            }
             switch (msgType) {
                 case Messages.E: {// ErrorResponse message
-                    ErrorMessage error = ErrorMessage.readBody(cumulateBuffer, nextMsgIndex, clientCharset);
+                    ErrorMessage error = ErrorMessage.read(cumulateBuffer, clientCharset);
                     addError(PgExceptions.createErrorException(error));
                     continueRead = Messages.hasOneMessage(cumulateBuffer);
                 }
                 break;
                 case Messages.Z: {// ReadyForQuery message
-                    serverStatusConsumer.accept(TxStatus.from(cumulateBuffer.readByte()));
-                    cumulateBuffer.readerIndex(nextMsgIndex); // avoid tail filler
+                    serverStatusConsumer.accept(TxStatus.read(cumulateBuffer));
                     taskEnd = true;
                     continueRead = false;
+                    readNoticeAfterReadyForQuery(cumulateBuffer, serverStatusConsumer);
                 }
                 break;
                 case Messages.I: {// EmptyQueryResponse message
-                    this.sink.next(PgResultStates.empty(getAndIncrementResultIndex(), hasMoreResult(cumulateBuffer)));
-                    cumulateBuffer.readerIndex(nextMsgIndex); // avoid tail filler
-                    continueRead = Messages.hasOneMessage(cumulateBuffer);
+                    final ResultSetStatus status = Messages.getResultSetStatus(cumulateBuffer);
+                    if (status == ResultSetStatus.MORE_CUMULATE) {
+                        continueRead = false;
+                    } else {
+                        final PgResultStates states;
+                        final boolean moreResult = status == ResultSetStatus.MORE_RESULT;
+                        states = PgResultStates.empty(getAndIncrementResultIndex(), moreResult);
+                        this.sink.next(states);
+                        cumulateBuffer.readerIndex(nextMsgIndex); // avoid tail filler
+                        continueRead = Messages.hasOneMessage(cumulateBuffer);
+                    }
                 }
                 break;
                 case Messages.C: {// CommandComplete message
-                    continueRead = readCommandComplete(cumulateBuffer, msgStartIndex, nextMsgIndex)
-                            && Messages.hasOneMessage(cumulateBuffer);
+                    continueRead = readCommandComplete(cumulateBuffer) && Messages.hasOneMessage(cumulateBuffer);
                 }
                 break;
                 case Messages.T: {// RowDescription message
@@ -462,7 +496,7 @@ final class SimpleQueryTask extends PgTask implements StmtTask {
                 }
                 break;
                 case Messages.N: {// NoticeResponse message
-                    NoticeMessage noticeMessage = NoticeMessage.readBody(cumulateBuffer, nextMsgIndex, clientCharset);
+                    NoticeMessage noticeMessage = NoticeMessage.read(cumulateBuffer, clientCharset);
                     serverStatusConsumer.accept(noticeMessage);
                     //TODO validate here
                     continueRead = Messages.hasOneMessage(cumulateBuffer);
@@ -485,33 +519,33 @@ final class SimpleQueryTask extends PgTask implements StmtTask {
      * @return true: read CommandComplete message end , false : more cumulate.
      * @see #readCommandResponse(ByteBuf, Consumer)
      */
-    private boolean readCommandComplete(final ByteBuf cumulateBuffer, final int msgStartIndex, final int nextMsgIndex) {
-        final boolean readEnd;
+    private boolean readCommandComplete(final ByteBuf cumulateBuffer) {
         final ResultSetStatus status = Messages.getResultSetStatus(cumulateBuffer);
         if (status == ResultSetStatus.MORE_CUMULATE) {
-            readEnd = false;
-            // back to message start index
-            cumulateBuffer.readerIndex(msgStartIndex);
-        } else {
-            final Charset clientCharset = this.adjutant.clientCharset();
-            final boolean moreResult = status == ResultSetStatus.MORE_RESULT;
-            final String commandTag = Messages.readString(cumulateBuffer, clientCharset);
-            cumulateBuffer.readerIndex(nextMsgIndex); // avoid tail filler
-
-            final PgResultStates state;
-            final int resultIndex = getAndIncrementResultIndex();
-            if (cumulateBuffer.getInt(nextMsgIndex) == Messages.N) {
-                // next is warning NoticeResponse
-                NoticeMessage nm = NoticeMessage.read(cumulateBuffer, clientCharset);
-                state = PgResultStates.create(resultIndex, moreResult, commandTag, nm);
-            } else {
-                state = PgResultStates.create(resultIndex, moreResult, commandTag);
-            }
-            readEnd = true;
-            this.sink.next(state);
-
+            return false;
         }
-        return readEnd;
+        final Charset clientCharset = this.adjutant.clientCharset();
+        final int msgStartIndex = cumulateBuffer.readerIndex();
+        if (cumulateBuffer.readByte() != Messages.C) {
+            cumulateBuffer.readerIndex(msgStartIndex);
+            throw new IllegalStateException("Non CommandComplete message.");
+        }
+        final int nextMsgIndex = msgStartIndex + 1 + cumulateBuffer.readInt();
+        final boolean moreResult = status == ResultSetStatus.MORE_RESULT;
+        final String commandTag = Messages.readString(cumulateBuffer, clientCharset);
+        cumulateBuffer.readerIndex(nextMsgIndex); // avoid tail filler
+
+        final PgResultStates state;
+        final int resultIndex = getAndIncrementResultIndex();
+        if (cumulateBuffer.getInt(nextMsgIndex) == Messages.N) {
+            // next is warning NoticeResponse
+            NoticeMessage nm = NoticeMessage.read(cumulateBuffer, clientCharset);
+            state = PgResultStates.create(resultIndex, moreResult, commandTag, nm);
+        } else {
+            state = PgResultStates.create(resultIndex, moreResult, commandTag);
+        }
+        this.sink.next(state);
+        return true;
     }
 
 

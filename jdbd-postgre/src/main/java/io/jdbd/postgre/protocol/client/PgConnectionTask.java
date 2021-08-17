@@ -55,15 +55,10 @@ final class PgConnectionTask extends PgTask implements ConnectionTask {
 
     private GssWrapper gssWrapper;
 
+    private AuthResult authResult;
+
     private Phase phase;
 
-    private Map<String, String> serverStatusMap;
-
-    private BackendKeyData backendKeyData;
-
-    private TxStatus txStatus;
-
-    private NoticeMessage noticeMessage;
 
     private PgConnectionTask(MonoSink<AuthResult> sink, TaskAdjutant adjutant) {
         super(adjutant);
@@ -138,7 +133,11 @@ final class PgConnectionTask extends PgTask implements ConnectionTask {
     @Override
     protected final boolean decode(final ByteBuf cumulateBuffer, final Consumer<Object> serverStatusConsumer) {
         final PostgreUnitTask unitTask = this.unitTask;
-        if (unitTask != null && !unitTask.decode(cumulateBuffer, serverStatusConsumer)) {
+        if (unitTask == null) {
+            if (!Messages.hasOneMessage(cumulateBuffer)) {
+                return false;
+            }
+        } else if (!unitTask.hasOnePacket(cumulateBuffer) || !unitTask.decode(cumulateBuffer, serverStatusConsumer)) {
             return false;
         }
         boolean taskEnd = false, continueDecode = true;
@@ -159,6 +158,11 @@ final class PgConnectionTask extends PgTask implements ConnectionTask {
                     continueDecode = false;
                 }
                 break;
+                case HANDLE_AUTHENTICATION: {
+                    taskEnd = handleAuthenticationMethod(cumulateBuffer);
+                    continueDecode = false;
+                }
+                break;
                 case READ_MSG_AFTER_OK: {
                     taskEnd = readMessageAfterAuthenticationOk(cumulateBuffer);
                     continueDecode = false;
@@ -171,12 +175,13 @@ final class PgConnectionTask extends PgTask implements ConnectionTask {
             }
 
         }
+
         if (taskEnd) {
             if (hasError()) {
                 this.phase = Phase.DISCONNECT;
                 publishError(this.sink::error);
             } else {
-                emitAuthResult();
+                this.sink.success(Objects.requireNonNull(this.authResult, "this.authResult"));
             }
         }
         return taskEnd;
@@ -212,56 +217,22 @@ final class PgConnectionTask extends PgTask implements ConnectionTask {
      */
     private boolean readStartUpResponse(final ByteBuf cumulateBuffer) {
         assertPhase(Phase.READ_START_UP_RESPONSE);
-        final int msgType = cumulateBuffer.readByte(), startIndex = cumulateBuffer.readerIndex();
-        final int length = cumulateBuffer.readInt(), nextMsgIndex = startIndex + length;
         boolean taskEnd = false;
 
-        switch (msgType) {
+        LOG.debug("Receive startup response.");
+        switch (cumulateBuffer.getByte(cumulateBuffer.readerIndex())) {
             case Messages.E: {
                 // error,server close connection.
                 taskEnd = true;
-                LOG.debug("readStartUpResponse type");
-                ErrorMessage error = ErrorMessage.readBody(cumulateBuffer, nextMsgIndex, this.adjutant.clientCharset());
+                ErrorMessage error = ErrorMessage.read(cumulateBuffer, this.adjutant.clientCharset());
                 addError(PgExceptions.createErrorException(error));
-                LOG.debug("readStartUpResponse error:{}", error);
+                LOG.debug("Read StartUpResponse error:{}", error);
             }
             break;
             case Messages.R: {
-                switch (cumulateBuffer.readInt()) {
-                    case Messages.AUTH_OK: {
-                        LOG.debug("Authentication success,receiving message from server.");
-                        this.phase = Phase.READ_MSG_AFTER_OK;
-                        // below 4 row initializing auth result properties.
-                        this.serverStatusMap = null;
-                        this.backendKeyData = null;
-                        this.txStatus = null;
-                        this.noticeMessage = null;
-
-                        taskEnd = readMessageAfterAuthenticationOk(cumulateBuffer);
-                    }
-                    break;
-                    case Messages.AUTH_KRB5:
-                    case Messages.AUTH_CLEAR_TEXT:
-                        taskEnd = true;
-                        addError(new PgJdbdException("Not support authentication method. "));
-                        break;
-                    case Messages.AUTH_MD5: {
-                        taskEnd = handleMd5PasswordAuthentication(cumulateBuffer, length - 8);
-                    }
-                    break;
-                    case Messages.AUTH_SCM:
-                    case Messages.AUTH_GSS:
-                    case Messages.AUTH_GSS_CONTINUE:
-                    case Messages.AUTH_SSPI:
-                    case Messages.AUTH_SASL:
-                    case Messages.AUTH_SASL_CONTINUE:
-                    case Messages.AUTH_SASL_FINAL:
-                    default: {
-                        taskEnd = true;
-                        String m = String.format("Client not support authentication method(%s).", msgType);
-                        addError(new PgJdbdException(m));
-                    }
-                }
+                LOG.debug("start handle authentication method.");
+                this.phase = Phase.HANDLE_AUTHENTICATION;
+                taskEnd = handleAuthenticationMethod(cumulateBuffer);
             }
             break;
             case Messages.v: {
@@ -272,7 +243,54 @@ final class PgConnectionTask extends PgTask implements ConnectionTask {
 
             }
         }
-        cumulateBuffer.readerIndex(nextMsgIndex); // avoid to tailor.
+        return taskEnd;
+    }
+
+    /**
+     * @return true :  task end.
+     * @see #decode(ByteBuf, Consumer)
+     */
+    private boolean handleAuthenticationMethod(final ByteBuf cumulateBuffer) {
+        assertPhase(Phase.HANDLE_AUTHENTICATION);
+        final int msgIndex = cumulateBuffer.readerIndex();
+
+        if (cumulateBuffer.getByte(msgIndex) != Messages.R) {
+            throw createNonAuthenticationRequestError();
+        }
+
+        final int nextMsgIndex = msgIndex + 1 + cumulateBuffer.getInt(msgIndex + 1);
+        final int authenticateMethod = cumulateBuffer.getInt(msgIndex + 5);
+        boolean taskEnd;
+        switch (authenticateMethod) {
+            case Messages.AUTH_OK: {
+                LOG.debug("Authentication success,receiving message from server.");
+                this.phase = Phase.READ_MSG_AFTER_OK;
+                cumulateBuffer.readerIndex(nextMsgIndex); // skip AuthenticationOk message.
+                taskEnd = readMessageAfterAuthenticationOk(cumulateBuffer);
+            }
+            break;
+            case Messages.AUTH_KRB5:
+            case Messages.AUTH_CLEAR_TEXT:
+                taskEnd = true;
+                addError(new PgJdbdException("Not support authentication method. "));
+                break;
+            case Messages.AUTH_MD5: {
+                taskEnd = handleMd5PasswordAuthentication(cumulateBuffer);
+            }
+            break;
+            case Messages.AUTH_SCM:
+            case Messages.AUTH_GSS:
+            case Messages.AUTH_GSS_CONTINUE:
+            case Messages.AUTH_SSPI:
+            case Messages.AUTH_SASL:
+            case Messages.AUTH_SASL_CONTINUE:
+            case Messages.AUTH_SASL_FINAL:
+            default: {
+                taskEnd = true;
+                String m = String.format("Client not support authentication method(%s).", authenticateMethod);
+                addError(new PgJdbdException(m));
+            }
+        }
         return taskEnd;
     }
 
@@ -285,53 +303,66 @@ final class PgConnectionTask extends PgTask implements ConnectionTask {
      * @return true : task end.
      * @see #readStartUpResponse(ByteBuf)
      */
-    private boolean handleMd5PasswordAuthentication(final ByteBuf cumulateBuffer, final int saltLength) {
-        LOG.debug("MD5 password authentication.");
-
+    private boolean handleMd5PasswordAuthentication(final ByteBuf cumulateBuffer) {
+        assertPhase(Phase.HANDLE_AUTHENTICATION);
+        LOG.debug("start MD5 password authentication.");
+        final int msgIndex = cumulateBuffer.readerIndex();
+        if (cumulateBuffer.readByte() != Messages.R) {
+            throw createNonAuthenticationRequestError();
+        }
+        final int nextMsgIndex = msgIndex + 1 + cumulateBuffer.readInt();
+        if (cumulateBuffer.readInt() != Messages.AUTH_MD5) {
+            throw new IllegalArgumentException("Non AuthenticationMD5Password message.");
+        }
         boolean taskEnd = false;
         PostgreHost host = this.adjutant.obtainHost();
         final String password = host.getPassword();
         if (PgStrings.hasText(password)) {
-            byte[] salt = new byte[saltLength];
+            final byte[] salt = new byte[4];
             cumulateBuffer.readBytes(salt);
+            // send md5 authentication  response.
             this.packetPublisher = Mono.just(
                     Messages.md5Password(host.getUser(), password, salt, this.adjutant.allocator())
             );
+            LOG.debug("Send MD5 password authentication message.");
         } else {
             String m;
             m = "The server requested password-based authentication, but no password was provided.";
             taskEnd = true;
             addError(new PgJdbdException(m));
         }
+        cumulateBuffer.readerIndex(nextMsgIndex);
         return taskEnd;
     }
 
     /**
+     * @return true : task end.
      * @see #readStartUpResponse(ByteBuf)
      * @see #decode(ByteBuf, Consumer)
      */
-    private boolean readMessageAfterAuthenticationOk(final ByteBuf cumulateBuffer) {
+    private boolean readMessageAfterAuthenticationOk(ByteBuf cumulateBuffer) {
         assertPhase(Phase.READ_MSG_AFTER_OK);
-        // read ParameterStatus messages
-        Map<String, String> serverStatusMap = this.serverStatusMap;
-        if (serverStatusMap == null) {
-            serverStatusMap = new HashMap<>();
-            this.serverStatusMap = serverStatusMap;
+        if (!Messages.hasReadyForQuery(cumulateBuffer)) {
+            return false;
         }
+        // read ParameterStatus messages
+        final Map<String, String> serverStatusMap = new HashMap<>();
+        TxStatus txStatus = null;
+        BackendKeyData keyData = null;
+        NoticeMessage notice = null;
+
         final Charset clientCharset = this.adjutant.clientCharset();
-        boolean taskEnd = false;
+        loop:
         while (Messages.hasOneMessage(cumulateBuffer)) {
-            final int msgType = cumulateBuffer.readByte(), bodyIndex = cumulateBuffer.readerIndex();
-            final int nextMsgIndex = bodyIndex + cumulateBuffer.getInt(bodyIndex);
+            final int msgIndex = cumulateBuffer.readerIndex(), msgType = cumulateBuffer.readByte();
+            final int nextMsgIndex = msgIndex + 1 + cumulateBuffer.readInt();
 
             switch (msgType) {
                 case Messages.E: { // ErrorResponse message
-                    taskEnd = true;
-                    LOG.debug("receive message response");
                     ErrorMessage error = ErrorMessage.readBody(cumulateBuffer, nextMsgIndex, clientCharset);
                     addError(PgExceptions.createErrorException(error));
                 }
-                break;
+                break loop;
                 case Messages.S: {// ParameterStatus message
                     serverStatusMap.put(
                             Messages.readString(cumulateBuffer, clientCharset)
@@ -341,20 +372,18 @@ final class PgConnectionTask extends PgTask implements ConnectionTask {
                 break;
                 case Messages.Z: {// ReadyForQuery message
                     // here , session build success.
-                    TxStatus txStatus = TxStatus.from(cumulateBuffer.readByte());
-                    this.txStatus = txStatus;
-                    taskEnd = true;
+                    txStatus = TxStatus.from(cumulateBuffer.readByte());
                     LOG.debug("Session build success,transaction status[{}].", txStatus);
                 }
-                break;
+                break loop;
                 case Messages.K: {// BackendKeyData message
                     // modify server BackendKeyData
-                    this.backendKeyData = BackendKeyData.readBody(cumulateBuffer);
+                    keyData = BackendKeyData.readBody(cumulateBuffer);
                 }
                 break;
                 case Messages.N: { // NoticeResponse message
                     // modify server status.
-                    this.noticeMessage = NoticeMessage.read(cumulateBuffer, clientCharset);
+                    notice = NoticeMessage.readBody(cumulateBuffer, nextMsgIndex, clientCharset);
                 }
                 break;
                 default: { // Unknown message
@@ -364,7 +393,12 @@ final class PgConnectionTask extends PgTask implements ConnectionTask {
             }// switch
             cumulateBuffer.readerIndex(nextMsgIndex); // avoid tail filler.
         }
-        return taskEnd;
+        this.authResult = new AuthResult(
+                Collections.unmodifiableMap(serverStatusMap)
+                , Objects.requireNonNull(keyData, "keyData")
+                , Objects.requireNonNull(txStatus, "txStatus")
+                , notice);
+        return true;
 
     }
 
@@ -465,9 +499,14 @@ final class PgConnectionTask extends PgTask implements ConnectionTask {
 
         message.writeShort(3); // protocol major
         message.writeShort(0); // protocol major
+
+        final Charset charset = this.adjutant.clientCharset();
         for (Pair<String, String> pair : obtainStartUpParamList()) {
-            Messages.writeString(message, pair.getFirst());
-            Messages.writeString(message, pair.getSecond());
+            message.writeBytes(pair.getFirst().getBytes(charset));
+            message.writeByte(Messages.STRING_TERMINATOR);
+
+            message.writeBytes(pair.getSecond().getBytes(charset));
+            message.writeByte(Messages.STRING_TERMINATOR);
         }
         message.writeByte(Messages.STRING_TERMINATOR);// Terminating \0
 
@@ -574,24 +613,9 @@ final class PgConnectionTask extends PgTask implements ConnectionTask {
         }
     }
 
-    /**
-     * @see #decode(ByteBuf, Consumer)
-     */
-    private void emitAuthResult() {
-        try {
-            AuthResult result = new AuthResult(
-                    Objects.requireNonNull(this.serverStatusMap, "this.serverStatusMap")
-                    , Objects.requireNonNull(this.backendKeyData, "this.backendKeyData")
-                    , Objects.requireNonNull(this.txStatus, "this.txStatus")
-                    , this.noticeMessage
-            );
-            this.sink.success(result);
-            this.phase = Phase.END;
-        } catch (NullPointerException e) {
-            // here bug
-            this.phase = Phase.DISCONNECT;
-            this.sink.error(new PgJdbdException("Create AuthResult error", e));
-        }
+
+    private static IllegalArgumentException createNonAuthenticationRequestError() {
+        return new IllegalArgumentException("Non authentication request message");
     }
 
 
@@ -603,6 +627,7 @@ final class PgConnectionTask extends PgTask implements ConnectionTask {
     private enum Phase {
         SSL_ENCRYPTION_TASK,
         READ_START_UP_RESPONSE,
+        HANDLE_AUTHENTICATION,
         READ_MSG_AFTER_OK,
         GSS_ENCRYPTION_TASK,
         DISCONNECT,

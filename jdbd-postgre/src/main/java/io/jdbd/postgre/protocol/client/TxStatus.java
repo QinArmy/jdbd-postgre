@@ -1,5 +1,7 @@
 package io.jdbd.postgre.protocol.client;
 
+import io.netty.buffer.ByteBuf;
+
 /**
  * @see <a href="https://www.postgresql.org/docs/current/protocol-message-formats.html">ReadyForQuery</a>
  */
@@ -26,6 +28,18 @@ enum TxStatus {
             default:
                 throw new IllegalArgumentException(String.format("Unknown transaction status[%s].", (char) statusByte));
         }
+        return status;
+    }
+
+    static TxStatus read(ByteBuf message) {
+        if (message.readByte() != Messages.Z) {
+            throw new IllegalArgumentException("Non ReadyForQuery message.");
+        }
+        final int readIndex = message.readerIndex();
+        final int nextMsgIndex = readIndex + message.readInt();
+        final TxStatus status = from(message.readByte());
+
+        message.readerIndex(nextMsgIndex); // avoid tail filler
         return status;
     }
 

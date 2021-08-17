@@ -15,10 +15,9 @@ public class PgConnectionTaskSuiteTests extends AbstractTaskTests {
     @Test
     public void authentication() {
         LOG.info("passwordAuthentication test start.");
-        ClientProtocolImpl protocol = obtainProtocol();
+        ClientProtocol protocol = obtainProtocol();
         LOG.info("passwordAuthentication test end.");
         releaseConnection(protocol);
-
     }
 
 

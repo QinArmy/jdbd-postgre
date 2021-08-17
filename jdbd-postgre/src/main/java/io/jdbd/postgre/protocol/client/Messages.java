@@ -106,6 +106,7 @@ abstract class Messages {
     static final byte AUTH_SASL_FINAL = 12;
 
 
+    @Deprecated
     static void writeString(ByteBuf message, String string) {
         message.writeBytes(string.getBytes(Encoding.CLIENT_CHARSET));
         message.writeByte(STRING_TERMINATOR);
@@ -131,9 +132,55 @@ abstract class Messages {
         return bytes;
     }
 
+    static boolean hasReadyForQuery(final ByteBuf cumulateBuffer) {
+        final int originalIndex = cumulateBuffer.readerIndex();
+        boolean has = false;
+        while (hasOneMessage(cumulateBuffer)) {
+            final int msgIndex = cumulateBuffer.readerIndex(), msgType = cumulateBuffer.readByte();
+            final int nextMsgIndex = msgIndex + 1 + cumulateBuffer.readInt();
+            if (msgType == Z) {
+                has = true;
+                break;
+            }
+            cumulateBuffer.readerIndex(nextMsgIndex);
+        }
+        cumulateBuffer.readerIndex(originalIndex);
+        return has;
+    }
+
 
     static ResultSetStatus getResultSetStatus(ByteBuf cumulateBuffer) {
-        return ResultSetStatus.MORE_CUMULATE;
+        final int originalIndex = cumulateBuffer.readerIndex();
+        if (!hasOneMessage(cumulateBuffer) || cumulateBuffer.getByte(originalIndex) != C) {
+            throw new IllegalArgumentException("Current message non-CommandComplete.");
+        }
+        cumulateBuffer.readByte();
+        cumulateBuffer.readerIndex(originalIndex + 1 + cumulateBuffer.readInt());
+
+        ResultSetStatus status = ResultSetStatus.MORE_CUMULATE;
+        loop:
+        while (hasOneMessage(cumulateBuffer)) {
+            final int msgStartIndex = cumulateBuffer.readerIndex();
+            final int msgType = cumulateBuffer.readByte();
+            final int nextMsgIndex = msgStartIndex + 1 + cumulateBuffer.readInt();
+            switch (msgType) {
+                case T:// RowDescription message
+                case I:// EmptyQueryResponse message
+                case C:// CommandComplete message
+                    status = ResultSetStatus.MORE_RESULT;
+                    break loop;
+                case E:// ErrorResponse message
+                case Z: // ReadyForQuery message
+                    status = ResultSetStatus.NO_MORE_RESULT;
+                    break loop;
+                default: {
+                    // here maybe NoticeResponse message
+                    cumulateBuffer.readerIndex(nextMsgIndex);
+                }
+            }
+        }
+        cumulateBuffer.readerIndex(originalIndex);
+        return status;
     }
 
 

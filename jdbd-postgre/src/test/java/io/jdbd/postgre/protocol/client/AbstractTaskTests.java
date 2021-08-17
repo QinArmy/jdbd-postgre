@@ -14,7 +14,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 class AbstractTaskTests {
 
 
-    static final Queue<ClientProtocolImpl> PROTOCOL_QUEUE = new LinkedBlockingQueue<>();
+    static final Queue<ClientProtocol> PROTOCOL_QUEUE = new LinkedBlockingQueue<>();
 
     private final static EventLoopGroup EVENT_LOOP_GROUP = LoopResources.create("jdbd-postgre", 20, true)
             .onClient(true);
@@ -22,11 +22,10 @@ class AbstractTaskTests {
     private static final SessionAdjutant DEFAULT_SESSION_ADJUTANT = createDefaultSessionAdjutant();
 
 
-    static ClientProtocolImpl obtainProtocol() {
-        ClientProtocolImpl protocol = PROTOCOL_QUEUE.poll();
+    static ClientProtocol obtainProtocol() {
+        ClientProtocol protocol = PROTOCOL_QUEUE.poll();
         if (protocol == null) {
             protocol = ClientProtocolFactory.single(DEFAULT_SESSION_ADJUTANT, 0)
-                    .cast(ClientProtocolImpl.class)
                     .block();
             Assert.assertNotNull(protocol, "protocol");
         } else {
@@ -36,9 +35,17 @@ class AbstractTaskTests {
         return protocol;
     }
 
-    static void releaseConnection(ClientProtocolImpl protocol) {
-        PROTOCOL_QUEUE.offer(protocol);
+    static TaskAdjutant obtainTaskAdjutant(ClientProtocol protocol) {
+        return ((ClientProtocolImpl) protocol).adjutant;
     }
+
+    static void releaseConnection(ClientProtocol protocol) {
+        protocol.reset()
+                .doAfterTerminate(() -> PROTOCOL_QUEUE.offer(protocol))
+                .subscribe();
+
+    }
+
 
     static SessionAdjutant createDefaultSessionAdjutant() {
         Map<String, String> propMap = new HashMap<>();

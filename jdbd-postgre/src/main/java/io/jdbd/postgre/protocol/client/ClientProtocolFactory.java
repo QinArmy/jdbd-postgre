@@ -56,7 +56,7 @@ public abstract class ClientProtocolFactory {
 
         private Mono<Void> authenticateAndInitializing() {
             return PgConnectionTask.authenticate(this.executor.taskAdjutant())
-                    .doOnSuccess(authResult -> PgTaskExecutor.handleAuthenticationSuccess(this.executor, authResult))
+                    .doOnSuccess(result -> PgTaskExecutor.handleAuthenticationSuccess(this.executor, result))
                     .then(Mono.defer(this::initializing));
 
         }
