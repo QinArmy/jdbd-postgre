@@ -15,8 +15,8 @@ abstract class PgTask extends CommunicationTask<TaskAdjutant> {
 
     PostgreUnitTask unitTask;
 
-    PgTask(final TaskAdjutant adjutant) {
-        super(adjutant);
+    PgTask(final TaskAdjutant adjutant, Consumer<Throwable> errorConsumer) {
+        super(adjutant, errorConsumer);
         this.properties = adjutant.obtainHost().getProperties();
     }
 

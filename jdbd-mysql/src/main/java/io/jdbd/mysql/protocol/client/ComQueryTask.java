@@ -399,7 +399,7 @@ final class ComQueryTask extends MySQLCommandTask {
      */
     private ComQueryTask(final Stmt stmt, MonoSink<ResultState> sink, TaskAdjutant adjutant)
             throws SQLException {
-        super(adjutant);
+        super(adjutant, sink::error);
         this.sqlCount = 1;
         this.mode = Mode.SINGLE_STMT;
         this.packetPublisher = Flux.fromIterable(
@@ -425,7 +425,7 @@ final class ComQueryTask extends MySQLCommandTask {
      */
     private ComQueryTask(final Stmt stmt, FluxSink<ResultRow> sink, TaskAdjutant adjutant)
             throws SQLException {
-        super(adjutant);
+        super(adjutant, sink::error);
         this.sqlCount = 1;
         this.mode = Mode.SINGLE_STMT;
         this.packetPublisher = Flux.fromIterable(
@@ -452,7 +452,7 @@ final class ComQueryTask extends MySQLCommandTask {
      */
     private ComQueryTask(final List<Stmt> stmtList, final FluxSink<ResultState> sink
             , TaskAdjutant adjutant) throws SQLException {
-        super(adjutant);
+        super(adjutant, sink::error);
         this.sqlCount = stmtList.size();
 
         if (Capabilities.supportMultiStatement(this.negotiatedCapability)) {
@@ -500,7 +500,7 @@ final class ComQueryTask extends MySQLCommandTask {
      */
     private ComQueryTask(final List<Stmt> stmtList, final MultiResultSink sink
             , TaskAdjutant adjutant) throws SQLException {
-        super(adjutant);
+        super(adjutant, sink::error);
 
         this.sqlCount = stmtList.size();
         if (Capabilities.supportMultiStatement(this.negotiatedCapability)) {
@@ -544,7 +544,7 @@ final class ComQueryTask extends MySQLCommandTask {
      */
     private ComQueryTask(final MonoSink<ResultState> sink, final BindableStmt stmt
             , TaskAdjutant adjutant) throws SQLException, LongDataReadException {
-        super(adjutant);
+        super(adjutant, sink::error);
         this.sqlCount = 1;
         this.mode = Mode.SINGLE_STMT;
         this.packetPublisher = Flux.fromIterable(
@@ -571,7 +571,7 @@ final class ComQueryTask extends MySQLCommandTask {
      */
     private ComQueryTask(final FluxSink<ResultRow> sink, final BindableStmt stmt
             , final TaskAdjutant adjutant) throws SQLException, LongDataReadException {
-        super(adjutant);
+        super(adjutant, sink::error);
 
         this.sqlCount = 1;
         this.mode = Mode.SINGLE_STMT;
@@ -598,7 +598,7 @@ final class ComQueryTask extends MySQLCommandTask {
      */
     private ComQueryTask(final FluxSink<ResultState> sink, final BatchBindStmt stmt
             , final TaskAdjutant adjutant) throws SQLException, LongDataReadException {
-        super(adjutant);
+        super(adjutant, sink::error);
 
         final List<List<BindValue>> parameterGroupList = stmt.getGroupList();
         this.sqlCount = parameterGroupList.size();
@@ -646,7 +646,7 @@ final class ComQueryTask extends MySQLCommandTask {
      */
     private ComQueryTask(final MultiResultSink sink, final BatchBindStmt stmt, final TaskAdjutant adjutant)
             throws SQLException, LongDataReadException {
-        super(adjutant);
+        super(adjutant, sink::error);
 
         final List<List<BindValue>> groupList = stmt.getGroupList();
         this.sqlCount = groupList.size();
@@ -694,7 +694,7 @@ final class ComQueryTask extends MySQLCommandTask {
      */
     private ComQueryTask(final TaskAdjutant adjutant, List<BindableStmt> stmtList, MultiResultSink sink)
             throws SQLException, LongDataReadException {
-        super(adjutant);
+        super(adjutant, sink::error);
 
         this.sqlCount = stmtList.size();
         this.mode = Mode.MULTI_STMT;

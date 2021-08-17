@@ -158,7 +158,7 @@ abstract class Messages {
                 , Messages.readString(cumulateBuffer, charset)
         );
 
-        cumulateBuffer.readerIndex(nextMsgIndex);
+        cumulateBuffer.readerIndex(nextMsgIndex);// avoid tail filler
         return map;
     }
 

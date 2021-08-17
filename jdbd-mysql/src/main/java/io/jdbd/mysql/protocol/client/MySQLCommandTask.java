@@ -7,6 +7,8 @@ import io.jdbd.vendor.conf.Properties;
 import io.jdbd.vendor.task.CommunicationTask;
 import io.netty.buffer.ByteBuf;
 
+import java.util.function.Consumer;
+
 /**
  * Base class of All MySQL command phase communication task.
  *
@@ -25,8 +27,8 @@ abstract class MySQLCommandTask extends CommunicationTask<TaskAdjutant> {
 
     private int sequenceId = -1;
 
-    MySQLCommandTask(TaskAdjutant adjutant) {
-        super(adjutant);
+    MySQLCommandTask(TaskAdjutant adjutant, Consumer<Throwable> errorConsumer) {
+        super(adjutant, errorConsumer);
         this.negotiatedCapability = adjutant.obtainNegotiatedCapability();
         this.adjutant = adjutant;
         this.properties = adjutant.obtainHostInfo().getProperties();

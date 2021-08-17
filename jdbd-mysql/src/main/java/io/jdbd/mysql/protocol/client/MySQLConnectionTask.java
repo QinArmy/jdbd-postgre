@@ -94,7 +94,7 @@ final class MySQLConnectionTask extends CommunicationTask<TaskAdjutant> implemen
     private Consumer<SslWrapper> sslConsumer;
 
     private MySQLConnectionTask(TaskAdjutant adjutant, MonoSink<AuthenticateResult> sink) {
-        super(adjutant);
+        super(adjutant, sink::error);
         this.sink = sink;
 
         this.adjutant = adjutant;

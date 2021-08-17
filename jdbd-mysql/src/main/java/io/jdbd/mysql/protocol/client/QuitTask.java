@@ -34,7 +34,7 @@ final class QuitTask extends MySQLCommandTask {
     private boolean taskEnd;
 
     private QuitTask(TaskAdjutant adjutant, MonoSink<Void> sink) {
-        super(adjutant);
+        super(adjutant, sink::error);
         this.sink = sink;
     }
 

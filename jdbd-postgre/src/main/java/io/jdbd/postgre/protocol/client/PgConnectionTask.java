@@ -1,6 +1,5 @@
 package io.jdbd.postgre.protocol.client;
 
-import io.jdbd.JdbdException;
 import io.jdbd.config.PropertyException;
 import io.jdbd.postgre.PgJdbdException;
 import io.jdbd.postgre.PgReConnectableException;
@@ -61,7 +60,7 @@ final class PgConnectionTask extends PgTask implements ConnectionTask {
 
 
     private PgConnectionTask(MonoSink<AuthResult> sink, TaskAdjutant adjutant) {
-        super(adjutant);
+        super(adjutant, sink::error);
         this.sink = sink;
     }
 
@@ -79,14 +78,14 @@ final class PgConnectionTask extends PgTask implements ConnectionTask {
 
     @Override
     public final boolean reconnect() {
-        final List<JdbdException> errorList = this.errorList;
+        final List<Throwable> errorList = this.errorList;
         if (errorList == null) {
             return false;
         }
 
         boolean reconnect = false;
-        final Iterator<JdbdException> iterator = errorList.listIterator();
-        JdbdException error;
+        final Iterator<Throwable> iterator = errorList.listIterator();
+        Throwable error;
         while (iterator.hasNext()) {
             error = iterator.next();
             if (!(error instanceof PgReConnectableException)) {
@@ -439,7 +438,7 @@ final class PgConnectionTask extends PgTask implements ConnectionTask {
      * @see #handleGssEncryptionTaskEnd()
      */
     private boolean hasReConnectableError() {
-        List<JdbdException> errorList = this.errorList;
+        List<Throwable> errorList = this.errorList;
         if (errorList == null) {
             return false;
         }

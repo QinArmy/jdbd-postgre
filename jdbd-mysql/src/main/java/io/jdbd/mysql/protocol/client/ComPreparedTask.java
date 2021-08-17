@@ -232,7 +232,7 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
      */
     private ComPreparedTask(final ParamStmt stmt, final MonoSink<ResultState> sink, final TaskAdjutant adjutant)
             throws SQLException {
-        super(adjutant);
+        super(adjutant, sink::error);
 
         this.packetPublisher = createPrepareCommand(stmt);
         this.downstreamSink = new UpdateDownstreamSink(this, stmt, sink);
@@ -247,7 +247,7 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
      */
     private ComPreparedTask(final ParamStmt wrapper, final FluxSink<ResultRow> sink
             , final TaskAdjutant adjutant) throws SQLException {
-        super(adjutant);
+        super(adjutant, sink::error);
         this.packetPublisher = createPrepareCommand(wrapper);
         this.downstreamSink = new QueryDownstreamSink(this, wrapper, sink);
     }
@@ -257,7 +257,7 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
      */
     private ComPreparedTask(final FluxSink<ResultState> sink, final BatchParamStmt<? extends ParamValue> wrapper
             , final TaskAdjutant adjutant) throws SQLException {
-        super(adjutant);
+        super(adjutant, sink::error);
         this.packetPublisher = createPrepareCommand(wrapper);
         this.downstreamSink = new BatchUpdateSink<>(this, wrapper, sink);
     }
@@ -269,7 +269,7 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
      */
     private ComPreparedTask(BatchParamStmt<? extends ParamValue> stmt, MultiResultSink sink, TaskAdjutant adjutant)
             throws SQLException {
-        super(adjutant);
+        super(adjutant, sink::error);
         this.packetPublisher = createPrepareCommand(stmt);
         this.downstreamSink = new BatchMultiResultDownstreamSink<>(this, stmt, sink);
     }
@@ -280,7 +280,7 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
     private ComPreparedTask(final MySQLDatabaseSession session, final TaskAdjutant adjutant
             , MonoSink<PreparedStatement> sink, Stmt stmt)
             throws SQLException {
-        super(adjutant);
+        super(adjutant, sink::error);
         this.packetPublisher = createPrepareCommand(stmt);
         this.downstreamSink = new DownstreamAdapter(session, this, sink);
     }

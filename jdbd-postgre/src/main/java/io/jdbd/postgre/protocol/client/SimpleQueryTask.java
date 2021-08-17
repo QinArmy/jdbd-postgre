@@ -1,6 +1,5 @@
 package io.jdbd.postgre.protocol.client;
 
-import io.jdbd.JdbdException;
 import io.jdbd.postgre.PgJdbdException;
 import io.jdbd.postgre.stmt.BatchBindStmt;
 import io.jdbd.postgre.stmt.BindableStmt;
@@ -20,8 +19,6 @@ import io.jdbd.vendor.stmt.GroupStmt;
 import io.jdbd.vendor.stmt.Stmt;
 import io.netty.buffer.ByteBuf;
 import org.reactivestreams.Publisher;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -31,7 +28,7 @@ import java.util.function.Consumer;
 /**
  * @see <a href="https://www.postgresql.org/docs/current/protocol-message-formats.html">Query</a>
  */
-final class SimpleQueryTask extends PgTask implements StmtTask {
+final class SimpleQueryTask extends AbstractStmtTask {
 
     /*################################## blow for static stmt ##################################*/
 
@@ -240,16 +237,10 @@ final class SimpleQueryTask extends PgTask implements StmtTask {
         });
     }
 
-    private static final Logger LOG = LoggerFactory.getLogger(SimpleQueryTask.class);
-
 
     private final FluxResultSink sink;
 
     private final ResultSetReader resultSetReader;
-
-    private int readerIndexBeforeError;
-
-    private int resultIndex = 0;
 
     private boolean downstreamCanceled;
 
@@ -264,7 +255,7 @@ final class SimpleQueryTask extends PgTask implements StmtTask {
      * @see #query(Stmt, TaskAdjutant)
      */
     private SimpleQueryTask(Stmt stmt, FluxResultSink sink, TaskAdjutant adjutant) throws Throwable {
-        super(adjutant);
+        super(adjutant, sink);
         this.packetPublisher = QueryCommandWriter.createStaticSingleCommand(stmt, adjutant);
         this.sink = sink;
         this.resultSetReader = DefaultResultSetReader.create(this, sink.froResultSet());
@@ -277,7 +268,7 @@ final class SimpleQueryTask extends PgTask implements StmtTask {
      */
     private SimpleQueryTask(GroupStmt stmt, FluxResultSink sink, TaskAdjutant adjutant)
             throws Throwable {
-        super(adjutant);
+        super(adjutant, sink);
         this.packetPublisher = QueryCommandWriter.createStaticBatchCommand(stmt, adjutant);
         this.sink = sink;
         this.resultSetReader = DefaultResultSetReader.create(this, sink.froResultSet());
@@ -291,7 +282,7 @@ final class SimpleQueryTask extends PgTask implements StmtTask {
      */
     private SimpleQueryTask(FluxResultSink sink, BindableStmt stmt, TaskAdjutant adjutant)
             throws Throwable {
-        super(adjutant);
+        super(adjutant, sink);
         this.packetPublisher = QueryCommandWriter.createBindableCommand(stmt, adjutant);
         this.sink = sink;
         this.resultSetReader = DefaultResultSetReader.create(this, sink.froResultSet());
@@ -304,7 +295,7 @@ final class SimpleQueryTask extends PgTask implements StmtTask {
      */
     private SimpleQueryTask(TaskAdjutant adjutant, FluxResultSink sink, BatchBindStmt stmt)
             throws Throwable {
-        super(adjutant);
+        super(adjutant, sink);
         this.packetPublisher = QueryCommandWriter.createBindableBatchCommand(stmt, adjutant);
         this.sink = sink;
         this.resultSetReader = DefaultResultSetReader.create(this, sink.froResultSet());
@@ -318,28 +309,13 @@ final class SimpleQueryTask extends PgTask implements StmtTask {
      */
     private SimpleQueryTask(TaskAdjutant adjutant, MultiBindStmt stmt, FluxResultSink sink)
             throws Throwable {
-        super(adjutant);
+        super(adjutant, sink);
         this.packetPublisher = QueryCommandWriter.createMultiStmtCommand(stmt, adjutant);
         this.sink = sink;
         this.resultSetReader = DefaultResultSetReader.create(this, sink.froResultSet());
     }
 
     /*################################## blow io.jdbd.postgre.protocol.client.StmtTask method ##################################*/
-
-    @Override
-    public final void addResultSetError(JdbdException error) {
-        addError(error);
-    }
-
-    @Override
-    public final TaskAdjutant adjutant() {
-        return this.adjutant;
-    }
-
-    @Override
-    public final int getAndIncrementResultIndex() {
-        return this.resultIndex++;
-    }
 
 
     @Override
@@ -360,8 +336,6 @@ final class SimpleQueryTask extends PgTask implements StmtTask {
         if (!Messages.hasOneMessage(cumulateBuffer)) {
             return false;
         }
-
-        this.readerIndexBeforeError = cumulateBuffer.readerIndex();
 
         boolean taskEnd = false, continueRead = true;
         while (continueRead) {
@@ -426,13 +400,13 @@ final class SimpleQueryTask extends PgTask implements StmtTask {
         if (this.downstreamCanceled || hasError()) {
             isCanceled = true;
         } else if (this.sink.isCancelled()) {
-            LOG.trace("Downstream cancel subscribe.");
+            log.trace("Downstream cancel subscribe.");
             isCanceled = true;
             this.downstreamCanceled = true;
         } else {
             isCanceled = false;
         }
-        LOG.trace("Read command response,isCanceled:{}", isCanceled);
+        log.trace("Read command response,isCanceled:{}", isCanceled);
 
         final Charset clientCharset = this.adjutant.clientCharset();
 
@@ -440,7 +414,6 @@ final class SimpleQueryTask extends PgTask implements StmtTask {
         while (continueRead) {
             final int msgStartIndex = cumulateBuffer.readerIndex();
             final int msgType = cumulateBuffer.getByte(msgStartIndex);
-            final int nextMsgIndex = msgStartIndex + 1 + cumulateBuffer.getInt(msgStartIndex + 1);
 
             if (isCanceled) {
                 if (msgType == Messages.Z) {// ReadyForQuery message
@@ -449,6 +422,7 @@ final class SimpleQueryTask extends PgTask implements StmtTask {
                     continueRead = false;
                     readNoticeAfterReadyForQuery(cumulateBuffer, serverStatusConsumer);
                 } else {
+                    final int nextMsgIndex = msgStartIndex + 1 + cumulateBuffer.getInt(msgStartIndex + 1);
                     cumulateBuffer.readerIndex(nextMsgIndex);
                     continueRead = Messages.hasOneMessage(cumulateBuffer);
                 }
@@ -465,22 +439,12 @@ final class SimpleQueryTask extends PgTask implements StmtTask {
                     serverStatusConsumer.accept(TxStatus.read(cumulateBuffer));
                     taskEnd = true;
                     continueRead = false;
-                    LOG.trace("Simple query command end,read optional notice.");
+                    log.trace("Simple query command end,read optional notice.");
                     readNoticeAfterReadyForQuery(cumulateBuffer, serverStatusConsumer);
                 }
                 break;
                 case Messages.I: {// EmptyQueryResponse message
-                    final ResultSetStatus status = Messages.getResultSetStatus(cumulateBuffer);
-                    if (status == ResultSetStatus.MORE_CUMULATE) {
-                        continueRead = false;
-                    } else {
-                        final PgResultStates states;
-                        final boolean moreResult = status == ResultSetStatus.MORE_RESULT;
-                        states = PgResultStates.empty(getAndIncrementResultIndex(), moreResult);
-                        this.sink.next(states);
-                        cumulateBuffer.readerIndex(nextMsgIndex); // avoid tail filler
-                        continueRead = Messages.hasOneMessage(cumulateBuffer);
-                    }
+                    continueRead = readEmptyQuery(cumulateBuffer) && Messages.hasOneMessage(cumulateBuffer);
                 }
                 break;
                 case Messages.S: {// ParameterStatus message
@@ -488,7 +452,8 @@ final class SimpleQueryTask extends PgTask implements StmtTask {
                 }
                 break;
                 case Messages.C: {// CommandComplete message
-                    continueRead = readCommandComplete(cumulateBuffer) && Messages.hasOneMessage(cumulateBuffer);
+                    continueRead = readResultStateWithoutReturning(cumulateBuffer)
+                            && Messages.hasOneMessage(cumulateBuffer);
                 }
                 break;
                 case Messages.T: {// RowDescription message
@@ -521,40 +486,7 @@ final class SimpleQueryTask extends PgTask implements StmtTask {
         return taskEnd;
     }
 
-    /**
-     * @return true: read CommandComplete message end , false : more cumulate.
-     * @see #readCommandResponse(ByteBuf, Consumer)
-     */
-    private boolean readCommandComplete(final ByteBuf cumulateBuffer) {
-        final ResultSetStatus status = Messages.getResultSetStatus(cumulateBuffer);
-        if (status == ResultSetStatus.MORE_CUMULATE) {
-            return false;
-        }
-        final Charset clientCharset = this.adjutant.clientCharset();
-        final int msgStartIndex = cumulateBuffer.readerIndex();
-        if (cumulateBuffer.readByte() != Messages.C) {
-            cumulateBuffer.readerIndex(msgStartIndex);
-            throw new IllegalStateException("Non CommandComplete message.");
-        }
-        final int nextMsgIndex = msgStartIndex + 1 + cumulateBuffer.readInt();
-        final boolean moreResult = status == ResultSetStatus.MORE_RESULT;
-        final String commandTag = Messages.readString(cumulateBuffer, clientCharset);
-        cumulateBuffer.readerIndex(nextMsgIndex); // avoid tail filler
 
-        LOG.trace("Read CommandComplete commandTag[{}]", commandTag);
-
-        final PgResultStates state;
-        final int resultIndex = getAndIncrementResultIndex();
-        if (cumulateBuffer.getInt(nextMsgIndex) == Messages.N) {
-            // next is warning NoticeResponse
-            NoticeMessage nm = NoticeMessage.read(cumulateBuffer, clientCharset);
-            state = PgResultStates.create(resultIndex, moreResult, commandTag, nm);
-        } else {
-            state = PgResultStates.create(resultIndex, moreResult, commandTag);
-        }
-        this.sink.next(state);
-        return true;
-    }
 
 
     private void assertPhase(Phase expected) {

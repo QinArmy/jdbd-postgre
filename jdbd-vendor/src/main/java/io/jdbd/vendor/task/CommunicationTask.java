@@ -1,7 +1,7 @@
 package io.jdbd.vendor.task;
 
-import io.jdbd.JdbdException;
 import io.jdbd.vendor.JdbdCompositeException;
+import io.jdbd.vendor.util.JdbdExceptions;
 import io.netty.buffer.ByteBuf;
 import org.reactivestreams.Publisher;
 import reactor.core.publisher.Mono;
@@ -20,9 +20,11 @@ public abstract class CommunicationTask<T extends ITaskAdjutant> {
 
     protected final T adjutant;
 
+    private final Consumer<Throwable> errorConsumer;
+
     protected Publisher<ByteBuf> packetPublisher;
 
-    protected List<JdbdException> errorList;
+    protected List<Throwable> errorList;
 
     private TaskPhase taskPhase;
 
@@ -31,8 +33,9 @@ public abstract class CommunicationTask<T extends ITaskAdjutant> {
     private MethodStack methodStack;
 
 
-    protected CommunicationTask(T adjutant) {
+    protected CommunicationTask(T adjutant, Consumer<Throwable> errorConsumer) {
         this.adjutant = adjutant;
+        this.errorConsumer = errorConsumer;
     }
 
     /**
@@ -219,15 +222,15 @@ public abstract class CommunicationTask<T extends ITaskAdjutant> {
 
 
     protected final boolean hasError() {
-        List<JdbdException> errorList = this.errorList;
+        List<Throwable> errorList = this.errorList;
         return errorList != null && errorList.size() > 0;
     }
 
-    protected final boolean containsError(Class<JdbdException> errorType) {
-        List<JdbdException> errorList = this.errorList;
+    protected final boolean containsError(Class<? extends Throwable> errorType) {
+        List<Throwable> errorList = this.errorList;
         boolean contains = false;
         if (errorList != null) {
-            for (JdbdException error : errorList) {
+            for (Throwable error : errorList) {
                 if (errorType.isAssignableFrom(error.getClass())) {
                     contains = true;
                     break;
@@ -237,13 +240,13 @@ public abstract class CommunicationTask<T extends ITaskAdjutant> {
         return contains;
     }
 
-    protected final void addError(JdbdException error) {
-        List<JdbdException> errorList = this.errorList;
+    protected final void addError(Throwable error) {
+        List<Throwable> errorList = this.errorList;
         if (errorList == null) {
             errorList = new ArrayList<>();
             this.errorList = errorList;
         }
-        errorList.add(error);
+        errorList.add(JdbdExceptions.wrapIfNonJvmFatal(error));
     }
 
 
@@ -255,7 +258,7 @@ public abstract class CommunicationTask<T extends ITaskAdjutant> {
      *                      </ul>
      */
     protected final void publishError(Consumer<Throwable> errorConsumer) {
-        final List<JdbdException> errorList = this.errorList;
+        final List<Throwable> errorList = this.errorList;
         if (errorList == null || errorList.isEmpty()) {
             throw new IllegalStateException("No error,cannot publish error.");
         }

@@ -4,6 +4,7 @@ import io.jdbd.mysql.protocol.conf.PropertyKey;
 import io.jdbd.vendor.conf.Properties;
 
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
+import java.util.function.Consumer;
 
 /**
  * @see ComPreparedTask
@@ -25,8 +26,8 @@ abstract class MySQLPrepareCommandTask extends MySQLCommandTask implements State
 
     private volatile int safeSequenceId = -1;
 
-    MySQLPrepareCommandTask(TaskAdjutant adjutant) {
-        super(adjutant);
+    MySQLPrepareCommandTask(TaskAdjutant adjutant, Consumer<Throwable> errorConsumer) {
+        super(adjutant, errorConsumer);
         this.negotiatedCapability = adjutant.obtainNegotiatedCapability();
         this.adjutant = adjutant;
         this.properties = adjutant.obtainHostInfo().getProperties();
