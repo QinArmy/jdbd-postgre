@@ -100,7 +100,7 @@ final class ClientProtocolImpl implements ClientProtocol {
 
     @Override
     public final Mono<Void> close() {
-        return Mono.empty();
+        return TerminateTask.terminate(this.adjutant);
     }
 
 

@@ -180,7 +180,13 @@ final class PgTaskExecutor extends CommunicationTaskExecutor<TaskAdjutant> {
                 this.backendKeyData = Objects.requireNonNull(result.backendKeyData, "result.backendKeyData");
                 this.txStatus = Objects.requireNonNull(result.txStatus, "txStatus");
                 this.parser = PgParser.create(this.server::parameter);
+
+                if (LOG.isDebugEnabled()) {
+                    printAuthResultStatuses(result);
+                }
+
             }
+
         }
 
         private void updateServerParameterStatus(Map<String, String> paramStatusMap) {
@@ -190,6 +196,27 @@ final class PgTaskExecutor extends CommunicationTaskExecutor<TaskAdjutant> {
 
         private void updateTxStatus(TxStatus txStatus) {
             this.txStatus = txStatus;
+        }
+
+        private static void printAuthResultStatuses(AuthResult result) {
+            final String line = System.lineSeparator();
+            StringBuilder builder = new StringBuilder();
+
+            int count = 0;
+            for (Map.Entry<String, String> e : result.serverStatusMap.entrySet()) {
+                if (count > 0) {
+                    builder.append(",")
+                            .append(line);
+                }
+                builder.append(e.getKey())
+                        .append("=")
+                        .append(e.getValue());
+                count++;
+            }
+            builder.append(line)
+                    .append("}");
+
+            LOG.debug("Server[process id:{}] parameter statuses:{{}{}", result.backendKeyData.processId, line, builder);
         }
 
 
