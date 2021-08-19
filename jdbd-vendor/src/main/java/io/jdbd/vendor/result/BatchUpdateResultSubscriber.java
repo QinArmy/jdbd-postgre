@@ -16,7 +16,7 @@ import java.util.function.Consumer;
 /**
  * @see FluxResult
  */
-final class BatchUpdateResultSubscriber extends AbstractResultSubscriber<Result> {
+final class BatchUpdateResultSubscriber extends AbstractResultSubscriber {
 
     static Flux<ResultState> create(Consumer<FluxResultSink> callback) {
         final FluxResult result = FluxResult.create(sink -> {
@@ -41,6 +41,11 @@ final class BatchUpdateResultSubscriber extends AbstractResultSubscriber<Result>
     public final void onSubscribe(Subscription s) {
         this.subscription = s;
         s.request(Long.MAX_VALUE);
+    }
+
+    @Override
+    public final boolean isCancelled() {
+        return this.sink.isCancelled();
     }
 
     @Override

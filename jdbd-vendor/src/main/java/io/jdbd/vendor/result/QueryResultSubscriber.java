@@ -17,7 +17,7 @@ import java.util.function.Consumer;
 /**
  * @see FluxResult
  */
-final class QueryResultSubscriber extends AbstractResultSubscriber<Result> {
+final class QueryResultSubscriber extends AbstractResultSubscriber {
 
     static Flux<ResultRow> create(Consumer<ResultState> stateConsumer
             , Consumer<FluxResultSink> callback) {
@@ -47,6 +47,11 @@ final class QueryResultSubscriber extends AbstractResultSubscriber<Result> {
     public final void onSubscribe(Subscription s) {
         this.subscription = s;
         s.request(Long.MAX_VALUE);
+    }
+
+    @Override
+    public final boolean isCancelled() {
+        return this.sink.isCancelled();
     }
 
     @Override

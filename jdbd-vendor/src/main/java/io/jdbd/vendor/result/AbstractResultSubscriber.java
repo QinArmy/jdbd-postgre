@@ -7,14 +7,13 @@ import io.jdbd.result.ResultState;
 import io.jdbd.stmt.ResultType;
 import io.jdbd.stmt.SubscribeException;
 import org.reactivestreams.Subscription;
-import reactor.core.CoreSubscriber;
 import reactor.core.publisher.FluxSink;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
 
-abstract class AbstractResultSubscriber<T> implements CoreSubscriber<T> {
+abstract class AbstractResultSubscriber implements ResultSubscriber {
 
     List<Throwable> errorList;
 

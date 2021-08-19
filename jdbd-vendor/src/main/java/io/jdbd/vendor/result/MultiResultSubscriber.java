@@ -23,7 +23,7 @@ import java.util.function.Consumer;
 /**
  * @see FluxResult
  */
-final class MultiResultSubscriber extends AbstractResultSubscriber<Result> {
+final class MultiResultSubscriber extends AbstractResultSubscriber {
 
 
     static MultiResult create(ITaskAdjutant adjutant, Consumer<FluxResultSink> callback) {
@@ -57,6 +57,11 @@ final class MultiResultSubscriber extends AbstractResultSubscriber<Result> {
     public final void onSubscribe(Subscription s) {
         this.subscription = s;
         s.request(Long.MAX_VALUE);
+    }
+
+    @Override
+    public final boolean isCancelled() {
+        return hasError();
     }
 
     @Override

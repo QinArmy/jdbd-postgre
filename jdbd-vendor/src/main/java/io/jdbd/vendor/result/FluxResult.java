@@ -97,7 +97,11 @@ final class FluxResult implements Publisher<Result> {
         @Override
         public final boolean isCancelled() {
             // this method invoker in EventLoop
-            return this.subscription.canceled == 1;
+            boolean cancelled = this.subscription.canceled == 1;
+            if (!cancelled && this.subscriber instanceof ResultSubscriber) {
+                cancelled = ((ResultSubscriber) this.subscriber).isCancelled();
+            }
+            return cancelled;
         }
 
         @Override

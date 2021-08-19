@@ -65,12 +65,7 @@ public abstract class MultiResults {
     }
 
     public static Flux<Result> asFlux(Consumer<FluxResultSink> consumer) {
-        return Flux.create(sink -> Flux.from(FluxResult.create(consumer))
-                .doOnNext(sink::next)
-                .doOnError(sink::error)
-                .doOnComplete(sink::complete)
-                .subscribe()
-        );
+        return Flux.from(FluxResult.create(consumer));
     }
 
 
