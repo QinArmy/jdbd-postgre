@@ -28,13 +28,21 @@ public interface ResultRowMeta {
      */
     int getColumnCount();
 
-
+    @Deprecated
     FieldType getFieldType();
+
+    default FieldType getFieldType(int indexBaseZero) {
+        throw new UnsupportedOperationException();
+    }
+
+    default FieldType getFieldType(String columnLabel) {
+        throw new UnsupportedOperationException();
+    }
 
     /**
      * @return a unmodifiable list
      */
-    List<String> getColumnAliasList();
+    List<String> getColumnLabelList();
 
     /**
      * Gets the designated column's suggested title for use in printouts and
@@ -61,6 +69,7 @@ public interface ResultRowMeta {
      * @throws JdbdSQLException if a database access error occurs
      * @see #getColumnIndex(String)
      */
+    @Deprecated
     JDBCType getJdbdType(int indexBaseZero) throws JdbdSQLException;
 
 
@@ -69,6 +78,7 @@ public interface ResultRowMeta {
      * @throws JdbdSQLException if a database access error occurs
      * @see #getColumnIndex(String)
      */
+    @Deprecated
     boolean isPhysicalColumn(int indexBaseZero) throws JdbdSQLException;
 
 
@@ -111,11 +121,13 @@ public interface ResultRowMeta {
      * @throws JdbdSQLException if a database access error occurs
      * @see #getColumnIndex(String)
      */
+    @Deprecated
     boolean isAutoIncrement(int indexBaseZero) throws JdbdSQLException;
 
     /**
      * @see #isAutoIncrement(int)
      */
+    @Deprecated
     boolean isAutoIncrement(String columnAlias) throws JdbdSQLException;
 
     /**
@@ -126,6 +138,7 @@ public interface ResultRowMeta {
      * @throws JdbdSQLException if a database access error occurs
      * @see #getColumnIndex(String)
      */
+    @Deprecated
     boolean isCaseSensitive(int indexBaseZero) throws JdbdSQLException;
 
 
@@ -175,6 +188,7 @@ public interface ResultRowMeta {
      * @throws JdbdSQLException if a database access error occurs
      * @see #getColumnIndex(String)
      */
+    @Deprecated
     boolean isReadOnly(int indexBaseZero) throws JdbdSQLException;
 
 
@@ -186,6 +200,7 @@ public interface ResultRowMeta {
      * @throws JdbdSQLException if a database access error occurs
      * @see #getColumnIndex(String)
      */
+    @Deprecated
     boolean isWritable(int indexBaseZero) throws JdbdSQLException;
 
 
@@ -229,11 +244,13 @@ public interface ResultRowMeta {
      * @throws JdbdSQLException if a database access error occurs
      *                          @see #getColumnIndex(String)
      */
+    @Deprecated
     long getPrecision(int indexBaseZero) throws JdbdSQLException;
 
     /**
      * @see #getPrecision(int)
      */
+    @Deprecated
     long getPrecision(String columnAlias) throws JdbdSQLException;
 
     /**
@@ -245,8 +262,10 @@ public interface ResultRowMeta {
      * @throws JdbdSQLException if a database access error occurs
      * @see #getColumnIndex(String)
      */
+    @Deprecated
     int getScale(int indexBaseZero) throws JdbdSQLException;
 
+    @Deprecated
     int getScale(String columnAlias) throws JdbdSQLException;
 
 
@@ -255,11 +274,13 @@ public interface ResultRowMeta {
      * @throws JdbdSQLException if a database access error occurs
      * @see #getColumnIndex(String)
      */
+    @Deprecated
     boolean isPrimaryKey(int indexBaseZero) throws JdbdSQLException;
 
     /**
      * @see #isPrimaryKey(int)
      */
+    @Deprecated
     boolean isPrimaryKey(String columnAlias) throws JdbdSQLException;
 
     /**
@@ -267,8 +288,10 @@ public interface ResultRowMeta {
      * @throws JdbdSQLException if a database access error occurs
      * @see #getColumnIndex(String)
      */
+    @Deprecated
     boolean isUniqueKey(int indexBaseZero) throws JdbdSQLException;
 
+    @Deprecated
     boolean isUniqueKey(String columnAlias) throws JdbdSQLException;
 
     /**
@@ -276,8 +299,10 @@ public interface ResultRowMeta {
      * @throws JdbdSQLException if a database access error occurs
      * @see #getColumnIndex(String)
      */
+    @Deprecated
     boolean isMultipleKey(int indexBaseZero) throws JdbdSQLException;
 
+    @Deprecated
     boolean isMultipleKey(String columnAlias) throws JdbdSQLException;
 
 }

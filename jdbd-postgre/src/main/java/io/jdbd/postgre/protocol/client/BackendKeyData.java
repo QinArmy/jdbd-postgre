@@ -5,7 +5,7 @@ import io.netty.buffer.ByteBuf;
 /**
  * @see <a href="https://www.postgresql.org/docs/current/protocol-message-formats.html">BackendKeyData</a>
  */
-class BackendKeyData extends PostgreMessage {
+final class BackendKeyData extends PgMessage {
 
     /**
      * Only read The process ID of this backend and The secret key of this backend (not byte1 and length) .

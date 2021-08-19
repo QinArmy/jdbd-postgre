@@ -15,7 +15,7 @@ final class PgColumnMeta {
     static final PgColumnMeta[] EMPTY = new PgColumnMeta[0];
 
 
-    final String columnAlias;
+    final String columnLabel;
 
     final int tableOid;
 
@@ -32,12 +32,12 @@ final class PgColumnMeta {
     final PgType pgType;
 
 
-    private PgColumnMeta(String columnAlias, int tableOid
+    private PgColumnMeta(String columnLabel, int tableOid
             , short columnAttrNum, int columnTypeOid
             , short columnTypeSize, int columnModifier
             , boolean textFormat, PgType pgType) {
 
-        this.columnAlias = columnAlias;
+        this.columnLabel = columnLabel;
         this.tableOid = tableOid;
         this.columnAttrNum = columnAttrNum;
         this.columnTypeOid = columnTypeOid;

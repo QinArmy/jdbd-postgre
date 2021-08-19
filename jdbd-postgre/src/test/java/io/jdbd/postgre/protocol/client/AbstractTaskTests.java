@@ -2,8 +2,8 @@ package io.jdbd.postgre.protocol.client;
 
 import io.jdbd.postgre.config.PostgreUrl;
 import io.jdbd.postgre.session.SessionAdjutant;
+import io.jdbd.result.ResultState;
 import io.netty.channel.EventLoopGroup;
-import org.testng.Assert;
 import reactor.core.publisher.Mono;
 import reactor.netty.resources.LoopResources;
 
@@ -11,6 +11,9 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Queue;
 import java.util.concurrent.LinkedBlockingQueue;
+
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotNull;
 
 class AbstractTaskTests {
 
@@ -21,6 +24,12 @@ class AbstractTaskTests {
             .onClient(true);
 
     static final SessionAdjutant DEFAULT_SESSION_ADJUTANT = createDefaultSessionAdjutant();
+
+
+    static ResultState assertUpdateOne(ResultState state) {
+        assertEquals(state.getAffectedRows(), 1L, "affectedRows");
+        return state;
+    }
 
 
     static Mono<ClientProtocol> obtainProtocol() {
@@ -38,7 +47,7 @@ class AbstractTaskTests {
         ClientProtocol protocol;
         protocol = obtainProtocol()
                 .block();
-        Assert.assertNotNull(protocol, "protocol");
+        assertNotNull(protocol, "protocol");
         return protocol;
     }
 

@@ -69,13 +69,11 @@ final class DefaultResultSetReader implements ResultSetReader {
         while (continueRead) {
             switch (this.phase) {
                 case READ_ROW_META: {
-                    LOG.trace("Read ResultSet row meta data.");
-                    this.rowMeta = PgRowMeta.read(cumulateBuffer, this.stmtTask);
-                    if (this.rowMeta.columnMetaArray.length == 0) {
-                        this.phase = Phase.READ_RESULT_TERMINATOR;
-                    } else {
-                        this.phase = Phase.READ_ROWS;
-                    }
+                    final PgRowMeta rowMeta;
+                    rowMeta = PgRowMeta.read(cumulateBuffer, this.stmtTask);
+                    this.rowMeta = rowMeta;
+                    LOG.trace("Read ResultSet row meta data : {}", rowMeta);
+                    this.phase = Phase.READ_ROWS;
                     continueRead = Messages.hasOneMessage(cumulateBuffer);
                 }
                 break;
@@ -133,8 +131,12 @@ final class DefaultResultSetReader implements ResultSetReader {
      * @see <a href="https://www.postgresql.org/docs/current/protocol-message-formats.html">DataRow</a>
      */
     private boolean readRowData(final ByteBuf cumulateBuffer) {
-        LOG.debug("Read ResultSet row data.");
+
         final PgRowMeta rowMeta = Objects.requireNonNull(this.rowMeta, "this.rowMeta");
+        if (LOG.isTraceEnabled()) {
+            LOG.trace("Read ResultSet row data for meta :{}", rowMeta);
+        }
+
         final PgColumnMeta[] columnMetaArray = rowMeta.columnMetaArray;
         final ResultSink sink = this.sink;
         // if 'true' maybe user cancel or occur error
@@ -512,26 +514,6 @@ final class DefaultResultSetReader implements ResultSetReader {
         return new JdbdSQLException(new SQLException(m));
     }
 
-
-    private static boolean convertToBoolean(String textValue) {
-        final boolean value;
-        switch (textValue) {
-            case "true":
-            case "yes":
-            case "on":
-            case "1":
-                value = true;
-                break;
-            case "false":
-            case "no":
-            case "off":
-            case "0":
-                value = false;
-            default:
-                throw new IllegalArgumentException(String.format("text[%s] couldn't convert to boolean.", textValue));
-        }
-        return value;
-    }
 
 
     enum Phase {

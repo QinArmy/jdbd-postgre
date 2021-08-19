@@ -13,7 +13,7 @@ import java.util.Map;
  * @see ErrorMessage
  * @see NoticeMessage
  */
-abstract class MultiFieldMessage extends PostgreMessage {
+abstract class MultiFieldMessage extends PgMessage {
 
 
     /**

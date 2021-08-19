@@ -55,7 +55,7 @@ abstract class MySQLRowMeta implements ResultRowMeta {
     }
 
     @Override
-    public List<String> getColumnAliasList() {
+    public List<String> getColumnLabelList() {
         List<String> columnAliaList;
         if (this.columnMetaArray.length == 1) {
             columnAliaList = Collections.singletonList(this.columnMetaArray[0].columnAlias);

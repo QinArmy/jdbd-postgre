@@ -1,10 +1,10 @@
 package io.jdbd.postgre.protocol.client;
 
-abstract class PostgreMessage {
+abstract class PgMessage {
 
     final byte type;
 
-    PostgreMessage(byte type) {
+    PgMessage(byte type) {
         this.type = type;
     }
 

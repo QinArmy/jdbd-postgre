@@ -285,7 +285,7 @@ final class MySQLColumnMeta {
         if (MySQLStringUtils.hasText(tableName)) {
             // TODO zoro complete
             if (tableName.startsWith("#sql_")) {
-                fieldType = FieldType.TEMP_FILED;
+                fieldType = FieldType.PHYSICAL_FILED;
             } else {
                 fieldType = FieldType.FIELD;
             }

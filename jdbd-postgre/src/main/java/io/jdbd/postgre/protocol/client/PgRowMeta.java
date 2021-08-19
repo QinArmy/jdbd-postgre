@@ -1,5 +1,6 @@
 package io.jdbd.postgre.protocol.client;
 
+import io.jdbd.JdbdException;
 import io.jdbd.JdbdSQLException;
 import io.jdbd.meta.NullMode;
 import io.jdbd.meta.SQLType;
@@ -10,10 +11,7 @@ import io.netty.buffer.ByteBuf;
 
 import java.sql.JDBCType;
 import java.sql.SQLException;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Objects;
+import java.util.*;
 
 /**
  * @see <a href="https://www.postgresql.org/docs/current/protocol-message-formats.html">RowDescription</a>
@@ -32,12 +30,23 @@ final class PgRowMeta implements ResultRowMeta {
 
     final PgColumnMeta[] columnMetaArray;
 
-    private PgRowMeta(int resultIndex, PgColumnMeta[] columnMetaArray) {
+    private final Map<String, Integer> labelToIndexMap;
+
+    // don't need volatile
+    private List<String> labelList;
+
+    private PgRowMeta(int resultIndex, final PgColumnMeta[] columnMetaArray) {
         if (resultIndex < 0) {
             throw new IllegalArgumentException(String.format("resultIndex[%s] less than 0 .", resultIndex));
         }
         this.resultIndex = resultIndex;
         this.columnMetaArray = columnMetaArray;
+
+        if (columnMetaArray.length > 30) {
+            this.labelToIndexMap = createLabelToIndexMap(columnMetaArray);
+        } else {
+            this.labelToIndexMap = Collections.emptyMap();
+        }
     }
 
     @Override
@@ -56,53 +65,76 @@ final class PgRowMeta implements ResultRowMeta {
     }
 
     @Override
-    public List<String> getColumnAliasList() {
-        final PgColumnMeta[] columnMetaArray = this.columnMetaArray;
+    public final FieldType getFieldType(int indexBaseZero) {
+        return this.columnMetaArray[checkIndex(indexBaseZero)].tableOid == 0
+                ? FieldType.EXPRESSION
+                : FieldType.FIELD;
+    }
 
-        final List<String> labelList;
-        if (columnMetaArray.length == 1) {
-            labelList = Collections.singletonList(columnMetaArray[0].columnAlias);
-        } else {
-            List<String> list = new ArrayList<>(columnMetaArray.length);
-            for (PgColumnMeta meta : columnMetaArray) {
-                list.add(meta.columnAlias);
-            }
-            labelList = Collections.unmodifiableList(list);
+    @Override
+    public final FieldType getFieldType(String columnLabel) {
+        return getFieldType(getColumnIndex(columnLabel));
+    }
+
+    @Override
+    public final List<String> getColumnLabelList() {
+        List<String> labelList = this.labelList;
+        if (labelList != null) {
+            return labelList;
         }
+        final PgColumnMeta[] columnMetaArray = this.columnMetaArray;
+        if (columnMetaArray.length == 1) {
+            labelList = Collections.singletonList(columnMetaArray[0].columnLabel);
+        } else {
+            labelList = new ArrayList<>(columnMetaArray.length);
+            for (PgColumnMeta meta : columnMetaArray) {
+                labelList.add(meta.columnLabel);
+            }
+            labelList = Collections.unmodifiableList(labelList);
+        }
+        this.labelList = labelList;
         return labelList;
     }
 
     @Override
     public final String getColumnLabel(int indexBaseZero) throws JdbdSQLException {
-        return this.columnMetaArray[checkIndex(indexBaseZero)].columnAlias;
+        return this.columnMetaArray[checkIndex(indexBaseZero)].columnLabel;
     }
 
     @Override
     public final int getColumnIndex(final String columnLabel) throws JdbdSQLException {
         Objects.requireNonNull(columnLabel, "columnLabel");
+
+        if (!this.labelToIndexMap.isEmpty()) {
+            final Integer columnIndex = this.labelToIndexMap.get(columnLabel);
+            if (columnIndex == null) {
+                throw createNotFoundIndexException(columnLabel);
+            }
+            return columnIndex;
+        }
+
         int indexBaseZero = -1;
         final PgColumnMeta[] columnMetaArray = this.columnMetaArray;
         for (int i = 0; i < columnMetaArray.length; i++) {
-            if (columnLabel.equals(columnMetaArray[i].columnAlias)) {
+            if (columnLabel.equals(columnMetaArray[i].columnLabel)) {
                 indexBaseZero = i;
                 break;
             }
         }
         if (indexBaseZero < 0) {
-            String m = String.format("Not found column index for column label[%s]", columnLabel);
-            throw new JdbdSQLException(new SQLException(m));
+            throw createNotFoundIndexException(columnLabel);
         }
         return indexBaseZero;
     }
 
     @Override
-    public JDBCType getJdbdType(int indexBaseZero) throws JdbdSQLException {
+    public final JDBCType getJdbdType(int indexBaseZero) throws JdbdSQLException {
         return getSQLType(indexBaseZero).jdbcType();
     }
 
     @Override
     public boolean isPhysicalColumn(int indexBaseZero) throws JdbdSQLException {
-        return false;
+        throw new UnsupportedOperationException();
     }
 
     @Override
@@ -116,13 +148,13 @@ final class PgRowMeta implements ResultRowMeta {
     }
 
     @Override
-    public NullMode getNullMode(int indexBaseZero) throws JdbdSQLException {
-        return null;
+    public final NullMode getNullMode(int indexBaseZero) throws JdbdSQLException {
+        return NullMode.UNKNOWN;
     }
 
     @Override
-    public NullMode getNullMode(String columnAlias) throws JdbdSQLException {
-        return null;
+    public final NullMode getNullMode(String columnAlias) throws JdbdSQLException {
+        return NullMode.UNKNOWN;
     }
 
     @Override
@@ -242,6 +274,30 @@ final class PgRowMeta implements ResultRowMeta {
             throw new JdbdSQLException(new SQLException(m));
         }
         return indexBasedZero;
+    }
+
+    /*################################## blow private static method ##################################*/
+
+    private static JdbdException createNotFoundIndexException(final String columnLabel) {
+        String m = String.format("Not found column index for column label[%s]", columnLabel);
+        return new JdbdSQLException(new SQLException(m));
+    }
+
+    /**
+     * @return a unmodifiable map
+     */
+    private static Map<String, Integer> createLabelToIndexMap(final PgColumnMeta[] columnMetaArray) {
+        final Map<String, Integer> map;
+        if (columnMetaArray.length == 1) {
+            map = Collections.singletonMap(columnMetaArray[0].columnLabel, 0);
+        } else {
+            Map<String, Integer> tempMap = new HashMap<>((int) (columnMetaArray.length / 0.75f));
+            for (int i = 0; i < columnMetaArray.length; i++) {
+                tempMap.putIfAbsent(columnMetaArray[i].columnLabel, i);
+            }
+            map = Collections.unmodifiableMap(tempMap);
+        }
+        return map;
     }
 
 
