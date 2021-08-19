@@ -166,7 +166,9 @@ abstract class Messages {
     static ResultSetStatus getResultSetStatus(ByteBuf cumulateBuffer) {
         final int originalIndex = cumulateBuffer.readerIndex();
         if (!hasOneMessage(cumulateBuffer) || cumulateBuffer.getByte(originalIndex) != C) {
-            throw new IllegalArgumentException("Current message non-CommandComplete.");
+            String m = String.format("Current message[%s] Non-CommandComplete."
+                    , (char) cumulateBuffer.getByte(originalIndex));
+            throw new IllegalArgumentException(m);
         }
         cumulateBuffer.readByte();
         cumulateBuffer.readerIndex(originalIndex + 1 + cumulateBuffer.readInt());

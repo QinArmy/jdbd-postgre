@@ -1,5 +1,7 @@
 package io.jdbd.postgre;
 
+import io.jdbd.postgre.protocol.client.IntervalStyle;
+
 import java.time.ZoneOffset;
 
 public interface Server {
@@ -9,5 +11,8 @@ public interface Server {
     String parameter(ServerParameter parameter);
 
     ZoneOffset zoneOffset();
+
+    IntervalStyle intervalStyle();
+
 
 }

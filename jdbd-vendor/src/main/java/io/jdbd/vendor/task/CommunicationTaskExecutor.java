@@ -157,7 +157,7 @@ public abstract class CommunicationTaskExecutor<T extends ITaskAdjutant> impleme
         this.packetIndex = cumulateBuffer.readerIndex();
         //2. decode packet from database server.
         final boolean taskEnd;
-        taskEnd = currentTask.decodePackets(cumulateBuffer, this::updateServerStatus);
+        taskEnd = currentTask.decodeMessage(cumulateBuffer, this::updateServerStatus);
         if (taskEnd && currentTask instanceof ConnectionTask) {
             ConnectionTask connectionTask = (ConnectionTask) currentTask;
             if (connectionTask.disconnect()) {

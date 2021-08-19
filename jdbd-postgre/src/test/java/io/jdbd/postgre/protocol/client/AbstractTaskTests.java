@@ -4,6 +4,7 @@ import io.jdbd.postgre.config.PostgreUrl;
 import io.jdbd.postgre.session.SessionAdjutant;
 import io.netty.channel.EventLoopGroup;
 import org.testng.Assert;
+import reactor.core.publisher.Mono;
 import reactor.netty.resources.LoopResources;
 
 import java.util.HashMap;
@@ -19,31 +20,36 @@ class AbstractTaskTests {
     private final static EventLoopGroup EVENT_LOOP_GROUP = LoopResources.create("jdbd-postgre", 20, true)
             .onClient(true);
 
-    private static final SessionAdjutant DEFAULT_SESSION_ADJUTANT = createDefaultSessionAdjutant();
+    static final SessionAdjutant DEFAULT_SESSION_ADJUTANT = createDefaultSessionAdjutant();
 
 
-    static ClientProtocol obtainProtocol() {
-        ClientProtocol protocol = PROTOCOL_QUEUE.poll();
+    static Mono<ClientProtocol> obtainProtocol() {
+        final ClientProtocol protocol = PROTOCOL_QUEUE.poll();
+        final Mono<ClientProtocol> mono;
         if (protocol == null) {
-            protocol = ClientProtocolFactory.single(DEFAULT_SESSION_ADJUTANT, 0)
-                    .block();
-            Assert.assertNotNull(protocol, "protocol");
+            mono = ClientProtocolFactory.single(DEFAULT_SESSION_ADJUTANT, 0);
         } else {
-            protocol.reset()
-                    .block();
+            mono = protocol.reset();
         }
+        return mono;
+    }
+
+    static ClientProtocol obtainProtocolWithSync() {
+        ClientProtocol protocol;
+        protocol = obtainProtocol()
+                .block();
+        Assert.assertNotNull(protocol, "protocol");
         return protocol;
     }
 
-    static TaskAdjutant obtainTaskAdjutant(ClientProtocol protocol) {
+    static TaskAdjutant mapToTaskAdjutant(ClientProtocol protocol) {
         return ((ClientProtocolImpl) protocol).adjutant;
     }
 
-    static void releaseConnection(ClientProtocol protocol) {
-        protocol.reset()
+    static <T> Mono<T> releaseConnection(ClientProtocol protocol) {
+        return protocol.reset()
                 .doAfterTerminate(() -> PROTOCOL_QUEUE.offer(protocol))
-                .subscribe();
-
+                .then(Mono.empty());
     }
 
 

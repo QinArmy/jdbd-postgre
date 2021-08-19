@@ -28,7 +28,7 @@ public interface ClientProtocol {
      * This method is underlying api of {@link StaticStatement#executeUpdate(String)} method.
      * </p>
      */
-    Mono<ResultState> staticUpdate(Stmt stmt);
+    Mono<ResultState> update(Stmt stmt);
 
     /**
      * <p>
@@ -39,14 +39,14 @@ public interface ClientProtocol {
      * </ul>
      * </p>
      */
-    Flux<ResultRow> staticQuery(Stmt stmt);
+    Flux<ResultRow> query(Stmt stmt);
 
     /**
      * <p>
      * This method is underlying api of {@link StaticStatement#executeBatch(List)} method.
      * </p>
      */
-    Flux<ResultState> staticBatchUpdate(GroupStmt stmt);
+    Flux<ResultState> batchUpdate(GroupStmt stmt);
 
     /**
      * <p>
@@ -123,7 +123,7 @@ public interface ClientProtocol {
     /*################################## blow for sessioin ##################################*/
 
 
-    Mono<Void> reset();
+    Mono<ClientProtocol> reset();
 
 
     Mono<Void> close();

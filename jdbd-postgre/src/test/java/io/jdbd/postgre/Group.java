@@ -8,5 +8,11 @@ public interface Group {
 
     String UTILS = "utils";
 
+    String SESSION_BUILDER = "sessionBuilder";
+
+    String SIMPLE_QUERY_TASK = "simpleQueryTask";
+
+    String TASK_TEST_ADVICE = "taskTestAdvice";
+
 
 }

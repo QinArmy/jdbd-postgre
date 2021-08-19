@@ -1,6 +1,5 @@
 package io.jdbd.vendor.task;
 
-import io.jdbd.vendor.JdbdCompositeException;
 import io.jdbd.vendor.util.JdbdExceptions;
 import io.netty.buffer.ByteBuf;
 import org.reactivestreams.Publisher;
@@ -32,6 +31,8 @@ public abstract class CommunicationTask<T extends ITaskAdjutant> {
 
     private MethodStack methodStack;
 
+    private TaskDecodeException decodeException;
+
 
     protected CommunicationTask(T adjutant, Consumer<Throwable> errorConsumer) {
         this.adjutant = adjutant;
@@ -45,7 +46,7 @@ public abstract class CommunicationTask<T extends ITaskAdjutant> {
      *
      * @return <ul>
      * <li>if non-null {@link CommunicationTaskExecutor} will send this {@link Publisher}.</li>
-     * <li>if null {@link CommunicationTaskExecutor} immediately invoke {@link #decodePackets(ByteBuf, Consumer)}</li>
+     * <li>if null {@link CommunicationTaskExecutor} immediately invoke {@link #decodeMessage(ByteBuf, Consumer)}</li>
      * </ul>
      */
     @Nullable
@@ -72,7 +73,7 @@ public abstract class CommunicationTask<T extends ITaskAdjutant> {
      *
      * @return true : task end.
      */
-    final boolean decodePackets(ByteBuf cumulateBuffer, Consumer<Object> serverStatusConsumer)
+    final boolean decodeMessage(ByteBuf cumulateBuffer, Consumer<Object> serverStatusConsumer)
             throws TaskStatusException {
         if (this.taskPhase != TaskPhase.STARTED) {
             throw createTaskPhaseException(TaskPhase.STARTED);
@@ -80,21 +81,43 @@ public abstract class CommunicationTask<T extends ITaskAdjutant> {
         if (!canDecode(cumulateBuffer)) {
             return false;
         }
-        this.methodStack = MethodStack.DECODE;
+
+        boolean taskEnd;
+        final int oldReaderIndex = cumulateBuffer.readerIndex();
         try {
-
-            boolean taskEnd;
-            taskEnd = decode(cumulateBuffer, serverStatusConsumer);
-            if (taskEnd) {
-                this.taskPhase = TaskPhase.END;
+            if (this.decodeException == null) {
+                taskEnd = decode(cumulateBuffer, serverStatusConsumer);
+            } else {
+                taskEnd = skipPacketsOnError(cumulateBuffer, serverStatusConsumer);
             }
-            return taskEnd;
-        } catch (Throwable e) {
-            throw new TaskStatusException(e, "decode(ByteBuf, Consumer<Object>) method throw exception.");
-        } finally {
-            this.methodStack = null;
-        }
 
+        } catch (Throwable e) {
+            if (JdbdExceptions.isJvmFatal(e)) {
+                addError(e);
+                publishError(this.errorConsumer);
+                throw e;
+            }
+            if (this.decodeException == null) {
+                String m = String.format("Task[%s] decode() method throw exception.", this);
+                this.decodeException = new TaskDecodeException(m, e);
+                addError(e);
+                cumulateBuffer.markReaderIndex();
+                cumulateBuffer.readerIndex(oldReaderIndex);
+                taskEnd = internalSkipPacketsOnError(cumulateBuffer, serverStatusConsumer);
+            } else {
+                addError(e);
+                publishError(this.errorConsumer);
+                throw new TaskStatusException(JdbdExceptions.createException(this.errorList)
+                        , "decode(ByteBuf, Consumer<Object>) method throw exception.");
+            }
+        }
+        if (taskEnd) {
+            this.taskPhase = TaskPhase.END;
+            if (this.decodeException != null) {
+                publishError(this.errorConsumer);
+            }
+        }
+        return taskEnd;
     }
 
     /**
@@ -152,10 +175,10 @@ public abstract class CommunicationTask<T extends ITaskAdjutant> {
      *         <li>packet send failure: handle return {@link Action}</li>
      *         <li>
      *             <ol>
-     *                  <li>{@link #decodePackets(ByteBuf, Consumer)} throw {@link TaskStatusException}:
+     *                  <li>{@link #decodeMessage(ByteBuf, Consumer)} throw {@link TaskStatusException}:
      *                  ignore return {@link Action} and invoke {@link #moreSendPacket()}
      *                  after {@link CommunicationTaskExecutor#clearChannel} return true.</li>
-     *                  <li>{@link #decodePackets(ByteBuf, Consumer)} return true, but cumulateBuffer {@link ByteBuf#isReadable()}:ignore return {@link Action}</li>
+     *                  <li>{@link #decodeMessage(ByteBuf, Consumer)} return true, but cumulateBuffer {@link ByteBuf#isReadable()}:ignore return {@link Action}</li>
      *             </ol>
      *         </li>
      *     </ul>
@@ -179,6 +202,14 @@ public abstract class CommunicationTask<T extends ITaskAdjutant> {
         this.methodStack = null;
 
         return action;
+    }
+
+
+    /**
+     * @return true : task end.
+     */
+    protected boolean skipPacketsOnError(ByteBuf cumulateBuffer, Consumer<Object> serverStatusConsumer) {
+        throw new UnsupportedOperationException();
     }
 
     /**
@@ -221,12 +252,12 @@ public abstract class CommunicationTask<T extends ITaskAdjutant> {
     }
 
 
-    protected final boolean hasError() {
+    public final boolean hasError() {
         List<Throwable> errorList = this.errorList;
         return errorList != null && errorList.size() > 0;
     }
 
-    protected final boolean containsError(Class<? extends Throwable> errorType) {
+    public final boolean containsError(Class<? extends Throwable> errorType) {
         List<Throwable> errorList = this.errorList;
         boolean contains = false;
         if (errorList != null) {
@@ -262,12 +293,7 @@ public abstract class CommunicationTask<T extends ITaskAdjutant> {
         if (errorList == null || errorList.isEmpty()) {
             throw new IllegalStateException("No error,cannot publish error.");
         }
-        if (errorList.size() == 1) {
-            errorConsumer.accept(errorList.get(0));
-        } else {
-            JdbdCompositeException e = new JdbdCompositeException(errorList, errorList.get(0).getMessage());
-            errorConsumer.accept(e);
-        }
+        errorConsumer.accept(JdbdExceptions.createException(errorList));
     }
 
 
@@ -315,6 +341,20 @@ public abstract class CommunicationTask<T extends ITaskAdjutant> {
     /*################################## blow private method ##################################*/
 
     /**
+     * @return true : task end.
+     */
+    private boolean internalSkipPacketsOnError(ByteBuf cumulateBuffer, Consumer<Object> serverStatusConsumer) {
+        try {
+            return skipPacketsOnError(cumulateBuffer, serverStatusConsumer);
+        } catch (Throwable e) {
+            addError(e);
+            publishError(this.errorConsumer);
+            throw new TaskStatusException(JdbdExceptions.createException(this.errorList)
+                    , "decode(ByteBuf, Consumer<Object>) method throw exception.");
+        }
+    }
+
+    /**
      * @see #submit(Consumer)
      */
     private void syncSubmitTask(final Consumer<Throwable> consumer) {
@@ -360,6 +400,15 @@ public abstract class CommunicationTask<T extends ITaskAdjutant> {
         START,
         DECODE,
         ERROR,
+    }
+
+
+    private static final class TaskDecodeException extends RuntimeException {
+
+        private TaskDecodeException(String message, Throwable cause) {
+            super(message, cause);
+        }
+
     }
 
 

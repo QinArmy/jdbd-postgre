@@ -3,12 +3,17 @@ package io.jdbd.postgre.protocol.client;
 import io.jdbd.JdbdSQLException;
 import io.jdbd.meta.NullMode;
 import io.jdbd.meta.SQLType;
+import io.jdbd.postgre.PgType;
 import io.jdbd.result.FieldType;
 import io.jdbd.result.ResultRowMeta;
 import io.netty.buffer.ByteBuf;
 
 import java.sql.JDBCType;
+import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 
 /**
  * @see <a href="https://www.postgresql.org/docs/current/protocol-message-formats.html">RowDescription</a>
@@ -41,33 +46,58 @@ final class PgRowMeta implements ResultRowMeta {
     }
 
     @Override
-    public int getColumnCount() {
-        return 0;
+    public final int getColumnCount() {
+        return this.columnMetaArray.length;
     }
 
     @Override
-    public FieldType getFieldType() {
-        return null;
+    public final FieldType getFieldType() {
+        throw new UnsupportedOperationException();
     }
 
     @Override
     public List<String> getColumnAliasList() {
-        return null;
+        final PgColumnMeta[] columnMetaArray = this.columnMetaArray;
+
+        final List<String> labelList;
+        if (columnMetaArray.length == 1) {
+            labelList = Collections.singletonList(columnMetaArray[0].columnAlias);
+        } else {
+            List<String> list = new ArrayList<>(columnMetaArray.length);
+            for (PgColumnMeta meta : columnMetaArray) {
+                list.add(meta.columnAlias);
+            }
+            labelList = Collections.unmodifiableList(list);
+        }
+        return labelList;
     }
 
     @Override
-    public String getColumnLabel(int indexBaseZero) throws JdbdSQLException {
-        return null;
+    public final String getColumnLabel(int indexBaseZero) throws JdbdSQLException {
+        return this.columnMetaArray[checkIndex(indexBaseZero)].columnAlias;
     }
 
     @Override
-    public int getColumnIndex(String columnLabel) throws JdbdSQLException {
-        return 0;
+    public final int getColumnIndex(final String columnLabel) throws JdbdSQLException {
+        Objects.requireNonNull(columnLabel, "columnLabel");
+        int indexBaseZero = -1;
+        final PgColumnMeta[] columnMetaArray = this.columnMetaArray;
+        for (int i = 0; i < columnMetaArray.length; i++) {
+            if (columnLabel.equals(columnMetaArray[i].columnAlias)) {
+                indexBaseZero = i;
+                break;
+            }
+        }
+        if (indexBaseZero < 0) {
+            String m = String.format("Not found column index for column label[%s]", columnLabel);
+            throw new JdbdSQLException(new SQLException(m));
+        }
+        return indexBaseZero;
     }
 
     @Override
     public JDBCType getJdbdType(int indexBaseZero) throws JdbdSQLException {
-        return null;
+        return getSQLType(indexBaseZero).jdbcType();
     }
 
     @Override
@@ -76,13 +106,13 @@ final class PgRowMeta implements ResultRowMeta {
     }
 
     @Override
-    public SQLType getSQLType(int indexBaseZero) throws JdbdSQLException {
-        return null;
+    public final PgType getSQLType(int indexBaseZero) throws JdbdSQLException {
+        return this.columnMetaArray[checkIndex(indexBaseZero)].pgType;
     }
 
     @Override
     public SQLType getSQLType(String columnAlias) throws JdbdSQLException {
-        return null;
+        return getSQLType(getColumnIndex(columnAlias));
     }
 
     @Override
@@ -203,6 +233,15 @@ final class PgRowMeta implements ResultRowMeta {
     @Override
     public boolean isMultipleKey(String columnAlias) throws JdbdSQLException {
         return false;
+    }
+
+    private int checkIndex(final int indexBasedZero) {
+        if (indexBasedZero < 0 || indexBasedZero >= this.columnMetaArray.length) {
+            String m = String.format("Invalid column index[%s] ,should be [0,%s)."
+                    , indexBasedZero, this.columnMetaArray.length);
+            throw new JdbdSQLException(new SQLException(m));
+        }
+        return indexBasedZero;
     }
 
 

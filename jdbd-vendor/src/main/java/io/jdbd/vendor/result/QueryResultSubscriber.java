@@ -95,12 +95,8 @@ final class QueryResultSubscriber extends AbstractResultSubscriber<Result> {
             final ResultState state = this.state;
             if (state == null) {
                 this.sink.error(new NoMoreResultException("No receive terminator query ResultState from upstream."));
-            } else if (fluxSinkComplete(this.sink, stateConsumer, state)) {
-                final List<Throwable> newErrorList = this.errorList;
-                assert newErrorList != null;
-                this.sink.error(JdbdExceptions.createException(newErrorList));
             } else {
-                this.sink.complete();
+                fluxSinkComplete(this.sink, stateConsumer, state);
             }
         } else {
             this.sink.error(JdbdExceptions.createException(errorList));

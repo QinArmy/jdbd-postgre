@@ -116,21 +116,15 @@ final class PgColumnMeta {
             short columnTypeSize = message.readShort();
             int columnModifier = message.readInt();
             boolean textFormat = message.readShort() == 0;
-            PgType pgType = parseToPgType(columnTypeOid, columnTypeSize, columnModifier, adjutant);
 
             columnMetas[i] = new PgColumnMeta(columnAlias, tableOid
                     , columnAttrNum, columnTypeOid
                     , columnTypeSize, columnModifier
-                    , textFormat, pgType);
+                    , textFormat, PgType.from(columnTypeOid));
         }
 
         message.readerIndex(nextMsgIndex);//avoid tail filler
         return columnMetas;
-    }
-
-    private static PgType parseToPgType(int columnTypeOid, short columnTypeSize
-            , int columnModifier, TaskAdjutant adjutant) {
-        throw new UnsupportedOperationException();
     }
 
 

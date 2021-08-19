@@ -34,9 +34,12 @@ final class TerminateTask extends PgTask {
     }
 
 
+    /**
+     * @see <a href="https://www.postgresql.org/docs/current/protocol-message-formats.html">Terminate</a>
+     */
     @Override
     protected final Publisher<ByteBuf> start() {
-        ByteBuf message = this.adjutant.allocator().buffer();
+        ByteBuf message = this.adjutant.allocator().buffer(5);
         message.writeByte('X');
         message.writeInt(4);
         return Mono.just(message);
@@ -44,7 +47,16 @@ final class TerminateTask extends PgTask {
 
     @Override
     protected final boolean decode(ByteBuf cumulateBuffer, Consumer<Object> serverStatusConsumer) {
-        addError(new PgJdbdException("Receive message after terminate message."));
+        final int msgIndex = cumulateBuffer.readerIndex();
+        final byte msgType = cumulateBuffer.getByte(msgIndex);
+        final int length;
+        if (cumulateBuffer.readableBytes() >= 5) {
+            length = cumulateBuffer.getInt(msgIndex + 1);
+        } else {
+            length = 0;
+        }
+        String m = String.format("Receive message[type:%s,length:%s] after terminate message.", (char) msgType, length);
+        addError(new PgJdbdException(m));
         publishError(sink::error);
         return true;
     }

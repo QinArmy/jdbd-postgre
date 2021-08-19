@@ -10,10 +10,8 @@ import io.jdbd.type.geometry.Point;
 import java.math.BigDecimal;
 import java.sql.JDBCType;
 import java.time.*;
-import java.util.BitSet;
-import java.util.HashSet;
-import java.util.Set;
-import java.util.UUID;
+import java.time.temporal.TemporalAmount;
+import java.util.*;
 
 public enum PgType implements io.jdbd.meta.SQLType {
 
@@ -65,8 +63,8 @@ public enum PgType implements io.jdbd.meta.SQLType {
 
     OID_ARRAY(PgConstant.TYPE_OID_ARRAY, JDBCType.NULL, Long[].class),
     BIT_ARRAY(PgConstant.TYPE_BIT_ARRAY, JDBCType.ARRAY, BitSet[].class),
-    INTERVAL(PgConstant.TYPE_INTERVAL, JDBCType.OTHER, Duration.class),
-    INTERVAL_ARRAY(PgConstant.TYPE_INTERVAL_ARRAY, JDBCType.ARRAY, Duration[].class),
+    INTERVAL(PgConstant.TYPE_INTERVAL, JDBCType.OTHER, TemporalAmount.class),
+    INTERVAL_ARRAY(PgConstant.TYPE_INTERVAL_ARRAY, JDBCType.ARRAY, TemporalAmount[].class),
 
     CHAR(PgConstant.TYPE_CHAR, JDBCType.CHAR, String.class),
     CHAR_ARRAY(PgConstant.TYPE_CHAR_ARRAY, JDBCType.ARRAY, String[].class),
@@ -100,6 +98,8 @@ public enum PgType implements io.jdbd.meta.SQLType {
 
     REF_CURSOR(PgConstant.TYPE_REF_CURSOR, JDBCType.REF_CURSOR, Object.class),
     REF_CURSOR_ARRAY(PgConstant.TYPE_REF_CURSOR_ARRAY, JDBCType.ARRAY, Object[].class);
+
+    private static final Map<Integer, PgType> CODE_TO_TYPE_MAP = createCodeToTypeMap();
 
     private final int typeOid;
 
@@ -192,18 +192,25 @@ public enum PgType implements io.jdbd.meta.SQLType {
         return this.typeOid;
     }
 
-    static {
-        checkTypeOid();
+
+    public static PgType from(int typeOid) {
+        return CODE_TO_TYPE_MAP.getOrDefault(typeOid, PgType.UNSPECIFIED);
     }
 
-    private static void checkTypeOid() {
-        Set<Integer> set = new HashSet<>();
+
+    /**
+     * @return a unmodified map.
+     */
+    private static Map<Integer, PgType> createCodeToTypeMap() {
+        final PgType[] values = PgType.values();
+        Map<Integer, PgType> map = new HashMap<>((int) (values.length / 0.75f));
         for (PgType type : PgType.values()) {
-            if (set.contains(type.typeOid)) {
+            if (map.containsKey(type.typeOid)) {
                 throw new IllegalStateException(String.format("Type[%s] oid[%s] duplication.", type, type.typeOid));
             }
-            set.add(type.typeOid);
+            map.put(type.typeOid, type);
         }
+        return Collections.unmodifiableMap(map);
     }
 
 

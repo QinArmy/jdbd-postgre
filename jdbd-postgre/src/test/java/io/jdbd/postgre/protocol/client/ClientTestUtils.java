@@ -30,6 +30,7 @@ public abstract class ClientTestUtils {
         properties.put("sslmode", "DISABLED");
         properties.put(PgKey.ApplicationName.getKey(), "jdbd-postgre-test");
 
+        properties.put(PgKey.currentSchema.getKey(), "army");
         properties.putAll(propertiesMap);
 
         return PostgreUrl.create(url, properties);

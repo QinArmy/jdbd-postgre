@@ -21,6 +21,7 @@ import java.nio.charset.StandardCharsets;
 import java.sql.SQLException;
 import java.time.*;
 import java.time.format.DateTimeFormatter;
+import java.time.temporal.TemporalAmount;
 import java.util.BitSet;
 import java.util.Objects;
 import java.util.UUID;
@@ -48,13 +49,9 @@ final class DefaultResultSetReader implements ResultSetReader {
 
     private final StmtTask stmtTask;
 
-    private boolean integerDatetimeOn;
-
-    final TaskAdjutant adjutant;
+    private final TaskAdjutant adjutant;
 
     private final ResultSink sink;
-
-    private final Charset clientCharset;
 
     private PgRowMeta rowMeta;
 
@@ -64,7 +61,6 @@ final class DefaultResultSetReader implements ResultSetReader {
         this.stmtTask = stmtTask;
         this.adjutant = stmtTask.adjutant();
         this.sink = sink;
-        this.clientCharset = this.adjutant.clientCharset();
     }
 
     @Override
@@ -73,8 +69,9 @@ final class DefaultResultSetReader implements ResultSetReader {
         while (continueRead) {
             switch (this.phase) {
                 case READ_ROW_META: {
+                    LOG.trace("Read ResultSet row meta data.");
                     this.rowMeta = PgRowMeta.read(cumulateBuffer, this.stmtTask);
-                    if (this.rowMeta.getColumnCount() == 0) {
+                    if (this.rowMeta.columnMetaArray.length == 0) {
                         this.phase = Phase.READ_RESULT_TERMINATOR;
                     } else {
                         this.phase = Phase.READ_ROWS;
@@ -92,8 +89,10 @@ final class DefaultResultSetReader implements ResultSetReader {
                 }
                 break;
                 case READ_RESULT_TERMINATOR: {
+                    final PgRowMeta rowMeta = Objects.requireNonNull(this.rowMeta, "this.rowMeta");
+                    resultSetEnd = this.stmtTask.readResultStateWithReturning(cumulateBuffer, false
+                            , rowMeta::getResultIndex);
                     continueRead = false;
-                    resultSetEnd = true;
                 }
                 break;
                 case END:
@@ -102,36 +101,53 @@ final class DefaultResultSetReader implements ResultSetReader {
                     throw PgExceptions.createUnknownEnumException(this.phase);
             }
         }
-
+        if (resultSetEnd) {
+            if (this.stmtTask.hasError()) {
+                this.phase = Phase.END;
+            } else {
+                reset(); // for next result set
+            }
+        }
         return resultSetEnd;
     }
 
     @Override
     public final boolean isResettable() {
-        return false;
+        return true;
+    }
+
+    @Override
+    public final String toString() {
+        return String.format("Class[%s] phase[%s]", getClass().getSimpleName(), this.phase);
+    }
+
+    private void reset() {
+        this.rowMeta = null;
+        this.phase = Phase.READ_ROW_META;
     }
 
 
     /**
      * @return true : read row data end.
      * @see #read(ByteBuf, Consumer)
+     * @see <a href="https://www.postgresql.org/docs/current/protocol-message-formats.html">DataRow</a>
      */
     private boolean readRowData(final ByteBuf cumulateBuffer) {
+        LOG.debug("Read ResultSet row data.");
         final PgRowMeta rowMeta = Objects.requireNonNull(this.rowMeta, "this.rowMeta");
         final PgColumnMeta[] columnMetaArray = rowMeta.columnMetaArray;
         final ResultSink sink = this.sink;
         // if 'true' maybe user cancel or occur error
-        final boolean isCanceled = sink.isCancelled();
-
+        final boolean isCanceled = this.stmtTask.hasError() || sink.isCancelled();
+        final Charset clientCharset = this.adjutant.clientCharset();
         Object[] columnValueArray;
-        int bodyIndex, nextRowIndex;
         while (Messages.hasOneMessage(cumulateBuffer)) {
-            if (cumulateBuffer.getByte(cumulateBuffer.readerIndex()) != Messages.D) {
+            final int msgIndex = cumulateBuffer.readerIndex();
+            if (cumulateBuffer.getByte(msgIndex) != Messages.D) {
                 return true;
             }
             cumulateBuffer.readByte(); // skip message type byte
-            bodyIndex = cumulateBuffer.readerIndex();
-            nextRowIndex = bodyIndex + cumulateBuffer.readInt();
+            final int nextRowIndex = msgIndex + 1 + cumulateBuffer.readInt();
 
             if (isCanceled) {
                 cumulateBuffer.readerIndex(nextRowIndex);// skip row
@@ -154,9 +170,9 @@ final class DefaultResultSetReader implements ResultSetReader {
 
                 meta = columnMetaArray[i];
                 if (meta.textFormat) {
-                    columnValueArray[i] = parseColumnFromText(
-                            cumulateBuffer.readCharSequence(valueLength, this.clientCharset).toString()
-                            , meta);
+                    byte[] bytes = new byte[valueLength];
+                    cumulateBuffer.readBytes(bytes);
+                    columnValueArray[i] = parseColumnFromText(new String(bytes, clientCharset), meta);
                 } else {
                     columnValueArray[i] = parseColumnFromBinary(cumulateBuffer, valueLength, meta);
                 }
@@ -257,7 +273,6 @@ final class DefaultResultSetReader implements ResultSetReader {
             case PgConstant.TYPE_LINE:
             case PgConstant.TYPE_LSEG:
             case PgConstant.TYPE_BOX:
-
             case PgConstant.TYPE_XML: {
                 value = textValue;
             }
@@ -269,7 +284,7 @@ final class DefaultResultSetReader implements ResultSetReader {
                     bytes = JdbdBuffers.decodeHex(bytes, bytes.length);
                 } else {
                     //TODO validate this
-                    bytes = textValue.getBytes(this.clientCharset);
+                    bytes = textValue.getBytes(this.adjutant.clientCharset());
                 }
                 value = LongBinaries.fromArray(bytes);
             }
@@ -286,7 +301,7 @@ final class DefaultResultSetReader implements ResultSetReader {
             case PgConstant.TYPE_INTERVAL: {
                 // @see PgConnectionTask
                 // startStartup Message set to default ISO-8601
-                value = Duration.parse(textValue);
+                value = parseTemporalAmountFromText(textValue, meta);
             }
             break;
             case PgConstant.TYPE_POINT: {
@@ -369,15 +384,7 @@ final class DefaultResultSetReader implements ResultSetReader {
                 if (valueLength != 8) {
                     throw createResponseBinaryColumnValueError(cumulateBuffer, valueLength, meta);
                 }
-                if (this.integerDatetimeOn) {
-                    value = parseLocalDateTimeFromBinaryLong(cumulateBuffer)
-                            .withOffsetSameInstant(this.adjutant.clientOffset())
-                            .toLocalDateTime();
-                } else {
-                    value = parseLocalDateTimeFromBinaryDouble(cumulateBuffer)
-                            .withOffsetSameInstant(this.adjutant.clientOffset())
-                            .toLocalDateTime();
-                }
+                value = new byte[0]; //TODO fix
             }
             break;
             default: {
@@ -405,6 +412,25 @@ final class DefaultResultSetReader implements ResultSetReader {
             }
         }
         return BitSet.valueOf(bytes);
+    }
+
+    /**
+     * @see #parseColumnFromText(String, PgColumnMeta)
+     */
+    private TemporalAmount parseTemporalAmountFromText(final String textValue, final PgColumnMeta meta) {
+        final TemporalAmount amount;
+        switch (this.adjutant.server().intervalStyle()) {
+            case iso_8601: {
+                amount = PgTimes.parseIsoInterval(textValue);
+            }
+            break;
+            case postgres:
+            case sql_standard:
+            case postgres_verbose:
+            default:
+                throw new IllegalArgumentException(String.format("Cannot parse interval,ColumnMata[%s]", meta));
+        }
+        return amount;
     }
 
     private BigDecimal parseBinaryDecimal(final ByteBuf cumulateBuffer, final int valueLength, final PgColumnMeta meta) {

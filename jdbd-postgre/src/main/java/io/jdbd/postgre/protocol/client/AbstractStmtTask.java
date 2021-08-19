@@ -1,13 +1,16 @@
 package io.jdbd.postgre.protocol.client;
 
 import io.jdbd.postgre.PgJdbdException;
+import io.jdbd.postgre.util.PgArrays;
 import io.jdbd.vendor.result.FluxResultSink;
 import io.netty.buffer.ByteBuf;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.nio.charset.Charset;
+import java.util.Set;
 import java.util.StringTokenizer;
+import java.util.function.Supplier;
 
 /**
  * <p>
@@ -21,6 +24,8 @@ import java.util.StringTokenizer;
 abstract class AbstractStmtTask extends PgTask implements StmtTask {
 
     final Logger log = LoggerFactory.getLogger(getClass());
+
+    private static final Set<String> UPDATE_COMMANDS = PgArrays.asUnmodifiableSet("INSERT", "UPDATE", "DELETE");
 
     final FluxResultSink sink;
 
@@ -47,15 +52,16 @@ abstract class AbstractStmtTask extends PgTask implements StmtTask {
     }
 
     @Override
-    public final boolean readResultStateWithReturning(ByteBuf cumulateBuffer, boolean moreFetch) {
-        return readCommandComplete(cumulateBuffer, true, moreFetch);
+    public final boolean readResultStateWithReturning(ByteBuf cumulateBuffer, boolean moreFetch
+            , Supplier<Integer> resultIndexes) {
+        return readCommandComplete(cumulateBuffer, true, moreFetch, resultIndexes);
     }
 
     /**
      * @return true: read CommandComplete message end , false : more cumulate.
      */
     final boolean readResultStateWithoutReturning(ByteBuf cumulateBuffer) {
-        return readCommandComplete(cumulateBuffer, false, false);
+        return readCommandComplete(cumulateBuffer, false, false, this::getAndIncrementResultIndex);
     }
 
     /**
@@ -86,11 +92,11 @@ abstract class AbstractStmtTask extends PgTask implements StmtTask {
 
     /**
      * @return true: read CommandComplete message end , false : more cumulate.
-     * @see #readResultStateWithReturning(ByteBuf, boolean)
+     * @see #readResultStateWithReturning(ByteBuf, boolean, Supplier)
      * @see #readResultStateWithoutReturning(ByteBuf)
      */
     private boolean readCommandComplete(final ByteBuf cumulateBuffer, final boolean hasReturningColumn
-            , final boolean moreFetch) {
+            , final boolean moreFetch, Supplier<Integer> resultIndexes) {
         final ResultSetStatus status = Messages.getResultSetStatus(cumulateBuffer);
         if (status == ResultSetStatus.MORE_CUMULATE) {
             return false;
@@ -112,15 +118,21 @@ abstract class AbstractStmtTask extends PgTask implements StmtTask {
             case 1:
                 command = tokenizer.nextToken();
                 break;
-            case 2:
+            case 2: {
                 command = tokenizer.nextToken();
-                params.affectedRows = Long.parseLong(tokenizer.nextToken());
-                break;
-            case 3:
+                if (UPDATE_COMMANDS.contains(command.toUpperCase())) {
+                    params.affectedRows = Long.parseLong(tokenizer.nextToken());
+                }
+            }
+            break;
+            case 3: {
                 command = tokenizer.nextToken();
                 params.insertId = Long.parseLong(tokenizer.nextToken());
-                params.affectedRows = Long.parseLong(tokenizer.nextToken());
-                break;
+                if (UPDATE_COMMANDS.contains(command.toUpperCase())) {
+                    params.affectedRows = Long.parseLong(tokenizer.nextToken());
+                }
+            }
+            break;
             default:
                 String m = String.format("Server response CommandComplete command tag[%s] format error."
                         , commandTag);
@@ -135,7 +147,7 @@ abstract class AbstractStmtTask extends PgTask implements StmtTask {
             // next is warning NoticeResponse
             params.noticeMessage = NoticeMessage.read(cumulateBuffer, clientCharset);
         }
-        params.resultIndex = getAndIncrementResultIndex();
+        params.resultIndex = resultIndexes.get();
 
         this.sink.next(PgResultStates.create(params));
         return true;

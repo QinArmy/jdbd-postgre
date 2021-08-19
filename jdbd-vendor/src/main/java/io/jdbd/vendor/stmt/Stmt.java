@@ -4,11 +4,9 @@ import io.jdbd.result.ResultState;
 
 import java.util.function.Consumer;
 
-public interface Stmt {
+public interface Stmt extends StmtOptions {
 
     String getSql();
-
-    int getTimeout();
 
     Consumer<ResultState> getStatusConsumer();
 

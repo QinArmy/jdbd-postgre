@@ -10,22 +10,42 @@ import java.time.ZoneOffset;
 
 interface TaskAdjutant extends ITaskAdjutant {
 
-
+    /**
+     * @return always same instance
+     */
     PostgreHost obtainHost();
 
+    /**
+     * @return maybe different instance
+     */
     long processId();
 
+    /**
+     * @return maybe different instance
+     */
     int serverSecretKey();
 
+    /**
+     * @return maybe different instance
+     */
     Charset clientCharset();
 
     @Deprecated
     ZoneOffset clientOffset();
 
+    /**
+     * @return maybe different instance
+     */
     PgParser sqlParser();
 
+    /**
+     * @return maybe different instance
+     */
     TxStatus txStatus();
 
+    /**
+     * @return maybe different instance
+     */
     Server server();
 
 

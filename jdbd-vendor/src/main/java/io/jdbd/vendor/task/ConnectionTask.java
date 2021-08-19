@@ -20,7 +20,7 @@ public interface ConnectionTask {
      * <p>
      * This will invoke :
      *     <ul>
-     *         <li>after {@link CommunicationTask#decodePackets(ByteBuf, Consumer)},if return value is {@code true}</li>
+     *         <li>after {@link CommunicationTask#decodeMessage(ByteBuf, Consumer)},if return value is {@code true}</li>
      *         <li>after send packet failure</li>
      *     </ul>
      * </p>

@@ -34,17 +34,17 @@ final class ClientProtocolImpl implements ClientProtocol {
     }
 
     @Override
-    public final Mono<ResultState> staticUpdate(Stmt stmt) {
+    public final Mono<ResultState> update(Stmt stmt) {
         return SimpleQueryTask.update(stmt, this.adjutant);
     }
 
     @Override
-    public final Flux<ResultRow> staticQuery(Stmt stmt) {
+    public final Flux<ResultRow> query(Stmt stmt) {
         return SimpleQueryTask.query(stmt, this.adjutant);
     }
 
     @Override
-    public final Flux<ResultState> staticBatchUpdate(GroupStmt stmt) {
+    public final Flux<ResultState> batchUpdate(GroupStmt stmt) {
         return SimpleQueryTask.batchUpdate(stmt, this.adjutant);
     }
 
@@ -94,7 +94,7 @@ final class ClientProtocolImpl implements ClientProtocol {
     }
 
     @Override
-    public final Mono<Void> reset() {
+    public final Mono<ClientProtocol> reset() {
         return Mono.empty();
     }
 

@@ -388,6 +388,11 @@ final class SimpleQueryTask extends AbstractStmtTask {
         return null;
     }
 
+    @Override
+    protected final boolean skipPacketsOnError(ByteBuf cumulateBuffer, Consumer<Object> serverStatusConsumer) {
+        cumulateBuffer.readerIndex(cumulateBuffer.writerIndex());
+        return true;
+    }
 
     /**
      * @return true: task end.

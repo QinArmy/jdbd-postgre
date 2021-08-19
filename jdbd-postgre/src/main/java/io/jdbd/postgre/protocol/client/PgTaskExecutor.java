@@ -74,6 +74,9 @@ final class PgTaskExecutor extends CommunicationTaskExecutor<TaskAdjutant> {
             adjutant.updateServerParameterStatus(statusMap);
         } else if (serverStatus instanceof TxStatus) {
             adjutant.updateTxStatus((TxStatus) serverStatus);
+        } else {
+            String m = String.format("Unknown server status type[%s].", serverStatus.getClass().getName());
+            throw new IllegalArgumentException(m);
         }
 
     }
@@ -264,6 +267,14 @@ final class PgTaskExecutor extends CommunicationTaskExecutor<TaskAdjutant> {
             return this.zoneOffset;
         }
 
+        @Override
+        public final IntervalStyle intervalStyle() {
+            try {
+                return IntervalStyle.valueOf(this.paramStatusMap.get(ServerParameter.IntervalStyle.name()));
+            } catch (IllegalArgumentException e) {
+                throw new IllegalStateException(e.getMessage(), e);
+            }
+        }
 
     }
 
