@@ -2,9 +2,9 @@ package io.jdbd.vendor.util;
 
 import org.qinarmy.util.StreamUtils;
 
-public abstract class JdbdStreamUtils extends StreamUtils {
+public abstract class JdbdStreams extends StreamUtils {
 
-    protected JdbdStreamUtils() {
+    protected JdbdStreams() {
         throw new UnsupportedOperationException();
     }
 

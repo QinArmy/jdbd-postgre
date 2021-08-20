@@ -473,8 +473,7 @@ final class SimpleQueryTask extends AbstractStmtTask {
                 break;
                 case Messages.N: {// NoticeResponse message
                     NoticeMessage noticeMessage = NoticeMessage.read(cumulateBuffer, clientCharset);
-                    serverStatusConsumer.accept(noticeMessage);
-                    //TODO validate here
+                    log.debug("Receive NoticeMessage that don't follow CommandComplete. message:\n{}", noticeMessage);
                     continueRead = Messages.hasOneMessage(cumulateBuffer);
                 }
                 break;

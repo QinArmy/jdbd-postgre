@@ -8,7 +8,7 @@ import io.jdbd.mysql.protocol.conf.PropertyKey;
 import io.jdbd.mysql.util.MySQLStringUtils;
 import io.jdbd.vendor.conf.HostInfo;
 import io.jdbd.vendor.conf.Properties;
-import io.jdbd.vendor.util.JdbdStreamUtils;
+import io.jdbd.vendor.util.JdbdStreams;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import org.qinarmy.util.security.KeyPairType;
@@ -221,7 +221,7 @@ public class Sha256PasswordPlugin implements AuthenticationPlugin {
             String serverRSAPublicKeyPath = hostInfo.getProperties().getProperty(PropertyKey.serverRSAPublicKeyFile);
             String publicKeyString = null;
             if (serverRSAPublicKeyPath != null) {
-                publicKeyString = JdbdStreamUtils.readAsString(Paths.get(serverRSAPublicKeyPath));
+                publicKeyString = JdbdStreams.readAsString(Paths.get(serverRSAPublicKeyPath));
             }
             return publicKeyString;
         } catch (Throwable e) {

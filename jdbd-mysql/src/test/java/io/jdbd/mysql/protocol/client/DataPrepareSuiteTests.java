@@ -9,7 +9,7 @@ import io.jdbd.mysql.protocol.conf.PropertyKey;
 import io.jdbd.mysql.stmt.Stmts;
 import io.jdbd.mysql.type.City;
 import io.jdbd.mysql.type.TrueOrFalse;
-import io.jdbd.mysql.util.MySQLStreamUtils;
+import io.jdbd.mysql.util.MySQLStreams;
 import io.jdbd.result.ResultRow;
 import io.jdbd.result.ResultRowMeta;
 import io.jdbd.result.ResultState;
@@ -70,7 +70,7 @@ public class DataPrepareSuiteTests extends AbstractConnectionBasedSuiteTests {
         final Path path = Paths.get(ClientTestUtils.getTestResourcesPath().toString(), "script/ddl/comQueryTask.sql");
 
         List<String> commandList = new ArrayList<>(2);
-        commandList.add(MySQLStreamUtils.readAsString(path));
+        commandList.add(MySQLStreams.readAsString(path));
         commandList.add("TRUNCATE mysql_types");
 
         LOG.info("start create mysql_types table.");

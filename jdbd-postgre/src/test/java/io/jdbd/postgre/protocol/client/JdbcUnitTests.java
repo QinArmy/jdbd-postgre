@@ -30,17 +30,14 @@ public class JdbcUnitTests {
         try (Connection conn = DriverManager.getConnection(url, createProperties())) {
             try (Statement stmt = conn.createStatement()) {
                 String sql;
-                sql = "SET IntervalStyle = 'postgres'";
-                LOG.info("test success {}", stmt.executeUpdate(sql));
-                sql = "SELECT t.id AS id,t.create_time AS createTime FROM my_types AS t WHERE t.id = 1";
-                LOG.info("test success {}", stmt.execute(sql));
-                sql = "SHOW SEARCH_PATH ";
-                try (ResultSet resultSet = stmt.executeQuery(sql)) {
+                sql = "INSERT INTO my_types(my_xml,my_xml_array,my_xml_array_2) VALUES(XMLPARSE(DOCUMENT '<?xml version=\"1.0\"?><book></book>'), '{\"<book></book>\"}', '{{\"<book></book>\"}}') ";
+                int rows = stmt.executeUpdate(sql);
+                LOG.info("insert rows:{}", rows);
+                try (ResultSet resultSet = stmt.getGeneratedKeys()) {
                     while (resultSet.next()) {
-                        LOG.info("{}", resultSet.getString(1));
+                        LOG.info("insert id {}", resultSet.getLong(1));
                     }
                 }
-
 
             }
         }

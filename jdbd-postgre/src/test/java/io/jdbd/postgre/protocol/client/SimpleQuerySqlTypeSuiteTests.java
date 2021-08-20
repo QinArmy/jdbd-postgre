@@ -17,7 +17,7 @@ import java.util.function.BiFunction;
  *
  * @see SimpleQueryTask
  */
-@Test(groups = {Group.SIMPLE_QUERY_TASK}, dependsOnGroups = {Group.URL, Group.PARSER, Group.UTILS, Group.TASK_TEST_ADVICE})
+@Test(groups = {Group.SIMPLE_QUERY_TASK}, dependsOnGroups = {Group.URL, Group.PARSER, Group.UTILS, Group.SESSION_BUILDER, Group.TASK_TEST_ADVICE, Group.SIMPLE_QUERY_TASK})
 public class SimpleQuerySqlTypeSuiteTests extends AbstractStmtTaskTests {
 
 

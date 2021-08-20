@@ -7,6 +7,9 @@
             <class name="io.jdbd.postgre.ServerVersionSuiteTests"/>
             <class name="io.jdbd.postgre.syntax.PgParserSuiteTests"/>
 
+            <class name="io.jdbd.postgre.protocol.client.PgConnectionTaskSuiteTests"/>
+            <class name="io.jdbd.postgre.protocol.client.TaskTestAdvice"/>
+            <class name="io.jdbd.postgre.protocol.client.SimpleQueryTaskSuiteTests"/>
             <class name="io.jdbd.postgre.protocol.client.SimpleQuerySqlTypeSuiteTests"/>
 
             <class name="io.jdbd.postgre.type.PgGeometriesUnitTests"/>

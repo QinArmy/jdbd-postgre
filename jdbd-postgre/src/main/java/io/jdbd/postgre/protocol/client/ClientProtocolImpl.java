@@ -95,7 +95,8 @@ final class ClientProtocolImpl implements ClientProtocol {
 
     @Override
     public final Mono<ClientProtocol> reset() {
-        return Mono.empty();
+        //TODO FIX me
+        return Mono.just(this);
     }
 
     @Override

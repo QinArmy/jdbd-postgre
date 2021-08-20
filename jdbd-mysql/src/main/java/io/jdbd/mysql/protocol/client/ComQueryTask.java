@@ -9,7 +9,7 @@ import io.jdbd.mysql.stmt.BindableStmt;
 import io.jdbd.mysql.stmt.Stmts;
 import io.jdbd.mysql.util.MySQLCollections;
 import io.jdbd.mysql.util.MySQLExceptions;
-import io.jdbd.mysql.util.MySQLStreamUtils;
+import io.jdbd.mysql.util.MySQLStreams;
 import io.jdbd.result.ResultRow;
 import io.jdbd.result.ResultState;
 import io.jdbd.result.SingleResult;
@@ -1153,7 +1153,7 @@ final class ComQueryTask extends MySQLCommandTask {
 
         try (FileChannel channel = FileChannel.open(localPath, StandardOpenOption.READ)) {
             //1. firstly obtain file encoding
-            final Charset fileEncoding = MySQLStreamUtils.fileEncodingOrUtf8();
+            final Charset fileEncoding = MySQLStreams.fileEncodingOrUtf8();
             final Charset clientCharset = this.adjutant.obtainCharsetClient();
 
             // 2. obtain maxPayload
