@@ -11,6 +11,7 @@ import io.jdbd.vendor.result.ResultSink;
 import io.jdbd.vendor.type.LongBinaries;
 import io.jdbd.vendor.type.LongStrings;
 import io.jdbd.vendor.util.JdbdBuffers;
+import io.jdbd.vendor.util.JdbdTimes;
 import io.netty.buffer.ByteBuf;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -247,23 +248,26 @@ final class DefaultResultSetReader implements ResultSetReader {
             case PgConstant.TYPE_TIME: {
                 // @see PgConnectionTask
                 // startStartup Message set to default ISO
-                value = LocalTime.parse(textValue, PgTimes.ISO_LOCAL_TIME_FORMATTER);
+                value = LocalTime.parse(textValue, JdbdTimes.ISO_LOCAL_TIME_FORMATTER);
             }
             break;
             case PgConstant.TYPE_TIMESTAMPTZ: {
                 // @see PgConnectionTask
                 // startStartup Message set to default ISO
-                value = OffsetDateTime.parse(textValue, PgTimes.ISO_OFFSET_DATETIME__FORMATTER);
+
+                value = PgTimes.parseIsoOffsetDateTime(textValue);
             }
             break;
             case PgConstant.TYPE_TIMETZ: {
                 // @see PgConnectionTask
                 // startStartup Message set to default ISO
-                value = OffsetTime.parse(textValue, PgTimes.ISO_OFFSET_TIME_FORMATTER);
+                value = PgTimes.parseIsoOffsetTime(textValue);
             }
             break;
             case PgConstant.TYPE_CHAR:
+            case PgConstant.TYPE_BPCHAR:
             case PgConstant.TYPE_VARCHAR:
+            case PgConstant.TYPE_TEXT:
             case PgConstant.TYPE_JSON:
             case PgConstant.TYPE_JSONB:
             case PgConstant.TYPE_MONEY:// money format dependent on locale,so can't(also don't need) convert.
@@ -275,6 +279,9 @@ final class DefaultResultSetReader implements ResultSetReader {
             case PgConstant.TYPE_LINE:
             case PgConstant.TYPE_LSEG:
             case PgConstant.TYPE_BOX:
+            case PgConstant.TYPE_TSVECTOR:
+            case PgConstant.TYPE_TSQUERY:
+            case PgConstant.TYPE_INT4_RANGE:
             case PgConstant.TYPE_XML: {
                 value = textValue;
             }
@@ -319,9 +326,58 @@ final class DefaultResultSetReader implements ResultSetReader {
                 value = PgGeometries.circle(textValue);
             }
             break;
+            case PgConstant.TYPE_INT2_ARRAY:
+            case PgConstant.TYPE_INT4_ARRAY:
+            case PgConstant.TYPE_INT8_ARRAY:
+            case PgConstant.TYPE_TEXT_ARRAY:
+            case PgConstant.TYPE_NUMERIC_ARRAY:
+            case PgConstant.TYPE_FLOAT4_ARRAY:
+            case PgConstant.TYPE_FLOAT8_ARRAY:
+            case PgConstant.TYPE_BOOLEAN_ARRAY:
+            case PgConstant.TYPE_DATE_ARRAY:
+            case PgConstant.TYPE_TIME_ARRAY:
+            case PgConstant.TYPE_TIMETZ_ARRAY:
+            case PgConstant.TYPE_TIMESTAMP_ARRAY:
+            case PgConstant.TYPE_TIMESTAMPTZ_ARRAY:
+            case PgConstant.TYPE_BYTEA_ARRAY:
+            case PgConstant.TYPE_VARCHAR_ARRAY:
+            case PgConstant.TYPE_OID_ARRAY:
+            case PgConstant.TYPE_BPCHAR_ARRAY:
+            case PgConstant.TYPE_MONEY_ARRAY:
+            case PgConstant.TYPE_NAME_ARRAY:
+            case PgConstant.TYPE_BIT_ARRAY:
+            case PgConstant.TYPE_INTERVAL_ARRAY:
+            case PgConstant.TYPE_CHAR_ARRAY:
+            case PgConstant.TYPE_VARBIT_ARRAY:
+            case PgConstant.TYPE_UUID_ARRAY:
+            case PgConstant.TYPE_XML_ARRAY:
+            case PgConstant.TYPE_POINT_ARRAY:
+            case PgConstant.TYPE_LINE_ARRAY:
+            case PgConstant.TYPE_LINE_LSEG_ARRAY:
+            case PgConstant.TYPE_JSONB_ARRAY:
+            case PgConstant.TYPE_JSON_ARRAY:
+            case PgConstant.TYPE_BOX_ARRAY:
+            case PgConstant.TYPE_PATH_ARRAY:
+            case PgConstant.TYPE_POLYGON_ARRAY:
+            case PgConstant.TYPE_CIRCLES_ARRAY:
+            case PgConstant.TYPE_CIDR_ARRAY:
+            case PgConstant.TYPE_INET_ARRAY:
+            case PgConstant.TYPE_MACADDR_ARRAY:
+            case PgConstant.TYPE_MACADDR8_ARRAY:
+            case PgConstant.TYPE_TSVECTOR_ARRAY:
+            case PgConstant.TYPE_INT4_RANGE_ARRAY:
+            case PgConstant.TYPE_REF_CURSOR_ARRAY:
+            case PgConstant.TYPE_TSQUERY_ARRAY: {
+                // LOG.debug("array");
+                value = textValue;
+            }
+            break;
             default: {
                 // unknown type
-                LOG.debug("Unknown postgre data type, Meta[{}].", meta);
+                if (!meta.columnLabel.endsWith("array_2")) {
+                    LOG.debug("Unknown postgre data type, Meta[{}].", meta);
+                }
+
                 value = textValue;
             }
         }
@@ -513,7 +569,6 @@ final class DefaultResultSetReader implements ResultSetReader {
         String m = String.format("Server response binary value[%s] error for PgColumnMeta[%s].", bytes, meta);
         return new JdbdSQLException(new SQLException(m));
     }
-
 
 
     enum Phase {

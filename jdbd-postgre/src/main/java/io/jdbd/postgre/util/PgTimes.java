@@ -3,47 +3,13 @@ package io.jdbd.postgre.util;
 import io.jdbd.type.IntervalPair;
 import io.jdbd.vendor.util.JdbdTimes;
 
-import java.time.Duration;
-import java.time.Period;
-import java.time.format.DateTimeFormatter;
-import java.time.format.DateTimeFormatterBuilder;
+import java.time.*;
 import java.time.format.DateTimeParseException;
 import java.time.temporal.TemporalAmount;
-import java.util.Locale;
-
-import static java.time.temporal.ChronoField.*;
 
 public abstract class PgTimes extends JdbdTimes {
 
 
-    public static final DateTimeFormatter ISO_LOCAL_TIME_FORMATTER = new DateTimeFormatterBuilder()
-            .appendValue(HOUR_OF_DAY, 2)
-            .appendLiteral(':')
-            .appendValue(MINUTE_OF_HOUR, 2)
-            .optionalStart()
-            .appendLiteral(':')
-            .appendValue(SECOND_OF_MINUTE, 2)
-
-            .optionalStart()
-            .appendFraction(MICRO_OF_SECOND, 0, 6, true)
-            .optionalEnd()
-            .toFormatter(Locale.ENGLISH);
-
-    public static final DateTimeFormatter ISO_LOCAL_DATETIME_FORMATTER = new DateTimeFormatterBuilder()
-            .append(DateTimeFormatter.ISO_LOCAL_DATE)
-            .appendLiteral(' ')
-            .append(ISO_LOCAL_TIME_FORMATTER)
-            .toFormatter(Locale.ENGLISH);
-
-    public static final DateTimeFormatter ISO_OFFSET_DATETIME__FORMATTER = new DateTimeFormatterBuilder()
-            .append(ISO_LOCAL_DATETIME_FORMATTER)
-            .appendOffset("+HH:MM", "+00:00")
-            .toFormatter(Locale.ENGLISH);
-
-    public static final DateTimeFormatter ISO_OFFSET_TIME_FORMATTER = new DateTimeFormatterBuilder()
-            .append(ISO_LOCAL_TIME_FORMATTER)
-            .appendOffset("+HH:MM", "+00:00")
-            .toFormatter(Locale.ENGLISH);
 
     /**
      * Converts the given postgresql seconds to java seconds. Reverse engineered by inserting varying
@@ -115,6 +81,45 @@ public abstract class PgTimes extends JdbdTimes {
             throw new DateTimeParseException(m, textValue, timeIndex);
         }
         return amount;
+    }
+
+
+    public static OffsetDateTime parseIsoOffsetDateTime(String textValue) throws DateTimeException {
+        // postgre iso zone offset output is too too too too too too too too too too too stupid.
+        // +HH or +HH:MM or +HH:MM:SS
+
+        int index = textValue.lastIndexOf('+');
+        if (index < 0) {
+            index = textValue.lastIndexOf('-');
+        }
+        if (index < 19) {
+            String m = String.format("Not found zone offset index in '%s'", textValue);
+            throw new DateTimeParseException(m, textValue, Math.max(index, 0));
+        }
+        final LocalDateTime dateTime;
+        final ZoneOffset offset;
+        dateTime = LocalDateTime.parse(textValue.substring(0, index), ISO_LOCAL_DATETIME_FORMATTER);
+        offset = ZoneOffset.of(textValue.substring(index));
+        return OffsetDateTime.of(dateTime, offset);
+    }
+
+    public static OffsetTime parseIsoOffsetTime(String textValue) throws DateTimeException {
+        // postgre iso zone offset output is too too too too too too too too too too too stupid.
+        // +HH or +HH:MM or +HH:MM:SS
+        int index = textValue.lastIndexOf('+');
+        if (index < 0) {
+            index = textValue.lastIndexOf('-');
+            if (index < 0) {
+                String m = String.format("Not found zone offset index in '%s'", textValue);
+                throw new DateTimeParseException(m, textValue, 0);
+            }
+        }
+
+        final LocalTime time;
+        final ZoneOffset offset;
+        time = LocalTime.parse(textValue.substring(0, index), ISO_LOCAL_TIME_FORMATTER);
+        offset = ZoneOffset.of(textValue.substring(index));
+        return OffsetTime.of(time, offset);
     }
 
 

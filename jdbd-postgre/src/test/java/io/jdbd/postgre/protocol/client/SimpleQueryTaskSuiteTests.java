@@ -32,6 +32,9 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
 
     private static final Logger LOG = LoggerFactory.getLogger(SimpleQueryTaskSuiteTests.class);
 
+    private static final long startId = 0;
+
+
     /**
      * @see SimpleQueryTask#update(Stmt, TaskAdjutant)
      */
@@ -41,7 +44,7 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
         protocol = obtainProtocolWithSync();
         final TaskAdjutant adjutant = mapToTaskAdjutant(protocol);
 
-        final String sql = "UPDATE my_types as t SET my_boolean = true WHERE t.id = 1";
+        final String sql = "UPDATE my_types as t SET my_boolean = true WHERE t.id = " + (startId + 1);
         ResultState state;
         state = SimpleQueryTask.update(PgStmts.stmt(sql), adjutant)
                 .concatWith(releaseConnection(protocol))
@@ -68,8 +71,8 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
         final ClientProtocol protocol;
         protocol = obtainProtocolWithSync();
         final TaskAdjutant adjutant = mapToTaskAdjutant(protocol);
-
-        final String sql = "SELECT t.* FROM my_types as t WHERE t.id = 1";
+        final long id = (startId + 2);
+        final String sql = "SELECT t.* FROM my_types as t WHERE t.id = " + id;
 
         final AtomicReference<ResultState> stateHolder = new AtomicReference<>(null);
         final ResultRow row;
@@ -81,8 +84,8 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
 
         final ResultRowMeta rowMeta = row.getRowMeta();
         assertEquals(rowMeta.getSQLType("id"), PgType.BIGINT, "id sql type");
-        assertEquals(row.get("id"), 1L, "id");
-        assertNotNull(row.get("create_time"), "create_time");
+        assertEquals(row.get("id"), id, "id");
+        assertNotNull(row.get("my_zoned_timestamp"), "my_zoned_timestamp");
 
         final ResultState state = stateHolder.get();
 
@@ -106,8 +109,8 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
         final TaskAdjutant adjutant = mapToTaskAdjutant(protocol);
         List<String> sqlList = new ArrayList<>(2);
 
-        sqlList.add("UPDATE my_types as t SET my_boolean = true WHERE t.id = 1");
-        sqlList.add("UPDATE my_types as t SET my_boolean = false WHERE t.id = 2");
+        sqlList.add("UPDATE my_types as t SET my_boolean = true WHERE t.id = " + (startId + 3));
+        sqlList.add("UPDATE my_types as t SET my_boolean = false WHERE t.id = " + (startId + 4));
 
         final List<ResultState> stateList;
         stateList = SimpleQueryTask.batchUpdate(PgStmts.group(sqlList), adjutant)

@@ -22,7 +22,7 @@ public interface PgConstant {
     int TYPE_FLOAT8_ARRAY = 1022;
     int TYPE_BOOLEAN = 16;
 
-    int TYPE_BOOL_ARRAY = 1000;
+    int TYPE_BOOLEAN_ARRAY = 1000;
     int TYPE_DATE = 1082;
     int TYPE_DATE_ARRAY = 1182;
     int TYPE_TIME = 1083;
@@ -43,7 +43,7 @@ public interface PgConstant {
     int TYPE_OID = 26;
 
     int TYPE_OID_ARRAY = 1028;
-    int TYPE_BPCHAR = 1042;
+    int TYPE_BPCHAR = 1042;// “blank-padded char”, the internal name of the character data type
     int TYPE_BPCHAR_ARRAY = 1014;
     int TYPE_MONEY = 790;
 
@@ -89,6 +89,26 @@ public interface PgConstant {
 
     int TYPE_INET = 869;
     int TYPE_CIDR = 650;
+    int TYPE_TSVECTOR = 3614;
+    int TYPE_TSVECTOR_ARRAY = 3643;
 
+    int TYPE_TSQUERY = 3615;
+    int TYPE_TSQUERY_ARRAY = 3645;
+    int TYPE_INT4_RANGE = 3904;
+    int TYPE_INT4_RANGE_ARRAY = 3905;
+
+    int TYPE_LINE_ARRAY = 629;
+    int TYPE_LINE_LSEG_ARRAY = 1018;
+    int TYPE_BOX_ARRAY = 1020;
+
+    int TYPE_PATH_ARRAY = 1019;
+
+    int TYPE_POLYGON_ARRAY = 1027;
+    int TYPE_CIRCLES_ARRAY = 719;
+    int TYPE_CIDR_ARRAY = 651;
+    int TYPE_INET_ARRAY = 1041;
+
+    int TYPE_MACADDR_ARRAY = 1040;
+    int TYPE_MACADDR8_ARRAY = 775;
 
 }

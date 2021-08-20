@@ -14,6 +14,7 @@ import io.jdbd.vendor.stmt.Stmt;
 import io.jdbd.vendor.syntax.SQLParser;
 import io.jdbd.vendor.util.JdbdBuffers;
 import io.jdbd.vendor.util.JdbdExceptions;
+import io.jdbd.vendor.util.JdbdTimes;
 import io.netty.buffer.ByteBuf;
 import org.reactivestreams.Publisher;
 import org.slf4j.Logger;
@@ -213,8 +214,8 @@ final class QueryCommandWriter {
             case INTEGER:
             case BIGINT:
             case DECIMAL:
-            case FLOAT4:
-            case FLOAT8:
+            case REAL:
+            case DOUBLE:
             case OID: {
                 bindNonNullToNumber(stmtIndex, bindValue, message);
             }
@@ -230,7 +231,6 @@ final class QueryCommandWriter {
             case VARCHAR:
             case MONEY:
             case TEXT:
-            case BPCHAR:
             case JSON:
             case JSONB:
             case CHAR:
@@ -283,7 +283,7 @@ final class QueryCommandWriter {
             case BIT_ARRAY:
             case OID_ARRAY:
             case XML_ARRAY:
-            case BOOL_ARRAY:
+            case BOOLEAN_ARRAY:
             case CHAR_ARRAY:
             case DATE_ARRAY:
             case JSON_ARRAY:
@@ -293,10 +293,8 @@ final class QueryCommandWriter {
             case JSONB_ARRAY:
             case MONEY_ARRAY:
             case POINT_ARRAY:
-            case BIGINT_ARRAY:
-            case BPCHAR_ARRAY:
-            case FLOAT4_ARRAY:
-            case FLOAT8_ARRAY:
+            case REAL_ARRAY:
+            case DOUBLE_ARRAY:
             case TIMETZ_ARRAY:
             case VARBIT_ARRAY:
             case DECIMAL_ARRAY:
@@ -502,11 +500,11 @@ final class QueryCommandWriter {
         final String timeText;
 
         if (nonNull instanceof LocalTime) {
-            timeText = ((LocalTime) nonNull).format(PgTimes.ISO_LOCAL_TIME_FORMATTER);
+            timeText = ((LocalTime) nonNull).format(JdbdTimes.ISO_LOCAL_TIME_FORMATTER);
         } else if (nonNull instanceof String) {
             final String textValue = (String) nonNull;
             try {
-                LocalTime.parse(textValue, PgTimes.ISO_LOCAL_TIME_FORMATTER);
+                LocalTime.parse(textValue, JdbdTimes.ISO_LOCAL_TIME_FORMATTER);
             } catch (DateTimeException e) {
                 throw PgExceptions.createNotSupportBindTypeError(stmtIndex, bindValue);
             }
@@ -556,11 +554,11 @@ final class QueryCommandWriter {
         final String dateTimeText;
         if (nonNull instanceof OffsetDateTime
                 || nonNull instanceof ZonedDateTime) {
-            dateTimeText = PgTimes.ISO_OFFSET_DATETIME__FORMATTER.format((TemporalAccessor) nonNull);
+            dateTimeText = PgTimes.ISO_OFFSET_DATETIME_FORMATTER.format((TemporalAccessor) nonNull);
         } else if (nonNull instanceof String) {
             final String textValue = (String) nonNull;
             try {
-                OffsetDateTime.parse(textValue, PgTimes.ISO_OFFSET_DATETIME__FORMATTER);
+                OffsetDateTime.parse(textValue, PgTimes.ISO_OFFSET_DATETIME_FORMATTER);
             } catch (DateTimeException e) {
                 throw PgExceptions.createNotSupportBindTypeError(stmtIndex, bindValue);
             }

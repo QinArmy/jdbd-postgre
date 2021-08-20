@@ -48,6 +48,29 @@ final class PgColumnMeta {
         this.pgType = pgType;
     }
 
+    @Override
+    public final String toString() {
+        return new StringBuilder(PgColumnMeta.class.getSimpleName())
+                .append("{")
+                .append("\ncolumnLabel=")
+                .append(this.columnLabel)
+                .append("\npgType=")
+                .append(this.pgType)
+                .append("\ncolumnTypeId=")
+                .append(this.columnTypeOid)
+                .append("\ntableOid=")
+                .append(this.tableOid)
+                .append("\ncolumnNum=")
+                .append(this.columnAttrNum)
+                .append("\ncolumnTypeSize=")
+                .append(this.columnTypeSize)
+                .append("\ncolumnModifier=")
+                .append(this.columnModifier)
+                .append("\ntextFormat=")
+                .append(this.textFormat)
+                .append("\n}")
+                .toString();
+    }
 
     final int getTimePrecision() {
         int precision;

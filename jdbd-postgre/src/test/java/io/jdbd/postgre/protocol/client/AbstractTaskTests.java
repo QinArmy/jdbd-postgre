@@ -15,7 +15,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 
-class AbstractTaskTests {
+abstract class AbstractTaskTests {
 
 
     static final Queue<ClientProtocol> PROTOCOL_QUEUE = new LinkedBlockingQueue<>();
