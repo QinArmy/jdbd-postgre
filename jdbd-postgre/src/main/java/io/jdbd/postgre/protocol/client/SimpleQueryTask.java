@@ -86,7 +86,7 @@ final class SimpleQueryTask extends AbstractStmtTask {
      * This method is underlying api of {@link StaticStatement#executeAsMulti(java.util.List)} method.
      * </p>
      */
-    static MultiResult staticAsMulti(GroupStmt stmt, TaskAdjutant adjutant) {
+    static MultiResult asMulti(GroupStmt stmt, TaskAdjutant adjutant) {
         return MultiResults.asMulti(adjutant, sink -> {
             try {
                 SimpleQueryTask task = new SimpleQueryTask(stmt, sink, adjutant);
@@ -102,7 +102,7 @@ final class SimpleQueryTask extends AbstractStmtTask {
      * This method is underlying api of {@link StaticStatement#executeAsFlux(java.util.List)} method.
      * </p>
      */
-    static Flux<Result> staticAsFlux(GroupStmt stmt, TaskAdjutant adjutant) {
+    static Flux<Result> asFlux(GroupStmt stmt, TaskAdjutant adjutant) {
         return MultiResults.asFlux(sink -> {
             try {
                 SimpleQueryTask task = new SimpleQueryTask(stmt, sink, adjutant);
@@ -263,8 +263,8 @@ final class SimpleQueryTask extends AbstractStmtTask {
 
     /**
      * @see #batchUpdate(GroupStmt, TaskAdjutant)
-     * @see #staticAsMulti(GroupStmt, TaskAdjutant)
-     * @see #staticAsFlux(GroupStmt, TaskAdjutant)
+     * @see #asMulti(GroupStmt, TaskAdjutant)
+     * @see #asFlux(GroupStmt, TaskAdjutant)
      */
     private SimpleQueryTask(GroupStmt stmt, FluxResultSink sink, TaskAdjutant adjutant)
             throws Throwable {

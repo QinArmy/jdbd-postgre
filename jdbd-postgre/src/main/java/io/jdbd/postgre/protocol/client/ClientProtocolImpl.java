@@ -50,12 +50,12 @@ final class ClientProtocolImpl implements ClientProtocol {
 
     @Override
     public final MultiResult staticAsMulti(GroupStmt stmt) {
-        return SimpleQueryTask.staticAsMulti(stmt, this.adjutant);
+        return SimpleQueryTask.asMulti(stmt, this.adjutant);
     }
 
     @Override
     public final Flux<Result> staticAsFlux(GroupStmt stmt) {
-        return SimpleQueryTask.staticAsFlux(stmt, this.adjutant);
+        return SimpleQueryTask.asFlux(stmt, this.adjutant);
     }
 
     @Override

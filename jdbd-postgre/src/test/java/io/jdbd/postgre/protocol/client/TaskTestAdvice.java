@@ -707,6 +707,47 @@ public class TaskTestAdvice extends AbstractTaskTests {
         assertTrue(meta.getSQLType(index).isCaseSensitive(), "caseSensitive");
 
 
+        index = meta.getColumnIndex("my_int4_range_array");
+        assertNotNull(row.get(index), "my_int4_range_array");
+        assertEquals(meta.getSQLType(index), PgType.INT4RANGE_ARRAY, "sqlType");
+        assertEquals(meta.getPrecision(index), UNKNOWN_PRECISION, "precision");
+        assertEquals(meta.getScale(index), UNKNOWN_SCALE, "scale");
+        assertFalse(meta.getSQLType(index).isCaseSensitive(), "caseSensitive");
+
+        index = meta.getColumnIndex("my_int8_range_array");
+        assertNotNull(row.get(index), "my_int8_range_array");
+        assertEquals(meta.getSQLType(index), PgType.INT8RANGE_ARRAY, "sqlType");
+        assertEquals(meta.getPrecision(index), UNKNOWN_PRECISION, "precision");
+        assertEquals(meta.getScale(index), UNKNOWN_SCALE, "scale");
+        assertFalse(meta.getSQLType(index).isCaseSensitive(), "caseSensitive");
+
+        index = meta.getColumnIndex("my_numrange_array");
+        assertNotNull(row.get(index), "my_numrange_array");
+        assertEquals(meta.getSQLType(index), PgType.NUMRANGE_ARRAY, "sqlType");
+        assertEquals(meta.getPrecision(index), UNKNOWN_PRECISION, "precision");
+        assertEquals(meta.getScale(index), UNKNOWN_SCALE, "scale");
+        assertFalse(meta.getSQLType(index).isCaseSensitive(), "caseSensitive");
+
+        index = meta.getColumnIndex("my_tsrange_array");
+        assertNotNull(row.get(index), "my_tsrange_array");
+        assertEquals(meta.getSQLType(index), PgType.TSRANGE_ARRAY, "sqlType");
+        assertEquals(meta.getPrecision(index), UNKNOWN_PRECISION, "precision");
+        assertEquals(meta.getScale(index), UNKNOWN_SCALE, "scale");
+        assertFalse(meta.getSQLType(index).isCaseSensitive(), "caseSensitive");
+
+        index = meta.getColumnIndex("my_tstzrange_array");
+        assertNotNull(row.get(index), "my_tstzrange_array");
+        assertEquals(meta.getSQLType(index), PgType.TSTZRANGE_ARRAY, "sqlType");
+        assertEquals(meta.getPrecision(index), UNKNOWN_PRECISION, "precision");
+        assertEquals(meta.getScale(index), UNKNOWN_SCALE, "scale");
+        assertFalse(meta.getSQLType(index).isCaseSensitive(), "caseSensitive");
+
+        index = meta.getColumnIndex("my_daterange_array");
+        assertNotNull(row.get(index), "my_daterange_array");
+        assertEquals(meta.getSQLType(index), PgType.DATERANGE_ARRAY, "sqlType");
+        assertEquals(meta.getPrecision(index), UNKNOWN_PRECISION, "precision");
+        assertEquals(meta.getScale(index), UNKNOWN_SCALE, "scale");
+        assertFalse(meta.getSQLType(index).isCaseSensitive(), "caseSensitive");
     }
 
     private static void assertUnknownFieldTypeMeta(final ResultRowMeta meta, final int index) {

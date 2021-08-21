@@ -24,11 +24,6 @@ public class PgResultRow extends AbstractResultRow<PgRowMeta> {
 
 
     @Override
-    protected int convertToIndex(String columnAlias) {
-        return 0;
-    }
-
-    @Override
     protected UnsupportedConvertingException createNotSupportedException(int indexBasedZero, Class<?> targetClass) {
         return null;
     }
@@ -49,7 +44,8 @@ public class PgResultRow extends AbstractResultRow<PgRowMeta> {
     }
 
     @Override
-    protected TemporalAccessor convertStringToTemporalAccessor(int indexBaseZero, String sourceValue, Class<?> targetClass) throws DateTimeException, UnsupportedConvertingException {
+    protected final TemporalAccessor convertStringToTemporalAccessor(int indexBaseZero, String sourceValue
+            , Class<?> targetClass) throws DateTimeException, UnsupportedConvertingException {
         return null;
     }
 

@@ -11,6 +11,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Queue;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.function.Function;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
@@ -63,6 +64,11 @@ abstract class AbstractTaskTests {
         return protocol.reset()
                 .doAfterTerminate(() -> PROTOCOL_QUEUE.offer(protocol))
                 .then(Mono.empty());
+    }
+
+    static <T> Function<? super Throwable, ? extends Mono<T>> releaseConnectionOnError(ClientProtocol protocol) {
+        return error -> protocol.reset()
+                .then(Mono.error(error));
     }
 
 

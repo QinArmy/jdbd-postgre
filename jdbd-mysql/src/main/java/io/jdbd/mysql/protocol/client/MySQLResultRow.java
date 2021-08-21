@@ -150,11 +150,6 @@ abstract class MySQLResultRow extends AbstractResultRow<MySQLRowMeta> {
     }
 
     @Override
-    protected int convertToIndex(String columnAlias) {
-        return this.rowMeta.convertToIndex(columnAlias);
-    }
-
-    @Override
     protected ZoneOffset obtainZoneOffsetClient() {
         return this.adjutant.obtainZoneOffsetClient();
     }

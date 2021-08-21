@@ -83,7 +83,7 @@ public abstract class AbstractResultRow<R extends ResultRowMeta> implements Resu
     @Override
     public final Object get(final String columnAlias) throws JdbdSQLException {
         try {
-            return this.columnValues[checkIndex(convertToIndex(columnAlias))];
+            return this.columnValues[this.rowMeta.getColumnIndex(columnAlias)];
         } catch (Throwable e) {
             throw new JdbdSQLException(new SQLException(String.format("alias[%s] access error.", columnAlias), e));
         }
@@ -94,7 +94,7 @@ public abstract class AbstractResultRow<R extends ResultRowMeta> implements Resu
     public final <T> T get(final String columnAlias, final Class<T> columnClass)
             throws JdbdSQLException, UnsupportedConvertingException {
         try {
-            return get(convertToIndex(columnAlias), columnClass);
+            return get(this.rowMeta.getColumnIndex(columnAlias), columnClass);
         } catch (Throwable e) {
             throw new JdbdSQLException(new SQLException(String.format("Column alias[%s] access error.", columnAlias), e));
         }
@@ -116,7 +116,7 @@ public abstract class AbstractResultRow<R extends ResultRowMeta> implements Resu
     @Override
     public final <T> Set<T> getSet(String columnAlias, Class<T> elementClass)
             throws JdbdSQLException, UnsupportedConvertingException {
-        return getSet(convertToIndex(columnAlias), elementClass);
+        return getSet(this.rowMeta.getColumnIndex(columnAlias), elementClass);
     }
 
     @Override
@@ -135,7 +135,7 @@ public abstract class AbstractResultRow<R extends ResultRowMeta> implements Resu
     @Override
     public final <T> List<T> getList(String columnAlias, Class<T> elementClass)
             throws JdbdSQLException, UnsupportedConvertingException {
-        return getList(convertToIndex(columnAlias), elementClass);
+        return getList(this.rowMeta.getColumnIndex(columnAlias), elementClass);
     }
 
     @Override
@@ -181,9 +181,6 @@ public abstract class AbstractResultRow<R extends ResultRowMeta> implements Resu
 
 
     /*################################## blow protected template method ##################################*/
-
-
-    protected abstract int convertToIndex(String columnAlias);
 
     protected abstract UnsupportedConvertingException createNotSupportedException(int indexBasedZero
             , Class<?> targetClass);
