@@ -1,6 +1,7 @@
 package io.jdbd.postgre.protocol.client;
 
 import io.jdbd.meta.KeyMode;
+import io.jdbd.postgre.Group;
 import io.jdbd.postgre.PgTestUtils;
 import io.jdbd.postgre.PgType;
 import io.jdbd.postgre.stmt.PgStmts;
@@ -21,7 +22,7 @@ import java.util.List;
 
 import static org.testng.Assert.*;
 
-//@Test(groups = {Group.TASK_TEST_ADVICE}, dependsOnGroups = {Group.URL, Group.PARSER, Group.UTILS, Group.SESSION_BUILDER})
+@Test(groups = {Group.TASK_TEST_ADVICE}, dependsOnGroups = {Group.URL, Group.PARSER, Group.UTILS, Group.SESSION_BUILDER})
 public class TaskTestAdvice extends AbstractTaskTests {
 
     private static final Logger LOG = LoggerFactory.getLogger(TaskTestAdvice.class);

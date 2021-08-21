@@ -28,6 +28,7 @@ import static org.testng.Assert.*;
  *
  * @see SimpleQueryTask
  */
+//@Test(groups = {Group.SIMPLE_QUERY_TASK}, dependsOnGroups = {Group.URL, Group.PARSER, Group.UTILS, Group.SESSION_BUILDER, Group.TASK_TEST_ADVICE})
 public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
 
     private static final Logger LOG = LoggerFactory.getLogger(SimpleQueryTaskSuiteTests.class);
@@ -143,6 +144,10 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
     }
 
     /**
+     * <p>
+     *
+     * </p>
+     *
      * @see SimpleQueryTask#bindableUpdate(BindableStmt, TaskAdjutant)
      */
     @Test
@@ -151,10 +156,12 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
         protocol = obtainProtocolWithSync();
         final TaskAdjutant adjutant = mapToTaskAdjutant(protocol);
 
-        final String sql = "UPDATE my_types as t SET my_time0 =? WHERE t.id = ?";
+        final long id = 6L;
+
+        final String sql = "UPDATE my_types as t SET my_time =? WHERE t.id = ?";
         final List<BindValue> valueList = new ArrayList<>(2);
         valueList.add(BindValue.create(0, PgType.TIME, LocalTime.now()));
-        valueList.add(BindValue.create(1, PgType.BIGINT, 1L));
+        valueList.add(BindValue.create(1, PgType.BIGINT, id));
 
         final ResultState state;
         state = SimpleQueryTask.bindableUpdate(PgStmts.bindable(sql, valueList), adjutant)

@@ -271,9 +271,16 @@ public enum PgType implements io.jdbd.meta.SQLType {
     }
 
     @Override
-    public String getName() {
-        return null;
+    public final String getName() {
+        final String name;
+        if (this.jdbcType == JDBCType.ARRAY) {
+            name = "[L" + toActualTypeName();
+        } else {
+            name = getNonArrayTypeName();
+        }
+        return name;
     }
+
 
     @Override
     public final String getVendor() {
@@ -283,6 +290,41 @@ public enum PgType implements io.jdbd.meta.SQLType {
     @Override
     public final Integer getVendorTypeNumber() {
         return (int) this.typeOid;
+    }
+
+
+    /**
+     * @see #getName()
+     */
+    private String getNonArrayTypeName() {
+        final String name;
+        switch (this) {
+            case TIMESTAMPTZ:
+                name = "TIMESTAMP WITH TIME ZONE";
+                break;
+            case TIMETZ:
+                name = "TIME WITH TIME ZONE";
+                break;
+            default:
+                name = toActualTypeName();
+        }
+        return name;
+    }
+
+    /**
+     * @see #getNonArrayTypeName()
+     */
+    private String toActualTypeName() {
+        final String name = this.name();
+        final char[] array = name.toCharArray();
+        boolean replace = false;
+        for (int i = 0; i < array.length; i++) {
+            if (array[i] == '_') {
+                array[i] = ' ';
+                replace = true;
+            }
+        }
+        return replace ? new String(array) : name;
     }
 
 
