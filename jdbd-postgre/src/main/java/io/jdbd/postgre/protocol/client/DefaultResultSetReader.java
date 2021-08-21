@@ -281,7 +281,11 @@ final class DefaultResultSetReader implements ResultSetReader {
             case PgConstant.TYPE_BOX:
             case PgConstant.TYPE_TSVECTOR:
             case PgConstant.TYPE_TSQUERY:
-            case PgConstant.TYPE_INT4_RANGE:
+            case PgConstant.TYPE_INT4RANGE:
+            case PgConstant.TYPE_TSRANGE:
+            case PgConstant.TYPE_TSTZRANGE:
+            case PgConstant.TYPE_DATERANGE:
+            case PgConstant.TYPE_INT8RANGE:
             case PgConstant.TYPE_XML: {
                 value = textValue;
             }
@@ -365,8 +369,12 @@ final class DefaultResultSetReader implements ResultSetReader {
             case PgConstant.TYPE_MACADDR_ARRAY:
             case PgConstant.TYPE_MACADDR8_ARRAY:
             case PgConstant.TYPE_TSVECTOR_ARRAY:
-            case PgConstant.TYPE_INT4_RANGE_ARRAY:
             case PgConstant.TYPE_REF_CURSOR_ARRAY:
+            case PgConstant.TYPE_INT4RANGE_ARRAY:
+            case PgConstant.TYPE_TSRANGE_ARRAY:
+            case PgConstant.TYPE_TSTZRANGE_ARRAY:
+            case PgConstant.TYPE_DATERANGE_ARRAY:
+            case PgConstant.TYPE_INT8RANGE_ARRAY:
             case PgConstant.TYPE_TSQUERY_ARRAY: {
                 // LOG.debug("array");
                 value = textValue;

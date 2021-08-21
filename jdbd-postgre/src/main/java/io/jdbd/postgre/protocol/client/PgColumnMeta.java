@@ -1,6 +1,5 @@
 package io.jdbd.postgre.protocol.client;
 
-import io.jdbd.postgre.PgConstant;
 import io.jdbd.postgre.PgJdbdException;
 import io.jdbd.postgre.PgType;
 import io.netty.buffer.ByteBuf;
@@ -9,6 +8,7 @@ import java.nio.charset.Charset;
 
 /**
  * @see <a href="https://www.postgresql.org/docs/current/protocol-message-formats.html">RowDescription</a>
+ * @see <a href="https://www.postgresql.org/docs/current/datatype-datetime.html">Date/Time Types</a>
  */
 final class PgColumnMeta {
 
@@ -72,36 +72,102 @@ final class PgColumnMeta {
                 .toString();
     }
 
-    final int getTimePrecision() {
-        int precision;
-        switch (this.columnTypeOid) {
-            case PgConstant.TYPE_TIME:
-            case PgConstant.TYPE_TIMETZ:
-            case PgConstant.TYPE_TIMESTAMP:
-            case PgConstant.TYPE_TIMESTAMPTZ: {
-                switch (this.columnModifier) {
-                    case -1:
-                        precision = 6;
-                        break;
-                    case 1:
-                        // Bizarrely SELECT '0:0:0.1'::time(1); returns 2 digits.
-                        precision = 2 + 1;
-                        break;
-                    case 0:
-                    case 2:
-                    case 3:
-                    case 4:
-                    case 5:
-                    case 6:
-                        precision = this.columnModifier;
-                        break;
-                    default:
-                        throw createServerResponseError();
-                }
+
+    final int getScale() {
+        final int scale;
+        switch (this.pgType) {
+            case DECIMAL:
+            case DECIMAL_ARRAY: {
+                scale = this.columnModifier == -1 ? 0 : ((this.columnModifier - 4) & 0xFFFF);
+            }
+            break;
+            case TIME:
+            case TIMETZ:
+            case TIMESTAMP:
+            case TIMESTAMPTZ:
+            case TIME_ARRAY:
+            case TIMETZ_ARRAY:
+            case TIMESTAMP_ARRAY:
+            case TIMESTAMPTZ_ARRAY: {
+                scale = this.columnModifier == -1 ? 6 : this.columnModifier;
+            }
+            break;
+            case INTERVAL:
+            case INTERVAL_ARRAY: {
+                scale = this.columnModifier == -1 ? 6 : (this.columnModifier & 0xFFFF);
             }
             break;
             default:
-                throw new IllegalStateException(String.format("ColumnMeta[%s] not time or timestamp type.", this));
+                scale = 0;
+
+        }
+        return scale;
+    }
+
+    final int getPrecision() {
+        final int precision;
+        switch (this.pgType) {
+            case SMALLINT:
+            case SMALLINT_ARRAY:
+                precision = 2;
+                break;
+            case INTEGER:
+            case INTEGER_ARRAY:
+            case REAL:
+            case REAL_ARRAY:
+            case DATE:
+                precision = 4;
+                break;
+            case BIGINT:
+            case BIGINT_ARRAY:
+            case DOUBLE:
+            case DOUBLE_ARRAY:
+            case TIME:
+            case TIME_ARRAY:
+            case TIMESTAMP:
+            case TIMESTAMP_ARRAY:
+            case TIMESTAMPTZ:
+            case TIMESTAMPTZ_ARRAY:
+                precision = 8;
+                break;
+            case DECIMAL:
+            case DECIMAL_ARRAY:
+                precision = this.columnModifier == -1 ? 0 : (((this.columnModifier - 4) & 0xFFFF0000) >> 16);
+                break;
+            case CHAR:
+            case CHAR_ARRAY:
+            case VARCHAR:
+            case VARCHAR_ARRAY:
+                precision = this.columnModifier - 4;
+                break;
+            case TIMETZ:
+            case TIMETZ_ARRAY:
+                precision = 12;
+                break;
+            case INTERVAL:
+            case INTERVAL_ARRAY:
+            case UUID:
+            case UUID_ARRAY:
+            case POINT:
+            case POINT_ARRAY:
+                precision = 16;
+                break;
+            case CIRCLE:
+            case CIRCLES_ARRAY:
+                precision = 24;
+                break;
+            case BOOLEAN:
+            case BOOLEAN_ARRAY:
+                precision = 1;
+                break;
+            case BIT:
+            case BIT_ARRAY:
+            case VARBIT:
+            case VARBIT_ARRAY:
+                precision = this.columnModifier;
+                break;
+            default:
+                precision = 0;
         }
         return precision;
     }

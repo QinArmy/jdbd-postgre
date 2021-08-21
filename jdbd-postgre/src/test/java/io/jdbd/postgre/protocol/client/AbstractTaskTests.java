@@ -25,6 +25,10 @@ abstract class AbstractTaskTests {
 
     static final SessionAdjutant DEFAULT_SESSION_ADJUTANT = createDefaultSessionAdjutant();
 
+    static final int UNKNOWN_SCALE = 0;
+
+    static final long UNKNOWN_PRECISION = 0;
+
 
     static ResultState assertUpdateOne(ResultState state) {
         assertEquals(state.getAffectedRows(), 1L, "affectedRows");

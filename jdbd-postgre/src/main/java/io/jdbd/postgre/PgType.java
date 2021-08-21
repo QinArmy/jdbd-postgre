@@ -39,7 +39,6 @@ public enum PgType implements io.jdbd.meta.SQLType {
     TSQUERY(PgConstant.TYPE_TSQUERY, JDBCType.LONGVARCHAR, LongString.class),
     OID(PgConstant.TYPE_OID, JDBCType.BIGINT, Long.class),
     INTERVAL(PgConstant.TYPE_INTERVAL, JDBCType.OTHER, TemporalAmount.class),
-    INT4_RANGE(PgConstant.TYPE_INT4_RANGE, JDBCType.OTHER, String.class),
     UUID(PgConstant.TYPE_UUID, JDBCType.CHAR, UUID.class),
     XML(PgConstant.TYPE_XML, JDBCType.SQLXML, LongString.class),
     POINT(PgConstant.TYPE_POINT, JDBCType.OTHER, Point.class),
@@ -55,6 +54,15 @@ public enum PgType implements io.jdbd.meta.SQLType {
     MAC_ADDR8(PgConstant.TYPE_MAC_ADDR8, JDBCType.VARCHAR, String.class),
     INET(PgConstant.TYPE_INET, JDBCType.VARCHAR, String.class),
     CIDR(PgConstant.TYPE_CIDR, JDBCType.VARCHAR, String.class),
+
+    INT4RANGE(PgConstant.TYPE_INT4RANGE, JDBCType.VARCHAR, String.class),
+    INT8RANGE(PgConstant.TYPE_INT8RANGE, JDBCType.VARCHAR, String.class),
+    NUMRANGE(PgConstant.TYPE_NUMRANGE, JDBCType.VARCHAR, String.class),
+    TSRANGE(PgConstant.TYPE_TSRANGE, JDBCType.VARCHAR, String.class),
+    TSTZRANGE(PgConstant.TYPE_TSTZRANGE, JDBCType.VARCHAR, String.class),
+    DATERANGE(PgConstant.TYPE_DATERANGE, JDBCType.VARCHAR, String.class),
+
+
     REF_CURSOR(PgConstant.TYPE_REF_CURSOR, JDBCType.REF_CURSOR, Object.class),
 
 
@@ -87,8 +95,9 @@ public enum PgType implements io.jdbd.meta.SQLType {
     JSON_ARRAY(PgConstant.TYPE_JSON_ARRAY, JDBCType.ARRAY, Object.class),
     TSVECTOR_ARRAY(PgConstant.TYPE_TSVECTOR_ARRAY, JDBCType.ARRAY, Object.class),
     TSQUERY_ARRAY(PgConstant.TYPE_TSQUERY_ARRAY, JDBCType.ARRAY, Object.class),
-    INT4_RANGE_ARRAY(PgConstant.TYPE_INT4_RANGE_ARRAY, JDBCType.ARRAY, Object.class),
     PATH_ARRAY(PgConstant.TYPE_PATH_ARRAY, JDBCType.ARRAY, Object.class),
+    LINE_ARRAY(PgConstant.TYPE_LINE_ARRAY, JDBCType.ARRAY, Object.class),
+    LINE_SEGMENT_ARRAY(PgConstant.TYPE_LINE_LSEG_ARRAY, JDBCType.ARRAY, Object.class),
     POLYGON_ARRAY(PgConstant.TYPE_POLYGON_ARRAY, JDBCType.ARRAY, Object.class),
     CIRCLES_ARRAY(PgConstant.TYPE_CIRCLES_ARRAY, JDBCType.ARRAY, Object.class),
     CIDR_ARRAY(PgConstant.TYPE_CIDR_ARRAY, JDBCType.ARRAY, Object.class),
@@ -96,17 +105,24 @@ public enum PgType implements io.jdbd.meta.SQLType {
     MACADDR_ARRAY(PgConstant.TYPE_MACADDR_ARRAY, JDBCType.ARRAY, Object.class),
     MACADDR8_ARRAY(PgConstant.TYPE_MACADDR8_ARRAY, JDBCType.ARRAY, Object.class),
 
+    INT4RANGE_ARRAY(PgConstant.TYPE_INT4RANGE_ARRAY, JDBCType.ARRAY, Object.class),
+    TSRANGE_ARRAY(PgConstant.TYPE_TSRANGE_ARRAY, JDBCType.ARRAY, Object.class),
+    TSTZRANGE_ARRAY(PgConstant.TYPE_TSTZRANGE_ARRAY, JDBCType.ARRAY, Object.class),
+    DATERANGE_ARRAY(PgConstant.TYPE_DATERANGE_ARRAY, JDBCType.ARRAY, Object.class),
+    INT8RANGE_ARRAY(PgConstant.TYPE_INT8RANGE_ARRAY, JDBCType.ARRAY, Object.class),
+    NUMRANGE_ARRAY(PgConstant.TYPE_NUMRANGE_ARRAY, JDBCType.ARRAY, Object.class),
+
     REF_CURSOR_ARRAY(PgConstant.TYPE_REF_CURSOR_ARRAY, JDBCType.ARRAY, Object.class);
 
-    private static final Map<Integer, PgType> CODE_TO_TYPE_MAP = createCodeToTypeMap();
+    private static final Map<Short, PgType> CODE_TO_TYPE_MAP = createCodeToTypeMap();
 
-    private final int typeOid;
+    private final short typeOid;
 
     private final JDBCType jdbcType;
 
     private final Class<?> javaType;
 
-    PgType(int typeOid, JDBCType jdbcType, Class<?> javaType) {
+    PgType(short typeOid, JDBCType jdbcType, Class<?> javaType) {
         this.typeOid = typeOid;
         this.jdbcType = jdbcType;
         this.javaType = javaType;
@@ -188,11 +204,15 @@ public enum PgType implements io.jdbd.meta.SQLType {
 
     @Override
     public final Integer getVendorTypeNumber() {
-        return this.typeOid;
+        return (int) this.typeOid;
     }
 
 
-    public static PgType from(final int typeOid) {
+    public static PgType from(final int oid) {
+        if (oid > Short.MAX_VALUE) {
+            return PgType.UNSPECIFIED;
+        }
+        final short typeOid = (short) oid;
         final PgType pgType;
         switch (typeOid) {
             case PgConstant.TYPE_BPCHAR:
@@ -211,9 +231,9 @@ public enum PgType implements io.jdbd.meta.SQLType {
     /**
      * @return a unmodified map.
      */
-    private static Map<Integer, PgType> createCodeToTypeMap() {
+    private static Map<Short, PgType> createCodeToTypeMap() {
         final PgType[] values = PgType.values();
-        Map<Integer, PgType> map = new HashMap<>((int) (values.length / 0.75f));
+        Map<Short, PgType> map = new HashMap<>((int) (values.length / 0.75f));
         for (PgType type : PgType.values()) {
             if (map.containsKey(type.typeOid)) {
                 throw new IllegalStateException(String.format("Type[%s] oid[%s] duplication.", type, type.typeOid));

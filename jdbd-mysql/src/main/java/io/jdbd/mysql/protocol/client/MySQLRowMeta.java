@@ -187,14 +187,14 @@ abstract class MySQLRowMeta implements ResultRowMeta {
 
 
     @Override
-    public final long getPrecision(final int indexBaseZero) throws JdbdSQLException {
-        return this.columnMetaArray[checkIndex(indexBaseZero)]
+    public final int getPrecision(final int indexBaseZero) throws JdbdSQLException {
+        return (int) this.columnMetaArray[checkIndex(indexBaseZero)]
                 .obtainPrecision(this.customCollationMap);
     }
 
     @Override
-    public final long getPrecision(final String columnAlias) throws JdbdSQLException {
-        return this.columnMetaArray[convertToIndex(columnAlias)]
+    public final int getPrecision(final String columnAlias) throws JdbdSQLException {
+        return (int) this.columnMetaArray[convertToIndex(columnAlias)]
                 .obtainPrecision(this.customCollationMap);
     }
 

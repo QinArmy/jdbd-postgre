@@ -2,6 +2,7 @@ package io.jdbd.result;
 
 import io.jdbd.JdbdSQLException;
 import io.jdbd.lang.Nullable;
+import io.jdbd.meta.KeyMode;
 import io.jdbd.meta.NullMode;
 import io.jdbd.meta.SQLType;
 
@@ -28,8 +29,6 @@ public interface ResultRowMeta {
      */
     int getColumnCount();
 
-    @Deprecated
-    FieldType getFieldType();
 
     default FieldType getFieldType(int indexBaseZero) {
         throw new UnsupportedOperationException();
@@ -64,163 +63,6 @@ public interface ResultRowMeta {
      */
     int getColumnIndex(String columnLabel) throws JdbdSQLException;
 
-    /**
-     * @param indexBaseZero base 0,the first column is 0, the second is 1, ...
-     * @throws JdbdSQLException if a database access error occurs
-     * @see #getColumnIndex(String)
-     */
-    @Deprecated
-    JDBCType getJdbdType(int indexBaseZero) throws JdbdSQLException;
-
-
-    /**
-     * @param indexBaseZero base 0,the first column is 0, the second is 1, ...
-     * @throws JdbdSQLException if a database access error occurs
-     * @see #getColumnIndex(String)
-     */
-    @Deprecated
-    boolean isPhysicalColumn(int indexBaseZero) throws JdbdSQLException;
-
-
-    /**
-     * @param indexBaseZero base 0,the first column is 0, the second is 1, ...
-     * @throws JdbdSQLException if a database access error occurs
-     * @see #getColumnIndex(String)
-     */
-    SQLType getSQLType(int indexBaseZero) throws JdbdSQLException;
-
-    SQLType getSQLType(String columnAlias) throws JdbdSQLException;
-
-    /**
-     * @param indexBaseZero base 0,the first column is 0, the second is 1, ...
-     * @throws JdbdSQLException if a database access error occurs
-     * @see #getColumnIndex(String)
-     */
-    NullMode getNullMode(int indexBaseZero) throws JdbdSQLException;
-
-    /**
-     * @see #getNullMode(int)
-     */
-    NullMode getNullMode(String columnAlias) throws JdbdSQLException;
-
-    /**
-     * @param indexBaseZero base 0,the first column is 0, the second is 1, ...
-     * @throws JdbdSQLException if a database access error occurs
-     * @see #getColumnIndex(String)
-     */
-    boolean isUnsigned(int indexBaseZero) throws JdbdSQLException;
-
-    /**
-     * @see #isUnsigned(int)
-     */
-    boolean isUnsigned(String columnAlias) throws JdbdSQLException;
-
-
-    /**
-     * @param indexBaseZero base 0,the first column is 0, the second is 1, ...
-     * @throws JdbdSQLException if a database access error occurs
-     * @see #getColumnIndex(String)
-     */
-    @Deprecated
-    boolean isAutoIncrement(int indexBaseZero) throws JdbdSQLException;
-
-    /**
-     * @see #isAutoIncrement(int)
-     */
-    @Deprecated
-    boolean isAutoIncrement(String columnAlias) throws JdbdSQLException;
-
-    /**
-     * Indicates whether a column's case matters.
-     *
-     * @param indexBaseZero base 0,the first column is 0, the second is 1, ...
-     * @return <code>true</code> if so; <code>false</code> otherwise
-     * @throws JdbdSQLException if a database access error occurs
-     * @see #getColumnIndex(String)
-     */
-    @Deprecated
-    boolean isCaseSensitive(int indexBaseZero) throws JdbdSQLException;
-
-
-    /**
-     * @param indexBaseZero base 0,the first column is 0, the second is 1, ...
-     * @throws JdbdSQLException if a database access error occurs
-     * @see #getColumnIndex(String)
-     */
-    @Nullable
-    String getCatalogName(int indexBaseZero) throws JdbdSQLException;
-
-
-    /**
-     * @param indexBaseZero base 0,the first column is 0, the second is 1, ...
-     * @throws JdbdSQLException if a database access error occurs
-     * @see #getColumnIndex(String)
-     */
-    @Nullable
-    String getSchemaName(int indexBaseZero) throws JdbdSQLException;
-
-
-    /**
-     * @param indexBaseZero base 0,the first column is 0, the second is 1, ...
-     * @throws JdbdSQLException if a database access error occurs
-     * @see #getColumnIndex(String)
-     */
-    @Nullable
-    String getTableName(int indexBaseZero) throws JdbdSQLException;
-
-
-    /**
-     * Get the designated column's name.
-     *
-     * @param indexBaseZero base 0,the first column is 0, the second is 1, ..
-     * @return column name
-     * @throws JdbdSQLException if a database access error occurs
-     * @see #getColumnIndex(String)
-     */
-    @Nullable
-    String getColumnName(int indexBaseZero) throws JdbdSQLException;
-
-    /**
-     * Indicates whether the designated column is definitely not writable.
-     *
-     * @param indexBaseZero base 0,the first column is 0, the second is 1, ..
-     * @return <code>true</code> if so; <code>false</code> otherwise
-     * @throws JdbdSQLException if a database access error occurs
-     * @see #getColumnIndex(String)
-     */
-    @Deprecated
-    boolean isReadOnly(int indexBaseZero) throws JdbdSQLException;
-
-
-    /**
-     * Indicates whether it is possible for a write on the designated column to succeed.
-     *
-     * @param indexBaseZero base 0,the first column is 0, the second is 1, ..
-     * @return <code>true</code> if so; <code>false</code> otherwise
-     * @throws JdbdSQLException if a database access error occurs
-     * @see #getColumnIndex(String)
-     */
-    @Deprecated
-    boolean isWritable(int indexBaseZero) throws JdbdSQLException;
-
-
-    /**
-     * <p>Returns the fully-qualified name of the Java class whose instances
-     * are manufactured if the method <code>ResultSet.getObject</code>
-     * is called to retrieve a value
-     * from the column.  <code>io.jdbd.result.ResultRow.getObject</code> may return a subclass of the
-     * class returned by this method.
-     *
-     * @param indexBaseZero base 0,the first column is 0, the second is 1, ..
-     * @return the class in the Java programming
-     * language that would be used by the method
-     * <code>io.jdbd.result.ResultRow.getObject</code> to retrieve the value in the specified
-     * column. This is the class name used for custom mapping.
-     * @throws JdbdSQLException if a database access error occurs
-     * @see #getColumnIndex(String)
-     */
-    Class<?> getColumnClass(int indexBaseZero) throws JdbdSQLException;
-
 
     /**
      * get precision of column.
@@ -244,14 +86,12 @@ public interface ResultRowMeta {
      * @throws JdbdSQLException if a database access error occurs
      *                          @see #getColumnIndex(String)
      */
-    @Deprecated
-    long getPrecision(int indexBaseZero) throws JdbdSQLException;
+    int getPrecision(int indexBaseZero) throws JdbdSQLException;
 
     /**
      * @see #getPrecision(int)
      */
-    @Deprecated
-    long getPrecision(String columnAlias) throws JdbdSQLException;
+    int getPrecision(String columnAlias) throws JdbdSQLException;
 
     /**
      * Gets the designated column's number of digits to right of the decimal point.
@@ -262,11 +102,73 @@ public interface ResultRowMeta {
      * @throws JdbdSQLException if a database access error occurs
      * @see #getColumnIndex(String)
      */
-    @Deprecated
     int getScale(int indexBaseZero) throws JdbdSQLException;
 
-    @Deprecated
     int getScale(String columnAlias) throws JdbdSQLException;
+
+    default KeyMode getKeyMode(int indexBaseZero) throws JdbdSQLException {
+        return KeyMode.UNKNOWN;
+    }
+
+    default KeyMode getKeyMode(String columnAlias) throws JdbdSQLException {
+        return KeyMode.UNKNOWN;
+    }
+
+
+    /**
+     * @param indexBaseZero base 0,the first column is 0, the second is 1, ...
+     * @throws JdbdSQLException if a database access error occurs
+     * @see #getColumnIndex(String)
+     */
+    SQLType getSQLType(int indexBaseZero) throws JdbdSQLException;
+
+    SQLType getSQLType(String columnAlias) throws JdbdSQLException;
+
+    /**
+     * @param indexBaseZero base 0,the first column is 0, the second is 1, ...
+     * @throws JdbdSQLException if a database access error occurs
+     * @see #getColumnIndex(String)
+     */
+    NullMode getNullMode(int indexBaseZero) throws JdbdSQLException;
+
+    /**
+     * @see #getNullMode(int)
+     */
+    NullMode getNullMode(String columnAlias) throws JdbdSQLException;
+
+
+    /**
+     * Indicates whether a column's case matters.
+     *
+     * @param indexBaseZero base 0,the first column is 0, the second is 1, ...
+     * @return <code>true</code> if so; <code>false</code> otherwise
+     * @throws JdbdSQLException if a database access error occurs
+     * @see #getColumnIndex(String)
+     */
+    default boolean isCaseSensitive(int indexBaseZero) throws JdbdSQLException {
+        throw new UnsupportedOperationException();
+    }
+
+    /**
+     * Indicates whether a column's case matters.
+     *
+     * @return <code>true</code> if so; <code>false</code> otherwise
+     * @throws JdbdSQLException if a database access error occurs
+     * @see #getColumnIndex(String)
+     */
+    default boolean isCaseSensitive(String columnLabel) throws JdbdSQLException {
+        throw new UnsupportedOperationException();
+    }
+
+    /**
+     * @param indexBaseZero base 0,the first column is 0, the second is 1, ...
+     * @throws JdbdSQLException if a database access error occurs
+     * @see #getColumnIndex(String)
+     */
+    @Deprecated
+    default JDBCType getJdbdType(int indexBaseZero) throws JdbdSQLException {
+        throw new UnsupportedOperationException();
+    }
 
 
     /**
@@ -275,13 +177,154 @@ public interface ResultRowMeta {
      * @see #getColumnIndex(String)
      */
     @Deprecated
-    boolean isPrimaryKey(int indexBaseZero) throws JdbdSQLException;
+    default boolean isPhysicalColumn(int indexBaseZero) throws JdbdSQLException {
+        throw new UnsupportedOperationException();
+    }
+
+
+    /**
+     * @param indexBaseZero base 0,the first column is 0, the second is 1, ...
+     * @throws JdbdSQLException if a database access error occurs
+     * @see #getColumnIndex(String)
+     */
+    default boolean isUnsigned(int indexBaseZero) throws JdbdSQLException {
+        throw new UnsupportedOperationException();
+    }
+
+    /**
+     * @see #isUnsigned(int)
+     */
+    default boolean isUnsigned(String columnAlias) throws JdbdSQLException {
+        throw new UnsupportedOperationException();
+    }
+
+
+    /**
+     * @param indexBaseZero base 0,the first column is 0, the second is 1, ...
+     * @throws JdbdSQLException if a database access error occurs
+     * @see #getColumnIndex(String)
+     */
+    default boolean isAutoIncrement(int indexBaseZero) throws JdbdSQLException {
+        throw new UnsupportedOperationException();
+    }
+
+    /**
+     * @see #isAutoIncrement(int)
+     */
+    default boolean isAutoIncrement(String columnAlias) throws JdbdSQLException {
+        throw new UnsupportedOperationException();
+    }
+
+
+    /**
+     * @param indexBaseZero base 0,the first column is 0, the second is 1, ...
+     * @throws JdbdSQLException if a database access error occurs
+     * @see #getColumnIndex(String)
+     */
+    @Nullable
+    default String getCatalogName(int indexBaseZero) throws JdbdSQLException {
+        throw new UnsupportedOperationException();
+    }
+
+
+    /**
+     * @param indexBaseZero base 0,the first column is 0, the second is 1, ...
+     * @throws JdbdSQLException if a database access error occurs
+     * @see #getColumnIndex(String)
+     */
+    @Nullable
+    default String getSchemaName(int indexBaseZero) throws JdbdSQLException {
+        throw new UnsupportedOperationException();
+    }
+
+
+    /**
+     * @param indexBaseZero base 0,the first column is 0, the second is 1, ...
+     * @throws JdbdSQLException if a database access error occurs
+     * @see #getColumnIndex(String)
+     */
+    @Nullable
+    default String getTableName(int indexBaseZero) throws JdbdSQLException {
+        throw new UnsupportedOperationException();
+    }
+
+    /**
+     * Get the designated column's name.
+     *
+     * @param indexBaseZero base 0,the first column is 0, the second is 1, ..
+     * @return column name
+     * @throws JdbdSQLException if a database access error occurs
+     * @see #getColumnIndex(String)
+     */
+    @Nullable
+    default String getColumnName(int indexBaseZero) throws JdbdSQLException {
+        throw new UnsupportedOperationException();
+    }
+
+
+    /**
+     * Indicates whether the designated column is definitely not writable.
+     *
+     * @param indexBaseZero base 0,the first column is 0, the second is 1, ..
+     * @return <code>true</code> if so; <code>false</code> otherwise
+     * @throws JdbdSQLException if a database access error occurs
+     * @see #getColumnIndex(String)
+     */
+    default boolean isReadOnly(int indexBaseZero) throws JdbdSQLException {
+        throw new UnsupportedOperationException();
+    }
+
+
+    /**
+     * Indicates whether it is possible for a write on the designated column to succeed.
+     *
+     * @param indexBaseZero base 0,the first column is 0, the second is 1, ..
+     * @return <code>true</code> if so; <code>false</code> otherwise
+     * @throws JdbdSQLException if a database access error occurs
+     * @see #getColumnIndex(String)
+     */
+    default boolean isWritable(int indexBaseZero) throws JdbdSQLException {
+        throw new UnsupportedOperationException();
+    }
+
+
+    /**
+     * <p>Returns the fully-qualified name of the Java class whose instances
+     * are manufactured if the method <code>ResultSet.getObject</code>
+     * is called to retrieve a value
+     * from the column.  <code>io.jdbd.result.ResultRow.getObject</code> may return a subclass of the
+     * class returned by this method.
+     *
+     * @param indexBaseZero base 0,the first column is 0, the second is 1, ..
+     * @return the class in the Java programming
+     * language that would be used by the method
+     * <code>io.jdbd.result.ResultRow.getObject</code> to retrieve the value in the specified
+     * column. This is the class name used for custom mapping.
+     * @throws JdbdSQLException if a database access error occurs
+     * @see #getColumnIndex(String)
+     */
+    default Class<?> getColumnClass(int indexBaseZero) throws JdbdSQLException {
+        throw new UnsupportedOperationException();
+    }
+
+
+    /**
+     * @param indexBaseZero base 0,the first column is 0, the second is 1, ...
+     * @throws JdbdSQLException if a database access error occurs
+     * @see #getColumnIndex(String)
+     */
+    @Deprecated
+    default boolean isPrimaryKey(int indexBaseZero) throws JdbdSQLException {
+        throw new UnsupportedOperationException();
+    }
 
     /**
      * @see #isPrimaryKey(int)
      */
     @Deprecated
-    boolean isPrimaryKey(String columnAlias) throws JdbdSQLException;
+    default boolean isPrimaryKey(String columnAlias) throws JdbdSQLException {
+        throw new UnsupportedOperationException();
+    }
 
     /**
      * @param indexBaseZero base 0,the first column is 0, the second is 1, ...
@@ -289,10 +332,14 @@ public interface ResultRowMeta {
      * @see #getColumnIndex(String)
      */
     @Deprecated
-    boolean isUniqueKey(int indexBaseZero) throws JdbdSQLException;
+    default boolean isUniqueKey(int indexBaseZero) throws JdbdSQLException {
+        throw new UnsupportedOperationException();
+    }
 
     @Deprecated
-    boolean isUniqueKey(String columnAlias) throws JdbdSQLException;
+    default boolean isUniqueKey(String columnAlias) throws JdbdSQLException {
+        throw new UnsupportedOperationException();
+    }
 
     /**
      * @param indexBaseZero base 0,the first column is 0, the second is 1, ...
@@ -300,9 +347,19 @@ public interface ResultRowMeta {
      * @see #getColumnIndex(String)
      */
     @Deprecated
-    boolean isMultipleKey(int indexBaseZero) throws JdbdSQLException;
+    default boolean isMultipleKey(int indexBaseZero) throws JdbdSQLException {
+        throw new UnsupportedOperationException();
+    }
 
     @Deprecated
-    boolean isMultipleKey(String columnAlias) throws JdbdSQLException;
+    default boolean isMultipleKey(String columnAlias) throws JdbdSQLException {
+        throw new UnsupportedOperationException();
+    }
+
+    @Deprecated
+    default FieldType getFieldType() {
+        throw new UnsupportedOperationException();
+    }
+
 
 }

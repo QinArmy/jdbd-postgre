@@ -8,8 +8,8 @@ import io.jdbd.postgre.PgType;
 import io.jdbd.result.FieldType;
 import io.jdbd.result.ResultRowMeta;
 import io.netty.buffer.ByteBuf;
+import reactor.util.annotation.Nullable;
 
-import java.sql.JDBCType;
 import java.sql.SQLException;
 import java.util.*;
 
@@ -66,9 +66,8 @@ final class PgRowMeta implements ResultRowMeta {
 
     @Override
     public final FieldType getFieldType(int indexBaseZero) {
-        return this.columnMetaArray[checkIndex(indexBaseZero)].tableOid == 0
-                ? FieldType.EXPRESSION
-                : FieldType.FIELD;
+        // have to return UNKNOWN,because postgre RowDescription message can't return table name ,column name etc.
+        return FieldType.UNKNOWN;
     }
 
     @Override
@@ -128,16 +127,6 @@ final class PgRowMeta implements ResultRowMeta {
     }
 
     @Override
-    public final JDBCType getJdbdType(int indexBaseZero) throws JdbdSQLException {
-        return getSQLType(indexBaseZero).jdbcType();
-    }
-
-    @Override
-    public boolean isPhysicalColumn(int indexBaseZero) throws JdbdSQLException {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
     public final PgType getSQLType(int indexBaseZero) throws JdbdSQLException {
         return this.columnMetaArray[checkIndex(indexBaseZero)].pgType;
     }
@@ -157,114 +146,119 @@ final class PgRowMeta implements ResultRowMeta {
         return NullMode.UNKNOWN;
     }
 
+
     @Override
-    public boolean isUnsigned(int indexBaseZero) throws JdbdSQLException {
-        return false;
+    public final int getPrecision(final int indexBaseZero) throws JdbdSQLException {
+        return this.columnMetaArray[checkIndex(indexBaseZero)].getPrecision();
     }
 
     @Override
-    public boolean isUnsigned(String columnAlias) throws JdbdSQLException {
-        return false;
+    public final int getPrecision(String columnAlias) throws JdbdSQLException {
+        return getPrecision(getColumnIndex(columnAlias));
     }
 
     @Override
-    public boolean isAutoIncrement(int indexBaseZero) throws JdbdSQLException {
-        return false;
+    public final int getScale(final int indexBaseZero) throws JdbdSQLException {
+        return this.columnMetaArray[checkIndex(indexBaseZero)].getScale();
     }
 
     @Override
-    public boolean isAutoIncrement(String columnAlias) throws JdbdSQLException {
-        return false;
+    public final int getScale(String columnAlias) throws JdbdSQLException {
+        return getScale(getColumnIndex(columnAlias));
     }
 
     @Override
-    public boolean isCaseSensitive(int indexBaseZero) throws JdbdSQLException {
-        return false;
+    public final boolean isCaseSensitive(final int indexBaseZero) throws JdbdSQLException {
+        final boolean sensitive;
+        switch (this.columnMetaArray[checkIndex(indexBaseZero)].pgType) {
+            case OID:
+            case SMALLINT:
+            case SMALLINT_ARRAY:
+            case INTEGER:
+            case INTEGER_ARRAY:
+            case BIGINT:
+            case BIGINT_ARRAY:
+            case REAL:
+            case REAL_ARRAY:
+            case DOUBLE:
+            case DOUBLE_ARRAY:
+            case DECIMAL:
+            case DECIMAL_ARRAY:
+            case BOOLEAN:
+            case BOOLEAN_ARRAY:
+            case BIT:
+            case BIT_ARRAY:
+            case VARBIT:
+            case VARBIT_ARRAY:
+            case TIMESTAMP:
+            case TIMESTAMP_ARRAY:
+            case TIME:
+            case TIME_ARRAY:
+            case DATE:
+            case DATE_ARRAY:
+            case TIMESTAMPTZ:
+            case TIMESTAMPTZ_ARRAY:
+            case TIMETZ:
+            case TIMETZ_ARRAY:
+            case INTERVAL:
+            case INTERVAL_ARRAY:
+            case POINT:
+            case POINT_ARRAY:
+            case BOX:
+            case BOX_ARRAY:
+            case LINE:
+            case LINE_ARRAY:
+            case LINE_SEGMENT:
+            case LINE_SEGMENT_ARRAY:
+            case POLYGON:
+            case POLYGON_ARRAY:
+            case CIRCLE:
+            case CIRCLES_ARRAY:
+            case UUID:
+            case UUID_ARRAY:
+            case CIDR:
+            case CIDR_ARRAY:
+            case INET:
+            case INET_ARRAY:
+            case INT4RANGE:
+            case INT4RANGE_ARRAY:
+            case INT8RANGE:
+            case INT8RANGE_ARRAY:
+                sensitive = false;
+                break;
+            default:
+                sensitive = true;
+        }
+        return sensitive;
     }
 
     @Override
-    public String getCatalogName(int indexBaseZero) throws JdbdSQLException {
+    public final boolean isCaseSensitive(String columnLabel) throws JdbdSQLException {
+        return isCaseSensitive(getColumnIndex(columnLabel));
+    }
+
+    @Nullable
+    @Override
+    public final String getCatalogName(int indexBaseZero) throws JdbdSQLException {
         return null;
     }
 
+    @Nullable
     @Override
-    public String getSchemaName(int indexBaseZero) throws JdbdSQLException {
+    public final String getSchemaName(int indexBaseZero) throws JdbdSQLException {
         return null;
     }
 
+    @Nullable
     @Override
-    public String getTableName(int indexBaseZero) throws JdbdSQLException {
+    public final String getTableName(int indexBaseZero) throws JdbdSQLException {
         return null;
     }
 
+    @Nullable
     @Override
-    public String getColumnName(int indexBaseZero) throws JdbdSQLException {
+    public final String getColumnName(int indexBaseZero) throws JdbdSQLException {
         return null;
-    }
-
-    @Override
-    public boolean isReadOnly(int indexBaseZero) throws JdbdSQLException {
-        return false;
-    }
-
-    @Override
-    public boolean isWritable(int indexBaseZero) throws JdbdSQLException {
-        return false;
-    }
-
-    @Override
-    public Class<?> getColumnClass(int indexBaseZero) throws JdbdSQLException {
-        return null;
-    }
-
-    @Override
-    public long getPrecision(int indexBaseZero) throws JdbdSQLException {
-        return 0;
-    }
-
-    @Override
-    public long getPrecision(String columnAlias) throws JdbdSQLException {
-        return 0;
-    }
-
-    @Override
-    public int getScale(int indexBaseZero) throws JdbdSQLException {
-        return 0;
-    }
-
-    @Override
-    public int getScale(String columnAlias) throws JdbdSQLException {
-        return 0;
-    }
-
-    @Override
-    public boolean isPrimaryKey(int indexBaseZero) throws JdbdSQLException {
-        return false;
-    }
-
-    @Override
-    public boolean isPrimaryKey(String columnAlias) throws JdbdSQLException {
-        return false;
-    }
-
-    @Override
-    public boolean isUniqueKey(int indexBaseZero) throws JdbdSQLException {
-        return false;
-    }
-
-    @Override
-    public boolean isUniqueKey(String columnAlias) throws JdbdSQLException {
-        return false;
-    }
-
-    @Override
-    public boolean isMultipleKey(int indexBaseZero) throws JdbdSQLException {
-        return false;
-    }
-
-    @Override
-    public boolean isMultipleKey(String columnAlias) throws JdbdSQLException {
-        return false;
     }
 
     private int checkIndex(final int indexBasedZero) {
