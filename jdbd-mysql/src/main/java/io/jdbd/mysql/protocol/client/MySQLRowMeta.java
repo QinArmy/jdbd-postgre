@@ -123,11 +123,6 @@ abstract class MySQLRowMeta implements ResultRowMeta {
         return isAutoIncrement(convertToIndex(columnAlias));
     }
 
-    @Override
-    public final boolean isCaseSensitive(int indexBaseZero) throws JdbdSQLException {
-        return doIsCaseSensitive(this.columnMetaArray[checkIndex(indexBaseZero)]);
-    }
-
 
     @Nullable
     @Override

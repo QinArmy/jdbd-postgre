@@ -267,9 +267,6 @@ final class DefaultResultSetReader implements ResultSetReader {
             case PgConstant.TYPE_CHAR:
             case PgConstant.TYPE_BPCHAR:
             case PgConstant.TYPE_VARCHAR:
-            case PgConstant.TYPE_TEXT:
-            case PgConstant.TYPE_JSON:
-            case PgConstant.TYPE_JSONB:
             case PgConstant.TYPE_MONEY:// money format dependent on locale,so can't(also don't need) convert.
             case PgConstant.TYPE_NAME:
             case PgConstant.TYPE_MAC_ADDR:
@@ -279,14 +276,11 @@ final class DefaultResultSetReader implements ResultSetReader {
             case PgConstant.TYPE_LINE:
             case PgConstant.TYPE_LSEG:
             case PgConstant.TYPE_BOX:
-            case PgConstant.TYPE_TSVECTOR:
-            case PgConstant.TYPE_TSQUERY:
             case PgConstant.TYPE_INT4RANGE:
             case PgConstant.TYPE_TSRANGE:
             case PgConstant.TYPE_TSTZRANGE:
             case PgConstant.TYPE_DATERANGE:
-            case PgConstant.TYPE_INT8RANGE:
-            case PgConstant.TYPE_XML: {
+            case PgConstant.TYPE_INT8RANGE: {
                 value = textValue;
             }
             break;
@@ -321,8 +315,14 @@ final class DefaultResultSetReader implements ResultSetReader {
                 value = PgGeometries.point(textValue);
             }
             break;
+            case PgConstant.TYPE_TEXT:
+            case PgConstant.TYPE_JSON:
+            case PgConstant.TYPE_JSONB:
+            case PgConstant.TYPE_XML:
             case PgConstant.TYPE_POLYGON:
-            case PgConstant.TYPE_PATH: {
+            case PgConstant.TYPE_PATH:
+            case PgConstant.TYPE_TSVECTOR:
+            case PgConstant.TYPE_TSQUERY: {
                 value = LongStrings.fromString(textValue);
             }
             break;

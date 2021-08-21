@@ -3,7 +3,6 @@ package io.jdbd.postgre;
 
 import io.jdbd.type.LongBinary;
 import io.jdbd.type.geometry.Circle;
-import io.jdbd.type.geometry.LineString;
 import io.jdbd.type.geometry.LongString;
 import io.jdbd.type.geometry.Point;
 
@@ -45,13 +44,13 @@ public enum PgType implements io.jdbd.meta.SQLType {
     BOX(PgConstant.TYPE_BOX, JDBCType.OTHER, String.class),
     LINE(PgConstant.TYPE_LINE, JDBCType.OTHER, String.class),
     LINE_SEGMENT(PgConstant.TYPE_LSEG, JDBCType.OTHER, String.class),
-    PATH(PgConstant.TYPE_PATH, JDBCType.OTHER, LineString.class),
+    PATH(PgConstant.TYPE_PATH, JDBCType.OTHER, LongString.class),
     POLYGON(PgConstant.TYPE_POLYGON, JDBCType.OTHER, LongString.class),
     CIRCLE(PgConstant.TYPE_CIRCLE, JDBCType.OTHER, Circle.class),
     JSON(PgConstant.TYPE_JSON, JDBCType.LONGVARCHAR, LongString.class),
     JSONB(PgConstant.TYPE_JSONB, JDBCType.LONGVARCHAR, LongString.class),
-    MAC_ADDR(PgConstant.TYPE_MAC_ADDR, JDBCType.VARCHAR, String.class),
-    MAC_ADDR8(PgConstant.TYPE_MAC_ADDR8, JDBCType.VARCHAR, String.class),
+    MACADDR(PgConstant.TYPE_MAC_ADDR, JDBCType.VARCHAR, String.class),
+    MACADDR8(PgConstant.TYPE_MAC_ADDR8, JDBCType.VARCHAR, String.class),
     INET(PgConstant.TYPE_INET, JDBCType.VARCHAR, String.class),
     CIDR(PgConstant.TYPE_CIDR, JDBCType.VARCHAR, String.class),
 
@@ -190,6 +189,85 @@ public enum PgType implements io.jdbd.meta.SQLType {
     @Override
     public boolean isDecimal() {
         return false;
+    }
+
+    @Override
+    public final boolean isCaseSensitive() {
+        final boolean sensitive;
+        switch (this) {
+            case OID:
+            case SMALLINT:
+            case SMALLINT_ARRAY:
+            case INTEGER:
+            case INTEGER_ARRAY:
+            case BIGINT:
+            case BIGINT_ARRAY:
+            case REAL:
+            case REAL_ARRAY:
+            case DOUBLE:
+            case DOUBLE_ARRAY:
+            case DECIMAL:
+            case DECIMAL_ARRAY:
+            case BOOLEAN:
+            case BOOLEAN_ARRAY:
+            case BIT:
+            case BIT_ARRAY:
+            case VARBIT:
+            case VARBIT_ARRAY:
+            case TIMESTAMP:
+            case TIMESTAMP_ARRAY:
+            case TIME:
+            case TIME_ARRAY:
+            case DATE:
+            case DATE_ARRAY:
+            case TIMESTAMPTZ:
+            case TIMESTAMPTZ_ARRAY:
+            case TIMETZ:
+            case TIMETZ_ARRAY:
+            case INTERVAL:
+            case INTERVAL_ARRAY:
+            case POINT:
+            case POINT_ARRAY:
+            case BOX:
+            case BOX_ARRAY:
+            case LINE:
+            case LINE_ARRAY:
+            case LINE_SEGMENT:
+            case LINE_SEGMENT_ARRAY:
+            case PATH:
+            case PATH_ARRAY:
+            case POLYGON:
+            case POLYGON_ARRAY:
+            case CIRCLE:
+            case CIRCLES_ARRAY:
+            case UUID:
+            case UUID_ARRAY:
+            case CIDR:
+            case CIDR_ARRAY:
+            case INET:
+            case INET_ARRAY:
+            case INT4RANGE:
+            case INT4RANGE_ARRAY:
+            case INT8RANGE:
+            case INT8RANGE_ARRAY:
+            case DATERANGE:
+            case DATERANGE_ARRAY:
+            case NUMRANGE:
+            case NUMRANGE_ARRAY:
+            case MACADDR:
+            case MACADDR_ARRAY:
+            case MACADDR8:
+            case MACADDR8_ARRAY:
+            case TSRANGE:
+            case TSRANGE_ARRAY:
+            case TSTZRANGE:
+            case TSTZRANGE_ARRAY:
+                sensitive = false;
+                break;
+            default:
+                sensitive = true;
+        }
+        return sensitive;
     }
 
     @Override

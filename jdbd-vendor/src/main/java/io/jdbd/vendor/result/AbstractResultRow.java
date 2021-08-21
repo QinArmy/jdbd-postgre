@@ -1,7 +1,6 @@
 package io.jdbd.vendor.result;
 
 import io.jdbd.JdbdSQLException;
-import io.jdbd.meta.SQLType;
 import io.jdbd.result.ResultRow;
 import io.jdbd.result.ResultRowMeta;
 import io.jdbd.result.UnsupportedConvertingException;
@@ -56,11 +55,11 @@ public abstract class AbstractResultRow<R extends ResultRowMeta> implements Resu
             return null;
         }
         final Object convertedValue;
-        final SQLType sqlType = this.rowMeta.getSQLType(indexBaseZero);
-        if (value.getClass() == sqlType.javaType()) {
+        final Class<?> javaType = this.rowMeta.getSQLType(indexBaseZero).javaType();
+        if (javaType.isAssignableFrom(value.getClass())) {
             convertedValue = value;
         } else {
-            convertedValue = convertNonNullValue(indexBaseZero, value, sqlType.getClass());
+            convertedValue = convertNonNullValue(indexBaseZero, value, javaType);
         }
         return convertedValue;
     }

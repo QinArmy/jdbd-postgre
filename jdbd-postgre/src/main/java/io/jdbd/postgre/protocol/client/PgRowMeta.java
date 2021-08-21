@@ -168,73 +168,13 @@ final class PgRowMeta implements ResultRowMeta {
     }
 
     @Override
-    public final boolean isCaseSensitive(final int indexBaseZero) throws JdbdSQLException {
-        final boolean sensitive;
-        switch (this.columnMetaArray[checkIndex(indexBaseZero)].pgType) {
-            case OID:
-            case SMALLINT:
-            case SMALLINT_ARRAY:
-            case INTEGER:
-            case INTEGER_ARRAY:
-            case BIGINT:
-            case BIGINT_ARRAY:
-            case REAL:
-            case REAL_ARRAY:
-            case DOUBLE:
-            case DOUBLE_ARRAY:
-            case DECIMAL:
-            case DECIMAL_ARRAY:
-            case BOOLEAN:
-            case BOOLEAN_ARRAY:
-            case BIT:
-            case BIT_ARRAY:
-            case VARBIT:
-            case VARBIT_ARRAY:
-            case TIMESTAMP:
-            case TIMESTAMP_ARRAY:
-            case TIME:
-            case TIME_ARRAY:
-            case DATE:
-            case DATE_ARRAY:
-            case TIMESTAMPTZ:
-            case TIMESTAMPTZ_ARRAY:
-            case TIMETZ:
-            case TIMETZ_ARRAY:
-            case INTERVAL:
-            case INTERVAL_ARRAY:
-            case POINT:
-            case POINT_ARRAY:
-            case BOX:
-            case BOX_ARRAY:
-            case LINE:
-            case LINE_ARRAY:
-            case LINE_SEGMENT:
-            case LINE_SEGMENT_ARRAY:
-            case POLYGON:
-            case POLYGON_ARRAY:
-            case CIRCLE:
-            case CIRCLES_ARRAY:
-            case UUID:
-            case UUID_ARRAY:
-            case CIDR:
-            case CIDR_ARRAY:
-            case INET:
-            case INET_ARRAY:
-            case INT4RANGE:
-            case INT4RANGE_ARRAY:
-            case INT8RANGE:
-            case INT8RANGE_ARRAY:
-                sensitive = false;
-                break;
-            default:
-                sensitive = true;
-        }
-        return sensitive;
+    public final boolean isAutoIncrement(int indexBaseZero) throws JdbdSQLException {
+        return false;
     }
 
     @Override
-    public final boolean isCaseSensitive(String columnLabel) throws JdbdSQLException {
-        return isCaseSensitive(getColumnIndex(columnLabel));
+    public final boolean isAutoIncrement(String columnAlias) throws JdbdSQLException {
+        return isAutoIncrement(getColumnIndex(columnAlias));
     }
 
     @Nullable

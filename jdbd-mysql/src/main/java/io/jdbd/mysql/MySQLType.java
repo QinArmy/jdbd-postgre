@@ -534,6 +534,11 @@ public enum MySQLType implements SQLType {
                 || this == DECIMAL_UNSIGNED;
     }
 
+    @Override
+    public final boolean isCaseSensitive() {
+        throw new UnsupportedOperationException();
+    }
+
 
     @Override
     public boolean isNumber() {

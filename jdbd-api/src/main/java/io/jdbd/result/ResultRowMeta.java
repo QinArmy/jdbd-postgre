@@ -138,29 +138,6 @@ public interface ResultRowMeta {
 
 
     /**
-     * Indicates whether a column's case matters.
-     *
-     * @param indexBaseZero base 0,the first column is 0, the second is 1, ...
-     * @return <code>true</code> if so; <code>false</code> otherwise
-     * @throws JdbdSQLException if a database access error occurs
-     * @see #getColumnIndex(String)
-     */
-    default boolean isCaseSensitive(int indexBaseZero) throws JdbdSQLException {
-        throw new UnsupportedOperationException();
-    }
-
-    /**
-     * Indicates whether a column's case matters.
-     *
-     * @return <code>true</code> if so; <code>false</code> otherwise
-     * @throws JdbdSQLException if a database access error occurs
-     * @see #getColumnIndex(String)
-     */
-    default boolean isCaseSensitive(String columnLabel) throws JdbdSQLException {
-        throw new UnsupportedOperationException();
-    }
-
-    /**
      * @param indexBaseZero base 0,the first column is 0, the second is 1, ...
      * @throws JdbdSQLException if a database access error occurs
      * @see #getColumnIndex(String)

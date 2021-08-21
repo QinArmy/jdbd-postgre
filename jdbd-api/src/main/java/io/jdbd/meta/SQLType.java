@@ -48,4 +48,6 @@ public interface SQLType extends java.sql.SQLType {
 
     boolean isDecimal();
 
+    boolean isCaseSensitive();
+
 }

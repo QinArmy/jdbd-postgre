@@ -239,8 +239,8 @@ final class QueryCommandWriter {
             case UUID:
             case CIDR:
             case INET:
-            case MAC_ADDR:
-            case MAC_ADDR8:
+            case MACADDR:
+            case MACADDR8:
             case PATH:
             case POINT:
             case CIRCLE:
