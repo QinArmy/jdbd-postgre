@@ -543,6 +543,7 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
             final ResultRow row = rowList.get(i);
             final List<BindValue> valueList = groupList.get(i);
 
+            assertEquals(row.getResultIndex(), i, "resultIndex");
             assertEquals(row.get("id", Long.class), valueList.get(1).getValue(), "id");
             final LocalTime resultTime = row.getNonNull("mytime", LocalTime.class);
             final LocalTime bindTime = (LocalTime) valueList.get(0).getNonNullValue();
@@ -558,6 +559,138 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
 
             final ResultState state = stateHolderList.get(i).get();
             assertNotNull(state, "state");
+
+            assertEquals(state.getResultIndex(), i);
+            assertEquals(state.getAffectedRows(), 1L, "getAffectedRows");
+            assertEquals(state.getInsertId(), 0L, "insert id");
+
+            if (i == last) {
+                assertFalse(state.hasMoreResult(), "more result");
+            } else {
+                assertTrue(state.hasMoreResult(), "more result");
+            }
+
+            assertFalse(state.hasMoreFetch(), "more fetch");
+            assertTrue(state.hasReturningColumn(), "returning column");
+
+        }
+
+    }
+
+    /**
+     * @see SimpleQueryTask#bindableAsFlux(BatchBindStmt, TaskAdjutant)
+     */
+    @Test
+    public void bindableAsFluxForUpdate() {
+        final ClientProtocol protocol;
+        protocol = obtainProtocolWithSync();
+        final TaskAdjutant adjutant = mapToTaskAdjutant(protocol);
+
+        long bindId = START_ID + 100;
+
+        // Postgre server 12.6 bug ,RETURNING clause output_name is converted to lower case by server,so 'mytime' not 'myTime'.
+        final String sql = "UPDATE my_types as t SET my_time = ?,my_boolean = TRUE WHERE t.id = ? ";
+
+        final LocalTime[] valueArray = new LocalTime[]{LocalTime.MIN, LocalTime.MAX, LocalTime.NOON, LocalTime.now()};
+
+        final List<List<BindValue>> groupList = new ArrayList<>(valueArray.length);
+
+        for (LocalTime localTime : valueArray) {
+            final List<BindValue> valueList = new ArrayList<>(2);
+            valueList.add(BindValue.create(0, PgType.TIME, localTime));
+            valueList.add(BindValue.create(1, PgType.BIGINT, bindId++));
+            groupList.add(Collections.unmodifiableList(valueList));
+        }
+
+        final List<ResultState> stateList;
+        stateList = SimpleQueryTask.bindableAsFlux(PgStmts.bindableBatch(sql, groupList), adjutant)
+                .map(ResultState.class::cast)
+
+                .concatWith(releaseConnection(protocol))
+                .onErrorResume(releaseConnectionOnError(protocol))
+
+                .collectList()
+                .block();
+
+        assertNotNull(stateList, "stateList");
+        assertEquals(stateList.size(), valueArray.length, "stateList size");
+
+        for (int i = 0, last = valueArray.length - 1; i < valueArray.length; i++) {
+            final ResultState state = stateList.get(i);
+
+            assertEquals(state.getResultIndex(), i);
+            assertEquals(state.getAffectedRows(), 1L, "getAffectedRows");
+            assertEquals(state.getInsertId(), 0L, "insert id");
+
+            if (i == last) {
+                assertFalse(state.hasMoreResult(), "more result");
+            } else {
+                assertTrue(state.hasMoreResult(), "more result");
+            }
+
+            assertFalse(state.hasMoreFetch(), "more fetch");
+            assertFalse(state.hasReturningColumn(), "returning column");
+        }
+
+    }
+
+    /**
+     * @see SimpleQueryTask#bindableAsFlux(BatchBindStmt, TaskAdjutant)
+     */
+    @Test
+    public void bindableAsFluxForQuery() {
+        final ClientProtocol protocol;
+        protocol = obtainProtocolWithSync();
+        final TaskAdjutant adjutant = mapToTaskAdjutant(protocol);
+
+        long bindId = START_ID + 90;
+        // Postgre server 12.6 bug ,RETURNING clause output_name is converted to lower case by server,so 'mytime' not 'myTime'.
+        final String sql = "UPDATE my_types as t SET my_time = ?,my_boolean = TRUE WHERE t.id = ? RETURNING t.id AS id,t.my_time AS mytime,t.my_boolean AS myboolean";
+
+        final LocalTime[] valueArray = new LocalTime[]{LocalTime.MIN, LocalTime.MAX, LocalTime.NOON, LocalTime.now()};
+
+        final List<List<BindValue>> groupList = new ArrayList<>(valueArray.length);
+
+        for (LocalTime localTime : valueArray) {
+            final List<BindValue> valueList = new ArrayList<>(2);
+            valueList.add(BindValue.create(0, PgType.TIME, localTime));
+            valueList.add(BindValue.create(1, PgType.BIGINT, bindId++));
+            groupList.add(Collections.unmodifiableList(valueList));
+
+        }
+
+        final List<Result> resultList;
+        resultList = SimpleQueryTask.bindableAsFlux(PgStmts.bindableBatch(sql, groupList), adjutant)
+
+                .concatWith(releaseConnection(protocol))
+                .onErrorResume(releaseConnectionOnError(protocol))
+
+                .collectList()
+                .block();
+
+        assertNotNull(resultList, "resultList");
+        assertEquals(resultList.size(), valueArray.length << 1, "resultList size");
+
+        for (int i = 0, j = 0, last = valueArray.length - 1; i < valueArray.length; i++, j += 2) {
+
+            final ResultRow row = (ResultRow) resultList.get(j);
+            final List<BindValue> valueList = groupList.get(i);
+
+            assertEquals(row.getResultIndex(), i, "resultIndex");
+            assertEquals(row.get("id", Long.class), valueList.get(1).getValue(), "id");
+            final LocalTime resultTime = row.getNonNull("mytime", LocalTime.class);
+            final LocalTime bindTime = (LocalTime) valueList.get(0).getNonNullValue();
+
+            assertEquals(resultTime.getHour(), bindTime.getHour(), "hour");
+            assertEquals(resultTime.getMinute(), bindTime.getMinute(), "minute");
+            assertEquals(resultTime.getSecond(), bindTime.getSecond(), "second");
+            // my_time precision is 6 ,so below assert
+            assertEquals(resultTime.getLong(ChronoField.MICRO_OF_SECOND)
+                    , bindTime.getLong(ChronoField.MICRO_OF_SECOND), "micro second");
+
+            assertEquals(row.get("myboolean"), Boolean.TRUE, "myboolean");
+
+            final ResultState state = (ResultState) resultList.get(j + 1);
 
             assertEquals(state.getResultIndex(), i);
             assertEquals(state.getAffectedRows(), 1L, "getAffectedRows");
