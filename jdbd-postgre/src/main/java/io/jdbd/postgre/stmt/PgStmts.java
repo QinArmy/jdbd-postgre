@@ -30,6 +30,10 @@ public abstract class PgStmts extends JdbdStmts {
         return new BatchBindStmtImpl(sql, groupList, timeout);
     }
 
+    public static MultiBindStmt multi(List<BindableStmt> stmtGroup) {
+        return new MultiBindStmtImpl(stmtGroup, 0);
+    }
+
     private static final class BindableStmtForSimple implements BindableStmt {
 
         private final String sql;
@@ -103,6 +107,29 @@ public abstract class PgStmts extends JdbdStmts {
             return this.timeout;
         }
 
+
+    }
+
+    private static final class MultiBindStmtImpl implements MultiBindStmt {
+
+        private final List<BindableStmt> stmtGroup;
+
+        private final int timeout;
+
+        private MultiBindStmtImpl(List<BindableStmt> stmtGroup, int timeout) {
+            this.stmtGroup = Collections.unmodifiableList(stmtGroup);
+            this.timeout = timeout;
+        }
+
+        @Override
+        public final List<BindableStmt> getStmtGroup() {
+            return this.stmtGroup;
+        }
+
+        @Override
+        public final int getTimeout() {
+            return this.timeout;
+        }
 
     }
 

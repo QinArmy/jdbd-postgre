@@ -2,10 +2,7 @@ package io.jdbd.postgre.protocol.client;
 
 import io.jdbd.postgre.PgTestUtils;
 import io.jdbd.postgre.PgType;
-import io.jdbd.postgre.stmt.BatchBindStmt;
-import io.jdbd.postgre.stmt.BindValue;
-import io.jdbd.postgre.stmt.BindableStmt;
-import io.jdbd.postgre.stmt.PgStmts;
+import io.jdbd.postgre.stmt.*;
 import io.jdbd.postgre.util.PgTimes;
 import io.jdbd.result.*;
 import io.jdbd.vendor.stmt.GroupStmt;
@@ -16,6 +13,7 @@ import org.testng.annotations.Test;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.temporal.ChronoField;
 import java.util.ArrayList;
@@ -643,7 +641,7 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
         protocol = obtainProtocolWithSync();
         final TaskAdjutant adjutant = mapToTaskAdjutant(protocol);
 
-        long bindId = START_ID + 90;
+        long bindId = START_ID + 110;
         // Postgre server 12.6 bug ,RETURNING clause output_name is converted to lower case by server,so 'mytime' not 'myTime'.
         final String sql = "UPDATE my_types as t SET my_time = ?,my_boolean = TRUE WHERE t.id = ? RETURNING t.id AS id,t.my_time AS mytime,t.my_boolean AS myboolean";
 
@@ -706,6 +704,145 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
             assertTrue(state.hasReturningColumn(), "returning column");
 
         }
+
+    }
+
+    /**
+     * @see SimpleQueryTask#multiStmtAsMulti(MultiBindStmt, TaskAdjutant)
+     */
+    @Test
+    public void multiStmtAsMulti() {
+        final ClientProtocol protocol;
+        protocol = obtainProtocolWithSync();
+        final TaskAdjutant adjutant = mapToTaskAdjutant(protocol);
+
+        long bindId = START_ID + 120;
+
+        String sql;
+        List<BindValue> valueList;
+        final List<BindableStmt> stmtList = new ArrayList<>(3);
+        sql = "SELECT t.* FROM my_types AS t WHERE t.id = ?";
+        stmtList.add(PgStmts.bindable(sql, Collections.singletonList(BindValue.create(0, PgType.BIGINT, bindId++))));
+
+        sql = "UPDATE my_types AS t SET my_time = ?,my_integer = ? WHERE t.id = ? RETURNING t.id AS id,t.my_time AS mytime,t.my_boolean AS myboolean";
+        valueList = new ArrayList<>(3);
+        valueList.add(BindValue.create(0, PgType.TIME, LocalTime.now()));
+        valueList.add(BindValue.create(1, PgType.INTEGER, Integer.MAX_VALUE));
+        valueList.add(BindValue.create(2, PgType.BIGINT, bindId++));
+        stmtList.add(PgStmts.bindable(sql, valueList));
+
+        sql = "UPDATE my_types AS t SET my_char = ?,my_timestamp=? WHERE t.id =?";
+        valueList = new ArrayList<>(3);
+        valueList.add(BindValue.create(0, PgType.CHAR, "''''\\ ' \\' ' SET balance = balance + 99999.00''"));
+        valueList.add(BindValue.create(1, PgType.TIMESTAMP, LocalDateTime.now()));
+        valueList.add(BindValue.create(2, PgType.BIGINT, bindId));
+        stmtList.add(PgStmts.bindable(sql, valueList));
+
+        final MultiResult multiResult;
+        multiResult = SimpleQueryTask.multiStmtAsMulti(PgStmts.multi(stmtList), adjutant);
+
+        final AtomicReference<ResultState> firstStateHolder = new AtomicReference<>(null);
+        final AtomicReference<ResultState> secondStateHolder = new AtomicReference<>(null);
+
+        Flux.from(multiResult.nextQuery(firstStateHolder::set))
+                .switchIfEmpty(PgTestUtils.queryNoResponse())
+                .collectList()
+                .map(PgTestUtils::mapListToOne)
+                .map(PgTestUtils.assertRowIdFunction((Long) stmtList.get(0).getParamGroup().get(0).getNonNullValue()))
+
+                .thenMany(multiResult.nextQuery(secondStateHolder::set))
+                .switchIfEmpty(PgTestUtils.queryNoResponse())
+                .collectList()
+                .map(PgTestUtils::mapListToOne)
+                .map(PgTestUtils.assertRowIdFunction((Long) stmtList.get(1).getParamGroup().get(2).getNonNullValue()))
+
+                .then(Mono.from(multiResult.nextUpdate()))
+                .switchIfEmpty(PgTestUtils.updateNoResponse())
+                .map(PgTestUtils::assertUpdateOneWithoutMoreResult)
+
+                .then(releaseConnection(protocol))
+                .onErrorResume(releaseConnectionOnError(protocol))
+
+                .block();
+
+        final ResultState firstState = firstStateHolder.get();
+        assertNotNull(firstState, "firstState");
+        PgTestUtils.assertQueryStateWithMoreResult(firstState);
+
+        final ResultState secondState = secondStateHolder.get();
+        assertNotNull(secondState, "secondState");
+        PgTestUtils.assertUpdateOneAndReturningWithMoreResult(secondState);
+
+    }
+
+    /**
+     * @see SimpleQueryTask#multiStmtAsFlux(MultiBindStmt, TaskAdjutant)
+     */
+    @Test
+    public void multiStmtAsFlux() {
+        final ClientProtocol protocol;
+        protocol = obtainProtocolWithSync();
+        final TaskAdjutant adjutant = mapToTaskAdjutant(protocol);
+
+        long bindId = START_ID + 130;
+
+        String sql;
+        List<BindValue> valueList;
+        final List<BindableStmt> stmtList = new ArrayList<>(3);
+        sql = "SELECT t.* FROM my_types AS t WHERE t.id = ?";
+        stmtList.add(PgStmts.bindable(sql, Collections.singletonList(BindValue.create(0, PgType.BIGINT, bindId++))));
+
+        sql = "UPDATE my_types AS t SET my_time = ?,my_integer = ? WHERE t.id = ? RETURNING t.id AS id,t.my_time AS mytime,t.my_boolean AS myboolean";
+        valueList = new ArrayList<>(3);
+        valueList.add(BindValue.create(0, PgType.TIME, LocalTime.now()));
+        valueList.add(BindValue.create(1, PgType.INTEGER, Integer.MAX_VALUE));
+        valueList.add(BindValue.create(2, PgType.BIGINT, bindId++));
+        stmtList.add(PgStmts.bindable(sql, valueList));
+
+        sql = "UPDATE my_types AS t SET my_char = ?,my_timestamp=? WHERE t.id =? RETURNING t.id AS id, t.my_char AS mychar";
+        valueList = new ArrayList<>(3);
+        valueList.add(BindValue.create(0, PgType.CHAR, "''''\\ ' \\ ' ' SET balance = balance + 99999.00''"));
+        valueList.add(BindValue.create(1, PgType.TIMESTAMP, LocalDateTime.now()));
+        valueList.add(BindValue.create(2, PgType.BIGINT, bindId));
+        stmtList.add(PgStmts.bindable(sql, valueList));
+
+        final List<Result> resultList;
+        resultList = SimpleQueryTask.multiStmtAsFlux(PgStmts.multi(stmtList), adjutant)
+                .switchIfEmpty(PgTestUtils.queryNoResponse())
+
+                .collectList()
+                .block();
+
+        assertNotNull(resultList, "resultList");
+        assertEquals(resultList.size(), 6, "resultList size");
+
+        ResultState state;
+        ResultRow row;
+
+        row = (ResultRow) resultList.get(0);
+        assertEquals(row.getResultIndex(), 0, "resultIndex");
+        assertEquals(row.get("id"), stmtList.get(0).getParamGroup().get(0).getNonNullValue(), "stmt one id");
+        state = (ResultState) resultList.get(1);
+        assertEquals(state.getResultIndex(), 0, "resultIndex");
+        PgTestUtils.assertQueryStateWithMoreResult(state);
+
+        row = (ResultRow) resultList.get(2);
+        assertEquals(row.getResultIndex(), 1, "resultIndex");
+        assertEquals(row.get("id"), stmtList.get(1).getParamGroup().get(2).getNonNullValue(), "stmt two id");
+        state = (ResultState) resultList.get(3);
+        assertEquals(state.getResultIndex(), 1, "resultIndex");
+        PgTestUtils.assertUpdateOneAndReturningWithMoreResult(state);
+
+
+        row = (ResultRow) resultList.get(4);
+        assertEquals(row.getResultIndex(), 2, "resultIndex");
+        assertEquals(row.get("id"), stmtList.get(2).getParamGroup().get(2).getNonNullValue(), "stmt three id");
+        // postgre char has trailing
+        // assertEquals(row.get("mychar"),stmtList.get(2).getParamGroup().get(0).getNonNullValue(),"stmt three my_char");
+        state = (ResultState) resultList.get(5);
+        assertEquals(state.getResultIndex(), 2, "resultIndex");
+        PgTestUtils.assertUpdateOneAndReturningWithoutMoreResult(state);
+
 
     }
 

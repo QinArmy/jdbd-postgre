@@ -112,7 +112,7 @@ final class QueryCommandWriter {
     static Publisher<ByteBuf> createMultiStmtCommand(MultiBindStmt stmt, TaskAdjutant adjutant) throws Throwable {
         ByteBuf message;
         message = new QueryCommandWriter(adjutant)
-                .writeMultiBindCommand(stmt.getGroup());
+                .writeMultiBindCommand(stmt.getStmtGroup());
         return Mono.just(message);
     }
 
