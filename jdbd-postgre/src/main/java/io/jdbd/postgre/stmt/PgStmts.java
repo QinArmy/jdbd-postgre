@@ -22,6 +22,13 @@ public abstract class PgStmts extends JdbdStmts {
         return new BindableStmtForSimple(sql, paramGroup);
     }
 
+    public static BatchBindStmt bindableBatch(String sql, List<List<BindValue>> groupList) {
+        return new BatchBindStmtImpl(sql, groupList, 0);
+    }
+
+    public static BatchBindStmt bindableBatch(String sql, List<List<BindValue>> groupList, int timeout) {
+        return new BatchBindStmtImpl(sql, groupList, timeout);
+    }
 
     private static final class BindableStmtForSimple implements BindableStmt {
 
@@ -57,6 +64,43 @@ public abstract class PgStmts extends JdbdStmts {
         @Override
         public final int getTimeout() {
             return 0;
+        }
+
+
+    }
+
+    private static final class BatchBindStmtImpl implements BatchBindStmt {
+
+        private final String sql;
+
+        private final List<List<BindValue>> groupList;
+
+        private final int timeout;
+
+        private BatchBindStmtImpl(String sql, List<List<BindValue>> groupList, int timeout) {
+            this.sql = sql;
+            this.groupList = Collections.unmodifiableList(groupList);
+            this.timeout = timeout;
+        }
+
+        @Override
+        public final List<List<BindValue>> getGroupList() {
+            return this.groupList;
+        }
+
+        @Override
+        public final String getSql() {
+            return this.sql;
+        }
+
+        @Override
+        public final Consumer<ResultState> getStatusConsumer() {
+            return PgFunctions.noActionConsumer();
+        }
+
+        @Override
+        public final int getTimeout() {
+            return this.timeout;
         }
 
 

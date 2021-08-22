@@ -97,16 +97,23 @@ final class QueryCommandWriter {
             throws Throwable {
         ByteBuf message;
         message = new QueryCommandWriter(adjutant)
-                .writeCommand(Collections.singletonList(stmt));
+                .writeMultiBindCommand(Collections.singletonList(stmt));
         return Mono.just(message);
     }
 
-    static Publisher<ByteBuf> createBindableBatchCommand(BatchBindStmt stmt, TaskAdjutant adjutant) {
-        return Mono.empty();
+    static Publisher<ByteBuf> createBindableBatchCommand(BatchBindStmt stmt, TaskAdjutant adjutant)
+            throws Throwable {
+        ByteBuf message;
+        message = new QueryCommandWriter(adjutant)
+                .writeBatchBindCommand(stmt);
+        return Mono.just(message);
     }
 
-    static Publisher<ByteBuf> createMultiStmtCommand(MultiBindStmt stmt, TaskAdjutant adjutant) {
-        return Mono.empty();
+    static Publisher<ByteBuf> createMultiStmtCommand(MultiBindStmt stmt, TaskAdjutant adjutant) throws Throwable {
+        ByteBuf message;
+        message = new QueryCommandWriter(adjutant)
+                .writeMultiBindCommand(stmt.getGroup());
+        return Mono.just(message);
     }
 
     private static Throwable convertError(Throwable e) {
@@ -123,7 +130,7 @@ final class QueryCommandWriter {
 
     private static final Logger LOG = LoggerFactory.getLogger(QueryCommandWriter.class);
 
-    private static final String NULL = "NULL", TRUE = "TRUE", FALSE = "FALSE", B = "B";
+    private static final String NULL = "NULL", TRUE = "TRUE", FALSE = "FALSE";
 
     private static final byte BACK_SLASH_BYTE = '\\';
 
@@ -140,10 +147,17 @@ final class QueryCommandWriter {
         this.clientCharset = adjutant.clientCharset();
     }
 
-
-    private ByteBuf writeCommand(final List<BindableStmt> stmtList) throws Throwable {
+    /**
+     * @see #createMultiStmtCommand(MultiBindStmt, TaskAdjutant)
+     * @see #createBindableCommand(BindableStmt, TaskAdjutant)
+     */
+    private ByteBuf writeMultiBindCommand(final List<BindableStmt> stmtList) throws Throwable {
         final TaskAdjutant adjutant = this.adjutant;
-        final ByteBuf message = adjutant.allocator().buffer(stmtList.size() << 7, Integer.MAX_VALUE);
+        int capacity = stmtList.size() << 7;
+        if (capacity < 0) {
+            capacity = Integer.MAX_VALUE;
+        }
+        final ByteBuf message = adjutant.allocator().buffer(capacity, Integer.MAX_VALUE);
 
         try {
             message.writeByte(Messages.Q);
@@ -173,7 +187,46 @@ final class QueryCommandWriter {
     }
 
     /**
-     * @see #writeCommand(List)
+     * @see #createBindableBatchCommand(BatchBindStmt, TaskAdjutant)
+     */
+    private ByteBuf writeBatchBindCommand(BatchBindStmt stmt) throws Throwable {
+        final TaskAdjutant adjutant = this.adjutant;
+        final String sql = stmt.getSql();
+        final List<List<BindValue>> groupList = stmt.getGroupList();
+        final int stmtCount = groupList.size();
+
+        int capacity = (sql.length() + 40) * stmtCount;
+        if (capacity < 0) {
+            capacity = Integer.MAX_VALUE;
+        }
+        final ByteBuf message = adjutant.allocator().buffer(capacity, Integer.MAX_VALUE);
+        try {
+            message.writeByte(Messages.Q);
+            message.writeZero(Messages.LENGTH_SIZE); // placeholder
+
+            final PgStatement statement;
+            statement = adjutant.sqlParser().parse(sql);
+            for (int i = 0; i < stmtCount; i++) {
+                if (i > 0) {
+                    message.writeByte(SEMICOLON_BYTE);
+                }
+                writeStatement(i, statement, groupList.get(i), message);
+            }
+
+            message.writeByte(Messages.STRING_TERMINATOR);
+
+            Messages.writeLength(message);
+            return message;
+        } catch (Throwable e) {
+            message.release();
+            throw convertError(e);
+        }
+    }
+
+
+    /**
+     * @see #writeMultiBindCommand(List)
+     * @see #writeBatchBindCommand(BatchBindStmt)
      */
     private void writeStatement(final int stmtIndex, PgStatement statement, List<BindValue> valueList, ByteBuf message)
             throws SQLException, IOException {
@@ -202,6 +255,7 @@ final class QueryCommandWriter {
         message.writeBytes(staticSqlList.get(paramCount).getBytes(clientCharset));
 
     }
+
 
     /**
      * @see #writeStatement(int, PgStatement, List, ByteBuf)
@@ -621,7 +675,7 @@ final class QueryCommandWriter {
             throw PgExceptions.createNotSupportBindTypeError(stmtIndex, bindValue);
         }
 
-        message.writeBytes(B.getBytes(this.clientCharset));
+        message.writeByte('B');
         message.writeByte(QUOTE_BYTE);
         message.writeBytes(bitString.getBytes(this.clientCharset));
         message.writeByte(QUOTE_BYTE);
