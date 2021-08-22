@@ -342,7 +342,7 @@ final class SimpleQueryTask extends AbstractStmtTask {
             switch (this.phase) {
                 case READ_COMMAND_RESPONSE: {
                     taskEnd = readCommandResponse(cumulateBuffer, serverStatusConsumer);
-                    continueRead = !taskEnd && Messages.hasOneMessage(cumulateBuffer);
+                    continueRead = false;
                 }
                 break;
                 case READ_ROW_SET: {
@@ -489,8 +489,6 @@ final class SimpleQueryTask extends AbstractStmtTask {
 
         return taskEnd;
     }
-
-
 
 
     private void assertPhase(Phase expected) {

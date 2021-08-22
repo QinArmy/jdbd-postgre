@@ -11,6 +11,10 @@ public class JdbdCompositeException extends JdbdNonSQLException {
 
     private final List<? extends Throwable> errorList;
 
+    public JdbdCompositeException(List<? extends Throwable> errorList) {
+        super("");
+        this.errorList = JdbdCollections.unmodifiableList(errorList);
+    }
 
     public JdbdCompositeException(List<? extends Throwable> errorList, String messageFormat, Object... args) {
         super(createErrorMessage(messageFormat, errorList), messageFormat, args);

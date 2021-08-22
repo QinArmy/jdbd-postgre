@@ -6,10 +6,7 @@ import io.jdbd.postgre.stmt.BindValue;
 import io.jdbd.postgre.stmt.BindableStmt;
 import io.jdbd.postgre.stmt.PgStmts;
 import io.jdbd.postgre.util.PgTimes;
-import io.jdbd.result.MultiResult;
-import io.jdbd.result.ResultRow;
-import io.jdbd.result.ResultRowMeta;
-import io.jdbd.result.ResultState;
+import io.jdbd.result.*;
 import io.jdbd.vendor.stmt.GroupStmt;
 import io.jdbd.vendor.stmt.Stmt;
 import org.slf4j.Logger;
@@ -77,7 +74,7 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
         final ClientProtocol protocol;
         protocol = obtainProtocolWithSync();
         final TaskAdjutant adjutant = mapToTaskAdjutant(protocol);
-        final long bindId = (startId + 2);
+        final long bindId = (startId + 10);
         final String sql = "SELECT t.* FROM my_types as t WHERE t.id = " + bindId;
 
         final AtomicReference<ResultState> stateHolder = new AtomicReference<>(null);
@@ -106,6 +103,82 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
         assertTrue(state.hasReturningColumn(), "hasReturningColumn");
     }
 
+
+    /**
+     * @see SimpleQueryTask#asMulti(GroupStmt, TaskAdjutant)
+     */
+    @Test
+    public void asMulti() {
+        final ClientProtocol protocol;
+        protocol = obtainProtocolWithSync();
+        final TaskAdjutant adjutant = mapToTaskAdjutant(protocol);
+
+        long bindId = startId + 40;
+        List<String> sqlList = new ArrayList<>(4);
+        sqlList.add(String.format("UPDATE my_types AS t SET my_time = '%s' WHERE t.id = %s", LocalTime.now().format(PgTimes.ISO_LOCAL_TIME_FORMATTER), bindId++));
+        sqlList.add("SELECT t.* FROM my_types AS t WHERE t.id = " + (bindId++));
+        sqlList.add(String.format("UPDATE my_types AS t SET my_boolean = TRUE WHERE t.id = %s RETURNING t.id AS id ", bindId++));
+        sqlList.add("UPDATE my_types AS t SET my_boolean = TRUE WHERE t.id = " + bindId);
+
+        final MultiResult multiResult = SimpleQueryTask.asMulti(PgStmts.group(sqlList), adjutant);
+
+        final AtomicReference<ResultState> updateRowsHolder = new AtomicReference<>(null);
+
+        Mono.from(multiResult.nextUpdate())
+                .switchIfEmpty(PgTestUtils.updateNoResponse())
+                .map(PgTestUtils::assertUpdateOneWithMoreResult)
+
+                .thenMany(multiResult.nextQuery())
+                .switchIfEmpty(PgTestUtils.queryNoResponse())
+
+                .thenMany(multiResult.nextQuery(updateRowsHolder::set))
+                .switchIfEmpty(PgTestUtils.queryNoResponse())
+
+                .then(Mono.from(multiResult.nextUpdate()))
+                .switchIfEmpty(PgTestUtils.updateNoResponse())
+                .map(PgTestUtils::assertUpdateOneWithoutMoreResult)
+
+                .concatWith(releaseConnection(protocol))
+                .onErrorResume(releaseConnectionOnError(protocol))
+                .then()
+                .block();
+
+        final ResultState state = updateRowsHolder.get();
+        assertNotNull(state, "state");
+        PgTestUtils.assertUpdateOneAndReturningWithMoreResult(state);
+    }
+
+    /**
+     * @see SimpleQueryTask#asFlux(GroupStmt, TaskAdjutant)
+     */
+    @Test
+    public void asFlux() {
+        final ClientProtocol protocol;
+        protocol = obtainProtocolWithSync();
+        final TaskAdjutant adjutant = mapToTaskAdjutant(protocol);
+
+        long bindId = startId + 50;
+        List<String> sqlList = new ArrayList<>(4);
+        sqlList.add(String.format("UPDATE my_types AS t SET my_time = '%s' WHERE t.id = %s", LocalTime.now().format(PgTimes.ISO_LOCAL_TIME_FORMATTER), bindId++));
+        sqlList.add("SELECT t.* FROM my_types AS t WHERE t.id = " + (bindId++));
+        sqlList.add(String.format("UPDATE my_types AS t SET my_boolean = TRUE WHERE t.id = %s RETURNING t.id AS id ", bindId++));
+        sqlList.add("UPDATE my_types AS t SET my_boolean = TRUE WHERE t.id = " + bindId);
+
+        SimpleQueryTask.asFlux(PgStmts.group(sqlList), adjutant)
+                .switchIfEmpty(PgTestUtils.updateNoResponse())
+                .map(this::assertHandleAsFluxResult)
+                .count()
+                .doOnNext(resultCount -> assertEquals(resultCount, Long.valueOf(6), "resultCount"))
+
+                .concatWith(releaseConnection(protocol))
+                .onErrorResume(releaseConnectionOnError(protocol))
+                .then()
+                .block();
+
+    }
+
+    /*################################## blow bindable method ##################################*/
+
     /**
      * @see SimpleQueryTask#batchUpdate(GroupStmt, TaskAdjutant)
      */
@@ -115,7 +188,7 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
         protocol = obtainProtocolWithSync();
         final TaskAdjutant adjutant = mapToTaskAdjutant(protocol);
         List<String> sqlList = new ArrayList<>(2);
-        long bindId = startId + 3;
+        long bindId = startId + 20;
         sqlList.add("UPDATE my_types as t SET my_boolean = true WHERE t.id = " + bindId++);
         sqlList.add("UPDATE my_types as t SET my_boolean = false WHERE t.id = " + bindId);
 
@@ -163,7 +236,7 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
         protocol = obtainProtocolWithSync();
         final TaskAdjutant adjutant = mapToTaskAdjutant(protocol);
 
-        final long bindId = startId + 6;
+        final long bindId = startId + 30;
 
         final String sql = "UPDATE my_types as t SET my_time =? WHERE t.id = ?";
         final List<BindValue> valueList = new ArrayList<>(2);
@@ -190,49 +263,6 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
 
     }
 
-    /**
-     * @see SimpleQueryTask#asMulti(GroupStmt, TaskAdjutant)
-     */
-    @Test
-    public void asMulti() {
-        final ClientProtocol protocol;
-        protocol = obtainProtocolWithSync();
-        final TaskAdjutant adjutant = mapToTaskAdjutant(protocol);
-        String sql;
-        long bindId = startId + 8;
-        List<String> sqlList = new ArrayList<>(4);
-        sqlList.add(String.format("UPDATE my_types AS t SET my_time = '%s' WHERE t.id = %s", LocalTime.now().format(PgTimes.ISO_LOCAL_TIME_FORMATTER), bindId++));
-        sqlList.add("SELECT t.* FROM my_types AS t WHERE t.id = " + (bindId++));
-        sqlList.add(String.format("UPDATE my_types AS t SET my_boolean = TRUE WHERE t.id = %s RETURNING t.id AS id ", bindId++));
-        sqlList.add("UPDATE my_types AS t SET my_boolean = TRUE WHERE t.id = " + bindId);
-
-        final MultiResult multiResult = SimpleQueryTask.asMulti(PgStmts.group(sqlList), adjutant);
-
-        final AtomicReference<ResultState> updateRowsHolder = new AtomicReference<>(null);
-
-        Mono.from(multiResult.nextUpdate())
-                .switchIfEmpty(PgTestUtils.updateNoResponse())
-                .map(PgTestUtils::assertUpdateOneWithMoreResult)
-
-                .thenMany(multiResult.nextQuery())
-                .switchIfEmpty(PgTestUtils.queryNoResponse())
-
-                .thenMany(multiResult.nextQuery(updateRowsHolder::set))
-                .switchIfEmpty(PgTestUtils.queryNoResponse())
-
-                .then(Mono.from(multiResult.nextUpdate()))
-                .switchIfEmpty(PgTestUtils.updateNoResponse())
-                .map(PgTestUtils::assertUpdateOneWithoutMoreResult)
-
-                .concatWith(releaseConnection(protocol))
-                .onErrorResume(releaseConnectionOnError(protocol))
-                .then()
-                .block();
-
-        final ResultState state = updateRowsHolder.get();
-        // assertNotNull(state, "state");
-        //PgTestUtils.assertUpdateOneAndReturningWithMoreResult(state);
-    }
 
     /**
      * @see SimpleQueryTask#bindableQuery(BindableStmt, TaskAdjutant)
@@ -270,6 +300,66 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
         assertEquals(myTime.getSecond(), time.getSecond(), "second");
 
         assertEquals(myTime.getLong(ChronoField.MICRO_OF_SECOND), time.getLong(ChronoField.MICRO_OF_SECOND), "miro second");
+    }
+
+    /*################################## blow private method ##################################*/
+
+    /**
+     * @see #asFlux()
+     */
+    private Result assertHandleAsFluxResult(final Result result) {
+        switch (result.getResultIndex()) {
+            case 0: {// first update statement.
+                assertTrue(result instanceof ResultState, "first update statement.");
+                final ResultState state = (ResultState) result;
+                assertFalse(state.hasReturningColumn(), "first update statement has returning column.");
+                assertFalse(state.hasMoreFetch(), "first update statement more fetch.");
+
+                assertEquals(state.getAffectedRows(), 1L, "first update statement affected rows");
+                assertEquals(state.getInsertId(), 0L, "first update statement insert id");
+                assertTrue(state.hasMoreResult(), "first update statement more result.");
+            }
+            break;
+            case 1: {// second select statement
+                if (result instanceof ResultState) {
+                    ResultState state = (ResultState) result;
+                    assertTrue(state.hasReturningColumn(), "second select statement has returning column.");
+                    assertFalse(state.hasMoreFetch(), "second select statement more fetch.");
+
+                    assertEquals(state.getAffectedRows(), 0L, "second select statement affected rows");
+                    assertEquals(state.getInsertId(), 0L, "second select statement insert id");
+                    assertTrue(state.hasMoreResult(), "second select statement more result.");
+                }
+            }
+            break;
+            case 2: {// third update statement
+                if (result instanceof ResultState) {
+                    final ResultState state = (ResultState) result;
+                    assertTrue(state.hasReturningColumn(), "third update returning statement has returning column.");
+                    assertFalse(state.hasMoreFetch(), "third update returning statement more fetch.");
+
+                    assertEquals(state.getAffectedRows(), 1L, "third update returning statement affected rows");
+                    assertEquals(state.getInsertId(), 0L, "third update returning statement insert id");
+                    assertTrue(state.hasMoreResult(), "third update returning statement more result.");
+                }
+
+            }
+            break;
+            case 3: {
+                assertTrue(result instanceof ResultState, "fourth update statement.");
+                final ResultState state = (ResultState) result;
+                assertFalse(state.hasReturningColumn(), "fourth update statement has returning column.");
+                assertFalse(state.hasMoreFetch(), "fourth update statement more fetch.");
+
+                assertEquals(state.getAffectedRows(), 1L, "fourth update statement affected rows");
+                assertEquals(state.getInsertId(), 0L, "fourth update statement insert id");
+                assertFalse(state.hasMoreResult(), "fourth update statement more result.");
+            }
+            break;
+            default:
+                fail(String.format("Not expected Result[%s]", result.getResultIndex()));
+        }
+        return result;
     }
 
 

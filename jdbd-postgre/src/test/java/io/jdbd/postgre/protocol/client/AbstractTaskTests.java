@@ -3,13 +3,12 @@ package io.jdbd.postgre.protocol.client;
 import io.jdbd.postgre.config.PostgreUrl;
 import io.jdbd.postgre.session.SessionAdjutant;
 import io.jdbd.result.ResultState;
+import io.jdbd.vendor.JdbdCompositeException;
 import io.netty.channel.EventLoopGroup;
 import reactor.core.publisher.Mono;
 import reactor.netty.resources.LoopResources;
 
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Queue;
+import java.util.*;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.function.Function;
 
@@ -68,7 +67,12 @@ abstract class AbstractTaskTests {
 
     static <T> Function<? super Throwable, ? extends Mono<T>> releaseConnectionOnError(ClientProtocol protocol) {
         return error -> protocol.reset()
-                .then(Mono.error(error));
+                .onErrorMap(resetError -> {
+                    List<Throwable> list = new ArrayList<>(2);
+                    list.add(error);
+                    list.add(resetError);
+                    return new JdbdCompositeException(list);
+                }).then(Mono.error(error));
     }
 
 
