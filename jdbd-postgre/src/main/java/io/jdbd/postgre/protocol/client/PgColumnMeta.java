@@ -1,5 +1,6 @@
 package io.jdbd.postgre.protocol.client;
 
+import io.jdbd.postgre.PgConstant;
 import io.jdbd.postgre.PgJdbdException;
 import io.jdbd.postgre.PgType;
 import io.netty.buffer.ByteBuf;
@@ -136,7 +137,17 @@ final class PgColumnMeta {
                 precision = this.columnModifier == -1 ? 0 : (((this.columnModifier - 4) & 0xFFFF0000) >> 16);
                 break;
             case CHAR:
-            case CHAR_ARRAY:
+            case CHAR_ARRAY: {
+                switch (this.columnTypeOid) {
+                    case PgConstant.TYPE_CHAR:
+                    case PgConstant.TYPE_CHAR_ARRAY:
+                        precision = this.columnModifier == -1 ? 1 : (this.columnModifier - 4);
+                        break;
+                    default:
+                        precision = this.columnModifier - 4;
+                }
+            }
+            break;
             case VARCHAR:
             case VARCHAR_ARRAY:
                 precision = this.columnModifier - 4;
