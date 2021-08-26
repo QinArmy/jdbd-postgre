@@ -19,4 +19,6 @@ interface StmtTask {
 
     int getAndIncrementResultIndex();
 
+    boolean isCanceled();
+
 }

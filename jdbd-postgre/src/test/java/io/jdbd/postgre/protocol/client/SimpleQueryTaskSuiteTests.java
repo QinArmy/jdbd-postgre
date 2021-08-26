@@ -17,6 +17,7 @@ import reactor.core.publisher.Mono;
 
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.OffsetDateTime;
 import java.time.temporal.ChronoField;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -1187,6 +1188,202 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
 
         fail("bindableQueryIncorrectUserCase1 test failure");
     }
+
+    /**
+     * @see SimpleQueryTask#bindableQuery(BindableStmt, TaskAdjutant)
+     */
+    @Test(expectedExceptions = SubscribeException.class)
+    public void bindableQueryIncorrectUserCase2() {
+        final ClientProtocol protocol;
+        protocol = obtainProtocolWithSync();
+        final TaskAdjutant adjutant = mapToTaskAdjutant(protocol);
+
+        final long bindId = START_ID + 175;
+        final String sql = "UPDATE my_types AS t SET my_zoned_timestamp = ?,my_boolean = ? WHERE t.id = ?";
+        final List<BindValue> paramGroup = new ArrayList<>(3);
+        paramGroup.add(BindValue.create(0, PgType.TIMESTAMPTZ, OffsetDateTime.now()));
+        paramGroup.add(BindValue.create(1, PgType.BOOLEAN, Boolean.TRUE));
+        paramGroup.add(BindValue.create(2, PgType.BIGINT, bindId));
+
+        SimpleQueryTask.bindableQuery(PgStmts.bindable(sql, paramGroup), adjutant)
+
+                .concatWith(releaseConnection(protocol))
+                .onErrorResume(releaseConnectionOnError(protocol))
+
+                .collectList()
+                .block();
+
+        fail("bindableQueryIncorrectUserCase2 test failure");
+
+    }
+
+    /**
+     * @see SimpleQueryTask#bindableQuery(BindableStmt, TaskAdjutant)
+     */
+    @Test(expectedExceptions = JdbdSQLException.class)
+    public void bindableQueryIncorrectUserCase3() {
+        final ClientProtocol protocol;
+        protocol = obtainProtocolWithSync();
+        final TaskAdjutant adjutant = mapToTaskAdjutant(protocol);
+
+        long bindId = START_ID + 180;
+        final String sql = "SELECT t.id AS id ,t.my_time AS myTime FROM my_types AS t WHERE t.id = ?;UPDATE my_types AS t SET my_zoned_timestamp = ? WHERE t.id = ?";
+        final List<BindValue> paramGroup = new ArrayList<>(3);
+        paramGroup.add(BindValue.create(0, PgType.BIGINT, bindId++));
+        paramGroup.add(BindValue.create(1, PgType.TIMESTAMPTZ, OffsetDateTime.now()));
+        paramGroup.add(BindValue.create(2, PgType.BIGINT, bindId));
+
+        SimpleQueryTask.bindableQuery(PgStmts.bindable(sql, paramGroup), adjutant)
+
+                .concatWith(releaseConnection(protocol))
+                .onErrorResume(releaseConnectionOnError(protocol))
+
+                .collectList()
+                .block();
+
+        fail("bindableQueryIncorrectUserCase2 test failure");
+
+    }
+
+    /**
+     * @see SimpleQueryTask#bindableBatchUpdate(BatchBindStmt, TaskAdjutant)
+     */
+    @Test(expectedExceptions = JdbdSQLException.class)
+    public void bindableBatchUpdateIncorrectUserCase1() {
+        final ClientProtocol protocol;
+        protocol = obtainProtocolWithSync();
+        final TaskAdjutant adjutant = mapToTaskAdjutant(protocol);
+
+        long bindId = START_ID + 185;
+
+        final String sql = "UPDATE my_types AS t SET my_integer = ? WHERE bb.id = ?";
+        final int[] valueArray = new int[]{0, 999, Integer.MIN_VALUE, Integer.MAX_VALUE};
+        final List<List<BindValue>> groupList = new ArrayList<>(valueArray.length);
+
+        for (int j : valueArray) {
+            List<BindValue> paramGroup = new ArrayList<>(2);
+            paramGroup.add(BindValue.create(0, PgType.INTEGER, j));
+            paramGroup.add(BindValue.create(1, PgType.BIGINT, bindId++));
+
+            groupList.add(paramGroup);
+        }
+
+
+        SimpleQueryTask.bindableBatchUpdate(PgStmts.bindableBatch(sql, groupList), adjutant)
+
+                .concatWith(releaseConnection(protocol))
+                .onErrorResume(releaseConnectionOnError(protocol))
+
+                .collectList()
+                .block();
+
+        fail("bindableBatchUpdateIncorrectUserCase1 test failure");
+
+    }
+
+    /**
+     * @see SimpleQueryTask#bindableBatchUpdate(BatchBindStmt, TaskAdjutant)
+     */
+    @Test(expectedExceptions = JdbdSQLException.class)
+    public void bindableBatchUpdateIncorrectUserCase2() {
+        final ClientProtocol protocol;
+        protocol = obtainProtocolWithSync();
+        final TaskAdjutant adjutant = mapToTaskAdjutant(protocol);
+
+        long bindId = START_ID + 190;
+
+        final String sql = "UPDATE my_types AS t SET my_integer = ? WHERE t.id = ?;UPDATE my_types AS t SET my_boolean WHERE t.id = " + bindId++;
+        final int[] valueArray = new int[]{0, 999, Integer.MIN_VALUE, Integer.MAX_VALUE};
+        final List<List<BindValue>> groupList = new ArrayList<>(valueArray.length);
+
+        for (int j : valueArray) {
+            List<BindValue> paramGroup = new ArrayList<>(2);
+            paramGroup.add(BindValue.create(0, PgType.INTEGER, j));
+            paramGroup.add(BindValue.create(1, PgType.BIGINT, bindId++));
+
+            groupList.add(paramGroup);
+        }
+
+
+        SimpleQueryTask.bindableBatchUpdate(PgStmts.bindableBatch(sql, groupList), adjutant)
+
+                .concatWith(releaseConnection(protocol))
+                .onErrorResume(releaseConnectionOnError(protocol))
+
+                .collectList()
+                .block();
+
+        fail("bindableBatchUpdateIncorrectUserCase1 test failure");
+
+    }
+
+    /**
+     * @see SimpleQueryTask#bindableBatchUpdate(BatchBindStmt, TaskAdjutant)
+     */
+    @Test(expectedExceptions = SubscribeException.class)
+    public void bindableBatchUpdateIncorrectUserCase3() {
+        final ClientProtocol protocol;
+        protocol = obtainProtocolWithSync();
+        final TaskAdjutant adjutant = mapToTaskAdjutant(protocol);
+
+        long bindId = START_ID + 195;
+
+        final String sql = "SELECT t.id AS id ,t.my_time AS myTime FROM my_types AS t WHERE t.id = ?";
+        final long[] valueArray = new long[]{bindId++, bindId++, bindId++, bindId};
+        final List<List<BindValue>> groupList = new ArrayList<>(valueArray.length);
+
+        for (long id : valueArray) {
+            groupList.add(Collections.singletonList(BindValue.create(0, PgType.BIGINT, id)));
+        }
+
+        SimpleQueryTask.bindableBatchUpdate(PgStmts.bindableBatch(sql, groupList), adjutant)
+
+                .concatWith(releaseConnection(protocol))
+                .onErrorResume(releaseConnectionOnError(protocol))
+
+                .collectList()
+                .block();
+
+        fail("bindableBatchUpdateIncorrectUserCase3 test failure");
+
+    }
+
+    /**
+     * @see SimpleQueryTask#bindableAsMulti(BatchBindStmt, TaskAdjutant)
+     */
+    @Test(expectedExceptions = JdbdSQLException.class)
+    public void bindableAsMultiIncorrectUserCase1() {
+        final ClientProtocol protocol;
+        protocol = obtainProtocolWithSync();
+        final TaskAdjutant adjutant = mapToTaskAdjutant(protocol);
+
+        long bindId = START_ID + 200;
+
+        final String sql = "SELECT t.id AS id ,t.my_time AS myTime ?";
+        final long[] valueArray = new long[]{bindId++, bindId++, bindId++, bindId};
+        final List<List<BindValue>> groupList = new ArrayList<>(valueArray.length);
+
+        for (long id : valueArray) {
+            groupList.add(Collections.singletonList(BindValue.create(0, PgType.BIGINT, id)));
+        }
+
+        final MultiResult multiResult;
+        multiResult = SimpleQueryTask.bindableAsMulti(PgStmts.bindableBatch(sql, groupList), adjutant);
+        Flux.from(multiResult.nextUpdate())
+
+                .concatWith(releaseConnection(protocol))
+                .onErrorResume(releaseConnectionOnError(protocol))
+
+                .collectList()
+                .block();
+
+
+        fail("bindableAsMultiIncorrectUserCase1 test failure");
+
+    }
+
+
+
 
 
     /*################################## blow private method ##################################*/

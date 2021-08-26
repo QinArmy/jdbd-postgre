@@ -8,6 +8,7 @@ import org.qinarmy.util.Stack;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.nio.file.Path;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
@@ -44,6 +45,11 @@ final class DefaultPgParser implements PgParser {
     @Override
     public final PgStatement parse(final String sql) throws SQLException {
         return (PgStatement) doParse(sql, true);
+    }
+
+    @Override
+    public final Path parseCopyInPath(String singleSql) throws SQLException {
+        throw new SQLException("");
     }
 
     @Override

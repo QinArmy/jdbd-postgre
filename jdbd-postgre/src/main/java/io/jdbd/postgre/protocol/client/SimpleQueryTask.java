@@ -23,6 +23,9 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.nio.charset.Charset;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.function.Consumer;
 
 /**
@@ -240,9 +243,13 @@ final class SimpleQueryTask extends AbstractStmtTask {
 
     private final FluxResultSink sink;
 
+    /**
+     * cache sql list for copy operation response.
+     */
+    private final List<String> sqlList;
+
     private final ResultSetReader resultSetReader;
 
-    private boolean downstreamCanceled;
 
     private Phase phase;
 
@@ -258,6 +265,7 @@ final class SimpleQueryTask extends AbstractStmtTask {
         super(adjutant, sink);
         this.packetPublisher = QueryCommandWriter.createStaticSingleCommand(stmt, adjutant);
         this.sink = sink;
+        this.sqlList = Collections.singletonList(stmt.getSql());
         this.resultSetReader = DefaultResultSetReader.create(this, sink.froResultSet());
     }
 
@@ -271,6 +279,7 @@ final class SimpleQueryTask extends AbstractStmtTask {
         super(adjutant, sink);
         this.packetPublisher = QueryCommandWriter.createStaticBatchCommand(stmt, adjutant);
         this.sink = sink;
+        this.sqlList = stmt.getSqlGroup();
         this.resultSetReader = DefaultResultSetReader.create(this, sink.froResultSet());
     }
 
@@ -285,6 +294,7 @@ final class SimpleQueryTask extends AbstractStmtTask {
         super(adjutant, sink);
         this.packetPublisher = QueryCommandWriter.createBindableCommand(stmt, adjutant);
         this.sink = sink;
+        this.sqlList = Collections.singletonList(stmt.getSql());
         this.resultSetReader = DefaultResultSetReader.create(this, sink.froResultSet());
     }
 
@@ -298,6 +308,7 @@ final class SimpleQueryTask extends AbstractStmtTask {
         super(adjutant, sink);
         this.packetPublisher = QueryCommandWriter.createBindableBatchCommand(stmt, adjutant);
         this.sink = sink;
+        this.sqlList = Collections.singletonList(stmt.getSql());
         this.resultSetReader = DefaultResultSetReader.create(this, sink.froResultSet());
     }
 
@@ -312,8 +323,10 @@ final class SimpleQueryTask extends AbstractStmtTask {
         super(adjutant, sink);
         this.packetPublisher = QueryCommandWriter.createMultiStmtCommand(stmt, adjutant);
         this.sink = sink;
+        this.sqlList = extractSqlList(stmt);
         this.resultSetReader = DefaultResultSetReader.create(this, sink.froResultSet());
     }
+
 
     /*################################## blow io.jdbd.postgre.protocol.client.StmtTask method ##################################*/
 
@@ -340,7 +353,10 @@ final class SimpleQueryTask extends AbstractStmtTask {
         boolean taskEnd = false, continueRead = true;
         while (continueRead) {
             switch (this.phase) {
-                case READ_COMMAND_RESPONSE: {
+                case READ_COMMAND_RESPONSE:
+                case COPY_IN_MODE:
+                case COPY_OUT_MODE:
+                case COPY_BOTH_MODE: {
                     taskEnd = readCommandResponse(cumulateBuffer, serverStatusConsumer);
                     continueRead = false;
                 }
@@ -401,18 +417,6 @@ final class SimpleQueryTask extends AbstractStmtTask {
     private boolean readCommandResponse(final ByteBuf cumulateBuffer, final Consumer<Object> serverStatusConsumer) {
         assertPhase(Phase.READ_COMMAND_RESPONSE);
 
-        final boolean isCanceled;
-        if (this.downstreamCanceled || hasError()) {
-            isCanceled = true;
-        } else if (this.sink.isCancelled()) {
-            log.trace("Downstream cancel subscribe.");
-            isCanceled = true;
-            this.downstreamCanceled = true;
-        } else {
-            isCanceled = false;
-        }
-        log.trace("Read command response,isCanceled:{}", isCanceled);
-
         final Charset clientCharset = this.adjutant.clientCharset();
 
         boolean taskEnd = false, continueRead = true;
@@ -420,19 +424,6 @@ final class SimpleQueryTask extends AbstractStmtTask {
             final int msgStartIndex = cumulateBuffer.readerIndex();
             final int msgType = cumulateBuffer.getByte(msgStartIndex);
 
-            if (isCanceled) {
-                if (msgType == Messages.Z) {// ReadyForQuery message
-                    serverStatusConsumer.accept(TxStatus.read(cumulateBuffer));
-                    taskEnd = true;
-                    continueRead = false;
-                    readNoticeAfterReadyForQuery(cumulateBuffer, serverStatusConsumer);
-                } else {
-                    final int nextMsgIndex = msgStartIndex + 1 + cumulateBuffer.getInt(msgStartIndex + 1);
-                    cumulateBuffer.readerIndex(nextMsgIndex);
-                    continueRead = Messages.hasOneMessage(cumulateBuffer);
-                }
-                continue;
-            }
             switch (msgType) {
                 case Messages.E: {// ErrorResponse message
                     ErrorMessage error = ErrorMessage.read(cumulateBuffer, clientCharset);
@@ -477,6 +468,19 @@ final class SimpleQueryTask extends AbstractStmtTask {
                     continueRead = Messages.hasOneMessage(cumulateBuffer);
                 }
                 break;
+                case Messages.G: {// CopyInResponse message
+                    this.phase = Phase.COPY_IN_MODE;
+                    handleCopyInResponse(cumulateBuffer, this.sqlList);
+                }
+                break;
+                case Messages.H: { // CopyOutResponse message
+                    this.phase = Phase.COPY_OUT_MODE;
+                }
+                break;
+                case Messages.W: {// CopyBothResponse message
+                    this.phase = Phase.COPY_BOTH_MODE;
+                }
+                break;
                 default: {
                     throw new PgJdbdException(String.format("Server response unknown message type[%s]"
                             , (char) msgType));
@@ -497,11 +501,25 @@ final class SimpleQueryTask extends AbstractStmtTask {
         }
     }
 
+
+    private static List<String> extractSqlList(MultiBindStmt stmt) {
+        final List<BindableStmt> stmtList = stmt.getStmtGroup();
+        final List<String> sqlList = new ArrayList<>(stmtList.size());
+        for (BindableStmt bindableStmt : stmtList) {
+            sqlList.add(bindableStmt.getSql());
+        }
+        return Collections.unmodifiableList(sqlList);
+    }
+
+
     /*################################## blow private instance class ##################################*/
 
     private enum Phase {
         READ_COMMAND_RESPONSE,
         READ_ROW_SET,
+        COPY_IN_MODE,
+        COPY_OUT_MODE,
+        COPY_BOTH_MODE,
         END
     }
 

@@ -27,6 +27,13 @@ abstract class Messages {
 
     /**
      * <ul>
+     *     <li>CopyData</li>
+     * </ul>
+     */
+    static final byte d = 'd';
+
+    /**
+     * <ul>
      *     <li>DataRow</li>
      * </ul>
      */
@@ -38,6 +45,20 @@ abstract class Messages {
      * </ul>
      */
     static final byte E = 'E';
+
+    /**
+     * <ul>
+     *     <li>CopyInResponse</li>
+     * </ul>
+     */
+    static final byte G = 'G';
+
+    /**
+     * <ul>
+     *     <li>CopyOutResponse</li>
+     * </ul>
+     */
+    static final byte H = 'H';
 
     static final byte R = 'R';
 
@@ -71,6 +92,13 @@ abstract class Messages {
     static final byte K = 'K';
 
     static final byte Q = 'Q';
+
+    /**
+     * <ul>
+     *     <li>CopyBothResponse</li>
+     * </ul>
+     */
+    static final byte W = 'W';
 
 
     /** Specifies that the authentication was successful. See AuthenticationOk message format. */
