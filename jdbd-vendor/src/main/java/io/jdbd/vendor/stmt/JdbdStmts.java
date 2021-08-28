@@ -4,12 +4,16 @@ package io.jdbd.vendor.stmt;
 import io.jdbd.result.MultiResult;
 import io.jdbd.result.ResultState;
 import io.jdbd.vendor.util.JdbdCollections;
+import io.jdbd.vendor.util.JdbdFunctions;
+import org.reactivestreams.Publisher;
+import org.reactivestreams.Subscriber;
 
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.function.Consumer;
+import java.util.function.Function;
 
 public abstract class JdbdStmts {
 
@@ -35,6 +39,10 @@ public abstract class JdbdStmts {
     public static Stmt stmt(String sql) {
         Objects.requireNonNull(sql, "sql");
         return new StmtImpl1(sql);
+    }
+
+    public static Stmt stmtWithImport(String sql, Function<String, Publisher<byte[]>> function) {
+        return new StmtImpImport2(sql, function);
     }
 
     public static Stmt stmt(String sql, int timeout) {
@@ -76,6 +84,10 @@ public abstract class JdbdStmts {
             list = Collections.unmodifiableList(tempList);
         }
         return list;
+    }
+
+    public static MultiSqlStmt multiSqlStmt(String multiSql) {
+        return new MultiSqlStmtImpl(multiSql, 0);
     }
 
     public static GroupStmt group(List<String> sqlGroup, int timeout) {
@@ -254,6 +266,53 @@ public abstract class JdbdStmts {
             return MultiResult.EMPTY_CONSUMER;
         }
 
+        @Override
+        public final Function<String, Publisher<byte[]>> getImportFunction() {
+            return null;
+        }
+
+        @Override
+        public final Function<String, Subscriber<byte[]>> getExportSubscriber() {
+            return null;
+        }
+    }
+
+    private static class StmtImpImport2 implements Stmt {
+
+        private final String sql;
+
+        private final Function<String, Publisher<byte[]>> function;
+
+        private StmtImpImport2(String sql, Function<String, Publisher<byte[]>> function) {
+            this.sql = sql;
+            this.function = Objects.requireNonNull(function, "function");
+        }
+
+        @Override
+        public final String getSql() {
+            return this.sql;
+        }
+
+        @Override
+        public final Consumer<ResultState> getStatusConsumer() {
+            return JdbdFunctions.noActionConsumer();
+        }
+
+        @Override
+        public final int getTimeout() {
+            return 0;
+        }
+
+        @Override
+        public final Function<String, Publisher<byte[]>> getImportFunction() {
+            return this.function;
+        }
+
+        @Override
+        public final Function<String, Subscriber<byte[]>> getExportSubscriber() {
+            return null;
+        }
+
     }
 
 
@@ -323,6 +382,30 @@ public abstract class JdbdStmts {
         @Override
         public final List<String> getSqlGroup() {
             return this.sqlGroup;
+        }
+
+        @Override
+        public final int getTimeout() {
+            return this.timeout;
+        }
+
+    }
+
+    private static final class MultiSqlStmtImpl implements MultiSqlStmt {
+
+
+        private final String multiSql;
+
+        private final int timeout;
+
+        private MultiSqlStmtImpl(String multiSql, int timeout) {
+            this.multiSql = multiSql;
+            this.timeout = timeout;
+        }
+
+        @Override
+        public final String getMultiSql() {
+            return this.multiSql;
         }
 
         @Override

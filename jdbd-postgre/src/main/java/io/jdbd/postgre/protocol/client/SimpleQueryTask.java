@@ -16,6 +16,7 @@ import io.jdbd.vendor.result.FluxResultSink;
 import io.jdbd.vendor.result.MultiResults;
 import io.jdbd.vendor.result.ResultSetReader;
 import io.jdbd.vendor.stmt.GroupStmt;
+import io.jdbd.vendor.stmt.MultiSqlStmt;
 import io.jdbd.vendor.stmt.Stmt;
 import io.netty.buffer.ByteBuf;
 import org.reactivestreams.Publisher;
@@ -106,6 +107,22 @@ final class SimpleQueryTask extends AbstractStmtTask {
      * </p>
      */
     static Flux<Result> asFlux(GroupStmt stmt, TaskAdjutant adjutant) {
+        return MultiResults.asFlux(sink -> {
+            try {
+                SimpleQueryTask task = new SimpleQueryTask(stmt, sink, adjutant);
+                task.submit(sink::error);
+            } catch (Throwable e) {
+                sink.error(PgExceptions.wrapIfNonJvmFatal(e));
+            }
+        });
+    }
+
+    /**
+     * <p>
+     * This method is underlying api of {@link StaticStatement#executeAsFlux(String)} method.
+     * </p>
+     */
+    static Flux<Result> multiSqlAsFlux(MultiSqlStmt stmt, TaskAdjutant adjutant) {
         return MultiResults.asFlux(sink -> {
             try {
                 SimpleQueryTask task = new SimpleQueryTask(stmt, sink, adjutant);
@@ -243,15 +260,12 @@ final class SimpleQueryTask extends AbstractStmtTask {
 
     private final FluxResultSink sink;
 
-    /**
-     * cache sql list for copy operation response.
-     */
-    private final List<String> sqlList;
-
     private final ResultSetReader resultSetReader;
 
 
     private Phase phase;
+
+    private CopyMode copyMode = CopyMode.NONE;
 
     /**
      * <p>
@@ -262,10 +276,9 @@ final class SimpleQueryTask extends AbstractStmtTask {
      * @see #query(Stmt, TaskAdjutant)
      */
     private SimpleQueryTask(Stmt stmt, FluxResultSink sink, TaskAdjutant adjutant) throws Throwable {
-        super(adjutant, sink);
-        this.packetPublisher = QueryCommandWriter.createStaticSingleCommand(stmt, adjutant);
+        super(adjutant, sink, stmt);
+        this.packetPublisher = QueryCommandWriter.createStaticCommand(stmt.getSql(), adjutant);
         this.sink = sink;
-        this.sqlList = Collections.singletonList(stmt.getSql());
         this.resultSetReader = DefaultResultSetReader.create(this, sink.froResultSet());
     }
 
@@ -276,10 +289,19 @@ final class SimpleQueryTask extends AbstractStmtTask {
      */
     private SimpleQueryTask(GroupStmt stmt, FluxResultSink sink, TaskAdjutant adjutant)
             throws Throwable {
-        super(adjutant, sink);
+        super(adjutant, sink, null);
         this.packetPublisher = QueryCommandWriter.createStaticBatchCommand(stmt, adjutant);
         this.sink = sink;
-        this.sqlList = stmt.getSqlGroup();
+        this.resultSetReader = DefaultResultSetReader.create(this, sink.froResultSet());
+    }
+
+    /**
+     * @see #multiSqlAsFlux(MultiSqlStmt, TaskAdjutant)
+     */
+    private SimpleQueryTask(MultiSqlStmt stmt, FluxResultSink sink, TaskAdjutant adjutant) throws Throwable {
+        super(adjutant, sink, null);
+        this.packetPublisher = QueryCommandWriter.createStaticCommand(stmt.getMultiSql(), adjutant);
+        this.sink = sink;
         this.resultSetReader = DefaultResultSetReader.create(this, sink.froResultSet());
     }
 
@@ -291,10 +313,9 @@ final class SimpleQueryTask extends AbstractStmtTask {
      */
     private SimpleQueryTask(FluxResultSink sink, BindableStmt stmt, TaskAdjutant adjutant)
             throws Throwable {
-        super(adjutant, sink);
+        super(adjutant, sink, stmt);
         this.packetPublisher = QueryCommandWriter.createBindableCommand(stmt, adjutant);
         this.sink = sink;
-        this.sqlList = Collections.singletonList(stmt.getSql());
         this.resultSetReader = DefaultResultSetReader.create(this, sink.froResultSet());
     }
 
@@ -305,10 +326,9 @@ final class SimpleQueryTask extends AbstractStmtTask {
      */
     private SimpleQueryTask(TaskAdjutant adjutant, FluxResultSink sink, BatchBindStmt stmt)
             throws Throwable {
-        super(adjutant, sink);
+        super(adjutant, sink, stmt);
         this.packetPublisher = QueryCommandWriter.createBindableBatchCommand(stmt, adjutant);
         this.sink = sink;
-        this.sqlList = Collections.singletonList(stmt.getSql());
         this.resultSetReader = DefaultResultSetReader.create(this, sink.froResultSet());
     }
 
@@ -320,10 +340,9 @@ final class SimpleQueryTask extends AbstractStmtTask {
      */
     private SimpleQueryTask(TaskAdjutant adjutant, MultiBindStmt stmt, FluxResultSink sink)
             throws Throwable {
-        super(adjutant, sink);
+        super(adjutant, sink, stmt);
         this.packetPublisher = QueryCommandWriter.createMultiStmtCommand(stmt, adjutant);
         this.sink = sink;
-        this.sqlList = extractSqlList(stmt);
         this.resultSetReader = DefaultResultSetReader.create(this, sink.froResultSet());
     }
 
@@ -353,10 +372,7 @@ final class SimpleQueryTask extends AbstractStmtTask {
         boolean taskEnd = false, continueRead = true;
         while (continueRead) {
             switch (this.phase) {
-                case READ_COMMAND_RESPONSE:
-                case COPY_IN_MODE:
-                case COPY_OUT_MODE:
-                case COPY_BOTH_MODE: {
+                case READ_COMMAND_RESPONSE: {
                     taskEnd = readCommandResponse(cumulateBuffer, serverStatusConsumer);
                     continueRead = false;
                 }
@@ -429,6 +445,9 @@ final class SimpleQueryTask extends AbstractStmtTask {
                     ErrorMessage error = ErrorMessage.read(cumulateBuffer, clientCharset);
                     addError(PgExceptions.createErrorException(error));
                     continueRead = Messages.hasOneMessage(cumulateBuffer);
+                    if (this.copyMode != CopyMode.NONE) {
+                        this.copyMode = CopyMode.NONE;
+                    }
                 }
                 break;
                 case Messages.Z: {// ReadyForQuery message
@@ -448,8 +467,15 @@ final class SimpleQueryTask extends AbstractStmtTask {
                 }
                 break;
                 case Messages.C: {// CommandComplete message
-                    continueRead = readResultStateWithoutReturning(cumulateBuffer)
-                            && Messages.hasOneMessage(cumulateBuffer);
+                    if (readResultStateWithoutReturning(cumulateBuffer)) {
+                        if (this.copyMode != CopyMode.NONE) {
+                            this.copyMode = CopyMode.NONE;
+                        }
+                        continueRead = Messages.hasOneMessage(cumulateBuffer);
+                    } else {
+                        continueRead = false;
+                    }
+
                 }
                 break;
                 case Messages.T: {// RowDescription message
@@ -469,16 +495,38 @@ final class SimpleQueryTask extends AbstractStmtTask {
                 }
                 break;
                 case Messages.G: {// CopyInResponse message
-                    this.phase = Phase.COPY_IN_MODE;
-                    handleCopyInResponse(cumulateBuffer, this.sqlList);
+                    if (this.copyMode == CopyMode.NONE) {
+                        this.copyMode = CopyMode.COPY_IN_MODE;
+                        handleCopyInResponse(cumulateBuffer);
+                    } else {
+                        String msg = "Server response duplication copy in message.";
+                        addError(new PgJdbdException(msg));
+                        Messages.skipOneMessage(cumulateBuffer);
+                        this.packetPublisher = Mono.just(createCopyFailMessage(msg));
+                    }
+
                 }
                 break;
                 case Messages.H: { // CopyOutResponse message
-                    this.phase = Phase.COPY_OUT_MODE;
+                    if (this.copyMode == CopyMode.NONE) {
+                        this.copyMode = CopyMode.COPY_OUT_MODE;
+                    } else {
+                        String msg = "Server response duplication copy out message.";
+                        addError(new PgJdbdException(msg));
+                        Messages.skipOneMessage(cumulateBuffer);
+                        this.packetPublisher = Mono.just(createCopyFailMessage(msg));
+                    }
                 }
                 break;
                 case Messages.W: {// CopyBothResponse message
-                    this.phase = Phase.COPY_BOTH_MODE;
+                    if (this.copyMode == CopyMode.NONE) {
+                        this.copyMode = CopyMode.COPY_BOTH_MODE;
+                    } else {
+                        String msg = "Server response duplication copy both message.";
+                        addError(new PgJdbdException(msg));
+                        Messages.skipOneMessage(cumulateBuffer);
+                        this.packetPublisher = Mono.just(createCopyFailMessage(msg));
+                    }
                 }
                 break;
                 default: {
@@ -517,10 +565,14 @@ final class SimpleQueryTask extends AbstractStmtTask {
     private enum Phase {
         READ_COMMAND_RESPONSE,
         READ_ROW_SET,
+        END
+    }
+
+    private enum CopyMode {
+        NONE,
         COPY_IN_MODE,
         COPY_OUT_MODE,
-        COPY_BOTH_MODE,
-        END
+        COPY_BOTH_MODE
     }
 
 

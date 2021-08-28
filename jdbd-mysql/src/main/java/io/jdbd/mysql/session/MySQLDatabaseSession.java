@@ -2,12 +2,12 @@ package io.jdbd.mysql.session;
 
 import io.jdbd.mysql.protocol.client.ClientCommandProtocol;
 import io.jdbd.mysql.stmt.Stmts;
+import io.jdbd.stmt.BindableStatement;
+import io.jdbd.stmt.MultiStatement;
 import io.jdbd.stmt.PreparedStatement;
+import io.jdbd.stmt.StaticStatement;
 import io.jdbd.vendor.result.ReactorMultiResult;
 import io.jdbd.vendor.session.ReactorDatabaseSession;
-import io.jdbd.vendor.stmt.ReactorBindableStatement;
-import io.jdbd.vendor.stmt.ReactorMultiStatement;
-import io.jdbd.vendor.stmt.ReactorStaticStatement;
 import reactor.core.publisher.Mono;
 
 import java.util.List;
@@ -24,7 +24,7 @@ public abstract class MySQLDatabaseSession implements ReactorDatabaseSession {
 
 
     @Override
-    public final ReactorStaticStatement statement() {
+    public final StaticStatement statement() {
         return MySQLStaticStatement.create(this);
     }
 
@@ -39,12 +39,12 @@ public abstract class MySQLDatabaseSession implements ReactorDatabaseSession {
     }
 
     @Override
-    public final ReactorBindableStatement bindable(String sql) {
+    public final BindableStatement bindable(String sql) {
         return null;
     }
 
     @Override
-    public final ReactorMultiStatement multi() {
+    public final MultiStatement multi() {
         return null;
     }
 

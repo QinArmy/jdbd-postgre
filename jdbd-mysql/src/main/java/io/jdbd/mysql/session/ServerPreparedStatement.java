@@ -4,8 +4,8 @@ import io.jdbd.mysql.stmt.PrepareStmtTask;
 import io.jdbd.result.ResultRow;
 import io.jdbd.result.ResultState;
 import io.jdbd.result.SingleResult;
+import io.jdbd.stmt.PreparedStatement;
 import io.jdbd.vendor.result.ReactorMultiResult;
-import io.jdbd.vendor.stmt.ReactorPreparedStatement;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.util.annotation.Nullable;
@@ -13,7 +13,8 @@ import reactor.util.annotation.Nullable;
 import java.util.function.Consumer;
 
 public final class ServerPreparedStatement<S extends MySQLDatabaseSession> extends MySQLStatement<S>
-        implements ReactorPreparedStatement {
+
+        implements PreparedStatement {
 
     public static <S extends MySQLDatabaseSession> ServerPreparedStatement<S> create(S session, PrepareStmtTask task) {
         return new ServerPreparedStatement<>(session, task);

@@ -1,11 +1,11 @@
 package io.jdbd.vendor.session;
 
 import io.jdbd.DatabaseSession;
+import io.jdbd.stmt.BindableStatement;
+import io.jdbd.stmt.MultiStatement;
 import io.jdbd.stmt.PreparedStatement;
+import io.jdbd.stmt.StaticStatement;
 import io.jdbd.vendor.result.ReactorMultiResult;
-import io.jdbd.vendor.stmt.ReactorBindableStatement;
-import io.jdbd.vendor.stmt.ReactorMultiStatement;
-import io.jdbd.vendor.stmt.ReactorStaticStatement;
 import reactor.core.publisher.Mono;
 
 import java.sql.Savepoint;
@@ -14,7 +14,7 @@ import java.util.List;
 public interface ReactorDatabaseSession extends DatabaseSession {
 
     @Override
-    ReactorStaticStatement statement();
+    StaticStatement statement();
 
     @Override
     Mono<PreparedStatement> prepare(String sql);
@@ -23,10 +23,10 @@ public interface ReactorDatabaseSession extends DatabaseSession {
     Mono<PreparedStatement> prepare(String sql, int executeTimeout);
 
     @Override
-    ReactorBindableStatement bindable(String sql);
+    BindableStatement bindable(String sql);
 
     @Override
-    ReactorMultiStatement multi();
+    MultiStatement multi();
 
     @Override
     ReactorMultiResult multi(List<String> sqlList);

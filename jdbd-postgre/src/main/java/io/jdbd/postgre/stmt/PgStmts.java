@@ -5,11 +5,15 @@ import io.jdbd.postgre.util.PgCollections;
 import io.jdbd.postgre.util.PgFunctions;
 import io.jdbd.result.ResultState;
 import io.jdbd.vendor.stmt.JdbdStmts;
+import org.reactivestreams.Publisher;
+import org.reactivestreams.Subscriber;
 import reactor.util.annotation.Nullable;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 import java.util.function.Consumer;
+import java.util.function.Function;
 
 public abstract class PgStmts extends JdbdStmts {
 
@@ -20,6 +24,15 @@ public abstract class PgStmts extends JdbdStmts {
 
     public static BindableStmt bindable(String sql, List<BindValue> paramGroup) {
         return new BindableStmtForSimple(sql, paramGroup);
+    }
+
+    public static BindableStmt bindable(String sql, BindValue param) {
+        return new BindableStmtForSimple(sql, param);
+    }
+
+    public static BindableStmt bindableWithImport(String sql, BindValue param
+            , Function<String, Publisher<byte[]>> function) {
+        return new BindableStmtWithImport(sql, param, function);
     }
 
     public static BatchBindStmt bindableBatch(String sql, List<List<BindValue>> groupList) {
@@ -39,6 +52,11 @@ public abstract class PgStmts extends JdbdStmts {
         private final String sql;
 
         private final List<BindValue> paramGroup;
+
+        private BindableStmtForSimple(String sql, BindValue param) {
+            this.sql = sql;
+            this.paramGroup = Collections.singletonList(param);
+        }
 
         private BindableStmtForSimple(String sql, List<BindValue> paramGroup) {
             this.sql = sql;
@@ -70,7 +88,74 @@ public abstract class PgStmts extends JdbdStmts {
             return 0;
         }
 
+        @Override
+        public final Function<String, Publisher<byte[]>> getImportFunction() {
+            return null;
+        }
 
+        @Override
+        public final Function<String, Subscriber<byte[]>> getExportSubscriber() {
+            return null;
+        }
+
+    }
+
+    private static final class BindableStmtWithImport implements BindableStmt {
+
+        private final String sql;
+
+        private final List<BindValue> paramGroup;
+
+        private final Function<String, Publisher<byte[]>> importFunction;
+
+        private BindableStmtWithImport(String sql, BindValue param
+                , Function<String, Publisher<byte[]>> importFunction) {
+            this.sql = sql;
+            this.paramGroup = Collections.singletonList(param);
+            this.importFunction = Objects.requireNonNull(importFunction);
+        }
+
+        private BindableStmtWithImport(String sql, List<BindValue> paramGroup
+                , Function<String, Publisher<byte[]>> importFunction) {
+            this.sql = sql;
+            this.paramGroup = Collections.unmodifiableList(paramGroup);
+            this.importFunction = Objects.requireNonNull(importFunction);
+        }
+
+        @Override
+        public final List<BindValue> getParamGroup() {
+            return this.paramGroup;
+        }
+
+        @Override
+        public final int getFetchSize() {
+            return 0;
+        }
+
+        @Override
+        public final String getSql() {
+            return this.sql;
+        }
+
+        @Override
+        public final Consumer<ResultState> getStatusConsumer() {
+            return PgFunctions.noActionConsumer();
+        }
+
+        @Override
+        public final int getTimeout() {
+            return 0;
+        }
+
+        @Override
+        public final Function<String, Publisher<byte[]>> getImportFunction() {
+            return this.importFunction;
+        }
+
+        @Override
+        public final Function<String, Subscriber<byte[]>> getExportSubscriber() {
+            return null;
+        }
     }
 
     private static final class BatchBindStmtImpl implements BatchBindStmt {
@@ -80,6 +165,7 @@ public abstract class PgStmts extends JdbdStmts {
         private final List<List<BindValue>> groupList;
 
         private final int timeout;
+
 
         private BatchBindStmtImpl(String sql, List<List<BindValue>> groupList, int timeout) {
             this.sql = sql;

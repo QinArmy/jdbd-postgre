@@ -27,6 +27,13 @@ abstract class Messages {
 
     /**
      * <ul>
+     *     <li>CopyDone</li>
+     * </ul>
+     */
+    static final byte c = 'c';
+
+    /**
+     * <ul>
      *     <li>CopyData</li>
      * </ul>
      */
@@ -45,6 +52,13 @@ abstract class Messages {
      * </ul>
      */
     static final byte E = 'E';
+
+    /**
+     * <ul>
+     *     <li>CopyFail</li>
+     * </ul>
+     */
+    static final byte f = 'f';
 
     /**
      * <ul>

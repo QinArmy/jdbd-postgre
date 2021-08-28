@@ -1,10 +1,14 @@
 package io.jdbd.postgre.protocol.client;
 
 import io.jdbd.postgre.PgJdbdException;
-import io.jdbd.postgre.syntax.PgParser;
+import io.jdbd.postgre.stmt.BindableStmt;
+import io.jdbd.postgre.stmt.MultiBindStmt;
+import io.jdbd.postgre.syntax.CopyIn;
 import io.jdbd.postgre.util.PgArrays;
-import io.jdbd.stmt.LocalFileException;
+import io.jdbd.postgre.util.PgExceptions;
 import io.jdbd.vendor.result.FluxResultSink;
+import io.jdbd.vendor.stmt.IoAbleStmt;
+import io.jdbd.vendor.stmt.Stmt;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
 import org.reactivestreams.Publisher;
@@ -13,6 +17,7 @@ import org.slf4j.LoggerFactory;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.FluxSink;
 import reactor.core.publisher.Mono;
+import reactor.util.annotation.Nullable;
 
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
@@ -20,9 +25,12 @@ import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.LinkOption;
 import java.nio.file.Path;
+import java.sql.SQLException;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 import java.util.StringTokenizer;
+import java.util.function.Function;
 import java.util.function.Supplier;
 
 /**
@@ -42,13 +50,16 @@ abstract class AbstractStmtTask extends PgTask implements StmtTask {
 
     final FluxResultSink sink;
 
+    final IoAbleStmt ioAbleStmt;
+
     private int resultIndex = 0;
 
     private boolean downstreamCanceled;
 
-    AbstractStmtTask(TaskAdjutant adjutant, FluxResultSink sink) {
+    AbstractStmtTask(TaskAdjutant adjutant, FluxResultSink sink, @Nullable IoAbleStmt ioAbleStmt) {
         super(adjutant, sink::error);
         this.sink = sink;
+        this.ioAbleStmt = ioAbleStmt;
     }
 
     @Override
@@ -122,91 +133,160 @@ abstract class AbstractStmtTask extends PgTask implements StmtTask {
     }
 
 
-    final void handleCopyInResponse(ByteBuf cumulateBuffer, List<String> sqlList) {
+    /**
+     * @see <a href="https://www.postgresql.org/docs/current/protocol-message-formats.html">CopyInResponse</a>
+     */
+    final void handleCopyInResponse(ByteBuf cumulateBuffer) {
         final int msgStartIndex = cumulateBuffer.readerIndex();
         if (cumulateBuffer.readByte() != Messages.G) {
             throw new IllegalArgumentException("Non Copy-In message.");
         }
         cumulateBuffer.readerIndex(msgStartIndex + 1 + cumulateBuffer.readInt()); // skip CopyInResponse message,this message design too stupid ,it should return filename of STDIN,but not.
-        final PgParser parser = this.adjutant.sqlParser();
-        Path path = null;
-        Throwable parseError = null;
+
+        final int resultIndex = this.resultIndex;
+        Publisher<ByteBuf> publisher;
         try {
-            path = parser.parseCopyInPath(sqlList.get(this.resultIndex));
-        } catch (Throwable e) {
-            parseError = e;
-        }
+            final CopyIn copyIn;
+            copyIn = this.adjutant.sqlParser().parseCopyIn(obtainCopyOperationStmt(resultIndex), resultIndex);
 
-        if (parseError != null) {
-            String msg = String.format("Parse copy in sql error,%s", parseError.getMessage());
-            this.packetPublisher = createCopyFailMessage(msg);
-        } else if (!Files.exists(path, LinkOption.NOFOLLOW_LINKS)) {
-            String msg = String.format("filename[%s] not exists.", path.toAbsolutePath());
-            this.packetPublisher = createCopyFailMessage(msg);
-        } else if (Files.isDirectory(path, LinkOption.NOFOLLOW_LINKS)) {
-            String msg = String.format("filename[%s] is directory.", path.toAbsolutePath());
-            this.packetPublisher = createCopyFailMessage(msg);
-        } else if (!Files.isReadable(path)) {
-            String msg = String.format("filename[%s] isn't readable.", path.toAbsolutePath());
-            this.packetPublisher = createCopyFailMessage(msg);
-        } else {
-            this.packetPublisher = sendCopyDataForCopyIn(path);
-        }
-    }
-
-    private Publisher<ByteBuf> sendCopyDataForCopyIn(final Path path) {
-        return Flux.create(sink -> {
-            try {
-                executeSendCopyDataForCopyIn(path, sink);
-                sink.complete();
-            } catch (Throwable e) {
-                String msg = String.format("Local file[%s] copy in occur error.", path);
-                sink.error(new LocalFileException(path, msg, e));
+            switch (copyIn.getMode()) {
+                case FILE:
+                    publisher = sendCopyInDataFromLocalPath(copyIn.getPath());
+                    break;
+                case PROGRAM:
+                    publisher = sendCopyInDataFromProgramCommand(copyIn);
+                    break;
+                case STDIN:
+                    publisher = sendCopyInDataFromStdin(copyIn);
+                    break;
+                default:
+                    throw PgExceptions.createUnknownEnumException(copyIn.getMode());
             }
-        });
+        } catch (SQLException e) {
+            String msg = String.format("Parse copy in sql error,%s", e.getMessage());
+            publisher = Mono.just(createCopyFailMessage(msg));
+        } catch (Throwable e) {
+            String msg = String.format("Handle statement[index:%s] copy in failure,message:%s"
+                    , resultIndex, e.getMessage());
+            publisher = Mono.just(createCopyFailMessage(msg));
+        }
+        this.packetPublisher = Objects.requireNonNull(publisher);
     }
 
     /**
-     * @see #sendCopyDataForCopyIn(Path)
+     * @see #handleCopyInResponse(ByteBuf)
      */
-    private void executeSendCopyDataForCopyIn(final Path path, FluxSink<ByteBuf> sink) throws Exception {
-        try (FileChannel channel = FileChannel.open(path)) {
-            final long fileSize = channel.size();
-            final byte[] bufferArray = new byte[(int) Math.min(2048, fileSize)];
-            final ByteBuffer buffer = ByteBuffer.wrap(bufferArray);
-            long restSize = fileSize;
-
-            final ByteBufAllocator allocator = this.adjutant.allocator();
-            ByteBuf message = allocator.buffer();
-
-            message.writeByte(Messages.d);
-            message.writeZero(Messages.LENGTH_SIZE);
-
-            while (channel.read(buffer) > 0) {
-                buffer.flip();
-                message.writeBytes(bufferArray, buffer.position(), buffer.limit());
-            }
-
-
+    private Publisher<ByteBuf> sendCopyInDataFromLocalPath(final Path path) {
+        final String errorMsg;
+        if (!Files.exists(path, LinkOption.NOFOLLOW_LINKS)) {
+            errorMsg = String.format("filename[%s] not exists.", path.toAbsolutePath());
+        } else if (Files.isDirectory(path, LinkOption.NOFOLLOW_LINKS)) {
+            errorMsg = String.format("filename[%s] is directory.", path.toAbsolutePath());
+        } else if (!Files.isReadable(path)) {
+            errorMsg = String.format("filename[%s] isn't readable.", path.toAbsolutePath());
+        } else {
+            errorMsg = null;
         }
 
+        final Publisher<ByteBuf> publisher;
+        if (errorMsg == null) {
+            publisher = Flux.create(sink -> executeSendCopyInDataFromLocalPath(path, sink));
+        } else {
+            publisher = Mono.just(createCopyFailMessage(errorMsg));
+        }
+        return publisher;
+    }
 
+    /**
+     * @see #handleCopyInResponse(ByteBuf)
+     */
+    private Publisher<ByteBuf> sendCopyInDataFromProgramCommand(CopyIn copyIn) {
+        final Function<String, Publisher<byte[]>> function = copyIn.getFunction();
+        final Publisher<byte[]> dataPublisher = function.apply(copyIn.getCommand());
+
+        final Publisher<ByteBuf> publisher;
+        if (dataPublisher == null) {
+            String m = String.format("Statement[index:%s] PROGRAM 'command; function return Publisher is null."
+                    , this.resultIndex);
+            publisher = Mono.just(createCopyFailMessage(m));
+        } else {
+            publisher = Flux.from(dataPublisher)
+                    .map(this::mapToCopyDataMessage)
+                    .concatWith(Mono.create(sink -> sink.success(createCopyDoneMessage())))
+                    .onErrorResume(e -> Mono.just(createCopyFailMessage(e.getMessage())));
+        }
+        return publisher;
+    }
+
+    /**
+     * @see #handleCopyInResponse(ByteBuf)
+     */
+    private Publisher<ByteBuf> sendCopyInDataFromStdin(CopyIn copyIn) {
+        final Function<String, Publisher<byte[]>> function = copyIn.getFunction();
+        final Publisher<byte[]> dataPublisher = function.apply(null);
+
+        final Publisher<ByteBuf> publisher;
+        if (dataPublisher == null) {
+            String m = String.format("Statement[index:%s] STDIN function return Publisher is null."
+                    , this.resultIndex);
+            publisher = Mono.just(createCopyFailMessage(m));
+        } else {
+            publisher = Flux.from(dataPublisher)
+                    .map(this::mapToCopyDataMessage)
+                    .concatWith(Mono.create(sink -> sink.success(createCopyDoneMessage())))
+                    .onErrorResume(e -> Mono.just(createCopyFailMessage(e.getMessage())));
+        }
+        return publisher;
+    }
+
+
+    /**
+     * @see #handleCopyInResponse(ByteBuf)
+     */
+    private Stmt obtainCopyOperationStmt(final int resultIndex) throws IllegalStateException {
+        final IoAbleStmt ioAbleStmt = this.ioAbleStmt;
+        if (ioAbleStmt == null) {
+            String m = "Your Subscriber method not support COPY IN operation,please use other method.";
+            throw new IllegalStateException(m);
+        }
+        final Stmt stmt;
+        if (ioAbleStmt instanceof MultiBindStmt) {
+            final List<BindableStmt> stmtList = ((MultiBindStmt) ioAbleStmt).getStmtGroup();
+            if (resultIndex < stmtList.size()) {
+                stmt = stmtList.get(resultIndex);
+            } else {
+                // here ,bug
+                String m = String.format("Reject copy ,Result index[%s] error,not in [0,%s)"
+                        , resultIndex, stmtList.size());
+                throw new IllegalStateException(m);
+            }
+        } else if (ioAbleStmt instanceof Stmt) {
+            if (resultIndex != 0) {
+                String m = String.format("Reject copy ,Result index[%s] error,not in [0,1)", resultIndex);
+                throw new IllegalStateException(m);
+            }
+            stmt = (Stmt) ioAbleStmt;
+        } else {
+            throw new IllegalStateException(String.format("Unknown %s type[%s]", IoAbleStmt.class.getName()
+                    , ioAbleStmt.getClass().getName()));
+        }
+        return stmt;
     }
 
 
     /**
      * @see <a href="https://www.postgresql.org/docs/current/protocol-message-formats.html">CopyFail</a>
      */
-    private Publisher<ByteBuf> createCopyFailMessage(String errorInfo) {
+    final ByteBuf createCopyFailMessage(String errorInfo) {
         final byte[] bytes = errorInfo.getBytes(this.adjutant.clientCharset());
         final ByteBuf message = this.adjutant.allocator().buffer(6 + bytes.length);
-        message.writeByte('f');
+        message.writeByte(Messages.f);
         message.writeZero(Messages.LENGTH_SIZE);// placeholder
         message.writeBytes(bytes);
         message.writeByte(Messages.STRING_TERMINATOR);
 
         Messages.writeLength(message);
-        return Mono.just(message);
+        return message;
     }
 
     /**
@@ -272,6 +352,82 @@ abstract class AbstractStmtTask extends PgTask implements StmtTask {
             this.sink.next(PgResultStates.create(params));
         }
         return true;
+    }
+
+    /**
+     * @see #handleCopyInResponse(ByteBuf)
+     * @see <a href="https://www.postgresql.org/docs/current/protocol-message-formats.html">CopyData</a>
+     */
+    private void executeSendCopyInDataFromLocalPath(final Path path, final FluxSink<ByteBuf> sink) {
+
+        ByteBuf message = null;
+        try (FileChannel channel = FileChannel.open(path)) {
+            long restSize = channel.size();
+            final byte[] bufferArray = new byte[(int) Math.min(2048, restSize)];
+            final ByteBuffer buffer = ByteBuffer.wrap(bufferArray);
+
+            final int headerLength = 5, maxMessageLen = (headerLength + (bufferArray.length << 6));
+            final ByteBufAllocator allocator = this.adjutant.allocator();
+            message = allocator.buffer((int) Math.min(maxMessageLen, headerLength + restSize));
+
+            message.writeByte(Messages.d);
+            message.writeZero(Messages.LENGTH_SIZE);
+
+            while (channel.read(buffer) > 0) {
+                buffer.flip();
+                message.writeBytes(bufferArray, buffer.position(), buffer.limit());
+                buffer.clear();
+
+                if (message.readableBytes() >= maxMessageLen) {
+                    restSize -= (message.readableBytes() - headerLength);
+                    Messages.writeLength(message);
+                    sink.next(message);
+                    message = allocator.buffer((int) Math.min(maxMessageLen, headerLength + restSize));
+                    message.writeByte(Messages.d);
+                    message.writeZero(Messages.LENGTH_SIZE);
+                }
+            }
+
+            if (message.readableBytes() > headerLength) {
+                Messages.writeLength(message);
+                sink.next(message);
+            } else {
+                message.release();
+            }
+            sink.next(createCopyDoneMessage());
+        } catch (Throwable e) {
+            if (message != null) {
+                message.release();
+            }
+            String msg = String.format("Copy-in read local file occur error,%s", e.getMessage());
+            sink.next(createCopyFailMessage(msg));
+        }
+        sink.complete();
+
+    }
+
+    /**
+     * @see <a href="https://www.postgresql.org/docs/current/protocol-message-formats.html">CopyData</a>
+     */
+    private ByteBuf mapToCopyDataMessage(byte[] dataBytes) {
+        final ByteBuf message = this.adjutant.allocator().buffer(5 + dataBytes.length);
+        message.writeByte(Messages.d);
+        message.writeZero(Messages.LENGTH_SIZE);//placeholder of length
+        message.writeBytes(dataBytes);
+
+        Messages.writeLength(message);
+        return message;
+    }
+
+
+    /**
+     * @see <a href="https://www.postgresql.org/docs/current/protocol-message-formats.html">CopyDone</a>
+     */
+    private ByteBuf createCopyDoneMessage() {
+        final ByteBuf message = this.adjutant.allocator().buffer(5);
+        message.writeByte(Messages.c);
+        message.writeInt(0);
+        return message;
     }
 
 

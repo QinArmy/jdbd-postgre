@@ -11,6 +11,7 @@ import io.jdbd.stmt.BindableStatement;
 import io.jdbd.stmt.MultiStatement;
 import io.jdbd.stmt.StaticStatement;
 import io.jdbd.vendor.stmt.GroupStmt;
+import io.jdbd.vendor.stmt.MultiSqlStmt;
 import io.jdbd.vendor.stmt.Stmt;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -53,14 +54,16 @@ public interface ClientProtocol {
      * This method is underlying api of {@link StaticStatement#executeAsMulti(List)} method.
      * </p>
      */
-    MultiResult staticAsMulti(GroupStmt stmt);
+    MultiResult asMulti(GroupStmt stmt);
 
     /**
      * <p>
      * This method is underlying api of {@link StaticStatement#executeAsFlux(List)} method.
      * </p>
      */
-    Flux<Result> staticAsFlux(GroupStmt stmt);
+    Flux<Result> asFlux(GroupStmt stmt);
+
+    Flux<Result> multiSqlAsFlux(MultiSqlStmt stmt);
 
     /*################################## blow for bindable single smt ##################################*/
 

@@ -28,7 +28,7 @@ public class PgParserSuiteTests {
 
     private static final PgParser PARSER_WITH_OFF = PgParser.create(PgParserSuiteTests::standardConformingOffFunction);
 
-    private static final List<PgParser> PARSER_LIST = PgArrays.asUnmodifiableList(PARSER_WITH_ON, PARSER_WITH_OFF);
+     static final List<PgParser> PARSER_LIST = PgArrays.asUnmodifiableList(PARSER_WITH_ON, PARSER_WITH_OFF);
 
 
     @Test
@@ -261,6 +261,7 @@ public class PgParserSuiteTests {
         //TODO zoro 测试 UESCAPE '\' 和 UESCAPE ''' 的静态 sql 的解析
         //TODO zoro 测试 UESCAPE '\' 和 UESCAPE ''' 的 bindable sql 的 string parameter 解析 .
     }
+
 
 
     /**

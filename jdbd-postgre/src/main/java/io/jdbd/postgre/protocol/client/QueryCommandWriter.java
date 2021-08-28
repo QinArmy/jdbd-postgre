@@ -10,7 +10,6 @@ import io.jdbd.postgre.util.PgExceptions;
 import io.jdbd.postgre.util.PgStrings;
 import io.jdbd.postgre.util.PgTimes;
 import io.jdbd.vendor.stmt.GroupStmt;
-import io.jdbd.vendor.stmt.Stmt;
 import io.jdbd.vendor.syntax.SQLParser;
 import io.jdbd.vendor.util.JdbdBuffers;
 import io.jdbd.vendor.util.JdbdExceptions;
@@ -75,8 +74,8 @@ final class QueryCommandWriter {
     }
 
 
-    static Publisher<ByteBuf> createStaticSingleCommand(Stmt stmt, TaskAdjutant adjutant) throws SQLException {
-        final byte[] sqlBytes = stmt.getSql().getBytes(adjutant.clientCharset());
+    static Publisher<ByteBuf> createStaticCommand(String sql, TaskAdjutant adjutant) throws SQLException {
+        final byte[] sqlBytes = sql.getBytes(adjutant.clientCharset());
         final int capacity = sqlBytes.length + 6;
         if (capacity < 0) {
             throw PgExceptions.createObjectTooLargeError();

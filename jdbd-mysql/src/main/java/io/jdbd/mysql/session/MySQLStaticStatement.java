@@ -1,12 +1,8 @@
 package io.jdbd.mysql.session;
 
 import io.jdbd.mysql.stmt.Stmts;
-import io.jdbd.result.ResultRow;
-import io.jdbd.result.ResultState;
-import io.jdbd.result.SingleResult;
+import io.jdbd.result.*;
 import io.jdbd.stmt.StaticStatement;
-import io.jdbd.vendor.result.ReactorMultiResult;
-import io.jdbd.vendor.stmt.ReactorStaticStatement;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -22,7 +18,7 @@ import java.util.function.Consumer;
  * @param <S> databaseSession type
  */
 final class MySQLStaticStatement<S extends MySQLDatabaseSession> extends MySQLStatement<S>
-        implements ReactorStaticStatement {
+        implements StaticStatement {
 
 
     static <S extends MySQLDatabaseSession> MySQLStaticStatement<S> create(S session) {
@@ -68,13 +64,18 @@ final class MySQLStaticStatement<S extends MySQLDatabaseSession> extends MySQLSt
     }
 
     @Override
-    public final ReactorMultiResult executeAsMulti(final List<String> sqlList) {
+    public final MultiResult executeAsMulti(final List<String> sqlList) {
         return this.session.protocol.executeAsMulti(Stmts.stmts(sqlList, this.timeout));
     }
 
     @Override
     public final Flux<SingleResult> executeAsFlux(List<String> sqlList) {
         return this.session.protocol.executeAsFlux(Stmts.stmts(sqlList, this.timeout));
+    }
+
+    @Override
+    public final Flux<Result> executeAsFlux(String multiStmt) {
+        throw new UnsupportedOperationException();
     }
 
     @Override

@@ -1,10 +1,7 @@
 package io.jdbd.stmt;
 
 import io.jdbd.JdbdSQLException;
-import io.jdbd.result.MultiResult;
-import io.jdbd.result.ResultRow;
-import io.jdbd.result.ResultState;
-import io.jdbd.result.SingleResult;
+import io.jdbd.result.*;
 import org.reactivestreams.Publisher;
 
 import java.util.List;
@@ -182,6 +179,8 @@ public interface StaticStatement extends Statement {
     MultiResult executeAsMulti(List<String> sqlList);
 
     Publisher<SingleResult> executeAsFlux(List<String> sqlList);
+
+    Publisher<Result> executeAsFlux(String multiStmt);
 
     boolean setExecuteTimeout(int seconds);
 

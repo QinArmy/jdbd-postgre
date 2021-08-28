@@ -8,6 +8,7 @@ import io.jdbd.result.Result;
 import io.jdbd.result.ResultRow;
 import io.jdbd.result.ResultState;
 import io.jdbd.vendor.stmt.GroupStmt;
+import io.jdbd.vendor.stmt.MultiSqlStmt;
 import io.jdbd.vendor.stmt.Stmt;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -49,13 +50,18 @@ final class ClientProtocolImpl implements ClientProtocol {
     }
 
     @Override
-    public final MultiResult staticAsMulti(GroupStmt stmt) {
+    public final MultiResult asMulti(GroupStmt stmt) {
         return SimpleQueryTask.asMulti(stmt, this.adjutant);
     }
 
     @Override
-    public final Flux<Result> staticAsFlux(GroupStmt stmt) {
+    public final Flux<Result> asFlux(GroupStmt stmt) {
         return SimpleQueryTask.asFlux(stmt, this.adjutant);
+    }
+
+    @Override
+    public final Flux<Result> multiSqlAsFlux(MultiSqlStmt stmt) {
+        return SimpleQueryTask.multiSqlAsFlux(stmt, this.adjutant);
     }
 
     @Override
