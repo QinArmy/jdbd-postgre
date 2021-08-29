@@ -1,9 +1,9 @@
 package io.jdbd.postgre.protocol.client;
 
 import io.jdbd.JdbdSQLException;
-import io.jdbd.postgre.Group;
 import io.jdbd.postgre.PgType;
 import io.jdbd.postgre.stmt.BindValue;
+import io.jdbd.postgre.stmt.BindableStmt;
 import io.jdbd.postgre.stmt.PgStmts;
 import io.jdbd.result.ResultState;
 import org.reactivestreams.Publisher;
@@ -18,7 +18,10 @@ import java.nio.channels.FileChannel;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.function.Function;
 
@@ -31,8 +34,8 @@ import static org.testng.Assert.*;
  *
  * @see SimpleQueryTask
  */
-@Test(groups = {Group.COPY_IN_OPERATION}, dependsOnGroups = {Group.URL, Group.PARSER, Group.UTILS, Group.SESSION_BUILDER
-        , Group.TASK_TEST_ADVICE, Group.SIMPLE_QUERY_TASK, Group.EXTENDED_QUERY_TASK})
+//@Test(groups = {Group.COPY_IN_OPERATION}, dependsOnGroups = {Group.URL, Group.PARSER, Group.UTILS, Group.SESSION_BUILDER
+//        , Group.TASK_TEST_ADVICE, Group.SIMPLE_QUERY_TASK, Group.EXTENDED_QUERY_TASK})
 public class CopyInOperationSuiteTests extends AbstractTaskTests {
 
     private static final Logger LOG = LoggerFactory.getLogger(CopyInOperationSuiteTests.class);
@@ -43,7 +46,7 @@ public class CopyInOperationSuiteTests extends AbstractTaskTests {
 
 
     @Test
-    public void simpleQueryCopyInFromLocalFile() {
+    public void simpleQueryCopyInFromLocalFileWithStatic() {
         final ClientProtocol protocol;
         protocol = obtainProtocolWithSync();
         final TaskAdjutant adjutant = mapToTaskAdjutant(protocol);
@@ -72,7 +75,56 @@ public class CopyInOperationSuiteTests extends AbstractTaskTests {
     }
 
     @Test
-    public void simpleQueryCopyInFromLocalFileWithBind() {
+    public void simpleQueryCopyInFromLocalFileWithGroup() {
+        final ClientProtocol protocol;
+        protocol = obtainProtocolWithSync();
+        final TaskAdjutant adjutant = mapToTaskAdjutant(protocol);
+
+        final Path path = Paths.get(DATA_DIR, "data/copy/my_copies.csv").toAbsolutePath();
+
+
+        final String sql = String.format(
+                "/* comment */ COPY my_copies(create_time,my_varchar) FROM --comment%s'%s'  WITH CSV"
+                , LINE_SEPARATOR, path);
+
+        final List<String> sqlGroup = new ArrayList<>();
+
+        for (int i = 0; i < 4; i++) {
+            sqlGroup.add(sql);
+        }
+
+        final List<ResultState> stateList;
+        stateList = SimpleQueryTask.batchUpdate(PgStmts.group(sqlGroup), adjutant)
+
+                .concatWith(releaseConnection(protocol))
+                .onErrorResume(releaseConnectionOnError(protocol))
+
+                .collectList()
+                .block();
+
+        assertNotNull(stateList, "stateList");
+        assertEquals(stateList.size(), sqlGroup.size(), "stateList size");
+
+        int count = 0;
+        for (ResultState state : stateList) {
+            assertTrue(state.getAffectedRows() > 0L, "affectedRows");
+            assertFalse(state.hasMoreFetch(), "more fetch");
+            assertFalse(state.hasColumn(), "hasColumn");
+
+            if (count == stateList.size() - 1) {
+                assertFalse(state.hasMoreResult(), "more result");
+            } else {
+                assertTrue(state.hasMoreResult(), "more result");
+            }
+
+            count++;
+        }
+
+    }
+
+
+    @Test
+    public void simpleQueryCopyInFromLocalFileWithBindable() {
         final ClientProtocol protocol;
         protocol = obtainProtocolWithSync();
         final TaskAdjutant adjutant = mapToTaskAdjutant(protocol);
@@ -101,34 +153,101 @@ public class CopyInOperationSuiteTests extends AbstractTaskTests {
     }
 
     @Test
-    public void simpleQueryCopyInFromLocalFileWithMultiStmt() {
+    public void simpleQueryCopyInFromLocalFileWithBatchBindable() {
         final ClientProtocol protocol;
         protocol = obtainProtocolWithSync();
         final TaskAdjutant adjutant = mapToTaskAdjutant(protocol);
 
-        final Path path = Paths.get(DATA_DIR, "data/copy/my_copies.csv").toAbsolutePath();
-
+        final String fileName = Paths.get(DATA_DIR, "data/copy/my_copies.csv").toAbsolutePath().toString();
 
         final String sql = String.format(
-                "/* comment */ COPY my_copies(create_time,my_varchar) FROM --comment%s'%s'  WITH CSV"
-                , LINE_SEPARATOR, path);
+                "/* comment */ COPY my_copies(create_time,my_varchar) FROM --comment%s?  WITH CSV"
+                , LINE_SEPARATOR);
 
-        final ResultState state;
-        state = SimpleQueryTask.update(PgStmts.stmt(sql), adjutant)
+        final List<List<BindValue>> groupList = new ArrayList<>();
+
+        for (int i = 0; i < 5; i++) {
+            groupList.add(Collections.singletonList(BindValue.create(0, PgType.VARCHAR, fileName)));
+        }
+
+        final List<ResultState> stateList;
+        stateList = SimpleQueryTask.bindableBatchUpdate(PgStmts.bindableBatch(sql, groupList), adjutant)
 
                 .concatWith(releaseConnection(protocol))
                 .onErrorResume(releaseConnectionOnError(protocol))
 
-                .last()
+                .collectList()
                 .block();
 
-        assertNotNull(state, "state");
-        assertTrue(state.getAffectedRows() > 0L, "affectedRows");
-        assertFalse(state.hasMoreFetch(), "more fetch");
-        assertFalse(state.hasColumn(), "hasColumn");
-        assertFalse(state.hasMoreResult(), "more result");
+        assertNotNull(stateList, "stateList");
+        assertEquals(stateList.size(), groupList.size(), "stateList size");
+        int count = 0;
+        for (ResultState state : stateList) {
+
+            assertTrue(state.getAffectedRows() > 0L, "affectedRows");
+            assertFalse(state.hasMoreFetch(), "more fetch");
+            assertFalse(state.hasColumn(), "hasColumn");
+
+            if (count == stateList.size() - 1) {
+                assertFalse(state.hasMoreResult(), "more result");
+            } else {
+                assertTrue(state.hasMoreResult(), "more result");
+            }
+
+            count++;
+        }
 
     }
+
+    @Test
+    public void simpleQueryCopyInFromLocalFileWithMultiBindStmt() {
+        final ClientProtocol protocol;
+        protocol = obtainProtocolWithSync();
+        final TaskAdjutant adjutant = mapToTaskAdjutant(protocol);
+
+        final String fileName = Paths.get(DATA_DIR, "data/copy/my_copies.csv").toAbsolutePath().toString();
+
+        final String sql = String.format(
+                "/* comment */ COPY my_copies(create_time,my_varchar) FROM --comment%s?  WITH CSV"
+                , LINE_SEPARATOR);
+
+        final List<BindableStmt> stmtGroup = new ArrayList<>();
+
+        for (int i = 0; i < 5; i++) {
+            BindableStmt stmt = PgStmts.bindable(sql, Collections.singletonList(BindValue.create(0, PgType.VARCHAR, fileName)));
+            stmtGroup.add(stmt);
+        }
+
+        final List<ResultState> stateList;
+        stateList = SimpleQueryTask.multiStmtAsFlux(PgStmts.multi(stmtGroup), adjutant)
+                .cast(ResultState.class)
+
+                .concatWith(releaseConnection(protocol))
+                .onErrorResume(releaseConnectionOnError(protocol))
+
+                .collectList()
+                .block();
+
+        assertNotNull(stateList, "stateList");
+        assertEquals(stateList.size(), stmtGroup.size(), "stateList size");
+        int count = 0;
+        for (ResultState state : stateList) {
+
+            assertTrue(state.getAffectedRows() > 0L, "affectedRows");
+            assertFalse(state.hasMoreFetch(), "more fetch");
+            assertFalse(state.hasColumn(), "hasColumn");
+
+            if (count == stateList.size() - 1) {
+                assertFalse(state.hasMoreResult(), "more result");
+            } else {
+                assertTrue(state.hasMoreResult(), "more result");
+            }
+
+            count++;
+        }
+
+    }
+
 
     @Test(expectedExceptions = JdbdSQLException.class)
     public void simpleQueryCopyInFromProgramMode() {

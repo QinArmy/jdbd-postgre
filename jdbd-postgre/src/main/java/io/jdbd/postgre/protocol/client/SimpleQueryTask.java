@@ -258,7 +258,6 @@ final class SimpleQueryTask extends AbstractStmtTask {
 
     private final ResultSetReader resultSetReader;
 
-
     private Phase phase;
 
     private CopyMode copyMode = CopyMode.NONE;
@@ -408,6 +407,15 @@ final class SimpleQueryTask extends AbstractStmtTask {
         cumulateBuffer.readerIndex(cumulateBuffer.writerIndex());
         return true;
     }
+
+    @Override
+    final void internalToString(StringBuilder builder) {
+        builder.append(",phase:")
+                .append(this.phase)
+                .append(",copyMode:")
+                .append(this.copyMode);
+    }
+
 
     /**
      * @return true: task end.

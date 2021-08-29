@@ -107,6 +107,32 @@ abstract class AbstractStmtTask extends PgTask implements StmtTask {
         return isCanceled;
     }
 
+    @Override
+    public final String toString() {
+        final StringBuilder builder = new StringBuilder();
+
+        builder.append(getClass().getSimpleName())
+                .append("[resultIndex:")
+                .append(this.resultIndex)
+                .append(",downstreamCanceled:")
+                .append(this.downstreamCanceled)
+                .append(",cacheCopyIn:")
+                .append(this.cacheCopyIn)
+                .append(",singleSqlList size:");
+
+        final List<String> singleSqlList = this.singleSqlList;
+        if (singleSqlList == null) {
+            builder.append("null");
+        } else {
+            builder.append(singleSqlList.size());
+        }
+        internalToString(builder);
+        builder.append("]");
+        return builder.toString();
+    }
+
+    abstract void internalToString(StringBuilder builder);
+
     /**
      * @return true: read CommandComplete message end , false : more cumulate.
      */
@@ -285,17 +311,21 @@ abstract class AbstractStmtTask extends PgTask implements StmtTask {
         return path;
     }
 
+    /**
+     * @see #obtainPathFromCopyIn(int, CopyIn)
+     */
     private Path obtainPathFromParamGroup(final List<BindValue> valueList, final int resultIndex, final int bindIndex) {
         if (bindIndex >= valueList.size()) {
             //here  bug
-            String m = String.format("IllegalState can't obtain 'filename' for COPY operation,Stmt[index:%s],bind[%s]"
+            String m;
+            m = String.format("IllegalState can't obtain 'filename' for COPY operation,Stmt[index:%s],bind[index:%s]"
                     , resultIndex, bindIndex);
             throw new IllegalStateException(m);
         }
         final Object value = valueList.get(bindIndex).getValue();
         if (!(value instanceof String)) {
             String className = value == null ? null : value.getClass().getName();
-            String m = String.format("Statement[index:%s] can't obtain local file from bind type[%s],bind[%s]"
+            String m = String.format("Statement[index:%s] can't obtain local file from bind type[%s],bind[index:%s]"
                     , resultIndex, className, bindIndex);
             throw new IllegalStateException(m);
         }
@@ -453,19 +483,6 @@ abstract class AbstractStmtTask extends PgTask implements StmtTask {
         }
         sink.complete();
 
-    }
-
-    /**
-     * @see <a href="https://www.postgresql.org/docs/current/protocol-message-formats.html">CopyData</a>
-     */
-    private ByteBuf mapToCopyDataMessage(final byte[] dataBytes) {
-        final ByteBuf message = this.adjutant.allocator().buffer(5 + dataBytes.length);
-        message.writeByte(Messages.d);
-        message.writeZero(Messages.LENGTH_SIZE);//placeholder of length
-        message.writeBytes(dataBytes);
-
-        Messages.writeLength(message);
-        return message;
     }
 
 

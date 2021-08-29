@@ -29,5 +29,10 @@ final class ExtendedQueryTask extends AbstractStmtTask {
         return false;
     }
 
+    @Override
+    final void internalToString(StringBuilder builder) {
+
+    }
+
 
 }

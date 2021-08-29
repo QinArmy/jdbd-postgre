@@ -4,7 +4,6 @@ import io.jdbd.postgre.ServerParameter;
 import io.jdbd.postgre.stmt.BindableStmt;
 import io.jdbd.postgre.stmt.MultiBindStmt;
 import io.jdbd.postgre.util.PgExceptions;
-import io.jdbd.postgre.util.PgStrings;
 import io.jdbd.vendor.stmt.GroupStmt;
 import io.jdbd.vendor.stmt.MultiSqlStmt;
 import io.jdbd.vendor.stmt.StaticStmt;
@@ -19,6 +18,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.function.Function;
@@ -68,12 +68,13 @@ final class DefaultPgParser implements PgParser {
 
     @Override
     public final PgStatement parse(final String sql) throws SQLException {
-        return (PgStatement) doParse(sql, true);
+        return (PgStatement) doParse(sql, Mode.BIND);
     }
 
+    @SuppressWarnings("unchecked")
     @Override
-    public final List<String> separateMultiStmt(String multiStmt) throws SQLException {
-        return null;
+    public final List<String> separateMultiStmt(final String multiStmt) throws SQLException {
+        return (List<String>) doParse(multiStmt, Mode.SEPARATE);
     }
 
     @Override
@@ -164,39 +165,43 @@ final class DefaultPgParser implements PgParser {
 
     @Override
     public final boolean isSingleStmt(String sql) throws SQLException {
-        return (Boolean) doParse(sql, false);
+        return (Boolean) doParse(sql, Mode.CHECK_SINGLE);
     }
 
-    private Object doParse(final String sql, final boolean createStmt) throws SQLException {
-        if (!PgStrings.hasText(sql)) {
-            throw PgExceptions.createSyntaxError("Statement couldn't be empty.");
-        }
+    /**
+     * @see #parse(String)
+     * @see #separateMultiStmt(String)
+     * @see #parseCopyIn(String)
+     */
+    private Object doParse(final String multiStmt, final Mode mode) throws SQLException {
+        final char[] charArray = multiStmt.toCharArray();
+        final int lastIndex = charArray.length - 1;
+
         final boolean isTrace = LOG.isTraceEnabled();
         final long startMillis = isTrace ? System.currentTimeMillis() : 0;
         final boolean confirmStringOff = confirmStringIsOff();
-        final int sqlLength = sql.length();
 
         boolean inQuoteString = false, inCStyleEscapes = false, inUnicodeEscapes = false, inDoubleIdentifier = false;
-        int stmtCount = 1;
-        char ch;
         List<String> endpointList = new ArrayList<>();
-        int lastParamEnd = 0;
-        for (int i = 0; i < sqlLength; i++) {
-            ch = sql.charAt(i);
+        char ch;
+        int lastEndpointEnd = 0, stmtCount = 1;
+        loop:
+        for (int i = 0; i < charArray.length; i++) {
+            ch = charArray[i];
+
             if (inQuoteString) {
-                int index = sql.indexOf(QUOTE, i);
+                final int index = multiStmt.indexOf(QUOTE, i);
                 if (index < 0) {
-                    throw createQuoteNotCloseError(sql, i);
+                    throw createQuoteNotCloseError(multiStmt, i);
                 }
-                if ((confirmStringOff || inCStyleEscapes) && sql.charAt(index - 1) == BACK_SLASH) {
+                if ((confirmStringOff || inCStyleEscapes) && charArray[index - 1] == BACK_SLASH) {
                     // C-Style Escapes
                     i = index;
-                } else if (index + 1 < sqlLength && sql.charAt(index + 1) == QUOTE) {
+                } else if (index < lastIndex && charArray[index + 1] == QUOTE) {
                     // double quote Escapes
                     i = index + 1;
                 } else {
                     i = index;
-                    // LOG.debug("QUOTE end c-style[{}] unicode[{}]  ,current char[{}] at near {}",inCStyleEscapes,inUnicodeEscapes,ch,fragment(sql,i));
                     inQuoteString = false; // string constant end.
                     if (inUnicodeEscapes) {
                         inUnicodeEscapes = false;
@@ -204,78 +209,79 @@ final class DefaultPgParser implements PgParser {
                         inCStyleEscapes = false;
                     }
                 }
-                continue;
             } else if (inDoubleIdentifier) {
-                int index = sql.indexOf(DOUBLE_QUOTE, i);
+                final int index = multiStmt.indexOf(DOUBLE_QUOTE, i);
                 if (index < 0) {
-                    throw createDoubleQuotedIdentifierError(sql, i);
+                    throw createDoubleQuotedIdentifierError(multiStmt, i);
                 }
                 inDoubleIdentifier = false;
                 if (inUnicodeEscapes) {
                     inUnicodeEscapes = false;
                 }
-                // LOG.debug("DOUBLE_QUOTE end ,current char[{}] sql fragment :{}",ch, fragment(sql,index));
                 i = index;
-                continue;
-            }
-
-            if (ch == QUOTE) {
+            } else if (ch == SLASH && i < lastIndex && charArray[i + 1] == STAR) {
+                // block comment.
+                i = skipBlockComment(multiStmt, i);
+            } else if (ch == DASH && i < lastIndex && charArray[i + 1] == DASH) {
+                // line comment
+                int index = multiStmt.indexOf('\n', i + DOUBLE_DASH_COMMENT_MARKER.length());
+                i = index > 0 ? index : charArray.length;
+            } else if (ch == QUOTE) {
                 inQuoteString = true;
-                //LOG.debug("QUOTE start ,current char[{}] sql fragment :{}",ch, fragment(sql,i));
-            } else if ((ch == 'E' || ch == 'e') && i + 1 < sqlLength && sql.charAt(i + 1) == QUOTE) {
+            } else if ((ch == 'E' || ch == 'e') && i < lastIndex && charArray[i + 1] == QUOTE) {
                 inQuoteString = inCStyleEscapes = true;
-                //LOG.debug("QUOTE c-style start ,current char[{}] sql fragment :{}",ch, fragment(sql,i));
                 i++;
             } else if ((ch == 'U' || ch == 'u')
-                    && i + 1 < sqlLength && sql.charAt(i + 1) == '&'
-                    && i + 2 < sqlLength && sql.charAt(i + 2) == QUOTE) {
+                    && i < lastIndex && charArray[i + 1] == '&'
+                    && i + 2 < charArray.length && charArray[i + 2] == QUOTE) {
                 inQuoteString = inUnicodeEscapes = true;
-                // LOG.debug("QUOTE unicode start ,current char[{}] sql fragment :{}",ch, fragment(sql,i));
                 i += 2;
             } else if (ch == DOUBLE_QUOTE) {
-                //LOG.debug("DOUBLE_QUOTE current char[{}] sql fragment :{}",ch, fragment(sql,i));
                 inDoubleIdentifier = true;
             } else if ((ch == 'U' || ch == 'u')
-                    && i + 1 < sqlLength && sql.charAt(i + 1) == '&'
-                    && i + 2 < sqlLength && sql.charAt(i + 2) == DOUBLE_QUOTE) {
-                // LOG.debug("DOUBLE_QUOTE with unicode ,current char[{}] sql fragment :{}",ch, fragment(sql,i));
+                    && i < lastIndex && charArray[i + 1] == '&'
+                    && i + 2 < charArray.length && charArray[i + 2] == DOUBLE_QUOTE) {
                 inDoubleIdentifier = inUnicodeEscapes = true;
                 i += 2;
-            } else if (ch == '$') {
+            } else if (ch == DOLLAR) {
                 // Dollar-Quoted String Constants
-                int index = sql.indexOf('$', i + 1);
+                int index = multiStmt.indexOf(DOLLAR, i + 1);
                 if (index < 0) {
                     throw PgExceptions.createSyntaxError("syntax error at or near \"$\"");
                 }
-                final String dollarTag = sql.substring(i, index + 1);
-                index = sql.indexOf(dollarTag, index + 1);
+                final String dollarTag = multiStmt.substring(i, index + 1);
+                index = multiStmt.indexOf(dollarTag, index + 1);
                 if (index < 0) {
                     String msg = String.format(
                             "syntax error,Dollar-Quoted String Constants not close, at or near \"%s\"", dollarTag);
                     throw PgExceptions.createSyntaxError(msg);
                 }
                 i = index + dollarTag.length() - 1;
-            } else if (sql.startsWith(BLOCK_COMMENT_START_MARKER, i)) {
-                i = skipBlockComment(sql, i);
-            } else if (sql.startsWith(DOUBLE_DASH_COMMENT_MARKER, i)) {
-                int index = sql.indexOf('\n', i + DOUBLE_DASH_COMMENT_MARKER.length());
-                i = index > 0 ? index : sqlLength;
             } else if (ch == '?') {
-                if (createStmt) {
-                    endpointList.add(sql.substring(lastParamEnd, i));
-                    lastParamEnd = i + 1;
+                if (mode == Mode.BIND) {
+                    endpointList.add(multiStmt.substring(lastEndpointEnd, i));
+                    lastEndpointEnd = i + 1;
                 }
             } else if (ch == ';') {
-                if (createStmt) {
-                    String m = String.format(
-                            "Detect multiple statements,multiple statements can't be bind,please check [%s].", sql);
-                    throw PgExceptions.createSyntaxError(m);
-                } else {
-                    stmtCount++;
+                switch (mode) {
+                    case BIND:
+                        String m = String.format(
+                                "Detect multiple statements,multiple statements can't be bind,please check [%s]."
+                                , multiStmt);
+                        throw PgExceptions.createSyntaxError(m);
+                    case SEPARATE:
+                        endpointList.add(multiStmt.substring(lastEndpointEnd, i));
+                        lastEndpointEnd = i + 1;
+                        break;
+                    case CHECK_SINGLE:
+                        stmtCount++;
+                        break loop; // break for
+                    default:
+                        throw PgExceptions.createUnknownEnumException(mode);
                 }
             }
 
-        }
+        } // for
 
         if (inQuoteString) {
             throw PgExceptions.createSyntaxError("syntax error,last string constants not close.");
@@ -283,20 +289,37 @@ final class DefaultPgParser implements PgParser {
         if (inDoubleIdentifier) {
             throw PgExceptions.createSyntaxError("syntax error,last double quoted identifier not close.");
         }
-        final Object parseResult;
-        if (createStmt) {
-            if (lastParamEnd < sqlLength) {
-                endpointList.add(sql.substring(lastParamEnd));
-            } else {
-                endpointList.add("");
-            }
-            parseResult = PgStatementImpl.create(sql, endpointList);
-        } else {
-            parseResult = stmtCount == 1;
-        }
 
+        final Object parseResult;
+        switch (mode) {
+            case BIND: {
+                if (lastEndpointEnd < charArray.length) {
+                    endpointList.add(multiStmt.substring(lastEndpointEnd));
+                } else {
+                    endpointList.add("");
+                }
+                parseResult = PgStatementImpl.create(multiStmt, endpointList);
+            }
+            break;
+            case CHECK_SINGLE:
+                parseResult = stmtCount == 1;
+                break;
+            case SEPARATE: {
+                if (lastEndpointEnd < charArray.length) {
+                    endpointList.add(multiStmt.substring(lastEndpointEnd));
+                }
+                if (endpointList.size() == 1) {
+                    parseResult = Collections.singleton(endpointList.get(0));
+                } else {
+                    parseResult = Collections.unmodifiableList(endpointList);
+                }
+            }
+            break;
+            default:
+                throw PgExceptions.createUnknownEnumException(mode);
+        }
         if (isTrace) {
-            LOG.trace("SQL[{}] \nparse cost {} ms.", sql, System.currentTimeMillis() - startMillis);
+            LOG.trace("SQL[{}] \nparse cost {} ms.", multiStmt, System.currentTimeMillis() - startMillis);
         }
         return parseResult;
     }
@@ -340,7 +363,7 @@ final class DefaultPgParser implements PgParser {
 
 
     private static String fragment(String sql, int index) {
-        return sql.substring(Math.max(index - 10, 0), Math.min(index + 10, sql.length()));
+        return sql.substring(Math.max(index - 15, 0), Math.min(index + 15, sql.length()));
     }
 
 
@@ -478,6 +501,12 @@ final class DefaultPgParser implements PgParser {
         String m = String.format(
                 "syntax error,double quoted identifier not close,at near %s", fragment(sql, index));
         return PgExceptions.createSyntaxError(m);
+    }
+
+    private enum Mode {
+        BIND,
+        CHECK_SINGLE,
+        SEPARATE
     }
 
 

@@ -1,6 +1,7 @@
 package io.jdbd.postgre.protocol.client;
 
 import io.jdbd.JdbdSQLException;
+import io.jdbd.postgre.Group;
 import io.jdbd.postgre.PgTestUtils;
 import io.jdbd.postgre.PgType;
 import io.jdbd.postgre.stmt.*;
@@ -33,7 +34,7 @@ import static org.testng.Assert.*;
  *
  * @see SimpleQueryTask
  */
-//@Test(groups = {Group.SIMPLE_QUERY_TASK}, dependsOnGroups = {Group.URL, Group.PARSER, Group.UTILS, Group.SESSION_BUILDER, Group.TASK_TEST_ADVICE})
+@Test(groups = {Group.SIMPLE_QUERY_TASK}, dependsOnGroups = {Group.URL, Group.PARSER, Group.UTILS, Group.SESSION_BUILDER, Group.TASK_TEST_ADVICE})
 public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
 
     private static final Logger LOG = LoggerFactory.getLogger(SimpleQueryTaskSuiteTests.class);

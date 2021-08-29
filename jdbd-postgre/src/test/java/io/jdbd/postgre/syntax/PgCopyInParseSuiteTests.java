@@ -1,5 +1,6 @@
 package io.jdbd.postgre.syntax;
 
+import io.jdbd.postgre.Group;
 import org.reactivestreams.Publisher;
 import org.reactivestreams.Subscriber;
 import org.slf4j.Logger;
@@ -19,7 +20,7 @@ import static org.testng.Assert.assertEquals;
  *
  * @see PgParser#parseCopyIn(String)
  */
-//@Test(groups = {Group.COPY_IN_PARSER}, dependsOnGroups = {Group.PARSER})
+@Test(groups = {Group.COPY_IN_PARSER}, dependsOnGroups = {Group.PARSER})
 public class PgCopyInParseSuiteTests {
 
     private static final Logger LOG = LoggerFactory.getLogger(PgCopyInParseSuiteTests.class);

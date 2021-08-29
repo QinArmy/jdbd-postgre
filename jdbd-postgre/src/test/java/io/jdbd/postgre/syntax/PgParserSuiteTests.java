@@ -8,6 +8,7 @@ import org.slf4j.LoggerFactory;
 import org.testng.annotations.Test;
 
 import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.List;
 
 import static org.testng.Assert.*;
@@ -28,7 +29,7 @@ public class PgParserSuiteTests {
 
     private static final PgParser PARSER_WITH_OFF = PgParser.create(PgParserSuiteTests::standardConformingOffFunction);
 
-     static final List<PgParser> PARSER_LIST = PgArrays.asUnmodifiableList(PARSER_WITH_ON, PARSER_WITH_OFF);
+    static final List<PgParser> PARSER_LIST = PgArrays.asUnmodifiableList(PARSER_WITH_ON, PARSER_WITH_OFF);
 
 
     @Test
@@ -262,6 +263,43 @@ public class PgParserSuiteTests {
         //TODO zoro 测试 UESCAPE '\' 和 UESCAPE ''' 的 bindable sql 的 string parameter 解析 .
     }
 
+
+    /**
+     * @see PgParser#separateMultiStmt(String)
+     */
+    @Test
+    public void separateMultiStmt() throws SQLException {
+        final List<String> sqlGroup = new ArrayList<>();
+
+        sqlGroup.add("/** * This is block comment. * **/");
+        sqlGroup.add("/** *-- This is /* /*nest*/ /*block*/ comment */. * **/");
+        sqlGroup.add(" SELECT u.id,\"u\".U&\"n\\0061me\" /* comment ; */ FROM U&\"\\0075\\0073\\0065\\0072\" UESCAPE '!' as u WHERE u.id=  AND u.name = 'user''name' AND u.nick_name = E'user\\'nickName' and u.book = &tag& book of Army &tag& ");
+        sqlGroup.add("UPDATE user AS u SET name =  ';;' --COMMENT\n WHERE u.id = ?");
+
+        StringBuilder builder = new StringBuilder();
+        int count = 0;
+
+        for (String sql : sqlGroup) {
+            if (count > 0) {
+                builder.append(";");
+            }
+            builder.append(sql);
+            count++;
+        }
+
+        final String multiStmt = builder.toString();
+
+        for (PgParser parser : PARSER_LIST) {
+            final List<String> separatedGroup = parser.separateMultiStmt(multiStmt);
+            assertEquals(separatedGroup.size(), sqlGroup.size(), "separatedGroup.size()");
+            final int size = separatedGroup.size();
+            for (int i = 0; i < size; i++) {
+                assertEquals(separatedGroup.get(i), sqlGroup.get(i), sqlGroup.get(i));
+            }
+
+        }
+
+    }
 
 
     /**
