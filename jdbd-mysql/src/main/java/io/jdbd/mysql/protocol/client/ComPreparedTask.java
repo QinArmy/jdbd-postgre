@@ -21,7 +21,7 @@ import io.jdbd.vendor.result.*;
 import io.jdbd.vendor.stmt.BatchParamStmt;
 import io.jdbd.vendor.stmt.ParamStmt;
 import io.jdbd.vendor.stmt.ParamValue;
-import io.jdbd.vendor.stmt.Stmt;
+import io.jdbd.vendor.stmt.StaticStmt;
 import io.netty.buffer.ByteBuf;
 import org.reactivestreams.Publisher;
 import org.slf4j.Logger;
@@ -193,9 +193,9 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
      *
      * @see DatabaseSession#prepare(String)
      * @see DatabaseSession#prepare(String, int)
-     * @see #ComPreparedTask(MySQLDatabaseSession, TaskAdjutant, MonoSink, Stmt)
+     * @see #ComPreparedTask(MySQLDatabaseSession, TaskAdjutant, MonoSink, StaticStmt)
      */
-    static Mono<PreparedStatement> prepare(final MySQLDatabaseSession session, final Stmt stmt
+    static Mono<PreparedStatement> prepare(final MySQLDatabaseSession session, final StaticStmt stmt
             , final TaskAdjutant adjutant) {
         return Mono.create(sink -> {
             try {
@@ -275,10 +275,10 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
     }
 
     /**
-     * @see #prepare(MySQLDatabaseSession, Stmt, TaskAdjutant)
+     * @see #prepare(MySQLDatabaseSession, StaticStmt, TaskAdjutant)
      */
     private ComPreparedTask(final MySQLDatabaseSession session, final TaskAdjutant adjutant
-            , MonoSink<PreparedStatement> sink, Stmt stmt)
+            , MonoSink<PreparedStatement> sink, StaticStmt stmt)
             throws SQLException {
         super(adjutant, sink::error);
         this.packetPublisher = createPrepareCommand(stmt);
@@ -582,7 +582,7 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
 
     /*################################## blow private method ##################################*/
 
-    private Publisher<ByteBuf> createPrepareCommand(Stmt stmt) throws SQLException, JdbdSQLException {
+    private Publisher<ByteBuf> createPrepareCommand(StaticStmt stmt) throws SQLException, JdbdSQLException {
         assertPhase(Phase.PREPARED);
         return Flux.fromIterable(
                 Packets.createSimpleCommand(Packets.COM_STMT_PREPARE, stmt
@@ -2101,7 +2101,7 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
         private DownstreamSink downstreamSink;
 
         /**
-         * @see #ComPreparedTask(MySQLDatabaseSession, TaskAdjutant, MonoSink, Stmt)
+         * @see #ComPreparedTask(MySQLDatabaseSession, TaskAdjutant, MonoSink, StaticStmt)
          */
         private DownstreamAdapter(MySQLDatabaseSession session, ComPreparedTask task
                 , MonoSink<PreparedStatement> sink) {

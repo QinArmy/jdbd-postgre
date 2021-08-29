@@ -8,8 +8,7 @@ import io.jdbd.result.Result;
 import io.jdbd.result.ResultRow;
 import io.jdbd.result.ResultState;
 import io.jdbd.vendor.stmt.GroupStmt;
-import io.jdbd.vendor.stmt.MultiSqlStmt;
-import io.jdbd.vendor.stmt.Stmt;
+import io.jdbd.vendor.stmt.StaticStmt;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -35,12 +34,12 @@ final class ClientProtocolImpl implements ClientProtocol {
     }
 
     @Override
-    public final Mono<ResultState> update(Stmt stmt) {
+    public final Mono<ResultState> update(StaticStmt stmt) {
         return SimpleQueryTask.update(stmt, this.adjutant);
     }
 
     @Override
-    public final Flux<ResultRow> query(Stmt stmt) {
+    public final Flux<ResultRow> query(StaticStmt stmt) {
         return SimpleQueryTask.query(stmt, this.adjutant);
     }
 
@@ -50,18 +49,18 @@ final class ClientProtocolImpl implements ClientProtocol {
     }
 
     @Override
-    public final MultiResult asMulti(GroupStmt stmt) {
-        return SimpleQueryTask.asMulti(stmt, this.adjutant);
+    public final MultiResult batchAsMulti(GroupStmt stmt) {
+        return SimpleQueryTask.batchAsMulti(stmt, this.adjutant);
     }
 
     @Override
-    public final Flux<Result> asFlux(GroupStmt stmt) {
-        return SimpleQueryTask.asFlux(stmt, this.adjutant);
+    public final Flux<Result> batchAsFlux(GroupStmt stmt) {
+        return SimpleQueryTask.batchAsFlux(stmt, this.adjutant);
     }
 
     @Override
-    public final Flux<Result> multiSqlAsFlux(MultiSqlStmt stmt) {
-        return SimpleQueryTask.multiSqlAsFlux(stmt, this.adjutant);
+    public final Flux<Result> multiCommandAsFlux(StaticStmt stmt) {
+        return SimpleQueryTask.multiCommandAsFlux(stmt, this.adjutant);
     }
 
     @Override

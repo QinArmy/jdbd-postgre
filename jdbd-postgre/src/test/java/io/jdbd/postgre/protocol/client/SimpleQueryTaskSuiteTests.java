@@ -8,7 +8,7 @@ import io.jdbd.postgre.util.PgTimes;
 import io.jdbd.result.*;
 import io.jdbd.stmt.SubscribeException;
 import io.jdbd.vendor.stmt.GroupStmt;
-import io.jdbd.vendor.stmt.Stmt;
+import io.jdbd.vendor.stmt.StaticStmt;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.annotations.Test;
@@ -42,7 +42,7 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
 
 
     /**
-     * @see SimpleQueryTask#update(Stmt, TaskAdjutant)
+     * @see SimpleQueryTask#update(StaticStmt, TaskAdjutant)
      */
     @Test
     public void update() {
@@ -71,7 +71,7 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
     }
 
     /**
-     * @see SimpleQueryTask#query(Stmt, TaskAdjutant)
+     * @see SimpleQueryTask#query(StaticStmt, TaskAdjutant)
      */
     @Test
     public void query() {
@@ -153,7 +153,7 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
 
 
     /**
-     * @see SimpleQueryTask#asMulti(GroupStmt, TaskAdjutant)
+     * @see SimpleQueryTask#batchAsMulti(GroupStmt, TaskAdjutant)
      */
     @Test
     public void asMulti() {
@@ -168,7 +168,7 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
         sqlList.add(String.format("UPDATE my_types AS t SET my_boolean = TRUE WHERE t.id = %s RETURNING t.id AS id ", bindId++));
         sqlList.add("UPDATE my_types AS t SET my_boolean = TRUE WHERE t.id = " + bindId);
 
-        final MultiResult multiResult = SimpleQueryTask.asMulti(PgStmts.group(sqlList), adjutant);
+        final MultiResult multiResult = SimpleQueryTask.batchAsMulti(PgStmts.group(sqlList), adjutant);
 
         final AtomicReference<ResultState> updateRowsHolder = new AtomicReference<>(null);
 
@@ -197,7 +197,7 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
     }
 
     /**
-     * @see SimpleQueryTask#asFlux(GroupStmt, TaskAdjutant)
+     * @see SimpleQueryTask#batchAsFlux(GroupStmt, TaskAdjutant)
      */
     @Test
     public void asFlux() {
@@ -214,7 +214,7 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
         sqlList.add("UPDATE my_types AS t SET my_boolean = TRUE WHERE t.id = " + bindId);
 
         final List<Result> resultList;
-        resultList = SimpleQueryTask.asFlux(PgStmts.group(sqlList), adjutant)
+        resultList = SimpleQueryTask.batchAsFlux(PgStmts.group(sqlList), adjutant)
                 .switchIfEmpty(PgTestUtils.updateNoResponse())
 
                 .concatWith(releaseConnection(protocol))
@@ -857,7 +857,7 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
 
 
     /**
-     * @see SimpleQueryTask#update(Stmt, TaskAdjutant)
+     * @see SimpleQueryTask#update(StaticStmt, TaskAdjutant)
      */
     @Test(expectedExceptions = SubscribeException.class)
     public void updateIncorrectUserCase1() {
@@ -882,7 +882,7 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
 
 
     /**
-     * @see SimpleQueryTask#update(Stmt, TaskAdjutant)
+     * @see SimpleQueryTask#update(StaticStmt, TaskAdjutant)
      */
     @Test(expectedExceptions = SubscribeException.class)
     public void updateIncorrectUserCase2() {
@@ -904,7 +904,7 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
     }
 
     /**
-     * @see SimpleQueryTask#update(Stmt, TaskAdjutant)
+     * @see SimpleQueryTask#update(StaticStmt, TaskAdjutant)
      */
     @Test(expectedExceptions = JdbdSQLException.class)
     public void updateIncorrectUserCase3() {
@@ -926,7 +926,7 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
     }
 
     /**
-     * @see SimpleQueryTask#query(Stmt, TaskAdjutant)
+     * @see SimpleQueryTask#query(StaticStmt, TaskAdjutant)
      */
     @Test(expectedExceptions = SubscribeException.class)
     public void queryIncorrectUserCase1() {
@@ -948,7 +948,7 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
     }
 
     /**
-     * @see SimpleQueryTask#query(Stmt, TaskAdjutant)
+     * @see SimpleQueryTask#query(StaticStmt, TaskAdjutant)
      */
     @Test(expectedExceptions = JdbdSQLException.class)
     public void queryIncorrectUserCase2() {
@@ -971,7 +971,7 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
 
 
     /**
-     * @see SimpleQueryTask#query(Stmt, TaskAdjutant)
+     * @see SimpleQueryTask#query(StaticStmt, TaskAdjutant)
      */
     @Test(expectedExceptions = SubscribeException.class)
     public void queryIncorrectUserCase3() {

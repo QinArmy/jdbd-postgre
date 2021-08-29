@@ -99,10 +99,6 @@ public abstract class Stmts extends JdbdStmts {
             return this.groupList;
         }
 
-        @Override
-        public final Consumer<ResultState> getStatusConsumer() {
-            return MultiResult.EMPTY_CONSUMER;
-        }
 
         @Override
         public int getTimeout() {

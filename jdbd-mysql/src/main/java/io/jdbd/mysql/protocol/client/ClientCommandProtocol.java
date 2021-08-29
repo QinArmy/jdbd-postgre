@@ -14,7 +14,7 @@ import io.jdbd.stmt.MultiStatement;
 import io.jdbd.stmt.PreparedStatement;
 import io.jdbd.stmt.StaticStatement;
 import io.jdbd.vendor.result.ReactorMultiResult;
-import io.jdbd.vendor.stmt.Stmt;
+import io.jdbd.vendor.stmt.StaticStmt;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -44,9 +44,9 @@ public interface ClientCommandProtocol extends ClientProtocol {
      * This method is underlying api of {@link StaticStatement#executeUpdate(String)} method.
      * </p>
      *
-     * @see ComQueryTask#update(Stmt, TaskAdjutant)
+     * @see ComQueryTask#update(StaticStmt, TaskAdjutant)
      */
-    Mono<ResultState> update(Stmt stmt);
+    Mono<ResultState> update(StaticStmt stmt);
 
     /**
      * <p>
@@ -57,9 +57,9 @@ public interface ClientCommandProtocol extends ClientProtocol {
      * </ul>
      * </p>
      *
-     * @see ComQueryTask#query(Stmt, TaskAdjutant)
+     * @see ComQueryTask#query(StaticStmt, TaskAdjutant)
      */
-    Flux<ResultRow> query(Stmt stmt);
+    Flux<ResultRow> query(StaticStmt stmt);
 
 
     /**
@@ -69,7 +69,7 @@ public interface ClientCommandProtocol extends ClientProtocol {
      *
      * @see ComQueryTask#batchUpdate(List, TaskAdjutant)
      */
-    Flux<ResultState> batchUpdate(List<Stmt> stmtList);
+    Flux<ResultState> batchUpdate(List<StaticStmt> stmtList);
 
     /**
      * <p>
@@ -78,14 +78,14 @@ public interface ClientCommandProtocol extends ClientProtocol {
      *
      * @see ComQueryTask#asMulti(List, TaskAdjutant)
      */
-    ReactorMultiResult executeAsMulti(List<Stmt> stmtList);
+    ReactorMultiResult executeAsMulti(List<StaticStmt> stmtList);
 
     /**
      * <p>
      * This method is underlying api of {@link StaticStatement#executeAsFlux(List)} method.
      * </p>
      */
-    Flux<SingleResult> executeAsFlux(List<Stmt> stmtList);
+    Flux<SingleResult> executeAsFlux(List<StaticStmt> stmtList);
 
     /**
      * <p>
@@ -145,9 +145,9 @@ public interface ClientCommandProtocol extends ClientProtocol {
      * </ul>
      * </p>
      *
-     * @see ComPreparedTask#prepare(MySQLDatabaseSession, Stmt, TaskAdjutant)
+     * @see ComPreparedTask#prepare(MySQLDatabaseSession, StaticStmt, TaskAdjutant)
      */
-    Mono<PreparedStatement> prepare(MySQLDatabaseSession session, Stmt stmt);
+    Mono<PreparedStatement> prepare(MySQLDatabaseSession session, StaticStmt stmt);
 
 
     /**

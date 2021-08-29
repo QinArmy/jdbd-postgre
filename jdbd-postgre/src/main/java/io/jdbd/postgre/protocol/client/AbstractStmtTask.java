@@ -1,13 +1,17 @@
 package io.jdbd.postgre.protocol.client;
 
 import io.jdbd.postgre.PgJdbdException;
+import io.jdbd.postgre.stmt.BatchBindStmt;
+import io.jdbd.postgre.stmt.BindValue;
 import io.jdbd.postgre.stmt.BindableStmt;
 import io.jdbd.postgre.stmt.MultiBindStmt;
 import io.jdbd.postgre.syntax.CopyIn;
+import io.jdbd.postgre.syntax.PgParser;
 import io.jdbd.postgre.util.PgArrays;
 import io.jdbd.postgre.util.PgExceptions;
 import io.jdbd.vendor.result.FluxResultSink;
-import io.jdbd.vendor.stmt.IoAbleStmt;
+import io.jdbd.vendor.stmt.GroupStmt;
+import io.jdbd.vendor.stmt.StaticStmt;
 import io.jdbd.vendor.stmt.Stmt;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
@@ -25,12 +29,12 @@ import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.LinkOption;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.sql.SQLException;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 import java.util.StringTokenizer;
-import java.util.function.Function;
 import java.util.function.Supplier;
 
 /**
@@ -50,16 +54,20 @@ abstract class AbstractStmtTask extends PgTask implements StmtTask {
 
     final FluxResultSink sink;
 
-    final IoAbleStmt ioAbleStmt;
+    final Stmt stmt;
 
     private int resultIndex = 0;
 
     private boolean downstreamCanceled;
 
-    AbstractStmtTask(TaskAdjutant adjutant, FluxResultSink sink, @Nullable IoAbleStmt ioAbleStmt) {
+    private CopyIn cacheCopyIn;
+
+    private List<String> singleSqlList;
+
+    AbstractStmtTask(TaskAdjutant adjutant, FluxResultSink sink, @Nullable Stmt stmt) {
         super(adjutant, sink::error);
         this.sink = sink;
-        this.ioAbleStmt = ioAbleStmt;
+        this.stmt = stmt;
     }
 
     @Override
@@ -146,12 +154,10 @@ abstract class AbstractStmtTask extends PgTask implements StmtTask {
         final int resultIndex = this.resultIndex;
         Publisher<ByteBuf> publisher;
         try {
-            final CopyIn copyIn;
-            copyIn = this.adjutant.sqlParser().parseCopyIn(obtainCopyOperationStmt(resultIndex), resultIndex);
-
+            final CopyIn copyIn = parseCopyIn(resultIndex);
             switch (copyIn.getMode()) {
                 case FILE:
-                    publisher = sendCopyInDataFromLocalPath(copyIn.getPath());
+                    publisher = sendCopyInDataFromLocalPath(obtainPathFromCopyIn(resultIndex, copyIn));
                     break;
                 case PROGRAM:
                 case STDIN:
@@ -165,11 +171,135 @@ abstract class AbstractStmtTask extends PgTask implements StmtTask {
             String msg = String.format("Parse copy in sql error,%s", e.getMessage());
             publisher = Mono.just(createCopyFailMessage(msg));
         } catch (Throwable e) {
-            String msg = String.format("Handle statement[index:%s] copy in failure,message:%s"
+            String msg = String.format("Handle statement[index:%s] copy-in failure,message:%s"
                     , resultIndex, e.getMessage());
             publisher = Mono.just(createCopyFailMessage(msg));
         }
         this.packetPublisher = Objects.requireNonNull(publisher);
+    }
+
+
+    /**
+     * @see <a href="https://www.postgresql.org/docs/current/protocol-message-formats.html">CopyOutResponse</a>
+     */
+    final void handleCopyOutResponse(ByteBuf cumulateBuffer) {
+        final int msgStartIndex = cumulateBuffer.readerIndex();
+        if (cumulateBuffer.readByte() != Messages.H) {
+            throw new IllegalArgumentException("Non Copy-out message.");
+        }
+        final int nextMsgIndex = msgStartIndex + 1 + cumulateBuffer.readInt();
+
+        cumulateBuffer.readerIndex(nextMsgIndex);
+
+
+    }
+
+    /**
+     * @see #handleCopyInResponse(ByteBuf)
+     */
+    private CopyIn parseCopyIn(final int resultIndex) throws Exception {
+        final PgParser parser = this.adjutant.sqlParser();
+        final Stmt stmt = this.stmt;
+        final CopyIn copyIn;
+        if (stmt instanceof StaticStmt) {
+            List<String> singleSqlList = this.singleSqlList;
+            if (singleSqlList == null) {
+                singleSqlList = parser.separateMultiStmt(((StaticStmt) stmt).getSql());
+                this.singleSqlList = singleSqlList;
+            }
+            if (resultIndex >= singleSqlList.size()) {
+                // here 1. bug ; 2. postgre CALL command add new feature that CALL command can return multi CommendComplete message.
+                throw new IllegalStateException(String.format("IllegalState can't found COPY command,%s", this));
+            }
+            copyIn = parser.parseCopyIn(singleSqlList.get(resultIndex));
+        } else if (stmt instanceof GroupStmt) {
+            final List<String> sqlGroup = ((GroupStmt) stmt).getSqlGroup();
+            if (resultIndex >= sqlGroup.size()) {
+                // here 1. bug ; 2. postgre CALL command add new feature that CALL command can return multi CommendComplete message.
+                throw new IllegalStateException(String.format("IllegalState can't found COPY command,%s", this));
+            }
+            copyIn = parser.parseCopyIn(sqlGroup.get(resultIndex));
+        } else if (stmt instanceof BatchBindStmt) {
+            CopyIn cacheCopyIn = this.cacheCopyIn;
+            if (cacheCopyIn == null) {
+                cacheCopyIn = parser.parseCopyIn(((BatchBindStmt) stmt).getSql());
+                this.cacheCopyIn = cacheCopyIn;
+            }
+            final List<List<BindValue>> groupList = ((BatchBindStmt) stmt).getGroupList();
+            if (resultIndex >= groupList.size()) {
+                // here 1. bug ; 2. postgre CALL command add new feature that CALL command can return multi CommendComplete message.
+                throw new IllegalStateException(String.format("IllegalState can't found COPY command,%s", this));
+            }
+            copyIn = cacheCopyIn;
+        } else if (stmt instanceof BindableStmt) {
+            if (resultIndex != 0) {
+                // here  postgre CALL command add new feature that CALL command can return multi CommendComplete message.
+                String m;
+                m = String.format("Postgre response %s CommendComplete message,but expect one.", resultIndex + 1);
+                throw new PgJdbdException(m);
+            }
+            copyIn = parser.parseCopyIn(((BindableStmt) stmt).getSql());
+        } else if (stmt instanceof MultiBindStmt) {
+            final List<BindableStmt> stmtGroup = ((MultiBindStmt) stmt).getStmtGroup();
+            if (resultIndex >= stmtGroup.size()) {
+                // here 1. bug ; 2. postgre CALL command add new feature that CALL command can return multi CommendComplete message.
+                throw new IllegalStateException(String.format("IllegalState can't found COPY command,%s", this));
+            }
+            copyIn = parser.parseCopyIn(stmtGroup.get(resultIndex).getSql());
+        } else {
+            String m = String.format("Unknown %s type[%s]", Stmt.class.getName(), stmt.getClass().getName());
+            throw new IllegalStateException(m);
+        }
+        return copyIn;
+    }
+
+    /**
+     * @see #handleCopyInResponse(ByteBuf)
+     */
+    private Path obtainPathFromCopyIn(final int resultIndex, final CopyIn copyIn) {
+        final int bindIndex = copyIn.getBindIndex();
+        final Stmt stmt = this.stmt;
+        final Path path;
+        if (bindIndex < 0) {
+            path = copyIn.getPath();
+        } else if (stmt instanceof BindableStmt) {
+            path = obtainPathFromParamGroup(((BindableStmt) stmt).getParamGroup(), resultIndex, bindIndex);
+        } else if (stmt instanceof BatchBindStmt) {
+            final List<List<BindValue>> groupList = ((BatchBindStmt) stmt).getGroupList();
+            if (resultIndex >= groupList.size()) {
+                // here  bug
+                throw new IllegalStateException(String.format("IllegalState can't found COPY command,%s", this));
+            }
+            path = obtainPathFromParamGroup(groupList.get(resultIndex), resultIndex, bindIndex);
+        } else if (stmt instanceof MultiBindStmt) {
+            final List<BindableStmt> stmtGroup = ((MultiBindStmt) stmt).getStmtGroup();
+            if (resultIndex >= stmtGroup.size()) {
+                // here  bug
+                throw new IllegalStateException(String.format("IllegalState can't found COPY command,%s", this));
+            }
+            final List<BindValue> valueList = stmtGroup.get(resultIndex).getParamGroup();
+            path = obtainPathFromParamGroup(valueList, resultIndex, bindIndex);
+        } else {
+            throw new IllegalStateException(String.format("Can't obtain path from Stmt[%s].", stmt));
+        }
+        return path;
+    }
+
+    private Path obtainPathFromParamGroup(final List<BindValue> valueList, final int resultIndex, final int bindIndex) {
+        if (bindIndex >= valueList.size()) {
+            //here  bug
+            String m = String.format("IllegalState can't obtain 'filename' for COPY operation,Stmt[index:%s],bind[%s]"
+                    , resultIndex, bindIndex);
+            throw new IllegalStateException(m);
+        }
+        final Object value = valueList.get(bindIndex).getValue();
+        if (!(value instanceof String)) {
+            String className = value == null ? null : value.getClass().getName();
+            String m = String.format("Statement[index:%s] can't obtain local file from bind type[%s],bind[%s]"
+                    , resultIndex, className, bindIndex);
+            throw new IllegalStateException(m);
+        }
+        return Paths.get((String) value);
     }
 
     /**
@@ -194,62 +324,6 @@ abstract class AbstractStmtTask extends PgTask implements StmtTask {
             publisher = Mono.just(createCopyFailMessage(errorMsg));
         }
         return publisher;
-    }
-
-    /**
-     * @see #handleCopyInResponse(ByteBuf)
-     */
-    @Deprecated
-    private Publisher<ByteBuf> sendCopyInDataFromStdin(CopyIn copyIn) {
-        final Function<String, Publisher<byte[]>> function = copyIn.getFunction();
-        final Publisher<byte[]> dataPublisher = function.apply(null);
-
-        final Publisher<ByteBuf> publisher;
-        if (dataPublisher == null) {
-            String m = String.format("Statement[index:%s] STDIN function return Publisher is null."
-                    , this.resultIndex);
-            publisher = Mono.just(createCopyFailMessage(m));
-        } else {
-            publisher = Flux.from(dataPublisher)
-                    .map(this::mapToCopyDataMessage)
-                    .concatWith(Mono.create(sink -> sink.success(createCopyDoneMessage())))
-                    .onErrorResume(e -> Mono.just(createCopyFailMessage(e.getMessage())));
-        }
-        return publisher;
-    }
-
-
-    /**
-     * @see #handleCopyInResponse(ByteBuf)
-     */
-    private Stmt obtainCopyOperationStmt(final int resultIndex) throws IllegalStateException {
-        final IoAbleStmt ioAbleStmt = this.ioAbleStmt;
-        if (ioAbleStmt == null) {
-            String m = "Your Subscriber method not support COPY IN operation,please use other method.";
-            throw new IllegalStateException(m);
-        }
-        final Stmt stmt;
-        if (ioAbleStmt instanceof MultiBindStmt) {
-            final List<BindableStmt> stmtList = ((MultiBindStmt) ioAbleStmt).getStmtGroup();
-            if (resultIndex < stmtList.size()) {
-                stmt = stmtList.get(resultIndex);
-            } else {
-                // here ,bug
-                String m = String.format("Reject copy ,Result index[%s] error,not in [0,%s)"
-                        , resultIndex, stmtList.size());
-                throw new IllegalStateException(m);
-            }
-        } else if (ioAbleStmt instanceof Stmt) {
-            if (resultIndex != 0) {
-                String m = String.format("Reject copy ,Result index[%s] error,not in [0,1)", resultIndex);
-                throw new IllegalStateException(m);
-            }
-            stmt = (Stmt) ioAbleStmt;
-        } else {
-            throw new IllegalStateException(String.format("Unknown %s type[%s]", IoAbleStmt.class.getName()
-                    , ioAbleStmt.getClass().getName()));
-        }
-        return stmt;
     }
 
 
@@ -403,6 +477,13 @@ abstract class AbstractStmtTask extends PgTask implements StmtTask {
         message.writeByte(Messages.c);
         message.writeInt(0);
         return message;
+    }
+
+
+    enum CopyMode {
+        NONE,
+        COPY_IN_MODE,
+        COPY_OUT_MODE
     }
 
 

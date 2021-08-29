@@ -16,7 +16,7 @@ import io.jdbd.result.ResultState;
 import io.jdbd.stmt.ResultType;
 import io.jdbd.stmt.SubscribeException;
 import io.jdbd.vendor.JdbdCompositeException;
-import io.jdbd.vendor.stmt.Stmt;
+import io.jdbd.vendor.stmt.StaticStmt;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.annotations.Test;
@@ -60,7 +60,7 @@ public class ComQueryTaskSuiteTests extends AbstractStmtTaskSuiteTests {
     }
 
     /**
-     * @see ComQueryTask#update(Stmt, TaskAdjutant)
+     * @see ComQueryTask#update(StaticStmt, TaskAdjutant)
      */
     @Test(timeOut = TIME_OUT)
     public void update() {
@@ -87,7 +87,7 @@ public class ComQueryTaskSuiteTests extends AbstractStmtTaskSuiteTests {
 
 
     /**
-     * @see ComQueryTask#query(Stmt, TaskAdjutant)
+     * @see ComQueryTask#query(StaticStmt, TaskAdjutant)
      */
     @Test(timeOut = TIME_OUT)
     public void query() {
@@ -124,7 +124,7 @@ public class ComQueryTaskSuiteTests extends AbstractStmtTaskSuiteTests {
     }
 
     /**
-     * @see ComQueryTask#update(Stmt, TaskAdjutant)
+     * @see ComQueryTask#update(StaticStmt, TaskAdjutant)
      */
     @Test(timeOut = TIME_OUT, dependsOnMethods = {"update"})
     public void delete() {
@@ -156,7 +156,7 @@ public class ComQueryTaskSuiteTests extends AbstractStmtTaskSuiteTests {
     }
 
     /**
-     * @see ComQueryTask#update(Stmt, TaskAdjutant)
+     * @see ComQueryTask#update(StaticStmt, TaskAdjutant)
      */
     @Test(timeOut = TIME_OUT)
     public void updateIsQuery() {
@@ -202,7 +202,7 @@ public class ComQueryTaskSuiteTests extends AbstractStmtTaskSuiteTests {
     }
 
     /**
-     * @see ComQueryTask#query(Stmt, TaskAdjutant)
+     * @see ComQueryTask#query(StaticStmt, TaskAdjutant)
      */
     @Test(timeOut = TIME_OUT)
     public void queryIsUpdate() {
@@ -886,7 +886,7 @@ public class ComQueryTaskSuiteTests extends AbstractStmtTaskSuiteTests {
 
 
     /**
-     * @see ComQueryTask#update(Stmt, TaskAdjutant)
+     * @see ComQueryTask#update(StaticStmt, TaskAdjutant)
      * @see ComQueryTask#bindableUpdate(BindableStmt, TaskAdjutant)
      */
     @Test(timeOut = TIME_OUT)

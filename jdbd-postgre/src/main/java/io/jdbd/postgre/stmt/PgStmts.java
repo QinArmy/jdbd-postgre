@@ -6,7 +6,6 @@ import io.jdbd.postgre.util.PgFunctions;
 import io.jdbd.result.ResultState;
 import io.jdbd.vendor.stmt.JdbdStmts;
 import org.reactivestreams.Publisher;
-import org.reactivestreams.Subscriber;
 import reactor.util.annotation.Nullable;
 
 import java.util.Collections;
@@ -88,16 +87,6 @@ public abstract class PgStmts extends JdbdStmts {
             return 0;
         }
 
-        @Override
-        public final Function<String, Publisher<byte[]>> getImportFunction() {
-            return null;
-        }
-
-        @Override
-        public final Function<String, Subscriber<byte[]>> getExportSubscriber() {
-            return null;
-        }
-
     }
 
     private static final class BindableStmtWithImport implements BindableStmt {
@@ -147,15 +136,6 @@ public abstract class PgStmts extends JdbdStmts {
             return 0;
         }
 
-        @Override
-        public final Function<String, Publisher<byte[]>> getImportFunction() {
-            return this.importFunction;
-        }
-
-        @Override
-        public final Function<String, Subscriber<byte[]>> getExportSubscriber() {
-            return null;
-        }
     }
 
     private static final class BatchBindStmtImpl implements BatchBindStmt {
@@ -181,11 +161,6 @@ public abstract class PgStmts extends JdbdStmts {
         @Override
         public final String getSql() {
             return this.sql;
-        }
-
-        @Override
-        public final Consumer<ResultState> getStatusConsumer() {
-            return PgFunctions.noActionConsumer();
         }
 
         @Override

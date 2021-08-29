@@ -14,7 +14,7 @@ import io.jdbd.mysql.syntax.MySQLStatement;
 import io.jdbd.mysql.util.*;
 import io.jdbd.stmt.LongDataReadException;
 import io.jdbd.vendor.conf.Properties;
-import io.jdbd.vendor.stmt.Stmt;
+import io.jdbd.vendor.stmt.StaticStmt;
 import io.jdbd.vendor.util.JdbdBuffers;
 import io.netty.buffer.ByteBuf;
 import org.slf4j.Logger;
@@ -80,7 +80,7 @@ final class ComQueryCommandWriter {
     /**
      * @return a unmodifiable Iterable.
      */
-    static Iterable<ByteBuf> createStaticSingleCommand(final Stmt stmt, Supplier<Integer> sequenceIdSupplier
+    static Iterable<ByteBuf> createStaticSingleCommand(final StaticStmt stmt, Supplier<Integer> sequenceIdSupplier
             , final TaskAdjutant adjutant) throws SQLException, JdbdSQLException {
         return Packets.createSimpleCommand(Packets.COM_QUERY, stmt, adjutant, sequenceIdSupplier);
     }
@@ -88,7 +88,7 @@ final class ComQueryCommandWriter {
     /**
      * @return a unmodifiable Iterable.
      */
-    static Iterable<ByteBuf> createStaticMultiCommand(final List<Stmt> stmtList, Supplier<Integer> sequenceIdSupplier
+    static Iterable<ByteBuf> createStaticMultiCommand(final List<StaticStmt> stmtList, Supplier<Integer> sequenceIdSupplier
             , final TaskAdjutant adjutant) throws SQLException, JdbdSQLException {
         if (stmtList.isEmpty()) {
             throw MySQLExceptions.createQueryIsEmptyError();
@@ -100,7 +100,7 @@ final class ComQueryCommandWriter {
         int payloadLength = 1; // COM_QUERY command
 
         for (int i = 0; i < sqlSize; i++) {
-            Stmt stmt = stmtList.get(i);
+            StaticStmt stmt = stmtList.get(i);
             String sql = stmt.getSql();
             if (!adjutant.isSingleStmt(sql)) {
                 throw MySQLExceptions.createMultiStatementError();

@@ -1,28 +1,6 @@
 package io.jdbd.vendor.stmt;
 
-import io.jdbd.result.ResultState;
-import org.reactivestreams.Publisher;
-import org.reactivestreams.Subscriber;
-import reactor.util.annotation.Nullable;
+public interface Stmt {
 
-import java.util.function.Consumer;
-import java.util.function.Function;
-
-public interface Stmt extends StmtOptions, IoAbleStmt {
-
-    String getSql();
-
-    Consumer<ResultState> getStatusConsumer();
-
-    @Nullable
-    default Function<String, Publisher<byte[]>> getImportFunction() {
-        return null;
-    }
-
-    @Nullable
-    default Function<String, Subscriber<byte[]>> getExportSubscriber() {
-        return null;
-    }
-
-
+    int getTimeout();
 }

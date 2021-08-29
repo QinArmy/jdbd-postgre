@@ -4,7 +4,7 @@ import io.jdbd.JdbdSQLException;
 import io.jdbd.mysql.MySQLJdbdException;
 import io.jdbd.mysql.util.MySQLExceptions;
 import io.jdbd.mysql.util.MySQLNumbers;
-import io.jdbd.vendor.stmt.Stmt;
+import io.jdbd.vendor.stmt.StaticStmt;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
 import org.reactivestreams.Publisher;
@@ -578,7 +578,7 @@ public abstract class Packets {
         return packet;
     }
 
-    public static Iterable<ByteBuf> createSimpleCommand(final byte cmdFlag, Stmt stmt
+    public static Iterable<ByteBuf> createSimpleCommand(final byte cmdFlag, StaticStmt stmt
             , TaskAdjutant adjutant, Supplier<Integer> sequenceIdSupplier) throws SQLException, JdbdSQLException {
 
         if (cmdFlag != COM_QUERY && cmdFlag != COM_STMT_PREPARE) {

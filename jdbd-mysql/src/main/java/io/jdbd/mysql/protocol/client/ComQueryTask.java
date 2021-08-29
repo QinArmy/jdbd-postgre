@@ -17,7 +17,7 @@ import io.jdbd.stmt.*;
 import io.jdbd.vendor.JdbdCompositeException;
 import io.jdbd.vendor.result.*;
 import io.jdbd.vendor.stmt.ParamStmt;
-import io.jdbd.vendor.stmt.Stmt;
+import io.jdbd.vendor.stmt.StaticStmt;
 import io.jdbd.vendor.util.JdbdExceptions;
 import io.netty.buffer.ByteBuf;
 import org.reactivestreams.Publisher;
@@ -58,10 +58,10 @@ final class ComQueryTask extends MySQLCommandTask {
      * This method is underlying api of {@link StaticStatement#executeUpdate(String)} method.
      * </p>
      *
-     * @see #ComQueryTask(Stmt, MonoSink, TaskAdjutant)
-     * @see ClientCommandProtocol#update(Stmt)
+     * @see #ComQueryTask(StaticStmt, MonoSink, TaskAdjutant)
+     * @see ClientCommandProtocol#update(StaticStmt)
      */
-    static Mono<ResultState> update(final Stmt stmt, final TaskAdjutant adjutant) {
+    static Mono<ResultState> update(final StaticStmt stmt, final TaskAdjutant adjutant) {
         return Mono.create(sink -> {
             try {
                 ComQueryTask task = new ComQueryTask(stmt, sink, adjutant);
@@ -81,10 +81,10 @@ final class ComQueryTask extends MySQLCommandTask {
      * </ul>
      * </p>
      *
-     * @see #ComQueryTask(Stmt, FluxSink, TaskAdjutant)
-     * @see ClientCommandProtocol#query(Stmt)
+     * @see #ComQueryTask(StaticStmt, FluxSink, TaskAdjutant)
+     * @see ClientCommandProtocol#query(StaticStmt)
      */
-    static Flux<ResultRow> query(final Stmt stmt, final TaskAdjutant adjutant) {
+    static Flux<ResultRow> query(final StaticStmt stmt, final TaskAdjutant adjutant) {
         return Flux.create(sink -> {
             try {
                 ComQueryTask task = new ComQueryTask(stmt, sink, adjutant);
@@ -103,7 +103,7 @@ final class ComQueryTask extends MySQLCommandTask {
      * @see #ComQueryTask(List, FluxSink, TaskAdjutant)
      * @see ClientCommandProtocol#batchUpdate(List)
      */
-    static Flux<ResultState> batchUpdate(final List<Stmt> stmtList, final TaskAdjutant adjutant) {
+    static Flux<ResultState> batchUpdate(final List<StaticStmt> stmtList, final TaskAdjutant adjutant) {
         final Flux<ResultState> flux;
         if (stmtList.isEmpty()) {
             flux = Flux.error(MySQLExceptions.createEmptySqlException());
@@ -129,7 +129,7 @@ final class ComQueryTask extends MySQLCommandTask {
      * @see ClientCommandProtocol#executeAsMulti(List)
      * @see #ComQueryTask(List, MultiResultSink, TaskAdjutant)
      */
-    static ReactorMultiResult asMulti(List<Stmt> stmtList, final TaskAdjutant adjutant) {
+    static ReactorMultiResult asMulti(List<StaticStmt> stmtList, final TaskAdjutant adjutant) {
         final ReactorMultiResult result;
         if (stmtList.isEmpty()) {
             result = MultiResults.error(MySQLExceptions.createEmptySqlException());
@@ -154,7 +154,7 @@ final class ComQueryTask extends MySQLCommandTask {
      * @see ClientCommandProtocol#executeAsFlux(List)
      * @see #ComQueryTask(List, MultiResultSink, TaskAdjutant)
      */
-    static Flux<SingleResult> asFlux(List<Stmt> stmtList, final TaskAdjutant adjutant) {
+    static Flux<SingleResult> asFlux(List<StaticStmt> stmtList, final TaskAdjutant adjutant) {
         final Flux<SingleResult> flux;
         if (stmtList.isEmpty()) {
             flux = Flux.error(MySQLExceptions.createEmptySqlException());
@@ -384,7 +384,7 @@ final class ComQueryTask extends MySQLCommandTask {
 
     /**
      * <p>
-     * This constructor create instance for {@link #update(Stmt, TaskAdjutant)}
+     * This constructor create instance for {@link #update(StaticStmt, TaskAdjutant)}
      * </p>
      * <p>
      * The rule of {@link StaticStatement} underlying api constructor.
@@ -395,9 +395,9 @@ final class ComQueryTask extends MySQLCommandTask {
      *     </ul>
      * </p>
      *
-     * @see #update(Stmt, TaskAdjutant)
+     * @see #update(StaticStmt, TaskAdjutant)
      */
-    private ComQueryTask(final Stmt stmt, MonoSink<ResultState> sink, TaskAdjutant adjutant)
+    private ComQueryTask(final StaticStmt stmt, MonoSink<ResultState> sink, TaskAdjutant adjutant)
             throws SQLException {
         super(adjutant, sink::error);
         this.sqlCount = 1;
@@ -410,7 +410,7 @@ final class ComQueryTask extends MySQLCommandTask {
 
     /**
      * <p>
-     * This constructor create instance for {@link #query(Stmt, TaskAdjutant)}
+     * This constructor create instance for {@link #query(StaticStmt, TaskAdjutant)}
      * </p>
      * <p>
      * The rule of {@link StaticStatement} underlying api constructor.
@@ -421,9 +421,9 @@ final class ComQueryTask extends MySQLCommandTask {
      *     </ul>
      * </p>
      *
-     * @see #query(Stmt, TaskAdjutant)
+     * @see #query(StaticStmt, TaskAdjutant)
      */
-    private ComQueryTask(final Stmt stmt, FluxSink<ResultRow> sink, TaskAdjutant adjutant)
+    private ComQueryTask(final StaticStmt stmt, FluxSink<ResultRow> sink, TaskAdjutant adjutant)
             throws SQLException {
         super(adjutant, sink::error);
         this.sqlCount = 1;
@@ -450,7 +450,7 @@ final class ComQueryTask extends MySQLCommandTask {
      *
      * @see #batchUpdate(List, TaskAdjutant)
      */
-    private ComQueryTask(final List<Stmt> stmtList, final FluxSink<ResultState> sink
+    private ComQueryTask(final List<StaticStmt> stmtList, final FluxSink<ResultState> sink
             , TaskAdjutant adjutant) throws SQLException {
         super(adjutant, sink::error);
         this.sqlCount = stmtList.size();
@@ -469,7 +469,7 @@ final class ComQueryTask extends MySQLCommandTask {
             this.downstreamSink = new MultiModeBatchUpdateSink(this, sink);
         } else {
             this.mode = Mode.SINGLE_STMT;
-            final Stmt stmt = stmtList.get(0);
+            final StaticStmt stmt = stmtList.get(0);
             this.packetPublisher = Flux.fromIterable(
                     ComQueryCommandWriter.createStaticSingleCommand(stmt, this::addAndGetSequenceId, adjutant)
             );
@@ -498,7 +498,7 @@ final class ComQueryTask extends MySQLCommandTask {
      * @see #asMulti(List, TaskAdjutant)
      * @see #asFlux(List, TaskAdjutant)
      */
-    private ComQueryTask(final List<Stmt> stmtList, final MultiResultSink sink
+    private ComQueryTask(final List<StaticStmt> stmtList, final MultiResultSink sink
             , TaskAdjutant adjutant) throws SQLException {
         super(adjutant, sink::error);
 
@@ -517,7 +517,7 @@ final class ComQueryTask extends MySQLCommandTask {
             this.downstreamSink = new MultiResultDownstreamSink(this, sink);
         } else {
             this.mode = Mode.SINGLE_STMT;
-            final Stmt stmt = stmtList.get(0);
+            final StaticStmt stmt = stmtList.get(0);
             this.packetPublisher = Flux.fromIterable(
                     ComQueryCommandWriter.createStaticSingleCommand(stmt, this::addAndGetSequenceId, adjutant)
             );
@@ -1232,7 +1232,7 @@ final class ComQueryTask extends MySQLCommandTask {
     /**
      * @see SingleModeBatchUpdateSink#internalNextUpdate(ResultState)
      */
-    private void sendStaticCommand(final Stmt stmt) throws SQLException {
+    private void sendStaticCommand(final StaticStmt stmt) throws SQLException {
         // reset sequence_id
         this.updateSequenceId(-1);
         this.packetPublisher = Flux.fromIterable(
@@ -1278,7 +1278,7 @@ final class ComQueryTask extends MySQLCommandTask {
          * <p>
          * This method maybe invoke below methods:
          *     <ul>
-         *         <li>{@link #sendStaticCommand(Stmt)}</li>
+         *         <li>{@link #sendStaticCommand(StaticStmt)}</li>
          *         <li>{@link #sendBindableCommand(String, List)}</li>
          *     </ul>
          * </p>
@@ -1291,7 +1291,7 @@ final class ComQueryTask extends MySQLCommandTask {
          * <p>
          * This method maybe invoke below methods:
          *     <ul>
-         *         <li>{@link #sendStaticCommand(Stmt)}</li>
+         *         <li>{@link #sendStaticCommand(StaticStmt)}</li>
          *         <li>{@link #sendBindableCommand(String, List)}</li>
          *     </ul>
          * </p>
@@ -1555,7 +1555,7 @@ final class ComQueryTask extends MySQLCommandTask {
      *     </ul>
      * </p>
      *
-     * @see #ComQueryTask(Stmt, FluxSink, TaskAdjutant)
+     * @see #ComQueryTask(StaticStmt, FluxSink, TaskAdjutant)
      * @see #ComQueryTask(FluxSink, BindableStmt, TaskAdjutant)
      */
     private final static class QueryDownstreamSink extends AbstractDownstreamSink {
@@ -1569,10 +1569,10 @@ final class ComQueryTask extends MySQLCommandTask {
         private ResultState queryStatus;
 
         /**
-         * @see #ComQueryTask(Stmt, FluxSink, TaskAdjutant)
+         * @see #ComQueryTask(StaticStmt, FluxSink, TaskAdjutant)
          * @see #ComQueryTask(FluxSink, BindableStmt, TaskAdjutant)
          */
-        private QueryDownstreamSink(final ComQueryTask task, FluxSink<ResultRow> sink, Stmt stmt) {
+        private QueryDownstreamSink(final ComQueryTask task, FluxSink<ResultRow> sink, StaticStmt stmt) {
             super(task);
             task.assertSingleMode(this);
             this.sink = sink;
@@ -1674,7 +1674,7 @@ final class ComQueryTask extends MySQLCommandTask {
      *     </ul>
      * </p>
      *
-     * @see #ComQueryTask(Stmt, MonoSink, TaskAdjutant)
+     * @see #ComQueryTask(StaticStmt, MonoSink, TaskAdjutant)
      * @see #ComQueryTask(MonoSink, BindableStmt, TaskAdjutant)
      */
     private static final class UpdateDownstreamSink extends AbstractDownstreamSink {
@@ -1688,7 +1688,7 @@ final class ComQueryTask extends MySQLCommandTask {
         private ResultState queryStatus;
 
         /**
-         * @see #ComQueryTask(Stmt, MonoSink, TaskAdjutant)
+         * @see #ComQueryTask(StaticStmt, MonoSink, TaskAdjutant)
          * @see #ComQueryTask(MonoSink, BindableStmt, TaskAdjutant)
          */
         private UpdateDownstreamSink(final ComQueryTask task, MonoSink<ResultState> sink) {
@@ -1778,7 +1778,7 @@ final class ComQueryTask extends MySQLCommandTask {
     private static final class SingleModeBatchUpdateSink extends AbstractSingleModeBatchUpdateSink
             implements SingleModeBatchDownstreamSink {
 
-        private final List<Stmt> stmtList;
+        private final List<StaticStmt> stmtList;
 
         //start from 1 .
         private int index = 1;
@@ -1787,7 +1787,7 @@ final class ComQueryTask extends MySQLCommandTask {
          * @see #ComQueryTask(List, FluxSink, TaskAdjutant)
          * @see #ComQueryTask(FluxSink, BindableStmt, TaskAdjutant)
          */
-        private SingleModeBatchUpdateSink(final ComQueryTask task, List<Stmt> stmtList
+        private SingleModeBatchUpdateSink(final ComQueryTask task, List<StaticStmt> stmtList
                 , FluxSink<ResultState> sink) {
             super(task, sink);
             if (task.mode != Mode.SINGLE_STMT) {
@@ -2158,12 +2158,12 @@ final class ComQueryTask extends MySQLCommandTask {
     private static final class SingleModeBatchMultiResultSink extends AbstractMultiResultDownstreamSink
             implements SingleModeBatchDownstreamSink {
 
-        private final List<Stmt> stmtList;
+        private final List<StaticStmt> stmtList;
 
         //start from 1 .
         private int index = 1;
 
-        private SingleModeBatchMultiResultSink(final ComQueryTask task, List<Stmt> stmtList
+        private SingleModeBatchMultiResultSink(final ComQueryTask task, List<StaticStmt> stmtList
                 , MultiResultSink sink) {
             super(task, sink);
             if (task.mode != Mode.SINGLE_STMT) {

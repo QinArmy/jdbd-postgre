@@ -13,7 +13,7 @@ import io.jdbd.result.SingleResult;
 import io.jdbd.stmt.PreparedStatement;
 import io.jdbd.vendor.conf.HostInfo;
 import io.jdbd.vendor.result.ReactorMultiResult;
-import io.jdbd.vendor.stmt.Stmt;
+import io.jdbd.vendor.stmt.StaticStmt;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -63,7 +63,7 @@ final class ClientCommandProtocolImpl implements ClientCommandProtocol {
      * {@inheritDoc}
      */
     @Override
-    public final Mono<ResultState> update(Stmt stmt) {
+    public final Mono<ResultState> update(StaticStmt stmt) {
         return ComQueryTask.update(stmt, this.adjutant);
     }
 
@@ -71,7 +71,7 @@ final class ClientCommandProtocolImpl implements ClientCommandProtocol {
      * {@inheritDoc}
      */
     @Override
-    public final Flux<ResultRow> query(Stmt stmt) {
+    public final Flux<ResultRow> query(StaticStmt stmt) {
         return ComQueryTask.query(stmt, this.adjutant);
     }
 
@@ -79,7 +79,7 @@ final class ClientCommandProtocolImpl implements ClientCommandProtocol {
      * {@inheritDoc}
      */
     @Override
-    public final Flux<ResultState> batchUpdate(List<Stmt> stmtList) {
+    public final Flux<ResultState> batchUpdate(List<StaticStmt> stmtList) {
         return ComQueryTask.batchUpdate(stmtList, this.adjutant);
     }
 
@@ -87,12 +87,12 @@ final class ClientCommandProtocolImpl implements ClientCommandProtocol {
      * {@inheritDoc}
      */
     @Override
-    public final ReactorMultiResult executeAsMulti(List<Stmt> stmtList) {
+    public final ReactorMultiResult executeAsMulti(List<StaticStmt> stmtList) {
         return ComQueryTask.asMulti(stmtList, this.adjutant);
     }
 
     @Override
-    public Flux<SingleResult> executeAsFlux(List<Stmt> stmtList) {
+    public Flux<SingleResult> executeAsFlux(List<StaticStmt> stmtList) {
         return ComQueryTask.asFlux(stmtList, this.adjutant);
     }
 
@@ -140,7 +140,7 @@ final class ClientCommandProtocolImpl implements ClientCommandProtocol {
      * {@inheritDoc}
      */
     @Override
-    public final Mono<PreparedStatement> prepare(MySQLDatabaseSession session, Stmt stmt) {
+    public final Mono<PreparedStatement> prepare(MySQLDatabaseSession session, StaticStmt stmt) {
         return ComPreparedTask.prepare(session, stmt, this.adjutant);
     }
 

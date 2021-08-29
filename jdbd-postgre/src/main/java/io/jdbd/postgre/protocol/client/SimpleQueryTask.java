@@ -16,8 +16,7 @@ import io.jdbd.vendor.result.FluxResultSink;
 import io.jdbd.vendor.result.MultiResults;
 import io.jdbd.vendor.result.ResultSetReader;
 import io.jdbd.vendor.stmt.GroupStmt;
-import io.jdbd.vendor.stmt.MultiSqlStmt;
-import io.jdbd.vendor.stmt.Stmt;
+import io.jdbd.vendor.stmt.StaticStmt;
 import io.netty.buffer.ByteBuf;
 import org.reactivestreams.Publisher;
 import reactor.core.publisher.Flux;
@@ -38,7 +37,7 @@ final class SimpleQueryTask extends AbstractStmtTask {
      * This method is underlying api of {@link StaticStatement#executeUpdate(String)} method.
      * </p>
      */
-    static Mono<ResultState> update(Stmt stmt, TaskAdjutant adjutant) {
+    static Mono<ResultState> update(StaticStmt stmt, TaskAdjutant adjutant) {
         return MultiResults.update(sink -> {
             try {
                 SimpleQueryTask task = new SimpleQueryTask(stmt, sink, adjutant);
@@ -54,7 +53,7 @@ final class SimpleQueryTask extends AbstractStmtTask {
      * This method is underlying api of {@link StaticStatement#executeQuery(String)} method.
      * </p>
      */
-    static Flux<ResultRow> query(Stmt stmt, TaskAdjutant adjutant) {
+    static Flux<ResultRow> query(StaticStmt stmt, TaskAdjutant adjutant) {
         return MultiResults.query(stmt.getStatusConsumer(), sink -> {
             try {
                 SimpleQueryTask task = new SimpleQueryTask(stmt, sink, adjutant);
@@ -87,7 +86,7 @@ final class SimpleQueryTask extends AbstractStmtTask {
      * This method is underlying api of {@link StaticStatement#executeAsMulti(java.util.List)} method.
      * </p>
      */
-    static MultiResult asMulti(GroupStmt stmt, TaskAdjutant adjutant) {
+    static MultiResult batchAsMulti(GroupStmt stmt, TaskAdjutant adjutant) {
         return MultiResults.asMulti(adjutant, sink -> {
             try {
                 SimpleQueryTask task = new SimpleQueryTask(stmt, sink, adjutant);
@@ -103,7 +102,7 @@ final class SimpleQueryTask extends AbstractStmtTask {
      * This method is underlying api of {@link StaticStatement#executeAsFlux(java.util.List)} method.
      * </p>
      */
-    static Flux<Result> asFlux(GroupStmt stmt, TaskAdjutant adjutant) {
+    static Flux<Result> batchAsFlux(GroupStmt stmt, TaskAdjutant adjutant) {
         return MultiResults.asFlux(sink -> {
             try {
                 SimpleQueryTask task = new SimpleQueryTask(stmt, sink, adjutant);
@@ -119,7 +118,7 @@ final class SimpleQueryTask extends AbstractStmtTask {
      * This method is underlying api of {@link StaticStatement#executeAsFlux(String)} method.
      * </p>
      */
-    static Flux<Result> multiSqlAsFlux(MultiSqlStmt stmt, TaskAdjutant adjutant) {
+    static Flux<Result> multiCommandAsFlux(StaticStmt stmt, TaskAdjutant adjutant) {
         return MultiResults.asFlux(sink -> {
             try {
                 SimpleQueryTask task = new SimpleQueryTask(stmt, sink, adjutant);
@@ -269,10 +268,11 @@ final class SimpleQueryTask extends AbstractStmtTask {
      * create instance for single static statement.
      * </p>
      *
-     * @see #update(Stmt, TaskAdjutant)
-     * @see #query(Stmt, TaskAdjutant)
+     * @see #update(StaticStmt, TaskAdjutant)
+     * @see #query(StaticStmt, TaskAdjutant)
+     * @see #multiCommandAsFlux(StaticStmt, TaskAdjutant)
      */
-    private SimpleQueryTask(Stmt stmt, FluxResultSink sink, TaskAdjutant adjutant) throws Throwable {
+    private SimpleQueryTask(StaticStmt stmt, FluxResultSink sink, TaskAdjutant adjutant) throws Throwable {
         super(adjutant, sink, stmt);
         this.packetPublisher = QueryCommandWriter.createStaticCommand(stmt.getSql(), adjutant);
         this.sink = sink;
@@ -281,23 +281,13 @@ final class SimpleQueryTask extends AbstractStmtTask {
 
     /**
      * @see #batchUpdate(GroupStmt, TaskAdjutant)
-     * @see #asMulti(GroupStmt, TaskAdjutant)
-     * @see #asFlux(GroupStmt, TaskAdjutant)
+     * @see #batchAsMulti(GroupStmt, TaskAdjutant)
+     * @see #batchAsFlux(GroupStmt, TaskAdjutant)
      */
     private SimpleQueryTask(GroupStmt stmt, FluxResultSink sink, TaskAdjutant adjutant)
             throws Throwable {
-        super(adjutant, sink, null);
+        super(adjutant, sink, stmt);
         this.packetPublisher = QueryCommandWriter.createStaticBatchCommand(stmt, adjutant);
-        this.sink = sink;
-        this.resultSetReader = DefaultResultSetReader.create(this, sink.froResultSet());
-    }
-
-    /**
-     * @see #multiSqlAsFlux(MultiSqlStmt, TaskAdjutant)
-     */
-    private SimpleQueryTask(MultiSqlStmt stmt, FluxResultSink sink, TaskAdjutant adjutant) throws Throwable {
-        super(adjutant, sink, null);
-        this.packetPublisher = QueryCommandWriter.createStaticCommand(stmt.getMultiSql(), adjutant);
         this.sink = sink;
         this.resultSetReader = DefaultResultSetReader.create(this, sink.froResultSet());
     }
@@ -503,6 +493,7 @@ final class SimpleQueryTask extends AbstractStmtTask {
                 case Messages.H: { // CopyOutResponse message
                     if (this.copyMode == CopyMode.NONE) {
                         this.copyMode = CopyMode.COPY_OUT_MODE;
+                        handleCopyOutResponse(cumulateBuffer);
                     } else {
                         String msg = "Server response duplication copy out message.";
                         addError(new PgJdbdException(msg));
@@ -540,12 +531,6 @@ final class SimpleQueryTask extends AbstractStmtTask {
         READ_COMMAND_RESPONSE,
         READ_ROW_SET,
         END
-    }
-
-    private enum CopyMode {
-        NONE,
-        COPY_IN_MODE,
-        COPY_OUT_MODE
     }
 
 

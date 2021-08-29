@@ -11,8 +11,7 @@ import io.jdbd.stmt.BindableStatement;
 import io.jdbd.stmt.MultiStatement;
 import io.jdbd.stmt.StaticStatement;
 import io.jdbd.vendor.stmt.GroupStmt;
-import io.jdbd.vendor.stmt.MultiSqlStmt;
-import io.jdbd.vendor.stmt.Stmt;
+import io.jdbd.vendor.stmt.StaticStmt;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -29,7 +28,7 @@ public interface ClientProtocol {
      * This method is underlying api of {@link StaticStatement#executeUpdate(String)} method.
      * </p>
      */
-    Mono<ResultState> update(Stmt stmt);
+    Mono<ResultState> update(StaticStmt stmt);
 
     /**
      * <p>
@@ -40,7 +39,7 @@ public interface ClientProtocol {
      * </ul>
      * </p>
      */
-    Flux<ResultRow> query(Stmt stmt);
+    Flux<ResultRow> query(StaticStmt stmt);
 
     /**
      * <p>
@@ -54,16 +53,16 @@ public interface ClientProtocol {
      * This method is underlying api of {@link StaticStatement#executeAsMulti(List)} method.
      * </p>
      */
-    MultiResult asMulti(GroupStmt stmt);
+    MultiResult batchAsMulti(GroupStmt stmt);
 
     /**
      * <p>
      * This method is underlying api of {@link StaticStatement#executeAsFlux(List)} method.
      * </p>
      */
-    Flux<Result> asFlux(GroupStmt stmt);
+    Flux<Result> batchAsFlux(GroupStmt stmt);
 
-    Flux<Result> multiSqlAsFlux(MultiSqlStmt stmt);
+    Flux<Result> multiCommandAsFlux(StaticStmt stmt);
 
     /*################################## blow for bindable single smt ##################################*/
 

@@ -36,26 +36,26 @@ public abstract class JdbdStmts {
         return new BatchStmtImpl(sql, groupList, timeOut);
     }
 
-    public static Stmt stmt(String sql) {
+    public static StaticStmt stmt(String sql) {
         Objects.requireNonNull(sql, "sql");
         return new StmtImpl1(sql);
     }
 
-    public static Stmt stmtWithImport(String sql, Function<String, Publisher<byte[]>> function) {
+    public static StaticStmt stmtWithImport(String sql, Function<String, Publisher<byte[]>> function) {
         return new StmtImpImport2(sql, function);
     }
 
-    public static Stmt stmt(String sql, int timeout) {
+    public static StaticStmt stmt(String sql, int timeout) {
         Objects.requireNonNull(sql, "sql");
         return timeout > 0 ? new StmtImpl2(sql, timeout) : new StmtImpl1(sql);
     }
 
-    public static Stmt stmt(String sql, Consumer<ResultState> statusConsumer) {
+    public static StaticStmt stmt(String sql, Consumer<ResultState> statusConsumer) {
         Objects.requireNonNull(sql, "sql");
         return new StmtImpl2C(sql, statusConsumer);
     }
 
-    public static Stmt stmt(String sql, Consumer<ResultState> statusConsumer, int timeout) {
+    public static StaticStmt stmt(String sql, Consumer<ResultState> statusConsumer, int timeout) {
         Objects.requireNonNull(sql, "sql");
         Objects.requireNonNull(statusConsumer, "statusConsumer");
         return timeout > 0
@@ -63,21 +63,21 @@ public abstract class JdbdStmts {
                 : new StmtImpl2C(sql, statusConsumer);
     }
 
-    public static List<Stmt> stmts(List<String> sqlList) {
+    public static List<StaticStmt> stmts(List<String> sqlList) {
         return stmts(sqlList, 0);
     }
 
-    public static List<Stmt> stmts(List<String> sqlList, int timeout) {
+    public static List<StaticStmt> stmts(List<String> sqlList, int timeout) {
         Objects.requireNonNull(sqlList, "sqlList");
         if (sqlList.isEmpty()) {
             throw new IllegalArgumentException("sqlList is empty.");
         }
-        final List<Stmt> list;
+        final List<StaticStmt> list;
         final int size = sqlList.size();
         if (size == 1) {
             list = Collections.singletonList(stmt(sqlList.get(0), timeout));
         } else {
-            List<Stmt> tempList = new ArrayList<>(size);
+            List<StaticStmt> tempList = new ArrayList<>(size);
             for (String sql : sqlList) {
                 tempList.add(stmt(sql, timeout));
             }
@@ -136,10 +136,6 @@ public abstract class JdbdStmts {
             return this.timeOut;
         }
 
-        @Override
-        public final Consumer<ResultState> getStatusConsumer() {
-            return MultiResult.EMPTY_CONSUMER;
-        }
     }
 
 
@@ -186,7 +182,7 @@ public abstract class JdbdStmts {
     }
 
 
-    private static class StmtImpl2 implements Stmt {
+    private static class StmtImpl2 implements StaticStmt {
 
         private final String sql;
 
@@ -214,7 +210,7 @@ public abstract class JdbdStmts {
 
     }
 
-    private static class StmtImpl2C implements Stmt {
+    private static class StmtImpl2C implements StaticStmt {
 
         private final String sql;
 
@@ -243,7 +239,7 @@ public abstract class JdbdStmts {
     }
 
 
-    private static class StmtImpl1 implements Stmt {
+    private static class StmtImpl1 implements StaticStmt {
 
         private final String sql;
 
@@ -277,7 +273,7 @@ public abstract class JdbdStmts {
         }
     }
 
-    private static class StmtImpImport2 implements Stmt {
+    private static class StmtImpImport2 implements StaticStmt {
 
         private final String sql;
 
@@ -316,7 +312,7 @@ public abstract class JdbdStmts {
     }
 
 
-    private static class StmtImpl3 implements Stmt {
+    private static class StmtImpl3 implements StaticStmt {
 
         private final String sql;
 

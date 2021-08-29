@@ -15,7 +15,7 @@ import io.jdbd.result.ResultState;
 import io.jdbd.stmt.ResultType;
 import io.jdbd.stmt.SubscribeException;
 import io.jdbd.vendor.result.ReactorMultiResult;
-import io.jdbd.vendor.stmt.Stmt;
+import io.jdbd.vendor.stmt.StaticStmt;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
@@ -74,7 +74,7 @@ public class MultiStatementSuiteTests extends AbstractConnectionBasedSuiteTests 
         final TaskAdjutant adjutant = obtainMultiStmtTaskAdjutant();
 
         String sql;
-        List<Stmt> sqlList = new ArrayList<>(6);
+        List<StaticStmt> sqlList = new ArrayList<>(6);
 
         sql = "UPDATE mysql_types as t SET t.name = 'mysql' WHERE t.id = 260";//[1] update
         sqlList.add(Stmts.stmt(sql));
@@ -337,7 +337,7 @@ public class MultiStatementSuiteTests extends AbstractConnectionBasedSuiteTests 
         LOG.info("multiStmtError test start");
         final TaskAdjutant adjutant = obtainMultiStmtTaskAdjutant();
         String sql;
-        final List<Stmt> sqlList = new ArrayList<>(6);
+        final List<StaticStmt> sqlList = new ArrayList<>(6);
 
         sql = "UPDATE mysql_types as t SET t.name = 'mysql' WHERE t.id = 268";//[1] update
         sqlList.add(Stmts.stmt(sql));
@@ -421,7 +421,7 @@ public class MultiStatementSuiteTests extends AbstractConnectionBasedSuiteTests 
         final TaskAdjutant adjutant = obtainMultiStmtTaskAdjutant();
 
         String sql;
-        final List<Stmt> sqlList = new ArrayList<>(6);
+        final List<StaticStmt> sqlList = new ArrayList<>(6);
 
         sql = "UPDATE mysql_types as t SET t.name = 'mysql' WHERE t.id = 268";//[1] update
         sqlList.add(Stmts.stmt(sql));
@@ -490,7 +490,7 @@ public class MultiStatementSuiteTests extends AbstractConnectionBasedSuiteTests 
         LOG.info("multiStmtTooManySubscribe test start");
         final TaskAdjutant adjutant = obtainMultiStmtTaskAdjutant();
         String sql;
-        final List<Stmt> sqlList = new ArrayList<>(3);
+        final List<StaticStmt> sqlList = new ArrayList<>(3);
 
         sql = "UPDATE mysql_types as t SET t.name = 'mysql' WHERE t.id = 268";//[1] update
         sqlList.add(Stmts.stmt(sql));

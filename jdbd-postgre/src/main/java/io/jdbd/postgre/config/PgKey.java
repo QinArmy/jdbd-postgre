@@ -54,7 +54,7 @@ public enum PgKey implements IPropertyKey {
 
     preparedStatementCacheQueries(Integer.class),
     preparedStatementCacheSizeMiB(Integer.class),
-    preferQueryMode(Integer.class),
+    preferQueryMode(String.class),
 
     defaultRowFetchSize(Integer.class),
     loginTimeout(Integer.class),

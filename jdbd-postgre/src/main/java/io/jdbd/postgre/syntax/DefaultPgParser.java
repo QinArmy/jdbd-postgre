@@ -1,16 +1,17 @@
 package io.jdbd.postgre.syntax;
 
 import io.jdbd.postgre.ServerParameter;
-import io.jdbd.postgre.stmt.BatchBindStmt;
-import io.jdbd.postgre.stmt.BindValue;
+import io.jdbd.postgre.stmt.BindableStmt;
+import io.jdbd.postgre.stmt.MultiBindStmt;
 import io.jdbd.postgre.util.PgExceptions;
 import io.jdbd.postgre.util.PgStrings;
-import io.jdbd.vendor.stmt.ParamStmt;
-import io.jdbd.vendor.stmt.ParamValue;
+import io.jdbd.vendor.stmt.GroupStmt;
+import io.jdbd.vendor.stmt.MultiSqlStmt;
+import io.jdbd.vendor.stmt.StaticStmt;
 import io.jdbd.vendor.stmt.Stmt;
 import org.qinarmy.util.FastStack;
+import org.qinarmy.util.Pair;
 import org.qinarmy.util.Stack;
-import org.reactivestreams.Publisher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -71,14 +72,19 @@ final class DefaultPgParser implements PgParser {
     }
 
     @Override
-    public final CopyIn parseCopyIn(final Stmt stmt, int stmtIndex) throws SQLException {
-        final String sql = stmt.getSql();
+    public final List<String> separateMultiStmt(String multiStmt) throws SQLException {
+        return null;
+    }
+
+    @Override
+    public final CopyIn parseCopyIn(final String sql) throws SQLException {
+
         final char[] charArray = sql.toCharArray();
         final int lastIndex = charArray.length - 1;
         char ch;
         boolean copyCommand = false, fromClause = false;
         CopyIn copyIn = null;
-        for (int i = 0; i < charArray.length; i++) {
+        for (int i = 0, bindIndex = 0; i < charArray.length; i++) {
             ch = charArray[i];
             if (Character.isWhitespace(ch)) {
                 continue;
@@ -94,7 +100,7 @@ final class DefaultPgParser implements PgParser {
                 if (i == lastIndex
                         || !sql.regionMatches(true, i, COPY, 0, COPY.length())
                         || !Character.isWhitespace(sql.charAt(i + COPY.length()))) {
-                    throw PgExceptions.createSyntaxError("Not COPY command.");
+                    throw PgExceptions.createSyntaxError("Not found COPY command");
                 }
                 i += COPY.length();
                 copyCommand = true;
@@ -105,10 +111,6 @@ final class DefaultPgParser implements PgParser {
                 if (i < 0) {
                     throw createDoubleQuotedIdentifierError(sql, i);
                 }
-            } else if (ch == '?' && !fromClause) {
-                String m = String.format(
-                        "syntax error,position of placeholder of parameter,at near %s", fragment(sql, i));
-                throw PgExceptions.createSyntaxError(m);
             } else if (!fromClause) {
                 if ((ch == 'f' || ch == 'F')
                         && Character.isWhitespace(charArray[i - 1])
@@ -119,8 +121,7 @@ final class DefaultPgParser implements PgParser {
                     fromClause = true;
                 }
             } else if (ch == '?') {
-                final String fileName = extractStringConstantFromParamValue(stmt, stmtIndex, i);
-                copyIn = new CopyInFromPath(Paths.get(fileName));
+                copyIn = new CopyInFromLocalFileWithBind(bindIndex);
                 break;
             } else if (i + 3 >= lastIndex) {
                 String m = String.format(
@@ -129,17 +130,17 @@ final class DefaultPgParser implements PgParser {
             } else if ((ch == 'p' || ch == 'P')
                     && sql.regionMatches(true, i, PROGRAM, 0, PROGRAM.length())
                     && Character.isWhitespace(charArray[i + PROGRAM.length()])) {
-                // PROGRAM 'command'
+                // PROGRAM 'command' not supported by client,because command only find in postgre server.
                 throw new SQLException("COPY FORM PROGRAM 'command' not supported by jdbd-postgre");
             } else if ((ch == 's' || ch == 'S')
                     && sql.regionMatches(true, i, STDIN, 0, STDIN.length())
                     && (i + STDIN.length() == lastIndex || Character.isWhitespace(charArray[i + STDIN.length()]))) {
-                // STDIN
+                // STDIN not supported by client,because postgre at least 12.6 or 12.8 disconnect when send CopyData message.
                 throw new SQLException("COPY FORM STDIN not supported by jdbd-postgre");
             } else { // 'filename'
                 try {
                     final String fileName;
-                    fileName = parseStringConstant(stmt, charArray, stmtIndex, i);
+                    fileName = parseStringConstant(sql, charArray, i);
                     copyIn = new CopyInFromPath(Paths.get(fileName));
                     break;
                 } catch (SQLException e) {
@@ -156,6 +157,10 @@ final class DefaultPgParser implements PgParser {
         return copyIn;
     }
 
+    @Override
+    public final CopyOut parseCopyOut(String sql) throws SQLException {
+        return null;
+    }
 
     @Override
     public final boolean isSingleStmt(String sql) throws SQLException {
@@ -340,24 +345,15 @@ final class DefaultPgParser implements PgParser {
 
 
     /**
-     * @see #parseCopyIn(Stmt, int)
+     * @see #parseCopyIn(String)
      */
-    private String parseStringConstant(final Stmt stmt, final char[] charArray, final int stmtIndex, int i)
+    private String parseStringConstant(final String sql, final char[] charArray, int i)
             throws SQLException {
 
-        for (; i < charArray.length; i++) {
-            if (!Character.isWhitespace(charArray[i])) {
-                break;
-            }
-        }
-
-        final String sql = stmt.getSql();
         final String stringConstant;
 
         final char ch = charArray[i];
-        if (ch == '?') {
-            stringConstant = extractStringConstantFromParamValue(stmt, stmtIndex, i);
-        } else if (ch == QUOTE) {
+        if (ch == QUOTE) {
             // string constant
             final boolean confirmStringOff = confirmStringIsOff();
             stringConstant = parseQuoteStringConstant(sql, charArray, i, confirmStringOff);
@@ -382,7 +378,7 @@ final class DefaultPgParser implements PgParser {
     }
 
     /**
-     * @see #parseCopyIn(Stmt, int)
+     * @see #parseCopyIn(String)
      */
     private static String parseQuoteStringConstant(final String sql, final char[] charArray, final int i
             , final boolean recognizesBackslash)
@@ -407,7 +403,7 @@ final class DefaultPgParser implements PgParser {
     }
 
     /**
-     * @see #parseCopyIn(Stmt, int)
+     * @see #parseCopyIn(String)
      */
     private static String parseDollarQuotedStringConstant(final String sql, final int i) throws SQLException {
         final int tagIndex = sql.indexOf('$', i + 1);
@@ -425,48 +421,42 @@ final class DefaultPgParser implements PgParser {
 
 
     /**
-     * @see #parseCopyIn(Stmt, int)
+     * @see #parseCopyIn(String)
      */
-    private static String extractStringConstantFromParamValue(Stmt stmt, final int stmtIndex, final int i)
-            throws SQLException {
-
-        final List<? extends ParamValue> paramList;
-        if (stmt instanceof BatchBindStmt) {
-            List<List<BindValue>> groupList = ((BatchBindStmt) stmt).getGroupList();
-            if (stmtIndex < groupList.size()) {
-                paramList = groupList.get(stmtIndex);
+    private Pair<String, Boolean> obtainSqlPair(final Stmt stmt, final int stmtIndex) {
+        final boolean single;
+        final String sql;
+        if (stmt instanceof BindableStmt) {
+            sql = ((BindableStmt) stmt).getSql();
+            single = true;
+        } else if (stmt instanceof MultiBindStmt) {
+            final List<BindableStmt> stmtGroup = ((MultiBindStmt) stmt).getStmtGroup();
+            if (stmtIndex < stmtGroup.size()) {
+                sql = stmtGroup.get(stmtIndex).getSql();
+                single = true;
             } else {
-                // here bug.
-                String m = String.format(
-                        "Not found param group for stmtIndex[%s] for placeholder at near %s"
-                        , stmtIndex, fragment(stmt.getSql(), i));
-                throw PgExceptions.createSyntaxError(m);
+                throw new IllegalArgumentException(String.format("Not found Copy command for index[%s]", stmtIndex));
             }
-        } else if (stmt instanceof ParamStmt) {
-            paramList = ((ParamStmt) stmt).getParamGroup();
+        } else if (stmt instanceof StaticStmt) {
+            sql = ((StaticStmt) stmt).getSql();
+            single = false; // maybe multi static stmt
+        } else if (stmt instanceof GroupStmt) {
+            final List<String> sqlGroup = ((GroupStmt) stmt).getSqlGroup();
+            if (stmtIndex < sqlGroup.size()) {
+                sql = sqlGroup.get(stmtIndex);
+                single = true;
+            } else {
+                throw new IllegalArgumentException(String.format("Not found Copy command for index[%s]", stmtIndex));
+            }
+        } else if (stmt instanceof MultiSqlStmt) {
+            sql = ((MultiSqlStmt) stmt).getMultiSql();
+            single = false;
         } else {
-            String m = String.format(
-                    "syntax error,FROM clause error,not found bind value,at near %s"
-                    , fragment(stmt.getSql(), i));
-            throw PgExceptions.createSyntaxError(m);
+            throw new IllegalArgumentException(String.format("Unknown statement type[%s]", stmt.getClass().getName()));
         }
-
-        if (paramList.isEmpty()) {
-            String m = String.format(
-                    "bind error,FROM clause error,not found bind string constant,at near %s"
-                    , fragment(stmt.getSql(), i));
-            throw PgExceptions.createSyntaxError(m);
-        }
-        ParamValue paramValue = paramList.get(0);
-        final Object value = paramValue.getValue();
-        if (!(value instanceof String)) {
-            String m = String.format(
-                    "bind error,FROM clause error,not found bind value isn't java.lang.String instance,at near %s"
-                    , fragment(stmt.getSql(), i));
-            throw PgExceptions.createSyntaxError(m);
-        }
-        return (String) value;
+        return new Pair<>(sql, single);
     }
+
 
     private static SQLException createQuoteNotCloseError(String sql, int index) {
         String m = String.format("Syntax error,string constants not close at near %s .", fragment(sql, index));
@@ -506,6 +496,11 @@ final class DefaultPgParser implements PgParser {
         }
 
         @Override
+        public final int getBindIndex() {
+            return -1;
+        }
+
+        @Override
         public final Path getPath() {
             return this.path;
         }
@@ -515,72 +510,34 @@ final class DefaultPgParser implements PgParser {
             throw new IllegalStateException(String.format("Mode isn't %s .", Mode.PROGRAM));
         }
 
-        @Override
-        public final Function<String, Publisher<byte[]>> getFunction() {
-            throw new IllegalStateException(String.format("Mode one of [%s,%s] .", Mode.PROGRAM, Mode.STDIN));
-        }
-
     }
 
-    private static final class CopyInFromProgram implements CopyIn {
+    private static final class CopyInFromLocalFileWithBind implements CopyIn {
 
-        private final String command;
+        private CopyInFromLocalFileWithBind(int bindIndex) {
+            this.bindIndex = bindIndex;
+        }
 
-        private final Function<String, Publisher<byte[]>> function;
+        private final int bindIndex;
 
-        private CopyInFromProgram(String command, Function<String, Publisher<byte[]>> function) {
-            this.command = command;
-            this.function = function;
+        @Override
+        public Mode getMode() {
+            return Mode.FILE;
         }
 
         @Override
-        public final Mode getMode() {
-            return Mode.PROGRAM;
-        }
-
-        @Override
-        public final String getCommand() {
-            return this.command;
+        public final int getBindIndex() {
+            return this.bindIndex;
         }
 
         @Override
         public final Path getPath() {
-            throw new IllegalStateException(String.format("Mode isn't %s .", Mode.FILE));
-        }
-
-        @Override
-        public final Function<String, Publisher<byte[]>> getFunction() {
-            return this.function;
-        }
-
-    }
-
-    private static final class CopyInFromStdin implements CopyIn {
-
-        private final Function<String, Publisher<byte[]>> function;
-
-        private CopyInFromStdin(Function<String, Publisher<byte[]>> function) {
-            this.function = function;
-        }
-
-        @Override
-        public final Mode getMode() {
-            return Mode.STDIN;
-        }
-
-        @Override
-        public final Path getPath() {
-            throw new IllegalStateException(String.format("Mode isn't %s .", Mode.FILE));
+            throw new IllegalStateException(String.format("bind index[%s] great zero.", this.bindIndex));
         }
 
         @Override
         public final String getCommand() {
             throw new IllegalStateException(String.format("Mode isn't %s .", Mode.PROGRAM));
-        }
-
-        @Override
-        public final Function<String, Publisher<byte[]>> getFunction() {
-            return this.function;
         }
 
     }
