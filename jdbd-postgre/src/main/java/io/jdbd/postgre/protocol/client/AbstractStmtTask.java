@@ -154,10 +154,9 @@ abstract class AbstractStmtTask extends PgTask implements StmtTask {
                     publisher = sendCopyInDataFromLocalPath(copyIn.getPath());
                     break;
                 case PROGRAM:
-                    publisher = sendCopyInDataFromProgramCommand(copyIn);
-                    break;
                 case STDIN:
-                    publisher = sendCopyInDataFromStdin(copyIn);
+                    String msg = String.format("COPY FROM %s not supported by jdbd-postgre .", copyIn.getMode());
+                    publisher = Mono.just(createCopyFailMessage(msg));
                     break;
                 default:
                     throw PgExceptions.createUnknownEnumException(copyIn.getMode());
@@ -200,6 +199,7 @@ abstract class AbstractStmtTask extends PgTask implements StmtTask {
     /**
      * @see #handleCopyInResponse(ByteBuf)
      */
+    @Deprecated
     private Publisher<ByteBuf> sendCopyInDataFromProgramCommand(CopyIn copyIn) {
         final Function<String, Publisher<byte[]>> function = copyIn.getFunction();
         final Publisher<byte[]> dataPublisher = function.apply(copyIn.getCommand());
@@ -221,6 +221,7 @@ abstract class AbstractStmtTask extends PgTask implements StmtTask {
     /**
      * @see #handleCopyInResponse(ByteBuf)
      */
+    @Deprecated
     private Publisher<ByteBuf> sendCopyInDataFromStdin(CopyIn copyIn) {
         final Function<String, Publisher<byte[]>> function = copyIn.getFunction();
         final Publisher<byte[]> dataPublisher = function.apply(null);
@@ -319,17 +320,13 @@ abstract class AbstractStmtTask extends PgTask implements StmtTask {
                 break;
             case 2: {
                 command = tokenizer.nextToken();
-                if (UPDATE_COMMANDS.contains(command.toUpperCase())) {
-                    params.affectedRows = Long.parseLong(tokenizer.nextToken());
-                }
+                params.affectedRows = Long.parseLong(tokenizer.nextToken());
             }
             break;
             case 3: {
                 command = tokenizer.nextToken();
                 params.insertId = Long.parseLong(tokenizer.nextToken());
-                if (UPDATE_COMMANDS.contains(command.toUpperCase())) {
-                    params.affectedRows = Long.parseLong(tokenizer.nextToken());
-                }
+                params.affectedRows = Long.parseLong(tokenizer.nextToken());
             }
             break;
             default:
@@ -409,7 +406,7 @@ abstract class AbstractStmtTask extends PgTask implements StmtTask {
     /**
      * @see <a href="https://www.postgresql.org/docs/current/protocol-message-formats.html">CopyData</a>
      */
-    private ByteBuf mapToCopyDataMessage(byte[] dataBytes) {
+    private ByteBuf mapToCopyDataMessage(final byte[] dataBytes) {
         final ByteBuf message = this.adjutant.allocator().buffer(5 + dataBytes.length);
         message.writeByte(Messages.d);
         message.writeZero(Messages.LENGTH_SIZE);//placeholder of length

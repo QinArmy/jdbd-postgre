@@ -24,9 +24,6 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.nio.charset.Charset;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
 import java.util.function.Consumer;
 
 /**
@@ -365,11 +362,7 @@ final class SimpleQueryTask extends AbstractStmtTask {
 
     @Override
     protected final boolean decode(final ByteBuf cumulateBuffer, final Consumer<Object> serverStatusConsumer) {
-        if (!Messages.hasOneMessage(cumulateBuffer)) {
-            return false;
-        }
-
-        boolean taskEnd = false, continueRead = true;
+        boolean taskEnd = false, continueRead = Messages.hasOneMessage(cumulateBuffer);
         while (continueRead) {
             switch (this.phase) {
                 case READ_COMMAND_RESPONSE: {
@@ -504,7 +497,7 @@ final class SimpleQueryTask extends AbstractStmtTask {
                         Messages.skipOneMessage(cumulateBuffer);
                         this.packetPublisher = Mono.just(createCopyFailMessage(msg));
                     }
-
+                    continueRead = false;
                 }
                 break;
                 case Messages.H: { // CopyOutResponse message
@@ -516,17 +509,7 @@ final class SimpleQueryTask extends AbstractStmtTask {
                         Messages.skipOneMessage(cumulateBuffer);
                         this.packetPublisher = Mono.just(createCopyFailMessage(msg));
                     }
-                }
-                break;
-                case Messages.W: {// CopyBothResponse message
-                    if (this.copyMode == CopyMode.NONE) {
-                        this.copyMode = CopyMode.COPY_BOTH_MODE;
-                    } else {
-                        String msg = "Server response duplication copy both message.";
-                        addError(new PgJdbdException(msg));
-                        Messages.skipOneMessage(cumulateBuffer);
-                        this.packetPublisher = Mono.just(createCopyFailMessage(msg));
-                    }
+                    continueRead = false;
                 }
                 break;
                 default: {
@@ -550,15 +533,6 @@ final class SimpleQueryTask extends AbstractStmtTask {
     }
 
 
-    private static List<String> extractSqlList(MultiBindStmt stmt) {
-        final List<BindableStmt> stmtList = stmt.getStmtGroup();
-        final List<String> sqlList = new ArrayList<>(stmtList.size());
-        for (BindableStmt bindableStmt : stmtList) {
-            sqlList.add(bindableStmt.getSql());
-        }
-        return Collections.unmodifiableList(sqlList);
-    }
-
 
     /*################################## blow private instance class ##################################*/
 
@@ -571,8 +545,7 @@ final class SimpleQueryTask extends AbstractStmtTask {
     private enum CopyMode {
         NONE,
         COPY_IN_MODE,
-        COPY_OUT_MODE,
-        COPY_BOTH_MODE
+        COPY_OUT_MODE
     }
 
 

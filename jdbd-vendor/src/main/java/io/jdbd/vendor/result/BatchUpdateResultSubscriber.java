@@ -58,7 +58,7 @@ final class BatchUpdateResultSubscriber extends AbstractResultSubscriber {
             addSubscribeError(ResultType.QUERY);
         } else if (result instanceof ResultState) {
             final ResultState state = (ResultState) result;
-            if (state.hasReturningColumn()) {
+            if (state.hasColumn()) {
                 addSubscribeError(ResultType.QUERY);
             } else {
                 if (!this.receiveResult) {

@@ -29,11 +29,15 @@ public class TaskTestAdvice extends AbstractTaskTests {
 
     @BeforeClass
     public static void beforeClass() throws IOException {
-        List<String> sqlList = new ArrayList<>(4);
+        List<String> sqlList = new ArrayList<>(6);
         sqlList.add("DROP TABLE IF EXISTS my_types");
         sqlList.add("DROP TYPE IF EXISTS gender");
         sqlList.add("CREATE TYPE gender AS ENUM ('FEMALE','MALE','UNKNOWN')");
-        sqlList.add(PgStreams.readAsString(Paths.get(ClientTestUtils.getTestResourcesPath().toString(), "data/sql/my_types.sql")));
+
+        final String sqlDir = ClientTestUtils.getTestResourcesPath().toString();
+        sqlList.add(PgStreams.readAsString(Paths.get(sqlDir, "data/sql/my_types.sql")));
+        sqlList.add("DROP TABLE IF EXISTS my_copies");
+        sqlList.add(PgStreams.readAsString(Paths.get(sqlDir, "data/sql/my_copies.sql")));
 
         final ClientProtocol protocol;
         protocol = obtainProtocolWithSync();

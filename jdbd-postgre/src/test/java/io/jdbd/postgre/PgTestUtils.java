@@ -46,7 +46,7 @@ public abstract class PgTestUtils {
     public static ResultState assertUpdateOneWithMoreResult(ResultState state) {
         assertEquals(state.getAffectedRows(), 1L, "affectedRows");
         assertEquals(state.getInsertId(), 0L, "insertId");
-        assertFalse(state.hasReturningColumn(), "returningColumn");
+        assertFalse(state.hasColumn(), "returningColumn");
         assertTrue(state.hasMoreResult(), "moreResult");
 
         assertFalse(state.hasMoreFetch(), "moreFetch");
@@ -56,7 +56,7 @@ public abstract class PgTestUtils {
     public static ResultState assertUpdateOneWithoutMoreResult(ResultState state) {
         assertEquals(state.getAffectedRows(), 1L, "affectedRows");
         assertEquals(state.getInsertId(), 0L, "insertId");
-        assertFalse(state.hasReturningColumn(), "returningColumn");
+        assertFalse(state.hasColumn(), "returningColumn");
         assertFalse(state.hasMoreResult(), "moreResult");
 
         assertFalse(state.hasMoreFetch(), "moreFetch");
@@ -66,7 +66,7 @@ public abstract class PgTestUtils {
     public static ResultState assertUpdateOneAndReturningWithMoreResult(ResultState state) {
         assertEquals(state.getAffectedRows(), 1L, "affectedRows");
         assertEquals(state.getInsertId(), 0L, "insertId");
-        assertTrue(state.hasReturningColumn(), "returningColumn");
+        assertTrue(state.hasColumn(), "returningColumn");
         assertTrue(state.hasMoreResult(), "moreResult");
 
         assertFalse(state.hasMoreFetch(), "moreFetch");
@@ -76,7 +76,7 @@ public abstract class PgTestUtils {
     public static ResultState assertUpdateOneAndReturningWithoutMoreResult(ResultState state) {
         assertEquals(state.getAffectedRows(), 1L, "affectedRows");
         assertEquals(state.getInsertId(), 0L, "insertId");
-        assertTrue(state.hasReturningColumn(), "returningColumn");
+        assertTrue(state.hasColumn(), "returningColumn");
         assertFalse(state.hasMoreResult(), "moreResult");
 
         assertFalse(state.hasMoreFetch(), "moreFetch");
@@ -86,7 +86,7 @@ public abstract class PgTestUtils {
     public static ResultState assertQueryStateWithMoreResult(final ResultState state) {
         assertEquals(state.getAffectedRows(), 0L, "affectedRows");
         assertEquals(state.getInsertId(), 0L, "insertId");
-        assertTrue(state.hasReturningColumn(), "returningColumn");
+        assertTrue(state.hasColumn(), "returningColumn");
         assertTrue(state.hasMoreResult(), "moreResult");
 
         assertFalse(state.hasMoreFetch(), "moreFetch");

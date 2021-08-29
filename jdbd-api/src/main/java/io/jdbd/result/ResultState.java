@@ -17,7 +17,7 @@ public interface ResultState extends Result {
 
     boolean hasMoreFetch();
 
-    default boolean hasReturningColumn() {
+    default boolean hasColumn() {
         throw new UnsupportedOperationException();
     }
 

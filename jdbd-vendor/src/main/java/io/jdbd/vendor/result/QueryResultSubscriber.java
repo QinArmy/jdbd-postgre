@@ -67,7 +67,7 @@ final class QueryResultSubscriber extends AbstractResultSubscriber {
             this.sink.next((ResultRow) result);
         } else if (result instanceof ResultState) {
             final ResultState state = (ResultState) result;
-            if (!state.hasReturningColumn()) {
+            if (!state.hasColumn()) {
                 addSubscribeError(ResultType.UPDATE);
             } else if (state.hasMoreFetch()) {
                 try {

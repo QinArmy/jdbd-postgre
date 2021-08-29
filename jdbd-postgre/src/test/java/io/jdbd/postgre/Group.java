@@ -14,6 +14,12 @@ public interface Group {
 
     String SIMPLE_QUERY_TASK = "simpleQueryTask";
 
+    String EXTENDED_QUERY_TASK = "extendedQueryTask";
+
+    String COPY_IN_OPERATION = "copyInOperation";
+
+    String COPY_OUT_OPERATION = "copyOutOperation";
+
     String TASK_TEST_ADVICE = "taskTestAdvice";
 
 

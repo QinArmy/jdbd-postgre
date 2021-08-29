@@ -66,7 +66,7 @@ abstract class PgResultStates implements ResultState {
         }
 
         @Override
-        public final boolean hasReturningColumn() {
+        public final boolean hasColumn() {
             return false;
         }
 
@@ -133,7 +133,7 @@ abstract class PgResultStates implements ResultState {
         }
 
         @Override
-        public final boolean hasReturningColumn() {
+        public final boolean hasColumn() {
             return this.hasReturningColumn;
         }
 

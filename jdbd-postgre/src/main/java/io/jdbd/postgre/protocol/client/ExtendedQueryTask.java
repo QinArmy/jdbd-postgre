@@ -10,7 +10,7 @@ final class ExtendedQueryTask extends AbstractStmtTask {
 
 
     private ExtendedQueryTask(TaskAdjutant adjutant, FluxResultSink sink) {
-        super(adjutant, sink);
+        super(adjutant, sink, null);
     }
 
 

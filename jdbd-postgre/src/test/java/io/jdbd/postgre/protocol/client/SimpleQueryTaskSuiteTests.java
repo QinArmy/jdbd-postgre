@@ -66,7 +66,7 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
         assertFalse(state.hasMoreFetch(), "moreFetch");
 
         assertFalse(state.hasMoreResult(), "moreResult");
-        assertFalse(state.hasReturningColumn(), "hasReturningColumn");
+        assertFalse(state.hasColumn(), "hasReturningColumn");
 
     }
 
@@ -104,7 +104,7 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
         assertFalse(state.hasMoreFetch(), "moreFetch");
 
         assertFalse(state.hasMoreResult(), "moreResult");
-        assertTrue(state.hasReturningColumn(), "hasReturningColumn");
+        assertTrue(state.hasColumn(), "hasReturningColumn");
     }
 
     /**
@@ -145,7 +145,7 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
             } else {
                 assertTrue(state.hasMoreResult(), "moreResult");
             }
-            assertFalse(state.hasReturningColumn(), "hasReturningColumn");
+            assertFalse(state.hasColumn(), "hasReturningColumn");
         }
 
 
@@ -235,7 +235,7 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
         assertTrue(result instanceof ResultState, "first update statement.");
         state = (ResultState) result;
 
-        assertFalse(state.hasReturningColumn(), "first update statement has returning column.");
+        assertFalse(state.hasColumn(), "first update statement has returning column.");
         assertFalse(state.hasMoreFetch(), "first update statement more fetch.");
         assertEquals(state.getAffectedRows(), 1L, "first update statement affected rows");
         assertEquals(state.getInsertId(), 0L, "first update statement insert id");
@@ -255,7 +255,7 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
         assertTrue(result instanceof ResultState, "second select statement.");
 
         state = (ResultState) result;
-        assertTrue(state.hasReturningColumn(), "second select statement has returning column.");
+        assertTrue(state.hasColumn(), "second select statement has returning column.");
         assertFalse(state.hasMoreFetch(), "second select statement more fetch.");
         assertEquals(state.getAffectedRows(), 0L, "second select statement affected rows");
 
@@ -274,7 +274,7 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
         assertTrue(result instanceof ResultState, "third update returning statement.");
 
         state = (ResultState) result;
-        assertTrue(state.hasReturningColumn(), "third update returning statement has returning column.");
+        assertTrue(state.hasColumn(), "third update returning statement has returning column.");
         assertFalse(state.hasMoreFetch(), "third update returning statement more fetch.");
         assertEquals(state.getAffectedRows(), 1L, "third update returning statement affected rows");
 
@@ -287,7 +287,7 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
         assertTrue(result instanceof ResultState, "fourth update statement.");
         state = (ResultState) result;
 
-        assertFalse(state.hasReturningColumn(), "fourth update statement has returning column.");
+        assertFalse(state.hasColumn(), "fourth update statement has returning column.");
         assertFalse(state.hasMoreFetch(), "fourth update statement more fetch.");
         assertEquals(state.getAffectedRows(), 1L, "fourth update statement affected rows");
         assertEquals(state.getInsertId(), 0L, "fourth update statement insert id");
@@ -335,7 +335,7 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
         assertFalse(state.hasMoreFetch(), "moreFetch");
 
         assertFalse(state.hasMoreResult(), "moreResult");
-        assertFalse(state.hasReturningColumn(), "hasReturningColumn");
+        assertFalse(state.hasColumn(), "hasReturningColumn");
 
     }
 
@@ -425,7 +425,7 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
             }
 
             assertFalse(state.hasMoreFetch(), "more fetch");
-            assertFalse(state.hasReturningColumn(), "returning column");
+            assertFalse(state.hasColumn(), "returning column");
 
         }
 
@@ -488,7 +488,7 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
             }
 
             assertFalse(state.hasMoreFetch(), "more fetch");
-            assertFalse(state.hasReturningColumn(), "returning column");
+            assertFalse(state.hasColumn(), "returning column");
         }
 
     }
@@ -572,7 +572,7 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
             }
 
             assertFalse(state.hasMoreFetch(), "more fetch");
-            assertTrue(state.hasReturningColumn(), "returning column");
+            assertTrue(state.hasColumn(), "returning column");
 
         }
 
@@ -630,7 +630,7 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
             }
 
             assertFalse(state.hasMoreFetch(), "more fetch");
-            assertFalse(state.hasReturningColumn(), "returning column");
+            assertFalse(state.hasColumn(), "returning column");
         }
 
     }
@@ -704,7 +704,7 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
             }
 
             assertFalse(state.hasMoreFetch(), "more fetch");
-            assertTrue(state.hasReturningColumn(), "returning column");
+            assertTrue(state.hasColumn(), "returning column");
 
         }
 
