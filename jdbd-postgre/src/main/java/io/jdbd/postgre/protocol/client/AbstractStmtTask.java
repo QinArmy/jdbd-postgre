@@ -200,28 +200,6 @@ abstract class AbstractStmtTask extends PgTask implements StmtTask {
      * @see #handleCopyInResponse(ByteBuf)
      */
     @Deprecated
-    private Publisher<ByteBuf> sendCopyInDataFromProgramCommand(CopyIn copyIn) {
-        final Function<String, Publisher<byte[]>> function = copyIn.getFunction();
-        final Publisher<byte[]> dataPublisher = function.apply(copyIn.getCommand());
-
-        final Publisher<ByteBuf> publisher;
-        if (dataPublisher == null) {
-            String m = String.format("Statement[index:%s] PROGRAM 'command; function return Publisher is null."
-                    , this.resultIndex);
-            publisher = Mono.just(createCopyFailMessage(m));
-        } else {
-            publisher = Flux.from(dataPublisher)
-                    .map(this::mapToCopyDataMessage)
-                    .concatWith(Mono.create(sink -> sink.success(createCopyDoneMessage())))
-                    .onErrorResume(e -> Mono.just(createCopyFailMessage(e.getMessage())));
-        }
-        return publisher;
-    }
-
-    /**
-     * @see #handleCopyInResponse(ByteBuf)
-     */
-    @Deprecated
     private Publisher<ByteBuf> sendCopyInDataFromStdin(CopyIn copyIn) {
         final Function<String, Publisher<byte[]>> function = copyIn.getFunction();
         final Publisher<byte[]> dataPublisher = function.apply(null);

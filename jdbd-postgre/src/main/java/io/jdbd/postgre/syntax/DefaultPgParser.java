@@ -76,7 +76,7 @@ final class DefaultPgParser implements PgParser {
         final char[] charArray = sql.toCharArray();
         final int lastIndex = charArray.length - 1;
         char ch;
-        boolean copyCommand = false, fromClause = false, program = false;
+        boolean copyCommand = false, fromClause = false;
         CopyIn copyIn = null;
         for (int i = 0; i < charArray.length; i++) {
             ch = charArray[i];
@@ -118,15 +118,6 @@ final class DefaultPgParser implements PgParser {
                     i += FROM.length();
                     fromClause = true;
                 }
-            } else if (program) {
-                final String command;
-                command = parseStringConstant(stmt, charArray, stmtIndex, i);
-                final Function<String, Publisher<byte[]>> function = stmt.getImportFunction();
-                if (function == null) {
-                    throw PgExceptions.createSyntaxError("Not found import function for PROGRAM 'command' .");
-                }
-                copyIn = new CopyInFromProgram(command, function);
-                break;
             } else if (ch == '?') {
                 final String fileName = extractStringConstantFromParamValue(stmt, stmtIndex, i);
                 copyIn = new CopyInFromPath(Paths.get(fileName));
@@ -139,18 +130,12 @@ final class DefaultPgParser implements PgParser {
                     && sql.regionMatches(true, i, PROGRAM, 0, PROGRAM.length())
                     && Character.isWhitespace(charArray[i + PROGRAM.length()])) {
                 // PROGRAM 'command'
-                i += PROGRAM.length();
-                program = true;
+                throw new SQLException("COPY FORM PROGRAM 'command' not supported by jdbd-postgre");
             } else if ((ch == 's' || ch == 'S')
                     && sql.regionMatches(true, i, STDIN, 0, STDIN.length())
                     && (i + STDIN.length() == lastIndex || Character.isWhitespace(charArray[i + STDIN.length()]))) {
                 // STDIN
-                final Function<String, Publisher<byte[]>> function = stmt.getImportFunction();
-                if (function == null) {
-                    throw PgExceptions.createSyntaxError("Not found import function for STDIN .");
-                }
-                copyIn = new CopyInFromStdin(function);
-                break;
+                throw new SQLException("COPY FORM STDIN not supported by jdbd-postgre");
             } else { // 'filename'
                 try {
                     final String fileName;

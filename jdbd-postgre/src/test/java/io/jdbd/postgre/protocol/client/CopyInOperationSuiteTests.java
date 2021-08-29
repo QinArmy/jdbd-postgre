@@ -1,6 +1,9 @@
 package io.jdbd.postgre.protocol.client;
 
 import io.jdbd.JdbdSQLException;
+import io.jdbd.postgre.Group;
+import io.jdbd.postgre.PgType;
+import io.jdbd.postgre.stmt.BindValue;
 import io.jdbd.postgre.stmt.PgStmts;
 import io.jdbd.result.ResultState;
 import org.reactivestreams.Publisher;
@@ -28,8 +31,8 @@ import static org.testng.Assert.*;
  *
  * @see SimpleQueryTask
  */
-//@Test(groups = {Group.COPY_IN_OPERATION}, dependsOnGroups = {Group.URL, Group.PARSER, Group.UTILS, Group.SESSION_BUILDER
-//        , Group.TASK_TEST_ADVICE, Group.SIMPLE_QUERY_TASK, Group.EXTENDED_QUERY_TASK})
+@Test(groups = {Group.COPY_IN_OPERATION}, dependsOnGroups = {Group.URL, Group.PARSER, Group.UTILS, Group.SESSION_BUILDER
+        , Group.TASK_TEST_ADVICE, Group.SIMPLE_QUERY_TASK, Group.EXTENDED_QUERY_TASK})
 public class CopyInOperationSuiteTests extends AbstractTaskTests {
 
     private static final Logger LOG = LoggerFactory.getLogger(CopyInOperationSuiteTests.class);
@@ -46,6 +49,65 @@ public class CopyInOperationSuiteTests extends AbstractTaskTests {
         final TaskAdjutant adjutant = mapToTaskAdjutant(protocol);
 
         final Path path = Paths.get(DATA_DIR, "data/copy/my_copies.csv").toAbsolutePath();
+
+        final String sql = String.format(
+                "/* comment */ COPY my_copies(create_time,my_varchar) FROM --comment%s'%s'  WITH CSV"
+                , LINE_SEPARATOR, path);
+
+        final ResultState state;
+        state = SimpleQueryTask.update(PgStmts.stmt(sql), adjutant)
+
+                .concatWith(releaseConnection(protocol))
+                .onErrorResume(releaseConnectionOnError(protocol))
+
+                .last()
+                .block();
+
+        assertNotNull(state, "state");
+        assertTrue(state.getAffectedRows() > 0L, "affectedRows");
+        assertFalse(state.hasMoreFetch(), "more fetch");
+        assertFalse(state.hasColumn(), "hasColumn");
+        assertFalse(state.hasMoreResult(), "more result");
+
+    }
+
+    @Test
+    public void simpleQueryCopyInFromLocalFileWithBind() {
+        final ClientProtocol protocol;
+        protocol = obtainProtocolWithSync();
+        final TaskAdjutant adjutant = mapToTaskAdjutant(protocol);
+
+        final Path path = Paths.get(DATA_DIR, "data/copy/my_copies.csv").toAbsolutePath();
+
+        final String sql = String.format(
+                "/* comment */ COPY my_copies(create_time,my_varchar) FROM --comment%s?  WITH CSV"
+                , LINE_SEPARATOR);
+
+        final ResultState state;
+        state = SimpleQueryTask.bindableUpdate(PgStmts.bindable(sql, BindValue.create(0, PgType.VARCHAR, path.toString())), adjutant)
+
+                .concatWith(releaseConnection(protocol))
+                .onErrorResume(releaseConnectionOnError(protocol))
+
+                .last()
+                .block();
+
+        assertNotNull(state, "state");
+        assertTrue(state.getAffectedRows() > 0L, "affectedRows");
+        assertFalse(state.hasMoreFetch(), "more fetch");
+        assertFalse(state.hasColumn(), "hasColumn");
+        assertFalse(state.hasMoreResult(), "more result");
+
+    }
+
+    @Test
+    public void simpleQueryCopyInFromLocalFileWithMultiStmt() {
+        final ClientProtocol protocol;
+        protocol = obtainProtocolWithSync();
+        final TaskAdjutant adjutant = mapToTaskAdjutant(protocol);
+
+        final Path path = Paths.get(DATA_DIR, "data/copy/my_copies.csv").toAbsolutePath();
+
 
         final String sql = String.format(
                 "/* comment */ COPY my_copies(create_time,my_varchar) FROM --comment%s'%s'  WITH CSV"
