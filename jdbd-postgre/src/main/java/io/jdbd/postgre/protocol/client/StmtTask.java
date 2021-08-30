@@ -6,7 +6,7 @@ import java.util.function.Supplier;
 
 interface StmtTask {
 
-    void addResultSetError(Throwable error);
+    void addErrorToTask(Throwable error);
 
     boolean hasError();
 

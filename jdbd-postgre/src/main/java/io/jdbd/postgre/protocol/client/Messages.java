@@ -20,6 +20,13 @@ abstract class Messages {
 
     /**
      * <ul>
+     *     <li>NotificationResponse</li>
+     * </ul>
+     */
+    static final byte A = 'A';
+
+    /**
+     * <ul>
      *     <li>CommandComplete</li>
      * </ul>
      */

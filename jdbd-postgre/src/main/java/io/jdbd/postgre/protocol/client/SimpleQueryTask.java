@@ -1,5 +1,6 @@
 package io.jdbd.postgre.protocol.client;
 
+import io.jdbd.SessionCloseException;
 import io.jdbd.postgre.PgJdbdException;
 import io.jdbd.postgre.stmt.BatchBindStmt;
 import io.jdbd.postgre.stmt.BindableStmt;
@@ -260,8 +261,6 @@ final class SimpleQueryTask extends AbstractStmtTask {
 
     private Phase phase;
 
-    private CopyMode copyMode = CopyMode.NONE;
-
     /**
      * <p>
      * create instance for single static statement.
@@ -394,12 +393,19 @@ final class SimpleQueryTask extends AbstractStmtTask {
 
     @Override
     protected final void onChannelClose() {
-        super.onChannelClose();
+        if (this.phase != Phase.END) {
+            addError(new SessionCloseException("Unexpected session close."));
+            publishError(this.sink::error);
+        }
     }
 
     @Override
     protected final Action onError(Throwable e) {
-        return null;
+        if (this.phase != Phase.END) {
+            addError(e);
+            publishError(this.sink::error);
+        }
+        return Action.TASK_END;
     }
 
     @Override
@@ -411,9 +417,7 @@ final class SimpleQueryTask extends AbstractStmtTask {
     @Override
     final void internalToString(StringBuilder builder) {
         builder.append(",phase:")
-                .append(this.phase)
-                .append(",copyMode:")
-                .append(this.copyMode);
+                .append(this.phase);
     }
 
 
@@ -436,9 +440,6 @@ final class SimpleQueryTask extends AbstractStmtTask {
                     ErrorMessage error = ErrorMessage.read(cumulateBuffer, clientCharset);
                     addError(PgExceptions.createErrorException(error));
                     continueRead = Messages.hasOneMessage(cumulateBuffer);
-                    if (this.copyMode != CopyMode.NONE) {
-                        this.copyMode = CopyMode.NONE;
-                    }
                 }
                 break;
                 case Messages.Z: {// ReadyForQuery message
@@ -455,13 +456,11 @@ final class SimpleQueryTask extends AbstractStmtTask {
                 break;
                 case Messages.S: {// ParameterStatus message
                     serverStatusConsumer.accept(Messages.readParameterStatus(cumulateBuffer, clientCharset));
+                    continueRead = Messages.hasOneMessage(cumulateBuffer);
                 }
                 break;
                 case Messages.C: {// CommandComplete message
                     if (readResultStateWithoutReturning(cumulateBuffer)) {
-                        if (this.copyMode != CopyMode.NONE) {
-                            this.copyMode = CopyMode.NONE;
-                        }
                         continueRead = Messages.hasOneMessage(cumulateBuffer);
                     } else {
                         continueRead = false;
@@ -486,33 +485,36 @@ final class SimpleQueryTask extends AbstractStmtTask {
                 }
                 break;
                 case Messages.G: {// CopyInResponse message
-                    if (this.copyMode == CopyMode.NONE) {
-                        this.copyMode = CopyMode.COPY_IN_MODE;
-                        handleCopyInResponse(cumulateBuffer);
-                    } else {
-                        String msg = "Server response duplication copy in message.";
-                        addError(new PgJdbdException(msg));
-                        Messages.skipOneMessage(cumulateBuffer);
-                        this.packetPublisher = Mono.just(createCopyFailMessage(msg));
-                    }
+                    handleCopyInResponse(cumulateBuffer);
                     continueRead = false;
                 }
                 break;
                 case Messages.H: { // CopyOutResponse message
-                    if (this.copyMode == CopyMode.NONE) {
-                        this.copyMode = CopyMode.COPY_OUT_MODE;
-                        handleCopyOutResponse(cumulateBuffer);
+                    if (handleCopyOutResponse(cumulateBuffer)) {
+                        continueRead = Messages.hasOneMessage(cumulateBuffer);
                     } else {
-                        String msg = "Server response duplication copy out message.";
-                        addError(new PgJdbdException(msg));
-                        Messages.skipOneMessage(cumulateBuffer);
-                        this.packetPublisher = Mono.just(createCopyFailMessage(msg));
+                        continueRead = false;
                     }
-                    continueRead = false;
+                }
+                break;
+                case Messages.d: // CopyData message
+                case Messages.c:// CopyDone message
+                case Messages.f: {// CopyFail message
+                    if (handleCopyOutData(cumulateBuffer)) {
+                        continueRead = Messages.hasOneMessage(cumulateBuffer);
+                    } else {
+                        continueRead = false;
+                    }
+                }
+                break;
+                case Messages.A: { // NotificationResponse
+                    //TODO complete LISTEN command
+                    Messages.skipOneMessage(cumulateBuffer);
+                    continueRead = Messages.hasOneMessage(cumulateBuffer);
                 }
                 break;
                 default: {
-                    throw new PgJdbdException(String.format("Server response unknown message type[%s]"
+                    throw new UnExpectedMessageException(String.format("Server response unknown message type[%s]"
                             , (char) msgType));
                 }
 

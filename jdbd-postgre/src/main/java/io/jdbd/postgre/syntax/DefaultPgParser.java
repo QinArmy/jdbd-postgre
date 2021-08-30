@@ -81,7 +81,7 @@ final class DefaultPgParser implements PgParser {
         final char[] charArray = sql.toCharArray();
         final int lastIndex = charArray.length - 1;
         char ch;
-        boolean copyCommand = false, fromClause = false;
+        boolean copyCommand = false, fromClause = false, program = false;
         CopyIn copyIn = null;
         for (int i = 0, bindIndex = 0; i < charArray.length; i++) {
             ch = charArray[i];
@@ -120,27 +120,31 @@ final class DefaultPgParser implements PgParser {
                     fromClause = true;
                 }
             } else if (ch == '?') {
-                copyIn = new CopyInFromLocalFileWithBind(bindIndex);
+                copyIn = program ? new CopyInFromProgramCommandWithBind(bindIndex)
+                        : new CopyInFromLocalFileWithBind(bindIndex);
                 break;
             } else if (i + 3 >= lastIndex) {
                 String m = String.format(
                         "syntax error,FROM clause error,at near %s", fragment(sql, i));
                 throw PgExceptions.createSyntaxError(m);
-            } else if ((ch == 'p' || ch == 'P')
+            } else if (!program
+                    && (ch == 'p' || ch == 'P')
                     && sql.regionMatches(true, i, PROGRAM, 0, PROGRAM.length())
                     && Character.isWhitespace(charArray[i + PROGRAM.length()])) {
                 // PROGRAM 'command' not supported by client,because command only find in postgre server.
-                throw new SQLException("COPY FORM PROGRAM 'command' not supported by jdbd-postgre");
+                program = true;
+                i += PROGRAM.length();
             } else if ((ch == 's' || ch == 'S')
                     && sql.regionMatches(true, i, STDIN, 0, STDIN.length())
                     && (i + STDIN.length() == lastIndex || Character.isWhitespace(charArray[i + STDIN.length()]))) {
-                // STDIN not supported by client,because postgre at least 12.6 or 12.8 disconnect when send CopyData message.
-                throw new SQLException("COPY FORM STDIN not supported by jdbd-postgre");
+                copyIn = CopyInFromStdin.INSTANCE;
+                break;
             } else { // 'filename'
                 try {
-                    final String fileName;
-                    fileName = parseStringConstant(sql, charArray, i);
-                    copyIn = new CopyInFromPath(Paths.get(fileName));
+                    final String constant;
+                    constant = parseStringConstant(sql, charArray, i);
+                    copyIn = program ? new CopyInFromProgramCommand(constant)
+                            : new CopyInFromLocalFile(Paths.get(constant));
                     break;
                 } catch (SQLException e) {
                     LOG.debug("COPY IN FROM clause parse filename error.", e);
@@ -162,7 +166,7 @@ final class DefaultPgParser implements PgParser {
         final char[] charArray = sql.toCharArray();
         final int lastIndex = charArray.length - 1;
         char ch;
-        boolean copyCommand = false, toClause = false, sourceParsed = false;
+        boolean copyCommand = false, toClause = false, sourceParsed = false, program = false;
         CopyOut copyOut = null;
         for (int i = 0, bindIndex = 0; i < charArray.length; i++) {
             ch = charArray[i];
@@ -210,27 +214,30 @@ final class DefaultPgParser implements PgParser {
                     toClause = true;
                 }
             } else if (ch == '?') {
-                copyOut = new CopyOutFromLocalFileWithBind(bindIndex);
+                copyOut = program ? new CopyOutToProgramCommandWithBind(bindIndex)
+                        : new CopyOutToLocalFileWithBind(bindIndex);
                 break;
             } else if (i + 3 >= lastIndex) {
                 String m = String.format(
                         "syntax error,TO clause error,at near %s", fragment(sql, i));
                 throw PgExceptions.createSyntaxError(m);
-            } else if ((ch == 'p' || ch == 'P')
+            } else if (!program
+                    && (ch == 'p' || ch == 'P')
                     && sql.regionMatches(true, i, PROGRAM, 0, PROGRAM.length())
                     && Character.isWhitespace(charArray[i + PROGRAM.length()])) {
-                // PROGRAM 'command' not supported by client,because command only find in postgre server.
-                throw new SQLException("COPY TO PROGRAM 'command' not supported by jdbd-postgre");
+                program = true;
+                i += PROGRAM.length();
             } else if ((ch == 's' || ch == 'S')
                     && sql.regionMatches(true, i, STDOUT, 0, STDOUT.length())
                     && (i + STDOUT.length() == lastIndex || Character.isWhitespace(charArray[i + STDOUT.length()]))) {
-                // STDOUT not supported by client,because postgre at least 12.6 or 12.8 disconnect when send CopyData message.
-                throw new SQLException("COPY TO STDIN not supported by jdbd-postgre");
+                copyOut = CopyOutToStdout.INSTANCE;
+                break;
             } else { // 'filename'
                 try {
-                    final String fileName;
-                    fileName = parseStringConstant(sql, charArray, i);
-                    copyOut = new CopyOutFromPath(Paths.get(fileName));
+                    final String constant;
+                    constant = parseStringConstant(sql, charArray, i);
+                    copyOut = program ? new CopyOutToProgramCommand(constant)
+                            : new CopyOutToLocalFile(Paths.get(constant));
                     break;
                 } catch (SQLException e) {
                     LOG.debug("COPY OUT TO clause parse filename error.", e);
@@ -654,6 +661,18 @@ final class DefaultPgParser implements PgParser {
         return PgExceptions.createSyntaxError(m);
     }
 
+    private static IllegalArgumentException createBindIndexError(int bindIndex) {
+        return new IllegalArgumentException(String.format("bindIndex[%s] less than 0", bindIndex));
+    }
+
+    private static IllegalStateException createCopyModeNotMatchError(Enum<?> mode) {
+        return new IllegalStateException(String.format("Mode is %s", mode));
+    }
+
+    private static IllegalStateException createCopyExistsBindIndexError(int bindIndex) {
+        return new IllegalStateException(String.format("Bind index[%s] great -1.", bindIndex));
+    }
+
     private enum Mode {
         BIND,
         CHECK_SINGLE,
@@ -661,11 +680,11 @@ final class DefaultPgParser implements PgParser {
     }
 
 
-    private static final class CopyInFromPath implements CopyIn {
+    private static final class CopyInFromLocalFile implements CopyIn {
 
         private final Path path;
 
-        private CopyInFromPath(Path path) {
+        private CopyInFromLocalFile(Path path) {
             this.path = path;
         }
 
@@ -687,18 +706,22 @@ final class DefaultPgParser implements PgParser {
 
         @Override
         public final String getCommand() {
-            throw new IllegalStateException(String.format("Mode isn't %s .", Mode.PROGRAM));
+            throw createCopyModeNotMatchError(getMode());
         }
 
     }
 
     private static final class CopyInFromLocalFileWithBind implements CopyIn {
 
+        private final int bindIndex;
+
         private CopyInFromLocalFileWithBind(int bindIndex) {
+            if (bindIndex < 0) {
+                throw createBindIndexError(bindIndex);
+            }
             this.bindIndex = bindIndex;
         }
 
-        private final int bindIndex;
 
         @Override
         public Mode getMode() {
@@ -712,21 +735,111 @@ final class DefaultPgParser implements PgParser {
 
         @Override
         public final Path getPath() {
-            throw new IllegalStateException(String.format("bind index[%s] great -1.", this.bindIndex));
+            throw createCopyExistsBindIndexError(this.bindIndex);
         }
 
         @Override
         public final String getCommand() {
-            throw new IllegalStateException(String.format("Mode isn't %s .", Mode.PROGRAM));
+            throw createCopyModeNotMatchError(getMode());
         }
 
     }
 
-    private static final class CopyOutFromPath implements CopyOut {
+    private static final class CopyInFromProgramCommand implements CopyIn {
+
+        private final String command;
+
+        private CopyInFromProgramCommand(String command) {
+            this.command = command;
+        }
+
+        @Override
+        public final Mode getMode() {
+            return Mode.PROGRAM;
+        }
+
+        @Override
+        public final int getBindIndex() {
+            return -1;
+        }
+
+        @Override
+        public final Path getPath() {
+            throw createCopyModeNotMatchError(getMode());
+        }
+
+        @Override
+        public final String getCommand() {
+            return this.command;
+        }
+    }
+
+    private static final class CopyInFromProgramCommandWithBind implements CopyIn {
+
+        private final int bindIndex;
+
+        private CopyInFromProgramCommandWithBind(int bindIndex) {
+            if (bindIndex < 0) {
+                throw createBindIndexError(bindIndex);
+            }
+            this.bindIndex = bindIndex;
+        }
+
+        @Override
+        public final Mode getMode() {
+            return Mode.PROGRAM;
+        }
+
+        @Override
+        public final int getBindIndex() {
+            return this.bindIndex;
+        }
+
+        @Override
+        public final Path getPath() {
+            throw createCopyModeNotMatchError(getMode());
+        }
+
+        @Override
+        public final String getCommand() {
+            throw createCopyExistsBindIndexError(this.bindIndex);
+        }
+    }
+
+    private static final class CopyInFromStdin implements CopyIn {
+
+        private static final CopyInFromStdin INSTANCE = new CopyInFromStdin();
+
+        private CopyInFromStdin() {
+        }
+
+        @Override
+        public final Mode getMode() {
+            return Mode.STDIN;
+        }
+
+        @Override
+        public final int getBindIndex() {
+            return -1;
+        }
+
+        @Override
+        public final Path getPath() {
+            throw createCopyModeNotMatchError(getMode());
+        }
+
+        @Override
+        public final String getCommand() {
+            throw createCopyModeNotMatchError(getMode());
+        }
+
+    }
+
+    private static final class CopyOutToLocalFile implements CopyOut {
 
         private final Path path;
 
-        private CopyOutFromPath(Path path) {
+        private CopyOutToLocalFile(Path path) {
             this.path = path;
         }
 
@@ -748,18 +861,21 @@ final class DefaultPgParser implements PgParser {
 
         @Override
         public final String getCommand() {
-            throw new IllegalStateException(String.format("Mode isn't %s .", Mode.PROGRAM));
+            throw createCopyModeNotMatchError(getMode());
         }
 
     }
 
-    private static final class CopyOutFromLocalFileWithBind implements CopyOut {
-
-        private CopyOutFromLocalFileWithBind(int bindIndex) {
-            this.bindIndex = bindIndex;
-        }
+    private static final class CopyOutToLocalFileWithBind implements CopyOut {
 
         private final int bindIndex;
+
+        private CopyOutToLocalFileWithBind(int bindIndex) {
+            if (bindIndex < 0) {
+                throw new IllegalArgumentException("bindIndex less than 0");
+            }
+            this.bindIndex = bindIndex;
+        }
 
         @Override
         public Mode getMode() {
@@ -773,13 +889,104 @@ final class DefaultPgParser implements PgParser {
 
         @Override
         public final Path getPath() {
-            throw new IllegalStateException(String.format("bind index[%s] great -1.", this.bindIndex));
+            throw new IllegalStateException(String.format("Bind index[%s] great -1.", this.bindIndex));
         }
 
         @Override
         public final String getCommand() {
-            throw new IllegalStateException(String.format("Mode isn't %s .", Mode.PROGRAM));
+            throw createCopyModeNotMatchError(getMode());
         }
+
+    }
+
+    private static final class CopyOutToProgramCommand implements CopyOut {
+
+        private final String command;
+
+        private CopyOutToProgramCommand(String command) {
+            this.command = command;
+        }
+
+        @Override
+        public final Mode getMode() {
+            return Mode.PROGRAM;
+        }
+
+        @Override
+        public final int getBindIndex() {
+            return -1;
+        }
+
+        @Override
+        public final Path getPath() {
+            throw createCopyModeNotMatchError(getMode());
+        }
+
+        @Override
+        public final String getCommand() {
+            return this.command;
+        }
+    }
+
+    private static final class CopyOutToProgramCommandWithBind implements CopyOut {
+
+        private final int bindIndex;
+
+        private CopyOutToProgramCommandWithBind(int bindIndex) {
+            if (bindIndex < 0) {
+                throw new IllegalArgumentException("bindIndex less than 0");
+            }
+            this.bindIndex = bindIndex;
+        }
+
+        @Override
+        public final Mode getMode() {
+            return Mode.PROGRAM;
+        }
+
+        @Override
+        public final int getBindIndex() {
+            return this.bindIndex;
+        }
+
+        @Override
+        public final Path getPath() {
+            throw createCopyModeNotMatchError(getMode());
+        }
+
+        @Override
+        public final String getCommand() {
+            throw new IllegalStateException(String.format("bind index[%s] great -1.", this.bindIndex));
+        }
+    }
+
+    private static final class CopyOutToStdout implements CopyOut {
+
+        private static final CopyOutToStdout INSTANCE = new CopyOutToStdout();
+
+        private CopyOutToStdout() {
+        }
+
+        @Override
+        public final Mode getMode() {
+            return Mode.STDOUT;
+        }
+
+        @Override
+        public final int getBindIndex() {
+            return -1;
+        }
+
+        @Override
+        public final Path getPath() {
+            throw createCopyModeNotMatchError(getMode());
+        }
+
+        @Override
+        public final String getCommand() {
+            throw createCopyModeNotMatchError(getMode());
+        }
+
 
     }
 
