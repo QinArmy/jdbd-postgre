@@ -16,7 +16,7 @@ abstract class Messages {
 
     static final byte STRING_TERMINATOR = '\0';
 
-    static final byte LENGTH_SIZE = 4;
+    static final byte LENGTH_BYTES = 4;
 
     /**
      * <ul>

@@ -1,21 +1,30 @@
 package io.jdbd.postgre.protocol.client;
 
+import io.jdbd.JdbdSQLException;
 import io.jdbd.postgre.PgJdbdException;
 import io.jdbd.postgre.stmt.BatchBindStmt;
 import io.jdbd.postgre.stmt.BindValue;
 import io.jdbd.postgre.stmt.BindableStmt;
 import io.jdbd.postgre.stmt.MultiBindStmt;
 import io.jdbd.postgre.syntax.CopyIn;
+import io.jdbd.postgre.syntax.CopyOperation;
+import io.jdbd.postgre.syntax.CopyOut;
 import io.jdbd.postgre.syntax.PgParser;
 import io.jdbd.postgre.util.PgArrays;
 import io.jdbd.postgre.util.PgExceptions;
+import io.jdbd.stmt.BindableSingleStatement;
+import io.jdbd.stmt.ExportSubscriberFunctionException;
+import io.jdbd.stmt.StaticStatement;
 import io.jdbd.vendor.result.FluxResultSink;
 import io.jdbd.vendor.stmt.GroupStmt;
 import io.jdbd.vendor.stmt.StaticStmt;
 import io.jdbd.vendor.stmt.Stmt;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
+import org.qinarmy.util.UnexpectedEnumException;
 import org.reactivestreams.Publisher;
+import org.reactivestreams.Subscriber;
+import org.reactivestreams.Subscription;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import reactor.core.publisher.Flux;
@@ -23,18 +32,18 @@ import reactor.core.publisher.FluxSink;
 import reactor.core.publisher.Mono;
 import reactor.util.annotation.Nullable;
 
+import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.charset.Charset;
-import java.nio.file.Files;
-import java.nio.file.LinkOption;
-import java.nio.file.Path;
-import java.nio.file.Paths;
+import java.nio.file.*;
 import java.sql.SQLException;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 import java.util.StringTokenizer;
+import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
+import java.util.function.Function;
 import java.util.function.Supplier;
 
 /**
@@ -60,9 +69,11 @@ abstract class AbstractStmtTask extends PgTask implements StmtTask {
 
     private boolean downstreamCanceled;
 
-    private CopyIn cacheCopyIn;
+    private CopyOperation cacheCopyOperation;
 
     private List<String> singleSqlList;
+
+    private CopyOutHandler copyOutHandler;
 
     AbstractStmtTask(TaskAdjutant adjutant, FluxResultSink sink, @Nullable Stmt stmt) {
         super(adjutant, sink::error);
@@ -116,8 +127,12 @@ abstract class AbstractStmtTask extends PgTask implements StmtTask {
                 .append(this.resultIndex)
                 .append(",downstreamCanceled:")
                 .append(this.downstreamCanceled)
-                .append(",cacheCopyIn:")
-                .append(this.cacheCopyIn)
+                .append(",cacheCopyOperation:")
+                .append(this.cacheCopyOperation)
+                .append(",copyOutHandler is null:")
+                .append(this.copyOutHandler == null)
+                .append(",hasError:")
+                .append(hasError())
                 .append(",singleSqlList size:");
 
         final List<String> singleSqlList = this.singleSqlList;
@@ -180,10 +195,10 @@ abstract class AbstractStmtTask extends PgTask implements StmtTask {
         final int resultIndex = this.resultIndex;
         Publisher<ByteBuf> publisher;
         try {
-            final CopyIn copyIn = parseCopyIn(resultIndex);
+            final CopyIn copyIn = parseCopyOperation(resultIndex, this.adjutant.sqlParser()::parseCopyIn);
             switch (copyIn.getMode()) {
                 case FILE:
-                    publisher = sendCopyInDataFromLocalPath(obtainPathFromCopyIn(resultIndex, copyIn));
+                    publisher = sendCopyInDataFromLocalPath(obtainPathFromCopyOperation(resultIndex, copyIn));
                     break;
                 case PROGRAM:
                 case STDIN:
@@ -191,7 +206,7 @@ abstract class AbstractStmtTask extends PgTask implements StmtTask {
                     publisher = Mono.just(createCopyFailMessage(msg));
                     break;
                 default:
-                    throw PgExceptions.createUnknownEnumException(copyIn.getMode());
+                    throw PgExceptions.createUnexpectedEnumException(copyIn.getMode());
             }
         } catch (SQLException e) {
             String msg = String.format("Parse copy in sql error,%s", e.getMessage());
@@ -206,57 +221,120 @@ abstract class AbstractStmtTask extends PgTask implements StmtTask {
 
 
     /**
+     * @return true: copy out handle end.
      * @see <a href="https://www.postgresql.org/docs/current/protocol-message-formats.html">CopyOutResponse</a>
      */
-    final void handleCopyOutResponse(ByteBuf cumulateBuffer) {
+    final boolean handleCopyOutResponse(ByteBuf cumulateBuffer) {
         final int msgStartIndex = cumulateBuffer.readerIndex();
         if (cumulateBuffer.readByte() != Messages.H) {
             throw new IllegalArgumentException("Non Copy-out message.");
         }
         final int nextMsgIndex = msgStartIndex + 1 + cumulateBuffer.readInt();
-
         cumulateBuffer.readerIndex(nextMsgIndex);
 
+        if (this.copyOutHandler != null) {
+            throw new IllegalStateException("this.copyOutHandler non-null,cannot handle CopyOutResponse message.");
+        }
 
+        final int resultIndex = this.resultIndex;
+        boolean handleEnd;
+        try {
+            final CopyOut copyOut = parseCopyOperation(resultIndex, this.adjutant.sqlParser()::parseCopyOut);
+            switch (copyOut.getMode()) {
+                case FILE: {
+                    final Path path = obtainPathFromCopyOperation(resultIndex, copyOut);
+                    this.copyOutHandler = new LocalFileCopyOutHandler(this, path);
+                    handleEnd = this.handleCopyOutData(cumulateBuffer);
+                }
+                break;
+                case PROGRAM:
+                case STDOUT: {
+                    final Subscriber<byte[]> subscriber = obtainCopyOutSubscriberFromCopyOut(resultIndex, copyOut);
+                    this.copyOutHandler = new SubscriberCopyOutHandler(this, subscriber);
+                    handleEnd = this.handleCopyOutData(cumulateBuffer);
+                }
+                break;
+                default:
+                    throw PgExceptions.createUnexpectedEnumException(copyOut.getMode());
+            }
+        } catch (Throwable e) {
+            final Throwable error;
+            if (e instanceof SQLException) {
+                String msg = String.format("Parse copy out sql error,%s", e.getMessage());
+                error = new JdbdSQLException(msg, (SQLException) e);
+            } else {
+                String msg = String.format("Handle statement[index:%s] copy-out failure,message:%s"
+                        , resultIndex, e.getMessage());
+                error = new PgJdbdException(msg);
+            }
+            addError(error);
+            this.copyOutHandler = new SubscriberCopyOutHandler(this); // skip all copy data.
+            handleEnd = this.handleCopyOutData(cumulateBuffer);
+        }
+        return handleEnd;
     }
+
+
+    /**
+     * @return true: copy out end
+     * @see <a href="https://www.postgresql.org/docs/current/protocol-message-formats.html">CopyData</a>
+     * @see <a href="https://www.postgresql.org/docs/current/protocol-message-formats.html">CopyDone</a>
+     * @see <a href="https://www.postgresql.org/docs/current/protocol-message-formats.html">CopyFail</a>
+     */
+    final boolean handleCopyOutData(ByteBuf cumulateBuffer) {
+        final CopyOutHandler handler = this.copyOutHandler;
+        if (handler == null) {
+            throw new IllegalStateException("No copy-out handler");
+        }
+        final boolean handleEnd;
+
+        handleEnd = handler.handle(cumulateBuffer);
+        if (handleEnd) {
+            this.copyOutHandler = null;
+        }
+        return handleEnd;
+    }
+
 
     /**
      * @see #handleCopyInResponse(ByteBuf)
      */
-    private CopyIn parseCopyIn(final int resultIndex) throws Exception {
-        final PgParser parser = this.adjutant.sqlParser();
+    @SuppressWarnings("unchecked")
+    private <T extends CopyOperation> T parseCopyOperation(final int resultIndex
+            , final ParseFunction<String, T> function) throws Exception {
+
         final Stmt stmt = this.stmt;
-        final CopyIn copyIn;
+        final T copyOperation;
         if (stmt instanceof StaticStmt) {
             List<String> singleSqlList = this.singleSqlList;
             if (singleSqlList == null) {
-                singleSqlList = parser.separateMultiStmt(((StaticStmt) stmt).getSql());
+                singleSqlList = this.adjutant.sqlParser().separateMultiStmt(((StaticStmt) stmt).getSql());
                 this.singleSqlList = singleSqlList;
             }
             if (resultIndex >= singleSqlList.size()) {
                 // here 1. bug ; 2. postgre CALL command add new feature that CALL command can return multi CommendComplete message.
                 throw new IllegalStateException(String.format("IllegalState can't found COPY command,%s", this));
             }
-            copyIn = parser.parseCopyIn(singleSqlList.get(resultIndex));
+            copyOperation = function.apply(singleSqlList.get(resultIndex));
         } else if (stmt instanceof GroupStmt) {
             final List<String> sqlGroup = ((GroupStmt) stmt).getSqlGroup();
             if (resultIndex >= sqlGroup.size()) {
                 // here 1. bug ; 2. postgre CALL command add new feature that CALL command can return multi CommendComplete message.
                 throw new IllegalStateException(String.format("IllegalState can't found COPY command,%s", this));
             }
-            copyIn = parser.parseCopyIn(sqlGroup.get(resultIndex));
+            copyOperation = function.apply(sqlGroup.get(resultIndex));
         } else if (stmt instanceof BatchBindStmt) {
-            CopyIn cacheCopyIn = this.cacheCopyIn;
-            if (cacheCopyIn == null) {
-                cacheCopyIn = parser.parseCopyIn(((BatchBindStmt) stmt).getSql());
-                this.cacheCopyIn = cacheCopyIn;
+            CopyOperation cacheCopy = this.cacheCopyOperation;
+            if (cacheCopy == null) {
+                cacheCopy = function.apply(((BatchBindStmt) stmt).getSql());
+                this.cacheCopyOperation = cacheCopy;
             }
             final List<List<BindValue>> groupList = ((BatchBindStmt) stmt).getGroupList();
             if (resultIndex >= groupList.size()) {
                 // here 1. bug ; 2. postgre CALL command add new feature that CALL command can return multi CommendComplete message.
-                throw new IllegalStateException(String.format("IllegalState can't found COPY command,%s", this));
+                throw new SQLException(String.format("IllegalState can't found COPY command,%s", this));
             }
-            copyIn = cacheCopyIn;
+            copyOperation = (T) cacheCopy;
         } else if (stmt instanceof BindableStmt) {
             if (resultIndex != 0) {
                 // here  postgre CALL command add new feature that CALL command can return multi CommendComplete message.
@@ -264,30 +342,109 @@ abstract class AbstractStmtTask extends PgTask implements StmtTask {
                 m = String.format("Postgre response %s CommendComplete message,but expect one.", resultIndex + 1);
                 throw new PgJdbdException(m);
             }
-            copyIn = parser.parseCopyIn(((BindableStmt) stmt).getSql());
+            copyOperation = function.apply(((BindableStmt) stmt).getSql());
         } else if (stmt instanceof MultiBindStmt) {
             final List<BindableStmt> stmtGroup = ((MultiBindStmt) stmt).getStmtGroup();
             if (resultIndex >= stmtGroup.size()) {
                 // here 1. bug ; 2. postgre CALL command add new feature that CALL command can return multi CommendComplete message.
                 throw new IllegalStateException(String.format("IllegalState can't found COPY command,%s", this));
             }
-            copyIn = parser.parseCopyIn(stmtGroup.get(resultIndex).getSql());
+            copyOperation = function.apply(stmtGroup.get(resultIndex).getSql());
         } else {
             String m = String.format("Unknown %s type[%s]", Stmt.class.getName(), stmt.getClass().getName());
             throw new IllegalStateException(m);
         }
-        return copyIn;
+        return copyOperation;
     }
 
     /**
-     * @see #handleCopyInResponse(ByteBuf)
+     * @see #handleCopyOutResponse(ByteBuf)
      */
-    private Path obtainPathFromCopyIn(final int resultIndex, final CopyIn copyIn) {
-        final int bindIndex = copyIn.getBindIndex();
+    private Subscriber<byte[]> obtainCopyOutSubscriberFromCopyOut(final int resultIndex, final CopyOut copyOut)
+            throws SQLException {
+        if (copyOut.getMode() == CopyOut.Mode.FILE) {
+            throw new IllegalArgumentException("CopyOut is Mode.FILE");
+        }
+
+        final Stmt stmt = this.stmt;
+
+        final PgParser parser = this.adjutant.sqlParser();
+        final Function<Object, Subscriber<byte[]>> function;
+
+        if (stmt instanceof StaticStmt) {
+            if (resultIndex != 0 || !parser.isSingleStmt(((StaticStmt) stmt).getSql())) {
+                throw new SQLException(String.format("COPY-OUT only is supported with single statement in %s"
+                        , StaticStatement.class.getName()));
+            }
+            function = stmt.getExportSubscriber();
+        } else if (stmt instanceof GroupStmt) {
+            final List<String> sqlGroup = ((GroupStmt) stmt).getSqlGroup();
+            if (resultIndex != 0 || sqlGroup.size() != 1) {
+                throw new SQLException(String.format("COPY-OUT only is supported with single statement in %s"
+                        , StaticStatement.class.getName()));
+            }
+            function = stmt.getExportSubscriber();
+        } else if (stmt instanceof BindableStmt) {
+            if (resultIndex != 0) {
+                // here 1. bug ; 2. postgre CALL command add new feature that CALL command can return multi CommendComplete message.
+                throw new SQLException(String.format("COPY-OUT only is supported with single result in %s"
+                        , BindableSingleStatement.class.getName()));
+            }
+            function = stmt.getExportSubscriber();
+        } else if (stmt instanceof BatchBindStmt) {
+            final List<List<BindValue>> groupList = ((BatchBindStmt) stmt).getGroupList();
+            if (resultIndex != 0 || groupList.size() != 1) {
+                throw new SQLException(String.format("COPY-OUT only is supported with single bind in %s"
+                        , BindableSingleStatement.class.getName()));
+            }
+            function = stmt.getExportSubscriber();
+        } else if (stmt instanceof MultiBindStmt) {
+            final List<BindableStmt> stmtGroup = ((MultiBindStmt) stmt).getStmtGroup();
+            if (resultIndex >= stmtGroup.size()) {
+                // here 1. bug ; 2. postgre CALL command add new feature that CALL command can return multi CommendComplete message.
+                throw new SQLException("Not found Subscriber for COPY-OUT.");
+            }
+            function = stmtGroup.get(resultIndex).getExportSubscriber();
+        } else {
+            String m = String.format("Unknown %s type[%s]", Stmt.class.getName(), stmt.getClass().getName());
+            throw new IllegalStateException(m);
+        }
+        if (function == null) {
+            throw new SQLException(String.format("Not specify export function for statement[index:%s]", resultIndex));
+        }
+
+        try {
+            final Subscriber<byte[]> subscriber;
+            switch (copyOut.getMode()) {
+                case STDOUT:
+                    subscriber = function.apply(this.adjutant.clientCharset());
+                    break;
+                case PROGRAM:
+                    subscriber = function.apply(copyOut.getCommand());
+                    break;
+                default:
+                    throw PgExceptions.createUnexpectedEnumException(copyOut.getMode());
+            }
+            return subscriber;
+        } catch (UnexpectedEnumException e) {
+            throw e;
+        } catch (Throwable e) {
+            throw new ExportSubscriberFunctionException(e.getMessage(), e);
+        }
+
+    }
+
+
+    /**
+     * @see #handleCopyInResponse(ByteBuf)
+     * @see #handleCopyOutResponse(ByteBuf)
+     */
+    private Path obtainPathFromCopyOperation(final int resultIndex, final CopyOperation copyOperation) {
+        final int bindIndex = copyOperation.getBindIndex();
         final Stmt stmt = this.stmt;
         final Path path;
         if (bindIndex < 0) {
-            path = copyIn.getPath();
+            path = copyOperation.getPath();
         } else if (stmt instanceof BindableStmt) {
             path = obtainPathFromParamGroup(((BindableStmt) stmt).getParamGroup(), resultIndex, bindIndex);
         } else if (stmt instanceof BatchBindStmt) {
@@ -312,7 +469,7 @@ abstract class AbstractStmtTask extends PgTask implements StmtTask {
     }
 
     /**
-     * @see #obtainPathFromCopyIn(int, CopyIn)
+     * @see #obtainPathFromCopyOperation(int, CopyOperation)
      */
     private Path obtainPathFromParamGroup(final List<BindValue> valueList, final int resultIndex, final int bindIndex) {
         if (bindIndex >= valueList.size()) {
@@ -364,7 +521,7 @@ abstract class AbstractStmtTask extends PgTask implements StmtTask {
         final byte[] bytes = errorInfo.getBytes(this.adjutant.clientCharset());
         final ByteBuf message = this.adjutant.allocator().buffer(6 + bytes.length);
         message.writeByte(Messages.f);
-        message.writeZero(Messages.LENGTH_SIZE);// placeholder
+        message.writeZero(Messages.LENGTH_BYTES);// placeholder
         message.writeBytes(bytes);
         message.writeByte(Messages.STRING_TERMINATOR);
 
@@ -450,7 +607,7 @@ abstract class AbstractStmtTask extends PgTask implements StmtTask {
             message = allocator.buffer((int) Math.min(maxMessageLen, headerLength + restSize));
 
             message.writeByte(Messages.d);
-            message.writeZero(Messages.LENGTH_SIZE);
+            message.writeZero(Messages.LENGTH_BYTES);
 
             while (channel.read(buffer) > 0) {
                 buffer.flip();
@@ -463,7 +620,7 @@ abstract class AbstractStmtTask extends PgTask implements StmtTask {
                     sink.next(message);
                     message = allocator.buffer((int) Math.min(maxMessageLen, headerLength + restSize));
                     message.writeByte(Messages.d);
-                    message.writeZero(Messages.LENGTH_SIZE);
+                    message.writeZero(Messages.LENGTH_BYTES);
                 }
             }
 
@@ -496,12 +653,251 @@ abstract class AbstractStmtTask extends PgTask implements StmtTask {
         return message;
     }
 
+    private JdbdSQLException readCopyFailMessage(final ByteBuf cumulateBuffer) {
+        if (cumulateBuffer.readByte() != Messages.f) {
+            throw new IllegalArgumentException("Non-CopyFail message");
+        }
+        cumulateBuffer.readInt(); // skip length
+        String msg = Messages.readString(cumulateBuffer, this.adjutant.clientCharset());
+        SQLException e;
+        e = new SQLException(msg);
+        return new JdbdSQLException(e);
+    }
+
+    /**
+     * Can't use {@link Function},because need throw {@link SQLException}
+     */
+    @FunctionalInterface
+    private interface ParseFunction<T, R> {
+
+        R apply(T t) throws SQLException;
+    }
 
     enum CopyMode {
         NONE,
         COPY_IN_MODE,
         COPY_OUT_MODE
     }
+
+
+    private interface CopyOutHandler {
+
+        /**
+         * <p>
+         * This method cannot throw any Throwable
+         * </p>
+         *
+         * @return true : copy out end.
+         */
+        boolean handle(ByteBuf cumulateBuffer);
+
+    }
+
+    private static final class LocalFileCopyOutHandler implements CopyOutHandler {
+
+        private final AbstractStmtTask task;
+
+        private final FileChannel channel;
+
+        final ByteBuffer buffer;
+
+        private LocalFileCopyOutHandler(AbstractStmtTask task, Path path) {
+            this.task = task;
+            FileChannel channel;
+            try {
+                channel = FileChannel.open(path, StandardOpenOption.WRITE, StandardOpenOption.CREATE);
+            } catch (Throwable e) {
+                channel = null;
+                task.addError(e);
+            }
+            this.channel = channel;
+
+            if (channel == null) {
+                this.buffer = null;
+            } else {
+                this.buffer = ByteBuffer.wrap(new byte[2048]);
+            }
+
+        }
+
+        @Override
+        public final boolean handle(final ByteBuf cumulateBuffer) {
+            boolean copyEnd = false;
+            int nextMsgIndex = -1;
+            try {
+                final FileChannel channel = this.channel;
+                final ByteBuffer buffer = this.buffer;
+                while (Messages.hasOneMessage(cumulateBuffer)) {
+                    final int msgIndex = cumulateBuffer.readerIndex();
+                    nextMsgIndex = msgIndex + 1 + cumulateBuffer.getInt(msgIndex + 1);
+
+                    switch (cumulateBuffer.getByte(msgIndex)) {
+                        case Messages.d: {// CopyData message
+                            if (channel != null) {  // if channel is null ,occur error,eg: can't create file.
+                                writeOneCopyDataMessageToLocalPath(channel, cumulateBuffer, buffer);
+                            }
+                        }
+                        break;
+                        case Messages.c: {// CopyDone message
+                            copyEnd = true; // must be end copy firstly,because possibly throw exception
+                            if (channel != null) {//if channel is null ,occur error,eg: can't create file.
+                                channel.close();
+                            }
+                        }
+                        break;
+                        case Messages.f: {// CopyFail message
+                            copyEnd = true; // must be end copy firstly,because possibly throw exception
+                            this.task.addError(this.task.readCopyFailMessage(cumulateBuffer));
+                            if (channel != null) {//if channel is null ,occur error,eg: can't create file.
+                                channel.close();
+                            }
+                        }
+                        break;
+                        default:
+                            throw new UnExpectedMessageException("Not Copy-out relation message.");
+                    }
+                    cumulateBuffer.readerIndex(nextMsgIndex); // finally avoid tail filler
+                }
+            } catch (Throwable e) {
+                if (!(e instanceof UnExpectedMessageException) && nextMsgIndex > 0) {
+                    cumulateBuffer.readerIndex(nextMsgIndex); //avoid exception but not read rest of message.
+                }
+                this.task.addError(e);
+                this.task.log.debug("Copy-Out occur error.task:{}", this.task, e);
+            }
+            return copyEnd;
+        }
+
+        /***
+         * @param buffer must be created by ByteBuffer.wrap(bufferArray)
+         */
+        private static void writeOneCopyDataMessageToLocalPath(FileChannel channel, ByteBuf cumulateBuffer
+                , ByteBuffer buffer)
+                throws IOException {
+            if (cumulateBuffer.readByte() != Messages.d) {// CopyData message
+                throw new IllegalArgumentException("Not CopyData message.");
+            }
+            int restLength = cumulateBuffer.readInt() - Messages.LENGTH_BYTES;
+            final byte[] bufferArray = buffer.array(); // buffer must be created by ByteBuffer.wrap(bufferArray);
+            while (restLength > 0) {
+                final int readLength = Math.min(restLength, bufferArray.length);
+                cumulateBuffer.readBytes(bufferArray, 0, readLength);
+                restLength -= readLength;
+
+                buffer.clear();
+                buffer.limit(readLength);
+
+                channel.write(buffer);
+            }
+
+        }
+
+
+    }// class LocalFileCopyOutHandler
+
+    private static final class SubscriberCopyOutHandler implements CopyOutHandler, Subscription {
+
+        private static final AtomicIntegerFieldUpdater<SubscriberCopyOutHandler> CANCEL
+                = AtomicIntegerFieldUpdater.newUpdater(SubscriberCopyOutHandler.class, "cancel");
+
+        private final AbstractStmtTask task;
+
+        private final Subscriber<byte[]> subscriber;
+
+        /**
+         * <ul>
+         *     <li>1:cancel </li>
+         * </ul>
+         */
+        private volatile int cancel = 0;
+
+        /**
+         * skip all CopyOut data
+         */
+        private SubscriberCopyOutHandler(AbstractStmtTask task) {
+            this.task = task;
+            this.subscriber = null;
+        }
+
+        private SubscriberCopyOutHandler(AbstractStmtTask task, final Subscriber<byte[]> subscriber) {
+            this.task = task;
+            Subscriber<byte[]> actualSubscriber;
+            try {
+                subscriber.onSubscribe(this);
+                actualSubscriber = subscriber;
+            } catch (Throwable e) {
+                task.addError(e);
+                actualSubscriber = null;
+            }
+            this.subscriber = actualSubscriber;
+
+        }
+
+        @Override
+        public final boolean handle(final ByteBuf cumulateBuffer) {
+            boolean copyEnd = false;
+            int nextMsgIndex = -1;
+
+            try {
+                final Subscriber<byte[]> subscriber = this.subscriber;
+
+                while (Messages.hasOneMessage(cumulateBuffer)) {
+                    final int msgIndex = cumulateBuffer.readerIndex();
+                    nextMsgIndex = msgIndex + 1 + cumulateBuffer.getInt(msgIndex + 1);
+
+                    switch (cumulateBuffer.getByte(msgIndex)) {
+                        case Messages.d: {// CopyData message
+                            if (subscriber != null && this.cancel != 1) {
+                                cumulateBuffer.readByte();// skip msg type byte
+                                final byte[] rowBytes = new byte[cumulateBuffer.readInt() - Messages.LENGTH_BYTES];
+                                cumulateBuffer.readBytes(rowBytes);
+                                subscriber.onNext(rowBytes);
+                            }
+                        }
+                        break;
+                        case Messages.c: {// CopyDone message
+                            copyEnd = true; // must be end copy firstly,because possibly throw exception
+                            if (subscriber != null) {
+                                subscriber.onComplete();
+                            }
+                        }
+                        break;
+                        case Messages.f: {// CopyFail message
+                            copyEnd = true; // must be end copy firstly,because possibly throw exception
+                            if (subscriber != null) {
+                                final JdbdSQLException error = this.task.readCopyFailMessage(cumulateBuffer);
+                                this.task.addError(error); // firstly
+                                subscriber.onError(error); // secondly
+                            }
+                        }
+                        break;
+                        default:
+                            throw new UnExpectedMessageException("Not Copy-out relation message.");
+                    }
+                    cumulateBuffer.readerIndex(nextMsgIndex); // finally avoid tail filler
+                }
+            } catch (Throwable e) {
+                if (!(e instanceof UnExpectedMessageException) && nextMsgIndex > 0) {
+                    cumulateBuffer.readerIndex(nextMsgIndex); //avoid exception but not read rest of message.
+                }
+                this.task.addError(e);
+                this.task.log.debug("Copy-Out occur error.task:{}", this.task, e);
+            }
+            return copyEnd;
+        }
+
+        @Override
+        public final void request(long n) {
+            // no-ope,ignore this method,@see io.jdbd.stmt.Statement
+        }
+
+        @Override
+        public final void cancel() {
+            CANCEL.compareAndSet(this, 0, 1);
+        }
+
+
+    }// class SubscriberCopyOutHandler
 
 
 }

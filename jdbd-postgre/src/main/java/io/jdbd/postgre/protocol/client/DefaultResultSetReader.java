@@ -97,7 +97,7 @@ final class DefaultResultSetReader implements ResultSetReader {
                 case END:
                     throw new IllegalStateException(String.format("%s can't reuse.", this));
                 default:
-                    throw PgExceptions.createUnknownEnumException(this.phase);
+                    throw PgExceptions.createUnexpectedEnumException(this.phase);
             }
         }
         if (resultSetEnd) {

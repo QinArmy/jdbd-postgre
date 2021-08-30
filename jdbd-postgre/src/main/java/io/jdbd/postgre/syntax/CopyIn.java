@@ -2,7 +2,7 @@ package io.jdbd.postgre.syntax;
 
 import java.nio.file.Path;
 
-public interface CopyIn {
+public interface CopyIn extends CopyOperation {
 
     Mode getMode();
 

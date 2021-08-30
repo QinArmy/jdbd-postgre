@@ -48,7 +48,7 @@ final class QueryCommandWriter {
         final List<String> sqlGroup = stmt.getSqlGroup();
         final ByteBuf message = adjutant.allocator().buffer(sqlGroup.size() * 50, Integer.MAX_VALUE);
         message.writeByte(Messages.Q);
-        message.writeZero(Messages.LENGTH_SIZE); // placeholder of length
+        message.writeZero(Messages.LENGTH_BYTES); // placeholder of length
         try {
             final Charset charset = adjutant.clientCharset();
             final SQLParser sqlParser = adjutant.sqlParser();
@@ -83,7 +83,7 @@ final class QueryCommandWriter {
         final ByteBuf message = adjutant.allocator().buffer(capacity);
 
         message.writeByte(Messages.Q);
-        message.writeZero(Messages.LENGTH_SIZE); // placeholder
+        message.writeZero(Messages.LENGTH_BYTES); // placeholder
         message.writeBytes(sqlBytes);
         message.writeByte(Messages.STRING_TERMINATOR);
 
@@ -160,7 +160,7 @@ final class QueryCommandWriter {
 
         try {
             message.writeByte(Messages.Q);
-            message.writeZero(Messages.LENGTH_SIZE); // placeholder
+            message.writeZero(Messages.LENGTH_BYTES); // placeholder
 
             final PgParser sqlParser = adjutant.sqlParser();
             PgStatement statement;
@@ -201,7 +201,7 @@ final class QueryCommandWriter {
         final ByteBuf message = adjutant.allocator().buffer(capacity, Integer.MAX_VALUE);
         try {
             message.writeByte(Messages.Q);
-            message.writeZero(Messages.LENGTH_SIZE); // placeholder
+            message.writeZero(Messages.LENGTH_BYTES); // placeholder
 
             final PgStatement statement;
             statement = adjutant.sqlParser().parse(sql);
@@ -364,7 +364,7 @@ final class QueryCommandWriter {
             case UNSPECIFIED:
                 throw PgExceptions.createNonSupportBindSqlTypeError(stmtIndex, bindValue);
             default:
-                throw PgExceptions.createUnknownEnumException(bindValue.getType());
+                throw PgExceptions.createUnexpectedEnumException(bindValue.getType());
 
         }
     }

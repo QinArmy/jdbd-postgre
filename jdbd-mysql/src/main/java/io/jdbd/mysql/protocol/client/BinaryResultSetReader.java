@@ -232,7 +232,7 @@ final class BinaryResultSetReader extends AbstractResultSetReader {
                         String.format("Server return error type[%s] alias[%s]."
                                 , columnMeta.mysqlType, columnMeta.columnAlias));
             default:
-                throw MySQLExceptions.createUnknownEnumException(columnMeta.mysqlType);
+                throw MySQLExceptions.createUnexpectedEnumException(columnMeta.mysqlType);
 
         }
         return columnValue;

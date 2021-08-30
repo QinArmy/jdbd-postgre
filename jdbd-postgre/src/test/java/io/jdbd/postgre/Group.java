@@ -8,6 +8,8 @@ public interface Group {
 
     String COPY_IN_PARSER = "copyInParser";
 
+    String COPY_OUT_PARSER = "copyOutParser";
+
     String UTILS = "utils";
 
     String SESSION_BUILDER = "sessionBuilder";

@@ -578,7 +578,7 @@ final class ComQueryTask extends MySQLCommandTask {
         this.packetPublisher = Flux.fromIterable(
                 ComQueryCommandWriter.createBindableCommand(stmt, this::addAndGetSequenceId, adjutant)
         );
-        this.downstreamSink = new QueryDownstreamSink(this, sink, stmt);
+        this.downstreamSink = new QueryDownstreamSink(this, sink, null);
     }
 
     /**
@@ -765,7 +765,7 @@ final class ComQueryTask extends MySQLCommandTask {
                     throw new IllegalStateException(String.format("%s phase[%s] error.", this, this.phase));
                 }
                 default:
-                    throw MySQLExceptions.createUnknownEnumException(this.phase);
+                    throw MySQLExceptions.createUnexpectedEnumException(this.phase);
             }
         }
         if (taskEnd) {
@@ -940,7 +940,7 @@ final class ComQueryTask extends MySQLCommandTask {
             }
             break;
             default:
-                throw MySQLExceptions.createUnknownEnumException(response);
+                throw MySQLExceptions.createUnexpectedEnumException(response);
         }
         return taskEnd;
     }

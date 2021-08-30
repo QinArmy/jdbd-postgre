@@ -1,13 +1,7 @@
 package io.jdbd.postgre.syntax;
 
 import io.jdbd.postgre.ServerParameter;
-import io.jdbd.postgre.stmt.BindableStmt;
-import io.jdbd.postgre.stmt.MultiBindStmt;
 import io.jdbd.postgre.util.PgExceptions;
-import io.jdbd.vendor.stmt.GroupStmt;
-import io.jdbd.vendor.stmt.MultiSqlStmt;
-import io.jdbd.vendor.stmt.StaticStmt;
-import io.jdbd.vendor.stmt.Stmt;
 import org.qinarmy.util.FastStack;
 import org.qinarmy.util.Pair;
 import org.qinarmy.util.Stack;
@@ -41,9 +35,13 @@ final class DefaultPgParser implements PgParser {
 
     private static final String FROM = "FROM";
 
+    private static final String TO = "TO";
+
     private static final String PROGRAM = "PROGRAM";
 
     private static final String STDIN = "STDIN";
+
+    private static final String STDOUT = "STDOUT";
 
     private static final char QUOTE = '\'';
 
@@ -159,8 +157,93 @@ final class DefaultPgParser implements PgParser {
     }
 
     @Override
-    public final CopyOut parseCopyOut(String sql) throws SQLException {
-        return null;
+    public final CopyOut parseCopyOut(final String sql) throws SQLException {
+
+        final char[] charArray = sql.toCharArray();
+        final int lastIndex = charArray.length - 1;
+        char ch;
+        boolean copyCommand = false, toClause = false, sourceParsed = false;
+        CopyOut copyOut = null;
+        for (int i = 0, bindIndex = 0; i < charArray.length; i++) {
+            ch = charArray[i];
+            if (Character.isWhitespace(ch)) {
+                continue;
+            }
+            if (ch == SLASH && i < lastIndex && charArray[i + 1] == STAR) {
+                // block comment.
+                i = skipBlockComment(sql, i);
+            } else if (ch == DASH && i < lastIndex && charArray[i + 1] == DASH) {
+                // line comment
+                int index = sql.indexOf('\n', i + DOUBLE_DASH_COMMENT_MARKER.length());
+                i = index > 0 ? index : charArray.length;
+            } else if (!copyCommand) {
+                if (i == lastIndex
+                        || !sql.regionMatches(true, i, COPY, 0, COPY.length())
+                        || !Character.isWhitespace(sql.charAt(i + COPY.length()))) {
+                    throw PgExceptions.createSyntaxError("Not found COPY command");
+                }
+                i += COPY.length();
+                copyCommand = true;
+            } else if (!sourceParsed) {
+                if (ch == '(') {
+                    // query ,skip query
+                    final Pair<Integer, Integer> pair;
+                    pair = skipCopyOutQuery(sql, charArray, i, bindIndex);
+                    i = pair.getFirst();
+                    bindIndex = pair.getSecond();
+                }
+                sourceParsed = true;
+            } else if (ch == DOUBLE_QUOTE) {
+                if (i < lastIndex) {
+                    i = sql.indexOf(DOUBLE_QUOTE, i + 1);
+                }
+                if (i < 0) {
+                    throw createDoubleQuotedIdentifierError(sql, i);
+                }
+            } else if (!toClause) {
+                if ((ch == 't' || ch == 'T')
+                        && Character.isWhitespace(charArray[i - 1])
+                        && (i + TO.length()) < lastIndex
+                        && Character.isWhitespace(charArray[i + TO.length()])
+                        && sql.regionMatches(true, i, TO, 0, TO.length())) {
+                    i += TO.length();
+                    toClause = true;
+                }
+            } else if (ch == '?') {
+                copyOut = new CopyOutFromLocalFileWithBind(bindIndex);
+                break;
+            } else if (i + 3 >= lastIndex) {
+                String m = String.format(
+                        "syntax error,TO clause error,at near %s", fragment(sql, i));
+                throw PgExceptions.createSyntaxError(m);
+            } else if ((ch == 'p' || ch == 'P')
+                    && sql.regionMatches(true, i, PROGRAM, 0, PROGRAM.length())
+                    && Character.isWhitespace(charArray[i + PROGRAM.length()])) {
+                // PROGRAM 'command' not supported by client,because command only find in postgre server.
+                throw new SQLException("COPY TO PROGRAM 'command' not supported by jdbd-postgre");
+            } else if ((ch == 's' || ch == 'S')
+                    && sql.regionMatches(true, i, STDOUT, 0, STDOUT.length())
+                    && (i + STDOUT.length() == lastIndex || Character.isWhitespace(charArray[i + STDOUT.length()]))) {
+                // STDOUT not supported by client,because postgre at least 12.6 or 12.8 disconnect when send CopyData message.
+                throw new SQLException("COPY TO STDIN not supported by jdbd-postgre");
+            } else { // 'filename'
+                try {
+                    final String fileName;
+                    fileName = parseStringConstant(sql, charArray, i);
+                    copyOut = new CopyOutFromPath(Paths.get(fileName));
+                    break;
+                } catch (SQLException e) {
+                    LOG.debug("COPY OUT TO clause parse filename error.", e);
+                    String m = String.format("syntax error,TO clause error,at near %s", fragment(sql, i));
+                    throw PgExceptions.createSyntaxError(m);
+                }
+            }
+
+        } // for
+        if (copyOut == null) {
+            throw PgExceptions.createSyntaxError("Not Found TO clause in COPY COMMAND.");
+        }
+        return copyOut;
     }
 
     @Override
@@ -277,7 +360,7 @@ final class DefaultPgParser implements PgParser {
                         stmtCount++;
                         break loop; // break for
                     default:
-                        throw PgExceptions.createUnknownEnumException(mode);
+                        throw PgExceptions.createUnexpectedEnumException(mode);
                 }
             }
 
@@ -316,12 +399,118 @@ final class DefaultPgParser implements PgParser {
             }
             break;
             default:
-                throw PgExceptions.createUnknownEnumException(mode);
+                throw PgExceptions.createUnexpectedEnumException(mode);
         }
         if (isTrace) {
             LOG.trace("SQL[{}] \nparse cost {} ms.", multiStmt, System.currentTimeMillis() - startMillis);
         }
         return parseResult;
+    }
+
+    /**
+     * @return first: index of {@code )} ; second: next bind index.
+     * @see #parseCopyOut(String)
+     */
+    private Pair<Integer, Integer> skipCopyOutQuery(final String sql, final char[] charArray, int i, int bindIndex)
+            throws SQLException {
+
+        final Stack<Boolean> bracketStack = new FastStack<>();
+        if (charArray[i] != '(') {
+            throw new IllegalArgumentException("Not Query");
+        }
+        i++;
+        bracketStack.push(Boolean.TRUE);
+
+
+        final int lastIndex = charArray.length - 1;
+        final boolean confirmStringOff = confirmStringIsOff();
+
+
+        boolean inQuoteString = false, inCStyleEscapes = false, inUnicodeEscapes = false, inDoubleIdentifier = false;
+        char ch;
+        for (; i < charArray.length; i++) {
+            ch = charArray[i];
+            if (inQuoteString) {
+                final int index = sql.indexOf(QUOTE, i);
+                if (index < 0) {
+                    throw createQuoteNotCloseError(sql, i);
+                }
+                if ((confirmStringOff || inCStyleEscapes) && charArray[index - 1] == BACK_SLASH) {
+                    // C-Style Escapes
+                    i = index;
+                } else if (index < lastIndex && charArray[index + 1] == QUOTE) {
+                    // double quote Escapes
+                    i = index + 1;
+                } else {
+                    i = index;
+                    inQuoteString = false; // string constant end.
+                    if (inUnicodeEscapes) {
+                        inUnicodeEscapes = false;
+                    } else if (inCStyleEscapes) {
+                        inCStyleEscapes = false;
+                    }
+                }
+            } else if (inDoubleIdentifier) {
+                final int index = sql.indexOf(DOUBLE_QUOTE, i);
+                if (index < 0) {
+                    throw createDoubleQuotedIdentifierError(sql, i);
+                }
+                inDoubleIdentifier = false;
+                if (inUnicodeEscapes) {
+                    inUnicodeEscapes = false;
+                }
+                i = index;
+            } else if (ch == SLASH && i < lastIndex && charArray[i + 1] == STAR) {
+                // block comment.
+                i = skipBlockComment(sql, i);
+            } else if (ch == DASH && i < lastIndex && charArray[i + 1] == DASH) {
+                // line comment
+                int index = sql.indexOf('\n', i + DOUBLE_DASH_COMMENT_MARKER.length());
+                i = index > 0 ? index : charArray.length;
+            } else if (ch == QUOTE) {
+                inQuoteString = true;
+            } else if ((ch == 'E' || ch == 'e') && i < lastIndex && charArray[i + 1] == QUOTE) {
+                inQuoteString = inCStyleEscapes = true;
+                i++;
+            } else if ((ch == 'U' || ch == 'u')
+                    && i < lastIndex && charArray[i + 1] == '&'
+                    && i + 2 < charArray.length && charArray[i + 2] == QUOTE) {
+                inQuoteString = inUnicodeEscapes = true;
+                i += 2;
+            } else if (ch == DOUBLE_QUOTE) {
+                inDoubleIdentifier = true;
+            } else if ((ch == 'U' || ch == 'u')
+                    && i < lastIndex && charArray[i + 1] == '&'
+                    && i + 2 < charArray.length && charArray[i + 2] == DOUBLE_QUOTE) {
+                inDoubleIdentifier = inUnicodeEscapes = true;
+                i += 2;
+            } else if (ch == DOLLAR) {
+                // Dollar-Quoted String Constants
+                int index = sql.indexOf(DOLLAR, i + 1);
+                if (index < 0) {
+                    throw PgExceptions.createSyntaxError("syntax error at or near \"$\"");
+                }
+                final String dollarTag = sql.substring(i, index + 1);
+                index = sql.indexOf(dollarTag, index + 1);
+                if (index < 0) {
+                    String msg = String.format(
+                            "syntax error,Dollar-Quoted String Constants not close, at or near \"%s\"", dollarTag);
+                    throw PgExceptions.createSyntaxError(msg);
+                }
+                i = index + dollarTag.length() - 1;
+            } else if (ch == '?') {
+                bindIndex++;
+            } else if (ch == ')') {
+                bracketStack.pop();
+                if (bracketStack.isEmpty()) {
+                    // query end.
+                    break;
+                }
+            } else if (ch == '(') {
+                bracketStack.push(Boolean.TRUE);
+            }
+        }
+        return new Pair<>(i, bindIndex);
     }
 
     private boolean confirmStringIsOff() {
@@ -443,44 +632,6 @@ final class DefaultPgParser implements PgParser {
     }
 
 
-    /**
-     * @see #parseCopyIn(String)
-     */
-    private Pair<String, Boolean> obtainSqlPair(final Stmt stmt, final int stmtIndex) {
-        final boolean single;
-        final String sql;
-        if (stmt instanceof BindableStmt) {
-            sql = ((BindableStmt) stmt).getSql();
-            single = true;
-        } else if (stmt instanceof MultiBindStmt) {
-            final List<BindableStmt> stmtGroup = ((MultiBindStmt) stmt).getStmtGroup();
-            if (stmtIndex < stmtGroup.size()) {
-                sql = stmtGroup.get(stmtIndex).getSql();
-                single = true;
-            } else {
-                throw new IllegalArgumentException(String.format("Not found Copy command for index[%s]", stmtIndex));
-            }
-        } else if (stmt instanceof StaticStmt) {
-            sql = ((StaticStmt) stmt).getSql();
-            single = false; // maybe multi static stmt
-        } else if (stmt instanceof GroupStmt) {
-            final List<String> sqlGroup = ((GroupStmt) stmt).getSqlGroup();
-            if (stmtIndex < sqlGroup.size()) {
-                sql = sqlGroup.get(stmtIndex);
-                single = true;
-            } else {
-                throw new IllegalArgumentException(String.format("Not found Copy command for index[%s]", stmtIndex));
-            }
-        } else if (stmt instanceof MultiSqlStmt) {
-            sql = ((MultiSqlStmt) stmt).getMultiSql();
-            single = false;
-        } else {
-            throw new IllegalArgumentException(String.format("Unknown statement type[%s]", stmt.getClass().getName()));
-        }
-        return new Pair<>(sql, single);
-    }
-
-
     private static SQLException createQuoteNotCloseError(String sql, int index) {
         String m = String.format("Syntax error,string constants not close at near %s .", fragment(sql, index));
         return PgExceptions.createSyntaxError(m);
@@ -561,7 +712,68 @@ final class DefaultPgParser implements PgParser {
 
         @Override
         public final Path getPath() {
-            throw new IllegalStateException(String.format("bind index[%s] great zero.", this.bindIndex));
+            throw new IllegalStateException(String.format("bind index[%s] great -1.", this.bindIndex));
+        }
+
+        @Override
+        public final String getCommand() {
+            throw new IllegalStateException(String.format("Mode isn't %s .", Mode.PROGRAM));
+        }
+
+    }
+
+    private static final class CopyOutFromPath implements CopyOut {
+
+        private final Path path;
+
+        private CopyOutFromPath(Path path) {
+            this.path = path;
+        }
+
+
+        @Override
+        public final Mode getMode() {
+            return Mode.FILE;
+        }
+
+        @Override
+        public final int getBindIndex() {
+            return -1;
+        }
+
+        @Override
+        public final Path getPath() {
+            return this.path;
+        }
+
+        @Override
+        public final String getCommand() {
+            throw new IllegalStateException(String.format("Mode isn't %s .", Mode.PROGRAM));
+        }
+
+    }
+
+    private static final class CopyOutFromLocalFileWithBind implements CopyOut {
+
+        private CopyOutFromLocalFileWithBind(int bindIndex) {
+            this.bindIndex = bindIndex;
+        }
+
+        private final int bindIndex;
+
+        @Override
+        public Mode getMode() {
+            return Mode.FILE;
+        }
+
+        @Override
+        public final int getBindIndex() {
+            return this.bindIndex;
+        }
+
+        @Override
+        public final Path getPath() {
+            throw new IllegalStateException(String.format("bind index[%s] great -1.", this.bindIndex));
         }
 
         @Override

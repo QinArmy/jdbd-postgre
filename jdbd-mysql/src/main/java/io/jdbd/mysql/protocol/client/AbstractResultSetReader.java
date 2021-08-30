@@ -108,7 +108,7 @@ abstract class AbstractResultSetReader implements ResultSetReader {
                 }
                 break;
                 default:
-                    throw MySQLExceptions.createUnknownEnumException(this.phase);
+                    throw MySQLExceptions.createUnexpectedEnumException(this.phase);
             }
         }
         if (resultSetEnd) {
@@ -326,7 +326,7 @@ abstract class AbstractResultSetReader implements ResultSetReader {
             case CONVERT_TO_NULL:
                 break;
             default:
-                throw MySQLExceptions.createUnknownEnumException(behavior);
+                throw MySQLExceptions.createUnexpectedEnumException(behavior);
         }
         return date;
     }

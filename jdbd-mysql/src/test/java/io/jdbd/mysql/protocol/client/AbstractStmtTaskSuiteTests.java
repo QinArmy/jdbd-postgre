@@ -1860,7 +1860,7 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBased
                 newId = id + 150L;
                 break;
             default:
-                throw MySQLExceptions.createUnknownEnumException(this.subType);
+                throw MySQLExceptions.createUnexpectedEnumException(this.subType);
 
         }
         return newId;

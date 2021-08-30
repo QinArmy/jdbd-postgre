@@ -206,7 +206,7 @@ public final class DefaultMySQLParser implements MySQLParser {
                     }
                     break;
                     default:
-                        throw MySQLExceptions.createUnknownEnumException(mode);
+                        throw MySQLExceptions.createUnexpectedEnumException(mode);
                 }
             } else if (ch == '?') {
                 if (mode == Mode.PARSE) {
@@ -263,7 +263,7 @@ public final class DefaultMySQLParser implements MySQLParser {
             }
             break;
             default:
-                throw MySQLExceptions.createUnknownEnumException(mode);
+                throw MySQLExceptions.createUnexpectedEnumException(mode);
         }
 
         return returnValue;

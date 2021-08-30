@@ -371,7 +371,7 @@ final class SimpleQueryTask extends AbstractStmtTask {
                 case END:
                     throw new IllegalStateException("Task have ended.");
                 default: {
-                    throw PgExceptions.createUnknownEnumException(this.phase);
+                    throw PgExceptions.createUnexpectedEnumException(this.phase);
                 }
             }
         }

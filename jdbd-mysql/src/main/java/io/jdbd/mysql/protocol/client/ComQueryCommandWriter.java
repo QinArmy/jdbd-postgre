@@ -452,7 +452,7 @@ final class ComQueryCommandWriter {
             case UNKNOWN:
                 throw MySQLExceptions.createUnsupportedParamTypeError(stmtIndex, bindValue.getType(), bindValue);
             default:
-                throw MySQLExceptions.createUnknownEnumException(bindValue.getType());
+                throw MySQLExceptions.createUnexpectedEnumException(bindValue.getType());
         }
         return newBuffer;
     }

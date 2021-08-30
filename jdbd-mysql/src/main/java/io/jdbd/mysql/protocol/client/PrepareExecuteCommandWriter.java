@@ -404,7 +404,7 @@ final class PrepareExecuteCommandWriter implements ExecuteCommandWriter {
             case UNKNOWN:
                 throw MySQLExceptions.createUnsupportedParamTypeError(stmtIndex, meta.mysqlType, paramValue);
             default:
-                throw MySQLExceptions.createUnknownEnumException(meta.mysqlType);
+                throw MySQLExceptions.createUnexpectedEnumException(meta.mysqlType);
         }
     }
 

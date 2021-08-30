@@ -8,6 +8,7 @@
             <class name="io.jdbd.postgre.syntax.PgParserSuiteTests"/>
 
             <class name="io.jdbd.postgre.syntax.PgCopyInParseSuiteTests"/>
+            <class name="io.jdbd.postgre.syntax.CopyOutParseSuiteTests"/>
 
             <class name="io.jdbd.postgre.protocol.client.PgConnectionTaskSuiteTests"/>
             <class name="io.jdbd.postgre.protocol.client.TaskTestAdvice"/>

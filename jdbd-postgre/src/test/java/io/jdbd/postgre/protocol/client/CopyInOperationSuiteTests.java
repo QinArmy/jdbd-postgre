@@ -1,6 +1,7 @@
 package io.jdbd.postgre.protocol.client;
 
 import io.jdbd.JdbdSQLException;
+import io.jdbd.postgre.Group;
 import io.jdbd.postgre.PgType;
 import io.jdbd.postgre.stmt.BindValue;
 import io.jdbd.postgre.stmt.BindableStmt;
@@ -23,19 +24,22 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
-import java.util.function.Function;
 
 import static org.testng.Assert.*;
 
 /**
  * <p>
- * This class is test class of {@link SimpleQueryTask}.
+ * This class is test class of below:
+ * <ul>
+ *     <li>{@link SimpleQueryTask}</li>
+ *     <li>{@link ExtendedQueryTask}</li>
+ * </ul>
  * </p>
  *
  * @see SimpleQueryTask
  */
-//@Test(groups = {Group.COPY_IN_OPERATION}, dependsOnGroups = {Group.URL, Group.PARSER, Group.UTILS, Group.SESSION_BUILDER
-//        , Group.TASK_TEST_ADVICE, Group.SIMPLE_QUERY_TASK, Group.EXTENDED_QUERY_TASK})
+@Test(groups = {Group.COPY_IN_OPERATION}, dependsOnGroups = {Group.URL, Group.PARSER, Group.UTILS, Group.SESSION_BUILDER
+        , Group.TASK_TEST_ADVICE, Group.SIMPLE_QUERY_TASK, Group.EXTENDED_QUERY_TASK})
 public class CopyInOperationSuiteTests extends AbstractTaskTests {
 
     private static final Logger LOG = LoggerFactory.getLogger(CopyInOperationSuiteTests.class);
@@ -277,10 +281,7 @@ public class CopyInOperationSuiteTests extends AbstractTaskTests {
                 "/* comment */ COPY my_copies(create_time,my_varchar) FROM --comment%sSTDIN  WITH CSV"
                 , LINE_SEPARATOR);
 
-        final Function<String, Publisher<byte[]>> function;
-        function = nothing -> new CopyInDataPublisher(Paths.get(DATA_DIR, "data/copy/my_copies.csv"));
-
-        SimpleQueryTask.update(PgStmts.stmtWithImport(sql, function), adjutant)
+        SimpleQueryTask.update(PgStmts.stmt(sql), adjutant)
 
                 .concatWith(releaseConnection(protocol))
                 .onErrorResume(releaseConnectionOnError(protocol))

@@ -234,7 +234,7 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
             throws SQLException {
         super(adjutant, sink::error);
 
-        this.packetPublisher = createPrepareCommand(stmt);
+        this.packetPublisher = createPrepareCommand(null);
         this.downstreamSink = new UpdateDownstreamSink(this, stmt, sink);
     }
 
@@ -248,7 +248,7 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
     private ComPreparedTask(final ParamStmt wrapper, final FluxSink<ResultRow> sink
             , final TaskAdjutant adjutant) throws SQLException {
         super(adjutant, sink::error);
-        this.packetPublisher = createPrepareCommand(wrapper);
+        this.packetPublisher = createPrepareCommand(null);
         this.downstreamSink = new QueryDownstreamSink(this, wrapper, sink);
     }
 
@@ -258,7 +258,7 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
     private ComPreparedTask(final FluxSink<ResultState> sink, final BatchParamStmt<? extends ParamValue> wrapper
             , final TaskAdjutant adjutant) throws SQLException {
         super(adjutant, sink::error);
-        this.packetPublisher = createPrepareCommand(wrapper);
+        this.packetPublisher = createPrepareCommand(null);
         this.downstreamSink = new BatchUpdateSink<>(this, wrapper, sink);
     }
 
@@ -270,7 +270,7 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
     private ComPreparedTask(BatchParamStmt<? extends ParamValue> stmt, MultiResultSink sink, TaskAdjutant adjutant)
             throws SQLException {
         super(adjutant, sink::error);
-        this.packetPublisher = createPrepareCommand(stmt);
+        this.packetPublisher = createPrepareCommand(null);
         this.downstreamSink = new BatchMultiResultDownstreamSink<>(this, stmt, sink);
     }
 

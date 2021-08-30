@@ -6,7 +6,6 @@ import io.jdbd.result.ResultState;
 import io.jdbd.vendor.util.JdbdCollections;
 import io.jdbd.vendor.util.JdbdFunctions;
 import org.reactivestreams.Publisher;
-import org.reactivestreams.Subscriber;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -267,10 +266,6 @@ public abstract class JdbdStmts {
             return null;
         }
 
-        @Override
-        public final Function<String, Subscriber<byte[]>> getExportSubscriber() {
-            return null;
-        }
     }
 
     private static class StmtImpImport2 implements StaticStmt {
@@ -304,10 +299,6 @@ public abstract class JdbdStmts {
             return this.function;
         }
 
-        @Override
-        public final Function<String, Subscriber<byte[]>> getExportSubscriber() {
-            return null;
-        }
 
     }
 
