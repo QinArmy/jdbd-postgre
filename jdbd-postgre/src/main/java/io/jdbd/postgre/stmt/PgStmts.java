@@ -17,19 +17,19 @@ import java.util.function.Function;
 public abstract class PgStmts extends JdbdStmts {
 
 
-    public static BindableStmt single(String sql, PgType type, @Nullable Object value) {
+    public static BindStmt single(String sql, PgType type, @Nullable Object value) {
         return new BindableStmtForSimple(sql, Collections.singletonList(BindValue.create(0, type, value)));
     }
 
-    public static BindableStmt bindable(String sql, List<BindValue> paramGroup) {
+    public static BindStmt bindable(String sql, List<BindValue> paramGroup) {
         return new BindableStmtForSimple(sql, paramGroup);
     }
 
-    public static BindableStmt bindable(String sql, BindValue param) {
+    public static BindStmt bindable(String sql, BindValue param) {
         return new BindableStmtForSimple(sql, param);
     }
 
-    public static BindableStmt bindableWithImport(String sql, BindValue param
+    public static BindStmt bindableWithImport(String sql, BindValue param
             , Function<String, Publisher<byte[]>> function) {
         return new BindableStmtWithImport(sql, param, function);
     }
@@ -42,11 +42,11 @@ public abstract class PgStmts extends JdbdStmts {
         return new BatchBindStmtImpl(sql, groupList, timeout);
     }
 
-    public static MultiBindStmt multi(List<BindableStmt> stmtGroup) {
+    public static MultiBindStmt multi(List<BindStmt> stmtGroup) {
         return new MultiBindStmtImpl(stmtGroup, 0);
     }
 
-    private static final class BindableStmtForSimple implements BindableStmt {
+    private static final class BindableStmtForSimple implements BindStmt {
 
         private final String sql;
 
@@ -89,7 +89,7 @@ public abstract class PgStmts extends JdbdStmts {
 
     }
 
-    private static final class BindableStmtWithImport implements BindableStmt {
+    private static final class BindableStmtWithImport implements BindStmt {
 
         private final String sql;
 
@@ -173,17 +173,17 @@ public abstract class PgStmts extends JdbdStmts {
 
     private static final class MultiBindStmtImpl implements MultiBindStmt {
 
-        private final List<BindableStmt> stmtGroup;
+        private final List<BindStmt> stmtGroup;
 
         private final int timeout;
 
-        private MultiBindStmtImpl(List<BindableStmt> stmtGroup, int timeout) {
+        private MultiBindStmtImpl(List<BindStmt> stmtGroup, int timeout) {
             this.stmtGroup = Collections.unmodifiableList(stmtGroup);
             this.timeout = timeout;
         }
 
         @Override
-        public final List<BindableStmt> getStmtGroup() {
+        public final List<BindStmt> getStmtGroup() {
             return this.stmtGroup;
         }
 

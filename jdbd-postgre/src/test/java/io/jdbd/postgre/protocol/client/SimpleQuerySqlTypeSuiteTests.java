@@ -1,7 +1,7 @@
 package io.jdbd.postgre.protocol.client;
 
 import io.jdbd.postgre.Group;
-import io.jdbd.postgre.stmt.BindableStmt;
+import io.jdbd.postgre.stmt.BindStmt;
 import io.jdbd.result.ResultRow;
 import io.jdbd.result.ResultState;
 import org.testng.annotations.Test;
@@ -32,12 +32,12 @@ public class SimpleQuerySqlTypeSuiteTests extends AbstractStmtTaskTests {
 
 
     @Override
-    final BiFunction<BindableStmt, TaskAdjutant, Mono<ResultState>> updateFunction() {
+    final BiFunction<BindStmt, TaskAdjutant, Mono<ResultState>> updateFunction() {
         return SimpleQueryTask::bindableUpdate;
     }
 
     @Override
-    final BiFunction<BindableStmt, TaskAdjutant, Flux<ResultRow>> queryFunction() {
+    final BiFunction<BindStmt, TaskAdjutant, Flux<ResultRow>> queryFunction() {
         return SimpleQueryTask::bindableQuery;
     }
 

@@ -1,8 +1,8 @@
 package io.jdbd.postgre.protocol.client;
 
 import io.jdbd.postgre.stmt.BatchBindStmt;
+import io.jdbd.postgre.stmt.BindStmt;
 import io.jdbd.postgre.stmt.BindValue;
-import io.jdbd.postgre.stmt.BindableStmt;
 import io.jdbd.postgre.stmt.MultiBindStmt;
 import io.jdbd.postgre.syntax.PgParser;
 import io.jdbd.postgre.syntax.PgStatement;
@@ -92,7 +92,7 @@ final class QueryCommandWriter {
     }
 
 
-    static Publisher<ByteBuf> createBindableCommand(BindableStmt stmt, TaskAdjutant adjutant)
+    static Publisher<ByteBuf> createBindableCommand(BindStmt stmt, TaskAdjutant adjutant)
             throws Throwable {
         ByteBuf message;
         message = new QueryCommandWriter(adjutant)
@@ -148,9 +148,9 @@ final class QueryCommandWriter {
 
     /**
      * @see #createMultiStmtCommand(MultiBindStmt, TaskAdjutant)
-     * @see #createBindableCommand(BindableStmt, TaskAdjutant)
+     * @see #createBindableCommand(BindStmt, TaskAdjutant)
      */
-    private ByteBuf writeMultiBindCommand(final List<BindableStmt> stmtList) throws Throwable {
+    private ByteBuf writeMultiBindCommand(final List<BindStmt> stmtList) throws Throwable {
         final TaskAdjutant adjutant = this.adjutant;
         int capacity = stmtList.size() << 7;
         if (capacity < 0) {
@@ -164,7 +164,7 @@ final class QueryCommandWriter {
 
             final PgParser sqlParser = adjutant.sqlParser();
             PgStatement statement;
-            BindableStmt stmt;
+            BindStmt stmt;
             final int stmtCount = stmtList.size();
             for (int i = 0; i < stmtCount; i++) {
                 stmt = stmtList.get(i);

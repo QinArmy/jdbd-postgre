@@ -1,7 +1,8 @@
 package io.jdbd.postgre.protocol.client;
 
+import io.jdbd.postgre.session.PgDatabaseSession;
 import io.jdbd.postgre.stmt.BatchBindStmt;
-import io.jdbd.postgre.stmt.BindableStmt;
+import io.jdbd.postgre.stmt.BindStmt;
 import io.jdbd.postgre.stmt.MultiBindStmt;
 import io.jdbd.result.MultiResult;
 import io.jdbd.result.Result;
@@ -9,6 +10,7 @@ import io.jdbd.result.ResultRow;
 import io.jdbd.result.ResultState;
 import io.jdbd.stmt.BindableStatement;
 import io.jdbd.stmt.MultiStatement;
+import io.jdbd.stmt.PreparedStatement;
 import io.jdbd.stmt.StaticStatement;
 import io.jdbd.vendor.stmt.GroupStmt;
 import io.jdbd.vendor.stmt.StaticStmt;
@@ -71,7 +73,7 @@ public interface ClientProtocol {
      * This method is one of underlying api of {@link BindableStatement#executeUpdate()} method.
      * </p>
      */
-    Mono<ResultState> bindableUpdate(BindableStmt stmt);
+    Mono<ResultState> bindableUpdate(BindStmt stmt);
 
     /**
      * <p>
@@ -82,7 +84,7 @@ public interface ClientProtocol {
      * </ul>
      * </p>
      */
-    Flux<ResultRow> bindableQuery(BindableStmt stmt);
+    Flux<ResultRow> bindableQuery(BindStmt stmt);
 
     /**
      * <p>
@@ -122,7 +124,10 @@ public interface ClientProtocol {
     Flux<Result> multiStmtAsFlux(MultiBindStmt stmt);
 
 
-    /*################################## blow for sessioin ##################################*/
+    Mono<PreparedStatement> prepare(String sql, PgDatabaseSession session);
+
+
+    /*################################## blow for session ##################################*/
 
 
     Mono<ClientProtocol> reset();

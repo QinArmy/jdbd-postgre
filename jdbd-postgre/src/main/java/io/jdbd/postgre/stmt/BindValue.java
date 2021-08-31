@@ -5,7 +5,7 @@ import io.jdbd.vendor.stmt.JdbdParamValue;
 import reactor.util.annotation.Nullable;
 
 /**
- * @see BindableStmt
+ * @see BindStmt
  */
 public final class BindValue extends JdbdParamValue {
 

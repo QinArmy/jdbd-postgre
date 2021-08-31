@@ -305,7 +305,7 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
      *
      * </p>
      *
-     * @see SimpleQueryTask#bindableUpdate(BindableStmt, TaskAdjutant)
+     * @see SimpleQueryTask#bindableUpdate(BindStmt, TaskAdjutant)
      */
     @Test
     public void bindableUpdate() {
@@ -342,7 +342,7 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
 
 
     /**
-     * @see SimpleQueryTask#bindableQuery(BindableStmt, TaskAdjutant)
+     * @see SimpleQueryTask#bindableQuery(BindStmt, TaskAdjutant)
      */
     @Test
     public void bindableQuery() {
@@ -724,7 +724,7 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
 
         String sql;
         List<BindValue> valueList;
-        final List<BindableStmt> stmtList = new ArrayList<>(3);
+        final List<BindStmt> stmtList = new ArrayList<>(3);
         sql = "SELECT t.* FROM my_types AS t WHERE t.id = ?";
         stmtList.add(PgStmts.bindable(sql, Collections.singletonList(BindValue.create(0, PgType.BIGINT, bindId++))));
 
@@ -792,7 +792,7 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
 
         String sql;
         List<BindValue> valueList;
-        final List<BindableStmt> stmtList = new ArrayList<>(3);
+        final List<BindStmt> stmtList = new ArrayList<>(3);
         sql = "SELECT t.* FROM my_types AS t WHERE t.id = ?";
         stmtList.add(PgStmts.bindable(sql, Collections.singletonList(BindValue.create(0, PgType.BIGINT, bindId++))));
 
@@ -1083,7 +1083,7 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
 
 
     /**
-     * @see SimpleQueryTask#bindableUpdate(BindableStmt, TaskAdjutant)
+     * @see SimpleQueryTask#bindableUpdate(BindStmt, TaskAdjutant)
      */
     @Test(expectedExceptions = JdbdSQLException.class)
     public void bindableUpdateInCorrectUserCase1() {
@@ -1110,7 +1110,7 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
     }
 
     /**
-     * @see SimpleQueryTask#bindableUpdate(BindableStmt, TaskAdjutant)
+     * @see SimpleQueryTask#bindableUpdate(BindStmt, TaskAdjutant)
      */
     @Test(expectedExceptions = JdbdSQLException.class)
     public void bindableUpdateInCorrectUserCase2() {
@@ -1140,7 +1140,7 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
     }
 
     /**
-     * @see SimpleQueryTask#bindableUpdate(BindableStmt, TaskAdjutant)
+     * @see SimpleQueryTask#bindableUpdate(BindStmt, TaskAdjutant)
      */
     @Test(expectedExceptions = SubscribeException.class)
     public void bindableUpdateInCorrectUserCase3() {
@@ -1166,7 +1166,7 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
     }
 
     /**
-     * @see SimpleQueryTask#bindableQuery(BindableStmt, TaskAdjutant)
+     * @see SimpleQueryTask#bindableQuery(BindStmt, TaskAdjutant)
      */
     @Test(expectedExceptions = JdbdSQLException.class)
     public void bindableQueryIncorrectUserCase1() {
@@ -1191,7 +1191,7 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
     }
 
     /**
-     * @see SimpleQueryTask#bindableQuery(BindableStmt, TaskAdjutant)
+     * @see SimpleQueryTask#bindableQuery(BindStmt, TaskAdjutant)
      */
     @Test(expectedExceptions = SubscribeException.class)
     public void bindableQueryIncorrectUserCase2() {
@@ -1219,7 +1219,7 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
     }
 
     /**
-     * @see SimpleQueryTask#bindableQuery(BindableStmt, TaskAdjutant)
+     * @see SimpleQueryTask#bindableQuery(BindStmt, TaskAdjutant)
      */
     @Test(expectedExceptions = JdbdSQLException.class)
     public void bindableQueryIncorrectUserCase3() {

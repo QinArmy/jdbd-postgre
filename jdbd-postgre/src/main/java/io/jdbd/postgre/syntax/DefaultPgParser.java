@@ -399,7 +399,7 @@ final class DefaultPgParser implements PgParser {
                     endpointList.add(multiStmt.substring(lastEndpointEnd));
                 }
                 if (endpointList.size() == 1) {
-                    parseResult = Collections.singleton(endpointList.get(0));
+                    parseResult = Collections.singletonList(endpointList.get(0));
                 } else {
                     parseResult = Collections.unmodifiableList(endpointList);
                 }

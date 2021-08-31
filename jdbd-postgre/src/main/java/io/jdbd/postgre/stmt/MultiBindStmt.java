@@ -7,7 +7,7 @@ import java.util.List;
 
 public interface MultiBindStmt extends Stmt, IoAbleStmt {
 
-    List<BindableStmt> getStmtGroup();
+    List<BindStmt> getStmtGroup();
 
 
 }

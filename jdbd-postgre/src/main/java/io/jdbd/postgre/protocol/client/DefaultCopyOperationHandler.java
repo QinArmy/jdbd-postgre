@@ -3,8 +3,8 @@ package io.jdbd.postgre.protocol.client;
 import io.jdbd.JdbdSQLException;
 import io.jdbd.postgre.PgJdbdException;
 import io.jdbd.postgre.stmt.BatchBindStmt;
+import io.jdbd.postgre.stmt.BindStmt;
 import io.jdbd.postgre.stmt.BindValue;
-import io.jdbd.postgre.stmt.BindableStmt;
 import io.jdbd.postgre.stmt.MultiBindStmt;
 import io.jdbd.postgre.syntax.CopyIn;
 import io.jdbd.postgre.syntax.CopyOperation;
@@ -24,6 +24,8 @@ import org.qinarmy.util.UnexpectedEnumException;
 import org.reactivestreams.Publisher;
 import org.reactivestreams.Subscriber;
 import org.reactivestreams.Subscription;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.FluxSink;
 import reactor.core.publisher.Mono;
@@ -44,6 +46,8 @@ final class DefaultCopyOperationHandler implements CopyOperationHandler {
     static DefaultCopyOperationHandler create(AbstractStmtTask task, Consumer<Publisher<ByteBuf>> messageSender) {
         return new DefaultCopyOperationHandler(task, messageSender);
     }
+
+    private static final Logger LOG = LoggerFactory.getLogger(DefaultCopyOperationHandler.class);
 
     private final AbstractStmtTask task;
 
@@ -146,7 +150,7 @@ final class DefaultCopyOperationHandler implements CopyOperationHandler {
             } else {
                 String msg = String.format("Handle statement[index:%s] copy-out failure,message:%s"
                         , resultIndex, e.getMessage());
-                error = new PgJdbdException(msg);
+                error = new PgJdbdException(msg, e);
             }
             this.task.addErrorToTask(error);
             this.copyOutHandler = new SubscriberCopyOutHandler(this.task); // skip all copy data.
@@ -246,8 +250,8 @@ final class DefaultCopyOperationHandler implements CopyOperationHandler {
         final Path path;
         if (bindIndex < 0) {
             path = copyOperation.getPath();
-        } else if (stmt instanceof BindableStmt) {
-            path = obtainPathFromParamGroup(((BindableStmt) stmt).getParamGroup(), resultIndex, bindIndex);
+        } else if (stmt instanceof BindStmt) {
+            path = obtainPathFromParamGroup(((BindStmt) stmt).getParamGroup(), resultIndex, bindIndex);
         } else if (stmt instanceof BatchBindStmt) {
             final List<List<BindValue>> groupList = ((BatchBindStmt) stmt).getGroupList();
             if (resultIndex >= groupList.size()) {
@@ -256,7 +260,7 @@ final class DefaultCopyOperationHandler implements CopyOperationHandler {
             }
             path = obtainPathFromParamGroup(groupList.get(resultIndex), resultIndex, bindIndex);
         } else if (stmt instanceof MultiBindStmt) {
-            final List<BindableStmt> stmtGroup = ((MultiBindStmt) stmt).getStmtGroup();
+            final List<BindStmt> stmtGroup = ((MultiBindStmt) stmt).getStmtGroup();
             if (resultIndex >= stmtGroup.size()) {
                 // here  bug
                 throw new IllegalStateException(String.format("IllegalState can't found COPY command,%s", this));
@@ -372,7 +376,7 @@ final class DefaultCopyOperationHandler implements CopyOperationHandler {
                         , StaticStatement.class.getName()));
             }
             function = stmt.getExportSubscriber();
-        } else if (stmt instanceof BindableStmt) {
+        } else if (stmt instanceof BindStmt) {
             if (resultIndex != 0) {
                 // here 1. bug ; 2. postgre CALL command add new feature that CALL command can return multi CommendComplete message.
                 throw new SQLException(String.format("COPY-OUT only is supported with single result in %s"
@@ -387,7 +391,7 @@ final class DefaultCopyOperationHandler implements CopyOperationHandler {
             }
             function = stmt.getExportSubscriber();
         } else if (stmt instanceof MultiBindStmt) {
-            final List<BindableStmt> stmtGroup = ((MultiBindStmt) stmt).getStmtGroup();
+            final List<BindStmt> stmtGroup = ((MultiBindStmt) stmt).getStmtGroup();
             if (resultIndex >= stmtGroup.size()) {
                 // here 1. bug ; 2. postgre CALL command add new feature that CALL command can return multi CommendComplete message.
                 throw new SQLException("Not found Subscriber for COPY-OUT.");
@@ -462,16 +466,16 @@ final class DefaultCopyOperationHandler implements CopyOperationHandler {
                 throw new SQLException(String.format("IllegalState can't found COPY command,%s", this));
             }
             copyOperation = (T) cacheCopy;
-        } else if (stmt instanceof BindableStmt) {
+        } else if (stmt instanceof BindStmt) {
             if (resultIndex != 0) {
                 // here  postgre CALL command add new feature that CALL command can return multi CommendComplete message.
                 String m;
                 m = String.format("Postgre response %s CommendComplete message,but expect one.", resultIndex + 1);
                 throw new PgJdbdException(m);
             }
-            copyOperation = function.apply(((BindableStmt) stmt).getSql());
+            copyOperation = function.apply(((BindStmt) stmt).getSql());
         } else if (stmt instanceof MultiBindStmt) {
-            final List<BindableStmt> stmtGroup = ((MultiBindStmt) stmt).getStmtGroup();
+            final List<BindStmt> stmtGroup = ((MultiBindStmt) stmt).getStmtGroup();
             if (resultIndex >= stmtGroup.size()) {
                 // here 1. bug ; 2. postgre CALL command add new feature that CALL command can return multi CommendComplete message.
                 throw new IllegalStateException(String.format("IllegalState can't found COPY command,%s", this));
@@ -533,6 +537,10 @@ final class DefaultCopyOperationHandler implements CopyOperationHandler {
             this.task = task;
             FileChannel channel;
             try {
+                final Path dir = path.getParent();
+                if (!Files.exists(dir)) {
+                    Files.createDirectories(dir);
+                }
                 channel = FileChannel.open(path, StandardOpenOption.WRITE, StandardOpenOption.CREATE);
             } catch (Throwable e) {
                 channel = null;
@@ -555,6 +563,7 @@ final class DefaultCopyOperationHandler implements CopyOperationHandler {
             try {
                 final FileChannel channel = this.channel;
                 final ByteBuffer buffer = this.buffer;
+                loop:
                 while (Messages.hasOneMessage(cumulateBuffer)) {
                     final int msgIndex = cumulateBuffer.readerIndex();
                     nextMsgIndex = msgIndex + 1 + cumulateBuffer.getInt(msgIndex + 1);
@@ -568,21 +577,25 @@ final class DefaultCopyOperationHandler implements CopyOperationHandler {
                         break;
                         case Messages.c: {// CopyDone message
                             copyEnd = true; // must be end copy firstly,because possibly throw exception
+                            cumulateBuffer.readerIndex(nextMsgIndex); // skip CopyDone message
                             if (channel != null) {//if channel is null ,occur error,eg: can't create file.
                                 channel.close();
                             }
                         }
-                        break;
+                        break loop;
                         case Messages.f: {// CopyFail message
                             copyEnd = true; // must be end copy firstly,because possibly throw exception
                             this.task.addErrorToTask(readCopyFailMessage(cumulateBuffer, this.task));
                             if (channel != null) {//if channel is null ,occur error,eg: can't create file.
                                 channel.close();
                             }
+                            cumulateBuffer.readerIndex(nextMsgIndex); // avoid tail filler
                         }
-                        break;
+                        break loop;
                         default:
-                            throw new UnExpectedMessageException("Not Copy-out relation message.");
+                            String m = String.format("Message[%s] Not Copy-out relation message."
+                                    , (char) cumulateBuffer.getByte(msgIndex));
+                            throw new UnExpectedMessageException(m);
                     }
                     cumulateBuffer.readerIndex(nextMsgIndex); // finally avoid tail filler
                 }
@@ -669,6 +682,7 @@ final class DefaultCopyOperationHandler implements CopyOperationHandler {
             try {
                 final Subscriber<byte[]> subscriber = this.subscriber;
 
+                loop:
                 while (Messages.hasOneMessage(cumulateBuffer)) {
                     final int msgIndex = cumulateBuffer.readerIndex();
                     nextMsgIndex = msgIndex + 1 + cumulateBuffer.getInt(msgIndex + 1);
@@ -685,11 +699,12 @@ final class DefaultCopyOperationHandler implements CopyOperationHandler {
                         break;
                         case Messages.c: {// CopyDone message
                             copyEnd = true; // must be end copy firstly,because possibly throw exception
+                            cumulateBuffer.readerIndex(nextMsgIndex); // skip CopyDone message
                             if (subscriber != null) {
                                 subscriber.onComplete();
                             }
                         }
-                        break;
+                        break loop;
                         case Messages.f: {// CopyFail message
                             copyEnd = true; // must be end copy firstly,because possibly throw exception
                             if (subscriber != null) {
@@ -697,10 +712,13 @@ final class DefaultCopyOperationHandler implements CopyOperationHandler {
                                 this.task.addErrorToTask(error); // firstly
                                 subscriber.onError(error); // secondly
                             }
+                            cumulateBuffer.readerIndex(nextMsgIndex); // skip CopyFail message
                         }
-                        break;
+                        break loop;
                         default:
-                            throw new UnExpectedMessageException("Not Copy-out relation message.");
+                            String m = String.format("Message[%s] Not Copy-out relation message."
+                                    , (char) cumulateBuffer.getByte(msgIndex));
+                            throw new UnExpectedMessageException(m);
                     }
                     cumulateBuffer.readerIndex(nextMsgIndex); // finally avoid tail filler
                 }

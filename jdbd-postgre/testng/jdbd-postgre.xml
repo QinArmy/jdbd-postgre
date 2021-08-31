@@ -15,7 +15,8 @@
             <class name="io.jdbd.postgre.protocol.client.SimpleQueryTaskSuiteTests"/>
             <class name="io.jdbd.postgre.protocol.client.SimpleQuerySqlTypeSuiteTests"/>
 
-            <class name="io.jdbd.postgre.protocol.client.CopyInOperationSuiteTests"/>
+            <class name="io.jdbd.postgre.protocol.client.CopyInSuiteTests"/>
+            <class name="io.jdbd.postgre.protocol.client.CopyOutSuiteTests"/>
 
             <class name="io.jdbd.postgre.type.PgGeometriesUnitTests"/>
         </classes>

@@ -3,8 +3,8 @@ package io.jdbd.postgre.protocol.client;
 import io.jdbd.JdbdSQLException;
 import io.jdbd.postgre.Group;
 import io.jdbd.postgre.PgType;
+import io.jdbd.postgre.stmt.BindStmt;
 import io.jdbd.postgre.stmt.BindValue;
-import io.jdbd.postgre.stmt.BindableStmt;
 import io.jdbd.postgre.stmt.PgStmts;
 import io.jdbd.result.ResultState;
 import org.reactivestreams.Publisher;
@@ -40,9 +40,9 @@ import static org.testng.Assert.*;
  */
 @Test(groups = {Group.COPY_IN_OPERATION}, dependsOnGroups = {Group.URL, Group.PARSER, Group.UTILS, Group.SESSION_BUILDER
         , Group.TASK_TEST_ADVICE, Group.SIMPLE_QUERY_TASK, Group.EXTENDED_QUERY_TASK})
-public class CopyInOperationSuiteTests extends AbstractTaskTests {
+public class CopyInSuiteTests extends AbstractTaskTests {
 
-    private static final Logger LOG = LoggerFactory.getLogger(CopyInOperationSuiteTests.class);
+    private static final Logger LOG = LoggerFactory.getLogger(CopyInSuiteTests.class);
 
     private static final String DATA_DIR = ClientTestUtils.getTestResourcesPath().toString();
 
@@ -215,10 +215,10 @@ public class CopyInOperationSuiteTests extends AbstractTaskTests {
                 "/* comment */ COPY my_copies(create_time,my_varchar) FROM --comment%s?  WITH CSV"
                 , LINE_SEPARATOR);
 
-        final List<BindableStmt> stmtGroup = new ArrayList<>();
+        final List<BindStmt> stmtGroup = new ArrayList<>();
 
         for (int i = 0; i < 5; i++) {
-            BindableStmt stmt = PgStmts.bindable(sql, Collections.singletonList(BindValue.create(0, PgType.VARCHAR, fileName)));
+            BindStmt stmt = PgStmts.bindable(sql, Collections.singletonList(BindValue.create(0, PgType.VARCHAR, fileName)));
             stmtGroup.add(stmt);
         }
 

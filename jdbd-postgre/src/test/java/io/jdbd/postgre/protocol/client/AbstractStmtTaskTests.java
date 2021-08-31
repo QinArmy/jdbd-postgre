@@ -3,8 +3,8 @@ package io.jdbd.postgre.protocol.client;
 import io.jdbd.meta.SQLType;
 import io.jdbd.postgre.PgTestUtils;
 import io.jdbd.postgre.PgType;
+import io.jdbd.postgre.stmt.BindStmt;
 import io.jdbd.postgre.stmt.BindValue;
-import io.jdbd.postgre.stmt.BindableStmt;
 import io.jdbd.postgre.stmt.PgStmts;
 import io.jdbd.postgre.util.PgNumbers;
 import io.jdbd.result.ResultRow;
@@ -46,9 +46,9 @@ abstract class AbstractStmtTaskTests extends AbstractTaskTests {
                 .block();
     }
 
-    abstract BiFunction<BindableStmt, TaskAdjutant, Mono<ResultState>> updateFunction();
+    abstract BiFunction<BindStmt, TaskAdjutant, Mono<ResultState>> updateFunction();
 
-    abstract BiFunction<BindableStmt, TaskAdjutant, Flux<ResultRow>> queryFunction();
+    abstract BiFunction<BindStmt, TaskAdjutant, Flux<ResultRow>> queryFunction();
 
 
     private <T> Mono<T> updateColumn(String columnName, PgType columnType, @Nullable T value, long id) {
@@ -117,12 +117,12 @@ abstract class AbstractStmtTaskTests extends AbstractTaskTests {
     }
 
 
-    private Mono<ResultState> executeUpdate(BindableStmt stmt) {
+    private Mono<ResultState> executeUpdate(BindStmt stmt) {
         return obtainProtocol()
                 .flatMap(protocol -> doExecuteUpdateAndClose(stmt, protocol));
     }
 
-    private Mono<ResultState> doExecuteUpdateAndClose(BindableStmt stmt, ClientProtocol protocol) {
+    private Mono<ResultState> doExecuteUpdateAndClose(BindStmt stmt, ClientProtocol protocol) {
         return updateFunction()
                 .apply(stmt, mapToTaskAdjutant(protocol))
                 .concatWith(releaseConnection(protocol))
@@ -131,12 +131,12 @@ abstract class AbstractStmtTaskTests extends AbstractTaskTests {
 
     }
 
-    private Flux<ResultRow> executeQuery(BindableStmt stmt) {
+    private Flux<ResultRow> executeQuery(BindStmt stmt) {
         return obtainProtocol()
                 .flatMapMany(protocol -> doExecuteQueryAndClose(stmt, protocol));
     }
 
-    private Flux<ResultRow> doExecuteQueryAndClose(BindableStmt stmt, ClientProtocol protocol) {
+    private Flux<ResultRow> doExecuteQueryAndClose(BindStmt stmt, ClientProtocol protocol) {
         return queryFunction()
                 .apply(stmt, mapToTaskAdjutant(protocol))
                 .concatWith(releaseConnection(protocol));

@@ -6,6 +6,7 @@ import io.jdbd.result.ResultState;
 import io.jdbd.vendor.util.JdbdCollections;
 import io.jdbd.vendor.util.JdbdFunctions;
 import org.reactivestreams.Publisher;
+import org.reactivestreams.Subscriber;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -42,6 +43,10 @@ public abstract class JdbdStmts {
 
     public static StaticStmt stmtWithImport(String sql, Function<String, Publisher<byte[]>> function) {
         return new StmtImpImport2(sql, function);
+    }
+
+    public static StaticStmt stmtWithExport(String sql, Function<Object, Subscriber<byte[]>> function) {
+        return new StaticStmtWithExport(sql, 0, function);
     }
 
     public static StaticStmt stmt(String sql, int timeout) {
@@ -264,6 +269,42 @@ public abstract class JdbdStmts {
         @Override
         public final Function<String, Publisher<byte[]>> getImportFunction() {
             return null;
+        }
+
+    }
+
+    private static class StaticStmtWithExport implements StaticStmt {
+
+        private final String sql;
+
+        private final int timeout;
+
+        private final Function<Object, Subscriber<byte[]>> exportFunction;
+
+        private StaticStmtWithExport(String sql, int timeout, Function<Object, Subscriber<byte[]>> exportFunction) {
+            this.sql = sql;
+            this.timeout = timeout;
+            this.exportFunction = exportFunction;
+        }
+
+        @Override
+        public final String getSql() {
+            return this.sql;
+        }
+
+        @Override
+        public final Consumer<ResultState> getStatusConsumer() {
+            return JdbdFunctions.noActionConsumer();
+        }
+
+        @Override
+        public final int getTimeout() {
+            return this.timeout;
+        }
+
+        @Override
+        public final Function<Object, Subscriber<byte[]>> getExportSubscriber() {
+            return this.exportFunction;
         }
 
     }

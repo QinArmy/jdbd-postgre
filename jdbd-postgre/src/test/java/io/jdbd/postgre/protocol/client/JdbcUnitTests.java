@@ -12,7 +12,9 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
-import java.sql.*;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.PreparedStatement;
 import java.util.Arrays;
 import java.util.Properties;
 
@@ -28,16 +30,14 @@ public class JdbcUnitTests {
     public void connect() throws Exception {
 
         try (Connection conn = DriverManager.getConnection(url, createProperties())) {
-            try (Statement stmt = conn.createStatement()) {
-                String sql;
-                sql = "INSERT INTO my_types(my_xml,my_xml_array,my_xml_array_2) VALUES(XMLPARSE(DOCUMENT '<?xml version=\"1.0\"?><book></book>'), '{\"<book></book>\"}', '{{\"<book></book>\"}}') ";
-                int rows = stmt.executeUpdate(sql);
-                LOG.info("insert rows:{}", rows);
-                try (ResultSet resultSet = stmt.getGeneratedKeys()) {
-                    while (resultSet.next()) {
-                        LOG.info("insert id {}", resultSet.getLong(1));
-                    }
-                }
+            String sql = "UPDATE my_types AS t SET my_boolean = TRUE WHERE t.id = ?";
+            try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+                stmt.setLong(1, 0);
+//                stmt.addBatch();
+//                stmt.setLong(1,-1);
+//                stmt.addBatch();
+
+                stmt.executeBatch();
 
             }
         }
@@ -49,19 +49,18 @@ public class JdbcUnitTests {
     public void prepare() throws Exception {
 
         try (Connection conn = DriverManager.getConnection(url, createProperties())) {
-            final String sql = "SELECT t.id AS id,t.create_time AS createTime FROM my_types AS t WHERE t.id = ?";
+            String sql = "UPDATE my_types AS t SET my_boolean = TRUE WHERE t.id = ?";
             try (PreparedStatement stmt = conn.prepareStatement(sql)) {
-                //  stmt.setLong(1, 1);
+                stmt.setLong(1, 0);
+                stmt.addBatch();
+                stmt.setLong(1, -1);
+                stmt.addBatch();
 
-                try (ResultSet resultSet = stmt.executeQuery()) {
-                    while (resultSet.next()) {
-                        LOG.info("id:{},createTime:{}", resultSet.getLong("id"), resultSet.getString("createTime"));
-                    }
-
-                }
+                stmt.executeBatch();
 
             }
         }
+
     }
 
 
@@ -134,7 +133,7 @@ public class JdbcUnitTests {
         Properties properties = new Properties();
         properties.put("user", "army_w");
         properties.put("password", "army123");
-        properties.put("preferQueryMode", "simple");
+        // properties.put("preferQueryMode", "simple");
         properties.put("currentSchema", "army");
         return properties;
     }

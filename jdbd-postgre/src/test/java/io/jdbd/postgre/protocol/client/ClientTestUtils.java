@@ -62,7 +62,7 @@ public abstract class ClientTestUtils {
         } else {
             path = Paths.get(urlText);
         }
-        return path;
+        return path.toAbsolutePath();
     }
 
     public static Path getTestResourcesPath() {

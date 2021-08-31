@@ -3,7 +3,7 @@ package io.jdbd.postgre.protocol.client;
 import io.jdbd.SessionCloseException;
 import io.jdbd.postgre.PgJdbdException;
 import io.jdbd.postgre.stmt.BatchBindStmt;
-import io.jdbd.postgre.stmt.BindableStmt;
+import io.jdbd.postgre.stmt.BindStmt;
 import io.jdbd.postgre.stmt.MultiBindStmt;
 import io.jdbd.postgre.util.PgExceptions;
 import io.jdbd.result.MultiResult;
@@ -27,7 +27,7 @@ import java.nio.charset.Charset;
 import java.util.function.Consumer;
 
 /**
- * @see <a href="https://www.postgresql.org/docs/current/protocol-message-formats.html">Query</a>
+ * @see <a href="https://www.postgresql.org/docs/current/protocol-flow.html#id-1.10.5.7.4">Simple Query</a>
  */
 final class SimpleQueryTask extends AbstractStmtTask {
 
@@ -137,7 +137,7 @@ final class SimpleQueryTask extends AbstractStmtTask {
      * This method is one of underlying api of {@link BindableStatement#executeUpdate()} method.
      * </p>
      */
-    static Mono<ResultState> bindableUpdate(BindableStmt stmt, TaskAdjutant adjutant) {
+    static Mono<ResultState> bindableUpdate(BindStmt stmt, TaskAdjutant adjutant) {
         return MultiResults.update(sink -> {
             try {
                 SimpleQueryTask task = new SimpleQueryTask(sink, stmt, adjutant);
@@ -157,7 +157,7 @@ final class SimpleQueryTask extends AbstractStmtTask {
      * </ul>
      * </p>
      */
-    static Flux<ResultRow> bindableQuery(BindableStmt stmt, TaskAdjutant adjutant) {
+    static Flux<ResultRow> bindableQuery(BindStmt stmt, TaskAdjutant adjutant) {
         return MultiResults.query(stmt.getStatusConsumer(), sink -> {
             try {
                 SimpleQueryTask task = new SimpleQueryTask(sink, stmt, adjutant);
@@ -293,10 +293,10 @@ final class SimpleQueryTask extends AbstractStmtTask {
     /*################################## blow for bindable single stmt ##################################*/
 
     /**
-     * @see #bindableUpdate(BindableStmt, TaskAdjutant)
-     * @see #bindableQuery(BindableStmt, TaskAdjutant)
+     * @see #bindableUpdate(BindStmt, TaskAdjutant)
+     * @see #bindableQuery(BindStmt, TaskAdjutant)
      */
-    private SimpleQueryTask(FluxResultSink sink, BindableStmt stmt, TaskAdjutant adjutant)
+    private SimpleQueryTask(FluxResultSink sink, BindStmt stmt, TaskAdjutant adjutant)
             throws Throwable {
         super(adjutant, sink, stmt);
         this.packetPublisher = QueryCommandWriter.createBindableCommand(stmt, adjutant);
@@ -430,7 +430,7 @@ final class SimpleQueryTask extends AbstractStmtTask {
 
         final Charset clientCharset = this.adjutant.clientCharset();
 
-        boolean taskEnd = false, continueRead = true;
+        boolean taskEnd = false, continueRead = Messages.hasOneMessage(cumulateBuffer);
         while (continueRead) {
             final int msgStartIndex = cumulateBuffer.readerIndex();
             final int msgType = cumulateBuffer.getByte(msgStartIndex);

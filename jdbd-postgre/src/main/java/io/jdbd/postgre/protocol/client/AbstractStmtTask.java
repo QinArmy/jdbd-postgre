@@ -7,7 +7,6 @@ import io.jdbd.vendor.stmt.Stmt;
 import io.netty.buffer.ByteBuf;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import reactor.util.annotation.Nullable;
 
 import java.nio.charset.Charset;
 import java.util.Set;
@@ -39,7 +38,7 @@ abstract class AbstractStmtTask extends PgTask implements StmtTask {
 
     private CopyOperationHandler copyOperationHandler;
 
-    AbstractStmtTask(TaskAdjutant adjutant, FluxResultSink sink, @Nullable Stmt stmt) {
+    AbstractStmtTask(TaskAdjutant adjutant, FluxResultSink sink, Stmt stmt) {
         super(adjutant, sink::error);
         this.sink = sink;
         this.stmt = stmt;
