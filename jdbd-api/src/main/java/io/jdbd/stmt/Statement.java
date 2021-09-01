@@ -13,14 +13,14 @@ import java.util.function.Function;
  * This interface is base interface of below interfaces:
  *     <ul>
  *         <li>{@link StaticStatement}</li>
- *         <li>{@link BindableStatement}</li>
+ *         <li>{@link BindStatement}</li>
  *         <li>{@link PreparedStatement}</li>
  *         <li>{@link MultiStatement}</li>
  *     </ul>
  * </p>
  *
  * @see StaticStatement
- * @see BindableStatement
+ * @see BindStatement
  * @see PreparedStatement
  * @see MultiStatement
  */

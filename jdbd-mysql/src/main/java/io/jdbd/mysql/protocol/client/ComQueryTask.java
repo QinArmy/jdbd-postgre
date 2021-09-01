@@ -176,7 +176,7 @@ final class ComQueryTask extends MySQLCommandTask {
 
     /**
      * <p>
-     * This method is one of underlying api of {@link BindableStatement#executeUpdate()} method.
+     * This method is one of underlying api of {@link BindStatement#executeUpdate()} method.
      * </p>
      *
      * @see #ComQueryTask(MonoSink, BindableStmt, TaskAdjutant)
@@ -205,8 +205,8 @@ final class ComQueryTask extends MySQLCommandTask {
      * <p>
      * This method is one of underlying api of below methods:
      * <ul>
-     *     <li>{@link BindableStatement#executeQuery()}</li>
-     *     <li>{@link BindableStatement#executeQuery(Consumer)}</li>
+     *     <li>{@link BindStatement#executeQuery()}</li>
+     *     <li>{@link BindStatement#executeQuery(Consumer)}</li>
      * </ul>
      * </p>
      *
@@ -234,7 +234,7 @@ final class ComQueryTask extends MySQLCommandTask {
 
     /**
      * <p>
-     * This method is one of underlying api of {@link BindableStatement#executeBatch()} method.
+     * This method is one of underlying api of {@link BindStatement#executeBatch()} method.
      * </p>
      *
      * @see #ComQueryTask(FluxSink, BatchBindStmt, TaskAdjutant)
@@ -261,7 +261,7 @@ final class ComQueryTask extends MySQLCommandTask {
 
     /**
      * <p>
-     * This method is one of underlying api of below methods {@link BindableStatement#executeBatchAsMulti()}.
+     * This method is one of underlying api of below methods {@link BindStatement#executeBatchAsMulti()}.
      * </p>
      *
      * @see #ComQueryTask(MultiResultSink, BatchBindStmt, TaskAdjutant)
@@ -285,7 +285,7 @@ final class ComQueryTask extends MySQLCommandTask {
 
     /**
      * <p>
-     * This method is one of underlying api of below methods {@link BindableStatement#executeBatchAsFlux()}.
+     * This method is one of underlying api of below methods {@link BindStatement#executeBatchAsFlux()}.
      * </p>
      *
      * @see #ComQueryTask(MultiResultSink, BatchBindStmt, TaskAdjutant)
@@ -532,7 +532,7 @@ final class ComQueryTask extends MySQLCommandTask {
      * This constructor create instance for {@link #bindableUpdate(BindableStmt, TaskAdjutant)}.
      * </p>
      * <p>
-     * The rule of {@link BindableStatement} underlying api constructor.
+     * The rule of {@link BindStatement} underlying api constructor.
      *     <ul>
      *         <li>param 1 : sink</li>
      *         <li>param 2 : stmt</li>
@@ -559,7 +559,7 @@ final class ComQueryTask extends MySQLCommandTask {
      * This constructor create instance for {@link #bindableQuery(BindableStmt, TaskAdjutant)}.
      * </p>
      * <p>
-     * The rule of {@link BindableStatement} underlying api constructor.
+     * The rule of {@link BindStatement} underlying api constructor.
      *     <ul>
      *         <li>param 1 : sink</li>
      *         <li>param 2 : stmt</li>
@@ -586,7 +586,7 @@ final class ComQueryTask extends MySQLCommandTask {
      * This constructor create instance for {@link #bindableBatch(BatchBindStmt, TaskAdjutant)}.
      * </p>
      * <p>
-     * The rule of {@link BindableStatement} underlying api constructor.
+     * The rule of {@link BindStatement} underlying api constructor.
      *     <ul>
      *         <li>param 1 : sink</li>
      *         <li>param 2 : stmt</li>
@@ -633,7 +633,7 @@ final class ComQueryTask extends MySQLCommandTask {
      * </ul>
      * </p>
      * <p>
-     * The rule of {@link BindableStatement} underlying api constructor.
+     * The rule of {@link BindStatement} underlying api constructor.
      *     <ul>
      *         <li>param 1 : sink</li>
      *         <li>param 2 : stmt</li>
@@ -1550,8 +1550,8 @@ final class ComQueryTask extends MySQLCommandTask {
      *     <ul>
      *         <li>{@link StaticStatement#executeQuery(String)}</li>
      *         <li>{@link StaticStatement#executeQuery(String, Consumer)}</li>
-     *         <li>{@link BindableStatement#executeQuery()}</li>
-     *         <li>{@link BindableStatement#executeQuery(Consumer)}</li>
+     *         <li>{@link BindStatement#executeQuery()}</li>
+     *         <li>{@link BindStatement#executeQuery(Consumer)}</li>
      *     </ul>
      * </p>
      *
@@ -1670,7 +1670,7 @@ final class ComQueryTask extends MySQLCommandTask {
      * This static inner class is underlying api implementation downstream sink of below methods:
      *     <ul>
      *         <li>{@link StaticStatement#executeUpdate(String)}</li>
-     *         <li>{@link BindableStatement#executeUpdate()}</li>
+     *         <li>{@link BindStatement#executeUpdate()}</li>
      *     </ul>
      * </p>
      *
@@ -1827,7 +1827,7 @@ final class ComQueryTask extends MySQLCommandTask {
      * <p>
      * This static inner class is one of underlying implementation downstream sink of below methods.
      * <ul>
-     *     <li>{@link BindableStatement#executeBatch()}</li>
+     *     <li>{@link BindStatement#executeBatch()}</li>
      * </ul>
      * only when stmtList size less than 4 ,use this sink , or use {@link MultiModeBatchUpdateSink}
      * </p>
@@ -1888,7 +1888,7 @@ final class ComQueryTask extends MySQLCommandTask {
      * This static inner class is one of underlying implementation downstream sink of below methods.
      * <ul>
      *     <li>{@link StaticStatement#executeBatch(List)}</li>
-     *     <li>{@link BindableStatement#executeBatch()}</li>
+     *     <li>{@link BindStatement#executeBatch()}</li>
      * </ul>
      * only when stmtList size great than 3 ,use this sink , or use below:
      * <ul>
@@ -2113,8 +2113,8 @@ final class ComQueryTask extends MySQLCommandTask {
      *     <ul>
      *         <li>{@link StaticStatement#executeAsMulti(List)}</li>
      *         <li>{@link StaticStatement#executeAsFlux(List)}</li>
-     *         <li>{@link BindableStatement#executeBatchAsMulti()}</li>
-     *         <li>{@link BindableStatement#executeBatchAsFlux()}</li>
+     *         <li>{@link BindStatement#executeBatchAsMulti()}</li>
+     *         <li>{@link BindStatement#executeBatchAsFlux()}</li>
      *         <li>{@link MultiStatement#executeBatchAsMulti()}</li>
      *         <li>{@link MultiStatement#executeBatchAsFlux()}</li>
      *     </ul>
@@ -2205,8 +2205,8 @@ final class ComQueryTask extends MySQLCommandTask {
      * <p>
      * This class is one of underlying api implementation downstream sink of below methods:
      *     <ul>
-     *         <li>{@link BindableStatement#executeBatchAsMulti()}</li>
-     *         <li>{@link BindableStatement#executeBatchAsFlux()}</li>
+     *         <li>{@link BindStatement#executeBatchAsMulti()}</li>
+     *         <li>{@link BindStatement#executeBatchAsFlux()}</li>
      *     </ul>
      * </p>
      * <p>

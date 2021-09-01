@@ -10,7 +10,7 @@ import org.reactivestreams.Publisher;
 import java.sql.JDBCType;
 import java.util.function.Consumer;
 
-public interface BindableStatement extends BindableSingleStatement, BindableMultiResultStatement {
+public interface BindStatement extends BindableSingleStatement, BindableMultiResultStatement {
 
 
     boolean supportLongData();

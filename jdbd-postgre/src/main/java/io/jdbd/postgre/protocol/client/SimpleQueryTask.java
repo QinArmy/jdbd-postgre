@@ -10,7 +10,7 @@ import io.jdbd.result.MultiResult;
 import io.jdbd.result.Result;
 import io.jdbd.result.ResultRow;
 import io.jdbd.result.ResultStates;
-import io.jdbd.stmt.BindableStatement;
+import io.jdbd.stmt.BindStatement;
 import io.jdbd.stmt.MultiStatement;
 import io.jdbd.stmt.StaticStatement;
 import io.jdbd.vendor.result.FluxResultSink;
@@ -134,7 +134,7 @@ final class SimpleQueryTask extends AbstractStmtTask {
 
     /**
      * <p>
-     * This method is one of underlying api of {@link BindableStatement#executeUpdate()} method.
+     * This method is one of underlying api of {@link BindStatement#executeUpdate()} method.
      * </p>
      */
     static Mono<ResultStates> bindableUpdate(BindStmt stmt, TaskAdjutant adjutant) {
@@ -152,8 +152,8 @@ final class SimpleQueryTask extends AbstractStmtTask {
      * <p>
      * This method is one of underlying api of below methods:
      * <ul>
-     *     <li>{@link BindableStatement#executeQuery()}</li>
-     *     <li>{@link BindableStatement#executeQuery(Consumer)}</li>
+     *     <li>{@link BindStatement#executeQuery()}</li>
+     *     <li>{@link BindStatement#executeQuery(Consumer)}</li>
      * </ul>
      * </p>
      */
@@ -170,7 +170,7 @@ final class SimpleQueryTask extends AbstractStmtTask {
 
     /**
      * <p>
-     * This method is one of underlying api of {@link BindableStatement#executeBatch()} method.
+     * This method is one of underlying api of {@link BindStatement#executeBatch()} method.
      * </p>
      */
     static Flux<ResultStates> bindableBatchUpdate(BatchBindStmt stmt, TaskAdjutant adjutant) {
@@ -188,7 +188,7 @@ final class SimpleQueryTask extends AbstractStmtTask {
 
     /**
      * <p>
-     * This method is one of underlying api of below methods {@link BindableStatement#executeBatchAsMulti()}.
+     * This method is one of underlying api of below methods {@link BindStatement#executeBatchAsMulti()}.
      * </p>
      */
     static MultiResult bindableAsMulti(BatchBindStmt stmt, TaskAdjutant adjutant) {
@@ -204,7 +204,7 @@ final class SimpleQueryTask extends AbstractStmtTask {
 
     /**
      * <p>
-     * This method is one of underlying api of below methods {@link BindableStatement#executeBatchAsFlux()}.
+     * This method is one of underlying api of below methods {@link BindStatement#executeBatchAsFlux()}.
      * </p>
      */
     static Flux<Result> bindableAsFlux(BatchBindStmt stmt, TaskAdjutant adjutant) {

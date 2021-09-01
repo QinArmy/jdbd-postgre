@@ -14,12 +14,12 @@ import java.util.function.Consumer;
  * <p>
  * This interface is base interface of below:
  *     <ul>
- *         <li>{@link BindableStatement}</li>
+ *         <li>{@link BindStatement}</li>
  *         <li>{@link PreparedStatement}</li>
  *     </ul>
  * </p>
  *
- * @see BindableStatement
+ * @see BindStatement
  * @see PreparedStatement
  */
 public interface BindableSingleStatement extends Statement {
@@ -48,37 +48,37 @@ public interface BindableSingleStatement extends Statement {
     void bind(int indexBasedZero, io.jdbd.meta.SQLType sqlType, @Nullable Object nullable) throws JdbdException;
 
     /**
-     * @see BindableStatement#bind(int, Object)
+     * @see BindStatement#bind(int, Object)
      * @see PreparedStatement#bind(int, Object)
      */
     void bind(int indexBasedZero, @Nullable Object nullable) throws JdbdException;
 
     /**
-     * @see BindableStatement#addBatch()
+     * @see BindStatement#addBatch()
      * @see PreparedStatement#addBatch()
      */
     void addBatch();
 
     /**
-     * @see BindableStatement#executeBatch()
+     * @see BindStatement#executeBatch()
      * @see PreparedStatement#executeBatch()
      */
     Publisher<ResultStates> executeBatch();
 
     /**
-     * @see BindableStatement#executeUpdate()
+     * @see BindStatement#executeUpdate()
      * @see PreparedStatement#executeUpdate()
      */
     Publisher<ResultStates> executeUpdate();
 
     /**
-     * @see BindableStatement#executeQuery()
+     * @see BindStatement#executeQuery()
      * @see PreparedStatement#executeQuery()
      */
     Publisher<ResultRow> executeQuery();
 
     /**
-     * @see BindableStatement#executeQuery(Consumer)
+     * @see BindStatement#executeQuery(Consumer)
      * @see PreparedStatement#executeQuery(Consumer)
      */
     Publisher<ResultRow> executeQuery(Consumer<ResultStates> statesConsumer);

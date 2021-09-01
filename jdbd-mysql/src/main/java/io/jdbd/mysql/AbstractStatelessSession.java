@@ -2,16 +2,13 @@ package io.jdbd.mysql;
 
 import io.jdbd.DatabaseSession;
 import io.jdbd.meta.DatabaseMetaData;
-import io.jdbd.result.MultiResult;
-import io.jdbd.stmt.BindableStatement;
+import io.jdbd.stmt.BindStatement;
 import io.jdbd.stmt.MultiStatement;
 import io.jdbd.stmt.PreparedStatement;
 import io.jdbd.stmt.StaticStatement;
-import org.reactivestreams.Publisher;
 import reactor.core.publisher.Mono;
 
 import java.sql.Savepoint;
-import java.util.List;
 
 abstract class AbstractStatelessSession implements DatabaseSession {
 
@@ -34,23 +31,14 @@ abstract class AbstractStatelessSession implements DatabaseSession {
         return null;
     }
 
-    @Override
-    public Publisher<PreparedStatement> prepare(String sql, int executeTimeout) {
-        return null;
-    }
 
     @Override
-    public BindableStatement bindable(String sql) {
+    public BindStatement bindable(String sql) {
         return null;
     }
 
     @Override
     public MultiStatement multi() {
-        return null;
-    }
-
-    @Override
-    public MultiResult multi(List<String> sqlList) {
         return null;
     }
 

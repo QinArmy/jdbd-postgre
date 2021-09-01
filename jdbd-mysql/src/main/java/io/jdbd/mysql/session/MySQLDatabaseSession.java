@@ -2,15 +2,12 @@ package io.jdbd.mysql.session;
 
 import io.jdbd.mysql.protocol.client.ClientCommandProtocol;
 import io.jdbd.mysql.stmt.Stmts;
-import io.jdbd.stmt.BindableStatement;
+import io.jdbd.stmt.BindStatement;
 import io.jdbd.stmt.MultiStatement;
 import io.jdbd.stmt.PreparedStatement;
 import io.jdbd.stmt.StaticStatement;
-import io.jdbd.vendor.result.ReactorMultiResult;
 import io.jdbd.vendor.session.ReactorDatabaseSession;
 import reactor.core.publisher.Mono;
-
-import java.util.List;
 
 public abstract class MySQLDatabaseSession implements ReactorDatabaseSession {
 
@@ -33,23 +30,14 @@ public abstract class MySQLDatabaseSession implements ReactorDatabaseSession {
         return this.protocol.prepare(this, Stmts.stmt(sql));
     }
 
-    @Override
-    public final Mono<PreparedStatement> prepare(String sql, int executeTimeout) {
-        return this.protocol.prepare(this, Stmts.stmt(sql, executeTimeout));
-    }
 
     @Override
-    public final BindableStatement bindable(String sql) {
+    public final BindStatement bindable(String sql) {
         return null;
     }
 
     @Override
     public final MultiStatement multi() {
-        return null;
-    }
-
-    @Override
-    public final ReactorMultiResult multi(List<String> sqlList) {
         return null;
     }
 

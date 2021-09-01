@@ -1,8 +1,7 @@
 package io.jdbd;
 
 import io.jdbd.meta.DatabaseMetaData;
-import io.jdbd.result.MultiResult;
-import io.jdbd.stmt.BindableStatement;
+import io.jdbd.stmt.BindStatement;
 import io.jdbd.stmt.MultiStatement;
 import io.jdbd.stmt.PreparedStatement;
 import io.jdbd.stmt.StaticStatement;
@@ -10,7 +9,6 @@ import org.reactivestreams.Publisher;
 
 import java.sql.Connection;
 import java.sql.Savepoint;
-import java.util.List;
 
 public interface DatabaseSession extends ReactiveCloseable {
 
@@ -27,17 +25,9 @@ public interface DatabaseSession extends ReactiveCloseable {
      */
     Publisher<PreparedStatement> prepare(String sql);
 
-    /**
-     * @see java.sql.Connection#prepareStatement(String)
-     */
-    @Deprecated
-    Publisher<PreparedStatement> prepare(String sql, int executeTimeout);
-
-    BindableStatement bindable(String sql);
+    BindStatement bindable(String sql);
 
     MultiStatement multi();
-
-    MultiResult multi(List<String> sqlList);
 
     /**
      * @see java.sql.DatabaseMetaData#supportsSavepoints()

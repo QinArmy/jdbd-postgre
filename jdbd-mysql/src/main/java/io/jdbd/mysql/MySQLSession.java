@@ -3,7 +3,7 @@ package io.jdbd.mysql;
 import io.jdbd.TransactionOption;
 import io.jdbd.TxDatabaseSession;
 import io.jdbd.mysql.protocol.client.ClientCommandProtocol;
-import io.jdbd.stmt.BindableStatement;
+import io.jdbd.stmt.BindStatement;
 import org.reactivestreams.Publisher;
 import reactor.core.publisher.Mono;
 
@@ -40,7 +40,7 @@ class MySQLSession extends AbstractStatelessSession implements TxDatabaseSession
     }
 
     @Override
-    public BindableStatement bindable(String sql) {
+    public BindStatement bindable(String sql) {
         return null;
     }
 }

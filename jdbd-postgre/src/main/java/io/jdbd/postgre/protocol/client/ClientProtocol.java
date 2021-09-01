@@ -8,7 +8,7 @@ import io.jdbd.result.MultiResult;
 import io.jdbd.result.Result;
 import io.jdbd.result.ResultRow;
 import io.jdbd.result.ResultStates;
-import io.jdbd.stmt.BindableStatement;
+import io.jdbd.stmt.BindStatement;
 import io.jdbd.stmt.MultiStatement;
 import io.jdbd.stmt.PreparedStatement;
 import io.jdbd.stmt.StaticStatement;
@@ -71,7 +71,7 @@ public interface ClientProtocol {
 
     /**
      * <p>
-     * This method is one of underlying api of {@link BindableStatement#executeUpdate()} method.
+     * This method is one of underlying api of {@link BindStatement#executeUpdate()} method.
      * </p>
      */
     Mono<ResultStates> bindableUpdate(BindStmt stmt);
@@ -80,8 +80,8 @@ public interface ClientProtocol {
      * <p>
      * This method is one of underlying api of below methods:
      * <ul>
-     *     <li>{@link BindableStatement#executeQuery()}</li>
-     *     <li>{@link BindableStatement#executeQuery(Consumer)}</li>
+     *     <li>{@link BindStatement#executeQuery()}</li>
+     *     <li>{@link BindStatement#executeQuery(Consumer)}</li>
      * </ul>
      * </p>
      */
@@ -89,21 +89,21 @@ public interface ClientProtocol {
 
     /**
      * <p>
-     * This method is one of underlying api of {@link BindableStatement#executeBatch()} method.
+     * This method is one of underlying api of {@link BindStatement#executeBatch()} method.
      * </p>
      */
     Flux<ResultStates> bindableBatchUpdate(BatchBindStmt stmt);
 
     /**
      * <p>
-     * This method is one of underlying api of {@link BindableStatement#executeBatchAsMulti()} method.
+     * This method is one of underlying api of {@link BindStatement#executeBatchAsMulti()} method.
      * </p>
      */
     MultiResult bindableAsMulti(BatchBindStmt stmt);
 
     /**
      * <p>
-     * This method is one of underlying api of {@link BindableStatement#executeBatchAsFlux()} method.
+     * This method is one of underlying api of {@link BindStatement#executeBatchAsFlux()} method.
      * </p>
      */
     Flux<Result> bindableAsFlux(BatchBindStmt stmt);

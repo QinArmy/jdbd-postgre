@@ -12,7 +12,7 @@ import io.jdbd.mysql.util.MySQLExceptions;
 import io.jdbd.result.ResultRow;
 import io.jdbd.result.ResultStates;
 import io.jdbd.result.SingleResult;
-import io.jdbd.stmt.BindableStatement;
+import io.jdbd.stmt.BindStatement;
 import io.jdbd.stmt.PreparedStatement;
 import io.jdbd.stmt.ResultType;
 import io.jdbd.stmt.SubscribeException;
@@ -81,7 +81,7 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
 
     /**
      * <p>
-     * This method is one of underlying api of {@link BindableStatement#executeUpdate()} method:
+     * This method is one of underlying api of {@link BindStatement#executeUpdate()} method:
      * </p>
      *
      * @see #ComPreparedTask(ParamStmt, MonoSink, TaskAdjutant)
@@ -102,8 +102,8 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
      * <p>
      * This method is one of underlying api of below methods:
      * <ul>
-     *     <li>{@link BindableStatement#executeQuery()}</li>
-     *      <li>{@link BindableStatement#executeQuery(Consumer)}</li>
+     *     <li>{@link BindStatement#executeQuery()}</li>
+     *      <li>{@link BindStatement#executeQuery(Consumer)}</li>
      * </ul>
      * </p>
      *
@@ -123,7 +123,7 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
 
     /**
      * <p>
-     * This method is one of underlying api of {@link BindableStatement#executeBatch()} method.
+     * This method is one of underlying api of {@link BindStatement#executeBatch()} method.
      * </p>
      *
      * @see #ComPreparedTask(FluxSink, BatchParamStmt, TaskAdjutant)
@@ -145,7 +145,7 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
 
     /**
      * <p>
-     * This method is one of underlying api of {@link BindableStatement#executeBatchAsMulti()} method.
+     * This method is one of underlying api of {@link BindStatement#executeBatchAsMulti()} method.
      * </p>
      *
      * @see #ComPreparedTask(BatchParamStmt, MultiResultSink, TaskAdjutant)
@@ -164,7 +164,7 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
 
     /**
      * <p>
-     * This method is one of underlying api of {@link BindableStatement#executeBatchAsFlux()} method.
+     * This method is one of underlying api of {@link BindStatement#executeBatchAsFlux()} method.
      * </p>
      *
      * @see #ComPreparedTask(BatchParamStmt, MultiResultSink, TaskAdjutant)
@@ -192,7 +192,6 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
      * </p>
      *
      * @see DatabaseSession#prepare(String)
-     * @see DatabaseSession#prepare(String, int)
      * @see #ComPreparedTask(MySQLDatabaseSession, TaskAdjutant, MonoSink, StaticStmt)
      */
     static Mono<PreparedStatement> prepare(final MySQLDatabaseSession session, final StaticStmt stmt
@@ -1411,8 +1410,8 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
      * <p>
      * This class is underlying implementation downstream of below methods:
      *     <ul>
-     *         <li>{@link BindableStatement#executeQuery()}</li>
-     *         <li>{@link BindableStatement#executeQuery(Consumer)}</li>
+     *         <li>{@link BindStatement#executeQuery()}</li>
+     *         <li>{@link BindStatement#executeQuery(Consumer)}</li>
      *         <li>{@link PreparedStatement#executeQuery()}</li>
      *         <li>{@link PreparedStatement#executeQuery(Consumer)}</li>
      *     </ul>
@@ -1595,7 +1594,7 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
      * <p>
      * This class is underlying implementation downstream of below methods:
      *     <ul>
-     *         <li>{@link BindableStatement#executeUpdate()}</li>
+     *         <li>{@link BindStatement#executeUpdate()}</li>
      *         <li>{@link PreparedStatement#executeUpdate()}</li>
      *     </ul>
      * </p>
@@ -2078,7 +2077,6 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
      * This class is underlying api downstream sink of below methods:
      *     <ul>
      *         <li>{@link DatabaseSession#prepare(String)}</li>
-     *         <li>{@link DatabaseSession#prepare(String, int)}</li>
      *     </ul>
      * </p>
      */
