@@ -1,6 +1,6 @@
 package io.jdbd.vendor.result;
 
-import io.jdbd.result.ResultState;
+import io.jdbd.result.ResultStates;
 
 /**
  * @see MultiResultSink#nextQuery()
@@ -14,7 +14,7 @@ public interface QuerySink extends ResultRowSink_0 {
      * </p>
      */
     @Override
-    void accept(ResultState resultState);
+    void accept(ResultStates resultStates);
 
 
     void complete();

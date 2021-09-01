@@ -9,7 +9,7 @@ import io.jdbd.postgre.util.PgStreams;
 import io.jdbd.result.FieldType;
 import io.jdbd.result.ResultRow;
 import io.jdbd.result.ResultRowMeta;
-import io.jdbd.result.ResultState;
+import io.jdbd.result.ResultStates;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.annotations.BeforeClass;
@@ -73,7 +73,7 @@ public class TaskTestAdvice extends AbstractTaskTests {
         protocol = obtainProtocolWithSync();
         final TaskAdjutant adjutant = mapToTaskAdjutant(protocol);
 
-        final ResultState state;
+        final ResultStates state;
         state = SimpleQueryTask.update(PgStmts.stmt(builder.toString()), adjutant)
                 .switchIfEmpty(PgTestUtils.updateNoResponse())
                 .concatWith(TaskTestAdvice.releaseConnection(protocol))

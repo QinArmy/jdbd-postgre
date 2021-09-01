@@ -53,7 +53,6 @@ public abstract class PgSQLStates extends SQLStates {
     public static final String DATETIME_OVERFLOW = "22008";
     public static final String DIVISION_BY_ZERO = "22012";
     public static final String MOST_SPECIFIC_TYPE_DOES_NOT_MATCH = "2200G";
-    public static final String INVALID_PARAMETER_VALUE = "22023";
 
     public static final String NOT_NULL_VIOLATION = "23502";
     public static final String FOREIGN_KEY_VIOLATION = "23503";

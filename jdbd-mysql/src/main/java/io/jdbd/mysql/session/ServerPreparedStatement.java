@@ -1,19 +1,21 @@
 package io.jdbd.mysql.session;
 
+import io.jdbd.JdbdException;
+import io.jdbd.meta.SQLType;
 import io.jdbd.mysql.stmt.PrepareStmtTask;
+import io.jdbd.result.Result;
 import io.jdbd.result.ResultRow;
-import io.jdbd.result.ResultState;
-import io.jdbd.result.SingleResult;
+import io.jdbd.result.ResultStates;
 import io.jdbd.stmt.PreparedStatement;
 import io.jdbd.vendor.result.ReactorMultiResult;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.util.annotation.Nullable;
 
+import java.sql.JDBCType;
 import java.util.function.Consumer;
 
 public final class ServerPreparedStatement<S extends MySQLDatabaseSession> extends MySQLStatement<S>
-
         implements PreparedStatement {
 
     public static <S extends MySQLDatabaseSession> ServerPreparedStatement<S> create(S session, PrepareStmtTask task) {
@@ -30,6 +32,16 @@ public final class ServerPreparedStatement<S extends MySQLDatabaseSession> exten
         this.task = task;
     }
 
+
+    @Override
+    public void bind(int indexBasedZero, JDBCType jdbcType, Object nullable) throws JdbdException {
+
+    }
+
+    @Override
+    public void bind(int indexBasedZero, SQLType sqlType, Object nullable) throws JdbdException {
+
+    }
 
     @Override
     public final void bind(int indexBasedZero, @Nullable Object nullable) {
@@ -57,12 +69,12 @@ public final class ServerPreparedStatement<S extends MySQLDatabaseSession> exten
     }
 
     @Override
-    public final Flux<ResultState> executeBatch() {
+    public final Flux<ResultStates> executeBatch() {
         return null;
     }
 
     @Override
-    public Mono<ResultState> executeUpdate() {
+    public Mono<ResultStates> executeUpdate() {
         return null;
     }
 
@@ -72,18 +84,18 @@ public final class ServerPreparedStatement<S extends MySQLDatabaseSession> exten
     }
 
     @Override
-    public Flux<ResultRow> executeQuery(Consumer<ResultState> statesConsumer) {
+    public Flux<ResultRow> executeQuery(Consumer<ResultStates> statesConsumer) {
         return null;
     }
 
     @Override
-    public ReactorMultiResult executeAsMulti() {
+    public ReactorMultiResult executeBatchAsMulti() {
         return null;
     }
 
 
     @Override
-    public Flux<SingleResult> executeAsFlux() {
+    public Flux<Result> executeBatchAsFlux() {
         return null;
     }
 }

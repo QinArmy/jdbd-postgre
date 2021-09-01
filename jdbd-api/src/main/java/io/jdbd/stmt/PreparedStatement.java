@@ -1,10 +1,11 @@
 package io.jdbd.stmt;
 
+import io.jdbd.JdbdException;
 import io.jdbd.lang.Nullable;
 import io.jdbd.result.MultiResult;
+import io.jdbd.result.Result;
 import io.jdbd.result.ResultRow;
-import io.jdbd.result.ResultState;
-import io.jdbd.result.SingleResult;
+import io.jdbd.result.ResultStates;
 import org.reactivestreams.Publisher;
 
 import java.util.function.Consumer;
@@ -22,7 +23,7 @@ import java.util.function.Consumer;
  *     <li>{@link #executeUpdate()}</li>
  *     <li>{@link #executeQuery()}</li>
  *     <li>{@link #executeQuery(Consumer)}</li>
- *     <li>{@link #executeAsMulti()}</li>
+ *     <li>{@link #executeBatchAsMulti()}</li>
  *     <li>{@link #executeBatchMulti()}</li>
  * </ul>
  * </p>
@@ -46,13 +47,10 @@ public interface PreparedStatement extends BindableSingleStatement, BindableMult
      * {@inheritDoc }
      */
     @Override
-    void addBatch();
+    void addBatch() throws JdbdException;
 
     @Override
-    Publisher<ResultState> executeBatch();
-
-    @Override
-    Publisher<ResultState> executeUpdate();
+    Publisher<ResultStates> executeUpdate();
 
     /**
      * @see #executeQuery(Consumer)
@@ -61,32 +59,15 @@ public interface PreparedStatement extends BindableSingleStatement, BindableMult
     Publisher<ResultRow> executeQuery();
 
     @Override
-    Publisher<ResultRow> executeQuery(Consumer<ResultState> statesConsumer);
+    Publisher<ResultRow> executeQuery(Consumer<ResultStates> statesConsumer);
 
     @Override
-    MultiResult executeAsMulti();
+    Publisher<ResultStates> executeBatch();
 
-    Publisher<SingleResult> executeAsFlux();
+    @Override
+    MultiResult executeBatchAsMulti();
 
+    Publisher<Result> executeBatchAsFlux();
 
-    /**
-     * <p>
-     * Only below methods support this method:
-     *     <ul>
-     *         <li>{@link #executeQuery()}</li>
-     *         <li>{@link #executeQuery(Consumer)}</li>
-     *     </ul>
-     * </p>
-     * <p>
-     * invoke before invoke {@link #executeQuery()} or {@link #executeQuery(Consumer)}.
-     * </p>
-     *
-     * @param fetchSize fetch size ,positive support
-     * @return true :<ul>
-     * <li>fetchSize great than zero</li>
-     * <li>driver implementation support fetch</li>
-     * </ul>
-     */
-    boolean setFetchSize(int fetchSize);
 
 }

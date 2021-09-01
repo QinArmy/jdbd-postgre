@@ -2,7 +2,9 @@ package io.jdbd.postgre.protocol.client;
 
 import io.jdbd.postgre.PgJdbdException;
 import io.jdbd.postgre.util.PgArrays;
+import io.jdbd.postgre.util.PgExceptions;
 import io.jdbd.vendor.result.FluxResultSink;
+import io.jdbd.vendor.result.ResultSetReader;
 import io.jdbd.vendor.stmt.Stmt;
 import io.netty.buffer.ByteBuf;
 import org.slf4j.Logger;
@@ -11,6 +13,7 @@ import org.slf4j.LoggerFactory;
 import java.nio.charset.Charset;
 import java.util.Set;
 import java.util.StringTokenizer;
+import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 /**
@@ -32,16 +35,22 @@ abstract class AbstractStmtTask extends PgTask implements StmtTask {
 
     final Stmt stmt;
 
+    private final ResultSetReader resultSetReader;
+
+    private boolean readResultSetPhase;
+
     private int resultIndex = 0;
 
     private boolean downstreamCanceled;
 
     private CopyOperationHandler copyOperationHandler;
 
+
     AbstractStmtTask(TaskAdjutant adjutant, FluxResultSink sink, Stmt stmt) {
         super(adjutant, sink::error);
         this.sink = sink;
         this.stmt = stmt;
+        this.resultSetReader = DefaultResultSetReader.create(this, sink.froResultSet());
     }
 
     @Override
@@ -100,7 +109,131 @@ abstract class AbstractStmtTask extends PgTask implements StmtTask {
         return builder.toString();
     }
 
+    @Override
+    protected boolean decode(final ByteBuf cumulateBuffer, final Consumer<Object> serverStatusConsumer) {
+        boolean taskEnd = false, continueRead = Messages.hasOneMessage(cumulateBuffer);
+
+        final Charset clientCharset = this.adjutant.clientCharset();
+
+        while (continueRead) {
+
+            if (this.readResultSetPhase) {
+                if (this.resultSetReader.read(cumulateBuffer, serverStatusConsumer)) {
+                    this.readResultSetPhase = false;
+                    continueRead = Messages.hasOneMessage(cumulateBuffer);
+                } else {
+                    continueRead = false;
+                }
+                continue;
+            }
+
+            final int msgStartIndex = cumulateBuffer.readerIndex();
+            final int msgType = cumulateBuffer.getByte(msgStartIndex);
+
+            switch (msgType) {
+                case Messages.E: {// ErrorResponse message
+                    ErrorMessage error = ErrorMessage.read(cumulateBuffer, clientCharset);
+                    addError(PgExceptions.createErrorException(error));
+                    continueRead = Messages.hasOneMessage(cumulateBuffer);
+                }
+                break;
+                case Messages.Z: {// ReadyForQuery message
+                    final TxStatus txStatus = TxStatus.read(cumulateBuffer);
+                    serverStatusConsumer.accept(txStatus);
+                    if (isEndAtReadyForQuery(txStatus)) {
+                        taskEnd = true;
+                        continueRead = false;
+                        log.trace("Simple query command end,read optional notice.");
+                        readNoticeAfterReadyForQuery(cumulateBuffer, serverStatusConsumer);
+                    } else {
+                        continueRead = Messages.hasOneMessage(cumulateBuffer);
+                    }
+                }
+                break;
+                case Messages.C: {// CommandComplete message
+                    if (readResultStateWithoutReturning(cumulateBuffer)) {
+                        continueRead = Messages.hasOneMessage(cumulateBuffer);
+                    } else {
+                        continueRead = false;
+                    }
+                }
+                break;
+                case Messages.I: {// EmptyQueryResponse message
+                    continueRead = readEmptyQuery(cumulateBuffer) && Messages.hasOneMessage(cumulateBuffer);
+                }
+                break;
+                case Messages.S: {// ParameterStatus message
+                    serverStatusConsumer.accept(Messages.readParameterStatus(cumulateBuffer, clientCharset));
+                    continueRead = Messages.hasOneMessage(cumulateBuffer);
+                }
+                break;
+                case Messages.T: {// RowDescription message
+                    if (isResultSetPhase()) {
+                        this.readResultSetPhase = true;
+                        if (this.resultSetReader.read(cumulateBuffer, serverStatusConsumer)) {
+                            this.readResultSetPhase = false;
+                            continueRead = Messages.hasOneMessage(cumulateBuffer);
+                        } else {
+                            continueRead = false;
+                        }
+                    } else {
+                        taskEnd = readOtherMessage(cumulateBuffer, serverStatusConsumer);
+                        continueRead = false;
+                    }
+                }
+                break;
+                case Messages.G: {// CopyInResponse message
+                    handleCopyInResponse(cumulateBuffer);
+                    continueRead = false;
+                }
+                break;
+                case Messages.H: { // CopyOutResponse message
+                    if (handleCopyOutResponse(cumulateBuffer)) {
+                        continueRead = Messages.hasOneMessage(cumulateBuffer);
+                    } else {
+                        continueRead = false;
+                    }
+                }
+                break;
+                case Messages.d: // CopyData message
+                case Messages.c:// CopyDone message
+                case Messages.f: {// CopyFail message
+                    if (handleCopyOutData(cumulateBuffer)) {
+                        continueRead = Messages.hasOneMessage(cumulateBuffer);
+                    } else {
+                        continueRead = false;
+                    }
+                }
+                break;
+                case Messages.A: { // NotificationResponse
+                    //TODO complete LISTEN command
+                    Messages.skipOneMessage(cumulateBuffer);
+                    continueRead = Messages.hasOneMessage(cumulateBuffer);
+                }
+                break;
+                default: {
+                    taskEnd = readOtherMessage(cumulateBuffer, serverStatusConsumer);
+                    continueRead = false;
+                }
+
+            }
+
+
+        }
+        return taskEnd;
+    }
+
+
+    /**
+     * @return true : task end
+     */
+    abstract boolean readOtherMessage(final ByteBuf cumulateBuffer, final Consumer<Object> serverStatusConsumer);
+
     abstract void internalToString(StringBuilder builder);
+
+    abstract boolean isEndAtReadyForQuery(TxStatus status);
+
+    abstract boolean isResultSetPhase();
 
     /**
      * @return true: read CommandComplete message end , false : more cumulate.

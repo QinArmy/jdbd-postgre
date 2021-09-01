@@ -5,7 +5,7 @@ import io.jdbd.ResultStatusConsumerException;
 import io.jdbd.SessionCloseException;
 import io.jdbd.result.MultiResult;
 import io.jdbd.result.ResultRow;
-import io.jdbd.result.ResultState;
+import io.jdbd.result.ResultStates;
 import io.jdbd.result.SingleResult;
 import io.jdbd.stmt.ResultType;
 import io.jdbd.stmt.SubscribeException;
@@ -66,7 +66,7 @@ final class MultiResultFluxSink implements MultiResultSink {
     }
 
     @Override
-    public final void nextUpdate(ResultState status) {
+    public final void nextUpdate(ResultStates status) {
         if (this.upstreamError == null) {
             final int currentIndex = this.index++;
             if (currentIndex < 0) {
@@ -130,15 +130,15 @@ final class MultiResultFluxSink implements MultiResultSink {
 
         private final int index;
 
-        private final ResultState resultState;
+        private final ResultStates resultStates;
 
         private final ITaskAdjutant adjutant;
 
         private boolean done;
 
-        private UpdateSingleResult(int index, ResultState resultState, ITaskAdjutant adjutant) {
+        private UpdateSingleResult(int index, ResultStates resultStates, ITaskAdjutant adjutant) {
             this.index = index;
-            this.resultState = resultState;
+            this.resultStates = resultStates;
             this.adjutant = adjutant;
         }
 
@@ -153,7 +153,7 @@ final class MultiResultFluxSink implements MultiResultSink {
         }
 
         @Override
-        public final Mono<ResultState> receiveUpdate() {
+        public final Mono<ResultStates> receiveUpdate() {
             return Mono.create(sink -> {
                 if (this.adjutant.isActive()) {
                     if (this.adjutant.inEventLoop()) {
@@ -167,19 +167,19 @@ final class MultiResultFluxSink implements MultiResultSink {
             });
         }
 
-        private void downstreamSubscribe(MonoSink<ResultState> sink) {
+        private void downstreamSubscribe(MonoSink<ResultStates> sink) {
             if (this.done) {
                 String message = String.format("Update result[index:%s] can only subscribe one time.", this.index);
                 sink.error(new IllegalStateException(message));
             } else {
-                sink.success(this.resultState);
+                sink.success(this.resultStates);
                 this.done = true;
             }
         }
 
 
         @Override
-        public final Flux<ResultRow> receiveQuery(Consumer<ResultState> statesConsumer) {
+        public final Flux<ResultRow> receiveQuery(Consumer<ResultStates> statesConsumer) {
             return receiveQuery();
         }
 
@@ -218,13 +218,13 @@ final class MultiResultFluxSink implements MultiResultSink {
         }
 
         @Override
-        public final Mono<ResultState> receiveUpdate() {
+        public final Mono<ResultStates> receiveUpdate() {
             String message = String.format("Subscribe update ,but actual Query result[index:%s]", this.index);
             return Mono.error(new SubscribeException(ResultType.UPDATE, ResultType.QUERY, message));
         }
 
         @Override
-        public final Flux<ResultRow> receiveQuery(final Consumer<ResultState> statesConsumer) {
+        public final Flux<ResultRow> receiveQuery(final Consumer<ResultStates> statesConsumer) {
             Objects.requireNonNull(statesConsumer, "statesConsumer");
 
             return Flux.create(sink -> {
@@ -256,19 +256,19 @@ final class MultiResultFluxSink implements MultiResultSink {
 
         private boolean done;
 
-        private ResultState resultState;
+        private ResultStates resultStates;
 
         private FluxSink<ResultRow> downstreamSink;
 
-        private Consumer<ResultState> statusConsumer;
+        private Consumer<ResultStates> statusConsumer;
 
         private QuerySinkImpl(QuerySingleResult result) {
             this.result = result;
         }
 
         @Override
-        public final void accept(ResultState resultState) {
-            this.resultState = resultState;
+        public final void accept(ResultStates resultStates) {
+            this.resultStates = resultStates;
         }
 
         @Override
@@ -300,7 +300,7 @@ final class MultiResultFluxSink implements MultiResultSink {
             return this.downstreamSink != null && this.downstreamSink.isCancelled();
         }
 
-        private void downstreamSubscribe(final FluxSink<ResultRow> sink, final Consumer<ResultState> statesConsumer) {
+        private void downstreamSubscribe(final FluxSink<ResultRow> sink, final Consumer<ResultStates> statesConsumer) {
             if (this.downstreamSink == null) {
                 this.downstreamSink = sink;
                 this.statusConsumer = statesConsumer;
@@ -340,12 +340,12 @@ final class MultiResultFluxSink implements MultiResultSink {
 
             drain();
 
-            final Consumer<ResultState> statusConsumer = this.statusConsumer;
+            final Consumer<ResultStates> statusConsumer = this.statusConsumer;
             if (statusConsumer == null) {
                 sink.complete();
             } else {
                 try {
-                    statusConsumer.accept(Objects.requireNonNull(this.resultState, "this.resultStatus"));
+                    statusConsumer.accept(Objects.requireNonNull(this.resultStates, "this.resultStatus"));
                     sink.complete();
                 } catch (Throwable e) {
                     sink.error(ResultStatusConsumerException.create(statusConsumer, e));
@@ -372,7 +372,7 @@ final class MultiResultFluxSink implements MultiResultSink {
         }
 
         @Override
-        public final void accept(ResultState resultState) {
+        public final void accept(ResultStates resultStates) {
             //no-op
         }
 

@@ -1,7 +1,7 @@
 package io.jdbd.postgre;
 
 import io.jdbd.result.ResultRow;
-import io.jdbd.result.ResultState;
+import io.jdbd.result.ResultStates;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.util.annotation.Nullable;
@@ -43,7 +43,7 @@ public abstract class PgTestUtils {
     }
 
 
-    public static ResultState assertUpdateOneWithMoreResult(ResultState state) {
+    public static ResultStates assertUpdateOneWithMoreResult(ResultStates state) {
         assertEquals(state.getAffectedRows(), 1L, "affectedRows");
         assertEquals(state.getInsertId(), 0L, "insertId");
         assertFalse(state.hasColumn(), "returningColumn");
@@ -53,7 +53,7 @@ public abstract class PgTestUtils {
         return state;
     }
 
-    public static ResultState assertUpdateOneWithoutMoreResult(ResultState state) {
+    public static ResultStates assertUpdateOneWithoutMoreResult(ResultStates state) {
         assertEquals(state.getAffectedRows(), 1L, "affectedRows");
         assertEquals(state.getInsertId(), 0L, "insertId");
         assertFalse(state.hasColumn(), "returningColumn");
@@ -63,7 +63,7 @@ public abstract class PgTestUtils {
         return state;
     }
 
-    public static ResultState assertUpdateOneAndReturningWithMoreResult(ResultState state) {
+    public static ResultStates assertUpdateOneAndReturningWithMoreResult(ResultStates state) {
         assertEquals(state.getAffectedRows(), 1L, "affectedRows");
         assertEquals(state.getInsertId(), 0L, "insertId");
         assertTrue(state.hasColumn(), "returningColumn");
@@ -73,7 +73,7 @@ public abstract class PgTestUtils {
         return state;
     }
 
-    public static ResultState assertUpdateOneAndReturningWithoutMoreResult(ResultState state) {
+    public static ResultStates assertUpdateOneAndReturningWithoutMoreResult(ResultStates state) {
         assertEquals(state.getAffectedRows(), 1L, "affectedRows");
         assertEquals(state.getInsertId(), 0L, "insertId");
         assertTrue(state.hasColumn(), "returningColumn");
@@ -83,7 +83,7 @@ public abstract class PgTestUtils {
         return state;
     }
 
-    public static ResultState assertQueryStateWithMoreResult(final ResultState state) {
+    public static ResultStates assertQueryStateWithMoreResult(final ResultStates state) {
         assertEquals(state.getAffectedRows(), 0L, "affectedRows");
         assertEquals(state.getInsertId(), 0L, "insertId");
         assertTrue(state.hasColumn(), "returningColumn");

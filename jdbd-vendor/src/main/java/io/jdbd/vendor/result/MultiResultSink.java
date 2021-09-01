@@ -1,6 +1,6 @@
 package io.jdbd.vendor.result;
 
-import io.jdbd.result.ResultState;
+import io.jdbd.result.ResultStates;
 
 @Deprecated
 public interface MultiResultSink {
@@ -15,7 +15,7 @@ public interface MultiResultSink {
     /**
      *
      */
-    void nextUpdate(ResultState resultState);
+    void nextUpdate(ResultStates resultStates);
 
     /**
      *

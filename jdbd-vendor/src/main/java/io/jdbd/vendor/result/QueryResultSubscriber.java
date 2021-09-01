@@ -4,7 +4,7 @@ import io.jdbd.ResultStatusConsumerException;
 import io.jdbd.result.NoMoreResultException;
 import io.jdbd.result.Result;
 import io.jdbd.result.ResultRow;
-import io.jdbd.result.ResultState;
+import io.jdbd.result.ResultStates;
 import io.jdbd.stmt.ResultType;
 import io.jdbd.vendor.util.JdbdExceptions;
 import org.reactivestreams.Subscription;
@@ -19,7 +19,7 @@ import java.util.function.Consumer;
  */
 final class QueryResultSubscriber extends AbstractResultSubscriber {
 
-    static Flux<ResultRow> create(Consumer<ResultState> stateConsumer
+    static Flux<ResultRow> create(Consumer<ResultStates> stateConsumer
             , Consumer<FluxResultSink> callback) {
         final FluxResult result = FluxResult.create(sink -> {
             try {
@@ -34,11 +34,11 @@ final class QueryResultSubscriber extends AbstractResultSubscriber {
 
     private final FluxSink<ResultRow> sink;
 
-    private final Consumer<ResultState> stateConsumer;
+    private final Consumer<ResultStates> stateConsumer;
 
-    private ResultState state;
+    private ResultStates state;
 
-    private QueryResultSubscriber(FluxSink<ResultRow> sink, Consumer<ResultState> stateConsumer) {
+    private QueryResultSubscriber(FluxSink<ResultRow> sink, Consumer<ResultStates> stateConsumer) {
         this.sink = sink;
         this.stateConsumer = stateConsumer;
     }
@@ -65,8 +65,8 @@ final class QueryResultSubscriber extends AbstractResultSubscriber {
             addSubscribeError(ResultType.MULTI_RESULT);
         } else if (result instanceof ResultRow) {
             this.sink.next((ResultRow) result);
-        } else if (result instanceof ResultState) {
-            final ResultState state = (ResultState) result;
+        } else if (result instanceof ResultStates) {
+            final ResultStates state = (ResultStates) result;
             if (!state.hasColumn()) {
                 addSubscribeError(ResultType.UPDATE);
             } else if (state.hasMoreFetch()) {
@@ -97,7 +97,7 @@ final class QueryResultSubscriber extends AbstractResultSubscriber {
         final List<Throwable> errorList = this.errorList;
 
         if (errorList == null || errorList.isEmpty()) {
-            final ResultState state = this.state;
+            final ResultStates state = this.state;
             if (state == null) {
                 this.sink.error(new NoMoreResultException("No receive terminator query ResultState from upstream."));
             } else {

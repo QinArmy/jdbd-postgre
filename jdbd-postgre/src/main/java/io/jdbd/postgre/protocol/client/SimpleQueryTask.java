@@ -9,14 +9,14 @@ import io.jdbd.postgre.util.PgExceptions;
 import io.jdbd.result.MultiResult;
 import io.jdbd.result.Result;
 import io.jdbd.result.ResultRow;
-import io.jdbd.result.ResultState;
+import io.jdbd.result.ResultStates;
 import io.jdbd.stmt.BindableStatement;
 import io.jdbd.stmt.MultiStatement;
 import io.jdbd.stmt.StaticStatement;
 import io.jdbd.vendor.result.FluxResultSink;
 import io.jdbd.vendor.result.MultiResults;
 import io.jdbd.vendor.result.ResultSetReader;
-import io.jdbd.vendor.stmt.GroupStmt;
+import io.jdbd.vendor.stmt.BatchStmt;
 import io.jdbd.vendor.stmt.StaticStmt;
 import io.netty.buffer.ByteBuf;
 import org.reactivestreams.Publisher;
@@ -38,7 +38,7 @@ final class SimpleQueryTask extends AbstractStmtTask {
      * This method is underlying api of {@link StaticStatement#executeUpdate(String)} method.
      * </p>
      */
-    static Mono<ResultState> update(StaticStmt stmt, TaskAdjutant adjutant) {
+    static Mono<ResultStates> update(StaticStmt stmt, TaskAdjutant adjutant) {
         return MultiResults.update(sink -> {
             try {
                 SimpleQueryTask task = new SimpleQueryTask(stmt, sink, adjutant);
@@ -70,7 +70,7 @@ final class SimpleQueryTask extends AbstractStmtTask {
      * This method is underlying api of {@link StaticStatement#executeBatch(java.util.List)} method.
      * </p>
      */
-    static Flux<ResultState> batchUpdate(GroupStmt stmt, TaskAdjutant adjutant) {
+    static Flux<ResultStates> batchUpdate(BatchStmt stmt, TaskAdjutant adjutant) {
         return MultiResults.batchUpdate(sink -> {
             try {
                 SimpleQueryTask task = new SimpleQueryTask(stmt, sink, adjutant);
@@ -87,7 +87,7 @@ final class SimpleQueryTask extends AbstractStmtTask {
      * This method is underlying api of {@link StaticStatement#executeAsMulti(java.util.List)} method.
      * </p>
      */
-    static MultiResult batchAsMulti(GroupStmt stmt, TaskAdjutant adjutant) {
+    static MultiResult batchAsMulti(BatchStmt stmt, TaskAdjutant adjutant) {
         return MultiResults.asMulti(adjutant, sink -> {
             try {
                 SimpleQueryTask task = new SimpleQueryTask(stmt, sink, adjutant);
@@ -103,7 +103,7 @@ final class SimpleQueryTask extends AbstractStmtTask {
      * This method is underlying api of {@link StaticStatement#executeAsFlux(java.util.List)} method.
      * </p>
      */
-    static Flux<Result> batchAsFlux(GroupStmt stmt, TaskAdjutant adjutant) {
+    static Flux<Result> batchAsFlux(BatchStmt stmt, TaskAdjutant adjutant) {
         return MultiResults.asFlux(sink -> {
             try {
                 SimpleQueryTask task = new SimpleQueryTask(stmt, sink, adjutant);
@@ -137,7 +137,7 @@ final class SimpleQueryTask extends AbstractStmtTask {
      * This method is one of underlying api of {@link BindableStatement#executeUpdate()} method.
      * </p>
      */
-    static Mono<ResultState> bindableUpdate(BindStmt stmt, TaskAdjutant adjutant) {
+    static Mono<ResultStates> bindableUpdate(BindStmt stmt, TaskAdjutant adjutant) {
         return MultiResults.update(sink -> {
             try {
                 SimpleQueryTask task = new SimpleQueryTask(sink, stmt, adjutant);
@@ -173,7 +173,7 @@ final class SimpleQueryTask extends AbstractStmtTask {
      * This method is one of underlying api of {@link BindableStatement#executeBatch()} method.
      * </p>
      */
-    static Flux<ResultState> bindableBatchUpdate(BatchBindStmt stmt, TaskAdjutant adjutant) {
+    static Flux<ResultStates> bindableBatchUpdate(BatchBindStmt stmt, TaskAdjutant adjutant) {
         return MultiResults.batchUpdate(sink -> {
             try {
                 SimpleQueryTask task = new SimpleQueryTask(adjutant, sink, stmt);
@@ -188,7 +188,7 @@ final class SimpleQueryTask extends AbstractStmtTask {
 
     /**
      * <p>
-     * This method is one of underlying api of below methods {@link BindableStatement#executeAsMulti()}.
+     * This method is one of underlying api of below methods {@link BindableStatement#executeBatchAsMulti()}.
      * </p>
      */
     static MultiResult bindableAsMulti(BatchBindStmt stmt, TaskAdjutant adjutant) {
@@ -204,7 +204,7 @@ final class SimpleQueryTask extends AbstractStmtTask {
 
     /**
      * <p>
-     * This method is one of underlying api of below methods {@link BindableStatement#executeAsFlux()}.
+     * This method is one of underlying api of below methods {@link BindableStatement#executeBatchAsFlux()}.
      * </p>
      */
     static Flux<Result> bindableAsFlux(BatchBindStmt stmt, TaskAdjutant adjutant) {
@@ -224,7 +224,7 @@ final class SimpleQueryTask extends AbstractStmtTask {
 
     /**
      * <p>
-     * This method is underlying api of {@link MultiStatement#executeAsMulti()} method.
+     * This method is underlying api of {@link MultiStatement#executeBatchAsMulti()} method.
      * </p>
      */
     static MultiResult multiStmtAsMulti(MultiBindStmt stmt, TaskAdjutant adjutant) {
@@ -240,7 +240,7 @@ final class SimpleQueryTask extends AbstractStmtTask {
 
     /**
      * <p>
-     * This method is underlying api of {@link MultiStatement#executeAsFlux()} method.
+     * This method is underlying api of {@link MultiStatement#executeBatchAsFlux()} method.
      * </p>
      */
     static Flux<Result> multiStmtAsFlux(MultiBindStmt stmt, TaskAdjutant adjutant) {
@@ -278,11 +278,11 @@ final class SimpleQueryTask extends AbstractStmtTask {
     }
 
     /**
-     * @see #batchUpdate(GroupStmt, TaskAdjutant)
-     * @see #batchAsMulti(GroupStmt, TaskAdjutant)
-     * @see #batchAsFlux(GroupStmt, TaskAdjutant)
+     * @see #batchUpdate(BatchStmt, TaskAdjutant)
+     * @see #batchAsMulti(BatchStmt, TaskAdjutant)
+     * @see #batchAsFlux(BatchStmt, TaskAdjutant)
      */
-    private SimpleQueryTask(GroupStmt stmt, FluxResultSink sink, TaskAdjutant adjutant)
+    private SimpleQueryTask(BatchStmt stmt, FluxResultSink sink, TaskAdjutant adjutant)
             throws Throwable {
         super(adjutant, sink, stmt);
         this.packetPublisher = QueryCommandWriter.createStaticBatchCommand(stmt, adjutant);
@@ -348,43 +348,6 @@ final class SimpleQueryTask extends AbstractStmtTask {
         return publisher;
     }
 
-    @Override
-    protected final boolean decode(final ByteBuf cumulateBuffer, final Consumer<Object> serverStatusConsumer) {
-        boolean taskEnd = false, continueRead = Messages.hasOneMessage(cumulateBuffer);
-        while (continueRead) {
-            switch (this.phase) {
-                case READ_COMMAND_RESPONSE: {
-                    taskEnd = readCommandResponse(cumulateBuffer, serverStatusConsumer);
-                    continueRead = false;
-                }
-                break;
-                case READ_ROW_SET: {
-                    if (this.resultSetReader.read(cumulateBuffer, serverStatusConsumer)) {
-                        this.phase = Phase.READ_COMMAND_RESPONSE;
-                        continueRead = Messages.hasOneMessage(cumulateBuffer);
-                    } else {
-                        continueRead = false;
-                    }
-                }
-                break;
-                case END:
-                    throw new IllegalStateException("Task have ended.");
-                default: {
-                    throw PgExceptions.createUnexpectedEnumException(this.phase);
-                }
-            }
-        }
-
-        if (taskEnd) {
-            this.phase = Phase.END;
-            if (hasError()) {
-                publishError(this.sink::error);
-            } else {
-                this.sink.complete();
-            }
-        }
-        return taskEnd;
-    }
 
     @Override
     protected final boolean canDecode(ByteBuf cumulateBuffer) {
@@ -420,6 +383,23 @@ final class SimpleQueryTask extends AbstractStmtTask {
                 .append(this.phase);
     }
 
+    @Override
+    final boolean readOtherMessage(final ByteBuf cumulateBuffer, Consumer<Object> serverStatusConsumer) {
+        throw new UnExpectedMessageException(String.format("Server response unknown message type[%s]"
+                , (char) cumulateBuffer.getByte(cumulateBuffer.readerIndex())));
+    }
+
+    @Override
+    final boolean isEndAtReadyForQuery(TxStatus status) {
+        // return true
+        return true;
+    }
+
+    @Override
+    final boolean isResultSetPhase() {
+        // always true for simple query
+        return true;
+    }
 
     /**
      * @return true: task end.

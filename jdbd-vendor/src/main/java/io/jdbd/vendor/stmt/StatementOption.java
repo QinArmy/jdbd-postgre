@@ -6,17 +6,16 @@ import reactor.util.annotation.Nullable;
 
 import java.util.function.Function;
 
-public interface Stmt {
+public interface StatementOption {
 
     int getTimeout();
 
-    @Nullable
-    default Function<Object, Publisher<byte[]>> getImportPublisher() {
-        return null;
-    }
+    int getFetchSize();
 
     @Nullable
-    default Function<Object, Subscriber<byte[]>> getExportSubscriber() {
-        return null;
-    }
+    Function<Object, Publisher<byte[]>> getImportFunction();
+
+    @Nullable
+    Function<Object, Subscriber<byte[]>> getExportSubscriber();
+
 }

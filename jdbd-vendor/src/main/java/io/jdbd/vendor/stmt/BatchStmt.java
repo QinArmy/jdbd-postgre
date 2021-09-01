@@ -2,7 +2,7 @@ package io.jdbd.vendor.stmt;
 
 import java.util.List;
 
-public interface GroupStmt extends Stmt {
+public interface BatchStmt extends Stmt {
 
     List<String> getSqlGroup();
 

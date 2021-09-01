@@ -1,18 +1,20 @@
 package io.jdbd.postgre.protocol.client;
 
-import io.jdbd.postgre.session.PgDatabaseSession;
 import io.jdbd.postgre.stmt.BatchBindStmt;
 import io.jdbd.postgre.stmt.BindStmt;
 import io.jdbd.postgre.stmt.MultiBindStmt;
+import io.jdbd.postgre.stmt.PrepareStmtTask;
 import io.jdbd.result.MultiResult;
 import io.jdbd.result.Result;
 import io.jdbd.result.ResultRow;
-import io.jdbd.result.ResultState;
+import io.jdbd.result.ResultStates;
 import io.jdbd.stmt.PreparedStatement;
-import io.jdbd.vendor.stmt.GroupStmt;
+import io.jdbd.vendor.stmt.BatchStmt;
 import io.jdbd.vendor.stmt.StaticStmt;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+
+import java.util.function.Function;
 
 final class ClientProtocolImpl implements ClientProtocol {
 
@@ -36,7 +38,7 @@ final class ClientProtocolImpl implements ClientProtocol {
     }
 
     @Override
-    public final Mono<ResultState> update(StaticStmt stmt) {
+    public final Mono<ResultStates> update(StaticStmt stmt) {
         return SimpleQueryTask.update(stmt, this.adjutant);
     }
 
@@ -46,17 +48,17 @@ final class ClientProtocolImpl implements ClientProtocol {
     }
 
     @Override
-    public final Flux<ResultState> batchUpdate(GroupStmt stmt) {
+    public final Flux<ResultStates> batchUpdate(BatchStmt stmt) {
         return SimpleQueryTask.batchUpdate(stmt, this.adjutant);
     }
 
     @Override
-    public final MultiResult batchAsMulti(GroupStmt stmt) {
+    public final MultiResult batchAsMulti(BatchStmt stmt) {
         return SimpleQueryTask.batchAsMulti(stmt, this.adjutant);
     }
 
     @Override
-    public final Flux<Result> batchAsFlux(GroupStmt stmt) {
+    public final Flux<Result> batchAsFlux(BatchStmt stmt) {
         return SimpleQueryTask.batchAsFlux(stmt, this.adjutant);
     }
 
@@ -66,7 +68,7 @@ final class ClientProtocolImpl implements ClientProtocol {
     }
 
     @Override
-    public final Mono<ResultState> bindableUpdate(BindStmt stmt) {
+    public final Mono<ResultStates> bindableUpdate(BindStmt stmt) {
         return SimpleQueryTask.bindableUpdate(stmt, this.adjutant);
     }
 
@@ -76,7 +78,7 @@ final class ClientProtocolImpl implements ClientProtocol {
     }
 
     @Override
-    public final Flux<ResultState> bindableBatchUpdate(BatchBindStmt stmt) {
+    public final Flux<ResultStates> bindableBatchUpdate(BatchBindStmt stmt) {
         return SimpleQueryTask.bindableBatchUpdate(stmt, this.adjutant);
     }
 
@@ -101,8 +103,8 @@ final class ClientProtocolImpl implements ClientProtocol {
     }
 
     @Override
-    public final Mono<PreparedStatement> prepare(String sql, PgDatabaseSession session) {
-        return ExtendedQueryTask.prepare(sql, session, this.adjutant);
+    public final Mono<PreparedStatement> prepare(String sql, Function<PrepareStmtTask, PreparedStatement> function) {
+        return ExtendedQueryTask.prepare(sql, function, this.adjutant);
     }
 
     @Override

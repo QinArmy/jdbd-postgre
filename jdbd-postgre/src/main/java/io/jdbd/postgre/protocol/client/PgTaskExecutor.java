@@ -104,6 +104,10 @@ final class PgTaskExecutor extends CommunicationTaskExecutor<TaskAdjutant> {
 
         private final PgTaskExecutor taskExecutor;
 
+        private String prepareNamePrefix = "S_1@";
+
+        private long prepareNameId = 1L;
+
         private ServerImpl server;
 
         private TxStatus txStatus;
@@ -143,6 +147,20 @@ final class PgTaskExecutor extends CommunicationTaskExecutor<TaskAdjutant> {
         @Override
         public final Charset clientCharset() {
             return Encoding.CLIENT_CHARSET;
+        }
+
+        @Override
+        public final String createPrepareName() {
+            final long nameId = this.prepareNameId++;
+            final String prefix;
+            if (nameId == Long.MIN_VALUE) {
+                final String oldPrefix = this.prepareNamePrefix;
+                final int prefixNum = Integer.parseInt(oldPrefix.substring(2, oldPrefix.length() - 1)) + 1;
+                prefix = oldPrefix.substring(0, 2) + prefixNum + oldPrefix.charAt(oldPrefix.length() - 1);
+            } else {
+                prefix = this.prepareNamePrefix;
+            }
+            return prefix + nameId;
         }
 
         @Override

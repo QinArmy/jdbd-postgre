@@ -143,8 +143,8 @@ final class MultiResultSubscriber extends AbstractResultSubscriber {
                 } else {
                     fluxSink.next((ResultRow) currentResult);
                 }
-            } else if (currentResult instanceof ResultState) {
-                final ResultState state = (ResultState) currentResult;
+            } else if (currentResult instanceof ResultStates) {
+                final ResultStates state = (ResultStates) currentResult;
                 sinkQueue.poll();
                 if (state.hasColumn()) {
                     final FluxSink<ResultRow> fluxSink = sink.fluxSink;
@@ -152,14 +152,14 @@ final class MultiResultSubscriber extends AbstractResultSubscriber {
                         nonExpectedType = ResultType.QUERY;
                         break;
                     } else {
-                        final Consumer<ResultState> stateConsumer = sink.stateConsumer;
+                        final Consumer<ResultStates> stateConsumer = sink.stateConsumer;
                         assert stateConsumer != null;
                         if (fluxSinkComplete(fluxSink, stateConsumer, state)) {
                             break;
                         }
                     }
                 } else {
-                    final MonoSink<ResultState> monoSink = sink.updateSink;
+                    final MonoSink<ResultStates> monoSink = sink.updateSink;
                     if (monoSink == null) {
                         nonExpectedType = ResultType.UPDATE;
                         break;
@@ -235,7 +235,7 @@ final class MultiResultSubscriber extends AbstractResultSubscriber {
         }
 
         @Override
-        public final Mono<ResultState> nextUpdate() {
+        public final Mono<ResultStates> nextUpdate() {
             return Mono.create(sink -> {
                 if (this.adjutant.inEventLoop()) {
                     this.subscriber.subscribeInEventLoop(new SinkWrapper(sink));
@@ -246,7 +246,7 @@ final class MultiResultSubscriber extends AbstractResultSubscriber {
         }
 
         @Override
-        public final Flux<ResultRow> nextQuery(final Consumer<ResultState> statesConsumer) {
+        public final Flux<ResultRow> nextQuery(final Consumer<ResultStates> statesConsumer) {
             return Flux.create(sink -> {
                 if (this.adjutant.inEventLoop()) {
                     this.subscriber.subscribeInEventLoop(new SinkWrapper(sink, statesConsumer));
@@ -270,17 +270,17 @@ final class MultiResultSubscriber extends AbstractResultSubscriber {
 
         private final FluxSink<ResultRow> fluxSink;
 
-        private final Consumer<ResultState> stateConsumer;
+        private final Consumer<ResultStates> stateConsumer;
 
-        private final MonoSink<ResultState> updateSink;
+        private final MonoSink<ResultStates> updateSink;
 
-        private SinkWrapper(FluxSink<ResultRow> fluxSink, Consumer<ResultState> stateConsumer) {
+        private SinkWrapper(FluxSink<ResultRow> fluxSink, Consumer<ResultStates> stateConsumer) {
             this.fluxSink = fluxSink;
             this.stateConsumer = stateConsumer;
             this.updateSink = null;
         }
 
-        private SinkWrapper(MonoSink<ResultState> updateSink) {
+        private SinkWrapper(MonoSink<ResultStates> updateSink) {
             this.updateSink = updateSink;
             this.fluxSink = null;
             this.stateConsumer = null;

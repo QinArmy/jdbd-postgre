@@ -6,7 +6,7 @@ import io.jdbd.postgre.PgType;
 import io.jdbd.postgre.stmt.BindStmt;
 import io.jdbd.postgre.stmt.BindValue;
 import io.jdbd.postgre.stmt.PgStmts;
-import io.jdbd.result.ResultState;
+import io.jdbd.result.ResultStates;
 import org.reactivestreams.Publisher;
 import org.reactivestreams.Subscriber;
 import org.reactivestreams.Subscription;
@@ -61,7 +61,7 @@ public class CopyInSuiteTests extends AbstractTaskTests {
                 "/* comment */ COPY my_copies(create_time,my_varchar) FROM --comment%s'%s'  WITH CSV"
                 , LINE_SEPARATOR, path);
 
-        final ResultState state;
+        final ResultStates state;
         state = SimpleQueryTask.update(PgStmts.stmt(sql), adjutant)
 
                 .concatWith(releaseConnection(protocol))
@@ -97,7 +97,7 @@ public class CopyInSuiteTests extends AbstractTaskTests {
             sqlGroup.add(sql);
         }
 
-        final List<ResultState> stateList;
+        final List<ResultStates> stateList;
         stateList = SimpleQueryTask.batchUpdate(PgStmts.group(sqlGroup), adjutant)
 
                 .concatWith(releaseConnection(protocol))
@@ -110,7 +110,7 @@ public class CopyInSuiteTests extends AbstractTaskTests {
         assertEquals(stateList.size(), sqlGroup.size(), "stateList size");
 
         int count = 0;
-        for (ResultState state : stateList) {
+        for (ResultStates state : stateList) {
             assertTrue(state.getAffectedRows() > 0L, "affectedRows");
             assertFalse(state.hasMoreFetch(), "more fetch");
             assertFalse(state.hasColumn(), "hasColumn");
@@ -139,7 +139,7 @@ public class CopyInSuiteTests extends AbstractTaskTests {
                 "/* comment */ COPY my_copies(create_time,my_varchar) FROM --comment%s?  WITH CSV"
                 , LINE_SEPARATOR);
 
-        final ResultState state;
+        final ResultStates state;
         state = SimpleQueryTask.bindableUpdate(PgStmts.bindable(sql, BindValue.create(0, PgType.VARCHAR, path.toString())), adjutant)
 
                 .concatWith(releaseConnection(protocol))
@@ -174,7 +174,7 @@ public class CopyInSuiteTests extends AbstractTaskTests {
             groupList.add(Collections.singletonList(BindValue.create(0, PgType.VARCHAR, fileName)));
         }
 
-        final List<ResultState> stateList;
+        final List<ResultStates> stateList;
         stateList = SimpleQueryTask.bindableBatchUpdate(PgStmts.bindableBatch(sql, groupList), adjutant)
 
                 .concatWith(releaseConnection(protocol))
@@ -186,7 +186,7 @@ public class CopyInSuiteTests extends AbstractTaskTests {
         assertNotNull(stateList, "stateList");
         assertEquals(stateList.size(), groupList.size(), "stateList size");
         int count = 0;
-        for (ResultState state : stateList) {
+        for (ResultStates state : stateList) {
 
             assertTrue(state.getAffectedRows() > 0L, "affectedRows");
             assertFalse(state.hasMoreFetch(), "more fetch");
@@ -222,9 +222,9 @@ public class CopyInSuiteTests extends AbstractTaskTests {
             stmtGroup.add(stmt);
         }
 
-        final List<ResultState> stateList;
+        final List<ResultStates> stateList;
         stateList = SimpleQueryTask.multiStmtAsFlux(PgStmts.multi(stmtGroup), adjutant)
-                .cast(ResultState.class)
+                .cast(ResultStates.class)
 
                 .concatWith(releaseConnection(protocol))
                 .onErrorResume(releaseConnectionOnError(protocol))
@@ -235,7 +235,7 @@ public class CopyInSuiteTests extends AbstractTaskTests {
         assertNotNull(stateList, "stateList");
         assertEquals(stateList.size(), stmtGroup.size(), "stateList size");
         int count = 0;
-        for (ResultState state : stateList) {
+        for (ResultStates state : stateList) {
 
             assertTrue(state.getAffectedRows() > 0L, "affectedRows");
             assertFalse(state.hasMoreFetch(), "more fetch");

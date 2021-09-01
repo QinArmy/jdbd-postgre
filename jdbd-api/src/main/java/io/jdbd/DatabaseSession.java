@@ -30,6 +30,7 @@ public interface DatabaseSession extends ReactiveCloseable {
     /**
      * @see java.sql.Connection#prepareStatement(String)
      */
+    @Deprecated
     Publisher<PreparedStatement> prepare(String sql, int executeTimeout);
 
     BindableStatement bindable(String sql);

@@ -8,7 +8,7 @@ import io.jdbd.postgre.stmt.*;
 import io.jdbd.postgre.util.PgTimes;
 import io.jdbd.result.*;
 import io.jdbd.stmt.SubscribeException;
-import io.jdbd.vendor.stmt.GroupStmt;
+import io.jdbd.vendor.stmt.BatchStmt;
 import io.jdbd.vendor.stmt.StaticStmt;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -52,7 +52,7 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
         final TaskAdjutant adjutant = mapToTaskAdjutant(protocol);
         final long bindId = (START_ID + 1);
         final String sql = "UPDATE my_types as t SET my_boolean = true WHERE t.id = " + bindId;
-        ResultState state;
+        ResultStates state;
         state = SimpleQueryTask.update(PgStmts.stmt(sql), adjutant)
                 .concatWith(releaseConnection(protocol))
                 .next()
@@ -82,7 +82,7 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
         final long bindId = (START_ID + 10);
         final String sql = "SELECT t.* FROM my_types as t WHERE t.id = " + bindId;
 
-        final AtomicReference<ResultState> stateHolder = new AtomicReference<>(null);
+        final AtomicReference<ResultStates> stateHolder = new AtomicReference<>(null);
         final ResultRow row;
         row = SimpleQueryTask.query(PgStmts.stmt(sql, stateHolder::getAndSet), adjutant)
                 .concatWith(releaseConnection(protocol))
@@ -96,7 +96,7 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
         assertEquals(row.get("id"), bindId, "id");
         assertNotNull(row.get("my_zoned_timestamp"), "my_zoned_timestamp");
 
-        final ResultState state = stateHolder.get();
+        final ResultStates state = stateHolder.get();
 
         assertNotNull(state, "ResultState");
         assertEquals(state.getAffectedRows(), 0L, "rows");
@@ -109,7 +109,7 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
     }
 
     /**
-     * @see SimpleQueryTask#batchUpdate(GroupStmt, TaskAdjutant)
+     * @see SimpleQueryTask#batchUpdate(BatchStmt, TaskAdjutant)
      */
     @Test
     public void batchUpdate() {
@@ -121,7 +121,7 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
         sqlList.add("UPDATE my_types as t SET my_boolean = true WHERE t.id = " + bindId++);
         sqlList.add("UPDATE my_types as t SET my_boolean = false WHERE t.id = " + bindId);
 
-        final List<ResultState> stateList;
+        final List<ResultStates> stateList;
         stateList = SimpleQueryTask.batchUpdate(PgStmts.group(sqlList), adjutant)
                 .switchIfEmpty(PgTestUtils.updateNoResponse())
                 .concatWith(releaseConnection(protocol))
@@ -134,7 +134,7 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
 
         final int size = sqlList.size(), last = size - 1;
         for (int i = 0; i < size; i++) {
-            ResultState state = stateList.get(i);
+            ResultStates state = stateList.get(i);
 
             assertEquals(state.getAffectedRows(), 1L, "rows");
             assertEquals(state.getInsertId(), 0L, "insert id");
@@ -154,7 +154,7 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
 
 
     /**
-     * @see SimpleQueryTask#batchAsMulti(GroupStmt, TaskAdjutant)
+     * @see SimpleQueryTask#batchAsMulti(BatchStmt, TaskAdjutant)
      */
     @Test
     public void asMulti() {
@@ -171,7 +171,7 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
 
         final MultiResult multiResult = SimpleQueryTask.batchAsMulti(PgStmts.group(sqlList), adjutant);
 
-        final AtomicReference<ResultState> updateRowsHolder = new AtomicReference<>(null);
+        final AtomicReference<ResultStates> updateRowsHolder = new AtomicReference<>(null);
 
         Mono.from(multiResult.nextUpdate())
                 .switchIfEmpty(PgTestUtils.updateNoResponse())
@@ -192,13 +192,13 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
                 .then()
                 .block();
 
-        final ResultState state = updateRowsHolder.get();
+        final ResultStates state = updateRowsHolder.get();
         assertNotNull(state, "state");
         PgTestUtils.assertUpdateOneAndReturningWithMoreResult(state);
     }
 
     /**
-     * @see SimpleQueryTask#batchAsFlux(GroupStmt, TaskAdjutant)
+     * @see SimpleQueryTask#batchAsFlux(BatchStmt, TaskAdjutant)
      */
     @Test
     public void asFlux() {
@@ -227,14 +227,14 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
         assertNotNull(resultList, "resultList");
         assertEquals(resultList.size(), 6, "resultList size");
         Result result;
-        ResultState state;
+        ResultStates state;
         ResultRow row;
 
         // result 0
         result = resultList.get(0);
         assertEquals(result.getResultIndex(), 0, "result index"); // result index must be 0
-        assertTrue(result instanceof ResultState, "first update statement.");
-        state = (ResultState) result;
+        assertTrue(result instanceof ResultStates, "first update statement.");
+        state = (ResultStates) result;
 
         assertFalse(state.hasColumn(), "first update statement has returning column.");
         assertFalse(state.hasMoreFetch(), "first update statement more fetch.");
@@ -253,9 +253,9 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
         assertEquals(row.get("id", Long.class), Long.valueOf(bindStartId + 1));
         result = resultList.get(2);
         assertEquals(result.getResultIndex(), 1, "result index");// result index must be 1
-        assertTrue(result instanceof ResultState, "second select statement.");
+        assertTrue(result instanceof ResultStates, "second select statement.");
 
-        state = (ResultState) result;
+        state = (ResultStates) result;
         assertTrue(state.hasColumn(), "second select statement has returning column.");
         assertFalse(state.hasMoreFetch(), "second select statement more fetch.");
         assertEquals(state.getAffectedRows(), 0L, "second select statement affected rows");
@@ -272,9 +272,9 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
         assertEquals(row.get("id", Long.class), Long.valueOf(bindStartId + 2));
         result = resultList.get(4);
         assertEquals(result.getResultIndex(), 2, "result index");// result index must be 2
-        assertTrue(result instanceof ResultState, "third update returning statement.");
+        assertTrue(result instanceof ResultStates, "third update returning statement.");
 
-        state = (ResultState) result;
+        state = (ResultStates) result;
         assertTrue(state.hasColumn(), "third update returning statement has returning column.");
         assertFalse(state.hasMoreFetch(), "third update returning statement more fetch.");
         assertEquals(state.getAffectedRows(), 1L, "third update returning statement affected rows");
@@ -285,8 +285,8 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
         // result 3
         result = resultList.get(5);
         assertEquals(result.getResultIndex(), 3, "result index");// result index must be 3
-        assertTrue(result instanceof ResultState, "fourth update statement.");
-        state = (ResultState) result;
+        assertTrue(result instanceof ResultStates, "fourth update statement.");
+        state = (ResultStates) result;
 
         assertFalse(state.hasColumn(), "fourth update statement has returning column.");
         assertFalse(state.hasMoreFetch(), "fourth update statement more fetch.");
@@ -320,7 +320,7 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
         valueList.add(BindValue.create(0, PgType.TIME, LocalTime.now()));
         valueList.add(BindValue.create(1, PgType.BIGINT, bindId));
 
-        final ResultState state;
+        final ResultStates state;
         state = SimpleQueryTask.bindableUpdate(PgStmts.bindable(sql, valueList), adjutant)
                 .switchIfEmpty(PgTestUtils.updateNoResponse())
                 .concatWith(releaseConnection(protocol))
@@ -402,7 +402,7 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
             groupList.add(Collections.unmodifiableList(valueList));
         }
 
-        final List<ResultState> stateList;
+        final List<ResultStates> stateList;
         stateList = SimpleQueryTask.bindableBatchUpdate(PgStmts.bindableBatch(sql, groupList), adjutant)
                 .switchIfEmpty(PgTestUtils.updateNoResponse())
                 .concatWith(releaseConnection(protocol))
@@ -414,7 +414,7 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
         assertEquals(stateList.size(), valueArray.length, "stateList size");
 
         for (int i = 0, last = valueArray.length - 1; i < valueArray.length; i++) {
-            ResultState state = stateList.get(i);
+            ResultStates state = stateList.get(i);
             assertEquals(state.getResultIndex(), i);
             assertEquals(state.getAffectedRows(), 1L, "getAffectedRows");
             assertEquals(state.getInsertId(), 0L, "insert id");
@@ -459,7 +459,7 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
         final MultiResult multiResult;
         multiResult = SimpleQueryTask.bindableAsMulti(PgStmts.bindableBatch(sql, groupList), adjutant);
 
-        final List<ResultState> stateList;
+        final List<ResultStates> stateList;
 
         stateList = Mono.from(multiResult.nextUpdate())
                 .concatWith(multiResult.nextUpdate())
@@ -476,7 +476,7 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
         assertEquals(stateList.size(), valueArray.length, "stateList size");
 
         for (int i = 0, last = valueArray.length - 1; i < valueArray.length; i++) {
-            final ResultState state = stateList.get(i);
+            final ResultStates state = stateList.get(i);
 
             assertEquals(state.getResultIndex(), i);
             assertEquals(state.getAffectedRows(), 1L, "getAffectedRows");
@@ -509,7 +509,7 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
         final String sql = "UPDATE my_types as t SET my_time = ?,my_boolean = TRUE WHERE t.id = ? RETURNING t.id AS id,t.my_time AS mytime,t.my_boolean AS myboolean";
 
         final LocalTime[] valueArray = new LocalTime[]{LocalTime.MIN, LocalTime.MAX, LocalTime.NOON, LocalTime.now()};
-        final List<AtomicReference<ResultState>> stateHolderList = new ArrayList<>(valueArray.length);
+        final List<AtomicReference<ResultStates>> stateHolderList = new ArrayList<>(valueArray.length);
 
         final List<List<BindValue>> groupList = new ArrayList<>(valueArray.length);
 
@@ -559,7 +559,7 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
 
             assertEquals(row.get("myboolean"), Boolean.TRUE, "myboolean");
 
-            final ResultState state = stateHolderList.get(i).get();
+            final ResultStates state = stateHolderList.get(i).get();
             assertNotNull(state, "state");
 
             assertEquals(state.getResultIndex(), i);
@@ -604,9 +604,9 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
             groupList.add(Collections.unmodifiableList(valueList));
         }
 
-        final List<ResultState> stateList;
+        final List<ResultStates> stateList;
         stateList = SimpleQueryTask.bindableAsFlux(PgStmts.bindableBatch(sql, groupList), adjutant)
-                .map(ResultState.class::cast)
+                .map(ResultStates.class::cast)
 
                 .concatWith(releaseConnection(protocol))
                 .onErrorResume(releaseConnectionOnError(protocol))
@@ -618,7 +618,7 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
         assertEquals(stateList.size(), valueArray.length, "stateList size");
 
         for (int i = 0, last = valueArray.length - 1; i < valueArray.length; i++) {
-            final ResultState state = stateList.get(i);
+            final ResultStates state = stateList.get(i);
 
             assertEquals(state.getResultIndex(), i);
             assertEquals(state.getAffectedRows(), 1L, "getAffectedRows");
@@ -692,7 +692,7 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
 
             assertEquals(row.get("myboolean"), Boolean.TRUE, "myboolean");
 
-            final ResultState state = (ResultState) resultList.get(j + 1);
+            final ResultStates state = (ResultStates) resultList.get(j + 1);
 
             assertEquals(state.getResultIndex(), i);
             assertEquals(state.getAffectedRows(), 1L, "getAffectedRows");
@@ -745,8 +745,8 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
         final MultiResult multiResult;
         multiResult = SimpleQueryTask.multiStmtAsMulti(PgStmts.multi(stmtList), adjutant);
 
-        final AtomicReference<ResultState> firstStateHolder = new AtomicReference<>(null);
-        final AtomicReference<ResultState> secondStateHolder = new AtomicReference<>(null);
+        final AtomicReference<ResultStates> firstStateHolder = new AtomicReference<>(null);
+        final AtomicReference<ResultStates> secondStateHolder = new AtomicReference<>(null);
 
         Flux.from(multiResult.nextQuery(firstStateHolder::set))
                 .switchIfEmpty(PgTestUtils.queryNoResponse())
@@ -769,11 +769,11 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
 
                 .block();
 
-        final ResultState firstState = firstStateHolder.get();
+        final ResultStates firstState = firstStateHolder.get();
         assertNotNull(firstState, "firstState");
         PgTestUtils.assertQueryStateWithMoreResult(firstState);
 
-        final ResultState secondState = secondStateHolder.get();
+        final ResultStates secondState = secondStateHolder.get();
         assertNotNull(secondState, "secondState");
         PgTestUtils.assertUpdateOneAndReturningWithMoreResult(secondState);
 
@@ -823,20 +823,20 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
         assertNotNull(resultList, "resultList");
         assertEquals(resultList.size(), 6, "resultList size");
 
-        ResultState state;
+        ResultStates state;
         ResultRow row;
 
         row = (ResultRow) resultList.get(0);
         assertEquals(row.getResultIndex(), 0, "resultIndex");
         assertEquals(row.get("id"), stmtList.get(0).getParamGroup().get(0).getNonNullValue(), "stmt one id");
-        state = (ResultState) resultList.get(1);
+        state = (ResultStates) resultList.get(1);
         assertEquals(state.getResultIndex(), 0, "resultIndex");
         PgTestUtils.assertQueryStateWithMoreResult(state);
 
         row = (ResultRow) resultList.get(2);
         assertEquals(row.getResultIndex(), 1, "resultIndex");
         assertEquals(row.get("id"), stmtList.get(1).getParamGroup().get(2).getNonNullValue(), "stmt two id");
-        state = (ResultState) resultList.get(3);
+        state = (ResultStates) resultList.get(3);
         assertEquals(state.getResultIndex(), 1, "resultIndex");
         PgTestUtils.assertUpdateOneAndReturningWithMoreResult(state);
 
@@ -845,7 +845,7 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
         assertEquals(row.getResultIndex(), 2, "resultIndex");
         assertEquals(row.get("id"), stmtList.get(2).getParamGroup().get(2).getNonNullValue(), "stmt three id");
         assertEquals(row.get("myvarchar"), stmtList.get(2).getParamGroup().get(0).getNonNullValue(), "stmt three my_varchar");
-        state = (ResultState) resultList.get(5);
+        state = (ResultStates) resultList.get(5);
         assertEquals(state.getResultIndex(), 2, "resultIndex");
         PgTestUtils.assertUpdateOneAndReturningWithoutMoreResult(state);
 
@@ -994,7 +994,7 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
     }
 
     /**
-     * @see SimpleQueryTask#batchUpdate(GroupStmt, TaskAdjutant)
+     * @see SimpleQueryTask#batchUpdate(BatchStmt, TaskAdjutant)
      */
     @Test(expectedExceptions = JdbdSQLException.class)
     public void batchUpdateInCorrectUserCase1() {
@@ -1023,7 +1023,7 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
     }
 
     /**
-     * @see SimpleQueryTask#batchUpdate(GroupStmt, TaskAdjutant)
+     * @see SimpleQueryTask#batchUpdate(BatchStmt, TaskAdjutant)
      */
     @Test(expectedExceptions = SubscribeException.class)
     public void batchUpdateInCorrectUserCase2() {
@@ -1053,7 +1053,7 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
 
 
     /**
-     * @see SimpleQueryTask#batchUpdate(GroupStmt, TaskAdjutant)
+     * @see SimpleQueryTask#batchUpdate(BatchStmt, TaskAdjutant)
      */
     @Test(expectedExceptions = JdbdSQLException.class)
     public void batchUpdateInCorrectUserCase3() {

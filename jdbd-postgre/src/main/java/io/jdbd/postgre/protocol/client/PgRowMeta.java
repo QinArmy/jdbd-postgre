@@ -26,6 +26,11 @@ final class PgRowMeta implements ResultRowMeta {
         return new PgRowMeta(stmtTask.getAndIncrementResultIndex(), columnMetaArray);
     }
 
+    static PgRowMeta readForPrepare(ByteBuf message, TaskAdjutant adjutant) {
+        PgColumnMeta[] columnMetaArray = PgColumnMeta.read(message, adjutant);
+        return new PgRowMeta(-1, columnMetaArray);
+    }
+
     final int resultIndex;
 
     final PgColumnMeta[] columnMetaArray;
@@ -36,9 +41,6 @@ final class PgRowMeta implements ResultRowMeta {
     private List<String> labelList;
 
     private PgRowMeta(int resultIndex, final PgColumnMeta[] columnMetaArray) {
-        if (resultIndex < 0) {
-            throw new IllegalArgumentException(String.format("resultIndex[%s] less than 0 .", resultIndex));
-        }
         this.resultIndex = resultIndex;
         this.columnMetaArray = columnMetaArray;
 
@@ -51,7 +53,11 @@ final class PgRowMeta implements ResultRowMeta {
 
     @Override
     public final int getResultIndex() {
-        return this.resultIndex;
+        final int resultIndex = this.resultIndex;
+        if (resultIndex < 0) {
+            throw new UnsupportedOperationException("Only used by session bind parameters.");
+        }
+        return resultIndex;
     }
 
     @Override

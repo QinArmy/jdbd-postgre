@@ -1,7 +1,7 @@
 package io.jdbd.result;
 
 
-public interface ResultState extends Result {
+public interface ResultStates extends Result {
 
 
     long getAffectedRows();

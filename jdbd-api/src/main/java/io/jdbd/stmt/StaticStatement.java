@@ -1,7 +1,10 @@
 package io.jdbd.stmt;
 
 import io.jdbd.JdbdSQLException;
-import io.jdbd.result.*;
+import io.jdbd.result.MultiResult;
+import io.jdbd.result.Result;
+import io.jdbd.result.ResultRow;
+import io.jdbd.result.ResultStates;
 import org.reactivestreams.Publisher;
 
 import java.util.List;
@@ -19,8 +22,6 @@ public interface StaticStatement extends Statement {
 
     @Override
     boolean supportOutParameter();
-
-    Publisher<ResultState> executeBatch(List<String> sqlList);
 
 
     /**
@@ -154,7 +155,7 @@ public interface StaticStatement extends Statement {
      * @throws JdbdSQLException              emit when sql execution occur error.
      * @throws io.jdbd.JdbdNonSQLException   emit when if occur other error.
      */
-    Publisher<ResultState> executeUpdate(String sql);
+    Publisher<ResultStates> executeUpdate(String sql);
 
     /**
      * @see #executeQuery(String, Consumer)
@@ -173,16 +174,17 @@ public interface StaticStatement extends Statement {
      * statement does not return a <code>ResultSet</code> object
      * </p>
      */
-    Publisher<ResultRow> executeQuery(String sql, Consumer<ResultState> statesConsumer);
+    Publisher<ResultRow> executeQuery(String sql, Consumer<ResultStates> statesConsumer);
 
 
-    MultiResult executeAsMulti(List<String> sqlList);
+    Publisher<ResultStates> executeBatch(List<String> sqlGroup);
 
-    Publisher<SingleResult> executeAsFlux(List<String> sqlList);
+
+    MultiResult executeAsMulti(List<String> sqlGroup);
+
+    Publisher<Result> executeAsFlux(List<String> sqlGroup);
 
     Publisher<Result> executeAsFlux(String multiStmt);
-
-    boolean setExecuteTimeout(int seconds);
 
 
 }

@@ -92,5 +92,47 @@ public abstract class JdbdExceptions extends ExceptionUtils {
         return new SQLException(reason, SQLStates.SYNTAX_ERROR);
     }
 
+    public static SQLException createInvalidParameterValueError(int stmtIndex, int paramIndex) {
+        String m = String.format("Invalid parameter at batch[index:%s] param[index:%s]", stmtIndex, paramIndex);
+        return new SQLException(m, SQLStates.INVALID_PARAMETER_VALUE);
+    }
+
+    public static SQLException createParameterCountMatchError(int stmtIndex, int paramCount, int bindCount) {
+        String m;
+        if (stmtIndex == 0) {
+            m = String.format("parameter count[%s] and bind count[%s] not match.", paramCount, bindCount);
+        } else {
+            m = String.format("Batch[index:%s] parameter count[%s] and bind count[%s] not match."
+                    , stmtIndex, paramCount, bindCount);
+        }
+        return new SQLException(m, SQLStates.INVALID_PARAMETER_VALUE);
+    }
+
+    public static SQLException createDuplicationParameterError(int stmtIndex, int paramIndex) {
+        String m;
+        if (stmtIndex == 0) {
+            m = String.format("parameter [index:%s] duplication.", paramIndex);
+        } else {
+            m = String.format("Batch[index:%s] parameter [index:%s] duplication."
+                    , stmtIndex, paramIndex);
+        }
+        return new SQLException(m, SQLStates.INVALID_PARAMETER_VALUE);
+    }
+
+    public static SQLException createNoParameterValueError(int stmtIndex, int paramIndex) {
+        String m;
+        if (stmtIndex == 0) {
+            m = String.format("No value specified for parameter[index:%s].", paramIndex);
+        } else {
+            m = String.format("Batch[index:%s] No value specified for parameter[index:%s]."
+                    , stmtIndex, paramIndex);
+        }
+        return new SQLException(m, SQLStates.INVALID_PARAMETER_VALUE);
+    }
+
+    public static SQLException createNoAnyParamGroupError() {
+        return new SQLException("Not found any parameter group.", SQLStates.INVALID_PARAMETER_VALUE);
+    }
+
 
 }

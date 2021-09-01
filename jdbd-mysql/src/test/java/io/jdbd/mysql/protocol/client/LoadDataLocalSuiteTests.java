@@ -7,7 +7,7 @@ import io.jdbd.mysql.stmt.BindableStmt;
 import io.jdbd.mysql.stmt.Stmts;
 import io.jdbd.mysql.util.MySQLTimes;
 import io.jdbd.result.ResultRow;
-import io.jdbd.result.ResultState;
+import io.jdbd.result.ResultStates;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
@@ -47,7 +47,7 @@ public class LoadDataLocalSuiteTests extends AbstractStmtTaskSuiteTests {
     }
 
     @Override
-    Mono<ResultState> executeUpdate(BindableStmt stmt, TaskAdjutant adjutant) {
+    Mono<ResultStates> executeUpdate(BindableStmt stmt, TaskAdjutant adjutant) {
         return ComQueryTask.bindableUpdate(stmt, adjutant);
     }
 
@@ -96,7 +96,7 @@ public class LoadDataLocalSuiteTests extends AbstractStmtTaskSuiteTests {
             final TaskAdjutant adjutant = obtainTaskAdjutant();
             final String sql = "TRUNCATE mysql_load_data";
 
-            ResultState status;
+            ResultStates status;
             status = ComQueryTask.update(Stmts.stmt(sql), adjutant)
                     .block();
 
@@ -186,7 +186,7 @@ public class LoadDataLocalSuiteTests extends AbstractStmtTaskSuiteTests {
                 , path.toAbsolutePath());
 
         LOG.info("execute loadDataLocal sql :{} ", sql);
-        ResultState status;
+        ResultStates status;
         status = ComQueryTask.update(Stmts.stmt(sql), adjutant)
                 .block();
 

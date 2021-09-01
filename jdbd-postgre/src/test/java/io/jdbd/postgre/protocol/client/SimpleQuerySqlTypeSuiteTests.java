@@ -3,7 +3,7 @@ package io.jdbd.postgre.protocol.client;
 import io.jdbd.postgre.Group;
 import io.jdbd.postgre.stmt.BindStmt;
 import io.jdbd.result.ResultRow;
-import io.jdbd.result.ResultState;
+import io.jdbd.result.ResultStates;
 import org.testng.annotations.Test;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -32,7 +32,7 @@ public class SimpleQuerySqlTypeSuiteTests extends AbstractStmtTaskTests {
 
 
     @Override
-    final BiFunction<BindStmt, TaskAdjutant, Mono<ResultState>> updateFunction() {
+    final BiFunction<BindStmt, TaskAdjutant, Mono<ResultStates>> updateFunction() {
         return SimpleQueryTask::bindableUpdate;
     }
 

@@ -1,24 +1,25 @@
 package io.jdbd.postgre.protocol.client;
 
-import io.jdbd.postgre.session.PgDatabaseSession;
 import io.jdbd.postgre.stmt.BatchBindStmt;
 import io.jdbd.postgre.stmt.BindStmt;
 import io.jdbd.postgre.stmt.MultiBindStmt;
+import io.jdbd.postgre.stmt.PrepareStmtTask;
 import io.jdbd.result.MultiResult;
 import io.jdbd.result.Result;
 import io.jdbd.result.ResultRow;
-import io.jdbd.result.ResultState;
+import io.jdbd.result.ResultStates;
 import io.jdbd.stmt.BindableStatement;
 import io.jdbd.stmt.MultiStatement;
 import io.jdbd.stmt.PreparedStatement;
 import io.jdbd.stmt.StaticStatement;
-import io.jdbd.vendor.stmt.GroupStmt;
+import io.jdbd.vendor.stmt.BatchStmt;
 import io.jdbd.vendor.stmt.StaticStmt;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.util.List;
 import java.util.function.Consumer;
+import java.util.function.Function;
 
 public interface ClientProtocol {
 
@@ -30,7 +31,7 @@ public interface ClientProtocol {
      * This method is underlying api of {@link StaticStatement#executeUpdate(String)} method.
      * </p>
      */
-    Mono<ResultState> update(StaticStmt stmt);
+    Mono<ResultStates> update(StaticStmt stmt);
 
     /**
      * <p>
@@ -48,21 +49,21 @@ public interface ClientProtocol {
      * This method is underlying api of {@link StaticStatement#executeBatch(List)} method.
      * </p>
      */
-    Flux<ResultState> batchUpdate(GroupStmt stmt);
+    Flux<ResultStates> batchUpdate(BatchStmt stmt);
 
     /**
      * <p>
      * This method is underlying api of {@link StaticStatement#executeAsMulti(List)} method.
      * </p>
      */
-    MultiResult batchAsMulti(GroupStmt stmt);
+    MultiResult batchAsMulti(BatchStmt stmt);
 
     /**
      * <p>
      * This method is underlying api of {@link StaticStatement#executeAsFlux(List)} method.
      * </p>
      */
-    Flux<Result> batchAsFlux(GroupStmt stmt);
+    Flux<Result> batchAsFlux(BatchStmt stmt);
 
     Flux<Result> multiCommandAsFlux(StaticStmt stmt);
 
@@ -73,7 +74,7 @@ public interface ClientProtocol {
      * This method is one of underlying api of {@link BindableStatement#executeUpdate()} method.
      * </p>
      */
-    Mono<ResultState> bindableUpdate(BindStmt stmt);
+    Mono<ResultStates> bindableUpdate(BindStmt stmt);
 
     /**
      * <p>
@@ -91,18 +92,18 @@ public interface ClientProtocol {
      * This method is one of underlying api of {@link BindableStatement#executeBatch()} method.
      * </p>
      */
-    Flux<ResultState> bindableBatchUpdate(BatchBindStmt stmt);
+    Flux<ResultStates> bindableBatchUpdate(BatchBindStmt stmt);
 
     /**
      * <p>
-     * This method is one of underlying api of {@link BindableStatement#executeAsMulti()} method.
+     * This method is one of underlying api of {@link BindableStatement#executeBatchAsMulti()} method.
      * </p>
      */
     MultiResult bindableAsMulti(BatchBindStmt stmt);
 
     /**
      * <p>
-     * This method is one of underlying api of {@link BindableStatement#executeAsFlux()} method.
+     * This method is one of underlying api of {@link BindableStatement#executeBatchAsFlux()} method.
      * </p>
      */
     Flux<Result> bindableAsFlux(BatchBindStmt stmt);
@@ -111,20 +112,19 @@ public interface ClientProtocol {
 
     /**
      * <p>
-     * This method is underlying api of {@link MultiStatement#executeAsMulti()} method.
+     * This method is underlying api of {@link MultiStatement#executeBatchAsMulti()} method.
      * </p>
      */
     MultiResult multiStmtAsMulti(MultiBindStmt stmt);
 
     /**
      * <p>
-     * This method is underlying api of {@link MultiStatement#executeAsFlux()} method.
+     * This method is underlying api of {@link MultiStatement#executeBatchAsFlux()} method.
      * </p>
      */
     Flux<Result> multiStmtAsFlux(MultiBindStmt stmt);
 
-
-    Mono<PreparedStatement> prepare(String sql, PgDatabaseSession session);
+    Mono<PreparedStatement> prepare(String sql, Function<PrepareStmtTask, PreparedStatement> function);
 
 
     /*################################## blow for session ##################################*/

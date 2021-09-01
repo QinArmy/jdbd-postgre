@@ -9,7 +9,7 @@ import io.jdbd.postgre.syntax.PgStatement;
 import io.jdbd.postgre.util.PgExceptions;
 import io.jdbd.postgre.util.PgStrings;
 import io.jdbd.postgre.util.PgTimes;
-import io.jdbd.vendor.stmt.GroupStmt;
+import io.jdbd.vendor.stmt.BatchStmt;
 import io.jdbd.vendor.syntax.SQLParser;
 import io.jdbd.vendor.util.JdbdBuffers;
 import io.jdbd.vendor.util.JdbdExceptions;
@@ -43,7 +43,7 @@ import java.util.UUID;
 final class QueryCommandWriter {
 
 
-    static Publisher<ByteBuf> createStaticBatchCommand(GroupStmt stmt, TaskAdjutant adjutant)
+    static Publisher<ByteBuf> createStaticBatchCommand(BatchStmt stmt, TaskAdjutant adjutant)
             throws Throwable {
         final List<String> sqlGroup = stmt.getSqlGroup();
         final ByteBuf message = adjutant.allocator().buffer(sqlGroup.size() * 50, Integer.MAX_VALUE);

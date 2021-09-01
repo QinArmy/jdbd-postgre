@@ -15,6 +15,7 @@ import java.nio.file.StandardOpenOption;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
+import java.sql.Statement;
 import java.util.Arrays;
 import java.util.Properties;
 
@@ -30,15 +31,9 @@ public class JdbcUnitTests {
     public void connect() throws Exception {
 
         try (Connection conn = DriverManager.getConnection(url, createProperties())) {
-            String sql = "UPDATE my_types AS t SET my_boolean = TRUE WHERE t.id = ?";
-            try (PreparedStatement stmt = conn.prepareStatement(sql)) {
-                stmt.setLong(1, 0);
-//                stmt.addBatch();
-//                stmt.setLong(1,-1);
-//                stmt.addBatch();
-
-                stmt.executeBatch();
-
+            String sql = "CALL my_update_procedure(1);";
+            try (Statement stmt = conn.createStatement()) {
+                stmt.executeUpdate(sql);
             }
         }
 
@@ -47,16 +42,15 @@ public class JdbcUnitTests {
 
     @Test
     public void prepare() throws Exception {
+        Properties properties = new Properties(createProperties());
+        properties.put("preferQueryMode", "extended");
 
-        try (Connection conn = DriverManager.getConnection(url, createProperties())) {
+        try (Connection conn = DriverManager.getConnection(url, properties)) {
             String sql = "UPDATE my_types AS t SET my_boolean = TRUE WHERE t.id = ?";
             try (PreparedStatement stmt = conn.prepareStatement(sql)) {
-                stmt.setLong(1, 0);
-                stmt.addBatch();
-                stmt.setLong(1, -1);
-                stmt.addBatch();
 
-                stmt.executeBatch();
+
+                stmt.executeUpdate();
 
             }
         }
@@ -133,7 +127,7 @@ public class JdbcUnitTests {
         Properties properties = new Properties();
         properties.put("user", "army_w");
         properties.put("password", "army123");
-        // properties.put("preferQueryMode", "simple");
+
         properties.put("currentSchema", "army");
         return properties;
     }

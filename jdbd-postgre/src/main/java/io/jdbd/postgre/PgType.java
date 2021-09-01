@@ -292,6 +292,10 @@ public enum PgType implements io.jdbd.meta.SQLType {
         return (int) this.typeOid;
     }
 
+    public final int getTypeOid() {
+        return this.typeOid;
+    }
+
 
     /**
      * @see #getName()

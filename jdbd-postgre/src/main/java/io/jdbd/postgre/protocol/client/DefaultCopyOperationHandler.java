@@ -14,7 +14,7 @@ import io.jdbd.postgre.util.PgExceptions;
 import io.jdbd.stmt.BindableSingleStatement;
 import io.jdbd.stmt.ExportSubscriberFunctionException;
 import io.jdbd.stmt.StaticStatement;
-import io.jdbd.vendor.stmt.GroupStmt;
+import io.jdbd.vendor.stmt.BatchStmt;
 import io.jdbd.vendor.stmt.StaticStmt;
 import io.jdbd.vendor.stmt.Stmt;
 import io.jdbd.vendor.util.FunctionWithError;
@@ -369,8 +369,8 @@ final class DefaultCopyOperationHandler implements CopyOperationHandler {
                         , StaticStatement.class.getName()));
             }
             function = stmt.getExportSubscriber();
-        } else if (stmt instanceof GroupStmt) {
-            final List<String> sqlGroup = ((GroupStmt) stmt).getSqlGroup();
+        } else if (stmt instanceof BatchStmt) {
+            final List<String> sqlGroup = ((BatchStmt) stmt).getSqlGroup();
             if (resultIndex != 0 || sqlGroup.size() != 1) {
                 throw new SQLException(String.format("COPY-OUT only is supported with single statement in %s"
                         , StaticStatement.class.getName()));
@@ -447,8 +447,8 @@ final class DefaultCopyOperationHandler implements CopyOperationHandler {
                 throw new IllegalStateException(String.format("IllegalState can't found COPY command,%s", this));
             }
             copyOperation = function.apply(singleSqlList.get(resultIndex));
-        } else if (stmt instanceof GroupStmt) {
-            final List<String> sqlGroup = ((GroupStmt) stmt).getSqlGroup();
+        } else if (stmt instanceof BatchStmt) {
+            final List<String> sqlGroup = ((BatchStmt) stmt).getSqlGroup();
             if (resultIndex >= sqlGroup.size()) {
                 // here 1. bug ; 2. postgre CALL command add new feature that CALL command can return multi CommendComplete message.
                 throw new IllegalStateException(String.format("IllegalState can't found COPY command,%s", this));

@@ -3,7 +3,7 @@ package io.jdbd.vendor.result;
 import io.jdbd.result.NoMoreResultException;
 import io.jdbd.result.Result;
 import io.jdbd.result.ResultRow;
-import io.jdbd.result.ResultState;
+import io.jdbd.result.ResultStates;
 import io.jdbd.stmt.ResultType;
 import io.jdbd.vendor.util.JdbdExceptions;
 import org.reactivestreams.Subscription;
@@ -18,7 +18,7 @@ import java.util.function.Consumer;
  */
 final class UpdateResultSubscriber extends AbstractResultSubscriber {
 
-    static Mono<ResultState> create(Consumer<FluxResultSink> callback) {
+    static Mono<ResultStates> create(Consumer<FluxResultSink> callback) {
         final FluxResult result = FluxResult.create(sink -> {
             try {
                 callback.accept(sink);
@@ -30,11 +30,11 @@ final class UpdateResultSubscriber extends AbstractResultSubscriber {
     }
 
 
-    private final MonoSink<ResultState> sink;
+    private final MonoSink<ResultStates> sink;
 
-    private ResultState state;
+    private ResultStates state;
 
-    private UpdateResultSubscriber(MonoSink<ResultState> sink) {
+    private UpdateResultSubscriber(MonoSink<ResultStates> sink) {
         this.sink = sink;
     }
 
@@ -59,8 +59,8 @@ final class UpdateResultSubscriber extends AbstractResultSubscriber {
             addSubscribeError(ResultType.MULTI_RESULT);
         } else if (result instanceof ResultRow) {
             addSubscribeError(ResultType.QUERY);
-        } else if (result instanceof ResultState) {
-            final ResultState state = (ResultState) result;
+        } else if (result instanceof ResultStates) {
+            final ResultStates state = (ResultStates) result;
             if (state.hasColumn()) {
                 addSubscribeError(ResultType.QUERY);
             } else if (this.state == null) {
@@ -90,7 +90,7 @@ final class UpdateResultSubscriber extends AbstractResultSubscriber {
         // this method invoker in EventLoop
         final List<Throwable> errorList = this.errorList;
         if (errorList == null || errorList.isEmpty()) {
-            final ResultState state = this.state;
+            final ResultStates state = this.state;
             if (state == null) {
                 this.sink.error(new NoMoreResultException("No receive any result from upstream."));
             } else {

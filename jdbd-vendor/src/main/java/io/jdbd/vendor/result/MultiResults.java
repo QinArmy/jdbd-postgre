@@ -43,20 +43,20 @@ public abstract class MultiResults {
     }
 
     @Deprecated
-    public static Mono<ResultState> update_0(ITaskAdjutant adjutant, Consumer<MultiResultSink> callback) {
+    public static Mono<ResultStates> update_0(ITaskAdjutant adjutant, Consumer<MultiResultSink> callback) {
         return UpdateResultSubscriber_0.create(adjutant, callback);
     }
 
-    public static Mono<ResultState> update(Consumer<FluxResultSink> callback) {
+    public static Mono<ResultStates> update(Consumer<FluxResultSink> callback) {
         return UpdateResultSubscriber.create(callback);
     }
 
-    public static Flux<ResultRow> query(Consumer<ResultState> stateConsumer
+    public static Flux<ResultRow> query(Consumer<ResultStates> stateConsumer
             , Consumer<FluxResultSink> callback) {
         return QueryResultSubscriber.create(stateConsumer, callback);
     }
 
-    public static Flux<ResultState> batchUpdate(Consumer<FluxResultSink> consumer) {
+    public static Flux<ResultStates> batchUpdate(Consumer<FluxResultSink> consumer) {
         return BatchUpdateResultSubscriber.create(consumer);
     }
 

@@ -18,13 +18,13 @@ public interface SingleResult {
      * @return A Reactive Streams {@link Publisher} with rx operators that emits 0 to 1 elements
      * ,like {@code reactor.core.publisher.Mono}.
      */
-    Publisher<ResultState> receiveUpdate();
+    Publisher<ResultStates> receiveUpdate();
 
     /**
      * @return A Reactive Streams {@link Publisher} with rx operators that emits 0 to N elements
      * ,like {@code reactor.core.publisher.Flux}.
      */
-    Publisher<ResultRow> receiveQuery(Consumer<ResultState> statesConsumer);
+    Publisher<ResultRow> receiveQuery(Consumer<ResultStates> statesConsumer);
 
     /**
      * @see #receiveQuery(Consumer)

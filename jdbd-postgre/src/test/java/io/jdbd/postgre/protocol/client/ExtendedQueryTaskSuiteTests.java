@@ -2,7 +2,7 @@ package io.jdbd.postgre.protocol.client;
 
 import io.jdbd.postgre.stmt.BindStmt;
 import io.jdbd.result.ResultRow;
-import io.jdbd.result.ResultState;
+import io.jdbd.result.ResultStates;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -24,7 +24,7 @@ public class ExtendedQueryTaskSuiteTests extends AbstractStmtTaskTests {
 
 
     @Override
-    BiFunction<BindStmt, TaskAdjutant, Mono<ResultState>> updateFunction() {
+    BiFunction<BindStmt, TaskAdjutant, Mono<ResultStates>> updateFunction() {
         return null;
     }
 

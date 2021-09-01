@@ -30,6 +30,8 @@ interface TaskAdjutant extends ITaskAdjutant {
      */
     Charset clientCharset();
 
+    String createPrepareName();
+
     @Deprecated
     ZoneOffset clientOffset();
 

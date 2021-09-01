@@ -8,7 +8,7 @@ import java.util.function.Consumer;
 
 public interface MultiResult {
 
-    Consumer<ResultState> EMPTY_CONSUMER = resultStates -> {
+    Consumer<ResultStates> EMPTY_CONSUMER = resultStates -> {
     };
 
 
@@ -18,13 +18,13 @@ public interface MultiResult {
      * @throws NoMoreResultException  emit when {@link MultiResult} end and no buffer.
      * @throws TooManyResultException emit when database return result set count more than expect
      */
-    Publisher<ResultState> nextUpdate();
+    Publisher<ResultStates> nextUpdate();
 
     /**
      * @return A Reactive Streams {@link Publisher} with rx operators that emits 0 to N elements
      * ,like {@code reactor.core.publisher.Flux}.
      */
-    Publisher<ResultRow> nextQuery(Consumer<ResultState> statesConsumer);
+    Publisher<ResultRow> nextQuery(Consumer<ResultStates> statesConsumer);
 
     /**
      * @see #nextQuery(Consumer)

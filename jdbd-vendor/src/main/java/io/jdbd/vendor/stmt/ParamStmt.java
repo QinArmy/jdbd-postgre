@@ -1,6 +1,6 @@
 package io.jdbd.vendor.stmt;
 
-import io.jdbd.result.ResultState;
+import io.jdbd.result.ResultStates;
 
 import java.util.List;
 import java.util.function.Consumer;
@@ -9,7 +9,7 @@ public interface ParamStmt extends Stmt {
 
     String getSql();
 
-    Consumer<ResultState> getStatusConsumer();
+    Consumer<ResultStates> getStatusConsumer();
 
     /**
      * @return a unmodifiable list

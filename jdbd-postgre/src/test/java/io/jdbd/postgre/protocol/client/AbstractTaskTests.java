@@ -2,7 +2,7 @@ package io.jdbd.postgre.protocol.client;
 
 import io.jdbd.postgre.config.PostgreUrl;
 import io.jdbd.postgre.session.SessionAdjutant;
-import io.jdbd.result.ResultState;
+import io.jdbd.result.ResultStates;
 import io.jdbd.vendor.JdbdCompositeException;
 import io.netty.channel.EventLoopGroup;
 import reactor.core.publisher.Mono;
@@ -30,7 +30,7 @@ abstract class AbstractTaskTests {
     static final long UNKNOWN_PRECISION = 0;
 
 
-    static ResultState assertUpdateOne(ResultState state) {
+    static ResultStates assertUpdateOne(ResultStates state) {
         assertEquals(state.getAffectedRows(), 1L, "affectedRows");
         return state;
     }

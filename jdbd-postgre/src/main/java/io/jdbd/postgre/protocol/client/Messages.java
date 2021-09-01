@@ -8,7 +8,9 @@ import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 
 abstract class Messages {
@@ -17,6 +19,13 @@ abstract class Messages {
     static final byte STRING_TERMINATOR = '\0';
 
     static final byte LENGTH_BYTES = 4;
+
+    /**
+     * <ul>
+     *     <li>ParseComplete</li>
+     * </ul>
+     */
+    static final byte CHAR_ONE = '1';
 
     /**
      * <ul>
@@ -49,6 +58,7 @@ abstract class Messages {
     /**
      * <ul>
      *     <li>DataRow</li>
+     *     <li>Describe</li>
      * </ul>
      */
     static final byte D = 'D';
@@ -85,11 +95,23 @@ abstract class Messages {
 
     /**
      * <ul>
+     *     <li>NoData</li>
+     * </ul>
+     */
+    static final byte n = 'n';
+
+    /**
+     * <ul>
      *     <li>NoticeResponse</li>
      * </ul>
      */
     static final byte N = 'N';
 
+    /**
+     * <ul>
+     *     <li>Sync</li>
+     * </ul>
+     */
     static final byte S = 'S';
 
     static final byte v = 'v';
@@ -103,6 +125,13 @@ abstract class Messages {
 
     /**
      * <ul>
+     *     <li>ParameterDescription</li>
+     * </ul>
+     */
+    static final byte t = 't';
+
+    /**
+     * <ul>
      *     <li>RowDescription</li>
      * </ul>
      */
@@ -113,6 +142,13 @@ abstract class Messages {
     static final byte K = 'K';
 
     static final byte Q = 'Q';
+
+    /**
+     * <ul>
+     *     <li>Parse</li>
+     * </ul>
+     */
+    static final byte P = 'P';
 
     /**
      * <ul>
@@ -240,7 +276,7 @@ abstract class Messages {
                     status = ResultSetStatus.NO_MORE_RESULT;
                     break loop;
                 default: {
-                    // here maybe NoticeResponse message
+                    // here maybe NoticeResponse message / BindComplete
                     cumulateBuffer.readerIndex(nextMsgIndex);
                 }
             }
@@ -254,6 +290,57 @@ abstract class Messages {
         final int readableBytes = cumulateBuffer.readableBytes();
         return readableBytes > 5
                 && readableBytes >= (1 + cumulateBuffer.getInt(cumulateBuffer.readerIndex() + 1));
+    }
+
+    static boolean canReadDescribeResponse(ByteBuf cumulateBuffer) {
+        final int originalIndex = cumulateBuffer.readerIndex();
+        boolean canRead = false;
+        loop:
+        while (hasOneMessage(cumulateBuffer)) {
+            final int msgStartIndex = cumulateBuffer.readerIndex();
+            final int msgType = cumulateBuffer.readByte();
+            final int nextMsgIndex = msgStartIndex + 1 + cumulateBuffer.readInt();
+            switch (msgType) {
+                case n:// NoData message
+                case T:// RowDescription message
+                    canRead = true;
+                    break loop;
+                default:
+                    cumulateBuffer.readerIndex(nextMsgIndex);
+            }
+        }
+        cumulateBuffer.readerIndex(originalIndex);
+        return canRead;
+    }
+
+    /**
+     * @see <a href="https://www.postgresql.org/docs/current/protocol-message-formats.html">ParameterDescription</a>
+     */
+    static List<Integer> readParameterDescription(ByteBuf cumulateBuffer) {
+        final int msgStartIndex = cumulateBuffer.readerIndex();
+        if (cumulateBuffer.readByte() != t) {
+            throw new IllegalArgumentException("Non ParameterDescription message");
+        }
+        final int length = cumulateBuffer.readInt();
+        final int count = cumulateBuffer.readShort();
+        final List<Integer> oidList;
+        switch (count) {
+            case 0:
+                oidList = Collections.emptyList();
+                break;
+            case 1:
+                oidList = Collections.singletonList(cumulateBuffer.readInt());
+                break;
+            default: {
+                final List<Integer> tempList = new ArrayList<>(count);
+                for (int i = 0; i < count; i++) {
+                    tempList.add(cumulateBuffer.readInt());
+                }
+                oidList = Collections.unmodifiableList(tempList);
+            }
+        }
+        cumulateBuffer.readerIndex(msgStartIndex + 1 + length); // avoid tail filler
+        return oidList;
     }
 
     static void skipOneMessage(ByteBuf message) {

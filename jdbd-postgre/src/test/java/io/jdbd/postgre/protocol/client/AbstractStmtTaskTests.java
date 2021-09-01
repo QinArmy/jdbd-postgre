@@ -8,7 +8,7 @@ import io.jdbd.postgre.stmt.BindValue;
 import io.jdbd.postgre.stmt.PgStmts;
 import io.jdbd.postgre.util.PgNumbers;
 import io.jdbd.result.ResultRow;
-import io.jdbd.result.ResultState;
+import io.jdbd.result.ResultStates;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.util.annotation.Nullable;
@@ -46,7 +46,7 @@ abstract class AbstractStmtTaskTests extends AbstractTaskTests {
                 .block();
     }
 
-    abstract BiFunction<BindStmt, TaskAdjutant, Mono<ResultState>> updateFunction();
+    abstract BiFunction<BindStmt, TaskAdjutant, Mono<ResultStates>> updateFunction();
 
     abstract BiFunction<BindStmt, TaskAdjutant, Flux<ResultRow>> queryFunction();
 
@@ -66,7 +66,7 @@ abstract class AbstractStmtTaskTests extends AbstractTaskTests {
 
     private <T> Mono<T> queryColumn(String columnName, PgType expectedType, @Nullable T value, long id) {
         final String sql = String.format("SELECT t.%s FROM my_types as t WHERE t.id = ?", columnName);
-        return executeQuery(PgStmts.single(sql, PgType.BIGINT, id))
+        return executeQuery(PgStmts.bindable(sql, BindValue.create(0, PgType.BIGINT, id)))
                 .switchIfEmpty(PgTestUtils.queryNoResponse())
                 .map(row -> mapColumnValue(row, columnName, expectedType, id))
                 .flatMap(columnValue -> assertColumnValue(columnValue, columnName, value, id))
@@ -77,7 +77,7 @@ abstract class AbstractStmtTaskTests extends AbstractTaskTests {
     /**
      * @see #updateColumn(String, PgType, Object, long)
      */
-    private <T> Mono<T> assertUpdateState(String columnName, long id, ResultState state, @Nullable T value) {
+    private <T> Mono<T> assertUpdateState(String columnName, long id, ResultStates state, @Nullable T value) {
         final Mono<T> mono;
         if (state.getAffectedRows() == 0L) {
             String m = String.format("column[%s] update failure,id[%s].", columnName, id);
@@ -117,12 +117,12 @@ abstract class AbstractStmtTaskTests extends AbstractTaskTests {
     }
 
 
-    private Mono<ResultState> executeUpdate(BindStmt stmt) {
+    private Mono<ResultStates> executeUpdate(BindStmt stmt) {
         return obtainProtocol()
                 .flatMap(protocol -> doExecuteUpdateAndClose(stmt, protocol));
     }
 
-    private Mono<ResultState> doExecuteUpdateAndClose(BindStmt stmt, ClientProtocol protocol) {
+    private Mono<ResultStates> doExecuteUpdateAndClose(BindStmt stmt, ClientProtocol protocol) {
         return updateFunction()
                 .apply(stmt, mapToTaskAdjutant(protocol))
                 .concatWith(releaseConnection(protocol))

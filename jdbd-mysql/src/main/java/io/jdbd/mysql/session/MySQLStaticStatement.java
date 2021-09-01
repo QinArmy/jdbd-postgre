@@ -1,7 +1,10 @@
 package io.jdbd.mysql.session;
 
 import io.jdbd.mysql.stmt.Stmts;
-import io.jdbd.result.*;
+import io.jdbd.result.MultiResult;
+import io.jdbd.result.Result;
+import io.jdbd.result.ResultRow;
+import io.jdbd.result.ResultStates;
 import io.jdbd.stmt.StaticStatement;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -44,12 +47,12 @@ final class MySQLStaticStatement<S extends MySQLDatabaseSession> extends MySQLSt
     }
 
     @Override
-    public final Flux<ResultState> executeBatch(final List<String> sqlList) {
-        return this.session.protocol.batchUpdate(Stmts.stmts(sqlList, this.timeout));
+    public final Flux<ResultStates> executeBatch(final List<String> sqlGroup) {
+        return this.session.protocol.batchUpdate(Stmts.stmts(sqlGroup, this.timeout));
     }
 
     @Override
-    public final Mono<ResultState> executeUpdate(String sql) {
+    public final Mono<ResultStates> executeUpdate(String sql) {
         return this.session.protocol.update(Stmts.stmt(sql, this.timeout));
     }
 
@@ -59,30 +62,26 @@ final class MySQLStaticStatement<S extends MySQLDatabaseSession> extends MySQLSt
     }
 
     @Override
-    public final Flux<ResultRow> executeQuery(String sql, Consumer<ResultState> statesConsumer) {
+    public final Flux<ResultRow> executeQuery(String sql, Consumer<ResultStates> statesConsumer) {
         return this.session.protocol.query(Stmts.stmt(sql, statesConsumer, this.timeout));
     }
 
     @Override
-    public final MultiResult executeAsMulti(final List<String> sqlList) {
-        return this.session.protocol.executeAsMulti(Stmts.stmts(sqlList, this.timeout));
+    public final MultiResult executeAsMulti(final List<String> sqlGroup) {
+        return this.session.protocol.executeAsMulti(Stmts.stmts(sqlGroup, this.timeout));
     }
 
     @Override
-    public final Flux<SingleResult> executeAsFlux(List<String> sqlList) {
-        return this.session.protocol.executeAsFlux(Stmts.stmts(sqlList, this.timeout));
+    public final Flux<Result> executeAsFlux(List<String> sqlGroup) {
+        return null;
     }
+
 
     @Override
     public final Flux<Result> executeAsFlux(String multiStmt) {
         throw new UnsupportedOperationException();
     }
 
-    @Override
-    public final boolean setExecuteTimeout(int seconds) {
-        this.timeout = seconds;
-        return seconds > 0;
-    }
 
     /*################################## blow private static method ##################################*/
 

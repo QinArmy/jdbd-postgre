@@ -2,7 +2,7 @@ package io.jdbd.postgre.protocol.client;
 
 import io.jdbd.postgre.Group;
 import io.jdbd.postgre.stmt.PgStmts;
-import io.jdbd.result.ResultState;
+import io.jdbd.result.ResultStates;
 import org.reactivestreams.Subscriber;
 import org.reactivestreams.Subscription;
 import org.slf4j.Logger;
@@ -54,7 +54,7 @@ public class CopyOutSuiteTests extends AbstractTaskTests {
                 "/* comment */ COPY my_copies(id,create_time,my_varchar) TO --comment%s'%s'  WITH CSV"
                 , LINE_SEPARATOR, path);
 
-        final ResultState state;
+        final ResultStates state;
         state = SimpleQueryTask.update(PgStmts.stmt(sql), adjutant)
 
                 .concatWith(releaseConnection(protocol))
@@ -83,7 +83,7 @@ public class CopyOutSuiteTests extends AbstractTaskTests {
                 "/* comment */ COPY my_copies(id,create_time,my_varchar) TO --comment%sSTDOUT  WITH CSV"
                 , LINE_SEPARATOR);
 
-        final ResultState state;
+        final ResultStates state;
         state = SimpleQueryTask.update(PgStmts.stmtWithExport(sql, StdoutSubscriber::create), adjutant)
 
                 .concatWith(releaseConnection(protocol))

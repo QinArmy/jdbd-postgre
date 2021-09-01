@@ -2,9 +2,10 @@ package io.jdbd.vendor.stmt;
 
 
 import io.jdbd.result.MultiResult;
-import io.jdbd.result.ResultState;
+import io.jdbd.result.ResultStates;
 import io.jdbd.vendor.util.JdbdCollections;
 import io.jdbd.vendor.util.JdbdFunctions;
+import io.jdbd.vendor.util.JdbdStrings;
 import org.reactivestreams.Publisher;
 import org.reactivestreams.Subscriber;
 
@@ -41,8 +42,13 @@ public abstract class JdbdStmts {
         return new StmtImpl1(sql);
     }
 
-    public static StaticStmt stmtWithImport(String sql, Function<String, Publisher<byte[]>> function) {
-        return new StmtImpImport2(sql, function);
+    public static StaticStmt stmt(String sql, StatementOption option) {
+        return new StaticStmtFull(sql, JdbdFunctions.noActionConsumer(), option);
+    }
+
+
+    public static StaticStmt stmt(String sql, Consumer<ResultStates> statesConsumer, StatementOption option) {
+        return new StaticStmtFull(sql, statesConsumer, option);
     }
 
     public static StaticStmt stmtWithExport(String sql, Function<Object, Subscriber<byte[]>> function) {
@@ -54,12 +60,12 @@ public abstract class JdbdStmts {
         return timeout > 0 ? new StmtImpl2(sql, timeout) : new StmtImpl1(sql);
     }
 
-    public static StaticStmt stmt(String sql, Consumer<ResultState> statusConsumer) {
+    public static StaticStmt stmt(String sql, Consumer<ResultStates> statusConsumer) {
         Objects.requireNonNull(sql, "sql");
         return new StmtImpl2C(sql, statusConsumer);
     }
 
-    public static StaticStmt stmt(String sql, Consumer<ResultState> statusConsumer, int timeout) {
+    public static StaticStmt stmt(String sql, Consumer<ResultStates> statusConsumer, int timeout) {
         Objects.requireNonNull(sql, "sql");
         Objects.requireNonNull(statusConsumer, "statusConsumer");
         return timeout > 0
@@ -94,17 +100,37 @@ public abstract class JdbdStmts {
         return new MultiSqlStmtImpl(multiSql, 0);
     }
 
-    public static GroupStmt group(List<String> sqlGroup, int timeout) {
+    public static BatchStmt group(List<String> sqlGroup, int timeout) {
         return timeout == 0 ? new GroupStmtZeroTimeout(sqlGroup) : new GroupStmtImpl(sqlGroup, timeout);
     }
 
-    public static GroupStmt group(List<String> sqlGroup) {
+    public static BatchStmt group(List<String> sqlGroup) {
         return new GroupStmtZeroTimeout(sqlGroup);
     }
 
-    public static ParamStmt singlePrepare(String sql, ParamValue paramValue) {
-        return new SimpleParamStmt(sql, paramValue);
+    public static BatchStmt batchStmt(final List<String> sqlGroup, final StatementOption option) {
+        final List<String> list;
+        switch (sqlGroup.size()) {
+            case 0:
+                throw new IllegalArgumentException("Empty sqlGroup");
+            case 1:
+                list = Collections.singletonList(sqlGroup.get(0));
+                break;
+            default: {
+                final List<String> tempList = new ArrayList<>(sqlGroup.size());
+
+                for (String sql : sqlGroup) {
+                    if (!JdbdStrings.hasText(sql)) {
+                        throw new IllegalArgumentException("Each sql must have text.");
+                    }
+                    tempList.add(sql);
+                }
+                list = Collections.unmodifiableList(tempList);
+            }
+        }
+        return new BatchStmtFull(list, option);
     }
+
 
     public static ParamStmt multiPrepare(String sql, List<? extends ParamValue> paramGroup) {
         return new SimpleParamStmt(sql, paramGroup);
@@ -170,7 +196,7 @@ public abstract class JdbdStmts {
         }
 
         @Override
-        public Consumer<ResultState> getStatusConsumer() {
+        public Consumer<ResultStates> getStatusConsumer() {
             return MultiResult.EMPTY_CONSUMER;
         }
 
@@ -208,7 +234,12 @@ public abstract class JdbdStmts {
         }
 
         @Override
-        public final Consumer<ResultState> getStatusConsumer() {
+        public int getFetchSize() {
+            return 0;
+        }
+
+        @Override
+        public final Consumer<ResultStates> getStatusConsumer() {
             return MultiResult.EMPTY_CONSUMER;
         }
 
@@ -218,9 +249,9 @@ public abstract class JdbdStmts {
 
         private final String sql;
 
-        private final Consumer<ResultState> consumer;
+        private final Consumer<ResultStates> consumer;
 
-        private StmtImpl2C(String sql, Consumer<ResultState> consumer) {
+        private StmtImpl2C(String sql, Consumer<ResultStates> consumer) {
             this.sql = sql;
             this.consumer = consumer;
         }
@@ -236,7 +267,12 @@ public abstract class JdbdStmts {
         }
 
         @Override
-        public final Consumer<ResultState> getStatusConsumer() {
+        public int getFetchSize() {
+            return 0;
+        }
+
+        @Override
+        public final Consumer<ResultStates> getStatusConsumer() {
             return this.consumer;
         }
 
@@ -262,14 +298,114 @@ public abstract class JdbdStmts {
         }
 
         @Override
-        public final Consumer<ResultState> getStatusConsumer() {
-            return MultiResult.EMPTY_CONSUMER;
+        public int getFetchSize() {
+            return 0;
         }
 
         @Override
-        public final Function<String, Publisher<byte[]>> getImportFunction() {
-            return null;
+        public final Consumer<ResultStates> getStatusConsumer() {
+            return MultiResult.EMPTY_CONSUMER;
         }
+
+    }
+
+    private static final class StaticStmtFull implements StaticStmt {
+
+        private final String sql;
+
+        private final Consumer<ResultStates> statesConsumer;
+
+        private final int timeout;
+
+        private final int fetchSize;
+
+        private final Function<Object, Publisher<byte[]>> importPublisher;
+
+        private final Function<Object, Subscriber<byte[]>> exportSubscriber;
+
+        private StaticStmtFull(String sql, Consumer<ResultStates> statesConsumer, StatementOption option) {
+            if (!JdbdStrings.hasText(sql)) {
+                throw new IllegalArgumentException("sql must have text");
+            }
+            this.sql = sql;
+            this.statesConsumer = statesConsumer;
+            this.timeout = option.getTimeout();
+            this.fetchSize = option.getFetchSize();
+
+            this.importPublisher = option.getImportFunction();
+            this.exportSubscriber = option.getExportSubscriber();
+        }
+
+        @Override
+        public final String getSql() {
+            return this.sql;
+        }
+
+        @Override
+        public final Consumer<ResultStates> getStatusConsumer() {
+            return this.statesConsumer;
+        }
+
+        @Override
+        public final int getTimeout() {
+            return this.timeout;
+        }
+
+        @Override
+        public final int getFetchSize() {
+            return this.fetchSize;
+        }
+
+        @Override
+        public final Function<Object, Publisher<byte[]>> getImportPublisher() {
+            return this.importPublisher;
+        }
+
+        @Override
+        public final Function<Object, Subscriber<byte[]>> getExportSubscriber() {
+            return this.exportSubscriber;
+        }
+
+
+    }
+
+    private static final class BatchStmtFull implements BatchStmt {
+
+        private final List<String> sqlGroup;
+
+        private final int timeout;
+
+        private final Function<Object, Publisher<byte[]>> importPublisher;
+
+        private final Function<Object, Subscriber<byte[]>> exportSubscriber;
+
+        private BatchStmtFull(List<String> sqlGroup, StatementOption option) {
+            this.sqlGroup = Collections.unmodifiableList(sqlGroup);
+            this.timeout = option.getTimeout();
+            this.importPublisher = option.getImportFunction();
+            this.exportSubscriber = option.getExportSubscriber();
+        }
+
+        @Override
+        public final List<String> getSqlGroup() {
+            return this.sqlGroup;
+        }
+
+        @Override
+        public final int getTimeout() {
+            return timeout;
+        }
+
+        @Override
+        public final Function<Object, Publisher<byte[]>> getImportPublisher() {
+            return this.importPublisher;
+        }
+
+        @Override
+        public final Function<Object, Subscriber<byte[]>> getExportSubscriber() {
+            return this.exportSubscriber;
+        }
+
 
     }
 
@@ -293,13 +429,18 @@ public abstract class JdbdStmts {
         }
 
         @Override
-        public final Consumer<ResultState> getStatusConsumer() {
+        public final Consumer<ResultStates> getStatusConsumer() {
             return JdbdFunctions.noActionConsumer();
         }
 
         @Override
         public final int getTimeout() {
             return this.timeout;
+        }
+
+        @Override
+        public int getFetchSize() {
+            return 0;
         }
 
         @Override
@@ -313,9 +454,9 @@ public abstract class JdbdStmts {
 
         private final String sql;
 
-        private final Function<String, Publisher<byte[]>> function;
+        private final Function<Object, Publisher<byte[]>> function;
 
-        private StmtImpImport2(String sql, Function<String, Publisher<byte[]>> function) {
+        private StmtImpImport2(String sql, Function<Object, Publisher<byte[]>> function) {
             this.sql = sql;
             this.function = Objects.requireNonNull(function, "function");
         }
@@ -326,7 +467,7 @@ public abstract class JdbdStmts {
         }
 
         @Override
-        public final Consumer<ResultState> getStatusConsumer() {
+        public final Consumer<ResultStates> getStatusConsumer() {
             return JdbdFunctions.noActionConsumer();
         }
 
@@ -336,7 +477,12 @@ public abstract class JdbdStmts {
         }
 
         @Override
-        public final Function<String, Publisher<byte[]>> getImportFunction() {
+        public int getFetchSize() {
+            return 0;
+        }
+
+        @Override
+        public final Function<Object, Publisher<byte[]>> getImportPublisher() {
             return this.function;
         }
 
@@ -350,9 +496,9 @@ public abstract class JdbdStmts {
 
         private final int timeout;
 
-        private final Consumer<ResultState> consumer;
+        private final Consumer<ResultStates> consumer;
 
-        private StmtImpl3(String sql, int timeout, Consumer<ResultState> consumer) {
+        private StmtImpl3(String sql, int timeout, Consumer<ResultStates> consumer) {
             this.sql = sql;
             this.timeout = timeout;
             this.consumer = consumer;
@@ -369,14 +515,19 @@ public abstract class JdbdStmts {
         }
 
         @Override
-        public final Consumer<ResultState> getStatusConsumer() {
+        public int getFetchSize() {
+            return 0;
+        }
+
+        @Override
+        public final Consumer<ResultStates> getStatusConsumer() {
             return this.consumer;
         }
 
 
     }
 
-    private static final class GroupStmtZeroTimeout implements GroupStmt {
+    private static final class GroupStmtZeroTimeout implements BatchStmt {
 
         private final List<String> sqlGroup;
 
@@ -396,7 +547,7 @@ public abstract class JdbdStmts {
 
     }
 
-    private static final class GroupStmtImpl implements GroupStmt {
+    private static final class GroupStmtImpl implements BatchStmt {
 
         private final List<String> sqlGroup;
 

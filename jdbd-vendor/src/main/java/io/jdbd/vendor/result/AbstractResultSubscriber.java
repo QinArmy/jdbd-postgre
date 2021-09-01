@@ -3,7 +3,7 @@ package io.jdbd.vendor.result;
 import io.jdbd.ResultStatusConsumerException;
 import io.jdbd.result.Result;
 import io.jdbd.result.ResultRow;
-import io.jdbd.result.ResultState;
+import io.jdbd.result.ResultStates;
 import io.jdbd.stmt.ResultType;
 import io.jdbd.stmt.SubscribeException;
 import org.reactivestreams.Subscription;
@@ -28,7 +28,7 @@ abstract class AbstractResultSubscriber implements ResultSubscriber {
     /**
      * @return true : stateConsumer throw error
      */
-    final boolean fluxSinkComplete(FluxSink<ResultRow> sink, Consumer<ResultState> stateConsumer, ResultState state) {
+    final boolean fluxSinkComplete(FluxSink<ResultRow> sink, Consumer<ResultStates> stateConsumer, ResultStates state) {
         Throwable consumerError = null;
         try {
             stateConsumer.accept(state);
@@ -113,7 +113,7 @@ abstract class AbstractResultSubscriber implements ResultSubscriber {
         return new IllegalArgumentException(String.format("Unknown type[%s]", result.getClass().getName()));
     }
 
-    static IllegalArgumentException createDuplicationResultState(ResultState state) {
+    static IllegalArgumentException createDuplicationResultState(ResultStates state) {
         return new IllegalArgumentException(String.format("ResultState [%s] duplication", state.getClass().getName()));
     }
 

@@ -3,7 +3,7 @@ package io.jdbd.vendor.result;
 import io.jdbd.result.NoMoreResultException;
 import io.jdbd.result.Result;
 import io.jdbd.result.ResultRow;
-import io.jdbd.result.ResultState;
+import io.jdbd.result.ResultStates;
 import io.jdbd.stmt.ResultType;
 import io.jdbd.vendor.util.JdbdExceptions;
 import org.reactivestreams.Subscription;
@@ -18,7 +18,7 @@ import java.util.function.Consumer;
  */
 final class BatchUpdateResultSubscriber extends AbstractResultSubscriber {
 
-    static Flux<ResultState> create(Consumer<FluxResultSink> callback) {
+    static Flux<ResultStates> create(Consumer<FluxResultSink> callback) {
         final FluxResult result = FluxResult.create(sink -> {
             try {
                 callback.accept(sink);
@@ -29,11 +29,11 @@ final class BatchUpdateResultSubscriber extends AbstractResultSubscriber {
         return Flux.create(sink -> result.subscribe(new BatchUpdateResultSubscriber(sink)));
     }
 
-    private final FluxSink<ResultState> sink;
+    private final FluxSink<ResultStates> sink;
 
     private boolean receiveResult;
 
-    private BatchUpdateResultSubscriber(FluxSink<ResultState> sink) {
+    private BatchUpdateResultSubscriber(FluxSink<ResultStates> sink) {
         this.sink = sink;
     }
 
@@ -56,8 +56,8 @@ final class BatchUpdateResultSubscriber extends AbstractResultSubscriber {
         }
         if (result instanceof ResultRow) {
             addSubscribeError(ResultType.QUERY);
-        } else if (result instanceof ResultState) {
-            final ResultState state = (ResultState) result;
+        } else if (result instanceof ResultStates) {
+            final ResultStates state = (ResultStates) result;
             if (state.hasColumn()) {
                 addSubscribeError(ResultType.QUERY);
             } else {

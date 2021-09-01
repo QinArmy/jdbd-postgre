@@ -2,7 +2,7 @@ package io.jdbd.result;
 
 /**
  * @see ResultRow
- * @see ResultState
+ * @see ResultStates
  * @see ResultRowMeta#getResultIndex()
  */
 public interface Result {

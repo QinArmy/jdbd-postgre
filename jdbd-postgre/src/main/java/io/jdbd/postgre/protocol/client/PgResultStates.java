@@ -1,18 +1,18 @@
 package io.jdbd.postgre.protocol.client;
 
 import io.jdbd.postgre.util.PgArrays;
-import io.jdbd.result.ResultState;
+import io.jdbd.result.ResultStates;
 
 import java.util.Set;
 
-abstract class PgResultStates implements ResultState {
+abstract class PgResultStates implements ResultStates {
 
     static PgResultStates empty(int resultIndex, boolean moreResult) {
-        return new EmptyResultState(resultIndex, moreResult);
+        return new EmptyResultStates(resultIndex, moreResult);
     }
 
     static PgResultStates create(ResultStateParams params) {
-        return new CommandResultState(params);
+        return new CommandResultStates(params);
     }
 
     private static final Set<String> QUERY_COMMAND = PgArrays.asUnmodifiableSet("SELECT", "SHOW");
@@ -31,11 +31,11 @@ abstract class PgResultStates implements ResultState {
         return this.resultIndex;
     }
 
-    private static final class EmptyResultState extends PgResultStates {
+    private static final class EmptyResultStates extends PgResultStates {
 
         private final boolean moreResult;
 
-        private EmptyResultState(int resultIndex, boolean moreResult) {
+        private EmptyResultStates(int resultIndex, boolean moreResult) {
             super(resultIndex);
             this.moreResult = moreResult;
         }
@@ -73,7 +73,7 @@ abstract class PgResultStates implements ResultState {
     }
 
 
-    private static final class CommandResultState extends PgResultStates {
+    private static final class CommandResultStates extends PgResultStates {
 
         private final boolean moreResult;
 
@@ -87,7 +87,7 @@ abstract class PgResultStates implements ResultState {
 
         private final boolean moreFetch;
 
-        private CommandResultState(ResultStateParams params) {
+        private CommandResultStates(ResultStateParams params) {
             super(params.resultIndex);
 
             this.moreResult = params.moreResult;
