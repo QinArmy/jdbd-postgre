@@ -32,7 +32,7 @@ public interface PreparedStatement extends BindableSingleStatement, BindableMult
 
 
     @Override
-    boolean supportLongData();
+    boolean supportPublisher();
 
     @Override
     boolean supportOutParameter();

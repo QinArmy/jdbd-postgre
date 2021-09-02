@@ -2,8 +2,11 @@ package io.jdbd.vendor.util;
 
 import io.jdbd.JdbdException;
 import io.jdbd.JdbdSQLException;
+import io.jdbd.stmt.MultiStatement;
+import io.jdbd.stmt.UnsupportedBindJavaTypeException;
 import io.jdbd.vendor.JdbdCompositeException;
 import io.jdbd.vendor.JdbdUnknownException;
+import io.jdbd.vendor.stmt.CannotReuseMultiStmtException;
 import org.qinarmy.util.ExceptionUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -62,6 +65,10 @@ public abstract class JdbdExceptions extends ExceptionUtils {
                 || e instanceof LinkageError;
     }
 
+    public static UnsupportedBindJavaTypeException notSupportBindJavaType(Class<?> notSupportType) {
+        return new UnsupportedBindJavaTypeException(notSupportType);
+    }
+
 
     public static JdbdException createException(List<? extends Throwable> errorList) {
         final JdbdException e;
@@ -92,12 +99,45 @@ public abstract class JdbdExceptions extends ExceptionUtils {
         return new SQLException(reason, SQLStates.SYNTAX_ERROR);
     }
 
-    public static SQLException createInvalidParameterValueError(int stmtIndex, int paramIndex) {
-        String m = String.format("Invalid parameter at batch[index:%s] param[index:%s]", stmtIndex, paramIndex);
-        return new SQLException(m, SQLStates.INVALID_PARAMETER_VALUE);
+    public static CannotReuseMultiStmtException cannotReuseMultiStmt() {
+        return new CannotReuseMultiStmtException(String.format("Can't reuse %s .", MultiStatement.class.getName()));
     }
 
-    public static SQLException createParameterCountMatchError(int stmtIndex, int paramCount, int bindCount) {
+
+    public static JdbdSQLException multiStmtNoSql() {
+        return new JdbdSQLException(new SQLException("MultiStatement no sql,should invoke addStmt(String) method."));
+    }
+
+    public static JdbdSQLException invalidParameterValue(int stmtIndex, int paramIndex) {
+        String m;
+        if (stmtIndex == 0) {
+            m = String.format("Invalid parameter at  param[index:%s]", paramIndex);
+        } else {
+            m = String.format("Invalid parameter at batch[index:%s] param[index:%s]", stmtIndex, paramIndex);
+        }
+        return new JdbdSQLException(new SQLException(m, SQLStates.INVALID_PARAMETER_VALUE));
+    }
+
+    public static JdbdSQLException beyondFirstParamGroupRange(int indexBasedZero, int firstGroupSize) {
+        String m = String.format("bind index[%s] beyond first param group range [0,%s) ."
+                , indexBasedZero, firstGroupSize);
+        return new JdbdSQLException(new SQLException(m, SQLStates.INVALID_PARAMETER_VALUE));
+    }
+
+
+    public static JdbdSQLException notMatchWithFirstParamGroupCount(int stmtIndex, int paramCount, int firstGroupSize) {
+        final String m;
+        if (stmtIndex == 0) {
+            m = String.format("Param count[%s] and first group param count[%s] not match."
+                    , paramCount, firstGroupSize);
+        } else {
+            m = String.format("Group[index:%s] param count[%s] and first group param count[%s] not match."
+                    , stmtIndex, paramCount, firstGroupSize);
+        }
+        return new JdbdSQLException(new SQLException(m, SQLStates.INVALID_PARAMETER_VALUE));
+    }
+
+    public static JdbdSQLException parameterCountMatch(int stmtIndex, int paramCount, int bindCount) {
         String m;
         if (stmtIndex == 0) {
             m = String.format("parameter count[%s] and bind count[%s] not match.", paramCount, bindCount);
@@ -105,10 +145,10 @@ public abstract class JdbdExceptions extends ExceptionUtils {
             m = String.format("Batch[index:%s] parameter count[%s] and bind count[%s] not match."
                     , stmtIndex, paramCount, bindCount);
         }
-        return new SQLException(m, SQLStates.INVALID_PARAMETER_VALUE);
+        return new JdbdSQLException(new SQLException(m, SQLStates.INVALID_PARAMETER_VALUE));
     }
 
-    public static SQLException createDuplicationParameterError(int stmtIndex, int paramIndex) {
+    public static JdbdSQLException duplicationParameter(int stmtIndex, int paramIndex) {
         String m;
         if (stmtIndex == 0) {
             m = String.format("parameter [index:%s] duplication.", paramIndex);
@@ -116,10 +156,10 @@ public abstract class JdbdExceptions extends ExceptionUtils {
             m = String.format("Batch[index:%s] parameter [index:%s] duplication."
                     , stmtIndex, paramIndex);
         }
-        return new SQLException(m, SQLStates.INVALID_PARAMETER_VALUE);
+        return new JdbdSQLException(new SQLException(m, SQLStates.INVALID_PARAMETER_VALUE));
     }
 
-    public static SQLException createNoParameterValueError(int stmtIndex, int paramIndex) {
+    public static JdbdSQLException noParameterValue(int stmtIndex, int paramIndex) {
         String m;
         if (stmtIndex == 0) {
             m = String.format("No value specified for parameter[index:%s].", paramIndex);
@@ -127,11 +167,12 @@ public abstract class JdbdExceptions extends ExceptionUtils {
             m = String.format("Batch[index:%s] No value specified for parameter[index:%s]."
                     , stmtIndex, paramIndex);
         }
-        return new SQLException(m, SQLStates.INVALID_PARAMETER_VALUE);
+        return new JdbdSQLException(new SQLException(m, SQLStates.INVALID_PARAMETER_VALUE));
     }
 
-    public static SQLException createNoAnyParamGroupError() {
-        return new SQLException("Not found any parameter group.", SQLStates.INVALID_PARAMETER_VALUE);
+    public static JdbdSQLException noAnyParamGroupError() {
+        return new JdbdSQLException(
+                new SQLException("Not found any parameter group.", SQLStates.INVALID_PARAMETER_VALUE));
     }
 
 

@@ -1,5 +1,6 @@
 package io.jdbd.postgre.stmt;
 
+import io.jdbd.postgre.PgType;
 import io.jdbd.result.*;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -15,16 +16,16 @@ public interface PrepareStmtTask {
 
     Flux<ResultStates> executeBatch(BatchBindStmt stmt);
 
-    MultiResult executeAsMulti(BatchBindStmt stmt);
+    MultiResult executeBatchAsMulti(BatchBindStmt stmt);
 
-    Flux<Result> executeAsFlux(BatchBindStmt stmt);
+    Flux<Result> executeBatchAsFlux(BatchBindStmt stmt);
 
-    List<Integer> getParamTypeOidList();
+    List<PgType> getParamTypeList();
 
     @Nullable
     ResultRowMeta getRowMeta();
 
-    void closeOnBindError();
+    void closeOnBindError(Throwable error);
 
     String getSql();
 

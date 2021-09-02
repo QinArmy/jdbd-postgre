@@ -6,6 +6,7 @@ import io.jdbd.vendor.stmt.JdbdStmts;
 import io.jdbd.vendor.stmt.StatementOption;
 import org.reactivestreams.Publisher;
 import org.reactivestreams.Subscriber;
+import reactor.util.annotation.Nullable;
 
 import java.util.Collections;
 import java.util.List;
@@ -14,21 +15,25 @@ import java.util.function.Function;
 
 public abstract class PgStmts extends JdbdStmts {
 
-    public static BindStmt bindable(String sql, List<BindValue> paramGroup) {
-        return new BindStmtTimeout(sql, paramGroup, 0);
+    /**
+     * This class used by {@link io.jdbd.stmt.MultiStatement}, so if paramGroup is empty
+     * ,just do {@link Collections#unmodifiableList(List)}.
+     */
+    public static BindStmt bind(String sql, List<BindValue> paramGroup) {
+        return new BindStmtMin(sql, paramGroup);
     }
 
-    public static BindStmt bindable(String sql, List<BindValue> paramGroup, Consumer<ResultStates> statesConsumer
+    public static BindStmt bind(String sql, List<BindValue> paramGroup, Consumer<ResultStates> statesConsumer
             , StatementOption option) {
         return new BindStmtFull(sql, paramGroup, statesConsumer, option);
     }
 
-    public static BindStmt bindable(String sql, List<BindValue> paramGroup
+    public static BindStmt bind(String sql, List<BindValue> paramGroup
             , StatementOption option) {
         return new BindStmtFull(sql, paramGroup, PgFunctions.noActionConsumer(), option);
     }
 
-    public static BindStmt bindable(String sql, BindValue param) {
+    public static BindStmt bind(String sql, BindValue param) {
         return new BindStmtMin(sql, param);
     }
 
@@ -45,7 +50,11 @@ public abstract class PgStmts extends JdbdStmts {
     }
 
     public static MultiBindStmt multi(List<BindStmt> stmtGroup) {
-        return new MultiBindStmtImpl(stmtGroup, 0);
+        return new MultiBindStmtMin(stmtGroup);
+    }
+
+    public static MultiBindStmt multi(List<BindStmt> stmtGroup, StatementOption option) {
+        return new MultiBindStmtFull(stmtGroup, option);
     }
 
 
@@ -60,6 +69,10 @@ public abstract class PgStmts extends JdbdStmts {
             this.paramGroup = Collections.singletonList(bindValue);
         }
 
+        /**
+         * This class used by {@link io.jdbd.stmt.MultiStatement}, so if paramGroup is empty
+         * ,just do {@link Collections#unmodifiableList(List)}.
+         */
         private BindStmtMin(String sql, List<BindValue> paramGroup) {
             this.sql = sql;
             if (paramGroup.size() == 1) {
@@ -224,15 +237,20 @@ public abstract class PgStmts extends JdbdStmts {
 
     }
 
-    private static final class MultiBindStmtImpl implements MultiBindStmt {
+    private static class MultiBindStmtMin implements MultiBindStmt {
 
         private final List<BindStmt> stmtGroup;
 
-        private final int timeout;
-
-        private MultiBindStmtImpl(List<BindStmt> stmtGroup, int timeout) {
-            this.stmtGroup = Collections.unmodifiableList(stmtGroup);
-            this.timeout = timeout;
+        private MultiBindStmtMin(List<BindStmt> stmtGroup) {
+            switch (stmtGroup.size()) {
+                case 0:
+                    throw new IllegalArgumentException("stmtGroup must not empty.");
+                case 1:
+                    this.stmtGroup = Collections.singletonList(stmtGroup.get(0));
+                    break;
+                default:
+                    this.stmtGroup = Collections.unmodifiableList(stmtGroup);
+            }
         }
 
         @Override
@@ -241,9 +259,55 @@ public abstract class PgStmts extends JdbdStmts {
         }
 
         @Override
+        public int getTimeout() {
+            return 0;
+        }
+
+        @Override
+        public Function<Object, Publisher<byte[]>> getImportPublisher() {
+            return null;
+        }
+
+        @Override
+        public Function<Object, Subscriber<byte[]>> getExportSubscriber() {
+            return null;
+        }
+
+    }
+
+
+    private static final class MultiBindStmtFull extends MultiBindStmtMin {
+
+        private final int timeout;
+
+        private final Function<Object, Publisher<byte[]>> importPublisher;
+
+        private final Function<Object, Subscriber<byte[]>> exportSubscriber;
+
+        private MultiBindStmtFull(List<BindStmt> stmtGroup, StatementOption option) {
+            super(stmtGroup);
+            this.timeout = option.getTimeout();
+            this.importPublisher = option.getImportFunction();
+            this.exportSubscriber = option.getExportSubscriber();
+        }
+
+        @Override
         public final int getTimeout() {
             return this.timeout;
         }
+
+        @Nullable
+        @Override
+        public final Function<Object, Publisher<byte[]>> getImportPublisher() {
+            return this.importPublisher;
+        }
+
+        @Nullable
+        @Override
+        public final Function<Object, Subscriber<byte[]>> getExportSubscriber() {
+            return this.exportSubscriber;
+        }
+
 
     }
 

@@ -68,28 +68,33 @@ final class ClientProtocolImpl implements ClientProtocol {
     }
 
     @Override
-    public final Mono<ResultStates> bindableUpdate(BindStmt stmt) {
+    public final Mono<ResultStates> bindUpdate(BindStmt stmt) {
         return SimpleQueryTask.bindableUpdate(stmt, this.adjutant);
     }
 
     @Override
-    public final Flux<ResultRow> bindableQuery(BindStmt stmt) {
+    public final Flux<ResultRow> bindQuery(BindStmt stmt) {
         return SimpleQueryTask.bindableQuery(stmt, this.adjutant);
     }
 
     @Override
-    public final Flux<ResultStates> bindableBatchUpdate(BatchBindStmt stmt) {
+    public final Flux<ResultStates> bindBatch(BatchBindStmt stmt) {
         return SimpleQueryTask.bindableBatchUpdate(stmt, this.adjutant);
     }
 
     @Override
-    public final MultiResult bindableAsMulti(BatchBindStmt stmt) {
+    public final MultiResult bindBatchAsMulti(BatchBindStmt stmt) {
         return SimpleQueryTask.bindableAsMulti(stmt, this.adjutant);
     }
 
     @Override
-    public final Flux<Result> bindableAsFlux(BatchBindStmt stmt) {
+    public final Flux<Result> bindBatchAsFlux(BatchBindStmt stmt) {
         return SimpleQueryTask.bindableAsFlux(stmt, this.adjutant);
+    }
+
+    @Override
+    public final Flux<ResultStates> multiStmtBatch(MultiBindStmt stmt) {
+        return SimpleQueryTask.multiStmtBatch(stmt, this.adjutant);
     }
 
     @Override

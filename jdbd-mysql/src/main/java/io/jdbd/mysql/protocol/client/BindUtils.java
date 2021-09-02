@@ -7,7 +7,7 @@ import io.jdbd.mysql.stmt.BindableStmt;
 import io.jdbd.mysql.util.MySQLExceptions;
 import io.jdbd.mysql.util.MySQLNumbers;
 import io.jdbd.vendor.stmt.ParamValue;
-import io.jdbd.vendor.util.JdbdBindUtils;
+import io.jdbd.vendor.util.JdbdBinds;
 import io.netty.buffer.ByteBuf;
 
 import java.math.BigDecimal;
@@ -16,7 +16,7 @@ import java.nio.charset.Charset;
 import java.sql.SQLException;
 import java.util.Queue;
 
-abstract class BindUtils extends JdbdBindUtils {
+abstract class BindUtils extends JdbdBinds {
 
     protected BindUtils() {
         throw new UnsupportedOperationException();

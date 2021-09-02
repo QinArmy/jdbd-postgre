@@ -3,6 +3,6 @@ package io.jdbd.stmt;
 public enum ResultType {
     UPDATE,
     QUERY,
-    BATCH_UPDATE,
+    BATCH,
     MULTI_RESULT
 }

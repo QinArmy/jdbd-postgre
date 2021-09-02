@@ -3,6 +3,8 @@ package io.jdbd.stmt;
 
 import io.jdbd.JdbdException;
 import io.jdbd.lang.Nullable;
+import io.jdbd.result.MultiResult;
+import io.jdbd.result.Result;
 import io.jdbd.result.ResultRow;
 import io.jdbd.result.ResultStates;
 import org.reactivestreams.Publisher;
@@ -57,13 +59,7 @@ public interface BindableSingleStatement extends Statement {
      * @see BindStatement#addBatch()
      * @see PreparedStatement#addBatch()
      */
-    void addBatch();
-
-    /**
-     * @see BindStatement#executeBatch()
-     * @see PreparedStatement#executeBatch()
-     */
-    Publisher<ResultStates> executeBatch();
+    void addBatch() throws JdbdException;
 
     /**
      * @see BindStatement#executeUpdate()
@@ -82,5 +78,15 @@ public interface BindableSingleStatement extends Statement {
      * @see PreparedStatement#executeQuery(Consumer)
      */
     Publisher<ResultRow> executeQuery(Consumer<ResultStates> statesConsumer);
+
+    /**
+     * @see BindStatement#executeBatch()
+     * @see PreparedStatement#executeBatch()
+     */
+    Publisher<ResultStates> executeBatch();
+
+    MultiResult executeBatchAsMulti();
+
+    Publisher<Result> executeBatchAsFlux();
 
 }

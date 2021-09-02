@@ -27,7 +27,7 @@ abstract class MySQLStatement<S extends MySQLDatabaseSession> implements Stateme
     }
 
     @Override
-    public boolean supportLongData() {
+    public boolean supportPublisher() {
         return false;
     }
 

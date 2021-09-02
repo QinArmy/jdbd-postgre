@@ -224,6 +224,22 @@ final class SimpleQueryTask extends AbstractStmtTask {
 
     /**
      * <p>
+     * This method is underlying api of {@link MultiStatement#executeBatch()} method.
+     * </p>
+     */
+    static Flux<ResultStates> multiStmtBatch(MultiBindStmt stmt, TaskAdjutant adjutant) {
+        return MultiResults.batchUpdate(sink -> {
+            try {
+                SimpleQueryTask task = new SimpleQueryTask(adjutant, stmt, sink);
+                task.submit(sink::error);
+            } catch (Throwable e) {
+                sink.error(PgExceptions.wrapIfNonJvmFatal(e));
+            }
+        });
+    }
+
+    /**
+     * <p>
      * This method is underlying api of {@link MultiStatement#executeBatchAsMulti()} method.
      * </p>
      */

@@ -1,56 +1,170 @@
 package io.jdbd.postgre.session;
 
+import io.jdbd.JdbdException;
+import io.jdbd.JdbdSQLException;
 import io.jdbd.meta.SQLType;
+import io.jdbd.postgre.PgType;
+import io.jdbd.postgre.stmt.BindStmt;
+import io.jdbd.postgre.stmt.BindValue;
+import io.jdbd.postgre.stmt.MultiBindStmt;
+import io.jdbd.postgre.stmt.PgStmts;
+import io.jdbd.postgre.util.PgBinds;
+import io.jdbd.postgre.util.PgExceptions;
+import io.jdbd.postgre.util.PgStrings;
 import io.jdbd.result.MultiResult;
 import io.jdbd.result.Result;
 import io.jdbd.result.ResultStates;
 import io.jdbd.stmt.MultiStatement;
-import org.reactivestreams.Publisher;
+import reactor.core.publisher.Flux;
+import reactor.util.annotation.Nullable;
 
 import java.sql.JDBCType;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Objects;
 
+/**
+ * <p>
+ * This class is a implementation of {@link MultiStatement} with postgre client protocol.
+ * </p>
+ *
+ * @see PgDatabaseSession#multi()
+ */
 final class PgMultiStatement extends PgStatement implements MultiStatement {
 
+    /**
+     * @see PgDatabaseSession#multi()
+     */
     static PgMultiStatement create(PgDatabaseSession session) {
         return new PgMultiStatement(session);
     }
+
+    private final List<BindStmt> stmtGroup = new ArrayList<>();
+
+    private String currentSql;
+
+    private List<BindValue> paramGroup;
 
     private PgMultiStatement(PgDatabaseSession session) {
         super(session);
     }
 
     @Override
-    public Publisher<ResultStates> executeBatch() {
-        return null;
+    public final void addBatch(final String sql) {
+        if (!PgStrings.hasText(sql)) {
+            throw new IllegalArgumentException("Sql must have text.");
+        }
+        final String currentSql = this.currentSql;
+        if (currentSql != null) {
+            final List<BindValue> paramGroup = Objects.requireNonNull(this.paramGroup, "this.paramGroup");
+            this.stmtGroup.add(PgStmts.bind(currentSql, paramGroup, this));
+        } else if (!this.stmtGroup.isEmpty()) {
+            throw PgExceptions.cannotReuseMultiStmt();
+        }
+        this.currentSql = sql;
+        this.paramGroup = new ArrayList<>();
     }
 
     @Override
-    public void addStmt(String sql) {
-
+    public final void bind(final int indexBasedZero, final JDBCType jdbcType, final @Nullable Object nullable)
+            throws JdbdException {
+        final List<BindValue> paramGroup = this.paramGroup;
+        if (paramGroup == null) {
+            throw PgExceptions.multiStmtNoSql();
+        }
+        final PgType pgType = PgBinds.mapJdbcTypeToPgType(jdbcType, nullable);
+        paramGroup.add(BindValue.create(checkIndex(indexBasedZero), pgType, nullable));
     }
 
     @Override
-    public void bind(int indexBasedZero, JDBCType jdbcType, Object nullable) {
-
+    public final void bind(final int indexBasedZero, final SQLType sqlType, final @Nullable Object nullable)
+            throws JdbdException {
+        final List<BindValue> paramGroup = this.paramGroup;
+        if (paramGroup == null) {
+            throw PgExceptions.multiStmtNoSql();
+        }
+        paramGroup.add(BindValue.create(checkIndex(indexBasedZero), checkSqlType(sqlType), nullable));
     }
 
     @Override
-    public void bind(int indexBasedZero, SQLType sqlType, Object nullable) {
-
+    public final void bind(final int indexBasedZero, final @Nullable Object nullable)
+            throws JdbdException {
+        final List<BindValue> paramGroup = this.paramGroup;
+        if (paramGroup == null) {
+            throw PgExceptions.multiStmtNoSql();
+        }
+        paramGroup.add(BindValue.create(checkIndex(indexBasedZero), PgBinds.inferPgType(nullable), nullable));
     }
 
     @Override
-    public void bind(int index, Object nullable) {
-
+    public final Flux<ResultStates> executeBatch() {
+        return this.session.protocol.multiStmtBatch(createMultiBindStmt());
     }
 
     @Override
-    public MultiResult executeBatchAsMulti() {
-        return null;
+    public final MultiResult executeBatchAsMulti() {
+        return this.session.protocol.multiStmtAsMulti(createMultiBindStmt());
     }
 
     @Override
-    public Publisher<Result> executeBatchAsFlux() {
-        return null;
+    public final Flux<Result> executeBatchAsFlux() {
+        return this.session.protocol.multiStmtAsFlux(createMultiBindStmt());
     }
+
+    @Override
+    public final boolean setFetchSize(int fetchSize) {
+        return false;
+    }
+
+    @Override
+    public final boolean supportPublisher() {
+        return false;
+    }
+
+    @Override
+    public final int getFetchSize() {
+        return 0;
+    }
+
+    /*################################## blow private method ##################################*/
+
+
+    /**
+     * @throws JdbdSQLException when indexBasedZero error
+     */
+    private int checkIndex(final int indexBasedZero) throws JdbdSQLException {
+        if (indexBasedZero < 0) {
+            throw PgExceptions.invalidParameterValue(this.stmtGroup.size(), indexBasedZero);
+        }
+        return indexBasedZero;
+    }
+
+    /**
+     * @see #executeBatch()
+     * @see #executeBatchAsMulti()
+     * @see #executeBatchAsFlux()
+     */
+    private MultiBindStmt createMultiBindStmt() throws JdbdException {
+        final String currentSql = this.currentSql;
+        final List<BindStmt> stmtGroup = this.stmtGroup;
+
+        if (currentSql == null) {
+            if (stmtGroup.isEmpty()) {
+                throw PgExceptions.multiStmtNoSql();
+            } else {
+                throw PgExceptions.cannotReuseMultiStmt();
+            }
+        }
+
+        final List<BindValue> paramGroup = Objects.requireNonNull(this.paramGroup, "this.paramGroup");
+        stmtGroup.add(PgStmts.bind(currentSql, paramGroup, this));
+
+        this.currentSql = null;
+        this.paramGroup = null;
+
+        return PgStmts.multi(stmtGroup, this);
+
+    }
+
+
 }

@@ -54,7 +54,7 @@ abstract class AbstractResultSubscriber implements ResultSubscriber {
         boolean add = true;
         switch (resultType) {
             case UPDATE:
-            case BATCH_UPDATE:
+            case BATCH:
             case QUERY: {
                 for (Throwable e : errorList) {
                     if (e.getClass() == SubscribeException.class) {

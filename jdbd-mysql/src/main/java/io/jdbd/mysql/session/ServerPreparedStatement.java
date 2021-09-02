@@ -59,7 +59,7 @@ public final class ServerPreparedStatement<S extends MySQLDatabaseSession> exten
     }
 
     @Override
-    public boolean supportLongData() {
+    public boolean supportPublisher() {
         return false;
     }
 

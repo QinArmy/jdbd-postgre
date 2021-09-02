@@ -54,7 +54,7 @@ abstract class TaskUtils {
         SubscribeException newError = null;
         if (e instanceof SubscribeException) {
             SubscribeException se = (SubscribeException) e;
-            if (se.getSubscribeType() != ResultType.BATCH_UPDATE || se.getActualType() != ResultType.MULTI_RESULT) {
+            if (se.getSubscribeType() != ResultType.BATCH || se.getActualType() != ResultType.MULTI_RESULT) {
                 newError = createBatchUpdateMultiError();
             }
         }
@@ -63,11 +63,11 @@ abstract class TaskUtils {
 
 
     static SubscribeException createBatchUpdateQueryError() {
-        return new SubscribeException(ResultType.BATCH_UPDATE, ResultType.QUERY);
+        return new SubscribeException(ResultType.BATCH, ResultType.QUERY);
     }
 
     static SubscribeException createBatchUpdateMultiError() {
-        return new SubscribeException(ResultType.BATCH_UPDATE, ResultType.MULTI_RESULT);
+        return new SubscribeException(ResultType.BATCH, ResultType.MULTI_RESULT);
     }
 
     static SubscribeException createUpdateMultiError() {

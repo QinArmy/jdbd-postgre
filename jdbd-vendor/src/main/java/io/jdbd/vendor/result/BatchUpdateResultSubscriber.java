@@ -93,7 +93,7 @@ final class BatchUpdateResultSubscriber extends AbstractResultSubscriber {
 
     @Override
     final ResultType getSubscribeType() {
-        return ResultType.BATCH_UPDATE;
+        return ResultType.BATCH;
     }
 
 

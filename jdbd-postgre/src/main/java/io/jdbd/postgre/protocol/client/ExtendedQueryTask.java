@@ -1,5 +1,6 @@
 package io.jdbd.postgre.protocol.client;
 
+import io.jdbd.postgre.PgType;
 import io.jdbd.postgre.stmt.BatchBindStmt;
 import io.jdbd.postgre.stmt.BindStmt;
 import io.jdbd.postgre.stmt.PrepareStmtTask;
@@ -163,18 +164,29 @@ final class ExtendedQueryTask extends AbstractStmtTask implements PrepareStmtTas
     }
 
     @Override
-    public final MultiResult executeAsMulti(BatchBindStmt stmt) {
+    public final MultiResult executeBatchAsMulti(BatchBindStmt stmt) {
         return null;
     }
 
     @Override
-    public final Flux<Result> executeAsFlux(BatchBindStmt stmt) {
+    public final Flux<Result> executeBatchAsFlux(BatchBindStmt stmt) {
         return null;
     }
 
     @Override
-    public final List<Integer> getParamTypeOidList() {
-        return obtainCachePrepare().paramOidList;
+    public final List<PgType> getParamTypeList() {
+        final List<Integer> oidList = obtainCachePrepare().paramOidList;
+        final List<PgType> typeList;
+        if (oidList.size() == 1) {
+            typeList = Collections.singletonList(PgType.from(oidList.get(0)));
+        } else {
+            List<PgType> temList = new ArrayList<>(oidList.size());
+            for (Integer oid : oidList) {
+                temList.add(PgType.from(oid));
+            }
+            typeList = Collections.unmodifiableList(temList);
+        }
+        return typeList;
     }
 
     @Nullable
@@ -184,7 +196,7 @@ final class ExtendedQueryTask extends AbstractStmtTask implements PrepareStmtTas
     }
 
     @Override
-    public final void closeOnBindError() {
+    public final void closeOnBindError(Throwable error) {
 
     }
 
@@ -324,7 +336,7 @@ final class ExtendedQueryTask extends AbstractStmtTask implements PrepareStmtTas
     }
 
     /**
-     * @see #getParamTypeOidList()
+     * @see #getParamTypeList()
      * @see #getRowMeta()
      */
     private CachePrepareImpl obtainCachePrepare() {

@@ -57,7 +57,7 @@ abstract class AbstractStmtTaskTests extends AbstractTaskTests {
         paramGroup.add(BindValue.create(0, columnType, value));
         paramGroup.add(BindValue.create(1, PgType.BIGINT, id));
 
-        return executeUpdate(PgStmts.bindable(sql, paramGroup))
+        return executeUpdate(PgStmts.bind(sql, paramGroup))
                 .switchIfEmpty(PgTestUtils.updateNoResponse())
                 .flatMap(state -> assertUpdateState(columnName, id, state, value))
                 .then(Mono.justOrEmpty(value));
@@ -66,7 +66,7 @@ abstract class AbstractStmtTaskTests extends AbstractTaskTests {
 
     private <T> Mono<T> queryColumn(String columnName, PgType expectedType, @Nullable T value, long id) {
         final String sql = String.format("SELECT t.%s FROM my_types as t WHERE t.id = ?", columnName);
-        return executeQuery(PgStmts.bindable(sql, BindValue.create(0, PgType.BIGINT, id)))
+        return executeQuery(PgStmts.bind(sql, BindValue.create(0, PgType.BIGINT, id)))
                 .switchIfEmpty(PgTestUtils.queryNoResponse())
                 .map(row -> mapColumnValue(row, columnName, expectedType, id))
                 .flatMap(columnValue -> assertColumnValue(columnValue, columnName, value, id))

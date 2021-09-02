@@ -28,14 +28,15 @@ abstract class PgDatabaseSession implements DatabaseSession {
         return null;
     }
 
-    @Override
-    public final Mono<PreparedStatement> prepare(final String sql) {
-        return this.protocol.prepare(sql, stmtTask -> PgPreparedStatement.create(this, stmtTask));
-    }
 
     @Override
     public final StaticStatement statement() {
         return PgStaticStatement.create(this);
+    }
+
+    @Override
+    public final Mono<PreparedStatement> prepare(final String sql) {
+        return this.protocol.prepare(sql, stmtTask -> PgPreparedStatement.create(this, stmtTask));
     }
 
     @Override
@@ -50,7 +51,7 @@ abstract class PgDatabaseSession implements DatabaseSession {
 
     @Override
     public final boolean supportSavePoints() {
-        return false;
+        return true;
     }
 
     @Override

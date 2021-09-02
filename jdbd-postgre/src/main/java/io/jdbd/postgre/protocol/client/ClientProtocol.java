@@ -67,14 +67,14 @@ public interface ClientProtocol {
 
     Flux<Result> multiCommandAsFlux(StaticStmt stmt);
 
-    /*################################## blow for bindable single smt ##################################*/
+    /*################################## blow for binda single smt ##################################*/
 
     /**
      * <p>
      * This method is one of underlying api of {@link BindStatement#executeUpdate()} method.
      * </p>
      */
-    Mono<ResultStates> bindableUpdate(BindStmt stmt);
+    Mono<ResultStates> bindUpdate(BindStmt stmt);
 
     /**
      * <p>
@@ -85,30 +85,32 @@ public interface ClientProtocol {
      * </ul>
      * </p>
      */
-    Flux<ResultRow> bindableQuery(BindStmt stmt);
+    Flux<ResultRow> bindQuery(BindStmt stmt);
 
     /**
      * <p>
      * This method is one of underlying api of {@link BindStatement#executeBatch()} method.
      * </p>
      */
-    Flux<ResultStates> bindableBatchUpdate(BatchBindStmt stmt);
+    Flux<ResultStates> bindBatch(BatchBindStmt stmt);
 
     /**
      * <p>
      * This method is one of underlying api of {@link BindStatement#executeBatchAsMulti()} method.
      * </p>
      */
-    MultiResult bindableAsMulti(BatchBindStmt stmt);
+    MultiResult bindBatchAsMulti(BatchBindStmt stmt);
 
     /**
      * <p>
      * This method is one of underlying api of {@link BindStatement#executeBatchAsFlux()} method.
      * </p>
      */
-    Flux<Result> bindableAsFlux(BatchBindStmt stmt);
+    Flux<Result> bindBatchAsFlux(BatchBindStmt stmt);
 
     /*################################## blow for multi stmt ##################################*/
+
+    Flux<ResultStates> multiStmtBatch(MultiBindStmt stmt);
 
     /**
      * <p>

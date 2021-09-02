@@ -60,7 +60,7 @@ final class PgStaticStatement extends PgStatement implements StaticStatement {
     /*################################## blow Statement method ##################################*/
 
     @Override
-    public final boolean supportLongData() {
+    public final boolean supportPublisher() {
         return false;
     }
 

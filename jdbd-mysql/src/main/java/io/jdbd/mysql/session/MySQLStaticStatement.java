@@ -35,7 +35,7 @@ final class MySQLStaticStatement<S extends MySQLDatabaseSession> extends MySQLSt
     }
 
     @Override
-    public final boolean supportLongData() {
+    public final boolean supportPublisher() {
         // always false,MySQL COM_QUERY protocol don't support Publisher
         return false;
     }

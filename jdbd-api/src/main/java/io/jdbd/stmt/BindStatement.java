@@ -1,5 +1,6 @@
 package io.jdbd.stmt;
 
+import io.jdbd.JdbdException;
 import io.jdbd.lang.Nullable;
 import io.jdbd.result.MultiResult;
 import io.jdbd.result.Result;
@@ -13,7 +14,7 @@ import java.util.function.Consumer;
 public interface BindStatement extends BindableSingleStatement, BindableMultiResultStatement {
 
 
-    boolean supportLongData();
+    boolean supportPublisher();
 
     @Override
     boolean supportOutParameter();
@@ -27,7 +28,7 @@ public interface BindStatement extends BindableSingleStatement, BindableMultiRes
      * @param jdbcType       mapping {@link JDBCType}
      * @param nullable       nullable null the parameter value
      */
-    void bind(int indexBasedZero, JDBCType jdbcType, @Nullable Object nullable);
+    void bind(int indexBasedZero, JDBCType jdbcType, @Nullable Object nullable) throws JdbdException;
 
     /**
      * <p>
@@ -38,18 +39,15 @@ public interface BindStatement extends BindableSingleStatement, BindableMultiRes
      * @param nullable       nullable the parameter value
      * @param sqlType        nonNullValue mapping sql data type name(must upper case).
      */
-    void bind(int indexBasedZero, io.jdbd.meta.SQLType sqlType, @Nullable Object nullable);
+    void bind(int indexBasedZero, io.jdbd.meta.SQLType sqlType, @Nullable Object nullable) throws JdbdException;
 
 
     @Override
-    void bind(int indexBasedZero, @Nullable Object nullable);
+    void bind(int indexBasedZero, @Nullable Object nullable) throws JdbdException;
 
 
     @Override
-    void addBatch();
-
-    @Override
-    Publisher<ResultStates> executeBatch();
+    void addBatch() throws JdbdException;
 
     @Override
     Publisher<ResultStates> executeUpdate();
@@ -63,6 +61,8 @@ public interface BindStatement extends BindableSingleStatement, BindableMultiRes
     @Override
     Publisher<ResultRow> executeQuery(Consumer<ResultStates> statesConsumer);
 
+    @Override
+    Publisher<ResultStates> executeBatch();
 
     @Override
     MultiResult executeBatchAsMulti();

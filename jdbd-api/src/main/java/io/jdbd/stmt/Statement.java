@@ -37,7 +37,7 @@ public interface Statement {
      *
      * @return true : support
      */
-    boolean supportLongData();
+    boolean supportPublisher();
 
     boolean supportOutParameter();
 

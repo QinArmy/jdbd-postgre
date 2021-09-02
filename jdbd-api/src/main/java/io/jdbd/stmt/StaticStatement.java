@@ -18,7 +18,7 @@ import java.util.function.Consumer;
 public interface StaticStatement extends Statement {
 
     @Override
-    boolean supportLongData();
+    boolean supportPublisher();
 
     @Override
     boolean supportOutParameter();
