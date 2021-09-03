@@ -1,6 +1,7 @@
 package io.jdbd.postgre.protocol.client;
 
 import io.jdbd.meta.KeyMode;
+import io.jdbd.postgre.ClientTestUtils;
 import io.jdbd.postgre.Group;
 import io.jdbd.postgre.PgTestUtils;
 import io.jdbd.postgre.PgType;

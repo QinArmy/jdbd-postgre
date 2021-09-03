@@ -1,5 +1,6 @@
 package io.jdbd.postgre.protocol.client;
 
+import io.jdbd.postgre.ClientTestUtils;
 import io.jdbd.postgre.config.PostgreUrl;
 import io.jdbd.postgre.session.SessionAdjutant;
 import io.jdbd.result.ResultStates;

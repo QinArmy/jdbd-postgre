@@ -11,10 +11,7 @@ import io.jdbd.xa.XaDatabaseSession;
 import io.netty.channel.EventLoopGroup;
 import reactor.core.publisher.Mono;
 import reactor.netty.resources.LoopResources;
-import reactor.util.annotation.Nullable;
 
-import java.util.Collections;
-import java.util.HashMap;
 import java.util.Map;
 
 public final class PgDatabaseSessionFactory implements DatabaseSessionFactory {
@@ -26,7 +23,7 @@ public final class PgDatabaseSessionFactory implements DatabaseSessionFactory {
     public static PgDatabaseSessionFactory create(final String url, final Map<String, String> properties) {
         final PostgreUrl postgreUrl;
         postgreUrl = PostgreUrl.create(url, properties);
-        return new PgDatabaseSessionFactory(properties, postgreUrl, false);
+        return new PgDatabaseSessionFactory(postgreUrl, false);
     }
 
     /**
@@ -36,16 +33,13 @@ public final class PgDatabaseSessionFactory implements DatabaseSessionFactory {
     public static PgDatabaseSessionFactory forPoolVendor(final String url, final Map<String, String> properties) {
         final PostgreUrl postgreUrl;
         postgreUrl = PostgreUrl.create(url, properties);
-        return new PgDatabaseSessionFactory(properties, postgreUrl, true);
+        return new PgDatabaseSessionFactory(postgreUrl, true);
     }
 
 
     public static boolean acceptsUrl(String url) {
         return PostgreUrl.acceptsUrl(url);
     }
-
-
-    private final Map<String, String> properties;
 
     private final PostgreUrl postgreUrl;
 
@@ -54,8 +48,7 @@ public final class PgDatabaseSessionFactory implements DatabaseSessionFactory {
     private final PgSessionAdjutant sessionAdjutant;
 
 
-    private PgDatabaseSessionFactory(Map<String, String> properties, PostgreUrl postgreUrl, boolean forPoolVendor) {
-        this.properties = Collections.unmodifiableMap(new HashMap<>(properties));
+    private PgDatabaseSessionFactory(PostgreUrl postgreUrl, boolean forPoolVendor) {
         this.postgreUrl = postgreUrl;
         this.forPoolVendor = forPoolVendor;
         this.sessionAdjutant = new PgSessionAdjutant(this);
@@ -76,49 +69,21 @@ public final class PgDatabaseSessionFactory implements DatabaseSessionFactory {
                 .map(this::createXaSession);
     }
 
-    @Override
-    public final String getUrl() {
-        return this.postgreUrl.getOriginalUrl();
-    }
-
-    @Override
-    public final Map<String, String> getProperties() {
-        return this.properties;
-    }
 
     @Override
     public final int getMajorVersion() {
-        final String version = PgDriver.class.getPackage().getSpecificationVersion();
-        try {
-            return Integer.parseInt(version.substring(0, getMajorVersionIndex(version)));
-        } catch (NumberFormatException e) {
-            throw createPacketWithErrorWay();
-        }
+        return PgDriver.getMajorVersion();
 
     }
 
     @Override
     public final int getMinorVersion() {
-        final String version = PgDriver.class.getPackage().getSpecificationVersion();
-        if (version == null) {
-            // here run in jdbd-postgre project test environment.
-            throw createPacketWithErrorWay();
-        }
-        final int majorIndex = getMajorVersionIndex(version);
-        final int minorIndex = version.indexOf('-', majorIndex);
-        if (minorIndex < 0) {
-            throw createPacketWithErrorWay();
-        }
-        try {
-            return Integer.parseInt(version.substring(majorIndex + 1, minorIndex));
-        } catch (NumberFormatException e) {
-            throw createPacketWithErrorWay();
-        }
+        return PgDriver.getMinorVersion();
     }
 
     @Override
     public final String getDriverName() {
-        return PgDriver.class.getName();
+        return PgDriver.getName();
     }
 
 
@@ -150,27 +115,6 @@ public final class PgDatabaseSessionFactory implements DatabaseSessionFactory {
         return session;
     }
 
-
-    /**
-     * @see #getMajorVersion()
-     * @see #getMinorVersion()
-     */
-    private static int getMajorVersionIndex(@Nullable String version) {
-
-        if (version == null) {
-            // here run in jdbd-postgre project test environment.
-            throw createPacketWithErrorWay();
-        }
-        final int index = version.indexOf('.');
-        if (index < 0) {
-            throw createPacketWithErrorWay();
-        }
-        return index;
-    }
-
-    private static IllegalStateException createPacketWithErrorWay() {
-        return new IllegalStateException("jdbd-postgre packet with error way.");
-    }
 
     private static final class PgSessionAdjutant implements SessionAdjutant {
 

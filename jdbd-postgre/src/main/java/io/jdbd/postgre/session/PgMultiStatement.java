@@ -59,7 +59,7 @@ final class PgMultiStatement extends PgStatement implements MultiStatement {
             final List<BindValue> paramGroup = Objects.requireNonNull(this.paramGroup, "this.paramGroup");
             this.stmtGroup.add(PgStmts.bind(currentSql, paramGroup, this));
         } else if (!this.stmtGroup.isEmpty()) {
-            throw PgExceptions.cannotReuseMultiStmt();
+            throw PgExceptions.cannotReuseStatement(MultiStatement.class);
         }
         this.currentSql = sql;
         this.paramGroup = new ArrayList<>();
@@ -152,7 +152,7 @@ final class PgMultiStatement extends PgStatement implements MultiStatement {
             if (stmtGroup.isEmpty()) {
                 throw PgExceptions.multiStmtNoSql();
             } else {
-                throw PgExceptions.cannotReuseMultiStmt();
+                throw PgExceptions.cannotReuseStatement(MultiStatement.class);
             }
         }
 

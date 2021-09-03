@@ -113,7 +113,7 @@ final class ClientProtocolImpl implements ClientProtocol {
     }
 
     @Override
-    public Mono<ClientProtocol> ping() {
+    public Mono<ClientProtocol> ping(final int timeSeconds) {
         //TODO FIX me
         return Mono.just(this);
     }

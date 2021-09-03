@@ -1,15 +1,15 @@
-package io.jdbd.postgre.protocol.client;
+package io.jdbd.postgre;
 
 import io.jdbd.postgre.config.PgKey;
 import io.jdbd.postgre.config.PostgreUrl;
-import org.qinarmy.env.Environment;
-import org.qinarmy.env.ImmutableMapEnvironment;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
-import java.nio.file.*;
-import java.util.Collections;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardOpenOption;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
@@ -69,27 +69,24 @@ public abstract class ClientTestUtils {
         return Paths.get(getModulePath().toString(), "src/test/resources");
     }
 
-    private static Environment loadTestConfig() {
-        final Path path = Paths.get(getTestResourcesPath().toString(), "testConfig.properties");
-        Map<String, String> map;
-        if (Files.exists(path, LinkOption.NOFOLLOW_LINKS)) {
+    /**
+     * @return a modifiable map.
+     */
+    public static Map<String, String> loadTestConfigMap() {
+        final Path path = Paths.get(getTestResourcesPath().toString(), "config", "postgre-test.properties");
+        try (InputStream in = Files.newInputStream(path, StandardOpenOption.READ)) {
             Properties properties = new Properties();
-            try (InputStream in = Files.newInputStream(path, StandardOpenOption.READ)) {
-                properties.load(in);
-                map = new HashMap<>((int) (properties.size() / 0.75F));
-                for (Object key : properties.keySet()) {
-                    String k = key.toString();
-                    map.put(k, properties.getProperty(k));
-                }
-            } catch (IOException e) {
-                throw new RuntimeException(String.format("load %s failure.", path), e);
+            properties.load(in);
+            final Map<String, String> propMap = new HashMap<>((int) (properties.size() / 0.75F));
+            for (Object key : properties.keySet()) {
+                String k = key.toString();
+                propMap.put(k, properties.getProperty(k));
             }
-
-        } else {
-            map = Collections.emptyMap();
+            return propMap;
+        } catch (IOException e) {
+            String m = String.format("%s config file error", path);
+            throw new IllegalStateException(m, e);
         }
-        return ImmutableMapEnvironment.create(map);
     }
-
 
 }

@@ -59,9 +59,12 @@ public abstract class CommunicationTask<T extends ITaskAdjutant> {
         this.methodStack = MethodStack.START;
 
         Publisher<ByteBuf> publisher;
-        publisher = start();
 
-        this.methodStack = null;
+        try {
+            publisher = start();
+        } finally {
+            this.methodStack = null;
+        }
         return publisher;
     }
 
@@ -84,6 +87,7 @@ public abstract class CommunicationTask<T extends ITaskAdjutant> {
 
         boolean taskEnd;
         final int oldReaderIndex = cumulateBuffer.readerIndex();
+        this.methodStack = MethodStack.DECODE;
         try {
             if (this.decodeException == null) {
                 taskEnd = decode(cumulateBuffer, serverStatusConsumer);
@@ -110,6 +114,8 @@ public abstract class CommunicationTask<T extends ITaskAdjutant> {
                 throw new TaskStatusException(JdbdExceptions.createException(this.errorList)
                         , "decode(ByteBuf, Consumer<Object>) method throw exception.");
             }
+        } finally {
+            this.methodStack = null;
         }
         if (taskEnd) {
             this.taskPhase = TaskPhase.END;

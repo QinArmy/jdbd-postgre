@@ -50,8 +50,8 @@ class PgTxDatabaseSession extends PgDatabaseSession implements TxDatabaseSession
         }
 
         @Override
-        public final Mono<PoolTxDatabaseSession> ping() {
-            return this.protocol.ping()
+        public final Mono<PoolTxDatabaseSession> ping(final int timeoutSeconds) {
+            return this.protocol.ping(timeoutSeconds)
                     .thenReturn(this);
         }
 

@@ -3,7 +3,6 @@ package io.jdbd;
 import io.jdbd.xa.XaDatabaseSession;
 import org.reactivestreams.Publisher;
 
-import java.util.Map;
 
 public interface DatabaseSessionFactory {
 
@@ -11,18 +10,6 @@ public interface DatabaseSessionFactory {
     Publisher<TxDatabaseSession> getTxSession();
 
     Publisher<XaDatabaseSession> getXaSession();
-
-
-    /**
-     * @see DriverManager#createSessionFactory(String, Map)
-     */
-    String getUrl();
-
-    /**
-     * @return a unmodifiable map
-     * @see DriverManager#createSessionFactory(String, Map)
-     */
-    Map<String, String> getProperties();
 
 
     /**
@@ -40,10 +27,14 @@ public interface DatabaseSessionFactory {
     int getMinorVersion();
 
     /**
-     * <p>
-     * Return name of driver,popularly is database name(eg:MySQL) or class name(eg:io.jdbd.mysql.Driver)
+     * <p>  return driver name follow below:
+     *     <ul>
+     *         <li>If developer of implementation is database vendor,then should be database product name(eg:MySQL,DB2)</li>
+     *         <li>Else ,then should be driver class name(eg:io.jdbd.mysql.Driver) </li>
+     *     </ul>
      * </p>
      */
     String getDriverName();
+
 
 }

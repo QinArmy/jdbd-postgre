@@ -12,8 +12,7 @@ public final class PostgreUrl extends AbstractJdbcUrl<PgKey, PostgreHost> {
     }
 
     public static boolean acceptsUrl(final String url) {
-        // TODO complete me
-        throw new UnsupportedOperationException("Not complete me");
+        return url.startsWith(PROTOCOL);
     }
 
     static final String PROTOCOL = "jdbc:postgresql:";

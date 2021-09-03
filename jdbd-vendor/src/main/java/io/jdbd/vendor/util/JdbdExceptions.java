@@ -2,11 +2,13 @@ package io.jdbd.vendor.util;
 
 import io.jdbd.JdbdException;
 import io.jdbd.JdbdSQLException;
-import io.jdbd.stmt.MultiStatement;
+import io.jdbd.stmt.PreparedStatement;
+import io.jdbd.stmt.Statement;
+import io.jdbd.stmt.StatementClosedException;
 import io.jdbd.stmt.UnsupportedBindJavaTypeException;
 import io.jdbd.vendor.JdbdCompositeException;
 import io.jdbd.vendor.JdbdUnknownException;
-import io.jdbd.vendor.stmt.CannotReuseMultiStmtException;
+import io.jdbd.vendor.stmt.CannotReuseStatementException;
 import org.qinarmy.util.ExceptionUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -99,8 +101,12 @@ public abstract class JdbdExceptions extends ExceptionUtils {
         return new SQLException(reason, SQLStates.SYNTAX_ERROR);
     }
 
-    public static CannotReuseMultiStmtException cannotReuseMultiStmt() {
-        return new CannotReuseMultiStmtException(String.format("Can't reuse %s .", MultiStatement.class.getName()));
+    public static CannotReuseStatementException cannotReuseStatement(Class<? extends Statement> stmtClass) {
+        return new CannotReuseStatementException(String.format("Can't reuse %s .", stmtClass.getName()));
+    }
+
+    public static StatementClosedException preparedStatementClosed() {
+        return new StatementClosedException(String.format("%s have closed.", PreparedStatement.class.getName()));
     }
 
 

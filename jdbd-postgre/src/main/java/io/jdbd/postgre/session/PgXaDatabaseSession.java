@@ -29,8 +29,8 @@ class PgXaDatabaseSession extends PgDatabaseSession implements XaDatabaseSession
         }
 
         @Override
-        public final Mono<PoolXaDatabaseSession> ping() {
-            return this.protocol.ping()
+        public final Mono<PoolXaDatabaseSession> ping(final int timeoutSeconds) {
+            return this.protocol.ping(timeoutSeconds)
                     .thenReturn(this);
         }
 

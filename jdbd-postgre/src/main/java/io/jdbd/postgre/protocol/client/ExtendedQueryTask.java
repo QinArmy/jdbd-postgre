@@ -1,5 +1,6 @@
 package io.jdbd.postgre.protocol.client;
 
+import io.jdbd.JdbdException;
 import io.jdbd.postgre.PgType;
 import io.jdbd.postgre.stmt.BatchBindStmt;
 import io.jdbd.postgre.stmt.BindStmt;
@@ -149,28 +150,58 @@ final class ExtendedQueryTask extends AbstractStmtTask implements PrepareStmtTas
 
 
     @Override
-    public final Mono<ResultStates> executeUpdate(BindStmt stmt) {
-        return null;
+    public final Mono<ResultStates> executeUpdate(final BindStmt stmt) {
+        return MultiResults.update(sink -> {
+            if (this.adjutant.inEventLoop()) {
+                executeUpdateInEventLoop(sink, stmt);
+            } else {
+                this.adjutant.execute(() -> executeUpdateInEventLoop(sink, stmt));
+            }
+        });
     }
 
     @Override
-    public final Flux<ResultRow> executeQuery(BindStmt stmt) {
-        return null;
+    public final Flux<ResultRow> executeQuery(final BindStmt stmt) {
+        return MultiResults.query(stmt.getStatusConsumer(), sink -> {
+            if (this.adjutant.inEventLoop()) {
+                executeQueryInEventLoop(sink, stmt);
+            } else {
+                this.adjutant.execute(() -> executeQueryInEventLoop(sink, stmt));
+            }
+        });
     }
 
     @Override
-    public final Flux<ResultStates> executeBatch(BatchBindStmt stmt) {
-        return null;
+    public final Flux<ResultStates> executeBatch(final BatchBindStmt stmt) {
+        return MultiResults.batchUpdate(sink -> {
+            if (this.adjutant.inEventLoop()) {
+                executeBatchInEventLoop(sink, stmt);
+            } else {
+                this.adjutant.execute(() -> executeBatchInEventLoop(sink, stmt));
+            }
+        });
     }
 
     @Override
-    public final MultiResult executeBatchAsMulti(BatchBindStmt stmt) {
-        return null;
+    public final MultiResult executeBatchAsMulti(final BatchBindStmt stmt) {
+        return MultiResults.asMulti(this.adjutant, sink -> {
+            if (this.adjutant.inEventLoop()) {
+                executeBatchAsMultiInEventLoop(sink, stmt);
+            } else {
+                this.adjutant.execute(() -> executeBatchAsMultiInEventLoop(sink, stmt));
+            }
+        });
     }
 
     @Override
     public final Flux<Result> executeBatchAsFlux(BatchBindStmt stmt) {
-        return null;
+        return MultiResults.asFlux(sink -> {
+            if (this.adjutant.inEventLoop()) {
+                executeBatchAsFluxInEventLoop(sink, stmt);
+            } else {
+                this.adjutant.execute(() -> executeBatchAsFluxInEventLoop(sink, stmt));
+            }
+        });
     }
 
     @Override
@@ -329,6 +360,106 @@ final class ExtendedQueryTask extends AbstractStmtTask implements PrepareStmtTas
         prepareSink.stmtSink.success(prepareSink.function.apply(this)); // emit PreparedStatement
     }
 
+    /**
+     * @see #executeUpdate(BindStmt)
+     */
+    private void executeUpdateInEventLoop(final FluxResultSink sink, final BindStmt stmt) {
+        if (prepareForPrepareBind(sink, stmt)) {
+            // task end
+            return;
+        }
+    }
+
+
+    /**
+     * @see #executeQuery(BindStmt)
+     */
+    private void executeQueryInEventLoop(FluxResultSink sink, BindStmt stmt) {
+        if (prepareForPrepareBind(sink, stmt)) {
+            // task end
+            return;
+        }
+    }
+
+    /**
+     * @see #executeBatch(BatchBindStmt)
+     */
+    private void executeBatchInEventLoop(FluxResultSink sink, BatchBindStmt stmt) {
+        if (prepareForPrepareBind(sink, stmt)) {
+            // task end
+            return;
+        }
+    }
+
+    /**
+     * @see #executeBatchAsMulti(BatchBindStmt)
+     */
+    private void executeBatchAsMultiInEventLoop(FluxResultSink sink, BatchBindStmt stmt) {
+        if (prepareForPrepareBind(sink, stmt)) {
+            // task end
+            return;
+        }
+    }
+
+    /**
+     * @see #executeBatchAsFlux(BatchBindStmt)
+     */
+    private void executeBatchAsFluxInEventLoop(FluxResultSink sink, BatchBindStmt stmt) {
+        if (prepareForPrepareBind(sink, stmt)) {
+            // task end
+            return;
+        }
+
+
+    }
+
+
+    /**
+     * @return true: has error,task end.
+     * @see #executeUpdateInEventLoop(FluxResultSink, BindStmt)
+     * @see #executeQueryInEventLoop(FluxResultSink, BindStmt)
+     * @see #executeBatchInEventLoop(FluxResultSink, BatchBindStmt)
+     * @see #executeBatchAsMultiInEventLoop(FluxResultSink, BatchBindStmt)
+     * @see #executeBatchAsFluxInEventLoop(FluxResultSink, BatchBindStmt)
+     */
+    private boolean prepareForPrepareBind(final FluxResultSink sink, final Stmt stmt) {
+        JdbdException error = null;
+        switch (this.phase) {
+            case WAIT_FOR_BIND: {
+                this.phase = Phase.PREPARE_BIND;
+                try {
+                    final PgPrepareStmt prepareStmt = (PgPrepareStmt) this.stmt;
+                    prepareStmt.setActualStmt(stmt);
+                    final PrepareFluxResultSink prepareSink = (PrepareFluxResultSink) this.sink;
+                    prepareSink.setResultSink(sink);
+                } catch (Throwable e) {
+                    // here bug
+                    error = PgExceptions.wrap(e);
+                }
+            }
+            break;
+            case END:
+                error = PgExceptions.preparedStatementClosed();
+                break;
+            default:
+                error = PgExceptions.cannotReuseStatement(PreparedStatement.class);
+        }
+        if (error != null) {
+            // TODO handle prepare close.
+            final JdbdException prepareError = error;
+            this.sendPacketSignal(true)
+                    .doOnError(e -> {
+                        final List<Throwable> errorList = new ArrayList<>(2);
+                        errorList.add(prepareError);
+                        errorList.add(e);
+                        sink.error(PgExceptions.createException(errorList));
+                    })
+                    .doOnSuccess(v -> sink.error(prepareError))
+                    .subscribe();
+        }
+        return error != null;
+    }
+
     private void assertPhase(Phase expected) {
         if (this.phase != expected) {
             throw new IllegalStateException(String.format("this.phase[%s] isn't expected[%s]", this.phase, expected));
@@ -398,7 +529,34 @@ final class ExtendedQueryTask extends AbstractStmtTask implements PrepareStmtTas
 
     }
 
+
     /**
+     * @see #start()
+     * @see <a href="https://www.postgresql.org/docs/current/protocol-message-formats.html">Parse</a>
+     */
+    private ByteBuf createParseMessage(final String originalSql) throws SQLException {
+        final Charset charset = this.adjutant.clientCharset();
+
+        final byte[] replacedSqlBytes = replacePlaceholder(originalSql).getBytes(charset);
+        final ByteBuf message = this.adjutant.allocator().buffer(7 + replacedSqlBytes.length);
+        //  write Parse message
+        message.writeByte(Messages.P);
+        message.writeZero(Messages.LENGTH_BYTES); // placeholder of length
+        // write name of the destination prepared statement
+        if (!this.prepareName.isEmpty()) {
+            message.writeBytes(this.prepareName.getBytes(charset));
+        }
+        message.writeByte(Messages.STRING_TERMINATOR);
+        // write The query string to be parsed.
+        message.writeBytes(replacedSqlBytes);
+        message.writeByte(Messages.STRING_TERMINATOR);
+
+        Messages.writeLength(message);
+        return message;
+    }
+
+    /**
+     * @see #start()
      * @see <a href="https://www.postgresql.org/docs/current/protocol-message-formats.html">Describe</a>
      */
     private void writeDescribeMessage(final List<ByteBuf> messageList, final boolean statement) {
@@ -433,41 +591,11 @@ final class ExtendedQueryTask extends AbstractStmtTask implements PrepareStmtTas
     }
 
 
-    /**
-     * @see <a href="https://www.postgresql.org/docs/current/protocol-message-formats.html">Parse</a>
-     */
-    private ByteBuf createParseMessage(final String originalSql) throws SQLException {
-        final Charset charset = this.adjutant.clientCharset();
-
-        final byte[] replacedSqlBytes = replacePlaceholder(originalSql).getBytes(charset);
-        ByteBuf message = this.adjutant.allocator().buffer(7 + replacedSqlBytes.length);
-        //  write Parse message
-        message.writeByte(Messages.P);
-        message.writeZero(Messages.LENGTH_BYTES); // placeholder of length
-        // write name of the destination prepared statement
-        if (!this.prepareName.isEmpty()) {
-            message.writeBytes(this.prepareName.getBytes(charset));
-        }
-        message.writeByte(Messages.STRING_TERMINATOR);
-        // write The query string to be parsed.
-        message.writeBytes(replacedSqlBytes);
-        message.writeByte(Messages.STRING_TERMINATOR);
-
-        Messages.writeLength(message);
-        return message;
-    }
-
-
-    private byte[] createPrepareName(final String originalSql) {
-        // TODO cache ,write name of prepared statement
-        return new byte[0];
-    }
-
-
     enum Phase {
         READ_PREPARE_RESPONSE,
         READ_EXECUTE_RESPONSE,
         WAIT_FOR_BIND,
+        PREPARE_BIND,
         END
     }
 

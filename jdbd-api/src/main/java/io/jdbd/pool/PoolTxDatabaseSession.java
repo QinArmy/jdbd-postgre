@@ -5,7 +5,7 @@ import org.reactivestreams.Publisher;
 public interface PoolTxDatabaseSession extends PoolDatabaseSession {
 
     @Override
-    Publisher<PoolTxDatabaseSession> ping();
+    Publisher<PoolTxDatabaseSession> ping(int timeoutSeconds);
 
     /**
      * @return Publisher that emit this when success.

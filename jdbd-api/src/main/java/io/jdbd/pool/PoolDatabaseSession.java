@@ -5,7 +5,7 @@ import org.reactivestreams.Publisher;
 
 public interface PoolDatabaseSession extends DatabaseSession {
 
-    Publisher<? extends PoolDatabaseSession> ping();
+    Publisher<? extends PoolDatabaseSession> ping(int timeoutSeconds);
 
 
     /**
