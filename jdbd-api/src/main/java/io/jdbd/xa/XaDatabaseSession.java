@@ -4,4 +4,5 @@ import io.jdbd.DatabaseSession;
 
 public interface XaDatabaseSession extends DatabaseSession {
 
+
 }

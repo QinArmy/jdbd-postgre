@@ -113,6 +113,12 @@ final class ClientProtocolImpl implements ClientProtocol {
     }
 
     @Override
+    public Mono<ClientProtocol> ping() {
+        //TODO FIX me
+        return Mono.just(this);
+    }
+
+    @Override
     public final Mono<ClientProtocol> reset() {
         //TODO FIX me
         return Mono.just(this);

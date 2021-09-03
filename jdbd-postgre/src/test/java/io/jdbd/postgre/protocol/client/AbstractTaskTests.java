@@ -96,7 +96,7 @@ abstract class AbstractTaskTests {
         }
 
         @Override
-        public EventLoopGroup obtainEventLoopGroup() {
+        public EventLoopGroup getEventLoopGroup() {
             return EVENT_LOOP_GROUP;
         }
 

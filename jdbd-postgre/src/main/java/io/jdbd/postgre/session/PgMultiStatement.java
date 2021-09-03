@@ -50,7 +50,7 @@ final class PgMultiStatement extends PgStatement implements MultiStatement {
     }
 
     @Override
-    public final void addBatch(final String sql) {
+    public final void addStatement(final String sql) {
         if (!PgStrings.hasText(sql)) {
             throw new IllegalArgumentException("Sql must have text.");
         }

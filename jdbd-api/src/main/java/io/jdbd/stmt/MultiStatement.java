@@ -21,7 +21,7 @@ public interface MultiStatement extends BindableMultiResultStatement {
      *                                      <li>{@link #executeBatchAsFlux()}</li>
      *                                  </ul>
      */
-    void addBatch(String sql) throws JdbdException;
+    void addStatement(String sql) throws JdbdException;
 
     /**
      * <p>

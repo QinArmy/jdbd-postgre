@@ -96,10 +96,6 @@ public abstract class JdbdStmts {
         return list;
     }
 
-    public static MultiSqlStmt multiSqlStmt(String multiSql) {
-        return new MultiSqlStmtImpl(multiSql, 0);
-    }
-
     public static BatchStmt group(List<String> sqlGroup, int timeout) {
         return timeout == 0 ? new GroupStmtZeroTimeout(sqlGroup) : new GroupStmtImpl(sqlGroup, timeout);
     }
@@ -561,30 +557,6 @@ public abstract class JdbdStmts {
         @Override
         public final List<String> getSqlGroup() {
             return this.sqlGroup;
-        }
-
-        @Override
-        public final int getTimeout() {
-            return this.timeout;
-        }
-
-    }
-
-    private static final class MultiSqlStmtImpl implements MultiSqlStmt {
-
-
-        private final String multiSql;
-
-        private final int timeout;
-
-        private MultiSqlStmtImpl(String multiSql, int timeout) {
-            this.multiSql = multiSql;
-            this.timeout = timeout;
-        }
-
-        @Override
-        public final String getMultiSql() {
-            return this.multiSql;
         }
 
         @Override

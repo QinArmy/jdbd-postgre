@@ -11,6 +11,11 @@ public final class PostgreUrl extends AbstractJdbcUrl<PgKey, PostgreHost> {
         return new PostgreUrl(PostgreUrlParser.create(url, propMap));
     }
 
+    public static boolean acceptsUrl(final String url) {
+        // TODO complete me
+        throw new UnsupportedOperationException("Not complete me");
+    }
+
     static final String PROTOCOL = "jdbc:postgresql:";
 
     private PostgreUrl(PostgreUrlParser parser) {
@@ -26,6 +31,17 @@ public final class PostgreUrl extends AbstractJdbcUrl<PgKey, PostgreHost> {
     @Override
     protected final PgKey getDbNameKey() {
         return PgKey.PGDBNAME;
+    }
+
+    public <T> T getOrDefault(PgKey key, Class<T> targetType) {
+        // TODO complete me
+        T value;
+        if (key == PgKey.factoryWorkerCount && targetType == Integer.class) {
+            value = targetType.cast(20);
+        } else {
+            throw new IllegalArgumentException("TOTO not complete");
+        }
+        return value;
     }
 
 

@@ -112,7 +112,8 @@ public enum PgKey implements IPropertyKey {
     trustStoreUrl(String.class),
     trustStorePassword(String.class),
 
-    fallbackToSystemKeyStore(Boolean.class, "false");
+    fallbackToSystemKeyStore(Boolean.class, "false"),
+    factoryWorkerCount(Integer.class, "100");
 
     private final String key;
 

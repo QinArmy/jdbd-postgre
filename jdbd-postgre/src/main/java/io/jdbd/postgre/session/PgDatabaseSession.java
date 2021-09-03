@@ -3,6 +3,7 @@ package io.jdbd.postgre.session;
 import io.jdbd.DatabaseSession;
 import io.jdbd.meta.DatabaseMetaData;
 import io.jdbd.postgre.protocol.client.ClientProtocol;
+import io.jdbd.postgre.stmt.PrepareStmtTask;
 import io.jdbd.stmt.BindStatement;
 import io.jdbd.stmt.MultiStatement;
 import io.jdbd.stmt.PreparedStatement;
@@ -36,11 +37,11 @@ abstract class PgDatabaseSession implements DatabaseSession {
 
     @Override
     public final Mono<PreparedStatement> prepare(final String sql) {
-        return this.protocol.prepare(sql, stmtTask -> PgPreparedStatement.create(this, stmtTask));
+        return this.protocol.prepare(sql, this::createPreparedStatement);
     }
 
     @Override
-    public final BindStatement bindable(String sql) {
+    public final BindStatement bindable(final String sql) {
         return PgBindStatement.create(sql, this);
     }
 
@@ -80,8 +81,14 @@ abstract class PgDatabaseSession implements DatabaseSession {
     }
 
     @Override
-    public final Publisher<Void> close() {
-        return null;
+    public final Mono<Void> close() {
+        return this.protocol.close();
+    }
+
+    /*################################## blow private method ##################################*/
+
+    private PgPreparedStatement createPreparedStatement(final PrepareStmtTask stmtTask) {
+        return PgPreparedStatement.create(this, stmtTask);
     }
 
 

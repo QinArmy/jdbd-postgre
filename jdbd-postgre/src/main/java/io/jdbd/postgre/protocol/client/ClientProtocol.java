@@ -131,6 +131,8 @@ public interface ClientProtocol {
 
     /*################################## blow for session ##################################*/
 
+    Mono<ClientProtocol> ping();
+
 
     Mono<ClientProtocol> reset();
 

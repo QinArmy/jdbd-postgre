@@ -38,7 +38,7 @@ final class MySQLTaskExecutor extends CommunicationTaskExecutor<TaskAdjutant> {
         if (hostIndex > -1 && hostIndex < hostInfoList.size()) {
             final MySQLHost hostInfo = hostInfoList.get(hostIndex);
             mono = TcpClient.create()
-                    .runOn(sessionAdjutant.obtainEventLoopGroup())
+                    .runOn(sessionAdjutant.getEventLoopGroup())
                     .host(hostInfo.getHost())
                     .port(hostInfo.getPort())
                     .connect()

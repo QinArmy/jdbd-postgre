@@ -29,7 +29,7 @@ final class PgTaskExecutor extends CommunicationTaskExecutor<TaskAdjutant> {
         if (hostIndex > -1 && hostIndex < hostList.size()) {
             final PostgreHost host = hostList.get(hostIndex);
             mono = TcpClient.create()
-                    .runOn(sessionAdjutant.obtainEventLoopGroup())
+                    .runOn(sessionAdjutant.getEventLoopGroup())
                     .host(host.getHost())
                     .port(host.getPort())
                     .connect()
