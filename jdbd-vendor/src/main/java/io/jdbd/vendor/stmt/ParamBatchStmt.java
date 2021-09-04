@@ -2,7 +2,7 @@ package io.jdbd.vendor.stmt;
 
 import java.util.List;
 
-public interface BatchParamStmt<T extends ParamValue> extends Stmt {
+public interface ParamBatchStmt<T extends ParamValue> extends Stmt {
 
     String getSql();
 

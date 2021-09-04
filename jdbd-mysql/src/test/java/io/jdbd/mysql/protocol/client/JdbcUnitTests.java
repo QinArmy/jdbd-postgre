@@ -1,6 +1,5 @@
 package io.jdbd.mysql.protocol.client;
 
-import com.mysql.cj.MysqlType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.annotations.Test;
@@ -27,13 +26,16 @@ public class JdbcUnitTests {
 
     @Test
     public void prepare() throws SQLException {
-        try (Connection conn = DriverManager.getConnection(URL, createProperties())) {
-            String sql = "CALL demoSp('army',?)";
-            try (CallableStatement stmt = conn.prepareCall(sql)) {
-                stmt.setInt(1, 0);
-                stmt.registerOutParameter(1, MysqlType.INT);
+        Properties prop = new Properties(createProperties());
+        prop.put("useServerPrepStmts", "true");
 
-                stmt.executeUpdate();
+        try (Connection conn = DriverManager.getConnection(URL, prop)) {
+            String sql = "CALL demoSp(?)";
+            try (CallableStatement stmt = conn.prepareCall(sql)) {
+                stmt.setString(1, "QinArmy");
+//                stmt.registerOutParameter(1, MysqlType.INT);
+
+                stmt.execute();
             }
         }
     }

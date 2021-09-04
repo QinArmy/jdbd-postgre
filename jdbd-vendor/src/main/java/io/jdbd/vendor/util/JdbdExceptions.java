@@ -114,6 +114,10 @@ public abstract class JdbdExceptions extends ExceptionUtils {
         return new JdbdSQLException(new SQLException("MultiStatement no sql,should invoke addStmt(String) method."));
     }
 
+    public static JdbdSQLException noReturnColumn() {
+        return new JdbdSQLException(new SQLException("No return column"));
+    }
+
     public static JdbdSQLException invalidParameterValue(int stmtIndex, int paramIndex) {
         String m;
         if (stmtIndex == 0) {

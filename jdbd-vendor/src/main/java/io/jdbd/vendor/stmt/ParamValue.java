@@ -6,7 +6,9 @@ public interface ParamValue {
 
     int getParamIndex();
 
-    boolean isLongData();
+    default boolean isLongData() {
+        return false;
+    }
 
     @Nullable
     Object getValue();

@@ -21,6 +21,7 @@ import io.jdbd.stmt.BindStatement;
 import io.jdbd.stmt.ResultType;
 import io.jdbd.stmt.SubscribeException;
 import io.jdbd.vendor.result.MultiResults;
+import io.jdbd.vendor.util.JdbdBinds;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.util.annotation.Nullable;
@@ -103,7 +104,7 @@ final class PgBindStatement extends PgStatement implements BindStatement {
             throw PgExceptions.notMatchWithFirstParamGroupCount(this.paramGroupList.size()
                     , paramGroup.size(), firstGroupSize);
         } else {
-            final JdbdException error = sortAndCheckParamGroup(this.paramGroupList.size(), paramGroup);
+            final JdbdException error = JdbdBinds.sortAndCheckParamGroup(this.paramGroupList.size(), paramGroup);
             if (error != null) {
                 throw error;
             }
@@ -134,7 +135,7 @@ final class PgBindStatement extends PgStatement implements BindStatement {
 
         final Mono<ResultStates> mono;
         if (this.paramGroupList.isEmpty()) {
-            final JdbdException error = sortAndCheckParamGroup(0, paramGroup);
+            final JdbdException error = JdbdBinds.sortAndCheckParamGroup(0, paramGroup);
             if (error != null) {
                 throw error;
             }
@@ -159,7 +160,7 @@ final class PgBindStatement extends PgStatement implements BindStatement {
 
         final Flux<ResultRow> flux;
         if (this.paramGroupList.isEmpty()) {
-            final JdbdException error = sortAndCheckParamGroup(0, paramGroup);
+            final JdbdException error = JdbdBinds.sortAndCheckParamGroup(0, paramGroup);
             if (error != null) {
                 throw error;
             }

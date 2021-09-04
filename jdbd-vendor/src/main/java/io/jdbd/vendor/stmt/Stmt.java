@@ -10,6 +10,10 @@ public interface Stmt {
 
     int getTimeout();
 
+    default int getFetchSize() {
+        return 0;
+    }
+
     @Nullable
     default Function<Object, Publisher<byte[]>> getImportPublisher() {
         return null;

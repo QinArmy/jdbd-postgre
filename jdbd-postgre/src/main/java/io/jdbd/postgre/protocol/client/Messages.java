@@ -36,6 +36,13 @@ abstract class Messages {
 
     /**
      * <ul>
+     *     <li>Bind</li>
+     * </ul>
+     */
+    static final byte B = 'B';
+
+    /**
+     * <ul>
      *     <li>CommandComplete</li>
      * </ul>
      */

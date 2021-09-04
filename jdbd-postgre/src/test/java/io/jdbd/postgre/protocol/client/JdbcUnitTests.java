@@ -49,9 +49,12 @@ public class JdbcUnitTests {
         try (Connection conn = DriverManager.getConnection(url, properties)) {
             String sql = "UPDATE my_types AS t SET my_boolean = TRUE WHERE t.id = ?";
             try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+                stmt.setString(1, "4567898765456789876545678987656789876");
+                stmt.addBatch();
+                stmt.setString(1, "4567898765456789876545678987656789876");
+                stmt.addBatch();
 
-
-                stmt.executeUpdate();
+                stmt.executeBatch();
 
             }
         }

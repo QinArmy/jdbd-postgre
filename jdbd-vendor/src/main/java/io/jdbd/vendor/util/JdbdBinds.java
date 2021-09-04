@@ -1,8 +1,11 @@
 package io.jdbd.vendor.util;
 
+import io.jdbd.JdbdSQLException;
 import io.jdbd.vendor.stmt.ParamValue;
 import org.qinarmy.util.Pair;
+import reactor.util.annotation.Nullable;
 
+import java.util.Comparator;
 import java.util.List;
 
 public abstract class JdbdBinds {
@@ -47,4 +50,27 @@ public abstract class JdbdBinds {
     }
 
 
+    @Nullable
+    public static JdbdSQLException sortAndCheckParamGroup(final int groupIndex
+            , final List<? extends ParamValue> paramGroup) {
+
+        paramGroup.sort(Comparator.comparingInt(ParamValue::getParamIndex));
+
+        JdbdSQLException error = null;
+        final int size = paramGroup.size();
+        for (int i = 0, index; i < size; i++) {
+            index = paramGroup.get(i).getParamIndex();
+            if (index == i) {
+                continue;
+            }
+
+            if (index < i) {
+                error = JdbdExceptions.duplicationParameter(groupIndex, index);
+            } else {
+                error = JdbdExceptions.noParameterValue(groupIndex, i);
+            }
+            break;
+        }
+        return error;
+    }
 }

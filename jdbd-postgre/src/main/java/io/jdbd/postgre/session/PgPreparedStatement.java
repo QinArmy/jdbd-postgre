@@ -3,10 +3,9 @@ package io.jdbd.postgre.session;
 import io.jdbd.JdbdException;
 import io.jdbd.JdbdSQLException;
 import io.jdbd.meta.SQLType;
-import io.jdbd.postgre.PgJdbdException;
 import io.jdbd.postgre.PgType;
-import io.jdbd.postgre.stmt.*;
-import io.jdbd.postgre.util.PgBinds;
+import io.jdbd.postgre.stmt.PgStmts;
+import io.jdbd.postgre.stmt.PrepareStmtTask;
 import io.jdbd.postgre.util.PgExceptions;
 import io.jdbd.postgre.util.PgFunctions;
 import io.jdbd.result.*;
@@ -14,15 +13,16 @@ import io.jdbd.stmt.PreparedStatement;
 import io.jdbd.stmt.ResultType;
 import io.jdbd.stmt.SubscribeException;
 import io.jdbd.vendor.result.MultiResults;
+import io.jdbd.vendor.stmt.JdbdParamValue;
+import io.jdbd.vendor.stmt.ParamBatchStmt;
+import io.jdbd.vendor.stmt.ParamStmt;
+import io.jdbd.vendor.stmt.ParamValue;
+import io.jdbd.vendor.util.JdbdBinds;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.util.annotation.Nullable;
 
-import java.sql.JDBCType;
-import java.util.ArrayList;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Objects;
+import java.util.*;
 import java.util.function.Consumer;
 
 
@@ -37,7 +37,10 @@ final class PgPreparedStatement extends PgStatement implements PreparedStatement
         return new PgPreparedStatement(session, stmtTask);
     }
 
+
     private final PrepareStmtTask stmtTask;
+
+    private final String sql;
 
     private final List<PgType> paramTypeList;
 
@@ -45,69 +48,52 @@ final class PgPreparedStatement extends PgStatement implements PreparedStatement
 
     private final ResultRowMeta rowMeta;
 
-    private final List<List<BindValue>> paramGroupList = new LinkedList<>();
+    private final List<List<ParamValue>> paramGroupList = new LinkedList<>();
 
-    private List<BindValue> paramGroup;
+    private List<ParamValue> paramGroup;
 
     private int fetchSize;
 
     private PgPreparedStatement(PgDatabaseSession session, PrepareStmtTask stmtTask) {
         super(session);
         this.stmtTask = stmtTask;
+        this.sql = stmtTask.getSql();
         this.paramTypeList = stmtTask.getParamTypeList();
         this.paramCount = this.paramTypeList.size();
+
         this.rowMeta = stmtTask.getRowMeta();
-
-        this.paramGroup = new ArrayList<>(this.paramCount);
+        if (this.paramCount == 0) {
+            this.paramGroup = Collections.emptyList();
+        } else {
+            this.paramGroup = new ArrayList<>(this.paramCount);
+        }
     }
 
 
     @Override
-    public final void bind(final int indexBasedZero, final JDBCType jdbcType, final @Nullable Object nullable)
-            throws JdbdException {
-        final PgType pgType;
-        try {
-            pgType = PgBinds.mapJdbcTypeToPgType(jdbcType, nullable);
-        } catch (Throwable e) {
-            final JdbdException error = PgExceptions.wrap(e);
-            this.stmtTask.closeOnBindError(error); // close prepare statement.
-            throw error;
-        }
-        this.paramGroup.add(BindValue.create(checkBindIndex(indexBasedZero), pgType, nullable));
+    public final List<? extends SQLType> getParameterMeta() {
+        return this.paramTypeList;
     }
 
     @Override
-    public final void bind(final int indexBasedZero, final SQLType sqlType, final @Nullable Object nullable)
-            throws JdbdException {
-
-        final JdbdException error;
-        if (!(sqlType instanceof PgType)) {
-            String m = String.format("sqlType isn't a instance of %s", PgType.class.getName());
-            error = new PgJdbdException(m);
-        } else {
-            error = null;
+    public final ResultRowMeta getResultRowMeta() throws JdbdSQLException {
+        final ResultRowMeta meta = this.rowMeta;
+        if (meta == null) {
+            throw PgExceptions.noReturnColumn();
         }
-
-        if (error == null) {
-            this.paramGroup.add(BindValue.create(checkBindIndex(indexBasedZero), (PgType) sqlType, nullable));
-        } else {
-            this.stmtTask.closeOnBindError(error); // close prepare statement.
-            throw error;
-        }
-
+        return meta;
     }
 
     @Override
     public final void bind(final int indexBasedZero, final @Nullable Object nullable)
             throws JdbdException {
-        final PgType pgType = this.paramTypeList.get(checkBindIndex(indexBasedZero));
-        this.paramGroup.add(BindValue.create(indexBasedZero, pgType, nullable));
+        this.paramGroup.add(JdbdParamValue.wrap(checkBindIndex(indexBasedZero), nullable));
     }
 
 
     @Override
     public final void addBatch() throws JdbdException {
-        final List<BindValue> paramGroup = this.paramGroup;
+        final List<ParamValue> paramGroup = this.paramGroup;
         final int paramCount = this.paramCount;
 
         final JdbdException error;
@@ -115,11 +101,13 @@ final class PgPreparedStatement extends PgStatement implements PreparedStatement
             error = PgExceptions.parameterCountMatch(this.paramGroupList.size()
                     , this.paramCount, paramGroup.size());
         } else {
-            error = sortAndCheckParamGroup(this.paramGroupList.size(), paramGroup);
+            error = JdbdBinds.sortAndCheckParamGroup(this.paramGroupList.size(), paramGroup);
         }
         if (error == null) {
             this.paramGroupList.add(paramGroup);
-            this.paramGroup = new ArrayList<>(this.paramCount);
+            if (paramCount > 0) {
+                this.paramGroup = new ArrayList<>(paramCount);
+            }
         } else {
             this.stmtTask.closeOnBindError(error); // close prepare statement.
             throw error;
@@ -131,7 +119,7 @@ final class PgPreparedStatement extends PgStatement implements PreparedStatement
     @Override
     public final Mono<ResultStates> executeUpdate() {
 
-        final List<BindValue> paramGroup = this.paramGroup;
+        final List<ParamValue> paramGroup = this.paramGroup;
 
         final JdbdException error;
         if (this.rowMeta != null) {
@@ -141,12 +129,12 @@ final class PgPreparedStatement extends PgStatement implements PreparedStatement
         } else if (paramGroup.size() != this.paramCount) {
             error = PgExceptions.parameterCountMatch(0, this.paramCount, paramGroup.size());
         } else {
-            error = sortAndCheckParamGroup(0, paramGroup);
+            error = JdbdBinds.sortAndCheckParamGroup(0, paramGroup);
         }
 
         final Mono<ResultStates> mono;
         if (error == null) {
-            BindStmt stmt = PgStmts.bind(this.stmtTask.getSql(), paramGroup, this);
+            ParamStmt stmt = PgStmts.paramStmt(this.sql, paramGroup, this);
             mono = this.stmtTask.executeUpdate(stmt);
         } else {
             this.stmtTask.closeOnBindError(error); // close prepare statement.
@@ -164,7 +152,7 @@ final class PgPreparedStatement extends PgStatement implements PreparedStatement
     public final Flux<ResultRow> executeQuery(final Consumer<ResultStates> statesConsumer) {
         Objects.requireNonNull(statesConsumer, "statesConsumer");
 
-        final List<BindValue> paramGroup = this.paramGroup;
+        final List<ParamValue> paramGroup = this.paramGroup;
 
         final JdbdException error;
         if (this.rowMeta == null) {
@@ -174,12 +162,12 @@ final class PgPreparedStatement extends PgStatement implements PreparedStatement
         } else if (paramGroup.size() != this.paramCount) {
             error = PgExceptions.parameterCountMatch(0, this.paramCount, paramGroup.size());
         } else {
-            error = sortAndCheckParamGroup(0, paramGroup);
+            error = JdbdBinds.sortAndCheckParamGroup(0, paramGroup);
         }
 
         final Flux<ResultRow> flux;
         if (error == null) {
-            BindStmt stmt = PgStmts.bind(this.stmtTask.getSql(), paramGroup, statesConsumer, this);
+            ParamStmt stmt = PgStmts.paramStmt(this.sql, paramGroup, statesConsumer, this);
             flux = this.stmtTask.executeQuery(stmt);
         } else {
             this.stmtTask.closeOnBindError(error); // close prepare statement.
@@ -196,7 +184,8 @@ final class PgPreparedStatement extends PgStatement implements PreparedStatement
             this.stmtTask.closeOnBindError(error); // close prepare statement.
             flux = Flux.error(error);
         } else {
-            BatchBindStmt stmt = PgStmts.bindableBatch(this.stmtTask.getSql(), this.paramGroupList, this);
+            ParamBatchStmt<ParamValue> stmt;
+            stmt = PgStmts.paramBatch(this.sql, this.paramGroupList, this);
             flux = this.stmtTask.executeBatch(stmt);
         }
         return flux;
@@ -210,7 +199,8 @@ final class PgPreparedStatement extends PgStatement implements PreparedStatement
             this.stmtTask.closeOnBindError(error); // close prepare statement.
             result = MultiResults.error(error);
         } else {
-            BatchBindStmt stmt = PgStmts.bindableBatch(this.stmtTask.getSql(), this.paramGroupList, this);
+            ParamBatchStmt<ParamValue> stmt;
+            stmt = PgStmts.paramBatch(this.sql, this.paramGroupList, this);
             result = this.stmtTask.executeBatchAsMulti(stmt);
         }
         return result;
@@ -224,7 +214,8 @@ final class PgPreparedStatement extends PgStatement implements PreparedStatement
             this.stmtTask.closeOnBindError(error); // close prepare statement.
             flux = Flux.error(error);
         } else {
-            BatchBindStmt stmt = PgStmts.bindableBatch(this.stmtTask.getSql(), this.paramGroupList, this);
+            ParamBatchStmt<ParamValue> stmt;
+            stmt = PgStmts.paramBatch(this.sql, this.paramGroupList, this);
             flux = this.stmtTask.executeBatchAsFlux(stmt);
         }
         return flux;

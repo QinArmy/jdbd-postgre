@@ -11,8 +11,7 @@ import io.jdbd.stmt.PreparedStatement;
 import io.jdbd.vendor.result.FluxResultSink;
 import io.jdbd.vendor.result.MultiResults;
 import io.jdbd.vendor.result.ResultSink;
-import io.jdbd.vendor.stmt.PrepareStmt;
-import io.jdbd.vendor.stmt.Stmt;
+import io.jdbd.vendor.stmt.*;
 import io.netty.buffer.ByteBuf;
 import org.reactivestreams.Publisher;
 import org.reactivestreams.Subscriber;
@@ -150,7 +149,7 @@ final class ExtendedQueryTask extends AbstractStmtTask implements PrepareStmtTas
 
 
     @Override
-    public final Mono<ResultStates> executeUpdate(final BindStmt stmt) {
+    public final Mono<ResultStates> executeUpdate(final ParamStmt stmt) {
         return MultiResults.update(sink -> {
             if (this.adjutant.inEventLoop()) {
                 executeUpdateInEventLoop(sink, stmt);
@@ -161,7 +160,7 @@ final class ExtendedQueryTask extends AbstractStmtTask implements PrepareStmtTas
     }
 
     @Override
-    public final Flux<ResultRow> executeQuery(final BindStmt stmt) {
+    public final Flux<ResultRow> executeQuery(final ParamStmt stmt) {
         return MultiResults.query(stmt.getStatusConsumer(), sink -> {
             if (this.adjutant.inEventLoop()) {
                 executeQueryInEventLoop(sink, stmt);
@@ -172,7 +171,7 @@ final class ExtendedQueryTask extends AbstractStmtTask implements PrepareStmtTas
     }
 
     @Override
-    public final Flux<ResultStates> executeBatch(final BatchBindStmt stmt) {
+    public final Flux<ResultStates> executeBatch(final ParamBatchStmt<ParamValue> stmt) {
         return MultiResults.batchUpdate(sink -> {
             if (this.adjutant.inEventLoop()) {
                 executeBatchInEventLoop(sink, stmt);
@@ -183,7 +182,7 @@ final class ExtendedQueryTask extends AbstractStmtTask implements PrepareStmtTas
     }
 
     @Override
-    public final MultiResult executeBatchAsMulti(final BatchBindStmt stmt) {
+    public final MultiResult executeBatchAsMulti(final ParamBatchStmt<ParamValue> stmt) {
         return MultiResults.asMulti(this.adjutant, sink -> {
             if (this.adjutant.inEventLoop()) {
                 executeBatchAsMultiInEventLoop(sink, stmt);
@@ -194,7 +193,7 @@ final class ExtendedQueryTask extends AbstractStmtTask implements PrepareStmtTas
     }
 
     @Override
-    public final Flux<Result> executeBatchAsFlux(BatchBindStmt stmt) {
+    public final Flux<Result> executeBatchAsFlux(ParamBatchStmt<ParamValue> stmt) {
         return MultiResults.asFlux(sink -> {
             if (this.adjutant.inEventLoop()) {
                 executeBatchAsFluxInEventLoop(sink, stmt);
@@ -245,6 +244,7 @@ final class ExtendedQueryTask extends AbstractStmtTask implements PrepareStmtTas
                 final List<ByteBuf> messageList = new ArrayList<>(2);
                 messageList.add(createParseMessage(((PgPrepareStmt) stmt).sql));
                 writeDescribeMessage(messageList, true);
+                writeSyncMessage(messageList); // TODO why send sync message.
                 publisher = Flux.fromIterable(messageList);
                 this.phase = Phase.READ_PREPARE_RESPONSE;
             } else {
@@ -323,11 +323,14 @@ final class ExtendedQueryTask extends AbstractStmtTask implements PrepareStmtTas
      * @see #readOtherMessage(ByteBuf, Consumer)
      */
     private void readPrepareResponseAndEmitStatement(final ByteBuf cumulateBuffer) {
+        assertPhase(Phase.READ_PREPARE_RESPONSE);
+
         final FluxResultSink sink = this.sink;
         if (!(sink instanceof PrepareFluxResultSink)) {
             throw new IllegalStateException("Non Prepare stmt task.");
         }
-        final List<Integer> paramOidList = Messages.readParameterDescription(cumulateBuffer);
+        final List<Integer> paramOidList;
+        paramOidList = Messages.readParameterDescription(cumulateBuffer);
 
         final ResultRowMeta rowMeta;
         switch (cumulateBuffer.getByte(cumulateBuffer.readerIndex())) {
@@ -361,9 +364,9 @@ final class ExtendedQueryTask extends AbstractStmtTask implements PrepareStmtTas
     }
 
     /**
-     * @see #executeUpdate(BindStmt)
+     * @see #executeUpdate(ParamStmt)
      */
-    private void executeUpdateInEventLoop(final FluxResultSink sink, final BindStmt stmt) {
+    private void executeUpdateInEventLoop(final FluxResultSink sink, final ParamStmt stmt) {
         if (prepareForPrepareBind(sink, stmt)) {
             // task end
             return;
@@ -372,9 +375,9 @@ final class ExtendedQueryTask extends AbstractStmtTask implements PrepareStmtTas
 
 
     /**
-     * @see #executeQuery(BindStmt)
+     * @see #executeQuery(ParamStmt)
      */
-    private void executeQueryInEventLoop(FluxResultSink sink, BindStmt stmt) {
+    private void executeQueryInEventLoop(FluxResultSink sink, ParamStmt stmt) {
         if (prepareForPrepareBind(sink, stmt)) {
             // task end
             return;
@@ -382,9 +385,9 @@ final class ExtendedQueryTask extends AbstractStmtTask implements PrepareStmtTas
     }
 
     /**
-     * @see #executeBatch(BatchBindStmt)
+     * @see #executeBatch(ParamBatchStmt)
      */
-    private void executeBatchInEventLoop(FluxResultSink sink, BatchBindStmt stmt) {
+    private void executeBatchInEventLoop(FluxResultSink sink, ParamBatchStmt<ParamValue> stmt) {
         if (prepareForPrepareBind(sink, stmt)) {
             // task end
             return;
@@ -392,9 +395,9 @@ final class ExtendedQueryTask extends AbstractStmtTask implements PrepareStmtTas
     }
 
     /**
-     * @see #executeBatchAsMulti(BatchBindStmt)
+     * @see #executeBatchAsMulti(ParamBatchStmt)
      */
-    private void executeBatchAsMultiInEventLoop(FluxResultSink sink, BatchBindStmt stmt) {
+    private void executeBatchAsMultiInEventLoop(FluxResultSink sink, ParamBatchStmt<ParamValue> stmt) {
         if (prepareForPrepareBind(sink, stmt)) {
             // task end
             return;
@@ -402,9 +405,9 @@ final class ExtendedQueryTask extends AbstractStmtTask implements PrepareStmtTas
     }
 
     /**
-     * @see #executeBatchAsFlux(BatchBindStmt)
+     * @see #executeBatchAsFlux(ParamBatchStmt)
      */
-    private void executeBatchAsFluxInEventLoop(FluxResultSink sink, BatchBindStmt stmt) {
+    private void executeBatchAsFluxInEventLoop(FluxResultSink sink, ParamBatchStmt<ParamValue> stmt) {
         if (prepareForPrepareBind(sink, stmt)) {
             // task end
             return;
@@ -416,11 +419,11 @@ final class ExtendedQueryTask extends AbstractStmtTask implements PrepareStmtTas
 
     /**
      * @return true: has error,task end.
-     * @see #executeUpdateInEventLoop(FluxResultSink, BindStmt)
-     * @see #executeQueryInEventLoop(FluxResultSink, BindStmt)
-     * @see #executeBatchInEventLoop(FluxResultSink, BatchBindStmt)
-     * @see #executeBatchAsMultiInEventLoop(FluxResultSink, BatchBindStmt)
-     * @see #executeBatchAsFluxInEventLoop(FluxResultSink, BatchBindStmt)
+     * @see #executeUpdateInEventLoop(FluxResultSink, ParamStmt)
+     * @see #executeQueryInEventLoop(FluxResultSink, ParamStmt)
+     * @see #executeBatchInEventLoop(FluxResultSink, ParamBatchStmt)
+     * @see #executeBatchAsMultiInEventLoop(FluxResultSink, ParamBatchStmt)
+     * @see #executeBatchAsFluxInEventLoop(FluxResultSink, ParamBatchStmt)
      */
     private boolean prepareForPrepareBind(final FluxResultSink sink, final Stmt stmt) {
         JdbdException error = null;
@@ -506,31 +509,6 @@ final class ExtendedQueryTask extends AbstractStmtTask implements PrepareStmtTas
 
 
     /**
-     * @see <a href="https://www.postgresql.org/docs/current/protocol-message-formats.html">Sync</a>
-     */
-    private void writeSyncMessage(final List<ByteBuf> messageList) {
-
-        final int messageSize = messageList.size();
-        final ByteBuf message;
-        if (messageSize > 0) {
-            final ByteBuf lastMessage = messageList.get(messageSize - 1);
-            if (lastMessage.isReadOnly() || lastMessage.writableBytes() < 5) {
-                message = this.adjutant.allocator().buffer(5);
-                messageList.add(message);
-            } else {
-                message = lastMessage;
-            }
-        } else {
-            message = this.adjutant.allocator().buffer(5);
-            messageList.add(message);
-        }
-        message.writeByte(Messages.S);
-        message.writeInt(0);
-
-    }
-
-
-    /**
      * @see #start()
      * @see <a href="https://www.postgresql.org/docs/current/protocol-message-formats.html">Parse</a>
      */
@@ -587,6 +565,30 @@ final class ExtendedQueryTask extends AbstractStmtTask implements PrepareStmtTas
         message.writeByte(statement ? 'S' : 'P');
         message.writeBytes(nameBytes);
         message.writeByte(Messages.STRING_TERMINATOR);
+
+    }
+
+    /**
+     * @see <a href="https://www.postgresql.org/docs/current/protocol-message-formats.html">Sync</a>
+     */
+    private void writeSyncMessage(final List<ByteBuf> messageList) {
+
+        final int messageSize = messageList.size();
+        final ByteBuf message;
+        if (messageSize > 0) {
+            final ByteBuf lastMessage = messageList.get(messageSize - 1);
+            if (lastMessage.isReadOnly() || lastMessage.writableBytes() < 5) {
+                message = this.adjutant.allocator().buffer(5);
+                messageList.add(message);
+            } else {
+                message = lastMessage;
+            }
+        } else {
+            message = this.adjutant.allocator().buffer(5);
+            messageList.add(message);
+        }
+        message.writeByte(Messages.S);
+        message.writeInt(0);
 
     }
 

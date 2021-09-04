@@ -8,6 +8,7 @@ import io.jdbd.vendor.util.JdbdFunctions;
 import io.jdbd.vendor.util.JdbdStrings;
 import org.reactivestreams.Publisher;
 import org.reactivestreams.Subscriber;
+import reactor.util.annotation.Nullable;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -23,14 +24,14 @@ public abstract class JdbdStmts {
     }
 
 
-    public static BatchParamStmt<ParamValue> batch(String sql, List<List<ParamValue>> groupList) {
+    public static ParamBatchStmt<ParamValue> batch(String sql, List<List<ParamValue>> groupList) {
         if (groupList.size() < 1) {
             throw new IllegalArgumentException("groupList is empty.");
         }
         return new BatchStmtImpl(sql, groupList, 0);
     }
 
-    public static BatchParamStmt<ParamValue> batch(String sql, List<List<ParamValue>> groupList, int timeOut) {
+    public static ParamBatchStmt<ParamValue> batch(String sql, List<List<ParamValue>> groupList, int timeOut) {
         if (groupList.size() < 2) {
             throw new IllegalArgumentException("groupList size < 2");
         }
@@ -132,8 +133,246 @@ public abstract class JdbdStmts {
         return new SimpleParamStmt(sql, paramGroup);
     }
 
+    public static ParamStmt paramStmt(String sql, List<? extends ParamValue> paramGroup) {
+        return new ParamStmtMin(sql, paramGroup);
+    }
 
-    private static final class BatchStmtImpl implements BatchParamStmt<ParamValue> {
+    public static ParamStmt paramStmt(String sql, List<? extends ParamValue> paramGroup, StatementOption option) {
+        return new ParamStmtFull(sql, paramGroup, JdbdFunctions.noActionConsumer(), option);
+    }
+
+    public static ParamStmt paramStmt(String sql, List<? extends ParamValue> paramGroup
+            , Consumer<ResultStates> statesConsumer, StatementOption option) {
+        return new ParamStmtFull(sql, paramGroup, statesConsumer, option);
+    }
+
+    public static ParamBatchStmt<ParamValue> paramBatch(String sql, List<List<ParamValue>> groupList) {
+        return new ParamBatchStmtMin(sql, groupList);
+    }
+
+    public static ParamBatchStmt<ParamValue> paramBatch(String sql, List<List<ParamValue>> groupList
+            , StatementOption option) {
+        return new ParamBatchStmtFull(sql, groupList, option);
+    }
+
+    private static final class ParamBatchStmtFull implements ParamBatchStmt<ParamValue> {
+
+        private final String sql;
+
+        private final List<List<ParamValue>> groupList;
+
+        private final int timeout;
+
+        private final int fetchSize;
+
+        private final Function<Object, Publisher<byte[]>> importPublisher;
+
+        private final Function<Object, Subscriber<byte[]>> exportSubscriber;
+
+
+        private ParamBatchStmtFull(String sql, List<List<ParamValue>> groupList, StatementOption option) {
+            this.sql = sql;
+            this.groupList = JdbdCollections.unmodifiableList(groupList);
+            this.timeout = option.getTimeout();
+
+            this.fetchSize = option.getFetchSize();
+            this.importPublisher = option.getImportFunction();
+            this.exportSubscriber = option.getExportSubscriber();
+
+        }
+
+        @Override
+        public final String getSql() {
+            return this.sql;
+        }
+
+        @Override
+        public final List<List<ParamValue>> getGroupList() {
+            return this.groupList;
+        }
+
+        @Override
+        public final int getTimeout() {
+            return this.timeout;
+        }
+
+        @Override
+        public final int getFetchSize() {
+            return this.fetchSize;
+        }
+
+        @Override
+        public final Function<Object, Publisher<byte[]>> getImportPublisher() {
+            return this.importPublisher;
+        }
+
+        @Override
+        public final Function<Object, Subscriber<byte[]>> getExportSubscriber() {
+            return this.exportSubscriber;
+        }
+
+    }
+
+    private static final class ParamBatchStmtMin implements ParamBatchStmt<ParamValue> {
+
+        private final String sql;
+
+        private final List<List<ParamValue>> groupList;
+
+        private ParamBatchStmtMin(String sql, List<List<ParamValue>> groupList) {
+            this.sql = sql;
+            this.groupList = JdbdCollections.unmodifiableList(groupList);
+        }
+
+        @Override
+        public final String getSql() {
+            return this.sql;
+        }
+
+        @Override
+        public final List<List<ParamValue>> getGroupList() {
+            return this.groupList;
+        }
+
+        @Override
+        public final int getTimeout() {
+            return 0;
+        }
+
+        @Override
+        public final int getFetchSize() {
+            return 0;
+        }
+
+        @Override
+        public final Function<Object, Publisher<byte[]>> getImportPublisher() {
+            return null;
+        }
+
+        @Override
+        public final Function<Object, Subscriber<byte[]>> getExportSubscriber() {
+            return null;
+        }
+
+    }
+
+    private static final class ParamStmtFull implements ParamStmt {
+
+        private final String sql;
+
+        private final List<? extends ParamValue> paramGroup;
+
+        private final Consumer<ResultStates> statesConsumer;
+
+        private final int timeout;
+
+        private final int fetchSize;
+
+        private final Function<Object, Publisher<byte[]>> importPublisher;
+
+        private final Function<Object, Subscriber<byte[]>> exportSubscriber;
+
+        private ParamStmtFull(String sql, List<? extends ParamValue> paramGroup
+                , Consumer<ResultStates> statesConsumer, StatementOption option) {
+            this.sql = sql;
+            this.paramGroup = JdbdCollections.unmodifiableList(paramGroup);
+            this.statesConsumer = statesConsumer;
+            this.timeout = option.getTimeout();
+
+            this.fetchSize = option.getFetchSize();
+            this.importPublisher = option.getImportFunction();
+            this.exportSubscriber = option.getExportSubscriber();
+        }
+
+        @Override
+        public final String getSql() {
+            return this.sql;
+        }
+
+        @Override
+        public final Consumer<ResultStates> getStatusConsumer() {
+            return this.statesConsumer;
+        }
+
+        @Override
+        public final List<? extends ParamValue> getParamGroup() {
+            return this.paramGroup;
+        }
+
+        @Override
+        public final int getFetchSize() {
+            return this.fetchSize;
+        }
+
+        @Override
+        public final int getTimeout() {
+            return this.timeout;
+        }
+
+        @Nullable
+        @Override
+        public final Function<Object, Publisher<byte[]>> getImportPublisher() {
+            return this.importPublisher;
+        }
+
+        @Nullable
+        @Override
+        public final Function<Object, Subscriber<byte[]>> getExportSubscriber() {
+            return this.exportSubscriber;
+        }
+
+    }
+
+    private static class ParamStmtMin implements ParamStmt {
+
+        private final String sql;
+
+        private final List<? extends ParamValue> paramGroup;
+
+        private ParamStmtMin(String sql, List<? extends ParamValue> paramGroup) {
+            this.sql = sql;
+            this.paramGroup = JdbdCollections.unmodifiableList(paramGroup);
+        }
+
+        @Override
+        public final String getSql() {
+            return this.sql;
+        }
+
+        @Override
+        public Consumer<ResultStates> getStatusConsumer() {
+            return JdbdFunctions.noActionConsumer();
+        }
+
+        @Override
+        public final List<? extends ParamValue> getParamGroup() {
+            return this.paramGroup;
+        }
+
+        @Override
+        public final int getFetchSize() {
+            return 0;
+        }
+
+        @Override
+        public final int getTimeout() {
+            return 0;
+        }
+
+        @Override
+        public final Function<Object, Publisher<byte[]>> getImportPublisher() {
+            return null;
+        }
+
+        @Override
+        public final Function<Object, Subscriber<byte[]>> getExportSubscriber() {
+            return null;
+        }
+
+    }
+
+
+    private static final class BatchStmtImpl implements ParamBatchStmt<ParamValue> {
 
         private final String sql;
 

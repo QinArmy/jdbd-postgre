@@ -1,7 +1,5 @@
 package io.jdbd.mysql.session;
 
-import io.jdbd.JdbdException;
-import io.jdbd.meta.SQLType;
 import io.jdbd.mysql.stmt.PrepareStmtTask;
 import io.jdbd.result.Result;
 import io.jdbd.result.ResultRow;
@@ -12,7 +10,6 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.util.annotation.Nullable;
 
-import java.sql.JDBCType;
 import java.util.function.Consumer;
 
 public final class ServerPreparedStatement<S extends MySQLDatabaseSession> extends MySQLStatement<S>
@@ -32,16 +29,6 @@ public final class ServerPreparedStatement<S extends MySQLDatabaseSession> exten
         this.task = task;
     }
 
-
-    @Override
-    public void bind(int indexBasedZero, JDBCType jdbcType, Object nullable) throws JdbdException {
-
-    }
-
-    @Override
-    public void bind(int indexBasedZero, SQLType sqlType, Object nullable) throws JdbdException {
-
-    }
 
     @Override
     public final void bind(int indexBasedZero, @Nullable Object nullable) {

@@ -1,13 +1,12 @@
 package io.jdbd.stmt;
 
 import io.jdbd.JdbdException;
+import io.jdbd.JdbdSQLException;
 import io.jdbd.lang.Nullable;
-import io.jdbd.result.MultiResult;
-import io.jdbd.result.Result;
-import io.jdbd.result.ResultRow;
-import io.jdbd.result.ResultStates;
+import io.jdbd.result.*;
 import org.reactivestreams.Publisher;
 
+import java.util.List;
 import java.util.function.Consumer;
 
 /**
@@ -36,6 +35,11 @@ public interface PreparedStatement extends BindableSingleStatement, BindableMult
 
     @Override
     boolean supportOutParameter();
+
+
+    List<? extends io.jdbd.meta.SQLType> getParameterMeta();
+
+    ResultRowMeta getResultRowMeta() throws JdbdSQLException;
 
     /**
      * {@inheritDoc }

@@ -9,7 +9,6 @@ import io.jdbd.result.ResultRow;
 import io.jdbd.result.ResultStates;
 import org.reactivestreams.Publisher;
 
-import java.sql.JDBCType;
 import java.util.function.Consumer;
 
 /**
@@ -26,28 +25,6 @@ import java.util.function.Consumer;
  */
 public interface BindableSingleStatement extends Statement {
 
-
-    /**
-     * <p>
-     * SQL parameter placeholder must be {@code ?}
-     * </p>
-     *
-     * @param indexBasedZero parameter placeholder index based zero.
-     * @param jdbcType       mapping {@link JDBCType}
-     * @param nullable       nullable null the parameter value
-     */
-    void bind(int indexBasedZero, JDBCType jdbcType, @Nullable Object nullable) throws JdbdException;
-
-    /**
-     * <p>
-     * SQL parameter placeholder must be {@code ?}
-     * </p>
-     *
-     * @param indexBasedZero parameter placeholder index based zero.
-     * @param nullable       nullable the parameter value
-     * @param sqlType        nonNullValue mapping sql data type name(must upper case).
-     */
-    void bind(int indexBasedZero, io.jdbd.meta.SQLType sqlType, @Nullable Object nullable) throws JdbdException;
 
     /**
      * @see BindStatement#bind(int, Object)
