@@ -4,18 +4,21 @@ import io.jdbd.postgre.PgType;
 import io.jdbd.postgre.stmt.BatchBindStmt;
 import io.jdbd.postgre.stmt.BindStmt;
 import io.jdbd.postgre.stmt.BindValue;
+import io.jdbd.postgre.util.PgBinds;
 import io.jdbd.postgre.util.PgExceptions;
-import io.jdbd.postgre.util.PgNumbers;
+import io.jdbd.vendor.stmt.ParamValue;
 import io.jdbd.vendor.stmt.Stmt;
 import io.netty.buffer.ByteBuf;
 import org.reactivestreams.Publisher;
 import reactor.core.publisher.Mono;
 
+import java.math.BigDecimal;
+import java.nio.charset.Charset;
 import java.sql.SQLException;
 import java.util.Collections;
 import java.util.List;
 
-final class ExtendedCommandWriter {
+final class ExtendedBindWriter {
 
 
     static Mono<Iterable<ByteBuf>> write(Stmt stmt, ExtendedStmtTask stmtTask) {
@@ -30,23 +33,32 @@ final class ExtendedCommandWriter {
 
     private final ByteBuf message;
 
-    private final List<List<BindValue>> paramGroupList;
+    private final List<PgType> paramTypeList;
+
+    private final int batchIndex;
+
+    private final List<? extends ParamValue> bindGroup;
+
+    private final Charset clientCharset;
 
     private final int fetchSize;
 
-    private int groupIndex;
+    private int paramIndex = 0;
 
-    private int paramIndex;
-
-    private ExtendedCommandWriter(final List<List<BindValue>> paramGroupList, final ExtendedStmtTask stmtTask) {
+    private ExtendedBindWriter(final int batchIndex, final List<? extends ParamValue> bindGroup
+            , final ExtendedStmtTask stmtTask) {
+        this.batchIndex = batchIndex;
         this.statementName = stmtTask.getStatementName();
         this.adjutant = stmtTask.adjutant();
         this.stmtTask = stmtTask;
-        this.paramGroupList = paramGroupList;
 
-        this.fetchSize = stmtTask.getFetchSize();
+        this.bindGroup = bindGroup;
+        this.paramTypeList = stmtTask.getParamTypeList();
+
+        // if execute batch ,then can't use fetch
+        this.fetchSize = batchIndex == 0 ? stmtTask.getFetchSize() : 0;
         this.message = this.adjutant.allocator().buffer(1024, Integer.MAX_VALUE);
-
+        this.clientCharset = this.adjutant.clientCharset();
 
     }
 
@@ -70,12 +82,15 @@ final class ExtendedCommandWriter {
         }
         message.writeByte(Messages.STRING_TERMINATOR);
 
-        final int groupIndex = this.groupIndex;
-        final List<BindValue> paramGroup = this.paramGroupList.get(groupIndex);
-        final int paramCount = paramGroup.size();
+        final List<PgType> paramTypeList = this.paramTypeList;
+        final int paramCount = paramTypeList.size();
+
+        if (this.bindGroup.size() != paramCount) {
+            throw PgExceptions.parameterCountMatch(this.batchIndex, paramCount, this.bindGroup.size());
+        }
         message.writeShort(paramCount); // The number of parameter format codes
-        for (BindValue bindValue : paramGroup) {
-            message.writeShort(decideParameterFormatCode(bindValue.getType()));
+        for (PgType type : paramTypeList) {
+            message.writeShort(decideParameterFormatCode(type));
         }
         message.writeShort(paramCount); // The number of parameter values
         this.paramIndex = 0;
@@ -96,6 +111,7 @@ final class ExtendedCommandWriter {
             case REAL:
             case DOUBLE:
             case BIGINT:
+            case BYTEA:
                 formatCode = 1; // binary format code
                 break;
             default:
@@ -109,15 +125,15 @@ final class ExtendedCommandWriter {
      * @see <a href="https://www.postgresql.org/docs/current/protocol-message-formats.html">Bind</a>
      */
     private void continueWriteBindParam() {
-        final List<BindValue> paramGroup = this.paramGroupList.get(this.groupIndex);
-        final int paramCount = paramGroup.size();
+        final List<PgType> paramTypeList = this.paramTypeList;
+        final int paramCount = paramTypeList.size();
+        final List<? extends ParamValue> bindGroup = this.bindGroup;
 
         final ByteBuf message = this.message;
-
         try {
-            for (int i = this.paramIndex; i < paramCount; i++) {
-                final BindValue bindValue = paramGroup.get(i);
-                final Object value = bindValue.getValue();
+            for (int i = this.paramIndex, valueLengthIndex, valueLength, valueEndIndex; i < paramCount; i++) {
+                final ParamValue paramValue = bindGroup.get(i);
+                final Object value = paramValue.getValue();
                 if (value == null) {
                     message.writeInt(-1); //  -1 indicates a NULL parameter value
                     continue;
@@ -125,7 +141,15 @@ final class ExtendedCommandWriter {
                 if (value instanceof Publisher) {
                     continue;
                 } else {
-                    writeBindValue(bindValue);
+                    valueLengthIndex = message.writerIndex();
+                    message.writeZero(4); // placeholder of parameter value length.
+
+                    writeNonNullBindValue(paramTypeList.get(i), paramValue);
+                    valueEndIndex = message.writerIndex();
+
+                    message.writerIndex(valueLengthIndex);
+                    message.writeInt(valueEndIndex - valueLengthIndex - 4);
+                    message.writerIndex(valueEndIndex);
                 }
             }
         } catch (SQLException e) {
@@ -134,27 +158,54 @@ final class ExtendedCommandWriter {
 
     }
 
-    private void writeBindValue(BindValue bindValue) throws SQLException {
-        switch (bindValue.getType()) {
-            case SMALLINT:
-                bindToSmallInt(bindValue);
-                break;
-            case INTEGER:
-            case REAL:
-            case DOUBLE:
-            case DECIMAL:
-            case BIGINT:
-
-            case VARCHAR:
-            case BIT:
-            case VARBIT:
-            case MONEY:
-
-            case BYTEA:
-
+    private void writeNonNullBindValue(final PgType pgType, final ParamValue paramValue) throws SQLException {
+        switch (pgType) {
+            case SMALLINT: {
+                this.message.writeShort(PgBinds.bindNonNullToShort(this.batchIndex, pgType, paramValue));
+            }
+            break;
+            case INTEGER: {
+                this.message.writeInt(PgBinds.bindNonNullToInt(this.batchIndex, pgType, paramValue));
+            }
+            break;
             case OID:
+            case BIGINT: {
+                this.message.writeLong(PgBinds.bindNonNullToLong(this.batchIndex, pgType, paramValue));
+            }
+            break;
+            case REAL: {
+                final float value = PgBinds.bindNonNullToFloat(this.batchIndex, pgType, paramValue);
+                this.message.writeInt(Float.floatToIntBits(value));
+            }
+            break;
+            case DOUBLE: {
+                final double value = PgBinds.bindNonNullToDouble(this.batchIndex, pgType, paramValue);
+                this.message.writeLong(Double.doubleToLongBits(value));
+            }
+            break;
+            case DECIMAL: {
+                final String text = PgBinds.bindNonNullToDecimal(this.batchIndex, pgType, paramValue)
+                        .toPlainString();
+                Messages.writeString(this.message, text, this.clientCharset);
+            }
+            break;
             case TEXT:
             case CHAR:
+            case MONEY:
+            case VARCHAR: {
+                final String text = PgBinds.bindNonNullToString(this.batchIndex, pgType, paramValue);
+                Messages.writeString(this.message, text, this.clientCharset);
+            }
+            case BIT:
+            case VARBIT: {
+                final String bitString = PgBinds.bindNonNullToBit(this.batchIndex, pgType, paramValue);
+                Messages.writeString(this.message, bitString, this.clientCharset);
+            }
+            break;
+            case BYTEA: {
+                bindNonNullToBytea(pgType, paramValue);
+            }
+            break;
             case TSQUERY:
             case TSVECTOR:
 
@@ -243,25 +294,24 @@ final class ExtendedCommandWriter {
             case UNSPECIFIED:
             case REF_CURSOR:
             default:
-                throw PgExceptions.createUnexpectedEnumException(bindValue.getType());
+                throw PgExceptions.createUnexpectedEnumException(pgType);
         }
     }
 
     /**
-     * @see #writeBindValue(BindValue)
+     * @see #writeNonNullBindValue(PgType, ParamValue)
      */
-    private void bindToSmallInt(BindValue bindValue) throws SQLException {
-        final Object nonNull = bindValue.getNonNullValue();
-
-        final short smallInt;
-        if (nonNull instanceof Number) {
-            smallInt = PgNumbers.convertNumberToShort((Number) nonNull);
-        } else if (nonNull instanceof String) {
-            smallInt = Short.parseShort((String) nonNull);
+    private void bindNonNullToBytea(PgType pgType, ParamValue paramValue) throws SQLException {
+        final Object nonNull = paramValue.getNonNullValue();
+        final byte[] value;
+        if (nonNull instanceof byte[]) {
+            value = (byte[]) nonNull;
+        } else if (nonNull instanceof BigDecimal) {
+            value = ((BigDecimal) nonNull).toPlainString().getBytes(this.clientCharset);
         } else {
-            throw PgExceptions.createNotSupportBindTypeError(this.groupIndex, bindValue);
+            value = nonNull.toString().getBytes(this.clientCharset);
         }
-        this.message.writeShort(smallInt);
+        this.message.writeBytes(value);
     }
 
 

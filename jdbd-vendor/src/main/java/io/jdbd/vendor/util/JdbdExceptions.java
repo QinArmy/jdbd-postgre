@@ -2,6 +2,7 @@ package io.jdbd.vendor.util;
 
 import io.jdbd.JdbdException;
 import io.jdbd.JdbdSQLException;
+import io.jdbd.meta.SQLType;
 import io.jdbd.stmt.PreparedStatement;
 import io.jdbd.stmt.Statement;
 import io.jdbd.stmt.StatementClosedException;
@@ -9,6 +10,7 @@ import io.jdbd.stmt.UnsupportedBindJavaTypeException;
 import io.jdbd.vendor.JdbdCompositeException;
 import io.jdbd.vendor.JdbdUnknownException;
 import io.jdbd.vendor.stmt.CannotReuseStatementException;
+import io.jdbd.vendor.stmt.ParamValue;
 import org.qinarmy.util.ExceptionUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -147,13 +149,13 @@ public abstract class JdbdExceptions extends ExceptionUtils {
         return new JdbdSQLException(new SQLException(m, SQLStates.INVALID_PARAMETER_VALUE));
     }
 
-    public static JdbdSQLException parameterCountMatch(int stmtIndex, int paramCount, int bindCount) {
+    public static JdbdSQLException parameterCountMatch(int batchIndex, int paramCount, int bindCount) {
         String m;
-        if (stmtIndex == 0) {
+        if (batchIndex == 0) {
             m = String.format("parameter count[%s] and bind count[%s] not match.", paramCount, bindCount);
         } else {
             m = String.format("Batch[index:%s] parameter count[%s] and bind count[%s] not match."
-                    , stmtIndex, paramCount, bindCount);
+                    , batchIndex, paramCount, bindCount);
         }
         return new JdbdSQLException(new SQLException(m, SQLStates.INVALID_PARAMETER_VALUE));
     }
@@ -183,6 +185,26 @@ public abstract class JdbdExceptions extends ExceptionUtils {
     public static JdbdSQLException noAnyParamGroupError() {
         return new JdbdSQLException(
                 new SQLException("Not found any parameter group.", SQLStates.INVALID_PARAMETER_VALUE));
+    }
+
+    public static SQLException outOfTypeRange(int batchIndex, SQLType sqlType, ParamValue bindValue) {
+        String m;
+        if (batchIndex == 0) {
+            m = String.format("parameter[%s] value out of number range for %s"
+                    , bindValue.getParamIndex(), sqlType);
+        } else {
+            m = String.format("batch[%s] parameter[%s] value out of number range for %s"
+                    , batchIndex, bindValue.getParamIndex(), sqlType);
+        }
+        return new SQLException(m);
+
+    }
+
+    public static SQLException createNonSupportBindSqlTypeError(int batchIndex, SQLType sqlType, ParamValue bindValue) {
+        String m = String.format("batch[%s] parameter[%s] bind sql type[%s] not supported."
+                , batchIndex, bindValue.getParamIndex()
+                , sqlType);
+        return new SQLException(m);
     }
 
 

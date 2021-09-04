@@ -5,6 +5,7 @@ import io.jdbd.postgre.PgType;
 import io.jdbd.postgre.stmt.BatchBindStmt;
 import io.jdbd.postgre.stmt.BindStmt;
 import io.jdbd.postgre.stmt.PrepareStmtTask;
+import io.jdbd.postgre.util.PgCollections;
 import io.jdbd.postgre.util.PgExceptions;
 import io.jdbd.result.*;
 import io.jdbd.stmt.PreparedStatement;
@@ -23,7 +24,6 @@ import reactor.util.annotation.Nullable;
 import java.nio.charset.Charset;
 import java.sql.SQLException;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -31,7 +31,7 @@ import java.util.function.Function;
 /**
  * @see <a href="https://www.postgresql.org/docs/current/protocol-flow.html#PROTOCOL-FLOW-EXT-QUERY"> Extended Query</a>
  */
-final class ExtendedQueryTask extends AbstractStmtTask implements PrepareStmtTask {
+final class ExtendedQueryTask extends AbstractStmtTask implements PrepareStmtTask, ExtendedStmtTask {
 
 
     static Mono<ResultStates> update(BindStmt stmt, TaskAdjutant adjutant) {
@@ -205,19 +205,9 @@ final class ExtendedQueryTask extends AbstractStmtTask implements PrepareStmtTas
 
     @Override
     public final List<PgType> getParamTypeList() {
-        final List<Integer> oidList = obtainCachePrepare().paramOidList;
-        final List<PgType> typeList;
-        if (oidList.size() == 1) {
-            typeList = Collections.singletonList(PgType.from(oidList.get(0)));
-        } else {
-            List<PgType> temList = new ArrayList<>(oidList.size());
-            for (Integer oid : oidList) {
-                temList.add(PgType.from(oid));
-            }
-            typeList = Collections.unmodifiableList(temList);
-        }
-        return typeList;
+        return obtainCachePrepare().paramTypeList;
     }
+
 
     @Nullable
     @Override
@@ -233,6 +223,23 @@ final class ExtendedQueryTask extends AbstractStmtTask implements PrepareStmtTas
     @Override
     public final String getSql() {
         return obtainCachePrepare().sql;
+    }
+
+    /*################################## blow ExtendedStmtTask method ##################################*/
+
+    @Override
+    public final String getNewPortalName() {
+        return null;
+    }
+
+    @Override
+    public final String getStatementName() {
+        return null;
+    }
+
+    @Override
+    public final int getFetchSize() {
+        return 0;
     }
 
     @Override
@@ -329,8 +336,8 @@ final class ExtendedQueryTask extends AbstractStmtTask implements PrepareStmtTas
         if (!(sink instanceof PrepareFluxResultSink)) {
             throw new IllegalStateException("Non Prepare stmt task.");
         }
-        final List<Integer> paramOidList;
-        paramOidList = Messages.readParameterDescription(cumulateBuffer);
+        final List<PgType> paramTypeList;
+        paramTypeList = Messages.readParameterDescription(cumulateBuffer);
 
         final ResultRowMeta rowMeta;
         switch (cumulateBuffer.getByte(cumulateBuffer.readerIndex())) {
@@ -356,7 +363,7 @@ final class ExtendedQueryTask extends AbstractStmtTask implements PrepareStmtTas
 
         final CachePrepareImpl cachePrepare = new CachePrepareImpl(
                 prepareSink.prepareStmt.sql, this.replacedSql
-                , paramOidList, this.prepareName
+                , paramTypeList, this.prepareName
                 , rowMeta, cacheTime);
 
         prepareSink.setCachePrepare(cachePrepare);
@@ -758,22 +765,18 @@ final class ExtendedQueryTask extends AbstractStmtTask implements PrepareStmtTas
 
         private final String prepareName;
 
-        private final List<Integer> paramOidList;
+        private final List<PgType> paramTypeList;
 
         private final ResultRowMeta rowMeta;
 
         private final long cacheTime;
 
 
-        private CachePrepareImpl(String sql, String replacedSql, List<Integer> paramOidList
+        private CachePrepareImpl(String sql, String replacedSql, List<PgType> paramTypeList
                 , String prepareName, @Nullable ResultRowMeta rowMeta, long cacheTime) {
             this.sql = sql;
             this.replacedSql = replacedSql;
-            if (paramOidList.size() == 1) {
-                this.paramOidList = Collections.singletonList(paramOidList.get(0));
-            } else {
-                this.paramOidList = Collections.unmodifiableList(paramOidList);
-            }
+            this.paramTypeList = PgCollections.unmodifiableList(paramTypeList);
             this.prepareName = prepareName;
             this.rowMeta = rowMeta;
             this.cacheTime = cacheTime;
@@ -790,8 +793,8 @@ final class ExtendedQueryTask extends AbstractStmtTask implements PrepareStmtTas
         }
 
         @Override
-        public final List<Integer> getParamOidList() {
-            return this.paramOidList;
+        public final List<PgType> getParamOidList() {
+            return this.paramTypeList;
         }
 
         @Override

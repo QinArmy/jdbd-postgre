@@ -141,7 +141,7 @@ public class CopyInSuiteTests extends AbstractTaskTests {
                 , LINE_SEPARATOR);
 
         final ResultStates state;
-        state = SimpleQueryTask.bindableUpdate(PgStmts.bind(sql, BindValue.create(0, PgType.VARCHAR, path.toString())), adjutant)
+        state = SimpleQueryTask.bindableUpdate(PgStmts.bind(sql, BindValue.wrap(0, PgType.VARCHAR, path.toString())), adjutant)
 
                 .concatWith(releaseConnection(protocol))
                 .onErrorResume(releaseConnectionOnError(protocol))
@@ -172,7 +172,7 @@ public class CopyInSuiteTests extends AbstractTaskTests {
         final List<List<BindValue>> groupList = new ArrayList<>();
 
         for (int i = 0; i < 5; i++) {
-            groupList.add(Collections.singletonList(BindValue.create(0, PgType.VARCHAR, fileName)));
+            groupList.add(Collections.singletonList(BindValue.wrap(0, PgType.VARCHAR, fileName)));
         }
 
         final List<ResultStates> stateList;
@@ -219,7 +219,7 @@ public class CopyInSuiteTests extends AbstractTaskTests {
         final List<BindStmt> stmtGroup = new ArrayList<>();
 
         for (int i = 0; i < 5; i++) {
-            BindStmt stmt = PgStmts.bind(sql, Collections.singletonList(BindValue.create(0, PgType.VARCHAR, fileName)));
+            BindStmt stmt = PgStmts.bind(sql, Collections.singletonList(BindValue.wrap(0, PgType.VARCHAR, fileName)));
             stmtGroup.add(stmt);
         }
 

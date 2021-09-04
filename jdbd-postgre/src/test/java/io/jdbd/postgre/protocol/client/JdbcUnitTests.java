@@ -13,10 +13,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.PreparedStatement;
-import java.sql.Statement;
+import java.sql.*;
 import java.util.Arrays;
 import java.util.Properties;
 
@@ -45,16 +42,23 @@ public class JdbcUnitTests {
     public void prepare() throws Exception {
         Properties properties = new Properties(createProperties());
         properties.put("preferQueryMode", "extended");
+        properties.put("binaryTransferEnable", "1562");
 
         try (Connection conn = DriverManager.getConnection(url, properties)) {
-            String sql = "UPDATE my_types AS t SET my_boolean = TRUE WHERE t.id = ?";
+            String sql = "SELECT t.my_varbit_64 as myBit FROM my_types as t  WHERE t.id = ?";
             try (PreparedStatement stmt = conn.prepareStatement(sql)) {
-                stmt.setString(1, "4567898765456789876545678987656789876");
-                stmt.addBatch();
-                stmt.setString(1, "4567898765456789876545678987656789876");
-                stmt.addBatch();
-
-                stmt.executeBatch();
+                stmt.getMetaData();
+                stmt.setLong(1, 1);
+                try (ResultSet resultSet = stmt.executeQuery()) {
+                    while (resultSet.next()) {
+                        LOG.info("myBit:{}", resultSet.getString("myBit"));
+                    }
+                }
+                try (ResultSet resultSet = stmt.executeQuery()) {
+                    while (resultSet.next()) {
+                        LOG.info("myBit:{}", resultSet.getString("myBit"));
+                    }
+                }
 
             }
         }

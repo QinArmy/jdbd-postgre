@@ -70,7 +70,7 @@ final class PgBindStatement extends PgStatement implements BindStatement {
     public final void bind(final int indexBasedZero, final JDBCType jdbcType, final @Nullable Object nullable)
             throws JdbdException {
         final PgType pgType = PgBinds.mapJdbcTypeToPgType(jdbcType, nullable);
-        this.paramGroup.add(BindValue.create(checkIndex(indexBasedZero), pgType, nullable));
+        this.paramGroup.add(BindValue.wrap(checkIndex(indexBasedZero), pgType, nullable));
     }
 
     @Override
@@ -81,13 +81,13 @@ final class PgBindStatement extends PgStatement implements BindStatement {
             String m = String.format("sqlType isn't a instance of %s", PgType.class.getName());
             throw new PgJdbdException(m);
         }
-        this.paramGroup.add(BindValue.create(checkIndex(indexBasedZero), (PgType) sqlType, nullable));
+        this.paramGroup.add(BindValue.wrap(checkIndex(indexBasedZero), (PgType) sqlType, nullable));
     }
 
     @Override
     public final void bind(final int indexBasedZero, final @Nullable Object nullable)
             throws JdbdException {
-        this.paramGroup.add(BindValue.create(checkIndex(indexBasedZero), PgBinds.inferPgType(nullable), nullable));
+        this.paramGroup.add(BindValue.wrap(checkIndex(indexBasedZero), PgBinds.inferPgType(nullable), nullable));
     }
 
     @Override

@@ -362,7 +362,7 @@ final class QueryCommandWriter {
             }
             case REF_CURSOR:
             case UNSPECIFIED:
-                throw PgExceptions.createNonSupportBindSqlTypeError(stmtIndex, bindValue);
+                throw PgExceptions.createNonSupportBindSqlTypeError(stmtIndex, bindValue.getType(), bindValue);
             default:
                 throw PgExceptions.createUnexpectedEnumException(bindValue.getType());
 

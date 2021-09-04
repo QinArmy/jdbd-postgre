@@ -1,5 +1,6 @@
 package io.jdbd.postgre.protocol.client;
 
+import io.jdbd.postgre.PgType;
 import io.jdbd.result.ResultRowMeta;
 import reactor.util.annotation.Nullable;
 
@@ -11,7 +12,7 @@ interface CachePrepare {
 
     String getReplacedSql();
 
-    List<Integer> getParamOidList();
+    List<PgType> getParamOidList();
 
     @Nullable
     ResultRowMeta getRowMeta();

@@ -73,7 +73,7 @@ final class PgMultiStatement extends PgStatement implements MultiStatement {
             throw PgExceptions.multiStmtNoSql();
         }
         final PgType pgType = PgBinds.mapJdbcTypeToPgType(jdbcType, nullable);
-        paramGroup.add(BindValue.create(checkIndex(indexBasedZero), pgType, nullable));
+        paramGroup.add(BindValue.wrap(checkIndex(indexBasedZero), pgType, nullable));
     }
 
     @Override
@@ -83,7 +83,7 @@ final class PgMultiStatement extends PgStatement implements MultiStatement {
         if (paramGroup == null) {
             throw PgExceptions.multiStmtNoSql();
         }
-        paramGroup.add(BindValue.create(checkIndex(indexBasedZero), checkSqlType(sqlType), nullable));
+        paramGroup.add(BindValue.wrap(checkIndex(indexBasedZero), checkSqlType(sqlType), nullable));
     }
 
     @Override
@@ -93,7 +93,7 @@ final class PgMultiStatement extends PgStatement implements MultiStatement {
         if (paramGroup == null) {
             throw PgExceptions.multiStmtNoSql();
         }
-        paramGroup.add(BindValue.create(checkIndex(indexBasedZero), PgBinds.inferPgType(nullable), nullable));
+        paramGroup.add(BindValue.wrap(checkIndex(indexBasedZero), PgBinds.inferPgType(nullable), nullable));
     }
 
     @Override

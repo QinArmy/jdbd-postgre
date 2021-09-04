@@ -40,12 +40,5 @@ public abstract class PgExceptions extends JdbdExceptions {
         return new SQLException(m);
     }
 
-    public static SQLException createNonSupportBindSqlTypeError(int stmtIndex, BindValue bindValue) {
-        String m = String.format("Statement[%s] parameter[%s] bind postgre type[%s] not supported."
-                , stmtIndex, bindValue.getParamIndex()
-                , bindValue.getType());
-        return new SQLException(m);
-    }
-
 
 }

@@ -1,11 +1,14 @@
 package io.jdbd.postgre.util;
 
+import io.jdbd.meta.SQLType;
 import io.jdbd.postgre.PgType;
 import io.jdbd.stmt.UnsupportedBindJavaTypeException;
 import io.jdbd.type.IntervalPair;
 import io.jdbd.type.geometry.Circle;
 import io.jdbd.type.geometry.Point;
+import io.jdbd.vendor.stmt.ParamValue;
 import io.jdbd.vendor.util.JdbdBinds;
+import io.jdbd.vendor.util.JdbdExceptions;
 import org.qinarmy.util.Pair;
 import org.reactivestreams.Publisher;
 import reactor.util.annotation.Nullable;
@@ -14,6 +17,7 @@ import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.nio.file.Path;
 import java.sql.JDBCType;
+import java.sql.SQLException;
 import java.time.*;
 import java.time.temporal.Temporal;
 import java.util.BitSet;
@@ -243,6 +247,31 @@ public abstract class PgBinds extends JdbdBinds {
             throw PgExceptions.notSupportBindJavaType(arrayClass);
         }
         return pgType;
+    }
+
+
+    public static String bindNonNullToBit(final int batchIndex, SQLType sqlType, ParamValue paramValue)
+            throws SQLException {
+        final Object nonNull = paramValue.getNonNullValue();
+        final String value;
+        if (nonNull instanceof BitSet) {
+            value = PgStrings.bitSetToBitString((BitSet) nonNull, false);
+        } else if (nonNull instanceof Long
+                || nonNull instanceof Integer
+                || nonNull instanceof Short
+                || nonNull instanceof Byte) {
+            value = new StringBuilder(Long.toBinaryString(((Number) nonNull).longValue()))
+                    .reverse().toString();
+        } else if (nonNull instanceof String) {
+            if (PgStrings.isBinaryString((String) nonNull)) {
+                value = (String) nonNull;
+            } else {
+                throw JdbdExceptions.outOfTypeRange(batchIndex, sqlType, paramValue);
+            }
+        } else {
+            throw JdbdExceptions.createNonSupportBindSqlTypeError(batchIndex, sqlType, paramValue);
+        }
+        return value;
     }
 
 

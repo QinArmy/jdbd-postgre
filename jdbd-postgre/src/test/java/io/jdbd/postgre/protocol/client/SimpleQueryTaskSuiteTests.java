@@ -317,8 +317,8 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
 
         final String sql = "UPDATE my_types as t SET my_time =? WHERE t.id = ?";
         final List<BindValue> valueList = new ArrayList<>(2);
-        valueList.add(BindValue.create(0, PgType.TIME, LocalTime.now()));
-        valueList.add(BindValue.create(1, PgType.BIGINT, bindId));
+        valueList.add(BindValue.wrap(0, PgType.TIME, LocalTime.now()));
+        valueList.add(BindValue.wrap(1, PgType.BIGINT, bindId));
 
         final ResultStates state;
         state = SimpleQueryTask.bindableUpdate(PgStmts.bind(sql, valueList), adjutant)
@@ -355,8 +355,8 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
         final String sql = "UPDATE my_types as t SET my_time =? WHERE t.id = ? RETURNING t.id AS id,t.my_time AS mytime";
         final LocalTime time = LocalTime.now();
         final List<BindValue> valueList = new ArrayList<>(2);
-        valueList.add(BindValue.create(0, PgType.TIME, time));
-        valueList.add(BindValue.create(1, PgType.BIGINT, id));
+        valueList.add(BindValue.wrap(0, PgType.TIME, time));
+        valueList.add(BindValue.wrap(1, PgType.BIGINT, id));
 
         final ResultRow row;
         row = SimpleQueryTask.bindableQuery(PgStmts.bind(sql, valueList), adjutant)
@@ -397,8 +397,8 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
 
         for (int intValue : valueArray) {
             final List<BindValue> valueList = new ArrayList<>(2);
-            valueList.add(BindValue.create(0, PgType.INTEGER, intValue));
-            valueList.add(BindValue.create(1, PgType.BIGINT, bindId++));
+            valueList.add(BindValue.wrap(0, PgType.INTEGER, intValue));
+            valueList.add(BindValue.wrap(1, PgType.BIGINT, bindId++));
             groupList.add(Collections.unmodifiableList(valueList));
         }
 
@@ -451,8 +451,8 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
 
         for (LocalTime localTime : valueArray) {
             final List<BindValue> valueList = new ArrayList<>(2);
-            valueList.add(BindValue.create(0, PgType.TIME, localTime));
-            valueList.add(BindValue.create(1, PgType.BIGINT, bindId++));
+            valueList.add(BindValue.wrap(0, PgType.TIME, localTime));
+            valueList.add(BindValue.wrap(1, PgType.BIGINT, bindId++));
             groupList.add(Collections.unmodifiableList(valueList));
         }
 
@@ -515,8 +515,8 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
 
         for (LocalTime localTime : valueArray) {
             final List<BindValue> valueList = new ArrayList<>(2);
-            valueList.add(BindValue.create(0, PgType.TIME, localTime));
-            valueList.add(BindValue.create(1, PgType.BIGINT, bindId++));
+            valueList.add(BindValue.wrap(0, PgType.TIME, localTime));
+            valueList.add(BindValue.wrap(1, PgType.BIGINT, bindId++));
             groupList.add(Collections.unmodifiableList(valueList));
 
             stateHolderList.add(new AtomicReference<>(null));
@@ -599,8 +599,8 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
 
         for (LocalTime localTime : valueArray) {
             final List<BindValue> valueList = new ArrayList<>(2);
-            valueList.add(BindValue.create(0, PgType.TIME, localTime));
-            valueList.add(BindValue.create(1, PgType.BIGINT, bindId++));
+            valueList.add(BindValue.wrap(0, PgType.TIME, localTime));
+            valueList.add(BindValue.wrap(1, PgType.BIGINT, bindId++));
             groupList.add(Collections.unmodifiableList(valueList));
         }
 
@@ -655,8 +655,8 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
 
         for (LocalTime localTime : valueArray) {
             final List<BindValue> valueList = new ArrayList<>(2);
-            valueList.add(BindValue.create(0, PgType.TIME, localTime));
-            valueList.add(BindValue.create(1, PgType.BIGINT, bindId++));
+            valueList.add(BindValue.wrap(0, PgType.TIME, localTime));
+            valueList.add(BindValue.wrap(1, PgType.BIGINT, bindId++));
             groupList.add(Collections.unmodifiableList(valueList));
 
         }
@@ -726,20 +726,20 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
         List<BindValue> valueList;
         final List<BindStmt> stmtList = new ArrayList<>(3);
         sql = "SELECT t.* FROM my_types AS t WHERE t.id = ?";
-        stmtList.add(PgStmts.bind(sql, Collections.singletonList(BindValue.create(0, PgType.BIGINT, bindId++))));
+        stmtList.add(PgStmts.bind(sql, Collections.singletonList(BindValue.wrap(0, PgType.BIGINT, bindId++))));
 
         sql = "UPDATE my_types AS t SET my_time = ?,my_integer = ? WHERE t.id = ? RETURNING t.id AS id,t.my_time AS mytime,t.my_boolean AS myboolean";
         valueList = new ArrayList<>(3);
-        valueList.add(BindValue.create(0, PgType.TIME, LocalTime.now()));
-        valueList.add(BindValue.create(1, PgType.INTEGER, Integer.MAX_VALUE));
-        valueList.add(BindValue.create(2, PgType.BIGINT, bindId++));
+        valueList.add(BindValue.wrap(0, PgType.TIME, LocalTime.now()));
+        valueList.add(BindValue.wrap(1, PgType.INTEGER, Integer.MAX_VALUE));
+        valueList.add(BindValue.wrap(2, PgType.BIGINT, bindId++));
         stmtList.add(PgStmts.bind(sql, valueList));
 
         sql = "UPDATE my_types AS t SET my_char = ?,my_timestamp=? WHERE t.id =?";
         valueList = new ArrayList<>(3);
-        valueList.add(BindValue.create(0, PgType.CHAR, "''''\\ ' \\' ' SET balance = balance + 99999.00''"));
-        valueList.add(BindValue.create(1, PgType.TIMESTAMP, LocalDateTime.now()));
-        valueList.add(BindValue.create(2, PgType.BIGINT, bindId));
+        valueList.add(BindValue.wrap(0, PgType.CHAR, "''''\\ ' \\' ' SET balance = balance + 99999.00''"));
+        valueList.add(BindValue.wrap(1, PgType.TIMESTAMP, LocalDateTime.now()));
+        valueList.add(BindValue.wrap(2, PgType.BIGINT, bindId));
         stmtList.add(PgStmts.bind(sql, valueList));
 
         final MultiResult multiResult;
@@ -794,20 +794,20 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
         List<BindValue> valueList;
         final List<BindStmt> stmtList = new ArrayList<>(3);
         sql = "SELECT t.* FROM my_types AS t WHERE t.id = ?";
-        stmtList.add(PgStmts.bind(sql, Collections.singletonList(BindValue.create(0, PgType.BIGINT, bindId++))));
+        stmtList.add(PgStmts.bind(sql, Collections.singletonList(BindValue.wrap(0, PgType.BIGINT, bindId++))));
 
         sql = "UPDATE my_types AS t SET my_time = ?,my_integer = ? WHERE t.id = ? RETURNING t.id AS id,t.my_time AS mytime,t.my_boolean AS myboolean";
         valueList = new ArrayList<>(3);
-        valueList.add(BindValue.create(0, PgType.TIME, LocalTime.now()));
-        valueList.add(BindValue.create(1, PgType.INTEGER, Integer.MAX_VALUE));
-        valueList.add(BindValue.create(2, PgType.BIGINT, bindId++));
+        valueList.add(BindValue.wrap(0, PgType.TIME, LocalTime.now()));
+        valueList.add(BindValue.wrap(1, PgType.INTEGER, Integer.MAX_VALUE));
+        valueList.add(BindValue.wrap(2, PgType.BIGINT, bindId++));
         stmtList.add(PgStmts.bind(sql, valueList));
 
         sql = "UPDATE my_types AS t SET my_varchar = ?,my_timestamp=? WHERE t.id =? RETURNING t.id AS id, t.my_varchar AS myvarchar";
         valueList = new ArrayList<>(3);
-        valueList.add(BindValue.create(0, PgType.VARCHAR, "''''\\' \\ ' ' SET balance = balance + 99999.00''"));
-        valueList.add(BindValue.create(1, PgType.TIMESTAMP, LocalDateTime.now()));
-        valueList.add(BindValue.create(2, PgType.BIGINT, bindId));
+        valueList.add(BindValue.wrap(0, PgType.VARCHAR, "''''\\' \\ ' ' SET balance = balance + 99999.00''"));
+        valueList.add(BindValue.wrap(1, PgType.TIMESTAMP, LocalDateTime.now()));
+        valueList.add(BindValue.wrap(2, PgType.BIGINT, bindId));
         stmtList.add(PgStmts.bind(sql, valueList));
 
         final List<Result> resultList;
@@ -1094,8 +1094,8 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
         final long bindId = START_ID + 155;
         final String sql = "UPDATE my_types AS t SET b.my_time = ? WHERE t.id = ?";
         final List<BindValue> paramGroup = new ArrayList<>(2);
-        paramGroup.add(BindValue.create(0, PgType.TIME, LocalTime.now()));
-        paramGroup.add(BindValue.create(1, PgType.BIGINT, bindId));
+        paramGroup.add(BindValue.wrap(0, PgType.TIME, LocalTime.now()));
+        paramGroup.add(BindValue.wrap(1, PgType.BIGINT, bindId));
 
         SimpleQueryTask.bindableUpdate(PgStmts.bind(sql, paramGroup), adjutant)
 
@@ -1122,10 +1122,10 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
         final String sql = "UPDATE my_types AS t SET my_time = ? WHERE t.id = ?;UPDATE my_types AS t SET my_boolean = ? WHERE t.id = ?";
         final List<BindValue> paramGroup = new ArrayList<>(4);
 
-        paramGroup.add(BindValue.create(0, PgType.TIME, LocalTime.now()));
-        paramGroup.add(BindValue.create(1, PgType.BIGINT, bindId++));
-        paramGroup.add(BindValue.create(2, PgType.BOOLEAN, Boolean.TRUE));
-        paramGroup.add(BindValue.create(3, PgType.BIGINT, bindId));
+        paramGroup.add(BindValue.wrap(0, PgType.TIME, LocalTime.now()));
+        paramGroup.add(BindValue.wrap(1, PgType.BIGINT, bindId++));
+        paramGroup.add(BindValue.wrap(2, PgType.BOOLEAN, Boolean.TRUE));
+        paramGroup.add(BindValue.wrap(3, PgType.BIGINT, bindId));
 
         SimpleQueryTask.bindableUpdate(PgStmts.bind(sql, paramGroup), adjutant)
 
@@ -1151,7 +1151,7 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
         final long bindId = START_ID + 165;
         final String sql = "SELECT t.id AS id ,t.my_time AS myTime FROM my_types AS t WHERE t.id = ?";
         final List<BindValue> paramGroup = new ArrayList<>(2);
-        paramGroup.add(BindValue.create(0, PgType.BIGINT, bindId));
+        paramGroup.add(BindValue.wrap(0, PgType.BIGINT, bindId));
 
         SimpleQueryTask.bindableUpdate(PgStmts.bind(sql, paramGroup), adjutant)
 
@@ -1177,7 +1177,7 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
         final long bindId = START_ID + 170;
 
         final String sql = "SELECT t.id AS id ,t.my_time AS myTime FROM my_types AS bb WHERE t.id = ?";
-        final List<BindValue> paramGroup = Collections.singletonList(BindValue.create(0, PgType.BIGINT, bindId));
+        final List<BindValue> paramGroup = Collections.singletonList(BindValue.wrap(0, PgType.BIGINT, bindId));
 
         SimpleQueryTask.bindableQuery(PgStmts.bind(sql, paramGroup), adjutant)
 
@@ -1202,9 +1202,9 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
         final long bindId = START_ID + 175;
         final String sql = "UPDATE my_types AS t SET my_zoned_timestamp = ?,my_boolean = ? WHERE t.id = ?";
         final List<BindValue> paramGroup = new ArrayList<>(3);
-        paramGroup.add(BindValue.create(0, PgType.TIMESTAMPTZ, OffsetDateTime.now()));
-        paramGroup.add(BindValue.create(1, PgType.BOOLEAN, Boolean.TRUE));
-        paramGroup.add(BindValue.create(2, PgType.BIGINT, bindId));
+        paramGroup.add(BindValue.wrap(0, PgType.TIMESTAMPTZ, OffsetDateTime.now()));
+        paramGroup.add(BindValue.wrap(1, PgType.BOOLEAN, Boolean.TRUE));
+        paramGroup.add(BindValue.wrap(2, PgType.BIGINT, bindId));
 
         SimpleQueryTask.bindableQuery(PgStmts.bind(sql, paramGroup), adjutant)
 
@@ -1230,9 +1230,9 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
         long bindId = START_ID + 180;
         final String sql = "SELECT t.id AS id ,t.my_time AS myTime FROM my_types AS t WHERE t.id = ?;UPDATE my_types AS t SET my_zoned_timestamp = ? WHERE t.id = ?";
         final List<BindValue> paramGroup = new ArrayList<>(3);
-        paramGroup.add(BindValue.create(0, PgType.BIGINT, bindId++));
-        paramGroup.add(BindValue.create(1, PgType.TIMESTAMPTZ, OffsetDateTime.now()));
-        paramGroup.add(BindValue.create(2, PgType.BIGINT, bindId));
+        paramGroup.add(BindValue.wrap(0, PgType.BIGINT, bindId++));
+        paramGroup.add(BindValue.wrap(1, PgType.TIMESTAMPTZ, OffsetDateTime.now()));
+        paramGroup.add(BindValue.wrap(2, PgType.BIGINT, bindId));
 
         SimpleQueryTask.bindableQuery(PgStmts.bind(sql, paramGroup), adjutant)
 
@@ -1263,8 +1263,8 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
 
         for (int j : valueArray) {
             List<BindValue> paramGroup = new ArrayList<>(2);
-            paramGroup.add(BindValue.create(0, PgType.INTEGER, j));
-            paramGroup.add(BindValue.create(1, PgType.BIGINT, bindId++));
+            paramGroup.add(BindValue.wrap(0, PgType.INTEGER, j));
+            paramGroup.add(BindValue.wrap(1, PgType.BIGINT, bindId++));
 
             groupList.add(paramGroup);
         }
@@ -1299,8 +1299,8 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
 
         for (int j : valueArray) {
             List<BindValue> paramGroup = new ArrayList<>(2);
-            paramGroup.add(BindValue.create(0, PgType.INTEGER, j));
-            paramGroup.add(BindValue.create(1, PgType.BIGINT, bindId++));
+            paramGroup.add(BindValue.wrap(0, PgType.INTEGER, j));
+            paramGroup.add(BindValue.wrap(1, PgType.BIGINT, bindId++));
 
             groupList.add(paramGroup);
         }
@@ -1334,7 +1334,7 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
         final List<List<BindValue>> groupList = new ArrayList<>(valueArray.length);
 
         for (long id : valueArray) {
-            groupList.add(Collections.singletonList(BindValue.create(0, PgType.BIGINT, id)));
+            groupList.add(Collections.singletonList(BindValue.wrap(0, PgType.BIGINT, id)));
         }
 
         SimpleQueryTask.bindableBatchUpdate(PgStmts.bindableBatch(sql, groupList), adjutant)
@@ -1365,7 +1365,7 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
         final List<List<BindValue>> groupList = new ArrayList<>(valueArray.length);
 
         for (long id : valueArray) {
-            groupList.add(Collections.singletonList(BindValue.create(0, PgType.BIGINT, id)));
+            groupList.add(Collections.singletonList(BindValue.wrap(0, PgType.BIGINT, id)));
         }
 
         final MultiResult multiResult;
