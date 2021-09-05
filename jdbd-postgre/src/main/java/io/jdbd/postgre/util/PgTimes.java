@@ -1,11 +1,9 @@
 package io.jdbd.postgre.util;
 
-import io.jdbd.type.IntervalPair;
 import io.jdbd.vendor.util.JdbdTimes;
 
 import java.time.*;
 import java.time.format.DateTimeParseException;
-import java.time.temporal.TemporalAmount;
 
 public abstract class PgTimes extends JdbdTimes {
 
@@ -59,28 +57,6 @@ public abstract class PgTimes extends JdbdTimes {
         }
 
         return seconds;
-    }
-
-    /**
-     * @throws DateTimeParseException not iso_8601
-     */
-    public static TemporalAmount parseIsoInterval(final String textValue) {
-        final TemporalAmount amount;
-        int timeIndex;
-        if ((timeIndex = textValue.indexOf('T')) < 0
-                && (timeIndex = textValue.indexOf('t')) < 0) {
-            amount = Period.parse(textValue);
-        } else if (timeIndex == 1) {
-            amount = Duration.parse(textValue);
-        } else if (timeIndex > 1) {
-            Period period = Period.parse(textValue.substring(0, timeIndex));
-            Duration duration = Duration.parse("P" + textValue.substring(timeIndex));
-            amount = IntervalPair.of(period, duration);
-        } else {
-            String m = String.format("TextValue[%s] isn't iso interval.", textValue);
-            throw new DateTimeParseException(m, textValue, timeIndex);
-        }
-        return amount;
     }
 
 

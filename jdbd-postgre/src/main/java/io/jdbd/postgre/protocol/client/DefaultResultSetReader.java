@@ -6,6 +6,7 @@ import io.jdbd.postgre.PgJdbdException;
 import io.jdbd.postgre.type.PgGeometries;
 import io.jdbd.postgre.util.PgExceptions;
 import io.jdbd.postgre.util.PgTimes;
+import io.jdbd.type.Interval;
 import io.jdbd.vendor.result.ResultSetReader;
 import io.jdbd.vendor.result.ResultSink;
 import io.jdbd.vendor.type.LongBinaries;
@@ -487,7 +488,7 @@ final class DefaultResultSetReader implements ResultSetReader {
         final TemporalAmount amount;
         switch (this.adjutant.server().intervalStyle()) {
             case iso_8601: {
-                amount = PgTimes.parseIsoInterval(textValue);
+                amount = Interval.parse(textValue);
             }
             break;
             case postgres:

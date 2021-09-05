@@ -2,6 +2,8 @@ package io.jdbd.postgre;
 
 public interface PgConstant {
 
+    String NULL = "NULL";
+
     short TYPE_UNSPECIFIED = 0;
     short TYPE_INT2 = 21;
     short TYPE_INT2_ARRAY = 1005;

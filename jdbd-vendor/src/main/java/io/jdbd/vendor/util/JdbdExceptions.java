@@ -3,10 +3,7 @@ package io.jdbd.vendor.util;
 import io.jdbd.JdbdException;
 import io.jdbd.JdbdSQLException;
 import io.jdbd.meta.SQLType;
-import io.jdbd.stmt.PreparedStatement;
-import io.jdbd.stmt.Statement;
-import io.jdbd.stmt.StatementClosedException;
-import io.jdbd.stmt.UnsupportedBindJavaTypeException;
+import io.jdbd.stmt.*;
 import io.jdbd.vendor.JdbdCompositeException;
 import io.jdbd.vendor.JdbdUnknownException;
 import io.jdbd.vendor.stmt.CannotReuseStatementException;
@@ -16,6 +13,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import reactor.util.annotation.Nullable;
 
+import java.nio.file.Path;
 import java.sql.SQLException;
 import java.util.List;
 
@@ -198,6 +196,32 @@ public abstract class JdbdExceptions extends ExceptionUtils {
         }
         return new SQLException(m);
 
+    }
+
+    public static SQLException beyondMessageLength(int batchIndex, ParamValue bindValue) {
+        String m;
+        if (batchIndex == 0) {
+            m = String.format("parameter[%s] too long so beyond message rest length"
+                    , bindValue.getParamIndex());
+        } else {
+            m = String.format("batch[%s] parameter[%s] too long so beyond message rest length"
+                    , batchIndex, bindValue.getParamIndex());
+        }
+        return new SQLException(m);
+    }
+
+    public static LocalFileException localFileWriteError(int batchIndex, SQLType sqlType
+            , ParamValue bindValue, Throwable e) {
+        Path path = (Path) bindValue.getNonNullValue();
+        String m;
+        if (batchIndex == 0) {
+            m = String.format("parameter[%s] path[%s] to sql type[%s]"
+                    , bindValue.getParamIndex(), path, sqlType);
+        } else {
+            m = String.format("batch[%s] parameter[%s] path[%s] to sql type[%s]"
+                    , batchIndex, bindValue.getParamIndex(), bindValue.getValue(), sqlType);
+        }
+        throw new LocalFileException(path, m, e);
     }
 
     public static SQLException createNonSupportBindSqlTypeError(int batchIndex, SQLType sqlType, ParamValue bindValue) {

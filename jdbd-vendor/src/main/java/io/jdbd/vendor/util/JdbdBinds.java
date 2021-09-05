@@ -9,6 +9,7 @@ import reactor.util.annotation.Nullable;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.sql.SQLException;
+import java.time.*;
 import java.util.Comparator;
 import java.util.List;
 
@@ -341,6 +342,109 @@ public abstract class JdbdBinds {
         } else {
             throw JdbdExceptions.createNonSupportBindSqlTypeError(batchIndex, sqlType, paramValue);
 
+        }
+        return value;
+    }
+
+
+    public static LocalDate bindNonNullToLocalDate(final int batchIndex, SQLType sqlType, ParamValue paramValue)
+            throws SQLException {
+        final Object nonNull = paramValue.getNonNullValue();
+        final LocalDate value;
+        if (nonNull instanceof LocalDate) {
+            value = (LocalDate) nonNull;
+        } else if (nonNull instanceof String) {
+            LocalDate v;
+            try {
+                v = LocalDate.parse((String) nonNull);
+            } catch (DateTimeException e) {
+                throw JdbdExceptions.outOfTypeRange(batchIndex, sqlType, paramValue);
+            }
+            value = v;
+        } else {
+            throw JdbdExceptions.createNonSupportBindSqlTypeError(batchIndex, sqlType, paramValue);
+        }
+        return value;
+    }
+
+    public static LocalTime bindNonNullToLocalTime(final int batchIndex, SQLType sqlType, ParamValue paramValue)
+            throws SQLException {
+        final Object nonNull = paramValue.getNonNullValue();
+        final LocalTime value;
+        if (nonNull instanceof LocalTime) {
+            value = (LocalTime) nonNull;
+        } else if (nonNull instanceof String) {
+            LocalTime v;
+            try {
+                v = LocalTime.parse((String) nonNull, JdbdTimes.ISO_LOCAL_TIME_FORMATTER);
+            } catch (DateTimeException e) {
+                throw JdbdExceptions.outOfTypeRange(batchIndex, sqlType, paramValue);
+            }
+            value = v;
+        } else {
+            throw JdbdExceptions.createNonSupportBindSqlTypeError(batchIndex, sqlType, paramValue);
+        }
+        return value;
+    }
+
+    public static LocalDateTime bindNonNullToLocalDateTime(final int batchIndex, SQLType sqlType, ParamValue paramValue)
+            throws SQLException {
+        final Object nonNull = paramValue.getNonNullValue();
+        final LocalDateTime value;
+        if (nonNull instanceof LocalDateTime) {
+            value = (LocalDateTime) nonNull;
+        } else if (nonNull instanceof String) {
+            LocalDateTime v;
+            try {
+                v = LocalDateTime.parse((String) nonNull, JdbdTimes.ISO_LOCAL_DATETIME_FORMATTER);
+            } catch (DateTimeException e) {
+                throw JdbdExceptions.outOfTypeRange(batchIndex, sqlType, paramValue);
+            }
+            value = v;
+        } else {
+            throw JdbdExceptions.createNonSupportBindSqlTypeError(batchIndex, sqlType, paramValue);
+        }
+        return value;
+    }
+
+    public static OffsetTime bindNonNullToOffsetTime(final int batchIndex, SQLType sqlType, ParamValue paramValue)
+            throws SQLException {
+        final Object nonNull = paramValue.getNonNullValue();
+        final OffsetTime value;
+        if (nonNull instanceof OffsetTime) {
+            value = (OffsetTime) nonNull;
+        } else if (nonNull instanceof String) {
+            OffsetTime v;
+            try {
+                v = OffsetTime.parse((String) nonNull, JdbdTimes.ISO_OFFSET_TIME_FORMATTER);
+            } catch (DateTimeException e) {
+                throw JdbdExceptions.outOfTypeRange(batchIndex, sqlType, paramValue);
+            }
+            value = v;
+        } else {
+            throw JdbdExceptions.createNonSupportBindSqlTypeError(batchIndex, sqlType, paramValue);
+        }
+        return value;
+    }
+
+    public static OffsetDateTime bindNonNullToOffsetDateTime(final int batchIndex, SQLType sqlType, ParamValue paramValue)
+            throws SQLException {
+        final Object nonNull = paramValue.getNonNullValue();
+        final OffsetDateTime value;
+        if (nonNull instanceof OffsetDateTime) {
+            value = (OffsetDateTime) nonNull;
+        } else if (nonNull instanceof ZonedDateTime) {
+            value = ((ZonedDateTime) nonNull).toOffsetDateTime();
+        } else if (nonNull instanceof String) {
+            OffsetDateTime v;
+            try {
+                v = OffsetDateTime.parse((String) nonNull, JdbdTimes.ISO_OFFSET_DATETIME_FORMATTER);
+            } catch (DateTimeException e) {
+                throw JdbdExceptions.outOfTypeRange(batchIndex, sqlType, paramValue);
+            }
+            value = v;
+        } else {
+            throw JdbdExceptions.createNonSupportBindSqlTypeError(batchIndex, sqlType, paramValue);
         }
         return value;
     }

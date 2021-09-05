@@ -6,6 +6,8 @@ import io.jdbd.postgre.stmt.BindStmt;
 import io.jdbd.postgre.stmt.BindValue;
 import io.jdbd.postgre.util.PgBinds;
 import io.jdbd.postgre.util.PgExceptions;
+import io.jdbd.postgre.util.PgTimes;
+import io.jdbd.stmt.LocalFileException;
 import io.jdbd.vendor.stmt.ParamValue;
 import io.jdbd.vendor.stmt.Stmt;
 import io.netty.buffer.ByteBuf;
@@ -13,8 +15,14 @@ import org.reactivestreams.Publisher;
 import reactor.core.publisher.Mono;
 
 import java.math.BigDecimal;
+import java.nio.ByteBuffer;
+import java.nio.channels.FileChannel;
 import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
 import java.sql.SQLException;
+import java.time.format.DateTimeFormatter;
 import java.util.Collections;
 import java.util.List;
 
@@ -112,7 +120,9 @@ final class ExtendedBindWriter {
             case DOUBLE:
             case BIGINT:
             case BYTEA:
+            case BOOLEAN:
                 formatCode = 1; // binary format code
+                // only these  is binary format ,because postgre no document about binary format ,and postgre binary protocol not good
                 break;
             default:
                 formatCode = 0; // all array type is text format
@@ -158,7 +168,8 @@ final class ExtendedBindWriter {
 
     }
 
-    private void writeNonNullBindValue(final PgType pgType, final ParamValue paramValue) throws SQLException {
+    private void writeNonNullBindValue(final PgType pgType, final ParamValue paramValue)
+            throws SQLException, LocalFileException {
         switch (pgType) {
             case SMALLINT: {
                 this.message.writeShort(PgBinds.bindNonNullToShort(this.batchIndex, pgType, paramValue));
@@ -189,83 +200,145 @@ final class ExtendedBindWriter {
                 Messages.writeString(this.message, text, this.clientCharset);
             }
             break;
-            case TEXT:
-            case CHAR:
-            case MONEY:
-            case VARCHAR: {
-                final String text = PgBinds.bindNonNullToString(this.batchIndex, pgType, paramValue);
-                Messages.writeString(this.message, text, this.clientCharset);
-            }
-            case BIT:
-            case VARBIT: {
-                final String bitString = PgBinds.bindNonNullToBit(this.batchIndex, pgType, paramValue);
-                Messages.writeString(this.message, bitString, this.clientCharset);
-            }
-            break;
-            case BYTEA: {
-                bindNonNullToBytea(pgType, paramValue);
-            }
-            break;
-            case TSQUERY:
-            case TSVECTOR:
-
-            case TIME:
-            case TIMETZ:
-            case DATE:
-            case TIMESTAMP:
-            case TIMESTAMPTZ:
-            case INTERVAL:
-
-            case MACADDR8:
-            case MACADDR:
-            case INET:
-            case CIDR:
-
-
-            case BOOLEAN:
-            case JSON:
-            case JSONB:
-            case UUID:
-            case XML:
-
             case NUMRANGE:
             case DATERANGE:
             case TSRANGE:
             case INT4RANGE:
             case INT8RANGE:
             case TSTZRANGE: // all range type is text format
-
+            case MACADDR8:
+            case MACADDR:
+            case INET:
+            case CIDR:
+            case MONEY:
+            case CHAR:
+            case VARCHAR:
+            case UUID: {
+                final String text;
+                text = PgBinds.bindNonNullToString(this.batchIndex, pgType, paramValue);
+                Messages.writeString(this.message, text, this.clientCharset);
+            }
+            break;
+            case BIT:
+            case VARBIT: {// text format
+                final String bitString = PgBinds.bindNonNullToBit(this.batchIndex, pgType, paramValue);
+                Messages.writeString(this.message, bitString, this.clientCharset);
+            }
+            break;
+            case BYTEA: {// binary format
+                bindNonNullToBytea(pgType, paramValue);
+            }
+            break;
+            case TIME: {// text format
+                final String text;
+                text = PgBinds.bindNonNullToLocalTime(this.batchIndex, pgType, paramValue)
+                        .format(PgTimes.ISO_LOCAL_TIME_FORMATTER);
+                Messages.writeString(this.message, text, this.clientCharset);
+            }
+            break;
+            case TIMETZ: {// text format
+                final String text;
+                text = PgBinds.bindNonNullToOffsetTime(this.batchIndex, pgType, paramValue)
+                        .format(PgTimes.ISO_OFFSET_TIME_FORMATTER);
+                Messages.writeString(this.message, text, this.clientCharset);
+            }
+            break;
+            case DATE: {// text format
+                final String text;
+                text = PgBinds.bindNonNullToLocalDate(this.batchIndex, pgType, paramValue)
+                        .format(DateTimeFormatter.ISO_LOCAL_DATE);
+                Messages.writeString(this.message, text, this.clientCharset);
+            }
+            break;
+            case TIMESTAMP: {// text format
+                final String text;
+                text = PgBinds.bindNonNullToLocalDateTime(this.batchIndex, pgType, paramValue)
+                        .format(PgTimes.ISO_LOCAL_DATETIME_FORMATTER);
+                Messages.writeString(this.message, text, this.clientCharset);
+            }
+            break;
+            case TIMESTAMPTZ: {// text format
+                final String text;
+                text = PgBinds.bindNonNullToOffsetDateTime(this.batchIndex, pgType, paramValue)
+                        .format(PgTimes.ISO_OFFSET_DATETIME_FORMATTER);
+                Messages.writeString(this.message, text, this.clientCharset);
+            }
+            break;
+            case INTERVAL: {// text format
+                final String text;
+                text = PgBinds.bindNonNullToInterval(this.batchIndex, pgType, paramValue);
+                Messages.writeString(this.message, text, this.clientCharset);
+            }
+            break;
+            case BOOLEAN: {// binary format
+                if (PgBinds.bindNonNullToBoolean(this.batchIndex, pgType, paramValue)) {
+                    this.message.writeByte(1);
+                } else {
+                    this.message.writeByte(0);
+                }
+            }
+            break;
             case POINT:
             case CIRCLE:
             case LINE:
             case PATH:
             case POLYGON:
             case LINE_SEGMENT:
-            case BOX:// all geometry type is text format
-
-            case BOX_ARRAY:
+            case BOX: // all geometry type is text format
+            case XML:
+            case JSON:
+            case JSONB:
+            case TEXT:
+            case TSQUERY:
+            case TSVECTOR: {// text format
+                this.bindNonNullToLongString(pgType, paramValue);
+            }
+            break;
+            case BOOLEAN_ARRAY:
+            case SMALLINT_ARRAY:
+            case INTEGER_ARRAY:
             case BIGINT_ARRAY:
-            case POINT_ARRAY:
-            case MONEY_ARRAY:
-            case JSONB_ARRAY:
-            case BYTEA_ARRAY:
+            case REAL_ARRAY:
+            case DOUBLE_ARRAY:
+            case DECIMAL_ARRAY:
+            case INTERVAL_ARRAY:
+            case DATE_ARRAY:
             case UUID_ARRAY:
-            case OID_ARRAY:
+            case MONEY_ARRAY: {
+                final String text;
+                text = PgBinds.bindNonNullToArrayWithoutEscapes(this.batchIndex, pgType, paramValue);
+                Messages.writeString(this.message, text, this.clientCharset);
+            }
+            break;
+
+            case BYTEA_ARRAY:
             case BIT_ARRAY:
+
+            case TIMESTAMPTZ_ARRAY:
+            case TIMESTAMP_ARRAY:
+            case VARBIT_ARRAY:
+            case TIMETZ_ARRAY:
+
+            case POINT_ARRAY:
+            case BOX_ARRAY:
+            case LINE_ARRAY:
+            case PATH_ARRAY:
+            case CIRCLES_ARRAY:
+            case JSONB_ARRAY:
+
+
+            case OID_ARRAY:
+
             case TIME_ARRAY:
             case JSON_ARRAY:
-            case DATE_ARRAY:
+
             case CHAR_ARRAY:
             case XML_ARRAY:
             case CIDR_ARRAY:
-            case DOUBLE_ARRAY:
+
             case INET_ARRAY:
-            case LINE_ARRAY:
-            case PATH_ARRAY:
-            case REAL_ARRAY:
+
             case TEXT_ARRAY:
-            case BOOLEAN_ARRAY:
-            case CIRCLES_ARRAY:
             case MACADDR_ARRAY:
             case POLYGON_ARRAY:
             case TSQUERY_ARRAY:
@@ -278,18 +351,10 @@ final class ExtendedBindWriter {
             case INT4RANGE_ARRAY:
             case INT8RANGE_ARRAY:
             case TSTZRANGE_ARRAY:
-            case TIMESTAMPTZ_ARRAY:
+
             case REF_CURSOR_ARRAY:
-            case TIMESTAMP_ARRAY:
-            case SMALLINT_ARRAY:
-            case INTERVAL_ARRAY:
+
             case VARCHAR_ARRAY:
-            case INTEGER_ARRAY:
-            case DECIMAL_ARRAY:
-            case VARBIT_ARRAY:
-            case TIMETZ_ARRAY:
-
-
                 break;
             case UNSPECIFIED:
             case REF_CURSOR:
@@ -301,17 +366,89 @@ final class ExtendedBindWriter {
     /**
      * @see #writeNonNullBindValue(PgType, ParamValue)
      */
-    private void bindNonNullToBytea(PgType pgType, ParamValue paramValue) throws SQLException {
+    private void bindNonNullToBytea(PgType pgType, ParamValue paramValue) throws LocalFileException {
+        if (decideParameterFormatCode(pgType) != 1) {
+            throw new IllegalStateException("format code error.");
+        }
         final Object nonNull = paramValue.getNonNullValue();
         final byte[] value;
         if (nonNull instanceof byte[]) {
             value = (byte[]) nonNull;
         } else if (nonNull instanceof BigDecimal) {
             value = ((BigDecimal) nonNull).toPlainString().getBytes(this.clientCharset);
+        } else if (nonNull instanceof Path) {
+            writePathWithBinary(pgType, paramValue);
+            return;
         } else {
             value = nonNull.toString().getBytes(this.clientCharset);
         }
         this.message.writeBytes(value);
+    }
+
+
+    /**
+     * @see #writeNonNullBindValue(PgType, ParamValue)
+     */
+    private void bindNonNullToLongString(PgType pgType, ParamValue paramValue)
+            throws SQLException, LocalFileException {
+        if (paramValue.getNonNullValue() instanceof Path) {
+            writePathWithString(pgType, paramValue);
+        } else {
+            final String text = PgBinds.bindNonNullToString(this.batchIndex, pgType, paramValue);
+            Messages.writeString(this.message, text, this.clientCharset);
+        }
+    }
+
+
+    /**
+     * @see #bindNonNullToBytea(PgType, ParamValue)
+     */
+    private void writePathWithBinary(PgType pgType, ParamValue paramValue) {
+        try (FileChannel channel = FileChannel.open((Path) paramValue.getNonNullValue(), StandardOpenOption.READ)) {
+            final long size = channel.size();
+            final ByteBuf message = this.message;
+            if (size >= message.maxWritableBytes()) {
+                throw PgExceptions.beyondMessageLength(this.batchIndex, paramValue);
+            }
+            final byte[] bufferArray = new byte[(int) Math.min(2048, size)];
+            final ByteBuffer buffer = ByteBuffer.wrap(bufferArray);
+
+            while (channel.read(buffer) > 0) {
+                buffer.flip();
+                message.writeBytes(bufferArray, 0, buffer.limit());
+                buffer.clear();
+            }
+        } catch (Throwable e) {
+            throw PgExceptions.localFileWriteError(this.batchIndex, pgType, paramValue, e);
+        }
+    }
+
+    private void writePathWithString(PgType pgType, ParamValue paramValue) throws LocalFileException {
+        try (FileChannel channel = FileChannel.open((Path) paramValue.getNonNullValue(), StandardOpenOption.READ)) {
+            final long size = channel.size();
+            final ByteBuf message = this.message;
+            if (size >= message.maxWritableBytes()) {
+                throw PgExceptions.beyondMessageLength(this.batchIndex, paramValue);
+            }
+            final Charset clientCharset = this.clientCharset;
+            final boolean isUtf8 = clientCharset.equals(StandardCharsets.UTF_8);
+            final byte[] bufferArray = new byte[(int) Math.min(2048, size)];
+            final ByteBuffer buffer = ByteBuffer.wrap(bufferArray);
+
+            while (channel.read(buffer) > 0) {
+                buffer.flip();
+                if (isUtf8) {
+                    message.writeBytes(bufferArray, 0, buffer.limit());
+                } else {
+                    final byte[] writeBytes = new String(bufferArray, 0, buffer.limit(), StandardCharsets.UTF_8)
+                            .getBytes(clientCharset);
+                    message.writeBytes(writeBytes);
+                }
+                buffer.clear();
+            }
+        } catch (Throwable e) {
+            throw PgExceptions.localFileWriteError(this.batchIndex, pgType, paramValue, e);
+        }
     }
 
 

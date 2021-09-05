@@ -1,18 +1,21 @@
 package io.jdbd.postgre.util;
 
-import io.jdbd.meta.SQLType;
+import io.jdbd.postgre.PgConstant;
 import io.jdbd.postgre.PgType;
 import io.jdbd.stmt.UnsupportedBindJavaTypeException;
-import io.jdbd.type.IntervalPair;
+import io.jdbd.type.Interval;
 import io.jdbd.type.geometry.Circle;
 import io.jdbd.type.geometry.Point;
 import io.jdbd.vendor.stmt.ParamValue;
 import io.jdbd.vendor.util.JdbdBinds;
 import io.jdbd.vendor.util.JdbdExceptions;
+import org.qinarmy.util.FastStack;
 import org.qinarmy.util.Pair;
+import org.qinarmy.util.Stack;
 import org.reactivestreams.Publisher;
 import reactor.util.annotation.Nullable;
 
+import java.lang.reflect.Array;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.nio.file.Path;
@@ -22,9 +25,35 @@ import java.time.*;
 import java.time.temporal.Temporal;
 import java.util.BitSet;
 import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
 
 public abstract class PgBinds extends JdbdBinds {
+
+
+    private static final Set<Class<?>> ARRAY_CLASS_WITHOUT_ESCAPES_SET = PgArrays.asUnmodifiableSet(
+            String.class,
+            Boolean.class,
+            boolean.class,
+            Byte.class,// no byte.class
+            Short.class,
+            short.class,
+            Integer.class,
+            int.class,
+            Long.class,
+            long.class,
+            Float.class,
+            float.class,
+            Double.class,
+            double.class,
+            BigDecimal.class,
+            BigInteger.class,
+            UUID.class,
+            LocalDate.class,
+            Interval.class,
+            Duration.class,
+            Period.class
+    );
 
 
     public static PgType mapJdbcTypeToPgType(final JDBCType jdbcType, @Nullable Object nullable) {
@@ -171,7 +200,7 @@ public abstract class PgBinds extends JdbdBinds {
             pgType = PgType.UUID;
         } else if (nullable instanceof Duration
                 || nullable instanceof Period
-                || nullable instanceof IntervalPair) {
+                || nullable instanceof Interval) {
             pgType = PgType.INTERVAL;
         } else if (nullable.getClass().isArray()) {
             pgType = mapPgArrayType(nullable.getClass());
@@ -241,7 +270,7 @@ public abstract class PgBinds extends JdbdBinds {
             pgType = PgType.VARBIT_ARRAY;
         } else if (componentClass == Duration.class
                 || componentClass == Period.class
-                || componentClass == IntervalPair.class) {
+                || componentClass == Interval.class) {
             pgType = PgType.INTERVAL_ARRAY;
         } else {
             throw PgExceptions.notSupportBindJavaType(arrayClass);
@@ -250,7 +279,7 @@ public abstract class PgBinds extends JdbdBinds {
     }
 
 
-    public static String bindNonNullToBit(final int batchIndex, SQLType sqlType, ParamValue paramValue)
+    public static String bindNonNullToBit(final int batchIndex, PgType pgType, ParamValue paramValue)
             throws SQLException {
         final Object nonNull = paramValue.getNonNullValue();
         final String value;
@@ -266,12 +295,194 @@ public abstract class PgBinds extends JdbdBinds {
             if (PgStrings.isBinaryString((String) nonNull)) {
                 value = (String) nonNull;
             } else {
-                throw JdbdExceptions.outOfTypeRange(batchIndex, sqlType, paramValue);
+                throw JdbdExceptions.outOfTypeRange(batchIndex, pgType, paramValue);
             }
         } else {
-            throw JdbdExceptions.createNonSupportBindSqlTypeError(batchIndex, sqlType, paramValue);
+            throw JdbdExceptions.createNonSupportBindSqlTypeError(batchIndex, pgType, paramValue);
         }
         return value;
+    }
+
+
+    public static String bindNonNullToInterval(final int batchIndex, PgType pgType, ParamValue paramValue)
+            throws SQLException {
+        final Object nonNull = paramValue.getNonNullValue();
+        final String value;
+        if (nonNull instanceof Duration
+                || nonNull instanceof Period
+                || nonNull instanceof Interval) {
+            value = nonNull.toString();
+        } else if (nonNull instanceof String) {
+            try {
+                Interval.parse((String) nonNull);
+            } catch (DateTimeException e) {
+                throw JdbdExceptions.outOfTypeRange(batchIndex, pgType, paramValue);
+            }
+            value = (String) nonNull;
+        } else {
+            throw JdbdExceptions.createNonSupportBindSqlTypeError(batchIndex, pgType, paramValue);
+        }
+        return value;
+    }
+
+    public static boolean bindNonNullToBoolean(final int batchIndex, PgType pgType, ParamValue paramValue)
+            throws SQLException {
+        final Object nonNull = paramValue.getNonNullValue();
+        final boolean value;
+        if (nonNull instanceof Boolean) {
+            value = (Boolean) nonNull;
+        } else if (nonNull instanceof Integer
+                || nonNull instanceof Long
+                || nonNull instanceof Short
+                || nonNull instanceof Byte) {
+            value = ((Number) nonNull).longValue() != 0;
+        } else if (nonNull instanceof String) {
+            if ("TRUE".equalsIgnoreCase((String) nonNull)) {
+                value = true;
+            } else if ("FALSE".equalsIgnoreCase((String) nonNull)) {
+                value = false;
+            } else {
+                throw JdbdExceptions.outOfTypeRange(batchIndex, pgType, paramValue);
+            }
+        } else if (nonNull instanceof BigDecimal) {
+            value = BigDecimal.ZERO.compareTo((BigDecimal) nonNull) != 0;
+        } else if (nonNull instanceof BigInteger) {
+            value = BigInteger.ZERO.compareTo((BigInteger) nonNull) != 0;
+        } else if (nonNull instanceof Double
+                || nonNull instanceof Float) {
+            value = ((Number) nonNull).doubleValue() != 0.0;
+        } else {
+            throw JdbdExceptions.createNonSupportBindSqlTypeError(batchIndex, pgType, paramValue);
+        }
+        return value;
+    }
+
+
+    public static String bindNonNullToArrayWithoutEscapes(final int batchIndex, PgType pgType, ParamValue paramValue)
+            throws SQLException {
+        if (pgType.jdbcType() != JDBCType.ARRAY) {
+            throw new IllegalArgumentException(String.format("pgType[%s] isn't array type", pgType));
+        }
+        final Object nonNull = paramValue.getNonNullValue();
+        if (!nonNull.getClass().isArray()) {
+            throw JdbdExceptions.createNonSupportBindSqlTypeError(batchIndex, pgType, paramValue);
+        }
+        final Pair<Class<?>, Integer> pair = getArrayDimensions(nonNull.getClass());
+        if (!ARRAY_CLASS_WITHOUT_ESCAPES_SET.contains(pair.getFirst())) {
+            throw JdbdExceptions.createNonSupportBindSqlTypeError(batchIndex, pgType, paramValue);
+        }
+
+        final int topArrayDimension = pair.getSecond();
+        final StringBuilder builder = new StringBuilder();
+        final Stack<ArrayWrapper> dimensionStack = new FastStack<>();
+        final int topDimensionLength = Array.getLength(nonNull);
+
+        builder.append('{');
+        for (int i = 0; i < topDimensionLength; i++) {
+            if (i > 0) {
+                builder.append(',');
+            }
+            final Object topValue = Array.get(nonNull, i);
+            if (topValue == null) {
+                builder.append(PgConstant.NULL);
+                continue;
+            } else if (topArrayDimension == 1) {
+                builder.append(topValue);
+                continue;
+            }
+            dimensionStack.push(new ArrayWrapper(topValue, topArrayDimension - 1));
+            while (!dimensionStack.isEmpty()) {
+                final ArrayWrapper arrayWrapper = dimensionStack.peek();
+                if (arrayWrapper.dimension == 1) {
+                    appendArray(builder, arrayWrapper.array);
+                    dimensionStack.pop();
+                    continue;
+                }
+                final int length = arrayWrapper.length;
+                if (length == 0) {
+                    builder.append('{')
+                            .append('}');
+                    dimensionStack.pop();
+                    continue;
+                }
+                final int index = arrayWrapper.index;
+                if (index == 0) {
+                    builder.append('{');
+                } else if (index < length) {
+                    builder.append(',');
+                } else {
+                    builder.append('}');
+                    dimensionStack.pop();
+                    continue;
+                }
+                final Object array = Array.get(arrayWrapper.array, index);
+                if (array == null) {
+                    builder.append(PgConstant.NULL);
+                } else {
+                    dimensionStack.push(new ArrayWrapper(array, arrayWrapper.dimension - 1));
+                }
+                arrayWrapper.index++;
+
+            }
+
+        }
+        builder.append('}');
+        return builder.toString();
+    }
+
+    public static String bindNonNullToByteaArray(final int batchIndex, PgType pgType, ParamValue paramValue)
+            throws SQLException {
+        final Object nonNull = paramValue.getNonNullValue();
+        if (!nonNull.getClass().isArray()) {
+            throw JdbdExceptions.createNonSupportBindSqlTypeError(batchIndex, pgType, paramValue);
+        }
+        final Pair<Class<?>, Integer> pair = getArrayDimensions(nonNull.getClass());
+        if (pair.getFirst() != Boolean.class && pair.getFirst() != boolean.class) {
+            throw JdbdExceptions.createNonSupportBindSqlTypeError(batchIndex, pgType, paramValue);
+        }
+        StringBuilder builder = new StringBuilder();
+
+        return builder.toString();
+    }
+
+
+    /**
+     * @see #bindNonNullToArrayWithoutEscapes(int, PgType, ParamValue)
+     */
+    private static void appendArray(final StringBuilder builder, final Object array) {
+        final int length = Array.getLength(array);
+        builder.append('{');
+        Object value;
+        for (int j = 0; j < length; j++) {
+            if (j > 0) {
+                builder.append(',');
+            }
+            value = Array.get(array, j);
+            if (value == null) {
+                builder.append(PgConstant.NULL);
+            } else {
+                builder.append(value);
+            }
+        }
+        builder.append('}');
+    }
+
+    private static final class ArrayWrapper {
+
+        private final Object array;
+
+        private final int length;
+
+        private final int dimension;
+
+        private int index = 0;
+
+        private ArrayWrapper(Object array, int dimension) {
+            this.array = array;
+            this.length = Array.getLength(array);
+            this.dimension = dimension;
+        }
+
     }
 
 
