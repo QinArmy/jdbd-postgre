@@ -64,7 +64,7 @@ final class PrepareExecuteCommandWriter implements ExecuteCommandWriter {
         int nonLongDataCount = 0;
         for (int i = 0; i < paramMetaArray.length; i++) {
             ParamValue paramValue = parameterGroup.get(i);
-            if (paramValue.getParamIndex() != i) {
+            if (paramValue.getIndex() != i) {
                 // hear invoker has bug
                 throw MySQLExceptions.createBindValueParamIndexNotMatchError(stmtIndex, paramValue, i);
             }
@@ -140,7 +140,7 @@ final class PrepareExecuteCommandWriter implements ExecuteCommandWriter {
             final List<MySQLType> bindTypeList = new ArrayList<>(parameterMetaArray.length);
             for (int i = 0; i < parameterMetaArray.length; i++) {
                 ParamValue paramValue = parameterGroup.get(i);
-                if (paramValue.getValue() == null) {
+                if (paramValue.get() == null) {
                     nullBitsMap[i >> 3] |= (1 << (i & 7));
                 }
                 MySQLType bindType = decideBindType(stmtIndex, parameterMetaArray[i], paramValue);
@@ -162,7 +162,7 @@ final class PrepareExecuteCommandWriter implements ExecuteCommandWriter {
 
             for (int i = 0; i < parameterMetaArray.length; i++) {
                 paramValue = parameterGroup.get(i);
-                if (paramValue.isLongData() || paramValue.getValue() == null) {
+                if (paramValue.isLongData() || paramValue.get() == null) {
                     continue;
                 }
                 while (packet.readableBytes() >= Packets.MAX_PACKET) {
@@ -224,7 +224,7 @@ final class PrepareExecuteCommandWriter implements ExecuteCommandWriter {
     }
 
     private MySQLType decideBindType(int stmtIndex, MySQLColumnMeta meta, ParamValue paramValue) {
-        final Object nonNull = paramValue.getNonNullValue();
+        final Object nonNull = paramValue.getNonNull();
         final MySQLType targetType = meta.mysqlType;
         final MySQLType bindType;
         if (nonNull instanceof Number) {
@@ -413,7 +413,7 @@ final class PrepareExecuteCommandWriter implements ExecuteCommandWriter {
      */
     private void bindToInt1(final ByteBuf buffer, final int stmtIndex, final MySQLColumnMeta parameterMeta
             , final ParamValue bindValue) {
-        final Object nonNull = bindValue.getNonNullValue();
+        final Object nonNull = bindValue.getNonNull();
         final int int1;
         if (nonNull instanceof Byte) {
             int1 = (Byte) nonNull;
@@ -449,7 +449,7 @@ final class PrepareExecuteCommandWriter implements ExecuteCommandWriter {
      */
     private void bindInt2(final ByteBuf buffer, int stmtIndex, final MySQLColumnMeta parameterMeta
             , final ParamValue bindValue) {
-        final Object nonNullValue = bindValue.getNonNullValue();
+        final Object nonNullValue = bindValue.getNonNull();
         final int int2;
         if (nonNullValue instanceof Year) {
             int2 = ((Year) nonNullValue).getValue();
@@ -467,7 +467,7 @@ final class PrepareExecuteCommandWriter implements ExecuteCommandWriter {
      */
     private void bindToDecimal(final ByteBuf buffer, final int stmtIndex, final MySQLColumnMeta parameterMeta
             , final ParamValue paramValue) {
-        final Object nonNullValue = paramValue.getNonNullValue();
+        final Object nonNullValue = paramValue.getNonNull();
         final String decimal;
         if (nonNullValue instanceof BigDecimal) {
             BigDecimal num = (BigDecimal) nonNullValue;
@@ -487,7 +487,7 @@ final class PrepareExecuteCommandWriter implements ExecuteCommandWriter {
      */
     private void bindToInt4(final ByteBuf buffer, final int stmtIndex, final MySQLColumnMeta meta
             , final ParamValue paramValue) {
-        final Object nonNull = paramValue.getNonNullValue();
+        final Object nonNull = paramValue.getNonNull();
         final int int4;
         if (nonNull instanceof Integer) {
             int4 = (Integer) nonNull;
@@ -508,7 +508,7 @@ final class PrepareExecuteCommandWriter implements ExecuteCommandWriter {
      */
     private void bindToFloat(final ByteBuf buffer, int stmtIndex, final MySQLColumnMeta meta
             , final ParamValue bindValue) {
-        final Object nonNullValue = bindValue.getNonNullValue();
+        final Object nonNullValue = bindValue.getNonNull();
         if (nonNullValue instanceof Float) {
             Packets.writeInt4(buffer, Float.floatToIntBits((Float) nonNullValue));
         } else {
@@ -522,7 +522,7 @@ final class PrepareExecuteCommandWriter implements ExecuteCommandWriter {
      */
     private void bindToInt8(final ByteBuf buffer, int stmtIndex, final MySQLColumnMeta meta
             , final ParamValue bindValue) {
-        final Object nonNull = bindValue.getNonNullValue();
+        final Object nonNull = bindValue.getNonNull();
         final long int8;
         if (nonNull instanceof Long) {
             int8 = (Long) nonNull;
@@ -540,7 +540,7 @@ final class PrepareExecuteCommandWriter implements ExecuteCommandWriter {
      */
     private void bindToDouble(final ByteBuf buffer, int stmtIndex, final MySQLColumnMeta parameterMeta
             , final ParamValue bindValue) {
-        final Object nonNull = bindValue.getNonNullValue();
+        final Object nonNull = bindValue.getNonNull();
         if (nonNull instanceof Double) {
             Packets.writeInt8(buffer, Double.doubleToLongBits((Double) nonNull));
         } else {
@@ -554,7 +554,7 @@ final class PrepareExecuteCommandWriter implements ExecuteCommandWriter {
      */
     private void bindToTime(final ByteBuf buffer, int stmtIndex, final MySQLColumnMeta parameterMeta
             , final ParamValue bindValue) {
-        final Object nonNull = bindValue.getNonNullValue();
+        final Object nonNull = bindValue.getNonNull();
 
         final int microPrecision = parameterMeta.obtainDateTimeTypePrecision();
         final int length = microPrecision > 0 ? 12 : 8;
@@ -628,7 +628,7 @@ final class PrepareExecuteCommandWriter implements ExecuteCommandWriter {
      * @see #bindParameter(ByteBuf, int, MySQLType, MySQLColumnMeta, ParamValue)
      */
     private void bindToDate(final ByteBuf buffer, int stmtIndex, MySQLColumnMeta columnMeta, ParamValue bindValue) {
-        final Object nonNull = bindValue.getNonNullValue();
+        final Object nonNull = bindValue.getNonNull();
 
         final LocalDate date;
         if (nonNull instanceof LocalDate) {
@@ -653,7 +653,7 @@ final class PrepareExecuteCommandWriter implements ExecuteCommandWriter {
      */
     private void bindToDatetime(final ByteBuf buffer, int stmtIndex, final MySQLColumnMeta parameterMeta
             , final ParamValue bindValue) {
-        final Object nonNull = bindValue.getNonNullValue();
+        final Object nonNull = bindValue.getNonNull();
 
         final LocalDateTime dateTime;
         if (nonNull instanceof LocalDateTime) {
@@ -706,7 +706,7 @@ final class PrepareExecuteCommandWriter implements ExecuteCommandWriter {
      */
     private void bindToStringType(final ByteBuf buffer, final int stmtIndex, final MySQLColumnMeta meta
             , final ParamValue bindValue) {
-        final Object nonNull = bindValue.getNonNullValue();
+        final Object nonNull = bindValue.getNonNull();
         if (nonNull instanceof CharSequence || nonNull instanceof Character) {
             Packets.writeStringLenEnc(buffer, nonNull.toString().getBytes(this.adjutant.obtainCharsetClient()));
         } else if (nonNull instanceof byte[]) {

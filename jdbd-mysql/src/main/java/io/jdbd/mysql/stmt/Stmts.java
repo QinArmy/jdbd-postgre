@@ -50,7 +50,7 @@ public abstract class Stmts extends JdbdStmts {
         }
 
         @Override
-        public List<BindValue> getParamGroup() {
+        public List<BindValue> getBindGroup() {
             return this.paramGroup;
         }
 

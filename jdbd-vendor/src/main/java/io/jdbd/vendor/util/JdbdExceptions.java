@@ -189,10 +189,10 @@ public abstract class JdbdExceptions extends ExceptionUtils {
         String m;
         if (batchIndex == 0) {
             m = String.format("parameter[%s] value out of number range for %s"
-                    , bindValue.getParamIndex(), sqlType);
+                    , bindValue.getIndex(), sqlType);
         } else {
             m = String.format("batch[%s] parameter[%s] value out of number range for %s"
-                    , batchIndex, bindValue.getParamIndex(), sqlType);
+                    , batchIndex, bindValue.getIndex(), sqlType);
         }
         return new SQLException(m);
 
@@ -202,31 +202,31 @@ public abstract class JdbdExceptions extends ExceptionUtils {
         String m;
         if (batchIndex == 0) {
             m = String.format("parameter[%s] too long so beyond message rest length"
-                    , bindValue.getParamIndex());
+                    , bindValue.getIndex());
         } else {
             m = String.format("batch[%s] parameter[%s] too long so beyond message rest length"
-                    , batchIndex, bindValue.getParamIndex());
+                    , batchIndex, bindValue.getIndex());
         }
         return new SQLException(m);
     }
 
     public static LocalFileException localFileWriteError(int batchIndex, SQLType sqlType
             , ParamValue bindValue, Throwable e) {
-        Path path = (Path) bindValue.getNonNullValue();
+        Path path = (Path) bindValue.getNonNull();
         String m;
         if (batchIndex == 0) {
             m = String.format("parameter[%s] path[%s] to sql type[%s]"
-                    , bindValue.getParamIndex(), path, sqlType);
+                    , bindValue.getIndex(), path, sqlType);
         } else {
             m = String.format("batch[%s] parameter[%s] path[%s] to sql type[%s]"
-                    , batchIndex, bindValue.getParamIndex(), bindValue.getValue(), sqlType);
+                    , batchIndex, bindValue.getIndex(), bindValue.get(), sqlType);
         }
         throw new LocalFileException(path, m, e);
     }
 
     public static SQLException createNonSupportBindSqlTypeError(int batchIndex, SQLType sqlType, ParamValue bindValue) {
         String m = String.format("batch[%s] parameter[%s] bind sql type[%s] not supported."
-                , batchIndex, bindValue.getParamIndex()
+                , batchIndex, bindValue.getIndex()
                 , sqlType);
         return new SQLException(m);
     }

@@ -15,7 +15,7 @@ public final class BindValue extends MySQLParamValue implements ParamValue {
     }
 
     public static BindValue create(BindValue bindValue, MySQLType newType) {
-        return new BindValue(bindValue.getParamIndex(), newType, bindValue.getValue());
+        return new BindValue(bindValue.getIndex(), newType, bindValue.get());
     }
 
 

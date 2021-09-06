@@ -4,9 +4,9 @@ import io.jdbd.JdbdException;
 import io.jdbd.JdbdSQLException;
 import io.jdbd.meta.SQLType;
 import io.jdbd.postgre.PgType;
+import io.jdbd.postgre.stmt.BindMultiStmt;
 import io.jdbd.postgre.stmt.BindStmt;
 import io.jdbd.postgre.stmt.BindValue;
-import io.jdbd.postgre.stmt.MultiBindStmt;
 import io.jdbd.postgre.stmt.PgStmts;
 import io.jdbd.postgre.util.PgBinds;
 import io.jdbd.postgre.util.PgExceptions;
@@ -144,7 +144,7 @@ final class PgMultiStatement extends PgStatement implements MultiStatement {
      * @see #executeBatchAsMulti()
      * @see #executeBatchAsFlux()
      */
-    private MultiBindStmt createMultiBindStmt() throws JdbdException {
+    private BindMultiStmt createMultiBindStmt() throws JdbdException {
         final String currentSql = this.currentSql;
         final List<BindStmt> stmtGroup = this.stmtGroup;
 

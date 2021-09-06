@@ -2,9 +2,9 @@ package io.jdbd.postgre.protocol.client;
 
 import io.jdbd.SessionCloseException;
 import io.jdbd.postgre.PgJdbdException;
-import io.jdbd.postgre.stmt.BatchBindStmt;
+import io.jdbd.postgre.stmt.BindBatchStmt;
+import io.jdbd.postgre.stmt.BindMultiStmt;
 import io.jdbd.postgre.stmt.BindStmt;
-import io.jdbd.postgre.stmt.MultiBindStmt;
 import io.jdbd.postgre.util.PgExceptions;
 import io.jdbd.result.MultiResult;
 import io.jdbd.result.Result;
@@ -16,7 +16,7 @@ import io.jdbd.stmt.StaticStatement;
 import io.jdbd.vendor.result.FluxResultSink;
 import io.jdbd.vendor.result.MultiResults;
 import io.jdbd.vendor.result.ResultSetReader;
-import io.jdbd.vendor.stmt.BatchStmt;
+import io.jdbd.vendor.stmt.StaticBatchStmt;
 import io.jdbd.vendor.stmt.StaticStmt;
 import io.netty.buffer.ByteBuf;
 import org.reactivestreams.Publisher;
@@ -70,7 +70,7 @@ final class SimpleQueryTask extends AbstractStmtTask {
      * This method is underlying api of {@link StaticStatement#executeBatch(java.util.List)} method.
      * </p>
      */
-    static Flux<ResultStates> batchUpdate(BatchStmt stmt, TaskAdjutant adjutant) {
+    static Flux<ResultStates> batchUpdate(StaticBatchStmt stmt, TaskAdjutant adjutant) {
         return MultiResults.batchUpdate(sink -> {
             try {
                 SimpleQueryTask task = new SimpleQueryTask(stmt, sink, adjutant);
@@ -87,7 +87,7 @@ final class SimpleQueryTask extends AbstractStmtTask {
      * This method is underlying api of {@link StaticStatement#executeAsMulti(java.util.List)} method.
      * </p>
      */
-    static MultiResult batchAsMulti(BatchStmt stmt, TaskAdjutant adjutant) {
+    static MultiResult batchAsMulti(StaticBatchStmt stmt, TaskAdjutant adjutant) {
         return MultiResults.asMulti(adjutant, sink -> {
             try {
                 SimpleQueryTask task = new SimpleQueryTask(stmt, sink, adjutant);
@@ -103,7 +103,7 @@ final class SimpleQueryTask extends AbstractStmtTask {
      * This method is underlying api of {@link StaticStatement#executeAsFlux(java.util.List)} method.
      * </p>
      */
-    static Flux<Result> batchAsFlux(BatchStmt stmt, TaskAdjutant adjutant) {
+    static Flux<Result> batchAsFlux(StaticBatchStmt stmt, TaskAdjutant adjutant) {
         return MultiResults.asFlux(sink -> {
             try {
                 SimpleQueryTask task = new SimpleQueryTask(stmt, sink, adjutant);
@@ -173,7 +173,7 @@ final class SimpleQueryTask extends AbstractStmtTask {
      * This method is one of underlying api of {@link BindStatement#executeBatch()} method.
      * </p>
      */
-    static Flux<ResultStates> bindableBatchUpdate(BatchBindStmt stmt, TaskAdjutant adjutant) {
+    static Flux<ResultStates> bindableBatchUpdate(BindBatchStmt stmt, TaskAdjutant adjutant) {
         return MultiResults.batchUpdate(sink -> {
             try {
                 SimpleQueryTask task = new SimpleQueryTask(adjutant, sink, stmt);
@@ -191,7 +191,7 @@ final class SimpleQueryTask extends AbstractStmtTask {
      * This method is one of underlying api of below methods {@link BindStatement#executeBatchAsMulti()}.
      * </p>
      */
-    static MultiResult bindableAsMulti(BatchBindStmt stmt, TaskAdjutant adjutant) {
+    static MultiResult bindableAsMulti(BindBatchStmt stmt, TaskAdjutant adjutant) {
         return MultiResults.asMulti(adjutant, sink -> {
             try {
                 SimpleQueryTask task = new SimpleQueryTask(adjutant, sink, stmt);
@@ -207,7 +207,7 @@ final class SimpleQueryTask extends AbstractStmtTask {
      * This method is one of underlying api of below methods {@link BindStatement#executeBatchAsFlux()}.
      * </p>
      */
-    static Flux<Result> bindableAsFlux(BatchBindStmt stmt, TaskAdjutant adjutant) {
+    static Flux<Result> bindableAsFlux(BindBatchStmt stmt, TaskAdjutant adjutant) {
         return MultiResults.asFlux(sink -> {
             try {
                 SimpleQueryTask task = new SimpleQueryTask(adjutant, sink, stmt);
@@ -227,7 +227,7 @@ final class SimpleQueryTask extends AbstractStmtTask {
      * This method is underlying api of {@link MultiStatement#executeBatch()} method.
      * </p>
      */
-    static Flux<ResultStates> multiStmtBatch(MultiBindStmt stmt, TaskAdjutant adjutant) {
+    static Flux<ResultStates> multiStmtBatch(BindMultiStmt stmt, TaskAdjutant adjutant) {
         return MultiResults.batchUpdate(sink -> {
             try {
                 SimpleQueryTask task = new SimpleQueryTask(adjutant, stmt, sink);
@@ -243,7 +243,7 @@ final class SimpleQueryTask extends AbstractStmtTask {
      * This method is underlying api of {@link MultiStatement#executeBatchAsMulti()} method.
      * </p>
      */
-    static MultiResult multiStmtAsMulti(MultiBindStmt stmt, TaskAdjutant adjutant) {
+    static MultiResult multiStmtAsMulti(BindMultiStmt stmt, TaskAdjutant adjutant) {
         return MultiResults.asMulti(adjutant, sink -> {
             try {
                 SimpleQueryTask task = new SimpleQueryTask(adjutant, stmt, sink);
@@ -259,7 +259,7 @@ final class SimpleQueryTask extends AbstractStmtTask {
      * This method is underlying api of {@link MultiStatement#executeBatchAsFlux()} method.
      * </p>
      */
-    static Flux<Result> multiStmtAsFlux(MultiBindStmt stmt, TaskAdjutant adjutant) {
+    static Flux<Result> multiStmtAsFlux(BindMultiStmt stmt, TaskAdjutant adjutant) {
         return MultiResults.asFlux(sink -> {
             try {
                 SimpleQueryTask task = new SimpleQueryTask(adjutant, stmt, sink);
@@ -294,11 +294,11 @@ final class SimpleQueryTask extends AbstractStmtTask {
     }
 
     /**
-     * @see #batchUpdate(BatchStmt, TaskAdjutant)
-     * @see #batchAsMulti(BatchStmt, TaskAdjutant)
-     * @see #batchAsFlux(BatchStmt, TaskAdjutant)
+     * @see #batchUpdate(StaticBatchStmt, TaskAdjutant)
+     * @see #batchAsMulti(StaticBatchStmt, TaskAdjutant)
+     * @see #batchAsFlux(StaticBatchStmt, TaskAdjutant)
      */
-    private SimpleQueryTask(BatchStmt stmt, FluxResultSink sink, TaskAdjutant adjutant)
+    private SimpleQueryTask(StaticBatchStmt stmt, FluxResultSink sink, TaskAdjutant adjutant)
             throws Throwable {
         super(adjutant, sink, stmt);
         this.packetPublisher = QueryCommandWriter.createStaticBatchCommand(stmt, adjutant);
@@ -321,11 +321,11 @@ final class SimpleQueryTask extends AbstractStmtTask {
     }
 
     /**
-     * @see #bindableBatchUpdate(BatchBindStmt, TaskAdjutant)
-     * @see #bindableAsMulti(BatchBindStmt, TaskAdjutant)
-     * @see #bindableAsFlux(BatchBindStmt, TaskAdjutant)
+     * @see #bindableBatchUpdate(BindBatchStmt, TaskAdjutant)
+     * @see #bindableAsMulti(BindBatchStmt, TaskAdjutant)
+     * @see #bindableAsFlux(BindBatchStmt, TaskAdjutant)
      */
-    private SimpleQueryTask(TaskAdjutant adjutant, FluxResultSink sink, BatchBindStmt stmt)
+    private SimpleQueryTask(TaskAdjutant adjutant, FluxResultSink sink, BindBatchStmt stmt)
             throws Throwable {
         super(adjutant, sink, stmt);
         this.packetPublisher = QueryCommandWriter.createBindableBatchCommand(stmt, adjutant);
@@ -336,10 +336,10 @@ final class SimpleQueryTask extends AbstractStmtTask {
     /*################################## blow for bindable multi stmt ##################################*/
 
     /**
-     * @see #multiStmtAsMulti(MultiBindStmt, TaskAdjutant)
-     * @see #multiStmtAsFlux(MultiBindStmt, TaskAdjutant)
+     * @see #multiStmtAsMulti(BindMultiStmt, TaskAdjutant)
+     * @see #multiStmtAsFlux(BindMultiStmt, TaskAdjutant)
      */
-    private SimpleQueryTask(TaskAdjutant adjutant, MultiBindStmt stmt, FluxResultSink sink)
+    private SimpleQueryTask(TaskAdjutant adjutant, BindMultiStmt stmt, FluxResultSink sink)
             throws Throwable {
         super(adjutant, sink, stmt);
         this.packetPublisher = QueryCommandWriter.createMultiStmtCommand(stmt, adjutant);

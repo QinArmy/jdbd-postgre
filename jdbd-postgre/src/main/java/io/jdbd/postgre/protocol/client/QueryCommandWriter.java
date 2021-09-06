@@ -1,15 +1,15 @@
 package io.jdbd.postgre.protocol.client;
 
-import io.jdbd.postgre.stmt.BatchBindStmt;
+import io.jdbd.postgre.stmt.BindBatchStmt;
+import io.jdbd.postgre.stmt.BindMultiStmt;
 import io.jdbd.postgre.stmt.BindStmt;
 import io.jdbd.postgre.stmt.BindValue;
-import io.jdbd.postgre.stmt.MultiBindStmt;
 import io.jdbd.postgre.syntax.PgParser;
 import io.jdbd.postgre.syntax.PgStatement;
 import io.jdbd.postgre.util.PgExceptions;
 import io.jdbd.postgre.util.PgStrings;
 import io.jdbd.postgre.util.PgTimes;
-import io.jdbd.vendor.stmt.BatchStmt;
+import io.jdbd.vendor.stmt.StaticBatchStmt;
 import io.jdbd.vendor.syntax.SQLParser;
 import io.jdbd.vendor.util.JdbdBuffers;
 import io.jdbd.vendor.util.JdbdExceptions;
@@ -43,7 +43,7 @@ import java.util.UUID;
 final class QueryCommandWriter {
 
 
-    static Publisher<ByteBuf> createStaticBatchCommand(BatchStmt stmt, TaskAdjutant adjutant)
+    static Publisher<ByteBuf> createStaticBatchCommand(StaticBatchStmt stmt, TaskAdjutant adjutant)
             throws Throwable {
         final List<String> sqlGroup = stmt.getSqlGroup();
         final ByteBuf message = adjutant.allocator().buffer(sqlGroup.size() * 50, Integer.MAX_VALUE);
@@ -100,7 +100,7 @@ final class QueryCommandWriter {
         return Mono.just(message);
     }
 
-    static Publisher<ByteBuf> createBindableBatchCommand(BatchBindStmt stmt, TaskAdjutant adjutant)
+    static Publisher<ByteBuf> createBindableBatchCommand(BindBatchStmt stmt, TaskAdjutant adjutant)
             throws Throwable {
         ByteBuf message;
         message = new QueryCommandWriter(adjutant)
@@ -108,7 +108,7 @@ final class QueryCommandWriter {
         return Mono.just(message);
     }
 
-    static Publisher<ByteBuf> createMultiStmtCommand(MultiBindStmt stmt, TaskAdjutant adjutant) throws Throwable {
+    static Publisher<ByteBuf> createMultiStmtCommand(BindMultiStmt stmt, TaskAdjutant adjutant) throws Throwable {
         ByteBuf message;
         message = new QueryCommandWriter(adjutant)
                 .writeMultiBindCommand(stmt.getStmtGroup());
@@ -147,7 +147,7 @@ final class QueryCommandWriter {
     }
 
     /**
-     * @see #createMultiStmtCommand(MultiBindStmt, TaskAdjutant)
+     * @see #createMultiStmtCommand(BindMultiStmt, TaskAdjutant)
      * @see #createBindableCommand(BindStmt, TaskAdjutant)
      */
     private ByteBuf writeMultiBindCommand(final List<BindStmt> stmtList) throws Throwable {
@@ -172,7 +172,7 @@ final class QueryCommandWriter {
                 if (i > 0) {
                     message.writeByte(SEMICOLON_BYTE);
                 }
-                writeStatement(i, statement, stmt.getParamGroup(), message);
+                writeStatement(i, statement, stmt.getBindGroup(), message);
             }
 
             message.writeByte(Messages.STRING_TERMINATOR);
@@ -186,9 +186,9 @@ final class QueryCommandWriter {
     }
 
     /**
-     * @see #createBindableBatchCommand(BatchBindStmt, TaskAdjutant)
+     * @see #createBindableBatchCommand(BindBatchStmt, TaskAdjutant)
      */
-    private ByteBuf writeBatchBindCommand(BatchBindStmt stmt) throws Throwable {
+    private ByteBuf writeBatchBindCommand(BindBatchStmt stmt) throws Throwable {
         final TaskAdjutant adjutant = this.adjutant;
         final String sql = stmt.getSql();
         final List<List<BindValue>> groupList = stmt.getGroupList();
@@ -225,7 +225,7 @@ final class QueryCommandWriter {
 
     /**
      * @see #writeMultiBindCommand(List)
-     * @see #writeBatchBindCommand(BatchBindStmt)
+     * @see #writeBatchBindCommand(BindBatchStmt)
      */
     private void writeStatement(final int stmtIndex, PgStatement statement, List<BindValue> valueList, ByteBuf message)
             throws SQLException, IOException {
@@ -240,11 +240,11 @@ final class QueryCommandWriter {
         BindValue bindValue;
         for (int i = 0; i < paramCount; i++) {
             bindValue = valueList.get(i);
-            if (bindValue.getParamIndex() != i) {
+            if (bindValue.getIndex() != i) {
                 throw PgExceptions.createBindIndexNotMatchError(stmtIndex, i, bindValue);
             }
             message.writeBytes(staticSqlList.get(i).getBytes(clientCharset));
-            if (bindValue.getValue() == null) {
+            if (bindValue.get() == null) {
                 message.writeBytes(nullBytes);
             } else {
                 bindNonNullParameter(stmtIndex, bindValue, message);
@@ -374,7 +374,7 @@ final class QueryCommandWriter {
      */
     private void bindNonNullToNumber(final int stmtIndex, BindValue bindValue, ByteBuf message)
             throws SQLException {
-        final Object nonNull = bindValue.getNonNullValue();
+        final Object nonNull = bindValue.getNonNull();
         final String numberText;
         if (nonNull instanceof Number) {
             if (nonNull instanceof BigDecimal) {
@@ -412,7 +412,7 @@ final class QueryCommandWriter {
      */
     private void bindNonNullToBoolean(final int stmtIndex, BindValue bindValue, ByteBuf message)
             throws SQLException {
-        final Object nonNull = bindValue.getNonNullValue();
+        final Object nonNull = bindValue.getNonNull();
         final String boolText;
 
         if (nonNull instanceof Boolean) {
@@ -453,7 +453,7 @@ final class QueryCommandWriter {
      */
     private void bindNonNullToString(final int stmtIndex, BindValue bindValue, ByteBuf message)
             throws SQLException, IOException {
-        final Object nonNull = bindValue.getNonNullValue();
+        final Object nonNull = bindValue.getNonNull();
 
         message.writeByte('E');
         message.writeByte(QUOTE_BYTE);
@@ -490,7 +490,7 @@ final class QueryCommandWriter {
      */
     private void bindNonNullToBytea(final int stmtIndex, BindValue bindValue, ByteBuf message)
             throws SQLException, IOException {
-        final Object nonNull = bindValue.getNonNullValue();
+        final Object nonNull = bindValue.getNonNull();
 
         message.writeByte(QUOTE_BYTE);
         message.writeByte(BACK_SLASH_BYTE);
@@ -523,7 +523,7 @@ final class QueryCommandWriter {
      */
     private void bindNonNullToLocalDate(final int stmtIndex, BindValue bindValue, ByteBuf message)
             throws SQLException {
-        final Object nonNull = bindValue.getNonNullValue();
+        final Object nonNull = bindValue.getNonNull();
         final String dateText;
 
         if (nonNull instanceof LocalDate) {
@@ -549,7 +549,7 @@ final class QueryCommandWriter {
      */
     private void bindNonNullToLocalTime(final int stmtIndex, BindValue bindValue, ByteBuf message)
             throws SQLException {
-        final Object nonNull = bindValue.getNonNullValue();
+        final Object nonNull = bindValue.getNonNull();
         final String timeText;
 
         if (nonNull instanceof LocalTime) {
@@ -576,7 +576,7 @@ final class QueryCommandWriter {
      */
     private void bindNonNullToOffsetTime(final int stmtIndex, BindValue bindValue, ByteBuf message)
             throws SQLException {
-        final Object nonNull = bindValue.getNonNullValue();
+        final Object nonNull = bindValue.getNonNull();
         final String timeText;
 
         if (nonNull instanceof OffsetTime) {
@@ -603,7 +603,7 @@ final class QueryCommandWriter {
      */
     private void bindNonNullToOffsetDateTime(final int stmtIndex, BindValue bindValue, ByteBuf message)
             throws SQLException {
-        final Object nonNull = bindValue.getNonNullValue();
+        final Object nonNull = bindValue.getNonNull();
         final String dateTimeText;
         if (nonNull instanceof OffsetDateTime
                 || nonNull instanceof ZonedDateTime) {
@@ -631,7 +631,7 @@ final class QueryCommandWriter {
      */
     private void bindNonNullToLocalDateTime(final int stmtIndex, BindValue bindValue, ByteBuf message)
             throws SQLException {
-        final Object nonNull = bindValue.getNonNullValue();
+        final Object nonNull = bindValue.getNonNull();
         final String dateTimeText;
 
         if (nonNull instanceof LocalDateTime) {
@@ -658,7 +658,7 @@ final class QueryCommandWriter {
      */
     private void bindNonNullToBit(final int stmtIndex, BindValue bindValue, ByteBuf message)
             throws SQLException {
-        final Object nonNull = bindValue.getNonNullValue();
+        final Object nonNull = bindValue.getNonNull();
         final String bitString;
         if (nonNull instanceof Long) {
             bitString = PgStrings.reverse(Long.toBinaryString((Long) nonNull));
@@ -685,7 +685,7 @@ final class QueryCommandWriter {
      */
     private void bindNonNullToDuration(final int stmtIndex, BindValue bindValue, ByteBuf message)
             throws SQLException {
-        final Object nonNull = bindValue.getNonNullValue();
+        final Object nonNull = bindValue.getNonNull();
         final String intervalString;
         if (nonNull instanceof Duration) {
             intervalString = nonNull.toString();

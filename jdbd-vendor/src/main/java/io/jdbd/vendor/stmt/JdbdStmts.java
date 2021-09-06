@@ -97,15 +97,15 @@ public abstract class JdbdStmts {
         return list;
     }
 
-    public static BatchStmt group(List<String> sqlGroup, int timeout) {
+    public static StaticBatchStmt group(List<String> sqlGroup, int timeout) {
         return timeout == 0 ? new GroupStmtZeroTimeout(sqlGroup) : new GroupStmtImpl(sqlGroup, timeout);
     }
 
-    public static BatchStmt group(List<String> sqlGroup) {
+    public static StaticBatchStmt group(List<String> sqlGroup) {
         return new GroupStmtZeroTimeout(sqlGroup);
     }
 
-    public static BatchStmt batchStmt(final List<String> sqlGroup, final StatementOption option) {
+    public static StaticBatchStmt batchStmt(final List<String> sqlGroup, final StatementOption option) {
         final List<String> list;
         switch (sqlGroup.size()) {
             case 0:
@@ -295,7 +295,7 @@ public abstract class JdbdStmts {
         }
 
         @Override
-        public final List<? extends ParamValue> getParamGroup() {
+        public final List<? extends ParamValue> getBindGroup() {
             return this.paramGroup;
         }
 
@@ -345,7 +345,7 @@ public abstract class JdbdStmts {
         }
 
         @Override
-        public final List<? extends ParamValue> getParamGroup() {
+        public final List<? extends ParamValue> getBindGroup() {
             return this.paramGroup;
         }
 
@@ -426,7 +426,7 @@ public abstract class JdbdStmts {
         }
 
         @Override
-        public List<? extends ParamValue> getParamGroup() {
+        public List<? extends ParamValue> getBindGroup() {
             return this.paramGroup;
         }
 
@@ -604,7 +604,7 @@ public abstract class JdbdStmts {
 
     }
 
-    private static final class BatchStmtFull implements BatchStmt {
+    private static final class BatchStmtFull implements StaticBatchStmt {
 
         private final List<String> sqlGroup;
 
@@ -762,7 +762,7 @@ public abstract class JdbdStmts {
 
     }
 
-    private static final class GroupStmtZeroTimeout implements BatchStmt {
+    private static final class GroupStmtZeroTimeout implements StaticBatchStmt {
 
         private final List<String> sqlGroup;
 
@@ -782,7 +782,7 @@ public abstract class JdbdStmts {
 
     }
 
-    private static final class GroupStmtImpl implements BatchStmt {
+    private static final class GroupStmtImpl implements StaticBatchStmt {
 
         private final List<String> sqlGroup;
 

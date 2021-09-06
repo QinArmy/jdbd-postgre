@@ -1,11 +1,18 @@
 package io.jdbd.postgre.protocol.client;
 
 import io.jdbd.postgre.PgType;
+import io.jdbd.vendor.stmt.ParamSingleStmt;
+import io.netty.buffer.ByteBuf;
 import reactor.util.annotation.Nullable;
 
 import java.util.List;
 
+/**
+ * @see ExtendedCommandWriter
+ */
 interface ExtendedStmtTask {
+
+    ParamSingleStmt getStmt();
 
     TaskAdjutant adjutant();
 
@@ -18,5 +25,8 @@ interface ExtendedStmtTask {
     List<PgType> getParamTypeList();
 
     int getFetchSize();
+
+    void appendDescribePortalMessage(List<ByteBuf> messageList);
+
 
 }

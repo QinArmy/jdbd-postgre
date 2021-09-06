@@ -10,6 +10,6 @@ public interface BindableStmt extends ParamStmt {
      * @return a unmodifiable list
      */
     @Override
-    List<BindValue> getParamGroup();
+    List<BindValue> getBindGroup();
 
 }

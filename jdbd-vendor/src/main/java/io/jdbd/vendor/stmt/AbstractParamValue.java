@@ -19,7 +19,7 @@ public abstract class AbstractParamValue implements ParamValue {
 
 
     @Override
-    public final int getParamIndex() {
+    public final int getIndex() {
         return this.parameterIndex;
     }
 
@@ -45,12 +45,12 @@ public abstract class AbstractParamValue implements ParamValue {
 
     @Nullable
     @Override
-    public final Object getValue() {
+    public final Object get() {
         return this.value;
     }
 
     @Override
-    public final Object getNonNullValue() throws NullPointerException {
+    public final Object getNonNull() throws NullPointerException {
         Object value = this.value;
         if (value == null) {
             throw new NullPointerException(String.format("Bind parameter[%s] value is null.", this.parameterIndex));

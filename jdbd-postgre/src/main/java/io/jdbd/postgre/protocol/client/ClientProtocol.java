@@ -1,8 +1,8 @@
 package io.jdbd.postgre.protocol.client;
 
-import io.jdbd.postgre.stmt.BatchBindStmt;
+import io.jdbd.postgre.stmt.BindBatchStmt;
+import io.jdbd.postgre.stmt.BindMultiStmt;
 import io.jdbd.postgre.stmt.BindStmt;
-import io.jdbd.postgre.stmt.MultiBindStmt;
 import io.jdbd.postgre.stmt.PrepareStmtTask;
 import io.jdbd.result.MultiResult;
 import io.jdbd.result.Result;
@@ -12,7 +12,7 @@ import io.jdbd.stmt.BindStatement;
 import io.jdbd.stmt.MultiStatement;
 import io.jdbd.stmt.PreparedStatement;
 import io.jdbd.stmt.StaticStatement;
-import io.jdbd.vendor.stmt.BatchStmt;
+import io.jdbd.vendor.stmt.StaticBatchStmt;
 import io.jdbd.vendor.stmt.StaticStmt;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -49,21 +49,21 @@ public interface ClientProtocol {
      * This method is underlying api of {@link StaticStatement#executeBatch(List)} method.
      * </p>
      */
-    Flux<ResultStates> batchUpdate(BatchStmt stmt);
+    Flux<ResultStates> batchUpdate(StaticBatchStmt stmt);
 
     /**
      * <p>
      * This method is underlying api of {@link StaticStatement#executeAsMulti(List)} method.
      * </p>
      */
-    MultiResult batchAsMulti(BatchStmt stmt);
+    MultiResult batchAsMulti(StaticBatchStmt stmt);
 
     /**
      * <p>
      * This method is underlying api of {@link StaticStatement#executeAsFlux(List)} method.
      * </p>
      */
-    Flux<Result> batchAsFlux(BatchStmt stmt);
+    Flux<Result> batchAsFlux(StaticBatchStmt stmt);
 
     Flux<Result> multiCommandAsFlux(StaticStmt stmt);
 
@@ -92,39 +92,39 @@ public interface ClientProtocol {
      * This method is one of underlying api of {@link BindStatement#executeBatch()} method.
      * </p>
      */
-    Flux<ResultStates> bindBatch(BatchBindStmt stmt);
+    Flux<ResultStates> bindBatch(BindBatchStmt stmt);
 
     /**
      * <p>
      * This method is one of underlying api of {@link BindStatement#executeBatchAsMulti()} method.
      * </p>
      */
-    MultiResult bindBatchAsMulti(BatchBindStmt stmt);
+    MultiResult bindBatchAsMulti(BindBatchStmt stmt);
 
     /**
      * <p>
      * This method is one of underlying api of {@link BindStatement#executeBatchAsFlux()} method.
      * </p>
      */
-    Flux<Result> bindBatchAsFlux(BatchBindStmt stmt);
+    Flux<Result> bindBatchAsFlux(BindBatchStmt stmt);
 
     /*################################## blow for multi stmt ##################################*/
 
-    Flux<ResultStates> multiStmtBatch(MultiBindStmt stmt);
+    Flux<ResultStates> multiStmtBatch(BindMultiStmt stmt);
 
     /**
      * <p>
      * This method is underlying api of {@link MultiStatement#executeBatchAsMulti()} method.
      * </p>
      */
-    MultiResult multiStmtAsMulti(MultiBindStmt stmt);
+    MultiResult multiStmtAsMulti(BindMultiStmt stmt);
 
     /**
      * <p>
      * This method is underlying api of {@link MultiStatement#executeBatchAsFlux()} method.
      * </p>
      */
-    Flux<Result> multiStmtAsFlux(MultiBindStmt stmt);
+    Flux<Result> multiStmtAsFlux(BindMultiStmt stmt);
 
     Mono<PreparedStatement> prepare(String sql, Function<PrepareStmtTask, PreparedStatement> function);
 

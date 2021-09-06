@@ -1,7 +1,7 @@
 package io.jdbd.postgre.protocol.client;
 
 import io.jdbd.postgre.PgType;
-import io.jdbd.postgre.stmt.BatchBindStmt;
+import io.jdbd.postgre.stmt.BindBatchStmt;
 import io.jdbd.postgre.stmt.BindStmt;
 import io.jdbd.postgre.stmt.BindValue;
 import io.jdbd.postgre.util.PgBinds;
@@ -26,7 +26,10 @@ import java.time.format.DateTimeFormatter;
 import java.util.Collections;
 import java.util.List;
 
-final class ExtendedBindWriter {
+/**
+ * @see <a href="https://www.postgresql.org/docs/current/protocol-message-formats.html">Bind</a>
+ */
+final class ExtendedBindWriterImpl {
 
 
     static Mono<Iterable<ByteBuf>> write(Stmt stmt, ExtendedStmtTask stmtTask) {
@@ -53,7 +56,7 @@ final class ExtendedBindWriter {
 
     private int paramIndex = 0;
 
-    private ExtendedBindWriter(final int batchIndex, final List<? extends ParamValue> bindGroup
+    private ExtendedBindWriterImpl(final int batchIndex, final List<? extends ParamValue> bindGroup
             , final ExtendedStmtTask stmtTask) {
         this.batchIndex = batchIndex;
         this.statementName = stmtTask.getStatementName();
@@ -108,6 +111,7 @@ final class ExtendedBindWriter {
 
     }
 
+
     /**
      * @see #writeCommand()
      */
@@ -118,6 +122,7 @@ final class ExtendedBindWriter {
             case INTEGER:
             case REAL:
             case DOUBLE:
+            case OID:
             case BIGINT:
             case BYTEA:
             case BOOLEAN:
@@ -141,15 +146,15 @@ final class ExtendedBindWriter {
 
         final ByteBuf message = this.message;
         try {
-            for (int i = this.paramIndex, valueLengthIndex, valueLength, valueEndIndex; i < paramCount; i++) {
+            for (int i = this.paramIndex, valueLengthIndex, valueEndIndex; i < paramCount; i++) {
                 final ParamValue paramValue = bindGroup.get(i);
-                final Object value = paramValue.getValue();
+                final Object value = paramValue.get();
                 if (value == null) {
                     message.writeInt(-1); //  -1 indicates a NULL parameter value
                     continue;
                 }
                 if (value instanceof Publisher) {
-                    continue;
+                    throw new IllegalStateException("TODO");
                 } else {
                     valueLengthIndex = message.writerIndex();
                     message.writeZero(4); // placeholder of parameter value length.
@@ -162,39 +167,40 @@ final class ExtendedBindWriter {
                     message.writerIndex(valueEndIndex);
                 }
             }
-        } catch (SQLException e) {
+        } catch (Throwable e) {
 
         }
 
     }
 
+
     private void writeNonNullBindValue(final PgType pgType, final ParamValue paramValue)
             throws SQLException, LocalFileException {
         switch (pgType) {
-            case SMALLINT: {
+            case SMALLINT: {// binary format
                 this.message.writeShort(PgBinds.bindNonNullToShort(this.batchIndex, pgType, paramValue));
             }
             break;
-            case INTEGER: {
+            case INTEGER: {// binary format
                 this.message.writeInt(PgBinds.bindNonNullToInt(this.batchIndex, pgType, paramValue));
             }
             break;
             case OID:
-            case BIGINT: {
+            case BIGINT: {// binary format
                 this.message.writeLong(PgBinds.bindNonNullToLong(this.batchIndex, pgType, paramValue));
             }
             break;
-            case REAL: {
+            case REAL: {// binary format
                 final float value = PgBinds.bindNonNullToFloat(this.batchIndex, pgType, paramValue);
                 this.message.writeInt(Float.floatToIntBits(value));
             }
             break;
-            case DOUBLE: {
+            case DOUBLE: {// binary format
                 final double value = PgBinds.bindNonNullToDouble(this.batchIndex, pgType, paramValue);
                 this.message.writeLong(Double.doubleToLongBits(value));
             }
             break;
-            case DECIMAL: {
+            case DECIMAL: {// text format
                 final String text = PgBinds.bindNonNullToDecimal(this.batchIndex, pgType, paramValue)
                         .toPlainString();
                 Messages.writeString(this.message, text, this.clientCharset);
@@ -370,7 +376,7 @@ final class ExtendedBindWriter {
         if (decideParameterFormatCode(pgType) != 1) {
             throw new IllegalStateException("format code error.");
         }
-        final Object nonNull = paramValue.getNonNullValue();
+        final Object nonNull = paramValue.getNonNull();
         final byte[] value;
         if (nonNull instanceof byte[]) {
             value = (byte[]) nonNull;
@@ -391,7 +397,7 @@ final class ExtendedBindWriter {
      */
     private void bindNonNullToLongString(PgType pgType, ParamValue paramValue)
             throws SQLException, LocalFileException {
-        if (paramValue.getNonNullValue() instanceof Path) {
+        if (paramValue.getNonNull() instanceof Path) {
             writePathWithString(pgType, paramValue);
         } else {
             final String text = PgBinds.bindNonNullToString(this.batchIndex, pgType, paramValue);
@@ -404,7 +410,7 @@ final class ExtendedBindWriter {
      * @see #bindNonNullToBytea(PgType, ParamValue)
      */
     private void writePathWithBinary(PgType pgType, ParamValue paramValue) {
-        try (FileChannel channel = FileChannel.open((Path) paramValue.getNonNullValue(), StandardOpenOption.READ)) {
+        try (FileChannel channel = FileChannel.open((Path) paramValue.getNonNull(), StandardOpenOption.READ)) {
             final long size = channel.size();
             final ByteBuf message = this.message;
             if (size >= message.maxWritableBytes()) {
@@ -424,7 +430,7 @@ final class ExtendedBindWriter {
     }
 
     private void writePathWithString(PgType pgType, ParamValue paramValue) throws LocalFileException {
-        try (FileChannel channel = FileChannel.open((Path) paramValue.getNonNullValue(), StandardOpenOption.READ)) {
+        try (FileChannel channel = FileChannel.open((Path) paramValue.getNonNull(), StandardOpenOption.READ)) {
             final long size = channel.size();
             final ByteBuf message = this.message;
             if (size >= message.maxWritableBytes()) {
@@ -455,9 +461,9 @@ final class ExtendedBindWriter {
     private static List<List<BindValue>> obtainParamGroupList(final Stmt stmt) {
         final List<List<BindValue>> groupList;
         if (stmt instanceof BindStmt) {
-            groupList = Collections.singletonList(((BindStmt) stmt).getParamGroup());
-        } else if (stmt instanceof BatchBindStmt) {
-            groupList = ((BatchBindStmt) stmt).getGroupList();
+            groupList = Collections.singletonList(((BindStmt) stmt).getBindGroup());
+        } else if (stmt instanceof BindBatchStmt) {
+            groupList = ((BindBatchStmt) stmt).getGroupList();
         } else {
             throw new IllegalArgumentException(String.format("Unsupported Stmt[%s]", stmt.getClass().getName()));
         }

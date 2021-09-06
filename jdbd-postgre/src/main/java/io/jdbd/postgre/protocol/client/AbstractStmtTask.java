@@ -235,6 +235,10 @@ abstract class AbstractStmtTask extends PgTask implements StmtTask {
 
     abstract boolean isResultSetPhase();
 
+    void handleSelectCommand(long rowCount) {
+        // sub class override.
+    }
+
     /**
      * @return true: read CommandComplete message end , false : more cumulate.
      */

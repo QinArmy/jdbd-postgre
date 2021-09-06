@@ -1,8 +1,11 @@
 package io.jdbd.mysql.session;
 
+import io.jdbd.JdbdSQLException;
+import io.jdbd.meta.SQLType;
 import io.jdbd.mysql.stmt.PrepareStmtTask;
 import io.jdbd.result.Result;
 import io.jdbd.result.ResultRow;
+import io.jdbd.result.ResultRowMeta;
 import io.jdbd.result.ResultStates;
 import io.jdbd.stmt.PreparedStatement;
 import io.jdbd.vendor.result.ReactorMultiResult;
@@ -10,6 +13,7 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.util.annotation.Nullable;
 
+import java.util.List;
 import java.util.function.Consumer;
 
 public final class ServerPreparedStatement<S extends MySQLDatabaseSession> extends MySQLStatement<S>
@@ -38,6 +42,16 @@ public final class ServerPreparedStatement<S extends MySQLDatabaseSession> exten
     @Override
     public void addBatch() {
 
+    }
+
+    @Override
+    public List<? extends SQLType> getParameterMeta() {
+        return null;
+    }
+
+    @Override
+    public ResultRowMeta getResultRowMeta() throws JdbdSQLException {
+        return null;
     }
 
     @Override

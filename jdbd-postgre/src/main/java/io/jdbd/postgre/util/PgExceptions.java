@@ -29,14 +29,14 @@ public abstract class PgExceptions extends JdbdExceptions {
 
     public static SQLException createBindIndexNotMatchError(int stmtIndex, int placeholderIndex, BindValue bindValue) {
         String m = String.format("Statement[%s] parameter placeholder number[%s] and bind index[%s] not match."
-                , stmtIndex, placeholderIndex, bindValue.getParamIndex());
+                , stmtIndex, placeholderIndex, bindValue.getIndex());
         return new SQLException(m);
     }
 
     public static SQLException createNotSupportBindTypeError(int stmtIndex, BindValue bindValue) {
         String m = String.format("Statement[%s] parameter[%s] java type[%s] couldn't bind to postgre type[%s]"
-                , stmtIndex, bindValue.getParamIndex()
-                , bindValue.getNonNullValue().getClass().getName(), bindValue.getType());
+                , stmtIndex, bindValue.getIndex()
+                , bindValue.getNonNull().getClass().getName(), bindValue.getType());
         return new SQLException(m);
     }
 

@@ -2,10 +2,10 @@ package io.jdbd.postgre.protocol.client;
 
 import io.jdbd.JdbdSQLException;
 import io.jdbd.postgre.PgJdbdException;
-import io.jdbd.postgre.stmt.BatchBindStmt;
+import io.jdbd.postgre.stmt.BindBatchStmt;
+import io.jdbd.postgre.stmt.BindMultiStmt;
 import io.jdbd.postgre.stmt.BindStmt;
 import io.jdbd.postgre.stmt.BindValue;
-import io.jdbd.postgre.stmt.MultiBindStmt;
 import io.jdbd.postgre.syntax.CopyIn;
 import io.jdbd.postgre.syntax.CopyOperation;
 import io.jdbd.postgre.syntax.CopyOut;
@@ -14,7 +14,7 @@ import io.jdbd.postgre.util.PgExceptions;
 import io.jdbd.stmt.BindableSingleStatement;
 import io.jdbd.stmt.ExportSubscriberFunctionException;
 import io.jdbd.stmt.StaticStatement;
-import io.jdbd.vendor.stmt.BatchStmt;
+import io.jdbd.vendor.stmt.StaticBatchStmt;
 import io.jdbd.vendor.stmt.StaticStmt;
 import io.jdbd.vendor.stmt.Stmt;
 import io.jdbd.vendor.util.FunctionWithError;
@@ -251,21 +251,21 @@ final class DefaultCopyOperationHandler implements CopyOperationHandler {
         if (bindIndex < 0) {
             path = copyOperation.getPath();
         } else if (stmt instanceof BindStmt) {
-            path = obtainPathFromParamGroup(((BindStmt) stmt).getParamGroup(), resultIndex, bindIndex);
-        } else if (stmt instanceof BatchBindStmt) {
-            final List<List<BindValue>> groupList = ((BatchBindStmt) stmt).getGroupList();
+            path = obtainPathFromParamGroup(((BindStmt) stmt).getBindGroup(), resultIndex, bindIndex);
+        } else if (stmt instanceof BindBatchStmt) {
+            final List<List<BindValue>> groupList = ((BindBatchStmt) stmt).getGroupList();
             if (resultIndex >= groupList.size()) {
                 // here  bug
                 throw new IllegalStateException(String.format("IllegalState can't found COPY command,%s", this));
             }
             path = obtainPathFromParamGroup(groupList.get(resultIndex), resultIndex, bindIndex);
-        } else if (stmt instanceof MultiBindStmt) {
-            final List<BindStmt> stmtGroup = ((MultiBindStmt) stmt).getStmtGroup();
+        } else if (stmt instanceof BindMultiStmt) {
+            final List<BindStmt> stmtGroup = ((BindMultiStmt) stmt).getStmtGroup();
             if (resultIndex >= stmtGroup.size()) {
                 // here  bug
                 throw new IllegalStateException(String.format("IllegalState can't found COPY command,%s", this));
             }
-            final List<BindValue> valueList = stmtGroup.get(resultIndex).getParamGroup();
+            final List<BindValue> valueList = stmtGroup.get(resultIndex).getBindGroup();
             path = obtainPathFromParamGroup(valueList, resultIndex, bindIndex);
         } else {
             throw new IllegalStateException(String.format("Can't obtain path from Stmt[%s].", stmt));
@@ -285,7 +285,7 @@ final class DefaultCopyOperationHandler implements CopyOperationHandler {
                     , resultIndex, bindIndex);
             throw new IllegalStateException(m);
         }
-        final Object value = valueList.get(bindIndex).getValue();
+        final Object value = valueList.get(bindIndex).get();
         if (!(value instanceof String)) {
             String className = value == null ? null : value.getClass().getName();
             String m = String.format("Statement[index:%s] can't obtain local file from bind type[%s],bind[index:%s]"
@@ -369,8 +369,8 @@ final class DefaultCopyOperationHandler implements CopyOperationHandler {
                         , StaticStatement.class.getName()));
             }
             function = stmt.getExportSubscriber();
-        } else if (stmt instanceof BatchStmt) {
-            final List<String> sqlGroup = ((BatchStmt) stmt).getSqlGroup();
+        } else if (stmt instanceof StaticBatchStmt) {
+            final List<String> sqlGroup = ((StaticBatchStmt) stmt).getSqlGroup();
             if (resultIndex != 0 || sqlGroup.size() != 1) {
                 throw new SQLException(String.format("COPY-OUT only is supported with single statement in %s"
                         , StaticStatement.class.getName()));
@@ -383,15 +383,15 @@ final class DefaultCopyOperationHandler implements CopyOperationHandler {
                         , BindableSingleStatement.class.getName()));
             }
             function = stmt.getExportSubscriber();
-        } else if (stmt instanceof BatchBindStmt) {
-            final List<List<BindValue>> groupList = ((BatchBindStmt) stmt).getGroupList();
+        } else if (stmt instanceof BindBatchStmt) {
+            final List<List<BindValue>> groupList = ((BindBatchStmt) stmt).getGroupList();
             if (resultIndex != 0 || groupList.size() != 1) {
                 throw new SQLException(String.format("COPY-OUT only is supported with single bind in %s"
                         , BindableSingleStatement.class.getName()));
             }
             function = stmt.getExportSubscriber();
-        } else if (stmt instanceof MultiBindStmt) {
-            final List<BindStmt> stmtGroup = ((MultiBindStmt) stmt).getStmtGroup();
+        } else if (stmt instanceof BindMultiStmt) {
+            final List<BindStmt> stmtGroup = ((BindMultiStmt) stmt).getStmtGroup();
             if (resultIndex >= stmtGroup.size()) {
                 // here 1. bug ; 2. postgre CALL command add new feature that CALL command can return multi CommendComplete message.
                 throw new SQLException("Not found Subscriber for COPY-OUT.");
@@ -447,20 +447,20 @@ final class DefaultCopyOperationHandler implements CopyOperationHandler {
                 throw new IllegalStateException(String.format("IllegalState can't found COPY command,%s", this));
             }
             copyOperation = function.apply(singleSqlList.get(resultIndex));
-        } else if (stmt instanceof BatchStmt) {
-            final List<String> sqlGroup = ((BatchStmt) stmt).getSqlGroup();
+        } else if (stmt instanceof StaticBatchStmt) {
+            final List<String> sqlGroup = ((StaticBatchStmt) stmt).getSqlGroup();
             if (resultIndex >= sqlGroup.size()) {
                 // here 1. bug ; 2. postgre CALL command add new feature that CALL command can return multi CommendComplete message.
                 throw new IllegalStateException(String.format("IllegalState can't found COPY command,%s", this));
             }
             copyOperation = function.apply(sqlGroup.get(resultIndex));
-        } else if (stmt instanceof BatchBindStmt) {
+        } else if (stmt instanceof BindBatchStmt) {
             CopyOperation cacheCopy = this.cacheCopyOperation;
             if (cacheCopy == null) {
-                cacheCopy = function.apply(((BatchBindStmt) stmt).getSql());
+                cacheCopy = function.apply(((BindBatchStmt) stmt).getSql());
                 this.cacheCopyOperation = cacheCopy;
             }
-            final List<List<BindValue>> groupList = ((BatchBindStmt) stmt).getGroupList();
+            final List<List<BindValue>> groupList = ((BindBatchStmt) stmt).getGroupList();
             if (resultIndex >= groupList.size()) {
                 // here 1. bug ; 2. postgre CALL command add new feature that CALL command can return multi CommendComplete message.
                 throw new SQLException(String.format("IllegalState can't found COPY command,%s", this));
@@ -474,8 +474,8 @@ final class DefaultCopyOperationHandler implements CopyOperationHandler {
                 throw new PgJdbdException(m);
             }
             copyOperation = function.apply(((BindStmt) stmt).getSql());
-        } else if (stmt instanceof MultiBindStmt) {
-            final List<BindStmt> stmtGroup = ((MultiBindStmt) stmt).getStmtGroup();
+        } else if (stmt instanceof BindMultiStmt) {
+            final List<BindStmt> stmtGroup = ((BindMultiStmt) stmt).getStmtGroup();
             if (resultIndex >= stmtGroup.size()) {
                 // here 1. bug ; 2. postgre CALL command add new feature that CALL command can return multi CommendComplete message.
                 throw new IllegalStateException(String.format("IllegalState can't found COPY command,%s", this));

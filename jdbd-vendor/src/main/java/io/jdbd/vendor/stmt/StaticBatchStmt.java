@@ -1,8 +1,10 @@
 package io.jdbd.vendor.stmt;
 
+import java.util.List;
+
 /**
  * <p>
- * This interface representing stmt have only one sql,and no parameter placeholder.
+ * This interface representing stmt have only multi sql,and no parameter placeholder.
  * This implementation of this interface is used by the implementation of below methods:
  * <u>
  * <li>{@link io.jdbd.stmt.StaticStatement#executeUpdate(String)}</li>
@@ -11,7 +13,8 @@ package io.jdbd.vendor.stmt;
  * </u>
  * </p>
  */
-public interface StaticStmt extends FetchAbleSingleStmt {
+public interface StaticBatchStmt extends Stmt {
 
+    List<String> getSqlGroup();
 
 }

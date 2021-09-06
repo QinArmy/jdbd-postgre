@@ -292,12 +292,12 @@ final class ComQueryCommandWriter {
 
                     BindValue bindValue = parameterGroup.get(j);
 
-                    if (bindValue.getParamIndex() != j) {
+                    if (bindValue.getIndex() != j) {
                         // hear invoker has bug
                         throw MySQLExceptions.createBindValueParamIndexNotMatchError(i, bindValue, j);
                     } else if (bindValue.isLongData() && !supportStream) {
                         throw MySQLExceptions.createUnsupportedParamTypeError(i, bindValue.getType(), bindValue);
-                    } else if (bindValue.getValue() == null || bindValue.getType() == MySQLType.NULL) {
+                    } else if (bindValue.get() == null || bindValue.getType() == MySQLType.NULL) {
                         packet.writeBytes(nullBytes);
                         continue;
                     }
@@ -332,7 +332,7 @@ final class ComQueryCommandWriter {
             , final ByteBuf currentPacket) throws SQLException, LongDataReadException {
 
         MySQLStatement stmt = this.adjutant.parse(bindableStmt.getSql());
-        final List<BindValue> parameterGroup = bindableStmt.getParamGroup();
+        final List<BindValue> parameterGroup = bindableStmt.getBindGroup();
         final int paramCount = parameterGroup.size();
 
         BindUtils.assertParamCountMatch(stmtIndex, stmt.getParamCount(), paramCount);
@@ -347,12 +347,12 @@ final class ComQueryCommandWriter {
         for (int i = 0; i < paramCount; i++) {
             packet.writeBytes(staticSqlList.get(i).getBytes(clientCharset));
             BindValue bindValue = parameterGroup.get(i);
-            if (bindValue.getParamIndex() != i) {
+            if (bindValue.getIndex() != i) {
                 // hear invoker has bug
                 throw MySQLExceptions.createBindValueParamIndexNotMatchError(stmtIndex, bindValue, i);
             } else if (bindValue.isLongData() && !supportStream) {
                 throw MySQLExceptions.createUnsupportedParamTypeError(stmtIndex, bindValue.getType(), bindValue);
-            } else if (bindValue.getValue() == null || bindValue.getType() == MySQLType.NULL) {
+            } else if (bindValue.get() == null || bindValue.getType() == MySQLType.NULL) {
                 packet.writeBytes(nullBytes);
                 continue;
             }
@@ -425,7 +425,7 @@ final class ComQueryCommandWriter {
                 newBuffer = bindToBytes(stmtIndex, bindValue, buffer, packetList);
                 break;
             case SET: {
-                if (bindValue.getValue() instanceof Set) {
+                if (bindValue.get() instanceof Set) {
                     bindToSetType(stmtIndex, bindValue, buffer);
                     newBuffer = buffer;
                 } else {
@@ -463,7 +463,7 @@ final class ComQueryCommandWriter {
     @Deprecated
     private ByteBuf bindToGeometry(final int stmtIndex, final BindValue bindValue, final ByteBuf packetBuffer
             , final List<ByteBuf> packetList) throws SQLException {
-        final Object nonNull = bindValue.getNonNullValue();
+        final Object nonNull = bindValue.getNonNull();
         ByteBuf packet = packetBuffer;
         if (nonNull instanceof byte[]
                 || nonNull instanceof InputStream
@@ -521,7 +521,7 @@ final class ComQueryCommandWriter {
      */
     private ByteBuf bindToSetType(final int stmtIndex, final BindValue bindValue, final ByteBuf packetBuffer)
             throws SQLException {
-        final Object nonNull = bindValue.getNonNullValue();
+        final Object nonNull = bindValue.getNonNull();
         if (!(nonNull instanceof Set)) {
             throw MySQLExceptions.createUnsupportedParamTypeError(stmtIndex, bindValue.getType(), bindValue);
         }
@@ -560,7 +560,7 @@ final class ComQueryCommandWriter {
      */
     private void bindToNumber(final int stmtIndex, final BindValue bindValue, final ByteBuf buffer)
             throws SQLException {
-        final Object nonNull = bindValue.getNonNullValue();
+        final Object nonNull = bindValue.getNonNull();
 
         final String text;
         if (nonNull instanceof String) {
@@ -594,7 +594,7 @@ final class ComQueryCommandWriter {
      */
     private void bindToBoolean(final int stmtIndex, final BindValue bindValue, final ByteBuf buffer)
             throws SQLException {
-        final Object nonNull = bindValue.getNonNullValue();
+        final Object nonNull = bindValue.getNonNull();
 
         final Boolean b;
         if (nonNull instanceof Boolean) {
@@ -619,7 +619,7 @@ final class ComQueryCommandWriter {
      */
     private ByteBuf bindToBytes(final int stmtIndex, final BindValue bindValue, final ByteBuf packetBuffer
             , final List<ByteBuf> packetList) throws SQLException, LongDataReadException {
-        final Object nonNull = bindValue.getNonNullValue();
+        final Object nonNull = bindValue.getNonNull();
 
         ByteBuf packet = packetBuffer;
         try {
@@ -679,7 +679,7 @@ final class ComQueryCommandWriter {
      */
     private void bindToTime(final int stmtIndex, final BindValue bindValue, final ByteBuf packetBuffer)
             throws SQLException {
-        final Object nonNull = bindValue.getNonNullValue();
+        final Object nonNull = bindValue.getNonNull();
 
         final String text;
         if (nonNull instanceof LocalTime) {
@@ -714,7 +714,7 @@ final class ComQueryCommandWriter {
      */
     private void bindToDate(final int stmtIndex, final BindValue bindValue, final ByteBuf packetBuffer)
             throws SQLException {
-        final Object nonNull = bindValue.getNonNullValue();
+        final Object nonNull = bindValue.getNonNull();
 
         final String text;
         if (nonNull instanceof LocalDate) {
@@ -739,7 +739,7 @@ final class ComQueryCommandWriter {
      */
     private void bindToDateTime(final int stmtIndex, final BindValue bindValue, final ByteBuf packetBuffer)
             throws SQLException {
-        final Object nonNull = bindValue.getNonNullValue();
+        final Object nonNull = bindValue.getNonNull();
 
         final String text;
         if (nonNull instanceof LocalDateTime) {

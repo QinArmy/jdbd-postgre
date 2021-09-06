@@ -1,8 +1,21 @@
 package io.jdbd.vendor.stmt;
 
-public interface PrepareStmt extends Stmt {
 
-     Stmt getStmt();
+/**
+ * <p>
+ * This interface representing adapter of:
+ *     <ul>
+ *         <li>{@link ParamStmt}</li>
+ *         <li>{@link ParamBatchStmt}</li>
+ *     </ul>
+ *     The implementation of this interface is used by underlying implementation of {@link io.jdbd.stmt.PreparedStatement}.
+ * </p>
+ *
+ * @see io.jdbd.DatabaseSession#prepare(String)
+ */
+public interface PrepareStmt extends SingleStmt {
+
+    ParamSingleStmt getStmt();
 
 
 }

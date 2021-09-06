@@ -8,7 +8,7 @@ import io.jdbd.postgre.stmt.*;
 import io.jdbd.postgre.util.PgTimes;
 import io.jdbd.result.*;
 import io.jdbd.stmt.SubscribeException;
-import io.jdbd.vendor.stmt.BatchStmt;
+import io.jdbd.vendor.stmt.StaticBatchStmt;
 import io.jdbd.vendor.stmt.StaticStmt;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -109,7 +109,7 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
     }
 
     /**
-     * @see SimpleQueryTask#batchUpdate(BatchStmt, TaskAdjutant)
+     * @see SimpleQueryTask#batchUpdate(StaticBatchStmt, TaskAdjutant)
      */
     @Test
     public void batchUpdate() {
@@ -154,7 +154,7 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
 
 
     /**
-     * @see SimpleQueryTask#batchAsMulti(BatchStmt, TaskAdjutant)
+     * @see SimpleQueryTask#batchAsMulti(StaticBatchStmt, TaskAdjutant)
      */
     @Test
     public void asMulti() {
@@ -198,7 +198,7 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
     }
 
     /**
-     * @see SimpleQueryTask#batchAsFlux(BatchStmt, TaskAdjutant)
+     * @see SimpleQueryTask#batchAsFlux(StaticBatchStmt, TaskAdjutant)
      */
     @Test
     public void asFlux() {
@@ -382,7 +382,7 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
     }
 
     /**
-     * @see SimpleQueryTask#bindableBatchUpdate(BatchBindStmt, TaskAdjutant)
+     * @see SimpleQueryTask#bindableBatchUpdate(BindBatchStmt, TaskAdjutant)
      */
     @Test
     public void bindableBatchUpdate() {
@@ -433,7 +433,7 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
     }
 
     /**
-     * @see SimpleQueryTask#bindableAsMulti(BatchBindStmt, TaskAdjutant)
+     * @see SimpleQueryTask#bindableAsMulti(BindBatchStmt, TaskAdjutant)
      */
     @Test
     public void bindableAsMultiForUpdate() {
@@ -496,7 +496,7 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
 
 
     /**
-     * @see SimpleQueryTask#bindableAsMulti(BatchBindStmt, TaskAdjutant)
+     * @see SimpleQueryTask#bindableAsMulti(BindBatchStmt, TaskAdjutant)
      */
     @Test
     public void bindableAsMultiForQuery() {
@@ -546,9 +546,9 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
             final List<BindValue> valueList = groupList.get(i);
 
             assertEquals(row.getResultIndex(), i, "resultIndex");
-            assertEquals(row.get("id", Long.class), valueList.get(1).getValue(), "id");
+            assertEquals(row.get("id", Long.class), valueList.get(1).get(), "id");
             final LocalTime resultTime = row.getNonNull("mytime", LocalTime.class);
-            final LocalTime bindTime = (LocalTime) valueList.get(0).getNonNullValue();
+            final LocalTime bindTime = (LocalTime) valueList.get(0).getNonNull();
 
             assertEquals(resultTime.getHour(), bindTime.getHour(), "hour");
             assertEquals(resultTime.getMinute(), bindTime.getMinute(), "minute");
@@ -580,7 +580,7 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
     }
 
     /**
-     * @see SimpleQueryTask#bindableAsFlux(BatchBindStmt, TaskAdjutant)
+     * @see SimpleQueryTask#bindableAsFlux(BindBatchStmt, TaskAdjutant)
      */
     @Test
     public void bindableAsFluxForUpdate() {
@@ -637,7 +637,7 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
     }
 
     /**
-     * @see SimpleQueryTask#bindableAsFlux(BatchBindStmt, TaskAdjutant)
+     * @see SimpleQueryTask#bindableAsFlux(BindBatchStmt, TaskAdjutant)
      */
     @Test
     public void bindableAsFluxForQuery() {
@@ -679,9 +679,9 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
             final List<BindValue> valueList = groupList.get(i);
 
             assertEquals(row.getResultIndex(), i, "resultIndex");
-            assertEquals(row.get("id", Long.class), valueList.get(1).getValue(), "id");
+            assertEquals(row.get("id", Long.class), valueList.get(1).get(), "id");
             final LocalTime resultTime = row.getNonNull("mytime", LocalTime.class);
-            final LocalTime bindTime = (LocalTime) valueList.get(0).getNonNullValue();
+            final LocalTime bindTime = (LocalTime) valueList.get(0).getNonNull();
 
             assertEquals(resultTime.getHour(), bindTime.getHour(), "hour");
             assertEquals(resultTime.getMinute(), bindTime.getMinute(), "minute");
@@ -712,7 +712,7 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
     }
 
     /**
-     * @see SimpleQueryTask#multiStmtAsMulti(MultiBindStmt, TaskAdjutant)
+     * @see SimpleQueryTask#multiStmtAsMulti(BindMultiStmt, TaskAdjutant)
      */
     @Test
     public void multiStmtAsMulti() {
@@ -752,13 +752,13 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
                 .switchIfEmpty(PgTestUtils.queryNoResponse())
                 .collectList()
                 .map(PgTestUtils::mapListToOne)
-                .map(PgTestUtils.assertRowIdFunction((Long) stmtList.get(0).getParamGroup().get(0).getNonNullValue()))
+                .map(PgTestUtils.assertRowIdFunction((Long) stmtList.get(0).getBindGroup().get(0).getNonNull()))
 
                 .thenMany(multiResult.nextQuery(secondStateHolder::set))
                 .switchIfEmpty(PgTestUtils.queryNoResponse())
                 .collectList()
                 .map(PgTestUtils::mapListToOne)
-                .map(PgTestUtils.assertRowIdFunction((Long) stmtList.get(1).getParamGroup().get(2).getNonNullValue()))
+                .map(PgTestUtils.assertRowIdFunction((Long) stmtList.get(1).getBindGroup().get(2).getNonNull()))
 
                 .then(Mono.from(multiResult.nextUpdate()))
                 .switchIfEmpty(PgTestUtils.updateNoResponse())
@@ -780,7 +780,7 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
     }
 
     /**
-     * @see SimpleQueryTask#multiStmtAsFlux(MultiBindStmt, TaskAdjutant)
+     * @see SimpleQueryTask#multiStmtAsFlux(BindMultiStmt, TaskAdjutant)
      */
     @Test
     public void multiStmtAsFlux() {
@@ -828,14 +828,14 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
 
         row = (ResultRow) resultList.get(0);
         assertEquals(row.getResultIndex(), 0, "resultIndex");
-        assertEquals(row.get("id"), stmtList.get(0).getParamGroup().get(0).getNonNullValue(), "stmt one id");
+        assertEquals(row.get("id"), stmtList.get(0).getBindGroup().get(0).getNonNull(), "stmt one id");
         state = (ResultStates) resultList.get(1);
         assertEquals(state.getResultIndex(), 0, "resultIndex");
         PgTestUtils.assertQueryStateWithMoreResult(state);
 
         row = (ResultRow) resultList.get(2);
         assertEquals(row.getResultIndex(), 1, "resultIndex");
-        assertEquals(row.get("id"), stmtList.get(1).getParamGroup().get(2).getNonNullValue(), "stmt two id");
+        assertEquals(row.get("id"), stmtList.get(1).getBindGroup().get(2).getNonNull(), "stmt two id");
         state = (ResultStates) resultList.get(3);
         assertEquals(state.getResultIndex(), 1, "resultIndex");
         PgTestUtils.assertUpdateOneAndReturningWithMoreResult(state);
@@ -843,8 +843,8 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
 
         row = (ResultRow) resultList.get(4);
         assertEquals(row.getResultIndex(), 2, "resultIndex");
-        assertEquals(row.get("id"), stmtList.get(2).getParamGroup().get(2).getNonNullValue(), "stmt three id");
-        assertEquals(row.get("myvarchar"), stmtList.get(2).getParamGroup().get(0).getNonNullValue(), "stmt three my_varchar");
+        assertEquals(row.get("id"), stmtList.get(2).getBindGroup().get(2).getNonNull(), "stmt three id");
+        assertEquals(row.get("myvarchar"), stmtList.get(2).getBindGroup().get(0).getNonNull(), "stmt three my_varchar");
         state = (ResultStates) resultList.get(5);
         assertEquals(state.getResultIndex(), 2, "resultIndex");
         PgTestUtils.assertUpdateOneAndReturningWithoutMoreResult(state);
@@ -994,7 +994,7 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
     }
 
     /**
-     * @see SimpleQueryTask#batchUpdate(BatchStmt, TaskAdjutant)
+     * @see SimpleQueryTask#batchUpdate(StaticBatchStmt, TaskAdjutant)
      */
     @Test(expectedExceptions = JdbdSQLException.class)
     public void batchUpdateInCorrectUserCase1() {
@@ -1023,7 +1023,7 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
     }
 
     /**
-     * @see SimpleQueryTask#batchUpdate(BatchStmt, TaskAdjutant)
+     * @see SimpleQueryTask#batchUpdate(StaticBatchStmt, TaskAdjutant)
      */
     @Test(expectedExceptions = SubscribeException.class)
     public void batchUpdateInCorrectUserCase2() {
@@ -1053,7 +1053,7 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
 
 
     /**
-     * @see SimpleQueryTask#batchUpdate(BatchStmt, TaskAdjutant)
+     * @see SimpleQueryTask#batchUpdate(StaticBatchStmt, TaskAdjutant)
      */
     @Test(expectedExceptions = JdbdSQLException.class)
     public void batchUpdateInCorrectUserCase3() {
@@ -1247,7 +1247,7 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
     }
 
     /**
-     * @see SimpleQueryTask#bindableBatchUpdate(BatchBindStmt, TaskAdjutant)
+     * @see SimpleQueryTask#bindableBatchUpdate(BindBatchStmt, TaskAdjutant)
      */
     @Test(expectedExceptions = JdbdSQLException.class)
     public void bindableBatchUpdateIncorrectUserCase1() {
@@ -1283,7 +1283,7 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
     }
 
     /**
-     * @see SimpleQueryTask#bindableBatchUpdate(BatchBindStmt, TaskAdjutant)
+     * @see SimpleQueryTask#bindableBatchUpdate(BindBatchStmt, TaskAdjutant)
      */
     @Test(expectedExceptions = JdbdSQLException.class)
     public void bindableBatchUpdateIncorrectUserCase2() {
@@ -1319,7 +1319,7 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
     }
 
     /**
-     * @see SimpleQueryTask#bindableBatchUpdate(BatchBindStmt, TaskAdjutant)
+     * @see SimpleQueryTask#bindableBatchUpdate(BindBatchStmt, TaskAdjutant)
      */
     @Test(expectedExceptions = SubscribeException.class)
     public void bindableBatchUpdateIncorrectUserCase3() {
@@ -1350,7 +1350,7 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
     }
 
     /**
-     * @see SimpleQueryTask#bindableAsMulti(BatchBindStmt, TaskAdjutant)
+     * @see SimpleQueryTask#bindableAsMulti(BindBatchStmt, TaskAdjutant)
      */
     @Test(expectedExceptions = JdbdSQLException.class)
     public void bindableAsMultiIncorrectUserCase1() {

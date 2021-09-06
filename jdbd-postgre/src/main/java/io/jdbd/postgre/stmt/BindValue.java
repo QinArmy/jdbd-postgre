@@ -16,11 +16,11 @@ public final class BindValue extends JdbdParamValue implements IBindValue {
     }
 
     public static BindValue wrap(BindValue bindValue, PgType newType) {
-        return new BindValue(bindValue.getParamIndex(), newType, bindValue.getValue());
+        return new BindValue(bindValue.getIndex(), newType, bindValue.get());
     }
 
     public static BindValue wrap(PgType pgType, ParamValue paramValue) {
-        return new BindValue(paramValue.getParamIndex(), pgType, paramValue.getValue());
+        return new BindValue(paramValue.getIndex(), pgType, paramValue.get());
     }
 
     private final PgType pgType;

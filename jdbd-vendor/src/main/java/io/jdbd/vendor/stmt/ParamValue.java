@@ -4,15 +4,15 @@ import io.jdbd.lang.Nullable;
 
 public interface ParamValue {
 
-    int getParamIndex();
+    int getIndex();
 
     default boolean isLongData() {
         return false;
     }
 
     @Nullable
-    Object getValue();
+    Object get();
 
-    Object getNonNullValue() throws NullPointerException;
+    Object getNonNull() throws NullPointerException;
 
 }

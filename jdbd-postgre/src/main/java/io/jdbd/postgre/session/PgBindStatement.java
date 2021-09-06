@@ -5,7 +5,7 @@ import io.jdbd.JdbdSQLException;
 import io.jdbd.meta.SQLType;
 import io.jdbd.postgre.PgJdbdException;
 import io.jdbd.postgre.PgType;
-import io.jdbd.postgre.stmt.BatchBindStmt;
+import io.jdbd.postgre.stmt.BindBatchStmt;
 import io.jdbd.postgre.stmt.BindStmt;
 import io.jdbd.postgre.stmt.BindValue;
 import io.jdbd.postgre.stmt.PgStmts;
@@ -178,7 +178,7 @@ final class PgBindStatement extends PgStatement implements BindStatement {
         if (this.paramGroupList.isEmpty()) {
             flux = Flux.error(PgExceptions.noAnyParamGroupError());
         } else {
-            BatchBindStmt stmt = PgStmts.bindableBatch(this.sql, this.paramGroupList, this);
+            BindBatchStmt stmt = PgStmts.bindableBatch(this.sql, this.paramGroupList, this);
             flux = this.session.protocol.bindBatch(stmt);
         }
         return flux;
@@ -190,7 +190,7 @@ final class PgBindStatement extends PgStatement implements BindStatement {
         if (this.paramGroupList.isEmpty()) {
             result = MultiResults.error(PgExceptions.noAnyParamGroupError());
         } else {
-            BatchBindStmt stmt = PgStmts.bindableBatch(this.sql, this.paramGroupList, this);
+            BindBatchStmt stmt = PgStmts.bindableBatch(this.sql, this.paramGroupList, this);
             result = this.session.protocol.bindBatchAsMulti(stmt);
         }
         return result;
@@ -202,7 +202,7 @@ final class PgBindStatement extends PgStatement implements BindStatement {
         if (this.paramGroupList.isEmpty()) {
             flux = Flux.error(PgExceptions.noAnyParamGroupError());
         } else {
-            BatchBindStmt stmt = PgStmts.bindableBatch(this.sql, this.paramGroupList, this);
+            BindBatchStmt stmt = PgStmts.bindableBatch(this.sql, this.paramGroupList, this);
             flux = this.session.protocol.bindBatchAsFlux(stmt);
         }
         return flux;

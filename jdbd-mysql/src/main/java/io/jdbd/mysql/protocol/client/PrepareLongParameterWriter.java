@@ -82,20 +82,20 @@ final class PrepareLongParameterWriter implements PrepareExecuteCommandWriter.Lo
      * @see #write(int, List)
      */
     private Flux<ByteBuf> sendLongData(final int stmtIndex, final ParamValue paramValue) {
-        final Object value = paramValue.getNonNullValue();
+        final Object value = paramValue.getNonNull();
 
         final Flux<ByteBuf> flux;
         if (value instanceof byte[]) {
-            flux = sendByteArrayParameter(paramValue.getParamIndex(), (byte[]) value);
+            flux = sendByteArrayParameter(paramValue.getIndex(), (byte[]) value);
         } else if (value instanceof String) {
-            flux = sendStringParameter(paramValue.getParamIndex(), (String) value);
+            flux = sendStringParameter(paramValue.getIndex(), (String) value);
         } else if (value instanceof Path) {
-            flux = sendPathParameter(stmtIndex, paramValue.getParamIndex(), (Path) value);
+            flux = sendPathParameter(stmtIndex, paramValue.getIndex(), (Path) value);
         } else if (value instanceof Publisher) {
-            flux = sendPublisher(stmtIndex, paramValue.getParamIndex(), (Publisher<?>) value);
+            flux = sendPublisher(stmtIndex, paramValue.getIndex(), (Publisher<?>) value);
         } else {
             MySQLColumnMeta[] paramMetaArray = this.statementTask.obtainParameterMetas();
-            MySQLType mySQLType = paramMetaArray[paramValue.getParamIndex()].mysqlType;
+            MySQLType mySQLType = paramMetaArray[paramValue.getIndex()].mysqlType;
             flux = Flux.error(MySQLExceptions.createUnsupportedParamTypeError(stmtIndex, mySQLType, paramValue));
         }
         return flux;

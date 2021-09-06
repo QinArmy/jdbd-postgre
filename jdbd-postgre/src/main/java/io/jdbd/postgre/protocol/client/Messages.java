@@ -45,6 +45,7 @@ abstract class Messages {
     /**
      * <ul>
      *     <li>CommandComplete</li>
+     *     <li>Close</li>
      * </ul>
      */
     static final byte C = 'C';
@@ -74,6 +75,7 @@ abstract class Messages {
     /**
      * <ul>
      *     <li>ErrorResponse</li>
+     *     <li>Execute</li>
      * </ul>
      */
     static final byte E = 'E';

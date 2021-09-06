@@ -1,15 +1,15 @@
 package io.jdbd.postgre.protocol.client;
 
-import io.jdbd.postgre.stmt.BatchBindStmt;
+import io.jdbd.postgre.stmt.BindBatchStmt;
+import io.jdbd.postgre.stmt.BindMultiStmt;
 import io.jdbd.postgre.stmt.BindStmt;
-import io.jdbd.postgre.stmt.MultiBindStmt;
 import io.jdbd.postgre.stmt.PrepareStmtTask;
 import io.jdbd.result.MultiResult;
 import io.jdbd.result.Result;
 import io.jdbd.result.ResultRow;
 import io.jdbd.result.ResultStates;
 import io.jdbd.stmt.PreparedStatement;
-import io.jdbd.vendor.stmt.BatchStmt;
+import io.jdbd.vendor.stmt.StaticBatchStmt;
 import io.jdbd.vendor.stmt.StaticStmt;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -48,17 +48,17 @@ final class ClientProtocolImpl implements ClientProtocol {
     }
 
     @Override
-    public final Flux<ResultStates> batchUpdate(BatchStmt stmt) {
+    public final Flux<ResultStates> batchUpdate(StaticBatchStmt stmt) {
         return SimpleQueryTask.batchUpdate(stmt, this.adjutant);
     }
 
     @Override
-    public final MultiResult batchAsMulti(BatchStmt stmt) {
+    public final MultiResult batchAsMulti(StaticBatchStmt stmt) {
         return SimpleQueryTask.batchAsMulti(stmt, this.adjutant);
     }
 
     @Override
-    public final Flux<Result> batchAsFlux(BatchStmt stmt) {
+    public final Flux<Result> batchAsFlux(StaticBatchStmt stmt) {
         return SimpleQueryTask.batchAsFlux(stmt, this.adjutant);
     }
 
@@ -78,32 +78,32 @@ final class ClientProtocolImpl implements ClientProtocol {
     }
 
     @Override
-    public final Flux<ResultStates> bindBatch(BatchBindStmt stmt) {
+    public final Flux<ResultStates> bindBatch(BindBatchStmt stmt) {
         return SimpleQueryTask.bindableBatchUpdate(stmt, this.adjutant);
     }
 
     @Override
-    public final MultiResult bindBatchAsMulti(BatchBindStmt stmt) {
+    public final MultiResult bindBatchAsMulti(BindBatchStmt stmt) {
         return SimpleQueryTask.bindableAsMulti(stmt, this.adjutant);
     }
 
     @Override
-    public final Flux<Result> bindBatchAsFlux(BatchBindStmt stmt) {
+    public final Flux<Result> bindBatchAsFlux(BindBatchStmt stmt) {
         return SimpleQueryTask.bindableAsFlux(stmt, this.adjutant);
     }
 
     @Override
-    public final Flux<ResultStates> multiStmtBatch(MultiBindStmt stmt) {
+    public final Flux<ResultStates> multiStmtBatch(BindMultiStmt stmt) {
         return SimpleQueryTask.multiStmtBatch(stmt, this.adjutant);
     }
 
     @Override
-    public final MultiResult multiStmtAsMulti(MultiBindStmt stmt) {
+    public final MultiResult multiStmtAsMulti(BindMultiStmt stmt) {
         return SimpleQueryTask.multiStmtAsMulti(stmt, this.adjutant);
     }
 
     @Override
-    public final Flux<Result> multiStmtAsFlux(MultiBindStmt stmt) {
+    public final Flux<Result> multiStmtAsFlux(BindMultiStmt stmt) {
         return SimpleQueryTask.multiStmtAsFlux(stmt, this.adjutant);
     }
 

@@ -1453,7 +1453,7 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
                 this.fetchSize = -1;
             }
             this.resultSetReader = this.createResultSetReader();
-            this.parameterGroup = wrapper.getParamGroup();
+            this.parameterGroup = wrapper.getBindGroup();
             this.sink = sink;
             this.statesConsumer = wrapper.getStatusConsumer();
         }
@@ -1618,7 +1618,7 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
          */
         private UpdateDownstreamSink(final ComPreparedTask task, ParamStmt wrapper, MonoSink<ResultStates> sink) {
             super(task);
-            this.group = wrapper.getParamGroup();
+            this.group = wrapper.getBindGroup();
             this.sink = sink;
         }
 

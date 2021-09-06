@@ -37,23 +37,23 @@ public abstract class PgStmts extends JdbdStmts {
         return new BindStmtMin(sql, param);
     }
 
-    public static BatchBindStmt bindableBatch(String sql, List<List<BindValue>> groupList) {
-        return new BatchBindStmtImpl(sql, groupList, 0);
+    public static BindBatchStmt bindableBatch(String sql, List<List<BindValue>> groupList) {
+        return new BindBatchStmtImpl(sql, groupList, 0);
     }
 
-    public static BatchBindStmt bindableBatch(String sql, List<List<BindValue>> groupList, StatementOption option) {
-        return new BatchBindStmtImpl(sql, groupList, 0);
+    public static BindBatchStmt bindableBatch(String sql, List<List<BindValue>> groupList, StatementOption option) {
+        return new BindBatchStmtImpl(sql, groupList, 0);
     }
 
-    public static BatchBindStmt bindableBatch(String sql, List<List<BindValue>> groupList, int timeout) {
-        return new BatchBindStmtImpl(sql, groupList, timeout);
+    public static BindBatchStmt bindableBatch(String sql, List<List<BindValue>> groupList, int timeout) {
+        return new BindBatchStmtImpl(sql, groupList, timeout);
     }
 
-    public static MultiBindStmt multi(List<BindStmt> stmtGroup) {
+    public static BindMultiStmt multi(List<BindStmt> stmtGroup) {
         return new MultiBindStmtMin(stmtGroup);
     }
 
-    public static MultiBindStmt multi(List<BindStmt> stmtGroup, StatementOption option) {
+    public static BindMultiStmt multi(List<BindStmt> stmtGroup, StatementOption option) {
         return new MultiBindStmtFull(stmtGroup, option);
     }
 
@@ -83,7 +83,7 @@ public abstract class PgStmts extends JdbdStmts {
         }
 
         @Override
-        public final List<BindValue> getParamGroup() {
+        public final List<BindValue> getBindGroup() {
             return this.paramGroup;
         }
 
@@ -204,7 +204,7 @@ public abstract class PgStmts extends JdbdStmts {
     }
 
 
-    private static final class BatchBindStmtImpl implements BatchBindStmt {
+    private static final class BindBatchStmtImpl implements BindBatchStmt {
 
         private final String sql;
 
@@ -213,7 +213,7 @@ public abstract class PgStmts extends JdbdStmts {
         private final int timeout;
 
 
-        private BatchBindStmtImpl(String sql, List<List<BindValue>> groupList, int timeout) {
+        private BindBatchStmtImpl(String sql, List<List<BindValue>> groupList, int timeout) {
             this.sql = sql;
             this.groupList = Collections.unmodifiableList(groupList);
             this.timeout = timeout;
@@ -237,7 +237,7 @@ public abstract class PgStmts extends JdbdStmts {
 
     }
 
-    private static class MultiBindStmtMin implements MultiBindStmt {
+    private static class MultiBindStmtMin implements BindMultiStmt {
 
         private final List<BindStmt> stmtGroup;
 

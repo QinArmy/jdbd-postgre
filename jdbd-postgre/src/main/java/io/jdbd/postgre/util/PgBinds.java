@@ -281,7 +281,7 @@ public abstract class PgBinds extends JdbdBinds {
 
     public static String bindNonNullToBit(final int batchIndex, PgType pgType, ParamValue paramValue)
             throws SQLException {
-        final Object nonNull = paramValue.getNonNullValue();
+        final Object nonNull = paramValue.getNonNull();
         final String value;
         if (nonNull instanceof BitSet) {
             value = PgStrings.bitSetToBitString((BitSet) nonNull, false);
@@ -306,7 +306,7 @@ public abstract class PgBinds extends JdbdBinds {
 
     public static String bindNonNullToInterval(final int batchIndex, PgType pgType, ParamValue paramValue)
             throws SQLException {
-        final Object nonNull = paramValue.getNonNullValue();
+        final Object nonNull = paramValue.getNonNull();
         final String value;
         if (nonNull instanceof Duration
                 || nonNull instanceof Period
@@ -327,7 +327,7 @@ public abstract class PgBinds extends JdbdBinds {
 
     public static boolean bindNonNullToBoolean(final int batchIndex, PgType pgType, ParamValue paramValue)
             throws SQLException {
-        final Object nonNull = paramValue.getNonNullValue();
+        final Object nonNull = paramValue.getNonNull();
         final boolean value;
         if (nonNull instanceof Boolean) {
             value = (Boolean) nonNull;
@@ -363,7 +363,7 @@ public abstract class PgBinds extends JdbdBinds {
         if (pgType.jdbcType() != JDBCType.ARRAY) {
             throw new IllegalArgumentException(String.format("pgType[%s] isn't array type", pgType));
         }
-        final Object nonNull = paramValue.getNonNullValue();
+        final Object nonNull = paramValue.getNonNull();
         if (!nonNull.getClass().isArray()) {
             throw JdbdExceptions.createNonSupportBindSqlTypeError(batchIndex, pgType, paramValue);
         }
@@ -432,7 +432,7 @@ public abstract class PgBinds extends JdbdBinds {
 
     public static String bindNonNullToByteaArray(final int batchIndex, PgType pgType, ParamValue paramValue)
             throws SQLException {
-        final Object nonNull = paramValue.getNonNullValue();
+        final Object nonNull = paramValue.getNonNull();
         if (!nonNull.getClass().isArray()) {
             throw JdbdExceptions.createNonSupportBindSqlTypeError(batchIndex, pgType, paramValue);
         }

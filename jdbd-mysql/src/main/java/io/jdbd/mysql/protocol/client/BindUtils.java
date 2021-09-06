@@ -37,7 +37,7 @@ abstract class BindUtils extends JdbdBinds {
     static long bindToBits(final int stmtIndex, MySQLType mySQLType, ParamValue bindValue
             , Charset clientCharset)
             throws JdbdSQLException {
-        final Object nonNull = bindValue.getNonNullValue();
+        final Object nonNull = bindValue.getNonNull();
 
         final long bits;
         if (nonNull instanceof Long) {

@@ -59,12 +59,12 @@ public abstract class JdbdBinds {
     public static JdbdSQLException sortAndCheckParamGroup(final int groupIndex
             , final List<? extends ParamValue> paramGroup) {
 
-        paramGroup.sort(Comparator.comparingInt(ParamValue::getParamIndex));
+        paramGroup.sort(Comparator.comparingInt(ParamValue::getIndex));
 
         JdbdSQLException error = null;
         final int size = paramGroup.size();
         for (int i = 0, index; i < size; i++) {
-            index = paramGroup.get(i).getParamIndex();
+            index = paramGroup.get(i).getIndex();
             if (index == i) {
                 continue;
             }
@@ -82,7 +82,7 @@ public abstract class JdbdBinds {
 
     public static short bindNonNullToShort(final int batchIndex, SQLType sqlType, ParamValue paramValue)
             throws SQLException {
-        final Object nonNull = paramValue.getNonNullValue();
+        final Object nonNull = paramValue.getNonNull();
         final short value;
 
         if (nonNull instanceof String) {
@@ -136,7 +136,7 @@ public abstract class JdbdBinds {
     public static int bindNonNullToInt(final int batchIndex, SQLType sqlType, ParamValue paramValue)
             throws SQLException {
 
-        final Object nonNull = paramValue.getNonNullValue();
+        final Object nonNull = paramValue.getNonNull();
         final int value;
         if (nonNull instanceof String) {
             int i;
@@ -182,7 +182,7 @@ public abstract class JdbdBinds {
 
     public static long bindNonNullToLong(final int batchIndex, SQLType sqlType, ParamValue paramValue)
             throws SQLException {
-        final Object nonNull = paramValue.getNonNullValue();
+        final Object nonNull = paramValue.getNonNull();
         final long value;
         if (nonNull instanceof String) {
             long v;
@@ -222,7 +222,7 @@ public abstract class JdbdBinds {
 
     public static BigInteger bindToBigInteger(final int batchIndex, SQLType sqlType, ParamValue paramValue)
             throws SQLException {
-        final Object nonNull = paramValue.getNonNullValue();
+        final Object nonNull = paramValue.getNonNull();
 
         final BigInteger value;
         if (nonNull instanceof BigInteger) {
@@ -255,7 +255,7 @@ public abstract class JdbdBinds {
 
     public static BigDecimal bindNonNullToDecimal(final int batchIndex, SQLType sqlType, ParamValue paramValue)
             throws SQLException {
-        final Object nonNull = paramValue.getNonNullValue();
+        final Object nonNull = paramValue.getNonNull();
 
         final BigDecimal value;
         if (nonNull instanceof BigDecimal) {
@@ -286,7 +286,7 @@ public abstract class JdbdBinds {
 
     public static float bindNonNullToFloat(final int batchIndex, SQLType sqlType, ParamValue paramValue)
             throws SQLException {
-        final Object nonNull = paramValue.getNonNullValue();
+        final Object nonNull = paramValue.getNonNull();
         final float value;
         if (nonNull instanceof Float) {
             value = (Float) nonNull;
@@ -307,7 +307,7 @@ public abstract class JdbdBinds {
 
     public static double bindNonNullToDouble(final int batchIndex, SQLType sqlType, ParamValue paramValue)
             throws SQLException {
-        final Object nonNull = paramValue.getNonNullValue();
+        final Object nonNull = paramValue.getNonNull();
         final double value;
         if (nonNull instanceof Float
                 || nonNull instanceof Double) {
@@ -328,7 +328,7 @@ public abstract class JdbdBinds {
 
     public static String bindNonNullToString(final int batchIndex, SQLType sqlType, ParamValue paramValue)
             throws SQLException {
-        final Object nonNull = paramValue.getNonNullValue();
+        final Object nonNull = paramValue.getNonNull();
         final String value;
 
         if (nonNull instanceof String) {
@@ -349,7 +349,7 @@ public abstract class JdbdBinds {
 
     public static LocalDate bindNonNullToLocalDate(final int batchIndex, SQLType sqlType, ParamValue paramValue)
             throws SQLException {
-        final Object nonNull = paramValue.getNonNullValue();
+        final Object nonNull = paramValue.getNonNull();
         final LocalDate value;
         if (nonNull instanceof LocalDate) {
             value = (LocalDate) nonNull;
@@ -369,7 +369,7 @@ public abstract class JdbdBinds {
 
     public static LocalTime bindNonNullToLocalTime(final int batchIndex, SQLType sqlType, ParamValue paramValue)
             throws SQLException {
-        final Object nonNull = paramValue.getNonNullValue();
+        final Object nonNull = paramValue.getNonNull();
         final LocalTime value;
         if (nonNull instanceof LocalTime) {
             value = (LocalTime) nonNull;
@@ -389,7 +389,7 @@ public abstract class JdbdBinds {
 
     public static LocalDateTime bindNonNullToLocalDateTime(final int batchIndex, SQLType sqlType, ParamValue paramValue)
             throws SQLException {
-        final Object nonNull = paramValue.getNonNullValue();
+        final Object nonNull = paramValue.getNonNull();
         final LocalDateTime value;
         if (nonNull instanceof LocalDateTime) {
             value = (LocalDateTime) nonNull;
@@ -409,7 +409,7 @@ public abstract class JdbdBinds {
 
     public static OffsetTime bindNonNullToOffsetTime(final int batchIndex, SQLType sqlType, ParamValue paramValue)
             throws SQLException {
-        final Object nonNull = paramValue.getNonNullValue();
+        final Object nonNull = paramValue.getNonNull();
         final OffsetTime value;
         if (nonNull instanceof OffsetTime) {
             value = (OffsetTime) nonNull;
@@ -429,7 +429,7 @@ public abstract class JdbdBinds {
 
     public static OffsetDateTime bindNonNullToOffsetDateTime(final int batchIndex, SQLType sqlType, ParamValue paramValue)
             throws SQLException {
-        final Object nonNull = paramValue.getNonNullValue();
+        final Object nonNull = paramValue.getNonNull();
         final OffsetDateTime value;
         if (nonNull instanceof OffsetDateTime) {
             value = (OffsetDateTime) nonNull;

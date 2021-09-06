@@ -7,7 +7,7 @@ import java.util.List;
 public interface BindStmt extends ParamStmt {
 
     @Override
-    List<BindValue> getParamGroup();
+    List<BindValue> getBindGroup();
 
 
 }

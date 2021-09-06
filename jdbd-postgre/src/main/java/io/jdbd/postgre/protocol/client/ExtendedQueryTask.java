@@ -2,7 +2,7 @@ package io.jdbd.postgre.protocol.client;
 
 import io.jdbd.JdbdException;
 import io.jdbd.postgre.PgType;
-import io.jdbd.postgre.stmt.BatchBindStmt;
+import io.jdbd.postgre.stmt.BindBatchStmt;
 import io.jdbd.postgre.stmt.BindStmt;
 import io.jdbd.postgre.stmt.PrepareStmtTask;
 import io.jdbd.postgre.util.PgCollections;
@@ -21,7 +21,6 @@ import reactor.core.publisher.Mono;
 import reactor.core.publisher.MonoSink;
 import reactor.util.annotation.Nullable;
 
-import java.nio.charset.Charset;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
@@ -56,7 +55,7 @@ final class ExtendedQueryTask extends AbstractStmtTask implements PrepareStmtTas
         });
     }
 
-    static Flux<ResultStates> batchUpdate(BatchBindStmt stmt, TaskAdjutant adjutant) {
+    static Flux<ResultStates> batchUpdate(BindBatchStmt stmt, TaskAdjutant adjutant) {
         return MultiResults.batchUpdate(sink -> {
             try {
                 ExtendedQueryTask task = new ExtendedQueryTask(sink, stmt, adjutant);
@@ -67,7 +66,7 @@ final class ExtendedQueryTask extends AbstractStmtTask implements PrepareStmtTas
         });
     }
 
-    static MultiResult batchAsMulti(BatchBindStmt stmt, TaskAdjutant adjutant) {
+    static MultiResult batchAsMulti(BindBatchStmt stmt, TaskAdjutant adjutant) {
         return MultiResults.asMulti(adjutant, sink -> {
             try {
                 ExtendedQueryTask task = new ExtendedQueryTask(sink, stmt, adjutant);
@@ -78,7 +77,7 @@ final class ExtendedQueryTask extends AbstractStmtTask implements PrepareStmtTas
         });
     }
 
-    static Flux<Result> batchAsFlux(BatchBindStmt stmt, TaskAdjutant adjutant) {
+    static Flux<Result> batchAsFlux(BindBatchStmt stmt, TaskAdjutant adjutant) {
         return MultiResults.asFlux(sink -> {
             try {
                 ExtendedQueryTask task = new ExtendedQueryTask(sink, stmt, adjutant);
@@ -128,11 +127,11 @@ final class ExtendedQueryTask extends AbstractStmtTask implements PrepareStmtTas
     }
 
     /**
-     * @see #batchUpdate(BatchBindStmt, TaskAdjutant)
-     * @see #batchAsMulti(BatchBindStmt, TaskAdjutant)
-     * @see #batchAsFlux(BatchBindStmt, TaskAdjutant)
+     * @see #batchUpdate(BindBatchStmt, TaskAdjutant)
+     * @see #batchAsMulti(BindBatchStmt, TaskAdjutant)
+     * @see #batchAsFlux(BindBatchStmt, TaskAdjutant)
      */
-    private ExtendedQueryTask(FluxResultSink sink, BatchBindStmt stmt, TaskAdjutant adjutant) throws SQLException {
+    private ExtendedQueryTask(FluxResultSink sink, BindBatchStmt stmt, TaskAdjutant adjutant) throws SQLException {
         super(adjutant, sink, stmt);
         this.prepareName = "";
         this.replacedSql = replacePlaceholder(stmt.getSql());
@@ -228,6 +227,11 @@ final class ExtendedQueryTask extends AbstractStmtTask implements PrepareStmtTas
     /*################################## blow ExtendedStmtTask method ##################################*/
 
     @Override
+    public final ParamSingleStmt getStmt() {
+        return (ParamSingleStmt) this.stmt;
+    }
+
+    @Override
     public final String getNewPortalName() {
         return null;
     }
@@ -243,26 +247,14 @@ final class ExtendedQueryTask extends AbstractStmtTask implements PrepareStmtTas
     }
 
     @Override
+    public final void appendDescribePortalMessage(List<ByteBuf> messageList) {
+        appendDescribeMessage(messageList, false);
+    }
+
+    @Override
     protected final Publisher<ByteBuf> start() {
-        Publisher<ByteBuf> publisher;
-        try {
-            final Stmt stmt = this.stmt;
-            if (stmt instanceof PgPrepareStmt) {
-                final List<ByteBuf> messageList = new ArrayList<>(2);
-                messageList.add(createParseMessage(((PgPrepareStmt) stmt).sql));
-                writeDescribeMessage(messageList, true);
-                writeSyncMessage(messageList); // TODO why send sync message.
-                publisher = Flux.fromIterable(messageList);
-                this.phase = Phase.READ_PREPARE_RESPONSE;
-            } else {
-                throw new IllegalStateException("TODO");
-            }
-        } catch (Throwable e) {
-            publisher = null;
-            this.phase = Phase.END;
-            this.sink.error(PgExceptions.wrapIfNonJvmFatal(e));
-        }
-        return publisher;
+
+        return null;
     }
 
 
@@ -432,7 +424,7 @@ final class ExtendedQueryTask extends AbstractStmtTask implements PrepareStmtTas
      * @see #executeBatchAsMultiInEventLoop(FluxResultSink, ParamBatchStmt)
      * @see #executeBatchAsFluxInEventLoop(FluxResultSink, ParamBatchStmt)
      */
-    private boolean prepareForPrepareBind(final FluxResultSink sink, final Stmt stmt) {
+    private boolean prepareForPrepareBind(final FluxResultSink sink, final ParamSingleStmt stmt) {
         JdbdException error = null;
         switch (this.phase) {
             case WAIT_FOR_BIND: {
@@ -512,91 +504,6 @@ final class ExtendedQueryTask extends AbstractStmtTask implements PrepareStmtTas
             sql = builder.toString();
         }
         return sql;
-    }
-
-
-    /**
-     * @see #start()
-     * @see <a href="https://www.postgresql.org/docs/current/protocol-message-formats.html">Parse</a>
-     */
-    private ByteBuf createParseMessage(final String originalSql) throws SQLException {
-        final Charset charset = this.adjutant.clientCharset();
-
-        final byte[] replacedSqlBytes = replacePlaceholder(originalSql).getBytes(charset);
-        final ByteBuf message = this.adjutant.allocator().buffer(7 + replacedSqlBytes.length);
-        //  write Parse message
-        message.writeByte(Messages.P);
-        message.writeZero(Messages.LENGTH_BYTES); // placeholder of length
-        // write name of the destination prepared statement
-        if (!this.prepareName.isEmpty()) {
-            message.writeBytes(this.prepareName.getBytes(charset));
-        }
-        message.writeByte(Messages.STRING_TERMINATOR);
-        // write The query string to be parsed.
-        message.writeBytes(replacedSqlBytes);
-        message.writeByte(Messages.STRING_TERMINATOR);
-
-        Messages.writeLength(message);
-        return message;
-    }
-
-    /**
-     * @see #start()
-     * @see <a href="https://www.postgresql.org/docs/current/protocol-message-formats.html">Describe</a>
-     */
-    private void writeDescribeMessage(final List<ByteBuf> messageList, final boolean statement) {
-        final byte[] nameBytes;
-        if (this.prepareName.equals("")) {
-            nameBytes = new byte[0];
-        } else {
-            nameBytes = this.prepareName.getBytes(this.adjutant.clientCharset());
-        }
-        final int length = 6 + nameBytes.length, needCapacity = 1 + length;
-
-        final ByteBuf message;
-        if (messageList.size() > 0) {
-            final ByteBuf lastMessage = messageList.get(messageList.size() - 1);
-            if (lastMessage.isReadOnly() || needCapacity > lastMessage.writableBytes()) {
-                message = this.adjutant.allocator().buffer(needCapacity);
-                messageList.add(message);
-            } else {
-                message = lastMessage;
-            }
-        } else {
-            message = this.adjutant.allocator().buffer(needCapacity);
-            messageList.add(message);
-        }
-
-        message.writeByte(Messages.D);
-        message.writeInt(length);
-        message.writeByte(statement ? 'S' : 'P');
-        message.writeBytes(nameBytes);
-        message.writeByte(Messages.STRING_TERMINATOR);
-
-    }
-
-    /**
-     * @see <a href="https://www.postgresql.org/docs/current/protocol-message-formats.html">Sync</a>
-     */
-    private void writeSyncMessage(final List<ByteBuf> messageList) {
-
-        final int messageSize = messageList.size();
-        final ByteBuf message;
-        if (messageSize > 0) {
-            final ByteBuf lastMessage = messageList.get(messageSize - 1);
-            if (lastMessage.isReadOnly() || lastMessage.writableBytes() < 5) {
-                message = this.adjutant.allocator().buffer(5);
-                messageList.add(message);
-            } else {
-                message = lastMessage;
-            }
-        } else {
-            message = this.adjutant.allocator().buffer(5);
-            messageList.add(message);
-        }
-        message.writeByte(Messages.S);
-        message.writeInt(0);
-
     }
 
 
@@ -705,33 +612,30 @@ final class ExtendedQueryTask extends AbstractStmtTask implements PrepareStmtTas
 
         private final String sql;
 
-        private Stmt actualTmt;
+        private ParamSingleStmt actualTmt;
 
         private PgPrepareStmt(String sql) {
             this.sql = sql;
         }
 
-        final void setActualStmt(Stmt stmt) {
+        final void setActualStmt(final ParamSingleStmt stmt) {
             if (this.actualTmt != null) {
                 throw new IllegalStateException("this.stmt isn't null.");
             }
-            final String stmtSql;
-            if (stmt instanceof BindStmt) {
-                stmtSql = ((BindStmt) stmt).getSql();
-            } else if (stmt instanceof BatchBindStmt) {
-                stmtSql = ((BatchBindStmt) stmt).getSql();
-            } else {
-                throw new IllegalArgumentException(String.format("Unsupported stmt type[%s]", stmt.getClass().getName()));
-            }
-            if (!this.sql.equals(stmtSql)) {
+            if (!this.sql.equals(stmt.getSql())) {
                 throw new IllegalArgumentException("Sql not match,reject update stmt");
             }
             this.actualTmt = stmt;
         }
 
         @Override
-        public final Stmt getStmt() {
-            final Stmt stmt = this.actualTmt;
+        public final String getSql() {
+            return this.sql;
+        }
+
+        @Override
+        public final ParamSingleStmt getStmt() {
+            final ParamSingleStmt stmt = this.actualTmt;
             if (stmt == null) {
                 throw new IllegalStateException("this.stmt isn null.");
             }
