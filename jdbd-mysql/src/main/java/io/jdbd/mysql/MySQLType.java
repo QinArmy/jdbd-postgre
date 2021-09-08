@@ -539,6 +539,27 @@ public enum MySQLType implements SQLType {
         throw new UnsupportedOperationException();
     }
 
+    @Override
+    public boolean isArray() {
+        return false;
+    }
+
+
+    @Override
+    public final boolean supportPublisher() {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public final boolean supportTextPublisher() {
+        return false;
+    }
+
+    @Override
+    public boolean supportBinaryPublisher() {
+        return false;
+    }
+
 
     @Override
     public boolean isNumber() {

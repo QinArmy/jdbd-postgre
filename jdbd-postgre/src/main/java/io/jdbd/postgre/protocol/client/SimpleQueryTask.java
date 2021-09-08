@@ -394,13 +394,30 @@ final class SimpleQueryTask extends AbstractStmtTask {
     }
 
     @Override
+    protected final boolean decode(ByteBuf cumulateBuffer, Consumer<Object> serverStatusConsumer) {
+        final boolean taskEnd;
+        taskEnd = readExecuteResponse(cumulateBuffer, serverStatusConsumer);
+        if (taskEnd) {
+            if (hasError()) {
+                publishError(this.sink::error);
+            } else {
+                this.sink.complete();
+            }
+        }
+        return taskEnd;
+    }
+
+    @Override
     final void internalToString(StringBuilder builder) {
         builder.append(",phase:")
                 .append(this.phase);
     }
 
     @Override
-    final boolean readOtherMessage(final ByteBuf cumulateBuffer, Consumer<Object> serverStatusConsumer) {
+    final void readOtherMessage(final ByteBuf cumulateBuffer, Consumer<Object> serverStatusConsumer) {
+        while (Messages.hasOneMessage(cumulateBuffer)) {
+            Messages.skipOneMessage(cumulateBuffer);
+        }
         throw new UnExpectedMessageException(String.format("Server response unknown message type[%s]"
                 , (char) cumulateBuffer.getByte(cumulateBuffer.readerIndex())));
     }

@@ -210,6 +210,10 @@ public abstract class JdbdExceptions extends ExceptionUtils {
         return new SQLException(m);
     }
 
+    public static SQLException tooLargeObject() {
+        return new SQLException("Object too large,beyond message length.");
+    }
+
     public static LocalFileException localFileWriteError(int batchIndex, SQLType sqlType
             , ParamValue bindValue, Throwable e) {
         Path path = (Path) bindValue.getNonNull();

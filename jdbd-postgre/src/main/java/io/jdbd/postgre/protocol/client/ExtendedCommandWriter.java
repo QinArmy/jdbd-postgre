@@ -1,9 +1,9 @@
 package io.jdbd.postgre.protocol.client;
 
-import io.jdbd.vendor.stmt.ParamSingleStmt;
 import io.jdbd.vendor.stmt.PrepareStmt;
 import io.netty.buffer.ByteBuf;
 import org.reactivestreams.Publisher;
+import reactor.util.annotation.Nullable;
 
 /**
  * @see ExtendedStmtTask
@@ -12,11 +12,14 @@ interface ExtendedCommandWriter {
 
     boolean isOneShot();
 
-    boolean hasCache();
-
     boolean supportFetch();
 
     boolean needClose();
+
+    @Nullable
+    CachePrepare getCache();
+
+    String getReplacedSql();
 
     /**
      * @throws IllegalStateException throw(not emit) when {@link #isOneShot()} return false.
@@ -32,7 +35,7 @@ interface ExtendedCommandWriter {
      * @throws IllegalArgumentException throw(not emit) when stmt sql and {@link PrepareStmt#getSql()} not match.
      * @throws IllegalStateException    throw(not emit) when {@link #isOneShot()} return false.
      */
-    Publisher<Iterable<ByteBuf>> bindExecute(ParamSingleStmt stmt);
+    Publisher<ByteBuf> bindAndExecute();
 
     /**
      * @throws IllegalStateException throw(not emit) when {@link #supportFetch()} return false.

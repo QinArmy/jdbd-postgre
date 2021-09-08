@@ -109,6 +109,8 @@ final class ExtendedQueryTask extends AbstractStmtTask implements PrepareStmtTas
 
     /*################################## blow Constructor method ##################################*/
 
+    private final ExtendedCommandWriter commandWriter;
+
     private final String replacedSql;
 
     private final String prepareName;
@@ -124,6 +126,7 @@ final class ExtendedQueryTask extends AbstractStmtTask implements PrepareStmtTas
         super(adjutant, sink, stmt);
         this.prepareName = "";
         this.replacedSql = replacePlaceholder(stmt.getSql());
+        this.commandWriter = DefaultExtendedCommandWriter.create(this);
     }
 
     /**
@@ -135,6 +138,7 @@ final class ExtendedQueryTask extends AbstractStmtTask implements PrepareStmtTas
         super(adjutant, sink, stmt);
         this.prepareName = "";
         this.replacedSql = replacePlaceholder(stmt.getSql());
+        this.commandWriter = DefaultExtendedCommandWriter.create(this);
     }
 
     /**
@@ -144,6 +148,7 @@ final class ExtendedQueryTask extends AbstractStmtTask implements PrepareStmtTas
         super(adjutant, sink, sink.prepareStmt);
         this.prepareName = adjutant.createPrepareName();
         this.replacedSql = replacePlaceholder(sink.prepareStmt.sql);
+        this.commandWriter = DefaultExtendedCommandWriter.create(this);
     }
 
 
@@ -248,13 +253,47 @@ final class ExtendedQueryTask extends AbstractStmtTask implements PrepareStmtTas
 
     @Override
     public final void appendDescribePortalMessage(List<ByteBuf> messageList) {
-        appendDescribeMessage(messageList, false);
     }
 
     @Override
-    protected final Publisher<ByteBuf> start() {
+    public final void handleNoExecuteMessage() {
 
-        return null;
+    }
+
+    @Nullable
+    @Override
+    protected final Publisher<ByteBuf> start() {
+        final ExtendedCommandWriter commandWriter = this.commandWriter;
+
+        Publisher<ByteBuf> publisher;
+        try {
+            final CachePrepare cachePrepare = commandWriter.getCache();
+            if (commandWriter.isOneShot()) {
+                publisher = commandWriter.executeOneShot();
+                this.phase = Phase.READ_EXECUTE_RESPONSE;
+            } else if (cachePrepare != null) {
+                final ParamSingleStmt stmt = (ParamSingleStmt) this.stmt;
+                if (stmt instanceof PrepareStmt) {
+                    if (emitPreparedStatement(cachePrepare)) {
+                        this.phase = Phase.END;
+                    } else {
+                        this.phase = Phase.WAIT_FOR_BIND;
+                    }
+                    publisher = null;
+                } else {
+                    publisher = commandWriter.bindAndExecute();
+                    this.phase = Phase.READ_EXECUTE_RESPONSE;
+                }
+            } else {
+                publisher = commandWriter.prepare();
+                this.phase = Phase.READ_PREPARE_RESPONSE;
+            }
+        } catch (Throwable e) {
+            this.phase = Phase.END;
+            publisher = null;
+            addError(e);
+        }
+        return publisher;
     }
 
 
@@ -264,14 +303,34 @@ final class ExtendedQueryTask extends AbstractStmtTask implements PrepareStmtTas
     }
 
     @Override
+    protected final boolean decode(ByteBuf cumulateBuffer, Consumer<Object> serverStatusConsumer) {
+        final boolean taskEnd;
+        if (this.phase == Phase.END) {
+            taskEnd = true;
+        } else {
+            taskEnd = readExecuteResponse(cumulateBuffer, serverStatusConsumer);
+        }
+        if (taskEnd) {
+            if (hasError()) {
+                publishError(this.sink::error);
+            } else {
+                this.sink.complete();
+            }
+        }
+        return taskEnd;
+    }
+
+
+    @Override
     final void internalToString(StringBuilder builder) {
         builder.append(",phase:")
                 .append(this.phase);
     }
 
+
     @Override
-    final boolean readOtherMessage(final ByteBuf cumulateBuffer, final Consumer<Object> serverStatusConsumer) {
-        boolean taskEnd = false, continueRead = Messages.hasOneMessage(cumulateBuffer);
+    final void readOtherMessage(final ByteBuf cumulateBuffer, final Consumer<Object> serverStatusConsumer) {
+        boolean continueRead = Messages.hasOneMessage(cumulateBuffer);
         while (continueRead) {
             final int msgStartIndex = cumulateBuffer.readerIndex();
             final int msgType = cumulateBuffer.getByte(msgStartIndex);
@@ -305,12 +364,24 @@ final class ExtendedQueryTask extends AbstractStmtTask implements PrepareStmtTas
             }
 
         }
-        return taskEnd;
     }
 
     @Override
     final boolean isEndAtReadyForQuery(TxStatus status) {
-        return false;
+        final boolean taskEnd;
+        switch (this.phase) {
+            case READ_PREPARE_RESPONSE: {
+                taskEnd = hasError();
+            }
+            break;
+            case READ_EXECUTE_RESPONSE: {
+                taskEnd = true;
+            }
+            break;
+            default:
+                taskEnd = false;
+        }
+        return taskEnd;
     }
 
     @Override
@@ -349,17 +420,36 @@ final class ExtendedQueryTask extends AbstractStmtTask implements PrepareStmtTas
             }
 
         }
-
-        final PrepareFluxResultSink prepareSink = (PrepareFluxResultSink) sink;
         final long cacheTime = 0;
 
         final CachePrepareImpl cachePrepare = new CachePrepareImpl(
-                prepareSink.prepareStmt.sql, this.replacedSql
+                ((ParamSingleStmt) this.stmt).getSql(), this.commandWriter.getReplacedSql()
                 , paramTypeList, this.prepareName
                 , rowMeta, cacheTime);
 
-        prepareSink.setCachePrepare(cachePrepare);
-        prepareSink.stmtSink.success(prepareSink.function.apply(this)); // emit PreparedStatement
+        emitPreparedStatement(cachePrepare);
+    }
+
+    /**
+     * @return true : task
+     * @see #start()
+     */
+    private boolean emitPreparedStatement(final CachePrepare cache) {
+        if (cache instanceof CachePrepareImpl) {
+            final FluxResultSink sink = this.sink;
+            if (sink instanceof PrepareFluxResultSink && !hasError()) {
+                final PrepareFluxResultSink prepareSink = (PrepareFluxResultSink) this.sink;
+                prepareSink.setCachePrepare((CachePrepareImpl) cache);
+                prepareSink.stmtSink.success(prepareSink.function.apply(this));
+            } else {
+                String msg = String.format("Unknown %s implementation.", sink.getClass().getName());
+                addError(new IllegalArgumentException(msg));
+            }
+        } else {
+            String msg = String.format("Unknown %s implementation.", cache.getClass().getName());
+            addError(new IllegalArgumentException(msg));
+        }
+        return hasError();
     }
 
     /**

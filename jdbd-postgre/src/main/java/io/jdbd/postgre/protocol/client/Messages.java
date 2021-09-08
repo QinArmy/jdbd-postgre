@@ -1,6 +1,7 @@
 package io.jdbd.postgre.protocol.client;
 
 import io.jdbd.postgre.PgType;
+import io.jdbd.postgre.util.PgExceptions;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
 import org.qinarmy.util.HexUtils;
@@ -9,6 +10,7 @@ import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -221,8 +223,12 @@ abstract class Messages {
         return bytes;
     }
 
-    static void writeString(ByteBuf message, String text, Charset charset) {
-        message.writeBytes(text.getBytes(charset));
+    static void writeString(ByteBuf message, String text, Charset charset) throws SQLException {
+        final byte[] bytes = text.getBytes(charset);
+        if (message.maxWritableBytes() < bytes.length + 1) {
+            throw PgExceptions.tooLargeObject();
+        }
+        message.writeBytes(bytes);
         message.writeByte(STRING_TERMINATOR);
     }
 

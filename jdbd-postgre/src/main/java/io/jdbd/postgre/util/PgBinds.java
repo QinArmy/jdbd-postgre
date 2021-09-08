@@ -430,21 +430,6 @@ public abstract class PgBinds extends JdbdBinds {
         return builder.toString();
     }
 
-    public static String bindNonNullToByteaArray(final int batchIndex, PgType pgType, ParamValue paramValue)
-            throws SQLException {
-        final Object nonNull = paramValue.getNonNull();
-        if (!nonNull.getClass().isArray()) {
-            throw JdbdExceptions.createNonSupportBindSqlTypeError(batchIndex, pgType, paramValue);
-        }
-        final Pair<Class<?>, Integer> pair = getArrayDimensions(nonNull.getClass());
-        if (pair.getFirst() != Boolean.class && pair.getFirst() != boolean.class) {
-            throw JdbdExceptions.createNonSupportBindSqlTypeError(batchIndex, pgType, paramValue);
-        }
-        StringBuilder builder = new StringBuilder();
-
-        return builder.toString();
-    }
-
 
     /**
      * @see #bindNonNullToArrayWithoutEscapes(int, PgType, ParamValue)

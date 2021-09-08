@@ -7,7 +7,7 @@
     <groupId>io.jdbd</groupId>
     <artifactId>jdbd</artifactId>
     <packaging>pom</packaging>
-    <version>1.0-SNAPSHOT</version>
+    <version>1.0-SNAPSHOT</version><!-- jdbd version find and replace-->
     <modules>
         <module>jdbd-api</module>
         <module>jdbd-mysql</module>

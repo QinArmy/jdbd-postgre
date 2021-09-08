@@ -50,4 +50,13 @@ public interface SQLType extends java.sql.SQLType {
 
     boolean isCaseSensitive();
 
+    boolean isArray();
+
+    boolean supportPublisher();
+
+    boolean supportTextPublisher();
+
+    boolean supportBinaryPublisher();
+
+
 }

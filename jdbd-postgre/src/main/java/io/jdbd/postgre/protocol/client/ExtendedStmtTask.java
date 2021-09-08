@@ -12,6 +12,10 @@ import java.util.List;
  */
 interface ExtendedStmtTask {
 
+    void addErrorToTask(Throwable error);
+
+    boolean hasError();
+
     ParamSingleStmt getStmt();
 
     TaskAdjutant adjutant();
@@ -28,5 +32,6 @@ interface ExtendedStmtTask {
 
     void appendDescribePortalMessage(List<ByteBuf> messageList);
 
+    void handleNoExecuteMessage();
 
 }

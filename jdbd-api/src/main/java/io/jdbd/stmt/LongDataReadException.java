@@ -5,6 +5,9 @@ import io.jdbd.JdbdNonSQLException;
 
 public class LongDataReadException extends JdbdNonSQLException {
 
+    public LongDataReadException(String messageFormat, Throwable cause) {
+        super(messageFormat, cause);
+    }
 
     public LongDataReadException(Throwable cause, String messageFormat) {
         super(cause, messageFormat);

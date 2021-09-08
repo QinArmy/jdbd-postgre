@@ -109,8 +109,7 @@ abstract class AbstractStmtTask extends PgTask implements StmtTask {
         return builder.toString();
     }
 
-    @Override
-    protected boolean decode(final ByteBuf cumulateBuffer, final Consumer<Object> serverStatusConsumer) {
+    final boolean readExecuteResponse(final ByteBuf cumulateBuffer, final Consumer<Object> serverStatusConsumer) {
         boolean taskEnd = false, continueRead = Messages.hasOneMessage(cumulateBuffer);
 
         final Charset clientCharset = this.adjutant.clientCharset();
@@ -177,7 +176,7 @@ abstract class AbstractStmtTask extends PgTask implements StmtTask {
                             continueRead = false;
                         }
                     } else {
-                        taskEnd = readOtherMessage(cumulateBuffer, serverStatusConsumer);
+                        readOtherMessage(cumulateBuffer, serverStatusConsumer);
                         continueRead = false;
                     }
                 }
@@ -212,7 +211,7 @@ abstract class AbstractStmtTask extends PgTask implements StmtTask {
                 }
                 break;
                 default: {
-                    taskEnd = readOtherMessage(cumulateBuffer, serverStatusConsumer);
+                    readOtherMessage(cumulateBuffer, serverStatusConsumer);
                     continueRead = false;
                 }
 
@@ -227,7 +226,7 @@ abstract class AbstractStmtTask extends PgTask implements StmtTask {
     /**
      * @return true : task end
      */
-    abstract boolean readOtherMessage(final ByteBuf cumulateBuffer, final Consumer<Object> serverStatusConsumer);
+    abstract void readOtherMessage(final ByteBuf cumulateBuffer, final Consumer<Object> serverStatusConsumer);
 
     abstract void internalToString(StringBuilder builder);
 

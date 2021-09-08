@@ -167,9 +167,10 @@ public enum PgType implements io.jdbd.meta.SQLType {
     }
 
     @Override
-    public boolean isLongBinary() {
-        return false;
+    public final boolean isLongBinary() {
+        return this == BYTEA || this == BYTEA_ARRAY;
     }
+
 
     @Override
     public final boolean isString() {
@@ -269,6 +270,37 @@ public enum PgType implements io.jdbd.meta.SQLType {
         }
         return sensitive;
     }
+
+    @Override
+    public final boolean isArray() {
+        return this.jdbcType == JDBCType.ARRAY;
+    }
+
+    @Override
+    public final boolean supportPublisher() {
+        return supportBinaryPublisher() || supportTextPublisher();
+
+    }
+
+    @Override
+    public boolean supportTextPublisher() {
+        return isArray()
+                || this == TEXT
+                || this == VARCHAR
+                || this == TSVECTOR
+                || this == TSQUERY
+                || this == XML
+                || this == PATH
+                || this == POLYGON
+                || this == JSON
+                || this == JSONB;
+    }
+
+    @Override
+    public final boolean supportBinaryPublisher() {
+        return this == BYTEA;
+    }
+
 
     @Override
     public final String getName() {
