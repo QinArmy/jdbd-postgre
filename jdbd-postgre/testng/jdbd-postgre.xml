@@ -15,6 +15,11 @@
             <class name="io.jdbd.postgre.protocol.client.SimpleQueryTaskSuiteTests"/>
             <class name="io.jdbd.postgre.protocol.client.SimpleQuerySqlTypeSuiteTests"/>
 
+            <class name="io.jdbd.postgre.protocol.client.ExtendedQueryTaskSuiteTests"/>
+            <class name="io.jdbd.postgre.protocol.client.ExtendedQueryTaskSqlTypeSuiteTests"/>
+
+            <class name="io.jdbd.postgre.statement.PreparedStatementSuiteTests"/>
+
             <class name="io.jdbd.postgre.protocol.client.CopyInSuiteTests"/>
             <class name="io.jdbd.postgre.protocol.client.CopyOutSuiteTests"/>
 

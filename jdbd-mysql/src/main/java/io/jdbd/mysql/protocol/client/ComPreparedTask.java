@@ -16,7 +16,6 @@ import io.jdbd.stmt.BindStatement;
 import io.jdbd.stmt.PreparedStatement;
 import io.jdbd.stmt.ResultType;
 import io.jdbd.stmt.SubscribeException;
-import io.jdbd.vendor.JdbdCompositeException;
 import io.jdbd.vendor.result.*;
 import io.jdbd.vendor.stmt.ParamBatchStmt;
 import io.jdbd.vendor.stmt.ParamStmt;
@@ -187,7 +186,6 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
      * This method is underlying api of below methods:
      * <ul>
      *     <li>{@link DatabaseSession#prepare(String)}</li>
-     *     <li>{@link DatabaseSession#prepare(String, int)}</li>
      * </ul>
      * </p>
      *
@@ -1102,8 +1100,7 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
         if (errorList.size() == 1) {
             e = errorList.get(0);
         } else {
-            e = new JdbdCompositeException(errorList
-                    , "MultiResults read occur multi error,the first error[%s]", errorList.get(0).getMessage());
+            e = MySQLExceptions.createException(errorList);
         }
         return e;
     }

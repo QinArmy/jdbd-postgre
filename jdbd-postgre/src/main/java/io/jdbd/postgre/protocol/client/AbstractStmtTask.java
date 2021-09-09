@@ -1,18 +1,20 @@
 package io.jdbd.postgre.protocol.client;
 
-import io.jdbd.postgre.PgJdbdException;
+import io.jdbd.postgre.PgType;
 import io.jdbd.postgre.util.PgArrays;
 import io.jdbd.postgre.util.PgExceptions;
+import io.jdbd.result.ResultRowMeta;
 import io.jdbd.vendor.result.FluxResultSink;
 import io.jdbd.vendor.result.ResultSetReader;
 import io.jdbd.vendor.stmt.Stmt;
 import io.netty.buffer.ByteBuf;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import reactor.util.annotation.Nullable;
 
 import java.nio.charset.Charset;
+import java.util.List;
 import java.util.Set;
-import java.util.StringTokenizer;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
@@ -29,7 +31,11 @@ abstract class AbstractStmtTask extends PgTask implements StmtTask {
 
     final Logger log = LoggerFactory.getLogger(getClass());
 
-    private static final Set<String> UPDATE_COMMANDS = PgArrays.asUnmodifiableSet("INSERT", "UPDATE", "DELETE");
+    private static final String INSERT = "INSERT";
+
+    private static final Set<String> UPDATE_COMMANDS = PgArrays.asUnmodifiableSet(INSERT, "UPDATE", "DELETE");
+
+    private static final String SELECT = "SELECT";
 
     final FluxResultSink sink;
 
@@ -109,6 +115,12 @@ abstract class AbstractStmtTask extends PgTask implements StmtTask {
         return builder.toString();
     }
 
+    @Override
+    protected final boolean skipPacketsOnError(ByteBuf cumulateBuffer, Consumer<Object> serverStatusConsumer) {
+        cumulateBuffer.readerIndex(cumulateBuffer.writerIndex());
+        return true;
+    }
+
     final boolean readExecuteResponse(final ByteBuf cumulateBuffer, final Consumer<Object> serverStatusConsumer) {
         boolean taskEnd = false, continueRead = Messages.hasOneMessage(cumulateBuffer);
 
@@ -166,17 +178,22 @@ abstract class AbstractStmtTask extends PgTask implements StmtTask {
                     continueRead = Messages.hasOneMessage(cumulateBuffer);
                 }
                 break;
-                case Messages.T: {// RowDescription message
-                    if (isResultSetPhase()) {
-                        this.readResultSetPhase = true;
-                        if (this.resultSetReader.read(cumulateBuffer, serverStatusConsumer)) {
-                            this.readResultSetPhase = false;
-                            continueRead = Messages.hasOneMessage(cumulateBuffer);
-                        } else {
-                            continueRead = false;
-                        }
+                case Messages.t: { // ParameterDescription
+                    if (!Messages.canReadDescribeResponse(cumulateBuffer)) {
+                        // need cumulating for  RowDescription message or NoData message
+                        continueRead = false;
+                        continue;
+                    }
+                    readPrepareResponseAndHandle(cumulateBuffer);
+                    continueRead = Messages.hasOneMessage(cumulateBuffer);
+                }
+                break;
+                case Messages.T: {// RowDescription message, must after Messages.t
+                    this.readResultSetPhase = true;
+                    if (this.resultSetReader.read(cumulateBuffer, serverStatusConsumer)) {
+                        this.readResultSetPhase = false;
+                        continueRead = Messages.hasOneMessage(cumulateBuffer);
                     } else {
-                        readOtherMessage(cumulateBuffer, serverStatusConsumer);
                         continueRead = false;
                     }
                 }
@@ -204,15 +221,22 @@ abstract class AbstractStmtTask extends PgTask implements StmtTask {
                     }
                 }
                 break;
+                case Messages.CHAR_ONE:// ParseComplete message
+                case Messages.CHAR_TWO:// BindComplete message
                 case Messages.A: { // NotificationResponse
                     //TODO complete LISTEN command
                     Messages.skipOneMessage(cumulateBuffer);
                     continueRead = Messages.hasOneMessage(cumulateBuffer);
                 }
                 break;
+                case Messages.n: {// NoData message
+                    Messages.skipOneMessage(cumulateBuffer);
+                    // after Messages.t ,so ExtendedQueryTask mode is changed,or never here.
+                    log.debug("receive NoData message ,{} mode is changed", this);
+                }
+                break;
                 default: {
-                    readOtherMessage(cumulateBuffer, serverStatusConsumer);
-                    continueRead = false;
+                    handleUnexpectedMessage(cumulateBuffer);
                 }
 
             }
@@ -222,17 +246,11 @@ abstract class AbstractStmtTask extends PgTask implements StmtTask {
         return taskEnd;
     }
 
-
-    /**
-     * @return true : task end
-     */
-    abstract void readOtherMessage(final ByteBuf cumulateBuffer, final Consumer<Object> serverStatusConsumer);
-
     abstract void internalToString(StringBuilder builder);
 
     abstract boolean isEndAtReadyForQuery(TxStatus status);
 
-    abstract boolean isResultSetPhase();
+    abstract void handlePrepareResponse(List<PgType> paramTypeList, @Nullable ResultRowMeta rowMeta);
 
     void handleSelectCommand(long rowCount) {
         // sub class override.
@@ -273,6 +291,21 @@ abstract class AbstractStmtTask extends PgTask implements StmtTask {
 
     final int getResultIndex() {
         return this.resultIndex;
+    }
+
+
+    /**
+     * <p>
+     * handle unexpected message and always throw {@link UnExpectedMessageException}
+     * </p>
+     *
+     * @throws UnExpectedMessageException always
+     */
+    final void handleUnexpectedMessage(ByteBuf cumulateBuffer) throws UnExpectedMessageException {
+        final char msgType = (char) cumulateBuffer.getByte(cumulateBuffer.readerIndex());
+        Messages.skipOneMessage(cumulateBuffer);
+        String msg = String.format("Server response unknown message type[%s]", msgType);
+        throw new UnExpectedMessageException(msg);
     }
 
     /**
@@ -317,6 +350,43 @@ abstract class AbstractStmtTask extends PgTask implements StmtTask {
         return copyOperationHandler.handleCopyOutData(cumulateBuffer);
     }
 
+    /**
+     * <p>
+     * Read ParameterDescription message and RowDescription (or NoData) message
+     * ,and invoke {@link #handlePrepareResponse(List, ResultRowMeta).}
+     * </p>
+     *
+     * @see #readExecuteResponse(ByteBuf, Consumer)
+     * @see <a href="https://www.postgresql.org/docs/current/protocol-message-formats.html">ParameterDescription</a>
+     * @see <a href="https://www.postgresql.org/docs/current/protocol-message-formats.html">RowDescription</a>
+     * @see <a href="https://www.postgresql.org/docs/current/protocol-message-formats.html">NoData</a>
+     */
+    private void readPrepareResponseAndHandle(final ByteBuf cumulateBuffer) {
+        final List<PgType> paramTypeList;
+        paramTypeList = Messages.readParameterDescription(cumulateBuffer);
+
+        final ResultRowMeta rowMeta;
+        switch (cumulateBuffer.getByte(cumulateBuffer.readerIndex())) {
+            case Messages.T: {// RowDescription message
+                rowMeta = PgRowMeta.readForPrepare(cumulateBuffer, this.adjutant);
+            }
+            break;
+            case Messages.n: {// NoData message
+                Messages.skipOneMessage(cumulateBuffer);
+                rowMeta = null;
+            }
+            break;
+            default: {
+                Messages.skipOneMessage(cumulateBuffer);
+                final char msgType = (char) cumulateBuffer.getByte(cumulateBuffer.readerIndex());
+                String m = String.format("Unexpected message[%s] for read prepare response.", msgType);
+                throw new UnExpectedMessageException(m);
+            }
+
+        }
+        handlePrepareResponse(paramTypeList, rowMeta);
+    }
+
 
     /**
      * @return true: read CommandComplete message end , false : more cumulate.
@@ -340,27 +410,24 @@ abstract class AbstractStmtTask extends PgTask implements StmtTask {
         cumulateBuffer.readerIndex(nextMsgIndex); // avoid tail filler
 
         final ResultStateParams params = new ResultStateParams();
-        final StringTokenizer tokenizer = new StringTokenizer(commandTag, " ");
+        final String[] tagPart = commandTag.split("\\s");
         final String command;
-        switch (tokenizer.countTokens()) {
-            case 1:
-                command = tokenizer.nextToken();
-                break;
-            case 2: {
-                command = tokenizer.nextToken();
-                params.affectedRows = Long.parseLong(tokenizer.nextToken());
+        if (tagPart.length > 0) {
+            command = tagPart[0].toUpperCase();
+            if (UPDATE_COMMANDS.contains(command)) {
+                if (INSERT.equals(command)) {
+                    params.insertId = Long.parseLong(tagPart[1]);
+                    params.affectedRows = Long.parseLong(tagPart[2]);
+                } else {
+                    params.affectedRows = Long.parseLong(tagPart[1]);
+                }
+            } else if (SELECT.equals(command)) {
+                final long rowCount = Long.parseLong(tagPart[1]);
+                params.rowCount = rowCount;
+                handleSelectCommand(rowCount);
             }
-            break;
-            case 3: {
-                command = tokenizer.nextToken();
-                params.insertId = Long.parseLong(tokenizer.nextToken());
-                params.affectedRows = Long.parseLong(tokenizer.nextToken());
-            }
-            break;
-            default:
-                String m = String.format("Server response CommandComplete command tag[%s] format error."
-                        , commandTag);
-                throw new PgJdbdException(m);
+        } else {
+            command = "";
         }
         log.trace("Read CommandComplete message command tag[{}],command[{}]", commandTag, command);
 

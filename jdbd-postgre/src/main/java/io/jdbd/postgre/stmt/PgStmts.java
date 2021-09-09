@@ -23,6 +23,10 @@ public abstract class PgStmts extends JdbdStmts {
         return new BindStmtMin(sql, paramGroup);
     }
 
+    public static BindStmt bind(String sql, List<BindValue> paramGroup, Consumer<ResultStates> statesConsumer) {
+        return new BindStmtQuery(sql, paramGroup, statesConsumer);
+    }
+
     public static BindStmt bind(String sql, List<BindValue> paramGroup, Consumer<ResultStates> statesConsumer
             , StatementOption option) {
         return new BindStmtFull(sql, paramGroup, statesConsumer, option);

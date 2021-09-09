@@ -77,7 +77,7 @@ public abstract class JdbdExceptions extends ExceptionUtils {
         if (errorList.size() == 1) {
             e = wrap(errorList.get(0));
         } else {
-            e = new JdbdCompositeException(errorList, errorList.get(0).getMessage());
+            e = new JdbdCompositeException(errorList);
         }
         return e;
     }

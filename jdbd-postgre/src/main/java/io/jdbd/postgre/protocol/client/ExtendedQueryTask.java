@@ -1,6 +1,7 @@
 package io.jdbd.postgre.protocol.client;
 
 import io.jdbd.JdbdException;
+import io.jdbd.SessionCloseException;
 import io.jdbd.postgre.PgType;
 import io.jdbd.postgre.stmt.BindBatchStmt;
 import io.jdbd.postgre.stmt.BindStmt;
@@ -111,8 +112,6 @@ final class ExtendedQueryTask extends AbstractStmtTask implements PrepareStmtTas
 
     private final ExtendedCommandWriter commandWriter;
 
-    private final String replacedSql;
-
     private final String prepareName;
 
 
@@ -125,7 +124,6 @@ final class ExtendedQueryTask extends AbstractStmtTask implements PrepareStmtTas
     private ExtendedQueryTask(BindStmt stmt, FluxResultSink sink, TaskAdjutant adjutant) throws SQLException {
         super(adjutant, sink, stmt);
         this.prepareName = "";
-        this.replacedSql = replacePlaceholder(stmt.getSql());
         this.commandWriter = DefaultExtendedCommandWriter.create(this);
     }
 
@@ -137,7 +135,6 @@ final class ExtendedQueryTask extends AbstractStmtTask implements PrepareStmtTas
     private ExtendedQueryTask(FluxResultSink sink, BindBatchStmt stmt, TaskAdjutant adjutant) throws SQLException {
         super(adjutant, sink, stmt);
         this.prepareName = "";
-        this.replacedSql = replacePlaceholder(stmt.getSql());
         this.commandWriter = DefaultExtendedCommandWriter.create(this);
     }
 
@@ -147,7 +144,6 @@ final class ExtendedQueryTask extends AbstractStmtTask implements PrepareStmtTas
     private ExtendedQueryTask(TaskAdjutant adjutant, PrepareFluxResultSink sink) throws SQLException {
         super(adjutant, sink, sink.prepareStmt);
         this.prepareName = adjutant.createPrepareName();
-        this.replacedSql = replacePlaceholder(sink.prepareStmt.sql);
         this.commandWriter = DefaultExtendedCommandWriter.create(this);
     }
 
@@ -156,9 +152,9 @@ final class ExtendedQueryTask extends AbstractStmtTask implements PrepareStmtTas
     public final Mono<ResultStates> executeUpdate(final ParamStmt stmt) {
         return MultiResults.update(sink -> {
             if (this.adjutant.inEventLoop()) {
-                executeUpdateInEventLoop(sink, stmt);
+                executePreparedStmtInEventLoop(sink, stmt);
             } else {
-                this.adjutant.execute(() -> executeUpdateInEventLoop(sink, stmt));
+                this.adjutant.execute(() -> executePreparedStmtInEventLoop(sink, stmt));
             }
         });
     }
@@ -167,9 +163,9 @@ final class ExtendedQueryTask extends AbstractStmtTask implements PrepareStmtTas
     public final Flux<ResultRow> executeQuery(final ParamStmt stmt) {
         return MultiResults.query(stmt.getStatusConsumer(), sink -> {
             if (this.adjutant.inEventLoop()) {
-                executeQueryInEventLoop(sink, stmt);
+                executePreparedStmtInEventLoop(sink, stmt);
             } else {
-                this.adjutant.execute(() -> executeQueryInEventLoop(sink, stmt));
+                this.adjutant.execute(() -> executePreparedStmtInEventLoop(sink, stmt));
             }
         });
     }
@@ -178,9 +174,9 @@ final class ExtendedQueryTask extends AbstractStmtTask implements PrepareStmtTas
     public final Flux<ResultStates> executeBatch(final ParamBatchStmt<ParamValue> stmt) {
         return MultiResults.batchUpdate(sink -> {
             if (this.adjutant.inEventLoop()) {
-                executeBatchInEventLoop(sink, stmt);
+                executePreparedStmtInEventLoop(sink, stmt);
             } else {
-                this.adjutant.execute(() -> executeBatchInEventLoop(sink, stmt));
+                this.adjutant.execute(() -> executePreparedStmtInEventLoop(sink, stmt));
             }
         });
     }
@@ -189,9 +185,9 @@ final class ExtendedQueryTask extends AbstractStmtTask implements PrepareStmtTas
     public final MultiResult executeBatchAsMulti(final ParamBatchStmt<ParamValue> stmt) {
         return MultiResults.asMulti(this.adjutant, sink -> {
             if (this.adjutant.inEventLoop()) {
-                executeBatchAsMultiInEventLoop(sink, stmt);
+                executePreparedStmtInEventLoop(sink, stmt);
             } else {
-                this.adjutant.execute(() -> executeBatchAsMultiInEventLoop(sink, stmt));
+                this.adjutant.execute(() -> executePreparedStmtInEventLoop(sink, stmt));
             }
         });
     }
@@ -200,9 +196,9 @@ final class ExtendedQueryTask extends AbstractStmtTask implements PrepareStmtTas
     public final Flux<Result> executeBatchAsFlux(ParamBatchStmt<ParamValue> stmt) {
         return MultiResults.asFlux(sink -> {
             if (this.adjutant.inEventLoop()) {
-                executeBatchAsFluxInEventLoop(sink, stmt);
+                executePreparedStmtInEventLoop(sink, stmt);
             } else {
-                this.adjutant.execute(() -> executeBatchAsFluxInEventLoop(sink, stmt));
+                this.adjutant.execute(() -> executePreparedStmtInEventLoop(sink, stmt));
             }
         });
     }
@@ -226,7 +222,7 @@ final class ExtendedQueryTask extends AbstractStmtTask implements PrepareStmtTas
 
     @Override
     public final String getSql() {
-        return obtainCachePrepare().sql;
+        return ((ParamSingleStmt) this.stmt).getSql();
     }
 
     /*################################## blow ExtendedStmtTask method ##################################*/
@@ -257,7 +253,18 @@ final class ExtendedQueryTask extends AbstractStmtTask implements PrepareStmtTas
 
     @Override
     public final void handleNoExecuteMessage() {
+        if (this.phase != Phase.END) {
+            log.debug("No execute message sent.end task.");
+            this.sendPacketSignal(true)
+                    .subscribe();// if throw error ,representing task have ended,so ignore error.
 
+            if (hasError()) {
+                publishError(this.sink::error);
+            } else {
+                this.sink.error(new IllegalStateException("No execute message sent."));
+            }
+
+        }
     }
 
     @Nullable
@@ -289,28 +296,50 @@ final class ExtendedQueryTask extends AbstractStmtTask implements PrepareStmtTas
                 this.phase = Phase.READ_PREPARE_RESPONSE;
             }
         } catch (Throwable e) {
-            this.phase = Phase.END;
+            this.phase = Phase.START_ERROR;
             publisher = null;
             addError(e);
         }
         return publisher;
     }
 
+    @Override
+    protected final void onChannelClose() {
+        if (this.phase != Phase.END) {
+            addError(new SessionCloseException("Session unexpected close"));
+            publishError(this.sink::error);
+        }
+    }
 
     @Override
     protected final Action onError(Throwable e) {
-        return null;
+
+        final Action action;
+        if (this.phase == Phase.END) {
+            action = Action.TASK_END;
+        } else {
+            addError(e);
+            if (this.commandWriter.needClose()) {
+                this.packetPublisher = this.commandWriter.closeStatement();
+                action = Action.MORE_SEND_AND_END;
+            } else {
+                action = Action.TASK_END;
+            }
+            publishError(this.sink::error);
+        }
+        return action;
     }
 
     @Override
     protected final boolean decode(ByteBuf cumulateBuffer, Consumer<Object> serverStatusConsumer) {
         final boolean taskEnd;
-        if (this.phase == Phase.END) {
+        if (this.phase == Phase.START_ERROR) {
             taskEnd = true;
         } else {
             taskEnd = readExecuteResponse(cumulateBuffer, serverStatusConsumer);
         }
         if (taskEnd) {
+            this.phase = Phase.END;
             if (hasError()) {
                 publishError(this.sink::error);
             } else {
@@ -327,44 +356,6 @@ final class ExtendedQueryTask extends AbstractStmtTask implements PrepareStmtTas
                 .append(this.phase);
     }
 
-
-    @Override
-    final void readOtherMessage(final ByteBuf cumulateBuffer, final Consumer<Object> serverStatusConsumer) {
-        boolean continueRead = Messages.hasOneMessage(cumulateBuffer);
-        while (continueRead) {
-            final int msgStartIndex = cumulateBuffer.readerIndex();
-            final int msgType = cumulateBuffer.getByte(msgStartIndex);
-
-            switch (msgType) {
-                case Messages.CHAR_ONE: {// ParseComplete message
-                    Messages.skipOneMessage(cumulateBuffer);
-                    continueRead = Messages.hasOneMessage(cumulateBuffer);
-                }
-                break;
-                case Messages.t: {// ParameterDescription message
-                    if (this.phase != Phase.READ_PREPARE_RESPONSE) {
-                        Messages.skipOneMessage(cumulateBuffer);
-                        continue;
-                    }
-                    if (!Messages.canReadDescribeResponse(cumulateBuffer)) {
-                        continueRead = false;
-                        continue;
-                    }
-                    // emit PreparedStatement
-                    readPrepareResponseAndEmitStatement(cumulateBuffer);
-                    this.phase = Phase.WAIT_FOR_BIND;
-                    continueRead = Messages.hasOneMessage(cumulateBuffer);
-                }
-                break;
-                default: {
-                    Messages.skipOneMessage(cumulateBuffer);
-                    throw new UnExpectedMessageException(String.format("Server response unknown message type[%s]"
-                            , (char) msgType));
-                }
-            }
-
-        }
-    }
 
     @Override
     final boolean isEndAtReadyForQuery(TxStatus status) {
@@ -385,41 +376,12 @@ final class ExtendedQueryTask extends AbstractStmtTask implements PrepareStmtTas
     }
 
     @Override
-    final boolean isResultSetPhase() {
-        return this.phase == Phase.READ_EXECUTE_RESPONSE;
+    final void handleSelectCommand(long rowCount) {
+        //TODO handle fetch if need
     }
 
-    /**
-     * @see #readOtherMessage(ByteBuf, Consumer)
-     */
-    private void readPrepareResponseAndEmitStatement(final ByteBuf cumulateBuffer) {
-        assertPhase(Phase.READ_PREPARE_RESPONSE);
-
-        final FluxResultSink sink = this.sink;
-        if (!(sink instanceof PrepareFluxResultSink)) {
-            throw new IllegalStateException("Non Prepare stmt task.");
-        }
-        final List<PgType> paramTypeList;
-        paramTypeList = Messages.readParameterDescription(cumulateBuffer);
-
-        final ResultRowMeta rowMeta;
-        switch (cumulateBuffer.getByte(cumulateBuffer.readerIndex())) {
-            case Messages.T: {// RowDescription message
-                rowMeta = PgRowMeta.readForPrepare(cumulateBuffer, this.adjutant);
-            }
-            break;
-            case Messages.n: {// NoData message
-                Messages.skipOneMessage(cumulateBuffer);
-                rowMeta = null;
-            }
-            break;
-            default: {
-                final char msgType = (char) cumulateBuffer.getByte(cumulateBuffer.readerIndex());
-                String m = String.format("Unexpected message[%s] for read prepare response.", msgType);
-                throw new UnExpectedMessageException(m);
-            }
-
-        }
+    @Override
+    final void handlePrepareResponse(List<PgType> paramTypeList, @Nullable ResultRowMeta rowMeta) {
         final long cacheTime = 0;
 
         final CachePrepareImpl cachePrepare = new CachePrepareImpl(
@@ -427,8 +389,10 @@ final class ExtendedQueryTask extends AbstractStmtTask implements PrepareStmtTas
                 , paramTypeList, this.prepareName
                 , rowMeta, cacheTime);
 
+        this.phase = Phase.WAIT_FOR_BIND;
         emitPreparedStatement(cachePrepare);
     }
+
 
     /**
      * @return true : task
@@ -452,67 +416,32 @@ final class ExtendedQueryTask extends AbstractStmtTask implements PrepareStmtTas
         return hasError();
     }
 
+
     /**
      * @see #executeUpdate(ParamStmt)
-     */
-    private void executeUpdateInEventLoop(final FluxResultSink sink, final ParamStmt stmt) {
-        if (prepareForPrepareBind(sink, stmt)) {
-            // task end
-            return;
-        }
-    }
-
-
-    /**
      * @see #executeQuery(ParamStmt)
      */
-    private void executeQueryInEventLoop(FluxResultSink sink, ParamStmt stmt) {
+    private void executePreparedStmtInEventLoop(FluxResultSink sink, ParamSingleStmt stmt) {
         if (prepareForPrepareBind(sink, stmt)) {
             // task end
             return;
         }
-    }
-
-    /**
-     * @see #executeBatch(ParamBatchStmt)
-     */
-    private void executeBatchInEventLoop(FluxResultSink sink, ParamBatchStmt<ParamValue> stmt) {
-        if (prepareForPrepareBind(sink, stmt)) {
-            // task end
-            return;
-        }
-    }
-
-    /**
-     * @see #executeBatchAsMulti(ParamBatchStmt)
-     */
-    private void executeBatchAsMultiInEventLoop(FluxResultSink sink, ParamBatchStmt<ParamValue> stmt) {
-        if (prepareForPrepareBind(sink, stmt)) {
-            // task end
-            return;
-        }
-    }
-
-    /**
-     * @see #executeBatchAsFlux(ParamBatchStmt)
-     */
-    private void executeBatchAsFluxInEventLoop(FluxResultSink sink, ParamBatchStmt<ParamValue> stmt) {
-        if (prepareForPrepareBind(sink, stmt)) {
-            // task end
-            return;
-        }
-
+        this.packetPublisher = this.commandWriter.bindAndExecute();
+        this.phase = Phase.READ_EXECUTE_RESPONSE; // modify phase for read response.
+        this.sendPacketSignal(false)
+                .doOnError(e -> {
+                    // signal is rejected for task have ended.
+                    addError(e);
+                    publishError(this.sink::error);
+                })
+                .subscribe();
 
     }
 
 
     /**
      * @return true: has error,task end.
-     * @see #executeUpdateInEventLoop(FluxResultSink, ParamStmt)
-     * @see #executeQueryInEventLoop(FluxResultSink, ParamStmt)
-     * @see #executeBatchInEventLoop(FluxResultSink, ParamBatchStmt)
-     * @see #executeBatchAsMultiInEventLoop(FluxResultSink, ParamBatchStmt)
-     * @see #executeBatchAsFluxInEventLoop(FluxResultSink, ParamBatchStmt)
+     * @see #executePreparedStmtInEventLoop(FluxResultSink, ParamSingleStmt)
      */
     private boolean prepareForPrepareBind(final FluxResultSink sink, final ParamSingleStmt stmt) {
         JdbdException error = null;
@@ -602,6 +531,7 @@ final class ExtendedQueryTask extends AbstractStmtTask implements PrepareStmtTas
         READ_EXECUTE_RESPONSE,
         WAIT_FOR_BIND,
         PREPARE_BIND,
+        START_ERROR,
         END
     }
 
@@ -662,11 +592,17 @@ final class ExtendedQueryTask extends AbstractStmtTask implements PrepareStmtTas
 
         @Override
         public final ResultSink froResultSet() {
-            final FluxResultSink resultSink = this.resultSink;
-            if (resultSink == null) {
-                throw createNoFluxResultSinkError();
-            }
-            return resultSink.froResultSet();
+            return new ResultSink() {
+                @Override
+                public final boolean isCancelled() {
+                    return PrepareFluxResultSink.this.isCancelled();
+                }
+
+                @Override
+                public final void next(Result result) {
+                    PrepareFluxResultSink.this.next(result);
+                }
+            };
         }
 
         @Override

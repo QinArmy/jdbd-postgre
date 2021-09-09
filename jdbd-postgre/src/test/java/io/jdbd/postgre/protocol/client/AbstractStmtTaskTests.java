@@ -22,7 +22,7 @@ import java.util.function.BiFunction;
  * This class is base class of :
  * <u>
  * <li>{@link SimpleQuerySqlTypeSuiteTests}</li>
- * <li>{@link ExtendedQueryTaskSuiteTests}</li>
+ * <li>{@link ExtendedQueryTaskSqlTypeSuiteTests}</li>
  * </u>
  * </p>
  */

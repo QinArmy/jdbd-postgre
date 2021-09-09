@@ -2,14 +2,12 @@ package io.jdbd.postgre.protocol.client;
 
 import io.jdbd.SessionCloseException;
 import io.jdbd.postgre.PgJdbdException;
+import io.jdbd.postgre.PgType;
 import io.jdbd.postgre.stmt.BindBatchStmt;
 import io.jdbd.postgre.stmt.BindMultiStmt;
 import io.jdbd.postgre.stmt.BindStmt;
 import io.jdbd.postgre.util.PgExceptions;
-import io.jdbd.result.MultiResult;
-import io.jdbd.result.Result;
-import io.jdbd.result.ResultRow;
-import io.jdbd.result.ResultStates;
+import io.jdbd.result.*;
 import io.jdbd.stmt.BindStatement;
 import io.jdbd.stmt.MultiStatement;
 import io.jdbd.stmt.StaticStatement;
@@ -22,8 +20,10 @@ import io.netty.buffer.ByteBuf;
 import org.reactivestreams.Publisher;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import reactor.util.annotation.Nullable;
 
 import java.nio.charset.Charset;
+import java.util.List;
 import java.util.function.Consumer;
 
 /**
@@ -387,11 +387,6 @@ final class SimpleQueryTask extends AbstractStmtTask {
         return Action.TASK_END;
     }
 
-    @Override
-    protected final boolean skipPacketsOnError(ByteBuf cumulateBuffer, Consumer<Object> serverStatusConsumer) {
-        cumulateBuffer.readerIndex(cumulateBuffer.writerIndex());
-        return true;
-    }
 
     @Override
     protected final boolean decode(ByteBuf cumulateBuffer, Consumer<Object> serverStatusConsumer) {
@@ -414,24 +409,16 @@ final class SimpleQueryTask extends AbstractStmtTask {
     }
 
     @Override
-    final void readOtherMessage(final ByteBuf cumulateBuffer, Consumer<Object> serverStatusConsumer) {
-        while (Messages.hasOneMessage(cumulateBuffer)) {
-            Messages.skipOneMessage(cumulateBuffer);
-        }
-        throw new UnExpectedMessageException(String.format("Server response unknown message type[%s]"
-                , (char) cumulateBuffer.getByte(cumulateBuffer.readerIndex())));
-    }
-
-    @Override
     final boolean isEndAtReadyForQuery(TxStatus status) {
-        // return true
-        return true;
-    }
-
-    @Override
-    final boolean isResultSetPhase() {
         // always true for simple query
         return true;
+    }
+
+    @Override
+    void handlePrepareResponse(List<PgType> paramTypeList, @Nullable ResultRowMeta rowMeta) {
+        // never here for simple query
+        String msg = String.format("Server response unknown message type[%s]", (char) Messages.t);
+        throw new UnExpectedMessageException(msg);
     }
 
     /**

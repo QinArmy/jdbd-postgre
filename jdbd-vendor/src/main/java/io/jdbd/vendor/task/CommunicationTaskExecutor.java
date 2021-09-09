@@ -148,7 +148,7 @@ public abstract class CommunicationTaskExecutor<T extends ITaskAdjutant> impleme
         if (cumulateBuffer == null || !cumulateBuffer.isReadable()) {
             return;
         }
-        CommunicationTask currentTask = this.currentTask;
+        CommunicationTask<?> currentTask = this.currentTask;
         if (currentTask == null) {
             startHeadIfNeed();
             return;
@@ -277,7 +277,7 @@ public abstract class CommunicationTaskExecutor<T extends ITaskAdjutant> impleme
      */
     private void handleTaskStatusException() {
         Objects.requireNonNull(this.taskError, "this.taskError");
-        final CommunicationTask currentTask = Objects.requireNonNull(this.currentTask, "this.currentTask");
+        final CommunicationTask<?> currentTask = Objects.requireNonNull(this.currentTask, "this.currentTask");
 
         final ByteBuf cumulateBuffer = Objects.requireNonNull(this.cumulateBuffer, "this.cumulateBuffer");
         cumulateBuffer.markReaderIndex();
@@ -308,7 +308,7 @@ public abstract class CommunicationTaskExecutor<T extends ITaskAdjutant> impleme
     private void doOnErrorInEventLoop(Throwable e) {
         obtainLogger().debug("channel channel error.");
         if (!this.connection.channel().isActive()) {
-            CommunicationTask task = this.currentTask;
+            CommunicationTask<?> task = this.currentTask;
             final JdbdException exception = JdbdExceptions.wrap(e
                     , "TCP connection close,cannot execute CommunicationTask.");
             if (task != null) {
@@ -320,7 +320,7 @@ public abstract class CommunicationTaskExecutor<T extends ITaskAdjutant> impleme
             }
         } else {
             // TODO optimize handle netty Handler error.
-            CommunicationTask task = this.currentTask;
+            CommunicationTask<?> task = this.currentTask;
             if (task != null) {
                 this.currentTask = null;
                 task.errorEvent(JdbdExceptions.wrap(e, "Channel upstream throw error."));
@@ -337,7 +337,7 @@ public abstract class CommunicationTaskExecutor<T extends ITaskAdjutant> impleme
         if (LOG.isDebugEnabled()) {
             LOG.debug("Connection close.");
         }
-        CommunicationTask task = this.currentTask;
+        CommunicationTask<?> task = this.currentTask;
         if (task != null) {
             task.channelCloseEvent();
         }
@@ -350,7 +350,7 @@ public abstract class CommunicationTaskExecutor<T extends ITaskAdjutant> impleme
      * must invoke in {@link #eventLoop}
      */
     private void startHeadIfNeed() {
-        CommunicationTask currentTask = this.currentTask;
+        CommunicationTask<?> currentTask = this.currentTask;
         if (currentTask != null) {
             return;
         }
@@ -485,7 +485,7 @@ public abstract class CommunicationTaskExecutor<T extends ITaskAdjutant> impleme
      * @see #addSslHandshakeSuccessListener(ChannelPipeline, Logger)
      */
     private void sendPacketAfterSslHandshakeSuccess() {
-        final CommunicationTask currentTask = this.currentTask;
+        final CommunicationTask<?> currentTask = this.currentTask;
         if (currentTask instanceof ConnectionTask) {
             Publisher<ByteBuf> packetPublisher = currentTask.moreSendPacket();
             if (packetPublisher != null) {
@@ -500,7 +500,7 @@ public abstract class CommunicationTaskExecutor<T extends ITaskAdjutant> impleme
      * @see CommunicationTask#sendPacketSignal(boolean)
      * @see TaskSingleImpl#sendPacket(CommunicationTask, boolean)
      */
-    private void doSendPacketSignal(final MonoSink<Void> sink, final CommunicationTask signalTask, boolean endTask) {
+    private void doSendPacketSignal(final MonoSink<Void> sink, final CommunicationTask<?> signalTask, boolean endTask) {
         if (obtainLogger().isDebugEnabled()) {
             obtainLogger().debug("{} send packet signal", signalTask);
         }
@@ -508,7 +508,8 @@ public abstract class CommunicationTaskExecutor<T extends ITaskAdjutant> impleme
             Publisher<ByteBuf> publisher;
             publisher = signalTask.moreSendPacket();
             if (publisher != null) {
-                sendPacket(signalTask, publisher);
+                sendPacket(signalTask, publisher)
+                        .subscribe();
             }
             sink.success();
             if (endTask) {
@@ -521,7 +522,7 @@ public abstract class CommunicationTaskExecutor<T extends ITaskAdjutant> impleme
     }
 
 
-    private Mono<Void> sendPacket(final CommunicationTask headTask, final Publisher<ByteBuf> packetPublisher) {
+    private Mono<Void> sendPacket(final CommunicationTask<?> headTask, final Publisher<ByteBuf> packetPublisher) {
         return Mono.from(this.connection.outbound().send(packetPublisher))
                 .doOnError(cause -> {
                     if (this.eventLoop.inEventLoop()) {
@@ -536,7 +537,7 @@ public abstract class CommunicationTaskExecutor<T extends ITaskAdjutant> impleme
     /**
      * @see #sendPacket(CommunicationTask, Publisher)
      */
-    private void handleSendPacketError(final CommunicationTask task, final Throwable cause) {
+    private void handleSendPacketError(final CommunicationTask<?> task, final Throwable cause) {
         Logger logger = obtainLogger();
         if (logger.isDebugEnabled()) {
             logger.error("CommunicationTask:{}", task, cause);

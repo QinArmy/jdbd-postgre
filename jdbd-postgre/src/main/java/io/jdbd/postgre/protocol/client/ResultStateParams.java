@@ -10,6 +10,8 @@ final class ResultStateParams {
 
     long insertId;
 
+    long rowCount;
+
     NoticeMessage noticeMessage;
 
     boolean hasReturningColumn;

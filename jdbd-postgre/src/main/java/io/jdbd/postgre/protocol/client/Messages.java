@@ -32,6 +32,13 @@ abstract class Messages {
 
     /**
      * <ul>
+     *     <li>BindComplete</li>
+     * </ul>
+     */
+    static final byte CHAR_TWO = '2';
+
+    /**
+     * <ul>
      *     <li>NotificationResponse</li>
      * </ul>
      */
@@ -320,14 +327,13 @@ abstract class Messages {
         while (hasOneMessage(cumulateBuffer)) {
             final int msgStartIndex = cumulateBuffer.readerIndex();
             final int msgType = cumulateBuffer.readByte();
-            final int nextMsgIndex = msgStartIndex + 1 + cumulateBuffer.readInt();
             switch (msgType) {
                 case n:// NoData message
                 case T:// RowDescription message
                     canRead = true;
                     break loop;
                 default:
-                    cumulateBuffer.readerIndex(nextMsgIndex);
+                    cumulateBuffer.readerIndex(msgStartIndex + 1 + cumulateBuffer.readInt());
             }
         }
         cumulateBuffer.readerIndex(originalIndex);

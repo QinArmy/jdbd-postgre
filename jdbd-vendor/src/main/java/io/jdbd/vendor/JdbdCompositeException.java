@@ -4,7 +4,9 @@ import io.jdbd.JdbdNonSQLException;
 import io.jdbd.lang.Nullable;
 import io.jdbd.vendor.util.JdbdCollections;
 
-import java.util.ArrayList;
+import java.io.IOException;
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.util.List;
 
 public class JdbdCompositeException extends JdbdNonSQLException {
@@ -12,19 +14,8 @@ public class JdbdCompositeException extends JdbdNonSQLException {
     private final List<? extends Throwable> errorList;
 
     public JdbdCompositeException(List<? extends Throwable> errorList) {
-        super("");
+        super(createErrorMessage(errorList));
         this.errorList = JdbdCollections.unmodifiableList(errorList);
-    }
-
-    public JdbdCompositeException(List<? extends Throwable> errorList, String messageFormat, Object... args) {
-        super(createErrorMessage(messageFormat, errorList), messageFormat, args);
-        this.errorList = JdbdCollections.unmodifiableList(new ArrayList<>(errorList));
-    }
-
-    public JdbdCompositeException(List<Throwable> errorList, boolean enableSuppression, boolean writableStackTrace
-            , String messageFormat, Object... args) {
-        super(getFirstError(errorList), enableSuppression, writableStackTrace, messageFormat, args);
-        this.errorList = JdbdCollections.unmodifiableList(new ArrayList<>(errorList));
     }
 
     /**
@@ -34,28 +25,38 @@ public class JdbdCompositeException extends JdbdNonSQLException {
         return this.errorList;
     }
 
+
+    @Override
+    public final void printStackTrace() {
+        printStackTrace(System.err);
+    }
+
+
+    @Override
+    public void printStackTrace(PrintWriter s) {
+        super.printStackTrace(s);
+    }
+
     @Nullable
     protected static Throwable getFirstError(List<? extends Throwable> errorList) {
         return errorList.isEmpty() ? null : errorList.get(0);
     }
 
-    protected static String createErrorMessage(String message, List<? extends Throwable> errorList) {
-        StringBuilder builder = new StringBuilder(message.length() + 15 * errorList.size())
-                .append(message)
-                .append(":\n");
-        int count = 0;
-        String m;
-        for (Throwable throwable : errorList) {
-            if (count > 0) {
-                builder.append("\n; ");
-            }
-            m = throwable.getMessage();
-            if (m != null) {
-                builder.append(m);
-            }
-            count++;
+    protected static String createErrorMessage(List<? extends Throwable> errorList) {
+        if (errorList.isEmpty()) {
+            throw new IllegalArgumentException("errorList is empty.");
         }
-        return builder.toString();
+        String message;
+        try (StringWriter stringWriter = new StringWriter(); PrintWriter writer = new PrintWriter(stringWriter)) {
+
+            for (Throwable e : errorList) {
+                e.printStackTrace(writer);
+            }
+            message = stringWriter.toString();
+        } catch (IOException e) {
+            message = String.format("print error stack trace failure,first error message:%s", errorList.get(0));
+        }
+        return message;
     }
 
 

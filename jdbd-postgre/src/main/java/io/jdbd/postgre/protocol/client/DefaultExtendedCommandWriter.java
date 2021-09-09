@@ -5,6 +5,7 @@ import io.jdbd.postgre.PgType;
 import io.jdbd.postgre.stmt.BindBatchStmt;
 import io.jdbd.postgre.stmt.BindStmt;
 import io.jdbd.postgre.stmt.BindValue;
+import io.jdbd.postgre.syntax.PgStatement;
 import io.jdbd.postgre.util.PgBinds;
 import io.jdbd.postgre.util.PgExceptions;
 import io.jdbd.postgre.util.PgStrings;
@@ -33,6 +34,7 @@ import java.nio.file.StandardOpenOption;
 import java.sql.SQLException;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 
@@ -69,9 +71,17 @@ final class DefaultExtendedCommandWriter implements ExtendedCommandWriter {
     private DefaultExtendedCommandWriter(ExtendedStmtTask stmtTask) throws SQLException {
         this.adjutant = stmtTask.adjutant();
         this.stmt = stmtTask.getStmt();
-        this.oneShot = isOneShotStmt(this.stmt);
         this.stmtTask = stmtTask;
-        this.replacedSql = replacePlaceholder(this.stmt.getSql());
+        final PgStatement statement = this.adjutant.sqlParser().parse(this.stmt.getSql());
+        if (isOneShotStmt(this.stmt)) {
+            if (statement.getStaticSql().size() != 1) {
+                throw PgExceptions.createBindCountNotMatchError(0, 0, getFirstBatchBindCount(this.stmt));
+            }
+            this.oneShot = true;
+        } else {
+            this.oneShot = false;
+        }
+        this.replacedSql = replacePlaceholder(statement);
         this.statementName = "";
         this.portalName = "";
         this.fetchSize = 0;
@@ -94,9 +104,10 @@ final class DefaultExtendedCommandWriter implements ExtendedCommandWriter {
         return false;
     }
 
+    @Nullable
     @Override
     public final CachePrepare getCache() {
-        throw new IllegalStateException("TODO");
+        return null;
     }
 
     @Override
@@ -160,7 +171,21 @@ final class DefaultExtendedCommandWriter implements ExtendedCommandWriter {
 
     @Override
     public final Publisher<ByteBuf> closeStatement() {
-        return Mono.just(createCloseStatementMessage());
+        final String name = this.statementName;
+        if (!PgStrings.hasText(name)) {
+            throw new IllegalStateException("No statement name");
+        }
+        final byte[] nameBytes = name.getBytes(this.adjutant.clientCharset());
+        final int length = 7 + nameBytes.length;
+        final ByteBuf message = this.adjutant.allocator().buffer(length + 1);
+
+        message.writeByte(Messages.C);
+        message.writeInt(length);
+        message.writeByte('S');
+        message.writeBytes(nameBytes);
+        message.writeByte(Messages.STRING_TERMINATOR);
+
+        return Mono.just(message);
     }
 
 
@@ -196,10 +221,10 @@ final class DefaultExtendedCommandWriter implements ExtendedCommandWriter {
     private void appendExecuteMessage(List<ByteBuf> messageList) {
         final String portalName = this.portalName;
         final byte[] portalNameBytes;
-        if (PgStrings.hasText(portalName)) {
-            portalNameBytes = portalName.getBytes(this.adjutant.clientCharset());
-        } else {
+        if (portalName.equals("")) {
             portalNameBytes = new byte[0];
+        } else {
+            portalNameBytes = portalName.getBytes(this.adjutant.clientCharset());
         }
         final int length = 9 + portalNameBytes.length, needCapacity = length + 1;
         final int messageSize = messageList.size();
@@ -255,7 +280,9 @@ final class DefaultExtendedCommandWriter implements ExtendedCommandWriter {
         message.writeByte(Messages.D);
         message.writeInt(length);
         message.writeByte(describeStatement ? 'S' : 'P');
-        message.writeBytes(nameBytes);
+        if (nameBytes.length > 0) {
+            message.writeBytes(nameBytes);
+        }
         message.writeByte(Messages.STRING_TERMINATOR);
 
     }
@@ -265,18 +292,18 @@ final class DefaultExtendedCommandWriter implements ExtendedCommandWriter {
      */
     private void appendSyncMessage(final List<ByteBuf> messageList) {
 
-        final int messageSize = messageList.size();
+        final int messageSize = messageList.size(), needCapacity = 5;
         final ByteBuf message;
         if (messageSize > 0) {
             final ByteBuf lastMessage = messageList.get(messageSize - 1);
-            if (lastMessage.isReadOnly() || lastMessage.writableBytes() < 5) {
-                message = this.adjutant.allocator().buffer(5);
+            if (lastMessage.isReadOnly() || lastMessage.writableBytes() < needCapacity) {
+                message = this.adjutant.allocator().buffer(needCapacity);
                 messageList.add(message);
             } else {
                 message = lastMessage;
             }
         } else {
-            message = this.adjutant.allocator().buffer(5);
+            message = this.adjutant.allocator().buffer(needCapacity);
             messageList.add(message);
         }
         writeSyncMessage(message);
@@ -287,29 +314,12 @@ final class DefaultExtendedCommandWriter implements ExtendedCommandWriter {
      */
     private void writeSyncMessage(ByteBuf message) {
         message.writeByte(Messages.S);
-        message.writeInt(0);
+        message.writeInt(Messages.LENGTH_BYTES);
     }
 
-
-    private ByteBuf createCloseStatementMessage() {
-        final String name = this.statementName;
-        if (!PgStrings.hasText(name)) {
-            throw new IllegalStateException("No statement name");
-        }
-        final byte[] nameBytes = name.getBytes(this.adjutant.clientCharset());
-        final int length = 7 + nameBytes.length;
-        final ByteBuf message = this.adjutant.allocator().buffer(length + 1);
-
-        message.writeByte(Messages.C);
-        message.writeInt(length);
-        message.writeByte('S');
-        message.writeBytes(nameBytes);
-        message.writeByte(Messages.STRING_TERMINATOR);
-
-        return message;
-    }
 
     /**
+     * @see #executeOneShot()
      * @see <a href="https://www.postgresql.org/docs/current/protocol-message-formats.html">Bind</a>
      */
     private ByteBuf createBindMessage(final int batchIndex, final int bindCount)
@@ -321,18 +331,18 @@ final class DefaultExtendedCommandWriter implements ExtendedCommandWriter {
         message.writeZero(Messages.LENGTH_BYTES);//placeholder of length
         // The name of the destination portal (an empty string selects the unnamed portal).
         final String portalName = this.portalName;
-        if (portalName != null) {
+        if (!portalName.equals("")) {
             message.writeBytes(portalName.getBytes(clientCharset));
         }
         message.writeByte(Messages.STRING_TERMINATOR);
         // The name of the source prepared statement (an empty string selects the unnamed prepared statement).
         final String statementName = this.statementName;
-        if (statementName != null) {
+        if (!statementName.equals("")) {
             message.writeBytes(statementName.getBytes(clientCharset));
         }
         message.writeByte(Messages.STRING_TERMINATOR);
 
-        final List<PgType> paramTypeList = this.stmtTask.getParamTypeList();
+        final List<PgType> paramTypeList = this.oneShot ? Collections.emptyList() : this.stmtTask.getParamTypeList();
         final int paramCount = paramTypeList.size();
         if (bindCount != paramCount) {
             throw PgExceptions.parameterCountMatch(batchIndex, paramCount, bindCount);
@@ -342,6 +352,10 @@ final class DefaultExtendedCommandWriter implements ExtendedCommandWriter {
             message.writeShort(decideParameterFormatCode(type));
         }
         message.writeShort(paramCount); // The number of parameter values
+        if (this.oneShot) { // one shot.
+            message.writeShort(paramCount);
+            Messages.writeLength(message);
+        }
         return message;
     }
 
@@ -368,14 +382,14 @@ final class DefaultExtendedCommandWriter implements ExtendedCommandWriter {
         return formatCode;
     }
 
-    private String replacePlaceholder(final String originalSql) throws SQLException {
+    private String replacePlaceholder(PgStatement statement) {
 
-        final List<String> staticSqlList = this.adjutant.sqlParser().parse(originalSql).getStaticSql();
+        final List<String> staticSqlList = statement.getStaticSql();
         String sql;
         if (staticSqlList.size() == 1) {
-            sql = originalSql;
+            sql = statement.getSql();
         } else {
-            final StringBuilder builder = new StringBuilder(originalSql.length() + staticSqlList.size());
+            final StringBuilder builder = new StringBuilder(statement.getSql().length() + staticSqlList.size());
             final int paramCount = staticSqlList.size() - 1;
             for (int i = 0; i < paramCount; i++) {
                 builder.append(staticSqlList.get(i))
@@ -424,17 +438,14 @@ final class DefaultExtendedCommandWriter implements ExtendedCommandWriter {
                     // exists Publisher type parameter.
                     break;
                 }
+                message = null; // avoid createBindMessage throw error.
                 batchIndex++;
             }
         } catch (Throwable e) {
-            if (message != null && message.refCnt() > 0) {
-                message.release();
+            if (message != null) {
+                handleBindError(message, e, batchIndex, channelSink);
             }
-            this.stmtTask.addErrorToTask(e);
-            channelSink.complete(); // don't emit error to netty channel.
-            if (batchIndex == 0) {
-                this.stmtTask.handleNoExecuteMessage();
-            }
+
         }
     }
 
@@ -754,7 +765,7 @@ final class DefaultExtendedCommandWriter implements ExtendedCommandWriter {
 
         final List<PgType> paramTypeList = Objects.requireNonNull(this.paramTypeList, "this.paramTypeList");
         final int paramCount = paramTypeList.size();
-        if (paramIndex < 0 || paramIndex >= paramCount) {
+        if (paramIndex < 0 || (paramCount > 0 && paramIndex >= paramCount)) {
             throw new IllegalArgumentException(String.format("paramIndex[%s] error.", paramIndex));
         }
         if (bindGroup.size() != paramCount) {
@@ -811,13 +822,15 @@ final class DefaultExtendedCommandWriter implements ExtendedCommandWriter {
      * @see ParameterSubscriber#onCompleteInEventLoop()
      */
     @Nullable
-    private List<? extends ParamValue> handBindComplete(ByteBuf bindMessage, final int batchIndex
+    private List<? extends ParamValue> handBindComplete(final ByteBuf bindMessage, final int batchIndex
             , FluxSink<ByteBuf> channelSink) {
 
 
         final List<? extends ParamValue> nextBindGroup = getBindGroup(batchIndex + 1);
 
-        List<ByteBuf> messageList = new ArrayList<>(2);
+        Messages.writeLength(bindMessage); // write bind message length .
+
+        final List<ByteBuf> messageList = new ArrayList<>(2);
         messageList.add(bindMessage);               // Bind message
         appendDescribeMessage(messageList, false);  // Describe message for portal
         appendExecuteMessage(messageList);          // Execute message
@@ -837,7 +850,13 @@ final class DefaultExtendedCommandWriter implements ExtendedCommandWriter {
 
     private void handleBindError(ByteBuf message, Throwable error, final int batchIndex
             , FluxSink<ByteBuf> channelSInk) {
-        this.stmtTask.addErrorToTask(error);
+
+        if (error instanceof IndexOutOfBoundsException
+                && (Integer.MAX_VALUE - message.readableBytes()) < 1024) { // here only simple type ,eg: int,boolean
+            this.stmtTask.addErrorToTask(PgExceptions.tooLargeObject());
+        } else {
+            this.stmtTask.addErrorToTask(error);
+        }
         if (message.refCnt() > 0) {
             message.release();
         }
@@ -886,8 +905,21 @@ final class DefaultExtendedCommandWriter implements ExtendedCommandWriter {
         return oneShot;
     }
 
+    private static int getFirstBatchBindCount(final ParamSingleStmt stmt) {
+        final int bindCount;
+        if (stmt instanceof ParamStmt) {
+            bindCount = ((ParamStmt) stmt).getBindGroup().size();
+        } else {
+            final ParamBatchStmt<? extends ParamValue> batchStmt = (ParamBatchStmt<? extends ParamValue>) stmt;
+            if (batchStmt.getGroupList().isEmpty()) {
+                bindCount = 0;
+            } else {
+                bindCount = batchStmt.getGroupList().get(0).size();
+            }
+        }
+        return bindCount;
+    }
 
-    @SuppressWarnings("ImplementatsSubscriber")
     private final class ParameterSubscriber implements Subscriber<Object> {
 
         private final int valueLengthIndex;

@@ -1005,7 +1005,7 @@ final class ComQueryTask extends MySQLCommandTask {
         if (errorList.size() == 1) {
             e = errorList.get(0);
         } else {
-            e = new JdbdCompositeException(errorList, "occur multi error");
+            e = new JdbdCompositeException(errorList);
         }
         return e;
     }

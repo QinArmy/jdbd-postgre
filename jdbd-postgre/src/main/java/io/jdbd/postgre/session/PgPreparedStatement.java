@@ -161,6 +161,8 @@ final class PgPreparedStatement extends PgStatement implements PreparedStatement
             error = new SubscribeException(ResultType.QUERY, ResultType.BATCH);
         } else if (paramGroup.size() != this.paramCount) {
             error = PgExceptions.parameterCountMatch(0, this.paramCount, paramGroup.size());
+        } else if (this.paramCount == 0) {
+            error = null;
         } else {
             error = JdbdBinds.sortAndCheckParamGroup(0, paramGroup);
         }

@@ -13,8 +13,11 @@ package io.jdbd.vendor.stmt;
  *
  * @see io.jdbd.DatabaseSession#prepare(String)
  */
-public interface PrepareStmt extends SingleStmt {
+public interface PrepareStmt extends ParamSingleStmt {
 
+    /**
+     * @throws IllegalStateException when no actual {@link ParamSingleStmt}
+     */
     ParamSingleStmt getStmt();
 
 
