@@ -12,8 +12,8 @@ import io.jdbd.postgre.util.PgBinds;
 import io.jdbd.postgre.util.PgExceptions;
 import io.jdbd.postgre.util.PgStrings;
 import io.jdbd.result.MultiResult;
+import io.jdbd.result.OrderedFlux;
 import io.jdbd.result.ResultStates;
-import io.jdbd.result.SafePublisher;
 import io.jdbd.stmt.MultiStatement;
 import reactor.core.publisher.Flux;
 import reactor.util.annotation.Nullable;
@@ -107,7 +107,7 @@ final class PgMultiStatement extends PgStatement implements MultiStatement {
     }
 
     @Override
-    public final SafePublisher executeBatchAsFlux() {
+    public final OrderedFlux executeBatchAsFlux() {
         return this.session.protocol.multiStmtAsFlux(createMultiBindStmt());
     }
 

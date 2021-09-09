@@ -1,7 +1,7 @@
 package io.jdbd.vendor.result;
 
+import io.jdbd.result.OrderedFlux;
 import io.jdbd.result.Result;
-import io.jdbd.result.SafePublisher;
 import io.jdbd.vendor.util.JdbdExceptions;
 import org.reactivestreams.Subscriber;
 import org.reactivestreams.Subscription;
@@ -16,7 +16,7 @@ import java.util.function.Consumer;
  * @see BatchUpdateResultSubscriber
  * @see MultiResultSubscriber
  */
-final class FluxResult implements SafePublisher {
+final class FluxResult implements OrderedFlux {
 
     static FluxResult create(Consumer<FluxResultSink> callBack) {
         return new FluxResult(callBack);

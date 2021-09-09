@@ -69,10 +69,10 @@ final class DefaultExtendedCommandWriter implements ExtendedCommandWriter {
     private final int fetchSize;
 
 
-    private DefaultExtendedCommandWriter(ExtendedStmtTask stmtTask) throws SQLException {
+    private DefaultExtendedCommandWriter(final ExtendedStmtTask stmtTask) throws SQLException {
+        this.stmtTask = stmtTask;
         this.adjutant = stmtTask.adjutant();
         this.stmt = stmtTask.getStmt();
-        this.stmtTask = stmtTask;
         final PgStatement statement = this.adjutant.sqlParser().parse(this.stmt.getSql());
         if (isOneShotStmt(this.stmt)) {
             if (statement.getStaticSql().size() != 1) {
@@ -84,9 +84,15 @@ final class DefaultExtendedCommandWriter implements ExtendedCommandWriter {
         }
         this.replacedSql = replacePlaceholder(statement);
         this.statementName = "";
-        this.portalName = "";
-        this.fetchSize = this.stmt.getFetchSize();
 
+        final int fetchSize = this.stmt.getFetchSize();
+        if (fetchSize > 0 && isOnlyOneBindGroup(this.stmt)) {
+            this.fetchSize = fetchSize;
+            this.portalName = this.adjutant.createPortalName();
+        } else {
+            this.fetchSize = 0;
+            this.portalName = "";
+        }
     }
 
     @Override
@@ -109,6 +115,14 @@ final class DefaultExtendedCommandWriter implements ExtendedCommandWriter {
     @Override
     public final CachePrepare getCache() {
         return null;
+    }
+
+    @Override
+    public final int getFetchSize() {
+        if (!supportFetch()) {
+            throw new IllegalStateException("Not support fetch");
+        }
+        return this.fetchSize;
     }
 
     @Override
@@ -897,6 +911,17 @@ final class DefaultExtendedCommandWriter implements ExtendedCommandWriter {
             oneShot = false;
         }
         return oneShot;
+    }
+
+    private static boolean isOnlyOneBindGroup(final ParamSingleStmt stmt) {
+        final boolean onlyOne;
+        if (stmt instanceof ParamStmt) {
+            onlyOne = true;
+        } else {
+            final ParamBatchStmt<? extends ParamValue> batchStmt = (ParamBatchStmt<? extends ParamValue>) stmt;
+            onlyOne = batchStmt.getGroupList().size() == 1;
+        }
+        return onlyOne;
     }
 
     private static int getFirstBatchBindCount(final ParamSingleStmt stmt) {

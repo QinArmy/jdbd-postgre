@@ -104,9 +104,13 @@ final class PgTaskExecutor extends CommunicationTaskExecutor<TaskAdjutant> {
 
         private final PgTaskExecutor taskExecutor;
 
-        private String prepareNamePrefix = "S_1@";
+        private String stmtNamePrefix = "S0@";
 
-        private long prepareNameId = 1L;
+        private String portalNamePrefix = "P0@";
+
+        private int stmtNameId = 1;
+
+        private int portalNameId = 1;
 
         private ServerImpl server;
 
@@ -151,17 +155,32 @@ final class PgTaskExecutor extends CommunicationTaskExecutor<TaskAdjutant> {
 
         @Override
         public final String createPrepareName() {
-            final long nameId = this.prepareNameId++;
+            final int nameId = this.stmtNameId++;
             final String prefix;
-            if (nameId == Long.MIN_VALUE) {
-                final String oldPrefix = this.prepareNamePrefix;
-                final int prefixNum = Integer.parseInt(oldPrefix.substring(2, oldPrefix.length() - 1)) + 1;
-                prefix = oldPrefix.substring(0, 2) + prefixNum + oldPrefix.charAt(oldPrefix.length() - 1);
+            if (nameId == Integer.MIN_VALUE) {
+                final String oldPrefix = this.stmtNamePrefix;
+                final int prefixNum = Integer.parseInt(oldPrefix.substring(1, oldPrefix.length() - 1)) + 1;
+                prefix = oldPrefix.substring(0, 1) + prefixNum + oldPrefix.charAt(oldPrefix.length() - 1);
             } else {
-                prefix = this.prepareNamePrefix;
+                prefix = this.stmtNamePrefix;
             }
             return prefix + nameId;
         }
+
+        @Override
+        public final String createPortalName() {
+            final int nameId = this.portalNameId++;
+            final String prefix;
+            if (nameId == Integer.MIN_VALUE) {
+                final String oldPrefix = this.portalNamePrefix;
+                final int prefixNum = Integer.parseInt(oldPrefix.substring(1, oldPrefix.length() - 1)) + 1;
+                prefix = oldPrefix.substring(0, 1) + prefixNum + oldPrefix.charAt(oldPrefix.length() - 1);
+            } else {
+                prefix = this.portalNamePrefix;
+            }
+            return prefix + nameId;
+        }
+
 
         @Override
         public final ZoneOffset clientOffset() {

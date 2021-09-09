@@ -19,6 +19,11 @@ interface ExtendedCommandWriter {
     @Nullable
     CachePrepare getCache();
 
+    /**
+     * @throws IllegalStateException when {@link #supportFetch()} return false
+     */
+    int getFetchSize();
+
     String getReplacedSql();
 
     String getStatementName();

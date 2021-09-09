@@ -2,9 +2,9 @@ package io.jdbd.postgre.session;
 
 import io.jdbd.postgre.stmt.PgStmts;
 import io.jdbd.result.MultiResult;
+import io.jdbd.result.OrderedFlux;
 import io.jdbd.result.ResultRow;
 import io.jdbd.result.ResultStates;
-import io.jdbd.result.SafePublisher;
 import io.jdbd.stmt.StaticStatement;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -48,12 +48,12 @@ final class PgStaticStatement extends PgStatement implements StaticStatement {
     }
 
     @Override
-    public final SafePublisher executeAsFlux(List<String> sqlGroup) {
+    public final OrderedFlux executeAsFlux(List<String> sqlGroup) {
         return this.session.protocol.batchAsFlux(PgStmts.batchStmt(sqlGroup, this));
     }
 
     @Override
-    public final SafePublisher executeAsFlux(String multiStmt) {
+    public final OrderedFlux executeAsFlux(String multiStmt) {
         return this.session.protocol.multiCommandAsFlux(PgStmts.stmt(multiStmt, this));
     }
 

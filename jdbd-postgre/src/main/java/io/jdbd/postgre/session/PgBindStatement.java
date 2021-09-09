@@ -14,9 +14,9 @@ import io.jdbd.postgre.util.PgExceptions;
 import io.jdbd.postgre.util.PgFunctions;
 import io.jdbd.postgre.util.PgStrings;
 import io.jdbd.result.MultiResult;
+import io.jdbd.result.OrderedFlux;
 import io.jdbd.result.ResultRow;
 import io.jdbd.result.ResultStates;
-import io.jdbd.result.SafePublisher;
 import io.jdbd.stmt.BindStatement;
 import io.jdbd.stmt.ResultType;
 import io.jdbd.stmt.SubscribeException;
@@ -197,8 +197,8 @@ final class PgBindStatement extends PgStatement implements BindStatement {
     }
 
     @Override
-    public final SafePublisher executeBatchAsFlux() {
-        final SafePublisher flux;
+    public final OrderedFlux executeBatchAsFlux() {
+        final OrderedFlux flux;
         if (this.paramGroupList.isEmpty()) {
             flux = MultiResults.safePublisherError(PgExceptions.noAnyParamGroupError());
         } else {

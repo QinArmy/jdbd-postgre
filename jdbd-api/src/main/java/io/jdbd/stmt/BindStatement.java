@@ -3,9 +3,9 @@ package io.jdbd.stmt;
 import io.jdbd.JdbdException;
 import io.jdbd.lang.Nullable;
 import io.jdbd.result.MultiResult;
+import io.jdbd.result.OrderedFlux;
 import io.jdbd.result.ResultRow;
 import io.jdbd.result.ResultStates;
-import io.jdbd.result.SafePublisher;
 import org.reactivestreams.Publisher;
 
 import java.sql.JDBCType;
@@ -67,6 +67,6 @@ public interface BindStatement extends BindableSingleStatement, BindableMultiRes
     @Override
     MultiResult executeBatchAsMulti();
 
-    SafePublisher executeBatchAsFlux();
+    OrderedFlux executeBatchAsFlux();
 
 }

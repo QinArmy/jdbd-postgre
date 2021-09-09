@@ -3,7 +3,7 @@ package io.jdbd.result;
 
 import org.reactivestreams.Publisher;
 
-public interface SafePublisher extends Publisher<Result> {
+public interface OrderedFlux extends Publisher<Result> {
 
 
 }

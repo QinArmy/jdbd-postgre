@@ -32,6 +32,8 @@ interface TaskAdjutant extends ITaskAdjutant {
 
     String createPrepareName();
 
+    String createPortalName();
+
     @Deprecated
     ZoneOffset clientOffset();
 

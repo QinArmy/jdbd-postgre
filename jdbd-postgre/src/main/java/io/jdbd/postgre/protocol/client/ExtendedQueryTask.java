@@ -78,7 +78,7 @@ final class ExtendedQueryTask extends AbstractStmtTask implements PrepareStmtTas
         });
     }
 
-    static SafePublisher batchAsFlux(BindBatchStmt stmt, TaskAdjutant adjutant) {
+    static OrderedFlux batchAsFlux(BindBatchStmt stmt, TaskAdjutant adjutant) {
         return MultiResults.asFlux(sink -> {
             try {
                 ExtendedQueryTask task = new ExtendedQueryTask(sink, stmt, adjutant);
@@ -163,7 +163,7 @@ final class ExtendedQueryTask extends AbstractStmtTask implements PrepareStmtTas
     }
 
     @Override
-    public final SafePublisher executeBatchAsFlux(ParamBatchStmt<ParamValue> stmt) {
+    public final OrderedFlux executeBatchAsFlux(ParamBatchStmt<ParamValue> stmt) {
         return MultiResults.asFlux(sink -> executeAfterBinding(sink, stmt));
     }
 
@@ -345,8 +345,12 @@ final class ExtendedQueryTask extends AbstractStmtTask implements PrepareStmtTas
     }
 
     @Override
-    final void handleSelectCommand(long rowCount) {
-        //TODO handle fetch if need
+    final void handleSelectCommand(final long rowCount) {
+        if (this.commandWriter.supportFetch()
+                && !this.sink.isCancelled()
+                && rowCount >= this.commandWriter.getFetchSize()) {
+            this.packetPublisher = this.commandWriter.fetch();
+        }
     }
 
     @Override

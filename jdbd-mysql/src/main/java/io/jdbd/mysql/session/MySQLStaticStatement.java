@@ -2,9 +2,9 @@ package io.jdbd.mysql.session;
 
 import io.jdbd.mysql.stmt.Stmts;
 import io.jdbd.result.MultiResult;
+import io.jdbd.result.OrderedFlux;
 import io.jdbd.result.ResultRow;
 import io.jdbd.result.ResultStates;
-import io.jdbd.result.SafePublisher;
 import io.jdbd.stmt.StaticStatement;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -72,13 +72,13 @@ final class MySQLStaticStatement<S extends MySQLDatabaseSession> extends MySQLSt
     }
 
     @Override
-    public final SafePublisher executeAsFlux(List<String> sqlGroup) {
+    public final OrderedFlux executeAsFlux(List<String> sqlGroup) {
         return null;
     }
 
 
     @Override
-    public final SafePublisher executeAsFlux(String multiStmt) {
+    public final OrderedFlux executeAsFlux(String multiStmt) {
         throw new UnsupportedOperationException();
     }
 
