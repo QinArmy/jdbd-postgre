@@ -5,9 +5,9 @@ import io.jdbd.postgre.stmt.BindMultiStmt;
 import io.jdbd.postgre.stmt.BindStmt;
 import io.jdbd.postgre.stmt.PrepareStmtTask;
 import io.jdbd.result.MultiResult;
-import io.jdbd.result.Result;
 import io.jdbd.result.ResultRow;
 import io.jdbd.result.ResultStates;
+import io.jdbd.result.SafePublisher;
 import io.jdbd.stmt.PreparedStatement;
 import io.jdbd.vendor.stmt.StaticBatchStmt;
 import io.jdbd.vendor.stmt.StaticStmt;
@@ -58,12 +58,12 @@ final class ClientProtocolImpl implements ClientProtocol {
     }
 
     @Override
-    public final Flux<Result> batchAsFlux(StaticBatchStmt stmt) {
+    public final SafePublisher batchAsFlux(StaticBatchStmt stmt) {
         return SimpleQueryTask.batchAsFlux(stmt, this.adjutant);
     }
 
     @Override
-    public final Flux<Result> multiCommandAsFlux(StaticStmt stmt) {
+    public final SafePublisher multiCommandAsFlux(StaticStmt stmt) {
         return SimpleQueryTask.multiCommandAsFlux(stmt, this.adjutant);
     }
 
@@ -88,7 +88,7 @@ final class ClientProtocolImpl implements ClientProtocol {
     }
 
     @Override
-    public final Flux<Result> bindBatchAsFlux(BindBatchStmt stmt) {
+    public final SafePublisher bindBatchAsFlux(BindBatchStmt stmt) {
         return SimpleQueryTask.bindableAsFlux(stmt, this.adjutant);
     }
 
@@ -103,7 +103,7 @@ final class ClientProtocolImpl implements ClientProtocol {
     }
 
     @Override
-    public final Flux<Result> multiStmtAsFlux(BindMultiStmt stmt) {
+    public final SafePublisher multiStmtAsFlux(BindMultiStmt stmt) {
         return SimpleQueryTask.multiStmtAsFlux(stmt, this.adjutant);
     }
 

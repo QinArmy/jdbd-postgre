@@ -2,9 +2,9 @@ package io.jdbd.stmt;
 
 import io.jdbd.JdbdSQLException;
 import io.jdbd.result.MultiResult;
-import io.jdbd.result.Result;
 import io.jdbd.result.ResultRow;
 import io.jdbd.result.ResultStates;
+import io.jdbd.result.SafePublisher;
 import org.reactivestreams.Publisher;
 
 import java.util.List;
@@ -182,9 +182,9 @@ public interface StaticStatement extends Statement {
 
     MultiResult executeAsMulti(List<String> sqlGroup);
 
-    Publisher<Result> executeAsFlux(List<String> sqlGroup);
+    SafePublisher executeAsFlux(List<String> sqlGroup);
 
-    Publisher<Result> executeAsFlux(String multiStmt);
+    SafePublisher executeAsFlux(String multiStmt);
 
 
 }

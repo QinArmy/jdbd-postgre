@@ -24,6 +24,10 @@ public abstract class MultiResults {
         return ReactorMultiResults.create(adjutant, callback);
     }
 
+    public static SafePublisher safePublisherError(Throwable error) {
+        return new SafePublisherError(error);
+    }
+
 
     /**
      * <p>
@@ -64,8 +68,8 @@ public abstract class MultiResults {
         return MultiResultSubscriber.create(adjutant, consumer);
     }
 
-    public static Flux<Result> asFlux(Consumer<FluxResultSink> consumer) {
-        return Flux.from(FluxResult.create(consumer));
+    public static SafePublisher asFlux(Consumer<FluxResultSink> consumer) {
+        return FluxResult.create(consumer);
     }
 
 

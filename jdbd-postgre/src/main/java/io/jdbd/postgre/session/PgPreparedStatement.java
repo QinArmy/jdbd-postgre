@@ -209,12 +209,12 @@ final class PgPreparedStatement extends PgStatement implements PreparedStatement
     }
 
     @Override
-    public final Flux<Result> executeBatchAsFlux() {
-        final Flux<Result> flux;
+    public final SafePublisher executeBatchAsFlux() {
+        final SafePublisher flux;
         if (this.paramGroupList.isEmpty()) {
             final JdbdException error = PgExceptions.noAnyParamGroupError();
             this.stmtTask.closeOnBindError(error); // close prepare statement.
-            flux = Flux.error(error);
+            flux = MultiResults.safePublisherError(error);
         } else {
             ParamBatchStmt<ParamValue> stmt;
             stmt = PgStmts.paramBatch(this.sql, this.paramGroupList, this);

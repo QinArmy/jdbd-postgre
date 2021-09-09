@@ -21,6 +21,8 @@ interface ExtendedCommandWriter {
 
     String getReplacedSql();
 
+    String getStatementName();
+
     /**
      * @throws IllegalStateException throw(not emit) when {@link #isOneShot()} return false.
      */

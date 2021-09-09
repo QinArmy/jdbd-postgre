@@ -71,7 +71,7 @@ public interface PreparedStatement extends BindableSingleStatement, BindableMult
     @Override
     MultiResult executeBatchAsMulti();
 
-    Publisher<Result> executeBatchAsFlux();
+    SafePublisher executeBatchAsFlux();
 
 
 }

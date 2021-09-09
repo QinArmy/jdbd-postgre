@@ -21,7 +21,13 @@ public interface DatabaseSession extends ReactiveCloseable {
     StaticStatement statement();
 
     /**
-     * @see java.sql.Connection#prepareStatement(String)
+     * <p>
+     * This method is similarly to {@code java.sql.Connection#prepareStatement(String)}
+     * except that is async emit a {@link PreparedStatement}.
+     * </p>
+     *
+     * @return A Reactive Streams {@link Publisher} with basic rx operators that completes successfully by
+     * emitting an element, or with an error. Like {@code reactor.core.publisher.Mono}
      */
     Publisher<PreparedStatement> prepare(String sql);
 

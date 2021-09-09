@@ -21,7 +21,7 @@ public interface PrepareStmtTask {
 
     MultiResult executeBatchAsMulti(ParamBatchStmt<ParamValue> stmt);
 
-    Flux<Result> executeBatchAsFlux(ParamBatchStmt<ParamValue> stmt);
+    SafePublisher executeBatchAsFlux(ParamBatchStmt<ParamValue> stmt);
 
     List<PgType> getParamTypeList();
 

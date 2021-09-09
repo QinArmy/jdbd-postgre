@@ -452,6 +452,28 @@ public abstract class PgBinds extends JdbdBinds {
         builder.append('}');
     }
 
+
+    public static int decideFormatCode(final PgType type) {
+        final int formatCode;
+        switch (type) {
+            case SMALLINT:
+            case INTEGER:
+            case REAL:
+            case DOUBLE:
+            case OID:
+            case BIGINT:
+            case BYTEA:
+            case BOOLEAN:
+                formatCode = 1; // binary format code
+                // only these  is binary format ,because postgre no document about binary format ,and postgre binary protocol not good
+                // if change this ,change io.jdbd.postgre.protocol.client.DefaultResultSetReader.parseColumnFromBinary
+                break;
+            default:
+                formatCode = 0; // all array type is text format
+        }
+        return formatCode;
+    }
+
     private static final class ArrayWrapper {
 
         private final Object array;

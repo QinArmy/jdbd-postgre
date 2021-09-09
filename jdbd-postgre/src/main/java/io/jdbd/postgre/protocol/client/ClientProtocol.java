@@ -5,9 +5,9 @@ import io.jdbd.postgre.stmt.BindMultiStmt;
 import io.jdbd.postgre.stmt.BindStmt;
 import io.jdbd.postgre.stmt.PrepareStmtTask;
 import io.jdbd.result.MultiResult;
-import io.jdbd.result.Result;
 import io.jdbd.result.ResultRow;
 import io.jdbd.result.ResultStates;
+import io.jdbd.result.SafePublisher;
 import io.jdbd.stmt.BindStatement;
 import io.jdbd.stmt.MultiStatement;
 import io.jdbd.stmt.PreparedStatement;
@@ -63,9 +63,9 @@ public interface ClientProtocol {
      * This method is underlying api of {@link StaticStatement#executeAsFlux(List)} method.
      * </p>
      */
-    Flux<Result> batchAsFlux(StaticBatchStmt stmt);
+    SafePublisher batchAsFlux(StaticBatchStmt stmt);
 
-    Flux<Result> multiCommandAsFlux(StaticStmt stmt);
+    SafePublisher multiCommandAsFlux(StaticStmt stmt);
 
     /*################################## blow for binda single smt ##################################*/
 
@@ -106,7 +106,7 @@ public interface ClientProtocol {
      * This method is one of underlying api of {@link BindStatement#executeBatchAsFlux()} method.
      * </p>
      */
-    Flux<Result> bindBatchAsFlux(BindBatchStmt stmt);
+    SafePublisher bindBatchAsFlux(BindBatchStmt stmt);
 
     /*################################## blow for multi stmt ##################################*/
 
@@ -124,7 +124,7 @@ public interface ClientProtocol {
      * This method is underlying api of {@link MultiStatement#executeBatchAsFlux()} method.
      * </p>
      */
-    Flux<Result> multiStmtAsFlux(BindMultiStmt stmt);
+    SafePublisher multiStmtAsFlux(BindMultiStmt stmt);
 
     Mono<PreparedStatement> prepare(String sql, Function<PrepareStmtTask, PreparedStatement> function);
 

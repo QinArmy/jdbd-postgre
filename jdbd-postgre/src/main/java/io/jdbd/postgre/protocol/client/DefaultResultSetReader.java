@@ -3,6 +3,7 @@ package io.jdbd.postgre.protocol.client;
 import io.jdbd.JdbdSQLException;
 import io.jdbd.postgre.PgConstant;
 import io.jdbd.postgre.PgJdbdException;
+import io.jdbd.postgre.PgType;
 import io.jdbd.postgre.type.PgGeometries;
 import io.jdbd.postgre.util.PgExceptions;
 import io.jdbd.postgre.util.PgTimes;
@@ -395,9 +396,9 @@ final class DefaultResultSetReader implements ResultSetReader {
 
     /**
      * @see #readRowData(ByteBuf)
+     * @see io.jdbd.postgre.util.PgBinds#decideFormatCode(PgType)
      */
     private Object parseColumnFromBinary(final ByteBuf cumulateBuffer, final int valueLength, final PgColumnMeta meta) {
-
         final Object value;
         switch (meta.columnTypeOid) {
             case PgConstant.TYPE_INT2: {
@@ -422,10 +423,6 @@ final class DefaultResultSetReader implements ResultSetReader {
                 value = cumulateBuffer.readLong();
             }
             break;
-            case PgConstant.TYPE_NUMERIC: {
-                value = parseBinaryDecimal(cumulateBuffer, valueLength, meta);
-            }
-            break;
             case PgConstant.TYPE_FLOAT4: {
                 if (valueLength != 4) {
                     throw createResponseBinaryColumnValueError(cumulateBuffer, valueLength, meta);
@@ -447,16 +444,11 @@ final class DefaultResultSetReader implements ResultSetReader {
                 value = cumulateBuffer.readByte() == 1;
             }
             break;
-            case PgConstant.TYPE_TIMESTAMP: {
-                if (valueLength != 8) {
-                    throw createResponseBinaryColumnValueError(cumulateBuffer, valueLength, meta);
-                }
-                value = new byte[0]; //TODO fix
-            }
-            break;
             default: {
-                byte[] bytes = new byte[valueLength];
-                value = cumulateBuffer.readBytes(bytes);
+                // other not support. if change this ,change io.jdbd.postgre.util.PgBinds.decideFormatCode
+                final byte[] bytes = new byte[valueLength];
+                cumulateBuffer.readBytes(bytes);
+                value = bytes;
             }
 
         }
@@ -500,10 +492,6 @@ final class DefaultResultSetReader implements ResultSetReader {
         return amount;
     }
 
-    private BigDecimal parseBinaryDecimal(final ByteBuf cumulateBuffer, final int valueLength, final PgColumnMeta meta) {
-
-        return null;
-    }
 
     /**
      * @see #parseColumnFromBinary(ByteBuf, int, PgColumnMeta)

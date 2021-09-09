@@ -13,6 +13,16 @@ import reactor.core.publisher.Mono;
 
 import java.sql.Savepoint;
 
+/**
+ * This class is a implementation of {@link DatabaseSession} with postgre client protocol.
+ * <p>
+ * This class is base class of :
+ *     <ul>
+ *         <li>{@link PgTxDatabaseSession}</li>
+ *         <li>{@link PgXaDatabaseSession}</li>
+ *     </ul>
+ * </p>
+ */
 abstract class PgDatabaseSession implements DatabaseSession {
 
     final SessionAdjutant adjutant;

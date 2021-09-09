@@ -78,7 +78,7 @@ final class ExtendedQueryTask extends AbstractStmtTask implements PrepareStmtTas
         });
     }
 
-    static Flux<Result> batchAsFlux(BindBatchStmt stmt, TaskAdjutant adjutant) {
+    static SafePublisher batchAsFlux(BindBatchStmt stmt, TaskAdjutant adjutant) {
         return MultiResults.asFlux(sink -> {
             try {
                 ExtendedQueryTask task = new ExtendedQueryTask(sink, stmt, adjutant);
@@ -94,9 +94,8 @@ final class ExtendedQueryTask extends AbstractStmtTask implements PrepareStmtTas
             , final TaskAdjutant adjutant) {
         return Mono.create(sink -> {
             try {
-                PgPrepareStmt stmt = PgPrepareStmt.prepare(sql);
-                PrepareFluxResultSink resultSink = new PrepareFluxResultSink(stmt, function, sink);
-                ExtendedQueryTask task = new ExtendedQueryTask(adjutant, resultSink);
+                PrepareFluxResultSink resultSink = new PrepareFluxResultSink(function, sink);
+                ExtendedQueryTask task = new ExtendedQueryTask(adjutant, PgPrepareStmt.prepare(sql), resultSink);
                 task.submit(sink::error);
             } catch (Throwable e) {
                 sink.error(PgExceptions.wrapIfNonJvmFatal(e));
@@ -112,8 +111,6 @@ final class ExtendedQueryTask extends AbstractStmtTask implements PrepareStmtTas
 
     private final ExtendedCommandWriter commandWriter;
 
-    private final String prepareName;
-
 
     private Phase phase;
 
@@ -123,7 +120,6 @@ final class ExtendedQueryTask extends AbstractStmtTask implements PrepareStmtTas
      */
     private ExtendedQueryTask(BindStmt stmt, FluxResultSink sink, TaskAdjutant adjutant) throws SQLException {
         super(adjutant, sink, stmt);
-        this.prepareName = "";
         this.commandWriter = DefaultExtendedCommandWriter.create(this);
     }
 
@@ -134,73 +130,41 @@ final class ExtendedQueryTask extends AbstractStmtTask implements PrepareStmtTas
      */
     private ExtendedQueryTask(FluxResultSink sink, BindBatchStmt stmt, TaskAdjutant adjutant) throws SQLException {
         super(adjutant, sink, stmt);
-        this.prepareName = "";
         this.commandWriter = DefaultExtendedCommandWriter.create(this);
     }
 
     /**
      * @see #prepare(String, Function, TaskAdjutant)
      */
-    private ExtendedQueryTask(TaskAdjutant adjutant, PrepareFluxResultSink sink) throws SQLException {
-        super(adjutant, sink, sink.prepareStmt);
-        this.prepareName = adjutant.createPrepareName();
+    private ExtendedQueryTask(TaskAdjutant adjutant, PrepareStmt stmt, PrepareFluxResultSink sink) throws SQLException {
+        super(adjutant, sink, stmt);
         this.commandWriter = DefaultExtendedCommandWriter.create(this);
     }
 
 
     @Override
     public final Mono<ResultStates> executeUpdate(final ParamStmt stmt) {
-        return MultiResults.update(sink -> {
-            if (this.adjutant.inEventLoop()) {
-                executePreparedStmtInEventLoop(sink, stmt);
-            } else {
-                this.adjutant.execute(() -> executePreparedStmtInEventLoop(sink, stmt));
-            }
-        });
+        return MultiResults.update(sink -> executeAfterBinding(sink, stmt));
     }
 
     @Override
     public final Flux<ResultRow> executeQuery(final ParamStmt stmt) {
-        return MultiResults.query(stmt.getStatusConsumer(), sink -> {
-            if (this.adjutant.inEventLoop()) {
-                executePreparedStmtInEventLoop(sink, stmt);
-            } else {
-                this.adjutant.execute(() -> executePreparedStmtInEventLoop(sink, stmt));
-            }
-        });
+        return MultiResults.query(stmt.getStatusConsumer(), sink -> executeAfterBinding(sink, stmt));
     }
 
     @Override
     public final Flux<ResultStates> executeBatch(final ParamBatchStmt<ParamValue> stmt) {
-        return MultiResults.batchUpdate(sink -> {
-            if (this.adjutant.inEventLoop()) {
-                executePreparedStmtInEventLoop(sink, stmt);
-            } else {
-                this.adjutant.execute(() -> executePreparedStmtInEventLoop(sink, stmt));
-            }
-        });
+        return MultiResults.batchUpdate(sink -> executeAfterBinding(sink, stmt));
     }
 
     @Override
     public final MultiResult executeBatchAsMulti(final ParamBatchStmt<ParamValue> stmt) {
-        return MultiResults.asMulti(this.adjutant, sink -> {
-            if (this.adjutant.inEventLoop()) {
-                executePreparedStmtInEventLoop(sink, stmt);
-            } else {
-                this.adjutant.execute(() -> executePreparedStmtInEventLoop(sink, stmt));
-            }
-        });
+        return MultiResults.asMulti(this.adjutant, sink -> executeAfterBinding(sink, stmt));
     }
 
     @Override
-    public final Flux<Result> executeBatchAsFlux(ParamBatchStmt<ParamValue> stmt) {
-        return MultiResults.asFlux(sink -> {
-            if (this.adjutant.inEventLoop()) {
-                executePreparedStmtInEventLoop(sink, stmt);
-            } else {
-                this.adjutant.execute(() -> executePreparedStmtInEventLoop(sink, stmt));
-            }
-        });
+    public final SafePublisher executeBatchAsFlux(ParamBatchStmt<ParamValue> stmt) {
+        return MultiResults.asFlux(sink -> executeAfterBinding(sink, stmt));
     }
 
     @Override
@@ -217,8 +181,13 @@ final class ExtendedQueryTask extends AbstractStmtTask implements PrepareStmtTas
 
     @Override
     public final void closeOnBindError(Throwable error) {
-
+        if (this.adjutant.inEventLoop()) {
+            closeOnBindErrorInEventLoop(error);
+        } else {
+            this.adjutant.execute(() -> closeOnBindErrorInEventLoop(error));
+        }
     }
+
 
     @Override
     public final String getSql() {
@@ -386,11 +355,27 @@ final class ExtendedQueryTask extends AbstractStmtTask implements PrepareStmtTas
 
         final CachePrepareImpl cachePrepare = new CachePrepareImpl(
                 ((ParamSingleStmt) this.stmt).getSql(), this.commandWriter.getReplacedSql()
-                , paramTypeList, this.prepareName
+                , paramTypeList, this.commandWriter.getStatementName()
                 , rowMeta, cacheTime);
 
         this.phase = Phase.WAIT_FOR_BIND;
         emitPreparedStatement(cachePrepare);
+    }
+
+    /**
+     * @see #closeOnBindError(Throwable)
+     */
+    private void closeOnBindErrorInEventLoop(final Throwable error) {
+        if (this.phase == Phase.WAIT_FOR_BIND) {
+            if (this.commandWriter.needClose()) {
+                this.packetPublisher = this.commandWriter.closeStatement();
+            }
+            this.phase = Phase.END;
+            this.sendPacketSignal(true)
+                    .subscribe();
+            this.sink.error(PgExceptions.wrapIfNonJvmFatal(error));
+
+        }
     }
 
 
@@ -420,6 +405,21 @@ final class ExtendedQueryTask extends AbstractStmtTask implements PrepareStmtTas
     /**
      * @see #executeUpdate(ParamStmt)
      * @see #executeQuery(ParamStmt)
+     * @see #executeBatch(ParamBatchStmt)
+     * @see #executeBatchAsMulti(ParamBatchStmt)
+     * @see #executeBatchAsFlux(ParamBatchStmt)
+     */
+    private void executeAfterBinding(FluxResultSink sink, ParamSingleStmt stmt) {
+        if (this.adjutant.inEventLoop()) {
+            executePreparedStmtInEventLoop(sink, stmt);
+        } else {
+            this.adjutant.execute(() -> executePreparedStmtInEventLoop(sink, stmt));
+        }
+    }
+
+
+    /**
+     * @see #executeAfterBinding(FluxResultSink, ParamSingleStmt)
      */
     private void executePreparedStmtInEventLoop(FluxResultSink sink, ParamSingleStmt stmt) {
         if (prepareForPrepareBind(sink, stmt)) {
@@ -505,27 +505,6 @@ final class ExtendedQueryTask extends AbstractStmtTask implements PrepareStmtTas
     }
 
 
-    private String replacePlaceholder(final String originalSql) throws SQLException {
-
-        final List<String> staticSqlList = this.adjutant.sqlParser().parse(originalSql).getStaticSql();
-        String sql;
-        if (staticSqlList.size() == 1) {
-            sql = originalSql;
-        } else {
-            final StringBuilder builder = new StringBuilder(originalSql.length() + staticSqlList.size());
-            final int size = staticSqlList.size();
-            for (int i = 0; i < size; i++) {
-                builder.append(staticSqlList.get(i))
-                        .append('$')
-                        .append(i + 1);
-            }
-            builder.append(staticSqlList.get(size - 1));
-            sql = builder.toString();
-        }
-        return sql;
-    }
-
-
     enum Phase {
         READ_PREPARE_RESPONSE,
         READ_EXECUTE_RESPONSE,
@@ -538,8 +517,6 @@ final class ExtendedQueryTask extends AbstractStmtTask implements PrepareStmtTas
 
     private static final class PrepareFluxResultSink implements FluxResultSink {
 
-        private final PgPrepareStmt prepareStmt;
-
         private final Function<PrepareStmtTask, PreparedStatement> function;
 
         private final MonoSink<PreparedStatement> stmtSink;
@@ -549,10 +526,8 @@ final class ExtendedQueryTask extends AbstractStmtTask implements PrepareStmtTas
         private FluxResultSink resultSink;
 
 
-        private PrepareFluxResultSink(PgPrepareStmt prepareStmt
-                , Function<PrepareStmtTask, PreparedStatement> function
+        private PrepareFluxResultSink(Function<PrepareStmtTask, PreparedStatement> function
                 , MonoSink<PreparedStatement> stmtSink) {
-            this.prepareStmt = prepareStmt;
             this.function = function;
             this.stmtSink = stmtSink;
         }

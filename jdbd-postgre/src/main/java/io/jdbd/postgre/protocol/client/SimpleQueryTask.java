@@ -103,7 +103,7 @@ final class SimpleQueryTask extends AbstractStmtTask {
      * This method is underlying api of {@link StaticStatement#executeAsFlux(java.util.List)} method.
      * </p>
      */
-    static Flux<Result> batchAsFlux(StaticBatchStmt stmt, TaskAdjutant adjutant) {
+    static SafePublisher batchAsFlux(StaticBatchStmt stmt, TaskAdjutant adjutant) {
         return MultiResults.asFlux(sink -> {
             try {
                 SimpleQueryTask task = new SimpleQueryTask(stmt, sink, adjutant);
@@ -119,7 +119,7 @@ final class SimpleQueryTask extends AbstractStmtTask {
      * This method is underlying api of {@link StaticStatement#executeAsFlux(String)} method.
      * </p>
      */
-    static Flux<Result> multiCommandAsFlux(StaticStmt stmt, TaskAdjutant adjutant) {
+    static SafePublisher multiCommandAsFlux(StaticStmt stmt, TaskAdjutant adjutant) {
         return MultiResults.asFlux(sink -> {
             try {
                 SimpleQueryTask task = new SimpleQueryTask(stmt, sink, adjutant);
@@ -207,7 +207,7 @@ final class SimpleQueryTask extends AbstractStmtTask {
      * This method is one of underlying api of below methods {@link BindStatement#executeBatchAsFlux()}.
      * </p>
      */
-    static Flux<Result> bindableAsFlux(BindBatchStmt stmt, TaskAdjutant adjutant) {
+    static SafePublisher bindableAsFlux(BindBatchStmt stmt, TaskAdjutant adjutant) {
         return MultiResults.asFlux(sink -> {
             try {
                 SimpleQueryTask task = new SimpleQueryTask(adjutant, sink, stmt);
@@ -259,7 +259,7 @@ final class SimpleQueryTask extends AbstractStmtTask {
      * This method is underlying api of {@link MultiStatement#executeBatchAsFlux()} method.
      * </p>
      */
-    static Flux<Result> multiStmtAsFlux(BindMultiStmt stmt, TaskAdjutant adjutant) {
+    static SafePublisher multiStmtAsFlux(BindMultiStmt stmt, TaskAdjutant adjutant) {
         return MultiResults.asFlux(sink -> {
             try {
                 SimpleQueryTask task = new SimpleQueryTask(adjutant, stmt, sink);

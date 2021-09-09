@@ -13,7 +13,7 @@ import reactor.core.publisher.Mono;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 
-import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.*;
 
 /**
  * This class is test class of {@code io.jdbd.postgre.session.PgPreparedStatement}
@@ -46,7 +46,11 @@ public class PreparedStatementSuiteTests extends AbstractStatementTests {
                 .block();
 
         assertNotNull(rowList, "rowList");
+        assertFalse(rowList.isEmpty(), "rowList is empty.");
 
+        ResultStates states = statesHolder.get();
+        assertNotNull(states, "ResultStates");
+        assertEquals(states.getRowCount(), 1, "rowCount");
     }
 
 

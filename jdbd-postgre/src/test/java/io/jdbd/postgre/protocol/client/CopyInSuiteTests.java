@@ -14,6 +14,7 @@ import org.reactivestreams.Subscription;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.annotations.Test;
+import reactor.core.publisher.Flux;
 
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
@@ -224,7 +225,7 @@ public class CopyInSuiteTests extends AbstractTaskTests {
         }
 
         final List<ResultStates> stateList;
-        stateList = SimpleQueryTask.multiStmtAsFlux(PgStmts.multi(stmtGroup), adjutant)
+        stateList = Flux.from(SimpleQueryTask.multiStmtAsFlux(PgStmts.multi(stmtGroup), adjutant))
                 .cast(ResultStates.class)
 
                 .concatWith(releaseConnection(protocol))

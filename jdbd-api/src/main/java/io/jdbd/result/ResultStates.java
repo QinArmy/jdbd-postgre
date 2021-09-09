@@ -17,6 +17,10 @@ public interface ResultStates extends Result {
 
     boolean hasMoreFetch();
 
+    default long getRowCount() {
+        throw new UnsupportedOperationException();
+    }
+
     default boolean hasColumn() {
         throw new UnsupportedOperationException();
     }

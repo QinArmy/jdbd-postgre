@@ -10,6 +10,7 @@ import io.jdbd.postgre.util.PgBinds;
 import io.jdbd.postgre.util.PgExceptions;
 import io.jdbd.postgre.util.PgStrings;
 import io.jdbd.postgre.util.PgTimes;
+import io.jdbd.result.ResultRowMeta;
 import io.jdbd.stmt.LocalFileException;
 import io.jdbd.stmt.LongDataReadException;
 import io.jdbd.vendor.stmt.*;
@@ -84,7 +85,7 @@ final class DefaultExtendedCommandWriter implements ExtendedCommandWriter {
         this.replacedSql = replacePlaceholder(statement);
         this.statementName = "";
         this.portalName = "";
-        this.fetchSize = 0;
+        this.fetchSize = this.stmt.getFetchSize();
 
     }
 
@@ -96,7 +97,7 @@ final class DefaultExtendedCommandWriter implements ExtendedCommandWriter {
 
     @Override
     public final boolean supportFetch() {
-        return this.fetchSize > 0;
+        return this.fetchSize > 0 && PgStrings.hasText(this.portalName);
     }
 
     @Override
@@ -113,6 +114,11 @@ final class DefaultExtendedCommandWriter implements ExtendedCommandWriter {
     @Override
     public final String getReplacedSql() {
         return this.replacedSql;
+    }
+
+    @Override
+    public final String getStatementName() {
+        return this.statementName;
     }
 
     @Override
@@ -161,7 +167,7 @@ final class DefaultExtendedCommandWriter implements ExtendedCommandWriter {
 
     @Override
     public final Publisher<ByteBuf> fetch() {
-        if (!PgStrings.hasText(this.portalName) || this.fetchSize <= 0) {
+        if (!supportFetch()) {
             throw new IllegalStateException("Not support fetch.");
         }
         List<ByteBuf> messageList = new ArrayList<>(1);
@@ -219,12 +225,12 @@ final class DefaultExtendedCommandWriter implements ExtendedCommandWriter {
      * @see <a href="https://www.postgresql.org/docs/current/protocol-message-formats.html">Execute</a>
      */
     private void appendExecuteMessage(List<ByteBuf> messageList) {
-        final String portalName = this.portalName;
+        final boolean supportFetch = supportFetch();
         final byte[] portalNameBytes;
-        if (portalName.equals("")) {
-            portalNameBytes = new byte[0];
+        if (supportFetch) {
+            portalNameBytes = this.portalName.getBytes(this.adjutant.clientCharset());
         } else {
-            portalNameBytes = portalName.getBytes(this.adjutant.clientCharset());
+            portalNameBytes = new byte[0];
         }
         final int length = 9 + portalNameBytes.length, needCapacity = length + 1;
         final int messageSize = messageList.size();
@@ -247,7 +253,12 @@ final class DefaultExtendedCommandWriter implements ExtendedCommandWriter {
             message.writeBytes(portalNameBytes);
         }
         message.writeByte(Messages.STRING_TERMINATOR);
-        message.writeInt(this.fetchSize);
+        if (supportFetch) {
+            message.writeInt(this.fetchSize);
+        } else {
+            message.writeInt(0);
+        }
+
     }
 
     /**
@@ -349,7 +360,7 @@ final class DefaultExtendedCommandWriter implements ExtendedCommandWriter {
         }
         message.writeShort(paramCount); // The number of parameter format codes
         for (PgType type : paramTypeList) {
-            message.writeShort(decideParameterFormatCode(type));
+            message.writeShort(PgBinds.decideFormatCode(type));
         }
         message.writeShort(paramCount); // The number of parameter values
         if (this.oneShot) { // one shot.
@@ -357,29 +368,6 @@ final class DefaultExtendedCommandWriter implements ExtendedCommandWriter {
             Messages.writeLength(message);
         }
         return message;
-    }
-
-    /**
-     * @see #createBindMessage(int, int)
-     */
-    private int decideParameterFormatCode(final PgType type) {
-        final int formatCode;
-        switch (type) {
-            case SMALLINT:
-            case INTEGER:
-            case REAL:
-            case DOUBLE:
-            case OID:
-            case BIGINT:
-            case BYTEA:
-            case BOOLEAN:
-                formatCode = 1; // binary format code
-                // only these  is binary format ,because postgre no document about binary format ,and postgre binary protocol not good
-                break;
-            default:
-                formatCode = 0; // all array type is text format
-        }
-        return formatCode;
     }
 
     private String replacePlaceholder(PgStatement statement) {
@@ -652,7 +640,7 @@ final class DefaultExtendedCommandWriter implements ExtendedCommandWriter {
      */
     private void bindNonNullToBytea(ByteBuf message, final int batchIndex, PgType pgType, ParamValue paramValue)
             throws LocalFileException, SQLException {
-        if (decideParameterFormatCode(pgType) != 1) {
+        if (PgBinds.decideFormatCode(pgType) != 1) {
             throw new IllegalStateException("format code error.");
         }
         final Object nonNull = paramValue.getNonNull();
@@ -807,10 +795,16 @@ final class DefaultExtendedCommandWriter implements ExtendedCommandWriter {
             if (message.maxWritableBytes() < (paramCount << 1) + 2) {
                 throw PgExceptions.tooLargeObject();
             }
-            // write result format
-            message.writeShort(paramCount);
-            for (PgType pgType : paramTypeList) {
-                message.writeShort(decideParameterFormatCode(pgType));
+            final ResultRowMeta rowMeta = this.stmtTask.getRowMeta();
+            if (rowMeta == null) {
+                message.writeShort(0);
+            } else {
+                final int columnCount = rowMeta.getColumnCount();
+                message.writeShort(columnCount);
+                for (int i = 0; i < columnCount; i++) {
+                    // write result format
+                    message.writeShort(PgBinds.decideFormatCode((PgType) rowMeta.getSQLType(i)));
+                }
             }
         }
         return bindFinish;

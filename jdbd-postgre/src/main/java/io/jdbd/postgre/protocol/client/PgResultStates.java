@@ -66,6 +66,11 @@ abstract class PgResultStates implements ResultStates {
         }
 
         @Override
+        public final long getRowCount() {
+            return 0L;
+        }
+
+        @Override
         public final boolean hasColumn() {
             return false;
         }
@@ -87,6 +92,8 @@ abstract class PgResultStates implements ResultStates {
 
         private final boolean moreFetch;
 
+        private final long rowCount;
+
         private CommandResultStates(ResultStateParams params) {
             super(params.resultIndex);
 
@@ -97,6 +104,7 @@ abstract class PgResultStates implements ResultStates {
 
             this.hasReturningColumn = params.hasReturningColumn;
             this.moreFetch = params.moreFetch;
+            this.rowCount = params.rowCount;
         }
 
         @Override
@@ -135,6 +143,12 @@ abstract class PgResultStates implements ResultStates {
         @Override
         public final boolean hasColumn() {
             return this.hasReturningColumn;
+        }
+
+
+        @Override
+        public final long getRowCount() {
+            return this.rowCount;
         }
 
     }

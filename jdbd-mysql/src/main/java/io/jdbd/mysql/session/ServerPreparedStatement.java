@@ -3,10 +3,10 @@ package io.jdbd.mysql.session;
 import io.jdbd.JdbdSQLException;
 import io.jdbd.meta.SQLType;
 import io.jdbd.mysql.stmt.PrepareStmtTask;
-import io.jdbd.result.Result;
 import io.jdbd.result.ResultRow;
 import io.jdbd.result.ResultRowMeta;
 import io.jdbd.result.ResultStates;
+import io.jdbd.result.SafePublisher;
 import io.jdbd.stmt.PreparedStatement;
 import io.jdbd.vendor.result.ReactorMultiResult;
 import reactor.core.publisher.Flux;
@@ -96,7 +96,7 @@ public final class ServerPreparedStatement<S extends MySQLDatabaseSession> exten
 
 
     @Override
-    public Flux<Result> executeBatchAsFlux() {
+    public SafePublisher executeBatchAsFlux() {
         return null;
     }
 }
