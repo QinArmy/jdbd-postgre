@@ -148,7 +148,7 @@ abstract class AbstractStmtTask extends PgTask implements StmtTask {
                     continueRead = Messages.hasOneMessage(cumulateBuffer);
                 }
                 break;
-                case Messages.C: {// CommandComplete message
+                case Messages.C: {// CommandComplete message,if return rows, CommandComplete message is read by io.jdbd.vendor.result.ResultSetReader.read()
                     if (readResultStateWithoutReturning(cumulateBuffer)) {
                         continueRead = Messages.hasOneMessage(cumulateBuffer);
                     } else {
@@ -171,8 +171,8 @@ abstract class AbstractStmtTask extends PgTask implements StmtTask {
                         continueRead = false;
                         continue;
                     }
-                    readPrepareResponseAndHandle(cumulateBuffer, serverStatusConsumer);
-                    continueRead = Messages.hasOneMessage(cumulateBuffer);
+                    taskEnd = readPrepareResponse(cumulateBuffer, serverStatusConsumer);
+                    continueRead = !taskEnd && Messages.hasOneMessage(cumulateBuffer);
                 }
                 break;
                 case Messages.T: {// RowDescription message, must after Messages.t
@@ -222,6 +222,12 @@ abstract class AbstractStmtTask extends PgTask implements StmtTask {
                     log.debug("receive NoData message,sql no ResultSet response.");
                 }
                 break;
+                case Messages.s: {// PortalSuspended message
+                    Messages.skipOneMessage(cumulateBuffer);
+                    log.debug("receive PortalSuspended message,client timeout.");
+                    handleClientTimeout();
+                }
+                break;
                 case Messages.Z: {// ReadyForQuery message,Messages.Z must last,because ParameterDescription can follow by ReadyForQuery
                     final TxStatus txStatus = TxStatus.read(cumulateBuffer);
                     serverStatusConsumer.accept(txStatus);
@@ -244,7 +250,12 @@ abstract class AbstractStmtTask extends PgTask implements StmtTask {
 
     abstract void internalToString(StringBuilder builder);
 
-    abstract void handlePrepareResponse(List<PgType> paramTypeList, @Nullable ResultRowMeta rowMeta);
+    /**
+     * @return true: task end.
+     */
+    abstract boolean handlePrepareResponse(List<PgType> paramTypeList, @Nullable ResultRowMeta rowMeta);
+
+    abstract boolean handleClientTimeout();
 
     void handleSelectCommand(long rowCount) {
         // sub class override.
@@ -275,7 +286,8 @@ abstract class AbstractStmtTask extends PgTask implements StmtTask {
 
             final PgResultStates states;
             final boolean moreResult = status == ResultSetStatus.MORE_RESULT;
-            states = PgResultStates.empty(getAndIncrementResultIndex(), moreResult);
+            states = PgResultStates.empty(getAndIncrementResultIndex(), moreResult
+                    , this.adjutant.server().serverVersion());
             this.sink.next(states);
             cumulateBuffer.readerIndex(nextMsgIndex); // avoid tail filler
             readEnd = true;
@@ -355,13 +367,14 @@ abstract class AbstractStmtTask extends PgTask implements StmtTask {
      * ,and invoke {@link #handlePrepareResponse(List, ResultRowMeta).}
      * </p>
      *
+     * @return true : task end
      * @see #readExecuteResponse(ByteBuf, Consumer)
      * @see <a href="https://www.postgresql.org/docs/current/protocol-message-formats.html">ParameterDescription</a>
      * @see <a href="https://www.postgresql.org/docs/current/protocol-message-formats.html">RowDescription</a>
      * @see <a href="https://www.postgresql.org/docs/current/protocol-message-formats.html">NoData</a>
      * @see <a href="https://www.postgresql.org/docs/current/protocol-message-formats.html">ReadyForQuery</a>
      */
-    private void readPrepareResponseAndHandle(final ByteBuf cumulateBuffer, Consumer<Object> serverStatusConsumer) {
+    private boolean readPrepareResponse(final ByteBuf cumulateBuffer, final Consumer<Object> serverStatusConsumer) {
         final List<PgType> paramTypeList;
         paramTypeList = Messages.readParameterDescription(cumulateBuffer);
 
@@ -377,7 +390,6 @@ abstract class AbstractStmtTask extends PgTask implements StmtTask {
             }
             break;
             default: {
-                Messages.skipOneMessage(cumulateBuffer);
                 final char msgType = (char) cumulateBuffer.getByte(cumulateBuffer.readerIndex());
                 String m = String.format("Unexpected message[%s] for read prepare response.", msgType);
                 throw new UnExpectedMessageException(m);
@@ -387,7 +399,7 @@ abstract class AbstractStmtTask extends PgTask implements StmtTask {
 
         serverStatusConsumer.accept(TxStatus.read(cumulateBuffer)); // read ReadyForQuery message
 
-        handlePrepareResponse(paramTypeList, rowMeta);
+        return handlePrepareResponse(paramTypeList, rowMeta);
     }
 
 
@@ -412,7 +424,7 @@ abstract class AbstractStmtTask extends PgTask implements StmtTask {
         final String commandTag = Messages.readString(cumulateBuffer, clientCharset);
         cumulateBuffer.readerIndex(nextMsgIndex); // avoid tail filler
 
-        final ResultStateParams params = new ResultStateParams();
+        final ResultStateParams params = new ResultStateParams(this.adjutant.server().serverVersion());
         final String[] tagPart = commandTag.split("\\s");
         final String command;
         if (tagPart.length > 0) {

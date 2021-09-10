@@ -128,6 +128,13 @@ abstract class Messages {
 
     /**
      * <ul>
+     *     <li>PortalSuspended</li>
+     * </ul>
+     */
+    static final byte s = 's';
+
+    /**
+     * <ul>
      *     <li>Sync</li>
      * </ul>
      */

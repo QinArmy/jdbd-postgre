@@ -139,7 +139,10 @@ public final class PgDatabaseSessionFactory implements DatabaseSessionFactory {
             return this.eventLoopGroup;
         }
 
-
+        @Override
+        public final boolean isSameFactory(DatabaseSessionFactory factory) {
+            return factory == this.factory;
+        }
     }
 
 

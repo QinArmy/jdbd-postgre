@@ -410,10 +410,16 @@ final class SimpleQueryTask extends AbstractStmtTask {
 
 
     @Override
-    void handlePrepareResponse(List<PgType> paramTypeList, @Nullable ResultRowMeta rowMeta) {
+    final boolean handlePrepareResponse(List<PgType> paramTypeList, @Nullable ResultRowMeta rowMeta) {
         // never here for simple query
         String msg = String.format("Server response unknown message type[%s]", (char) Messages.t);
         throw new UnExpectedMessageException(msg);
+    }
+
+    @Override
+    final boolean handleClientTimeout() {
+        //TODO
+        return false;
     }
 
     /**

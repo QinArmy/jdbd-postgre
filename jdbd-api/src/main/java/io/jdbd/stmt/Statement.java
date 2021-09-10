@@ -18,6 +18,10 @@ import java.util.function.Function;
  *         <li>{@link MultiStatement}</li>
  *     </ul>
  * </p>
+ * <p>
+ *     NOTE: {@link Statement} is auto close after you invoke executeXxx() method,or binding occur error,so
+ *     {@link Statement} have no close() method.
+ * </p>
  *
  * @see StaticStatement
  * @see BindStatement

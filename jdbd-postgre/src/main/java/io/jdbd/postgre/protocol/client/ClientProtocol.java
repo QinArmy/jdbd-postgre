@@ -1,5 +1,6 @@
 package io.jdbd.postgre.protocol.client;
 
+import io.jdbd.ServerVersion;
 import io.jdbd.postgre.stmt.BindBatchStmt;
 import io.jdbd.postgre.stmt.BindMultiStmt;
 import io.jdbd.postgre.stmt.BindStmt;
@@ -24,6 +25,8 @@ import java.util.function.Function;
 public interface ClientProtocol {
 
     long getId();
+
+    ServerVersion getServerVersion();
 
 
     /**

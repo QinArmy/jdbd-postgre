@@ -1,8 +1,8 @@
 package io.jdbd.postgre.protocol.client;
 
 import io.jdbd.postgre.PgJdbdException;
+import io.jdbd.postgre.PgServerVersion;
 import io.jdbd.postgre.Server;
-import io.jdbd.postgre.ServerVersion;
 import io.jdbd.postgre.config.PgKey;
 import io.jdbd.postgre.session.SessionAdjutant;
 import io.jdbd.postgre.util.PgStrings;
@@ -79,11 +79,11 @@ public abstract class ClientProtocolFactory {
             final TaskAdjutant adjutant = this.executor.taskAdjutant();
             final Properties<PgKey> properties = adjutant.obtainHost().getProperties();
             final Server server = adjutant.server();
-            final ServerVersion serverVersion = server.serverVersion();
+            final PgServerVersion serverVersion = server.serverVersion();
 
             final List<String> sqlGroup = new ArrayList<>(2);
 
-            if (serverVersion.compareTo(ServerVersion.V9_0) >= 0) {
+            if (serverVersion.compareTo(PgServerVersion.V9_0) >= 0) {
                 sqlGroup.add("SET extra_float_digits = 3");
 
                 final String applicationName = properties.getProperty(PgKey.ApplicationName);

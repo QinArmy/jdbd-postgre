@@ -3,7 +3,7 @@ package io.jdbd.postgre.protocol.client;
 import io.jdbd.config.PropertyException;
 import io.jdbd.postgre.PgJdbdException;
 import io.jdbd.postgre.PgReConnectableException;
-import io.jdbd.postgre.ServerVersion;
+import io.jdbd.postgre.PgServerVersion;
 import io.jdbd.postgre.config.Enums;
 import io.jdbd.postgre.config.PgKey;
 import io.jdbd.postgre.config.PostgreHost;
@@ -535,9 +535,9 @@ final class PgConnectionTask extends PgTask implements ConnectionTask {
      */
     private List<Pair<String, String>> obtainStartUpParamList() {
         final PostgreHost host = this.adjutant.obtainHost();
-        final ServerVersion minVersion;
-        minVersion = this.properties.getProperty(PgKey.assumeMinServerVersion, ServerVersion.class
-                , ServerVersion.INVALID);
+        final PgServerVersion minVersion;
+        minVersion = this.properties.getProperty(PgKey.assumeMinServerVersion, PgServerVersion.class
+                , PgServerVersion.INVALID);
 
         List<Pair<String, String>> list = new ArrayList<>();
 
@@ -549,13 +549,13 @@ final class PgConnectionTask extends PgTask implements ConnectionTask {
         list.add(new Pair<>("TimeZone", PgTimes.systemZoneOffset().normalized().getId()));
         list.add(new Pair<>("IntervalStyle", "iso_8601"));// must be  ISO,because simplify program
 
-        if (minVersion.compareTo(ServerVersion.V9_0) >= 0) {
+        if (minVersion.compareTo(PgServerVersion.V9_0) >= 0) {
             list.add(new Pair<>("extra_float_digits", "3"));
             list.add(new Pair<>("application_name", getApplicationName()));
         } else {
             list.add(new Pair<>("extra_float_digits", "2"));
         }
-        if (minVersion.compareTo(ServerVersion.V9_4) >= 0) {
+        if (minVersion.compareTo(PgServerVersion.V9_4) >= 0) {
             String replication = this.properties.getProperty(PgKey.replication);
             if (replication != null) {
                 list.add(new Pair<>("replication", replication));

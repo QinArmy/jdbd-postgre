@@ -231,19 +231,21 @@ public abstract class CommunicationTask<T extends ITaskAdjutant> {
      * <li>emit {@link Throwable} when {@link CommunicationTaskExecutor} reject signal</li>
      * </ul>
      */
-    protected final Mono<Void> sendPacketSignal(boolean endTask) {
-        final Mono<Void> mono;
+    protected final Mono<Boolean> sendPacketSignal(boolean endTask) {
+        final Mono<Boolean> mono;
         if (this.adjutant.inEventLoop()) {
             if (this.methodStack == MethodStack.DECODE) {
-                mono = Mono.empty();
+                mono = Mono.just(Boolean.TRUE);
             } else if (this.methodStack != null) {
                 mono = Mono.error(new IllegalStateException
                         (String.format("Unsupported invoke in %s method stack.", this.methodStack)));
             } else {
-                mono = this.taskSignal.sendPacket(this, endTask);
+                mono = this.taskSignal.sendPacket(this, endTask)
+                        .then(Mono.just(Boolean.FALSE));
             }
         } else {
-            mono = this.taskSignal.sendPacket(this, endTask);
+            mono = this.taskSignal.sendPacket(this, endTask)
+                    .then(Mono.just(Boolean.FALSE));
         }
         return mono;
     }

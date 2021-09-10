@@ -22,4 +22,9 @@ public interface ISessionAdjutant<K extends IPropertyKey, H extends HostInfo<K>>
     EventLoopGroup getEventLoopGroup();
 
 
+    default boolean isSameFactory(DatabaseSessionFactory factory) {
+        throw new UnsupportedOperationException();
+    }
+
+
 }

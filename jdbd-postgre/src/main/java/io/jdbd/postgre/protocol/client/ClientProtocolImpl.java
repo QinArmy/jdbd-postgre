@@ -1,5 +1,6 @@
 package io.jdbd.postgre.protocol.client;
 
+import io.jdbd.ServerVersion;
 import io.jdbd.postgre.stmt.BindBatchStmt;
 import io.jdbd.postgre.stmt.BindMultiStmt;
 import io.jdbd.postgre.stmt.BindStmt;
@@ -35,6 +36,11 @@ final class ClientProtocolImpl implements ClientProtocol {
     @Override
     public final long getId() {
         return this.adjutant.processId();
+    }
+
+    @Override
+    public final ServerVersion getServerVersion() {
+        return this.adjutant.server().serverVersion();
     }
 
     @Override

@@ -264,7 +264,7 @@ final class PgTaskExecutor extends CommunicationTaskExecutor<TaskAdjutant> {
 
     private static final class ServerImpl implements Server {
 
-        private final ServerVersion serverVersion;
+        private final PgServerVersion serverVersion;
 
         private final Map<String, String> paramStatusMap;
 
@@ -272,7 +272,7 @@ final class PgTaskExecutor extends CommunicationTaskExecutor<TaskAdjutant> {
 
         private ServerImpl(final Map<String, String> paramStatusMap) {
             this.paramStatusMap = Collections.unmodifiableMap(paramStatusMap);
-            this.serverVersion = ServerVersion.from(paramStatusMap.get(ServerParameter.server_version.name()));
+            this.serverVersion = PgServerVersion.from(paramStatusMap.get(ServerParameter.server_version.name()));
             final ZoneId zoneId = ZoneId.of(paramStatusMap.get(ServerParameter.TimeZone.name()), ZoneId.SHORT_IDS);
             this.zoneOffset = PgTimes.toZoneOffset(zoneId);
         }
@@ -290,7 +290,7 @@ final class PgTaskExecutor extends CommunicationTaskExecutor<TaskAdjutant> {
 
 
         @Override
-        public final ServerVersion serverVersion() {
+        public final PgServerVersion serverVersion() {
             return this.serverVersion;
         }
 

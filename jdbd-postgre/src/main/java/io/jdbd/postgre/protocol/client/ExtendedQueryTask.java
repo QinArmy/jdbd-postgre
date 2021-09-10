@@ -219,14 +219,19 @@ final class ExtendedQueryTask extends AbstractStmtTask implements PrepareStmtTas
     public final void handleNoExecuteMessage() {
         if (this.phase != Phase.END) {
             log.debug("No execute message sent.end task.");
+            this.phase = Phase.BINDING_ERROR;
             this.sendPacketSignal(true) // end task
+                    .doOnSuccess(inDecodeMethod -> {
+                        if (inDecodeMethod) {
+                            return;
+                        }
+                        if (hasError()) {
+                            publishError(this.sink::error);
+                        } else {
+                            this.sink.error(new IllegalStateException("No execute message sent."));
+                        }
+                    })
                     .subscribe();// if throw error ,representing task have ended,so ignore error.
-
-            if (hasError()) {
-                publishError(this.sink::error);
-            } else {
-                this.sink.error(new IllegalStateException("No execute message sent."));
-            }
 
         }
     }
@@ -269,7 +274,7 @@ final class ExtendedQueryTask extends AbstractStmtTask implements PrepareStmtTas
 
     @Override
     protected final void onChannelClose() {
-        if (this.phase != Phase.END) {
+        if (this.phase.isEnd()) {
             addError(new SessionCloseException("Session unexpected close"));
             publishError(this.sink::error);
         }
@@ -279,7 +284,7 @@ final class ExtendedQueryTask extends AbstractStmtTask implements PrepareStmtTas
     protected final Action onError(Throwable e) {
 
         final Action action;
-        if (this.phase == Phase.END) {
+        if (this.phase.isEnd()) {
             action = Action.TASK_END;
         } else {
             addError(e);
@@ -297,13 +302,28 @@ final class ExtendedQueryTask extends AbstractStmtTask implements PrepareStmtTas
 
     @Override
     protected final boolean decode(ByteBuf cumulateBuffer, Consumer<Object> serverStatusConsumer) {
-        final boolean taskEnd;
-        if (this.phase == Phase.START_ERROR) {
+
+        final Phase oldPhase = this.phase;
+        boolean taskEnd;
+        if (oldPhase == Phase.START_ERROR) {
             taskEnd = true;
         } else {
             taskEnd = readExecuteResponse(cumulateBuffer, serverStatusConsumer);
+            if (!taskEnd && this.phase.isEnd()) {// binding occur or abandon bind
+                taskEnd = true;
+            }
         }
         if (taskEnd) {
+            switch (this.phase) {
+                case ABANDON_BIND:
+                case BINDING_ERROR:
+                    break;
+                default: {
+                    if (oldPhase != Phase.START_ERROR && this.commandWriter.needClose()) {
+                        this.packetPublisher = this.commandWriter.closeStatement();
+                    }
+                }
+            }
             this.phase = Phase.END;
             if (hasError()) {
                 publishError(this.sink::error);
@@ -332,7 +352,10 @@ final class ExtendedQueryTask extends AbstractStmtTask implements PrepareStmtTas
     }
 
     @Override
-    final void handlePrepareResponse(List<PgType> paramTypeList, @Nullable ResultRowMeta rowMeta) {
+    final boolean handlePrepareResponse(List<PgType> paramTypeList, @Nullable ResultRowMeta rowMeta) {
+        if (this.phase != Phase.READ_PREPARE_RESPONSE) {
+            throw new UnExpectedMessageException("Unexpected ParameterDescription message.");
+        }
         final long cacheTime = 0;
 
         final CachePrepareImpl cachePrepare = new CachePrepareImpl(
@@ -341,7 +364,13 @@ final class ExtendedQueryTask extends AbstractStmtTask implements PrepareStmtTas
                 , rowMeta, cacheTime);
 
         this.phase = Phase.WAIT_FOR_BIND;
-        emitPreparedStatement(cachePrepare);
+        return emitPreparedStatement(cachePrepare);
+    }
+
+    @Override
+    final boolean handleClientTimeout() {
+        //TODO
+        return false;
     }
 
     /**
@@ -352,7 +381,7 @@ final class ExtendedQueryTask extends AbstractStmtTask implements PrepareStmtTas
             if (this.commandWriter.needClose()) {
                 this.packetPublisher = this.commandWriter.closeStatement();
             }
-            this.phase = Phase.END;
+            this.phase = Phase.BINDING_ERROR;
             this.sendPacketSignal(true)
                     .subscribe();
             this.sink.error(PgExceptions.wrapIfNonJvmFatal(error));
@@ -362,7 +391,7 @@ final class ExtendedQueryTask extends AbstractStmtTask implements PrepareStmtTas
 
 
     /**
-     * @return true : task
+     * @return true : occur error,can't emit.
      * @see #start()
      */
     private boolean emitPreparedStatement(final CachePrepare cache) {
@@ -408,10 +437,11 @@ final class ExtendedQueryTask extends AbstractStmtTask implements PrepareStmtTas
                 if (this.commandWriter.needClose()) {
                     this.packetPublisher = this.commandWriter.closeStatement();
                 }
-                this.phase = Phase.END;
+                this.phase = Phase.ABANDON_BIND;
                 this.sendPacketSignal(true)
                         .subscribe();
                 sink.success();
+                log.debug("abandonBind success");
             }
             break;
             case END: {
@@ -513,9 +543,15 @@ final class ExtendedQueryTask extends AbstractStmtTask implements PrepareStmtTas
         READ_PREPARE_RESPONSE,
         READ_EXECUTE_RESPONSE,
         WAIT_FOR_BIND,
+        ABANDON_BIND,
+        BINDING_ERROR,
         PREPARE_BIND,
         START_ERROR,
-        END
+        END;
+
+        private boolean isEnd() {
+            return this == END || this == BINDING_ERROR || this == ABANDON_BIND;
+        }
     }
 
 

@@ -107,7 +107,7 @@ final class DefaultExtendedCommandWriter implements ExtendedCommandWriter {
 
     @Override
     public final boolean needClose() {
-        return false;
+        return !this.statementName.isEmpty() && getCache() == null;
     }
 
     @Nullable
@@ -194,11 +194,10 @@ final class DefaultExtendedCommandWriter implements ExtendedCommandWriter {
 
     @Override
     public final Publisher<ByteBuf> closeStatement() {
-        final String name = this.statementName;
-        if (!PgStrings.hasText(name)) {
-            throw new IllegalStateException("No statement name");
+        if (!needClose()) {
+            throw new IllegalStateException("Don't need close.");
         }
-        final byte[] nameBytes = name.getBytes(this.adjutant.clientCharset());
+        final byte[] nameBytes = this.statementName.getBytes(this.adjutant.clientCharset());
         final int length = 7 + nameBytes.length;
         final ByteBuf message = this.adjutant.allocator().buffer(length + 1);
 
@@ -239,14 +238,14 @@ final class DefaultExtendedCommandWriter implements ExtendedCommandWriter {
         message.writeZero(Messages.LENGTH_BYTES); // placeholder of length
         final String statementName = this.statementName;
         if (PgStrings.hasText(statementName)) {
-            message.writeBytes(statementName.getBytes(charset));
+            message.writeBytes(statementName.getBytes(charset)); //definite statement name for caching statement
         }
         message.writeByte(Messages.STRING_TERMINATOR);
 
         message.writeBytes(this.replacedSql.getBytes(charset));
         message.writeByte(Messages.STRING_TERMINATOR);
 
-        message.writeShort(0); //jdbd-post no support parameter oid in Parse message,@see /document/note/Q%A.md
+        message.writeShort(0); //jdbd-postgre don't support parameter oid in Parse message,@see /document/note/Q&A.md
 
         Messages.writeLength(message);
         return message;
@@ -265,21 +264,9 @@ final class DefaultExtendedCommandWriter implements ExtendedCommandWriter {
         } else {
             portalNameBytes = new byte[0];
         }
-        final int length = 9 + portalNameBytes.length, needCapacity = length + 1;
-        final int messageSize = messageList.size();
-        final ByteBuf message;
-        if (messageSize > 0) {
-            final ByteBuf lastMessage = messageList.get(messageSize - 1);
-            if (lastMessage.isReadOnly() || lastMessage.writableBytes() < needCapacity) {
-                message = this.adjutant.allocator().buffer(needCapacity);
-                messageList.add(message);
-            } else {
-                message = lastMessage;
-            }
-        } else {
-            message = this.adjutant.allocator().buffer(needCapacity);
-            messageList.add(message);
-        }
+        final int length = 9 + portalNameBytes.length;
+        final ByteBuf message = getByteBufByNeedCapacity(messageList, length + 1);
+
         message.writeByte(Messages.E);
         message.writeInt(length);
         if (portalNameBytes.length > 0) {
@@ -305,22 +292,10 @@ final class DefaultExtendedCommandWriter implements ExtendedCommandWriter {
         } else {
             nameBytes = new byte[0];
         }
-
         final int length = 6 + nameBytes.length, needCapacity = 1 + length;
 
-        final ByteBuf message;
-        if (messageList.size() > 0) {
-            final ByteBuf lastMessage = messageList.get(messageList.size() - 1);
-            if (lastMessage.isReadOnly() || needCapacity > lastMessage.writableBytes()) {
-                message = this.adjutant.allocator().buffer(needCapacity);
-                messageList.add(message);
-            } else {
-                message = lastMessage;
-            }
-        } else {
-            message = this.adjutant.allocator().buffer(needCapacity);
-            messageList.add(message);
-        }
+        final ByteBuf message = getByteBufByNeedCapacity(messageList, needCapacity);
+
         message.writeByte(Messages.D);
         message.writeInt(length);
         message.writeByte(describeStatement ? 'S' : 'P');
@@ -335,10 +310,22 @@ final class DefaultExtendedCommandWriter implements ExtendedCommandWriter {
      * @see <a href="https://www.postgresql.org/docs/current/protocol-message-formats.html">Sync</a>
      */
     private void appendSyncMessage(final List<ByteBuf> messageList) {
+        final ByteBuf message = getByteBufByNeedCapacity(messageList, 5);
 
-        final int messageSize = messageList.size(), needCapacity = 5;
+        message.writeByte(Messages.S);
+        message.writeInt(Messages.LENGTH_BYTES); // length
+
+    }
+
+    /**
+     * @see #appendDescribeMessage(List, boolean)
+     * @see #appendExecuteMessage(List)
+     * @see #appendSyncMessage(List)
+     */
+    private ByteBuf getByteBufByNeedCapacity(final List<ByteBuf> messageList, final int needCapacity) {
+        final int messageSize = messageList.size();
         final ByteBuf message;
-        if (messageSize > 0) {
+        if (messageSize > 0) {// netty generally return cache ByteBuf with capacity 1024,so we can append.
             final ByteBuf lastMessage = messageList.get(messageSize - 1);
             if (lastMessage.isReadOnly() || lastMessage.writableBytes() < needCapacity) {
                 message = this.adjutant.allocator().buffer(needCapacity);
@@ -350,15 +337,7 @@ final class DefaultExtendedCommandWriter implements ExtendedCommandWriter {
             message = this.adjutant.allocator().buffer(needCapacity);
             messageList.add(message);
         }
-        writeSyncMessage(message);
-    }
-
-    /**
-     * @see <a href="https://www.postgresql.org/docs/current/protocol-message-formats.html">Sync</a>
-     */
-    private void writeSyncMessage(ByteBuf message) {
-        message.writeByte(Messages.S);
-        message.writeInt(Messages.LENGTH_BYTES);
+        return message;
     }
 
 
@@ -859,7 +838,9 @@ final class DefaultExtendedCommandWriter implements ExtendedCommandWriter {
 
         final List<ByteBuf> messageList = new ArrayList<>(2);
         messageList.add(bindMessage);               // Bind message
-        appendDescribeMessage(messageList, false);  // Describe message for portal
+        if (this.stmtTask.getRowMeta() != null) {
+            appendDescribeMessage(messageList, false);  // Describe message for portal
+        }
         appendExecuteMessage(messageList);          // Execute message
 
         if (nextBindGroup == null) {

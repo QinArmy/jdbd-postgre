@@ -28,6 +28,10 @@ import java.util.function.Consumer;
  *     <li>{@link #abandonBind()}</li>
  * </ul>
  * </p>
+ * <p>
+ *     NOTE: {@link PreparedStatement} is auto close after you invoke executeXxx() method,or binding occur error,so
+ *     {@link PreparedStatement} have no close() method.
+ * </p>
  */
 public interface PreparedStatement extends BindableSingleStatement, BindableMultiResultStatement {
 
@@ -47,7 +51,7 @@ public interface PreparedStatement extends BindableSingleStatement, BindableMult
      * {@inheritDoc }
      */
     @Override
-    void bind(int indexBasedZero, @Nullable Object nullable);
+    void bind(int indexBasedZero, @Nullable Object nullable) throws JdbdException;
 
     /**
      * {@inheritDoc }
@@ -80,7 +84,7 @@ public interface PreparedStatement extends BindableSingleStatement, BindableMult
      * This method close this  {@link PreparedStatement} if you don't invoke any executeXxx() method.
      * </p>
      * <p>
-     * Abandon bind before invoke executeXxx() method.
+     * Abandon binding before invoke executeXxx() method.
      * </p>
      *
      * @return Publisher like {@code reactor.core.publisher.Mono} ,

@@ -1,6 +1,5 @@
 package io.jdbd.stmt;
 
-import io.jdbd.AutoCloseable;
 import io.jdbd.JdbdSQLException;
 import io.jdbd.lang.Nullable;
 import io.jdbd.result.ResultRow;
@@ -11,7 +10,7 @@ import java.sql.BatchUpdateException;
 import java.util.List;
 import java.util.function.Consumer;
 
-public interface ExecutableStatement extends Statement, AutoCloseable {
+public interface ExecutableStatement extends Statement {
 
     /**
      * Adds a set of parameters to this <code>PreparedStatement</code>

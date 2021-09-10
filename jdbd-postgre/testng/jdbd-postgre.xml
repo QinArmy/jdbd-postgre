@@ -4,11 +4,13 @@
         <classes>
             <class name="io.jdbd.postgre.config.PostgreUrlParserSuiteTests"/>
             <class name="io.jdbd.postgre.config.PostgreUrlSuiteTests"/>
-            <class name="io.jdbd.postgre.ServerVersionSuiteTests"/>
+            <class name="io.jdbd.postgre.PgServerVersionSuiteTests"/>
             <class name="io.jdbd.postgre.syntax.PgParserSuiteTests"/>
 
             <class name="io.jdbd.postgre.syntax.PgCopyInParseSuiteTests"/>
             <class name="io.jdbd.postgre.syntax.CopyOutParseSuiteTests"/>
+
+            <!-- task level test -->
 
             <class name="io.jdbd.postgre.protocol.client.PgConnectionTaskSuiteTests"/>
             <class name="io.jdbd.postgre.protocol.client.TaskTestAdvice"/>
@@ -18,6 +20,7 @@
             <class name="io.jdbd.postgre.protocol.client.ExtendedQueryTaskSuiteTests"/>
             <class name="io.jdbd.postgre.protocol.client.ExtendedQueryTaskSqlTypeSuiteTests"/>
 
+            <!-- statement level test -->
             <class name="io.jdbd.postgre.statement.PreparedStatementSuiteTests"/>
 
             <class name="io.jdbd.postgre.protocol.client.CopyInSuiteTests"/>

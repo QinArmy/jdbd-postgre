@@ -1,6 +1,6 @@
 package io.jdbd.postgre.config;
 
-import io.jdbd.postgre.ServerVersion;
+import io.jdbd.postgre.PgServerVersion;
 import org.qinarmy.env.convert.Converter;
 
 import java.util.function.Consumer;
@@ -17,7 +17,7 @@ abstract class Converters {
     }
 
 
-    private static final class StringToServerVersionConverter implements Converter<String, ServerVersion> {
+    private static final class StringToServerVersionConverter implements Converter<String, PgServerVersion> {
 
         private static final StringToServerVersionConverter INSTANCE = new StringToServerVersionConverter();
 
@@ -27,13 +27,13 @@ abstract class Converters {
         }
 
         @Override
-        public final Class<ServerVersion> target() {
-            return ServerVersion.class;
+        public final Class<PgServerVersion> target() {
+            return PgServerVersion.class;
         }
 
         @Override
-        public final ServerVersion convert(String source) throws IllegalArgumentException {
-            return ServerVersion.from(source);
+        public final PgServerVersion convert(String source) throws IllegalArgumentException {
+            return PgServerVersion.from(source);
         }
 
     }

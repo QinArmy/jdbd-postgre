@@ -42,6 +42,10 @@ public abstract class PgTestUtils {
         };
     }
 
+    public static ResultStates assertUpdateOneWithMoreResult(ResultStates states, int resultIndex) {
+        assertEquals(states.getResultIndex(), resultIndex, "resultIndex");
+        return assertUpdateOneWithMoreResult(states);
+    }
 
     public static ResultStates assertUpdateOneWithMoreResult(ResultStates state) {
         assertEquals(state.getAffectedRows(), 1L, "affectedRows");
@@ -51,6 +55,11 @@ public abstract class PgTestUtils {
 
         assertFalse(state.hasMoreFetch(), "moreFetch");
         return state;
+    }
+
+    public static ResultStates assertUpdateOneWithoutMoreResult(ResultStates states, int resultIndex) {
+        assertEquals(states.getResultIndex(), resultIndex, "resultIndex");
+        return assertUpdateOneWithoutMoreResult(states);
     }
 
     public static ResultStates assertUpdateOneWithoutMoreResult(ResultStates state) {

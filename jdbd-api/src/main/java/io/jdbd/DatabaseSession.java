@@ -66,5 +66,18 @@ public interface DatabaseSession extends ReactiveCloseable {
      */
     Publisher<Boolean> isClosed();
 
+    default ServerVersion getServerVersion() {
+        throw new UnsupportedOperationException();
+    }
+
+
+    default boolean isSameFactory(DatabaseSession session) {
+        throw new UnsupportedOperationException();
+    }
+
+    default boolean isBelongTo(DatabaseSessionFactory factory) {
+        throw new UnsupportedOperationException();
+    }
+
 
 }

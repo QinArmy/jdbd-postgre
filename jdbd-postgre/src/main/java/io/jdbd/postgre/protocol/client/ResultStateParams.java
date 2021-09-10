@@ -1,6 +1,10 @@
 package io.jdbd.postgre.protocol.client;
 
+import io.jdbd.postgre.PgServerVersion;
+
 final class ResultStateParams {
+
+    final PgServerVersion version;
 
     int resultIndex;
 
@@ -17,6 +21,10 @@ final class ResultStateParams {
     boolean hasReturningColumn;
 
     boolean moreFetch;
+
+    ResultStateParams(PgServerVersion version) {
+        this.version = version;
+    }
 
 
 }

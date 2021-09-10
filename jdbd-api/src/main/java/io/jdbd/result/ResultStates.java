@@ -3,6 +3,10 @@ package io.jdbd.result;
 
 public interface ResultStates extends Result {
 
+    default boolean supportInsertId() {
+        return true;
+    }
+
 
     long getAffectedRows();
 

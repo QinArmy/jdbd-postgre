@@ -1,6 +1,8 @@
 package io.jdbd.postgre.session;
 
 import io.jdbd.DatabaseSession;
+import io.jdbd.DatabaseSessionFactory;
+import io.jdbd.ServerVersion;
 import io.jdbd.meta.DatabaseMetaData;
 import io.jdbd.postgre.protocol.client.ClientProtocol;
 import io.jdbd.postgre.stmt.PrepareStmtTask;
@@ -91,8 +93,24 @@ abstract class PgDatabaseSession implements DatabaseSession {
     }
 
     @Override
+    public final ServerVersion getServerVersion() {
+        return this.protocol.getServerVersion();
+    }
+
+    @Override
     public final Mono<Void> close() {
         return this.protocol.close();
+    }
+
+    @Override
+    public final boolean isSameFactory(DatabaseSession session) {
+        return session instanceof PgDatabaseSession
+                && ((PgDatabaseSession) session).adjutant == this.adjutant;
+    }
+
+    @Override
+    public final boolean isBelongTo(DatabaseSessionFactory factory) {
+        return this.adjutant.isSameFactory(factory);
     }
 
     /*################################## blow private method ##################################*/

@@ -62,8 +62,16 @@ public interface BindableSingleStatement extends Statement {
      */
     Publisher<ResultStates> executeBatch();
 
+    /**
+     * @see BindStatement#executeBatchAsMulti()
+     * @see PreparedStatement#executeBatchAsMulti()
+     */
     MultiResult executeBatchAsMulti();
 
+    /**
+     * @see BindStatement#executeBatchAsFlux()
+     * @see PreparedStatement#executeBatchAsFlux()
+     */
     OrderedFlux executeBatchAsFlux();
 
 }

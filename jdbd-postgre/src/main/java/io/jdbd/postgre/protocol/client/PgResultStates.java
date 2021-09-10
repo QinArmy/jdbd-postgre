@@ -1,29 +1,33 @@
 package io.jdbd.postgre.protocol.client;
 
-import io.jdbd.postgre.util.PgArrays;
+import io.jdbd.postgre.PgServerVersion;
 import io.jdbd.result.ResultStates;
-
-import java.util.Set;
 
 abstract class PgResultStates implements ResultStates {
 
-    static PgResultStates empty(int resultIndex, boolean moreResult) {
-        return new EmptyResultStates(resultIndex, moreResult);
+    static PgResultStates empty(int resultIndex, boolean moreResult, PgServerVersion version) {
+        return new EmptyResultStates(resultIndex, moreResult, version);
     }
 
     static PgResultStates create(ResultStateParams params) {
         return new CommandResultStates(params);
     }
 
-    private static final Set<String> QUERY_COMMAND = PgArrays.asUnmodifiableSet("SELECT", "SHOW");
-
     private final int resultIndex;
 
-    private PgResultStates(final int resultIndex) {
+    private final boolean supportInsertId;
+
+    private PgResultStates(final int resultIndex, PgServerVersion version) {
         if (resultIndex < 0) {
             throw new IllegalArgumentException(String.format("resultIndex[%s] less than 0 .", resultIndex));
         }
         this.resultIndex = resultIndex;
+        this.supportInsertId = version.compareTo(PgServerVersion.V12) < 0;
+    }
+
+    @Override
+    public final boolean supportInsertId() {
+        return this.supportInsertId;
     }
 
     @Override
@@ -35,10 +39,11 @@ abstract class PgResultStates implements ResultStates {
 
         private final boolean moreResult;
 
-        private EmptyResultStates(int resultIndex, boolean moreResult) {
-            super(resultIndex);
+        private EmptyResultStates(int resultIndex, boolean moreResult, PgServerVersion version) {
+            super(resultIndex, version);
             this.moreResult = moreResult;
         }
+
 
         @Override
         public final long getAffectedRows() {
@@ -95,7 +100,7 @@ abstract class PgResultStates implements ResultStates {
         private final long rowCount;
 
         private CommandResultStates(ResultStateParams params) {
-            super(params.resultIndex);
+            super(params.resultIndex, params.version);
 
             this.moreResult = params.moreResult;
             this.affectedRows = params.affectedRows;

@@ -6,7 +6,7 @@ import java.time.ZoneOffset;
 
 public interface Server {
 
-    ServerVersion serverVersion();
+    PgServerVersion serverVersion();
 
     String parameter(ServerParameter parameter);
 
