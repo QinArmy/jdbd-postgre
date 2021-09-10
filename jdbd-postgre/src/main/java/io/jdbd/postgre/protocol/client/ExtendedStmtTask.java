@@ -3,7 +3,6 @@ package io.jdbd.postgre.protocol.client;
 import io.jdbd.postgre.PgType;
 import io.jdbd.result.ResultRowMeta;
 import io.jdbd.vendor.stmt.ParamSingleStmt;
-import io.netty.buffer.ByteBuf;
 import reactor.util.annotation.Nullable;
 
 import java.util.List;
@@ -21,20 +20,10 @@ interface ExtendedStmtTask {
 
     TaskAdjutant adjutant();
 
-    @Nullable
-    String getNewPortalName();
-
-    @Nullable
-    String getStatementName();
-
     List<PgType> getParamTypeList();
 
     @Nullable
     ResultRowMeta getRowMeta();
-
-    int getFetchSize();
-
-    void appendDescribePortalMessage(List<ByteBuf> messageList);
 
     void handleNoExecuteMessage();
 

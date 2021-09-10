@@ -32,4 +32,6 @@ public interface PrepareStmtTask {
 
     String getSql();
 
+    Mono<Void> abandonBind();
+
 }

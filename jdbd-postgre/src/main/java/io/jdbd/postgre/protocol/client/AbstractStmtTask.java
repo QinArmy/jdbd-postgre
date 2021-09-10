@@ -148,19 +148,6 @@ abstract class AbstractStmtTask extends PgTask implements StmtTask {
                     continueRead = Messages.hasOneMessage(cumulateBuffer);
                 }
                 break;
-                case Messages.Z: {// ReadyForQuery message
-                    final TxStatus txStatus = TxStatus.read(cumulateBuffer);
-                    serverStatusConsumer.accept(txStatus);
-                    if (isEndAtReadyForQuery(txStatus)) {
-                        taskEnd = true;
-                        continueRead = false;
-                        log.trace("Simple query command end,read optional notice.");
-                        readNoticeAfterReadyForQuery(cumulateBuffer, serverStatusConsumer);
-                    } else {
-                        continueRead = Messages.hasOneMessage(cumulateBuffer);
-                    }
-                }
-                break;
                 case Messages.C: {// CommandComplete message
                     if (readResultStateWithoutReturning(cumulateBuffer)) {
                         continueRead = Messages.hasOneMessage(cumulateBuffer);
@@ -179,12 +166,12 @@ abstract class AbstractStmtTask extends PgTask implements StmtTask {
                 }
                 break;
                 case Messages.t: { // ParameterDescription
-                    if (!Messages.canReadDescribeResponse(cumulateBuffer)) {
+                    if (!Messages.canReadDescribeResponse(cumulateBuffer)) {// cumulate util exists ReadyForQuery
                         // need cumulating for  RowDescription message or NoData message
                         continueRead = false;
                         continue;
                     }
-                    readPrepareResponseAndHandle(cumulateBuffer);
+                    readPrepareResponseAndHandle(cumulateBuffer, serverStatusConsumer);
                     continueRead = Messages.hasOneMessage(cumulateBuffer);
                 }
                 break;
@@ -231,8 +218,17 @@ abstract class AbstractStmtTask extends PgTask implements StmtTask {
                 break;
                 case Messages.n: {// NoData message
                     Messages.skipOneMessage(cumulateBuffer);
-                    // after Messages.t ,so ExtendedQueryTask mode is changed,or never here.
-                    log.debug("receive NoData message ,{} mode is changed", this);
+                    // here , sql is DML
+                    log.debug("receive NoData message,sql no ResultSet response.");
+                }
+                break;
+                case Messages.Z: {// ReadyForQuery message,Messages.Z must last,because ParameterDescription can follow by ReadyForQuery
+                    final TxStatus txStatus = TxStatus.read(cumulateBuffer);
+                    serverStatusConsumer.accept(txStatus);
+                    taskEnd = true;
+                    continueRead = false;
+                    log.trace("Simple query command end,read optional notice.");
+                    readNoticeAfterReadyForQuery(cumulateBuffer, serverStatusConsumer);
                 }
                 break;
                 default: {
@@ -247,8 +243,6 @@ abstract class AbstractStmtTask extends PgTask implements StmtTask {
     }
 
     abstract void internalToString(StringBuilder builder);
-
-    abstract boolean isEndAtReadyForQuery(TxStatus status);
 
     abstract void handlePrepareResponse(List<PgType> paramTypeList, @Nullable ResultRowMeta rowMeta);
 
@@ -352,7 +346,12 @@ abstract class AbstractStmtTask extends PgTask implements StmtTask {
 
     /**
      * <p>
-     * Read ParameterDescription message and RowDescription (or NoData) message
+     * Read below messages:
+     * <ol>
+     *     <li>ParameterDescription</li>
+     *     <li>RowDescription (or NoData)</li>
+     *     <li>ReadyForQuery</li>
+     * </ol>
      * ,and invoke {@link #handlePrepareResponse(List, ResultRowMeta).}
      * </p>
      *
@@ -360,8 +359,9 @@ abstract class AbstractStmtTask extends PgTask implements StmtTask {
      * @see <a href="https://www.postgresql.org/docs/current/protocol-message-formats.html">ParameterDescription</a>
      * @see <a href="https://www.postgresql.org/docs/current/protocol-message-formats.html">RowDescription</a>
      * @see <a href="https://www.postgresql.org/docs/current/protocol-message-formats.html">NoData</a>
+     * @see <a href="https://www.postgresql.org/docs/current/protocol-message-formats.html">ReadyForQuery</a>
      */
-    private void readPrepareResponseAndHandle(final ByteBuf cumulateBuffer) {
+    private void readPrepareResponseAndHandle(final ByteBuf cumulateBuffer, Consumer<Object> serverStatusConsumer) {
         final List<PgType> paramTypeList;
         paramTypeList = Messages.readParameterDescription(cumulateBuffer);
 
@@ -384,6 +384,9 @@ abstract class AbstractStmtTask extends PgTask implements StmtTask {
             }
 
         }
+
+        serverStatusConsumer.accept(TxStatus.read(cumulateBuffer)); // read ReadyForQuery message
+
         handlePrepareResponse(paramTypeList, rowMeta);
     }
 

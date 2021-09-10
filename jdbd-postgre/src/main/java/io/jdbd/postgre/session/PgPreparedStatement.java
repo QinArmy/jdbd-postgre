@@ -1,5 +1,6 @@
 package io.jdbd.postgre.session;
 
+import io.jdbd.DatabaseSession;
 import io.jdbd.JdbdException;
 import io.jdbd.JdbdSQLException;
 import io.jdbd.meta.SQLType;
@@ -223,7 +224,11 @@ final class PgPreparedStatement extends PgStatement implements PreparedStatement
         return flux;
     }
 
-
+    @Override
+    public final Mono<DatabaseSession> abandonBind() {
+        return this.stmtTask.abandonBind()
+                .thenReturn(this.session);
+    }
 
     /*################################## blow Statement method ##################################*/
 

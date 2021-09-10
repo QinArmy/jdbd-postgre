@@ -322,19 +322,18 @@ abstract class Messages {
 
     static boolean canReadDescribeResponse(ByteBuf cumulateBuffer) {
         final int originalIndex = cumulateBuffer.readerIndex();
+        if (cumulateBuffer.getByte(originalIndex) != t) {
+            throw new IllegalArgumentException("Non ParameterDescription message.");
+        }
         boolean canRead = false;
-        loop:
         while (hasOneMessage(cumulateBuffer)) {
             final int msgStartIndex = cumulateBuffer.readerIndex();
             final int msgType = cumulateBuffer.readByte();
-            switch (msgType) {
-                case n:// NoData message
-                case T:// RowDescription message
-                    canRead = true;
-                    break loop;
-                default:
-                    cumulateBuffer.readerIndex(msgStartIndex + 1 + cumulateBuffer.readInt());
+            if (msgType == Z) {// ReadyForQuery
+                canRead = true;
+                break;
             }
+            cumulateBuffer.readerIndex(msgStartIndex + 1 + cumulateBuffer.readInt());
         }
         cumulateBuffer.readerIndex(originalIndex);
         return canRead;

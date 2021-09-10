@@ -2,6 +2,7 @@ package io.jdbd.postgre.protocol.client;
 
 import io.jdbd.JdbdException;
 import io.jdbd.SessionCloseException;
+import io.jdbd.postgre.PgJdbdException;
 import io.jdbd.postgre.PgType;
 import io.jdbd.postgre.stmt.BindBatchStmt;
 import io.jdbd.postgre.stmt.BindStmt;
@@ -194,6 +195,19 @@ final class ExtendedQueryTask extends AbstractStmtTask implements PrepareStmtTas
         return ((ParamSingleStmt) this.stmt).getSql();
     }
 
+    @Override
+    public final Mono<Void> abandonBind() {
+        return Mono.create(sink -> {
+            if (this.adjutant.inEventLoop()) {
+                abandonBindInEventLoop(sink);
+            } else {
+                this.adjutant.execute(() -> abandonBindInEventLoop(sink));
+            }
+        });
+
+    }
+
+
     /*################################## blow ExtendedStmtTask method ##################################*/
 
     @Override
@@ -202,29 +216,10 @@ final class ExtendedQueryTask extends AbstractStmtTask implements PrepareStmtTas
     }
 
     @Override
-    public final String getNewPortalName() {
-        return null;
-    }
-
-    @Override
-    public final String getStatementName() {
-        return null;
-    }
-
-    @Override
-    public final int getFetchSize() {
-        return 0;
-    }
-
-    @Override
-    public final void appendDescribePortalMessage(List<ByteBuf> messageList) {
-    }
-
-    @Override
     public final void handleNoExecuteMessage() {
         if (this.phase != Phase.END) {
             log.debug("No execute message sent.end task.");
-            this.sendPacketSignal(true)
+            this.sendPacketSignal(true) // end task
                     .subscribe();// if throw error ,representing task have ended,so ignore error.
 
             if (hasError()) {
@@ -299,6 +294,7 @@ final class ExtendedQueryTask extends AbstractStmtTask implements PrepareStmtTas
         return action;
     }
 
+
     @Override
     protected final boolean decode(ByteBuf cumulateBuffer, Consumer<Object> serverStatusConsumer) {
         final boolean taskEnd;
@@ -325,24 +321,6 @@ final class ExtendedQueryTask extends AbstractStmtTask implements PrepareStmtTas
                 .append(this.phase);
     }
 
-
-    @Override
-    final boolean isEndAtReadyForQuery(TxStatus status) {
-        final boolean taskEnd;
-        switch (this.phase) {
-            case READ_PREPARE_RESPONSE: {
-                taskEnd = hasError();
-            }
-            break;
-            case READ_EXECUTE_RESPONSE: {
-                taskEnd = true;
-            }
-            break;
-            default:
-                taskEnd = false;
-        }
-        return taskEnd;
-    }
 
     @Override
     final void handleSelectCommand(final long rowCount) {
@@ -421,6 +399,34 @@ final class ExtendedQueryTask extends AbstractStmtTask implements PrepareStmtTas
         }
     }
 
+    /**
+     * @see #abandonBind()
+     */
+    private void abandonBindInEventLoop(MonoSink<Void> sink) {
+        switch (this.phase) {
+            case WAIT_FOR_BIND: {
+                if (this.commandWriter.needClose()) {
+                    this.packetPublisher = this.commandWriter.closeStatement();
+                }
+                this.phase = Phase.END;
+                this.sendPacketSignal(true)
+                        .subscribe();
+                sink.success();
+            }
+            break;
+            case END: {
+                sink.error(new PgJdbdException(String.format("%s have ended.", PreparedStatement.class.getName())));
+            }
+            break;
+            default: {
+                sink.error(new PgJdbdException(String.format("%s is executing.", PreparedStatement.class.getName())));
+            }
+
+        }
+
+
+    }
+
 
     /**
      * @see #executeAfterBinding(FluxResultSink, ParamSingleStmt)
@@ -483,12 +489,6 @@ final class ExtendedQueryTask extends AbstractStmtTask implements PrepareStmtTas
                     .subscribe();
         }
         return error != null;
-    }
-
-    private void assertPhase(Phase expected) {
-        if (this.phase != expected) {
-            throw new IllegalStateException(String.format("this.phase[%s] isn't expected[%s]", this.phase, expected));
-        }
     }
 
     /**

@@ -60,13 +60,17 @@ final class DefaultExtendedCommandWriter implements ExtendedCommandWriter {
 
     private final String statementName;
 
-    private final String portalName;
 
     private final String replacedSql;
 
     private List<PgType> paramTypeList;
 
-    private final int fetchSize;
+    /**
+     * if support fetch ,then create portal name.
+     */
+    private String portalName;
+
+    private int fetchSize;
 
 
     private DefaultExtendedCommandWriter(final ExtendedStmtTask stmtTask) throws SQLException {
@@ -85,15 +89,10 @@ final class DefaultExtendedCommandWriter implements ExtendedCommandWriter {
         this.replacedSql = replacePlaceholder(statement);
         this.statementName = "";
 
-        final int fetchSize = this.stmt.getFetchSize();
-        if (fetchSize > 0 && isOnlyOneBindGroup(this.stmt)) {
-            this.fetchSize = fetchSize;
-            this.portalName = this.adjutant.createPortalName();
-        } else {
-            this.fetchSize = 0;
-            this.portalName = "";
-        }
+        this.portalName = null;
+
     }
+
 
     @Override
     public final boolean isOneShot() {
@@ -119,9 +118,6 @@ final class DefaultExtendedCommandWriter implements ExtendedCommandWriter {
 
     @Override
     public final int getFetchSize() {
-        if (!supportFetch()) {
-            throw new IllegalStateException("Not support fetch");
-        }
         return this.fetchSize;
     }
 
@@ -153,10 +149,13 @@ final class DefaultExtendedCommandWriter implements ExtendedCommandWriter {
         if (bindGroup.size() > 0 || !this.oneShot) {
             throw new IllegalStateException("Not one shot");
         }
+
+        beforeExecute();
+
         final List<ByteBuf> messageList = new ArrayList<>(3);
 
         messageList.add(createParseMessage());    // Parse message
-        messageList.add(createBindMessage(0, bindGroup.size())); // Bind message
+        messageList.add(createBindMessage(0, 0)); // Bind message
         appendDescribeMessage(messageList, false);// Describe message for portal
         appendExecuteMessage(messageList);        // Execute message
 
@@ -164,11 +163,15 @@ final class DefaultExtendedCommandWriter implements ExtendedCommandWriter {
         return Flux.fromIterable(messageList);
     }
 
+
     @Override
     public final Publisher<ByteBuf> bindAndExecute() {
         if (this.paramTypeList != null) {
             throw new IllegalStateException("duplication execute.");
         }
+
+        beforeExecute();
+
         this.paramTypeList = this.stmtTask.getParamTypeList();
         return Flux.create(sink -> {
             if (this.adjutant.inEventLoop()) {
@@ -208,6 +211,21 @@ final class DefaultExtendedCommandWriter implements ExtendedCommandWriter {
         return Mono.just(message);
     }
 
+    /**
+     * @see #executeOneShot()
+     * @see #bindAndExecute()
+     */
+    private void beforeExecute() {
+        if (PgStrings.hasText(this.portalName)) {
+            throw new IllegalStateException("duplication execute");
+        }
+        final int fetchSize = getFetchSizeFromStmt(this.stmt);
+        if (fetchSize > 0 && this.stmtTask.getRowMeta() != null) {
+            this.fetchSize = fetchSize;
+            this.portalName = this.adjutant.createPortalName();
+        }
+    }
+
 
     /**
      * @see <a href="https://www.postgresql.org/docs/current/protocol-message-formats.html">Parse</a>
@@ -242,7 +260,8 @@ final class DefaultExtendedCommandWriter implements ExtendedCommandWriter {
         final boolean supportFetch = supportFetch();
         final byte[] portalNameBytes;
         if (supportFetch) {
-            portalNameBytes = this.portalName.getBytes(this.adjutant.clientCharset());
+            final String portalName = Objects.requireNonNull(this.portalName, "this.portalName");
+            portalNameBytes = portalName.getBytes(this.adjutant.clientCharset());
         } else {
             portalNameBytes = new byte[0];
         }
@@ -355,8 +374,8 @@ final class DefaultExtendedCommandWriter implements ExtendedCommandWriter {
         message.writeByte(Messages.B);
         message.writeZero(Messages.LENGTH_BYTES);//placeholder of length
         // The name of the destination portal (an empty string selects the unnamed portal).
-        final String portalName = this.portalName;
-        if (!portalName.equals("")) {
+        if (supportFetch()) {
+            final String portalName = Objects.requireNonNull(this.portalName, "this.portalName");
             message.writeBytes(portalName.getBytes(clientCharset));
         }
         message.writeByte(Messages.STRING_TERMINATOR);
@@ -378,7 +397,7 @@ final class DefaultExtendedCommandWriter implements ExtendedCommandWriter {
         }
         message.writeShort(paramCount); // The number of parameter values
         if (this.oneShot) { // one shot.
-            message.writeShort(paramCount);
+            message.writeShort(paramCount); // result format count
             Messages.writeLength(message);
         }
         return message;
@@ -389,7 +408,7 @@ final class DefaultExtendedCommandWriter implements ExtendedCommandWriter {
         final List<String> staticSqlList = statement.getStaticSql();
         String sql;
         if (staticSqlList.size() == 1) {
-            sql = statement.getSql();
+            sql = this.stmt.getSql();
         } else {
             final StringBuilder builder = new StringBuilder(statement.getSql().length() + staticSqlList.size());
             final int paramCount = staticSqlList.size() - 1;
@@ -913,8 +932,11 @@ final class DefaultExtendedCommandWriter implements ExtendedCommandWriter {
         return oneShot;
     }
 
-    private static boolean isOnlyOneBindGroup(final ParamSingleStmt stmt) {
+    private static boolean isOnlyOneBindGroup(ParamSingleStmt stmt) {
         final boolean onlyOne;
+        if (stmt instanceof PrepareStmt) {
+            stmt = ((PrepareStmt) stmt).getStmt();
+        }
         if (stmt instanceof ParamStmt) {
             onlyOne = true;
         } else {
@@ -937,6 +959,24 @@ final class DefaultExtendedCommandWriter implements ExtendedCommandWriter {
             }
         }
         return bindCount;
+    }
+
+    private static int getFetchSizeFromStmt(ParamSingleStmt stmt) {
+        if (stmt instanceof PrepareStmt) {
+            stmt = ((PrepareStmt) stmt).getStmt();
+        }
+        final int fetchSize;
+        if (stmt instanceof ParamStmt) {
+            fetchSize = stmt.getFetchSize();
+        } else {
+            final ParamBatchStmt<? extends ParamValue> batchStmt = (ParamBatchStmt<? extends ParamValue>) stmt;
+            if (batchStmt.getGroupList().size() == 1) {
+                fetchSize = batchStmt.getFetchSize();
+            } else {
+                fetchSize = 0;
+            }
+        }
+        return fetchSize;
     }
 
     private final class ParameterSubscriber implements Subscriber<Object> {

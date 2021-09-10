@@ -1,5 +1,6 @@
 package io.jdbd.mysql.session;
 
+import io.jdbd.DatabaseSession;
 import io.jdbd.JdbdSQLException;
 import io.jdbd.meta.SQLType;
 import io.jdbd.mysql.stmt.PrepareStmtTask;
@@ -9,6 +10,7 @@ import io.jdbd.result.ResultRowMeta;
 import io.jdbd.result.ResultStates;
 import io.jdbd.stmt.PreparedStatement;
 import io.jdbd.vendor.result.ReactorMultiResult;
+import org.reactivestreams.Publisher;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.util.annotation.Nullable;
@@ -99,4 +101,11 @@ public final class ServerPreparedStatement<S extends MySQLDatabaseSession> exten
     public OrderedFlux executeBatchAsFlux() {
         return null;
     }
+
+    @Override
+    public Publisher<DatabaseSession> abandonBind() {
+        return null;
+    }
+
+
 }

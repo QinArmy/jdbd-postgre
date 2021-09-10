@@ -408,11 +408,6 @@ final class SimpleQueryTask extends AbstractStmtTask {
                 .append(this.phase);
     }
 
-    @Override
-    final boolean isEndAtReadyForQuery(TxStatus status) {
-        // always true for simple query
-        return true;
-    }
 
     @Override
     void handlePrepareResponse(List<PgType> paramTypeList, @Nullable ResultRowMeta rowMeta) {

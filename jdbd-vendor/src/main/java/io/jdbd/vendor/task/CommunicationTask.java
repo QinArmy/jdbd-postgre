@@ -1,5 +1,6 @@
 package io.jdbd.vendor.task;
 
+import io.jdbd.SessionCloseException;
 import io.jdbd.vendor.util.JdbdExceptions;
 import io.netty.buffer.ByteBuf;
 import org.reactivestreams.Publisher;
@@ -307,7 +308,10 @@ public abstract class CommunicationTask<T extends ITaskAdjutant> {
      * @see #channelCloseEvent()
      */
     protected void onChannelClose() {
-
+        if (!containsError(SessionCloseException.class)) {
+            addError(new SessionCloseException("Session unexpectedly close"));
+            publishError(this.errorConsumer);
+        }
     }
 
     /**

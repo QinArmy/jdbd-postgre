@@ -1,5 +1,6 @@
 package io.jdbd.stmt;
 
+import io.jdbd.DatabaseSession;
 import io.jdbd.JdbdException;
 import io.jdbd.JdbdSQLException;
 import io.jdbd.lang.Nullable;
@@ -18,12 +19,13 @@ import java.util.function.Consumer;
  * can't execute any new {@link Statement},because this session will wait(maybe in task queue)
  * for you invoke one of below methods.
  * <ul>
- *     <li>{@link #executeBatch()}</li>
  *     <li>{@link #executeUpdate()}</li>
  *     <li>{@link #executeQuery()}</li>
+ *     <li>{@link #executeBatch()}</li>
  *     <li>{@link #executeQuery(Consumer)}</li>
  *     <li>{@link #executeBatchAsMulti()}</li>
- *     <li>{@link #executeBatchMulti()}</li>
+ *     <li>{@link #executeBatchAsFlux()}</li>
+ *     <li>{@link #abandonBind()}</li>
  * </ul>
  * </p>
  */
@@ -72,6 +74,20 @@ public interface PreparedStatement extends BindableSingleStatement, BindableMult
     MultiResult executeBatchAsMulti();
 
     OrderedFlux executeBatchAsFlux();
+
+    /**
+     * <p>
+     * This method close this  {@link PreparedStatement} if you don't invoke any executeXxx() method.
+     * </p>
+     * <p>
+     * Abandon bind before invoke executeXxx() method.
+     * </p>
+     *
+     * @return Publisher like {@code reactor.core.publisher.Mono} ,
+     * if success emit {@link DatabaseSession} that create this {@link PreparedStatement}.
+     * @throws JdbdException emit(not throw), when after invoking executeXxx().
+     */
+    Publisher<DatabaseSession> abandonBind();
 
 
 }
