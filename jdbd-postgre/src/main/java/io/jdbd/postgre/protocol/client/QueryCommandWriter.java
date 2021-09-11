@@ -29,7 +29,6 @@ import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.sql.SQLException;
 import java.time.*;
-import java.time.format.DateTimeFormatter;
 import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
@@ -389,9 +388,9 @@ final class QueryCommandWriter {
     }
 
 
-    private void writeSafeString(ByteBuf message, String text, final int aroundBytes) throws SQLException {
+    private void writeSafeString(ByteBuf message, String text, final int suffixBytes) throws SQLException {
         final byte[] bytes = text.getBytes(this.clientCharset);
-        if (message.maxWritableBytes() < (bytes.length + aroundBytes)) {
+        if (message.maxWritableBytes() < (bytes.length + suffixBytes)) {
             throw PgExceptions.tooLargeObject();
         }
         message.writeBytes(bytes);
@@ -448,12 +447,14 @@ final class QueryCommandWriter {
 
         if (nonNull instanceof byte[]) {
             final byte[] bytes = ((byte[]) nonNull);
+            if (message.maxWritableBytes() < bytes.length) {
+                throw PgExceptions.tooLargeObject();
+            }
             message.writeBytes(JdbdBuffers.hexEscapes(true, bytes, bytes.length));
         } else if (nonNull instanceof Path) {
             try (FileChannel channel = FileChannel.open((Path) nonNull, StandardOpenOption.READ)) {
                 final byte[] bufferArray = new byte[2048];
                 final ByteBuffer buffer = ByteBuffer.wrap(bufferArray);
-
                 while (channel.read(buffer) > 0) {
                     buffer.flip();
                     message.writeBytes(JdbdBuffers.hexEscapes(true, bufferArray, buffer.remaining()));
@@ -477,7 +478,11 @@ final class QueryCommandWriter {
         value = PgBinds.bindNonNullToLocalDate(batchIndex, bindValue.getType(), bindValue);
 
         message.writeByte(QUOTE_BYTE);
-        message.writeBytes(value.format(DateTimeFormatter.ISO_LOCAL_DATE).getBytes(this.clientCharset));
+        try {
+            message.writeBytes(value.format(PgTimes.PG_ISO_LOCAL_DATE_FORMATTER).getBytes(this.clientCharset));
+        } catch (DateTimeException e) {
+            throw PgExceptions.outOfTypeRange(batchIndex, bindValue.getType(), bindValue);
+        }
         message.writeByte(QUOTE_BYTE);
     }
 
@@ -515,7 +520,11 @@ final class QueryCommandWriter {
         value = PgBinds.bindNonNullToOffsetDateTime(batchIndex, bindValue.getType(), bindValue);
 
         message.writeByte(QUOTE_BYTE);
-        message.writeBytes(value.format(PgTimes.ISO_OFFSET_DATETIME_FORMATTER).getBytes(this.clientCharset));
+        try {
+            message.writeBytes(value.format(PgTimes.PG_ISO_OFFSET_DATETIME_FORMATTER).getBytes(this.clientCharset));
+        } catch (DateTimeException e) {
+            throw PgExceptions.outOfTypeRange(batchIndex, bindValue.getType(), bindValue);
+        }
         message.writeByte(QUOTE_BYTE);
     }
 
@@ -529,7 +538,11 @@ final class QueryCommandWriter {
         value = PgBinds.bindNonNullToLocalDateTime(batchIndex, bindValue.getType(), bindValue);
 
         message.writeByte(QUOTE_BYTE);
-        message.writeBytes(value.format(PgTimes.ISO_LOCAL_DATETIME_FORMATTER).getBytes(this.clientCharset));
+        try {
+            message.writeBytes(value.format(PgTimes.PG_ISO_LOCAL_DATETIME_FORMATTER).getBytes(this.clientCharset));
+        } catch (DateTimeException e) {
+            throw PgExceptions.outOfTypeRange(batchIndex, bindValue.getType(), bindValue);
+        }
         message.writeByte(QUOTE_BYTE);
     }
 

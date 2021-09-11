@@ -23,7 +23,6 @@ import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.sql.SQLException;
 import java.time.*;
-import java.time.format.DateTimeFormatter;
 import java.time.temporal.TemporalAmount;
 import java.util.BitSet;
 import java.util.Objects;
@@ -238,13 +237,13 @@ final class DefaultResultSetReader implements ResultSetReader {
             case PgConstant.TYPE_TIMESTAMP: {
                 // @see PgConnectionTask
                 // startStartup Message set to default ISO
-                value = LocalDateTime.parse(textValue, PgTimes.ISO_LOCAL_DATETIME_FORMATTER);
+                value = LocalDateTime.parse(textValue, PgTimes.PG_ISO_LOCAL_DATETIME_FORMATTER);
             }
             break;
             case PgConstant.TYPE_DATE: {
                 // @see PgConnectionTask
                 // startStartup Message set to default ISO
-                value = LocalDate.parse(textValue, DateTimeFormatter.ISO_LOCAL_DATE);
+                value = LocalDate.parse(textValue, PgTimes.PG_ISO_LOCAL_DATE_FORMATTER);
             }
             break;
             case PgConstant.TYPE_TIME: {

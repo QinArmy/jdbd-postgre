@@ -2,11 +2,121 @@ package io.jdbd.postgre.util;
 
 import io.jdbd.vendor.util.JdbdTimes;
 
-import java.time.*;
-import java.time.format.DateTimeParseException;
+import java.time.DateTimeException;
+import java.time.OffsetDateTime;
+import java.time.OffsetTime;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeFormatterBuilder;
+import java.time.format.SignStyle;
+import java.time.format.TextStyle;
+import java.util.Locale;
 
+import static java.time.temporal.ChronoField.*;
+
+/**
+ * @see <a href="https://www.postgresql.org/docs/current/datatype-datetime.html">Date/Time Types</a>
+ */
 public abstract class PgTimes extends JdbdTimes {
 
+    /**
+     * <p>
+     * <pre>
+     *         Low Value        High Value
+     *         ---------        ----------
+     *         4713 BC          5874897 AD
+     *     </pre>
+     * </p>
+     */
+    public static final DateTimeFormatter PG_ISO_LOCAL_DATE_FORMATTER = new DateTimeFormatterBuilder()
+            .appendValue(YEAR_OF_ERA, 4, 7, SignStyle.NEVER)
+            .appendLiteral('-')
+            .appendValue(MONTH_OF_YEAR, 2)
+            .appendLiteral('-')
+            .appendValue(DAY_OF_MONTH, 2)
+            .optionalStart()
+            .appendLiteral(' ')
+            .appendText(ERA, TextStyle.SHORT)
+            .optionalEnd()
+            .toFormatter(Locale.ENGLISH);
+
+    /**
+     * <p>
+     * <pre>
+     *         Low Value        High Value
+     *         ---------        ----------
+     *         4713 BC          294276 AD
+     *     </pre>
+     * </p>
+     */
+    public static final DateTimeFormatter PG_ISO_LOCAL_DATETIME_FORMATTER = new DateTimeFormatterBuilder()
+            .appendValue(YEAR_OF_ERA, 4, 6, SignStyle.NEVER)
+            .appendLiteral('-')
+            .appendValue(MONTH_OF_YEAR, 2)
+            .appendLiteral('-')
+            .appendValue(DAY_OF_MONTH, 2)
+            .appendLiteral(' ')
+            .append(PgTimes.ISO_LOCAL_TIME_FORMATTER)
+            .optionalStart()
+            .appendLiteral(' ')
+            .appendText(ERA, TextStyle.SHORT)
+            .optionalEnd()
+            .toFormatter(Locale.ENGLISH);
+
+    /**
+     * <p>
+     * <pre>
+     *         Low Value        High Value
+     *         ---------        ----------
+     *         4713 BC          294276 AD
+     *     </pre>
+     * </p>
+     */
+    public static final DateTimeFormatter PG_ISO_OFFSET_DATETIME_FORMATTER = new DateTimeFormatterBuilder()
+            .appendValue(YEAR_OF_ERA, 4, 6, SignStyle.NEVER)
+            .appendLiteral('-')
+            .appendValue(MONTH_OF_YEAR, 2)
+            .appendLiteral('-')
+            .appendValue(DAY_OF_MONTH, 2)
+            .appendLiteral(' ')
+            .append(PgTimes.ISO_OFFSET_TIME_FORMATTER)
+            .optionalStart()
+            .appendLiteral(' ')
+            .appendText(ERA, TextStyle.SHORT)
+            .optionalEnd()
+            .toFormatter(Locale.ENGLISH);
+
+    /**
+     * Only use to parse output
+     */
+    private static final DateTimeFormatter PG_ISO_OFFSET_HH_TIME_FORMATTER = new DateTimeFormatterBuilder()
+            .append(ISO_LOCAL_TIME_FORMATTER)
+            .appendOffset("+HH:mm", "+00:00")
+            .toFormatter(Locale.ENGLISH);
+
+    /**
+     * Only use to parse output
+     * <p>
+     * <pre>
+     *         Low Value        High Value
+     *         ---------        ----------
+     *         4713 BC          294276 AD
+     *     </pre>
+     * </p>
+     */
+    private static final DateTimeFormatter PG_ISO_OFFSET_HH_DATETIME_FORMATTER = new DateTimeFormatterBuilder()
+            .appendValue(YEAR_OF_ERA, 4, 6, SignStyle.NEVER)
+            .appendLiteral('-')
+            .appendValue(MONTH_OF_YEAR, 2)
+            .appendLiteral('-')
+            .appendValue(DAY_OF_MONTH, 2)
+            .appendLiteral(' ')
+            .append(PgTimes.ISO_LOCAL_TIME_FORMATTER)
+            .appendOffset("+HH:mm", "+00:00")
+            .optionalStart()
+            .appendLiteral(' ')
+            .appendText(ERA, TextStyle.SHORT)
+            .optionalEnd()
+            .toFormatter(Locale.ENGLISH);
 
 
     /**
@@ -60,42 +170,37 @@ public abstract class PgTimes extends JdbdTimes {
     }
 
 
-    public static OffsetDateTime parseIsoOffsetDateTime(String textValue) throws DateTimeException {
-        // postgre iso zone offset output is too too too too too too too too too too too stupid.
-        // +HH or +HH:MM or +HH:MM:SS
+    public static OffsetDateTime parseIsoOffsetDateTime(final String textValue) throws DateTimeException {
 
-        int index = textValue.lastIndexOf('+');
-        if (index < 0) {
-            index = textValue.lastIndexOf('-');
+        OffsetDateTime dateTime;
+        try {
+            dateTime = OffsetDateTime.parse(textValue, PG_ISO_OFFSET_DATETIME_FORMATTER);
+        } catch (DateTimeException e) {
+            // postgre iso zone offset output is too too too too too too too too too too too stupid.
+            // +HH or +HH:MM or +HH:MM:SS
+            try {
+                dateTime = OffsetDateTime.parse(textValue, PG_ISO_OFFSET_HH_DATETIME_FORMATTER);
+            } catch (DateTimeException e2) {
+                throw e;
+            }
         }
-        if (index < 19) {
-            String m = String.format("Not found zone offset index in '%s'", textValue);
-            throw new DateTimeParseException(m, textValue, Math.max(index, 0));
-        }
-        final LocalDateTime dateTime;
-        final ZoneOffset offset;
-        dateTime = LocalDateTime.parse(textValue.substring(0, index), ISO_LOCAL_DATETIME_FORMATTER);
-        offset = ZoneOffset.of(textValue.substring(index));
-        return OffsetDateTime.of(dateTime, offset);
+        return dateTime;
     }
 
     public static OffsetTime parseIsoOffsetTime(String textValue) throws DateTimeException {
-        // postgre iso zone offset output is too too too too too too too too too too too stupid.
-        // +HH or +HH:MM or +HH:MM:SS
-        int index = textValue.lastIndexOf('+');
-        if (index < 0) {
-            index = textValue.lastIndexOf('-');
-            if (index < 0) {
-                String m = String.format("Not found zone offset index in '%s'", textValue);
-                throw new DateTimeParseException(m, textValue, 0);
+        OffsetTime time;
+        try {
+            time = OffsetTime.parse(textValue, ISO_OFFSET_TIME_FORMATTER);
+        } catch (DateTimeException e) {
+            // postgre iso zone offset output is too too too too too too too too too too too stupid.
+            // +HH or +HH:MM or +HH:MM:SS
+            try {
+                time = OffsetTime.parse(textValue, PG_ISO_OFFSET_HH_TIME_FORMATTER);
+            } catch (DateTimeException e2) {
+                throw e;
             }
         }
-
-        final LocalTime time;
-        final ZoneOffset offset;
-        time = LocalTime.parse(textValue.substring(0, index), ISO_LOCAL_TIME_FORMATTER);
-        offset = ZoneOffset.of(textValue.substring(index));
-        return OffsetTime.of(time, offset);
+        return time;
     }
 
 

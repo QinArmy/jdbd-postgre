@@ -6,12 +6,41 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.util.annotation.Nullable;
 
+import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.time.OffsetDateTime;
+import java.time.OffsetTime;
+import java.time.temporal.ChronoField;
 import java.util.List;
 import java.util.function.Function;
 
 import static org.testng.Assert.*;
 
 public abstract class PgTestUtils {
+
+    public static boolean timeEquals(LocalTime result, LocalTime bind) {
+        return result.getHour() == bind.getHour()
+                && result.getMinute() == bind.getMinute()
+                && result.getSecond() == bind.getSecond()
+                && result.getLong(ChronoField.MICRO_OF_SECOND) == bind.getLong(ChronoField.MICRO_OF_SECOND);
+    }
+
+    public static boolean offsetTimeEquals(OffsetTime result, OffsetTime bind) {
+        result = result.withOffsetSameInstant(bind.getOffset());
+        return result.getOffset().compareTo(bind.getOffset()) == 0
+                && timeEquals(result.toLocalTime(), bind.toLocalTime());
+    }
+
+    public static boolean dateTimeEquals(LocalDateTime result, LocalDateTime bind) {
+        return result.toLocalDate().equals(bind.toLocalDate())
+                && timeEquals(result.toLocalTime(), bind.toLocalTime());
+    }
+
+    public static boolean offsetDateTimeEquals(OffsetDateTime result, OffsetDateTime bind) {
+        result = result.withOffsetSameInstant(bind.getOffset());
+        return result.getOffset().compareTo(bind.getOffset()) == 0
+                && dateTimeEquals(result.toLocalDateTime(), bind.toLocalDateTime());
+    }
 
     public static <T> Mono<T> updateNoResponse() {
         return Mono.defer(() -> Mono.error(new RuntimeException("update no response")));

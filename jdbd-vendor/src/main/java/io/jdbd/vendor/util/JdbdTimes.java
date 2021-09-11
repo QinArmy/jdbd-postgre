@@ -37,12 +37,12 @@ public abstract class JdbdTimes extends TimeUtils {
 
     public static final DateTimeFormatter ISO_OFFSET_TIME_FORMATTER = new DateTimeFormatterBuilder()
             .append(ISO_LOCAL_TIME_FORMATTER)
-            .appendOffset("+HH:MM", "+00:00")
+            .appendOffset("+HH:MM:ss", "+00:00")
             .toFormatter(Locale.ENGLISH);
 
     public static final DateTimeFormatter ISO_OFFSET_DATETIME_FORMATTER = new DateTimeFormatterBuilder()
             .append(ISO_LOCAL_DATETIME_FORMATTER)
-            .appendOffset("+HH:MM", "+00:00")
+            .appendOffset("+HH:MM:ss", "+00:00")
             .toFormatter(Locale.ENGLISH);
 
 

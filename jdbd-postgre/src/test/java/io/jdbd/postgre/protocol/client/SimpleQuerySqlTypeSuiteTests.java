@@ -91,4 +91,21 @@ public class SimpleQuerySqlTypeSuiteTests extends AbstractStmtTaskTests {
     }
 
 
+    /**
+     * @see PgType#TIMESTAMP
+     */
+    @Test
+    public void timestampBindExtract() {
+        doTimestampBindExtract();
+    }
+
+    /**
+     * @see PgType#TIMESTAMPTZ
+     */
+    @Test
+    public void timestampTzBindExtract() {
+        doTimestampTzBindExtract();
+    }
+
+
 }

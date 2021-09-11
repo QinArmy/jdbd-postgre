@@ -45,15 +45,35 @@ public abstract class JdbdExceptions extends ExceptionUtils {
         } else {
             message = String.format(format, args);
         }
-        JdbdException je;
+        final JdbdException je;
         if (e instanceof JdbdException) {
             je = (JdbdException) e;
         } else if (e instanceof SQLException) {
             je = new JdbdSQLException(message, (SQLException) e);
+        } else if (e instanceof IndexOutOfBoundsException && isByteBufOutflow(e)) {
+            je = new JdbdSQLException(tooLargeObject(e));
         } else {
             je = new JdbdUnknownException(message, e);
         }
         return je;
+    }
+
+    public static boolean isByteBufOutflow(final Throwable e) {
+        if (!(e instanceof IndexOutOfBoundsException)) {
+            return false;
+        }
+        final String bufClassName = "io.netty.buffer.AbstractByteBuf";
+        final String bufClassPrefix = "io.netty.buffer.";
+        boolean match = false;
+        for (StackTraceElement se : e.getStackTrace()) {
+            final String className = se.getClassName();
+            if (className.equals(bufClassName)
+                    || className.startsWith(bufClassPrefix)) {
+                match = true;
+                break;
+            }
+        }
+        return match;
     }
 
     public static Throwable wrapIfNonJvmFatal(Throwable e) {
@@ -212,6 +232,10 @@ public abstract class JdbdExceptions extends ExceptionUtils {
 
     public static SQLException tooLargeObject() {
         return new SQLException("Object too large,beyond message length.");
+    }
+
+    public static SQLException tooLargeObject(Throwable e) {
+        return new SQLException("Object too large,beyond message length.", e);
     }
 
     public static LocalFileException localFileWriteError(int batchIndex, SQLType sqlType
