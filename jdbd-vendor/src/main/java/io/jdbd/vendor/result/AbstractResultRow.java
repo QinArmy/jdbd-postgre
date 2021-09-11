@@ -1,10 +1,12 @@
 package io.jdbd.vendor.result;
 
 import io.jdbd.JdbdSQLException;
+import io.jdbd.meta.SQLType;
 import io.jdbd.result.ResultRow;
 import io.jdbd.result.ResultRowMeta;
 import io.jdbd.result.UnsupportedConvertingException;
 import io.jdbd.type.CodeEnum;
+import io.jdbd.type.Interval;
 import io.jdbd.type.LongBinary;
 import io.jdbd.type.geometry.LongString;
 import io.jdbd.vendor.util.JdbdCollections;
@@ -71,7 +73,7 @@ public abstract class AbstractResultRow<R extends ResultRowMeta> implements Resu
             throws JdbdSQLException, UnsupportedConvertingException {
         final Object value = this.columnValues[checkIndex(indexBaseZero)];
         final T convertedValue;
-        if (value == null || columnClass == value.getClass()) {
+        if (value == null || columnClass.isAssignableFrom(value.getClass())) {
             convertedValue = (T) value;
         } else {
             convertedValue = convertNonNullValue(indexBaseZero, value, columnClass);
@@ -182,8 +184,6 @@ public abstract class AbstractResultRow<R extends ResultRowMeta> implements Resu
 
     /*################################## blow protected template method ##################################*/
 
-    protected abstract UnsupportedConvertingException createNotSupportedException(int indexBasedZero
-            , Class<?> targetClass);
 
     protected abstract UnsupportedConvertingException createValueCannotConvertException(Throwable cause
             , int indexBasedZero, Class<?> targetClass);
@@ -201,89 +201,126 @@ public abstract class AbstractResultRow<R extends ResultRowMeta> implements Resu
 
     protected abstract String formatTemporalAccessor(TemporalAccessor temporalAccessor) throws DateTimeException;
 
-    protected abstract boolean convertToBoolean(final int indexBaseZero, final Object sourceValue)
-            throws UnsupportedConvertingException;
+
 
     /*################################## blow protected method ##################################*/
 
 
     @SuppressWarnings("unchecked")
-    private <T> T convertNonNullValue(final int indexBaseZero, final Object nonValue, final Class<T> targetClass)
+    private <T> T convertNonNullValue(final int indexBaseZero, final Object nonNull, final Class<T> targetClass)
             throws UnsupportedConvertingException {
         final Object convertedValue;
 
         if (targetClass == String.class) {
-            convertedValue = convertToString(indexBaseZero, nonValue);
+            convertedValue = convertToString(indexBaseZero, nonNull);
         } else if (Number.class.isAssignableFrom(targetClass)) {
             if (targetClass == Integer.class) {
-                convertedValue = convertToInteger(indexBaseZero, nonValue);
+                convertedValue = convertToInteger(indexBaseZero, nonNull);
             } else if (targetClass == Long.class) {
-                convertedValue = convertToLong(indexBaseZero, nonValue);
+                convertedValue = convertToLong(indexBaseZero, nonNull);
             } else if (targetClass == BigDecimal.class) {
-                convertedValue = convertToBigDecimal(indexBaseZero, nonValue);
+                convertedValue = convertToBigDecimal(indexBaseZero, nonNull);
             } else if (targetClass == BigInteger.class) {
-                convertedValue = convertToBigInteger(indexBaseZero, nonValue);
+                convertedValue = convertToBigInteger(indexBaseZero, nonNull);
             } else if (targetClass == Byte.class) {
-                convertedValue = convertToByte(indexBaseZero, nonValue);
+                convertedValue = convertToByte(indexBaseZero, nonNull);
             } else if (targetClass == Short.class) {
-                convertedValue = convertToShort(indexBaseZero, nonValue);
+                convertedValue = convertToShort(indexBaseZero, nonNull);
             } else if (targetClass == Double.class) {
-                convertedValue = convertToDouble(indexBaseZero, nonValue);
+                convertedValue = convertToDouble(indexBaseZero, nonNull);
             } else if (targetClass == Float.class) {
-                convertedValue = convertToFloat(indexBaseZero, nonValue);
+                convertedValue = convertToFloat(indexBaseZero, nonNull);
             } else {
-                convertedValue = convertToOtherNumber(indexBaseZero, nonValue, (Class<? extends Number>) targetClass);
+                convertedValue = convertToOtherNumber(indexBaseZero, nonNull, (Class<? extends Number>) targetClass);
             }
         } else if (TemporalAccessor.class.isAssignableFrom(targetClass)) {
             if (targetClass == LocalDateTime.class) {
-                convertedValue = convertToLocalDateTime(indexBaseZero, nonValue);
+                convertedValue = convertToLocalDateTime(indexBaseZero, nonNull);
             } else if (targetClass == LocalTime.class) {
-                convertedValue = convertToLocalTime(indexBaseZero, nonValue);
+                convertedValue = convertToLocalTime(indexBaseZero, nonNull);
             } else if (targetClass == LocalDate.class) {
-                convertedValue = convertToLocalDate(indexBaseZero, nonValue);
+                convertedValue = convertToLocalDate(indexBaseZero, nonNull);
             } else if (targetClass == ZonedDateTime.class) {
-                convertedValue = convertToZonedDateTime(indexBaseZero, nonValue);
+                convertedValue = convertToZonedDateTime(indexBaseZero, nonNull);
             } else if (targetClass == OffsetDateTime.class) {
-                convertedValue = convertToOffsetDateTime(indexBaseZero, nonValue);
+                convertedValue = convertToOffsetDateTime(indexBaseZero, nonNull);
             } else if (targetClass == OffsetTime.class) {
-                convertedValue = convertToOffsetTime(indexBaseZero, nonValue);
+                convertedValue = convertToOffsetTime(indexBaseZero, nonNull);
             } else if (targetClass == Instant.class) {
-                convertedValue = convertToInstant(indexBaseZero, nonValue);
+                convertedValue = convertToInstant(indexBaseZero, nonNull);
             } else if (targetClass == Year.class) {
-                convertedValue = convertToYear(indexBaseZero, nonValue);
+                convertedValue = convertToYear(indexBaseZero, nonNull);
             } else if (targetClass == YearMonth.class) {
-                convertedValue = convertToYearMonth(indexBaseZero, nonValue);
+                convertedValue = convertToYearMonth(indexBaseZero, nonNull);
             } else if (targetClass == MonthDay.class) {
-                convertedValue = convertToMonthDay(indexBaseZero, nonValue);
+                convertedValue = convertToMonthDay(indexBaseZero, nonNull);
             } else if (targetClass == DayOfWeek.class) {
-                convertedValue = convertToDayOfWeek(indexBaseZero, nonValue);
+                convertedValue = convertToDayOfWeek(indexBaseZero, nonNull);
             } else if (targetClass == Month.class) {
-                convertedValue = convertToMonth(indexBaseZero, nonValue);
+                convertedValue = convertToMonth(indexBaseZero, nonNull);
             } else {
-                convertedValue = convertToOtherTemporalAccessor(indexBaseZero, nonValue
+                convertedValue = convertToOtherTemporalAccessor(indexBaseZero, nonNull
                         , (Class<? extends TemporalAccessor>) targetClass);
             }
         } else if (TemporalAmount.class.isAssignableFrom(targetClass)) {
             if (targetClass == Duration.class) {
-                convertedValue = convertToDuration(indexBaseZero, nonValue);
+                convertedValue = convertToDuration(indexBaseZero, nonNull);
             } else if (targetClass == Period.class) {
-                convertedValue = convertToPeriod(indexBaseZero, nonValue);
+                convertedValue = convertToPeriod(indexBaseZero, nonNull);
+            } else if (targetClass == Interval.class) {
+                convertedValue = convertToInterval(indexBaseZero, nonNull);
             } else {
-                convertedValue = convertToOtherTemporalAmount(indexBaseZero, nonValue
+                convertedValue = convertToOtherTemporalAmount(indexBaseZero, nonNull
                         , (Class<? extends TemporalAmount>) targetClass);
             }
         } else if (targetClass == Boolean.class) {
-            convertedValue = convertToBoolean(indexBaseZero, nonValue);
+            convertedValue = convertToBoolean(indexBaseZero, nonNull);
         } else if (targetClass == byte[].class) {
-            convertedValue = convertToByteArray(indexBaseZero, nonValue);
+            convertedValue = convertToByteArray(indexBaseZero, nonNull);
         } else if (targetClass.isEnum()) {
             final Enum<?> enumValue;
-            enumValue = convertToEnum(indexBaseZero, nonValue, targetClass);
+            enumValue = convertToEnum(indexBaseZero, nonNull, targetClass);
             convertedValue = enumValue;
         } else {
-            convertedValue = convertToOther(indexBaseZero, nonValue, targetClass);
+            convertedValue = convertToOther(indexBaseZero, nonNull, targetClass);
         }
         return (T) convertedValue;
+    }
+
+    protected boolean convertToBoolean(final int indexBaseZero, final Object sourceValue)
+            throws UnsupportedConvertingException {
+        final boolean value;
+        if (sourceValue instanceof Boolean) {
+            value = (Boolean) sourceValue;
+        } else if (sourceValue instanceof String) {
+            final String v = (String) sourceValue;
+            if (v.equalsIgnoreCase("TRUE")
+                    || v.equalsIgnoreCase("T")
+                    || v.equalsIgnoreCase("Y")) {
+                value = true;
+            } else if (v.equalsIgnoreCase("FALSE")
+                    || v.equalsIgnoreCase("F")
+                    || v.equalsIgnoreCase("N")) {
+                value = false;
+            } else {
+                throw createNotSupportedException(indexBaseZero, Boolean.class);
+            }
+        } else if (sourceValue instanceof Integer
+                || sourceValue instanceof Long
+                || sourceValue instanceof Short
+                || sourceValue instanceof Byte) {
+            value = ((Number) sourceValue).longValue() != 0;
+        } else if (sourceValue instanceof Double
+                || sourceValue instanceof Float) {
+            value = ((Number) sourceValue).doubleValue() != 0.0;
+        } else if (sourceValue instanceof BigDecimal) {
+            value = ((BigDecimal) sourceValue).compareTo(BigDecimal.ZERO) != 0;
+        } else if (sourceValue instanceof BigInteger) {
+            value = ((BigInteger) sourceValue).compareTo(BigInteger.ZERO) != 0;
+        } else {
+            throw createNotSupportedException(indexBaseZero, Boolean.class);
+        }
+        return value;
     }
 
     /**
@@ -436,26 +473,26 @@ public abstract class AbstractResultRow<R extends ResultRowMeta> implements Resu
     /**
      * @see #convertNonNullValue(int, Object, Class)
      */
-    protected String convertToString(final int indexBaseZero, final Object sourceValue) {
+    protected String convertToString(final int indexBaseZero, final Object nonNull) {
         final String value;
         try {
-            if (sourceValue instanceof String) {
-                value = (String) sourceValue;
-            } else if (sourceValue instanceof byte[]) {
-                value = new String((byte[]) sourceValue, obtainColumnCharset(indexBaseZero));
-            } else if (sourceValue instanceof BigDecimal) {
-                value = ((BigDecimal) sourceValue).toPlainString();
-            } else if (sourceValue instanceof Number) {
-                value = sourceValue.toString();
-            } else if (sourceValue instanceof LongString) {
-                LongString longString = (LongString) sourceValue;
+            if (nonNull instanceof String) {
+                value = (String) nonNull;
+            } else if (nonNull instanceof byte[]) {
+                value = new String((byte[]) nonNull, obtainColumnCharset(indexBaseZero));
+            } else if (nonNull instanceof BigDecimal) {
+                value = ((BigDecimal) nonNull).toPlainString();
+            } else if (nonNull instanceof Number) {
+                value = nonNull.toString();
+            } else if (nonNull instanceof LongString) {
+                LongString longString = (LongString) nonNull;
                 if (longString.isString()) {
                     value = longString.asString();
                 } else {
                     throw createNotSupportedException(indexBaseZero, String.class);
                 }
-            } else if (sourceValue instanceof TemporalAccessor) {
-                value = formatTemporalAccessor((TemporalAccessor) sourceValue);
+            } else if (nonNull instanceof TemporalAccessor) {
+                value = formatTemporalAccessor((TemporalAccessor) nonNull);
             } else {
                 throw createNotSupportedException(indexBaseZero, String.class);
             }
@@ -470,19 +507,19 @@ public abstract class AbstractResultRow<R extends ResultRowMeta> implements Resu
     /**
      * @see #convertNonNullValue(int, Object, Class)
      */
-    protected Duration convertToDuration(final int indexBaseZero, final Object sourceValue)
+    protected Duration convertToDuration(final int indexBaseZero, final Object nonNull)
             throws UnsupportedConvertingException {
         final Duration value;
 
         try {
-            if (sourceValue instanceof TemporalAmount) {
-                value = Duration.from((TemporalAmount) sourceValue);
+            if (nonNull instanceof TemporalAmount) {
+                value = Duration.from((TemporalAmount) nonNull);
             } else {
                 final TemporalAmount amount;
-                if (sourceValue instanceof String) {
-                    amount = convertStringToTemporalAmount(indexBaseZero, (String) sourceValue, Duration.class);
-                } else if (sourceValue instanceof byte[]) {
-                    String textValue = new String((byte[]) sourceValue, obtainColumnCharset(indexBaseZero));
+                if (nonNull instanceof String) {
+                    amount = convertStringToTemporalAmount(indexBaseZero, (String) nonNull, Duration.class);
+                } else if (nonNull instanceof byte[]) {
+                    String textValue = new String((byte[]) nonNull, obtainColumnCharset(indexBaseZero));
                     amount = convertStringToTemporalAmount(indexBaseZero, textValue, Duration.class);
                 } else {
                     throw createNotSupportedException(indexBaseZero, Duration.class);
@@ -502,19 +539,19 @@ public abstract class AbstractResultRow<R extends ResultRowMeta> implements Resu
     /**
      * @see #convertNonNullValue(int, Object, Class)
      */
-    protected Period convertToPeriod(final int indexBaseZero, final Object sourceValue)
+    protected Period convertToPeriod(final int indexBaseZero, final Object nonNull)
             throws UnsupportedConvertingException {
         final Period value;
 
         try {
-            if (sourceValue instanceof TemporalAmount) {
-                value = Period.from((TemporalAmount) sourceValue);
+            if (nonNull instanceof TemporalAmount) {
+                value = Period.from((TemporalAmount) nonNull);
             } else {
                 final TemporalAmount amount;
-                if (sourceValue instanceof String) {
-                    amount = convertStringToTemporalAmount(indexBaseZero, (String) sourceValue, Period.class);
-                } else if (sourceValue instanceof byte[]) {
-                    String textValue = new String((byte[]) sourceValue, obtainColumnCharset(indexBaseZero));
+                if (nonNull instanceof String) {
+                    amount = convertStringToTemporalAmount(indexBaseZero, (String) nonNull, Period.class);
+                } else if (nonNull instanceof byte[]) {
+                    String textValue = new String((byte[]) nonNull, obtainColumnCharset(indexBaseZero));
                     amount = convertStringToTemporalAmount(indexBaseZero, textValue, Period.class);
                 } else {
                     throw createNotSupportedException(indexBaseZero, Period.class);
@@ -528,7 +565,27 @@ public abstract class AbstractResultRow<R extends ResultRowMeta> implements Resu
             throw createValueCannotConvertException(e, indexBaseZero, Period.class);
         }
 
+    }
 
+    /**
+     * @see #convertNonNullValue(int, Object, Class)
+     */
+    protected Interval convertToInterval(final int indexBaseZero, final Object nonNull) {
+        final Interval value;
+        if (nonNull instanceof Duration) {
+            value = Interval.of((Duration) nonNull);
+        } else if (nonNull instanceof Period) {
+            value = Interval.of((Period) nonNull);
+        } else if (nonNull instanceof String) {
+            try {
+                value = Interval.parse((String) nonNull);
+            } catch (DateTimeException e) {
+                throw createValueCannotConvertException(e, indexBaseZero, Interval.class);
+            }
+        } else {
+            throw createNotSupportedException(indexBaseZero, Interval.class);
+        }
+        return value;
     }
 
     /**
@@ -1208,287 +1265,402 @@ public abstract class AbstractResultRow<R extends ResultRowMeta> implements Resu
      * @see #convertToLocalDate(int, Object)
      */
     protected LocalDate convertTemporalAccessorToLocalDate(final int indexBaseZero
-            , final TemporalAccessor sourceValue)
+            , final TemporalAccessor nonNull)
             throws UnsupportedConvertingException {
 
-        final LocalDate newValue;
-        if (sourceValue instanceof LocalDate) {
-            newValue = (LocalDate) sourceValue;
-        } else if (sourceValue instanceof LocalDateTime) {
-            newValue = ((LocalDateTime) sourceValue).toLocalDate();
-        } else if (sourceValue instanceof OffsetDateTime) {
-            newValue = ((OffsetDateTime) sourceValue).withOffsetSameInstant(obtainZoneOffsetClient())
+        final LocalDate value;
+        if (nonNull instanceof LocalDate) {
+            value = (LocalDate) nonNull;
+        } else if (nonNull instanceof LocalDateTime) {
+            value = ((LocalDateTime) nonNull).toLocalDate();
+        } else if (nonNull instanceof OffsetDateTime) {
+            value = ((OffsetDateTime) nonNull).withOffsetSameInstant(obtainZoneOffsetClient())
                     .toLocalDate();
-        } else if (sourceValue instanceof ZonedDateTime) {
-            newValue = ((ZonedDateTime) sourceValue).withZoneSameInstant(obtainZoneOffsetClient())
+        } else if (nonNull instanceof ZonedDateTime) {
+            value = ((ZonedDateTime) nonNull).withZoneSameInstant(obtainZoneOffsetClient())
                     .toLocalDate();
-        } else if (sourceValue instanceof Instant) {
-            newValue = OffsetDateTime.ofInstant((Instant) sourceValue, ZoneOffset.UTC)
+        } else if (nonNull instanceof Instant) {
+            value = OffsetDateTime.ofInstant((Instant) nonNull, ZoneOffset.UTC)
                     .withOffsetSameInstant(obtainZoneOffsetClient())
                     .toLocalDate();
         } else {
             throw createNotSupportedException(indexBaseZero, LocalDate.class);
         }
-        return newValue;
+        return value;
     }
 
 
     /**
      * @see #convertNonNullValue(int, Object, Class)
      */
-    protected Double convertToDouble(final int indexBaseZero, final Object sourceValue) {
-        final double newValue;
-        if (sourceValue instanceof Double
-                || sourceValue instanceof Float) {
-            newValue = ((Number) sourceValue).doubleValue();
-        } else if (sourceValue instanceof String) {
+    protected double convertToDouble(final int indexBaseZero, final Object nonNull) {
+        final double value;
+        if (nonNull instanceof Double
+                || nonNull instanceof Float) {
+            value = ((Number) nonNull).doubleValue();
+        } else if (nonNull instanceof String) {
             try {
-                newValue = Double.parseDouble((String) sourceValue);
+                value = Double.parseDouble((String) nonNull);
             } catch (NumberFormatException e) {
                 throw createValueCannotConvertException(e, indexBaseZero, Double.class);
             }
-        } else if (sourceValue instanceof byte[]) {
-            String textValue = new String((byte[]) sourceValue, obtainColumnCharset(indexBaseZero));
+        } else if (nonNull instanceof byte[]) {
+            String textValue = new String((byte[]) nonNull, obtainColumnCharset(indexBaseZero));
             try {
-                newValue = Double.parseDouble(textValue);
+                value = Double.parseDouble(textValue);
             } catch (NumberFormatException e) {
                 throw createValueCannotConvertException(e, indexBaseZero, Double.class);
             }
-        } else if (sourceValue instanceof Boolean) {
-            newValue = ((Boolean) sourceValue) ? 1.0D : 0.0D;
+        } else if (nonNull instanceof Boolean) {
+            value = ((Boolean) nonNull) ? 1.0D : 0.0D;
         } else {
             throw createNotSupportedException(indexBaseZero, Double.class);
         }
-        return newValue;
+        return value;
     }
 
 
     /**
      * @see #convertNonNullValue(int, Object, Class)
      */
-    protected Float convertToFloat(final int indexBaseZero, final Object sourceValue) {
-        final float newValue;
-        if (sourceValue instanceof Float) {
-            newValue = (Float) sourceValue;
-        } else if (sourceValue instanceof String) {
+    protected float convertToFloat(final int indexBaseZero, final Object nonNull) {
+        final float value;
+        if (nonNull instanceof Float) {
+            value = (Float) nonNull;
+        } else if (nonNull instanceof String) {
             try {
-                newValue = Float.parseFloat((String) sourceValue);
+                value = Float.parseFloat((String) nonNull);
             } catch (NumberFormatException e) {
                 throw createValueCannotConvertException(e, indexBaseZero, Float.class);
             }
-        } else if (sourceValue instanceof byte[]) {
-            String textValue = new String((byte[]) sourceValue, obtainColumnCharset(indexBaseZero));
+        } else if (nonNull instanceof byte[]) {
+            String textValue = new String((byte[]) nonNull, obtainColumnCharset(indexBaseZero));
             try {
-                newValue = Float.parseFloat(textValue);
+                value = Float.parseFloat(textValue);
             } catch (NumberFormatException e) {
                 throw createValueCannotConvertException(e, indexBaseZero, Float.class);
             }
-        } else if (sourceValue instanceof Boolean) {
-            newValue = ((Boolean) sourceValue) ? 1.0F : 0.0F;
+        } else if (nonNull instanceof Boolean) {
+            value = ((Boolean) nonNull) ? 1.0F : 0.0F;
         } else {
             throw createNotSupportedException(indexBaseZero, Float.class);
         }
-        return newValue;
+        return value;
     }
 
 
     /**
      * @see #convertNonNullValue(int, Object, Class)
      */
-    protected BigDecimal convertToBigDecimal(final int indexBaseZero, final Object sourceValue) {
-        final BigDecimal newValue;
+    protected BigDecimal convertToBigDecimal(final int indexBaseZero, final Object nonNull) {
+        final BigDecimal value;
 
-        if (sourceValue instanceof Number) {
-            if (sourceValue instanceof BigInteger) {
-                newValue = new BigDecimal((BigInteger) sourceValue);
-            } else if (sourceValue instanceof Integer
-                    || sourceValue instanceof Long
-                    || sourceValue instanceof Short
-                    || sourceValue instanceof Byte) {
-                newValue = BigDecimal.valueOf(((Number) sourceValue).longValue());
-            } else if (sourceValue instanceof Double
-                    || sourceValue instanceof Float) {
-                newValue = BigDecimal.valueOf(((Number) sourceValue).doubleValue());
+        if (nonNull instanceof Number) {
+            if (nonNull instanceof BigInteger) {
+                value = new BigDecimal((BigInteger) nonNull);
+            } else if (nonNull instanceof Integer
+                    || nonNull instanceof Long
+                    || nonNull instanceof Short
+                    || nonNull instanceof Byte) {
+                value = BigDecimal.valueOf(((Number) nonNull).longValue());
             } else {
                 throw createNotSupportedException(indexBaseZero, BigDecimal.class);
             }
-        } else if (sourceValue instanceof String) {
+        } else if (nonNull instanceof String) {
             try {
-                newValue = new BigDecimal((String) sourceValue);
+                value = new BigDecimal((String) nonNull);
             } catch (NumberFormatException e) {
                 throw createValueCannotConvertException(e, indexBaseZero, BigDecimal.class);
             }
-        } else if (sourceValue instanceof byte[]) {
-            String textValue = new String((byte[]) sourceValue, obtainColumnCharset(indexBaseZero));
+        } else if (nonNull instanceof byte[]) {
+            String textValue = new String((byte[]) nonNull, obtainColumnCharset(indexBaseZero));
             try {
-                newValue = new BigDecimal(textValue);
+                value = new BigDecimal(textValue);
             } catch (NumberFormatException e) {
                 throw createValueCannotConvertException(e, indexBaseZero, BigDecimal.class);
             }
-        } else if (sourceValue instanceof Boolean) {
-            newValue = ((Boolean) sourceValue) ? BigDecimal.ONE : BigDecimal.ZERO;
+        } else if (nonNull instanceof Boolean) {
+            value = ((Boolean) nonNull) ? BigDecimal.ONE : BigDecimal.ZERO;
         } else {
             throw createNotSupportedException(indexBaseZero, BigDecimal.class);
         }
-        return newValue;
+        return value;
     }
 
     /**
      * @see #convertNonNullValue(int, Object, Class)
      */
-    protected BigInteger convertToBigInteger(final int indexBaseZero, final Object sourceValue)
+    protected BigInteger convertToBigInteger(final int indexBaseZero, final Object nonNull)
             throws UnsupportedConvertingException {
-        final BigInteger newValue;
+        final BigInteger value;
 
-        if (sourceValue instanceof Number) {
-            if (sourceValue instanceof BigInteger) {
-                newValue = (BigInteger) sourceValue;
-            } else if (sourceValue instanceof BigDecimal) {
-                newValue = ((BigDecimal) sourceValue).toBigInteger();
-            } else if (sourceValue instanceof Integer
-                    || sourceValue instanceof Long
-                    || sourceValue instanceof Short
-                    || sourceValue instanceof Byte) {
-                newValue = BigInteger.valueOf(((Number) sourceValue).longValue());
-            } else {
+        if (nonNull instanceof BigInteger) {
+            value = (BigInteger) nonNull;
+        } else if (nonNull instanceof Integer
+                || nonNull instanceof Long
+                || nonNull instanceof Short
+                || nonNull instanceof Byte) {
+            value = BigInteger.valueOf(((Number) nonNull).longValue());
+        } else if (nonNull instanceof BigDecimal) {
+            final BigDecimal v = ((BigDecimal) nonNull).stripTrailingZeros();
+            if (v.scale() != 0) {
                 throw createNotSupportedException(indexBaseZero, BigInteger.class);
             }
-        } else if (sourceValue instanceof String) {
+            value = v.toBigInteger();
+        } else if (nonNull instanceof String) {
             try {
-                newValue = new BigInteger((String) sourceValue);
+                value = new BigInteger((String) nonNull);
             } catch (NumberFormatException e) {
                 throw createValueCannotConvertException(e, indexBaseZero, BigInteger.class);
             }
-        } else if (sourceValue instanceof byte[]) {
-            String textValue = new String((byte[]) sourceValue, obtainColumnCharset(indexBaseZero));
+        } else if (nonNull instanceof byte[]) {
+            String textValue = new String((byte[]) nonNull, obtainColumnCharset(indexBaseZero));
             try {
-                newValue = new BigInteger(textValue);
+                value = new BigInteger(textValue);
             } catch (NumberFormatException e) {
                 throw createValueCannotConvertException(e, indexBaseZero, BigInteger.class);
             }
-        } else if (sourceValue instanceof Boolean) {
-            newValue = ((Boolean) sourceValue) ? BigInteger.ONE : BigInteger.ZERO;
+        } else if (nonNull instanceof Boolean) {
+            value = ((Boolean) nonNull) ? BigInteger.ONE : BigInteger.ZERO;
         } else {
             throw createNotSupportedException(indexBaseZero, BigInteger.class);
         }
-        return newValue;
+        return value;
     }
 
     /**
      * @see #convertNonNullValue(int, Object, Class)
      */
-    protected Long convertToLong(final int indexBaseZero, final Object sourceValue) {
-        final long newValue;
-
-        if (sourceValue instanceof Number) {
-            newValue = ((Number) sourceValue).longValue();
-        } else if (sourceValue instanceof String) {
+    protected long convertToLong(final int indexBaseZero, final Object nonNull) {
+        final long value;
+        if (nonNull instanceof Long
+                || nonNull instanceof Integer
+                || nonNull instanceof Short
+                || nonNull instanceof Byte) {
+            value = ((Number) nonNull).longValue();
+        } else if (nonNull instanceof BigDecimal) {
+            final BigDecimal v = ((BigDecimal) nonNull).stripTrailingZeros();
+            if (v.scale() != 0
+                    || v.compareTo(BigDecimal.valueOf(Long.MAX_VALUE)) > 0
+                    || v.compareTo(BigDecimal.valueOf(Long.MIN_VALUE)) < 0) {
+                throw createOutOfRangeException(indexBaseZero, Long.class, Long.MIN_VALUE, Long.MAX_VALUE);
+            }
+            value = v.longValue();
+        } else if (nonNull instanceof BigInteger) {
+            final BigInteger v = (BigInteger) nonNull;
+            if (v.compareTo(BigInteger.valueOf(Long.MAX_VALUE)) > 0
+                    || v.compareTo(BigInteger.valueOf(Long.MIN_VALUE)) < 0) {
+                throw createOutOfRangeException(indexBaseZero, Long.class, Long.MIN_VALUE, Long.MAX_VALUE);
+            }
+            value = v.longValue();
+        } else if (nonNull instanceof String) {
             try {
-                newValue = Long.parseLong((String) sourceValue);
+                value = Long.parseLong((String) nonNull);
             } catch (NumberFormatException e) {
                 throw createValueCannotConvertException(e, indexBaseZero, Long.class);
             }
-        } else if (sourceValue instanceof byte[]) {
-            String textValue = new String((byte[]) sourceValue, obtainColumnCharset(indexBaseZero));
+        } else if (nonNull instanceof byte[]) {
+            String textValue = new String((byte[]) nonNull, obtainColumnCharset(indexBaseZero));
             try {
-                newValue = Long.parseLong(textValue);
+                value = Long.parseLong(textValue);
             } catch (NumberFormatException e) {
                 throw createValueCannotConvertException(e, indexBaseZero, Long.class);
             }
-        } else if (sourceValue instanceof Boolean) {
-            newValue = ((Boolean) sourceValue) ? 1L : 0L;
+        } else if (nonNull instanceof Boolean) {
+            value = ((Boolean) nonNull) ? 1L : 0L;
         } else {
             throw createNotSupportedException(indexBaseZero, Long.class);
         }
-        return newValue;
+        return value;
     }
 
     /**
      * @see #convertNonNullValue(int, Object, Class)
      */
-    protected Integer convertToInteger(final int indexBaseZero, final Object sourceValue) {
-        final int newValue;
+    protected int convertToInteger(final int indexBaseZero, final Object nonNull) {
+        final int value;
 
-        if (sourceValue instanceof Number) {
-            newValue = ((Number) sourceValue).intValue();
-        } else if (sourceValue instanceof String) {
+        if (nonNull instanceof Integer
+                || nonNull instanceof Short
+                || nonNull instanceof Byte) {
+            value = ((Number) nonNull).intValue();
+        } else if (nonNull instanceof String) {
             try {
-                newValue = Integer.parseInt((String) sourceValue);
+                value = Integer.parseInt((String) nonNull);
             } catch (NumberFormatException e) {
                 throw createValueCannotConvertException(e, indexBaseZero, Integer.class);
             }
-        } else if (sourceValue instanceof byte[]) {
-            String textValue = new String((byte[]) sourceValue, obtainColumnCharset(indexBaseZero));
+        } else if (nonNull instanceof Long) {
+            final long v = (Long) nonNull;
+            if (v > Integer.MAX_VALUE || v < Integer.MIN_VALUE) {
+                throw createOutOfRangeException(indexBaseZero, Integer.class, Integer.MIN_VALUE, Integer.MAX_VALUE);
+            }
+            value = (int) v;
+        } else if (nonNull instanceof BigDecimal) {
+            final BigDecimal v = ((BigDecimal) nonNull).stripTrailingZeros();
+            if (v.scale() != 0
+                    || v.compareTo(BigDecimal.valueOf(Integer.MAX_VALUE)) > 0
+                    || v.compareTo(BigDecimal.valueOf(Integer.MIN_VALUE)) < 0) {
+                throw createOutOfRangeException(indexBaseZero, Integer.class, Integer.MIN_VALUE, Integer.MAX_VALUE);
+            }
+            value = v.intValue();
+        } else if (nonNull instanceof BigInteger) {
+            final BigInteger v = (BigInteger) nonNull;
+            if (v.compareTo(BigInteger.valueOf(Integer.MAX_VALUE)) > 0
+                    || v.compareTo(BigInteger.valueOf(Integer.MIN_VALUE)) < 0) {
+                throw createOutOfRangeException(indexBaseZero, Integer.class, Integer.MIN_VALUE, Integer.MAX_VALUE);
+            }
+            value = v.intValue();
+        } else if (nonNull instanceof byte[]) {
+            String textValue = new String((byte[]) nonNull, obtainColumnCharset(indexBaseZero));
             try {
-                newValue = Integer.parseInt(textValue);
+                value = Integer.parseInt(textValue);
             } catch (NumberFormatException e) {
                 throw createValueCannotConvertException(e, indexBaseZero, Integer.class);
             }
-        } else if (sourceValue instanceof Boolean) {
-            newValue = ((Boolean) sourceValue) ? 1 : 0;
+        } else if (nonNull instanceof Boolean) {
+            value = ((Boolean) nonNull) ? 1 : 0;
         } else {
             throw createNotSupportedException(indexBaseZero, Integer.class);
         }
 
-        return newValue;
+        return value;
 
     }
 
     /**
      * @see #convertNonNullValue(int, Object, Class)
      */
-    protected Short convertToShort(final int indexBaseZero, final Object sourceValue) {
-        final short newValue;
+    protected short convertToShort(final int indexBaseZero, final Object nonNull) {
+        final short value;
 
-        if (sourceValue instanceof Number) {
-            newValue = ((Number) sourceValue).shortValue();
-        } else if (sourceValue instanceof String) {
+        if (nonNull instanceof Short
+                || nonNull instanceof Byte) {
+            value = ((Number) nonNull).shortValue();
+        } else if (nonNull instanceof Integer) {
+            final int v = (Integer) nonNull;
+            if (v > Short.MAX_VALUE || v < Short.MIN_VALUE) {
+                throw createOutOfRangeException(indexBaseZero, Short.class, Short.MIN_VALUE, Short.MAX_VALUE);
+            }
+            value = (short) v;
+        } else if (nonNull instanceof Long) {
+            final long v = (Long) nonNull;
+            if (v > Short.MAX_VALUE || v < Short.MIN_VALUE) {
+                throw createOutOfRangeException(indexBaseZero, Short.class, Short.MIN_VALUE, Short.MAX_VALUE);
+            }
+            value = (short) v;
+        } else if (nonNull instanceof BigDecimal) {
+            final BigDecimal v = ((BigDecimal) nonNull).stripTrailingZeros();
+            if (v.scale() != 0
+                    || v.compareTo(BigDecimal.valueOf(Short.MAX_VALUE)) > 0
+                    || v.compareTo(BigDecimal.valueOf(Short.MIN_VALUE)) < 0) {
+                throw createOutOfRangeException(indexBaseZero, Short.class, Short.MIN_VALUE, Short.MAX_VALUE);
+            }
+            value = v.shortValue();
+        } else if (nonNull instanceof BigInteger) {
+            final BigInteger v = (BigInteger) nonNull;
+            if (v.compareTo(BigInteger.valueOf(Short.MAX_VALUE)) > 0
+                    || v.compareTo(BigInteger.valueOf(Short.MIN_VALUE)) < 0) {
+                throw createOutOfRangeException(indexBaseZero, Short.class, Short.MIN_VALUE, Short.MAX_VALUE);
+            }
+            value = v.shortValue();
+        } else if (nonNull instanceof String) {
             try {
-                newValue = Short.parseShort((String) sourceValue);
+                value = Short.parseShort((String) nonNull);
             } catch (NumberFormatException e) {
                 throw createValueCannotConvertException(e, indexBaseZero, Short.class);
             }
-        } else if (sourceValue instanceof byte[]) {
-            String textValue = new String((byte[]) sourceValue, obtainColumnCharset(indexBaseZero));
+        } else if (nonNull instanceof byte[]) {
+            String textValue = new String((byte[]) nonNull, obtainColumnCharset(indexBaseZero));
             try {
-                newValue = Short.parseShort(textValue);
+                value = Short.parseShort(textValue);
             } catch (NumberFormatException e) {
                 throw createValueCannotConvertException(e, indexBaseZero, Short.class);
             }
-        } else if (sourceValue instanceof Boolean) {
-            newValue = ((Boolean) sourceValue) ? (short) 1 : (short) 0;
+        } else if (nonNull instanceof Boolean) {
+            value = ((Boolean) nonNull) ? (short) 1 : (short) 0;
         } else {
             throw createNotSupportedException(indexBaseZero, Short.class);
         }
-        return newValue;
+        return value;
     }
 
     /**
      * @see #convertNonNullValue(int, Object, Class)
      */
-    protected Byte convertToByte(final int indexBaseZero, final Object sourceValue) {
-        final byte newValue;
-        if (sourceValue instanceof Number) {
-            newValue = ((Number) sourceValue).byteValue();
-        } else if (sourceValue instanceof String) {
+    protected final byte convertToByte(final int indexBaseZero, final Object nonNull) {
+        final byte value;
+        if (nonNull instanceof Integer
+                || nonNull instanceof Short
+                || nonNull instanceof Byte) {
+            final int v = ((Number) nonNull).intValue();
+            if (v > Byte.MAX_VALUE || v < Byte.MIN_VALUE) {
+                throw createOutOfRangeException(indexBaseZero, Byte.class, Byte.MIN_VALUE, Byte.MAX_VALUE);
+            }
+            value = (byte) v;
+        } else if (nonNull instanceof Long) {
+            final long v = (Long) nonNull;
+            if (v > Byte.MAX_VALUE || v < Byte.MIN_VALUE) {
+                throw createOutOfRangeException(indexBaseZero, Byte.class, Byte.MIN_VALUE, Byte.MAX_VALUE);
+            }
+            value = (byte) v;
+        } else if (nonNull instanceof BigDecimal) {
+            final BigDecimal v = ((BigDecimal) nonNull).stripTrailingZeros();
+            if (v.scale() != 0
+                    || v.compareTo(BigDecimal.valueOf(Byte.MAX_VALUE)) > 0
+                    || v.compareTo(BigDecimal.valueOf(Byte.MIN_VALUE)) < 0) {
+                throw createOutOfRangeException(indexBaseZero, Byte.class, Byte.MIN_VALUE, Byte.MAX_VALUE);
+            }
+            value = v.byteValue();
+        } else if (nonNull instanceof BigInteger) {
+            final BigInteger v = (BigInteger) nonNull;
+            if (v.compareTo(BigInteger.valueOf(Byte.MAX_VALUE)) > 0
+                    || v.compareTo(BigInteger.valueOf(Byte.MIN_VALUE)) < 0) {
+                throw createOutOfRangeException(indexBaseZero, Byte.class, Byte.MIN_VALUE, Byte.MAX_VALUE);
+            }
+            value = v.byteValue();
+        } else if (nonNull instanceof String) {
             try {
-                newValue = Byte.parseByte((String) sourceValue);
+                value = Byte.parseByte((String) nonNull);
             } catch (NumberFormatException e) {
                 throw createValueCannotConvertException(e, indexBaseZero, Byte.class);
             }
-        } else if (sourceValue instanceof byte[]) {
-            String textValue = new String((byte[]) sourceValue, obtainColumnCharset(indexBaseZero));
+        } else if (nonNull instanceof byte[]) {
+            String textValue = new String((byte[]) nonNull, obtainColumnCharset(indexBaseZero));
             try {
-                newValue = Byte.parseByte(textValue);
+                value = Byte.parseByte(textValue);
             } catch (NumberFormatException e) {
                 throw createValueCannotConvertException(e, indexBaseZero, Byte.class);
             }
-        } else if (sourceValue instanceof Boolean) {
-            newValue = ((Boolean) sourceValue) ? (byte) 1 : (byte) 0;
+        } else if (nonNull instanceof Boolean) {
+            value = ((Boolean) nonNull) ? (byte) 1 : (byte) 0;
         } else {
             throw createNotSupportedException(indexBaseZero, Byte.class);
         }
-        return newValue;
+        return value;
+    }
+
+
+    protected UnsupportedConvertingException createNotSupportedException(int indexBasedZero
+            , Class<?> targetClass) {
+        SQLType sqlType = this.rowMeta.getSQLType(indexBasedZero);
+
+        String message = String.format("Not support convert from (index[%s] alias[%s] and MySQLType[%s]) to %s.",
+                indexBasedZero, this.rowMeta.getColumnLabel(indexBasedZero)
+                , sqlType, targetClass.getName());
+
+        return new UnsupportedConvertingException(message, sqlType, targetClass);
+    }
+
+    protected UnsupportedConvertingException createOutOfRangeException(int indexBasedZero
+            , Class<?> targetClass, Number min, Number max) {
+        SQLType sqlType = this.rowMeta.getSQLType(indexBasedZero);
+
+        String message;
+        message = String.format("Not support convert from (index[%s] alias[%s] and MySQLType[%s]) to %s,out of [%s,%s]",
+                indexBasedZero, this.rowMeta.getColumnLabel(indexBasedZero)
+                , sqlType, targetClass.getName(), min, max);
+        return new UnsupportedConvertingException(message, sqlType, targetClass);
     }
 
 

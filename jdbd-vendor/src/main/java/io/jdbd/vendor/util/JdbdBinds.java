@@ -80,6 +80,42 @@ public abstract class JdbdBinds {
     }
 
 
+    public static boolean bindNonNullToBoolean(final int batchIndex, SQLType sqlType, ParamValue paramValue)
+            throws SQLException {
+        final Object nonNull = paramValue.getNonNull();
+        final boolean value;
+        if (nonNull instanceof Boolean) {
+            value = (Boolean) nonNull;
+        } else if (nonNull instanceof Integer
+                || nonNull instanceof Long
+                || nonNull instanceof Short
+                || nonNull instanceof Byte) {
+            value = ((Number) nonNull).longValue() != 0;
+        } else if (nonNull instanceof String) {
+            final String v = (String) nonNull;
+            if (v.equalsIgnoreCase("TRUE")
+                    || v.equalsIgnoreCase("T")) {
+                value = true;
+            } else if (v.equalsIgnoreCase("FALSE")
+                    || v.equalsIgnoreCase("F")) {
+                value = false;
+            } else {
+                throw JdbdExceptions.outOfTypeRange(batchIndex, sqlType, paramValue);
+            }
+        } else if (nonNull instanceof BigDecimal) {
+            value = BigDecimal.ZERO.compareTo((BigDecimal) nonNull) != 0;
+        } else if (nonNull instanceof BigInteger) {
+            value = BigInteger.ZERO.compareTo((BigInteger) nonNull) != 0;
+        } else if (nonNull instanceof Double
+                || nonNull instanceof Float) {
+            value = ((Number) nonNull).doubleValue() != 0.0;
+        } else {
+            throw JdbdExceptions.createNonSupportBindSqlTypeError(batchIndex, sqlType, paramValue);
+        }
+        return value;
+    }
+
+
     public static short bindNonNullToShort(final int batchIndex, SQLType sqlType, ParamValue paramValue)
             throws SQLException {
         final Object nonNull = paramValue.getNonNull();
@@ -253,9 +289,9 @@ public abstract class JdbdBinds {
             final boolean v = (Boolean) nonNull;
             value = (v ? BigInteger.ONE : BigInteger.ZERO);
         } else if (nonNull instanceof BigDecimal) {
-            BigDecimal decimal = (BigDecimal) nonNull;
-            if (decimal.scale() == 0) {
-                value = decimal.toBigInteger();
+            final BigDecimal v = ((BigDecimal) nonNull).stripTrailingZeros();
+            if (v.scale() == 0) {
+                value = v.toBigInteger();
             } else {
                 throw JdbdExceptions.outOfTypeRange(batchIndex, sqlType, paramValue);
             }
@@ -313,6 +349,8 @@ public abstract class JdbdBinds {
                 throw JdbdExceptions.outOfTypeRange(batchIndex, sqlType, paramValue);
             }
             value = v;
+        } else if (nonNull instanceof Boolean) {
+            value = ((Boolean) nonNull) ? 1.0F : 0.0F;
         } else {
             throw JdbdExceptions.createNonSupportBindSqlTypeError(batchIndex, sqlType, paramValue);
         }
@@ -335,6 +373,8 @@ public abstract class JdbdBinds {
                 throw JdbdExceptions.outOfTypeRange(batchIndex, sqlType, paramValue);
             }
             value = v;
+        } else if (nonNull instanceof Boolean) {
+            value = ((Boolean) nonNull) ? 1.0D : 0.0D;
         } else {
             throw JdbdExceptions.createNonSupportBindSqlTypeError(batchIndex, sqlType, paramValue);
         }

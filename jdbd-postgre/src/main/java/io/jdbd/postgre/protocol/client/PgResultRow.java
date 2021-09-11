@@ -59,10 +59,5 @@ public class PgResultRow extends AbstractResultRow<PgRowMeta> {
         return null;
     }
 
-    @Override
-    protected boolean convertToBoolean(int indexBaseZero, Object sourceValue) throws UnsupportedConvertingException {
-        return false;
-    }
-
 
 }

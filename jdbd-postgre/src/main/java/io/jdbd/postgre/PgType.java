@@ -188,8 +188,8 @@ public enum PgType implements io.jdbd.meta.SQLType {
     }
 
     @Override
-    public boolean isDecimal() {
-        return false;
+    public final boolean isDecimal() {
+        return this == DECIMAL;
     }
 
     @Override

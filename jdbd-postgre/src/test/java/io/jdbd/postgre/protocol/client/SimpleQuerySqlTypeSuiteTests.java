@@ -66,5 +66,29 @@ public class SimpleQuerySqlTypeSuiteTests extends AbstractStmtTaskTests {
         doDecimalBindAndExtract();
     }
 
+    /**
+     * @see PgType#REAL
+     */
+    @Test
+    public void realBindAndExtract() {
+        doRealBindAndExtract();
+    }
+
+    /**
+     * @see PgType#DOUBLE
+     */
+    @Test
+    public void doubleBindAndExtract() {
+        doDoubleBindAndExtract();
+    }
+
+    /**
+     * @see PgType#BOOLEAN
+     */
+    @Test
+    public void booleanBindAndExtract() {
+        doBooleanBindAndExtract();
+    }
+
 
 }

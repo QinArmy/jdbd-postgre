@@ -229,8 +229,10 @@ public abstract class JdbdExceptions extends ExceptionUtils {
     }
 
     public static SQLException createNonSupportBindSqlTypeError(int batchIndex, SQLType sqlType, ParamValue bindValue) {
-        String m = String.format("batch[%s] parameter[%s] bind sql type[%s] not supported."
-                , batchIndex, bindValue.getIndex()
+        String m = String.format("batch[%s] parameter[%s] javaType[%s] bind to sql type[%s] not supported."
+                , batchIndex
+                , bindValue.getIndex()
+                , bindValue.getNonNull().getClass().getName()
                 , sqlType);
         return new SQLException(m);
     }

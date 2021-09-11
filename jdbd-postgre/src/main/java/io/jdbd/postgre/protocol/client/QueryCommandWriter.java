@@ -9,13 +9,11 @@ import io.jdbd.postgre.syntax.PgParser;
 import io.jdbd.postgre.syntax.PgStatement;
 import io.jdbd.postgre.util.PgBinds;
 import io.jdbd.postgre.util.PgExceptions;
-import io.jdbd.postgre.util.PgStrings;
 import io.jdbd.postgre.util.PgTimes;
 import io.jdbd.vendor.stmt.StaticBatchStmt;
 import io.jdbd.vendor.syntax.SQLParser;
 import io.jdbd.vendor.util.JdbdBuffers;
 import io.jdbd.vendor.util.JdbdExceptions;
-import io.jdbd.vendor.util.JdbdTimes;
 import io.netty.buffer.ByteBuf;
 import org.reactivestreams.Publisher;
 import org.slf4j.Logger;
@@ -32,7 +30,6 @@ import java.nio.file.StandardOpenOption;
 import java.sql.SQLException;
 import java.time.*;
 import java.time.format.DateTimeFormatter;
-import java.time.temporal.TemporalAccessor;
 import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
@@ -265,38 +262,38 @@ final class QueryCommandWriter {
         switch (bindValue.getType()) {
             case SMALLINT: {
                 final short value = PgBinds.bindNonNullToShort(batchIndex, bindValue.getType(), bindValue);
-                writeSafeString(message, Short.toString(value));
+                writeSafeString(message, Short.toString(value), 0);
             }
             break;
             case INTEGER: {
                 final int value = PgBinds.bindNonNullToInt(batchIndex, bindValue.getType(), bindValue);
-                writeSafeString(message, Integer.toString(value));
+                writeSafeString(message, Integer.toString(value), 0);
             }
             break;
             case OID:
             case BIGINT: {
                 final long value = PgBinds.bindNonNullToLong(batchIndex, bindValue.getType(), bindValue);
-                writeSafeString(message, Long.toString(value));
+                writeSafeString(message, Long.toString(value), 0);
             }
             break;
             case DECIMAL: {
                 final BigDecimal value = PgBinds.bindNonNullToDecimal(batchIndex, bindValue.getType(), bindValue);
-                writeSafeString(message, value.toPlainString());
+                writeSafeString(message, value.toPlainString(), 0);
             }
             break;
             case REAL: {
                 final float value = PgBinds.bindNonNullToFloat(batchIndex, bindValue.getType(), bindValue);
-                writeSafeString(message, Float.toString(value));
+                writeSafeString(message, Float.toString(value), 0);
             }
             break;
             case DOUBLE: {
                 final double value = PgBinds.bindNonNullToDouble(batchIndex, bindValue.getType(), bindValue);
-                writeSafeString(message, Double.toString(value));
+                writeSafeString(message, Double.toString(value), 0);
             }
             break;
             case BOOLEAN: {
                 final boolean value = PgBinds.bindNonNullToBoolean(batchIndex, bindValue.getType(), bindValue);
-                writeSafeString(message, value ? PgConstant.TRUE : PgConstant.FALSE);
+                writeSafeString(message, value ? PgConstant.TRUE : PgConstant.FALSE, 0);
             }
             break;
             case BYTEA: {
@@ -392,9 +389,9 @@ final class QueryCommandWriter {
     }
 
 
-    private void writeSafeString(ByteBuf message, String text) throws SQLException {
+    private void writeSafeString(ByteBuf message, String text, final int aroundBytes) throws SQLException {
         final byte[] bytes = text.getBytes(this.clientCharset);
-        if (message.maxWritableBytes() < bytes.length + 1) {
+        if (message.maxWritableBytes() < (bytes.length + aroundBytes)) {
             throw PgExceptions.tooLargeObject();
         }
         message.writeBytes(bytes);
@@ -441,7 +438,7 @@ final class QueryCommandWriter {
     /**
      * @see #bindNonNullParameter(int, BindValue, ByteBuf)
      */
-    private void bindNonNullToBytea(final int stmtIndex, BindValue bindValue, ByteBuf message)
+    private void bindNonNullToBytea(final int batchIndex, BindValue bindValue, ByteBuf message)
             throws SQLException, IOException {
         final Object nonNull = bindValue.getNonNull();
 
@@ -464,7 +461,7 @@ final class QueryCommandWriter {
                 }
             }
         } else {
-            throw PgExceptions.createNotSupportBindTypeError(stmtIndex, bindValue);
+            throw PgExceptions.createNotSupportBindTypeError(batchIndex, bindValue);
         }
         message.writeByte(QUOTE_BYTE);
 
@@ -474,107 +471,51 @@ final class QueryCommandWriter {
     /**
      * @see #bindNonNullParameter(int, BindValue, ByteBuf)
      */
-    private void bindNonNullToLocalDate(final int stmtIndex, BindValue bindValue, ByteBuf message)
+    private void bindNonNullToLocalDate(final int batchIndex, BindValue bindValue, ByteBuf message)
             throws SQLException {
-        final Object nonNull = bindValue.getNonNull();
-        final String dateText;
+        final LocalDate value;
+        value = PgBinds.bindNonNullToLocalDate(batchIndex, bindValue.getType(), bindValue);
 
-        if (nonNull instanceof LocalDate) {
-            dateText = ((LocalDate) nonNull).format(DateTimeFormatter.ISO_LOCAL_DATE);
-        } else if (nonNull instanceof String) {
-            final String textValue = (String) nonNull;
-            try {
-                LocalDate.parse(textValue);
-            } catch (DateTimeException e) {
-                throw PgExceptions.createNotSupportBindTypeError(stmtIndex, bindValue);
-            }
-            dateText = textValue;
-        } else {
-            throw PgExceptions.createNotSupportBindTypeError(stmtIndex, bindValue);
-        }
         message.writeByte(QUOTE_BYTE);
-        message.writeBytes(dateText.getBytes(this.clientCharset));
+        message.writeBytes(value.format(DateTimeFormatter.ISO_LOCAL_DATE).getBytes(this.clientCharset));
         message.writeByte(QUOTE_BYTE);
     }
 
     /**
      * @see #bindNonNullParameter(int, BindValue, ByteBuf)
      */
-    private void bindNonNullToLocalTime(final int stmtIndex, BindValue bindValue, ByteBuf message)
+    private void bindNonNullToLocalTime(final int batchIndex, BindValue bindValue, ByteBuf message)
             throws SQLException {
-        final Object nonNull = bindValue.getNonNull();
-        final String timeText;
-
-        if (nonNull instanceof LocalTime) {
-            timeText = ((LocalTime) nonNull).format(JdbdTimes.ISO_LOCAL_TIME_FORMATTER);
-        } else if (nonNull instanceof String) {
-            final String textValue = (String) nonNull;
-            try {
-                LocalTime.parse(textValue, JdbdTimes.ISO_LOCAL_TIME_FORMATTER);
-            } catch (DateTimeException e) {
-                throw PgExceptions.createNotSupportBindTypeError(stmtIndex, bindValue);
-            }
-            timeText = textValue;
-        } else {
-            throw PgExceptions.createNotSupportBindTypeError(stmtIndex, bindValue);
-        }
+        final LocalTime value;
+        value = PgBinds.bindNonNullToLocalTime(batchIndex, bindValue.getType(), bindValue);
 
         message.writeByte(QUOTE_BYTE);
-        message.writeBytes(timeText.getBytes(this.clientCharset));
+        message.writeBytes(value.format(PgTimes.ISO_LOCAL_TIME_FORMATTER).getBytes(this.clientCharset));
         message.writeByte(QUOTE_BYTE);
     }
 
     /**
      * @see #bindNonNullParameter(int, BindValue, ByteBuf)
      */
-    private void bindNonNullToOffsetTime(final int stmtIndex, BindValue bindValue, ByteBuf message)
+    private void bindNonNullToOffsetTime(final int batchIndex, BindValue bindValue, ByteBuf message)
             throws SQLException {
-        final Object nonNull = bindValue.getNonNull();
-        final String timeText;
-
-        if (nonNull instanceof OffsetTime) {
-            timeText = ((OffsetTime) nonNull).format(PgTimes.ISO_OFFSET_TIME_FORMATTER);
-        } else if (nonNull instanceof String) {
-            final String textValue = (String) nonNull;
-            try {
-                OffsetTime.parse(textValue, PgTimes.ISO_OFFSET_TIME_FORMATTER);
-            } catch (DateTimeException e) {
-                throw PgExceptions.createNotSupportBindTypeError(stmtIndex, bindValue);
-            }
-            timeText = textValue;
-        } else {
-            throw PgExceptions.createNotSupportBindTypeError(stmtIndex, bindValue);
-        }
-
+        final OffsetTime value;
+        value = PgBinds.bindNonNullToOffsetTime(batchIndex, bindValue.getType(), bindValue);
         message.writeByte(QUOTE_BYTE);
-        message.writeBytes(timeText.getBytes(this.clientCharset));
+        message.writeBytes(value.format(PgTimes.ISO_OFFSET_TIME_FORMATTER).getBytes(this.clientCharset));
         message.writeByte(QUOTE_BYTE);
     }
 
     /**
      * @see #bindNonNullParameter(int, BindValue, ByteBuf)
      */
-    private void bindNonNullToOffsetDateTime(final int stmtIndex, BindValue bindValue, ByteBuf message)
+    private void bindNonNullToOffsetDateTime(final int batchIndex, BindValue bindValue, ByteBuf message)
             throws SQLException {
-        final Object nonNull = bindValue.getNonNull();
-        final String dateTimeText;
-        if (nonNull instanceof OffsetDateTime
-                || nonNull instanceof ZonedDateTime) {
-            dateTimeText = PgTimes.ISO_OFFSET_DATETIME_FORMATTER.format((TemporalAccessor) nonNull);
-        } else if (nonNull instanceof String) {
-            final String textValue = (String) nonNull;
-            try {
-                OffsetDateTime.parse(textValue, PgTimes.ISO_OFFSET_DATETIME_FORMATTER);
-            } catch (DateTimeException e) {
-                throw PgExceptions.createNotSupportBindTypeError(stmtIndex, bindValue);
-            }
-            dateTimeText = textValue;
-        } else {
-            throw PgExceptions.createNotSupportBindTypeError(stmtIndex, bindValue);
-        }
+        final OffsetDateTime value;
+        value = PgBinds.bindNonNullToOffsetDateTime(batchIndex, bindValue.getType(), bindValue);
 
         message.writeByte(QUOTE_BYTE);
-        message.writeBytes(dateTimeText.getBytes(this.clientCharset));
+        message.writeBytes(value.format(PgTimes.ISO_OFFSET_DATETIME_FORMATTER).getBytes(this.clientCharset));
         message.writeByte(QUOTE_BYTE);
     }
 
@@ -610,21 +551,9 @@ final class QueryCommandWriter {
      */
     private void bindNonNullToDuration(final int stmtIndex, BindValue bindValue, ByteBuf message)
             throws SQLException {
-        final Object nonNull = bindValue.getNonNull();
         final String intervalString;
-        if (nonNull instanceof Duration) {
-            intervalString = nonNull.toString();
-        } else if (nonNull instanceof Period) {
-            intervalString = nonNull.toString();
-        } else if (nonNull instanceof String) {
-            final String textValue = (String) nonNull;
-            if (!PgStrings.isSafePgString(textValue)) {
-                throw PgExceptions.createNotSupportBindTypeError(stmtIndex, bindValue);
-            }
-            intervalString = textValue;
-        } else {
-            throw PgExceptions.createNotSupportBindTypeError(stmtIndex, bindValue);
-        }
+        intervalString = PgBinds.bindNonNullToInterval(stmtIndex, bindValue.getType(), bindValue);
+
         message.writeByte(QUOTE_BYTE);
         message.writeBytes(intervalString.getBytes(this.clientCharset));
         message.writeByte(QUOTE_BYTE);

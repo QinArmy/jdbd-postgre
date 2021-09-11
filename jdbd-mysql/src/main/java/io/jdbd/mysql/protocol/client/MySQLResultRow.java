@@ -116,12 +116,12 @@ abstract class MySQLResultRow extends AbstractResultRow<MySQLRowMeta> {
 
 
     @Override
-    protected String convertToString(final int indexBaseZero, final Object sourceValue) {
+    protected String convertToString(final int indexBaseZero, final Object nonNull) {
         final String text;
-        if (sourceValue instanceof Long && this.rowMeta.getMySQLType(indexBaseZero) == MySQLType.BIT) {
-            text = Long.toBinaryString((Long) sourceValue);
+        if (nonNull instanceof Long && this.rowMeta.getMySQLType(indexBaseZero) == MySQLType.BIT) {
+            text = Long.toBinaryString((Long) nonNull);
         } else {
-            text = super.convertToString(indexBaseZero, sourceValue);
+            text = super.convertToString(indexBaseZero, nonNull);
         }
         return text;
     }
@@ -130,13 +130,13 @@ abstract class MySQLResultRow extends AbstractResultRow<MySQLRowMeta> {
      * @see <a href="https://dev.mysql.com/doc/refman/8.0/en/time.html">The TIME Type</a>
      */
     @Override
-    protected Duration convertToDuration(final int indexBaseZero, final Object sourceValue)
+    protected Duration convertToDuration(final int indexBaseZero, final Object nonNull)
             throws UnsupportedConvertingException {
         final Duration duration;
-        if (sourceValue instanceof LocalTime) {
+        if (nonNull instanceof LocalTime) {
             try {
                 //if convert to Duration,must be converted back to ZoneOffset of database.
-                LocalTime time = OffsetTime.of((LocalTime) sourceValue, this.adjutant.obtainZoneOffsetClient())
+                LocalTime time = OffsetTime.of((LocalTime) nonNull, this.adjutant.obtainZoneOffsetClient())
                         .withOffsetSameInstant(this.adjutant.obtainZoneOffsetDatabase())
                         .toLocalTime();
                 duration = MySQLTimes.convertToDuration(time);
@@ -144,7 +144,7 @@ abstract class MySQLResultRow extends AbstractResultRow<MySQLRowMeta> {
                 throw createValueCannotConvertException(e, indexBaseZero, Duration.class);
             }
         } else {
-            duration = super.convertToDuration(indexBaseZero, sourceValue);
+            duration = super.convertToDuration(indexBaseZero, nonNull);
         }
         return duration;
     }

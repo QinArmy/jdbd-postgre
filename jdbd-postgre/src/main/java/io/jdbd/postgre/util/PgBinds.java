@@ -325,38 +325,6 @@ public abstract class PgBinds extends JdbdBinds {
         return value;
     }
 
-    public static boolean bindNonNullToBoolean(final int batchIndex, PgType pgType, ParamValue paramValue)
-            throws SQLException {
-        final Object nonNull = paramValue.getNonNull();
-        final boolean value;
-        if (nonNull instanceof Boolean) {
-            value = (Boolean) nonNull;
-        } else if (nonNull instanceof Integer
-                || nonNull instanceof Long
-                || nonNull instanceof Short
-                || nonNull instanceof Byte) {
-            value = ((Number) nonNull).longValue() != 0;
-        } else if (nonNull instanceof String) {
-            if (PgConstant.TRUE.equalsIgnoreCase((String) nonNull)) {
-                value = true;
-            } else if (PgConstant.FALSE.equalsIgnoreCase((String) nonNull)) {
-                value = false;
-            } else {
-                throw JdbdExceptions.outOfTypeRange(batchIndex, pgType, paramValue);
-            }
-        } else if (nonNull instanceof BigDecimal) {
-            value = BigDecimal.ZERO.compareTo((BigDecimal) nonNull) != 0;
-        } else if (nonNull instanceof BigInteger) {
-            value = BigInteger.ZERO.compareTo((BigInteger) nonNull) != 0;
-        } else if (nonNull instanceof Double
-                || nonNull instanceof Float) {
-            value = ((Number) nonNull).doubleValue() != 0.0;
-        } else {
-            throw JdbdExceptions.createNonSupportBindSqlTypeError(batchIndex, pgType, paramValue);
-        }
-        return value;
-    }
-
 
     public static String bindNonNullToArrayWithoutEscapes(final int batchIndex, PgType pgType, ParamValue paramValue)
             throws SQLException {
