@@ -337,9 +337,9 @@ public abstract class PgBinds extends JdbdBinds {
                 || nonNull instanceof Byte) {
             value = ((Number) nonNull).longValue() != 0;
         } else if (nonNull instanceof String) {
-            if ("TRUE".equalsIgnoreCase((String) nonNull)) {
+            if (PgConstant.TRUE.equalsIgnoreCase((String) nonNull)) {
                 value = true;
-            } else if ("FALSE".equalsIgnoreCase((String) nonNull)) {
+            } else if (PgConstant.FALSE.equalsIgnoreCase((String) nonNull)) {
                 value = false;
             } else {
                 throw JdbdExceptions.outOfTypeRange(batchIndex, pgType, paramValue);

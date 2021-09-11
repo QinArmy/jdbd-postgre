@@ -24,6 +24,8 @@ public interface Group {
 
     String TASK_TEST_ADVICE = "taskTestAdvice";
 
+    String STMT_TEST_ADVICE = "statementTestAdvice";
+
     String PREPARED_STMT = "preparedStatement";
 
 

@@ -110,6 +110,9 @@ public abstract class JdbdBinds {
             } else {
                 throw JdbdExceptions.outOfTypeRange(batchIndex, sqlType, paramValue);
             }
+        } else if (nonNull instanceof Boolean) {
+            final boolean v = (Boolean) nonNull;
+            value = (short) (v ? 1 : 0);
         } else if (nonNull instanceof BigInteger) {
             final BigInteger big = (BigInteger) nonNull;
             if (big.compareTo(BigInteger.valueOf(Short.MAX_VALUE)) <= 0
@@ -157,6 +160,9 @@ public abstract class JdbdBinds {
             } else {
                 throw JdbdExceptions.outOfTypeRange(batchIndex, sqlType, paramValue);
             }
+        } else if (nonNull instanceof Boolean) {
+            final boolean v = (Boolean) nonNull;
+            value = (v ? 1 : 0);
         } else if (nonNull instanceof BigInteger) {
             final BigInteger big = (BigInteger) nonNull;
             if (big.compareTo(BigInteger.valueOf(Integer.MAX_VALUE)) <= 0
@@ -197,6 +203,9 @@ public abstract class JdbdBinds {
                 || nonNull instanceof Short
                 || nonNull instanceof Byte) {
             value = ((Number) nonNull).longValue();
+        } else if (nonNull instanceof Boolean) {
+            final boolean v = (Boolean) nonNull;
+            value = (v ? 1 : 0);
         } else if (nonNull instanceof BigInteger) {
             final BigInteger big = (BigInteger) nonNull;
             if (big.compareTo(BigInteger.valueOf(Long.MAX_VALUE)) <= 0
@@ -240,6 +249,9 @@ public abstract class JdbdBinds {
                 || nonNull instanceof Short
                 || nonNull instanceof Byte) {
             value = BigInteger.valueOf(((Number) nonNull).longValue());
+        } else if (nonNull instanceof Boolean) {
+            final boolean v = (Boolean) nonNull;
+            value = (v ? BigInteger.ONE : BigInteger.ZERO);
         } else if (nonNull instanceof BigDecimal) {
             BigDecimal decimal = (BigDecimal) nonNull;
             if (decimal.scale() == 0) {
@@ -273,6 +285,9 @@ public abstract class JdbdBinds {
                 || nonNull instanceof Short
                 || nonNull instanceof Byte) {
             value = BigDecimal.valueOf(((Number) nonNull).longValue());
+        } else if (nonNull instanceof Boolean) {
+            final boolean v = (Boolean) nonNull;
+            value = (v ? BigDecimal.ONE : BigDecimal.ZERO);
         } else if (nonNull instanceof BigInteger) {
             value = new BigDecimal((BigInteger) nonNull);
         } else if (nonNull instanceof Double

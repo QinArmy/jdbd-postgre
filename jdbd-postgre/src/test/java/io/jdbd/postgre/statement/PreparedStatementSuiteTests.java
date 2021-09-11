@@ -25,7 +25,7 @@ import static org.testng.Assert.*;
  * This class is test class of {@code io.jdbd.postgre.session.PgPreparedStatement}
  */
 @Test(groups = {Group.PREPARED_STMT}, dependsOnGroups = {Group.URL, Group.PARSER, Group.UTILS, Group.SESSION_BUILDER
-        , Group.TASK_TEST_ADVICE, Group.SIMPLE_QUERY_TASK, Group.EXTENDED_QUERY_TASK})
+        , Group.TASK_TEST_ADVICE, Group.SIMPLE_QUERY_TASK, Group.EXTENDED_QUERY_TASK, Group.STMT_TEST_ADVICE})
 public class PreparedStatementSuiteTests extends AbstractStatementTests {
 
     private static final Logger LOG = LoggerFactory.getLogger(PreparedStatementSuiteTests.class);

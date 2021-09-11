@@ -6,8 +6,6 @@ import io.jdbd.result.ResultStates;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
-import java.util.function.BiFunction;
-
 /**
  * <p>
  * This class is test class of {@link ExtendedQueryTask}.
@@ -22,14 +20,15 @@ public class ExtendedQueryTaskSqlTypeSuiteTests extends AbstractStmtTaskTests {
         super(200);
     }
 
-
     @Override
-    BiFunction<BindStmt, TaskAdjutant, Mono<ResultStates>> updateFunction() {
-        return null;
+    final Mono<ResultStates> executeUpdate(BindStmt stmt, TaskAdjutant adjutant) {
+        return ExtendedQueryTask.update(stmt, adjutant);
     }
 
     @Override
-    BiFunction<BindStmt, TaskAdjutant, Flux<ResultRow>> queryFunction() {
-        return null;
+    final Flux<ResultRow> executeQuery(BindStmt stmt, TaskAdjutant adjutant) {
+        return ExtendedQueryTask.query(stmt, adjutant);
     }
+
+
 }

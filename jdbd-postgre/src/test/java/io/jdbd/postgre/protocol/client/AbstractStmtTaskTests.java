@@ -1,21 +1,22 @@
 package io.jdbd.postgre.protocol.client;
 
-import io.jdbd.meta.SQLType;
 import io.jdbd.postgre.PgTestUtils;
 import io.jdbd.postgre.PgType;
 import io.jdbd.postgre.stmt.BindStmt;
 import io.jdbd.postgre.stmt.BindValue;
 import io.jdbd.postgre.stmt.PgStmts;
-import io.jdbd.postgre.util.PgNumbers;
 import io.jdbd.result.ResultRow;
 import io.jdbd.result.ResultStates;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.util.annotation.Nullable;
 
+import java.math.BigDecimal;
+import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.function.BiFunction;
+
+import static org.testng.Assert.*;
 
 /**
  * <p>
@@ -34,120 +35,189 @@ abstract class AbstractStmtTaskTests extends AbstractTaskTests {
         this.startId = startId;
     }
 
-    final void doInt2BindAndExtract() {
-        final String columnName = "my_smallint";
-        final long id = 1;
+    abstract Mono<ResultStates> executeUpdate(BindStmt stmt, TaskAdjutant adjutant);
 
-        Flux.just((short) 0, Short.MIN_VALUE, Short.MAX_VALUE, "1", 1)
-                .flatMap(value -> updateColumn(columnName, PgType.SMALLINT, value, id))
-                .map(PgNumbers::mapToShort)
-                .flatMap(value -> queryColumn(columnName, PgType.SMALLINT, value, id))
-                .then()
-                .block();
+    abstract Flux<ResultRow> executeQuery(BindStmt stmt, TaskAdjutant adjutant);
+
+
+    /**
+     * @see PgType#SMALLINT
+     */
+    final void doSmallIntBindAndExtract() {
+        final String columnName = "my_smallint";
+        final long id = startId + 1;
+
+        testType(columnName, PgType.SMALLINT, null, id);
+
+        testType(columnName, PgType.SMALLINT, Short.MAX_VALUE, id);
+        testType(columnName, PgType.SMALLINT, Short.MIN_VALUE, id);
+        testType(columnName, PgType.SMALLINT, (short) 0, id);
+        testType(columnName, PgType.SMALLINT, (byte) 0, id);
+
+        testType(columnName, PgType.SMALLINT, 0, id);
+        testType(columnName, PgType.SMALLINT, 0L, id);
+        testType(columnName, PgType.SMALLINT, BigDecimal.valueOf(Short.MAX_VALUE), id);
+        testType(columnName, PgType.SMALLINT, BigInteger.valueOf(Short.MIN_VALUE), id);
+
+        testType(columnName, PgType.SMALLINT, Short.toString(Short.MAX_VALUE), id);
+        testType(columnName, PgType.INTEGER, 0, id);
+        testType(columnName, PgType.BIGINT, 0L, id);
+        testType(columnName, PgType.DECIMAL, BigDecimal.valueOf(Short.MAX_VALUE), id);
+
+        testType(columnName, PgType.DECIMAL, BigInteger.valueOf(Short.MIN_VALUE), id);
+        testType(columnName, PgType.VARCHAR, Short.toString(Short.MAX_VALUE), id);
+        testType(columnName, PgType.VARCHAR, Short.toString(Short.MIN_VALUE), id);
+
     }
 
-    final void doVarBitBindAndExtract() {
+    /**
+     * @see PgType#INTEGER
+     */
+    final void doIntegerBindAndExtract() {
+        final String columnName = "my_integer";
+        final long id = startId + 2;
+
+        testType(columnName, PgType.INTEGER, null, id);
+
+        testType(columnName, PgType.INTEGER, Integer.MAX_VALUE, id);
+        testType(columnName, PgType.INTEGER, Integer.MIN_VALUE, id);
+        testType(columnName, PgType.INTEGER, (short) 0, id);
+        testType(columnName, PgType.INTEGER, (byte) 0, id);
+
+        testType(columnName, PgType.INTEGER, 0, id);
+        testType(columnName, PgType.INTEGER, 0L, id);
+        testType(columnName, PgType.INTEGER, BigDecimal.valueOf(Integer.MAX_VALUE), id);
+        testType(columnName, PgType.INTEGER, BigInteger.valueOf(Integer.MIN_VALUE), id);
+
+        testType(columnName, PgType.INTEGER, Integer.toString(Integer.MAX_VALUE), id);
+        testType(columnName, PgType.SMALLINT, (short) 0, id);
+        testType(columnName, PgType.BIGINT, 0L, id);
+        testType(columnName, PgType.DECIMAL, BigDecimal.valueOf(Integer.MAX_VALUE), id);
+
+        testType(columnName, PgType.DECIMAL, BigInteger.valueOf(Integer.MIN_VALUE), id);
+        testType(columnName, PgType.VARCHAR, Integer.toString(Integer.MAX_VALUE), id);
+        testType(columnName, PgType.VARCHAR, Integer.toString(Integer.MIN_VALUE), id);
+    }
+
+
+    /**
+     * @see PgType#BIGINT
+     */
+    final void doBigintBindAndExtract() {
+        final String columnName = "my_bigint";
+        final long id = startId + 3;
+
+        testType(columnName, PgType.BIGINT, null, id);
+
+        testType(columnName, PgType.BIGINT, Long.MAX_VALUE, id);
+        testType(columnName, PgType.BIGINT, Long.MIN_VALUE, id);
+        testType(columnName, PgType.BIGINT, (short) 0, id);
+        testType(columnName, PgType.BIGINT, (byte) 0, id);
+
+        testType(columnName, PgType.BIGINT, 0, id);
+        testType(columnName, PgType.BIGINT, 0L, id);
+        testType(columnName, PgType.BIGINT, BigDecimal.valueOf(Long.MAX_VALUE), id);
+        testType(columnName, PgType.BIGINT, BigInteger.valueOf(Long.MIN_VALUE), id);
+
+        testType(columnName, PgType.BIGINT, Long.toString(Long.MAX_VALUE), id);
+        testType(columnName, PgType.SMALLINT, (short) 0, id);
+        testType(columnName, PgType.BIGINT, 0L, id);
+        testType(columnName, PgType.INTEGER, 0, id);
+
+        testType(columnName, PgType.DECIMAL, BigDecimal.valueOf(Long.MAX_VALUE), id);
+        testType(columnName, PgType.DECIMAL, BigInteger.valueOf(Long.MIN_VALUE), id);
+        testType(columnName, PgType.VARCHAR, Long.toString(Long.MAX_VALUE), id);
+        testType(columnName, PgType.VARCHAR, Long.toString(Long.MIN_VALUE), id);
+    }
+
+    /**
+     * @see PgType#DECIMAL
+     */
+    final void doDecimalBindAndExtract() {
+        final String columnName = "my_decimal";
+        final long id = startId + 4;
+
+        testType(columnName, PgType.DECIMAL, null, id);
+
+        testType(columnName, PgType.DECIMAL, Long.MAX_VALUE, id);
+        testType(columnName, PgType.DECIMAL, Long.MIN_VALUE, id);
+        testType(columnName, PgType.DECIMAL, (short) 0, id);
+        testType(columnName, PgType.DECIMAL, (byte) 0, id);
+
+        testType(columnName, PgType.DECIMAL, 0, id);
+        testType(columnName, PgType.DECIMAL, 0L, id);
+        testType(columnName, PgType.DECIMAL, BigDecimal.valueOf(Long.MAX_VALUE), id);
+        testType(columnName, PgType.DECIMAL, BigInteger.valueOf(Long.MIN_VALUE), id);
+
+        testType(columnName, PgType.DECIMAL, Long.toString(Long.MAX_VALUE), id);
+        testType(columnName, PgType.DECIMAL, 0.0F, id);
+        testType(columnName, PgType.DECIMAL, 0.0D, id);
+
+        testType(columnName, PgType.SMALLINT, (short) 0, id);
+        testType(columnName, PgType.BIGINT, 0L, id);
+        testType(columnName, PgType.INTEGER, 0, id);
+
+        testType(columnName, PgType.DECIMAL, BigDecimal.valueOf(Long.MAX_VALUE), id);
+        testType(columnName, PgType.DECIMAL, BigInteger.valueOf(Long.MIN_VALUE), id);
+        testType(columnName, PgType.VARCHAR, Long.toString(Long.MAX_VALUE), id);
+        testType(columnName, PgType.VARCHAR, Long.toString(Long.MIN_VALUE), id);
+    }
+
+
+    private void testType(final String columnName, final PgType columnType
+            , final @Nullable Object value, final long id) {
+        assertNotEquals(columnName, "id", "can't be id");
+
+        //1. update column
+        final String updateSql = String.format("UPDATE my_types AS t SET %s = ? WHERE t.id = ?", columnName);
+
+        final List<BindValue> paramGroup = new ArrayList<>(2);
+        paramGroup.add(BindValue.wrap(0, columnType, value));
+        paramGroup.add(BindValue.wrap(1, PgType.BIGINT, id));
+
         final ClientProtocol protocol;
         protocol = obtainProtocolWithSync();
         final TaskAdjutant adjutant = mapToTaskAdjutant(protocol);
 
-        // SimpleQueryTask.update(PgStmts.stmt())
-    }
+        final ResultStates states;
+        states = executeUpdate(PgStmts.bind(updateSql, paramGroup), adjutant)
 
-    abstract BiFunction<BindStmt, TaskAdjutant, Mono<ResultStates>> updateFunction();
+                .onErrorResume(releaseConnectionOnError(protocol))
+                .block();
 
-    abstract BiFunction<BindStmt, TaskAdjutant, Flux<ResultRow>> queryFunction();
+        assertNotNull(states, "states");
+        PgTestUtils.assertUpdateOneWithoutMoreResult(states, 0);
 
+        // 2. query column
+        final String querySql = String.format("SELECT t.id AS \"id\", t.%s \"%s\" FROM my_types AS t WHERE t.id = ?", columnName, columnName);
 
-    private <T> Mono<T> updateColumn(String columnName, PgType columnType, @Nullable T value, long id) {
-        final String sql = String.format("UPDATE my_types as t SET %s = ? WHERE t.id = ?", columnName);
-        List<BindValue> paramGroup = new ArrayList<>(2);
-        paramGroup.add(BindValue.wrap(0, columnType, value));
-        paramGroup.add(BindValue.wrap(1, PgType.BIGINT, id));
+        final ResultRow row;
+        row = executeQuery(PgStmts.bind(querySql, BindValue.wrap(0, PgType.BIGINT, id)), adjutant)
 
-        return executeUpdate(PgStmts.bind(sql, paramGroup))
-                .switchIfEmpty(PgTestUtils.updateNoResponse())
-                .flatMap(state -> assertUpdateState(columnName, id, state, value))
-                .then(Mono.justOrEmpty(value));
-    }
-
-
-    private <T> Mono<T> queryColumn(String columnName, PgType expectedType, @Nullable T value, long id) {
-        final String sql = String.format("SELECT t.%s FROM my_types as t WHERE t.id = ?", columnName);
-        return executeQuery(PgStmts.bind(sql, BindValue.wrap(0, PgType.BIGINT, id)))
-                .switchIfEmpty(PgTestUtils.queryNoResponse())
-                .map(row -> mapColumnValue(row, columnName, expectedType, id))
-                .flatMap(columnValue -> assertColumnValue(columnValue, columnName, value, id))
-                .next();
-    }
-
-
-    /**
-     * @see #updateColumn(String, PgType, Object, long)
-     */
-    private <T> Mono<T> assertUpdateState(String columnName, long id, ResultStates state, @Nullable T value) {
-        final Mono<T> mono;
-        if (state.getAffectedRows() == 0L) {
-            String m = String.format("column[%s] update failure,id[%s].", columnName, id);
-            mono = Mono.error(new RuntimeException(m));
-        } else {
-            mono = Mono.justOrEmpty(value);
-        }
-        return mono;
-    }
-
-    /**
-     * @see #queryColumn(String, PgType, Object, long)
-     */
-    private Object mapColumnValue(ResultRow row, String columnName, PgType expectedType, long id) {
-        SQLType sqlType = row.getRowMeta().getSQLType(0);
-        if (sqlType != expectedType) {
-            String m = String.format("column[%s] sql type[%s] and¬ expected[%s] not match,id[%s]"
-                    , columnName, sqlType, expectedType, id);
-            throw new RuntimeException(m);
-        }
-        return row.getNonNull(0);
-    }
-
-    /**
-     * @see #queryColumn(String, PgType, Object, long)
-     */
-    private <T> Mono<T> assertColumnValue(Object columnValue, String columnName, @Nullable T value, long id) {
-        final Mono<T> mono;
-        if (columnName.equals(value)) {
-            mono = Mono.just(value);
-        } else {
-            String m = String.format("column[%s] value[%s] and value[%s] not equals,id[%s]"
-                    , columnName, columnValue, value, id);
-            mono = Mono.error(new RuntimeException(m));
-        }
-        return mono;
-    }
-
-
-    private Mono<ResultStates> executeUpdate(BindStmt stmt) {
-        return obtainProtocol()
-                .flatMap(protocol -> doExecuteUpdateAndClose(stmt, protocol));
-    }
-
-    private Mono<ResultStates> doExecuteUpdateAndClose(BindStmt stmt, ClientProtocol protocol) {
-        return updateFunction()
-                .apply(stmt, mapToTaskAdjutant(protocol))
                 .concatWith(releaseConnection(protocol))
-                .next();
+                .onErrorResume(releaseConnectionOnError(protocol))
 
+                .collectList()
+                .map(this::mapToSingleton)
+                .block();
+
+        // 3. assert update result
+
+        assertNotNull(row, "row");
+        assertEquals(row.get("id"), id, "id");
+
+        if (value == null) {
+            assertNull(row.get(columnName), columnName);
+        } else {
+            assertEquals(row.get(columnName, value.getClass()), value, columnName);
+        }
 
     }
 
-    private Flux<ResultRow> executeQuery(BindStmt stmt) {
-        return obtainProtocol()
-                .flatMapMany(protocol -> doExecuteQueryAndClose(stmt, protocol));
-    }
 
-    private Flux<ResultRow> doExecuteQueryAndClose(BindStmt stmt, ClientProtocol protocol) {
-        return queryFunction()
-                .apply(stmt, mapToTaskAdjutant(protocol))
-                .concatWith(releaseConnection(protocol));
+    private <T> T mapToSingleton(List<T> singletonList) {
+        assertEquals(singletonList.size(), 1, "list size");
+        return singletonList.get(0);
     }
 
 
