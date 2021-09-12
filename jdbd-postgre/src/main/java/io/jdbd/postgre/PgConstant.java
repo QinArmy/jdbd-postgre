@@ -8,6 +8,10 @@ public interface PgConstant {
 
     String FALSE = "FALSE";
 
+    String INFINITY = "infinity";
+
+    String NEG_INFINITY = "-infinity";
+
     short TYPE_UNSPECIFIED = 0;
     short TYPE_INT2 = 21;
     short TYPE_INT2_ARRAY = 1005;

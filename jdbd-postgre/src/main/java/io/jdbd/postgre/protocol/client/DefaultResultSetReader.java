@@ -237,13 +237,28 @@ final class DefaultResultSetReader implements ResultSetReader {
             case PgConstant.TYPE_TIMESTAMP: {
                 // @see PgConnectionTask
                 // startStartup Message set to default ISO
-                value = LocalDateTime.parse(textValue, PgTimes.PG_ISO_LOCAL_DATETIME_FORMATTER);
+                switch (textValue.toLowerCase()) {
+                    case PgConstant.INFINITY:
+                    case PgConstant.NEG_INFINITY:
+                        value = textValue;
+                        break;
+                    default:
+                        value = LocalDateTime.parse(textValue, PgTimes.PG_ISO_LOCAL_DATETIME_FORMATTER);
+                }
+
             }
             break;
             case PgConstant.TYPE_DATE: {
                 // @see PgConnectionTask
                 // startStartup Message set to default ISO
-                value = LocalDate.parse(textValue, PgTimes.PG_ISO_LOCAL_DATE_FORMATTER);
+                switch (textValue.toLowerCase()) {
+                    case PgConstant.INFINITY:
+                    case PgConstant.NEG_INFINITY:
+                        value = textValue;
+                        break;
+                    default:
+                        value = LocalDate.parse(textValue, PgTimes.PG_ISO_LOCAL_DATE_FORMATTER);
+                }
             }
             break;
             case PgConstant.TYPE_TIME: {
@@ -255,14 +270,27 @@ final class DefaultResultSetReader implements ResultSetReader {
             case PgConstant.TYPE_TIMESTAMPTZ: {
                 // @see PgConnectionTask
                 // startStartup Message set to default ISO
-
-                value = PgTimes.parseIsoOffsetDateTime(textValue);
+                switch (textValue.toLowerCase()) {
+                    case PgConstant.INFINITY:
+                    case PgConstant.NEG_INFINITY:
+                        value = textValue;
+                        break;
+                    default:
+                        value = PgTimes.parseIsoOffsetDateTime(textValue);
+                }
             }
             break;
             case PgConstant.TYPE_TIMETZ: {
                 // @see PgConnectionTask
                 // startStartup Message set to default ISO
-                value = PgTimes.parseIsoOffsetTime(textValue);
+                switch (textValue.toLowerCase()) {
+                    case PgConstant.INFINITY:
+                    case PgConstant.NEG_INFINITY:
+                        value = textValue;
+                        break;
+                    default:
+                        value = PgTimes.parseIsoOffsetTime(textValue);
+                }
             }
             break;
             case PgConstant.TYPE_CHAR:

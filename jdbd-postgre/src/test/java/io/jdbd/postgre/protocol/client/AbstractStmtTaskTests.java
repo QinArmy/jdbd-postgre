@@ -16,11 +16,9 @@ import reactor.util.annotation.Nullable;
 
 import java.math.BigDecimal;
 import java.math.BigInteger;
-import java.time.LocalDateTime;
-import java.time.LocalTime;
-import java.time.OffsetDateTime;
-import java.time.OffsetTime;
+import java.time.*;
 import java.time.format.DateTimeFormatter;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -36,6 +34,7 @@ import static org.testng.Assert.*;
  * </p>
  */
 abstract class AbstractStmtTaskTests extends AbstractTaskTests {
+
 
     private final int startId;
 
@@ -310,7 +309,11 @@ abstract class AbstractStmtTaskTests extends AbstractTaskTests {
 
         testType(columnName, PgType.TIMESTAMP, "0000-01-01 00:00:00", id);
         testType(columnName, PgType.TIMESTAMP, "0000-01-01 23:59:59", id);
+        testType(columnName, PgType.TIMESTAMP, "infinity", id);
+        testType(columnName, PgType.TIMESTAMP, "-infinity", id);
 
+        testType(columnName, PgType.TIMESTAMP, "INFINITY", id);
+        testType(columnName, PgType.TIMESTAMP, "-INFINITY", id);
 
     }
 
@@ -320,7 +323,7 @@ abstract class AbstractStmtTaskTests extends AbstractTaskTests {
      */
     final void doTimestampTzBindExtract() {
         final String columnName = "my_zoned_timestamp";
-        final long id = startId + 8;
+        final long id = startId + 9;
 
         final DateTimeFormatter iso = PgTimes.ISO_OFFSET_DATETIME_FORMATTER, pgIso = PgTimes.PG_ISO_OFFSET_DATETIME_FORMATTER;
 
@@ -331,10 +334,10 @@ abstract class AbstractStmtTaskTests extends AbstractTaskTests {
         testType(columnName, PgType.TIMESTAMPTZ, OffsetDateTime.parse("4713-12-31 00:00:00+08:00 BC", pgIso), id);
         testType(columnName, PgType.TIMESTAMPTZ, OffsetDateTime.parse("4713-12-31 23:59:59+08:00 BC", pgIso), id);
 
-        testType(columnName, PgType.TIMESTAMPTZ, OffsetDateTime.parse("4713-01-01 00:00:00.999999+08:00 BC", pgIso), id);
-        testType(columnName, PgType.TIMESTAMPTZ, OffsetDateTime.parse("4713-01-01 23:59:59.999999+08:00 BC", pgIso), id);
-        testType(columnName, PgType.TIMESTAMPTZ, OffsetDateTime.parse("4713-12-31 00:00:00.999999+08:00 BC", pgIso), id);
-        testType(columnName, PgType.TIMESTAMPTZ, OffsetDateTime.parse("4713-12-31 23:59:59.999999+08:00 BC", pgIso), id);
+        testType(columnName, PgType.TIMESTAMPTZ, OffsetDateTime.parse("4713-01-01 00:00:00.999999+00:00 BC", pgIso), id);
+        testType(columnName, PgType.TIMESTAMPTZ, OffsetDateTime.parse("4713-01-01 23:59:59.999999+00:00 BC", pgIso), id);
+        testType(columnName, PgType.TIMESTAMPTZ, OffsetDateTime.parse("4713-12-31 00:00:00.999999+00:00 BC", pgIso), id);
+        testType(columnName, PgType.TIMESTAMPTZ, OffsetDateTime.parse("4713-12-31 23:59:59.999999+00:00 BC", pgIso), id);
 
         testType(columnName, PgType.TIMESTAMPTZ, OffsetDateTime.parse("294276-01-01 00:00:00+08:00 AD", pgIso), id);
         testType(columnName, PgType.TIMESTAMPTZ, OffsetDateTime.parse("294276-01-01 23:59:59+08:00 AD", pgIso), id);
@@ -346,20 +349,99 @@ abstract class AbstractStmtTaskTests extends AbstractTaskTests {
         testType(columnName, PgType.TIMESTAMPTZ, OffsetDateTime.parse("4713-12-31 00:00:00+08:00 BC", pgIso).format(iso), id);
         testType(columnName, PgType.TIMESTAMPTZ, OffsetDateTime.parse("4713-12-31 23:59:59+08:00 BC", pgIso).format(iso), id);
 
-        testType(columnName, PgType.TIMESTAMPTZ, OffsetDateTime.parse("294276-01-01 00:00:00.999999+08:00 AD", pgIso).format(iso), id);
-        testType(columnName, PgType.TIMESTAMPTZ, OffsetDateTime.parse("294276-01-01 23:59:59.999999+08:00 AD", pgIso).format(iso), id);
-        testType(columnName, PgType.TIMESTAMPTZ, OffsetDateTime.parse("294276-12-31 00:00:00.999999+08:00 AD", pgIso).format(iso), id);
-        testType(columnName, PgType.TIMESTAMPTZ, OffsetDateTime.parse("294276-12-31 23:59:59.999999+08:00 AD", pgIso).format(iso), id);
+        testType(columnName, PgType.TIMESTAMPTZ, OffsetDateTime.parse("294276-01-01 00:00:00.999999+00:00 AD", pgIso).format(iso), id);
+        testType(columnName, PgType.TIMESTAMPTZ, OffsetDateTime.parse("294276-01-01 23:59:59.999999+00:00 AD", pgIso).format(iso), id);
+        testType(columnName, PgType.TIMESTAMPTZ, OffsetDateTime.parse("294276-12-31 00:00:00.999999+00:00 AD", pgIso).format(iso), id);
+        testType(columnName, PgType.TIMESTAMPTZ, OffsetDateTime.parse("294276-12-31 23:59:59.999999+00:00 AD", pgIso).format(iso), id);
 
         testType(columnName, PgType.TIMESTAMPTZ, OffsetDateTime.now(), id);
         testType(columnName, PgType.TIMESTAMPTZ, OffsetDateTime.now().format(iso), id);
-        testType(columnName, PgType.TIMESTAMPTZ, OffsetDateTime.parse("0000-01-01 00:00:00+08:00", iso), id);
-        testType(columnName, PgType.TIMESTAMPTZ, OffsetDateTime.parse("0000-01-01 23:59:59+08:00", iso), id);
+        testType(columnName, PgType.TIMESTAMPTZ, OffsetDateTime.parse("0000-01-01 00:00:00+00:00", iso), id);
+        testType(columnName, PgType.TIMESTAMPTZ, OffsetDateTime.parse("0000-01-01 23:59:59+00:00", iso), id);
 
         testType(columnName, PgType.TIMESTAMPTZ, "0000-01-01 00:00:00+08:00", id);
         testType(columnName, PgType.TIMESTAMPTZ, "0000-01-01 23:59:59+08:00", id);
+        testType(columnName, PgType.TIMESTAMPTZ, "infinity", id);
+        testType(columnName, PgType.TIMESTAMPTZ, "-infinity", id);
 
+        testType(columnName, PgType.TIMESTAMPTZ, "INFINITY", id);
+        testType(columnName, PgType.TIMESTAMPTZ, "-INFINITY", id);
+    }
 
+    /**
+     * @see PgType#DATE
+     * @see <a href="https://www.postgresql.org/docs/current/datatype-datetime.html">Date/Time Types</a>
+     */
+    final void doDateBindAndExtract() {
+        final String columnName = "my_date";
+        final long id = startId + 10;
+
+        final DateTimeFormatter iso = DateTimeFormatter.ISO_DATE, pgIso = PgTimes.PG_ISO_LOCAL_DATE_FORMATTER;
+
+        testType(columnName, PgType.DATE, null, id);
+
+        testType(columnName, PgType.DATE, LocalDate.parse("4713-01-01 BC", pgIso), id);
+        testType(columnName, PgType.DATE, LocalDate.parse("4713-01-01 BC", pgIso), id);
+        testType(columnName, PgType.DATE, LocalDate.parse("4713-12-31 BC", pgIso), id);
+        testType(columnName, PgType.DATE, LocalDate.parse("4713-12-31 BC", pgIso), id);
+
+        testType(columnName, PgType.DATE, LocalDate.parse("4713-01-01 BC", pgIso), id);
+        testType(columnName, PgType.DATE, LocalDate.parse("4713-01-01 BC", pgIso), id);
+        testType(columnName, PgType.DATE, LocalDate.parse("4713-12-31 BC", pgIso), id);
+        testType(columnName, PgType.DATE, LocalDate.parse("4713-12-31 BC", pgIso), id);
+
+        testType(columnName, PgType.DATE, LocalDate.parse("5874897-01-01 AD", pgIso), id);
+        testType(columnName, PgType.DATE, LocalDate.parse("5874897-01-01 AD", pgIso), id);
+        testType(columnName, PgType.DATE, LocalDate.parse("5874897-12-31 AD", pgIso), id);
+        testType(columnName, PgType.DATE, LocalDate.parse("5874897-12-31 AD", pgIso), id);
+
+        testType(columnName, PgType.DATE, LocalDate.parse("4713-01-01 BC", pgIso).format(iso), id);
+        testType(columnName, PgType.DATE, LocalDate.parse("4713-01-01 BC", pgIso).format(iso), id);
+        testType(columnName, PgType.DATE, LocalDate.parse("4713-12-31 BC", pgIso).format(iso), id);
+        testType(columnName, PgType.DATE, LocalDate.parse("4713-12-31 BC", pgIso).format(iso), id);
+
+        testType(columnName, PgType.DATE, LocalDate.parse("5874897-01-01 AD", pgIso).format(iso), id);
+        testType(columnName, PgType.DATE, LocalDate.parse("5874897-01-01 AD", pgIso).format(iso), id);
+        testType(columnName, PgType.DATE, LocalDate.parse("5874897-12-31 AD", pgIso).format(iso), id);
+        testType(columnName, PgType.DATE, LocalDate.parse("5874897-12-31 AD", pgIso).format(iso), id);
+
+        testType(columnName, PgType.DATE, LocalDate.now(), id);
+        testType(columnName, PgType.DATE, LocalDate.now().format(iso), id);
+        testType(columnName, PgType.DATE, LocalDate.parse("0000-01-01", iso), id);
+        testType(columnName, PgType.DATE, LocalDate.parse("0000-01-01", iso), id);
+
+        testType(columnName, PgType.DATE, "0000-01-01", id);
+        testType(columnName, PgType.DATE, "0000-01-01", id);
+        testType(columnName, PgType.DATE, "infinity", id);
+        testType(columnName, PgType.DATE, "-infinity", id);
+
+        testType(columnName, PgType.DATE, "INFINITY", id);
+        testType(columnName, PgType.DATE, "-INFINITY", id);
+    }
+
+    /**
+     * @see PgType#TIME
+     * @see <a href="https://www.postgresql.org/docs/current/datatype-datetime.html">Date/Time Types</a>
+     */
+    final void doTimeBindAndExtract() {
+        final String columnName = "my_time";
+        final long id = startId + 11;
+
+        final DateTimeFormatter iso = PgTimes.ISO_LOCAL_TIME_FORMATTER;
+
+        testType(columnName, PgType.TIME, null, id);
+
+        testType(columnName, PgType.TIME, LocalTime.MAX, id);
+        testType(columnName, PgType.TIME, LocalTime.MIN, id);
+        testType(columnName, PgType.TIME, LocalTime.MIDNIGHT, id);
+        testType(columnName, PgType.TIME, LocalTime.now(), id);
+
+        testType(columnName, PgType.TIME, LocalTime.now().format(iso), id);
+
+        testType(columnName, PgType.TIME, "23:59:59", id);
+        testType(columnName, PgType.TIME, "00:00:00", id);
+        testType(columnName, PgType.TIME, "23:59:59.999999", id);
+        testType(columnName, PgType.TIME, "00:00:00.999999", id);
     }
 
 
@@ -405,26 +487,44 @@ abstract class AbstractStmtTaskTests extends AbstractTaskTests {
         assertNotNull(row, "row");
         assertEquals(row.get("id"), id, "id");
 
-        final SQLType sqlType = row.getRowMeta().getSQLType(columnName);
-        final Class<?> javaType = sqlType.javaType();
         if (value == null) {
             assertNull(row.get(columnName), columnName);
-        } else if (javaType == BigDecimal.class && value instanceof String) {
-            final BigDecimal v = new BigDecimal((String) value);
+        } else {
+            assertTestResult(columnName, row, value);
+        }
+    }
+
+
+    /**
+     * @see #testType(String, PgType, Object, long)
+     */
+    private <T> T mapToSingleton(List<T> singletonList) {
+        assertEquals(singletonList.size(), 1, "list size");
+        return singletonList.get(0);
+    }
+
+    /**
+     * @see #testType(String, PgType, Object, long)
+     */
+    private void assertTestResult(final String columnName, final ResultRow row, final Object nonNull) {
+        final SQLType sqlType = row.getRowMeta().getSQLType(columnName);
+        final Class<?> javaType = sqlType.javaType();
+        if (javaType == BigDecimal.class && nonNull instanceof String) {
+            final BigDecimal v = new BigDecimal((String) nonNull);
             final BigDecimal result = row.getNonNull(columnName, BigDecimal.class);
             assertEquals(result.compareTo(v), 0, columnName);
-        } else if (javaType == Double.class && value instanceof String) {
-            final double v = Double.parseDouble((String) value);
+        } else if (javaType == Double.class && nonNull instanceof String) {
+            final double v = Double.parseDouble((String) nonNull);
             assertEquals(row.get(columnName, Double.class), Double.valueOf(v), columnName);
-        } else if (javaType == Float.class && value instanceof String) {
-            final float v = Float.parseFloat((String) value);
+        } else if (javaType == Float.class && nonNull instanceof String) {
+            final float v = Float.parseFloat((String) nonNull);
             assertEquals(row.get(columnName, Float.class), Float.valueOf(v), columnName);
-        } else if (value instanceof BigDecimal) {
-            final BigDecimal v = (BigDecimal) value;
+        } else if (nonNull instanceof BigDecimal) {
+            final BigDecimal v = (BigDecimal) nonNull;
             final BigDecimal result = row.getNonNull(columnName, BigDecimal.class);
             assertEquals(result.compareTo(v), 0, columnName);
-        } else if (javaType == Boolean.class && value instanceof String) {
-            final String v = (String) value;
+        } else if (javaType == Boolean.class && nonNull instanceof String) {
+            final String v = (String) nonNull;
             final boolean bindValue;
             if (v.equalsIgnoreCase(PgConstant.TRUE)
                     || v.equalsIgnoreCase("T")) {
@@ -433,45 +533,83 @@ abstract class AbstractStmtTaskTests extends AbstractTaskTests {
                     || v.equalsIgnoreCase("F")) {
                 bindValue = false;
             } else {
-                throw new IllegalArgumentException(String.format("value[%s] error.", value));
+                throw new IllegalArgumentException(String.format("value[%s] error.", nonNull));
             }
             assertEquals(row.get(columnName, Boolean.class), Boolean.valueOf(bindValue), columnName);
-        } else if (javaType == LocalTime.class && value instanceof String) {
-            final LocalTime v = LocalTime.parse((String) value, PgTimes.ISO_LOCAL_TIME_FORMATTER);
-            final boolean equals = PgTestUtils.timeEquals(row.getNonNull(columnName, LocalTime.class), v);
-            assertTrue(equals, columnName);
-        } else if (javaType == OffsetTime.class && value instanceof String) {
-            final OffsetTime v = OffsetTime.parse((String) value, PgTimes.ISO_OFFSET_TIME_FORMATTER);
-            final boolean equals = PgTestUtils.offsetTimeEquals(row.getNonNull(columnName, OffsetTime.class), v);
-            assertTrue(equals, columnName);
+        } else if (javaType == LocalDate.class) {
+            final LocalDate v;
+            if (nonNull instanceof String) {
+                if (assertDateOrTimestampSpecial(columnName, row, nonNull)) {
+                    return;
+                }
+                v = LocalDate.parse((String) nonNull, DateTimeFormatter.ISO_LOCAL_DATE);
+            } else {
+                v = (LocalDate) nonNull;
+            }
+            assertEquals(row.get(columnName, LocalDate.class), v, columnName);
+        } else if (javaType == LocalTime.class) {
+            final LocalTime v;
+            if (nonNull instanceof String) {
+                v = LocalTime.parse((String) nonNull, PgTimes.ISO_LOCAL_TIME_FORMATTER);
+            } else {
+                v = (LocalTime) nonNull;
+            }
+            // database possibly round
+            final long intervalMicro = ChronoUnit.MICROS.between(v, row.getNonNull(columnName, LocalTime.class));
+            assertTrue(intervalMicro == 0 || intervalMicro == 1, columnName);
+        } else if (javaType == OffsetTime.class) {
+            final OffsetTime v;
+            if (nonNull instanceof String) {
+                v = OffsetTime.parse((String) nonNull, PgTimes.ISO_OFFSET_TIME_FORMATTER);
+            } else {
+                v = (OffsetTime) nonNull;
+            }
+            // database possibly round
+            final long intervalMicro = ChronoUnit.MICROS.between(v, row.getNonNull(columnName, OffsetTime.class));
+            assertTrue(intervalMicro == 0 || intervalMicro == 1, columnName);
         } else if (javaType == LocalDateTime.class) {
             final LocalDateTime v;
-            if (value instanceof String) {
-                v = LocalDateTime.parse((String) value, PgTimes.ISO_LOCAL_DATETIME_FORMATTER);
+            if (nonNull instanceof String) {
+                if (assertDateOrTimestampSpecial(columnName, row, nonNull)) {
+                    return;
+                }
+                v = LocalDateTime.parse((String) nonNull, PgTimes.ISO_LOCAL_DATETIME_FORMATTER);
             } else {
-                v = (LocalDateTime) value;
+                v = (LocalDateTime) nonNull;
             }
-            final boolean equals = PgTestUtils.dateTimeEquals(row.getNonNull(columnName, LocalDateTime.class), v);
-            assertTrue(equals, columnName);
+            // database possibly round
+            final long intervalMicro = ChronoUnit.MICROS.between(v, row.getNonNull(columnName, LocalDateTime.class));
+            assertTrue(intervalMicro == 0 || intervalMicro == 1, columnName);
         } else if (javaType == OffsetDateTime.class) {
             final OffsetDateTime v;
-            if (value instanceof String) {
-                v = OffsetDateTime.parse((String) value, PgTimes.ISO_OFFSET_DATETIME_FORMATTER);
+            if (nonNull instanceof String) {
+                if (assertDateOrTimestampSpecial(columnName, row, nonNull)) {
+                    return;
+                }
+                v = OffsetDateTime.parse((String) nonNull, PgTimes.ISO_OFFSET_DATETIME_FORMATTER);
             } else {
-                v = (OffsetDateTime) value;
+                v = (OffsetDateTime) nonNull;
             }
-            final boolean equals = PgTestUtils.offsetDateTimeEquals(row.getNonNull(columnName, OffsetDateTime.class), v);
-            assertTrue(equals, String.format("column:%s , result:%s , bind:%s", columnName, row.getNonNull(columnName, OffsetDateTime.class), v));
+            // database possibly round
+            final long intervalMicro = ChronoUnit.MICROS.between(v, row.getNonNull(columnName, OffsetDateTime.class));
+            assertTrue(intervalMicro == 0 || intervalMicro == 1, columnName);
         } else {
-            assertEquals(row.get(columnName, value.getClass()), value, columnName);
+            assertEquals(row.get(columnName, nonNull.getClass()), nonNull, columnName);
         }
-
     }
 
-
-    private <T> T mapToSingleton(List<T> singletonList) {
-        assertEquals(singletonList.size(), 1, "list size");
-        return singletonList.get(0);
+    private boolean assertDateOrTimestampSpecial(final String columnName, final ResultRow row, final Object nonNull) {
+        final String textValue = ((String) nonNull).toLowerCase();
+        switch (textValue) {
+            case PgConstant.INFINITY:
+            case PgConstant.NEG_INFINITY: {
+                final String resultText = row.get(columnName, String.class);
+                assertNotNull(resultText, columnName);
+                assertEquals(resultText.toLowerCase(), textValue, columnName);
+                return true;
+            }
+        }
+        return false;
     }
 
 

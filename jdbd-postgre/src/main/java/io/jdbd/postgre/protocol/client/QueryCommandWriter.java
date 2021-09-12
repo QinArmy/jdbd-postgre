@@ -474,16 +474,21 @@ final class QueryCommandWriter {
      */
     private void bindNonNullToLocalDate(final int batchIndex, BindValue bindValue, ByteBuf message)
             throws SQLException {
+        if (bindValue.getNonNull() instanceof String
+                && tryWriteDateOrTimestampSpecialValue(bindValue, message)) {
+            return;
+        }
+
         final LocalDate value;
         value = PgBinds.bindNonNullToLocalDate(batchIndex, bindValue.getType(), bindValue);
-
-        message.writeByte(QUOTE_BYTE);
         try {
+            message.writeByte(QUOTE_BYTE);
             message.writeBytes(value.format(PgTimes.PG_ISO_LOCAL_DATE_FORMATTER).getBytes(this.clientCharset));
+            message.writeByte(QUOTE_BYTE);
         } catch (DateTimeException e) {
             throw PgExceptions.outOfTypeRange(batchIndex, bindValue.getType(), bindValue);
         }
-        message.writeByte(QUOTE_BYTE);
+
     }
 
     /**
@@ -491,9 +496,9 @@ final class QueryCommandWriter {
      */
     private void bindNonNullToLocalTime(final int batchIndex, BindValue bindValue, ByteBuf message)
             throws SQLException {
+
         final LocalTime value;
         value = PgBinds.bindNonNullToLocalTime(batchIndex, bindValue.getType(), bindValue);
-
         message.writeByte(QUOTE_BYTE);
         message.writeBytes(value.format(PgTimes.ISO_LOCAL_TIME_FORMATTER).getBytes(this.clientCharset));
         message.writeByte(QUOTE_BYTE);
@@ -516,16 +521,22 @@ final class QueryCommandWriter {
      */
     private void bindNonNullToOffsetDateTime(final int batchIndex, BindValue bindValue, ByteBuf message)
             throws SQLException {
+
+        if (bindValue.getNonNull() instanceof String
+                && tryWriteDateOrTimestampSpecialValue(bindValue, message)) {
+            return;
+        }
+
         final OffsetDateTime value;
         value = PgBinds.bindNonNullToOffsetDateTime(batchIndex, bindValue.getType(), bindValue);
-
-        message.writeByte(QUOTE_BYTE);
         try {
+            message.writeByte(QUOTE_BYTE);
             message.writeBytes(value.format(PgTimes.PG_ISO_OFFSET_DATETIME_FORMATTER).getBytes(this.clientCharset));
+            message.writeByte(QUOTE_BYTE);
         } catch (DateTimeException e) {
             throw PgExceptions.outOfTypeRange(batchIndex, bindValue.getType(), bindValue);
         }
-        message.writeByte(QUOTE_BYTE);
+
     }
 
 
@@ -534,6 +545,11 @@ final class QueryCommandWriter {
      */
     private void bindNonNullToLocalDateTime(final int batchIndex, BindValue bindValue, ByteBuf message)
             throws SQLException {
+        if (bindValue.getNonNull() instanceof String
+                && tryWriteDateOrTimestampSpecialValue(bindValue, message)) {
+            return;
+        }
+
         final LocalDateTime value;
         value = PgBinds.bindNonNullToLocalDateTime(batchIndex, bindValue.getType(), bindValue);
 
@@ -544,6 +560,35 @@ final class QueryCommandWriter {
             throw PgExceptions.outOfTypeRange(batchIndex, bindValue.getType(), bindValue);
         }
         message.writeByte(QUOTE_BYTE);
+    }
+
+    /**
+     * @return true : bindValue is special value and write complete.
+     */
+    private boolean tryWriteDateOrTimestampSpecialValue(BindValue bindValue, ByteBuf message) {
+        switch (bindValue.getType()) {
+            case TIMESTAMP:
+            case DATE:
+            case TIMESTAMPTZ:
+//            case TIMESTAMP_ARRAY:
+//            case DATE_ARRAY:
+//            case TIMESTAMPTZ_ARRAY:
+                break;
+            default:
+                throw new IllegalArgumentException("bind value error");
+        }
+        final String textValue = ((String) bindValue.getNonNull()).toLowerCase();
+        switch (textValue) {
+            case PgConstant.INFINITY:
+            case PgConstant.NEG_INFINITY: {
+                message.writeByte(QUOTE_BYTE);
+                message.writeBytes(textValue.getBytes(this.clientCharset));
+                message.writeByte(QUOTE_BYTE);
+            }
+            return true; // write complete
+            default:
+        }
+        return false;
     }
 
     /**
