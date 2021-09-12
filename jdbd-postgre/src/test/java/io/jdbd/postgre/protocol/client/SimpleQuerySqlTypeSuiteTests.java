@@ -124,5 +124,30 @@ public class SimpleQuerySqlTypeSuiteTests extends AbstractStmtTaskTests {
         doTimeBindAndExtract();
     }
 
+    /**
+     * @see PgType#TIMETZ
+     */
+    @Test
+    public void timeTzBindExtract() {
+        doTimeTzBindAndExtract();
+    }
+
+
+    /**
+     * @see PgType#BIT
+     */
+    @Test
+    public void bitBindExtract() {
+        doBitBindAndExtract();
+    }
+
+    /**
+     * @see PgType#VARBIT
+     */
+    @Test
+    public void varBitBindExtract() {
+        doVarBitBindAndExtract();
+    }
+
 
 }

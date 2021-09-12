@@ -59,6 +59,9 @@ public abstract class JdbdStrings extends StringUtils {
         return NUMBER_PATTERN.matcher(text).matches();
     }
 
+    /**
+     * @see #bitStringToBitSet(String, boolean)
+     */
     public static String bitSetToBitString(BitSet bitSet, final boolean bitEndian) {
         final byte[] bitBytes = bitSet.toByteArray();
         final int length = bitSet.length();
@@ -73,6 +76,38 @@ public abstract class JdbdStrings extends StringUtils {
             }
         }
         return new String(bitChars);
+    }
+
+    /**
+     * @throws IllegalArgumentException when bitString isn't bit string.
+     * @see #bitSetToBitString(BitSet, boolean)
+     */
+    public static BitSet bitStringToBitSet(final String bitString, final boolean bitEndian)
+            throws IllegalArgumentException {
+        final char[] bitChars = bitString.toCharArray();
+        final byte[] bitBytes = new byte[bitChars.length];
+        if (bitEndian) {
+            char ch;
+            for (int i = 0, charIndex = bitBytes.length - 1; i < bitChars.length; i++, charIndex--) {
+                ch = bitChars[charIndex];
+                if (ch == '1') {
+                    bitBytes[i >> 3] |= (1 << (i & 7));
+                } else if (ch != '0') {
+                    throw new IllegalArgumentException(String.format("[%s] isn't bit string.", bitString));
+                }
+            }
+        } else {
+            char ch;
+            for (int i = 0; i < bitChars.length; i++) {
+                ch = bitChars[i];
+                if (ch == '1') {
+                    bitBytes[i >> 3] |= (1 << (i & 7));
+                } else if (ch != '0') {
+                    throw new IllegalArgumentException(String.format("[%s] isn't bit string.", bitString));
+                }
+            }
+        }
+        return BitSet.valueOf(bitBytes);
     }
 
     public static boolean isBinaryString(String text) {

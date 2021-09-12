@@ -285,12 +285,35 @@ public abstract class PgBinds extends JdbdBinds {
         final String value;
         if (nonNull instanceof BitSet) {
             value = PgStrings.bitSetToBitString((BitSet) nonNull, false);
-        } else if (nonNull instanceof Long
-                || nonNull instanceof Integer
-                || nonNull instanceof Short
-                || nonNull instanceof Byte) {
-            value = new StringBuilder(Long.toBinaryString(((Number) nonNull).longValue()))
-                    .reverse().toString();
+        } else if (nonNull instanceof Long) {
+            final char[] bitChars = new char[64];
+            final long v = (Long) nonNull;
+            long site = 1;
+            for (int i = 0; i < bitChars.length; i++) {
+                bitChars[i] = ((v & site) == 0) ? '0' : '1';
+                site <<= 1;
+            }
+            value = new String(bitChars);
+        } else if (nonNull instanceof String) {
+            if (PgStrings.isBinaryString((String) nonNull)) {
+                value = (String) nonNull;
+            } else {
+                throw JdbdExceptions.outOfTypeRange(batchIndex, pgType, paramValue);
+            }
+        } else {
+            throw JdbdExceptions.createNonSupportBindSqlTypeError(batchIndex, pgType, paramValue);
+        }
+        return value;
+    }
+
+    public static String bindNonNullToVarBit(final int batchIndex, PgType pgType, ParamValue paramValue)
+            throws SQLException {
+        final Object nonNull = paramValue.getNonNull();
+        final String value;
+        if (nonNull instanceof BitSet) {
+            value = PgStrings.bitSetToBitString((BitSet) nonNull, false);
+        } else if (nonNull instanceof Long) {
+            value = new StringBuilder(Long.toBinaryString((Long) nonNull)).reverse().toString();
         } else if (nonNull instanceof String) {
             if (PgStrings.isBinaryString((String) nonNull)) {
                 value = (String) nonNull;

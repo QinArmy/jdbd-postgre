@@ -6,6 +6,7 @@ import io.jdbd.postgre.PgJdbdException;
 import io.jdbd.postgre.PgType;
 import io.jdbd.postgre.type.PgGeometries;
 import io.jdbd.postgre.util.PgExceptions;
+import io.jdbd.postgre.util.PgStrings;
 import io.jdbd.postgre.util.PgTimes;
 import io.jdbd.type.Interval;
 import io.jdbd.vendor.result.ResultSetReader;
@@ -24,7 +25,6 @@ import java.nio.charset.StandardCharsets;
 import java.sql.SQLException;
 import java.time.*;
 import java.time.temporal.TemporalAmount;
-import java.util.BitSet;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.function.Consumer;
@@ -327,7 +327,11 @@ final class DefaultResultSetReader implements ResultSetReader {
             break;
             case PgConstant.TYPE_VARBIT:
             case PgConstant.TYPE_BIT: {
-                value = parseBitSetFromText(textValue, meta);
+                try {
+                    value = PgStrings.bitStringToBitSet(textValue, false);
+                } catch (IllegalArgumentException e) {
+                    throw createResponseTextColumnValueError(meta, textValue);
+                }
             }
             break;
             case PgConstant.TYPE_UUID: {
@@ -482,23 +486,6 @@ final class DefaultResultSetReader implements ResultSetReader {
         return value;
     }
 
-    /**
-     * @see #parseColumnFromText(String, PgColumnMeta)
-     */
-    private BitSet parseBitSetFromText(final String textValue, final PgColumnMeta meta) {
-        final int length = textValue.length();
-        final byte[] bytes = new byte[(length + 7) >> 3];
-        char ch;
-        for (int bitIndex = 0, charIndex = length - 1; bitIndex < length; bitIndex++, charIndex--) {
-            ch = textValue.charAt(charIndex);
-            if (ch == '1') {
-                bytes[bitIndex >> 3] |= (1 << (bitIndex & 7));
-            } else if (ch != '0') {
-                throw createResponseTextColumnValueError(meta, textValue);
-            }
-        }
-        return BitSet.valueOf(bytes);
-    }
 
     /**
      * @see #parseColumnFromText(String, PgColumnMeta)

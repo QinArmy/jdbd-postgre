@@ -1,6 +1,7 @@
 package io.jdbd.postgre.protocol.client;
 
 import io.jdbd.postgre.PgConstant;
+import io.jdbd.postgre.PgType;
 import io.jdbd.postgre.stmt.BindBatchStmt;
 import io.jdbd.postgre.stmt.BindMultiStmt;
 import io.jdbd.postgre.stmt.BindStmt;
@@ -597,7 +598,11 @@ final class QueryCommandWriter {
     private void bindNonNullToBit(final int stmtIndex, BindValue bindValue, ByteBuf message)
             throws SQLException {
         final String bitString;
-        bitString = PgBinds.bindNonNullToBit(stmtIndex, bindValue.getType(), bindValue);
+        if (bindValue.getType() == PgType.BIT) {
+            bitString = PgBinds.bindNonNullToBit(stmtIndex, bindValue.getType(), bindValue);
+        } else {
+            bitString = PgBinds.bindNonNullToVarBit(stmtIndex, bindValue.getType(), bindValue);
+        }
         message.writeByte('B');
         message.writeByte(QUOTE_BYTE);
         message.writeBytes(bitString.getBytes(this.clientCharset));

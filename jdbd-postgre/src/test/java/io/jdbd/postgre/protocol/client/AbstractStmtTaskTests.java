@@ -7,6 +7,7 @@ import io.jdbd.postgre.PgType;
 import io.jdbd.postgre.stmt.BindStmt;
 import io.jdbd.postgre.stmt.BindValue;
 import io.jdbd.postgre.stmt.PgStmts;
+import io.jdbd.postgre.util.PgStrings;
 import io.jdbd.postgre.util.PgTimes;
 import io.jdbd.result.ResultRow;
 import io.jdbd.result.ResultStates;
@@ -20,7 +21,9 @@ import java.time.*;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.BitSet;
 import java.util.List;
+import java.util.Random;
 
 import static org.testng.Assert.*;
 
@@ -356,6 +359,9 @@ abstract class AbstractStmtTaskTests extends AbstractTaskTests {
 
         testType(columnName, PgType.TIMESTAMPTZ, OffsetDateTime.now(), id);
         testType(columnName, PgType.TIMESTAMPTZ, OffsetDateTime.now().format(iso), id);
+        testType(columnName, PgType.TIMESTAMPTZ, ZonedDateTime.now(), id);
+        testType(columnName, PgType.TIMESTAMPTZ, ZonedDateTime.now().format(iso), id);
+
         testType(columnName, PgType.TIMESTAMPTZ, OffsetDateTime.parse("0000-01-01 00:00:00+00:00", iso), id);
         testType(columnName, PgType.TIMESTAMPTZ, OffsetDateTime.parse("0000-01-01 23:59:59+00:00", iso), id);
 
@@ -433,7 +439,7 @@ abstract class AbstractStmtTaskTests extends AbstractTaskTests {
 
         testType(columnName, PgType.TIME, LocalTime.MAX, id);
         testType(columnName, PgType.TIME, LocalTime.MIN, id);
-        testType(columnName, PgType.TIME, LocalTime.MIDNIGHT, id);
+        testType(columnName, PgType.TIME, LocalTime.NOON, id);
         testType(columnName, PgType.TIME, LocalTime.now(), id);
 
         testType(columnName, PgType.TIME, LocalTime.now().format(iso), id);
@@ -442,6 +448,113 @@ abstract class AbstractStmtTaskTests extends AbstractTaskTests {
         testType(columnName, PgType.TIME, "00:00:00", id);
         testType(columnName, PgType.TIME, "23:59:59.999999", id);
         testType(columnName, PgType.TIME, "00:00:00.999999", id);
+    }
+
+    /**
+     * @see PgType#TIMETZ
+     * @see <a href="https://www.postgresql.org/docs/current/datatype-datetime.html">Date/Time Types</a>
+     */
+    final void doTimeTzBindAndExtract() {
+        final String columnName = "my_zoned_time";
+        final long id = startId + 12;
+
+        final DateTimeFormatter iso = PgTimes.ISO_OFFSET_TIME_FORMATTER;
+
+        testType(columnName, PgType.TIMETZ, null, id);
+
+        testType(columnName, PgType.TIMETZ, OffsetTime.of(LocalTime.MAX, ZoneOffset.of("+08:00")), id);
+        testType(columnName, PgType.TIMETZ, OffsetTime.of(LocalTime.MIN, ZoneOffset.of("+08:00")), id);
+        testType(columnName, PgType.TIMETZ, OffsetTime.of(LocalTime.NOON, ZoneOffset.of("+08:00")), id);
+        testType(columnName, PgType.TIMETZ, OffsetTime.now(), id);
+
+        testType(columnName, PgType.TIMETZ, OffsetTime.now().format(iso), id);
+        testType(columnName, PgType.TIMETZ, "23:59:59+08:00", id);
+        testType(columnName, PgType.TIMETZ, "00:00:00+08:00", id);
+        testType(columnName, PgType.TIMETZ, "23:59:59.999999+08:00", id);
+
+        testType(columnName, PgType.TIMETZ, "00:00:00.999999+08:00", id);
+    }
+
+    /**
+     * @see PgType#BIT
+     * @see <a href="https://www.postgresql.org/docs/current/datatype-bit.html">Bit String Types</a>
+     */
+    final void doBitBindAndExtract() {
+        final String columnName = "my_bit64";
+        final long id = startId + 13;
+        // bit type is fixed length.
+        final char[] bitChars = new char[64];
+        for (int i = 0; i < 64; i++) {
+            bitChars[i] = '0';
+        }
+        final String allZeroBits = new String(bitChars);
+        for (int i = 0; i < 64; i++) {
+            bitChars[i] = '1';
+        }
+        final String allOneBits = new String(bitChars);
+
+
+        testType(columnName, PgType.BIT, null, id);
+
+        testType(columnName, PgType.BIT, allZeroBits, id);
+        testType(columnName, PgType.BIT, allOneBits, id);
+        testType(columnName, PgType.BIT, -1L, id);
+        testType(columnName, PgType.BIT, 0L, id);
+
+        final Random random = new Random();
+        for (int i = 0; i < 10; i++) {
+            testType(columnName, PgType.BIT, random.nextLong(), id);
+        }
+
+        for (int i = 0; i < 10; i++) {
+            BitSet bitSet = BitSet.valueOf(new long[]{random.nextLong()});
+            if (!bitSet.get(63)) {// bit type is fixed length.
+                bitSet.set(63);
+            }
+            testType(columnName, PgType.BIT, bitSet, id);
+        }
+
+    }
+
+    /**
+     * @see PgType#VARBIT
+     * @see <a href="https://www.postgresql.org/docs/current/datatype-bit.html">Bit String Types</a>
+     */
+    final void doVarBitBindAndExtract() {
+        final String columnName = "my_varbit_64";
+        final long id = startId + 14;
+        // bit type is fixed length.
+        final char[] bitChars = new char[64];
+        for (int i = 0; i < 64; i++) {
+            bitChars[i] = '0';
+        }
+        final String allZeroBits = new String(bitChars);
+        for (int i = 0; i < 64; i++) {
+            bitChars[i] = '1';
+        }
+        final String allOneBits = new String(bitChars);
+
+
+        testType(columnName, PgType.BIT, null, id);
+
+        testType(columnName, PgType.BIT, allZeroBits, id);
+        testType(columnName, PgType.BIT, allOneBits, id);
+        testType(columnName, PgType.BIT, -1L, id);
+        testType(columnName, PgType.BIT, 0L, id);
+
+        final Random random = new Random();
+        for (int i = 0; i < 10; i++) {
+            testType(columnName, PgType.BIT, random.nextLong(), id);
+        }
+
+        for (int i = 0; i < 10; i++) {
+            BitSet bitSet = BitSet.valueOf(new long[]{random.nextLong()});
+            if (!bitSet.get(63)) {// bit type is fixed length.
+                bitSet.set(63);
+            }
+            testType(columnName, PgType.BIT, bitSet, id);
+        }
+
     }
 
 
@@ -587,12 +700,24 @@ abstract class AbstractStmtTaskTests extends AbstractTaskTests {
                     return;
                 }
                 v = OffsetDateTime.parse((String) nonNull, PgTimes.ISO_OFFSET_DATETIME_FORMATTER);
+            } else if (nonNull instanceof ZonedDateTime) {
+                v = ((ZonedDateTime) nonNull).toOffsetDateTime();
             } else {
                 v = (OffsetDateTime) nonNull;
             }
             // database possibly round
             final long intervalMicro = ChronoUnit.MICROS.between(v, row.getNonNull(columnName, OffsetDateTime.class));
             assertTrue(intervalMicro == 0 || intervalMicro == 1, columnName);
+        } else if (sqlType == PgType.BIT) {
+            final BitSet v;
+            if (nonNull instanceof String) {
+                v = PgStrings.bitStringToBitSet((String) nonNull, false);
+            } else if (nonNull instanceof Long) {
+                v = BitSet.valueOf(new long[]{(Long) nonNull});
+            } else {
+                v = (BitSet) nonNull;
+            }
+            assertEquals(row.get(columnName, BitSet.class), v, columnName);
         } else {
             assertEquals(row.get(columnName, nonNull.getClass()), nonNull, columnName);
         }
