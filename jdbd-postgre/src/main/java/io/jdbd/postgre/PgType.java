@@ -1,6 +1,7 @@
 package io.jdbd.postgre;
 
 
+import io.jdbd.type.Interval;
 import io.jdbd.type.LongBinary;
 import io.jdbd.type.geometry.Circle;
 import io.jdbd.type.geometry.LongString;
@@ -9,7 +10,6 @@ import io.jdbd.type.geometry.Point;
 import java.math.BigDecimal;
 import java.sql.JDBCType;
 import java.time.*;
-import java.time.temporal.TemporalAmount;
 import java.util.*;
 
 public enum PgType implements io.jdbd.meta.SQLType {
@@ -37,7 +37,7 @@ public enum PgType implements io.jdbd.meta.SQLType {
     TSVECTOR(PgConstant.TYPE_TSVECTOR, JDBCType.LONGVARCHAR, LongString.class),
     TSQUERY(PgConstant.TYPE_TSQUERY, JDBCType.LONGVARCHAR, LongString.class),
     OID(PgConstant.TYPE_OID, JDBCType.BIGINT, Long.class),
-    INTERVAL(PgConstant.TYPE_INTERVAL, JDBCType.OTHER, TemporalAmount.class),
+    INTERVAL(PgConstant.TYPE_INTERVAL, JDBCType.OTHER, Interval.class),
     UUID(PgConstant.TYPE_UUID, JDBCType.CHAR, UUID.class),
     XML(PgConstant.TYPE_XML, JDBCType.SQLXML, LongString.class),
     POINT(PgConstant.TYPE_POINT, JDBCType.OTHER, Point.class),

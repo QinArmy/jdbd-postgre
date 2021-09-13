@@ -327,27 +327,6 @@ public abstract class PgBinds extends JdbdBinds {
     }
 
 
-    public static String bindNonNullToInterval(final int batchIndex, PgType pgType, ParamValue paramValue)
-            throws SQLException {
-        final Object nonNull = paramValue.getNonNull();
-        final String value;
-        if (nonNull instanceof Duration
-                || nonNull instanceof Period
-                || nonNull instanceof Interval) {
-            value = nonNull.toString();
-        } else if (nonNull instanceof String) {
-            try {
-                Interval.parse((String) nonNull);
-            } catch (DateTimeException e) {
-                throw JdbdExceptions.outOfTypeRange(batchIndex, pgType, paramValue);
-            }
-            value = (String) nonNull;
-        } else {
-            throw JdbdExceptions.createNonSupportBindSqlTypeError(batchIndex, pgType, paramValue);
-        }
-        return value;
-    }
-
 
     public static String bindNonNullToArrayWithoutEscapes(final int batchIndex, PgType pgType, ParamValue paramValue)
             throws SQLException {

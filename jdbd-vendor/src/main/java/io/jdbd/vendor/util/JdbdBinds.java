@@ -2,6 +2,7 @@ package io.jdbd.vendor.util;
 
 import io.jdbd.JdbdSQLException;
 import io.jdbd.meta.SQLType;
+import io.jdbd.type.Interval;
 import io.jdbd.vendor.stmt.ParamValue;
 import org.qinarmy.util.Pair;
 import reactor.util.annotation.Nullable;
@@ -503,6 +504,37 @@ public abstract class JdbdBinds {
         }
         return value;
     }
+
+
+    public static String bindNonNullToInterval(final int batchIndex, SQLType sqlType, ParamValue paramValue)
+            throws SQLException {
+        final Object nonNull = paramValue.getNonNull();
+        final String value;
+        if (nonNull instanceof Period) {
+            value = nonNull.toString();
+        } else if (nonNull instanceof Duration) {
+            value = Interval.of((Duration) nonNull).toString(true);
+        } else {
+            final Interval v;
+            if (nonNull instanceof String) {
+                try {
+                    v = Interval.parse((String) nonNull);
+                } catch (DateTimeException e) {
+                    throw JdbdExceptions.outOfTypeRange(batchIndex, sqlType, paramValue);
+                }
+            } else if (nonNull instanceof Interval) {
+                v = (Interval) nonNull;
+            } else {
+                throw JdbdExceptions.createNonSupportBindSqlTypeError(batchIndex, sqlType, paramValue);
+            }
+            value = v.toString(true);
+        }
+        return value;
+    }
+
+
+
+    /*################################## blow private method ##################################*/
 
 
 }

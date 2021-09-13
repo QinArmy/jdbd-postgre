@@ -1,6 +1,7 @@
 package io.jdbd.postgre.protocol.client;
 
 import io.jdbd.result.UnsupportedConvertingException;
+import io.jdbd.type.Interval;
 import io.jdbd.vendor.result.AbstractResultRow;
 
 import java.nio.charset.Charset;
@@ -50,8 +51,9 @@ public class PgResultRow extends AbstractResultRow<PgRowMeta> {
     }
 
     @Override
-    protected TemporalAmount convertStringToTemporalAmount(int indexBaseZero, String sourceValue, Class<?> targetClass) throws DateTimeException, UnsupportedConvertingException {
-        return null;
+    protected final TemporalAmount convertStringToTemporalAmount(int indexBaseZero, String nonNull, Class<?> targetClass)
+            throws DateTimeException, UnsupportedConvertingException {
+        return Interval.parse(nonNull);
     }
 
     @Override

@@ -262,38 +262,38 @@ final class QueryCommandWriter {
         switch (bindValue.getType()) {
             case SMALLINT: {
                 final short value = PgBinds.bindNonNullToShort(batchIndex, bindValue.getType(), bindValue);
-                writeSafeString(message, Short.toString(value), 0);
+                message.writeBytes(Short.toString(value).getBytes(this.clientCharset));
             }
             break;
             case INTEGER: {
                 final int value = PgBinds.bindNonNullToInt(batchIndex, bindValue.getType(), bindValue);
-                writeSafeString(message, Integer.toString(value), 0);
+                message.writeBytes(Integer.toString(value).getBytes(this.clientCharset));
             }
             break;
             case OID:
             case BIGINT: {
                 final long value = PgBinds.bindNonNullToLong(batchIndex, bindValue.getType(), bindValue);
-                writeSafeString(message, Long.toString(value), 0);
+                message.writeBytes(Long.toString(value).getBytes(this.clientCharset));
             }
             break;
             case DECIMAL: {
                 final BigDecimal value = PgBinds.bindNonNullToDecimal(batchIndex, bindValue.getType(), bindValue);
-                writeSafeString(message, value.toPlainString(), 0);
+                message.writeBytes(value.toPlainString().getBytes(this.clientCharset));
             }
             break;
             case REAL: {
                 final float value = PgBinds.bindNonNullToFloat(batchIndex, bindValue.getType(), bindValue);
-                writeSafeString(message, Float.toString(value), 0);
+                message.writeBytes(Float.toString(value).getBytes(this.clientCharset));
             }
             break;
             case DOUBLE: {
                 final double value = PgBinds.bindNonNullToDouble(batchIndex, bindValue.getType(), bindValue);
-                writeSafeString(message, Double.toString(value), 0);
+                message.writeBytes(Double.toString(value).getBytes(this.clientCharset));
             }
             break;
             case BOOLEAN: {
                 final boolean value = PgBinds.bindNonNullToBoolean(batchIndex, bindValue.getType(), bindValue);
-                writeSafeString(message, value ? PgConstant.TRUE : PgConstant.FALSE, 0);
+                message.writeBytes((value ? PgConstant.TRUE : PgConstant.FALSE).getBytes(this.clientCharset));
             }
             break;
             case BYTEA: {
@@ -328,7 +328,7 @@ final class QueryCommandWriter {
             }
             break;
             case INTERVAL: {
-                bindNonNullToDuration(batchIndex, bindValue, message);
+                bindNonNullToInterval(batchIndex, bindValue, message);
             }
             break;
             case TIME: {
@@ -612,7 +612,7 @@ final class QueryCommandWriter {
     /**
      * @see #bindNonNullParameter(int, BindValue, ByteBuf)
      */
-    private void bindNonNullToDuration(final int stmtIndex, BindValue bindValue, ByteBuf message)
+    private void bindNonNullToInterval(final int stmtIndex, BindValue bindValue, ByteBuf message)
             throws SQLException {
         final String intervalString;
         intervalString = PgBinds.bindNonNullToInterval(stmtIndex, bindValue.getType(), bindValue);

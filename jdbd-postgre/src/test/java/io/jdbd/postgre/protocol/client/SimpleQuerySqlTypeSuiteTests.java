@@ -149,5 +149,13 @@ public class SimpleQuerySqlTypeSuiteTests extends AbstractStmtTaskTests {
         doVarBitBindAndExtract();
     }
 
+    /**
+     * @see PgType#INTERVAL
+     */
+    @Test
+    public void intervalBindExtract() {
+        doIntervalBindAndExtract();
+    }
+
 
 }

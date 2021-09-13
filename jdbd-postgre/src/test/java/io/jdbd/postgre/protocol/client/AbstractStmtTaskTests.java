@@ -11,6 +11,7 @@ import io.jdbd.postgre.util.PgStrings;
 import io.jdbd.postgre.util.PgTimes;
 import io.jdbd.result.ResultRow;
 import io.jdbd.result.ResultStates;
+import io.jdbd.type.Interval;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.util.annotation.Nullable;
@@ -20,10 +21,7 @@ import java.math.BigInteger;
 import java.time.*;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
-import java.util.ArrayList;
-import java.util.BitSet;
-import java.util.List;
-import java.util.Random;
+import java.util.*;
 
 import static org.testng.Assert.*;
 
@@ -484,13 +482,9 @@ abstract class AbstractStmtTaskTests extends AbstractTaskTests {
         final long id = startId + 13;
         // bit type is fixed length.
         final char[] bitChars = new char[64];
-        for (int i = 0; i < 64; i++) {
-            bitChars[i] = '0';
-        }
+        Arrays.fill(bitChars, '0');
         final String allZeroBits = new String(bitChars);
-        for (int i = 0; i < 64; i++) {
-            bitChars[i] = '1';
-        }
+        Arrays.fill(bitChars, '1');
         final String allOneBits = new String(bitChars);
 
 
@@ -525,35 +519,63 @@ abstract class AbstractStmtTaskTests extends AbstractTaskTests {
         final long id = startId + 14;
         // bit type is fixed length.
         final char[] bitChars = new char[64];
-        for (int i = 0; i < 64; i++) {
-            bitChars[i] = '0';
-        }
+        Arrays.fill(bitChars, '0');
         final String allZeroBits = new String(bitChars);
-        for (int i = 0; i < 64; i++) {
-            bitChars[i] = '1';
-        }
+        Arrays.fill(bitChars, '1');
         final String allOneBits = new String(bitChars);
 
 
-        testType(columnName, PgType.BIT, null, id);
+        testType(columnName, PgType.VARBIT, null, id);
 
-        testType(columnName, PgType.BIT, allZeroBits, id);
-        testType(columnName, PgType.BIT, allOneBits, id);
-        testType(columnName, PgType.BIT, -1L, id);
-        testType(columnName, PgType.BIT, 0L, id);
+        testType(columnName, PgType.VARBIT, allZeroBits, id);
+        testType(columnName, PgType.VARBIT, allOneBits, id);
+        testType(columnName, PgType.VARBIT, -1L, id);
+        testType(columnName, PgType.VARBIT, 0L, id);
 
         final Random random = new Random();
         for (int i = 0; i < 10; i++) {
-            testType(columnName, PgType.BIT, random.nextLong(), id);
+            testType(columnName, PgType.VARBIT, random.nextLong(), id);
         }
 
         for (int i = 0; i < 10; i++) {
             BitSet bitSet = BitSet.valueOf(new long[]{random.nextLong()});
-            if (!bitSet.get(63)) {// bit type is fixed length.
-                bitSet.set(63);
-            }
-            testType(columnName, PgType.BIT, bitSet, id);
+            testType(columnName, PgType.VARBIT, bitSet, id);
         }
+
+    }
+
+    /**
+     * @see PgType#INTERVAL
+     * @see <a href="https://www.postgresql.org/docs/current/datatype-datetime.html">Date/Time Types</a>
+     */
+    final void doIntervalBindAndExtract() {
+        final String columnName = "my_interval";
+        final long id = startId + 15;
+
+        testType(columnName, PgType.INTERVAL, null, id);
+
+        testType(columnName, PgType.INTERVAL, Duration.ZERO, id);
+        testType(columnName, PgType.INTERVAL, Period.ZERO, id);
+        testType(columnName, PgType.INTERVAL, Interval.ZERO, id);
+        testType(columnName, PgType.INTERVAL, Interval.of(Period.of(3, 8, 6), Duration.ofSeconds(3434, 999_999_999)), id);
+
+        testType(columnName, PgType.INTERVAL, Duration.ofSeconds(0, 999_999_000), id);
+        testType(columnName, PgType.INTERVAL, Duration.ofSeconds(0, 999_999_000).negated(), id);
+        testType(columnName, PgType.INTERVAL, Duration.ofSeconds(0, 999_000_000), id);
+        testType(columnName, PgType.INTERVAL, Duration.ofSeconds(0, 999_000_000).negated(), id);
+
+        testType(columnName, PgType.INTERVAL, Duration.ofSeconds(0, 999_999_000).toString(), id);
+        testType(columnName, PgType.INTERVAL, Duration.ofSeconds(0, 999_999_000).negated().toString(), id);
+        testType(columnName, PgType.INTERVAL, Duration.ofSeconds(0, 999_000_000).toString(), id);
+        testType(columnName, PgType.INTERVAL, Duration.ofSeconds(0, 999_000_000).negated().toString(), id);
+
+        testType(columnName, PgType.INTERVAL, Duration.ZERO.toString(), id);
+        testType(columnName, PgType.INTERVAL, Period.ZERO.toString(), id);
+        testType(columnName, PgType.INTERVAL, Interval.ZERO.toString(), id);
+        testType(columnName, PgType.INTERVAL, Duration.ofDays(2).plusMillis(99999).toString(), id);
+
+        testType(columnName, PgType.INTERVAL, Interval.of(Period.of(3, 8, 6), Duration.ofSeconds(3434, 999_999_999)).toString(true), id);
+
 
     }
 
@@ -708,7 +730,7 @@ abstract class AbstractStmtTaskTests extends AbstractTaskTests {
             // database possibly round
             final long intervalMicro = ChronoUnit.MICROS.between(v, row.getNonNull(columnName, OffsetDateTime.class));
             assertTrue(intervalMicro == 0 || intervalMicro == 1, columnName);
-        } else if (sqlType == PgType.BIT) {
+        } else if (javaType == BitSet.class) {
             final BitSet v;
             if (nonNull instanceof String) {
                 v = PgStrings.bitStringToBitSet((String) nonNull, false);
@@ -718,6 +740,19 @@ abstract class AbstractStmtTaskTests extends AbstractTaskTests {
                 v = (BitSet) nonNull;
             }
             assertEquals(row.get(columnName, BitSet.class), v, columnName);
+        } else if (sqlType == PgType.INTERVAL) {
+            final Interval v;
+            if (nonNull instanceof String) {
+                v = Interval.parse((String) nonNull);
+            } else if (nonNull instanceof Duration) {
+                v = Interval.of((Duration) nonNull);
+            } else if (nonNull instanceof Period) {
+                v = Interval.of((Period) nonNull);
+            } else {
+                v = (Interval) nonNull;
+            }
+            boolean equal = row.getNonNull(columnName, Interval.class).equals(v, true);
+            assertTrue(equal, columnName);
         } else {
             assertEquals(row.get(columnName, nonNull.getClass()), nonNull, columnName);
         }

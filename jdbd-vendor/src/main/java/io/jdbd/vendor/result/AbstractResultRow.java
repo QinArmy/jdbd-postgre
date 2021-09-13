@@ -512,7 +512,9 @@ public abstract class AbstractResultRow<R extends ResultRowMeta> implements Resu
         final Duration value;
 
         try {
-            if (nonNull instanceof TemporalAmount) {
+            if (nonNull instanceof Interval) {
+                value = ((Interval) nonNull).toDurationExact();
+            } else if (nonNull instanceof TemporalAmount) {
                 value = Duration.from((TemporalAmount) nonNull);
             } else {
                 final TemporalAmount amount;
@@ -524,7 +526,11 @@ public abstract class AbstractResultRow<R extends ResultRowMeta> implements Resu
                 } else {
                     throw createNotSupportedException(indexBaseZero, Duration.class);
                 }
-                value = Duration.from(amount);
+                if (amount instanceof Interval) {
+                    value = ((Interval) amount).toDurationExact();
+                } else {
+                    value = Duration.from(amount);
+                }
             }
             return value;
         } catch (UnsupportedConvertingException e) {
@@ -544,7 +550,9 @@ public abstract class AbstractResultRow<R extends ResultRowMeta> implements Resu
         final Period value;
 
         try {
-            if (nonNull instanceof TemporalAmount) {
+            if (nonNull instanceof Interval) {
+                value = ((Interval) nonNull).toPeriodExact();
+            } else if (nonNull instanceof TemporalAmount) {
                 value = Period.from((TemporalAmount) nonNull);
             } else {
                 final TemporalAmount amount;
@@ -556,7 +564,11 @@ public abstract class AbstractResultRow<R extends ResultRowMeta> implements Resu
                 } else {
                     throw createNotSupportedException(indexBaseZero, Period.class);
                 }
-                value = Period.from(amount);
+                if (amount instanceof Interval) {
+                    value = ((Interval) amount).toPeriodExact();
+                } else {
+                    value = Period.from(amount);
+                }
             }
             return value;
         } catch (UnsupportedConvertingException e) {

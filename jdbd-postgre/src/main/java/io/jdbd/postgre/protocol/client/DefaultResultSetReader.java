@@ -24,7 +24,6 @@ import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.sql.SQLException;
 import java.time.*;
-import java.time.temporal.TemporalAmount;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.function.Consumer;
@@ -490,11 +489,11 @@ final class DefaultResultSetReader implements ResultSetReader {
     /**
      * @see #parseColumnFromText(String, PgColumnMeta)
      */
-    private TemporalAmount parseTemporalAmountFromText(final String textValue, final PgColumnMeta meta) {
-        final TemporalAmount amount;
+    private Interval parseTemporalAmountFromText(final String textValue, final PgColumnMeta meta) {
+        final Interval value;
         switch (this.adjutant.server().intervalStyle()) {
             case iso_8601: {
-                amount = Interval.parse(textValue);
+                value = Interval.parse(textValue, true);
             }
             break;
             case postgres:
@@ -503,7 +502,7 @@ final class DefaultResultSetReader implements ResultSetReader {
             default:
                 throw new IllegalArgumentException(String.format("Cannot parse interval,ColumnMata[%s]", meta));
         }
-        return amount;
+        return value;
     }
 
 
