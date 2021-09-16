@@ -9,6 +9,7 @@ import io.jdbd.postgre.session.SessionAdjutant;
 import io.jdbd.postgre.util.PgStrings;
 import io.jdbd.result.Result;
 import io.jdbd.result.ResultRow;
+import io.jdbd.result.ResultRowMeta;
 import io.jdbd.vendor.conf.Properties;
 import io.jdbd.vendor.stmt.JdbdStmts;
 import org.slf4j.Logger;
@@ -24,17 +25,35 @@ public abstract class ClientProtocolFactory {
         throw new UnsupportedOperationException();
     }
 
-    public static Mono<ClientProtocol> single(SessionAdjutant sessionAdjutant, int hostIndex) {
+    public static Mono<ClientProtocol> single(final SessionAdjutant sessionAdjutant, final int hostIndex) {
         return PgTaskExecutor.create(sessionAdjutant, hostIndex)// 1. create TCP connection.
-                .map(executor -> new ConnectionManagerImpl(executor, hostIndex))
-                .flatMap(ConnectionManagerImpl::connect) // 2. authentication and initializing
+                .flatMap(executor -> connect(executor, hostIndex)) // 2. authentication and initializing
                 .map(ClientProtocolImpl::create); // 3. create ClientProtocol instance.
     }
 
+    private static Mono<ConnectionWrapper> connect(PgTaskExecutor executor, int hostIndex) {
+        final ConnectionManagerImpl connectionManager = new ConnectionManagerImpl(executor, hostIndex);
+        return connectionManager.connect();
+    }
 
     private static final class ConnectionManagerImpl implements ConnectionManager {
 
+
         private static final Logger LOG = LoggerFactory.getLogger(ConnectionManagerImpl.class);
+
+        private static final Set<ServerParameter> INITIALIZED_PARAM_SET = Collections.unmodifiableSet(EnumSet.of(
+                ServerParameter.lc_monetary,
+                ServerParameter.transaction_isolation,
+                ServerParameter.transaction_read_only,
+                ServerParameter.transaction_deferrable,
+
+                ServerParameter.statement_timeout
+        ));
+
+        private static final Set<ServerParameter> SENSITIVE_PARAM_SET = Collections.unmodifiableSet(EnumSet.of(
+                ServerParameter.lc_monetary,
+                ServerParameter.statement_timeout
+        ));
 
         final PgTaskExecutor executor;
 
@@ -62,23 +81,27 @@ public abstract class ClientProtocolFactory {
 
         /*################################## blow private method ##################################*/
 
+        /**
+         * @see ClientProtocolFactory#single(SessionAdjutant, int)
+         */
         private Mono<ConnectionWrapper> connect() {
-            return authenticateAndInitializing()
+            return PgConnectionTask.authenticate(this.executor.taskAdjutant())
+                    .doOnSuccess(this.executor::handleAuthenticationSuccess)
+                    .then(Mono.defer(this::initializing))
+                    .flatMap(this::doOnInitializingSuccess)
                     .map(this::createWrapper);
         }
 
+        /**
+         * @see #connect()
+         */
         private ConnectionWrapper createWrapper(final Map<String, String> initializedParamMap) {
             return new ConnectionWrapper(this, initializedParamMap);
         }
 
-        private Mono<Map<String, String>> authenticateAndInitializing() {
-            return PgConnectionTask.authenticate(this.executor.taskAdjutant())
-                    .doOnSuccess(this.executor::handleAuthenticationSuccess)
-                    .then(Mono.defer(this::initializing))
-                    .flatMap(this::doOnInitializingSuccess);
-
-        }
-
+        /**
+         * @see #connect()
+         */
         private Mono<Map<String, String>> initializing() {
             final TaskAdjutant adjutant = this.executor.taskAdjutant();
             final Properties<PgKey> properties = adjutant.obtainHost().getProperties();
@@ -96,45 +119,58 @@ public abstract class ClientProtocolFactory {
                 }
             }
 
-            // 'SHOW ALL' must be last statement.
-            sqlGroup.add("SHOW ALL");
-            final int showResultIndex = sqlGroup.size() - 1;
+            // 'SHOW xxx' must be last statement.
+            final int showResultIndex = sqlGroup.size();
+
+            for (ServerParameter parameter : INITIALIZED_PARAM_SET) {
+                sqlGroup.add("SHOW " + parameter.name());
+            }
             return Flux.from(SimpleQueryTask.batchAsFlux(JdbdStmts.group(sqlGroup), adjutant))
                     .switchIfEmpty(initializingFailure())
-                    .filter(result -> result.getResultIndex() == showResultIndex)
+                    .filter(result -> result.getResultIndex() >= showResultIndex)
                     .collectList()
                     .map(this::readInitializedParamResult);
         }
 
 
+        /**
+         * @see #connect()
+         */
         private Mono<Map<String, String>> doOnInitializingSuccess(final Map<String, String> initializedParamMap) {
             final TaskAdjutant adjutant = this.executor.taskAdjutant();
             if (LOG.isDebugEnabled()) {
                 LOG.debug("database session initializing success,process id[{}].", adjutant.processId());
             }
-            final String paramName = ServerParameter.lc_monetary.name();
-            final Map<String, String> paramMap;
-            paramMap = Collections.singletonMap(paramName, initializedParamMap.get(paramName));
-            return this.executor.handleInitializingSuccess(paramMap)
+            final Map<String, String> paramMap = new HashMap<>((int) (SENSITIVE_PARAM_SET.size() / 0.75F));
+            for (ServerParameter parameter : SENSITIVE_PARAM_SET) {
+                final String name = parameter.name();
+                final String value = initializedParamMap.get(name);
+                if (value != null) {
+                    paramMap.put(name, value);
+                }
+            }
+            return this.executor.handleInitializingSuccess(Collections.unmodifiableMap(paramMap))
                     .thenReturn(initializedParamMap);
         }
 
 
         /**
-         * @param resultList result of  command 'SHOW ALL'
+         * @param resultList result of  command 'SHOW xxx'
          * @return a unmodified map
+         * @see #initializing()
          */
         private Map<String, String> readInitializedParamResult(final List<Result> resultList) {
             final Map<String, String> map = new HashMap<>((int) (resultList.size() / 0.75F));
-            ResultRow row;
+
             for (Result result : resultList) {
                 if (result instanceof ResultRow) {
-                    row = (ResultRow) result;
-                    map.put(row.get(0, String.class), row.get(1, String.class));
+                    ResultRow row = (ResultRow) result;
+                    ResultRowMeta rowMeta = row.getRowMeta();
+                    map.put(rowMeta.getColumnLabel(0).toLowerCase(), row.get(0, String.class));
                 }
             }
             if (map.isEmpty()) {
-                throw new PgJdbdException("Session initializing failure,'SHOW ALL' execute failure.");
+                throw new PgJdbdException("Session initializing failure,'SHOW xxx' execute failure.");
             }
             if (LOG.isDebugEnabled()) {
                 LOG.debug("Initialized server parameter count {} .", map.size());

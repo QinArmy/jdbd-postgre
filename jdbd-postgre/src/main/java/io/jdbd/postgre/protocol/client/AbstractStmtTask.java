@@ -1,5 +1,6 @@
 package io.jdbd.postgre.protocol.client;
 
+import io.jdbd.postgre.PgJdbdException;
 import io.jdbd.postgre.PgType;
 import io.jdbd.postgre.stmt.BindMultiStmt;
 import io.jdbd.postgre.stmt.BindStmt;
@@ -437,22 +438,26 @@ abstract class AbstractStmtTask extends PgTask implements StmtTask {
         final String command;
         if (tagPart.length > 0) {
             command = tagPart[0].toUpperCase();
-            if (UPDATE_COMMANDS.contains(command)) {
+            if (SELECT.equals(command)) {
+                final long rowCount = Long.parseLong(tagPart[1]);
+                params.rowCount = rowCount;
+                handleSelectCommand(rowCount);
+            } else if (UPDATE_COMMANDS.contains(command)) {
                 if (INSERT.equals(command)) {
                     params.insertId = Long.parseLong(tagPart[1]);
                     params.affectedRows = Long.parseLong(tagPart[2]);
                 } else {
                     params.affectedRows = Long.parseLong(tagPart[1]);
                 }
-            } else if (SELECT.equals(command)) {
-                final long rowCount = Long.parseLong(tagPart[1]);
-                params.rowCount = rowCount;
-                handleSelectCommand(rowCount);
             } else if (SET.equals(command)) {
                 handleSetCommand(resultIndex);
             }
         } else {
             command = "";
+            String m;
+            m = String.format("Postgre server CommandComplete message error,can't read command from command tag[%s]."
+                    , commandTag);
+            addError(new PgJdbdException(m));
         }
         log.trace("Read CommandComplete message command tag[{}],command[{}]", commandTag, command);
 
@@ -490,7 +495,7 @@ abstract class AbstractStmtTask extends PgTask implements StmtTask {
                 this.adjutant.appendSetCommandParameter(parser.parseSetParameter(sql));
             }
         } catch (Throwable e) {
-            this.addErrorToTask(e);
+            this.addError(e);
         }
 
     }

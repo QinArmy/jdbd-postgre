@@ -24,8 +24,12 @@ public enum ServerParameter {
     // below after Postgre server 9.0 .
     application_name,
 
-    // below get by 'SHOW ALL' command
-    lc_monetary;
+    // below get by 'SHOW xxx' command
+    lc_monetary,
+    transaction_isolation,
+    transaction_read_only,
+    transaction_deferrable,
+    statement_timeout;
 
 
     public static boolean isOn(String boolValue) {

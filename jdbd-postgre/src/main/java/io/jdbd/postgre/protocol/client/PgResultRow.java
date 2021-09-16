@@ -1,6 +1,7 @@
 package io.jdbd.postgre.protocol.client;
 
 import io.jdbd.postgre.PgType;
+import io.jdbd.result.ResultRow;
 import io.jdbd.result.UnsupportedConvertingException;
 import io.jdbd.type.Interval;
 import io.jdbd.vendor.result.AbstractResultRow;
@@ -9,6 +10,7 @@ import java.math.BigDecimal;
 import java.nio.charset.Charset;
 import java.text.DecimalFormat;
 import java.text.NumberFormat;
+import java.text.ParseException;
 import java.time.DateTimeException;
 import java.time.ZoneOffset;
 import java.time.temporal.TemporalAccessor;
@@ -98,10 +100,21 @@ public class PgResultRow extends AbstractResultRow<PgRowMeta> {
             return (BigDecimal) value;
         } catch (Throwable e) {
             final PgType pgType = this.rowMeta.columnMetaArray[indexBaseZero].pgType;
-            String msg = String.format("Column[%s] postgre %s type convert to  java type BigDecimal occur failure,%s"
-                    , this.rowMeta.getColumnLabel(indexBaseZero)
-                    , pgType, e.getMessage());
-            throw new UnsupportedConvertingException(msg, e, pgType, BigDecimal.class);
+            final String columnLabel = this.rowMeta.getColumnLabel(indexBaseZero);
+            String m;
+            m = String.format("Column[%s] postgre %s type convert to  java type BigDecimal failure."
+                    , columnLabel
+                    , pgType);
+            if (e instanceof ParseException) {
+                m = String.format("%s\nYou couldn't execute '%s' AND %s.get(\"%s\",%s.class) in multi-statement."
+                        , m
+                        , "SET lc_monetary"
+                        , ResultRow.class.getName()
+                        , columnLabel
+                        , BigDecimal.class.getName()
+                );
+            }
+            throw new UnsupportedConvertingException(m, e, pgType, BigDecimal.class);
         }
     }
 

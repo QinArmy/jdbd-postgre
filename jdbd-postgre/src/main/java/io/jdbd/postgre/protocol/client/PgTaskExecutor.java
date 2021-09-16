@@ -256,6 +256,7 @@ final class PgTaskExecutor extends CommunicationTaskExecutor<TaskAdjutant> {
             try {
                 final String parameter = parameterName.toLowerCase();
                 switch (ServerParameter.valueOf(parameter)) {
+                    case statement_timeout:
                     case lc_monetary: {
                         addUrgencyParameter(parameter);
                     }
@@ -301,11 +302,10 @@ final class PgTaskExecutor extends CommunicationTaskExecutor<TaskAdjutant> {
          */
         private void urgencyTaskIfNeed() {
             final List<String> urgencyParamList = this.urgencyParamList;
-            if (urgencyParamList == null) {
+            if (urgencyParamList == null || urgencyParamList.isEmpty()) {
                 return;
             }
             this.urgencyParamList = null;
-
             final List<String> sqlList = new ArrayList<>(urgencyParamList.size());
             for (String param : urgencyParamList) {
                 sqlList.add("SHOW " + param);
