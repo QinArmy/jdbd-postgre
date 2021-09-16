@@ -163,7 +163,7 @@ public abstract class PluginUtils {
     private static List<String> loadDisabledPluginMechanismList(Properties<PropertyKey> properties)
             throws PropertyException {
 
-        String string = properties.getProperty(PropertyKey.disabledAuthenticationPlugins);
+        String string = properties.get(PropertyKey.disabledAuthenticationPlugins);
         if (!MySQLStringUtils.hasText(string)) {
             return Collections.emptyList();
         }
@@ -188,7 +188,7 @@ public abstract class PluginUtils {
      */
     private static List<String> loadEnabledPluginMechanismList(Properties<PropertyKey> properties)
             throws PropertyException {
-        String string = properties.getProperty(PropertyKey.authenticationPlugins);
+        String string = properties.get(PropertyKey.authenticationPlugins);
         if (!MySQLStringUtils.hasText(string)) {
             return Collections.emptyList();
         }

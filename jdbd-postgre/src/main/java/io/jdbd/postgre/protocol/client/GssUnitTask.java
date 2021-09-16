@@ -345,7 +345,7 @@ final class GssUnitTask extends PostgreUnitTask {
      * @see #startupGssContext()
      */
     private Subject jaasLogin() throws PgJdbdException {
-        final String entryName = this.properties.getProperty(PgKey.jaasApplicationName, "pgjdbc");
+        final String entryName = this.properties.get(PgKey.jaasApplicationName, "pgjdbc");
         try {
             LoginContext lc = new LoginContext(entryName, this::jaasCallbackHandler);
             lc.login();
@@ -369,7 +369,7 @@ final class GssUnitTask extends PostgreUnitTask {
      * @return database server kerberos principal name,that bases hose.
      */
     private String getServerPrincipalName() {
-        return this.properties.getProperty(PgKey.kerberosServerName, "postgres") + "@"
+        return this.properties.get(PgKey.kerberosServerName, "postgres") + "@"
                 + this.adjutant.obtainHost().getHost();
     }
 

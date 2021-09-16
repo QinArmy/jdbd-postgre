@@ -102,7 +102,7 @@ final class MySQLConnectionTask extends CommunicationTask<TaskAdjutant> implemen
         this.properties = this.hostInfo.getProperties();
         this.pluginMap = loadAuthenticationPluginMap();
 
-        Charset charset = this.properties.getProperty(PropertyKey.characterEncoding, Charset.class);
+        Charset charset = this.properties.get(PropertyKey.characterEncoding, Charset.class);
         if (charset == null || CharsetMapping.isUnsupportedCharsetClient(charset.name())) {
             charset = StandardCharsets.UTF_8;
         }
@@ -118,7 +118,7 @@ final class MySQLConnectionTask extends CommunicationTask<TaskAdjutant> implemen
 
     @Override
     public Charset getPasswordCharset() {
-        String pwdCharset = this.properties.getProperty(PropertyKey.passwordCharacterEncoding);
+        String pwdCharset = this.properties.get(PropertyKey.passwordCharacterEncoding);
         return pwdCharset == null ? this.handshakeCharset : Charset.forName(pwdCharset);
     }
 
@@ -583,7 +583,7 @@ final class MySQLConnectionTask extends CommunicationTask<TaskAdjutant> implemen
             plugin = pluginMap.get(PluginUtils.getDefaultMechanism(properties));
         } else if (Sha256PasswordPlugin.PLUGIN_NAME.equals(pluginName)
                 && !useSsl
-                && properties.getProperty(PropertyKey.serverRSAPublicKeyFile) == null
+                && properties.get(PropertyKey.serverRSAPublicKeyFile) == null
                 && !properties.getOrDefault(PropertyKey.allowPublicKeyRetrieval, Boolean.class)) {
             /*
              * Fall back to default if plugin is 'sha256_password' but required conditions for this to work aren't met. If default is other than
@@ -603,7 +603,7 @@ final class MySQLConnectionTask extends CommunicationTask<TaskAdjutant> implemen
 
 
     private Map<String, String> createConnectionAttributes() {
-        String connectionStr = this.properties.getProperty(PropertyKey.connectionAttributes);
+        String connectionStr = this.properties.get(PropertyKey.connectionAttributes);
         Map<String, String> attMap = new HashMap<>();
 
         if (connectionStr != null) {
@@ -671,7 +671,7 @@ final class MySQLConnectionTask extends CommunicationTask<TaskAdjutant> implemen
                 | (env.getOrDefault(PropertyKey.allowMultiQueries, Boolean.class) ? (serverCapability & ClientProtocol.CLIENT_MULTI_STATEMENTS) : 0)
                 | (env.getOrDefault(PropertyKey.disconnectOnExpiredPasswords, Boolean.class) ? 0 : (serverCapability & ClientProtocol.CLIENT_CAN_HANDLE_EXPIRED_PASSWORD))
 
-                | (Constants.NONE.equals(env.getProperty(PropertyKey.connectionAttributes)) ? 0 : (serverCapability & ClientProtocol.CLIENT_CONNECT_ATTRS))
+                | (Constants.NONE.equals(env.get(PropertyKey.connectionAttributes)) ? 0 : (serverCapability & ClientProtocol.CLIENT_CONNECT_ATTRS))
                 | (env.getOrDefault(PropertyKey.sslMode, Enums.SslMode.class) != Enums.SslMode.DISABLED ? (serverCapability & ClientProtocol.CLIENT_SSL) : 0)
 
                 // TODO ZORO MYSQLCONNJ-437?

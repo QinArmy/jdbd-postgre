@@ -2,6 +2,7 @@ package io.jdbd.postgre.protocol.client;
 
 import io.jdbd.postgre.PgConstant;
 import io.jdbd.postgre.PgType;
+import io.jdbd.postgre.config.PgKey;
 import io.jdbd.postgre.stmt.BindBatchStmt;
 import io.jdbd.postgre.stmt.BindMultiStmt;
 import io.jdbd.postgre.stmt.BindStmt;
@@ -145,10 +146,14 @@ final class QueryCommandWriter {
 
     private final boolean hexEscapes;
 
+    private final boolean clientUtf8;
+
+
     private QueryCommandWriter(TaskAdjutant adjutant) {
         this.adjutant = adjutant;
         this.clientCharset = adjutant.clientCharset();
-        this.hexEscapes = true;
+        this.clientUtf8 = this.clientCharset.equals(StandardCharsets.UTF_8);
+        this.hexEscapes = adjutant.obtainHost().getProperties().getOrDefault(PgKey.hexEscapes, Boolean.class);
     }
 
     /**
@@ -265,7 +270,7 @@ final class QueryCommandWriter {
      * @see #writeStatement(int, PgStatement, List, ByteBuf)
      */
     private void bindNonNullParameter(final int batchIndex, BindValue bindValue, ByteBuf message)
-            throws SQLException, IOException {
+            throws SQLException {
 
         switch (bindValue.getType()) {
             case SMALLINT: {
@@ -432,7 +437,10 @@ final class QueryCommandWriter {
                 final byte[] bytes = ((String) nonNull).getBytes(this.clientCharset);
                 writeWithEscape(message, bytes, bytes.length);
             } else if (nonNull instanceof byte[]) {
-                final byte[] bytes = ((byte[]) nonNull);
+                byte[] bytes = ((byte[]) nonNull);
+                if (!this.clientUtf8) {
+                    bytes = new String(bytes, StandardCharsets.UTF_8).getBytes(this.clientCharset);
+                }
                 writeWithEscape(message, bytes, bytes.length);
             } else if (nonNull instanceof Enum) {
                 message.writeBytes(((Enum<?>) nonNull).name().getBytes(this.clientCharset));
@@ -687,12 +695,12 @@ final class QueryCommandWriter {
             final CharsetDecoder decoder;
             final CharsetEncoder encoder;
 
-            if (this.clientCharset.equals(StandardCharsets.UTF_8)) {
-                decoder = StandardCharsets.UTF_8.newDecoder();
-                encoder = this.clientCharset.newEncoder();
-            } else {
+            if (this.clientUtf8) {
                 decoder = null;
                 encoder = null;
+            } else {
+                decoder = StandardCharsets.UTF_8.newDecoder();
+                encoder = this.clientCharset.newEncoder();
             }
             while (channel.read(buffer) > 0) {
                 buffer.flip();

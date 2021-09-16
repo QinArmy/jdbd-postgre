@@ -23,13 +23,13 @@ public final class ReactorSslProviderBuilder extends AbstractSslProviderBuilder<
     @Nullable
     @Override
     protected final StoreProps getStorePropsForKey() {
-        String url = this.properties.getProperty(PgKey.keyStoreType);
+        String url = this.properties.get(PgKey.keyStoreType);
         StoreProps props;
         if (url == null) {
             props = null;
         } else {
-            props = new StoreProps(this.properties.getProperty(PgKey.keyStoreUrl)
-                    , url, this.properties.getProperty(PgKey.keyStorePassword));
+            props = new StoreProps(this.properties.get(PgKey.keyStoreUrl)
+                    , url, this.properties.get(PgKey.keyStorePassword));
         }
         return props;
     }
@@ -37,13 +37,13 @@ public final class ReactorSslProviderBuilder extends AbstractSslProviderBuilder<
     @Nullable
     @Override
     protected final StoreProps getStorePropsForTrust() {
-        String url = this.properties.getProperty(PgKey.trustStoreUrl);
+        String url = this.properties.get(PgKey.trustStoreUrl);
         StoreProps props;
         if (url == null) {
             props = null;
         } else {
-            props = new StoreProps(this.properties.getProperty(PgKey.trustStoreType)
-                    , url, this.properties.getProperty(PgKey.trustStorePassword));
+            props = new StoreProps(this.properties.get(PgKey.trustStoreType)
+                    , url, this.properties.get(PgKey.trustStorePassword));
         }
         return props;
     }

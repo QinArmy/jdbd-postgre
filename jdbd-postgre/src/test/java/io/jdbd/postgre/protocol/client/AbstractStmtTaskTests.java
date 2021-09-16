@@ -1,5 +1,6 @@
 package io.jdbd.postgre.protocol.client;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.jdbd.meta.SQLType;
 import io.jdbd.postgre.PgConstant;
 import io.jdbd.postgre.PgTestUtils;
@@ -16,6 +17,7 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.util.annotation.Nullable;
 
+import java.io.IOException;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
@@ -694,6 +696,236 @@ abstract class AbstractStmtTaskTests extends AbstractTaskTests {
 
     }
 
+    /**
+     * @see PgType#VARCHAR
+     * @see <a href="https://www.postgresql.org/docs/current/datatype-character.html"> Character Types</a>
+     */
+    final void doVarcharBindAndExtract() {
+        final String columnName = "my_varchar";
+        final long id = startId + 19;
+        // TODO validate non-hex escapes
+
+        String text;
+        byte[] array;
+
+        testType(columnName, PgType.VARCHAR, null, id);
+        text = "Army's name,\\' \\ \" ; '' ";
+        testType(columnName, PgType.VARCHAR, text, id);
+        array = text.getBytes(StandardCharsets.UTF_8);
+        testType(columnName, PgType.VARCHAR, array, id);
+
+        text = ",SET balance = balance + 999.00 ";
+        testType(columnName, PgType.VARCHAR, text, id);
+        array = text.getBytes(StandardCharsets.UTF_8);
+        testType(columnName, PgType.VARCHAR, array, id);
+
+        text = "\\047 \\134 ";
+        testType(columnName, PgType.VARCHAR, text, id);
+        array = text.getBytes(StandardCharsets.UTF_8);
+        testType(columnName, PgType.VARCHAR, array, id);
+
+    }
+
+    /**
+     * @see PgType#CHAR
+     * @see <a href="https://www.postgresql.org/docs/current/datatype-character.html"> Character Types</a>
+     */
+    final void doCharBindAndExtract() {
+        final String columnName = "my_char";
+        final long id = startId + 20;
+        // TODO validate non-hex escapes
+        final int charMaxLength = 128;
+
+        String text;
+        byte[] array;
+        int length;
+        StringBuilder builder;
+
+        testType(columnName, PgType.CHAR, null, id);
+
+        text = "Army's name,\\' \\ \" ; '' ";
+        builder = new StringBuilder(128);
+        builder.append(text);
+        length = charMaxLength - text.length();
+        for (int i = 0; i < length; i++) {
+            builder.append(' ');
+        }
+        text = builder.toString();
+
+        testType(columnName, PgType.CHAR, text, id);
+        array = text.getBytes(StandardCharsets.UTF_8);
+        testType(columnName, PgType.CHAR, array, id);
+
+        text = ",SET balance = balance + 999.00 ";
+        builder = new StringBuilder(128);
+        builder.append(text);
+        length = charMaxLength - text.length();
+        for (int i = 0; i < length; i++) {
+            builder.append(' ');
+        }
+        text = builder.toString();
+
+        testType(columnName, PgType.CHAR, text, id);
+        array = text.getBytes(StandardCharsets.UTF_8);
+        testType(columnName, PgType.CHAR, array, id);
+
+        text = "\\047 \\134 ; '";
+        builder = new StringBuilder(128);
+        builder.append(text);
+        length = charMaxLength - text.length();
+        for (int i = 0; i < length; i++) {
+            builder.append(' ');
+        }
+        text = builder.toString();
+
+        testType(columnName, PgType.CHAR, text, id);
+        array = text.getBytes(StandardCharsets.UTF_8);
+        testType(columnName, PgType.CHAR, array, id);
+
+    }
+
+    /**
+     * @see PgType#TEXT
+     * @see <a href="https://www.postgresql.org/docs/current/datatype-character.html"> Character Types</a>
+     */
+    final void doTextBindAndExtract() {
+        final String columnName = "my_text";
+        final long id = startId + 21;
+        // TODO validate non-hex escapes
+        String text;
+        byte[] array;
+
+        testType(columnName, PgType.TEXT, null, id);
+        text = "Army's name,\\' \\ \" ; '' ";
+        testType(columnName, PgType.TEXT, text, id);
+        array = text.getBytes(StandardCharsets.UTF_8);
+        testType(columnName, PgType.TEXT, array, id);
+
+        text = ",SET balance = balance + 999.00 ";
+        testType(columnName, PgType.TEXT, text, id);
+        array = text.getBytes(StandardCharsets.UTF_8);
+        testType(columnName, PgType.TEXT, array, id);
+
+        text = "\\047 \\134 ";
+        testType(columnName, PgType.TEXT, text, id);
+        array = text.getBytes(StandardCharsets.UTF_8);
+        testType(columnName, PgType.TEXT, array, id);
+
+    }
+
+    /**
+     * @see PgType#JSON
+     * @see <a href="https://www.postgresql.org/docs/current/datatype-json.html"> JSON Types</a>
+     */
+    final void doJsonBindAndExtract() throws IOException {
+        final String columnName = "my_json";
+        final long id = startId + 22;
+        // TODO validate non-hex escapes
+        String json;
+        byte[] array;
+        Map<String, Object> map;
+
+        final ObjectMapper mapper = new ObjectMapper();
+
+        testType(columnName, PgType.JSON, null, id);
+
+        map = Collections.emptyMap();
+        json = mapper.writeValueAsString(map);
+        array = json.getBytes(StandardCharsets.UTF_8);
+
+        testType(columnName, PgType.JSON, json, id);
+        testType(columnName, PgType.JSON, array, id);
+
+        json = mapper.writeValueAsString(new String[]{});
+        array = json.getBytes(StandardCharsets.UTF_8);
+
+        testType(columnName, PgType.JSON, json, id);
+        testType(columnName, PgType.JSON, array, id);
+
+
+        map = new HashMap<>();
+        map.put("id", 1L);
+        map.put("name", "Army's name,\\' \\ \" ; '' ");
+        json = mapper.writeValueAsString(map);
+        array = json.getBytes(StandardCharsets.UTF_8);
+
+        testType(columnName, PgType.JSON, json, id);
+        testType(columnName, PgType.JSON, array, id);
+
+
+        map = new HashMap<>();
+        map.put("id", 1L);
+        map.put("name", ",SET balance = balance + 999.00 ");
+        json = mapper.writeValueAsString(map);
+        array = json.getBytes(StandardCharsets.UTF_8);
+
+        testType(columnName, PgType.JSON, json, id);
+        testType(columnName, PgType.JSON, array, id);
+
+        map = new HashMap<>();
+        map.put("id", 1L);
+        map.put("name", "\\047 \\134 ");
+        json = mapper.writeValueAsString(map);
+        array = json.getBytes(StandardCharsets.UTF_8);
+
+        testType(columnName, PgType.JSON, json, id);
+        testType(columnName, PgType.JSON, array, id);
+
+    }
+
+    /**
+     * @see PgType#JSONB
+     * @see <a href="https://www.postgresql.org/docs/current/datatype-json.html"> JSON Types</a>
+     */
+    final void doJsonbBindAndExtract() throws IOException {
+        final String columnName = "my_jsonb";
+        final long id = startId + 23;
+        // TODO validate non-hex escapes
+        String json;
+        byte[] array;
+        Map<String, Object> map;
+
+        final ObjectMapper mapper = new ObjectMapper();
+
+        testType(columnName, PgType.JSONB, null, id);
+
+        map = Collections.emptyMap();
+        json = mapper.writeValueAsString(map);
+        array = json.getBytes(StandardCharsets.UTF_8);
+
+        testType(columnName, PgType.JSONB, json, id);
+        testType(columnName, PgType.JSONB, array, id);
+
+        map = new HashMap<>();
+        map.put("id", "1");
+        map.put("name", "Army's name,\\' \\ \" ; '' ");
+        json = mapper.writeValueAsString(map);
+        array = json.getBytes(StandardCharsets.UTF_8);
+
+        testType(columnName, PgType.JSONB, json, id);
+        testType(columnName, PgType.JSONB, array, id);
+
+
+        map = new HashMap<>();
+        map.put("id", "1");
+        map.put("name", ",SET balance = balance + 999.00 ");
+        json = mapper.writeValueAsString(map);
+        array = json.getBytes(StandardCharsets.UTF_8);
+
+        testType(columnName, PgType.JSONB, json, id);
+        testType(columnName, PgType.JSONB, array, id);
+
+        map = new HashMap<>();
+        map.put("id", "1");
+        map.put("name", "\\047 \\134 ");
+        json = mapper.writeValueAsString(map);
+        array = json.getBytes(StandardCharsets.UTF_8);
+
+        testType(columnName, PgType.JSONB, json, id);
+        testType(columnName, PgType.JSONB, array, id);
+
+    }
+
 
     private void testType(final String columnName, final PgType columnType
             , final @Nullable Object value, final long id) {
@@ -882,9 +1114,32 @@ abstract class AbstractStmtTaskTests extends AbstractTaskTests {
                 v = BigDecimal.valueOf(((Number) nonNull).longValue());
             }
             assertEquals(row.getNonNull(columnName, BigDecimal.class).compareTo(v), 0, columnName);
+        } else if (sqlType == PgType.JSONB) {
+            assertJsonbResult(columnName, row, nonNull);
         } else {
             assertEquals(row.get(columnName, nonNull.getClass()), nonNull, columnName);
         }
+    }
+
+    @SuppressWarnings("unchecked")
+    private void assertJsonbResult(final String columnName, final ResultRow row, final Object nonNull) {
+        final Map<String, Object> v;
+        final Map<String, Object> result;
+        try {
+            final ObjectMapper mapper = new ObjectMapper();
+            if (nonNull instanceof String) {
+                v = (Map<String, Object>) mapper.readValue((String) nonNull, Map.class);
+            } else {
+
+                byte[] bytes = (byte[]) nonNull;
+                v = (Map<String, Object>) mapper.readValue(new String(bytes, StandardCharsets.UTF_8), Map.class);
+            }
+
+            result = (Map<String, Object>) mapper.readValue(row.get(columnName, String.class), Map.class);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+        assertEquals(result, v, columnName);
     }
 
     private boolean assertDateOrTimestampSpecial(final String columnName, final ResultRow row, final Object nonNull) {

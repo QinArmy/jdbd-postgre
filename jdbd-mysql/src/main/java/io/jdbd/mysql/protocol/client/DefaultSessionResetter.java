@@ -95,7 +95,7 @@ final class DefaultSessionResetter implements SessionResetter {
      * @see #reset()
      */
     Mono<Void> executeSetSessionVariables() {
-        String pairString = this.properties.getProperty(PropertyKey.sessionVariables);
+        String pairString = this.properties.get(PropertyKey.sessionVariables);
         if (!MySQLStringUtils.hasText(pairString)) {
             return Mono.empty();
         }
@@ -245,7 +245,7 @@ final class DefaultSessionResetter implements SessionResetter {
      * @see #configSessionCharset()
      */
     private Mono<Void> configResultsCharset() {
-        final String charsetString = this.properties.getProperty(PropertyKey.characterSetResults, String.class);
+        final String charsetString = this.properties.get(PropertyKey.characterSetResults, String.class);
 
         final Charset charsetResults;
         final String command;
@@ -370,7 +370,7 @@ final class DefaultSessionResetter implements SessionResetter {
     }
 
     private Pair<CharsetMapping.MySQLCharset, Charset> obtainClientMySQLCharset() {
-        final String charsetClient = properties.getProperty(PropertyKey.characterEncoding);
+        final String charsetClient = properties.get(PropertyKey.characterEncoding);
 
         final Pair<CharsetMapping.MySQLCharset, Charset> defaultPair;
         defaultPair = new Pair<>(
@@ -402,7 +402,7 @@ final class DefaultSessionResetter implements SessionResetter {
     @Nullable
     private CharsetMapping.Collation tryGetConnectionCollation() {
 
-        String connectionCollation = this.properties.getProperty(PropertyKey.connectionCollation);
+        String connectionCollation = this.properties.get(PropertyKey.connectionCollation);
         if (!MySQLStringUtils.hasText(connectionCollation)) {
             return null;
         }
@@ -418,7 +418,7 @@ final class DefaultSessionResetter implements SessionResetter {
     @Nullable
     private CharsetMapping.CustomCollation tryGetConnectionCollationWithinCustom() {
 
-        String connectionCollation = this.properties.getProperty(PropertyKey.connectionCollation);
+        String connectionCollation = this.properties.get(PropertyKey.connectionCollation);
 
         CharsetMapping.CustomCollation customCollation = null;
 

@@ -454,11 +454,7 @@ final class PgTaskExecutor extends CommunicationTaskExecutor<TaskAdjutant> {
                         , ServerParameter.lc_monetary));
             }
             final int index = value.indexOf('.');
-            if (index < 0) {
-                throw new IllegalStateException(String.format("Server parameter %s[%s] format error."
-                        , ServerParameter.lc_monetary, value));
-            }
-            final String tag = value.substring(0, index);
+            final String tag = index < 0 ? value : value.substring(0, index);
             Locale locale = LOCALE_MAP.get(tag);
             if (locale == null) {
                 final String[] slice = tag.split("_");

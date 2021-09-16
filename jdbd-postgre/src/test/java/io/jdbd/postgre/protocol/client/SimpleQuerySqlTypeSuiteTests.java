@@ -8,6 +8,8 @@ import org.testng.annotations.Test;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+import java.io.IOException;
+
 /**
  * <p>
  * This class is test class of {@link SimpleQueryTask}.
@@ -173,5 +175,44 @@ public class SimpleQuerySqlTypeSuiteTests extends AbstractStmtTaskTests {
         doMoneyBindAndExtract();
     }
 
+    /**
+     * @see PgType#VARCHAR
+     */
+    @Test
+    public void varcharBindExtract() {
+        doVarcharBindAndExtract();
+    }
+
+    /**
+     * @see PgType#CHAR
+     */
+    @Test
+    public void charBindExtract() {
+        doCharBindAndExtract();
+    }
+
+    /**
+     * @see PgType#TEXT
+     */
+    @Test
+    public void textBindExtract() {
+        doTextBindAndExtract();
+    }
+
+    /**
+     * @see PgType#JSON
+     */
+    @Test
+    public void jsonBindExtract() throws IOException {
+        doJsonBindAndExtract();
+    }
+
+    /**
+     * @see PgType#JSONB
+     */
+    @Test
+    public void jsonbBindExtract() throws IOException {
+        doJsonbBindAndExtract();
+    }
 
 }

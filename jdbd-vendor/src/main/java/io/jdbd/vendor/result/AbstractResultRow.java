@@ -449,18 +449,25 @@ public abstract class AbstractResultRow<R extends ResultRowMeta> implements Resu
     /**
      * @see #convertNonNullValue(int, Object, Class)
      */
-    protected byte[] convertToByteArray(final int indexBaseZero, final Object sourceValue)
+    protected byte[] convertToByteArray(final int indexBaseZero, final Object nonNull)
             throws UnsupportedConvertingException {
         final byte[] value;
 
-        if (sourceValue instanceof byte[]) {
-            value = (byte[]) sourceValue;
-        } else if (sourceValue instanceof String) {
-            value = ((String) sourceValue).getBytes(obtainColumnCharset(indexBaseZero));
-        } else if (sourceValue instanceof LongBinary) {
-            LongBinary longBinary = (LongBinary) sourceValue;
+        if (nonNull instanceof byte[]) {
+            value = (byte[]) nonNull;
+        } else if (nonNull instanceof String) {
+            value = ((String) nonNull).getBytes(obtainColumnCharset(indexBaseZero));
+        } else if (nonNull instanceof LongBinary) {
+            LongBinary longBinary = (LongBinary) nonNull;
             if (longBinary.isArray()) {
                 value = longBinary.asArray();
+            } else {
+                throw createNotSupportedException(indexBaseZero, byte[].class);
+            }
+        } else if (nonNull instanceof LongString) {
+            final LongString v = (LongString) nonNull;
+            if (v.isString()) {
+                value = v.asString().getBytes(obtainColumnCharset(indexBaseZero));
             } else {
                 throw createNotSupportedException(indexBaseZero, byte[].class);
             }

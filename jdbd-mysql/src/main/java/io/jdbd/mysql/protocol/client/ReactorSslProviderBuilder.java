@@ -112,7 +112,7 @@ final class ReactorSslProviderBuilder {
 
 
     private List<String> obtainAllowedCipherSuitList() {
-        String enabledSSLCipherSuites = this.properties.getProperty(PropertyKey.enabledSSLCipherSuites);
+        String enabledSSLCipherSuites = this.properties.get(PropertyKey.enabledSSLCipherSuites);
         List<String> candidateList = MySQLStringUtils.spitAsList(enabledSSLCipherSuites, ",");
 
         if (candidateList.isEmpty()) {
@@ -138,7 +138,7 @@ final class ReactorSslProviderBuilder {
      * @return a unmodifiable list
      */
     private List<String> obtainAllowedTlsProtocolList() {
-        String enabledTLSProtocols = this.properties.getProperty(PropertyKey.enabledTLSProtocols);
+        String enabledTLSProtocols = this.properties.get(PropertyKey.enabledTLSProtocols);
         List<String> candidateList = MySQLStringUtils.spitAsList(enabledTLSProtocols, ",");
 
         if (candidateList.isEmpty()) {
@@ -162,7 +162,7 @@ final class ReactorSslProviderBuilder {
 
     private void configTrustManager(final io.netty.handler.ssl.SslContextBuilder builder) throws SQLException {
         Enums.SslMode sslMode;
-        sslMode = this.properties.getProperty(PropertyKey.sslMode, Enums.SslMode.class);
+        sslMode = this.properties.get(PropertyKey.sslMode, Enums.SslMode.class);
         final boolean verify = sslMode == Enums.SslMode.VERIFY_CA
                 || sslMode == Enums.SslMode.VERIFY_IDENTITY;
         try {
@@ -245,9 +245,9 @@ final class ReactorSslProviderBuilder {
         final Properties<PropertyKey> properties = this.properties;
         String storeUrl, storeType, storePwd;
 
-        storeUrl = properties.getProperty(storeUrlKey);
-        storeType = properties.getProperty(storeTypeKey);
-        storePwd = properties.getProperty(passwordKey);
+        storeUrl = properties.get(storeUrlKey);
+        storeType = properties.get(storeTypeKey);
+        storePwd = properties.get(passwordKey);
 
         if (!MySQLStringUtils.hasText(storeUrl)) {
             boolean useSystem = (key && properties.getOrDefault(PropertyKey.fallbackToSystemKeyStore, Boolean.class))
@@ -258,7 +258,7 @@ final class ReactorSslProviderBuilder {
                 storePwd = System.getProperty(systemPasswordKey);
             }
             if (!MySQLStringUtils.hasText(storeType)) {
-                storeType = properties.getProperty(storeTypeKey);
+                storeType = properties.get(storeTypeKey);
             }
 
         }

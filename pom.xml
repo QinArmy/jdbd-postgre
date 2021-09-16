@@ -31,7 +31,7 @@
 
         <qinarmy.common.version>1.0-SNAPSHOT</qinarmy.common.version>
 
-        <jackson.core.version>2.11.0</jackson.core.version>
+        <jackson.core.version>2.12.5</jackson.core.version>
         <jackson.module.version>2.11.0</jackson.module.version>
         <jackson.datatype.version>2.11.0</jackson.datatype.version>
 
@@ -122,6 +122,7 @@
                 <type>pom</type>
                 <scope>test</scope>
             </dependency>
+
             <dependency>
                 <groupId>dev.miku</groupId>
                 <artifactId>r2dbc-mysql</artifactId>

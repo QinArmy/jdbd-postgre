@@ -218,7 +218,7 @@ public class Sha256PasswordPlugin implements AuthenticationPlugin {
     protected static String tryLoadPublicKeyString(HostInfo<PropertyKey> hostInfo) {
 
         try {
-            String serverRSAPublicKeyPath = hostInfo.getProperties().getProperty(PropertyKey.serverRSAPublicKeyFile);
+            String serverRSAPublicKeyPath = hostInfo.getProperties().get(PropertyKey.serverRSAPublicKeyFile);
             String publicKeyString = null;
             if (serverRSAPublicKeyPath != null) {
                 publicKeyString = JdbdStreams.readAsString(Paths.get(serverRSAPublicKeyPath));

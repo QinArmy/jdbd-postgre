@@ -536,7 +536,7 @@ final class PgConnectionTask extends PgTask implements ConnectionTask {
     private List<Pair<String, String>> obtainStartUpParamList() {
         final PostgreHost host = this.adjutant.obtainHost();
         final PgServerVersion minVersion;
-        minVersion = this.properties.getProperty(PgKey.assumeMinServerVersion, PgServerVersion.class
+        minVersion = this.properties.get(PgKey.assumeMinServerVersion, PgServerVersion.class
                 , PgServerVersion.INVALID);
 
         List<Pair<String, String>> list = new ArrayList<>();
@@ -556,17 +556,17 @@ final class PgConnectionTask extends PgTask implements ConnectionTask {
             list.add(new Pair<>("extra_float_digits", "2"));
         }
         if (minVersion.compareTo(PgServerVersion.V9_4) >= 0) {
-            String replication = this.properties.getProperty(PgKey.replication);
+            String replication = this.properties.get(PgKey.replication);
             if (replication != null) {
                 list.add(new Pair<>("replication", replication));
             }
         }
 
-        final String currentSchema = this.properties.getProperty(PgKey.currentSchema);
+        final String currentSchema = this.properties.get(PgKey.currentSchema);
         if (currentSchema != null) {
             list.add(new Pair<>("search_path", currentSchema));
         }
-        final String options = this.properties.getProperty(PgKey.options);
+        final String options = this.properties.get(PgKey.options);
         if (options != null) {
             list.add(new Pair<>("search_path", options));
         }
@@ -596,7 +596,7 @@ final class PgConnectionTask extends PgTask implements ConnectionTask {
      * @see #obtainStartUpParamList()
      */
     private String getApplicationName() {
-        String applicationName = this.properties.getProperty(PgKey.ApplicationName);
+        String applicationName = this.properties.get(PgKey.ApplicationName);
         if (applicationName == null) {
             applicationName = ClientProtocol.class.getPackage().getImplementationVersion();
             if (applicationName == null) {

@@ -43,68 +43,68 @@ public final class ImmutableMapProperties<K extends IPropertyKey>
 
     @Nullable
     @Override
-    public String getProperty(K key) {
+    public String get(K key) {
         return getProperty(key.getKey());
     }
 
     @Override
-    public String getProperty(K key, String defaultValue) {
+    public String get(K key, String defaultValue) {
         return getProperty(key.getKey(), defaultValue);
     }
 
     @Override
-    public <T> T getProperty(K key, Class<T> targetType) {
+    public <T> T get(K key, Class<T> targetType) {
         return getProperty(key.getKey(), targetType);
     }
 
     @Override
-    public <T> T getProperty(K key, Class<T> targetType, T defaultValue) {
+    public <T> T get(K key, Class<T> targetType, T defaultValue) {
         return getProperty(key.getKey(), targetType, defaultValue);
     }
 
     @Override
-    public List<String> getPropertyList(K key) {
+    public List<String> getList(K key) {
         return getPropertyList(key.getKey(), String.class);
     }
 
     @Override
-    public <T> List<T> getPropertyList(K key, Class<T> targetArrayType) {
+    public <T> List<T> getList(K key, Class<T> targetArrayType) {
         return getPropertyList(key.getKey(), targetArrayType);
     }
 
     @Override
-    public <T> List<T> getPropertyList(K key, Class<T> targetArrayType, List<T> defaultList) {
+    public <T> List<T> getList(K key, Class<T> targetArrayType, List<T> defaultList) {
         return getPropertyList(key.getKey(), targetArrayType, defaultList);
     }
 
     @Override
-    public <T> Set<T> getPropertySet(K key, Class<T> targetArrayType) {
+    public <T> Set<T> getSet(K key, Class<T> targetArrayType) {
         return getPropertySet(key.getKey(), targetArrayType);
     }
 
     @Override
-    public Set<String> getPropertySet(K key) {
+    public Set<String> getSet(K key) {
         return getPropertySet(key.getKey(), String.class);
     }
 
     @Override
-    public <T> Set<T> getPropertySet(K key, Class<T> targetArrayType, Set<T> defaultSet) {
+    public <T> Set<T> getSet(K key, Class<T> targetArrayType, Set<T> defaultSet) {
         return getPropertySet(key.getKey(), targetArrayType, defaultSet);
     }
 
     @Override
-    public String getRequiredProperty(K key) throws IllegalStateException {
+    public String getNonNull(K key) throws IllegalStateException {
         return getRequiredProperty(key.getKey());
     }
 
     @Override
-    public <T> T getRequiredProperty(K key, Class<T> targetType) throws IllegalStateException {
+    public <T> T getNonNull(K key, Class<T> targetType) throws IllegalStateException {
         return getRequiredProperty(key.getKey(), targetType);
     }
 
     @Override
     public String getOrDefault(K key) throws IllegalStateException {
-        String value = getProperty(key);
+        String value = get(key);
         if (value != null) {
             return value;
         }
@@ -117,7 +117,7 @@ public final class ImmutableMapProperties<K extends IPropertyKey>
 
     @Override
     public <T> T getOrDefault(K key, Class<T> targetType) throws IllegalStateException {
-        T value = getProperty(key, targetType);
+        T value = get(key, targetType);
         if (value != null) {
             return value;
         }

@@ -113,7 +113,7 @@ public abstract class ClientProtocolFactory {
             if (serverVersion.compareTo(PgServerVersion.V9_0) >= 0) {
                 sqlGroup.add("SET extra_float_digits = 3");
 
-                final String applicationName = properties.getProperty(PgKey.ApplicationName);
+                final String applicationName = properties.get(PgKey.ApplicationName);
                 if (PgStrings.hasText(applicationName)) {
                     sqlGroup.add(String.format("SET application_name = '%s'", applicationName));
                 }

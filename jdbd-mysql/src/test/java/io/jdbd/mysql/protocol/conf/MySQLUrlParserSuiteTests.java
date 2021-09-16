@@ -132,7 +132,7 @@ public class MySQLUrlParserSuiteTests {
         Assert.assertEquals(properties.size(), 3, "host1 prop size");
         Assert.assertEquals(properties.getOrDefault(PropertyKey.sslMode, Enums.SslMode.class), Enums.SslMode.REQUIRED, " sslMode");
         Assert.assertEquals(properties.getOrDefault(PropertyKey.xdevapiSSLTrustStoreType), PropertyKey.xdevapiSSLTrustStoreType.getDefault(), "xdevapiSSLTrustStoreType");
-        Assert.assertEquals(properties.getProperty(PropertyKey.paranoid), "false", "host1 key2");
+        Assert.assertEquals(properties.get(PropertyKey.paranoid), "false", "host1 key2");
 
         Assert.assertEquals(hostInfo1.getDbName(), "army", "dbName");
 
@@ -187,7 +187,7 @@ public class MySQLUrlParserSuiteTests {
 
         Assert.assertEquals(properties.size(), 3, "host6 prop size");
 
-        Assert.assertEquals(properties.getProperty(PropertyKey.paranoid), "false", "host6 key2");
+        Assert.assertEquals(properties.get(PropertyKey.paranoid), "false", "host6 key2");
 
 
     }

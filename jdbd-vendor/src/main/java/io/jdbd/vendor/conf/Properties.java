@@ -30,7 +30,7 @@ public interface Properties<K extends IPropertyKey> {
      * @see #getRequiredProperty(String)
      */
     @Nullable
-    String getProperty(K key);
+    String get(K key);
 
     /**
      * Return the property value associated with the given key,
@@ -41,7 +41,7 @@ public interface Properties<K extends IPropertyKey> {
      * @see #getProperty(String, Class)
      * @see #getRequiredProperty(String)
      */
-    String getProperty(K key, String defaultValue);
+    String get(K key, String defaultValue);
 
     /**
      * Return the property value associated with the given key,
@@ -52,7 +52,7 @@ public interface Properties<K extends IPropertyKey> {
      * @see #getRequiredProperty(String, Class)
      */
     @Nullable
-    <T> T getProperty(K key, Class<T> targetType) throws PropertyException;
+    <T> T get(K key, Class<T> targetType) throws PropertyException;
 
     /**
      * Return the property value associated with the given key,
@@ -63,7 +63,7 @@ public interface Properties<K extends IPropertyKey> {
      * @param defaultValue the default value to return if no value is found
      * @see #getRequiredProperty(String, Class)
      */
-    <T> T getProperty(K key, Class<T> targetType, T defaultValue) throws PropertyException;
+    <T> T get(K key, Class<T> targetType, T defaultValue) throws PropertyException;
 
     /**
      * Return the property value associated with the given key,but not {@link String} ,the the property value showSQL:
@@ -74,7 +74,7 @@ public interface Properties<K extends IPropertyKey> {
      * @return a  list
      * @see #getRequiredProperty(String, Class)
      */
-    List<String> getPropertyList(K key);
+    List<String> getList(K key);
 
     /**
      * Return the property value associated with the given key,but not {@link String} ,the the property value showSQL:
@@ -86,7 +86,7 @@ public interface Properties<K extends IPropertyKey> {
      * @return a  list
      * @see #getRequiredProperty(String, Class)
      */
-    <T> List<T> getPropertyList(K key, Class<T> targetArrayType) throws PropertyException;
+    <T> List<T> getList(K key, Class<T> targetArrayType) throws PropertyException;
 
     /**
      * Return the property value associated with the given key,
@@ -98,7 +98,7 @@ public interface Properties<K extends IPropertyKey> {
      * @return a  list
      * @see #getRequiredProperty(String, Class)
      */
-    <T> List<T> getPropertyList(K key, Class<T> targetArrayType, List<T> defaultList) throws PropertyException;
+    <T> List<T> getList(K key, Class<T> targetArrayType, List<T> defaultList) throws PropertyException;
 
     /**
      * Return the property value associated with the given key,but not {@link String} ,the the property value showSQL:
@@ -110,9 +110,9 @@ public interface Properties<K extends IPropertyKey> {
      * @return a  list
      * @see #getRequiredProperty(String, Class)
      */
-    <T> Set<T> getPropertySet(K key, Class<T> targetArrayType) throws PropertyException;
+    <T> Set<T> getSet(K key, Class<T> targetArrayType) throws PropertyException;
 
-    Set<String> getPropertySet(K key);
+    Set<String> getSet(K key);
 
     /**
      * Return the property value associated with the given key,but not {@link String} ,the the property value showSQL:
@@ -125,7 +125,7 @@ public interface Properties<K extends IPropertyKey> {
      * @return a  list
      * @see #getRequiredProperty(String, Class)
      */
-    <T> Set<T> getPropertySet(K key, Class<T> targetArrayType, Set<T> defaultSet) throws PropertyException;
+    <T> Set<T> getSet(K key, Class<T> targetArrayType, Set<T> defaultSet) throws PropertyException;
 
     /**
      * Return the property value associated with the given key (never {@code null}).
@@ -133,7 +133,7 @@ public interface Properties<K extends IPropertyKey> {
      * @throws IllegalStateException if the key cannot be resolved
      * @see #getRequiredProperty(String, Class)
      */
-    String getRequiredProperty(K key) throws PropertyException;
+    String getNonNull(K key) throws PropertyException;
 
     /**
      * Return the property value associated with the given key, converted to the given
@@ -141,7 +141,7 @@ public interface Properties<K extends IPropertyKey> {
      *
      * @throws IllegalStateException if the given key cannot be resolved
      */
-    <T> T getRequiredProperty(K key, Class<T> targetType) throws PropertyException;
+    <T> T getNonNull(K key, Class<T> targetType) throws PropertyException;
 
     String getOrDefault(K key) throws PropertyException;
 

@@ -50,9 +50,9 @@ public class PostgreUrlSuiteTests {
         final Properties<PgKey> properties = host.getProperties();
         assertNotNull(properties, "properties");
 
-        assertNull(properties.getProperty(PgKey.user), "user");
-        assertNull(properties.getProperty(PgKey.password), "password");
-        assertNull(properties.getProperty(PgKey.PGDBNAME), "dbName");
+        assertNull(properties.get(PgKey.user), "user");
+        assertNull(properties.get(PgKey.password), "password");
+        assertNull(properties.get(PgKey.PGDBNAME), "dbName");
         assertEquals(properties.getOrDefault(PgKey.ssl, Boolean.class), Boolean.TRUE, "ssl");
 
         LOG.info("{} group  urlParserDefaultHostAndPort test success", Group.URL);
@@ -88,9 +88,9 @@ public class PostgreUrlSuiteTests {
         final Properties<PgKey> properties = host.getProperties();
         assertNotNull(properties, "properties");
 
-        assertNull(properties.getProperty(PgKey.user), "user");
-        assertNull(properties.getProperty(PgKey.password), "password");
-        assertNull(properties.getProperty(PgKey.PGDBNAME), "dbName");
+        assertNull(properties.get(PgKey.user), "user");
+        assertNull(properties.get(PgKey.password), "password");
+        assertNull(properties.get(PgKey.PGDBNAME), "dbName");
         assertEquals(properties.getOrDefault(PgKey.ssl, Boolean.class), Boolean.TRUE, "ssl");
 
         LOG.info("{} group  urlParserIpv6 test success", Group.URL);
@@ -125,9 +125,9 @@ public class PostgreUrlSuiteTests {
         final Properties<PgKey> properties = host.getProperties();
         assertNotNull(properties, "properties");
 
-        assertNull(properties.getProperty(PgKey.user), "user");
-        assertNull(properties.getProperty(PgKey.password), "password");
-        assertNull(properties.getProperty(PgKey.PGDBNAME), "dbName");
+        assertNull(properties.get(PgKey.user), "user");
+        assertNull(properties.get(PgKey.password), "password");
+        assertNull(properties.get(PgKey.PGDBNAME), "dbName");
         assertEquals(properties.getOrDefault(PgKey.ssl, Boolean.class), Boolean.TRUE, "ssl");
 
         LOG.info("{} group  urlParserIpv4 test success", Group.URL);
@@ -162,9 +162,9 @@ public class PostgreUrlSuiteTests {
         final Properties<PgKey> properties0 = host0.getProperties();
         assertNotNull(properties0, "properties");
 
-        assertNull(properties0.getProperty(PgKey.user), "user");
-        assertNull(properties0.getProperty(PgKey.password), "password");
-        assertNull(properties0.getProperty(PgKey.PGDBNAME), "dbName");
+        assertNull(properties0.get(PgKey.user), "user");
+        assertNull(properties0.get(PgKey.password), "password");
+        assertNull(properties0.get(PgKey.PGDBNAME), "dbName");
         assertEquals(properties0.getOrDefault(PgKey.ssl, Boolean.class), Boolean.TRUE, "ssl");
 
         // host 1
@@ -180,9 +180,9 @@ public class PostgreUrlSuiteTests {
         final Properties<PgKey> properties1 = host1.getProperties();
         assertNotNull(properties1, "properties");
 
-        assertNull(properties1.getProperty(PgKey.user), "user");
-        assertNull(properties1.getProperty(PgKey.password), "password");
-        assertNull(properties1.getProperty(PgKey.PGDBNAME), "dbName");
+        assertNull(properties1.get(PgKey.user), "user");
+        assertNull(properties1.get(PgKey.password), "password");
+        assertNull(properties1.get(PgKey.PGDBNAME), "dbName");
         assertEquals(properties1.getOrDefault(PgKey.ssl, Boolean.class), Boolean.TRUE, "ssl");
 
         // host 2
@@ -198,9 +198,9 @@ public class PostgreUrlSuiteTests {
         final Properties<PgKey> properties2 = host2.getProperties();
         assertNotNull(properties2, "properties");
 
-        assertNull(properties2.getProperty(PgKey.user), "user");
-        assertNull(properties2.getProperty(PgKey.password), "password");
-        assertNull(properties2.getProperty(PgKey.PGDBNAME), "dbName");
+        assertNull(properties2.get(PgKey.user), "user");
+        assertNull(properties2.get(PgKey.password), "password");
+        assertNull(properties2.get(PgKey.PGDBNAME), "dbName");
         assertEquals(properties2.getOrDefault(PgKey.ssl, Boolean.class), Boolean.TRUE, "ssl");
 
         // host 3
@@ -216,9 +216,9 @@ public class PostgreUrlSuiteTests {
         final Properties<PgKey> properties3 = host3.getProperties();
         assertNotNull(properties3, "properties");
 
-        assertNull(properties3.getProperty(PgKey.user), "user");
-        assertNull(properties3.getProperty(PgKey.password), "password");
-        assertNull(properties3.getProperty(PgKey.PGDBNAME), "dbName");
+        assertNull(properties3.get(PgKey.user), "user");
+        assertNull(properties3.get(PgKey.password), "password");
+        assertNull(properties3.get(PgKey.PGDBNAME), "dbName");
         assertEquals(properties3.getOrDefault(PgKey.ssl, Boolean.class), Boolean.TRUE, "ssl");
 
         LOG.info("{} group  failOverHostList test success", Group.URL);

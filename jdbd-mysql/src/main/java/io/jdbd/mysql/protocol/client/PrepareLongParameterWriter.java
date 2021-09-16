@@ -339,7 +339,7 @@ final class PrepareLongParameterWriter implements PrepareExecuteCommandWriter.Lo
      * @see #writeCharArray(ByteBuf, FluxSink, int, char[], int)
      */
     private Charset obtainClobCharset() {
-        Charset charset = this.properties.getProperty(PropertyKey.clobCharacterEncoding, Charset.class);
+        Charset charset = this.properties.get(PropertyKey.clobCharacterEncoding, Charset.class);
         if (charset == null) {
             charset = this.adjutant.obtainCharsetClient();
         }
