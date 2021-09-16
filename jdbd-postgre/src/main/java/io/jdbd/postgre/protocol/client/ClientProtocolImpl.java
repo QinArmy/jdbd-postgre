@@ -1,10 +1,7 @@
 package io.jdbd.postgre.protocol.client;
 
 import io.jdbd.ServerVersion;
-import io.jdbd.postgre.stmt.BindBatchStmt;
-import io.jdbd.postgre.stmt.BindMultiStmt;
-import io.jdbd.postgre.stmt.BindStmt;
-import io.jdbd.postgre.stmt.PrepareStmtTask;
+import io.jdbd.postgre.stmt.*;
 import io.jdbd.result.MultiResult;
 import io.jdbd.result.OrderedFlux;
 import io.jdbd.result.ResultRow;
@@ -15,22 +12,38 @@ import io.jdbd.vendor.stmt.StaticStmt;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+import java.util.Map;
 import java.util.function.Function;
 
 final class ClientProtocolImpl implements ClientProtocol {
 
-    static ClientProtocolImpl create(ConnectionManager connManager) {
-        return new ClientProtocolImpl(connManager);
+    static ClientProtocolImpl create(final ConnectionWrapper wrapper) {
+        validateParamMap(wrapper.initializedParamMap);
+        return new ClientProtocolImpl(wrapper);
+    }
+
+    private static void validateParamMap(Map<String, String> paramMap) {
+        if (paramMap.isEmpty()) {
+            throw new IllegalArgumentException("Initialized map is empty");
+        }
+        try {
+            paramMap.put("This is a no-exists key,only test.", "");
+            throw new IllegalArgumentException("Initialized map isn't unmodified map.");
+        } catch (UnsupportedOperationException e) {
+            // ok
+        }
     }
 
     private final ConnectionManager connManager;
 
     final TaskAdjutant adjutant;
 
+    private final Map<String, String> initializedParamMap;
 
-    private ClientProtocolImpl(ConnectionManager connManager) {
-        this.connManager = connManager;
+    private ClientProtocolImpl(final ConnectionWrapper wrapper) {
+        this.connManager = wrapper.connectionManager;
         this.adjutant = this.connManager.taskAdjutant();
+        this.initializedParamMap = wrapper.initializedParamMap;
     }
 
     @Override
@@ -120,14 +133,15 @@ final class ClientProtocolImpl implements ClientProtocol {
 
     @Override
     public Mono<ClientProtocol> ping(final int timeSeconds) {
-        //TODO FIX me
-        return Mono.just(this);
+        // postgre no ping message.
+        return SimpleQueryTask.query(PgStmts.stmt("SELECT 1 AS result ", timeSeconds), this.adjutant)
+                .then(Mono.just(this));
     }
 
     @Override
     public final Mono<ClientProtocol> reset() {
-        //TODO FIX me
-        return Mono.just(this);
+        return this.connManager.reset(this.initializedParamMap)
+                .thenReturn(this);
     }
 
     @Override

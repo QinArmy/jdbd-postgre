@@ -9,11 +9,12 @@ import io.jdbd.postgre.stmt.BindValue;
 import io.jdbd.postgre.syntax.PgParser;
 import io.jdbd.postgre.syntax.PgStatement;
 import io.jdbd.postgre.util.PgBinds;
+import io.jdbd.postgre.util.PgBuffers;
 import io.jdbd.postgre.util.PgExceptions;
 import io.jdbd.postgre.util.PgTimes;
+import io.jdbd.stmt.LongDataReadException;
 import io.jdbd.vendor.stmt.StaticBatchStmt;
 import io.jdbd.vendor.syntax.SQLParser;
-import io.jdbd.vendor.util.JdbdBuffers;
 import io.jdbd.vendor.util.JdbdExceptions;
 import io.netty.buffer.ByteBuf;
 import org.reactivestreams.Publisher;
@@ -23,9 +24,13 @@ import reactor.core.publisher.Mono;
 
 import java.io.IOException;
 import java.math.BigDecimal;
+import java.math.BigInteger;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.charset.Charset;
+import java.nio.charset.CharsetDecoder;
+import java.nio.charset.CharsetEncoder;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.sql.SQLException;
@@ -138,9 +143,12 @@ final class QueryCommandWriter {
 
     private final Charset clientCharset;
 
+    private final boolean hexEscapes;
+
     private QueryCommandWriter(TaskAdjutant adjutant) {
         this.adjutant = adjutant;
         this.clientCharset = adjutant.clientCharset();
+        this.hexEscapes = true;
     }
 
     /**
@@ -300,8 +308,11 @@ final class QueryCommandWriter {
                 bindNonNullToBytea(batchIndex, bindValue, message);
             }
             break;
+            case MONEY: {
+                bindNoNullToMoney(batchIndex, bindValue, message);
+            }
+            break;
             case VARCHAR:
-            case MONEY:
             case TEXT:
             case JSON:
             case JSONB:
@@ -389,84 +400,121 @@ final class QueryCommandWriter {
     }
 
 
-    private void writeSafeString(ByteBuf message, String text, final int suffixBytes) throws SQLException {
-        final byte[] bytes = text.getBytes(this.clientCharset);
-        if (message.maxWritableBytes() < (bytes.length + suffixBytes)) {
-            throw PgExceptions.tooLargeObject();
-        }
-        message.writeBytes(bytes);
-    }
-
-
     /**
      * @see #bindNonNullParameter(int, BindValue, ByteBuf)
      */
-    private void bindNonNullToString(final int stmtIndex, BindValue bindValue, ByteBuf message)
-            throws SQLException, IOException {
+    private void bindNonNullToString(final int batchIndex, BindValue bindValue, ByteBuf message)
+            throws SQLException, LongDataReadException {
         final Object nonNull = bindValue.getNonNull();
 
-        message.writeByte('E');
-        message.writeByte(QUOTE_BYTE);
-        if (nonNull instanceof String) {
-            final byte[] bytes = ((String) nonNull).getBytes(this.clientCharset);
-            writeCStyleEscape(message, bytes, bytes.length);
-        } else if (nonNull instanceof byte[]) {
-            final byte[] bytes = ((byte[]) nonNull);
-            writeCStyleEscape(message, bytes, bytes.length);
-        } else if (nonNull instanceof Enum) {
-            message.writeBytes(((Enum<?>) nonNull).name().getBytes(this.clientCharset));
-        } else if (nonNull instanceof UUID) {
-            final byte[] bytes = nonNull.toString().getBytes(this.clientCharset);
-            message.writeBytes(bytes);
-        } else if (nonNull instanceof Path) {
-            try (FileChannel channel = FileChannel.open((Path) nonNull, StandardOpenOption.READ)) {
-                final byte[] bufferArray = new byte[2048];
-                final ByteBuffer buffer = ByteBuffer.wrap(bufferArray);
-
-                while (channel.read(buffer) > 0) {
-                    buffer.flip();
-                    writeCStyleEscape(message, bufferArray, buffer.remaining());
-                    buffer.clear();
-                }
+        if (nonNull instanceof Number) {
+            message.writeByte(QUOTE_BYTE);
+            if (nonNull instanceof BigDecimal) {
+                message.writeBytes(((BigDecimal) nonNull).toPlainString().getBytes(this.clientCharset));
+            } else if (nonNull instanceof Long
+                    || nonNull instanceof Integer
+                    || nonNull instanceof Short
+                    || nonNull instanceof Byte
+                    || nonNull instanceof Double
+                    || nonNull instanceof Float
+                    || nonNull instanceof BigInteger) {
+                message.writeBytes(nonNull.toString().getBytes(this.clientCharset));
+            } else {
+                throw PgExceptions.createNotSupportBindTypeError(batchIndex, bindValue);
             }
+            message.writeByte(QUOTE_BYTE);
+        } else if (nonNull instanceof Path) {
+            writeTextPathWithEscapes(batchIndex, bindValue, message);
         } else {
-            throw PgExceptions.createNotSupportBindTypeError(stmtIndex, bindValue);
+            message.writeByte('E');
+            message.writeByte(QUOTE_BYTE);
+            if (nonNull instanceof String) {
+                final byte[] bytes = ((String) nonNull).getBytes(this.clientCharset);
+                writeWithEscape(message, bytes, bytes.length);
+            } else if (nonNull instanceof byte[]) {
+                final byte[] bytes = ((byte[]) nonNull);
+                writeWithEscape(message, bytes, bytes.length);
+            } else if (nonNull instanceof Enum) {
+                message.writeBytes(((Enum<?>) nonNull).name().getBytes(this.clientCharset));
+            } else if (nonNull instanceof UUID) {
+                final byte[] bytes = nonNull.toString().getBytes(this.clientCharset);
+                message.writeBytes(bytes);
+            } else {
+                throw PgExceptions.createNotSupportBindTypeError(batchIndex, bindValue);
+            }
+            message.writeByte(QUOTE_BYTE);
         }
-        message.writeByte(QUOTE_BYTE);
+
+
     }
+
+    /**
+     * @see #bindNonNullParameter(int, BindValue, ByteBuf)
+     * @see PgType#MONEY
+     */
+    private void bindNoNullToMoney(final int batchIndex, BindValue bindValue, ByteBuf message)
+            throws SQLException {
+        final Object nonNull = bindValue.getNonNull();
+
+        if (nonNull instanceof Number) {
+            final byte[] bytes;
+            if (nonNull instanceof BigDecimal) {
+                bytes = ((BigDecimal) nonNull).toPlainString().getBytes(this.clientCharset);
+            } else if (nonNull instanceof Long
+                    || nonNull instanceof Integer
+                    || nonNull instanceof Short
+                    || nonNull instanceof Byte
+                    || nonNull instanceof BigInteger) {
+                // not support double and float
+                bytes = nonNull.toString().getBytes(this.clientCharset);
+            } else {
+                throw PgExceptions.createNotSupportBindTypeError(batchIndex, bindValue);
+            }
+            message.writeByte(QUOTE_BYTE);
+            message.writeBytes(bytes);
+            message.writeByte(QUOTE_BYTE);
+        } else if (nonNull instanceof String) {
+            message.writeByte('E');
+            message.writeByte(QUOTE_BYTE);
+            final byte[] bytes = ((String) nonNull).getBytes(this.clientCharset);
+            writeWithEscape(message, bytes, bytes.length);
+            message.writeByte(QUOTE_BYTE);
+        } else {
+            throw PgExceptions.createNotSupportBindTypeError(batchIndex, bindValue);
+        }
+
+    }
+
 
     /**
      * @see #bindNonNullParameter(int, BindValue, ByteBuf)
      */
     private void bindNonNullToBytea(final int batchIndex, BindValue bindValue, ByteBuf message)
-            throws SQLException, IOException {
+            throws SQLException, LongDataReadException {
         final Object nonNull = bindValue.getNonNull();
 
-        message.writeByte(QUOTE_BYTE);
-        message.writeByte(BACK_SLASH_BYTE);
-        message.writeByte('x');
+        if (nonNull instanceof Path) {
+            writeBinaryPathWithEscapes(batchIndex, bindValue, message);
+            return;
+        }
 
+        final byte[] v;
         if (nonNull instanceof byte[]) {
-            final byte[] bytes = ((byte[]) nonNull);
-            if (message.maxWritableBytes() < bytes.length) {
-                throw PgExceptions.tooLargeObject();
-            }
-            message.writeBytes(JdbdBuffers.hexEscapes(true, bytes, bytes.length));
-        } else if (nonNull instanceof Path) {
-            try (FileChannel channel = FileChannel.open((Path) nonNull, StandardOpenOption.READ)) {
-                final byte[] bufferArray = new byte[2048];
-                final ByteBuffer buffer = ByteBuffer.wrap(bufferArray);
-                while (channel.read(buffer) > 0) {
-                    buffer.flip();
-                    message.writeBytes(JdbdBuffers.hexEscapes(true, bufferArray, buffer.remaining()));
-                    buffer.clear();
-                }
-            }
+            v = (byte[]) nonNull;
+        } else if (nonNull instanceof String) {
+            v = ((String) nonNull).getBytes(this.clientCharset);
         } else {
             throw PgExceptions.createNotSupportBindTypeError(batchIndex, bindValue);
         }
         message.writeByte(QUOTE_BYTE);
-
+        if (this.hexEscapes) {
+            message.writeByte(BACK_SLASH_BYTE);
+            message.writeByte('x');
+            message.writeBytes(PgBuffers.hexEscapes(true, v, v.length));
+        } else {
+            writeWithEscape(message, v, v.length);
+        }
+        message.writeByte(QUOTE_BYTE);
     }
 
 
@@ -491,6 +539,7 @@ final class QueryCommandWriter {
         }
 
     }
+
 
     /**
      * @see #bindNonNullParameter(int, BindValue, ByteBuf)
@@ -626,7 +675,98 @@ final class QueryCommandWriter {
     /**
      * @see #bindNonNullToString(int, BindValue, ByteBuf)
      */
-    private void writeCStyleEscape(ByteBuf message, final byte[] bytes, final int length) {
+    private void writeTextPathWithEscapes(final int batchIndex, BindValue bindValue, ByteBuf message) {
+        final Path path = (Path) bindValue.getNonNull();
+        try (FileChannel channel = FileChannel.open(path, StandardOpenOption.READ)) {
+            message.writeByte('E');
+            message.writeByte(QUOTE_BYTE);
+
+            final byte[] bufferArray = new byte[2048];
+            final ByteBuffer buffer = ByteBuffer.wrap(bufferArray);
+
+            final CharsetDecoder decoder;
+            final CharsetEncoder encoder;
+
+            if (this.clientCharset.equals(StandardCharsets.UTF_8)) {
+                decoder = StandardCharsets.UTF_8.newDecoder();
+                encoder = this.clientCharset.newEncoder();
+            } else {
+                decoder = null;
+                encoder = null;
+            }
+            while (channel.read(buffer) > 0) {
+                buffer.flip();
+                if (decoder == null) {
+                    writeWithEscape(message, bufferArray, buffer.remaining());
+                } else {
+                    final ByteBuffer bf = encoder.encode(decoder.decode(buffer));
+                    final byte[] encodedBytes;
+                    final int length = bf.remaining();
+                    if (bf.hasArray()) {
+                        encodedBytes = bf.array();
+                    } else {
+                        encodedBytes = new byte[length];
+                        bf.get(encodedBytes);
+                    }
+                    writeWithEscape(message, encodedBytes, length);
+                }
+                buffer.clear();
+            }
+
+            message.writeByte(QUOTE_BYTE);
+        } catch (Throwable e) {
+            String msg = String.format("batch[%s] parameter[%s] read text path[%s] occur error."
+                    , batchIndex, bindValue.getIndex(), path);
+            throw new LongDataReadException(msg, e);
+        }
+
+    }
+
+
+    /**
+     * @see #bindNonNullToBytea(int, BindValue, ByteBuf)
+     */
+    private void writeBinaryPathWithEscapes(final int batchIndex, BindValue bindValue, ByteBuf message)
+            throws LongDataReadException {
+        final Path path = (Path) bindValue.getNonNull();
+
+        try (FileChannel channel = FileChannel.open(path, StandardOpenOption.READ)) {
+
+            final boolean hexEscapes = this.hexEscapes;
+
+            message.writeByte(QUOTE_BYTE);
+            if (hexEscapes) {
+                message.writeByte(BACK_SLASH_BYTE);
+                message.writeByte('x');
+            }
+
+            final byte[] bufferArray = new byte[2048];
+            final ByteBuffer buffer = ByteBuffer.wrap(bufferArray);
+            while (channel.read(buffer) > 0) {
+                buffer.flip();
+                if (hexEscapes) {
+                    message.writeBytes(PgBuffers.hexEscapes(true, bufferArray, buffer.remaining()));
+                } else {
+                    writeWithEscape(message, bufferArray, buffer.remaining());
+                }
+                buffer.clear();
+            }
+            message.writeByte(QUOTE_BYTE);
+        } catch (Throwable e) {
+            String msg = String.format("batch[%s] parameter[%s] %s read occur error."
+                    , batchIndex, bindValue.getIndex(), path);
+            throw new LongDataReadException(msg, e);
+        }
+
+    }
+
+
+    /**
+     * @see #bindNonNullToString(int, BindValue, ByteBuf)
+     * @see #bindNonNullToBytea(int, BindValue, ByteBuf)
+     * @see #writeBinaryPathWithEscapes(int, BindValue, ByteBuf)
+     */
+    private void writeWithEscape(ByteBuf message, final byte[] bytes, final int length) {
         if (length < 0 || length > bytes.length) {
             throw new IllegalArgumentException(String.format(
                     "length[%s] and bytes.length[%s] not match.", length, bytes.length));
@@ -656,6 +796,5 @@ final class QueryCommandWriter {
         }
 
     }
-
 
 }

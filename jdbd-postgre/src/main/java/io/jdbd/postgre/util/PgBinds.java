@@ -285,6 +285,15 @@ public abstract class PgBinds extends JdbdBinds {
         final String value;
         if (nonNull instanceof BitSet) {
             value = PgStrings.bitSetToBitString((BitSet) nonNull, false);
+        } else if (nonNull instanceof Integer) {
+            final char[] bitChars = new char[32];
+            final int v = (Integer) nonNull;
+            int site = 1;
+            for (int i = 0; i < bitChars.length; i++) {
+                bitChars[i] = ((v & site) == 0) ? '0' : '1';
+                site <<= 1;
+            }
+            value = new String(bitChars);
         } else if (nonNull instanceof Long) {
             final char[] bitChars = new char[64];
             final long v = (Long) nonNull;
@@ -312,6 +321,8 @@ public abstract class PgBinds extends JdbdBinds {
         final String value;
         if (nonNull instanceof BitSet) {
             value = PgStrings.bitSetToBitString((BitSet) nonNull, false);
+        } else if (nonNull instanceof Integer) {
+            value = new StringBuilder(Integer.toBinaryString((Integer) nonNull)).reverse().toString();
         } else if (nonNull instanceof Long) {
             value = new StringBuilder(Long.toBinaryString((Long) nonNull)).reverse().toString();
         } else if (nonNull instanceof String) {
@@ -325,7 +336,6 @@ public abstract class PgBinds extends JdbdBinds {
         }
         return value;
     }
-
 
 
     public static String bindNonNullToArrayWithoutEscapes(final int batchIndex, PgType pgType, ParamValue paramValue)

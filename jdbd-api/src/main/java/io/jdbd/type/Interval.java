@@ -16,6 +16,12 @@ public final class Interval implements TemporalAmount {
 
     public static final Interval ZERO = new Interval(0, 0, 0, 0L, 0);
 
+    static final long NANOS_PER_SECOND = 1000_000_000L;
+
+    static final int SECONDS_PER_MINUTE = 60;
+
+    static final int SECONDS_PER_HOUR = 3600;
+
 
     private final int years;
 
@@ -27,15 +33,24 @@ public final class Interval implements TemporalAmount {
 
     /**
      * The number of nanoseconds in the duration, expressed as a fraction of the
-     * number of seconds. This is always positive, and never exceeds 999,999,999.
+     * number of seconds. This Math.abs(this.nano) never exceeds 999,999,999.
+     * If this.nano is negative,then this.seconds must be 0 ,it's mean {@code -0.xxx S}
      */
     private final int nano;
 
 
     private Interval(int years, int months, int days, long seconds, final int nano) {
-        if (nano < 0 || nano > 999_999_999) {
-            throw new IllegalArgumentException("nano error");
+        if (nano < 0) {
+            if (seconds != 0) {
+                throw new IllegalArgumentException("nano is negative,but seconds isn't 0");
+            }
+            if (nano < -999_999_999) {
+                throw new IllegalArgumentException(String.format("nano[%s] exceed -999,999,999", nano));
+            }
+        } else if (nano > 999_999_999) {
+            throw new IllegalArgumentException(String.format("nano[%s] exceed 999,999,999", nano));
         }
+
         this.years = years;
         this.months = months;
         this.days = days;
@@ -43,6 +58,25 @@ public final class Interval implements TemporalAmount {
         this.nano = nano;
     }
 
+    public final int getYears() {
+        return this.years;
+    }
+
+    public final int getMonths() {
+        return this.months;
+    }
+
+    public final int getDays() {
+        return this.days;
+    }
+
+    public final long getSeconds() {
+        return this.seconds;
+    }
+
+    public final int getNano() {
+        return this.nano;
+    }
 
     @Override
     public final long get(final TemporalUnit unit) {
@@ -217,39 +251,64 @@ public final class Interval implements TemporalAmount {
             builder.append(this.days)
                     .append('D');
         }
-        if ((this.seconds | this.nano) != 0) {
-            final long hours = this.seconds / 3600L, minutes = (this.seconds % 3600L) / 60L, sec = this.seconds % 60L;
-            builder.append('T');
-            if (hours != 0) {
-                builder.append(hours)
-                        .append('H');
-            }
-            if (minutes != 0) {
-                builder.append(minutes)
-                        .append('M');
-            }
-            if ((sec | this.nano) != 0) {
-                builder.append(sec);
-                if (this.nano > 0) {
-                    builder.append('.');
-                    final String n = Integer.toString(microPrecision ? (this.nano / 1000) : this.nano);
-                    final int siteCount = (microPrecision ? 6 : 9) - n.length();
-                    for (int i = 0; i < siteCount; i++) {
-                        builder.append('0');
-                    }
-                    builder.append(n);
-                }
-                builder.append('S');
-            }
-
+        if ((this.seconds | this.nano) == 0) {
+            return builder.toString();
         }
+
+        final long hours = this.seconds / SECONDS_PER_HOUR;
+        final long minutes = (this.seconds % SECONDS_PER_HOUR) / SECONDS_PER_MINUTE;
+        final long sec = this.seconds % SECONDS_PER_MINUTE;
+
+        builder.append('T');
+        if (hours != 0) {
+            builder.append(hours)
+                    .append('H');
+        }
+        if (minutes != 0) {
+            builder.append(minutes)
+                    .append('M');
+        }
+        if ((sec | this.nano) == 0) {
+            return builder.toString();
+        }
+        if (sec == 0 && (this.seconds < 0 || this.nano < 0)) {
+            builder.append('-');
+        }
+        builder.append(sec);
+        if (this.nano != 0) {
+            final int absOfNano = Math.abs(this.nano);
+            builder.append('.');
+            final String n = Integer.toString(microPrecision ? (absOfNano / 1000) : absOfNano);
+            final int siteCount = (microPrecision ? 6 : 9) - n.length();
+            for (int i = 0; i < siteCount; i++) {
+                builder.append('0');
+            }
+            int zeroIndex = n.length();
+            for (int i = n.length() - 1; i > -1; i--) {
+                if (n.charAt(i) != '0') {
+                    zeroIndex = i + 1;
+                    break;
+                }
+            }
+            builder.append(n, 0, zeroIndex);
+        }
+        builder.append('S');
         return builder.toString();
     }
 
-    public static Interval of(Period period, Duration duration) {
-        duration = duration.isNegative() ? duration.negated() : duration;
+    public static Interval of(final Period period, final Duration duration) {
+        final long seconds;
+        final int nano;
+        if (duration.isNegative()) {
+            final Duration d = duration.negated();
+            seconds = Math.negateExact(d.getSeconds());
+            nano = seconds == 0 ? (-Math.abs(d.getNano())) : d.getNano();
+        } else {
+            seconds = duration.getSeconds();
+            nano = duration.getNano();
+        }
         return create(period.getYears(), period.getMonths(), period.getDays()
-                , duration.getSeconds(), duration.getNano());
+                , seconds, nano);
     }
 
     public static Interval of(Duration duration) {
@@ -300,10 +359,33 @@ public final class Interval implements TemporalAmount {
             throw new IllegalStateException("error");
         }
 
-        long seconds = timePart[2];
-        seconds = Math.addExact(Math.multiplyExact(timePart[0], 3600L), seconds);
-        seconds = Math.addExact(Math.multiplyExact(timePart[1], 60L), seconds);
-        return create(datePart[0], datePart[1], datePart[2], seconds, (int) timePart[3]);
+        final long secOfHm; // the sum seconds of hour and minute
+        secOfHm = Math.addExact(Math.multiplyExact(timePart[0], SECONDS_PER_HOUR), Math.multiplyExact(timePart[1], SECONDS_PER_MINUTE));
+        final long secondPointLeft = timePart[2], secondPointRight = timePart[3];
+        if (secondPointRight < 0 && secondPointLeft != 0) {
+            // here bug
+            throw new IllegalStateException("parse error");
+        }
+        long seconds, nano = secondPointRight;
+        seconds = Math.addExact(secOfHm, secondPointLeft);
+
+        // @see test use case io.jdbd.type.IntervalSuiteTests.parse()
+        if (((secondPointLeft < 0 || secondPointRight < 0) ^ (secOfHm < 0))// (seconds< 0 ||  nano n < 0) representing second is negative,
+                && Math.abs(secondPointLeft) < Math.abs(secOfHm)) {
+            if (secOfHm < 0) {
+                seconds++;
+                nano = NANOS_PER_SECOND - secondPointRight;
+                nano = seconds == 0 ? (-nano) : nano; //eg: PT-2M119.9S
+            } else {//eg 1: PT2M-119.9S ; eg 2: PT2M-0.9S ;
+                seconds--;
+                nano = secondPointRight < 0 ? (NANOS_PER_SECOND + secondPointRight) : (NANOS_PER_SECOND - secondPointRight);
+            }
+        } else if ((seconds == 0 && secondPointLeft < 0) //eg: PT1M-60.9S
+                || (seconds < 0 && secondPointRight < 0)) {//eg : PT-1M-0.9S
+            // @see test use case io.jdbd.type.IntervalSuiteTests.parse()
+            nano = -secondPointRight;
+        }
+        return create(datePart[0], datePart[1], datePart[2], seconds, (int) nano);
     }
 
 
@@ -337,25 +419,39 @@ public final class Interval implements TemporalAmount {
                 }
 
             }
-            if (from < length) {
-                final int sIndex = text.indexOf('S', from);
-                if (sIndex != length - 1) {
-                    throw createCannotParseError(text, from, null);
+            if (from >= length) {
+                return quantity;
+            }
+
+            final int sIndex = text.indexOf('S', from);
+            if (sIndex != length - 1) {
+                throw createCannotParseError(text, from, null);
+            }
+            final int pointIndex = text.indexOf('.', from);
+            if (pointIndex < 0) {
+                final long temp = Long.parseLong(text.substring(from, sIndex));
+                quantity[2] = negativePrefix ? Math.negateExact(temp) : temp;
+                quantity[3] = 0L;
+            } else {
+                final long temp = Long.parseLong(text.substring(from, pointIndex));
+                final boolean isNegativeZero = temp == 0L && (negativePrefix ^ (text.charAt(from) == '-'));
+
+                quantity[2] = negativePrefix ? Math.negateExact(temp) : temp;
+                final String s = text.substring(pointIndex + 1, sIndex);
+
+                final int siteCount = microPrecision ? (6 - s.length()) : (9 - s.length());
+                if (siteCount < 0) {
+                    throw createCannotParseError(text, pointIndex + 1, null);
                 }
-                final int pointIndex = text.indexOf('.', from);
-                if (pointIndex < 0) {
-                    final long temp = Long.parseLong(text.substring(from, sIndex));
-                    quantity[2] = negativePrefix ? Math.negateExact(temp) : temp;
-                    quantity[3] = 0L;
-                } else {
-                    final long temp = Long.parseLong(text.substring(from, pointIndex));
-                    quantity[2] = negativePrefix ? Math.negateExact(temp) : temp;
-                    final long nano = Long.parseLong(text.substring(pointIndex + 1, sIndex));
-                    if (nano < 0 || (microPrecision && nano > 999_999) || (!microPrecision && nano > 999_999_999)) {
-                        throw createCannotParseError(text, pointIndex + 1, null);
-                    }
-                    quantity[3] = nano;
+                int multi = microPrecision ? 1000 : 1;
+                for (int i = 0; i < siteCount; i++) {
+                    multi *= 10;
                 }
+                final long nano = Long.parseLong(s) * multi;
+                if (nano < 0 || nano > 999_999_999) {
+                    throw createCannotParseError(text, pointIndex + 1, null);
+                }
+                quantity[3] = isNegativeZero ? (-nano) : nano;
             }
             return quantity;
         } catch (NumberFormatException | ArithmeticException e) {

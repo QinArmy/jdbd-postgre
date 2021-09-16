@@ -132,13 +132,13 @@ public class SimpleQuerySqlTypeSuiteTests extends AbstractStmtTaskTests {
         doTimeTzBindAndExtract();
     }
 
-
     /**
      * @see PgType#BIT
      */
     @Test
     public void bitBindExtract() {
-        doBitBindAndExtract();
+        doBit64BindAndExtract();
+        doBit32BindAndExtract();
     }
 
     /**
@@ -155,6 +155,22 @@ public class SimpleQuerySqlTypeSuiteTests extends AbstractStmtTaskTests {
     @Test
     public void intervalBindExtract() {
         doIntervalBindAndExtract();
+    }
+
+    /**
+     * @see PgType#BYTEA
+     */
+    @Test
+    public void byteaBindExtract() {
+        doByteaBindAndExtract();
+    }
+
+    /**
+     * @see PgType#MONEY
+     */
+    @Test
+    public void moneyBindExtract() {
+        doMoneyBindAndExtract();
     }
 
 

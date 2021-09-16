@@ -12,14 +12,11 @@ public abstract class JdbdBuffers extends BufferUtils {
     }
 
 
-    public static void writeUpperCaseHexEscapes(final ByteBuf buffer, final byte[] bytes, final int length) {
-        for (int i = 0; i < length; i++) {
-            byte b = bytes[i];
-            buffer.writeByte(UPPER_CASE_HEX_DIGITS[(b >> 4) & 0xF]); // write highBits
-            buffer.writeByte(UPPER_CASE_HEX_DIGITS[b & 0xF]);          // write lowBits
-        }
-
+    @Deprecated
+    public static void writeUpperCaseHexEscapes(final ByteBuf message, final byte[] bytes, final int length) {
+        message.writeBytes(hexEscapes(true, bytes, length));
     }
+
 
     public static void cumulateBuffer(final ByteBuffer buffer) {
         if (!buffer.hasRemaining()) {

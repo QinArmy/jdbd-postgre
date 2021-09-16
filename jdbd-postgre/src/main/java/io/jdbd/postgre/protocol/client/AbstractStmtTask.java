@@ -1,11 +1,15 @@
 package io.jdbd.postgre.protocol.client;
 
 import io.jdbd.postgre.PgType;
+import io.jdbd.postgre.stmt.BindMultiStmt;
+import io.jdbd.postgre.stmt.BindStmt;
+import io.jdbd.postgre.syntax.PgParser;
 import io.jdbd.postgre.util.PgArrays;
 import io.jdbd.postgre.util.PgExceptions;
 import io.jdbd.result.ResultRowMeta;
 import io.jdbd.vendor.result.FluxResultSink;
 import io.jdbd.vendor.result.ResultSetReader;
+import io.jdbd.vendor.stmt.SingleStmt;
 import io.jdbd.vendor.stmt.Stmt;
 import io.netty.buffer.ByteBuf;
 import org.slf4j.Logger;
@@ -36,6 +40,8 @@ abstract class AbstractStmtTask extends PgTask implements StmtTask {
     private static final Set<String> UPDATE_COMMANDS = PgArrays.asUnmodifiableSet(INSERT, "UPDATE", "DELETE");
 
     private static final String SELECT = "SELECT";
+
+    private static final String SET = "SET";
 
     final FluxResultSink sink;
 
@@ -425,6 +431,8 @@ abstract class AbstractStmtTask extends PgTask implements StmtTask {
         cumulateBuffer.readerIndex(nextMsgIndex); // avoid tail filler
 
         final ResultStateParams params = new ResultStateParams(this.adjutant.server().serverVersion());
+        final int resultIndex = resultIndexes.get();
+        params.resultIndex = resultIndex;
         final String[] tagPart = commandTag.split("\\s");
         final String command;
         if (tagPart.length > 0) {
@@ -440,6 +448,8 @@ abstract class AbstractStmtTask extends PgTask implements StmtTask {
                 final long rowCount = Long.parseLong(tagPart[1]);
                 params.rowCount = rowCount;
                 handleSelectCommand(rowCount);
+            } else if (SET.equals(command)) {
+                handleSetCommand(resultIndex);
             }
         } else {
             command = "";
@@ -453,12 +463,36 @@ abstract class AbstractStmtTask extends PgTask implements StmtTask {
             // next is warning NoticeResponse
             params.noticeMessage = NoticeMessage.read(cumulateBuffer, clientCharset);
         }
-        params.resultIndex = resultIndexes.get();
+
 
         if (!this.isCanceled()) {
             this.sink.next(PgResultStates.create(params));
         }
         return true;
+    }
+
+    private void handleSetCommand(final int resultIndex) {
+        final Stmt stmt = this.stmt;
+        try {
+            final PgParser parser = this.adjutant.sqlParser();
+            final String sql;
+            if (stmt instanceof SingleStmt) {
+                final List<String> sqlList = parser.separateMultiStmt(((SingleStmt) stmt).getSql());
+                sql = sqlList.get(resultIndex);
+            } else if (stmt instanceof BindMultiStmt) {
+                final BindStmt bindStmt = ((BindMultiStmt) stmt).getStmtGroup().get(resultIndex);
+                sql = bindStmt.getSql();
+            } else {
+                sql = null;
+                log.debug("Unknown Stmt[{}]", stmt);
+            }
+            if (sql != null) {
+                this.adjutant.appendSetCommandParameter(parser.parseSetParameter(sql));
+            }
+        } catch (Throwable e) {
+            this.addErrorToTask(e);
+        }
+
     }
 
 

@@ -310,11 +310,15 @@ final class DefaultExtendedCommandWriter implements ExtendedCommandWriter {
      * @see <a href="https://www.postgresql.org/docs/current/protocol-message-formats.html">Sync</a>
      */
     private void appendSyncMessage(final List<ByteBuf> messageList) {
-        final ByteBuf message = getByteBufByNeedCapacity(messageList, 5);
+        writeSyncMessage(getByteBufByNeedCapacity(messageList, 5));
+    }
 
+    /**
+     * @see #appendSyncMessage(List)
+     */
+    private void writeSyncMessage(ByteBuf message) {
         message.writeByte(Messages.S);
         message.writeInt(Messages.LENGTH_BYTES); // length
-
     }
 
     /**
@@ -856,7 +860,7 @@ final class DefaultExtendedCommandWriter implements ExtendedCommandWriter {
         return nextBindGroup;
     }
 
-    private void handleBindError(ByteBuf message, Throwable error, final int batchIndex
+    private void handleBindError(final ByteBuf message, Throwable error, final int batchIndex
             , FluxSink<ByteBuf> channelSInk) {
 
         if (error instanceof IndexOutOfBoundsException
@@ -867,6 +871,12 @@ final class DefaultExtendedCommandWriter implements ExtendedCommandWriter {
         }
         if (message.refCnt() > 0) {
             message.release();
+        }
+
+        if (batchIndex > 0) {
+            final ByteBuf syncMessage = this.adjutant.allocator().buffer(5);
+            writeSyncMessage(syncMessage);
+            channelSInk.next(syncMessage);
         }
         channelSInk.complete(); // don't emit error to netty channel
         if (batchIndex == 0) {

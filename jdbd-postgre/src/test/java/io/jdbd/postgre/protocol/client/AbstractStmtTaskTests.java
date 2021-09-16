@@ -18,6 +18,7 @@ import reactor.util.annotation.Nullable;
 
 import java.math.BigDecimal;
 import java.math.BigInteger;
+import java.nio.charset.StandardCharsets;
 import java.time.*;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
@@ -477,7 +478,7 @@ abstract class AbstractStmtTaskTests extends AbstractTaskTests {
      * @see PgType#BIT
      * @see <a href="https://www.postgresql.org/docs/current/datatype-bit.html">Bit String Types</a>
      */
-    final void doBitBindAndExtract() {
+    final void doBit64BindAndExtract() {
         final String columnName = "my_bit64";
         final long id = startId + 13;
         // bit type is fixed length.
@@ -500,10 +501,48 @@ abstract class AbstractStmtTaskTests extends AbstractTaskTests {
             testType(columnName, PgType.BIT, random.nextLong(), id);
         }
 
+
         for (int i = 0; i < 10; i++) {
             BitSet bitSet = BitSet.valueOf(new long[]{random.nextLong()});
             if (!bitSet.get(63)) {// bit type is fixed length.
                 bitSet.set(63);
+            }
+            testType(columnName, PgType.BIT, bitSet, id);
+        }
+
+    }
+
+    /**
+     * @see PgType#BIT
+     * @see <a href="https://www.postgresql.org/docs/current/datatype-bit.html">Bit String Types</a>
+     */
+    final void doBit32BindAndExtract() {
+        final String columnName = "my_bit32";
+        final long id = startId + 14;
+        // bit type is fixed length.
+        final char[] bitChars = new char[32];
+        Arrays.fill(bitChars, '0');
+        final String allZeroBits = new String(bitChars);
+        Arrays.fill(bitChars, '1');
+        final String allOneBits = new String(bitChars);
+
+
+        testType(columnName, PgType.BIT, null, id);
+
+        testType(columnName, PgType.BIT, allZeroBits, id);
+        testType(columnName, PgType.BIT, allOneBits, id);
+        testType(columnName, PgType.BIT, -1, id);
+        testType(columnName, PgType.BIT, 0, id);
+
+        final Random random = new Random();
+        for (int i = 0; i < 10; i++) {
+            testType(columnName, PgType.BIT, random.nextInt(), id);
+        }
+
+        for (int i = 0; i < 10; i++) {
+            BitSet bitSet = BitSet.valueOf(new long[]{0xFFFF_FFFFL & random.nextInt()});
+            if (!bitSet.get(31)) {// bit type is fixed length.
+                bitSet.set(31);
             }
             testType(columnName, PgType.BIT, bitSet, id);
         }
@@ -516,7 +555,7 @@ abstract class AbstractStmtTaskTests extends AbstractTaskTests {
      */
     final void doVarBitBindAndExtract() {
         final String columnName = "my_varbit_64";
-        final long id = startId + 14;
+        final long id = startId + 15;
         // bit type is fixed length.
         final char[] bitChars = new char[64];
         Arrays.fill(bitChars, '0');
@@ -535,6 +574,7 @@ abstract class AbstractStmtTaskTests extends AbstractTaskTests {
         final Random random = new Random();
         for (int i = 0; i < 10; i++) {
             testType(columnName, PgType.VARBIT, random.nextLong(), id);
+            testType(columnName, PgType.BIT, random.nextInt(), id);
         }
 
         for (int i = 0; i < 10; i++) {
@@ -550,7 +590,7 @@ abstract class AbstractStmtTaskTests extends AbstractTaskTests {
      */
     final void doIntervalBindAndExtract() {
         final String columnName = "my_interval";
-        final long id = startId + 15;
+        final long id = startId + 16;
 
         testType(columnName, PgType.INTERVAL, null, id);
 
@@ -575,6 +615,81 @@ abstract class AbstractStmtTaskTests extends AbstractTaskTests {
         testType(columnName, PgType.INTERVAL, Duration.ofDays(2).plusMillis(99999).toString(), id);
 
         testType(columnName, PgType.INTERVAL, Interval.of(Period.of(3, 8, 6), Duration.ofSeconds(3434, 999_999_999)).toString(true), id);
+
+
+        testType(columnName, PgType.INTERVAL, "P8MT98H23M22.333S", id);
+        testType(columnName, PgType.INTERVAL, "P8MT98H23M-22.333S", id);
+        testType(columnName, PgType.INTERVAL, "PT-0.999999S", id);
+        testType(columnName, PgType.INTERVAL, "PT-0.9S", id);
+
+        testType(columnName, PgType.INTERVAL, "PT0.9S", id);
+        testType(columnName, PgType.INTERVAL, "-PT0.9S", id);
+        testType(columnName, PgType.INTERVAL, "PT1M-60.9S", id);
+        testType(columnName, PgType.INTERVAL, "PT-1M-60.9S", id);
+
+        testType(columnName, PgType.INTERVAL, "PT1M60.9S", id);
+        testType(columnName, PgType.INTERVAL, "PT2M-121.9S", id);
+        testType(columnName, PgType.INTERVAL, "PT-2M121.9S", id);
+        testType(columnName, PgType.INTERVAL, "PT2M-119.9S", id);
+
+        testType(columnName, PgType.INTERVAL, "PT-2M119.9S", id);
+        testType(columnName, PgType.INTERVAL, "PT2M-119.9S", id);
+        testType(columnName, PgType.INTERVAL, "PT2M-0.9S", id);
+        //TODO postgre modify 'P-1Y1M' to 'P-11M' , report this bug?
+        // testType(columnName, PgType.INTERVAL, "P-1Y1M", id);
+
+    }
+
+    /**
+     * @see PgType#BYTEA
+     * @see <a href="https://www.postgresql.org/docs/current/datatype-binary.html">Binary data Types</a>
+     */
+    final void doByteaBindAndExtract() {
+        final String columnName = "my_bytea";
+        final long id = startId + 17;
+
+        String text;
+        byte[] array;
+
+        testType(columnName, PgType.BYTEA, null, id);
+
+        text = "Army's name,\\' \\ \" ; '' ";
+        testType(columnName, PgType.BYTEA, text, id);
+        array = text.getBytes(StandardCharsets.UTF_8);
+        testType(columnName, PgType.BYTEA, array, id);
+
+        text = ",SET balance = balance + 999.00 ";
+        testType(columnName, PgType.BYTEA, text, id);
+        array = text.getBytes(StandardCharsets.UTF_8);
+        testType(columnName, PgType.BYTEA, array, id);
+
+        text = "\\047 \\134 ";
+        testType(columnName, PgType.BYTEA, text, id);
+        array = text.getBytes(StandardCharsets.UTF_8);
+        testType(columnName, PgType.BYTEA, array, id);
+
+    }
+
+    /**
+     * @see PgType#MONEY
+     * @see <a href="https://www.postgresql.org/docs/current/datatype-money.html">Monetary Types</a>
+     */
+    final void doMoneyBindAndExtract() {
+        final String columnName = "my_money";
+        final long id = startId + 18;
+
+        testType(columnName, PgType.MONEY, null, id);
+
+        testType(columnName, PgType.MONEY, "1000.00", id);
+        testType(columnName, PgType.MONEY, BigDecimal.ZERO, id);
+        testType(columnName, PgType.MONEY, new BigDecimal("1000.00"), id);
+        testType(columnName, PgType.MONEY, 100L, id);
+
+        testType(columnName, PgType.MONEY, 100, id);
+        testType(columnName, PgType.MONEY, Short.MAX_VALUE, id);
+        testType(columnName, PgType.MONEY, Byte.MAX_VALUE, id);
+
+        testType(columnName, PgType.MONEY, BigInteger.ONE, id);
 
 
     }
@@ -736,6 +851,9 @@ abstract class AbstractStmtTaskTests extends AbstractTaskTests {
                 v = PgStrings.bitStringToBitSet((String) nonNull, false);
             } else if (nonNull instanceof Long) {
                 v = BitSet.valueOf(new long[]{(Long) nonNull});
+            } else if (nonNull instanceof Integer) {
+                final int i = (Integer) nonNull;
+                v = BitSet.valueOf(new long[]{0xFFFF_FFFFL & i});
             } else {
                 v = (BitSet) nonNull;
             }
@@ -751,8 +869,19 @@ abstract class AbstractStmtTaskTests extends AbstractTaskTests {
             } else {
                 v = (Interval) nonNull;
             }
-            boolean equal = row.getNonNull(columnName, Interval.class).equals(v, true);
-            assertTrue(equal, columnName);
+            final Interval r = row.getNonNull(columnName, Interval.class);
+            boolean equal = r.equals(v, true);
+            assertTrue(equal, String.format("column[%s] result[%s] binding[%s]", columnName, r, v));
+        } else if (sqlType == PgType.MONEY) {
+            final BigDecimal v;
+            if (nonNull instanceof String) {
+                v = new BigDecimal((String) nonNull);
+            } else if (nonNull instanceof BigInteger) {
+                v = new BigDecimal((BigInteger) nonNull);
+            } else {
+                v = BigDecimal.valueOf(((Number) nonNull).longValue());
+            }
+            assertEquals(row.getNonNull(columnName, BigDecimal.class).compareTo(v), 0, columnName);
         } else {
             assertEquals(row.get(columnName, nonNull.getClass()), nonNull, columnName);
         }

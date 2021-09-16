@@ -258,6 +258,50 @@ final class DefaultPgParser implements PgParser {
         return (Boolean) doParse(sql, Mode.CHECK_SINGLE);
     }
 
+    @Override
+    public final String parseSetParameter(final String sql) throws SQLException {
+        final char[] charArray = sql.toCharArray();
+        final int lastIndex = charArray.length - 1;
+        char ch;
+        String parameterName = null;
+        for (int i = 0; i < charArray.length; i++) {
+            ch = charArray[i];
+            if (ch == SLASH && i < lastIndex && charArray[i + 1] == STAR) {
+                // block comment.
+                i = skipBlockComment(sql, i);
+            } else if (ch == DASH && i < lastIndex && charArray[i + 1] == DASH) {
+                // line comment
+                int index = sql.indexOf('\n', i + DOUBLE_DASH_COMMENT_MARKER.length());
+                i = index > 0 ? index : charArray.length;
+            } else if (!Character.isWhitespace(ch) && sql.regionMatches(i, "SET", 0, 3)) {
+                i += 3;
+                for (; i < charArray.length; i++) {
+                    if (!Character.isWhitespace(charArray[i])) {
+                        break;
+                    }
+                }
+                final int startIndex = i;
+                for (; i < charArray.length; i++) {
+                    if (Character.isWhitespace(charArray[i])) {
+                        break;
+                    }
+                }
+                final int endIndex = i;
+                if (startIndex == endIndex) {
+                    throw new SQLException("Non-SET command");
+                }
+                parameterName = sql.substring(startIndex, endIndex);
+                break;
+            }
+
+        }
+
+        if (parameterName == null) {
+            throw new SQLException("Non-SET command");
+        }
+        return parameterName;
+    }
+
     /**
      * @see #parse(String)
      * @see #separateMultiStmt(String)

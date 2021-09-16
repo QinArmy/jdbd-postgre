@@ -22,7 +22,10 @@ public enum ServerParameter {
     // below after Postgre server 8.4 .
     IntervalStyle,
     // below after Postgre server 9.0 .
-    application_name;
+    application_name,
+
+    // below get by 'SHOW ALL' command
+    lc_monetary;
 
 
     public static boolean isOn(String boolValue) {

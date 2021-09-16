@@ -3,6 +3,7 @@ package io.jdbd.postgre;
 import io.jdbd.postgre.protocol.client.IntervalStyle;
 
 import java.time.ZoneOffset;
+import java.util.Locale;
 
 public interface Server {
 
@@ -13,6 +14,8 @@ public interface Server {
     ZoneOffset zoneOffset();
 
     IntervalStyle intervalStyle();
+
+    Locale moneyLocal();
 
 
 }

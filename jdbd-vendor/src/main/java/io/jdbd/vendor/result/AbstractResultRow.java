@@ -28,7 +28,7 @@ public abstract class AbstractResultRow<R extends ResultRowMeta> implements Resu
 
     protected R rowMeta;
 
-    private final Object[] columnValues;
+   private final Object[] columnValues;
 
     protected AbstractResultRow(R rowMeta, Object[] columnValues) {
         if (columnValues.length != rowMeta.getColumnCount()) {
@@ -485,9 +485,16 @@ public abstract class AbstractResultRow<R extends ResultRowMeta> implements Resu
             } else if (nonNull instanceof Number) {
                 value = nonNull.toString();
             } else if (nonNull instanceof LongString) {
-                LongString longString = (LongString) nonNull;
-                if (longString.isString()) {
-                    value = longString.asString();
+                final LongString v = (LongString) nonNull;
+                if (v.isString()) {
+                    value = v.asString();
+                } else {
+                    throw createNotSupportedException(indexBaseZero, String.class);
+                }
+            } else if (nonNull instanceof LongBinary) {
+                final LongBinary v = (LongBinary) nonNull;
+                if (v.isArray()) {
+                    value = new String(v.asArray(), obtainColumnCharset(indexBaseZero));
                 } else {
                     throw createNotSupportedException(indexBaseZero, String.class);
                 }

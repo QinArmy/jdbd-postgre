@@ -17,6 +17,8 @@ public interface PgParser extends SQLParser {
 
     CopyOut parseCopyOut(String sql) throws SQLException;
 
+    String parseSetParameter(String sql) throws SQLException;
+
 
     static PgParser create(Function<ServerParameter, String> paramFunction) {
         return DefaultPgParser.create(paramFunction);

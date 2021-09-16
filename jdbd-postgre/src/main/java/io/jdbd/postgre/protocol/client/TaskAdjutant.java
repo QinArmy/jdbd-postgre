@@ -53,4 +53,7 @@ interface TaskAdjutant extends ITaskAdjutant {
     Server server();
 
 
+    void appendSetCommandParameter(String parameterName);
+
+
 }

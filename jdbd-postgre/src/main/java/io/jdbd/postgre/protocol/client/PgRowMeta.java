@@ -11,7 +11,10 @@ import io.netty.buffer.ByteBuf;
 import reactor.util.annotation.Nullable;
 
 import java.sql.SQLException;
+import java.text.DecimalFormat;
+import java.text.NumberFormat;
 import java.util.*;
+import java.util.function.Supplier;
 
 /**
  * @see <a href="https://www.postgresql.org/docs/current/protocol-message-formats.html">RowDescription</a>
@@ -22,13 +25,14 @@ final class PgRowMeta implements ResultRowMeta {
      * @see <a href="https://www.postgresql.org/docs/current/protocol-message-formats.html">RowDescription</a>
      */
     static PgRowMeta read(ByteBuf message, StmtTask stmtTask) {
-        PgColumnMeta[] columnMetaArray = PgColumnMeta.read(message, stmtTask.adjutant());
-        return new PgRowMeta(stmtTask.getAndIncrementResultIndex(), columnMetaArray);
+        TaskAdjutant adjutant = stmtTask.adjutant();
+        PgColumnMeta[] columnMetaArray = PgColumnMeta.read(message, adjutant);
+        return new PgRowMeta(stmtTask.getAndIncrementResultIndex(), columnMetaArray, adjutant.server()::moneyLocal);
     }
 
     static PgRowMeta readForPrepare(ByteBuf message, TaskAdjutant adjutant) {
         PgColumnMeta[] columnMetaArray = PgColumnMeta.read(message, adjutant);
-        return new PgRowMeta(-1, columnMetaArray);
+        return new PgRowMeta(-1, columnMetaArray, adjutant.server()::moneyLocal);
     }
 
     final int resultIndex;
@@ -40,15 +44,20 @@ final class PgRowMeta implements ResultRowMeta {
     // don't need volatile
     private List<String> labelList;
 
-    private PgRowMeta(int resultIndex, final PgColumnMeta[] columnMetaArray) {
+    //if non-null,then don't invoke any setXxx() method again after constructor.
+    final DecimalFormat moneyFormat;
+
+    private PgRowMeta(int resultIndex, final PgColumnMeta[] columnMetaArray, Supplier<Locale> moneyLocal) {
         this.resultIndex = resultIndex;
         this.columnMetaArray = columnMetaArray;
 
-        if (columnMetaArray.length > 30) {
-            this.labelToIndexMap = createLabelToIndexMap(columnMetaArray);
-        } else {
+        if (columnMetaArray.length < 30) {
             this.labelToIndexMap = Collections.emptyMap();
+        } else {
+            this.labelToIndexMap = createLabelToIndexMap(columnMetaArray);
         }
+        this.moneyFormat = createMoneyFormatIfNeed(columnMetaArray, moneyLocal);
+
     }
 
     @Override
@@ -238,6 +247,24 @@ final class PgRowMeta implements ResultRowMeta {
             map = Collections.unmodifiableMap(tempMap);
         }
         return map;
+    }
+
+    @Nullable
+    private static DecimalFormat createMoneyFormatIfNeed(final PgColumnMeta[] columnMetaArray
+            , final Supplier<Locale> moneyLocal) {
+        DecimalFormat format = null;
+        for (PgColumnMeta meta : columnMetaArray) {
+            if (meta.pgType != PgType.MONEY && meta.pgType != PgType.MONEY_ARRAY) {
+                continue;
+            }
+            final NumberFormat f = NumberFormat.getCurrencyInstance(moneyLocal.get());
+            if (f instanceof DecimalFormat) {
+                format = (DecimalFormat) f;
+                format.setParseBigDecimal(true); // must be true.
+            }
+            break;
+        }
+        return format;
     }
 
 

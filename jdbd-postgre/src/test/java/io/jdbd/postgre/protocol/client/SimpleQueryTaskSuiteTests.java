@@ -71,6 +71,7 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
 
     }
 
+
     /**
      * @see SimpleQueryTask#query(StaticStmt, TaskAdjutant)
      */

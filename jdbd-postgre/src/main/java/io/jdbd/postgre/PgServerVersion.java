@@ -13,6 +13,8 @@ public final class PgServerVersion implements Comparable<PgServerVersion>, Serve
 
 
     public static final PgServerVersion INVALID = PgServerVersion.parse("0.0.0");
+
+    public static final PgServerVersion V8_1 = PgServerVersion.parse("8.1.0");
     public static final PgServerVersion V8_2 = PgServerVersion.parse("8.2.0");
     public static final PgServerVersion V8_3 = PgServerVersion.parse("8.3.0");
     public static final PgServerVersion V8_4 = PgServerVersion.parse("8.4.0");

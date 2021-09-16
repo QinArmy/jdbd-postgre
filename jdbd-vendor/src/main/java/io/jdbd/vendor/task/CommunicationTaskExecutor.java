@@ -23,6 +23,7 @@ import reactor.core.publisher.MonoSink;
 import reactor.netty.Connection;
 import reactor.netty.NettyPipeline;
 import reactor.netty.tcp.SslProvider;
+import reactor.util.annotation.Nullable;
 import reactor.util.concurrent.Queues;
 
 import java.net.InetSocketAddress;
@@ -63,6 +64,8 @@ public abstract class CommunicationTaskExecutor<T extends ITaskAdjutant> impleme
     private int packetIndex = -1;
 
     private Set<EncryptMode> encryptModes = Collections.emptySet();
+
+    private boolean urgencyTask;
 
 
     protected CommunicationTaskExecutor(Connection connection) {
@@ -198,10 +201,24 @@ public abstract class CommunicationTaskExecutor<T extends ITaskAdjutant> impleme
      */
     protected abstract boolean clearChannel(ByteBuf cumulateBuffer, Class<? extends CommunicationTask> taskClass);
 
+    @Nullable
+    protected void urgencyTaskIfNeed() {
+
+    }
+
 
     /*################################## blow private method ##################################*/
 
-    private void syncPushTask(final CommunicationTask task, final Consumer<Void> consumer) {
+    private void beforeTaskStart() {
+        this.urgencyTask = true;
+        try {
+            urgencyTaskIfNeed();
+        } finally {
+            this.urgencyTask = false;
+        }
+    }
+
+    private void syncPushTask(final CommunicationTask<?> task, final Consumer<Void> consumer) {
         if (!this.eventLoop.inEventLoop()) {
             throw new IllegalStateException("Current thread not in EventLoop.");
         }
@@ -213,7 +230,10 @@ public abstract class CommunicationTaskExecutor<T extends ITaskAdjutant> impleme
             throw new SessionCloseException("Session closed");
 
         }
-        if (this.taskQueue.offer(task)) {
+        if (this.urgencyTask && this.currentTask == null) {
+            this.currentTask = task;
+            consumer.accept(null);
+        } else if (this.taskQueue.offer(task)) {
             consumer.accept(null);
             startHeadIfNeed();
         } else {
@@ -354,9 +374,16 @@ public abstract class CommunicationTaskExecutor<T extends ITaskAdjutant> impleme
         if (currentTask != null) {
             return;
         }
+        beforeTaskStart();// maybe urgency task
+        currentTask = this.currentTask; // maybe urgency task
 
-        if ((currentTask = this.taskQueue.poll()) != null) {
-            this.currentTask = currentTask;
+        if (currentTask == null) {
+            currentTask = this.taskQueue.poll();
+            if (currentTask != null) {
+                this.currentTask = currentTask;
+            }
+        }
+        if (currentTask != null) {
             if (currentTask instanceof ConnectionTask) {
                 ((ConnectionTask) currentTask).addSsl(this::addSslHandler);
             }
