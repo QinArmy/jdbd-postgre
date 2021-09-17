@@ -1,18 +1,22 @@
 package io.jdbd.postgre.protocol.client;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.jdbd.meta.SQLType;
 import io.jdbd.postgre.PgConstant;
 import io.jdbd.postgre.PgTestUtils;
 import io.jdbd.postgre.PgType;
 import io.jdbd.postgre.stmt.BindStmt;
 import io.jdbd.postgre.stmt.BindValue;
 import io.jdbd.postgre.stmt.PgStmts;
+import io.jdbd.postgre.type.*;
 import io.jdbd.postgre.util.PgStrings;
 import io.jdbd.postgre.util.PgTimes;
 import io.jdbd.result.ResultRow;
 import io.jdbd.result.ResultStates;
 import io.jdbd.type.Interval;
+import io.jdbd.type.geo.Line;
+import io.jdbd.type.geo.LineString;
+import io.jdbd.type.geometry.Circle;
+import io.jdbd.type.geometry.Point;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.util.annotation.Nullable;
@@ -926,6 +930,203 @@ abstract class AbstractStmtTaskTests extends AbstractTaskTests {
 
     }
 
+    /**
+     * @see PgType#XML
+     * @see <a href="https://www.postgresql.org/docs/current/datatype-xml.html">XML Types</a>
+     */
+    final void doXmlBindAndExtract() {
+        final String columnName = "my_xml";
+        final long id = startId + 24;
+        String text;
+        byte[] array;
+
+        testType(columnName, PgType.XML, null, id);
+
+        text = "<foo>''name''</foo><bar>\\slash</bar>";
+        array = text.getBytes(StandardCharsets.UTF_8);
+        testType(columnName, PgType.XML, text, id);
+        testType(columnName, PgType.XML, array, id);
+
+    }
+
+    /**
+     * @see <a href="https://www.postgresql.org/docs/13/datatype-enum.html">Enumerated Types</a>
+     */
+    final void doEnumBindAndExtract() {
+        final String columnName = "my_gender";
+        final long id = startId + 25;
+
+        testType(columnName, PgType.VARCHAR, null, id);
+
+        testType(columnName, PgType.VARCHAR, Gender.FEMALE, id);
+        testType(columnName, PgType.VARCHAR, Gender.MALE, id);
+        testType(columnName, PgType.VARCHAR, Gender.UNKNOWN, id);
+
+    }
+
+    /**
+     * @see PgType#UUID
+     * @see <a href="https://www.postgresql.org/docs/current/datatype-uuid.html">UUID Types</a>
+     */
+    final void doUuidBindAndExtract() {
+        final String columnName = "my_uuid";
+        final long id = startId + 26;
+
+        testType(columnName, PgType.UUID, null, id);
+
+        testType(columnName, PgType.UUID, UUID.randomUUID(), id);
+        testType(columnName, PgType.UUID, UUID.randomUUID().toString(), id);
+
+    }
+
+    /**
+     * @see PgType#POINT
+     * @see <a href="https://www.postgresql.org/docs/current/datatype-geometric.html#id-1.5.7.16.5">Points</a>
+     */
+    final void doPointBindAndExtract() {
+        final String columnName = "my_point";
+        final long id = startId + 27;
+        String text;
+
+        testType(columnName, PgType.POINT, null, id);
+
+        text = "(0,0)";
+        testType(columnName, PgType.POINT, text, id);
+
+        text = String.format("(%s,%s)", Double.MAX_VALUE, Double.MIN_VALUE);
+        testType(columnName, PgType.POINT, text, id);
+
+    }
+
+    /**
+     * @see PgType#LINE
+     * @see <a href="https://www.postgresql.org/docs/current/datatype-geometric.html#DATATYPE-LINE">Lines</a>
+     */
+    final void doLineBindAndExtract() {
+        final String columnName = "my_line";
+        final long id = startId + 28;
+        String text;
+
+        testType(columnName, PgType.LINE, null, id);
+
+        text = "{1.0,-1.0,0.0}";
+        testType(columnName, PgType.LINE, text, id);
+
+        text = "{5.799010112459083E306,-1.0,-1.739703033737725E307}";
+        testType(columnName, PgType.LINE, text, id);
+
+    }
+
+    /**
+     * @see PgType#LINE_SEGMENT
+     * @see <a href="https://www.postgresql.org/docs/current/datatype-geometric.html#DATATYPE-LSEG">Line Segments</a>
+     */
+    final void doLineSegmentBindAndExtract() {
+        final String columnName = "my_line_segment";
+        final long id = startId + 29;
+        String text;
+
+        testType(columnName, PgType.LINE_SEGMENT, null, id);
+
+        text = "[(0,0),(1,1)]";
+        testType(columnName, PgType.LINE_SEGMENT, text, id);
+
+        text = String.format("[(34.33,%s),(44.33,%s)]", Double.MAX_VALUE, Double.MIN_VALUE);
+        testType(columnName, PgType.LINE_SEGMENT, text, id);
+
+    }
+
+    /**
+     * @see PgType#BOX
+     * @see <a href="https://www.postgresql.org/docs/current/datatype-geometric.html#id-1.5.7.16.8"> Boxes</a>
+     */
+    final void doBoxBindAndExtract() {
+        final String columnName = "my_box";
+        final long id = startId + 30;
+        String text;
+
+        testType(columnName, PgType.BOX, null, id);
+
+        text = "(0,0),(1,1)";
+        testType(columnName, PgType.BOX, text, id);
+
+        text = String.format("(3454.3,%s),(3456.334,%s)", Double.MIN_VALUE, Double.MAX_VALUE);
+        testType(columnName, PgType.BOX, text, id);
+
+    }
+
+    /**
+     * @see PgType#PATH
+     * @see <a href="https://www.postgresql.org/docs/current/datatype-geometric.html#id-1.5.7.16.9"> Paths</a>
+     */
+    final void doPathBindAndExtract() {
+        final String columnName = "my_path";
+        final long id = startId + 31;
+        String text;
+
+        testType(columnName, PgType.PATH, null, id);
+
+        text = "[(0,0),(1,1),(2,2)]";
+        testType(columnName, PgType.PATH, text, id);
+
+        text = "((0,0),(1,1),(2,2))";
+        testType(columnName, PgType.PATH, text, id);
+
+        text = String.format("[(0,%s),(1,1),(2,%s)]", Double.MAX_VALUE, Double.MIN_VALUE);
+        testType(columnName, PgType.PATH, text, id);
+
+        text = String.format("((0,%s),(1,1),(2,%s))", Double.MAX_VALUE, Double.MIN_VALUE);
+        testType(columnName, PgType.PATH, text, id);
+
+
+    }
+
+    /**
+     * @see PgType#POLYGON
+     * @see <a href="https://www.postgresql.org/docs/current/datatype-geometric.html#DATATYPE-POLYGON"> Polygons</a>
+     */
+    final void doPolygonBindAndExtract() {
+        final String columnName = "my_polygon";
+        final long id = startId + 32;
+        String text;
+
+        testType(columnName, PgType.POLYGON, null, id);
+
+        text = "((0,0),(1,1),(2,2))";
+        testType(columnName, PgType.POLYGON, text, id);
+
+        text = String.format("((0,%s),(1,1),(2,%s))", Double.MAX_VALUE, Double.MIN_VALUE);
+        testType(columnName, PgType.POLYGON, text, id);
+
+    }
+
+    /**
+     * @see PgType#CIRCLE
+     * @see <a href="https://www.postgresql.org/docs/current/datatype-geometric.html#DATATYPE-CIRCLE"> Circles</a>
+     */
+    final void doCircleBindAndExtract() {
+        final String columnName = "my_circles";
+        final long id = startId + 33;
+        String text;
+
+        testType(columnName, PgType.CIRCLE, null, id);
+
+        text = "<(0,0),5.3>";
+        testType(columnName, PgType.CIRCLE, text, id);
+
+        text = String.format("<(%s,%s),8.8>", Double.MIN_VALUE, Double.MAX_VALUE);
+        testType(columnName, PgType.CIRCLE, text, id);
+
+    }
+
+    /**
+     * @see PgType#CIDR
+     * @see <a href="https://www.postgresql.org/docs/current/datatype-net-types.html"> Network Address Types</a>
+     */
+    final void doCidrBindAndExtract() {
+
+    }
+
 
     private void testType(final String columnName, final PgType columnType
             , final @Nullable Object value, final long id) {
@@ -989,136 +1190,263 @@ abstract class AbstractStmtTaskTests extends AbstractTaskTests {
      * @see #testType(String, PgType, Object, long)
      */
     private void assertTestResult(final String columnName, final ResultRow row, final Object nonNull) {
-        final SQLType sqlType = row.getRowMeta().getSQLType(columnName);
-        final Class<?> javaType = sqlType.javaType();
-        if (javaType == BigDecimal.class && nonNull instanceof String) {
-            final BigDecimal v = new BigDecimal((String) nonNull);
-            final BigDecimal result = row.getNonNull(columnName, BigDecimal.class);
-            assertEquals(result.compareTo(v), 0, columnName);
-        } else if (javaType == Double.class && nonNull instanceof String) {
-            final double v = Double.parseDouble((String) nonNull);
-            assertEquals(row.get(columnName, Double.class), Double.valueOf(v), columnName);
-        } else if (javaType == Float.class && nonNull instanceof String) {
-            final float v = Float.parseFloat((String) nonNull);
-            assertEquals(row.get(columnName, Float.class), Float.valueOf(v), columnName);
-        } else if (nonNull instanceof BigDecimal) {
-            final BigDecimal v = (BigDecimal) nonNull;
-            final BigDecimal result = row.getNonNull(columnName, BigDecimal.class);
-            assertEquals(result.compareTo(v), 0, columnName);
-        } else if (javaType == Boolean.class && nonNull instanceof String) {
-            final String v = (String) nonNull;
-            final boolean bindValue;
-            if (v.equalsIgnoreCase(PgConstant.TRUE)
-                    || v.equalsIgnoreCase("T")) {
-                bindValue = true;
-            } else if (v.equalsIgnoreCase(PgConstant.FALSE)
-                    || v.equalsIgnoreCase("F")) {
-                bindValue = false;
-            } else {
-                throw new IllegalArgumentException(String.format("value[%s] error.", nonNull));
-            }
-            assertEquals(row.get(columnName, Boolean.class), Boolean.valueOf(bindValue), columnName);
-        } else if (javaType == LocalDate.class) {
-            final LocalDate v;
-            if (nonNull instanceof String) {
-                if (assertDateOrTimestampSpecial(columnName, row, nonNull)) {
-                    return;
+        final PgType sqlType = (PgType) row.getRowMeta().getSQLType(columnName);
+        switch (sqlType) {
+            case SMALLINT:
+            case INTEGER:
+            case BIGINT: {
+                final Long v;
+                if (nonNull instanceof String) {
+                    v = Long.parseLong((String) nonNull);
+                } else if (nonNull instanceof Boolean) {
+                    v = (Boolean) nonNull ? 1L : 0L;
+                } else {
+                    v = ((Number) nonNull).longValue();
                 }
-                v = LocalDate.parse((String) nonNull, DateTimeFormatter.ISO_LOCAL_DATE);
-            } else {
-                v = (LocalDate) nonNull;
+                assertEquals(row.get(columnName, Long.class), v, columnName);
             }
-            assertEquals(row.get(columnName, LocalDate.class), v, columnName);
-        } else if (javaType == LocalTime.class) {
-            final LocalTime v;
-            if (nonNull instanceof String) {
-                v = LocalTime.parse((String) nonNull, PgTimes.ISO_LOCAL_TIME_FORMATTER);
-            } else {
-                v = (LocalTime) nonNull;
-            }
-            // database possibly round
-            final long intervalMicro = ChronoUnit.MICROS.between(v, row.getNonNull(columnName, LocalTime.class));
-            assertTrue(intervalMicro == 0 || intervalMicro == 1, columnName);
-        } else if (javaType == OffsetTime.class) {
-            final OffsetTime v;
-            if (nonNull instanceof String) {
-                v = OffsetTime.parse((String) nonNull, PgTimes.ISO_OFFSET_TIME_FORMATTER);
-            } else {
-                v = (OffsetTime) nonNull;
-            }
-            // database possibly round
-            final long intervalMicro = ChronoUnit.MICROS.between(v, row.getNonNull(columnName, OffsetTime.class));
-            assertTrue(intervalMicro == 0 || intervalMicro == 1, columnName);
-        } else if (javaType == LocalDateTime.class) {
-            final LocalDateTime v;
-            if (nonNull instanceof String) {
-                if (assertDateOrTimestampSpecial(columnName, row, nonNull)) {
-                    return;
+            break;
+            case DECIMAL: {
+                final BigDecimal v;
+                if (nonNull instanceof String) {
+                    v = new BigDecimal((String) nonNull);
+                } else if (nonNull instanceof BigDecimal) {
+                    v = (BigDecimal) nonNull;
+                } else if (nonNull instanceof BigInteger) {
+                    v = new BigDecimal((BigInteger) nonNull);
+                } else if (nonNull instanceof Boolean) {
+                    v = (Boolean) nonNull ? BigDecimal.ONE : BigDecimal.ZERO;
+                } else {
+                    v = BigDecimal.valueOf(((Number) nonNull).longValue());
                 }
-                v = LocalDateTime.parse((String) nonNull, PgTimes.ISO_LOCAL_DATETIME_FORMATTER);
-            } else {
-                v = (LocalDateTime) nonNull;
+                final BigDecimal result = row.getNonNull(columnName, BigDecimal.class);
+                assertEquals(result.compareTo(v), 0, columnName);
             }
-            // database possibly round
-            final long intervalMicro = ChronoUnit.MICROS.between(v, row.getNonNull(columnName, LocalDateTime.class));
-            assertTrue(intervalMicro == 0 || intervalMicro == 1, columnName);
-        } else if (javaType == OffsetDateTime.class) {
-            final OffsetDateTime v;
-            if (nonNull instanceof String) {
-                if (assertDateOrTimestampSpecial(columnName, row, nonNull)) {
-                    return;
+            break;
+            case DOUBLE: {
+                final Double v;
+                if (nonNull instanceof String) {
+                    v = Double.parseDouble((String) nonNull);
+                } else if (nonNull instanceof Boolean) {
+                    v = (Boolean) nonNull ? 1.0D : 0.0D;
+                } else {
+                    v = ((Number) nonNull).doubleValue();
                 }
-                v = OffsetDateTime.parse((String) nonNull, PgTimes.ISO_OFFSET_DATETIME_FORMATTER);
-            } else if (nonNull instanceof ZonedDateTime) {
-                v = ((ZonedDateTime) nonNull).toOffsetDateTime();
-            } else {
-                v = (OffsetDateTime) nonNull;
+                assertEquals(row.get(columnName, Double.class), v, columnName);
             }
-            // database possibly round
-            final long intervalMicro = ChronoUnit.MICROS.between(v, row.getNonNull(columnName, OffsetDateTime.class));
-            assertTrue(intervalMicro == 0 || intervalMicro == 1, columnName);
-        } else if (javaType == BitSet.class) {
-            final BitSet v;
-            if (nonNull instanceof String) {
-                v = PgStrings.bitStringToBitSet((String) nonNull, false);
-            } else if (nonNull instanceof Long) {
-                v = BitSet.valueOf(new long[]{(Long) nonNull});
-            } else if (nonNull instanceof Integer) {
-                final int i = (Integer) nonNull;
-                v = BitSet.valueOf(new long[]{0xFFFF_FFFFL & i});
-            } else {
-                v = (BitSet) nonNull;
+            break;
+            case REAL: {
+                final Float v;
+                if (nonNull instanceof String) {
+                    v = Float.parseFloat((String) nonNull);
+                } else if (nonNull instanceof Boolean) {
+                    v = (Boolean) nonNull ? 1.0F : 0.0F;
+                } else {
+                    v = ((Number) nonNull).floatValue();
+                }
+                assertEquals(row.get(columnName, Float.class), v, columnName);
             }
-            assertEquals(row.get(columnName, BitSet.class), v, columnName);
-        } else if (sqlType == PgType.INTERVAL) {
-            final Interval v;
-            if (nonNull instanceof String) {
-                v = Interval.parse((String) nonNull);
-            } else if (nonNull instanceof Duration) {
-                v = Interval.of((Duration) nonNull);
-            } else if (nonNull instanceof Period) {
-                v = Interval.of((Period) nonNull);
-            } else {
-                v = (Interval) nonNull;
+            break;
+            case BOOLEAN: {
+                final boolean bindValue;
+                if (nonNull instanceof String) {
+                    final String v = (String) nonNull;
+                    if (v.equalsIgnoreCase(PgConstant.TRUE)
+                            || v.equalsIgnoreCase("T")) {
+                        bindValue = true;
+                    } else if (v.equalsIgnoreCase(PgConstant.FALSE)
+                            || v.equalsIgnoreCase("F")) {
+                        bindValue = false;
+                    } else {
+                        throw new IllegalArgumentException(String.format("value[%s] error.", nonNull));
+                    }
+                } else if (nonNull instanceof Boolean) {
+                    bindValue = (Boolean) nonNull;
+                } else {
+                    bindValue = ((Number) nonNull).longValue() == 1L;
+                }
+                assertEquals(row.get(columnName, Boolean.class), Boolean.valueOf(bindValue), columnName);
             }
-            final Interval r = row.getNonNull(columnName, Interval.class);
-            boolean equal = r.equals(v, true);
-            assertTrue(equal, String.format("column[%s] result[%s] binding[%s]", columnName, r, v));
-        } else if (sqlType == PgType.MONEY) {
-            final BigDecimal v;
-            if (nonNull instanceof String) {
-                v = new BigDecimal((String) nonNull);
-            } else if (nonNull instanceof BigInteger) {
-                v = new BigDecimal((BigInteger) nonNull);
-            } else {
-                v = BigDecimal.valueOf(((Number) nonNull).longValue());
+            break;
+            case DATE: {
+                final LocalDate v;
+                if (nonNull instanceof String) {
+                    if (assertDateOrTimestampSpecial(columnName, row, nonNull)) {
+                        return;
+                    }
+                    v = LocalDate.parse((String) nonNull, DateTimeFormatter.ISO_LOCAL_DATE);
+                } else {
+                    v = (LocalDate) nonNull;
+                }
+                assertEquals(row.get(columnName, LocalDate.class), v, columnName);
             }
-            assertEquals(row.getNonNull(columnName, BigDecimal.class).compareTo(v), 0, columnName);
-        } else if (sqlType == PgType.JSONB) {
-            assertJsonbResult(columnName, row, nonNull);
-        } else {
-            assertEquals(row.get(columnName, nonNull.getClass()), nonNull, columnName);
+            break;
+            case TIME: {
+                final LocalTime v;
+                if (nonNull instanceof String) {
+                    v = LocalTime.parse((String) nonNull, PgTimes.ISO_LOCAL_TIME_FORMATTER);
+                } else {
+                    v = (LocalTime) nonNull;
+                }
+                // database possibly round
+                final long intervalMicro = ChronoUnit.MICROS.between(v, row.getNonNull(columnName, LocalTime.class));
+                final int count = 6 - row.getRowMeta().getScale(columnName);
+                int multi = 1;
+                for (int i = 0; i < count; i++) {
+                    multi *= 10;
+                }
+                assertTrue(intervalMicro >= 0 && intervalMicro <= multi, columnName);
+            }
+            break;
+            case TIMETZ: {
+                final OffsetTime v;
+                if (nonNull instanceof String) {
+                    v = OffsetTime.parse((String) nonNull, PgTimes.ISO_OFFSET_TIME_FORMATTER);
+                } else {
+                    v = (OffsetTime) nonNull;
+                }
+                // database possibly round
+                final long intervalMicro = ChronoUnit.MICROS.between(v, row.getNonNull(columnName, OffsetTime.class));
+                final int count = 6 - row.getRowMeta().getScale(columnName);
+                int multi = 1;
+                for (int i = 0; i < count; i++) {
+                    multi *= 10;
+                }
+                assertTrue(intervalMicro >= 0 && intervalMicro <= multi, columnName);
+            }
+            break;
+            case TIMESTAMP: {
+                final LocalDateTime v;
+                if (nonNull instanceof String) {
+                    if (assertDateOrTimestampSpecial(columnName, row, nonNull)) {
+                        return;
+                    }
+                    v = LocalDateTime.parse((String) nonNull, PgTimes.ISO_LOCAL_DATETIME_FORMATTER);
+                } else {
+                    v = (LocalDateTime) nonNull;
+                }
+                // database possibly round
+                final long intervalMicro = ChronoUnit.MICROS.between(v, row.getNonNull(columnName, LocalDateTime.class));
+                final int count = 6 - row.getRowMeta().getScale(columnName);
+                int multi = 1;
+                for (int i = 0; i < count; i++) {
+                    multi *= 10;
+                }
+                assertTrue(intervalMicro >= 0 && intervalMicro <= multi, columnName);
+            }
+            break;
+            case TIMESTAMPTZ: {
+                final OffsetDateTime v;
+                if (nonNull instanceof String) {
+                    if (assertDateOrTimestampSpecial(columnName, row, nonNull)) {
+                        return;
+                    }
+                    v = OffsetDateTime.parse((String) nonNull, PgTimes.ISO_OFFSET_DATETIME_FORMATTER);
+                } else if (nonNull instanceof ZonedDateTime) {
+                    v = ((ZonedDateTime) nonNull).toOffsetDateTime();
+                } else {
+                    v = (OffsetDateTime) nonNull;
+                }
+                // database possibly round
+                final long intervalMicro = ChronoUnit.MICROS.between(v, row.getNonNull(columnName, OffsetDateTime.class));
+                final int count = 6 - row.getRowMeta().getScale(columnName);
+                int multi = 1;
+                for (int i = 0; i < count; i++) {
+                    multi *= 10;
+                }
+                assertTrue(intervalMicro >= 0 && intervalMicro <= multi, columnName);
+            }
+            break;
+            case BIT:
+            case VARBIT: {
+                final BitSet v;
+                if (nonNull instanceof String) {
+                    v = PgStrings.bitStringToBitSet((String) nonNull, false);
+                } else if (nonNull instanceof Long) {
+                    v = BitSet.valueOf(new long[]{(Long) nonNull});
+                } else if (nonNull instanceof Integer) {
+                    final int i = (Integer) nonNull;
+                    v = BitSet.valueOf(new long[]{0xFFFF_FFFFL & i});
+                } else {
+                    v = (BitSet) nonNull;
+                }
+                assertEquals(row.get(columnName, BitSet.class), v, columnName);
+            }
+            break;
+            case INTERVAL: {
+                final Interval v;
+                if (nonNull instanceof String) {
+                    v = Interval.parse((String) nonNull);
+                } else if (nonNull instanceof Duration) {
+                    v = Interval.of((Duration) nonNull);
+                } else if (nonNull instanceof Period) {
+                    v = Interval.of((Period) nonNull);
+                } else {
+                    v = (Interval) nonNull;
+                }
+                final Interval r = row.getNonNull(columnName, Interval.class);
+                boolean equal = r.equals(v, true);
+                assertTrue(equal, String.format("column[%s] result[%s] binding[%s]", columnName, r, v));
+            }
+            break;
+            case MONEY: {
+                final BigDecimal v;
+                if (nonNull instanceof String) {
+                    v = new BigDecimal((String) nonNull);
+                } else if (nonNull instanceof BigInteger) {
+                    v = new BigDecimal((BigInteger) nonNull);
+                } else {
+                    v = BigDecimal.valueOf(((Number) nonNull).longValue());
+                }
+                assertEquals(row.getNonNull(columnName, BigDecimal.class).compareTo(v), 0, columnName);
+            }
+            break;
+            case JSONB: {
+                assertJsonbResult(columnName, row, nonNull);
+            }
+            break;
+            case BOX: {
+                final PgBox v = PgGeometries.box(nonNull.toString());
+                assertEquals(row.get(columnName, PgBox.class), v, columnName);
+            }
+            break;
+            case POINT: {
+                final Point v = PgGeometries.point(nonNull.toString());
+                assertEquals(row.get(columnName, Point.class), v, columnName);
+            }
+            break;
+            case LINE: {
+                final PgLine v = PgGeometries.line(nonNull.toString());
+                assertEquals(row.get(columnName, PgLine.class), v, columnName);
+            }
+            break;
+            case LINE_SEGMENT: {
+                final Line v = PgGeometries.lineSegment(nonNull.toString());
+                assertEquals(row.get(columnName, Line.class), v, columnName);
+            }
+            break;
+            case PATH: {
+                final LineString v = PgGeometries.path(nonNull.toString());
+                assertEquals(row.get(columnName, LineString.class), v, columnName);
+            }
+            break;
+            case POLYGON: {
+                final PgPolygon v = PgGeometries.polygon(nonNull.toString());
+                assertEquals(row.get(columnName, PgPolygon.class), v, columnName);
+            }
+            break;
+            case CIRCLE: {
+                final Circle v = PgGeometries.circle(nonNull.toString());
+                assertEquals(row.get(columnName, Circle.class), v, columnName);
+            }
+            break;
+            default: {
+                assertEquals(row.get(columnName, nonNull.getClass()), nonNull, columnName);
+            }
+
         }
+
+
     }
 
     @SuppressWarnings("unchecked")

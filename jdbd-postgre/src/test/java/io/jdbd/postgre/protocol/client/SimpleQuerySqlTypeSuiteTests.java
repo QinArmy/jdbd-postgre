@@ -215,4 +215,82 @@ public class SimpleQuerySqlTypeSuiteTests extends AbstractStmtTaskTests {
         doJsonbBindAndExtract();
     }
 
+    /**
+     * @see PgType#XML
+     */
+    @Test
+    public void xmlBindAndExtract() {
+        doXmlBindAndExtract();
+    }
+
+    @Test
+    public void enumBindAndExtract() {
+        doEnumBindAndExtract();
+    }
+
+    /**
+     * @see PgType#UUID
+     */
+    @Test
+    public void uuidBindAndExtract() {
+        doUuidBindAndExtract();
+    }
+
+    /**
+     * @see PgType#POINT
+     */
+    @Test
+    public void pointBindAndExtract() {
+        doPointBindAndExtract();
+    }
+
+    /**
+     * @see PgType#LINE
+     */
+    @Test
+    public void lineBindAndExtract() {
+        doLineBindAndExtract();
+    }
+
+    /**
+     * @see PgType#LINE_SEGMENT
+     */
+    @Test
+    public void lineSegmentBindAndExtract() {
+        doLineSegmentBindAndExtract();
+    }
+
+    /**
+     * @see PgType#BOX
+     */
+    @Test
+    public void boxBindAndExtract() {
+        doBoxBindAndExtract();
+    }
+
+    /**
+     * @see PgType#PATH
+     */
+    @Test
+    public void pathBindAndExtract() {
+        doPathBindAndExtract();
+    }
+
+    /**
+     * @see PgType#POLYGON
+     */
+    @Test
+    public void polygonBindAndExtract() {
+        doPolygonBindAndExtract();
+    }
+
+    /**
+     * @see PgType#CIRCLE
+     */
+    @Test
+    public void circleBindAndExtract() {
+        doCircleBindAndExtract();
+    }
+
+
 }

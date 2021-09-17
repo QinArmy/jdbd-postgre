@@ -70,8 +70,9 @@ final class PgPont implements Point {
         if (obj == this) {
             match = true;
         } else if (obj instanceof Point) {
-            Point p = (Point) obj;
-            match = p.getX() == this.x && p.getY() == this.y;
+            final Point p = (Point) obj;
+            match = Double.compare(p.getX(), this.x) == 0
+                    && Double.compare(p.getY(), this.y) == 0;
         } else {
             match = false;
         }

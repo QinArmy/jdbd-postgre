@@ -1,5 +1,6 @@
 package io.jdbd.postgre.type;
 
+import io.jdbd.type.geo.Line;
 import io.jdbd.type.geometry.Circle;
 import io.jdbd.type.geometry.Point;
 import io.jdbd.type.geometry.WkbType;
@@ -9,7 +10,7 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
 import reactor.core.publisher.FluxSink;
 
-import java.util.function.BiConsumer;
+import java.util.function.Consumer;
 
 public abstract class PgGeometries {
 
@@ -23,6 +24,39 @@ public abstract class PgGeometries {
      */
     public static Point point(final String textValue) {
         return PgPont.from(textValue);
+    }
+
+    /**
+     * @param value format:{a,b,c}
+     * @throws IllegalArgumentException when value format error.
+     */
+    public static PgLine line(final String value) {
+        return PgLine.from(value);
+    }
+
+    /**
+     * @param value format:[ ( x1 , y1 ) , ( x2 , y2 ) ]
+     */
+    public static Line lineSegment(final String value) {
+        return PgLineSegment.from(value);
+    }
+
+    public static PgBox box(final String value) {
+        return PgBox.from(value);
+    }
+
+    /**
+     * @param value format: [ ( x1 , y1 ) , ... , ( xn , yn ) ] or ( ( x1 , y1 ) , ... , ( xn , yn ) )
+     */
+    public static PgPath path(final String value) {
+        return PgPath.from(value);
+    }
+
+    /**
+     * @param value format: ( ( x1 , y1 ) , ... , ( xn , yn ) )
+     */
+    public static PgPolygon polygon(final String value) {
+        return PgPolygon.from(value);
     }
 
 //    /**
@@ -59,11 +93,10 @@ public abstract class PgGeometries {
         if (!textValue.startsWith("(") || !textValue.endsWith(")")) {
             sink.error(JdbdExceptions.wrap(createGeometricFormatError(textValue)));
         } else {
-            final BiConsumer<Double, Double> pointConsumer = (x, y) -> sink.next(Geometries.point(x, y));
             try {
                 // 3. read points
                 final int newIndex;
-                newIndex = PgGeometries.readPoints(textValue, 1, pointConsumer);
+                newIndex = PgGeometries.readPoints(textValue, 1, sink::next);
                 checkPgGeometricSuffix(textValue, newIndex);
                 sink.complete();
             } catch (Throwable e) {
@@ -84,14 +117,14 @@ public abstract class PgGeometries {
         }
     }
 
-    protected static BiConsumer<Double, Double> writePointWkbFunction(final boolean bigEndian, ByteBuf out) {
-        return (x, y) -> {
+    protected static Consumer<Point> writePointWkbFunction(final boolean bigEndian, ByteBuf out) {
+        return point -> {
             if (bigEndian) {
-                out.writeLong(Double.doubleToLongBits(x));
-                out.writeLong(Double.doubleToLongBits(y));
+                out.writeLong(Double.doubleToLongBits(point.getX()));
+                out.writeLong(Double.doubleToLongBits(point.getY()));
             } else {
-                out.writeLongLE(Double.doubleToLongBits(x));
-                out.writeLongLE(Double.doubleToLongBits(y));
+                out.writeLongLE(Double.doubleToLongBits(point.getX()));
+                out.writeLongLE(Double.doubleToLongBits(point.getY()));
             }
         };
     }
@@ -122,7 +155,7 @@ public abstract class PgGeometries {
                 out.writeIntLE(2);
             }
             final int newIndex, writerIndex = out.writerIndex();
-            final BiConsumer<Double, Double> pointConsumer = writePointWkbFunction(bigEndian, out);
+            final Consumer<Point> pointConsumer = writePointWkbFunction(bigEndian, out);
             newIndex = readPoints(textValue, 1, pointConsumer);
             if ((out.writerIndex() - writerIndex) != 32) {
                 throw createGeometricFormatError(textValue);
@@ -145,7 +178,7 @@ public abstract class PgGeometries {
      * @return new index of text
      */
     protected static int readPoints(final String text, final int from
-            , final BiConsumer<Double, Double> pointConsumer) {
+            , final Consumer<Point> pointConsumer) {
         final int length = text.length();
         double x, y;
         int index = from;
@@ -169,7 +202,7 @@ public abstract class PgGeometries {
             }
             x = Double.parseDouble(text.substring(leftIndex, commaIndex).trim());
             y = Double.parseDouble(text.substring(commaIndex + 1, rightIndex).trim());
-            pointConsumer.accept(x, y);
+            pointConsumer.accept(Geometries.point(x, y));
 
             index = rightIndex + 1;
             if (index >= length) {

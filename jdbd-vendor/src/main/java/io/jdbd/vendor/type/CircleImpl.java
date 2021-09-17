@@ -42,7 +42,8 @@ final class CircleImpl implements Circle {
             match = true;
         } else if (obj instanceof Circle) {
             Circle c = (Circle) obj;
-            match = this.center.equals(c.getCenter()) && this.radius == c.getRadius();
+            match = this.center.equals(c.getCenter())
+                    && Double.compare(this.radius, c.getRadius()) == 0;
         } else {
             match = false;
         }

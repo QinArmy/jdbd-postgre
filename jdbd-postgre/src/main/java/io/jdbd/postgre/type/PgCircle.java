@@ -37,14 +37,14 @@ final class PgCircle implements Circle {
         }
     }
 
-    private final String textValue;
+    private final String value;
 
     private final Point point;
 
     private final double radius;
 
-    private PgCircle(String textValue, Point point, double radius) {
-        this.textValue = textValue;
+    private PgCircle(String value, Point point, double radius) {
+        this.value = value;
         this.point = point;
         this.radius = radius;
     }
@@ -70,8 +70,9 @@ final class PgCircle implements Circle {
         if (obj == this) {
             match = true;
         } else if (obj instanceof Circle) {
-            Circle c = (Circle) obj;
-            match = this.point.equals(c.getCenter()) && this.radius == c.getRadius();
+            final Circle c = (Circle) obj;
+            match = this.point.equals(c.getCenter())
+                    && Double.compare(this.radius, c.getRadius()) == 0;
         } else {
             match = false;
         }
@@ -80,7 +81,7 @@ final class PgCircle implements Circle {
 
     @Override
     public final String toString() {
-        return this.textValue;
+        return this.value;
     }
 
 

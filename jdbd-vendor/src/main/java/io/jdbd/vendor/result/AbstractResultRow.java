@@ -28,7 +28,7 @@ public abstract class AbstractResultRow<R extends ResultRowMeta> implements Resu
 
     protected R rowMeta;
 
-   private final Object[] columnValues;
+    private final Object[] columnValues;
 
     protected AbstractResultRow(R rowMeta, Object[] columnValues) {
         if (columnValues.length != rowMeta.getColumnCount()) {
@@ -387,7 +387,7 @@ public abstract class AbstractResultRow<R extends ResultRowMeta> implements Resu
     /**
      * @see #convertNonNullValue(int, Object, Class)
      */
-    protected <T> T convertToOther(final int indexBaseZero, final Object sourceValue
+    protected <T> T convertToOther(final int indexBaseZero, final Object nonNull
             , final Class<T> targetClass) throws UnsupportedConvertingException {
         throw createNotSupportedException(indexBaseZero, targetClass);
     }
@@ -421,23 +421,25 @@ public abstract class AbstractResultRow<R extends ResultRowMeta> implements Resu
      * @see #convertNonNullValue(int, Object, Class)
      */
     @SuppressWarnings("unchecked")
-    protected <T extends Enum<T>> T convertToEnum(final int indexBaseZero, final Object sourceValue
+    protected <T extends Enum<T>> T convertToEnum(final int indexBaseZero, final Object nonNull
             , final Class<?> enumClass) throws UnsupportedConvertingException {
-        final T enumValue;
+        final T value;
         try {
             final Class<T> clazz = (Class<T>) enumClass;
-            if (sourceValue instanceof Integer && CodeEnum.class.isAssignableFrom(enumClass)) {
-                enumValue = (T) CodeEnum.resolve(enumClass, (Integer) sourceValue);
-            } else if (sourceValue instanceof String) {
-
-                enumValue = Enum.valueOf(clazz, (String) sourceValue);
-            } else if (sourceValue instanceof byte[]) {
-                String textValue = new String((byte[]) sourceValue, obtainColumnCharset(indexBaseZero));
-                enumValue = Enum.valueOf(clazz, textValue);
+            if (nonNull instanceof Integer && CodeEnum.class.isAssignableFrom(enumClass)) {
+                value = (T) CodeEnum.resolve(enumClass, (Integer) nonNull);
+                if (value == null) {
+                    throw createNotSupportedException(indexBaseZero, enumClass);
+                }
+            } else if (nonNull instanceof String) {
+                value = Enum.valueOf(clazz, (String) nonNull);
+            } else if (nonNull instanceof byte[]) {
+                String textValue = new String((byte[]) nonNull, obtainColumnCharset(indexBaseZero));
+                value = Enum.valueOf(clazz, textValue);
             } else {
                 throw createNotSupportedException(indexBaseZero, enumClass);
             }
-            return enumValue;
+            return value;
         } catch (UnsupportedConvertingException e) {
             throw e;
         } catch (Throwable e) {
@@ -489,8 +491,6 @@ public abstract class AbstractResultRow<R extends ResultRowMeta> implements Resu
                 value = new String((byte[]) nonNull, obtainColumnCharset(indexBaseZero));
             } else if (nonNull instanceof BigDecimal) {
                 value = ((BigDecimal) nonNull).toPlainString();
-            } else if (nonNull instanceof Number) {
-                value = nonNull.toString();
             } else if (nonNull instanceof LongString) {
                 final LongString v = (LongString) nonNull;
                 if (v.isString()) {
@@ -508,7 +508,7 @@ public abstract class AbstractResultRow<R extends ResultRowMeta> implements Resu
             } else if (nonNull instanceof TemporalAccessor) {
                 value = formatTemporalAccessor((TemporalAccessor) nonNull);
             } else {
-                throw createNotSupportedException(indexBaseZero, String.class);
+                value = nonNull.toString();
             }
             return value;
         } catch (UnsupportedConvertingException e) {

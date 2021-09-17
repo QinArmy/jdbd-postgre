@@ -1,9 +1,16 @@
 package io.jdbd.postgre.protocol.client;
 
 import io.jdbd.postgre.PgType;
+import io.jdbd.postgre.type.PgBox;
+import io.jdbd.postgre.type.PgGeometries;
+import io.jdbd.postgre.type.PgLine;
+import io.jdbd.postgre.type.PgPolygon;
 import io.jdbd.result.ResultRow;
 import io.jdbd.result.UnsupportedConvertingException;
 import io.jdbd.type.Interval;
+import io.jdbd.type.geo.Line;
+import io.jdbd.type.geo.LineString;
+import io.jdbd.type.geometry.Circle;
 import io.jdbd.vendor.result.AbstractResultRow;
 
 import java.math.BigDecimal;
@@ -29,6 +36,32 @@ public class PgResultRow extends AbstractResultRow<PgRowMeta> {
         this.adjutant = adjutant;
     }
 
+    @Override
+    protected final <T> T convertToOther(final int indexBaseZero, final Object nonNull, final Class<T> targetClass)
+            throws UnsupportedConvertingException {
+        final T value;
+        try {
+            final PgType pgType = this.rowMeta.columnMetaArray[indexBaseZero].pgType;
+            if (targetClass == PgLine.class) {
+                value = targetClass.cast(PgGeometries.line(nonNull.toString()));
+            } else if (targetClass == Line.class) {
+                value = targetClass.cast(PgGeometries.lineSegment(nonNull.toString()));
+            } else if (targetClass == PgBox.class) {
+                value = targetClass.cast(PgGeometries.box(nonNull.toString()));
+            } else if (targetClass == LineString.class && pgType == PgType.PATH) {
+                value = targetClass.cast(PgGeometries.path(nonNull.toString()));
+            } else if (targetClass == PgPolygon.class && pgType == PgType.POLYGON) {
+                value = targetClass.cast(PgGeometries.polygon(nonNull.toString()));
+            } else if (targetClass == Circle.class && pgType == PgType.CIRCLE) {
+                value = targetClass.cast(PgGeometries.circle(nonNull.toString()));
+            } else {
+                value = super.convertToOther(indexBaseZero, nonNull, targetClass);
+            }
+            return value;
+        } catch (IllegalArgumentException e) {
+            throw createValueCannotConvertException(e, indexBaseZero, targetClass);
+        }
+    }
 
     @Override
     protected final BigDecimal convertToBigDecimal(final int indexBaseZero, final Object nonNull) {

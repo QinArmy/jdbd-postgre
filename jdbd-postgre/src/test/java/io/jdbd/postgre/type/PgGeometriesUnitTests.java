@@ -9,7 +9,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.annotations.Test;
 
-import java.util.function.BiConsumer;
+import java.util.function.Consumer;
 
 import static org.testng.Assert.*;
 
@@ -90,7 +90,7 @@ public class PgGeometriesUnitTests {
     }
 
     /**
-     * @see PgGeometries#readPoints(String, int, BiConsumer)
+     * @see PgGeometries#readPoints(String, int, Consumer)
      */
     @Test
     public void doReadPoints() {
@@ -98,7 +98,7 @@ public class PgGeometriesUnitTests {
         String pointsText;
         final ByteBuf out = ByteBufAllocator.DEFAULT.buffer(100);
         int newIndex;
-        final BiConsumer<Double, Double> pointConsumer = PgGeometries.writePointWkbFunction(false, out);
+        final Consumer<Point> pointConsumer = PgGeometries.writePointWkbFunction(false, out);
         try {
             pointsText = " (0, 0 ) , (1, 1)     ";
             newIndex = PgGeometries.readPoints(pointsText, 0, pointConsumer);
@@ -120,7 +120,7 @@ public class PgGeometriesUnitTests {
     }
 
     /**
-     * @see PgGeometries#readPoints(String, int, BiConsumer)
+     * @see PgGeometries#readPoints(String, int, Consumer)
      */
     @Test(expectedExceptions = IllegalArgumentException.class)
     public void doReadPointsWithError1() {
@@ -129,7 +129,7 @@ public class PgGeometriesUnitTests {
         final ByteBuf out = ByteBufAllocator.DEFAULT.buffer(100);
 
         pointsText = " (0, 0 ) , (1, 1) ,    ";
-        final BiConsumer<Double, Double> pointConsumer = PgGeometries.writePointWkbFunction(false, out);
+        final Consumer<Point> pointConsumer = PgGeometries.writePointWkbFunction(false, out);
         try {
             PgGeometries.readPoints(pointsText, 0, pointConsumer);
             fail("doReadPointsWithError1 test failure.");
@@ -143,7 +143,7 @@ public class PgGeometriesUnitTests {
     }
 
     /**
-     * @see PgGeometries#readPoints(String, int, BiConsumer)
+     * @see PgGeometries#readPoints(String, int, Consumer)
      */
     @Test(expectedExceptions = IllegalArgumentException.class)
     public void doReadPointsWithError2() {
@@ -152,7 +152,7 @@ public class PgGeometriesUnitTests {
         final ByteBuf out = ByteBufAllocator.DEFAULT.buffer(100);
 
         pointsText = " (0, 0 ) , (1, 1) ()    ";
-        final BiConsumer<Double, Double> pointConsumer = PgGeometries.writePointWkbFunction(false, out);
+        final Consumer<Point> pointConsumer = PgGeometries.writePointWkbFunction(false, out);
         try {
             PgGeometries.readPoints(pointsText, 0, pointConsumer);
             fail("doReadPointsWithError2 test failure.");
@@ -166,7 +166,7 @@ public class PgGeometriesUnitTests {
     }
 
     /**
-     * @see PgGeometries#readPoints(String, int, BiConsumer)
+     * @see PgGeometries#readPoints(String, int, Consumer)
      */
     @Test(expectedExceptions = IllegalArgumentException.class)
     public void doReadPointsWithError3() {
@@ -175,7 +175,7 @@ public class PgGeometriesUnitTests {
         final ByteBuf out = ByteBufAllocator.DEFAULT.buffer(100);
 
         pointsText = " (0, 0 ) , (1, 1) ,(3434,    ";
-        final BiConsumer<Double, Double> pointConsumer = PgGeometries.writePointWkbFunction(false, out);
+        final Consumer<Point> pointConsumer = PgGeometries.writePointWkbFunction(false, out);
         try {
             PgGeometries.readPoints(pointsText, 0, pointConsumer);
             fail("doReadPointsWithError3 test failure.");
