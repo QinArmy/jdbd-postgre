@@ -6,6 +6,7 @@ import io.jdbd.type.LongBinary;
 import io.jdbd.type.geometry.Circle;
 import io.jdbd.type.geometry.LongString;
 import io.jdbd.type.geometry.Point;
+import reactor.util.annotation.Nullable;
 
 import java.math.BigDecimal;
 import java.sql.JDBCType;
@@ -15,13 +16,16 @@ import java.util.*;
 public enum PgType implements io.jdbd.meta.SQLType {
 
     UNSPECIFIED(PgConstant.TYPE_UNSPECIFIED, JDBCType.NULL, Object.class),
+
+    BOOLEAN(PgConstant.TYPE_BOOLEAN, JDBCType.BOOLEAN, Boolean.class),
+
     SMALLINT(PgConstant.TYPE_INT2, JDBCType.SMALLINT, Short.class),
     INTEGER(PgConstant.TYPE_INT4, JDBCType.INTEGER, Integer.class),
     BIGINT(PgConstant.TYPE_INT8, JDBCType.BIGINT, Long.class),
     DECIMAL(PgConstant.TYPE_NUMERIC, JDBCType.DECIMAL, BigDecimal.class),
     REAL(PgConstant.TYPE_FLOAT4, JDBCType.FLOAT, Float.class),
     DOUBLE(PgConstant.TYPE_FLOAT8, JDBCType.DOUBLE, Double.class),
-    BOOLEAN(PgConstant.TYPE_BOOLEAN, JDBCType.BOOLEAN, Boolean.class),
+
     BIT(PgConstant.TYPE_BIT, JDBCType.BIT, BitSet.class),
     VARBIT(PgConstant.TYPE_VARBIT, JDBCType.BIT, BitSet.class),
     TIMESTAMP(PgConstant.TYPE_TIMESTAMP, JDBCType.TIMESTAMP, LocalDateTime.class),
@@ -46,7 +50,7 @@ public enum PgType implements io.jdbd.meta.SQLType {
     LINE_SEGMENT(PgConstant.TYPE_LSEG, JDBCType.OTHER, String.class),
     PATH(PgConstant.TYPE_PATH, JDBCType.OTHER, LongString.class),
     POLYGON(PgConstant.TYPE_POLYGON, JDBCType.OTHER, LongString.class),
-    CIRCLE(PgConstant.TYPE_CIRCLE, JDBCType.OTHER, Circle.class),
+    CIRCLES(PgConstant.TYPE_CIRCLE, JDBCType.OTHER, Circle.class),
     JSON(PgConstant.TYPE_JSON, JDBCType.LONGVARCHAR, LongString.class),
     JSONB(PgConstant.TYPE_JSONB, JDBCType.LONGVARCHAR, LongString.class),
     MACADDR(PgConstant.TYPE_MAC_ADDR, JDBCType.VARCHAR, String.class),
@@ -61,57 +65,75 @@ public enum PgType implements io.jdbd.meta.SQLType {
     TSTZRANGE(PgConstant.TYPE_TSTZRANGE, JDBCType.VARCHAR, String.class),
     DATERANGE(PgConstant.TYPE_DATERANGE, JDBCType.VARCHAR, String.class),
 
-
     REF_CURSOR(PgConstant.TYPE_REF_CURSOR, JDBCType.REF_CURSOR, Object.class),
 
 
-    SMALLINT_ARRAY(PgConstant.TYPE_INT2_ARRAY, JDBCType.ARRAY, Object.class),
-    INTEGER_ARRAY(PgConstant.TYPE_INT4_ARRAY, JDBCType.ARRAY, Object.class),
-    BIGINT_ARRAY(PgConstant.TYPE_INT8_ARRAY, JDBCType.ARRAY, Object.class),
-    TEXT_ARRAY(PgConstant.TYPE_TEXT_ARRAY, JDBCType.ARRAY, Object.class),
-    DECIMAL_ARRAY(PgConstant.TYPE_NUMERIC_ARRAY, JDBCType.ARRAY, Object.class),
-    REAL_ARRAY(PgConstant.TYPE_FLOAT4_ARRAY, JDBCType.ARRAY, Object.class),
-    DOUBLE_ARRAY(PgConstant.TYPE_FLOAT8_ARRAY, JDBCType.ARRAY, Object.class),
-    BOOLEAN_ARRAY(PgConstant.TYPE_BOOLEAN_ARRAY, JDBCType.ARRAY, Object.class),
-    DATE_ARRAY(PgConstant.TYPE_DATE_ARRAY, JDBCType.ARRAY, Object.class),
-    TIME_ARRAY(PgConstant.TYPE_TIME_ARRAY, JDBCType.ARRAY, Object.class),
-    TIMETZ_ARRAY(PgConstant.TYPE_TIMETZ_ARRAY, JDBCType.ARRAY, Object.class),
-    TIMESTAMP_ARRAY(PgConstant.TYPE_TIMESTAMP_ARRAY, JDBCType.ARRAY, Object.class),
-    TIMESTAMPTZ_ARRAY(PgConstant.TYPE_TIMESTAMPTZ_ARRAY, JDBCType.ARRAY, Object.class),
-    BYTEA_ARRAY(PgConstant.TYPE_BYTEA_ARRAY, JDBCType.ARRAY, Object.class),
-    VARCHAR_ARRAY(PgConstant.TYPE_VARCHAR_ARRAY, JDBCType.ARRAY, Object.class),
-    BOX_ARRAY(PgConstant.TYPE_BOX_ARRAY, JDBCType.ARRAY, Object.class),
-    MONEY_ARRAY(PgConstant.TYPE_MONEY_ARRAY, JDBCType.ARRAY, Object.class),
-    OID_ARRAY(PgConstant.TYPE_OID_ARRAY, JDBCType.ARRAY, Object.class),
-    BIT_ARRAY(PgConstant.TYPE_BIT_ARRAY, JDBCType.ARRAY, Object.class),
-    INTERVAL_ARRAY(PgConstant.TYPE_INTERVAL_ARRAY, JDBCType.ARRAY, Object.class),
-    CHAR_ARRAY(PgConstant.TYPE_CHAR_ARRAY, JDBCType.ARRAY, Object.class),
-    VARBIT_ARRAY(PgConstant.TYPE_VARBIT_ARRAY, JDBCType.ARRAY, Object.class),
-    UUID_ARRAY(PgConstant.TYPE_UUID_ARRAY, JDBCType.ARRAY, Object.class),
-    XML_ARRAY(PgConstant.TYPE_XML_ARRAY, JDBCType.ARRAY, Object.class),
-    POINT_ARRAY(PgConstant.TYPE_POINT_ARRAY, JDBCType.ARRAY, Object.class),
-    JSONB_ARRAY(PgConstant.TYPE_JSONB_ARRAY, JDBCType.ARRAY, Object.class),
-    JSON_ARRAY(PgConstant.TYPE_JSON_ARRAY, JDBCType.ARRAY, Object.class),
-    TSVECTOR_ARRAY(PgConstant.TYPE_TSVECTOR_ARRAY, JDBCType.ARRAY, Object.class),
-    TSQUERY_ARRAY(PgConstant.TYPE_TSQUERY_ARRAY, JDBCType.ARRAY, Object.class),
-    PATH_ARRAY(PgConstant.TYPE_PATH_ARRAY, JDBCType.ARRAY, Object.class),
-    LINE_ARRAY(PgConstant.TYPE_LINE_ARRAY, JDBCType.ARRAY, Object.class),
-    LINE_SEGMENT_ARRAY(PgConstant.TYPE_LINE_LSEG_ARRAY, JDBCType.ARRAY, Object.class),
-    POLYGON_ARRAY(PgConstant.TYPE_POLYGON_ARRAY, JDBCType.ARRAY, Object.class),
-    CIRCLES_ARRAY(PgConstant.TYPE_CIRCLES_ARRAY, JDBCType.ARRAY, Object.class),
-    CIDR_ARRAY(PgConstant.TYPE_CIDR_ARRAY, JDBCType.ARRAY, Object.class),
-    INET_ARRAY(PgConstant.TYPE_INET_ARRAY, JDBCType.ARRAY, Object.class),
-    MACADDR_ARRAY(PgConstant.TYPE_MACADDR_ARRAY, JDBCType.ARRAY, Object.class),
-    MACADDR8_ARRAY(PgConstant.TYPE_MACADDR8_ARRAY, JDBCType.ARRAY, Object.class),
+    BOOLEAN_ARRAY(PgConstant.TYPE_BOOLEAN_ARRAY, BOOLEAN),
 
-    INT4RANGE_ARRAY(PgConstant.TYPE_INT4RANGE_ARRAY, JDBCType.ARRAY, Object.class),
-    TSRANGE_ARRAY(PgConstant.TYPE_TSRANGE_ARRAY, JDBCType.ARRAY, Object.class),
-    TSTZRANGE_ARRAY(PgConstant.TYPE_TSTZRANGE_ARRAY, JDBCType.ARRAY, Object.class),
-    DATERANGE_ARRAY(PgConstant.TYPE_DATERANGE_ARRAY, JDBCType.ARRAY, Object.class),
-    INT8RANGE_ARRAY(PgConstant.TYPE_INT8RANGE_ARRAY, JDBCType.ARRAY, Object.class),
-    NUMRANGE_ARRAY(PgConstant.TYPE_NUMRANGE_ARRAY, JDBCType.ARRAY, Object.class),
 
-    REF_CURSOR_ARRAY(PgConstant.TYPE_REF_CURSOR_ARRAY, JDBCType.ARRAY, Object.class);
+    SMALLINT_ARRAY(PgConstant.TYPE_INT2_ARRAY, SMALLINT),
+    INTEGER_ARRAY(PgConstant.TYPE_INT4_ARRAY, INTEGER),
+    BIGINT_ARRAY(PgConstant.TYPE_INT8_ARRAY, BIGINT),
+    DECIMAL_ARRAY(PgConstant.TYPE_NUMERIC_ARRAY, DECIMAL),
+
+    OID_ARRAY(PgConstant.TYPE_OID_ARRAY, OID),
+    REAL_ARRAY(PgConstant.TYPE_FLOAT4_ARRAY, REAL),
+    DOUBLE_ARRAY(PgConstant.TYPE_FLOAT8_ARRAY, DOUBLE),
+    MONEY_ARRAY(PgConstant.TYPE_MONEY_ARRAY, MONEY),
+
+    TIME_ARRAY(PgConstant.TYPE_TIME_ARRAY, TIME),
+    DATE_ARRAY(PgConstant.TYPE_DATE_ARRAY, DATE),
+    TIMESTAMP_ARRAY(PgConstant.TYPE_TIMESTAMP_ARRAY, TIMESTAMP),
+    TIMETZ_ARRAY(PgConstant.TYPE_TIMETZ_ARRAY, TIMETZ),
+
+    TIMESTAMPTZ_ARRAY(PgConstant.TYPE_TIMESTAMPTZ_ARRAY, TIMESTAMPTZ),
+    INTERVAL_ARRAY(PgConstant.TYPE_INTERVAL_ARRAY, INTERVAL),
+
+
+    BYTEA_ARRAY(PgConstant.TYPE_BYTEA_ARRAY, BYTEA),
+
+
+    CHAR_ARRAY(PgConstant.TYPE_CHAR_ARRAY, CHAR),
+    VARCHAR_ARRAY(PgConstant.TYPE_VARCHAR_ARRAY, VARCHAR),
+    TEXT_ARRAY(PgConstant.TYPE_TEXT_ARRAY, TEXT),
+    BIT_ARRAY(PgConstant.TYPE_BIT_ARRAY, BIT),
+
+    VARBIT_ARRAY(PgConstant.TYPE_VARBIT_ARRAY, VARBIT),
+    XML_ARRAY(PgConstant.TYPE_XML_ARRAY, XML),
+    JSON_ARRAY(PgConstant.TYPE_JSON_ARRAY, JSON),
+    JSONB_ARRAY(PgConstant.TYPE_JSONB_ARRAY, JSONB),
+
+    TSVECTOR_ARRAY(PgConstant.TYPE_TSVECTOR_ARRAY, TSVECTOR),
+    TSQUERY_ARRAY(PgConstant.TYPE_TSQUERY_ARRAY, TSQUERY),
+
+
+    POINT_ARRAY(PgConstant.TYPE_POINT_ARRAY, POINT),
+    LINE_ARRAY(PgConstant.TYPE_LINE_ARRAY, LINE),
+    LINE_SEGMENT_ARRAY(PgConstant.TYPE_LINE_LSEG_ARRAY, LINE_SEGMENT),
+    BOX_ARRAY(PgConstant.TYPE_BOX_ARRAY, BOX),
+
+    PATH_ARRAY(PgConstant.TYPE_PATH_ARRAY, PATH),
+    POLYGON_ARRAY(PgConstant.TYPE_POLYGON_ARRAY, POLYGON),
+    CIRCLES_ARRAY(PgConstant.TYPE_CIRCLES_ARRAY, CIRCLES),
+
+
+    UUID_ARRAY(PgConstant.TYPE_UUID_ARRAY, UUID),
+
+
+    CIDR_ARRAY(PgConstant.TYPE_CIDR_ARRAY, CIDR),
+    INET_ARRAY(PgConstant.TYPE_INET_ARRAY, INET),
+    MACADDR_ARRAY(PgConstant.TYPE_MACADDR_ARRAY, MACADDR),
+    MACADDR8_ARRAY(PgConstant.TYPE_MACADDR8_ARRAY, MACADDR8),
+
+    INT4RANGE_ARRAY(PgConstant.TYPE_INT4RANGE_ARRAY, INT4RANGE),
+    TSRANGE_ARRAY(PgConstant.TYPE_TSRANGE_ARRAY, TSRANGE),
+    TSTZRANGE_ARRAY(PgConstant.TYPE_TSTZRANGE_ARRAY, TSTZRANGE),
+    DATERANGE_ARRAY(PgConstant.TYPE_DATERANGE_ARRAY, DATERANGE),
+    INT8RANGE_ARRAY(PgConstant.TYPE_INT8RANGE_ARRAY, INT8RANGE),
+    NUMRANGE_ARRAY(PgConstant.TYPE_NUMRANGE_ARRAY, NUMRANGE),
+
+
+    REF_CURSOR_ARRAY(PgConstant.TYPE_REF_CURSOR_ARRAY, REF_CURSOR);
 
     private static final Map<Short, PgType> CODE_TO_TYPE_MAP = createCodeToTypeMap();
 
@@ -121,10 +143,23 @@ public enum PgType implements io.jdbd.meta.SQLType {
 
     private final Class<?> javaType;
 
+    private final PgType elementType;
+
     PgType(short typeOid, JDBCType jdbcType, Class<?> javaType) {
+        if (jdbcType == JDBCType.ARRAY) {
+            throw new IllegalArgumentException(String.format("jdbcType[%s] error", jdbcType));
+        }
         this.typeOid = typeOid;
         this.jdbcType = jdbcType;
         this.javaType = javaType;
+        this.elementType = null;
+    }
+
+    PgType(short typeOid, PgType elementType) {
+        this.typeOid = typeOid;
+        this.jdbcType = JDBCType.ARRAY;
+        this.javaType = Object.class;
+        this.elementType = elementType;
     }
 
     @Override
@@ -136,6 +171,13 @@ public enum PgType implements io.jdbd.meta.SQLType {
     public final Class<?> javaType() {
         return this.javaType;
     }
+
+    @Nullable
+    @Override
+    public final PgType elementType() {
+        return this.elementType;
+    }
+
 
     @Override
     public final boolean isUnsigned() {
@@ -155,6 +197,7 @@ public enum PgType implements io.jdbd.meta.SQLType {
                 || this == INTEGER
                 || this == BIGINT;
     }
+
 
     @Override
     public final boolean isFloatType() {
@@ -239,7 +282,7 @@ public enum PgType implements io.jdbd.meta.SQLType {
             case PATH_ARRAY:
             case POLYGON:
             case POLYGON_ARRAY:
-            case CIRCLE:
+            case CIRCLES:
             case CIRCLES_ARRAY:
             case UUID:
             case UUID_ARRAY:

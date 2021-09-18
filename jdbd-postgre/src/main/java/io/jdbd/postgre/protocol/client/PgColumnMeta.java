@@ -164,7 +164,7 @@ final class PgColumnMeta {
             case POINT_ARRAY:
                 precision = 16;
                 break;
-            case CIRCLE:
+            case CIRCLES:
             case CIRCLES_ARRAY:
                 precision = 24;
                 break;

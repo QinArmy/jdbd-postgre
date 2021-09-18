@@ -83,22 +83,22 @@ public abstract class AbstractResultRow<R extends ResultRowMeta> implements Resu
 
     @Nullable
     @Override
-    public final Object get(final String columnAlias) throws JdbdSQLException {
+    public final Object get(final String columnLabel) throws JdbdSQLException {
         try {
-            return this.columnValues[this.rowMeta.getColumnIndex(columnAlias)];
+            return this.columnValues[this.rowMeta.getColumnIndex(columnLabel)];
         } catch (Throwable e) {
-            throw new JdbdSQLException(new SQLException(String.format("alias[%s] access error.", columnAlias), e));
+            throw new JdbdSQLException(new SQLException(String.format("alias[%s] access error.", columnLabel), e));
         }
     }
 
     @Nullable
     @Override
-    public final <T> T get(final String columnAlias, final Class<T> columnClass)
+    public final <T> T get(final String columnLabel, final Class<T> columnClass)
             throws JdbdSQLException, UnsupportedConvertingException {
         try {
-            return get(this.rowMeta.getColumnIndex(columnAlias), columnClass);
+            return get(this.rowMeta.getColumnIndex(columnLabel), columnClass);
         } catch (Throwable e) {
-            throw new JdbdSQLException(new SQLException(String.format("Column alias[%s] access error.", columnAlias), e));
+            throw new JdbdSQLException(new SQLException(String.format("Column alias[%s] access error.", columnLabel), e));
         }
     }
 
@@ -116,13 +116,13 @@ public abstract class AbstractResultRow<R extends ResultRowMeta> implements Resu
     }
 
     @Override
-    public final <T> Set<T> getSet(String columnAlias, Class<T> elementClass)
+    public final <T> Set<T> getSet(String columnLabel, Class<T> elementClass)
             throws JdbdSQLException, UnsupportedConvertingException {
-        return getSet(this.rowMeta.getColumnIndex(columnAlias), elementClass);
+        return getSet(this.rowMeta.getColumnIndex(columnLabel), elementClass);
     }
 
     @Override
-    public <T> List<T> getList(int indexBaseZero, Class<T> elementClass)
+    public final <T> List<T> getList(int indexBaseZero, Class<T> elementClass)
             throws JdbdSQLException, UnsupportedConvertingException {
         final Object value = this.columnValues[checkIndex(indexBaseZero)];
         final List<T> list;
@@ -135,9 +135,9 @@ public abstract class AbstractResultRow<R extends ResultRowMeta> implements Resu
     }
 
     @Override
-    public final <T> List<T> getList(String columnAlias, Class<T> elementClass)
+    public final <T> List<T> getList(String columnLabel, Class<T> elementClass)
             throws JdbdSQLException, UnsupportedConvertingException {
-        return getList(this.rowMeta.getColumnIndex(columnAlias), elementClass);
+        return getList(this.rowMeta.getColumnIndex(columnLabel), elementClass);
     }
 
     @Override
@@ -161,20 +161,20 @@ public abstract class AbstractResultRow<R extends ResultRowMeta> implements Resu
     }
 
     @Override
-    public final Object getNonNull(final String columnAlias) throws JdbdSQLException, NullPointerException {
-        Object value = get(columnAlias);
+    public final Object getNonNull(final String columnLabel) throws JdbdSQLException, NullPointerException {
+        Object value = get(columnLabel);
         if (value == null) {
-            throw new NullPointerException(String.format("Value at columnAlias[%s] is null.", columnAlias));
+            throw new NullPointerException(String.format("Value at columnAlias[%s] is null.", columnLabel));
         }
         return value;
     }
 
     @Override
-    public final <T> T getNonNull(final String columnAlias, final Class<T> columnClass)
+    public final <T> T getNonNull(final String columnLabel, final Class<T> columnClass)
             throws JdbdSQLException, NullPointerException, UnsupportedConvertingException {
-        T value = get(columnAlias, columnClass);
+        T value = get(columnLabel, columnClass);
         if (value == null) {
-            throw new NullPointerException(String.format("Value at columnAlias[%s] is null.", columnAlias));
+            throw new NullPointerException(String.format("Value at columnAlias[%s] is null.", columnLabel));
         }
         return value;
     }
@@ -207,7 +207,7 @@ public abstract class AbstractResultRow<R extends ResultRowMeta> implements Resu
 
 
     @SuppressWarnings("unchecked")
-    private <T> T convertNonNullValue(final int indexBaseZero, final Object nonNull, final Class<T> targetClass)
+    protected <T> T convertNonNullValue(final int indexBaseZero, final Object nonNull, final Class<T> targetClass)
             throws UnsupportedConvertingException {
         final Object convertedValue;
 
@@ -274,20 +274,23 @@ public abstract class AbstractResultRow<R extends ResultRowMeta> implements Resu
                         , (Class<? extends TemporalAmount>) targetClass);
             }
         } else if (targetClass == Boolean.class) {
-            convertedValue = convertToBoolean(indexBaseZero, nonNull);
+            convertedValue = convertNonNullToBoolean(indexBaseZero, nonNull);
         } else if (targetClass == byte[].class) {
             convertedValue = convertToByteArray(indexBaseZero, nonNull);
         } else if (targetClass.isEnum()) {
             final Enum<?> enumValue;
             enumValue = convertToEnum(indexBaseZero, nonNull, targetClass);
             convertedValue = enumValue;
+        } else if (targetClass.isArray()) {
+            convertedValue = convertNonNullToArray(indexBaseZero, nonNull, targetClass);
         } else {
             convertedValue = convertToOther(indexBaseZero, nonNull, targetClass);
         }
         return (T) convertedValue;
     }
 
-    protected boolean convertToBoolean(final int indexBaseZero, final Object sourceValue)
+
+    protected boolean convertNonNullToBoolean(final int indexBaseZero, final Object sourceValue)
             throws UnsupportedConvertingException {
         final boolean value;
         if (sourceValue instanceof Boolean) {
@@ -295,12 +298,10 @@ public abstract class AbstractResultRow<R extends ResultRowMeta> implements Resu
         } else if (sourceValue instanceof String) {
             final String v = (String) sourceValue;
             if (v.equalsIgnoreCase("TRUE")
-                    || v.equalsIgnoreCase("T")
-                    || v.equalsIgnoreCase("Y")) {
+                    || v.equalsIgnoreCase("T")) {
                 value = true;
             } else if (v.equalsIgnoreCase("FALSE")
-                    || v.equalsIgnoreCase("F")
-                    || v.equalsIgnoreCase("N")) {
+                    || v.equalsIgnoreCase("F")) {
                 value = false;
             } else {
                 throw createNotSupportedException(indexBaseZero, Boolean.class);
@@ -358,13 +359,13 @@ public abstract class AbstractResultRow<R extends ResultRowMeta> implements Resu
      * @see #convertNonNullValue(int, Object, Class)
      */
     @SuppressWarnings("unchecked")
-    protected <T> List<T> convertNonNullToList(final int indexBaseZero, final Object nonValue
+    protected <T> List<T> convertNonNullToList(final int indexBaseZero, final Object nonNull
             , final Class<T> elementClass)
             throws UnsupportedConvertingException {
         try {
             final List<T> list;
-            if (nonValue instanceof String) {
-                List<String> stringList = JdbdStrings.spitAsList((String) nonValue, ",");
+            if (nonNull instanceof String) {
+                List<String> stringList = JdbdStrings.spitAsList((String) nonNull, ",");
                 if (elementClass.isEnum()) {
                     List<T> tempList = JdbdStrings.convertStringsToEnumList(stringList, elementClass);
                     list = JdbdCollections.unmodifiableList(tempList);
@@ -382,6 +383,14 @@ public abstract class AbstractResultRow<R extends ResultRowMeta> implements Resu
         } catch (Throwable e) {
             throw createValueCannotConvertException(e, indexBaseZero, Set.class);
         }
+    }
+
+    /**
+     * @see #convertNonNullValue(int, Object, Class)
+     */
+    protected Object convertNonNullToArray(final int indexBaseZero, final Object nonNull, final Class<?> targetClass)
+            throws UnsupportedConvertingException {
+        throw createNotSupportedException(indexBaseZero, targetClass);
     }
 
     /**

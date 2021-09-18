@@ -317,11 +317,21 @@ final class QueryCommandWriter {
                 bindNoNullToMoney(batchIndex, bindValue, message);
             }
             break;
+            case CHAR:
             case VARCHAR:
             case TEXT:
+            case TSQUERY:
+            case TSVECTOR:
+
+            case INT4RANGE:
+            case INT8RANGE:
+            case NUMRANGE:
+            case TSRANGE:
+            case TSTZRANGE:
+            case DATERANGE:
+
             case JSON:
             case JSONB:
-            case CHAR:
             case XML:
             case LINE:
             case UUID:
@@ -331,7 +341,7 @@ final class QueryCommandWriter {
             case MACADDR8:
             case PATH:
             case POINT:
-            case CIRCLE:
+            case CIRCLES:
             case BOX:
             case POLYGON:
             case LINE_SEGMENT: {
@@ -367,11 +377,21 @@ final class QueryCommandWriter {
                 bindNonNullToOffsetDateTime(batchIndex, bindValue, message);
             }
             break;
-            case TEXT_ARRAY:
-            case BIT_ARRAY:
-            case OID_ARRAY:
-            case XML_ARRAY:
+            case SMALLINT_ARRAY: {
+                final String v;
+                v = PgBinds.bindNonNullShortArray(batchIndex, bindValue.getType(), bindValue);
+                message.writeByte(QUOTE_BYTE);
+                message.writeBytes(v.getBytes(this.clientCharset));
+                message.writeByte(QUOTE_BYTE);
+            }
+            break;
             case BOOLEAN_ARRAY:
+            case TEXT_ARRAY:
+            case OID_ARRAY:
+
+            case BIT_ARRAY:
+
+            case XML_ARRAY:
             case CHAR_ARRAY:
             case DATE_ARRAY:
             case JSON_ARRAY:
@@ -389,7 +409,7 @@ final class QueryCommandWriter {
             case INTEGER_ARRAY:
             case VARCHAR_ARRAY:
             case INTERVAL_ARRAY:
-            case SMALLINT_ARRAY:
+
             case TIMESTAMP_ARRAY:
             case REF_CURSOR_ARRAY:
             case TIMESTAMPTZ_ARRAY: {

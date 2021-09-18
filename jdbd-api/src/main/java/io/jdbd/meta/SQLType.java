@@ -1,5 +1,6 @@
 package io.jdbd.meta;
 
+import io.jdbd.lang.Nullable;
 import io.jdbd.result.ResultRow;
 
 import java.sql.JDBCType;
@@ -23,6 +24,20 @@ public interface SQLType extends java.sql.SQLType {
      * @see ResultRow#get(String)
      */
     Class<?> javaType();
+
+    /**
+     * <p>
+     * For example:
+     *    <ul>
+     *        <li>one dimension BIGINT_ARRAY return BIGINT</li>
+     *        <li>tow dimension BIGINT_ARRAY return BIGINT too</li>
+     *    </ul>
+     * </p>
+     *
+     * @return element type of array(1-n dimension)
+     */
+    @Nullable
+    SQLType elementType();
 
 
     /**

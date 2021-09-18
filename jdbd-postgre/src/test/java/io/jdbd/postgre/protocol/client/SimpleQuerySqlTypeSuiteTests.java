@@ -285,11 +285,81 @@ public class SimpleQuerySqlTypeSuiteTests extends AbstractStmtTaskTests {
     }
 
     /**
-     * @see PgType#CIRCLE
+     * @see PgType#CIRCLES
      */
     @Test
     public void circleBindAndExtract() {
         doCircleBindAndExtract();
+    }
+
+    /**
+     * @see PgType#CIDR
+     */
+    @Test
+    public void cidrBindAndExtract() {
+        doCidrBindAndExtract();
+    }
+
+    /**
+     * @see PgType#INET
+     */
+    @Test
+    public void inetBindAndExtract() {
+        doInetBindAndExtract();
+    }
+
+    /**
+     * @see PgType#MACADDR
+     */
+    @Test
+    public void macaddrBindAndExtract() {
+        doMacaddrBindAndExtract();
+    }
+
+    /**
+     * @see PgType#MACADDR8
+     */
+    @Test
+    public void macaddr8BindAndExtract() {
+        doMacaddr8BindAndExtract();
+    }
+
+    /**
+     * @see PgType#TSVECTOR
+     */
+    @Test
+    public void tsvectorBindAndExtract() {
+        doTsvectorBindAndExtract();
+    }
+
+    /**
+     * @see PgType#TSQUERY
+     */
+    @Test
+    public void tsqueryBindAndExtract() {
+        //TODO
+    }
+
+    /**
+     * @see PgType#INT4RANGE
+     * @see PgType#INT8RANGE
+     * @see PgType#NUMRANGE
+     * @see PgType#TSRANGE
+     * @see PgType#TSTZRANGE
+     * @see PgType#DATERANGE
+     */
+    @Test
+    public void rangeBindAndExtract() {
+        doRangeBindAndExtract();
+    }
+
+
+    /**
+     * @see PgType#SMALLINT_ARRAY
+     */
+    @Test
+    public void smallintArrayBindAndExtract() {
+        doSmallintArrayBindAndExtract();
     }
 
 

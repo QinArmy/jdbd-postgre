@@ -10,11 +10,11 @@ import io.jdbd.result.ResultRowMeta;
 import io.netty.buffer.ByteBuf;
 import reactor.util.annotation.Nullable;
 
+import java.nio.charset.Charset;
 import java.sql.SQLException;
 import java.text.DecimalFormat;
 import java.text.NumberFormat;
 import java.util.*;
-import java.util.function.Supplier;
 
 /**
  * @see <a href="https://www.postgresql.org/docs/current/protocol-message-formats.html">RowDescription</a>
@@ -27,12 +27,12 @@ final class PgRowMeta implements ResultRowMeta {
     static PgRowMeta read(ByteBuf message, StmtTask stmtTask) {
         TaskAdjutant adjutant = stmtTask.adjutant();
         PgColumnMeta[] columnMetaArray = PgColumnMeta.read(message, adjutant);
-        return new PgRowMeta(stmtTask.getAndIncrementResultIndex(), columnMetaArray, adjutant.server()::moneyLocal);
+        return new PgRowMeta(stmtTask.getAndIncrementResultIndex(), columnMetaArray, adjutant);
     }
 
     static PgRowMeta readForPrepare(ByteBuf message, TaskAdjutant adjutant) {
         PgColumnMeta[] columnMetaArray = PgColumnMeta.read(message, adjutant);
-        return new PgRowMeta(-1, columnMetaArray, adjutant.server()::moneyLocal);
+        return new PgRowMeta(-1, columnMetaArray, adjutant);
     }
 
     final int resultIndex;
@@ -41,13 +41,16 @@ final class PgRowMeta implements ResultRowMeta {
 
     private final Map<String, Integer> labelToIndexMap;
 
-    // don't need volatile
-    private List<String> labelList;
-
     //if non-null,then don't invoke any setXxx() method again after constructor.
     final DecimalFormat moneyFormat;
 
-    private PgRowMeta(int resultIndex, final PgColumnMeta[] columnMetaArray, Supplier<Locale> moneyLocal) {
+    // cache client charset,because possibly is changed in multi-statement.
+    final Charset clientCharset;
+
+    // don't need volatile
+    private List<String> labelList;
+
+    private PgRowMeta(int resultIndex, final PgColumnMeta[] columnMetaArray, TaskAdjutant adjutant) {
         this.resultIndex = resultIndex;
         this.columnMetaArray = columnMetaArray;
 
@@ -56,8 +59,8 @@ final class PgRowMeta implements ResultRowMeta {
         } else {
             this.labelToIndexMap = createLabelToIndexMap(columnMetaArray);
         }
-        this.moneyFormat = createMoneyFormatIfNeed(columnMetaArray, moneyLocal);
-
+        this.moneyFormat = createMoneyFormatIfNeed(columnMetaArray, adjutant);
+        this.clientCharset = adjutant.clientCharset();
     }
 
     @Override
@@ -251,13 +254,13 @@ final class PgRowMeta implements ResultRowMeta {
 
     @Nullable
     private static DecimalFormat createMoneyFormatIfNeed(final PgColumnMeta[] columnMetaArray
-            , final Supplier<Locale> moneyLocal) {
+            , final TaskAdjutant adjutant) {
         DecimalFormat format = null;
         for (PgColumnMeta meta : columnMetaArray) {
             if (meta.pgType != PgType.MONEY && meta.pgType != PgType.MONEY_ARRAY) {
                 continue;
             }
-            final NumberFormat f = NumberFormat.getCurrencyInstance(moneyLocal.get());
+            final NumberFormat f = NumberFormat.getCurrencyInstance(adjutant.server().moneyLocal());
             if (f instanceof DecimalFormat) {
                 format = (DecimalFormat) f;
                 format.setParseBigDecimal(true); // must be true.

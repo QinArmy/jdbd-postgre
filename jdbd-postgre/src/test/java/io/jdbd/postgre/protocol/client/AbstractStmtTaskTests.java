@@ -17,6 +17,8 @@ import io.jdbd.type.geo.Line;
 import io.jdbd.type.geo.LineString;
 import io.jdbd.type.geometry.Circle;
 import io.jdbd.type.geometry.Point;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.util.annotation.Nullable;
@@ -42,6 +44,8 @@ import static org.testng.Assert.*;
  * </p>
  */
 abstract class AbstractStmtTaskTests extends AbstractTaskTests {
+
+    final Logger log = LoggerFactory.getLogger(getClass());
 
 
     private final int startId;
@@ -1101,7 +1105,7 @@ abstract class AbstractStmtTaskTests extends AbstractTaskTests {
     }
 
     /**
-     * @see PgType#CIRCLE
+     * @see PgType#CIRCLES
      * @see <a href="https://www.postgresql.org/docs/current/datatype-geometric.html#DATATYPE-CIRCLE"> Circles</a>
      */
     final void doCircleBindAndExtract() {
@@ -1109,13 +1113,13 @@ abstract class AbstractStmtTaskTests extends AbstractTaskTests {
         final long id = startId + 33;
         String text;
 
-        testType(columnName, PgType.CIRCLE, null, id);
+        testType(columnName, PgType.CIRCLES, null, id);
 
         text = "<(0,0),5.3>";
-        testType(columnName, PgType.CIRCLE, text, id);
+        testType(columnName, PgType.CIRCLES, text, id);
 
         text = String.format("<(%s,%s),8.8>", Double.MIN_VALUE, Double.MAX_VALUE);
-        testType(columnName, PgType.CIRCLE, text, id);
+        testType(columnName, PgType.CIRCLES, text, id);
 
     }
 
@@ -1124,11 +1128,150 @@ abstract class AbstractStmtTaskTests extends AbstractTaskTests {
      * @see <a href="https://www.postgresql.org/docs/current/datatype-net-types.html"> Network Address Types</a>
      */
     final void doCidrBindAndExtract() {
+        final String columnName = "my_cidr";
+        final long id = startId + 34;
+        String text;
+
+        testType(columnName, PgType.CIDR, null, id);
+
+        text = "192.168.0.0/24";
+
+        testType(columnName, PgType.CIDR, text, id);
+    }
+
+    /**
+     * @see PgType#INET
+     * @see <a href="https://www.postgresql.org/docs/current/datatype-net-types.html"> Network Address Types</a>
+     */
+    final void doInetBindAndExtract() {
+        final String columnName = "my_inet";
+        final long id = startId + 35;
+        String text;
+
+        testType(columnName, PgType.INET, null, id);
+
+        text = "192.168.0.0/24";
+        testType(columnName, PgType.INET, text, id);
+
+        text = "192.168.0.1/24";
+        testType(columnName, PgType.INET, text, id);
+    }
+
+    /**
+     * @see PgType#MACADDR
+     * @see <a href="https://www.postgresql.org/docs/current/datatype-net-types.html"> Network Address Types</a>
+     */
+    final void doMacaddrBindAndExtract() {
+        final String columnName = "my_macaddr";
+        final long id = startId + 36;
+        String text;
+
+        testType(columnName, PgType.MACADDR, null, id);
+
+        text = "08:00:2b:01:02:03";
+        testType(columnName, PgType.MACADDR, text, id);
 
     }
 
 
-    private void testType(final String columnName, final PgType columnType
+    /**
+     * @see PgType#MACADDR8
+     * @see <a href="https://www.postgresql.org/docs/current/datatype-net-types.html"> Network Address Types</a>
+     */
+    final void doMacaddr8BindAndExtract() {
+        final String columnName = "my_macaddr8";
+        final long id = startId + 37;
+        String text;
+
+        testType(columnName, PgType.MACADDR8, null, id);
+
+        text = "08:00:2b:01:02:03:04:05";
+        testType(columnName, PgType.MACADDR8, text, id);
+
+    }
+
+    /**
+     * @see PgType#TSVECTOR
+     * @see <a href="https://www.postgresql.org/docs/current/datatype-textsearch.html">Text Search Types</a>
+     */
+    final void doTsvectorBindAndExtract() {
+        final String columnName = "my_tsvector";
+        final long id = startId + 38;
+        String text;
+        ResultRow row;
+        List<String> lexemeList;
+
+        testType(columnName, PgType.TSVECTOR, null, id);
+
+        text = "Army's name 'this is, entirety' ";
+        row = testType(columnName, PgType.TSVECTOR, text, id);
+        lexemeList = row.getList(columnName, String.class);
+        assertEquals(lexemeList.size(), 3, columnName);
+
+        text = ",SET balance = balance + 999.00 ";
+        row = testType(columnName, PgType.TSVECTOR, text, id);
+        lexemeList = row.getList(columnName, String.class);
+        assertEquals(lexemeList.size(), 5, columnName);
+
+
+        text = "\\047 \\134 ";
+        row = testType(columnName, PgType.TSVECTOR, text, id);
+        lexemeList = row.getList(columnName, String.class);
+        assertEquals(lexemeList.size(), 2, columnName);
+
+
+    }
+
+    /**
+     * @see PgType#INT4RANGE
+     * @see PgType#INT8RANGE
+     * @see PgType#NUMRANGE
+     * @see PgType#TSRANGE
+     * @see PgType#TSTZRANGE
+     * @see PgType#DATERANGE
+     * @see <a href="https://www.postgresql.org/docs/current/rangetypes.html#RANGETYPES-BUILTIN">Range Types</a>
+     */
+    final void doRangeBindAndExtract() {
+        // only test int4range,because binding and extract is same.
+        final String columnName = "my_int4_range";
+        final long id = startId + 39;
+        String text, result;
+        ResultRow row;
+
+        testType(columnName, PgType.INT4RANGE, null, id);
+
+        text = "[1,9]";
+        row = testType(columnName, PgType.INT4RANGE, text, id);
+        result = row.getNonNull(columnName, String.class);
+        if (!result.equals(text)
+                && !result.equals("[1,10)")
+                && !result.equals("(0,10)")
+                && !result.equals("(0,9]")) {
+            fail(columnName);
+        }
+
+
+        text = "empty";
+        row = testType(columnName, PgType.INT4RANGE, text, id);
+        assertEquals(row.get(columnName, String.class), text, text);
+    }
+
+    /**
+     * @see PgType#SMALLINT_ARRAY
+     */
+    final void doSmallintArrayBindAndExtract() {
+        final String columnName = "my_smallint_array";
+        final long id = startId + 40;
+        Object array;
+
+        testType(columnName, PgType.SMALLINT_ARRAY, null, id);
+
+        array = new Short[]{null};
+        testType(columnName, PgType.SMALLINT_ARRAY, array, id);
+    }
+
+
+    private ResultRow testType(final String columnName, final PgType columnType
             , final @Nullable Object value, final long id) {
         assertNotEquals(columnName, "id", "can't be id");
 
@@ -1175,6 +1318,7 @@ abstract class AbstractStmtTaskTests extends AbstractTaskTests {
         } else {
             assertTestResult(columnName, row, value);
         }
+        return row;
     }
 
 
@@ -1435,11 +1579,27 @@ abstract class AbstractStmtTaskTests extends AbstractTaskTests {
                 assertEquals(row.get(columnName, PgPolygon.class), v, columnName);
             }
             break;
-            case CIRCLE: {
+            case CIRCLES: {
                 final Circle v = PgGeometries.circle(nonNull.toString());
                 assertEquals(row.get(columnName, Circle.class), v, columnName);
             }
             break;
+            case TSVECTOR: {
+                // TSVECTOR type can't compare ,only test whether  can convert to lexemes list or not.
+                // And binding same with varchar
+                final List<String> lexemeList = row.getList(columnName, String.class);
+                log.info("TSVECTOR type result : {}", lexemeList);
+                assertFalse(lexemeList.isEmpty(), columnName);
+            }
+            break;
+            case INT4RANGE:
+            case INT8RANGE:
+            case NUMRANGE:
+            case TSRANGE:
+            case TSTZRANGE:
+            case DATERANGE:
+                //no-op
+                break;
             default: {
                 assertEquals(row.get(columnName, nonNull.getClass()), nonNull, columnName);
             }

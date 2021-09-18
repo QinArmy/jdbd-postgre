@@ -63,16 +63,16 @@ abstract class MySQLResultRow extends AbstractResultRow<MySQLRowMeta> {
 
     @SuppressWarnings("unchecked")
     @Override
-    protected <T> List<T> convertNonNullToList(final int indexBaseZero, final Object nonValue
+    protected <T> List<T> convertNonNullToList(final int indexBaseZero, final Object nonNull
             , final Class<T> elementClass)
             throws UnsupportedConvertingException {
         final List<T> list;
-        if (nonValue instanceof Set) {
+        if (nonNull instanceof Set) {
             if (this.rowMeta.columnMetaArray[indexBaseZero].isSetType()) {
                 if (elementClass == String.class) {
-                    list = (List<T>) MySQLCollections.unmodifiableList(new ArrayList<>((Set<String>) nonValue));
+                    list = (List<T>) MySQLCollections.unmodifiableList(new ArrayList<>((Set<String>) nonNull));
                 } else if (elementClass.isEnum()) {
-                    List<T> tempList = MySQLStringUtils.convertStringsToEnumList((Set<String>) nonValue, elementClass);
+                    List<T> tempList = MySQLStringUtils.convertStringsToEnumList((Set<String>) nonNull, elementClass);
                     list = MySQLCollections.unmodifiableList(tempList);
                 } else {
                     throw createNotSupportedException(indexBaseZero, elementClass);
@@ -81,7 +81,7 @@ abstract class MySQLResultRow extends AbstractResultRow<MySQLRowMeta> {
                 throw createNotSupportedException(indexBaseZero, elementClass);
             }
         } else {
-            list = super.convertNonNullToList(indexBaseZero, nonValue, elementClass);
+            list = super.convertNonNullToList(indexBaseZero, nonNull, elementClass);
         }
         return list;
     }
@@ -92,7 +92,7 @@ abstract class MySQLResultRow extends AbstractResultRow<MySQLRowMeta> {
      * </p>
      */
     @Override
-    protected boolean convertToBoolean(final int indexBaseZero, final Object sourceValue) {
+    protected boolean convertNonNullToBoolean(final int indexBaseZero, final Object sourceValue) {
         final boolean value;
 
         try {

@@ -361,7 +361,7 @@ public class TaskTestAdvice extends AbstractTaskTests {
 
         index = meta.getColumnIndex("my_circles");
         assertNotNull(row.get(index), "my_circles");
-        assertEquals(meta.getSQLType(index), PgType.CIRCLE, "sqlType");
+        assertEquals(meta.getSQLType(index), PgType.CIRCLES, "sqlType");
         assertEquals(meta.getPrecision(index), 24, "precision");
         assertEquals(meta.getScale(index), UNKNOWN_SCALE, "scale");
         assertFalse(meta.getSQLType(index).isCaseSensitive(), "caseSensitive");

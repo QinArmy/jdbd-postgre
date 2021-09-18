@@ -566,7 +566,7 @@ final class DefaultExtendedCommandWriter implements ExtendedCommandWriter {
             }
             break;
             case POINT:
-            case CIRCLE:
+            case CIRCLES:
             case LINE:
             case PATH:
             case POLYGON:

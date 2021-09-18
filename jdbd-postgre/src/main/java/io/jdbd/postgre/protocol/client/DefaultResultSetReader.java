@@ -4,28 +4,23 @@ import io.jdbd.JdbdSQLException;
 import io.jdbd.postgre.PgConstant;
 import io.jdbd.postgre.PgJdbdException;
 import io.jdbd.postgre.PgType;
-import io.jdbd.postgre.type.PgGeometries;
 import io.jdbd.postgre.util.PgExceptions;
-import io.jdbd.postgre.util.PgStrings;
 import io.jdbd.postgre.util.PgTimes;
-import io.jdbd.type.Interval;
 import io.jdbd.vendor.result.ResultSetReader;
 import io.jdbd.vendor.result.ResultSink;
 import io.jdbd.vendor.type.LongBinaries;
-import io.jdbd.vendor.type.LongStrings;
 import io.jdbd.vendor.util.JdbdBuffers;
-import io.jdbd.vendor.util.JdbdTimes;
 import io.netty.buffer.ByteBuf;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.math.BigDecimal;
 import java.nio.charset.Charset;
-import java.nio.charset.StandardCharsets;
 import java.sql.SQLException;
-import java.time.*;
+import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
+import java.util.Arrays;
 import java.util.Objects;
-import java.util.UUID;
 import java.util.function.Consumer;
 
 final class DefaultResultSetReader implements ResultSetReader {
@@ -144,6 +139,7 @@ final class DefaultResultSetReader implements ResultSetReader {
         final boolean isCanceled = this.stmtTask.hasError() || sink.isCancelled();
         final Charset clientCharset = this.adjutant.clientCharset();
         Object[] columnValueArray;
+        PgColumnMeta meta;
         while (Messages.hasOneMessage(cumulateBuffer)) {
             final int msgIndex = cumulateBuffer.readerIndex();
             if (cumulateBuffer.getByte(msgIndex) != Messages.D) {
@@ -163,266 +159,27 @@ final class DefaultResultSetReader implements ResultSetReader {
             }
 
             columnValueArray = new Object[columnMetaArray.length];
-            PgColumnMeta meta;
             for (int i = 0, valueLength; i < columnMetaArray.length; i++) {
                 valueLength = cumulateBuffer.readInt();
                 if (valueLength == -1) {
                     // -1 indicates a NULL column value.
+                    columnValueArray[i] = null;
                     continue;
                 }
-
                 meta = columnMetaArray[i];
                 if (meta.textFormat) {
-                    byte[] bytes = new byte[valueLength];
-                    cumulateBuffer.readBytes(bytes);
-                    columnValueArray[i] = parseColumnFromText(new String(bytes, clientCharset), meta);
+                    columnValueArray[i] = parseTextColumn(cumulateBuffer, valueLength, rowMeta, meta);
                 } else {
                     columnValueArray[i] = parseColumnFromBinary(cumulateBuffer, valueLength, meta);
                 }
-
             }
-
             sink.next(PgResultRow.create(rowMeta, columnValueArray, this.adjutant));
-
             cumulateBuffer.readerIndex(nextRowIndex);//avoid tail filler
-
         }
 
         return false;
     }
 
-
-    /**
-     * @see #readRowData(ByteBuf)
-     */
-    private Object parseColumnFromText(final String textValue, final PgColumnMeta meta) {
-        final Object value;
-        switch (meta.columnTypeOid) {
-            case PgConstant.TYPE_INT2: {
-                value = Short.parseShort(textValue);
-            }
-            break;
-            case PgConstant.TYPE_INT4: {
-                value = Integer.parseInt(textValue);
-            }
-            break;
-            case PgConstant.TYPE_OID:
-            case PgConstant.TYPE_INT8: {
-                value = Long.parseLong(textValue);
-            }
-            break;
-            case PgConstant.TYPE_NUMERIC: {
-                value = new BigDecimal(textValue);
-            }
-            break;
-            case PgConstant.TYPE_FLOAT4: {
-                value = Float.parseFloat(textValue);
-            }
-            break;
-            case PgConstant.TYPE_FLOAT8: {
-                value = Double.parseDouble(textValue);
-            }
-            break;
-            case PgConstant.TYPE_BOOLEAN: {
-                if (textValue.equals("t")) {
-                    value = Boolean.TRUE;
-                } else if (textValue.equals("f")) {
-                    value = Boolean.FALSE;
-                } else {
-                    throw createResponseTextColumnValueError(meta, textValue);
-                }
-            }
-            break;
-            case PgConstant.TYPE_TIMESTAMP: {
-                // @see PgConnectionTask
-                // startStartup Message set to default ISO
-                switch (textValue.toLowerCase()) {
-                    case PgConstant.INFINITY:
-                    case PgConstant.NEG_INFINITY:
-                        value = textValue;
-                        break;
-                    default:
-                        value = LocalDateTime.parse(textValue, PgTimes.PG_ISO_LOCAL_DATETIME_FORMATTER);
-                }
-
-            }
-            break;
-            case PgConstant.TYPE_DATE: {
-                // @see PgConnectionTask
-                // startStartup Message set to default ISO
-                switch (textValue.toLowerCase()) {
-                    case PgConstant.INFINITY:
-                    case PgConstant.NEG_INFINITY:
-                        value = textValue;
-                        break;
-                    default:
-                        value = LocalDate.parse(textValue, PgTimes.PG_ISO_LOCAL_DATE_FORMATTER);
-                }
-            }
-            break;
-            case PgConstant.TYPE_TIME: {
-                // @see PgConnectionTask
-                // startStartup Message set to default ISO
-                value = LocalTime.parse(textValue, JdbdTimes.ISO_LOCAL_TIME_FORMATTER);
-            }
-            break;
-            case PgConstant.TYPE_TIMESTAMPTZ: {
-                // @see PgConnectionTask
-                // startStartup Message set to default ISO
-                switch (textValue.toLowerCase()) {
-                    case PgConstant.INFINITY:
-                    case PgConstant.NEG_INFINITY:
-                        value = textValue;
-                        break;
-                    default:
-                        value = PgTimes.parseIsoOffsetDateTime(textValue);
-                }
-            }
-            break;
-            case PgConstant.TYPE_TIMETZ: {
-                // @see PgConnectionTask
-                // startStartup Message set to default ISO
-                switch (textValue.toLowerCase()) {
-                    case PgConstant.INFINITY:
-                    case PgConstant.NEG_INFINITY:
-                        value = textValue;
-                        break;
-                    default:
-                        value = PgTimes.parseIsoOffsetTime(textValue);
-                }
-            }
-            break;
-            case PgConstant.TYPE_CHAR:
-            case PgConstant.TYPE_BPCHAR:
-            case PgConstant.TYPE_VARCHAR:
-            case PgConstant.TYPE_MONEY:// money format dependent on locale,so can't(also don't need) convert.
-            case PgConstant.TYPE_NAME:
-            case PgConstant.TYPE_MAC_ADDR:
-            case PgConstant.TYPE_MAC_ADDR8:
-            case PgConstant.TYPE_INET:
-            case PgConstant.TYPE_CIDR:
-            case PgConstant.TYPE_LINE:
-            case PgConstant.TYPE_LSEG:
-            case PgConstant.TYPE_BOX:
-            case PgConstant.TYPE_INT4RANGE:
-            case PgConstant.TYPE_TSRANGE:
-            case PgConstant.TYPE_TSTZRANGE:
-            case PgConstant.TYPE_DATERANGE:
-            case PgConstant.TYPE_INT8RANGE: {
-                value = textValue;
-            }
-            break;
-            case PgConstant.TYPE_BYTEA: {
-                byte[] bytes;
-                if (textValue.startsWith("\\x")) {
-                    bytes = textValue.substring(2).getBytes(StandardCharsets.UTF_8);
-                    bytes = JdbdBuffers.decodeHex(bytes, bytes.length);
-                } else {
-                    //TODO validate this
-                    bytes = textValue.getBytes(this.adjutant.clientCharset());
-                }
-                value = LongBinaries.fromArray(bytes);
-            }
-            break;
-            case PgConstant.TYPE_VARBIT:
-            case PgConstant.TYPE_BIT: {
-                try {
-                    value = PgStrings.bitStringToBitSet(textValue, false);
-                } catch (IllegalArgumentException e) {
-                    throw createResponseTextColumnValueError(meta, textValue);
-                }
-            }
-            break;
-            case PgConstant.TYPE_UUID: {
-                value = UUID.fromString(textValue);
-            }
-            break;
-            case PgConstant.TYPE_INTERVAL: {
-                // @see PgConnectionTask
-                // startStartup Message set to default ISO-8601
-                value = parseTemporalAmountFromText(textValue, meta);
-            }
-            break;
-            case PgConstant.TYPE_POINT: {
-                value = PgGeometries.point(textValue);
-            }
-            break;
-            case PgConstant.TYPE_TEXT:
-            case PgConstant.TYPE_JSON:
-            case PgConstant.TYPE_JSONB:
-            case PgConstant.TYPE_XML:
-            case PgConstant.TYPE_POLYGON:
-            case PgConstant.TYPE_PATH:
-            case PgConstant.TYPE_TSVECTOR:
-            case PgConstant.TYPE_TSQUERY: {
-                value = LongStrings.fromString(textValue);
-            }
-            break;
-            case PgConstant.TYPE_CIRCLE: {
-                value = PgGeometries.circle(textValue);
-            }
-            break;
-            case PgConstant.TYPE_INT2_ARRAY:
-            case PgConstant.TYPE_INT4_ARRAY:
-            case PgConstant.TYPE_INT8_ARRAY:
-            case PgConstant.TYPE_TEXT_ARRAY:
-            case PgConstant.TYPE_NUMERIC_ARRAY:
-            case PgConstant.TYPE_FLOAT4_ARRAY:
-            case PgConstant.TYPE_FLOAT8_ARRAY:
-            case PgConstant.TYPE_BOOLEAN_ARRAY:
-            case PgConstant.TYPE_DATE_ARRAY:
-            case PgConstant.TYPE_TIME_ARRAY:
-            case PgConstant.TYPE_TIMETZ_ARRAY:
-            case PgConstant.TYPE_TIMESTAMP_ARRAY:
-            case PgConstant.TYPE_TIMESTAMPTZ_ARRAY:
-            case PgConstant.TYPE_BYTEA_ARRAY:
-            case PgConstant.TYPE_VARCHAR_ARRAY:
-            case PgConstant.TYPE_OID_ARRAY:
-            case PgConstant.TYPE_BPCHAR_ARRAY:
-            case PgConstant.TYPE_MONEY_ARRAY:
-            case PgConstant.TYPE_NAME_ARRAY:
-            case PgConstant.TYPE_BIT_ARRAY:
-            case PgConstant.TYPE_INTERVAL_ARRAY:
-            case PgConstant.TYPE_CHAR_ARRAY:
-            case PgConstant.TYPE_VARBIT_ARRAY:
-            case PgConstant.TYPE_UUID_ARRAY:
-            case PgConstant.TYPE_XML_ARRAY:
-            case PgConstant.TYPE_POINT_ARRAY:
-            case PgConstant.TYPE_LINE_ARRAY:
-            case PgConstant.TYPE_LINE_LSEG_ARRAY:
-            case PgConstant.TYPE_JSONB_ARRAY:
-            case PgConstant.TYPE_JSON_ARRAY:
-            case PgConstant.TYPE_BOX_ARRAY:
-            case PgConstant.TYPE_PATH_ARRAY:
-            case PgConstant.TYPE_POLYGON_ARRAY:
-            case PgConstant.TYPE_CIRCLES_ARRAY:
-            case PgConstant.TYPE_CIDR_ARRAY:
-            case PgConstant.TYPE_INET_ARRAY:
-            case PgConstant.TYPE_MACADDR_ARRAY:
-            case PgConstant.TYPE_MACADDR8_ARRAY:
-            case PgConstant.TYPE_TSVECTOR_ARRAY:
-            case PgConstant.TYPE_REF_CURSOR_ARRAY:
-            case PgConstant.TYPE_INT4RANGE_ARRAY:
-            case PgConstant.TYPE_TSRANGE_ARRAY:
-            case PgConstant.TYPE_TSTZRANGE_ARRAY:
-            case PgConstant.TYPE_DATERANGE_ARRAY:
-            case PgConstant.TYPE_INT8RANGE_ARRAY:
-            case PgConstant.TYPE_TSQUERY_ARRAY: {
-                // LOG.debug("array");
-                value = textValue;
-            }
-            break;
-            default: {
-                // unknown type
-                if (!meta.columnLabel.endsWith("array_2")) {
-                    LOG.debug("Unknown postgre data type, Meta[{}].", meta);
-                }
-
-                value = textValue;
-            }
-        }
-        return value;
-    }
 
     /**
      * @see #readRowData(ByteBuf)
@@ -481,26 +238,6 @@ final class DefaultResultSetReader implements ResultSetReader {
                 value = bytes;
             }
 
-        }
-        return value;
-    }
-
-
-    /**
-     * @see #parseColumnFromText(String, PgColumnMeta)
-     */
-    private Interval parseTemporalAmountFromText(final String textValue, final PgColumnMeta meta) {
-        final Interval value;
-        switch (this.adjutant.server().intervalStyle()) {
-            case iso_8601: {
-                value = Interval.parse(textValue, true);
-            }
-            break;
-            case postgres:
-            case sql_standard:
-            case postgres_verbose:
-            default:
-                throw new IllegalArgumentException(String.format("Cannot parse interval,ColumnMata[%s]", meta));
         }
         return value;
     }
@@ -567,12 +304,42 @@ final class DefaultResultSetReader implements ResultSetReader {
     }
 
 
-    private static JdbdSQLException createResponseTextColumnValueError(PgColumnMeta meta, String textValue) {
-        String m = String.format("Server response text value[%s] error for PgColumnMeta[%s].", textValue, meta);
-        return new JdbdSQLException(new SQLException(m));
+    private static Object parseTextColumn(final ByteBuf cumulateBuffer, final int valueLength, final PgRowMeta rowMeta
+            , final PgColumnMeta meta) {
+        final byte[] bytes = new byte[valueLength];
+        cumulateBuffer.readBytes(bytes);
+        final Object value;
+        switch (meta.pgType) {
+            case BYTEA: {
+                if (bytes.length > 1 && bytes[0] == '\\' && bytes[1] == 'x') {
+                    byte[] v = Arrays.copyOfRange(bytes, 2, bytes.length);
+                    value = LongBinaries.fromArray(JdbdBuffers.decodeHex(v, v.length));
+                } else {
+                    value = LongBinaries.fromArray(bytes);
+                }
+            }
+            break;
+            case BOOLEAN: {
+                final String v = new String(bytes, rowMeta.clientCharset);
+                if (v.equalsIgnoreCase("t")) {
+                    value = Boolean.TRUE;
+                } else if (v.equalsIgnoreCase("f")) {
+                    value = Boolean.FALSE;
+                } else {
+                    throw PgResultRow.createResponseTextColumnValueError(meta, v);
+                }
+            }
+            break;
+            default: {
+                value = new String(bytes, rowMeta.clientCharset);
+            }
+
+        }
+        return value;
     }
 
-    private static JdbdSQLException createResponseBinaryColumnValueError(final ByteBuf cumulateBuffer
+
+    static JdbdSQLException createResponseBinaryColumnValueError(final ByteBuf cumulateBuffer
             , final int valueLength, final PgColumnMeta meta) {
         byte[] bytes = new byte[valueLength];
         cumulateBuffer.readBytes(bytes);

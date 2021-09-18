@@ -193,7 +193,7 @@ public abstract class PgBinds extends JdbdBinds {
         } else if (nullable instanceof Point) {
             pgType = PgType.POINT;
         } else if (nullable instanceof Circle) {
-            pgType = PgType.CIRCLE;
+            pgType = PgType.CIRCLES;
         } else if (nullable instanceof BitSet) {
             pgType = PgType.VARBIT;
         } else if (nullable instanceof UUID) {
@@ -338,6 +338,45 @@ public abstract class PgBinds extends JdbdBinds {
     }
 
 
+    public static int decideFormatCode(final PgType type) {
+        final int formatCode;
+        switch (type) {
+            case SMALLINT:
+            case INTEGER:
+            case REAL:
+            case DOUBLE:
+            case OID:
+            case BIGINT:
+            case BYTEA:
+            case BOOLEAN:
+                formatCode = 1; // binary format code
+                // only these  is binary format ,because postgre no document about binary format ,and postgre binary protocol not good
+                // if change this ,change io.jdbd.postgre.protocol.client.DefaultResultSetReader.parseColumnFromBinary
+                break;
+            default:
+                formatCode = 0; // all array type is text format
+        }
+        return formatCode;
+    }
+
+    public static String bindNonNullShortArray(final int batchIndex, PgType pgType, ParamValue paramValue)
+            throws SQLException {
+        if (pgType != PgType.SMALLINT_ARRAY) {
+            throw new IllegalArgumentException("pgType error");
+        }
+        final Object arrayObject = paramValue.getNonNull();
+        if (!arrayObject.getClass().isArray()) {
+            throw JdbdExceptions.createNonSupportBindSqlTypeError(batchIndex, pgType, paramValue);
+        }
+        final Pair<Class<?>, Integer> pair = getArrayDimensions(arrayObject.getClass());
+        final Class<?> arrayType = pair.getFirst();
+        if (arrayType != Short.class && arrayType != short.class) {
+            throw JdbdExceptions.createNonSupportBindSqlTypeError(batchIndex, pgType, paramValue);
+        }
+        return bindNonNullToArrayWithoutEscapes(batchIndex, pgType, paramValue);
+    }
+
+
     public static String bindNonNullToArrayWithoutEscapes(final int batchIndex, PgType pgType, ParamValue paramValue)
             throws SQLException {
         if (pgType.jdbcType() != JDBCType.ARRAY) {
@@ -432,27 +471,6 @@ public abstract class PgBinds extends JdbdBinds {
         builder.append('}');
     }
 
-
-    public static int decideFormatCode(final PgType type) {
-        final int formatCode;
-        switch (type) {
-            case SMALLINT:
-            case INTEGER:
-            case REAL:
-            case DOUBLE:
-            case OID:
-            case BIGINT:
-            case BYTEA:
-            case BOOLEAN:
-                formatCode = 1; // binary format code
-                // only these  is binary format ,because postgre no document about binary format ,and postgre binary protocol not good
-                // if change this ,change io.jdbd.postgre.protocol.client.DefaultResultSetReader.parseColumnFromBinary
-                break;
-            default:
-                formatCode = 0; // all array type is text format
-        }
-        return formatCode;
-    }
 
     private static final class ArrayWrapper {
 

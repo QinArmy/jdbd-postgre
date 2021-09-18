@@ -32,12 +32,12 @@ public final class ErrorResultRow implements ResultRow {
     }
 
     @Override
-    public Object get(String columnAlias) throws JdbdSQLException {
+    public Object get(String columnLabel) throws JdbdSQLException {
         throw new UnsupportedOperationException();
     }
 
     @Override
-    public <T> T get(String alias, Class<T> columnClass)
+    public <T> T get(String columnLabel, Class<T> columnClass)
             throws JdbdSQLException, UnsupportedConvertingException {
         throw new UnsupportedOperationException();
     }
@@ -49,7 +49,7 @@ public final class ErrorResultRow implements ResultRow {
     }
 
     @Override
-    public <T> Set<T> getSet(String columnAlias, Class<T> elementClass)
+    public <T> Set<T> getSet(String columnLabel, Class<T> elementClass)
             throws JdbdSQLException, UnsupportedConvertingException {
         throw new UnsupportedOperationException();
     }
@@ -61,7 +61,7 @@ public final class ErrorResultRow implements ResultRow {
     }
 
     @Override
-    public <T> List<T> getList(String columnAlias, Class<T> elementClass)
+    public <T> List<T> getList(String columnLabel, Class<T> elementClass)
             throws JdbdSQLException, UnsupportedConvertingException {
         throw new UnsupportedOperationException();
     }
@@ -79,13 +79,13 @@ public final class ErrorResultRow implements ResultRow {
     }
 
     @Override
-    public Object getNonNull(String columnAlias)
+    public Object getNonNull(String columnLabel)
             throws JdbdSQLException, NullPointerException {
         throw new UnsupportedOperationException();
     }
 
     @Override
-    public <T> T getNonNull(String columnAlias, Class<T> columnClass)
+    public <T> T getNonNull(String columnLabel, Class<T> columnClass)
             throws JdbdSQLException, UnsupportedConvertingException, NullPointerException {
         throw new UnsupportedOperationException();
     }
