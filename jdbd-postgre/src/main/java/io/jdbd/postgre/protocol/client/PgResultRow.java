@@ -2,26 +2,18 @@ package io.jdbd.postgre.protocol.client;
 
 import io.jdbd.JdbdSQLException;
 import io.jdbd.meta.SQLType;
-import io.jdbd.postgre.PgConstant;
 import io.jdbd.postgre.PgType;
-import io.jdbd.postgre.type.PgBox;
 import io.jdbd.postgre.type.PgGeometries;
-import io.jdbd.postgre.type.PgLine;
-import io.jdbd.postgre.type.PgPolygon;
 import io.jdbd.postgre.util.PgBinds;
+import io.jdbd.postgre.util.PgExceptions;
 import io.jdbd.postgre.util.PgStrings;
 import io.jdbd.postgre.util.PgTimes;
 import io.jdbd.result.ResultRow;
 import io.jdbd.result.ResultRowMeta;
 import io.jdbd.result.UnsupportedConvertingException;
 import io.jdbd.type.Interval;
-import io.jdbd.type.geo.Line;
-import io.jdbd.type.geo.LineString;
-import io.jdbd.type.geometry.Circle;
 import io.jdbd.type.geometry.LongString;
 import io.jdbd.vendor.type.LongStrings;
-import io.jdbd.vendor.util.JdbdBinds;
-import io.jdbd.vendor.util.JdbdTimes;
 import org.qinarmy.util.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -29,14 +21,12 @@ import reactor.util.annotation.Nullable;
 
 import java.lang.reflect.Array;
 import java.math.BigDecimal;
-import java.nio.charset.Charset;
 import java.sql.SQLException;
 import java.text.DecimalFormat;
 import java.text.NumberFormat;
 import java.text.ParseException;
-import java.time.*;
-import java.time.temporal.TemporalAccessor;
-import java.time.temporal.TemporalAmount;
+import java.time.DateTimeException;
+import java.time.LocalTime;
 import java.util.*;
 
 public class PgResultRow implements ResultRow {
@@ -50,6 +40,9 @@ public class PgResultRow implements ResultRow {
 
     /**
      * This types that from text protocol have parsed by {@link io.jdbd.vendor.result.ResultSetReader}.
+     * <p>
+     * Because these data type can't directly display. (eg: row.get(index,String.class))
+     * </p>
      */
     private static final Set<PgType> PARSED_TYPE_SET = Collections.unmodifiableSet(EnumSet.of(
             PgType.BYTEA,
@@ -92,11 +85,7 @@ public class PgResultRow implements ResultRow {
         }
         final PgColumnMeta columnMeta = this.rowMeta.columnMetaArray[indexBaseZero];
         if (columnMeta.textFormat && !PARSED_TYPE_SET.contains(columnMeta.pgType)) {
-            try {
-                value = parseColumnFromText((String) value, columnMeta);
-            } catch (IllegalArgumentException e) {
-                throw createResponseTextColumnValueError(columnMeta, (String) value);
-            }
+            value = parseColumnFromText((String) value, columnMeta);
         }
         value = convertNonNullValue(indexBaseZero, value, columnMeta.pgType.javaType());
         return value;
@@ -251,125 +240,14 @@ public class PgResultRow implements ResultRow {
             if (targetClass.isInstance(v)) {
                 value = targetClass.cast(v);
             } else {
-                value = super.convertNonNullValue(indexBaseZero, v, targetClass);
+                value = null;
             }
         } else {
-            value = super.convertNonNullValue(indexBaseZero, nonNull, targetClass);
+            value = null;
         }
         return value;
     }
 
-    @Override
-    protected final <T> T convertToOther(final int indexBaseZero, final Object nonNull, final Class<T> targetClass)
-            throws UnsupportedConvertingException {
-        final T value;
-        try {
-            final PgType pgType = this.rowMeta.columnMetaArray[indexBaseZero].pgType;
-            if (targetClass == PgLine.class) {
-                value = targetClass.cast(PgGeometries.line(nonNull.toString()));
-            } else if (targetClass == Line.class) {
-                value = targetClass.cast(PgGeometries.lineSegment(nonNull.toString()));
-            } else if (targetClass == PgBox.class) {
-                value = targetClass.cast(PgGeometries.box(nonNull.toString()));
-            } else if (targetClass == LineString.class && pgType == PgType.PATH) {
-                value = targetClass.cast(PgGeometries.path(nonNull.toString()));
-            } else if (targetClass == PgPolygon.class && pgType == PgType.POLYGON) {
-                value = targetClass.cast(PgGeometries.polygon(nonNull.toString()));
-            } else if (targetClass == Circle.class && pgType == PgType.CIRCLES) {
-                value = targetClass.cast(PgGeometries.circle(nonNull.toString()));
-            } else {
-                value = super.convertToOther(indexBaseZero, nonNull, targetClass);
-            }
-            return value;
-        } catch (IllegalArgumentException e) {
-            throw createValueCannotConvertException(e, indexBaseZero, targetClass);
-        }
-    }
-
-    @Override
-    protected final Object convertNonNullToArray(final int indexBaseZero, Object nonNull, Class<?> targetClass)
-            throws UnsupportedConvertingException {
-        final PgType pgType = this.rowMeta.columnMetaArray[indexBaseZero].pgType;
-        final PgType elementType = pgType.elementType();
-        final Pair<Class<?>, Integer> pair = JdbdBinds.getArrayDimensions(targetClass);
-
-        final Object parsedArray;
-        if (pgType == PgType.UNSPECIFIED && pair.getFirst() == String.class) {
-
-        } else if (elementType != null && elementType.javaType() == pair.getFirst()) {
-
-        } else {
-            throw createNotSupportedException(indexBaseZero, targetClass);
-        }
-
-        return null;
-    }
-
-    @Override
-    protected final <T> List<T> convertNonNullToList(final int indexBaseZero, final Object nonNull
-            , final Class<T> elementClass) throws UnsupportedConvertingException {
-        final PgType pgType = this.rowMeta.columnMetaArray[indexBaseZero].pgType;
-        final List<T> list;
-        if (pgType == PgType.TSVECTOR && elementClass == String.class) {
-            list = convertTsvectorToList(indexBaseZero, nonNull);
-        } else {
-            list = super.convertNonNullToList(indexBaseZero, nonNull, elementClass);
-        }
-        return list;
-    }
-
-
-    @Override
-    protected final BigDecimal convertToBigDecimal(final int indexBaseZero, final Object nonNull) {
-        final BigDecimal value;
-        if (nonNull instanceof String) {
-            switch (this.rowMeta.columnMetaArray[indexBaseZero].pgType) {
-                case MONEY:
-                case MONEY_ARRAY:
-                    value = convertMoneyToBigDecimal(indexBaseZero, (String) nonNull);
-                    break;
-                default:
-                    value = super.convertToBigDecimal(indexBaseZero, nonNull);
-            }
-        } else {
-            value = super.convertToBigDecimal(indexBaseZero, nonNull);
-        }
-        return value;
-    }
-
-
-    @Override
-    protected UnsupportedConvertingException createValueCannotConvertException(Throwable cause, int indexBasedZero
-            , Class<?> targetClass) {
-        return null;
-    }
-
-    @Override
-    protected ZoneOffset obtainZoneOffsetClient() {
-        return null;
-    }
-
-    @Override
-    protected final Charset obtainColumnCharset(final int indexBasedZero) {
-        return this.adjutant.clientCharset();
-    }
-
-    @Override
-    protected final TemporalAccessor convertStringToTemporalAccessor(final int indexBaseZero, String sourceValue
-            , Class<?> targetClass) throws DateTimeException, UnsupportedConvertingException {
-        return null;
-    }
-
-    @Override
-    protected final TemporalAmount convertStringToTemporalAmount(final int indexBaseZero, String nonNull, Class<?> targetClass)
-            throws DateTimeException, UnsupportedConvertingException {
-        return Interval.parse(nonNull);
-    }
-
-    @Override
-    protected String formatTemporalAccessor(TemporalAccessor temporalAccessor) throws DateTimeException {
-        return null;
-    }
 
     private int checkIndex(int indexBaseZero) {
         if (indexBaseZero < 0 || indexBaseZero >= this.columnValues.length) {
@@ -383,6 +261,119 @@ public class PgResultRow implements ResultRow {
      * @throws IllegalArgumentException when textValue parse occur error.
      */
     private Object parseColumnFromText(final String textValue, final PgColumnMeta meta)
+            throws IllegalArgumentException {
+        try {
+            final Object value;
+            if (meta.pgType.isArray()) {
+                final PgType elementType = Objects.requireNonNull(meta.pgType.elementType());
+                value = parseArrayColumnFromText(textValue, meta, elementType.javaType());
+            } else {
+                value = parseNonArrayColumnFromText(textValue, meta);
+            }
+            return value;
+        } catch (IllegalArgumentException | DateTimeException e) {
+            throw createResponseTextColumnValueError(e, meta, textValue);
+        }
+    }
+
+    private Object parseArrayColumnFromText(final String textValue, final PgColumnMeta meta
+            , final Class<?> targetArrayClass)
+            throws IllegalArgumentException {
+        final Object value;
+        switch (meta.pgType) {
+            case BOOLEAN_ARRAY: {
+                value = ColumnArrays.readBooleanArray(textValue, meta);
+            }
+            break;
+            case SMALLINT_ARRAY: {
+                value = ColumnArrays.readShortArray(textValue, meta);
+            }
+            break;
+            case INTEGER_ARRAY: {
+                value = ColumnArrays.readIntegerArray(textValue, meta);
+            }
+            break;
+            case BIGINT_ARRAY: {
+                value = ColumnArrays.readBigIntArray(textValue, meta);
+            }
+            break;
+            case DECIMAL_ARRAY: {
+                value = ColumnArrays.readDecimalArray(textValue, meta);
+            }
+            break;
+            case REAL_ARRAY: {
+                value = ColumnArrays.readRealArray(textValue, meta);
+            }
+            break;
+            case DOUBLE_ARRAY: {
+                value = ColumnArrays.readDoubleArray(textValue, meta);
+            }
+            break;
+            case TIME_ARRAY: {
+                value = ColumnArrays.readTimeArray(textValue, meta);
+            }
+            break;
+            case DATE_ARRAY: {
+                value = ColumnArrays.readDateArray(textValue, meta, targetArrayClass);
+            }
+            break;
+            case TIMESTAMP_ARRAY: {
+                value = ColumnArrays.readTimestampArray(textValue, meta, targetArrayClass);
+            }
+            break;
+            case TIMETZ_ARRAY: {
+                value = ColumnArrays.readTimeTzArray(textValue, meta);
+            }
+            break;
+            case TIMESTAMPTZ_ARRAY: {
+                value = ColumnArrays.readTimestampTzArray(textValue, meta, targetArrayClass);
+            }
+            break;
+            case MONEY_ARRAY:
+            case TEXT_ARRAY:
+            case BYTEA_ARRAY:
+            case VARCHAR_ARRAY:
+            case OID_ARRAY:
+            case BIT_ARRAY:
+            case INTERVAL_ARRAY:
+            case CHAR_ARRAY:
+            case VARBIT_ARRAY:
+            case UUID_ARRAY:
+            case XML_ARRAY:
+            case POINT_ARRAY:
+            case LINE_ARRAY:
+            case LINE_SEGMENT_ARRAY:
+            case JSONB_ARRAY:
+            case JSON_ARRAY:
+            case BOX_ARRAY:
+            case PATH_ARRAY:
+            case POLYGON_ARRAY:
+            case CIRCLES_ARRAY:
+            case CIDR_ARRAY:
+            case INET_ARRAY:
+            case MACADDR_ARRAY:
+            case MACADDR8_ARRAY:
+            case TSVECTOR_ARRAY:
+            case REF_CURSOR_ARRAY:
+            case INT4RANGE_ARRAY:
+            case TSRANGE_ARRAY:
+            case TSTZRANGE_ARRAY:
+            case DATERANGE_ARRAY:
+            case INT8RANGE_ARRAY:
+            case TSQUERY_ARRAY: {
+                if (LOG.isTraceEnabled()) {
+                    LOG.trace("read array type {}", meta.pgType);
+                }
+                value = textValue;
+            }
+            break;
+            default:
+                throw PgExceptions.createUnexpectedEnumException(meta.pgType);
+        }
+        return value;
+    }
+
+    private Object parseNonArrayColumnFromText(final String textValue, final PgColumnMeta meta)
             throws IllegalArgumentException {
         final Object value;
         switch (meta.pgType) {
@@ -411,67 +402,28 @@ public class PgResultRow implements ResultRow {
                 value = Double.parseDouble(textValue);
             }
             break;
-            case BOOLEAN: {
-
-            }
-            break;
             case TIMESTAMP: {
-                // @see PgConnectionTask
-                // startStartup Message set to default ISO
-                switch (textValue.toLowerCase()) {
-                    case PgConstant.INFINITY:
-                    case PgConstant.NEG_INFINITY:
-                        value = textValue;
-                        break;
-                    default:
-                        value = LocalDateTime.parse(textValue, PgTimes.PG_ISO_LOCAL_DATETIME_FORMATTER);
-                }
-
+                value = PgTimes.parseIsoLocalDateTime(textValue);
             }
             break;
             case DATE: {
-                // @see PgConnectionTask
-                // startStartup Message set to default ISO
-                switch (textValue.toLowerCase()) {
-                    case PgConstant.INFINITY:
-                    case PgConstant.NEG_INFINITY:
-                        value = textValue;
-                        break;
-                    default:
-                        value = LocalDate.parse(textValue, PgTimes.PG_ISO_LOCAL_DATE_FORMATTER);
-                }
+                value = PgTimes.parseIsoLocalDate(textValue);
             }
             break;
             case TIME: {
                 // @see PgConnectionTask
                 // startStartup Message set to default ISO
-                value = LocalTime.parse(textValue, JdbdTimes.ISO_LOCAL_TIME_FORMATTER);
+                value = LocalTime.parse(textValue, PgTimes.ISO_LOCAL_TIME_FORMATTER);
             }
             break;
             case TIMESTAMPTZ: {
-                // @see PgConnectionTask
-                // startStartup Message set to default ISO
-                switch (textValue.toLowerCase()) {
-                    case PgConstant.INFINITY:
-                    case PgConstant.NEG_INFINITY:
-                        value = textValue;
-                        break;
-                    default:
-                        value = PgTimes.parseIsoOffsetDateTime(textValue);
-                }
+                value = PgTimes.parseIsoOffsetDateTime(textValue);
             }
             break;
             case TIMETZ: {
                 // @see PgConnectionTask
                 // startStartup Message set to default ISO
-                switch (textValue.toLowerCase()) {
-                    case PgConstant.INFINITY:
-                    case PgConstant.NEG_INFINITY:
-                        value = textValue;
-                        break;
-                    default:
-                        value = PgTimes.parseIsoOffsetTime(textValue);
-                }
+                value = PgTimes.parseIsoOffsetTime(textValue);
             }
             break;
             case CHAR:
@@ -492,9 +444,6 @@ public class PgResultRow implements ResultRow {
                 value = textValue;
             }
             break;
-            case BYTEA: {
-                throw new IllegalArgumentException(String.format("%s have parsed.", meta.pgType));
-            }
             case VARBIT:
             case BIT: {
                 value = PgStrings.bitStringToBitSet(textValue, false);
@@ -529,56 +478,10 @@ public class PgResultRow implements ResultRow {
                 value = PgGeometries.circle(textValue);
             }
             break;
-            case SMALLINT_ARRAY:
-            case INTEGER_ARRAY:
-            case BIGINT_ARRAY:
-            case TEXT_ARRAY:
-            case DECIMAL_ARRAY:
-            case REAL_ARRAY:
-            case DOUBLE_ARRAY:
-            case BOOLEAN_ARRAY:
-            case DATE_ARRAY:
-            case TIME_ARRAY:
-            case TIMETZ_ARRAY:
-            case TIMESTAMP_ARRAY:
-            case TIMESTAMPTZ_ARRAY:
-            case BYTEA_ARRAY:
-            case VARCHAR_ARRAY:
-            case OID_ARRAY:
-            case MONEY_ARRAY:
-            case BIT_ARRAY:
-            case INTERVAL_ARRAY:
-            case CHAR_ARRAY:
-            case VARBIT_ARRAY:
-            case UUID_ARRAY:
-            case XML_ARRAY:
-            case POINT_ARRAY:
-            case LINE_ARRAY:
-            case LINE_SEGMENT_ARRAY:
-            case JSONB_ARRAY:
-            case JSON_ARRAY:
-            case BOX_ARRAY:
-            case PATH_ARRAY:
-            case POLYGON_ARRAY:
-            case CIRCLES_ARRAY:
-            case CIDR_ARRAY:
-            case INET_ARRAY:
-            case MACADDR_ARRAY:
-            case MACADDR8_ARRAY:
-            case TSVECTOR_ARRAY:
-            case REF_CURSOR_ARRAY:
-            case INT4RANGE_ARRAY:
-            case TSRANGE_ARRAY:
-            case TSTZRANGE_ARRAY:
-            case DATERANGE_ARRAY:
-            case INT8RANGE_ARRAY:
-            case TSQUERY_ARRAY: {
-                if (LOG.isTraceEnabled()) {
-                    LOG.trace("read array type {}", meta.pgType);
-                }
-                value = textValue;
+            case BOOLEAN:
+            case BYTEA: {
+                throw new IllegalArgumentException(String.format("%s have parsed.", meta.pgType));
             }
-            break;
             default: {
                 // unknown type
                 if (LOG.isTraceEnabled()) {
@@ -588,13 +491,6 @@ public class PgResultRow implements ResultRow {
             }
         }
         return value;
-    }
-
-    /**
-     * @see #get(int)
-     */
-    private <T> T convertNonNullValue(final int indexBasedZero, final Object nonNull) {
-        return null;
     }
 
     /**
@@ -642,7 +538,7 @@ public class PgResultRow implements ResultRow {
 
 
     /**
-     * @see #convertNonNullToList(int, Object, Class)
+     *
      */
     private <T> List<T> convertTsvectorToList(final int indexBaseZero, final Object nonNull)
             throws UnsupportedConvertingException {
@@ -674,7 +570,7 @@ public class PgResultRow implements ResultRow {
         boolean inQuoteString = false;
         char ch;
         final List<String> list = new ArrayList<>();
-        for (final int i = 0, lastEndpointEnd = 0; i < charArray.length; i++) {
+        for (int i = 0, lastEndpointEnd = 0; i < charArray.length; i++) {
             ch = charArray[i];
             if (inQuoteString) {
                 final int index = lexemes.indexOf(QUOTE, i);
@@ -703,7 +599,7 @@ public class PgResultRow implements ResultRow {
 
 
     /**
-     * @see #convertToBigDecimal(int, Object)
+     *
      */
     private BigDecimal convertMoneyToBigDecimal(final int indexBaseZero, final String nonNull)
             throws UnsupportedConvertingException {
@@ -766,9 +662,14 @@ public class PgResultRow implements ResultRow {
         return new UnsupportedConvertingException(msg, pgType, BigDecimal.class);
     }
 
-    static JdbdSQLException createResponseTextColumnValueError(PgColumnMeta meta, String textValue) {
+    static JdbdSQLException createResponseTextColumnValueError(@Nullable Throwable cause, PgColumnMeta meta
+            , String textValue) {
         String m = String.format("Server response text value[%s] error for PgColumnMeta[%s].", textValue, meta);
-        return new JdbdSQLException(new SQLException(m));
+        return new JdbdSQLException(new SQLException(m, cause));
+    }
+
+    static JdbdSQLException createResponseTextColumnValueError(PgColumnMeta meta, String textValue) {
+        return createResponseTextColumnValueError(null, meta, textValue);
     }
 
 

@@ -58,7 +58,7 @@ public class PgTimesSuiteTests {
             , final LocalDateTime dateTime) {
         ZoneOffset offset = ZoneOffset.of(offsetText);
         String textValue = OffsetDateTime.of(dateTime, offset).format(formatter);
-        OffsetDateTime offsetDateTime = PgTimes.parseIsoOffsetDateTime(textValue);
+        OffsetDateTime offsetDateTime = (OffsetDateTime) PgTimes.parseIsoOffsetDateTime(textValue);
 
         assertEquals(offsetDateTime.toLocalDateTime(), dateTime, offsetText);
         assertEquals(offsetDateTime.getOffset().normalized(), offset, offsetText);

@@ -1,10 +1,9 @@
 package io.jdbd.postgre.util;
 
+import io.jdbd.postgre.PgConstant;
 import io.jdbd.vendor.util.JdbdTimes;
 
-import java.time.DateTimeException;
-import java.time.OffsetDateTime;
-import java.time.OffsetTime;
+import java.time.*;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeFormatterBuilder;
 import java.time.format.SignStyle;
@@ -170,24 +169,68 @@ public abstract class PgTimes extends JdbdTimes {
     }
 
 
-    public static OffsetDateTime parseIsoOffsetDateTime(final String textValue) throws DateTimeException {
-
-        OffsetDateTime dateTime;
-        try {
-            dateTime = OffsetDateTime.parse(textValue, PG_ISO_OFFSET_DATETIME_FORMATTER);
-        } catch (DateTimeException e) {
-            // postgre iso zone offset output is too too too too too too too too too too too stupid.
-            // +HH or +HH:MM or +HH:MM:SS
-            try {
-                dateTime = OffsetDateTime.parse(textValue, PG_ISO_OFFSET_HH_DATETIME_FORMATTER);
-            } catch (DateTimeException e2) {
-                throw e;
-            }
+    public static Object parseIsoLocalDate(final String textValue) throws DateTimeException {
+        // @see PgConnectionTask
+        // startStartup Message set to default ISO
+        Object value;
+        switch (textValue.toLowerCase()) {
+            case PgConstant.INFINITY:
+            case PgConstant.NEG_INFINITY:
+                value = textValue;
+                break;
+            default:
+                value = LocalDate.parse(textValue, PgTimes.PG_ISO_LOCAL_DATE_FORMATTER);
         }
-        return dateTime;
+        return value;
+    }
+
+    public static Object parseIsoLocalDateTime(final String textValue) throws DateTimeException {
+        // @see PgConnectionTask
+        // startStartup Message set to default ISO
+        final Object value;
+        switch (textValue.toLowerCase()) {
+            case PgConstant.INFINITY:
+            case PgConstant.NEG_INFINITY:
+                value = textValue;
+                break;
+            default:
+                value = LocalDateTime.parse(textValue, PgTimes.PG_ISO_LOCAL_DATETIME_FORMATTER);
+        }
+        return value;
+    }
+
+
+    public static Object parseIsoOffsetDateTime(final String textValue) throws DateTimeException {
+
+        Object value;
+        // @see PgConnectionTask
+        // startStartup Message set to default ISO
+        switch (textValue.toLowerCase()) {
+            case PgConstant.INFINITY:
+            case PgConstant.NEG_INFINITY:
+                value = textValue;
+                break;
+            default: {
+                try {
+                    value = OffsetDateTime.parse(textValue, PG_ISO_OFFSET_DATETIME_FORMATTER);
+                } catch (DateTimeException e) {
+                    // postgre iso zone offset output is too too too too too too too too too too too stupid.
+                    // +HH or +HH:MM or +HH:MM:SS
+                    try {
+                        value = OffsetDateTime.parse(textValue, PG_ISO_OFFSET_HH_DATETIME_FORMATTER);
+                    } catch (DateTimeException e2) {
+                        throw e;
+                    }
+                }
+            }
+
+        }
+        return value;
     }
 
     public static OffsetTime parseIsoOffsetTime(String textValue) throws DateTimeException {
+        // @see PgConnectionTask
+        // startStartup Message set to default ISO
         OffsetTime time;
         try {
             time = OffsetTime.parse(textValue, ISO_OFFSET_TIME_FORMATTER);
