@@ -16,7 +16,7 @@ public interface ResultRowMeta {
 
     /**
      * @return index of this Query result, based zero.
-     * @see Result
+     * @see Result#getResultIndex()
      */
     default int getResultIndex() {
         throw new UnsupportedOperationException();
@@ -122,7 +122,7 @@ public interface ResultRowMeta {
      */
     SQLType getSQLType(int indexBaseZero) throws JdbdSQLException;
 
-    SQLType getSQLType(String columnAlias) throws JdbdSQLException;
+    SQLType getSQLType(String columnLabel) throws JdbdSQLException;
 
     /**
      * @param indexBaseZero base 0,the first column is 0, the second is 1, ...
@@ -134,7 +134,7 @@ public interface ResultRowMeta {
     /**
      * @see #getNullMode(int)
      */
-    NullMode getNullMode(String columnAlias) throws JdbdSQLException;
+    NullMode getNullMode(String columnLabel) throws JdbdSQLException;
 
 
     /**
@@ -333,10 +333,6 @@ public interface ResultRowMeta {
         throw new UnsupportedOperationException();
     }
 
-    @Deprecated
-    default FieldType getFieldType() {
-        throw new UnsupportedOperationException();
-    }
 
 
 }

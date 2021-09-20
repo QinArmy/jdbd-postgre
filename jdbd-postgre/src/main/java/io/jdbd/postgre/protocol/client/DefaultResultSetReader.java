@@ -180,6 +180,24 @@ final class DefaultResultSetReader implements ResultSetReader {
         return false;
     }
 
+    private static Object parseTextColumn(final ByteBuf cumulateBuffer, final int valueLength, final PgRowMeta rowMeta
+            , final PgColumnMeta meta) {
+        final byte[] bytes = new byte[valueLength];
+        cumulateBuffer.readBytes(bytes);
+        final Object value;
+        if (meta.sqlType == PgType.BYTEA) {
+            if (bytes.length > 1 && bytes[0] == '\\' && bytes[1] == 'x') {
+                byte[] v = Arrays.copyOfRange(bytes, 2, bytes.length);
+                value = LongBinaries.fromArray(JdbdBuffers.decodeHex(v, v.length));
+            } else {
+                value = LongBinaries.fromArray(bytes);
+            }
+        } else {
+            value = new String(bytes, rowMeta.clientCharset);
+        }
+        return value;
+    }
+
 
     /**
      * @see #readRowData(ByteBuf)
@@ -304,46 +322,15 @@ final class DefaultResultSetReader implements ResultSetReader {
     }
 
 
-    private static Object parseTextColumn(final ByteBuf cumulateBuffer, final int valueLength, final PgRowMeta rowMeta
-            , final PgColumnMeta meta) {
-        final byte[] bytes = new byte[valueLength];
-        cumulateBuffer.readBytes(bytes);
-        final Object value;
-        switch (meta.pgType) {
-            case BYTEA: {
-                if (bytes.length > 1 && bytes[0] == '\\' && bytes[1] == 'x') {
-                    byte[] v = Arrays.copyOfRange(bytes, 2, bytes.length);
-                    value = LongBinaries.fromArray(JdbdBuffers.decodeHex(v, v.length));
-                } else {
-                    value = LongBinaries.fromArray(bytes);
-                }
-            }
-            break;
-            case BOOLEAN: {
-                final String v = new String(bytes, rowMeta.clientCharset);
-                if (v.equalsIgnoreCase("t")) {
-                    value = Boolean.TRUE;
-                } else if (v.equalsIgnoreCase("f")) {
-                    value = Boolean.FALSE;
-                } else {
-                    throw PgResultRow.createResponseTextColumnValueError(meta, v);
-                }
-            }
-            break;
-            default: {
-                value = new String(bytes, rowMeta.clientCharset);
-            }
 
-        }
-        return value;
-    }
 
 
     static JdbdSQLException createResponseBinaryColumnValueError(final ByteBuf cumulateBuffer
             , final int valueLength, final PgColumnMeta meta) {
         byte[] bytes = new byte[valueLength];
         cumulateBuffer.readBytes(bytes);
-        String m = String.format("Server response binary value[%s] error for PgColumnMeta[%s].", bytes, meta);
+        String m = String.format("Server response binary value[%s] error for PgColumnMeta[%s]."
+                , Arrays.toString(bytes), meta);
         return new JdbdSQLException(new SQLException(m));
     }
 

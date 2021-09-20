@@ -1,6 +1,5 @@
 package io.jdbd.postgre.protocol.client;
 
-import io.jdbd.JdbdException;
 import io.jdbd.JdbdSQLException;
 import io.jdbd.meta.NullMode;
 import io.jdbd.meta.SQLType;
@@ -78,11 +77,6 @@ final class PgRowMeta implements ResultRowMeta {
     }
 
     @Override
-    public final FieldType getFieldType() {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
     public final FieldType getFieldType(int indexBaseZero) {
         // have to return UNKNOWN,because postgre RowDescription message can't return table name ,column name etc.
         return FieldType.UNKNOWN;
@@ -146,7 +140,7 @@ final class PgRowMeta implements ResultRowMeta {
 
     @Override
     public final PgType getSQLType(int indexBaseZero) throws JdbdSQLException {
-        return this.columnMetaArray[checkIndex(indexBaseZero)].pgType;
+        return this.columnMetaArray[checkIndex(indexBaseZero)].sqlType;
     }
 
     @Override
@@ -228,9 +222,14 @@ final class PgRowMeta implements ResultRowMeta {
         return indexBasedZero;
     }
 
+    /*################################## blow packet method ##################################*/
+
+    final PgColumnMeta obtainMeta(final int indexBaseZero) {
+        return this.columnMetaArray[indexBaseZero];
+    }
     /*################################## blow private static method ##################################*/
 
-    private static JdbdException createNotFoundIndexException(final String columnLabel) {
+    private static JdbdSQLException createNotFoundIndexException(final String columnLabel) {
         String m = String.format("Not found column index for column label[%s]", columnLabel);
         return new JdbdSQLException(new SQLException(m));
     }
@@ -257,7 +256,7 @@ final class PgRowMeta implements ResultRowMeta {
             , final TaskAdjutant adjutant) {
         DecimalFormat format = null;
         for (PgColumnMeta meta : columnMetaArray) {
-            if (meta.pgType != PgType.MONEY && meta.pgType != PgType.MONEY_ARRAY) {
+            if (meta.sqlType != PgType.MONEY && meta.sqlType != PgType.MONEY_ARRAY) {
                 continue;
             }
             final NumberFormat f = NumberFormat.getCurrencyInstance(adjutant.server().moneyLocal());

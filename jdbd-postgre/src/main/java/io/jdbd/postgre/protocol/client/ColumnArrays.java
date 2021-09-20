@@ -346,7 +346,7 @@ abstract class ColumnArrays {
         if (dimension < 2) {
             throw new IllegalArgumentException("dimension error");
         }
-        final PgType elementType = Objects.requireNonNull(meta.pgType.elementType(), "elementType");
+        final PgType elementType = Objects.requireNonNull(meta.sqlType.elementType(), "elementType");
 
         assertTargetArrayClass(targetArrayClass, elementType);
 
@@ -525,7 +525,7 @@ abstract class ColumnArrays {
 
     private static PgJdbdException arrayFormatError(final PgColumnMeta meta) {
         throw new PgJdbdException(String.format("Postgre server response %s value error,couldn't parse,ColumnMeta[%s]"
-                , meta.pgType, meta));
+                , meta.sqlType, meta));
     }
 
     private static IllegalArgumentException dateInfinityException(Object parsedValue, Class<?> arrayClass

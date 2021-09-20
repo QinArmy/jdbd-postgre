@@ -89,8 +89,8 @@ abstract class MySQLRowMeta implements ResultRowMeta {
     }
 
     @Override
-    public final SQLType getSQLType(String columnAlias) throws JdbdSQLException {
-        return getSQLType(getColumnIndex(columnAlias));
+    public final SQLType getSQLType(String columnLabel) throws JdbdSQLException {
+        return getSQLType(getColumnIndex(columnLabel));
     }
 
     @Override
@@ -99,8 +99,8 @@ abstract class MySQLRowMeta implements ResultRowMeta {
     }
 
     @Override
-    public NullMode getNullMode(final String columnAlias) throws JdbdSQLException {
-        return getNullMode(convertToIndex(columnAlias));
+    public NullMode getNullMode(final String columnLabel) throws JdbdSQLException {
+        return getNullMode(convertToIndex(columnLabel));
     }
 
     @Override

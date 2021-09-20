@@ -11,6 +11,7 @@ import io.jdbd.type.LongBinary;
 import io.jdbd.type.geometry.LongString;
 import io.jdbd.vendor.util.JdbdCollections;
 import io.jdbd.vendor.util.JdbdStrings;
+import io.jdbd.vendor.util.JdbdTimes;
 import reactor.util.annotation.Nullable;
 
 import java.math.BigDecimal;
@@ -26,9 +27,9 @@ import java.util.Set;
 
 public abstract class AbstractResultRow<R extends ResultRowMeta> implements ResultRow {
 
-    protected R rowMeta;
+    protected final R rowMeta;
 
-    private final Object[] columnValues;
+    protected final Object[] columnValues;
 
     protected AbstractResultRow(R rowMeta, Object[] columnValues) {
         if (columnValues.length != rowMeta.getColumnCount()) {
@@ -52,58 +53,45 @@ public abstract class AbstractResultRow<R extends ResultRowMeta> implements Resu
     @Nullable
     @Override
     public final Object get(final int indexBaseZero) throws JdbdSQLException {
-        final Object value = this.columnValues[checkIndex(indexBaseZero)];
+        Object value = this.columnValues[checkIndex(indexBaseZero)];
         if (value == null) {
             return null;
         }
-        final Object convertedValue;
-        final Class<?> javaType = this.rowMeta.getSQLType(indexBaseZero).javaType();
-        if (javaType.isAssignableFrom(value.getClass())) {
-            convertedValue = value;
-        } else {
-            convertedValue = convertNonNullValue(indexBaseZero, value, javaType);
+        if (needParse(indexBaseZero, null)) {
+            value = parseColumn(indexBaseZero, value, null);
         }
-        return convertedValue;
+        return convertNonNullValue(indexBaseZero, value, this.rowMeta.getSQLType(indexBaseZero).javaType());
     }
 
-    @SuppressWarnings("unchecked")
     @Nullable
     @Override
     public final <T> T get(final int indexBaseZero, final Class<T> columnClass)
             throws JdbdSQLException, UnsupportedConvertingException {
-        final Object value = this.columnValues[checkIndex(indexBaseZero)];
-        final T convertedValue;
-        if (value == null || columnClass.isAssignableFrom(value.getClass())) {
-            convertedValue = (T) value;
-        } else {
-            convertedValue = convertNonNullValue(indexBaseZero, value, columnClass);
+        Object value = this.columnValues[checkIndex(indexBaseZero)];
+        if (value == null) {
+            return null;
         }
-        return convertedValue;
+        if (needParse(indexBaseZero, columnClass)) {
+            value = parseColumn(indexBaseZero, value, columnClass);
+        }
+        return convertNonNullValue(indexBaseZero, value, columnClass);
     }
 
     @Nullable
     @Override
     public final Object get(final String columnLabel) throws JdbdSQLException {
-        try {
-            return this.columnValues[this.rowMeta.getColumnIndex(columnLabel)];
-        } catch (Throwable e) {
-            throw new JdbdSQLException(new SQLException(String.format("alias[%s] access error.", columnLabel), e));
-        }
+        return get(this.rowMeta.getColumnIndex(columnLabel));
     }
 
     @Nullable
     @Override
     public final <T> T get(final String columnLabel, final Class<T> columnClass)
             throws JdbdSQLException, UnsupportedConvertingException {
-        try {
-            return get(this.rowMeta.getColumnIndex(columnLabel), columnClass);
-        } catch (Throwable e) {
-            throw new JdbdSQLException(new SQLException(String.format("Column alias[%s] access error.", columnLabel), e));
-        }
+        return get(this.rowMeta.getColumnIndex(columnLabel), columnClass);
     }
 
     @Override
-    public final <T> Set<T> getSet(int indexBaseZero, Class<T> elementClass)
+    public <T> Set<T> getSet(int indexBaseZero, Class<T> elementClass)
             throws JdbdSQLException, UnsupportedConvertingException {
         final Object value = this.columnValues[checkIndex(indexBaseZero)];
         final Set<T> set;
@@ -116,13 +104,13 @@ public abstract class AbstractResultRow<R extends ResultRowMeta> implements Resu
     }
 
     @Override
-    public final <T> Set<T> getSet(String columnLabel, Class<T> elementClass)
+    public <T> Set<T> getSet(String columnLabel, Class<T> elementClass)
             throws JdbdSQLException, UnsupportedConvertingException {
         return getSet(this.rowMeta.getColumnIndex(columnLabel), elementClass);
     }
 
     @Override
-    public final <T> List<T> getList(int indexBaseZero, Class<T> elementClass)
+    public <T> List<T> getList(int indexBaseZero, Class<T> elementClass)
             throws JdbdSQLException, UnsupportedConvertingException {
         final Object value = this.columnValues[checkIndex(indexBaseZero)];
         final List<T> list;
@@ -135,13 +123,13 @@ public abstract class AbstractResultRow<R extends ResultRowMeta> implements Resu
     }
 
     @Override
-    public final <T> List<T> getList(String columnLabel, Class<T> elementClass)
+    public <T> List<T> getList(String columnLabel, Class<T> elementClass)
             throws JdbdSQLException, UnsupportedConvertingException {
         return getList(this.rowMeta.getColumnIndex(columnLabel), elementClass);
     }
 
     @Override
-    public final Object getNonNull(final int indexBaseZero)
+    public Object getNonNull(final int indexBaseZero)
             throws JdbdSQLException, NullPointerException {
         Object value = get(indexBaseZero);
         if (value == null) {
@@ -151,7 +139,7 @@ public abstract class AbstractResultRow<R extends ResultRowMeta> implements Resu
     }
 
     @Override
-    public final <T> T getNonNull(final int indexBaseZero, final Class<T> columnClass)
+    public <T> T getNonNull(final int indexBaseZero, final Class<T> columnClass)
             throws JdbdSQLException, UnsupportedConvertingException, NullPointerException {
         T value = get(indexBaseZero, columnClass);
         if (value == null) {
@@ -161,7 +149,7 @@ public abstract class AbstractResultRow<R extends ResultRowMeta> implements Resu
     }
 
     @Override
-    public final Object getNonNull(final String columnLabel) throws JdbdSQLException, NullPointerException {
+    public Object getNonNull(final String columnLabel) throws JdbdSQLException, NullPointerException {
         Object value = get(columnLabel);
         if (value == null) {
             throw new NullPointerException(String.format("Value at columnAlias[%s] is null.", columnLabel));
@@ -170,7 +158,7 @@ public abstract class AbstractResultRow<R extends ResultRowMeta> implements Resu
     }
 
     @Override
-    public final <T> T getNonNull(final String columnLabel, final Class<T> columnClass)
+    public <T> T getNonNull(final String columnLabel, final Class<T> columnClass)
             throws JdbdSQLException, NullPointerException, UnsupportedConvertingException {
         T value = get(columnLabel, columnClass);
         if (value == null) {
@@ -183,6 +171,11 @@ public abstract class AbstractResultRow<R extends ResultRowMeta> implements Resu
 
 
     /*################################## blow protected template method ##################################*/
+
+    protected abstract boolean needParse(final int indexBaseZero, @Nullable final Class<?> columnClass);
+
+
+    protected abstract Object parseColumn(final int indexBaseZero, Object nonNull, @Nullable final Class<?> columnClass);
 
 
     protected abstract UnsupportedConvertingException createValueCannotConvertException(Throwable cause
@@ -626,64 +619,24 @@ public abstract class AbstractResultRow<R extends ResultRowMeta> implements Resu
     /**
      * @see #convertNonNullValue(int, Object, Class)
      */
-    protected OffsetTime convertToOffsetTime(final int indexBaseZero, final Object sourceValue)
+    protected final OffsetTime convertToOffsetTime(final int indexBaseZero, final Object nonNull)
             throws UnsupportedConvertingException {
-        final OffsetTime newValue;
-
+        if (nonNull instanceof OffsetTime) {
+            return (OffsetTime) nonNull;
+        }
+        final String v;
+        if (nonNull instanceof String) {
+            v = (String) nonNull;
+        } else if (nonNull instanceof byte[]) {
+            v = new String((byte[]) nonNull, obtainColumnCharset(indexBaseZero));
+        } else {
+            throw createNotSupportedException(indexBaseZero, OffsetTime.class);
+        }
         try {
-            if (sourceValue instanceof TemporalAccessor) {
-                newValue = convertTemporalAccessorToOffsetTime((TemporalAccessor) sourceValue);
-            } else {
-                final TemporalAccessor accessor;
-                if (sourceValue instanceof String) {
-                    accessor = convertStringToTemporalAccessor(indexBaseZero, (String) sourceValue, OffsetTime.class);
-
-                } else if (sourceValue instanceof byte[]) {
-                    String textValue = new String((byte[]) sourceValue, obtainColumnCharset(indexBaseZero));
-                    accessor = convertStringToTemporalAccessor(indexBaseZero, textValue, OffsetTime.class);
-                } else {
-                    throw createNotSupportedException(indexBaseZero, OffsetTime.class);
-                }
-
-                newValue = convertTemporalAccessorToOffsetTime(accessor);
-            }
-            return newValue;
-        } catch (UnsupportedConvertingException e) {
-            throw e;
-        } catch (Throwable e) {
+            return OffsetTime.parse(v, JdbdTimes.ISO_OFFSET_TIME_FORMATTER);
+        } catch (DateTimeException e) {
             throw createValueCannotConvertException(e, indexBaseZero, OffsetTime.class);
         }
-    }
-
-    /**
-     * @see #convertToOffsetTime(int, Object)
-     */
-    protected OffsetTime convertTemporalAccessorToOffsetTime(final TemporalAccessor sourceValue)
-            throws DateTimeException {
-
-        final OffsetTime newValue;
-
-        if (sourceValue instanceof OffsetTime) {
-            newValue = (OffsetTime) sourceValue;
-        } else if (sourceValue instanceof LocalTime) {
-            newValue = OffsetTime.of((LocalTime) sourceValue, obtainZoneOffsetClient());
-        } else if (sourceValue instanceof LocalDateTime) {
-            newValue = OffsetDateTime.of((LocalDateTime) sourceValue, obtainZoneOffsetClient())
-                    .toOffsetTime();
-        } else if (sourceValue instanceof ZonedDateTime) {
-            newValue = ((ZonedDateTime) sourceValue)
-                    .toOffsetDateTime()
-                    .toOffsetTime();
-        } else if (sourceValue instanceof OffsetDateTime) {
-            newValue = ((OffsetDateTime) sourceValue)
-                    .toOffsetTime();
-        } else if (sourceValue instanceof Instant) {
-            newValue = OffsetDateTime.ofInstant((Instant) sourceValue, ZoneOffset.UTC)
-                    .toOffsetTime();
-        } else {
-            newValue = OffsetTime.from(sourceValue);
-        }
-        return newValue;
     }
 
 
@@ -1701,10 +1654,12 @@ public abstract class AbstractResultRow<R extends ResultRowMeta> implements Resu
 
     /*################################## blow private method ##################################*/
 
-    private int checkIndex(int indexBaseZero) {
+    private int checkIndex(final int indexBaseZero) {
         if (indexBaseZero < 0 || indexBaseZero >= this.columnValues.length) {
+            final String label = this.rowMeta.getColumnLabel(indexBaseZero);
             throw new JdbdSQLException(new SQLException(
-                    String.format("index[%s] out of bounds[0 -- %s].", indexBaseZero, columnValues.length - 1)));
+                    String.format("Column[index:%s,label:%s] out of bounds[0 , %s)."
+                            , indexBaseZero, label, columnValues.length)));
         }
         return indexBaseZero;
     }

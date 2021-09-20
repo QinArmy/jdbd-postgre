@@ -30,14 +30,13 @@ final class PgColumnMeta {
 
     final boolean textFormat;
 
-    final PgType pgType;
+    final PgType sqlType;
 
 
     private PgColumnMeta(String columnLabel, int tableOid
             , short columnAttrNum, int columnTypeOid
             , short columnTypeSize, int columnModifier
-            , boolean textFormat, PgType pgType) {
-
+            , boolean textFormat, PgType sqlType) {
         this.columnLabel = columnLabel;
         this.tableOid = tableOid;
         this.columnAttrNum = columnAttrNum;
@@ -46,7 +45,7 @@ final class PgColumnMeta {
         this.columnTypeSize = columnTypeSize;
         this.columnModifier = columnModifier;
         this.textFormat = textFormat;
-        this.pgType = pgType;
+        this.sqlType = sqlType;
     }
 
     @Override
@@ -56,7 +55,7 @@ final class PgColumnMeta {
                 .append("\ncolumnLabel=")
                 .append(this.columnLabel)
                 .append("\npgType=")
-                .append(this.pgType)
+                .append(this.sqlType)
                 .append("\ncolumnTypeId=")
                 .append(this.columnTypeOid)
                 .append("\ntableOid=")
@@ -76,7 +75,7 @@ final class PgColumnMeta {
 
     final int getScale() {
         final int scale;
-        switch (this.pgType) {
+        switch (this.sqlType) {
             case DECIMAL:
             case DECIMAL_ARRAY: {
                 scale = this.columnModifier == -1 ? 0 : ((this.columnModifier - 4) & 0xFFFF);
@@ -107,7 +106,7 @@ final class PgColumnMeta {
 
     final int getPrecision() {
         final int precision;
-        switch (this.pgType) {
+        switch (this.sqlType) {
             case SMALLINT:
             case SMALLINT_ARRAY:
                 precision = 2;

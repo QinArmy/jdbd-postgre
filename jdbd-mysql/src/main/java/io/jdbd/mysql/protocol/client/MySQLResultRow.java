@@ -7,6 +7,7 @@ import io.jdbd.mysql.util.MySQLStringUtils;
 import io.jdbd.mysql.util.MySQLTimes;
 import io.jdbd.result.UnsupportedConvertingException;
 import io.jdbd.vendor.result.AbstractResultRow;
+import reactor.util.annotation.Nullable;
 
 import java.nio.charset.Charset;
 import java.time.*;
@@ -35,6 +36,16 @@ abstract class MySQLResultRow extends AbstractResultRow<MySQLRowMeta> {
 
     /*################################## blow protected method ##################################*/
 
+
+    @Override
+    protected final boolean needParse(final int indexBaseZero, @Nullable final Class<?> columnClass) {
+        return false;
+    }
+
+    @Override
+    protected final Object parseColumn(final int indexBaseZero, final Object nonNull, @Nullable final Class<?> columnClass) {
+        throw new UnsupportedOperationException();
+    }
 
     @SuppressWarnings("unchecked")
     @Override
@@ -281,6 +292,8 @@ abstract class MySQLResultRow extends AbstractResultRow<MySQLRowMeta> {
         private SimpleMySQLResultRow(Object[] columnValues, MySQLRowMeta rowMeta, ResultRowAdjutant adjutant) {
             super(columnValues, rowMeta, adjutant);
         }
+
+
     }
 
 

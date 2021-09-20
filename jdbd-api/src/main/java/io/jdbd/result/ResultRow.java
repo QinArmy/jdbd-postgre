@@ -12,6 +12,15 @@ import java.util.Set;
  */
 public interface ResultRow extends Result {
 
+    /**
+     * <p>
+     * This method invoke always {@link ResultRowMeta#getResultIndex()},The implementation of this interface
+     * never store result index value.
+     * </p>
+     */
+    @Override
+    int getResultIndex();
+
     ResultRowMeta getRowMeta();
 
     @Nullable
@@ -88,9 +97,8 @@ public interface ResultRow extends Result {
     <T> T getNonNull(int indexBaseZero, Class<T> columnClass)
             throws JdbdSQLException, UnsupportedConvertingException, NullPointerException;
 
-    Object getNonNull(String columnLabel) throws JdbdSQLException, NullPointerException;
+    Object getNonNull(String columnLabel);
 
-    <T> T getNonNull(String columnLabel, Class<T> columnClass)
-            throws JdbdSQLException, UnsupportedConvertingException, NullPointerException;
+    <T> T getNonNull(String columnLabel, Class<T> columnClass);
 
 }
