@@ -2,22 +2,14 @@ package io.jdbd.mysql.protocol.client;
 
 import io.jdbd.mysql.MySQLType;
 import io.jdbd.mysql.util.MySQLCollections;
-import io.jdbd.mysql.util.MySQLConvertUtils;
 import io.jdbd.mysql.util.MySQLStringUtils;
-import io.jdbd.mysql.util.MySQLTimes;
 import io.jdbd.result.UnsupportedConvertingException;
 import io.jdbd.vendor.result.AbstractResultRow;
 import reactor.util.annotation.Nullable;
 
 import java.nio.charset.Charset;
-import java.time.*;
-import java.time.format.DateTimeFormatter;
-import java.time.format.DateTimeFormatterBuilder;
-import java.time.temporal.TemporalAccessor;
-import java.time.temporal.TemporalAmount;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
 import java.util.Set;
 
 abstract class MySQLResultRow extends AbstractResultRow<MySQLRowMeta> {
@@ -97,33 +89,6 @@ abstract class MySQLResultRow extends AbstractResultRow<MySQLRowMeta> {
         return list;
     }
 
-    /**
-     * <p>
-     * see {@code com.mysql.cj.result.BooleanValueFactory}
-     * </p>
-     */
-    @Override
-    protected boolean convertNonNullToBoolean(final int indexBaseZero, final Object sourceValue) {
-        final boolean value;
-
-        try {
-            if (sourceValue instanceof Boolean) {
-                value = (Boolean) sourceValue;
-            } else if (sourceValue instanceof Number || sourceValue instanceof String) {
-                value = MySQLConvertUtils.convertObjectToBoolean(sourceValue);
-            } else if (sourceValue instanceof byte[]) {
-                String text = new String((byte[]) sourceValue, obtainColumnCharset(indexBaseZero));
-                value = MySQLConvertUtils.convertObjectToBoolean(text);
-            } else {
-                throw createNotSupportedException(indexBaseZero, Boolean.class);
-            }
-            return value;
-        } catch (UnsupportedConvertingException e) {
-            throw e;
-        } catch (Throwable e) {
-            throw createValueCannotConvertException(e, indexBaseZero, Boolean.class);
-        }
-    }
 
 
     @Override
@@ -137,124 +102,12 @@ abstract class MySQLResultRow extends AbstractResultRow<MySQLRowMeta> {
         return text;
     }
 
-    /**
-     * @see <a href="https://dev.mysql.com/doc/refman/8.0/en/time.html">The TIME Type</a>
-     */
-    @Override
-    protected Duration convertToDuration(final int indexBaseZero, final Object nonNull)
-            throws UnsupportedConvertingException {
-        final Duration duration;
-        if (nonNull instanceof LocalTime) {
-            try {
-                //if convert to Duration,must be converted back to ZoneOffset of database.
-                LocalTime time = OffsetTime.of((LocalTime) nonNull, this.adjutant.obtainZoneOffsetClient())
-                        .withOffsetSameInstant(this.adjutant.obtainZoneOffsetDatabase())
-                        .toLocalTime();
-                duration = MySQLTimes.convertToDuration(time);
-            } catch (Throwable e) {
-                throw createValueCannotConvertException(e, indexBaseZero, Duration.class);
-            }
-        } else {
-            duration = super.convertToDuration(indexBaseZero, nonNull);
-        }
-        return duration;
-    }
-
-    @Override
-    protected ZoneOffset obtainZoneOffsetClient() {
-        return this.adjutant.obtainZoneOffsetClient();
-    }
-
 
     @Override
     protected Charset obtainColumnCharset(final int indexBaseZero) {
         return this.adjutant.obtainColumnCharset(this.rowMeta.getColumnCharset(indexBaseZero));
     }
 
-    @Override
-    protected TemporalAccessor convertStringToTemporalAccessor(final int indexBaseZero, final String sourceValue
-            , final Class<?> targetClass)
-            throws DateTimeException, UnsupportedConvertingException {
-
-        final TemporalAccessor accessor;
-
-        switch (this.rowMeta.getMySQLType(indexBaseZero)) {
-            case DATETIME:
-            case TIMESTAMP: {
-                LocalDateTime dateTime;
-                dateTime = LocalDateTime.parse(sourceValue, MySQLTimes.MYSQL_DATETIME_FORMATTER);
-                accessor = OffsetDateTime.of(dateTime, this.adjutant.obtainZoneOffsetDatabase())
-                        .withOffsetSameInstant(obtainZoneOffsetClient())
-                        .toLocalDateTime();
-            }
-            break;
-            case DATE:
-                accessor = LocalDate.parse(sourceValue);
-                break;
-            case TIME: {
-                LocalTime databaseTime = LocalTime.parse(sourceValue, MySQLTimes.MYSQL_TIME_FORMATTER);
-                accessor = OffsetTime.of(databaseTime, this.adjutant.obtainZoneOffsetDatabase())
-                        .withOffsetSameInstant(obtainZoneOffsetClient())
-                        .toLocalTime();
-            }
-            break;
-            case YEAR:
-                accessor = Year.parse(sourceValue);
-                break;
-            default:
-                throw createNotSupportedException(indexBaseZero, targetClass);
-        }
-        return accessor;
-    }
-
-    @Override
-    protected TemporalAmount convertStringToTemporalAmount(final int indexBaseZero, final String sourceValue
-            , final Class<?> targetClass) throws DateTimeException, UnsupportedConvertingException {
-        final Duration duration;
-        if (this.rowMeta.getMySQLType(indexBaseZero) == MySQLType.TIME) {
-            duration = MySQLTimes.parseTimeAsDuration(sourceValue);
-        } else {
-            throw createNotSupportedException(indexBaseZero, targetClass);
-        }
-        return duration;
-    }
-
-    @Override
-    protected String formatTemporalAccessor(final TemporalAccessor temporalAccessor) throws DateTimeException {
-        final String text;
-        if (temporalAccessor instanceof LocalDateTime) {
-            text = ((LocalDateTime) temporalAccessor).format(MySQLTimes.MYSQL_DATETIME_FORMATTER);
-        } else if (temporalAccessor instanceof LocalTime) {
-            text = ((LocalTime) temporalAccessor).format(MySQLTimes.MYSQL_TIME_FORMATTER);
-        } else if (temporalAccessor instanceof ZonedDateTime) {
-            //no bug never here
-            DateTimeFormatter formatter = new DateTimeFormatterBuilder()
-                    .append(MySQLTimes.MYSQL_DATETIME_FORMATTER)
-                    .appendOffsetId()
-                    .toFormatter(Locale.ENGLISH);
-
-            text = ((ZonedDateTime) temporalAccessor).format(formatter);
-        } else if (temporalAccessor instanceof OffsetDateTime) {
-            //no bug  never here
-            DateTimeFormatter formatter = new DateTimeFormatterBuilder()
-                    .append(MySQLTimes.MYSQL_DATETIME_FORMATTER)
-                    .appendZoneId()
-                    .toFormatter(Locale.ENGLISH);
-
-            text = ((OffsetDateTime) temporalAccessor).format(formatter);
-        } else if (temporalAccessor instanceof OffsetTime) {
-            //no bug  never here
-            DateTimeFormatter formatter = new DateTimeFormatterBuilder()
-                    .append(MySQLTimes.MYSQL_TIME_FORMATTER)
-                    .appendOffsetId()
-                    .toFormatter(Locale.ENGLISH);
-
-            text = ((OffsetTime) temporalAccessor).format(formatter);
-        } else {
-            text = temporalAccessor.toString();
-        }
-        return text;
-    }
 
 
     @Override

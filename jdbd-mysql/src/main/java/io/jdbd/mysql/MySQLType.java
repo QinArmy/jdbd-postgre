@@ -471,6 +471,11 @@ public enum MySQLType implements SQLType {
     }
 
     @Override
+    public final SQLType elementType() {
+        return null;
+    }
+
+    @Override
     public String getName() {
         return name();
     }
@@ -512,6 +517,7 @@ public enum MySQLType implements SQLType {
         return this == CHAR
                 || this == VARCHAR;
     }
+
 
     @Override
     public boolean isBinary() {

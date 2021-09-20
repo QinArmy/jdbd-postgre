@@ -6,6 +6,7 @@ import io.jdbd.result.ResultRowMeta;
 import io.jdbd.result.UnsupportedConvertingException;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 public final class ErrorResultRow implements ResultRow {
@@ -87,6 +88,21 @@ public final class ErrorResultRow implements ResultRow {
     @Override
     public <T> T getNonNull(String columnLabel, Class<T> columnClass)
             throws JdbdSQLException, UnsupportedConvertingException, NullPointerException {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public int getResultIndex() {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public <K, V> Map<K, V> getMap(int indexBaseZero, Class<K> keyClass, Class<V> valueClass) throws JdbdSQLException, UnsupportedConvertingException {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public <K, V> Map<K, V> getMap(String columnLabel, Class<K> keyClass, Class<V> valueClass) {
         throw new UnsupportedOperationException();
     }
 

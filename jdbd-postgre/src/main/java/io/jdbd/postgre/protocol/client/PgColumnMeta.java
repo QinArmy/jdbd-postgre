@@ -1,7 +1,6 @@
 package io.jdbd.postgre.protocol.client;
 
 import io.jdbd.postgre.PgConstant;
-import io.jdbd.postgre.PgJdbdException;
 import io.jdbd.postgre.PgType;
 import io.netty.buffer.ByteBuf;
 
@@ -15,6 +14,7 @@ final class PgColumnMeta {
 
     static final PgColumnMeta[] EMPTY = new PgColumnMeta[0];
 
+    final int index;
 
     final String columnLabel;
 
@@ -33,10 +33,13 @@ final class PgColumnMeta {
     final PgType sqlType;
 
 
-    private PgColumnMeta(String columnLabel, int tableOid
+    private PgColumnMeta(int index, String columnLabel, int tableOid
             , short columnAttrNum, int columnTypeOid
             , short columnTypeSize, int columnModifier
             , boolean textFormat, PgType sqlType) {
+
+        this.index = index;
+
         this.columnLabel = columnLabel;
         this.tableOid = tableOid;
         this.columnAttrNum = columnAttrNum;
@@ -189,10 +192,6 @@ final class PgColumnMeta {
         return precision;
     }
 
-    private PgJdbdException createServerResponseError() {
-        return new PgJdbdException(String.format("Server response column meat data[%s] error.", this));
-    }
-
 
     /**
      * @see <a href="https://www.postgresql.org/docs/current/protocol-message-formats.html">RowDescription</a>
@@ -223,7 +222,8 @@ final class PgColumnMeta {
             int columnModifier = message.readInt();
             boolean textFormat = message.readShort() == 0;
 
-            columnMetas[i] = new PgColumnMeta(columnAlias, tableOid
+            columnMetas[i] = new PgColumnMeta(i
+                    , columnAlias, tableOid
                     , columnAttrNum, columnTypeOid
                     , columnTypeSize, columnModifier
                     , textFormat, PgType.from(columnTypeOid));

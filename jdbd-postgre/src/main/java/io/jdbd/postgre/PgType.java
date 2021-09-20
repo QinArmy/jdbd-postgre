@@ -3,6 +3,8 @@ package io.jdbd.postgre;
 
 import io.jdbd.type.Interval;
 import io.jdbd.type.LongBinary;
+import io.jdbd.type.geo.Line;
+import io.jdbd.type.geo.LineString;
 import io.jdbd.type.geometry.Circle;
 import io.jdbd.type.geometry.LongString;
 import io.jdbd.type.geometry.Point;
@@ -45,12 +47,15 @@ public enum PgType implements io.jdbd.meta.SQLType {
     UUID(PgConstant.TYPE_UUID, JDBCType.CHAR, UUID.class),
     XML(PgConstant.TYPE_XML, JDBCType.SQLXML, LongString.class),
     POINT(PgConstant.TYPE_POINT, JDBCType.OTHER, Point.class),
+    CIRCLES(PgConstant.TYPE_CIRCLE, JDBCType.OTHER, Circle.class),
+    LINE_SEGMENT(PgConstant.TYPE_LSEG, JDBCType.OTHER, Line.class),
+    PATH(PgConstant.TYPE_PATH, JDBCType.OTHER, LineString.class),
+
+    // below Geometries use ResultRow.get(int,Class)
     BOX(PgConstant.TYPE_BOX, JDBCType.OTHER, String.class),
     LINE(PgConstant.TYPE_LINE, JDBCType.OTHER, String.class),
-    LINE_SEGMENT(PgConstant.TYPE_LSEG, JDBCType.OTHER, String.class),
-    PATH(PgConstant.TYPE_PATH, JDBCType.OTHER, LongString.class),
-    POLYGON(PgConstant.TYPE_POLYGON, JDBCType.OTHER, LongString.class),
-    CIRCLES(PgConstant.TYPE_CIRCLE, JDBCType.OTHER, Circle.class),
+    POLYGON(PgConstant.TYPE_POLYGON, JDBCType.OTHER, String.class),
+
     JSON(PgConstant.TYPE_JSON, JDBCType.LONGVARCHAR, LongString.class),
     JSONB(PgConstant.TYPE_JSONB, JDBCType.LONGVARCHAR, LongString.class),
     MACADDR(PgConstant.TYPE_MAC_ADDR, JDBCType.VARCHAR, String.class),

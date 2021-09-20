@@ -60,16 +60,13 @@ public interface ResultRow extends Result {
     @Nullable
     <T> T get(String columnLabel, Class<T> columnClass);
 
-    /**
-     * @return a unmodifiable set.
-     */
-    <T> Set<T> getSet(int indexBaseZero, Class<T> elementClass)
-            throws JdbdSQLException, UnsupportedConvertingException;
+    Object getNonNull(int indexBaseZero) throws NullPointerException;
 
-    /**
-     * @see #getSet(int, Class)
-     */
-    <T> Set<T> getSet(String columnLabel, Class<T> elementClass);
+    <T> T getNonNull(int indexBaseZero, Class<T> columnClass) throws NullPointerException;
+
+    Object getNonNull(String columnLabel);
+
+    <T> T getNonNull(String columnLabel, Class<T> columnClass) throws NullPointerException;
 
     /**
      * @return a unmodifiable list.
@@ -83,22 +80,22 @@ public interface ResultRow extends Result {
     <T> List<T> getList(String columnLabel, Class<T> elementClass)
             throws JdbdSQLException, UnsupportedConvertingException;
 
-    default <K, V> Map<K, V> getMap(int indexBaseZero, Class<K> keyClass, Class<V> valueClass)
-            throws JdbdSQLException, UnsupportedConvertingException {
-        throw new UnsupportedOperationException();
-    }
+    /**
+     * @return a unmodifiable set.
+     */
+    <T> Set<T> getSet(int indexBaseZero, Class<T> elementClass)
+            throws JdbdSQLException, UnsupportedConvertingException;
 
-    default <K, V> Map<K, V> getMap(String columnLabel, Class<K> keyClass, Class<V> valueClass) {
-        throw new UnsupportedOperationException();
-    }
+    /**
+     * @see #getSet(int, Class)
+     */
+    <T> Set<T> getSet(String columnLabel, Class<T> elementClass);
 
-    Object getNonNull(int indexBaseZero) throws JdbdSQLException, NullPointerException;
 
-    <T> T getNonNull(int indexBaseZero, Class<T> columnClass)
-            throws JdbdSQLException, UnsupportedConvertingException, NullPointerException;
+    <K, V> Map<K, V> getMap(int indexBaseZero, Class<K> keyClass, Class<V> valueClass)
+            throws JdbdSQLException, UnsupportedConvertingException;
 
-    Object getNonNull(String columnLabel);
+    <K, V> Map<K, V> getMap(String columnLabel, Class<K> keyClass, Class<V> valueClass);
 
-    <T> T getNonNull(String columnLabel, Class<T> columnClass);
 
 }
