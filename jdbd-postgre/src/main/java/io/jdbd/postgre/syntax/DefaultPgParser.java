@@ -329,7 +329,7 @@ final class DefaultPgParser implements PgParser {
                     throw createQuoteNotCloseError(multiStmt, i);
                 }
                 if ((confirmStringOff || inCStyleEscapes) && charArray[index - 1] == BACK_SLASH) {
-                    // C-Style Escapes
+                    // C-Style Escapes TODO fix //"
                     i = index;
                 } else if (index < lastIndex && charArray[index + 1] == QUOTE) {
                     // double quote Escapes

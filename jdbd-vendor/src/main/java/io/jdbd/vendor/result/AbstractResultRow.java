@@ -1049,6 +1049,13 @@ public abstract class AbstractResultRow<R extends ResultRowMeta> implements Resu
             }
         } else if (nonNull instanceof Boolean) {
             value = ((Boolean) nonNull) ? 1L : 0L;
+        } else if (nonNull instanceof BitSet) {
+            final BitSet v = (BitSet) nonNull;
+            if (v.length() < 65) {
+                value = v.toLongArray()[0];
+            } else {
+                throw createNotSupportedException(indexBaseZero, Long.class);
+            }
         } else {
             throw createNotSupportedException(indexBaseZero, Long.class);
         }
@@ -1101,6 +1108,13 @@ public abstract class AbstractResultRow<R extends ResultRowMeta> implements Resu
             }
         } else if (nonNull instanceof Boolean) {
             value = ((Boolean) nonNull) ? 1 : 0;
+        } else if (nonNull instanceof BitSet) {
+            final BitSet v = (BitSet) nonNull;
+            if (v.length() < 33) {
+                value = (int) v.toLongArray()[0];
+            } else {
+                throw createNotSupportedException(indexBaseZero, Integer.class);
+            }
         } else {
             throw createNotSupportedException(indexBaseZero, Integer.class);
         }

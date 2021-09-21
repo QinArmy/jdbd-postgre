@@ -1,7 +1,6 @@
 package io.jdbd.postgre.protocol.client;
 
 import io.jdbd.JdbdSQLException;
-import io.jdbd.meta.SQLType;
 import io.jdbd.postgre.PgType;
 import io.jdbd.postgre.type.PgGeometries;
 import io.jdbd.postgre.util.PgBinds;
@@ -27,6 +26,7 @@ import java.text.NumberFormat;
 import java.text.ParseException;
 import java.time.DateTimeException;
 import java.time.LocalTime;
+import java.time.OffsetTime;
 import java.util.*;
 
 public class PgResultRow extends AbstractResultRow<PgRowMeta> {
@@ -150,26 +150,42 @@ public class PgResultRow extends AbstractResultRow<PgRowMeta> {
             }
             break;
             case INTEGER_ARRAY: {
+                if (targetArrayClass != Integer.class) {
+                    throw createNotSupportedException(meta.index, targetArrayClass);
+                }
                 value = ColumnArrays.readIntegerArray(textValue, meta);
             }
             break;
+            case OID_ARRAY:
             case BIGINT_ARRAY: {
+                if (targetArrayClass != Long.class) {
+                    throw createNotSupportedException(meta.index, targetArrayClass);
+                }
                 value = ColumnArrays.readBigIntArray(textValue, meta);
             }
             break;
             case DECIMAL_ARRAY: {
-                value = ColumnArrays.readDecimalArray(textValue, meta);
+                value = ColumnArrays.readDecimalArray(textValue, meta, targetArrayClass);
             }
             break;
             case REAL_ARRAY: {
+                if (targetArrayClass != Float.class) {
+                    throw createNotSupportedException(meta.index, targetArrayClass);
+                }
                 value = ColumnArrays.readRealArray(textValue, meta);
             }
             break;
             case DOUBLE_ARRAY: {
+                if (targetArrayClass != Double.class) {
+                    throw createNotSupportedException(meta.index, targetArrayClass);
+                }
                 value = ColumnArrays.readDoubleArray(textValue, meta);
             }
             break;
             case TIME_ARRAY: {
+                if (targetArrayClass != LocalTime.class) {
+                    throw createNotSupportedException(meta.index, targetArrayClass);
+                }
                 value = ColumnArrays.readTimeArray(textValue, meta);
             }
             break;
@@ -182,6 +198,9 @@ public class PgResultRow extends AbstractResultRow<PgRowMeta> {
             }
             break;
             case TIMETZ_ARRAY: {
+                if (targetArrayClass != OffsetTime.class) {
+                    throw createNotSupportedException(meta.index, targetArrayClass);
+                }
                 value = ColumnArrays.readTimeTzArray(textValue, meta);
             }
             break;
@@ -189,38 +208,86 @@ public class PgResultRow extends AbstractResultRow<PgRowMeta> {
                 value = ColumnArrays.readTimestampTzArray(textValue, meta, targetArrayClass);
             }
             break;
-            case MONEY_ARRAY:
-            case TEXT_ARRAY:
-            case BYTEA_ARRAY:
-            case VARCHAR_ARRAY:
-            case OID_ARRAY:
-            case BIT_ARRAY:
-            case INTERVAL_ARRAY:
-            case CHAR_ARRAY:
             case VARBIT_ARRAY:
-            case UUID_ARRAY:
-            case XML_ARRAY:
-            case POINT_ARRAY:
-            case LINE_ARRAY:
-            case LINE_SEGMENT_ARRAY:
+            case BIT_ARRAY: {
+                value = ColumnArrays.readBitArray(textValue, meta, targetArrayClass);
+            }
+            break;
+            case MONEY_ARRAY: {
+                final DecimalFormat format = this.rowMeta.moneyFormat;
+                if (format == null) {
+                    throw moneyCannotConvertException(meta);
+                }
+                value = ColumnArrays.readMoneyArray(textValue, meta, targetArrayClass, format);
+            }
+            break;
+            case UUID_ARRAY: {
+                value = ColumnArrays.readUuidArray(textValue, meta, targetArrayClass);
+            }
+            break;
+            case BYTEA_ARRAY: {
+                value = ColumnArrays.readByteaArray(textValue, meta, this.rowMeta.clientCharset, targetArrayClass);
+            }
+            break;
+            case TSQUERY_ARRAY:
+            case TSVECTOR_ARRAY:
             case JSONB_ARRAY:
             case JSON_ARRAY:
-            case BOX_ARRAY:
-            case PATH_ARRAY:
-            case POLYGON_ARRAY:
-            case CIRCLES_ARRAY:
-            case CIDR_ARRAY:
-            case INET_ARRAY:
-            case MACADDR_ARRAY:
-            case MACADDR8_ARRAY:
-            case TSVECTOR_ARRAY:
-            case REF_CURSOR_ARRAY:
+            case XML_ARRAY:
+            case TEXT_ARRAY: {
+                value = ColumnArrays.readTextArray(textValue, meta, targetArrayClass);
+            }
+            break;
             case INT4RANGE_ARRAY:
             case TSRANGE_ARRAY:
             case TSTZRANGE_ARRAY:
             case DATERANGE_ARRAY:
             case INT8RANGE_ARRAY:
-            case TSQUERY_ARRAY: {
+            case CIDR_ARRAY:
+            case INET_ARRAY:
+            case MACADDR_ARRAY:
+            case MACADDR8_ARRAY:
+            case CHAR_ARRAY:
+            case VARCHAR_ARRAY: {
+                if (targetArrayClass != String.class) {
+                    throw PgResultRow.notSupportConverting(meta, targetArrayClass);
+                }
+                value = ColumnArrays.readTextArray(textValue, meta, targetArrayClass);
+            }
+            break;
+            case INTERVAL_ARRAY: {
+                value = ColumnArrays.readIntervalArray(textValue, meta, targetArrayClass);
+            }
+            break;
+            case POINT_ARRAY: {
+                value = ColumnArrays.readPointArray(textValue, meta, targetArrayClass);
+            }
+            break;
+            case LINE_ARRAY: {
+                value = ColumnArrays.readLineArray(textValue, meta, targetArrayClass);
+            }
+            break;
+            case LINE_SEGMENT_ARRAY: {
+                value = ColumnArrays.readLineSegmentArray(textValue, meta, targetArrayClass);
+            }
+            break;
+            case BOX_ARRAY: {
+                value = ColumnArrays.readBoxArray(textValue, meta, targetArrayClass);
+            }
+            break;
+            case PATH_ARRAY: {
+                value = ColumnArrays.readPathArray(textValue, meta, targetArrayClass);
+            }
+            break;
+            case POLYGON_ARRAY: {
+                value = ColumnArrays.readPolygonArray(textValue, meta, targetArrayClass);
+            }
+            break;
+            case CIRCLES_ARRAY: {
+                value = ColumnArrays.readCirclesArray(textValue, meta, targetArrayClass);
+            }
+            break;
+            case REF_CURSOR_ARRAY: {
                 if (LOG.isTraceEnabled()) {
                     LOG.trace("read array type {}", meta.sqlType);
                 }
@@ -337,7 +404,7 @@ public class PgResultRow extends AbstractResultRow<PgRowMeta> {
             break;
             case MONEY: {// money format dependent on locale,so can't(also don't need) convert.
                 if (columnClass == BigDecimal.class) {
-                    value = parseMoney(meta, textValue);
+                    value = parseMoney(meta, textValue, this.rowMeta.moneyFormat);
                 } else {
                     value = textValue;
                 }
@@ -396,10 +463,14 @@ public class PgResultRow extends AbstractResultRow<PgRowMeta> {
         } else if (columnClass.isArray()) {
             final Pair<Class<?>, Integer> pair = PgBinds.getArrayDimensions(columnClass);
             final Class<?> clazz = pair.getFirst();
-            if (clazz == byte.class && pair.getSecond() == 1) {
-                throw createNotSupportedException(meta.index, columnClass);
+            if (clazz == byte.class) {
+                if (pair.getSecond() < 2) {
+                    throw createNotSupportedException(meta.index, columnClass);
+                }
+                arrayClass = byte[].class;
+            } else {
+                arrayClass = clazz;
             }
-            arrayClass = clazz;
         } else {
             throw createNotSupportedException(meta.index, columnClass);
         }
@@ -511,17 +582,16 @@ public class PgResultRow extends AbstractResultRow<PgRowMeta> {
     /**
      * @see #parseNonArrayColumnFromText(String, PgColumnMeta, Class)
      */
-    private BigDecimal parseMoney(final PgColumnMeta meta, final String nonNull)
+    static BigDecimal parseMoney(final PgColumnMeta meta, final String nonNull, @Nullable final DecimalFormat format)
             throws UnsupportedConvertingException {
-        final DecimalFormat format = this.rowMeta.moneyFormat;
         if (format == null) {
-            throw moneyCannotConvertException(meta.index);
+            throw moneyCannotConvertException(meta);
         }
         try {
             final Number value;
             value = format.parse(nonNull);
             if (!(value instanceof BigDecimal)) {
-                throw moneyCannotConvertException(meta.index);
+                throw moneyCannotConvertException(meta);
             }
             return (BigDecimal) value;
         } catch (Throwable e) {
@@ -544,16 +614,6 @@ public class PgResultRow extends AbstractResultRow<PgRowMeta> {
         }
     }
 
-    protected UnsupportedConvertingException createNotSupportedException(int indexBasedZero
-            , Class<?> targetClass) {
-        SQLType sqlType = this.rowMeta.getSQLType(indexBasedZero);
-
-        String message = String.format("Not support convert from (index[%s] alias[%s] and MySQLType[%s]) to %s.",
-                indexBasedZero, this.rowMeta.getColumnLabel(indexBasedZero)
-                , sqlType, targetClass.getName());
-
-        return new UnsupportedConvertingException(message, sqlType, targetClass);
-    }
 
     private UnsupportedConvertingException errorTsvectorOutput(final PgColumnMeta meta) {
         String m = String.format("Column[index:%s,label:%s] tsvector type output format error, can't convert to List<String>."
@@ -561,15 +621,13 @@ public class PgResultRow extends AbstractResultRow<PgRowMeta> {
         return new UnsupportedConvertingException(m, meta.sqlType, List.class);
     }
 
-    private UnsupportedConvertingException moneyCannotConvertException(final int indexBasedZero) {
-        PgType pgType = this.rowMeta.columnMetaArray[indexBasedZero].sqlType;
-        String format;
-        format = "%s.getCurrencyInstance(Locale) method don't return %s instance,so can't convert postgre %s type to java type BigDecimal,jdbd-postgre need to upgrade.";
-        String msg = String.format(format
-                , NumberFormat.class.getName()
-                , DecimalFormat.class.getName()
-                , pgType);
-        return new UnsupportedConvertingException(msg, pgType, BigDecimal.class);
+
+    static UnsupportedConvertingException notSupportConverting(PgColumnMeta meta, Class<?> targetClass) {
+        String message = String.format("Not support convert from (index[%s] label[%s] and sql type[%s]) to %s.",
+                meta.index, meta.columnLabel
+                , meta.sqlType, targetClass.getName());
+
+        return new UnsupportedConvertingException(message, meta.sqlType, targetClass);
     }
 
     static JdbdSQLException createResponseTextColumnValueError(@Nullable Throwable cause, PgColumnMeta meta
@@ -580,6 +638,18 @@ public class PgResultRow extends AbstractResultRow<PgRowMeta> {
 
     static JdbdSQLException createResponseTextColumnValueError(PgColumnMeta meta, String textValue) {
         return createResponseTextColumnValueError(null, meta, textValue);
+    }
+
+    private static UnsupportedConvertingException moneyCannotConvertException(final PgColumnMeta meta) {
+        String format;
+        format = "Column[index:%s,label:%s] %s.getCurrencyInstance(Locale) method don't return %s instance,so can't convert postgre %s type to java type BigDecimal,jdbd-postgre need to upgrade.";
+        String msg = String.format(format
+                , meta.index
+                , meta.columnLabel
+                , NumberFormat.class.getName()
+                , DecimalFormat.class.getName()
+                , meta.sqlType);
+        return new UnsupportedConvertingException(msg, meta.sqlType, BigDecimal.class);
     }
 
 
