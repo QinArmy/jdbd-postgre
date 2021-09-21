@@ -42,82 +42,160 @@ abstract class ColumnArrays {
     private static final char COMMA = ',';
     private static final char RIGHT_PAREN = '}';
     private static final char DOUBLE_QUOTE = '"';
+
     private static final char BACKSLASH = '\\';
 
-    static Object readBooleanArray(final String value, final PgColumnMeta meta) {
+    static Object readBooleanArray(final String value, final PgColumnMeta meta, final Class<?> targetArrayClass) {
+        if (targetArrayClass != Boolean.class && targetArrayClass != boolean.class) {
+            throw PgResultRow.notSupportConverting(meta, targetArrayClass);
+        }
         final BiFunction<char[], Integer, ArrayPair> function = (charArray, index) -> {
             final List<Boolean> list = new LinkedList<>();
             final int endIndex;
             final Consumer<String> consumer = nullable -> {
                 if (nullable == null) {
+                    if (targetArrayClass == boolean.class) {
+                        throw PgResultRow.notSupportConverting(meta, targetArrayClass);
+                    }
                     list.add(null);
                 } else {
                     list.add(Boolean.parseBoolean(nullable));
                 }
             };
             endIndex = readOneDimensionArray(charArray, index, meta, consumer);
-            return new ArrayPair(list.toArray(new Boolean[0]), endIndex);
+            final Object array;
+            if (targetArrayClass == Boolean.class) {
+                array = list.toArray(new Boolean[0]);
+            } else {
+                final boolean[] booleans = new boolean[list.size()];
+                int i = 0;
+                for (Boolean b : list) {
+                    booleans[i] = b;
+                    i++;
+                }
+                array = booleans;
+            }
+            list.clear();
+            return new ArrayPair(array, endIndex);
         };
-        return readArray(value, meta, function, Boolean.class);
+        return readArray(value, meta, function, targetArrayClass);
     }
 
 
-    static Object readShortArray(final String value, final PgColumnMeta meta) {
+    static Object readShortArray(final String value, final PgColumnMeta meta, final Class<?> targetArrayClass) {
+        if (targetArrayClass != Short.class && targetArrayClass != short.class) {
+            throw PgResultRow.notSupportConverting(meta, targetArrayClass);
+        }
         final BiFunction<char[], Integer, ArrayPair> function = (charArray, index) -> {
             final List<Short> list = new LinkedList<>();
-            final int endIndex;
+
             final Consumer<String> consumer = nullable -> {
                 if (nullable == null) {
+                    if (targetArrayClass == short.class) {
+                        throw PgResultRow.notSupportConverting(meta, targetArrayClass);
+                    }
                     list.add(null);
                 } else {
                     list.add(Short.parseShort(nullable));
                 }
             };
+            final int endIndex;
             endIndex = readOneDimensionArray(charArray, index, meta, consumer);
-            return new ArrayPair(list.toArray(new Short[0]), endIndex);
+            final Object array;
+            if (targetArrayClass == Short.class) {
+                array = list.toArray(new Short[0]);
+            } else {
+                final short[] shorts = new short[list.size()];
+                int i = 0;
+                for (Short v : list) {
+                    shorts[i] = v;
+                    i++;
+                }
+                array = shorts;
+            }
+            list.clear();
+            return new ArrayPair(array, endIndex);
         };
-        return readArray(value, meta, function, Short.class);
+        return readArray(value, meta, function, targetArrayClass);
     }
 
-    static Object readIntegerArray(final String value, final PgColumnMeta meta) {
+    static Object readIntegerArray(final String value, final PgColumnMeta meta, final Class<?> targetArrayClass) {
+        if (targetArrayClass != Integer.class && targetArrayClass != int.class) {
+            throw PgResultRow.notSupportConverting(meta, targetArrayClass);
+        }
         final BiFunction<char[], Integer, ArrayPair> function = (charArray, index) -> {
             final List<Integer> list = new LinkedList<>();
-            final int endIndex;
             final Consumer<String> consumer = nullable -> {
                 if (nullable == null) {
+                    if (targetArrayClass == int.class) {
+                        throw PgResultRow.notSupportConverting(meta, targetArrayClass);
+                    }
                     list.add(null);
                 } else {
                     list.add(Integer.parseInt(nullable));
                 }
             };
+            final int endIndex;
             endIndex = readOneDimensionArray(charArray, index, meta, consumer);
-            return new ArrayPair(list.toArray(new Integer[0]), endIndex);
+            final Object array;
+            if (targetArrayClass == Integer.class) {
+                array = list.toArray(new Integer[0]);
+            } else {
+                final int[] valueArray = new int[list.size()];
+                int i = 0;
+                for (Integer v : list) {
+                    valueArray[i] = v;
+                    i++;
+                }
+                array = valueArray;
+            }
+            list.clear();
+            return new ArrayPair(array, endIndex);
         };
-        return readArray(value, meta, function, Integer.class);
+        return readArray(value, meta, function, targetArrayClass);
     }
 
-    static Object readBigIntArray(final String value, final PgColumnMeta meta) {
+    static Object readBigIntArray(final String value, final PgColumnMeta meta, final Class<?> targetArrayClass) {
+        if (targetArrayClass != Long.class && targetArrayClass != long.class) {
+            throw PgResultRow.notSupportConverting(meta, targetArrayClass);
+        }
         final BiFunction<char[], Integer, ArrayPair> function = (charArray, index) -> {
             final List<Long> list = new LinkedList<>();
-            final int endIndex;
+
             final Consumer<String> consumer = nullable -> {
                 if (nullable == null) {
+                    if (targetArrayClass == long.class) {
+                        throw PgResultRow.notSupportConverting(meta, targetArrayClass);
+                    }
                     list.add(null);
                 } else {
                     list.add(Long.parseLong(nullable));
                 }
             };
+            final int endIndex;
             endIndex = readOneDimensionArray(charArray, index, meta, consumer);
-            return new ArrayPair(list.toArray(new Long[0]), endIndex);
+            final Object array;
+            if (targetArrayClass == Long.class) {
+                array = list.toArray(new Long[0]);
+            } else {
+                final long[] valueArray = new long[list.size()];
+                int i = 0;
+                for (Long v : list) {
+                    valueArray[i] = v;
+                    i++;
+                }
+                array = valueArray;
+            }
+            list.clear();
+            return new ArrayPair(array, endIndex);
         };
-        return readArray(value, meta, function, Long.class);
+        return readArray(value, meta, function, targetArrayClass);
     }
 
     static Object readDecimalArray(final String value, final PgColumnMeta meta, final Class<?> targetArrayClass) {
         if (targetArrayClass != BigDecimal.class && targetArrayClass != Object.class) {
             throw PgResultRow.notSupportConverting(meta, targetArrayClass);
         }
-
         final BiFunction<char[], Integer, ArrayPair> function = (charArray, index) -> {
             final List<Object> list = new LinkedList<>();
 
@@ -149,38 +227,78 @@ abstract class ColumnArrays {
         return readArray(value, meta, function, targetArrayClass);
     }
 
-    static Object readRealArray(final String value, final PgColumnMeta meta) {
+    static Object readRealArray(final String value, final PgColumnMeta meta, final Class<?> targetArrayClass) {
+        if (targetArrayClass != Float.class && targetArrayClass != float.class) {
+            throw PgResultRow.notSupportConverting(meta, targetArrayClass);
+        }
         final BiFunction<char[], Integer, ArrayPair> function = (charArray, index) -> {
             final List<Float> list = new LinkedList<>();
-            final int endIndex;
+
             final Consumer<String> consumer = nullable -> {
                 if (nullable == null) {
+                    if (targetArrayClass == float.class) {
+                        throw PgResultRow.notSupportConverting(meta, targetArrayClass);
+                    }
                     list.add(null);
                 } else {
                     list.add(Float.parseFloat(nullable));
                 }
             };
+            final int endIndex;
             endIndex = readOneDimensionArray(charArray, index, meta, consumer);
-            return new ArrayPair(list.toArray(new Float[0]), endIndex);
+            final Object array;
+            if (targetArrayClass == Float.class) {
+                array = list.toArray(new Float[0]);
+            } else {
+                final float[] valueArray = new float[list.size()];
+                int i = 0;
+                for (Float v : list) {
+                    valueArray[i] = v;
+                    i++;
+                }
+                array = valueArray;
+            }
+            list.clear();
+            return new ArrayPair(array, endIndex);
         };
-        return readArray(value, meta, function, Float.class);
+        return readArray(value, meta, function, targetArrayClass);
     }
 
-    static Object readDoubleArray(final String value, final PgColumnMeta meta) {
+    static Object readDoubleArray(final String value, final PgColumnMeta meta, final Class<?> targetArrayClass) {
+        if (targetArrayClass != Double.class && targetArrayClass != double.class) {
+            throw PgResultRow.notSupportConverting(meta, targetArrayClass);
+        }
         final BiFunction<char[], Integer, ArrayPair> function = (charArray, index) -> {
             final List<Double> list = new LinkedList<>();
-            final int endIndex;
+
             final Consumer<String> consumer = nullable -> {
                 if (nullable == null) {
+                    if (targetArrayClass == double.class) {
+                        throw PgResultRow.notSupportConverting(meta, targetArrayClass);
+                    }
                     list.add(null);
                 } else {
                     list.add(Double.parseDouble(nullable));
                 }
             };
+            final int endIndex;
             endIndex = readOneDimensionArray(charArray, index, meta, consumer);
-            return new ArrayPair(list.toArray(new Double[0]), endIndex);
+            final Object array;
+            if (targetArrayClass == Double.class) {
+                array = list.toArray(new Double[0]);
+            } else {
+                final double[] valueArray = new double[list.size()];
+                int i = 0;
+                for (Double v : list) {
+                    valueArray[i] = v;
+                    i++;
+                }
+                array = valueArray;
+            }
+            list.clear();
+            return new ArrayPair(array, endIndex);
         };
-        return readArray(value, meta, function, Double.class);
+        return readArray(value, meta, function, targetArrayClass);
     }
 
     static Object readTimeArray(final String value, final PgColumnMeta meta) {

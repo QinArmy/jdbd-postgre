@@ -136,32 +136,20 @@ public class PgResultRow extends AbstractResultRow<PgRowMeta> {
         final Object value;
         switch (meta.sqlType) {
             case BOOLEAN_ARRAY: {
-                if (targetArrayClass != Boolean.class) {
-                    throw createNotSupportedException(meta.index, targetArrayClass);
-                }
-                value = ColumnArrays.readBooleanArray(textValue, meta);
+                value = ColumnArrays.readBooleanArray(textValue, meta, targetArrayClass);
             }
             break;
             case SMALLINT_ARRAY: {
-                if (targetArrayClass != Short.class) {
-                    throw createNotSupportedException(meta.index, targetArrayClass);
-                }
-                value = ColumnArrays.readShortArray(textValue, meta);
+                value = ColumnArrays.readShortArray(textValue, meta, targetArrayClass);
             }
             break;
             case INTEGER_ARRAY: {
-                if (targetArrayClass != Integer.class) {
-                    throw createNotSupportedException(meta.index, targetArrayClass);
-                }
-                value = ColumnArrays.readIntegerArray(textValue, meta);
+                value = ColumnArrays.readIntegerArray(textValue, meta, targetArrayClass);
             }
             break;
             case OID_ARRAY:
             case BIGINT_ARRAY: {
-                if (targetArrayClass != Long.class) {
-                    throw createNotSupportedException(meta.index, targetArrayClass);
-                }
-                value = ColumnArrays.readBigIntArray(textValue, meta);
+                value = ColumnArrays.readBigIntArray(textValue, meta, targetArrayClass);
             }
             break;
             case DECIMAL_ARRAY: {
@@ -169,17 +157,11 @@ public class PgResultRow extends AbstractResultRow<PgRowMeta> {
             }
             break;
             case REAL_ARRAY: {
-                if (targetArrayClass != Float.class) {
-                    throw createNotSupportedException(meta.index, targetArrayClass);
-                }
-                value = ColumnArrays.readRealArray(textValue, meta);
+                value = ColumnArrays.readRealArray(textValue, meta, targetArrayClass);
             }
             break;
             case DOUBLE_ARRAY: {
-                if (targetArrayClass != Double.class) {
-                    throw createNotSupportedException(meta.index, targetArrayClass);
-                }
-                value = ColumnArrays.readDoubleArray(textValue, meta);
+                value = ColumnArrays.readDoubleArray(textValue, meta, targetArrayClass);
             }
             break;
             case TIME_ARRAY: {
