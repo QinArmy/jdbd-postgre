@@ -123,15 +123,44 @@ public abstract class JdbdStrings extends StringUtils {
         return match;
     }
 
-    public static String reverse(String text) {
-        final char[] charArray = text.toCharArray();
-        char temp;
-        for (int left = 0, right = charArray.length - 1, end = charArray.length >> 1; left < end; left++, right--) {
-            temp = charArray[left];
-            charArray[left] = charArray[right];
-            charArray[right] = temp;
+    public static String toBinaryString(final long value, final boolean bitEndian) {
+        final char[] bitChars = new char[64];
+        if (bitEndian) {
+            long site = 1L << 63;
+            for (int i = 0; i < bitChars.length; i++) {
+                bitChars[i] = ((value & site) == 0) ? '0' : '1';
+                site >>= 1;
+            }
+        } else {
+            long site = 1;
+            for (int i = 0; i < bitChars.length; i++) {
+                bitChars[i] = ((value & site) == 0) ? '0' : '1';
+                site <<= 1;
+            }
         }
-        return new String(charArray);
+        return new String(bitChars);
+    }
+
+    public static String toBinaryString(final int value, final boolean bitEndian) {
+        final char[] bitChars = new char[32];
+        if (bitEndian) {
+            int site = 1 << 31;
+            for (int i = 0; i < bitChars.length; i++) {
+                bitChars[i] = ((value & site) == 0) ? '0' : '1';
+                site >>= 1;
+            }
+        } else {
+            int site = 1;
+            for (int i = 0; i < bitChars.length; i++) {
+                bitChars[i] = ((value & site) == 0) ? '0' : '1';
+                site <<= 1;
+            }
+        }
+        return new String(bitChars);
+    }
+
+    public static String reverse(String text) {
+        return new StringBuilder(text).reverse().toString();
     }
 
 

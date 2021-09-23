@@ -12,6 +12,14 @@ public interface PgConstant {
 
     String NEG_INFINITY = "-infinity";
 
+    String NaN = "NaN";
+
+    char QUOTE = '\'';
+
+    char DOUBLE_QUOTE = '"';
+
+    char BACK_SLASH = '\\';
+
     short TYPE_UNSPECIFIED = 0;
     short TYPE_INT2 = 21;
     short TYPE_INT2_ARRAY = 1005;

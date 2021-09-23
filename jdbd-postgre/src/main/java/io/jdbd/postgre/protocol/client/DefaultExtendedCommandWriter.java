@@ -582,7 +582,12 @@ final class DefaultExtendedCommandWriter implements ExtendedCommandWriter {
             }
             break;
             case BOOLEAN_ARRAY:
-            case SMALLINT_ARRAY:
+            case SMALLINT_ARRAY: {
+                final String text;
+                text = PgBinds.bindNonNullSmallIntArray(batchIndex, pgType, paramValue);
+                Messages.writeString(message, text, this.adjutant.clientCharset());
+            }
+            break;
             case INTEGER_ARRAY:
             case BIGINT_ARRAY:
             case REAL_ARRAY:
@@ -592,9 +597,7 @@ final class DefaultExtendedCommandWriter implements ExtendedCommandWriter {
             case DATE_ARRAY:
             case UUID_ARRAY:
             case MONEY_ARRAY: {
-                final String text;
-                text = PgBinds.bindNonNullToArrayWithoutEscapes(batchIndex, pgType, paramValue);
-                Messages.writeString(message, text, this.adjutant.clientCharset());
+
             }
             break;
 

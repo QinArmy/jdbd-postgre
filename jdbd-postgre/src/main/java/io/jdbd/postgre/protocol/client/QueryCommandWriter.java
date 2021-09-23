@@ -256,6 +256,10 @@ final class QueryCommandWriter {
             message.writeBytes(staticSqlList.get(i).getBytes(clientCharset));
             if (bindValue.get() == null) {
                 message.writeBytes(nullBytes);
+                continue;
+            }
+            if (bindValue.getType().isArray()) {
+                bindNonNullArray(stmtIndex, bindValue, message);
             } else {
                 bindNonNullParameter(stmtIndex, bindValue, message);
             }
@@ -377,44 +381,7 @@ final class QueryCommandWriter {
                 bindNonNullToOffsetDateTime(batchIndex, bindValue, message);
             }
             break;
-            case SMALLINT_ARRAY: {
-                final String v;
-                v = PgBinds.bindNonNullShortArray(batchIndex, bindValue.getType(), bindValue);
-                message.writeByte(QUOTE_BYTE);
-                message.writeBytes(v.getBytes(this.clientCharset));
-                message.writeByte(QUOTE_BYTE);
-            }
-            break;
-            case BOOLEAN_ARRAY:
-            case TEXT_ARRAY:
-            case OID_ARRAY:
 
-            case BIT_ARRAY:
-
-            case XML_ARRAY:
-            case CHAR_ARRAY:
-            case DATE_ARRAY:
-            case JSON_ARRAY:
-            case TIME_ARRAY:
-            case UUID_ARRAY:
-            case BYTEA_ARRAY:
-            case JSONB_ARRAY:
-            case MONEY_ARRAY:
-            case POINT_ARRAY:
-            case REAL_ARRAY:
-            case DOUBLE_ARRAY:
-            case TIMETZ_ARRAY:
-            case VARBIT_ARRAY:
-            case DECIMAL_ARRAY:
-            case INTEGER_ARRAY:
-            case VARCHAR_ARRAY:
-            case INTERVAL_ARRAY:
-
-            case TIMESTAMP_ARRAY:
-            case REF_CURSOR_ARRAY:
-            case TIMESTAMPTZ_ARRAY: {
-                throw new UnsupportedOperationException();
-            }
             case REF_CURSOR:
             case UNSPECIFIED:
                 throw PgExceptions.createNonSupportBindSqlTypeError(batchIndex, bindValue.getType(), bindValue);
@@ -422,6 +389,127 @@ final class QueryCommandWriter {
                 throw PgExceptions.createUnexpectedEnumException(bindValue.getType());
 
         }
+    }
+
+    /**
+     * @see #writeStatement(int, PgStatement, List, ByteBuf)
+     */
+    private void bindNonNullArray(final int batchIndex, BindValue bindValue, ByteBuf message) throws SQLException {
+        final String v;
+        switch (bindValue.getType()) {
+            case BOOLEAN_ARRAY: {
+                v = PgBinds.bindNonNullBooleanArray(batchIndex, bindValue.getType(), bindValue);
+            }
+            break;
+            case SMALLINT_ARRAY: {
+                v = PgBinds.bindNonNullSmallIntArray(batchIndex, bindValue.getType(), bindValue);
+            }
+            break;
+            case INTEGER_ARRAY: {
+                v = PgBinds.bindNonNullIntegerArray(batchIndex, bindValue.getType(), bindValue);
+            }
+            break;
+            case OID_ARRAY:
+            case BIGINT_ARRAY: {
+                v = PgBinds.bindNonNullBigIntArray(batchIndex, bindValue.getType(), bindValue);
+            }
+            break;
+            case DECIMAL_ARRAY: {
+                v = PgBinds.bindNonNullDecimalArray(batchIndex, bindValue.getType(), bindValue);
+            }
+            break;
+            case REAL_ARRAY: {
+                v = PgBinds.bindNonNullFloatArray(batchIndex, bindValue.getType(), bindValue);
+            }
+            break;
+            case DOUBLE_ARRAY: {
+                v = PgBinds.bindNonNullDoubleArray(batchIndex, bindValue.getType(), bindValue);
+            }
+            break;
+            case BIT_ARRAY: {
+                v = PgBinds.bindNonNullBitArray(batchIndex, bindValue.getType(), bindValue);
+            }
+            break;
+            case VARBIT_ARRAY: {
+                v = PgBinds.bindNonNullVarBitArray(batchIndex, bindValue.getType(), bindValue);
+            }
+            break;
+            case TIME_ARRAY: {
+                v = PgBinds.bindNonNullTimeArray(batchIndex, bindValue.getType(), bindValue);
+            }
+            break;
+            case DATE_ARRAY: {
+                v = PgBinds.bindNonNullDateArray(batchIndex, bindValue.getType(), bindValue);
+            }
+            break;
+            case TIMESTAMP_ARRAY: {
+                v = PgBinds.bindNonNullTimestampArray(batchIndex, bindValue.getType(), bindValue);
+            }
+            break;
+            case TIMETZ_ARRAY: {
+                v = PgBinds.bindNonNullTimeTzArray(batchIndex, bindValue.getType(), bindValue);
+            }
+            break;
+            case TIMESTAMPTZ_ARRAY: {
+                v = PgBinds.bindNonNullTimestampTzArray(batchIndex, bindValue.getType(), bindValue);
+            }
+            break;
+            case UUID_ARRAY: {
+                v = PgBinds.bindNonNullUuidArray(batchIndex, bindValue.getType(), bindValue);
+            }
+            break;
+            case INTERVAL_ARRAY: {
+                v = PgBinds.bindNonNullIntervalArray(batchIndex, bindValue.getType(), bindValue);
+            }
+            break;
+            case MONEY_ARRAY: {
+                v = PgBinds.bindNonNullMoneyArray(batchIndex, bindValue.getType(), bindValue);
+            }
+            break;
+            case NUMRANGE_ARRAY:
+            case DATERANGE_ARRAY:
+            case INT4RANGE_ARRAY:
+            case INT8RANGE_ARRAY:
+            case TSTZRANGE_ARRAY:
+            case TSRANGE_ARRAY:
+
+            case INET_ARRAY:
+            case CIDR_ARRAY:
+            case MACADDR8_ARRAY:
+            case MACADDR_ARRAY:
+
+            case POINT_ARRAY:
+            case LINE_ARRAY:
+            case LINE_SEGMENT_ARRAY:
+            case BOX_ARRAY:
+            case PATH_ARRAY:
+            case CIRCLES_ARRAY:
+            case POLYGON_ARRAY: {
+                v = PgBinds.bindNonNullSafeTextArray(batchIndex, bindValue.getType(), bindValue);
+            }
+            break;
+            case TSVECTOR_ARRAY:
+            case TSQUERY_ARRAY:
+            case TEXT_ARRAY:
+            case XML_ARRAY:
+            case CHAR_ARRAY:
+            case VARCHAR_ARRAY:
+            case BYTEA_ARRAY:
+            case JSON_ARRAY:
+            case JSONB_ARRAY: {
+                v = PgBinds.bindNonNullEscapesTextArray(batchIndex, bindValue.getType(), bindValue);
+            }
+            break;
+            case REF_CURSOR_ARRAY: {
+                throw new UnsupportedOperationException();
+            }
+            default:
+                throw PgExceptions.createUnexpectedEnumException(bindValue.getType());
+        }
+        message.writeByte(QUOTE_BYTE);
+        message.writeBytes(v.getBytes(this.clientCharset));
+        message.writeByte(QUOTE_BYTE);
+
     }
 
 
