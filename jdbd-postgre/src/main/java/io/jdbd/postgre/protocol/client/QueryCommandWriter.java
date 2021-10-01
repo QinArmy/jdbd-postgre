@@ -1,5 +1,6 @@
 package io.jdbd.postgre.protocol.client;
 
+import io.jdbd.JdbdSQLException;
 import io.jdbd.postgre.PgConstant;
 import io.jdbd.postgre.PgType;
 import io.jdbd.postgre.config.PgKey;
@@ -16,14 +17,12 @@ import io.jdbd.postgre.util.PgTimes;
 import io.jdbd.stmt.LongDataReadException;
 import io.jdbd.vendor.stmt.StaticBatchStmt;
 import io.jdbd.vendor.syntax.SQLParser;
-import io.jdbd.vendor.util.JdbdExceptions;
 import io.netty.buffer.ByteBuf;
 import org.reactivestreams.Publisher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import reactor.core.publisher.Mono;
 
-import java.io.IOException;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.nio.ByteBuffer;
@@ -61,7 +60,7 @@ final class QueryCommandWriter {
                     throw PgExceptions.createMultiStatementError();
                 }
                 if (count > 0) {
-                    message.writeByte(SEMICOLON_BYTE);
+                    message.writeByte(PgConstant.SEMICOLON_BYTE);
                 }
                 message.writeBytes(sql.getBytes(charset));
                 count++;
@@ -72,7 +71,7 @@ final class QueryCommandWriter {
             return Mono.just(message);
         } catch (Throwable e) {
             message.release();
-            throw convertError(e);
+            throw PgExceptions.wrapForMessage(e);
         }
     }
 
@@ -95,50 +94,44 @@ final class QueryCommandWriter {
     }
 
 
-    static Publisher<ByteBuf> createBindableCommand(BindStmt stmt, TaskAdjutant adjutant)
-            throws Throwable {
-        ByteBuf message;
-        message = new QueryCommandWriter(adjutant)
-                .writeMultiBindCommand(Collections.singletonList(stmt));
-        return Mono.just(message);
-    }
-
-    static Publisher<ByteBuf> createBindableBatchCommand(BindBatchStmt stmt, TaskAdjutant adjutant)
-            throws Throwable {
-        ByteBuf message;
-        message = new QueryCommandWriter(adjutant)
-                .writeBatchBindCommand(stmt);
-        return Mono.just(message);
-    }
-
-    static Publisher<ByteBuf> createMultiStmtCommand(BindMultiStmt stmt, TaskAdjutant adjutant) throws Throwable {
-        ByteBuf message;
-        message = new QueryCommandWriter(adjutant)
-                .writeMultiBindCommand(stmt.getStmtGroup());
-        return Mono.just(message);
-    }
-
-    private static Throwable convertError(Throwable e) {
-        final Throwable t;
-        if (e instanceof SQLException || JdbdExceptions.isJvmFatal(e)) {
-            t = e;
-        } else if (e instanceof IndexOutOfBoundsException) {
-            t = PgExceptions.createObjectTooLargeError();
-        } else {
-            t = PgExceptions.wrap(e);
+    static Publisher<ByteBuf> createBindableCommand(BindStmt stmt, final TaskAdjutant adjutant) throws Throwable {
+        try {
+            QueryCommandWriter writer = new QueryCommandWriter(adjutant);
+            final ByteBuf message;
+            message = writer.writeMultiBindCommand(Collections.singletonList(stmt));
+            return Mono.just(message);
+        } catch (Throwable e) {
+            throw PgExceptions.wrapForMessage(e);
         }
-        return t;
     }
+
+    static Publisher<ByteBuf> createBindableBatchCommand(final BindBatchStmt stmt, final TaskAdjutant adjutant)
+            throws Throwable {
+        try {
+            QueryCommandWriter writer = new QueryCommandWriter(adjutant);
+            final ByteBuf message;
+            message = writer.writeBatchBindCommand(stmt);
+            return Mono.just(message);
+        } catch (Throwable e) {
+            throw PgExceptions.wrapForMessage(e);
+        }
+    }
+
+    static Publisher<ByteBuf> createMultiStmtCommand(final BindMultiStmt stmt, final TaskAdjutant adjutant)
+            throws Throwable {
+        try {
+            QueryCommandWriter writer = new QueryCommandWriter(adjutant);
+            final ByteBuf message;
+            message = writer.writeMultiBindCommand(stmt.getStmtGroup());
+            return Mono.just(message);
+        } catch (Throwable e) {
+            throw PgExceptions.wrapForMessage(e);
+        }
+    }
+
 
     private static final Logger LOG = LoggerFactory.getLogger(QueryCommandWriter.class);
 
-    private static final String NULL = "NULL", TRUE = "TRUE", FALSE = "FALSE";
-
-    private static final byte BACK_SLASH_BYTE = '\\';
-
-    private static final byte QUOTE_BYTE = '\'';
-
-    private static final byte SEMICOLON_BYTE = ';';
 
     private final TaskAdjutant adjutant;
 
@@ -160,7 +153,8 @@ final class QueryCommandWriter {
      * @see #createMultiStmtCommand(BindMultiStmt, TaskAdjutant)
      * @see #createBindableCommand(BindStmt, TaskAdjutant)
      */
-    private ByteBuf writeMultiBindCommand(final List<BindStmt> stmtList) throws Throwable {
+    private ByteBuf writeMultiBindCommand(final List<BindStmt> stmtList)
+            throws SQLException, LongDataReadException, JdbdSQLException {
         final TaskAdjutant adjutant = this.adjutant;
         int capacity = stmtList.size() << 7;
         if (capacity < 0) {
@@ -180,7 +174,7 @@ final class QueryCommandWriter {
                 stmt = stmtList.get(i);
                 statement = sqlParser.parse(stmt.getSql());
                 if (i > 0) {
-                    message.writeByte(SEMICOLON_BYTE);
+                    message.writeByte(PgConstant.SEMICOLON_BYTE);
                 }
                 writeStatement(i, statement, stmt.getBindGroup(), message);
             }
@@ -188,17 +182,18 @@ final class QueryCommandWriter {
             message.writeByte(Messages.STRING_TERMINATOR);
 
             Messages.writeLength(message);
+
             return message;
         } catch (Throwable e) {
             message.release();
-            throw convertError(e);
+            throw e;
         }
     }
 
     /**
      * @see #createBindableBatchCommand(BindBatchStmt, TaskAdjutant)
      */
-    private ByteBuf writeBatchBindCommand(BindBatchStmt stmt) throws Throwable {
+    private ByteBuf writeBatchBindCommand(final BindBatchStmt stmt) throws SQLException {
         final TaskAdjutant adjutant = this.adjutant;
         final String sql = stmt.getSql();
         final List<List<BindValue>> groupList = stmt.getGroupList();
@@ -217,7 +212,7 @@ final class QueryCommandWriter {
             statement = adjutant.sqlParser().parse(sql);
             for (int i = 0; i < stmtCount; i++) {
                 if (i > 0) {
-                    message.writeByte(SEMICOLON_BYTE);
+                    message.writeByte(PgConstant.SEMICOLON_BYTE);
                 }
                 writeStatement(i, statement, groupList.get(i), message);
             }
@@ -228,7 +223,7 @@ final class QueryCommandWriter {
             return message;
         } catch (Throwable e) {
             message.release();
-            throw convertError(e);
+            throw e;
         }
     }
 
@@ -238,7 +233,7 @@ final class QueryCommandWriter {
      * @see #writeBatchBindCommand(BindBatchStmt)
      */
     private void writeStatement(final int stmtIndex, PgStatement statement, List<BindValue> valueList, ByteBuf message)
-            throws SQLException, IOException {
+            throws SQLException {
 
         final List<String> staticSqlList = statement.getStaticSql();
         final int paramCount = staticSqlList.size() - 1;
@@ -246,19 +241,21 @@ final class QueryCommandWriter {
             throw PgExceptions.createBindCountNotMatchError(stmtIndex, paramCount, valueList.size());
         }
         final Charset clientCharset = this.clientCharset;
-        final byte[] nullBytes = NULL.getBytes(clientCharset);
+        final byte[] nullBytes = PgConstant.NULL.getBytes(clientCharset);
         BindValue bindValue;
+        Object value;
         for (int i = 0; i < paramCount; i++) {
             bindValue = valueList.get(i);
             if (bindValue.getIndex() != i) {
                 throw PgExceptions.createBindIndexNotMatchError(stmtIndex, i, bindValue);
             }
             message.writeBytes(staticSqlList.get(i).getBytes(clientCharset));
-            if (bindValue.get() == null) {
+            value = bindValue.get();
+            if (value == null) {
                 message.writeBytes(nullBytes);
                 continue;
             }
-            if (bindValue.getType().isArray()) {
+            if (bindValue.getType().isArray() && !(value instanceof byte[]) && value.getClass().isArray()) {
                 bindNonNullArray(stmtIndex, bindValue, message);
             } else {
                 bindNonNullParameter(stmtIndex, bindValue, message);
@@ -381,7 +378,61 @@ final class QueryCommandWriter {
                 bindNonNullToOffsetDateTime(batchIndex, bindValue, message);
             }
             break;
+            // below bind array with non-array value.
+            case BOOLEAN_ARRAY:
+            case SMALLINT_ARRAY:
+            case INTEGER_ARRAY:
+            case OID_ARRAY:
+            case BIGINT_ARRAY:
+            case DECIMAL_ARRAY:
+            case REAL_ARRAY:
+            case DOUBLE_ARRAY:
+            case BIT_ARRAY:
+            case VARBIT_ARRAY:
+            case TIME_ARRAY:
+            case DATE_ARRAY:
+            case TIMESTAMP_ARRAY:
+            case TIMETZ_ARRAY:
+            case TIMESTAMPTZ_ARRAY:
+            case UUID_ARRAY:
+            case INTERVAL_ARRAY:
+            case MONEY_ARRAY:
+            case NUMRANGE_ARRAY:
+            case DATERANGE_ARRAY:
+            case INT4RANGE_ARRAY:
+            case INT8RANGE_ARRAY:
+            case TSTZRANGE_ARRAY:
+            case TSRANGE_ARRAY:
 
+            case INET_ARRAY:
+            case CIDR_ARRAY:
+            case MACADDR8_ARRAY:
+            case MACADDR_ARRAY:
+
+            case POINT_ARRAY:
+            case LINE_ARRAY:
+            case LINE_SEGMENT_ARRAY:
+            case BOX_ARRAY:
+            case PATH_ARRAY:
+            case CIRCLES_ARRAY:
+            case POLYGON_ARRAY:
+            case TSVECTOR_ARRAY:
+            case TSQUERY_ARRAY:
+            case TEXT_ARRAY:
+            case XML_ARRAY:
+            case CHAR_ARRAY:
+            case VARCHAR_ARRAY:
+            case BYTEA_ARRAY:
+            case JSON_ARRAY:
+            case JSONB_ARRAY: {
+                final Class<?> valueClass = bindValue.getNonNull().getClass();
+                if (valueClass == byte[].class || valueClass.isArray()) {
+                    throw new IllegalArgumentException("bindValue error");
+                }
+                bindNonNullToString(batchIndex, bindValue, message);
+            }
+            break;
+            case REF_CURSOR_ARRAY:
             case REF_CURSOR:
             case UNSPECIFIED:
                 throw PgExceptions.createNonSupportBindSqlTypeError(batchIndex, bindValue.getType(), bindValue);
@@ -488,16 +539,16 @@ final class QueryCommandWriter {
                 v = PgBinds.bindNonNullSafeTextArray(batchIndex, bindValue.getType(), bindValue);
             }
             break;
+            case BYTEA_ARRAY:
             case TSVECTOR_ARRAY:
             case TSQUERY_ARRAY:
             case TEXT_ARRAY:
             case XML_ARRAY:
             case CHAR_ARRAY:
             case VARCHAR_ARRAY:
-            case BYTEA_ARRAY:
             case JSON_ARRAY:
             case JSONB_ARRAY: {
-                v = PgBinds.bindNonNullEscapesTextArray(batchIndex, bindValue.getType(), bindValue);
+                v = PgBinds.bindNonNullEscapesTextArray(batchIndex, bindValue.getType(), bindValue, this.clientCharset);
             }
             break;
             case REF_CURSOR_ARRAY: {
@@ -506,9 +557,11 @@ final class QueryCommandWriter {
             default:
                 throw PgExceptions.createUnexpectedEnumException(bindValue.getType());
         }
-        message.writeByte(QUOTE_BYTE);
-        message.writeBytes(v.getBytes(this.clientCharset));
-        message.writeByte(QUOTE_BYTE);
+        message.writeByte('E');
+        message.writeByte(PgConstant.QUOTE_BYTE);
+        final byte[] bytes = v.getBytes(this.clientCharset);
+        writeWithEscape(message, bytes, bytes.length);
+        message.writeByte(PgConstant.QUOTE_BYTE);
 
     }
 
@@ -521,7 +574,7 @@ final class QueryCommandWriter {
         final Object nonNull = bindValue.getNonNull();
 
         if (nonNull instanceof Number) {
-            message.writeByte(QUOTE_BYTE);
+            message.writeByte(PgConstant.QUOTE_BYTE);
             if (nonNull instanceof BigDecimal) {
                 message.writeBytes(((BigDecimal) nonNull).toPlainString().getBytes(this.clientCharset));
             } else if (nonNull instanceof Long
@@ -535,12 +588,12 @@ final class QueryCommandWriter {
             } else {
                 throw PgExceptions.createNotSupportBindTypeError(batchIndex, bindValue);
             }
-            message.writeByte(QUOTE_BYTE);
+            message.writeByte(PgConstant.QUOTE_BYTE);
         } else if (nonNull instanceof Path) {
             writeTextPathWithEscapes(batchIndex, bindValue, message);
         } else {
             message.writeByte('E');
-            message.writeByte(QUOTE_BYTE);
+            message.writeByte(PgConstant.QUOTE_BYTE);
             if (nonNull instanceof String) {
                 final byte[] bytes = ((String) nonNull).getBytes(this.clientCharset);
                 writeWithEscape(message, bytes, bytes.length);
@@ -558,7 +611,7 @@ final class QueryCommandWriter {
             } else {
                 throw PgExceptions.createNotSupportBindTypeError(batchIndex, bindValue);
             }
-            message.writeByte(QUOTE_BYTE);
+            message.writeByte(PgConstant.QUOTE_BYTE);
         }
 
 
@@ -586,15 +639,15 @@ final class QueryCommandWriter {
             } else {
                 throw PgExceptions.createNotSupportBindTypeError(batchIndex, bindValue);
             }
-            message.writeByte(QUOTE_BYTE);
+            message.writeByte(PgConstant.QUOTE_BYTE);
             message.writeBytes(bytes);
-            message.writeByte(QUOTE_BYTE);
+            message.writeByte(PgConstant.QUOTE_BYTE);
         } else if (nonNull instanceof String) {
             message.writeByte('E');
-            message.writeByte(QUOTE_BYTE);
+            message.writeByte(PgConstant.QUOTE_BYTE);
             final byte[] bytes = ((String) nonNull).getBytes(this.clientCharset);
             writeWithEscape(message, bytes, bytes.length);
-            message.writeByte(QUOTE_BYTE);
+            message.writeByte(PgConstant.QUOTE_BYTE);
         } else {
             throw PgExceptions.createNotSupportBindTypeError(batchIndex, bindValue);
         }
@@ -622,15 +675,15 @@ final class QueryCommandWriter {
         } else {
             throw PgExceptions.createNotSupportBindTypeError(batchIndex, bindValue);
         }
-        message.writeByte(QUOTE_BYTE);
+        message.writeByte(PgConstant.QUOTE_BYTE);
         if (this.hexEscapes) {
-            message.writeByte(BACK_SLASH_BYTE);
+            message.writeByte(PgConstant.BACK_SLASH_BYTE);
             message.writeByte('x');
             message.writeBytes(PgBuffers.hexEscapes(true, v, v.length));
         } else {
             writeWithEscape(message, v, v.length);
         }
-        message.writeByte(QUOTE_BYTE);
+        message.writeByte(PgConstant.QUOTE_BYTE);
     }
 
 
@@ -647,9 +700,9 @@ final class QueryCommandWriter {
         final LocalDate value;
         value = PgBinds.bindNonNullToLocalDate(batchIndex, bindValue.getType(), bindValue);
         try {
-            message.writeByte(QUOTE_BYTE);
+            message.writeByte(PgConstant.QUOTE_BYTE);
             message.writeBytes(value.format(PgTimes.PG_ISO_LOCAL_DATE_FORMATTER).getBytes(this.clientCharset));
-            message.writeByte(QUOTE_BYTE);
+            message.writeByte(PgConstant.QUOTE_BYTE);
         } catch (DateTimeException e) {
             throw PgExceptions.outOfTypeRange(batchIndex, bindValue.getType(), bindValue);
         }
@@ -665,9 +718,9 @@ final class QueryCommandWriter {
 
         final LocalTime value;
         value = PgBinds.bindNonNullToLocalTime(batchIndex, bindValue.getType(), bindValue);
-        message.writeByte(QUOTE_BYTE);
+        message.writeByte(PgConstant.QUOTE_BYTE);
         message.writeBytes(value.format(PgTimes.ISO_LOCAL_TIME_FORMATTER).getBytes(this.clientCharset));
-        message.writeByte(QUOTE_BYTE);
+        message.writeByte(PgConstant.QUOTE_BYTE);
     }
 
     /**
@@ -677,9 +730,9 @@ final class QueryCommandWriter {
             throws SQLException {
         final OffsetTime value;
         value = PgBinds.bindNonNullToOffsetTime(batchIndex, bindValue.getType(), bindValue);
-        message.writeByte(QUOTE_BYTE);
+        message.writeByte(PgConstant.QUOTE_BYTE);
         message.writeBytes(value.format(PgTimes.ISO_OFFSET_TIME_FORMATTER).getBytes(this.clientCharset));
-        message.writeByte(QUOTE_BYTE);
+        message.writeByte(PgConstant.QUOTE_BYTE);
     }
 
     /**
@@ -696,9 +749,9 @@ final class QueryCommandWriter {
         final OffsetDateTime value;
         value = PgBinds.bindNonNullToOffsetDateTime(batchIndex, bindValue.getType(), bindValue);
         try {
-            message.writeByte(QUOTE_BYTE);
+            message.writeByte(PgConstant.QUOTE_BYTE);
             message.writeBytes(value.format(PgTimes.PG_ISO_OFFSET_DATETIME_FORMATTER).getBytes(this.clientCharset));
-            message.writeByte(QUOTE_BYTE);
+            message.writeByte(PgConstant.QUOTE_BYTE);
         } catch (DateTimeException e) {
             throw PgExceptions.outOfTypeRange(batchIndex, bindValue.getType(), bindValue);
         }
@@ -719,13 +772,13 @@ final class QueryCommandWriter {
         final LocalDateTime value;
         value = PgBinds.bindNonNullToLocalDateTime(batchIndex, bindValue.getType(), bindValue);
 
-        message.writeByte(QUOTE_BYTE);
+        message.writeByte(PgConstant.QUOTE_BYTE);
         try {
             message.writeBytes(value.format(PgTimes.PG_ISO_LOCAL_DATETIME_FORMATTER).getBytes(this.clientCharset));
         } catch (DateTimeException e) {
             throw PgExceptions.outOfTypeRange(batchIndex, bindValue.getType(), bindValue);
         }
-        message.writeByte(QUOTE_BYTE);
+        message.writeByte(PgConstant.QUOTE_BYTE);
     }
 
     /**
@@ -747,9 +800,9 @@ final class QueryCommandWriter {
         switch (textValue) {
             case PgConstant.INFINITY:
             case PgConstant.NEG_INFINITY: {
-                message.writeByte(QUOTE_BYTE);
+                message.writeByte(PgConstant.QUOTE_BYTE);
                 message.writeBytes(textValue.getBytes(this.clientCharset));
-                message.writeByte(QUOTE_BYTE);
+                message.writeByte(PgConstant.QUOTE_BYTE);
             }
             return true; // write complete
             default:
@@ -769,9 +822,9 @@ final class QueryCommandWriter {
             bitString = PgBinds.bindNonNullToVarBit(stmtIndex, bindValue.getType(), bindValue);
         }
         message.writeByte('B');
-        message.writeByte(QUOTE_BYTE);
+        message.writeByte(PgConstant.QUOTE_BYTE);
         message.writeBytes(bitString.getBytes(this.clientCharset));
-        message.writeByte(QUOTE_BYTE);
+        message.writeByte(PgConstant.QUOTE_BYTE);
     }
 
     /**
@@ -782,9 +835,9 @@ final class QueryCommandWriter {
         final String intervalString;
         intervalString = PgBinds.bindNonNullToInterval(stmtIndex, bindValue.getType(), bindValue);
 
-        message.writeByte(QUOTE_BYTE);
+        message.writeByte(PgConstant.QUOTE_BYTE);
         message.writeBytes(intervalString.getBytes(this.clientCharset));
-        message.writeByte(QUOTE_BYTE);
+        message.writeByte(PgConstant.QUOTE_BYTE);
     }
 
 
@@ -795,7 +848,7 @@ final class QueryCommandWriter {
         final Path path = (Path) bindValue.getNonNull();
         try (FileChannel channel = FileChannel.open(path, StandardOpenOption.READ)) {
             message.writeByte('E');
-            message.writeByte(QUOTE_BYTE);
+            message.writeByte(PgConstant.QUOTE_BYTE);
 
             final byte[] bufferArray = new byte[2048];
             final ByteBuffer buffer = ByteBuffer.wrap(bufferArray);
@@ -829,7 +882,7 @@ final class QueryCommandWriter {
                 buffer.clear();
             }
 
-            message.writeByte(QUOTE_BYTE);
+            message.writeByte(PgConstant.QUOTE_BYTE);
         } catch (Throwable e) {
             String msg = String.format("batch[%s] parameter[%s] read text path[%s] occur error."
                     , batchIndex, bindValue.getIndex(), path);
@@ -850,9 +903,9 @@ final class QueryCommandWriter {
 
             final boolean hexEscapes = this.hexEscapes;
 
-            message.writeByte(QUOTE_BYTE);
+            message.writeByte(PgConstant.QUOTE_BYTE);
             if (hexEscapes) {
-                message.writeByte(BACK_SLASH_BYTE);
+                message.writeByte(PgConstant.BACK_SLASH_BYTE);
                 message.writeByte('x');
             }
 
@@ -867,7 +920,7 @@ final class QueryCommandWriter {
                 }
                 buffer.clear();
             }
-            message.writeByte(QUOTE_BYTE);
+            message.writeByte(PgConstant.QUOTE_BYTE);
         } catch (Throwable e) {
             String msg = String.format("batch[%s] parameter[%s] %s read occur error."
                     , batchIndex, bindValue.getIndex(), path);
@@ -891,17 +944,17 @@ final class QueryCommandWriter {
         byte b;
         for (int i = 0; i < bytes.length; i++) {
             b = bytes[i];
-            if (b == QUOTE_BYTE) {
+            if (b == PgConstant.QUOTE_BYTE) {
                 if (i > lastWritten) {
                     message.writeBytes(bytes, lastWritten, i - lastWritten);
                 }
-                message.writeByte(QUOTE_BYTE);
+                message.writeByte(PgConstant.QUOTE_BYTE);
                 lastWritten = i;
-            } else if (b == BACK_SLASH_BYTE) {
+            } else if (b == PgConstant.BACK_SLASH_BYTE) {
                 if (i > lastWritten) {
                     message.writeBytes(bytes, lastWritten, i - lastWritten);
                 }
-                message.writeByte(BACK_SLASH_BYTE);
+                message.writeByte(PgConstant.BACK_SLASH_BYTE);
                 lastWritten = i;
             }
 

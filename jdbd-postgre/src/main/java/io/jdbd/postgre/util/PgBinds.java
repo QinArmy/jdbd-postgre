@@ -19,6 +19,7 @@ import reactor.util.annotation.Nullable;
 import java.lang.reflect.Array;
 import java.math.BigDecimal;
 import java.math.BigInteger;
+import java.nio.charset.Charset;
 import java.nio.file.Path;
 import java.sql.JDBCType;
 import java.sql.SQLException;
@@ -623,6 +624,7 @@ public abstract class PgBinds extends JdbdBinds {
         return bindNonNullToArray(batchIndex, pgType, paramValue, function);
     }
 
+
     public static String bindNonNullSafeTextArray(final int batchIndex, PgType pgType, ParamValue paramValue)
             throws SQLException, JdbdSQLException {
         switch (pgType) {
@@ -666,7 +668,8 @@ public abstract class PgBinds extends JdbdBinds {
         return bindNonNullToArray(batchIndex, pgType, paramValue, function);
     }
 
-    public static String bindNonNullEscapesTextArray(final int batchIndex, PgType pgType, ParamValue paramValue)
+    public static String bindNonNullEscapesTextArray(final int batchIndex, PgType pgType, ParamValue paramValue
+            , final Charset clientCharset)
             throws SQLException, JdbdSQLException {
         switch (pgType) {
             case TSVECTOR_ARRAY:
@@ -675,7 +678,6 @@ public abstract class PgBinds extends JdbdBinds {
             case XML_ARRAY:
             case CHAR_ARRAY:
             case VARCHAR_ARRAY:
-            case BYTEA_ARRAY:
             case JSON_ARRAY:
             case JSONB_ARRAY:
                 break;
@@ -686,18 +688,54 @@ public abstract class PgBinds extends JdbdBinds {
             throw JdbdExceptions.createNonSupportBindSqlTypeError(batchIndex, pgType, paramValue);
         }
         final Function<Object, String> function = nonNull -> {
-            final String v = (String) nonNull;
-            if (v.indexOf(PgConstant.QUOTE) >= 0
-                    || v.indexOf(PgConstant.DOUBLE_QUOTE) >= 0
-                    || v.charAt(v.length() - 1) == PgConstant.BACK_SLASH) {
-                SQLException e = JdbdExceptions.outOfTypeRange(batchIndex, pgType, paramValue);
-                throw new JdbdSQLException(e);
+            final char[] charArray;
+            if (nonNull instanceof byte[]) {
+                charArray = (new String((byte[]) nonNull, clientCharset)).toCharArray();
+            } else {
+                charArray = ((String) nonNull).toCharArray();
             }
-            return PgConstant.DOUBLE_QUOTE + v + PgConstant.DOUBLE_QUOTE;
+
+            int lastWritten = 0;
+            char c;
+            final StringBuilder builder = new StringBuilder(charArray.length + 10);
+            builder.append(PgConstant.DOUBLE_QUOTE);
+
+            for (int i = 0; i < charArray.length; i++) {
+                c = charArray[i];
+                switch (c) {
+                    case PgConstant.QUOTE: {
+                        if (i > lastWritten) {
+                            builder.append(charArray, lastWritten, i - lastWritten);
+                        }
+                        builder.append(PgConstant.QUOTE);
+                        lastWritten = i;
+                    }
+                    break;
+                    case PgConstant.DOUBLE_QUOTE:
+                    case PgConstant.BACK_SLASH: {
+                        if (i > lastWritten) {
+                            builder.append(charArray, lastWritten, i - lastWritten);
+                        }
+                        builder.append(PgConstant.BACK_SLASH);
+                        lastWritten = i;
+                    }
+                    break;
+                    default:
+                        //no-op
+                }
+
+            }
+            if (lastWritten < charArray.length) {
+                builder.append(charArray, lastWritten, charArray.length - lastWritten);
+            }
+            return builder
+                    .append(PgConstant.DOUBLE_QUOTE)
+                    .toString();
         };
 
         return bindNonNullToArray(batchIndex, pgType, paramValue, function);
     }
+
 
     private static Class<?> obtainArrayType(final int batchIndex, PgType pgType, ParamValue paramValue)
             throws SQLException {
@@ -705,7 +743,13 @@ public abstract class PgBinds extends JdbdBinds {
         if (!arrayClass.isArray()) {
             throw JdbdExceptions.createNonSupportBindSqlTypeError(batchIndex, pgType, paramValue);
         }
-        return getArrayDimensions(arrayClass).getFirst();
+        final Pair<Class<?>, Integer> pair;
+        pair = getArrayDimensions(arrayClass);
+        final Class<?> arrayType = pair.getFirst();
+        if (arrayType == byte.class && pair.getSecond() < 2) {
+            throw JdbdExceptions.createNonSupportBindSqlTypeError(batchIndex, pgType, paramValue);
+        }
+        return arrayType;
     }
 
 
@@ -721,6 +765,16 @@ public abstract class PgBinds extends JdbdBinds {
         final Pair<Class<?>, Integer> pair = getArrayDimensions(nonNull.getClass());
 
         final int topArrayDimension = pair.getSecond();
+        final boolean isByteArray;
+        if (pair.getFirst() == byte.class) {
+            if (topArrayDimension < 2) {
+                throw JdbdExceptions.createNonSupportBindSqlTypeError(batchIndex, pgType, paramValue);
+            }
+            isByteArray = true;
+        } else {
+            isByteArray = false;
+        }
+
         final StringBuilder builder = new StringBuilder();
         final Stack<ArrayWrapper> dimensionStack = new FastStack<>();
         final int topDimensionLength = Array.getLength(nonNull);
@@ -734,6 +788,9 @@ public abstract class PgBinds extends JdbdBinds {
             if (topValue == null) {
                 builder.append(PgConstant.NULL);
                 continue;
+            } else if (isByteArray && topArrayDimension == 2) {
+                builder.append(function.apply(topValue));
+                continue;
             } else if (topArrayDimension == 1) {
                 builder.append(function.apply(topValue));
                 continue;
@@ -741,7 +798,11 @@ public abstract class PgBinds extends JdbdBinds {
             dimensionStack.push(new ArrayWrapper(topValue, topArrayDimension - 1));
             while (!dimensionStack.isEmpty()) {
                 final ArrayWrapper arrayWrapper = dimensionStack.peek();
-                if (arrayWrapper.dimension == 1) {
+                if (isByteArray && arrayWrapper.dimension == 2) {
+                    appendArray(builder, arrayWrapper.array, function);
+                    dimensionStack.pop();
+                    continue;
+                } else if (arrayWrapper.dimension == 1) {
                     appendArray(builder, arrayWrapper.array, function);
                     dimensionStack.pop();
                     continue;

@@ -14,6 +14,10 @@ public interface PgConstant {
 
     String NaN = "NaN";
 
+    byte BACK_SLASH_BYTE = '\\';
+    byte QUOTE_BYTE = '\'';
+    byte SEMICOLON_BYTE = ';';
+
     char QUOTE = '\'';
 
     char DOUBLE_QUOTE = '"';
@@ -139,5 +143,6 @@ public interface PgConstant {
     short TYPE_INT8RANGE_ARRAY = 3927;
     short TYPE_NUMRANGE = 3906;
     short TYPE_NUMRANGE_ARRAY = 3907;
+
 
 }

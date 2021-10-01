@@ -58,6 +58,16 @@ public abstract class JdbdExceptions extends ExceptionUtils {
         return je;
     }
 
+    public static Throwable wrapForMessage(final Throwable e) {
+        final Throwable error;
+        if (e instanceof IndexOutOfBoundsException && isByteBufOutflow(e)) {
+            error = new JdbdSQLException(tooLargeObject(e));
+        } else {
+            error = wrapIfNonJvmFatal(e);
+        }
+        return error;
+    }
+
     public static boolean isByteBufOutflow(final Throwable e) {
         if (!(e instanceof IndexOutOfBoundsException)) {
             return false;

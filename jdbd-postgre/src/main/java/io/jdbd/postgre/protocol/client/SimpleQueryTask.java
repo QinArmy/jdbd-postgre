@@ -13,7 +13,6 @@ import io.jdbd.stmt.MultiStatement;
 import io.jdbd.stmt.StaticStatement;
 import io.jdbd.vendor.result.FluxResultSink;
 import io.jdbd.vendor.result.MultiResults;
-import io.jdbd.vendor.result.ResultSetReader;
 import io.jdbd.vendor.stmt.StaticBatchStmt;
 import io.jdbd.vendor.stmt.StaticStmt;
 import io.netty.buffer.ByteBuf;
@@ -22,14 +21,13 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.util.annotation.Nullable;
 
-import java.nio.charset.Charset;
 import java.util.List;
 import java.util.function.Consumer;
 
 /**
  * @see <a href="https://www.postgresql.org/docs/current/protocol-flow.html#id-1.10.5.7.4">Simple Query</a>
  */
-final class SimpleQueryTask extends AbstractStmtTask {
+final class SimpleQueryTask extends AbstractStmtTask implements SimpleStmtTask {
 
     /*################################## blow for static stmt ##################################*/
 
@@ -273,8 +271,6 @@ final class SimpleQueryTask extends AbstractStmtTask {
 
     private final FluxResultSink sink;
 
-    private final ResultSetReader resultSetReader;
-
     private Phase phase;
 
     /**
@@ -290,7 +286,6 @@ final class SimpleQueryTask extends AbstractStmtTask {
         super(adjutant, sink, stmt);
         this.packetPublisher = QueryCommandWriter.createStaticCommand(stmt.getSql(), adjutant);
         this.sink = sink;
-        this.resultSetReader = DefaultResultSetReader.create(this, sink.froResultSet());
     }
 
     /**
@@ -303,7 +298,6 @@ final class SimpleQueryTask extends AbstractStmtTask {
         super(adjutant, sink, stmt);
         this.packetPublisher = QueryCommandWriter.createStaticBatchCommand(stmt, adjutant);
         this.sink = sink;
-        this.resultSetReader = DefaultResultSetReader.create(this, sink.froResultSet());
     }
 
     /*################################## blow for bindable single stmt ##################################*/
@@ -312,12 +306,10 @@ final class SimpleQueryTask extends AbstractStmtTask {
      * @see #bindableUpdate(BindStmt, TaskAdjutant)
      * @see #bindableQuery(BindStmt, TaskAdjutant)
      */
-    private SimpleQueryTask(FluxResultSink sink, BindStmt stmt, TaskAdjutant adjutant)
-            throws Throwable {
+    private SimpleQueryTask(FluxResultSink sink, BindStmt stmt, TaskAdjutant adjutant) throws Throwable {
         super(adjutant, sink, stmt);
         this.packetPublisher = QueryCommandWriter.createBindableCommand(stmt, adjutant);
         this.sink = sink;
-        this.resultSetReader = DefaultResultSetReader.create(this, sink.froResultSet());
     }
 
     /**
@@ -325,12 +317,10 @@ final class SimpleQueryTask extends AbstractStmtTask {
      * @see #bindableAsMulti(BindBatchStmt, TaskAdjutant)
      * @see #bindableAsFlux(BindBatchStmt, TaskAdjutant)
      */
-    private SimpleQueryTask(TaskAdjutant adjutant, FluxResultSink sink, BindBatchStmt stmt)
-            throws Throwable {
+    private SimpleQueryTask(TaskAdjutant adjutant, FluxResultSink sink, BindBatchStmt stmt) throws Throwable {
         super(adjutant, sink, stmt);
         this.packetPublisher = QueryCommandWriter.createBindableBatchCommand(stmt, adjutant);
         this.sink = sink;
-        this.resultSetReader = DefaultResultSetReader.create(this, sink.froResultSet());
     }
 
     /*################################## blow for bindable multi stmt ##################################*/
@@ -339,16 +329,23 @@ final class SimpleQueryTask extends AbstractStmtTask {
      * @see #multiStmtAsMulti(BindMultiStmt, TaskAdjutant)
      * @see #multiStmtAsFlux(BindMultiStmt, TaskAdjutant)
      */
-    private SimpleQueryTask(TaskAdjutant adjutant, BindMultiStmt stmt, FluxResultSink sink)
-            throws Throwable {
+    private SimpleQueryTask(TaskAdjutant adjutant, BindMultiStmt stmt, FluxResultSink sink) throws Throwable {
         super(adjutant, sink, stmt);
         this.packetPublisher = QueryCommandWriter.createMultiStmtCommand(stmt, adjutant);
         this.sink = sink;
-        this.resultSetReader = DefaultResultSetReader.create(this, sink.froResultSet());
+    }
+
+    /*#################### blow io.jdbd.postgre.protocol.client.SimpleStmtTask method ##########################*/
+
+    @Override
+    public final void handleNoQueryMessage() {
+        // create Query message occur error,end task.
+        this.sendPacketSignal(true)
+                .subscribe();
     }
 
 
-    /*################################## blow io.jdbd.postgre.protocol.client.StmtTask method ##################################*/
+    /*############################### blow io.jdbd.postgre.protocol.client.StmtTask method ########################*/
 
 
     @Override
@@ -421,119 +418,6 @@ final class SimpleQueryTask extends AbstractStmtTask {
         //TODO
         return false;
     }
-
-    /**
-     * @return true: task end.
-     * @see #decode(ByteBuf, Consumer)
-     */
-    private boolean readCommandResponse(final ByteBuf cumulateBuffer, final Consumer<Object> serverStatusConsumer) {
-        assertPhase(Phase.READ_COMMAND_RESPONSE);
-
-        final Charset clientCharset = this.adjutant.clientCharset();
-
-        boolean taskEnd = false, continueRead = Messages.hasOneMessage(cumulateBuffer);
-        while (continueRead) {
-            final int msgStartIndex = cumulateBuffer.readerIndex();
-            final int msgType = cumulateBuffer.getByte(msgStartIndex);
-
-            switch (msgType) {
-                case Messages.E: {// ErrorResponse message
-                    ErrorMessage error = ErrorMessage.read(cumulateBuffer, clientCharset);
-                    addError(PgExceptions.createErrorException(error));
-                    continueRead = Messages.hasOneMessage(cumulateBuffer);
-                }
-                break;
-                case Messages.Z: {// ReadyForQuery message
-                    serverStatusConsumer.accept(TxStatus.read(cumulateBuffer));
-                    taskEnd = true;
-                    continueRead = false;
-                    log.trace("Simple query command end,read optional notice.");
-                    readNoticeAfterReadyForQuery(cumulateBuffer, serverStatusConsumer);
-                }
-                break;
-                case Messages.I: {// EmptyQueryResponse message
-                    continueRead = readEmptyQuery(cumulateBuffer) && Messages.hasOneMessage(cumulateBuffer);
-                }
-                break;
-                case Messages.S: {// ParameterStatus message
-                    serverStatusConsumer.accept(Messages.readParameterStatus(cumulateBuffer, clientCharset));
-                    continueRead = Messages.hasOneMessage(cumulateBuffer);
-                }
-                break;
-                case Messages.C: {// CommandComplete message
-                    if (readResultStateWithoutReturning(cumulateBuffer)) {
-                        continueRead = Messages.hasOneMessage(cumulateBuffer);
-                    } else {
-                        continueRead = false;
-                    }
-
-                }
-                break;
-                case Messages.T: {// RowDescription message
-                    this.phase = Phase.READ_ROW_SET;
-                    if (this.resultSetReader.read(cumulateBuffer, serverStatusConsumer)) {
-                        this.phase = Phase.READ_COMMAND_RESPONSE;
-                        continueRead = Messages.hasOneMessage(cumulateBuffer);
-                    } else {
-                        continueRead = false;
-                    }
-                }
-                break;
-                case Messages.N: {// NoticeResponse message
-                    NoticeMessage noticeMessage = NoticeMessage.read(cumulateBuffer, clientCharset);
-                    log.debug("Receive NoticeMessage that don't follow CommandComplete. message:\n{}", noticeMessage);
-                    continueRead = Messages.hasOneMessage(cumulateBuffer);
-                }
-                break;
-                case Messages.G: {// CopyInResponse message
-                    handleCopyInResponse(cumulateBuffer);
-                    continueRead = false;
-                }
-                break;
-                case Messages.H: { // CopyOutResponse message
-                    if (handleCopyOutResponse(cumulateBuffer)) {
-                        continueRead = Messages.hasOneMessage(cumulateBuffer);
-                    } else {
-                        continueRead = false;
-                    }
-                }
-                break;
-                case Messages.d: // CopyData message
-                case Messages.c:// CopyDone message
-                case Messages.f: {// CopyFail message
-                    if (handleCopyOutData(cumulateBuffer)) {
-                        continueRead = Messages.hasOneMessage(cumulateBuffer);
-                    } else {
-                        continueRead = false;
-                    }
-                }
-                break;
-                case Messages.A: { // NotificationResponse
-                    //TODO complete LISTEN command
-                    Messages.skipOneMessage(cumulateBuffer);
-                    continueRead = Messages.hasOneMessage(cumulateBuffer);
-                }
-                break;
-                default: {
-                    throw new UnExpectedMessageException(String.format("Server response unknown message type[%s]"
-                            , (char) msgType));
-                }
-
-
-            } //  switch (msgType)
-
-        }
-
-        return taskEnd;
-    }
-
-
-    private void assertPhase(Phase expected) {
-        if (this.phase != expected) {
-            throw new IllegalStateException(String.format("this.phase[%s] isn't expected[%s]", this.phase, expected));
-        }
-    }
-
 
 
     /*################################## blow private instance class ##################################*/
