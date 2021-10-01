@@ -2,6 +2,7 @@ package io.jdbd.postgre.protocol.client;
 
 import io.jdbd.ServerVersion;
 import io.jdbd.postgre.stmt.*;
+import io.jdbd.postgre.util.PgBinds;
 import io.jdbd.result.MultiResult;
 import io.jdbd.result.OrderedFlux;
 import io.jdbd.result.ResultRow;
@@ -88,27 +89,57 @@ final class ClientProtocolImpl implements ClientProtocol {
 
     @Override
     public final Mono<ResultStates> bindUpdate(BindStmt stmt) {
-        return SimpleQueryTask.bindableUpdate(stmt, this.adjutant);
+        final Mono<ResultStates> mono;
+        if (PgBinds.hasPublisher(stmt.getBindGroup())) {
+            mono = ExtendedQueryTask.update(stmt, this.adjutant);
+        } else {
+            mono = SimpleQueryTask.bindableUpdate(stmt, this.adjutant);
+        }
+        return mono;
     }
 
     @Override
-    public final Flux<ResultRow> bindQuery(BindStmt stmt) {
-        return SimpleQueryTask.bindableQuery(stmt, this.adjutant);
+    public final Flux<ResultRow> bindQuery(final BindStmt stmt) {
+        final Flux<ResultRow> flux;
+        if (stmt.getFetchSize() > 0 || PgBinds.hasPublisher(stmt.getBindGroup())) {
+            flux = ExtendedQueryTask.query(stmt, this.adjutant);
+        } else {
+            flux = SimpleQueryTask.bindableQuery(stmt, this.adjutant);
+        }
+        return flux;
     }
 
     @Override
-    public final Flux<ResultStates> bindBatch(BindBatchStmt stmt) {
-        return SimpleQueryTask.bindableBatchUpdate(stmt, this.adjutant);
+    public final Flux<ResultStates> bindBatch(final BindBatchStmt stmt) {
+        final Flux<ResultStates> flux;
+        if (PgBinds.hasPublisher(stmt)) {
+            flux = ExtendedQueryTask.batchUpdate(stmt, this.adjutant);
+        } else {
+            flux = SimpleQueryTask.bindableBatchUpdate(stmt, this.adjutant);
+        }
+        return flux;
     }
 
     @Override
-    public final MultiResult bindBatchAsMulti(BindBatchStmt stmt) {
-        return SimpleQueryTask.bindableAsMulti(stmt, this.adjutant);
+    public final MultiResult bindBatchAsMulti(final BindBatchStmt stmt) {
+        final MultiResult result;
+        if ((stmt.getGroupList().size() == 1 && stmt.getFetchSize() > 0) || PgBinds.hasPublisher(stmt)) {
+            result = ExtendedQueryTask.batchAsMulti(stmt, this.adjutant);
+        } else {
+            result = SimpleQueryTask.bindableAsMulti(stmt, this.adjutant);
+        }
+        return result;
     }
 
     @Override
     public final OrderedFlux bindBatchAsFlux(BindBatchStmt stmt) {
-        return SimpleQueryTask.bindableAsFlux(stmt, this.adjutant);
+        final OrderedFlux flux;
+        if ((stmt.getGroupList().size() == 1 && stmt.getFetchSize() > 0) || PgBinds.hasPublisher(stmt)) {
+            flux = ExtendedQueryTask.batchAsFlux(stmt, this.adjutant);
+        } else {
+            flux = SimpleQueryTask.bindableAsFlux(stmt, this.adjutant);
+        }
+        return flux;
     }
 
     @Override

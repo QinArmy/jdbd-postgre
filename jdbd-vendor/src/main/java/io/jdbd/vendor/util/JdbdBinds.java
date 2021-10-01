@@ -3,8 +3,10 @@ package io.jdbd.vendor.util;
 import io.jdbd.JdbdSQLException;
 import io.jdbd.meta.SQLType;
 import io.jdbd.type.Interval;
+import io.jdbd.vendor.stmt.ParamBatchStmt;
 import io.jdbd.vendor.stmt.ParamValue;
 import org.qinarmy.util.Pair;
+import org.reactivestreams.Publisher;
 import reactor.util.annotation.Nullable;
 
 import java.math.BigDecimal;
@@ -25,6 +27,28 @@ public abstract class JdbdBinds {
         boolean has = false;
         for (ParamValue bindValue : parameterGroup) {
             if (bindValue.isLongData()) {
+                has = true;
+                break;
+            }
+        }
+        return has;
+    }
+
+    public static boolean hasPublisher(List<? extends ParamValue> parameterGroup) {
+        boolean has = false;
+        for (ParamValue bindValue : parameterGroup) {
+            if (bindValue.get() instanceof Publisher) {
+                has = true;
+                break;
+            }
+        }
+        return has;
+    }
+
+    public static boolean hasPublisher(ParamBatchStmt<? extends ParamValue> stmt) {
+        boolean has = false;
+        for (List<? extends ParamValue> group : stmt.getGroupList()) {
+            if (hasPublisher(group)) {
                 has = true;
                 break;
             }

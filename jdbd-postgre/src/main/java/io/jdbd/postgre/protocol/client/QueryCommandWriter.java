@@ -142,7 +142,7 @@ final class QueryCommandWriter {
     private final boolean clientUtf8;
 
 
-    private QueryCommandWriter(TaskAdjutant adjutant) {
+    private QueryCommandWriter(final TaskAdjutant adjutant) {
         this.adjutant = adjutant;
         this.clientCharset = adjutant.clientCharset();
         this.clientUtf8 = this.clientCharset.equals(StandardCharsets.UTF_8);
@@ -254,6 +254,9 @@ final class QueryCommandWriter {
             if (value == null) {
                 message.writeBytes(nullBytes);
                 continue;
+            }
+            if (value instanceof Publisher) {
+                throw PgExceptions.createNotSupportBindTypeError(stmtIndex, bindValue);
             }
             if (bindValue.getType().isArray() && !(value instanceof byte[]) && value.getClass().isArray()) {
                 bindNonNullArray(stmtIndex, bindValue, message);

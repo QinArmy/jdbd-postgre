@@ -21,6 +21,7 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.util.annotation.Nullable;
 
+import java.sql.SQLException;
 import java.util.List;
 import java.util.function.Consumer;
 
@@ -282,7 +283,7 @@ final class SimpleQueryTask extends AbstractStmtTask implements SimpleStmtTask {
      * @see #query(StaticStmt, TaskAdjutant)
      * @see #multiCommandAsFlux(StaticStmt, TaskAdjutant)
      */
-    private SimpleQueryTask(StaticStmt stmt, FluxResultSink sink, TaskAdjutant adjutant) throws Throwable {
+    private SimpleQueryTask(StaticStmt stmt, FluxResultSink sink, TaskAdjutant adjutant) throws SQLException {
         super(adjutant, sink, stmt);
         this.packetPublisher = QueryCommandWriter.createStaticCommand(stmt.getSql(), adjutant);
         this.sink = sink;

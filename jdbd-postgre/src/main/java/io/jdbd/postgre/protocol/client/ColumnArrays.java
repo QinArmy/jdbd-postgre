@@ -1,15 +1,11 @@
 package io.jdbd.postgre.protocol.client;
 
 import io.jdbd.postgre.PgJdbdException;
-import io.jdbd.postgre.PgType;
 import io.jdbd.postgre.type.PgBox;
 import io.jdbd.postgre.type.PgGeometries;
 import io.jdbd.postgre.type.PgLine;
 import io.jdbd.postgre.type.PgPolygon;
-import io.jdbd.postgre.util.PgBinds;
-import io.jdbd.postgre.util.PgBuffers;
-import io.jdbd.postgre.util.PgStrings;
-import io.jdbd.postgre.util.PgTimes;
+import io.jdbd.postgre.util.*;
 import io.jdbd.type.Interval;
 import io.jdbd.type.LongBinary;
 import io.jdbd.type.geo.Line;
@@ -22,13 +18,18 @@ import io.jdbd.vendor.type.LongStrings;
 import org.qinarmy.util.FastStack;
 import org.qinarmy.util.Pair;
 import org.qinarmy.util.Stack;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.lang.reflect.Array;
 import java.math.BigDecimal;
 import java.nio.charset.Charset;
 import java.text.DecimalFormat;
 import java.time.*;
-import java.util.*;
+import java.util.BitSet;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.UUID;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 
@@ -37,6 +38,8 @@ abstract class ColumnArrays {
     private ColumnArrays() {
         throw new UnsupportedOperationException();
     }
+
+    private static final Logger LOG = LoggerFactory.getLogger(ColumnArrays.class);
 
     private static final char LEFT_PAREN = '{';
     private static final char COMMA = ',';
@@ -847,12 +850,10 @@ abstract class ColumnArrays {
     private static Object readMultiDimensionArray(final int dimension, final char[] charArray
             , final PgColumnMeta meta, final BiFunction<char[], Integer, ArrayPair> function
             , final Class<?> targetArrayClass) {
+
         if (dimension < 2) {
             throw new IllegalArgumentException("dimension error");
         }
-        final PgType elementType = Objects.requireNonNull(meta.sqlType.elementType(), "elementType");
-
-        assertTargetArrayClass(targetArrayClass, elementType);
 
         final Stack<List<Object>> arrayStack = new FastStack<>();
         arrayStack.push(new LinkedList<>());
@@ -861,25 +862,30 @@ abstract class ColumnArrays {
             ch = charArray[i];
             if (ch != LEFT_PAREN) {
                 if (!Character.isWhitespace(ch)) {
+                    if (LOG.isDebugEnabled()) {
+                        LOG.debug("ch:{},value:{}", ch, new String(charArray));
+                    }
                     throw arrayFormatError(meta);
                 }
                 continue;
             }
-            dimensionIndex--;
-            if (dimensionIndex > 1) {
+            if (dimensionIndex > 2) {
+                dimensionIndex--;
                 arrayStack.push(new LinkedList<>());
-                if (dimensionIndex != arrayStack.size()) {
-                    // here bug
-                    String m = String.format("array parse error,dimensionIndex[%s],arrayStack.size[%s]."
-                            , dimensionIndex, arrayStack.size());
-                    throw new IllegalStateException(m);
-                }
                 continue;
+            } else if (dimensionIndex == 2) {
+                dimensionIndex--;
+                continue;
+            }
+            if (arrayStack.size() >= dimension) {
+                // here bug
+                String m = String.format("array parse error,dimensionIndex[%s],arrayStack.size[%s]."
+                        , dimensionIndex, arrayStack.size());
+                throw new IllegalStateException(m);
             }
             // below read one dimension array
             final ArrayPair pair;
             pair = function.apply(charArray, i);
-            dimensionIndex++;
             i = pair.index;
             if (charArray[i] != RIGHT_PAREN) {
                 throw new IllegalArgumentException(String.format("function[%s] error.", function));
@@ -900,15 +906,14 @@ abstract class ColumnArrays {
                     i = j;
                     break;
                 } else if (ch == RIGHT_PAREN) {
-                    if (arrayStack.size() < 2) {
+                    if (arrayStack.size() == 1) {
                         i = j;
                         break;
                     }
                     final List<Object> arrayList = arrayStack.pop();
                     final Object array;
-                    array = createArray(dimensionIndex, arrayList, targetArrayClass);
+                    array = createArray(++dimensionIndex, arrayList, targetArrayClass);
                     arrayStack.peek().add(array);
-                    dimensionIndex++;
                 } else if (ch == LEFT_PAREN) {
                     i = j - 1;
                     break;
@@ -949,56 +954,14 @@ abstract class ColumnArrays {
     private static Object createArray(final int dimension, final List<Object> valueList
             , final Class<?> targetArrayClass) {
 
-        final String className;
-        if (targetArrayClass.isPrimitive()) {
-            if (targetArrayClass == int.class) {
-                className = "I";
-            } else if (targetArrayClass == long.class) {
-                className = "J";
-            } else if (targetArrayClass == short.class) {
-                className = "S";
-            } else if (targetArrayClass == byte.class) {
-                className = "B";
-            } else if (targetArrayClass == boolean.class) {
-                className = "Z";
-            } else if (targetArrayClass == float.class) {
-                className = "F";
-            } else if (targetArrayClass == double.class) {
-                className = "D";
-            } else {
-                String m = String.format("targetArrayClass[%s] not supported", targetArrayClass.getName());
-                throw new IllegalArgumentException(m);
-            }
-        } else {
-            className = targetArrayClass.getName();
+        final Object array;
+        array = PgArrays.createArrayInstance(targetArrayClass, dimension, valueList.size());
+        int index = 0;
+        for (Object value : valueList) {
+            Array.set(array, index, value);
+            index++;
         }
-
-        final StringBuilder builder = new StringBuilder(dimension + 2 + className.length());
-
-
-        for (int i = 0; i < dimension; i++) {
-            builder.append('[');
-        }
-        final boolean appendL = targetArrayClass != byte[].class && !targetArrayClass.isPrimitive();
-        if (appendL) {
-            builder.append('L');
-        }
-        builder.append(className);
-        if (appendL) {
-            builder.append(';');
-        }
-        try {
-            final Object array;
-            array = Array.newInstance(Class.forName(builder.toString()), valueList.size());
-            int index = 0;
-            for (Object value : valueList) {
-                Array.set(array, index, value);
-                index++;
-            }
-            return array;
-        } catch (ClassNotFoundException e) {
-            throw new IllegalStateException(e);
-        }
+        return array;
     }
 
 
@@ -1054,6 +1017,7 @@ abstract class ColumnArrays {
             if (charArray[endIndex] == RIGHT_PAREN) {
                 break;
             }
+            i = to;
         }
         if (charArray[endIndex] != RIGHT_PAREN) {
             throw arrayFormatError(meta);
@@ -1082,13 +1046,6 @@ abstract class ColumnArrays {
         return new IllegalArgumentException(m);
     }
 
-    private static void assertTargetArrayClass(final Class<?> targetArrayClass, final PgType elementType) {
-        if (targetArrayClass != elementType.javaType()
-                && targetArrayClass != Object.class
-                && targetArrayClass != String.class) {
-            throw targetArrayClassError(targetArrayClass);
-        }
-    }
 
     private static IllegalArgumentException targetArrayClassError(final Class<?> targetArrayClass) {
         return new IllegalArgumentException(String.format("Error targetArrayClass[%s]", targetArrayClass.getName()));

@@ -3,6 +3,7 @@ package io.jdbd.postgre.protocol.client;
 import io.jdbd.JdbdSQLException;
 import io.jdbd.postgre.PgType;
 import io.jdbd.postgre.type.PgGeometries;
+import io.jdbd.postgre.util.PgArrays;
 import io.jdbd.postgre.util.PgBinds;
 import io.jdbd.postgre.util.PgStrings;
 import io.jdbd.postgre.util.PgTimes;
@@ -113,13 +114,17 @@ public class PgResultRow extends AbstractResultRow<PgRowMeta> {
     @Override
     protected final Object parseColumn(final int indexBaseZero, final Object nonNull
             , @Nullable final Class<?> columnClass) {
-        final PgColumnMeta meta = this.rowMeta.obtainMeta(indexBaseZero);
+        final PgColumnMeta meta = this.rowMeta.columnMetaArray[indexBaseZero];
         final String textValue = (String) nonNull;
 
         try {
             final Object value;
-            if (meta.sqlType.isArray()) {
-                value = parseArrayColumnFromText(textValue, meta, obtainArrayClass(meta, columnClass));
+            if (columnClass != null && meta.sqlType.isArray()) {
+                final Pair<Class<?>, Integer> pair = PgBinds.getArrayDimensions(columnClass);
+                if (pair.getFirst() == byte.class && pair.getSecond() < 2) {
+                    throw createNotSupportedException(meta.index, columnClass);
+                }
+                value = parseArrayColumnFromText(textValue, meta, pair.getFirst());
             } else {
                 value = parseNonArrayColumnFromText(textValue, meta, columnClass);
             }
@@ -128,6 +133,43 @@ public class PgResultRow extends AbstractResultRow<PgRowMeta> {
             throw createResponseTextColumnValueError(e, meta, textValue);
         }
     }
+
+    @Override
+    protected final Object convertNonNullToArray(final int indexBaseZero, final Object nonNull
+            , final Class<?> targetClass) throws UnsupportedConvertingException {
+        final Class<?> arrayClass = nonNull.getClass();
+        if (!arrayClass.isArray()) {
+            throw createNotSupportedException(indexBaseZero, targetClass);
+        }
+        if (targetClass.isInstance(nonNull)) {
+            return nonNull;
+        }
+        final Pair<Class<?>, Integer> arrayPair = PgBinds.getArrayDimensions(arrayClass);
+        final Pair<Class<?>, Integer> targetPair = PgBinds.getArrayDimensions(targetClass);
+        if (arrayPair.getFirst() != targetPair.getFirst()) {
+            throw createNotSupportedException(indexBaseZero, targetClass);
+        }
+
+        if (arrayPair.getSecond() > targetPair.getSecond()) {
+            throw createNotSupportedException(indexBaseZero, targetClass);
+        }
+        boolean canConvert = true;
+        final int length = Array.getLength(nonNull);
+        for (int i = 0; i < length; i++) {
+            if (Array.get(nonNull, i) != null) {
+                canConvert = false;
+                break;
+            }
+        }
+        if (!canConvert) {
+            throw createNotSupportedException(indexBaseZero, targetClass);
+        }
+        return PgArrays.createArrayInstance(targetPair.getFirst(), targetPair.getSecond(), length);
+    }
+
+
+
+    /*################################## blow private method ##################################*/
 
 
     private Object parseArrayColumnFromText(final String textValue, final PgColumnMeta meta
@@ -434,30 +476,6 @@ public class PgResultRow extends AbstractResultRow<PgRowMeta> {
         return value;
     }
 
-    /**
-     * @see #parseColumn(int, Object, Class)
-     */
-    private Class<?> obtainArrayClass(final PgColumnMeta meta, @Nullable final Class<?> columnClass) {
-        final PgType elementType = Objects.requireNonNull(meta.sqlType.elementType());
-        final Class<?> arrayClass;
-        if (columnClass == null) {
-            arrayClass = elementType.javaType();
-        } else if (columnClass.isArray()) {
-            final Pair<Class<?>, Integer> pair = PgBinds.getArrayDimensions(columnClass);
-            final Class<?> clazz = pair.getFirst();
-            if (clazz == byte.class) {
-                if (pair.getSecond() < 2) {
-                    throw createNotSupportedException(meta.index, columnClass);
-                }
-                arrayClass = byte[].class;
-            } else {
-                arrayClass = clazz;
-            }
-        } else {
-            throw createNotSupportedException(meta.index, columnClass);
-        }
-        return arrayClass;
-    }
 
     /**
      * @see #getList(int, Class)
@@ -614,7 +632,7 @@ public class PgResultRow extends AbstractResultRow<PgRowMeta> {
 
     static JdbdSQLException createResponseTextColumnValueError(@Nullable Throwable cause, PgColumnMeta meta
             , String textValue) {
-        String m = String.format("Server response text value[%s] error for PgColumnMeta[%s].", textValue, meta);
+        String m = String.format("Server response text value[%s] error for %s.", textValue, meta);
         return new JdbdSQLException(new SQLException(m, cause));
     }
 

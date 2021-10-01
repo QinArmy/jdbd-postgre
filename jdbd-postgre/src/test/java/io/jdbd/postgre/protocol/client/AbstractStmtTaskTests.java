@@ -1260,14 +1260,64 @@ abstract class AbstractStmtTaskTests extends AbstractTaskTests {
      * @see PgType#SMALLINT_ARRAY
      */
     final void doSmallintArrayBindAndExtract() {
-        final String columnName = "my_smallint_array";
+        String columnName;
         final long id = startId + 40;
         Object array;
+        ResultRow row;
 
+        columnName = "my_smallint_array";
         testType(columnName, PgType.SMALLINT_ARRAY, null, id);
 
         array = new Short[]{null};
+        row = testType(columnName, PgType.SMALLINT_ARRAY, array, id);
+        row.getNonNull(columnName, Short[][].class);
+        row.getNonNull(columnName, Short[][][].class);
+
+        array = new short[]{234, Short.MAX_VALUE, Short.MIN_VALUE, 0};
+        row = testType(columnName, PgType.SMALLINT_ARRAY, array, id);
+        row.getNonNull(columnName, short[].class);
+
+
+        array = new Short[]{23, 34, -1, 0, Short.MIN_VALUE, Short.MAX_VALUE, null};
         testType(columnName, PgType.SMALLINT_ARRAY, array, id);
+
+        // my_smallint_array_2
+
+        columnName = "my_smallint_array_2";
+        testType(columnName, PgType.SMALLINT_ARRAY, null, id);
+
+        array = new Short[][]{null};
+        row = testType(columnName, PgType.SMALLINT_ARRAY, array, id);
+        row.getNonNull(columnName, Short[][].class);
+        row.getNonNull(columnName, Short[][][].class);
+        row.getNonNull(columnName, Short[][][][].class);
+
+        array = new short[][]{{Short.MAX_VALUE, Short.MIN_VALUE,}, {0, -1}};
+        row = testType(columnName, PgType.SMALLINT_ARRAY, array, id);
+        row.getNonNull(columnName, short[][].class);
+
+
+        array = new Short[][]{{Short.MAX_VALUE, Short.MIN_VALUE,}, {0, -1}, {null, null}};
+        testType(columnName, PgType.SMALLINT_ARRAY, array, id);
+
+        // my_smallint_array_4
+
+        columnName = "my_smallint_array_4";
+        testType(columnName, PgType.SMALLINT_ARRAY, null, id);
+
+        array = new Short[][][][]{null};
+        row = testType(columnName, PgType.SMALLINT_ARRAY, array, id);
+        row.getNonNull(columnName, Short[][][][].class);
+        row.getNonNull(columnName, Short[][][][][].class);
+
+        array = new short[][][][]{{{{Short.MAX_VALUE, Short.MIN_VALUE,}, {0, -1}}}};
+        row = testType(columnName, PgType.SMALLINT_ARRAY, array, id);
+        row.getNonNull(columnName, short[][][][].class);
+
+
+        array = new Short[][][][]{{{{Short.MAX_VALUE, Short.MIN_VALUE,}, {0, -1}, {null, null}}}};
+        testType(columnName, PgType.SMALLINT_ARRAY, array, id);
+
     }
 
 
