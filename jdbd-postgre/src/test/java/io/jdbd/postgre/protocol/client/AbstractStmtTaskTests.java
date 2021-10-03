@@ -24,6 +24,7 @@ import reactor.core.publisher.Mono;
 import reactor.util.annotation.Nullable;
 
 import java.io.IOException;
+import java.lang.reflect.Array;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
@@ -31,6 +32,7 @@ import java.time.*;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
+import java.util.function.BiPredicate;
 
 import static org.testng.Assert.*;
 
@@ -1698,6 +1700,268 @@ abstract class AbstractStmtTaskTests extends AbstractTaskTests {
         row.getNonNull(columnName, String[][].class);
     }
 
+    /**
+     * @see PgType#TIME_ARRAY
+     */
+    final void doTimeArrayBindAndExtract() {
+        String columnName;
+        final long id = startId + 48;
+        final PgType pgType = PgType.TIME_ARRAY;
+
+        Object array;
+
+        // below one dimension array
+        columnName = "my_time_array";
+        testType(columnName, pgType, null, id);
+
+        array = new LocalTime[]{LocalTime.parse("23:59:59"), LocalTime.MIDNIGHT, LocalTime.NOON, null};
+        testType(columnName, pgType, array, id);
+
+        // below two dimension array
+        columnName = "my_time_array_2";
+        testType(columnName, pgType, null, id);
+
+        array = new LocalTime[][]{
+                {LocalTime.parse("23:59:59"), LocalTime.MIDNIGHT, LocalTime.NOON, null}
+        };
+        testType(columnName, pgType, array, id);
+
+    }
+
+
+    /**
+     * @see PgType#TIMESTAMPTZ_ARRAY
+     */
+    final void doTimestampTzArrayBindAndExtract() {
+        String columnName;
+        final long id = startId + 49;
+        final PgType pgType = PgType.TIMESTAMPTZ_ARRAY;
+        final DateTimeFormatter pgIso = PgTimes.PG_ISO_OFFSET_DATETIME_FORMATTER;
+
+        Object array;
+        ResultRow row;
+
+        // below one dimension array
+        columnName = "my_zoned_timestamp_array";
+        testType(columnName, pgType, null, id);
+
+        array = new OffsetDateTime[][]{null};
+        row = testType(columnName, pgType, array, id);
+        row.getNonNull(columnName, OffsetDateTime[].class);
+        row.getNonNull(columnName, OffsetDateTime[][].class);
+
+        array = new OffsetDateTime[]{
+                OffsetDateTime.parse("4713-01-01 00:00:00+00:00 BC", pgIso),
+                OffsetDateTime.parse("4713-01-01 23:59:59+00:00 BC", pgIso),
+                OffsetDateTime.parse("4713-12-31 00:00:00+00:00 BC", pgIso),
+                OffsetDateTime.parse("4713-12-31 23:59:59+00:00 BC", pgIso),
+                null};
+
+        row = testType(columnName, pgType, array, id);
+        row.getNonNull(columnName, ZonedDateTime[].class);
+
+        array = new ZonedDateTime[]{
+                ZonedDateTime.parse("4713-01-01 00:00:00+00:00 BC", pgIso),
+                ZonedDateTime.parse("4713-01-01 23:59:59+00:00 BC", pgIso),
+                ZonedDateTime.parse("4713-12-31 00:00:00+00:00 BC", pgIso),
+                ZonedDateTime.parse("4713-12-31 23:59:59+00:00 BC", pgIso),
+                null};
+
+        testType(columnName, pgType, array, id);
+        row.getNonNull(columnName, Object[].class);
+        row.getNonNull(columnName, String[].class);
+        row.getNonNull(columnName, ZonedDateTime[].class);
+
+        array = new Object[]{
+                OffsetDateTime.parse("4713-01-01 00:00:00+08:00 BC", pgIso),
+                OffsetDateTime.parse("4713-01-01 23:59:59+08:00 BC", pgIso),
+                OffsetDateTime.parse("4713-12-31 00:00:00+08:00 BC", pgIso),
+                OffsetDateTime.parse("4713-12-31 23:59:59+08:00 BC", pgIso),
+                null,
+                ZonedDateTime.parse("4713-01-01 00:00:00+08:00 BC", pgIso),
+                ZonedDateTime.parse("4713-01-01 23:59:59+08:00 BC", pgIso),
+                ZonedDateTime.parse("4713-12-31 00:00:00+08:00 BC", pgIso),
+                ZonedDateTime.parse("4713-12-31 23:59:59+08:00 BC", pgIso),
+                null,
+                PgConstant.INFINITY,
+                PgConstant.NEG_INFINITY
+        };
+
+        row = testType(columnName, pgType, array, id);
+        row.getNonNull(columnName, Object[].class);
+        row.getNonNull(columnName, String[].class);
+
+        // below two dimension array
+        columnName = "my_zoned_timestamp_array_2";
+        testType(columnName, pgType, null, id);
+
+        array = new OffsetDateTime[][]{null};
+        row = testType(columnName, pgType, array, id);
+        row.getNonNull(columnName, String[].class);
+        row.getNonNull(columnName, OffsetDateTime[].class);
+        row.getNonNull(columnName, OffsetDateTime[][].class);
+
+        array = new OffsetDateTime[][]{
+                {
+                        OffsetDateTime.parse("4713-01-01 00:00:00+08:00 BC", pgIso),
+                        OffsetDateTime.parse("4713-01-01 23:59:59+08:00 BC", pgIso),
+                        OffsetDateTime.parse("4713-12-31 00:00:00+08:00 BC", pgIso),
+                        OffsetDateTime.parse("4713-12-31 23:59:59+08:00 BC", pgIso),
+                        null}
+        };
+
+        row = testType(columnName, pgType, array, id);
+        row.getNonNull(columnName, Object[][].class);
+        row.getNonNull(columnName, String[][].class);
+        row.getNonNull(columnName, ZonedDateTime[][].class);
+
+        array = new Object[][]{
+                {
+                        OffsetDateTime.parse("4713-01-01 00:00:00+08:00 BC", pgIso),
+                        OffsetDateTime.parse("4713-01-01 23:59:59+08:00 BC", pgIso),
+                        OffsetDateTime.parse("4713-12-31 00:00:00+08:00 BC", pgIso),
+                        OffsetDateTime.parse("4713-12-31 23:59:59+08:00 BC", pgIso),
+                        null,
+                        ZonedDateTime.parse("4713-01-01 00:00:00+08:00 BC", pgIso),
+                        ZonedDateTime.parse("4713-01-01 23:59:59+08:00 BC", pgIso),
+                        ZonedDateTime.parse("4713-12-31 00:00:00+08:00 BC", pgIso),
+                        ZonedDateTime.parse("4713-12-31 23:59:59+08:00 BC", pgIso),
+                        null,
+                        PgConstant.INFINITY,
+                        PgConstant.NEG_INFINITY
+                }
+        };
+
+        row = testType(columnName, pgType, array, id);
+        row.getNonNull(columnName, Object[][].class);
+        row.getNonNull(columnName, String[][].class);
+
+
+    }
+
+    /**
+     * @see PgType#TIMETZ_ARRAY
+     */
+    final void doTimeTzArrayBindAndExtract() {
+        String columnName;
+        final long id = startId + 50;
+        final PgType pgType = PgType.TIMETZ_ARRAY;
+        final ZoneOffset offset = PgTimes.systemZoneOffset();
+
+        Object array;
+        ResultRow row;
+
+        // below one dimension array
+        columnName = "my_zoned_time_array";
+        testType(columnName, pgType, null, id);
+
+        array = new OffsetTime[]{null};
+        row = testType(columnName, pgType, array, id);
+        row.getNonNull(columnName, OffsetTime[].class);
+        row.getNonNull(columnName, OffsetTime[][].class);
+
+        array = new OffsetTime[]{
+                OffsetTime.of(LocalTime.MIN, offset),
+                OffsetTime.of(LocalTime.MIDNIGHT, offset),
+                OffsetTime.of(LocalTime.NOON, offset),
+                OffsetTime.of(LocalTime.parse("23:59:59"), offset),
+                null
+        };
+        testType(columnName, pgType, array, id);
+
+        // below two dimension array
+        columnName = "my_zoned_time_array_2";
+        testType(columnName, pgType, null, id);
+
+        array = new OffsetTime[]{null};
+        row = testType(columnName, pgType, array, id);
+        row.getNonNull(columnName, OffsetTime[].class);
+        row.getNonNull(columnName, OffsetTime[][].class);
+
+        array = new OffsetTime[][]{
+                {
+                        OffsetTime.of(LocalTime.MIN, offset),
+                        OffsetTime.of(LocalTime.MIDNIGHT, offset),
+                        OffsetTime.of(LocalTime.NOON, offset),
+                        OffsetTime.of(LocalTime.parse("23:59:59"), offset),
+                        null
+                }
+        };
+        testType(columnName, pgType, array, id);
+
+    }
+
+    /**
+     * @see PgType#DATE_ARRAY
+     */
+    final void doDateArrayBindAndExtract() {
+        String columnName;
+        final long id = startId + 51;
+        final PgType pgType = PgType.DATE_ARRAY;
+        final DateTimeFormatter pgIso = PgTimes.PG_ISO_LOCAL_DATE_FORMATTER;
+
+        Object array;
+        ResultRow row;
+
+        // below one dimension array
+        columnName = "my_date_array";
+        testType(columnName, pgType, null, id);
+
+        array = new LocalDate[]{
+                LocalDate.parse("4713-01-01 BC", pgIso),
+                LocalDate.parse("4713-01-01 BC", pgIso),
+                LocalDate.parse("4713-12-31 BC", pgIso),
+                LocalDate.parse("4713-12-31 BC", pgIso),
+                null
+        };
+        row = testType(columnName, pgType, array, id);
+        row.getNonNull(columnName, Object[].class);
+        row.getNonNull(columnName, String[].class);
+
+        array = new Object[]{
+                LocalDate.parse("4713-01-01 BC", pgIso),
+                LocalDate.parse("4713-01-01 BC", pgIso),
+                LocalDate.parse("4713-12-31 BC", pgIso),
+                LocalDate.parse("4713-12-31 BC", pgIso),
+                null,
+                PgConstant.INFINITY,
+                PgConstant.NEG_INFINITY
+        };
+        row = testType(columnName, pgType, array, id);
+        row.getNonNull(columnName, String[].class);
+
+        // below one dimension array
+        columnName = "my_date_array_2";
+        testType(columnName, pgType, null, id);
+
+        array = new LocalDate[][]{
+                {
+                        LocalDate.parse("4713-01-01 BC", pgIso),
+                        LocalDate.parse("4713-01-01 BC", pgIso),
+                        LocalDate.parse("4713-12-31 BC", pgIso),
+                        LocalDate.parse("4713-12-31 BC", pgIso),
+                        null
+                }
+        };
+        row = testType(columnName, pgType, array, id);
+        row.getNonNull(columnName, Object[][].class);
+        row.getNonNull(columnName, String[][].class);
+
+        array = new Object[][]{
+                {
+                        LocalDate.parse("4713-01-01 BC", pgIso),
+                        LocalDate.parse("4713-01-01 BC", pgIso),
+                        LocalDate.parse("4713-12-31 BC", pgIso),
+                        LocalDate.parse("4713-12-31 BC", pgIso),
+                        null,
+                        PgConstant.INFINITY,
+                        PgConstant.NEG_INFINITY
+                }
+        };
+        row = testType(columnName, pgType, array, id);
+        row.getNonNull(columnName, String[][].class);
+    }
+
 
     private ResultRow testType(final String columnName, final PgType columnType
             , final @Nullable Object value, final long id) {
@@ -1743,8 +2007,6 @@ abstract class AbstractStmtTaskTests extends AbstractTaskTests {
 
         if (value == null) {
             assertNull(row.get(columnName), columnName);
-        } else if (row.getRowMeta().getSQLType(columnName).isArray()) {
-            assertEquals(row.get(columnName, value.getClass()), value, columnName);
         } else {
             assertTestResult(columnName, row, value);
         }
@@ -2030,6 +2292,9 @@ abstract class AbstractStmtTaskTests extends AbstractTaskTests {
             case DATERANGE:
                 //no-op
                 break;
+            case TIMESTAMPTZ_ARRAY:
+                assertTimestampTzArray(columnName, row, nonNull);
+                break;
             default: {
                 assertEquals(row.get(columnName, nonNull.getClass()), nonNull, columnName);
             }
@@ -2038,6 +2303,7 @@ abstract class AbstractStmtTaskTests extends AbstractTaskTests {
 
 
     }
+
 
     @SuppressWarnings("unchecked")
     private void assertJsonbResult(final String columnName, final ResultRow row, final Object nonNull) {
@@ -2072,6 +2338,66 @@ abstract class AbstractStmtTaskTests extends AbstractTaskTests {
             }
         }
         return false;
+    }
+
+    private void assertTimestampTzArray(final String columnName, final ResultRow row, final Object nonNull) {
+        final Object result = row.get(columnName, nonNull.getClass());
+        assertTrue(nonNull.getClass().isInstance(result), columnName);
+        final BiPredicate<Object, Object> function = (value, resultValue) -> {
+            final boolean match;
+            if (value instanceof OffsetDateTime) {
+                final OffsetDateTime v = (OffsetDateTime) value;
+                final OffsetDateTime r = ((OffsetDateTime) resultValue).withOffsetSameInstant(v.getOffset());
+                match = v.equals(r);
+            } else if (value instanceof ZonedDateTime) {
+                final ZonedDateTime v = (ZonedDateTime) value;
+                if (resultValue instanceof OffsetDateTime) {
+                    final ZonedDateTime r = ((OffsetDateTime) resultValue).withOffsetSameInstant(v.getOffset())
+                            .toZonedDateTime();
+                    match = v.equals(r);
+                } else if (resultValue instanceof ZonedDateTime) {
+                    final ZonedDateTime r = ((ZonedDateTime) resultValue).withZoneSameInstant(v.getZone());
+                    match = v.equals(r);
+                } else {
+                    String m = String.format("columnName[%s] type[%s] unknown.", columnName, value.getClass().getName());
+                    throw new IllegalArgumentException(m);
+                }
+
+            } else if (value instanceof String) {
+                match = ((String) value).equalsIgnoreCase((String) resultValue);
+            } else {
+                String m = String.format("columnName[%s] type[%s] unknown.", columnName, value.getClass().getName());
+                throw new IllegalArgumentException(m);
+            }
+            return match;
+        };
+
+        assertArray(columnName, nonNull, result, function);
+
+    }
+
+    private void assertArray(final String columnName, final Object array
+            , final Object resultArray, final BiPredicate<Object, Object> predicate) {
+
+        final int arrayLength = Array.getLength(array), resultLength = Array.getLength(resultArray);
+        assertEquals(arrayLength, resultLength, columnName);
+        Object value, resultValue;
+        for (int i = 0; i < arrayLength; i++) {
+            value = Array.get(array, i);
+            resultValue = Array.get(resultArray, i);
+            if (value == null) {
+                assertNull(resultValue, columnName);
+                continue;
+            }
+            assertNotNull(resultValue, columnName);
+            if (value.getClass().isArray()) {
+                assertArray(columnName, value, resultValue, predicate);
+            } else {
+                assertTrue(predicate.test(value, resultValue), columnName);
+            }
+
+        }
+
     }
 
 

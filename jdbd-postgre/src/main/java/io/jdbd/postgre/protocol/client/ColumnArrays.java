@@ -345,7 +345,7 @@ abstract class ColumnArrays {
                 } else if (targetArrayClass == Object.class) {
                     list.add(parsedValue);
                 } else if (targetArrayClass == String.class) {
-                    list.add(nullable);
+                    list.add(parsedValue.toString());
                 } else {
                     throw targetArrayClassError(targetArrayClass);
                 }
@@ -452,10 +452,19 @@ abstract class ColumnArrays {
                         throw dateInfinityException(parsedValue, OffsetDateTime.class, meta);
                     }
                     list.add(parsedValue);
+                } else if (targetArrayClass == ZonedDateTime.class) {
+                    if (!(parsedValue instanceof OffsetDateTime)) {
+                        throw dateInfinityException(parsedValue, OffsetDateTime.class, meta);
+                    }
+                    list.add(((OffsetDateTime) parsedValue).toZonedDateTime());
                 } else if (targetArrayClass == Object.class) {
                     list.add(parsedValue);
                 } else if (targetArrayClass == String.class) {
-                    list.add(nullable);
+                    if (parsedValue instanceof OffsetDateTime) {
+                        list.add(((OffsetDateTime) parsedValue).format(PgTimes.ISO_OFFSET_DATETIME_FORMATTER));
+                    } else {
+                        list.add(parsedValue);
+                    }
                 } else {
                     throw targetArrayClassError(targetArrayClass);
                 }
@@ -466,6 +475,8 @@ abstract class ColumnArrays {
             final Object[] array;
             if (targetArrayClass == OffsetDateTime.class) {
                 array = new OffsetDateTime[list.size()];
+            } else if (targetArrayClass == ZonedDateTime.class) {
+                array = new ZonedDateTime[list.size()];
             } else if (targetArrayClass == Object.class) {
                 array = new Object[list.size()];
             } else if (targetArrayClass == String.class) {

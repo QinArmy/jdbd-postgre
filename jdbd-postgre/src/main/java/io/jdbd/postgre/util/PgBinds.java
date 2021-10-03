@@ -502,12 +502,23 @@ public abstract class PgBinds extends JdbdBinds {
             throw new IllegalArgumentException("pgType error");
         }
         final Class<?> arrayType = obtainArrayType(batchIndex, pgType, paramValue);
-        final Function<Object, String> function;
-        if (arrayType == LocalDate.class) {
-            function = nonNull -> ((LocalDate) nonNull).format(PgTimes.PG_ISO_LOCAL_DATE_FORMATTER);
-        } else {
+        if (arrayType != LocalDate.class && arrayType != Object.class) {
             throw JdbdExceptions.createNonSupportBindSqlTypeError(batchIndex, pgType, paramValue);
         }
+        final Function<Object, String> function = nonNull -> {
+            final String value;
+            if (nonNull instanceof LocalDate) {
+                value = ((LocalDate) nonNull).format(PgTimes.PG_ISO_LOCAL_DATE_FORMATTER);
+            } else if (nonNull instanceof String
+                    && (PgConstant.INFINITY.equalsIgnoreCase((String) nonNull)
+                    || PgConstant.NEG_INFINITY.equalsIgnoreCase((String) nonNull))) {
+                value = (String) nonNull;
+            } else {
+                SQLException e = JdbdExceptions.createNonSupportBindSqlTypeError(batchIndex, pgType, paramValue);
+                throw new JdbdSQLException(e);
+            }
+            return value;
+        };
         return bindNonNullToArray(batchIndex, pgType, paramValue, function);
     }
 
@@ -559,14 +570,25 @@ public abstract class PgBinds extends JdbdBinds {
             throw new IllegalArgumentException("pgType error");
         }
         final Class<?> arrayType = obtainArrayType(batchIndex, pgType, paramValue);
-        final Function<Object, String> function;
-        if (arrayType == OffsetDateTime.class) {
-            function = nonNull -> ((OffsetDateTime) nonNull).format(PgTimes.PG_ISO_OFFSET_DATETIME_FORMATTER);
-        } else if (arrayType == ZonedDateTime.class) {
-            function = nonNull -> ((ZonedDateTime) nonNull).format(PgTimes.PG_ISO_OFFSET_DATETIME_FORMATTER);
-        } else {
+        if (arrayType != OffsetDateTime.class && arrayType != ZonedDateTime.class && arrayType != Object.class) {
             throw JdbdExceptions.createNonSupportBindSqlTypeError(batchIndex, pgType, paramValue);
         }
+        final Function<Object, String> function = nonNull -> {
+            final String value;
+            if (nonNull instanceof OffsetDateTime) {
+                value = ((OffsetDateTime) nonNull).format(PgTimes.PG_ISO_OFFSET_DATETIME_FORMATTER);
+            } else if (nonNull instanceof ZonedDateTime) {
+                value = ((ZonedDateTime) nonNull).format(PgTimes.PG_ISO_OFFSET_DATETIME_FORMATTER);
+            } else if (nonNull instanceof String
+                    && (PgConstant.INFINITY.equalsIgnoreCase((String) nonNull)
+                    || PgConstant.NEG_INFINITY.equalsIgnoreCase((String) nonNull))) {
+                value = (String) nonNull;
+            } else {
+                SQLException e = JdbdExceptions.createNonSupportBindSqlTypeError(batchIndex, pgType, paramValue);
+                throw new JdbdSQLException(e);
+            }
+            return value;
+        };
         return bindNonNullToArray(batchIndex, pgType, paramValue, function);
     }
 
