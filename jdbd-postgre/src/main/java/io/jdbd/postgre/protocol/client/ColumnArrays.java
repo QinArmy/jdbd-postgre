@@ -1,5 +1,6 @@
 package io.jdbd.postgre.protocol.client;
 
+import io.jdbd.postgre.PgConstant;
 import io.jdbd.postgre.PgJdbdException;
 import io.jdbd.postgre.type.PgBox;
 import io.jdbd.postgre.type.PgGeometries;
@@ -62,7 +63,7 @@ abstract class ColumnArrays {
                     }
                     list.add(null);
                 } else {
-                    list.add(Boolean.parseBoolean(nullable));
+                    list.add(PgStrings.parseBoolean(nullable));
                 }
             };
             endIndex = readOneDimensionArray(charArray, index, meta, consumer);
@@ -207,7 +208,7 @@ abstract class ColumnArrays {
                     list.add(null);
                     return;
                 }
-                if (nullable.equalsIgnoreCase("NaN")) {
+                if (nullable.equalsIgnoreCase(PgConstant.NaN)) {
                     if (targetArrayClass == BigDecimal.class) {
                         String m = String.format("%s couldn't convert to BigDecimal", nullable);
                         throw new IllegalArgumentException(m);
@@ -387,7 +388,11 @@ abstract class ColumnArrays {
                 } else if (targetArrayClass == Object.class) {
                     list.add(parsedValue);
                 } else if (targetArrayClass == String.class) {
-                    list.add(nullable);
+                    if (parsedValue instanceof LocalDateTime) {
+                        list.add(((LocalDateTime) parsedValue).format(PgTimes.ISO_LOCAL_DATETIME_FORMATTER));
+                    } else {
+                        list.add(parsedValue);
+                    }
                 } else {
                     throw targetArrayClassError(targetArrayClass);
                 }
@@ -1017,7 +1022,7 @@ abstract class ColumnArrays {
             if (charArray[endIndex] == RIGHT_PAREN) {
                 break;
             }
-            i = to;
+            i = endIndex;
         }
         if (charArray[endIndex] != RIGHT_PAREN) {
             throw arrayFormatError(meta);

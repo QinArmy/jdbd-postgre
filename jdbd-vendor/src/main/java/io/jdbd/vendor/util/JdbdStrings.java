@@ -59,6 +59,7 @@ public abstract class JdbdStrings extends StringUtils {
         return NUMBER_PATTERN.matcher(text).matches();
     }
 
+
     /**
      * @see #bitStringToBitSet(String, boolean)
      */

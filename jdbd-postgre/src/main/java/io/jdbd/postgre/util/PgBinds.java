@@ -517,12 +517,24 @@ public abstract class PgBinds extends JdbdBinds {
             throw new IllegalArgumentException("pgType error");
         }
         final Class<?> arrayType = obtainArrayType(batchIndex, pgType, paramValue);
-        final Function<Object, String> function;
-        if (arrayType == LocalDateTime.class) {
-            function = nonNull -> ((LocalDateTime) nonNull).format(PgTimes.PG_ISO_LOCAL_DATETIME_FORMATTER);
-        } else {
+
+        if (arrayType != LocalDateTime.class && arrayType != Object.class) {
             throw JdbdExceptions.createNonSupportBindSqlTypeError(batchIndex, pgType, paramValue);
         }
+        final Function<Object, String> function = nonNull -> {
+            final String value;
+            if (nonNull instanceof LocalDateTime) {
+                value = ((LocalDateTime) nonNull).format(PgTimes.PG_ISO_LOCAL_DATETIME_FORMATTER);
+            } else if (nonNull instanceof String
+                    && (PgConstant.INFINITY.equalsIgnoreCase((String) nonNull)
+                    || PgConstant.NEG_INFINITY.equalsIgnoreCase((String) nonNull))) {
+                value = (String) nonNull;
+            } else {
+                SQLException e = JdbdExceptions.createNonSupportBindSqlTypeError(batchIndex, pgType, paramValue);
+                throw new JdbdSQLException(e);
+            }
+            return value;
+        };
         return bindNonNullToArray(batchIndex, pgType, paramValue, function);
     }
 

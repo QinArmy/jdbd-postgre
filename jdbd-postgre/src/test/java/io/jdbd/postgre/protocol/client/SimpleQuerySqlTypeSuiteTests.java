@@ -362,5 +362,62 @@ public class SimpleQuerySqlTypeSuiteTests extends AbstractStmtTaskTests {
         doSmallintArrayBindAndExtract();
     }
 
+    /**
+     * @see PgType#INTEGER_ARRAY
+     */
+    @Test
+    public void integerArrayBindAndExtract() {
+        doIntegerArrayBindAndExtract();
+    }
+
+
+    /**
+     * @see PgType#BIGINT_ARRAY
+     */
+    @Test
+    public void bigintArrayBindAndExtract() {
+        doBigIntArrayBindAndExtract();
+    }
+
+    /**
+     * @see PgType#DECIMAL_ARRAY
+     */
+    @Test
+    public void decimalArrayBindAndExtract() {
+        doDecimalArrayBindAndExtract();
+    }
+
+    /**
+     * @see PgType#REAL_ARRAY
+     */
+    @Test
+    public void realArrayBindAndExtract() {
+        doRealArrayBindAndExtract();
+    }
+
+    /**
+     * @see PgType#DOUBLE_ARRAY
+     */
+    @Test
+    public void doubleArrayBindAndExtract() {
+        doDoubleArrayBindAndExtract();
+    }
+
+    /**
+     * @see PgType#BOOLEAN_ARRAY
+     */
+    @Test
+    public void booleanArrayBindAndExtract() {
+        doBooleanArrayBindAndExtract();
+    }
+
+    /**
+     * @see PgType#TIMESTAMP_ARRAY
+     */
+    @Test
+    public void timestampArrayBindAndExtract() {
+        doTimestampArrayBindAndExtract();
+    }
+
 
 }

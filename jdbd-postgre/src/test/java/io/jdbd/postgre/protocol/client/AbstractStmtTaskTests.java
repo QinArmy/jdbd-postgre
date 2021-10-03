@@ -284,6 +284,7 @@ abstract class AbstractStmtTaskTests extends AbstractTaskTests {
     final void doTimestampBindExtract() {
         final String columnName = "my_timestamp";
         final long id = startId + 8;
+        ResultRow row;
 
         final DateTimeFormatter iso = PgTimes.ISO_LOCAL_DATETIME_FORMATTER, pgIso = PgTimes.PG_ISO_LOCAL_DATETIME_FORMATTER;
 
@@ -320,10 +321,11 @@ abstract class AbstractStmtTaskTests extends AbstractTaskTests {
         testType(columnName, PgType.TIMESTAMP, LocalDateTime.parse("0000-01-01 23:59:59", iso), id);
 
         testType(columnName, PgType.TIMESTAMP, "0000-01-01 00:00:00", id);
-        testType(columnName, PgType.TIMESTAMP, "0000-01-01 23:59:59", id);
+        row = testType(columnName, PgType.TIMESTAMP, "0000-01-01 23:59:59", id);
+        row.getNonNull(columnName, String.class);
+
         testType(columnName, PgType.TIMESTAMP, "infinity", id);
         testType(columnName, PgType.TIMESTAMP, "-infinity", id);
-
         testType(columnName, PgType.TIMESTAMP, "INFINITY", id);
         testType(columnName, PgType.TIMESTAMP, "-INFINITY", id);
 
@@ -1320,6 +1322,382 @@ abstract class AbstractStmtTaskTests extends AbstractTaskTests {
 
     }
 
+    /**
+     * @see PgType#INTEGER_ARRAY
+     */
+    final void doIntegerArrayBindAndExtract() {
+        String columnName;
+        final long id = startId + 41;
+        Object array;
+        ResultRow row;
+
+        // below one dimension array
+        columnName = "my_integer_array";
+        testType(columnName, PgType.INTEGER_ARRAY, null, id);
+
+        array = new Integer[]{null};
+        row = testType(columnName, PgType.INTEGER_ARRAY, array, id);
+        row.getNonNull(columnName, Integer[].class);
+        row.getNonNull(columnName, Integer[][][][].class);
+        row.getNonNull(columnName, Integer[][][][][].class);
+
+        array = new int[]{234, Integer.MAX_VALUE, Integer.MIN_VALUE, 0};
+        row = testType(columnName, PgType.INTEGER_ARRAY, array, id);
+        row.getNonNull(columnName, Integer[].class);
+
+
+        array = new Integer[]{234, Integer.MAX_VALUE, Integer.MIN_VALUE, 0, null};
+        testType(columnName, PgType.INTEGER_ARRAY, array, id);
+
+        // below two dimension array
+        columnName = "my_integer_array_2";
+        testType(columnName, PgType.INTEGER_ARRAY, null, id);
+
+        array = new Integer[][]{null};
+        row = testType(columnName, PgType.INTEGER_ARRAY, array, id);
+        row.getNonNull(columnName, Integer[].class);
+        row.getNonNull(columnName, Integer[][].class);
+        row.getNonNull(columnName, Integer[][][][].class);
+
+        array = new int[][]{{234, Integer.MAX_VALUE, Integer.MIN_VALUE, 0}};
+        row = testType(columnName, PgType.INTEGER_ARRAY, array, id);
+        row.getNonNull(columnName, Integer[][].class);
+
+
+        array = new Integer[][]{{234, Integer.MAX_VALUE, Integer.MIN_VALUE, 0, null}};
+        testType(columnName, PgType.INTEGER_ARRAY, array, id);
+
+    }
+
+    /**
+     * @see PgType#BIGINT_ARRAY
+     */
+    final void doBigIntArrayBindAndExtract() {
+        String columnName;
+        final long id = startId + 42;
+        final PgType pgType = PgType.BIGINT_ARRAY;
+        Object array;
+        ResultRow row;
+
+        // below one dimension array
+        columnName = "my_bigint_array";
+        testType(columnName, pgType, null, id);
+
+        array = new Long[]{null};
+        row = testType(columnName, pgType, array, id);
+        row.getNonNull(columnName, Long[].class);
+        row.getNonNull(columnName, Long[][][][].class);
+        row.getNonNull(columnName, Long[][][][][].class);
+
+        array = new long[]{234L, Long.MAX_VALUE, Long.MIN_VALUE, 0};
+        row = testType(columnName, pgType, array, id);
+        row.getNonNull(columnName, Long[].class);
+
+
+        array = new Long[]{234L, Long.MAX_VALUE, Long.MIN_VALUE, 0L, null};
+        testType(columnName, pgType, array, id);
+
+        // below two dimension array
+        columnName = "my_bigint_array_2";
+        testType(columnName, pgType, null, id);
+
+        array = new Long[][]{null};
+        row = testType(columnName, pgType, array, id);
+        row.getNonNull(columnName, Long[].class);
+        row.getNonNull(columnName, Long[][].class);
+        row.getNonNull(columnName, Long[][][][].class);
+
+        array = new long[][]{{234L, Long.MAX_VALUE, Long.MIN_VALUE, 0L}};
+        row = testType(columnName, pgType, array, id);
+        row.getNonNull(columnName, Long[][].class);
+
+
+        array = new Long[][]{{234L, Long.MAX_VALUE, Long.MIN_VALUE, 0L, null}};
+        testType(columnName, pgType, array, id);
+    }
+
+    /**
+     * @see PgType#DECIMAL_ARRAY
+     */
+    final void doDecimalArrayBindAndExtract() {
+        String columnName;
+        final long id = startId + 43;
+        final PgType pgType = PgType.DECIMAL_ARRAY;
+        Object array;
+        ResultRow row;
+
+        // below one dimension array
+        columnName = "my_decimal_array";
+        testType(columnName, pgType, null, id);
+
+        array = new BigDecimal[]{null};
+        row = testType(columnName, pgType, array, id);
+        row.getNonNull(columnName, Object[].class);
+        row.getNonNull(columnName, BigDecimal[].class);
+        row.getNonNull(columnName, BigDecimal[][][][].class);
+
+        array = new Object[]{null};
+        row = testType(columnName, pgType, array, id);
+        row.getNonNull(columnName, BigDecimal[].class);
+        row.getNonNull(columnName, BigDecimal[][][][].class);
+
+        array = new BigDecimal[]{new BigDecimal("-0.33"), BigDecimal.ZERO, BigDecimal.ONE, new BigDecimal("342343234.33")};
+        testType(columnName, pgType, array, id);
+
+        array = new Object[]{"NaN", BigDecimal.ZERO, BigDecimal.ONE, "NaN"};
+        testType(columnName, pgType, array, id);
+
+        // below two dimension array
+        columnName = "my_decimal_array_2";
+        testType(columnName, pgType, null, id);
+
+        array = new BigDecimal[][]{null};
+        row = testType(columnName, pgType, array, id);
+        row.getNonNull(columnName, BigDecimal[].class);
+        row.getNonNull(columnName, BigDecimal[][].class);
+        row.getNonNull(columnName, Object[].class);
+        row.getNonNull(columnName, Object[][].class);
+        row.getNonNull(columnName, BigDecimal[][][][].class);
+
+        array = new Object[]{null};
+        row = testType(columnName, pgType, array, id);
+        row.getNonNull(columnName, BigDecimal[].class);
+        row.getNonNull(columnName, BigDecimal[][].class);
+        row.getNonNull(columnName, Object[].class);
+        row.getNonNull(columnName, Object[][].class);
+        row.getNonNull(columnName, BigDecimal[][][][].class);
+        ;
+
+        array = new BigDecimal[]{new BigDecimal("-0.33"), BigDecimal.ZERO, BigDecimal.ONE, new BigDecimal("342343234.33")};
+        testType(columnName, pgType, array, id);
+
+        array = new Object[]{"NaN", BigDecimal.ZERO, BigDecimal.ONE, "NaN"};
+        testType(columnName, pgType, array, id);
+
+    }
+
+    /**
+     * @see PgType#REAL_ARRAY
+     */
+    final void doRealArrayBindAndExtract() {
+        String columnName;
+        final long id = startId + 44;
+        final PgType pgType = PgType.REAL_ARRAY;
+        Object array;
+        ResultRow row;
+
+        // below one dimension array
+        columnName = "my_real_array";
+        testType(columnName, pgType, null, id);
+
+        array = new Float[]{null};
+        row = testType(columnName, pgType, array, id);
+        row.getNonNull(columnName, Float[].class);
+        row.getNonNull(columnName, Float[][].class);
+        row.getNonNull(columnName, Float[][][][].class);
+
+        array = new float[]{-1.0F, 0.0F, Float.MAX_VALUE, Float.MIN_VALUE};
+        row = testType(columnName, pgType, array, id);
+        row.getNonNull(columnName, Float[].class);
+
+        array = new Float[]{-1.0F, 0.0F, Float.MAX_VALUE, Float.MIN_VALUE, null};
+        row = testType(columnName, pgType, array, id);
+        row.getNonNull(columnName, Float[].class);
+
+        // below two dimension array
+
+        columnName = "my_real_array_2";
+        testType(columnName, pgType, null, id);
+
+        array = new Float[][]{null};
+        row = testType(columnName, pgType, array, id);
+        row.getNonNull(columnName, Float[].class);
+        row.getNonNull(columnName, Float[][].class);
+        row.getNonNull(columnName, Float[][][][].class);
+
+        array = new float[][]{{-1.0F, 0.0F, Float.MAX_VALUE, Float.MIN_VALUE}};
+        row = testType(columnName, pgType, array, id);
+        row.getNonNull(columnName, Float[][].class);
+
+        array = new Float[][]{{-1.0F, 0.0F, Float.MAX_VALUE, Float.MIN_VALUE, null}};
+        testType(columnName, pgType, array, id);
+    }
+
+    /**
+     * @see PgType#DOUBLE_ARRAY
+     */
+    final void doDoubleArrayBindAndExtract() {
+        String columnName;
+        final long id = startId + 45;
+        final PgType pgType = PgType.DOUBLE_ARRAY;
+        Object array;
+        ResultRow row;
+
+        // below one dimension array
+        columnName = "my_double_array";
+        testType(columnName, pgType, null, id);
+
+        array = new Double[]{null};
+        row = testType(columnName, pgType, array, id);
+        row.getNonNull(columnName, Double[].class);
+        row.getNonNull(columnName, Double[][].class);
+        row.getNonNull(columnName, Double[][][][].class);
+
+        array = new double[]{-1.0D, 0.0D, Double.MAX_VALUE, Double.MIN_VALUE};
+        row = testType(columnName, pgType, array, id);
+        row.getNonNull(columnName, Double[].class);
+
+        array = new Double[]{-1.0D, 0.0D, Double.MAX_VALUE, Double.MIN_VALUE, null};
+        row = testType(columnName, pgType, array, id);
+        row.getNonNull(columnName, Double[].class);
+
+        // below two dimension array
+
+        columnName = "my_double_array_2";
+        testType(columnName, pgType, null, id);
+
+        array = new Double[][]{null};
+        row = testType(columnName, pgType, array, id);
+        row.getNonNull(columnName, Double[].class);
+        row.getNonNull(columnName, Double[][].class);
+        row.getNonNull(columnName, Double[][][][].class);
+
+        array = new double[][]{{-1.0D, 0.0D, Double.MAX_VALUE, Double.MIN_VALUE}};
+        row = testType(columnName, pgType, array, id);
+        row.getNonNull(columnName, Double[][].class);
+
+        array = new Double[][]{{-1.0D, 0.0D, Double.MAX_VALUE, Double.MIN_VALUE, null}};
+        testType(columnName, pgType, array, id);
+    }
+
+    /**
+     * @see PgType#BOOLEAN_ARRAY
+     */
+    final void doBooleanArrayBindAndExtract() {
+        String columnName;
+        final long id = startId + 46;
+        final PgType pgType = PgType.BOOLEAN_ARRAY;
+        Object array;
+        ResultRow row;
+
+        // below one dimension array
+        columnName = "my_boolean_array";
+        testType(columnName, pgType, null, id);
+
+        array = new Boolean[]{null};
+        row = testType(columnName, pgType, array, id);
+        row.getNonNull(columnName, Boolean[].class);
+        row.getNonNull(columnName, Boolean[][].class);
+
+        array = new boolean[]{true, false};
+        row = testType(columnName, pgType, array, id);
+        row.getNonNull(columnName, Boolean[].class);
+
+        array = new Boolean[]{true, false, null};
+        testType(columnName, pgType, array, id);
+
+        // below two dimension array
+
+        columnName = "my_boolean_array_2";
+        testType(columnName, pgType, null, id);
+
+        array = new Boolean[]{null};
+        row = testType(columnName, pgType, array, id);
+        row.getNonNull(columnName, Boolean[].class);
+        row.getNonNull(columnName, Boolean[][].class);
+
+        array = new boolean[][]{{true, false}, {false, true}};
+        row = testType(columnName, pgType, array, id);
+        row.getNonNull(columnName, Boolean[][].class);
+
+        array = new Boolean[][]{{true, false, null}, {Boolean.FALSE, Boolean.TRUE, null}};
+        testType(columnName, pgType, array, id);
+
+    }
+
+    /**
+     * @see PgType#TIMESTAMP_ARRAY
+     */
+    final void doTimestampArrayBindAndExtract() {
+        String columnName;
+        final long id = startId + 47;
+        final PgType pgType = PgType.TIMESTAMP_ARRAY;
+        final DateTimeFormatter pgIso = PgTimes.PG_ISO_LOCAL_DATETIME_FORMATTER;
+
+        Object array;
+        ResultRow row;
+
+        // below one dimension array
+        columnName = "my_timestamp_array";
+        testType(columnName, pgType, null, id);
+
+        array = new LocalDateTime[]{null};
+        row = testType(columnName, pgType, array, id);
+        row.getNonNull(columnName, LocalDateTime[].class);
+        row.getNonNull(columnName, LocalDateTime[][].class);
+
+        array = new LocalDateTime[]{
+                LocalDateTime.parse("4713-01-01 00:00:00 BC", pgIso),
+                LocalDateTime.parse("4713-01-01 23:59:59 BC", pgIso),
+                LocalDateTime.parse("4713-12-31 00:00:00 BC", pgIso),
+                LocalDateTime.parse("4713-12-31 23:59:59 BC", pgIso),
+                null};
+
+        testType(columnName, pgType, array, id);
+
+        array = new Object[]{
+                LocalDateTime.parse("4713-01-01 00:00:00 BC", pgIso),
+                LocalDateTime.parse("4713-01-01 23:59:59 BC", pgIso),
+                LocalDateTime.parse("4713-12-31 00:00:00 BC", pgIso),
+                LocalDateTime.parse("4713-12-31 23:59:59 BC", pgIso),
+                null,
+                PgConstant.INFINITY,
+                PgConstant.NEG_INFINITY
+        };
+
+        row = testType(columnName, pgType, array, id);
+        row.getNonNull(columnName, Object[].class);
+        row.getNonNull(columnName, String[].class);
+
+
+        // below two dimension array
+        columnName = "my_timestamp_array_2";
+        testType(columnName, pgType, null, id);
+
+        array = new LocalDateTime[][]{null};
+        row = testType(columnName, pgType, array, id);
+        row.getNonNull(columnName, String[].class);
+        row.getNonNull(columnName, LocalDateTime[].class);
+        row.getNonNull(columnName, LocalDateTime[][].class);
+
+        array = new LocalDateTime[][]{
+                {LocalDateTime.parse("4713-01-01 00:00:00 BC", pgIso),
+                        LocalDateTime.parse("4713-01-01 23:59:59 BC", pgIso),
+                        LocalDateTime.parse("4713-12-31 00:00:00 BC", pgIso),
+                        LocalDateTime.parse("4713-12-31 23:59:59 BC", pgIso),
+                        null}
+        };
+
+        row = testType(columnName, pgType, array, id);
+        row.getNonNull(columnName, Object[][].class);
+        row.getNonNull(columnName, String[][].class);
+
+        array = new Object[][]{
+                {LocalDateTime.parse("4713-01-01 00:00:00 BC", pgIso),
+                        LocalDateTime.parse("4713-01-01 23:59:59 BC", pgIso),
+                        LocalDateTime.parse("4713-12-31 00:00:00 BC", pgIso),
+                        LocalDateTime.parse("4713-12-31 23:59:59 BC", pgIso),
+                        null,
+                        PgConstant.INFINITY,
+                        PgConstant.NEG_INFINITY
+                }
+        };
+
+        row = testType(columnName, pgType, array, id);
+        row.getNonNull(columnName, Object[][].class);
+        row.getNonNull(columnName, String[][].class);
+    }
+
 
     private ResultRow testType(final String columnName, final PgType columnType
             , final @Nullable Object value, final long id) {
@@ -1365,6 +1743,8 @@ abstract class AbstractStmtTaskTests extends AbstractTaskTests {
 
         if (value == null) {
             assertNull(row.get(columnName), columnName);
+        } else if (row.getRowMeta().getSQLType(columnName).isArray()) {
+            assertEquals(row.get(columnName, value.getClass()), value, columnName);
         } else {
             assertTestResult(columnName, row, value);
         }

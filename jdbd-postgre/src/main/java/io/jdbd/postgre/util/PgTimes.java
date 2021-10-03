@@ -172,11 +172,12 @@ public abstract class PgTimes extends JdbdTimes {
     public static Object parseIsoLocalDate(final String textValue) throws DateTimeException {
         // @see PgConnectionTask
         // startStartup Message set to default ISO
+        final String lowerCaseValue = textValue.toLowerCase();
         Object value;
-        switch (textValue.toLowerCase()) {
+        switch (lowerCaseValue) {
             case PgConstant.INFINITY:
             case PgConstant.NEG_INFINITY:
-                value = textValue;
+                value = lowerCaseValue;
                 break;
             default:
                 value = LocalDate.parse(textValue, PgTimes.PG_ISO_LOCAL_DATE_FORMATTER);
@@ -187,11 +188,12 @@ public abstract class PgTimes extends JdbdTimes {
     public static Object parseIsoLocalDateTime(final String textValue) throws DateTimeException {
         // @see PgConnectionTask
         // startStartup Message set to default ISO
+        final String lowerCaseValue = textValue.toLowerCase();
         final Object value;
-        switch (textValue.toLowerCase()) {
+        switch (lowerCaseValue) {
             case PgConstant.INFINITY:
             case PgConstant.NEG_INFINITY:
-                value = textValue;
+                value = lowerCaseValue;
                 break;
             default:
                 value = LocalDateTime.parse(textValue, PgTimes.PG_ISO_LOCAL_DATETIME_FORMATTER);
@@ -202,13 +204,14 @@ public abstract class PgTimes extends JdbdTimes {
 
     public static Object parseIsoOffsetDateTime(final String textValue) throws DateTimeException {
 
+        final String lowerCaseValue = textValue.toLowerCase();
         Object value;
         // @see PgConnectionTask
         // startStartup Message set to default ISO
-        switch (textValue.toLowerCase()) {
+        switch (lowerCaseValue) {
             case PgConstant.INFINITY:
             case PgConstant.NEG_INFINITY:
-                value = textValue;
+                value = lowerCaseValue;
                 break;
             default: {
                 try {
