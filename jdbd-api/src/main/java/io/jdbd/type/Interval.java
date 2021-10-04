@@ -208,21 +208,29 @@ public final class Interval implements TemporalAmount {
         return match;
     }
 
+    public final boolean isDuration() {
+        return (this.years | this.months | this.days) == 0;
+    }
+
+    public final boolean isPeriod() {
+        return (this.seconds | this.nano) == 0;
+    }
+
     public final Duration toDurationExact() throws DateTimeException {
-        if ((this.years | this.months | this.days) != 0) {
+        if (!isDuration()) {
             throw new DateTimeException(String.format("[%s] can't convert to %s .", this, Duration.class.getName()));
         }
         final Duration duration;
-        if (this.seconds > 0) {
-            duration = Duration.ofSeconds(this.seconds, this.nano);
-        } else {
+        if (this.seconds < 0 || this.nano < 0) {
             duration = Duration.ofSeconds(Math.abs(this.seconds), this.nano).negated();
+        } else {
+            duration = Duration.ofSeconds(this.seconds, this.nano);
         }
         return duration;
     }
 
     public final Period toPeriodExact() throws DateTimeException {
-        if ((this.seconds | this.nano) != 0) {
+        if (!isPeriod()) {
             throw new DateTimeException(String.format("[%s] can't convert to %s .", this, Duration.class.getName()));
         }
         return Period.of(this.years, this.months, this.days);

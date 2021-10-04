@@ -1962,6 +1962,203 @@ abstract class AbstractStmtTaskTests extends AbstractTaskTests {
         row.getNonNull(columnName, String[][].class);
     }
 
+    /**
+     * @see PgType#BIT_ARRAY
+     */
+    final void doBitArrayBindAndExtract() {
+        String columnName;
+        final long id = startId + 52;
+        final PgType pgType = PgType.BIT_ARRAY;
+
+        Object array;
+        ResultRow row;
+
+        // below one dimension array
+        columnName = "my_bit64_array";
+        testType(columnName, pgType, null, id);
+
+        array = new Long[]{null};
+        row = testType(columnName, pgType, array, id);
+        row.getNonNull(columnName, Long[].class);
+        row.getNonNull(columnName, Long[][].class);
+
+
+        array = new long[]{0L, -1L, Long.MIN_VALUE, Long.MAX_VALUE};
+        row = testType(columnName, pgType, array, id);
+        row.getNonNull(columnName, Long[].class);
+
+        array = new Long[]{0L, -1L, Long.MIN_VALUE, Long.MAX_VALUE, null};
+        testType(columnName, pgType, array, id);
+
+        array = new String[]{PgStrings.toBinaryString(0L, false), PgStrings.toBinaryString(-1L, false), PgStrings.toBinaryString(Long.MIN_VALUE, false), PgStrings.toBinaryString(Long.MAX_VALUE, false), null};
+        testType(columnName, pgType, array, id);
+
+        array = new BitSet[]{BitSet.valueOf(new long[]{-1L})};
+        testType(columnName, pgType, array, id);
+
+        // below two dimension array
+        columnName = "my_bit64_array_2";
+        testType(columnName, pgType, null, id);
+
+        array = new Long[][]{null};
+        row = testType(columnName, pgType, array, id);
+        row.getNonNull(columnName, Long[].class);
+        row.getNonNull(columnName, Long[][].class);
+
+        array = new long[][]{{0L, -1L, Long.MIN_VALUE, Long.MAX_VALUE}};
+        row = testType(columnName, pgType, array, id);
+        row.getNonNull(columnName, Long[][].class);
+
+        array = new Long[][]{{0L, -1L, Long.MIN_VALUE, Long.MAX_VALUE, null}};
+        testType(columnName, pgType, array, id);
+
+        array = new String[][]{{PgStrings.toBinaryString(0L, false), PgStrings.toBinaryString(-1L, false), PgStrings.toBinaryString(Long.MIN_VALUE, false), PgStrings.toBinaryString(Long.MAX_VALUE, false), null}};
+        testType(columnName, pgType, array, id);
+
+        array = new BitSet[][]{{BitSet.valueOf(new long[]{-1L})}};
+        testType(columnName, pgType, array, id);
+
+
+    }
+
+    /**
+     * @see PgType#VARBIT_ARRAY
+     */
+    final void doVarBitArrayBindAndExtract() {
+        String columnName;
+        final long id = startId + 53;
+        final PgType pgType = PgType.VARBIT_ARRAY;
+
+        Object array;
+        ResultRow row;
+
+        // below one dimension array
+        columnName = "my_varbit_array";
+        testType(columnName, pgType, null, id);
+
+        array = new Long[]{null};
+        row = testType(columnName, pgType, array, id);
+        row.getNonNull(columnName, Long[].class);
+        row.getNonNull(columnName, Long[][].class);
+
+
+        array = new long[]{0L, -1L, Long.MIN_VALUE, Long.MAX_VALUE};
+        row = testType(columnName, pgType, array, id);
+        row.getNonNull(columnName, Long[].class);
+
+        array = new Long[]{0L, -1L, Long.MIN_VALUE, Long.MAX_VALUE, null};
+        testType(columnName, pgType, array, id);
+
+        array = new String[]{PgStrings.toBinaryString(0L, false), PgStrings.toBinaryString(-1L, false), PgStrings.toBinaryString(Long.MIN_VALUE, false), PgStrings.toBinaryString(Long.MAX_VALUE, false), null};
+        testType(columnName, pgType, array, id);
+
+        array = new BitSet[]{BitSet.valueOf(new long[]{-1L})};
+        testType(columnName, pgType, array, id);
+
+        // below two dimension array
+        columnName = "my_varbit_array_2";
+        testType(columnName, pgType, null, id);
+
+        array = new Long[][]{null};
+        row = testType(columnName, pgType, array, id);
+        row.getNonNull(columnName, Long[].class);
+        row.getNonNull(columnName, Long[][].class);
+
+        array = new long[][]{{0L, -1L, Long.MIN_VALUE, Long.MAX_VALUE}};
+        row = testType(columnName, pgType, array, id);
+        row.getNonNull(columnName, Long[][].class);
+
+        array = new Long[][]{{0L, -1L, Long.MIN_VALUE, Long.MAX_VALUE, null}
+                , {0L, -1L, Long.MIN_VALUE, Long.MAX_VALUE, null}};
+        testType(columnName, pgType, array, id);
+
+        array = new String[][]{{PgStrings.toBinaryString(0L, false), PgStrings.toBinaryString(-1L, false), PgStrings.toBinaryString(Long.MIN_VALUE, false), PgStrings.toBinaryString(Long.MAX_VALUE, false), null}};
+        testType(columnName, pgType, array, id);
+
+        array = new BitSet[][]{{BitSet.valueOf(new long[]{-1L}), BitSet.valueOf(new long[]{Long.MAX_VALUE})}};
+        testType(columnName, pgType, array, id);
+
+
+    }
+
+    /**
+     * @see PgType#INTERVAL_ARRAY
+     */
+    final void doIntervalArrayBindAndExtract() {
+        String columnName;
+        final long id = startId + 54;
+        final PgType pgType = PgType.INTERVAL_ARRAY;
+
+        Object array;
+        ResultRow row;
+
+        // below one dimension array
+        columnName = "my_interval_array";
+        testType(columnName, pgType, null, id);
+
+        array = new Interval[]{null};
+        row = testType(columnName, pgType, array, id);
+        row.getNonNull(columnName, Interval[].class);
+        row.getNonNull(columnName, Interval[][].class);
+
+        array = new Interval[]{Interval.parse("PT-0.999999S", true), Interval.parse("PT1M-60.9S", true), Interval.parse("PT2M-121.9S", true), Interval.ZERO, null};
+        row = testType(columnName, pgType, array, id);
+        row.getNonNull(columnName, Duration[].class);
+
+        array = new Interval[]{Interval.parse("P1DT-0.999999S", true), Interval.parse("PT1M-60.9S", true), Interval.parse("PT2M-121.9S", true), Interval.ZERO, null};
+        testType(columnName, pgType, array, id);
+
+        array = new Duration[]{Duration.ofSeconds(343, 9999), Duration.ofSeconds(343, 9999).negated(), Duration.ZERO, null};
+        testType(columnName, pgType, array, id);
+
+        array = new Period[]{Period.ZERO, Period.of(1, 3, 4), null};
+        testType(columnName, pgType, array, id);
+
+
+        // below two dimension array
+        columnName = "my_interval_array_2";
+        testType(columnName, pgType, null, id);
+
+        array = new Interval[][]{null};
+        row = testType(columnName, pgType, array, id);
+        row.getNonNull(columnName, Interval[].class);
+        row.getNonNull(columnName, Interval[][].class);
+
+        array = new Interval[][]{{Interval.parse("PT-0.999999S", true), Interval.parse("PT1M-60.9S", true), Interval.parse("PT2M-121.9S", true), Interval.ZERO, null}
+                , {Interval.parse("PT-0.999999S", true), Interval.parse("PT1M-60.9S", true), Interval.parse("PT2M-121.9S", true), Interval.ZERO, null}};
+        row = testType(columnName, pgType, array, id);
+        row.getNonNull(columnName, Duration[][].class);
+
+        array = new Interval[][]{{Interval.parse("P1DT-0.999999S", true), Interval.parse("PT1M-60.9S", true), Interval.parse("PT2M-121.9S", true), Interval.ZERO, null}
+                , {Interval.parse("P1DT-0.999999S", true), Interval.parse("PT1M-60.9S", true), Interval.parse("PT2M-121.9S", true), Interval.ZERO, null}};
+        testType(columnName, pgType, array, id);
+
+        array = new Duration[][]{{Duration.ofSeconds(343, 9999), Duration.ofSeconds(343, 9999).negated(), Duration.ZERO, null}
+                , {Duration.ofSeconds(343, 9999), Duration.ofSeconds(343, 9999).negated(), Duration.ZERO, null}};
+        testType(columnName, pgType, array, id);
+
+        array = new Period[][]{{Period.ZERO, Period.of(1, 3, 4), null}, {Period.ZERO, Period.of(1, 3, 4), null}};
+        testType(columnName, pgType, array, id);
+
+    }
+
+    /**
+     * @see PgType#BYTEA_ARRAY
+     */
+    final void doByteaArrayBindAndExtract() {
+        String columnName;
+        final long id = startId + 55;
+        final PgType pgType = PgType.BYTEA_ARRAY;
+
+        Object array;
+        ResultRow row;
+
+        // below one dimension array
+        columnName = "my_bytea_array";
+        testType(columnName, pgType, null, id);
+
+
+    }
 
     private ResultRow testType(final String columnName, final PgType columnType
             , final @Nullable Object value, final long id) {
@@ -2295,6 +2492,12 @@ abstract class AbstractStmtTaskTests extends AbstractTaskTests {
             case TIMESTAMPTZ_ARRAY:
                 assertTimestampTzArray(columnName, row, nonNull);
                 break;
+            case TIMETZ_ARRAY:
+                assertTimeTzArray(columnName, row, nonNull);
+                break;
+            case INTERVAL_ARRAY:
+                assertIntervalArray(columnName, row, nonNull);
+                break;
             default: {
                 assertEquals(row.get(columnName, nonNull.getClass()), nonNull, columnName);
             }
@@ -2338,6 +2541,36 @@ abstract class AbstractStmtTaskTests extends AbstractTaskTests {
             }
         }
         return false;
+    }
+
+    private void assertIntervalArray(final String columnName, final ResultRow row, final Object nonNull) {
+        final Object result = row.get(columnName, nonNull.getClass());
+        assertTrue(nonNull.getClass().isInstance(result), columnName);
+        final BiPredicate<Object, Object> function = (value, resultValue) -> {
+            final boolean match;
+            if (value instanceof Interval) {
+                match = ((Interval) value).equals(resultValue, true);
+            } else if (value instanceof Duration) {
+                match = Interval.of((Duration) value).equals(Interval.of((Duration) value), true);
+            } else if (value instanceof Period) {
+                match = Interval.of((Period) value).equals(Interval.of((Period) value), true);
+            } else {
+                throw new IllegalArgumentException(String.format("value type[%s] unknown.", value.getClass().getName()));
+            }
+            return match;
+        };
+        assertArray(columnName, nonNull, result, function);
+    }
+
+    private void assertTimeTzArray(final String columnName, final ResultRow row, final Object nonNull) {
+        final Object result = row.get(columnName, nonNull.getClass());
+        assertTrue(nonNull.getClass().isInstance(result), columnName);
+        final BiPredicate<Object, Object> function = (value, resultValue) -> {
+            final OffsetTime v = (OffsetTime) value, r = (OffsetTime) resultValue;
+            return v.equals(r.withOffsetSameInstant(v.getOffset()));
+        };
+
+        assertArray(columnName, nonNull, result, function);
     }
 
     private void assertTimestampTzArray(final String columnName, final ResultRow row, final Object nonNull) {

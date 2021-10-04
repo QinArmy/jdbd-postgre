@@ -34,6 +34,12 @@ import java.util.UUID;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 
+/**
+ * <p>
+ * Below is chinese signature:<br/>
+ * 当你在阅读这段代码时,我才真正在写这段代码,你阅读到哪里,我便写到哪里.
+ * </p>
+ */
 abstract class ColumnArrays {
 
     private ColumnArrays() {
@@ -493,38 +499,64 @@ abstract class ColumnArrays {
      * @throws io.jdbd.result.UnsupportedConvertingException when targetArrayClass and value not match.
      */
     static Object readBitArray(final String value, final PgColumnMeta meta, final Class<?> targetArrayClass) {
-        if (targetArrayClass != BitSet.class && targetArrayClass != Long.class && targetArrayClass != Integer.class) {
-            throw PgResultRow.notSupportConverting(meta, targetArrayClass);
-        }
         final BiFunction<char[], Integer, ArrayPair> function = (charArray, index) -> {
             final List<Object> list = new LinkedList<>();
             final Consumer<String> consumer = nullable -> {
                 if (nullable == null) {
+                    if (targetArrayClass == long.class || targetArrayClass == int.class) {
+                        throw targetArrayClassError(targetArrayClass);
+                    }
                     list.add(null);
                     return;
                 }
                 if (targetArrayClass == BitSet.class) {
                     list.add(PgStrings.bitStringToBitSet(nullable, false));
-                } else if (targetArrayClass == Long.class) {
-                    final String v = new StringBuilder(nullable).reverse().toString();
-                    list.add(Long.parseLong(v, 2));
+                } else if (targetArrayClass == Long.class || targetArrayClass == long.class) {
+                    list.add(Long.parseUnsignedLong(PgStrings.reverse(nullable), 2));
+                } else if (targetArrayClass == Integer.class || targetArrayClass == int.class) {
+                    list.add(Integer.parseUnsignedInt(PgStrings.reverse(nullable), 2));
+                } else if (targetArrayClass == String.class) {
+                    list.add(nullable);
                 } else {
-                    final String v = new StringBuilder(nullable).reverse().toString();
-                    list.add(Integer.parseInt(v, 2));
+                    throw targetArrayClassError(targetArrayClass);
                 }
 
             };
             final int endIndex;
             endIndex = readOneDimensionArray(charArray, index, meta, consumer);
-            final Object[] array;
+            final Object array;
             if (targetArrayClass == BitSet.class) {
-                array = new BitSet[list.size()];
+                final Object[] arrayValue = new BitSet[list.size()];
+                array = list.toArray(arrayValue);
             } else if (targetArrayClass == Long.class) {
-                array = new Long[list.size()];
+                final Object[] arrayValue = new Long[list.size()];
+                array = list.toArray(arrayValue);
+            } else if (targetArrayClass == Integer.class) {
+                final Object[] arrayValue = new Integer[list.size()];
+                array = list.toArray(arrayValue);
+            } else if (targetArrayClass == int.class) {
+                final int[] intArray = new int[list.size()];
+                int i = 0;
+                for (Object v : list) {
+                    intArray[i] = (Integer) v;
+                    i++;
+                }
+                array = intArray;
+            } else if (targetArrayClass == long.class) {
+                final long[] longArray = new long[list.size()];
+                int i = 0;
+                for (Object v : list) {
+                    longArray[i] = (Long) v;
+                    i++;
+                }
+                array = longArray;
+            } else if (targetArrayClass == String.class) {
+                final Object[] arrayValue = new String[list.size()];
+                array = list.toArray(arrayValue);
             } else {
-                array = new Integer[list.size()];
+                throw targetArrayClassError(targetArrayClass);
             }
-            return new ArrayPair(list.toArray(array), endIndex);
+            return new ArrayPair(array, endIndex);
         };
         return readArray(value, meta, function, targetArrayClass);
     }
@@ -663,11 +695,6 @@ abstract class ColumnArrays {
     }
 
     static Object readIntervalArray(final String value, final PgColumnMeta meta, final Class<?> targetArrayClass) {
-        if (targetArrayClass != Interval.class
-                && targetArrayClass != Duration.class
-                && targetArrayClass != Period.class) {
-            throw PgResultRow.notSupportConverting(meta, targetArrayClass);
-        }
         final BiFunction<char[], Integer, ArrayPair> function = (charArray, index) -> {
             final List<Object> list = new LinkedList<>();
             final Consumer<String> consumer = nullable -> {
@@ -679,9 +706,17 @@ abstract class ColumnArrays {
                 if (targetArrayClass == Interval.class) {
                     list.add(v);
                 } else if (targetArrayClass == Duration.class) {
+                    if (!v.isDuration()) {
+                        throw PgResultRow.notSupportConverting(meta, targetArrayClass);
+                    }
                     list.add(v.toDurationExact());
-                } else {
+                } else if (targetArrayClass == Period.class) {
+                    if (!v.isPeriod()) {
+                        throw PgResultRow.notSupportConverting(meta, targetArrayClass);
+                    }
                     list.add(v.toPeriodExact());
+                } else {
+                    throw PgResultRow.notSupportConverting(meta, targetArrayClass);
                 }
             };
             final int endIndex;
@@ -691,8 +726,10 @@ abstract class ColumnArrays {
                 array = new Interval[list.size()];
             } else if (targetArrayClass == Duration.class) {
                 array = new Duration[list.size()];
-            } else {
+            } else if (targetArrayClass == Period.class) {
                 array = new Period[list.size()];
+            } else {
+                throw PgResultRow.notSupportConverting(meta, targetArrayClass);
             }
             return new ArrayPair(list.toArray(array), endIndex);
         };
