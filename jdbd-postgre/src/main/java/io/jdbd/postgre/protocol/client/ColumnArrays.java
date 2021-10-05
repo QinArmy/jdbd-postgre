@@ -6,7 +6,10 @@ import io.jdbd.postgre.type.PgBox;
 import io.jdbd.postgre.type.PgGeometries;
 import io.jdbd.postgre.type.PgLine;
 import io.jdbd.postgre.type.PgPolygon;
-import io.jdbd.postgre.util.*;
+import io.jdbd.postgre.util.PgArrays;
+import io.jdbd.postgre.util.PgBuffers;
+import io.jdbd.postgre.util.PgStrings;
+import io.jdbd.postgre.util.PgTimes;
 import io.jdbd.type.Interval;
 import io.jdbd.type.LongBinary;
 import io.jdbd.type.geo.Line;
@@ -630,9 +633,6 @@ abstract class ColumnArrays {
      */
     static Object readByteaArray(final String value, final PgColumnMeta meta, final Charset charset
             , final Class<?> targetArrayClass) {
-        if (targetArrayClass != byte[].class && targetArrayClass != LongBinary.class) {
-            throw PgResultRow.notSupportConverting(meta, targetArrayClass);
-        }
         final BiFunction<char[], Integer, ArrayPair> function = (charArray, index) -> {
             final List<Object> list = new LinkedList<>();
             final Consumer<String> consumer = nullable -> {
@@ -641,16 +641,20 @@ abstract class ColumnArrays {
                     return;
                 }
                 byte[] bytes;
-                if (nullable.startsWith("\\x")) {
-                    bytes = nullable.substring(2).getBytes(charset);
+                if (nullable.startsWith("\\\\x")) {
+                    bytes = nullable.substring(3).getBytes(charset);
                     bytes = PgBuffers.decodeHex(bytes, bytes.length);
                 } else {
                     bytes = nullable.getBytes(charset);
                 }
                 if (targetArrayClass == byte[].class) {
                     list.add(bytes);
-                } else {
+                } else if (targetArrayClass == LongBinary.class) {
                     list.add(LongBinaries.fromArray(bytes));
+                } else if (targetArrayClass == String.class) {
+                    list.add(new String(bytes, charset));
+                } else {
+                    throw PgResultRow.notSupportConverting(meta, targetArrayClass);
                 }
             };
             final int endIndex;
@@ -658,8 +662,12 @@ abstract class ColumnArrays {
             final Object[] array;
             if (targetArrayClass == byte[].class) {
                 array = new byte[list.size()][];
-            } else {
+            } else if (targetArrayClass == LongBinary.class) {
                 array = new LongBinary[list.size()];
+            } else if (targetArrayClass == String.class) {
+                array = new String[list.size()];
+            } else {
+                throw PgResultRow.notSupportConverting(meta, targetArrayClass);
             }
             return new ArrayPair(list.toArray(array), endIndex);
         };
@@ -944,11 +952,11 @@ abstract class ColumnArrays {
                 throw new IllegalArgumentException(String.format("function[%s] error.", function));
             }
             // validate one dimension array
-            final Class<?> arrayCass = pair.array.getClass();
-            final Pair<Class<?>, Integer> diPair = PgBinds.getArrayDimensions(arrayCass);
-            if (!arrayCass.isArray() || diPair.getFirst() != targetArrayClass || diPair.getSecond() != 1) {
+            final Pair<Class<?>, Integer> diPair = PgArrays.getPgArrayType(pair.array.getClass());
+            if (diPair.getFirst() != targetArrayClass || diPair.getSecond() != 1) {
                 throw new IllegalArgumentException(String.format("function[%s] error.", function));
             }
+
             // add one dimension array to list
             arrayStack.peek().add(pair.array);
             // handle text after one dimension
@@ -1006,9 +1014,17 @@ abstract class ColumnArrays {
 
     private static Object createArray(final int dimension, final List<Object> valueList
             , final Class<?> targetArrayClass) {
-
+        final int actualDimension;
+        final Class<?> componentType;
+        if (targetArrayClass == byte[].class) {
+            componentType = byte.class;
+            actualDimension = dimension + 1;
+        } else {
+            componentType = targetArrayClass;
+            actualDimension = dimension;
+        }
         final Object array;
-        array = PgArrays.createArrayInstance(targetArrayClass, dimension, valueList.size());
+        array = PgArrays.createArrayInstance(componentType, actualDimension, valueList.size());
         int index = 0;
         for (Object value : valueList) {
             Array.set(array, index, value);

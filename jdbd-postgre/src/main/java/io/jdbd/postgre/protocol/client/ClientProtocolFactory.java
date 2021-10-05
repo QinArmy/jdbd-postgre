@@ -119,6 +119,13 @@ public abstract class ClientProtocolFactory {
                 }
             }
 
+            final String lcMonetary = properties.get(PgKey.lc_monetary);
+            if (PgStrings.hasText(lcMonetary)) {
+                if (!PgStrings.isSafeParameterValue(lcMonetary)) {
+                    return Mono.error(new PgJdbdException(String.format("lc_monetary[%s] error.", lcMonetary)));
+                }
+                sqlGroup.add(String.format("SET lc_monetary = '%s'", lcMonetary));
+            }
             // 'SHOW xxx' must be last statement.
             final int showResultIndex = sqlGroup.size();
 

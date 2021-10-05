@@ -16,7 +16,7 @@ public class JdbdBindsSuiteTests {
 
 
     /**
-     * @see JdbdBinds#getArrayDimensions(Class)
+     * @see JdbdArrays#getArrayDimensions(Class)
      */
     @Test
     public void getArrayDimensions() {
@@ -25,25 +25,25 @@ public class JdbdBindsSuiteTests {
 
         arrayClass = Integer[].class;
         componentClass = Integer.class;
-        pair = JdbdBinds.getArrayDimensions(arrayClass);
+        pair = JdbdArrays.getArrayDimensions(arrayClass);
         assertEquals(pair.getFirst(), componentClass, arrayClass.getName());
         assertEquals(pair.getSecond(), Integer.valueOf(1), arrayClass.getName());
 
         arrayClass = Integer[][].class;
         componentClass = Integer.class;
-        pair = JdbdBinds.getArrayDimensions(arrayClass);
+        pair = JdbdArrays.getArrayDimensions(arrayClass);
         assertEquals(pair.getFirst(), componentClass, arrayClass.getName());
         assertEquals(pair.getSecond(), Integer.valueOf(2), arrayClass.getName());
 
         arrayClass = int[].class;
         componentClass = int.class;
-        pair = JdbdBinds.getArrayDimensions(arrayClass);
+        pair = JdbdArrays.getArrayDimensions(arrayClass);
         assertEquals(pair.getFirst(), componentClass, arrayClass.getName());
         assertEquals(pair.getSecond(), Integer.valueOf(1), arrayClass.getName());
 
         arrayClass = int[][][].class;
         componentClass = int.class;
-        pair = JdbdBinds.getArrayDimensions(arrayClass);
+        pair = JdbdArrays.getArrayDimensions(arrayClass);
         assertEquals(pair.getFirst(), componentClass, arrayClass.getName());
         assertEquals(pair.getSecond(), Integer.valueOf(3), arrayClass.getName());
 

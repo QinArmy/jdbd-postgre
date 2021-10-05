@@ -4,7 +4,6 @@ import io.jdbd.JdbdSQLException;
 import io.jdbd.postgre.PgType;
 import io.jdbd.postgre.type.PgGeometries;
 import io.jdbd.postgre.util.PgArrays;
-import io.jdbd.postgre.util.PgBinds;
 import io.jdbd.postgre.util.PgStrings;
 import io.jdbd.postgre.util.PgTimes;
 import io.jdbd.result.ResultRow;
@@ -13,6 +12,7 @@ import io.jdbd.type.Interval;
 import io.jdbd.type.geometry.LongString;
 import io.jdbd.vendor.result.AbstractResultRow;
 import io.jdbd.vendor.type.LongStrings;
+import io.jdbd.vendor.util.JdbdArrays;
 import org.qinarmy.util.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -56,7 +56,7 @@ public class PgResultRow extends AbstractResultRow<PgRowMeta> {
         if (meta.sqlType == PgType.TSVECTOR && elementClass == String.class) {
             value = convertTsvectorToList(meta, nonNull);
         } else if (!(nonNull instanceof byte[]) && nonNull.getClass().isArray() && meta.sqlType.isArray()) {
-            final Pair<Class<?>, Integer> pair = PgBinds.getArrayDimensions(nonNull.getClass());
+            final Pair<Class<?>, Integer> pair = JdbdArrays.getArrayDimensions(nonNull.getClass());
             final PgType elementType = Objects.requireNonNull(meta.sqlType.elementType());
             if (pair.getFirst() == elementType.javaType() && pair.getSecond() == 1) {
                 value = convertOneDimensionArrayToList(nonNull, elementClass);
@@ -120,11 +120,15 @@ public class PgResultRow extends AbstractResultRow<PgRowMeta> {
         try {
             final Object value;
             if (columnClass != null && meta.sqlType.isArray()) {
-                final Pair<Class<?>, Integer> pair = PgBinds.getArrayDimensions(columnClass);
-                if (pair.getFirst() == byte.class && pair.getSecond() < 2) {
-                    throw createNotSupportedException(meta.index, columnClass);
+                final Pair<Class<?>, Integer> pair = JdbdArrays.getArrayDimensions(columnClass);
+                Class<?> arrayType = pair.getFirst();
+                if (arrayType == byte.class) {
+                    if (pair.getSecond() < 2) {
+                        throw createNotSupportedException(meta.index, columnClass);
+                    }
+                    arrayType = byte[].class;
                 }
-                value = parseArrayColumnFromText(textValue, meta, pair.getFirst());
+                value = parseArrayColumnFromText(textValue, meta, arrayType);
             } else {
                 value = parseNonArrayColumnFromText(textValue, meta, columnClass);
             }
@@ -144,8 +148,8 @@ public class PgResultRow extends AbstractResultRow<PgRowMeta> {
         if (targetClass.isInstance(nonNull)) {
             return nonNull;
         }
-        final Pair<Class<?>, Integer> arrayPair = PgBinds.getArrayDimensions(arrayClass);
-        final Pair<Class<?>, Integer> targetPair = PgBinds.getArrayDimensions(targetClass);
+        final Pair<Class<?>, Integer> arrayPair = JdbdArrays.getArrayDimensions(arrayClass);
+        final Pair<Class<?>, Integer> targetPair = JdbdArrays.getArrayDimensions(targetClass);
         if (arrayPair.getFirst() != targetPair.getFirst()) {
             throw createNotSupportedException(indexBaseZero, targetClass);
         }
@@ -602,7 +606,7 @@ public class PgResultRow extends AbstractResultRow<PgRowMeta> {
                     , columnLabel
                     , pgType);
             if (e instanceof ParseException) {
-                m = String.format("%s\nYou couldn't execute '%s' AND %s.get(\"%s\",%s.class) in multi-statement."
+                m = String.format("%s\nYou possibly execute '%s' AND %s.get(\"%s\",%s.class) in multi-statement."
                         , m
                         , "SET lc_monetary"
                         , ResultRow.class.getName()

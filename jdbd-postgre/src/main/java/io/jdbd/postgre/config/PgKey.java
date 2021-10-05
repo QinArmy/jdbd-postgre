@@ -114,7 +114,8 @@ public enum PgKey implements IPropertyKey {
 
     fallbackToSystemKeyStore(Boolean.class, "false"),
     factoryWorkerCount(Integer.class, "100"),
-    hexEscapes(Boolean.class, "false");
+    hexEscapes(Boolean.class, "false"),
+    lc_monetary(String.class);
 
     private final String key;
 

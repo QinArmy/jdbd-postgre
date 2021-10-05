@@ -1,6 +1,7 @@
 package io.jdbd.vendor.util;
 
 import org.qinarmy.util.ArrayUtils;
+import org.qinarmy.util.Pair;
 
 import java.lang.reflect.Array;
 
@@ -11,23 +12,23 @@ public abstract class JdbdArrays extends ArrayUtils {
     }
 
 
-    public static Object createArrayInstance(final Class<?> targetArrayClass, final int dimension, final int length) {
-        if (targetArrayClass.isArray()) {
+    public static Object createArrayInstance(final Class<?> componentClass, final int dimension, final int length) {
+        if (componentClass.isArray()) {
             throw new IllegalArgumentException("targetArrayClass error.");
         }
-        final Class<?> componentClass;
+        final Class<?> componentType;
         if (dimension == 1) {
-            componentClass = targetArrayClass;
+            componentType = componentClass;
         } else if (dimension > 1) {
             try {
-                componentClass = Class.forName(obtainComponentClassName(targetArrayClass, dimension));
+                componentType = Class.forName(obtainComponentClassName(componentClass, dimension));
             } catch (ClassNotFoundException e) {
                 throw new IllegalStateException(e);
             }
         } else {
             throw new IllegalArgumentException(String.format("dimension[%s] less than 1", dimension));
         }
-        return Array.newInstance(componentClass, length);
+        return Array.newInstance(componentType, length);
     }
 
     private static String obtainComponentClassName(final Class<?> targetArrayClass, final int dimension) {
@@ -73,5 +74,28 @@ public abstract class JdbdArrays extends ArrayUtils {
         }
         return builder.toString();
     }
+
+    /**
+     * <p>
+     * Get component class and dimension of array.
+     * </p>
+     *
+     * @param arrayClass class of Array.
+     * @return pair, first: component class,second,dimension of array.
+     */
+    public static Pair<Class<?>, Integer> getArrayDimensions(final Class<?> arrayClass) {
+        if (!arrayClass.isArray()) {
+            throw new IllegalArgumentException(String.format("%s isn't Array type.", arrayClass.getName()));
+        }
+        Class<?> componentClass = arrayClass.getComponentType();
+        int dimensions = 1;
+        while (componentClass.isArray()) {
+            dimensions++;
+            componentClass = componentClass.getComponentType();
+
+        }
+        return new Pair<>(componentClass, dimensions);
+    }
+
 
 }

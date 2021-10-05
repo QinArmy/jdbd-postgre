@@ -8,6 +8,7 @@ import io.jdbd.type.Interval;
 import io.jdbd.type.geometry.Circle;
 import io.jdbd.type.geometry.Point;
 import io.jdbd.vendor.stmt.ParamValue;
+import io.jdbd.vendor.util.JdbdArrays;
 import io.jdbd.vendor.util.JdbdBinds;
 import io.jdbd.vendor.util.JdbdExceptions;
 import org.qinarmy.util.FastStack;
@@ -190,7 +191,7 @@ public abstract class PgBinds extends JdbdBinds {
 
     public static PgType mapPgArrayType(final Class<?> arrayClass) throws UnsupportedBindJavaTypeException {
         final Pair<Class<?>, Integer> pair;
-        pair = getArrayDimensions(arrayClass);
+        pair = JdbdArrays.getArrayDimensions(arrayClass);
 
         final Class<?> componentClass = pair.getFirst();
         final int dimensions = pair.getSecond();
@@ -631,21 +632,14 @@ public abstract class PgBinds extends JdbdBinds {
         final Class<?> arrayType = obtainArrayType(batchIndex, pgType, paramValue);
         final Function<Object, String> function;
         if (arrayType == BigDecimal.class) {
-            function = nonNull -> ((BigDecimal) nonNull).toPlainString();
+            function = nonNull -> String.format("", ((BigDecimal) nonNull).toPlainString());
         } else if (arrayType == String.class || arrayType == Object.class) {
             function = nonNull -> {
                 final String result;
                 if (nonNull instanceof BigDecimal) {
                     result = ((BigDecimal) nonNull).toPlainString();
                 } else if (nonNull instanceof String) {
-                    final String v = (String) nonNull;
-                    if (v.indexOf(PgConstant.QUOTE) >= 0
-                            || v.indexOf(PgConstant.DOUBLE_QUOTE) >= 0
-                            || v.charAt(v.length() - 1) == PgConstant.BACK_SLASH) {
-                        SQLException e = JdbdExceptions.outOfTypeRange(batchIndex, pgType, paramValue);
-                        throw new JdbdSQLException(e);
-                    }
-                    result = "\"" + v + "\"";
+                    result = textEscapesFunction(nonNull);
                 } else {
                     SQLException e = JdbdExceptions.createNonSupportBindSqlTypeError(batchIndex, pgType, paramValue);
                     throw new JdbdSQLException(e);
@@ -702,8 +696,40 @@ public abstract class PgBinds extends JdbdBinds {
         return bindNonNullToArray(batchIndex, pgType, paramValue, function);
     }
 
-    public static String bindNonNullEscapesTextArray(final int batchIndex, PgType pgType, ParamValue paramValue
-            , final Charset clientCharset)
+    public static String bindNonNullByteaArray(final int batchIndex, PgType pgType, ParamValue paramValue
+            , final Charset clientCharset) throws SQLException {
+        if (pgType != PgType.BYTEA_ARRAY) {
+            throw new IllegalArgumentException("pgType error");
+        }
+        final Class<?> arrayType = obtainArrayType(batchIndex, pgType, paramValue);
+        if (arrayType != byte.class && arrayType != String.class) {
+            throw JdbdExceptions.createNonSupportBindSqlTypeError(batchIndex, pgType, paramValue);
+        }
+        final Function<Object, String> function = nonNull -> {
+            final byte[] v;
+            if (nonNull instanceof byte[]) {
+                v = (byte[]) nonNull;
+            } else if (nonNull instanceof String) {
+                v = ((String) nonNull).getBytes(clientCharset);
+            } else {
+                SQLException e = JdbdExceptions.createNonSupportBindSqlTypeError(batchIndex, pgType, paramValue);
+                throw new JdbdSQLException(e);
+            }
+            @SuppressWarnings("all")
+            String result = new StringBuilder(4 + (v.length << 1))
+                    .append(PgConstant.DOUBLE_QUOTE)
+                    .append(PgConstant.BACK_SLASH)
+                    .append(PgConstant.BACK_SLASH)
+                    .append('x')
+                    .append(PgBuffers.hexEscapesText(true, v, v.length))
+                    .append(PgConstant.DOUBLE_QUOTE)
+                    .toString();
+            return result;
+        };
+        return bindNonNullToArray(batchIndex, pgType, paramValue, function);
+    }
+
+    public static String bindNonNullEscapesTextArray(final int batchIndex, PgType pgType, ParamValue paramValue)
             throws SQLException, JdbdSQLException {
         switch (pgType) {
             case TSVECTOR_ARRAY:
@@ -718,56 +744,44 @@ public abstract class PgBinds extends JdbdBinds {
             default:
                 throw new IllegalArgumentException("pgType error");
         }
-        if (obtainArrayType(batchIndex, pgType, paramValue) != String.class) {
+        final Class<?> arrayType = obtainArrayType(batchIndex, pgType, paramValue);
+        if (arrayType != String.class) {
             throw JdbdExceptions.createNonSupportBindSqlTypeError(batchIndex, pgType, paramValue);
         }
-        final Function<Object, String> function = nonNull -> {
-            final char[] charArray;
-            if (nonNull instanceof byte[]) {
-                charArray = (new String((byte[]) nonNull, clientCharset)).toCharArray();
-            } else {
-                charArray = ((String) nonNull).toCharArray();
-            }
+        return bindNonNullToArray(batchIndex, pgType, paramValue, PgBinds::textEscapesFunction);
+    }
 
-            int lastWritten = 0;
-            char c;
-            final StringBuilder builder = new StringBuilder(charArray.length + 10);
-            builder.append(PgConstant.DOUBLE_QUOTE);
 
-            for (int i = 0; i < charArray.length; i++) {
-                c = charArray[i];
-                switch (c) {
-                    case PgConstant.QUOTE: {
-                        if (i > lastWritten) {
-                            builder.append(charArray, lastWritten, i - lastWritten);
-                        }
-                        builder.append(PgConstant.QUOTE);
-                        lastWritten = i;
+    private static String textEscapesFunction(final Object nonNull) {
+        final char[] charArray = ((String) nonNull).toCharArray();
+        int lastWritten = 0;
+        char c;
+        final StringBuilder builder = new StringBuilder(charArray.length + 10);
+        builder.append(PgConstant.DOUBLE_QUOTE);
+
+        for (int i = 0; i < charArray.length; i++) {
+            c = charArray[i];
+            switch (c) {
+                case PgConstant.BACK_SLASH:
+                case PgConstant.DOUBLE_QUOTE: {
+                    if (i > lastWritten) {
+                        builder.append(charArray, lastWritten, i - lastWritten);
                     }
-                    break;
-                    case PgConstant.DOUBLE_QUOTE:
-                    case PgConstant.BACK_SLASH: {
-                        if (i > lastWritten) {
-                            builder.append(charArray, lastWritten, i - lastWritten);
-                        }
-                        builder.append(PgConstant.BACK_SLASH);
-                        lastWritten = i;
-                    }
-                    break;
-                    default:
-                        //no-op
+                    builder.append(PgConstant.BACK_SLASH);
+                    lastWritten = i;
                 }
-
+                break;
+                default:
+                    //no-op
             }
-            if (lastWritten < charArray.length) {
-                builder.append(charArray, lastWritten, charArray.length - lastWritten);
-            }
-            return builder
-                    .append(PgConstant.DOUBLE_QUOTE)
-                    .toString();
-        };
 
-        return bindNonNullToArray(batchIndex, pgType, paramValue, function);
+        }
+        if (lastWritten < charArray.length) {
+            builder.append(charArray, lastWritten, charArray.length - lastWritten);
+        }
+        return builder
+                .append(PgConstant.DOUBLE_QUOTE)
+                .toString();
     }
 
 
@@ -778,7 +792,7 @@ public abstract class PgBinds extends JdbdBinds {
             throw JdbdExceptions.createNonSupportBindSqlTypeError(batchIndex, pgType, paramValue);
         }
         final Pair<Class<?>, Integer> pair;
-        pair = getArrayDimensions(arrayClass);
+        pair = JdbdArrays.getArrayDimensions(arrayClass);
         final Class<?> arrayType = pair.getFirst();
         if (arrayType == byte.class && pair.getSecond() < 2) {
             throw JdbdExceptions.createNonSupportBindSqlTypeError(batchIndex, pgType, paramValue);
@@ -796,7 +810,7 @@ public abstract class PgBinds extends JdbdBinds {
         if (!nonNull.getClass().isArray()) {
             throw JdbdExceptions.createNonSupportBindSqlTypeError(batchIndex, pgType, paramValue);
         }
-        final Pair<Class<?>, Integer> pair = getArrayDimensions(nonNull.getClass());
+        final Pair<Class<?>, Integer> pair = JdbdArrays.getArrayDimensions(nonNull.getClass());
 
         final int topArrayDimension = pair.getSecond();
         final boolean isByteArray;

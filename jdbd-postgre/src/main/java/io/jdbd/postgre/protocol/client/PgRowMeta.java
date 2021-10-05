@@ -4,6 +4,7 @@ import io.jdbd.JdbdSQLException;
 import io.jdbd.meta.NullMode;
 import io.jdbd.meta.SQLType;
 import io.jdbd.postgre.PgType;
+import io.jdbd.postgre.util.PgNumbers;
 import io.jdbd.result.FieldType;
 import io.jdbd.result.ResultRowMeta;
 import io.netty.buffer.ByteBuf;
@@ -12,7 +13,6 @@ import reactor.util.annotation.Nullable;
 import java.nio.charset.Charset;
 import java.sql.SQLException;
 import java.text.DecimalFormat;
-import java.text.NumberFormat;
 import java.util.*;
 
 /**
@@ -259,11 +259,7 @@ final class PgRowMeta implements ResultRowMeta {
             if (meta.sqlType != PgType.MONEY && meta.sqlType != PgType.MONEY_ARRAY) {
                 continue;
             }
-            final NumberFormat f = NumberFormat.getCurrencyInstance(adjutant.server().moneyLocal());
-            if (f instanceof DecimalFormat) {
-                format = (DecimalFormat) f;
-                format.setParseBigDecimal(true); // must be true.
-            }
+            format = PgNumbers.getMoneyFormat(adjutant.server().moneyLocal());
             break;
         }
         return format;

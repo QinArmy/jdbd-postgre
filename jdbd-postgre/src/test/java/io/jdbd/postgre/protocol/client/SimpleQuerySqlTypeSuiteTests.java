@@ -2,13 +2,24 @@ package io.jdbd.postgre.protocol.client;
 
 import io.jdbd.postgre.PgType;
 import io.jdbd.postgre.stmt.BindStmt;
+import io.jdbd.postgre.stmt.PgStmts;
+import io.jdbd.postgre.util.PgNumbers;
+import io.jdbd.postgre.util.PgStrings;
 import io.jdbd.result.ResultRow;
 import io.jdbd.result.ResultStates;
+import io.jdbd.vendor.stmt.StaticStmt;
 import org.testng.annotations.Test;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.io.IOException;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.text.DecimalFormat;
+import java.util.Locale;
+
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotNull;
 
 /**
  * <p>
@@ -481,6 +492,74 @@ public class SimpleQuerySqlTypeSuiteTests extends AbstractStmtTaskTests {
     @Test
     public void byteaArrayBindAndExtract() {
         doByteaArrayBindAndExtract();
+    }
+
+
+    /**
+     * @see PgType#MONEY_ARRAY
+     */
+    @Test
+    public void moneyArrayBindAndExtract() {
+        doMoneyArrayBindAndExtract();
+    }
+
+
+    /**
+     * @see io.jdbd.postgre.util.PgNumbers#getMoneyFormat(Locale)
+     */
+    @Test
+    public void validateMoneyFormat() {
+        final ClientProtocol protocol;
+        protocol = obtainProtocolWithSync();
+        final TaskAdjutant adjutant = mapToTaskAdjutant(protocol);
+        Locale currentLocale = null;
+        ////SET lc_monetary = 'fr_BE.UTF-8';SELECT '3232333.11'::money as "positive",'0.00'::money as "zero" ,'-6676666533.16'::money as "negative"
+        final BigDecimal positive = new BigDecimal("+92233720368547758.07"), negative = new BigDecimal("-92233720368547758.08");
+        DecimalFormat format = null;
+        try {
+            final Locale[] locales = Locale.getAvailableLocales();
+
+            for (Locale locale : locales) {
+                if (!PgStrings.hasText(locale.getCountry())) {
+                    continue;
+                }
+                format = PgNumbers.getMoneyFormat(locale);
+                if (format == null) {
+                    continue;
+                }
+                currentLocale = locale;
+                StaticStmt stmt = PgStmts.stmt(String.format("SELECT '%s'::decimal::money as \"positive\",'0.00'::decimal::money as \"zero\" ,'%s'::decimal::money as \"negative\" ", positive.toPlainString(), negative.toPlainString()));
+
+                ResultRow row = SimpleQueryTask.update(PgStmts.stmt(String.format("SET lc_monetary = '%s.UTF-8'", locale)), adjutant)
+                        .thenMany(SimpleQueryTask.query(stmt, adjutant))
+                        .last()
+                        .block();
+                assertNotNull(row);
+
+                assertEquals(row.getNonNull("zero", BigDecimal.class).compareTo(BigDecimal.ZERO), 0, "zero");
+
+                if (format.getMaximumFractionDigits() == 0) {
+                    BigDecimal v;
+                    v = positive.setScale(0, RoundingMode.DOWN);
+                    assertEquals(row.getNonNull("positive", BigDecimal.class).compareTo(v), 0, "positive");
+                    v = negative.setScale(0, RoundingMode.DOWN);
+                    assertEquals(row.getNonNull("negative", BigDecimal.class).compareTo(v), 0, "negative");
+                } else {
+                    assertEquals(row.getNonNull("positive", BigDecimal.class), positive, "positive");
+                    assertEquals(row.getNonNull("negative", BigDecimal.class), negative, "negative");
+                }
+
+
+            }
+        } catch (Throwable e) {
+            if (format != null) {
+                log.info("locale[{}] ,positive[{}] negative[{}]", currentLocale, format.format(positive), format.format(negative));
+            }
+            throw e;
+        } finally {
+            releaseConnection(protocol);
+        }
+
     }
 
 

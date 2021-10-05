@@ -13,6 +13,7 @@ import io.jdbd.postgre.util.PgTimes;
 import io.jdbd.result.ResultRow;
 import io.jdbd.result.ResultStates;
 import io.jdbd.type.Interval;
+import io.jdbd.type.LongBinary;
 import io.jdbd.type.geo.Line;
 import io.jdbd.type.geo.LineString;
 import io.jdbd.type.geometry.Circle;
@@ -27,6 +28,7 @@ import java.io.IOException;
 import java.lang.reflect.Array;
 import java.math.BigDecimal;
 import java.math.BigInteger;
+import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.time.*;
 import java.time.format.DateTimeFormatter;
@@ -2149,7 +2151,8 @@ abstract class AbstractStmtTaskTests extends AbstractTaskTests {
         String columnName;
         final long id = startId + 55;
         final PgType pgType = PgType.BYTEA_ARRAY;
-
+        final String[] textArray = new String[]{"Set 'army' \\''", " '\"'"};
+        final Charset charset = StandardCharsets.UTF_8;
         Object array;
         ResultRow row;
 
@@ -2157,6 +2160,81 @@ abstract class AbstractStmtTaskTests extends AbstractTaskTests {
         columnName = "my_bytea_array";
         testType(columnName, pgType, null, id);
 
+        array = new String[]{null};
+        row = testType(columnName, pgType, array, id);
+
+        row.getNonNull(columnName, byte[][].class);
+        row.getNonNull(columnName, LongBinary[].class);
+        row.getNonNull(columnName, byte[][][].class);
+        row.getNonNull(columnName, LongBinary[][].class);
+
+        array = new byte[][]{null};
+        testType(columnName, pgType, array, id);
+
+        row.getNonNull(columnName, byte[][].class);
+        row.getNonNull(columnName, LongBinary[].class);
+        row.getNonNull(columnName, byte[][][].class);
+        row.getNonNull(columnName, LongBinary[][].class);
+
+
+        array = textArray;
+        row = testType(columnName, pgType, array, id);
+        row.getNonNull(columnName, LongBinary[].class);
+
+        array = new byte[][]{textArray[0].getBytes(charset), textArray[1].getBytes(charset)};
+        testType(columnName, pgType, array, id);
+        row.getNonNull(columnName, LongBinary[].class);
+
+        // below two dimension array
+        columnName = "my_bytea_array_2";
+        testType(columnName, pgType, null, id);
+
+        array = new String[][]{null};
+        row = testType(columnName, pgType, array, id);
+
+        row.getNonNull(columnName, byte[][].class);
+        row.getNonNull(columnName, LongBinary[].class);
+        row.getNonNull(columnName, byte[][][].class);
+        row.getNonNull(columnName, LongBinary[][].class);
+
+        array = new byte[][][]{null};
+        testType(columnName, pgType, array, id);
+
+        row.getNonNull(columnName, byte[][].class);
+        row.getNonNull(columnName, LongBinary[].class);
+        row.getNonNull(columnName, byte[][][].class);
+        row.getNonNull(columnName, LongBinary[][].class);
+
+
+        array = new String[][]{textArray, textArray};
+        row = testType(columnName, pgType, array, id);
+        row.getNonNull(columnName, LongBinary[][].class);
+
+        array = new byte[][][]{{textArray[0].getBytes(charset), textArray[1].getBytes(charset)}, {textArray[0].getBytes(charset), textArray[1].getBytes(charset)}};
+        testType(columnName, pgType, array, id);
+        row.getNonNull(columnName, LongBinary[][].class);
+
+    }
+
+    /**
+     * @see PgType#MONEY_ARRAY
+     */
+    final void doMoneyArrayBindAndExtract() {
+        String columnName;
+        final long id = startId + 56;
+        final PgType pgType = PgType.MONEY_ARRAY;
+        Object array;
+        ResultRow row;
+
+        // below one dimension array
+        columnName = "my_money_array";
+        testType(columnName, pgType, null, id);
+
+        array = new BigDecimal[]{BigDecimal.ONE, BigDecimal.ZERO, new BigDecimal("343.34"), new BigDecimal("-343.34"), null};
+        row = testType(columnName, pgType, array, id);
+        row.getNonNull(columnName, String[].class);
+
+        //lc_monetary default is  zh_CN.UTF-8 ,@see #createDefaultSessionAdjutant()
 
     }
 

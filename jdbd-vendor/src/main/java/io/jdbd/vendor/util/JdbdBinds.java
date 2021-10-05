@@ -5,7 +5,6 @@ import io.jdbd.meta.SQLType;
 import io.jdbd.type.Interval;
 import io.jdbd.vendor.stmt.ParamBatchStmt;
 import io.jdbd.vendor.stmt.ParamValue;
-import org.qinarmy.util.Pair;
 import org.reactivestreams.Publisher;
 import reactor.util.annotation.Nullable;
 
@@ -54,29 +53,6 @@ public abstract class JdbdBinds {
             }
         }
         return has;
-    }
-
-
-    /**
-     * <p>
-     * Get component class and dimension of array.
-     * </p>
-     *
-     * @param arrayClass class of Array.
-     * @return pair, first: component class,second,dimension of array.
-     */
-    public static Pair<Class<?>, Integer> getArrayDimensions(final Class<?> arrayClass) {
-        if (!arrayClass.isArray()) {
-            throw new IllegalArgumentException(String.format("%s isn't Array type.", arrayClass.getName()));
-        }
-        Class<?> componentClass = arrayClass.getComponentType();
-        int dimensions = 1;
-        while (componentClass.isArray()) {
-            dimensions++;
-            componentClass = componentClass.getComponentType();
-
-        }
-        return new Pair<>(componentClass, dimensions);
     }
 
 

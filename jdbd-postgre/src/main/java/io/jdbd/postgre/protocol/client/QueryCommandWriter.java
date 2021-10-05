@@ -428,8 +428,7 @@ final class QueryCommandWriter {
             case BYTEA_ARRAY:
             case JSON_ARRAY:
             case JSONB_ARRAY: {
-                final Class<?> valueClass = bindValue.getNonNull().getClass();
-                if (valueClass == byte[].class || valueClass.isArray()) {
+                if (bindValue.getNonNull().getClass().isArray()) {
                     throw new IllegalArgumentException("bindValue error");
                 }
                 bindNonNullToString(batchIndex, bindValue, message);
@@ -520,6 +519,10 @@ final class QueryCommandWriter {
                 v = PgBinds.bindNonNullMoneyArray(batchIndex, bindValue.getType(), bindValue);
             }
             break;
+            case BYTEA_ARRAY: {
+                v = PgBinds.bindNonNullByteaArray(batchIndex, bindValue.getType(), bindValue, this.clientCharset);
+            }
+            break;
             case NUMRANGE_ARRAY:
             case DATERANGE_ARRAY:
             case INT4RANGE_ARRAY:
@@ -542,7 +545,6 @@ final class QueryCommandWriter {
                 v = PgBinds.bindNonNullSafeTextArray(batchIndex, bindValue.getType(), bindValue);
             }
             break;
-            case BYTEA_ARRAY:
             case TSVECTOR_ARRAY:
             case TSQUERY_ARRAY:
             case TEXT_ARRAY:
@@ -551,7 +553,7 @@ final class QueryCommandWriter {
             case VARCHAR_ARRAY:
             case JSON_ARRAY:
             case JSONB_ARRAY: {
-                v = PgBinds.bindNonNullEscapesTextArray(batchIndex, bindValue.getType(), bindValue, this.clientCharset);
+                v = PgBinds.bindNonNullEscapesTextArray(batchIndex, bindValue.getType(), bindValue);
             }
             break;
             case REF_CURSOR_ARRAY: {
@@ -679,14 +681,40 @@ final class QueryCommandWriter {
             throw PgExceptions.createNotSupportBindTypeError(batchIndex, bindValue);
         }
         message.writeByte(PgConstant.QUOTE_BYTE);
-        if (this.hexEscapes) {
+        message.writeByte(PgConstant.BACK_SLASH_BYTE);
+        message.writeByte('x');
+        message.writeBytes(PgBuffers.hexEscapes(true, v, v.length));
+        message.writeByte(PgConstant.QUOTE_BYTE);
+
+    }
+
+    /**
+     * @see #bindNonNullToBytea(int, BindValue, ByteBuf)
+     */
+    private void writeBinaryPathWithEscapes(final int batchIndex, BindValue bindValue, ByteBuf message)
+            throws LongDataReadException {
+        final Path path = (Path) bindValue.getNonNull();
+
+        try (FileChannel channel = FileChannel.open(path, StandardOpenOption.READ)) {
+
+            message.writeByte(PgConstant.QUOTE_BYTE);
             message.writeByte(PgConstant.BACK_SLASH_BYTE);
             message.writeByte('x');
-            message.writeBytes(PgBuffers.hexEscapes(true, v, v.length));
-        } else {
-            writeWithEscape(message, v, v.length);
+
+            final byte[] bufferArray = new byte[2048];
+            final ByteBuffer buffer = ByteBuffer.wrap(bufferArray);
+            while (channel.read(buffer) > 0) {
+                buffer.flip();
+                message.writeBytes(PgBuffers.hexEscapes(true, bufferArray, buffer.remaining()));
+                buffer.clear();
+            }
+            message.writeByte(PgConstant.QUOTE_BYTE);
+        } catch (Throwable e) {
+            String msg = String.format("batch[%s] parameter[%s] %s read occur error."
+                    , batchIndex, bindValue.getIndex(), path);
+            throw new LongDataReadException(msg, e);
         }
-        message.writeByte(PgConstant.QUOTE_BYTE);
+
     }
 
 
@@ -896,44 +924,6 @@ final class QueryCommandWriter {
 
 
     /**
-     * @see #bindNonNullToBytea(int, BindValue, ByteBuf)
-     */
-    private void writeBinaryPathWithEscapes(final int batchIndex, BindValue bindValue, ByteBuf message)
-            throws LongDataReadException {
-        final Path path = (Path) bindValue.getNonNull();
-
-        try (FileChannel channel = FileChannel.open(path, StandardOpenOption.READ)) {
-
-            final boolean hexEscapes = this.hexEscapes;
-
-            message.writeByte(PgConstant.QUOTE_BYTE);
-            if (hexEscapes) {
-                message.writeByte(PgConstant.BACK_SLASH_BYTE);
-                message.writeByte('x');
-            }
-
-            final byte[] bufferArray = new byte[2048];
-            final ByteBuffer buffer = ByteBuffer.wrap(bufferArray);
-            while (channel.read(buffer) > 0) {
-                buffer.flip();
-                if (hexEscapes) {
-                    message.writeBytes(PgBuffers.hexEscapes(true, bufferArray, buffer.remaining()));
-                } else {
-                    writeWithEscape(message, bufferArray, buffer.remaining());
-                }
-                buffer.clear();
-            }
-            message.writeByte(PgConstant.QUOTE_BYTE);
-        } catch (Throwable e) {
-            String msg = String.format("batch[%s] parameter[%s] %s read occur error."
-                    , batchIndex, bindValue.getIndex(), path);
-            throw new LongDataReadException(msg, e);
-        }
-
-    }
-
-
-    /**
      * @see #bindNonNullToString(int, BindValue, ByteBuf)
      * @see #bindNonNullToBytea(int, BindValue, ByteBuf)
      * @see #writeBinaryPathWithEscapes(int, BindValue, ByteBuf)
@@ -945,7 +935,7 @@ final class QueryCommandWriter {
         }
         int lastWritten = 0;
         byte b;
-        for (int i = 0; i < bytes.length; i++) {
+        for (int i = 0; i < length; i++) {
             b = bytes[i];
             if (b == PgConstant.QUOTE_BYTE) {
                 if (i > lastWritten) {
@@ -968,5 +958,6 @@ final class QueryCommandWriter {
         }
 
     }
+
 
 }

@@ -17,6 +17,7 @@ public interface PgConstant {
     byte BACK_SLASH_BYTE = '\\';
     byte QUOTE_BYTE = '\'';
     byte SEMICOLON_BYTE = ';';
+    byte EMPTY_BYTE = '\0';
 
     char QUOTE = '\'';
 
