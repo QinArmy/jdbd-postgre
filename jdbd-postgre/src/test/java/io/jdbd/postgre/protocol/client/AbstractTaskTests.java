@@ -63,7 +63,7 @@ abstract class AbstractTaskTests {
 
     static <T> Mono<T> releaseConnection(ClientProtocol protocol) {
         return protocol.reset()
-                .doAfterTerminate(() -> PROTOCOL_QUEUE.offer(protocol))
+                .doOnSuccess(v -> PROTOCOL_QUEUE.offer(protocol))
                 .then(Mono.empty());
     }
 
@@ -80,8 +80,12 @@ abstract class AbstractTaskTests {
 
     static SessionAdjutant createDefaultSessionAdjutant() {
         Map<String, String> propMap = new HashMap<>();
-        propMap.put(PgKey.lc_monetary.getKey(), "en_US.UTF-8");
+        propMap.put(PgKey.lc_monetary.getKey(), getDefaultLcMonetary() + ".UTF-8");
         return new SessionAdjutantImpl(ClientTestUtils.createUrl(propMap));
+    }
+
+    static Locale getDefaultLcMonetary() {
+        return Locale.CHINA;
     }
 
 

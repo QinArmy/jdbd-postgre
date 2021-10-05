@@ -632,20 +632,9 @@ public abstract class PgBinds extends JdbdBinds {
         final Class<?> arrayType = obtainArrayType(batchIndex, pgType, paramValue);
         final Function<Object, String> function;
         if (arrayType == BigDecimal.class) {
-            function = nonNull -> String.format("", ((BigDecimal) nonNull).toPlainString());
-        } else if (arrayType == String.class || arrayType == Object.class) {
-            function = nonNull -> {
-                final String result;
-                if (nonNull instanceof BigDecimal) {
-                    result = ((BigDecimal) nonNull).toPlainString();
-                } else if (nonNull instanceof String) {
-                    result = textEscapesFunction(nonNull);
-                } else {
-                    SQLException e = JdbdExceptions.createNonSupportBindSqlTypeError(batchIndex, pgType, paramValue);
-                    throw new JdbdSQLException(e);
-                }
-                return result;
-            };
+            function = nonNull -> ((BigDecimal) nonNull).toPlainString();
+        } else if (arrayType == String.class) {
+            function = PgBinds::textEscapesFunction;
         } else {
             throw JdbdExceptions.createNonSupportBindSqlTypeError(batchIndex, pgType, paramValue);
         }

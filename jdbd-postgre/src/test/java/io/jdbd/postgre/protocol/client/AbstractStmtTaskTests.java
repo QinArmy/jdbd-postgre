@@ -8,6 +8,7 @@ import io.jdbd.postgre.stmt.BindStmt;
 import io.jdbd.postgre.stmt.BindValue;
 import io.jdbd.postgre.stmt.PgStmts;
 import io.jdbd.postgre.type.*;
+import io.jdbd.postgre.util.PgNumbers;
 import io.jdbd.postgre.util.PgStrings;
 import io.jdbd.postgre.util.PgTimes;
 import io.jdbd.result.ResultRow;
@@ -30,6 +31,7 @@ import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
+import java.text.DecimalFormat;
 import java.time.*;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
@@ -2226,15 +2228,55 @@ abstract class AbstractStmtTaskTests extends AbstractTaskTests {
         Object array;
         ResultRow row;
 
+        final BigDecimal[] decimalArray = new BigDecimal[]{BigDecimal.ONE, BigDecimal.ZERO
+                , new BigDecimal("-92233720368547758.08"), new BigDecimal("+92233720368547758.07")
+                , null};
+        final String[] moneyArray = new String[decimalArray.length];
+        final DecimalFormat format = PgNumbers.getMoneyFormat(getDefaultLcMonetary());
+        Objects.requireNonNull(format);
+
+        for (int i = 0; i < decimalArray.length; i++) {
+            if (decimalArray[i] == null) {
+                moneyArray[i] = null;
+                continue;
+            }
+            moneyArray[i] = format.format(decimalArray[i]);
+            log.debug("moneyArray[{}]:{}", i, moneyArray[i]);
+        }
+
         // below one dimension array
         columnName = "my_money_array";
         testType(columnName, pgType, null, id);
 
-        array = new BigDecimal[]{BigDecimal.ONE, BigDecimal.ZERO, new BigDecimal("343.34"), new BigDecimal("-343.34"), null};
+        array = new BigDecimal[]{null};
+        row = testType(columnName, pgType, array, id);
+        row.getNonNull(columnName, BigDecimal[].class);
+        row.getNonNull(columnName, BigDecimal[][].class);
+
+        array = decimalArray;
         row = testType(columnName, pgType, array, id);
         row.getNonNull(columnName, String[].class);
 
-        //lc_monetary default is  zh_CN.UTF-8 ,@see #createDefaultSessionAdjutant()
+        array = moneyArray;
+        row = testType(columnName, pgType, array, id);
+        row.getNonNull(columnName, BigDecimal[].class);
+
+        // below two dimension array
+        columnName = "my_money_array_2";
+        testType(columnName, pgType, null, id);
+
+        array = new BigDecimal[][]{null};
+        row = testType(columnName, pgType, array, id);
+        row.getNonNull(columnName, BigDecimal[].class);
+        row.getNonNull(columnName, BigDecimal[][].class);
+
+        array = new BigDecimal[][]{decimalArray};
+        row = testType(columnName, pgType, array, id);
+        row.getNonNull(columnName, String[][].class);
+
+        array = new String[][]{moneyArray};
+        row = testType(columnName, pgType, array, id);
+        row.getNonNull(columnName, BigDecimal[][].class);
 
     }
 
@@ -2576,6 +2618,9 @@ abstract class AbstractStmtTaskTests extends AbstractTaskTests {
             case INTERVAL_ARRAY:
                 assertIntervalArray(columnName, row, nonNull);
                 break;
+            case MONEY_ARRAY:
+                assertMoneyArray(columnName, row, nonNull);
+                break;
             default: {
                 assertEquals(row.get(columnName, nonNull.getClass()), nonNull, columnName);
             }
@@ -2619,6 +2664,33 @@ abstract class AbstractStmtTaskTests extends AbstractTaskTests {
             }
         }
         return false;
+    }
+
+    private void assertMoneyArray(final String columnName, final ResultRow row, final Object nonNull) {
+        final Object result = row.get(columnName, nonNull.getClass());
+        assertTrue(nonNull.getClass().isInstance(result), columnName);
+        final BiPredicate<Object, Object> function = (value, resultValue) -> {
+            final boolean match;
+            if (value instanceof BigDecimal) {
+                match = ((BigDecimal) value).compareTo((BigDecimal) resultValue) == 0;
+            } else if (value instanceof String) {
+                String v = (String) value, r = (String) resultValue;
+                if (v.endsWith(".00") || v.equals(".0")) {
+                    v = v.substring(0, v.length() - 3);
+                }
+                if (r.endsWith(".00") || r.equals(".0")) {
+                    r = r.substring(0, r.length() - 3);
+                }
+                match = v.equals(r);
+            } else {
+                throw new IllegalArgumentException(String.format("value type[%s] unknown.", value.getClass().getName()));
+            }
+            if (!match) {
+                log.debug("money array value:{},money result value:{}", value, resultValue);
+            }
+            return match;
+        };
+        assertArray(columnName, nonNull, result, function);
     }
 
     private void assertIntervalArray(final String columnName, final ResultRow row, final Object nonNull) {

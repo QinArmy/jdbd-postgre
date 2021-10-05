@@ -24,6 +24,7 @@ import org.qinarmy.util.Pair;
 import org.qinarmy.util.Stack;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import reactor.util.annotation.Nullable;
 
 import java.lang.reflect.Array;
 import java.math.BigDecimal;
@@ -568,7 +569,7 @@ abstract class ColumnArrays {
      * @throws io.jdbd.result.UnsupportedConvertingException when targetArrayClass and value not match.
      */
     static Object readMoneyArray(final String value, final PgColumnMeta meta, final Class<?> targetArrayClass
-            , final DecimalFormat format) {
+            , final @Nullable DecimalFormat format) {
         if (targetArrayClass != BigDecimal.class && targetArrayClass != String.class) {
             throw PgResultRow.notSupportConverting(meta, targetArrayClass);
         }

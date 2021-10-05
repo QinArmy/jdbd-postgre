@@ -23,7 +23,7 @@ public abstract class PgNumbers extends JdbdNumbers {
         df.setRoundingMode(RoundingMode.HALF_UP);
 
         df.setMaximumIntegerDigits(17);
-        df.setMinimumIntegerDigits(17);
+        df.setMinimumIntegerDigits(1);
         df.setMaximumFractionDigits(2);
         df.setMinimumFractionDigits(0);
 
@@ -122,7 +122,7 @@ public abstract class PgNumbers extends JdbdNumbers {
             case "is_IS": {
                 symbols.setMonetaryDecimalSeparator('\0');
                 symbols.setGroupingSeparator('.');
-                df.setMaximumFractionDigits(0);
+                df.setMaximumFractionDigits(0); // ICELAND currency no fraction
 
                 df.setPositivePrefix("");
                 df.setPositiveSuffix(" kr");
@@ -154,7 +154,7 @@ public abstract class PgNumbers extends JdbdNumbers {
             case "ko_KR": {
                 symbols.setMonetaryDecimalSeparator('\0');
                 symbols.setGroupingSeparator(',');
-                df.setMaximumFractionDigits(0);
+                df.setMaximumFractionDigits(0);// KOREA currency no fraction
 
                 df.setPositivePrefix("₩");
                 df.setPositiveSuffix("");
@@ -215,7 +215,7 @@ public abstract class PgNumbers extends JdbdNumbers {
             case "ja_JP": {
                 symbols.setMonetaryDecimalSeparator('.');
                 symbols.setGroupingSeparator(',');
-                df.setMaximumFractionDigits(0);
+                df.setMaximumFractionDigits(0); // Japan yuan no fraction
 
                 df.setPositivePrefix("¥");
                 df.setPositiveSuffix("");

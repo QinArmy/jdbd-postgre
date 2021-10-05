@@ -242,11 +242,7 @@ public class PgResultRow extends AbstractResultRow<PgRowMeta> {
             }
             break;
             case MONEY_ARRAY: {
-                final DecimalFormat format = this.rowMeta.moneyFormat;
-                if (format == null) {
-                    throw moneyCannotConvertException(meta);
-                }
-                value = ColumnArrays.readMoneyArray(textValue, meta, targetArrayClass, format);
+                value = ColumnArrays.readMoneyArray(textValue, meta, targetArrayClass, this.rowMeta.moneyFormat);
             }
             break;
             case UUID_ARRAY: {
@@ -644,7 +640,7 @@ public class PgResultRow extends AbstractResultRow<PgRowMeta> {
         return createResponseTextColumnValueError(null, meta, textValue);
     }
 
-    private static UnsupportedConvertingException moneyCannotConvertException(final PgColumnMeta meta) {
+    static UnsupportedConvertingException moneyCannotConvertException(final PgColumnMeta meta) {
         String format;
         format = "Column[index:%s,label:%s] %s.getCurrencyInstance(Locale) method don't return %s instance,so can't convert postgre %s type to java type BigDecimal,jdbd-postgre need to upgrade.";
         String msg = String.format(format

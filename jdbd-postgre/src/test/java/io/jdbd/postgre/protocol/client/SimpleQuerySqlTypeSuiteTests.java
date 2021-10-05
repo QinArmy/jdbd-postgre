@@ -517,6 +517,7 @@ public class SimpleQuerySqlTypeSuiteTests extends AbstractStmtTaskTests {
         final BigDecimal positive = new BigDecimal("+92233720368547758.07"), negative = new BigDecimal("-92233720368547758.08");
         DecimalFormat format = null;
         try {
+
             final Locale[] locales = Locale.getAvailableLocales();
 
             for (Locale locale : locales) {
@@ -557,7 +558,8 @@ public class SimpleQuerySqlTypeSuiteTests extends AbstractStmtTaskTests {
             }
             throw e;
         } finally {
-            releaseConnection(protocol);
+            releaseConnection(protocol)
+                    .block();
         }
 
     }

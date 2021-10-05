@@ -6,6 +6,7 @@ import io.jdbd.postgre.Server;
 import io.jdbd.postgre.ServerParameter;
 import io.jdbd.postgre.config.PgKey;
 import io.jdbd.postgre.session.SessionAdjutant;
+import io.jdbd.postgre.stmt.PgStmts;
 import io.jdbd.postgre.util.PgStrings;
 import io.jdbd.result.Result;
 import io.jdbd.result.ResultRow;
@@ -70,8 +71,13 @@ public abstract class ClientProtocolFactory {
         }
 
         @Override
-        public final Mono<Void> reset(Map<String, String> initializedParamMap) {
-            return Mono.empty();
+        public final Mono<Void> reset(final Map<String, String> initializedParamMap) {
+            final List<String> sqlGroup = new ArrayList<>(initializedParamMap.size());
+            for (Map.Entry<String, String> e : initializedParamMap.entrySet()) {
+                sqlGroup.add(String.format("SET %s = '%s'", e.getKey(), e.getValue()));
+            }
+            return SimpleQueryTask.batchUpdate(PgStmts.group(sqlGroup), this.executor.taskAdjutant())
+                    .then();
         }
 
         @Override

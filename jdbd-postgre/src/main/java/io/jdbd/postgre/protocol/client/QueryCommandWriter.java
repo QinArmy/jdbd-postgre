@@ -10,10 +10,7 @@ import io.jdbd.postgre.stmt.BindStmt;
 import io.jdbd.postgre.stmt.BindValue;
 import io.jdbd.postgre.syntax.PgParser;
 import io.jdbd.postgre.syntax.PgStatement;
-import io.jdbd.postgre.util.PgBinds;
-import io.jdbd.postgre.util.PgBuffers;
-import io.jdbd.postgre.util.PgExceptions;
-import io.jdbd.postgre.util.PgTimes;
+import io.jdbd.postgre.util.*;
 import io.jdbd.stmt.LongDataReadException;
 import io.jdbd.vendor.stmt.StaticBatchStmt;
 import io.jdbd.vendor.syntax.SQLParser;
@@ -568,6 +565,12 @@ final class QueryCommandWriter {
         writeWithEscape(message, bytes, bytes.length);
         message.writeByte(PgConstant.QUOTE_BYTE);
 
+        if (bindValue.getType() == PgType.MONEY_ARRAY
+                && PgArrays.getArrayDimensions(bindValue.getNonNull().getClass()).getFirst() == BigDecimal.class) {
+            final String convert = "::decimal[]::money[]";
+            message.writeBytes(convert.getBytes(this.clientCharset));
+        }
+
     }
 
 
@@ -647,6 +650,7 @@ final class QueryCommandWriter {
             message.writeByte(PgConstant.QUOTE_BYTE);
             message.writeBytes(bytes);
             message.writeByte(PgConstant.QUOTE_BYTE);
+            message.writeBytes("::decimal::money".getBytes(this.clientCharset));
         } else if (nonNull instanceof String) {
             message.writeByte('E');
             message.writeByte(PgConstant.QUOTE_BYTE);
@@ -656,6 +660,7 @@ final class QueryCommandWriter {
         } else {
             throw PgExceptions.createNotSupportBindTypeError(batchIndex, bindValue);
         }
+
 
     }
 
