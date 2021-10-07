@@ -503,6 +503,14 @@ public class SimpleQuerySqlTypeSuiteTests extends AbstractStmtTaskTests {
         doMoneyArrayBindAndExtract();
     }
 
+    /**
+     * @see PgType#VARCHAR_ARRAY
+     */
+    @Test
+    public void varCharArrayBindAndExtract() {
+        doVarCharArrayBindAndExtract();
+    }
+
 
     /**
      * @see io.jdbd.postgre.util.PgNumbers#getMoneyFormat(Locale)

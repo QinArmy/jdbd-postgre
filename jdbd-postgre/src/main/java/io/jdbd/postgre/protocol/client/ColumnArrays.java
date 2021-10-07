@@ -998,14 +998,34 @@ abstract class ColumnArrays {
 
 
     private static int getArrayDimension(final char[] charArray, final PgColumnMeta meta) {
-        int dimension = 0;
-        for (char c : charArray) {
-            if (c == '{') {
-                dimension++;
-            } else if (!Character.isWhitespace(c)) {
+        int i = 0;
+        for (; i < charArray.length; i++) {
+            if (!Character.isWhitespace(charArray[i])) {
                 break;
             }
         }
+
+        int dimension = 0;
+        if (charArray[i] == '[') {
+            final char[] symbols = new char[]{'[', ':', ']'};
+            char c;
+            for (int from, to, s = 0; i < charArray.length; i++) {
+                c = charArray[i];
+                if (c == symbols[s]) {
+
+                }
+            }
+        } else {
+            for (; i < charArray.length; i++) {
+                char c = charArray[i];
+                if (c == '{') {
+                    dimension++;
+                } else if (!Character.isWhitespace(c)) {
+                    break;
+                }
+            }
+        }
+
         if (dimension < 1) {
             throw arrayFormatError(meta);
         }

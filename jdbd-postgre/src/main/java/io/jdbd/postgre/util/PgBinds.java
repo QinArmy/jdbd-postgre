@@ -672,14 +672,18 @@ public abstract class PgBinds extends JdbdBinds {
             throw JdbdExceptions.createNonSupportBindSqlTypeError(batchIndex, pgType, paramValue);
         }
         final Function<Object, String> function = nonNull -> {
-            final String v = (String) nonNull;
-            if (v.indexOf(PgConstant.QUOTE) >= 0
-                    || v.indexOf(PgConstant.DOUBLE_QUOTE) >= 0
-                    || v.charAt(v.length() - 1) == PgConstant.BACK_SLASH) {
-                SQLException e = JdbdExceptions.outOfTypeRange(batchIndex, pgType, paramValue);
-                throw new JdbdSQLException(e);
+            for (char c : ((String) nonNull).toCharArray()) {
+                switch (c) {
+                    case PgConstant.BACK_SLASH:
+                    case PgConstant.DOUBLE_QUOTE:
+                        SQLException e;
+                        e = JdbdExceptions.createNonSupportBindSqlTypeError(batchIndex, pgType, paramValue);
+                        throw new JdbdSQLException(e);
+                    default:
+                        //no-op
+                }
             }
-            return PgConstant.DOUBLE_QUOTE + v + PgConstant.DOUBLE_QUOTE;
+            return PgConstant.DOUBLE_QUOTE + ((String) nonNull) + PgConstant.DOUBLE_QUOTE;
         };
 
         return bindNonNullToArray(batchIndex, pgType, paramValue, function);

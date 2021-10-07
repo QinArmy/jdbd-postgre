@@ -15,6 +15,7 @@ import io.jdbd.stmt.LongDataReadException;
 import io.jdbd.vendor.stmt.StaticBatchStmt;
 import io.jdbd.vendor.syntax.SQLParser;
 import io.netty.buffer.ByteBuf;
+import org.qinarmy.util.Pair;
 import org.reactivestreams.Publisher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -565,10 +566,22 @@ final class QueryCommandWriter {
         writeWithEscape(message, bytes, bytes.length);
         message.writeByte(PgConstant.QUOTE_BYTE);
 
-        if (bindValue.getType() == PgType.MONEY_ARRAY
-                && PgArrays.getArrayDimensions(bindValue.getNonNull().getClass()).getFirst() == BigDecimal.class) {
-            final String convert = "::decimal[]::money[]";
-            message.writeBytes(convert.getBytes(this.clientCharset));
+        if (bindValue.getType() == PgType.MONEY_ARRAY) {
+            // decimal array must append type converting or result error.
+            final Pair<Class<?>, Integer> pair = PgArrays.getArrayDimensions(bindValue.getNonNull().getClass());
+            if (pair.getFirst() == BigDecimal.class) {
+                final int dimension = pair.getSecond();
+                final StringBuilder builder = new StringBuilder(16 + (dimension << 2));
+                builder.append("::decimal");
+                for (int i = 0; i < dimension; i++) {
+                    builder.append("[]");
+                }
+                builder.append("::money");
+                for (int i = 0; i < dimension; i++) {
+                    builder.append("[]");
+                }
+                message.writeBytes(builder.toString().getBytes(this.clientCharset));
+            }
         }
 
     }

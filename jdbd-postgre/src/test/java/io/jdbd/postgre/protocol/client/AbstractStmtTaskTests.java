@@ -2280,6 +2280,56 @@ abstract class AbstractStmtTaskTests extends AbstractTaskTests {
 
     }
 
+    /**
+     * @see PgType#VARCHAR_ARRAY
+     */
+    final void doVarCharArrayBindAndExtract() {
+        String columnName;
+        final long id = startId + 57;
+        final PgType pgType = PgType.VARCHAR_ARRAY;
+        Object array;
+        ResultRow row;
+        final String[] textArray = new String[]{"SET name = 'army' , { } } \\ ' \" \"QinArmy\"", "\n \" ' \033", null};
+
+        // below one dimension array
+        columnName = "my_varchar_array";
+        testType(columnName, pgType, null, id);
+
+        array = new String[]{null};
+        row = testType(columnName, pgType, array, id);
+        row.getNonNull(columnName, String[].class);
+        row.getNonNull(columnName, String[][].class);
+
+        array = textArray;
+        testType(columnName, pgType, array, id);
+
+
+        // below two dimension array
+        columnName = "my_varchar_array_2";
+        testType(columnName, pgType, null, id);
+
+        array = new String[]{null};
+        row = testType(columnName, pgType, array, id);
+        row.getNonNull(columnName, String[][].class);
+        row.getNonNull(columnName, String[][][].class);
+
+        array = new String[][]{textArray, textArray, textArray};
+        testType(columnName, pgType, array, id);
+
+
+        // below four dimension array
+        columnName = "my_varchar_array_4";
+        testType(columnName, pgType, null, id);
+
+        array = new String[]{null};
+        row = testType(columnName, pgType, array, id);
+        row.getNonNull(columnName, String[][][][].class);
+        row.getNonNull(columnName, String[][][][][].class);
+
+        array = new String[][][][]{{{textArray, textArray}, {textArray, textArray}}, {{textArray, textArray}, {textArray, textArray}}};
+        testType(columnName, pgType, array, id);
+    }
+
     private ResultRow testType(final String columnName, final PgType columnType
             , final @Nullable Object value, final long id) {
         assertNotEquals(columnName, "id", "can't be id");
