@@ -39,6 +39,18 @@ public abstract class JdbdStrings extends StringUtils {
 
     }
 
+    /**
+     * @throws IllegalArgumentException when enumClass not enum.
+     */
+    public static <T extends Enum<T>> T parseEnumValue(final Class<?> enumClass, final String textValue) {
+        if (!enumClass.isEnum()) {
+            throw new IllegalArgumentException(String.format("enumClass[%s] isn't enum.", enumClass));
+        }
+        @SuppressWarnings("unchecked")
+        Class<T> clazz = (Class<T>) enumClass;
+        return Enum.valueOf(clazz, textValue);
+    }
+
 
     public static String decodeUrlPart(final String urlPart) {
         final String decoded;

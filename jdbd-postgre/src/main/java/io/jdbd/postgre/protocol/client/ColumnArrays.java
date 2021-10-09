@@ -2,6 +2,7 @@ package io.jdbd.postgre.protocol.client;
 
 import io.jdbd.postgre.PgConstant;
 import io.jdbd.postgre.PgJdbdException;
+import io.jdbd.postgre.PgType;
 import io.jdbd.postgre.type.PgBox;
 import io.jdbd.postgre.type.PgGeometries;
 import io.jdbd.postgre.type.PgLine;
@@ -10,6 +11,7 @@ import io.jdbd.postgre.util.PgArrays;
 import io.jdbd.postgre.util.PgBuffers;
 import io.jdbd.postgre.util.PgStrings;
 import io.jdbd.postgre.util.PgTimes;
+import io.jdbd.result.UnsupportedConvertingException;
 import io.jdbd.type.Interval;
 import io.jdbd.type.LongBinary;
 import io.jdbd.type.geo.Line;
@@ -31,10 +33,7 @@ import java.math.BigDecimal;
 import java.nio.charset.Charset;
 import java.text.DecimalFormat;
 import java.time.*;
-import java.util.BitSet;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.UUID;
+import java.util.*;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 
@@ -642,8 +641,8 @@ abstract class ColumnArrays {
                     return;
                 }
                 byte[] bytes;
-                if (nullable.startsWith("\\\\x")) {
-                    bytes = nullable.substring(3).getBytes(charset);
+                if (nullable.startsWith("\\x")) {
+                    bytes = nullable.substring(2).getBytes(charset);
                     bytes = PgBuffers.decodeHex(bytes, bytes.length);
                 } else {
                     bytes = nullable.getBytes(charset);
@@ -676,9 +675,7 @@ abstract class ColumnArrays {
     }
 
     static Object readTextArray(final String value, final PgColumnMeta meta, final Class<?> targetArrayClass) {
-        if (targetArrayClass != String.class && targetArrayClass != LongString.class) {
-            throw PgResultRow.notSupportConverting(meta, targetArrayClass);
-        }
+
         final BiFunction<char[], Integer, ArrayPair> function = (charArray, index) -> {
             final List<Object> list = new LinkedList<>();
             final Consumer<String> consumer = nullable -> {
@@ -686,19 +683,41 @@ abstract class ColumnArrays {
                     list.add(null);
                 } else if (targetArrayClass == String.class) {
                     list.add(nullable);
-                } else {
+                } else if (targetArrayClass == LongString.class) {
                     list.add(LongStrings.fromString(nullable));
+                } else if (targetArrayClass.isEnum()) {
+                    try {
+                        list.add(PgStrings.parseEnumValue(targetArrayClass, nullable));
+                    } catch (IllegalArgumentException e) {
+                        throw PgResultRow.notSupportConverting(meta, targetArrayClass);
+                    }
+                } else {
+                    throw PgResultRow.notSupportConverting(meta, targetArrayClass);
                 }
             };
             final int endIndex;
             endIndex = readOneDimensionArray(charArray, index, meta, consumer);
-            final Object[] array;
+            final Object array;
             if (targetArrayClass == String.class) {
-                array = new String[list.size()];
+                final Object[] v = new String[list.size()];
+                list.toArray(v);
+                array = v;
+            } else if (targetArrayClass == LongString.class) {
+                final Object[] v = new LongString[list.size()];
+                list.toArray(v);
+                array = v;
+            } else if (targetArrayClass.isEnum()) {
+                final int length = list.size();
+                array = Array.newInstance(targetArrayClass, length);
+                int i = 0;
+                for (Object v : list) {
+                    Array.set(array, i, v);
+                    i++;
+                }
             } else {
-                array = new LongString[list.size()];
+                throw PgResultRow.notSupportConverting(meta, targetArrayClass);
             }
-            return new ArrayPair(list.toArray(array), endIndex);
+            return new ArrayPair(array, endIndex);
         };
         return readArray(value, meta, function, targetArrayClass);
     }
@@ -747,121 +766,184 @@ abstract class ColumnArrays {
 
 
     static Object readPointArray(final String value, final PgColumnMeta meta, final Class<?> targetArrayClass) {
-        if (targetArrayClass != Point.class) {
-            throw PgResultRow.notSupportConverting(meta, targetArrayClass);
-        }
         final BiFunction<char[], Integer, ArrayPair> function = (charArray, index) -> {
-            final List<Point> list = new LinkedList<>();
+            final List<Object> list = new LinkedList<>();
             final Consumer<String> consumer = nullable -> {
                 if (nullable == null) {
                     list.add(null);
-                } else {
+                } else if (targetArrayClass == Point.class) {
                     list.add(PgGeometries.point(nullable));
+                } else if (targetArrayClass == String.class) {
+                    list.add(nullable);
+                } else {
+                    throw PgResultRow.notSupportConverting(meta, targetArrayClass);
                 }
             };
             final int endIndex;
             endIndex = readOneDimensionArray(charArray, index, meta, consumer);
-            return new ArrayPair(list.toArray(new Point[0]), endIndex);
+            final Object[] array;
+            if (targetArrayClass == Point.class) {
+                array = new Point[list.size()];
+            } else if (targetArrayClass == String.class) {
+                array = new String[list.size()];
+            } else {
+                throw PgResultRow.notSupportConverting(meta, targetArrayClass);
+            }
+            return new ArrayPair(list.toArray(array), endIndex);
         };
         return readArray(value, meta, function, targetArrayClass);
     }
 
     static Object readLineArray(final String value, final PgColumnMeta meta, final Class<?> targetArrayClass) {
-        if (targetArrayClass != PgLine.class) {
-            throw PgResultRow.notSupportConverting(meta, targetArrayClass);
-        }
         final BiFunction<char[], Integer, ArrayPair> function = (charArray, index) -> {
-            final List<PgLine> list = new LinkedList<>();
+            final List<Object> list = new LinkedList<>();
             final Consumer<String> consumer = nullable -> {
                 if (nullable == null) {
                     list.add(null);
-                } else {
+                } else if (targetArrayClass == PgLine.class) {
                     list.add(PgGeometries.line(nullable));
+                } else if (targetArrayClass == String.class) {
+                    list.add(nullable);
+                } else {
+                    throw PgResultRow.notSupportConverting(meta, targetArrayClass);
                 }
             };
             final int endIndex;
             endIndex = readOneDimensionArray(charArray, index, meta, consumer);
-            return new ArrayPair(list.toArray(new PgLine[0]), endIndex);
+            final Object[] array;
+            if (targetArrayClass == PgLine.class) {
+                array = new PgLine[list.size()];
+            } else if (targetArrayClass == String.class) {
+                array = new String[list.size()];
+            } else {
+                throw PgResultRow.notSupportConverting(meta, targetArrayClass);
+            }
+            return new ArrayPair(list.toArray(array), endIndex);
         };
         return readArray(value, meta, function, targetArrayClass);
     }
 
     static Object readLineSegmentArray(final String value, final PgColumnMeta meta, final Class<?> targetArrayClass) {
-        if (targetArrayClass != Line.class) {
-            throw PgResultRow.notSupportConverting(meta, targetArrayClass);
-        }
         final BiFunction<char[], Integer, ArrayPair> function = (charArray, index) -> {
-            final List<Line> list = new LinkedList<>();
+            final List<Object> list = new LinkedList<>();
             final Consumer<String> consumer = nullable -> {
                 if (nullable == null) {
                     list.add(null);
-                } else {
+                } else if (targetArrayClass == Line.class) {
                     list.add(PgGeometries.lineSegment(nullable));
+                } else if (targetArrayClass == String.class) {
+                    list.add(nullable);
+                } else {
+                    throw PgResultRow.notSupportConverting(meta, targetArrayClass);
                 }
             };
             final int endIndex;
             endIndex = readOneDimensionArray(charArray, index, meta, consumer);
-            return new ArrayPair(list.toArray(new Line[0]), endIndex);
+            final Object[] array;
+            if (targetArrayClass == Line.class) {
+                array = new Line[list.size()];
+            } else if (targetArrayClass == String.class) {
+                array = new String[list.size()];
+            } else {
+                throw PgResultRow.notSupportConverting(meta, targetArrayClass);
+            }
+            return new ArrayPair(list.toArray(array), endIndex);
         };
         return readArray(value, meta, function, targetArrayClass);
     }
 
     static Object readBoxArray(final String value, final PgColumnMeta meta, final Class<?> targetArrayClass) {
-        if (targetArrayClass != PgBox.class) {
-            throw PgResultRow.notSupportConverting(meta, targetArrayClass);
-        }
         final BiFunction<char[], Integer, ArrayPair> function = (charArray, index) -> {
-            final List<PgBox> list = new LinkedList<>();
+            final List<Object> list = new LinkedList<>();
             final Consumer<String> consumer = nullable -> {
                 if (nullable == null) {
                     list.add(null);
-                } else {
+                } else if (targetArrayClass == PgBox.class) {
                     list.add(PgGeometries.box(nullable));
+                } else if (targetArrayClass == String.class) {
+                    list.add(nullable);
+                } else {
+                    throw PgResultRow.notSupportConverting(meta, targetArrayClass);
                 }
             };
             final int endIndex;
             endIndex = readOneDimensionArray(charArray, index, meta, consumer);
-            return new ArrayPair(list.toArray(new PgBox[0]), endIndex);
+            final Object[] array;
+            if (targetArrayClass == PgBox.class) {
+                array = new PgBox[list.size()];
+            } else if (targetArrayClass == String.class) {
+                array = new String[list.size()];
+            } else {
+                throw PgResultRow.notSupportConverting(meta, targetArrayClass);
+            }
+            return new ArrayPair(list.toArray(array), endIndex);
         };
         return readArray(value, meta, function, targetArrayClass);
     }
 
     static Object readPathArray(final String value, final PgColumnMeta meta, final Class<?> targetArrayClass) {
-        if (targetArrayClass != LineString.class) {
-            throw PgResultRow.notSupportConverting(meta, targetArrayClass);
-        }
         final BiFunction<char[], Integer, ArrayPair> function = (charArray, index) -> {
-            final List<LineString> list = new LinkedList<>();
+            final List<Object> list = new LinkedList<>();
             final Consumer<String> consumer = nullable -> {
                 if (nullable == null) {
                     list.add(null);
-                } else {
+                } else if (targetArrayClass == LineString.class) {
                     list.add(PgGeometries.path(nullable));
+                } else if (targetArrayClass == String.class) {
+                    list.add(nullable);
+                } else if (targetArrayClass == LongString.class) {
+                    list.add(LongStrings.fromString(nullable));
+                } else {
+                    throw PgResultRow.notSupportConverting(meta, targetArrayClass);
                 }
             };
             final int endIndex;
             endIndex = readOneDimensionArray(charArray, index, meta, consumer);
-            return new ArrayPair(list.toArray(new LineString[0]), endIndex);
+            final Object[] array;
+            if (targetArrayClass == LineString.class) {
+                array = new LineString[list.size()];
+            } else if (targetArrayClass == String.class) {
+                array = new String[list.size()];
+            } else if (targetArrayClass == LongString.class) {
+                array = new LongString[list.size()];
+            } else {
+                throw PgResultRow.notSupportConverting(meta, targetArrayClass);
+            }
+            return new ArrayPair(list.toArray(array), endIndex);
         };
         return readArray(value, meta, function, targetArrayClass);
     }
 
     static Object readPolygonArray(final String value, final PgColumnMeta meta, final Class<?> targetArrayClass) {
-        if (targetArrayClass != PgPolygon.class) {
-            throw PgResultRow.notSupportConverting(meta, targetArrayClass);
-        }
+
         final BiFunction<char[], Integer, ArrayPair> function = (charArray, index) -> {
-            final List<PgPolygon> list = new LinkedList<>();
+            final List<Object> list = new LinkedList<>();
             final Consumer<String> consumer = nullable -> {
                 if (nullable == null) {
                     list.add(null);
-                } else {
+                } else if (targetArrayClass == PgPolygon.class) {
                     list.add(PgGeometries.polygon(nullable));
+                } else if (targetArrayClass == String.class) {
+                    list.add(nullable);
+                } else if (targetArrayClass == LongString.class) {
+                    list.add(LongStrings.fromString(nullable));
+                } else {
+                    throw PgResultRow.notSupportConverting(meta, targetArrayClass);
                 }
             };
             final int endIndex;
             endIndex = readOneDimensionArray(charArray, index, meta, consumer);
-            return new ArrayPair(list.toArray(new PgPolygon[0]), endIndex);
+            final Object[] array;
+            if (targetArrayClass == PgPolygon.class) {
+                array = new PgPolygon[list.size()];
+            } else if (targetArrayClass == String.class) {
+                array = new String[list.size()];
+            } else if (targetArrayClass == LongString.class) {
+                array = new LongString[list.size()];
+            } else {
+                throw PgResultRow.notSupportConverting(meta, targetArrayClass);
+            }
+            return new ArrayPair(list.toArray(array), endIndex);
         };
         return readArray(value, meta, function, targetArrayClass);
     }
@@ -890,15 +972,24 @@ abstract class ColumnArrays {
             , final BiFunction<char[], Integer, ArrayPair> function, final Class<?> targetArrayClass) {
         final char[] charArray = value.toCharArray();
         //1. parse array dimension.
-        final int dimension;
-        dimension = getArrayDimension(charArray, meta);
+        final Pair<Integer, Integer> dimensionPair = getArrayDimension(charArray, meta, targetArrayClass);
+        final int dimension = dimensionPair.getFirst();
+        int index = dimensionPair.getSecond();
+        for (; index < charArray.length; index++) {
+            if (!Character.isWhitespace(charArray[index])) {
+                break;
+            }
+        }
+        if (index == charArray.length || charArray[index] != '{') {
+            throw arrayFormatError(meta);
+        }
         //2. parse array
         final Object array;
         if (dimension > 1) {
-            array = readMultiDimensionArray(dimension, charArray, meta, function, targetArrayClass);
+            array = readMultiDimensionArray(dimension, charArray, index, meta, function, targetArrayClass);
         } else {
             final ArrayPair pair;
-            pair = function.apply(charArray, 0);
+            pair = function.apply(charArray, index);
             for (int i = pair.index + 1; i < charArray.length; i++) {
                 if (!Character.isWhitespace(charArray[i])) {
                     throw arrayFormatError(meta);
@@ -909,18 +1000,24 @@ abstract class ColumnArrays {
         return array;
     }
 
+    /**
+     * @return multi dimension array
+     * @see #readArray(String, PgColumnMeta, BiFunction, Class)
+     */
     private static Object readMultiDimensionArray(final int dimension, final char[] charArray
-            , final PgColumnMeta meta, final BiFunction<char[], Integer, ArrayPair> function
+            , final int index, final PgColumnMeta meta
+            , final BiFunction<char[], Integer, ArrayPair> function
             , final Class<?> targetArrayClass) {
 
         if (dimension < 2) {
             throw new IllegalArgumentException("dimension error");
         }
+        final char delim = meta.sqlType == PgType.BOX_ARRAY ? ';' : COMMA;
 
         final Stack<List<Object>> arrayStack = new FastStack<>();
         arrayStack.push(new LinkedList<>());
         char ch;
-        for (int i = 0, dimensionIndex = dimension; i < charArray.length; i++) {
+        for (int i = index, dimensionIndex = dimension; i < charArray.length; i++) {
             ch = charArray[i];
             if (ch != LEFT_PAREN) {
                 if (!Character.isWhitespace(ch)) {
@@ -931,18 +1028,17 @@ abstract class ColumnArrays {
                 }
                 continue;
             }
-            if (dimensionIndex > 2) {
+            if (dimensionIndex > 1) {
                 dimensionIndex--;
-                arrayStack.push(new LinkedList<>());
-                continue;
-            } else if (dimensionIndex == 2) {
-                dimensionIndex--;
+                if (dimension - arrayStack.size() > 1) {
+                    arrayStack.push(new LinkedList<>());
+                }
                 continue;
             }
             if (arrayStack.size() >= dimension) {
                 // here bug
-                String m = String.format("array parse error,dimensionIndex[%s],arrayStack.size[%s]."
-                        , dimensionIndex, arrayStack.size());
+                String m = String.format("array parse error,dimension[%s],arrayStack.size[%s]."
+                        , dimension, arrayStack.size());
                 throw new IllegalStateException(m);
             }
             // below read one dimension array
@@ -963,7 +1059,7 @@ abstract class ColumnArrays {
             // handle text after one dimension
             for (int j = i + 1; j < charArray.length; j++) {
                 ch = charArray[j];
-                if (ch == COMMA) {
+                if (ch == delim) {
                     // has more element of two dimension array
                     i = j;
                     break;
@@ -997,7 +1093,11 @@ abstract class ColumnArrays {
     }
 
 
-    private static int getArrayDimension(final char[] charArray, final PgColumnMeta meta) {
+    /**
+     * @return first: dimension of array,second:next index of charArray
+     */
+    private static Pair<Integer, Integer> getArrayDimension(final char[] charArray, final PgColumnMeta meta
+            , final Class<?> targetArrayClass) {
         int i = 0;
         for (; i < charArray.length; i++) {
             if (!Character.isWhitespace(charArray[i])) {
@@ -1005,17 +1105,21 @@ abstract class ColumnArrays {
             }
         }
 
-        int dimension = 0;
+        final Pair<Integer, Integer> dimensionPair;
         if (charArray[i] == '[') {
-            final char[] symbols = new char[]{'[', ':', ']'};
-            char c;
-            for (int from, to, s = 0; i < charArray.length; i++) {
-                c = charArray[i];
-                if (c == symbols[s]) {
-
+            final int[] index = new int[]{i};
+            final List<Pair<Integer, Integer>> list = readArraySubScriptList(charArray, index, meta);
+            if (charArray[index[0]] != '=') {
+                throw arrayFormatError(meta);
+            }
+            for (Pair<Integer, Integer> pair : list) {
+                if (pair.getFirst() < 1) {
+                    throw notSupportSubScript(meta, targetArrayClass);
                 }
             }
+            dimensionPair = new Pair<>(list.size(), index[0] + 1);
         } else {
+            int dimension = 0;
             for (; i < charArray.length; i++) {
                 char c = charArray[i];
                 if (c == '{') {
@@ -1024,15 +1128,80 @@ abstract class ColumnArrays {
                     break;
                 }
             }
+            dimensionPair = new Pair<>(dimension, 0);
         }
 
-        if (dimension < 1) {
+        if (dimensionPair.getFirst() < 1) {
             throw arrayFormatError(meta);
         }
-        return dimension;
+        return dimensionPair;
     }
 
+    private static List<Pair<Integer, Integer>> readArraySubScriptList(final char[] charArray, int[] index
+            , final PgColumnMeta meta) {
+        if (charArray[index[0]] != '[') {
+            throw new IllegalArgumentException("index error");
+        }
 
+        final List<Pair<Integer, Integer>> list = new ArrayList<>();
+        Pair<Integer, Integer> pair;
+
+        for (int i = index[0]; i < charArray.length; i++) {
+            if (Character.isWhitespace(charArray[i])) {
+                continue;
+            }
+            if (charArray[i] == '=') {
+                index[0] = i;
+                break;
+            }
+            if (charArray[i] != '[') {
+                throw arrayFormatError(meta);
+            }
+            index[0] = i;
+            pair = readArraySubScript(charArray, index, meta);
+            i = index[0];
+            list.add(pair);
+
+        }
+        if (charArray[index[0]] != '=') {
+            throw arrayFormatError(meta);
+        }
+        return Collections.unmodifiableList(list);
+    }
+
+    private static Pair<Integer, Integer> readArraySubScript(final char[] charArray, int[] index
+            , final PgColumnMeta meta) {
+        int i = index[0];
+        if (charArray[i] != '[') {
+            throw new IllegalArgumentException("i error");
+        }
+        int from = ++i;
+        Integer lowerBound = null, upperBound = null;
+        for (; i < charArray.length; i++) {
+            if (charArray[i] == ':') {
+                lowerBound = Integer.parseInt(new String(charArray, from, i));
+                break;
+            }
+        }
+        if (lowerBound == null) {
+            throw arrayFormatError(meta);
+        }
+        for (from = ++i; i < charArray.length; i++) {
+            if (charArray[i] == ']') {
+                upperBound = Integer.parseInt(new String(charArray, from, i));
+                break;
+            }
+        }
+        if (upperBound == null) {
+            throw arrayFormatError(meta);
+        }
+        index[i] = i;
+        return new Pair<>(lowerBound, upperBound);
+    }
+
+    /**
+     * @see #readMultiDimensionArray(int, char[], int, PgColumnMeta, BiFunction, Class)
+     */
     private static Object createArray(final int dimension, final List<Object> valueList
             , final Class<?> targetArrayClass) {
         final int actualDimension;
@@ -1048,18 +1217,25 @@ abstract class ColumnArrays {
         array = PgArrays.createArrayInstance(componentType, actualDimension, valueList.size());
         int index = 0;
         for (Object value : valueList) {
-            Array.set(array, index, value);
+            try {
+                Array.set(array, index, value);
+            } catch (IllegalArgumentException | ArrayIndexOutOfBoundsException e) {
+                e.printStackTrace();
+            }
             index++;
         }
         return array;
     }
 
-
+    /**
+     * @see #readMultiDimensionArray(int, char[], int, PgColumnMeta, BiFunction, Class)
+     */
     private static int readOneDimensionArray(final char[] charArray, final int index
             , final PgColumnMeta meta, final Consumer<String> consumer) throws IllegalArgumentException {
         if (charArray[index] != LEFT_PAREN) {
             throw new IllegalArgumentException("index error.");
         }
+        final char delim = meta.sqlType == PgType.BOX_ARRAY ? ';' : COMMA;
         int endIndex = index;
         char ch;
         for (int i = index + 1, from, to; i < charArray.length; i++) {
@@ -1088,7 +1264,7 @@ abstract class ColumnArrays {
             }
             for (int j = (to < 0 ? from + 1 : to + 1); j < charArray.length; j++) {
                 ch = charArray[j];
-                if (ch == COMMA || ch == RIGHT_PAREN) {
+                if (ch == delim || ch == RIGHT_PAREN) {
                     if (to < 0) {
                         to = j;
                     }
@@ -1101,6 +1277,8 @@ abstract class ColumnArrays {
             }
             if (to - from == 4 && isNull(charArray, from)) {
                 consumer.accept(null);
+            } else if (charArray[to] == PgConstant.DOUBLE_QUOTE) {
+                consumer.accept(escapesText(charArray, from, to, meta));
             } else {
                 consumer.accept(new String(charArray, from, to - from));
             }
@@ -1113,6 +1291,34 @@ abstract class ColumnArrays {
             throw arrayFormatError(meta);
         }
         return endIndex;
+    }
+
+    /**
+     * @see #readOneDimensionArray(char[], int, PgColumnMeta, Consumer)
+     */
+    private static String escapesText(final char[] charArray, final int from, final int to, final PgColumnMeta meta) {
+        final StringBuilder builder = new StringBuilder(to - from);
+        final int lastIndex = to - 1;
+        int lastWritten = from;
+        for (int i = from; i < to; i++) {
+            if (charArray[i] != PgConstant.BACK_SLASH) {
+                continue;
+            }
+            if (i == lastIndex) {
+                throw arrayFormatError(meta);
+            }
+            if (i > lastWritten) {
+                builder.append(charArray, lastWritten, i - lastWritten);
+            }
+            builder.append(charArray[i + 1]);
+            lastWritten = i + 2;
+            i++;
+
+        }
+        if (lastWritten < to) {
+            builder.append(charArray, lastWritten, to - lastWritten);
+        }
+        return builder.toString();
     }
 
 
@@ -1139,6 +1345,14 @@ abstract class ColumnArrays {
 
     private static IllegalArgumentException targetArrayClassError(final Class<?> targetArrayClass) {
         return new IllegalArgumentException(String.format("Error targetArrayClass[%s]", targetArrayClass.getName()));
+    }
+
+    static UnsupportedConvertingException notSupportSubScript(PgColumnMeta meta, Class<?> targetClass) {
+        String message = String.format("Not support convert from (index[%s] label[%s] and sql type[%s]) to %s ,because subscript of array less than 1.",
+                meta.index, meta.columnLabel
+                , meta.sqlType, targetClass.getName());
+
+        return new UnsupportedConvertingException(message, meta.sqlType, targetClass);
     }
 
     private static final class ArrayPair {

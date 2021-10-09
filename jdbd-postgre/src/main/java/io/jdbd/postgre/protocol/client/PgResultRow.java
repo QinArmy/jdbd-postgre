@@ -119,7 +119,7 @@ public class PgResultRow extends AbstractResultRow<PgRowMeta> {
 
         try {
             final Object value;
-            if (columnClass != null && meta.sqlType.isArray()) {
+            if (columnClass != null && columnClass != byte[].class && columnClass.isArray()) {
                 final Pair<Class<?>, Integer> pair = JdbdArrays.getArrayDimensions(columnClass);
                 Class<?> arrayType = pair.getFirst();
                 if (arrayType == byte.class) {
@@ -318,8 +318,15 @@ public class PgResultRow extends AbstractResultRow<PgRowMeta> {
                 value = textValue;
             }
             break;
-            default:
-                value = textValue;
+            default: {
+                if (targetArrayClass.isEnum() && meta.sqlType == PgType.UNSPECIFIED) {
+                    value = ColumnArrays.readTextArray(textValue, meta, targetArrayClass);
+                } else {
+                    value = textValue;
+                }
+
+            }
+
         }
         return value;
     }

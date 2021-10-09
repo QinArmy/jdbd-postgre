@@ -668,7 +668,8 @@ public abstract class PgBinds extends JdbdBinds {
             default:
                 throw new IllegalArgumentException("pgType error");
         }
-        if (obtainArrayType(batchIndex, pgType, paramValue) != String.class) {
+        final Class<?> arrayType = obtainArrayType(batchIndex, pgType, paramValue);
+        if (arrayType != String.class) {
             throw JdbdExceptions.createNonSupportBindSqlTypeError(batchIndex, pgType, paramValue);
         }
         final Function<Object, String> function = nonNull -> {
@@ -738,10 +739,15 @@ public abstract class PgBinds extends JdbdBinds {
                 throw new IllegalArgumentException("pgType error");
         }
         final Class<?> arrayType = obtainArrayType(batchIndex, pgType, paramValue);
-        if (arrayType != String.class) {
+        final Function<Object, String> function;
+        if (arrayType == String.class) {
+            function = PgBinds::textEscapesFunction;
+        } else if (arrayType.isEnum()) {
+            function = nonNull -> ((Enum<?>) nonNull).name();
+        } else {
             throw JdbdExceptions.createNonSupportBindSqlTypeError(batchIndex, pgType, paramValue);
         }
-        return bindNonNullToArray(batchIndex, pgType, paramValue, PgBinds::textEscapesFunction);
+        return bindNonNullToArray(batchIndex, pgType, paramValue, function);
     }
 
 
@@ -819,11 +825,12 @@ public abstract class PgBinds extends JdbdBinds {
         final StringBuilder builder = new StringBuilder();
         final Stack<ArrayWrapper> dimensionStack = new FastStack<>();
         final int topDimensionLength = Array.getLength(nonNull);
+        final char delim = pgType == PgType.BOX_ARRAY ? ';' : ',';
 
         builder.append('{');
         for (int i = 0; i < topDimensionLength; i++) {
             if (i > 0) {
-                builder.append(',');
+                builder.append(delim);
             }
             final Object topValue = Array.get(nonNull, i);
             if (topValue == null) {
@@ -840,11 +847,11 @@ public abstract class PgBinds extends JdbdBinds {
             while (!dimensionStack.isEmpty()) {
                 final ArrayWrapper arrayWrapper = dimensionStack.peek();
                 if (isByteArray && arrayWrapper.dimension == 2) {
-                    appendArray(builder, arrayWrapper.array, function);
+                    appendArray(builder, arrayWrapper.array, delim, function);
                     dimensionStack.pop();
                     continue;
                 } else if (arrayWrapper.dimension == 1) {
-                    appendArray(builder, arrayWrapper.array, function);
+                    appendArray(builder, arrayWrapper.array, delim, function);
                     dimensionStack.pop();
                     continue;
                 }
@@ -859,7 +866,7 @@ public abstract class PgBinds extends JdbdBinds {
                 if (index == 0) {
                     builder.append('{');
                 } else if (index < length) {
-                    builder.append(',');
+                    builder.append(delim);
                 } else {
                     builder.append('}');
                     dimensionStack.pop();
@@ -885,13 +892,13 @@ public abstract class PgBinds extends JdbdBinds {
      * @see #bindNonNullToArray(int, PgType, ParamValue, Function)
      */
     private static void appendArray(final StringBuilder builder, final Object array
-            , final Function<Object, String> function) {
+            , final char delim, final Function<Object, String> function) {
         final int length = Array.getLength(array);
         builder.append('{');
         Object value;
         for (int i = 0; i < length; i++) {
             if (i > 0) {
-                builder.append(',');
+                builder.append(delim);
             }
             value = Array.get(array, i);
             if (value == null) {

@@ -8,6 +8,7 @@ import io.jdbd.postgre.stmt.BindStmt;
 import io.jdbd.postgre.stmt.BindValue;
 import io.jdbd.postgre.stmt.PgStmts;
 import io.jdbd.postgre.type.*;
+import io.jdbd.postgre.util.PgArrays;
 import io.jdbd.postgre.util.PgNumbers;
 import io.jdbd.postgre.util.PgStrings;
 import io.jdbd.postgre.util.PgTimes;
@@ -18,7 +19,9 @@ import io.jdbd.type.LongBinary;
 import io.jdbd.type.geo.Line;
 import io.jdbd.type.geo.LineString;
 import io.jdbd.type.geometry.Circle;
+import io.jdbd.type.geometry.LongString;
 import io.jdbd.type.geometry.Point;
+import org.qinarmy.util.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import reactor.core.publisher.Flux;
@@ -2289,7 +2292,7 @@ abstract class AbstractStmtTaskTests extends AbstractTaskTests {
         final PgType pgType = PgType.VARCHAR_ARRAY;
         Object array;
         ResultRow row;
-        final String[] textArray = new String[]{"SET name = 'army' , { } } \\ ' \" \"QinArmy\"", "\n \" ' \033", null};
+        final String[] textArray = new String[]{"\\\\\\SET name = 'army' , { } } \\ ' \" \"QinArmy\"", "\n \" ' \033", null};
 
         // below one dimension array
         columnName = "my_varchar_array";
@@ -2328,6 +2331,444 @@ abstract class AbstractStmtTaskTests extends AbstractTaskTests {
 
         array = new String[][][][]{{{textArray, textArray}, {textArray, textArray}}, {{textArray, textArray}, {textArray, textArray}}};
         testType(columnName, pgType, array, id);
+    }
+
+    /**
+     * @see PgType#CHAR_ARRAY
+     */
+    final void doCharArrayBindAndExtract() {
+        String columnName;
+        final long id = startId + 58;
+        final PgType pgType = PgType.CHAR_ARRAY;
+        Object array;
+        ResultRow row;
+        // text can't end with whitespace for test
+        final String[] textArray = new String[]{"\\\\\\SET name = 'army' , { } } \\ ' \" \"QinArmy\"", "\n \" ' \033", null};
+
+        // below one dimension array
+        columnName = "my_char_array";
+        testType(columnName, pgType, null, id);
+
+        array = new String[]{null};
+        row = testType(columnName, pgType, array, id);
+        row.getNonNull(columnName, String[].class);
+        row.getNonNull(columnName, String[][].class);
+
+        array = textArray;
+        testType(columnName, pgType, array, id);
+
+
+        // below two dimension array
+        columnName = "my_char_array_2";
+        testType(columnName, pgType, null, id);
+
+        array = new String[]{null};
+        row = testType(columnName, pgType, array, id);
+        row.getNonNull(columnName, String[][].class);
+        row.getNonNull(columnName, String[][][].class);
+
+        array = new String[][]{textArray, textArray, textArray};
+        testType(columnName, pgType, array, id);
+
+
+    }
+
+    /**
+     * @see PgType#TEXT_ARRAY
+     */
+    final void doTextArrayBindAndExtract() {
+        String columnName;
+        final long id = startId + 59;
+        final PgType pgType = PgType.TEXT_ARRAY;
+        Object array;
+        ResultRow row;
+        final String[] textArray = new String[]{"\\\\\\SET name = 'army' , { } } \\ ' \" \"QinArmy\"", "\n \" ' \033", null};
+
+        // below one dimension array
+        columnName = "my_text_array";
+        testType(columnName, pgType, null, id);
+
+        array = new String[]{null};
+        row = testType(columnName, pgType, array, id);
+        row.getNonNull(columnName, String[].class);
+        row.getNonNull(columnName, String[][].class);
+
+        array = textArray;
+        testType(columnName, pgType, array, id);
+
+
+        // below two dimension array
+        columnName = "my_text_array_2";
+        testType(columnName, pgType, null, id);
+
+        array = new String[]{null};
+        row = testType(columnName, pgType, array, id);
+        row.getNonNull(columnName, String[][].class);
+        row.getNonNull(columnName, String[][][].class);
+
+        array = new String[][]{textArray, textArray, textArray};
+        testType(columnName, pgType, array, id);
+    }
+
+    /**
+     * @see PgType#JSON_ARRAY
+     */
+    final void doJsonArrayBindAndExtract() throws IOException {
+        String columnName;
+        final long id = startId + 60;
+        final PgType pgType = PgType.JSON_ARRAY;
+        Object array;
+        ResultRow row;
+        final String[] jsonArray = new String[4];
+        final ObjectMapper mapper = new ObjectMapper();
+        for (int i = 0; i < jsonArray.length; i++) {
+            Map<String, Object> map = new HashMap<>(4);
+            map.put("id", i);
+            map.put("name", "\\\\\\SET name = 'army' , { } } \\ \033 ' \" \"QinArmy\"");
+            jsonArray[i] = mapper.writeValueAsString(map);
+        }
+
+        // below one dimension array
+        columnName = "my_json_array";
+        testType(columnName, pgType, null, id);
+
+        array = new String[]{null};
+        row = testType(columnName, pgType, array, id);
+        row.getNonNull(columnName, String[].class);
+        row.getNonNull(columnName, String[][].class);
+
+        array = jsonArray;
+        testType(columnName, pgType, array, id);
+
+        // below two dimension array
+        columnName = "my_json_array_2";
+        testType(columnName, pgType, null, id);
+
+        array = new String[]{null};
+        row = testType(columnName, pgType, array, id);
+        row.getNonNull(columnName, String[].class);
+        row.getNonNull(columnName, String[][].class);
+
+        array = new String[][]{jsonArray, jsonArray, jsonArray, jsonArray};
+        testType(columnName, pgType, array, id);
+    }
+
+    /**
+     * @see PgType#XML_ARRAY
+     */
+    final void doXmlArrayBindAndExtract() {
+        String columnName;
+        final long id = startId + 61;
+        final PgType pgType = PgType.XML_ARRAY;
+        Object array;
+        ResultRow row;
+        final String[] xmlArray = new String[]{"<foo>QinArmy</foo>", "<foo>army</foo>", "<foo>zoro</foo>"};
+        // below one dimension array
+        columnName = "my_xml_array";
+        testType(columnName, pgType, null, id);
+
+        array = new String[]{null};
+        row = testType(columnName, pgType, array, id);
+        row.getNonNull(columnName, String[].class);
+        row.getNonNull(columnName, String[][].class);
+
+        array = xmlArray;
+        testType(columnName, pgType, array, id);
+
+        // below one dimension array
+        columnName = "my_xml_array_2";
+        array = new String[][]{xmlArray, xmlArray, xmlArray, xmlArray};
+        row = testType(columnName, pgType, array, id);
+        row.getNonNull(columnName, LongString[][].class);
+    }
+
+
+    final void doGenderArrayBindAndExtract() {
+        String columnName;
+        final long id = startId + 62;
+        final PgType pgType = PgType.VARCHAR_ARRAY;
+        Object array;
+        ResultRow row;
+
+        final Gender[] genderArray = new Gender[]{Gender.FEMALE, Gender.MALE, Gender.UNKNOWN};
+        // below one dimension array
+        columnName = "my_gender_array";
+        testType(columnName, pgType, null, id);
+
+        array = new Gender[]{null};
+        row = testType(columnName, pgType, array, id);
+        row.getNonNull(columnName, Gender[].class);
+        row.getNonNull(columnName, Gender[][].class);
+
+        array = genderArray;
+        testType(columnName, pgType, array, id);
+
+        // below two dimension array
+        columnName = "my_gender_array_2";
+        testType(columnName, pgType, null, id);
+
+        array = new Gender[][]{genderArray, genderArray, genderArray};
+        testType(columnName, pgType, array, id);
+
+    }
+
+    /**
+     * @see PgType#UUID_ARRAY
+     */
+    final void doUuidArrayBindAndExtract() {
+        String columnName;
+        final long id = startId + 63;
+        final PgType pgType = PgType.UUID_ARRAY;
+        Object array;
+        ResultRow row;
+
+        final UUID[] uuidArray = new UUID[]{UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID()};
+
+        // below one dimension array
+        columnName = "my_uuid_array";
+        testType(columnName, pgType, null, id);
+
+        array = new UUID[]{null};
+        row = testType(columnName, pgType, array, id);
+        row.getNonNull(columnName, UUID[].class);
+        row.getNonNull(columnName, UUID[][].class);
+
+        array = uuidArray;
+        testType(columnName, pgType, array, id);
+
+        // below two dimension array
+        columnName = "my_uuid_array_2";
+        testType(columnName, pgType, null, id);
+
+        array = new UUID[][]{uuidArray, uuidArray, uuidArray, uuidArray, uuidArray};
+        testType(columnName, pgType, array, id);
+    }
+
+    /**
+     * @see PgType#POINT_ARRAY
+     */
+    final void doPointArrayBindAndExtract() {
+        String columnName;
+        final long id = startId + 64;
+        final PgType pgType = PgType.POINT_ARRAY;
+        Object array;
+        ResultRow row;
+
+        final String[] pointArray = new String[]{"(0,0)", String.format("(%s,%s)", Double.MAX_VALUE, Double.MIN_VALUE), "(323.3,43432.36)"};
+
+        // below one dimension array
+        columnName = "my_point_array";
+        testType(columnName, pgType, null, id);
+
+        array = new String[]{null};
+        row = testType(columnName, pgType, array, id);
+        row.getNonNull(columnName, Point[].class);
+        row.getNonNull(columnName, Point[][].class);
+
+        array = pointArray;
+        row = testType(columnName, pgType, array, id);
+        row.getNonNull(columnName, String[].class);
+
+        // below two dimension array
+        columnName = "my_point_array_2";
+        testType(columnName, pgType, null, id);
+
+        array = new String[][]{pointArray, pointArray, pointArray, pointArray, pointArray};
+        row = testType(columnName, pgType, array, id);
+        row.getNonNull(columnName, String[][].class);
+    }
+
+
+    /**
+     * @see PgType#LINE_ARRAY
+     */
+    final void doLineArrayBindAndExtract() {
+        String columnName;
+        final long id = startId + 65;
+        final PgType pgType = PgType.LINE_ARRAY;
+        Object array;
+        ResultRow row;
+
+        final String[] lineArray = new String[]{"{1.0,-1.0,0.0}", "{5.799010112459083E306,-1.0,-1.739703033737725E307}"};
+
+        // below one dimension array
+        columnName = "my_line_array";
+        testType(columnName, pgType, null, id);
+
+        array = new String[]{null};
+        row = testType(columnName, pgType, array, id);
+        row.getNonNull(columnName, PgLine[].class);
+        row.getNonNull(columnName, PgLine[][].class);
+
+        array = lineArray;
+        row = testType(columnName, pgType, array, id);
+        row.getNonNull(columnName, String[].class);
+
+        // below two dimension array
+        columnName = "my_line_array_2";
+        testType(columnName, pgType, null, id);
+
+        array = new String[][]{lineArray, lineArray, lineArray, lineArray, lineArray};
+        row = testType(columnName, pgType, array, id);
+        row.getNonNull(columnName, String[][].class);
+    }
+
+
+    /**
+     * @see PgType#LINE_SEGMENT_ARRAY
+     */
+    final void doLineSegmentArrayBindAndExtract() {
+        String columnName;
+        final long id = startId + 66;
+        final PgType pgType = PgType.LINE_SEGMENT_ARRAY;
+        Object array;
+        ResultRow row;
+
+        final String[] lineSegmentArray = new String[]{"[(0,0),(1,1)]", String.format("[(34.33,%s),(44.33,%s)]", Double.MAX_VALUE, Double.MIN_VALUE)};
+
+        // below one dimension array
+        columnName = "my_line_segment_array";
+        testType(columnName, pgType, null, id);
+
+        array = new String[]{null};
+        row = testType(columnName, pgType, array, id);
+        row.getNonNull(columnName, Line[].class);
+        row.getNonNull(columnName, Line[][].class);
+
+        array = lineSegmentArray;
+        row = testType(columnName, pgType, array, id);
+        row.getNonNull(columnName, String[].class);
+
+        // below two dimension array
+        columnName = "my_line_segment_array_2";
+        testType(columnName, pgType, null, id);
+
+        array = new String[][]{lineSegmentArray, lineSegmentArray, lineSegmentArray, lineSegmentArray, lineSegmentArray};
+        row = testType(columnName, pgType, array, id);
+        row.getNonNull(columnName, String[][].class);
+    }
+
+    /**
+     * @see PgType#BOX_ARRAY
+     */
+    final void doBoxArrayBindAndExtract() {
+        String columnName;
+        final long id = startId + 67;
+        final PgType pgType = PgType.BOX_ARRAY;
+        Object array;
+        ResultRow row;
+
+        final String[] boxArray = new String[]{"(0,0),(1,1)", String.format("(3454.3,%s),(3456.334,%s)", Double.MIN_VALUE, Double.MAX_VALUE)};
+
+        // below one dimension array
+        columnName = "my_box_array";
+        testType(columnName, pgType, null, id);
+
+        array = new String[]{null};
+        row = testType(columnName, pgType, array, id);
+        row.getNonNull(columnName, PgBox[].class);
+        row.getNonNull(columnName, PgBox[][].class);
+
+        array = boxArray;
+        row = testType(columnName, pgType, array, id);
+        row.getNonNull(columnName, String[].class);
+
+        // below two dimension array
+        columnName = "my_box_array_2";
+        testType(columnName, pgType, null, id);
+
+        array = new String[][]{boxArray, boxArray, boxArray, boxArray, boxArray};
+        row = testType(columnName, pgType, array, id);
+        row.getNonNull(columnName, String[][].class);
+    }
+
+    /**
+     * @see PgType#PATH_ARRAY
+     */
+    final void doPathArrayBindAndExtract() {
+        String columnName;
+        final long id = startId + 68;
+        final PgType pgType = PgType.PATH_ARRAY;
+        Object array;
+        ResultRow row;
+
+        final String[] pathArray = new String[]{"[(0,0),(1,1),(2,2)]", "((0,0),(1,1),(2,2))", String.format("[(0,%s),(1,1),(2,%s)]", Double.MAX_VALUE, Double.MIN_VALUE), String.format("((0,%s),(1,1),(2,%s))", Double.MAX_VALUE, Double.MIN_VALUE)};
+
+        // below one dimension array
+        columnName = "my_path_array";
+        testType(columnName, pgType, null, id);
+
+        array = new String[]{null};
+        row = testType(columnName, pgType, array, id);
+        row.getNonNull(columnName, LineString[].class);
+        row.getNonNull(columnName, String[].class);
+        row.getNonNull(columnName, LongString[].class);
+
+        array = pathArray;
+        row = testType(columnName, pgType, array, id);
+        row.getNonNull(columnName, String[].class);
+        row.getNonNull(columnName, LongString[].class);
+
+        // below two dimension array
+        columnName = "my_path_array_2";
+        testType(columnName, pgType, null, id);
+
+        array = new String[]{null};
+        row = testType(columnName, pgType, array, id);
+        row.getNonNull(columnName, LineString[][].class);
+        row.getNonNull(columnName, String[][].class);
+        row.getNonNull(columnName, LongString[][].class);
+
+        array = new String[][]{pathArray, pathArray, pathArray};
+        row = testType(columnName, pgType, array, id);
+        row.getNonNull(columnName, String[][].class);
+        row.getNonNull(columnName, LongString[][].class);
+
+    }
+
+
+    /**
+     * @see PgType#POLYGON_ARRAY
+     */
+    final void doPolygonArrayBindAndExtract() {
+        String columnName;
+        final long id = startId + 69;
+        final PgType pgType = PgType.POLYGON_ARRAY;
+        Object array;
+        ResultRow row;
+
+        final String[] polygonArray = new String[]{"((0,0),(1,1),(2,2))", String.format("((0,%s),(1,1),(2,%s))", Double.MAX_VALUE, Double.MIN_VALUE)};
+
+        // below one dimension array
+        columnName = "my_polygon_array";
+        testType(columnName, pgType, null, id);
+
+        array = new String[]{null};
+        row = testType(columnName, pgType, array, id);
+        row.getNonNull(columnName, PgPolygon[].class);
+        row.getNonNull(columnName, String[].class);
+        row.getNonNull(columnName, LongString[].class);
+
+        array = polygonArray;
+        row = testType(columnName, pgType, array, id);
+        row.getNonNull(columnName, String[].class);
+        row.getNonNull(columnName, LongString[].class);
+
+        // below two dimension array
+        columnName = "my_polygon_array_2";
+        testType(columnName, pgType, null, id);
+
+        array = new String[]{null};
+        row = testType(columnName, pgType, array, id);
+        row.getNonNull(columnName, PgPolygon[][].class);
+        row.getNonNull(columnName, String[][].class);
+        row.getNonNull(columnName, LongString[][].class);
+
+        array = new String[][]{polygonArray, polygonArray, polygonArray};
+        row = testType(columnName, pgType, array, id);
+        row.getNonNull(columnName, String[][].class);
+        row.getNonNull(columnName, LongString[][].class);
+
     }
 
     private ResultRow testType(final String columnName, final PgType columnType
@@ -2671,6 +3112,27 @@ abstract class AbstractStmtTaskTests extends AbstractTaskTests {
             case MONEY_ARRAY:
                 assertMoneyArray(columnName, row, nonNull);
                 break;
+            case CHAR_ARRAY:
+                assertCharArray(columnName, row, nonNull);
+                break;
+            case POINT_ARRAY:
+                assertPointArray(columnName, row, nonNull);
+                break;
+            case LINE_ARRAY:
+                assertLineArray(columnName, row, nonNull);
+                break;
+            case LINE_SEGMENT_ARRAY:
+                assertLineSegmentArray(columnName, row, nonNull);
+                break;
+            case BOX_ARRAY:
+                assertBoxArray(columnName, row, nonNull);
+                break;
+            case PATH_ARRAY:
+                assertPathArray(columnName, row, nonNull);
+                break;
+            case POLYGON_ARRAY:
+                assertPolygonArray(columnName, row, nonNull);
+                break;
             default: {
                 assertEquals(row.get(columnName, nonNull.getClass()), nonNull, columnName);
             }
@@ -2714,6 +3176,131 @@ abstract class AbstractStmtTaskTests extends AbstractTaskTests {
             }
         }
         return false;
+    }
+
+    private void assertPolygonArray(final String columnName, final ResultRow row, final Object nonNull) {
+        final Pair<Class<?>, Integer> pair = PgArrays.getArrayDimensions(nonNull.getClass());
+        final Object result;
+        switch (pair.getSecond()) {
+            case 1:
+                result = row.getNonNull(columnName, PgPolygon[].class);
+                break;
+            case 2:
+                result = row.getNonNull(columnName, PgPolygon[][].class);
+                break;
+            default:
+                throw new IllegalArgumentException("not unknown dimensions");
+        }
+
+        final BiPredicate<Object, Object> function = (value, resultValue) -> PgGeometries.polygon((String) value).equals(resultValue);
+        assertArray(columnName, nonNull, result, function);
+    }
+
+    private void assertPathArray(final String columnName, final ResultRow row, final Object nonNull) {
+        final Pair<Class<?>, Integer> pair = PgArrays.getArrayDimensions(nonNull.getClass());
+        final Object result;
+        switch (pair.getSecond()) {
+            case 1:
+                result = row.getNonNull(columnName, LineString[].class);
+                break;
+            case 2:
+                result = row.getNonNull(columnName, LineString[][].class);
+                break;
+            default:
+                throw new IllegalArgumentException("not unknown dimensions");
+        }
+
+        final BiPredicate<Object, Object> function = (value, resultValue) -> PgGeometries.path((String) value).equals(resultValue);
+        assertArray(columnName, nonNull, result, function);
+    }
+
+    private void assertBoxArray(final String columnName, final ResultRow row, final Object nonNull) {
+        final Pair<Class<?>, Integer> pair = PgArrays.getArrayDimensions(nonNull.getClass());
+        final Object result;
+        switch (pair.getSecond()) {
+            case 1:
+                result = row.getNonNull(columnName, PgBox[].class);
+                break;
+            case 2:
+                result = row.getNonNull(columnName, PgBox[][].class);
+                break;
+            default:
+                throw new IllegalArgumentException("not unknown dimensions");
+        }
+
+        final BiPredicate<Object, Object> function = (value, resultValue) -> PgGeometries.box((String) value).equals(resultValue);
+        assertArray(columnName, nonNull, result, function);
+    }
+
+    private void assertPointArray(final String columnName, final ResultRow row, final Object nonNull) {
+        final Pair<Class<?>, Integer> pair = PgArrays.getArrayDimensions(nonNull.getClass());
+        final Object result;
+        switch (pair.getSecond()) {
+            case 1:
+                result = row.getNonNull(columnName, Point[].class);
+                break;
+            case 2:
+                result = row.getNonNull(columnName, Point[][].class);
+                break;
+            default:
+                throw new IllegalArgumentException("not unknown dimensions");
+        }
+
+        final BiPredicate<Object, Object> function = (value, resultValue) -> PgGeometries.point((String) value).equals(resultValue);
+        assertArray(columnName, nonNull, result, function);
+    }
+
+    private void assertLineSegmentArray(final String columnName, final ResultRow row, final Object nonNull) {
+        final Pair<Class<?>, Integer> pair = PgArrays.getArrayDimensions(nonNull.getClass());
+        final Object result;
+        switch (pair.getSecond()) {
+            case 1:
+                result = row.getNonNull(columnName, Line[].class);
+                break;
+            case 2:
+                result = row.getNonNull(columnName, Line[][].class);
+                break;
+            default:
+                throw new IllegalArgumentException("not unknown dimensions");
+        }
+
+        final BiPredicate<Object, Object> function = (value, resultValue) -> PgGeometries.lineSegment((String) value).equals(resultValue);
+        assertArray(columnName, nonNull, result, function);
+    }
+
+    private void assertLineArray(final String columnName, final ResultRow row, final Object nonNull) {
+        final Pair<Class<?>, Integer> pair = PgArrays.getArrayDimensions(nonNull.getClass());
+        final Object result;
+        switch (pair.getSecond()) {
+            case 1:
+                result = row.getNonNull(columnName, PgLine[].class);
+                break;
+            case 2:
+                result = row.getNonNull(columnName, PgLine[][].class);
+                break;
+            default:
+                throw new IllegalArgumentException("not unknown dimensions");
+        }
+
+        final BiPredicate<Object, Object> function = (value, resultValue) -> PgGeometries.line((String) value).equals(resultValue);
+        assertArray(columnName, nonNull, result, function);
+    }
+
+    private void assertCharArray(final String columnName, final ResultRow row, final Object nonNull) {
+        final Object result = row.get(columnName, nonNull.getClass());
+        assertTrue(nonNull.getClass().isInstance(result), columnName);
+        final BiPredicate<Object, Object> function = (value, resultValue) -> {
+            String v = (String) value, r = (String) resultValue;
+            final int length = r.length();
+            for (int i = length - 1; i > -1; i--) {
+                if (!Character.isWhitespace(r.charAt(i))) {
+                    r = r.substring(0, i + 1);
+                    break;
+                }
+            }
+            return v.equals(r);
+        };
+        assertArray(columnName, nonNull, result, function);
     }
 
     private void assertMoneyArray(final String columnName, final ResultRow row, final Object nonNull) {

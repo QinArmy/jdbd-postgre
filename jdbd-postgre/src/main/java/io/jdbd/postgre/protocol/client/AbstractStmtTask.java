@@ -11,6 +11,7 @@ import io.jdbd.result.ResultRowMeta;
 import io.jdbd.vendor.result.FluxResultSink;
 import io.jdbd.vendor.result.ResultSetReader;
 import io.jdbd.vendor.stmt.SingleStmt;
+import io.jdbd.vendor.stmt.StaticBatchStmt;
 import io.jdbd.vendor.stmt.Stmt;
 import io.netty.buffer.ByteBuf;
 import org.slf4j.Logger;
@@ -487,6 +488,8 @@ abstract class AbstractStmtTask extends PgTask implements StmtTask {
             } else if (stmt instanceof BindMultiStmt) {
                 final BindStmt bindStmt = ((BindMultiStmt) stmt).getStmtGroup().get(resultIndex);
                 sql = bindStmt.getSql();
+            } else if (stmt instanceof StaticBatchStmt) {
+                sql = ((StaticBatchStmt) stmt).getSqlGroup().get(resultIndex);
             } else {
                 sql = null;
                 log.debug("Unknown Stmt[{}]", stmt);

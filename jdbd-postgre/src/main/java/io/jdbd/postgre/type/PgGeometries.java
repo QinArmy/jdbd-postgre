@@ -1,6 +1,7 @@
 package io.jdbd.postgre.type;
 
 import io.jdbd.type.geo.Line;
+import io.jdbd.type.geo.LineString;
 import io.jdbd.type.geometry.Circle;
 import io.jdbd.type.geometry.Point;
 import io.jdbd.type.geometry.WkbType;
@@ -48,7 +49,7 @@ public abstract class PgGeometries {
     /**
      * @param value format: [ ( x1 , y1 ) , ... , ( xn , yn ) ] or ( ( x1 , y1 ) , ... , ( xn , yn ) )
      */
-    public static PgPath path(final String value) {
+    public static LineString path(final String value) {
         return PgPath.from(value);
     }
 

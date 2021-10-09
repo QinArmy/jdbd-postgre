@@ -511,6 +511,98 @@ public class SimpleQuerySqlTypeSuiteTests extends AbstractStmtTaskTests {
         doVarCharArrayBindAndExtract();
     }
 
+    /**
+     * @see PgType#CHAR_ARRAY
+     */
+    @Test
+    public void charArrayBindAndExtract() {
+        doCharArrayBindAndExtract();
+    }
+
+    /**
+     * @see PgType#TEXT_ARRAY
+     */
+    @Test
+    public void textArrayBindAndExtract() {
+        doTextArrayBindAndExtract();
+    }
+
+    /**
+     * @see PgType#JSON_ARRAY
+     */
+    @Test
+    public void jsonArrayBindAndExtract() throws IOException {
+        doJsonArrayBindAndExtract();
+    }
+
+    /**
+     * @see PgType#XML_ARRAY
+     */
+    @Test
+    public void xmlArrayBindAndExtract() {
+        doXmlArrayBindAndExtract();
+    }
+
+    @Test
+    public void genderArrayBindAndExtract() {
+        doGenderArrayBindAndExtract();
+    }
+
+    /**
+     * @see PgType#UUID_ARRAY
+     */
+    @Test
+    public void uuidArrayBindAndExtract() {
+        doUuidArrayBindAndExtract();
+    }
+
+    /**
+     * @see PgType#POINT_ARRAY
+     */
+    @Test
+    public void pointArrayBindAndExtract() {
+        doPointArrayBindAndExtract();
+    }
+
+    /**
+     * @see PgType#LINE_ARRAY
+     */
+    @Test
+    public void lineArrayBindAndExtract() {
+        doLineArrayBindAndExtract();
+    }
+
+    /**
+     * @see PgType#LINE_SEGMENT_ARRAY
+     */
+    @Test
+    public void lineSegmentArrayBindAndExtract() {
+        doLineSegmentArrayBindAndExtract();
+    }
+
+    /**
+     * @see PgType#BOX_ARRAY
+     */
+    @Test
+    public void boxArrayBindAndExtract() {
+        doBoxArrayBindAndExtract();
+    }
+
+    /**
+     * @see PgType#PATH_ARRAY
+     */
+    @Test
+    public void pathArrayBindAndExtract() {
+        doPathArrayBindAndExtract();
+    }
+
+    /**
+     * @see PgType#POLYGON_ARRAY
+     */
+    @Test
+    public void polygonArrayBindAndExtract() {
+        doPolygonArrayBindAndExtract();
+    }
 
     /**
      * @see io.jdbd.postgre.util.PgNumbers#getMoneyFormat(Locale)
