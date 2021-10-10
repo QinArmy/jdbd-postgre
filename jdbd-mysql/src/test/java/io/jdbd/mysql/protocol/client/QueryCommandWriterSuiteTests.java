@@ -1,7 +1,7 @@
 package io.jdbd.mysql.protocol.client;
 
 import io.jdbd.mysql.Groups;
-import io.jdbd.mysql.stmt.BindableStmt;
+import io.jdbd.mysql.stmt.BindStmt;
 import io.jdbd.result.ResultRow;
 import io.jdbd.result.ResultStates;
 import org.slf4j.Logger;
@@ -13,24 +13,24 @@ import reactor.core.publisher.Mono;
 import java.util.function.Supplier;
 
 /**
- * @see ComQueryCommandWriter
+ * @see QueryCommandWriter
  */
 @Test(groups = {Groups.COM_QUERY_WRITER}, dependsOnGroups = {Groups.SESSION_INITIALIZER, Groups.UTILS})
-public class ComQueryCommandWriterSuiteTests extends AbstractStmtTaskSuiteTests {
+public class QueryCommandWriterSuiteTests extends AbstractStmtTaskSuiteTests {
 
-    private static final Logger LOG = LoggerFactory.getLogger(ComQueryCommandWriterSuiteTests.class);
+    private static final Logger LOG = LoggerFactory.getLogger(QueryCommandWriterSuiteTests.class);
 
-    public ComQueryCommandWriterSuiteTests() {
+    public QueryCommandWriterSuiteTests() {
         super(SubType.COM_QUERY);
     }
 
     @Override
-    Mono<ResultStates> executeUpdate(BindableStmt stmt, TaskAdjutant adjutant) {
+    Mono<ResultStates> executeUpdate(BindStmt stmt, TaskAdjutant adjutant) {
         throw new UnsupportedOperationException();
     }
 
     @Override
-    Flux<ResultRow> executeQuery(BindableStmt stmt, TaskAdjutant adjutant) {
+    Flux<ResultRow> executeQuery(BindStmt stmt, TaskAdjutant adjutant) {
         throw new UnsupportedOperationException();
     }
 
@@ -40,7 +40,7 @@ public class ComQueryCommandWriterSuiteTests extends AbstractStmtTaskSuiteTests 
     }
 
     /**
-     * @see ComQueryCommandWriter#createStaticSingleCommand(String, Supplier, TaskAdjutant)
+     * @see QueryCommandWriter#createStaticSingleCommand(String, Supplier, TaskAdjutant)
      */
     @Test(timeOut = TIME_OUT)
     public void createStaticSingleCommand() {

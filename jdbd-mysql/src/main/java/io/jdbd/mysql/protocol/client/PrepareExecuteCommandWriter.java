@@ -478,7 +478,7 @@ final class PrepareExecuteCommandWriter implements ExecuteCommandWriter {
         } else {
             throw MySQLExceptions.createTypeNotMatchException(stmtIndex, parameterMeta.mysqlType, paramValue);
         }
-        Packets.writeStringLenEnc(buffer, decimal.getBytes(this.adjutant.obtainCharsetClient()));
+        Packets.writeStringLenEnc(buffer, decimal.getBytes(this.adjutant.charsetClient()));
     }
 
     /**
@@ -708,12 +708,12 @@ final class PrepareExecuteCommandWriter implements ExecuteCommandWriter {
             , final ParamValue bindValue) {
         final Object nonNull = bindValue.getNonNull();
         if (nonNull instanceof CharSequence || nonNull instanceof Character) {
-            Packets.writeStringLenEnc(buffer, nonNull.toString().getBytes(this.adjutant.obtainCharsetClient()));
+            Packets.writeStringLenEnc(buffer, nonNull.toString().getBytes(this.adjutant.charsetClient()));
         } else if (nonNull instanceof byte[]) {
             Packets.writeStringLenEnc(buffer, (byte[]) nonNull);
         } else if (nonNull instanceof Enum) {
             Packets.writeStringLenEnc(buffer, ((Enum<?>) nonNull).name()
-                    .getBytes(this.adjutant.obtainCharsetClient()));
+                    .getBytes(this.adjutant.charsetClient()));
         } else if (nonNull instanceof Set) {
             Set<?> set = (Set<?>) nonNull;
             StringBuilder builder = new StringBuilder(set.size() * 6);
@@ -731,7 +731,7 @@ final class PrepareExecuteCommandWriter implements ExecuteCommandWriter {
                 }
                 index++;
             }
-            Packets.writeStringLenEnc(buffer, builder.toString().getBytes(this.adjutant.obtainCharsetClient()));
+            Packets.writeStringLenEnc(buffer, builder.toString().getBytes(this.adjutant.charsetClient()));
         } else {
             throw MySQLExceptions.createTypeNotMatchException(stmtIndex, meta.mysqlType, bindValue);
         }

@@ -237,11 +237,11 @@ final class PgPreparedStatement extends PgStatement implements PreparedStatement
     public final OrderedFlux executeBatchAsFlux() {
         final OrderedFlux flux;
         if (this.paramGroup == null) {
-            flux = MultiResults.OrderedFluxError(PgExceptions.cannotReuseStatement(PreparedStatement.class));
+            flux = MultiResults.orderedFluxError(PgExceptions.cannotReuseStatement(PreparedStatement.class));
         } else if (this.paramGroupList.isEmpty()) {
             final JdbdException error = PgExceptions.noAnyParamGroupError();
             this.stmtTask.closeOnBindError(error); // close prepare statement.
-            flux = MultiResults.OrderedFluxError(error);
+            flux = MultiResults.orderedFluxError(error);
         } else {
             ParamBatchStmt<ParamValue> stmt;
             stmt = PgStmts.paramBatch(this.sql, this.paramGroupList, this);

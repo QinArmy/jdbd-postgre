@@ -197,7 +197,7 @@ final class MySQLTaskExecutor extends CommunicationTaskExecutor<TaskAdjutant> {
         }
 
         @Override
-        public Charset obtainCharsetClient() {
+        public Charset charsetClient() {
             Server server = this.server;
             return server == null ? StandardCharsets.UTF_8 : server.obtainCharsetClient();
         }
@@ -310,6 +310,15 @@ final class MySQLTaskExecutor extends CommunicationTaskExecutor<TaskAdjutant> {
         @Override
         public boolean isAuthenticated() {
             return this.handshakeV10Packet != null;
+        }
+
+        @Override
+        public final MySQLParser sqlParser() {
+            final MySQLParser parser = this.mySQLParser;
+            if (parser == null) {
+                throw new IllegalStateException("Cannot access mySQLParser now.");
+            }
+            return parser;
         }
 
         @Override

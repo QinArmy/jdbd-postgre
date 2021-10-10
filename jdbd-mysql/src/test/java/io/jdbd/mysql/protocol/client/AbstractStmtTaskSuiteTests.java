@@ -6,8 +6,8 @@ import io.jdbd.mysql.MySQLType;
 import io.jdbd.mysql.SQLMode;
 import io.jdbd.mysql.protocol.conf.PropertyKey;
 import io.jdbd.mysql.session.SessionAdjutant;
+import io.jdbd.mysql.stmt.BindStmt;
 import io.jdbd.mysql.stmt.BindValue;
-import io.jdbd.mysql.stmt.BindableStmt;
 import io.jdbd.mysql.stmt.Stmts;
 import io.jdbd.mysql.type.City;
 import io.jdbd.mysql.type.TrueOrFalse;
@@ -37,9 +37,9 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBased
         this.subType = subType;
     }
 
-    abstract Mono<ResultStates> executeUpdate(BindableStmt stmt, TaskAdjutant adjutant);
+    abstract Mono<ResultStates> executeUpdate(BindStmt stmt, TaskAdjutant adjutant);
 
-    abstract Flux<ResultRow> executeQuery(BindableStmt stmt, TaskAdjutant adjutant);
+    abstract Flux<ResultRow> executeQuery(BindStmt stmt, TaskAdjutant adjutant);
 
     abstract Logger obtainLogger();
 
@@ -537,7 +537,7 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBased
     final void doTinyBlobBindExtract(Logger LOG) {
         LOG.info("doTinyBlobBindExtract test start");
         final TaskAdjutant taskAdjutant = obtainTaskAdjutant();
-        final Charset charset = taskAdjutant.obtainCharsetClient();
+        final Charset charset = taskAdjutant.charsetClient();
         String text;
         byte[] array;
 
@@ -558,7 +558,7 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBased
     final void doBlobBindExtract(Logger LOG) {
         LOG.info("doBlobBindExtract test start");
         final TaskAdjutant taskAdjutant = obtainTaskAdjutant();
-        final Charset charset = taskAdjutant.obtainCharsetClient();
+        final Charset charset = taskAdjutant.charsetClient();
         String text;
         byte[] array;
 
@@ -580,7 +580,7 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBased
     final void doMediumBlobBindExtract(Logger LOG) {
         LOG.info("doMediumBlobBindExtract test start");
         final TaskAdjutant taskAdjutant = obtainTaskAdjutant();
-        final Charset charset = taskAdjutant.obtainCharsetClient();
+        final Charset charset = taskAdjutant.charsetClient();
         String text;
         byte[] array;
 
@@ -602,7 +602,7 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBased
     final void doLongBlobBindExtract(Logger LOG) {
         LOG.info("doLongBlobBindExtract test start");
         final TaskAdjutant taskAdjutant = obtainTaskAdjutant();
-        final Charset charset = taskAdjutant.obtainCharsetClient();
+        final Charset charset = taskAdjutant.charsetClient();
         String text;
         byte[] array;
 
@@ -623,7 +623,7 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBased
     final void doTinyTextBindAndExtract(Logger LOG) {
         LOG.info("doTinyTextBindAndExtract test start");
         final TaskAdjutant taskAdjutant = obtainTaskAdjutant();
-        final Charset charset = taskAdjutant.obtainCharsetClient();
+        final Charset charset = taskAdjutant.charsetClient();
         String text;
         byte[] array;
 
@@ -644,7 +644,7 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBased
     final void doTextBindAndExtract(Logger LOG) {
         LOG.info("doTextBindAndExtract test start");
         final TaskAdjutant taskAdjutant = obtainTaskAdjutant();
-        final Charset charset = taskAdjutant.obtainCharsetClient();
+        final Charset charset = taskAdjutant.charsetClient();
         String text;
         byte[] array;
 
@@ -665,7 +665,7 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBased
     final void doMediumTextBindAndExtract(Logger LOG) {
         LOG.info("doMediumTextBindAndExtract test start");
         final TaskAdjutant taskAdjutant = obtainTaskAdjutant();
-        final Charset charset = taskAdjutant.obtainCharsetClient();
+        final Charset charset = taskAdjutant.charsetClient();
         String text;
         byte[] array;
 
@@ -686,7 +686,7 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBased
     final void doLongTextBindAndExtract(Logger LOG) {
         LOG.info("doLongTextBindAndExtract test start");
         final TaskAdjutant taskAdjutant = obtainTaskAdjutant();
-        final Charset charset = taskAdjutant.obtainCharsetClient();
+        final Charset charset = taskAdjutant.charsetClient();
         String text;
         byte[] array;
 
@@ -1305,7 +1305,7 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBased
 
         final byte[] bindBinary;
         if (bindParam instanceof String) {
-            bindBinary = ((String) bindParam).getBytes(taskAdjutant.obtainCharsetClient());
+            bindBinary = ((String) bindParam).getBytes(taskAdjutant.charsetClient());
         } else {
             bindBinary = (byte[]) bindParam;
         }
@@ -1326,7 +1326,7 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBased
 
         final byte[] bindBinary;
         if (bindParam instanceof String) {
-            bindBinary = ((String) bindParam).getBytes(taskAdjutant.obtainCharsetClient());
+            bindBinary = ((String) bindParam).getBytes(taskAdjutant.charsetClient());
         } else {
             bindBinary = (byte[]) bindParam;
         }
@@ -1347,7 +1347,7 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBased
 
         final byte[] bindBinary;
         if (bindParam instanceof String) {
-            bindBinary = ((String) bindParam).getBytes(taskAdjutant.obtainCharsetClient());
+            bindBinary = ((String) bindParam).getBytes(taskAdjutant.charsetClient());
         } else {
             bindBinary = (byte[]) bindParam;
         }
@@ -1368,7 +1368,7 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBased
 
         final byte[] bindBinary;
         if (bindParam instanceof String) {
-            bindBinary = ((String) bindParam).getBytes(taskAdjutant.obtainCharsetClient());
+            bindBinary = ((String) bindParam).getBytes(taskAdjutant.charsetClient());
         } else {
             bindBinary = (byte[]) bindParam;
         }
@@ -1391,7 +1391,7 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBased
         if (bindParam instanceof String) {
             bindText = ((String) bindParam);
         } else {
-            bindText = new String((byte[]) bindParam, taskAdjutant.obtainCharsetClient());
+            bindText = new String((byte[]) bindParam, taskAdjutant.charsetClient());
         }
         assertEquals(resultRow.getNonNull("field", String.class), bindText, field);
     }
@@ -1412,7 +1412,7 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBased
         if (bindParam instanceof String) {
             bindText = ((String) bindParam);
         } else {
-            bindText = new String((byte[]) bindParam, taskAdjutant.obtainCharsetClient());
+            bindText = new String((byte[]) bindParam, taskAdjutant.charsetClient());
         }
         assertEquals(resultRow.getNonNull("field", String.class), bindText, field);
     }
@@ -1433,7 +1433,7 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBased
         if (bindParam instanceof String) {
             bindText = ((String) bindParam);
         } else {
-            bindText = new String((byte[]) bindParam, taskAdjutant.obtainCharsetClient());
+            bindText = new String((byte[]) bindParam, taskAdjutant.charsetClient());
         }
         assertEquals(resultRow.getNonNull("field", String.class), bindText, field);
     }
@@ -1454,7 +1454,7 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBased
         if (bindParam instanceof String) {
             bindText = ((String) bindParam);
         } else {
-            bindText = new String((byte[]) bindParam, taskAdjutant.obtainCharsetClient());
+            bindText = new String((byte[]) bindParam, taskAdjutant.charsetClient());
         }
         assertEquals(resultRow.getNonNull("field", String.class), bindText, field);
     }
@@ -1650,7 +1650,7 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBased
             bindBits = ((Number) bindParam).longValue();
         } else if (bindParam instanceof String) {
             // because MySQL server store binary
-            byte[] bytes = ((String) bindParam).getBytes(adjutant.obtainCharsetClient());
+            byte[] bytes = ((String) bindParam).getBytes(adjutant.charsetClient());
             bindBits = MySQLNumbers.readLongFromBigEndian(bytes, 0, bytes.length);
         } else if (bindParam instanceof byte[]) {
             byte[] bytes = (byte[]) bindParam;
@@ -1685,7 +1685,7 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBased
         // 3. compare
         final byte[] bytes = resultRow.get("field", byte[].class);
         assertNotNull(bytes, field);
-        final byte[] bindByteArray = bindParam.getBytes(taskAdjutant.obtainCharsetClient());
+        final byte[] bindByteArray = bindParam.getBytes(taskAdjutant.charsetClient());
         if (mySQLType == MySQLType.BINARY) {
             final int length = Math.min(bindByteArray.length, bytes.length);
             for (int i = 0; i < length; i++) {

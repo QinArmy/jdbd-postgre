@@ -5,7 +5,7 @@ import io.jdbd.mysql.SQLMode;
 import io.jdbd.mysql.Server;
 import io.jdbd.mysql.protocol.CharsetMapping;
 import io.jdbd.mysql.protocol.Constants;
-import io.jdbd.mysql.protocol.ServerVersion;
+import io.jdbd.mysql.protocol.MySQLServerVersion;
 import io.jdbd.mysql.protocol.conf.PropertyKey;
 import io.jdbd.mysql.stmt.Stmts;
 import io.jdbd.mysql.util.MySQLExceptions;
@@ -385,7 +385,7 @@ final class DefaultSessionResetter implements SessionResetter {
                 || StandardCharsets.UTF_8.aliases().contains(charsetClient)) {
             pair = defaultPair;
         } else {
-            ServerVersion serverVersion = this.adjutant.obtainHandshakeV10Packet().getServerVersion();
+            MySQLServerVersion serverVersion = this.adjutant.obtainHandshakeV10Packet().getServerVersion();
             CharsetMapping.MySQLCharset mySQLCharset = CharsetMapping.getMysqlCharsetForJavaEncoding(
                     charsetClient, serverVersion);
             if (mySQLCharset != null) {

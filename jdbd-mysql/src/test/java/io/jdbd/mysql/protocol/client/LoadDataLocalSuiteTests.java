@@ -3,7 +3,7 @@ package io.jdbd.mysql.protocol.client;
 
 import io.jdbd.mysql.Groups;
 import io.jdbd.mysql.protocol.conf.PropertyKey;
-import io.jdbd.mysql.stmt.BindableStmt;
+import io.jdbd.mysql.stmt.BindStmt;
 import io.jdbd.mysql.stmt.Stmts;
 import io.jdbd.mysql.util.MySQLTimes;
 import io.jdbd.result.ResultRow;
@@ -47,12 +47,12 @@ public class LoadDataLocalSuiteTests extends AbstractStmtTaskSuiteTests {
     }
 
     @Override
-    Mono<ResultStates> executeUpdate(BindableStmt stmt, TaskAdjutant adjutant) {
+    Mono<ResultStates> executeUpdate(BindStmt stmt, TaskAdjutant adjutant) {
         return ComQueryTask.bindableUpdate(stmt, adjutant);
     }
 
     @Override
-    Flux<ResultRow> executeQuery(BindableStmt stmt, TaskAdjutant adjutant) {
+    Flux<ResultRow> executeQuery(BindStmt stmt, TaskAdjutant adjutant) {
         return ComQueryTask.bindableQuery(stmt, adjutant);
     }
 

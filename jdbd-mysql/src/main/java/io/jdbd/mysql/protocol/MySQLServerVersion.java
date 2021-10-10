@@ -1,22 +1,24 @@
 package io.jdbd.mysql.protocol;
 
-public final class ServerVersion implements Comparable<ServerVersion> {
+import io.jdbd.ServerVersion;
 
-    private static final ServerVersion MIN_VERSION = new ServerVersion("0.0.0", 0, 0, 0);
+public final class MySQLServerVersion implements Comparable<MySQLServerVersion>, ServerVersion {
+
+    private static final MySQLServerVersion MIN_VERSION = new MySQLServerVersion("0.0.0", 0, 0, 0);
 
     private final String completeVersion;
     private final int major;
     private final int minor;
     private final int subMinor;
 
-    private ServerVersion(String completeVersion, int major, int minor, int subMinor) {
+    private MySQLServerVersion(String completeVersion, int major, int minor, int subMinor) {
         this.completeVersion = completeVersion;
         this.major = major;
         this.minor = minor;
         this.subMinor = subMinor;
     }
 
-    public int compareTo(ServerVersion other) {
+    public int compareTo(MySQLServerVersion other) {
         return doCompareTo(other.major, other.minor, other.subMinor);
     }
 
@@ -30,10 +32,10 @@ public final class ServerVersion implements Comparable<ServerVersion> {
         if (this == obj) {
             return true;
         }
-        if (!(obj instanceof ServerVersion)) {
+        if (!(obj instanceof MySQLServerVersion)) {
             return false;
         }
-        ServerVersion another = (ServerVersion) obj;
+        MySQLServerVersion another = (MySQLServerVersion) obj;
         return this.major == another.major
                 && this.minor == another.minor
                 && this.subMinor == another.subMinor;
@@ -45,7 +47,7 @@ public final class ServerVersion implements Comparable<ServerVersion> {
      * @param min The minimum version to compare against.
      * @return true if version meets the minimum specified by `min'
      */
-    public boolean meetsMinimum(ServerVersion min) {
+    public boolean meetsMinimum(MySQLServerVersion min) {
         return doCompareTo(min.major, min.minor, min.subMinor) >= 0;
     }
 
@@ -53,8 +55,8 @@ public final class ServerVersion implements Comparable<ServerVersion> {
         return doCompareTo(major, minor, subMinor) >= 0;
     }
 
-
-    public String getCompleteVersion() {
+    @Override
+    public String getVersion() {
         return this.completeVersion;
     }
 
@@ -85,9 +87,9 @@ public final class ServerVersion implements Comparable<ServerVersion> {
      * Parse the server version into major/minor/subminor.
      *
      * @param versionString string version representation
-     * @return {@link ServerVersion}
+     * @return {@link MySQLServerVersion}
      */
-    public static ServerVersion parseVersion(final String versionString) {
+    public static MySQLServerVersion parseVersion(final String versionString) {
         final int index1 = versionString.indexOf('.');
         if (index1 < 0) {
             throw new IllegalArgumentException("versionString error");
@@ -105,20 +107,20 @@ public final class ServerVersion implements Comparable<ServerVersion> {
                 continue;
             }
             int subMinor = Integer.parseInt(versionString.substring(i));
-            return new ServerVersion(versionString, major, minor, subMinor);
+            return new MySQLServerVersion(versionString, major, minor, subMinor);
         }
         throw new IllegalArgumentException("versionString error");
     }
 
-    public static ServerVersion getMinVersion() {
+    public static MySQLServerVersion getMinVersion() {
         return MIN_VERSION;
     }
 
-    public static ServerVersion getInstance(int major, int minor, int subMinor) {
-        return new ServerVersion(major + "." + minor + "." + subMinor, major, minor, subMinor);
+    public static MySQLServerVersion getInstance(int major, int minor, int subMinor) {
+        return new MySQLServerVersion(major + "." + minor + "." + subMinor, major, minor, subMinor);
     }
 
-    public static boolean isEnterpriseEdition(ServerVersion serverVersion) {
+    public static boolean isEnterpriseEdition(MySQLServerVersion serverVersion) {
         String completeVersion = serverVersion.completeVersion;
         return completeVersion.contains("enterprise")
                 || completeVersion.contains("commercial")

@@ -5,8 +5,8 @@ import io.jdbd.mysql.MySQLJdbdException;
 import io.jdbd.mysql.protocol.conf.PropertyKey;
 import io.jdbd.mysql.session.MySQLDatabaseSession;
 import io.jdbd.mysql.session.ServerPreparedStatement;
-import io.jdbd.mysql.stmt.BatchBindStmt;
-import io.jdbd.mysql.stmt.BindableStmt;
+import io.jdbd.mysql.stmt.BindBatchStmt;
+import io.jdbd.mysql.stmt.BindStmt;
 import io.jdbd.mysql.stmt.PrepareStmtTask;
 import io.jdbd.mysql.util.MySQLExceptions;
 import io.jdbd.result.ResultRow;
@@ -84,7 +84,7 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
      * </p>
      *
      * @see #ComPreparedTask(ParamStmt, MonoSink, TaskAdjutant)
-     * @see ComQueryTask#bindableUpdate(BindableStmt, TaskAdjutant)
+     * @see ComQueryTask#bindableUpdate(BindStmt, TaskAdjutant)
      */
     static Mono<ResultStates> update(final ParamStmt stmt, final TaskAdjutant adjutant) {
         return Mono.create(sink -> {
@@ -107,7 +107,7 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
      * </p>
      *
      * @see #ComPreparedTask(ParamStmt, FluxSink, TaskAdjutant)
-     * @see ComQueryTask#bindableQuery(BindableStmt, TaskAdjutant)
+     * @see ComQueryTask#bindableQuery(BindStmt, TaskAdjutant)
      */
     static Flux<ResultRow> query(final ParamStmt stmt, final TaskAdjutant adjutant) {
         return Flux.create(sink -> {
@@ -126,7 +126,7 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
      * </p>
      *
      * @see #ComPreparedTask(FluxSink, ParamBatchStmt, TaskAdjutant)
-     * @see ComQueryTask#bindableBatch(BatchBindStmt, TaskAdjutant)
+     * @see ComQueryTask#bindableBatch(BindBatchStmt, TaskAdjutant)
      */
     static Flux<ResultStates> batchUpdate(final ParamBatchStmt<? extends ParamValue> stmt
             , final TaskAdjutant adjutant) {
@@ -148,7 +148,7 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
      * </p>
      *
      * @see #ComPreparedTask(ParamBatchStmt, MultiResultSink, TaskAdjutant)
-     * @see ComQueryTask#bindableAsMulti(BatchBindStmt, TaskAdjutant)
+     * @see ComQueryTask#bindableAsMulti(BindBatchStmt, TaskAdjutant)
      */
     static ReactorMultiResult asMulti(final ParamBatchStmt<? extends ParamValue> stmt, final TaskAdjutant adjutant) {
         return MultiResults.create(adjutant, sink -> {
@@ -167,7 +167,7 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
      * </p>
      *
      * @see #ComPreparedTask(ParamBatchStmt, MultiResultSink, TaskAdjutant)
-     * @see ComQueryTask#bindableAsFlux(BatchBindStmt, TaskAdjutant)
+     * @see ComQueryTask#bindableAsFlux(BindBatchStmt, TaskAdjutant)
      */
     static Flux<SingleResult> asFlux(final ParamBatchStmt<? extends ParamValue> stmt, final TaskAdjutant adjutant) {
         return MultiResults.createAsFlux(adjutant, sink -> {

@@ -19,7 +19,7 @@ interface ClientProtocolAdjutant extends ResultRowAdjutant {
 
     int obtainMaxBytesPerCharClient();
 
-    Charset obtainCharsetClient();
+    Charset charsetClient();
 
     @Nullable
     Charset getCharsetResults();

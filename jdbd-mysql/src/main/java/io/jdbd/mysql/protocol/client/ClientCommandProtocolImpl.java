@@ -4,8 +4,8 @@ import io.jdbd.mysql.Server;
 import io.jdbd.mysql.protocol.conf.PropertyKey;
 import io.jdbd.mysql.session.MySQLDatabaseSession;
 import io.jdbd.mysql.session.SessionAdjutant;
-import io.jdbd.mysql.stmt.BatchBindStmt;
-import io.jdbd.mysql.stmt.BindableStmt;
+import io.jdbd.mysql.stmt.BindBatchStmt;
+import io.jdbd.mysql.stmt.BindStmt;
 import io.jdbd.result.MultiResult;
 import io.jdbd.result.ResultRow;
 import io.jdbd.result.ResultStates;
@@ -88,19 +88,19 @@ final class ClientCommandProtocolImpl implements ClientCommandProtocol {
      */
     @Override
     public final ReactorMultiResult executeAsMulti(List<StaticStmt> stmtList) {
-        return ComQueryTask.asMulti(stmtList, this.adjutant);
+        return ComQueryTask.batchAsMulti(stmtList, this.adjutant);
     }
 
     @Override
     public Flux<SingleResult> executeAsFlux(List<StaticStmt> stmtList) {
-        return ComQueryTask.asFlux(stmtList, this.adjutant);
+        return ComQueryTask.batchAsFlux(stmtList, this.adjutant);
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public final Mono<ResultStates> bindableUpdate(BindableStmt wrapper) {
+    public final Mono<ResultStates> bindableUpdate(BindStmt wrapper) {
         return ComQueryTask.bindableUpdate(wrapper, this.adjutant);
     }
 
@@ -108,7 +108,7 @@ final class ClientCommandProtocolImpl implements ClientCommandProtocol {
      * {@inheritDoc}
      */
     @Override
-    public final Flux<ResultRow> bindableQuery(BindableStmt wrapper) {
+    public final Flux<ResultRow> bindableQuery(BindStmt wrapper) {
         return ComQueryTask.bindableQuery(wrapper, this.adjutant);
     }
 
@@ -116,7 +116,7 @@ final class ClientCommandProtocolImpl implements ClientCommandProtocol {
      * {@inheritDoc}
      */
     @Override
-    public final Flux<ResultStates> bindableBatch(BatchBindStmt stmt) {
+    public final Flux<ResultStates> bindableBatch(BindBatchStmt stmt) {
         return ComQueryTask.bindableBatch(stmt, this.adjutant);
     }
 
@@ -124,7 +124,7 @@ final class ClientCommandProtocolImpl implements ClientCommandProtocol {
      * {@inheritDoc}
      */
     @Override
-    public final ReactorMultiResult bindableAsMulti(BatchBindStmt stmt) {
+    public final ReactorMultiResult bindableAsMulti(BindBatchStmt stmt) {
         return ComQueryTask.bindableAsMulti(stmt, this.adjutant);
     }
 
@@ -132,7 +132,7 @@ final class ClientCommandProtocolImpl implements ClientCommandProtocol {
      * {@inheritDoc}
      */
     @Override
-    public final Flux<SingleResult> bindableAsFlux(BatchBindStmt stmt) {
+    public final Flux<SingleResult> bindableAsFlux(BindBatchStmt stmt) {
         return ComQueryTask.bindableAsFlux(stmt, this.adjutant);
     }
 
@@ -148,7 +148,7 @@ final class ClientCommandProtocolImpl implements ClientCommandProtocol {
      * {@inheritDoc}
      */
     @Override
-    public final MultiResult multiStmtAsMulti(List<BindableStmt> wrapperList) {
+    public final MultiResult multiStmtAsMulti(List<BindStmt> wrapperList) {
         return ComQueryTask.multiStmtAsMulti(wrapperList, this.adjutant);
     }
 
@@ -156,7 +156,7 @@ final class ClientCommandProtocolImpl implements ClientCommandProtocol {
      * {@inheritDoc}
      */
     @Override
-    public final Flux<SingleResult> multiStmtAsFlux(List<BindableStmt> wrapperList) {
+    public final Flux<SingleResult> multiStmtAsFlux(List<BindStmt> wrapperList) {
         return ComQueryTask.multiStmtAsFlux(wrapperList, this.adjutant);
     }
 

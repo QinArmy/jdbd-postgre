@@ -3,7 +3,7 @@ package io.jdbd.mysql.protocol.client;
 
 import io.jdbd.JdbdSQLException;
 import io.jdbd.mysql.Groups;
-import io.jdbd.mysql.stmt.BindableStmt;
+import io.jdbd.mysql.stmt.BindStmt;
 import io.jdbd.mysql.stmt.MySQLParamValue;
 import io.jdbd.mysql.stmt.Stmts;
 import io.jdbd.result.ResultRow;
@@ -39,12 +39,12 @@ public class ComPreparedTaskSuiteTests extends AbstractStmtTaskSuiteTests {
     }
 
     @Override
-    Mono<ResultStates> executeUpdate(BindableStmt stmt, TaskAdjutant adjutant) {
+    Mono<ResultStates> executeUpdate(BindStmt stmt, TaskAdjutant adjutant) {
         return ComPreparedTask.update(stmt, adjutant);
     }
 
     @Override
-    Flux<ResultRow> executeQuery(BindableStmt stmt, TaskAdjutant adjutant) {
+    Flux<ResultRow> executeQuery(BindStmt stmt, TaskAdjutant adjutant) {
         return ComPreparedTask.query(stmt, adjutant);
     }
 

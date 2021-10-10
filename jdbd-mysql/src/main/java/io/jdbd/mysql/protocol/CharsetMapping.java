@@ -193,7 +193,7 @@ public abstract class CharsetMapping {
     }
 
     @Nullable
-    public static MySQLCharset getMysqlCharsetForJavaEncoding(String javaEncoding, @Nullable ServerVersion version) {
+    public static MySQLCharset getMysqlCharsetForJavaEncoding(String javaEncoding, @Nullable MySQLServerVersion version) {
         List<MySQLCharset> mysqlCharsets;
         mysqlCharsets = CharsetMapping.JAVA_ENCODING_UC_TO_MYSQL_CHARSET.get(javaEncoding.toUpperCase(Locale.ENGLISH));
 
@@ -263,7 +263,7 @@ public abstract class CharsetMapping {
     }
 
 
-    public static int getCollationIndexForJavaEncoding(String javaEncoding, ServerVersion version) {
+    public static int getCollationIndexForJavaEncoding(String javaEncoding, MySQLServerVersion version) {
         MySQLCharset mySQLCharset = getMysqlCharsetForJavaEncoding(javaEncoding, version);
         if (mySQLCharset != null) {
             Integer ci = CHARSET_NAME_TO_COLLATION_INDEX.get(mySQLCharset.charsetName);
@@ -305,9 +305,9 @@ public abstract class CharsetMapping {
         list.add(new MySQLCharset(cp932, 2, 1, "WINDOWS-31J"));        // MS932 is alias for WINDOWS-31J
         list.add(new MySQLCharset(gb2312, 2, 0, "GB2312"));
         list.add(new MySQLCharset(ujis, 3, 0, "EUC_JP"));
-        list.add(new MySQLCharset(eucjpms, 3, 0, ServerVersion.getInstance(5, 0, 3), "EUC_JP_Solaris"));    // "EUC_JP_Solaris = 	>5.0.3 eucjpms,"
+        list.add(new MySQLCharset(eucjpms, 3, 0, MySQLServerVersion.getInstance(5, 0, 3), "EUC_JP_Solaris"));    // "EUC_JP_Solaris = 	>5.0.3 eucjpms,"
 
-        list.add(new MySQLCharset(gb18030, 4, 0, ServerVersion.getInstance(5, 7, 4), "GB18030"));
+        list.add(new MySQLCharset(gb18030, 4, 0, MySQLServerVersion.getInstance(5, 7, 4), "GB18030"));
         list.add(new MySQLCharset(euckr, 2, 0, "EUC-KR"));
         list.add(new MySQLCharset(latin1, 1, 1, "Cp1252", "ISO8859_1"));
         list.add(new MySQLCharset(swe7, 1, 0, "Cp1252"));            // new mapping, Cp1252 ?
@@ -730,7 +730,7 @@ public abstract class CharsetMapping {
         public final int priority;
         public final List<String> javaEncodingsUcList;
 
-        public final ServerVersion minimumVersion;
+        public final MySQLServerVersion minimumVersion;
 
         /**
          * Constructs MySQLCharset object
@@ -741,10 +741,10 @@ public abstract class CharsetMapping {
          * @param javaEncodings List of Java encodings corresponding to this MySQL charset; the first name in list is the default for mysql --&gt; java data conversion
          */
         private MySQLCharset(String charsetName, int mblen, int priority, String... javaEncodings) {
-            this(charsetName, mblen, priority, ServerVersion.getMinVersion(), javaEncodings);
+            this(charsetName, mblen, priority, MySQLServerVersion.getMinVersion(), javaEncodings);
         }
 
-        private MySQLCharset(String charsetName, int mblen, int priority, ServerVersion minimumVersion
+        private MySQLCharset(String charsetName, int mblen, int priority, MySQLServerVersion minimumVersion
                 , String... javaEncodings) {
             this.charsetName = charsetName;
             this.mblen = mblen;
@@ -768,7 +768,7 @@ public abstract class CharsetMapping {
             return asString.toString();
         }
 
-        boolean isOkayForVersion(ServerVersion version) {
+        boolean isOkayForVersion(MySQLServerVersion version) {
             return version.meetsMinimum(this.minimumVersion);
         }
 

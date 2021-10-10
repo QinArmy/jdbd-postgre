@@ -5,9 +5,9 @@ import io.jdbd.mysql.Groups;
 import io.jdbd.mysql.MySQLType;
 import io.jdbd.mysql.protocol.conf.PropertyKey;
 import io.jdbd.mysql.session.SessionAdjutant;
-import io.jdbd.mysql.stmt.BatchBindStmt;
+import io.jdbd.mysql.stmt.BindBatchStmt;
+import io.jdbd.mysql.stmt.BindStmt;
 import io.jdbd.mysql.stmt.BindValue;
-import io.jdbd.mysql.stmt.BindableStmt;
 import io.jdbd.mysql.stmt.Stmts;
 import io.jdbd.result.NoMoreResultException;
 import io.jdbd.result.ResultRow;
@@ -42,7 +42,7 @@ import static org.testng.Assert.*;
  * @see ComQueryTask#multiStmt(List, TaskAdjutant)
  * @see ComQueryTask#multiStmtAsMulti(List, TaskAdjutant)
  * @see ComQueryTask#batchUpdate(List, TaskAdjutant)
- * @see ComQueryTask#bindableBatch(BatchBindStmt, TaskAdjutant)
+ * @see ComQueryTask#bindableBatch(BindBatchStmt, TaskAdjutant)
  */
 @Test(groups = {Groups.MULTI_STMT}, dependsOnGroups = {Groups.COM_QUERY, Groups.DATA_PREPARE})
 public class MultiStatementSuiteTests extends AbstractConnectionBasedSuiteTests {
@@ -97,7 +97,7 @@ public class MultiStatementSuiteTests extends AbstractConnectionBasedSuiteTests 
         final AtomicReference<ResultStates> statesHolder = new AtomicReference<>(null);
 
         //below defer serially subscribe
-        final ReactorMultiResult multiResults1 = ComQueryTask.asMulti(Collections.unmodifiableList(sqlList), adjutant);
+        final ReactorMultiResult multiResults1 = ComQueryTask.batchAsMulti(Collections.unmodifiableList(sqlList), adjutant);
         multiResults1.nextUpdate()//1. immediately subscribe update
                 .switchIfEmpty(emptyError())
                 .map(this::assertUpdateSuccess)
@@ -138,7 +138,7 @@ public class MultiStatementSuiteTests extends AbstractConnectionBasedSuiteTests 
 
         //below immediately serially subscribe
         final ReactorMultiResult multiResults2;
-        multiResults2 = ComQueryTask.asMulti(Collections.unmodifiableList(sqlList), adjutant);
+        multiResults2 = ComQueryTask.batchAsMulti(Collections.unmodifiableList(sqlList), adjutant);
 
         final AtomicReference<Throwable> errorHolder = new AtomicReference<>(null);
 
@@ -205,30 +205,30 @@ public class MultiStatementSuiteTests extends AbstractConnectionBasedSuiteTests 
         final TaskAdjutant adjutant = obtainMultiStmtTaskAdjutant();
 
         String sql;
-        final List<BindableStmt> bindableStmtList = new ArrayList<>(6);
+        final List<BindStmt> bindStmtList = new ArrayList<>(6);
 
         sql = "UPDATE mysql_types as t SET t.name = 'mysql' WHERE t.id = ?";//[1] update
-        bindableStmtList.add(Stmts.single(sql, BindValue.create(0, MySQLType.BIGINT, 264)));
+        bindStmtList.add(Stmts.single(sql, BindValue.create(0, MySQLType.BIGINT, 264)));
 
         sql = String.format("UPDATE mysql_types as t SET t.my_date = '%s' WHERE t.id = ?", LocalDate.now());//[2] update
-        bindableStmtList.add(Stmts.single(sql, BindValue.create(0, MySQLType.BIGINT, 265)));
+        bindStmtList.add(Stmts.single(sql, BindValue.create(0, MySQLType.BIGINT, 265)));
 
         sql = String.format("SELECT t.id as id ,t.name as name,t.create_time as createTime FROM mysql_types as t WHERE t.id > ? ORDER BY t.id LIMIT %s", ROW_COUNT);// [3] query
-        bindableStmtList.add(Stmts.single(sql, BindValue.create(0, MySQLType.BIGINT, 260)));
+        bindStmtList.add(Stmts.single(sql, BindValue.create(0, MySQLType.BIGINT, 260)));
 
         sql = String.format("UPDATE mysql_types as t SET t.my_time= '%s' WHERE t.id = ?", LocalTime.now());// [4] update
-        bindableStmtList.add(Stmts.single(sql, BindValue.create(0, MySQLType.BIGINT, 266)));
+        bindStmtList.add(Stmts.single(sql, BindValue.create(0, MySQLType.BIGINT, 266)));
 
         sql = String.format("SELECT t.id as id ,t.name as name,t.create_time as createTime FROM mysql_types as t WHERE t.id > ? ORDER BY t.id LIMIT %s", ROW_COUNT); //[5] query
-        bindableStmtList.add(Stmts.single(sql, BindValue.create(0, MySQLType.BIGINT, 260)));
+        bindStmtList.add(Stmts.single(sql, BindValue.create(0, MySQLType.BIGINT, 260)));
 
         sql = String.format("UPDATE mysql_types as t SET t.my_time= '%s' WHERE t.id = ?", LocalTime.now());//[6] update
-        bindableStmtList.add(Stmts.single(sql, BindValue.create(0, MySQLType.BIGINT, 267)));
+        bindStmtList.add(Stmts.single(sql, BindValue.create(0, MySQLType.BIGINT, 267)));
 
         final AtomicReference<ResultStates> statesHolder = new AtomicReference<>(null);
 
         //below defer serially subscribe
-        final ReactorMultiResult multiResults1 = ComQueryTask.multiStmtAsMulti(bindableStmtList, adjutant);
+        final ReactorMultiResult multiResults1 = ComQueryTask.multiStmtAsMulti(bindStmtList, adjutant);
         multiResults1.nextUpdate()//1. immediately subscribe update
                 .switchIfEmpty(emptyError())
                 .map(this::assertUpdateSuccess)
@@ -269,7 +269,7 @@ public class MultiStatementSuiteTests extends AbstractConnectionBasedSuiteTests 
 
         //below immediately serially subscribe
         final ReactorMultiResult multiResults2;
-        multiResults2 = ComQueryTask.multiStmtAsMulti(bindableStmtList, adjutant);
+        multiResults2 = ComQueryTask.multiStmtAsMulti(bindStmtList, adjutant);
 
         final AtomicReference<Throwable> errorHolder = new AtomicReference<>(null);
 
@@ -361,7 +361,7 @@ public class MultiStatementSuiteTests extends AbstractConnectionBasedSuiteTests 
 
         try {
             //below defer serially subscribe
-            final ReactorMultiResult multiResults1 = ComQueryTask.asMulti(Collections.unmodifiableList(sqlList), adjutant);
+            final ReactorMultiResult multiResults1 = ComQueryTask.batchAsMulti(Collections.unmodifiableList(sqlList), adjutant);
             multiResults1.nextUpdate()//1. immediately subscribe update
                     .switchIfEmpty(emptyError())
                     .map(this::assertUpdateSuccess)
@@ -442,7 +442,7 @@ public class MultiStatementSuiteTests extends AbstractConnectionBasedSuiteTests 
         sqlList.add(Stmts.stmt(sql));
 
         try {
-            final ReactorMultiResult multiResults = ComQueryTask.asMulti(sqlList, adjutant);
+            final ReactorMultiResult multiResults = ComQueryTask.batchAsMulti(sqlList, adjutant);
             multiResults.nextUpdate()//[1] update
                     .map(this::assertUpdateSuccess)
 
@@ -461,7 +461,7 @@ public class MultiStatementSuiteTests extends AbstractConnectionBasedSuiteTests 
         }
 
         try {
-            final ReactorMultiResult multiResults = ComQueryTask.asMulti(sqlList, adjutant);
+            final ReactorMultiResult multiResults = ComQueryTask.batchAsMulti(sqlList, adjutant);
             multiResults.nextUpdate()//[1] update
                     .map(this::assertUpdateSuccess)
 
@@ -505,7 +505,7 @@ public class MultiStatementSuiteTests extends AbstractConnectionBasedSuiteTests 
 
         try {
             //below defer serially subscribe
-            final ReactorMultiResult multiResults1 = ComQueryTask.asMulti(Collections.unmodifiableList(sqlList), adjutant);
+            final ReactorMultiResult multiResults1 = ComQueryTask.batchAsMulti(Collections.unmodifiableList(sqlList), adjutant);
             multiResults1.nextUpdate()//1. defer subscribe update
                     .switchIfEmpty(emptyError())
                     .map(this::assertUpdateSuccess)
@@ -549,7 +549,7 @@ public class MultiStatementSuiteTests extends AbstractConnectionBasedSuiteTests 
     }
 
     /**
-     * @see ComQueryTask#bindableBatch(BatchBindStmt, TaskAdjutant)
+     * @see ComQueryTask#bindableBatch(BindBatchStmt, TaskAdjutant)
      */
     @Test(timeOut = TIME_OUT)
     public void bindableBatchWithMultiStmtMode() {

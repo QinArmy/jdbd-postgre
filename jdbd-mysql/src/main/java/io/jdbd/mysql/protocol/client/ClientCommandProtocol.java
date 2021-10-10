@@ -3,8 +3,8 @@ package io.jdbd.mysql.protocol.client;
 
 import io.jdbd.DatabaseSession;
 import io.jdbd.mysql.session.MySQLDatabaseSession;
-import io.jdbd.mysql.stmt.BatchBindStmt;
-import io.jdbd.mysql.stmt.BindableStmt;
+import io.jdbd.mysql.stmt.BindBatchStmt;
+import io.jdbd.mysql.stmt.BindStmt;
 import io.jdbd.result.MultiResult;
 import io.jdbd.result.ResultRow;
 import io.jdbd.result.ResultStates;
@@ -92,9 +92,9 @@ public interface ClientCommandProtocol extends ClientProtocol {
      * This method is one of underlying api of {@link BindStatement#executeUpdate()} method.
      * </p>
      *
-     * @see ComQueryTask#bindableUpdate(BindableStmt, TaskAdjutant)
+     * @see ComQueryTask#bindableUpdate(BindStmt, TaskAdjutant)
      */
-    Mono<ResultStates> bindableUpdate(BindableStmt wrapper);
+    Mono<ResultStates> bindableUpdate(BindStmt wrapper);
 
     /**
      * <p>
@@ -105,36 +105,36 @@ public interface ClientCommandProtocol extends ClientProtocol {
      * </ul>
      * </p>
      *
-     * @see ComQueryTask#bindableQuery(BindableStmt, TaskAdjutant)
+     * @see ComQueryTask#bindableQuery(BindStmt, TaskAdjutant)
      */
-    Flux<ResultRow> bindableQuery(BindableStmt wrapper);
+    Flux<ResultRow> bindableQuery(BindStmt wrapper);
 
     /**
      * <p>
      * This method is one of underlying api of {@link BindStatement#executeBatch()} method.
      * </p>
      *
-     * @see ComQueryTask#bindableBatch(BatchBindStmt, TaskAdjutant)
+     * @see ComQueryTask#bindableBatch(BindBatchStmt, TaskAdjutant)
      */
-    Flux<ResultStates> bindableBatch(BatchBindStmt wrapper);
+    Flux<ResultStates> bindableBatch(BindBatchStmt wrapper);
 
     /**
      * <p>
      * This method is one of underlying api of {@link BindStatement#executeBatchAsMulti()} method.
      * </p>
      *
-     * @see ComQueryTask#bindableAsMulti(BatchBindStmt, TaskAdjutant)
+     * @see ComQueryTask#bindableAsMulti(BindBatchStmt, TaskAdjutant)
      */
-    ReactorMultiResult bindableAsMulti(BatchBindStmt stmt);
+    ReactorMultiResult bindableAsMulti(BindBatchStmt stmt);
 
     /**
      * <p>
      * This method is one of underlying api of {@link BindStatement#executeBatchAsFlux()} method.
      * </p>
      *
-     * @see ComQueryTask#bindableAsFlux(BatchBindStmt, TaskAdjutant)
+     * @see ComQueryTask#bindableAsFlux(BindBatchStmt, TaskAdjutant)
      */
-    Flux<SingleResult> bindableAsFlux(BatchBindStmt stmt);
+    Flux<SingleResult> bindableAsFlux(BindBatchStmt stmt);
 
     /**
      * <p>
@@ -157,7 +157,7 @@ public interface ClientCommandProtocol extends ClientProtocol {
      *
      * @see ComQueryTask#multiStmtAsMulti(List, TaskAdjutant)
      */
-    MultiResult multiStmtAsMulti(List<BindableStmt> wrapperList);
+    MultiResult multiStmtAsMulti(List<BindStmt> wrapperList);
 
     /**
      * <p>
@@ -166,7 +166,7 @@ public interface ClientCommandProtocol extends ClientProtocol {
      *
      * @see ComQueryTask#multiStmtAsFlux(List, TaskAdjutant)
      */
-    Flux<SingleResult> multiStmtAsFlux(List<BindableStmt> wrapperList);
+    Flux<SingleResult> multiStmtAsFlux(List<BindStmt> wrapperList);
 
     Mono<Void> reset();
 

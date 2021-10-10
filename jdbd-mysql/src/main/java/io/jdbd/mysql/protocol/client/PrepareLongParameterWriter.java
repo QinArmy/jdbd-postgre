@@ -252,7 +252,7 @@ final class PrepareLongParameterWriter implements PrepareExecuteCommandWriter.Lo
         if (this.statementTask.obtainParameterMetas()[paramIndex].mysqlType.isLongString()) {
             charset = obtainClobCharset();
         } else {
-            charset = this.adjutant.obtainCharsetClient();
+            charset = this.adjutant.charsetClient();
         }
         final int maxPacket = this.maxPacket;
         final CharBuffer charBuffer = CharBuffer.allocate(ClientConstants.BUFFER_LENGTH);
@@ -330,7 +330,7 @@ final class PrepareLongParameterWriter implements PrepareExecuteCommandWriter.Lo
         if (this.statementTask.obtainParameterMetas()[paramIndex].mysqlType.isLongString()) {
             charset = obtainClobCharset();
         } else {
-            charset = this.adjutant.obtainCharsetClient();
+            charset = this.adjutant.charsetClient();
         }
         return charset;
     }
@@ -341,7 +341,7 @@ final class PrepareLongParameterWriter implements PrepareExecuteCommandWriter.Lo
     private Charset obtainClobCharset() {
         Charset charset = this.properties.get(PropertyKey.clobCharacterEncoding, Charset.class);
         if (charset == null) {
-            charset = this.adjutant.obtainCharsetClient();
+            charset = this.adjutant.charsetClient();
         }
         return charset;
     }

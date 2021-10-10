@@ -15,31 +15,31 @@ public abstract class Stmts extends JdbdStmts {
     }
 
 
-    public static BindableStmt single(String sql, BindValue bindValue) {
-        return new SimpleBindableStmt(sql, bindValue);
+    public static BindStmt single(String sql, BindValue bindValue) {
+        return new SimpleBindStmt(sql, bindValue);
     }
 
-    public static BindableStmt multi(String sql, List<BindValue> paramGroup) {
-        return new SimpleBindableStmt(sql, paramGroup);
+    public static BindStmt multi(String sql, List<BindValue> paramGroup) {
+        return new SimpleBindStmt(sql, paramGroup);
     }
 
-    public static BatchBindStmt batchBind(String sql, List<List<BindValue>> paramGroupList) {
-        return new SimpleBatchBindStmt(sql, paramGroupList);
+    public static BindBatchStmt batchBind(String sql, List<List<BindValue>> paramGroupList) {
+        return new SimpleBindBatchStmt(sql, paramGroupList);
     }
 
 
-    private static final class SimpleBindableStmt implements BindableStmt {
+    private static final class SimpleBindStmt implements BindStmt {
 
         private final String sql;
 
         private final List<BindValue> paramGroup;
 
-        private SimpleBindableStmt(String sql, List<BindValue> paramGroup) {
+        private SimpleBindStmt(String sql, List<BindValue> paramGroup) {
             this.sql = sql;
             this.paramGroup = Collections.unmodifiableList(paramGroup);
         }
 
-        private SimpleBindableStmt(String sql, BindValue bindValue) {
+        private SimpleBindStmt(String sql, BindValue bindValue) {
             this.sql = sql;
             this.paramGroup = Collections.singletonList(bindValue);
         }
@@ -73,13 +73,13 @@ public abstract class Stmts extends JdbdStmts {
     }
 
 
-    private static final class SimpleBatchBindStmt implements BatchBindStmt {
+    private static final class SimpleBindBatchStmt implements BindBatchStmt {
 
         private final String sql;
 
         private final List<List<BindValue>> groupList;
 
-        private SimpleBatchBindStmt(String sql, List<List<BindValue>> groupList) {
+        private SimpleBindBatchStmt(String sql, List<List<BindValue>> groupList) {
             this.sql = sql;
             if (groupList.size() == 1) {
                 this.groupList = Collections.singletonList(groupList.get(0));

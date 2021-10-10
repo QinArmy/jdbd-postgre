@@ -2,7 +2,7 @@ package io.jdbd.mysql.protocol.client;
 
 import io.jdbd.JdbdSQLException;
 import io.jdbd.mysql.MySQLJdbdException;
-import io.jdbd.mysql.protocol.ServerVersion;
+import io.jdbd.mysql.protocol.MySQLServerVersion;
 import io.jdbd.mysql.protocol.X509TrustManagerWrapper;
 import io.jdbd.mysql.protocol.conf.PropertyKey;
 import io.jdbd.mysql.util.MySQLStates;
@@ -40,7 +40,7 @@ final class ReactorSslProviderBuilder {
 
     private HostInfo<PropertyKey> hostInfo;
 
-    private ServerVersion serverVersion;
+    private MySQLServerVersion serverVersion;
 
     private ByteBufAllocator allocator;
 
@@ -55,7 +55,7 @@ final class ReactorSslProviderBuilder {
         return this;
     }
 
-    public ReactorSslProviderBuilder serverVersion(ServerVersion serverVersion) {
+    public ReactorSslProviderBuilder serverVersion(MySQLServerVersion serverVersion) {
         this.serverVersion = serverVersion;
         return this;
     }
@@ -142,11 +142,11 @@ final class ReactorSslProviderBuilder {
         List<String> candidateList = MySQLStringUtils.spitAsList(enabledTLSProtocols, ",");
 
         if (candidateList.isEmpty()) {
-            ServerVersion serverVersion = this.serverVersion;
+            MySQLServerVersion serverVersion = this.serverVersion;
 
             if (serverVersion.meetsMinimum(5, 7, 28)
                     || (serverVersion.meetsMinimum(5, 6, 46) && !serverVersion.meetsMinimum(5, 7, 0))
-                    || (serverVersion.meetsMinimum(5, 6, 0) && ServerVersion.isEnterpriseEdition(serverVersion))) {
+                    || (serverVersion.meetsMinimum(5, 6, 0) && MySQLServerVersion.isEnterpriseEdition(serverVersion))) {
                 candidateList = SslUtils.CLIENT_SUPPORT_TLS_PROTOCOL_LIST;
             } else {
                 candidateList = Collections.unmodifiableList(Arrays.asList(SslUtils.TLSv1_1, SslUtils.TLSv1));

@@ -7,7 +7,7 @@ import io.jdbd.mysql.MySQLJdbdException;
 import io.jdbd.mysql.protocol.AuthenticateAssistant;
 import io.jdbd.mysql.protocol.CharsetMapping;
 import io.jdbd.mysql.protocol.Constants;
-import io.jdbd.mysql.protocol.ServerVersion;
+import io.jdbd.mysql.protocol.MySQLServerVersion;
 import io.jdbd.mysql.protocol.authentication.AuthenticationPlugin;
 import io.jdbd.mysql.protocol.authentication.PluginUtils;
 import io.jdbd.mysql.protocol.authentication.Sha256PasswordPlugin;
@@ -139,7 +139,7 @@ final class MySQLConnectionTask extends CommunicationTask<TaskAdjutant> implemen
 
 
     @Override
-    public ServerVersion getServerVersion() {
+    public MySQLServerVersion getServerVersion() {
         return this.handshake.getServerVersion();
     }
 

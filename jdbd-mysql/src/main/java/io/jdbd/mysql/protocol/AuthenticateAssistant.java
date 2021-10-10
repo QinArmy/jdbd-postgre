@@ -19,7 +19,7 @@ public interface AuthenticateAssistant {
 
     ByteBuf createPacketBuffer(int initialPayloadCapacity);
 
-    ServerVersion getServerVersion();
+    MySQLServerVersion getServerVersion();
 
     ByteBufAllocator allocator();
 

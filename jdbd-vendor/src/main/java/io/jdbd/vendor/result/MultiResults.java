@@ -24,7 +24,7 @@ public abstract class MultiResults {
         return ReactorMultiResults.create(adjutant, callback);
     }
 
-    public static OrderedFlux OrderedFluxError(Throwable error) {
+    public static OrderedFlux orderedFluxError(Throwable error) {
         return new OrderedFluxError(error);
     }
 

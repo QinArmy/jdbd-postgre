@@ -4,9 +4,9 @@ package io.jdbd.mysql.protocol.client;
 import io.jdbd.JdbdSQLException;
 import io.jdbd.mysql.Groups;
 import io.jdbd.mysql.MySQLType;
-import io.jdbd.mysql.stmt.BatchBindStmt;
+import io.jdbd.mysql.stmt.BindBatchStmt;
+import io.jdbd.mysql.stmt.BindStmt;
 import io.jdbd.mysql.stmt.BindValue;
-import io.jdbd.mysql.stmt.BindableStmt;
 import io.jdbd.mysql.stmt.Stmts;
 import io.jdbd.mysql.util.MySQLCodes;
 import io.jdbd.mysql.util.MySQLExceptions;
@@ -45,12 +45,12 @@ public class ComQueryTaskSuiteTests extends AbstractStmtTaskSuiteTests {
     }
 
     @Override
-    Mono<ResultStates> executeUpdate(BindableStmt stmt, TaskAdjutant adjutant) {
+    Mono<ResultStates> executeUpdate(BindStmt stmt, TaskAdjutant adjutant) {
         return ComQueryTask.bindableUpdate(stmt, adjutant);
     }
 
     @Override
-    Flux<ResultRow> executeQuery(BindableStmt stmt, TaskAdjutant adjutant) {
+    Flux<ResultRow> executeQuery(BindStmt stmt, TaskAdjutant adjutant) {
         return ComQueryTask.bindableQuery(stmt, adjutant);
     }
 
@@ -179,7 +179,7 @@ public class ComQueryTaskSuiteTests extends AbstractStmtTaskSuiteTests {
     }
 
     /**
-     * @see ComQueryTask#bindableUpdate(BindableStmt, TaskAdjutant)
+     * @see ComQueryTask#bindableUpdate(BindStmt, TaskAdjutant)
      */
     @Test(timeOut = TIME_OUT)
     public void bindableUpdateIsQuery() {
@@ -615,7 +615,7 @@ public class ComQueryTaskSuiteTests extends AbstractStmtTaskSuiteTests {
 
 
     /**
-     * @see ComQueryTask#bindableBatch(BatchBindStmt, TaskAdjutant)
+     * @see ComQueryTask#bindableBatch(BindBatchStmt, TaskAdjutant)
      */
     @Test(timeOut = TIME_OUT)
     public void bindableBatchWithSingleStmtMode() {
@@ -658,7 +658,7 @@ public class ComQueryTaskSuiteTests extends AbstractStmtTaskSuiteTests {
     }
 
     /**
-     * @see ComQueryTask#bindableBatch(BatchBindStmt, TaskAdjutant)
+     * @see ComQueryTask#bindableBatch(BindBatchStmt, TaskAdjutant)
      */
     @Test(timeOut = TIME_OUT)
     public void bindableBatchWithTempMultiMode() {
@@ -711,7 +711,7 @@ public class ComQueryTaskSuiteTests extends AbstractStmtTaskSuiteTests {
      * test error use case.
      * </p>
      *
-     * @see ComQueryTask#bindableBatch(BatchBindStmt, TaskAdjutant)
+     * @see ComQueryTask#bindableBatch(BindBatchStmt, TaskAdjutant)
      */
     @Test(timeOut = TIME_OUT)
     public void bindableBatchIsQueryWithSingleStmtMode() {
@@ -755,7 +755,7 @@ public class ComQueryTaskSuiteTests extends AbstractStmtTaskSuiteTests {
      * test error use case.
      * </p>
      *
-     * @see ComQueryTask#bindableBatch(BatchBindStmt, TaskAdjutant)
+     * @see ComQueryTask#bindableBatch(BindBatchStmt, TaskAdjutant)
      */
     @Test(timeOut = TIME_OUT)
     public void bindableBatchIsQueryWithTempMultiMode() {
@@ -801,7 +801,7 @@ public class ComQueryTaskSuiteTests extends AbstractStmtTaskSuiteTests {
      * test error use case.
      * </p>
      *
-     * @see ComQueryTask#bindableBatch(BatchBindStmt, TaskAdjutant)
+     * @see ComQueryTask#bindableBatch(BindBatchStmt, TaskAdjutant)
      */
     @Test(timeOut = TIME_OUT)
     public void bindableBatchSyntaxWithSingleStmtMode() {
@@ -844,7 +844,7 @@ public class ComQueryTaskSuiteTests extends AbstractStmtTaskSuiteTests {
      * test error use case.
      * </p>
      *
-     * @see ComQueryTask#bindableBatch(BatchBindStmt, TaskAdjutant)
+     * @see ComQueryTask#bindableBatch(BindBatchStmt, TaskAdjutant)
      */
     @Test(timeOut = TIME_OUT)
     public void bindableBatchSyntaxWithTempMultiMode() {
@@ -887,7 +887,7 @@ public class ComQueryTaskSuiteTests extends AbstractStmtTaskSuiteTests {
 
     /**
      * @see ComQueryTask#update(StaticStmt, TaskAdjutant)
-     * @see ComQueryTask#bindableUpdate(BindableStmt, TaskAdjutant)
+     * @see ComQueryTask#bindableUpdate(BindStmt, TaskAdjutant)
      */
     @Test(timeOut = TIME_OUT)
     public void localInFile() {

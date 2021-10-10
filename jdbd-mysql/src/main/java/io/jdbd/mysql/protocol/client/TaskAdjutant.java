@@ -18,4 +18,6 @@ interface TaskAdjutant extends ITaskAdjutant, ClientProtocolAdjutant, MySQLParse
 
     boolean isAuthenticated();
 
+    MySQLParser sqlParser();
+
 }

@@ -4,7 +4,7 @@ import io.jdbd.vendor.stmt.ParamStmt;
 
 import java.util.List;
 
-public interface BindableStmt extends ParamStmt {
+public interface BindStmt extends ParamStmt {
 
     /**
      * @return a unmodifiable list

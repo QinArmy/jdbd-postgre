@@ -150,14 +150,14 @@ public class SessionInitializerSuiteTests extends AbstractConnectionBasedSuiteTe
         propMap.put(PropertyKey.characterEncoding.getKey(), StandardCharsets.UTF_8.name());
         adjutant = doConnectionTest(propMap);
         assertNull(adjutant.getCharsetResults(), "charset results");
-        assertEquals(adjutant.obtainCharsetClient(), StandardCharsets.UTF_8, "charset client");
+        assertEquals(adjutant.charsetClient(), StandardCharsets.UTF_8, "charset client");
 
 
         propMap.put(PropertyKey.connectionCollation.getKey(), "utf8mb4");
         propMap.remove(PropertyKey.characterSetResults.getKey());
         adjutant = doConnectionTest(propMap);
         assertNull(adjutant.getCharsetResults(), "charset results");
-        assertEquals(adjutant.obtainCharsetClient(), StandardCharsets.UTF_8, "charset client");
+        assertEquals(adjutant.charsetClient(), StandardCharsets.UTF_8, "charset client");
         String sql = "SELECT @@character_set_connection as  characterSetConnection" +
                 ", @@character_set_results as characterSetResults," +
                 "@@character_set_client as characterSetClient";
