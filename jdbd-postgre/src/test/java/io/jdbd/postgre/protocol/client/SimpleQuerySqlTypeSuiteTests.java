@@ -335,21 +335,6 @@ public class SimpleQuerySqlTypeSuiteTests extends AbstractStmtTaskTests {
         doMacaddr8BindAndExtract();
     }
 
-    /**
-     * @see PgType#TSVECTOR
-     */
-    @Test
-    public void tsvectorBindAndExtract() {
-        doTsvectorBindAndExtract();
-    }
-
-    /**
-     * @see PgType#TSQUERY
-     */
-    @Test
-    public void tsqueryBindAndExtract() {
-        //TODO
-    }
 
     /**
      * @see PgType#INT4RANGE
@@ -603,6 +588,24 @@ public class SimpleQuerySqlTypeSuiteTests extends AbstractStmtTaskTests {
     public void polygonArrayBindAndExtract() {
         doPolygonArrayBindAndExtract();
     }
+
+    /**
+     * @see PgType#CIRCLES_ARRAY
+     */
+    @Test
+    public void circlesArrayBindAndExtract() {
+        doCirclesArrayBindAndExtract();
+    }
+
+    /**
+     * @see PgType#TEXT
+     * @see PgType#JSON
+     */
+    @Test
+    public void pathParameterBindAndExtract() throws IOException {
+        doPathParameterBindAndExtract();
+    }
+
 
     /**
      * @see io.jdbd.postgre.util.PgNumbers#getMoneyFormat(Locale)

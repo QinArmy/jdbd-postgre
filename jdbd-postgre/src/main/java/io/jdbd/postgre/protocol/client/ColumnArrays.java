@@ -949,21 +949,30 @@ abstract class ColumnArrays {
     }
 
     static Object readCirclesArray(final String value, final PgColumnMeta meta, final Class<?> targetArrayClass) {
-        if (targetArrayClass != Circle.class) {
-            throw PgResultRow.notSupportConverting(meta, targetArrayClass);
-        }
         final BiFunction<char[], Integer, ArrayPair> function = (charArray, index) -> {
-            final List<Circle> list = new LinkedList<>();
+            final List<Object> list = new LinkedList<>();
             final Consumer<String> consumer = nullable -> {
                 if (nullable == null) {
                     list.add(null);
-                } else {
+                } else if (targetArrayClass == Circle.class) {
                     list.add(PgGeometries.circle(nullable));
+                } else if (targetArrayClass == String.class) {
+                    list.add(nullable);
+                } else {
+                    throw PgResultRow.notSupportConverting(meta, targetArrayClass);
                 }
             };
             final int endIndex;
             endIndex = readOneDimensionArray(charArray, index, meta, consumer);
-            return new ArrayPair(list.toArray(new Circle[0]), endIndex);
+            final Object[] array;
+            if (targetArrayClass == Circle.class) {
+                array = new Circle[list.size()];
+            } else if (targetArrayClass == String.class) {
+                array = new String[list.size()];
+            } else {
+                throw PgResultRow.notSupportConverting(meta, targetArrayClass);
+            }
+            return new ArrayPair(list.toArray(array), endIndex);
         };
         return readArray(value, meta, function, targetArrayClass);
     }

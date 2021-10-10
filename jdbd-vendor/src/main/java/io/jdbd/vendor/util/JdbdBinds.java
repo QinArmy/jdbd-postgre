@@ -14,6 +14,7 @@ import java.sql.SQLException;
 import java.time.*;
 import java.util.Comparator;
 import java.util.List;
+import java.util.UUID;
 
 public abstract class JdbdBinds {
 
@@ -393,11 +394,10 @@ public abstract class JdbdBinds {
             value = ((Enum<?>) nonNull).name();
         } else if (nonNull instanceof BigDecimal) {
             value = ((BigDecimal) nonNull).toPlainString();
-        } else if (nonNull instanceof Number) {
+        } else if (nonNull instanceof Number || nonNull instanceof UUID) {
             value = nonNull.toString();
         } else {
             throw JdbdExceptions.createNonSupportBindSqlTypeError(batchIndex, sqlType, paramValue);
-
         }
         return value;
     }

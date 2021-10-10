@@ -26,6 +26,7 @@ import reactor.util.annotation.Nullable;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
@@ -115,6 +116,10 @@ final class ExtendedQueryTask extends AbstractStmtTask implements PrepareStmtTas
 
     private Phase phase;
 
+    private List<PgType> parameterTypeList;
+
+    private ResultRowMeta resultRowMeta;
+
     /**
      * @see #update(BindStmt, TaskAdjutant)
      * @see #query(BindStmt, TaskAdjutant)
@@ -142,6 +147,7 @@ final class ExtendedQueryTask extends AbstractStmtTask implements PrepareStmtTas
         this.commandWriter = DefaultExtendedCommandWriter.create(this);
     }
 
+    /*################################## blow PrepareStmtTask method ##################################*/
 
     @Override
     public final Mono<ResultStates> executeUpdate(final ParamStmt stmt) {
@@ -170,14 +176,14 @@ final class ExtendedQueryTask extends AbstractStmtTask implements PrepareStmtTas
 
     @Override
     public final List<PgType> getParamTypeList() {
-        return obtainCachePrepare().paramTypeList;
+        return Objects.requireNonNull(this.parameterTypeList, "this.parameterTypeList");
     }
 
 
     @Nullable
     @Override
     public final ResultRowMeta getRowMeta() {
-        return obtainCachePrepare().rowMeta;
+        return this.resultRowMeta;
     }
 
     @Override
@@ -243,11 +249,11 @@ final class ExtendedQueryTask extends AbstractStmtTask implements PrepareStmtTas
 
         Publisher<ByteBuf> publisher;
         try {
-            final CachePrepare cachePrepare = commandWriter.getCache();
+            CachePrepare cachePrepare;
             if (commandWriter.isOneShot()) {
                 publisher = commandWriter.executeOneShot();
                 this.phase = Phase.READ_EXECUTE_RESPONSE;
-            } else if (cachePrepare != null) {
+            } else if ((cachePrepare = commandWriter.getCache()) != null) {
                 final ParamSingleStmt stmt = (ParamSingleStmt) this.stmt;
                 if (stmt instanceof PrepareStmt) {
                     if (emitPreparedStatement(cachePrepare)) {
@@ -353,18 +359,29 @@ final class ExtendedQueryTask extends AbstractStmtTask implements PrepareStmtTas
 
     @Override
     final boolean handlePrepareResponse(List<PgType> paramTypeList, @Nullable ResultRowMeta rowMeta) {
-        if (this.phase != Phase.READ_PREPARE_RESPONSE) {
+        if (this.phase != Phase.READ_PREPARE_RESPONSE || this.parameterTypeList != null) {
             throw new UnExpectedMessageException("Unexpected ParameterDescription message.");
         }
-        final long cacheTime = 0;
+        this.parameterTypeList = paramTypeList;
+        this.resultRowMeta = rowMeta;
 
-        final CachePrepareImpl cachePrepare = new CachePrepareImpl(
-                ((ParamSingleStmt) this.stmt).getSql(), this.commandWriter.getReplacedSql()
-                , paramTypeList, this.commandWriter.getStatementName()
-                , rowMeta, cacheTime);
+        final boolean taskEnd;
+        if (this.sink instanceof PrepareFluxResultSink) {
+            final long cacheTime = 0;
 
-        this.phase = Phase.WAIT_FOR_BIND;
-        return emitPreparedStatement(cachePrepare);
+            final CachePrepareImpl cachePrepare = new CachePrepareImpl(
+                    ((ParamSingleStmt) this.stmt).getSql(), this.commandWriter.getReplacedSql()
+                    , paramTypeList, this.commandWriter.getStatementName()
+                    , rowMeta, cacheTime);
+
+            this.phase = Phase.WAIT_FOR_BIND;
+            taskEnd = emitPreparedStatement(cachePrepare);
+        } else {
+            this.packetPublisher = this.commandWriter.bindAndExecute();
+            this.phase = Phase.READ_EXECUTE_RESPONSE;
+            taskEnd = false;
+        }
+        return taskEnd;
     }
 
     @Override

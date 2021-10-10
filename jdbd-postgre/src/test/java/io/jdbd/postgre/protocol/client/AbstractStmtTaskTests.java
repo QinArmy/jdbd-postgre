@@ -8,10 +8,7 @@ import io.jdbd.postgre.stmt.BindStmt;
 import io.jdbd.postgre.stmt.BindValue;
 import io.jdbd.postgre.stmt.PgStmts;
 import io.jdbd.postgre.type.*;
-import io.jdbd.postgre.util.PgArrays;
-import io.jdbd.postgre.util.PgNumbers;
-import io.jdbd.postgre.util.PgStrings;
-import io.jdbd.postgre.util.PgTimes;
+import io.jdbd.postgre.util.*;
 import io.jdbd.result.ResultRow;
 import io.jdbd.result.ResultStates;
 import io.jdbd.type.Interval;
@@ -22,6 +19,9 @@ import io.jdbd.type.geometry.Circle;
 import io.jdbd.type.geometry.LongString;
 import io.jdbd.type.geometry.Point;
 import org.qinarmy.util.Pair;
+import org.reactivestreams.Publisher;
+import org.reactivestreams.Subscriber;
+import org.reactivestreams.Subscription;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import reactor.core.publisher.Flux;
@@ -29,16 +29,25 @@ import reactor.core.publisher.Mono;
 import reactor.util.annotation.Nullable;
 
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.Writer;
 import java.lang.reflect.Array;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
 import java.text.DecimalFormat;
 import java.time.*;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.function.BiPredicate;
 
 import static org.testng.Assert.*;
@@ -1201,37 +1210,6 @@ abstract class AbstractStmtTaskTests extends AbstractTaskTests {
 
     }
 
-    /**
-     * @see PgType#TSVECTOR
-     * @see <a href="https://www.postgresql.org/docs/current/datatype-textsearch.html">Text Search Types</a>
-     */
-    final void doTsvectorBindAndExtract() {
-        final String columnName = "my_tsvector";
-        final long id = startId + 38;
-        String text;
-        ResultRow row;
-        List<String> lexemeList;
-
-        testType(columnName, PgType.TSVECTOR, null, id);
-
-        text = "Army's name 'this is, entirety' ";
-        row = testType(columnName, PgType.TSVECTOR, text, id);
-        lexemeList = row.getList(columnName, String.class);
-        assertEquals(lexemeList.size(), 3, columnName);
-
-        text = ",SET balance = balance + 999.00 ";
-        row = testType(columnName, PgType.TSVECTOR, text, id);
-        lexemeList = row.getList(columnName, String.class);
-        assertEquals(lexemeList.size(), 5, columnName);
-
-
-        text = "\\047 \\134 ";
-        row = testType(columnName, PgType.TSVECTOR, text, id);
-        lexemeList = row.getList(columnName, String.class);
-        assertEquals(lexemeList.size(), 2, columnName);
-
-
-    }
 
     /**
      * @see PgType#INT4RANGE
@@ -2771,6 +2749,182 @@ abstract class AbstractStmtTaskTests extends AbstractTaskTests {
 
     }
 
+    /**
+     * @see PgType#CIRCLES_ARRAY
+     */
+    final void doCirclesArrayBindAndExtract() {
+        String columnName;
+        final long id = startId + 70;
+        final PgType pgType = PgType.CIRCLES_ARRAY;
+        Object array;
+        ResultRow row;
+
+        final String[] circlesArray = new String[]{"<(0,0),5.3>", String.format("<(%s,%s),8.8>", Double.MIN_VALUE, Double.MAX_VALUE)};
+
+        // below one dimension array
+        columnName = "my_circles_array";
+        testType(columnName, pgType, null, id);
+
+        array = new String[]{null};
+        row = testType(columnName, pgType, array, id);
+        row.getNonNull(columnName, String[].class);
+
+        array = circlesArray;
+        row = testType(columnName, pgType, array, id);
+        row.getNonNull(columnName, String[].class);
+
+
+        // below two dimension array
+        columnName = "my_circles_array_2";
+        testType(columnName, pgType, null, id);
+
+        array = new String[]{null};
+        row = testType(columnName, pgType, array, id);
+        row.getNonNull(columnName, String[].class);
+
+        array = new String[][]{circlesArray, circlesArray, circlesArray};
+        row = testType(columnName, pgType, array, id);
+        row.getNonNull(columnName, String[][].class);
+
+    }
+
+    /**
+     * @see PgType#TEXT
+     * @see PgType#JSON
+     */
+    final void doPathParameterBindAndExtract() throws IOException {
+        String columnName;
+        final long id = startId + 71;
+        ResultRow row;
+
+        final Path path = createBigJsonFile();
+
+        try {
+            columnName = "my_text";
+            row = testType(columnName, PgType.TEXT, path, id);
+            assertEquals(row.get(columnName, String.class), PgStreams.readAsString(path), columnName);
+
+            columnName = "my_json";
+            row = testType(columnName, PgType.JSON, path, id);
+            assertEquals(row.get(columnName, String.class), PgStreams.readAsString(path), columnName);
+        } finally {
+            Files.deleteIfExists(path);
+        }
+
+    }
+
+    /**
+     * @see PgType#TEXT
+     * @see PgType#JSON
+     */
+    final void doPublisherParameterBindAndExtract() throws IOException {
+        String columnName;
+        final long id = startId + 71;
+        ResultRow row;
+
+        final Path path = createBigJsonFile();
+        try {
+            columnName = "my_text";
+            row = testType(columnName, PgType.TEXT, new PathParameterPublisher(path), id);
+            assertEquals(row.get(columnName, String.class), PgStreams.readAsString(path), columnName);
+
+            columnName = "my_json";
+            row = testType(columnName, PgType.JSON, new PathParameterPublisher(path), id);
+            assertEquals(row.get(columnName, String.class), PgStreams.readAsString(path), columnName);
+        } finally {
+            Files.deleteIfExists(path);
+        }
+
+    }
+
+
+    private static final class PathParameterPublisher implements Publisher<byte[]> {
+
+        private final Path path;
+
+        private PathParameterPublisher(Path path) {
+            this.path = path;
+        }
+
+        @Override
+        public final void subscribe(Subscriber<? super byte[]> s) {
+            s.onSubscribe(new PathSubscription(this.path, s));
+        }
+
+    }
+
+    private static final class PathSubscription implements Subscription {
+
+        private static final AtomicIntegerFieldUpdater<PathSubscription> STATUS = AtomicIntegerFieldUpdater
+                .newUpdater(PathSubscription.class, "status");
+
+        private static final ScheduledExecutorService EXECUTOR_SERVICE = Executors.newScheduledThreadPool(2);
+
+        private final Path path;
+
+        private final Subscriber<? super byte[]> subscriber;
+
+        private volatile int status = 0;
+
+        private PathSubscription(Path path, Subscriber<? super byte[]> subscriber) {
+            this.path = path;
+            this.subscriber = subscriber;
+        }
+
+        @Override
+        public final void request(long n) {
+            if (STATUS.compareAndSet(this, 0, 1)) {
+                EXECUTOR_SERVICE.schedule(this::publishData, 2, TimeUnit.SECONDS);
+            }
+        }
+
+        @Override
+        public final void cancel() {
+            STATUS.compareAndSet(this, 1, 2);
+        }
+
+        private void publishData() {
+            try (InputStream in = Files.newInputStream(this.path, StandardOpenOption.READ)) {
+                final byte[] buffer = new byte[256];
+                int length;
+                while ((length = in.read(buffer)) > 0) {
+                    if (length == buffer.length) {
+                        this.subscriber.onNext(Arrays.copyOf(buffer, length));
+                    } else {
+                        this.subscriber.onNext(Arrays.copyOfRange(buffer, 0, length));
+                    }
+                    if (STATUS.get(this) == 2) {
+                        return;
+                    }
+                }
+                this.subscriber.onComplete();
+                STATUS.compareAndSet(this, 1, 3);
+            } catch (Throwable e) {
+                this.subscriber.onError(e);
+                STATUS.compareAndSet(this, 1, 4);
+            }
+        }
+
+
+    }
+
+    final Path createBigJsonFile() throws IOException {
+        final Path path = Files.createTempFile("bigFile", ".json");
+        try (Writer writer = Files.newBufferedWriter(path, StandardOpenOption.WRITE)) {
+            final int count = 1000;
+            final Map<String, Object> map = new HashMap<>((int) (count / 0.75F));
+            for (int i = 0; i < 1000; i++) {
+                map.put(Integer.toString(i), "'army' \\:" + i);
+            }
+            final ObjectMapper mapper = new ObjectMapper();
+            writer.write(mapper.writeValueAsString(map));
+        } catch (Throwable e) {
+            Files.deleteIfExists(path);
+        }
+        return path;
+    }
+
+
     private ResultRow testType(final String columnName, final PgType columnType
             , final @Nullable Object value, final long id) {
         assertNotEquals(columnName, "id", "can't be id");
@@ -2815,7 +2969,7 @@ abstract class AbstractStmtTaskTests extends AbstractTaskTests {
 
         if (value == null) {
             assertNull(row.get(columnName), columnName);
-        } else {
+        } else if (!(value instanceof Path || value instanceof Publisher)) {
             assertTestResult(columnName, row, value);
         }
         return row;
@@ -3133,6 +3287,13 @@ abstract class AbstractStmtTaskTests extends AbstractTaskTests {
             case POLYGON_ARRAY:
                 assertPolygonArray(columnName, row, nonNull);
                 break;
+            case CIRCLES_ARRAY:
+                assertCirclesArray(columnName, row, nonNull);
+                break;
+            case TSVECTOR_ARRAY:
+            case TSQUERY_ARRAY:
+                // assert by test method
+                break;
             default: {
                 assertEquals(row.get(columnName, nonNull.getClass()), nonNull, columnName);
             }
@@ -3176,6 +3337,24 @@ abstract class AbstractStmtTaskTests extends AbstractTaskTests {
             }
         }
         return false;
+    }
+
+    private void assertCirclesArray(final String columnName, final ResultRow row, final Object nonNull) {
+        final Pair<Class<?>, Integer> pair = PgArrays.getArrayDimensions(nonNull.getClass());
+        final Object result;
+        switch (pair.getSecond()) {
+            case 1:
+                result = row.getNonNull(columnName, Circle[].class);
+                break;
+            case 2:
+                result = row.getNonNull(columnName, Circle[][].class);
+                break;
+            default:
+                throw new IllegalArgumentException("not unknown dimensions");
+        }
+
+        final BiPredicate<Object, Object> function = (value, resultValue) -> PgGeometries.circle((String) value).equals(resultValue);
+        assertArray(columnName, nonNull, result, function);
     }
 
     private void assertPolygonArray(final String columnName, final ResultRow row, final Object nonNull) {

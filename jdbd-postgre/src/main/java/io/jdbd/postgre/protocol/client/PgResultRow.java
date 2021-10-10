@@ -9,7 +9,6 @@ import io.jdbd.postgre.util.PgTimes;
 import io.jdbd.result.ResultRow;
 import io.jdbd.result.UnsupportedConvertingException;
 import io.jdbd.type.Interval;
-import io.jdbd.type.geometry.LongString;
 import io.jdbd.vendor.result.AbstractResultRow;
 import io.jdbd.vendor.type.LongStrings;
 import io.jdbd.vendor.util.JdbdArrays;
@@ -53,9 +52,7 @@ public class PgResultRow extends AbstractResultRow<PgRowMeta> {
             throws UnsupportedConvertingException {
         final PgColumnMeta meta = this.rowMeta.columnMetaArray[indexBaseZero];
         final List<T> value;
-        if (meta.sqlType == PgType.TSVECTOR && elementClass == String.class) {
-            value = convertTsvectorToList(meta, nonNull);
-        } else if (!(nonNull instanceof byte[]) && nonNull.getClass().isArray() && meta.sqlType.isArray()) {
+        if (!(nonNull instanceof byte[]) && nonNull.getClass().isArray() && meta.sqlType.isArray()) {
             final Pair<Class<?>, Integer> pair = JdbdArrays.getArrayDimensions(nonNull.getClass());
             final PgType elementType = Objects.requireNonNull(meta.sqlType.elementType());
             if (pair.getFirst() == elementType.javaType() && pair.getSecond() == 1) {
@@ -526,65 +523,6 @@ public class PgResultRow extends AbstractResultRow<PgRowMeta> {
     }
 
 
-    /**
-     *
-     */
-    private <T> List<T> convertTsvectorToList(final PgColumnMeta meta, final Object nonNull)
-            throws UnsupportedConvertingException {
-        final String v;
-        if (nonNull instanceof String) {
-            v = (String) nonNull;
-        } else if (nonNull instanceof LongString) {
-            final LongString s = (LongString) nonNull;
-            if (s.isString()) {
-                v = s.asString();
-            } else {
-                throw createNotSupportedException(meta.index, List.class);
-            }
-        } else {
-            throw createNotSupportedException(meta.index, List.class);
-        }
-        return parseTsvectorResult(meta, v);
-    }
-
-
-    /**
-     * @see #convertTsvectorToList(PgColumnMeta, Object)
-     */
-    private <T> List<T> parseTsvectorResult(final PgColumnMeta meta, final String lexemes)
-            throws UnsupportedConvertingException {
-        final char[] charArray = lexemes.toCharArray();
-        final int lastIndex = charArray.length - 1;
-        final char QUOTE = '\'';
-        boolean inQuoteString = false;
-        char ch;
-        final List<String> list = new ArrayList<>();
-        for (int i = 0, lastEndpointEnd = 0; i < charArray.length; i++) {
-            ch = charArray[i];
-            if (inQuoteString) {
-                final int index = lexemes.indexOf(QUOTE, i);
-                if (index < 0) {
-                    throw errorTsvectorOutput(meta);
-                }
-                if (index < lastIndex && charArray[index + 1] == QUOTE) {
-                    // double quote Escapes
-                    i = index + 1;
-                } else {
-                    i = index;
-                    inQuoteString = false; // string constant end.
-                    list.add(lexemes.substring(lastEndpointEnd, index));
-                }
-            } else if (ch == QUOTE) {
-                inQuoteString = true;
-                lastEndpointEnd = i + 1;
-            } else if (!Character.isWhitespace(ch)) {
-                throw errorTsvectorOutput(meta);
-            }
-        }
-
-        @SuppressWarnings("unchecked") final List<T> resultList = (List<T>) list;
-        return resultList;
-    }
 
     /**
      * @see #parseNonArrayColumnFromText(String, PgColumnMeta, Class)
@@ -619,13 +557,6 @@ public class PgResultRow extends AbstractResultRow<PgRowMeta> {
             }
             throw new UnsupportedConvertingException(m, e, pgType, BigDecimal.class);
         }
-    }
-
-
-    private UnsupportedConvertingException errorTsvectorOutput(final PgColumnMeta meta) {
-        String m = String.format("Column[index:%s,label:%s] tsvector type output format error, can't convert to List<String>."
-                , meta.index, meta.columnLabel);
-        return new UnsupportedConvertingException(m, meta.sqlType, List.class);
     }
 
 

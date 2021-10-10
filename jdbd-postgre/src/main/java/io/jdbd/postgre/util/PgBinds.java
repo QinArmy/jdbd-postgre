@@ -734,6 +734,7 @@ public abstract class PgBinds extends JdbdBinds {
             case VARCHAR_ARRAY:
             case JSON_ARRAY:
             case JSONB_ARRAY:
+            case UNSPECIFIED:// custom type
                 break;
             default:
                 throw new IllegalArgumentException("pgType error");
@@ -802,7 +803,7 @@ public abstract class PgBinds extends JdbdBinds {
 
     private static String bindNonNullToArray(final int batchIndex, PgType pgType, ParamValue paramValue
             , final Function<Object, String> function) throws SQLException {
-        if (pgType.jdbcType() != JDBCType.ARRAY) {
+        if (!pgType.isArray() && pgType != PgType.UNSPECIFIED) {
             throw new IllegalArgumentException(String.format("pgType[%s] isn't array type", pgType));
         }
         final Object nonNull = paramValue.getNonNull();
