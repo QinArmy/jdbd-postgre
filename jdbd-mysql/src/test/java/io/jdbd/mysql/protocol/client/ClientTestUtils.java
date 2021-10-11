@@ -1,8 +1,8 @@
 package io.jdbd.mysql.protocol.client;
 
+import io.jdbd.mysql.protocol.conf.MyKey;
 import io.jdbd.mysql.protocol.conf.MySQLUrl;
-import io.jdbd.mysql.protocol.conf.PropertyKey;
-import io.jdbd.mysql.util.MySQLStringUtils;
+import io.jdbd.mysql.util.MySQLStrings;
 import io.jdbd.mysql.util.MySQLTimes;
 import org.qinarmy.env.Environment;
 import org.qinarmy.env.ImmutableMapEnvironment;
@@ -38,8 +38,8 @@ public abstract class ClientTestUtils {
         properties.put("password", "army123");
 
         properties.putAll(propertiesMap);
-        properties.put(PropertyKey.serverRSAPublicKeyFile.getKey(), SERVER_PUBLIC_KEY_PATH.toString());
-        properties.put(PropertyKey.allowLoadLocalInfile.getKey(), "true");
+        properties.put(MyKey.serverRSAPublicKeyFile.getKey(), SERVER_PUBLIC_KEY_PATH.toString());
+        properties.put(MyKey.allowLoadLocalInfile.getKey(), "true");
         return MySQLUrl.getInstance(url, properties);
     }
 
@@ -84,17 +84,17 @@ public abstract class ClientTestUtils {
                 .toFormatter(Locale.ENGLISH);
         String variable = String.format("@@SESSION.time_zone='%s'", formatter.format(databaseZoneOffset));
         appendSessionVariable(map, variable);
-        map.put(PropertyKey.connectionTimeZone.getKey(), clientZoneOffset.getId());
+        map.put(MyKey.connectionTimeZone.getKey(), clientZoneOffset.getId());
     }
 
     public static void appendSessionVariable(Map<String, String> map, String pair) {
-        String variables = map.get(PropertyKey.sessionVariables.getKey());
+        String variables = map.get(MyKey.sessionVariables.getKey());
 
-        if (MySQLStringUtils.hasText(variables)) {
+        if (MySQLStrings.hasText(variables)) {
             variables += ("," + pair);
-            map.put(PropertyKey.sessionVariables.getKey(), variables);
+            map.put(MyKey.sessionVariables.getKey(), variables);
         } else {
-            map.put(PropertyKey.sessionVariables.getKey(), pair);
+            map.put(MyKey.sessionVariables.getKey(), pair);
         }
     }
 

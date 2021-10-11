@@ -8,7 +8,7 @@ import java.util.Collections;
 import java.util.Map;
 
 
-public final class MySQLHost extends AbstractHostInfo<PropertyKey> {
+public final class MySQLHost extends AbstractHostInfo<MyKey> {
 
     static MySQLHost create(JdbcUrlParser parser, int index) {
         return new MySQLHost(parser, index);
@@ -18,7 +18,7 @@ public final class MySQLHost extends AbstractHostInfo<PropertyKey> {
     public static final int MAX_ALLOWED_PAYLOAD = 1 << 30;
 
 
-    private final Map<PropertyKey, Object> cacheMap;
+    private final Map<MyKey, Object> cacheMap;
 
     private final int maxAllowedPayload;
 
@@ -29,11 +29,18 @@ public final class MySQLHost extends AbstractHostInfo<PropertyKey> {
         this.cacheMap = createCacheMap();
         this.maxAllowedPayload = parseMaxAllowedPacket();
         this.clientPrepareSupportStream = this.maxAllowedPayload == MAX_ALLOWED_PAYLOAD
-                && this.properties.getOrDefault(PropertyKey.clientPrepareSupportStream, Boolean.class);
+                && this.properties.getOrDefault(MyKey.clientPrepareSupportStream, Boolean.class);
     }
 
 
     /**
+     * <p>
+     *     <ul>
+     *         <li>The client can send up to as many bytes as {@link #maxAllowedPayload} value.However, the server does not receive from the client more bytes than the current global max_allowed_packet value.</li>
+     *         <li>The client can receive up to as many bytes as the max_allowed_packet session value. However, the server does not send to the client more bytes than the current global max_allowed_packet value. </li>
+     *     </ul>
+     * </p>
+     *
      * @see <a href="https://dev.mysql.com/doc/refman/8.0/en/server-system-variables.html#sysvar_max_allowed_packet">max_allowed_packet</a>
      */
     public final int maxAllowedPayload() {
@@ -48,27 +55,27 @@ public final class MySQLHost extends AbstractHostInfo<PropertyKey> {
 
     @Override
     protected IPropertyKey getUserKey() {
-        return PropertyKey.user;
+        return MyKey.user;
     }
 
     @Override
     protected IPropertyKey getPasswordKey() {
-        return PropertyKey.password;
+        return MyKey.password;
     }
 
     @Override
     protected IPropertyKey getHostKey() {
-        return PropertyKey.host;
+        return MyKey.host;
     }
 
     @Override
     protected IPropertyKey getPortKey() {
-        return PropertyKey.port;
+        return MyKey.port;
     }
 
     @Override
     protected IPropertyKey getDbNameKey() {
-        return PropertyKey.dbname;
+        return MyKey.dbname;
     }
 
     @Override
@@ -76,7 +83,7 @@ public final class MySQLHost extends AbstractHostInfo<PropertyKey> {
         return MySQLUrl.DEFAULT_PORT;
     }
 
-    private Map<PropertyKey, Object> createCacheMap() {
+    private Map<MyKey, Object> createCacheMap() {
 
 //        final Map<PropertyKey, Object> map = new EnumMap<>(PropertyKey.class);
 //        map.put(PropertyKey.maxAllowedPacket, parseMaxAllowedPacket());
@@ -88,11 +95,11 @@ public final class MySQLHost extends AbstractHostInfo<PropertyKey> {
 
 
     /**
-     * @see PropertyKey#maxAllowedPacket
+     * @see MyKey#maxAllowedPacket
      * @see <a href="https://dev.mysql.com/doc/refman/8.0/en/server-system-variables.html#sysvar_max_allowed_packet">max_allowed_packet</a>
      */
     private int parseMaxAllowedPacket() {
-        final int maxAllowedPacket = this.properties.getOrDefault(PropertyKey.maxAllowedPacket, Integer.class);
+        final int maxAllowedPacket = this.properties.getOrDefault(MyKey.maxAllowedPacket, Integer.class);
         final int defaultValue = 1 << 26, minValue = 1024;
         final int value;
         if (maxAllowedPacket < 0 || maxAllowedPacket == defaultValue) {

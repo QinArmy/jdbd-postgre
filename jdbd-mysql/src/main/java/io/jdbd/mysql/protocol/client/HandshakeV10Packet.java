@@ -38,7 +38,7 @@ final class HandshakeV10Packet implements MySQLPacket {
 
         // 9. auth_plugin_data_len or skip.
         short authPluginDataLen;
-        if ((capabilityFlags & ClientCommandProtocol.CLIENT_PLUGIN_AUTH) != 0) {
+        if ((capabilityFlags & Capabilities.CLIENT_PLUGIN_AUTH) != 0) {
             //length of the combined auth_plugin_data (scramble), if auth_plugin_data_len is > 0
             authPluginDataLen = (short) Packets.readInt1AsInt(payload);
         } else {
@@ -55,7 +55,7 @@ final class HandshakeV10Packet implements MySQLPacket {
                 , Integer.max(13, authPluginDataLen - 8), StandardCharsets.US_ASCII);
         // 12. auth_plugin_name,name of the auth_method that the auth_plugin_data belongs to
         String authPluginName = null;
-        if ((capabilityFlags & ClientCommandProtocol.CLIENT_PLUGIN_AUTH) != 0) {
+        if ((capabilityFlags & Capabilities.CLIENT_PLUGIN_AUTH) != 0) {
             // Due to Bug#59453 the auth-plugin-name is missing the terminating NUL-char in versions prior to 5.5.10 and 5.6.2.
             if (!serverVersion.meetsMinimum(5, 5, 10)
                     || (serverVersion.meetsMinimum(5, 6, 0) && !serverVersion.meetsMinimum(5, 6, 2))) {

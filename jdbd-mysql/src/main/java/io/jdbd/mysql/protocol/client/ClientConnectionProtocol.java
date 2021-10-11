@@ -1,7 +1,7 @@
 package io.jdbd.mysql.protocol.client;
 
 
-import io.jdbd.mysql.protocol.conf.PropertyKey;
+import io.jdbd.mysql.protocol.conf.MyKey;
 import reactor.core.publisher.Mono;
 
 /**
@@ -23,10 +23,10 @@ public interface ClientConnectionProtocol extends ClientProtocol {
      *     <li>handle more authentication exchange.</li>
      *     <li>configure below url config session group properties:
      *     <ul>
-     *          <li>{@link PropertyKey#sessionVariables}</li>
-     *          <li>{@link PropertyKey#characterEncoding}</li>
-     *          <li>{@link PropertyKey#characterSetResults}</li>
-     *          <li>{@link PropertyKey#connectionCollation}</li>
+     *          <li>{@link MyKey#sessionVariables}</li>
+     *          <li>{@link MyKey#characterEncoding}</li>
+     *          <li>{@link MyKey#characterSetResults}</li>
+     *          <li>{@link MyKey#connectionCollation}</li>
      *     </ul>
      *     </li>
      *     <li>do initialize ,must contain below operations.

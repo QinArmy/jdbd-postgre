@@ -49,6 +49,10 @@ public interface Constants {
 
     String NULL = "NULL";
 
+    String TRUE = "TRUE";
+
+    String FALSE = "FALSE";
+
     String NONE = "none";
 
     String LOCAL = "LOCAL";
@@ -60,6 +64,10 @@ public interface Constants {
     byte QUOTE_CHAR_BYTE = '\'';
 
     byte DOUBLE_QUOTE_BYTE = '"';
+
+    byte PERCENT_BYTE = '%';
+
+    byte UNDERLINE_BYTE = '_';
 
     String SEMICOLON = ";";
 

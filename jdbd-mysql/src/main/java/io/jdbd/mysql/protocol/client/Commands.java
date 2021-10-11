@@ -1,8 +1,8 @@
 package io.jdbd.mysql.protocol.client;
 
 import io.jdbd.mysql.MySQLJdbdException;
-import io.jdbd.mysql.protocol.conf.PropertyKey;
-import io.jdbd.mysql.util.MySQLStringUtils;
+import io.jdbd.mysql.protocol.conf.MyKey;
+import io.jdbd.mysql.util.MySQLStrings;
 
 import java.util.List;
 
@@ -19,7 +19,7 @@ abstract class Commands {
 
 
     static String buildSetVariableCommand(String pairString) {
-        List<String> pairList = MySQLStringUtils.split(pairString, ",;", "\"'(", "\"')");
+        List<String> pairList = MySQLStrings.split(pairString, ",;", "\"'(", "\"')");
         StringBuilder builder = new StringBuilder("SET ");
         int index = 0;
         for (String pair : pairList) {
@@ -58,9 +58,9 @@ abstract class Commands {
                 , CHARACTER_SET_RESULTS
                 , COLLATION_CONNECTION
                 , RESULTSET_METADATA
-                , PropertyKey.characterEncoding
-                , PropertyKey.characterSetResults
-                , PropertyKey.connectionCollation);
+                , MyKey.characterEncoding
+                , MyKey.characterSetResults
+                , MyKey.connectionCollation);
         return new MySQLJdbdException(message);
     }
 

@@ -3,7 +3,7 @@ package io.jdbd.mysql.protocol.client;
 import io.jdbd.lang.Nullable;
 import io.jdbd.mysql.MySQLType;
 import io.jdbd.mysql.protocol.ClientConstants;
-import io.jdbd.mysql.protocol.conf.PropertyKey;
+import io.jdbd.mysql.protocol.conf.MyKey;
 import io.jdbd.mysql.util.MySQLExceptions;
 import io.jdbd.stmt.LongDataReadException;
 import io.jdbd.vendor.conf.Properties;
@@ -48,7 +48,7 @@ final class PrepareLongParameterWriter implements PrepareExecuteCommandWriter.Lo
 
     private final ClientProtocolAdjutant adjutant;
 
-    private final Properties<PropertyKey> properties;
+    private final Properties<MyKey> properties;
 
     private final int blobSendChunkSize;
 
@@ -194,7 +194,7 @@ final class PrepareLongParameterWriter implements PrepareExecuteCommandWriter.Lo
     }
 
     private int obtainBlobSendChunkSize() {
-        int chunkSize = this.properties.getOrDefault(PropertyKey.blobSendChunkSize, Integer.class);
+        int chunkSize = this.properties.getOrDefault(MyKey.blobSendChunkSize, Integer.class);
         final int maxChunkSize = Math.min(this.adjutant.obtainHostInfo().maxAllowedPayload(), MAX_CHUNK_SIZE);
         if (chunkSize < MIN_CHUNK_SIZE) {
             chunkSize = MIN_CHUNK_SIZE;
@@ -339,7 +339,7 @@ final class PrepareLongParameterWriter implements PrepareExecuteCommandWriter.Lo
      * @see #writeCharArray(ByteBuf, FluxSink, int, char[], int)
      */
     private Charset obtainClobCharset() {
-        Charset charset = this.properties.get(PropertyKey.clobCharacterEncoding, Charset.class);
+        Charset charset = this.properties.get(MyKey.clobCharacterEncoding, Charset.class);
         if (charset == null) {
             charset = this.adjutant.charsetClient();
         }

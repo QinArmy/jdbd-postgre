@@ -4,8 +4,8 @@ import io.jdbd.mysql.MySQLJdbdException;
 import io.jdbd.mysql.protocol.AuthenticateAssistant;
 import io.jdbd.mysql.protocol.ClientConstants;
 import io.jdbd.mysql.protocol.client.Packets;
-import io.jdbd.mysql.protocol.conf.PropertyKey;
-import io.jdbd.mysql.util.MySQLStringUtils;
+import io.jdbd.mysql.protocol.conf.MyKey;
+import io.jdbd.mysql.util.MySQLStrings;
 import io.jdbd.vendor.conf.HostInfo;
 import io.jdbd.vendor.conf.Properties;
 import io.jdbd.vendor.util.JdbdStreams;
@@ -50,9 +50,9 @@ public class Sha256PasswordPlugin implements AuthenticationPlugin {
 
     protected final AuthenticateAssistant protocolAssistant;
 
-    protected final HostInfo<PropertyKey> hostInfo;
+    protected final HostInfo<MyKey> hostInfo;
 
-    protected final Properties<PropertyKey> env;
+    protected final Properties<MyKey> env;
 
     private final String originalPublicKeyString;
 
@@ -97,7 +97,7 @@ public class Sha256PasswordPlugin implements AuthenticationPlugin {
         final String password = protocolAssistant.getHostInfo().getPassword();
 
         List<ByteBuf> toServer;
-        if (MySQLStringUtils.isEmpty(password)
+        if (MySQLStrings.isEmpty(password)
                 || !fromServer.isReadable()) {
             toServer = Collections.singletonList(Unpooled.EMPTY_BUFFER);
         } else {
@@ -123,7 +123,7 @@ public class Sha256PasswordPlugin implements AuthenticationPlugin {
             LOG.trace("authenticate with server public key.");
             this.seed = Packets.readStringTerm(fromServer, Charset.defaultCharset());
             payload = createEncryptPasswordPacketWithPublicKey(password);
-        } else if (!this.env.getOrDefault(PropertyKey.allowPublicKeyRetrieval, Boolean.class)) {
+        } else if (!this.env.getOrDefault(MyKey.allowPublicKeyRetrieval, Boolean.class)) {
             throw new MySQLJdbdException("Don't allow public key retrieval ,can't connect.");
         } else if (this.publicKeyRequested
                 && fromServer.readableBytes() > ClientConstants.SEED_LENGTH) { // We must request the public key from the server to encrypt the password
@@ -154,7 +154,7 @@ public class Sha256PasswordPlugin implements AuthenticationPlugin {
 
     protected byte[] encryptPassword(String password, String transformation) {
         byte[] passwordBytes;
-        passwordBytes = MySQLStringUtils.getBytesNullTerminated(password, this.protocolAssistant.getPasswordCharset());
+        passwordBytes = MySQLStrings.getBytesNullTerminated(password, this.protocolAssistant.getPasswordCharset());
         byte[] mysqlScrambleBuff = new byte[passwordBytes.length];
         byte[] seedBytes = Objects.requireNonNull(this.seed, "this.seed").getBytes();
 
@@ -215,10 +215,10 @@ public class Sha256PasswordPlugin implements AuthenticationPlugin {
     /*################################## blow static method ##################################*/
 
     @Nullable
-    protected static String tryLoadPublicKeyString(HostInfo<PropertyKey> hostInfo) {
+    protected static String tryLoadPublicKeyString(HostInfo<MyKey> hostInfo) {
 
         try {
-            String serverRSAPublicKeyPath = hostInfo.getProperties().get(PropertyKey.serverRSAPublicKeyFile);
+            String serverRSAPublicKeyPath = hostInfo.getProperties().get(MyKey.serverRSAPublicKeyFile);
             String publicKeyString = null;
             if (serverRSAPublicKeyPath != null) {
                 publicKeyString = JdbdStreams.readAsString(Paths.get(serverRSAPublicKeyPath));

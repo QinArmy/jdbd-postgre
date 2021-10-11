@@ -18,7 +18,7 @@ import java.util.Objects;
  *
  * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-reference-configuration-properties.html">Configuration Properties</a>
  */
-public enum PropertyKey implements IPropertyKey {
+public enum MyKey implements IPropertyKey {
     /*
      * Properties individually managed after parsing connection string. These property keys are case insensitive.
      */
@@ -363,20 +363,20 @@ public enum PropertyKey implements IPropertyKey {
     private final boolean caseSensitive;
 
 
-    PropertyKey(Class<?> javaType) {
+    MyKey(Class<?> javaType) {
         this(null, null, null, javaType, true);
     }
 
-    PropertyKey(Class<?> javaType, boolean caseSensitive) {
+    MyKey(Class<?> javaType, boolean caseSensitive) {
         this(null, null, null, javaType, caseSensitive);
     }
 
 
-    PropertyKey(@Nullable String defaultValue, Class<?> javaType) {
+    MyKey(@Nullable String defaultValue, Class<?> javaType) {
         this(null, null, defaultValue, javaType, true);
     }
 
-    PropertyKey(@Nullable String defaultValue, Class<?> javaType, boolean caseSensitive) {
+    MyKey(@Nullable String defaultValue, Class<?> javaType, boolean caseSensitive) {
         this(null, null, defaultValue, javaType, caseSensitive);
     }
 
@@ -385,11 +385,11 @@ public enum PropertyKey implements IPropertyKey {
      *
      * @param keyName the key name for the enum element.
      */
-    PropertyKey(String keyName, @Nullable String defaultValue, Class<?> javaType) {
+    MyKey(String keyName, @Nullable String defaultValue, Class<?> javaType) {
         this(keyName, null, defaultValue, javaType, true);
     }
 
-    PropertyKey(String keyName, @Nullable String alias, @Nullable String defaultValue, Class<?> javaType) {
+    MyKey(String keyName, @Nullable String alias, @Nullable String defaultValue, Class<?> javaType) {
         this(keyName, alias, defaultValue, javaType, true);
     }
 
@@ -400,7 +400,7 @@ public enum PropertyKey implements IPropertyKey {
      * @param alias         camel-case alias key name
      * @param caseSensitive is this name case sensitive
      */
-    PropertyKey(@Nullable String keyName, @Nullable String alias, @Nullable String defaultValue, Class<?> javaType
+    MyKey(@Nullable String keyName, @Nullable String alias, @Nullable String defaultValue, Class<?> javaType
             , boolean caseSensitive) {
         this.keyName = keyName == null ? name() : keyName;
         this.ccAlias = alias;

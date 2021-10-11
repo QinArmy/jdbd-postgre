@@ -3,7 +3,7 @@ package io.jdbd.mysql.protocol.client;
 import io.jdbd.mysql.Groups;
 import io.jdbd.mysql.SQLMode;
 import io.jdbd.mysql.Server;
-import io.jdbd.mysql.protocol.conf.PropertyKey;
+import io.jdbd.mysql.protocol.conf.MyKey;
 import io.jdbd.mysql.session.SessionAdjutant;
 import io.jdbd.mysql.stmt.Stmts;
 import io.jdbd.mysql.util.MySQLTimes;
@@ -55,7 +55,7 @@ public class SessionInitializerSuiteTests extends AbstractConnectionBasedSuiteTe
     @Test(timeOut = TIME_OUT)
     public void connectAndInitializing() {
         LOG.info("connectAndInitializing test start.");
-        doConnectionTest(Collections.singletonMap(PropertyKey.sslMode.getKey(), "DISABLED"));
+        doConnectionTest(Collections.singletonMap(MyKey.sslMode.getKey(), "DISABLED"));
 
         LOG.info("connectAndInitializing test success.");
 
@@ -65,7 +65,7 @@ public class SessionInitializerSuiteTests extends AbstractConnectionBasedSuiteTe
     public void detectCustomCollation() {
         LOG.info("detectCustomCollation test start.");
         final Map<String, String> propMap;
-        propMap = Collections.singletonMap(PropertyKey.detectCustomCollations.getKey(), "true");
+        propMap = Collections.singletonMap(MyKey.detectCustomCollations.getKey(), "true");
         doConnectionTest(propMap);
         LOG.info("detectCustomCollation test success.");
     }
@@ -79,7 +79,7 @@ public class SessionInitializerSuiteTests extends AbstractConnectionBasedSuiteTe
         final Map<String, String> propMap;
         propMap = new HashMap<>();
 
-        propMap.put(PropertyKey.sessionVariables.getKey(), "autocommit=1, transaction_isolation='REPEATABLE-READ'");
+        propMap.put(MyKey.sessionVariables.getKey(), "autocommit=1, transaction_isolation='REPEATABLE-READ'");
 
         doConnectionTest(propMap);
         LOG.info("sessionResetter test success.");
@@ -96,8 +96,8 @@ public class SessionInitializerSuiteTests extends AbstractConnectionBasedSuiteTe
         final Map<String, String> propMap;
         propMap = new HashMap<>();
 
-        propMap.put(PropertyKey.connectionTimeZone.getKey(), "SERVER");
-        propMap.put(PropertyKey.sessionVariables.getKey(), "time_zone='+04:14'");
+        propMap.put(MyKey.connectionTimeZone.getKey(), "SERVER");
+        propMap.put(MyKey.sessionVariables.getKey(), "time_zone='+04:14'");
         adjutant = doConnectionTest(propMap);
 
         ZoneOffset zoneOffset = ZoneOffset.of("+04:14");
@@ -108,17 +108,17 @@ public class SessionInitializerSuiteTests extends AbstractConnectionBasedSuiteTe
         assertEquals(zoneOffsetDatabase, zoneOffset, "zoneOffsetDatabase");
 
 
-        propMap.put(PropertyKey.connectionTimeZone.getKey(), "LOCAL");
+        propMap.put(MyKey.connectionTimeZone.getKey(), "LOCAL");
         adjutant = doConnectionTest(propMap);
         zoneOffsetClient = adjutant.obtainZoneOffsetClient();
         assertEquals(zoneOffsetClient, MySQLTimes.systemZoneOffset(), "zoneOffsetClient");
 
-        propMap.put(PropertyKey.connectionTimeZone.getKey(), "+03:17");
+        propMap.put(MyKey.connectionTimeZone.getKey(), "+03:17");
         adjutant = doConnectionTest(propMap);
         zoneOffsetClient = adjutant.obtainZoneOffsetClient();
         assertEquals(zoneOffsetClient, ZoneOffset.of("+03:17"), "zoneOffsetClient");
 
-        propMap.put(PropertyKey.connectionTimeZone.getKey(), "Australia/Sydney");
+        propMap.put(MyKey.connectionTimeZone.getKey(), "Australia/Sydney");
         adjutant = doConnectionTest(propMap);
         zoneOffsetClient = adjutant.obtainZoneOffsetClient();
         assertEquals(zoneOffsetClient, MySQLTimes.toZoneOffset(ZoneOffset.of("Australia/Sydney", ZoneOffset.SHORT_IDS)), "zoneOffsetClient");
@@ -139,22 +139,22 @@ public class SessionInitializerSuiteTests extends AbstractConnectionBasedSuiteTe
         final Map<String, String> propMap;
         propMap = new HashMap<>();
 
-        propMap.put(PropertyKey.characterSetResults.getKey(), "GBK");
+        propMap.put(MyKey.characterSetResults.getKey(), "GBK");
         adjutant = doConnectionTest(propMap);
         assertEquals(adjutant.getCharsetResults(), Charset.forName("GBK"));
 
-        propMap.remove(PropertyKey.characterSetResults.getKey());
+        propMap.remove(MyKey.characterSetResults.getKey());
         adjutant = doConnectionTest(propMap);
         assertNull(adjutant.getCharsetResults(), "charset results");
 
-        propMap.put(PropertyKey.characterEncoding.getKey(), StandardCharsets.UTF_8.name());
+        propMap.put(MyKey.characterEncoding.getKey(), StandardCharsets.UTF_8.name());
         adjutant = doConnectionTest(propMap);
         assertNull(adjutant.getCharsetResults(), "charset results");
         assertEquals(adjutant.charsetClient(), StandardCharsets.UTF_8, "charset client");
 
 
-        propMap.put(PropertyKey.connectionCollation.getKey(), "utf8mb4");
-        propMap.remove(PropertyKey.characterSetResults.getKey());
+        propMap.put(MyKey.connectionCollation.getKey(), "utf8mb4");
+        propMap.remove(MyKey.characterSetResults.getKey());
         adjutant = doConnectionTest(propMap);
         assertNull(adjutant.getCharsetResults(), "charset results");
         assertEquals(adjutant.charsetClient(), StandardCharsets.UTF_8, "charset client");
@@ -182,7 +182,7 @@ public class SessionInitializerSuiteTests extends AbstractConnectionBasedSuiteTe
         final Map<String, String> propMap;
         propMap = new HashMap<>();
 
-        propMap.put(PropertyKey.timeTruncateFractional.getKey(), "true");
+        propMap.put(MyKey.timeTruncateFractional.getKey(), "true");
         adjutant = doConnectionTest(propMap);
         Server server = adjutant.obtainServer();
 

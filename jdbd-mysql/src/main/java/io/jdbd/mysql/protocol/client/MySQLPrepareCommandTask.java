@@ -1,6 +1,6 @@
 package io.jdbd.mysql.protocol.client;
 
-import io.jdbd.mysql.protocol.conf.PropertyKey;
+import io.jdbd.mysql.protocol.conf.MyKey;
 import io.jdbd.vendor.conf.Properties;
 
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
@@ -20,7 +20,7 @@ abstract class MySQLPrepareCommandTask extends MySQLCommandTask implements State
 
     final int negotiatedCapability;
 
-    final Properties<PropertyKey> properties;
+    final Properties<MyKey> properties;
 
     private boolean useSafeSequenceId;
 
@@ -28,7 +28,7 @@ abstract class MySQLPrepareCommandTask extends MySQLCommandTask implements State
 
     MySQLPrepareCommandTask(TaskAdjutant adjutant, Consumer<Throwable> errorConsumer) {
         super(adjutant, errorConsumer);
-        this.negotiatedCapability = adjutant.obtainNegotiatedCapability();
+        this.negotiatedCapability = adjutant.negotiatedCapability();
         this.adjutant = adjutant;
         this.properties = adjutant.obtainHostInfo().getProperties();
     }

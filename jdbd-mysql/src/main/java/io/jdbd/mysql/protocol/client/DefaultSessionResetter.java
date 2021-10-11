@@ -6,10 +6,10 @@ import io.jdbd.mysql.Server;
 import io.jdbd.mysql.protocol.CharsetMapping;
 import io.jdbd.mysql.protocol.Constants;
 import io.jdbd.mysql.protocol.MySQLServerVersion;
-import io.jdbd.mysql.protocol.conf.PropertyKey;
+import io.jdbd.mysql.protocol.conf.MyKey;
 import io.jdbd.mysql.stmt.Stmts;
 import io.jdbd.mysql.util.MySQLExceptions;
-import io.jdbd.mysql.util.MySQLStringUtils;
+import io.jdbd.mysql.util.MySQLStrings;
 import io.jdbd.mysql.util.MySQLTimes;
 import io.jdbd.result.ResultRow;
 import io.jdbd.vendor.conf.Properties;
@@ -40,7 +40,7 @@ final class DefaultSessionResetter implements SessionResetter {
     }
 
 
-    private final Properties<PropertyKey> properties;
+    private final Properties<MyKey> properties;
 
     private final TaskAdjutant adjutant;
 
@@ -90,17 +90,17 @@ final class DefaultSessionResetter implements SessionResetter {
     }
 
     /**
-     * execute config session variables in {@link PropertyKey#sessionVariables}
+     * execute config session variables in {@link MyKey#sessionVariables}
      *
      * @see #reset()
      */
     Mono<Void> executeSetSessionVariables() {
-        String pairString = this.properties.get(PropertyKey.sessionVariables);
-        if (!MySQLStringUtils.hasText(pairString)) {
+        String pairString = this.properties.get(MyKey.sessionVariables);
+        if (!MySQLStrings.hasText(pairString)) {
             return Mono.empty();
         }
         final String command = Commands.buildSetVariableCommand(pairString);
-        if (LOG.isDebugEnabled() && !this.properties.getOrDefault(PropertyKey.paranoid, Boolean.class)) {
+        if (LOG.isDebugEnabled() && !this.properties.getOrDefault(MyKey.paranoid, Boolean.class)) {
             LOG.debug("execute set session variables:{}", command);
         }
         return ComQueryTask.update(Stmts.stmt(command), this.adjutant)
@@ -111,9 +111,9 @@ final class DefaultSessionResetter implements SessionResetter {
     /**
      * config three session variables:
      * <u>
-     * <li>{@link PropertyKey#characterEncoding}</li>
-     * <li>{@link PropertyKey#connectionCollation}</li>
-     * <li> {@link PropertyKey#characterSetResults}</li>
+     * <li>{@link MyKey#characterEncoding}</li>
+     * <li>{@link MyKey#connectionCollation}</li>
+     * <li> {@link MyKey#characterSetResults}</li>
      * </u>
      *
      * @see #reset()
@@ -137,7 +137,7 @@ final class DefaultSessionResetter implements SessionResetter {
                 final Charset charset = CharsetMapping.getJavaCharsetByMySQLCharsetName(customCollation.charsetName);
                 if (charset == null) {
                     String message = String.format("Not found java charset for %s[%s],that is unknown charset."
-                            , PropertyKey.connectionCollation, customCollation.collationName);
+                            , MyKey.connectionCollation, customCollation.collationName);
                     return Mono.error(new JdbdSQLException(new SQLException(message, SQLStates.CONNECTION_EXCEPTION)));
                 }
                 namesCommand = String.format("SET NAMES '%s' COLLATE '%s'"
@@ -163,8 +163,8 @@ final class DefaultSessionResetter implements SessionResetter {
     /**
      * config {@link Key#ZONE_OFFSET_CLIENT} and {@link Key#ZONE_OFFSET_DATABASE}
      *
-     * @see PropertyKey#cacheDefaultTimezone
-     * @see PropertyKey#connectionTimeZone
+     * @see MyKey#cacheDefaultTimezone
+     * @see MyKey#connectionTimeZone
      * @see #reset()
      */
     Mono<Void> configZoneOffsets() {
@@ -239,13 +239,13 @@ final class DefaultSessionResetter implements SessionResetter {
     /*################################## blow private method ##################################*/
 
     /**
-     * config  {@link PropertyKey#characterSetResults} variables:
+     * config  {@link MyKey#characterSetResults} variables:
      *
      * @see #reset()
      * @see #configSessionCharset()
      */
     private Mono<Void> configResultsCharset() {
-        final String charsetString = this.properties.get(PropertyKey.characterSetResults, String.class);
+        final String charsetString = this.properties.get(MyKey.characterSetResults, String.class);
 
         final Charset charsetResults;
         final String command;
@@ -263,7 +263,7 @@ final class DefaultSessionResetter implements SessionResetter {
             mySQLCharset = CharsetMapping.CHARSET_NAME_TO_CHARSET.get(charsetString.toLowerCase());
             if (mySQLCharset == null) {
                 String message = String.format("No found MySQL charset[%s] fro Property[%s]"
-                        , charsetString, PropertyKey.characterSetResults);
+                        , charsetString, MyKey.characterSetResults);
                 return Mono.error(new JdbdSQLException(new SQLException(message, SQLStates.CONNECTION_EXCEPTION)));
             }
             command = String.format("SET character_set_results = '%s'", mySQLCharset.charsetName);
@@ -286,10 +286,10 @@ final class DefaultSessionResetter implements SessionResetter {
      */
     private Mono<Void> appendSqlModeIfNeed(final ResultRow resultRow) {
         String sqlModeString = resultRow.getNonNull(0, String.class);
-        final Set<String> sqlModeSet = MySQLStringUtils.spitAsSet(sqlModeString, ",");
+        final Set<String> sqlModeSet = MySQLStrings.spitAsSet(sqlModeString, ",");
 
         final Mono<Void> mono;
-        if (!this.properties.getOrDefault(PropertyKey.timeTruncateFractional, Boolean.class)
+        if (!this.properties.getOrDefault(MyKey.timeTruncateFractional, Boolean.class)
                 || sqlModeSet.contains(SQLMode.TIME_TRUNCATE_FRACTIONAL.name())) {
             this.configCacheMap.put(Key.SQL_MODE_SET, Collections.unmodifiableSet(sqlModeSet));
             mono = Mono.empty();
@@ -344,7 +344,7 @@ final class DefaultSessionResetter implements SessionResetter {
             }
         }
         // 2. handle connectionTimeZone
-        String connectionTimeZone = this.properties.getOrDefault(PropertyKey.connectionTimeZone);
+        String connectionTimeZone = this.properties.getOrDefault(MyKey.connectionTimeZone);
         final ZoneOffset zoneOffsetClient;
         final ClientZoneMode clientZoneMode;
         if (Constants.LOCAL.equals(connectionTimeZone)) {
@@ -359,7 +359,7 @@ final class DefaultSessionResetter implements SessionResetter {
                 clientZoneMode = ClientZoneMode.OFFSET;
             } catch (DateTimeException e) {
                 String message = String.format("Value[%s] of Property[%s] cannot convert to ZoneOffset."
-                        , connectionTimeZone, PropertyKey.connectionTimeZone);
+                        , connectionTimeZone, MyKey.connectionTimeZone);
                 SQLException se = new SQLException(message, SQLStates.CONNECTION_EXCEPTION);
                 return Mono.error(new JdbdSQLException(se));
             }
@@ -370,7 +370,7 @@ final class DefaultSessionResetter implements SessionResetter {
     }
 
     private Pair<CharsetMapping.MySQLCharset, Charset> obtainClientMySQLCharset() {
-        final String charsetClient = properties.get(PropertyKey.characterEncoding);
+        final String charsetClient = properties.get(MyKey.characterEncoding);
 
         final Pair<CharsetMapping.MySQLCharset, Charset> defaultPair;
         defaultPair = new Pair<>(
@@ -379,7 +379,7 @@ final class DefaultSessionResetter implements SessionResetter {
         );
 
         Pair<CharsetMapping.MySQLCharset, Charset> pair = null;
-        if (!MySQLStringUtils.hasText(charsetClient)
+        if (!MySQLStrings.hasText(charsetClient)
                 || !CharsetMapping.isUnsupportedCharsetClient(charsetClient)
                 || StandardCharsets.UTF_8.name().equalsIgnoreCase(charsetClient)
                 || StandardCharsets.UTF_8.aliases().contains(charsetClient)) {
@@ -402,8 +402,8 @@ final class DefaultSessionResetter implements SessionResetter {
     @Nullable
     private CharsetMapping.Collation tryGetConnectionCollation() {
 
-        String connectionCollation = this.properties.get(PropertyKey.connectionCollation);
-        if (!MySQLStringUtils.hasText(connectionCollation)) {
+        String connectionCollation = this.properties.get(MyKey.connectionCollation);
+        if (!MySQLStrings.hasText(connectionCollation)) {
             return null;
         }
         CharsetMapping.Collation collationConnection;
@@ -418,11 +418,11 @@ final class DefaultSessionResetter implements SessionResetter {
     @Nullable
     private CharsetMapping.CustomCollation tryGetConnectionCollationWithinCustom() {
 
-        String connectionCollation = this.properties.get(PropertyKey.connectionCollation);
+        String connectionCollation = this.properties.get(MyKey.connectionCollation);
 
         CharsetMapping.CustomCollation customCollation = null;
 
-        if (MySQLStringUtils.hasText(connectionCollation)) {
+        if (MySQLStrings.hasText(connectionCollation)) {
             Map<Integer, CharsetMapping.CustomCollation> map = this.adjutant.obtainCustomCollationMap();
             for (CharsetMapping.CustomCollation collation : map.values()) {
                 if (collation.collationName.equals(connectionCollation)) {
@@ -476,7 +476,7 @@ final class DefaultSessionResetter implements SessionResetter {
         private final ClientZoneMode clientZoneMode;
 
         @SuppressWarnings("unchecked")
-        private DefaultServer(final ConcurrentMap<Key, Object> map, final Properties<PropertyKey> properties) {
+        private DefaultServer(final ConcurrentMap<Key, Object> map, final Properties<MyKey> properties) {
             this.charsetClient = (Charset) Objects.requireNonNull(map.get(Key.CHARSET_CLIENT), Key.CHARSET_CLIENT.name());
             this.charsetResults = (Charset) map.get(Key.CHARSET_RESULTS);
             this.zoneOffsetDatabase = (ZoneOffset) Objects.requireNonNull(map.get(Key.ZONE_OFFSET_DATABASE), Key.ZONE_OFFSET_DATABASE.name());
@@ -485,7 +485,7 @@ final class DefaultSessionResetter implements SessionResetter {
             this.sqlModeSet = (Set<String>) Objects.requireNonNull(map.get(Key.SQL_MODE_SET), Key.SQL_MODE_SET.name());
             this.supportLocalInfile = (Boolean) Objects.requireNonNull(map.get(Key.LOCAL_INFILE), Key.LOCAL_INFILE.name());
 
-            this.cacheDefaultTimezone = properties.getOrDefault(PropertyKey.cacheDefaultTimezone, Boolean.class);
+            this.cacheDefaultTimezone = properties.getOrDefault(MyKey.cacheDefaultTimezone, Boolean.class);
             this.clientZoneMode = (ClientZoneMode) Objects.requireNonNull(map.get(Key.CLIENT_ZONE_MODE), Key.CLIENT_ZONE_MODE.name());
         }
 

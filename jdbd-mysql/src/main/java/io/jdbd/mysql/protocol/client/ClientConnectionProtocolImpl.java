@@ -2,7 +2,7 @@ package io.jdbd.mysql.protocol.client;
 
 import io.jdbd.JdbdSQLException;
 import io.jdbd.mysql.protocol.CharsetMapping;
-import io.jdbd.mysql.protocol.conf.PropertyKey;
+import io.jdbd.mysql.protocol.conf.MyKey;
 import io.jdbd.mysql.session.SessionAdjutant;
 import io.jdbd.mysql.stmt.Stmts;
 import io.jdbd.result.ResultRow;
@@ -35,11 +35,11 @@ final class ClientConnectionProtocolImpl implements ClientConnectionProtocol {
     }
 
 
-    final HostInfo<PropertyKey> hostInfo;
+    final HostInfo<MyKey> hostInfo;
 
     final MySQLTaskExecutor taskExecutor;
 
-    private final Properties<PropertyKey> properties;
+    private final Properties<MyKey> properties;
 
     private final AtomicReference<Map<Integer, CharsetMapping.CustomCollation>> customCollationMap = new AtomicReference<>(null);
 
@@ -102,7 +102,7 @@ final class ClientConnectionProtocolImpl implements ClientConnectionProtocol {
     private Mono<Map<Integer, CharsetMapping.CustomCollation>> detectCustomCollations() {
 
         Mono<Map<Integer, CharsetMapping.CustomCollation>> mono;
-        if (this.properties.getOrDefault(PropertyKey.detectCustomCollations, Boolean.class)) {
+        if (this.properties.getOrDefault(MyKey.detectCustomCollations, Boolean.class)) {
             LOG.debug("detectCustomCollations start");
             // blow tow phase: SHOW COLLATION phase and SHOW CHARACTER SET phase
             mono = ComQueryTask.query(Stmts.stmt("SHOW COLLATION"), this.taskExecutor.taskAdjutant())

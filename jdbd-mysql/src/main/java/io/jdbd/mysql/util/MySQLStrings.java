@@ -1,16 +1,14 @@
 package io.jdbd.mysql.util;
 
+import io.jdbd.vendor.util.JdbdStrings;
+
 import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Stack;
 
-public abstract class MySQLStringUtils extends org.qinarmy.util.StringUtils {
-
-    protected MySQLStringUtils() {
-        throw new UnsupportedOperationException();
-    }
+public abstract class MySQLStrings extends JdbdStrings {
 
 
     public static byte[] getBytesNullTerminated(String text, Charset charset) {

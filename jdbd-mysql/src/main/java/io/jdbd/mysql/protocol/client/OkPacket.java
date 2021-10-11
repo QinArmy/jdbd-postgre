@@ -34,14 +34,14 @@ public final class OkPacket extends TerminatorPacket {
         //3. status_flags and warnings
         final int statusFags, warnings;
         statusFags = Packets.readInt2AsInt(payload);
-        if ((capability & ClientCommandProtocol.CLIENT_PROTOCOL_41) != 0) {
+        if ((capability & Capabilities.CLIENT_PROTOCOL_41) != 0) {
             warnings = Packets.readInt2AsInt(payload);
         } else {
             warnings = 0;
         }
         //4.
         String info = null, sessionStateInfo = null;
-        if ((capability & ClientCommandProtocol.CLIENT_SESSION_TRACK) != 0) {
+        if ((capability & Capabilities.CLIENT_SESSION_TRACK) != 0) {
             if (payload.isReadable()) {
                 // here , avoid ResultSet terminator.
                 info = Packets.readStringLenEnc(payload, Charset.defaultCharset());

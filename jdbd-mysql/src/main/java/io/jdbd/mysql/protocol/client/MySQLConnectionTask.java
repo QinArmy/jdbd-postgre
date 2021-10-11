@@ -11,10 +11,10 @@ import io.jdbd.mysql.protocol.MySQLServerVersion;
 import io.jdbd.mysql.protocol.authentication.AuthenticationPlugin;
 import io.jdbd.mysql.protocol.authentication.PluginUtils;
 import io.jdbd.mysql.protocol.authentication.Sha256PasswordPlugin;
-import io.jdbd.mysql.protocol.conf.PropertyKey;
+import io.jdbd.mysql.protocol.conf.MyKey;
 import io.jdbd.mysql.util.MySQLCollections;
 import io.jdbd.mysql.util.MySQLExceptions;
-import io.jdbd.mysql.util.MySQLStringUtils;
+import io.jdbd.mysql.util.MySQLStrings;
 import io.jdbd.vendor.conf.HostInfo;
 import io.jdbd.vendor.conf.Properties;
 import io.jdbd.vendor.task.CommunicationTask;
@@ -68,9 +68,9 @@ final class MySQLConnectionTask extends CommunicationTask<TaskAdjutant> implemen
 
     private final Map<String, AuthenticationPlugin> pluginMap;
 
-    private final HostInfo<PropertyKey> hostInfo;
+    private final HostInfo<MyKey> hostInfo;
 
-    private final Properties<PropertyKey> properties;
+    private final Properties<MyKey> properties;
 
     private Charset handshakeCharset;
 
@@ -102,7 +102,7 @@ final class MySQLConnectionTask extends CommunicationTask<TaskAdjutant> implemen
         this.properties = this.hostInfo.getProperties();
         this.pluginMap = loadAuthenticationPluginMap();
 
-        Charset charset = this.properties.get(PropertyKey.characterEncoding, Charset.class);
+        Charset charset = this.properties.get(MyKey.characterEncoding, Charset.class);
         if (charset == null || CharsetMapping.isUnsupportedCharsetClient(charset.name())) {
             charset = StandardCharsets.UTF_8;
         }
@@ -118,12 +118,12 @@ final class MySQLConnectionTask extends CommunicationTask<TaskAdjutant> implemen
 
     @Override
     public Charset getPasswordCharset() {
-        String pwdCharset = this.properties.get(PropertyKey.passwordCharacterEncoding);
+        String pwdCharset = this.properties.get(MyKey.passwordCharacterEncoding);
         return pwdCharset == null ? this.handshakeCharset : Charset.forName(pwdCharset);
     }
 
     @Override
-    public HostInfo<PropertyKey> getHostInfo() {
+    public HostInfo<MyKey> getHostInfo() {
         return this.hostInfo;
     }
 
@@ -424,8 +424,8 @@ final class MySQLConnectionTask extends CommunicationTask<TaskAdjutant> implemen
                 authPlugin = this.pluginMap.get(pluginName);
                 if (authPlugin == null) {
                     String message = String.format("BadAuthenticationPlugin[%s] from server,please check %s %s %s three properties."
-                            , pluginName, PropertyKey.disabledAuthenticationPlugins
-                            , PropertyKey.authenticationPlugins, PropertyKey.defaultAuthenticationPlugin);
+                            , pluginName, MyKey.disabledAuthenticationPlugins
+                            , MyKey.authenticationPlugins, MyKey.defaultAuthenticationPlugin);
                     handleAuthenticateFailure(new MySQLJdbdException(message));
                     return true;
                 }
@@ -490,7 +490,7 @@ final class MySQLConnectionTask extends CommunicationTask<TaskAdjutant> implemen
         Packets.writeStringTerm(packetBuffer, this.hostInfo.getUser().getBytes(clientCharset));
 
         // 6. auth_response or (auth_response_length and auth_response)
-        if ((clientFlag & ClientProtocol.CLIENT_PLUGIN_AUTH_LENENC_CLIENT_DATA) != 0) {
+        if ((clientFlag & Capabilities.CLIENT_PLUGIN_AUTH_LENENC_CLIENT_DATA) != 0) {
             Packets.writeStringLenEnc(packetBuffer, pluginOut);
         } else {
             packetBuffer.writeByte(pluginOut.readableBytes());
@@ -499,19 +499,19 @@ final class MySQLConnectionTask extends CommunicationTask<TaskAdjutant> implemen
         pluginOut.release();
 
         // 7. database
-        if ((clientFlag & ClientProtocol.CLIENT_CONNECT_WITH_DB) != 0) {
+        if ((clientFlag & Capabilities.CLIENT_CONNECT_WITH_DB) != 0) {
             String database = this.hostInfo.getDbName();
-            if (!MySQLStringUtils.hasText(database)) {
+            if (!MySQLStrings.hasText(database)) {
                 throw new MySQLJdbdException("client flag error,check this.getClientFlat() method.");
             }
             Packets.writeStringTerm(packetBuffer, database.getBytes(clientCharset));
         }
         // 8. client_plugin_name
-        if ((clientFlag & ClientProtocol.CLIENT_PLUGIN_AUTH) != 0) {
+        if ((clientFlag & Capabilities.CLIENT_PLUGIN_AUTH) != 0) {
             Packets.writeStringTerm(packetBuffer, authPluginName.getBytes(clientCharset));
         }
         // 9. client connection attributes
-        if ((clientFlag & ClientProtocol.CLIENT_CONNECT_ATTRS) != 0) {
+        if ((clientFlag & Capabilities.CLIENT_CONNECT_ATTRS) != 0) {
             Map<String, String> propertySource = createConnectionAttributes();
             // length of all key-values,affected rows
             Packets.writeIntLenEnc(packetBuffer, propertySource.size());
@@ -573,7 +573,7 @@ final class MySQLConnectionTask extends CommunicationTask<TaskAdjutant> implemen
     private Pair<AuthenticationPlugin, Boolean> obtainAuthenticationPlugin() {
         Map<String, AuthenticationPlugin> pluginMap = this.pluginMap;
 
-        Properties<PropertyKey> properties = this.properties;
+        Properties<MyKey> properties = this.properties;
         String pluginName = this.handshake.getAuthPluginName();
 
         AuthenticationPlugin plugin = pluginMap.get(pluginName);
@@ -583,15 +583,15 @@ final class MySQLConnectionTask extends CommunicationTask<TaskAdjutant> implemen
             plugin = pluginMap.get(PluginUtils.getDefaultMechanism(properties));
         } else if (Sha256PasswordPlugin.PLUGIN_NAME.equals(pluginName)
                 && !useSsl
-                && properties.get(PropertyKey.serverRSAPublicKeyFile) == null
-                && !properties.getOrDefault(PropertyKey.allowPublicKeyRetrieval, Boolean.class)) {
+                && properties.get(MyKey.serverRSAPublicKeyFile) == null
+                && !properties.getOrDefault(MyKey.allowPublicKeyRetrieval, Boolean.class)) {
             /*
              * Fall back to default if plugin is 'sha256_password' but required conditions for this to work aren't met. If default is other than
              * 'sha256_password' this will result in an immediate authentication switch request, allowing for other plugins to authenticate
              * successfully. If default is 'sha256_password' then the authentication will fail as expected. In both cases user's password won't be
              * sent to avoid subjecting it to lesser security levels.
              */
-            String defaultPluginName = properties.getOrDefault(PropertyKey.defaultAuthenticationPlugin);
+            String defaultPluginName = properties.getOrDefault(MyKey.defaultAuthenticationPlugin);
             skipPassword = !pluginName.equals(defaultPluginName);
             plugin = pluginMap.get(defaultPluginName);
         }
@@ -603,7 +603,7 @@ final class MySQLConnectionTask extends CommunicationTask<TaskAdjutant> implemen
 
 
     private Map<String, String> createConnectionAttributes() {
-        String connectionStr = this.properties.get(PropertyKey.connectionAttributes);
+        String connectionStr = this.properties.get(MyKey.connectionAttributes);
         Map<String, String> attMap = new HashMap<>();
 
         if (connectionStr != null) {
@@ -612,7 +612,7 @@ final class MySQLConnectionTask extends CommunicationTask<TaskAdjutant> implemen
                 String[] kv = pair.split(":");
                 if (kv.length != 2) {
                     throw new IllegalStateException(String.format("key[%s] can't resolve pair." +
-                            "", PropertyKey.connectionAttributes));
+                            "", MyKey.connectionAttributes));
                 }
                 attMap.put(kv[0].trim(), kv[1].trim());
             }
@@ -645,37 +645,37 @@ final class MySQLConnectionTask extends CommunicationTask<TaskAdjutant> implemen
 
     private int createNegotiatedCapability(final HandshakeV10Packet handshake) {
         final int serverCapability = handshake.getCapabilityFlags();
-        final Properties<PropertyKey> env = this.properties;
+        final Properties<MyKey> env = this.properties;
 
-        final boolean useConnectWithDb = MySQLStringUtils.hasText(this.hostInfo.getDbName())
-                && !env.getOrDefault(PropertyKey.createDatabaseIfNotExist, Boolean.class);
+        final boolean useConnectWithDb = MySQLStrings.hasText(this.hostInfo.getDbName())
+                && !env.getOrDefault(MyKey.createDatabaseIfNotExist, Boolean.class);
 
-        return ClientProtocol.CLIENT_SECURE_CONNECTION
-                | ClientProtocol.CLIENT_PLUGIN_AUTH
-                | (serverCapability & ClientProtocol.CLIENT_LONG_PASSWORD)  //
-                | (serverCapability & ClientProtocol.CLIENT_PROTOCOL_41)    //
+        return Capabilities.CLIENT_SECURE_CONNECTION
+                | Capabilities.CLIENT_PLUGIN_AUTH
+                | (serverCapability & Capabilities.CLIENT_LONG_PASSWORD)  //
+                | (serverCapability & Capabilities.CLIENT_PROTOCOL_41)    //
 
-                | (serverCapability & ClientProtocol.CLIENT_TRANSACTIONS)   // Need this to get server status values
-                | (serverCapability & ClientProtocol.CLIENT_MULTI_RESULTS)  // We always allow multiple result sets
-                | (serverCapability & ClientProtocol.CLIENT_PS_MULTI_RESULTS)  // We always allow multiple result sets for SSPS
-                | (serverCapability & ClientProtocol.CLIENT_LONG_FLAG)      //
+                | (serverCapability & Capabilities.CLIENT_TRANSACTIONS)   // Need this to get server status values
+                | (serverCapability & Capabilities.CLIENT_MULTI_RESULTS)  // We always allow multiple result sets
+                | (serverCapability & Capabilities.CLIENT_PS_MULTI_RESULTS)  // We always allow multiple result sets for SSPS
+                | (serverCapability & Capabilities.CLIENT_LONG_FLAG)      //
 
-                | (serverCapability & ClientProtocol.CLIENT_DEPRECATE_EOF)  //
-                | (serverCapability & ClientProtocol.CLIENT_PLUGIN_AUTH_LENENC_CLIENT_DATA)
-                | (env.getOrDefault(PropertyKey.useCompression, Boolean.class) ? (serverCapability & ClientProtocol.CLIENT_COMPRESS) : 0)
-                | (useConnectWithDb ? (serverCapability & ClientProtocol.CLIENT_CONNECT_WITH_DB) : 0)
-                | (env.getOrDefault(PropertyKey.useAffectedRows, Boolean.class) ? 0 : (serverCapability & ClientProtocol.CLIENT_FOUND_ROWS))
+                | (serverCapability & Capabilities.CLIENT_DEPRECATE_EOF)  //
+                | (serverCapability & Capabilities.CLIENT_PLUGIN_AUTH_LENENC_CLIENT_DATA)
+                | (env.getOrDefault(MyKey.useCompression, Boolean.class) ? (serverCapability & Capabilities.CLIENT_COMPRESS) : 0)
+                | (useConnectWithDb ? (serverCapability & Capabilities.CLIENT_CONNECT_WITH_DB) : 0)
+                | (env.getOrDefault(MyKey.useAffectedRows, Boolean.class) ? 0 : (serverCapability & Capabilities.CLIENT_FOUND_ROWS))
 
-                | (env.getOrDefault(PropertyKey.allowLoadLocalInfile, Boolean.class) ? (serverCapability & ClientProtocol.CLIENT_LOCAL_FILES) : 0)
-                | (env.getOrDefault(PropertyKey.interactiveClient, Boolean.class) ? (serverCapability & ClientProtocol.CLIENT_INTERACTIVE) : 0)
-                | (env.getOrDefault(PropertyKey.allowMultiQueries, Boolean.class) ? (serverCapability & ClientProtocol.CLIENT_MULTI_STATEMENTS) : 0)
-                | (env.getOrDefault(PropertyKey.disconnectOnExpiredPasswords, Boolean.class) ? 0 : (serverCapability & ClientProtocol.CLIENT_CAN_HANDLE_EXPIRED_PASSWORD))
+                | (env.getOrDefault(MyKey.allowLoadLocalInfile, Boolean.class) ? (serverCapability & Capabilities.CLIENT_LOCAL_FILES) : 0)
+                | (env.getOrDefault(MyKey.interactiveClient, Boolean.class) ? (serverCapability & Capabilities.CLIENT_INTERACTIVE) : 0)
+                | (env.getOrDefault(MyKey.allowMultiQueries, Boolean.class) ? (serverCapability & Capabilities.CLIENT_MULTI_STATEMENTS) : 0)
+                | (env.getOrDefault(MyKey.disconnectOnExpiredPasswords, Boolean.class) ? 0 : (serverCapability & Capabilities.CLIENT_CAN_HANDLE_EXPIRED_PASSWORD))
 
-                | (Constants.NONE.equals(env.get(PropertyKey.connectionAttributes)) ? 0 : (serverCapability & ClientProtocol.CLIENT_CONNECT_ATTRS))
-                | (env.getOrDefault(PropertyKey.sslMode, Enums.SslMode.class) != Enums.SslMode.DISABLED ? (serverCapability & ClientProtocol.CLIENT_SSL) : 0)
+                | (Constants.NONE.equals(env.get(MyKey.connectionAttributes)) ? 0 : (serverCapability & Capabilities.CLIENT_CONNECT_ATTRS))
+                | (env.getOrDefault(MyKey.sslMode, Enums.SslMode.class) != Enums.SslMode.DISABLED ? (serverCapability & Capabilities.CLIENT_SSL) : 0)
 
                 // TODO ZORO MYSQLCONNJ-437?
-                | (serverCapability & ClientProtocol.CLIENT_SESSION_TRACK)
+                | (serverCapability & Capabilities.CLIENT_SESSION_TRACK)
                 ;
     }
 
@@ -731,10 +731,10 @@ final class MySQLConnectionTask extends CommunicationTask<TaskAdjutant> implemen
         }
     }
 
-    private static int obtainMaxPacketBytes(final Properties<PropertyKey> properties) {
+    private static int obtainMaxPacketBytes(final Properties<MyKey> properties) {
         // because @@session.max_allowed_packet must be multiple of 1024,and single packet maxPayload is ((1<<24) - 1)
         final int minMultiple = (1 << 14), maxMultiple = 1 << 20;
-        int multiple = properties.getOrDefault(PropertyKey.maxAllowedPacket, Integer.class);
+        int multiple = properties.getOrDefault(MyKey.maxAllowedPacket, Integer.class);
         if (multiple < minMultiple) {
             multiple = minMultiple;
         } else if (multiple > maxMultiple) {

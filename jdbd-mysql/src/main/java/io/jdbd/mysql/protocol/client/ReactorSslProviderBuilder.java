@@ -4,9 +4,9 @@ import io.jdbd.JdbdSQLException;
 import io.jdbd.mysql.MySQLJdbdException;
 import io.jdbd.mysql.protocol.MySQLServerVersion;
 import io.jdbd.mysql.protocol.X509TrustManagerWrapper;
-import io.jdbd.mysql.protocol.conf.PropertyKey;
+import io.jdbd.mysql.protocol.conf.MyKey;
 import io.jdbd.mysql.util.MySQLStates;
-import io.jdbd.mysql.util.MySQLStringUtils;
+import io.jdbd.mysql.util.MySQLStrings;
 import io.jdbd.vendor.conf.HostInfo;
 import io.jdbd.vendor.conf.Properties;
 import io.jdbd.vendor.util.SQLStates;
@@ -38,19 +38,19 @@ final class ReactorSslProviderBuilder {
         return new ReactorSslProviderBuilder();
     }
 
-    private HostInfo<PropertyKey> hostInfo;
+    private HostInfo<MyKey> hostInfo;
 
     private MySQLServerVersion serverVersion;
 
     private ByteBufAllocator allocator;
 
-    private Properties<PropertyKey> properties;
+    private Properties<MyKey> properties;
 
 
     private ReactorSslProviderBuilder() {
     }
 
-    public ReactorSslProviderBuilder hostInfo(HostInfo<PropertyKey> hostInfo) {
+    public ReactorSslProviderBuilder hostInfo(HostInfo<MyKey> hostInfo) {
         this.hostInfo = hostInfo;
         return this;
     }
@@ -74,7 +74,7 @@ final class ReactorSslProviderBuilder {
     }
 
     public SslHandler buildSslHandler() throws SQLException {
-        HostInfo<PropertyKey> hostInfo = this.hostInfo;
+        HostInfo<MyKey> hostInfo = this.hostInfo;
         return buildSslContext().newHandler(this.allocator, hostInfo.getHost(), hostInfo.getPort());
     }
 
@@ -112,8 +112,8 @@ final class ReactorSslProviderBuilder {
 
 
     private List<String> obtainAllowedCipherSuitList() {
-        String enabledSSLCipherSuites = this.properties.get(PropertyKey.enabledSSLCipherSuites);
-        List<String> candidateList = MySQLStringUtils.spitAsList(enabledSSLCipherSuites, ",");
+        String enabledSSLCipherSuites = this.properties.get(MyKey.enabledSSLCipherSuites);
+        List<String> candidateList = MySQLStrings.spitAsList(enabledSSLCipherSuites, ",");
 
         if (candidateList.isEmpty()) {
             candidateList = SslUtils.CLIENT_SUPPORT_TLS_CIPHER_LIST;
@@ -138,8 +138,8 @@ final class ReactorSslProviderBuilder {
      * @return a unmodifiable list
      */
     private List<String> obtainAllowedTlsProtocolList() {
-        String enabledTLSProtocols = this.properties.get(PropertyKey.enabledTLSProtocols);
-        List<String> candidateList = MySQLStringUtils.spitAsList(enabledTLSProtocols, ",");
+        String enabledTLSProtocols = this.properties.get(MyKey.enabledTLSProtocols);
+        List<String> candidateList = MySQLStrings.spitAsList(enabledTLSProtocols, ",");
 
         if (candidateList.isEmpty()) {
             MySQLServerVersion serverVersion = this.serverVersion;
@@ -162,7 +162,7 @@ final class ReactorSslProviderBuilder {
 
     private void configTrustManager(final io.netty.handler.ssl.SslContextBuilder builder) throws SQLException {
         Enums.SslMode sslMode;
-        sslMode = this.properties.get(PropertyKey.sslMode, Enums.SslMode.class);
+        sslMode = this.properties.get(MyKey.sslMode, Enums.SslMode.class);
         final boolean verify = sslMode == Enums.SslMode.VERIFY_CA
                 || sslMode == Enums.SslMode.VERIFY_IDENTITY;
         try {
@@ -222,54 +222,54 @@ final class ReactorSslProviderBuilder {
     @Nullable
     private Pair<KeyStore, char[]> tryObtainKeyStorePasswordPairForSsl(final boolean key) throws SQLException {
         // 1. below obtain three storeUrl,storeType,storePassword
-        final PropertyKey storeUrlKey, storeTypeKey, passwordKey;
+        final MyKey storeUrlKey, storeTypeKey, passwordKey;
         final String systemStoreUrlKey, systemStoreTypeKey, systemPasswordKey;
         if (key) {
-            storeUrlKey = PropertyKey.clientCertificateKeyStoreUrl;
-            storeTypeKey = PropertyKey.clientCertificateKeyStoreType;
-            passwordKey = PropertyKey.clientCertificateKeyStorePassword;
+            storeUrlKey = MyKey.clientCertificateKeyStoreUrl;
+            storeTypeKey = MyKey.clientCertificateKeyStoreType;
+            passwordKey = MyKey.clientCertificateKeyStorePassword;
 
             systemStoreUrlKey = "javax.net.ssl.keyStore";
             systemStoreTypeKey = "javax.net.ssl.keyStoreType";
             systemPasswordKey = "javax.net.ssl.keyStorePassword";
         } else {
-            storeUrlKey = PropertyKey.trustCertificateKeyStoreUrl;
-            storeTypeKey = PropertyKey.trustCertificateKeyStoreType;
-            passwordKey = PropertyKey.trustCertificateKeyStorePassword;
+            storeUrlKey = MyKey.trustCertificateKeyStoreUrl;
+            storeTypeKey = MyKey.trustCertificateKeyStoreType;
+            passwordKey = MyKey.trustCertificateKeyStorePassword;
 
             systemStoreUrlKey = "javax.net.ssl.trustStore";
             systemStoreTypeKey = "javax.net.ssl.trustStoreType";
             systemPasswordKey = "javax.net.ssl.trustStorePassword";
         }
 
-        final Properties<PropertyKey> properties = this.properties;
+        final Properties<MyKey> properties = this.properties;
         String storeUrl, storeType, storePwd;
 
         storeUrl = properties.get(storeUrlKey);
         storeType = properties.get(storeTypeKey);
         storePwd = properties.get(passwordKey);
 
-        if (!MySQLStringUtils.hasText(storeUrl)) {
-            boolean useSystem = (key && properties.getOrDefault(PropertyKey.fallbackToSystemKeyStore, Boolean.class))
-                    || (!key && properties.getOrDefault(PropertyKey.fallbackToSystemTrustStore, Boolean.class));
+        if (!MySQLStrings.hasText(storeUrl)) {
+            boolean useSystem = (key && properties.getOrDefault(MyKey.fallbackToSystemKeyStore, Boolean.class))
+                    || (!key && properties.getOrDefault(MyKey.fallbackToSystemTrustStore, Boolean.class));
             if (useSystem) {
                 storeUrl = System.getProperty(systemStoreUrlKey);
                 storeType = System.getProperty(systemStoreTypeKey);
                 storePwd = System.getProperty(systemPasswordKey);
             }
-            if (!MySQLStringUtils.hasText(storeType)) {
+            if (!MySQLStrings.hasText(storeType)) {
                 storeType = properties.get(storeTypeKey);
             }
 
         }
 
-        if (MySQLStringUtils.hasText(storeUrl)) {
+        if (MySQLStrings.hasText(storeUrl)) {
             try {
                 new URL(storeUrl);
             } catch (MalformedURLException e) {
                 storeUrl = "file:" + storeUrl;
             }
-            if (!MySQLStringUtils.hasText(storeType)) {
+            if (!MySQLStrings.hasText(storeType)) {
                 return null;
             }
         } else {

@@ -2,7 +2,7 @@ package io.jdbd.mysql.protocol.client;
 
 import io.jdbd.*;
 import io.jdbd.mysql.MySQLJdbdException;
-import io.jdbd.mysql.protocol.conf.PropertyKey;
+import io.jdbd.mysql.protocol.conf.MyKey;
 import io.jdbd.mysql.session.MySQLDatabaseSession;
 import io.jdbd.mysql.session.ServerPreparedStatement;
 import io.jdbd.mysql.stmt.BindBatchStmt;
@@ -581,10 +581,8 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
 
     private Publisher<ByteBuf> createPrepareCommand(StaticStmt stmt) throws SQLException, JdbdSQLException {
         assertPhase(Phase.PREPARED);
-        return Flux.fromIterable(
-                Packets.createSimpleCommand(Packets.COM_STMT_PREPARE, stmt
-                        , this.adjutant, this::addAndGetSequenceId)
-        );
+        return Packets.createSimpleCommand(Packets.COM_STMT_PREPARE, stmt.getSql()
+                , this.adjutant, this::addAndGetSequenceId);
     }
 
 
@@ -658,7 +656,7 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
                 if (this.downstreamSink instanceof DownstreamAdapter) {
                     ((DownstreamAdapter) this.downstreamSink).warnings = warnings;
                 }
-                if ((this.negotiatedCapability & ClientProtocol.CLIENT_OPTIONAL_RESULTSET_METADATA) != 0) {
+                if ((this.negotiatedCapability & Capabilities.CLIENT_OPTIONAL_RESULTSET_METADATA) != 0) {
                     throw new IllegalStateException("Not support CLIENT_OPTIONAL_RESULTSET_METADATA"); //7. metadata_follows
                 }
                 cumulateBuffer.readerIndex(payloadStartIndex + payloadLength); // to next packet,avoid tail filler.
@@ -761,7 +759,7 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
      */
     private boolean tryReadEof(ByteBuf cumulateBuffer, Consumer<Object> serverStatusConsumer) {
         boolean end = true;
-        if ((this.negotiatedCapability & ClientProtocol.CLIENT_DEPRECATE_EOF) == 0) {
+        if ((this.negotiatedCapability & Capabilities.CLIENT_DEPRECATE_EOF) == 0) {
             if (Packets.hasOnePacket(cumulateBuffer)) {
                 int payloadLength = Packets.readInt3(cumulateBuffer);
                 updateSequenceId(Packets.readInt1AsInt(cumulateBuffer));
@@ -1438,7 +1436,7 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
          */
         private QueryDownstreamSink(final ComPreparedTask task, ParamStmt wrapper, FluxSink<ResultRow> sink) {
             super(task);
-            if (task.properties.getOrDefault(PropertyKey.useCursorFetch, Boolean.class)
+            if (task.properties.getOrDefault(MyKey.useCursorFetch, Boolean.class)
                     && Capabilities.supportPsMultiResult(task.negotiatedCapability)) {
                 // MySQL only create cursor-backed result sets if
                 // a) The query is a SELECT

@@ -5,7 +5,7 @@ import io.jdbd.meta.NullMode;
 import io.jdbd.meta.SQLType;
 import io.jdbd.mysql.MySQLType;
 import io.jdbd.mysql.protocol.CharsetMapping;
-import io.jdbd.mysql.util.MySQLStringUtils;
+import io.jdbd.mysql.util.MySQLStrings;
 import io.jdbd.result.FieldType;
 import io.jdbd.result.ResultRowMeta;
 import org.qinarmy.util.StringUtils;
@@ -164,8 +164,8 @@ abstract class MySQLRowMeta implements ResultRowMeta {
     @Override
     public boolean isReadOnly(int indexBaseZero) throws JdbdSQLException {
         MySQLColumnMeta columnMeta = this.columnMetaArray[checkIndex(indexBaseZero)];
-        return MySQLStringUtils.isEmpty(columnMeta.tableName)
-                && MySQLStringUtils.isEmpty(columnMeta.columnName);
+        return MySQLStrings.isEmpty(columnMeta.tableName)
+                && MySQLStrings.isEmpty(columnMeta.columnName);
     }
 
 

@@ -250,7 +250,7 @@ final class MySQLTaskExecutor extends CommunicationTaskExecutor<TaskAdjutant> {
         }
 
         @Override
-        public int obtainNegotiatedCapability() {
+        public int negotiatedCapability() {
             int capacity = this.negotiatedCapability;
             if (capacity == 0) {
                 LOG.trace("Cannot access negotiatedCapability[{}],this[{}]", this.negotiatedCapability, this);

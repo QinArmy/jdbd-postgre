@@ -117,6 +117,61 @@ public abstract class JdbdBinds {
         return value;
     }
 
+    public static byte bindNonNullToByte(final int batchIndex, SQLType sqlType, ParamValue paramValue)
+            throws SQLException {
+        final Object nonNull = paramValue.getNonNull();
+        final byte value;
+        if (nonNull instanceof Byte) {
+            value = (Byte) nonNull;
+        } else if (nonNull instanceof String) {
+            byte v;
+            try {
+                v = Byte.parseByte((String) nonNull);
+            } catch (NumberFormatException e) {
+                throw JdbdExceptions.outOfTypeRange(batchIndex, sqlType, paramValue);
+            }
+            value = v;
+        } else if (nonNull instanceof Short) {
+            final short v = ((Short) nonNull);
+            if (v < Byte.MIN_VALUE || v > Byte.MAX_VALUE) {
+                throw JdbdExceptions.outOfTypeRange(batchIndex, sqlType, paramValue);
+            }
+            value = (byte) v;
+        } else if (nonNull instanceof Integer) {
+            final int v = (Integer) nonNull;
+            if (v < Byte.MIN_VALUE || v > Byte.MAX_VALUE) {
+                throw JdbdExceptions.outOfTypeRange(batchIndex, sqlType, paramValue);
+            }
+            value = (byte) v;
+        } else if (nonNull instanceof Long) {
+            final long v = (Long) nonNull;
+            if (v < Byte.MIN_VALUE || v > Byte.MAX_VALUE) {
+                throw JdbdExceptions.outOfTypeRange(batchIndex, sqlType, paramValue);
+            }
+            value = (byte) v;
+        } else if (nonNull instanceof Boolean) {
+            final boolean v = (Boolean) nonNull;
+            value = (byte) (v ? 1 : 0);
+        } else if (nonNull instanceof BigInteger) {
+            final BigInteger v = (BigInteger) nonNull;
+            if (v.compareTo(BigInteger.valueOf(Byte.MIN_VALUE)) < 0
+                    || v.compareTo(BigInteger.valueOf(Byte.MAX_VALUE)) > 0) {
+                throw JdbdExceptions.outOfTypeRange(batchIndex, sqlType, paramValue);
+            }
+            value = v.byteValue();
+        } else if (nonNull instanceof BigDecimal) {
+            final BigDecimal v = ((BigDecimal) nonNull).stripTrailingZeros();
+            if (v.scale() != 0
+                    || v.compareTo(BigDecimal.valueOf(Byte.MIN_VALUE)) < 0
+                    || v.compareTo(BigDecimal.valueOf(Byte.MAX_VALUE)) > 0) {
+                throw JdbdExceptions.outOfTypeRange(batchIndex, sqlType, paramValue);
+            }
+            value = v.byteValue();
+        } else {
+            throw JdbdExceptions.createNonSupportBindSqlTypeError(batchIndex, sqlType, paramValue);
+        }
+        return value;
+    }
 
     public static short bindNonNullToShort(final int batchIndex, SQLType sqlType, ParamValue paramValue)
             throws SQLException {

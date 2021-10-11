@@ -3,7 +3,7 @@ package io.jdbd.mysql.protocol.client;
 import io.jdbd.JdbdSQLException;
 import io.jdbd.mysql.Groups;
 import io.jdbd.mysql.MySQLType;
-import io.jdbd.mysql.protocol.conf.PropertyKey;
+import io.jdbd.mysql.protocol.conf.MyKey;
 import io.jdbd.mysql.session.SessionAdjutant;
 import io.jdbd.mysql.stmt.BindBatchStmt;
 import io.jdbd.mysql.stmt.BindStmt;
@@ -555,7 +555,7 @@ public class MultiStatementSuiteTests extends AbstractConnectionBasedSuiteTests 
     public void bindableBatchWithMultiStmtMode() {
         LOG.info("bindableBatchWithMultiStmtMode test start");
         final TaskAdjutant adjutant = obtainMultiStmtTaskAdjutant();
-        assertTrue(Capabilities.supportMultiStatement(adjutant.obtainNegotiatedCapability()), "negotiatedCapability");
+        assertTrue(Capabilities.supportMultiStatement(adjutant.negotiatedCapability()), "negotiatedCapability");
 
         final String sql = "UPDATE mysql_types as t SET t.my_long_text = ? WHERE t.id = ?";
         final List<List<BindValue>> groupList = new ArrayList<>(4);
@@ -604,7 +604,7 @@ public class MultiStatementSuiteTests extends AbstractConnectionBasedSuiteTests 
     public void batchUpdateWithMultiStmtMode() {
         LOG.info("batchUpdateWithMultiStmtMode test start");
         final TaskAdjutant adjutant = obtainMultiStmtTaskAdjutant();
-        assertTrue(Capabilities.supportMultiStatement(adjutant.obtainNegotiatedCapability()), "negotiatedCapability");
+        assertTrue(Capabilities.supportMultiStatement(adjutant.negotiatedCapability()), "negotiatedCapability");
 
         String sql;
         final List<String> sqlList = new ArrayList<>(5);
@@ -690,10 +690,10 @@ public class MultiStatementSuiteTests extends AbstractConnectionBasedSuiteTests 
     private static SessionAdjutant createMultiStmtSessionAdjutant() {
         Map<String, String> map = new HashMap<>();
         if (ClientTestUtils.existsServerPublicKey()) {
-            map.put(PropertyKey.sslMode.getKey(), Enums.SslMode.DISABLED.name());
+            map.put(MyKey.sslMode.getKey(), Enums.SslMode.DISABLED.name());
         }
         ClientTestUtils.appendZoneConfig(map);
-        map.put(PropertyKey.allowMultiQueries.getKey(), "true");
+        map.put(MyKey.allowMultiQueries.getKey(), "true");
         return createSessionAdjutantForSingleHost(map);
     }
 

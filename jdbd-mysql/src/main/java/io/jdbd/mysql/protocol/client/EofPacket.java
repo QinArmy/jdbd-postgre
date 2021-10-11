@@ -11,7 +11,7 @@ public final class EofPacket extends TerminatorPacket {
             throw new IllegalArgumentException("packetBuf isn't error packet.");
         }
         int statusFags, warnings;
-        if ((capabilities & ClientCommandProtocol.CLIENT_PROTOCOL_41) != 0) {
+        if ((capabilities & Capabilities.CLIENT_PROTOCOL_41) != 0) {
             statusFags = Packets.readInt2AsInt(payloadBuffer);
             warnings = Packets.readInt2AsInt(payloadBuffer);
         } else {

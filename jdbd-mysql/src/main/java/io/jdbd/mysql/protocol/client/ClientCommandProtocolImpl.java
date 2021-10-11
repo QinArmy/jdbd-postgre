@@ -1,7 +1,7 @@
 package io.jdbd.mysql.protocol.client;
 
 import io.jdbd.mysql.Server;
-import io.jdbd.mysql.protocol.conf.PropertyKey;
+import io.jdbd.mysql.protocol.conf.MyKey;
 import io.jdbd.mysql.session.MySQLDatabaseSession;
 import io.jdbd.mysql.session.SessionAdjutant;
 import io.jdbd.mysql.stmt.BindBatchStmt;
@@ -25,7 +25,7 @@ import java.util.List;
 final class ClientCommandProtocolImpl implements ClientCommandProtocol {
 
 
-    public static Mono<ClientCommandProtocol> create(HostInfo<PropertyKey> hostInfo
+    public static Mono<ClientCommandProtocol> create(HostInfo<MyKey> hostInfo
             , SessionAdjutant sessionAdjutant) {
 //        return ClientConnectionProtocolImpl.create(hostInfo, sessionAdjutant)
 //                .map(ClientCommandProtocolImpl::new);

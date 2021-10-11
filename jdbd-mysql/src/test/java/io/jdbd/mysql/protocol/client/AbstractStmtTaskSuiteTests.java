@@ -4,7 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.jdbd.mysql.MySQLType;
 import io.jdbd.mysql.SQLMode;
-import io.jdbd.mysql.protocol.conf.PropertyKey;
+import io.jdbd.mysql.protocol.conf.MyKey;
 import io.jdbd.mysql.session.SessionAdjutant;
 import io.jdbd.mysql.stmt.BindStmt;
 import io.jdbd.mysql.stmt.BindValue;
@@ -246,8 +246,8 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBased
         LOG.info("tinyint1BindExtract test start");
 
         Map<String, String> map = new HashMap<>();
-        map.put(PropertyKey.tinyInt1isBit.getKey(), "true");
-        map.put(PropertyKey.transformedBitIsBoolean.getKey(), "false");
+        map.put(MyKey.tinyInt1isBit.getKey(), "true");
+        map.put(MyKey.transformedBitIsBoolean.getKey(), "false");
 
         SessionAdjutant sessionAdjutant = createSessionAdjutantForSingleHost(map);
         ClientConnectionProtocolImpl protocol = ClientConnectionProtocolImpl.create(0, sessionAdjutant)
@@ -265,7 +265,7 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBased
         protocol.closeGracefully()
                 .block();
 
-        map.put(PropertyKey.transformedBitIsBoolean.getKey(), "true");
+        map.put(MyKey.transformedBitIsBoolean.getKey(), "true");
         sessionAdjutant = createSessionAdjutantForSingleHost(map);
         protocol = ClientConnectionProtocolImpl.create(0, sessionAdjutant)
                 .block();
@@ -280,8 +280,8 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBased
         protocol.closeGracefully()
                 .block();
 
-        map.put(PropertyKey.tinyInt1isBit.getKey(), "false");
-        map.put(PropertyKey.transformedBitIsBoolean.getKey(), "false");
+        map.put(MyKey.tinyInt1isBit.getKey(), "false");
+        map.put(MyKey.transformedBitIsBoolean.getKey(), "false");
         sessionAdjutant = createSessionAdjutantForSingleHost(map);
         protocol = ClientConnectionProtocolImpl.create(0, sessionAdjutant)
                 .block();
@@ -1280,7 +1280,7 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBased
 
         final LocalTime time = LocalTime.parse(bindTime.format(formatter), MySQLTimes.MYSQL_TIME_FORMATTER);
         if (taskAdjutant.obtainHostInfo().getProperties()
-                .getOrDefault(PropertyKey.timeTruncateFractional, Boolean.class)) {
+                .getOrDefault(MyKey.timeTruncateFractional, Boolean.class)) {
             assertEquals(resultTime, time, field);
         } else {
             Duration duration = Duration.between(time, resultTime);
@@ -1478,8 +1478,8 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBased
 
         final Set<City> bindSet;
         if (bindParam instanceof String) {
-            Set<String> itemSet = MySQLStringUtils.spitAsSet((String) bindParam, ",");
-            bindSet = MySQLStringUtils.convertStringsToEnumSet(itemSet, City.class);
+            Set<String> itemSet = MySQLStrings.spitAsSet((String) bindParam, ",");
+            bindSet = MySQLStrings.convertStringsToEnumSet(itemSet, City.class);
         } else if (bindParam instanceof City) {
             bindSet = Collections.singleton((City) bindParam);
         } else if (bindParam instanceof Set) {
@@ -1717,11 +1717,11 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBased
         final String string = resultRow.get("field", String.class);
         assertNotNull(string, field);
         if (mySQLType == MySQLType.CHAR) {
-            final String actualBindParam = MySQLStringUtils.trimTrailingSpace(bindParam);
+            final String actualBindParam = MySQLStrings.trimTrailingSpace(bindParam);
             if (taskAdjutant.obtainServer().containSqlMode(SQLMode.PAD_CHAR_TO_FULL_LENGTH)) {
                 assertTrue(string.startsWith(actualBindParam), field);
                 final String tailingSpaces = string.substring(actualBindParam.length());
-                assertFalse(MySQLStringUtils.hasText(tailingSpaces), "tailingSpaces");
+                assertFalse(MySQLStrings.hasText(tailingSpaces), "tailingSpaces");
             } else {
                 assertEquals(string, actualBindParam, field);
             }
@@ -1770,8 +1770,8 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBased
         }
 
 
-        io.jdbd.vendor.conf.Properties<PropertyKey> properties = taskAdjutant.obtainHostInfo().getProperties();
-        if (properties.getOrDefault(PropertyKey.timeTruncateFractional, Boolean.class)) {
+        io.jdbd.vendor.conf.Properties<MyKey> properties = taskAdjutant.obtainHostInfo().getProperties();
+        if (properties.getOrDefault(MyKey.timeTruncateFractional, Boolean.class)) {
             DateTimeFormatter formatter = MySQLTimes.obtainDateTimeFormatter(precision);
             final String resultText, bindText;
             resultText = resultDateTime.format(formatter);

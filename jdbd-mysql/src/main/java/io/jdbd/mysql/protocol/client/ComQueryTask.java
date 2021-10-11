@@ -3,6 +3,7 @@ package io.jdbd.mysql.protocol.client;
 import io.jdbd.JdbdException;
 import io.jdbd.JdbdSQLException;
 import io.jdbd.ResultStatusConsumerException;
+import io.jdbd.mysql.MySQLJdbdException;
 import io.jdbd.mysql.stmt.*;
 import io.jdbd.mysql.util.MySQLCollections;
 import io.jdbd.mysql.util.MySQLExceptions;
@@ -14,10 +15,7 @@ import io.jdbd.result.ResultStates;
 import io.jdbd.stmt.*;
 import io.jdbd.vendor.JdbdCompositeException;
 import io.jdbd.vendor.result.*;
-import io.jdbd.vendor.stmt.ParamStmt;
-import io.jdbd.vendor.stmt.StaticBatchStmt;
-import io.jdbd.vendor.stmt.StaticStmt;
-import io.jdbd.vendor.stmt.Stmt;
+import io.jdbd.vendor.stmt.*;
 import io.jdbd.vendor.util.JdbdExceptions;
 import io.netty.buffer.ByteBuf;
 import org.reactivestreams.Publisher;
@@ -27,6 +25,7 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.FluxSink;
 import reactor.core.publisher.Mono;
 import reactor.core.publisher.MonoSink;
+import reactor.util.annotation.Nullable;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -177,7 +176,7 @@ final class ComQueryTask extends MySQLCommandTask {
      * This method is underlying api of {@link StaticStatement#executeAsFlux(String)} method.
      * </p>
      */
-    static OrderedFlux multiCommandAsFlux(StaticStmt stmt, TaskAdjutant adjutant) {
+    static OrderedFlux multiCommandAsFlux(StaticMultiStmt stmt, TaskAdjutant adjutant) {
         return MultiResults.asFlux(sink -> {
             try {
                 ComQueryTask task = new ComQueryTask(stmt, sink, adjutant);
@@ -354,6 +353,9 @@ final class ComQueryTask extends MySQLCommandTask {
      */
     private ComQueryTask(final Stmt stmt, FluxResultSink sink, TaskAdjutant adjutant) {
         super(adjutant, sink::error);
+        if (!Capabilities.supportMultiStatement(adjutant.negotiatedCapability())) {
+            throw new MySQLJdbdException("negotiatedCapability not support multi statement.");
+        }
         this.stmt = stmt;
         this.sink = sink;
     }
@@ -367,48 +369,54 @@ final class ComQueryTask extends MySQLCommandTask {
 
     /*################################## blow package template method ##################################*/
 
+    @Nullable
     @Override
-    protected Publisher<ByteBuf> start() {
+    protected final Publisher<ByteBuf> start() {
         Publisher<ByteBuf> publisher;
         final Stmt stmt = this.stmt;
         final Supplier<Integer> sequenceId = this::addAndGetSequenceId;
         try {
             if (stmt instanceof StaticStmt) {
-                publisher = QueryCommandWriter.createStaticCommand((StaticStmt) stmt, sequenceId, this.adjutant);
+                final String sql = ((StaticStmt) stmt).getSql();
+                publisher = QueryCommandWriter.createStaticCommand(sql, sequenceId, this.adjutant);
             } else if (stmt instanceof StaticBatchStmt) {
-                publisher = QueryCommandWriter.create
+                final StaticBatchStmt batchStmt = (StaticBatchStmt) stmt;
+                publisher = QueryCommandWriter.createStaticBatchCommand(batchStmt, sequenceId, this.adjutant);
+            } else if (stmt instanceof StaticMultiStmt) {
+                final String sql = ((StaticMultiStmt) stmt).getMultiSql();
+                publisher = QueryCommandWriter.createStaticCommand(sql, sequenceId, this.adjutant);
             } else if (stmt instanceof BindStmt) {
-
+                publisher = QueryCommandWriter.createBindableCommand((BindStmt) stmt, sequenceId, this.adjutant);
             } else if (stmt instanceof BindBatchStmt) {
-
-            } else if (stmt instanceof)
-                if (this.mode == Mode.TEMP_MULTI) {
-                    this.phase = Phase.READ_MULTI_STMT_ENABLE_RESULT;
-                    publisher = Mono.just(createSetOptionPacket(true));
-                } else {
-                    this.phase = Phase.READ_RESPONSE_RESULT_SET;
-                    publisher = Objects.requireNonNull(this.packetPublisher, "this.packetPublisher");
-                    this.packetPublisher = null;
-                }
-            if (LOG.isTraceEnabled()) {
-                LOG.trace("{} send COM_QUERY packet with mode[{}],downstream[{}]", this, this.mode, this.downstreamSink);
+                final BindBatchStmt batchStmt = (BindBatchStmt) stmt;
+                publisher = QueryCommandWriter.createBindableBatchCommand(batchStmt, sequenceId, this.adjutant);
+            } else if (stmt instanceof BindMultiStmt) {
+                final BindMultiStmt multiStmt = (BindMultiStmt) stmt;
+                publisher = QueryCommandWriter.createBindableMultiCommand(multiStmt, sequenceId, this.adjutant);
+            } else {
+                throw new IllegalStateException(String.format("Unknown stmt[%s]", stmt.getClass().getName()));
             }
-            return publisher;
-        } catch (SQLException e) {
+            this.phase = Phase.READ_EXECUTE_RESPONSE;
+        } catch (Throwable e) {
+            this.phase = Phase.START_ERROR;
             publisher = null;
-
+            if (MySQLExceptions.isByteBufOutflow(e)) {
+                addError(MySQLExceptions.tooLargeObject(e));
+            } else {
+                addError(e);
+            }
         }
         return publisher;
     }
 
 
     @Override
-    protected boolean decode(final ByteBuf cumulateBuffer, final Consumer<Object> serverStatusConsumer) {
+    protected final boolean decode(final ByteBuf cumulateBuffer, final Consumer<Object> serverStatusConsumer) {
         boolean taskEnd = false;
         boolean continueRead = true;
         while (continueRead) {
             switch (this.phase) {
-                case READ_RESPONSE_RESULT_SET: {
+                case READ_EXECUTE_RESPONSE: {
                     taskEnd = readResponseResultSet(cumulateBuffer, serverStatusConsumer);
                     continueRead = !taskEnd && Packets.hasOnePacket(cumulateBuffer);
                 }
@@ -421,7 +429,7 @@ final class ComQueryTask extends MySQLCommandTask {
                 case READ_MULTI_STMT_ENABLE_RESULT: {
                     taskEnd = readEnableMultiStmtResponse(cumulateBuffer, serverStatusConsumer);
                     if (!taskEnd) {
-                        this.phase = Phase.READ_RESPONSE_RESULT_SET;
+                        this.phase = Phase.READ_EXECUTE_RESPONSE;
                     }
                     continueRead = false;
                 }
@@ -570,7 +578,7 @@ final class ComQueryTask extends MySQLCommandTask {
      * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_com_query_response.html">Protocol::COM_QUERY Response</a>
      */
     private boolean readResponseResultSet(final ByteBuf cumulateBuffer, final Consumer<Object> serverStatusConsumer) {
-        assertPhase(Phase.READ_RESPONSE_RESULT_SET);
+        assertPhase(Phase.READ_EXECUTE_RESPONSE);
 
         final ComQueryResponse response = detectComQueryResponseType(cumulateBuffer, this.negotiatedCapability);
         boolean taskEnd = false;
@@ -601,7 +609,7 @@ final class ComQueryTask extends MySQLCommandTask {
             case LOCAL_INFILE_REQUEST: {
                 this.phase = Phase.LOCAL_INFILE_REQUEST;
                 sendLocalFile(cumulateBuffer);
-                this.phase = Phase.READ_RESPONSE_RESULT_SET;
+                this.phase = Phase.READ_EXECUTE_RESPONSE;
             }
             break;
             case TEXT_RESULT: {
@@ -628,7 +636,7 @@ final class ComQueryTask extends MySQLCommandTask {
         final boolean taskEnd;
         if (this.downstreamSink.readResultSet(cumulateBuffer, serverStatusConsumer)) {
             if (this.downstreamSink.hasMoreResult()) {
-                this.phase = Phase.READ_RESPONSE_RESULT_SET;
+                this.phase = Phase.READ_EXECUTE_RESPONSE;
                 taskEnd = false;
             } else if (hasError()) {
                 taskEnd = true;
@@ -636,7 +644,7 @@ final class ComQueryTask extends MySQLCommandTask {
                 final SingleModeBatchDownstreamSink sink = (SingleModeBatchDownstreamSink) this.downstreamSink;
                 taskEnd = !sink.hasMoreGroup() || sink.sendCommand();
                 if (!taskEnd) {
-                    this.phase = Phase.READ_RESPONSE_RESULT_SET;
+                    this.phase = Phase.READ_EXECUTE_RESPONSE;
                 }
             } else {
                 taskEnd = true;
@@ -1944,7 +1952,7 @@ final class ComQueryTask extends MySQLCommandTask {
         // skip header
         readerIndex += Packets.HEADER_SIZE;
         ComQueryResponse responseType;
-        final boolean metadata = (negotiatedCapability & ClientProtocol.CLIENT_OPTIONAL_RESULTSET_METADATA) != 0;
+        final boolean metadata = (negotiatedCapability & Capabilities.CLIENT_OPTIONAL_RESULTSET_METADATA) != 0;
 
         switch (Packets.getInt1AsInt(cumulateBuffer, readerIndex++)) {
             case 0: {
@@ -1983,7 +1991,8 @@ final class ComQueryTask extends MySQLCommandTask {
 
 
     private enum Phase {
-        READ_RESPONSE_RESULT_SET,
+        START_ERROR,
+        READ_EXECUTE_RESPONSE,
         READ_TEXT_RESULT_SET,
         LOCAL_INFILE_REQUEST,
         READ_MULTI_STMT_ENABLE_RESULT,

@@ -2,8 +2,8 @@ package io.jdbd.mysql.protocol.client;
 
 import io.jdbd.mysql.protocol.authentication.AuthenticationPlugin;
 import io.jdbd.mysql.protocol.authentication.PluginUtils;
+import io.jdbd.mysql.protocol.conf.MyKey;
 import io.jdbd.mysql.protocol.conf.MySQLUrl;
-import io.jdbd.mysql.protocol.conf.PropertyKey;
 import io.jdbd.mysql.session.SessionAdjutant;
 import io.netty.channel.EventLoopGroup;
 import org.slf4j.Logger;
@@ -70,7 +70,7 @@ public abstract class AbstractConnectionBasedSuiteTests {
     private static SessionAdjutant createDefaultSessionAdjutant() {
         Map<String, String> map = new HashMap<>();
         if (ClientTestUtils.existsServerPublicKey()) {
-            map.put(PropertyKey.sslMode.getKey(), Enums.SslMode.DISABLED.name());
+            map.put(MyKey.sslMode.getKey(), Enums.SslMode.DISABLED.name());
         }
         ClientTestUtils.appendZoneConfig(map);
         return createSessionAdjutantForSingleHost(map);

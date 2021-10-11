@@ -2,7 +2,7 @@ package io.jdbd.mysql.protocol.client;
 
 
 import io.jdbd.mysql.Groups;
-import io.jdbd.mysql.protocol.conf.PropertyKey;
+import io.jdbd.mysql.protocol.conf.MyKey;
 import io.jdbd.mysql.stmt.BindStmt;
 import io.jdbd.mysql.stmt.Stmts;
 import io.jdbd.mysql.util.MySQLTimes;
@@ -172,9 +172,9 @@ public class LoadDataLocalSuiteTests extends AbstractStmtTaskSuiteTests {
 
     private void doLoadData(Path path, long rows) {
         final TaskAdjutant adjutant = obtainTaskAdjutant();
-        if (!adjutant.obtainHostInfo().getProperties().getOrDefault(PropertyKey.allowLoadLocalInfile, Boolean.class)) {
+        if (!adjutant.obtainHostInfo().getProperties().getOrDefault(MyKey.allowLoadLocalInfile, Boolean.class)) {
             fail(String.format("client no support Load data local statement,please config property[%s]"
-                    , PropertyKey.allowLoadLocalInfile));
+                    , MyKey.allowLoadLocalInfile));
         }
         if (!adjutant.obtainServer().supportLocalInfile()) {
             LOG.warn("Server no support Local infile ,please config system variables[@@GLOBAL.local_infile]");

@@ -58,7 +58,7 @@ final class QuitTask extends MySQLCommandTask {
 
         ErrorPacket error;
         error = ErrorPacket.readPacket(cumulateBuffer
-                , this.adjutant.obtainNegotiatedCapability(), this.adjutant.obtainCharsetError());
+                , this.adjutant.negotiatedCapability(), this.adjutant.obtainCharsetError());
         cumulateBuffer.readerIndex(payloadStartIndex + payloadLength);
 
         updateSequenceId(sequenceId);

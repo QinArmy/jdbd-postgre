@@ -5,7 +5,7 @@ import io.jdbd.mysql.MySQLJdbdException;
 import io.jdbd.mysql.MySQLType;
 import io.jdbd.mysql.protocol.MySQLFatalIoException;
 import io.jdbd.mysql.protocol.client.ErrorPacket;
-import io.jdbd.mysql.protocol.conf.PropertyKey;
+import io.jdbd.mysql.protocol.conf.MyKey;
 import io.jdbd.mysql.stmt.BindValue;
 import io.jdbd.stmt.LongDataReadException;
 import io.jdbd.stmt.PreparedStatement;
@@ -105,7 +105,7 @@ public abstract class MySQLExceptions extends JdbdExceptions {
     public static JdbdSQLException notSupportMultiStatementException() {
         String m;
         m = String.format("Not support multi statement,please config MySQL property[%s] in jdbc url or properties map."
-                , PropertyKey.allowMultiQueries);
+                , MyKey.allowMultiQueries);
         return new JdbdSQLException(createSyntaxError(m));
     }
 
@@ -119,15 +119,15 @@ public abstract class MySQLExceptions extends JdbdExceptions {
 
     public static LongDataReadException createLongDataReadException(int stmtIndex, BindValue bindValue
             , Throwable cause) {
-        LongDataReadException e;
+        final String m;
         if (stmtIndex < 0) {
-            e = new LongDataReadException(cause, "Read long data occur error at parameter[%s] MySQLType[%s]."
+            m = String.format("Read long data occur error at parameter[%s] MySQLType[%s]."
                     , bindValue.getIndex(), bindValue.getType());
         } else {
-            e = new LongDataReadException(cause, "Read long data occur error at parameter[%s] MySQLType[%s] in statement[sequenceId:%s]."
+            m = String.format("Read long data occur error at parameter[%s] MySQLType[%s] in statement[sequenceId:%s]."
                     , bindValue.getIndex(), bindValue.getType(), stmtIndex);
         }
-        return e;
+        return new LongDataReadException(m, cause);
     }
 
 
@@ -207,7 +207,7 @@ public abstract class MySQLExceptions extends JdbdExceptions {
 
     public static JdbdSQLException createNetPacketTooLargeException(int maxAllowedPayload) {
         String message = String.format("sql length larger than %s[%s]"
-                , PropertyKey.maxAllowedPacket, maxAllowedPayload);
+                , MyKey.maxAllowedPacket, maxAllowedPayload);
         return new JdbdSQLException(createNetPacketTooLargeError(null), message);
     }
 

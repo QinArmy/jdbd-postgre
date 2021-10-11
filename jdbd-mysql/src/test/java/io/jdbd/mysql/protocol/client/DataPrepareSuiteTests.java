@@ -5,7 +5,7 @@ import io.jdbd.meta.NullMode;
 import io.jdbd.meta.SQLType;
 import io.jdbd.mysql.Groups;
 import io.jdbd.mysql.MySQLType;
-import io.jdbd.mysql.protocol.conf.PropertyKey;
+import io.jdbd.mysql.protocol.conf.MyKey;
 import io.jdbd.mysql.stmt.Stmts;
 import io.jdbd.mysql.type.City;
 import io.jdbd.mysql.type.TrueOrFalse;
@@ -105,7 +105,7 @@ public class DataPrepareSuiteTests extends AbstractConnectionBasedSuiteTests {
         assertNotNull(resultRowList, "resultRowList");
         assertFalse(resultRowList.isEmpty(), "resultRowList is empty");
 
-        final Properties<PropertyKey> properties = adjutant.obtainHostInfo().getProperties();
+        final Properties<MyKey> properties = adjutant.obtainHostInfo().getProperties();
         for (ResultRow resultRow : resultRowList) {
             assertQueryResultRowMySQLTypeMatch(resultRow, properties);
         }
@@ -234,7 +234,7 @@ public class DataPrepareSuiteTests extends AbstractConnectionBasedSuiteTests {
     }
 
 
-    private void assertQueryResultRowMySQLTypeMatch(final ResultRow row, final Properties<PropertyKey> properties) {
+    private void assertQueryResultRowMySQLTypeMatch(final ResultRow row, final Properties<MyKey> properties) {
         final ResultRowMeta rowMeta = row.getRowMeta();
 
         final Object id = row.get("id");
@@ -599,15 +599,15 @@ public class DataPrepareSuiteTests extends AbstractConnectionBasedSuiteTests {
     /**
      * @see #assertQueryResultRowMySQLTypeMatch(ResultRow, Properties)
      */
-    private void assertTinyInt1Type(ResultRow row, String columnAlias, Properties<PropertyKey> properties) {
+    private void assertTinyInt1Type(ResultRow row, String columnAlias, Properties<MyKey> properties) {
         final ResultRowMeta rowMeta = row.getRowMeta();
 
         assertFalse(rowMeta.isUnsigned(columnAlias), columnAlias + " isSigned");
         final SQLType myBooleanType = rowMeta.getSQLType(columnAlias);
         assertNotNull(row.get(columnAlias, Boolean.class), columnAlias + " convert to boolean");
 
-        if (properties.getOrDefault(PropertyKey.tinyInt1isBit, Boolean.class)) {
-            if (properties.getOrDefault(PropertyKey.transformedBitIsBoolean, Boolean.class)) {
+        if (properties.getOrDefault(MyKey.tinyInt1isBit, Boolean.class)) {
+            if (properties.getOrDefault(MyKey.transformedBitIsBoolean, Boolean.class)) {
                 assertEquals(myBooleanType, MySQLType.BOOLEAN, columnAlias + " mysql type");
                 assertTrue(row.get(columnAlias) instanceof Boolean, columnAlias + " is boolean type.");
             } else {

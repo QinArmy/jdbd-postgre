@@ -1,6 +1,5 @@
 package io.jdbd.mysql.protocol.client;
 
-import io.jdbd.JdbdSQLException;
 import io.jdbd.mysql.MySQLJdbdException;
 import io.jdbd.mysql.util.MySQLExceptions;
 import io.jdbd.mysql.util.MySQLNumbers;
@@ -14,7 +13,6 @@ import reactor.util.annotation.Nullable;
 
 import java.math.BigInteger;
 import java.nio.charset.Charset;
-import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
@@ -576,8 +574,11 @@ public abstract class Packets {
         return packet;
     }
 
+    /**
+     * @return a sync Publisher that is created by {@link Mono#just(Object)} or {@link Flux#fromIterable(Iterable)}.
+     */
     public static Publisher<ByteBuf> createSimpleCommand(final byte cmdFlag, String sql
-            , TaskAdjutant adjutant, Supplier<Integer> sequenceId) throws SQLException, JdbdSQLException {
+            , TaskAdjutant adjutant, Supplier<Integer> sequenceId) {
 
         if (cmdFlag != COM_QUERY && cmdFlag != COM_STMT_PREPARE) {
             throw new IllegalArgumentException("command error");
@@ -627,6 +628,71 @@ public abstract class Packets {
             publisher = Flux.fromIterable(list);
         }
         return publisher;
+    }
+
+    /**
+     * @param packet a big packet that header is placeholder.
+     * @return a sync Publisher that is created by {@link Mono#just(Object)} or {@link Flux#fromIterable(Iterable)}.
+     */
+    public static Publisher<ByteBuf> createPacketPublisher(final ByteBuf packet, final Supplier<Integer> sequenceId
+            , final TaskAdjutant adjutant) {
+
+        final int maxAllowedPayload = adjutant.obtainHostInfo().maxAllowedPayload();
+        final int payload = packet.readableBytes() - Packets.HEADER_SIZE;
+        if (payload > maxAllowedPayload) {
+            throw MySQLExceptions.createNetPacketTooLargeException(maxAllowedPayload);
+        }
+        final Publisher<ByteBuf> publisher;
+        if (payload >= Packets.MAX_PAYLOAD) {
+            publisher = Packets.divideBigPacket(packet, adjutant.allocator(), sequenceId);
+        } else {
+            Packets.writePacketHeader(packet, sequenceId.get());
+            publisher = Mono.just(packet);
+        }
+        return publisher;
+    }
+
+
+    /**
+     * <p>
+     * bigPacket will be release after return.
+     * </p>
+     *
+     * @param bigPacket a big packet that header is placeholder.
+     * @return a sync Publisher that is created by {@link Mono#just(Object)} or {@link Flux#fromIterable(Iterable)}.
+     */
+    public static Publisher<ByteBuf> divideBigPacket(final ByteBuf bigPacket, ByteBufAllocator allocator
+            , Supplier<Integer> sequenceId) {
+        if (bigPacket.readableBytes() < MAX_PACKET) {
+            throw new IllegalArgumentException("bigPacket not big packet");
+        }
+        ByteBuf packet = allocator.buffer(MAX_PACKET, MAX_PACKET);
+
+        int length = MAX_PACKET;
+        packet.writeBytes(bigPacket, length);
+        writePacketHeader(packet, sequenceId.get());
+
+        final List<ByteBuf> packetList = new ArrayList<>();
+        packetList.add(packet);
+
+        while (bigPacket.isReadable()) {
+            length = Math.min(MAX_PAYLOAD, bigPacket.readableBytes());
+            packet = allocator.buffer(HEADER_SIZE + length, MAX_PACKET);
+
+            packet.writeZero(HEADER_SIZE); // placeholder of header
+            packet.writeBytes(bigPacket, length);
+
+            writePacketHeader(packet, sequenceId.get());
+            packetList.add(packet);
+
+        }
+        if (bigPacket.refCnt() > 0) {
+            bigPacket.release(); // must release
+        }
+        if (packetList.size() == 1 || length == MAX_PAYLOAD) {
+            packetList.add(createEmptyPacket(allocator, sequenceId.get()));
+        }
+        return Flux.fromIterable(packetList);
     }
 
 

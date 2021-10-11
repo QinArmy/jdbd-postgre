@@ -2,8 +2,8 @@ package io.jdbd.mysql.protocol.authentication;
 
 import io.jdbd.mysql.protocol.AuthenticateAssistant;
 import io.jdbd.mysql.protocol.client.Packets;
-import io.jdbd.mysql.protocol.conf.PropertyKey;
-import io.jdbd.mysql.util.MySQLStringUtils;
+import io.jdbd.mysql.protocol.conf.MyKey;
+import io.jdbd.mysql.util.MySQLStrings;
 import io.jdbd.vendor.conf.HostInfo;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
@@ -29,7 +29,7 @@ public class MySQLOldPasswordPlugin implements AuthenticationPlugin {
 
     private final AuthenticateAssistant protocolAssistant;
 
-    private final HostInfo<PropertyKey> hostInfo;
+    private final HostInfo<MyKey> hostInfo;
 
     private MySQLOldPasswordPlugin(AuthenticateAssistant protocolAssistant) {
         this.protocolAssistant = protocolAssistant;
@@ -51,7 +51,7 @@ public class MySQLOldPasswordPlugin implements AuthenticationPlugin {
     public List<ByteBuf> nextAuthenticationStep(ByteBuf fromServer) {
         String password = hostInfo.getPassword();
         ByteBuf payloadBuf;
-        if (MySQLStringUtils.isEmpty(password)) {
+        if (MySQLStrings.isEmpty(password)) {
             payloadBuf = Unpooled.EMPTY_BUFFER;
         } else {
             String seed = Packets.readStringTerm(fromServer, Charset.defaultCharset()).substring(0, 8);

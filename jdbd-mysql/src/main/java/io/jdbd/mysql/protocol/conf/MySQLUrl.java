@@ -14,7 +14,7 @@ import java.util.Map;
  * see {@code com.mysql.cj.conf.ConnectionUrl}
  * </p>
  */
-public final class MySQLUrl extends AbstractJdbcUrl<PropertyKey, MySQLHost> {
+public final class MySQLUrl extends AbstractJdbcUrl<MyKey, MySQLHost> {
 
     public static final int DEFAULT_PORT = 3306;
 
@@ -46,7 +46,7 @@ public final class MySQLUrl extends AbstractJdbcUrl<PropertyKey, MySQLHost> {
 
     @Override
     protected IPropertyKey getDbNameKey() {
-        return PropertyKey.dbname;
+        return MyKey.dbname;
     }
 
     /**
@@ -90,19 +90,19 @@ public final class MySQLUrl extends AbstractJdbcUrl<PropertyKey, MySQLHost> {
         REPLICATION_DNS_SRV_CONNECTION("jdbc:mysql+srv:replication:", HostsCardinality.ONE_OR_MORE), //
         XDEVAPI_DNS_SRV_SESSION("mysqlx+srv:", HostsCardinality.ONE_OR_MORE), //
         // Standard schemes:
-        SINGLE_CONNECTION("jdbc:mysql:", HostsCardinality.SINGLE, PropertyKey.dnsSrv, FAILOVER_DNS_SRV_CONNECTION), //
-        FAILOVER_CONNECTION("jdbc:mysql:", HostsCardinality.MULTIPLE, PropertyKey.dnsSrv,
+        SINGLE_CONNECTION("jdbc:mysql:", HostsCardinality.SINGLE, MyKey.dnsSrv, FAILOVER_DNS_SRV_CONNECTION), //
+        FAILOVER_CONNECTION("jdbc:mysql:", HostsCardinality.MULTIPLE, MyKey.dnsSrv,
                 FAILOVER_DNS_SRV_CONNECTION), //
-        LOADBALANCE_CONNECTION("jdbc:mysql:loadbalance:", HostsCardinality.ONE_OR_MORE, PropertyKey.dnsSrv,
+        LOADBALANCE_CONNECTION("jdbc:mysql:loadbalance:", HostsCardinality.ONE_OR_MORE, MyKey.dnsSrv,
                 LOADBALANCE_DNS_SRV_CONNECTION), //
-        REPLICATION_CONNECTION("jdbc:mysql:replication:", HostsCardinality.ONE_OR_MORE, PropertyKey.dnsSrv,
+        REPLICATION_CONNECTION("jdbc:mysql:replication:", HostsCardinality.ONE_OR_MORE, MyKey.dnsSrv,
                 REPLICATION_DNS_SRV_CONNECTION), //
-        XDEVAPI_SESSION("mysqlx:", HostsCardinality.ONE_OR_MORE, PropertyKey.xdevapiDnsSrv,
+        XDEVAPI_SESSION("mysqlx:", HostsCardinality.ONE_OR_MORE, MyKey.xdevapiDnsSrv,
                 XDEVAPI_DNS_SRV_SESSION);
 
         private final String scheme;
         private final HostsCardinality cardinality;
-        private final PropertyKey dnsSrvPropertyKey;
+        private final MyKey dnsSrvPropertyKey;
         private final Protocol alternateDnsSrvType;
 
         Protocol(String scheme, HostsCardinality cardinality) {
@@ -110,7 +110,7 @@ public final class MySQLUrl extends AbstractJdbcUrl<PropertyKey, MySQLHost> {
         }
 
         Protocol(String scheme, HostsCardinality cardinality
-                , @Nullable PropertyKey dnsSrvPropertyKey, @Nullable Protocol alternateDnsSrvType) {
+                , @Nullable MyKey dnsSrvPropertyKey, @Nullable Protocol alternateDnsSrvType) {
             this.scheme = scheme;
             this.cardinality = cardinality;
             this.dnsSrvPropertyKey = dnsSrvPropertyKey;
@@ -127,7 +127,7 @@ public final class MySQLUrl extends AbstractJdbcUrl<PropertyKey, MySQLHost> {
         }
 
         @Nullable
-        public PropertyKey getDnsSrvPropertyKey() {
+        public MyKey getDnsSrvPropertyKey() {
             return this.dnsSrvPropertyKey;
         }
 

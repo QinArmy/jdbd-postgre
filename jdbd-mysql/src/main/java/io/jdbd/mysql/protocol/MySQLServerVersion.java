@@ -5,6 +5,7 @@ import io.jdbd.ServerVersion;
 public final class MySQLServerVersion implements Comparable<MySQLServerVersion>, ServerVersion {
 
     private static final MySQLServerVersion MIN_VERSION = new MySQLServerVersion("0.0.0", 0, 0, 0);
+    public static final MySQLServerVersion V8_0_19 = new MySQLServerVersion("8.0.19", 8, 0, 10);
 
     private final String completeVersion;
     private final int major;
@@ -23,22 +24,29 @@ public final class MySQLServerVersion implements Comparable<MySQLServerVersion>,
     }
 
     @Override
-    public String toString() {
+    public final String toString() {
         return this.completeVersion;
     }
 
     @Override
-    public boolean equals(Object obj) {
+    public final boolean equals(final Object obj) {
+        final boolean match;
         if (this == obj) {
-            return true;
+            match = true;
+        } else if (obj instanceof MySQLServerVersion) {
+            final MySQLServerVersion another = (MySQLServerVersion) obj;
+            match = this.major == another.major
+                    && this.minor == another.minor
+                    && this.subMinor == another.subMinor;
+        } else {
+            match = false;
         }
-        if (!(obj instanceof MySQLServerVersion)) {
-            return false;
-        }
-        MySQLServerVersion another = (MySQLServerVersion) obj;
-        return this.major == another.major
-                && this.minor == another.minor
-                && this.subMinor == another.subMinor;
+        return match;
+    }
+
+    @Override
+    public final int hashCode() {
+        return this.completeVersion.hashCode();
     }
 
     /**

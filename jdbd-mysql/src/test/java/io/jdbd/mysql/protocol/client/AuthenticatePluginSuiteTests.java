@@ -4,7 +4,7 @@ import io.jdbd.JdbdSQLException;
 import io.jdbd.mysql.Groups;
 import io.jdbd.mysql.protocol.authentication.CachingSha2PasswordPlugin;
 import io.jdbd.mysql.protocol.authentication.MySQLNativePasswordPlugin;
-import io.jdbd.mysql.protocol.conf.PropertyKey;
+import io.jdbd.mysql.protocol.conf.MyKey;
 import io.jdbd.mysql.session.SessionAdjutant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -66,11 +66,11 @@ public class AuthenticatePluginSuiteTests extends AbstractConnectionBasedSuiteTe
         final Map<String, String> propMap;
         propMap = new HashMap<>();
 
-        propMap.put(PropertyKey.sslMode.getKey(), Enums.SslMode.DISABLED.name());
+        propMap.put(MyKey.sslMode.getKey(), Enums.SslMode.DISABLED.name());
         // here use (CachingSha2PasswordPlugin and sslMode = DISABLED)
-        propMap.put(PropertyKey.defaultAuthenticationPlugin.getKey(), CachingSha2PasswordPlugin.PLUGIN_NAME);
-        propMap.put(PropertyKey.authenticationPlugins.getKey(), CachingSha2PasswordPlugin.class.getName());
-        propMap.put(PropertyKey.serverRSAPublicKeyFile.getKey(), serverRSAPublicKeyPath.toString());
+        propMap.put(MyKey.defaultAuthenticationPlugin.getKey(), CachingSha2PasswordPlugin.PLUGIN_NAME);
+        propMap.put(MyKey.authenticationPlugins.getKey(), CachingSha2PasswordPlugin.class.getName());
+        propMap.put(MyKey.serverRSAPublicKeyFile.getKey(), serverRSAPublicKeyPath.toString());
 
         // propMap.put(PropertyKey.allowPublicKeyRetrieval.getKey(), serverRSAPublicKeyPath.toString());
 
@@ -121,7 +121,7 @@ public class AuthenticatePluginSuiteTests extends AbstractConnectionBasedSuiteTe
     public void defaultPluginWithSslDisabled() {
         LOG.info("defaultPluginWithSslDisabled test start.");
         final Map<String, String> propMap;
-        propMap = Collections.singletonMap(PropertyKey.sslMode.getKey()
+        propMap = Collections.singletonMap(MyKey.sslMode.getKey()
                 , Enums.SslMode.DISABLED.name());
 
         SessionAdjutant sessionAdjutant = createSessionAdjutantForSingleHost(propMap);
@@ -142,10 +142,10 @@ public class AuthenticatePluginSuiteTests extends AbstractConnectionBasedSuiteTe
         final Map<String, String> propMap;
         propMap = new HashMap<>();
 
-        propMap.put(PropertyKey.sslMode.getKey(), Enums.SslMode.DISABLED.name());
-        propMap.put(PropertyKey.defaultAuthenticationPlugin.getKey(), CachingSha2PasswordPlugin.PLUGIN_NAME);
-        propMap.put(PropertyKey.authenticationPlugins.getKey(), CachingSha2PasswordPlugin.class.getName());
-        propMap.put(PropertyKey.password.getKey(), "");
+        propMap.put(MyKey.sslMode.getKey(), Enums.SslMode.DISABLED.name());
+        propMap.put(MyKey.defaultAuthenticationPlugin.getKey(), CachingSha2PasswordPlugin.PLUGIN_NAME);
+        propMap.put(MyKey.authenticationPlugins.getKey(), CachingSha2PasswordPlugin.class.getName());
+        propMap.put(MyKey.password.getKey(), "");
 
         SessionAdjutant sessionAdjutant = createSessionAdjutantForSingleHost(propMap);
 
@@ -168,9 +168,9 @@ public class AuthenticatePluginSuiteTests extends AbstractConnectionBasedSuiteTe
         final Map<String, String> propMap;
         propMap = new HashMap<>();
 
-        propMap.put(PropertyKey.sslMode.getKey(), Enums.SslMode.DISABLED.name());
-        propMap.put(PropertyKey.defaultAuthenticationPlugin.getKey(), MySQLNativePasswordPlugin.PLUGIN_NAME);
-        propMap.put(PropertyKey.authenticationPlugins.getKey(), MySQLNativePasswordPlugin.class.getName());
+        propMap.put(MyKey.sslMode.getKey(), Enums.SslMode.DISABLED.name());
+        propMap.put(MyKey.defaultAuthenticationPlugin.getKey(), MySQLNativePasswordPlugin.PLUGIN_NAME);
+        propMap.put(MyKey.authenticationPlugins.getKey(), MySQLNativePasswordPlugin.class.getName());
 
         SessionAdjutant sessionAdjutant = createSessionAdjutantForSingleHost(propMap);
 

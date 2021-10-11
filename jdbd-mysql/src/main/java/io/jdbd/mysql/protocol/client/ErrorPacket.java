@@ -23,7 +23,7 @@ public final class ErrorPacket implements MySQLPacket {
         int errorCode = Packets.readInt2AsInt(payloadBuf);
 
         String sqlStateMarker = null, sqlState = null, errorMessage;
-        if ((capability & ClientProtocol.CLIENT_PROTOCOL_41) != 0) {
+        if ((capability & Capabilities.CLIENT_PROTOCOL_41) != 0) {
             sqlStateMarker = Packets.readStringFixed(payloadBuf, 1, errorMessageCharset);
             sqlState = Packets.readStringFixed(payloadBuf, 5, errorMessageCharset);
         }

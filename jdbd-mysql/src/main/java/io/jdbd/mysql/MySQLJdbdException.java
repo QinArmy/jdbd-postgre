@@ -10,6 +10,11 @@ public class MySQLJdbdException extends JdbdNonSQLException {
         super(createMessage(message, args));
     }
 
+    public MySQLJdbdException(String message) {
+        super(message);
+    }
+
+
     @Deprecated
     public MySQLJdbdException(@Nullable Throwable cause, String message, Object... args) {
         super(createMessage(message, args), cause);

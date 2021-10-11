@@ -3,7 +3,7 @@ package io.jdbd.mysql.protocol.client;
 import io.jdbd.BigRowIoException;
 import io.jdbd.JdbdException;
 import io.jdbd.JdbdSQLException;
-import io.jdbd.mysql.protocol.conf.PropertyKey;
+import io.jdbd.mysql.protocol.conf.MyKey;
 import io.jdbd.mysql.util.MySQLExceptions;
 import io.jdbd.result.ResultRow;
 import io.jdbd.vendor.conf.Properties;
@@ -41,7 +41,7 @@ abstract class AbstractResultSetReader implements ResultSetReader {
 
     private final boolean resettable;
 
-    final Properties<PropertyKey> properties;
+    final Properties<MyKey> properties;
 
     MySQLRowMeta rowMeta;
 
@@ -170,7 +170,7 @@ abstract class AbstractResultSetReader implements ResultSetReader {
         boolean resultSetEnd = false;
         int sequenceId = -1;
         final boolean binaryReader = isBinaryReader();
-        final int negotiatedCapability = this.adjutant.obtainNegotiatedCapability();
+        final int negotiatedCapability = this.adjutant.negotiatedCapability();
         final boolean notCancelled = !sink.isCancelled();
         outFor:
         for (int payloadLength, readableBytes, header; ; ) {
@@ -218,7 +218,7 @@ abstract class AbstractResultSetReader implements ResultSetReader {
                 ByteBuf eofPayload = (payload == cumulateBuffer) ? cumulateBuffer.readSlice(payloadLength) : payload;
                 // binary row terminator
                 final TerminatorPacket tp;
-                if ((negotiatedCapability & ClientProtocol.CLIENT_DEPRECATE_EOF) != 0) {
+                if ((negotiatedCapability & Capabilities.CLIENT_DEPRECATE_EOF) != 0) {
                     tp = OkPacket.read(eofPayload, negotiatedCapability);
                 } else {
                     tp = EofPacket.read(eofPayload, negotiatedCapability);
@@ -309,13 +309,13 @@ abstract class AbstractResultSetReader implements ResultSetReader {
     @Nullable
     final LocalDate handleZeroDateBehavior(String type) {
         Enums.ZeroDatetimeBehavior behavior;
-        behavior = this.properties.getOrDefault(PropertyKey.zeroDateTimeBehavior
+        behavior = this.properties.getOrDefault(MyKey.zeroDateTimeBehavior
                 , Enums.ZeroDatetimeBehavior.class);
         LocalDate date = null;
         switch (behavior) {
             case EXCEPTION: {
                 String message = String.format("%s type can't is 0,@see jdbc property[%s]."
-                        , type, PropertyKey.zeroDateTimeBehavior);
+                        , type, MyKey.zeroDateTimeBehavior);
                 emitError(new JdbdSQLException(MySQLExceptions.createTruncatedWrongValue(message, null)));
             }
             break;

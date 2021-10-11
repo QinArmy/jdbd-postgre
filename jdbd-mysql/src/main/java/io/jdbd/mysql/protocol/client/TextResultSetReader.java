@@ -34,14 +34,14 @@ final class TextResultSetReader extends AbstractResultSetReader {
     @Override
     boolean readResultSetMeta(final ByteBuf cumulateBuffer, Consumer<Object> serverStatusConsumer) {
 
-        final int negotiatedCapability = this.adjutant.obtainNegotiatedCapability();
-        if ((negotiatedCapability & ClientProtocol.CLIENT_OPTIONAL_RESULTSET_METADATA) != 0) {
+        final int negotiatedCapability = this.adjutant.negotiatedCapability();
+        if ((negotiatedCapability & Capabilities.CLIENT_OPTIONAL_RESULTSET_METADATA) != 0) {
             throw new IllegalStateException("Not support CLIENT_OPTIONAL_RESULTSET_METADATA");
         }
         boolean metaEnd;
         metaEnd = doReadRowMeta(cumulateBuffer);
 
-        if (metaEnd && (negotiatedCapability & ClientProtocol.CLIENT_DEPRECATE_EOF) == 0) {
+        if (metaEnd && (negotiatedCapability & Capabilities.CLIENT_DEPRECATE_EOF) == 0) {
             if (Packets.hasOnePacket(cumulateBuffer)) {
                 int payloadLength = Packets.readInt3(cumulateBuffer);
                 updateSequenceId(Packets.readInt1AsInt(cumulateBuffer));
@@ -122,7 +122,7 @@ final class TextResultSetReader extends AbstractResultSetReader {
                 if (columnText == null) {
                     columnValue = Collections.<String>emptySet();
                 } else {
-                    columnValue = MySQLStringUtils.spitAsSet(columnText, ",", true);
+                    columnValue = MySQLStrings.spitAsSet(columnText, ",", true);
                 }
             }
             break;

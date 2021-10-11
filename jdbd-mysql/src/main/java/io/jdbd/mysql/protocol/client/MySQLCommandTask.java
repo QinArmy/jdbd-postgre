@@ -1,7 +1,7 @@
 package io.jdbd.mysql.protocol.client;
 
 import io.jdbd.JdbdSQLException;
-import io.jdbd.mysql.protocol.conf.PropertyKey;
+import io.jdbd.mysql.protocol.conf.MyKey;
 import io.jdbd.mysql.util.MySQLExceptions;
 import io.jdbd.vendor.conf.Properties;
 import io.jdbd.vendor.task.CommunicationTask;
@@ -23,13 +23,13 @@ abstract class MySQLCommandTask extends CommunicationTask<TaskAdjutant> {
 
     final int negotiatedCapability;
 
-    final Properties<PropertyKey> properties;
+    final Properties<MyKey> properties;
 
     private int sequenceId = -1;
 
     MySQLCommandTask(TaskAdjutant adjutant, Consumer<Throwable> errorConsumer) {
         super(adjutant, errorConsumer);
-        this.negotiatedCapability = adjutant.obtainNegotiatedCapability();
+        this.negotiatedCapability = adjutant.negotiatedCapability();
         this.adjutant = adjutant;
         this.properties = adjutant.obtainHostInfo().getProperties();
     }

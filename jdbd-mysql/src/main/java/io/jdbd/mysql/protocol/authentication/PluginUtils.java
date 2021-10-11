@@ -1,10 +1,10 @@
 package io.jdbd.mysql.protocol.authentication;
 
 import io.jdbd.config.PropertyException;
-import io.jdbd.mysql.protocol.conf.PropertyKey;
+import io.jdbd.mysql.protocol.conf.MyKey;
 import io.jdbd.mysql.session.SessionAdjutant;
 import io.jdbd.mysql.util.MySQLCollections;
-import io.jdbd.mysql.util.MySQLStringUtils;
+import io.jdbd.mysql.util.MySQLStrings;
 import io.jdbd.vendor.conf.Properties;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -26,10 +26,10 @@ public abstract class PluginUtils {
      * not java-doc
      * @see io.jdbd.mysql.protocol.client.MySQLConnectionTask
      */
-    public static String getDefaultMechanism(Properties<PropertyKey> properties) {
+    public static String getDefaultMechanism(Properties<MyKey> properties) {
         String defaultMechanism;
         defaultMechanism = PLUGIN_MECHANISM_MAPPING.get(
-                properties.getOrDefault(PropertyKey.defaultAuthenticationPlugin));
+                properties.getOrDefault(MyKey.defaultAuthenticationPlugin));
         // here can't be null ,because @see #createPluginClassMap
         return Objects.requireNonNull(defaultMechanism, "defaultMechanism");
     }
@@ -37,13 +37,13 @@ public abstract class PluginUtils {
     /**
      * @return a unmodifiable map ,key : {@link AuthenticationPlugin#getProtocolPluginName()}.
      * @throws PropertyException throw when below key error:<ul>
-     *                           <li>{@link PropertyKey#defaultAuthenticationPlugin}</li>
-     *                           <li>{@link PropertyKey#authenticationPlugins}</li>
-     *                           <li>{@link PropertyKey#disabledAuthenticationPlugins}</li>
+     *                           <li>{@link MyKey#defaultAuthenticationPlugin}</li>
+     *                           <li>{@link MyKey#authenticationPlugins}</li>
+     *                           <li>{@link MyKey#disabledAuthenticationPlugins}</li>
      *                           </ul>
      * @see SessionAdjutant#obtainPluginClassMap()
      */
-    public static Map<String, Class<? extends AuthenticationPlugin>> createPluginClassMap(Properties<PropertyKey> properties)
+    public static Map<String, Class<? extends AuthenticationPlugin>> createPluginClassMap(Properties<MyKey> properties)
             throws PropertyException {
 
         final Map<String, Class<? extends AuthenticationPlugin>> allPluginMap = createAllPluginMap();
@@ -51,7 +51,7 @@ public abstract class PluginUtils {
         final List<String> disabledMechanismList = loadDisabledPluginMechanismList(properties);
         final List<String> enabledMechanismList = loadEnabledPluginMechanismList(properties);
 
-        final String defaultPluginName = properties.getOrDefault(PropertyKey.defaultAuthenticationPlugin);
+        final String defaultPluginName = properties.getOrDefault(MyKey.defaultAuthenticationPlugin);
         final String defaultMechanism = PLUGIN_MECHANISM_MAPPING.get(defaultPluginName);
 
         if (disabledMechanismList.isEmpty()
@@ -86,12 +86,12 @@ public abstract class PluginUtils {
 
         if (defaultFound == 0) {
             String message = String.format("%s[%s] not fond."
-                    , PropertyKey.defaultAuthenticationPlugin.getKey(), defaultPluginName);
-            throw new PropertyException(PropertyKey.defaultAuthenticationPlugin.getKey(), message);
+                    , MyKey.defaultAuthenticationPlugin.getKey(), defaultPluginName);
+            throw new PropertyException(MyKey.defaultAuthenticationPlugin.getKey(), message);
         } else if (defaultFound == -1) {
             String message = String.format("%s[%s] disable."
-                    , PropertyKey.defaultAuthenticationPlugin.getKey(), defaultPluginName);
-            throw new PropertyException(PropertyKey.defaultAuthenticationPlugin.getKey(), message);
+                    , MyKey.defaultAuthenticationPlugin.getKey(), defaultPluginName);
+            throw new PropertyException(MyKey.defaultAuthenticationPlugin.getKey(), message);
         }
 
         if (LOG.isTraceEnabled()) {
@@ -160,11 +160,11 @@ public abstract class PluginUtils {
      * @return a unmodifiable list,element is {@link AuthenticationPlugin#getProtocolPluginName()}.
      * @see #createPluginClassMap(Properties)
      */
-    private static List<String> loadDisabledPluginMechanismList(Properties<PropertyKey> properties)
+    private static List<String> loadDisabledPluginMechanismList(Properties<MyKey> properties)
             throws PropertyException {
 
-        String string = properties.get(PropertyKey.disabledAuthenticationPlugins);
-        if (!MySQLStringUtils.hasText(string)) {
+        String string = properties.get(MyKey.disabledAuthenticationPlugins);
+        if (!MySQLStrings.hasText(string)) {
             return Collections.emptyList();
         }
         String[] mechanismArray = string.split(",");
@@ -174,8 +174,8 @@ public abstract class PluginUtils {
             String mechanism = PLUGIN_MECHANISM_MAPPING.get(mechanismOrClassName);
             if (mechanism == null) {
                 String message = String.format("Property[%s] value[%s] isn' mechanism or class name.."
-                        , PropertyKey.disabledAuthenticationPlugins.getKey(), mechanismOrClassName);
-                throw new PropertyException(PropertyKey.disabledAuthenticationPlugins.getKey(), message);
+                        , MyKey.disabledAuthenticationPlugins.getKey(), mechanismOrClassName);
+                throw new PropertyException(MyKey.disabledAuthenticationPlugins.getKey(), message);
             }
             list.add(mechanism);
         }
@@ -186,10 +186,10 @@ public abstract class PluginUtils {
      * @return a unmodifiable list,element is {@link AuthenticationPlugin#getProtocolPluginName()}.
      * @see #createPluginClassMap(Properties)
      */
-    private static List<String> loadEnabledPluginMechanismList(Properties<PropertyKey> properties)
+    private static List<String> loadEnabledPluginMechanismList(Properties<MyKey> properties)
             throws PropertyException {
-        String string = properties.get(PropertyKey.authenticationPlugins);
-        if (!MySQLStringUtils.hasText(string)) {
+        String string = properties.get(MyKey.authenticationPlugins);
+        if (!MySQLStrings.hasText(string)) {
             return Collections.emptyList();
         }
         String[] classNameArray = string.split(",");
@@ -198,8 +198,8 @@ public abstract class PluginUtils {
             String mechanism = PLUGIN_MECHANISM_MAPPING.get(className.trim());
             if (mechanism == null) {
                 String message = String.format("Property[%s] value[%s] isn' %s implementation class name.."
-                        , PropertyKey.authenticationPlugins.getKey(), className, AuthenticationPlugin.class.getName());
-                throw new PropertyException(PropertyKey.authenticationPlugins.getKey(), message);
+                        , MyKey.authenticationPlugins.getKey(), className, AuthenticationPlugin.class.getName());
+                throw new PropertyException(MyKey.authenticationPlugins.getKey(), message);
             }
             list.add(mechanism);
         }

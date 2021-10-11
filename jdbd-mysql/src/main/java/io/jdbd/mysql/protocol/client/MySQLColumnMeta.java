@@ -3,8 +3,8 @@ package io.jdbd.mysql.protocol.client;
 import io.jdbd.meta.NullMode;
 import io.jdbd.mysql.MySQLType;
 import io.jdbd.mysql.protocol.CharsetMapping;
-import io.jdbd.mysql.protocol.conf.PropertyKey;
-import io.jdbd.mysql.util.MySQLStringUtils;
+import io.jdbd.mysql.protocol.conf.MyKey;
+import io.jdbd.mysql.util.MySQLStrings;
 import io.jdbd.result.FieldType;
 import io.jdbd.vendor.conf.Properties;
 import io.netty.buffer.ByteBuf;
@@ -84,7 +84,7 @@ final class MySQLColumnMeta {
             , int collationIndex, Charset columnCharset
             , long fixedLength, long length
             , int typeFlag, int definitionFlags
-            , short decimals, Properties<PropertyKey> properties) {
+            , short decimals, Properties<MyKey> properties) {
 
         this.catalogName = catalogName;
         this.schemaName = schemaName;
@@ -282,7 +282,7 @@ final class MySQLColumnMeta {
     private FieldType parseFieldType(MySQLColumnMeta columnMeta) {
         final String tableName = columnMeta.tableName;
         final FieldType fieldType;
-        if (MySQLStringUtils.hasText(tableName)) {
+        if (MySQLStrings.hasText(tableName)) {
             // TODO zoro complete
             if (tableName.startsWith("#sql_")) {
                 fieldType = FieldType.PHYSICAL_FILED;
@@ -300,7 +300,7 @@ final class MySQLColumnMeta {
      */
     static MySQLColumnMeta readFor41(ByteBuf payloadBuf, ClientProtocolAdjutant adjutant) {
         final Charset metaCharset = adjutant.obtainCharsetMeta();
-        final Properties<PropertyKey> properties = adjutant.obtainHostInfo().getProperties();
+        final Properties<MyKey> properties = adjutant.obtainHostInfo().getProperties();
         // 1. catalog
         String catalogName = Packets.readStringLenEnc(payloadBuf, metaCharset);
         // 2. schema
@@ -346,7 +346,7 @@ final class MySQLColumnMeta {
     }
 
 
-    private MySQLType from(MySQLColumnMeta columnMeta, Properties<PropertyKey> properties) {
+    private MySQLType from(MySQLColumnMeta columnMeta, Properties<MyKey> properties) {
         final MySQLType mySQLType;
         switch (columnMeta.typeFlag) {
             case ProtocolConstants.TYPE_DECIMAL:
@@ -439,13 +439,13 @@ final class MySQLColumnMeta {
         return mySQLType;
     }
 
-    private static MySQLType fromTiny(MySQLColumnMeta columnMeta, Properties<PropertyKey> properties) {
+    private static MySQLType fromTiny(MySQLColumnMeta columnMeta, Properties<MyKey> properties) {
         // Adjust for pseudo-boolean
         final boolean unsigned = columnMeta.isUnsigned();
         final MySQLType mySQLType;
         if (columnMeta.isTiny1AsBit()
-                && properties.getOrDefault(PropertyKey.tinyInt1isBit, Boolean.class)) {
-            if (properties.getOrDefault(PropertyKey.transformedBitIsBoolean, Boolean.class)) {
+                && properties.getOrDefault(MyKey.tinyInt1isBit, Boolean.class)) {
+            if (properties.getOrDefault(MyKey.transformedBitIsBoolean, Boolean.class)) {
                 mySQLType = MySQLType.BOOLEAN;
             } else {
                 mySQLType = MySQLType.BIT;
@@ -457,7 +457,7 @@ final class MySQLColumnMeta {
     }
 
 
-    private static MySQLType fromVarcharOrVarString(MySQLColumnMeta columnMeta, Properties<PropertyKey> properties) {
+    private static MySQLType fromVarcharOrVarString(MySQLColumnMeta columnMeta, Properties<MyKey> properties) {
         final MySQLType mySQLType;
         if (columnMeta.isEnum()) {
             mySQLType = MySQLType.ENUM;
@@ -472,7 +472,7 @@ final class MySQLColumnMeta {
         return mySQLType;
     }
 
-    private static MySQLType fromBlob(MySQLColumnMeta columnMeta, Properties<PropertyKey> properties) {
+    private static MySQLType fromBlob(MySQLColumnMeta columnMeta, Properties<MyKey> properties) {
         // Sometimes MySQL uses this protocol-level type for all possible BLOB variants,
         // we can divine what the actual type is by the length reported
 
@@ -497,7 +497,7 @@ final class MySQLColumnMeta {
         return mySQLType;
     }
 
-    private static MySQLType fromTinyBlob(MySQLColumnMeta columnMeta, Properties<PropertyKey> properties) {
+    private static MySQLType fromTinyBlob(MySQLColumnMeta columnMeta, Properties<MyKey> properties) {
         final MySQLType mySQLType;
         if (columnMeta.isBinary() || !isBlobTypeReturnText(columnMeta, properties)) {
             mySQLType = MySQLType.TINYBLOB;
@@ -507,7 +507,7 @@ final class MySQLColumnMeta {
         return mySQLType;
     }
 
-    private static MySQLType fromMediumBlob(MySQLColumnMeta columnMeta, Properties<PropertyKey> properties) {
+    private static MySQLType fromMediumBlob(MySQLColumnMeta columnMeta, Properties<MyKey> properties) {
         final MySQLType mySQLType;
         if (columnMeta.isBinary() || !isBlobTypeReturnText(columnMeta, properties)) {
             mySQLType = MySQLType.MEDIUMBLOB;
@@ -517,7 +517,7 @@ final class MySQLColumnMeta {
         return mySQLType;
     }
 
-    private static MySQLType fromLongBlob(MySQLColumnMeta columnMeta, Properties<PropertyKey> properties) {
+    private static MySQLType fromLongBlob(MySQLColumnMeta columnMeta, Properties<MyKey> properties) {
         final MySQLType mySQLType;
         if (columnMeta.isBinary() || !isBlobTypeReturnText(columnMeta, properties)) {
             mySQLType = MySQLType.LONGBLOB;
@@ -527,7 +527,7 @@ final class MySQLColumnMeta {
         return mySQLType;
     }
 
-    private static MySQLType fromString(MySQLColumnMeta columnMeta, Properties<PropertyKey> properties) {
+    private static MySQLType fromString(MySQLColumnMeta columnMeta, Properties<MyKey> properties) {
         final MySQLType mySQLType;
         if (columnMeta.isEnum()) {
             mySQLType = MySQLType.ENUM;
@@ -535,7 +535,7 @@ final class MySQLColumnMeta {
             mySQLType = MySQLType.SET;
         } else if (columnMeta.isBinary()
                 || (isOpaqueBinary(columnMeta)
-                && !properties.getOrDefault(PropertyKey.blobsAreStrings, Boolean.class))) {
+                && !properties.getOrDefault(MyKey.blobsAreStrings, Boolean.class))) {
             mySQLType = MySQLType.BINARY;
         } else {
             mySQLType = MySQLType.CHAR;
@@ -560,15 +560,15 @@ final class MySQLColumnMeta {
 
     }
 
-    private static boolean isFunctionsNeverReturnBlobs(MySQLColumnMeta columnMeta, Properties<PropertyKey> properties) {
+    private static boolean isFunctionsNeverReturnBlobs(MySQLColumnMeta columnMeta, Properties<MyKey> properties) {
         return StringUtils.isEmpty(columnMeta.tableName)
-                && properties.getOrDefault(PropertyKey.functionsNeverReturnBlobs, Boolean.class);
+                && properties.getOrDefault(MyKey.functionsNeverReturnBlobs, Boolean.class);
     }
 
-    private static boolean isBlobTypeReturnText(MySQLColumnMeta columnMeta, Properties<PropertyKey> properties) {
+    private static boolean isBlobTypeReturnText(MySQLColumnMeta columnMeta, Properties<MyKey> properties) {
         return !columnMeta.isBinary()
                 || columnMeta.collationIndex != CharsetMapping.MYSQL_COLLATION_INDEX_binary
-                || properties.getOrDefault(PropertyKey.blobsAreStrings, Boolean.class)
+                || properties.getOrDefault(MyKey.blobsAreStrings, Boolean.class)
                 || isFunctionsNeverReturnBlobs(columnMeta, properties);
     }
 

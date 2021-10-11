@@ -2,7 +2,7 @@ package io.jdbd.mysql.protocol.client;
 
 import io.jdbd.mysql.MySQLType;
 import io.jdbd.mysql.util.MySQLCollections;
-import io.jdbd.mysql.util.MySQLStringUtils;
+import io.jdbd.mysql.util.MySQLStrings;
 import io.jdbd.result.UnsupportedConvertingException;
 import io.jdbd.vendor.result.AbstractResultRow;
 import reactor.util.annotation.Nullable;
@@ -50,7 +50,7 @@ abstract class MySQLResultRow extends AbstractResultRow<MySQLRowMeta> {
                 if (elementClass == String.class) {
                     set = (Set<T>) stringSet;
                 } else if (elementClass.isEnum()) {
-                    Set<T> tempSet = MySQLStringUtils.convertStringsToEnumSet(stringSet, elementClass);
+                    Set<T> tempSet = MySQLStrings.convertStringsToEnumSet(stringSet, elementClass);
                     set = MySQLCollections.unmodifiableSet(tempSet);
                 } else {
                     throw createNotSupportedException(indexBaseZero, elementClass);
@@ -75,7 +75,7 @@ abstract class MySQLResultRow extends AbstractResultRow<MySQLRowMeta> {
                 if (elementClass == String.class) {
                     list = (List<T>) MySQLCollections.unmodifiableList(new ArrayList<>((Set<String>) nonNull));
                 } else if (elementClass.isEnum()) {
-                    List<T> tempList = MySQLStringUtils.convertStringsToEnumList((Set<String>) nonNull, elementClass);
+                    List<T> tempList = MySQLStrings.convertStringsToEnumList((Set<String>) nonNull, elementClass);
                     list = MySQLCollections.unmodifiableList(tempList);
                 } else {
                     throw createNotSupportedException(indexBaseZero, elementClass);
