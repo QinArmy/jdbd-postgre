@@ -8,6 +8,7 @@ import io.jdbd.mysql.session.ServerPreparedStatement;
 import io.jdbd.mysql.stmt.BindBatchStmt;
 import io.jdbd.mysql.stmt.BindStmt;
 import io.jdbd.mysql.stmt.PrepareStmtTask;
+import io.jdbd.mysql.util.MySQLBinds;
 import io.jdbd.mysql.util.MySQLExceptions;
 import io.jdbd.result.ResultRow;
 import io.jdbd.result.ResultStates;
@@ -1763,7 +1764,7 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
             } else {
                 final int groupIndex = this.index++;
                 final List<T> group = this.groupList.get(groupIndex);
-                this.lastHasLongData = BindUtils.hasLongData(group);
+                this.lastHasLongData = MySQLBinds.hasLongData(group);
                 taskEnd = this.task.sendExecuteCommand(this.commandWriter, groupIndex, group);
             }
             return taskEnd;
@@ -1941,7 +1942,7 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
             } else {
                 final int groupIndex = this.index++;
                 final List<T> group = this.groupList.get(groupIndex);
-                this.lastHasLongData = BindUtils.hasLongData(group);
+                this.lastHasLongData = MySQLBinds.hasLongData(group);
                 taskEnd = this.task.sendExecuteCommand(this.commandWriter, groupIndex, group);
             }
             return taskEnd;

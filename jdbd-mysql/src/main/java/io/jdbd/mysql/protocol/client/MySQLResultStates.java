@@ -4,9 +4,11 @@ import io.jdbd.result.ResultStates;
 
 abstract class MySQLResultStates implements ResultStates {
 
-    static MySQLResultStates from(TerminatorPacket terminator) {
-        return new TerminalResultStates(terminator);
+    static MySQLResultStates from(final int resultIndex, final TerminatorPacket terminator) {
+        return new TerminalResultStates(resultIndex, terminator);
     }
+
+    private final int resultIndex;
 
     private final int serverStatus;
 
@@ -16,8 +18,11 @@ abstract class MySQLResultStates implements ResultStates {
 
     private final String message;
 
+    private final int warnings;
 
-    private MySQLResultStates(final TerminatorPacket terminator) {
+
+    private MySQLResultStates(final int resultIndex, final TerminatorPacket terminator) {
+        this.resultIndex = resultIndex;
         if (terminator instanceof OkPacket) {
             OkPacket ok = (OkPacket) terminator;
 
@@ -26,7 +31,7 @@ abstract class MySQLResultStates implements ResultStates {
             this.insertedId = ok.getLastInsertId();
             this.message = ok.getInfo();
 
-            //  this.sqlState = ok.getSessionStateInfo();
+            this.warnings = ok.getWarnings();
         } else if (terminator instanceof EofPacket) {
             EofPacket eof = (EofPacket) terminator;
 
@@ -34,12 +39,23 @@ abstract class MySQLResultStates implements ResultStates {
             this.affectedRows = 0L;
             this.insertedId = 0L;
             this.message = "";
+            this.warnings = 0;
         } else {
             throw new IllegalArgumentException(String.format("terminator isn't %s or %s"
                     , OkPacket.class.getName(), EofPacket.class.getName()));
         }
     }
 
+
+    @Override
+    public final int getResultIndex() {
+        return this.resultIndex;
+    }
+
+    @Override
+    public final boolean supportInsertId() {
+        return true;
+    }
 
 
     @Override
@@ -70,10 +86,25 @@ abstract class MySQLResultStates implements ResultStates {
                 && (serverStatus & ClientProtocol.SERVER_STATUS_LAST_ROW_SENT) == 0;
     }
 
+    @Override
+    public final int getWarnings() {
+        return this.warnings;
+    }
+
     private static final class TerminalResultStates extends MySQLResultStates {
 
-        private TerminalResultStates(TerminatorPacket terminator) {
-            super(terminator);
+        private TerminalResultStates(int resultIndex, TerminatorPacket terminator) {
+            super(resultIndex, terminator);
+        }
+
+        @Override
+        public final long getRowCount() {
+            return 0L;
+        }
+
+        @Override
+        public final boolean hasColumn() {
+            return false;
         }
 
     }

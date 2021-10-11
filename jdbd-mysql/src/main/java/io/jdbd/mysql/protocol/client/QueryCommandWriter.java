@@ -225,7 +225,7 @@ final class QueryCommandWriter {
             throws SQLException, LongDataReadException {
 
         final int paramCount = staticSqlList.size() - 1;
-        BindUtils.assertParamCountMatch(stmtIndex, paramCount, parameterGroup.size());
+        MySQLBinds.assertParamCountMatch(stmtIndex, paramCount, parameterGroup.size());
         final Charset clientCharset = this.clientCharset;
         final byte[] nullBytes = Constants.NULL.getBytes(clientCharset);
 

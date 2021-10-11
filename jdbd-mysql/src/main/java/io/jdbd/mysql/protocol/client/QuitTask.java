@@ -13,7 +13,7 @@ import java.util.function.Consumer;
 /**
  * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_com_quit.html">Protocol::COM_QUIT</a>
  */
-final class QuitTask extends MySQLCommandTask {
+final class QuitTask extends CommandTask {
 
     static Mono<Void> quit(TaskAdjutant adjutant) {
         return Mono.create(sink -> {

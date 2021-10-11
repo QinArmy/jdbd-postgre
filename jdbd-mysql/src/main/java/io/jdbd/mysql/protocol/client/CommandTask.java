@@ -1,10 +1,8 @@
 package io.jdbd.mysql.protocol.client;
 
 import io.jdbd.JdbdSQLException;
-import io.jdbd.mysql.protocol.conf.MyKey;
 import io.jdbd.mysql.util.MySQLExceptions;
-import io.jdbd.vendor.conf.Properties;
-import io.jdbd.vendor.task.CommunicationTask;
+import io.jdbd.vendor.result.FluxResultSink;
 import io.netty.buffer.ByteBuf;
 
 import java.util.function.Consumer;
@@ -17,21 +15,20 @@ import java.util.function.Consumer;
  * @see MySQLPrepareCommandTask
  * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_command_phase.html">Command Phase</a>
  */
-abstract class MySQLCommandTask extends CommunicationTask<TaskAdjutant> {
+abstract class CommandTask extends MySQLTask {
 
-    final TaskAdjutant adjutant;
+    final FluxResultSink sink;
 
     final int negotiatedCapability;
 
-    final Properties<MyKey> properties;
-
     private int sequenceId = -1;
 
-    MySQLCommandTask(TaskAdjutant adjutant, Consumer<Throwable> errorConsumer) {
-        super(adjutant, errorConsumer);
+    private int resultIndex;
+
+    CommandTask(TaskAdjutant adjutant, FluxResultSink sink) {
+        super(adjutant, sink::error);
+        this.sink = sink;
         this.negotiatedCapability = adjutant.negotiatedCapability();
-        this.adjutant = adjutant;
-        this.properties = adjutant.obtainHostInfo().getProperties();
     }
 
     public final int updateSequenceId(final int sequenceId) {
@@ -53,6 +50,26 @@ abstract class MySQLCommandTask extends CommunicationTask<TaskAdjutant> {
     public final int addAndGetSequenceId() {
         return ++this.sequenceId;
     }
+
+    final void readErrorPacket(final ByteBuf cumulateBuffer) {
+        final int payloadLength = Packets.readInt3(cumulateBuffer);
+        updateSequenceId(Packets.readInt1AsInt(cumulateBuffer)); //  sequence_id
+        final ErrorPacket error;
+        error = ErrorPacket.readPacket(cumulateBuffer.readSlice(payloadLength)
+                , this.negotiatedCapability, this.adjutant.obtainCharsetError());
+        addError(MySQLExceptions.createErrorPacketException(error));
+    }
+
+    final void readUpdateResult(final ByteBuf cumulateBuffer, final Consumer<Object> serverStatusConsumer) {
+        final int payloadLength = Packets.readInt3(cumulateBuffer);
+        updateSequenceId(Packets.readInt1AsInt(cumulateBuffer));
+        final OkPacket ok;
+        ok = OkPacket.read(cumulateBuffer.readSlice(payloadLength), this.negotiatedCapability);
+        serverStatusConsumer.accept(ok);
+        // emit update result.
+        this.sink.next(MySQLResultStates.from(this.resultIndex++, ok));
+    }
+
 
     @Override
     protected final boolean canDecode(ByteBuf cumulateBuffer) {

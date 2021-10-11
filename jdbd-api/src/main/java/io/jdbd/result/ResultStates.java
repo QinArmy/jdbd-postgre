@@ -29,4 +29,8 @@ public interface ResultStates extends Result {
         throw new UnsupportedOperationException();
     }
 
+    default int getWarnings() {
+        throw new UnsupportedOperationException();
+    }
+
 }

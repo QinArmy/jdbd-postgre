@@ -2,6 +2,7 @@ package io.jdbd.mysql.protocol.client;
 
 import io.jdbd.JdbdException;
 import io.jdbd.mysql.MySQLType;
+import io.jdbd.mysql.util.MySQLBinds;
 import io.jdbd.mysql.util.MySQLConvertUtils;
 import io.jdbd.mysql.util.MySQLExceptions;
 import io.jdbd.mysql.util.MySQLTimes;
@@ -59,7 +60,7 @@ final class PrepareExecuteCommandWriter implements ExecuteCommandWriter {
     public Publisher<ByteBuf> writeCommand(final int stmtIndex, final List<? extends ParamValue> parameterGroup)
             throws SQLException {
         final MySQLColumnMeta[] paramMetaArray = this.paramMetaArray;
-        BindUtils.assertParamCountMatch(stmtIndex, paramMetaArray.length, parameterGroup.size());
+        MySQLBinds.assertParamCountMatch(stmtIndex, paramMetaArray.length, parameterGroup.size());
 
         int nonLongDataCount = 0;
         for (int i = 0; i < paramMetaArray.length; i++) {
@@ -122,7 +123,7 @@ final class PrepareExecuteCommandWriter implements ExecuteCommandWriter {
 
 
         final MySQLColumnMeta[] parameterMetaArray = this.paramMetaArray;
-        BindUtils.assertParamCountMatch(stmtIndex, parameterMetaArray.length, parameterGroup.size());
+        MySQLBinds.assertParamCountMatch(stmtIndex, parameterMetaArray.length, parameterGroup.size());
 
         ByteBuf packet;
         packet = createExecutePacketBuffer(1024);
@@ -195,7 +196,7 @@ final class PrepareExecuteCommandWriter implements ExecuteCommandWriter {
 
             flux = Flux.fromIterable(packetList);
         } catch (Throwable e) {
-            BindUtils.releaseOnError(packetList, packet);
+            MySQLBinds.releaseOnError(packetList, packet);
             flux = Flux.error(MySQLExceptions.wrap(e));
         }
         return flux;

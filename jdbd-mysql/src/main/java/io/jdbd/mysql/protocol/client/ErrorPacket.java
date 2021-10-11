@@ -15,19 +15,18 @@ public final class ErrorPacket implements MySQLPacket {
     public static final short ERROR_HEADER = 0xFF;
 
 
-
-    public static ErrorPacket readPacket(ByteBuf payloadBuf, final int capability, Charset errorMessageCharset) {
-        if (Packets.readInt1AsInt(payloadBuf) != ERROR_HEADER) {
+    public static ErrorPacket readPacket(ByteBuf playload, final int capability, Charset errorMessageCharset) {
+        if (Packets.readInt1AsInt(playload) != ERROR_HEADER) {
             throw new IllegalArgumentException("packetBuf isn't error packet.");
         }
-        int errorCode = Packets.readInt2AsInt(payloadBuf);
+        int errorCode = Packets.readInt2AsInt(playload);
 
         String sqlStateMarker = null, sqlState = null, errorMessage;
         if ((capability & Capabilities.CLIENT_PROTOCOL_41) != 0) {
-            sqlStateMarker = Packets.readStringFixed(payloadBuf, 1, errorMessageCharset);
-            sqlState = Packets.readStringFixed(payloadBuf, 5, errorMessageCharset);
+            sqlStateMarker = Packets.readStringFixed(playload, 1, errorMessageCharset);
+            sqlState = Packets.readStringFixed(playload, 5, errorMessageCharset);
         }
-        errorMessage = Packets.readStringEof(payloadBuf, payloadBuf.readableBytes(), errorMessageCharset);
+        errorMessage = Packets.readStringEof(playload, playload.readableBytes(), errorMessageCharset);
 
         return new ErrorPacket(errorCode, sqlStateMarker
                 , sqlState, errorMessage
