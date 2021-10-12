@@ -832,7 +832,7 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
                 OkPacket ok = OkPacket.read(cumulateBuffer.readSlice(payloadLength), this.negotiatedCapability);
                 serverStatusConsumer.accept(ok.getStatusFags());
                 // emit update result
-                taskEnd = this.downstreamSink.nextUpdate(MySQLResultStates.from(ok));
+                taskEnd = this.downstreamSink.nextUpdate(MySQLResultStates.fromUpdate(ok));
                 if (traceEnabled) {
                     LOG.trace("{} start read execute update result,haMoreResult[{}], downstream[{}]"
                             , this, this.downstreamSink.hasMoreResult(), this.downstreamSink);
@@ -933,7 +933,7 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
             break;
             case OkPacket.OK_HEADER: {
                 OkPacket ok = OkPacket.read(cumulateBuffer.readSlice(payloadLength), this.negotiatedCapability);
-                serverStatusConsumer.accept(MySQLResultStates.from(ok));
+                serverStatusConsumer.accept(MySQLResultStates.fromUpdate(ok));
                 taskEnd = false;
             }
             break;

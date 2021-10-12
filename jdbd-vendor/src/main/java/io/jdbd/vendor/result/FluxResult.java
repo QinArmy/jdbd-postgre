@@ -53,6 +53,7 @@ final class FluxResult implements OrderedFlux {
             this.subscription = new SubscriptionImpl();
         }
 
+
         @Override
         public final void error(Throwable e) {
             // this method invoker in EventLoop

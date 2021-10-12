@@ -1,5 +1,6 @@
 package io.jdbd.postgre.protocol.client;
 
+import io.jdbd.JdbdException;
 import io.jdbd.JdbdSQLException;
 import io.jdbd.postgre.PgConstant;
 import io.jdbd.postgre.PgJdbdException;
@@ -60,7 +61,8 @@ final class DefaultResultSetReader implements ResultSetReader {
     }
 
     @Override
-    public final boolean read(final ByteBuf cumulateBuffer, final Consumer<Object> statesConsumer) {
+    public final boolean read(final ByteBuf cumulateBuffer, final Consumer<Object> serverStatesConsumer)
+            throws JdbdException {
         boolean resultSetEnd = false, continueRead = true;
         while (continueRead) {
             switch (this.phase) {
@@ -84,8 +86,7 @@ final class DefaultResultSetReader implements ResultSetReader {
                 break;
                 case READ_RESULT_TERMINATOR: {
                     final PgRowMeta rowMeta = Objects.requireNonNull(this.rowMeta, "this.rowMeta");
-                    resultSetEnd = this.stmtTask.readResultStateWithReturning(cumulateBuffer, false
-                            , rowMeta::getResultIndex);
+                    resultSetEnd = this.stmtTask.readResultStateWithReturning(cumulateBuffer, rowMeta::getResultIndex);
                     continueRead = false;
                 }
                 break;

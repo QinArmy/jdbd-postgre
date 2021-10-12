@@ -8,9 +8,9 @@ import java.util.function.Consumer;
 
 /**
  * @see ComPreparedTask
- * @see CommandTask
+ * @see AbstractCommandTask
  */
-abstract class MySQLPrepareCommandTask extends CommandTask implements StatementTask {
+abstract class MySQLPrepareCommandTask extends AbstractCommandTask implements StatementTask {
 
     private static final AtomicIntegerFieldUpdater<MySQLPrepareCommandTask> SEQUENCE_ID =
             AtomicIntegerFieldUpdater.newUpdater(MySQLPrepareCommandTask.class, "safeSequenceId");

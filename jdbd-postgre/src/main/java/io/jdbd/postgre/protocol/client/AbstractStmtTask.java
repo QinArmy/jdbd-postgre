@@ -83,9 +83,8 @@ abstract class AbstractStmtTask extends PgTask implements StmtTask {
     }
 
     @Override
-    public final boolean readResultStateWithReturning(ByteBuf cumulateBuffer, boolean moreFetch
-            , Supplier<Integer> resultIndexes) {
-        return readCommandComplete(cumulateBuffer, true, moreFetch, resultIndexes);
+    public final boolean readResultStateWithReturning(ByteBuf cumulateBuffer, Supplier<Integer> resultIndexes) {
+        return readCommandComplete(cumulateBuffer, true, resultIndexes);
     }
 
     @Override
@@ -265,15 +264,16 @@ abstract class AbstractStmtTask extends PgTask implements StmtTask {
 
     abstract boolean handleClientTimeout();
 
-    void handleSelectCommand(long rowCount) {
+    boolean handleSelectCommand(long rowCount) {
         // sub class override.
+        return false;
     }
 
     /**
      * @return true: read CommandComplete message end , false : more cumulate.
      */
     final boolean readResultStateWithoutReturning(ByteBuf cumulateBuffer) {
-        return readCommandComplete(cumulateBuffer, false, false, this::getAndIncrementResultIndex);
+        return readCommandComplete(cumulateBuffer, false, this::getAndIncrementResultIndex);
     }
 
     /**
@@ -413,11 +413,11 @@ abstract class AbstractStmtTask extends PgTask implements StmtTask {
 
     /**
      * @return true: read CommandComplete message end , false : more cumulate.
-     * @see #readResultStateWithReturning(ByteBuf, boolean, Supplier)
+     * @see #readResultStateWithReturning(ByteBuf, Supplier)
      * @see #readResultStateWithoutReturning(ByteBuf)
      */
-    private boolean readCommandComplete(final ByteBuf cumulateBuffer, final boolean hasReturningColumn
-            , final boolean moreFetch, Supplier<Integer> resultIndexes) {
+    private boolean readCommandComplete(final ByteBuf cumulateBuffer, final boolean hasColumn
+            , Supplier<Integer> resultIndexes) {
         final ResultSetStatus status = Messages.getResultSetStatus(cumulateBuffer);
         if (status == ResultSetStatus.MORE_CUMULATE) {
             return false;
@@ -442,7 +442,7 @@ abstract class AbstractStmtTask extends PgTask implements StmtTask {
             if (SELECT.equals(command)) {
                 final long rowCount = Long.parseLong(tagPart[1]);
                 params.rowCount = rowCount;
-                handleSelectCommand(rowCount);
+                params.moreFetch = handleSelectCommand(rowCount);
             } else if (UPDATE_COMMANDS.contains(command)) {
                 if (INSERT.equals(command)) {
                     params.insertId = Long.parseLong(tagPart[1]);
@@ -463,8 +463,7 @@ abstract class AbstractStmtTask extends PgTask implements StmtTask {
         log.trace("Read CommandComplete message command tag[{}],command[{}]", commandTag, command);
 
         params.moreResult = status == ResultSetStatus.MORE_RESULT;
-        params.hasReturningColumn = hasReturningColumn;
-        params.moreFetch = moreFetch;
+        params.hasColumn = hasColumn;
         if (cumulateBuffer.getInt(nextMsgIndex) == Messages.N) {
             // next is warning NoticeResponse
             params.noticeMessage = NoticeMessage.read(cumulateBuffer, clientCharset);

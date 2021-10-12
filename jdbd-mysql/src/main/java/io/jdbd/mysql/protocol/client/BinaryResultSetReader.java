@@ -41,7 +41,7 @@ final class BinaryResultSetReader extends AbstractResultSetReader {
 
 
     @Override
-    Logger obtainLogger() {
+    Logger getLogger() {
         return LOG;
     }
 
@@ -50,7 +50,7 @@ final class BinaryResultSetReader extends AbstractResultSetReader {
      * @see #readResultRows(ByteBuf, Consumer)
      */
     @Override
-    ResultRow readOneRow(final ByteBuf payload) {
+    final ResultRow readOneRow(final ByteBuf cumulateBuffer, final MySQLRowMeta rowMeta) {
         final MySQLRowMeta rowMeta = Objects.requireNonNull(this.rowMeta, "this.rowMeta");
         final MySQLColumnMeta[] columnMetas = rowMeta.columnMetaArray;
         if (payload.readByte() != 0) {
@@ -86,7 +86,7 @@ final class BinaryResultSetReader extends AbstractResultSetReader {
      */
     @Nullable
     @Override
-    Object internalReadColumnValue(final ByteBuf payload, final MySQLColumnMeta columnMeta) {
+    Object readColumnValue(final ByteBuf payload, final MySQLColumnMeta columnMeta) {
         final Charset columnCharset = this.adjutant.obtainColumnCharset(columnMeta.columnCharset);
         final Object columnValue;
         byte[] bytes;
@@ -230,7 +230,7 @@ final class BinaryResultSetReader extends AbstractResultSetReader {
             case UNKNOWN:
                 throw MySQLExceptions.createFatalIoException(
                         String.format("Server return error type[%s] alias[%s]."
-                                , columnMeta.mysqlType, columnMeta.columnAlias));
+                                , columnMeta.mysqlType, columnMeta.columnLabel));
             default:
                 throw MySQLExceptions.createUnexpectedEnumException(columnMeta.mysqlType);
 

@@ -347,14 +347,18 @@ final class ExtendedQueryTask extends AbstractStmtTask implements PrepareStmtTas
                 .append(this.phase);
     }
 
-
     @Override
-    final void handleSelectCommand(final long rowCount) {
+    final boolean handleSelectCommand(final long rowCount) {
+        final boolean moreFetch;
         if (this.commandWriter.supportFetch()
                 && !this.sink.isCancelled()
                 && rowCount >= this.commandWriter.getFetchSize()) {
+            moreFetch = true;
             this.packetPublisher = this.commandWriter.fetch();
+        } else {
+            moreFetch = false;
         }
+        return moreFetch;
     }
 
     @Override

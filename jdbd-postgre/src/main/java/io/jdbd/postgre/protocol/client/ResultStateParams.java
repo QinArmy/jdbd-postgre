@@ -18,7 +18,7 @@ final class ResultStateParams {
 
     NoticeMessage noticeMessage;
 
-    boolean hasReturningColumn;
+    boolean hasColumn;
 
     boolean moreFetch;
 

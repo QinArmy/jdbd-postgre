@@ -4,8 +4,11 @@ import io.jdbd.JdbdSQLException;
 import io.jdbd.mysql.util.MySQLExceptions;
 import io.jdbd.vendor.result.FluxResultSink;
 import io.netty.buffer.ByteBuf;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 
 /**
  * Base class of All MySQL command phase communication task.
@@ -15,7 +18,9 @@ import java.util.function.Consumer;
  * @see MySQLPrepareCommandTask
  * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_command_phase.html">Command Phase</a>
  */
-abstract class CommandTask extends MySQLTask {
+abstract class AbstractCommandTask extends MySQLTask implements StmtTask {
+
+    final Logger log = LoggerFactory.getLogger(getClass());
 
     final FluxResultSink sink;
 
@@ -25,21 +30,60 @@ abstract class CommandTask extends MySQLTask {
 
     private int resultIndex;
 
-    CommandTask(TaskAdjutant adjutant, FluxResultSink sink) {
+    private boolean downstreamCanceled;
+
+    AbstractCommandTask(TaskAdjutant adjutant, FluxResultSink sink) {
         super(adjutant, sink::error);
         this.sink = sink;
         this.negotiatedCapability = adjutant.negotiatedCapability();
     }
 
-    public final int updateSequenceId(final int sequenceId) {
-        final int newSequenceId;
+    /*################################## blow StmtTask method ##################################*/
+
+    @Override
+    public final void addErrorToTask(Throwable error) {
+        addError(error);
+    }
+
+    @Override
+    public final TaskAdjutant adjutant() {
+        return this.adjutant;
+    }
+
+    @Override
+    public final void updateSequenceId(final int sequenceId) {
         if (sequenceId < 0) {
-            newSequenceId = -1;
+            this.sequenceId = -1;
         } else {
-            newSequenceId = sequenceId & 0xFF;
+            this.sequenceId = sequenceId & 0xFF;
         }
-        this.sequenceId = newSequenceId;
-        return newSequenceId;
+    }
+
+
+    @Override
+    public final boolean readResultStateWithReturning(ByteBuf cumulateBuffer, Supplier<Integer> resultIndexes) {
+
+        return false;
+    }
+
+    @Override
+    public final int getAndIncrementResultIndex() {
+        return this.resultIndex++;
+    }
+
+    @Override
+    public final boolean isCanceled() {
+        final boolean isCanceled;
+        if (this.downstreamCanceled || hasError()) {
+            isCanceled = true;
+        } else if (this.sink.isCancelled()) {
+            log.trace("Downstream cancel subscribe.");
+            this.downstreamCanceled = isCanceled = true;
+        } else {
+            isCanceled = false;
+        }
+        log.trace("Read command response,isCanceled:{}", isCanceled);
+        return isCanceled;
     }
 
     public final int obtainSequenceId() {
@@ -50,6 +94,7 @@ abstract class CommandTask extends MySQLTask {
     public final int addAndGetSequenceId() {
         return ++this.sequenceId;
     }
+
 
     final void readErrorPacket(final ByteBuf cumulateBuffer) {
         final int payloadLength = Packets.readInt3(cumulateBuffer);
@@ -67,7 +112,7 @@ abstract class CommandTask extends MySQLTask {
         ok = OkPacket.read(cumulateBuffer.readSlice(payloadLength), this.negotiatedCapability);
         serverStatusConsumer.accept(ok);
         // emit update result.
-        this.sink.next(MySQLResultStates.from(this.resultIndex++, ok));
+        this.sink.next(MySQLResultStates.fromUpdate(getAndIncrementResultIndex(), ok));
     }
 
 

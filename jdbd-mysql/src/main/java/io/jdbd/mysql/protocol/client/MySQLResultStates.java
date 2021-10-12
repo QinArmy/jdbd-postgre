@@ -4,8 +4,12 @@ import io.jdbd.result.ResultStates;
 
 abstract class MySQLResultStates implements ResultStates {
 
-    static MySQLResultStates from(final int resultIndex, final TerminatorPacket terminator) {
-        return new TerminalResultStates(resultIndex, terminator);
+    static MySQLResultStates fromUpdate(final int resultIndex, final TerminatorPacket terminator) {
+        return new UpdateResultStates(resultIndex, terminator);
+    }
+
+    static MySQLResultStates fromQuery(final int resultIndex, final TerminatorPacket terminator, final long rowCount) {
+        return new QueryResultStates(resultIndex, terminator, rowCount);
     }
 
     private final int resultIndex;
@@ -91,9 +95,9 @@ abstract class MySQLResultStates implements ResultStates {
         return this.warnings;
     }
 
-    private static final class TerminalResultStates extends MySQLResultStates {
+    private static final class UpdateResultStates extends MySQLResultStates {
 
-        private TerminalResultStates(int resultIndex, TerminatorPacket terminator) {
+        private UpdateResultStates(int resultIndex, TerminatorPacket terminator) {
             super(resultIndex, terminator);
         }
 
@@ -109,5 +113,25 @@ abstract class MySQLResultStates implements ResultStates {
 
     }
 
+    private static final class QueryResultStates extends MySQLResultStates {
+
+        private final long rowCount;
+
+        private QueryResultStates(int resultIndex, TerminatorPacket terminator, long rowCount) {
+            super(resultIndex, terminator);
+            this.rowCount = rowCount;
+        }
+
+        @Override
+        public final long getRowCount() {
+            return this.rowCount;
+        }
+
+        @Override
+        public final boolean hasColumn() {
+            return true;
+        }
+
+    }
 
 }

@@ -48,7 +48,7 @@ import java.util.function.Supplier;
  * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_com_query.html">Protocol::COM_QUERY</a>
  * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_com_query_response.html">Protocol::COM_QUERY Response</a>
  */
-final class ComQueryTask extends CommandTask {
+final class ComQueryTask extends AbstractCommandTask {
 
     /*################################## blow StaticStatement underlying api method ##################################*/
 
@@ -594,7 +594,7 @@ final class ComQueryTask extends CommandTask {
             break;
             case TEXT_RESULT: {
                 this.phase = Phase.READ_TEXT_RESULT_SET;
-                this.resultSetReader.read(cumulateBuffer, serverStatusConsumer);
+                this.resultSetReader.read(cumulateBuffer);
                 taskEnd = readTextResultSet(cumulateBuffer, serverStatusConsumer);
 
             }

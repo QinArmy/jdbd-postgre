@@ -1,4 +1,4 @@
-package io.jdbd.postgre.protocol.client;
+package io.jdbd.mysql.protocol.client;
 
 import io.netty.buffer.ByteBuf;
 
@@ -8,9 +8,9 @@ interface StmtTask {
 
     void addErrorToTask(Throwable error);
 
-    boolean hasError();
-
     TaskAdjutant adjutant();
+
+    void updateSequenceId(int sequenceId);
 
     /**
      * @return true: read CommandComplete message end , false : more cumulate.
@@ -20,5 +20,6 @@ interface StmtTask {
     int getAndIncrementResultIndex();
 
     boolean isCanceled();
+
 
 }

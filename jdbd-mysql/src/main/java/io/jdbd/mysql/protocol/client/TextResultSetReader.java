@@ -4,6 +4,7 @@ import io.jdbd.mysql.MySQLType;
 import io.jdbd.mysql.util.*;
 import io.jdbd.result.ResultRow;
 import io.jdbd.vendor.result.ErrorResultRow;
+import io.jdbd.vendor.result.ResultSink;
 import io.jdbd.vendor.type.LongBinaries;
 import io.jdbd.vendor.type.LongStrings;
 import io.netty.buffer.ByteBuf;
@@ -26,36 +27,39 @@ final class TextResultSetReader extends AbstractResultSetReader {
     private static final Logger LOG = LoggerFactory.getLogger(TextResultSetReader.class);
 
 
-    TextResultSetReader(ResultSetReaderBuilder builder) {
-        super(builder);
+    TextResultSetReader(StmtTask stmtTask, ResultSink sink) {
+        super(stmtTask, sink);
     }
 
 
     @Override
-    boolean readResultSetMeta(final ByteBuf cumulateBuffer, Consumer<Object> serverStatusConsumer) {
+    final boolean readResultSetMeta(final ByteBuf cumulateBuffer, final Consumer<Object> serverStatesConsumer) {
 
-        final int negotiatedCapability = this.adjutant.negotiatedCapability();
-        if ((negotiatedCapability & Capabilities.CLIENT_OPTIONAL_RESULTSET_METADATA) != 0) {
+        if ((this.negotiatedCapability & Capabilities.CLIENT_OPTIONAL_RESULTSET_METADATA) != 0) {
             throw new IllegalStateException("Not support CLIENT_OPTIONAL_RESULTSET_METADATA");
         }
-        boolean metaEnd;
-        metaEnd = doReadRowMeta(cumulateBuffer);
 
-        if (metaEnd && (negotiatedCapability & Capabilities.CLIENT_DEPRECATE_EOF) == 0) {
-            if (Packets.hasOnePacket(cumulateBuffer)) {
-                int payloadLength = Packets.readInt3(cumulateBuffer);
-                updateSequenceId(Packets.readInt1AsInt(cumulateBuffer));
-                EofPacket eof = EofPacket.read(cumulateBuffer.readSlice(payloadLength), negotiatedCapability);
-                serverStatusConsumer.accept(eof);
-            } else {
-                metaEnd = false;
+        final boolean endOfMeta = (this.negotiatedCapability & Capabilities.CLIENT_DEPRECATE_EOF) == 0;
+        final boolean metaEnd;
+        if (MySQLRowMeta.canReadRowMeta(cumulateBuffer, endOfMeta)) {
+            doReadRowMeta(cumulateBuffer);
+            if (endOfMeta) {
+                final int payloadLength = Packets.readInt3(cumulateBuffer);
+                this.stmtTask.updateSequenceId(Packets.readInt1AsInt(cumulateBuffer));
+
+                final EofPacket eof;
+                eof = EofPacket.read(cumulateBuffer.readSlice(payloadLength), this.negotiatedCapability);
+                serverStatesConsumer.accept(eof);
             }
+            metaEnd = true;
+        } else {
+            metaEnd = false;
         }
         return metaEnd;
     }
 
     @Override
-    Logger obtainLogger() {
+    Logger getLogger() {
         return LOG;
     }
 
@@ -73,7 +77,7 @@ final class TextResultSetReader extends AbstractResultSetReader {
     }
 
     @Override
-    ResultRow readOneRow(final ByteBuf payload) {
+    final ResultRow readOneRow(ByteBuf cumulateBuffer, MySQLRowMeta rowMeta) {
         final MySQLRowMeta rowMeta = Objects.requireNonNull(this.rowMeta, "this.rowMeta");
         final MySQLColumnMeta[] columnMetaArray = rowMeta.columnMetaArray;
         final Object[] rowValues = new Object[columnMetaArray.length];
@@ -103,7 +107,7 @@ final class TextResultSetReader extends AbstractResultSetReader {
 
     @Nullable
     @Override
-    Object internalReadColumnValue(final ByteBuf payload, final MySQLColumnMeta columnMeta) {
+    Object readColumnValue(final ByteBuf payload, final MySQLColumnMeta columnMeta) {
 
         final Charset columnCharset = this.adjutant.obtainColumnCharset(columnMeta.columnCharset);
 

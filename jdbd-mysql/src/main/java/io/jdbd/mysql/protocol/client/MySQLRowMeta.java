@@ -6,8 +6,8 @@ import io.jdbd.meta.SQLType;
 import io.jdbd.mysql.MySQLType;
 import io.jdbd.mysql.protocol.CharsetMapping;
 import io.jdbd.mysql.util.MySQLStrings;
-import io.jdbd.result.FieldType;
 import io.jdbd.result.ResultRowMeta;
+import io.netty.buffer.ByteBuf;
 import org.qinarmy.util.StringUtils;
 import reactor.util.annotation.Nullable;
 
@@ -24,10 +24,69 @@ import java.util.Map;
  */
 abstract class MySQLRowMeta implements ResultRowMeta {
 
+    static boolean canReadRowMeta(final ByteBuf cumulateBuffer, final boolean endOfMeta) {
+        final int originalReaderIndex = cumulateBuffer.readerIndex();
+
+        int payloadLength = Packets.readInt3(cumulateBuffer);
+        cumulateBuffer.readByte();// skip sequenceId byte
+        final int payloadIndex = cumulateBuffer.readerIndex();
+        final int needPacketCount;
+        if (endOfMeta) {
+            needPacketCount = Packets.readLenEncAsInt(cumulateBuffer) + 1; // Text ResultSet need End of metadata
+        } else {
+            needPacketCount = Packets.readLenEncAsInt(cumulateBuffer);
+        }
+        cumulateBuffer.readerIndex(payloadIndex + payloadLength); //avoid tail filler
+
+        int packetCount = 0;
+        while (Packets.hasOnePacket(cumulateBuffer)) {
+            payloadLength = Packets.readInt3(cumulateBuffer);
+            cumulateBuffer.readByte(); // skip sequenceId byte
+            cumulateBuffer.skipBytes(payloadLength);
+            packetCount++;
+            if (packetCount == needPacketCount) {
+                break;
+            }
+        }
+        cumulateBuffer.readerIndex(originalReaderIndex);
+        return packetCount >= needPacketCount;
+    }
+
+    static MySQLRowMeta read(final ByteBuf cumulateBuffer, final StmtTask stmtTask) {
+        int payloadLength, payloadIndex, sequenceId;
+
+        payloadLength = Packets.readInt3(cumulateBuffer);
+        sequenceId = Packets.readInt1AsInt(cumulateBuffer);
+
+        payloadIndex = cumulateBuffer.readerIndex();
+        final int columnCount = Packets.readLenEncAsInt(cumulateBuffer);
+        cumulateBuffer.readerIndex(payloadIndex + payloadLength);//avoid tail filler
+
+        final TaskAdjutant adjutant = stmtTask.adjutant();
+        final MySQLColumnMeta[] metaArray = new MySQLColumnMeta[columnCount];
+
+        for (int i = 0; i < columnCount; i++) {
+            payloadLength = Packets.readInt3(cumulateBuffer);
+            sequenceId = Packets.readInt1AsInt(cumulateBuffer);
+
+            payloadIndex = cumulateBuffer.readerIndex();
+            metaArray[i] = MySQLColumnMeta.readFor41(cumulateBuffer, adjutant);
+
+            cumulateBuffer.readerIndex(payloadIndex + payloadLength); //avoid tail filler
+        }
+        stmtTask.updateSequenceId(sequenceId);// update sequenceId
+        return new SimpleIndexMySQLRowMeta(metaArray
+                , stmtTask.getAndIncrementResultIndex()
+                , adjutant.obtainCustomCollationMap());
+    }
+
+    @Deprecated
     static MySQLRowMeta from(MySQLColumnMeta[] mySQLColumnMetas
             , Map<Integer, CharsetMapping.CustomCollation> customCollationMap) {
-        return new SimpleIndexMySQLRowMeta(mySQLColumnMetas, customCollationMap);
+        return new SimpleIndexMySQLRowMeta(mySQLColumnMetas, 0, customCollationMap);
     }
+
+    private final int resultIndex;
 
     final MySQLColumnMeta[] columnMetaArray;
 
@@ -36,11 +95,17 @@ abstract class MySQLRowMeta implements ResultRowMeta {
     int metaIndex = 0;
 
 
-    private MySQLRowMeta(final MySQLColumnMeta[] columnMetaArray
+    private MySQLRowMeta(final MySQLColumnMeta[] columnMetaArray, int resultIndex
             , Map<Integer, CharsetMapping.CustomCollation> customCollationMap) {
+        this.resultIndex = resultIndex;
         this.columnMetaArray = columnMetaArray;
         this.customCollationMap = customCollationMap;
 
+    }
+
+    @Override
+    public final int getResultIndex() {
+        return this.resultIndex;
     }
 
     @Override
@@ -48,21 +113,16 @@ abstract class MySQLRowMeta implements ResultRowMeta {
         return this.columnMetaArray.length;
     }
 
-    @Override
-    public FieldType getFieldType() {
-        //TODO zoro add feaure
-        throw new UnsupportedOperationException();
-    }
 
     @Override
     public List<String> getColumnLabelList() {
         List<String> columnAliaList;
         if (this.columnMetaArray.length == 1) {
-            columnAliaList = Collections.singletonList(this.columnMetaArray[0].columnAlias);
+            columnAliaList = Collections.singletonList(this.columnMetaArray[0].columnLabel);
         } else {
             columnAliaList = new ArrayList<>(this.columnMetaArray.length);
             for (MySQLColumnMeta columnMeta : this.columnMetaArray) {
-                columnAliaList.add(columnMeta.columnAlias);
+                columnAliaList.add(columnMeta.columnLabel);
             }
             columnAliaList = Collections.unmodifiableList(columnAliaList);
         }
@@ -147,7 +207,7 @@ abstract class MySQLRowMeta implements ResultRowMeta {
 
     @Override
     public final String getColumnLabel(int indexBaseZero) throws JdbdSQLException {
-        return this.columnMetaArray[checkIndex(indexBaseZero)].columnAlias;
+        return this.columnMetaArray[checkIndex(indexBaseZero)].columnLabel;
     }
 
     @Override
@@ -241,7 +301,7 @@ abstract class MySQLRowMeta implements ResultRowMeta {
         MySQLColumnMeta[] columnMetas = this.columnMetaArray;
         int len = columnMetas.length;
         for (int i = 0; i < len; i++) {
-            if (columnMetas[i].columnAlias.equals(columnAlias)) {
+            if (columnMetas[i].columnLabel.equals(columnAlias)) {
                 return i;
             }
         }
@@ -309,9 +369,9 @@ abstract class MySQLRowMeta implements ResultRowMeta {
 
     private static final class SimpleIndexMySQLRowMeta extends MySQLRowMeta {
 
-        private SimpleIndexMySQLRowMeta(MySQLColumnMeta[] columnMetas
+        private SimpleIndexMySQLRowMeta(MySQLColumnMeta[] columnMetas, int resultIndex
                 , Map<Integer, CharsetMapping.CustomCollation> customCollationMap) {
-            super(columnMetas, customCollationMap);
+            super(columnMetas, resultIndex, customCollationMap);
         }
     }
 

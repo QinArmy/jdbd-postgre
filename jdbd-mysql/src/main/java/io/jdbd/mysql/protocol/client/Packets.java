@@ -396,11 +396,12 @@ public abstract class Packets {
      *
      * @return true ,at least have one packet.
      */
-    public static boolean hasOnePacket(ByteBuf byteBuf) {
-        int readableBytes = byteBuf.readableBytes();
+    public static boolean hasOnePacket(ByteBuf cumulateBuffer) {
+        int readableBytes = cumulateBuffer.readableBytes();
         return readableBytes > HEADER_SIZE
-                && (readableBytes >= HEADER_SIZE + getInt3(byteBuf, byteBuf.readerIndex()));
+                && (readableBytes >= HEADER_SIZE + getInt3(cumulateBuffer, cumulateBuffer.readerIndex()));
     }
+
 
     public static void writePacketHeader(final ByteBuf packetBuf, final int sequenceId) {
         final int readableBytes = packetBuf.readableBytes();
@@ -749,32 +750,21 @@ public abstract class Packets {
      * <li>positive:multi payload length</li>
      * </ul>
      */
-    public static int obtainMultiPayloadLength(ByteBuf cumulateBuffer) {
-        final int maxLength = (int) Math.min((Runtime.getRuntime().totalMemory() / 10L), Integer.MAX_VALUE);
+    public static int obtainMultiPayloadLength(final ByteBuf cumulateBuffer, final ByteBufAllocator allocator, Con) {
+        final int maxLength = (int) Math.min((Runtime.getRuntime().freeMemory() / 10L), (1 << 30));
         final int originalReaderIndex = cumulateBuffer.readerIndex();
 
+        ByteBuf payload = cumulateBuffer.alloc().
         int packetLengthSum = 0;
-        for (int payloadLength, readableBytes, packetStartIndex; ; ) {
-            readableBytes = cumulateBuffer.readableBytes();
-            packetStartIndex = cumulateBuffer.readerIndex();
-            if (readableBytes < HEADER_SIZE) {
-                packetLengthSum = -1;
-                break;
-            }
-            payloadLength = getInt3(cumulateBuffer, cumulateBuffer.readerIndex());
-            if (readableBytes < (HEADER_SIZE + payloadLength)) {
-                packetLengthSum = -1;
-                break;
-            }
+        for (int payloadLength; hasOnePacket(cumulateBuffer); ) {
+            payloadLength = readInt3(cumulateBuffer);
+            cumulateBuffer.readByte();
+            cumulateBuffer.skipBytes(payloadLength);
+
             packetLengthSum += payloadLength;
-            if ((maxLength - packetLengthSum) < MAX_PAYLOAD) {
-                packetLengthSum = Integer.MIN_VALUE;
-                break;
-            }
             if (payloadLength < MAX_PAYLOAD) {
                 break;
             }
-            cumulateBuffer.readerIndex(packetStartIndex + HEADER_SIZE + payloadLength);
         }
         cumulateBuffer.readerIndex(originalReaderIndex);
         return packetLengthSum;

@@ -107,7 +107,7 @@ abstract class PgResultStates implements ResultStates {
             this.insertId = params.insertId;
             this.noticeMessage = params.noticeMessage;
 
-            this.hasReturningColumn = params.hasReturningColumn;
+            this.hasReturningColumn = params.hasColumn;
             this.moreFetch = params.moreFetch;
             this.rowCount = params.rowCount;
         }
