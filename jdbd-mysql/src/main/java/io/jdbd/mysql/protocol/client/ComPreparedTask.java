@@ -636,7 +636,7 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
 
         final int payloadLength = Packets.readInt3(cumulateBuffer);
         updateSequenceId(Packets.readInt1AsInt(cumulateBuffer));
-        final int headFlag = Packets.getInt1AsInt(cumulateBuffer, cumulateBuffer.readerIndex()); //1. status/error header
+        final int headFlag = Packets.getInt1(cumulateBuffer, cumulateBuffer.readerIndex()); //1. status/error header
         final boolean taskEnd;
         switch (headFlag) {
             case ErrorPacket.ERROR_HEADER: {
@@ -808,7 +808,7 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
         if (traceEnabled) {
             LOG.trace("{} start read execute response, downstream[{}]", this, this.downstreamSink);
         }
-        final int header = Packets.getInt1AsInt(cumulateBuffer, cumulateBuffer.readerIndex() + Packets.HEADER_SIZE);
+        final int header = Packets.getInt1(cumulateBuffer, cumulateBuffer.readerIndex() + Packets.HEADER_SIZE);
         final boolean taskEnd;
         switch (header) {
             case ErrorPacket.ERROR_HEADER: {
@@ -899,7 +899,7 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
      * @see #decode(ByteBuf, Consumer)
      */
     private boolean readFetchResponse(final ByteBuf cumulateBuffer) {
-        final int flag = Packets.getInt1AsInt(cumulateBuffer, cumulateBuffer.readerIndex() + Packets.HEADER_SIZE);
+        final int flag = Packets.getInt1(cumulateBuffer, cumulateBuffer.readerIndex() + Packets.HEADER_SIZE);
         boolean taskEnd = false;
         if (flag == ErrorPacket.ERROR_HEADER) {
             final int payloadLength = Packets.readInt3(cumulateBuffer);
@@ -921,7 +921,7 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements Statement
         final int payloadLength = Packets.readInt3(cumulateBuffer);
         updateSequenceId(Packets.readInt1AsInt(cumulateBuffer));
 
-        final int flag = Packets.getInt1AsInt(cumulateBuffer, cumulateBuffer.readerIndex());
+        final int flag = Packets.getInt1(cumulateBuffer, cumulateBuffer.readerIndex());
         final boolean taskEnd;
         switch (flag) {
             case ErrorPacket.ERROR_HEADER: {

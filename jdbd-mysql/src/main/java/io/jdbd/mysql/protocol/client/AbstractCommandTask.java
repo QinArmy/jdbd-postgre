@@ -125,7 +125,7 @@ abstract class AbstractCommandTask extends MySQLTask implements StmtTask {
         return MySQLExceptions.createFatalIoException(
                 (Throwable) null
                 , "MySQL server row packet return sequence_id error,expected[%s] actual[%s]"
-                , expected, Packets.getInt1AsInt(cumulateBuffer, cumulateBuffer.readerIndex() - 1));
+                , expected, Packets.getInt1(cumulateBuffer, cumulateBuffer.readerIndex() - 1));
     }
 
 }

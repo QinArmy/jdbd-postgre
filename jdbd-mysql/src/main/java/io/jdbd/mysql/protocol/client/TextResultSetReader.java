@@ -19,7 +19,6 @@ import java.time.*;
 import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.Objects;
 import java.util.function.Consumer;
 
 final class TextResultSetReader extends AbstractResultSetReader {
@@ -64,28 +63,29 @@ final class TextResultSetReader extends AbstractResultSetReader {
     }
 
     @Override
-    int skipNullColumn(BigRowData bigRowData, final ByteBuf payload, final int columnIndex) {
-        int i = columnIndex;
-        final MySQLColumnMeta[] columnMetaArray = this.rowMeta.columnMetaArray;
-        for (; i < columnMetaArray.length; i++) {
-            if (Packets.getInt1AsInt(payload, payload.readerIndex()) != Packets.ENC_0) {
-                break;
-            }
+    final boolean skipNullColumn(byte[] nullBitMap, final ByteBuf payload, final int columnIndex) {
+        final boolean isNull;
+        isNull = Packets.getInt1(payload, payload.readerIndex()) == Packets.ENC_0;
+        if (isNull) {
             payload.readByte();
         }
-        return i;
+        return isNull;
+    }
+
+    @Override
+    final BigRowData createBigRowData(ByteBuf cachePayload, MySQLRowMeta rowMeta) {
+        return new BigRowData(rowMeta.columnMetaArray.length, BigRowData.EMPTY_BIT_MAP);
     }
 
     @Override
     final ResultRow readOneRow(ByteBuf cumulateBuffer, MySQLRowMeta rowMeta) {
-        final MySQLRowMeta rowMeta = Objects.requireNonNull(this.rowMeta, "this.rowMeta");
         final MySQLColumnMeta[] columnMetaArray = rowMeta.columnMetaArray;
         final Object[] rowValues = new Object[columnMetaArray.length];
 
         ResultRow resultRow;
         try {
             for (int i = 0; i < columnMetaArray.length; i++) {
-                if (Packets.getInt1AsInt(payload, payload.readerIndex()) == Packets.ENC_0) {
+                if (Packets.getInt1(payload, payload.readerIndex()) == Packets.ENC_0) {
                     payload.readByte();
                     continue;
                 }
@@ -100,8 +100,8 @@ final class TextResultSetReader extends AbstractResultSetReader {
     }
 
     @Override
-    long obtainColumnBytes(final MySQLColumnMeta columnMeta, final ByteBuf bigPayloadBuffer) {
-        return Packets.getLenEncTotalByteLength(bigPayloadBuffer);
+    long obtainColumnBytes(final MySQLColumnMeta columnMeta, final ByteBuf payload) {
+        return Packets.getLenEncTotalByteLength(payload);
     }
 
 

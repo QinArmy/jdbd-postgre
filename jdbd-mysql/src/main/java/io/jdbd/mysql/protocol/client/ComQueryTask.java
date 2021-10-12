@@ -489,7 +489,7 @@ final class ComQueryTask extends AbstractCommandTask {
         final int payloadLength = Packets.readInt3(cumulateBuffer);
         cumulateBuffer.skipBytes(1); // skip sequence id
 
-        final int status = Packets.getInt1AsInt(cumulateBuffer, cumulateBuffer.readerIndex());
+        final int status = Packets.getInt1(cumulateBuffer, cumulateBuffer.readerIndex());
         boolean taskEnd;
         switch (status) {
             case ErrorPacket.ERROR_HEADER: {
@@ -538,7 +538,7 @@ final class ComQueryTask extends AbstractCommandTask {
         final int payloadLength = Packets.readInt3(cumulateBuffer);
         cumulateBuffer.skipBytes(1); // skip sequence_id
 
-        final int status = Packets.getInt1AsInt(cumulateBuffer, cumulateBuffer.readerIndex());
+        final int status = Packets.getInt1(cumulateBuffer, cumulateBuffer.readerIndex());
         switch (status) {
             case ErrorPacket.ERROR_HEADER: {
                 ErrorPacket error;
@@ -867,7 +867,7 @@ final class ComQueryTask extends AbstractCommandTask {
         ComQueryResponse responseType;
         final boolean metadata = (negotiatedCapability & Capabilities.CLIENT_OPTIONAL_RESULTSET_METADATA) != 0;
 
-        switch (Packets.getInt1AsInt(cumulateBuffer, readerIndex++)) {
+        switch (Packets.getInt1(cumulateBuffer, readerIndex++)) {
             case 0: {
                 if (metadata && Packets.obtainLenEncIntByteCount(cumulateBuffer, readerIndex) + 1 == payloadLength) {
                     responseType = ComQueryResponse.TEXT_RESULT;

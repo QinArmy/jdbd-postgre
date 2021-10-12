@@ -99,7 +99,7 @@ public final class OkPacket extends TerminatorPacket {
 
 
     public static boolean isOkPacket(ByteBuf payloadBuf) {
-        return Packets.getInt1AsInt(payloadBuf, payloadBuf.readerIndex()) == OK_HEADER;
+        return Packets.getInt1(payloadBuf, payloadBuf.readerIndex()) == OK_HEADER;
     }
 
 }

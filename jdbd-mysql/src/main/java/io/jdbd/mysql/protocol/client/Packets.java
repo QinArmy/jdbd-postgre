@@ -76,7 +76,7 @@ public abstract class Packets {
     }
 
 
-    public static int getInt1AsInt(ByteBuf byteBuf, int index) {
+    public static int getInt1(ByteBuf byteBuf, int index) {
         return (byteBuf.getByte(index) & BIT_8);
     }
 
@@ -160,7 +160,7 @@ public abstract class Packets {
      * see {@code com.mysql.cj.protocol.a.NativePacketPayload#readInteger(com.mysql.cj.protocol.a.NativeConstants.IntegerDataType)}
      */
     public static long getLenEnc(ByteBuf byteBuf, int index) {
-        final int sw = getInt1AsInt(byteBuf, index++);
+        final int sw = getInt1(byteBuf, index++);
         long int8;
         switch (sw) {
             case ENC_0:
@@ -185,11 +185,12 @@ public abstract class Packets {
     }
 
     /**
-     * @return negative : more cumulate.
+     * @param buffer at least one byte.
+     * @return -1 : more cumulate.
      */
-    public static long getLenEncTotalByteLength(ByteBuf byteBuf) {
-        int index = byteBuf.readerIndex();
-        final int sw = getInt1AsInt(byteBuf, index++);
+    public static long getLenEncTotalByteLength(ByteBuf buffer) {
+        int index = buffer.readerIndex();
+        final int sw = getInt1(buffer, index++);
         final long totalLength;
         switch (sw) {
             case ENC_0:
@@ -197,26 +198,26 @@ public abstract class Packets {
                 totalLength = 1L;
                 break;
             case ENC_3: {
-                if (byteBuf.readableBytes() < 3) {
+                if (buffer.readableBytes() < 3) {
                     totalLength = -1L;
                 } else {
-                    totalLength = 3L + getInt2AsInt(byteBuf, index);
+                    totalLength = 3L + getInt2AsInt(buffer, index);
                 }
             }
             break;
             case ENC_4: {
-                if (byteBuf.readableBytes() < 4) {
+                if (buffer.readableBytes() < 4) {
                     totalLength = -1L;
                 } else {
-                    totalLength = 4L + getInt3(byteBuf, index);
+                    totalLength = 4L + getInt3(buffer, index);
                 }
             }
             break;
             case ENC_9: {
-                if (byteBuf.readableBytes() < 9) {
+                if (buffer.readableBytes() < 9) {
                     totalLength = -1L;
                 } else {
-                    totalLength = 9L + getInt8(byteBuf, index);
+                    totalLength = 9L + getInt8(buffer, index);
                 }
             }
             break;
@@ -230,7 +231,7 @@ public abstract class Packets {
 
     public static int obtainLenEncIntByteCount(ByteBuf byteBuf, final int index) {
         int byteCount;
-        switch (getInt1AsInt(byteBuf, index)) {
+        switch (getInt1(byteBuf, index)) {
             case ENC_0:
                 // represents a NULL in a ProtocolText::ResultsetRow
                 byteCount = 0;
@@ -900,7 +901,7 @@ public abstract class Packets {
 
 
     public static boolean isAuthSwitchRequestPacket(ByteBuf payloadBuf) {
-        return getInt1AsInt(payloadBuf, payloadBuf.readerIndex()) == 0xFE;
+        return getInt1(payloadBuf, payloadBuf.readerIndex()) == 0xFE;
     }
 
     /*################################## blow private static method ##################################*/

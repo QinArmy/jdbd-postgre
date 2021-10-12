@@ -4,7 +4,6 @@ import io.jdbd.mysql.util.MySQLConvertUtils;
 import io.jdbd.mysql.util.MySQLExceptions;
 import io.jdbd.mysql.util.MySQLNumbers;
 import io.jdbd.result.ResultRow;
-import io.jdbd.vendor.result.ErrorResultRow;
 import io.jdbd.vendor.type.LongBinaries;
 import io.jdbd.vendor.type.LongStrings;
 import io.netty.buffer.ByteBuf;
@@ -17,7 +16,6 @@ import java.math.BigInteger;
 import java.nio.charset.Charset;
 import java.time.*;
 import java.util.Arrays;
-import java.util.Objects;
 import java.util.function.Consumer;
 
 
@@ -27,6 +25,8 @@ import java.util.function.Consumer;
 final class BinaryResultSetReader extends AbstractResultSetReader {
 
     private static final Logger LOG = LoggerFactory.getLogger(BinaryResultSetReader.class);
+
+    private static final byte BINARY_ROW_HEADER = 0x00;
 
 
     BinaryResultSetReader(ResultSetReaderBuilder builder) {
@@ -51,34 +51,24 @@ final class BinaryResultSetReader extends AbstractResultSetReader {
      */
     @Override
     final ResultRow readOneRow(final ByteBuf cumulateBuffer, final MySQLRowMeta rowMeta) {
-        final MySQLRowMeta rowMeta = Objects.requireNonNull(this.rowMeta, "this.rowMeta");
         final MySQLColumnMeta[] columnMetas = rowMeta.columnMetaArray;
-        if (payload.readByte() != 0) {
-            throw MySQLExceptions.createFatalIoException(
-                    "Header[%s] of Binary Protocol ResultSet Row is error."
-                    , payload.getByte(payload.readerIndex() - 1));
+        if (cumulateBuffer.readByte() != BINARY_ROW_HEADER) {
+            throw new IllegalArgumentException("cumulateBuffer isn't binary row");
         }
         final byte[] nullBitMap = new byte[(columnMetas.length + 9) / 8];
         payload.readBytes(nullBitMap); // null_bitmap
 
         final Object[] columnValues = new Object[columnMetas.length];
-        ResultRow resultRow;
-        try {
-            for (int i = 0, byteIndex, bitIndex; i < columnMetas.length; i++) {
-                MySQLColumnMeta columnMeta = columnMetas[i];
-                byteIndex = (i + 2) & (~7);
-                bitIndex = (i + 2) & 7;
-                if ((nullBitMap[byteIndex] & (1 << bitIndex)) != 0) {
-                    continue;
-                }
-                columnValues[i] = readColumnValue(payload, columnMeta);
+        for (int i = 0, byteIndex, bitIndex; i < columnMetas.length; i++) {
+            MySQLColumnMeta columnMeta = columnMetas[i];
+            byteIndex = (i + 2) & (~7);
+            bitIndex = (i + 2) & 7;
+            if ((nullBitMap[byteIndex] & (1 << bitIndex)) != 0) {
+                continue;
             }
-            resultRow = MySQLResultRow.from(columnValues, rowMeta, this.adjutant);
-        } catch (Throwable e) {
-            emitError(MySQLExceptions.wrap(e));
-            resultRow = ErrorResultRow.INSTANCE;
+            columnValues[i] = readColumnValue(payload, columnMeta);
         }
-        return resultRow;
+        return MySQLResultRow.from(columnValues, rowMeta, this.adjutant);
     }
 
     /**
@@ -244,25 +234,26 @@ final class BinaryResultSetReader extends AbstractResultSetReader {
     }
 
     @Override
-    int skipNullColumn(BigRowData bigRowData, final ByteBuf payload, final int columnIndex) {
-        final MySQLColumnMeta[] columnMetaArray = this.rowMeta.columnMetaArray;
-        int i = columnIndex;
-        final byte[] nullBitMap = bigRowData.bigRowNullBitMap;
-        for (int byteIndex, bitIndex; i < columnMetaArray.length; i++) {
-            byteIndex = (i + 2) / 8;
-            bitIndex = (i + 2) % 8;
-            if ((nullBitMap[byteIndex] & (1 << bitIndex)) == 0) {
-                break;
-            }
+    final BigRowData createBigRowData(final ByteBuf cachePayload, final MySQLRowMeta rowMeta) {
+        final int columnCount = rowMeta.columnMetaArray.length;
+        if (cachePayload.readByte() != BINARY_ROW_HEADER) {
+            throw new IllegalArgumentException("cachePayload isn't binary row");
         }
-        return i;
+        final byte[] nullMap = new byte[(columnCount + 9) >> 3];
+        cachePayload.readBytes(nullMap);
+        return new BigRowData(columnCount, nullMap);
+    }
+
+    @Override
+    boolean skipNullColumn(final byte[] nullBitMap, final ByteBuf payload, final int columnIndex) {
+        return (nullBitMap[((columnIndex + 2) >> 3)] & (1 << ((columnIndex + 2) & 7))) != 0;
     }
 
 
     /**
-     * @return negative : more cumulate.
+     * @return -1 : more cumulate.
      */
-    long obtainColumnBytes(MySQLColumnMeta columnMeta, final ByteBuf bigPayloadBuffer) {
+    long obtainColumnBytes(MySQLColumnMeta columnMeta, final ByteBuf payload) {
         final long columnBytes;
         switch (columnMeta.typeFlag) {
             case ProtocolConstants.TYPE_STRING:
@@ -279,7 +270,7 @@ final class BinaryResultSetReader extends AbstractResultSetReader {
             case ProtocolConstants.TYPE_ENUM:
             case ProtocolConstants.TYPE_SET:
             case ProtocolConstants.TYPE_JSON: {
-                columnBytes = Packets.getLenEncTotalByteLength(bigPayloadBuffer);
+                columnBytes = Packets.getLenEncTotalByteLength(payload);
             }
             break;
             case ProtocolConstants.TYPE_DOUBLE:
@@ -307,7 +298,7 @@ final class BinaryResultSetReader extends AbstractResultSetReader {
             case ProtocolConstants.TYPE_DATETIME:
             case ProtocolConstants.TYPE_TIME:
             case ProtocolConstants.TYPE_DATE: {
-                columnBytes = 1L + bigPayloadBuffer.getByte(bigPayloadBuffer.readerIndex());
+                columnBytes = 1L + payload.getByte(payload.readerIndex());
             }
             break;
             default:

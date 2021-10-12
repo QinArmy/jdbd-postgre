@@ -3,12 +3,15 @@ package io.jdbd.mysql.protocol.client;
 import io.jdbd.BigRowIoException;
 import io.jdbd.JdbdException;
 import io.jdbd.JdbdSQLException;
+import io.jdbd.mysql.MySQLType;
 import io.jdbd.mysql.protocol.conf.MyKey;
 import io.jdbd.mysql.util.MySQLExceptions;
 import io.jdbd.result.ResultRow;
 import io.jdbd.vendor.conf.Properties;
 import io.jdbd.vendor.result.ResultSetReader;
 import io.jdbd.vendor.result.ResultSink;
+import io.jdbd.vendor.type.LongBinaries;
+import io.jdbd.vendor.type.LongStrings;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import org.slf4j.Logger;
@@ -21,15 +24,18 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
 import java.time.LocalDate;
+import java.util.Arrays;
 import java.util.Objects;
 import java.util.function.Consumer;
 
 abstract class AbstractResultSetReader implements ResultSetReader {
 
-    static final Path TEMP_DIRECTORY = Paths.get(System.getProperty("java.io.tmpdir"), "jdbd/mysql/bigRow");
+    static final Path TEMP_DIRECTORY = Paths.get(System.getProperty("java.io.tmpdir"), "jdbd/mysql/bigRow")
+            .toAbsolutePath();
 
+    private static int BIG_COLUMN_BOUND = Integer.MAX_VALUE - (4 * 128);
 
-    final ClientProtocolAdjutant adjutant;
+    final TaskAdjutant adjutant;
 
     final StmtTask stmtTask;
 
@@ -39,7 +45,7 @@ abstract class AbstractResultSetReader implements ResultSetReader {
 
     final int negotiatedCapability;
 
-    MySQLRowMeta rowMeta;
+    private MySQLRowMeta rowMeta;
 
     private boolean resultSetEnd;
 
@@ -48,8 +54,6 @@ abstract class AbstractResultSetReader implements ResultSetReader {
     private Phase phase = Phase.READ_RESULT_META;
 
     private BigRowData bigRowData;
-
-    private Throwable error;
 
     private ByteBuf bigPayload;
 
@@ -68,45 +72,52 @@ abstract class AbstractResultSetReader implements ResultSetReader {
         if (resultSetEnd) {
             throw new IllegalStateException("ResultSet have ended.");
         }
-        boolean continueRead = Packets.hasOnePacket(cumulateBuffer);
-        while (continueRead) {
-            switch (this.phase) {
-                case READ_RESULT_META: {
-                    if (readResultSetMeta(cumulateBuffer, serverStatesConsumer)) {
-                        this.phase = Phase.READ_RESULT_ROW;
-                        continueRead = Packets.hasOnePacket(cumulateBuffer);
-                    } else {
-                        continueRead = false;
+
+        try {
+            boolean continueRead = Packets.hasOnePacket(cumulateBuffer);
+            while (continueRead) {
+                switch (this.phase) {
+                    case READ_RESULT_META: {
+                        if (readResultSetMeta(cumulateBuffer, serverStatesConsumer)) {
+                            this.phase = Phase.READ_RESULT_ROW;
+                            continueRead = Packets.hasOnePacket(cumulateBuffer);
+                        } else {
+                            continueRead = false;
+                        }
                     }
-                }
-                break;
-                case READ_RESULT_ROW: {
-                    resultSetEnd = readResultRows(cumulateBuffer, serverStatesConsumer);
-                    continueRead = !resultSetEnd && this.phase == Phase.READ_BIG_ROW;
-                }
-                break;
-                case READ_BIG_ROW: {
-                    if (readBigRow(cumulateBuffer)) {
-                        this.phase = Phase.READ_RESULT_ROW;
-                        continueRead = Packets.hasOnePacket(cumulateBuffer);
-                    } else {
-                        continueRead = this.phase == Phase.READ_BIG_COLUMN;
+                    break;
+                    case READ_RESULT_ROW: {
+                        resultSetEnd = readResultRows(cumulateBuffer, serverStatesConsumer);
+                        continueRead = !resultSetEnd && this.phase == Phase.READ_BIG_ROW;
                     }
-                }
-                break;
-                case READ_BIG_COLUMN: {
-                    if (readBigColumn(cumulateBuffer)) {
-                        continueRead = true;
-                        this.phase = Phase.READ_BIG_ROW;
-                    } else {
-                        continueRead = false;
+                    break;
+                    case READ_BIG_ROW: {
+                        if (readOneBigRow(cumulateBuffer)) {
+                            this.phase = Phase.READ_RESULT_ROW;
+                            continueRead = Packets.hasOnePacket(cumulateBuffer);
+                        } else {
+                            continueRead = this.phase == Phase.READ_BIG_COLUMN;
+                        }
                     }
+                    break;
+                    case READ_BIG_COLUMN: {
+                        if (readBigColumn(cumulateBuffer)) {
+                            continueRead = true;
+                            this.phase = Phase.READ_BIG_ROW;
+                        } else {
+                            continueRead = false;
+                        }
+                    }
+                    break;
+                    default:
+                        throw MySQLExceptions.createUnexpectedEnumException(this.phase);
                 }
-                break;
-                default:
-                    throw MySQLExceptions.createUnexpectedEnumException(this.phase);
             }
+        } catch (Throwable e) {
+            releaseOnError();
+            throw e;
         }
+
         if (resultSetEnd) {
             if (isResettable()) {
                 resetReader();
@@ -117,10 +128,6 @@ abstract class AbstractResultSetReader implements ResultSetReader {
         return resultSetEnd;
     }
 
-
-    public final boolean isResettable() {
-        return this.resettable;
-    }
 
     /*################################## blow packet template method ##################################*/
 
@@ -133,7 +140,10 @@ abstract class AbstractResultSetReader implements ResultSetReader {
 
     abstract ResultRow readOneRow(ByteBuf cumulateBuffer, MySQLRowMeta rowMeta);
 
-    abstract long obtainColumnBytes(MySQLColumnMeta columnMeta, final ByteBuf bigPayloadBuffer);
+    /**
+     * @return -1 : more cumulate.
+     */
+    abstract long obtainColumnBytes(MySQLColumnMeta columnMeta, ByteBuf payload);
 
     /**
      * @return maybe null ,only when {@code DATETIME} is zero.
@@ -144,9 +154,11 @@ abstract class AbstractResultSetReader implements ResultSetReader {
 
     abstract boolean isBinaryReader();
 
-    abstract int skipNullColumn(BigRowData bigRowData, ByteBuf payload, int columnIndex);
+    abstract boolean skipNullColumn(byte[] nullBitMap, ByteBuf payload, int columnIndex);
 
     abstract Logger getLogger();
+
+    abstract BigRowData createBigRowData(ByteBuf cachePayload, MySQLRowMeta rowMeta);
 
     /*################################## blow final packet method ##################################*/
 
@@ -154,7 +166,7 @@ abstract class AbstractResultSetReader implements ResultSetReader {
      * @return true: read ResultSet end.
      * @see #read(ByteBuf, Consumer)
      */
-    final boolean readResultRows(final ByteBuf cumulateBuffer, final Consumer<Object> serverStatesConsumer) {
+    private boolean readResultRows(final ByteBuf cumulateBuffer, final Consumer<Object> serverStatesConsumer) {
         assertPhase(Phase.READ_RESULT_ROW);
         final Logger LOG = getLogger();
         if (LOG.isTraceEnabled()) {
@@ -178,7 +190,7 @@ abstract class AbstractResultSetReader implements ResultSetReader {
                 packetIndex = cumulateBuffer.readerIndex();
                 payloadLength = Packets.getInt3(cumulateBuffer, packetIndex); // read payload length
 
-                header = Packets.getInt1AsInt(cumulateBuffer, packetIndex + Packets.HEADER_SIZE);
+                header = Packets.getInt1(cumulateBuffer, packetIndex + Packets.HEADER_SIZE);
                 if (header == ErrorPacket.ERROR_HEADER) {
                     payloadLength = Packets.readInt3(cumulateBuffer);
                     sequenceId = Packets.readInt1AsInt(cumulateBuffer);
@@ -277,7 +289,6 @@ abstract class AbstractResultSetReader implements ResultSetReader {
     }
 
 
-
     @Nullable
     final LocalDate handleZeroDateBehavior(String type) {
         Enums.ZeroDatetimeBehavior behavior;
@@ -288,7 +299,8 @@ abstract class AbstractResultSetReader implements ResultSetReader {
             case EXCEPTION: {
                 String message = String.format("%s type can't is 0,@see jdbc property[%s]."
                         , type, MyKey.zeroDateTimeBehavior);
-                emitError(new JdbdSQLException(MySQLExceptions.createTruncatedWrongValue(message, null)));
+                Throwable e = new JdbdSQLException(MySQLExceptions.createTruncatedWrongValue(message, null));
+                this.stmtTask.addErrorToTask(e);
             }
             break;
             case ROUND: {
@@ -309,14 +321,67 @@ abstract class AbstractResultSetReader implements ResultSetReader {
     /**
      * @see #read(ByteBuf, Consumer)
      */
+    private void releaseOnError() {
+        ByteBuf buffer = this.bigPayload;
+        if (buffer != null && buffer.refCnt() > 0) {
+            buffer.release();
+        }
+        final BigRowData bigRowData = this.bigRowData;
+        if (bigRowData != null) {
+            releaseBigRowDataOnError(bigRowData);
+
+        }
+    }
+
+    /**
+     * @see #releaseOnError()
+     */
+    private void releaseBigRowDataOnError(final BigRowData bigRowData) {
+        ByteBuf buffer;
+        if ((buffer = bigRowData.cachePayload) != null && buffer.refCnt() > 0) {
+            buffer.release();
+        }
+        if (bigRowData.index >= bigRowData.values.length) {
+            return;
+        }
+        final Object value = bigRowData.values[bigRowData.index];
+        if (value instanceof BigColumn) {
+            try {
+                Files.deleteIfExists(((BigColumn) value).path);
+            } catch (Throwable e) {
+                final Logger log = getLogger();
+                if (log.isDebugEnabled()) {
+                    log.error("delete big column temp file[{}] error.", ((BigColumn) value).path);
+                }
+            }
+        }
+
+        Arrays.fill(bigRowData.values, null);
+
+    }
+
+
+    /**
+     * @see #read(ByteBuf, Consumer)
+     */
     private void resetReader() {
         this.phase = Phase.READ_RESULT_META;
-        this.resultSetEnd = false;
-        this.sequenceId = -1;
-
-        this.bigRowData = null;
+        this.readRowCount = 0L;
         this.rowMeta = null;
-        this.error = null;
+
+        ByteBuf buffer;
+        if ((buffer = this.bigPayload) != null && buffer.refCnt() > 0) {
+            buffer.release();
+        }
+        BigRowData bigRowData = this.bigRowData;
+        if (bigRowData != null) {
+            if ((buffer = bigRowData.cachePayload) != null && buffer.refCnt() > 0) {
+                buffer.release();
+            }
+        }
+        this.bigPayload = null;
+        this.bigRowData = null;
+        this.resultSetEnd = false;
     }
 
 
@@ -327,16 +392,18 @@ abstract class AbstractResultSetReader implements ResultSetReader {
      */
     private BigPacketMode readBIgPacket(final ByteBuf cumulateBuffer) {
         int sequenceId = -1;
-        final ByteBuf payload = getOrCreateBigPayload();
+        final ByteBuf payload = getBigPayload();
 
         BigPacketMode mode = BigPacketMode.MORE_CUMULATE;
-        for (int payloadLength; Packets.hasOnePacket(cumulateBuffer); ) {
+        for (int payloadLength, packetIndex; Packets.hasOnePacket(cumulateBuffer); ) {
+            packetIndex = cumulateBuffer.readerIndex();
+            payloadLength = Packets.readInt3(cumulateBuffer);
 
-            if (payload.maxWritableBytes() < Packets.getInt3(cumulateBuffer, cumulateBuffer.readerIndex())) {
+            if (payload.maxWritableBytes() < payloadLength) {
+                cumulateBuffer.readerIndex(packetIndex);
                 mode = BigPacketMode.BIG_ROW;
                 break;
             }
-            payloadLength = Packets.readInt3(cumulateBuffer);
             sequenceId = Packets.readInt1AsInt(cumulateBuffer);
             payload.writeBytes(cumulateBuffer, payloadLength);
             if (payloadLength < Packets.MAX_PAYLOAD) {
@@ -350,249 +417,210 @@ abstract class AbstractResultSetReader implements ResultSetReader {
         }
 
         if (mode == BigPacketMode.BIG_ROW) {
-            MySQLRowMeta rowMeta = Objects.requireNonNull(this.rowMeta, "this.rowMeta");
-            BigRowData bigRowData = new BigRowData(rowMeta.columnMetaArray.length, isBinaryReader());
+            if (this.bigRowData != null) {
+                throw new IllegalStateException("this.bigRowData non-null.");
+            }
+            final int columnCount = Objects.requireNonNull(this.rowMeta, "this.rowMeta").columnMetaArray.length;
+            final byte[] nullBitMap;
+            if (isBinaryReader()) {
+                nullBitMap = new byte[(columnCount + 9) >> 3];
+            } else {
+                nullBitMap = BigRowData.EMPTY_BIT_MAP;
+            }
+            final BigRowData bigRowData = new BigRowData(columnCount, nullBitMap);
             bigRowData.cachePayload = payload;
             this.bigPayload = null;
-
             this.bigRowData = bigRowData;
+
             this.phase = Phase.READ_BIG_ROW;
         }
         return mode;
     }
 
 
-    private ByteBuf getOrCreateBigPayload() {
+    private ByteBuf getBigPayload() {
         ByteBuf payload = this.bigPayload;
         if (payload == null) {
-            final int capacity = Packets.MAX_PAYLOAD << 1;
-            final int maxCapacity = (int) (Runtime.getRuntime().freeMemory() / 10);
-            payload = this.adjutant.allocator().buffer(capacity, Math.max(capacity, maxCapacity));
+            payload = this.adjutant.allocator().buffer(Packets.MAX_PAYLOAD << 1, (1 << 30));
             this.bigPayload = payload;
         }
         return payload;
     }
 
 
-    /**
-     * @return true:bigRow read end.
-     * @see #read(ByteBuf, Consumer)
-     */
-    private boolean readBigRow(final ByteBuf cumulateBuffer) {
-        assertPhase(Phase.READ_BIG_ROW);
-
-        final MySQLColumnMeta[] columnMetaArray = Objects.requireNonNull(this.rowMeta, "this.rowMeta").columnMetaArray;
-        final BigRowData bigRowData = Objects.requireNonNull(this.bigRowData, "this.bigRowData");
-        ByteBuf cachePayload = bigRowData.cachePayload;
-
-        int sequenceId = -1;
-        final byte[] nullBitMap = bigRowData.bigRowNullBitMap;
-        final Object[] bigRowValues = bigRowData.bigRowValues;
-        final long bigColumnBoundary = Math.min((Runtime.getRuntime().totalMemory() / 10L), (1L << 28));
-        final boolean rowPayloadEnd = bigRowData.payloadEnd;
-        boolean bigRowEnd = false;
-        ourFor:
-        for (int i = bigRowData.index, payloadLength; i < columnMetaArray.length; bigRowData.index = ++i) {
-
-            ByteBuf packetPayload;
-            if (rowPayloadEnd) {
-                packetPayload = cachePayload;
-                payloadLength = cachePayload.readableBytes();
-            } else if (Packets.hasOnePacket(cumulateBuffer)) {
-                payloadLength = Packets.readInt3(cumulateBuffer);
-                sequenceId = Packets.readInt1AsInt(cumulateBuffer);
-                if (i == 0) {
-                    // this block handle first payload of big row.
-                    if (payloadLength != ClientProtocol.MAX_PAYLOAD_SIZE) {
-                        throw new IllegalStateException("Not bit row,can't invoke this method.");
-                    }
-                    if (cumulateBuffer.readByte() != 0) {
-                        throw MySQLExceptions.createFatalIoException("Binary big row packet_header[%s] error."
-                                , cumulateBuffer.getByte(cumulateBuffer.readerIndex() - 1));
-                    }
-                    cumulateBuffer.readBytes(nullBitMap);
-                    payloadLength = payloadLength - 1 - nullBitMap.length;
-                }
-                packetPayload = cumulateBuffer.readSlice(payloadLength);
-            } else {
-                break;
-            }
-
-            //below  skip null column
-            i = skipNullColumn(bigRowData, packetPayload, i);
-            if (i == columnMetaArray.length && payloadLength != 0) {
-                throw MySQLExceptions.createFatalIoException(
-                        "Not found non-null column after index[%s]", bigRowData.index);
-            }
-            bigRowData.index = i;
-            final MySQLColumnMeta columnMeta = columnMetaArray[i];
-            if (rowPayloadEnd) {
-                bigRowValues[i] = readColumnValue(cachePayload, columnMeta);
-                continue;
-            }
-            long columnBytes;
-            while (true) {
-                // this 'while' block handle non-null column.
-                ByteBuf payloadBuffer = cachePayload.isReadable() ? cachePayload : packetPayload;
-                columnBytes = obtainColumnBytes(columnMeta, payloadBuffer);
-                if (columnBytes < 0L) {
-                    cachePayload = cumulateCachePayloadBuffer(cachePayload, packetPayload);
-                } else if (columnBytes < bigColumnBoundary) {
-                    // this 'if' block handle small/medium column.
-                    if (payloadBuffer.readableBytes() < columnBytes) {
-                        cachePayload = cumulateCachePayloadBuffer(cachePayload, packetPayload);
-                    } else {
-                        bigRowValues[i] = readColumnValue(payloadBuffer, columnMeta);
-                        break;
-                    }
-                } else if (columnMeta.typeFlag == ProtocolConstants.TYPE_LONG_BLOB
-                        || columnMeta.typeFlag == ProtocolConstants.TYPE_BLOB) {
-                    // this 'if' block handle big column.
-                    BigColumn bigColumn = createBigColumn(Packets.readLenEnc(payloadBuffer));
-                    bigRowValues[i] = bigColumn;
-                    if (payloadBuffer != cachePayload) {
-                        cachePayload = cumulateCachePayloadBuffer(cachePayload, packetPayload);
-                    }
-                    this.phase = Phase.READ_BIG_COLUMN;
-                    break ourFor;
-                } else {
-                    throw MySQLExceptions.createFatalIoException("Server send binary column[%s] length error."
-                            , columnMeta.columnLabel);
-                }
-                if (payloadLength < Packets.MAX_PAYLOAD) {
-                    break; // break while
-                }
-                if (!Packets.hasOnePacket(cumulateBuffer)) {
-                    break ourFor;
-                }
-                payloadLength = Packets.readInt3(cumulateBuffer);
-                sequenceId = Packets.readInt1AsInt(cumulateBuffer);
-                packetPayload = cumulateBuffer.readSlice(payloadLength);
-            }
-
-            if (payloadLength < Packets.MAX_PAYLOAD && i > 0) {
-                // big row read end.
-                bigRowData.payloadEnd = true;
-                bigRowEnd = true;
-                break;
-            }
+    private ByteBuf mergePayload(final ByteBuf cumulateBuffer, final ByteBuf cache, final BigRowData bigRowData) {
+        if (bigRowData.payloadEnd) {
+            throw new IllegalArgumentException("big row have ended.");
         }
+        int sequenceId = -1;
+        ByteBuf payload = cache;
+        for (int payloadLength; Packets.hasOnePacket(cumulateBuffer); ) {
+            payloadLength = Packets.readInt3(cumulateBuffer);
+            sequenceId = Packets.readInt1AsInt(cumulateBuffer);
 
-        if (cachePayload.isReadable()) {
-            bigRowData.cachePayload = cachePayload;
-        } else {
-            cachePayload.release();
-            bigRowData.cachePayload = Unpooled.EMPTY_BUFFER;
+            if (payload.maxWritableBytes() < payloadLength) {
+                ByteBuf temp = this.adjutant.allocator().buffer(payload.readableBytes() + payloadLength, (1 << 30));
+                temp.writeBytes(payload);
+                payload = temp;
+            }
+            payload.writeBytes(cumulateBuffer, payloadLength);
+
+            if (payloadLength < Packets.MAX_PAYLOAD) {
+                bigRowData.payloadEnd = true;
+                break;
+            }
         }
         if (sequenceId > -1) {
-            updateSequenceId(sequenceId);
+            this.stmtTask.updateSequenceId(sequenceId);
         }
-        if (bigRowEnd) {
-            if (bigRowData.index != columnMetaArray.length) {
-                throw new IllegalStateException(String.format(
-                        "BigRow end ,but index[%s] not equals columnMetaArray.length[%s]"
-                        , bigRowData.index, columnMetaArray.length));
+        return payload;
+    }
+
+    /**
+     * @return true: big row end.
+     */
+    private boolean readOneBigRow(final ByteBuf cumulateBuffer) {
+        assertPhase(Phase.READ_BIG_ROW);
+        final MySQLColumnMeta[] columnMetaArray = Objects.requireNonNull(this.rowMeta, "this.rowMeta").columnMetaArray;
+        final BigRowData bigRowData = Objects.requireNonNull(this.bigRowData, "this.bigRowData");
+        final boolean binaryReader = isBinaryReader();
+        final byte[] nullBitMap = bigRowData.nullBitMap;
+        ByteBuf payload = bigRowData.cachePayload;
+
+        for (int i = bigRowData.index; i < columnMetaArray.length; bigRowData.index = ++i) {
+
+            if (binaryReader && (nullBitMap[((i + 2) >> 3)] & (1 << ((i + 2) & 7))) != 0) {
+                bigRowData.values[i] = null;
+                continue;
             }
-            bigRowData.payloadEnd = true;
-            bigRowData.cachePayload.release();
+            if (!bigRowData.payloadEnd) {
+                bigRowData.cachePayload = payload = mergePayload(cumulateBuffer, payload, bigRowData);
+            }
+            if (!binaryReader && Packets.getInt1(payload, payload.readerIndex()) == Packets.ENC_0) {
+                payload.readByte(); // skip ENC_0
+                bigRowData.values[i] = null;
+                continue;
+            }
+
+            final MySQLColumnMeta columnMeta = columnMetaArray[i];
+            final long columnBytes = obtainColumnBytes(columnMeta, payload);
+            if (columnBytes == -1L) {
+                // need more cumulate
+                break;
+            }
+
+            if (columnBytes > BIG_COLUMN_BOUND) {
+                // this block: big column
+                long actualColumnBytes = Packets.readLenEnc(payload); // skip length encode prefix for big column
+                if (columnMeta.mysqlType == MySQLType.GEOMETRY) {
+                    if (payload.readableBytes() < 4) {
+                        // need more cumulate
+                        break;
+                    }
+                    payload.skipBytes(4);// skip geometry prefix
+                    actualColumnBytes -= 4;
+                }
+                bigRowData.cachePayload = payload;
+                this.phase = Phase.READ_BIG_COLUMN;
+                bigRowData.values[i] = createBigColumn(actualColumnBytes, payload);
+
+                payload.release();
+                bigRowData.cachePayload = Unpooled.EMPTY_BUFFER;
+                break;
+            }
+            if (columnBytes > payload.readableBytes()) {
+                // need more cumulate
+                break;
+            }
+            bigRowData.values[i] = readColumnValue(payload, columnMeta);
+        }
+
+        final boolean bigRowEnd = bigRowData.index == columnMetaArray.length;
+        if (bigRowEnd) {
+            if (payload != bigRowData.cachePayload) {
+                throw new IllegalStateException("cachePayload and bigRowData.cachePayload not match");
+            }
+            payload.release();
+            if (!bigRowData.payloadEnd) {
+                throw MySQLExceptions.createFatalIoException("bigRow unexpected end.");
+            }
+            this.readRowCount++;
             this.bigRowData = null;
-            if (this.error == null && !this.sink.isCancelled()) {
-                this.sink.next(MySQLResultRow.from(bigRowData.bigRowValues, this.rowMeta, this.adjutant));
+            if (!this.stmtTask.isCanceled()) {
+                this.sink.next(MySQLResultRow.from(bigRowData.values, rowMeta, this.adjutant));
             }
         }
         return bigRowEnd;
+
     }
 
 
     /**
-     * @see #readBigRow(ByteBuf)
+     * @see #readOneBigRow(ByteBuf)
      */
-    private ByteBuf cumulateCachePayloadBuffer(final ByteBuf cachePayloadBuffer, ByteBuf packetPayload) {
-        ByteBuf payloadBuffer = cachePayloadBuffer;
-        final int payloadLength = packetPayload.readableBytes();
-        if (!payloadBuffer.isReadable()) {
-            payloadBuffer.release();
-            payloadBuffer = this.adjutant.allocator().buffer(payloadLength);
-        } else if (payloadBuffer.maxFastWritableBytes() < payloadLength) {
-            ByteBuf tempBuffer = this.adjutant.allocator().buffer(payloadBuffer.readableBytes() + payloadLength);
-            tempBuffer.writeBytes(payloadBuffer);
-            payloadBuffer.release();
-            payloadBuffer = tempBuffer;
-        }
-        payloadBuffer.writeBytes(packetPayload, payloadLength);
-        return payloadBuffer;
-    }
-
-    /**
-     * @see #readBigRow(ByteBuf)
-     */
-    private BigColumn createBigColumn(final long totalBytes) {
-        Path directory = Paths.get(TEMP_DIRECTORY.toString(), LocalDate.now().toString());
+    private BigColumn createBigColumn(final long totalBytes, final ByteBuf payload) {
+        final Path directory = Paths.get(TEMP_DIRECTORY.toString(), LocalDate.now().toString());
+        final Path file;
         try {
             if (!Files.exists(directory)) {
                 Files.createDirectories(directory);
             }
-            Path file = Files.createTempFile(directory, "b", "bc");
-            return new BigColumn(file, totalBytes);
-        } catch (IOException e) {
+            file = Files.createTempFile(directory, "b", "bc");
+        } catch (Throwable e) {
             throw new BigRowIoException(
                     String.format("Create big column temp file failure,directory[%s]", directory), e);
         }
+
+        final BigColumn bigColumn = new BigColumn(file, totalBytes);
+        try (OutputStream out = Files.newOutputStream(file, StandardOpenOption.WRITE)) {
+            final int writeBytes = payload.readableBytes();
+            payload.readBytes(out, writeBytes);
+            bigColumn.wroteBytes += writeBytes;
+        } catch (Throwable e) {
+            try {
+                Files.deleteIfExists(file);
+            } catch (IOException ex) {
+                throw new BigRowIoException(
+                        String.format("Write big column temp file failure,file[%s]", file), e);
+            }
+            throw new BigRowIoException(
+                    String.format("Write big column temp file failure,file[%s]", file), e);
+        }
+        return bigColumn;
     }
 
     /**
-     * @return true:big column end,next invoke {@link #readBigRow(ByteBuf)} .
+     * @return true:big column end,next invoke {@link #readOneBigRow(ByteBuf)} .
      * @see #read(ByteBuf, Consumer)
-     * @see #readBigRow(ByteBuf)
+     * @see #readOneBigRow(ByteBuf)
      */
     private boolean readBigColumn(final ByteBuf cumulateBuffer) {
         assertPhase(Phase.READ_BIG_COLUMN);
 
         final BigRowData bigRowData = Objects.requireNonNull(this.bigRowData, "this.bigRowData");
-        final MySQLColumnMeta[] columnMetas = Objects.requireNonNull(this.rowMeta, "this.rowMeta").columnMetaArray;
-        final int bigColumnIndex = bigRowData.index;
-        Object columnValue = bigRowData.bigRowValues[bigColumnIndex];
-        final BigColumn bigColumn;
-        if (columnValue instanceof BigColumn) {
-            bigColumn = (BigColumn) columnValue;
-            if (bigColumn.writeEnd()) {
-                throw new IllegalStateException(String.format("this.phase is %s ,but have wrote end ."
-                        , Phase.READ_BIG_COLUMN));
-            }
-        } else {
-            throw new IllegalStateException(String.format("BigColumn[%s] index[%s] isn't %s instance."
-                    , columnMetas[bigColumnIndex].columnLabel
-                    , bigColumnIndex
-                    , BigColumn.class.getName()));
+        if (bigRowData.cachePayload != Unpooled.EMPTY_BUFFER) {
+            throw new IllegalStateException("bigRowData.cachePayload not EMPTY_BUFFER");
         }
+
+        final int columnIndex = bigRowData.index;
+        final MySQLColumnMeta columnMeta = Objects.requireNonNull(this.rowMeta, "this.rowMeta")
+                .columnMetaArray[columnIndex];
+        final BigColumn bigColumn = obtainBigColumn(bigRowData.values[columnIndex], columnMeta, columnIndex);
+
         boolean bigColumnEnd = false;
         try (OutputStream out = Files.newOutputStream(bigColumn.path, StandardOpenOption.WRITE)) {
             final long totalBytes = bigColumn.totalBytes;
             long writtenBytes = bigColumn.wroteBytes;
             if (writtenBytes >= totalBytes) {
                 throw new IllegalStateException(String.format("BigColumn[%s] wroteBytes[%s] > totalBytes[%s]"
-                        , columnMetas[bigColumnIndex].columnLabel, writtenBytes, totalBytes));
-            }
-            final ByteBuf payload = bigRowData.cachePayload;
-            if (payload.isReadable()) {
-                int writeBytes = (int) Math.min(totalBytes - writtenBytes, payload.readableBytes());
-                payload.readBytes(out, writeBytes);
-                writtenBytes += writeBytes;
-
-                payload.release();
-                bigRowData.cachePayload = Unpooled.EMPTY_BUFFER;
-
-                if (writtenBytes == totalBytes) {
-                    //this 'if' block handle big column end.
-                    this.phase = Phase.READ_BIG_ROW;
-                    bigRowData.index++;
-                    bigColumn.wroteBytes = writtenBytes;
-                    return true;
-                }
+                        , columnMeta.columnLabel, writtenBytes, totalBytes));
             }
 
             int payloadLength, sequenceId = -1, writeBytes;
             while (Packets.hasOnePacket(cumulateBuffer)) {
+                if (bigRowData.payloadEnd) {
+                    throw new IllegalStateException("big row unexpected end");
+                }
                 payloadLength = Packets.readInt3(cumulateBuffer);
                 sequenceId = Packets.readInt1AsInt(cumulateBuffer);
 
@@ -612,72 +640,81 @@ abstract class AbstractResultSetReader implements ResultSetReader {
                     }
                     final int restPayload = payloadLength - writeBytes;
                     if (restPayload > 0) {
-                        bigRowData.cachePayload = cumulateCachePayloadBuffer(bigRowData.cachePayload
-                                , cumulateBuffer.readSlice(restPayload));
-
+                        final ByteBuf temp = this.adjutant.allocator().buffer(restPayload, (1 << 30));
+                        temp.writeBytes(cumulateBuffer, restPayload);
+                        bigRowData.cachePayload = temp;
                     }
                     break;
                 } else if (writtenBytes > totalBytes) {
                     throw new IllegalStateException(String.format("BigColumn[%s] wroteBytes[%s] > totalBytes[%s]"
-                            , columnMetas[bigColumnIndex].columnLabel, writtenBytes, totalBytes));
+                            , columnMeta.columnLabel, writtenBytes, totalBytes));
                 }
-                bigRowData.bigRowValues[bigColumnIndex] = bigColumn.path;
+                bigRowData.values[columnIndex] = convertBigColumnValue(columnMeta, bigColumn.path);
             }
 
             bigColumn.wroteBytes = writtenBytes;
             if (sequenceId > -1) {
-                updateSequenceId(sequenceId);
+                this.stmtTask.updateSequenceId(sequenceId);
             }
         } catch (IOException e) {
+            try {
+                Files.deleteIfExists(bigColumn.path);
+            } catch (IOException ex) {
+                throw new BigRowIoException(
+                        String.format("Big row column[%s] read error.", columnMeta), e);
+            }
             throw new BigRowIoException(
-                    String.format("Big row column[%s] read error.", columnMetas[bigRowData.index]), e);
+                    String.format("Big row column[%s] read error.", columnMeta), e);
         }
         return bigColumnEnd;
 
+    }
+
+    private BigColumn obtainBigColumn(final Object columnValue, final MySQLColumnMeta columnMeta
+            , final int columnIndex) {
+        final BigColumn bigColumn;
+        if (columnValue instanceof BigColumn) {
+            bigColumn = (BigColumn) columnValue;
+            if (bigColumn.writeEnd()) {
+                throw new IllegalStateException(String.format("this.phase is %s ,but have wrote end ."
+                        , Phase.READ_BIG_COLUMN));
+            }
+        } else {
+            throw new IllegalStateException(String.format("BigColumn[%s] index[%s] isn't %s instance."
+                    , columnMeta.columnLabel
+                    , columnIndex
+                    , BigColumn.class.getName()));
+        }
+        return bigColumn;
+    }
+
+
+    /**
+     * @see #readBigColumn(ByteBuf)
+     */
+    private Object convertBigColumnValue(final MySQLColumnMeta meta, final Path file) {
+        final Object value;
+        switch (meta.mysqlType) {
+            case BLOB:
+            case GEOMETRY:
+            case LONGBLOB:
+                value = LongBinaries.fromTempPath(file);
+                break;
+            case TEXT:
+            case LONGTEXT:
+            case JSON:
+                value = LongStrings.fromTempPath(file, this.adjutant.obtainColumnCharset(meta.columnCharset));
+                break;
+            default:
+                throw new IllegalStateException(String.format("Unexpected sql type[%s]", meta.mysqlType));
+        }
+        return value;
     }
 
     private void assertPhase(Phase expectedPhase) {
         if (this.phase != expectedPhase) {
             throw new IllegalStateException(String.format("this.phase isn't %s .", expectedPhase));
         }
-    }
-
-    /**
-     * @see #doReadRowMeta(ByteBuf)
-     */
-    static int readColumnMeta(final ByteBuf cumulateBuffer, final MySQLColumnMeta[] columnMetaArray, int metaIndex
-            , Consumer<Integer> sequenceIdUpdater, TaskAdjutant adjutant) {
-        if (metaIndex < 0 || metaIndex >= columnMetaArray.length) {
-            throw new IllegalArgumentException(String.format("metaIndex[%s]  error.", metaIndex));
-        }
-        final boolean traceEnabled = LOG.isTraceEnabled();
-        if (traceEnabled) {
-            LOG.trace("read column meta start,metaIndex[{}],readableBytes[{}]"
-                    , metaIndex, cumulateBuffer.readableBytes());
-        }
-
-        int sequenceId = -1;
-        for (int payloadStartIndex, payloadLength; metaIndex < columnMetaArray.length; ) {
-            if (!Packets.hasOnePacket(cumulateBuffer)) {
-                if (traceEnabled) {
-                    LOG.trace("read column meta,no packet,more cumulate.");
-                }
-                break;
-            }
-            payloadLength = Packets.readInt3(cumulateBuffer);//skip payload length
-            sequenceId = Packets.readInt1AsInt(cumulateBuffer);
-            payloadStartIndex = cumulateBuffer.readerIndex();
-
-            columnMetaArray[metaIndex++] = MySQLColumnMeta.readFor41(cumulateBuffer, adjutant);
-            cumulateBuffer.readerIndex(payloadStartIndex + payloadLength);//to next packet,avoid tail filler
-        }
-        if (sequenceId > -1) {
-            sequenceIdUpdater.accept(sequenceId);
-        }
-        if (traceEnabled) {
-            LOG.trace("read column meta end,metaIndex[{}],sequenceId[{}]", metaIndex, sequenceId);
-        }
-        return metaIndex;
     }
 
 
@@ -696,28 +733,23 @@ abstract class AbstractResultSetReader implements ResultSetReader {
     }
 
 
-    static final class BigRowData {
+    private static final class BigRowData {
 
         private static final byte[] EMPTY_BIT_MAP = new byte[0];
 
-        final byte[] bigRowNullBitMap;
+        final byte[] nullBitMap;
 
-        private final Object[] bigRowValues;
+        private final Object[] values;
 
-        private ByteBuf cachePayload = Unpooled.EMPTY_BUFFER;
+        private ByteBuf cachePayload;
 
         private int index = 0;
 
         private boolean payloadEnd = false;
 
-        private BigRowData(final int columnCount, boolean binaryReader) {
-            this.bigRowValues = new Object[columnCount];
-            if (binaryReader) {
-                this.bigRowNullBitMap = new byte[(columnCount + 9) / 8];
-            } else {
-                this.bigRowNullBitMap = EMPTY_BIT_MAP;
-            }
-
+        BigRowData(final int columnCount, byte[] nullBitMap) {
+            this.values = new Object[columnCount];
+            this.nullBitMap = nullBitMap;
         }
 
     }
