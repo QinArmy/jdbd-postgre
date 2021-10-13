@@ -35,7 +35,6 @@ import java.nio.charset.CharsetEncoder;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
 import java.util.List;
-import java.util.Objects;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
@@ -356,11 +355,12 @@ final class ComQueryTask extends AbstractCommandTask {
         }
         this.stmt = stmt;
         this.sink = sink;
+        this.resultSetReader = TextResultSetReader.create(this, sink.froResultSet());
     }
 
 
     @Override
-    public final String toString() {
+    public String toString() {
         return this.getClass().getSimpleName() + "@" + this.hashCode();
     }
 
@@ -369,7 +369,7 @@ final class ComQueryTask extends AbstractCommandTask {
 
     @Nullable
     @Override
-    protected final Publisher<ByteBuf> start() {
+    protected Publisher<ByteBuf> start() {
         Publisher<ByteBuf> publisher;
         final Stmt stmt = this.stmt;
         final Supplier<Integer> sequenceId = this::addAndGetSequenceId;
@@ -409,7 +409,7 @@ final class ComQueryTask extends AbstractCommandTask {
 
 
     @Override
-    protected final boolean decode(final ByteBuf cumulateBuffer, final Consumer<Object> serverStatusConsumer) {
+    protected boolean decode(final ByteBuf cumulateBuffer, final Consumer<Object> serverStatusConsumer) {
         if (this.phase == Phase.START_ERROR) {
             publishError(this.sink::error);
             return true;
@@ -424,27 +424,10 @@ final class ComQueryTask extends AbstractCommandTask {
                 }
                 break;
                 case READ_TEXT_RESULT_SET: {
-                    taskEnd = readTextResultSet(cumulateBuffer, serverStatusConsumer);
+                    taskEnd = readResultSet(cumulateBuffer, serverStatusConsumer);
                     continueRead = !taskEnd && Packets.hasOnePacket(cumulateBuffer);
                 }
                 break;
-                case READ_MULTI_STMT_ENABLE_RESULT: {
-                    taskEnd = readEnableMultiStmtResponse(cumulateBuffer, serverStatusConsumer);
-                    if (!taskEnd) {
-                        this.phase = Phase.READ_EXECUTE_RESPONSE;
-                    }
-                    continueRead = false;
-                }
-                break;
-                case READ_MULTI_STMT_DISABLE_RESULT: {
-                    readDisableMultiStmtResponse(cumulateBuffer, serverStatusConsumer);
-                    taskEnd = true;
-                    continueRead = false;
-                }
-                break;
-                case LOCAL_INFILE_REQUEST: {
-                    throw new IllegalStateException(String.format("%s phase[%s] error.", this, this.phase));
-                }
                 default:
                     throw MySQLExceptions.createUnexpectedEnumException(this.phase);
             }
@@ -469,103 +452,24 @@ final class ComQueryTask extends AbstractCommandTask {
             LOG.error("Unknown error.", e);
         } else {
             this.phase = Phase.TASK_END;
-            addError(MySQLExceptions.wrap(e));
-            this.downstreamSink.error(createException());
+            addError(MySQLExceptions.wrapIfNonJvmFatal(e));
+            publishError(this.sink::error);
         }
         return Action.TASK_END;
     }
 
+    @Override
+    void handleReadResultSetEnd() {
+        this.phase = Phase.READ_EXECUTE_RESPONSE;
+    }
+
+    @Override
+    ResultSetReader createResultSetReader() {
+        return TextResultSetReader.create(this, this.sink.froResultSet());
+    }
 
     /*################################## blow private method ##################################*/
 
-    /**
-     * @return true: task end.
-     * @see #decode(ByteBuf, Consumer)
-     */
-    private boolean readEnableMultiStmtResponse(final ByteBuf cumulateBuffer
-            , final Consumer<Object> serverStatusConsumer) {
-        assertPhase(Phase.READ_MULTI_STMT_ENABLE_RESULT);
-
-        final int payloadLength = Packets.readInt3(cumulateBuffer);
-        cumulateBuffer.skipBytes(1); // skip sequence id
-
-        final int status = Packets.getInt1(cumulateBuffer, cumulateBuffer.readerIndex());
-        boolean taskEnd;
-        switch (status) {
-            case ErrorPacket.ERROR_HEADER: {
-                ErrorPacket error;
-                error = ErrorPacket.readPacket(cumulateBuffer.readSlice(payloadLength)
-                        , this.negotiatedCapability, this.adjutant.obtainCharsetError());
-                if (LOG.isDebugEnabled()) {
-                    LOG.debug("{} COM_SET_OPTION enable failure,{}", this, error);
-                }
-                // release ByteBuf
-                Flux.from(Objects.requireNonNull(this.packetPublisher, "this.packetPublisher"))
-                        .map(ByteBuf::release)
-                        .subscribe();
-                this.packetPublisher = null;
-                this.tempMultiStmtStatus = TempMultiStmtStatus.ENABLE_FAILURE;
-                addError(MySQLExceptions.createErrorPacketException(error));
-                taskEnd = true;
-            }
-            break;
-            case EofPacket.EOF_HEADER:
-            case OkPacket.OK_HEADER: {
-                OkPacket ok;
-                ok = OkPacket.read(cumulateBuffer.readSlice(payloadLength), this.negotiatedCapability);
-                serverStatusConsumer.accept(ok.getStatusFags());
-                this.tempMultiStmtStatus = TempMultiStmtStatus.ENABLE_SUCCESS;
-                taskEnd = false;
-                if (LOG.isDebugEnabled()) {
-                    LOG.debug("{} COM_SET_OPTION enable success.", this);
-                }
-            }
-            break;
-            default:
-                throw MySQLExceptions.createFatalIoException("COM_SET_OPTION response status[%s] error.", status);
-        }
-        return taskEnd;
-    }
-
-
-    /**
-     * @see #decode(ByteBuf, Consumer)
-     */
-    private void readDisableMultiStmtResponse(final ByteBuf cumulateBuffer
-            , final Consumer<Object> serverStatusConsumer) {
-        assertPhase(Phase.READ_MULTI_STMT_DISABLE_RESULT);
-
-        final int payloadLength = Packets.readInt3(cumulateBuffer);
-        cumulateBuffer.skipBytes(1); // skip sequence_id
-
-        final int status = Packets.getInt1(cumulateBuffer, cumulateBuffer.readerIndex());
-        switch (status) {
-            case ErrorPacket.ERROR_HEADER: {
-                ErrorPacket error;
-                error = ErrorPacket.readPacket(cumulateBuffer.readSlice(payloadLength)
-                        , this.negotiatedCapability, this.adjutant.obtainCharsetError());
-                if (LOG.isDebugEnabled()) {
-                    LOG.debug("COM_SET_OPTION disabled failure,{}", error);
-                }
-                this.tempMultiStmtStatus = TempMultiStmtStatus.DISABLE_FAILURE;
-                addError(MySQLExceptions.createErrorPacketException(error));
-            }
-            break;
-            case EofPacket.EOF_HEADER:
-            case OkPacket.OK_HEADER: {
-                OkPacket ok;
-                ok = OkPacket.read(cumulateBuffer.readSlice(payloadLength), this.negotiatedCapability);
-                serverStatusConsumer.accept(ok.getStatusFags());
-                if (LOG.isDebugEnabled()) {
-                    LOG.debug("COM_SET_OPTION disabled success.");
-                }
-                this.tempMultiStmtStatus = TempMultiStmtStatus.DISABLE_SUCCESS;
-            }
-            break;
-            default:
-                throw MySQLExceptions.createFatalIoException("COM_SET_OPTION response status[%s] error.", status);
-        }
-    }
 
     /**
      * @return true: task end.
@@ -584,7 +488,7 @@ final class ComQueryTask extends AbstractCommandTask {
             }
             break;
             case OK: {
-                readUpdateResult(cumulateBuffer, serverStatusConsumer);
+                taskEnd = readUpdateResult(cumulateBuffer, serverStatusConsumer);
             }
             break;
             case LOCAL_INFILE_REQUEST: {
@@ -594,9 +498,7 @@ final class ComQueryTask extends AbstractCommandTask {
             break;
             case TEXT_RESULT: {
                 this.phase = Phase.READ_TEXT_RESULT_SET;
-                this.resultSetReader.read(cumulateBuffer);
-                taskEnd = readTextResultSet(cumulateBuffer, serverStatusConsumer);
-
+                taskEnd = readResultSet(cumulateBuffer, serverStatusConsumer);
             }
             break;
             default:
@@ -605,36 +507,7 @@ final class ComQueryTask extends AbstractCommandTask {
         return taskEnd;
     }
 
-    /**
-     * <p>
-     * when text result set end, update {@link #phase}.
-     * </p>
-     *
-     * @return true: task end.
-     */
-    private boolean readTextResultSet(final ByteBuf cumulateBuffer, final Consumer<Object> serverStatusConsumer) {
-        assertPhase(Phase.READ_TEXT_RESULT_SET);
-        final boolean taskEnd;
-        if (this.downstreamSink.readResultSet(cumulateBuffer, serverStatusConsumer)) {
-            if (this.downstreamSink.hasMoreResult()) {
-                this.phase = Phase.READ_EXECUTE_RESPONSE;
-                taskEnd = false;
-            } else if (hasError()) {
-                taskEnd = true;
-            } else if (this.downstreamSink instanceof SingleModeBatchDownstreamSink) {
-                final SingleModeBatchDownstreamSink sink = (SingleModeBatchDownstreamSink) this.downstreamSink;
-                taskEnd = !sink.hasMoreGroup() || sink.sendCommand();
-                if (!taskEnd) {
-                    this.phase = Phase.READ_EXECUTE_RESPONSE;
-                }
-            } else {
-                taskEnd = true;
-            }
-        } else {
-            taskEnd = false;
-        }
-        return taskEnd;
-    }
+
 
 
     /**
@@ -853,23 +726,24 @@ final class ComQueryTask extends AbstractCommandTask {
         }
     }
 
+    /*################################## blow private static method ##################################*/
 
     /**
      * invoke this method after invoke {@link Packets#hasOnePacket(ByteBuf)}.
      *
      * @see #decode(ByteBuf, Consumer)
      */
-    static ComQueryResponse detectComQueryResponseType(final ByteBuf cumulateBuffer, final int negotiatedCapability) {
+    private static ComQueryResponse detectComQueryResponseType(final ByteBuf cumulateBuffer, final int negotiatedCapability) {
         int readerIndex = cumulateBuffer.readerIndex();
         final int payloadLength = Packets.getInt3(cumulateBuffer, readerIndex);
         // skip header
         readerIndex += Packets.HEADER_SIZE;
-        ComQueryResponse responseType;
+        final ComQueryResponse responseType;
         final boolean metadata = (negotiatedCapability & Capabilities.CLIENT_OPTIONAL_RESULTSET_METADATA) != 0;
 
-        switch (Packets.getInt1(cumulateBuffer, readerIndex++)) {
+        switch (Packets.getInt1AsInt(cumulateBuffer, readerIndex++)) {
             case 0: {
-                if (metadata && Packets.obtainLenEncIntByteCount(cumulateBuffer, readerIndex) + 1 == payloadLength) {
+                if (metadata && obtainLenEncIntByteCount(cumulateBuffer, readerIndex) + 1 == payloadLength) {
                     responseType = ComQueryResponse.TEXT_RESULT;
                 } else {
                     responseType = ComQueryResponse.OK;
@@ -889,7 +763,29 @@ final class ComQueryTask extends AbstractCommandTask {
         return responseType;
     }
 
-    /*################################## blow private static method ##################################*/
+    /**
+     * @see #detectComQueryResponseType(ByteBuf, int)
+     */
+    private static int obtainLenEncIntByteCount(ByteBuf byteBuf, final int index) {
+        int byteCount;
+        switch (Packets.getInt1AsInt(byteBuf, index)) {
+            case Packets.ENC_0:
+                throw MySQLExceptions.createFatalIoException("MyServer ComQuery response unknown packet");
+            case Packets.ENC_3:
+                byteCount = 3;
+                break;
+            case Packets.ENC_4:
+                byteCount = 4;
+                break;
+            case Packets.ENC_9:
+                byteCount = 9;
+                break;
+            default:
+                // ENC_1
+                byteCount = 1;
+        }
+        return byteCount;
+    }
 
 
     /**
@@ -907,9 +803,6 @@ final class ComQueryTask extends AbstractCommandTask {
         START_ERROR,
         READ_EXECUTE_RESPONSE,
         READ_TEXT_RESULT_SET,
-        LOCAL_INFILE_REQUEST,
-        READ_MULTI_STMT_ENABLE_RESULT,
-        READ_MULTI_STMT_DISABLE_RESULT,
         TASK_END
     }
 

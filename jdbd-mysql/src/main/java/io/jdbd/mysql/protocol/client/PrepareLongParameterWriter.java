@@ -95,7 +95,7 @@ final class PrepareLongParameterWriter implements PrepareExecuteCommandWriter.Lo
             flux = sendPublisher(stmtIndex, paramValue.getIndex(), (Publisher<?>) value);
         } else {
             MySQLColumnMeta[] paramMetaArray = this.statementTask.obtainParameterMetas();
-            MySQLType mySQLType = paramMetaArray[paramValue.getIndex()].mysqlType;
+            MySQLType mySQLType = paramMetaArray[paramValue.getIndex()].sqlType;
             flux = Flux.error(MySQLExceptions.createUnsupportedParamTypeError(stmtIndex, mySQLType, paramValue));
         }
         return flux;
@@ -249,7 +249,7 @@ final class PrepareLongParameterWriter implements PrepareExecuteCommandWriter.Lo
         }
 
         final Charset charset;
-        if (this.statementTask.obtainParameterMetas()[paramIndex].mysqlType.isLongString()) {
+        if (this.statementTask.obtainParameterMetas()[paramIndex].sqlType.isLongString()) {
             charset = obtainClobCharset();
         } else {
             charset = this.adjutant.charsetClient();
@@ -327,7 +327,7 @@ final class PrepareLongParameterWriter implements PrepareExecuteCommandWriter.Lo
 
     private Charset obtainCharset(final int paramIndex) {
         final Charset charset;
-        if (this.statementTask.obtainParameterMetas()[paramIndex].mysqlType.isLongString()) {
+        if (this.statementTask.obtainParameterMetas()[paramIndex].sqlType.isLongString()) {
             charset = obtainClobCharset();
         } else {
             charset = this.adjutant.charsetClient();

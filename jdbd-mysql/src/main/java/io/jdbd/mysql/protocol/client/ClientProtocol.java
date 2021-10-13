@@ -11,18 +11,6 @@ interface ClientProtocol {
      */
     int MAX_PAYLOAD_SIZE = (1 << 24) - 1;
 
-    int SERVER_STATUS_IN_TRANS = 1;
-    int SERVER_STATUS_AUTOCOMMIT = 2; // Server in auto_commit mode
-    int SERVER_MORE_RESULTS_EXISTS = 8; // Multi query - next query exists
-    int SERVER_QUERY_NO_GOOD_INDEX_USED = 1 << 4;
-
-    int SERVER_QUERY_NO_INDEX_USED = 1 << 5;
-    int SERVER_STATUS_CURSOR_EXISTS = 1 << 6;
-    int SERVER_STATUS_LAST_ROW_SENT = 1 << 7; // The server status for 'last-row-sent'
-    int SERVER_QUERY_WAS_SLOW = 1 << 11;
-
-    int SERVER_SESSION_STATE_CHANGED = 1 << 14;
-
     Mono<Void> closeGracefully();
 
 }

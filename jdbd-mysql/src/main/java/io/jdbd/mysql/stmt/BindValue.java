@@ -2,19 +2,20 @@ package io.jdbd.mysql.stmt;
 
 import io.jdbd.lang.Nullable;
 import io.jdbd.mysql.MySQLType;
-import io.jdbd.vendor.stmt.ParamValue;
+import io.jdbd.vendor.stmt.IBindValue;
+import io.jdbd.vendor.stmt.JdbdParamValue;
 
 
-public final class BindValue extends MySQLParamValue implements ParamValue {
+public final class BindValue extends JdbdParamValue implements IBindValue {
 
-    public static BindValue create(int parameterIndex, MySQLType type, @Nullable Object value) {
+    public static BindValue wrap(int parameterIndex, MySQLType type, @Nullable Object value) {
         if (parameterIndex < 0) {
             throw new IllegalArgumentException(String.format("parameterIndex[%s]", parameterIndex));
         }
         return new BindValue(parameterIndex, type, value);
     }
 
-    public static BindValue create(BindValue bindValue, MySQLType newType) {
+    public static BindValue wrap(BindValue bindValue, MySQLType newType) {
         return new BindValue(bindValue.getIndex(), newType, bindValue.get());
     }
 
@@ -22,12 +23,13 @@ public final class BindValue extends MySQLParamValue implements ParamValue {
     private final MySQLType type;
 
 
-    private BindValue(int parameterIndex, MySQLType type, @Nullable Object value) {
-        super(parameterIndex, type == MySQLType.NULL ? null : value);
+    private BindValue(int index, MySQLType type, @Nullable Object value) {
+        super(index, value);
         this.type = type;
     }
 
-    public final MySQLType getType() {
+    @Override
+    public MySQLType getType() {
         return this.type;
     }
 

@@ -79,7 +79,7 @@ public final class ErrorPacket implements MySQLPacket {
     }
 
     public static boolean isErrorPacket(ByteBuf byteBuf) {
-        return Packets.getInt1(byteBuf, byteBuf.readerIndex()) == ERROR_HEADER;
+        return Packets.getInt1AsInt(byteBuf, byteBuf.readerIndex()) == ERROR_HEADER;
     }
 
 }

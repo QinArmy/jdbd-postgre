@@ -4,7 +4,7 @@ import io.netty.buffer.ByteBuf;
 
 import java.util.function.Supplier;
 
-interface StmtTask {
+interface StmtTask extends MetaAdjutant {
 
     void addErrorToTask(Throwable error);
 

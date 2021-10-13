@@ -4,10 +4,10 @@ package io.jdbd.mysql.protocol.client;
 import io.jdbd.JdbdSQLException;
 import io.jdbd.mysql.Groups;
 import io.jdbd.mysql.stmt.BindStmt;
-import io.jdbd.mysql.stmt.MySQLParamValue;
 import io.jdbd.mysql.stmt.Stmts;
 import io.jdbd.result.ResultRow;
 import io.jdbd.result.ResultStates;
+import io.jdbd.vendor.stmt.JdbdParamValue;
 import io.jdbd.vendor.stmt.ParamStmt;
 import io.jdbd.vendor.stmt.ParamValue;
 import org.slf4j.Logger;
@@ -66,8 +66,8 @@ public class ComPreparedTaskSuiteTests extends AbstractStmtTaskSuiteTests {
 
         sql = "UPDATE mysql_types as t SET t.my_tiny_text = ? WHERE t.id = ?";
         bindValueList = new ArrayList<>(2);
-        bindValueList.add(MySQLParamValue.create(0, "prepare update 1"));
-        bindValueList.add(MySQLParamValue.create(1, 80L));
+        bindValueList.add(JdbdParamValue.wrap(0, "prepare update 1"));
+        bindValueList.add(JdbdParamValue.wrap(1, 80L));
 
         states = ComPreparedTask.update(Stmts.multiPrepare(sql, bindValueList), adjutant)
                 .block();

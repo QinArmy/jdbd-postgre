@@ -3,6 +3,7 @@ package io.jdbd.mysql.protocol.client;
 import io.jdbd.JdbdSQLException;
 import io.jdbd.mysql.util.MySQLExceptions;
 import io.jdbd.vendor.result.FluxResultSink;
+import io.jdbd.vendor.result.ResultSetReader;
 import io.netty.buffer.ByteBuf;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -26,16 +27,19 @@ abstract class AbstractCommandTask extends MySQLTask implements StmtTask {
 
     final int negotiatedCapability;
 
+    private final ResultSetReader resultSetReader;
+
     private int sequenceId = -1;
 
     private int resultIndex;
 
     private boolean downstreamCanceled;
 
-    AbstractCommandTask(TaskAdjutant adjutant, FluxResultSink sink) {
+    AbstractCommandTask(TaskAdjutant adjutant, final FluxResultSink sink) {
         super(adjutant, sink::error);
         this.sink = sink;
         this.negotiatedCapability = adjutant.negotiatedCapability();
+        this.resultSetReader = createResultSetReader();
     }
 
     /*################################## blow StmtTask method ##################################*/
@@ -95,6 +99,10 @@ abstract class AbstractCommandTask extends MySQLTask implements StmtTask {
         return ++this.sequenceId;
     }
 
+    abstract void handleReadResultSetEnd();
+
+    abstract ResultSetReader createResultSetReader();
+
 
     final void readErrorPacket(final ByteBuf cumulateBuffer) {
         final int payloadLength = Packets.readInt3(cumulateBuffer);
@@ -105,7 +113,33 @@ abstract class AbstractCommandTask extends MySQLTask implements StmtTask {
         addError(MySQLExceptions.createErrorPacketException(error));
     }
 
-    final void readUpdateResult(final ByteBuf cumulateBuffer, final Consumer<Object> serverStatusConsumer) {
+    /**
+     * @return true: task end.
+     */
+    final boolean readResultSet(final ByteBuf cumulateBuffer, final Consumer<Object> serverStatusConsumer) {
+
+        final boolean[] taskEndHolder = new boolean[]{false};
+        final Consumer<Object> consumer = status -> {
+            if (status instanceof TerminatorPacket) {
+                final TerminatorPacket tp = (TerminatorPacket) status;
+                taskEndHolder[0] = (tp.statusFags & TerminatorPacket.SERVER_MORE_RESULTS_EXISTS) == 0;
+            }
+            serverStatusConsumer.accept(status);
+        };
+        final boolean taskEnd;
+        if (this.resultSetReader.read(cumulateBuffer, consumer)) {
+            this.handleReadResultSetEnd();
+            taskEnd = taskEndHolder[0];
+        } else {
+            taskEnd = false;
+        }
+        return taskEnd;
+    }
+
+    /**
+     * @return true: task end.
+     */
+    final boolean readUpdateResult(final ByteBuf cumulateBuffer, final Consumer<Object> serverStatusConsumer) {
         final int payloadLength = Packets.readInt3(cumulateBuffer);
         updateSequenceId(Packets.readInt1AsInt(cumulateBuffer));
         final OkPacket ok;
@@ -113,6 +147,7 @@ abstract class AbstractCommandTask extends MySQLTask implements StmtTask {
         serverStatusConsumer.accept(ok);
         // emit update result.
         this.sink.next(MySQLResultStates.fromUpdate(getAndIncrementResultIndex(), ok));
+        return (ok.getStatusFags() & TerminatorPacket.SERVER_MORE_RESULTS_EXISTS) == 0;
     }
 
 
@@ -125,7 +160,7 @@ abstract class AbstractCommandTask extends MySQLTask implements StmtTask {
         return MySQLExceptions.createFatalIoException(
                 (Throwable) null
                 , "MySQL server row packet return sequence_id error,expected[%s] actual[%s]"
-                , expected, Packets.getInt1(cumulateBuffer, cumulateBuffer.readerIndex() - 1));
+                , expected, Packets.getInt1AsInt(cumulateBuffer, cumulateBuffer.readerIndex() - 1));
     }
 
 }

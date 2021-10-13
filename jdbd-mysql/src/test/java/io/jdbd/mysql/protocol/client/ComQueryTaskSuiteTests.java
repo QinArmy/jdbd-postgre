@@ -188,7 +188,7 @@ public class ComQueryTaskSuiteTests extends AbstractStmtTaskSuiteTests {
 
         final String sql = "SELECT t.id,t.name,t.create_time as createTime FROM mysql_types as t WHERE t.id > ? ORDER BY t.id LIMIT 50";
         try {
-            ComQueryTask.bindableUpdate(Stmts.single(sql, BindValue.create(0, MySQLType.BIGINT, 50L)), adjutant)
+            ComQueryTask.bindableUpdate(Stmts.single(sql, BindValue.wrap(0, MySQLType.BIGINT, 50L)), adjutant)
                     .block();
             fail("bindableUpdateIsQuery test failure.");
         } catch (SubscribeException e) {
@@ -627,18 +627,18 @@ public class ComQueryTaskSuiteTests extends AbstractStmtTaskSuiteTests {
         List<BindValue> paramGroup;
 
         paramGroup = new ArrayList<>(2);
-        paramGroup.add(BindValue.create(0, MySQLType.LONGTEXT, "bindable batch update 1"));
-        paramGroup.add(BindValue.create(1, MySQLType.BIGINT, 34L));
+        paramGroup.add(BindValue.wrap(0, MySQLType.LONGTEXT, "bindable batch update 1"));
+        paramGroup.add(BindValue.wrap(1, MySQLType.BIGINT, 34L));
         groupList.add(paramGroup);
 
         paramGroup = new ArrayList<>(2);
-        paramGroup.add(BindValue.create(0, MySQLType.LONGTEXT, "bindable batch update 2"));
-        paramGroup.add(BindValue.create(1, MySQLType.BIGINT, 35L));
+        paramGroup.add(BindValue.wrap(0, MySQLType.LONGTEXT, "bindable batch update 2"));
+        paramGroup.add(BindValue.wrap(1, MySQLType.BIGINT, 35L));
         groupList.add(paramGroup);
 
         paramGroup = new ArrayList<>(2);
-        paramGroup.add(BindValue.create(0, MySQLType.LONGTEXT, "bindable batch update 3"));
-        paramGroup.add(BindValue.create(1, MySQLType.BIGINT, 36L));
+        paramGroup.add(BindValue.wrap(0, MySQLType.LONGTEXT, "bindable batch update 3"));
+        paramGroup.add(BindValue.wrap(1, MySQLType.BIGINT, 36L));
         groupList.add(paramGroup);
 
         final List<ResultStates> resultStatesList;
@@ -671,23 +671,23 @@ public class ComQueryTaskSuiteTests extends AbstractStmtTaskSuiteTests {
         List<BindValue> paramGroup;
 
         paramGroup = new ArrayList<>(2);
-        paramGroup.add(BindValue.create(0, MySQLType.LONGTEXT, "bindable batch update 1"));
-        paramGroup.add(BindValue.create(1, MySQLType.BIGINT, 34L));
+        paramGroup.add(BindValue.wrap(0, MySQLType.LONGTEXT, "bindable batch update 1"));
+        paramGroup.add(BindValue.wrap(1, MySQLType.BIGINT, 34L));
         groupList.add(paramGroup);
 
         paramGroup = new ArrayList<>(2);
-        paramGroup.add(BindValue.create(0, MySQLType.LONGTEXT, "bindable batch update 2"));
-        paramGroup.add(BindValue.create(1, MySQLType.BIGINT, 35L));
+        paramGroup.add(BindValue.wrap(0, MySQLType.LONGTEXT, "bindable batch update 2"));
+        paramGroup.add(BindValue.wrap(1, MySQLType.BIGINT, 35L));
         groupList.add(paramGroup);
 
         paramGroup = new ArrayList<>(2);
-        paramGroup.add(BindValue.create(0, MySQLType.LONGTEXT, "bindable batch update 3"));
-        paramGroup.add(BindValue.create(1, MySQLType.BIGINT, 36L));
+        paramGroup.add(BindValue.wrap(0, MySQLType.LONGTEXT, "bindable batch update 3"));
+        paramGroup.add(BindValue.wrap(1, MySQLType.BIGINT, 36L));
         groupList.add(paramGroup);
 
         paramGroup = new ArrayList<>(2);
-        paramGroup.add(BindValue.create(0, MySQLType.LONGTEXT, "bindable batch update 4"));
-        paramGroup.add(BindValue.create(1, MySQLType.BIGINT, 37L));
+        paramGroup.add(BindValue.wrap(0, MySQLType.LONGTEXT, "bindable batch update 4"));
+        paramGroup.add(BindValue.wrap(1, MySQLType.BIGINT, 37L));
         groupList.add(paramGroup);
 
         final List<ResultStates> resultStatesList;
@@ -721,9 +721,9 @@ public class ComQueryTaskSuiteTests extends AbstractStmtTaskSuiteTests {
         final String sql = "SELECT t.id,t.name FROM mysql_types as t WHERE t.id > ?  ORDER BY t.id  LIMIT 10";
         final List<List<BindValue>> groupList = new ArrayList<>(3);
 
-        groupList.add(Collections.singletonList(BindValue.create(0, MySQLType.BIGINT, 50)));
-        groupList.add(Collections.singletonList(BindValue.create(0, MySQLType.BIGINT, 100)));
-        groupList.add(Collections.singletonList(BindValue.create(0, MySQLType.BIGINT, 150)));
+        groupList.add(Collections.singletonList(BindValue.wrap(0, MySQLType.BIGINT, 50)));
+        groupList.add(Collections.singletonList(BindValue.wrap(0, MySQLType.BIGINT, 100)));
+        groupList.add(Collections.singletonList(BindValue.wrap(0, MySQLType.BIGINT, 150)));
 
         try {
             ComQueryTask.bindableBatch(Stmts.batchBind(sql, groupList), adjutant)
@@ -766,10 +766,10 @@ public class ComQueryTaskSuiteTests extends AbstractStmtTaskSuiteTests {
         final String sql = "SELECT t.id,t.name FROM mysql_types as t WHERE t.id > ?  ORDER BY t.id  LIMIT 10";
         final List<List<BindValue>> groupList = new ArrayList<>(4);
 
-        groupList.add(Collections.singletonList(BindValue.create(0, MySQLType.BIGINT, 50)));
-        groupList.add(Collections.singletonList(BindValue.create(0, MySQLType.BIGINT, 100)));
-        groupList.add(Collections.singletonList(BindValue.create(0, MySQLType.BIGINT, 150)));
-        groupList.add(Collections.singletonList(BindValue.create(0, MySQLType.BIGINT, 160)));
+        groupList.add(Collections.singletonList(BindValue.wrap(0, MySQLType.BIGINT, 50)));
+        groupList.add(Collections.singletonList(BindValue.wrap(0, MySQLType.BIGINT, 100)));
+        groupList.add(Collections.singletonList(BindValue.wrap(0, MySQLType.BIGINT, 150)));
+        groupList.add(Collections.singletonList(BindValue.wrap(0, MySQLType.BIGINT, 160)));
 
         try {
             ComQueryTask.bindableBatch(Stmts.batchBind(sql, groupList), adjutant)
@@ -810,9 +810,9 @@ public class ComQueryTaskSuiteTests extends AbstractStmtTaskSuiteTests {
 
         final String sql = "UPDATE mysql_types as t SET t.my_long_text = 'error string WHERE t.id = ?";
         final List<List<BindValue>> groupList = new ArrayList<>(3);
-        groupList.add(Collections.singletonList(BindValue.create(0, MySQLType.BIGINT, 34L)));
-        groupList.add(Collections.singletonList(BindValue.create(0, MySQLType.BIGINT, 35L)));
-        groupList.add(Collections.singletonList(BindValue.create(0, MySQLType.BIGINT, 36L)));
+        groupList.add(Collections.singletonList(BindValue.wrap(0, MySQLType.BIGINT, 34L)));
+        groupList.add(Collections.singletonList(BindValue.wrap(0, MySQLType.BIGINT, 35L)));
+        groupList.add(Collections.singletonList(BindValue.wrap(0, MySQLType.BIGINT, 36L)));
 
         try {
             ComQueryTask.bindableBatch(Stmts.batchBind(sql, groupList), adjutant)
@@ -854,10 +854,10 @@ public class ComQueryTaskSuiteTests extends AbstractStmtTaskSuiteTests {
 
         final String sql = "UPDATE mysql_types as t SET t.my_long_text = 'error string WHERE t.id = ?";
         final List<List<BindValue>> groupList = new ArrayList<>(4);
-        groupList.add(Collections.singletonList(BindValue.create(0, MySQLType.BIGINT, 34L)));
-        groupList.add(Collections.singletonList(BindValue.create(0, MySQLType.BIGINT, 35L)));
-        groupList.add(Collections.singletonList(BindValue.create(0, MySQLType.BIGINT, 36L)));
-        groupList.add(Collections.singletonList(BindValue.create(0, MySQLType.BIGINT, 37L)));
+        groupList.add(Collections.singletonList(BindValue.wrap(0, MySQLType.BIGINT, 34L)));
+        groupList.add(Collections.singletonList(BindValue.wrap(0, MySQLType.BIGINT, 35L)));
+        groupList.add(Collections.singletonList(BindValue.wrap(0, MySQLType.BIGINT, 36L)));
+        groupList.add(Collections.singletonList(BindValue.wrap(0, MySQLType.BIGINT, 37L)));
 
         try {
             ComQueryTask.bindableBatch(Stmts.batchBind(sql, groupList), adjutant)

@@ -43,4 +43,9 @@ abstract class Capabilities {
         return (negotiatedCapability & CLIENT_PS_MULTI_RESULTS) != 0;
     }
 
+    static boolean deprecateEof(final int negotiatedCapability) {
+        return (negotiatedCapability & CLIENT_DEPRECATE_EOF) != 0;
+    }
+
+
 }

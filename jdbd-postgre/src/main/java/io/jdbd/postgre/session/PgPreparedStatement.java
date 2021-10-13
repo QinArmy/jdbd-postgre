@@ -72,7 +72,7 @@ final class PgPreparedStatement extends PgStatement implements PreparedStatement
 
 
     @Override
-    public final List<? extends SQLType> getParameterMeta() {
+    public final List<? extends SQLType> getParameterMetas() {
         return this.paramTypeList;
     }
 

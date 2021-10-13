@@ -55,9 +55,9 @@ public interface SQLType extends java.sql.SQLType {
 
     boolean isLongBinary();
 
-    boolean isString();
+    boolean isStringType();
 
-    boolean isBinary();
+    boolean isBinaryType();
 
     boolean isTimeType();
 

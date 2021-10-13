@@ -11,11 +11,6 @@
 
     <artifactId>jdbd-postgre</artifactId>
 
-    <properties>
-        <maven.compiler.source>8</maven.compiler.source>
-        <maven.compiler.target>8</maven.compiler.target>
-    </properties>
-
 
     <dependencies>
         <dependency>
@@ -58,10 +53,6 @@
             <version>${jackson.core.version}</version>
         </dependency>
 
-        <dependency>
-            <groupId>com.fasterxml.jackson.module</groupId>
-            <artifactId>jackson-modules-java8</artifactId>
-        </dependency>
 
         <dependency>
             <groupId>org.apache.logging.log4j</groupId>

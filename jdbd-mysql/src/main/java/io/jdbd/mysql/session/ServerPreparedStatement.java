@@ -3,7 +3,7 @@ package io.jdbd.mysql.session;
 import io.jdbd.DatabaseSession;
 import io.jdbd.JdbdSQLException;
 import io.jdbd.meta.SQLType;
-import io.jdbd.mysql.stmt.PrepareStmtTask;
+import io.jdbd.mysql.protocol.client.PrepareStmtTask;
 import io.jdbd.result.OrderedFlux;
 import io.jdbd.result.ResultRow;
 import io.jdbd.result.ResultRowMeta;
@@ -47,7 +47,7 @@ public final class ServerPreparedStatement<S extends MySQLDatabaseSession> exten
     }
 
     @Override
-    public List<? extends SQLType> getParameterMeta() {
+    public List<? extends SQLType> getParameterMetas() {
         return null;
     }
 

@@ -2,6 +2,7 @@ package io.jdbd.mysql.protocol.client;
 
 import io.jdbd.JdbdException;
 import io.jdbd.mysql.MySQLType;
+import io.jdbd.mysql.protocol.Constants;
 import io.jdbd.mysql.util.MySQLBinds;
 import io.jdbd.mysql.util.MySQLConvertUtils;
 import io.jdbd.mysql.util.MySQLExceptions;
@@ -33,6 +34,10 @@ import java.util.Set;
  * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_com_stmt_execute.html">Protocol::COM_STMT_EXECUTE</a>
  */
 final class PrepareExecuteCommandWriter implements ExecuteCommandWriter {
+
+    static ExecuteCommandWriter create(StmtTask stmtTask) {
+        return null;
+    }
 
 
     private final StatementTask statementTask;
@@ -96,6 +101,11 @@ final class PrepareExecuteCommandWriter implements ExecuteCommandWriter {
             }
         }
         return publisher;
+    }
+
+    @Override
+    public Publisher<ByteBuf> writeCommand(int stmtIndex) throws SQLException {
+        return null;
     }
 
     /*################################## blow private method ##################################*/
@@ -215,9 +225,9 @@ final class PrepareExecuteCommandWriter implements ExecuteCommandWriter {
         Packets.writeInt4(packet, this.statementId);// 2. statement_id
         //3.cursor Flags, reactive api not support cursor
         if (this.fetchResultSet) {
-            packet.writeByte(ProtocolConstants.CURSOR_TYPE_READ_ONLY);
+            packet.writeByte(Constants.CURSOR_TYPE_READ_ONLY);
         } else {
-            packet.writeByte(ProtocolConstants.CURSOR_TYPE_NO_CURSOR);
+            packet.writeByte(Constants.CURSOR_TYPE_NO_CURSOR);
         }
         Packets.writeInt4(packet, 1);//4. iteration_count,Number of times to execute the statement. Currently always 1.
 
@@ -226,7 +236,7 @@ final class PrepareExecuteCommandWriter implements ExecuteCommandWriter {
 
     private MySQLType decideBindType(int stmtIndex, MySQLColumnMeta meta, ParamValue paramValue) {
         final Object nonNull = paramValue.getNonNull();
-        final MySQLType targetType = meta.mysqlType;
+        final MySQLType targetType = meta.sqlType;
         final MySQLType bindType;
         if (nonNull instanceof Number) {
             if (nonNull instanceof Long) {
@@ -244,7 +254,7 @@ final class PrepareExecuteCommandWriter implements ExecuteCommandWriter {
             } else if (nonNull instanceof BigDecimal || nonNull instanceof BigInteger) {
                 bindType = MySQLType.DECIMAL;
             } else {
-                throw MySQLExceptions.createWrongArgumentsException(stmtIndex, meta.mysqlType, paramValue, null);
+                throw MySQLExceptions.createWrongArgumentsException(stmtIndex, meta.sqlType, paramValue, null);
             }
         } else if (nonNull instanceof Boolean) {
             if (targetType == MySQLType.CHAR
@@ -278,7 +288,7 @@ final class PrepareExecuteCommandWriter implements ExecuteCommandWriter {
             } else if (nonNull instanceof Instant) {
                 bindType = MySQLType.BIGINT;
             } else {
-                throw MySQLExceptions.createWrongArgumentsException(stmtIndex, meta.mysqlType, paramValue, null);
+                throw MySQLExceptions.createWrongArgumentsException(stmtIndex, meta.sqlType, paramValue, null);
             }
         } else if (nonNull instanceof byte[]) {
             bindType = MySQLType.VARBINARY;
@@ -299,13 +309,13 @@ final class PrepareExecuteCommandWriter implements ExecuteCommandWriter {
             } else if (nonNull instanceof ZoneOffset) {
                 bindType = MySQLType.INT;
             } else {
-                throw MySQLExceptions.createWrongArgumentsException(stmtIndex, meta.mysqlType, paramValue, null);
+                throw MySQLExceptions.createWrongArgumentsException(stmtIndex, meta.sqlType, paramValue, null);
             }
         } else if (nonNull instanceof TemporalAmount) {
             if (nonNull instanceof Duration) {
                 bindType = MySQLType.TIME;
             } else {
-                throw MySQLExceptions.createWrongArgumentsException(stmtIndex, meta.mysqlType, paramValue, null);
+                throw MySQLExceptions.createWrongArgumentsException(stmtIndex, meta.sqlType, paramValue, null);
             }
         } else if (nonNull instanceof Enum) {
             if (targetType == MySQLType.ENUM
@@ -321,7 +331,7 @@ final class PrepareExecuteCommandWriter implements ExecuteCommandWriter {
         } else if (nonNull instanceof Set) {
             bindType = MySQLType.VARCHAR;
         } else {
-            throw MySQLExceptions.createWrongArgumentsException(stmtIndex, meta.mysqlType, paramValue, null);
+            throw MySQLExceptions.createWrongArgumentsException(stmtIndex, meta.sqlType, paramValue, null);
         }
         return bindType;
     }
@@ -403,9 +413,9 @@ final class PrepareExecuteCommandWriter implements ExecuteCommandWriter {
                         String.format("MySQL %s type bind must convert by java type.", bindType));
             case NULL:
             case UNKNOWN:
-                throw MySQLExceptions.createUnsupportedParamTypeError(stmtIndex, meta.mysqlType, paramValue);
+                throw MySQLExceptions.createUnsupportedParamTypeError(stmtIndex, meta.sqlType, paramValue);
             default:
-                throw MySQLExceptions.createUnexpectedEnumException(meta.mysqlType);
+                throw MySQLExceptions.createUnexpectedEnumException(meta.sqlType);
         }
     }
 
@@ -428,19 +438,19 @@ final class PrepareExecuteCommandWriter implements ExecuteCommandWriter {
             Boolean b = MySQLConvertUtils.tryConvertToBoolean((String) nonNull);
             if (b == null) {
                 try {
-                    if (parameterMeta.mysqlType == MySQLType.TINYINT_UNSIGNED) {
+                    if (parameterMeta.sqlType == MySQLType.TINYINT_UNSIGNED) {
                         int1 = Short.parseShort((String) nonNull);
                     } else {
                         int1 = Byte.parseByte((String) nonNull);
                     }
                 } catch (NumberFormatException e) {
-                    throw MySQLExceptions.createTypeNotMatchException(stmtIndex, parameterMeta.mysqlType, bindValue);
+                    throw MySQLExceptions.createTypeNotMatchException(stmtIndex, parameterMeta.sqlType, bindValue);
                 }
             } else {
                 int1 = b ? 1 : 0;
             }
         } else {
-            throw MySQLExceptions.createTypeNotMatchException(stmtIndex, parameterMeta.mysqlType, bindValue);
+            throw MySQLExceptions.createTypeNotMatchException(stmtIndex, parameterMeta.sqlType, bindValue);
         }
         Packets.writeInt1(buffer, int1);
     }
@@ -457,7 +467,7 @@ final class PrepareExecuteCommandWriter implements ExecuteCommandWriter {
         } else if (nonNullValue instanceof Short) {
             int2 = (Short) nonNullValue;
         } else {
-            throw MySQLExceptions.createTypeNotMatchException(stmtIndex, parameterMeta.mysqlType, bindValue);
+            throw MySQLExceptions.createTypeNotMatchException(stmtIndex, parameterMeta.sqlType, bindValue);
         }
         Packets.writeInt2(buffer, int2);
     }
@@ -477,7 +487,7 @@ final class PrepareExecuteCommandWriter implements ExecuteCommandWriter {
             BigInteger num = (BigInteger) nonNullValue;
             decimal = num.toString();
         } else {
-            throw MySQLExceptions.createTypeNotMatchException(stmtIndex, parameterMeta.mysqlType, paramValue);
+            throw MySQLExceptions.createTypeNotMatchException(stmtIndex, parameterMeta.sqlType, paramValue);
         }
         Packets.writeStringLenEnc(buffer, decimal.getBytes(this.adjutant.charsetClient()));
     }
@@ -499,7 +509,7 @@ final class PrepareExecuteCommandWriter implements ExecuteCommandWriter {
         } else if (nonNull instanceof ZoneId) {
             int4 = MySQLTimes.toZoneOffset((ZoneId) nonNull).getTotalSeconds();
         } else {
-            throw MySQLExceptions.createTypeNotMatchException(stmtIndex, meta.mysqlType, paramValue);
+            throw MySQLExceptions.createTypeNotMatchException(stmtIndex, meta.sqlType, paramValue);
         }
         Packets.writeInt4(buffer, int4);
     }
@@ -513,7 +523,7 @@ final class PrepareExecuteCommandWriter implements ExecuteCommandWriter {
         if (nonNullValue instanceof Float) {
             Packets.writeInt4(buffer, Float.floatToIntBits((Float) nonNullValue));
         } else {
-            throw MySQLExceptions.createTypeNotMatchException(stmtIndex, meta.mysqlType, bindValue);
+            throw MySQLExceptions.createTypeNotMatchException(stmtIndex, meta.sqlType, bindValue);
         }
 
     }
@@ -530,7 +540,7 @@ final class PrepareExecuteCommandWriter implements ExecuteCommandWriter {
         } else if (nonNull instanceof Instant) {
             int8 = ((Instant) nonNull).getEpochSecond();
         } else {
-            throw MySQLExceptions.createTypeNotMatchException(stmtIndex, meta.mysqlType, bindValue);
+            throw MySQLExceptions.createTypeNotMatchException(stmtIndex, meta.sqlType, bindValue);
         }
         Packets.writeInt8(buffer, int8);
     }
@@ -545,7 +555,7 @@ final class PrepareExecuteCommandWriter implements ExecuteCommandWriter {
         if (nonNull instanceof Double) {
             Packets.writeInt8(buffer, Double.doubleToLongBits((Double) nonNull));
         } else {
-            throw MySQLExceptions.createTypeNotMatchException(stmtIndex, parameterMeta.mysqlType, bindValue);
+            throw MySQLExceptions.createTypeNotMatchException(stmtIndex, parameterMeta.sqlType, bindValue);
         }
     }
 
@@ -563,7 +573,7 @@ final class PrepareExecuteCommandWriter implements ExecuteCommandWriter {
         if (nonNull instanceof Duration) {
             final Duration duration = (Duration) nonNull;
             if (!MySQLTimes.canConvertToTimeType(duration)) {
-                throw MySQLExceptions.createDurationRangeException(stmtIndex, parameterMeta.mysqlType, bindValue);
+                throw MySQLExceptions.createDurationRangeException(stmtIndex, parameterMeta.sqlType, bindValue);
             }
             buffer.writeByte(length); //1. length
             buffer.writeByte(duration.isNegative() ? 1 : 0); //2. is_negative
@@ -602,10 +612,10 @@ final class PrepareExecuteCommandWriter implements ExecuteCommandWriter {
                         .withOffsetSameInstant(this.adjutant.obtainZoneOffsetDatabase())
                         .toLocalTime();
             } catch (DateTimeParseException e) {
-                throw MySQLExceptions.createTypeNotMatchException(stmtIndex, parameterMeta.mysqlType, bindValue, e);
+                throw MySQLExceptions.createTypeNotMatchException(stmtIndex, parameterMeta.sqlType, bindValue, e);
             }
         } else {
-            throw MySQLExceptions.createTypeNotMatchException(stmtIndex, parameterMeta.mysqlType, bindValue);
+            throw MySQLExceptions.createTypeNotMatchException(stmtIndex, parameterMeta.sqlType, bindValue);
         }
         if (time != null) {
             buffer.writeByte(length); //1. length
@@ -641,7 +651,7 @@ final class PrepareExecuteCommandWriter implements ExecuteCommandWriter {
             MonthDay monthDay = (MonthDay) nonNull;
             date = LocalDate.of(1970, monthDay.getMonth(), monthDay.getDayOfMonth());
         } else {
-            throw MySQLExceptions.createTypeNotMatchException(stmtIndex, columnMeta.mysqlType, bindValue);
+            throw MySQLExceptions.createTypeNotMatchException(stmtIndex, columnMeta.sqlType, bindValue);
         }
         buffer.writeByte(4); // length
         Packets.writeInt2(buffer, date.getYear()); // year
@@ -677,10 +687,10 @@ final class PrepareExecuteCommandWriter implements ExecuteCommandWriter {
                         .withOffsetSameInstant(this.adjutant.obtainZoneOffsetDatabase())
                         .toLocalDateTime();
             } catch (DateTimeParseException e) {
-                throw MySQLExceptions.createTypeNotMatchException(stmtIndex, parameterMeta.mysqlType, bindValue, e);
+                throw MySQLExceptions.createTypeNotMatchException(stmtIndex, parameterMeta.sqlType, bindValue, e);
             }
         } else {
-            throw MySQLExceptions.createTypeNotMatchException(stmtIndex, parameterMeta.mysqlType, bindValue);
+            throw MySQLExceptions.createTypeNotMatchException(stmtIndex, parameterMeta.sqlType, bindValue);
         }
 
         final int microPrecision = parameterMeta.obtainDateTimeTypePrecision();
@@ -728,13 +738,13 @@ final class PrepareExecuteCommandWriter implements ExecuteCommandWriter {
                 } else if (o instanceof Enum) {
                     builder.append(((Enum<?>) o).name());
                 } else {
-                    throw MySQLExceptions.createTypeNotMatchException(stmtIndex, meta.mysqlType, bindValue);
+                    throw MySQLExceptions.createTypeNotMatchException(stmtIndex, meta.sqlType, bindValue);
                 }
                 index++;
             }
             Packets.writeStringLenEnc(buffer, builder.toString().getBytes(this.adjutant.charsetClient()));
         } else {
-            throw MySQLExceptions.createTypeNotMatchException(stmtIndex, meta.mysqlType, bindValue);
+            throw MySQLExceptions.createTypeNotMatchException(stmtIndex, meta.sqlType, bindValue);
         }
 
     }

@@ -14,6 +14,9 @@ interface ExecuteCommandWriter {
             throws SQLException;
 
 
+    Publisher<ByteBuf> writeCommand(int stmtIndex) throws SQLException;
+
+
     interface LongParameterWriter {
 
         Flux<ByteBuf> write(int stmtIndex, List<? extends ParamValue> valueList);

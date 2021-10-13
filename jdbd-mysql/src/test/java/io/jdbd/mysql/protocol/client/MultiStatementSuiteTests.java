@@ -208,22 +208,22 @@ public class MultiStatementSuiteTests extends AbstractConnectionBasedSuiteTests 
         final List<BindStmt> bindStmtList = new ArrayList<>(6);
 
         sql = "UPDATE mysql_types as t SET t.name = 'mysql' WHERE t.id = ?";//[1] update
-        bindStmtList.add(Stmts.single(sql, BindValue.create(0, MySQLType.BIGINT, 264)));
+        bindStmtList.add(Stmts.single(sql, BindValue.wrap(0, MySQLType.BIGINT, 264)));
 
         sql = String.format("UPDATE mysql_types as t SET t.my_date = '%s' WHERE t.id = ?", LocalDate.now());//[2] update
-        bindStmtList.add(Stmts.single(sql, BindValue.create(0, MySQLType.BIGINT, 265)));
+        bindStmtList.add(Stmts.single(sql, BindValue.wrap(0, MySQLType.BIGINT, 265)));
 
         sql = String.format("SELECT t.id as id ,t.name as name,t.create_time as createTime FROM mysql_types as t WHERE t.id > ? ORDER BY t.id LIMIT %s", ROW_COUNT);// [3] query
-        bindStmtList.add(Stmts.single(sql, BindValue.create(0, MySQLType.BIGINT, 260)));
+        bindStmtList.add(Stmts.single(sql, BindValue.wrap(0, MySQLType.BIGINT, 260)));
 
         sql = String.format("UPDATE mysql_types as t SET t.my_time= '%s' WHERE t.id = ?", LocalTime.now());// [4] update
-        bindStmtList.add(Stmts.single(sql, BindValue.create(0, MySQLType.BIGINT, 266)));
+        bindStmtList.add(Stmts.single(sql, BindValue.wrap(0, MySQLType.BIGINT, 266)));
 
         sql = String.format("SELECT t.id as id ,t.name as name,t.create_time as createTime FROM mysql_types as t WHERE t.id > ? ORDER BY t.id LIMIT %s", ROW_COUNT); //[5] query
-        bindStmtList.add(Stmts.single(sql, BindValue.create(0, MySQLType.BIGINT, 260)));
+        bindStmtList.add(Stmts.single(sql, BindValue.wrap(0, MySQLType.BIGINT, 260)));
 
         sql = String.format("UPDATE mysql_types as t SET t.my_time= '%s' WHERE t.id = ?", LocalTime.now());//[6] update
-        bindStmtList.add(Stmts.single(sql, BindValue.create(0, MySQLType.BIGINT, 267)));
+        bindStmtList.add(Stmts.single(sql, BindValue.wrap(0, MySQLType.BIGINT, 267)));
 
         final AtomicReference<ResultStates> statesHolder = new AtomicReference<>(null);
 
@@ -562,23 +562,23 @@ public class MultiStatementSuiteTests extends AbstractConnectionBasedSuiteTests 
         List<BindValue> paramGroup;
 
         paramGroup = new ArrayList<>(2);
-        paramGroup.add(BindValue.create(0, MySQLType.LONGTEXT, "bindable batch update 1"));
-        paramGroup.add(BindValue.create(1, MySQLType.BIGINT, 271));
+        paramGroup.add(BindValue.wrap(0, MySQLType.LONGTEXT, "bindable batch update 1"));
+        paramGroup.add(BindValue.wrap(1, MySQLType.BIGINT, 271));
         groupList.add(paramGroup);
 
         paramGroup = new ArrayList<>(2);
-        paramGroup.add(BindValue.create(0, MySQLType.LONGTEXT, "bindable batch update 2"));
-        paramGroup.add(BindValue.create(1, MySQLType.BIGINT, 272));
+        paramGroup.add(BindValue.wrap(0, MySQLType.LONGTEXT, "bindable batch update 2"));
+        paramGroup.add(BindValue.wrap(1, MySQLType.BIGINT, 272));
         groupList.add(paramGroup);
 
         paramGroup = new ArrayList<>(2);
-        paramGroup.add(BindValue.create(0, MySQLType.LONGTEXT, "bindable batch update 3"));
-        paramGroup.add(BindValue.create(1, MySQLType.BIGINT, 273));
+        paramGroup.add(BindValue.wrap(0, MySQLType.LONGTEXT, "bindable batch update 3"));
+        paramGroup.add(BindValue.wrap(1, MySQLType.BIGINT, 273));
         groupList.add(paramGroup);
 
         paramGroup = new ArrayList<>(2);
-        paramGroup.add(BindValue.create(0, MySQLType.LONGTEXT, "bindable batch update 4"));
-        paramGroup.add(BindValue.create(1, MySQLType.BIGINT, 274));
+        paramGroup.add(BindValue.wrap(0, MySQLType.LONGTEXT, "bindable batch update 4"));
+        paramGroup.add(BindValue.wrap(1, MySQLType.BIGINT, 274));
         groupList.add(paramGroup);
 
         final List<ResultStates> resultStatesList;

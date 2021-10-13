@@ -24,10 +24,10 @@ import java.util.Map;
  */
 abstract class MySQLRowMeta implements ResultRowMeta {
 
-    static boolean canReadRowMeta(final ByteBuf cumulateBuffer, final boolean endOfMeta) {
+    static boolean canReadMeta(final ByteBuf cumulateBuffer, final boolean endOfMeta) {
         final int originalReaderIndex = cumulateBuffer.readerIndex();
 
-        int payloadLength = Packets.readInt3(cumulateBuffer);
+        final int payloadLength = Packets.readInt3(cumulateBuffer);
         cumulateBuffer.readByte();// skip sequenceId byte
         final int payloadIndex = cumulateBuffer.readerIndex();
         final int needPacketCount;
@@ -38,43 +38,32 @@ abstract class MySQLRowMeta implements ResultRowMeta {
         }
         cumulateBuffer.readerIndex(payloadIndex + payloadLength); //avoid tail filler
 
-        int packetCount = 0;
-        while (Packets.hasOnePacket(cumulateBuffer)) {
-            payloadLength = Packets.readInt3(cumulateBuffer);
-            cumulateBuffer.readByte(); // skip sequenceId byte
-            cumulateBuffer.skipBytes(payloadLength);
-            packetCount++;
-            if (packetCount == needPacketCount) {
-                break;
-            }
-        }
+        final boolean hasPacketNumber;
+        hasPacketNumber = Packets.hasPacketNumber(cumulateBuffer, needPacketCount);
+
         cumulateBuffer.readerIndex(originalReaderIndex);
-        return packetCount >= needPacketCount;
+        return hasPacketNumber;
     }
 
-    static MySQLRowMeta read(final ByteBuf cumulateBuffer, final StmtTask stmtTask) {
-        int payloadLength, payloadIndex, sequenceId;
+    /**
+     * <p>
+     * Read column metadata from text protocol.
+     * </p>
+     */
+    static MySQLRowMeta readForText(final ByteBuf cumulateBuffer, final StmtTask stmtTask) {
 
-        payloadLength = Packets.readInt3(cumulateBuffer);
-        sequenceId = Packets.readInt1AsInt(cumulateBuffer);
+        final int payloadLength = Packets.readInt3(cumulateBuffer);
+        stmtTask.updateSequenceId(Packets.readInt1AsInt(cumulateBuffer));// update sequenceId
 
-        payloadIndex = cumulateBuffer.readerIndex();
+        final int payloadIndex = cumulateBuffer.readerIndex();
         final int columnCount = Packets.readLenEncAsInt(cumulateBuffer);
         cumulateBuffer.readerIndex(payloadIndex + payloadLength);//avoid tail filler
 
+        final MySQLColumnMeta[] metaArray;
+        metaArray = MySQLColumnMeta.readMetas(cumulateBuffer, columnCount, stmtTask);
+
         final TaskAdjutant adjutant = stmtTask.adjutant();
-        final MySQLColumnMeta[] metaArray = new MySQLColumnMeta[columnCount];
 
-        for (int i = 0; i < columnCount; i++) {
-            payloadLength = Packets.readInt3(cumulateBuffer);
-            sequenceId = Packets.readInt1AsInt(cumulateBuffer);
-
-            payloadIndex = cumulateBuffer.readerIndex();
-            metaArray[i] = MySQLColumnMeta.readFor41(cumulateBuffer, adjutant);
-
-            cumulateBuffer.readerIndex(payloadIndex + payloadLength); //avoid tail filler
-        }
-        stmtTask.updateSequenceId(sequenceId);// update sequenceId
         return new SimpleIndexMySQLRowMeta(metaArray
                 , stmtTask.getAndIncrementResultIndex()
                 , adjutant.obtainCustomCollationMap());
@@ -131,7 +120,7 @@ abstract class MySQLRowMeta implements ResultRowMeta {
 
     @Override
     public final JDBCType getJdbdType(int indexBaseZero) throws JdbdSQLException {
-        return this.columnMetaArray[checkIndex(indexBaseZero)].mysqlType.jdbcType();
+        return this.columnMetaArray[checkIndex(indexBaseZero)].sqlType.jdbcType();
     }
 
 
@@ -145,7 +134,7 @@ abstract class MySQLRowMeta implements ResultRowMeta {
 
     @Override
     public final SQLType getSQLType(int indexBaseZero) throws JdbdSQLException {
-        return this.columnMetaArray[checkIndex(indexBaseZero)].mysqlType;
+        return this.columnMetaArray[checkIndex(indexBaseZero)].sqlType;
     }
 
     @Override
@@ -165,7 +154,7 @@ abstract class MySQLRowMeta implements ResultRowMeta {
 
     @Override
     public final boolean isUnsigned(int indexBaseZero) throws JdbdSQLException {
-        return this.columnMetaArray[checkIndex(indexBaseZero)].mysqlType.isUnsigned();
+        return this.columnMetaArray[checkIndex(indexBaseZero)].sqlType.isUnsigned();
     }
 
     @Override
@@ -237,7 +226,7 @@ abstract class MySQLRowMeta implements ResultRowMeta {
 
     @Override
     public final Class<?> getColumnClass(final int indexBaseZero) throws JdbdSQLException {
-        return this.columnMetaArray[checkIndex(indexBaseZero)].mysqlType.javaType();
+        return this.columnMetaArray[checkIndex(indexBaseZero)].sqlType.javaType();
     }
 
 
@@ -310,7 +299,7 @@ abstract class MySQLRowMeta implements ResultRowMeta {
     }
 
     final MySQLType getMySQLType(int indexBaseZero) {
-        return this.columnMetaArray[checkIndex(indexBaseZero)].mysqlType;
+        return this.columnMetaArray[checkIndex(indexBaseZero)].sqlType;
     }
 
     public final Charset getColumnCharset(int indexBaseZero) {
@@ -327,7 +316,7 @@ abstract class MySQLRowMeta implements ResultRowMeta {
 
     private boolean doIsCaseSensitive(MySQLColumnMeta columnMeta) {
         boolean caseSensitive;
-        switch (columnMeta.mysqlType) {
+        switch (columnMeta.sqlType) {
             case BIT:
             case TINYINT:
             case SMALLINT:

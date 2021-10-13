@@ -221,12 +221,12 @@ public enum PgType implements io.jdbd.meta.SQLType {
 
 
     @Override
-    public final boolean isString() {
+    public final boolean isStringType() {
         return false;
     }
 
     @Override
-    public boolean isBinary() {
+    public boolean isBinaryType() {
         return false;
     }
 

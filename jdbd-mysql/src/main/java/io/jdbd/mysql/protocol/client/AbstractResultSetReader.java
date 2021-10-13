@@ -33,7 +33,7 @@ abstract class AbstractResultSetReader implements ResultSetReader {
     static final Path TEMP_DIRECTORY = Paths.get(System.getProperty("java.io.tmpdir"), "jdbd/mysql/bigRow")
             .toAbsolutePath();
 
-    private static int BIG_COLUMN_BOUND = Integer.MAX_VALUE - (4 * 128);
+    private static final int BIG_COLUMN_BOUND = Integer.MAX_VALUE - (4 << 7);
 
     final TaskAdjutant adjutant;
 
@@ -114,6 +114,7 @@ abstract class AbstractResultSetReader implements ResultSetReader {
                 }
             }
         } catch (Throwable e) {
+            this.resultSetEnd = true;
             releaseOnError();
             throw e;
         }
@@ -150,15 +151,12 @@ abstract class AbstractResultSetReader implements ResultSetReader {
      * @see #readColumnValue(ByteBuf, MySQLColumnMeta)
      */
     @Nullable
-    abstract Object readColumnValue(ByteBuf payload, MySQLColumnMeta columnMeta);
+    abstract Object readColumnValue(ByteBuf cumulateBuffer, MySQLColumnMeta columnMeta);
 
     abstract boolean isBinaryReader();
 
-    abstract boolean skipNullColumn(byte[] nullBitMap, ByteBuf payload, int columnIndex);
-
     abstract Logger getLogger();
 
-    abstract BigRowData createBigRowData(ByteBuf cachePayload, MySQLRowMeta rowMeta);
 
     /*################################## blow final packet method ##################################*/
 
@@ -190,7 +188,7 @@ abstract class AbstractResultSetReader implements ResultSetReader {
                 packetIndex = cumulateBuffer.readerIndex();
                 payloadLength = Packets.getInt3(cumulateBuffer, packetIndex); // read payload length
 
-                header = Packets.getInt1(cumulateBuffer, packetIndex + Packets.HEADER_SIZE);
+                header = Packets.getInt1AsInt(cumulateBuffer, packetIndex + Packets.HEADER_SIZE);
                 if (header == ErrorPacket.ERROR_HEADER) {
                     payloadLength = Packets.readInt3(cumulateBuffer);
                     sequenceId = Packets.readInt1AsInt(cumulateBuffer);
@@ -250,7 +248,7 @@ abstract class AbstractResultSetReader implements ResultSetReader {
                     continue;
                 }
                 final int nextPacketIndex = payload.readerIndex() + payloadLength;
-                ResultRow row;
+                final ResultRow row;
                 row = readOneRow(payload, rowMeta);
                 readRowCount++;
                 sink.next(row);
@@ -285,19 +283,19 @@ abstract class AbstractResultSetReader implements ResultSetReader {
         if (this.rowMeta != null) {
             throw new IllegalStateException("this.rowMeta is non-null");
         }
-        this.rowMeta = MySQLRowMeta.read(cumulateBuffer, this.stmtTask);
+        this.rowMeta = MySQLRowMeta.readForText(cumulateBuffer, this.stmtTask);
     }
 
 
     @Nullable
     final LocalDate handleZeroDateBehavior(String type) {
-        Enums.ZeroDatetimeBehavior behavior;
+        final Enums.ZeroDatetimeBehavior behavior;
         behavior = this.properties.getOrDefault(MyKey.zeroDateTimeBehavior
                 , Enums.ZeroDatetimeBehavior.class);
         LocalDate date = null;
         switch (behavior) {
             case EXCEPTION: {
-                String message = String.format("%s type can't is 0,@see jdbc property[%s]."
+                String message = String.format("%s type can't is 0,@see jdbc url property[%s]."
                         , type, MyKey.zeroDateTimeBehavior);
                 Throwable e = new JdbdSQLException(MySQLExceptions.createTruncatedWrongValue(message, null));
                 this.stmtTask.addErrorToTask(e);
@@ -496,7 +494,7 @@ abstract class AbstractResultSetReader implements ResultSetReader {
             if (!bigRowData.payloadEnd) {
                 bigRowData.cachePayload = payload = mergePayload(cumulateBuffer, payload, bigRowData);
             }
-            if (!binaryReader && Packets.getInt1(payload, payload.readerIndex()) == Packets.ENC_0) {
+            if (!binaryReader && Packets.getInt1AsInt(payload, payload.readerIndex()) == Packets.ENC_0) {
                 payload.readByte(); // skip ENC_0
                 bigRowData.values[i] = null;
                 continue;
@@ -506,21 +504,22 @@ abstract class AbstractResultSetReader implements ResultSetReader {
             final long columnBytes = obtainColumnBytes(columnMeta, payload);
             if (columnBytes == -1L) {
                 // need more cumulate
+                assertBigRowPayloadNotEnd(bigRowData);
                 break;
             }
 
             if (columnBytes > BIG_COLUMN_BOUND) {
                 // this block: big column
                 long actualColumnBytes = Packets.readLenEnc(payload); // skip length encode prefix for big column
-                if (columnMeta.mysqlType == MySQLType.GEOMETRY) {
+                if (columnMeta.sqlType == MySQLType.GEOMETRY) {
                     if (payload.readableBytes() < 4) {
                         // need more cumulate
+                        assertBigRowPayloadNotEnd(bigRowData);
                         break;
                     }
                     payload.skipBytes(4);// skip geometry prefix
                     actualColumnBytes -= 4;
                 }
-                bigRowData.cachePayload = payload;
                 this.phase = Phase.READ_BIG_COLUMN;
                 bigRowData.values[i] = createBigColumn(actualColumnBytes, payload);
 
@@ -530,6 +529,7 @@ abstract class AbstractResultSetReader implements ResultSetReader {
             }
             if (columnBytes > payload.readableBytes()) {
                 // need more cumulate
+                assertBigRowPayloadNotEnd(bigRowData);
                 break;
             }
             bigRowData.values[i] = readColumnValue(payload, columnMeta);
@@ -552,6 +552,15 @@ abstract class AbstractResultSetReader implements ResultSetReader {
         }
         return bigRowEnd;
 
+    }
+
+    /**
+     * @see #readOneBigRow(ByteBuf)
+     */
+    private void assertBigRowPayloadNotEnd(final BigRowData bigRowData) {
+        if (bigRowData.payloadEnd) {
+            throw new IllegalStateException("Big row payload unexpected end.");
+        }
     }
 
 
@@ -694,7 +703,7 @@ abstract class AbstractResultSetReader implements ResultSetReader {
      */
     private Object convertBigColumnValue(final MySQLColumnMeta meta, final Path file) {
         final Object value;
-        switch (meta.mysqlType) {
+        switch (meta.sqlType) {
             case BLOB:
             case GEOMETRY:
             case LONGBLOB:
@@ -706,7 +715,7 @@ abstract class AbstractResultSetReader implements ResultSetReader {
                 value = LongStrings.fromTempPath(file, this.adjutant.obtainColumnCharset(meta.columnCharset));
                 break;
             default:
-                throw new IllegalStateException(String.format("Unexpected sql type[%s]", meta.mysqlType));
+                throw new IllegalStateException(String.format("Unexpected sql type[%s]", meta.sqlType));
         }
         return value;
     }

@@ -150,44 +150,44 @@ final class ExtendedQueryTask extends AbstractStmtTask implements PrepareStmtTas
     /*################################## blow PrepareStmtTask method ##################################*/
 
     @Override
-    public final Mono<ResultStates> executeUpdate(final ParamStmt stmt) {
+    public Mono<ResultStates> executeUpdate(final ParamStmt stmt) {
         return MultiResults.update(sink -> executeAfterBinding(sink, stmt));
     }
 
     @Override
-    public final Flux<ResultRow> executeQuery(final ParamStmt stmt) {
+    public Flux<ResultRow> executeQuery(final ParamStmt stmt) {
         return MultiResults.query(stmt.getStatusConsumer(), sink -> executeAfterBinding(sink, stmt));
     }
 
     @Override
-    public final Flux<ResultStates> executeBatch(final ParamBatchStmt<ParamValue> stmt) {
+    public Flux<ResultStates> executeBatch(final ParamBatchStmt<ParamValue> stmt) {
         return MultiResults.batchUpdate(sink -> executeAfterBinding(sink, stmt));
     }
 
     @Override
-    public final MultiResult executeBatchAsMulti(final ParamBatchStmt<ParamValue> stmt) {
+    public MultiResult executeBatchAsMulti(final ParamBatchStmt<ParamValue> stmt) {
         return MultiResults.asMulti(this.adjutant, sink -> executeAfterBinding(sink, stmt));
     }
 
     @Override
-    public final OrderedFlux executeBatchAsFlux(ParamBatchStmt<ParamValue> stmt) {
+    public OrderedFlux executeBatchAsFlux(ParamBatchStmt<ParamValue> stmt) {
         return MultiResults.asFlux(sink -> executeAfterBinding(sink, stmt));
     }
 
     @Override
-    public final List<PgType> getParamTypeList() {
+    public List<PgType> getParamTypeList() {
         return Objects.requireNonNull(this.parameterTypeList, "this.parameterTypeList");
     }
 
 
     @Nullable
     @Override
-    public final ResultRowMeta getRowMeta() {
+    public ResultRowMeta getRowMeta() {
         return this.resultRowMeta;
     }
 
     @Override
-    public final void closeOnBindError(Throwable error) {
+    public void closeOnBindError(Throwable error) {
         if (this.adjutant.inEventLoop()) {
             closeOnBindErrorInEventLoop(error);
         } else {
@@ -197,12 +197,12 @@ final class ExtendedQueryTask extends AbstractStmtTask implements PrepareStmtTas
 
 
     @Override
-    public final String getSql() {
+    public String getSql() {
         return ((ParamSingleStmt) this.stmt).getSql();
     }
 
     @Override
-    public final Mono<Void> abandonBind() {
+    public Mono<Void> abandonBind() {
         return Mono.create(sink -> {
             if (this.adjutant.inEventLoop()) {
                 abandonBindInEventLoop(sink);
@@ -217,12 +217,12 @@ final class ExtendedQueryTask extends AbstractStmtTask implements PrepareStmtTas
     /*################################## blow ExtendedStmtTask method ##################################*/
 
     @Override
-    public final ParamSingleStmt getStmt() {
+    public ParamSingleStmt getStmt() {
         return (ParamSingleStmt) this.stmt;
     }
 
     @Override
-    public final void handleNoExecuteMessage() {
+    public void handleNoExecuteMessage() {
         if (this.phase != Phase.END) {
             log.debug("No execute message sent.end task.");
             this.phase = Phase.BINDING_ERROR;
@@ -244,7 +244,7 @@ final class ExtendedQueryTask extends AbstractStmtTask implements PrepareStmtTas
 
     @Nullable
     @Override
-    protected final Publisher<ByteBuf> start() {
+    protected Publisher<ByteBuf> start() {
         final ExtendedCommandWriter commandWriter = this.commandWriter;
 
         Publisher<ByteBuf> publisher;
@@ -279,7 +279,7 @@ final class ExtendedQueryTask extends AbstractStmtTask implements PrepareStmtTas
     }
 
     @Override
-    protected final void onChannelClose() {
+    protected void onChannelClose() {
         if (this.phase.isEnd()) {
             addError(new SessionCloseException("Session unexpected close"));
             publishError(this.sink::error);
@@ -287,7 +287,7 @@ final class ExtendedQueryTask extends AbstractStmtTask implements PrepareStmtTas
     }
 
     @Override
-    protected final Action onError(Throwable e) {
+    protected Action onError(Throwable e) {
 
         final Action action;
         if (this.phase.isEnd()) {
@@ -307,7 +307,7 @@ final class ExtendedQueryTask extends AbstractStmtTask implements PrepareStmtTas
 
 
     @Override
-    protected final boolean decode(ByteBuf cumulateBuffer, Consumer<Object> serverStatusConsumer) {
+    protected boolean decode(ByteBuf cumulateBuffer, Consumer<Object> serverStatusConsumer) {
 
         final Phase oldPhase = this.phase;
         boolean taskEnd;
@@ -342,13 +342,13 @@ final class ExtendedQueryTask extends AbstractStmtTask implements PrepareStmtTas
 
 
     @Override
-    final void internalToString(StringBuilder builder) {
+    void internalToString(StringBuilder builder) {
         builder.append(",phase:")
                 .append(this.phase);
     }
 
     @Override
-    final boolean handleSelectCommand(final long rowCount) {
+    boolean handleSelectCommand(final long rowCount) {
         final boolean moreFetch;
         if (this.commandWriter.supportFetch()
                 && !this.sink.isCancelled()
@@ -362,7 +362,7 @@ final class ExtendedQueryTask extends AbstractStmtTask implements PrepareStmtTas
     }
 
     @Override
-    final boolean handlePrepareResponse(List<PgType> paramTypeList, @Nullable ResultRowMeta rowMeta) {
+    boolean handlePrepareResponse(List<PgType> paramTypeList, @Nullable ResultRowMeta rowMeta) {
         if (this.phase != Phase.READ_PREPARE_RESPONSE || this.parameterTypeList != null) {
             throw new UnExpectedMessageException("Unexpected ParameterDescription message.");
         }
@@ -389,7 +389,7 @@ final class ExtendedQueryTask extends AbstractStmtTask implements PrepareStmtTas
     }
 
     @Override
-    final boolean handleClientTimeout() {
+    boolean handleClientTimeout() {
         //TODO
         return false;
     }
@@ -608,7 +608,7 @@ final class ExtendedQueryTask extends AbstractStmtTask implements PrepareStmtTas
         }
 
         @Override
-        public final void error(Throwable e) {
+        public void error(Throwable e) {
             final FluxResultSink resultSink = this.resultSink;
             if (resultSink == null) {
                 this.stmtSink.error(e);
@@ -618,7 +618,7 @@ final class ExtendedQueryTask extends AbstractStmtTask implements PrepareStmtTas
         }
 
         @Override
-        public final void complete() {
+        public void complete() {
             final FluxResultSink resultSink = this.resultSink;
             if (resultSink == null) {
                 throw createNoFluxResultSinkError();
@@ -627,22 +627,22 @@ final class ExtendedQueryTask extends AbstractStmtTask implements PrepareStmtTas
         }
 
         @Override
-        public final ResultSink froResultSet() {
+        public ResultSink froResultSet() {
             return new ResultSink() {
                 @Override
-                public final boolean isCancelled() {
+                public boolean isCancelled() {
                     return PrepareFluxResultSink.this.isCancelled();
                 }
 
                 @Override
-                public final void next(Result result) {
+                public void next(Result result) {
                     PrepareFluxResultSink.this.next(result);
                 }
             };
         }
 
         @Override
-        public final boolean isCancelled() {
+        public boolean isCancelled() {
             final FluxResultSink resultSink = this.resultSink;
             if (resultSink == null) {
                 throw createNoFluxResultSinkError();
@@ -651,7 +651,7 @@ final class ExtendedQueryTask extends AbstractStmtTask implements PrepareStmtTas
         }
 
         @Override
-        public final void next(Result result) {
+        public void next(Result result) {
             final FluxResultSink resultSink = this.resultSink;
             if (resultSink == null) {
                 throw createNoFluxResultSinkError();
@@ -691,12 +691,12 @@ final class ExtendedQueryTask extends AbstractStmtTask implements PrepareStmtTas
         }
 
         @Override
-        public final String getSql() {
+        public String getSql() {
             return this.sql;
         }
 
         @Override
-        public final ParamSingleStmt getStmt() {
+        public ParamSingleStmt getStmt() {
             final ParamSingleStmt stmt = this.actualTmt;
             if (stmt == null) {
                 throw new IllegalStateException("this.stmt isn null.");
@@ -705,17 +705,17 @@ final class ExtendedQueryTask extends AbstractStmtTask implements PrepareStmtTas
         }
 
         @Override
-        public final int getTimeout() {
+        public int getTimeout() {
             throw new UnsupportedOperationException();
         }
 
         @Override
-        public final Function<Object, Publisher<byte[]>> getImportPublisher() {
+        public Function<Object, Publisher<byte[]>> getImportPublisher() {
             throw new UnsupportedOperationException();
         }
 
         @Override
-        public final Function<Object, Subscriber<byte[]>> getExportSubscriber() {
+        public Function<Object, Subscriber<byte[]>> getExportSubscriber() {
             throw new UnsupportedOperationException();
         }
 
@@ -749,27 +749,27 @@ final class ExtendedQueryTask extends AbstractStmtTask implements PrepareStmtTas
         }
 
         @Override
-        public final String getSql() {
+        public String getSql() {
             return this.sql;
         }
 
         @Override
-        public final String getReplacedSql() {
+        public String getReplacedSql() {
             return this.replacedSql;
         }
 
         @Override
-        public final List<PgType> getParamOidList() {
+        public List<PgType> getParamOidList() {
             return this.paramTypeList;
         }
 
         @Override
-        public final ResultRowMeta getRowMeta() {
+        public ResultRowMeta getRowMeta() {
             return this.rowMeta;
         }
 
         @Override
-        public final long getCacheTime() {
+        public long getCacheTime() {
             return this.cacheTime;
         }
 

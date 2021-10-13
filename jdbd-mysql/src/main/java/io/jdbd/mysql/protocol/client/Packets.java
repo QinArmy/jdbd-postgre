@@ -2,7 +2,6 @@ package io.jdbd.mysql.protocol.client;
 
 import io.jdbd.mysql.MySQLJdbdException;
 import io.jdbd.mysql.util.MySQLExceptions;
-import io.jdbd.mysql.util.MySQLNumbers;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
 import org.reactivestreams.Publisher;
@@ -16,7 +15,6 @@ import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
@@ -76,13 +74,14 @@ public abstract class Packets {
     }
 
 
-    public static int getInt1(ByteBuf byteBuf, int index) {
+    public static int getInt1AsInt(ByteBuf byteBuf, int index) {
         return (byteBuf.getByte(index) & BIT_8);
     }
 
 
     public static int readInt2AsInt(ByteBuf byteBuf) {
-        return byteBuf.readUnsignedShortLE();
+        return (byteBuf.readByte() & BIT_8)
+                | ((byteBuf.readByte() & BIT_8) << 8);
     }
 
 
@@ -94,15 +93,13 @@ public abstract class Packets {
     public static int readInt3(ByteBuf byteBuf) {
         return (byteBuf.readByte() & BIT_8)
                 | ((byteBuf.readByte() & BIT_8) << 8)
-                | ((byteBuf.readByte() & BIT_8) << 16)
-                ;
+                | ((byteBuf.readByte() & BIT_8) << 16);
     }
 
     public static int getInt3(ByteBuf byteBuf, int index) {
         return (byteBuf.getByte(index++) & BIT_8)
                 | ((byteBuf.getByte(index++) & BIT_8) << 8)
-                | ((byteBuf.getByte(index) & BIT_8) << 16)
-                ;
+                | ((byteBuf.getByte(index) & BIT_8) << 16);
     }
 
     public static long readInt4AsLong(ByteBuf byteBuf) {
@@ -148,8 +145,13 @@ public abstract class Packets {
         return byteBuf.readLongLE();
     }
 
-    public static BigInteger readInt8AsBigInteger(ByteBuf byteBuf) {
-        return MySQLNumbers.unsignedLongToBigInteger(byteBuf.readLongLE());
+    public static BigInteger readInt8AsBigInteger(final ByteBuf buffer) {
+        final byte[] bytes = new byte[9];
+        bytes[0] = 0;
+        for (int i = bytes.length - 1; i > 0; i--) {
+            bytes[i] = buffer.readByte();
+        }
+        return new BigInteger(bytes);
     }
 
     public static long getInt8(ByteBuf byteBuf, int index) {
@@ -160,7 +162,7 @@ public abstract class Packets {
      * see {@code com.mysql.cj.protocol.a.NativePacketPayload#readInteger(com.mysql.cj.protocol.a.NativeConstants.IntegerDataType)}
      */
     public static long getLenEnc(ByteBuf byteBuf, int index) {
-        final int sw = getInt1(byteBuf, index++);
+        final int sw = getInt1AsInt(byteBuf, index++);
         long int8;
         switch (sw) {
             case ENC_0:
@@ -190,7 +192,7 @@ public abstract class Packets {
      */
     public static long getLenEncTotalByteLength(ByteBuf buffer) {
         int index = buffer.readerIndex();
-        final int sw = getInt1(buffer, index++);
+        final int sw = getInt1AsInt(buffer, index++);
         final long totalLength;
         switch (sw) {
             case ENC_0:
@@ -227,29 +229,6 @@ public abstract class Packets {
 
         }
         return totalLength;
-    }
-
-    public static int obtainLenEncIntByteCount(ByteBuf byteBuf, final int index) {
-        int byteCount;
-        switch (getInt1(byteBuf, index)) {
-            case ENC_0:
-                // represents a NULL in a ProtocolText::ResultsetRow
-                byteCount = 0;
-                break;
-            case ENC_3:
-                byteCount = 3;
-                break;
-            case ENC_4:
-                byteCount = 4;
-                break;
-            case ENC_9:
-                byteCount = 9;
-                break;
-            default:
-                // ENC_1
-                byteCount = 1;
-        }
-        return byteCount;
     }
 
     public static int obtainIntLenEncLength(final long intLenEnc) {
@@ -401,6 +380,27 @@ public abstract class Packets {
         int readableBytes = cumulateBuffer.readableBytes();
         return readableBytes > HEADER_SIZE
                 && (readableBytes >= HEADER_SIZE + getInt3(cumulateBuffer, cumulateBuffer.readerIndex()));
+    }
+
+    /**
+     * @param packetNumber not negative.
+     */
+    public static boolean hasPacketNumber(final ByteBuf cumulateBuffer, final int packetNumber) {
+        if (packetNumber < 0) {
+            throw new IllegalArgumentException("packetNumber less than zero.");
+        }
+        final int originalReaderIndex = cumulateBuffer.readerIndex();
+        int packetCount = 0;
+        for (int payloadLength; Packets.hasOnePacket(cumulateBuffer); ) {
+            payloadLength = Packets.readInt3(cumulateBuffer);
+            cumulateBuffer.skipBytes(1 + payloadLength);
+            packetCount++;
+            if (packetCount >= packetNumber) {
+                break;
+            }
+        }
+        cumulateBuffer.readerIndex(originalReaderIndex);
+        return packetCount >= packetNumber;
     }
 
 
@@ -744,73 +744,6 @@ public abstract class Packets {
     }
 
 
-    /**
-     * @return <ul>
-     * <li>{@link Integer#MIN_VALUE}:big packet. </li>
-     * <li>{@code -1}: more cumulate</li>
-     * <li>positive:multi payload length</li>
-     * </ul>
-     */
-    public static int obtainMultiPayloadLength(final ByteBuf cumulateBuffer, final ByteBufAllocator allocator, Con) {
-        final int maxLength = (int) Math.min((Runtime.getRuntime().freeMemory() / 10L), (1 << 30));
-        final int originalReaderIndex = cumulateBuffer.readerIndex();
-
-        ByteBuf payload = cumulateBuffer.alloc().
-        int packetLengthSum = 0;
-        for (int payloadLength; hasOnePacket(cumulateBuffer); ) {
-            payloadLength = readInt3(cumulateBuffer);
-            cumulateBuffer.readByte();
-            cumulateBuffer.skipBytes(payloadLength);
-
-            packetLengthSum += payloadLength;
-            if (payloadLength < MAX_PAYLOAD) {
-                break;
-            }
-        }
-        cumulateBuffer.readerIndex(originalReaderIndex);
-        return packetLengthSum;
-    }
-
-    /**
-     * @see #obtainMultiPayloadLength(ByteBuf)
-     */
-    public static ByteBuf readBigPayload(final ByteBuf cumulateBuffer, final int capacity
-            , Consumer<Integer> sequenceIdConsumer, Function<Integer, ByteBuf> function) {
-        if (capacity <= MAX_PAYLOAD) {
-            throw new IllegalArgumentException(String.format("maxLength must great than %s .", MAX_PAYLOAD));
-        }
-        final int originalReaderIndex = cumulateBuffer.readerIndex();
-        ByteBuf payload = null;
-        try {
-            payload = function.apply(capacity);
-            int sequenceId;
-            for (int payloadLength; ; ) {
-
-                payloadLength = readInt3(cumulateBuffer);
-                sequenceId = readInt1AsInt(cumulateBuffer);
-                payload.writeBytes(cumulateBuffer, payloadLength);
-                if (payloadLength < MAX_PAYLOAD) {
-                    break;
-                }
-            }
-            sequenceIdConsumer.accept(sequenceId);
-            return payload;
-        } catch (Throwable e) {
-            if (payload != null) {
-                payload.release();
-            }
-            cumulateBuffer.readerIndex(originalReaderIndex);
-            throw e;
-        }
-    }
-
-
-    public static IndexOutOfBoundsException createIndexOutOfBoundsException(int readableBytes, int needBytes) {
-        return new IndexOutOfBoundsException(
-                String.format("need %s bytes but readable %s bytes", needBytes, readableBytes));
-    }
-
-
     public static BigInteger convertInt8ToBigInteger(long int8) {
         BigInteger bigInteger;
         if (int8 < 0) {
@@ -901,7 +834,7 @@ public abstract class Packets {
 
 
     public static boolean isAuthSwitchRequestPacket(ByteBuf payloadBuf) {
-        return getInt1(payloadBuf, payloadBuf.readerIndex()) == 0xFE;
+        return getInt1AsInt(payloadBuf, payloadBuf.readerIndex()) == 0xFE;
     }
 
     /*################################## blow private static method ##################################*/

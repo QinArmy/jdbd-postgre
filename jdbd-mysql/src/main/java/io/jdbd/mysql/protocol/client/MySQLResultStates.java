@@ -28,8 +28,7 @@ abstract class MySQLResultStates implements ResultStates {
     private MySQLResultStates(final int resultIndex, final TerminatorPacket terminator) {
         this.resultIndex = resultIndex;
         if (terminator instanceof OkPacket) {
-            OkPacket ok = (OkPacket) terminator;
-
+           final OkPacket ok = (OkPacket) terminator;
             this.serverStatus = ok.getStatusFags();
             this.affectedRows = ok.getAffectedRows();
             this.insertedId = ok.getLastInsertId();
@@ -37,7 +36,7 @@ abstract class MySQLResultStates implements ResultStates {
 
             this.warnings = ok.getWarnings();
         } else if (terminator instanceof EofPacket) {
-            EofPacket eof = (EofPacket) terminator;
+            final EofPacket eof = (EofPacket) terminator;
 
             this.serverStatus = eof.getStatusFags();
             this.affectedRows = 0L;
@@ -80,14 +79,14 @@ abstract class MySQLResultStates implements ResultStates {
 
     @Override
     public final boolean hasMoreResult() {
-        return (this.serverStatus & ClientProtocol.SERVER_MORE_RESULTS_EXISTS) != 0;
+        return (this.serverStatus & TerminatorPacket.SERVER_MORE_RESULTS_EXISTS) != 0;
     }
 
     @Override
     public final boolean hasMoreFetch() {
         final int serverStatus = this.serverStatus;
-        return (serverStatus & ClientProtocol.SERVER_STATUS_CURSOR_EXISTS) != 0
-                && (serverStatus & ClientProtocol.SERVER_STATUS_LAST_ROW_SENT) == 0;
+        return (serverStatus & TerminatorPacket.SERVER_STATUS_CURSOR_EXISTS) != 0
+                && (serverStatus & TerminatorPacket.SERVER_STATUS_LAST_ROW_SENT) == 0;
     }
 
     @Override

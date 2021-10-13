@@ -95,7 +95,7 @@ public abstract class MySQLConvertUtils {
     /**
      * @return unmodifiable {@link Set}
      */
-    public static Set<String> convertToSetType(String nonNull) {
+    public static Set<String> convertToSetType(final String nonNull) {
         String[] array = nonNull.split(",");
         Set<String> set;
         if (array.length == 0) {

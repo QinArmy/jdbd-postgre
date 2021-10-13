@@ -43,7 +43,7 @@ public interface PreparedStatement extends BindableSingleStatement, BindableMult
     boolean supportOutParameter();
 
 
-    List<? extends io.jdbd.meta.SQLType> getParameterMeta();
+    List<? extends io.jdbd.meta.SQLType> getParameterMetas();
 
     ResultRowMeta getResultRowMeta() throws JdbdSQLException;
 

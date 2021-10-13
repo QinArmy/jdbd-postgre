@@ -48,7 +48,7 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBased
 
         final String sql = "SELECT t.id as id, t.create_time as createTime FROM mysql_types as t WHERE t.id  = ?";
         final long id = convertId(2);
-        BindValue bindValue = BindValue.create(0, MySQLType.BIGINT, id);
+        BindValue bindValue = BindValue.wrap(0, MySQLType.BIGINT, id);
         final TaskAdjutant taskAdjutant = obtainTaskAdjutant();
 
         List<ResultRow> resultRowList;
@@ -64,7 +64,7 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBased
         assertEquals(resultId, Long.valueOf(id), "id");
 
         // string bigint
-        bindValue = BindValue.create(0, MySQLType.BIGINT, Long.toString(id));
+        bindValue = BindValue.wrap(0, MySQLType.BIGINT, Long.toString(id));
         resultRowList = ComQueryTask.bindableQuery(Stmts.single(sql, bindValue), taskAdjutant)
                 .collectList()
                 .block();
@@ -1814,10 +1814,10 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBased
 
         List<BindValue> bindValueList = new ArrayList<>(2);
 
-        BindValue bindValue = BindValue.create(0, mySQLType, bindParam);
+        BindValue bindValue = BindValue.wrap(0, mySQLType, bindParam);
 
         bindValueList.add(bindValue);
-        bindValue = BindValue.create(1, MySQLType.BIGINT, id);
+        bindValue = BindValue.wrap(1, MySQLType.BIGINT, id);
         bindValueList.add(bindValue);
 
         ResultStates resultStates;
@@ -1830,7 +1830,7 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBased
 
     private ResultRow querySingleField(final TaskAdjutant taskAdjutant, final String field, final Object id) {
         String sql = String.format("SELECT t.id as id, t.%s as field FROM mysql_types as t WHERE t.id = ?", field);
-        BindValue bindValue = BindValue.create(0, MySQLType.BIGINT, id);
+        BindValue bindValue = BindValue.wrap(0, MySQLType.BIGINT, id);
 
         List<ResultRow> resultRowList;
         resultRowList = executeQuery(Stmts.single(sql, bindValue), taskAdjutant)
