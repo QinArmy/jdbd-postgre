@@ -15,7 +15,6 @@ import io.jdbd.stmt.MultiStatement;
 import io.jdbd.stmt.StaticStatement;
 import io.jdbd.vendor.result.FluxResultSink;
 import io.jdbd.vendor.result.MultiResults;
-import io.jdbd.vendor.result.ResultSetReader;
 import io.jdbd.vendor.stmt.*;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
@@ -506,7 +505,6 @@ final class ComQueryTask extends AbstractCommandTask {
         }
         return taskEnd;
     }
-
 
 
 

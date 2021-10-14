@@ -155,6 +155,26 @@ public abstract class JdbdStmts {
         return new ParamBatchStmtFull(sql, groupList, option);
     }
 
+
+    protected static abstract class AbstractMinStmt implements Stmt {
+
+        @Override
+        public final int getFetchSize() {
+            return 0;
+        }
+
+        @Override
+        public final Function<Object, Publisher<byte[]>> getImportPublisher() {
+            return null;
+        }
+
+        @Override
+        public final Function<Object, Subscriber<byte[]>> getExportSubscriber() {
+            return null;
+        }
+
+    }
+
     private static final class ParamBatchStmtFull implements ParamBatchStmt<ParamValue> {
 
         private final String sql;
@@ -176,44 +196,44 @@ public abstract class JdbdStmts {
             this.timeout = option.getTimeout();
 
             this.fetchSize = option.getFetchSize();
-            this.importPublisher = option.getImportFunction();
+            this.importPublisher = option.getImportPublisher();
             this.exportSubscriber = option.getExportSubscriber();
 
         }
 
         @Override
-        public final String getSql() {
+        public String getSql() {
             return this.sql;
         }
 
         @Override
-        public final List<List<ParamValue>> getGroupList() {
+        public List<List<ParamValue>> getGroupList() {
             return this.groupList;
         }
 
         @Override
-        public final int getTimeout() {
+        public int getTimeout() {
             return this.timeout;
         }
 
         @Override
-        public final int getFetchSize() {
-            return this.fetchSize;
+        public int getFetchSize() {
+            return this.groupList.size() == 1 ? this.fetchSize : 0;
         }
 
         @Override
-        public final Function<Object, Publisher<byte[]>> getImportPublisher() {
-            return this.importPublisher;
+        public Function<Object, Publisher<byte[]>> getImportPublisher() {
+            return this.groupList.size() == 1 ? this.importPublisher : null;
         }
 
         @Override
-        public final Function<Object, Subscriber<byte[]>> getExportSubscriber() {
-            return this.exportSubscriber;
+        public Function<Object, Subscriber<byte[]>> getExportSubscriber() {
+            return this.groupList.size() == 1 ? this.exportSubscriber : null;
         }
 
     }
 
-    private static final class ParamBatchStmtMin implements ParamBatchStmt<ParamValue> {
+    private static final class ParamBatchStmtMin extends AbstractMinStmt implements ParamBatchStmt<ParamValue> {
 
         private final String sql;
 
@@ -225,34 +245,20 @@ public abstract class JdbdStmts {
         }
 
         @Override
-        public final String getSql() {
+        public String getSql() {
             return this.sql;
         }
 
         @Override
-        public final List<List<ParamValue>> getGroupList() {
+        public List<List<ParamValue>> getGroupList() {
             return this.groupList;
         }
 
         @Override
-        public final int getTimeout() {
+        public int getTimeout() {
             return 0;
         }
 
-        @Override
-        public final int getFetchSize() {
-            return 0;
-        }
-
-        @Override
-        public final Function<Object, Publisher<byte[]>> getImportPublisher() {
-            return null;
-        }
-
-        @Override
-        public final Function<Object, Subscriber<byte[]>> getExportSubscriber() {
-            return null;
-        }
 
     }
 
@@ -280,50 +286,50 @@ public abstract class JdbdStmts {
             this.timeout = option.getTimeout();
 
             this.fetchSize = option.getFetchSize();
-            this.importPublisher = option.getImportFunction();
+            this.importPublisher = option.getImportPublisher();
             this.exportSubscriber = option.getExportSubscriber();
         }
 
         @Override
-        public final String getSql() {
+        public String getSql() {
             return this.sql;
         }
 
         @Override
-        public final Consumer<ResultStates> getStatusConsumer() {
+        public Consumer<ResultStates> getStatusConsumer() {
             return this.statesConsumer;
         }
 
         @Override
-        public final List<? extends ParamValue> getBindGroup() {
+        public List<? extends ParamValue> getBindGroup() {
             return this.paramGroup;
         }
 
         @Override
-        public final int getFetchSize() {
+        public int getFetchSize() {
             return this.fetchSize;
         }
 
         @Override
-        public final int getTimeout() {
+        public int getTimeout() {
             return this.timeout;
         }
 
         @Nullable
         @Override
-        public final Function<Object, Publisher<byte[]>> getImportPublisher() {
+        public Function<Object, Publisher<byte[]>> getImportPublisher() {
             return this.importPublisher;
         }
 
         @Nullable
         @Override
-        public final Function<Object, Subscriber<byte[]>> getExportSubscriber() {
+        public Function<Object, Subscriber<byte[]>> getExportSubscriber() {
             return this.exportSubscriber;
         }
 
     }
 
-    private static class ParamStmtMin implements ParamStmt {
+    private static class ParamStmtMin extends AbstractMinStmt implements ParamStmt {
 
         private final String sql;
 
@@ -335,7 +341,7 @@ public abstract class JdbdStmts {
         }
 
         @Override
-        public final String getSql() {
+        public String getSql() {
             return this.sql;
         }
 
@@ -345,34 +351,20 @@ public abstract class JdbdStmts {
         }
 
         @Override
-        public final List<? extends ParamValue> getBindGroup() {
+        public List<? extends ParamValue> getBindGroup() {
             return this.paramGroup;
         }
 
         @Override
-        public final int getFetchSize() {
+        public int getTimeout() {
             return 0;
         }
 
-        @Override
-        public final int getTimeout() {
-            return 0;
-        }
-
-        @Override
-        public final Function<Object, Publisher<byte[]>> getImportPublisher() {
-            return null;
-        }
-
-        @Override
-        public final Function<Object, Subscriber<byte[]>> getExportSubscriber() {
-            return null;
-        }
 
     }
 
 
-    private static final class BatchStmtImpl implements ParamBatchStmt<ParamValue> {
+    private static final class BatchStmtImpl extends AbstractMinStmt implements ParamBatchStmt<ParamValue> {
 
         private final String sql;
 
@@ -387,33 +379,29 @@ public abstract class JdbdStmts {
         }
 
         @Override
-        public final String getSql() {
+        public String getSql() {
             return this.sql;
         }
 
         @Override
-        public final List<List<ParamValue>> getGroupList() {
+        public List<List<ParamValue>> getGroupList() {
             return this.groupList;
         }
 
         @Override
-        public final int getTimeout() {
+        public int getTimeout() {
             return this.timeOut;
         }
 
     }
 
 
-    private static final class SimpleParamStmt implements ParamStmt {
+    private static final class SimpleParamStmt extends AbstractMinStmt implements ParamStmt {
 
         private final String sql;
 
         private final List<? extends ParamValue> paramGroup;
 
-        private SimpleParamStmt(String sql, ParamValue paramValue) {
-            this.sql = sql;
-            this.paramGroup = Collections.singletonList(paramValue);
-        }
 
         private SimpleParamStmt(String sql, List<? extends ParamValue> paramGroup) {
             this.sql = sql;
@@ -435,19 +423,16 @@ public abstract class JdbdStmts {
             return MultiResult.EMPTY_CONSUMER;
         }
 
-        @Override
-        public int getFetchSize() {
-            return 0;
-        }
 
         @Override
         public int getTimeout() {
             return 0;
         }
+
     }
 
 
-    private static class StmtImpl2 implements StaticStmt {
+    private static class StmtImpl2 extends AbstractMinStmt implements StaticStmt {
 
         private final String sql;
 
@@ -459,28 +444,24 @@ public abstract class JdbdStmts {
         }
 
         @Override
-        public final String getSql() {
+        public String getSql() {
             return this.sql;
         }
 
         @Override
-        public final int getTimeout() {
+        public int getTimeout() {
             return this.timeout;
         }
 
         @Override
-        public int getFetchSize() {
-            return 0;
-        }
-
-        @Override
-        public final Consumer<ResultStates> getStatusConsumer() {
+        public Consumer<ResultStates> getStatusConsumer() {
             return MultiResult.EMPTY_CONSUMER;
         }
 
+
     }
 
-    private static class StmtImpl2C implements StaticStmt {
+    private static class StmtImpl2C extends AbstractMinStmt implements StaticStmt {
 
         private final String sql;
 
@@ -492,29 +473,25 @@ public abstract class JdbdStmts {
         }
 
         @Override
-        public final String getSql() {
+        public String getSql() {
             return this.sql;
         }
 
         @Override
-        public final int getTimeout() {
+        public int getTimeout() {
             return 0;
         }
 
         @Override
-        public int getFetchSize() {
-            return 0;
-        }
-
-        @Override
-        public final Consumer<ResultStates> getStatusConsumer() {
+        public Consumer<ResultStates> getStatusConsumer() {
             return this.consumer;
         }
+
 
     }
 
 
-    private static class StmtImpl1 implements StaticStmt {
+    private static class StmtImpl1 extends AbstractMinStmt implements StaticStmt {
 
         private final String sql;
 
@@ -523,22 +500,17 @@ public abstract class JdbdStmts {
         }
 
         @Override
-        public final String getSql() {
+        public String getSql() {
             return this.sql;
         }
 
         @Override
-        public final int getTimeout() {
+        public int getTimeout() {
             return 0;
         }
 
         @Override
-        public int getFetchSize() {
-            return 0;
-        }
-
-        @Override
-        public final Consumer<ResultStates> getStatusConsumer() {
+        public Consumer<ResultStates> getStatusConsumer() {
             return MultiResult.EMPTY_CONSUMER;
         }
 
@@ -567,37 +539,37 @@ public abstract class JdbdStmts {
             this.timeout = option.getTimeout();
             this.fetchSize = option.getFetchSize();
 
-            this.importPublisher = option.getImportFunction();
+            this.importPublisher = option.getImportPublisher();
             this.exportSubscriber = option.getExportSubscriber();
         }
 
         @Override
-        public final String getSql() {
+        public String getSql() {
             return this.sql;
         }
 
         @Override
-        public final Consumer<ResultStates> getStatusConsumer() {
+        public Consumer<ResultStates> getStatusConsumer() {
             return this.statesConsumer;
         }
 
         @Override
-        public final int getTimeout() {
+        public int getTimeout() {
             return this.timeout;
         }
 
         @Override
-        public final int getFetchSize() {
+        public int getFetchSize() {
             return this.fetchSize;
         }
 
         @Override
-        public final Function<Object, Publisher<byte[]>> getImportPublisher() {
+        public Function<Object, Publisher<byte[]>> getImportPublisher() {
             return this.importPublisher;
         }
 
         @Override
-        public final Function<Object, Subscriber<byte[]>> getExportSubscriber() {
+        public Function<Object, Subscriber<byte[]>> getExportSubscriber() {
             return this.exportSubscriber;
         }
 
@@ -610,6 +582,8 @@ public abstract class JdbdStmts {
 
         private final int timeout;
 
+        private final int fetchSize;
+
         private final Function<Object, Publisher<byte[]>> importPublisher;
 
         private final Function<Object, Subscriber<byte[]>> exportSubscriber;
@@ -617,30 +591,36 @@ public abstract class JdbdStmts {
         private BatchStmtFull(List<String> sqlGroup, StatementOption option) {
             this.sqlGroup = Collections.unmodifiableList(sqlGroup);
             this.timeout = option.getTimeout();
-            this.importPublisher = option.getImportFunction();
+            this.fetchSize = option.getFetchSize();
+
+            this.importPublisher = option.getImportPublisher();
             this.exportSubscriber = option.getExportSubscriber();
         }
 
         @Override
-        public final List<String> getSqlGroup() {
+        public List<String> getSqlGroup() {
             return this.sqlGroup;
         }
 
         @Override
-        public final int getTimeout() {
+        public int getTimeout() {
             return timeout;
         }
 
         @Override
-        public final Function<Object, Publisher<byte[]>> getImportPublisher() {
-            return this.importPublisher;
+        public int getFetchSize() {
+            return this.sqlGroup.size() == 1 ? this.fetchSize : 0;
         }
 
         @Override
-        public final Function<Object, Subscriber<byte[]>> getExportSubscriber() {
-            return this.exportSubscriber;
+        public Function<Object, Publisher<byte[]>> getImportPublisher() {
+            return this.sqlGroup.size() == 1 ? this.importPublisher : null;
         }
 
+        @Override
+        public Function<Object, Subscriber<byte[]>> getExportSubscriber() {
+            return this.sqlGroup.size() == 1 ? this.exportSubscriber : null;
+        }
 
     }
 
@@ -659,17 +639,17 @@ public abstract class JdbdStmts {
         }
 
         @Override
-        public final String getSql() {
+        public String getSql() {
             return this.sql;
         }
 
         @Override
-        public final Consumer<ResultStates> getStatusConsumer() {
+        public Consumer<ResultStates> getStatusConsumer() {
             return JdbdFunctions.noActionConsumer();
         }
 
         @Override
-        public final int getTimeout() {
+        public int getTimeout() {
             return this.timeout;
         }
 
@@ -679,53 +659,19 @@ public abstract class JdbdStmts {
         }
 
         @Override
-        public final Function<Object, Subscriber<byte[]>> getExportSubscriber() {
+        public Function<Object, Subscriber<byte[]>> getExportSubscriber() {
             return this.exportFunction;
         }
 
-    }
-
-    private static class StmtImpImport2 implements StaticStmt {
-
-        private final String sql;
-
-        private final Function<Object, Publisher<byte[]>> function;
-
-        private StmtImpImport2(String sql, Function<Object, Publisher<byte[]>> function) {
-            this.sql = sql;
-            this.function = Objects.requireNonNull(function, "function");
-        }
-
         @Override
-        public final String getSql() {
-            return this.sql;
+        public Function<Object, Publisher<byte[]>> getImportPublisher() {
+            return null;
         }
-
-        @Override
-        public final Consumer<ResultStates> getStatusConsumer() {
-            return JdbdFunctions.noActionConsumer();
-        }
-
-        @Override
-        public final int getTimeout() {
-            return 0;
-        }
-
-        @Override
-        public int getFetchSize() {
-            return 0;
-        }
-
-        @Override
-        public final Function<Object, Publisher<byte[]>> getImportPublisher() {
-            return this.function;
-        }
-
 
     }
 
 
-    private static class StmtImpl3 implements StaticStmt {
+    private static class StmtImpl3 extends AbstractMinStmt implements StaticStmt {
 
         private final String sql;
 
@@ -740,29 +686,24 @@ public abstract class JdbdStmts {
         }
 
         @Override
-        public final String getSql() {
+        public String getSql() {
             return this.sql;
         }
 
         @Override
-        public final int getTimeout() {
+        public int getTimeout() {
             return this.timeout;
         }
 
         @Override
-        public int getFetchSize() {
-            return 0;
-        }
-
-        @Override
-        public final Consumer<ResultStates> getStatusConsumer() {
+        public Consumer<ResultStates> getStatusConsumer() {
             return this.consumer;
         }
 
 
     }
 
-    private static final class GroupStmtZeroTimeout implements StaticBatchStmt {
+    private static final class GroupStmtZeroTimeout extends AbstractMinStmt implements StaticBatchStmt {
 
         private final List<String> sqlGroup;
 
@@ -771,18 +712,19 @@ public abstract class JdbdStmts {
         }
 
         @Override
-        public final List<String> getSqlGroup() {
+        public List<String> getSqlGroup() {
             return this.sqlGroup;
         }
 
         @Override
-        public final int getTimeout() {
+        public int getTimeout() {
             return 0;
         }
 
+
     }
 
-    private static final class GroupStmtImpl implements StaticBatchStmt {
+    private static final class GroupStmtImpl extends AbstractMinStmt implements StaticBatchStmt {
 
         private final List<String> sqlGroup;
 
@@ -794,12 +736,12 @@ public abstract class JdbdStmts {
         }
 
         @Override
-        public final List<String> getSqlGroup() {
+        public List<String> getSqlGroup() {
             return this.sqlGroup;
         }
 
         @Override
-        public final int getTimeout() {
+        public int getTimeout() {
             return this.timeout;
         }
 

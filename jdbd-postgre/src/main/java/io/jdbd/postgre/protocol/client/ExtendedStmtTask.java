@@ -20,7 +20,7 @@ interface ExtendedStmtTask {
 
     TaskAdjutant adjutant();
 
-    List<PgType> getParamTypeList();
+    List<PgType> getParamTypes();
 
     @Nullable
     ResultRowMeta getRowMeta();

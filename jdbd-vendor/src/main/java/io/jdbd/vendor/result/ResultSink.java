@@ -1,6 +1,7 @@
 package io.jdbd.vendor.result;
 
 
+import io.jdbd.postgre.protocol.client.ResultSetReader;
 import io.jdbd.result.Result;
 
 /**

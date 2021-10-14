@@ -6,7 +6,6 @@ import io.jdbd.JdbdSQLException;
 import io.jdbd.meta.SQLType;
 import io.jdbd.postgre.PgType;
 import io.jdbd.postgre.stmt.PgStmts;
-import io.jdbd.postgre.stmt.PrepareStmtTask;
 import io.jdbd.postgre.util.PgExceptions;
 import io.jdbd.postgre.util.PgFunctions;
 import io.jdbd.result.*;
@@ -18,6 +17,7 @@ import io.jdbd.vendor.stmt.JdbdParamValue;
 import io.jdbd.vendor.stmt.ParamBatchStmt;
 import io.jdbd.vendor.stmt.ParamStmt;
 import io.jdbd.vendor.stmt.ParamValue;
+import io.jdbd.vendor.task.PrepareStmtTask;
 import io.jdbd.vendor.util.JdbdBinds;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -34,12 +34,12 @@ import java.util.function.Consumer;
  */
 final class PgPreparedStatement extends PgStatement implements PreparedStatement {
 
-    static PgPreparedStatement create(PgDatabaseSession session, PrepareStmtTask stmtTask) {
+    static PgPreparedStatement create(PgDatabaseSession session, PrepareStmtTask<PgType> stmtTask) {
         return new PgPreparedStatement(session, stmtTask);
     }
 
 
-    private final PrepareStmtTask stmtTask;
+    private final PrepareStmtTask<PgType> stmtTask;
 
     private final String sql;
 
@@ -49,19 +49,22 @@ final class PgPreparedStatement extends PgStatement implements PreparedStatement
 
     private final ResultRowMeta rowMeta;
 
+    private final Warning warning;
+
     private final List<List<ParamValue>> paramGroupList = new LinkedList<>();
 
     private List<ParamValue> paramGroup;
 
     private int fetchSize;
 
-    private PgPreparedStatement(PgDatabaseSession session, PrepareStmtTask stmtTask) {
+    private PgPreparedStatement(PgDatabaseSession session, PrepareStmtTask<PgType> stmtTask) {
         super(session);
         this.stmtTask = stmtTask;
         this.sql = stmtTask.getSql();
-        this.paramTypeList = stmtTask.getParamTypeList();
+        this.paramTypeList = stmtTask.getParamTypes();
         this.paramCount = this.paramTypeList.size();
 
+        this.warning = stmtTask.getWarning();
         this.rowMeta = stmtTask.getRowMeta();
         if (this.paramCount == 0) {
             this.paramGroup = Collections.emptyList();
@@ -72,12 +75,12 @@ final class PgPreparedStatement extends PgStatement implements PreparedStatement
 
 
     @Override
-    public final List<? extends SQLType> getParameterMetas() {
+    public List<? extends SQLType> getParameterTypes() {
         return this.paramTypeList;
     }
 
     @Override
-    public final ResultRowMeta getResultRowMeta() throws JdbdSQLException {
+    public ResultRowMeta getResultRowMeta() throws JdbdSQLException {
         final ResultRowMeta meta = this.rowMeta;
         if (meta == null) {
             throw PgExceptions.noReturnColumn();
@@ -86,7 +89,7 @@ final class PgPreparedStatement extends PgStatement implements PreparedStatement
     }
 
     @Override
-    public final void bind(final int indexBasedZero, final @Nullable Object nullable)
+    public void bind(final int indexBasedZero, final @Nullable Object nullable)
             throws JdbdException {
         final List<ParamValue> paramGroup = this.paramGroup;
         if (paramGroup == null) {
@@ -103,7 +106,7 @@ final class PgPreparedStatement extends PgStatement implements PreparedStatement
 
 
     @Override
-    public final void addBatch() throws JdbdException {
+    public void addBatch() throws JdbdException {
         final List<ParamValue> paramGroup = this.paramGroup;
         final int paramCount = this.paramCount;
 
@@ -131,7 +134,7 @@ final class PgPreparedStatement extends PgStatement implements PreparedStatement
 
 
     @Override
-    public final Mono<ResultStates> executeUpdate() {
+    public Mono<ResultStates> executeUpdate() {
 
         final List<ParamValue> paramGroup = this.paramGroup;
 
@@ -162,12 +165,12 @@ final class PgPreparedStatement extends PgStatement implements PreparedStatement
 
 
     @Override
-    public final Flux<ResultRow> executeQuery() {
+    public Flux<ResultRow> executeQuery() {
         return executeQuery(PgFunctions.noActionConsumer());
     }
 
     @Override
-    public final Flux<ResultRow> executeQuery(final Consumer<ResultStates> statesConsumer) {
+    public Flux<ResultRow> executeQuery(final Consumer<ResultStates> statesConsumer) {
         Objects.requireNonNull(statesConsumer, "statesConsumer");
 
         final List<ParamValue> paramGroup = this.paramGroup;
@@ -198,7 +201,7 @@ final class PgPreparedStatement extends PgStatement implements PreparedStatement
     }
 
     @Override
-    public final Flux<ResultStates> executeBatch() {
+    public Flux<ResultStates> executeBatch() {
         final Flux<ResultStates> flux;
         if (this.paramGroup == null) {
             flux = Flux.error(PgExceptions.cannotReuseStatement(PreparedStatement.class));
@@ -216,7 +219,7 @@ final class PgPreparedStatement extends PgStatement implements PreparedStatement
     }
 
     @Override
-    public final MultiResult executeBatchAsMulti() {
+    public MultiResult executeBatchAsMulti() {
         final MultiResult result;
         if (this.paramGroup == null) {
             result = MultiResults.error(PgExceptions.cannotReuseStatement(PreparedStatement.class));
@@ -234,7 +237,7 @@ final class PgPreparedStatement extends PgStatement implements PreparedStatement
     }
 
     @Override
-    public final OrderedFlux executeBatchAsFlux() {
+    public OrderedFlux executeBatchAsFlux() {
         final OrderedFlux flux;
         if (this.paramGroup == null) {
             flux = MultiResults.orderedFluxError(PgExceptions.cannotReuseStatement(PreparedStatement.class));
@@ -252,21 +255,27 @@ final class PgPreparedStatement extends PgStatement implements PreparedStatement
     }
 
     @Override
-    public final Mono<DatabaseSession> abandonBind() {
+    public Mono<DatabaseSession> abandonBind() {
         return this.stmtTask.abandonBind()
                 .thenReturn(this.session);
+    }
+
+    @Nullable
+    @Override
+    public Warning getWaring() {
+        return this.warning;
     }
 
     /*################################## blow Statement method ##################################*/
 
     @Override
-    public final boolean supportPublisher() {
+    public boolean supportPublisher() {
         return true;
     }
 
 
     @Override
-    public final boolean setFetchSize(final int fetchSize) {
+    public boolean setFetchSize(final int fetchSize) {
         final boolean support = this.rowMeta != null && fetchSize > 0;
         if (support) {
             this.fetchSize = fetchSize;
@@ -280,7 +289,7 @@ final class PgPreparedStatement extends PgStatement implements PreparedStatement
     /*################################## blow StatementOption method ##################################*/
 
     @Override
-    public final int getFetchSize() {
+    public int getFetchSize() {
         return this.fetchSize;
     }
 

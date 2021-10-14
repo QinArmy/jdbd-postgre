@@ -3,7 +3,6 @@ package io.jdbd.mysql.protocol.client;
 import io.jdbd.JdbdSQLException;
 import io.jdbd.mysql.util.MySQLExceptions;
 import io.jdbd.vendor.result.FluxResultSink;
-import io.jdbd.vendor.result.ResultSetReader;
 import io.netty.buffer.ByteBuf;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -114,27 +113,38 @@ abstract class AbstractCommandTask extends MySQLTask implements StmtTask {
     }
 
     /**
-     * @return true: task end.
+     * @return true:task end
      */
     final boolean readResultSet(final ByteBuf cumulateBuffer, final Consumer<Object> serverStatusConsumer) {
-
-        final boolean[] taskEndHolder = new boolean[]{false};
-        final Consumer<Object> consumer = status -> {
-            if (status instanceof TerminatorPacket) {
-                final TerminatorPacket tp = (TerminatorPacket) status;
-                taskEndHolder[0] = (tp.statusFags & TerminatorPacket.SERVER_MORE_RESULTS_EXISTS) == 0;
-            }
-            serverStatusConsumer.accept(status);
-        };
         final boolean taskEnd;
-        if (this.resultSetReader.read(cumulateBuffer, consumer)) {
-            this.handleReadResultSetEnd();
-            taskEnd = taskEndHolder[0];
-        } else {
-            taskEnd = false;
+        final ResultSetReader.States states;
+        states = this.resultSetReader.read(cumulateBuffer, serverStatusConsumer);
+        switch (states) {
+            case END_ONE_ERROR: {
+                taskEnd = true;
+            }
+            break;
+            case MORE_CUMULATE: {
+                taskEnd = false;
+            }
+            break;
+            case NO_MORE_RESULT: {
+                taskEnd = true;
+                handleReadResultSetEnd();
+            }
+            break;
+            case MORE_RESULT: {
+                taskEnd = false;
+                handleReadResultSetEnd();
+            }
+            break;
+            default:
+                throw MySQLExceptions.createUnexpectedEnumException(states);
+
         }
         return taskEnd;
     }
+
 
     /**
      * @return true: task end.
@@ -145,9 +155,13 @@ abstract class AbstractCommandTask extends MySQLTask implements StmtTask {
         final OkPacket ok;
         ok = OkPacket.read(cumulateBuffer.readSlice(payloadLength), this.negotiatedCapability);
         serverStatusConsumer.accept(ok);
-        // emit update result.
-        this.sink.next(MySQLResultStates.fromUpdate(getAndIncrementResultIndex(), ok));
-        return (ok.getStatusFags() & TerminatorPacket.SERVER_MORE_RESULTS_EXISTS) == 0;
+
+        final int resultIndex = getAndIncrementResultIndex(); // must increment result index.
+        if (!this.isCanceled()) {
+            // emit update result.
+            this.sink.next(MySQLResultStates.fromUpdate(resultIndex, ok));
+        }
+        return (ok.statusFags & TerminatorPacket.SERVER_MORE_RESULTS_EXISTS) == 0;
     }
 
 

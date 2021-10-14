@@ -43,7 +43,7 @@ public interface PreparedStatement extends BindableSingleStatement, BindableMult
     boolean supportOutParameter();
 
 
-    List<? extends io.jdbd.meta.SQLType> getParameterMetas();
+    List<? extends io.jdbd.meta.SQLType> getParameterTypes();
 
     ResultRowMeta getResultRowMeta() throws JdbdSQLException;
 
@@ -92,6 +92,9 @@ public interface PreparedStatement extends BindableSingleStatement, BindableMult
      * @throws JdbdException emit(not throw), when after invoking executeXxx().
      */
     Publisher<DatabaseSession> abandonBind();
+
+    @Nullable
+    Warning getWaring();
 
 
 }

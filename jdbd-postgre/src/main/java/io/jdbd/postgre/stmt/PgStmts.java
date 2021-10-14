@@ -190,7 +190,7 @@ public abstract class PgStmts extends JdbdStmts {
         private BindStmtFull(String sql, List<BindValue> paramGroup, Consumer<ResultStates> stateConsumer
                 , StatementOption option) {
             super(sql, paramGroup, stateConsumer, option);
-            this.importPublisher = option.getImportFunction();
+            this.importPublisher = option.getImportPublisher();
             this.exportSubscriber = option.getExportSubscriber();
         }
 
@@ -291,7 +291,7 @@ public abstract class PgStmts extends JdbdStmts {
         private MultiBindStmtFull(List<BindStmt> stmtGroup, StatementOption option) {
             super(stmtGroup);
             this.timeout = option.getTimeout();
-            this.importPublisher = option.getImportFunction();
+            this.importPublisher = option.getImportPublisher();
             this.exportSubscriber = option.getExportSubscriber();
         }
 

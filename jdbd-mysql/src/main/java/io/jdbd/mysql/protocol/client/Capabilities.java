@@ -27,7 +27,7 @@ abstract class Capabilities {
     static final int CLIENT_QUERY_ATTRIBUTES = 1 << 27;
     static final int CLIENT_SSL_VERIFY_SERVER_CERT = 1 << 30;
 
-    Capabilities() {
+    private Capabilities() {
         throw new UnsupportedOperationException();
     }
 

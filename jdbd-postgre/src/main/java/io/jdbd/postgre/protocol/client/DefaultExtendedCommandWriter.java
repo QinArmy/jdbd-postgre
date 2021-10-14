@@ -171,7 +171,7 @@ final class DefaultExtendedCommandWriter implements ExtendedCommandWriter {
 
         beforeExecute();
 
-        this.paramTypeList = this.stmtTask.getParamTypeList();
+        this.paramTypeList = this.stmtTask.getParamTypes();
         return Flux.create(sink -> {
             if (this.adjutant.inEventLoop()) {
                 continueBindExecuteInEventLoop(sink, 0);
@@ -370,7 +370,7 @@ final class DefaultExtendedCommandWriter implements ExtendedCommandWriter {
         }
         message.writeByte(Messages.STRING_TERMINATOR);
 
-        final List<PgType> paramTypeList = this.oneShot ? Collections.emptyList() : this.stmtTask.getParamTypeList();
+        final List<PgType> paramTypeList = this.oneShot ? Collections.emptyList() : this.stmtTask.getParamTypes();
         final int paramCount = paramTypeList.size();
         if (bindCount != paramCount) {
             throw PgExceptions.parameterCountMatch(batchIndex, paramCount, bindCount);

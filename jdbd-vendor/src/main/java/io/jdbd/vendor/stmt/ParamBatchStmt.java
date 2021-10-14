@@ -1,6 +1,10 @@
 package io.jdbd.vendor.stmt;
 
+import org.reactivestreams.Publisher;
+import org.reactivestreams.Subscriber;
+
 import java.util.List;
+import java.util.function.Function;
 
 /**
  * <p>
@@ -13,6 +17,31 @@ public interface ParamBatchStmt<T extends ParamValue> extends ParamSingleStmt {
 
 
     List<List<T>> getGroupList();
+
+
+    /**
+     * <p>
+     * If {@link #getGroupList()} size isn't 1 ,then always return 0 .
+     * </p>
+     */
+    @Override
+    int getFetchSize();
+
+    /**
+     * <p>
+     * If {@link #getGroupList()} size isn't 1 ,then always return null .
+     * </p>
+     */
+    @Override
+    Function<Object, Publisher<byte[]>> getImportPublisher();
+
+    /**
+     * <p>
+     * If {@link #getGroupList()} size isn't 1 ,then always return null .
+     * </p>
+     */
+    @Override
+    Function<Object, Subscriber<byte[]>> getExportSubscriber();
 
 
 }

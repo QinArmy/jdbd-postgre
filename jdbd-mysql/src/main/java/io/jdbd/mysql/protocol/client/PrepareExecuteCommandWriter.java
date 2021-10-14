@@ -40,7 +40,7 @@ final class PrepareExecuteCommandWriter implements ExecuteCommandWriter {
     }
 
 
-    private final StatementTask statementTask;
+    private final PrepareTask statementTask;
 
     private final int statementId;
 
@@ -51,7 +51,7 @@ final class PrepareExecuteCommandWriter implements ExecuteCommandWriter {
     private final boolean fetchResultSet;
 
 
-    PrepareExecuteCommandWriter(final StatementTask statementTask) {
+    PrepareExecuteCommandWriter(final PrepareTask statementTask) {
         this.statementTask = statementTask;
         this.statementId = statementTask.obtainStatementId();
         this.paramMetaArray = statementTask.obtainParameterMetas();

@@ -99,7 +99,7 @@ abstract class PgStatement implements Statement, StatementOption {
 
     @Nullable
     @Override
-    public final Function<Object, Publisher<byte[]>> getImportFunction() {
+    public final Function<Object, Publisher<byte[]>> getImportPublisher() {
         final Function<Object, Publisher<byte[]>> function = this.importPublisher;
         if (function != null) {
             this.importPublisher = null;

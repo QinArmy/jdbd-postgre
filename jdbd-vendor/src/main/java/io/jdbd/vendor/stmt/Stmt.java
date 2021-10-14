@@ -27,17 +27,13 @@ public interface Stmt {
 
     int getTimeout();
 
-    default int getFetchSize() {
-        return 0;
-    }
+    int getFetchSize();
 
     @Nullable
-    default Function<Object, Publisher<byte[]>> getImportPublisher() {
-        return null;
-    }
+    Function<Object, Publisher<byte[]>> getImportPublisher();
 
     @Nullable
-    default Function<Object, Subscriber<byte[]>> getExportSubscriber() {
-        return null;
-    }
+    Function<Object, Subscriber<byte[]>> getExportSubscriber();
+
+
 }

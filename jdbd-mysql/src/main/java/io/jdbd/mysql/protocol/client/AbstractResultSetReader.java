@@ -8,7 +8,6 @@ import io.jdbd.mysql.protocol.conf.MyKey;
 import io.jdbd.mysql.util.MySQLExceptions;
 import io.jdbd.result.ResultRow;
 import io.jdbd.vendor.conf.Properties;
-import io.jdbd.vendor.result.ResultSetReader;
 import io.jdbd.vendor.result.ResultSink;
 import io.jdbd.vendor.type.LongBinaries;
 import io.jdbd.vendor.type.LongStrings;
@@ -47,6 +46,8 @@ abstract class AbstractResultSetReader implements ResultSetReader {
 
     private MySQLRowMeta rowMeta;
 
+    private States states = States.MORE_CUMULATE;
+
     private boolean resultSetEnd;
 
     private long readRowCount = 0;
@@ -66,7 +67,7 @@ abstract class AbstractResultSetReader implements ResultSetReader {
     }
 
     @Override
-    public final boolean read(final ByteBuf cumulateBuffer, final Consumer<Object> serverStatesConsumer)
+    public final States read(final ByteBuf cumulateBuffer, final Consumer<Object> serverStatesConsumer)
             throws JdbdException {
         boolean resultSetEnd = this.resultSetEnd;
         if (resultSetEnd) {
@@ -102,7 +103,6 @@ abstract class AbstractResultSetReader implements ResultSetReader {
                     break;
                     case READ_BIG_COLUMN: {
                         if (readBigColumn(cumulateBuffer)) {
-                            continueRead = true;
                             this.phase = Phase.READ_BIG_ROW;
                         } else {
                             continueRead = false;
@@ -120,13 +120,13 @@ abstract class AbstractResultSetReader implements ResultSetReader {
         }
 
         if (resultSetEnd) {
-            if (isResettable()) {
-                resetReader();
-            } else {
-                this.resultSetEnd = true;
+            if (this.states == States.MORE_CUMULATE) {
+                // here bug.
+                throw new IllegalStateException("this.states is MORE_CUMULATE");
             }
+            resetReader();
         }
-        return resultSetEnd;
+        return this.states;
     }
 
 
@@ -197,6 +197,7 @@ abstract class AbstractResultSetReader implements ResultSetReader {
                             , this.adjutant.obtainCharsetError());
                     this.stmtTask.addErrorToTask(MySQLExceptions.createErrorPacketException(error));
                     resultSetEnd = true;
+                    this.states = States.END_ONE_ERROR;
                     break;
                 } else if (header == EofPacket.EOF_HEADER && (binaryReader || payloadLength < Packets.MAX_PAYLOAD)) {
                     // this block : read ResultSet end.
@@ -205,16 +206,21 @@ abstract class AbstractResultSetReader implements ResultSetReader {
 
                     final int negotiatedCapability = this.negotiatedCapability;
                     final TerminatorPacket tp;
-                    if ((negotiatedCapability & Capabilities.CLIENT_DEPRECATE_EOF) != 0) {
+                    if (Capabilities.deprecateEof(negotiatedCapability)) {
                         tp = OkPacket.read(cumulateBuffer.readSlice(payloadLength), negotiatedCapability);
                     } else {
                         tp = EofPacket.read(cumulateBuffer.readSlice(payloadLength), negotiatedCapability);
                     }
                     serverStatesConsumer.accept(tp);
+                    resultSetEnd = true;
+                    if ((tp.statusFags & TerminatorPacket.SERVER_MORE_RESULTS_EXISTS) == 0) {
+                        this.states = States.NO_MORE_RESULT;
+                    } else {
+                        this.states = States.MORE_RESULT;
+                    }
                     if (!cancelled) {
                         sink.next(MySQLResultStates.fromQuery(rowMeta.getResultIndex(), tp, readRowCount));
                     }
-                    resultSetEnd = true;
                     if (LOG.isTraceEnabled()) {
                         LOG.trace("read  ResultSet end.");
                     }
@@ -366,6 +372,7 @@ abstract class AbstractResultSetReader implements ResultSetReader {
         this.phase = Phase.READ_RESULT_META;
         this.readRowCount = 0L;
         this.rowMeta = null;
+        this.states = States.MORE_CUMULATE;
 
         ByteBuf buffer;
         if ((buffer = this.bigPayload) != null && buffer.refCnt() > 0) {

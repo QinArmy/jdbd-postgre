@@ -10,9 +10,9 @@ import java.nio.charset.StandardCharsets;
 /**
  * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_connection_phase_packets_protocol_handshake_v10.html">Protocol::HandshakeV10</a>
  */
-final class HandshakeV10Packet implements MySQLPacket {
+final class Handshake10 implements MySQLPacket {
 
-    public static HandshakeV10Packet readHandshake(ByteBuf payload) {
+    public static Handshake10 readHandshake(ByteBuf payload) {
         // below payload
         if (payload.readByte() != 10) {
             throw new IllegalArgumentException("byteBuf isn't Handshake v10 .");
@@ -64,7 +64,7 @@ final class HandshakeV10Packet implements MySQLPacket {
                 authPluginName = Packets.readStringTerm(payload, StandardCharsets.US_ASCII);
             }
         }
-        return new HandshakeV10Packet(serverVersion
+        return new Handshake10(serverVersion
                 , threadId, authPluginDataPart1
                 , filler, capabilityFlags
                 , characterSet, statusFlags
@@ -96,7 +96,7 @@ final class HandshakeV10Packet implements MySQLPacket {
 
     private final String authPluginName;
 
-    private HandshakeV10Packet(MySQLServerVersion serverVersion
+    private Handshake10(MySQLServerVersion serverVersion
             , long threadId, String authPluginDataPart1
             , short filler, int capabilityFlags
             , short collationIndex, int statusFlags

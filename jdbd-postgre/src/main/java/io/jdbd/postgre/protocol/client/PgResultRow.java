@@ -80,7 +80,7 @@ public class PgResultRow extends AbstractResultRow<PgRowMeta> {
         }
         final boolean need;
         switch (meta.sqlType) {
-            case BYTEA://This types that from text protocol have parsed by {@link io.jdbd.vendor.result.ResultSetReader}.
+            case BYTEA://This types that from text protocol have parsed by {@link io.jdbd.postgre.protocol.client.ResultSetReader}.
                 need = false;
                 break;
             case BOOLEAN:

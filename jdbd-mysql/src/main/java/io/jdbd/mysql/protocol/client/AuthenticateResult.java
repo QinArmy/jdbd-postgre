@@ -2,17 +2,17 @@ package io.jdbd.mysql.protocol.client;
 
 final class AuthenticateResult {
 
-    private final HandshakeV10Packet handshakeV10Packet;
+    private final Handshake10 handshake10;
 
     private final int negotiatedCapability;
 
-     AuthenticateResult(HandshakeV10Packet handshakeV10Packet, int negotiatedCapability) {
-         this.handshakeV10Packet = handshakeV10Packet;
-         this.negotiatedCapability = negotiatedCapability;
-     }
+    AuthenticateResult(Handshake10 handshake10, int negotiatedCapability) {
+        this.handshake10 = handshake10;
+        this.negotiatedCapability = negotiatedCapability;
+    }
 
-    public HandshakeV10Packet handshakeV10Packet() {
-        return handshakeV10Packet;
+    public Handshake10 handshakeV10Packet() {
+        return handshake10;
     }
 
     public int negotiatedCapability() {

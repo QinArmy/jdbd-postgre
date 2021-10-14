@@ -1,10 +1,10 @@
 package io.jdbd.postgre.protocol.client;
 
 import io.jdbd.ServerVersion;
+import io.jdbd.postgre.PgType;
 import io.jdbd.postgre.stmt.BindBatchStmt;
 import io.jdbd.postgre.stmt.BindMultiStmt;
 import io.jdbd.postgre.stmt.BindStmt;
-import io.jdbd.postgre.stmt.PrepareStmtTask;
 import io.jdbd.result.MultiResult;
 import io.jdbd.result.OrderedFlux;
 import io.jdbd.result.ResultRow;
@@ -15,6 +15,7 @@ import io.jdbd.stmt.PreparedStatement;
 import io.jdbd.stmt.StaticStatement;
 import io.jdbd.vendor.stmt.StaticBatchStmt;
 import io.jdbd.vendor.stmt.StaticStmt;
+import io.jdbd.vendor.task.PrepareStmtTask;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -129,7 +130,7 @@ public interface ClientProtocol {
      */
     OrderedFlux multiStmtAsFlux(BindMultiStmt stmt);
 
-    Mono<PreparedStatement> prepare(String sql, Function<PrepareStmtTask, PreparedStatement> function);
+    Mono<PreparedStatement> prepare(String sql, Function<PrepareStmtTask<PgType>, PreparedStatement> function);
 
 
     /*################################## blow for session ##################################*/

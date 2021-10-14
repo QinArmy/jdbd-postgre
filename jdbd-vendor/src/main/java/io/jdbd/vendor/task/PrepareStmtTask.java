@@ -1,6 +1,6 @@
-package io.jdbd.mysql.protocol.client;
+package io.jdbd.vendor.task;
 
-import io.jdbd.mysql.MySQLType;
+import io.jdbd.meta.SQLType;
 import io.jdbd.result.*;
 import io.jdbd.vendor.stmt.ParamBatchStmt;
 import io.jdbd.vendor.stmt.ParamStmt;
@@ -11,7 +11,7 @@ import reactor.util.annotation.Nullable;
 
 import java.util.List;
 
-public interface PrepareStmtTask {
+public interface PrepareStmtTask<T extends SQLType> {
 
     Mono<ResultStates> executeUpdate(ParamStmt stmt);
 
@@ -23,7 +23,7 @@ public interface PrepareStmtTask {
 
     OrderedFlux executeBatchAsFlux(ParamBatchStmt<ParamValue> stmt);
 
-    List<MySQLType> getParamTypes();
+    List<T> getParamTypes();
 
     @Nullable
     ResultRowMeta getRowMeta();
@@ -33,5 +33,8 @@ public interface PrepareStmtTask {
     String getSql();
 
     Mono<Void> abandonBind();
+
+    @Nullable
+    Warning getWarning();
 
 }

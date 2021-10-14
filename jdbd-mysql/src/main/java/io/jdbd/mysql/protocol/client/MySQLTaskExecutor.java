@@ -69,11 +69,11 @@ final class MySQLTaskExecutor extends CommunicationTaskExecutor<TaskAdjutant> {
     static void setAuthenticateResult(MySQLTaskExecutor taskExecutor, AuthenticateResult result) {
         synchronized (taskExecutor.taskAdjutant) {
             TaskAdjutantWrapper adjutantWrapper = (TaskAdjutantWrapper) taskExecutor.taskAdjutant;
-            if (adjutantWrapper.handshakeV10Packet == null
+            if (adjutantWrapper.handshake10 == null
                     && adjutantWrapper.negotiatedCapability == 0) {
                 // 1.
-                HandshakeV10Packet handshake = Objects.requireNonNull(result, "result").handshakeV10Packet();
-                adjutantWrapper.handshakeV10Packet = Objects.requireNonNull(handshake, "handshake");
+                Handshake10 handshake = Objects.requireNonNull(result, "result").handshakeV10Packet();
+                adjutantWrapper.handshake10 = Objects.requireNonNull(handshake, "handshake");
 
                 //2.
                 Charset serverCharset = CharsetMapping.getJavaCharsetByCollationIndex(handshake.getCollationIndex());
@@ -151,7 +151,7 @@ final class MySQLTaskExecutor extends CommunicationTaskExecutor<TaskAdjutant> {
 
         private final MySQLTaskExecutor taskExecutor;
 
-        private HandshakeV10Packet handshakeV10Packet;
+        private Handshake10 handshake10;
 
         private Charset serverHandshakeCharset;
 
@@ -274,8 +274,8 @@ final class MySQLTaskExecutor extends CommunicationTaskExecutor<TaskAdjutant> {
         }
 
         @Override
-        public HandshakeV10Packet obtainHandshakeV10Packet() {
-            HandshakeV10Packet packet = this.handshakeV10Packet;
+        public Handshake10 obtainHandshakeV10Packet() {
+            Handshake10 packet = this.handshake10;
             if (packet == null) {
                 throw new IllegalStateException("Cannot access handshakeV10Packet now.");
             }
@@ -309,7 +309,7 @@ final class MySQLTaskExecutor extends CommunicationTaskExecutor<TaskAdjutant> {
 
         @Override
         public boolean isAuthenticated() {
-            return this.handshakeV10Packet != null;
+            return this.handshake10 != null;
         }
 
         @Override

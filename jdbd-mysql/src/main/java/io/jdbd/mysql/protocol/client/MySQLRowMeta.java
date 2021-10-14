@@ -22,7 +22,7 @@ import java.util.Map;
 /**
  * This class is a implementation of {@link ResultRowMeta}
  */
-abstract class MySQLRowMeta implements ResultRowMeta {
+final class MySQLRowMeta implements ResultRowMeta {
 
     static boolean canReadMeta(final ByteBuf cumulateBuffer, final boolean endOfMeta) {
         final int originalReaderIndex = cumulateBuffer.readerIndex();
@@ -64,15 +64,31 @@ abstract class MySQLRowMeta implements ResultRowMeta {
 
         final TaskAdjutant adjutant = stmtTask.adjutant();
 
-        return new SimpleIndexMySQLRowMeta(metaArray
+        return new MySQLRowMeta(metaArray
                 , stmtTask.getAndIncrementResultIndex()
                 , adjutant.obtainCustomCollationMap());
+    }
+
+
+    @Nullable
+    static MySQLRowMeta readForPrepare(final ByteBuf cumulateBuffer, final int columnCount
+            , final MetaAdjutant metaAdjutant) {
+        final MySQLColumnMeta[] metaArray;
+        metaArray = MySQLColumnMeta.readMetas(cumulateBuffer, columnCount, metaAdjutant);
+
+        final MySQLRowMeta rowMeta;
+        if (metaArray.length == 0) {
+            rowMeta = null;
+        } else {
+            rowMeta = new MySQLRowMeta(metaArray);
+        }
+        return rowMeta;
     }
 
     @Deprecated
     static MySQLRowMeta from(MySQLColumnMeta[] mySQLColumnMetas
             , Map<Integer, CharsetMapping.CustomCollation> customCollationMap) {
-        return new SimpleIndexMySQLRowMeta(mySQLColumnMetas, 0, customCollationMap);
+        return new MySQLRowMeta(mySQLColumnMetas, 0, customCollationMap);
     }
 
     private final int resultIndex;
@@ -83,9 +99,17 @@ abstract class MySQLRowMeta implements ResultRowMeta {
 
     int metaIndex = 0;
 
+    private MySQLRowMeta(final MySQLColumnMeta[] columnMetaArray) {
+        this.resultIndex = -1;
+        this.columnMetaArray = columnMetaArray;
+        this.customCollationMap = Collections.emptyMap();
+    }
 
-    private MySQLRowMeta(final MySQLColumnMeta[] columnMetaArray, int resultIndex
+    private MySQLRowMeta(final MySQLColumnMeta[] columnMetaArray, final int resultIndex
             , Map<Integer, CharsetMapping.CustomCollation> customCollationMap) {
+        if (resultIndex < 0) {
+            throw new IllegalArgumentException("resultIndex must great than -1");
+        }
         this.resultIndex = resultIndex;
         this.columnMetaArray = columnMetaArray;
         this.customCollationMap = customCollationMap;
@@ -353,15 +377,6 @@ abstract class MySQLRowMeta implements ResultRowMeta {
                 caseSensitive = true;
         }
         return caseSensitive;
-    }
-
-
-    private static final class SimpleIndexMySQLRowMeta extends MySQLRowMeta {
-
-        private SimpleIndexMySQLRowMeta(MySQLColumnMeta[] columnMetas, int resultIndex
-                , Map<Integer, CharsetMapping.CustomCollation> customCollationMap) {
-            super(columnMetas, resultIndex, customCollationMap);
-        }
     }
 
 

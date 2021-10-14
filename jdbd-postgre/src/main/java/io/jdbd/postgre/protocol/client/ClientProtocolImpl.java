@@ -1,7 +1,11 @@
 package io.jdbd.postgre.protocol.client;
 
 import io.jdbd.ServerVersion;
-import io.jdbd.postgre.stmt.*;
+import io.jdbd.postgre.PgType;
+import io.jdbd.postgre.stmt.BindBatchStmt;
+import io.jdbd.postgre.stmt.BindMultiStmt;
+import io.jdbd.postgre.stmt.BindStmt;
+import io.jdbd.postgre.stmt.PgStmts;
 import io.jdbd.postgre.util.PgBinds;
 import io.jdbd.result.MultiResult;
 import io.jdbd.result.OrderedFlux;
@@ -10,6 +14,7 @@ import io.jdbd.result.ResultStates;
 import io.jdbd.stmt.PreparedStatement;
 import io.jdbd.vendor.stmt.StaticBatchStmt;
 import io.jdbd.vendor.stmt.StaticStmt;
+import io.jdbd.vendor.task.PrepareStmtTask;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -158,7 +163,7 @@ final class ClientProtocolImpl implements ClientProtocol {
     }
 
     @Override
-    public final Mono<PreparedStatement> prepare(String sql, Function<PrepareStmtTask, PreparedStatement> function) {
+    public final Mono<PreparedStatement> prepare(String sql, Function<PrepareStmtTask<PgType>, PreparedStatement> function) {
         return ExtendedQueryTask.prepare(sql, function, this.adjutant);
     }
 

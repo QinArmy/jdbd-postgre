@@ -1,12 +1,18 @@
 package io.jdbd.mysql.protocol.client;
 
-interface StatementTask {
+interface PrepareTask {
 
+    /**
+     * @throws IllegalStateException throw when before prepare.
+     */
     int obtainStatementId();
 
+    /**
+     * @throws IllegalStateException throw when before prepare.
+     */
     MySQLColumnMeta[] obtainParameterMetas();
 
-    ClientProtocolAdjutant obtainAdjutant();
+    TaskAdjutant obtainAdjutant();
 
     void startSafeSequenceId();
 

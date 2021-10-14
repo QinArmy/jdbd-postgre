@@ -3,13 +3,10 @@ package io.jdbd.mysql.session;
 import io.jdbd.DatabaseSession;
 import io.jdbd.JdbdSQLException;
 import io.jdbd.meta.SQLType;
-import io.jdbd.mysql.protocol.client.PrepareStmtTask;
-import io.jdbd.result.OrderedFlux;
-import io.jdbd.result.ResultRow;
-import io.jdbd.result.ResultRowMeta;
-import io.jdbd.result.ResultStates;
-import io.jdbd.stmt.PreparedStatement;
-import io.jdbd.vendor.result.ReactorMultiResult;
+import io.jdbd.mysql.MySQLType;
+import io.jdbd.mysql.stmt.AttrPreparedStatement;
+import io.jdbd.result.*;
+import io.jdbd.vendor.task.PrepareStmtTask;
 import org.reactivestreams.Publisher;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -18,28 +15,41 @@ import reactor.util.annotation.Nullable;
 import java.util.List;
 import java.util.function.Consumer;
 
-public final class ServerPreparedStatement<S extends MySQLDatabaseSession> extends MySQLStatement<S>
-        implements PreparedStatement {
+public final class MySQLPreparedStatement extends MySQLStatement implements AttrPreparedStatement {
 
-    public static <S extends MySQLDatabaseSession> ServerPreparedStatement<S> create(S session, PrepareStmtTask task) {
-        return new ServerPreparedStatement<>(session, task);
+    public static MySQLPreparedStatement create(MySQLDatabaseSession session, PrepareStmtTask<MySQLType> task) {
+        return new MySQLPreparedStatement(session, task);
     }
 
-    final S session;
+    private final PrepareStmtTask<MySQLType> task;
 
-    final PrepareStmtTask task;
+    private final List<MySQLType> paramTypes;
 
-    private ServerPreparedStatement(S session, PrepareStmtTask task) {
+    private final ResultRowMeta resultRowMeta;
+
+    private MySQLPreparedStatement(final MySQLDatabaseSession session, final PrepareStmtTask<MySQLType> task) {
         super(session);
-        this.session = session;
         this.task = task;
+        this.paramTypes = task.getParamTypes();
+        this.resultRowMeta = task.getRowMeta();
     }
 
 
     @Override
-    public final void bind(int indexBasedZero, @Nullable Object nullable) {
+    public void bind(final int indexBasedZero, final @Nullable Object nullable) {
 
     }
+
+    @Override
+    public void bindCommonAttr(final String name, final MySQLType type, final @Nullable Object value) {
+
+    }
+
+    @Override
+    public void bindAttr(final String name, final MySQLType type, final @Nullable Object value) {
+
+    }
+
 
     @Override
     public void addBatch() {
@@ -47,13 +57,14 @@ public final class ServerPreparedStatement<S extends MySQLDatabaseSession> exten
     }
 
     @Override
-    public List<? extends SQLType> getParameterMetas() {
-        return null;
+    public List<? extends SQLType> getParameterTypes() {
+        return this.paramTypes;
     }
 
+    @Nullable
     @Override
     public ResultRowMeta getResultRowMeta() throws JdbdSQLException {
-        return null;
+        return this.resultRowMeta;
     }
 
     @Override
@@ -72,7 +83,7 @@ public final class ServerPreparedStatement<S extends MySQLDatabaseSession> exten
     }
 
     @Override
-    public final Flux<ResultStates> executeBatch() {
+    public Flux<ResultStates> executeBatch() {
         return null;
     }
 
@@ -92,7 +103,7 @@ public final class ServerPreparedStatement<S extends MySQLDatabaseSession> exten
     }
 
     @Override
-    public ReactorMultiResult executeBatchAsMulti() {
+    public MultiResult executeBatchAsMulti() {
         return null;
     }
 

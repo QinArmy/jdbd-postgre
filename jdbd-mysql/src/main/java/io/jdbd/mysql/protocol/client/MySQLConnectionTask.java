@@ -82,7 +82,7 @@ final class MySQLConnectionTask extends CommunicationTask<TaskAdjutant> implemen
 
     private int negotiatedCapability = 0;
 
-    private HandshakeV10Packet handshake;
+    private Handshake10 handshake;
 
     private AuthenticationPlugin plugin;
 
@@ -256,8 +256,8 @@ final class MySQLConnectionTask extends CommunicationTask<TaskAdjutant> implemen
         //1. read handshake packet
         final int payloadLength = Packets.readInt3(cumulateBuffer);
         updateSequenceId(Packets.readInt1AsInt(cumulateBuffer));
-        HandshakeV10Packet handshake;
-        handshake = HandshakeV10Packet.readHandshake(cumulateBuffer.readSlice(payloadLength));
+        Handshake10 handshake;
+        handshake = Handshake10.readHandshake(cumulateBuffer.readSlice(payloadLength));
         this.handshake = handshake;
         if (LOG.isDebugEnabled()) {
             LOG.debug("receive handshake success:\n{}", handshake);
@@ -535,8 +535,8 @@ final class MySQLConnectionTask extends CommunicationTask<TaskAdjutant> implemen
             // skip password
             payloadBuf = Unpooled.EMPTY_BUFFER;
         } else {
-            HandshakeV10Packet handshakeV10Packet = this.handshake;
-            String seed = handshakeV10Packet.getPluginSeed();
+            Handshake10 handshake10 = this.handshake;
+            String seed = handshake10.getPluginSeed();
             byte[] seedBytes = seed.getBytes();
             ByteBuf fromServer = this.adjutant.allocator().buffer(seedBytes.length);
             fromServer.writeBytes(seedBytes);
@@ -643,7 +643,7 @@ final class MySQLConnectionTask extends CommunicationTask<TaskAdjutant> implemen
     }
 
 
-    private int createNegotiatedCapability(final HandshakeV10Packet handshake) {
+    private int createNegotiatedCapability(final Handshake10 handshake) {
         final int serverCapability = handshake.getCapabilityFlags();
         final Properties<MyKey> env = this.properties;
 
@@ -664,18 +664,18 @@ final class MySQLConnectionTask extends CommunicationTask<TaskAdjutant> implemen
                 | (serverCapability & Capabilities.CLIENT_PLUGIN_AUTH_LENENC_CLIENT_DATA)
                 | (env.getOrDefault(MyKey.useCompression, Boolean.class) ? (serverCapability & Capabilities.CLIENT_COMPRESS) : 0)
                 | (useConnectWithDb ? (serverCapability & Capabilities.CLIENT_CONNECT_WITH_DB) : 0)
-                | (env.getOrDefault(MyKey.useAffectedRows, Boolean.class) ? 0 : (serverCapability & Capabilities.CLIENT_FOUND_ROWS))
 
+                | (env.getOrDefault(MyKey.useAffectedRows, Boolean.class) ? 0 : (serverCapability & Capabilities.CLIENT_FOUND_ROWS))
                 | (env.getOrDefault(MyKey.allowLoadLocalInfile, Boolean.class) ? (serverCapability & Capabilities.CLIENT_LOCAL_FILES) : 0)
                 | (env.getOrDefault(MyKey.interactiveClient, Boolean.class) ? (serverCapability & Capabilities.CLIENT_INTERACTIVE) : 0)
                 | (env.getOrDefault(MyKey.allowMultiQueries, Boolean.class) ? (serverCapability & Capabilities.CLIENT_MULTI_STATEMENTS) : 0)
-                | (env.getOrDefault(MyKey.disconnectOnExpiredPasswords, Boolean.class) ? 0 : (serverCapability & Capabilities.CLIENT_CAN_HANDLE_EXPIRED_PASSWORD))
 
+                | (env.getOrDefault(MyKey.disconnectOnExpiredPasswords, Boolean.class) ? 0 : (serverCapability & Capabilities.CLIENT_CAN_HANDLE_EXPIRED_PASSWORD))
                 | (Constants.NONE.equals(env.get(MyKey.connectionAttributes)) ? 0 : (serverCapability & Capabilities.CLIENT_CONNECT_ATTRS))
                 | (env.getOrDefault(MyKey.sslMode, Enums.SslMode.class) != Enums.SslMode.DISABLED ? (serverCapability & Capabilities.CLIENT_SSL) : 0)
+                | (serverCapability & Capabilities.CLIENT_SESSION_TRACK) // TODO ZORO MYSQLCONNJ-437?
 
-                // TODO ZORO MYSQLCONNJ-437?
-                | (serverCapability & Capabilities.CLIENT_SESSION_TRACK)
+                | (serverCapability & Capabilities.CLIENT_QUERY_ATTRIBUTES)
                 ;
     }
 

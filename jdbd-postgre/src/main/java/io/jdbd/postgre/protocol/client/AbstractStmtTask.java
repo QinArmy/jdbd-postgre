@@ -9,7 +9,6 @@ import io.jdbd.postgre.util.PgArrays;
 import io.jdbd.postgre.util.PgExceptions;
 import io.jdbd.result.ResultRowMeta;
 import io.jdbd.vendor.result.FluxResultSink;
-import io.jdbd.vendor.result.ResultSetReader;
 import io.jdbd.vendor.stmt.SingleStmt;
 import io.jdbd.vendor.stmt.StaticBatchStmt;
 import io.jdbd.vendor.stmt.Stmt;
@@ -64,7 +63,7 @@ abstract class AbstractStmtTask extends PgTask implements StmtTask {
         super(adjutant, sink::error);
         this.sink = sink;
         this.stmt = stmt;
-        this.resultSetReader = DefaultResultSetReader.create(this, sink.froResultSet());
+        this.resultSetReader = PgResultSetReader.create(this, sink.froResultSet());
     }
 
     @Override
@@ -155,7 +154,7 @@ abstract class AbstractStmtTask extends PgTask implements StmtTask {
                     continueRead = Messages.hasOneMessage(cumulateBuffer);
                 }
                 break;
-                case Messages.C: {// CommandComplete message,if return rows, CommandComplete message is read by io.jdbd.vendor.result.ResultSetReader.read()
+                case Messages.C: {// CommandComplete message,if return rows, CommandComplete message is read by io.jdbd.postgre.protocol.client.ResultSetReader.read()
                     if (readResultStateWithoutReturning(cumulateBuffer)) {
                         continueRead = Messages.hasOneMessage(cumulateBuffer);
                     } else {

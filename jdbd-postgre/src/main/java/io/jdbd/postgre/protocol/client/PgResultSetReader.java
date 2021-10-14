@@ -7,7 +7,6 @@ import io.jdbd.postgre.PgJdbdException;
 import io.jdbd.postgre.PgType;
 import io.jdbd.postgre.util.PgExceptions;
 import io.jdbd.postgre.util.PgTimes;
-import io.jdbd.vendor.result.ResultSetReader;
 import io.jdbd.vendor.result.ResultSink;
 import io.jdbd.vendor.type.LongBinaries;
 import io.jdbd.vendor.util.JdbdBuffers;
@@ -24,13 +23,13 @@ import java.util.Arrays;
 import java.util.Objects;
 import java.util.function.Consumer;
 
-final class DefaultResultSetReader implements ResultSetReader {
+final class PgResultSetReader implements ResultSetReader {
 
-    static DefaultResultSetReader create(StmtTask stmtTask, ResultSink sink) {
-        return new DefaultResultSetReader(stmtTask, sink);
+    static PgResultSetReader create(StmtTask stmtTask, ResultSink sink) {
+        return new PgResultSetReader(stmtTask, sink);
     }
 
-    private static final Logger LOG = LoggerFactory.getLogger(DefaultResultSetReader.class);
+    private static final Logger LOG = LoggerFactory.getLogger(PgResultSetReader.class);
 
     // We can't use Long.MAX_VALUE or Long.MIN_VALUE for java.sql.date
     // because this would break the 'normalization contract' of the
@@ -54,14 +53,14 @@ final class DefaultResultSetReader implements ResultSetReader {
 
     private Phase phase = Phase.READ_ROW_META;
 
-    private DefaultResultSetReader(StmtTask stmtTask, ResultSink sink) {
+    private PgResultSetReader(StmtTask stmtTask, ResultSink sink) {
         this.stmtTask = stmtTask;
         this.adjutant = stmtTask.adjutant();
         this.sink = sink;
     }
 
     @Override
-    public final boolean read(final ByteBuf cumulateBuffer, final Consumer<Object> serverStatesConsumer)
+    public boolean read(final ByteBuf cumulateBuffer, final Consumer<Object> serverStatesConsumer)
             throws JdbdException {
         boolean resultSetEnd = false, continueRead = true;
         while (continueRead) {
@@ -106,13 +105,9 @@ final class DefaultResultSetReader implements ResultSetReader {
         return resultSetEnd;
     }
 
-    @Override
-    public final boolean isResettable() {
-        return true;
-    }
 
     @Override
-    public final String toString() {
+    public String toString() {
         return String.format("Class[%s] phase[%s]", getClass().getSimpleName(), this.phase);
     }
 

@@ -298,8 +298,6 @@ final class MySQLColumnMeta {
     }
 
 
-
-
     private MySQLType from(MySQLColumnMeta columnMeta, Properties<MyKey> properties) {
         final MySQLType mySQLType;
         switch (columnMeta.typeFlag) {
@@ -396,7 +394,9 @@ final class MySQLColumnMeta {
 
     static MySQLColumnMeta[] readMetas(final ByteBuf cumulateBuffer, final int columnCount
             , final MetaAdjutant metaAdjutant) {
-        final MySQLColumnMeta[] metaArray = new MySQLColumnMeta[columnCount];
+
+        final MySQLColumnMeta[] metaArray = columnCount == 0 ? EMPTY : new MySQLColumnMeta[columnCount];
+
         final TaskAdjutant adjutant = metaAdjutant.adjutant();
         int sequenceId = -1;
         for (int i = 0, payloadLength, payloadIndex; i < columnCount; i++) {

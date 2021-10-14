@@ -80,7 +80,11 @@
                 <artifactId>common-util</artifactId>
                 <version>${qinarmy.common.version}</version>
             </dependency>
-
+            <dependency>
+                <groupId>org.reactivestreams</groupId>
+                <artifactId>reactive-streams</artifactId>
+                <version>1.0.3</version>
+            </dependency>
             <dependency>
                 <groupId>io.projectreactor</groupId>
                 <artifactId>reactor-bom</artifactId>

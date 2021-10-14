@@ -42,7 +42,7 @@ final class PrepareLongParameterWriter implements PrepareExecuteCommandWriter.Lo
 
     private static final int MIN_CHUNK_SIZE = ClientConstants.BUFFER_LENGTH;
 
-    private final StatementTask statementTask;
+    private final PrepareTask statementTask;
 
     private final int statementId;
 
@@ -55,7 +55,7 @@ final class PrepareLongParameterWriter implements PrepareExecuteCommandWriter.Lo
     private final int maxPacket;
 
 
-    PrepareLongParameterWriter(final StatementTask statementTask) {
+    PrepareLongParameterWriter(final PrepareTask statementTask) {
         this.statementTask = statementTask;
         this.statementId = statementTask.obtainStatementId();
         this.adjutant = statementTask.obtainAdjutant();
