@@ -15,7 +15,7 @@ import io.jdbd.stmt.PreparedStatement;
 import io.jdbd.stmt.StaticStatement;
 import io.jdbd.vendor.stmt.StaticBatchStmt;
 import io.jdbd.vendor.stmt.StaticStmt;
-import io.jdbd.vendor.task.PrepareStmtTask;
+import io.jdbd.vendor.task.PrepareTask;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -130,7 +130,7 @@ public interface ClientProtocol {
      */
     OrderedFlux multiStmtAsFlux(BindMultiStmt stmt);
 
-    Mono<PreparedStatement> prepare(String sql, Function<PrepareStmtTask<PgType>, PreparedStatement> function);
+    Mono<PreparedStatement> prepare(String sql, Function<PrepareTask<PgType>, PreparedStatement> function);
 
 
     /*################################## blow for session ##################################*/

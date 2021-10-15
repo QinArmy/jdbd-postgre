@@ -42,7 +42,7 @@ final class PrepareLongParameterWriter implements PrepareExecuteCommandWriter.Lo
 
     private static final int MIN_CHUNK_SIZE = ClientConstants.BUFFER_LENGTH;
 
-    private final PrepareTask statementTask;
+    private final PrepareStmtTask statementTask;
 
     private final int statementId;
 
@@ -55,7 +55,7 @@ final class PrepareLongParameterWriter implements PrepareExecuteCommandWriter.Lo
     private final int maxPacket;
 
 
-    PrepareLongParameterWriter(final PrepareTask statementTask) {
+    PrepareLongParameterWriter(final PrepareStmtTask statementTask) {
         this.statementTask = statementTask;
         this.statementId = statementTask.obtainStatementId();
         this.adjutant = statementTask.obtainAdjutant();
@@ -307,7 +307,7 @@ final class PrepareLongParameterWriter implements PrepareExecuteCommandWriter.Lo
 
     /**
      * @see #writeInputStream(int, int, InputStream, FluxSink)
-     * @see ComPreparedTask#onError(Throwable)
+     * @see ComPreparedStmtTask#onError(Throwable)
      */
     private void publishLonDataReadException(FluxSink<ByteBuf> sink, Throwable cause, final int stmtIndex
             , int parameterIndex, final @Nullable Object input) {

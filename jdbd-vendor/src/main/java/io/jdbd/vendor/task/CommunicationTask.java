@@ -250,6 +250,10 @@ public abstract class CommunicationTask<T extends ITaskAdjutant> {
         return mono;
     }
 
+    protected final boolean inDecodeMethod() {
+        return this.adjutant.inEventLoop() && this.methodStack == MethodStack.DECODE;
+    }
+
 
     /**
      * <p>

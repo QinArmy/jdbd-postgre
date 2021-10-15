@@ -11,7 +11,7 @@ import reactor.util.annotation.Nullable;
 
 import java.util.List;
 
-public interface PrepareStmtTask<T extends SQLType> {
+public interface PrepareTask<T extends SQLType> {
 
     Mono<ResultStates> executeUpdate(ParamStmt stmt);
 

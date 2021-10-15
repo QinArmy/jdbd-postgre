@@ -315,9 +315,9 @@ final class MySQLConnectionTask extends CommunicationTask<TaskAdjutant> implemen
         } else if (ErrorPacket.isErrorPacket(payload)) {
             ErrorPacket error;
             if (this.sequenceId < 2) {
-                error = ErrorPacket.readPacket(payload, 0, obtainServerCharset());
+                error = ErrorPacket.read(payload, 0, obtainServerCharset());
             } else {
-                error = ErrorPacket.readPacket(payload, this.negotiatedCapability, obtainServerCharset());
+                error = ErrorPacket.read(payload, this.negotiatedCapability, obtainServerCharset());
             }
             taskEnd = true;
             handleAuthenticateFailure(MySQLExceptions.createErrorPacketException(error));

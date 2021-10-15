@@ -7,13 +7,13 @@ import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.function.Consumer;
 
 /**
- * @see ComPreparedTask
+ * @see ComPreparedStmtTask
  * @see AbstractCommandTask
  */
-abstract class MySQLPrepareCommandTask extends AbstractCommandTask implements PrepareTask {
+abstract class MySQLPrepareCommandStmtTask extends AbstractCommandTask implements PrepareStmtTask {
 
-    private static final AtomicIntegerFieldUpdater<MySQLPrepareCommandTask> SEQUENCE_ID =
-            AtomicIntegerFieldUpdater.newUpdater(MySQLPrepareCommandTask.class, "safeSequenceId");
+    private static final AtomicIntegerFieldUpdater<MySQLPrepareCommandStmtTask> SEQUENCE_ID =
+            AtomicIntegerFieldUpdater.newUpdater(MySQLPrepareCommandStmtTask.class, "safeSequenceId");
 
 
     final TaskAdjutant adjutant;
@@ -26,7 +26,7 @@ abstract class MySQLPrepareCommandTask extends AbstractCommandTask implements Pr
 
     private volatile int safeSequenceId = -1;
 
-    MySQLPrepareCommandTask(TaskAdjutant adjutant, Consumer<Throwable> errorConsumer) {
+    MySQLPrepareCommandStmtTask(TaskAdjutant adjutant, Consumer<Throwable> errorConsumer) {
         super(adjutant, errorConsumer);
         this.negotiatedCapability = adjutant.negotiatedCapability();
         this.adjutant = adjutant;

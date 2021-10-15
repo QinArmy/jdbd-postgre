@@ -34,4 +34,14 @@ abstract class TerminatorPacket implements MySQLPacket {
     public final int getStatusFags() {
         return this.statusFags;
     }
+
+    public final boolean hasMoreFetch() {
+        return (this.statusFags & SERVER_STATUS_CURSOR_EXISTS) != 0
+                && (this.statusFags & SERVER_STATUS_LAST_ROW_SENT) == 0;
+    }
+
+    public final boolean hasMoreResult() {
+        return (this.statusFags & SERVER_MORE_RESULTS_EXISTS) != 0;
+    }
+
 }

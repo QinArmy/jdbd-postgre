@@ -15,22 +15,19 @@ import java.util.function.Consumer;
 
 /**
  * <p>
- * This class is a implementation of {@link StaticStatement}.
+ * This interface is a implementation of {@link io.jdbd.stmt.StaticStatement} with MySQL client protocol.
  * </p>
- *
- * @param <S> databaseSession type
  */
-final class MySQLStaticStatement<S extends MySQLDatabaseSession> extends MySQLStatement<S>
-        implements StaticStatement {
+final class MySQLStaticStatement extends MySQLStatement implements StaticStatement {
 
 
-    static <S extends MySQLDatabaseSession> MySQLStaticStatement<S> create(S session) {
-        return new MySQLStaticStatement<>(session);
+    static MySQLStaticStatement create(final MySQLDatabaseSession session) {
+        return new MySQLStaticStatement(session);
     }
 
     private int timeout = 0;
 
-    private MySQLStaticStatement(S session) {
+    private MySQLStaticStatement(MySQLDatabaseSession session) {
         super(session);
     }
 

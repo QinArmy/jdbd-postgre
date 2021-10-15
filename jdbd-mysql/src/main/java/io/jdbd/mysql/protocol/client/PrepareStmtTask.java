@@ -1,6 +1,6 @@
 package io.jdbd.mysql.protocol.client;
 
-interface PrepareTask {
+interface PrepareStmtTask {
 
     /**
      * @throws IllegalStateException throw when before prepare.
@@ -21,5 +21,7 @@ interface PrepareTask {
     int safelyAddAndGetSequenceId();
 
     boolean supportFetch();
+
+    void nextGroupReset();
 
 }

@@ -27,7 +27,7 @@ import static org.testng.Assert.assertNotNull;
  * id range [51,99]
  * </p>
  *
- * @see ComPreparedTask
+ * @see ComPreparedStmtTask
  */
 @Test(groups = {Groups.COM_STMT_PREPARE}, dependsOnGroups = {Groups.SESSION_INITIALIZER, Groups.UTILS, Groups.DATA_PREPARE})
 public class ComPreparedTaskSuiteTests extends AbstractStmtTaskSuiteTests {
@@ -40,12 +40,12 @@ public class ComPreparedTaskSuiteTests extends AbstractStmtTaskSuiteTests {
 
     @Override
     Mono<ResultStates> executeUpdate(BindStmt stmt, TaskAdjutant adjutant) {
-        return ComPreparedTask.update(stmt, adjutant);
+        return ComPreparedStmtTask.update(stmt, adjutant);
     }
 
     @Override
     Flux<ResultRow> executeQuery(BindStmt stmt, TaskAdjutant adjutant) {
-        return ComPreparedTask.query(stmt, adjutant);
+        return ComPreparedStmtTask.query(stmt, adjutant);
     }
 
     @Override
@@ -54,7 +54,7 @@ public class ComPreparedTaskSuiteTests extends AbstractStmtTaskSuiteTests {
     }
 
     /**
-     * @see ComPreparedTask#update(ParamStmt, TaskAdjutant)
+     * @see ComPreparedStmtTask#update(ParamStmt, TaskAdjutant)
      */
     @Test(timeOut = TIME_OUT)
     public void update() {
@@ -69,7 +69,7 @@ public class ComPreparedTaskSuiteTests extends AbstractStmtTaskSuiteTests {
         bindValueList.add(JdbdParamValue.wrap(0, "prepare update 1"));
         bindValueList.add(JdbdParamValue.wrap(1, 80L));
 
-        states = ComPreparedTask.update(Stmts.multiPrepare(sql, bindValueList), adjutant)
+        states = ComPreparedStmtTask.update(Stmts.multiPrepare(sql, bindValueList), adjutant)
                 .block();
 
         assertNotNull(states, "states");

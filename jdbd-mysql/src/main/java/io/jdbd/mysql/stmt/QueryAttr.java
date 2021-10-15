@@ -3,10 +3,12 @@ package io.jdbd.mysql.stmt;
 import io.jdbd.mysql.MySQLType;
 import reactor.util.annotation.Nullable;
 
+import java.util.Objects;
+
 public final class QueryAttr {
 
     public static QueryAttr wrap(MySQLType type, @Nullable Object value) {
-        return new QueryAttr(type, value);
+        return new QueryAttr(Objects.requireNonNull(type, "type"), value);
     }
 
     private final MySQLType type;

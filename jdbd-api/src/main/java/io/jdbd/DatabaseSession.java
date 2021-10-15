@@ -1,14 +1,13 @@
 package io.jdbd;
 
 import io.jdbd.meta.DatabaseMetaData;
+import io.jdbd.session.Savepoint;
 import io.jdbd.stmt.BindStatement;
 import io.jdbd.stmt.MultiStatement;
 import io.jdbd.stmt.PreparedStatement;
 import io.jdbd.stmt.StaticStatement;
 import org.reactivestreams.Publisher;
 
-import java.sql.Connection;
-import java.sql.Savepoint;
 
 public interface DatabaseSession extends ReactiveCloseable {
 
@@ -40,19 +39,13 @@ public interface DatabaseSession extends ReactiveCloseable {
      */
     boolean supportSavePoints();
 
-    /**
-     * @see java.sql.Connection#setSavepoint()
-     */
+
     Publisher<Savepoint> setSavepoint();
 
-    /**
-     * @see java.sql.Connection#setSavepoint(String)
-     */
+
     Publisher<Savepoint> setSavepoint(String name);
 
-    /**
-     * @see java.sql.Connection#releaseSavepoint(Savepoint)
-     */
+
     Publisher<Void> releaseSavePoint(Savepoint savepoint);
 
     /**
@@ -66,18 +59,13 @@ public interface DatabaseSession extends ReactiveCloseable {
      */
     Publisher<Boolean> isClosed();
 
-    default ServerVersion getServerVersion() {
-        throw new UnsupportedOperationException();
-    }
+    ServerVersion getServerVersion();
 
 
-    default boolean isSameFactory(DatabaseSession session) {
-        throw new UnsupportedOperationException();
-    }
+    boolean isSameFactory(DatabaseSession session);
 
-    default boolean isBelongTo(DatabaseSessionFactory factory) {
-        throw new UnsupportedOperationException();
-    }
+    boolean isBelongTo(DatabaseSessionFactory factory);
 
+    Publisher<Void> close();
 
 }

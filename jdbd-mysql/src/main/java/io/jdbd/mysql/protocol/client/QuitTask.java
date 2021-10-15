@@ -13,7 +13,7 @@ import java.util.function.Consumer;
 /**
  * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_com_quit.html">Protocol::COM_QUIT</a>
  */
-final class QuitTask extends AbstractCommandTask {
+final class QuitTask extends MySQLTask {
 
     static Mono<Void> quit(TaskAdjutant adjutant) {
         return Mono.create(sink -> {
@@ -43,7 +43,7 @@ final class QuitTask extends AbstractCommandTask {
     protected Publisher<ByteBuf> start() {
         ByteBuf packetBuf = adjutant.createPacketBuffer(1);
         packetBuf.writeByte(Packets.COM_QUIT_HEADER);
-        Packets.writePacketHeader(packetBuf, addAndGetSequenceId());
+        Packets.writePacketHeader(packetBuf, 0);
         return Mono.just(packetBuf);
     }
 
@@ -52,16 +52,14 @@ final class QuitTask extends AbstractCommandTask {
         if (!Packets.hasOnePacket(cumulateBuffer)) {
             return false;
         }
-        int payloadLength = Packets.readInt3(cumulateBuffer);
-        int sequenceId = Packets.readInt1AsInt(cumulateBuffer);
+        final int payloadLength = Packets.readInt3(cumulateBuffer);
+        cumulateBuffer.readByte();
         int payloadStartIndex = cumulateBuffer.readerIndex();
 
         ErrorPacket error;
-        error = ErrorPacket.readPacket(cumulateBuffer
+        error = ErrorPacket.read(cumulateBuffer
                 , this.adjutant.negotiatedCapability(), this.adjutant.obtainCharsetError());
         cumulateBuffer.readerIndex(payloadStartIndex + payloadLength);
-
-        updateSequenceId(sequenceId);
 
         this.sink.error(MySQLExceptions.createErrorPacketException(error));
         this.taskEnd = true;
@@ -82,6 +80,11 @@ final class QuitTask extends AbstractCommandTask {
     public void onChannelClose() {
         this.taskEnd = true;
         this.sink.success();
+    }
+
+    @Override
+    protected boolean canDecode(ByteBuf cumulateBuffer) {
+        return true;
     }
 
 

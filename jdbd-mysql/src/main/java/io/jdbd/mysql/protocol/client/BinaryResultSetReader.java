@@ -23,7 +23,7 @@ import java.util.function.Consumer;
 
 
 /**
- * @see ComPreparedTask
+ * @see ComPreparedStmtTask
  */
 final class BinaryResultSetReader extends AbstractResultSetReader {
 

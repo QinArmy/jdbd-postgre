@@ -11,7 +11,7 @@ import java.util.function.Consumer;
  *
  * @see ComQueryTask
  * @see QuitTask
- * @see MySQLPrepareCommandTask
+ * @see MySQLPrepareCommandStmtTask
  */
 abstract class MySQLTask extends CommunicationTask<TaskAdjutant> {
 

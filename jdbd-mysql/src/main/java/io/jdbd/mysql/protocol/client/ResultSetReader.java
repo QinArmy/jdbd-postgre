@@ -13,6 +13,7 @@ interface ResultSetReader {
     enum States {
         MORE_CUMULATE,
         MORE_RESULT,
+        MORE_FETCH,
         NO_MORE_RESULT,
         END_ONE_ERROR;
     }

@@ -14,7 +14,7 @@ import io.jdbd.vendor.result.FluxResultSink;
 import io.jdbd.vendor.result.MultiResults;
 import io.jdbd.vendor.result.ResultSink;
 import io.jdbd.vendor.stmt.*;
-import io.jdbd.vendor.task.PrepareStmtTask;
+import io.jdbd.vendor.task.PrepareTask;
 import io.netty.buffer.ByteBuf;
 import org.reactivestreams.Publisher;
 import org.reactivestreams.Subscriber;
@@ -33,7 +33,7 @@ import java.util.function.Function;
 /**
  * @see <a href="https://www.postgresql.org/docs/current/protocol-flow.html#PROTOCOL-FLOW-EXT-QUERY"> Extended Query</a>
  */
-final class ExtendedQueryTask extends AbstractStmtTask implements PrepareStmtTask<PgType>, ExtendedStmtTask {
+final class ExtendedQueryTask extends AbstractStmtTask implements PrepareTask<PgType>, ExtendedStmtTask {
 
 
     static Mono<ResultStates> update(BindStmt stmt, TaskAdjutant adjutant) {
@@ -92,7 +92,7 @@ final class ExtendedQueryTask extends AbstractStmtTask implements PrepareStmtTas
 
     }
 
-    static Mono<PreparedStatement> prepare(final String sql, final Function<PrepareStmtTask<PgType>, PreparedStatement> function
+    static Mono<PreparedStatement> prepare(final String sql, final Function<PrepareTask<PgType>, PreparedStatement> function
             , final TaskAdjutant adjutant) {
         return Mono.create(sink -> {
             try {
@@ -583,7 +583,7 @@ final class ExtendedQueryTask extends AbstractStmtTask implements PrepareStmtTas
 
     private static final class PrepareFluxResultSink implements FluxResultSink {
 
-        private final Function<PrepareStmtTask<PgType>, PreparedStatement> function;
+        private final Function<PrepareTask<PgType>, PreparedStatement> function;
 
         private final MonoSink<PreparedStatement> stmtSink;
 
@@ -592,7 +592,7 @@ final class ExtendedQueryTask extends AbstractStmtTask implements PrepareStmtTas
         private FluxResultSink resultSink;
 
 
-        private PrepareFluxResultSink(Function<PrepareStmtTask<PgType>, PreparedStatement> function
+        private PrepareFluxResultSink(Function<PrepareTask<PgType>, PreparedStatement> function
                 , MonoSink<PreparedStatement> stmtSink) {
             this.function = function;
             this.stmtSink = stmtSink;
@@ -685,7 +685,7 @@ final class ExtendedQueryTask extends AbstractStmtTask implements PrepareStmtTas
             this.sql = sql;
         }
 
-        final void setActualStmt(final ParamSingleStmt stmt) {
+        void setActualStmt(final ParamSingleStmt stmt) {
             if (this.actualTmt != null) {
                 throw new IllegalStateException("this.stmt isn't null.");
             }
@@ -711,17 +711,22 @@ final class ExtendedQueryTask extends AbstractStmtTask implements PrepareStmtTas
 
         @Override
         public int getTimeout() {
-            throw new UnsupportedOperationException();
+            return getStmt().getTimeout();
+        }
+
+        @Override
+        public int getFetchSize() {
+            return getStmt().getFetchSize();
         }
 
         @Override
         public Function<Object, Publisher<byte[]>> getImportPublisher() {
-            throw new UnsupportedOperationException();
+            return getStmt().getImportPublisher();
         }
 
         @Override
         public Function<Object, Subscriber<byte[]>> getExportSubscriber() {
-            throw new UnsupportedOperationException();
+            return getStmt().getExportSubscriber();
         }
 
 

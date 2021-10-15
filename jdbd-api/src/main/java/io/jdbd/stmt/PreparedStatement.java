@@ -45,6 +45,7 @@ public interface PreparedStatement extends BindableSingleStatement, BindableMult
 
     List<? extends io.jdbd.meta.SQLType> getParameterTypes();
 
+    @Nullable
     ResultRowMeta getResultRowMeta() throws JdbdSQLException;
 
     /**

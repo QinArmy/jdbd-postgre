@@ -1,11 +1,9 @@
 package io.jdbd.mysql.protocol.client;
 
 import io.netty.buffer.ByteBuf;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import reactor.util.annotation.Nullable;
 
-import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 
 /**
  * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_basic_ok_packet.html">Protocol::OK_Packet</a>
@@ -44,22 +42,21 @@ public final class OkPacket extends TerminatorPacket {
         if ((capability & Capabilities.CLIENT_SESSION_TRACK) != 0) {
             if (payload.isReadable()) {
                 // here , avoid ResultSet terminator.
-                info = Packets.readStringLenEnc(payload, Charset.defaultCharset());
+                info = Packets.readStringLenEnc(payload, StandardCharsets.UTF_8);
             }
             if (info == null) {
                 info = "";
             }
             if ((statusFags & TerminatorPacket.SERVER_SESSION_STATE_CHANGED) != 0) {
-                sessionStateInfo = Packets.readStringLenEnc(payload, Charset.defaultCharset());
+                sessionStateInfo = Packets.readStringLenEnc(payload, StandardCharsets.UTF_8);
             }
         } else {
-            info = Packets.readStringEof(payload, Charset.defaultCharset());
+            info = Packets.readStringEof(payload, StandardCharsets.UTF_8);
         }
         return new OkPacket(affectedRows, lastInsertId
                 , statusFags, warnings, info, sessionStateInfo);
     }
 
-    private static final Logger LOG = LoggerFactory.getLogger(OkPacket.class);
 
     private final long affectedRows;
 

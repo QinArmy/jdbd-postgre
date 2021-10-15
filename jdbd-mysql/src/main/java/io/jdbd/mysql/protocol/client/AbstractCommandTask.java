@@ -1,6 +1,5 @@
 package io.jdbd.mysql.protocol.client;
 
-import io.jdbd.JdbdSQLException;
 import io.jdbd.mysql.util.MySQLExceptions;
 import io.jdbd.vendor.result.FluxResultSink;
 import io.netty.buffer.ByteBuf;
@@ -15,7 +14,7 @@ import java.util.function.Supplier;
  *
  * @see ComQueryTask
  * @see QuitTask
- * @see MySQLPrepareCommandTask
+ * @see MySQLPrepareCommandStmtTask
  * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_command_phase.html">Command Phase</a>
  */
 abstract class AbstractCommandTask extends MySQLTask implements StmtTask {
@@ -95,19 +94,37 @@ abstract class AbstractCommandTask extends MySQLTask implements StmtTask {
 
 
     public final int addAndGetSequenceId() {
-        return ++this.sequenceId;
+        int sequenceId = ++this.sequenceId;
+        if (sequenceId > 0xFF) {
+            sequenceId &= 0xFF;
+            this.sequenceId = sequenceId;
+        }
+        return sequenceId;
     }
 
     abstract void handleReadResultSetEnd();
 
     abstract ResultSetReader createResultSetReader();
 
+    /**
+     * @return true: will invoke {@link #executeNextGroup()}
+     */
+    abstract boolean hasMoreGroup();
+
+    /**
+     * @return true : send failure,task end.
+     * @see #hasMoreGroup()
+     */
+    abstract boolean executeNextGroup();
+
+    abstract boolean executeNextFetch();
+
 
     final void readErrorPacket(final ByteBuf cumulateBuffer) {
         final int payloadLength = Packets.readInt3(cumulateBuffer);
         updateSequenceId(Packets.readInt1AsInt(cumulateBuffer)); //  sequence_id
         final ErrorPacket error;
-        error = ErrorPacket.readPacket(cumulateBuffer.readSlice(payloadLength)
+        error = ErrorPacket.read(cumulateBuffer.readSlice(payloadLength)
                 , this.negotiatedCapability, this.adjutant.obtainCharsetError());
         addError(MySQLExceptions.createErrorPacketException(error));
     }
@@ -117,11 +134,18 @@ abstract class AbstractCommandTask extends MySQLTask implements StmtTask {
      */
     final boolean readResultSet(final ByteBuf cumulateBuffer, final Consumer<Object> serverStatusConsumer) {
         final boolean taskEnd;
-        final ResultSetReader.States states;
-        states = this.resultSetReader.read(cumulateBuffer, serverStatusConsumer);
-        switch (states) {
+        switch (this.resultSetReader.read(cumulateBuffer, serverStatusConsumer)) {
             case END_ONE_ERROR: {
                 taskEnd = true;
+            }
+            break;
+            case MORE_FETCH: {
+                handleReadResultSetEnd();
+                if (this.isCanceled()) {
+                    taskEnd = true;
+                } else {
+                    taskEnd = executeNextFetch();
+                }
             }
             break;
             case MORE_CUMULATE: {
@@ -129,17 +153,22 @@ abstract class AbstractCommandTask extends MySQLTask implements StmtTask {
             }
             break;
             case NO_MORE_RESULT: {
-                taskEnd = true;
                 handleReadResultSetEnd();
+                if (hasMoreGroup()) {
+                    taskEnd = executeNextGroup();
+                } else {
+                    taskEnd = true;
+                }
             }
             break;
             case MORE_RESULT: {
-                taskEnd = false;
                 handleReadResultSetEnd();
+                taskEnd = false;
             }
             break;
-            default:
-                throw MySQLExceptions.createUnexpectedEnumException(states);
+            default: {
+                throw new IllegalStateException("Unknown ResultSetReader.States instance.");
+            }
 
         }
         return taskEnd;
@@ -157,11 +186,21 @@ abstract class AbstractCommandTask extends MySQLTask implements StmtTask {
         serverStatusConsumer.accept(ok);
 
         final int resultIndex = getAndIncrementResultIndex(); // must increment result index.
-        if (!this.isCanceled()) {
+        final boolean noMoreResult = !ok.hasMoreResult();
+
+        final boolean taskEnd;
+        if (this.isCanceled()) {
+            taskEnd = noMoreResult;
+        } else {
             // emit update result.
             this.sink.next(MySQLResultStates.fromUpdate(resultIndex, ok));
+            if (noMoreResult && hasMoreGroup()) {
+                taskEnd = executeNextGroup();
+            } else {
+                taskEnd = noMoreResult;
+            }
         }
-        return (ok.statusFags & TerminatorPacket.SERVER_MORE_RESULTS_EXISTS) == 0;
+        return taskEnd;
     }
 
 
@@ -170,11 +209,5 @@ abstract class AbstractCommandTask extends MySQLTask implements StmtTask {
         return Packets.hasOnePacket(cumulateBuffer);
     }
 
-    static JdbdSQLException createSequenceIdError(int expected, ByteBuf cumulateBuffer) {
-        return MySQLExceptions.createFatalIoException(
-                (Throwable) null
-                , "MySQL server row packet return sequence_id error,expected[%s] actual[%s]"
-                , expected, Packets.getInt1AsInt(cumulateBuffer, cumulateBuffer.readerIndex() - 1));
-    }
 
 }

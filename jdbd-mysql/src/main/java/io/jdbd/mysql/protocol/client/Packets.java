@@ -26,9 +26,15 @@ public abstract class Packets {
     public static final int HEADER_SIZE = 4;
 
     /**
-     * @see ClientProtocol#MAX_PAYLOAD_SIZE
+     * a single packet max payload byte count.
+     *
+     * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_basic_packets.html#sect_protocol_basic_packets_sending_mt_16mb">Sending More Than 16Mb</a>
      */
-    public static final int MAX_PAYLOAD = ClientProtocol.MAX_PAYLOAD_SIZE;
+    public static final int MAX_PAYLOAD_SIZE = (1 << 24) - 1;
+    /**
+     * @see Packets#MAX_PAYLOAD_SIZE
+     */
+    public static final int MAX_PAYLOAD = MAX_PAYLOAD_SIZE;
 
     public static final int MAX_PACKET = HEADER_SIZE + MAX_PAYLOAD;
 
@@ -186,6 +192,10 @@ public abstract class Packets {
         return int8;
     }
 
+    public static int getHeaderFlag(final ByteBuf cumulateBuffer) {
+        return cumulateBuffer.getByte(cumulateBuffer.readerIndex() + HEADER_SIZE) & BIT_8;
+    }
+
     /**
      * @param buffer at least one byte.
      * @return -1 : more cumulate.
@@ -245,6 +255,7 @@ public abstract class Packets {
         }
         return length;
     }
+
 
     /**
      * see {@code com.mysql.cj.protocol.a.NativePacketPayload#readInteger(com.mysql.cj.protocol.a.NativeConstants.IntegerDataType)}

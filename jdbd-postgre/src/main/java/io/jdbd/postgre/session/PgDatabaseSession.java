@@ -10,7 +10,7 @@ import io.jdbd.stmt.BindStatement;
 import io.jdbd.stmt.MultiStatement;
 import io.jdbd.stmt.PreparedStatement;
 import io.jdbd.stmt.StaticStatement;
-import io.jdbd.vendor.task.PrepareStmtTask;
+import io.jdbd.vendor.task.PrepareTask;
 import org.reactivestreams.Publisher;
 import reactor.core.publisher.Mono;
 
@@ -116,7 +116,7 @@ abstract class PgDatabaseSession implements DatabaseSession {
 
     /*################################## blow private method ##################################*/
 
-    private PgPreparedStatement createPreparedStatement(final PrepareStmtTask<PgType> stmtTask) {
+    private PgPreparedStatement createPreparedStatement(final PrepareTask<PgType> stmtTask) {
         return PgPreparedStatement.create(this, stmtTask);
     }
 

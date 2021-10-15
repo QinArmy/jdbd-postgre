@@ -215,6 +215,12 @@ public abstract class JdbdExceptions extends ExceptionUtils {
                 new SQLException("Not found any parameter group.", SQLStates.INVALID_PARAMETER_VALUE));
     }
 
+    public static JdbdSQLException batchAsMultiNonSupportFetch() {
+        return new JdbdSQLException(
+                new SQLException("executeBatchAsMulti() not support fetch.", SQLStates.INVALID_PARAMETER_VALUE));
+    }
+
+
     public static SQLException outOfTypeRange(int batchIndex, SQLType sqlType, ParamValue bindValue) {
         String m;
         if (batchIndex == 0) {

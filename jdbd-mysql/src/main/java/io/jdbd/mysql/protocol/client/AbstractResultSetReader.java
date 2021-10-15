@@ -190,43 +190,15 @@ abstract class AbstractResultSetReader implements ResultSetReader {
 
                 header = Packets.getInt1AsInt(cumulateBuffer, packetIndex + Packets.HEADER_SIZE);
                 if (header == ErrorPacket.ERROR_HEADER) {
-                    payloadLength = Packets.readInt3(cumulateBuffer);
-                    sequenceId = Packets.readInt1AsInt(cumulateBuffer);
-                    final ErrorPacket error;
-                    error = ErrorPacket.readPacket(cumulateBuffer.readSlice(payloadLength), this.negotiatedCapability
-                            , this.adjutant.obtainCharsetError());
-                    this.stmtTask.addErrorToTask(MySQLExceptions.createErrorPacketException(error));
+                    sequenceId = this.readErrorPacket(cumulateBuffer);
                     resultSetEnd = true;
-                    this.states = States.END_ONE_ERROR;
                     break;
                 } else if (header == EofPacket.EOF_HEADER && (binaryReader || payloadLength < Packets.MAX_PAYLOAD)) {
                     // this block : read ResultSet end.
-                    payloadLength = Packets.readInt3(cumulateBuffer);
-                    sequenceId = Packets.readInt1AsInt(cumulateBuffer);
-
-                    final int negotiatedCapability = this.negotiatedCapability;
-                    final TerminatorPacket tp;
-                    if (Capabilities.deprecateEof(negotiatedCapability)) {
-                        tp = OkPacket.read(cumulateBuffer.readSlice(payloadLength), negotiatedCapability);
-                    } else {
-                        tp = EofPacket.read(cumulateBuffer.readSlice(payloadLength), negotiatedCapability);
-                    }
-                    serverStatesConsumer.accept(tp);
+                    sequenceId = this.readTerminatePacket(cumulateBuffer, serverStatesConsumer, cancelled);
                     resultSetEnd = true;
-                    if ((tp.statusFags & TerminatorPacket.SERVER_MORE_RESULTS_EXISTS) == 0) {
-                        this.states = States.NO_MORE_RESULT;
-                    } else {
-                        this.states = States.MORE_RESULT;
-                    }
-                    if (!cancelled) {
-                        sink.next(MySQLResultStates.fromQuery(rowMeta.getResultIndex(), tp, readRowCount));
-                    }
-                    if (LOG.isTraceEnabled()) {
-                        LOG.trace("read  ResultSet end.");
-                    }
                     break;
                 }
-
                 if (payloadLength == Packets.MAX_PAYLOAD) {
                     final BigPacketMode mode = readBIgPacket(cumulateBuffer);
                     switch (mode) {
@@ -321,6 +293,56 @@ abstract class AbstractResultSetReader implements ResultSetReader {
 
 
     /*################################## blow private method ##################################*/
+
+
+    /**
+     * @return sequenceId
+     */
+    private int readErrorPacket(final ByteBuf cumulateBuffer) {
+        final int payloadLength = Packets.readInt3(cumulateBuffer);
+        final int sequenceId = Packets.readInt1AsInt(cumulateBuffer);
+        final ErrorPacket error;
+        error = ErrorPacket.read(cumulateBuffer.readSlice(payloadLength), this.negotiatedCapability
+                , this.adjutant.obtainCharsetError());
+        this.stmtTask.addErrorToTask(MySQLExceptions.createErrorPacketException(error));
+        this.resultSetEnd = true;
+        this.states = States.END_ONE_ERROR;
+        return sequenceId;
+    }
+
+    /**
+     * @return sequenceId
+     */
+    private int readTerminatePacket(final ByteBuf cumulateBuffer, final Consumer<Object> serverStatesConsumer
+            , final boolean canceled) {
+        final int payloadLength = Packets.readInt3(cumulateBuffer);
+        final int sequenceId = Packets.readInt1AsInt(cumulateBuffer);
+
+        final int negotiatedCapability = this.negotiatedCapability;
+        final TerminatorPacket tp;
+        if (Capabilities.deprecateEof(negotiatedCapability)) {
+            tp = OkPacket.read(cumulateBuffer.readSlice(payloadLength), negotiatedCapability);
+        } else {
+            tp = EofPacket.read(cumulateBuffer.readSlice(payloadLength), negotiatedCapability);
+        }
+        serverStatesConsumer.accept(tp);
+        this.resultSetEnd = true;
+        if (tp.hasMoreFetch()) {
+            this.states = States.MORE_FETCH;
+        } else if (tp.hasMoreResult()) {
+            this.states = States.MORE_RESULT;
+        } else {
+            this.states = States.NO_MORE_RESULT;
+        }
+        if (!canceled) {
+            this.sink.next(MySQLResultStates.fromQuery(rowMeta.getResultIndex(), tp, this.readRowCount));
+        }
+        final Logger LOG = getLogger();
+        if (LOG.isTraceEnabled()) {
+            LOG.trace("read  ResultSet end.");
+        }
+        return sequenceId;
+    }
 
     /**
      * @see #read(ByteBuf, Consumer)

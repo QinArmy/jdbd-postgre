@@ -14,7 +14,7 @@ import java.util.function.Consumer;
  * This class is util class of below tow Task:
  *     <ul>
  *         <li>{@link ComQueryTask}</li>
- *         <li>{@link ComPreparedTask}</li>
+ *         <li>{@link ComPreparedStmtTask}</li>
  *     </ul>
  * </p>
  */

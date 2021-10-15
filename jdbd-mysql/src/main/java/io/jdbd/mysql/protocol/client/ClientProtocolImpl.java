@@ -22,10 +22,10 @@ import java.util.List;
 /**
  * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_command_phase.html">Command Phase</a>
  */
-final class ClientCommandProtocolImpl implements ClientCommandProtocol {
+final class ClientProtocolImpl implements ClientProtocol {
 
 
-    public static Mono<ClientCommandProtocol> create(HostInfo<MyKey> hostInfo
+    public static Mono<ClientProtocol> create(HostInfo<MyKey> hostInfo
             , SessionAdjutant sessionAdjutant) {
 //        return ClientConnectionProtocolImpl.create(hostInfo, sessionAdjutant)
 //                .map(ClientCommandProtocolImpl::new);
@@ -40,7 +40,7 @@ final class ClientCommandProtocolImpl implements ClientCommandProtocol {
     private final SessionResetter sessionResetter;
 
 
-    private ClientCommandProtocolImpl(ClientConnectionProtocolImpl cp) {
+    private ClientProtocolImpl(ClientConnectionProtocolImpl cp) {
         this.executor = cp.taskExecutor;
         this.adjutant = this.executor.taskAdjutant();
         this.sessionResetter = cp.sessionResetter;
@@ -141,7 +141,7 @@ final class ClientCommandProtocolImpl implements ClientCommandProtocol {
      */
     @Override
     public final Mono<PreparedStatement> prepare(MySQLDatabaseSession session, StaticStmt stmt) {
-        return ComPreparedTask.prepare(session, stmt, this.adjutant);
+        return ComPreparedStmtTask.prepare(session, stmt, this.adjutant);
     }
 
     /**

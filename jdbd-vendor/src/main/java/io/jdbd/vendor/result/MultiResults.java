@@ -1,6 +1,5 @@
 package io.jdbd.vendor.result;
 
-import io.jdbd.JdbdException;
 import io.jdbd.result.*;
 import io.jdbd.vendor.task.ITaskAdjutant;
 import io.jdbd.vendor.util.JdbdExceptions;
@@ -16,7 +15,7 @@ public abstract class MultiResults {
     }
 
 
-    public static ReactorMultiResult error(JdbdException e) {
+    public static MultiResult error(Throwable e) {
         return new ErrorMultiResult(e);
     }
 

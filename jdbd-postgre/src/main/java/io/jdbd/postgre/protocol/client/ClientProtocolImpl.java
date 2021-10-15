@@ -14,7 +14,7 @@ import io.jdbd.result.ResultStates;
 import io.jdbd.stmt.PreparedStatement;
 import io.jdbd.vendor.stmt.StaticBatchStmt;
 import io.jdbd.vendor.stmt.StaticStmt;
-import io.jdbd.vendor.task.PrepareStmtTask;
+import io.jdbd.vendor.task.PrepareTask;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -163,7 +163,7 @@ final class ClientProtocolImpl implements ClientProtocol {
     }
 
     @Override
-    public final Mono<PreparedStatement> prepare(String sql, Function<PrepareStmtTask<PgType>, PreparedStatement> function) {
+    public final Mono<PreparedStatement> prepare(String sql, Function<PrepareTask<PgType>, PreparedStatement> function) {
         return ExtendedQueryTask.prepare(sql, function, this.adjutant);
     }
 

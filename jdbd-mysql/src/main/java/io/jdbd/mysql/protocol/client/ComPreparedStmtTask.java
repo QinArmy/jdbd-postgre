@@ -14,7 +14,7 @@ import io.jdbd.vendor.result.JdbdWarning;
 import io.jdbd.vendor.result.MultiResults;
 import io.jdbd.vendor.result.ResultSink;
 import io.jdbd.vendor.stmt.*;
-import io.jdbd.vendor.task.PrepareStmtTask;
+import io.jdbd.vendor.task.PrepareTask;
 import io.netty.buffer.ByteBuf;
 import org.reactivestreams.Publisher;
 import org.reactivestreams.Subscriber;
@@ -43,7 +43,7 @@ import java.util.function.Function;
  * @see BinaryResultSetReader
  * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_command_phase_ps.html">Prepared Statements</a>
  */
-final class ComPreparedTask extends MySQLPrepareCommandTask implements PrepareTask, PrepareStmtTask<MySQLType> {
+final class ComPreparedStmtTask extends MySQLPrepareCommandStmtTask implements PrepareStmtTask, PrepareTask<MySQLType> {
 
 
     /**
@@ -51,13 +51,13 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements PrepareTa
      * This method is one of underlying api of {@link BindStatement#executeUpdate()} method:
      * </p>
      *
-     * @see #ComPreparedTask(ParamSingleStmt, FluxResultSink, TaskAdjutant)
+     * @see #ComPreparedStmtTask(ParamSingleStmt, FluxResultSink, TaskAdjutant)
      * @see ComQueryTask#bindableUpdate(BindStmt, TaskAdjutant)
      */
     static Mono<ResultStates> update(final ParamStmt stmt, final TaskAdjutant adjutant) {
         return MultiResults.update(sink -> {
             try {
-                ComPreparedTask task = new ComPreparedTask(stmt, sink, adjutant);
+                ComPreparedStmtTask task = new ComPreparedStmtTask(stmt, sink, adjutant);
                 task.submit(sink::error);
             } catch (Throwable e) {
                 sink.error(MySQLExceptions.wrapIfNonJvmFatal(e));
@@ -74,13 +74,13 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements PrepareTa
      * </ul>
      * </p>
      *
-     * @see #ComPreparedTask(ParamSingleStmt, FluxResultSink, TaskAdjutant)
+     * @see #ComPreparedStmtTask(ParamSingleStmt, FluxResultSink, TaskAdjutant)
      * @see ComQueryTask#bindableQuery(BindStmt, TaskAdjutant)
      */
     static Flux<ResultRow> query(final ParamStmt stmt, final TaskAdjutant adjutant) {
         return MultiResults.query(stmt.getStatusConsumer(), sink -> {
             try {
-                ComPreparedTask task = new ComPreparedTask(stmt, sink, adjutant);
+                ComPreparedStmtTask task = new ComPreparedStmtTask(stmt, sink, adjutant);
                 task.submit(sink::error);
             } catch (Throwable e) {
                 sink.error(MySQLExceptions.wrapIfNonJvmFatal(e));
@@ -93,14 +93,14 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements PrepareTa
      * This method is one of underlying api of {@link BindStatement#executeBatch()} method.
      * </p>
      *
-     * @see #ComPreparedTask(ParamSingleStmt, FluxResultSink, TaskAdjutant)
+     * @see #ComPreparedStmtTask(ParamSingleStmt, FluxResultSink, TaskAdjutant)
      * @see ComQueryTask#bindableBatch(BindBatchStmt, TaskAdjutant)
      */
     static Flux<ResultStates> batchUpdate(final ParamBatchStmt<? extends ParamValue> stmt
             , final TaskAdjutant adjutant) {
         return MultiResults.batchUpdate(sink -> {
             try {
-                ComPreparedTask task = new ComPreparedTask(stmt, sink, adjutant);
+                ComPreparedStmtTask task = new ComPreparedStmtTask(stmt, sink, adjutant);
                 task.submit(sink::error);
             } catch (Throwable e) {
                 sink.error(MySQLExceptions.wrapIfNonJvmFatal(e));
@@ -115,13 +115,13 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements PrepareTa
      * This method is one of underlying api of {@link BindStatement#executeBatchAsMulti()} method.
      * </p>
      *
-     * @see #ComPreparedTask(ParamSingleStmt, FluxResultSink, TaskAdjutant)
+     * @see #ComPreparedStmtTask(ParamSingleStmt, FluxResultSink, TaskAdjutant)
      * @see ComQueryTask#bindableAsMulti(BindBatchStmt, TaskAdjutant)
      */
     static MultiResult batchAsMulti(final ParamBatchStmt<? extends ParamValue> stmt, final TaskAdjutant adjutant) {
         return MultiResults.asMulti(adjutant, sink -> {
             try {
-                ComPreparedTask task = new ComPreparedTask(stmt, sink, adjutant);
+                ComPreparedStmtTask task = new ComPreparedStmtTask(stmt, sink, adjutant);
                 task.submit(sink::error);
             } catch (Throwable e) {
                 sink.error(MySQLExceptions.wrapIfNonJvmFatal(e));
@@ -134,13 +134,13 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements PrepareTa
      * This method is one of underlying api of {@link BindStatement#executeBatchAsFlux()} method.
      * </p>
      *
-     * @see #ComPreparedTask(ParamSingleStmt, FluxResultSink, TaskAdjutant)
+     * @see #ComPreparedStmtTask(ParamSingleStmt, FluxResultSink, TaskAdjutant)
      * @see ComQueryTask#bindableAsFlux(BindBatchStmt, TaskAdjutant)
      */
     static OrderedFlux batchAsFlux(final ParamBatchStmt<? extends ParamValue> stmt, final TaskAdjutant adjutant) {
         return MultiResults.asFlux(sink -> {
             try {
-                ComPreparedTask task = new ComPreparedTask(stmt, sink, adjutant);
+                ComPreparedStmtTask task = new ComPreparedStmtTask(stmt, sink, adjutant);
                 task.submit(sink::error);
             } catch (Throwable e) {
                 sink.error(MySQLExceptions.wrapIfNonJvmFatal(e));
@@ -158,15 +158,15 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements PrepareTa
      * </p>
      *
      * @see DatabaseSession#prepare(String)
-     * @see #ComPreparedTask(ParamSingleStmt, FluxResultSink, TaskAdjutant)
+     * @see #ComPreparedStmtTask(ParamSingleStmt, FluxResultSink, TaskAdjutant)
      */
     static Mono<PreparedStatement> prepare(final String sql, final TaskAdjutant adjutant
-            , final Function<PrepareStmtTask<MySQLType>, PreparedStatement> function) {
+            , final Function<PrepareTask<MySQLType>, PreparedStatement> function) {
         return Mono.create(sink -> {
             try {
                 final MySQLPrepareStmt stmt = new MySQLPrepareStmt(sql);
                 final FluxResultSink resultSink = new PrepareSink(sink, function);
-                ComPreparedTask task = new ComPreparedTask(stmt, resultSink, adjutant);
+                ComPreparedStmtTask task = new ComPreparedStmtTask(stmt, resultSink, adjutant);
                 task.submit(sink::error);
             } catch (Throwable e) {
                 sink.error(MySQLExceptions.wrapIfNonJvmFatal(e));
@@ -175,7 +175,7 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements PrepareTa
     }
 
 
-    private static final Logger LOG = LoggerFactory.getLogger(ComPreparedTask.class);
+    private static final Logger LOG = LoggerFactory.getLogger(ComPreparedStmtTask.class);
 
     private final ParamSingleStmt stmt;
 
@@ -193,14 +193,18 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements PrepareTa
 
     private ResultRowMeta rowMeta;
 
-    private int resultIndex = 0;
+    /**
+     * @see #nextGroupReset()
+     * @see #readResetResponse(ByteBuf, Consumer)
+     */
+    private boolean nextGroupNeedReset;
 
     private int batchIndex = 0;
 
     /**
      * @see #update(ParamStmt, TaskAdjutant)
      */
-    private ComPreparedTask(final ParamSingleStmt stmt, final FluxResultSink sink, final TaskAdjutant adjutant) {
+    private ComPreparedStmtTask(final ParamSingleStmt stmt, final FluxResultSink sink, final TaskAdjutant adjutant) {
         super(adjutant, sink::error);
         this.stmt = stmt;
         this.sink = sink;
@@ -233,6 +237,11 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements PrepareTa
     }
 
     @Override
+    public void nextGroupReset() {
+        this.nextGroupNeedReset = true;
+    }
+
+    @Override
     public String toString() {
         return this.getClass().getSimpleName();
     }
@@ -240,7 +249,7 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements PrepareTa
     /*################################## blow PrepareStmtTask method ##################################*/
 
     /**
-     * @see PrepareStmtTask#executeUpdate(ParamStmt)
+     * @see PrepareTask#executeUpdate(ParamStmt)
      */
     @Override
     public Mono<ResultStates> executeUpdate(final ParamStmt stmt) {
@@ -248,7 +257,7 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements PrepareTa
     }
 
     /**
-     * @see PrepareStmtTask#executeQuery(ParamStmt)
+     * @see PrepareTask#executeQuery(ParamStmt)
      */
     @Override
     public Flux<ResultRow> executeQuery(ParamStmt stmt) {
@@ -257,7 +266,7 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements PrepareTa
 
 
     /**
-     * @see PrepareStmtTask#executeBatch(ParamBatchStmt)
+     * @see PrepareTask#executeBatch(ParamBatchStmt)
      */
     @Override
     public Flux<ResultStates> executeBatch(final ParamBatchStmt<ParamValue> stmt) {
@@ -265,7 +274,7 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements PrepareTa
     }
 
     /**
-     * @see PrepareStmtTask#executeBatchAsMulti(ParamBatchStmt)
+     * @see PrepareTask#executeBatchAsMulti(ParamBatchStmt)
      */
     @Override
     public MultiResult executeBatchAsMulti(ParamBatchStmt<ParamValue> stmt) {
@@ -273,7 +282,7 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements PrepareTa
     }
 
     /**
-     * @see PrepareStmtTask#executeBatchAsFlux(ParamBatchStmt)
+     * @see PrepareTask#executeBatchAsFlux(ParamBatchStmt)
      */
     @Override
     public OrderedFlux executeBatchAsFlux(ParamBatchStmt<ParamValue> stmt) {
@@ -314,8 +323,12 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements PrepareTa
     }
 
     @Override
-    public void closeOnBindError(Throwable error) {
-
+    public void closeOnBindError(final Throwable error) {
+        if (this.adjutant.inEventLoop()) {
+            closeOnBindErrorInEventLoop(error);
+        } else {
+            this.adjutant.execute(() -> closeOnBindErrorInEventLoop(error));
+        }
     }
 
     @Override
@@ -325,7 +338,13 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements PrepareTa
 
     @Override
     public Mono<Void> abandonBind() {
-        return null;
+        return Mono.create(sink -> {
+            if (this.adjutant.inEventLoop()) {
+                abandonBindInEventLoop(sink);
+            } else {
+                this.adjutant.execute(() -> abandonBindInEventLoop(sink));
+            }
+        });
     }
 
     @Nullable
@@ -353,7 +372,7 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements PrepareTa
             }
         } catch (Throwable e) {
             publisher = null;
-            this.phase = Phase.START_ERROR;
+            this.phase = Phase.ERROR_ON_START;
             addError(e);
         }
         return publisher;
@@ -362,7 +381,7 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements PrepareTa
 
     @Override
     protected boolean decode(final ByteBuf cumulateBuffer, final Consumer<Object> serverStatusConsumer) {
-        if (this.phase == Phase.START_ERROR) {
+        if (this.phase == Phase.ERROR_ON_START) {
             publishError(this.sink::error);
             return true;
         }
@@ -370,17 +389,13 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements PrepareTa
         while (continueDecode) {
             switch (this.phase) {
                 case READ_PREPARE_RESPONSE: {
-                    if (!canReadPrepareResponse(cumulateBuffer)) {
-                        continueDecode = false;
-                        break;
+                    if (canReadPrepareResponse(cumulateBuffer)) {
+                        // possibly PreparedStatement bind occur error
+                        taskEnd = readPrepareResponse(cumulateBuffer)
+                                || this.phase == Phase.ERROR_ON_BINDING
+                                || this.phase == Phase.ABANDON_BINDING;
                     }
-                    if (readPrepareResponse(cumulateBuffer)) {
-                        taskEnd = true;
-                        continueDecode = false;
-                    } else {
-                        this.phase = Phase.READ_PREPARE_PARAM_META;
-                        continueDecode = Packets.hasOnePacket(cumulateBuffer);
-                    }
+                    continueDecode = false;
                 }
                 break;
                 case READ_EXECUTE_RESPONSE: {
@@ -472,7 +487,104 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements PrepareTa
         return BinaryResultSetReader.create(this, this.sink.froResultSet());
     }
 
+    @Override
+    boolean hasMoreGroup() {
+        final ParamSingleStmt stmt = getActualStmt();
+        final boolean moreGroup;
+        if (stmt instanceof ParamBatchStmt) {
+            moreGroup = this.batchIndex < ((ParamBatchStmt<?>) stmt).getGroupList().size();
+            if (moreGroup) {
+                this.phase = Phase.EXECUTE;
+            }
+        } else {
+            moreGroup = false;
+        }
+        return moreGroup;
+    }
+
+
+    /**
+     * @return true : task end.
+     * @see #handleReadPrepareComplete()
+     */
+    boolean executeNextGroup() {
+        assertPhase(Phase.EXECUTE);
+
+        if (this.nextGroupNeedReset) {
+            this.nextGroupNeedReset = false;
+            this.packetPublisher = Mono.just(createResetPacket());
+            this.phase = Phase.READ_RESET_RESPONSE;
+            return false;
+        }
+
+        final ParamSingleStmt stmt = this.stmt;
+        final ParamSingleStmt actualStmt;
+        if (stmt instanceof MySQLPrepareStmt) {
+            actualStmt = ((PrepareStmt) stmt).getStmt();
+        } else {
+            actualStmt = stmt;
+        }
+
+        final int batchIndex;
+        if (actualStmt instanceof ParamStmt) {
+            if (this.batchIndex++ != 0) {
+                throw new IllegalStateException(String.format("%s duplication execution.", ParamStmt.class.getName()));
+            }
+            batchIndex = -1;
+        } else {
+            batchIndex = this.batchIndex++;
+        }
+        boolean taskEnd = false;
+        try {
+            this.packetPublisher = this.commandWriter.writeCommand(batchIndex);
+            this.phase = Phase.READ_EXECUTE_RESPONSE;
+        } catch (Throwable e) {
+            taskEnd = true;
+            addError(e);
+        }
+        return taskEnd;
+    }
+
+    /**
+     * @return true: task end.
+     * @see #readResultSet(ByteBuf, Consumer)
+     * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_com_stmt_fetch.html">Protocol::COM_STMT_FETCH</a>
+     */
+    @Override
+    boolean executeNextFetch() {
+        assertPhase(Phase.READ_EXECUTE_RESPONSE);
+
+        final int fetchSize = getActualStmt().getFetchSize();
+        final boolean taskEnd;
+        if (fetchSize > 0 && this.rowMeta != null) {
+            final ByteBuf packet = this.adjutant.allocator().buffer(13);
+
+            Packets.writeInt3(packet, 9);
+            packet.writeByte(addAndGetSequenceId());
+
+            packet.writeByte(Packets.COM_STMT_FETCH);
+            Packets.writeInt4(packet, this.statementId);
+            Packets.writeInt4(packet, fetchSize);
+
+            this.packetPublisher = Mono.just(packet);
+            taskEnd = false;
+        } else {
+            taskEnd = true;
+            // here bug or MySQL server status error.
+            addError(new IllegalStateException("no more fetch."));
+        }
+        return taskEnd;
+    }
+
     /*################################## blow private method ##################################*/
+
+    private ParamSingleStmt getActualStmt() {
+        ParamSingleStmt stmt = this.stmt;
+        if (stmt instanceof PrepareStmt) {
+            stmt = ((PrepareStmt) stmt).getStmt();
+        }
+        return stmt;
+    }
 
 
     /**
@@ -482,15 +594,133 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements PrepareTa
      * @see #executeBatchAsMulti(ParamBatchStmt)
      * @see #executeBatchAsFlux(ParamBatchStmt)
      */
-    private void executeAfterBinding(FluxResultSink sink, ParamSingleStmt stmt) {
+    private void executeAfterBinding(final FluxResultSink sink, final ParamSingleStmt stmt) {
         if (this.adjutant.inEventLoop()) {
-            executePreparedStmtInEventLoop(sink, stmt);
+            executeAfterBindingInEventLoop(sink, stmt);
         } else {
-            this.adjutant.execute(() -> executePreparedStmtInEventLoop(sink, stmt));
+            this.adjutant.execute(() -> executeAfterBindingInEventLoop(sink, stmt));
         }
     }
 
-    private void executePreparedStmtInEventLoop(FluxResultSink sink, ParamSingleStmt stmt) {
+    /**
+     * @see #executeAfterBinding(FluxResultSink, ParamSingleStmt)
+     */
+    private void executeAfterBindingInEventLoop(final FluxResultSink sink, final ParamSingleStmt stmt) {
+        switch (this.phase) {
+            case WAIT_FOR_BINDING: {
+                try {
+                    ((MySQLPrepareStmt) this.stmt).setStmt(stmt);
+                    ((PrepareSink) this.sink).setSink(sink);
+                    this.phase = Phase.EXECUTE;
+                    if (executeNextGroup()) {
+                        endTaskForErrorOnWaitForBinding();
+                    } else {
+                        this.phase = Phase.READ_EXECUTE_RESPONSE;
+                    }
+                } catch (Throwable e) {
+                    // here bug
+                    this.phase = Phase.ERROR_ON_BINDING;
+                    endTaskForErrorOnWaitForBinding();
+                    sink.error(e);
+                }
+            }
+            break;
+            case END: {
+                if (LOG.isDebugEnabled()) {
+                    LOG.debug("{} have ended,but reuse {}", this, PreparedStatement.class.getName());
+                }
+                sink.error(MySQLExceptions.cannotReuseStatement(PreparedStatement.class));
+            }
+            break;
+            default: {
+                if (LOG.isDebugEnabled()) {
+                    LOG.debug("{} is executing,but reuse {}", this, PreparedStatement.class.getName());
+                }
+                sink.error(MySQLExceptions.cannotReuseStatement(PreparedStatement.class));
+            }
+        }
+
+    }
+
+    /**
+     * @see #abandonBind()
+     */
+    private void abandonBindInEventLoop(final MonoSink<Void> sink) {
+        // error can't be emitted to sink ,because not actual sink now.
+        switch (this.phase) {
+            case WAIT_FOR_BINDING: {
+                this.phase = Phase.ABANDON_BINDING;
+                endTaskForErrorOnWaitForBinding();
+                sink.success();
+            }
+            break;
+            case END: {
+                if (LOG.isDebugEnabled()) {
+                    LOG.debug("{} have ended,but reuse {}", this, PreparedStatement.class.getName());
+                }
+                sink.error(MySQLExceptions.cannotReuseStatement(PreparedStatement.class));
+            }
+            break;
+            case ERROR_ON_BINDING:
+            case ABANDON_BINDING: {
+                if (LOG.isDebugEnabled()) {
+                    LOG.debug("this.phase is {},but reuse {}", this.phase, PreparedStatement.class.getName());
+                }
+                sink.error(MySQLExceptions.cannotReuseStatement(PreparedStatement.class));
+            }
+            break;
+            default: {
+                if (LOG.isDebugEnabled()) {
+                    LOG.debug("{} is executing,but reuse {}", this, PreparedStatement.class.getName());
+                }
+                sink.error(MySQLExceptions.cannotReuseStatement(PreparedStatement.class));
+            }
+        } // switch
+    }
+
+    /**
+     * @see #closeOnBindError(Throwable)
+     */
+    private void closeOnBindErrorInEventLoop(final Throwable error) {
+        // error can't be emitted to sink ,because not actual sink now.
+        switch (this.phase) {
+            case WAIT_FOR_BINDING: {
+                this.phase = Phase.ERROR_ON_BINDING;
+                endTaskForErrorOnWaitForBinding();
+            }
+            break;
+            case END: {
+                if (LOG.isDebugEnabled()) {
+                    LOG.debug("{} have ended,but reuse {}", this, PreparedStatement.class.getName(), error);
+                }
+            }
+            break;
+            case ERROR_ON_BINDING:
+            case ABANDON_BINDING: {
+                if (LOG.isDebugEnabled()) {
+                    LOG.debug("this.phase is {},but reuse {}", this.phase, PreparedStatement.class.getName(), error);
+                }
+            }
+            break;
+            default: {
+                if (LOG.isDebugEnabled()) {
+                    LOG.debug("{} is executing,but reuse {}", this, PreparedStatement.class.getName(), error);
+                }
+            }
+        } // switch
+
+    }
+
+    /**
+     * @see #closeOnBindErrorInEventLoop(Throwable)
+     */
+    private void endTaskForErrorOnWaitForBinding() {
+        if (!this.inDecodeMethod()) {
+            this.packetPublisher = Mono.just(createCloseStatementPacket());
+            this.sendPacketSignal(true)
+                    .doOnSuccess(v -> this.phase = Phase.END)
+                    .subscribe();
+        }
 
     }
 
@@ -618,40 +848,6 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements PrepareTa
         return taskEnd;
     }
 
-    /**
-     * @return true : task end.
-     * @see #handleReadPrepareComplete()
-     */
-    private boolean executeNextGroup() {
-        assertPhase(Phase.EXECUTE);
-
-        final ParamSingleStmt stmt = this.stmt;
-        final ParamSingleStmt actualStmt;
-        if (stmt instanceof MySQLPrepareStmt) {
-            actualStmt = ((PrepareStmt) stmt).getStmt();
-        } else {
-            actualStmt = stmt;
-        }
-        final int batchIndex;
-        if (actualStmt instanceof ParamStmt) {
-            if (this.batchIndex++ != 0) {
-                throw new IllegalStateException(String.format("%s duplication execution.", ParamStmt.class.getName()));
-            }
-            batchIndex = -1;
-        } else {
-            batchIndex = this.batchIndex++;
-        }
-        boolean taskEnd = false;
-        try {
-            this.packetPublisher = this.commandWriter.writeCommand(batchIndex);
-            this.phase = Phase.READ_EXECUTE_RESPONSE;
-        } catch (Throwable e) {
-            taskEnd = true;
-            addError(e);
-        }
-        return taskEnd;
-    }
-
 
     /**
      * @see #decode(ByteBuf, Consumer)
@@ -686,7 +882,7 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements PrepareTa
         if (traceEnabled) {
             LOG.trace("{} read execute response", this);
         }
-        final int header = Packets.getInt1AsInt(cumulateBuffer, cumulateBuffer.readerIndex() + Packets.HEADER_SIZE);
+        final int header = Packets.getHeaderFlag(cumulateBuffer);
         final boolean taskEnd;
         switch (header) {
             case ErrorPacket.ERROR_HEADER: {
@@ -708,23 +904,17 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements PrepareTa
 
 
     /**
-     * <p>
-     * modify {@link #phase}
-     * </p>
-     *
      * @return true: task end.
      * @see #decode(ByteBuf, Consumer)
      */
     private boolean readFetchResponse(final ByteBuf cumulateBuffer) {
         final int flag = Packets.getInt1AsInt(cumulateBuffer, cumulateBuffer.readerIndex() + Packets.HEADER_SIZE);
-        boolean taskEnd = false;
+        final boolean taskEnd;
         if (flag == ErrorPacket.ERROR_HEADER) {
-            final int payloadLength = Packets.readInt3(cumulateBuffer);
-            updateSequenceId(Packets.readInt1AsInt(cumulateBuffer));
-            ErrorPacket error = ErrorPacket.readPacket(cumulateBuffer.readSlice(payloadLength)
-                    , this.negotiatedCapability, this.adjutant.obtainCharsetError());
-            addError(MySQLExceptions.createErrorPacketException(error));
+            readErrorPacket(cumulateBuffer);
             taskEnd = true;
+        } else {
+            taskEnd = false;
         }
         return taskEnd;
     }
@@ -735,23 +925,21 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements PrepareTa
      * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_com_stmt_reset.html">Protocol::COM_STMT_RESET</a>
      */
     private boolean readResetResponse(final ByteBuf cumulateBuffer, final Consumer<Object> serverStatusConsumer) {
-        final int payloadLength = Packets.readInt3(cumulateBuffer);
-        updateSequenceId(Packets.readInt1AsInt(cumulateBuffer));
-
-        final int flag = Packets.getInt1AsInt(cumulateBuffer, cumulateBuffer.readerIndex());
+        final int flag = Packets.getHeaderFlag(cumulateBuffer);
         final boolean taskEnd;
         switch (flag) {
             case ErrorPacket.ERROR_HEADER: {
-                ErrorPacket error = ErrorPacket.readPacket(cumulateBuffer.readSlice(payloadLength)
-                        , this.negotiatedCapability, this.adjutant.obtainCharsetError());
-                addError(MySQLExceptions.createErrorPacketException(error));
+                readErrorPacket(cumulateBuffer);
                 taskEnd = true;
             }
             break;
             case OkPacket.OK_HEADER: {
+                final int payloadLength = Packets.readInt3(cumulateBuffer);
+                updateSequenceId(Packets.readInt1AsInt(cumulateBuffer));
                 final OkPacket ok;
                 ok = OkPacket.read(cumulateBuffer.readSlice(payloadLength), this.negotiatedCapability);
                 serverStatusConsumer.accept(ok);
+                this.nextGroupNeedReset = false;
                 taskEnd = false;
             }
             break;
@@ -763,34 +951,16 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements PrepareTa
 
 
     /**
-     * @see #readResultSet(ByteBuf, Consumer)
-     * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_com_stmt_fetch.html">Protocol::COM_STMT_FETCH</a>
-     */
-    private ByteBuf createFetchPacket() {
-        assertPhase(Phase.FETCH_STMT);
-
-        final int fetchSize = this.stmt.getFetchSize();
-        if (fetchSize < 1) {
-            throw new IllegalStateException("this.stmt fetch size less than one.");
-        }
-        final ByteBuf packet = this.adjutant.allocator().buffer(13);
-
-        Packets.writeInt3(packet, 9);
-        packet.writeByte(addAndGetSequenceId());
-
-        packet.writeByte(Packets.COM_STMT_FETCH);
-        Packets.writeInt4(packet, this.statementId);
-        Packets.writeInt4(packet, fetchSize);
-        return packet;
-    }
-
-    /**
      * @see #readExecuteResponse(ByteBuf, Consumer)
      * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_com_stmt_reset.html">Protocol::COM_STMT_RESET</a>
      */
     private ByteBuf createResetPacket() {
-        assertPhase(Phase.RESET_STMT);
-
+        if (this.paramMetas == null) {
+            throw new IllegalStateException("before prepare");
+        }
+        if (!this.nextGroupNeedReset) {
+            throw new IllegalStateException("don't need reset.");
+        }
         ByteBuf packet = this.adjutant.allocator().buffer(9);
 
         Packets.writeInt3(packet, 5);
@@ -827,6 +997,9 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements PrepareTa
         private void setStmt(ParamSingleStmt stmt) {
             if (this.stmt != null) {
                 throw new IllegalStateException("this.stmt is non-null.");
+            }
+            if (!this.sql.equals(stmt.getSql())) {
+                throw new IllegalArgumentException("stmt sql and original sql not match.");
             }
             this.stmt = stmt;
         }
@@ -871,12 +1044,12 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements PrepareTa
 
         private final MonoSink<PreparedStatement> statementSink;
 
-        private final Function<PrepareStmtTask<MySQLType>, PreparedStatement> function;
+        private final Function<PrepareTask<MySQLType>, PreparedStatement> function;
 
         private FluxResultSink sink;
 
         private PrepareSink(MonoSink<PreparedStatement> statementSink
-                , Function<PrepareStmtTask<MySQLType>, PreparedStatement> function) {
+                , Function<PrepareTask<MySQLType>, PreparedStatement> function) {
             this.statementSink = statementSink;
             this.function = function;
         }
@@ -901,10 +1074,9 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements PrepareTa
         @Override
         public void complete() {
             final FluxResultSink sink = this.sink;
-            if (sink == null) {
-                throw new IllegalStateException("this.sink is null");
+            if (sink != null) {// if null ,possibly error on  binding
+                sink.complete();
             }
-            sink.complete();
         }
 
         @Override
@@ -941,11 +1113,10 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements PrepareTa
 
 
     enum Phase {
-        START_ERROR,
+        ERROR_ON_START,
         PREPARED,
+
         READ_PREPARE_RESPONSE,
-        READ_PREPARE_PARAM_META,
-        READ_PREPARE_COLUMN_META,
 
         WAIT_FOR_BINDING,
 
@@ -958,6 +1129,10 @@ final class ComPreparedTask extends MySQLPrepareCommandTask implements PrepareTa
 
         FETCH_STMT,
         READ_FETCH_RESPONSE,
+
+        ERROR_ON_BINDING,
+        ABANDON_BINDING,
+
         END
     }
 

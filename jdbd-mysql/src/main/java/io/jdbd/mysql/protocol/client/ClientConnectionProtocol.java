@@ -12,7 +12,7 @@ import reactor.core.publisher.Mono;
  *
  * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_connection_phase.html">Connection Phase</a>
  */
-public interface ClientConnectionProtocol extends ClientProtocol {
+public interface ClientConnectionProtocol {
 
     /**
      * Do below:

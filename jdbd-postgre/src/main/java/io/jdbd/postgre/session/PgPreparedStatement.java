@@ -17,7 +17,7 @@ import io.jdbd.vendor.stmt.JdbdParamValue;
 import io.jdbd.vendor.stmt.ParamBatchStmt;
 import io.jdbd.vendor.stmt.ParamStmt;
 import io.jdbd.vendor.stmt.ParamValue;
-import io.jdbd.vendor.task.PrepareStmtTask;
+import io.jdbd.vendor.task.PrepareTask;
 import io.jdbd.vendor.util.JdbdBinds;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -34,12 +34,12 @@ import java.util.function.Consumer;
  */
 final class PgPreparedStatement extends PgStatement implements PreparedStatement {
 
-    static PgPreparedStatement create(PgDatabaseSession session, PrepareStmtTask<PgType> stmtTask) {
+    static PgPreparedStatement create(PgDatabaseSession session, PrepareTask<PgType> stmtTask) {
         return new PgPreparedStatement(session, stmtTask);
     }
 
 
-    private final PrepareStmtTask<PgType> stmtTask;
+    private final PrepareTask<PgType> stmtTask;
 
     private final String sql;
 
@@ -57,7 +57,7 @@ final class PgPreparedStatement extends PgStatement implements PreparedStatement
 
     private int fetchSize;
 
-    private PgPreparedStatement(PgDatabaseSession session, PrepareStmtTask<PgType> stmtTask) {
+    private PgPreparedStatement(PgDatabaseSession session, PrepareTask<PgType> stmtTask) {
         super(session);
         this.stmtTask = stmtTask;
         this.sql = stmtTask.getSql();
