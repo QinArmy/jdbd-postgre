@@ -17,12 +17,6 @@ import java.util.function.Consumer;
  */
 public interface StaticStatement extends Statement {
 
-    @Override
-    boolean supportPublisher();
-
-    @Override
-    boolean supportOutParameter();
-
 
     /**
      * Executes the given SQL statement(no parameter placeholder) thant can only producer one update result.
@@ -180,11 +174,11 @@ public interface StaticStatement extends Statement {
     Publisher<ResultStates> executeBatch(List<String> sqlGroup);
 
 
-    MultiResult executeAsMulti(List<String> sqlGroup);
+    MultiResult executeBatchAsMulti(List<String> sqlGroup);
 
-    OrderedFlux executeAsFlux(List<String> sqlGroup);
+    OrderedFlux executeBatchAsFlux(List<String> sqlGroup);
 
-    OrderedFlux executeAsFlux(String multiStmt);
+    OrderedFlux executeAsFlux(String multiSql);
 
 
 }

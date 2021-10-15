@@ -43,18 +43,18 @@ final class PgStaticStatement extends PgStatement implements StaticStatement {
     }
 
     @Override
-    public final MultiResult executeAsMulti(List<String> sqlGroup) {
+    public final MultiResult executeBatchAsMulti(List<String> sqlGroup) {
         return this.session.protocol.batchAsMulti(PgStmts.batchStmt(sqlGroup, this));
     }
 
     @Override
-    public final OrderedFlux executeAsFlux(List<String> sqlGroup) {
+    public final OrderedFlux executeBatchAsFlux(List<String> sqlGroup) {
         return this.session.protocol.batchAsFlux(PgStmts.batchStmt(sqlGroup, this));
     }
 
     @Override
-    public final OrderedFlux executeAsFlux(String multiStmt) {
-        return this.session.protocol.multiCommandAsFlux(PgStmts.stmt(multiStmt, this));
+    public final OrderedFlux executeAsFlux(String multiSql) {
+        return this.session.protocol.multiCommandAsFlux(PgStmts.stmt(multiSql, this));
     }
 
     /*################################## blow Statement method ##################################*/

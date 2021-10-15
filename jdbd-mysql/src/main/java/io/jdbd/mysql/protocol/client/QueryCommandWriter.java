@@ -651,7 +651,7 @@ final class QueryCommandWriter {
         final Object nonNull = bindValue.getNonNull();
 
         final String value;
-        final MySQLServerVersion serverVersion = this.adjutant.obtainHandshakeV10Packet().getServerVersion();
+        final MySQLServerVersion serverVersion = this.adjutant.handshake10().getServerVersion();
 
         if ((nonNull instanceof OffsetDateTime || nonNull instanceof ZonedDateTime)
                 && serverVersion.meetsMinimum(MySQLServerVersion.V8_0_19)) {

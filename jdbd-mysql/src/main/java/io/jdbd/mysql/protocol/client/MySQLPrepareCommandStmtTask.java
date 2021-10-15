@@ -7,7 +7,7 @@ import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.function.Consumer;
 
 /**
- * @see ComPreparedStmtTask
+ * @see ComPreparedTask
  * @see AbstractCommandTask
  */
 abstract class MySQLPrepareCommandStmtTask extends AbstractCommandTask implements PrepareStmtTask {

@@ -4,19 +4,20 @@ package io.jdbd.mysql.protocol.client;
 import io.jdbd.DatabaseSession;
 import io.jdbd.ServerVersion;
 import io.jdbd.mysql.MySQLType;
-import io.jdbd.mysql.session.MySQLDatabaseSession;
 import io.jdbd.mysql.stmt.BindBatchStmt;
+import io.jdbd.mysql.stmt.BindMultiStmt;
 import io.jdbd.mysql.stmt.BindStmt;
 import io.jdbd.result.MultiResult;
+import io.jdbd.result.OrderedFlux;
 import io.jdbd.result.ResultRow;
 import io.jdbd.result.ResultStates;
-import io.jdbd.result.SingleResult;
-import io.jdbd.session.Savepoint;
+import io.jdbd.session.SavePoint;
 import io.jdbd.stmt.BindStatement;
 import io.jdbd.stmt.MultiStatement;
 import io.jdbd.stmt.PreparedStatement;
 import io.jdbd.stmt.StaticStatement;
-import io.jdbd.vendor.result.ReactorMultiResult;
+import io.jdbd.vendor.stmt.StaticBatchStmt;
+import io.jdbd.vendor.stmt.StaticMultiStmt;
 import io.jdbd.vendor.stmt.StaticStmt;
 import io.jdbd.vendor.task.PrepareTask;
 import reactor.core.publisher.Flux;
@@ -73,25 +74,27 @@ public interface ClientProtocol {
      * This method is underlying api of {@link StaticStatement#executeBatch(List)} method.
      * </p>
      *
-     * @see ComQueryTask#batchUpdate(List, TaskAdjutant)
+     * @see ComQueryTask#batchUpdate(StaticBatchStmt, TaskAdjutant)
      */
-    Flux<ResultStates> batchUpdate(List<StaticStmt> stmtList);
+    Flux<ResultStates> batchUpdate(StaticBatchStmt stmt);
 
     /**
      * <p>
-     * This method is underlying api of {@link StaticStatement#executeAsMulti(List)} method.
+     * This method is underlying api of {@link StaticStatement#executeBatchAsMulti(List)} method.
      * </p>
      *
-     * @see ComQueryTask#asMulti(List, TaskAdjutant)
+     * @see ComQueryTask#batchAsMulti(StaticBatchStmt, TaskAdjutant)
      */
-    ReactorMultiResult executeAsMulti(List<StaticStmt> stmtList);
+    MultiResult batchAsMulti(StaticBatchStmt stmt);
 
     /**
      * <p>
-     * This method is underlying api of {@link StaticStatement#executeAsFlux(List)} method.
+     * This method is underlying api of {@link StaticStatement#executeBatchAsFlux(List)} method.
      * </p>
      */
-    Flux<SingleResult> executeAsFlux(List<StaticStmt> stmtList);
+    OrderedFlux batchAsFlux(StaticBatchStmt stmt);
+
+    OrderedFlux executeAsFlux(StaticMultiStmt stmt);
 
     /**
      * <p>
@@ -131,7 +134,7 @@ public interface ClientProtocol {
      *
      * @see ComQueryTask#bindableAsMulti(BindBatchStmt, TaskAdjutant)
      */
-    ReactorMultiResult bindableAsMulti(BindBatchStmt stmt);
+    MultiResult bindableAsMulti(BindBatchStmt stmt);
 
     /**
      * <p>
@@ -140,55 +143,51 @@ public interface ClientProtocol {
      *
      * @see ComQueryTask#bindableAsFlux(BindBatchStmt, TaskAdjutant)
      */
-    Flux<SingleResult> bindableAsFlux(BindBatchStmt stmt);
-
-    /**
-     * <p>
-     * This method is underlying api of below methods:
-     * <ul>
-     *     <li>{@link DatabaseSession#prepare(String)}</li>
-     *     <li>{@link DatabaseSession#prepare(String, int)}</li>
-     * </ul>
-     * </p>
-     *
-     * @see ComPreparedStmtTask#prepare(MySQLDatabaseSession, StaticStmt, TaskAdjutant)
-     */
-    Mono<PreparedStatement> prepare(String sql, Function<PrepareTask<MySQLType>, PreparedStatement> function);
-
+    OrderedFlux bindableAsFlux(BindBatchStmt stmt);
 
     /**
      * <p>
      * This method is underlying api of {@link MultiStatement#executeBatchAsMulti()} method.
      * </p>
      *
-     * @see ComQueryTask#multiStmtAsMulti(List, TaskAdjutant)
+     * @see ComQueryTask#multiStmtAsMulti(BindMultiStmt, TaskAdjutant)
      */
-    MultiResult multiStmtAsMulti(List<BindStmt> wrapperList);
+    MultiResult multiStmtAsMulti(BindMultiStmt stmt);
 
     /**
      * <p>
      * This method is underlying api of {@link MultiStatement#executeBatchAsFlux()} method.
      * </p>
      *
-     * @see ComQueryTask#multiStmtAsFlux(List, TaskAdjutant)
+     * @see ComQueryTask#multiStmtAsFlux(BindMultiStmt, TaskAdjutant)
      */
-    Flux<SingleResult> multiStmtAsFlux(List<BindStmt> wrapperList);
+    OrderedFlux multiStmtAsFlux(BindMultiStmt stmt);
+
+    /**
+     * <p>
+     * This method is underlying api of {@link DatabaseSession#prepare(String)} methods:
+     * </p>
+     *
+     * @see ComPreparedTask#prepare(String, TaskAdjutant, Function)
+     */
+    Mono<PreparedStatement> prepare(String sql, Function<PrepareTask<MySQLType>, PreparedStatement> function);
 
     Mono<Void> reset();
 
+    boolean supportMultiStmt();
 
     ServerVersion getServerVersion();
 
-    Mono<Boolean> isClosed();
+    boolean isClosed();
 
-    Mono<Savepoint> setSavepoint();
+    Mono<SavePoint> setSavepoint();
 
-    Mono<Savepoint> setSavepoint(String name);
+    Mono<SavePoint> setSavepoint(String name);
 
-    Mono<Void> releaseSavePoint(Savepoint savepoint);
+    Mono<Void> releaseSavePoint(SavePoint savepoint);
 
-    Mono<Void> rollbackToSavePoint(Savepoint savepoint);
+    Mono<Void> rollbackToSavePoint(SavePoint savepoint);
 
-    Mono<Void> closeGracefully();
+    Mono<Void> close();
 
 }

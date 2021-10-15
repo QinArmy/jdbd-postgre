@@ -67,14 +67,14 @@ final class PgBindStatement extends PgStatement implements BindStatement {
     }
 
     @Override
-    public final void bind(final int indexBasedZero, final JDBCType jdbcType, final @Nullable Object nullable)
+    public void bind(final int indexBasedZero, final JDBCType jdbcType, final @Nullable Object nullable)
             throws JdbdException {
         final PgType pgType = PgBinds.mapJdbcTypeToPgType(jdbcType, nullable);
         this.paramGroup.add(BindValue.wrap(checkIndex(indexBasedZero), pgType, nullable));
     }
 
     @Override
-    public final void bind(final int indexBasedZero, final SQLType sqlType, final @Nullable Object nullable)
+    public void bind(final int indexBasedZero, final SQLType sqlType, final @Nullable Object nullable)
             throws JdbdException {
 
         if (!(sqlType instanceof PgType)) {
@@ -85,13 +85,13 @@ final class PgBindStatement extends PgStatement implements BindStatement {
     }
 
     @Override
-    public final void bind(final int indexBasedZero, final @Nullable Object nullable)
+    public void bind(final int indexBasedZero, final @Nullable Object nullable)
             throws JdbdException {
         this.paramGroup.add(BindValue.wrap(checkIndex(indexBasedZero), PgBinds.inferPgType(nullable), nullable));
     }
 
     @Override
-    public final void addBatch() throws JdbdException {
+    public void addBatch() throws JdbdException {
         final List<BindValue> paramGroup = this.paramGroup;
         int firstGroupSize = this.firstGroupSize;
 
@@ -130,30 +130,32 @@ final class PgBindStatement extends PgStatement implements BindStatement {
     }
 
     @Override
-    public final Mono<ResultStates> executeUpdate() {
+    public Mono<ResultStates> executeUpdate() {
         final List<BindValue> paramGroup = this.paramGroup;
 
         final Mono<ResultStates> mono;
-        if (this.paramGroupList.isEmpty()) {
-            final JdbdException error = JdbdBinds.sortAndCheckParamGroup(0, paramGroup);
-            if (error != null) {
-                throw error;
-            }
-            BindStmt stmt = PgStmts.bind(this.sql, paramGroup, this);
-            mono = this.session.protocol.bindUpdate(stmt);
-        } else {
+        if (!this.paramGroupList.isEmpty()) {
             mono = Mono.error(new SubscribeException(ResultType.UPDATE, ResultType.BATCH));
+        } else {
+            final JdbdException error;
+            error = JdbdBinds.sortAndCheckParamGroup(0, paramGroup);
+            if (error == null) {
+                BindStmt stmt = PgStmts.bind(this.sql, paramGroup, this);
+                mono = this.session.protocol.bindUpdate(stmt);
+            } else {
+                mono = Mono.error(error);
+            }
         }
         return mono;
     }
 
     @Override
-    public final Flux<ResultRow> executeQuery() {
+    public Flux<ResultRow> executeQuery() {
         return executeQuery(PgFunctions.noActionConsumer());
     }
 
     @Override
-    public final Flux<ResultRow> executeQuery(final Consumer<ResultStates> statesConsumer) {
+    public Flux<ResultRow> executeQuery(final Consumer<ResultStates> statesConsumer) {
         Objects.requireNonNull(statesConsumer, "statesConsumer");
 
         final List<BindValue> paramGroup = this.paramGroup;
@@ -173,7 +175,7 @@ final class PgBindStatement extends PgStatement implements BindStatement {
     }
 
     @Override
-    public final Flux<ResultStates> executeBatch() {
+    public Flux<ResultStates> executeBatch() {
         final Flux<ResultStates> flux;
         if (this.paramGroupList.isEmpty()) {
             flux = Flux.error(PgExceptions.noAnyParamGroupError());
@@ -185,7 +187,7 @@ final class PgBindStatement extends PgStatement implements BindStatement {
     }
 
     @Override
-    public final MultiResult executeBatchAsMulti() {
+    public MultiResult executeBatchAsMulti() {
         final MultiResult result;
         if (this.paramGroupList.isEmpty()) {
             result = MultiResults.error(PgExceptions.noAnyParamGroupError());
@@ -197,7 +199,7 @@ final class PgBindStatement extends PgStatement implements BindStatement {
     }
 
     @Override
-    public final OrderedFlux executeBatchAsFlux() {
+    public OrderedFlux executeBatchAsFlux() {
         final OrderedFlux flux;
         if (this.paramGroupList.isEmpty()) {
             flux = MultiResults.orderedFluxError(PgExceptions.noAnyParamGroupError());
@@ -211,18 +213,18 @@ final class PgBindStatement extends PgStatement implements BindStatement {
     /*################################## blow Statement method ##################################*/
 
     @Override
-    public final boolean setFetchSize(final int fetchSize) {
+    public boolean setFetchSize(final int fetchSize) {
         this.fetchSize = fetchSize;
         return fetchSize > 0;
     }
 
     @Override
-    public final boolean supportPublisher() {
+    public boolean supportPublisher() {
         return true;
     }
 
     @Override
-    public final int getFetchSize() {
+    public int getFetchSize() {
         return this.fetchSize;
     }
 

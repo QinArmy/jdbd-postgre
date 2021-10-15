@@ -1,7 +1,7 @@
 package io.jdbd;
 
 import io.jdbd.meta.DatabaseMetaData;
-import io.jdbd.session.Savepoint;
+import io.jdbd.session.SavePoint;
 import io.jdbd.stmt.BindStatement;
 import io.jdbd.stmt.MultiStatement;
 import io.jdbd.stmt.PreparedStatement;
@@ -9,14 +9,11 @@ import io.jdbd.stmt.StaticStatement;
 import org.reactivestreams.Publisher;
 
 
-public interface DatabaseSession extends ReactiveCloseable {
+public interface DatabaseSession {
 
     DatabaseMetaData getDatabaseMetaData();
 
 
-    /**
-     * @see Connection#createStatement()
-     */
     StaticStatement statement();
 
     /**
@@ -39,25 +36,25 @@ public interface DatabaseSession extends ReactiveCloseable {
      */
     boolean supportSavePoints();
 
-
-    Publisher<Savepoint> setSavepoint();
-
-
-    Publisher<Savepoint> setSavepoint(String name);
+    boolean supportMultiStatement();
 
 
-    Publisher<Void> releaseSavePoint(Savepoint savepoint);
+    Publisher<SavePoint> setSavePoint();
 
-    /**
-     * @see java.sql.Connection#rollback(Savepoint)
-     */
-    Publisher<Void> rollbackToSavePoint(Savepoint savepoint);
+
+    Publisher<SavePoint> setSavePoint(String name);
+
+
+    Publisher<Void> releaseSavePoint(SavePoint savepoint);
+
+
+    Publisher<Void> rollbackToSavePoint(SavePoint savepoint);
 
 
     /**
      * @see Connection#isClosed()
      */
-    Publisher<Boolean> isClosed();
+    boolean isClosed();
 
     ServerVersion getServerVersion();
 

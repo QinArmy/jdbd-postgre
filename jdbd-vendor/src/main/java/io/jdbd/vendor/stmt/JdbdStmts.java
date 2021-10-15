@@ -155,6 +155,37 @@ public abstract class JdbdStmts {
         return new ParamBatchStmtFull(sql, groupList, option);
     }
 
+    protected static List<String> wrapSqlGroup(final List<String> sqlGroup) {
+        Objects.requireNonNull(sqlGroup, "sqlGroup");
+        final List<String> newSqlGroup;
+        switch (sqlGroup.size()) {
+            case 0:
+                throw new IllegalArgumentException("sqlGroup must not empty.");
+            case 1: {
+                final String sql = sqlGroup.get(0);
+                if (sql == null) {
+                    throw new NullPointerException("sql as index[0] is null");
+                }
+                newSqlGroup = Collections.singletonList(sql);
+            }
+            break;
+            default: {
+                final List<String> list = new ArrayList<>(sqlGroup.size());
+                final int size = sqlGroup.size();
+                String sql;
+                for (int i = 0; i < size; i++) {
+                    sql = sqlGroup.get(i);
+                    if (sql == null) {
+                        throw new NullPointerException(String.format("sql at index[%s] has no text.", i));
+                    }
+                    list.add(sql);
+                }
+                newSqlGroup = Collections.unmodifiableList(list);
+            }
+        }
+        return newSqlGroup;
+    }
+
 
     protected static abstract class AbstractMinStmt implements Stmt {
 

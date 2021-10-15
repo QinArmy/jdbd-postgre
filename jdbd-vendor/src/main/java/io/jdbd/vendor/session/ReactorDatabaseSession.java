@@ -25,7 +25,7 @@ public interface ReactorDatabaseSession extends DatabaseSession {
 
 
     @Override
-    Mono<Savepoint> setSavepoint(String name);
+    Mono<Savepoint> setSavePoint(String name);
 
     @Override
     Mono<Void> releaseSavePoint(Savepoint savepoint);

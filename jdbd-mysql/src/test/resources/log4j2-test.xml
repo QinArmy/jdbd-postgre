@@ -17,7 +17,7 @@
         </RollingFile>
     </Appenders>
     <Loggers>
-        <Logger name="io.jdbd.mysql.protocol.client.ComPreparedStmtTask" level="TRACE" additivity="false">
+        <Logger name="io.jdbd.mysql.protocol.client.ComPreparedTask" level="TRACE" additivity="false">
             <AppenderRef ref="Console"/>
         </Logger>
         <Logger name="io.jdbd.mysql.protocol.client.ComQueryTask" level="TRACE" additivity="false">

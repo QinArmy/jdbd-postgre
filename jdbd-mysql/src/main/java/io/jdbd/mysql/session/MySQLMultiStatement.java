@@ -1,8 +1,8 @@
 package io.jdbd.mysql.session;
 
 import io.jdbd.JdbdException;
+import io.jdbd.JdbdSQLException;
 import io.jdbd.meta.SQLType;
-import io.jdbd.mysql.MySQLType;
 import io.jdbd.mysql.stmt.AttrMultiStatement;
 import io.jdbd.result.MultiResult;
 import io.jdbd.result.OrderedFlux;
@@ -50,11 +50,6 @@ final class MySQLMultiStatement extends MySQLStatement implements AttrMultiState
     }
 
     @Override
-    public void bindCommonAttr(final String name, final MySQLType type, @Nullable final Object value) {
-
-    }
-
-    @Override
     public Publisher<ResultStates> executeBatch() {
         return null;
     }
@@ -85,6 +80,13 @@ final class MySQLMultiStatement extends MySQLStatement implements AttrMultiState
     @Override
     public boolean setFetchSize(int fetchSize) {
         return false;
+    }
+
+    /*################################## blow MySQLStatement packet template method ##################################*/
+
+    @Override
+    void checkReuse() throws JdbdSQLException {
+
     }
 
 

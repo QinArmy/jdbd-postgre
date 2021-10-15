@@ -7,7 +7,7 @@ import io.jdbd.meta.DatabaseMetaData;
 import io.jdbd.mysql.MySQLType;
 import io.jdbd.mysql.protocol.client.ClientProtocol;
 import io.jdbd.mysql.util.MySQLStrings;
-import io.jdbd.session.Savepoint;
+import io.jdbd.session.SavePoint;
 import io.jdbd.stmt.BindStatement;
 import io.jdbd.stmt.MultiStatement;
 import io.jdbd.stmt.PreparedStatement;
@@ -77,27 +77,27 @@ abstract class MySQLDatabaseSession implements DatabaseSession {
     }
 
     @Override
-    public final Mono<Savepoint> setSavepoint() {
+    public final Mono<SavePoint> setSavePoint() {
         return this.protocol.setSavepoint();
     }
 
     @Override
-    public final Mono<Savepoint> setSavepoint(final String name) {
+    public final Mono<SavePoint> setSavePoint(final String name) {
         return this.protocol.setSavepoint();
     }
 
     @Override
-    public final Mono<Void> releaseSavePoint(final Savepoint savepoint) {
+    public final Mono<Void> releaseSavePoint(final SavePoint savepoint) {
         return this.protocol.releaseSavePoint(savepoint);
     }
 
     @Override
-    public final Mono<Void> rollbackToSavePoint(final Savepoint savepoint) {
+    public final Mono<Void> rollbackToSavePoint(final SavePoint savepoint) {
         return this.protocol.rollbackToSavePoint(savepoint);
     }
 
     @Override
-    public final Mono<Boolean> isClosed() {
+    public final boolean isClosed() {
         return this.protocol.isClosed();
     }
 
@@ -118,7 +118,7 @@ abstract class MySQLDatabaseSession implements DatabaseSession {
 
     @Override
     public final Mono<Void> close() {
-        return this.protocol.closeGracefully();
+        return this.protocol.close();
     }
 
 

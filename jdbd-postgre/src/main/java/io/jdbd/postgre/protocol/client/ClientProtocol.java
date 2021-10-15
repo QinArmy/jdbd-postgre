@@ -57,14 +57,14 @@ public interface ClientProtocol {
 
     /**
      * <p>
-     * This method is underlying api of {@link StaticStatement#executeAsMulti(List)} method.
+     * This method is underlying api of {@link StaticStatement#executeBatchAsMulti(List)} method.
      * </p>
      */
     MultiResult batchAsMulti(StaticBatchStmt stmt);
 
     /**
      * <p>
-     * This method is underlying api of {@link StaticStatement#executeAsFlux(List)} method.
+     * This method is underlying api of {@link StaticStatement#executeBatchAsFlux(List)} method.
      * </p>
      */
     OrderedFlux batchAsFlux(StaticBatchStmt stmt);
@@ -134,6 +134,8 @@ public interface ClientProtocol {
 
 
     /*################################## blow for session ##################################*/
+
+    boolean isClosed();
 
     Mono<ClientProtocol> ping(int timeSeconds);
 

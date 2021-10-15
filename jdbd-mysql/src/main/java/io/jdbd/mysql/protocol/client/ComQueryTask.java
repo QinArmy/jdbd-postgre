@@ -120,7 +120,7 @@ final class ComQueryTask extends AbstractCommandTask {
 
     /**
      * <p>
-     * This method is underlying api of {@link StaticStatement#executeAsMulti(List)} method.
+     * This method is underlying api of {@link StaticStatement#executeBatchAsMulti(List)} method.
      * </p>
      *
      * @see ClientProtocol#executeAsMulti(List)
@@ -145,7 +145,7 @@ final class ComQueryTask extends AbstractCommandTask {
 
     /**
      * <p>
-     * This method is underlying api of {@link StaticStatement#executeAsFlux(List)} method.
+     * This method is underlying api of {@link StaticStatement#executeBatchAsFlux(List)} method.
      * </p>
      *
      * @see ClientProtocol#executeAsFlux(List)
@@ -173,7 +173,7 @@ final class ComQueryTask extends AbstractCommandTask {
      * This method is underlying api of {@link StaticStatement#executeAsFlux(String)} method.
      * </p>
      */
-    static OrderedFlux multiCommandAsFlux(StaticMultiStmt stmt, TaskAdjutant adjutant) {
+    static OrderedFlux executeAsFlux(StaticMultiStmt stmt, TaskAdjutant adjutant) {
         return MultiResults.asFlux(sink -> {
             try {
                 ComQueryTask task = new ComQueryTask(stmt, sink, adjutant);
@@ -192,7 +192,7 @@ final class ComQueryTask extends AbstractCommandTask {
      * This method is one of underlying api of {@link BindStatement#executeUpdate()} method.
      * </p>
      *
-     * @see ComPreparedStmtTask#update(ParamStmt, TaskAdjutant)
+     * @see ComPreparedTask#update(ParamStmt, TaskAdjutant)
      * @see ClientProtocol#bindableUpdate(BindStmt)
      */
     static Mono<ResultStates> bindableUpdate(final BindStmt stmt, final TaskAdjutant adjutant) {

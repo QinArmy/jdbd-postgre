@@ -1,15 +1,20 @@
 package io.jdbd.mysql.session;
 
+import io.jdbd.mysql.stmt.AttrStaticStatement;
 import io.jdbd.mysql.stmt.Stmts;
+import io.jdbd.mysql.util.MySQLExceptions;
+import io.jdbd.mysql.util.MySQLStrings;
 import io.jdbd.result.MultiResult;
 import io.jdbd.result.OrderedFlux;
 import io.jdbd.result.ResultRow;
 import io.jdbd.result.ResultStates;
-import io.jdbd.stmt.StaticStatement;
+import io.jdbd.vendor.result.MultiResults;
+import io.jdbd.vendor.util.JdbdFunctions;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.util.List;
+import java.util.Objects;
 import java.util.function.Consumer;
 
 
@@ -18,67 +23,123 @@ import java.util.function.Consumer;
  * This interface is a implementation of {@link io.jdbd.stmt.StaticStatement} with MySQL client protocol.
  * </p>
  */
-final class MySQLStaticStatement extends MySQLStatement implements StaticStatement {
+final class MySQLStaticStatement extends MySQLStatement implements AttrStaticStatement {
 
 
     static MySQLStaticStatement create(final MySQLDatabaseSession session) {
         return new MySQLStaticStatement(session);
     }
 
-    private int timeout = 0;
-
-    private MySQLStaticStatement(MySQLDatabaseSession session) {
+    private MySQLStaticStatement(final MySQLDatabaseSession session) {
         super(session);
     }
 
+
     @Override
-    public final boolean supportPublisher() {
+    public Mono<ResultStates> executeUpdate(final String sql) {
+        final Mono<ResultStates> mono;
+        if (MySQLStrings.hasText(sql)) {
+            mono = this.session.protocol.update(Stmts.stmt(sql, this.statementOption));
+        } else {
+            mono = Mono.error(MySQLExceptions.createEmptySqlException());
+        }
+        return mono;
+    }
+
+    @Override
+    public Flux<ResultRow> executeQuery(final String sql) {
+        return executeQuery(sql, JdbdFunctions.noActionConsumer());
+    }
+
+    @Override
+    public Flux<ResultRow> executeQuery(final String sql, final Consumer<ResultStates> statesConsumer) {
+        Objects.requireNonNull(statesConsumer, "statesConsumer");
+        final Flux<ResultRow> flux;
+        if (MySQLStrings.hasText(sql)) {
+            flux = this.session.protocol.query(Stmts.stmt(sql, statesConsumer, this.statementOption));
+        } else {
+            flux = Flux.error(MySQLExceptions.createEmptySqlException());
+        }
+        return flux;
+    }
+
+    @Override
+    public Flux<ResultStates> executeBatch(final List<String> sqlGroup) {
+        Objects.requireNonNull(sqlGroup, "sqlGroup");
+        final Flux<ResultStates> flux;
+        if (sqlGroup.size() == 0) {
+            flux = Flux.error(MySQLExceptions.createEmptySqlException());
+        } else {
+            flux = this.session.protocol.batchUpdate(Stmts.batchStmt(sqlGroup, this.statementOption));
+        }
+        return flux;
+    }
+
+
+    @Override
+    public MultiResult executeBatchAsMulti(final List<String> sqlGroup) {
+        Objects.requireNonNull(sqlGroup, "sqlGroup");
+        final MultiResult result;
+        if (sqlGroup.size() == 0) {
+            result = MultiResults.error(MySQLExceptions.createEmptySqlException());
+        } else {
+            result = this.session.protocol.batchAsMulti(Stmts.batchStmt(sqlGroup, this.statementOption));
+        }
+        return result;
+    }
+
+    @Override
+    public OrderedFlux executeBatchAsFlux(final List<String> sqlGroup) {
+        Objects.requireNonNull(sqlGroup, "sqlGroup");
+        final OrderedFlux flux;
+        if (sqlGroup.size() == 0) {
+            flux = MultiResults.orderedFluxError(MySQLExceptions.createEmptySqlException());
+        } else {
+            flux = this.session.protocol.batchAsFlux(Stmts.batchStmt(sqlGroup, this.statementOption));
+        }
+        return flux;
+    }
+
+
+    @Override
+    public OrderedFlux executeAsFlux(final String multiSql) {
+        final OrderedFlux flux;
+        if (!MySQLStrings.hasText(multiSql)) {
+            flux = MultiResults.orderedFluxError(MySQLExceptions.createEmptySqlException());
+        } else if (!this.session.supportMultiStatement()) {
+            flux = MultiResults.orderedFluxError(MySQLExceptions.createMultiStatementException());
+        } else {
+            flux = this.session.protocol.executeAsFlux(Stmts.multiSql(multiSql, this.statementOption));
+        }
+        return flux;
+    }
+
+
+    /*################################## blow Statement method ##################################*/
+    @Override
+    public boolean supportPublisher() {
         // always false,MySQL COM_QUERY protocol don't support Publisher
         return false;
     }
 
     @Override
-    public final boolean supportOutParameter() {
+    public boolean supportOutParameter() {
         // always false,MySQL COM_QUERY protocol don't support.
         return false;
     }
 
     @Override
-    public final Flux<ResultStates> executeBatch(final List<String> sqlGroup) {
-        return this.session.protocol.batchUpdate(Stmts.stmts(sqlGroup, this.timeout));
+    public boolean setFetchSize(int fetchSize) {
+        // always false,MySQL ComQuery protocol don't support.
+        return false;
     }
+
+    /*################################## blow Statement packet template method ##################################*/
 
     @Override
-    public final Mono<ResultStates> executeUpdate(String sql) {
-        return this.session.protocol.update(Stmts.stmt(sql, this.timeout));
+    void checkReuse() {
+        //no-op
     }
-
-    @Override
-    public final Flux<ResultRow> executeQuery(String sql) {
-        return this.session.protocol.query(Stmts.stmt(sql, this.timeout));
-    }
-
-    @Override
-    public final Flux<ResultRow> executeQuery(String sql, Consumer<ResultStates> statesConsumer) {
-        return this.session.protocol.query(Stmts.stmt(sql, statesConsumer, this.timeout));
-    }
-
-    @Override
-    public final MultiResult executeAsMulti(final List<String> sqlGroup) {
-        return this.session.protocol.executeAsMulti(Stmts.stmts(sqlGroup, this.timeout));
-    }
-
-    @Override
-    public final OrderedFlux executeAsFlux(List<String> sqlGroup) {
-        return null;
-    }
-
-
-    @Override
-    public final OrderedFlux executeAsFlux(String multiStmt) {
-        throw new UnsupportedOperationException();
-    }
-
 
     /*################################## blow private static method ##################################*/
 

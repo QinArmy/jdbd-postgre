@@ -43,7 +43,7 @@ import java.util.function.Function;
  * @see BinaryResultSetReader
  * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_command_phase_ps.html">Prepared Statements</a>
  */
-final class ComPreparedStmtTask extends MySQLPrepareCommandStmtTask implements PrepareStmtTask, PrepareTask<MySQLType> {
+final class ComPreparedTask extends MySQLPrepareCommandStmtTask implements PrepareStmtTask, PrepareTask<MySQLType> {
 
 
     /**
@@ -51,13 +51,13 @@ final class ComPreparedStmtTask extends MySQLPrepareCommandStmtTask implements P
      * This method is one of underlying api of {@link BindStatement#executeUpdate()} method:
      * </p>
      *
-     * @see #ComPreparedStmtTask(ParamSingleStmt, FluxResultSink, TaskAdjutant)
+     * @see #ComPreparedTask(ParamSingleStmt, FluxResultSink, TaskAdjutant)
      * @see ComQueryTask#bindableUpdate(BindStmt, TaskAdjutant)
      */
     static Mono<ResultStates> update(final ParamStmt stmt, final TaskAdjutant adjutant) {
         return MultiResults.update(sink -> {
             try {
-                ComPreparedStmtTask task = new ComPreparedStmtTask(stmt, sink, adjutant);
+                ComPreparedTask task = new ComPreparedTask(stmt, sink, adjutant);
                 task.submit(sink::error);
             } catch (Throwable e) {
                 sink.error(MySQLExceptions.wrapIfNonJvmFatal(e));
@@ -74,13 +74,13 @@ final class ComPreparedStmtTask extends MySQLPrepareCommandStmtTask implements P
      * </ul>
      * </p>
      *
-     * @see #ComPreparedStmtTask(ParamSingleStmt, FluxResultSink, TaskAdjutant)
+     * @see #ComPreparedTask(ParamSingleStmt, FluxResultSink, TaskAdjutant)
      * @see ComQueryTask#bindableQuery(BindStmt, TaskAdjutant)
      */
     static Flux<ResultRow> query(final ParamStmt stmt, final TaskAdjutant adjutant) {
         return MultiResults.query(stmt.getStatusConsumer(), sink -> {
             try {
-                ComPreparedStmtTask task = new ComPreparedStmtTask(stmt, sink, adjutant);
+                ComPreparedTask task = new ComPreparedTask(stmt, sink, adjutant);
                 task.submit(sink::error);
             } catch (Throwable e) {
                 sink.error(MySQLExceptions.wrapIfNonJvmFatal(e));
@@ -93,14 +93,14 @@ final class ComPreparedStmtTask extends MySQLPrepareCommandStmtTask implements P
      * This method is one of underlying api of {@link BindStatement#executeBatch()} method.
      * </p>
      *
-     * @see #ComPreparedStmtTask(ParamSingleStmt, FluxResultSink, TaskAdjutant)
+     * @see #ComPreparedTask(ParamSingleStmt, FluxResultSink, TaskAdjutant)
      * @see ComQueryTask#bindableBatch(BindBatchStmt, TaskAdjutant)
      */
     static Flux<ResultStates> batchUpdate(final ParamBatchStmt<? extends ParamValue> stmt
             , final TaskAdjutant adjutant) {
         return MultiResults.batchUpdate(sink -> {
             try {
-                ComPreparedStmtTask task = new ComPreparedStmtTask(stmt, sink, adjutant);
+                ComPreparedTask task = new ComPreparedTask(stmt, sink, adjutant);
                 task.submit(sink::error);
             } catch (Throwable e) {
                 sink.error(MySQLExceptions.wrapIfNonJvmFatal(e));
@@ -115,13 +115,13 @@ final class ComPreparedStmtTask extends MySQLPrepareCommandStmtTask implements P
      * This method is one of underlying api of {@link BindStatement#executeBatchAsMulti()} method.
      * </p>
      *
-     * @see #ComPreparedStmtTask(ParamSingleStmt, FluxResultSink, TaskAdjutant)
+     * @see #ComPreparedTask(ParamSingleStmt, FluxResultSink, TaskAdjutant)
      * @see ComQueryTask#bindableAsMulti(BindBatchStmt, TaskAdjutant)
      */
     static MultiResult batchAsMulti(final ParamBatchStmt<? extends ParamValue> stmt, final TaskAdjutant adjutant) {
         return MultiResults.asMulti(adjutant, sink -> {
             try {
-                ComPreparedStmtTask task = new ComPreparedStmtTask(stmt, sink, adjutant);
+                ComPreparedTask task = new ComPreparedTask(stmt, sink, adjutant);
                 task.submit(sink::error);
             } catch (Throwable e) {
                 sink.error(MySQLExceptions.wrapIfNonJvmFatal(e));
@@ -134,13 +134,13 @@ final class ComPreparedStmtTask extends MySQLPrepareCommandStmtTask implements P
      * This method is one of underlying api of {@link BindStatement#executeBatchAsFlux()} method.
      * </p>
      *
-     * @see #ComPreparedStmtTask(ParamSingleStmt, FluxResultSink, TaskAdjutant)
+     * @see #ComPreparedTask(ParamSingleStmt, FluxResultSink, TaskAdjutant)
      * @see ComQueryTask#bindableAsFlux(BindBatchStmt, TaskAdjutant)
      */
     static OrderedFlux batchAsFlux(final ParamBatchStmt<? extends ParamValue> stmt, final TaskAdjutant adjutant) {
         return MultiResults.asFlux(sink -> {
             try {
-                ComPreparedStmtTask task = new ComPreparedStmtTask(stmt, sink, adjutant);
+                ComPreparedTask task = new ComPreparedTask(stmt, sink, adjutant);
                 task.submit(sink::error);
             } catch (Throwable e) {
                 sink.error(MySQLExceptions.wrapIfNonJvmFatal(e));
@@ -158,7 +158,7 @@ final class ComPreparedStmtTask extends MySQLPrepareCommandStmtTask implements P
      * </p>
      *
      * @see DatabaseSession#prepare(String)
-     * @see #ComPreparedStmtTask(ParamSingleStmt, FluxResultSink, TaskAdjutant)
+     * @see #ComPreparedTask(ParamSingleStmt, FluxResultSink, TaskAdjutant)
      */
     static Mono<PreparedStatement> prepare(final String sql, final TaskAdjutant adjutant
             , final Function<PrepareTask<MySQLType>, PreparedStatement> function) {
@@ -166,7 +166,7 @@ final class ComPreparedStmtTask extends MySQLPrepareCommandStmtTask implements P
             try {
                 final MySQLPrepareStmt stmt = new MySQLPrepareStmt(sql);
                 final FluxResultSink resultSink = new PrepareSink(sink, function);
-                ComPreparedStmtTask task = new ComPreparedStmtTask(stmt, resultSink, adjutant);
+                ComPreparedTask task = new ComPreparedTask(stmt, resultSink, adjutant);
                 task.submit(sink::error);
             } catch (Throwable e) {
                 sink.error(MySQLExceptions.wrapIfNonJvmFatal(e));
@@ -175,7 +175,7 @@ final class ComPreparedStmtTask extends MySQLPrepareCommandStmtTask implements P
     }
 
 
-    private static final Logger LOG = LoggerFactory.getLogger(ComPreparedStmtTask.class);
+    private static final Logger LOG = LoggerFactory.getLogger(ComPreparedTask.class);
 
     private final ParamSingleStmt stmt;
 
@@ -204,7 +204,7 @@ final class ComPreparedStmtTask extends MySQLPrepareCommandStmtTask implements P
     /**
      * @see #update(ParamStmt, TaskAdjutant)
      */
-    private ComPreparedStmtTask(final ParamSingleStmt stmt, final FluxResultSink sink, final TaskAdjutant adjutant) {
+    private ComPreparedTask(final ParamSingleStmt stmt, final FluxResultSink sink, final TaskAdjutant adjutant) {
         super(adjutant, sink::error);
         this.stmt = stmt;
         this.sink = sink;

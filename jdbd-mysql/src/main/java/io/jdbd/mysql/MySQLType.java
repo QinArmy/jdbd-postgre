@@ -152,6 +152,7 @@ public enum MySQLType implements SQLType {
      *
      * @see #FLOAT
      */
+    @Deprecated
     FLOAT_UNSIGNED(Constants.TYPE_FLOAT, true, JDBCType.FLOAT, Float.class),
     /**
      * DOUBLE[(M,D)] [UNSIGNED] [ZEROFILL]
@@ -178,6 +179,7 @@ public enum MySQLType implements SQLType {
      *
      * @see #DOUBLE
      */
+    @Deprecated
     DOUBLE_UNSIGNED(Constants.TYPE_DOUBLE, true, JDBCType.DOUBLE, Double.class),
 
     /**

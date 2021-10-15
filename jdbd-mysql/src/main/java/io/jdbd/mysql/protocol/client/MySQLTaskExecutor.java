@@ -274,7 +274,7 @@ final class MySQLTaskExecutor extends CommunicationTaskExecutor<TaskAdjutant> {
         }
 
         @Override
-        public Handshake10 obtainHandshakeV10Packet() {
+        public Handshake10 handshake10() {
             Handshake10 packet = this.handshake10;
             if (packet == null) {
                 throw new IllegalStateException("Cannot access handshakeV10Packet now.");

@@ -3,10 +3,7 @@ package io.jdbd.mysql.stmt;
 import io.jdbd.mysql.util.MySQLCollections;
 import io.jdbd.result.MultiResult;
 import io.jdbd.result.ResultStates;
-import io.jdbd.vendor.stmt.JdbdStmts;
-import io.jdbd.vendor.stmt.ParamBatchStmt;
-import io.jdbd.vendor.stmt.ParamStmt;
-import io.jdbd.vendor.stmt.ParamValue;
+import io.jdbd.vendor.stmt.*;
 import io.jdbd.vendor.util.JdbdFunctions;
 import org.reactivestreams.Publisher;
 import org.reactivestreams.Subscriber;
@@ -21,6 +18,22 @@ public abstract class Stmts extends JdbdStmts {
 
     protected Stmts() {
         throw new UnsupportedOperationException();
+    }
+
+    public static StaticStmt stmt(String sql, StatementOption option) {
+        return new MySQLOptionStaticStmt(sql, option);
+    }
+
+    public static StaticStmt stmt(String sql, Consumer<ResultStates> statesConsumer, StatementOption option) {
+        return new MySQLQueryOptionStaticStmt(sql, statesConsumer, option);
+    }
+
+    public static StaticBatchStmt batchStmt(List<String> sqlGroup, StatementOption option) {
+        return new MySQLOptionStaticBatchStmt(sqlGroup, option);
+    }
+
+    public static StaticMultiStmt multiSql(String multiSql, StatementOption option) {
+        return new MySQLOptionStaticMultiStmt(multiSql, option);
     }
 
 
@@ -49,6 +62,138 @@ public abstract class Stmts extends JdbdStmts {
 
     public static BindBatchStmt batchBind(String sql, List<List<BindValue>> paramGroupList) {
         return new SimpleBindBatchStmt(sql, paramGroupList);
+    }
+
+    private static Map<String, QueryAttr> wrapQueryAttrs(final Map<String, QueryAttr> attrMap) {
+        final Map<String, QueryAttr> queryAttrMap;
+        if (attrMap.size() == 0) {
+            queryAttrMap = Collections.emptyMap();
+        } else {
+            queryAttrMap = Collections.unmodifiableMap(attrMap);
+        }
+        return queryAttrMap;
+    }
+
+    private static class MySQLOptionStaticStmt extends AbstractMinStmt implements StaticStmt, MySQLParamSingleStmt {
+
+        private final String sql;
+
+        private final int timeout;
+
+        private final Map<String, QueryAttr> queryAttrs;
+
+        private MySQLOptionStaticStmt(final String sql, final StatementOption option) {
+            this.sql = sql;
+            this.timeout = option.getTimeout();
+            this.queryAttrs = wrapQueryAttrs(option.getCommonAttrs());
+        }
+
+        @Override
+        public final String getSql() {
+            return this.sql;
+        }
+
+        @Override
+        public final int getTimeout() {
+            return this.timeout;
+        }
+
+        @Override
+        public final Map<String, QueryAttr> getQueryAttrs() {
+            return this.queryAttrs;
+        }
+
+        @Override
+        public Consumer<ResultStates> getStatusConsumer() {
+            return JdbdFunctions.noActionConsumer();
+        }
+
+
+    }
+
+    private static final class MySQLQueryOptionStaticStmt extends MySQLOptionStaticStmt {
+
+
+        private final Consumer<ResultStates> statesConsumer;
+
+
+        private MySQLQueryOptionStaticStmt(String sql, Consumer<ResultStates> statesConsumer, StatementOption option) {
+            super(sql, option);
+            this.statesConsumer = statesConsumer;
+        }
+
+        @Override
+        public Consumer<ResultStates> getStatusConsumer() {
+            return this.statesConsumer;
+        }
+
+
+    }
+
+    private static final class MySQLOptionStaticBatchStmt extends AbstractMinStmt
+            implements StaticBatchStmt, MySQLParamSingleStmt {
+
+        private final List<String> sqlGroup;
+
+        private final int timeout;
+
+        private final Map<String, QueryAttr> queryAttrs;
+
+        private MySQLOptionStaticBatchStmt(List<String> sqlGroup, StatementOption option) {
+            this.sqlGroup = wrapSqlGroup(sqlGroup);
+            this.timeout = option.getTimeout();
+            this.queryAttrs = wrapQueryAttrs(option.getCommonAttrs());
+        }
+
+        @Override
+        public List<String> getSqlGroup() {
+            return this.sqlGroup;
+        }
+
+        @Override
+        public int getTimeout() {
+            return this.timeout;
+        }
+
+        @Override
+        public Map<String, QueryAttr> getQueryAttrs() {
+            return this.queryAttrs;
+        }
+
+    }
+
+    private static final class MySQLOptionStaticMultiStmt extends AbstractMinStmt implements StaticMultiStmt
+            , MySQLParamSingleStmt {
+
+        private final String multiSql;
+
+        private final int timeout;
+
+        private final Map<String, QueryAttr> queryAttrs;
+
+        private MySQLOptionStaticMultiStmt(final String multiSql, final StatementOption option) {
+            this.multiSql = multiSql;
+            this.timeout = option.getTimeout();
+            this.queryAttrs = wrapQueryAttrs(option.getCommonAttrs());
+        }
+
+        @Override
+        public String getMultiSql() {
+            return this.multiSql;
+        }
+
+
+        @Override
+        public int getTimeout() {
+            return this.timeout;
+        }
+
+        @Override
+        public Map<String, QueryAttr> getQueryAttrs() {
+            return this.queryAttrs;
+        }
+
+
     }
 
 

@@ -81,7 +81,7 @@ final class DefaultSessionResetter implements SessionResetter {
             mono = Mono.just(server);
             if (LOG.isDebugEnabled()) {
                 LOG.debug("Database session[{}] reset success,{}"
-                        , this.adjutant.obtainHandshakeV10Packet().getThreadId(), server);
+                        , this.adjutant.handshake10().getThreadId(), server);
             }
         } catch (Throwable e) {
             mono = Mono.error(MySQLExceptions.wrap(e));
@@ -385,7 +385,7 @@ final class DefaultSessionResetter implements SessionResetter {
                 || StandardCharsets.UTF_8.aliases().contains(charsetClient)) {
             pair = defaultPair;
         } else {
-            MySQLServerVersion serverVersion = this.adjutant.obtainHandshakeV10Packet().getServerVersion();
+            MySQLServerVersion serverVersion = this.adjutant.handshake10().getServerVersion();
             CharsetMapping.MySQLCharset mySQLCharset = CharsetMapping.getMysqlCharsetForJavaEncoding(
                     charsetClient, serverVersion);
             if (mySQLCharset != null) {

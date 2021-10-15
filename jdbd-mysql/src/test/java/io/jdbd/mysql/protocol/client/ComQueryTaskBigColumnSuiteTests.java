@@ -56,7 +56,7 @@ public class ComQueryTaskBigColumnSuiteTests extends AbstractConnectionBasedSuit
         list.add(MySQLParamValue.create(0, 0));
         list.add(MySQLParamValue.create(1, ""));
         ResultStates states;
-        states = ComPreparedStmtTask.update(Stmts.multiPrepare(sql, list), adjutant)
+        states = ComPreparedTask.update(Stmts.multiPrepare(sql, list), adjutant)
                 .block();
         assertNotNull(states, alias);
         // assertEquals(states.getAffectedRows(), 1L, "myBit20");

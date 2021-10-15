@@ -39,7 +39,7 @@ interface ClientProtocolAdjutant extends ResultRowAdjutant {
 
     ZoneOffset obtainZoneOffsetClient();
 
-    Handshake10 obtainHandshakeV10Packet();
+    Handshake10 handshake10();
 
     ByteBufAllocator allocator();
 

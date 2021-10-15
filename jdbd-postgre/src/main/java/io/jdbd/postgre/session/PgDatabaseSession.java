@@ -6,6 +6,7 @@ import io.jdbd.ServerVersion;
 import io.jdbd.meta.DatabaseMetaData;
 import io.jdbd.postgre.PgType;
 import io.jdbd.postgre.protocol.client.ClientProtocol;
+import io.jdbd.session.SavePoint;
 import io.jdbd.stmt.BindStatement;
 import io.jdbd.stmt.MultiStatement;
 import io.jdbd.stmt.PreparedStatement;
@@ -14,7 +15,6 @@ import io.jdbd.vendor.task.PrepareTask;
 import org.reactivestreams.Publisher;
 import reactor.core.publisher.Mono;
 
-import java.sql.Savepoint;
 
 /**
  * This class is a implementation of {@link DatabaseSession} with postgre client protocol.
@@ -69,28 +69,34 @@ abstract class PgDatabaseSession implements DatabaseSession {
     }
 
     @Override
-    public final Publisher<Savepoint> setSavepoint() {
+    public boolean supportMultiStatement() {
+        return true;
+    }
+
+
+    @Override
+    public final Publisher<SavePoint> setSavePoint() {
         return null;
     }
 
     @Override
-    public final Publisher<Savepoint> setSavepoint(String name) {
+    public final Publisher<SavePoint> setSavePoint(String name) {
         return null;
     }
 
     @Override
-    public final Publisher<Void> releaseSavePoint(Savepoint savepoint) {
+    public final Publisher<Void> releaseSavePoint(SavePoint savepoint) {
         return null;
     }
 
     @Override
-    public final Publisher<Void> rollbackToSavePoint(Savepoint savepoint) {
+    public final Publisher<Void> rollbackToSavePoint(SavePoint savepoint) {
         return null;
     }
 
     @Override
-    public final Publisher<Boolean> isClosed() {
-        return null;
+    public final boolean isClosed() {
+        return this.protocol.isClosed();
     }
 
     @Override

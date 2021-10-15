@@ -307,7 +307,7 @@ final class PrepareLongParameterWriter implements PrepareExecuteCommandWriter.Lo
 
     /**
      * @see #writeInputStream(int, int, InputStream, FluxSink)
-     * @see ComPreparedStmtTask#onError(Throwable)
+     * @see ComPreparedTask#onError(Throwable)
      */
     private void publishLonDataReadException(FluxSink<ByteBuf> sink, Throwable cause, final int stmtIndex
             , int parameterIndex, final @Nullable Object input) {

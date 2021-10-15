@@ -208,7 +208,7 @@ public class SessionInitializerSuiteTests extends AbstractConnectionBasedSuiteTe
         assertNotNull(protocol.sessionResetter, "protocol.sessionResetter");
 
         TaskAdjutant adjutant = protocol.taskExecutor.taskAdjutant();
-        protocolMap.put(adjutant.obtainHandshakeV10Packet().getThreadId(), protocol);
+        protocolMap.put(adjutant.handshake10().getThreadId(), protocol);
         return adjutant;
     }
 

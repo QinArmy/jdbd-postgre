@@ -53,47 +53,47 @@ final class ClientProtocolImpl implements ClientProtocol {
     }
 
     @Override
-    public final long getId() {
+    public long getId() {
         return this.adjutant.processId();
     }
 
     @Override
-    public final ServerVersion getServerVersion() {
+    public ServerVersion getServerVersion() {
         return this.adjutant.server().serverVersion();
     }
 
     @Override
-    public final Mono<ResultStates> update(StaticStmt stmt) {
+    public Mono<ResultStates> update(StaticStmt stmt) {
         return SimpleQueryTask.update(stmt, this.adjutant);
     }
 
     @Override
-    public final Flux<ResultRow> query(StaticStmt stmt) {
+    public Flux<ResultRow> query(StaticStmt stmt) {
         return SimpleQueryTask.query(stmt, this.adjutant);
     }
 
     @Override
-    public final Flux<ResultStates> batchUpdate(StaticBatchStmt stmt) {
+    public Flux<ResultStates> batchUpdate(StaticBatchStmt stmt) {
         return SimpleQueryTask.batchUpdate(stmt, this.adjutant);
     }
 
     @Override
-    public final MultiResult batchAsMulti(StaticBatchStmt stmt) {
+    public MultiResult batchAsMulti(StaticBatchStmt stmt) {
         return SimpleQueryTask.batchAsMulti(stmt, this.adjutant);
     }
 
     @Override
-    public final OrderedFlux batchAsFlux(StaticBatchStmt stmt) {
+    public OrderedFlux batchAsFlux(StaticBatchStmt stmt) {
         return SimpleQueryTask.batchAsFlux(stmt, this.adjutant);
     }
 
     @Override
-    public final OrderedFlux multiCommandAsFlux(StaticStmt stmt) {
+    public OrderedFlux multiCommandAsFlux(StaticStmt stmt) {
         return SimpleQueryTask.multiCommandAsFlux(stmt, this.adjutant);
     }
 
     @Override
-    public final Mono<ResultStates> bindUpdate(BindStmt stmt) {
+    public Mono<ResultStates> bindUpdate(BindStmt stmt) {
         final Mono<ResultStates> mono;
         if (PgBinds.hasPublisher(stmt.getBindGroup())) {
             mono = ExtendedQueryTask.update(stmt, this.adjutant);
@@ -104,7 +104,7 @@ final class ClientProtocolImpl implements ClientProtocol {
     }
 
     @Override
-    public final Flux<ResultRow> bindQuery(final BindStmt stmt) {
+    public Flux<ResultRow> bindQuery(final BindStmt stmt) {
         final Flux<ResultRow> flux;
         if (stmt.getFetchSize() > 0 || PgBinds.hasPublisher(stmt.getBindGroup())) {
             flux = ExtendedQueryTask.query(stmt, this.adjutant);
@@ -115,7 +115,7 @@ final class ClientProtocolImpl implements ClientProtocol {
     }
 
     @Override
-    public final Flux<ResultStates> bindBatch(final BindBatchStmt stmt) {
+    public Flux<ResultStates> bindBatch(final BindBatchStmt stmt) {
         final Flux<ResultStates> flux;
         if (PgBinds.hasPublisher(stmt)) {
             flux = ExtendedQueryTask.batchUpdate(stmt, this.adjutant);
@@ -126,7 +126,7 @@ final class ClientProtocolImpl implements ClientProtocol {
     }
 
     @Override
-    public final MultiResult bindBatchAsMulti(final BindBatchStmt stmt) {
+    public MultiResult bindBatchAsMulti(final BindBatchStmt stmt) {
         final MultiResult result;
         if ((stmt.getGroupList().size() == 1 && stmt.getFetchSize() > 0) || PgBinds.hasPublisher(stmt)) {
             result = ExtendedQueryTask.batchAsMulti(stmt, this.adjutant);
@@ -137,7 +137,7 @@ final class ClientProtocolImpl implements ClientProtocol {
     }
 
     @Override
-    public final OrderedFlux bindBatchAsFlux(BindBatchStmt stmt) {
+    public OrderedFlux bindBatchAsFlux(BindBatchStmt stmt) {
         final OrderedFlux flux;
         if ((stmt.getGroupList().size() == 1 && stmt.getFetchSize() > 0) || PgBinds.hasPublisher(stmt)) {
             flux = ExtendedQueryTask.batchAsFlux(stmt, this.adjutant);
@@ -148,23 +148,28 @@ final class ClientProtocolImpl implements ClientProtocol {
     }
 
     @Override
-    public final Flux<ResultStates> multiStmtBatch(BindMultiStmt stmt) {
+    public Flux<ResultStates> multiStmtBatch(BindMultiStmt stmt) {
         return SimpleQueryTask.multiStmtBatch(stmt, this.adjutant);
     }
 
     @Override
-    public final MultiResult multiStmtAsMulti(BindMultiStmt stmt) {
+    public MultiResult multiStmtAsMulti(BindMultiStmt stmt) {
         return SimpleQueryTask.multiStmtAsMulti(stmt, this.adjutant);
     }
 
     @Override
-    public final OrderedFlux multiStmtAsFlux(BindMultiStmt stmt) {
+    public OrderedFlux multiStmtAsFlux(BindMultiStmt stmt) {
         return SimpleQueryTask.multiStmtAsFlux(stmt, this.adjutant);
     }
 
     @Override
-    public final Mono<PreparedStatement> prepare(String sql, Function<PrepareTask<PgType>, PreparedStatement> function) {
+    public Mono<PreparedStatement> prepare(String sql, Function<PrepareTask<PgType>, PreparedStatement> function) {
         return ExtendedQueryTask.prepare(sql, function, this.adjutant);
+    }
+
+    @Override
+    public boolean isClosed() {
+        return !this.adjutant.isActive();
     }
 
     @Override
@@ -175,13 +180,13 @@ final class ClientProtocolImpl implements ClientProtocol {
     }
 
     @Override
-    public final Mono<ClientProtocol> reset() {
+    public Mono<ClientProtocol> reset() {
         return this.connManager.reset(this.initializedParamMap)
                 .thenReturn(this);
     }
 
     @Override
-    public final Mono<Void> close() {
+    public Mono<Void> close() {
         return TerminateTask.terminate(this.adjutant);
     }
 

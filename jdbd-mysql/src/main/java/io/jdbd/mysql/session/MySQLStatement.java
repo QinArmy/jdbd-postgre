@@ -1,6 +1,9 @@
 package io.jdbd.mysql.session;
 
 import io.jdbd.DatabaseSession;
+import io.jdbd.JdbdSQLException;
+import io.jdbd.mysql.MySQLType;
+import io.jdbd.mysql.stmt.AttrStatement;
 import io.jdbd.mysql.stmt.QueryAttr;
 import io.jdbd.mysql.stmt.StatementOption;
 import io.jdbd.stmt.Statement;
@@ -8,10 +11,7 @@ import org.reactivestreams.Publisher;
 import org.reactivestreams.Subscriber;
 import reactor.util.annotation.Nullable;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.function.Function;
 
 
@@ -20,7 +20,7 @@ import java.util.function.Function;
  * This interface is a implementation of {@link Statement} with MySQL client protocol.
  * </p>
  */
-abstract class MySQLStatement implements Statement {
+abstract class MySQLStatement implements Statement, AttrStatement {
 
     final MySQLDatabaseSession session;
 
@@ -28,6 +28,19 @@ abstract class MySQLStatement implements Statement {
 
     MySQLStatement(MySQLDatabaseSession session) {
         this.session = session;
+    }
+
+
+    @Override
+    public final void bindCommonAttr(final String name, final MySQLType type, @Nullable Object value) {
+        checkReuse();
+        Objects.requireNonNull(name, "name");
+        Map<String, QueryAttr> commonAttrMap = this.statementOption.commonAttrGroup;
+        if (commonAttrMap == null) {
+            commonAttrMap = new HashMap<>();
+            this.statementOption.commonAttrGroup = commonAttrMap;
+        }
+        commonAttrMap.put(name, QueryAttr.wrap(type, value));
     }
 
 
@@ -41,25 +54,12 @@ abstract class MySQLStatement implements Statement {
         return sessionClass.cast(this.session);
     }
 
-    @Override
-    public boolean supportPublisher() {
-        return false;
-    }
-
-    @Override
-    public boolean supportOutParameter() {
-        return false;
-    }
 
     @Override
     public final void setTimeout(final int seconds) {
         this.statementOption.timeoutSeconds = seconds;
     }
 
-    @Override
-    public boolean setFetchSize(int fetchSize) {
-        return false;
-    }
 
     @Override
     public final boolean setImportPublisher(Function<Object, Publisher<byte[]>> function) {
@@ -73,6 +73,7 @@ abstract class MySQLStatement implements Statement {
         return false;
     }
 
+    abstract void checkReuse() throws JdbdSQLException;
 
     @Nullable
     final void prepareAttrGroup(final Map<String, QueryAttr> attrGroup) {
@@ -84,6 +85,11 @@ abstract class MySQLStatement implements Statement {
         }
     }
 
+    final boolean attrGroupListNotEmpty() {
+        final List<Map<String, QueryAttr>> attrGroupList = this.statementOption.attrGroupList;
+        return attrGroupList != null && attrGroupList.size() > 0;
+    }
+
     final void prepareAttrGroupList(final int batchCount) {
         List<Map<String, QueryAttr>> attrGroupList = this.statementOption.attrGroupList;
         if (batchCount > 0 && attrGroupList == null) {
@@ -93,6 +99,22 @@ abstract class MySQLStatement implements Statement {
             }
             this.statementOption.attrGroupList = attrGroupList;
         }
+    }
+
+    final void addBatchQueryAttr(@Nullable final Map<String, QueryAttr> attrGroup) {
+        List<Map<String, QueryAttr>> attrGroupList = this.statementOption.attrGroupList;
+        if (attrGroup == null) {
+            if (attrGroupList != null) {
+                attrGroupList.add(Collections.emptyMap());
+            }
+        } else {
+            if (attrGroupList == null) {
+                attrGroupList = new ArrayList<>();
+                this.statementOption.attrGroupList = attrGroupList;
+            }
+            attrGroupList.add(attrGroup);
+        }
+
     }
 
     /**
@@ -120,7 +142,7 @@ abstract class MySQLStatement implements Statement {
 
         int fetchSize;
 
-        Map<String, QueryAttr> commonAttrGroup;
+        private Map<String, QueryAttr> commonAttrGroup;
 
         List<Map<String, QueryAttr>> attrGroupList;
 

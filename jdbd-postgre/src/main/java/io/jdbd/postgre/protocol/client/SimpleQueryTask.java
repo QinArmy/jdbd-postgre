@@ -83,7 +83,7 @@ final class SimpleQueryTask extends AbstractStmtTask implements SimpleStmtTask {
 
     /**
      * <p>
-     * This method is underlying api of {@link StaticStatement#executeAsMulti(java.util.List)} method.
+     * This method is underlying api of {@link StaticStatement#executeBatchAsMulti(java.util.List)} method.
      * </p>
      */
     static MultiResult batchAsMulti(StaticBatchStmt stmt, TaskAdjutant adjutant) {
@@ -99,7 +99,7 @@ final class SimpleQueryTask extends AbstractStmtTask implements SimpleStmtTask {
 
     /**
      * <p>
-     * This method is underlying api of {@link StaticStatement#executeAsFlux(java.util.List)} method.
+     * This method is underlying api of {@link StaticStatement#executeBatchAsFlux(java.util.List)} method.
      * </p>
      */
     static OrderedFlux batchAsFlux(StaticBatchStmt stmt, TaskAdjutant adjutant) {

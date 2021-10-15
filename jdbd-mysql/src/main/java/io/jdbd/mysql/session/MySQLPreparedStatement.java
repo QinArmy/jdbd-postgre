@@ -95,21 +95,6 @@ final class MySQLPreparedStatement extends MySQLStatement implements AttrPrepare
     }
 
     @Override
-    public void bindCommonAttr(final String name, final MySQLType type, final @Nullable Object value) {
-        if (this.paramGroup == null) {
-            throw MySQLExceptions.cannotReuseStatement(PreparedStatement.class);
-        }
-        Objects.requireNonNull(name, "name");
-
-        Map<String, QueryAttr> commonAttrGroup = this.statementOption.commonAttrGroup;
-        if (commonAttrGroup == null) {
-            commonAttrGroup = new HashMap<>();
-            this.statementOption.commonAttrGroup = commonAttrGroup;
-        }
-        commonAttrGroup.put(name, QueryAttr.wrap(type, value));
-    }
-
-    @Override
     public void bindAttr(final String name, final MySQLType type, final @Nullable Object value) {
         if (this.paramGroup == null) {
             throw MySQLExceptions.cannotReuseStatement(PreparedStatement.class);
@@ -151,21 +136,8 @@ final class MySQLPreparedStatement extends MySQLStatement implements AttrPrepare
         }
 
         // add query attributes group
-        List<Map<String, QueryAttr>> attrGroupList = this.statementOption.attrGroupList;
-
-        final Map<String, QueryAttr> attrGroup = this.attrGroup;
-        if (attrGroup == null) {
-            if (attrGroupList != null) {
-                attrGroupList.add(Collections.emptyMap());
-            }
-        } else {
-            if (attrGroupList == null) {
-                attrGroupList = new ArrayList<>();
-                this.statementOption.attrGroupList = attrGroupList;
-            }
-            attrGroupList.add(attrGroup);
-            this.attrGroup = null;
-        }
+        addBatchQueryAttr(this.attrGroup);
+        this.attrGroup = null;
 
     }
 
@@ -189,7 +161,7 @@ final class MySQLPreparedStatement extends MySQLStatement implements AttrPrepare
             error = MySQLExceptions.cannotReuseStatement(PreparedStatement.class);
         } else if (this.rowMeta != null) {
             error = new SubscribeException(ResultType.UPDATE, ResultType.QUERY);
-        } else if (this.paramGroupList.size() > 0 || !MySQLCollections.isEmpty(this.statementOption.attrGroupList)) {
+        } else if (this.paramGroupList.size() > 0 || attrGroupListNotEmpty()) {
             error = new SubscribeException(ResultType.UPDATE, ResultType.BATCH);
         } else if (paramGroup.size() != this.paramCount) {
             error = MySQLExceptions.parameterCountMatch(0, this.paramCount, paramGroup.size());
@@ -345,16 +317,15 @@ final class MySQLPreparedStatement extends MySQLStatement implements AttrPrepare
 
     @Override
     public boolean supportPublisher() {
-        // always true.
+        // always true,ComPrepare
         return true;
     }
 
     @Override
     public boolean supportOutParameter() {
-        // always true.
+        // always true,
         return true;
     }
-
 
     @Override
     public Publisher<DatabaseSession> abandonBind() {
@@ -369,13 +340,21 @@ final class MySQLPreparedStatement extends MySQLStatement implements AttrPrepare
     }
 
 
+    /*################################## blow packet template method ##################################*/
+
+    @Override
+    void checkReuse() throws JdbdSQLException {
+        if (this.paramGroup == null) {
+            throw MySQLExceptions.cannotReuseStatement(PreparedStatement.class);
+        }
+    }
+
     /*################################## blow private method ##################################*/
 
 
     private void clearStatementToAvoidReuse() {
         this.paramGroup = null;
         this.attrGroup = null;
-
     }
 
 

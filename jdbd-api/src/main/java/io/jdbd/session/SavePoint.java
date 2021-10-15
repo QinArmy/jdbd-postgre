@@ -19,7 +19,7 @@ import io.jdbd.JdbdSQLException;
  * @since 1.0
  */
 
-public interface Savepoint {
+public interface SavePoint {
 
     /**
      * Retrieves the generated ID for the savepoint that this
@@ -29,7 +29,7 @@ public interface Savepoint {
      * @throws JdbdSQLException if this is a named savepoint
      * @since 1.0
      */
-    int getSavepointId() throws JdbdSQLException;
+    int getSavePointId() throws JdbdSQLException;
 
     /**
      * Retrieves the name of the savepoint that this <code>Savepoint</code>
@@ -39,5 +39,5 @@ public interface Savepoint {
      * @throws JdbdSQLException if this is an un-named savepoint
      * @since 1.0
      */
-    String getSavepointName() throws JdbdSQLException;
+    String getSavePointName() throws JdbdSQLException;
 }
