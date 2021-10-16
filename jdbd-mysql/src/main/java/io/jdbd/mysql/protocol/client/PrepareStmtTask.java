@@ -14,11 +14,17 @@ interface PrepareStmtTask {
 
     TaskAdjutant obtainAdjutant();
 
-    void startSafeSequenceId();
+    default void startSafeSequenceId() {
+        throw new UnsupportedOperationException();
+    }
 
-    void endSafeSequenceId();
+    default void endSafeSequenceId() {
+        throw new UnsupportedOperationException();
+    }
 
-    int safelyAddAndGetSequenceId();
+    default int safelyAddAndGetSequenceId() {
+        throw new UnsupportedOperationException();
+    }
 
     boolean supportFetch();
 

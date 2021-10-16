@@ -3,7 +3,7 @@ package io.jdbd.mysql.stmt;
 import java.util.List;
 import java.util.Map;
 
-public interface MySQLParamBatchStmt extends MySQLParamSingleStmt {
+public interface MySQLBatchStmt extends MySQLStmt {
 
     /**
      * <p>

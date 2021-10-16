@@ -98,24 +98,18 @@ final class ComQueryTask extends AbstractCommandTask {
      * </p>
      *
      * @see #ComQueryTask(Stmt, ResultSink, TaskAdjutant)
-     * @see ClientProtocol#batchUpdate(List)
+     * @see ClientProtocol#batchUpdate(StaticBatchStmt)
      */
     static Flux<ResultStates> batchUpdate(final StaticBatchStmt stmt, final TaskAdjutant adjutant) {
-        final Flux<ResultStates> flux;
-        if (stmt.getSqlGroup().isEmpty()) {
-            flux = Flux.error(MySQLExceptions.createEmptySqlException());
-        } else {
-            flux = MultiResults.batchUpdate(sink -> {
-                try {
-                    ComQueryTask task = new ComQueryTask(stmt, sink, adjutant);
-                    task.submit(sink::error);
-                } catch (Throwable e) {
-                    sink.error(MySQLExceptions.wrapIfNonJvmFatal(e));
-                }
+        return MultiResults.batchUpdate(sink -> {
+            try {
+                ComQueryTask task = new ComQueryTask(stmt, sink, adjutant);
+                task.submit(sink::error);
+            } catch (Throwable e) {
+                sink.error(MySQLExceptions.wrapIfNonJvmFatal(e));
+            }
 
-            });
-        }
-        return flux;
+        });
     }
 
     /**
@@ -123,24 +117,18 @@ final class ComQueryTask extends AbstractCommandTask {
      * This method is underlying api of {@link StaticStatement#executeBatchAsMulti(List)} method.
      * </p>
      *
-     * @see ClientProtocol#executeAsMulti(List)
+     * @see ClientProtocol#batchAsMulti(StaticBatchStmt)
      * @see #ComQueryTask(Stmt, ResultSink, TaskAdjutant)
      */
     static MultiResult batchAsMulti(final StaticBatchStmt stmt, final TaskAdjutant adjutant) {
-        final MultiResult result;
-        if (stmt.getSqlGroup().isEmpty()) {
-            result = MultiResults.error(MySQLExceptions.createEmptySqlException());
-        } else {
-            result = MultiResults.asMulti(adjutant, sink -> {
-                try {
-                    ComQueryTask task = new ComQueryTask(stmt, sink, adjutant);
-                    task.submit(sink::error);
-                } catch (Throwable e) {
-                    sink.error(MySQLExceptions.wrapIfNonJvmFatal(e));
-                }
-            });
-        }
-        return result;
+        return MultiResults.asMulti(adjutant, sink -> {
+            try {
+                ComQueryTask task = new ComQueryTask(stmt, sink, adjutant);
+                task.submit(sink::error);
+            } catch (Throwable e) {
+                sink.error(MySQLExceptions.wrapIfNonJvmFatal(e));
+            }
+        });
     }
 
     /**
@@ -148,24 +136,18 @@ final class ComQueryTask extends AbstractCommandTask {
      * This method is underlying api of {@link StaticStatement#executeBatchAsFlux(List)} method.
      * </p>
      *
-     * @see ClientProtocol#executeAsFlux(List)
+     * @see ClientProtocol#batchAsFlux(StaticBatchStmt)
      * @see #ComQueryTask(Stmt, ResultSink, TaskAdjutant)
      */
     static OrderedFlux batchAsFlux(final StaticBatchStmt stmt, final TaskAdjutant adjutant) {
-        final OrderedFlux flux;
-        if (stmt.getSqlGroup().isEmpty()) {
-            flux = MultiResults.fluxError(MySQLExceptions.createEmptySqlException());
-        } else {
-            flux = MultiResults.asFlux(sink -> {
-                try {
-                    ComQueryTask task = new ComQueryTask(stmt, sink, adjutant);
-                    task.submit(sink::error);
-                } catch (Throwable e) {
-                    sink.error(MySQLExceptions.wrapIfNonJvmFatal(e));
-                }
-            });
-        }
-        return flux;
+        return MultiResults.asFlux(sink -> {
+            try {
+                ComQueryTask task = new ComQueryTask(stmt, sink, adjutant);
+                task.submit(sink::error);
+            } catch (Throwable e) {
+                sink.error(MySQLExceptions.wrapIfNonJvmFatal(e));
+            }
+        });
     }
 
     /**
@@ -185,7 +167,7 @@ final class ComQueryTask extends AbstractCommandTask {
     }
 
 
-    /*################################## blow BindableStatement underlying api method ##################################*/
+    /*################################## blow BindStatement underlying api method ##################################*/
 
     /**
      * <p>
@@ -193,9 +175,9 @@ final class ComQueryTask extends AbstractCommandTask {
      * </p>
      *
      * @see ComPreparedTask#update(ParamStmt, TaskAdjutant)
-     * @see ClientProtocol#bindableUpdate(BindStmt)
+     * @see ClientProtocol#bindUpdate(BindStmt)
      */
-    static Mono<ResultStates> bindableUpdate(final BindStmt stmt, final TaskAdjutant adjutant) {
+    static Mono<ResultStates> bindUpdate(final BindStmt stmt, final TaskAdjutant adjutant) {
         return MultiResults.update(sink -> {
             try {
                 ComQueryTask task = new ComQueryTask(stmt, sink, adjutant);
@@ -216,9 +198,9 @@ final class ComQueryTask extends AbstractCommandTask {
      * </ul>
      * </p>
      *
-     * @see ClientProtocol#bindableQuery(BindStmt)
+     * @see ClientProtocol#bindQuery(BindStmt)
      */
-    static Flux<ResultRow> bindableQuery(final BindStmt stmt, final TaskAdjutant adjutant) {
+    static Flux<ResultRow> bindQuery(final BindStmt stmt, final TaskAdjutant adjutant) {
         return MultiResults.query(stmt.getStatusConsumer(), sink -> {
             try {
                 ComQueryTask task = new ComQueryTask(stmt, sink, adjutant);
@@ -234,9 +216,9 @@ final class ComQueryTask extends AbstractCommandTask {
      * This method is one of underlying api of {@link BindStatement#executeBatch()} method.
      * </p>
      *
-     * @see ClientProtocol#bindableBatch(BindBatchStmt)
+     * @see ClientProtocol#bindBatch(BindBatchStmt)
      */
-    static Flux<ResultStates> bindableBatch(final BindBatchStmt stmt, final TaskAdjutant adjutant) {
+    static Flux<ResultStates> bindBatch(final BindBatchStmt stmt, final TaskAdjutant adjutant) {
         return MultiResults.batchUpdate(sink -> {
             try {
                 ComQueryTask task = new ComQueryTask(stmt, sink, adjutant);
@@ -253,7 +235,7 @@ final class ComQueryTask extends AbstractCommandTask {
      * This method is one of underlying api of below methods {@link BindStatement#executeBatchAsMulti()}.
      * </p>
      */
-    static MultiResult bindableAsMulti(final BindBatchStmt stmt, final TaskAdjutant adjutant) {
+    static MultiResult bindBatchAsMulti(final BindBatchStmt stmt, final TaskAdjutant adjutant) {
         return MultiResults.asMulti(adjutant, sink -> {
             try {
                 ComQueryTask task = new ComQueryTask(stmt, sink, adjutant);
@@ -269,7 +251,7 @@ final class ComQueryTask extends AbstractCommandTask {
      * This method is one of underlying api of below methods {@link BindStatement#executeBatchAsFlux()}.
      * </p>
      */
-    static OrderedFlux bindableAsFlux(final BindBatchStmt stmt, final TaskAdjutant adjutant) {
+    static OrderedFlux bindBatchAsFlux(final BindBatchStmt stmt, final TaskAdjutant adjutant) {
         return MultiResults.asFlux(sink -> {
             try {
                 ComQueryTask task = new ComQueryTask(stmt, sink, adjutant);
@@ -282,13 +264,24 @@ final class ComQueryTask extends AbstractCommandTask {
 
     /*################################## blow MultiStatement method ##################################*/
 
+    static Flux<ResultStates> multiStmtBatch(final BindMultiStmt stmt, final TaskAdjutant adjutant) {
+        return MultiResults.batchUpdate(sink -> {
+            try {
+                ComQueryTask task = new ComQueryTask(stmt, sink, adjutant);
+                task.submit(sink::error);
+            } catch (Throwable e) {
+                sink.error(MySQLExceptions.wrapIfNonJvmFatal(e));
+            }
+        });
+    }
+
 
     /**
      * <p>
      * This method is underlying api of {@link MultiStatement#executeBatchAsMulti()} method.
      * </p>
      *
-     * @see ClientProtocol#multiStmtAsMulti(List)
+     * @see ClientProtocol#multiStmtAsMulti(BindMultiStmt)
      */
     static MultiResult multiStmtAsMulti(final BindMultiStmt stmt, final TaskAdjutant adjutant) {
         return MultiResults.asMulti(adjutant, sink -> {
@@ -306,7 +299,7 @@ final class ComQueryTask extends AbstractCommandTask {
      * This method is underlying api of {@link MultiStatement#executeBatchAsFlux()} method.
      * </p>
      *
-     * @see ClientProtocol#multiStmtAsFlux(List)
+     * @see ClientProtocol#multiStmtAsFlux(BindMultiStmt)
      */
     static OrderedFlux multiStmtAsFlux(final BindMultiStmt stmt, final TaskAdjutant adjutant) {
         return MultiResults.asFlux(sink -> {
@@ -323,10 +316,6 @@ final class ComQueryTask extends AbstractCommandTask {
     private static final Logger LOG = LoggerFactory.getLogger(ComQueryTask.class);
 
     private final Stmt stmt;
-
-    private final ResultSink sink;
-
-    private final ResultSetReader resultSetReader;
 
     private Phase phase;
 
@@ -353,8 +342,6 @@ final class ComQueryTask extends AbstractCommandTask {
             throw new MySQLJdbdException("negotiatedCapability not support multi statement.");
         }
         this.stmt = stmt;
-        this.sink = sink;
-        this.resultSetReader = TextResultSetReader.create(this, sink.froResultSet());
     }
 
 
@@ -464,7 +451,7 @@ final class ComQueryTask extends AbstractCommandTask {
 
     @Override
     ResultSetReader createResultSetReader() {
-        return TextResultSetReader.create(this, this.sink.froResultSet());
+        return TextResultSetReader.create(this);
     }
 
     @Override

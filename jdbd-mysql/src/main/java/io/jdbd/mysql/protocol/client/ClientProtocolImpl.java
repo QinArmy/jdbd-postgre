@@ -13,7 +13,6 @@ import io.jdbd.result.MultiResult;
 import io.jdbd.result.OrderedFlux;
 import io.jdbd.result.ResultRow;
 import io.jdbd.result.ResultStates;
-import io.jdbd.session.SavePoint;
 import io.jdbd.stmt.PreparedStatement;
 import io.jdbd.vendor.conf.HostInfo;
 import io.jdbd.vendor.stmt.StaticBatchStmt;
@@ -99,56 +98,56 @@ final class ClientProtocolImpl implements ClientProtocol {
     }
 
     @Override
-    public Mono<ResultStates> bindableUpdate(final BindStmt stmt) {
+    public Mono<ResultStates> bindUpdate(final BindStmt stmt) {
         final Mono<ResultStates> mono;
         if (usePrepare(stmt.getBindGroup())) {
             mono = ComPreparedTask.update(stmt, this.adjutant);
         } else {
-            mono = ComQueryTask.bindableUpdate(stmt, this.adjutant);
+            mono = ComQueryTask.bindUpdate(stmt, this.adjutant);
         }
         return mono;
     }
 
     @Override
-    public Flux<ResultRow> bindableQuery(final BindStmt stmt) {
+    public Flux<ResultRow> bindQuery(final BindStmt stmt) {
         final Flux<ResultRow> flux;
         if (stmt.getFetchSize() > 0 || usePrepare(stmt.getBindGroup())) {
             flux = ComPreparedTask.query(stmt, this.adjutant);
         } else {
-            flux = ComQueryTask.bindableQuery(stmt, this.adjutant);
+            flux = ComQueryTask.bindQuery(stmt, this.adjutant);
         }
         return flux;
     }
 
     @Override
-    public Flux<ResultStates> bindableBatch(final BindBatchStmt stmt) {
+    public Flux<ResultStates> bindBatch(final BindBatchStmt stmt) {
         final Flux<ResultStates> flux;
         if (usePrepare(stmt)) {
             flux = ComPreparedTask.batchUpdate(stmt, this.adjutant);
         } else {
-            flux = ComQueryTask.bindableBatch(stmt, this.adjutant);
+            flux = ComQueryTask.bindBatch(stmt, this.adjutant);
         }
         return flux;
     }
 
     @Override
-    public MultiResult bindableAsMulti(final BindBatchStmt stmt) {
+    public MultiResult bindBatchAsMulti(final BindBatchStmt stmt) {
         final MultiResult result;
         if (usePrepare(stmt)) {
             result = ComPreparedTask.batchAsMulti(stmt, this.adjutant);
         } else {
-            result = ComQueryTask.bindableAsMulti(stmt, this.adjutant);
+            result = ComQueryTask.bindBatchAsMulti(stmt, this.adjutant);
         }
         return result;
     }
 
     @Override
-    public OrderedFlux bindableAsFlux(final BindBatchStmt stmt) {
+    public OrderedFlux bindBatchAsFlux(final BindBatchStmt stmt) {
         final OrderedFlux flux;
         if ((stmt.getGroupList().size() == 1 && stmt.getFetchSize() > 0) || usePrepare(stmt)) {
             flux = ComPreparedTask.batchAsFlux(stmt, this.adjutant);
         } else {
-            flux = ComQueryTask.bindableAsFlux(stmt, this.adjutant);
+            flux = ComQueryTask.bindBatchAsFlux(stmt, this.adjutant);
         }
         return flux;
     }
@@ -156,6 +155,11 @@ final class ClientProtocolImpl implements ClientProtocol {
     @Override
     public Mono<PreparedStatement> prepare(String sql, Function<PrepareTask<MySQLType>, PreparedStatement> function) {
         return ComPreparedTask.prepare(sql, this.adjutant, function);
+    }
+
+    @Override
+    public Flux<ResultStates> multiStmtBatch(final BindMultiStmt stmt) {
+        return ComQueryTask.multiStmtBatch(stmt, this.adjutant);
     }
 
     @Override
@@ -197,26 +201,6 @@ final class ClientProtocolImpl implements ClientProtocol {
     @Override
     public boolean isClosed() {
         return !this.adjutant.isActive();
-    }
-
-    @Override
-    public Mono<SavePoint> setSavepoint() {
-        return null;
-    }
-
-    @Override
-    public Mono<SavePoint> setSavepoint(String name) {
-        return null;
-    }
-
-    @Override
-    public Mono<Void> releaseSavePoint(SavePoint savepoint) {
-        return null;
-    }
-
-    @Override
-    public Mono<Void> rollbackToSavePoint(SavePoint savepoint) {
-        return null;
     }
 
     /*################################## blow private method ##################################*/

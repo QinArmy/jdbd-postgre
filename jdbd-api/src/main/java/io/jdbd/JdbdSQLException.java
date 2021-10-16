@@ -1,8 +1,8 @@
 package io.jdbd;
 
 
+import io.jdbd.lang.NonNull;
 import io.jdbd.lang.Nullable;
-import reactor.util.annotation.NonNull;
 
 import java.sql.SQLException;
 
@@ -33,12 +33,12 @@ public final class JdbdSQLException extends JdbdException {
         return (SQLException) super.getCause();
     }
 
-    public final int getVendorCode() {
+    public int getVendorCode() {
         return getCause().getErrorCode();
     }
 
     @Nullable
-    public final String getSQLState() {
+    public String getSQLState() {
         return getCause().getSQLState();
     }
 

@@ -178,7 +178,7 @@ public interface StaticStatement extends Statement {
 
     OrderedFlux executeBatchAsFlux(List<String> sqlGroup);
 
-    OrderedFlux executeAsFlux(String multiSql);
+    OrderedFlux executeAsFlux(String multiStmt);
 
 
 }

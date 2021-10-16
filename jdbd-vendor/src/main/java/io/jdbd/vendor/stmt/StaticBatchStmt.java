@@ -2,6 +2,7 @@ package io.jdbd.vendor.stmt;
 
 import org.reactivestreams.Publisher;
 import org.reactivestreams.Subscriber;
+import reactor.util.annotation.Nullable;
 
 import java.util.List;
 import java.util.function.Function;
@@ -19,6 +20,9 @@ import java.util.function.Function;
  */
 public interface StaticBatchStmt extends Stmt {
 
+    /**
+     * @return a unmodified list
+     */
     List<String> getSqlGroup();
 
 
@@ -38,6 +42,7 @@ public interface StaticBatchStmt extends Stmt {
      * If {@link #getSqlGroup()} size isn't 1 ,then always return null .
      * </p>
      */
+    @Nullable
     @Override
     Function<Object, Publisher<byte[]>> getImportPublisher();
 
@@ -46,6 +51,7 @@ public interface StaticBatchStmt extends Stmt {
      * If {@link #getSqlGroup()} size isn't 1 ,then always return null .
      * </p>
      */
+    @Nullable
     @Override
     Function<Object, Subscriber<byte[]>> getExportSubscriber();
 

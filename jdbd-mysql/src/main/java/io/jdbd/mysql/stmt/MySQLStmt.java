@@ -9,7 +9,7 @@ import java.util.Map;
  * This interface extends {@link ParamSingleStmt},representing this stmt has MySQL query attributes.
  * </p>
  */
-public interface MySQLParamSingleStmt {
+public interface MySQLStmt {
 
     Map<String, QueryAttr> getQueryAttrs();
 

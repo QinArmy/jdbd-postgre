@@ -52,7 +52,7 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBased
         final TaskAdjutant taskAdjutant = obtainTaskAdjutant();
 
         List<ResultRow> resultRowList;
-        resultRowList = ComQueryTask.bindableQuery(Stmts.single(sql, bindValue), taskAdjutant)
+        resultRowList = ComQueryTask.bindQuery(Stmts.single(sql, bindValue), taskAdjutant)
                 .collectList()
                 .block();
 
@@ -65,7 +65,7 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBased
 
         // string bigint
         bindValue = BindValue.wrap(0, MySQLType.BIGINT, Long.toString(id));
-        resultRowList = ComQueryTask.bindableQuery(Stmts.single(sql, bindValue), taskAdjutant)
+        resultRowList = ComQueryTask.bindQuery(Stmts.single(sql, bindValue), taskAdjutant)
                 .collectList()
                 .block();
 
@@ -1812,16 +1812,16 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBased
         }
         String sql = String.format("UPDATE mysql_types as t SET t.%s = %s WHERE t.id = ?", field, paramExp);
 
-        List<BindValue> bindValueList = new ArrayList<>(2);
+        List<BindValue> bindGroup = new ArrayList<>(2);
 
         BindValue bindValue = BindValue.wrap(0, mySQLType, bindParam);
 
-        bindValueList.add(bindValue);
+        bindGroup.add(bindValue);
         bindValue = BindValue.wrap(1, MySQLType.BIGINT, id);
-        bindValueList.add(bindValue);
+        bindGroup.add(bindValue);
 
         ResultStates resultStates;
-        resultStates = executeUpdate(Stmts.multi(sql, bindValueList), taskAdjutant)
+        resultStates = executeUpdate(Stmts.bind(sql, bindGroup), taskAdjutant)
                 .block();
 
         assertNotNull(resultStates, "resultStates");

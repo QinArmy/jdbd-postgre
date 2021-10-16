@@ -11,7 +11,6 @@ import io.jdbd.result.MultiResult;
 import io.jdbd.result.OrderedFlux;
 import io.jdbd.result.ResultRow;
 import io.jdbd.result.ResultStates;
-import io.jdbd.session.SavePoint;
 import io.jdbd.stmt.BindStatement;
 import io.jdbd.stmt.MultiStatement;
 import io.jdbd.stmt.PreparedStatement;
@@ -101,9 +100,9 @@ public interface ClientProtocol {
      * This method is one of underlying api of {@link BindStatement#executeUpdate()} method.
      * </p>
      *
-     * @see ComQueryTask#bindableUpdate(BindStmt, TaskAdjutant)
+     * @see ComQueryTask#bindUpdate(BindStmt, TaskAdjutant)
      */
-    Mono<ResultStates> bindableUpdate(BindStmt wrapper);
+    Mono<ResultStates> bindUpdate(BindStmt wrapper);
 
     /**
      * <p>
@@ -114,36 +113,43 @@ public interface ClientProtocol {
      * </ul>
      * </p>
      *
-     * @see ComQueryTask#bindableQuery(BindStmt, TaskAdjutant)
+     * @see ComQueryTask#bindQuery(BindStmt, TaskAdjutant)
      */
-    Flux<ResultRow> bindableQuery(BindStmt wrapper);
+    Flux<ResultRow> bindQuery(BindStmt wrapper);
 
     /**
      * <p>
      * This method is one of underlying api of {@link BindStatement#executeBatch()} method.
      * </p>
      *
-     * @see ComQueryTask#bindableBatch(BindBatchStmt, TaskAdjutant)
+     * @see ComQueryTask#bindBatch(BindBatchStmt, TaskAdjutant)
      */
-    Flux<ResultStates> bindableBatch(BindBatchStmt wrapper);
+    Flux<ResultStates> bindBatch(BindBatchStmt wrapper);
 
     /**
      * <p>
      * This method is one of underlying api of {@link BindStatement#executeBatchAsMulti()} method.
      * </p>
      *
-     * @see ComQueryTask#bindableAsMulti(BindBatchStmt, TaskAdjutant)
+     * @see ComQueryTask#bindBatchAsMulti(BindBatchStmt, TaskAdjutant)
      */
-    MultiResult bindableAsMulti(BindBatchStmt stmt);
+    MultiResult bindBatchAsMulti(BindBatchStmt stmt);
 
     /**
      * <p>
      * This method is one of underlying api of {@link BindStatement#executeBatchAsFlux()} method.
      * </p>
      *
-     * @see ComQueryTask#bindableAsFlux(BindBatchStmt, TaskAdjutant)
+     * @see ComQueryTask#bindBatchAsFlux(BindBatchStmt, TaskAdjutant)
      */
-    OrderedFlux bindableAsFlux(BindBatchStmt stmt);
+    OrderedFlux bindBatchAsFlux(BindBatchStmt stmt);
+
+    /**
+     * <p>
+     * This method is underlying api of {@link MultiStatement#executeBatch()} method.
+     * </p>
+     */
+    Flux<ResultStates> multiStmtBatch(BindMultiStmt stmt);
 
     /**
      * <p>
@@ -179,14 +185,6 @@ public interface ClientProtocol {
     ServerVersion getServerVersion();
 
     boolean isClosed();
-
-    Mono<SavePoint> setSavepoint();
-
-    Mono<SavePoint> setSavepoint(String name);
-
-    Mono<Void> releaseSavePoint(SavePoint savepoint);
-
-    Mono<Void> rollbackToSavePoint(SavePoint savepoint);
 
     Mono<Void> close();
 

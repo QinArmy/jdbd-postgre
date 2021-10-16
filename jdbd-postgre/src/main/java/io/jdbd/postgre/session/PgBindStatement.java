@@ -180,7 +180,7 @@ final class PgBindStatement extends PgStatement implements BindStatement {
         if (this.paramGroupList.isEmpty()) {
             flux = Flux.error(PgExceptions.noAnyParamGroupError());
         } else {
-            BindBatchStmt stmt = PgStmts.bindableBatch(this.sql, this.paramGroupList, this);
+            BindBatchStmt stmt = PgStmts.bindBatch(this.sql, this.paramGroupList, this);
             flux = this.session.protocol.bindBatch(stmt);
         }
         return flux;
@@ -192,7 +192,7 @@ final class PgBindStatement extends PgStatement implements BindStatement {
         if (this.paramGroupList.isEmpty()) {
             result = MultiResults.error(PgExceptions.noAnyParamGroupError());
         } else {
-            BindBatchStmt stmt = PgStmts.bindableBatch(this.sql, this.paramGroupList, this);
+            BindBatchStmt stmt = PgStmts.bindBatch(this.sql, this.paramGroupList, this);
             result = this.session.protocol.bindBatchAsMulti(stmt);
         }
         return result;
@@ -204,7 +204,7 @@ final class PgBindStatement extends PgStatement implements BindStatement {
         if (this.paramGroupList.isEmpty()) {
             flux = MultiResults.fluxError(PgExceptions.noAnyParamGroupError());
         } else {
-            BindBatchStmt stmt = PgStmts.bindableBatch(this.sql, this.paramGroupList, this);
+            BindBatchStmt stmt = PgStmts.bindBatch(this.sql, this.paramGroupList, this);
             flux = this.session.protocol.bindBatchAsFlux(stmt);
         }
         return flux;

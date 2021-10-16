@@ -166,7 +166,9 @@ public abstract class MySQLBinds extends JdbdBinds {
             } else {
                 type = MySQLType.DECIMAL;
             }
-        } else if (nullable instanceof String || nullable instanceof Enum || nullable instanceof UUID) {
+        } else if (nullable instanceof Enum) {
+            type = MySQLType.ENUM;
+        } else if (nullable instanceof String || nullable instanceof UUID) {
             type = MySQLType.VARCHAR;
         } else if (nullable instanceof Boolean) {
             type = MySQLType.BOOLEAN;
@@ -174,7 +176,7 @@ public abstract class MySQLBinds extends JdbdBinds {
             if (nullable instanceof LocalDateTime
                     || nullable instanceof OffsetDateTime
                     || nullable instanceof ZonedDateTime) {
-                type = MySQLType.TIMESTAMP;
+                type = MySQLType.DATETIME;
             } else if (nullable instanceof LocalTime) {
                 type = MySQLType.TIME;
             } else if (nullable instanceof Year) {

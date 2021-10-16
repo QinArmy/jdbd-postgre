@@ -16,15 +16,22 @@ public interface ParamMultiStmt extends Stmt {
 
     List<? extends ParamStmt> getStmtGroup();
 
-    @Override
-    int getTimeout();
 
+    /**
+     * @return always 0 .
+     */
     @Override
     int getFetchSize();
 
+    /**
+     * @return always null
+     */
     @Override
     Function<Object, Publisher<byte[]>> getImportPublisher();
 
+    /**
+     * @return always null
+     */
     @Override
     Function<Object, Subscriber<byte[]>> getExportSubscriber();
 

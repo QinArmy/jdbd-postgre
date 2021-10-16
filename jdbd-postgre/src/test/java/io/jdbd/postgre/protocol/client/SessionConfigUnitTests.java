@@ -47,7 +47,7 @@ public class SessionConfigUnitTests extends AbstractTaskTests {
             sqlGroup.add("SELECT '+92233720368547758.07'::decimal::money as p,'0.00'::money as z ,'-92233720368547758.08'::decimal::money as n ");
 
 
-            MultiResult result = SimpleQueryTask.batchAsMulti(PgStmts.group(sqlGroup), adjutant);
+            MultiResult result = SimpleQueryTask.batchAsMulti(PgStmts.batch(sqlGroup), adjutant);
             try {
                 ResultRow row = Mono.from(result.nextUpdate())
                         .thenMany(result.nextQuery())

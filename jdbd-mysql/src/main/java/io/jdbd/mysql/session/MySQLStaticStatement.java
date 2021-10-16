@@ -70,7 +70,7 @@ final class MySQLStaticStatement extends MySQLStatement implements AttrStaticSta
         if (sqlGroup.size() == 0) {
             flux = Flux.error(MySQLExceptions.createEmptySqlException());
         } else {
-            flux = this.session.protocol.batchUpdate(Stmts.batchStmt(sqlGroup, this.statementOption));
+            flux = this.session.protocol.batchUpdate(Stmts.batch(sqlGroup, this.statementOption));
         }
         return flux;
     }
@@ -83,7 +83,7 @@ final class MySQLStaticStatement extends MySQLStatement implements AttrStaticSta
         if (sqlGroup.size() == 0) {
             result = MultiResults.error(MySQLExceptions.createEmptySqlException());
         } else {
-            result = this.session.protocol.batchAsMulti(Stmts.batchStmt(sqlGroup, this.statementOption));
+            result = this.session.protocol.batchAsMulti(Stmts.batch(sqlGroup, this.statementOption));
         }
         return result;
     }
@@ -95,21 +95,21 @@ final class MySQLStaticStatement extends MySQLStatement implements AttrStaticSta
         if (sqlGroup.size() == 0) {
             flux = MultiResults.fluxError(MySQLExceptions.createEmptySqlException());
         } else {
-            flux = this.session.protocol.batchAsFlux(Stmts.batchStmt(sqlGroup, this.statementOption));
+            flux = this.session.protocol.batchAsFlux(Stmts.batch(sqlGroup, this.statementOption));
         }
         return flux;
     }
 
 
     @Override
-    public OrderedFlux executeAsFlux(final String multiSql) {
+    public OrderedFlux executeAsFlux(final String multiStmt) {
         final OrderedFlux flux;
-        if (!MySQLStrings.hasText(multiSql)) {
+        if (!MySQLStrings.hasText(multiStmt)) {
             flux = MultiResults.fluxError(MySQLExceptions.createEmptySqlException());
         } else if (!this.session.supportMultiStatement()) {
             flux = MultiResults.fluxError(MySQLExceptions.createMultiStatementException());
         } else {
-            flux = this.session.protocol.executeAsFlux(Stmts.multiStmt(multiSql, this.statementOption));
+            flux = this.session.protocol.executeAsFlux(Stmts.multiStmt(multiStmt, this.statementOption));
         }
         return flux;
     }

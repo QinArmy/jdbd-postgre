@@ -75,6 +75,15 @@ abstract class MySQLStatement implements Statement, AttrStatement {
 
     abstract void checkReuse() throws JdbdSQLException;
 
+    /**
+     * <p>
+     * for below methods:
+     *     <ul>
+     *         <li>executeUpdate()</li>
+     *         <li>executeQuery()</li>
+     *     </ul>
+     * </p>
+     */
     @Nullable
     final void prepareAttrGroup(final Map<String, QueryAttr> attrGroup) {
         final Map<String, QueryAttr> commonAttrGroup = this.statementOption.commonAttrGroup;
@@ -121,9 +130,9 @@ abstract class MySQLStatement implements Statement, AttrStatement {
      * @return true attrGroupList size error.
      */
     @Nullable
-    final Throwable checkBatchAttrGroupListSize(final int batchCount) {
+    final IllegalStateException checkBatchAttrGroupListSize(final int batchCount) {
         final List<Map<String, QueryAttr>> attrGroupList = this.statementOption.attrGroupList;
-        final Throwable error;
+        final IllegalStateException error;
         if (attrGroupList != null && attrGroupList.size() != batchCount) {
             // here bug
             String m = String.format("batch count[%s] and attrGroupList size[%s] not match."

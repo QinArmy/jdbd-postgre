@@ -123,7 +123,7 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
         sqlList.add("UPDATE my_types as t SET my_boolean = false WHERE t.id = " + bindId);
 
         final List<ResultStates> stateList;
-        stateList = SimpleQueryTask.batchUpdate(PgStmts.group(sqlList), adjutant)
+        stateList = SimpleQueryTask.batchUpdate(PgStmts.batch(sqlList), adjutant)
                 .switchIfEmpty(PgTestUtils.updateNoResponse())
                 .concatWith(releaseConnection(protocol))
                 .collectList()
@@ -170,7 +170,7 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
         sqlList.add(String.format("UPDATE my_types AS t SET my_boolean = TRUE WHERE t.id = %s RETURNING t.id AS id ", bindId++));
         sqlList.add("UPDATE my_types AS t SET my_boolean = TRUE WHERE t.id = " + bindId);
 
-        final MultiResult multiResult = SimpleQueryTask.batchAsMulti(PgStmts.group(sqlList), adjutant);
+        final MultiResult multiResult = SimpleQueryTask.batchAsMulti(PgStmts.batch(sqlList), adjutant);
 
         final AtomicReference<ResultStates> updateRowsHolder = new AtomicReference<>(null);
 
@@ -216,7 +216,7 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
         sqlList.add("UPDATE my_types AS t SET my_boolean = TRUE WHERE t.id = " + bindId);
 
         final List<Result> resultList;
-        resultList = Flux.from(SimpleQueryTask.batchAsFlux(PgStmts.group(sqlList), adjutant))
+        resultList = Flux.from(SimpleQueryTask.batchAsFlux(PgStmts.batch(sqlList), adjutant))
                 .switchIfEmpty(PgTestUtils.updateNoResponse())
 
                 .concatWith(releaseConnection(protocol))
@@ -404,7 +404,7 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
         }
 
         final List<ResultStates> stateList;
-        stateList = SimpleQueryTask.bindableBatchUpdate(PgStmts.bindableBatch(sql, groupList), adjutant)
+        stateList = SimpleQueryTask.bindableBatchUpdate(PgStmts.bindBatch(sql, groupList), adjutant)
                 .switchIfEmpty(PgTestUtils.updateNoResponse())
                 .concatWith(releaseConnection(protocol))
                 .onErrorResume(releaseConnectionOnError(protocol))
@@ -458,7 +458,7 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
         }
 
         final MultiResult multiResult;
-        multiResult = SimpleQueryTask.bindableAsMulti(PgStmts.bindableBatch(sql, groupList), adjutant);
+        multiResult = SimpleQueryTask.bindableAsMulti(PgStmts.bindBatch(sql, groupList), adjutant);
 
         final List<ResultStates> stateList;
 
@@ -524,7 +524,7 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
         }
 
         final MultiResult multiResult;
-        multiResult = SimpleQueryTask.bindableAsMulti(PgStmts.bindableBatch(sql, groupList), adjutant);
+        multiResult = SimpleQueryTask.bindableAsMulti(PgStmts.bindBatch(sql, groupList), adjutant);
 
         int holderIndex = 0;
         final List<ResultRow> rowList;
@@ -606,7 +606,7 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
         }
 
         final List<ResultStates> stateList;
-        stateList = Flux.from(SimpleQueryTask.bindableAsFlux(PgStmts.bindableBatch(sql, groupList), adjutant))
+        stateList = Flux.from(SimpleQueryTask.bindableAsFlux(PgStmts.bindBatch(sql, groupList), adjutant))
                 .map(ResultStates.class::cast)
 
                 .concatWith(releaseConnection(protocol))
@@ -663,7 +663,7 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
         }
 
         final List<Result> resultList;
-        resultList = Flux.from(SimpleQueryTask.bindableAsFlux(PgStmts.bindableBatch(sql, groupList), adjutant))
+        resultList = Flux.from(SimpleQueryTask.bindableAsFlux(PgStmts.bindBatch(sql, groupList), adjutant))
 
                 .concatWith(releaseConnection(protocol))
                 .onErrorResume(releaseConnectionOnError(protocol))
@@ -1012,7 +1012,7 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
         sqlList.add("UPDATE my_types AS t SET my_boolean = TRUE WHERE t.id = " + bindId++);
         sqlList.add("UPDATE my_types AS t SET my_time '?' = TRUE WHERE t.id = " + bindId);
 
-        SimpleQueryTask.batchUpdate(PgStmts.group(sqlList), adjutant)
+        SimpleQueryTask.batchUpdate(PgStmts.batch(sqlList), adjutant)
 
                 .concatWith(releaseConnection(protocol))
                 .onErrorResume(releaseConnectionOnError(protocol))
@@ -1041,7 +1041,7 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
         sqlList.add("UPDATE my_types AS t SET my_boolean = TRUE WHERE t.id = " + bindId++);
         sqlList.add("SELECT t.* FROM my_types AS t  WHERE t.id = " + bindId);
 
-        SimpleQueryTask.batchUpdate(PgStmts.group(sqlList), adjutant)
+        SimpleQueryTask.batchUpdate(PgStmts.batch(sqlList), adjutant)
 
                 .concatWith(releaseConnection(protocol))
                 .onErrorResume(releaseConnectionOnError(protocol))
@@ -1071,7 +1071,7 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
         sqlList.add("UPDATE my_types AS t SET my_boolean = TRUE WHERE t.id = " + bindId++);
         sqlList.add("UPDATE my_types AS t SET my_boolean = TRUE WHERE t.id = " + bindId);
 
-        SimpleQueryTask.batchUpdate(PgStmts.group(sqlList), adjutant)
+        SimpleQueryTask.batchUpdate(PgStmts.batch(sqlList), adjutant)
 
                 .concatWith(releaseConnection(protocol))
                 .onErrorResume(releaseConnectionOnError(protocol))
@@ -1271,7 +1271,7 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
         }
 
 
-        SimpleQueryTask.bindableBatchUpdate(PgStmts.bindableBatch(sql, groupList), adjutant)
+        SimpleQueryTask.bindableBatchUpdate(PgStmts.bindBatch(sql, groupList), adjutant)
 
                 .concatWith(releaseConnection(protocol))
                 .onErrorResume(releaseConnectionOnError(protocol))
@@ -1307,7 +1307,7 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
         }
 
 
-        SimpleQueryTask.bindableBatchUpdate(PgStmts.bindableBatch(sql, groupList), adjutant)
+        SimpleQueryTask.bindableBatchUpdate(PgStmts.bindBatch(sql, groupList), adjutant)
 
                 .concatWith(releaseConnection(protocol))
                 .onErrorResume(releaseConnectionOnError(protocol))
@@ -1338,7 +1338,7 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
             groupList.add(Collections.singletonList(BindValue.wrap(0, PgType.BIGINT, id)));
         }
 
-        SimpleQueryTask.bindableBatchUpdate(PgStmts.bindableBatch(sql, groupList), adjutant)
+        SimpleQueryTask.bindableBatchUpdate(PgStmts.bindBatch(sql, groupList), adjutant)
 
                 .concatWith(releaseConnection(protocol))
                 .onErrorResume(releaseConnectionOnError(protocol))
@@ -1370,7 +1370,7 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
         }
 
         final MultiResult multiResult;
-        multiResult = SimpleQueryTask.bindableAsMulti(PgStmts.bindableBatch(sql, groupList), adjutant);
+        multiResult = SimpleQueryTask.bindableAsMulti(PgStmts.bindBatch(sql, groupList), adjutant);
         Flux.from(multiResult.nextUpdate())
 
                 .concatWith(releaseConnection(protocol))

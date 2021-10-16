@@ -77,7 +77,7 @@ public class DataPrepareSuiteTests extends AbstractConnectionBasedSuiteTests {
 
         // single statement mode batch update
         final List<ResultStates> resultStatesList;
-        resultStatesList = ComQueryTask.batchUpdate(Stmts.stmts(commandList, 0), adjutant)
+        resultStatesList = ComQueryTask.batchUpdate(Stmts.batch(commandList), adjutant)
                 .collectList()
                 .block();
 

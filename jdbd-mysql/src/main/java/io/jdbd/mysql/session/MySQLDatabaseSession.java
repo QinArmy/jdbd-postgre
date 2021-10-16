@@ -78,22 +78,22 @@ abstract class MySQLDatabaseSession implements DatabaseSession {
 
     @Override
     public final Mono<SavePoint> setSavePoint() {
-        return this.protocol.setSavepoint();
+        throw new UnsupportedOperationException();
     }
 
     @Override
     public final Mono<SavePoint> setSavePoint(final String name) {
-        return this.protocol.setSavepoint();
+        throw new UnsupportedOperationException();
     }
 
     @Override
     public final Mono<Void> releaseSavePoint(final SavePoint savepoint) {
-        return this.protocol.releaseSavePoint(savepoint);
+        throw new UnsupportedOperationException();
     }
 
     @Override
     public final Mono<Void> rollbackToSavePoint(final SavePoint savepoint) {
-        return this.protocol.rollbackToSavePoint(savepoint);
+        throw new UnsupportedOperationException();
     }
 
     @Override

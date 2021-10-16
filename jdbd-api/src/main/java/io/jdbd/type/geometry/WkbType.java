@@ -1,7 +1,7 @@
 package io.jdbd.type.geometry;
 
+import io.jdbd.lang.Nullable;
 import io.jdbd.type.CodeEnum;
-import reactor.util.annotation.Nullable;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;

@@ -2953,7 +2953,7 @@ abstract class AbstractStmtTaskTests extends AbstractTaskTests {
         final String querySql = String.format("SELECT t.id AS \"id\", t.%s \"%s\" FROM my_types AS t WHERE t.id = ?", columnName, columnName);
 
         final ResultRow row;
-        row = executeQuery(PgStmts.bind(querySql, BindValue.wrap(0, PgType.BIGINT, id)), adjutant)
+        row = executeQuery(PgStmts.single(querySql, BindValue.wrap(0, PgType.BIGINT, id)), adjutant)
 
                 .concatWith(releaseConnection(protocol))
                 .onErrorResume(releaseConnectionOnError(protocol))

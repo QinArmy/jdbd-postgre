@@ -310,7 +310,7 @@ final class PgTaskExecutor extends CommunicationTaskExecutor<TaskAdjutant> {
             for (String param : urgencyParamList) {
                 sqlList.add("SHOW " + param);
             }
-            Flux.from(SimpleQueryTask.batchAsFlux(PgStmts.group(sqlList), this))
+            Flux.from(SimpleQueryTask.batchAsFlux(PgStmts.batch(sqlList), this))
                     .filter(result -> result instanceof ResultRow)
                     .cast(ResultRow.class)
                     .collectList()

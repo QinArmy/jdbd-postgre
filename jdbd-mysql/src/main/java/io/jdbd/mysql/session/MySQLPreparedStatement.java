@@ -77,14 +77,10 @@ final class MySQLPreparedStatement extends MySQLStatement implements AttrPrepare
 
     }
 
-
     @Override
     public void bind(final int indexBasedZero, final @Nullable Object nullable) throws JdbdException {
+        checkReuse();
         final List<ParamValue> paramGroup = this.paramGroup;
-        if (paramGroup == null) {
-            throw MySQLExceptions.cannotReuseStatement(PreparedStatement.class);
-        }
-
         if (indexBasedZero < 0 || indexBasedZero >= this.paramCount) {
             final JdbdException error;
             error = MySQLExceptions.invalidParameterValue(this.paramGroupList.size(), indexBasedZero);
@@ -96,9 +92,7 @@ final class MySQLPreparedStatement extends MySQLStatement implements AttrPrepare
 
     @Override
     public void bindAttr(final String name, final MySQLType type, final @Nullable Object value) {
-        if (this.paramGroup == null) {
-            throw MySQLExceptions.cannotReuseStatement(PreparedStatement.class);
-        }
+        checkReuse();
         Objects.requireNonNull(name, "name");
         Map<String, QueryAttr> attrGroup = this.attrGroup;
         if (attrGroup == null) {
@@ -264,12 +258,9 @@ final class MySQLPreparedStatement extends MySQLStatement implements AttrPrepare
             result = MultiResults.error(error);
         } else {
             final Throwable e;
-            if (this.statementOption.fetchSize > 0) {
-                e = MySQLExceptions.batchAsMultiNonSupportFetch();
-            } else {
-                e = checkBatchAttrGroupListSize(batchCount);
-            }
+            e = checkBatchAttrGroupListSize(batchCount);
             if (e == null) {
+                this.statementOption.fetchSize = 0; // executeBatchAsMulti() don't support fetch.
                 final ParamBatchStmt<ParamValue> stmt;
                 stmt = Stmts.paramBatch(this.sql, this.paramGroupList, this.statementOption);
                 result = this.stmtTask.executeBatchAsMulti(stmt);
@@ -324,7 +315,7 @@ final class MySQLPreparedStatement extends MySQLStatement implements AttrPrepare
 
     @Override
     public boolean supportOutParameter() {
-        // always true,
+        // always true,out parameter return as extra Result.
         return true;
     }
 

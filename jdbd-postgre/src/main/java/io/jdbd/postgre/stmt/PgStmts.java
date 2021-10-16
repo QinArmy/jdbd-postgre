@@ -1,104 +1,205 @@
 package io.jdbd.postgre.stmt;
 
-import io.jdbd.postgre.util.PgFunctions;
+import io.jdbd.postgre.PgType;
 import io.jdbd.result.ResultStates;
 import io.jdbd.vendor.stmt.JdbdStmts;
 import io.jdbd.vendor.stmt.StatementOption;
+import io.jdbd.vendor.stmt.StaticBatchStmt;
+import io.jdbd.vendor.stmt.StaticStmt;
+import io.jdbd.vendor.util.JdbdFunctions;
 import org.reactivestreams.Publisher;
 import org.reactivestreams.Subscriber;
 import reactor.util.annotation.Nullable;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
 public abstract class PgStmts extends JdbdStmts {
 
+    public static StaticStmt stmt(String sql, StatementOption option) {
+        Objects.requireNonNull(sql, "sql");
+        return new PgOptionStaticStmt(sql, option);
+    }
+
+    public static StaticStmt stmt(String sql, Consumer<ResultStates> statesConsumer, StatementOption option) {
+        Objects.requireNonNull(sql, "sql");
+        return new PgOptionQueryStaticStmt(sql, statesConsumer, option);
+    }
+
+    public static StaticBatchStmt batch(final List<String> sqlGroup, final StatementOption option) {
+        return new PgOptionStaticBatchStmt(sqlGroup, option);
+    }
+
+    public static BindStmt single(String sql, PgType type, @Nullable final Object value) {
+        return new PgSimpleBindStmt(sql, Collections.singletonList(BindValue.wrap(0, type, value)));
+    }
+
+    @Deprecated
+    public static BindStmt single(String sql, BindValue bindValue) {
+        return new PgSimpleBindStmt(sql, Collections.singletonList(bindValue));
+    }
+
     /**
      * This class used by {@link io.jdbd.stmt.MultiStatement}, so if paramGroup is empty
      * ,just do {@link Collections#unmodifiableList(List)}.
      */
-    public static BindStmt bind(String sql, List<BindValue> paramGroup) {
-        return new BindStmtMin(sql, paramGroup);
+    public static BindStmt bind(String sql, List<BindValue> bindGroup) {
+        return new PgSimpleBindStmt(sql, bindGroup);
     }
 
     public static BindStmt bind(String sql, List<BindValue> paramGroup, Consumer<ResultStates> statesConsumer) {
-        return new BindStmtQuery(sql, paramGroup, statesConsumer);
+        return new PgSimpleQueryBindStmt(sql, paramGroup, statesConsumer);
+    }
+
+    public static BindBatchStmt bindBatch(String sql, List<List<BindValue>> groupList) {
+        return new PgSimpleBindBatchStmt(sql, groupList);
+    }
+
+    public static BindStmt bind(String sql, List<BindValue> paramGroup, StatementOption option) {
+        Objects.requireNonNull(sql, "sql");
+        return new PgOptionBindStmt(sql, paramGroup, option);
     }
 
     public static BindStmt bind(String sql, List<BindValue> paramGroup, Consumer<ResultStates> statesConsumer
             , StatementOption option) {
-        return new BindStmtFull(sql, paramGroup, statesConsumer, option);
+        Objects.requireNonNull(sql, "sql");
+        return new PgOptionQueryBindStmt(sql, paramGroup, statesConsumer, option);
     }
 
-    public static BindStmt bind(String sql, List<BindValue> paramGroup
-            , StatementOption option) {
-        return new BindStmtFull(sql, paramGroup, PgFunctions.noActionConsumer(), option);
-    }
 
-    public static BindStmt bind(String sql, BindValue param) {
-        return new BindStmtMin(sql, param);
-    }
-
-    public static BindBatchStmt bindableBatch(String sql, List<List<BindValue>> groupList) {
-        return new BindBatchStmtImpl(sql, groupList, 0);
-    }
-
-    public static BindBatchStmt bindableBatch(String sql, List<List<BindValue>> groupList, StatementOption option) {
-        return new BindBatchStmtImpl(sql, groupList, 0);
-    }
-
-    public static BindBatchStmt bindableBatch(String sql, List<List<BindValue>> groupList, int timeout) {
-        return new BindBatchStmtImpl(sql, groupList, timeout);
+    public static BindBatchStmt bindBatch(String sql, List<List<BindValue>> groupList, StatementOption option) {
+        Objects.requireNonNull(sql, "sql");
+        return new PgOptionBindBatchStmt(sql, groupList, option);
     }
 
     public static BindMultiStmt multi(List<BindStmt> stmtGroup) {
-        return new MultiBindStmtMin(stmtGroup);
+        return new PgSimpleBindMultiStmt(stmtGroup);
     }
 
     public static BindMultiStmt multi(List<BindStmt> stmtGroup, StatementOption option) {
-        return new MultiBindStmtFull(stmtGroup, option);
+        return new PgOptionBindMultiStmt(stmtGroup, option);
     }
 
 
-    private static class BindStmtMin implements BindStmt {
+    private static final class PgOptionStaticStmt extends OptionStaticStmt {
 
-        private final String sql;
+        private final Function<Object, Publisher<byte[]>> importPublisher;
 
-        private final List<BindValue> paramGroup;
+        private final Function<Object, Subscriber<byte[]>> exportSubscriber;
 
-        private BindStmtMin(String sql, BindValue bindValue) {
-            this.sql = sql;
-            this.paramGroup = Collections.singletonList(bindValue);
+        private PgOptionStaticStmt(String sql, StatementOption option) {
+            super(sql, option);
+            this.importPublisher = option.getImportPublisher();
+            this.exportSubscriber = option.getExportSubscriber();
         }
 
-        /**
-         * This class used by {@link io.jdbd.stmt.MultiStatement}, so if paramGroup is empty
-         * ,just do {@link Collections#unmodifiableList(List)}.
-         */
-        private BindStmtMin(String sql, List<BindValue> paramGroup) {
-            this.sql = sql;
-            if (paramGroup.size() == 1) {
-                this.paramGroup = Collections.singletonList(paramGroup.get(0));
+        @Override
+        public Function<Object, Publisher<byte[]>> getImportPublisher() {
+            return this.importPublisher;
+        }
+
+        @Override
+        public Function<Object, Subscriber<byte[]>> getExportSubscriber() {
+            return this.exportSubscriber;
+        }
+
+    }
+
+    private static final class PgOptionQueryStaticStmt extends OptionQueryStaticStmt {
+
+        private final Function<Object, Publisher<byte[]>> importPublisher;
+
+        private final Function<Object, Subscriber<byte[]>> exportSubscriber;
+
+        private PgOptionQueryStaticStmt(String sql, Consumer<ResultStates> statesConsumer, StatementOption option) {
+            super(sql, statesConsumer, option);
+            this.importPublisher = option.getImportPublisher();
+            this.exportSubscriber = option.getExportSubscriber();
+        }
+
+        @Override
+        public Function<Object, Publisher<byte[]>> getImportPublisher() {
+            return this.importPublisher;
+        }
+
+        @Override
+        public Function<Object, Subscriber<byte[]>> getExportSubscriber() {
+            return this.exportSubscriber;
+        }
+
+    }
+
+
+    private static final class PgOptionStaticBatchStmt extends OptionStaticBatchStmt {
+
+        private final Function<Object, Publisher<byte[]>> importPublisher;
+
+        private final Function<Object, Subscriber<byte[]>> exportSubscriber;
+
+        private PgOptionStaticBatchStmt(List<String> sqlGroup, StatementOption option) {
+            super(sqlGroup, option);
+            if (this.sqlGroup.size() == 1) {
+                this.importPublisher = option.getImportPublisher();
+                this.exportSubscriber = option.getExportSubscriber();
             } else {
-                this.paramGroup = Collections.unmodifiableList(paramGroup);
+                this.importPublisher = null;
+                this.exportSubscriber = null;
             }
         }
 
         @Override
-        public final List<BindValue> getBindGroup() {
-            return this.paramGroup;
+        public Function<Object, Publisher<byte[]>> getImportPublisher() {
+            return this.importPublisher;
         }
 
         @Override
-        public final String getSql() {
-            return this.sql;
+        public Function<Object, Subscriber<byte[]>> getExportSubscriber() {
+            return this.exportSubscriber;
+        }
+
+    }
+
+    private static final class PgSimpleBindStmt extends SimpleParamStmt<BindValue> implements BindStmt {
+
+        private PgSimpleBindStmt(String sql, List<BindValue> bindGroup) {
+            super(sql, bindGroup);
+        }
+    }
+
+    private static final class PgSimpleQueryBindStmt extends SimpleQueryParamStmt<BindValue> implements BindStmt {
+
+        private PgSimpleQueryBindStmt(String sql, List<BindValue> bindGroup, Consumer<ResultStates> statesConsumer) {
+            super(sql, bindGroup, statesConsumer);
+        }
+
+    }
+
+    private static final class PgSimpleBindBatchStmt extends SimpleParamBatchStmt<BindValue> implements BindBatchStmt {
+
+        private PgSimpleBindBatchStmt(String sql, List<List<BindValue>> groupList) {
+            super(sql, groupList);
+        }
+
+    }
+
+    private static final class PgOptionBindStmt extends OptionParamStmt<BindValue> implements BindStmt {
+
+        private final Function<Object, Publisher<byte[]>> importPublisher;
+
+        private final Function<Object, Subscriber<byte[]>> exportSubscriber;
+
+        private PgOptionBindStmt(String sql, List<BindValue> bindGroup, StatementOption option) {
+            super(sql, bindGroup, option);
+            this.importPublisher = option.getImportPublisher();
+            this.exportSubscriber = option.getExportSubscriber();
         }
 
         @Override
         public Consumer<ResultStates> getStatusConsumer() {
-            return PgFunctions.noActionConsumer();
+            return JdbdFunctions.noActionConsumer();
         }
 
         @Override
@@ -107,158 +208,82 @@ public abstract class PgStmts extends JdbdStmts {
         }
 
         @Override
-        public int getTimeout() {
-            return 0;
-        }
-
-        @Override
         public Function<Object, Publisher<byte[]>> getImportPublisher() {
-            return null;
+            return this.importPublisher;
         }
 
         @Override
         public Function<Object, Subscriber<byte[]>> getExportSubscriber() {
-            return null;
+            return this.exportSubscriber;
         }
 
     }
 
-    private static class BindStmtTimeout extends BindStmtMin {
-
-        private final int timeout;
-
-        private BindStmtTimeout(String sql, BindValue param, final int timeout) {
-            super(sql, param);
-            this.timeout = timeout;
-        }
-
-        private BindStmtTimeout(String sql, List<BindValue> paramGroup, final int timeout) {
-            super(sql, paramGroup);
-            this.timeout = timeout;
-        }
-
-        @Override
-        public final int getTimeout() {
-            return this.timeout;
-        }
-
-    }
-
-    private static class BindStmtQuery extends BindStmtTimeout {
-
-        private final Consumer<ResultStates> stateConsumer;
-
-        private final int fetchSize;
-
-        private BindStmtQuery(String sql, BindValue param, Consumer<ResultStates> stateConsumer) {
-            super(sql, param, 0);
-            this.stateConsumer = stateConsumer;
-            this.fetchSize = 0;
-        }
-
-        private BindStmtQuery(String sql, List<BindValue> paramGroup, Consumer<ResultStates> stateConsumer) {
-            super(sql, paramGroup, 0);
-            this.stateConsumer = stateConsumer;
-            this.fetchSize = 0;
-        }
-
-        private BindStmtQuery(String sql, List<BindValue> paramGroup
-                , Consumer<ResultStates> stateConsumer, StatementOption option) {
-            super(sql, paramGroup, option.getTimeout());
-            this.stateConsumer = stateConsumer;
-            this.fetchSize = option.getFetchSize();
-        }
-
-        @Override
-        public final int getFetchSize() {
-            return this.fetchSize;
-        }
-
-        @Override
-        public final Consumer<ResultStates> getStatusConsumer() {
-            return this.stateConsumer;
-        }
-    }
-
-    private static class BindStmtFull extends BindStmtQuery {
+    private static final class PgOptionQueryBindStmt extends OptionQueryParamStmt<BindValue> implements BindStmt {
 
         private final Function<Object, Publisher<byte[]>> importPublisher;
 
         private final Function<Object, Subscriber<byte[]>> exportSubscriber;
 
-
-        private BindStmtFull(String sql, List<BindValue> paramGroup, Consumer<ResultStates> stateConsumer
-                , StatementOption option) {
-            super(sql, paramGroup, stateConsumer, option);
+        private PgOptionQueryBindStmt(String sql, List<BindValue> bindGroup
+                , Consumer<ResultStates> statesConsumer, StatementOption option) {
+            super(sql, bindGroup, statesConsumer, option);
             this.importPublisher = option.getImportPublisher();
             this.exportSubscriber = option.getExportSubscriber();
         }
 
-
         @Override
-        public final Function<Object, Publisher<byte[]>> getImportPublisher() {
+        public Function<Object, Publisher<byte[]>> getImportPublisher() {
             return this.importPublisher;
         }
 
         @Override
-        public final Function<Object, Subscriber<byte[]>> getExportSubscriber() {
+        public Function<Object, Subscriber<byte[]>> getExportSubscriber() {
+            return this.exportSubscriber;
+        }
+
+    }
+
+    private static final class PgOptionBindBatchStmt extends OptionParamBatchStmt<BindValue> implements BindBatchStmt {
+
+        private final Function<Object, Publisher<byte[]>> importPublisher;
+
+        private final Function<Object, Subscriber<byte[]>> exportSubscriber;
+
+        private PgOptionBindBatchStmt(String sql, List<List<BindValue>> groupList, StatementOption option) {
+            super(sql, groupList, option);
+            if (this.groupList.size() == 1) {
+                this.importPublisher = option.getImportPublisher();
+                this.exportSubscriber = option.getExportSubscriber();
+            } else {
+                this.importPublisher = null;
+                this.exportSubscriber = null;
+            }
+        }
+
+        @Override
+        public Function<Object, Publisher<byte[]>> getImportPublisher() {
+            return this.importPublisher;
+        }
+
+        @Override
+        public Function<Object, Subscriber<byte[]>> getExportSubscriber() {
             return this.exportSubscriber;
         }
 
     }
 
 
-    private static final class BindBatchStmtImpl implements BindBatchStmt {
-
-        private final String sql;
-
-        private final List<List<BindValue>> groupList;
-
-        private final int timeout;
-
-
-        private BindBatchStmtImpl(String sql, List<List<BindValue>> groupList, int timeout) {
-            this.sql = sql;
-            this.groupList = Collections.unmodifiableList(groupList);
-            this.timeout = timeout;
-        }
-
-        @Override
-        public final List<List<BindValue>> getGroupList() {
-            return this.groupList;
-        }
-
-        @Override
-        public final String getSql() {
-            return this.sql;
-        }
-
-        @Override
-        public final int getTimeout() {
-            return this.timeout;
-        }
-
-
-    }
-
-    private static class MultiBindStmtMin implements BindMultiStmt {
+    private static final class PgSimpleBindMultiStmt implements BindMultiStmt {
 
         private final List<BindStmt> stmtGroup;
 
-        private MultiBindStmtMin(List<BindStmt> stmtGroup) {
-            switch (stmtGroup.size()) {
-                case 0:
-                    throw new IllegalArgumentException("stmtGroup must not empty.");
-                case 1:
-                    this.stmtGroup = Collections.singletonList(stmtGroup.get(0));
-                    break;
-                default:
-                    this.stmtGroup = Collections.unmodifiableList(stmtGroup);
-            }
+        private PgSimpleBindMultiStmt(List<BindStmt> stmtGroup) {
+            this.stmtGroup = wrapGroup(stmtGroup);
         }
 
         @Override
-        public final List<BindStmt> getStmtGroup() {
+        public List<BindStmt> getStmtGroup() {
             return this.stmtGroup;
         }
 
@@ -268,6 +293,11 @@ public abstract class PgStmts extends JdbdStmts {
         }
 
         @Override
+        public int getFetchSize() {
+            return 0;
+        }
+
+        @Override
         public Function<Object, Publisher<byte[]>> getImportPublisher() {
             return null;
         }
@@ -279,39 +309,41 @@ public abstract class PgStmts extends JdbdStmts {
 
     }
 
+    private static final class PgOptionBindMultiStmt implements BindMultiStmt {
 
-    private static final class MultiBindStmtFull extends MultiBindStmtMin {
+        private final List<BindStmt> stmtList;
 
         private final int timeout;
 
-        private final Function<Object, Publisher<byte[]>> importPublisher;
-
-        private final Function<Object, Subscriber<byte[]>> exportSubscriber;
-
-        private MultiBindStmtFull(List<BindStmt> stmtGroup, StatementOption option) {
-            super(stmtGroup);
+        public PgOptionBindMultiStmt(List<BindStmt> stmtList, StatementOption option) {
+            this.stmtList = wrapGroup(stmtList);
             this.timeout = option.getTimeout();
-            this.importPublisher = option.getImportPublisher();
-            this.exportSubscriber = option.getExportSubscriber();
         }
 
         @Override
-        public final int getTimeout() {
+        public List<BindStmt> getStmtGroup() {
+            return this.stmtList;
+        }
+
+        @Override
+        public int getTimeout() {
             return this.timeout;
         }
 
-        @Nullable
         @Override
-        public final Function<Object, Publisher<byte[]>> getImportPublisher() {
-            return this.importPublisher;
+        public int getFetchSize() {
+            return 0;
         }
 
-        @Nullable
         @Override
-        public final Function<Object, Subscriber<byte[]>> getExportSubscriber() {
-            return this.exportSubscriber;
+        public Function<Object, Publisher<byte[]>> getImportPublisher() {
+            return null;
         }
 
+        @Override
+        public Function<Object, Subscriber<byte[]>> getExportSubscriber() {
+            return null;
+        }
 
     }
 

@@ -31,7 +31,7 @@ public class SessionInitializerSuiteTests extends AbstractConnectionBasedSuiteTe
 
     private static final Logger LOG = LoggerFactory.getLogger(SessionInitializerSuiteTests.class);
 
-    private static final ConcurrentMap<Long, ClientConnectionProtocol> protocolMap = new ConcurrentHashMap<>();
+    private static final ConcurrentMap<Long, ClientProtocol> protocolMap = new ConcurrentHashMap<>();
 
     @BeforeClass
     public static void beforeClass() {
@@ -41,10 +41,10 @@ public class SessionInitializerSuiteTests extends AbstractConnectionBasedSuiteTe
     @AfterClass
     public static void afterClass() {
         LOG.info("\n {} group test end.\n", Groups.SESSION_INITIALIZER);
-        LOG.info("close {} ,size:{}", ClientConnectionProtocol.class.getName(), protocolMap.size());
+        LOG.info("close {} ,size:{}", ClientProtocol.class.getName(), protocolMap.size());
 
         Flux.fromIterable(protocolMap.values())
-                .flatMap(ClientConnectionProtocol::closeGracefully)
+                .flatMap(ClientProtocol::close)
                 .then()
                 .block();
 
@@ -208,7 +208,7 @@ public class SessionInitializerSuiteTests extends AbstractConnectionBasedSuiteTe
         assertNotNull(protocol.sessionResetter, "protocol.sessionResetter");
 
         TaskAdjutant adjutant = protocol.taskExecutor.taskAdjutant();
-        protocolMap.put(adjutant.handshake10().getThreadId(), protocol);
+        //protocolMap.put(adjutant.handshake10().getThreadId(), protocol);
         return adjutant;
     }
 

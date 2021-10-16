@@ -402,7 +402,7 @@ public abstract class JdbdStmts {
         private final int fetchSize;
 
         protected OptionStaticBatchStmt(final List<String> sqlGroup, StatementOption option) {
-            this.sqlGroup = wrapGroup(getSqlGroup());
+            this.sqlGroup = wrapGroup(sqlGroup);
             this.timeout = option.getTimeout();
             this.fetchSize = this.sqlGroup.size() == 1 ? option.getFetchSize() : 0;
         }
@@ -462,12 +462,12 @@ public abstract class JdbdStmts {
         }
 
         @Override
-        public Function<Object, Publisher<byte[]>> getImportPublisher() {
+        public final Function<Object, Publisher<byte[]>> getImportPublisher() {
             return null;
         }
 
         @Override
-        public Function<Object, Subscriber<byte[]>> getExportSubscriber() {
+        public final Function<Object, Subscriber<byte[]>> getExportSubscriber() {
             return null;
         }
 

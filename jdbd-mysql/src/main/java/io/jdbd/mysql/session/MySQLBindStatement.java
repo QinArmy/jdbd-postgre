@@ -15,6 +15,7 @@ import io.jdbd.result.ResultStates;
 import io.jdbd.stmt.BindStatement;
 import io.jdbd.stmt.ResultType;
 import io.jdbd.stmt.SubscribeException;
+import io.jdbd.vendor.result.MultiResults;
 import io.jdbd.vendor.util.JdbdBinds;
 import io.jdbd.vendor.util.JdbdFunctions;
 import reactor.core.publisher.Flux;
@@ -38,9 +39,9 @@ final class MySQLBindStatement extends MySQLStatement implements AttrBindStateme
 
     private final String sql;
 
-    private final List<List<BindValue>> paramGroupList = new ArrayList<>();
+    private final List<List<BindValue>> bindGroupList = new ArrayList<>();
 
-    private List<BindValue> paramGroup = new ArrayList<>();
+    private List<BindValue> bindGroup = new ArrayList<>();
 
     private int firstGroupSize = -1;
 
@@ -54,23 +55,26 @@ final class MySQLBindStatement extends MySQLStatement implements AttrBindStateme
     @Override
     public void bind(final int indexBasedZero, final JDBCType jdbcType, @Nullable final Object nullable)
             throws JdbdException {
+        checkReuse();
         final MySQLType type = MySQLBinds.mapJdbcTypeToMySQLType(jdbcType, nullable);
-        this.paramGroup.add(BindValue.wrap(checkIndex(indexBasedZero), type, nullable));
+        this.bindGroup.add(BindValue.wrap(checkIndex(indexBasedZero), type, nullable));
     }
 
     @Override
     public void bind(final int indexBasedZero, final SQLType sqlType, @Nullable final Object nullable)
             throws JdbdException {
+        checkReuse();
         if (!(sqlType instanceof MySQLType)) {
             String m = String.format("sqlType isn't a instance of %s", MySQLType.class.getName());
             throw new MySQLJdbdException(m);
         }
-        this.paramGroup.add(BindValue.wrap(checkIndex(indexBasedZero), (MySQLType) sqlType, nullable));
+        this.bindGroup.add(BindValue.wrap(checkIndex(indexBasedZero), (MySQLType) sqlType, nullable));
     }
 
     @Override
     public void bind(final int indexBasedZero, @Nullable final Object nullable) throws JdbdException {
-        this.paramGroup.add(BindValue.wrap(checkIndex(indexBasedZero), MySQLBinds.inferMySQLType(nullable), nullable));
+        checkReuse();
+        this.bindGroup.add(BindValue.wrap(checkIndex(indexBasedZero), MySQLBinds.inferMySQLType(nullable), nullable));
     }
 
     @Override
@@ -81,7 +85,7 @@ final class MySQLBindStatement extends MySQLStatement implements AttrBindStateme
         if (attrGroup == null) {
             attrGroup = new HashMap<>();
             this.attrGroup = attrGroup;
-            prepareAttrGroupList(this.paramGroupList.size());
+            prepareAttrGroupList(this.bindGroupList.size());
         }
         attrGroup.put(name, QueryAttr.wrap(type, value));
     }
@@ -90,7 +94,7 @@ final class MySQLBindStatement extends MySQLStatement implements AttrBindStateme
     public void addBatch() throws JdbdException {
         checkReuse();
         // add bind group
-        final List<BindValue> paramGroup = this.paramGroup;
+        final List<BindValue> paramGroup = this.bindGroup;
         int firstGroupSize = this.firstGroupSize;
 
         if (firstGroupSize < 0) {
@@ -99,10 +103,10 @@ final class MySQLBindStatement extends MySQLStatement implements AttrBindStateme
         }
 
         if (paramGroup.size() != firstGroupSize) {
-            throw MySQLExceptions.notMatchWithFirstParamGroupCount(this.paramGroupList.size()
+            throw MySQLExceptions.notMatchWithFirstParamGroupCount(this.bindGroupList.size()
                     , paramGroup.size(), firstGroupSize);
         } else {
-            final JdbdException error = JdbdBinds.sortAndCheckParamGroup(this.paramGroupList.size(), paramGroup);
+            final JdbdException error = JdbdBinds.sortAndCheckParamGroup(this.bindGroupList.size(), paramGroup);
             if (error != null) {
                 throw error;
             }
@@ -110,17 +114,17 @@ final class MySQLBindStatement extends MySQLStatement implements AttrBindStateme
 
         switch (paramGroup.size()) {
             case 0: {
-                this.paramGroupList.add(Collections.emptyList());
+                this.bindGroupList.add(Collections.emptyList());
             }
             break;
             case 1: {
-                this.paramGroupList.add(Collections.singletonList(paramGroup.get(0)));
-                this.paramGroup = new ArrayList<>(1);
+                this.bindGroupList.add(Collections.singletonList(paramGroup.get(0)));
+                this.bindGroup = new ArrayList<>(1);
             }
             break;
             default: {
-                this.paramGroupList.add(Collections.unmodifiableList(paramGroup));
-                this.paramGroup = new ArrayList<>(firstGroupSize);
+                this.bindGroupList.add(Collections.unmodifiableList(paramGroup));
+                this.bindGroup = new ArrayList<>(firstGroupSize);
             }
         }
 
@@ -131,11 +135,11 @@ final class MySQLBindStatement extends MySQLStatement implements AttrBindStateme
 
     @Override
     public Mono<ResultStates> executeUpdate() {
-        final List<BindValue> paramGroup = this.paramGroup;
+        final List<BindValue> paramGroup = this.bindGroup;
         final JdbdException error;
         if (paramGroup == null) {
             error = MySQLExceptions.cannotReuseStatement(BindStatement.class);
-        } else if (this.paramGroupList.size() > 0 || attrGroupListNotEmpty()) {
+        } else if (this.bindGroupList.size() > 0 || attrGroupListNotEmpty()) {
             error = new SubscribeException(ResultType.UPDATE, ResultType.BATCH);
         } else {
             error = JdbdBinds.sortAndCheckParamGroup(0, paramGroup);
@@ -148,7 +152,7 @@ final class MySQLBindStatement extends MySQLStatement implements AttrBindStateme
         if (error == null) {
             this.statementOption.fetchSize = 0;
             final BindStmt stmt = Stmts.bind(this.sql, paramGroup, this.statementOption);
-            mono = this.session.protocol.bindableUpdate(stmt);
+            mono = this.session.protocol.bindUpdate(stmt);
         } else {
             mono = Mono.error(error);
         }
@@ -163,22 +167,95 @@ final class MySQLBindStatement extends MySQLStatement implements AttrBindStateme
 
     @Override
     public Flux<ResultRow> executeQuery(Consumer<ResultStates> statesConsumer) {
-        return null;
+        Objects.requireNonNull(statesConsumer, "statesConsumer");
+
+        final List<BindValue> paramGroup = this.bindGroup;
+        final JdbdException error;
+        if (paramGroup == null) {
+            error = MySQLExceptions.cannotReuseStatement(BindStatement.class);
+        } else if (this.bindGroupList.size() > 0 || attrGroupListNotEmpty()) {
+            error = new SubscribeException(ResultType.QUERY, ResultType.BATCH);
+        } else {
+            error = JdbdBinds.sortAndCheckParamGroup(0, paramGroup);
+            final Map<String, QueryAttr> attrGroup = this.attrGroup;
+            if (error == null && attrGroup != null) {
+                prepareAttrGroup(attrGroup);
+            }
+        }
+        final Flux<ResultRow> flux;
+        if (error == null) {
+            final BindStmt stmt = Stmts.bind(this.sql, paramGroup, statesConsumer, this.statementOption);
+            flux = this.session.protocol.bindQuery(stmt);
+        } else {
+            flux = Flux.error(error);
+        }
+        clearStatementToAvoidReuse();
+        return flux;
     }
 
     @Override
     public Flux<ResultStates> executeBatch() {
-        return null;
+        final Flux<ResultStates> flux;
+        final int batchCount = this.bindGroupList.size();
+        if (this.bindGroup == null) {
+            flux = Flux.error(MySQLExceptions.cannotReuseStatement(BindStatement.class));
+        } else if (batchCount == 0) {
+            flux = Flux.error(MySQLExceptions.noAnyParamGroupError());
+        } else {
+            final Throwable e;
+            e = checkBatchAttrGroupListSize(batchCount);
+            if (e == null) {
+                this.statementOption.fetchSize = 0; // executeBatch() don't support fetch.
+                final BindBatchStmt stmt = Stmts.bindBatch(this.sql, this.bindGroupList, this.statementOption);
+                flux = this.session.protocol.bindBatch(stmt);
+            } else {
+                flux = Flux.error(e);
+            }
+        }
+        clearStatementToAvoidReuse();
+        return flux;
     }
 
     @Override
     public MultiResult executeBatchAsMulti() {
-        return null;
+        final MultiResult result;
+        final int batchCount = this.bindGroupList.size();
+        if (this.bindGroup == null) {
+            result = MultiResults.error(MySQLExceptions.cannotReuseStatement(BindStatement.class));
+        } else if (batchCount == 0) {
+            result = MultiResults.error(MySQLExceptions.noAnyParamGroupError());
+        } else {
+            final Throwable e;
+            e = checkBatchAttrGroupListSize(batchCount);
+            if (e == null) {
+                this.statementOption.fetchSize = 0; // executeBatchAsMulti() don't support fetch.
+                final BindBatchStmt stmt = Stmts.bindBatch(this.sql, this.bindGroupList, this.statementOption);
+                result = this.session.protocol.bindBatchAsMulti(stmt);
+            } else {
+                result = MultiResults.error(e);
+            }
+        }
+        clearStatementToAvoidReuse();
+        return result;
     }
 
     @Override
     public OrderedFlux executeBatchAsFlux() {
-        return null;
+        final OrderedFlux flux;
+        final IllegalStateException error;
+        final int batchCount = this.bindGroupList.size();
+        if (this.bindGroup == null) {
+            flux = MultiResults.fluxError(MySQLExceptions.cannotReuseStatement(BindStatement.class));
+        } else if (batchCount == 0) {
+            flux = MultiResults.fluxError(MySQLExceptions.noAnyParamGroupError());
+        } else if ((error = checkBatchAttrGroupListSize(batchCount)) != null) {
+            flux = MultiResults.fluxError(error);
+        } else {
+            final BindBatchStmt stmt = Stmts.bindBatch(this.sql, this.bindGroupList, this.statementOption);
+            flux = this.session.protocol.bindBatchAsFlux(stmt);
+        }
+        clearStatementToAvoidReuse();
+        return flux;
     }
 
 
@@ -206,7 +283,7 @@ final class MySQLBindStatement extends MySQLStatement implements AttrBindStateme
 
     @Override
     void checkReuse() throws JdbdSQLException {
-        if (this.paramGroup == null) {
+        if (this.bindGroup == null) {
             throw MySQLExceptions.cannotReuseStatement(BindStatement.class);
         }
     }
@@ -218,7 +295,7 @@ final class MySQLBindStatement extends MySQLStatement implements AttrBindStateme
      */
     private int checkIndex(final int indexBasedZero) throws JdbdSQLException {
         if (indexBasedZero < 0) {
-            throw MySQLExceptions.invalidParameterValue(this.paramGroupList.size(), indexBasedZero);
+            throw MySQLExceptions.invalidParameterValue(this.bindGroupList.size(), indexBasedZero);
         }
         final int firstGroupSize = this.firstGroupSize;
         if (firstGroupSize > -1 && indexBasedZero >= firstGroupSize) {
@@ -228,7 +305,7 @@ final class MySQLBindStatement extends MySQLStatement implements AttrBindStateme
     }
 
     private void clearStatementToAvoidReuse() {
-        this.paramGroup = null;
+        this.bindGroup = null;
         this.attrGroup = null;
     }
 

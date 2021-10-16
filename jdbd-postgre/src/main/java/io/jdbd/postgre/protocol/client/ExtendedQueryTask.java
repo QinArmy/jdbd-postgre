@@ -631,21 +631,6 @@ final class ExtendedQueryTask extends AbstractStmtTask implements PrepareTask<Pg
         }
 
         @Override
-        public ResultSink froResultSet() {
-            return new ResultSink() {
-                @Override
-                public boolean isCancelled() {
-                    return PrepareResultSink.this.isCancelled();
-                }
-
-                @Override
-                public void next(Result result) {
-                    PrepareResultSink.this.next(result);
-                }
-            };
-        }
-
-        @Override
         public boolean isCancelled() {
             final ResultSink resultSink = this.resultSink;
             if (resultSink == null) {

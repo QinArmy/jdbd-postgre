@@ -100,7 +100,7 @@ public class CopyInSuiteTests extends AbstractTaskTests {
         }
 
         final List<ResultStates> stateList;
-        stateList = SimpleQueryTask.batchUpdate(PgStmts.group(sqlGroup), adjutant)
+        stateList = SimpleQueryTask.batchUpdate(PgStmts.batch(sqlGroup), adjutant)
 
                 .concatWith(releaseConnection(protocol))
                 .onErrorResume(releaseConnectionOnError(protocol))
@@ -142,7 +142,7 @@ public class CopyInSuiteTests extends AbstractTaskTests {
                 , LINE_SEPARATOR);
 
         final ResultStates state;
-        state = SimpleQueryTask.bindableUpdate(PgStmts.bind(sql, BindValue.wrap(0, PgType.VARCHAR, path.toString())), adjutant)
+        state = SimpleQueryTask.bindableUpdate(PgStmts.single(sql, BindValue.wrap(0, PgType.VARCHAR, path.toString())), adjutant)
 
                 .concatWith(releaseConnection(protocol))
                 .onErrorResume(releaseConnectionOnError(protocol))
@@ -177,7 +177,7 @@ public class CopyInSuiteTests extends AbstractTaskTests {
         }
 
         final List<ResultStates> stateList;
-        stateList = SimpleQueryTask.bindableBatchUpdate(PgStmts.bindableBatch(sql, groupList), adjutant)
+        stateList = SimpleQueryTask.bindableBatchUpdate(PgStmts.bindBatch(sql, groupList), adjutant)
 
                 .concatWith(releaseConnection(protocol))
                 .onErrorResume(releaseConnectionOnError(protocol))

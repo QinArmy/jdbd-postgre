@@ -8,13 +8,13 @@ public abstract class JdbdFunctions {
         throw new UnsupportedOperationException();
     }
 
-    private static final Consumer<?> NO_ACTION_CONSUMER = c -> {
-    };
 
-
-    @SuppressWarnings("unchecked")
     public static <T> Consumer<T> noActionConsumer() {
-        return (Consumer<T>) NO_ACTION_CONSUMER;
+        return JdbdFunctions::noAction;
+    }
+
+    private static <T> void noAction(T value) {
+        //no-op
     }
 
 

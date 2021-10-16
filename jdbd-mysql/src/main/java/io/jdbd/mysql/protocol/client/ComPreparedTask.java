@@ -42,7 +42,7 @@ import java.util.function.Function;
  * @see BinaryResultSetReader
  * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_command_phase_ps.html">Prepared Statements</a>
  */
-final class ComPreparedTask extends MySQLPrepareCommandStmtTask implements PrepareStmtTask, PrepareTask<MySQLType> {
+final class ComPreparedTask extends AbstractCommandTask implements PrepareStmtTask, PrepareTask<MySQLType> {
 
 
     /**
@@ -51,7 +51,7 @@ final class ComPreparedTask extends MySQLPrepareCommandStmtTask implements Prepa
      * </p>
      *
      * @see #ComPreparedTask(ParamSingleStmt, ResultSink, TaskAdjutant)
-     * @see ComQueryTask#bindableUpdate(BindStmt, TaskAdjutant)
+     * @see ComQueryTask#bindUpdate(BindStmt, TaskAdjutant)
      */
     static Mono<ResultStates> update(final ParamStmt stmt, final TaskAdjutant adjutant) {
         return MultiResults.update(sink -> {
@@ -74,7 +74,7 @@ final class ComPreparedTask extends MySQLPrepareCommandStmtTask implements Prepa
      * </p>
      *
      * @see #ComPreparedTask(ParamSingleStmt, ResultSink, TaskAdjutant)
-     * @see ComQueryTask#bindableQuery(BindStmt, TaskAdjutant)
+     * @see ComQueryTask#bindQuery(BindStmt, TaskAdjutant)
      */
     static Flux<ResultRow> query(final ParamStmt stmt, final TaskAdjutant adjutant) {
         return MultiResults.query(stmt.getStatusConsumer(), sink -> {
@@ -93,7 +93,7 @@ final class ComPreparedTask extends MySQLPrepareCommandStmtTask implements Prepa
      * </p>
      *
      * @see #ComPreparedTask(ParamSingleStmt, ResultSink, TaskAdjutant)
-     * @see ComQueryTask#bindableBatch(BindBatchStmt, TaskAdjutant)
+     * @see ComQueryTask#bindBatch(BindBatchStmt, TaskAdjutant)
      */
     static Flux<ResultStates> batchUpdate(final ParamBatchStmt<? extends ParamValue> stmt
             , final TaskAdjutant adjutant) {
@@ -115,7 +115,7 @@ final class ComPreparedTask extends MySQLPrepareCommandStmtTask implements Prepa
      * </p>
      *
      * @see #ComPreparedTask(ParamSingleStmt, ResultSink, TaskAdjutant)
-     * @see ComQueryTask#bindableAsMulti(BindBatchStmt, TaskAdjutant)
+     * @see ComQueryTask#bindBatchAsMulti(BindBatchStmt, TaskAdjutant)
      */
     static MultiResult batchAsMulti(final ParamBatchStmt<? extends ParamValue> stmt, final TaskAdjutant adjutant) {
         return MultiResults.asMulti(adjutant, sink -> {
@@ -134,7 +134,7 @@ final class ComPreparedTask extends MySQLPrepareCommandStmtTask implements Prepa
      * </p>
      *
      * @see #ComPreparedTask(ParamSingleStmt, ResultSink, TaskAdjutant)
-     * @see ComQueryTask#bindableAsFlux(BindBatchStmt, TaskAdjutant)
+     * @see ComQueryTask#bindBatchAsFlux(BindBatchStmt, TaskAdjutant)
      */
     static OrderedFlux batchAsFlux(final ParamBatchStmt<? extends ParamValue> stmt, final TaskAdjutant adjutant) {
         return MultiResults.asFlux(sink -> {
@@ -178,8 +178,6 @@ final class ComPreparedTask extends MySQLPrepareCommandStmtTask implements Prepa
 
     private final ParamSingleStmt stmt;
 
-    private final ResultSink sink;
-
     private final ExecuteCommandWriter commandWriter;
 
     private int statementId;
@@ -204,9 +202,8 @@ final class ComPreparedTask extends MySQLPrepareCommandStmtTask implements Prepa
      * @see #update(ParamStmt, TaskAdjutant)
      */
     private ComPreparedTask(final ParamSingleStmt stmt, final ResultSink sink, final TaskAdjutant adjutant) {
-        super(adjutant, sink::error);
+        super(adjutant, sink);
         this.stmt = stmt;
-        this.sink = sink;
         this.commandWriter = PrepareExecuteCommandWriter.create(this);
     }
 
@@ -1076,21 +1073,6 @@ final class ComPreparedTask extends MySQLPrepareCommandStmtTask implements Prepa
             if (sink != null) {// if null ,possibly error on  binding
                 sink.complete();
             }
-        }
-
-        @Override
-        public ResultSink froResultSet() {
-            return new ResultSink() {
-                @Override
-                public boolean isCancelled() {
-                    return PrepareSink.this.isCancelled();
-                }
-
-                @Override
-                public void next(Result result) {
-                    PrepareSink.this.next(result);
-                }
-            };
         }
 
         @Override

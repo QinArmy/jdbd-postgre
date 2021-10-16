@@ -45,7 +45,7 @@ public class TaskTestAdvice extends AbstractTaskTests {
         final TaskAdjutant adjutant = mapToTaskAdjutant(protocol);
 
         final long resultCount;
-        resultCount = SimpleQueryTask.batchUpdate(PgStmts.group(sqlList), adjutant)
+        resultCount = SimpleQueryTask.batchUpdate(PgStmts.batch(sqlList), adjutant)
                 .switchIfEmpty(PgTestUtils.updateNoResponse())
                 .concatWith(TaskTestAdvice.releaseConnection(protocol))
                 .count()

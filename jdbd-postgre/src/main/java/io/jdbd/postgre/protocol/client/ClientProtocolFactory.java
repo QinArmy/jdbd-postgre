@@ -66,22 +66,22 @@ public abstract class ClientProtocolFactory {
         }
 
         @Override
-        public final Mono<Void> reConnect() {
+        public Mono<Void> reConnect() {
             return Mono.empty();
         }
 
         @Override
-        public final Mono<Void> reset(final Map<String, String> initializedParamMap) {
+        public Mono<Void> reset(final Map<String, String> initializedParamMap) {
             final List<String> sqlGroup = new ArrayList<>(initializedParamMap.size());
             for (Map.Entry<String, String> e : initializedParamMap.entrySet()) {
                 sqlGroup.add(String.format("SET %s = '%s'", e.getKey(), e.getValue()));
             }
-            return SimpleQueryTask.batchUpdate(PgStmts.group(sqlGroup), this.executor.taskAdjutant())
+            return SimpleQueryTask.batchUpdate(PgStmts.batch(sqlGroup), this.executor.taskAdjutant())
                     .then();
         }
 
         @Override
-        public final TaskAdjutant taskAdjutant() {
+        public TaskAdjutant taskAdjutant() {
             return this.executor.taskAdjutant();
         }
 
@@ -138,7 +138,7 @@ public abstract class ClientProtocolFactory {
             for (ServerParameter parameter : INITIALIZED_PARAM_SET) {
                 sqlGroup.add("SHOW " + parameter.name());
             }
-            return Flux.from(SimpleQueryTask.batchAsFlux(JdbdStmts.group(sqlGroup), adjutant))
+            return Flux.from(SimpleQueryTask.batchAsFlux(JdbdStmts.batch(sqlGroup), adjutant))
                     .switchIfEmpty(initializingFailure())
                     .filter(result -> result.getResultIndex() >= showResultIndex)
                     .collectList()

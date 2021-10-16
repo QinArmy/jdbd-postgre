@@ -71,7 +71,7 @@ final class ClientConnectionProtocolImpl implements ClientConnectionProtocol {
                 ;
     }
 
-    @Override
+
     public Mono<Void> closeGracefully() {
         return QuitTask.quit(this.taskExecutor.taskAdjutant());
     }

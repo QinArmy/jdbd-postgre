@@ -1,6 +1,7 @@
 package io.jdbd.type;
 
-import reactor.util.annotation.Nullable;
+
+import io.jdbd.lang.Nullable;
 
 import java.time.DateTimeException;
 import java.time.Duration;
