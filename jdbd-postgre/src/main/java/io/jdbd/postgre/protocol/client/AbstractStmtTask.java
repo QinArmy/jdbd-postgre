@@ -7,8 +7,9 @@ import io.jdbd.postgre.stmt.BindStmt;
 import io.jdbd.postgre.syntax.PgParser;
 import io.jdbd.postgre.util.PgArrays;
 import io.jdbd.postgre.util.PgExceptions;
+import io.jdbd.result.Result;
 import io.jdbd.result.ResultRowMeta;
-import io.jdbd.vendor.result.FluxResultSink;
+import io.jdbd.vendor.result.ResultSink;
 import io.jdbd.vendor.stmt.SingleStmt;
 import io.jdbd.vendor.stmt.StaticBatchStmt;
 import io.jdbd.vendor.stmt.Stmt;
@@ -44,7 +45,7 @@ abstract class AbstractStmtTask extends PgTask implements StmtTask {
 
     private static final String SET = "SET";
 
-    final FluxResultSink sink;
+    final ResultSink sink;
 
     final Stmt stmt;
 
@@ -59,11 +60,11 @@ abstract class AbstractStmtTask extends PgTask implements StmtTask {
     private CopyOperationHandler copyOperationHandler;
 
 
-    AbstractStmtTask(TaskAdjutant adjutant, FluxResultSink sink, Stmt stmt) {
+    AbstractStmtTask(TaskAdjutant adjutant, ResultSink sink, Stmt stmt) {
         super(adjutant, sink::error);
         this.sink = sink;
         this.stmt = stmt;
-        this.resultSetReader = PgResultSetReader.create(this, sink.froResultSet());
+        this.resultSetReader = PgResultSetReader.create(this);
     }
 
     @Override
@@ -87,7 +88,7 @@ abstract class AbstractStmtTask extends PgTask implements StmtTask {
     }
 
     @Override
-    public final boolean isCanceled() {
+    public final boolean isCancelled() {
         final boolean isCanceled;
         if (this.downstreamCanceled || hasError()) {
             isCanceled = true;
@@ -100,6 +101,11 @@ abstract class AbstractStmtTask extends PgTask implements StmtTask {
         }
         log.trace("Read command response,isCanceled:{}", isCanceled);
         return isCanceled;
+    }
+
+    @Override
+    public final void next(final Result result) {
+        this.sink.next(result);
     }
 
     @Override
@@ -469,7 +475,7 @@ abstract class AbstractStmtTask extends PgTask implements StmtTask {
         }
 
 
-        if (!this.isCanceled()) {
+        if (!this.isCancelled()) {
             this.sink.next(PgResultStates.create(params));
         }
         return true;

@@ -1,12 +1,9 @@
 package io.jdbd.mysql.stmt;
 
-import io.jdbd.vendor.stmt.ParamBatchStmt;
-import io.jdbd.vendor.stmt.ParamValue;
-
 import java.util.List;
 import java.util.Map;
 
-public interface MySQLParamBatchStmt<T extends ParamValue> extends ParamBatchStmt<T>, MySQLParamSingleStmt {
+public interface MySQLParamBatchStmt extends MySQLParamSingleStmt {
 
     /**
      * <p>
@@ -20,7 +17,7 @@ public interface MySQLParamBatchStmt<T extends ParamValue> extends ParamBatchStm
 
     /**
      * <p>
-     * This method return list size always equals {@link #getGroupList()} size.
+     * This method return list size always equals {@code #getGroupList()} size.
      * </p>
      *
      * @return a unmodified list

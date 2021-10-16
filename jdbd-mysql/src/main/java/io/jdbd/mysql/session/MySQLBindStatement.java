@@ -5,10 +5,7 @@ import io.jdbd.JdbdSQLException;
 import io.jdbd.meta.SQLType;
 import io.jdbd.mysql.MySQLJdbdException;
 import io.jdbd.mysql.MySQLType;
-import io.jdbd.mysql.stmt.AttrBindStatement;
-import io.jdbd.mysql.stmt.BindStmt;
-import io.jdbd.mysql.stmt.BindValue;
-import io.jdbd.mysql.stmt.QueryAttr;
+import io.jdbd.mysql.stmt.*;
 import io.jdbd.mysql.util.MySQLBinds;
 import io.jdbd.mysql.util.MySQLExceptions;
 import io.jdbd.result.MultiResult;
@@ -19,6 +16,7 @@ import io.jdbd.stmt.BindStatement;
 import io.jdbd.stmt.ResultType;
 import io.jdbd.stmt.SubscribeException;
 import io.jdbd.vendor.util.JdbdBinds;
+import io.jdbd.vendor.util.JdbdFunctions;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.util.annotation.Nullable;
@@ -148,17 +146,19 @@ final class MySQLBindStatement extends MySQLStatement implements AttrBindStateme
         }
         final Mono<ResultStates> mono;
         if (error == null) {
-            BindStmt stmt = Stmts.bind(this.sql, paramGroup, this.statementOption);
+            this.statementOption.fetchSize = 0;
+            final BindStmt stmt = Stmts.bind(this.sql, paramGroup, this.statementOption);
             mono = this.session.protocol.bindableUpdate(stmt);
         } else {
             mono = Mono.error(error);
         }
+        clearStatementToAvoidReuse();
         return mono;
     }
 
     @Override
     public Flux<ResultRow> executeQuery() {
-        return null;
+        return executeQuery(JdbdFunctions.noActionConsumer());
     }
 
     @Override
@@ -225,6 +225,11 @@ final class MySQLBindStatement extends MySQLStatement implements AttrBindStateme
             throw MySQLExceptions.beyondFirstParamGroupRange(indexBasedZero, firstGroupSize);
         }
         return indexBasedZero;
+    }
+
+    private void clearStatementToAvoidReuse() {
+        this.paramGroup = null;
+        this.attrGroup = null;
     }
 
 

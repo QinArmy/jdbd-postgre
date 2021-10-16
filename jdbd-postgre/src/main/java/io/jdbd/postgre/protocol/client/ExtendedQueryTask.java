@@ -10,7 +10,6 @@ import io.jdbd.postgre.util.PgCollections;
 import io.jdbd.postgre.util.PgExceptions;
 import io.jdbd.result.*;
 import io.jdbd.stmt.PreparedStatement;
-import io.jdbd.vendor.result.FluxResultSink;
 import io.jdbd.vendor.result.MultiResults;
 import io.jdbd.vendor.result.ResultSink;
 import io.jdbd.vendor.stmt.*;
@@ -96,7 +95,7 @@ final class ExtendedQueryTask extends AbstractStmtTask implements PrepareTask<Pg
             , final TaskAdjutant adjutant) {
         return Mono.create(sink -> {
             try {
-                PrepareFluxResultSink resultSink = new PrepareFluxResultSink(function, sink);
+                PrepareResultSink resultSink = new PrepareResultSink(function, sink);
                 ExtendedQueryTask task = new ExtendedQueryTask(adjutant, PgPrepareStmt.prepare(sql), resultSink);
                 task.submit(sink::error);
             } catch (Throwable e) {
@@ -124,7 +123,7 @@ final class ExtendedQueryTask extends AbstractStmtTask implements PrepareTask<Pg
      * @see #update(BindStmt, TaskAdjutant)
      * @see #query(BindStmt, TaskAdjutant)
      */
-    private ExtendedQueryTask(BindStmt stmt, FluxResultSink sink, TaskAdjutant adjutant) throws SQLException {
+    private ExtendedQueryTask(BindStmt stmt, ResultSink sink, TaskAdjutant adjutant) throws SQLException {
         super(adjutant, sink, stmt);
         this.commandWriter = DefaultExtendedCommandWriter.create(this);
     }
@@ -134,7 +133,7 @@ final class ExtendedQueryTask extends AbstractStmtTask implements PrepareTask<Pg
      * @see #batchAsMulti(BindBatchStmt, TaskAdjutant)
      * @see #batchAsFlux(BindBatchStmt, TaskAdjutant)
      */
-    private ExtendedQueryTask(FluxResultSink sink, BindBatchStmt stmt, TaskAdjutant adjutant) throws SQLException {
+    private ExtendedQueryTask(ResultSink sink, BindBatchStmt stmt, TaskAdjutant adjutant) throws SQLException {
         super(adjutant, sink, stmt);
         this.commandWriter = DefaultExtendedCommandWriter.create(this);
     }
@@ -142,7 +141,7 @@ final class ExtendedQueryTask extends AbstractStmtTask implements PrepareTask<Pg
     /**
      * @see #prepare(String, Function, TaskAdjutant)
      */
-    private ExtendedQueryTask(TaskAdjutant adjutant, PrepareStmt stmt, PrepareFluxResultSink sink) throws SQLException {
+    private ExtendedQueryTask(TaskAdjutant adjutant, PrepareStmt stmt, PrepareResultSink sink) throws SQLException {
         super(adjutant, sink, stmt);
         this.commandWriter = DefaultExtendedCommandWriter.create(this);
     }
@@ -375,7 +374,7 @@ final class ExtendedQueryTask extends AbstractStmtTask implements PrepareTask<Pg
         this.resultRowMeta = rowMeta;
 
         final boolean taskEnd;
-        if (this.sink instanceof PrepareFluxResultSink) {
+        if (this.sink instanceof PrepareResultSink) {
             final long cacheTime = 0;
 
             final CachePrepareImpl cachePrepare = new CachePrepareImpl(
@@ -422,9 +421,9 @@ final class ExtendedQueryTask extends AbstractStmtTask implements PrepareTask<Pg
      */
     private boolean emitPreparedStatement(final CachePrepare cache) {
         if (cache instanceof CachePrepareImpl) {
-            final FluxResultSink sink = this.sink;
-            if (sink instanceof PrepareFluxResultSink && !hasError()) {
-                final PrepareFluxResultSink prepareSink = (PrepareFluxResultSink) this.sink;
+            final ResultSink sink = this.sink;
+            if (sink instanceof PrepareResultSink && !hasError()) {
+                final PrepareResultSink prepareSink = (PrepareResultSink) this.sink;
                 prepareSink.setCachePrepare((CachePrepareImpl) cache);
                 prepareSink.stmtSink.success(prepareSink.function.apply(this));
             } else {
@@ -446,7 +445,7 @@ final class ExtendedQueryTask extends AbstractStmtTask implements PrepareTask<Pg
      * @see #executeBatchAsMulti(ParamBatchStmt)
      * @see #executeBatchAsFlux(ParamBatchStmt)
      */
-    private void executeAfterBinding(FluxResultSink sink, ParamSingleStmt stmt) {
+    private void executeAfterBinding(ResultSink sink, ParamSingleStmt stmt) {
         if (this.adjutant.inEventLoop()) {
             executePreparedStmtInEventLoop(sink, stmt);
         } else {
@@ -485,9 +484,9 @@ final class ExtendedQueryTask extends AbstractStmtTask implements PrepareTask<Pg
 
 
     /**
-     * @see #executeAfterBinding(FluxResultSink, ParamSingleStmt)
+     * @see #executeAfterBinding(ResultSink, ParamSingleStmt)
      */
-    private void executePreparedStmtInEventLoop(FluxResultSink sink, ParamSingleStmt stmt) {
+    private void executePreparedStmtInEventLoop(ResultSink sink, ParamSingleStmt stmt) {
         if (prepareForPrepareBind(sink, stmt)) {
             // task end
             return;
@@ -507,9 +506,9 @@ final class ExtendedQueryTask extends AbstractStmtTask implements PrepareTask<Pg
 
     /**
      * @return true: has error,task end.
-     * @see #executePreparedStmtInEventLoop(FluxResultSink, ParamSingleStmt)
+     * @see #executePreparedStmtInEventLoop(ResultSink, ParamSingleStmt)
      */
-    private boolean prepareForPrepareBind(final FluxResultSink sink, final ParamSingleStmt stmt) {
+    private boolean prepareForPrepareBind(final ResultSink sink, final ParamSingleStmt stmt) {
         JdbdException error = null;
         switch (this.phase) {
             case WAIT_FOR_BIND: {
@@ -517,7 +516,7 @@ final class ExtendedQueryTask extends AbstractStmtTask implements PrepareTask<Pg
                 try {
                     final PgPrepareStmt prepareStmt = (PgPrepareStmt) this.stmt;
                     prepareStmt.setActualStmt(stmt);
-                    final PrepareFluxResultSink prepareSink = (PrepareFluxResultSink) this.sink;
+                    final PrepareResultSink prepareSink = (PrepareResultSink) this.sink;
                     prepareSink.setResultSink(sink);
                 } catch (Throwable e) {
                     // here bug
@@ -552,11 +551,11 @@ final class ExtendedQueryTask extends AbstractStmtTask implements PrepareTask<Pg
      * @see #getRowMeta()
      */
     private CachePrepareImpl obtainCachePrepare() {
-        final FluxResultSink sink = this.sink;
-        if (!(sink instanceof PrepareFluxResultSink)) {
+        final ResultSink sink = this.sink;
+        if (!(sink instanceof PrepareResultSink)) {
             throw new IllegalStateException("Not prepare stmt task");
         }
-        final PrepareFluxResultSink resultSink = (PrepareFluxResultSink) sink;
+        final PrepareResultSink resultSink = (PrepareResultSink) sink;
         final CachePrepareImpl cachePrepare = resultSink.cachePrepare;
         if (cachePrepare == null) {
             throw new IllegalStateException("Not prepared state.");
@@ -581,7 +580,7 @@ final class ExtendedQueryTask extends AbstractStmtTask implements PrepareTask<Pg
     }
 
 
-    private static final class PrepareFluxResultSink implements FluxResultSink {
+    private static final class PrepareResultSink implements ResultSink {
 
         private final Function<PrepareTask<PgType>, PreparedStatement> function;
 
@@ -589,16 +588,16 @@ final class ExtendedQueryTask extends AbstractStmtTask implements PrepareTask<Pg
 
         private CachePrepareImpl cachePrepare;
 
-        private FluxResultSink resultSink;
+        private ResultSink resultSink;
 
 
-        private PrepareFluxResultSink(Function<PrepareTask<PgType>, PreparedStatement> function
+        private PrepareResultSink(Function<PrepareTask<PgType>, PreparedStatement> function
                 , MonoSink<PreparedStatement> stmtSink) {
             this.function = function;
             this.stmtSink = stmtSink;
         }
 
-        private void setResultSink(final FluxResultSink resultSink) {
+        private void setResultSink(final ResultSink resultSink) {
             if (this.resultSink != null) {
                 throw new IllegalStateException("this.resultSink isn't null");
             }
@@ -614,7 +613,7 @@ final class ExtendedQueryTask extends AbstractStmtTask implements PrepareTask<Pg
 
         @Override
         public void error(Throwable e) {
-            final FluxResultSink resultSink = this.resultSink;
+            final ResultSink resultSink = this.resultSink;
             if (resultSink == null) {
                 this.stmtSink.error(e);
             } else {
@@ -624,7 +623,7 @@ final class ExtendedQueryTask extends AbstractStmtTask implements PrepareTask<Pg
 
         @Override
         public void complete() {
-            final FluxResultSink resultSink = this.resultSink;
+            final ResultSink resultSink = this.resultSink;
             if (resultSink == null) {
                 throw createNoFluxResultSinkError();
             }
@@ -636,19 +635,19 @@ final class ExtendedQueryTask extends AbstractStmtTask implements PrepareTask<Pg
             return new ResultSink() {
                 @Override
                 public boolean isCancelled() {
-                    return PrepareFluxResultSink.this.isCancelled();
+                    return PrepareResultSink.this.isCancelled();
                 }
 
                 @Override
                 public void next(Result result) {
-                    PrepareFluxResultSink.this.next(result);
+                    PrepareResultSink.this.next(result);
                 }
             };
         }
 
         @Override
         public boolean isCancelled() {
-            final FluxResultSink resultSink = this.resultSink;
+            final ResultSink resultSink = this.resultSink;
             if (resultSink == null) {
                 throw createNoFluxResultSinkError();
             }
@@ -657,7 +656,7 @@ final class ExtendedQueryTask extends AbstractStmtTask implements PrepareTask<Pg
 
         @Override
         public void next(Result result) {
-            final FluxResultSink resultSink = this.resultSink;
+            final ResultSink resultSink = this.resultSink;
             if (resultSink == null) {
                 throw createNoFluxResultSinkError();
             }

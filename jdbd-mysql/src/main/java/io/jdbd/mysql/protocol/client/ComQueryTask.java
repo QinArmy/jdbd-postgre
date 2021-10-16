@@ -13,8 +13,8 @@ import io.jdbd.stmt.BindStatement;
 import io.jdbd.stmt.LocalFileException;
 import io.jdbd.stmt.MultiStatement;
 import io.jdbd.stmt.StaticStatement;
-import io.jdbd.vendor.result.FluxResultSink;
 import io.jdbd.vendor.result.MultiResults;
+import io.jdbd.vendor.result.ResultSink;
 import io.jdbd.vendor.stmt.*;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
@@ -55,7 +55,7 @@ final class ComQueryTask extends AbstractCommandTask {
      * This method is underlying api of {@link StaticStatement#executeUpdate(String)} method.
      * </p>
      *
-     * @see #ComQueryTask(Stmt, FluxResultSink, TaskAdjutant)
+     * @see #ComQueryTask(Stmt, ResultSink, TaskAdjutant)
      * @see ClientProtocol#update(StaticStmt)
      */
     static Mono<ResultStates> update(final StaticStmt stmt, final TaskAdjutant adjutant) {
@@ -78,7 +78,7 @@ final class ComQueryTask extends AbstractCommandTask {
      * </ul>
      * </p>
      *
-     * @see #ComQueryTask(Stmt, FluxResultSink, TaskAdjutant)
+     * @see #ComQueryTask(Stmt, ResultSink, TaskAdjutant)
      * @see ClientProtocol#query(StaticStmt)
      */
     static Flux<ResultRow> query(final StaticStmt stmt, final TaskAdjutant adjutant) {
@@ -97,7 +97,7 @@ final class ComQueryTask extends AbstractCommandTask {
      * This method is underlying api of {@link StaticStatement#executeBatch(List)} method.
      * </p>
      *
-     * @see #ComQueryTask(Stmt, FluxResultSink, TaskAdjutant)
+     * @see #ComQueryTask(Stmt, ResultSink, TaskAdjutant)
      * @see ClientProtocol#batchUpdate(List)
      */
     static Flux<ResultStates> batchUpdate(final StaticBatchStmt stmt, final TaskAdjutant adjutant) {
@@ -124,7 +124,7 @@ final class ComQueryTask extends AbstractCommandTask {
      * </p>
      *
      * @see ClientProtocol#executeAsMulti(List)
-     * @see #ComQueryTask(Stmt, FluxResultSink, TaskAdjutant)
+     * @see #ComQueryTask(Stmt, ResultSink, TaskAdjutant)
      */
     static MultiResult batchAsMulti(final StaticBatchStmt stmt, final TaskAdjutant adjutant) {
         final MultiResult result;
@@ -149,12 +149,12 @@ final class ComQueryTask extends AbstractCommandTask {
      * </p>
      *
      * @see ClientProtocol#executeAsFlux(List)
-     * @see #ComQueryTask(Stmt, FluxResultSink, TaskAdjutant)
+     * @see #ComQueryTask(Stmt, ResultSink, TaskAdjutant)
      */
     static OrderedFlux batchAsFlux(final StaticBatchStmt stmt, final TaskAdjutant adjutant) {
         final OrderedFlux flux;
         if (stmt.getSqlGroup().isEmpty()) {
-            flux = MultiResults.orderedFluxError(MySQLExceptions.createEmptySqlException());
+            flux = MultiResults.fluxError(MySQLExceptions.createEmptySqlException());
         } else {
             flux = MultiResults.asFlux(sink -> {
                 try {
@@ -324,7 +324,7 @@ final class ComQueryTask extends AbstractCommandTask {
 
     private final Stmt stmt;
 
-    private final FluxResultSink sink;
+    private final ResultSink sink;
 
     private final ResultSetReader resultSetReader;
 
@@ -347,7 +347,7 @@ final class ComQueryTask extends AbstractCommandTask {
      * @see #update(StaticStmt, TaskAdjutant)
      * @see #query(StaticStmt, TaskAdjutant)
      */
-    private ComQueryTask(final Stmt stmt, FluxResultSink sink, TaskAdjutant adjutant) {
+    private ComQueryTask(final Stmt stmt, ResultSink sink, TaskAdjutant adjutant) {
         super(adjutant, sink);
         if (!Capabilities.supportMultiStatement(adjutant.negotiatedCapability())) {
             throw new MySQLJdbdException("negotiatedCapability not support multi statement.");
@@ -380,7 +380,7 @@ final class ComQueryTask extends AbstractCommandTask {
                 final StaticBatchStmt batchStmt = (StaticBatchStmt) stmt;
                 publisher = QueryCommandWriter.createStaticBatchCommand(batchStmt, sequenceId, this.adjutant);
             } else if (stmt instanceof StaticMultiStmt) {
-                final String sql = ((StaticMultiStmt) stmt).getMultiSql();
+                final String sql = ((StaticMultiStmt) stmt).getMultiStmt();
                 publisher = QueryCommandWriter.createStaticCommand(sql, sequenceId, this.adjutant);
             } else if (stmt instanceof BindStmt) {
                 publisher = QueryCommandWriter.createBindableCommand((BindStmt) stmt, sequenceId, this.adjutant);

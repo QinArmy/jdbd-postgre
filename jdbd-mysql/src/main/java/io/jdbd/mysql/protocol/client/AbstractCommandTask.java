@@ -1,7 +1,8 @@
 package io.jdbd.mysql.protocol.client;
 
 import io.jdbd.mysql.util.MySQLExceptions;
-import io.jdbd.vendor.result.FluxResultSink;
+import io.jdbd.result.Result;
+import io.jdbd.vendor.result.ResultSink;
 import io.netty.buffer.ByteBuf;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -21,7 +22,7 @@ abstract class AbstractCommandTask extends MySQLTask implements StmtTask {
 
     final Logger log = LoggerFactory.getLogger(getClass());
 
-    final FluxResultSink sink;
+    final ResultSink sink;
 
     final int negotiatedCapability;
 
@@ -33,7 +34,7 @@ abstract class AbstractCommandTask extends MySQLTask implements StmtTask {
 
     private boolean downstreamCanceled;
 
-    AbstractCommandTask(TaskAdjutant adjutant, final FluxResultSink sink) {
+    AbstractCommandTask(TaskAdjutant adjutant, final ResultSink sink) {
         super(adjutant, sink::error);
         this.sink = sink;
         this.negotiatedCapability = adjutant.negotiatedCapability();
@@ -41,6 +42,27 @@ abstract class AbstractCommandTask extends MySQLTask implements StmtTask {
     }
 
     /*################################## blow StmtTask method ##################################*/
+
+
+    @Override
+    public final boolean isCancelled() {
+        final boolean isCanceled;
+        if (this.downstreamCanceled || hasError()) {
+            isCanceled = true;
+        } else if (this.sink.isCancelled()) {
+            log.trace("Downstream cancel subscribe.");
+            this.downstreamCanceled = isCanceled = true;
+        } else {
+            isCanceled = false;
+        }
+        log.trace("Read command response,isCanceled:{}", isCanceled);
+        return isCanceled;
+    }
+
+    @Override
+    public final void next(final Result result) {
+        this.sink.next(result);
+    }
 
     @Override
     public final void addErrorToTask(Throwable error) {
@@ -73,20 +95,6 @@ abstract class AbstractCommandTask extends MySQLTask implements StmtTask {
         return this.resultIndex++;
     }
 
-    @Override
-    public final boolean isCanceled() {
-        final boolean isCanceled;
-        if (this.downstreamCanceled || hasError()) {
-            isCanceled = true;
-        } else if (this.sink.isCancelled()) {
-            log.trace("Downstream cancel subscribe.");
-            this.downstreamCanceled = isCanceled = true;
-        } else {
-            isCanceled = false;
-        }
-        log.trace("Read command response,isCanceled:{}", isCanceled);
-        return isCanceled;
-    }
 
     public final int obtainSequenceId() {
         return this.sequenceId;
@@ -141,7 +149,7 @@ abstract class AbstractCommandTask extends MySQLTask implements StmtTask {
             break;
             case MORE_FETCH: {
                 handleReadResultSetEnd();
-                if (this.isCanceled()) {
+                if (this.isCancelled()) {
                     taskEnd = true;
                 } else {
                     taskEnd = executeNextFetch();
@@ -189,7 +197,7 @@ abstract class AbstractCommandTask extends MySQLTask implements StmtTask {
         final boolean noMoreResult = !ok.hasMoreResult();
 
         final boolean taskEnd;
-        if (this.isCanceled()) {
+        if (this.isCancelled()) {
             taskEnd = noMoreResult;
         } else {
             // emit update result.

@@ -1,10 +1,15 @@
 package io.jdbd.postgre.protocol.client;
 
+import io.jdbd.result.Result;
 import io.netty.buffer.ByteBuf;
 
 import java.util.function.Supplier;
 
 interface StmtTask {
+
+    boolean isCancelled();
+
+    void next(Result result);
 
     void addErrorToTask(Throwable error);
 
@@ -19,6 +24,5 @@ interface StmtTask {
 
     int getAndIncrementResultIndex();
 
-    boolean isCanceled();
 
 }

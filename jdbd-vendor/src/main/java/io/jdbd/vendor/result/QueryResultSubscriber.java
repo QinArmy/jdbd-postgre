@@ -1,10 +1,7 @@
 package io.jdbd.vendor.result;
 
 import io.jdbd.ResultStatusConsumerException;
-import io.jdbd.result.NoMoreResultException;
-import io.jdbd.result.Result;
-import io.jdbd.result.ResultRow;
-import io.jdbd.result.ResultStates;
+import io.jdbd.result.*;
 import io.jdbd.stmt.ResultType;
 import io.jdbd.vendor.util.JdbdExceptions;
 import org.reactivestreams.Subscription;
@@ -20,8 +17,8 @@ import java.util.function.Consumer;
 final class QueryResultSubscriber extends AbstractResultSubscriber {
 
     static Flux<ResultRow> create(Consumer<ResultStates> stateConsumer
-            , Consumer<FluxResultSink> callback) {
-        final FluxResult result = FluxResult.create(sink -> {
+            , Consumer<ResultSink> callback) {
+        final OrderedFlux result = FluxResult.create(sink -> {
             try {
                 callback.accept(sink);
             } catch (Throwable e) {
@@ -44,18 +41,18 @@ final class QueryResultSubscriber extends AbstractResultSubscriber {
     }
 
     @Override
-    public final void onSubscribe(Subscription s) {
+    public void onSubscribe(Subscription s) {
         this.subscription = s;
         s.request(Long.MAX_VALUE);
     }
 
     @Override
-    public final boolean isCancelled() {
+    public boolean isCancelled() {
         return this.sink.isCancelled();
     }
 
     @Override
-    public final void onNext(final Result result) {
+    public void onNext(final Result result) {
         // this method invoker in EventLoop
         if (hasError()) {
             return;
@@ -86,14 +83,17 @@ final class QueryResultSubscriber extends AbstractResultSubscriber {
     }
 
     @Override
-    public final void onError(Throwable t) {
+    public void onError(Throwable t) {
         // this method invoker in EventLoop
         this.sink.error(t);
     }
 
     @Override
-    public final void onComplete() {
+    public void onComplete() {
         // this method invoker in EventLoop
+        if (this.sink.isCancelled()) {
+            return;
+        }
         final List<Throwable> errorList = this.errorList;
 
         if (errorList == null || errorList.isEmpty()) {
@@ -109,7 +109,7 @@ final class QueryResultSubscriber extends AbstractResultSubscriber {
     }
 
     @Override
-    final ResultType getSubscribeType() {
+    ResultType getSubscribeType() {
         return ResultType.QUERY;
     }
 

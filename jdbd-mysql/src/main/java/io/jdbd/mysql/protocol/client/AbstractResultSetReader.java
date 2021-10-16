@@ -8,7 +8,6 @@ import io.jdbd.mysql.protocol.conf.MyKey;
 import io.jdbd.mysql.util.MySQLExceptions;
 import io.jdbd.result.ResultRow;
 import io.jdbd.vendor.conf.Properties;
-import io.jdbd.vendor.result.ResultSink;
 import io.jdbd.vendor.type.LongBinaries;
 import io.jdbd.vendor.type.LongStrings;
 import io.netty.buffer.ByteBuf;
@@ -36,9 +35,7 @@ abstract class AbstractResultSetReader implements ResultSetReader {
 
     final TaskAdjutant adjutant;
 
-    final StmtTask stmtTask;
-
-    private final ResultSink sink;
+    final StmtTask task;
 
     final Properties<MyKey> properties;
 
@@ -58,10 +55,9 @@ abstract class AbstractResultSetReader implements ResultSetReader {
 
     private ByteBuf bigPayload;
 
-    AbstractResultSetReader(StmtTask stmtTask, ResultSink sink) {
-        this.stmtTask = stmtTask;
-        this.sink = sink;
-        this.adjutant = stmtTask.adjutant();
+    AbstractResultSetReader(StmtTask task) {
+        this.task = task;
+        this.adjutant = task.adjutant();
         this.properties = this.adjutant.obtainHostInfo().getProperties();
         this.negotiatedCapability = this.adjutant.negotiatedCapability();
     }
@@ -118,7 +114,7 @@ abstract class AbstractResultSetReader implements ResultSetReader {
             releaseOnError();
             throw e;
         }
-
+        final States states = this.states; // store value before reset.
         if (resultSetEnd) {
             if (this.states == States.MORE_CUMULATE) {
                 // here bug.
@@ -126,7 +122,7 @@ abstract class AbstractResultSetReader implements ResultSetReader {
             }
             resetReader();
         }
-        return this.states;
+        return states;
     }
 
 
@@ -171,7 +167,7 @@ abstract class AbstractResultSetReader implements ResultSetReader {
             LOG.trace("read text ResultSet rows");
         }
 
-        final ResultSink sink = this.sink;
+        final StmtTask sink = this.task;
         final MySQLRowMeta rowMeta = Objects.requireNonNull(this.rowMeta, "this.rowMeta");
 
         boolean resultSetEnd = false;
@@ -250,7 +246,7 @@ abstract class AbstractResultSetReader implements ResultSetReader {
 
         this.readRowCount = readRowCount;
         if (sequenceId > -1) {
-            this.stmtTask.updateSequenceId(sequenceId);
+            this.task.updateSequenceId(sequenceId);
         }
         return resultSetEnd;
     }
@@ -261,7 +257,7 @@ abstract class AbstractResultSetReader implements ResultSetReader {
         if (this.rowMeta != null) {
             throw new IllegalStateException("this.rowMeta is non-null");
         }
-        this.rowMeta = MySQLRowMeta.readForText(cumulateBuffer, this.stmtTask);
+        this.rowMeta = MySQLRowMeta.readForText(cumulateBuffer, this.task);
     }
 
 
@@ -276,7 +272,7 @@ abstract class AbstractResultSetReader implements ResultSetReader {
                 String message = String.format("%s type can't is 0,@see jdbc url property[%s]."
                         , type, MyKey.zeroDateTimeBehavior);
                 Throwable e = new JdbdSQLException(MySQLExceptions.createTruncatedWrongValue(message, null));
-                this.stmtTask.addErrorToTask(e);
+                this.task.addErrorToTask(e);
             }
             break;
             case ROUND: {
@@ -304,7 +300,7 @@ abstract class AbstractResultSetReader implements ResultSetReader {
         final ErrorPacket error;
         error = ErrorPacket.read(cumulateBuffer.readSlice(payloadLength), this.negotiatedCapability
                 , this.adjutant.obtainCharsetError());
-        this.stmtTask.addErrorToTask(MySQLExceptions.createErrorPacketException(error));
+        this.task.addErrorToTask(MySQLExceptions.createErrorPacketException(error));
         this.resultSetEnd = true;
         this.states = States.END_ONE_ERROR;
         return sequenceId;
@@ -335,7 +331,7 @@ abstract class AbstractResultSetReader implements ResultSetReader {
             this.states = States.NO_MORE_RESULT;
         }
         if (!canceled) {
-            this.sink.next(MySQLResultStates.fromQuery(rowMeta.getResultIndex(), tp, this.readRowCount));
+            this.task.next(MySQLResultStates.fromQuery(rowMeta.getResultIndex(), tp, this.readRowCount));
         }
         final Logger LOG = getLogger();
         if (LOG.isTraceEnabled()) {
@@ -440,7 +436,7 @@ abstract class AbstractResultSetReader implements ResultSetReader {
         }
 
         if (sequenceId > -1) {
-            this.stmtTask.updateSequenceId(sequenceId);
+            this.task.updateSequenceId(sequenceId);
         }
 
         if (mode == BigPacketMode.BIG_ROW) {
@@ -498,7 +494,7 @@ abstract class AbstractResultSetReader implements ResultSetReader {
             }
         }
         if (sequenceId > -1) {
-            this.stmtTask.updateSequenceId(sequenceId);
+            this.task.updateSequenceId(sequenceId);
         }
         return payload;
     }
@@ -575,8 +571,8 @@ abstract class AbstractResultSetReader implements ResultSetReader {
             }
             this.readRowCount++;
             this.bigRowData = null;
-            if (!this.stmtTask.isCanceled()) {
-                this.sink.next(MySQLResultRow.from(bigRowData.values, rowMeta, this.adjutant));
+            if (!this.task.isCancelled()) {
+                this.task.next(MySQLResultRow.from(bigRowData.values, rowMeta, this.adjutant));
             }
         }
         return bigRowEnd;
@@ -692,7 +688,7 @@ abstract class AbstractResultSetReader implements ResultSetReader {
 
             bigColumn.wroteBytes = writtenBytes;
             if (sequenceId > -1) {
-                this.stmtTask.updateSequenceId(sequenceId);
+                this.task.updateSequenceId(sequenceId);
             }
         } catch (IOException e) {
             try {

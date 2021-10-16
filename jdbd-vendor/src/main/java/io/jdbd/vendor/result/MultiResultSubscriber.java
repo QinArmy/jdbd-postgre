@@ -26,8 +26,8 @@ import java.util.function.Consumer;
 final class MultiResultSubscriber extends AbstractResultSubscriber {
 
 
-    static MultiResult create(ITaskAdjutant adjutant, Consumer<FluxResultSink> callback) {
-        final FluxResult result = FluxResult.create(sink -> {
+    static MultiResult create(ITaskAdjutant adjutant, Consumer<ResultSink> callback) {
+        final OrderedFlux result = FluxResult.create(sink -> {
             try {
                 callback.accept(sink);
             } catch (Throwable e) {
@@ -54,18 +54,18 @@ final class MultiResultSubscriber extends AbstractResultSubscriber {
 
 
     @Override
-    public final void onSubscribe(Subscription s) {
+    public void onSubscribe(Subscription s) {
         this.subscription = s;
         s.request(Long.MAX_VALUE);
     }
 
     @Override
-    public final boolean isCancelled() {
+    public boolean isCancelled() {
         return hasError();
     }
 
     @Override
-    public final void onNext(final Result result) {
+    public void onNext(final Result result) {
         // this method invoker in EventLoop
         if (!hasError()) {
             this.resultQueue.offer(result);
@@ -74,7 +74,7 @@ final class MultiResultSubscriber extends AbstractResultSubscriber {
     }
 
     @Override
-    public final void onError(Throwable t) {
+    public void onError(Throwable t) {
         // this method invoker in EventLoop
         if (!hasError()) {
             drainResult();
@@ -84,7 +84,7 @@ final class MultiResultSubscriber extends AbstractResultSubscriber {
     }
 
     @Override
-    public final void onComplete() {
+    public void onComplete() {
         // this method invoker in EventLoop
         this.done = true;
         if (hasError()) {
@@ -235,7 +235,7 @@ final class MultiResultSubscriber extends AbstractResultSubscriber {
         }
 
         @Override
-        public final Mono<ResultStates> nextUpdate() {
+        public Mono<ResultStates> nextUpdate() {
             return Mono.create(sink -> {
                 if (this.adjutant.inEventLoop()) {
                     this.subscriber.subscribeInEventLoop(new SinkWrapper(sink));
@@ -246,7 +246,7 @@ final class MultiResultSubscriber extends AbstractResultSubscriber {
         }
 
         @Override
-        public final Flux<ResultRow> nextQuery(final Consumer<ResultStates> statesConsumer) {
+        public Flux<ResultRow> nextQuery(final Consumer<ResultStates> statesConsumer) {
             return Flux.create(sink -> {
                 if (this.adjutant.inEventLoop()) {
                     this.subscriber.subscribeInEventLoop(new SinkWrapper(sink, statesConsumer));
@@ -258,7 +258,7 @@ final class MultiResultSubscriber extends AbstractResultSubscriber {
         }
 
         @Override
-        public final Flux<ResultRow> nextQuery() {
+        public Flux<ResultRow> nextQuery() {
             return nextQuery(JdbdFunctions.noActionConsumer());
         }
 

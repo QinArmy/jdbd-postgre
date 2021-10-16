@@ -9,7 +9,6 @@ import io.jdbd.mysql.util.MySQLExceptions;
 import io.jdbd.result.*;
 import io.jdbd.stmt.BindStatement;
 import io.jdbd.stmt.PreparedStatement;
-import io.jdbd.vendor.result.FluxResultSink;
 import io.jdbd.vendor.result.JdbdWarning;
 import io.jdbd.vendor.result.MultiResults;
 import io.jdbd.vendor.result.ResultSink;
@@ -51,7 +50,7 @@ final class ComPreparedTask extends MySQLPrepareCommandStmtTask implements Prepa
      * This method is one of underlying api of {@link BindStatement#executeUpdate()} method:
      * </p>
      *
-     * @see #ComPreparedTask(ParamSingleStmt, FluxResultSink, TaskAdjutant)
+     * @see #ComPreparedTask(ParamSingleStmt, ResultSink, TaskAdjutant)
      * @see ComQueryTask#bindableUpdate(BindStmt, TaskAdjutant)
      */
     static Mono<ResultStates> update(final ParamStmt stmt, final TaskAdjutant adjutant) {
@@ -74,7 +73,7 @@ final class ComPreparedTask extends MySQLPrepareCommandStmtTask implements Prepa
      * </ul>
      * </p>
      *
-     * @see #ComPreparedTask(ParamSingleStmt, FluxResultSink, TaskAdjutant)
+     * @see #ComPreparedTask(ParamSingleStmt, ResultSink, TaskAdjutant)
      * @see ComQueryTask#bindableQuery(BindStmt, TaskAdjutant)
      */
     static Flux<ResultRow> query(final ParamStmt stmt, final TaskAdjutant adjutant) {
@@ -93,7 +92,7 @@ final class ComPreparedTask extends MySQLPrepareCommandStmtTask implements Prepa
      * This method is one of underlying api of {@link BindStatement#executeBatch()} method.
      * </p>
      *
-     * @see #ComPreparedTask(ParamSingleStmt, FluxResultSink, TaskAdjutant)
+     * @see #ComPreparedTask(ParamSingleStmt, ResultSink, TaskAdjutant)
      * @see ComQueryTask#bindableBatch(BindBatchStmt, TaskAdjutant)
      */
     static Flux<ResultStates> batchUpdate(final ParamBatchStmt<? extends ParamValue> stmt
@@ -115,7 +114,7 @@ final class ComPreparedTask extends MySQLPrepareCommandStmtTask implements Prepa
      * This method is one of underlying api of {@link BindStatement#executeBatchAsMulti()} method.
      * </p>
      *
-     * @see #ComPreparedTask(ParamSingleStmt, FluxResultSink, TaskAdjutant)
+     * @see #ComPreparedTask(ParamSingleStmt, ResultSink, TaskAdjutant)
      * @see ComQueryTask#bindableAsMulti(BindBatchStmt, TaskAdjutant)
      */
     static MultiResult batchAsMulti(final ParamBatchStmt<? extends ParamValue> stmt, final TaskAdjutant adjutant) {
@@ -134,7 +133,7 @@ final class ComPreparedTask extends MySQLPrepareCommandStmtTask implements Prepa
      * This method is one of underlying api of {@link BindStatement#executeBatchAsFlux()} method.
      * </p>
      *
-     * @see #ComPreparedTask(ParamSingleStmt, FluxResultSink, TaskAdjutant)
+     * @see #ComPreparedTask(ParamSingleStmt, ResultSink, TaskAdjutant)
      * @see ComQueryTask#bindableAsFlux(BindBatchStmt, TaskAdjutant)
      */
     static OrderedFlux batchAsFlux(final ParamBatchStmt<? extends ParamValue> stmt, final TaskAdjutant adjutant) {
@@ -158,14 +157,14 @@ final class ComPreparedTask extends MySQLPrepareCommandStmtTask implements Prepa
      * </p>
      *
      * @see DatabaseSession#prepare(String)
-     * @see #ComPreparedTask(ParamSingleStmt, FluxResultSink, TaskAdjutant)
+     * @see #ComPreparedTask(ParamSingleStmt, ResultSink, TaskAdjutant)
      */
     static Mono<PreparedStatement> prepare(final String sql, final TaskAdjutant adjutant
             , final Function<PrepareTask<MySQLType>, PreparedStatement> function) {
         return Mono.create(sink -> {
             try {
                 final MySQLPrepareStmt stmt = new MySQLPrepareStmt(sql);
-                final FluxResultSink resultSink = new PrepareSink(sink, function);
+                final ResultSink resultSink = new PrepareSink(sink, function);
                 ComPreparedTask task = new ComPreparedTask(stmt, resultSink, adjutant);
                 task.submit(sink::error);
             } catch (Throwable e) {
@@ -179,7 +178,7 @@ final class ComPreparedTask extends MySQLPrepareCommandStmtTask implements Prepa
 
     private final ParamSingleStmt stmt;
 
-    private final FluxResultSink sink;
+    private final ResultSink sink;
 
     private final ExecuteCommandWriter commandWriter;
 
@@ -204,7 +203,7 @@ final class ComPreparedTask extends MySQLPrepareCommandStmtTask implements Prepa
     /**
      * @see #update(ParamStmt, TaskAdjutant)
      */
-    private ComPreparedTask(final ParamSingleStmt stmt, final FluxResultSink sink, final TaskAdjutant adjutant) {
+    private ComPreparedTask(final ParamSingleStmt stmt, final ResultSink sink, final TaskAdjutant adjutant) {
         super(adjutant, sink::error);
         this.stmt = stmt;
         this.sink = sink;
@@ -484,7 +483,7 @@ final class ComPreparedTask extends MySQLPrepareCommandStmtTask implements Prepa
 
     @Override
     ResultSetReader createResultSetReader() {
-        return BinaryResultSetReader.create(this, this.sink.froResultSet());
+        return BinaryResultSetReader.create(this);
     }
 
     @Override
@@ -594,7 +593,7 @@ final class ComPreparedTask extends MySQLPrepareCommandStmtTask implements Prepa
      * @see #executeBatchAsMulti(ParamBatchStmt)
      * @see #executeBatchAsFlux(ParamBatchStmt)
      */
-    private void executeAfterBinding(final FluxResultSink sink, final ParamSingleStmt stmt) {
+    private void executeAfterBinding(final ResultSink sink, final ParamSingleStmt stmt) {
         if (this.adjutant.inEventLoop()) {
             executeAfterBindingInEventLoop(sink, stmt);
         } else {
@@ -603,9 +602,9 @@ final class ComPreparedTask extends MySQLPrepareCommandStmtTask implements Prepa
     }
 
     /**
-     * @see #executeAfterBinding(FluxResultSink, ParamSingleStmt)
+     * @see #executeAfterBinding(ResultSink, ParamSingleStmt)
      */
-    private void executeAfterBindingInEventLoop(final FluxResultSink sink, final ParamSingleStmt stmt) {
+    private void executeAfterBindingInEventLoop(final ResultSink sink, final ParamSingleStmt stmt) {
         switch (this.phase) {
             case WAIT_FOR_BINDING: {
                 try {
@@ -1040,13 +1039,13 @@ final class ComPreparedTask extends MySQLPrepareCommandStmtTask implements Prepa
 
     }
 
-    private static final class PrepareSink implements FluxResultSink {
+    private static final class PrepareSink implements ResultSink {
 
         private final MonoSink<PreparedStatement> statementSink;
 
         private final Function<PrepareTask<MySQLType>, PreparedStatement> function;
 
-        private FluxResultSink sink;
+        private ResultSink sink;
 
         private PrepareSink(MonoSink<PreparedStatement> statementSink
                 , Function<PrepareTask<MySQLType>, PreparedStatement> function) {
@@ -1054,7 +1053,7 @@ final class ComPreparedTask extends MySQLPrepareCommandStmtTask implements Prepa
             this.function = function;
         }
 
-        private void setSink(FluxResultSink sink) {
+        private void setSink(ResultSink sink) {
             if (this.sink != null) {
                 throw new IllegalStateException("this.sink is non-null.");
             }
@@ -1063,7 +1062,7 @@ final class ComPreparedTask extends MySQLPrepareCommandStmtTask implements Prepa
 
         @Override
         public void error(Throwable e) {
-            final FluxResultSink sink = this.sink;
+            final ResultSink sink = this.sink;
             if (sink == null) {
                 this.statementSink.error(e);
             } else {
@@ -1073,7 +1072,7 @@ final class ComPreparedTask extends MySQLPrepareCommandStmtTask implements Prepa
 
         @Override
         public void complete() {
-            final FluxResultSink sink = this.sink;
+            final ResultSink sink = this.sink;
             if (sink != null) {// if null ,possibly error on  binding
                 sink.complete();
             }
@@ -1096,13 +1095,13 @@ final class ComPreparedTask extends MySQLPrepareCommandStmtTask implements Prepa
 
         @Override
         public boolean isCancelled() {
-            final FluxResultSink sink = this.sink;
+            final ResultSink sink = this.sink;
             return sink != null && sink.isCancelled();
         }
 
         @Override
         public void next(Result result) {
-            final FluxResultSink sink = this.sink;
+            final ResultSink sink = this.sink;
             if (sink == null) {
                 throw new IllegalStateException("this.sink is null");
             }

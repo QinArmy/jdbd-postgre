@@ -1,9 +1,6 @@
 package io.jdbd.vendor.result;
 
-import io.jdbd.result.NoMoreResultException;
-import io.jdbd.result.Result;
-import io.jdbd.result.ResultRow;
-import io.jdbd.result.ResultStates;
+import io.jdbd.result.*;
 import io.jdbd.stmt.ResultType;
 import io.jdbd.vendor.util.JdbdExceptions;
 import org.reactivestreams.Subscription;
@@ -18,8 +15,8 @@ import java.util.function.Consumer;
  */
 final class UpdateResultSubscriber extends AbstractResultSubscriber {
 
-    static Mono<ResultStates> create(Consumer<FluxResultSink> callback) {
-        final FluxResult result = FluxResult.create(sink -> {
+    static Mono<ResultStates> create(Consumer<ResultSink> callback) {
+        final OrderedFlux result = FluxResult.create(sink -> {
             try {
                 callback.accept(sink);
             } catch (Throwable e) {

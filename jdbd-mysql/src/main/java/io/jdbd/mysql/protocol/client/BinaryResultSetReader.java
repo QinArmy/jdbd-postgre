@@ -7,7 +7,6 @@ import io.jdbd.mysql.util.MySQLConvertUtils;
 import io.jdbd.mysql.util.MySQLExceptions;
 import io.jdbd.mysql.util.MySQLNumbers;
 import io.jdbd.result.ResultRow;
-import io.jdbd.vendor.result.ResultSink;
 import io.jdbd.vendor.type.LongBinaries;
 import io.jdbd.vendor.type.LongStrings;
 import io.netty.buffer.ByteBuf;
@@ -27,8 +26,8 @@ import java.util.function.Consumer;
  */
 final class BinaryResultSetReader extends AbstractResultSetReader {
 
-    static BinaryResultSetReader create(StmtTask stmtTask, ResultSink sink) {
-        return new BinaryResultSetReader(stmtTask, sink);
+    static BinaryResultSetReader create(StmtTask task) {
+        return new BinaryResultSetReader(task);
     }
 
     private static final Logger LOG = LoggerFactory.getLogger(BinaryResultSetReader.class);
@@ -36,18 +35,12 @@ final class BinaryResultSetReader extends AbstractResultSetReader {
     private static final byte BINARY_ROW_HEADER = 0x00;
 
 
-    private BinaryResultSetReader(StmtTask stmtTask, ResultSink sink) {
-        super(stmtTask, sink);
-    }
-
-
-    @Override
-    public final boolean isResettable() {
-        return true;
+    private BinaryResultSetReader(StmtTask task) {
+        super(task);
     }
 
     @Override
-    final boolean readResultSetMeta(final ByteBuf cumulateBuffer, final Consumer<Object> statesConsumer) {
+    boolean readResultSetMeta(final ByteBuf cumulateBuffer, final Consumer<Object> statesConsumer) {
         final boolean metaEnd;
         if (MySQLRowMeta.canReadMeta(cumulateBuffer, false)) {
             doReadRowMeta(cumulateBuffer);
@@ -60,7 +53,7 @@ final class BinaryResultSetReader extends AbstractResultSetReader {
 
 
     @Override
-    final Logger getLogger() {
+    Logger getLogger() {
         return LOG;
     }
 
@@ -69,7 +62,7 @@ final class BinaryResultSetReader extends AbstractResultSetReader {
      * @see #readResultRows(ByteBuf, Consumer)
      */
     @Override
-    final ResultRow readOneRow(final ByteBuf cumulateBuffer, final MySQLRowMeta rowMeta) {
+    ResultRow readOneRow(final ByteBuf cumulateBuffer, final MySQLRowMeta rowMeta) {
         final MySQLColumnMeta[] columnMetas = rowMeta.columnMetaArray;
         if (cumulateBuffer.readByte() != BINARY_ROW_HEADER) {
             throw new IllegalArgumentException("cumulateBuffer isn't binary row");
@@ -249,7 +242,7 @@ final class BinaryResultSetReader extends AbstractResultSetReader {
 
 
     @Override
-    final boolean isBinaryReader() {
+    boolean isBinaryReader() {
         return true;
     }
 
@@ -257,7 +250,7 @@ final class BinaryResultSetReader extends AbstractResultSetReader {
     /**
      * @return -1 : more cumulate.
      */
-    final long obtainColumnBytes(MySQLColumnMeta columnMeta, final ByteBuf payload) {
+    long obtainColumnBytes(MySQLColumnMeta columnMeta, final ByteBuf payload) {
         final long columnBytes;
         switch (columnMeta.typeFlag) {
             case Constants.TYPE_STRING:

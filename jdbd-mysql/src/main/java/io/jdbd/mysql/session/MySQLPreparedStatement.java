@@ -175,6 +175,7 @@ final class MySQLPreparedStatement extends MySQLStatement implements AttrPrepare
 
         final Mono<ResultStates> mono;
         if (error == null) {
+            this.statementOption.fetchSize = 0;
             ParamStmt stmt = Stmts.paramStmt(this.sql, paramGroup, this.statementOption);
             mono = this.stmtTask.executeUpdate(stmt);
         } else {
@@ -287,11 +288,11 @@ final class MySQLPreparedStatement extends MySQLStatement implements AttrPrepare
         final OrderedFlux flux;
         final int batchCount = this.paramGroupList.size();
         if (this.paramGroup == null) {
-            flux = MultiResults.orderedFluxError(MySQLExceptions.cannotReuseStatement(PreparedStatement.class));
+            flux = MultiResults.fluxError(MySQLExceptions.cannotReuseStatement(PreparedStatement.class));
         } else if (batchCount > 0) {
             final JdbdException error = MySQLExceptions.noAnyParamGroupError();
             this.stmtTask.closeOnBindError(error); // close prepare statement.
-            flux = MultiResults.orderedFluxError(error);
+            flux = MultiResults.fluxError(error);
         } else {
             final Throwable e;
             e = checkBatchAttrGroupListSize(batchCount);
@@ -301,7 +302,7 @@ final class MySQLPreparedStatement extends MySQLStatement implements AttrPrepare
                 flux = this.stmtTask.executeBatchAsFlux(stmt);
             } else {
                 this.stmtTask.closeOnBindError(e); // close prepare statement.
-                flux = MultiResults.orderedFluxError(e);
+                flux = MultiResults.fluxError(e);
             }
         }
         clearStatementToAvoidReuse();

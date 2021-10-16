@@ -1,6 +1,10 @@
 package io.jdbd.vendor.stmt;
 
+import org.reactivestreams.Publisher;
+import org.reactivestreams.Subscriber;
+
 import java.util.List;
+import java.util.function.Function;
 
 /**
  * <p>
@@ -11,5 +15,18 @@ import java.util.List;
 public interface ParamMultiStmt extends Stmt {
 
     List<? extends ParamStmt> getStmtGroup();
+
+    @Override
+    int getTimeout();
+
+    @Override
+    int getFetchSize();
+
+    @Override
+    Function<Object, Publisher<byte[]>> getImportPublisher();
+
+    @Override
+    Function<Object, Subscriber<byte[]>> getExportSubscriber();
+
 
 }

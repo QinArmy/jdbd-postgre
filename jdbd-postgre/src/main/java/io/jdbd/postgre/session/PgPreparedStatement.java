@@ -153,6 +153,7 @@ final class PgPreparedStatement extends PgStatement implements PreparedStatement
 
         final Mono<ResultStates> mono;
         if (error == null) {
+            this.fetchSize = 0;
             ParamStmt stmt = PgStmts.paramStmt(this.sql, paramGroup, this);
             mono = this.stmtTask.executeUpdate(stmt);
         } else {
@@ -240,11 +241,11 @@ final class PgPreparedStatement extends PgStatement implements PreparedStatement
     public OrderedFlux executeBatchAsFlux() {
         final OrderedFlux flux;
         if (this.paramGroup == null) {
-            flux = MultiResults.orderedFluxError(PgExceptions.cannotReuseStatement(PreparedStatement.class));
+            flux = MultiResults.fluxError(PgExceptions.cannotReuseStatement(PreparedStatement.class));
         } else if (this.paramGroupList.isEmpty()) {
             final JdbdException error = PgExceptions.noAnyParamGroupError();
             this.stmtTask.closeOnBindError(error); // close prepare statement.
-            flux = MultiResults.orderedFluxError(error);
+            flux = MultiResults.fluxError(error);
         } else {
             ParamBatchStmt<ParamValue> stmt;
             stmt = PgStmts.paramBatch(this.sql, this.paramGroupList, this);

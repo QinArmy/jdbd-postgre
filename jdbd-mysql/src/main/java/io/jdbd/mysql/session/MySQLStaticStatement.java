@@ -93,7 +93,7 @@ final class MySQLStaticStatement extends MySQLStatement implements AttrStaticSta
         Objects.requireNonNull(sqlGroup, "sqlGroup");
         final OrderedFlux flux;
         if (sqlGroup.size() == 0) {
-            flux = MultiResults.orderedFluxError(MySQLExceptions.createEmptySqlException());
+            flux = MultiResults.fluxError(MySQLExceptions.createEmptySqlException());
         } else {
             flux = this.session.protocol.batchAsFlux(Stmts.batchStmt(sqlGroup, this.statementOption));
         }
@@ -105,11 +105,11 @@ final class MySQLStaticStatement extends MySQLStatement implements AttrStaticSta
     public OrderedFlux executeAsFlux(final String multiSql) {
         final OrderedFlux flux;
         if (!MySQLStrings.hasText(multiSql)) {
-            flux = MultiResults.orderedFluxError(MySQLExceptions.createEmptySqlException());
+            flux = MultiResults.fluxError(MySQLExceptions.createEmptySqlException());
         } else if (!this.session.supportMultiStatement()) {
-            flux = MultiResults.orderedFluxError(MySQLExceptions.createMultiStatementException());
+            flux = MultiResults.fluxError(MySQLExceptions.createMultiStatementException());
         } else {
-            flux = this.session.protocol.executeAsFlux(Stmts.multiSql(multiSql, this.statementOption));
+            flux = this.session.protocol.executeAsFlux(Stmts.multiStmt(multiSql, this.statementOption));
         }
         return flux;
     }

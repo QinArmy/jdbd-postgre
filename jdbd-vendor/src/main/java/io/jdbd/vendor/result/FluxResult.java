@@ -18,19 +18,19 @@ import java.util.function.Consumer;
  */
 final class FluxResult implements OrderedFlux {
 
-    static FluxResult create(Consumer<FluxResultSink> callBack) {
+    static FluxResult create(Consumer<ResultSink> callBack) {
         return new FluxResult(callBack);
     }
 
-    private final Consumer<FluxResultSink> callBack;
+    private final Consumer<ResultSink> callBack;
 
-    private FluxResult(Consumer<FluxResultSink> callBack) {
+    private FluxResult(Consumer<ResultSink> callBack) {
         this.callBack = callBack;
     }
 
     @Override
-    public final void subscribe(Subscriber<? super Result> actual) {
-        FluxResultSinkImpl sink = new FluxResultSinkImpl(actual);
+    public void subscribe(Subscriber<? super Result> actual) {
+        ResultSinkImpl sink = new ResultSinkImpl(actual);
         actual.onSubscribe(sink.subscription);
 
         try {
@@ -42,76 +42,44 @@ final class FluxResult implements OrderedFlux {
 
     }
 
-    private static final class FluxResultSinkImpl implements FluxResultSink {
-
-        private final Subscriber<? super Result> subscriber;
-
-        private final SubscriptionImpl subscription;
-
-        private FluxResultSinkImpl(Subscriber<? super Result> subscriber) {
-            this.subscriber = subscriber;
-            this.subscription = new SubscriptionImpl();
-        }
-
-
-        @Override
-        public final void error(Throwable e) {
-            // this method invoker in EventLoop
-            this.subscriber.onError(JdbdExceptions.wrap(e));
-        }
-
-        @Override
-        public final void complete() {
-            // this method invoker in EventLoop
-            this.subscriber.onComplete();
-        }
-
-        @Override
-        public final boolean isCancelled() {
-            // this method invoker in EventLoop
-            return this.subscription.canceled == 1;
-        }
-
-        @Override
-        public final void next(Result result) {
-            // this method invoker in EventLoop
-            this.subscriber.onNext(result);
-        }
-
-        @Override
-        public final ResultSink froResultSet() {
-            return new ResultSinkImpl(this.subscriber, this.subscription);
-        }
-    }
-
     private static final class ResultSinkImpl implements ResultSink {
 
         private final Subscriber<? super Result> subscriber;
 
         private final SubscriptionImpl subscription;
 
-        private ResultSinkImpl(Subscriber<? super Result> subscriber, SubscriptionImpl subscription) {
+        private ResultSinkImpl(Subscriber<? super Result> subscriber) {
             this.subscriber = subscriber;
-            this.subscription = subscription;
+            this.subscription = new SubscriptionImpl();
         }
 
+
         @Override
-        public final boolean isCancelled() {
+        public void error(Throwable e) {
             // this method invoker in EventLoop
-            boolean cancelled = this.subscription.canceled == 1;
-            if (!cancelled && this.subscriber instanceof ResultSubscriber) {
-                cancelled = ((ResultSubscriber) this.subscriber).isCancelled();
-            }
-            return cancelled;
+            this.subscriber.onError(JdbdExceptions.wrap(e));
         }
 
         @Override
-        public final void next(Result result) {
+        public void complete() {
+            // this method invoker in EventLoop
+            this.subscriber.onComplete();
+        }
+
+        @Override
+        public boolean isCancelled() {
+            // this method invoker in EventLoop
+            return this.subscription.canceled == 1;
+        }
+
+        @Override
+        public void next(Result result) {
             // this method invoker in EventLoop
             this.subscriber.onNext(result);
         }
 
     }
+
 
     private static final class SubscriptionImpl implements Subscription {
 
@@ -125,7 +93,7 @@ final class FluxResult implements OrderedFlux {
         private volatile int canceled;
 
         @Override
-        public final void request(long n) {
+        public void request(long n) {
             //no-op ,because subscriber :
             // 1. io.jdbd.vendor.result.UpdateResultSubscriber
             // 2. io.jdbd.vendor.result.QueryResultSubscriber
@@ -135,7 +103,7 @@ final class FluxResult implements OrderedFlux {
         }
 
         @Override
-        public final void cancel() {
+        public void cancel() {
             // this method invoker in EventLoop
             CANCELED.set(this, 1);
         }

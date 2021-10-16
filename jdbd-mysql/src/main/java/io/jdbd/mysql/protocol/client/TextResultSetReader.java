@@ -5,7 +5,6 @@ import io.jdbd.mysql.util.MySQLConvertUtils;
 import io.jdbd.mysql.util.MySQLExceptions;
 import io.jdbd.mysql.util.MySQLTimes;
 import io.jdbd.result.ResultRow;
-import io.jdbd.vendor.result.ResultSink;
 import io.jdbd.vendor.type.LongBinaries;
 import io.jdbd.vendor.type.LongStrings;
 import io.netty.buffer.ByteBuf;
@@ -27,24 +26,20 @@ import java.util.function.Consumer;
 
 final class TextResultSetReader extends AbstractResultSetReader {
 
-    static TextResultSetReader create(StmtTask stmtTask, ResultSink sink) {
-        return new TextResultSetReader(stmtTask, sink);
+    static TextResultSetReader create(StmtTask task) {
+        return new TextResultSetReader(task);
     }
 
     private static final Logger LOG = LoggerFactory.getLogger(TextResultSetReader.class);
 
 
-    private TextResultSetReader(StmtTask stmtTask, ResultSink sink) {
-        super(stmtTask, sink);
+    private TextResultSetReader(StmtTask task) {
+        super(task);
     }
 
-    @Override
-    public final boolean isResettable() {
-        return true;
-    }
 
     @Override
-    final boolean readResultSetMeta(final ByteBuf cumulateBuffer, final Consumer<Object> serverStatesConsumer) {
+    boolean readResultSetMeta(final ByteBuf cumulateBuffer, final Consumer<Object> serverStatesConsumer) {
 
         if ((this.negotiatedCapability & Capabilities.CLIENT_OPTIONAL_RESULTSET_METADATA) != 0) {
             throw new IllegalStateException("Not support CLIENT_OPTIONAL_RESULTSET_METADATA");
@@ -56,7 +51,7 @@ final class TextResultSetReader extends AbstractResultSetReader {
             doReadRowMeta(cumulateBuffer);
             if (endOfMeta) {
                 final int payloadLength = Packets.readInt3(cumulateBuffer);
-                this.stmtTask.updateSequenceId(Packets.readInt1AsInt(cumulateBuffer));
+                this.task.updateSequenceId(Packets.readInt1AsInt(cumulateBuffer));
 
                 final EofPacket eof;
                 eof = EofPacket.read(cumulateBuffer.readSlice(payloadLength), this.negotiatedCapability);
@@ -71,17 +66,17 @@ final class TextResultSetReader extends AbstractResultSetReader {
 
 
     @Override
-    final Logger getLogger() {
+    Logger getLogger() {
         return LOG;
     }
 
     @Override
-    final boolean isBinaryReader() {
+    boolean isBinaryReader() {
         return false;
     }
 
     @Override
-    final ResultRow readOneRow(final ByteBuf cumulateBuffer, final MySQLRowMeta rowMeta) {
+    ResultRow readOneRow(final ByteBuf cumulateBuffer, final MySQLRowMeta rowMeta) {
         final MySQLColumnMeta[] columnMetaArray = rowMeta.columnMetaArray;
         final Object[] rowValues = new Object[columnMetaArray.length];
 
@@ -103,7 +98,7 @@ final class TextResultSetReader extends AbstractResultSetReader {
 
     @Nullable
     @Override
-    final Object readColumnValue(final ByteBuf cumulateBuffer, final MySQLColumnMeta columnMeta) {
+    Object readColumnValue(final ByteBuf cumulateBuffer, final MySQLColumnMeta columnMeta) {
 
         final Charset columnCharset = this.adjutant.obtainColumnCharset(columnMeta.columnCharset);
 

@@ -14,7 +14,6 @@ import io.jdbd.result.ResultRow;
 import io.jdbd.result.ResultStates;
 import io.jdbd.stmt.ResultType;
 import io.jdbd.stmt.SubscribeException;
-import io.jdbd.vendor.result.ReactorMultiResult;
 import io.jdbd.vendor.stmt.StaticStmt;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

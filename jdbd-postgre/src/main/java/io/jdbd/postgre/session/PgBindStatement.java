@@ -202,7 +202,7 @@ final class PgBindStatement extends PgStatement implements BindStatement {
     public OrderedFlux executeBatchAsFlux() {
         final OrderedFlux flux;
         if (this.paramGroupList.isEmpty()) {
-            flux = MultiResults.orderedFluxError(PgExceptions.noAnyParamGroupError());
+            flux = MultiResults.fluxError(PgExceptions.noAnyParamGroupError());
         } else {
             BindBatchStmt stmt = PgStmts.bindableBatch(this.sql, this.paramGroupList, this);
             flux = this.session.protocol.bindBatchAsFlux(stmt);

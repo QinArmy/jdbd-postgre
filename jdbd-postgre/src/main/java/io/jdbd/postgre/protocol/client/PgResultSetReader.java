@@ -7,14 +7,12 @@ import io.jdbd.postgre.PgJdbdException;
 import io.jdbd.postgre.PgType;
 import io.jdbd.postgre.util.PgExceptions;
 import io.jdbd.postgre.util.PgTimes;
-import io.jdbd.vendor.result.ResultSink;
 import io.jdbd.vendor.type.LongBinaries;
 import io.jdbd.vendor.util.JdbdBuffers;
 import io.netty.buffer.ByteBuf;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.nio.charset.Charset;
 import java.sql.SQLException;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
@@ -25,8 +23,8 @@ import java.util.function.Consumer;
 
 final class PgResultSetReader implements ResultSetReader {
 
-    static PgResultSetReader create(StmtTask stmtTask, ResultSink sink) {
-        return new PgResultSetReader(stmtTask, sink);
+    static PgResultSetReader create(StmtTask task) {
+        return new PgResultSetReader(task);
     }
 
     private static final Logger LOG = LoggerFactory.getLogger(PgResultSetReader.class);
@@ -43,20 +41,17 @@ final class PgResultSetReader implements ResultSetReader {
     private static final long DATE_NEGATIVE_SMALLER_INFINITY = -185543533774800000L;
 
 
-    private final StmtTask stmtTask;
+    private final StmtTask task;
 
     private final TaskAdjutant adjutant;
-
-    private final ResultSink sink;
 
     private PgRowMeta rowMeta;
 
     private Phase phase = Phase.READ_ROW_META;
 
-    private PgResultSetReader(StmtTask stmtTask, ResultSink sink) {
-        this.stmtTask = stmtTask;
-        this.adjutant = stmtTask.adjutant();
-        this.sink = sink;
+    private PgResultSetReader(StmtTask task) {
+        this.task = task;
+        this.adjutant = task.adjutant();
     }
 
     @Override
@@ -67,7 +62,7 @@ final class PgResultSetReader implements ResultSetReader {
             switch (this.phase) {
                 case READ_ROW_META: {
                     final PgRowMeta rowMeta;
-                    rowMeta = PgRowMeta.read(cumulateBuffer, this.stmtTask);
+                    rowMeta = PgRowMeta.read(cumulateBuffer, this.task);
                     this.rowMeta = rowMeta;
                     LOG.trace("Read ResultSet row meta data : {}", rowMeta);
                     this.phase = Phase.READ_ROWS;
@@ -85,7 +80,7 @@ final class PgResultSetReader implements ResultSetReader {
                 break;
                 case READ_RESULT_TERMINATOR: {
                     final PgRowMeta rowMeta = Objects.requireNonNull(this.rowMeta, "this.rowMeta");
-                    resultSetEnd = this.stmtTask.readResultStateWithReturning(cumulateBuffer, rowMeta::getResultIndex);
+                    resultSetEnd = this.task.readResultStateWithReturning(cumulateBuffer, rowMeta::getResultIndex);
                     continueRead = false;
                 }
                 break;
@@ -96,7 +91,7 @@ final class PgResultSetReader implements ResultSetReader {
             }
         }
         if (resultSetEnd) {
-            if (this.stmtTask.hasError()) {
+            if (this.task.hasError()) {
                 this.phase = Phase.END;
             } else {
                 reset(); // for next result set
@@ -130,10 +125,9 @@ final class PgResultSetReader implements ResultSetReader {
         }
 
         final PgColumnMeta[] columnMetaArray = rowMeta.columnMetaArray;
-        final ResultSink sink = this.sink;
+        final StmtTask sink = this.task;
         // if 'true' maybe user cancel or occur error
-        final boolean isCanceled = this.stmtTask.hasError() || sink.isCancelled();
-        final Charset clientCharset = this.adjutant.clientCharset();
+        final boolean isCanceled = sink.isCancelled();
         Object[] columnValueArray;
         PgColumnMeta meta;
         while (Messages.hasOneMessage(cumulateBuffer)) {
@@ -316,9 +310,6 @@ final class PgResultSetReader implements ResultSetReader {
         }
         return OffsetDateTime.of(LocalDateTime.ofEpochSecond(seconds, nanos, ZoneOffset.UTC), ZoneOffset.UTC);
     }
-
-
-
 
 
     static JdbdSQLException createResponseBinaryColumnValueError(final ByteBuf cumulateBuffer
