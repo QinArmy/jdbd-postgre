@@ -1,4 +1,4 @@
-package io.jdbd;
+package io.jdbd.result;
 
 import java.io.IOException;
 import java.nio.file.Path;

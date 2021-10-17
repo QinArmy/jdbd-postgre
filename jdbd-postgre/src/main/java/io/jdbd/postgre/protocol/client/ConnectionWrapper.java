@@ -4,12 +4,12 @@ import java.util.Map;
 
 class ConnectionWrapper {
 
-    final ConnectionManager connectionManager;
+    final SessionManager sessionManager;
 
     final Map<String, String> initializedParamMap;
 
-    ConnectionWrapper(ConnectionManager connectionManager, Map<String, String> initializedParamMap) {
-        this.connectionManager = connectionManager;
+    ConnectionWrapper(SessionManager sessionManager, Map<String, String> initializedParamMap) {
+        this.sessionManager = sessionManager;
         this.initializedParamMap = initializedParamMap;
     }
 

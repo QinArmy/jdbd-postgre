@@ -1,8 +1,6 @@
 package io.jdbd.mysql.protocol.client;
 
 
-import io.jdbd.DatabaseSession;
-import io.jdbd.ServerVersion;
 import io.jdbd.mysql.MySQLType;
 import io.jdbd.mysql.stmt.BindBatchStmt;
 import io.jdbd.mysql.stmt.BindMultiStmt;
@@ -11,6 +9,10 @@ import io.jdbd.result.MultiResult;
 import io.jdbd.result.OrderedFlux;
 import io.jdbd.result.ResultRow;
 import io.jdbd.result.ResultStates;
+import io.jdbd.session.DatabaseSession;
+import io.jdbd.session.ServerVersion;
+import io.jdbd.session.TxDatabaseSession;
+import io.jdbd.session.XaDatabaseSession;
 import io.jdbd.stmt.BindStatement;
 import io.jdbd.stmt.MultiStatement;
 import io.jdbd.stmt.PreparedStatement;
@@ -31,8 +33,8 @@ import java.util.function.Function;
  * <p>
  * This interface is underlying api of below interfaces:
  *     <ul>
- *         <li>{@link io.jdbd.TxDatabaseSession}</li>
- *         <li>{@link io.jdbd.xa.XaDatabaseSession}</li>
+ *         <li>{@link TxDatabaseSession}</li>
+ *         <li>{@link XaDatabaseSession}</li>
  *         <li>{@link StaticStatement}</li>
  *         <li>{@link BindStatement}</li>
  *         <li>{@link PreparedStatement}</li>
@@ -179,6 +181,9 @@ public interface ClientProtocol {
     Mono<PreparedStatement> prepare(String sql, Function<PrepareTask<MySQLType>, PreparedStatement> function);
 
     Mono<Void> reset();
+
+    Mono<Void> ping(int timeSeconds);
+
 
     boolean supportMultiStmt();
 

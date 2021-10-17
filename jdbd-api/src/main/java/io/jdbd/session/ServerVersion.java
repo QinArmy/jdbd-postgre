@@ -1,4 +1,4 @@
-package io.jdbd;
+package io.jdbd.session;
 
 public interface ServerVersion {
 

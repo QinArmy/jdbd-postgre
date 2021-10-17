@@ -2,7 +2,6 @@ package io.jdbd.mysql.protocol.authentication;
 
 import io.jdbd.mysql.protocol.AuthenticateAssistant;
 import io.jdbd.mysql.protocol.client.Packets;
-import io.jdbd.mysql.protocol.conf.MyKey;
 import io.jdbd.mysql.util.MySQLStrings;
 import io.jdbd.vendor.conf.HostInfo;
 import io.netty.buffer.ByteBuf;
@@ -23,7 +22,7 @@ public class MySQLNativePasswordPlugin implements AuthenticationPlugin {
 
     private final AuthenticateAssistant protocolAssistant;
 
-    private final HostInfo<MyKey> hostInfo;
+    private final HostInfo hostInfo;
 
     private MySQLNativePasswordPlugin(AuthenticateAssistant protocolAssistant) {
         this.protocolAssistant = protocolAssistant;

@@ -1,11 +1,11 @@
 package io.jdbd.mysql.session;
 
-import io.jdbd.DatabaseSession;
 import io.jdbd.JdbdSQLException;
 import io.jdbd.mysql.MySQLType;
 import io.jdbd.mysql.stmt.AttrStatement;
 import io.jdbd.mysql.stmt.QueryAttr;
 import io.jdbd.mysql.stmt.StatementOption;
+import io.jdbd.session.DatabaseSession;
 import io.jdbd.stmt.Statement;
 import org.reactivestreams.Publisher;
 import org.reactivestreams.Subscriber;

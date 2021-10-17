@@ -5,6 +5,7 @@ import io.jdbd.mysql.protocol.authentication.PluginUtils;
 import io.jdbd.mysql.protocol.conf.MyKey;
 import io.jdbd.mysql.protocol.conf.MySQLUrl;
 import io.jdbd.mysql.session.SessionAdjutant;
+import io.jdbd.session.DatabaseSessionFactory;
 import io.netty.channel.EventLoopGroup;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -89,7 +90,7 @@ public abstract class AbstractConnectionBasedSuiteTests {
         }
 
         @Override
-        public MySQLUrl obtainUrl() {
+        public MySQLUrl getJdbcUrl() {
             return this.mySQLUrl;
         }
 
@@ -108,6 +109,10 @@ public abstract class AbstractConnectionBasedSuiteTests {
             return 0;
         }
 
+        @Override
+        public boolean isSameFactory(DatabaseSessionFactory factory) {
+            return false;
+        }
     }
 
 

@@ -33,13 +33,13 @@ public class PostgreUrlSuiteTests {
         assertNull(postgreUrl.getSubProtocol(), "sub protocol");
         assertEquals(postgreUrl.getDbName(), "army_test", "database");
 
-        final List<PostgreHost> hostList = postgreUrl.getHostList();
+        final List<PgHost> hostList = postgreUrl.getHostList();
         assertNotNull(hostList, "hostList");
         assertEquals(hostList.size(), 1, "hostList size");
 
-        final PostgreHost host = hostList.get(0);
-        assertEquals(host.getHost(), PostgreHost.DEFAULT_HOST, "host");
-        assertEquals(host.getPort(), PostgreHost.DEFAULT_PORT, "port");
+        final PgHost host = hostList.get(0);
+        assertEquals(host.getHost(), PgHost.DEFAULT_HOST, "host");
+        assertEquals(host.getPort(), PgHost.DEFAULT_PORT, "port");
         assertEquals(host.getDbName(), "army_test");
         assertEquals(host.getUser(), "army", "user");
 
@@ -47,7 +47,7 @@ public class PostgreUrlSuiteTests {
         assertEquals(host.getPassword(), "qinarmy123", "password");
         assertFalse(host.isPasswordLess(), "isPasswordLess");
 
-        final Properties<PgKey> properties = host.getProperties();
+        final Properties properties = host.getProperties();
         assertNotNull(properties, "properties");
 
         assertNull(properties.get(PgKey.user), "user");
@@ -72,11 +72,11 @@ public class PostgreUrlSuiteTests {
         assertNull(postgreUrl.getSubProtocol(), "sub protocol");
         assertEquals(postgreUrl.getDbName(), database, "database");
 
-        final List<PostgreHost> hostList = postgreUrl.getHostList();
+        final List<PgHost> hostList = postgreUrl.getHostList();
         assertNotNull(hostList, "hostList");
         assertEquals(hostList.size(), 1, "hostList size");
 
-        final PostgreHost host = hostList.get(0);
+        final PgHost host = hostList.get(0);
         assertEquals(host.getHost(), "2001:DB8:0:23:8:800:200C:417A", "host");
         assertEquals(host.getPort(), 5432, "port");
         assertEquals(host.getDbName(), database);
@@ -85,7 +85,7 @@ public class PostgreUrlSuiteTests {
         assertEquals(host.getPassword(), "qinarmy123", "password");
         assertFalse(host.isPasswordLess(), "isPasswordLess");
 
-        final Properties<PgKey> properties = host.getProperties();
+        final Properties properties = host.getProperties();
         assertNotNull(properties, "properties");
 
         assertNull(properties.get(PgKey.user), "user");
@@ -109,11 +109,11 @@ public class PostgreUrlSuiteTests {
         assertNull(postgreUrl.getSubProtocol(), "sub protocol");
         assertEquals(postgreUrl.getDbName(), "army_test", "database");
 
-        final List<PostgreHost> hostList = postgreUrl.getHostList();
+        final List<PgHost> hostList = postgreUrl.getHostList();
         assertNotNull(hostList, "hostList");
         assertEquals(hostList.size(), 1, "hostList size");
 
-        final PostgreHost host = hostList.get(0);
+        final PgHost host = hostList.get(0);
         assertEquals(host.getHost(), "192.168.0.102", "host");
         assertEquals(host.getPort(), 5432, "port");
         assertEquals(host.getDbName(), "army_test");
@@ -122,7 +122,7 @@ public class PostgreUrlSuiteTests {
         assertEquals(host.getPassword(), "qinarmy123", "password");
         assertFalse(host.isPasswordLess(), "isPasswordLess");
 
-        final Properties<PgKey> properties = host.getProperties();
+        final Properties properties = host.getProperties();
         assertNotNull(properties, "properties");
 
         assertNull(properties.get(PgKey.user), "user");
@@ -145,21 +145,21 @@ public class PostgreUrlSuiteTests {
         assertNull(postgreUrl.getSubProtocol(), "sub protocol");
         assertEquals(postgreUrl.getDbName(), "army_test", "database");
 
-        final List<PostgreHost> hostList = postgreUrl.getHostList();
+        final List<PgHost> hostList = postgreUrl.getHostList();
         assertNotNull(hostList, "hostList");
         assertEquals(hostList.size(), 4, "hostList size");
 
         // host 0
-        final PostgreHost host0 = hostList.get(0);
+        final PgHost host0 = hostList.get(0);
         assertEquals(host0.getHost(), "192.168.0.102", "host");
-        assertEquals(host0.getPort(), PostgreHost.DEFAULT_PORT, "port");
+        assertEquals(host0.getPort(), PgHost.DEFAULT_PORT, "port");
         assertEquals(host0.getDbName(), "army_test");
         assertEquals(host0.getUser(), "army", "user");
 
         assertEquals(host0.getPassword(), "qinarmy123", "password");
         assertFalse(host0.isPasswordLess(), "isPasswordLess");
 
-        final Properties<PgKey> properties0 = host0.getProperties();
+        final Properties properties0 = host0.getProperties();
         assertNotNull(properties0, "properties");
 
         assertNull(properties0.get(PgKey.user), "user");
@@ -168,16 +168,16 @@ public class PostgreUrlSuiteTests {
         assertEquals(properties0.getOrDefault(PgKey.ssl, Boolean.class), Boolean.TRUE, "ssl");
 
         // host 1
-        final PostgreHost host1 = hostList.get(1);
+        final PgHost host1 = hostList.get(1);
         assertEquals(host1.getHost(), "2001:DB8:0:23:8:800:200C:417A", "host");
-        assertEquals(host1.getPort(), PostgreHost.DEFAULT_PORT, "port");
+        assertEquals(host1.getPort(), PgHost.DEFAULT_PORT, "port");
         assertEquals(host1.getDbName(), "army_test");
         assertEquals(host1.getUser(), "army", "user");
 
         assertEquals(host1.getPassword(), "qinarmy123", "password");
         assertFalse(host1.isPasswordLess(), "isPasswordLess");
 
-        final Properties<PgKey> properties1 = host1.getProperties();
+        final Properties properties1 = host1.getProperties();
         assertNotNull(properties1, "properties");
 
         assertNull(properties1.get(PgKey.user), "user");
@@ -186,7 +186,7 @@ public class PostgreUrlSuiteTests {
         assertEquals(properties1.getOrDefault(PgKey.ssl, Boolean.class), Boolean.TRUE, "ssl");
 
         // host 2
-        final PostgreHost host2 = hostList.get(2);
+        final PgHost host2 = hostList.get(2);
         assertEquals(host2.getHost(), "localhost", "host");
         assertEquals(host2.getPort(), 7878, "port");
         assertEquals(host2.getDbName(), "army_test");
@@ -195,7 +195,7 @@ public class PostgreUrlSuiteTests {
         assertEquals(host2.getPassword(), "qinarmy123", "password");
         assertFalse(host2.isPasswordLess(), "isPasswordLess");
 
-        final Properties<PgKey> properties2 = host2.getProperties();
+        final Properties properties2 = host2.getProperties();
         assertNotNull(properties2, "properties");
 
         assertNull(properties2.get(PgKey.user), "user");
@@ -204,7 +204,7 @@ public class PostgreUrlSuiteTests {
         assertEquals(properties2.getOrDefault(PgKey.ssl, Boolean.class), Boolean.TRUE, "ssl");
 
         // host 3
-        final PostgreHost host3 = hostList.get(3);
+        final PgHost host3 = hostList.get(3);
         assertEquals(host3.getHost(), "2002:DB8:0:23:8:233:200C:417A", "host");
         assertEquals(host3.getPort(), 5656, "port");
         assertEquals(host3.getDbName(), "army_test");
@@ -213,7 +213,7 @@ public class PostgreUrlSuiteTests {
         assertEquals(host3.getPassword(), "qinarmy123", "password");
         assertFalse(host3.isPasswordLess(), "isPasswordLess");
 
-        final Properties<PgKey> properties3 = host3.getProperties();
+        final Properties properties3 = host3.getProperties();
         assertNotNull(properties3, "properties");
 
         assertNull(properties3.get(PgKey.user), "user");

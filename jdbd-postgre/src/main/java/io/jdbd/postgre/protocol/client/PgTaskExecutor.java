@@ -1,7 +1,7 @@
 package io.jdbd.postgre.protocol.client;
 
 import io.jdbd.postgre.*;
-import io.jdbd.postgre.config.PostgreHost;
+import io.jdbd.postgre.config.PgHost;
 import io.jdbd.postgre.session.SessionAdjutant;
 import io.jdbd.postgre.stmt.PgStmts;
 import io.jdbd.postgre.syntax.PgParser;
@@ -30,11 +30,11 @@ import java.util.*;
 final class PgTaskExecutor extends CommunicationTaskExecutor<TaskAdjutant> {
 
     static Mono<PgTaskExecutor> create(final SessionAdjutant sessionAdjutant, final int hostIndex) {
-        final List<PostgreHost> hostList = sessionAdjutant.obtainUrl().getHostList();
+        final List<PgHost> hostList = sessionAdjutant.getJdbcUrl().getHostList();
 
         final Mono<PgTaskExecutor> mono;
         if (hostIndex > -1 && hostIndex < hostList.size()) {
-            final PostgreHost host = hostList.get(hostIndex);
+            final PgHost host = hostList.get(hostIndex);
             mono = TcpClient.create()
                     .runOn(sessionAdjutant.getEventLoopGroup())
                     .host(host.getHost())
@@ -53,11 +53,11 @@ final class PgTaskExecutor extends CommunicationTaskExecutor<TaskAdjutant> {
     private static final Logger LOG = LoggerFactory.getLogger(PgTaskExecutor.class);
 
 
-    private final PostgreHost host;
+    private final PgHost host;
 
     private final SessionAdjutant sessionAdjutant;
 
-    private PgTaskExecutor(Connection connection, PostgreHost host, SessionAdjutant sessionAdjutant) {
+    private PgTaskExecutor(Connection connection, PgHost host, SessionAdjutant sessionAdjutant) {
         super(connection);
         this.host = host;
         this.sessionAdjutant = sessionAdjutant;
@@ -90,7 +90,7 @@ final class PgTaskExecutor extends CommunicationTaskExecutor<TaskAdjutant> {
     }
 
     @Override
-    protected final HostInfo<?> obtainHostInfo() {
+    protected final HostInfo obtainHostInfo() {
         return this.host;
     }
 
@@ -163,7 +163,7 @@ final class PgTaskExecutor extends CommunicationTaskExecutor<TaskAdjutant> {
         }
 
         @Override
-        public final PostgreHost obtainHost() {
+        public final PgHost obtainHost() {
             return this.taskExecutor.host;
         }
 

@@ -1,14 +1,11 @@
 package io.jdbd.vendor.conf;
 
-import io.jdbd.vendor.util.JdbdCollections;
 import io.jdbd.vendor.util.JdbdStrings;
 import reactor.util.annotation.Nullable;
 
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Map;
 
-public abstract class AbstractJdbcUrl<K extends IPropertyKey, H extends HostInfo<K>> implements JdbcUrl<K, H> {
+public abstract class AbstractJdbcUrl implements JdbcUrl {
 
     private final String originalUrl;
 
@@ -18,7 +15,6 @@ public abstract class AbstractJdbcUrl<K extends IPropertyKey, H extends HostInfo
 
     private final String dbName;
 
-    private final List<H> hostInfoList;
 
     protected AbstractJdbcUrl(final JdbcUrlParser parser) {
 
@@ -29,10 +25,6 @@ public abstract class AbstractJdbcUrl<K extends IPropertyKey, H extends HostInfo
             throw new IllegalArgumentException("originalUrl or protocol  is empty.");
         }
         this.dbName = getValue(parser.getGlobalProperties(), getDbNameKey());
-        this.hostInfoList = JdbdCollections.unmodifiableList(createHostInfoList(parser));
-        if (this.hostInfoList.isEmpty()) {
-            throw new IllegalArgumentException("hostInfoList can't is empty.");
-        }
     }
 
     @Override
@@ -49,7 +41,7 @@ public abstract class AbstractJdbcUrl<K extends IPropertyKey, H extends HostInfo
                 .append(this.dbName)
                 .append("\nhostInfoList:[");
         int count = 0;
-        for (HostInfo<K> hostInfo : this.hostInfoList) {
+        for (HostInfo hostInfo : getHostList()) {
             if (count > 0) {
                 builder.append(",\n");
             }
@@ -86,37 +78,11 @@ public abstract class AbstractJdbcUrl<K extends IPropertyKey, H extends HostInfo
         return this.subProtocol;
     }
 
-    @Override
-    public final H getPrimaryHost() {
-        return this.hostInfoList.get(0);
-    }
 
-    @Override
-    public final List<H> getHostList() {
-        return this.hostInfoList;
-    }
-
-
-    protected abstract H createHostInfo(JdbcUrlParser parser, int index);
-
-    protected abstract IPropertyKey getDbNameKey();
-
-
-    private List<H> createHostInfoList(final JdbcUrlParser parser) {
-
-        List<Map<String, String>> hostMapList = parser.getHostInfo();
-
-        final int hostSize = hostMapList.size();
-        List<H> hostInfoList = new ArrayList<>(hostSize);
-        for (int i = 0; i < hostSize; i++) {
-            hostInfoList.add(createHostInfo(parser, i));
-        }
-        return hostInfoList;
-    }
-
+    protected abstract PropertyKey getDbNameKey();
 
     @Nullable
-    protected static String getValue(Map<String, String> map, IPropertyKey propertyKey) {
+    protected static String getValue(Map<String, String> map, PropertyKey propertyKey) {
         String keyName = propertyKey.getKey();
         String value = map.get(keyName);
         if (value == null && !propertyKey.isCaseSensitive()) {

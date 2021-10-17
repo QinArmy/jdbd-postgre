@@ -6,7 +6,7 @@ import reactor.util.annotation.Nullable;
  * @param <K> database vendor property key type.
  * @see JdbcUrl
  */
-public interface HostInfo<K extends IPropertyKey> {
+public interface HostInfo {
 
     String HOST_PORT_SEPARATOR = ":";
 
@@ -28,7 +28,7 @@ public interface HostInfo<K extends IPropertyKey> {
 
     boolean isPasswordLess();
 
-    Properties<K> getProperties();
+    Properties getProperties();
 
     @Nullable
     String getDbName();

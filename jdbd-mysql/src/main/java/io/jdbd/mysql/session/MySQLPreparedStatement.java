@@ -1,6 +1,5 @@
 package io.jdbd.mysql.session;
 
-import io.jdbd.DatabaseSession;
 import io.jdbd.JdbdException;
 import io.jdbd.JdbdSQLException;
 import io.jdbd.meta.SQLType;
@@ -11,6 +10,7 @@ import io.jdbd.mysql.stmt.Stmts;
 import io.jdbd.mysql.util.MySQLCollections;
 import io.jdbd.mysql.util.MySQLExceptions;
 import io.jdbd.result.*;
+import io.jdbd.session.DatabaseSession;
 import io.jdbd.stmt.PreparedStatement;
 import io.jdbd.stmt.ResultType;
 import io.jdbd.stmt.SubscribeException;

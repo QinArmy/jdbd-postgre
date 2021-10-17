@@ -1,6 +1,6 @@
 package io.jdbd.postgre;
 
-import io.jdbd.ServerVersion;
+import io.jdbd.session.ServerVersion;
 import reactor.util.annotation.Nullable;
 
 import java.lang.reflect.Field;

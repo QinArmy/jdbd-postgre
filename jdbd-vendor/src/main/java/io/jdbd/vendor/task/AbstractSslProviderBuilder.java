@@ -1,7 +1,6 @@
 package io.jdbd.vendor.task;
 
 import io.jdbd.vendor.conf.HostInfo;
-import io.jdbd.vendor.conf.IPropertyKey;
 import io.jdbd.vendor.conf.Properties;
 import io.jdbd.vendor.util.JdbdStrings;
 import io.netty.buffer.ByteBufAllocator;
@@ -21,21 +20,21 @@ import java.security.cert.X509Certificate;
 import java.util.Objects;
 import java.util.function.UnaryOperator;
 
-public abstract class AbstractSslProviderBuilder<K extends IPropertyKey> {
+public abstract class AbstractSslProviderBuilder {
 
 
-    protected final HostInfo<K> hostInfo;
+    protected final HostInfo hostInfo;
 
-    protected final Properties<K> properties;
+    protected final Properties properties;
 
     private ByteBufAllocator allocator;
 
-    protected AbstractSslProviderBuilder(HostInfo<K> hostInfo) {
+    protected AbstractSslProviderBuilder(HostInfo hostInfo) {
         this.hostInfo = hostInfo;
         this.properties = hostInfo.getProperties();
     }
 
-    public final AbstractSslProviderBuilder<K> allocator(ByteBufAllocator allocator) {
+    public final AbstractSslProviderBuilder allocator(ByteBufAllocator allocator) {
         this.allocator = allocator;
         return this;
     }

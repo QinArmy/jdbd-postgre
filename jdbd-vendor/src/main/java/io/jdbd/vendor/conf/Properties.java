@@ -8,7 +8,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-public interface Properties<K extends IPropertyKey> {
+public interface Properties {
 
     /**
      * @return actual property pair count( not contain {@link System#getProperties()} and {@link System#getenv()})
@@ -25,23 +25,17 @@ public interface Properties<K extends IPropertyKey> {
      * or {@code null} if the key cannot be resolved.
      *
      * @param key the property name to resolve
-     * @see #getProperty(String, String)
-     * @see #getProperty(String, Class)
-     * @see #getRequiredProperty(String)
      */
     @Nullable
-    String get(K key);
+    String get(PropertyKey key);
 
     /**
      * Return the property value associated with the given key,
      * or {@code null} if the key cannot be resolved.
      *
      * @param key the property name to resolve
-     * @see #getProperty(String, String)
-     * @see #getProperty(String, Class)
-     * @see #getRequiredProperty(String)
      */
-    String get(K key, String defaultValue);
+    String get(PropertyKey key, String defaultValue);
 
     /**
      * Return the property value associated with the given key,
@@ -49,10 +43,9 @@ public interface Properties<K extends IPropertyKey> {
      *
      * @param key        the property name to resolve
      * @param targetType the expected type of the property value
-     * @see #getRequiredProperty(String, Class)
      */
     @Nullable
-    <T> T get(K key, Class<T> targetType) throws PropertyException;
+    <T> T get(PropertyKey key, Class<T> targetType) throws PropertyException;
 
     /**
      * Return the property value associated with the given key,
@@ -61,9 +54,8 @@ public interface Properties<K extends IPropertyKey> {
      * @param key          the property name to resolve
      * @param targetType   the expected type of the property value
      * @param defaultValue the default value to return if no value is found
-     * @see #getRequiredProperty(String, Class)
      */
-    <T> T get(K key, Class<T> targetType, T defaultValue) throws PropertyException;
+    <T> T get(PropertyKey key, Class<T> targetType, T defaultValue) throws PropertyException;
 
     /**
      * Return the property value associated with the given key,but not {@link String} ,the the property value showSQL:
@@ -72,9 +64,8 @@ public interface Properties<K extends IPropertyKey> {
      *
      * @param key the property name to resolve
      * @return a  list
-     * @see #getRequiredProperty(String, Class)
      */
-    List<String> getList(K key);
+    List<String> getList(PropertyKey key);
 
     /**
      * Return the property value associated with the given key,but not {@link String} ,the the property value showSQL:
@@ -84,9 +75,8 @@ public interface Properties<K extends IPropertyKey> {
      * @param key             the property name to resolve
      * @param targetArrayType the expected type of the property value
      * @return a  list
-     * @see #getRequiredProperty(String, Class)
      */
-    <T> List<T> getList(K key, Class<T> targetArrayType) throws PropertyException;
+    <T> List<T> getList(PropertyKey key, Class<T> targetArrayType) throws PropertyException;
 
     /**
      * Return the property value associated with the given key,
@@ -95,10 +85,9 @@ public interface Properties<K extends IPropertyKey> {
      * @param key             the property name to resolve
      * @param targetArrayType the expected type of the property value
      * @param defaultList     the default list to return if no value is found
-     * @return a  list
-     * @see #getRequiredProperty(String, Class)
+     * @return a  li
      */
-    <T> List<T> getList(K key, Class<T> targetArrayType, List<T> defaultList) throws PropertyException;
+    <T> List<T> getList(PropertyKey key, Class<T> targetArrayType, List<T> defaultList) throws PropertyException;
 
     /**
      * Return the property value associated with the given key,but not {@link String} ,the the property value showSQL:
@@ -108,11 +97,10 @@ public interface Properties<K extends IPropertyKey> {
      * @param key             the property name to resolve
      * @param targetArrayType the expected type of the property value
      * @return a  list
-     * @see #getRequiredProperty(String, Class)
      */
-    <T> Set<T> getSet(K key, Class<T> targetArrayType) throws PropertyException;
+    <T> Set<T> getSet(PropertyKey key, Class<T> targetArrayType) throws PropertyException;
 
-    Set<String> getSet(K key);
+    Set<String> getSet(PropertyKey key);
 
     /**
      * Return the property value associated with the given key,but not {@link String} ,the the property value showSQL:
@@ -123,17 +111,15 @@ public interface Properties<K extends IPropertyKey> {
      * @param targetArrayType the expected type of the property value
      * @param defaultSet      the default set to return if no value is found
      * @return a  list
-     * @see #getRequiredProperty(String, Class)
      */
-    <T> Set<T> getSet(K key, Class<T> targetArrayType, Set<T> defaultSet) throws PropertyException;
+    <T> Set<T> getSet(PropertyKey key, Class<T> targetArrayType, Set<T> defaultSet) throws PropertyException;
 
     /**
      * Return the property value associated with the given key (never {@code null}).
      *
      * @throws IllegalStateException if the key cannot be resolved
-     * @see #getRequiredProperty(String, Class)
      */
-    String getNonNull(K key) throws PropertyException;
+    String getNonNull(PropertyKey key) throws PropertyException;
 
     /**
      * Return the property value associated with the given key, converted to the given
@@ -141,11 +127,11 @@ public interface Properties<K extends IPropertyKey> {
      *
      * @throws IllegalStateException if the given key cannot be resolved
      */
-    <T> T getNonNull(K key, Class<T> targetType) throws PropertyException;
+    <T> T getNonNull(PropertyKey key, Class<T> targetType) throws PropertyException;
 
-    String getOrDefault(K key) throws PropertyException;
+    String getOrDefault(PropertyKey key) throws PropertyException;
 
-    <T> T getOrDefault(K key, Class<T> targetType) throws PropertyException;
+    <T> T getOrDefault(PropertyKey key, Class<T> targetType) throws PropertyException;
 
 
 }

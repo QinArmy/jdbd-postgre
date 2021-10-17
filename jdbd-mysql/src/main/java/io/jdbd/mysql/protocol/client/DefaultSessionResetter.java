@@ -40,7 +40,7 @@ final class DefaultSessionResetter implements SessionResetter {
     }
 
 
-    private final Properties<MyKey> properties;
+    private final Properties properties;
 
     private final TaskAdjutant adjutant;
 
@@ -476,7 +476,7 @@ final class DefaultSessionResetter implements SessionResetter {
         private final ClientZoneMode clientZoneMode;
 
         @SuppressWarnings("unchecked")
-        private DefaultServer(final ConcurrentMap<Key, Object> map, final Properties<MyKey> properties) {
+        private DefaultServer(final ConcurrentMap<Key, Object> map, final Properties properties) {
             this.charsetClient = (Charset) Objects.requireNonNull(map.get(Key.CHARSET_CLIENT), Key.CHARSET_CLIENT.name());
             this.charsetResults = (Charset) map.get(Key.CHARSET_RESULTS);
             this.zoneOffsetDatabase = (ZoneOffset) Objects.requireNonNull(map.get(Key.ZONE_OFFSET_DATABASE), Key.ZONE_OFFSET_DATABASE.name());

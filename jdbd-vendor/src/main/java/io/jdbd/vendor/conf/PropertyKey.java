@@ -2,7 +2,7 @@ package io.jdbd.vendor.conf;
 
 import reactor.util.annotation.Nullable;
 
-public interface IPropertyKey {
+public interface PropertyKey {
 
     String name();
 

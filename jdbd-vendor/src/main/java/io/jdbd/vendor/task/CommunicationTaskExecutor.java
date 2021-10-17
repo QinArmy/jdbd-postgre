@@ -1,7 +1,7 @@
 package io.jdbd.vendor.task;
 
 import io.jdbd.JdbdException;
-import io.jdbd.SessionCloseException;
+import io.jdbd.session.SessionCloseException;
 import io.jdbd.stmt.TaskQueueOverflowException;
 import io.jdbd.vendor.conf.HostInfo;
 import io.jdbd.vendor.util.JdbdExceptions;
@@ -194,7 +194,7 @@ public abstract class CommunicationTaskExecutor<T extends ITaskAdjutant> impleme
 
     protected abstract T createTaskAdjutant();
 
-    protected abstract HostInfo<?> obtainHostInfo();
+    protected abstract HostInfo obtainHostInfo();
 
     /**
      * @return true : clear channel complement
@@ -460,7 +460,7 @@ public abstract class CommunicationTaskExecutor<T extends ITaskAdjutant> impleme
 
         if (sslObject instanceof SslProvider) {
             SslProvider sslProvider = (SslProvider) sslObject;
-            HostInfo<?> hostInfo = obtainHostInfo();
+            HostInfo hostInfo = obtainHostInfo();
             InetSocketAddress address = InetSocketAddress.createUnresolved(hostInfo.getHost(), hostInfo.getPort());
             sslProvider.addSslHandler(this.connection.channel(), address, traceEnabled);
         } else if (sslObject instanceof SslHandler) {

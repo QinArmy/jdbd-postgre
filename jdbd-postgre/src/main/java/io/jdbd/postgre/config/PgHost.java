@@ -9,17 +9,17 @@ import org.qinarmy.env.convert.ImmutableConverterManager;
 
 import java.util.Map;
 
-public final class PostgreHost extends AbstractHostInfo<PgKey> {
+public class PgHost extends AbstractHostInfo {
 
-    public static PostgreHost create(JdbcUrlParser parser, int index) {
-        return new PostgreHost(parser, index);
+    public static PgHost create(JdbcUrlParser parser, int index) {
+        return new PgHost(parser, index);
     }
 
 
     public static final int DEFAULT_PORT = 5432;
 
 
-    private PostgreHost(JdbcUrlParser parser, int index) {
+    private PgHost(JdbcUrlParser parser, int index) {
         super(parser, index);
     }
 
@@ -53,14 +53,14 @@ public final class PostgreHost extends AbstractHostInfo<PgKey> {
         return DEFAULT_PORT;
     }
 
-    public final String getNonNullDbName() {
+    public String getNonNullDbName() {
         String dbName = this.dbName;
         return dbName == null ? "" : dbName;
     }
 
 
     @Override
-    protected final Properties<PgKey> createProperties(Map<String, String> map) {
+    protected Properties createProperties(Map<String, String> map) {
         ConverterManager converterManager = ImmutableConverterManager.create(Converters::registerConverter);
         return ImmutableMapProperties.getInstance(map, converterManager);
     }

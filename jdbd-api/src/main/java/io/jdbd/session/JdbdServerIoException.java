@@ -1,4 +1,6 @@
-package io.jdbd;
+package io.jdbd.session;
+
+import io.jdbd.result.JdbdIoException;
 
 public class JdbdServerIoException extends JdbdIoException {
 

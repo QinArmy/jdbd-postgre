@@ -7,7 +7,7 @@ import java.util.List;
 /**
  * @see <a href="https://docs.oracle.com/javase/tutorial/jdbc/basics/connecting.html">Specifying Database Connection URLs</a>
  */
-public interface JdbcUrl<K extends IPropertyKey, H extends HostInfo<K>> {
+public interface JdbcUrl {
 
     String getOriginalUrl();
 
@@ -19,11 +19,11 @@ public interface JdbcUrl<K extends IPropertyKey, H extends HostInfo<K>> {
     @Nullable
     String getSubProtocol();
 
-    H getPrimaryHost();
+    HostInfo getPrimaryHost();
 
     /**
      * @return a unmodifiable list
      */
-    List<H> getHostList();
+    List<? extends HostInfo> getHostList();
 
 }

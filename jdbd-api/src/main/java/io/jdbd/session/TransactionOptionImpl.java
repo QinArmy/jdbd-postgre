@@ -1,4 +1,4 @@
-package io.jdbd;
+package io.jdbd.session;
 
 final class TransactionOptionImpl  implements TransactionOption{
 

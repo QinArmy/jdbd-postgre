@@ -5,8 +5,8 @@ import io.jdbd.postgre.PgJdbdException;
 import io.jdbd.postgre.PgReConnectableException;
 import io.jdbd.postgre.PgServerVersion;
 import io.jdbd.postgre.config.Enums;
+import io.jdbd.postgre.config.PgHost;
 import io.jdbd.postgre.config.PgKey;
-import io.jdbd.postgre.config.PostgreHost;
 import io.jdbd.postgre.util.PgExceptions;
 import io.jdbd.postgre.util.PgStrings;
 import io.jdbd.postgre.util.PgTimes;
@@ -314,7 +314,7 @@ final class PgConnectionTask extends PgTask implements ConnectionTask {
             throw new IllegalArgumentException("Non AuthenticationMD5Password message.");
         }
         boolean taskEnd = false;
-        PostgreHost host = this.adjutant.obtainHost();
+        PgHost host = this.adjutant.obtainHost();
         final String password = host.getPassword();
         if (PgStrings.hasText(password)) {
             final byte[] salt = new byte[4];
@@ -534,7 +534,7 @@ final class PgConnectionTask extends PgTask implements ConnectionTask {
      * @see #startStartupMessage()
      */
     private List<Pair<String, String>> obtainStartUpParamList() {
-        final PostgreHost host = this.adjutant.obtainHost();
+        final PgHost host = this.adjutant.obtainHost();
         final PgServerVersion minVersion;
         minVersion = this.properties.get(PgKey.assumeMinServerVersion, PgServerVersion.class
                 , PgServerVersion.INVALID);

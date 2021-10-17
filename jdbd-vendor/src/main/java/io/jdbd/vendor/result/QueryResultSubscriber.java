@@ -1,6 +1,5 @@
 package io.jdbd.vendor.result;
 
-import io.jdbd.ResultStatusConsumerException;
 import io.jdbd.result.*;
 import io.jdbd.stmt.ResultType;
 import io.jdbd.vendor.util.JdbdExceptions;

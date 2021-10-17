@@ -2,16 +2,15 @@ package io.jdbd.mysql.session;
 
 import io.jdbd.mysql.protocol.authentication.AuthenticationPlugin;
 import io.jdbd.mysql.protocol.conf.MyKey;
-import io.jdbd.mysql.protocol.conf.MySQLHost;
 import io.jdbd.mysql.protocol.conf.MySQLUrl;
 import io.jdbd.vendor.session.ISessionAdjutant;
 
 import java.util.Map;
 
-public interface SessionAdjutant extends ISessionAdjutant<MyKey, MySQLHost> {
+public interface SessionAdjutant extends ISessionAdjutant {
 
     @Override
-    MySQLUrl obtainUrl();
+    MySQLUrl getJdbcUrl();
 
     /**
      * <p>

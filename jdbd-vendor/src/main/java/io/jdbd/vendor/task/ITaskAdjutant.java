@@ -1,6 +1,6 @@
 package io.jdbd.vendor.task;
 
-import io.jdbd.SessionCloseException;
+import io.jdbd.session.SessionCloseException;
 import io.netty.buffer.ByteBufAllocator;
 
 import java.util.Set;

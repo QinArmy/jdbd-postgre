@@ -1,7 +1,7 @@
 package io.jdbd.postgre.protocol.client;
 
 import io.jdbd.postgre.Server;
-import io.jdbd.postgre.config.PostgreHost;
+import io.jdbd.postgre.config.PgHost;
 import io.jdbd.postgre.syntax.PgParser;
 import io.jdbd.vendor.task.ITaskAdjutant;
 
@@ -13,7 +13,7 @@ interface TaskAdjutant extends ITaskAdjutant {
     /**
      * @return always same instance
      */
-    PostgreHost obtainHost();
+    PgHost obtainHost();
 
     /**
      * @return maybe different instance

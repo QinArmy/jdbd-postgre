@@ -1,9 +1,9 @@
 package io.jdbd.postgre;
 
-import io.jdbd.DatabaseSessionFactory;
 import io.jdbd.Driver;
 import io.jdbd.JdbdNonSQLException;
 import io.jdbd.postgre.session.PgDatabaseSessionFactory;
+import io.jdbd.session.DatabaseSessionFactory;
 import reactor.util.annotation.Nullable;
 
 import java.util.Map;
@@ -23,12 +23,13 @@ public final class PgDriver implements Driver {
 
 
     @Override
-    public final boolean acceptsUrl(String url) {
+    public boolean acceptsUrl(String url) {
+        Objects.requireNonNull(url, "url");
         return PgDatabaseSessionFactory.acceptsUrl(url);
     }
 
     @Override
-    public final DatabaseSessionFactory createSessionFactory(final String url, final Map<String, String> properties)
+    public DatabaseSessionFactory createSessionFactory(final String url, final Map<String, String> properties)
             throws JdbdNonSQLException {
         Objects.requireNonNull(url, "url");
         Objects.requireNonNull(properties, "properties");
@@ -36,7 +37,7 @@ public final class PgDriver implements Driver {
     }
 
     @Override
-    public final DatabaseSessionFactory forPoolVendor(final String url, final Map<String, String> properties)
+    public DatabaseSessionFactory forPoolVendor(final String url, final Map<String, String> properties)
             throws JdbdNonSQLException {
         Objects.requireNonNull(url, "url");
         Objects.requireNonNull(properties, "properties");

@@ -5,6 +5,7 @@ import io.jdbd.postgre.config.PgKey;
 import io.jdbd.postgre.config.PostgreUrl;
 import io.jdbd.postgre.session.SessionAdjutant;
 import io.jdbd.result.ResultStates;
+import io.jdbd.session.DatabaseSessionFactory;
 import io.jdbd.vendor.JdbdCompositeException;
 import io.netty.channel.EventLoopGroup;
 import reactor.core.publisher.Mono;
@@ -98,7 +99,7 @@ abstract class AbstractTaskTests {
         }
 
         @Override
-        public PostgreUrl obtainUrl() {
+        public PostgreUrl getJdbcUrl() {
             return this.postgreUrl;
         }
 
@@ -107,6 +108,10 @@ abstract class AbstractTaskTests {
             return EVENT_LOOP_GROUP;
         }
 
+        @Override
+        public boolean isSameFactory(DatabaseSessionFactory factory) {
+            return false;
+        }
     }
 
 

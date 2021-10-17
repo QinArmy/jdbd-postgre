@@ -1,7 +1,6 @@
-package io.jdbd;
+package io.jdbd.session;
 
 import io.jdbd.meta.DatabaseMetaData;
-import io.jdbd.session.SavePoint;
 import io.jdbd.stmt.BindStatement;
 import io.jdbd.stmt.MultiStatement;
 import io.jdbd.stmt.PreparedStatement;

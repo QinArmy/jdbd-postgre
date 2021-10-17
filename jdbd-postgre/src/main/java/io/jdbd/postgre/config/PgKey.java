@@ -1,6 +1,6 @@
 package io.jdbd.postgre.config;
 
-import io.jdbd.vendor.conf.IPropertyKey;
+import io.jdbd.vendor.conf.PropertyKey;
 import io.jdbd.vendor.conf.Redefine;
 import io.jdbd.vendor.task.SslMode;
 import reactor.util.annotation.Nullable;
@@ -10,7 +10,7 @@ import java.nio.file.Path;
 /**
  * @see <a href="https://jdbc.postgresql.org/documentation/head/connect.html">properties</a>
  */
-public enum PgKey implements IPropertyKey {
+public enum PgKey implements PropertyKey {
 
     user(String.class),
     password(String.class),

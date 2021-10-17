@@ -50,9 +50,9 @@ public class Sha256PasswordPlugin implements AuthenticationPlugin {
 
     protected final AuthenticateAssistant protocolAssistant;
 
-    protected final HostInfo<MyKey> hostInfo;
+    protected final HostInfo hostInfo;
 
-    protected final Properties<MyKey> env;
+    protected final Properties env;
 
     private final String originalPublicKeyString;
 
@@ -215,7 +215,7 @@ public class Sha256PasswordPlugin implements AuthenticationPlugin {
     /*################################## blow static method ##################################*/
 
     @Nullable
-    protected static String tryLoadPublicKeyString(HostInfo<MyKey> hostInfo) {
+    protected static String tryLoadPublicKeyString(HostInfo hostInfo) {
 
         try {
             String serverRSAPublicKeyPath = hostInfo.getProperties().get(MyKey.serverRSAPublicKeyFile);

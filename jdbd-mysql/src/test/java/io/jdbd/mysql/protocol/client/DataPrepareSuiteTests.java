@@ -105,7 +105,7 @@ public class DataPrepareSuiteTests extends AbstractConnectionBasedSuiteTests {
         assertNotNull(resultRowList, "resultRowList");
         assertFalse(resultRowList.isEmpty(), "resultRowList is empty");
 
-        final Properties<MyKey> properties = adjutant.obtainHostInfo().getProperties();
+        final Properties properties = adjutant.obtainHostInfo().getProperties();
         for (ResultRow resultRow : resultRowList) {
             assertQueryResultRowMySQLTypeMatch(resultRow, properties);
         }
@@ -234,7 +234,7 @@ public class DataPrepareSuiteTests extends AbstractConnectionBasedSuiteTests {
     }
 
 
-    private void assertQueryResultRowMySQLTypeMatch(final ResultRow row, final Properties<MyKey> properties) {
+    private void assertQueryResultRowMySQLTypeMatch(final ResultRow row, final Properties properties) {
         final ResultRowMeta rowMeta = row.getRowMeta();
 
         final Object id = row.get("id");
@@ -599,7 +599,7 @@ public class DataPrepareSuiteTests extends AbstractConnectionBasedSuiteTests {
     /**
      * @see #assertQueryResultRowMySQLTypeMatch(ResultRow, Properties)
      */
-    private void assertTinyInt1Type(ResultRow row, String columnAlias, Properties<MyKey> properties) {
+    private void assertTinyInt1Type(ResultRow row, String columnAlias, Properties properties) {
         final ResultRowMeta rowMeta = row.getRowMeta();
 
         assertFalse(rowMeta.isUnsigned(columnAlias), columnAlias + " isSigned");

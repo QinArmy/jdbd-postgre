@@ -1,20 +1,21 @@
 package io.jdbd.postgre.session;
 
-import io.jdbd.DatabaseSessionFactory;
-import io.jdbd.TxDatabaseSession;
+import io.jdbd.ProductFamily;
 import io.jdbd.postgre.PgDriver;
 import io.jdbd.postgre.config.PgKey;
 import io.jdbd.postgre.config.PostgreUrl;
 import io.jdbd.postgre.protocol.client.ClientProtocol;
 import io.jdbd.postgre.protocol.client.ClientProtocolFactory;
-import io.jdbd.xa.XaDatabaseSession;
+import io.jdbd.session.DatabaseSessionFactory;
+import io.jdbd.session.TxDatabaseSession;
+import io.jdbd.session.XaDatabaseSession;
 import io.netty.channel.EventLoopGroup;
 import reactor.core.publisher.Mono;
 import reactor.netty.resources.LoopResources;
 
 import java.util.Map;
 
-public final class PgDatabaseSessionFactory implements DatabaseSessionFactory {
+public class PgDatabaseSessionFactory implements DatabaseSessionFactory {
 
     /**
      * @throws io.jdbd.config.UrlException      when url error.
@@ -56,14 +57,14 @@ public final class PgDatabaseSessionFactory implements DatabaseSessionFactory {
 
 
     @Override
-    public final Mono<TxDatabaseSession> getTxSession() {
+    public Mono<TxDatabaseSession> getTxSession() {
         // TODO complete me
         return ClientProtocolFactory.single(this.sessionAdjutant, 0)
                 .map(this::createTxSession);
     }
 
     @Override
-    public final Mono<XaDatabaseSession> getXaSession() {
+    public Mono<XaDatabaseSession> getXaSession() {
         // TODO complete me
         return ClientProtocolFactory.single(this.sessionAdjutant, 0)
                 .map(this::createXaSession);
@@ -71,29 +72,33 @@ public final class PgDatabaseSessionFactory implements DatabaseSessionFactory {
 
 
     @Override
-    public final int getMajorVersion() {
+    public int getMajorVersion() {
         return PgDriver.getMajorVersion();
 
     }
 
     @Override
-    public final int getMinorVersion() {
+    public int getMinorVersion() {
         return PgDriver.getMinorVersion();
     }
 
     @Override
-    public final String getDriverName() {
+    public String getDriverName() {
         return PgDriver.getName();
     }
 
+    @Override
+    public ProductFamily getProductFamily() {
+        return ProductFamily.Postgre;
+    }
 
     /*################################## blow private method ##################################*/
 
     /**
      * @see #getTxSession()
      */
-    private PgTxDatabaseSession createTxSession(final ClientProtocol protocol) {
-        final PgTxDatabaseSession session;
+    private TxDatabaseSession createTxSession(final ClientProtocol protocol) {
+        final TxDatabaseSession session;
         if (this.forPoolVendor) {
             session = PgTxDatabaseSession.forPoolVendor(this.sessionAdjutant, protocol);
         } else {
@@ -105,8 +110,8 @@ public final class PgDatabaseSessionFactory implements DatabaseSessionFactory {
     /**
      * @see #getXaSession()
      */
-    private PgXaDatabaseSession createXaSession(ClientProtocol protocol) {
-        final PgXaDatabaseSession session;
+    private XaDatabaseSession createXaSession(ClientProtocol protocol) {
+        final XaDatabaseSession session;
         if (this.forPoolVendor) {
             session = PgXaDatabaseSession.forPoolVendor(this.sessionAdjutant, protocol);
         } else {
@@ -130,17 +135,17 @@ public final class PgDatabaseSessionFactory implements DatabaseSessionFactory {
         }
 
         @Override
-        public final PostgreUrl obtainUrl() {
+        public PostgreUrl getJdbcUrl() {
             return this.factory.postgreUrl;
         }
 
         @Override
-        public final EventLoopGroup getEventLoopGroup() {
+        public EventLoopGroup getEventLoopGroup() {
             return this.eventLoopGroup;
         }
 
         @Override
-        public final boolean isSameFactory(DatabaseSessionFactory factory) {
+        public boolean isSameFactory(DatabaseSessionFactory factory) {
             return factory == this.factory;
         }
     }

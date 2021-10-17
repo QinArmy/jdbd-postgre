@@ -111,7 +111,7 @@ public class AuthenticatePluginSuiteTests extends AbstractConnectionBasedSuiteTe
         Handshake10 packet = result.handshakeV10Packet();
         assertNotNull(packet, "HandshakeV10Packet");
 
-        assertTrue(result.negotiatedCapability() != 0, "negotiatedCapability");
+        assertTrue(result.capability() != 0, "negotiatedCapability");
 
         LOG.info("defaultPlugin test success. {}", packet);
     }

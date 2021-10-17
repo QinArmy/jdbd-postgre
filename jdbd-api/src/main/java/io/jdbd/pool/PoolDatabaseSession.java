@@ -1,6 +1,6 @@
 package io.jdbd.pool;
 
-import io.jdbd.DatabaseSession;
+import io.jdbd.session.DatabaseSession;
 import org.reactivestreams.Publisher;
 
 public interface PoolDatabaseSession extends DatabaseSession {

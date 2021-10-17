@@ -1,6 +1,6 @@
 package io.jdbd.mysql.protocol;
 
-import io.jdbd.ServerVersion;
+import io.jdbd.session.ServerVersion;
 
 public final class MySQLServerVersion implements Comparable<MySQLServerVersion>, ServerVersion {
 

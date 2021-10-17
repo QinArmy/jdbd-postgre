@@ -3,8 +3,8 @@ package io.jdbd.mysql.protocol.conf;
 import io.jdbd.mysql.protocol.Constants;
 import io.jdbd.mysql.protocol.authentication.MySQLNativePasswordPlugin;
 import io.jdbd.mysql.protocol.client.Enums;
-import io.jdbd.vendor.conf.IPropertyKey;
 import io.jdbd.vendor.conf.OnlyReactor;
+import io.jdbd.vendor.conf.PropertyKey;
 import io.jdbd.vendor.conf.Redefine;
 import reactor.util.annotation.Nullable;
 
@@ -18,7 +18,7 @@ import java.util.Objects;
  *
  * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-reference-configuration-properties.html">Configuration Properties</a>
  */
-public enum MyKey implements IPropertyKey {
+public enum MyKey implements PropertyKey {
     /*
      * Properties individually managed after parsing connection string. These property keys are case insensitive.
      */

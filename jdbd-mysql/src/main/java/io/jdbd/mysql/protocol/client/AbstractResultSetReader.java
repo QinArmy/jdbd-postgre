@@ -1,11 +1,11 @@
 package io.jdbd.mysql.protocol.client;
 
-import io.jdbd.BigRowIoException;
 import io.jdbd.JdbdException;
 import io.jdbd.JdbdSQLException;
 import io.jdbd.mysql.MySQLType;
 import io.jdbd.mysql.protocol.conf.MyKey;
 import io.jdbd.mysql.util.MySQLExceptions;
+import io.jdbd.result.BigRowIoException;
 import io.jdbd.result.ResultRow;
 import io.jdbd.vendor.conf.Properties;
 import io.jdbd.vendor.type.LongBinaries;
@@ -37,7 +37,7 @@ abstract class AbstractResultSetReader implements ResultSetReader {
 
     final StmtTask task;
 
-    final Properties<MyKey> properties;
+    final Properties properties;
 
     final int negotiatedCapability;
 

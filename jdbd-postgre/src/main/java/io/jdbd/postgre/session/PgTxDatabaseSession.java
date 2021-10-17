@@ -1,9 +1,9 @@
 package io.jdbd.postgre.session;
 
-import io.jdbd.TransactionOption;
-import io.jdbd.TxDatabaseSession;
 import io.jdbd.pool.PoolTxDatabaseSession;
 import io.jdbd.postgre.protocol.client.ClientProtocol;
+import io.jdbd.session.TransactionOption;
+import io.jdbd.session.TxDatabaseSession;
 import reactor.core.publisher.Mono;
 
 class PgTxDatabaseSession extends PgDatabaseSession implements TxDatabaseSession {
@@ -13,7 +13,7 @@ class PgTxDatabaseSession extends PgDatabaseSession implements TxDatabaseSession
         return new PgTxDatabaseSession(adjutant, protocol);
     }
 
-    static PgPoolTxDatabaseSession forPoolVendor(SessionAdjutant adjutant, ClientProtocol protocol) {
+    static PgTxDatabaseSession forPoolVendor(SessionAdjutant adjutant, ClientProtocol protocol) {
         return new PgPoolTxDatabaseSession(adjutant, protocol);
     }
 
@@ -28,17 +28,17 @@ class PgTxDatabaseSession extends PgDatabaseSession implements TxDatabaseSession
     }
 
     @Override
-    public final Mono<Void> startTransaction(TransactionOption option) {
+    public final Mono<TxDatabaseSession> startTransaction(TransactionOption option) {
         return null;
     }
 
     @Override
-    public final Mono<Void> commit() {
+    public final Mono<TxDatabaseSession> commit() {
         return null;
     }
 
     @Override
-    public final Mono<Void> rollback() {
+    public final Mono<TxDatabaseSession> rollback() {
         return null;
     }
 
@@ -50,13 +50,13 @@ class PgTxDatabaseSession extends PgDatabaseSession implements TxDatabaseSession
         }
 
         @Override
-        public final Mono<PoolTxDatabaseSession> ping(final int timeoutSeconds) {
+        public Mono<PoolTxDatabaseSession> ping(final int timeoutSeconds) {
             return this.protocol.ping(timeoutSeconds)
                     .thenReturn(this);
         }
 
         @Override
-        public final Mono<PoolTxDatabaseSession> reset() {
+        public Mono<PoolTxDatabaseSession> reset() {
             return this.protocol.reset()
                     .thenReturn(this);
         }

@@ -1770,7 +1770,7 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBased
         }
 
 
-        io.jdbd.vendor.conf.Properties<MyKey> properties = taskAdjutant.obtainHostInfo().getProperties();
+        io.jdbd.vendor.conf.Properties properties = taskAdjutant.obtainHostInfo().getProperties();
         if (properties.getOrDefault(MyKey.timeTruncateFractional, Boolean.class)) {
             DateTimeFormatter formatter = MySQLTimes.obtainDateTimeFormatter(precision);
             final String resultText, bindText;

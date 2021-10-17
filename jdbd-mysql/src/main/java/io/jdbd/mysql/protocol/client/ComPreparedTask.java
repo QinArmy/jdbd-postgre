@@ -1,12 +1,12 @@
 package io.jdbd.mysql.protocol.client;
 
-import io.jdbd.DatabaseSession;
-import io.jdbd.SessionCloseException;
 import io.jdbd.mysql.MySQLType;
 import io.jdbd.mysql.stmt.BindBatchStmt;
 import io.jdbd.mysql.stmt.BindStmt;
 import io.jdbd.mysql.util.MySQLExceptions;
 import io.jdbd.result.*;
+import io.jdbd.session.DatabaseSession;
+import io.jdbd.session.SessionCloseException;
 import io.jdbd.stmt.BindStatement;
 import io.jdbd.stmt.PreparedStatement;
 import io.jdbd.vendor.result.JdbdWarning;

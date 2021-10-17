@@ -1,10 +1,10 @@
 package io.jdbd.stmt;
 
-import io.jdbd.DatabaseSession;
 import io.jdbd.JdbdException;
 import io.jdbd.JdbdSQLException;
 import io.jdbd.lang.Nullable;
 import io.jdbd.result.*;
+import io.jdbd.session.DatabaseSession;
 import org.reactivestreams.Publisher;
 
 import java.util.List;
@@ -15,7 +15,7 @@ import java.util.function.Consumer;
  * This interface is reactive version of {@code java.sql.PreparedStatement}
  * </p>
  * <p>
- * You must invoke one of below methods,or {@link io.jdbd.DatabaseSession} of this {@link PreparedStatement}
+ * You must invoke one of below methods,or {@link DatabaseSession} of this {@link PreparedStatement}
  * can't execute any new {@link Statement},because this session will wait(maybe in task queue)
  * for you invoke one of below methods.
  * <ul>

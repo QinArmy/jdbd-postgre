@@ -1,14 +1,14 @@
 package io.jdbd.mysql.protocol.conf;
 
 import io.jdbd.vendor.conf.AbstractHostInfo;
-import io.jdbd.vendor.conf.IPropertyKey;
 import io.jdbd.vendor.conf.JdbcUrlParser;
+import io.jdbd.vendor.conf.PropertyKey;
 
 import java.util.Collections;
 import java.util.Map;
 
 
-public final class MySQLHost extends AbstractHostInfo<MyKey> {
+public final class MySQLHost extends AbstractHostInfo {
 
     static MySQLHost create(JdbcUrlParser parser, int index) {
         return new MySQLHost(parser, index);
@@ -54,27 +54,27 @@ public final class MySQLHost extends AbstractHostInfo<MyKey> {
 
 
     @Override
-    protected IPropertyKey getUserKey() {
+    protected PropertyKey getUserKey() {
         return MyKey.user;
     }
 
     @Override
-    protected IPropertyKey getPasswordKey() {
+    protected PropertyKey getPasswordKey() {
         return MyKey.password;
     }
 
     @Override
-    protected IPropertyKey getHostKey() {
+    protected PropertyKey getHostKey() {
         return MyKey.host;
     }
 
     @Override
-    protected IPropertyKey getPortKey() {
+    protected PropertyKey getPortKey() {
         return MyKey.port;
     }
 
     @Override
-    protected IPropertyKey getDbNameKey() {
+    protected PropertyKey getDbNameKey() {
         return MyKey.dbname;
     }
 

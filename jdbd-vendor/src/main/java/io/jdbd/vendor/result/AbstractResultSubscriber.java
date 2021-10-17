@@ -1,9 +1,9 @@
 package io.jdbd.vendor.result;
 
-import io.jdbd.ResultStatusConsumerException;
 import io.jdbd.result.Result;
 import io.jdbd.result.ResultRow;
 import io.jdbd.result.ResultStates;
+import io.jdbd.result.ResultStatusConsumerException;
 import io.jdbd.stmt.ResultType;
 import io.jdbd.stmt.SubscribeException;
 import org.reactivestreams.Subscription;

@@ -1,10 +1,7 @@
 package io.jdbd.mysql.protocol.client;
 
-import io.jdbd.ServerVersion;
 import io.jdbd.mysql.MySQLType;
 import io.jdbd.mysql.Server;
-import io.jdbd.mysql.protocol.conf.MyKey;
-import io.jdbd.mysql.session.SessionAdjutant;
 import io.jdbd.mysql.stmt.BindBatchStmt;
 import io.jdbd.mysql.stmt.BindMultiStmt;
 import io.jdbd.mysql.stmt.BindStmt;
@@ -13,8 +10,8 @@ import io.jdbd.result.MultiResult;
 import io.jdbd.result.OrderedFlux;
 import io.jdbd.result.ResultRow;
 import io.jdbd.result.ResultStates;
+import io.jdbd.session.ServerVersion;
 import io.jdbd.stmt.PreparedStatement;
-import io.jdbd.vendor.conf.HostInfo;
 import io.jdbd.vendor.stmt.StaticBatchStmt;
 import io.jdbd.vendor.stmt.StaticMultiStmt;
 import io.jdbd.vendor.stmt.StaticStmt;
@@ -33,25 +30,19 @@ import java.util.function.Function;
 final class ClientProtocolImpl implements ClientProtocol {
 
 
-    public static Mono<ClientProtocol> create(HostInfo<MyKey> hostInfo
-            , SessionAdjutant sessionAdjutant) {
-//        return ClientConnectionProtocolImpl.create(hostInfo, sessionAdjutant)
-//                .map(ClientCommandProtocolImpl::new);
-        return Mono.empty();
+    public static ClientProtocolImpl create(SessionManager sessionManager) {
+        return new ClientProtocolImpl(sessionManager);
 
     }
 
-    private final MySQLTaskExecutor executor;
+    private final SessionManager sessionManager;
 
     final TaskAdjutant adjutant;
 
-    private final SessionResetter sessionResetter;
 
-
-    private ClientProtocolImpl(ClientConnectionProtocolImpl cp) {
-        this.executor = cp.taskExecutor;
-        this.adjutant = this.executor.taskAdjutant();
-        this.sessionResetter = cp.sessionResetter;
+    private ClientProtocolImpl(final SessionManager sessionManager) {
+        this.sessionManager = sessionManager;
+        this.adjutant = sessionManager.adjutant();
     }
 
 
@@ -176,17 +167,20 @@ final class ClientProtocolImpl implements ClientProtocol {
 
     @Override
     public Mono<Void> close() {
-        return QuitTask.quit(this.executor.taskAdjutant());
+        return QuitTask.quit(this.adjutant);
     }
 
 
     @Override
     public Mono<Void> reset() {
-        return this.sessionResetter.reset()
-                .doOnSuccess(this::resetTaskAdjutant)
+        return this.sessionManager.reset()
                 .then();
     }
 
+    @Override
+    public Mono<Void> ping(int timeSeconds) {
+        return null;
+    }
 
     @Override
     public boolean supportMultiStmt() {
@@ -206,7 +200,7 @@ final class ClientProtocolImpl implements ClientProtocol {
     /*################################## blow private method ##################################*/
 
     private void resetTaskAdjutant(Server server) {
-        MySQLTaskExecutor.resetTaskAdjutant(this.executor, server);
+        // MySQLTaskExecutor.resetTaskAdjutant(this.executor, server);
     }
 
     private boolean usePrepare(final BindBatchStmt stmt) {

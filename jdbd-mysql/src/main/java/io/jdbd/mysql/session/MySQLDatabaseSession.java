@@ -1,13 +1,13 @@
 package io.jdbd.mysql.session;
 
-import io.jdbd.DatabaseSession;
-import io.jdbd.DatabaseSessionFactory;
-import io.jdbd.ServerVersion;
 import io.jdbd.meta.DatabaseMetaData;
 import io.jdbd.mysql.MySQLType;
 import io.jdbd.mysql.protocol.client.ClientProtocol;
 import io.jdbd.mysql.util.MySQLStrings;
+import io.jdbd.session.DatabaseSession;
+import io.jdbd.session.DatabaseSessionFactory;
 import io.jdbd.session.SavePoint;
+import io.jdbd.session.ServerVersion;
 import io.jdbd.stmt.BindStatement;
 import io.jdbd.stmt.MultiStatement;
 import io.jdbd.stmt.PreparedStatement;
@@ -31,12 +31,13 @@ import reactor.core.publisher.Mono;
  */
 abstract class MySQLDatabaseSession implements DatabaseSession {
 
+    final SessionAdjutant adjutant;
+
     final ClientProtocol protocol;
 
-
-    MySQLDatabaseSession(final ClientProtocol protocol) {
+    MySQLDatabaseSession(SessionAdjutant adjutant, ClientProtocol protocol) {
+        this.adjutant = adjutant;
         this.protocol = protocol;
-
     }
 
     @Override
@@ -69,6 +70,11 @@ abstract class MySQLDatabaseSession implements DatabaseSession {
     @Override
     public final DatabaseMetaData getDatabaseMetaData() {
         throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public final boolean supportMultiStatement() {
+        return this.protocol.supportMultiStmt();
     }
 
     @Override

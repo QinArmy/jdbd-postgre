@@ -1,4 +1,6 @@
-package io.jdbd;
+package io.jdbd.session;
+
+import io.jdbd.JdbdNonSQLException;
 
 public class SessionCloseException extends JdbdNonSQLException {
 

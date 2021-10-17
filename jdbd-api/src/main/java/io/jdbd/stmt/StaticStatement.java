@@ -5,6 +5,8 @@ import io.jdbd.result.MultiResult;
 import io.jdbd.result.OrderedFlux;
 import io.jdbd.result.ResultRow;
 import io.jdbd.result.ResultStates;
+import io.jdbd.session.DatabaseSession;
+import io.jdbd.session.SessionCloseException;
 import org.reactivestreams.Publisher;
 
 import java.util.List;
@@ -144,7 +146,7 @@ public interface StaticStatement extends Statement {
      * @param sql sql thant can only producer one update result.
      * @return a deferred publisher that emit at most one element, like {@code reactor.core.publisher.Mono},
      * no communication with database server util subscribe.
-     * @throws io.jdbd.SessionCloseException emit when {@link io.jdbd.DatabaseSession} has closed.
+     * @throws SessionCloseException emit when {@link DatabaseSession} has closed.
      * @throws SubscribeException            emit when sql produce query result or multi-result.
      * @throws JdbdSQLException              emit when sql execution occur error.
      * @throws io.jdbd.JdbdNonSQLException   emit when if occur other error.

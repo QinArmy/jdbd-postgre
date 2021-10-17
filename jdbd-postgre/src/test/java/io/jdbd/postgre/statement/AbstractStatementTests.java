@@ -1,11 +1,10 @@
 package io.jdbd.postgre.statement;
 
-import io.jdbd.DatabaseSessionFactory;
 import io.jdbd.DriverManager;
-import io.jdbd.TxDatabaseSession;
 import io.jdbd.pool.PoolTxDatabaseSession;
 import io.jdbd.postgre.ClientTestUtils;
-import io.jdbd.postgre.PgDriver;
+import io.jdbd.session.DatabaseSessionFactory;
+import io.jdbd.session.TxDatabaseSession;
 import reactor.core.publisher.Mono;
 
 import java.util.Map;
@@ -52,7 +51,6 @@ abstract class AbstractStatementTests {
         if (url == null) {
             throw new IllegalStateException("No found url in config file.");
         }
-        DriverManager.registerDriver(PgDriver.class);
         // invoke forPoolVendor for test
         return DriverManager.forPoolVendor(url, map);
 

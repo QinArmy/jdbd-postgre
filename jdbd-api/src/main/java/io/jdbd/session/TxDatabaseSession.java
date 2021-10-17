@@ -1,4 +1,4 @@
-package io.jdbd;
+package io.jdbd.session;
 
 import org.reactivestreams.Publisher;
 
@@ -14,14 +14,11 @@ public interface TxDatabaseSession extends DatabaseSession {
      */
     Publisher<TransactionOption> getTransactionOption();
 
-    Publisher<Void> startTransaction(TransactionOption option);
+    Publisher<TxDatabaseSession> startTransaction(TransactionOption option);
 
-    Publisher<Void> commit();
+    Publisher<TxDatabaseSession> commit();
 
-    Publisher<Void> rollback();
-
-
-
+    Publisher<TxDatabaseSession> rollback();
 
 
 }

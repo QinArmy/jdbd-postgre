@@ -9,14 +9,14 @@ import reactor.util.annotation.Nullable;
 import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.TrustManagerFactory;
 
-public final class ReactorSslProviderBuilder extends AbstractSslProviderBuilder<PgKey> {
+public final class ReactorSslProviderBuilder extends AbstractSslProviderBuilder {
 
-    public static ReactorSslProviderBuilder builder(HostInfo<PgKey> hostInfo) {
+    public static ReactorSslProviderBuilder builder(HostInfo hostInfo) {
         return new ReactorSslProviderBuilder(hostInfo);
     }
 
 
-    private ReactorSslProviderBuilder(HostInfo<PgKey> hostInfo) {
+    private ReactorSslProviderBuilder(HostInfo hostInfo) {
         super(hostInfo);
     }
 

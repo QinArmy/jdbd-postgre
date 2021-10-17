@@ -4,18 +4,20 @@ final class AuthenticateResult {
 
     private final Handshake10 handshake10;
 
-    private final int negotiatedCapability;
+    private final int capability;
 
-    AuthenticateResult(Handshake10 handshake10, int negotiatedCapability) {
+    AuthenticateResult(Handshake10 handshake10, int capability) {
         this.handshake10 = handshake10;
-        this.negotiatedCapability = negotiatedCapability;
+        this.capability = capability;
     }
 
     public Handshake10 handshakeV10Packet() {
         return handshake10;
     }
 
-    public int negotiatedCapability() {
-        return negotiatedCapability;
+    public int capability() {
+        return capability;
     }
+
+
 }

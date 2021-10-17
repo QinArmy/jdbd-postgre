@@ -1,6 +1,6 @@
 package io.jdbd.mysql.util;
 
-import io.jdbd.NotSupportedConvertException;
+import io.jdbd.result.NotSupportedConvertException;
 import reactor.util.annotation.Nullable;
 
 import java.math.BigDecimal;

@@ -1,6 +1,5 @@
 package io.jdbd.mysql.protocol;
 
-import io.jdbd.mysql.protocol.conf.MyKey;
 import io.jdbd.vendor.conf.HostInfo;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
@@ -13,7 +12,7 @@ public interface AuthenticateAssistant {
 
     Charset getPasswordCharset();
 
-    HostInfo<MyKey> getHostInfo();
+    HostInfo getHostInfo();
 
     boolean isUseSsl();
 

@@ -1,10 +1,9 @@
 package io.jdbd.vendor.session;
 
-import io.jdbd.DatabaseSession;
-import io.jdbd.DatabaseSessionFactory;
-import io.jdbd.vendor.conf.HostInfo;
-import io.jdbd.vendor.conf.IPropertyKey;
+import io.jdbd.session.DatabaseSession;
+import io.jdbd.session.DatabaseSessionFactory;
 import io.jdbd.vendor.conf.JdbcUrl;
+import io.jdbd.vendor.conf.PropertyKey;
 import io.netty.channel.EventLoopGroup;
 
 /**
@@ -12,19 +11,17 @@ import io.netty.channel.EventLoopGroup;
  * This interface help {@link DatabaseSession} obtain session context that store in {@link DatabaseSessionFactory}.
  * </p>
  *
- * @param <K> {@link io.jdbd.vendor.conf.IPropertyKey} type.
+ * @param <K> {@link PropertyKey} type.
  * @see DatabaseSessionFactory
  */
-public interface ISessionAdjutant<K extends IPropertyKey, H extends HostInfo<K>> {
+public interface ISessionAdjutant {
 
-    JdbcUrl<K, H> obtainUrl();
+    JdbcUrl getJdbcUrl();
 
     EventLoopGroup getEventLoopGroup();
 
 
-    default boolean isSameFactory(DatabaseSessionFactory factory) {
-        throw new UnsupportedOperationException();
-    }
+    boolean isSameFactory(DatabaseSessionFactory factory);
 
 
 }

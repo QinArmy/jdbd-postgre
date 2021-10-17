@@ -10,7 +10,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 
-public abstract class AbstractHostInfo<K extends IPropertyKey> implements HostInfo<K> {
+public abstract class AbstractHostInfo implements HostInfo {
 
 
     protected final String originalUrl;
@@ -20,7 +20,7 @@ public abstract class AbstractHostInfo<K extends IPropertyKey> implements HostIn
 
     protected final String password;
     protected final boolean isPasswordLess;
-    protected final Properties<K> properties;
+    protected final Properties properties;
 
     protected final String dbName;
 
@@ -121,7 +121,7 @@ public abstract class AbstractHostInfo<K extends IPropertyKey> implements HostIn
     }
 
     @Override
-    public Properties<K> getProperties() {
+    public Properties getProperties() {
         return this.properties;
     }
 
@@ -131,26 +131,26 @@ public abstract class AbstractHostInfo<K extends IPropertyKey> implements HostIn
     }
 
 
-    protected Properties<K> createProperties(Map<String, String> map) {
+    protected Properties createProperties(Map<String, String> map) {
         return ImmutableMapProperties.getInstance(map);
     }
 
-    protected abstract IPropertyKey getUserKey();
+    protected abstract PropertyKey getUserKey();
 
-    protected abstract IPropertyKey getPasswordKey();
+    protected abstract PropertyKey getPasswordKey();
 
-    protected abstract IPropertyKey getHostKey();
+    protected abstract PropertyKey getHostKey();
 
-    protected abstract IPropertyKey getPortKey();
+    protected abstract PropertyKey getPortKey();
 
-    protected abstract IPropertyKey getDbNameKey();
+    protected abstract PropertyKey getDbNameKey();
 
 
     protected abstract int getDefaultPort();
 
 
     @Nullable
-    protected static String removeValue(Map<String, String> map, IPropertyKey propertyKey) {
+    protected static String removeValue(Map<String, String> map, PropertyKey propertyKey) {
         String keyName = propertyKey.getKey();
         String value = map.remove(keyName);
         if (value == null && !propertyKey.isCaseSensitive()) {

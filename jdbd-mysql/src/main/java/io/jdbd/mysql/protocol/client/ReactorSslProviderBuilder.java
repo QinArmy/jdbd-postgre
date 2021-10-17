@@ -38,19 +38,19 @@ final class ReactorSslProviderBuilder {
         return new ReactorSslProviderBuilder();
     }
 
-    private HostInfo<MyKey> hostInfo;
+    private HostInfo hostInfo;
 
     private MySQLServerVersion serverVersion;
 
     private ByteBufAllocator allocator;
 
-    private Properties<MyKey> properties;
+    private Properties properties;
 
 
     private ReactorSslProviderBuilder() {
     }
 
-    public ReactorSslProviderBuilder hostInfo(HostInfo<MyKey> hostInfo) {
+    public ReactorSslProviderBuilder hostInfo(HostInfo hostInfo) {
         this.hostInfo = hostInfo;
         return this;
     }
@@ -74,7 +74,7 @@ final class ReactorSslProviderBuilder {
     }
 
     public SslHandler buildSslHandler() throws SQLException {
-        HostInfo<MyKey> hostInfo = this.hostInfo;
+        HostInfo hostInfo = this.hostInfo;
         return buildSslContext().newHandler(this.allocator, hostInfo.getHost(), hostInfo.getPort());
     }
 
@@ -242,7 +242,7 @@ final class ReactorSslProviderBuilder {
             systemPasswordKey = "javax.net.ssl.trustStorePassword";
         }
 
-        final Properties<MyKey> properties = this.properties;
+        final Properties properties = this.properties;
         String storeUrl, storeType, storePwd;
 
         storeUrl = properties.get(storeUrlKey);

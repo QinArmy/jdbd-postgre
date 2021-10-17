@@ -1,13 +1,13 @@
 package io.jdbd.postgre.statement;
 
-import io.jdbd.DatabaseSession;
 import io.jdbd.JdbdException;
-import io.jdbd.TxDatabaseSession;
 import io.jdbd.postgre.Group;
 import io.jdbd.postgre.PgTestUtils;
 import io.jdbd.result.MultiResult;
 import io.jdbd.result.ResultRow;
 import io.jdbd.result.ResultStates;
+import io.jdbd.session.DatabaseSession;
+import io.jdbd.session.TxDatabaseSession;
 import io.jdbd.stmt.PreparedStatement;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

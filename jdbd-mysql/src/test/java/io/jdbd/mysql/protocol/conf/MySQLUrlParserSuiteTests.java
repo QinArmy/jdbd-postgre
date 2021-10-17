@@ -51,18 +51,18 @@ public class MySQLUrlParserSuiteTests {
         final Map<String, String> propMap = Collections.singletonMap(MyKey.user.getKey(), "army_w");
 
         MySQLUrl mySQLUrl = MySQLUrl.getInstance(url, propMap);
-        Assert.assertEquals(mySQLUrl.getProtocolType(), MySQLUrl.Protocol.SINGLE_CONNECTION, "protocolType");
+        Assert.assertEquals(mySQLUrl.protocolType, MySQLUrl.Protocol.SINGLE_CONNECTION, "protocolType");
         Assert.assertEquals(mySQLUrl.getProtocol(), MySQLUrl.Protocol.SINGLE_CONNECTION.getScheme(), "protocol");
         List<MySQLHost> hostInfoList = mySQLUrl.getHostList();
 
         Assert.assertEquals(hostInfoList.size(), 1, "hostList size");
-        HostInfo<MyKey> hostInfo = hostInfoList.get(0);
+        HostInfo hostInfo = hostInfoList.get(0);
         Assert.assertEquals(hostInfo.getHost(), "192.168.0.106", "host");
         Assert.assertEquals(hostInfo.getPort(), MySQLUrl.DEFAULT_PORT, "port");
 
         Assert.assertEquals(hostInfo.getDbName(), "army");
 
-        Properties<MyKey> properties = hostInfo.getProperties();
+        Properties properties = hostInfo.getProperties();
         Assert.assertEquals(properties.size(), 1, "prop size");
         Assert.assertEquals(properties.getOrDefault(MyKey.sslMode, Enums.SslMode.class), Enums.SslMode.REQUIRED, "sslMode");
 
@@ -114,7 +114,7 @@ public class MySQLUrlParserSuiteTests {
 
         // global assert
         Assert.assertEquals(mySQLUrl.getOriginalUrl(), url, "url");
-        Assert.assertEquals(mySQLUrl.getProtocolType(), MySQLUrl.Protocol.FAILOVER_CONNECTION, "protocolType");
+        Assert.assertEquals(mySQLUrl.protocolType, MySQLUrl.Protocol.FAILOVER_CONNECTION, "protocolType");
         Assert.assertEquals(mySQLUrl.getProtocol(), MySQLUrl.Protocol.FAILOVER_CONNECTION.getScheme(), "protocol");
         Assert.assertNull(mySQLUrl.getSubProtocol(), "subProtocol");
 
@@ -122,12 +122,12 @@ public class MySQLUrlParserSuiteTests {
         Assert.assertEquals(hostInfoList.size(), 6, "hostInfoList size");
 
         // host 1 assert
-        HostInfo<MyKey> hostInfo1 = hostInfoList.get(0);
+        HostInfo hostInfo1 = hostInfoList.get(0);
 
         Assert.assertEquals(hostInfo1.getUser(), propMap.get(MyKey.user.getKey()), "host1 user");
         Assert.assertEquals(hostInfo1.getHost(), "kafka", "host1 host");
         Assert.assertEquals(hostInfo1.getPort(), 3435, "host1 port");
-        Properties<MyKey> properties = hostInfo1.getProperties();
+        Properties properties = hostInfo1.getProperties();
 
         Assert.assertEquals(properties.size(), 3, "host1 prop size");
         Assert.assertEquals(properties.getOrDefault(MyKey.sslMode, Enums.SslMode.class), Enums.SslMode.REQUIRED, " sslMode");
@@ -138,7 +138,7 @@ public class MySQLUrlParserSuiteTests {
 
 
         //host 2 assert
-        HostInfo<MyKey> hostInfo2 = hostInfoList.get(1);
+        HostInfo hostInfo2 = hostInfoList.get(1);
 
         Assert.assertEquals(hostInfo2.getUser(), propMap.get(MyKey.user.getKey()), "host2 user");
         Assert.assertEquals(hostInfo2.getHost(), HostInfo.DEFAULT_HOST, "host2 host");
@@ -148,7 +148,7 @@ public class MySQLUrlParserSuiteTests {
         Assert.assertEquals(properties.size(), 2, "host2 prop size");
 
         //host 3 assert
-        HostInfo<MyKey> hostInfo3 = hostInfoList.get(2);
+        HostInfo hostInfo3 = hostInfoList.get(2);
 
         Assert.assertEquals(hostInfo3.getUser(), propMap.get(MyKey.user.getKey()), "host3 user");
         Assert.assertEquals(hostInfo3.getHost(), "kosmo", "host3 host");
@@ -158,7 +158,7 @@ public class MySQLUrlParserSuiteTests {
         Assert.assertEquals(properties.size(), 2, "host3 prop size");
 
         //host 4 assert
-        HostInfo<MyKey> hostInfo4 = hostInfoList.get(3);
+        HostInfo hostInfo4 = hostInfoList.get(3);
 
         Assert.assertEquals(hostInfo4.getUser(), propMap.get(MyKey.user.getKey()), "host4 user");
         Assert.assertEquals(hostInfo4.getHost(), "simonyi", "host4 host");
@@ -168,7 +168,7 @@ public class MySQLUrlParserSuiteTests {
         Assert.assertEquals(properties.size(), 2, "host4 prop size");
 
         //host 5 assert
-        HostInfo<MyKey> hostInfo5 = hostInfoList.get(4);
+        HostInfo hostInfo5 = hostInfoList.get(4);
 
         Assert.assertEquals(hostInfo4.getUser(), propMap.get(MyKey.user.getKey()), "host5 user");
         Assert.assertEquals(hostInfo5.getHost(), "zoro", "host5 host");
@@ -178,7 +178,7 @@ public class MySQLUrlParserSuiteTests {
         Assert.assertEquals(properties.size(), 2, "host5 prop size");
 
         //host 6 assert
-        HostInfo<MyKey> hostInfo6 = hostInfoList.get(5);
+        HostInfo hostInfo6 = hostInfoList.get(5);
 
         Assert.assertEquals(hostInfo6.getUser(), propMap.get(MyKey.user.getKey()), "host6 user");
         Assert.assertEquals(hostInfo6.getHost(), "myhost2", "host6 host");
@@ -200,12 +200,12 @@ public class MySQLUrlParserSuiteTests {
 
         MySQLUrl mySQLUrl = MySQLUrl.getInstance(url, Collections.emptyMap());
 
-        Assert.assertEquals(mySQLUrl.getProtocolType(), MySQLUrl.Protocol.SINGLE_CONNECTION, "protocolType");
+        Assert.assertEquals(mySQLUrl.protocolType, MySQLUrl.Protocol.SINGLE_CONNECTION, "protocolType");
         Assert.assertEquals(mySQLUrl.getProtocol(), MySQLUrl.Protocol.SINGLE_CONNECTION.getScheme(), "schema");
         List<MySQLHost> hostInfoList = mySQLUrl.getHostList();
         Assert.assertEquals(hostInfoList.size(), 1, "hostList size");
 
-        HostInfo<MyKey> hostInfo = hostInfoList.get(0);
+        HostInfo hostInfo = hostInfoList.get(0);
         Assert.assertEquals(hostInfo.getUser(), "army_w");
         Assert.assertEquals(hostInfo.getPassword(), "army123");
         Assert.assertEquals(hostInfo.getDbName(), "army");
@@ -233,7 +233,7 @@ public class MySQLUrlParserSuiteTests {
 
         MySQLUrl mySQLUrl = MySQLUrl.getInstance(url, Collections.emptyMap());
 
-        HostInfo<MyKey> hostInfo = mySQLUrl.getPrimaryHost();
+        HostInfo hostInfo = mySQLUrl.getPrimaryHost();
 
         Assert.assertEquals(hostInfo.getHost(), HostInfo.DEFAULT_HOST, "host ");
         Assert.assertEquals(hostInfo.getPort(), MySQLUrl.DEFAULT_PORT, "pot");

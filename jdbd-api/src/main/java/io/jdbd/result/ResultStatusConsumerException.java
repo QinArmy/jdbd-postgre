@@ -1,6 +1,6 @@
-package io.jdbd;
+package io.jdbd.result;
 
-import io.jdbd.result.ResultStates;
+import io.jdbd.JdbdNonSQLException;
 
 import java.util.function.Consumer;
 

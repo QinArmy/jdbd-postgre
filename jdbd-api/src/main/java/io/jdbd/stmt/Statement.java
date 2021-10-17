@@ -1,7 +1,7 @@
 package io.jdbd.stmt;
 
 
-import io.jdbd.DatabaseSession;
+import io.jdbd.session.DatabaseSession;
 import org.reactivestreams.Publisher;
 import org.reactivestreams.Subscriber;
 

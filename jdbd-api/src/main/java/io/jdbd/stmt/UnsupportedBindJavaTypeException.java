@@ -12,7 +12,7 @@ public final class UnsupportedBindJavaTypeException extends JdbdNonSQLException 
     }
 
 
-    public final Class<?> getNotSupportType() {
+    public Class<?> getNotSupportType() {
         return this.notSupportType;
     }
 

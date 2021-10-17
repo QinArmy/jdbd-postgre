@@ -33,14 +33,14 @@ public abstract class ClientProtocolFactory {
     }
 
     private static Mono<ConnectionWrapper> connect(PgTaskExecutor executor, int hostIndex) {
-        final ConnectionManagerImpl connectionManager = new ConnectionManagerImpl(executor, hostIndex);
+        final SessionManagerImpl connectionManager = new SessionManagerImpl(executor, hostIndex);
         return connectionManager.connect();
     }
 
-    private static final class ConnectionManagerImpl implements ConnectionManager {
+    private static final class SessionManagerImpl implements SessionManager {
 
 
-        private static final Logger LOG = LoggerFactory.getLogger(ConnectionManagerImpl.class);
+        private static final Logger LOG = LoggerFactory.getLogger(SessionManagerImpl.class);
 
         private static final Set<ServerParameter> INITIALIZED_PARAM_SET = Collections.unmodifiableSet(EnumSet.of(
                 ServerParameter.lc_monetary,
@@ -60,7 +60,7 @@ public abstract class ClientProtocolFactory {
 
         final int hostIndex;
 
-        private ConnectionManagerImpl(PgTaskExecutor executor, int hostIndex) {
+        private SessionManagerImpl(PgTaskExecutor executor, int hostIndex) {
             this.executor = executor;
             this.hostIndex = hostIndex;
         }
@@ -110,7 +110,7 @@ public abstract class ClientProtocolFactory {
          */
         private Mono<Map<String, String>> initializing() {
             final TaskAdjutant adjutant = this.executor.taskAdjutant();
-            final Properties<PgKey> properties = adjutant.obtainHost().getProperties();
+            final Properties properties = adjutant.obtainHost().getProperties();
             final Server server = adjutant.server();
             final PgServerVersion serverVersion = server.serverVersion();
 

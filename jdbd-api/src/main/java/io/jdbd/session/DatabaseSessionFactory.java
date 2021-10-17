@@ -1,6 +1,6 @@
-package io.jdbd;
+package io.jdbd.session;
 
-import io.jdbd.xa.XaDatabaseSession;
+import io.jdbd.ProductFamily;
 import org.reactivestreams.Publisher;
 
 
@@ -35,6 +35,8 @@ public interface DatabaseSessionFactory {
      * </p>
      */
     String getDriverName();
+
+    ProductFamily getProductFamily();
 
 
 }

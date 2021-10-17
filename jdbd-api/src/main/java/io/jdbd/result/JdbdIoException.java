@@ -1,4 +1,6 @@
-package io.jdbd;
+package io.jdbd.result;
+
+import io.jdbd.JdbdNonSQLException;
 
 public class JdbdIoException extends JdbdNonSQLException {
 

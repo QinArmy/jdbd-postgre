@@ -1,6 +1,7 @@
 package io.jdbd.vendor.stmt;
 
 
+import io.jdbd.session.DatabaseSession;
 import org.reactivestreams.Publisher;
 import org.reactivestreams.Subscriber;
 
@@ -16,7 +17,7 @@ import java.util.function.Function;
  *     The implementation of this interface is used by underlying implementation of {@link io.jdbd.stmt.PreparedStatement}.
  * </p>
  *
- * @see io.jdbd.DatabaseSession#prepare(String)
+ * @see DatabaseSession#prepare(String)
  */
 public interface PrepareStmt extends ParamSingleStmt {
 

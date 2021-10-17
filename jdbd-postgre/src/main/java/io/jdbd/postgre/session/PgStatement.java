@@ -1,10 +1,10 @@
 package io.jdbd.postgre.session;
 
-import io.jdbd.DatabaseSession;
 import io.jdbd.JdbdException;
 import io.jdbd.meta.SQLType;
 import io.jdbd.postgre.PgJdbdException;
 import io.jdbd.postgre.PgType;
+import io.jdbd.session.DatabaseSession;
 import io.jdbd.stmt.Statement;
 import io.jdbd.vendor.stmt.StatementOption;
 import org.reactivestreams.Publisher;

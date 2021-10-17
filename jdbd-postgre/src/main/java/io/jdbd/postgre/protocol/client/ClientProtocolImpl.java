@@ -1,6 +1,5 @@
 package io.jdbd.postgre.protocol.client;
 
-import io.jdbd.ServerVersion;
 import io.jdbd.postgre.PgType;
 import io.jdbd.postgre.stmt.BindBatchStmt;
 import io.jdbd.postgre.stmt.BindMultiStmt;
@@ -11,6 +10,7 @@ import io.jdbd.result.MultiResult;
 import io.jdbd.result.OrderedFlux;
 import io.jdbd.result.ResultRow;
 import io.jdbd.result.ResultStates;
+import io.jdbd.session.ServerVersion;
 import io.jdbd.stmt.PreparedStatement;
 import io.jdbd.vendor.stmt.StaticBatchStmt;
 import io.jdbd.vendor.stmt.StaticStmt;
@@ -40,14 +40,14 @@ final class ClientProtocolImpl implements ClientProtocol {
         }
     }
 
-    private final ConnectionManager connManager;
+    private final SessionManager connManager;
 
     final TaskAdjutant adjutant;
 
     private final Map<String, String> initializedParamMap;
 
     private ClientProtocolImpl(final ConnectionWrapper wrapper) {
-        this.connManager = wrapper.connectionManager;
+        this.connManager = wrapper.sessionManager;
         this.adjutant = this.connManager.taskAdjutant();
         this.initializedParamMap = wrapper.initializedParamMap;
     }

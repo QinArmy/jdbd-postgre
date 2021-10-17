@@ -2,7 +2,6 @@ package io.jdbd.mysql.protocol.client;
 
 import io.jdbd.JdbdException;
 import io.jdbd.JdbdSQLException;
-import io.jdbd.SessionCloseException;
 import io.jdbd.mysql.MySQLJdbdException;
 import io.jdbd.mysql.protocol.AuthenticateAssistant;
 import io.jdbd.mysql.protocol.CharsetMapping;
@@ -15,6 +14,7 @@ import io.jdbd.mysql.protocol.conf.MyKey;
 import io.jdbd.mysql.util.MySQLCollections;
 import io.jdbd.mysql.util.MySQLExceptions;
 import io.jdbd.mysql.util.MySQLStrings;
+import io.jdbd.session.SessionCloseException;
 import io.jdbd.vendor.conf.HostInfo;
 import io.jdbd.vendor.conf.Properties;
 import io.jdbd.vendor.task.CommunicationTask;
@@ -68,9 +68,9 @@ final class MySQLConnectionTask extends CommunicationTask<TaskAdjutant> implemen
 
     private final Map<String, AuthenticationPlugin> pluginMap;
 
-    private final HostInfo<MyKey> hostInfo;
+    private final HostInfo hostInfo;
 
-    private final Properties<MyKey> properties;
+    private final Properties properties;
 
     private Charset handshakeCharset;
 
@@ -123,7 +123,7 @@ final class MySQLConnectionTask extends CommunicationTask<TaskAdjutant> implemen
     }
 
     @Override
-    public HostInfo<MyKey> getHostInfo() {
+    public HostInfo getHostInfo() {
         return this.hostInfo;
     }
 
@@ -573,7 +573,7 @@ final class MySQLConnectionTask extends CommunicationTask<TaskAdjutant> implemen
     private Pair<AuthenticationPlugin, Boolean> obtainAuthenticationPlugin() {
         Map<String, AuthenticationPlugin> pluginMap = this.pluginMap;
 
-        Properties<MyKey> properties = this.properties;
+        Properties properties = this.properties;
         String pluginName = this.handshake.getAuthPluginName();
 
         AuthenticationPlugin plugin = pluginMap.get(pluginName);
@@ -645,7 +645,7 @@ final class MySQLConnectionTask extends CommunicationTask<TaskAdjutant> implemen
 
     private int createNegotiatedCapability(final Handshake10 handshake) {
         final int serverCapability = handshake.getCapabilityFlags();
-        final Properties<MyKey> env = this.properties;
+        final Properties env = this.properties;
 
         final boolean useConnectWithDb = MySQLStrings.hasText(this.hostInfo.getDbName())
                 && !env.getOrDefault(MyKey.createDatabaseIfNotExist, Boolean.class);
@@ -731,7 +731,7 @@ final class MySQLConnectionTask extends CommunicationTask<TaskAdjutant> implemen
         }
     }
 
-    private static int obtainMaxPacketBytes(final Properties<MyKey> properties) {
+    private static int obtainMaxPacketBytes(final Properties properties) {
         // because @@session.max_allowed_packet must be multiple of 1024,and single packet maxPayload is ((1<<24) - 1)
         final int minMultiple = (1 << 14), maxMultiple = 1 << 20;
         int multiple = properties.getOrDefault(MyKey.maxAllowedPacket, Integer.class);

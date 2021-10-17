@@ -1,9 +1,10 @@
 package io.jdbd.pool;
 
-import io.jdbd.TxDatabaseSession;
+import io.jdbd.session.TxDatabaseSession;
 import org.reactivestreams.Publisher;
 
 public interface PoolTxDatabaseSession extends PoolDatabaseSession, TxDatabaseSession {
+
 
     @Override
     Publisher<PoolTxDatabaseSession> ping(int timeoutSeconds);

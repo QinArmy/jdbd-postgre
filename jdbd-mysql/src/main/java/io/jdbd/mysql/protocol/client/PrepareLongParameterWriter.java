@@ -48,7 +48,7 @@ final class PrepareLongParameterWriter implements PrepareExecuteCommandWriter.Lo
 
     private final ClientProtocolAdjutant adjutant;
 
-    private final Properties<MyKey> properties;
+    private final Properties properties;
 
     private final int blobSendChunkSize;
 

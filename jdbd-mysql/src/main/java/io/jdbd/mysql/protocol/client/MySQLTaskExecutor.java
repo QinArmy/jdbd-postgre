@@ -32,7 +32,7 @@ import java.util.Objects;
 final class MySQLTaskExecutor extends CommunicationTaskExecutor<TaskAdjutant> {
 
     static Mono<MySQLTaskExecutor> create(final int hostIndex, SessionAdjutant sessionAdjutant) {
-        List<MySQLHost> hostInfoList = sessionAdjutant.obtainUrl().getHostList();
+        List<MySQLHost> hostInfoList = sessionAdjutant.getJdbcUrl().getHostList();
 
         final Mono<MySQLTaskExecutor> mono;
         if (hostIndex > -1 && hostIndex < hostInfoList.size()) {
@@ -83,7 +83,7 @@ final class MySQLTaskExecutor extends CommunicationTaskExecutor<TaskAdjutant> {
                 adjutantWrapper.serverHandshakeCharset = serverCharset;
 
                 // 3.
-                int negotiatedCapability = result.negotiatedCapability();
+                int negotiatedCapability = result.capability();
                 if (negotiatedCapability == 0) {
                     throw new IllegalArgumentException("result error.");
                 }
@@ -134,7 +134,7 @@ final class MySQLTaskExecutor extends CommunicationTaskExecutor<TaskAdjutant> {
     }
 
     @Override
-    protected HostInfo<?> obtainHostInfo() {
+    protected HostInfo obtainHostInfo() {
         return this.hostInfo;
     }
 

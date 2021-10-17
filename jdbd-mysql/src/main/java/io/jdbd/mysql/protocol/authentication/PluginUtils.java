@@ -26,7 +26,7 @@ public abstract class PluginUtils {
      * not java-doc
      * @see io.jdbd.mysql.protocol.client.MySQLConnectionTask
      */
-    public static String getDefaultMechanism(Properties<MyKey> properties) {
+    public static String getDefaultMechanism(Properties properties) {
         String defaultMechanism;
         defaultMechanism = PLUGIN_MECHANISM_MAPPING.get(
                 properties.getOrDefault(MyKey.defaultAuthenticationPlugin));
@@ -43,7 +43,7 @@ public abstract class PluginUtils {
      *                           </ul>
      * @see SessionAdjutant#obtainPluginClassMap()
      */
-    public static Map<String, Class<? extends AuthenticationPlugin>> createPluginClassMap(Properties<MyKey> properties)
+    public static Map<String, Class<? extends AuthenticationPlugin>> createPluginClassMap(Properties properties)
             throws PropertyException {
 
         final Map<String, Class<? extends AuthenticationPlugin>> allPluginMap = createAllPluginMap();
@@ -160,7 +160,7 @@ public abstract class PluginUtils {
      * @return a unmodifiable list,element is {@link AuthenticationPlugin#getProtocolPluginName()}.
      * @see #createPluginClassMap(Properties)
      */
-    private static List<String> loadDisabledPluginMechanismList(Properties<MyKey> properties)
+    private static List<String> loadDisabledPluginMechanismList(Properties properties)
             throws PropertyException {
 
         String string = properties.get(MyKey.disabledAuthenticationPlugins);
@@ -186,7 +186,7 @@ public abstract class PluginUtils {
      * @return a unmodifiable list,element is {@link AuthenticationPlugin#getProtocolPluginName()}.
      * @see #createPluginClassMap(Properties)
      */
-    private static List<String> loadEnabledPluginMechanismList(Properties<MyKey> properties)
+    private static List<String> loadEnabledPluginMechanismList(Properties properties)
             throws PropertyException {
         String string = properties.get(MyKey.authenticationPlugins);
         if (!MySQLStrings.hasText(string)) {

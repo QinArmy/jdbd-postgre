@@ -3,10 +3,12 @@ package io.jdbd.mysql.protocol.conf;
 
 import io.jdbd.config.UrlException;
 import io.jdbd.vendor.conf.AbstractJdbcUrl;
-import io.jdbd.vendor.conf.IPropertyKey;
 import io.jdbd.vendor.conf.JdbcUrlParser;
+import io.jdbd.vendor.conf.PropertyKey;
 import reactor.util.annotation.Nullable;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -14,7 +16,7 @@ import java.util.Map;
  * see {@code com.mysql.cj.conf.ConnectionUrl}
  * </p>
  */
-public final class MySQLUrl extends AbstractJdbcUrl<MyKey, MySQLHost> {
+public final class MySQLUrl extends AbstractJdbcUrl {
 
     public static final int DEFAULT_PORT = 3306;
 
@@ -22,16 +24,35 @@ public final class MySQLUrl extends AbstractJdbcUrl<MyKey, MySQLHost> {
         return new MySQLUrl(MySQLUrlParser.parseMySQLUrl(url, properties));
     }
 
-    private final Protocol protocolType;
+    public static boolean acceptsUrl(final String url) {
+        boolean accept = false;
+        for (Protocol protocol : Protocol.values()) {
+            if (url.startsWith(protocol.scheme)) {
+                accept = true;
+                break;
+            }
+        }
+        return accept;
+    }
 
+    public final Protocol protocolType;
+
+    private final List<MySQLHost> hostList;
 
     private MySQLUrl(MySQLUrlParser parser) {
         super(parser);
+        this.hostList = createHostInfoList(parser);
         this.protocolType = Protocol.fromValue(this.getOriginalUrl(), this.getProtocol(), this.getHostList().size());
     }
 
-    public Protocol getProtocolType() {
-        return protocolType;
+    @Override
+    public MySQLHost getPrimaryHost() {
+        return this.hostList.get(0);
+    }
+
+    @Override
+    public List<MySQLHost> getHostList() {
+        return this.hostList;
     }
 
     @Override
@@ -39,15 +60,24 @@ public final class MySQLUrl extends AbstractJdbcUrl<MyKey, MySQLHost> {
         return this.protocolType.name();
     }
 
-    @Override
-    protected MySQLHost createHostInfo(JdbcUrlParser parser, int index) {
-        return MySQLHost.create(parser, index);
-    }
 
     @Override
-    protected IPropertyKey getDbNameKey() {
+    protected PropertyKey getDbNameKey() {
         return MyKey.dbname;
     }
+
+
+    private static List<MySQLHost> createHostInfoList(JdbcUrlParser parser) {
+        final List<Map<String, String>> hostMapList = parser.getHostInfo();
+
+        final int hostSize = hostMapList.size();
+        List<MySQLHost> hostInfoList = new ArrayList<>(hostSize);
+        for (int i = 0; i < hostSize; i++) {
+            hostInfoList.add(MySQLHost.create(parser, i));
+        }
+        return hostInfoList;
+    }
+
 
     /**
      * The rules describing the number of hosts a database URL may contain.
@@ -88,7 +118,6 @@ public final class MySQLUrl extends AbstractJdbcUrl<MyKey, MySQLHost> {
         FAILOVER_DNS_SRV_CONNECTION("jdbc:mysql+srv:", HostsCardinality.ONE_OR_MORE), //
         LOADBALANCE_DNS_SRV_CONNECTION("jdbc:mysql+srv:loadbalance:", HostsCardinality.ONE_OR_MORE), //
         REPLICATION_DNS_SRV_CONNECTION("jdbc:mysql+srv:replication:", HostsCardinality.ONE_OR_MORE), //
-        XDEVAPI_DNS_SRV_SESSION("mysqlx+srv:", HostsCardinality.ONE_OR_MORE), //
         // Standard schemes:
         SINGLE_CONNECTION("jdbc:mysql:", HostsCardinality.SINGLE, MyKey.dnsSrv, FAILOVER_DNS_SRV_CONNECTION), //
         FAILOVER_CONNECTION("jdbc:mysql:", HostsCardinality.MULTIPLE, MyKey.dnsSrv,
@@ -96,9 +125,7 @@ public final class MySQLUrl extends AbstractJdbcUrl<MyKey, MySQLHost> {
         LOADBALANCE_CONNECTION("jdbc:mysql:loadbalance:", HostsCardinality.ONE_OR_MORE, MyKey.dnsSrv,
                 LOADBALANCE_DNS_SRV_CONNECTION), //
         REPLICATION_CONNECTION("jdbc:mysql:replication:", HostsCardinality.ONE_OR_MORE, MyKey.dnsSrv,
-                REPLICATION_DNS_SRV_CONNECTION), //
-        XDEVAPI_SESSION("mysqlx:", HostsCardinality.ONE_OR_MORE, MyKey.xdevapiDnsSrv,
-                XDEVAPI_DNS_SRV_SESSION);
+                REPLICATION_DNS_SRV_CONNECTION); //
 
         private final String scheme;
         private final HostsCardinality cardinality;

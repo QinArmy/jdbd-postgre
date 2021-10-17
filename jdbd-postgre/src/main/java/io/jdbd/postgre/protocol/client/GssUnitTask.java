@@ -2,8 +2,8 @@ package io.jdbd.postgre.protocol.client;
 
 import io.jdbd.postgre.PgJdbdException;
 import io.jdbd.postgre.config.Enums;
+import io.jdbd.postgre.config.PgHost;
 import io.jdbd.postgre.config.PgKey;
-import io.jdbd.postgre.config.PostgreHost;
 import io.jdbd.postgre.util.PgExceptions;
 import io.jdbd.postgre.util.PgFunctions;
 import io.jdbd.vendor.task.GssWrapper;
@@ -297,7 +297,7 @@ final class GssUnitTask extends PostgreUnitTask {
      */
     private GSSContext createGssContext() throws GSSException {
         GSSManager manager = GSSManager.getInstance();
-        PostgreHost hostInfo = this.adjutant.obtainHost();
+        PgHost hostInfo = this.adjutant.obtainHost();
 
         final Oid desiredMech;
         if (this.properties.getOrDefault(PgKey.useSpnego, Boolean.class)

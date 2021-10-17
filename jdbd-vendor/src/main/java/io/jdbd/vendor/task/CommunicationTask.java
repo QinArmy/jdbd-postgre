@@ -1,6 +1,6 @@
 package io.jdbd.vendor.task;
 
-import io.jdbd.SessionCloseException;
+import io.jdbd.session.SessionCloseException;
 import io.jdbd.vendor.util.JdbdExceptions;
 import io.netty.buffer.ByteBuf;
 import org.reactivestreams.Publisher;

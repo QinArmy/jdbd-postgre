@@ -35,11 +35,11 @@ final class ClientConnectionProtocolImpl implements ClientConnectionProtocol {
     }
 
 
-    final HostInfo<MyKey> hostInfo;
+    final HostInfo hostInfo;
 
     final MySQLTaskExecutor taskExecutor;
 
-    private final Properties<MyKey> properties;
+    private final Properties properties;
 
     private final AtomicReference<Map<Integer, CharsetMapping.CustomCollation>> customCollationMap = new AtomicReference<>(null);
 
@@ -50,7 +50,7 @@ final class ClientConnectionProtocolImpl implements ClientConnectionProtocol {
 
     private ClientConnectionProtocolImpl(final SessionAdjutant sessionAdjutant
             , int hostIndex, final MySQLTaskExecutor taskExecutor) {
-        this.hostInfo = sessionAdjutant.obtainUrl().getHostList().get(hostIndex);
+        this.hostInfo = sessionAdjutant.getJdbcUrl().getHostList().get(hostIndex);
         this.taskExecutor = taskExecutor;
         this.sessionResetter = DefaultSessionResetter.create(this.taskExecutor.taskAdjutant());
         this.properties = this.hostInfo.getProperties();

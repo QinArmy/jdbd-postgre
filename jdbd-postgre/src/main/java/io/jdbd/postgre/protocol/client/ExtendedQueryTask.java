@@ -1,7 +1,6 @@
 package io.jdbd.postgre.protocol.client;
 
 import io.jdbd.JdbdException;
-import io.jdbd.SessionCloseException;
 import io.jdbd.postgre.PgJdbdException;
 import io.jdbd.postgre.PgType;
 import io.jdbd.postgre.stmt.BindBatchStmt;
@@ -9,6 +8,7 @@ import io.jdbd.postgre.stmt.BindStmt;
 import io.jdbd.postgre.util.PgCollections;
 import io.jdbd.postgre.util.PgExceptions;
 import io.jdbd.result.*;
+import io.jdbd.session.SessionCloseException;
 import io.jdbd.stmt.PreparedStatement;
 import io.jdbd.vendor.result.MultiResults;
 import io.jdbd.vendor.result.ResultSink;
