@@ -1,6 +1,6 @@
 package io.jdbd.vendor.util;
 
-import org.qinarmy.util.TimeUtils;
+import io.qinarmy.util.TimeUtils;
 
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeFormatterBuilder;

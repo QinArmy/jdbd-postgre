@@ -11,6 +11,7 @@ import io.jdbd.mysql.protocol.authentication.AuthenticationPlugin;
 import io.jdbd.mysql.protocol.authentication.PluginUtils;
 import io.jdbd.mysql.protocol.authentication.Sha256PasswordPlugin;
 import io.jdbd.mysql.protocol.conf.MyKey;
+import io.jdbd.mysql.protocol.conf.MySQLHost;
 import io.jdbd.mysql.util.MySQLCollections;
 import io.jdbd.mysql.util.MySQLExceptions;
 import io.jdbd.mysql.util.MySQLStrings;
@@ -25,7 +26,7 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
 import io.netty.buffer.Unpooled;
 import io.netty.handler.ssl.SslHandler;
-import org.qinarmy.util.Pair;
+import io.qinarmy.util.Pair;
 import org.reactivestreams.Publisher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -68,7 +69,7 @@ final class MySQLConnectionTask extends CommunicationTask<TaskAdjutant> implemen
 
     private final Map<String, AuthenticationPlugin> pluginMap;
 
-    private final HostInfo hostInfo;
+    private final MySQLHost hostInfo;
 
     private final Properties properties;
 
@@ -80,7 +81,7 @@ final class MySQLConnectionTask extends CommunicationTask<TaskAdjutant> implemen
 
     private Phase phase;
 
-    private int negotiatedCapability = 0;
+    private int capability = 0;
 
     private Handshake10 handshake;
 
@@ -129,7 +130,7 @@ final class MySQLConnectionTask extends CommunicationTask<TaskAdjutant> implemen
 
     @Override
     public boolean isUseSsl() {
-        return Capabilities.supportSsl(this.negotiatedCapability);
+        return Capabilities.supportSsl(this.capability);
     }
 
     @Override
@@ -189,10 +190,7 @@ final class MySQLConnectionTask extends CommunicationTask<TaskAdjutant> implemen
 
     @Override
     protected boolean decode(final ByteBuf cumulateBuffer, final Consumer<Object> serverStatusConsumer) {
-        if (!Packets.hasOnePacket(cumulateBuffer)) {
-            return false;
-        }
-        boolean taskEnd = false, continueDecode = true;
+        boolean taskEnd = false, continueDecode = Packets.hasOnePacket(cumulateBuffer);
         while (continueDecode) {
             switch (this.phase) {
                 case DISCONNECT: {
@@ -256,7 +254,7 @@ final class MySQLConnectionTask extends CommunicationTask<TaskAdjutant> implemen
         //1. read handshake packet
         final int payloadLength = Packets.readInt3(cumulateBuffer);
         updateSequenceId(Packets.readInt1AsInt(cumulateBuffer));
-        Handshake10 handshake;
+        final Handshake10 handshake;
         handshake = Handshake10.readHandshake(cumulateBuffer.readSlice(payloadLength));
         this.handshake = handshake;
         if (LOG.isDebugEnabled()) {
@@ -264,7 +262,7 @@ final class MySQLConnectionTask extends CommunicationTask<TaskAdjutant> implemen
         }
         //2. negotiate capabilities
         final int negotiatedCapability = createNegotiatedCapability(handshake);
-        this.negotiatedCapability = negotiatedCapability;
+        this.capability = negotiatedCapability;
 
         //3.create handshake collation index and charset
         int handshakeCollationIndex;
@@ -307,17 +305,17 @@ final class MySQLConnectionTask extends CommunicationTask<TaskAdjutant> implemen
             handleAuthenticateFailure(e);
             taskEnd = true;
         } else if (OkPacket.isOkPacket(payload)) {
-            OkPacket ok = OkPacket.read(payload, this.negotiatedCapability);
+            OkPacket ok = OkPacket.read(payload, this.capability);
             serverConsumer.accept(ok.getStatusFags());
             LOG.debug("MySQL authentication success,info:{}", ok.getInfo());
-            this.sink.success(new AuthenticateResult(this.handshake, this.negotiatedCapability));
+            this.sink.success(new AuthenticateResult(this.handshake, this.capability));
             taskEnd = true;
         } else if (ErrorPacket.isErrorPacket(payload)) {
             ErrorPacket error;
             if (this.sequenceId < 2) {
                 error = ErrorPacket.read(payload, 0, obtainServerCharset());
             } else {
-                error = ErrorPacket.read(payload, this.negotiatedCapability, obtainServerCharset());
+                error = ErrorPacket.read(payload, this.capability, obtainServerCharset());
             }
             taskEnd = true;
             handleAuthenticateFailure(MySQLExceptions.createErrorPacketException(error));
@@ -395,7 +393,7 @@ final class MySQLConnectionTask extends CommunicationTask<TaskAdjutant> implemen
     private Mono<ByteBuf> createSendSSlRequestPacket() {
         ByteBuf packet = this.adjutant.createPacketBuffer(32);
         // 1. client_flag
-        Packets.writeInt4(packet, this.negotiatedCapability);
+        Packets.writeInt4(packet, this.capability);
         // 2. max_packet_size
         Packets.writeInt4(packet, this.adjutant.obtainHostInfo().maxAllowedPayload());
         // 3.handshake character_set,
@@ -473,7 +471,7 @@ final class MySQLConnectionTask extends CommunicationTask<TaskAdjutant> implemen
      */
     private ByteBuf createHandshakeResponse41(String authPluginName, ByteBuf pluginOut) {
         final Charset clientCharset = this.handshakeCharset;
-        final int clientFlag = this.negotiatedCapability;
+        final int clientFlag = this.capability;
 
         final ByteBuf packetBuffer = this.adjutant.createPacketBuffer(1024);
 

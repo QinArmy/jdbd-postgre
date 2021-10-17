@@ -36,8 +36,8 @@ public abstract class ClientProtocolFactory {
 
         private Mono<SessionManagerImpl> authenticate() {
             return MySQLConnectionTask.authenticate(this.executor.taskAdjutant())
-                    .then(Mono.empty())
-                    ;
+                    .doOnSuccess(this.executor::setAuthenticateResult)
+                    .thenReturn(this);
         }
 
         private Mono<SessionManagerImpl> initializing() {

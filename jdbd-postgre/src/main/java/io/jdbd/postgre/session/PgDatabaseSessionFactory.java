@@ -3,7 +3,7 @@ package io.jdbd.postgre.session;
 import io.jdbd.ProductFamily;
 import io.jdbd.postgre.PgDriver;
 import io.jdbd.postgre.config.PgKey;
-import io.jdbd.postgre.config.PostgreUrl;
+import io.jdbd.postgre.config.PgUrl;
 import io.jdbd.postgre.protocol.client.ClientProtocol;
 import io.jdbd.postgre.protocol.client.ClientProtocolFactory;
 import io.jdbd.session.DatabaseSessionFactory;
@@ -22,9 +22,9 @@ public class PgDatabaseSessionFactory implements DatabaseSessionFactory {
      * @throws io.jdbd.config.PropertyException when properties error.
      */
     public static PgDatabaseSessionFactory create(final String url, final Map<String, String> properties) {
-        final PostgreUrl postgreUrl;
-        postgreUrl = PostgreUrl.create(url, properties);
-        return new PgDatabaseSessionFactory(postgreUrl, false);
+        final PgUrl pgUrl;
+        pgUrl = PgUrl.create(url, properties);
+        return new PgDatabaseSessionFactory(pgUrl, false);
     }
 
     /**
@@ -32,25 +32,25 @@ public class PgDatabaseSessionFactory implements DatabaseSessionFactory {
      * @throws io.jdbd.config.PropertyException when properties error.
      */
     public static PgDatabaseSessionFactory forPoolVendor(final String url, final Map<String, String> properties) {
-        final PostgreUrl postgreUrl;
-        postgreUrl = PostgreUrl.create(url, properties);
-        return new PgDatabaseSessionFactory(postgreUrl, true);
+        final PgUrl pgUrl;
+        pgUrl = PgUrl.create(url, properties);
+        return new PgDatabaseSessionFactory(pgUrl, true);
     }
 
 
     public static boolean acceptsUrl(String url) {
-        return PostgreUrl.acceptsUrl(url);
+        return PgUrl.acceptsUrl(url);
     }
 
-    private final PostgreUrl postgreUrl;
+    private final PgUrl pgUrl;
 
     private final boolean forPoolVendor;
 
     private final PgSessionAdjutant sessionAdjutant;
 
 
-    private PgDatabaseSessionFactory(PostgreUrl postgreUrl, boolean forPoolVendor) {
-        this.postgreUrl = postgreUrl;
+    private PgDatabaseSessionFactory(PgUrl pgUrl, boolean forPoolVendor) {
+        this.pgUrl = pgUrl;
         this.forPoolVendor = forPoolVendor;
         this.sessionAdjutant = new PgSessionAdjutant(this);
     }
@@ -129,14 +129,14 @@ public class PgDatabaseSessionFactory implements DatabaseSessionFactory {
 
         private PgSessionAdjutant(PgDatabaseSessionFactory factory) {
             this.factory = factory;
-            final int workerCount = factory.postgreUrl.getOrDefault(PgKey.factoryWorkerCount, Integer.class);
+            final int workerCount = factory.pgUrl.getOrDefault(PgKey.factoryWorkerCount, Integer.class);
             this.eventLoopGroup = LoopResources.create("jdbd-postgre", workerCount, true)
                     .onClient(true);
         }
 
         @Override
-        public PostgreUrl getJdbcUrl() {
-            return this.factory.postgreUrl;
+        public PgUrl getJdbcUrl() {
+            return this.factory.pgUrl;
         }
 
         @Override

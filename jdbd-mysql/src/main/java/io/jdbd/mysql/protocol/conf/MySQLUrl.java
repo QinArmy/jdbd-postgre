@@ -1,10 +1,11 @@
 package io.jdbd.mysql.protocol.conf;
 
 
+import io.jdbd.config.PropertyException;
 import io.jdbd.config.UrlException;
-import io.jdbd.vendor.conf.AbstractJdbcUrl;
-import io.jdbd.vendor.conf.JdbcUrlParser;
-import io.jdbd.vendor.conf.PropertyKey;
+import io.jdbd.vendor.conf.*;
+import io.qinarmy.env.convert.ConverterManager;
+import io.qinarmy.env.convert.ImmutableConverterManager;
 import reactor.util.annotation.Nullable;
 
 import java.util.ArrayList;
@@ -21,7 +22,13 @@ public final class MySQLUrl extends AbstractJdbcUrl {
     public static final int DEFAULT_PORT = 3306;
 
     public static MySQLUrl getInstance(String url, Map<String, String> properties) {
-        return new MySQLUrl(MySQLUrlParser.parseMySQLUrl(url, properties));
+        final MySQLUrl mySQLUrl;
+        mySQLUrl = new MySQLUrl(MySQLUrlParser.parseMySQLUrl(url, properties));
+        checkUrlProperties(mySQLUrl.getCommonProps());
+        for (MySQLHost host : mySQLUrl.hostList) {
+            checkUrlProperties(host.getProperties());
+        }
+        return mySQLUrl;
     }
 
     public static boolean acceptsUrl(final String url) {
@@ -66,6 +73,15 @@ public final class MySQLUrl extends AbstractJdbcUrl {
         return MyKey.dbname;
     }
 
+    @Override
+    protected Properties createProperties(Map<String, String> map) {
+        return wrapProperties(map);
+    }
+
+    static Properties wrapProperties(Map<String, String> map) {
+        ConverterManager converterManager = ImmutableConverterManager.create(Converters::registerConverter);
+        return ImmutableMapProperties.getInstance(map, converterManager);
+    }
 
     private static List<MySQLHost> createHostInfoList(JdbcUrlParser parser) {
         final List<Map<String, String>> hostMapList = parser.getHostInfo();
@@ -76,6 +92,29 @@ public final class MySQLUrl extends AbstractJdbcUrl {
             hostInfoList.add(MySQLHost.create(parser, i));
         }
         return hostInfoList;
+    }
+
+    private static void checkUrlProperties(final Properties properties) {
+        MyKey currentKey = null;
+        try {
+            for (MyKey key : MyKey.values()) {
+                currentKey = key;
+                properties.getOrDefault(key, key.getJavaType());
+            }
+        } catch (PropertyException e) {
+            throw e;
+        } catch (Throwable e) {
+            final String m, propName;
+            if (currentKey == null) {
+                // never here
+                propName = "unknown property";
+                m = "Property error";
+            } else {
+                propName = currentKey.getKey();
+                m = String.format("Property[%s] format error.", propName);
+            }
+            throw new PropertyException(propName, m, e);
+        }
     }
 
 

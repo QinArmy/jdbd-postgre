@@ -71,12 +71,12 @@
                 <version>${jsr305.version}</version>
             </dependency>
             <dependency>
-                <groupId>org.qinarmy.common</groupId>
+                <groupId>io.qinarmy.common</groupId>
                 <artifactId>common-env</artifactId>
                 <version>${qinarmy.common.version}</version>
             </dependency>
             <dependency>
-                <groupId>org.qinarmy.common</groupId>
+                <groupId>io.qinarmy.common</groupId>
                 <artifactId>common-util</artifactId>
                 <version>${qinarmy.common.version}</version>
             </dependency>

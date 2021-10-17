@@ -2,9 +2,9 @@ package io.jdbd.postgre.syntax;
 
 import io.jdbd.postgre.ServerParameter;
 import io.jdbd.postgre.util.PgExceptions;
-import org.qinarmy.util.FastStack;
-import org.qinarmy.util.Pair;
-import org.qinarmy.util.Stack;
+import io.qinarmy.util.FastStack;
+import io.qinarmy.util.Pair;
+import io.qinarmy.util.Stack;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

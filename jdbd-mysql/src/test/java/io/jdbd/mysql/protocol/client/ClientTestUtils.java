@@ -4,8 +4,8 @@ import io.jdbd.mysql.protocol.conf.MyKey;
 import io.jdbd.mysql.protocol.conf.MySQLUrl;
 import io.jdbd.mysql.util.MySQLStrings;
 import io.jdbd.mysql.util.MySQLTimes;
-import org.qinarmy.env.Environment;
-import org.qinarmy.env.ImmutableMapEnvironment;
+import io.qinarmy.env.Environment;
+import io.qinarmy.env.ImmutableMapEnvironment;
 import org.testng.annotations.Test;
 
 import java.io.IOException;

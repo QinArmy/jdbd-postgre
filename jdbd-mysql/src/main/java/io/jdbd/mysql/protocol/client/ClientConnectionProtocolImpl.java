@@ -60,7 +60,7 @@ final class ClientConnectionProtocolImpl implements ClientConnectionProtocol {
     @Override
     public Mono<Void> authenticateAndInitializing() {
         return MySQLConnectionTask.authenticate(this.taskExecutor.taskAdjutant())
-                .doOnSuccess(result -> MySQLTaskExecutor.setAuthenticateResult(this.taskExecutor, result))
+                .doOnSuccess(this.taskExecutor::setAuthenticateResult)
                 .then(Mono.defer(this::detectCustomCollations))
                 .doOnSuccess(map -> MySQLTaskExecutor.setCustomCollation(this.taskExecutor, map))
 

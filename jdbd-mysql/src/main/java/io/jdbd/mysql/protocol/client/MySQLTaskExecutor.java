@@ -66,35 +66,7 @@ final class MySQLTaskExecutor extends CommunicationTaskExecutor<TaskAdjutant> {
 
     }
 
-    static void setAuthenticateResult(MySQLTaskExecutor taskExecutor, AuthenticateResult result) {
-        synchronized (taskExecutor.taskAdjutant) {
-            TaskAdjutantWrapper adjutantWrapper = (TaskAdjutantWrapper) taskExecutor.taskAdjutant;
-            if (adjutantWrapper.handshake10 == null
-                    && adjutantWrapper.negotiatedCapability == 0) {
-                // 1.
-                Handshake10 handshake = Objects.requireNonNull(result, "result").handshakeV10Packet();
-                adjutantWrapper.handshake10 = Objects.requireNonNull(handshake, "handshake");
 
-                //2.
-                Charset serverCharset = CharsetMapping.getJavaCharsetByCollationIndex(handshake.getCollationIndex());
-                if (serverCharset == null) {
-                    throw new IllegalArgumentException("server handshake charset is null");
-                }
-                adjutantWrapper.serverHandshakeCharset = serverCharset;
-
-                // 3.
-                int negotiatedCapability = result.capability();
-                if (negotiatedCapability == 0) {
-                    throw new IllegalArgumentException("result error.");
-                }
-                adjutantWrapper.negotiatedCapability = negotiatedCapability;
-            } else {
-                throw new IllegalStateException("Duplicate update AuthenticateResult");
-            }
-
-
-        }
-    }
 
     static void setCustomCollation(MySQLTaskExecutor taskExecutor, Map<Integer, CharsetMapping.CustomCollation> map) {
         synchronized (taskExecutor.taskAdjutant) {
@@ -142,6 +114,36 @@ final class MySQLTaskExecutor extends CommunicationTaskExecutor<TaskAdjutant> {
     protected boolean clearChannel(ByteBuf cumulateBuffer, Class<? extends CommunicationTask> taskClass) {
         //TODO zoro complement this method.
         return true;
+    }
+
+    void setAuthenticateResult(AuthenticateResult result) {
+        synchronized (this.taskAdjutant) {
+            TaskAdjutantWrapper adjutantWrapper = (TaskAdjutantWrapper) this.taskAdjutant;
+            if (adjutantWrapper.handshake10 == null
+                    && adjutantWrapper.negotiatedCapability == 0) {
+                // 1.
+                Handshake10 handshake = Objects.requireNonNull(result, "result").handshakeV10Packet();
+                adjutantWrapper.handshake10 = Objects.requireNonNull(handshake, "handshake");
+
+                //2.
+                Charset serverCharset = CharsetMapping.getJavaCharsetByCollationIndex(handshake.getCollationIndex());
+                if (serverCharset == null) {
+                    throw new IllegalArgumentException("server handshake charset is null");
+                }
+                adjutantWrapper.serverHandshakeCharset = serverCharset;
+
+                // 3.
+                int negotiatedCapability = result.capability();
+                if (negotiatedCapability == 0) {
+                    throw new IllegalArgumentException("result error.");
+                }
+                adjutantWrapper.negotiatedCapability = negotiatedCapability;
+            } else {
+                throw new IllegalStateException("Duplicate update AuthenticateResult");
+            }
+
+
+        }
     }
 
 

@@ -6,7 +6,7 @@ import io.jdbd.vendor.util.JdbdStrings;
 import io.netty.buffer.ByteBufAllocator;
 import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslContextBuilder;
-import org.qinarmy.util.Pair;
+import io.qinarmy.util.Pair;
 import reactor.util.annotation.Nullable;
 
 import javax.net.ssl.*;

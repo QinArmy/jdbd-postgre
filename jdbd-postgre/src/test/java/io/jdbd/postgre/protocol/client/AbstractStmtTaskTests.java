@@ -18,7 +18,7 @@ import io.jdbd.type.geo.LineString;
 import io.jdbd.type.geometry.Circle;
 import io.jdbd.type.geometry.LongString;
 import io.jdbd.type.geometry.Point;
-import org.qinarmy.util.Pair;
+import io.qinarmy.util.Pair;
 import org.reactivestreams.Publisher;
 import org.reactivestreams.Subscriber;
 import org.reactivestreams.Subscription;

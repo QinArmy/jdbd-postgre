@@ -20,7 +20,7 @@ import io.jdbd.vendor.stmt.Stmt;
 import io.jdbd.vendor.util.FunctionWithError;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
-import org.qinarmy.util.UnexpectedEnumException;
+import io.qinarmy.util.UnexpectedEnumException;
 import org.reactivestreams.Publisher;
 import org.reactivestreams.Subscriber;
 import org.reactivestreams.Subscription;

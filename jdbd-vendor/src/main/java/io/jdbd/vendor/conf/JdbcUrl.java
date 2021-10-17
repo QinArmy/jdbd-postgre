@@ -26,4 +26,6 @@ public interface JdbcUrl {
      */
     List<? extends HostInfo> getHostList();
 
+    Properties getCommonProps();
+
 }

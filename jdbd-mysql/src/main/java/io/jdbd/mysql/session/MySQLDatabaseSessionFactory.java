@@ -5,8 +5,10 @@ import io.jdbd.config.PropertyException;
 import io.jdbd.config.UrlException;
 import io.jdbd.mysql.MySQLDriver;
 import io.jdbd.mysql.protocol.authentication.AuthenticationPlugin;
+import io.jdbd.mysql.protocol.authentication.PluginUtils;
 import io.jdbd.mysql.protocol.client.ClientProtocol;
 import io.jdbd.mysql.protocol.client.ClientProtocolFactory;
+import io.jdbd.mysql.protocol.conf.MyKey;
 import io.jdbd.mysql.protocol.conf.MySQLUrl;
 import io.jdbd.mysql.util.MySQLExceptions;
 import io.jdbd.session.DatabaseSessionFactory;
@@ -128,7 +130,8 @@ public final class MySQLDatabaseSessionFactory implements DatabaseSessionFactory
 
         private MySQLSessionAdjutant(MySQLDatabaseSessionFactory factory) {
             this.factory = factory;
-            final int workerCount = 100;
+            final int workerCount = this.factory.mySQLUrl.getCommonProps()
+                    .getOrDefault(MyKey.factoryWorkerCount, Integer.class);
             this.eventLoopGroup = LoopResources.create("jdbd-MySQL", workerCount, true)
                     .onClient(true);
         }
@@ -140,7 +143,7 @@ public final class MySQLDatabaseSessionFactory implements DatabaseSessionFactory
 
         @Override
         public Map<String, Class<? extends AuthenticationPlugin>> obtainPluginClassMap() {
-            return null;
+            return PluginUtils.createPluginClassMap(this.factory.mySQLUrl.getCommonProps());
         }
 
         @Override
@@ -150,12 +153,12 @@ public final class MySQLDatabaseSessionFactory implements DatabaseSessionFactory
 
         @Override
         public EventLoopGroup getEventLoopGroup() {
-            return null;
+            return this.eventLoopGroup;
         }
 
         @Override
-        public boolean isSameFactory(DatabaseSessionFactory factory) {
-            return false;
+        public boolean isSameFactory(final DatabaseSessionFactory factory) {
+            return factory == this.factory;
         }
 
     }

@@ -44,7 +44,7 @@ public class DataPrepareSuiteTests extends AbstractConnectionBasedSuiteTests {
         LOG.info("\n MySQL feature suite test end.\n");
         LOG.info("close {}", ClientConnectionProtocol.class.getName());
 
-        if (ClientTestUtils.getTestConfig().getProperty("truncate.after.suite", Boolean.class, Boolean.TRUE)) {
+        if (ClientTestUtils.getTestConfig().get("truncate.after.suite", Boolean.class, Boolean.TRUE)) {
             final TaskAdjutant adjutant = obtainTaskAdjutant();
             ComQueryTask.update(Stmts.stmt("TRUNCATE mysql_types"), adjutant)
                     .then(QuitTask.quit(adjutant))

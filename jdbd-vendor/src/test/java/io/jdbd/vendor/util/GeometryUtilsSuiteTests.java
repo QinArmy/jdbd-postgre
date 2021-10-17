@@ -1,7 +1,7 @@
 package io.jdbd.vendor.util;
 
 import io.jdbd.type.geometry.WkbType;
-import org.qinarmy.util.Pair;
+import io.qinarmy.util.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.annotations.Test;

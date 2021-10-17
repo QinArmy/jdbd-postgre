@@ -24,7 +24,7 @@ final class PostgreUrlParser implements JdbcUrlParser {
     /**
      * @see <a href="https://jdbc.postgresql.org/documentation/head/connect.html">postgre url</a>
      */
-    static final Pattern URL_PATTERN = Pattern.compile(PostgreUrl.PROTOCOL
+    static final Pattern URL_PATTERN = Pattern.compile(PgUrl.PROTOCOL
             + "(?://(?<hostList>[^,/?#;@]+(?:,[^,/?#;@]+)*)/)?" // 'host' or 'host:port'
             + "(?<database>[^/?#;]+)?/?"
             + "(?:\\?(?<query>[^#]*))?"
@@ -60,7 +60,7 @@ final class PostgreUrlParser implements JdbcUrlParser {
 
     @Override
     public final String getProtocol() {
-        return PostgreUrl.PROTOCOL;
+        return PgUrl.PROTOCOL;
     }
 
     @Override

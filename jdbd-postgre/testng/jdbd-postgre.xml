@@ -2,8 +2,8 @@
 <suite name="jdbd-postgre" verbose="1" parallel="methods" thread-count="30">
     <test name="feature">
         <classes>
-            <class name="io.jdbd.postgre.config.PostgreUrlParserSuiteTests"/>
-            <class name="io.jdbd.postgre.config.PostgreUrlSuiteTests"/>
+            <class name="io.jdbd.postgre.config.PgUrlParserSuiteTests"/>
+            <class name="io.jdbd.postgre.config.PgUrlSuiteTests"/>
             <class name="io.jdbd.postgre.PgServerVersionSuiteTests"/>
             <class name="io.jdbd.postgre.syntax.PgParserSuiteTests"/>
 

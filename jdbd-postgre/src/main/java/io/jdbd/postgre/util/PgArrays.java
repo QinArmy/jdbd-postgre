@@ -1,7 +1,7 @@
 package io.jdbd.postgre.util;
 
 import io.jdbd.vendor.util.JdbdArrays;
-import org.qinarmy.util.Pair;
+import io.qinarmy.util.Pair;
 
 public abstract class PgArrays extends JdbdArrays {
 

@@ -1,8 +1,9 @@
 package io.jdbd.vendor.conf;
 
-import org.qinarmy.env.ImmutableMapEnvironment;
-import org.qinarmy.env.convert.Converter;
-import org.qinarmy.env.convert.ConverterManager;
+import io.jdbd.config.PropertyException;
+import io.qinarmy.env.ImmutableMapEnvironment;
+import io.qinarmy.env.convert.Converter;
+import io.qinarmy.env.convert.ConverterManager;
 import reactor.util.annotation.Nullable;
 
 import java.util.List;
@@ -43,62 +44,99 @@ public final class ImmutableMapProperties extends ImmutableMapEnvironment implem
     @Nullable
     @Override
     public String get(PropertyKey key) {
-        return getProperty(key.getKey());
+        return get(key.getKey());
     }
 
     @Override
     public String get(PropertyKey key, String defaultValue) {
-        return getProperty(key.getKey(), defaultValue);
+        return get(key.getKey(), defaultValue);
     }
 
     @Override
     public <T> T get(PropertyKey key, Class<T> targetType) {
-        return getProperty(key.getKey(), targetType);
+        try {
+            return get(key.getKey(), targetType);
+        } catch (Exception e) {
+            throw cannotConvertException(key, targetType, e);
+        }
     }
+
 
     @Override
     public <T> T get(PropertyKey key, Class<T> targetType, T defaultValue) {
-        return getProperty(key.getKey(), targetType, defaultValue);
+        try {
+            return get(key.getKey(), targetType, defaultValue);
+        } catch (Exception e) {
+            throw cannotConvertException(key, targetType, e);
+        }
     }
 
     @Override
     public List<String> getList(PropertyKey key) {
-        return getPropertyList(key.getKey(), String.class);
+        try {
+            return getList(key.getKey(), String.class);
+        } catch (Exception e) {
+            throw cannotConvertException(key, List.class, e);
+        }
     }
 
     @Override
-    public <T> List<T> getList(PropertyKey key, Class<T> targetArrayType) {
-        return getPropertyList(key.getKey(), targetArrayType);
+    public <T> List<T> getList(PropertyKey key, Class<T> elementType) {
+        try {
+            return getList(key.getKey(), elementType);
+        } catch (Exception e) {
+            throw cannotConvertException(key, elementType, e);
+        }
     }
 
     @Override
-    public <T> List<T> getList(PropertyKey key, Class<T> targetArrayType, List<T> defaultList) {
-        return getPropertyList(key.getKey(), targetArrayType, defaultList);
+    public <T> List<T> getList(PropertyKey key, Class<T> elementType, List<T> defaultList) {
+        try {
+            return getList(key.getKey(), elementType, defaultList);
+        } catch (Exception e) {
+            throw cannotConvertException(key, elementType, e);
+        }
     }
 
     @Override
-    public <T> Set<T> getSet(PropertyKey key, Class<T> targetArrayType) {
-        return getPropertySet(key.getKey(), targetArrayType);
+    public <T> Set<T> getSet(PropertyKey key, Class<T> elementType) {
+        try {
+            return getSet(key.getKey(), elementType);
+        } catch (Exception e) {
+            throw cannotConvertException(key, elementType, e);
+        }
     }
 
     @Override
     public Set<String> getSet(PropertyKey key) {
-        return getPropertySet(key.getKey(), String.class);
+        return getSet(key.getKey(), String.class);
     }
 
     @Override
-    public <T> Set<T> getSet(PropertyKey key, Class<T> targetArrayType, Set<T> defaultSet) {
-        return getPropertySet(key.getKey(), targetArrayType, defaultSet);
+    public <T> Set<T> getSet(PropertyKey key, Class<T> elementType, Set<T> defaultSet) {
+        try {
+            return getSet(key.getKey(), elementType, defaultSet);
+        } catch (Exception e) {
+            throw cannotConvertException(key, elementType, e);
+        }
     }
 
     @Override
-    public String getNonNull(PropertyKey key) throws IllegalStateException {
-        return getRequiredProperty(key.getKey());
+    public String getNonNull(PropertyKey key) {
+        try {
+            return getNonNull(key.getKey());
+        } catch (Exception e) {
+            throw cannotConvertException(key, String.class, e);
+        }
     }
 
     @Override
     public <T> T getNonNull(PropertyKey key, Class<T> targetType) throws IllegalStateException {
-        return getRequiredProperty(key.getKey(), targetType);
+        try {
+            return getNonNull(key.getKey(), targetType);
+        } catch (Exception e) {
+            throw cannotConvertException(key, targetType, e);
+        }
     }
 
     @Override
@@ -109,7 +147,7 @@ public final class ImmutableMapProperties extends ImmutableMapEnvironment implem
         }
         String defaultText = key.getDefault();
         if (defaultText == null) {
-            throw new IllegalStateException(String.format("not found value for key[%s]", key.getKey()));
+            throw new PropertyException(key.getKey(), String.format("not found value for key[%s]", key.getKey()));
         }
         return defaultText;
     }
@@ -122,16 +160,27 @@ public final class ImmutableMapProperties extends ImmutableMapEnvironment implem
         }
         String defaultText = key.getDefault();
         if (defaultText == null) {
-            throw new IllegalStateException(String.format("not found value for key[%s]", key.getKey()));
+            throw new PropertyException(key.getKey(), String.format("not found value for key[%s]", key.getKey()));
         } else {
-            Converter<String, T> converter = this.converterManager.getConverter(String.class, targetType);
+            Converter<T> converter = this.converterManager.getConverter(targetType);
             if (converter == null) {
-                throw new IllegalStateException(
-                        String.format("not found Converter for [%s,%s]", String.class, targetType));
+                throw new PropertyException(
+                        key.getKey(), String.format("not found Converter for [%s,%s]", String.class, targetType));
             } else {
-                value = converter.convert(defaultText);
+                try {
+                    value = converter.convert(defaultText);
+                } catch (Exception e) {
+                    throw cannotConvertException(key, targetType, e);
+                }
             }
         }
         return value;
     }
+
+    private static PropertyException cannotConvertException(PropertyKey key, Class<?> targetType, Throwable e) {
+        String m = String.format("Property[%s] value couldn't convert to %s.", key, targetType.getName());
+        return new PropertyException(key.getKey(), m);
+    }
+
+
 }

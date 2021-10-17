@@ -12,7 +12,7 @@ import io.jdbd.vendor.conf.Properties;
 import io.jdbd.vendor.util.SQLStates;
 import io.netty.buffer.ByteBufAllocator;
 import io.netty.handler.ssl.*;
-import org.qinarmy.util.Pair;
+import io.qinarmy.util.Pair;
 import reactor.util.annotation.Nullable;
 
 import javax.net.ssl.*;

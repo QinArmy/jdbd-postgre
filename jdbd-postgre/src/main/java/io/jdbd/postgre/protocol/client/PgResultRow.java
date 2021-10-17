@@ -12,7 +12,7 @@ import io.jdbd.type.Interval;
 import io.jdbd.vendor.result.AbstractResultRow;
 import io.jdbd.vendor.type.LongStrings;
 import io.jdbd.vendor.util.JdbdArrays;
-import org.qinarmy.util.Pair;
+import io.qinarmy.util.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import reactor.util.annotation.Nullable;

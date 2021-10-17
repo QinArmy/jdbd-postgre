@@ -4,7 +4,7 @@ import io.jdbd.postgre.PgType;
 import io.jdbd.postgre.util.PgExceptions;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
-import org.qinarmy.util.HexUtils;
+import io.qinarmy.util.HexUtils;
 
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;

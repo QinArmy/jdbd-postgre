@@ -12,7 +12,7 @@ import io.jdbd.postgre.util.PgStrings;
 import io.jdbd.postgre.util.PgTimes;
 import io.jdbd.vendor.task.*;
 import io.netty.buffer.ByteBuf;
-import org.qinarmy.util.Pair;
+import io.qinarmy.util.Pair;
 import org.reactivestreams.Publisher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

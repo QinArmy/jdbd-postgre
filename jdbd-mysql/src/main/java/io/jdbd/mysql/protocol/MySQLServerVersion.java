@@ -2,6 +2,8 @@ package io.jdbd.mysql.protocol;
 
 import io.jdbd.session.ServerVersion;
 
+import java.util.Objects;
+
 public final class MySQLServerVersion implements Comparable<MySQLServerVersion>, ServerVersion {
 
     private static final MySQLServerVersion MIN_VERSION = new MySQLServerVersion("0.0.0", 0, 0, 0);
@@ -24,12 +26,12 @@ public final class MySQLServerVersion implements Comparable<MySQLServerVersion>,
     }
 
     @Override
-    public final String toString() {
+    public String toString() {
         return this.completeVersion;
     }
 
     @Override
-    public final boolean equals(final Object obj) {
+    public boolean equals(final Object obj) {
         final boolean match;
         if (this == obj) {
             match = true;
@@ -45,8 +47,8 @@ public final class MySQLServerVersion implements Comparable<MySQLServerVersion>,
     }
 
     @Override
-    public final int hashCode() {
-        return this.completeVersion.hashCode();
+    public int hashCode() {
+        return Objects.hash(this.major, this.minor, this.subMinor);
     }
 
     /**
@@ -97,7 +99,7 @@ public final class MySQLServerVersion implements Comparable<MySQLServerVersion>,
      * @param versionString string version representation
      * @return {@link MySQLServerVersion}
      */
-    public static MySQLServerVersion parseVersion(final String versionString) {
+    public static MySQLServerVersion from(final String versionString) {
         final int index1 = versionString.indexOf('.');
         if (index1 < 0) {
             throw new IllegalArgumentException("versionString error");

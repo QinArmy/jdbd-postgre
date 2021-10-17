@@ -91,7 +91,7 @@ public class LoadDataLocalSuiteTests extends AbstractStmtTaskSuiteTests {
     public static void afterClass() {
         LOG.info("{} afterClass test start", Groups.LOAD_DATA);
 
-        if (ClientTestUtils.getTestConfig().getProperty("truncate.after.suite", Boolean.class, Boolean.TRUE)) {
+        if (ClientTestUtils.getTestConfig().get("truncate.after.suite", Boolean.class, Boolean.TRUE)) {
 
             final TaskAdjutant adjutant = obtainTaskAdjutant();
             final String sql = "TRUNCATE mysql_load_data";

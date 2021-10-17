@@ -2,7 +2,7 @@ package io.jdbd.postgre.protocol.client;
 
 import io.jdbd.postgre.ClientTestUtils;
 import io.jdbd.postgre.config.PgKey;
-import io.jdbd.postgre.config.PostgreUrl;
+import io.jdbd.postgre.config.PgUrl;
 import io.jdbd.postgre.session.SessionAdjutant;
 import io.jdbd.result.ResultStates;
 import io.jdbd.session.DatabaseSessionFactory;
@@ -92,15 +92,15 @@ abstract class AbstractTaskTests {
 
     private static final class SessionAdjutantImpl implements SessionAdjutant {
 
-        private final PostgreUrl postgreUrl;
+        private final PgUrl pgUrl;
 
-        private SessionAdjutantImpl(PostgreUrl postgreUrl) {
-            this.postgreUrl = postgreUrl;
+        private SessionAdjutantImpl(PgUrl pgUrl) {
+            this.pgUrl = pgUrl;
         }
 
         @Override
-        public PostgreUrl getJdbcUrl() {
-            return this.postgreUrl;
+        public PgUrl getJdbcUrl() {
+            return this.pgUrl;
         }
 
         @Override

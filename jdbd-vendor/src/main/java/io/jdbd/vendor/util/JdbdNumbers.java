@@ -1,6 +1,6 @@
 package io.jdbd.vendor.util;
 
-import org.qinarmy.util.NumberUtils;
+import io.qinarmy.util.NumberUtils;
 
 public abstract class JdbdNumbers extends NumberUtils {
 

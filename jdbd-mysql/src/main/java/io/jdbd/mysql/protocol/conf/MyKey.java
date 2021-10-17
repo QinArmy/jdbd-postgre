@@ -354,7 +354,8 @@ public enum MyKey implements PropertyKey {
     @OnlyReactor
     timeTruncateFractional("timeTruncateFractional", "true", Boolean.class),
     @OnlyReactor
-    clientPrepareSupportStream("false", Boolean.class);
+    clientPrepareSupportStream("false", Boolean.class),
+    factoryWorkerCount("50", Integer.class);
 
     private final String keyName;
     private final String ccAlias;

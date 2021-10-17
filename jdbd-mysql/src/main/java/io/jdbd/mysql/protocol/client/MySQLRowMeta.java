@@ -8,7 +8,7 @@ import io.jdbd.mysql.protocol.CharsetMapping;
 import io.jdbd.mysql.util.MySQLStrings;
 import io.jdbd.result.ResultRowMeta;
 import io.netty.buffer.ByteBuf;
-import org.qinarmy.util.StringUtils;
+import io.qinarmy.util.StringUtils;
 import reactor.util.annotation.Nullable;
 
 import java.nio.charset.Charset;

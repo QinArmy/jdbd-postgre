@@ -19,7 +19,7 @@ final class Handshake10 implements MySQLPacket {
         }
         // 1. server version
         String serveVersionText = Packets.readStringTerm(payload, StandardCharsets.US_ASCII);
-        MySQLServerVersion serverVersion = MySQLServerVersion.parseVersion(serveVersionText);
+        MySQLServerVersion serverVersion = MySQLServerVersion.from(serveVersionText);
         // 2. thread id,a.k.a. connection id
         long threadId = Packets.readInt4AsLong(payload);
         // 3. auth-plugin-data-part-1,first 8 bytes of the plugin provided data (scramble)

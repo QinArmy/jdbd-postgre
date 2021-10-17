@@ -4,7 +4,7 @@ import io.jdbd.type.geometry.LineString;
 import io.jdbd.type.geometry.Point;
 import io.jdbd.type.geometry.WkbType;
 import io.jdbd.vendor.type.Geometries;
-import org.qinarmy.util.Pair;
+import io.qinarmy.util.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import reactor.core.publisher.Flux;

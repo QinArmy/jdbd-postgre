@@ -8,7 +8,7 @@ import io.jdbd.vendor.JdbdCompositeException;
 import io.jdbd.vendor.JdbdUnknownException;
 import io.jdbd.vendor.stmt.CannotReuseStatementException;
 import io.jdbd.vendor.stmt.ParamValue;
-import org.qinarmy.util.ExceptionUtils;
+import io.qinarmy.util.ExceptionUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import reactor.util.annotation.Nullable;

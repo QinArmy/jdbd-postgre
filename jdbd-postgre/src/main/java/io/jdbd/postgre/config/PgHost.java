@@ -1,11 +1,8 @@
 package io.jdbd.postgre.config;
 
 import io.jdbd.vendor.conf.AbstractHostInfo;
-import io.jdbd.vendor.conf.ImmutableMapProperties;
 import io.jdbd.vendor.conf.JdbcUrlParser;
 import io.jdbd.vendor.conf.Properties;
-import org.qinarmy.env.convert.ConverterManager;
-import org.qinarmy.env.convert.ImmutableConverterManager;
 
 import java.util.Map;
 
@@ -61,8 +58,7 @@ public class PgHost extends AbstractHostInfo {
 
     @Override
     protected Properties createProperties(Map<String, String> map) {
-        ConverterManager converterManager = ImmutableConverterManager.create(Converters::registerConverter);
-        return ImmutableMapProperties.getInstance(map, converterManager);
+        return PgUrl.wrapProperties(map);
     }
 
 

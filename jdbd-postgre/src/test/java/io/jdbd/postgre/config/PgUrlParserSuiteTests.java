@@ -18,9 +18,9 @@ import static org.testng.Assert.*;
  * @see PostgreUrlParser
  */
 @Test(groups = {Group.URL})
-public class PostgreUrlParserSuiteTests {
+public class PgUrlParserSuiteTests {
 
-    private static final Logger LOG = LoggerFactory.getLogger(PostgreUrlParserSuiteTests.class);
+    private static final Logger LOG = LoggerFactory.getLogger(PgUrlParserSuiteTests.class);
 
 
     @Test
@@ -31,7 +31,7 @@ public class PostgreUrlParserSuiteTests {
         parser = PostgreUrlParser.create(postgreUrl, Collections.emptyMap());
 
         assertEquals(parser.getOriginalUrl(), postgreUrl, postgreUrl);
-        assertEquals(parser.getProtocol(), PostgreUrl.PROTOCOL, postgreUrl);
+        assertEquals(parser.getProtocol(), PgUrl.PROTOCOL, postgreUrl);
         assertNull(parser.getSubProtocol(), postgreUrl);
         assertEquals(parser.getDbName(), "army_test", postgreUrl);
 
@@ -63,7 +63,7 @@ public class PostgreUrlParserSuiteTests {
         parser = PostgreUrlParser.create(url, Collections.emptyMap());
 
         assertEquals(parser.getOriginalUrl(), url, url);
-        assertEquals(parser.getProtocol(), PostgreUrl.PROTOCOL, url);
+        assertEquals(parser.getProtocol(), PgUrl.PROTOCOL, url);
         assertNull(parser.getSubProtocol(), url);
         assertEquals(parser.getDbName(), database, url);
 
@@ -94,7 +94,7 @@ public class PostgreUrlParserSuiteTests {
         parser = PostgreUrlParser.create(postgreUrl, Collections.emptyMap());
 
         assertEquals(parser.getOriginalUrl(), postgreUrl, postgreUrl);
-        assertEquals(parser.getProtocol(), PostgreUrl.PROTOCOL, postgreUrl);
+        assertEquals(parser.getProtocol(), PgUrl.PROTOCOL, postgreUrl);
         assertNull(parser.getSubProtocol(), postgreUrl);
         assertEquals(parser.getDbName(), "army_test", postgreUrl);
 
@@ -125,7 +125,7 @@ public class PostgreUrlParserSuiteTests {
         parser = PostgreUrlParser.create(postgreUrl, Collections.emptyMap());
 
         assertEquals(parser.getOriginalUrl(), postgreUrl, postgreUrl);
-        assertEquals(parser.getProtocol(), PostgreUrl.PROTOCOL, postgreUrl);
+        assertEquals(parser.getProtocol(), PgUrl.PROTOCOL, postgreUrl);
         assertNull(parser.getSubProtocol(), postgreUrl);
         assertEquals(parser.getDbName(), "army_test", postgreUrl);
 
@@ -156,7 +156,7 @@ public class PostgreUrlParserSuiteTests {
         parser = PostgreUrlParser.create(postgreUrl, Collections.emptyMap());
 
         assertEquals(parser.getOriginalUrl(), postgreUrl, postgreUrl);
-        assertEquals(parser.getProtocol(), PostgreUrl.PROTOCOL, postgreUrl);
+        assertEquals(parser.getProtocol(), PgUrl.PROTOCOL, postgreUrl);
         assertNull(parser.getSubProtocol(), postgreUrl);
         assertNull(parser.getDbName(), postgreUrl);
 
@@ -187,7 +187,7 @@ public class PostgreUrlParserSuiteTests {
         parser = PostgreUrlParser.create(url, Collections.emptyMap());
 
         assertEquals(parser.getOriginalUrl(), url, url);
-        assertEquals(parser.getProtocol(), PostgreUrl.PROTOCOL, url);
+        assertEquals(parser.getProtocol(), PgUrl.PROTOCOL, url);
         assertNull(parser.getSubProtocol(), url);
         assertNull(parser.getDbName(), url);
 
@@ -218,7 +218,7 @@ public class PostgreUrlParserSuiteTests {
         parser = PostgreUrlParser.create(url, Collections.emptyMap());
 
         assertEquals(parser.getOriginalUrl(), url, url);
-        assertEquals(parser.getProtocol(), PostgreUrl.PROTOCOL, url);
+        assertEquals(parser.getProtocol(), PgUrl.PROTOCOL, url);
         assertNull(parser.getSubProtocol(), url);
         assertEquals(parser.getDbName(), "army_test", url);
 

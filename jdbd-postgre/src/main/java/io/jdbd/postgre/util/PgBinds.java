@@ -11,9 +11,9 @@ import io.jdbd.vendor.stmt.ParamValue;
 import io.jdbd.vendor.util.JdbdArrays;
 import io.jdbd.vendor.util.JdbdBinds;
 import io.jdbd.vendor.util.JdbdExceptions;
-import org.qinarmy.util.FastStack;
-import org.qinarmy.util.Pair;
-import org.qinarmy.util.Stack;
+import io.qinarmy.util.FastStack;
+import io.qinarmy.util.Pair;
+import io.qinarmy.util.Stack;
 import org.reactivestreams.Publisher;
 import reactor.util.annotation.Nullable;
 

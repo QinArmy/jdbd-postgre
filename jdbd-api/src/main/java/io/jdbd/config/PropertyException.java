@@ -7,13 +7,13 @@ public class PropertyException extends JdbdNonSQLException {
 
     private final String propertyName;
 
-    public PropertyException(String propertyName, String messageFormat, Object... args) {
-        super(messageFormat, args);
+    public PropertyException(String propertyName, String message) {
+        super(message);
         this.propertyName = propertyName;
     }
 
-    public PropertyException(@Nullable Throwable cause, String propertyName, String messageFormat, Object... args) {
-        super(cause, messageFormat, args);
+    public PropertyException(String propertyName, String message, @Nullable Throwable cause) {
+        super(message, cause);
         this.propertyName = propertyName;
     }
 

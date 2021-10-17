@@ -1,17 +1,17 @@
 package io.jdbd.postgre.config;
 
-import io.jdbd.vendor.conf.AbstractJdbcUrl;
-import io.jdbd.vendor.conf.HostInfo;
-import io.jdbd.vendor.conf.JdbcUrlParser;
+import io.jdbd.vendor.conf.*;
+import io.qinarmy.env.convert.ConverterManager;
+import io.qinarmy.env.convert.ImmutableConverterManager;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-public final class PostgreUrl extends AbstractJdbcUrl {
+public final class PgUrl extends AbstractJdbcUrl {
 
-    public static PostgreUrl create(String url, Map<String, String> propMap) {
-        return new PostgreUrl(PostgreUrlParser.create(url, propMap));
+    public static PgUrl create(String url, Map<String, String> propMap) {
+        return new PgUrl(PostgreUrlParser.create(url, propMap));
     }
 
     public static boolean acceptsUrl(final String url) {
@@ -22,7 +22,7 @@ public final class PostgreUrl extends AbstractJdbcUrl {
 
     private final List<PgHost> hostList;
 
-    private PostgreUrl(PostgreUrlParser parser) {
+    private PgUrl(PostgreUrlParser parser) {
         super(parser);
         this.hostList = createHostInfoList(parser);
     }
@@ -41,6 +41,16 @@ public final class PostgreUrl extends AbstractJdbcUrl {
     @Override
     protected PgKey getDbNameKey() {
         return PgKey.PGDBNAME;
+    }
+
+    @Override
+    protected Properties createProperties(Map<String, String> map) {
+        return wrapProperties(map);
+    }
+
+    static Properties wrapProperties(Map<String, String> map) {
+        ConverterManager converterManager = ImmutableConverterManager.create(Converters::registerConverter);
+        return ImmutableMapProperties.getInstance(map, converterManager);
     }
 
     public <T> T getOrDefault(PgKey key, Class<T> targetType) {

@@ -1,7 +1,7 @@
 package io.jdbd.vendor.util;
 
 import io.netty.buffer.ByteBuf;
-import org.qinarmy.util.BufferUtils;
+import io.qinarmy.util.BufferUtils;
 
 import java.nio.ByteBuffer;
 

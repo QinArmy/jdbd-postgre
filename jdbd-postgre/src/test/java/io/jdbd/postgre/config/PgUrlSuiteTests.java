@@ -13,12 +13,12 @@ import java.util.List;
 import static org.testng.Assert.*;
 
 /**
- * @see PostgreUrl
+ * @see PgUrl
  */
 @Test(groups = {Group.URL})
-public class PostgreUrlSuiteTests {
+public class PgUrlSuiteTests {
 
-    private static final Logger LOG = LoggerFactory.getLogger(PostgreUrlSuiteTests.class);
+    private static final Logger LOG = LoggerFactory.getLogger(PgUrlSuiteTests.class);
 
 
     @Test
@@ -26,14 +26,14 @@ public class PostgreUrlSuiteTests {
         LOG.info("{} group  urlParserDefaultHostAndPort test start", Group.URL);
         final String url = "jdbc:postgresql:army_test?user=army&password=army123&ssl=true";
 
-        final PostgreUrl postgreUrl = PostgreUrl.create(url, Collections.singletonMap("password", "qinarmy123"));
+        final PgUrl pgUrl = PgUrl.create(url, Collections.singletonMap("password", "qinarmy123"));
 
-        assertNotNull(postgreUrl, "postgreUrl");
-        assertEquals(postgreUrl.getProtocol(), PostgreUrl.PROTOCOL, "protocol");
-        assertNull(postgreUrl.getSubProtocol(), "sub protocol");
-        assertEquals(postgreUrl.getDbName(), "army_test", "database");
+        assertNotNull(pgUrl, "postgreUrl");
+        assertEquals(pgUrl.getProtocol(), PgUrl.PROTOCOL, "protocol");
+        assertNull(pgUrl.getSubProtocol(), "sub protocol");
+        assertEquals(pgUrl.getDbName(), "army_test", "database");
 
-        final List<PgHost> hostList = postgreUrl.getHostList();
+        final List<PgHost> hostList = pgUrl.getHostList();
         assertNotNull(hostList, "hostList");
         assertEquals(hostList.size(), 1, "hostList size");
 
@@ -65,14 +65,14 @@ public class PostgreUrlSuiteTests {
         final String encodeUserName = URLEncoder.encode(userName, "UTF-8"), encodedDatabase = URLEncoder.encode(database, "UTF-8");
         final String url = String.format("jdbc:postgresql://[2001:DB8:0:23:8:800:200C:417A]:5432/%s/?user=%s&ssl=true", encodedDatabase, encodeUserName);
 
-        final PostgreUrl postgreUrl = PostgreUrl.create(url, Collections.singletonMap("password", "qinarmy123"));
+        final PgUrl pgUrl = PgUrl.create(url, Collections.singletonMap("password", "qinarmy123"));
 
-        assertNotNull(postgreUrl, "postgreUrl");
-        assertEquals(postgreUrl.getProtocol(), PostgreUrl.PROTOCOL, "protocol");
-        assertNull(postgreUrl.getSubProtocol(), "sub protocol");
-        assertEquals(postgreUrl.getDbName(), database, "database");
+        assertNotNull(pgUrl, "postgreUrl");
+        assertEquals(pgUrl.getProtocol(), PgUrl.PROTOCOL, "protocol");
+        assertNull(pgUrl.getSubProtocol(), "sub protocol");
+        assertEquals(pgUrl.getDbName(), database, "database");
 
-        final List<PgHost> hostList = postgreUrl.getHostList();
+        final List<PgHost> hostList = pgUrl.getHostList();
         assertNotNull(hostList, "hostList");
         assertEquals(hostList.size(), 1, "hostList size");
 
@@ -102,14 +102,14 @@ public class PostgreUrlSuiteTests {
         LOG.info("{} group  urlParserIpv4 test start", Group.URL);
         final String url = "jdbc:postgresql://192.168.0.102:5432/army_test/?user=army&ssl=true";
 
-        final PostgreUrl postgreUrl = PostgreUrl.create(url, Collections.singletonMap("password", "qinarmy123"));
+        final PgUrl pgUrl = PgUrl.create(url, Collections.singletonMap("password", "qinarmy123"));
 
-        assertNotNull(postgreUrl, "postgreUrl");
-        assertEquals(postgreUrl.getProtocol(), PostgreUrl.PROTOCOL, "protocol");
-        assertNull(postgreUrl.getSubProtocol(), "sub protocol");
-        assertEquals(postgreUrl.getDbName(), "army_test", "database");
+        assertNotNull(pgUrl, "postgreUrl");
+        assertEquals(pgUrl.getProtocol(), PgUrl.PROTOCOL, "protocol");
+        assertNull(pgUrl.getSubProtocol(), "sub protocol");
+        assertEquals(pgUrl.getDbName(), "army_test", "database");
 
-        final List<PgHost> hostList = postgreUrl.getHostList();
+        final List<PgHost> hostList = pgUrl.getHostList();
         assertNotNull(hostList, "hostList");
         assertEquals(hostList.size(), 1, "hostList size");
 
@@ -138,14 +138,14 @@ public class PostgreUrlSuiteTests {
         LOG.info("{} group  failOverHostList test start", Group.URL);
         final String url = "jdbc:postgresql://192.168.0.102,[2001:DB8:0:23:8:800:200C:417A],localhost:7878,[2002:DB8:0:23:8:233:200C:417A]:5656/army_test/?user=army&ssl=true";
 
-        final PostgreUrl postgreUrl = PostgreUrl.create(url, Collections.singletonMap("password", "qinarmy123"));
+        final PgUrl pgUrl = PgUrl.create(url, Collections.singletonMap("password", "qinarmy123"));
 
-        assertNotNull(postgreUrl, "postgreUrl");
-        assertEquals(postgreUrl.getProtocol(), PostgreUrl.PROTOCOL, "protocol");
-        assertNull(postgreUrl.getSubProtocol(), "sub protocol");
-        assertEquals(postgreUrl.getDbName(), "army_test", "database");
+        assertNotNull(pgUrl, "postgreUrl");
+        assertEquals(pgUrl.getProtocol(), PgUrl.PROTOCOL, "protocol");
+        assertNull(pgUrl.getSubProtocol(), "sub protocol");
+        assertEquals(pgUrl.getDbName(), "army_test", "database");
 
-        final List<PgHost> hostList = postgreUrl.getHostList();
+        final List<PgHost> hostList = pgUrl.getHostList();
         assertNotNull(hostList, "hostList");
         assertEquals(hostList.size(), 4, "hostList size");
 

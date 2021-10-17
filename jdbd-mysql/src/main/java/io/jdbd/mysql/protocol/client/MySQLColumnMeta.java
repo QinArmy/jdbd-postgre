@@ -9,7 +9,7 @@ import io.jdbd.mysql.util.MySQLStrings;
 import io.jdbd.result.FieldType;
 import io.jdbd.vendor.conf.Properties;
 import io.netty.buffer.ByteBuf;
-import org.qinarmy.util.StringUtils;
+import io.qinarmy.util.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import reactor.util.annotation.Nullable;

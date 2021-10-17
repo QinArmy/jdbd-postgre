@@ -1,6 +1,6 @@
 package io.jdbd.postgre.config;
 
-import org.qinarmy.env.convert.NonNameEnum;
+import io.qinarmy.env.convert.NonNameEnum;
 
 public abstract class Enums {
 

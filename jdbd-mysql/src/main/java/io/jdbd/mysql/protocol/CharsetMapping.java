@@ -286,8 +286,8 @@ public abstract class CharsetMapping {
     }
 
     public static boolean isUnsupportedCharsetClient(String javaCharset) {
-        return UNSUPPORTED_CHARSET_CLIENTS.contains(javaCharset.toUpperCase(Locale.ENGLISH))
-                || UNSUPPORTED_CHARSET_CLIENTS.contains(javaCharset.toLowerCase(Locale.ENGLISH));
+        return UNSUPPORTED_CHARSET_CLIENTS.contains(javaCharset.toUpperCase())
+                || UNSUPPORTED_CHARSET_CLIENTS.contains(javaCharset.toLowerCase());
     }
 
 

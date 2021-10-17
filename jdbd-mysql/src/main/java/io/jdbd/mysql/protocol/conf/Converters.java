@@ -1,6 +1,6 @@
-package io.jdbd.postgre.config;
+package io.jdbd.mysql.protocol.conf;
 
-import io.jdbd.postgre.PgServerVersion;
+import io.jdbd.mysql.protocol.MySQLServerVersion;
 import io.qinarmy.env.convert.Converter;
 
 import java.util.function.Consumer;
@@ -8,30 +8,27 @@ import java.util.function.Consumer;
 abstract class Converters {
 
     private Converters() {
-        throw new UnsupportedOperationException();
     }
-
 
     static void registerConverter(Consumer<Converter<?>> consumer) {
         consumer.accept(StringToServerVersionConverter.INSTANCE);
     }
 
 
-    private static final class StringToServerVersionConverter implements Converter<PgServerVersion> {
+    private static final class StringToServerVersionConverter implements Converter<MySQLServerVersion> {
 
         private static final StringToServerVersionConverter INSTANCE = new StringToServerVersionConverter();
 
         @Override
-        public Class<PgServerVersion> target() {
-            return PgServerVersion.class;
+        public Class<MySQLServerVersion> target() {
+            return MySQLServerVersion.class;
         }
 
         @Override
-        public PgServerVersion convert(String source) throws IllegalArgumentException {
-            return PgServerVersion.from(source);
+        public MySQLServerVersion convert(String source) throws IllegalArgumentException {
+            return MySQLServerVersion.from(source);
         }
 
     }
-
 
 }

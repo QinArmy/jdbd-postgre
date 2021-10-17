@@ -14,7 +14,7 @@ import io.jdbd.mysql.util.MySQLTimes;
 import io.jdbd.result.ResultRow;
 import io.jdbd.vendor.conf.Properties;
 import io.jdbd.vendor.util.SQLStates;
-import org.qinarmy.util.Pair;
+import io.qinarmy.util.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import reactor.core.publisher.Mono;

@@ -15,7 +15,7 @@ import io.jdbd.stmt.LongDataReadException;
 import io.jdbd.vendor.stmt.StaticBatchStmt;
 import io.jdbd.vendor.syntax.SQLParser;
 import io.netty.buffer.ByteBuf;
-import org.qinarmy.util.Pair;
+import io.qinarmy.util.Pair;
 import org.reactivestreams.Publisher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

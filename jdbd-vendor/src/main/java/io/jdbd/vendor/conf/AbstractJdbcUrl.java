@@ -15,6 +15,8 @@ public abstract class AbstractJdbcUrl implements JdbcUrl {
 
     private final String dbName;
 
+    protected final Properties commonProps;
+
 
     protected AbstractJdbcUrl(final JdbcUrlParser parser) {
 
@@ -25,6 +27,7 @@ public abstract class AbstractJdbcUrl implements JdbcUrl {
             throw new IllegalArgumentException("originalUrl or protocol  is empty.");
         }
         this.dbName = getValue(parser.getGlobalProperties(), getDbNameKey());
+        this.commonProps = createProperties(parser.getGlobalProperties());
     }
 
     @Override
@@ -78,8 +81,15 @@ public abstract class AbstractJdbcUrl implements JdbcUrl {
         return this.subProtocol;
     }
 
+    @Override
+    public final Properties getCommonProps() {
+        return this.commonProps;
+    }
 
     protected abstract PropertyKey getDbNameKey();
+
+    protected abstract Properties createProperties(Map<String, String> map);
+
 
     @Nullable
     protected static String getValue(Map<String, String> map, PropertyKey propertyKey) {

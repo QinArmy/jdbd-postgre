@@ -1,7 +1,7 @@
 package io.jdbd.vendor.util;
 
-import org.qinarmy.util.ArrayUtils;
-import org.qinarmy.util.Pair;
+import io.qinarmy.util.ArrayUtils;
+import io.qinarmy.util.Pair;
 
 import java.lang.reflect.Array;
 

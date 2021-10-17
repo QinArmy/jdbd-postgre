@@ -1,7 +1,7 @@
 package io.jdbd.postgre;
 
 import io.jdbd.postgre.config.PgKey;
-import io.jdbd.postgre.config.PostgreUrl;
+import io.jdbd.postgre.config.PgUrl;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -21,7 +21,7 @@ public abstract class ClientTestUtils {
     }
 
 
-    public static PostgreUrl createUrl(Map<String, String> propertiesMap) {
+    public static PgUrl createUrl(Map<String, String> propertiesMap) {
         String url = "jdbc:postgresql://localhost:5432/army_test";
         Map<String, String> properties = new HashMap<>();
 
@@ -33,7 +33,7 @@ public abstract class ClientTestUtils {
         properties.put(PgKey.currentSchema.getKey(), "army");
         properties.putAll(propertiesMap);
 
-        return PostgreUrl.create(url, properties);
+        return PgUrl.create(url, properties);
     }
 
     public static Path getModulePath() {
