@@ -58,8 +58,8 @@ abstract class AbstractResultSetReader implements ResultSetReader {
     AbstractResultSetReader(StmtTask task) {
         this.task = task;
         this.adjutant = task.adjutant();
-        this.properties = this.adjutant.obtainHostInfo().getProperties();
-        this.negotiatedCapability = this.adjutant.negotiatedCapability();
+        this.properties = this.adjutant.host().getProperties();
+        this.negotiatedCapability = this.adjutant.capability();
     }
 
     @Override

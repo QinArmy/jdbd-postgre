@@ -59,7 +59,7 @@ final class PrepareLongParameterWriter implements PrepareExecuteCommandWriter.Lo
         this.statementTask = statementTask;
         this.statementId = statementTask.obtainStatementId();
         this.adjutant = statementTask.obtainAdjutant();
-        this.properties = this.adjutant.obtainHostInfo().getProperties();
+        this.properties = this.adjutant.host().getProperties();
 
         this.blobSendChunkSize = obtainBlobSendChunkSize();
         this.maxPacket = Packets.HEADER_SIZE + blobSendChunkSize;
@@ -109,7 +109,7 @@ final class PrepareLongParameterWriter implements PrepareExecuteCommandWriter.Lo
             ByteBuf packet = createLongDataPacket(paramIndex, input.length);
 
             packet = writeByteArray(packet, sink, paramIndex, input, input.length);
-            Packets.writePacketHeader(packet, this.statementTask.safelyAddAndGetSequenceId());
+            Packets.writeHeader(packet, this.statementTask.safelyAddAndGetSequenceId());
             sink.next(packet);
 
             sink.complete();
@@ -133,7 +133,7 @@ final class PrepareLongParameterWriter implements PrepareExecuteCommandWriter.Lo
                 char[] charArray = string.toCharArray();
                 packet = writeCharArray(packet, sink, paramIndex, charArray, charArray.length);
             }
-            Packets.writePacketHeader(packet, this.statementTask.safelyAddAndGetSequenceId());
+            Packets.writeHeader(packet, this.statementTask.safelyAddAndGetSequenceId());
             sink.next(packet);
 
             sink.complete();
@@ -195,7 +195,7 @@ final class PrepareLongParameterWriter implements PrepareExecuteCommandWriter.Lo
 
     private int obtainBlobSendChunkSize() {
         int chunkSize = this.properties.getOrDefault(MyKey.blobSendChunkSize, Integer.class);
-        final int maxChunkSize = Math.min(this.adjutant.obtainHostInfo().maxAllowedPayload(), MAX_CHUNK_SIZE);
+        final int maxChunkSize = Math.min(this.adjutant.host().maxAllowedPayload(), MAX_CHUNK_SIZE);
         if (chunkSize < MIN_CHUNK_SIZE) {
             chunkSize = MIN_CHUNK_SIZE;
         } else if (chunkSize > maxChunkSize) {
@@ -216,14 +216,14 @@ final class PrepareLongParameterWriter implements PrepareExecuteCommandWriter.Lo
             final int maxPacket = this.maxPacket;
             for (int length; (length = input.read(buffer)) > 0; ) {
                 if (packet.readableBytes() == maxPacket) {
-                    Packets.writePacketHeader(packet, this.statementTask.safelyAddAndGetSequenceId());
+                    Packets.writeHeader(packet, this.statementTask.safelyAddAndGetSequenceId());
                     sink.next(packet);
 
                     packet = createLongDataPacket(parameterIndex, ClientConstants.BUFFER_LENGTH);
                 }
                 packet.writeBytes(buffer, 0, length);
             }
-            Packets.writePacketHeader(packet, this.statementTask.safelyAddAndGetSequenceId());
+            Packets.writeHeader(packet, this.statementTask.safelyAddAndGetSequenceId());
             sink.next(packet);
 
             sink.complete();
@@ -260,7 +260,7 @@ final class PrepareLongParameterWriter implements PrepareExecuteCommandWriter.Lo
         byte[] byteArray;
         for (int offset = 0, length; offset < arrayLength; offset += length) {
             if (packet.readableBytes() == maxPacket) {
-                Packets.writePacketHeader(packet, this.statementTask.safelyAddAndGetSequenceId());
+                Packets.writeHeader(packet, this.statementTask.safelyAddAndGetSequenceId());
                 sink.next(packet);
                 packet = createLongDataPacket(paramIndex, arrayLength - offset);
             }
@@ -293,7 +293,7 @@ final class PrepareLongParameterWriter implements PrepareExecuteCommandWriter.Lo
         for (int offset = 0, length; offset < arrayLength; offset += length) {
 
             if (packet.readableBytes() == maxPacket) {
-                Packets.writePacketHeader(packet, this.statementTask.safelyAddAndGetSequenceId());
+                Packets.writeHeader(packet, this.statementTask.safelyAddAndGetSequenceId());
                 sink.next(packet);
                 packet = createLongDataPacket(paramIndex, arrayLength - offset);
             }

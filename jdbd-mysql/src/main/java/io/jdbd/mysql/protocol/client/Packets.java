@@ -26,15 +26,9 @@ public abstract class Packets {
     public static final int HEADER_SIZE = 4;
 
     /**
-     * a single packet max payload byte count.
-     *
-     * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_basic_packets.html#sect_protocol_basic_packets_sending_mt_16mb">Sending More Than 16Mb</a>
+     * @see ClientProtocol#MAX_PAYLOAD_SIZE
      */
-    public static final int MAX_PAYLOAD_SIZE = (1 << 24) - 1;
-    /**
-     * @see Packets#MAX_PAYLOAD_SIZE
-     */
-    public static final int MAX_PAYLOAD = MAX_PAYLOAD_SIZE;
+    public static final int MAX_PAYLOAD = ClientProtocol.MAX_PAYLOAD_SIZE;
 
     public static final int MAX_PACKET = HEADER_SIZE + MAX_PAYLOAD;
 
@@ -415,7 +409,7 @@ public abstract class Packets {
     }
 
 
-    public static void writePacketHeader(final ByteBuf packetBuf, final int sequenceId) {
+    public static void writeHeader(final ByteBuf packetBuf, final int sequenceId) {
         final int readableBytes = packetBuf.readableBytes();
         if (readableBytes < HEADER_SIZE || readableBytes > MAX_PACKET) {
             throw new IllegalArgumentException(String.format("packetBuf readableBytes[%s] error.", readableBytes));
@@ -491,7 +485,7 @@ public abstract class Packets {
             } else {
                 packet = bigPacket.readRetainedSlice(MAX_PACKET);
             }
-            writePacketHeader(packet, sequenceIdSupplier.get());
+            writeHeader(packet, sequenceIdSupplier.get());
             sink.next(packet);
 
             publishLength += MAX_PAYLOAD;
@@ -560,7 +554,7 @@ public abstract class Packets {
             packet.writeBytes(bigPacket, MAX_PAYLOAD);
         } else {
             packet = bigPacket.readRetainedSlice(MAX_PACKET);
-            Packets.writePacketHeader(packet, sequenceIdSupplier.get());
+            Packets.writeHeader(packet, sequenceIdSupplier.get());
         }
         packetList.add(packet);
 
@@ -597,7 +591,7 @@ public abstract class Packets {
             throw new IllegalArgumentException("command error");
         }
         final byte[] commandArray = sql.getBytes(adjutant.charsetClient());
-        final int maxAllowedPayload = adjutant.obtainHostInfo().maxAllowedPayload();
+        final int maxAllowedPayload = adjutant.host().maxAllowedPayload();
         final int actualPayload = commandArray.length + 1;
 
         if (actualPayload < 0 || actualPayload > maxAllowedPayload) {
@@ -650,7 +644,7 @@ public abstract class Packets {
     public static Publisher<ByteBuf> createPacketPublisher(final ByteBuf packet, final Supplier<Integer> sequenceId
             , final TaskAdjutant adjutant) {
 
-        final int maxAllowedPayload = adjutant.obtainHostInfo().maxAllowedPayload();
+        final int maxAllowedPayload = adjutant.mysqlUrl().getMaxAllowedPayload();
         final int payload = packet.readableBytes() - Packets.HEADER_SIZE;
         if (payload > maxAllowedPayload) {
             throw MySQLExceptions.createNetPacketTooLargeException(maxAllowedPayload);
@@ -659,7 +653,7 @@ public abstract class Packets {
         if (payload >= Packets.MAX_PAYLOAD) {
             publisher = Packets.divideBigPacket(packet, adjutant.allocator(), sequenceId);
         } else {
-            Packets.writePacketHeader(packet, sequenceId.get());
+            Packets.writeHeader(packet, sequenceId.get());
             publisher = Mono.just(packet);
         }
         return publisher;
@@ -683,7 +677,7 @@ public abstract class Packets {
 
         int length = MAX_PACKET;
         packet.writeBytes(bigPacket, length);
-        writePacketHeader(packet, sequenceId.get());
+        writeHeader(packet, sequenceId.get());
 
         final List<ByteBuf> packetList = new ArrayList<>();
         packetList.add(packet);
@@ -695,7 +689,7 @@ public abstract class Packets {
             packet.writeZero(HEADER_SIZE); // placeholder of header
             packet.writeBytes(bigPacket, length);
 
-            writePacketHeader(packet, sequenceId.get());
+            writeHeader(packet, sequenceId.get());
             packetList.add(packet);
 
         }
@@ -715,13 +709,13 @@ public abstract class Packets {
         final Publisher<ByteBuf> publisher;
 
         if (multiPacket.readableBytes() < Packets.MAX_PACKET) {
-            Packets.writePacketHeader(multiPacket, sequenceIdSupplier.get());
+            Packets.writeHeader(multiPacket, sequenceIdSupplier.get());
             publisher = Mono.just(multiPacket);
         } else {
             LinkedList<ByteBuf> packetList = new LinkedList<>();
 
             ByteBuf packet = multiPacket.readRetainedSlice(Packets.MAX_PACKET);
-            Packets.writePacketHeader(packet, sequenceIdSupplier.get());
+            Packets.writeHeader(packet, sequenceIdSupplier.get());
             packetList.add(packet);
 
             for (int readableBytes = multiPacket.readableBytes(), payloadLength; readableBytes > 0; ) {
@@ -791,26 +785,6 @@ public abstract class Packets {
     public static void writeInt8(ByteBuf byteBuffer, final long int8) {
         byteBuffer.writeLongLE(int8);
     }
-
-    public static void writeInt8(ByteBuf byteBuffer, BigInteger int8) {
-        byte[] array = int8.toByteArray();
-        byte[] int8Array = new byte[8];
-        if (array.length >= int8Array.length) {
-            for (int i = 0, j = array.length - 1; i < int8Array.length; i++, j--) {
-                int8Array[i] = array[j];
-            }
-        } else {
-            int i = 0;
-            for (int j = array.length - 1; i < array.length; i++, j--) {
-                int8Array[i] = array[j];
-            }
-            for (; i < int8Array.length; i++) {
-                int8Array[i] = 0;
-            }
-        }
-        byteBuffer.writeBytes(int8Array);
-    }
-
 
     public static void writeIntLenEnc(ByteBuf packetBuffer, final long intLenEnc) {
         if (intLenEnc >= 0 && intLenEnc < ENC_0) {

@@ -338,7 +338,7 @@ final class ComQueryTask extends AbstractCommandTask {
      */
     private ComQueryTask(final Stmt stmt, ResultSink sink, TaskAdjutant adjutant) {
         super(adjutant, sink);
-        if (!Capabilities.supportMultiStatement(adjutant.negotiatedCapability())) {
+        if (!Capabilities.supportMultiStatement(adjutant.capability())) {
             throw new MySQLJdbdException("negotiatedCapability not support multi statement.");
         }
         this.stmt = stmt;
@@ -620,7 +620,7 @@ final class ComQueryTask extends AbstractCommandTask {
                     packet.writeBytes(bufferArray, 0, maxWritableBytes);
                     inputBuffer.position(maxWritableBytes); // modify position
 
-                    Packets.writePacketHeader(packet, this.addAndGetSequenceId());
+                    Packets.writeHeader(packet, this.addAndGetSequenceId());
                     sink.next(packet);
 
                     capacity = (int) Math.min(Packets.MAX_PACKET, Packets.HEADER_SIZE + restFileBytes + inputBuffer.remaining());
@@ -631,7 +631,7 @@ final class ComQueryTask extends AbstractCommandTask {
                 inputBuffer.clear();
             }
             if (packet.readableBytes() > Packets.HEADER_SIZE) {
-                Packets.writePacketHeader(packet, this.addAndGetSequenceId());
+                Packets.writeHeader(packet, this.addAndGetSequenceId());
                 sink.next(packet);
             } else {
                 packet.release();
@@ -691,7 +691,7 @@ final class ComQueryTask extends AbstractCommandTask {
                     offset += maxWritableBytes; // modify outLength
                     outLength -= maxWritableBytes;
 
-                    Packets.writePacketHeader(packet, this.addAndGetSequenceId());
+                    Packets.writeHeader(packet, this.addAndGetSequenceId());
                     sink.next(packet);
 
                     capacity = (int) Math.min(Packets.MAX_PACKET, Packets.HEADER_SIZE + restFileBytes + outLength);
@@ -705,7 +705,7 @@ final class ComQueryTask extends AbstractCommandTask {
 
             }
             if (packet.readableBytes() > Packets.HEADER_SIZE) {
-                Packets.writePacketHeader(packet, this.addAndGetSequenceId());
+                Packets.writeHeader(packet, this.addAndGetSequenceId());
                 sink.next(packet);
             } else {
                 packet.release();

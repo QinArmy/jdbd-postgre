@@ -20,7 +20,6 @@ import org.slf4j.LoggerFactory;
 import org.testng.ITestContext;
 import org.testng.annotations.AfterSuite;
 import org.testng.annotations.Test;
-import reactor.core.publisher.Flux;
 
 import java.math.BigDecimal;
 import java.math.BigInteger;
@@ -41,23 +40,7 @@ public class DataPrepareSuiteTests extends AbstractConnectionBasedSuiteTests {
 
     @AfterSuite(timeOut = 10 * 1000)
     public static void afterSuite(ITestContext context) {
-        LOG.info("\n MySQL feature suite test end.\n");
-        LOG.info("close {}", ClientConnectionProtocol.class.getName());
-
-        if (ClientTestUtils.getTestConfig().get("truncate.after.suite", Boolean.class, Boolean.TRUE)) {
-            final TaskAdjutant adjutant = obtainTaskAdjutant();
-            ComQueryTask.update(Stmts.stmt("TRUNCATE mysql_types"), adjutant)
-                    .then(QuitTask.quit(adjutant))
-                    .block();
-        }
-        LOG.info("start release connection.");
-        Flux.fromIterable(TASK_ADJUTANT_QUEUE)
-                .flatMap(QuitTask::quit)
-                .then()
-                .block();
-
-        LOG.info("release connection complete.");
-        TASK_ADJUTANT_QUEUE.clear();
+        throw new UnsupportedOperationException();
 
     }
 
@@ -105,7 +88,7 @@ public class DataPrepareSuiteTests extends AbstractConnectionBasedSuiteTests {
         assertNotNull(resultRowList, "resultRowList");
         assertFalse(resultRowList.isEmpty(), "resultRowList is empty");
 
-        final Properties properties = adjutant.obtainHostInfo().getProperties();
+        final Properties properties = adjutant.host().getProperties();
         for (ResultRow resultRow : resultRowList) {
             assertQueryResultRowMySQLTypeMatch(resultRow, properties);
         }

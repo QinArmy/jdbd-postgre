@@ -1,8 +1,9 @@
-package io.jdbd.mysql.protocol;
+package io.jdbd.mysql.protocol.client;
 
 
 import io.jdbd.JdbdSQLException;
 import io.jdbd.mysql.MySQLJdbdException;
+import io.jdbd.mysql.protocol.MySQLServerVersion;
 import reactor.util.annotation.Nullable;
 
 import java.nio.charset.Charset;
@@ -10,9 +11,9 @@ import java.nio.charset.StandardCharsets;
 import java.sql.SQLException;
 import java.util.*;
 
-public abstract class CharsetMapping {
+public abstract class Charsets {
 
-    protected CharsetMapping() {
+    protected Charsets() {
         throw new UnsupportedOperationException();
     }
 
@@ -79,10 +80,10 @@ public abstract class CharsetMapping {
     private static final int NUMBER_OF_ENCODINGS_CONFIGURED;
 
     /** a unmodifiable map */
-    public static final Map<String, MySQLCharset> CHARSET_NAME_TO_CHARSET;
+    public static final Map<String, MyCharset> NAME_TO_CHARSET;
 
     /** a unmodifiable map */
-    public static final Map<String, List<MySQLCharset>> JAVA_ENCODING_UC_TO_MYSQL_CHARSET;
+    public static final Map<String, List<MyCharset>> JAVA_ENCODING_UC_TO_MYSQL_CHARSET;
 
     /** a unmodifiable map */
     public static final Set<String> MULTIBYTE_ENCODINGS;
@@ -107,28 +108,28 @@ public abstract class CharsetMapping {
 
     static {
         // 1. below initialize fore: NUMBER_OF_ENCODINGS_CONFIGURED,CHARSET_NAME_TO_CHARSET ,JAVA_ENCODING_UC_TO_MYSQL_CHARSET,MULTIBYTE_ENCODINGS
-        final List<MySQLCharset> mySQLCharsetList = createMySQLCharsetList();
+        final List<MyCharset> myCharsetList = createMySQLCharsetList();
 
-        Map<String, MySQLCharset> charsetNameToMysqlCharsetMap = new HashMap<>();
-        Map<String, List<MySQLCharset>> javaUcToMysqlCharsetMap = new HashMap<>();
+        Map<String, MyCharset> charsetNameToMysqlCharsetMap = new HashMap<>();
+        Map<String, List<MyCharset>> javaUcToMysqlCharsetMap = new HashMap<>();
 
         Set<String> tempMultibyteEncodings = new HashSet<>(); // Character sets that we can't convert ourselves.
 
         int numberOfEncodingsConfigured = 0;
-        for (MySQLCharset mySQLCharset : mySQLCharsetList) {
-            charsetNameToMysqlCharsetMap.put(mySQLCharset.charsetName, mySQLCharset);
-            numberOfEncodingsConfigured += mySQLCharset.javaEncodingsUcList.size();
+        for (MyCharset myCharset : myCharsetList) {
+            charsetNameToMysqlCharsetMap.put(myCharset.name, myCharset);
+            numberOfEncodingsConfigured += myCharset.javaEncodingsUcList.size();
 
-            for (String encUC : mySQLCharset.javaEncodingsUcList) {
-                List<MySQLCharset> charsetList = javaUcToMysqlCharsetMap.computeIfAbsent(encUC, k -> new ArrayList<>());
-                charsetList.add(mySQLCharset);
-                if (mySQLCharset.mblen > 1) {
+            for (String encUC : myCharset.javaEncodingsUcList) {
+                List<MyCharset> charsetList = javaUcToMysqlCharsetMap.computeIfAbsent(encUC, k -> new ArrayList<>());
+                charsetList.add(myCharset);
+                if (myCharset.mblen > 1) {
                     tempMultibyteEncodings.add(encUC);
                 }
             }
         }
         NUMBER_OF_ENCODINGS_CONFIGURED = numberOfEncodingsConfigured;
-        CHARSET_NAME_TO_CHARSET = Collections.unmodifiableMap(charsetNameToMysqlCharsetMap);
+        NAME_TO_CHARSET = Collections.unmodifiableMap(charsetNameToMysqlCharsetMap);
         JAVA_ENCODING_UC_TO_MYSQL_CHARSET = Collections.unmodifiableMap(javaUcToMysqlCharsetMap);
         MULTIBYTE_ENCODINGS = Collections.unmodifiableSet(tempMultibyteEncodings);
 
@@ -149,9 +150,9 @@ public abstract class CharsetMapping {
             Collation collation = e.getValue();
 
             indexToCollationMap.put(i, collation);
-            nameToCollation.put(collation.collationName, collation);
+            nameToCollation.put(collation.name, collation);
 
-            String charsetName = collation.mySQLCharset.charsetName;
+            String charsetName = collation.myCharset.name;
             if (!charsetNameToCollationIndexMap.containsKey(charsetName)
                     || charsetNameToCollationPriorityMap.get(charsetName) < collation.priority) {
                 charsetNameToCollationIndexMap.put(charsetName, i);
@@ -181,27 +182,27 @@ public abstract class CharsetMapping {
         if (collation == null) {
             return null;
         }
-        return collation.mySQLCharset.javaEncodingsUcList.get(0);
+        return collation.myCharset.javaEncodingsUcList.get(0);
     }
 
     public static int getMblen(int collationIndex) {
         Collation collation = INDEX_TO_COLLATION.get(collationIndex);
-        if (collation == null || COLLATION_NOT_DEFINED.equals(collation.collationName)) {
+        if (collation == null || COLLATION_NOT_DEFINED.equals(collation.name)) {
             throw new MySQLJdbdException("Not found Collation for collationIndex[%s]", collationIndex);
         }
-        return collation.mySQLCharset.mblen;
+        return collation.myCharset.mblen;
     }
 
     @Nullable
-    public static MySQLCharset getMysqlCharsetForJavaEncoding(String javaEncoding, @Nullable MySQLServerVersion version) {
-        List<MySQLCharset> mysqlCharsets;
-        mysqlCharsets = CharsetMapping.JAVA_ENCODING_UC_TO_MYSQL_CHARSET.get(javaEncoding.toUpperCase(Locale.ENGLISH));
+    public static MyCharset getMysqlCharsetForJavaEncoding(String javaEncoding, @Nullable MySQLServerVersion version) {
+        List<MyCharset> mysqlCharsets;
+        mysqlCharsets = Charsets.JAVA_ENCODING_UC_TO_MYSQL_CHARSET.get(javaEncoding.toUpperCase());
 
         if (mysqlCharsets == null) {
             return null;
         }
-        MySQLCharset currentChoice = null;
-        for (MySQLCharset charset : mysqlCharsets) {
+        MyCharset currentChoice = null;
+        for (MyCharset charset : mysqlCharsets) {
             if (version == null) {
                 // Take the first one we get
                 return charset;
@@ -225,18 +226,18 @@ public abstract class CharsetMapping {
     @Nullable
     public static Charset getJavaCharsetByCollationIndex(int collationIndex) {
         Collation collation = INDEX_TO_COLLATION.get(collationIndex);
-        if (collation == null || COLLATION_NOT_DEFINED.equals(collation.collationName)) {
+        if (collation == null || COLLATION_NOT_DEFINED.equals(collation.name)) {
             return null;
         }
-        return Charset.forName(collation.mySQLCharset.javaEncodingsUcList.get(0));
+        return Charset.forName(collation.myCharset.javaEncodingsUcList.get(0));
     }
 
     public static Charset getJavaCharsetByCollationIndex(int collationIndex
-            , Map<Integer, CharsetMapping.CustomCollation> customCollationMap) throws JdbdSQLException {
+            , Map<Integer, Charsets.CustomCollation> customCollationMap) throws JdbdSQLException {
         Collation collation = INDEX_TO_COLLATION.get(collationIndex);
         Charset charset = getJavaCharsetByCollationIndex(collationIndex);
         if (charset == null) {
-            CharsetMapping.CustomCollation customCollation = customCollationMap.get(collationIndex);
+            Charsets.CustomCollation customCollation = customCollationMap.get(collationIndex);
             if (customCollation == null) {
                 throw new JdbdSQLException(
                         new SQLException(String.format("Not found collation for index[%s]", collation)));
@@ -248,25 +249,25 @@ public abstract class CharsetMapping {
                                 String.format("Not found java charset for name[%s]", customCollation.charsetName)));
             }
         } else {
-            charset = Charset.forName(collation.mySQLCharset.javaEncodingsUcList.get(0));
+            charset = Charset.forName(collation.myCharset.javaEncodingsUcList.get(0));
         }
         return charset;
     }
 
     @Nullable
     public static Charset getJavaCharsetByMySQLCharsetName(String mysqlCharsetName) {
-        MySQLCharset mySQLCharset = CHARSET_NAME_TO_CHARSET.get(mysqlCharsetName);
-        if (mySQLCharset == null) {
+        MyCharset myCharset = NAME_TO_CHARSET.get(mysqlCharsetName);
+        if (myCharset == null) {
             return null;
         }
-        return Charset.forName(mySQLCharset.javaEncodingsUcList.get(0));
+        return Charset.forName(myCharset.javaEncodingsUcList.get(0));
     }
 
 
     public static int getCollationIndexForJavaEncoding(String javaEncoding, MySQLServerVersion version) {
-        MySQLCharset mySQLCharset = getMysqlCharsetForJavaEncoding(javaEncoding, version);
-        if (mySQLCharset != null) {
-            Integer ci = CHARSET_NAME_TO_COLLATION_INDEX.get(mySQLCharset.charsetName);
+        MyCharset myCharset = getMysqlCharsetForJavaEncoding(javaEncoding, version);
+        if (myCharset != null) {
+            Integer ci = CHARSET_NAME_TO_COLLATION_INDEX.get(myCharset.name);
             if (ci != null) {
                 return ci;
             }
@@ -277,12 +278,12 @@ public abstract class CharsetMapping {
     @Nullable
     public static String getCollationNameByIndex(int collationIndex) {
         Collation collation = INDEX_TO_COLLATION.get(collationIndex);
-        return collation == null ? null : collation.collationName;
+        return collation == null ? null : collation.name;
     }
 
     @Nullable
-    public static Collation getCollationByName(String collationName) {
-        return CharsetMapping.NAME_TO_COLLATION.get(collationName.toLowerCase(Locale.ENGLISH));
+    public static Collation getCollationByName(final String collationName) {
+        return Charsets.NAME_TO_COLLATION.get(collationName.toLowerCase());
     }
 
     public static boolean isUnsupportedCharsetClient(String javaCharset) {
@@ -290,64 +291,79 @@ public abstract class CharsetMapping {
                 || UNSUPPORTED_CHARSET_CLIENTS.contains(javaCharset.toLowerCase());
     }
 
+    public static boolean isSupportCharsetClient(final Charset charset) {
+        final String keyText = "\0'\032;\\";
+        final byte[] keyBytes;
+        keyBytes = keyText.getBytes(StandardCharsets.US_ASCII);
+        boolean support;
+        try {
+            final byte[] bytes;
+            bytes = keyText.getBytes(charset);
+            support = Arrays.equals(bytes, keyBytes);
+        } catch (Throwable e) {
+            support = false;
+        }
+        return support;
+    }
+
 
     /**
      * @return a unmodifiable list
      */
-    private static List<MySQLCharset> createMySQLCharsetList() {
-        List<MySQLCharset> list = new ArrayList<>(41);
+    private static List<MyCharset> createMySQLCharsetList() {
+        List<MyCharset> list = new ArrayList<>(41);
         // complete list of mysql character sets and their corresponding java encoding names
-        list.add(new MySQLCharset(ascii, 1, 0, "US-ASCII", "ASCII"));
-        list.add(new MySQLCharset(big5, 2, 0, "Big5"));
-        list.add(new MySQLCharset(gbk, 2, 0, "GBK"));
-        list.add(new MySQLCharset(sjis, 2, 0, "SHIFT_JIS", "Cp943", "WINDOWS-31J"));    // SJIS is alias for SHIFT_JIS, Cp943 is rather a cp932 but we map it to sjis for years
+        list.add(new MyCharset(ascii, 1, 0, "US-ASCII", "ASCII"));
+        list.add(new MyCharset(big5, 2, 0, "Big5"));
+        list.add(new MyCharset(gbk, 2, 0, "GBK"));
+        list.add(new MyCharset(sjis, 2, 0, "SHIFT_JIS", "Cp943", "WINDOWS-31J"));    // SJIS is alias for SHIFT_JIS, Cp943 is rather a cp932 but we map it to sjis for years
 
-        list.add(new MySQLCharset(cp932, 2, 1, "WINDOWS-31J"));        // MS932 is alias for WINDOWS-31J
-        list.add(new MySQLCharset(gb2312, 2, 0, "GB2312"));
-        list.add(new MySQLCharset(ujis, 3, 0, "EUC_JP"));
-        list.add(new MySQLCharset(eucjpms, 3, 0, MySQLServerVersion.getInstance(5, 0, 3), "EUC_JP_Solaris"));    // "EUC_JP_Solaris = 	>5.0.3 eucjpms,"
+        list.add(new MyCharset(cp932, 2, 1, "WINDOWS-31J"));        // MS932 is alias for WINDOWS-31J
+        list.add(new MyCharset(gb2312, 2, 0, "GB2312"));
+        list.add(new MyCharset(ujis, 3, 0, "EUC_JP"));
+        list.add(new MyCharset(eucjpms, 3, 0, MySQLServerVersion.getInstance(5, 0, 3), "EUC_JP_Solaris"));    // "EUC_JP_Solaris = 	>5.0.3 eucjpms,"
 
-        list.add(new MySQLCharset(gb18030, 4, 0, MySQLServerVersion.getInstance(5, 7, 4), "GB18030"));
-        list.add(new MySQLCharset(euckr, 2, 0, "EUC-KR"));
-        list.add(new MySQLCharset(latin1, 1, 1, "Cp1252", "ISO8859_1"));
-        list.add(new MySQLCharset(swe7, 1, 0, "Cp1252"));            // new mapping, Cp1252 ?
+        list.add(new MyCharset(gb18030, 4, 0, MySQLServerVersion.getInstance(5, 7, 4), "GB18030"));
+        list.add(new MyCharset(euckr, 2, 0, "EUC-KR"));
+        list.add(new MyCharset(latin1, 1, 1, "Cp1252", "ISO8859_1"));
+        list.add(new MyCharset(swe7, 1, 0, "Cp1252"));            // new mapping, Cp1252 ?
 
-        list.add(new MySQLCharset(hp8, 1, 0, "Cp1252"));            // new mapping, Cp1252 ?
-        list.add(new MySQLCharset(dec8, 1, 0, "Cp1252"));            // new mapping, Cp1252 ?
-        list.add(new MySQLCharset(armscii8, 1, 0, "Cp1252"));            // new mapping, Cp1252 ?
-        list.add(new MySQLCharset(geostd8, 1, 0, "Cp1252"));            // new mapping, Cp1252 ?
+        list.add(new MyCharset(hp8, 1, 0, "Cp1252"));            // new mapping, Cp1252 ?
+        list.add(new MyCharset(dec8, 1, 0, "Cp1252"));            // new mapping, Cp1252 ?
+        list.add(new MyCharset(armscii8, 1, 0, "Cp1252"));            // new mapping, Cp1252 ?
+        list.add(new MyCharset(geostd8, 1, 0, "Cp1252"));            // new mapping, Cp1252 ?
 
-        list.add(new MySQLCharset(latin2, 1, 0, "ISO8859_2"));        // latin2 is an alias
-        list.add(new MySQLCharset(greek, 1, 0, "ISO8859_7", "greek"));
-        list.add(new MySQLCharset(latin7, 1, 0, "ISO-8859-13"));    // was ISO8859_7, that's incorrect; also + "LATIN7 =		latin7," is wrong java encoding name
-        list.add(new MySQLCharset(hebrew, 1, 0, "ISO8859_8"));        // hebrew is an alias
+        list.add(new MyCharset(latin2, 1, 0, "ISO8859_2"));        // latin2 is an alias
+        list.add(new MyCharset(greek, 1, 0, "ISO8859_7", "greek"));
+        list.add(new MyCharset(latin7, 1, 0, "ISO-8859-13"));    // was ISO8859_7, that's incorrect; also + "LATIN7 =		latin7," is wrong java encoding name
+        list.add(new MyCharset(hebrew, 1, 0, "ISO8859_8"));        // hebrew is an alias
 
-        list.add(new MySQLCharset(latin5, 1, 0, "ISO8859_9"));        // LATIN5 is an alias
-        list.add(new MySQLCharset(cp850, 1, 0, "Cp850", "Cp437"));
-        list.add(new MySQLCharset(cp852, 1, 0, "Cp852"));
-        list.add(new MySQLCharset(keybcs2, 1, 0, "Cp852"));    // new, Kamenicky encoding usually known as Cp895 but there is no official cp895 specification; close to Cp852, see http://ftp.muni.cz/pub/localization/charsets/cs-encodings-faq
+        list.add(new MyCharset(latin5, 1, 0, "ISO8859_9"));        // LATIN5 is an alias
+        list.add(new MyCharset(cp850, 1, 0, "Cp850", "Cp437"));
+        list.add(new MyCharset(cp852, 1, 0, "Cp852"));
+        list.add(new MyCharset(keybcs2, 1, 0, "Cp852"));    // new, Kamenicky encoding usually known as Cp895 but there is no official cp895 specification; close to Cp852, see http://ftp.muni.cz/pub/localization/charsets/cs-encodings-faq
 
-        list.add(new MySQLCharset(cp866, 1, 0, "Cp866"));
-        list.add(new MySQLCharset(koi8r, 1, 1, "KOI8_R"));
-        list.add(new MySQLCharset(koi8u, 1, 0, "KOI8_R"));
-        list.add(new MySQLCharset(tis620, 1, 0, "TIS620"));
+        list.add(new MyCharset(cp866, 1, 0, "Cp866"));
+        list.add(new MyCharset(koi8r, 1, 1, "KOI8_R"));
+        list.add(new MyCharset(koi8u, 1, 0, "KOI8_R"));
+        list.add(new MyCharset(tis620, 1, 0, "TIS620"));
 
-        list.add(new MySQLCharset(cp1250, 1, 0, "Cp1250"));
-        list.add(new MySQLCharset(cp1251, 1, 1, "Cp1251"));
-        list.add(new MySQLCharset(cp1256, 1, 0, "Cp1256"));
-        list.add(new MySQLCharset(cp1257, 1, 0, "Cp1257"));
+        list.add(new MyCharset(cp1250, 1, 0, "Cp1250"));
+        list.add(new MyCharset(cp1251, 1, 1, "Cp1251"));
+        list.add(new MyCharset(cp1256, 1, 0, "Cp1256"));
+        list.add(new MyCharset(cp1257, 1, 0, "Cp1257"));
 
-        list.add(new MySQLCharset(macroman, 1, 0, "MacRoman"));
-        list.add(new MySQLCharset(macce, 1, 0, "MacCentralEurope"));
-        list.add(new MySQLCharset(utf8, 3, 1, "UTF-8"));
-        list.add(new MySQLCharset(utf8mb4, 4, 0, "UTF-8"));            // "UTF-8 =				*> 5.5.2 utf8mb4,"
+        list.add(new MyCharset(macroman, 1, 0, "MacRoman"));
+        list.add(new MyCharset(macce, 1, 0, "MacCentralEurope"));
+        list.add(new MyCharset(utf8, 3, 1, "UTF-8"));
+        list.add(new MyCharset(utf8mb4, 4, 0, "UTF-8"));            // "UTF-8 =				*> 5.5.2 utf8mb4,"
 
-        list.add(new MySQLCharset(ucs2, 2, 0, "UnicodeBig"));
-        list.add(new MySQLCharset(binary, 1, 1, "ISO8859_1"));    // US-ASCII ?
-        list.add(new MySQLCharset(utf16, 4, 0, "UTF-16"));
-        list.add(new MySQLCharset(utf16le, 4, 0, "UTF-16LE"));
+        list.add(new MyCharset(ucs2, 2, 0, "UnicodeBig"));
+        list.add(new MyCharset(binary, 1, 1, "ISO8859_1"));    // US-ASCII ?
+        list.add(new MyCharset(utf16, 4, 0, "UTF-16"));
+        list.add(new MyCharset(utf16le, 4, 0, "UTF-16LE"));
 
-        list.add(new MySQLCharset(utf32, 4, 0, "UTF-32"));
+        list.add(new MyCharset(utf32, 4, 0, "UTF-32"));
 
         return Collections.unmodifiableList(list);
     }
@@ -703,12 +719,13 @@ public abstract class CharsetMapping {
         set.add("UCS2");
         set.add("UCS-2");
 
-        final String quote = "'";
+        final String keyText = "\0'\032;\\";
+        final byte[] keyBytes = keyText.getBytes(StandardCharsets.US_ASCII);
         byte[] bytes;
         for (Charset charset : Charset.availableCharsets().values()) {
             try {
-                bytes = quote.getBytes(charset);
-                if (bytes.length != 1) {
+                bytes = keyText.getBytes(charset);
+                if (!Arrays.equals(bytes, keyBytes)) {
                     set.add(charset.name());
                     set.addAll(charset.aliases());
                 }
@@ -722,143 +739,6 @@ public abstract class CharsetMapping {
 
 
     /*################################## blow static class ##################################*/
-
-    public static final class MySQLCharset {
-
-        public final String charsetName;
-        public final int mblen;
-        public final int priority;
-        public final List<String> javaEncodingsUcList;
-
-        public final MySQLServerVersion minimumVersion;
-
-        /**
-         * Constructs MySQLCharset object
-         *
-         * @param charsetName   MySQL charset name
-         * @param mblen         Max number of bytes per character
-         * @param priority      MySQLCharset with highest value of this param will be used for Java encoding --&gt; Mysql charsets conversion.
-         * @param javaEncodings List of Java encodings corresponding to this MySQL charset; the first name in list is the default for mysql --&gt; java data conversion
-         */
-        private MySQLCharset(String charsetName, int mblen, int priority, String... javaEncodings) {
-            this(charsetName, mblen, priority, MySQLServerVersion.getMinVersion(), javaEncodings);
-        }
-
-        private MySQLCharset(String charsetName, int mblen, int priority, MySQLServerVersion minimumVersion
-                , String... javaEncodings) {
-            this.charsetName = charsetName;
-            this.mblen = mblen;
-            this.priority = priority;
-            this.javaEncodingsUcList = createJavaEncodingUcList(mblen, javaEncodings);
-            this.minimumVersion = minimumVersion;
-        }
-
-
-        @Override
-        public String toString() {
-            StringBuilder asString = new StringBuilder();
-            asString.append("[");
-            asString.append("charsetName=");
-            asString.append(this.charsetName);
-            asString.append(",mblen=");
-            asString.append(this.mblen);
-            // asString.append(",javaEncoding=");
-            // asString.append(this.javaEncodings.toString());
-            asString.append("]");
-            return asString.toString();
-        }
-
-        boolean isOkayForVersion(MySQLServerVersion version) {
-            return version.meetsMinimum(this.minimumVersion);
-        }
-
-        /**
-         * If javaEncoding parameter value is one of available java encodings for this charset
-         * then returns javaEncoding value as is. Otherwise returns first available java encoding name.
-         *
-         * @param javaEncoding java encoding name
-         * @return java encoding name
-         */
-        String getMatchingJavaEncoding(@Nullable String javaEncoding) {
-            if (javaEncoding != null && this.javaEncodingsUcList.contains(javaEncoding.toUpperCase(Locale.ENGLISH))) {
-                return javaEncoding;
-            }
-            return this.javaEncodingsUcList.get(0);
-        }
-
-        private static void addEncodingMapping(List<String> javaEncodingsUc, String encoding) {
-            String encodingUc = encoding.toUpperCase(Locale.ENGLISH);
-
-            if (!javaEncodingsUc.contains(encodingUc)) {
-                javaEncodingsUc.add(encodingUc);
-            }
-        }
-
-        /**
-         * @return a unmodifiable list
-         */
-        private static List<String> createJavaEncodingUcList(final int mblen, String... javaEncodings) {
-            List<String> javaEncodingsUcList = new ArrayList<>(javaEncodings.length);
-            for (String encoding : javaEncodings) {
-                try {
-                    Charset cs = Charset.forName(encoding);
-                    addEncodingMapping(javaEncodingsUcList, cs.name());
-                    for (String alias : cs.aliases()) {
-                        addEncodingMapping(javaEncodingsUcList, alias);
-                    }
-                } catch (Exception e) {
-                    // if there is no support of this charset in JVM it's still possible to use our converter for 1-byte charsets
-                    if (mblen == 1) {
-                        addEncodingMapping(javaEncodingsUcList, encoding);
-                    }
-                }
-            }
-
-            if (javaEncodingsUcList.size() == 0) {
-                if (mblen > 1) {
-                    addEncodingMapping(javaEncodingsUcList, "UTF-8");
-                } else {
-                    addEncodingMapping(javaEncodingsUcList, "Cp1252");
-                }
-            }
-            if (javaEncodingsUcList.size() == 1) {
-                javaEncodingsUcList = Collections.singletonList(javaEncodingsUcList.get(0));
-            } else {
-                javaEncodingsUcList = Collections.unmodifiableList(javaEncodingsUcList);
-            }
-            return javaEncodingsUcList;
-        }
-    }
-
-    public static final class Collation {
-        public final int index;
-        public final String collationName;
-        public final int priority;
-        public final MySQLCharset mySQLCharset;
-
-        private Collation(int index, String collationName, int priority, String charsetName) {
-            this.index = index;
-            this.collationName = collationName;
-            this.priority = priority;
-            this.mySQLCharset = CharsetMapping.CHARSET_NAME_TO_CHARSET.get(charsetName);
-        }
-
-        @Override
-        public String toString() {
-            StringBuilder asString = new StringBuilder();
-            asString.append("[");
-            asString.append("index=");
-            asString.append(this.index);
-            asString.append(",collationName=");
-            asString.append(this.collationName);
-            asString.append(",charsetName=");
-            asString.append(this.mySQLCharset.charsetName);
-            asString.append(",javaCharsetName=");
-            asString.append(this.mySQLCharset.getMatchingJavaEncoding(null));
-            asString.append("]");
-            return asString.toString();
-        }
-    }
 
     public static final class CustomCollation {
 

@@ -4,7 +4,6 @@ import io.jdbd.JdbdException;
 import io.jdbd.JdbdSQLException;
 import io.jdbd.mysql.MySQLJdbdException;
 import io.jdbd.mysql.protocol.AuthenticateAssistant;
-import io.jdbd.mysql.protocol.CharsetMapping;
 import io.jdbd.mysql.protocol.Constants;
 import io.jdbd.mysql.protocol.MySQLServerVersion;
 import io.jdbd.mysql.protocol.authentication.AuthenticationPlugin;
@@ -47,7 +46,7 @@ import java.util.function.Consumer;
 /**
  * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_connection_phase.html">Connection Phase</a>
  */
-final class MySQLConnectionTask extends CommunicationTask<TaskAdjutant> implements AuthenticateAssistant
+final class MySQLConnectionTask extends CommunicationTask implements AuthenticateAssistant
         , ConnectionTask {
 
     static Mono<AuthenticateResult> authenticate(TaskAdjutant adjutant) {
@@ -99,12 +98,12 @@ final class MySQLConnectionTask extends CommunicationTask<TaskAdjutant> implemen
         this.sink = sink;
 
         this.adjutant = adjutant;
-        this.hostInfo = adjutant.obtainHostInfo();
+        this.hostInfo = adjutant.host();
         this.properties = this.hostInfo.getProperties();
         this.pluginMap = loadAuthenticationPluginMap();
 
         Charset charset = this.properties.get(MyKey.characterEncoding, Charset.class);
-        if (charset == null || CharsetMapping.isUnsupportedCharsetClient(charset.name())) {
+        if (charset == null || !Charsets.isSupportCharsetClient(charset)) {
             charset = StandardCharsets.UTF_8;
         }
         this.handshakeCharset = charset;
@@ -200,6 +199,7 @@ final class MySQLConnectionTask extends CommunicationTask<TaskAdjutant> implemen
                 break;
                 case RECEIVE_HANDSHAKE: {
                     receiveHandshakeAndSendResponse(cumulateBuffer);
+                    taskEnd = this.phase == Phase.DISCONNECT;
                     continueDecode = false;
                 }
                 break;
@@ -266,10 +266,10 @@ final class MySQLConnectionTask extends CommunicationTask<TaskAdjutant> implemen
 
         //3.create handshake collation index and charset
         int handshakeCollationIndex;
-        handshakeCollationIndex = CharsetMapping.getCollationIndexForJavaEncoding(
-                this.handshakeCharset.name(), this.handshake.getServerVersion());
+        handshakeCollationIndex = Charsets.getCollationIndexForJavaEncoding(
+                this.handshakeCharset.name(), handshake.getServerVersion());
         if (handshakeCollationIndex == 0) {
-            handshakeCollationIndex = CharsetMapping.MYSQL_COLLATION_INDEX_utf8;
+            handshakeCollationIndex = Charsets.MYSQL_COLLATION_INDEX_utf8mb4;
             this.handshakeCharset = StandardCharsets.UTF_8;
         }
         this.handshakeCollationIndex = (byte) handshakeCollationIndex;
@@ -355,7 +355,10 @@ final class MySQLConnectionTask extends CommunicationTask<TaskAdjutant> implemen
             AuthenticationPlugin plugin = pair.getFirst();
             this.plugin = plugin;
             ByteBuf pluginOut = createAuthenticationDataFor41(plugin, pair.getSecond());
-            mono = Mono.just(createHandshakeResponse41(plugin.getProtocolPluginName(), pluginOut));
+            final ByteBuf packet;
+            packet = createHandshakeResponse41(plugin.getProtocolPluginName(), pluginOut);
+            LOG.debug("readableBytes:{},length:{}", packet.readableBytes(), Packets.getInt3(packet, 0));
+            mono = Mono.just(packet);
         } catch (Throwable e) {
             JdbdException je = MySQLExceptions.wrap(e);
             handleAuthenticateFailure(je);
@@ -395,12 +398,12 @@ final class MySQLConnectionTask extends CommunicationTask<TaskAdjutant> implemen
         // 1. client_flag
         Packets.writeInt4(packet, this.capability);
         // 2. max_packet_size
-        Packets.writeInt4(packet, this.adjutant.obtainHostInfo().maxAllowedPayload());
+        Packets.writeInt4(packet, this.adjutant.host().maxAllowedPayload());
         // 3.handshake character_set,
         packet.writeByte(this.handshakeCollationIndex);
         // 4. filler
         packet.writeZero(23);
-        Packets.writePacketHeader(packet, addAndGetSequenceId());
+        Packets.writeHeader(packet, addAndGetSequenceId());
         return Mono.just(packet);
     }
 
@@ -478,7 +481,7 @@ final class MySQLConnectionTask extends CommunicationTask<TaskAdjutant> implemen
         // 1. client_flag,Capabilities Flags, CLIENT_PROTOCOL_41 always set.
         Packets.writeInt4(packetBuffer, clientFlag);
         // 2. max_packet_size
-        Packets.writeInt4(packetBuffer, this.adjutant.obtainHostInfo().maxAllowedPayload());
+        Packets.writeInt4(packetBuffer, this.adjutant.host().maxAllowedPayload());
         // 3. character_set
         Packets.writeInt1(packetBuffer, this.handshakeCollationIndex);
         // 4. filler,Set of bytes reserved for future use.
@@ -523,7 +526,7 @@ final class MySQLConnectionTask extends CommunicationTask<TaskAdjutant> implemen
         }
         //TODO 10.zstd_compression_level,compression level for zstd compression algorithm
         //packetBuffer.writeByte(0);
-        Packets.writePacketHeader(packetBuffer, addAndGetSequenceId());
+        Packets.writeHeader(packetBuffer, addAndGetSequenceId());
         return packetBuffer;
     }
 
@@ -627,13 +630,13 @@ final class MySQLConnectionTask extends CommunicationTask<TaskAdjutant> implemen
         attMap.put("_client_version", clientVersion);
         attMap.put("_runtime_vendor", Constants.JVM_VENDOR);
         attMap.put("_runtime_version", Constants.JVM_VERSION);
-        attMap.put("_client_license", Constants.CJ_LICENSE);
+        attMap.put("_client_license", "apache");
         return attMap;
     }
 
 
     private Charset obtainServerCharset() {
-        Charset charset = CharsetMapping.getJavaCharsetByCollationIndex(this.handshake.getCollationIndex());
+        Charset charset = Charsets.getJavaCharsetByCollationIndex(this.handshake.getCollationIndex());
         if (charset == null) {
             charset = StandardCharsets.UTF_8;
         }
@@ -666,7 +669,7 @@ final class MySQLConnectionTask extends CommunicationTask<TaskAdjutant> implemen
                 | (env.getOrDefault(MyKey.useAffectedRows, Boolean.class) ? 0 : (serverCapability & Capabilities.CLIENT_FOUND_ROWS))
                 | (env.getOrDefault(MyKey.allowLoadLocalInfile, Boolean.class) ? (serverCapability & Capabilities.CLIENT_LOCAL_FILES) : 0)
                 | (env.getOrDefault(MyKey.interactiveClient, Boolean.class) ? (serverCapability & Capabilities.CLIENT_INTERACTIVE) : 0)
-                | (env.getOrDefault(MyKey.allowMultiQueries, Boolean.class) ? (serverCapability & Capabilities.CLIENT_MULTI_STATEMENTS) : 0)
+                | (serverCapability & Capabilities.CLIENT_MULTI_STATEMENTS)
 
                 | (env.getOrDefault(MyKey.disconnectOnExpiredPasswords, Boolean.class) ? 0 : (serverCapability & Capabilities.CLIENT_CAN_HANDLE_EXPIRED_PASSWORD))
                 | (Constants.NONE.equals(env.get(MyKey.connectionAttributes)) ? 0 : (serverCapability & Capabilities.CLIENT_CONNECT_ATTRS))
@@ -729,17 +732,6 @@ final class MySQLConnectionTask extends CommunicationTask<TaskAdjutant> implemen
         }
     }
 
-    private static int obtainMaxPacketBytes(final Properties properties) {
-        // because @@session.max_allowed_packet must be multiple of 1024,and single packet maxPayload is ((1<<24) - 1)
-        final int minMultiple = (1 << 14), maxMultiple = 1 << 20;
-        int multiple = properties.getOrDefault(MyKey.maxAllowedPacket, Integer.class);
-        if (multiple < minMultiple) {
-            multiple = minMultiple;
-        } else if (multiple > maxMultiple) {
-            multiple = maxMultiple;
-        }
-        return multiple;
-    }
 
 
 

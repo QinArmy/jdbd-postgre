@@ -9,16 +9,19 @@ import java.util.function.Consumer;
  * Base class of All MySQL task.
  *
  * @see ComQueryTask
+ * @see ComPreparedTask
  * @see QuitTask
- * @see MySQLPrepareCommandStmtTask
  */
-abstract class MySQLTask extends CommunicationTask<TaskAdjutant> {
+abstract class MySQLTask extends CommunicationTask {
+
+    final TaskAdjutant adjutant;
 
     final Properties properties;
 
     MySQLTask(TaskAdjutant adjutant, Consumer<Throwable> errorConsumer) {
         super(adjutant, errorConsumer);
-        this.properties = adjutant.obtainHostInfo().getProperties();
+        this.adjutant = adjutant;
+        this.properties = adjutant.host().getProperties();
     }
 
 

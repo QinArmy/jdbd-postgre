@@ -83,7 +83,7 @@ final class PrepareExecuteCommandWriter implements ExecuteCommandWriter {
         if (paramMetaArray.length == 0) {
             // this 'if' block handle no bind parameter.
             ByteBuf packet = createExecutePacketBuffer(10);
-            Packets.writePacketHeader(packet, this.statementTask.safelyAddAndGetSequenceId());
+            Packets.writeHeader(packet, this.statementTask.safelyAddAndGetSequenceId());
             publisher = Mono.just(packet);
         } else {
             if (nonLongDataCount == paramMetaArray.length) {
@@ -168,7 +168,7 @@ final class PrepareExecuteCommandWriter implements ExecuteCommandWriter {
             packet.writerIndex(writeIndex); // reset writeIndex
 
             ParamValue paramValue;
-            final int maxAllowedPayload = this.adjutant.obtainHostInfo().maxAllowedPayload();
+            final int maxAllowedPayload = this.adjutant.host().maxAllowedPayload();
             int wroteBytes = 0;
 
             for (int i = 0; i < parameterMetaArray.length; i++) {
@@ -178,7 +178,7 @@ final class PrepareExecuteCommandWriter implements ExecuteCommandWriter {
                 }
                 while (packet.readableBytes() >= Packets.MAX_PACKET) {
                     ByteBuf temp = packet.readRetainedSlice(Packets.MAX_PACKET);
-                    Packets.writePacketHeader(temp, this.statementTask.safelyAddAndGetSequenceId());
+                    Packets.writeHeader(temp, this.statementTask.safelyAddAndGetSequenceId());
                     packetList.add(temp);
                     wroteBytes += Packets.MAX_PAYLOAD;
 
@@ -200,7 +200,7 @@ final class PrepareExecuteCommandWriter implements ExecuteCommandWriter {
                 throw MySQLExceptions.createNetPacketTooLargeException(maxAllowedPayload);
             }
 
-            Packets.writePacketHeader(packet, this.statementTask.safelyAddAndGetSequenceId());
+            Packets.writeHeader(packet, this.statementTask.safelyAddAndGetSequenceId());
             packetList.add(packet);
 
 
@@ -341,6 +341,7 @@ final class PrepareExecuteCommandWriter implements ExecuteCommandWriter {
      * @see #createExecutePacketBuffer(int)
      * @see #decideBindType(int, MySQLColumnMeta, ParamValue)
      */
+    @SuppressWarnings("deprecation")
     private void bindParameter(ByteBuf buffer, int stmtIndex, final MySQLType bindType, MySQLColumnMeta meta
             , ParamValue paramValue)
             throws SQLException {
@@ -502,8 +503,6 @@ final class PrepareExecuteCommandWriter implements ExecuteCommandWriter {
         final int int4;
         if (nonNull instanceof Integer) {
             int4 = (Integer) nonNull;
-        } else if (nonNull instanceof CodeEnum) {
-            int4 = ((CodeEnum) nonNull).code();
         } else if (nonNull instanceof ZoneOffset) {
             int4 = ((ZoneOffset) nonNull).getTotalSeconds();
         } else if (nonNull instanceof ZoneId) {

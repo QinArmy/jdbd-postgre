@@ -2,7 +2,6 @@ package io.jdbd.mysql.protocol.client;
 
 import io.jdbd.meta.NullMode;
 import io.jdbd.mysql.MySQLType;
-import io.jdbd.mysql.protocol.CharsetMapping;
 import io.jdbd.mysql.protocol.Constants;
 import io.jdbd.mysql.protocol.conf.MyKey;
 import io.jdbd.mysql.util.MySQLStrings;
@@ -114,7 +113,7 @@ final class MySQLColumnMeta {
     }
 
 
-    public long obtainPrecision(Map<Integer, CharsetMapping.CustomCollation> customCollationMap) {
+    public long obtainPrecision(Map<Integer, Charsets.CustomCollation> customCollationMap) {
         long precision;
         // Protocol returns precision and scale differently for some types. We need to align then to I_S.
         switch (this.sqlType) {
@@ -146,13 +145,13 @@ final class MySQLColumnMeta {
             case LONGTEXT:
                 // char
                 int collationIndex = this.collationIndex;
-                CharsetMapping.CustomCollation collation = customCollationMap.get(collationIndex);
+                Charsets.CustomCollation collation = customCollationMap.get(collationIndex);
                 Integer mblen = null;
                 if (collation != null) {
                     mblen = collation.maxLen;
                 }
                 if (mblen == null) {
-                    mblen = CharsetMapping.getMblen(collationIndex);
+                    mblen = Charsets.getMblen(collationIndex);
                 }
                 precision = this.length / mblen;
                 break;
@@ -408,7 +407,7 @@ final class MySQLColumnMeta {
 
             cumulateBuffer.readerIndex(payloadIndex + payloadLength); //avoid tail filler
         }
-        final int negotiatedCapability = adjutant.negotiatedCapability();
+        final int negotiatedCapability = adjutant.capability();
         if ((negotiatedCapability & Capabilities.CLIENT_DEPRECATE_EOF) == 0) {
             final int payloadLength = Packets.readInt3(cumulateBuffer);
             sequenceId = Packets.readInt1AsInt(cumulateBuffer);
@@ -425,7 +424,7 @@ final class MySQLColumnMeta {
      */
     private static MySQLColumnMeta readFor41(final ByteBuf cumulateBuffer, final TaskAdjutant adjutant) {
         final Charset metaCharset = adjutant.obtainCharsetMeta();
-        final Properties properties = adjutant.obtainHostInfo().getProperties();
+        final Properties properties = adjutant.host().getProperties();
         // 1. catalog
         final String catalogName = Packets.readStringLenEnc(cumulateBuffer, metaCharset);
         // 2. schema
@@ -445,7 +444,7 @@ final class MySQLColumnMeta {
         final long fixLength = Packets.readLenEnc(cumulateBuffer);
         // 8. character_set of column
         final int collationIndex = Packets.readInt2AsInt(cumulateBuffer);
-        Charset columnCharset = CharsetMapping.getJavaCharsetByCollationIndex(collationIndex
+        Charset columnCharset = Charsets.getJavaCharsetByCollationIndex(collationIndex
                 , adjutant.obtainCustomCollationMap());
         // 9. column_length,maximum length of the field
         final long length = Packets.readInt4AsLong(cumulateBuffer);
@@ -580,14 +579,14 @@ final class MySQLColumnMeta {
                 && columnMeta.tableName.startsWith("#sql_"); //TODO check tableName or tableAlias
 
         boolean isBinaryString = columnMeta.isBinary()
-                && columnMeta.collationIndex == CharsetMapping.MYSQL_COLLATION_INDEX_binary
+                && columnMeta.collationIndex == Charsets.MYSQL_COLLATION_INDEX_binary
                 && (columnMeta.typeFlag == Constants.TYPE_STRING
                 || columnMeta.typeFlag == Constants.TYPE_VAR_STRING
                 || columnMeta.typeFlag == Constants.TYPE_VARCHAR);
 
         return isBinaryString
                 // queries resolved by temp tables also have this 'signature', check for that
-                ? !isImplicitTemporaryTable : columnMeta.collationIndex == CharsetMapping.MYSQL_COLLATION_INDEX_binary;
+                ? !isImplicitTemporaryTable : columnMeta.collationIndex == Charsets.MYSQL_COLLATION_INDEX_binary;
 
     }
 
@@ -598,7 +597,7 @@ final class MySQLColumnMeta {
 
     private static boolean isBlobTypeReturnText(MySQLColumnMeta columnMeta, Properties properties) {
         return !columnMeta.isBinary()
-                || columnMeta.collationIndex != CharsetMapping.MYSQL_COLLATION_INDEX_binary
+                || columnMeta.collationIndex != Charsets.MYSQL_COLLATION_INDEX_binary
                 || properties.getOrDefault(MyKey.blobsAreStrings, Boolean.class)
                 || isFunctionsNeverReturnBlobs(columnMeta, properties);
     }

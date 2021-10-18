@@ -184,7 +184,7 @@ final class ClientProtocolImpl implements ClientProtocol {
 
     @Override
     public boolean supportMultiStmt() {
-        return Capabilities.supportMultiStatement(this.adjutant.negotiatedCapability());
+        return Capabilities.supportMultiStatement(this.adjutant.capability());
     }
 
     @Override

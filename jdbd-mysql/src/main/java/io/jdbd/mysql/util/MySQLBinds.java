@@ -1,8 +1,11 @@
 package io.jdbd.mysql.util;
 
+import io.jdbd.meta.SQLType;
 import io.jdbd.mysql.MySQLType;
 import io.jdbd.stmt.UnsupportedBindJavaTypeException;
+import io.jdbd.vendor.stmt.ParamValue;
 import io.jdbd.vendor.util.JdbdBinds;
+import io.jdbd.vendor.util.JdbdExceptions;
 import io.netty.buffer.ByteBuf;
 import org.reactivestreams.Publisher;
 import reactor.util.annotation.Nullable;
@@ -12,10 +15,7 @@ import java.sql.JDBCType;
 import java.sql.SQLException;
 import java.time.*;
 import java.time.temporal.Temporal;
-import java.util.BitSet;
-import java.util.Objects;
-import java.util.Queue;
-import java.util.UUID;
+import java.util.*;
 
 public abstract class MySQLBinds extends JdbdBinds {
 
@@ -202,6 +202,52 @@ public abstract class MySQLBinds extends JdbdBinds {
             throw MySQLExceptions.notSupportBindJavaType(nullable.getClass());
         }
         return type;
+    }
+
+
+    public static int bindNonNullToYear(final int batchIndex, SQLType sqlType, ParamValue paramValue)
+            throws SQLException {
+        final Object nonNull = paramValue.getNonNull();
+        final int value;
+        if (nonNull instanceof Year) {
+            value = ((Year) nonNull).getValue();
+        } else if (nonNull instanceof Short) {
+            value = (Short) nonNull;
+        } else if (nonNull instanceof Integer) {
+            value = (Integer) nonNull;
+        } else {
+            throw JdbdExceptions.createNonSupportBindSqlTypeError(batchIndex, sqlType, paramValue);
+        }
+
+        if (value > Short.MAX_VALUE || value < Short.MIN_VALUE) {
+            throw JdbdExceptions.outOfTypeRange(batchIndex, sqlType, paramValue);
+        }
+        return value;
+    }
+
+    public static String bindNonNullToSetType(final int batchIndex, SQLType sqlType, ParamValue paramValue)
+            throws SQLException {
+        final Object nonNull = paramValue.getNonNull();
+        if (!(nonNull instanceof Set)) {
+            throw JdbdExceptions.createNonSupportBindSqlTypeError(batchIndex, sqlType, paramValue);
+        }
+        final Set<?> set = (Set<?>) nonNull;
+        final StringBuilder builder = new StringBuilder(set.size() * 4);
+        int index = 0;
+        for (Object element : set) {
+            if (index > 0) {
+                builder.append(',');
+            }
+            if (element instanceof String) {
+                builder.append(element);
+            } else if (element instanceof Enum) {
+                builder.append(((Enum<?>) element).name());
+            } else {
+                throw JdbdExceptions.createNonSupportBindSqlTypeError(batchIndex, sqlType, paramValue);
+            }
+            index++;
+        }
+        return builder.toString();
     }
 
 

@@ -4,7 +4,6 @@ import io.jdbd.JdbdSQLException;
 import io.jdbd.meta.NullMode;
 import io.jdbd.meta.SQLType;
 import io.jdbd.mysql.MySQLType;
-import io.jdbd.mysql.protocol.CharsetMapping;
 import io.jdbd.mysql.util.MySQLStrings;
 import io.jdbd.result.ResultRowMeta;
 import io.netty.buffer.ByteBuf;
@@ -87,7 +86,7 @@ final class MySQLRowMeta implements ResultRowMeta {
 
     @Deprecated
     static MySQLRowMeta from(MySQLColumnMeta[] mySQLColumnMetas
-            , Map<Integer, CharsetMapping.CustomCollation> customCollationMap) {
+            , Map<Integer, Charsets.CustomCollation> customCollationMap) {
         return new MySQLRowMeta(mySQLColumnMetas, 0, customCollationMap);
     }
 
@@ -95,7 +94,7 @@ final class MySQLRowMeta implements ResultRowMeta {
 
     final MySQLColumnMeta[] columnMetaArray;
 
-    final Map<Integer, CharsetMapping.CustomCollation> customCollationMap;
+    final Map<Integer, Charsets.CustomCollation> customCollationMap;
 
     int metaIndex = 0;
 
@@ -106,7 +105,7 @@ final class MySQLRowMeta implements ResultRowMeta {
     }
 
     private MySQLRowMeta(final MySQLColumnMeta[] columnMetaArray, final int resultIndex
-            , Map<Integer, CharsetMapping.CustomCollation> customCollationMap) {
+            , Map<Integer, Charsets.CustomCollation> customCollationMap) {
         if (resultIndex < 0) {
             throw new IllegalArgumentException("resultIndex must great than -1");
         }
@@ -370,7 +369,7 @@ final class MySQLRowMeta implements ResultRowMeta {
             case JSON:
             case ENUM:
             case SET:
-                String collationName = CharsetMapping.getCollationNameByIndex(columnMeta.collationIndex);
+                String collationName = Charsets.getCollationNameByIndex(columnMeta.collationIndex);
                 caseSensitive = ((collationName != null) && !collationName.endsWith("_ci"));
                 break;
             default:

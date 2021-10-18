@@ -99,4 +99,14 @@ public final class OkPacket extends TerminatorPacket {
         return Packets.getInt1AsInt(payloadBuf, payloadBuf.readerIndex()) == OK_HEADER;
     }
 
+    @Override
+    public String toString() {
+        return new StringBuilder("OkPacket{")
+                .append("\naffectedRows=").append(affectedRows)
+                .append("\n, lastInsertId=").append(lastInsertId)
+                .append("\n, info='").append(info).append('\'')
+                .append("\n, sessionStateInfo='").append(sessionStateInfo).append('\'')
+                .append("\n, statusFags=").append(statusFags)
+                .append("\n}").toString();
+    }
 }

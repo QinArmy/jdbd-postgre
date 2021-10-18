@@ -11,12 +11,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import reactor.netty.resources.LoopResources;
 
+import java.nio.charset.Charset;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Queue;
 import java.util.concurrent.LinkedBlockingQueue;
-
-import static org.testng.Assert.assertNotNull;
 
 public abstract class AbstractConnectionBasedSuiteTests {
 
@@ -40,19 +40,7 @@ public abstract class AbstractConnectionBasedSuiteTests {
 
 
     protected static TaskAdjutant obtainTaskAdjutant() {
-        TaskAdjutant taskAdjutant;
-
-        taskAdjutant = TASK_ADJUTANT_QUEUE.poll();
-        if (taskAdjutant == null) {
-
-            ClientConnectionProtocolImpl protocol = ClientConnectionProtocolImpl.create(0, DEFAULT_SESSION_ADJUTANT)
-                    .block();
-            assertNotNull(protocol, "protocol");
-
-            taskAdjutant = protocol.taskExecutor.taskAdjutant();
-        }
-
-        return taskAdjutant;
+        throw new UnsupportedOperationException();
     }
 
 
@@ -90,24 +78,25 @@ public abstract class AbstractConnectionBasedSuiteTests {
         }
 
         @Override
-        public MySQLUrl getJdbcUrl() {
+        public MySQLUrl jdbcUrl() {
             return this.mySQLUrl;
         }
 
         @Override
-        public Map<String, Class<? extends AuthenticationPlugin>> obtainPluginClassMap() {
+        public Map<String, Class<? extends AuthenticationPlugin>> pluginClassMap() {
             return this.pluginClassMap;
         }
 
         @Override
-        public EventLoopGroup getEventLoopGroup() {
-            return EVENT_LOOP_GROUP;
+        public Map<String, Charset> customCharsetMap() {
+            return Collections.emptyMap();
         }
 
         @Override
-        public int maxAllowedPayload() {
-            return 0;
+        public EventLoopGroup eventLoopGroup() {
+            return EVENT_LOOP_GROUP;
         }
+
 
         @Override
         public boolean isSameFactory(DatabaseSessionFactory factory) {

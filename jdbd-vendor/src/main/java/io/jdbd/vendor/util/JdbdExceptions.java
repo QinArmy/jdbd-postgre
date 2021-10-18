@@ -13,6 +13,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import reactor.util.annotation.Nullable;
 
+import java.nio.charset.Charset;
 import java.nio.file.Path;
 import java.sql.SQLException;
 import java.util.List;
@@ -275,6 +276,12 @@ public abstract class JdbdExceptions extends ExceptionUtils {
                 , bindValue.getNonNull().getClass().getName()
                 , sqlType);
         return new SQLException(m);
+    }
+
+    public static JdbdSQLException notSupportClientCharset(final Charset charset) {
+        String m = String.format("client charset[%s] isn't supported,because %s encode ASCII to multi bytes."
+                , charset.name(), charset.name());
+        throw new JdbdSQLException(new SQLException(m));
     }
 
 

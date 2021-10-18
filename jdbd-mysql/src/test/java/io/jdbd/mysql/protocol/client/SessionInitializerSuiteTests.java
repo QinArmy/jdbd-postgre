@@ -4,7 +4,6 @@ import io.jdbd.mysql.Groups;
 import io.jdbd.mysql.SQLMode;
 import io.jdbd.mysql.Server;
 import io.jdbd.mysql.protocol.conf.MyKey;
-import io.jdbd.mysql.session.SessionAdjutant;
 import io.jdbd.mysql.stmt.Stmts;
 import io.jdbd.mysql.util.MySQLTimes;
 import io.jdbd.result.ResultRow;
@@ -198,18 +197,7 @@ public class SessionInitializerSuiteTests extends AbstractConnectionBasedSuiteTe
     /*################################## blow private method ##################################*/
 
     private TaskAdjutant doConnectionTest(Map<String, String> propMap) {
-        SessionAdjutant sessionAdjutant = createSessionAdjutantForSingleHost(propMap);
-
-        ClientConnectionProtocolImpl protocol = ClientConnectionProtocolImpl.create(0, sessionAdjutant)
-                .block();
-
-        assertNotNull(protocol, "protocol");
-        assertNotNull(protocol.taskExecutor, "protocol.taskExecutor");
-        assertNotNull(protocol.sessionResetter, "protocol.sessionResetter");
-
-        TaskAdjutant adjutant = protocol.taskExecutor.taskAdjutant();
-        //protocolMap.put(adjutant.handshake10().getThreadId(), protocol);
-        return adjutant;
+        throw new UnsupportedOperationException();
     }
 
 

@@ -273,6 +273,12 @@ public abstract class JdbdBinds {
             } else {
                 throw JdbdExceptions.outOfTypeRange(batchIndex, sqlType, paramValue);
             }
+        } else if (nonNull instanceof Year) {
+            value = ((Year) nonNull).getValue();
+        } else if (nonNull instanceof ZoneOffset) {
+            value = ((ZoneOffset) nonNull).getTotalSeconds();
+        } else if (nonNull instanceof ZoneId) {
+            value = JdbdTimes.toZoneOffset((ZoneId) nonNull).getTotalSeconds();
         } else {
             throw JdbdExceptions.createNonSupportBindSqlTypeError(batchIndex, sqlType, paramValue);
         }
@@ -449,7 +455,10 @@ public abstract class JdbdBinds {
             value = ((Enum<?>) nonNull).name();
         } else if (nonNull instanceof BigDecimal) {
             value = ((BigDecimal) nonNull).toPlainString();
-        } else if (nonNull instanceof Number || nonNull instanceof UUID) {
+        } else if (nonNull instanceof Number
+                || nonNull instanceof UUID
+                || nonNull instanceof LocalTime
+                || nonNull instanceof LocalDate) {
             value = nonNull.toString();
         } else {
             throw JdbdExceptions.createNonSupportBindSqlTypeError(batchIndex, sqlType, paramValue);

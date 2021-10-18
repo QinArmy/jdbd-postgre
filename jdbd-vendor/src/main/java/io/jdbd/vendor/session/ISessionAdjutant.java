@@ -16,9 +16,9 @@ import io.netty.channel.EventLoopGroup;
  */
 public interface ISessionAdjutant {
 
-    JdbcUrl getJdbcUrl();
+    JdbcUrl jdbcUrl();
 
-    EventLoopGroup getEventLoopGroup();
+    EventLoopGroup eventLoopGroup();
 
 
     boolean isSameFactory(DatabaseSessionFactory factory);

@@ -30,13 +30,13 @@ import java.util.*;
 final class PgTaskExecutor extends CommunicationTaskExecutor<TaskAdjutant> {
 
     static Mono<PgTaskExecutor> create(final SessionAdjutant sessionAdjutant, final int hostIndex) {
-        final List<PgHost> hostList = sessionAdjutant.getJdbcUrl().getHostList();
+        final List<PgHost> hostList = sessionAdjutant.jdbcUrl().getHostList();
 
         final Mono<PgTaskExecutor> mono;
         if (hostIndex > -1 && hostIndex < hostList.size()) {
             final PgHost host = hostList.get(hostIndex);
             mono = TcpClient.create()
-                    .runOn(sessionAdjutant.getEventLoopGroup())
+                    .runOn(sessionAdjutant.eventLoopGroup())
                     .host(host.getHost())
                     .port(host.getPort())
                     .connect()

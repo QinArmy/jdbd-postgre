@@ -5,11 +5,13 @@ import io.jdbd.vendor.task.UnitTask;
 
 abstract class PostgreUnitTask extends UnitTask<TaskAdjutant> {
 
+    final TaskAdjutant adjutant;
 
     final Properties properties;
 
-    PostgreUnitTask(PgTask task) {
+    PostgreUnitTask(final PgTask task) {
         super(task);
+        this.adjutant = task.adjutant;
         this.properties = this.adjutant.obtainHost().getProperties();
     }
 

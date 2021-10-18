@@ -47,5 +47,9 @@ abstract class Capabilities {
         return (negotiatedCapability & CLIENT_DEPRECATE_EOF) != 0;
     }
 
+    static boolean supportQueryAttr(final int negotiatedCapability) {
+        return (negotiatedCapability & CLIENT_QUERY_ATTRIBUTES) != 0;
+    }
+
 
 }

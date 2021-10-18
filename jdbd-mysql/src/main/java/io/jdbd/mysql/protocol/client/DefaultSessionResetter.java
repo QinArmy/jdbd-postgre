@@ -3,7 +3,6 @@ package io.jdbd.mysql.protocol.client;
 import io.jdbd.JdbdSQLException;
 import io.jdbd.mysql.SQLMode;
 import io.jdbd.mysql.Server;
-import io.jdbd.mysql.protocol.CharsetMapping;
 import io.jdbd.mysql.protocol.Constants;
 import io.jdbd.mysql.protocol.MySQLServerVersion;
 import io.jdbd.mysql.protocol.conf.MyKey;
@@ -48,7 +47,7 @@ final class DefaultSessionResetter implements SessionResetter {
 
     private DefaultSessionResetter(TaskAdjutant adjutant) {
         this.adjutant = adjutant;
-        this.properties = adjutant.obtainHostInfo().getProperties();
+        this.properties = adjutant.host().getProperties();
     }
 
     @Override
@@ -122,19 +121,19 @@ final class DefaultSessionResetter implements SessionResetter {
      */
     Mono<Void> configSessionCharset() {
 
-        final CharsetMapping.Collation connectionCollation = tryGetConnectionCollation();
+        final Collation connectionCollation = tryGetConnectionCollation();
 
         final Charset clientCharset;
         final String namesCommand;
 
         if (connectionCollation == null) {
-            final CharsetMapping.CustomCollation customCollation = tryGetConnectionCollationWithinCustom();
+            final Charsets.CustomCollation customCollation = tryGetConnectionCollationWithinCustom();
             if (customCollation == null) {
-                Pair<CharsetMapping.MySQLCharset, Charset> clientPair = obtainClientMySQLCharset();
-                namesCommand = String.format("SET NAMES '%s'", clientPair.getFirst().charsetName);
+                Pair<MyCharset, Charset> clientPair = obtainClientMySQLCharset();
+                namesCommand = String.format("SET NAMES '%s'", clientPair.getFirst().name);
                 clientCharset = clientPair.getSecond();
             } else {
-                final Charset charset = CharsetMapping.getJavaCharsetByMySQLCharsetName(customCollation.charsetName);
+                final Charset charset = Charsets.getJavaCharsetByMySQLCharsetName(customCollation.charsetName);
                 if (charset == null) {
                     String message = String.format("Not found java charset for %s[%s],that is unknown charset."
                             , MyKey.connectionCollation, customCollation.collationName);
@@ -147,9 +146,9 @@ final class DefaultSessionResetter implements SessionResetter {
             }
         } else {
             namesCommand = String.format("SET NAMES '%s' COLLATE '%s'"
-                    , connectionCollation.mySQLCharset.charsetName
-                    , connectionCollation.collationName);
-            clientCharset = Charset.forName(connectionCollation.mySQLCharset.javaEncodingsUcList.get(0));
+                    , connectionCollation.myCharset.name
+                    , connectionCollation.name);
+            clientCharset = Charset.forName(connectionCollation.myCharset.javaEncodingsUcList.get(0));
         }
         this.configCacheMap.put(Key.CHARSET_CLIENT, clientCharset);
         if (LOG.isDebugEnabled()) {
@@ -259,15 +258,15 @@ final class DefaultSessionResetter implements SessionResetter {
             command = "SET character_set_results = 'binary'";
             charsetResults = null;
         } else {
-            CharsetMapping.MySQLCharset mySQLCharset;
-            mySQLCharset = CharsetMapping.CHARSET_NAME_TO_CHARSET.get(charsetString.toLowerCase());
-            if (mySQLCharset == null) {
+            MyCharset myCharset;
+            myCharset = Charsets.NAME_TO_CHARSET.get(charsetString.toLowerCase());
+            if (myCharset == null) {
                 String message = String.format("No found MySQL charset[%s] fro Property[%s]"
                         , charsetString, MyKey.characterSetResults);
                 return Mono.error(new JdbdSQLException(new SQLException(message, SQLStates.CONNECTION_EXCEPTION)));
             }
-            command = String.format("SET character_set_results = '%s'", mySQLCharset.charsetName);
-            charsetResults = Charset.forName(mySQLCharset.javaEncodingsUcList.get(0));
+            command = String.format("SET character_set_results = '%s'", myCharset.name);
+            charsetResults = Charset.forName(myCharset.javaEncodingsUcList.get(0));
         }
         if (charsetResults == null) {
             this.configCacheMap.remove(Key.CHARSET_RESULTS);
@@ -369,27 +368,27 @@ final class DefaultSessionResetter implements SessionResetter {
         return Mono.empty();
     }
 
-    private Pair<CharsetMapping.MySQLCharset, Charset> obtainClientMySQLCharset() {
+    private Pair<MyCharset, Charset> obtainClientMySQLCharset() {
         final String charsetClient = properties.get(MyKey.characterEncoding);
 
-        final Pair<CharsetMapping.MySQLCharset, Charset> defaultPair;
+        final Pair<MyCharset, Charset> defaultPair;
         defaultPair = new Pair<>(
-                CharsetMapping.CHARSET_NAME_TO_CHARSET.get(CharsetMapping.utf8mb4)
+                Charsets.NAME_TO_CHARSET.get(Charsets.utf8mb4)
                 , StandardCharsets.UTF_8
         );
 
-        Pair<CharsetMapping.MySQLCharset, Charset> pair = null;
+        Pair<MyCharset, Charset> pair = null;
         if (!MySQLStrings.hasText(charsetClient)
-                || !CharsetMapping.isUnsupportedCharsetClient(charsetClient)
+                || !Charsets.isUnsupportedCharsetClient(charsetClient)
                 || StandardCharsets.UTF_8.name().equalsIgnoreCase(charsetClient)
                 || StandardCharsets.UTF_8.aliases().contains(charsetClient)) {
             pair = defaultPair;
         } else {
             MySQLServerVersion serverVersion = this.adjutant.handshake10().getServerVersion();
-            CharsetMapping.MySQLCharset mySQLCharset = CharsetMapping.getMysqlCharsetForJavaEncoding(
+            MyCharset myCharset = Charsets.getMysqlCharsetForJavaEncoding(
                     charsetClient, serverVersion);
-            if (mySQLCharset != null) {
-                pair = new Pair<>(mySQLCharset, Charset.forName(charsetClient));
+            if (myCharset != null) {
+                pair = new Pair<>(myCharset, Charset.forName(charsetClient));
             }
         }
 
@@ -400,31 +399,31 @@ final class DefaultSessionResetter implements SessionResetter {
     }
 
     @Nullable
-    private CharsetMapping.Collation tryGetConnectionCollation() {
+    private Collation tryGetConnectionCollation() {
 
         String connectionCollation = this.properties.get(MyKey.connectionCollation);
         if (!MySQLStrings.hasText(connectionCollation)) {
             return null;
         }
-        CharsetMapping.Collation collationConnection;
-        collationConnection = CharsetMapping.getCollationByName(connectionCollation);
+        Collation collationConnection;
+        collationConnection = Charsets.getCollationByName(connectionCollation);
         if (collationConnection != null
-                && CharsetMapping.isUnsupportedCharsetClient(collationConnection.mySQLCharset.charsetName)) {
-            collationConnection = CharsetMapping.INDEX_TO_COLLATION.get(CharsetMapping.MYSQL_COLLATION_INDEX_utf8mb4);
+                && Charsets.isUnsupportedCharsetClient(collationConnection.myCharset.name)) {
+            collationConnection = Charsets.INDEX_TO_COLLATION.get(Charsets.MYSQL_COLLATION_INDEX_utf8mb4);
         }
         return collationConnection;
     }
 
     @Nullable
-    private CharsetMapping.CustomCollation tryGetConnectionCollationWithinCustom() {
+    private Charsets.CustomCollation tryGetConnectionCollationWithinCustom() {
 
         String connectionCollation = this.properties.get(MyKey.connectionCollation);
 
-        CharsetMapping.CustomCollation customCollation = null;
+        Charsets.CustomCollation customCollation = null;
 
         if (MySQLStrings.hasText(connectionCollation)) {
-            Map<Integer, CharsetMapping.CustomCollation> map = this.adjutant.obtainCustomCollationMap();
-            for (CharsetMapping.CustomCollation collation : map.values()) {
+            Map<Integer, Charsets.CustomCollation> map = this.adjutant.obtainCustomCollationMap();
+            for (Charsets.CustomCollation collation : map.values()) {
                 if (collation.collationName.equals(connectionCollation)) {
                     customCollation = collation;
                     break;

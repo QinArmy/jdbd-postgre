@@ -27,7 +27,7 @@ public interface ITaskAdjutant {
      * @throws SessionCloseException    throw then network channel closed
      * @see CommunicationTask#submit(Consumer)
      */
-    void syncSubmitTask(CommunicationTask<?> task, Consumer<Void> errorConsumer);
+    void syncSubmitTask(CommunicationTask task, Consumer<Void> errorConsumer);
 
     void execute(Runnable runnable);
 

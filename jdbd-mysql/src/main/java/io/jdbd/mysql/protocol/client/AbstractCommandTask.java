@@ -15,7 +15,6 @@ import java.util.function.Supplier;
  *
  * @see ComQueryTask
  * @see QuitTask
- * @see MySQLPrepareCommandStmtTask
  * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_command_phase.html">Command Phase</a>
  */
 abstract class AbstractCommandTask extends MySQLTask implements StmtTask {
@@ -37,7 +36,7 @@ abstract class AbstractCommandTask extends MySQLTask implements StmtTask {
     AbstractCommandTask(TaskAdjutant adjutant, final ResultSink sink) {
         super(adjutant, sink::error);
         this.sink = sink;
-        this.negotiatedCapability = adjutant.negotiatedCapability();
+        this.negotiatedCapability = adjutant.capability();
         this.resultSetReader = createResultSetReader();
     }
 

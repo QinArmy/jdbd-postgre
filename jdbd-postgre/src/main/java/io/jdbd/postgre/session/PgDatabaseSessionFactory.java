@@ -135,12 +135,12 @@ public class PgDatabaseSessionFactory implements DatabaseSessionFactory {
         }
 
         @Override
-        public PgUrl getJdbcUrl() {
+        public PgUrl jdbcUrl() {
             return this.factory.pgUrl;
         }
 
         @Override
-        public EventLoopGroup getEventLoopGroup() {
+        public EventLoopGroup eventLoopGroup() {
             return this.eventLoopGroup;
         }
 

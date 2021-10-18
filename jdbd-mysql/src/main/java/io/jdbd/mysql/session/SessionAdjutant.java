@@ -5,12 +5,13 @@ import io.jdbd.mysql.protocol.conf.MyKey;
 import io.jdbd.mysql.protocol.conf.MySQLUrl;
 import io.jdbd.vendor.session.ISessionAdjutant;
 
+import java.nio.charset.Charset;
 import java.util.Map;
 
 public interface SessionAdjutant extends ISessionAdjutant {
 
     @Override
-    MySQLUrl getJdbcUrl();
+    MySQLUrl jdbcUrl();
 
     /**
      * <p>
@@ -26,12 +27,8 @@ public interface SessionAdjutant extends ISessionAdjutant {
      * @see MyKey#authenticationPlugins
      * @see MyKey#disabledAuthenticationPlugins
      */
-    Map<String, Class<? extends AuthenticationPlugin>> obtainPluginClassMap();
+    Map<String, Class<? extends AuthenticationPlugin>> pluginClassMap();
 
-    /**
-     * @see MyKey#maxAllowedPacket
-     * @see <a href="https://dev.mysql.com/doc/refman/8.0/en/server-system-variables.html#sysvar_max_allowed_packet">max_allowed_packet</a>
-     */
-    int maxAllowedPayload();
+    Map<String, Charset> customCharsetMap();
 
 }

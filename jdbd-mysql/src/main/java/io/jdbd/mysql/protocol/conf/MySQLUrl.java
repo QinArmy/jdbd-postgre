@@ -3,11 +3,14 @@ package io.jdbd.mysql.protocol.conf;
 
 import io.jdbd.config.PropertyException;
 import io.jdbd.config.UrlException;
+import io.jdbd.mysql.protocol.client.Charsets;
+import io.jdbd.mysql.protocol.client.ClientProtocol;
 import io.jdbd.vendor.conf.*;
 import io.qinarmy.env.convert.ConverterManager;
 import io.qinarmy.env.convert.ImmutableConverterManager;
 import reactor.util.annotation.Nullable;
 
+import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -21,13 +24,17 @@ public final class MySQLUrl extends AbstractJdbcUrl {
 
     public static final int DEFAULT_PORT = 3306;
 
-    public static MySQLUrl getInstance(String url, Map<String, String> properties) {
+    public static MySQLUrl getInstance(final String url, final Map<String, String> properties) {
         final MySQLUrl mySQLUrl;
         mySQLUrl = new MySQLUrl(MySQLUrlParser.parseMySQLUrl(url, properties));
         checkUrlProperties(mySQLUrl.getCommonProps());
         for (MySQLHost host : mySQLUrl.hostList) {
-            checkUrlProperties(host.getProperties());
+            Properties props = host.getProperties();
+            checkUrlProperties(props);
+            checkKeyProperties(props);
         }
+
+
         return mySQLUrl;
     }
 
@@ -46,10 +53,13 @@ public final class MySQLUrl extends AbstractJdbcUrl {
 
     private final List<MySQLHost> hostList;
 
+    private final int maxAllowedPayload;
+
     private MySQLUrl(MySQLUrlParser parser) {
         super(parser);
         this.hostList = createHostInfoList(parser);
         this.protocolType = Protocol.fromValue(this.getOriginalUrl(), this.getProtocol(), this.getHostList().size());
+        this.maxAllowedPayload = parseMaxAllowedPacket();
     }
 
     @Override
@@ -60,6 +70,10 @@ public final class MySQLUrl extends AbstractJdbcUrl {
     @Override
     public List<MySQLHost> getHostList() {
         return this.hostList;
+    }
+
+    public int getMaxAllowedPayload() {
+        return this.maxAllowedPayload;
     }
 
     @Override
@@ -78,7 +92,29 @@ public final class MySQLUrl extends AbstractJdbcUrl {
         return wrapProperties(map);
     }
 
-    static Properties wrapProperties(Map<String, String> map) {
+
+    /**
+     * @see MyKey#maxAllowedPacket
+     * @see <a href="https://dev.mysql.com/doc/refman/8.0/en/server-system-variables.html#sysvar_max_allowed_packet">max_allowed_packet</a>
+     */
+    private int parseMaxAllowedPacket() {
+        final int maxAllowedPacket = this.commonProps.getOrDefault(MyKey.maxAllowedPacket, Integer.class);
+        final int defaultValue = 1 << 26, minValue = 1024;
+        final int value;
+        if (maxAllowedPacket < 0 || maxAllowedPacket == defaultValue) {
+            // (1 << 26) is default value
+            value = defaultValue;
+        } else if (maxAllowedPacket < minValue) {
+            value = minValue;
+        } else if (maxAllowedPacket > ClientProtocol.MAX_PAYLOAD_SIZE) {
+            value = ClientProtocol.MAX_PAYLOAD_SIZE;
+        } else {
+            value = maxAllowedPacket & (~1023);
+        }
+        return value;
+    }
+
+    public static Properties wrapProperties(Map<String, String> map) {
         ConverterManager converterManager = ImmutableConverterManager.create(Converters::registerConverter);
         return ImmutableMapProperties.getInstance(map, converterManager);
     }
@@ -99,7 +135,7 @@ public final class MySQLUrl extends AbstractJdbcUrl {
         try {
             for (MyKey key : MyKey.values()) {
                 currentKey = key;
-                properties.getOrDefault(key, key.getJavaType());
+                properties.get(key, key.getJavaType());
             }
         } catch (PropertyException e) {
             throw e;
@@ -115,6 +151,27 @@ public final class MySQLUrl extends AbstractJdbcUrl {
             }
             throw new PropertyException(propName, m, e);
         }
+    }
+
+    private static void checkKeyProperties(final Properties properties) {
+        if (properties.getOrDefault(MyKey.factoryWorkerCount, Integer.class) < 1) {
+            throw errorPropertyValue(MyKey.factoryWorkerCount);
+        }
+        final Charset charset;
+        charset = properties.get(MyKey.characterEncoding, Charset.class);
+        if (charset != null && Charsets.isUnsupportedCharsetClient(charset.name())) {
+            String m = String.format(
+                    "Property[%s] value[%s] isn unsupported client charset,because encode US_ASCII as multi bytes."
+                    , MyKey.characterEncoding, charset.name());
+            throw new PropertyException(MyKey.characterEncoding.getKey(), m);
+        }
+
+
+    }
+
+    private static PropertyException errorPropertyValue(final MyKey key) {
+        String m = String.format("Property[%s] value error.", key);
+        return new PropertyException(key.getKey(), m);
     }
 
 

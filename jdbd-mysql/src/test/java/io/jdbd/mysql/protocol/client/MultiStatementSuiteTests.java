@@ -552,7 +552,7 @@ public class MultiStatementSuiteTests extends AbstractConnectionBasedSuiteTests 
     public void bindableBatchWithMultiStmtMode() {
         LOG.info("bindableBatchWithMultiStmtMode test start");
         final TaskAdjutant adjutant = obtainMultiStmtTaskAdjutant();
-        assertTrue(Capabilities.supportMultiStatement(adjutant.negotiatedCapability()), "negotiatedCapability");
+        assertTrue(Capabilities.supportMultiStatement(adjutant.capability()), "negotiatedCapability");
 
         final String sql = "UPDATE mysql_types as t SET t.my_long_text = ? WHERE t.id = ?";
         final List<List<BindValue>> groupList = new ArrayList<>(4);
@@ -601,7 +601,7 @@ public class MultiStatementSuiteTests extends AbstractConnectionBasedSuiteTests 
     public void batchUpdateWithMultiStmtMode() {
         LOG.info("batchUpdateWithMultiStmtMode test start");
         final TaskAdjutant adjutant = obtainMultiStmtTaskAdjutant();
-        assertTrue(Capabilities.supportMultiStatement(adjutant.negotiatedCapability()), "negotiatedCapability");
+        assertTrue(Capabilities.supportMultiStatement(adjutant.capability()), "negotiatedCapability");
 
         String sql;
         final List<String> sqlList = new ArrayList<>(5);
@@ -664,19 +664,7 @@ public class MultiStatementSuiteTests extends AbstractConnectionBasedSuiteTests 
 
 
     protected static TaskAdjutant obtainMultiStmtTaskAdjutant() {
-        TaskAdjutant taskAdjutant;
-
-        taskAdjutant = MULTI_STMT_TASK_ADJUTANT_QUEUE.poll();
-        if (taskAdjutant == null) {
-
-            ClientConnectionProtocolImpl protocol = ClientConnectionProtocolImpl.create(0, MULTI_STMT_SESSION_ADJUTANT)
-                    .block();
-            assertNotNull(protocol, "protocol");
-
-            taskAdjutant = protocol.taskExecutor.taskAdjutant();
-        }
-
-        return taskAdjutant;
+        throw new UnsupportedOperationException();
     }
 
     protected static void releaseMultiStmtConnection(TaskAdjutant adjutant) {

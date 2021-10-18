@@ -16,9 +16,9 @@ import java.util.function.Consumer;
  * @see CommunicationTaskExecutor
  * @see ConnectionTask
  */
-public abstract class CommunicationTask<T extends ITaskAdjutant> {
+public abstract class CommunicationTask {
 
-    protected final T adjutant;
+    private final ITaskAdjutant adjutant;
 
     private final Consumer<Throwable> errorConsumer;
 
@@ -35,7 +35,7 @@ public abstract class CommunicationTask<T extends ITaskAdjutant> {
     private TaskDecodeException decodeException;
 
 
-    protected CommunicationTask(T adjutant, Consumer<Throwable> errorConsumer) {
+    protected CommunicationTask(ITaskAdjutant adjutant, Consumer<Throwable> errorConsumer) {
         this.adjutant = adjutant;
         this.errorConsumer = errorConsumer;
     }

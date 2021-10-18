@@ -4,10 +4,7 @@ import io.jdbd.JdbdSQLException;
 import io.jdbd.mysql.SQLMode;
 import io.jdbd.mysql.protocol.Constants;
 import io.jdbd.mysql.protocol.MySQLServerVersion;
-import io.jdbd.mysql.stmt.BindBatchStmt;
-import io.jdbd.mysql.stmt.BindMultiStmt;
-import io.jdbd.mysql.stmt.BindStmt;
-import io.jdbd.mysql.stmt.BindValue;
+import io.jdbd.mysql.stmt.*;
 import io.jdbd.mysql.syntax.MySQLParser;
 import io.jdbd.mysql.util.*;
 import io.jdbd.stmt.LongDataReadException;
@@ -66,19 +63,31 @@ final class QueryCommandWriter {
         }
         final int sqlSize = sqlGroup.size();
         final Charset charsetClient = adjutant.charsetClient();
+        if (!Charsets.isSupportCharsetClient(charsetClient)) {
+            throw MySQLExceptions.notSupportClientCharset(charsetClient);
+        }
         final ByteBufAllocator allocator = adjutant.allocator();
         final MySQLParser sqlParser = adjutant.sqlParser();
 
-        final ByteBuf packet = allocator.buffer(100 * sqlSize, Integer.MAX_VALUE); // 1 representing SEMICOLON_BYTE
+        final ByteBuf packet = allocator.buffer(Math.min(50 * sqlSize, Integer.MAX_VALUE), Integer.MAX_VALUE); // 1 representing SEMICOLON_BYTE
         packet.writeZero(Packets.HEADER_SIZE); // placeholder of header
         packet.writeByte(Packets.COM_QUERY);
+        if (Capabilities.supportQueryAttr(adjutant.capability())) {
+
+            if (stmt instanceof MySQLBatchStmt) {
+
+            } else {
+                Packets.writeIntLenEnc(packet, 0);
+                Packets.writeIntLenEnc(packet, 1);
+            }
+        }
         for (int i = 0; i < sqlSize; i++) {
+            if (i > 0) {
+                packet.writeByte(Constants.SEMICOLON_BYTE);
+            }
             String sql = sqlGroup.get(i);
             if (!sqlParser.isSingleStmt(sql)) {
                 throw MySQLExceptions.createMultiStatementError();
-            }
-            if (i > 0) {
-                packet.writeByte(Constants.SEMICOLON_BYTE);
             }
             packet.writeBytes(sql.getBytes(charsetClient));
         }
@@ -254,7 +263,7 @@ final class QueryCommandWriter {
 
 
     /**
-     * @see #doWriteBindableCommand(int, BindStmt, ByteBuf)
+     * @see #doWriteBindableCommand(int, List, List, ByteBuf)
      */
     private void writeNonNullParameter(final int batchIndex, final BindValue bindValue, final ByteBuf packet)
             throws SQLException, LongDataReadException {

@@ -99,12 +99,12 @@ abstract class AbstractTaskTests {
         }
 
         @Override
-        public PgUrl getJdbcUrl() {
+        public PgUrl jdbcUrl() {
             return this.pgUrl;
         }
 
         @Override
-        public EventLoopGroup getEventLoopGroup() {
+        public EventLoopGroup eventLoopGroup() {
             return EVENT_LOOP_GROUP;
         }
 

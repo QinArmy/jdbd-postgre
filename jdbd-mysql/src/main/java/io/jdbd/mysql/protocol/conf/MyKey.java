@@ -81,7 +81,7 @@ public enum MyKey implements PropertyKey {
     characterEncoding(Charset.class), //
     characterSetResults(String.class), //
     connectionCollation(String.class), //
-
+    customCharsetMapping(String.class),
 
     // blow Networking Group https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-networking.html
     socksProxyHost(String.class), //
@@ -125,6 +125,10 @@ public enum MyKey implements PropertyKey {
     allowLoadLocalInfile("false", Boolean.class), //
     allowLoadLocalInfileInPath(null, Path.class), //
 
+    /**
+     * @deprecated jdbd always allow.
+     */
+    @Deprecated
     allowMultiQueries("false", Boolean.class), //
     allowUrlInLocalInfile("false", Boolean.class), //
     @Deprecated

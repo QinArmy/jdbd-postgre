@@ -7,8 +7,9 @@ import io.netty.buffer.ByteBuf;
 import java.util.function.Consumer;
 
 
-abstract class PgTask extends CommunicationTask<TaskAdjutant> {
+abstract class PgTask extends CommunicationTask {
 
+    final TaskAdjutant adjutant;
 
     final Properties properties;
 
@@ -16,6 +17,7 @@ abstract class PgTask extends CommunicationTask<TaskAdjutant> {
 
     PgTask(final TaskAdjutant adjutant, Consumer<Throwable> errorConsumer) {
         super(adjutant, errorConsumer);
+        this.adjutant = adjutant;
         this.properties = adjutant.obtainHost().getProperties();
     }
 

@@ -5,7 +5,7 @@ import reactor.core.publisher.Mono;
 public interface TaskSignal {
 
 
-    Mono<Void> sendPacket(CommunicationTask<?> task, boolean endTask);
+    Mono<Void> sendPacket(CommunicationTask task, boolean endTask);
 
 
 }

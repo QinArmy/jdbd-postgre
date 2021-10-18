@@ -151,6 +151,8 @@ public enum MySQLType implements SQLType {
      * </p>
      *
      * @see #FLOAT
+     * @deprecated use {@link #FLOAT} As of MySQL 8.0.17, the UNSIGNED attribute is deprecated for columns of type FLOAT
+     * ,see <a href="https://dev.mysql.com/doc/refman/8.0/en/floating-point-types.html">Floating-Point Types</a>
      */
     @Deprecated
     FLOAT_UNSIGNED(Constants.TYPE_FLOAT, true, JDBCType.FLOAT, Float.class),
@@ -178,6 +180,9 @@ public enum MySQLType implements SQLType {
      * </p>
      *
      * @see #DOUBLE
+     * @deprecated use {@link #DOUBLE} As of MySQL 8.0.17, this syntax is deprecated and you should expect support
+     * for it to be removed in a future version of MySQL.
+     * see <a href="https://dev.mysql.com/doc/refman/8.0/en/floating-point-types.html">Floating-Point Types</a>
      */
     @Deprecated
     DOUBLE_UNSIGNED(Constants.TYPE_DOUBLE, true, JDBCType.DOUBLE, Double.class),

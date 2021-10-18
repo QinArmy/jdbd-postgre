@@ -13,13 +13,10 @@ import java.util.function.Consumer;
 public abstract class UnitTask<T extends ITaskAdjutant> {
 
 
-    protected final T adjutant;
+    private final CommunicationTask task;
 
-    private final CommunicationTask<T> task;
-
-    protected UnitTask(CommunicationTask<T> task) {
+    protected UnitTask(CommunicationTask task) {
         this.task = task;
-        this.adjutant = task.adjutant;
     }
 
     @Nullable

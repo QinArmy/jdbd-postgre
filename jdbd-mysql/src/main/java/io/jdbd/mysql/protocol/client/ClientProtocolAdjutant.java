@@ -1,8 +1,8 @@
 package io.jdbd.mysql.protocol.client;
 
 import io.jdbd.mysql.Server;
-import io.jdbd.mysql.protocol.CharsetMapping;
 import io.jdbd.mysql.protocol.conf.MySQLHost;
+import io.jdbd.mysql.protocol.conf.MySQLUrl;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
 import reactor.util.annotation.Nullable;
@@ -31,9 +31,9 @@ interface ClientProtocolAdjutant extends ResultRowAdjutant {
 
     Charset obtainCharsetMeta();
 
-    int negotiatedCapability();
+    int capability();
 
-    Map<Integer, CharsetMapping.CustomCollation> obtainCustomCollationMap();
+    Map<Integer, Charsets.CustomCollation> obtainCustomCollationMap();
 
     ZoneOffset obtainZoneOffsetDatabase();
 
@@ -43,7 +43,9 @@ interface ClientProtocolAdjutant extends ResultRowAdjutant {
 
     ByteBufAllocator allocator();
 
-    MySQLHost obtainHostInfo();
+    MySQLHost host();
+
+    MySQLUrl mysqlUrl();
 
     Server obtainServer();
 

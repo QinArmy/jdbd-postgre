@@ -41,7 +41,7 @@ public abstract class PluginUtils {
      *                           <li>{@link MyKey#authenticationPlugins}</li>
      *                           <li>{@link MyKey#disabledAuthenticationPlugins}</li>
      *                           </ul>
-     * @see SessionAdjutant#obtainPluginClassMap()
+     * @see SessionAdjutant#pluginClassMap()
      */
     public static Map<String, Class<? extends AuthenticationPlugin>> createPluginClassMap(Properties properties)
             throws PropertyException {

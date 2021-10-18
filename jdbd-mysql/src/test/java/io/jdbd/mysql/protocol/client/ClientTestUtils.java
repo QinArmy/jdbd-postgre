@@ -2,6 +2,7 @@ package io.jdbd.mysql.protocol.client;
 
 import io.jdbd.mysql.protocol.conf.MyKey;
 import io.jdbd.mysql.protocol.conf.MySQLUrl;
+import io.jdbd.mysql.util.MySQLCollections;
 import io.jdbd.mysql.util.MySQLStrings;
 import io.jdbd.mysql.util.MySQLTimes;
 import io.qinarmy.env.Environment;
@@ -9,14 +10,17 @@ import io.qinarmy.env.ImmutableMapEnvironment;
 import org.testng.annotations.Test;
 
 import java.io.IOException;
-import java.io.InputStream;
 import java.nio.charset.Charset;
-import java.nio.file.*;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeFormatterBuilder;
-import java.util.*;
+import java.util.HashMap;
+import java.util.Locale;
+import java.util.Map;
 
 @Test(enabled = false)
 public abstract class ClientTestUtils {
@@ -111,28 +115,21 @@ public abstract class ClientTestUtils {
         return ENV;
     }
 
+    public static Map<String, String> loadConfigMap() {
+        final Path path = Paths.get(getTestResourcesPath().toString(), "mysql.properties");
+        try {
+            return MySQLCollections.loadProperties(path);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+
     /*################################## blow private method ##################################*/
 
-    private static Environment loadTestConfig() {
-        final Path path = Paths.get(getTestResourcesPath().toString(), "mysqlTestConfig.properties");
-        Map<String, String> map;
-        if (Files.exists(path, LinkOption.NOFOLLOW_LINKS)) {
-            Properties properties = new Properties();
-            try (InputStream in = Files.newInputStream(path, StandardOpenOption.READ)) {
-                properties.load(in);
-                map = new HashMap<>((int) (properties.size() / 0.75F));
-                for (Object key : properties.keySet()) {
-                    String k = key.toString();
-                    map.put(k, properties.getProperty(k));
-                }
-            } catch (IOException e) {
-                throw new RuntimeException(String.format("load %s failure.", path), e);
-            }
 
-        } else {
-            map = Collections.emptyMap();
-        }
-        return ImmutableMapEnvironment.create(map);
+    private static Environment loadTestConfig() {
+        return ImmutableMapEnvironment.create(loadConfigMap());
     }
 
 

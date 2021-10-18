@@ -5,7 +5,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.jdbd.mysql.MySQLType;
 import io.jdbd.mysql.SQLMode;
 import io.jdbd.mysql.protocol.conf.MyKey;
-import io.jdbd.mysql.session.SessionAdjutant;
 import io.jdbd.mysql.stmt.BindStmt;
 import io.jdbd.mysql.stmt.BindValue;
 import io.jdbd.mysql.stmt.Stmts;
@@ -243,60 +242,7 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBased
 
 
     final void doTinyint1BindExtract(Logger LOG) {
-        LOG.info("tinyint1BindExtract test start");
-
-        Map<String, String> map = new HashMap<>();
-        map.put(MyKey.tinyInt1isBit.getKey(), "true");
-        map.put(MyKey.transformedBitIsBoolean.getKey(), "false");
-
-        SessionAdjutant sessionAdjutant = createSessionAdjutantForSingleHost(map);
-        ClientConnectionProtocolImpl protocol = ClientConnectionProtocolImpl.create(0, sessionAdjutant)
-                .block();
-        assertNotNull(protocol, "protocol");
-
-        TaskAdjutant taskAdjutant;
-        taskAdjutant = protocol.taskExecutor.taskAdjutant();
-
-        assertTinyInt1BindAndExtract(taskAdjutant, MySQLType.TINYINT, 0);
-        assertTinyInt1BindAndExtract(taskAdjutant, MySQLType.BIT, 0);
-        assertTinyInt1BindAndExtract(taskAdjutant, MySQLType.BOOLEAN, 0);
-        assertTinyInt1BindAndExtract(taskAdjutant, MySQLType.BOOLEAN, false);
-
-        protocol.closeGracefully()
-                .block();
-
-        map.put(MyKey.transformedBitIsBoolean.getKey(), "true");
-        sessionAdjutant = createSessionAdjutantForSingleHost(map);
-        protocol = ClientConnectionProtocolImpl.create(0, sessionAdjutant)
-                .block();
-        assertNotNull(protocol, "protocol");
-        taskAdjutant = protocol.taskExecutor.taskAdjutant();
-
-        assertTinyInt1BindAndExtract(taskAdjutant, MySQLType.TINYINT, 1);
-        assertTinyInt1BindAndExtract(taskAdjutant, MySQLType.BIT, 1);
-        assertTinyInt1BindAndExtract(taskAdjutant, MySQLType.BOOLEAN, 1);
-        assertTinyInt1BindAndExtract(taskAdjutant, MySQLType.BOOLEAN, true);
-
-        protocol.closeGracefully()
-                .block();
-
-        map.put(MyKey.tinyInt1isBit.getKey(), "false");
-        map.put(MyKey.transformedBitIsBoolean.getKey(), "false");
-        sessionAdjutant = createSessionAdjutantForSingleHost(map);
-        protocol = ClientConnectionProtocolImpl.create(0, sessionAdjutant)
-                .block();
-        assertNotNull(protocol, "protocol");
-        taskAdjutant = protocol.taskExecutor.taskAdjutant();
-
-        assertTinyInt1BindAndExtract(taskAdjutant, MySQLType.TINYINT, 1);
-        assertTinyInt1BindAndExtract(taskAdjutant, MySQLType.BIT, 1);
-        assertTinyInt1BindAndExtract(taskAdjutant, MySQLType.BOOLEAN, 1);
-        assertTinyInt1BindAndExtract(taskAdjutant, MySQLType.BOOLEAN, true);
-
-        protocol.closeGracefully()
-                .block();
-
-        LOG.info("tinyint1BindExtract test success");
+        throw new UnsupportedOperationException();
 
     }
 
@@ -1279,7 +1225,7 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBased
                 (int) resultRow.getRowMeta().getPrecision("field"));
 
         final LocalTime time = LocalTime.parse(bindTime.format(formatter), MySQLTimes.MYSQL_TIME_FORMATTER);
-        if (taskAdjutant.obtainHostInfo().getProperties()
+        if (taskAdjutant.host().getProperties()
                 .getOrDefault(MyKey.timeTruncateFractional, Boolean.class)) {
             assertEquals(resultTime, time, field);
         } else {
@@ -1770,7 +1716,7 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBased
         }
 
 
-        io.jdbd.vendor.conf.Properties properties = taskAdjutant.obtainHostInfo().getProperties();
+        io.jdbd.vendor.conf.Properties properties = taskAdjutant.host().getProperties();
         if (properties.getOrDefault(MyKey.timeTruncateFractional, Boolean.class)) {
             DateTimeFormatter formatter = MySQLTimes.obtainDateTimeFormatter(precision);
             final String resultText, bindText;

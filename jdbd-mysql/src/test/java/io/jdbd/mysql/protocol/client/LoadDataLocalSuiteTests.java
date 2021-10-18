@@ -172,7 +172,7 @@ public class LoadDataLocalSuiteTests extends AbstractStmtTaskSuiteTests {
 
     private void doLoadData(Path path, long rows) {
         final TaskAdjutant adjutant = obtainTaskAdjutant();
-        if (!adjutant.obtainHostInfo().getProperties().getOrDefault(MyKey.allowLoadLocalInfile, Boolean.class)) {
+        if (!adjutant.host().getProperties().getOrDefault(MyKey.allowLoadLocalInfile, Boolean.class)) {
             fail(String.format("client no support Load data local statement,please config property[%s]"
                     , MyKey.allowLoadLocalInfile));
         }

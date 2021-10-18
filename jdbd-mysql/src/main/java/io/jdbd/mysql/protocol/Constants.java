@@ -29,18 +29,11 @@ public interface Constants {
     String JVM_VENDOR = System.getProperty("java.vendor");
     String JVM_VERSION = System.getProperty("java.version");
 
-//    String OS_NAME = System.getProperty(PropertyDefinitions.SYSP_os_name);
-//    String OS_ARCH = System.getProperty(PropertyDefinitions.SYSP_os_arch);
-//    String OS_VERSION = System.getProperty(PropertyDefinitions.SYSP_os_version);
-//    String PLATFORM_ENCODING = System.getProperty(PropertyDefinitions.SYSP_file_encoding);
+//    String OS_NAME = System.getProperty("");
+//    String OS_ARCH = System.getProperty("");
+//    String OS_VERSION = System.getProperty("");
+//    String PLATFORM_ENCODING = System.getProperty("");
 
-    String CJ_NAME = "MySQL Connector/J";
-    String CJ_FULL_NAME = "mysql-connector-java-8.0.21";
-    String CJ_REVISION = "33f65445a1bcc544eb0120491926484da168f199";
-    String CJ_VERSION = "8.0.21";
-    String CJ_MAJOR_VERSION = "8";
-    String CJ_MINOR_VERSION = "0";
-    String CJ_LICENSE = "GPL";
 
     Duration MAX_DURATION = Duration.ofHours(838)
             .plusMinutes(59)

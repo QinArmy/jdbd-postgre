@@ -269,7 +269,7 @@ public class ComQueryTaskSuiteTests extends AbstractStmtTaskSuiteTests {
     public void batchUpdateWithTempMultiStmtMode() {
         LOG.info("batchUpdateWithSingleStmtMode test start");
         final TaskAdjutant adjutant = obtainTaskAdjutant();
-        assertFalse(Capabilities.supportMultiStatement(adjutant.negotiatedCapability()), "negotiatedCapability");
+        assertFalse(Capabilities.supportMultiStatement(adjutant.capability()), "negotiatedCapability");
 
         String sql;
         final List<String> sqlList = new ArrayList<>(5);
@@ -460,7 +460,7 @@ public class ComQueryTaskSuiteTests extends AbstractStmtTaskSuiteTests {
     public void batchUpdateContainQueryWithTempMultiMode() {
         LOG.info("batchUpdateContainQueryWithTempMultiMode test start");
         final TaskAdjutant adjutant = obtainTaskAdjutant();
-        assertFalse(Capabilities.supportMultiStatement(adjutant.negotiatedCapability()), "negotiatedCapability");
+        assertFalse(Capabilities.supportMultiStatement(adjutant.capability()), "negotiatedCapability");
 
         String sql;
         List<String> sqlList;
@@ -548,7 +548,7 @@ public class ComQueryTaskSuiteTests extends AbstractStmtTaskSuiteTests {
     public void batchUpdateSyntaxWithTempMultiMode() {
         LOG.info("batchUpdateSyntaxWithTempMultiMode test start");
         final TaskAdjutant adjutant = obtainTaskAdjutant();
-        assertFalse(Capabilities.supportMultiStatement(adjutant.negotiatedCapability()), "negotiatedCapability");
+        assertFalse(Capabilities.supportMultiStatement(adjutant.capability()), "negotiatedCapability");
 
         String sql;
         List<String> sqlList;
@@ -665,7 +665,7 @@ public class ComQueryTaskSuiteTests extends AbstractStmtTaskSuiteTests {
     public void bindableBatchWithTempMultiMode() {
         LOG.info("bindableBatchWithTempMultiMode test start");
         final TaskAdjutant adjutant = obtainTaskAdjutant();
-        assertFalse(Capabilities.supportMultiStatement(adjutant.negotiatedCapability()), "negotiatedCapability");
+        assertFalse(Capabilities.supportMultiStatement(adjutant.capability()), "negotiatedCapability");
 
         final String sql = "UPDATE mysql_types as t SET t.my_long_text = ? WHERE t.id = ?";
         final List<List<BindValue>> groupList = new ArrayList<>(4);
@@ -762,7 +762,7 @@ public class ComQueryTaskSuiteTests extends AbstractStmtTaskSuiteTests {
     public void bindableBatchIsQueryWithTempMultiMode() {
         LOG.info("bindableBatchIsQueryWithTempMultiMode test start");
         final TaskAdjutant adjutant = obtainTaskAdjutant();
-        assertFalse(Capabilities.supportMultiStatement(adjutant.negotiatedCapability()), "negotiatedCapability");
+        assertFalse(Capabilities.supportMultiStatement(adjutant.capability()), "negotiatedCapability");
 
         final String sql = "SELECT t.id,t.name FROM mysql_types as t WHERE t.id > ?  ORDER BY t.id  LIMIT 10";
         final List<List<BindValue>> groupList = new ArrayList<>(4);
@@ -851,7 +851,7 @@ public class ComQueryTaskSuiteTests extends AbstractStmtTaskSuiteTests {
     public void bindableBatchSyntaxWithTempMultiMode() {
         LOG.info("bindableBatchSyntaxWithTempMultiMode test start");
         final TaskAdjutant adjutant = obtainTaskAdjutant();
-        assertFalse(Capabilities.supportMultiStatement(adjutant.negotiatedCapability()), "negotiatedCapability");
+        assertFalse(Capabilities.supportMultiStatement(adjutant.capability()), "negotiatedCapability");
 
         final String sql = "UPDATE mysql_types as t SET t.my_long_text = 'error string WHERE t.id = ?";
         final List<List<BindValue>> groupList = new ArrayList<>(4);

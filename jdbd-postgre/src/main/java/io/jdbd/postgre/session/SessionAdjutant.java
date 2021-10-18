@@ -7,7 +7,7 @@ public interface SessionAdjutant extends ISessionAdjutant {
 
 
     @Override
-    PgUrl getJdbcUrl();
+    PgUrl jdbcUrl();
 
 
 }

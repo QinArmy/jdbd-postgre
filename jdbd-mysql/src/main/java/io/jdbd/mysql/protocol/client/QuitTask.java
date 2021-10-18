@@ -43,7 +43,7 @@ final class QuitTask extends MySQLTask {
     protected Publisher<ByteBuf> start() {
         ByteBuf packetBuf = adjutant.createPacketBuffer(1);
         packetBuf.writeByte(Packets.COM_QUIT_HEADER);
-        Packets.writePacketHeader(packetBuf, 0);
+        Packets.writeHeader(packetBuf, 0);
         return Mono.just(packetBuf);
     }
 
@@ -58,7 +58,7 @@ final class QuitTask extends MySQLTask {
 
         ErrorPacket error;
         error = ErrorPacket.read(cumulateBuffer
-                , this.adjutant.negotiatedCapability(), this.adjutant.obtainCharsetError());
+                , this.adjutant.capability(), this.adjutant.obtainCharsetError());
         cumulateBuffer.readerIndex(payloadStartIndex + payloadLength);
 
         this.sink.error(MySQLExceptions.createErrorPacketException(error));
