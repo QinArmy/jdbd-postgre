@@ -1,5 +1,6 @@
 package io.jdbd.postgre.session;
 
+import io.jdbd.DriverVersion;
 import io.jdbd.ProductFamily;
 import io.jdbd.postgre.PgDriver;
 import io.jdbd.postgre.config.PgKey;
@@ -70,21 +71,9 @@ public class PgDatabaseSessionFactory implements DatabaseSessionFactory {
                 .map(this::createXaSession);
     }
 
-
     @Override
-    public int getMajorVersion() {
-        return PgDriver.getMajorVersion();
-
-    }
-
-    @Override
-    public int getMinorVersion() {
-        return PgDriver.getMinorVersion();
-    }
-
-    @Override
-    public String getDriverName() {
-        return PgDriver.getName();
+    public DriverVersion getDriverVersion() {
+        return PgDriver.getVersion();
     }
 
     @Override

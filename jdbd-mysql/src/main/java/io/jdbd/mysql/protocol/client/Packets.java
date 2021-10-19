@@ -1,7 +1,11 @@
 package io.jdbd.mysql.protocol.client;
 
 import io.jdbd.mysql.MySQLJdbdException;
+import io.jdbd.mysql.stmt.BindMultiStmt;
+import io.jdbd.mysql.stmt.MySQLBatchStmt;
+import io.jdbd.mysql.stmt.MySQLStmt;
 import io.jdbd.mysql.util.MySQLExceptions;
+import io.jdbd.vendor.stmt.*;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
 import org.reactivestreams.Publisher;
@@ -636,6 +640,44 @@ public abstract class Packets {
         }
         return publisher;
     }
+
+    public static ByteBuf createPacket(ByteBufAllocator allocator, Stmt stmt) {
+        int capacity = 0;
+
+        if (stmt instanceof SingleStmt) {
+            capacity += ((StaticStmt) stmt).getSql().length();
+            if (stmt instanceof ParamStmt) {
+                capacity += (((ParamStmt) stmt).getBindGroup().size() * 6);
+            } else if (stmt instanceof ParamBatchStmt) {
+                capacity += (((ParamBatchStmt<?>) stmt).getGroupList().size() * 10);
+            }
+        } else if (stmt instanceof StaticMultiStmt) {
+            capacity += ((StaticMultiStmt) stmt).getMultiStmt().length();
+
+        } else if (stmt instanceof BindMultiStmt) {
+            capacity += (((BindMultiStmt) stmt).getStmtGroup().size() * 50);
+        }
+
+        if (capacity < 0) {
+            capacity = Integer.MAX_VALUE - 128;
+        } else {
+            if (stmt instanceof MySQLStmt) {
+                capacity += (((MySQLStmt) stmt).getQueryAttrs().size() * 6);
+                if (stmt instanceof MySQLBatchStmt) {
+                    capacity += (((MySQLBatchStmt) stmt).getQueryAttrGroup().size() * 10);
+                }
+            }
+        }
+
+        if (capacity < 0) {
+            capacity = Integer.MAX_VALUE - 128;
+        }
+        final ByteBuf packet = allocator.buffer(capacity, Integer.MAX_VALUE);
+        packet.writeZero(HEADER_SIZE); // placeholder of header
+        return packet;
+
+    }
+
 
     /**
      * @param packet a big packet that header is placeholder.

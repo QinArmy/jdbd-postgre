@@ -6,7 +6,7 @@ import reactor.util.annotation.Nullable;
 
 import java.util.function.Function;
 
-public interface StaticMultiStmt extends Stmt {
+public interface StaticMultiStmt extends BatchStmt {
 
     String getMultiStmt();
 

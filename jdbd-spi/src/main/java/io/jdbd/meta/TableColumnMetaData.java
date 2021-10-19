@@ -9,7 +9,7 @@ public final class TableColumnMetaData {
 
     private final String columnName;
 
-    private final  String dataTypeName;
+    private final String dataTypeName;
 
     private final long precision;
 

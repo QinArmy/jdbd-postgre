@@ -8,7 +8,7 @@ public interface TransactionOption {
 
     boolean isAutoCommit();
 
-    static TransactionOption build(Isolation isolation, boolean readOnly){
+    static TransactionOption build(Isolation isolation, boolean readOnly) {
         return new TransactionOptionImpl(isolation, readOnly, readOnly);
     }
 

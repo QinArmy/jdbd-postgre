@@ -9,7 +9,7 @@
     </parent>
     <modelVersion>4.0.0</modelVersion>
 
-    <artifactId>jdbd-api</artifactId>
+    <artifactId>jdbd-spi</artifactId>
 
     <dependencies>
         <dependency>
@@ -43,7 +43,7 @@
                 <artifactId>maven-surefire-plugin</artifactId>
                 <configuration>
                     <suiteXmlFiles>
-                        <suiteXmlFile>${project.basedir}/testng/jdbd-api.xml</suiteXmlFile>
+                        <suiteXmlFile>${project.basedir}/testng/maven-jdbd-spi.xml</suiteXmlFile>
                     </suiteXmlFiles>
                 </configuration>
             </plugin>

@@ -29,9 +29,6 @@ public abstract class JdbdException extends RuntimeException {
     }
 
 
-
-
-
     protected static String createMessage(@Nullable String messageFormat, @Nullable Object... args) {
         String msg;
         if (messageFormat != null && args != null && args.length > 0) {

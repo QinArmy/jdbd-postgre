@@ -24,7 +24,6 @@ import org.reactivestreams.Publisher;
 public interface BindableMultiResultStatement extends Statement {
 
 
-
     void bind(int index, @Nullable Object nullable) throws JdbdException;
 
     Publisher<ResultStates> executeBatch();

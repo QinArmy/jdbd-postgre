@@ -3,7 +3,8 @@ package io.jdbd.mysql.protocol.client;
 
 import io.jdbd.mysql.MySQLType;
 import io.jdbd.mysql.util.MySQLBinds;
-import io.jdbd.vendor.stmt.ParamValue;
+import io.jdbd.mysql.util.MySQLTimes;
+import io.jdbd.vendor.stmt.Value;
 import io.jdbd.vendor.util.JdbdExceptions;
 import io.netty.buffer.ByteBuf;
 
@@ -12,6 +13,8 @@ import java.math.BigInteger;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.sql.SQLException;
+import java.time.*;
+import java.time.temporal.ChronoField;
 
 abstract class BinaryWriter {
 
@@ -19,9 +22,10 @@ abstract class BinaryWriter {
         throw new UnsupportedOperationException();
     }
 
+
     @SuppressWarnings("deprecation")
     static void writeNonNullBinary(ByteBuf packet, final int batchIndex, final MySQLType type
-            , ParamValue paramValue, final Charset charset) throws SQLException {
+            , Value paramValue, final Charset charset) throws SQLException {
 
         switch (type) {
             case BOOLEAN:
@@ -164,16 +168,115 @@ abstract class BinaryWriter {
                 }
             }
             break;
-            case DATE:
-            case BIT: {
-
+            case TIMESTAMP:
+            case DATETIME: {
+                writeDatetime(packet, batchIndex, type, paramValue, charset);
             }
             break;
+            case TIME: {
+                writeTime(packet, batchIndex, type, paramValue);
+            }
+            case DATE: {
+                final LocalDate value;
+                value = MySQLBinds.bindNonNullToLocalDate(batchIndex, type, paramValue);
+
+                packet.writeByte(4); // length
+                Packets.writeInt2(packet, value.getYear());// year
+                packet.writeByte(value.getMonthValue());// month
+                packet.writeByte(value.getDayOfMonth());// day
+            }
+            break;
+            case BIT: {
+                final byte[] bytes;
+                bytes = MySQLBinds.bindNonNullToBit(batchIndex, type, paramValue).getBytes(charset);
+                Packets.writeStringLenEnc(packet, bytes);
+            }
+            break;
+            case NULL:
+            case UNKNOWN:
             default: {
                 throw JdbdExceptions.createNonSupportBindSqlTypeError(batchIndex, type, paramValue);
             }
 
         }
+
+    }
+
+
+    private static void writeTime(ByteBuf packet, final int batchIndex, final MySQLType type, Value paramValue)
+            throws SQLException {
+        final Object nonNull = paramValue.getNonNull();
+        if (nonNull instanceof Duration) {
+            Duration duration = (Duration) nonNull;
+            final boolean negative = duration.isNegative();
+            if (negative) {
+                duration = duration.negated();
+            }
+
+            if (!MySQLTimes.canConvertToTimeType(duration)) {
+                throw JdbdExceptions.outOfTypeRange(batchIndex, type, paramValue);
+            }
+            packet.writeByte(12); //1. length ,always have micro second ,because for BindStatement
+            packet.writeByte(negative ? 1 : 0); //2. is_negative
+
+            long totalSeconds = duration.getSeconds();
+            Packets.writeInt4(packet, (int) (totalSeconds / (3600 * 24))); //3. days
+            totalSeconds %= (3600 * 24);
+
+            packet.writeByte((int) (totalSeconds / 3600)); //4. hour
+            totalSeconds %= 3600;
+
+            packet.writeByte((int) (totalSeconds / 60)); //5. minute
+            totalSeconds %= 60;
+
+            packet.writeByte((int) totalSeconds); //6. second
+            Packets.writeInt4(packet, duration.getNano() / 1000); //7. microsecond
+        } else {
+            final LocalTime value;
+            value = MySQLBinds.bindNonNullToLocalTime(batchIndex, type, paramValue);
+            packet.writeByte(12); //1. length ,always have micro second ,because for BindStatement
+            packet.writeByte(0); //2. is_negative
+            packet.writeZero(4); //3. days
+
+            packet.writeByte(value.getHour()); //4. hour
+            packet.writeByte(value.getMinute()); //5. minute
+            packet.writeByte(value.getSecond()); ///6. second
+            Packets.writeInt4(packet, value.get(ChronoField.MICRO_OF_SECOND)); // microsecond
+        }
+
+
+    }
+
+    private static void writeDatetime(ByteBuf packet, final int batchIndex, MySQLType type, Value paramValue
+            , Charset clientCharset)
+            throws SQLException {
+        final Object nonNull = paramValue.getNonNull();
+
+        if (nonNull instanceof OffsetDateTime) {
+            final byte[] bytes;
+            bytes = ((OffsetDateTime) nonNull).format(MySQLTimes.ISO_OFFSET_DATETIME_FORMATTER)
+                    .getBytes(clientCharset);
+            Packets.writeStringLenEnc(packet, bytes);
+        } else if (nonNull instanceof ZonedDateTime) {
+            final byte[] bytes;
+            bytes = ((ZonedDateTime) nonNull).toOffsetDateTime().format(MySQLTimes.ISO_OFFSET_DATETIME_FORMATTER)
+                    .getBytes(clientCharset);
+            Packets.writeStringLenEnc(packet, bytes);
+        } else {
+            final LocalDateTime value;
+            value = MySQLBinds.bindNonNullToLocalDateTime(batchIndex, type, paramValue);
+
+            packet.writeByte(11); // length ,always have micro second ,because for BindStatement
+            Packets.writeInt2(packet, value.getYear()); // year
+            packet.writeByte(value.getMonthValue()); // month
+            packet.writeByte(value.getDayOfMonth()); // day
+
+            packet.writeByte(value.getHour()); // hour
+            packet.writeByte(value.getMinute()); // minute
+            packet.writeByte(value.getSecond()); // second
+            Packets.writeInt4(packet, value.get(ChronoField.MICRO_OF_SECOND)); // microsecond
+        }
+
 
     }
 

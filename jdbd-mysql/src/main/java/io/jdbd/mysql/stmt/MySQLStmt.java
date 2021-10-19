@@ -11,6 +11,9 @@ import java.util.Map;
  */
 public interface MySQLStmt {
 
+    /**
+     * @return a unmodified map
+     */
     Map<String, QueryAttr> getQueryAttrs();
 
 }

@@ -100,7 +100,7 @@ final class MySQLPreparedStatement extends MySQLStatement implements AttrPrepare
             this.attrGroup = attrGroup;
             prepareAttrGroupList(this.paramGroupList.size());
         }
-        attrGroup.put(name, QueryAttr.wrap(type, value));
+        attrGroup.put(name, QueryAttr.wrap(name, type, value));
     }
 
 

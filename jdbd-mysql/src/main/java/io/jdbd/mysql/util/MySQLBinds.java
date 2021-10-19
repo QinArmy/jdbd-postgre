@@ -2,8 +2,12 @@ package io.jdbd.mysql.util;
 
 import io.jdbd.meta.SQLType;
 import io.jdbd.mysql.MySQLType;
+import io.jdbd.mysql.stmt.MySQLBatchStmt;
+import io.jdbd.mysql.stmt.MySQLStmt;
+import io.jdbd.mysql.stmt.QueryAttr;
 import io.jdbd.stmt.UnsupportedBindJavaTypeException;
-import io.jdbd.vendor.stmt.ParamValue;
+import io.jdbd.vendor.stmt.Stmt;
+import io.jdbd.vendor.stmt.Value;
 import io.jdbd.vendor.util.JdbdBinds;
 import io.jdbd.vendor.util.JdbdExceptions;
 import io.netty.buffer.ByteBuf;
@@ -205,7 +209,7 @@ public abstract class MySQLBinds extends JdbdBinds {
     }
 
 
-    public static int bindNonNullToYear(final int batchIndex, SQLType sqlType, ParamValue paramValue)
+    public static int bindNonNullToYear(final int batchIndex, SQLType sqlType, Value paramValue)
             throws SQLException {
         final Object nonNull = paramValue.getNonNull();
         final int value;
@@ -225,7 +229,7 @@ public abstract class MySQLBinds extends JdbdBinds {
         return value;
     }
 
-    public static String bindNonNullToSetType(final int batchIndex, SQLType sqlType, ParamValue paramValue)
+    public static String bindNonNullToSetType(final int batchIndex, SQLType sqlType, Value paramValue)
             throws SQLException {
         final Object nonNull = paramValue.getNonNull();
         if (!(nonNull instanceof Set)) {
@@ -248,6 +252,37 @@ public abstract class MySQLBinds extends JdbdBinds {
             index++;
         }
         return builder.toString();
+    }
+
+    public static String bindNonNullToBit(final int batchIndex, SQLType sqlType, Value paramValue)
+            throws SQLException {
+        final Object nonNull = paramValue.getNonNull();
+        final String value;
+
+        if (nonNull instanceof Long) {
+            value = Long.toBinaryString((Long) nonNull);
+        } else if (nonNull instanceof Integer) {
+            value = Integer.toBinaryString((Integer) nonNull);
+        } else if (nonNull instanceof Short) {
+            value = Integer.toBinaryString(((Short) nonNull) & 0xFFFF);
+        } else if (nonNull instanceof Byte) {
+            value = Integer.toBinaryString(((Byte) nonNull) & 0xFF);
+        } else if (nonNull instanceof BitSet) {
+            final BitSet v = (BitSet) nonNull;
+            if (v.length() > 64) {
+                throw JdbdExceptions.outOfTypeRange(batchIndex, sqlType, paramValue);
+            }
+            value = MySQLStrings.bitSetToBitString(v, true);
+        } else if (nonNull instanceof String) {
+            final String v = (String) nonNull;
+            if (v.length() > 64 || !MySQLStrings.isBinaryString(v)) {
+                throw JdbdExceptions.outOfTypeRange(batchIndex, sqlType, paramValue);
+            }
+            value = v;
+        } else {
+            throw JdbdExceptions.createNonSupportBindSqlTypeError(batchIndex, sqlType, paramValue);
+        }
+        return value;
     }
 
 
@@ -275,6 +310,41 @@ public abstract class MySQLBinds extends JdbdBinds {
         if (packet.refCnt() > 0) {
             packet.release();
         }
+    }
+
+    /**
+     * @return a unmodified map
+     */
+    public static Map<String, QueryAttr> mergeQueryAttribute(final int batchIndex, final MySQLStmt stmt) {
+        final Map<String, QueryAttr> commonAttrMap = stmt.getQueryAttrs();
+        final List<Map<String, QueryAttr>> attrGroupList;
+        if (stmt instanceof MySQLBatchStmt) {
+            attrGroupList = ((MySQLBatchStmt) stmt).getQueryAttrGroup();
+        } else {
+            attrGroupList = Collections.emptyList();
+        }
+        final Map<String, QueryAttr> attrMap;
+        if (attrGroupList.size() > 0) {
+            final Map<String, QueryAttr> group = attrGroupList.get(batchIndex);
+            final Map<String, QueryAttr> tempMap = new HashMap<>((int) ((commonAttrMap.size() + group.size()) / 0.75F));
+            tempMap.putAll(commonAttrMap);
+            tempMap.putAll(group);
+            attrMap = Collections.unmodifiableMap(tempMap);
+        } else {
+            attrMap = commonAttrMap;
+        }
+        return attrMap;
+    }
+
+    public static boolean hasQueryAttrGroup(final Stmt stmt) {
+        final boolean match;
+        if (stmt instanceof MySQLBatchStmt) {
+            final MySQLBatchStmt batchStmt = (MySQLBatchStmt) stmt;
+            match = batchStmt.getQueryAttrGroup().size() > 0;
+        } else {
+            match = false;
+        }
+        return match;
     }
 
 

@@ -1,6 +1,6 @@
 package io.jdbd.session;
 
-final class TransactionOptionImpl  implements TransactionOption{
+final class TransactionOptionImpl implements TransactionOption {
 
     private final Isolation isolation;
 
@@ -8,7 +8,7 @@ final class TransactionOptionImpl  implements TransactionOption{
 
     private final boolean autoCommit;
 
-     TransactionOptionImpl(Isolation isolation, boolean readOnly, boolean autoCommit) {
+    TransactionOptionImpl(Isolation isolation, boolean readOnly, boolean autoCommit) {
         this.isolation = isolation;
         this.readOnly = readOnly;
         this.autoCommit = autoCommit;

@@ -13,7 +13,7 @@
     <dependencies>
         <dependency>
             <groupId>io.jdbd</groupId>
-            <artifactId>jdbd-api</artifactId>
+            <artifactId>jdbd-spi</artifactId>
         </dependency>
 
         <dependency>

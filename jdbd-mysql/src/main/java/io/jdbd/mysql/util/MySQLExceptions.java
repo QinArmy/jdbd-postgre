@@ -7,6 +7,7 @@ import io.jdbd.mysql.protocol.MySQLFatalIoException;
 import io.jdbd.mysql.protocol.client.ErrorPacket;
 import io.jdbd.mysql.protocol.conf.MyKey;
 import io.jdbd.mysql.stmt.BindValue;
+import io.jdbd.mysql.stmt.QueryAttr;
 import io.jdbd.stmt.LongDataReadException;
 import io.jdbd.stmt.PreparedStatement;
 import io.jdbd.stmt.StaticStatement;
@@ -363,6 +364,16 @@ public abstract class MySQLExceptions extends JdbdExceptions {
                     , MySQLStates.COMMUNICATION_LINK_FAILURE, MySQLCodes.ER_NET_PACKET_TOO_LARGE, cause);
         }
         return e;
+    }
+
+    public static SQLException queryAttrNameNotMatch(final int batchIndex, final String name, final QueryAttr attr) {
+        final String m;
+        if (batchIndex < 0) {
+            m = String.format("Key[%s] and QueryAttribute[%s] not match.", name, attr.name);
+        } else {
+            m = String.format("Batch index[%s] Key[%s] and QueryAttribute[%s] not match.", batchIndex, name, attr.name);
+        }
+        return new SQLException(m);
     }
 
 

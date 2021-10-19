@@ -1,5 +1,6 @@
 package io.jdbd.mysql.session;
 
+import io.jdbd.DriverVersion;
 import io.jdbd.ProductFamily;
 import io.jdbd.config.PropertyException;
 import io.jdbd.config.UrlException;
@@ -63,18 +64,8 @@ public final class MySQLDatabaseSessionFactory implements DatabaseSessionFactory
     }
 
     @Override
-    public int getMajorVersion() {
-        return MySQLDriver.getMajorVersion();
-    }
-
-    @Override
-    public int getMinorVersion() {
-        return MySQLDriver.getMinorVersion();
-    }
-
-    @Override
-    public String getDriverName() {
-        return MySQLDriver.getName();
+    public DriverVersion getDriverVersion() {
+        return MySQLDriver.getVersion();
     }
 
     @Override

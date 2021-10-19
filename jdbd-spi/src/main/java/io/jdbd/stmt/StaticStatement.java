@@ -146,10 +146,10 @@ public interface StaticStatement extends Statement {
      * @param sql sql thant can only producer one update result.
      * @return a deferred publisher that emit at most one element, like {@code reactor.core.publisher.Mono},
      * no communication with database server util subscribe.
-     * @throws SessionCloseException emit when {@link DatabaseSession} has closed.
-     * @throws SubscribeException            emit when sql produce query result or multi-result.
-     * @throws JdbdSQLException              emit when sql execution occur error.
-     * @throws io.jdbd.JdbdNonSQLException   emit when if occur other error.
+     * @throws SessionCloseException       emit when {@link DatabaseSession} has closed.
+     * @throws SubscribeException          emit when sql produce query result or multi-result.
+     * @throws JdbdSQLException            emit when sql execution occur error.
+     * @throws io.jdbd.JdbdNonSQLException emit when if occur other error.
      */
     Publisher<ResultStates> executeUpdate(String sql);
 

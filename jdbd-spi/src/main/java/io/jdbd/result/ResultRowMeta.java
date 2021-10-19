@@ -334,5 +334,4 @@ public interface ResultRowMeta {
     }
 
 
-
 }

@@ -7,7 +7,9 @@ import io.jdbd.stmt.*;
 import io.jdbd.vendor.JdbdCompositeException;
 import io.jdbd.vendor.JdbdUnknownException;
 import io.jdbd.vendor.stmt.CannotReuseStatementException;
+import io.jdbd.vendor.stmt.NamedValue;
 import io.jdbd.vendor.stmt.ParamValue;
+import io.jdbd.vendor.stmt.Value;
 import io.qinarmy.util.ExceptionUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -180,7 +182,7 @@ public abstract class JdbdExceptions extends ExceptionUtils {
 
     public static JdbdSQLException parameterCountMatch(int batchIndex, int paramCount, int bindCount) {
         String m;
-        if (batchIndex == 0) {
+        if (batchIndex < 0) {
             m = String.format("parameter count[%s] and bind count[%s] not match.", paramCount, bindCount);
         } else {
             m = String.format("Batch[index:%s] parameter count[%s] and bind count[%s] not match."
@@ -222,14 +224,14 @@ public abstract class JdbdExceptions extends ExceptionUtils {
     }
 
 
-    public static SQLException outOfTypeRange(int batchIndex, SQLType sqlType, ParamValue bindValue) {
+    public static SQLException outOfTypeRange(int batchIndex, SQLType sqlType, Value bindValue) {
         String m;
-        if (batchIndex == 0) {
+        if (batchIndex < 0) {
             m = String.format("parameter[%s] value out of number range for %s"
-                    , bindValue.getIndex(), sqlType);
+                    , getValueLabel(bindValue), sqlType);
         } else {
             m = String.format("batch[%s] parameter[%s] value out of number range for %s"
-                    , batchIndex, bindValue.getIndex(), sqlType);
+                    , batchIndex, getValueLabel(bindValue), sqlType);
         }
         return new SQLException(m);
 
@@ -237,7 +239,7 @@ public abstract class JdbdExceptions extends ExceptionUtils {
 
     public static SQLException beyondMessageLength(int batchIndex, ParamValue bindValue) {
         String m;
-        if (batchIndex == 0) {
+        if (batchIndex < 0) {
             m = String.format("parameter[%s] too long so beyond message rest length"
                     , bindValue.getIndex());
         } else {
@@ -259,7 +261,7 @@ public abstract class JdbdExceptions extends ExceptionUtils {
             , ParamValue bindValue, Throwable e) {
         Path path = (Path) bindValue.getNonNull();
         String m;
-        if (batchIndex == 0) {
+        if (batchIndex < 0) {
             m = String.format("parameter[%s] path[%s] to sql type[%s]"
                     , bindValue.getIndex(), path, sqlType);
         } else {
@@ -269,12 +271,23 @@ public abstract class JdbdExceptions extends ExceptionUtils {
         throw new LocalFileException(path, m, e);
     }
 
-    public static SQLException createNonSupportBindSqlTypeError(int batchIndex, SQLType sqlType, ParamValue bindValue) {
-        String m = String.format("batch[%s] parameter[%s] javaType[%s] bind to sql type[%s] not supported."
-                , batchIndex
-                , bindValue.getIndex()
-                , bindValue.getNonNull().getClass().getName()
-                , sqlType);
+    /**
+     * @param batchIndex negative:single stmt;not negative representing batch index of batch operation.
+     */
+    public static SQLException createNonSupportBindSqlTypeError(int batchIndex, SQLType sqlType, Value bindValue) {
+        final String m;
+        if (batchIndex < 0) {
+            m = String.format("parameter[%s] javaType[%s] bind to sql type[%s] not supported."
+                    , getValueLabel(bindValue)
+                    , bindValue.getNonNull().getClass().getName()
+                    , sqlType);
+        } else {
+            m = String.format("batch[%s] parameter[%s] javaType[%s] bind to sql type[%s] not supported."
+                    , batchIndex
+                    , getValueLabel(bindValue)
+                    , bindValue.getNonNull().getClass().getName()
+                    , sqlType);
+        }
         return new SQLException(m);
     }
 
@@ -282,6 +295,21 @@ public abstract class JdbdExceptions extends ExceptionUtils {
         String m = String.format("client charset[%s] isn't supported,because %s encode ASCII to multi bytes."
                 , charset.name(), charset.name());
         throw new JdbdSQLException(new SQLException(m));
+    }
+
+
+    /*################################## blow protected method ##################################*/
+
+    protected static Object getValueLabel(Value value) {
+        final Object paramLabel;
+        if (value instanceof ParamValue) {
+            paramLabel = ((ParamValue) value).getIndex();
+        } else if (value instanceof NamedValue) {
+            paramLabel = ((NamedValue) value).getName();
+        } else {
+            throw new IllegalArgumentException(String.format("Unknown %s type[%s]", Value.class.getName(), value));
+        }
+        return paramLabel;
     }
 
 

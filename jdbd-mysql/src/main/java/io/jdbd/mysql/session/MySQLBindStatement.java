@@ -87,7 +87,7 @@ final class MySQLBindStatement extends MySQLStatement implements AttrBindStateme
             this.attrGroup = attrGroup;
             prepareAttrGroupList(this.bindGroupList.size());
         }
-        attrGroup.put(name, QueryAttr.wrap(type, value));
+        attrGroup.put(name, QueryAttr.wrap(name, type, value));
     }
 
     @Override

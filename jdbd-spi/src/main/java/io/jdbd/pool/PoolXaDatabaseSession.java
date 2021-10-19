@@ -16,5 +16,4 @@ public interface PoolXaDatabaseSession extends XaDatabaseSession, PoolDatabaseSe
     Publisher<PoolXaDatabaseSession> reset();
 
 
-
 }

@@ -361,14 +361,12 @@ final class ComQueryTask extends AbstractCommandTask {
         final Supplier<Integer> sequenceId = this::addAndGetSequenceId;
         try {
             if (stmt instanceof StaticStmt) {
-                final String sql = ((StaticStmt) stmt).getSql();
-                publisher = QueryCommandWriter.createStaticCommand(sql, sequenceId, this.adjutant);
+                publisher = QueryCommandWriter.createStaticCommand(stmt, sequenceId, this.adjutant);
             } else if (stmt instanceof StaticBatchStmt) {
                 final StaticBatchStmt batchStmt = (StaticBatchStmt) stmt;
                 publisher = QueryCommandWriter.createStaticBatchCommand(batchStmt, sequenceId, this.adjutant);
             } else if (stmt instanceof StaticMultiStmt) {
-                final String sql = ((StaticMultiStmt) stmt).getMultiStmt();
-                publisher = QueryCommandWriter.createStaticCommand(sql, sequenceId, this.adjutant);
+                publisher = QueryCommandWriter.createStaticCommand(stmt, sequenceId, this.adjutant);
             } else if (stmt instanceof BindStmt) {
                 publisher = QueryCommandWriter.createBindableCommand((BindStmt) stmt, sequenceId, this.adjutant);
             } else if (stmt instanceof BindBatchStmt) {

@@ -18,7 +18,7 @@ import java.util.function.Function;
  * </u>
  * </p>
  */
-public interface StaticBatchStmt extends Stmt {
+public interface StaticBatchStmt extends BatchStmt {
 
     /**
      * @return a unmodified list

@@ -13,7 +13,7 @@ import java.util.function.Function;
  *
  * @param <T> ParamValue that is extended by developer of driver for adding {@link io.jdbd.meta.SQLType}.
  */
-public interface ParamBatchStmt<T extends ParamValue> extends ParamSingleStmt {
+public interface ParamBatchStmt<T extends ParamValue> extends ParamSingleStmt, BatchStmt {
 
 
     List<List<T>> getGroupList();

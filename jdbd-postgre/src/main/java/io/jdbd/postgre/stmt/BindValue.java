@@ -1,15 +1,15 @@
 package io.jdbd.postgre.stmt;
 
 import io.jdbd.postgre.PgType;
-import io.jdbd.vendor.stmt.IBindValue;
 import io.jdbd.vendor.stmt.JdbdParamValue;
 import io.jdbd.vendor.stmt.ParamValue;
+import io.jdbd.vendor.stmt.TypeValue;
 import reactor.util.annotation.Nullable;
 
 /**
  * @see BindStmt
  */
-public final class BindValue extends JdbdParamValue implements IBindValue {
+public final class BindValue extends JdbdParamValue implements TypeValue {
 
     public static BindValue wrap(int parameterIndex, PgType type, @Nullable Object value) {
         return new BindValue(parameterIndex, type, value);

@@ -11,6 +11,8 @@ import org.reactivestreams.Publisher;
 import org.reactivestreams.Subscriber;
 import reactor.util.annotation.Nullable;
 
+import java.nio.file.Path;
+import java.sql.SQLException;
 import java.util.*;
 import java.util.function.Function;
 
@@ -35,12 +37,16 @@ abstract class MySQLStatement implements Statement, AttrStatement {
     public final void bindCommonAttr(final String name, final MySQLType type, @Nullable Object value) {
         checkReuse();
         Objects.requireNonNull(name, "name");
+        if (value instanceof Publisher || value instanceof Path) {
+            String m = String.format("Query Attribute don't support java type[%s]", value.getClass().getName());
+            throw new JdbdSQLException(new SQLException(m));
+        }
         Map<String, QueryAttr> commonAttrMap = this.statementOption.commonAttrGroup;
         if (commonAttrMap == null) {
             commonAttrMap = new HashMap<>();
             this.statementOption.commonAttrGroup = commonAttrMap;
         }
-        commonAttrMap.put(name, QueryAttr.wrap(type, value));
+        commonAttrMap.put(name, QueryAttr.wrap(name, type, value));
     }
 
 

@@ -6,15 +6,17 @@ import io.jdbd.mysql.protocol.Constants;
 import io.jdbd.mysql.protocol.MySQLServerVersion;
 import io.jdbd.mysql.stmt.*;
 import io.jdbd.mysql.syntax.MySQLParser;
-import io.jdbd.mysql.util.*;
+import io.jdbd.mysql.util.MySQLBinds;
+import io.jdbd.mysql.util.MySQLBuffers;
+import io.jdbd.mysql.util.MySQLExceptions;
+import io.jdbd.mysql.util.MySQLTimes;
 import io.jdbd.stmt.LongDataReadException;
 import io.jdbd.vendor.stmt.StaticBatchStmt;
-import io.jdbd.vendor.util.JdbdExceptions;
+import io.jdbd.vendor.stmt.StaticMultiStmt;
+import io.jdbd.vendor.stmt.StaticStmt;
+import io.jdbd.vendor.stmt.Stmt;
 import io.netty.buffer.ByteBuf;
-import io.netty.buffer.ByteBufAllocator;
 import org.reactivestreams.Publisher;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -31,9 +33,10 @@ import java.time.OffsetDateTime;
 import java.time.Year;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.BitSet;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
-import java.util.Set;
+import java.util.Map;
 import java.util.function.Supplier;
 
 
@@ -43,11 +46,40 @@ import java.util.function.Supplier;
 final class QueryCommandWriter {
 
     /**
+     * @param stmt must be below stmt type:
+     *             <ul>
+     *                  <li>{@link StaticStmt}</li>
+     *                  <li>{@link StaticMultiStmt}</li>
+     *             </ul>
      * @return a sync Publisher that is created by {@link Mono#just(Object)} or {@link Flux#fromIterable(Iterable)}.
      */
-    static Publisher<ByteBuf> createStaticCommand(final String sql, Supplier<Integer> sequenceId
-            , final TaskAdjutant adjutant) {
-        return Packets.createSimpleCommand(Packets.COM_QUERY, sql, adjutant, sequenceId);
+    static Publisher<ByteBuf> createStaticCommand(final Stmt stmt, Supplier<Integer> sequenceId
+            , final TaskAdjutant adjutant) throws SQLException {
+        final Charset clientCharset = adjutant.charsetClient();
+        final byte[] sqlBytes;
+        if (stmt instanceof StaticStmt) {
+            sqlBytes = ((StaticStmt) stmt).getSql().getBytes(clientCharset);
+        } else if (stmt instanceof StaticMultiStmt) {
+            sqlBytes = ((StaticMultiStmt) stmt).getMultiStmt().getBytes(clientCharset);
+        } else {
+            throw new IllegalArgumentException("error stmt");
+        }
+        final ByteBuf packet;
+        packet = Packets.createPacket(adjutant.allocator(), stmt);
+        packet.writeByte(Packets.COM_QUERY);
+
+        try {
+            if (Capabilities.supportQueryAttr(adjutant.capability())) {
+                writeQueryAttribute(packet, stmt, adjutant);
+            }
+            packet.writeBytes(sqlBytes);
+            return Packets.createPacketPublisher(packet, sequenceId, adjutant);
+        } catch (Throwable e) {
+            packet.release();
+            throw e;
+        }
+
+
     }
 
 
@@ -66,32 +98,32 @@ final class QueryCommandWriter {
         if (!Charsets.isSupportCharsetClient(charsetClient)) {
             throw MySQLExceptions.notSupportClientCharset(charsetClient);
         }
-        final ByteBufAllocator allocator = adjutant.allocator();
-        final MySQLParser sqlParser = adjutant.sqlParser();
-
-        final ByteBuf packet = allocator.buffer(Math.min(50 * sqlSize, Integer.MAX_VALUE), Integer.MAX_VALUE); // 1 representing SEMICOLON_BYTE
-        packet.writeZero(Packets.HEADER_SIZE); // placeholder of header
+        final ByteBuf packet;
+        packet = Packets.createPacket(adjutant.allocator(), stmt); // 1 representing SEMICOLON_BYTE
         packet.writeByte(Packets.COM_QUERY);
-        if (Capabilities.supportQueryAttr(adjutant.capability())) {
 
-            if (stmt instanceof MySQLBatchStmt) {
+        try {
+            if (Capabilities.supportQueryAttr(adjutant.capability())) {
+                writeQueryAttribute(packet, stmt, adjutant);
+            }
+            final MySQLParser sqlParser = adjutant.sqlParser();
+            for (int i = 0; i < sqlSize; i++) {
+                if (i > 0) {
+                    packet.writeByte(Constants.SEMICOLON_BYTE);
+                }
+                final String sql = sqlGroup.get(i);
+                if (!sqlParser.isSingleStmt(sql)) {
+                    throw MySQLExceptions.createMultiStatementError();
+                }
+                packet.writeBytes(sql.getBytes(charsetClient));
+            }
+            return Packets.createPacketPublisher(packet, sequenceId, adjutant);
+        } catch (Throwable e) {
+            packet.release();
+            throw e;
+        }
 
-            } else {
-                Packets.writeIntLenEnc(packet, 0);
-                Packets.writeIntLenEnc(packet, 1);
-            }
-        }
-        for (int i = 0; i < sqlSize; i++) {
-            if (i > 0) {
-                packet.writeByte(Constants.SEMICOLON_BYTE);
-            }
-            String sql = sqlGroup.get(i);
-            if (!sqlParser.isSingleStmt(sql)) {
-                throw MySQLExceptions.createMultiStatementError();
-            }
-            packet.writeBytes(sql.getBytes(charsetClient));
-        }
-        return Packets.createPacketPublisher(packet, sequenceId, adjutant);
+
     }
 
 
@@ -112,7 +144,7 @@ final class QueryCommandWriter {
             , TaskAdjutant adjutant)
             throws SQLException, LongDataReadException {
         return new QueryCommandWriter(sequenceId, adjutant)
-                .writeMultiCommand(stmt.getStmtGroup());
+                .writeMultiCommand(stmt);
     }
 
 
@@ -125,9 +157,6 @@ final class QueryCommandWriter {
         return new QueryCommandWriter(sequenceIdSupplier, adjutant)
                 .writeBindableBatchCommand(wrapper);
     }
-
-
-    private static final Logger LOG = LoggerFactory.getLogger(QueryCommandWriter.class);
 
 
     private final Supplier<Integer> sequenceId;
@@ -154,20 +183,24 @@ final class QueryCommandWriter {
      * @return a unmodifiable list.
      * @see #createBindableMultiCommand(BindMultiStmt, Supplier, TaskAdjutant)
      */
-    private Publisher<ByteBuf> writeMultiCommand(final List<BindStmt> stmtList)
+    private Publisher<ByteBuf> writeMultiCommand(final BindMultiStmt multiStmt)
             throws SQLException, LongDataReadException {
-
-        final int size = stmtList.size();
-        final ByteBuf packet = this.adjutant.allocator().buffer(size * 100, Integer.MAX_VALUE);
-        packet.writeZero(Packets.HEADER_SIZE); // placeholder of header
+        final List<BindStmt> stmtGroup = multiStmt.getStmtGroup();
+        final int size = stmtGroup.size();
+        final MySQLParser parser = this.adjutant.sqlParser();
+        final ByteBuf packet;
+        packet = Packets.createPacket(this.adjutant.allocator(), multiStmt);
         packet.writeByte(Packets.COM_QUERY);
         try {
+            if (Capabilities.supportQueryAttr(this.adjutant.capability())) {
+                writeQueryAttribute(packet, multiStmt, this.adjutant);
+            }
             for (int i = 0; i < size; i++) {
                 if (i > 0) {
                     packet.writeByte(Constants.SEMICOLON_BYTE);
                 }
-                final BindStmt stmt = stmtList.get(i);
-                final List<String> staticSqlList = this.adjutant.sqlParser().parse(stmt.getSql()).getStaticSql();
+                final BindStmt stmt = stmtGroup.get(i);
+                final List<String> staticSqlList = parser.parse(stmt.getSql()).getStaticSql();
                 doWriteBindableCommand(i, staticSqlList, stmt.getBindGroup(), packet);
             }
             return Packets.createPacketPublisher(packet, this.sequenceId, this.adjutant);
@@ -183,23 +216,27 @@ final class QueryCommandWriter {
      */
     private Publisher<ByteBuf> writeBindableCommand(final BindStmt stmt) throws SQLException, LongDataReadException {
         final List<String> staticSqlList = this.adjutant.sqlParser().parse(stmt.getSql()).getStaticSql();
-        final ByteBuf packet = this.adjutant.allocator().buffer(1024, Integer.MAX_VALUE);
-        packet.writeZero(Packets.HEADER_SIZE); // placeholder of header
+        final ByteBuf packet;
+        packet = Packets.createPacket(this.adjutant.allocator(), stmt);
         packet.writeByte(Packets.COM_QUERY);
         try {
+            if (Capabilities.supportQueryAttr(this.adjutant.capability())) {
+                writeQueryAttribute(packet, stmt, this.adjutant);
+            }
             doWriteBindableCommand(-1, staticSqlList, stmt.getBindGroup(), packet);
             return Packets.createPacketPublisher(packet, this.sequenceId, this.adjutant);
         } catch (Throwable e) {
             packet.release();
             throw e;
         }
+
     }
 
     /**
      * @return a unmodifiable list.
      * @see #createBindableBatchCommand(BindBatchStmt, Supplier, TaskAdjutant)
      */
-    private Publisher<ByteBuf> writeBindableBatchCommand(BindBatchStmt stmt)
+    private Publisher<ByteBuf> writeBindableBatchCommand(final BindBatchStmt stmt)
             throws SQLException, LongDataReadException {
 
         final List<String> staticSqlList = this.adjutant.sqlParser().parse(stmt.getSql()).getStaticSql();
@@ -207,10 +244,13 @@ final class QueryCommandWriter {
         final List<List<BindValue>> parameterGroupList = stmt.getGroupList();
         final int stmtCount = parameterGroupList.size();
 
-        final ByteBuf packet = this.adjutant.allocator().buffer(stmtCount * 100, Integer.MAX_VALUE);
-        packet.writeZero(Packets.HEADER_SIZE); // placeholder of header
+        final ByteBuf packet;
+        packet = Packets.createPacket(this.adjutant.allocator(), stmt);
         packet.writeByte(Packets.COM_QUERY);
         try {
+            if (Capabilities.supportQueryAttr(this.adjutant.capability())) {
+                writeQueryAttribute(packet, stmt, this.adjutant);
+            }
             for (int i = 0; i < stmtCount; i++) {
                 if (i > 0) {
                     packet.writeByte(Constants.SEMICOLON_BYTE); // write ';' delimit multiple statement.
@@ -226,15 +266,15 @@ final class QueryCommandWriter {
 
 
     /**
-     * @see #writeMultiCommand(List)
+     * @see #writeMultiCommand(BindMultiStmt)
      * @see #writeBindableCommand(BindStmt)
      */
-    private void doWriteBindableCommand(final int stmtIndex, final List<String> staticSqlList
+    private void doWriteBindableCommand(final int batchIndex, final List<String> staticSqlList
             , final List<BindValue> parameterGroup, final ByteBuf packet)
             throws SQLException, LongDataReadException {
 
         final int paramCount = staticSqlList.size() - 1;
-        MySQLBinds.assertParamCountMatch(stmtIndex, paramCount, parameterGroup.size());
+        MySQLBinds.assertParamCountMatch(batchIndex, paramCount, parameterGroup.size());
         final Charset clientCharset = this.clientCharset;
         final byte[] nullBytes = Constants.NULL.getBytes(clientCharset);
 
@@ -242,7 +282,7 @@ final class QueryCommandWriter {
             BindValue bindValue = parameterGroup.get(i);
             if (bindValue.getIndex() != i) {
                 // hear invoker has bug
-                throw MySQLExceptions.createBindValueParamIndexNotMatchError(stmtIndex, bindValue, i);
+                throw MySQLExceptions.createBindValueParamIndexNotMatchError(batchIndex, bindValue, i);
             }
             packet.writeBytes(staticSqlList.get(i).getBytes(clientCharset));
 
@@ -252,9 +292,9 @@ final class QueryCommandWriter {
                 continue;
             }
             if (value instanceof Publisher) {
-                throw MySQLExceptions.createNonSupportBindSqlTypeError(stmtIndex, bindValue.getType(), bindValue);
+                throw MySQLExceptions.createNonSupportBindSqlTypeError(batchIndex, bindValue.getType(), bindValue);
             }
-            writeNonNullParameter(stmtIndex, bindValue, packet);
+            writeNonNullParameter(batchIndex, bindValue, packet);
         }
         // write last static sql
         packet.writeBytes(staticSqlList.get(paramCount).getBytes(clientCharset));
@@ -265,6 +305,7 @@ final class QueryCommandWriter {
     /**
      * @see #doWriteBindableCommand(int, List, List, ByteBuf)
      */
+    @SuppressWarnings("deprecation")
     private void writeNonNullParameter(final int batchIndex, final BindValue bindValue, final ByteBuf packet)
             throws SQLException, LongDataReadException {
 
@@ -371,7 +412,9 @@ final class QueryCommandWriter {
             }
             break;
             case SET: {
-                writeSetTypeValue(batchIndex, bindValue, packet);
+                final String value;
+                value = MySQLBinds.bindNonNullToSetType(batchIndex, bindValue.getType(), bindValue);
+                writeOneEscapesValue(packet, value.getBytes(this.clientCharset));
             }
             break;
             case TIME: {
@@ -399,38 +442,8 @@ final class QueryCommandWriter {
 
 
     /**
-     * @see #writeNonNullParameter(int, BindValue, ByteBuf)
-     */
-    private void writeSetTypeValue(final int batchIndex, final BindValue bindValue, final ByteBuf packet)
-            throws SQLException {
-        final Object nonNull = bindValue.getNonNull();
-        if (!(nonNull instanceof Set)) {
-            throw MySQLExceptions.createUnsupportedParamTypeError(batchIndex, bindValue.getType(), bindValue);
-        }
-        final Set<?> set = (Set<?>) nonNull;
-        final StringBuilder builder = new StringBuilder();
-        int count = 0;
-        for (Object o : set) {
-            if (count > 0) {
-                builder.append(",");
-            }
-            if (o instanceof String) {
-                builder.append(o);
-            } else if (o instanceof Enum) {
-                builder.append(((Enum<?>) o).name());
-            } else {
-                throw MySQLExceptions.createUnsupportedParamTypeError(batchIndex, bindValue.getType(), bindValue);
-            }
-            count++;
-        }
-        writeOneEscapesValue(packet, builder.toString().getBytes(this.clientCharset));
-
-    }
-
-    /**
      * @see #writeStringValue(int, BindValue, ByteBuf)
      * @see #writeBinaryValue(int, BindValue, ByteBuf)
-     * @see #writeSetTypeValue(int, BindValue, ByteBuf)
      */
     private void writeOneEscapesValue(final ByteBuf packet, final byte[] value) {
         if (this.hexEscape) {
@@ -467,32 +480,9 @@ final class QueryCommandWriter {
      */
     private void writeBitValue(final int batchIndex, final BindValue bindValue, final ByteBuf packet)
             throws SQLException {
-        final Object nonNull = bindValue.getNonNull();
-        final String value;
 
-        if (nonNull instanceof Long) {
-            value = Long.toBinaryString((Long) nonNull);
-        } else if (nonNull instanceof Integer) {
-            value = Integer.toBinaryString((Integer) nonNull);
-        } else if (nonNull instanceof Short) {
-            value = Integer.toBinaryString(((Short) nonNull) & 0xFFFF);
-        } else if (nonNull instanceof Byte) {
-            value = Integer.toBinaryString(((Byte) nonNull) & 0xFF);
-        } else if (nonNull instanceof BitSet) {
-            final BitSet v = (BitSet) nonNull;
-            if (v.length() > 64) {
-                throw JdbdExceptions.outOfTypeRange(batchIndex, bindValue.getType(), bindValue);
-            }
-            value = MySQLStrings.bitSetToBitString(v, true);
-        } else if (nonNull instanceof String) {
-            final String v = (String) nonNull;
-            if (!MySQLStrings.isBinaryString(v)) {
-                throw JdbdExceptions.outOfTypeRange(batchIndex, bindValue.getType(), bindValue);
-            }
-            value = v;
-        } else {
-            throw JdbdExceptions.createNonSupportBindSqlTypeError(batchIndex, bindValue.getType(), bindValue);
-        }
+        final String value;
+        value = MySQLBinds.bindNonNullToBit(batchIndex, bindValue.getType(), bindValue);
 
         packet.writeByte('B');
         packet.writeByte(Constants.QUOTE_CHAR_BYTE);
@@ -683,7 +673,6 @@ final class QueryCommandWriter {
     /**
      * @see #writeBinaryValue(int, BindValue, ByteBuf)
      * @see #writeStringValue(int, BindValue, ByteBuf)
-     * @see #writeSetTypeValue(int, BindValue, ByteBuf)
      * @see #writeStringPath(int, BindValue, ByteBuf)
      * @see #writeBinaryPath(int, BindValue, ByteBuf)
      */
@@ -732,6 +721,69 @@ final class QueryCommandWriter {
 
 
     /*################################## blow private static method ##################################*/
+
+
+    /**
+     * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_com_query.html">Protocol::COM_QUERY</a>
+     */
+    private static void writeQueryAttribute(ByteBuf packet, Stmt stmt, TaskAdjutant adjutant)
+            throws SQLException {
+        if (MySQLBinds.hasQueryAttrGroup(stmt)) {
+            throw new SQLException("ComQuery protocol don't support %s.", MySQLBatchStmt.class.getName());
+        }
+
+        final Map<String, QueryAttr> attrMap;
+        if (stmt instanceof MySQLStmt) {
+            attrMap = MySQLBinds.mergeQueryAttribute(-1, (MySQLStmt) stmt);
+        } else {
+            attrMap = Collections.emptyMap();
+        }
+        final int paramCount = attrMap.size();
+        Packets.writeIntLenEnc(packet, paramCount);// Number of parameters
+        Packets.writeIntLenEnc(packet, 1);// Number of parameter sets. Currently, always 1
+
+        if (paramCount == 0) {
+            return;
+        }
+
+        final byte[] nullBitMap = new byte[(paramCount + 7) >> 3];
+        final int nullBitMapWriterIndex = packet.writerIndex();
+        packet.writeZero(nullBitMap.length); //placeholder of nullBitMap
+        packet.writeByte(1); // new_params_bind_flag.Always 1. Malformed packet error if not 1
+
+        final Charset clientCharset = adjutant.charsetClient();
+        final List<QueryAttr> queryAttrList = new ArrayList<>(paramCount);
+        int index = 0;
+        for (Map.Entry<String, QueryAttr> e : attrMap.entrySet()) {
+            final String name = e.getKey();
+            final QueryAttr queryAttr = e.getValue();
+            if (!name.equals(queryAttr.getName())) {
+                throw MySQLExceptions.queryAttrNameNotMatch(-1, name, queryAttr);
+            }
+            if (queryAttr.get() == null) {
+                nullBitMap[index >> 3] |= (1 << (index & 7));
+            } else {
+                Packets.writeInt2(packet, queryAttr.getType().parameterType); // param_type_and_flag
+                Packets.writeStringLenEnc(packet, name.getBytes(clientCharset)); // parameter name
+                queryAttrList.add(queryAttr);
+            }
+            index++;
+
+        }
+        // below write nullBitMap bytes
+        final int curWriterIndex = packet.writerIndex();
+        packet.writerIndex(nullBitMapWriterIndex);
+        packet.writeBytes(nullBitMap);
+        packet.writerIndex(curWriterIndex);
+
+
+        // below write parameter_values for query attribute
+        for (final QueryAttr queryAttr : queryAttrList) {
+            BinaryWriter.writeNonNullBinary(packet, -1, queryAttr.getType(), queryAttr, clientCharset);
+        }
+
+
+    }
 
 
 }

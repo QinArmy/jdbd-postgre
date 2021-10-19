@@ -5,6 +5,7 @@ import io.jdbd.meta.SQLType;
 import io.jdbd.type.Interval;
 import io.jdbd.vendor.stmt.ParamBatchStmt;
 import io.jdbd.vendor.stmt.ParamValue;
+import io.jdbd.vendor.stmt.Value;
 import org.reactivestreams.Publisher;
 import reactor.util.annotation.Nullable;
 
@@ -82,7 +83,7 @@ public abstract class JdbdBinds {
     }
 
 
-    public static boolean bindNonNullToBoolean(final int batchIndex, SQLType sqlType, ParamValue paramValue)
+    public static boolean bindNonNullToBoolean(final int batchIndex, SQLType sqlType, Value paramValue)
             throws SQLException {
         final Object nonNull = paramValue.getNonNull();
         final boolean value;
@@ -117,7 +118,7 @@ public abstract class JdbdBinds {
         return value;
     }
 
-    public static byte bindNonNullToByte(final int batchIndex, SQLType sqlType, ParamValue paramValue)
+    public static byte bindNonNullToByte(final int batchIndex, SQLType sqlType, Value paramValue)
             throws SQLException {
         final Object nonNull = paramValue.getNonNull();
         final byte value;
@@ -173,7 +174,7 @@ public abstract class JdbdBinds {
         return value;
     }
 
-    public static short bindNonNullToShort(final int batchIndex, SQLType sqlType, ParamValue paramValue)
+    public static short bindNonNullToShort(final int batchIndex, SQLType sqlType, Value paramValue)
             throws SQLException {
         final Object nonNull = paramValue.getNonNull();
         final short value;
@@ -229,7 +230,7 @@ public abstract class JdbdBinds {
         return value;
     }
 
-    public static int bindNonNullToInt(final int batchIndex, SQLType sqlType, ParamValue paramValue)
+    public static int bindNonNullToInt(final int batchIndex, SQLType sqlType, Value paramValue)
             throws SQLException {
 
         final Object nonNull = paramValue.getNonNull();
@@ -285,7 +286,7 @@ public abstract class JdbdBinds {
         return value;
     }
 
-    public static long bindNonNullToLong(final int batchIndex, SQLType sqlType, ParamValue paramValue)
+    public static long bindNonNullToLong(final int batchIndex, SQLType sqlType, Value paramValue)
             throws SQLException {
         final Object nonNull = paramValue.getNonNull();
         final long value;
@@ -328,7 +329,7 @@ public abstract class JdbdBinds {
         return value;
     }
 
-    public static BigInteger bindToBigInteger(final int batchIndex, SQLType sqlType, ParamValue paramValue)
+    public static BigInteger bindToBigInteger(final int batchIndex, SQLType sqlType, Value paramValue)
             throws SQLException {
         final Object nonNull = paramValue.getNonNull();
 
@@ -364,7 +365,7 @@ public abstract class JdbdBinds {
         return value;
     }
 
-    public static BigDecimal bindNonNullToDecimal(final int batchIndex, SQLType sqlType, ParamValue paramValue)
+    public static BigDecimal bindNonNullToDecimal(final int batchIndex, SQLType sqlType, Value paramValue)
             throws SQLException {
         final Object nonNull = paramValue.getNonNull();
 
@@ -398,7 +399,7 @@ public abstract class JdbdBinds {
         return value;
     }
 
-    public static float bindNonNullToFloat(final int batchIndex, SQLType sqlType, ParamValue paramValue)
+    public static float bindNonNullToFloat(final int batchIndex, SQLType sqlType, Value paramValue)
             throws SQLException {
         final Object nonNull = paramValue.getNonNull();
         final float value;
@@ -421,7 +422,7 @@ public abstract class JdbdBinds {
     }
 
 
-    public static double bindNonNullToDouble(final int batchIndex, SQLType sqlType, ParamValue paramValue)
+    public static double bindNonNullToDouble(final int batchIndex, SQLType sqlType, Value paramValue)
             throws SQLException {
         final Object nonNull = paramValue.getNonNull();
         final double value;
@@ -444,7 +445,7 @@ public abstract class JdbdBinds {
         return value;
     }
 
-    public static String bindNonNullToString(final int batchIndex, SQLType sqlType, ParamValue paramValue)
+    public static String bindNonNullToString(final int batchIndex, SQLType sqlType, Value paramValue)
             throws SQLException {
         final Object nonNull = paramValue.getNonNull();
         final String value;
@@ -467,12 +468,18 @@ public abstract class JdbdBinds {
     }
 
 
-    public static LocalDate bindNonNullToLocalDate(final int batchIndex, SQLType sqlType, ParamValue paramValue)
+    public static LocalDate bindNonNullToLocalDate(final int batchIndex, SQLType sqlType, Value paramValue)
             throws SQLException {
         final Object nonNull = paramValue.getNonNull();
         final LocalDate value;
         if (nonNull instanceof LocalDate) {
             value = (LocalDate) nonNull;
+        } else if (nonNull instanceof YearMonth) {
+            final YearMonth v = (YearMonth) nonNull;
+            value = LocalDate.of(v.getYear(), v.getMonthValue(), 1);
+        } else if (nonNull instanceof MonthDay) {
+            final MonthDay v = (MonthDay) nonNull;
+            value = LocalDate.of(1970, v.getMonthValue(), v.getDayOfMonth());
         } else if (nonNull instanceof String) {
             LocalDate v;
             try {
@@ -487,7 +494,7 @@ public abstract class JdbdBinds {
         return value;
     }
 
-    public static LocalTime bindNonNullToLocalTime(final int batchIndex, SQLType sqlType, ParamValue paramValue)
+    public static LocalTime bindNonNullToLocalTime(final int batchIndex, SQLType sqlType, Value paramValue)
             throws SQLException {
         final Object nonNull = paramValue.getNonNull();
         final LocalTime value;
@@ -507,7 +514,7 @@ public abstract class JdbdBinds {
         return value;
     }
 
-    public static LocalDateTime bindNonNullToLocalDateTime(final int batchIndex, SQLType sqlType, ParamValue paramValue)
+    public static LocalDateTime bindNonNullToLocalDateTime(final int batchIndex, SQLType sqlType, Value paramValue)
             throws SQLException {
         final Object nonNull = paramValue.getNonNull();
         final LocalDateTime value;
@@ -527,7 +534,7 @@ public abstract class JdbdBinds {
         return value;
     }
 
-    public static OffsetTime bindNonNullToOffsetTime(final int batchIndex, SQLType sqlType, ParamValue paramValue)
+    public static OffsetTime bindNonNullToOffsetTime(final int batchIndex, SQLType sqlType, Value paramValue)
             throws SQLException {
         final Object nonNull = paramValue.getNonNull();
         final OffsetTime value;
@@ -547,7 +554,7 @@ public abstract class JdbdBinds {
         return value;
     }
 
-    public static OffsetDateTime bindNonNullToOffsetDateTime(final int batchIndex, SQLType sqlType, ParamValue paramValue)
+    public static OffsetDateTime bindNonNullToOffsetDateTime(final int batchIndex, SQLType sqlType, Value paramValue)
             throws SQLException {
         final Object nonNull = paramValue.getNonNull();
         final OffsetDateTime value;
@@ -570,7 +577,7 @@ public abstract class JdbdBinds {
     }
 
 
-    public static String bindNonNullToInterval(final int batchIndex, SQLType sqlType, ParamValue paramValue)
+    public static String bindNonNullToInterval(final int batchIndex, SQLType sqlType, Value paramValue)
             throws SQLException {
         final Object nonNull = paramValue.getNonNull();
         final String value;

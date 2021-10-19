@@ -51,7 +51,7 @@
         <dependencies>
             <dependency>
                 <groupId>io.jdbd</groupId>
-                <artifactId>jdbd-api</artifactId>
+                <artifactId>jdbd-spi</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
