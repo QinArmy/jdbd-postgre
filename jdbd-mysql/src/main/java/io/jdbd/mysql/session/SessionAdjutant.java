@@ -29,6 +29,10 @@ public interface SessionAdjutant extends ISessionAdjutant {
      */
     Map<String, Class<? extends AuthenticationPlugin>> pluginClassMap();
 
+    /**
+     * @return a unmodified map
+     * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-session.html">customCharsetMapping</a>
+     */
     Map<String, Charset> customCharsetMap();
 
 }

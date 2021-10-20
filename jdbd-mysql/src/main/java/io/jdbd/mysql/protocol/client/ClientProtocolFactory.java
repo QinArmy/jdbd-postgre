@@ -8,6 +8,7 @@ import io.jdbd.mysql.protocol.MySQLServerVersion;
 import io.jdbd.mysql.protocol.conf.MyKey;
 import io.jdbd.mysql.session.SessionAdjutant;
 import io.jdbd.mysql.stmt.Stmts;
+import io.jdbd.mysql.util.MySQLArrays;
 import io.jdbd.mysql.util.MySQLStrings;
 import io.jdbd.result.MultiResult;
 import io.jdbd.result.ResultRow;
@@ -47,6 +48,14 @@ public abstract class ClientProtocolFactory {
 
     private static final class SessionManagerImpl implements SessionManager {
 
+        private static final List<String> KEY_VARIABLES = MySQLArrays.asUnmodifiableList(
+                "sql_mode",
+                "time_zone",
+                "transaction_isolation",
+                "transaction_read_only",
+                "autocommit"
+        );
+
         private final MySQLTaskExecutor executor;
 
         private final SessionAdjutant sessionAdjutant;
@@ -75,24 +84,14 @@ public abstract class ClientProtocolFactory {
 
             sqlGroup.add(connClientPair.getSecond());
             sqlGroup.add(resultsCharsetPair.getSecond());
-            sqlGroup.add("SET @@SESSION.sql_mode = DEFAULT");
-            sqlGroup.add("SET @@SESSION.time_zone = DEFAULT");
-
-            sqlGroup.add("SET @@SESSION.transaction_isolation = DEFAULT");
-            sqlGroup.add("SET @@SESSION.transaction_read_only = DEFAULT");
-            sqlGroup.add("SET @@SESSION.autocommit = DEFAULT");
+            sqlGroup.add(createKeyVariablesSql());
             sqlGroup.add("SELECT @@SESSION.sql_mode");
 
             final MultiResult result = ComQueryTask.batchAsMulti(Stmts.batch(sqlGroup), this.executor.taskAdjutant());
             return Mono.from(result.nextUpdate()) //1. SET character_set_connection and character_set_client
                     .then(Mono.from(result.nextUpdate()))//2.SET character_set_results
-                    .then(Mono.from(result.nextUpdate()))//3.SET sql_mode
-                    .then(Mono.from(result.nextUpdate()))//4. SET time_zone
-
-                    .then(Mono.from(result.nextUpdate()))//5.SET transaction_isolation
-                    .then(Mono.from(result.nextUpdate()))//6. SET transaction_read_only
-                    .then(Mono.from(result.nextUpdate()))//7. SET autocommit
-                    .thenMany(result.nextQuery())//8. SELECT sql_mode
+                    .then(Mono.from(result.nextUpdate()))//3.SET key variables
+                    .thenMany(result.nextQuery())//4. SELECT sql_mode
                     .elementAt(0)
                     .map(row -> new DefaultServer(clientCharset, resultCharset, row.getNonNull(0, String.class)))
                     .doOnSuccess(this.executor::resetTaskAdjutant)
@@ -100,6 +99,7 @@ public abstract class ClientProtocolFactory {
                     .switchIfEmpty(Mono.defer(this::resetFailure))
                     .thenReturn(this);
         }
+
 
         @Override
         public Mono<Void> reConnect() {
@@ -300,6 +300,21 @@ public abstract class ClientProtocolFactory {
         private <T> Mono<T> resetFailure() {
             // not bug ,never here.
             return Mono.error(new JdbdSQLException(new SQLException("reset failure,no any result")));
+        }
+
+        private String createKeyVariablesSql() {
+            final StringBuilder builder = new StringBuilder();
+            builder.append("SET ");
+            final int size = KEY_VARIABLES.size();
+            for (int i = 0; i < size; i++) {
+                if (i > 0) {
+                    builder.append(',');
+                }
+                builder.append("@@SESSION.")
+                        .append(KEY_VARIABLES.get(i))
+                        .append(" = DEFAULT");
+            }
+            return builder.toString();
         }
 
 

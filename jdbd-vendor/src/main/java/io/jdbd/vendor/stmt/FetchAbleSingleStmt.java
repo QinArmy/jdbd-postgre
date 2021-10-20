@@ -33,7 +33,7 @@ import java.util.function.Consumer;
 public interface FetchAbleSingleStmt extends SingleStmt {
 
     /**
-     * @return negative or fetch size, if zero ignore.
+     * @return fetch size, if zero ignore.
      */
     int getFetchSize();
 
