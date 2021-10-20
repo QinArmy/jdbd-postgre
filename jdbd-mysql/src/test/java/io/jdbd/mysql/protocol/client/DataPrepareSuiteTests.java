@@ -33,7 +33,7 @@ import java.util.*;
 import static org.testng.Assert.*;
 
 @Test(groups = {Groups.DATA_PREPARE}, dependsOnGroups = {Groups.SESSION_INITIALIZER, Groups.UTILS})
-public class DataPrepareSuiteTests extends AbstractConnectionBasedSuiteTests {
+public class DataPrepareSuiteTests extends AbstractTaskSuiteTests {
 
     private static final Logger LOG = LoggerFactory.getLogger(ComQueryTaskSuiteTests.class);
 

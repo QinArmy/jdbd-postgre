@@ -2,7 +2,6 @@ package io.jdbd.mysql.protocol.client;
 
 import io.jdbd.mysql.protocol.authentication.AuthenticationPlugin;
 import io.jdbd.mysql.protocol.authentication.PluginUtils;
-import io.jdbd.mysql.protocol.conf.MyKey;
 import io.jdbd.mysql.protocol.conf.MySQLUrl;
 import io.jdbd.mysql.session.SessionAdjutant;
 import io.jdbd.session.DatabaseSessionFactory;
@@ -13,14 +12,13 @@ import reactor.netty.resources.LoopResources;
 
 import java.nio.charset.Charset;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.Queue;
 import java.util.concurrent.LinkedBlockingQueue;
 
-public abstract class AbstractConnectionBasedSuiteTests {
+public abstract class AbstractTaskSuiteTests {
 
-    private static final Logger LOG = LoggerFactory.getLogger(AbstractConnectionBasedSuiteTests.class);
+    private static final Logger LOG = LoggerFactory.getLogger(AbstractTaskSuiteTests.class);
 
     private final static EventLoopGroup EVENT_LOOP_GROUP = LoopResources.create("jdbd-mysql", 20, true)
             .onClient(true);
@@ -29,7 +27,7 @@ public abstract class AbstractConnectionBasedSuiteTests {
 
     static final Queue<TaskAdjutant> TASK_ADJUTANT_QUEUE = new LinkedBlockingQueue<>();
 
-    private static final SessionAdjutant DEFAULT_SESSION_ADJUTANT = createDefaultSessionAdjutant();
+    static final SessionAdjutant DEFAULT_SESSION_ADJUTANT = createDefaultSessionAdjutant();
 
     protected static final String PROTOCOL_KEY = "my$protocol";
 
@@ -53,16 +51,18 @@ public abstract class AbstractConnectionBasedSuiteTests {
         return new SessionAdjutantForSingleHostTest(ClientTestUtils.singleUrl(propMap));
     }
 
+    static TaskAdjutant getTaskAdjutant(ClientProtocol clientProtocol) {
+        return ((ClientProtocolImpl) clientProtocol).adjutant;
+    }
+
 
     /*################################## blow private method ##################################*/
 
     private static SessionAdjutant createDefaultSessionAdjutant() {
-        Map<String, String> map = new HashMap<>();
-        if (ClientTestUtils.existsServerPublicKey()) {
-            map.put(MyKey.sslMode.getKey(), Enums.SslMode.DISABLED.name());
-        }
-        ClientTestUtils.appendZoneConfig(map);
-        return createSessionAdjutantForSingleHost(map);
+        final Map<String, String> map;
+        map = ClientTestUtils.loadConfigMap();
+        map.put("sslMode", Enums.SslMode.DISABLED.name());
+        return new SessionAdjutantForSingleHostTest(MySQLUrl.getInstance(map.get("url"), map));
     }
 
 
@@ -100,7 +100,7 @@ public abstract class AbstractConnectionBasedSuiteTests {
 
         @Override
         public boolean isSameFactory(DatabaseSessionFactory factory) {
-            return false;
+            throw new UnsupportedOperationException();
         }
     }
 

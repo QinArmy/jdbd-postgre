@@ -8,7 +8,7 @@ public interface AttrStatement {
     /**
      * @throws io.jdbd.JdbdException bind error.
      */
-    void bindCommonAttr(String name, MySQLType type, @Nullable Object value);
+    void bindQueryAttr(String name, MySQLType type, @Nullable Object value);
 
 
 }

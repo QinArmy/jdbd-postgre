@@ -2,11 +2,7 @@ package io.jdbd.mysql.util;
 
 import io.jdbd.meta.SQLType;
 import io.jdbd.mysql.MySQLType;
-import io.jdbd.mysql.stmt.MySQLBatchStmt;
-import io.jdbd.mysql.stmt.MySQLStmt;
-import io.jdbd.mysql.stmt.QueryAttr;
 import io.jdbd.stmt.UnsupportedBindJavaTypeException;
-import io.jdbd.vendor.stmt.Stmt;
 import io.jdbd.vendor.stmt.Value;
 import io.jdbd.vendor.util.JdbdBinds;
 import io.jdbd.vendor.util.JdbdExceptions;
@@ -300,7 +296,6 @@ public abstract class MySQLBinds extends JdbdBinds {
         }
     }
 
-
     public static void releaseOnError(Queue<ByteBuf> queue, final ByteBuf packet) {
         ByteBuf byteBuf;
         while ((byteBuf = queue.poll()) != null) {
@@ -311,41 +306,5 @@ public abstract class MySQLBinds extends JdbdBinds {
             packet.release();
         }
     }
-
-    /**
-     * @return a unmodified map
-     */
-    public static Map<String, QueryAttr> mergeQueryAttribute(final int batchIndex, final MySQLStmt stmt) {
-        final Map<String, QueryAttr> commonAttrMap = stmt.getQueryAttrs();
-        final List<Map<String, QueryAttr>> attrGroupList;
-        if (stmt instanceof MySQLBatchStmt) {
-            attrGroupList = ((MySQLBatchStmt) stmt).getQueryAttrGroup();
-        } else {
-            attrGroupList = Collections.emptyList();
-        }
-        final Map<String, QueryAttr> attrMap;
-        if (attrGroupList.size() > 0) {
-            final Map<String, QueryAttr> group = attrGroupList.get(batchIndex);
-            final Map<String, QueryAttr> tempMap = new HashMap<>((int) ((commonAttrMap.size() + group.size()) / 0.75F));
-            tempMap.putAll(commonAttrMap);
-            tempMap.putAll(group);
-            attrMap = Collections.unmodifiableMap(tempMap);
-        } else {
-            attrMap = commonAttrMap;
-        }
-        return attrMap;
-    }
-
-    public static boolean hasQueryAttrGroup(final Stmt stmt) {
-        final boolean match;
-        if (stmt instanceof MySQLBatchStmt) {
-            final MySQLBatchStmt batchStmt = (MySQLBatchStmt) stmt;
-            match = batchStmt.getQueryAttrGroup().size() > 0;
-        } else {
-            match = false;
-        }
-        return match;
-    }
-
 
 }

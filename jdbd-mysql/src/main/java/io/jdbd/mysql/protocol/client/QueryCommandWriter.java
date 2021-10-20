@@ -728,13 +728,10 @@ final class QueryCommandWriter {
      */
     private static void writeQueryAttribute(ByteBuf packet, Stmt stmt, TaskAdjutant adjutant)
             throws SQLException {
-        if (MySQLBinds.hasQueryAttrGroup(stmt)) {
-            throw new SQLException("ComQuery protocol don't support %s.", MySQLBatchStmt.class.getName());
-        }
 
         final Map<String, QueryAttr> attrMap;
         if (stmt instanceof MySQLStmt) {
-            attrMap = MySQLBinds.mergeQueryAttribute(-1, (MySQLStmt) stmt);
+            attrMap = ((MySQLStmt) stmt).getQueryAttrs();
         } else {
             attrMap = Collections.emptyMap();
         }
@@ -758,7 +755,7 @@ final class QueryCommandWriter {
             final String name = e.getKey();
             final QueryAttr queryAttr = e.getValue();
             if (!name.equals(queryAttr.getName())) {
-                throw MySQLExceptions.queryAttrNameNotMatch(-1, name, queryAttr);
+                throw MySQLExceptions.queryAttrNameNotMatch(name, queryAttr);
             }
             if (queryAttr.get() == null) {
                 nullBitMap[index >> 3] |= (1 << (index & 7));

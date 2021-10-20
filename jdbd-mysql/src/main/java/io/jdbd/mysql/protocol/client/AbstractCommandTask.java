@@ -211,10 +211,5 @@ abstract class AbstractCommandTask extends MySQLTask implements StmtTask {
     }
 
 
-    @Override
-    protected final boolean canDecode(ByteBuf cumulateBuffer) {
-        return Packets.hasOnePacket(cumulateBuffer);
-    }
-
 
 }

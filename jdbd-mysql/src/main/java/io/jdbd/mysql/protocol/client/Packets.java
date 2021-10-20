@@ -2,7 +2,6 @@ package io.jdbd.mysql.protocol.client;
 
 import io.jdbd.mysql.MySQLJdbdException;
 import io.jdbd.mysql.stmt.BindMultiStmt;
-import io.jdbd.mysql.stmt.MySQLBatchStmt;
 import io.jdbd.mysql.stmt.MySQLStmt;
 import io.jdbd.mysql.util.MySQLExceptions;
 import io.jdbd.vendor.stmt.*;
@@ -645,7 +644,7 @@ public abstract class Packets {
         int capacity = 0;
 
         if (stmt instanceof SingleStmt) {
-            capacity += ((StaticStmt) stmt).getSql().length();
+            capacity += (((SingleStmt) stmt).getSql().length() + 128);
             if (stmt instanceof ParamStmt) {
                 capacity += (((ParamStmt) stmt).getBindGroup().size() * 6);
             } else if (stmt instanceof ParamBatchStmt) {
@@ -660,13 +659,8 @@ public abstract class Packets {
 
         if (capacity < 0) {
             capacity = Integer.MAX_VALUE - 128;
-        } else {
-            if (stmt instanceof MySQLStmt) {
-                capacity += (((MySQLStmt) stmt).getQueryAttrs().size() * 6);
-                if (stmt instanceof MySQLBatchStmt) {
-                    capacity += (((MySQLBatchStmt) stmt).getQueryAttrGroup().size() * 10);
-                }
-            }
+        } else if (stmt instanceof MySQLStmt) {
+            capacity += (((MySQLStmt) stmt).getQueryAttrs().size() * 6);
         }
 
         if (capacity < 0) {

@@ -126,6 +126,7 @@ final class MySQLTaskExecutor extends CommunicationTaskExecutor<TaskAdjutant> {
     }
 
     void resetTaskAdjutant(final Server server) {
+        LOG.debug("reset success,server:{}", server);
         synchronized (this.taskAdjutant) {
             TaskAdjutantWrapper taskAdjutant = (TaskAdjutantWrapper) this.taskAdjutant;
             // 1.

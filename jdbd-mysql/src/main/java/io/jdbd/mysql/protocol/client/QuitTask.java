@@ -82,10 +82,6 @@ final class QuitTask extends MySQLTask {
         this.sink.success();
     }
 
-    @Override
-    protected boolean canDecode(ByteBuf cumulateBuffer) {
-        return true;
-    }
 
 
 }

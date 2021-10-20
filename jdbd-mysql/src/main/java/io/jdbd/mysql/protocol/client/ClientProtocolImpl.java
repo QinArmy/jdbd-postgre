@@ -6,7 +6,6 @@ import io.jdbd.mysql.stmt.BindBatchStmt;
 import io.jdbd.mysql.stmt.BindMultiStmt;
 import io.jdbd.mysql.stmt.BindStmt;
 import io.jdbd.mysql.stmt.BindValue;
-import io.jdbd.mysql.util.MySQLBinds;
 import io.jdbd.result.MultiResult;
 import io.jdbd.result.OrderedFlux;
 import io.jdbd.result.ResultRow;
@@ -92,7 +91,7 @@ final class ClientProtocolImpl implements ClientProtocol {
     @Override
     public Mono<ResultStates> bindUpdate(final BindStmt stmt) {
         final Mono<ResultStates> mono;
-        if (MySQLBinds.hasQueryAttrGroup(stmt) || usePrepare(stmt.getBindGroup())) {
+        if (usePrepare(stmt.getBindGroup())) {
             mono = ComPreparedTask.update(stmt, this.adjutant);
         } else {
             mono = ComQueryTask.bindUpdate(stmt, this.adjutant);
@@ -103,8 +102,7 @@ final class ClientProtocolImpl implements ClientProtocol {
     @Override
     public Flux<ResultRow> bindQuery(final BindStmt stmt) {
         final Flux<ResultRow> flux;
-        if (MySQLBinds.hasQueryAttrGroup(stmt)
-                || stmt.getFetchSize() > 0
+        if (stmt.getFetchSize() > 0
                 || usePrepare(stmt.getBindGroup())) {
             flux = ComPreparedTask.query(stmt, this.adjutant);
         } else {
@@ -116,7 +114,7 @@ final class ClientProtocolImpl implements ClientProtocol {
     @Override
     public Flux<ResultStates> bindBatch(final BindBatchStmt stmt) {
         final Flux<ResultStates> flux;
-        if (MySQLBinds.hasQueryAttrGroup(stmt) || usePrepare(stmt)) {
+        if (usePrepare(stmt)) {
             flux = ComPreparedTask.batchUpdate(stmt, this.adjutant);
         } else {
             flux = ComQueryTask.bindBatch(stmt, this.adjutant);
@@ -127,7 +125,7 @@ final class ClientProtocolImpl implements ClientProtocol {
     @Override
     public MultiResult bindBatchAsMulti(final BindBatchStmt stmt) {
         final MultiResult result;
-        if (MySQLBinds.hasQueryAttrGroup(stmt) || usePrepare(stmt)) {
+        if (usePrepare(stmt)) {
             result = ComPreparedTask.batchAsMulti(stmt, this.adjutant);
         } else {
             result = ComQueryTask.bindBatchAsMulti(stmt, this.adjutant);
@@ -138,9 +136,7 @@ final class ClientProtocolImpl implements ClientProtocol {
     @Override
     public OrderedFlux bindBatchAsFlux(final BindBatchStmt stmt) {
         final OrderedFlux flux;
-        if (MySQLBinds.hasQueryAttrGroup(stmt)
-                || (stmt.getGroupList().size() == 1 && stmt.getFetchSize() > 0)
-                || usePrepare(stmt)) {
+        if ((stmt.getGroupList().size() == 1 && stmt.getFetchSize() > 0) || usePrepare(stmt)) {
             flux = ComPreparedTask.batchAsFlux(stmt, this.adjutant);
         } else {
             flux = ComQueryTask.bindBatchAsFlux(stmt, this.adjutant);
@@ -178,7 +174,7 @@ final class ClientProtocolImpl implements ClientProtocol {
 
     @Override
     public Mono<Void> reset() {
-        return this.sessionManager.reset()
+        return Mono.defer(this.sessionManager::reset)
                 .then();
     }
 

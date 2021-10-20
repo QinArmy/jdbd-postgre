@@ -117,7 +117,7 @@ public abstract class Stmts extends JdbdStmts {
 
         private MySQLOptionStaticStmt(final String sql, final StatementOption option) {
             super(sql, option);
-            this.queryAttrs = wrapQueryAttrs(option.getCommonAttrs());
+            this.queryAttrs = wrapQueryAttrs(option.getAttrGroup());
         }
 
         @Override
@@ -136,7 +136,7 @@ public abstract class Stmts extends JdbdStmts {
 
         private MySQLQueryOptionStaticStmt(String sql, Consumer<ResultStates> statesConsumer, StatementOption option) {
             super(sql, statesConsumer, option);
-            this.queryAttrs = wrapQueryAttrs(option.getCommonAttrs());
+            this.queryAttrs = wrapQueryAttrs(option.getAttrGroup());
         }
 
         @Override
@@ -154,7 +154,7 @@ public abstract class Stmts extends JdbdStmts {
 
         private MySQLOptionStaticBatchStmt(List<String> sqlGroup, StatementOption option) {
             super(sqlGroup, option);
-            this.queryAttrs = wrapQueryAttrs(option.getCommonAttrs());
+            this.queryAttrs = wrapQueryAttrs(option.getAttrGroup());
         }
 
         @Override
@@ -171,7 +171,7 @@ public abstract class Stmts extends JdbdStmts {
 
         private MySQLOptionStaticMultiStmt(final String multiStmt, final StatementOption option) {
             super(multiStmt, option);
-            this.queryAttrs = wrapQueryAttrs(option.getCommonAttrs());
+            this.queryAttrs = wrapQueryAttrs(option.getAttrGroup());
         }
 
 
@@ -191,7 +191,7 @@ public abstract class Stmts extends JdbdStmts {
 
         private MySQLOptionParamStmt(final String sql, final List<T> bindGroup, final StatementOption option) {
             super(sql, bindGroup, option);
-            this.queryAttrs = wrapQueryAttrs(option.getCommonAttrs());
+            this.queryAttrs = wrapQueryAttrs(option.getAttrGroup());
         }
 
         @Override
@@ -229,7 +229,7 @@ public abstract class Stmts extends JdbdStmts {
         private MySQLOptionQueryParamStmt(String sql, List<T> bindGroup
                 , Consumer<ResultStates> statesConsumer, StatementOption option) {
             super(sql, bindGroup, statesConsumer, option);
-            this.queryAttrs = wrapQueryAttrs(option.getCommonAttrs());
+            this.queryAttrs = wrapQueryAttrs(option.getAttrGroup());
 
         }
 
@@ -252,29 +252,20 @@ public abstract class Stmts extends JdbdStmts {
 
 
     private static class MySQLOptionParamBatchStmt<T extends ParamValue> extends OptionParamBatchStmt<T>
-            implements MySQLBatchStmt {
+            implements MySQLStmt {
 
         private final Map<String, QueryAttr> queryAttrs;
-
-        private final List<Map<String, QueryAttr>> queryAttrGroup;
-
 
         private MySQLOptionParamBatchStmt(final String sql, final List<List<T>> groupList
                 , final StatementOption option) {
             super(sql, groupList, option);
-            this.queryAttrs = wrapQueryAttrs(option.getCommonAttrs());
-            this.queryAttrGroup = Collections.unmodifiableList(option.getAttrGroupList());
+            this.queryAttrs = wrapQueryAttrs(option.getAttrGroup());
 
         }
 
         @Override
         public final Map<String, QueryAttr> getQueryAttrs() {
             return this.queryAttrs;
-        }
-
-        @Override
-        public final List<Map<String, QueryAttr>> getQueryAttrGroup() {
-            return this.queryAttrGroup;
         }
 
         @Override

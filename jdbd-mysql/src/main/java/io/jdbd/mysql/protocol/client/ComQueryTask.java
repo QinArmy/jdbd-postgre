@@ -39,6 +39,18 @@ import java.util.function.Supplier;
 
 /**
  * <p>
+ * This class is a implementation of {@link io.jdbd.vendor.task.CommunicationTask}.
+ * This task is responsible for the communication about MySQL client COM_QUERY protocol .
+ * </p>
+ * <p>
+ *     <ul>
+ *         <li>{@link QueryCommandWriter} write  COM_QUERY packet</li>
+ *         <li>{@link #readUpdateResult(ByteBuf, Consumer)} read result without return columns</li>
+ *         <li>{@link #readResultSet(ByteBuf, Consumer)} read result with return column</li>
+ *         <li>{@link #sendLocalFile(ByteBuf)} response LOCAL INFILE Data packet</li>
+ *     </ul>
+ * </p>
+ * <p>
  * below is chinese signature:<br/>
  * 当你在阅读这段代码时,我才真正在写这段代码,你阅读到哪里,我便写到哪里.
  * </p>
@@ -48,11 +60,11 @@ import java.util.function.Supplier;
  */
 final class ComQueryTask extends AbstractCommandTask {
 
-    /*################################## blow StaticStatement underlying api method ##################################*/
+    /*################################## blow StaticStatement spi underlying method ##################################*/
 
     /**
      * <p>
-     * This method is underlying api of {@link StaticStatement#executeUpdate(String)} method.
+     * This method is underlying method of {@link StaticStatement#executeUpdate(String)} spi method.
      * </p>
      *
      * @see #ComQueryTask(Stmt, ResultSink, TaskAdjutant)
@@ -71,7 +83,7 @@ final class ComQueryTask extends AbstractCommandTask {
 
     /**
      * <p>
-     * This method is underlying api of below methods:
+     * This method is underlying method of below spi methods:
      * <ul>
      *     <li>{@link StaticStatement#executeQuery(String)}</li>
      *     <li>{@link StaticStatement#executeQuery(String, Consumer)}</li>
@@ -379,7 +391,13 @@ final class ComQueryTask extends AbstractCommandTask {
                 throw new IllegalStateException(String.format("Unknown stmt[%s]", stmt.getClass().getName()));
             }
             this.phase = Phase.READ_EXECUTE_RESPONSE;
+            if (LOG.isDebugEnabled()) {
+                LOG.debug("create COM_QUERY packet for {}", stmt.getClass().getName());
+            }
         } catch (Throwable e) {
+            if (LOG.isDebugEnabled()) {
+                LOG.debug("create COM_QUERY packet error for {}", stmt.getClass().getName(), e);
+            }
             this.phase = Phase.START_ERROR;
             publisher = null;
             if (MySQLExceptions.isByteBufOutflow(e)) {

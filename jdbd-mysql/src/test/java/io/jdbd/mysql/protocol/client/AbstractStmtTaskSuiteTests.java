@@ -27,7 +27,7 @@ import java.util.*;
 
 import static org.testng.Assert.*;
 
-public abstract class AbstractStmtTaskSuiteTests extends AbstractConnectionBasedSuiteTests {
+public abstract class AbstractStmtTaskSuiteTests extends AbstractTaskSuiteTests {
 
 
     private final SubType subType;

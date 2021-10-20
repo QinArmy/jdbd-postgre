@@ -151,7 +151,7 @@ public enum MySQLType implements SQLType {
      * </p>
      *
      * @see #FLOAT
-     * @deprecated use {@link #FLOAT} As of MySQL 8.0.17, the UNSIGNED attribute is deprecated for columns of type FLOAT
+     * @deprecated use {@link #FLOAT}, As of MySQL 8.0.17, the UNSIGNED attribute is deprecated for columns of type FLOAT
      * ,see <a href="https://dev.mysql.com/doc/refman/8.0/en/floating-point-types.html">Floating-Point Types</a>
      */
     @Deprecated
@@ -180,7 +180,7 @@ public enum MySQLType implements SQLType {
      * </p>
      *
      * @see #DOUBLE
-     * @deprecated use {@link #DOUBLE} As of MySQL 8.0.17, this syntax is deprecated and you should expect support
+     * @deprecated use {@link #DOUBLE}, As of MySQL 8.0.17, this syntax is deprecated and you should expect support
      * for it to be removed in a future version of MySQL.
      * see <a href="https://dev.mysql.com/doc/refman/8.0/en/floating-point-types.html">Floating-Point Types</a>
      */
@@ -194,7 +194,9 @@ public enum MySQLType implements SQLType {
      * An optional fsp value in the range from 0 to 6 may be given to specify fractional seconds precision. A value
      * of 0 signifies that there is no fractional part. If omitted, the default precision is 0.
      * <p>
-     * Protocol: TYPE_TIME = 11
+     * Protocol: TYPE_TIME = 11, support bind(or get)  {@link LocalTime} or {@link java.time.Duration}
+     *
+     * </p>
      */
     TIME(Constants.TYPE_TIME, JDBCType.TIME, LocalTime.class),
 
@@ -223,7 +225,14 @@ public enum MySQLType implements SQLType {
      * An optional fsp value in the range from 0 to 6 may be given to specify fractional seconds precision. A value
      * of 0 signifies that there is no fractional part. If omitted, the default precision is 0.
      * <p>
-     * Protocol: TYPE_DATETIME = 12
+     * Protocol: TYPE_DATETIME = 12,support bind below:
+     * <ul>
+     *     <li>{@link LocalDateTime}</li>
+     *     <li>{@link java.time.OffsetDateTime},As of MySQL 8.0.19.</li>
+     *     <li>{@link java.time.ZonedDateTime},As of MySQL 8.0.19.</li>
+     * </ul>
+     * Only support get {@link LocalDateTime}.
+     * </p>
      */
     DATETIME(Constants.TYPE_DATETIME, JDBCType.TIMESTAMP, LocalDateTime.class),
 
@@ -236,7 +245,14 @@ public enum MySQLType implements SQLType {
      * An optional fsp value in the range from 0 to 6 may be given to specify fractional seconds precision. A value
      * of 0 signifies that there is no fractional part. If omitted, the default precision is 0.
      * <p>
-     * Protocol: TYPE_TIMESTAMP = 7
+     * Protocol: TYPE_TIMESTAMP = 7,support bind below:
+     * <ul>
+     *     <li>{@link LocalDateTime}</li>
+     *     <li>{@link java.time.OffsetDateTime},As of MySQL 8.0.19.</li>
+     *     <li>{@link java.time.ZonedDateTime},As of MySQL 8.0.19.</li>
+     * </ul>
+     * Only support get {@link LocalDateTime}.
+     * </p>
      */
     // TODO If MySQL server run with the MAXDB SQL mode enabled, TIMESTAMP is identical with DATETIME. If this mode is enabled at the time that a table is created, TIMESTAMP columns are created as DATETIME columns.
     // As a result, such columns use DATETIME display format, have the same range of values, and there is no automatic initialization or updating to the current date and time
@@ -283,15 +299,7 @@ public enum MySQLType implements SQLType {
      * Protocol: TYPE_VAR_STRING = 253
      */
     VARCHAR(Constants.TYPE_VARCHAR, JDBCType.VARCHAR, String.class),
-    /**
-     * VARBINARY(M)
-     * The VARBINARY type is similar to the VARCHAR type, but stores binary byte strings rather than nonbinary
-     * character strings. M represents the maximum column length in bytes.
-     * <p>
-     * Protocol: TYPE_VARCHAR = 15
-     * Protocol: TYPE_VAR_STRING = 253
-     */
-    VARBINARY(Constants.TYPE_VAR_STRING, JDBCType.VARBINARY, byte[].class), // TODO check that it's correct
+
     /**
      * BIT[(M)]
      * A bit-field type. M indicates the number of bits per value, from 1 to 64. The default is 1 if M is omitted.
@@ -308,7 +316,7 @@ public enum MySQLType implements SQLType {
      * <p>
      * Protocol: TYPE_ENUM = 247
      */
-    ENUM(Constants.TYPE_ENUM, JDBCType.CHAR, String.class),
+    ENUM(Constants.TYPE_ENUM, JDBCType.VARCHAR, String.class),
     /**
      * SET('value1','value2',...) [CHARACTER SET charset_name] [COLLATE collation_name]
      * A set. A string object that can have zero or more values, each of which must be chosen from the list
@@ -318,10 +326,10 @@ public enum MySQLType implements SQLType {
      * <p>
      * Protocol: TYPE_SET = 248
      * <p>
-     * a unmodifiable {@link Set} ,the type of elements is {@link String}
+     * a unmodifiable {@link Set} ,the type of elements is {@link String} or {@link Enum}
      * </p>
      */
-    SET(Constants.TYPE_SET, JDBCType.CHAR, Set.class),
+    SET(Constants.TYPE_SET, JDBCType.VARCHAR, Set.class),
 
     /**
      * The size of JSON documents stored in JSON columns is limited to the value of the max_allowed_packet system variable (max value 1073741824).
@@ -386,13 +394,23 @@ public enum MySQLType implements SQLType {
     BINARY(Constants.TYPE_STRING, JDBCType.BINARY, byte[].class),
 
     /**
+     * VARBINARY(M)
+     * The VARBINARY type is similar to the VARCHAR type, but stores binary byte strings rather than nonbinary
+     * character strings. M represents the maximum column length in bytes.
+     * <p>
+     * Protocol: TYPE_VARCHAR = 15
+     * Protocol: TYPE_VAR_STRING = 253
+     */
+    VARBINARY(Constants.TYPE_VAR_STRING, JDBCType.VARBINARY, byte[].class),
+
+    /**
      * TINYBLOB
      * A BLOB column with a maximum length of 255 (28 - 1) bytes. Each TINYBLOB value is stored using a
      * 1-byte length prefix that indicates the number of bytes in the value.
      * <p>
      * Protocol:TYPE_TINY_BLOB = 249
      */
-    TINYBLOB(Constants.TYPE_TINY_BLOB, JDBCType.LONGVARBINARY, byte[].class),
+    TINYBLOB(Constants.TYPE_TINY_BLOB, JDBCType.VARBINARY, byte[].class),
 
     /**
      * BLOB[(M)]
@@ -403,7 +421,7 @@ public enum MySQLType implements SQLType {
      * <p>
      * Protocol: TYPE_BLOB = 252
      */
-    BLOB(Constants.TYPE_BLOB, JDBCType.LONGVARBINARY, byte[].class),
+    BLOB(Constants.TYPE_BLOB, JDBCType.VARBINARY, byte[].class),
 
     /**
      * MEDIUMBLOB
@@ -412,7 +430,7 @@ public enum MySQLType implements SQLType {
      * <p>
      * Protocol: TYPE_MEDIUM_BLOB = 250
      */
-    MEDIUMBLOB(Constants.TYPE_MEDIUM_BLOB, JDBCType.LONGVARBINARY, byte[].class),
+    MEDIUMBLOB(Constants.TYPE_MEDIUM_BLOB, JDBCType.VARBINARY, byte[].class),
 
     /**
      * LONGBLOB

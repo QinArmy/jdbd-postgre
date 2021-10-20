@@ -24,7 +24,7 @@ import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 
 @Test(groups = {Groups.AUTHENTICATE_PLUGIN}, dependsOnGroups = {Groups.MYSQL_URL, Groups.SQL_PARSER, Groups.UTILS})
-public class AuthenticatePluginSuiteTests extends AbstractConnectionBasedSuiteTests {
+public class AuthenticatePluginSuiteTests extends AbstractTaskSuiteTests {
 
     private static final Logger LOG = LoggerFactory.getLogger(AuthenticatePluginSuiteTests.class);
 

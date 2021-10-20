@@ -29,7 +29,7 @@ import static org.testng.Assert.assertNotNull;
  */
 @Test
 //(groups = {Groups.TEXT_RESULT_BIG_COLUMN}, dependsOnGroups = {Groups.COM_QUERY, Groups.DATA_PREPARE, Groups.COM_STMT_PREPARE})
-public class ComQueryTaskBigColumnSuiteTests extends AbstractConnectionBasedSuiteTests {
+public class ComQueryTaskBigColumnSuiteTests extends AbstractTaskSuiteTests {
 
     private static final Logger LOG = LoggerFactory.getLogger(ComQueryTaskBigColumnSuiteTests.class);
 

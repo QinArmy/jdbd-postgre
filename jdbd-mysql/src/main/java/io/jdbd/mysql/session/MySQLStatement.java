@@ -13,7 +13,10 @@ import reactor.util.annotation.Nullable;
 
 import java.nio.file.Path;
 import java.sql.SQLException;
-import java.util.*;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Objects;
 import java.util.function.Function;
 
 
@@ -34,12 +37,15 @@ abstract class MySQLStatement implements Statement, AttrStatement {
 
 
     @Override
-    public final void bindCommonAttr(final String name, final MySQLType type, @Nullable Object value) {
+    public final void bindQueryAttr(final String name, final MySQLType type, @Nullable Object value) {
         checkReuse();
         Objects.requireNonNull(name, "name");
         if (value instanceof Publisher || value instanceof Path) {
+
             String m = String.format("Query Attribute don't support java type[%s]", value.getClass().getName());
-            throw new JdbdSQLException(new SQLException(m));
+            JdbdSQLException error = new JdbdSQLException(new SQLException(m));
+            closeOnBindError(error);
+            throw error;
         }
         Map<String, QueryAttr> commonAttrMap = this.statementOption.commonAttrGroup;
         if (commonAttrMap == null) {
@@ -82,72 +88,10 @@ abstract class MySQLStatement implements Statement, AttrStatement {
     abstract void checkReuse() throws JdbdSQLException;
 
     /**
-     * <p>
-     * for below methods:
-     *     <ul>
-     *         <li>executeUpdate()</li>
-     *         <li>executeQuery()</li>
-     *     </ul>
-     * </p>
+     * @see MySQLPreparedStatement
      */
-    @Nullable
-    final void prepareAttrGroup(final Map<String, QueryAttr> attrGroup) {
-        final Map<String, QueryAttr> commonAttrGroup = this.statementOption.commonAttrGroup;
-        if (commonAttrGroup == null) {
-            this.statementOption.commonAttrGroup = attrGroup;
-        } else {
-            commonAttrGroup.putAll(attrGroup);
-        }
-    }
-
-    final boolean attrGroupListNotEmpty() {
-        final List<Map<String, QueryAttr>> attrGroupList = this.statementOption.attrGroupList;
-        return attrGroupList != null && attrGroupList.size() > 0;
-    }
-
-    final void prepareAttrGroupList(final int batchCount) {
-        List<Map<String, QueryAttr>> attrGroupList = this.statementOption.attrGroupList;
-        if (batchCount > 0 && attrGroupList == null) {
-            attrGroupList = new ArrayList<>();
-            for (int i = 0; i < batchCount; i++) {
-                attrGroupList.add(Collections.emptyMap());
-            }
-            this.statementOption.attrGroupList = attrGroupList;
-        }
-    }
-
-    final void addBatchQueryAttr(@Nullable final Map<String, QueryAttr> attrGroup) {
-        List<Map<String, QueryAttr>> attrGroupList = this.statementOption.attrGroupList;
-        if (attrGroup == null) {
-            if (attrGroupList != null) {
-                attrGroupList.add(Collections.emptyMap());
-            }
-        } else {
-            if (attrGroupList == null) {
-                attrGroupList = new ArrayList<>();
-                this.statementOption.attrGroupList = attrGroupList;
-            }
-            attrGroupList.add(attrGroup);
-        }
-
-    }
-
-    /**
-     * @return true attrGroupList size error.
-     */
-    @Nullable
-    final IllegalStateException checkBatchAttrGroupListSize(final int batchCount) {
-        final List<Map<String, QueryAttr>> attrGroupList = this.statementOption.attrGroupList;
-        final IllegalStateException error;
-        if (attrGroupList != null && attrGroupList.size() != batchCount) {
-            // here bug
-            String m = String.format("batch count[%s] and attrGroupList size[%s] not match."
-                    , batchCount, attrGroupList.size());
-            error = new IllegalStateException(m);
-        } else {
-            error = null;
-        }
-        return error;
+    void closeOnBindError(Throwable error) {
+        // no-op
     }
 
 
@@ -159,7 +103,7 @@ abstract class MySQLStatement implements Statement, AttrStatement {
 
         private Map<String, QueryAttr> commonAttrGroup;
 
-        List<Map<String, QueryAttr>> attrGroupList;
+        private Map<String, QueryAttr> queryAttrGroup;
 
         @Override
         public int getTimeout() {
@@ -186,27 +130,16 @@ abstract class MySQLStatement implements Statement, AttrStatement {
         }
 
         @Override
-        public Map<String, QueryAttr> getCommonAttrs() {
-            Map<String, QueryAttr> commonAttrGroup = this.commonAttrGroup;
-            if (commonAttrGroup == null) {
-                commonAttrGroup = Collections.emptyMap();
+        public Map<String, QueryAttr> getAttrGroup() {
+            Map<String, QueryAttr> queryAttrGroup = this.queryAttrGroup;
+            if (queryAttrGroup == null) {
+                queryAttrGroup = Collections.emptyMap();
             } else {
-                this.commonAttrGroup = null;
+                this.queryAttrGroup = null;
             }
-            return commonAttrGroup;
+            return queryAttrGroup;
         }
 
-        @Override
-        public List<Map<String, QueryAttr>> getAttrGroupList() {
-            List<Map<String, QueryAttr>> attrGroupList = this.attrGroupList;
-
-            if (attrGroupList == null) {
-                attrGroupList = Collections.emptyList();
-            } else {
-                this.attrGroupList = null;
-            }
-            return attrGroupList;
-        }
 
     }
 

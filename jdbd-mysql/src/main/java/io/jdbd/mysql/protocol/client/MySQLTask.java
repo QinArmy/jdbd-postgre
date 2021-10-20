@@ -2,6 +2,7 @@ package io.jdbd.mysql.protocol.client;
 
 import io.jdbd.vendor.conf.Properties;
 import io.jdbd.vendor.task.CommunicationTask;
+import io.netty.buffer.ByteBuf;
 
 import java.util.function.Consumer;
 
@@ -22,6 +23,11 @@ abstract class MySQLTask extends CommunicationTask {
         super(adjutant, errorConsumer);
         this.adjutant = adjutant;
         this.properties = adjutant.host().getProperties();
+    }
+
+    @Override
+    protected final boolean canDecode(ByteBuf cumulateBuffer) {
+        return true;
     }
 
 

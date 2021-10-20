@@ -366,14 +366,9 @@ public abstract class MySQLExceptions extends JdbdExceptions {
         return e;
     }
 
-    public static SQLException queryAttrNameNotMatch(final int batchIndex, final String name, final QueryAttr attr) {
+    public static SQLException queryAttrNameNotMatch(final String name, final QueryAttr attr) {
         final String m;
-        if (batchIndex < 0) {
-            m = String.format("Key[%s] and QueryAttribute[%s] not match.", name, attr.getName());
-        } else {
-            m = String.format("Batch index[%s] Key[%s] and QueryAttribute[%s] not match."
-                    , batchIndex, name, attr.getName());
-        }
+        m = String.format("Key[%s] and QueryAttribute[%s] not match.", name, attr.getName());
         return new SQLException(m);
     }
 

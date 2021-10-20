@@ -26,7 +26,7 @@ import java.util.concurrent.ConcurrentMap;
 import static org.testng.Assert.*;
 
 @Test//(groups = {Groups.SESSION_INITIALIZER}, dependsOnGroups = {Groups.AUTHENTICATE_PLUGIN})
-public class SessionInitializerSuiteTests extends AbstractConnectionBasedSuiteTests {
+public class SessionInitializerSuiteTests extends AbstractTaskSuiteTests {
 
     private static final Logger LOG = LoggerFactory.getLogger(SessionInitializerSuiteTests.class);
 

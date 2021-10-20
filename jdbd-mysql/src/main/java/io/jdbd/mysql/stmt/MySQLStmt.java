@@ -12,7 +12,7 @@ import java.util.Map;
 public interface MySQLStmt {
 
     /**
-     * @return a unmodified map
+     * @return a unmodified list
      */
     Map<String, QueryAttr> getQueryAttrs();
 

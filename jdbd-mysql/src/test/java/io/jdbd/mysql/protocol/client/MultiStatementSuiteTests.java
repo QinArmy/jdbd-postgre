@@ -42,7 +42,7 @@ import static org.testng.Assert.*;
  * @see ComQueryTask#bindBatch(BindBatchStmt, TaskAdjutant)
  */
 @Test(groups = {Groups.MULTI_STMT}, dependsOnGroups = {Groups.COM_QUERY, Groups.DATA_PREPARE})
-public class MultiStatementSuiteTests extends AbstractConnectionBasedSuiteTests {
+public class MultiStatementSuiteTests extends AbstractTaskSuiteTests {
 
     private static final Logger LOG = LoggerFactory.getLogger(MultiStatementSuiteTests.class);
 

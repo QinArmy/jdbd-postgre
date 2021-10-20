@@ -5,9 +5,7 @@ import io.jdbd.JdbdSQLException;
 import io.jdbd.meta.SQLType;
 import io.jdbd.mysql.MySQLType;
 import io.jdbd.mysql.stmt.AttrPreparedStatement;
-import io.jdbd.mysql.stmt.QueryAttr;
 import io.jdbd.mysql.stmt.Stmts;
-import io.jdbd.mysql.util.MySQLCollections;
 import io.jdbd.mysql.util.MySQLExceptions;
 import io.jdbd.result.*;
 import io.jdbd.session.DatabaseSession;
@@ -27,7 +25,10 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.util.annotation.Nullable;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Objects;
 import java.util.function.Consumer;
 
 /**
@@ -56,8 +57,6 @@ final class MySQLPreparedStatement extends MySQLStatement implements AttrPrepare
     private final List<List<ParamValue>> paramGroupList = new ArrayList<>();
 
     private List<ParamValue> paramGroup;
-
-    private Map<String, QueryAttr> attrGroup;
 
     private MySQLPreparedStatement(final MySQLDatabaseSession session, final PrepareTask<MySQLType> stmtTask) {
         super(session);
@@ -91,20 +90,6 @@ final class MySQLPreparedStatement extends MySQLStatement implements AttrPrepare
     }
 
     @Override
-    public void bindAttr(final String name, final MySQLType type, final @Nullable Object value) {
-        checkReuse();
-        Objects.requireNonNull(name, "name");
-        Map<String, QueryAttr> attrGroup = this.attrGroup;
-        if (attrGroup == null) {
-            attrGroup = new HashMap<>();
-            this.attrGroup = attrGroup;
-            prepareAttrGroupList(this.paramGroupList.size());
-        }
-        attrGroup.put(name, QueryAttr.wrap(name, type, value));
-    }
-
-
-    @Override
     public void addBatch() {
         final List<ParamValue> paramGroup = this.paramGroup;
         final int paramCount = this.paramCount;
@@ -129,10 +114,6 @@ final class MySQLPreparedStatement extends MySQLStatement implements AttrPrepare
             this.paramGroup = new ArrayList<>(paramCount);
         }
 
-        // add query attributes group
-        addBatchQueryAttr(this.attrGroup);
-        this.attrGroup = null;
-
     }
 
     @Override
@@ -155,16 +136,12 @@ final class MySQLPreparedStatement extends MySQLStatement implements AttrPrepare
             error = MySQLExceptions.cannotReuseStatement(PreparedStatement.class);
         } else if (this.rowMeta != null) {
             error = new SubscribeException(ResultType.UPDATE, ResultType.QUERY);
-        } else if (this.paramGroupList.size() > 0 || attrGroupListNotEmpty()) {
+        } else if (this.paramGroupList.size() > 0) {
             error = new SubscribeException(ResultType.UPDATE, ResultType.BATCH);
         } else if (paramGroup.size() != this.paramCount) {
             error = MySQLExceptions.parameterCountMatch(0, this.paramCount, paramGroup.size());
         } else {
             error = JdbdBinds.sortAndCheckParamGroup(0, paramGroup);
-            final Map<String, QueryAttr> attrGroup = this.attrGroup;
-            if (error == null && attrGroup != null) {
-                prepareAttrGroup(attrGroup);
-            }
         }
 
         final Mono<ResultStates> mono;
@@ -196,21 +173,18 @@ final class MySQLPreparedStatement extends MySQLStatement implements AttrPrepare
             error = MySQLExceptions.cannotReuseStatement(PreparedStatement.class);
         } else if (this.rowMeta == null) {
             error = new SubscribeException(ResultType.QUERY, ResultType.UPDATE);
-        } else if (this.paramGroupList.size() > 0 || !MySQLCollections.isEmpty(this.statementOption.attrGroupList)) {
+        } else if (this.paramGroupList.size() > 0) {
             error = new SubscribeException(ResultType.QUERY, ResultType.BATCH);
         } else if (paramGroup.size() != this.paramCount) {
             error = MySQLExceptions.parameterCountMatch(0, this.paramCount, paramGroup.size());
         } else {
             error = JdbdBinds.sortAndCheckParamGroup(0, paramGroup);
-            final Map<String, QueryAttr> attrGroup = this.attrGroup;
-            if (error == null && attrGroup != null) {
-                prepareAttrGroup(attrGroup);
-            }
         }
 
         final Flux<ResultRow> flux;
         if (error == null) {
-            ParamStmt stmt = Stmts.paramStmt(this.sql, paramGroup, statesConsumer, this.statementOption);
+            final ParamStmt stmt;
+            stmt = Stmts.paramStmt(this.sql, paramGroup, statesConsumer, this.statementOption);
             flux = this.stmtTask.executeQuery(stmt);
         } else {
             this.stmtTask.closeOnBindError(error); // close prepare statement.
@@ -223,24 +197,16 @@ final class MySQLPreparedStatement extends MySQLStatement implements AttrPrepare
     @Override
     public Flux<ResultStates> executeBatch() {
         final Flux<ResultStates> flux;
-        final int batchCount = this.paramGroupList.size();
         if (this.paramGroup == null) {
             flux = Flux.error(MySQLExceptions.cannotReuseStatement(PreparedStatement.class));
-        } else if (batchCount > 0) {
+        } else if (this.paramGroupList.size() == 0) {
             final JdbdException error = MySQLExceptions.noAnyParamGroupError();
             this.stmtTask.closeOnBindError(error); // close prepare statement.
             flux = Flux.error(error);
         } else {
-            final Throwable e;
-            e = checkBatchAttrGroupListSize(batchCount);
-            if (e == null) {
-                final ParamBatchStmt<ParamValue> stmt;
-                stmt = Stmts.paramBatch(this.sql, this.paramGroupList, this.statementOption);
-                flux = this.stmtTask.executeBatch(stmt);
-            } else {
-                this.stmtTask.closeOnBindError(e); // close prepare statement.
-                flux = Flux.error(e);
-            }
+            final ParamBatchStmt<ParamValue> stmt;
+            stmt = Stmts.paramBatch(this.sql, this.paramGroupList, this.statementOption);
+            flux = this.stmtTask.executeBatch(stmt);
         }
         clearStatementToAvoidReuse();
         return flux;
@@ -249,25 +215,17 @@ final class MySQLPreparedStatement extends MySQLStatement implements AttrPrepare
     @Override
     public MultiResult executeBatchAsMulti() {
         final MultiResult result;
-        final int batchCount = this.paramGroupList.size();
         if (this.paramGroup == null) {
             result = MultiResults.error(MySQLExceptions.cannotReuseStatement(PreparedStatement.class));
-        } else if (batchCount > 0) {
+        } else if (this.paramGroupList.size() == 0) {
             final JdbdException error = MySQLExceptions.noAnyParamGroupError();
             this.stmtTask.closeOnBindError(error); // close prepare statement.
             result = MultiResults.error(error);
         } else {
-            final Throwable e;
-            e = checkBatchAttrGroupListSize(batchCount);
-            if (e == null) {
-                this.statementOption.fetchSize = 0; // executeBatchAsMulti() don't support fetch.
-                final ParamBatchStmt<ParamValue> stmt;
-                stmt = Stmts.paramBatch(this.sql, this.paramGroupList, this.statementOption);
-                result = this.stmtTask.executeBatchAsMulti(stmt);
-            } else {
-                this.stmtTask.closeOnBindError(e); // close prepare statement.
-                result = MultiResults.error(e);
-            }
+            this.statementOption.fetchSize = 0; // executeBatchAsMulti() don't support fetch.
+            final ParamBatchStmt<ParamValue> stmt;
+            stmt = Stmts.paramBatch(this.sql, this.paramGroupList, this.statementOption);
+            result = this.stmtTask.executeBatchAsMulti(stmt);
         }
         clearStatementToAvoidReuse();
         return result;
@@ -277,24 +235,16 @@ final class MySQLPreparedStatement extends MySQLStatement implements AttrPrepare
     @Override
     public OrderedFlux executeBatchAsFlux() {
         final OrderedFlux flux;
-        final int batchCount = this.paramGroupList.size();
         if (this.paramGroup == null) {
             flux = MultiResults.fluxError(MySQLExceptions.cannotReuseStatement(PreparedStatement.class));
-        } else if (batchCount > 0) {
+        } else if (this.paramGroupList.size() == 0) {
             final JdbdException error = MySQLExceptions.noAnyParamGroupError();
             this.stmtTask.closeOnBindError(error); // close prepare statement.
             flux = MultiResults.fluxError(error);
         } else {
-            final Throwable e;
-            e = checkBatchAttrGroupListSize(batchCount);
-            if (e == null) {
-                final ParamBatchStmt<ParamValue> stmt;
-                stmt = Stmts.paramBatch(this.sql, this.paramGroupList, this.statementOption);
-                flux = this.stmtTask.executeBatchAsFlux(stmt);
-            } else {
-                this.stmtTask.closeOnBindError(e); // close prepare statement.
-                flux = MultiResults.fluxError(e);
-            }
+            final ParamBatchStmt<ParamValue> stmt;
+            stmt = Stmts.paramBatch(this.sql, this.paramGroupList, this.statementOption);
+            flux = this.stmtTask.executeBatchAsFlux(stmt);
         }
         clearStatementToAvoidReuse();
         return flux;
@@ -341,12 +291,16 @@ final class MySQLPreparedStatement extends MySQLStatement implements AttrPrepare
         }
     }
 
+    @Override
+    void closeOnBindError(Throwable error) {
+        this.stmtTask.closeOnBindError(error);
+    }
+
     /*################################## blow private method ##################################*/
 
 
     private void clearStatementToAvoidReuse() {
         this.paramGroup = null;
-        this.attrGroup = null;
     }
 
 

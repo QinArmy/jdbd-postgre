@@ -92,7 +92,7 @@ public abstract class ClientProtocolFactory {
                     .then(Mono.from(result.nextUpdate()))//2.SET character_set_results
                     .then(Mono.from(result.nextUpdate()))//3.SET key variables
                     .thenMany(result.nextQuery())//4. SELECT sql_mode
-                    .elementAt(0)
+                    .last()
                     .map(row -> new DefaultServer(clientCharset, resultCharset, row.getNonNull(0, String.class)))
                     .doOnSuccess(this.executor::resetTaskAdjutant)
 

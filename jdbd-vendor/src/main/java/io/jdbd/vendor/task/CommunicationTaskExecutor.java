@@ -7,6 +7,7 @@ import io.jdbd.vendor.conf.HostInfo;
 import io.jdbd.vendor.util.JdbdExceptions;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
+import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.channel.ChannelPipeline;
@@ -147,10 +148,11 @@ public abstract class CommunicationTaskExecutor<T extends ITaskAdjutant> impleme
      * @see #doOnNextInEventLoop(ByteBuf)
      */
     protected final void drainToTask() {
-        final ByteBuf cumulateBuffer = this.cumulateBuffer;
-        if (cumulateBuffer == null || !cumulateBuffer.isReadable()) {
-            return;
+        ByteBuf cumulateBuffer = this.cumulateBuffer;
+        if (cumulateBuffer == null) {
+            cumulateBuffer = Unpooled.EMPTY_BUFFER;
         }
+
         CommunicationTask currentTask = this.currentTask;
         if (currentTask == null) {
             startHeadIfNeed();
@@ -383,22 +385,22 @@ public abstract class CommunicationTaskExecutor<T extends ITaskAdjutant> impleme
                 this.currentTask = currentTask;
             }
         }
-        if (currentTask != null) {
-            if (currentTask instanceof ConnectionTask) {
-                ((ConnectionTask) currentTask).addSsl(this::addSslHandler);
-            }
-            Publisher<ByteBuf> publisher;
-            publisher = currentTask.startTask(this.taskSignal);
-            if (publisher == null) {
-                this.upstream.request(128L);
-                drainToTask();
-            } else {
-                // send packet
-                sendPacket(currentTask, publisher)
-                        .subscribe();
-            }
+        if (currentTask == null) {
+            return;
         }
-
+        if (currentTask instanceof ConnectionTask) {
+            ((ConnectionTask) currentTask).addSsl(this::addSslHandler);
+        }
+        Publisher<ByteBuf> publisher;
+        publisher = currentTask.startTask(this.taskSignal);
+        if (publisher == null) {
+            this.upstream.request(128L);
+            drainToTask();
+        } else {
+            // send packet
+            sendPacket(currentTask, publisher)
+                    .subscribe();
+        }
 
     }
 
