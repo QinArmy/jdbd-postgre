@@ -105,7 +105,7 @@ public abstract class CommunicationTaskExecutor<T extends ITaskAdjutant> impleme
         if (this.eventLoop.inEventLoop()) {
             doOnNextInEventLoop(byteBufFromPeer);
         } else {
-            final Logger LOG = obtainLogger();
+            final Logger LOG = getLogger();
             if (LOG.isDebugEnabled()) {
                 LOG.debug("{} onNext(),current thread not in EventLoop.", this);
             }
@@ -118,7 +118,7 @@ public abstract class CommunicationTaskExecutor<T extends ITaskAdjutant> impleme
         if (this.eventLoop.inEventLoop()) {
             doOnErrorInEventLoop(t);
         } else {
-            final Logger LOG = obtainLogger();
+            final Logger LOG = getLogger();
             if (LOG.isDebugEnabled()) {
                 LOG.debug("{} onError(Throwable),current thread not in EventLoop.", this);
             }
@@ -131,7 +131,7 @@ public abstract class CommunicationTaskExecutor<T extends ITaskAdjutant> impleme
         if (this.eventLoop.inEventLoop()) {
             doOnCompleteInEventLoop();
         } else {
-            final Logger LOG = obtainLogger();
+            final Logger LOG = getLogger();
             if (LOG.isDebugEnabled()) {
                 LOG.debug("{} onComplete(),current thread not in EventLoop.", this);
             }
@@ -147,9 +147,10 @@ public abstract class CommunicationTaskExecutor<T extends ITaskAdjutant> impleme
      * @see #startHeadIfNeed()
      * @see #doOnNextInEventLoop(ByteBuf)
      */
-    protected final void drainToTask() {
+    protected final void drainToTask(DrainType type) {
         ByteBuf cumulateBuffer = this.cumulateBuffer;
         if (cumulateBuffer == null) {
+
             cumulateBuffer = Unpooled.EMPTY_BUFFER;
         }
 
@@ -189,7 +190,7 @@ public abstract class CommunicationTaskExecutor<T extends ITaskAdjutant> impleme
 
     }
 
-    protected abstract Logger obtainLogger();
+    protected abstract Logger getLogger();
 
 
     protected abstract void updateServerStatus(Object serverStatus);
@@ -249,10 +250,7 @@ public abstract class CommunicationTaskExecutor<T extends ITaskAdjutant> impleme
      * @see #onNext(ByteBuf)
      */
     private void doOnNextInEventLoop(final ByteBuf byteBufFromPeer) {
-        final Logger LOG = obtainLogger();
-        if (LOG.isTraceEnabled()) {
-            LOG.trace("doOnNextInEventLoop() readableBytes={}", byteBufFromPeer.readableBytes());
-        }
+        final Logger LOG = getLogger();
 
         //1. merge  cumulate Buffer
         ByteBuf cumulateBuffer = this.cumulateBuffer;
@@ -266,15 +264,15 @@ public abstract class CommunicationTaskExecutor<T extends ITaskAdjutant> impleme
         } else {
             cumulateBuffer = ByteToMessageDecoder.MERGE_CUMULATOR.cumulate(
                     this.allocator, cumulateBuffer, byteBufFromPeer);
-        }
 
+        }
         this.cumulateBuffer = cumulateBuffer;
 
         if (this.taskError == null) {
             try {
                 this.packetIndex = cumulateBuffer.readerIndex();
                 //2. drain packet to task.
-                drainToTask();
+                drainToTask(DrainType.NEXT);
             } catch (TaskStatusException e) {
                 this.taskError = e;
                 Objects.requireNonNull(this.currentTask, "this.currentTask")
@@ -290,6 +288,12 @@ public abstract class CommunicationTaskExecutor<T extends ITaskAdjutant> impleme
             }
         } else {
             handleTaskStatusException();
+        }
+
+        cumulateBuffer = this.cumulateBuffer;
+        if (cumulateBuffer != null && !cumulateBuffer.isReadable()) {
+            cumulateBuffer.release();
+            this.cumulateBuffer = null;
         }
 
     }
@@ -328,7 +332,7 @@ public abstract class CommunicationTaskExecutor<T extends ITaskAdjutant> impleme
     }
 
     private void doOnErrorInEventLoop(Throwable e) {
-        obtainLogger().debug("channel channel error.");
+        getLogger().debug("channel channel error.");
         if (!this.connection.channel().isActive()) {
             CommunicationTask task = this.currentTask;
             final JdbdException exception = JdbdExceptions.wrap(e
@@ -355,7 +359,7 @@ public abstract class CommunicationTaskExecutor<T extends ITaskAdjutant> impleme
      * must invoke in {@link #eventLoop}
      */
     private void doOnCompleteInEventLoop() {
-        final Logger LOG = obtainLogger();
+        final Logger LOG = getLogger();
         if (LOG.isDebugEnabled()) {
             LOG.debug("Connection close.");
         }
@@ -395,7 +399,7 @@ public abstract class CommunicationTaskExecutor<T extends ITaskAdjutant> impleme
         publisher = currentTask.startTask(this.taskSignal);
         if (publisher == null) {
             this.upstream.request(128L);
-            drainToTask();
+            drainToTask(DrainType.START_NULL);
         } else {
             // send packet
             sendPacket(currentTask, publisher)
@@ -406,11 +410,11 @@ public abstract class CommunicationTaskExecutor<T extends ITaskAdjutant> impleme
 
     /**
      * @see #startHeadIfNeed()
-     * @see #drainToTask()
+     * @see #drainToTask(DrainType)
      */
     private void disconnection() {
         if (this.currentTask instanceof ConnectionTask) {
-            Logger LOG = obtainLogger();
+            Logger LOG = getLogger();
             if (LOG.isTraceEnabled()) {
                 LOG.trace("Task[{}] disconnect.", this.currentTask);
             }
@@ -454,7 +458,7 @@ public abstract class CommunicationTaskExecutor<T extends ITaskAdjutant> impleme
      */
     private void doAddSslHandler(final Object sslObject) {
 
-        final Logger LOG = obtainLogger();
+        final Logger LOG = getLogger();
         final boolean traceEnabled = LOG.isTraceEnabled();
         final ChannelPipeline pipeline = this.connection.channel().pipeline();
 
@@ -530,8 +534,8 @@ public abstract class CommunicationTaskExecutor<T extends ITaskAdjutant> impleme
      * @see TaskSingleImpl#sendPacket(CommunicationTask, boolean)
      */
     private void doSendPacketSignal(final MonoSink<Void> sink, final CommunicationTask signalTask, boolean endTask) {
-        if (obtainLogger().isDebugEnabled()) {
-            obtainLogger().debug("{} send packet signal", signalTask);
+        if (getLogger().isDebugEnabled()) {
+            getLogger().debug("{} send packet signal", signalTask);
         }
         if (signalTask == this.currentTask) {
             Publisher<ByteBuf> publisher;
@@ -567,7 +571,7 @@ public abstract class CommunicationTaskExecutor<T extends ITaskAdjutant> impleme
      * @see #sendPacket(CommunicationTask, Publisher)
      */
     private void handleSendPacketError(final CommunicationTask task, final Throwable cause) {
-        Logger logger = obtainLogger();
+        Logger logger = getLogger();
         if (logger.isDebugEnabled()) {
             logger.error("CommunicationTask:{}", task, cause);
         }
@@ -597,6 +601,11 @@ public abstract class CommunicationTaskExecutor<T extends ITaskAdjutant> impleme
 
 
     /*################################## blow private static class ##################################*/
+
+    private enum DrainType {
+        NEXT,
+        START_NULL
+    }
 
     protected static abstract class AbstractTaskAdjutant implements ITaskAdjutant {
 

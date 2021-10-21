@@ -225,11 +225,6 @@ final class MySQLConnectionTask extends CommunicationTask implements Authenticat
     }
 
     @Override
-    protected final boolean canDecode(ByteBuf cumulateBuffer) {
-        return Packets.hasOnePacket(cumulateBuffer);
-    }
-
-    @Override
     protected Action onError(Throwable e) {
         if (this.phase != Phase.END) {
             this.sink.error(MySQLExceptions.wrap(e));

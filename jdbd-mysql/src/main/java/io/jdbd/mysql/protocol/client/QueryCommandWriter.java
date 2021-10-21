@@ -22,6 +22,7 @@ import reactor.core.publisher.Mono;
 
 import java.io.InputStream;
 import java.math.BigDecimal;
+import java.math.BigInteger;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -339,7 +340,12 @@ final class QueryCommandWriter {
                 packet.writeBytes(Long.toString(value).getBytes(this.clientCharset));
             }
             break;
-            case BIGINT_UNSIGNED:
+            case BIGINT_UNSIGNED: {
+                final BigInteger value;
+                value = MySQLBinds.bindToBigInteger(batchIndex, bindValue.getType(), bindValue);
+                packet.writeBytes(value.toString().getBytes(this.clientCharset));
+            }
+            break;
             case DECIMAL:
             case DECIMAL_UNSIGNED: {
                 final BigDecimal value;

@@ -19,8 +19,6 @@ import io.jdbd.vendor.stmt.*;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
 import org.reactivestreams.Publisher;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.FluxSink;
 import reactor.core.publisher.Mono;
@@ -325,8 +323,6 @@ final class ComQueryTask extends AbstractCommandTask {
     }
 
 
-    private static final Logger LOG = LoggerFactory.getLogger(ComQueryTask.class);
-
     private final Stmt stmt;
 
     private Phase phase;
@@ -391,12 +387,9 @@ final class ComQueryTask extends AbstractCommandTask {
                 throw new IllegalStateException(String.format("Unknown stmt[%s]", stmt.getClass().getName()));
             }
             this.phase = Phase.READ_EXECUTE_RESPONSE;
-            if (LOG.isDebugEnabled()) {
-                LOG.debug("create COM_QUERY packet for {}", stmt.getClass().getName());
-            }
         } catch (Throwable e) {
-            if (LOG.isDebugEnabled()) {
-                LOG.debug("create COM_QUERY packet error for {}", stmt.getClass().getName(), e);
+            if (log.isDebugEnabled()) {
+                log.debug("create COM_QUERY packet error for {}", stmt.getClass().getName(), e);
             }
             this.phase = Phase.START_ERROR;
             publisher = null;
@@ -422,12 +415,17 @@ final class ComQueryTask extends AbstractCommandTask {
             switch (this.phase) {
                 case READ_EXECUTE_RESPONSE: {
                     taskEnd = readExecuteResponse(cumulateBuffer, serverStatusConsumer);
-                    continueRead = !taskEnd && Packets.hasOnePacket(cumulateBuffer);
+                    //TODO 根据下面这个思想优化 jdbd-postgre
+                    continueRead = !taskEnd
+                            && this.phase != Phase.READ_TEXT_RESULT_SET
+                            && Packets.hasOnePacket(cumulateBuffer);
                 }
                 break;
                 case READ_TEXT_RESULT_SET: {
                     taskEnd = readResultSet(cumulateBuffer, serverStatusConsumer);
-                    continueRead = !taskEnd && Packets.hasOnePacket(cumulateBuffer);
+                    continueRead = !taskEnd
+                            && this.phase != Phase.READ_TEXT_RESULT_SET
+                            && Packets.hasOnePacket(cumulateBuffer);
                 }
                 break;
                 default:
@@ -435,8 +433,8 @@ final class ComQueryTask extends AbstractCommandTask {
             }
         }
         if (taskEnd) {
-            if (LOG.isTraceEnabled()) {
-                LOG.trace("COM_QUERY instant[{}] task end.", this);
+            if (log.isTraceEnabled()) {
+                log.trace("COM_QUERY instant[{}] task end.", this);
             }
             this.phase = Phase.TASK_END;
             if (hasError()) {
@@ -451,7 +449,7 @@ final class ComQueryTask extends AbstractCommandTask {
     @Override
     protected Action onError(Throwable e) {
         if (this.phase == Phase.TASK_END) {
-            LOG.error("Unknown error.", e);
+            log.error("Unknown error.", e);
         } else {
             this.phase = Phase.TASK_END;
             addError(MySQLExceptions.wrapIfNonJvmFatal(e));
@@ -760,7 +758,7 @@ final class ComQueryTask extends AbstractCommandTask {
         final boolean metadata = (negotiatedCapability & Capabilities.CLIENT_OPTIONAL_RESULTSET_METADATA) != 0;
 
         switch (Packets.getInt1AsInt(cumulateBuffer, readerIndex++)) {
-            case 0: {
+            case 0: {// TODO 更准确
                 if (metadata && obtainLenEncIntByteCount(cumulateBuffer, readerIndex) + 1 == payloadLength) {
                     responseType = ComQueryResponse.TEXT_RESULT;
                 } else {

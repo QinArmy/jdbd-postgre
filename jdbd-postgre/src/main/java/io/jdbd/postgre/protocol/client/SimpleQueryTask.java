@@ -364,11 +364,6 @@ final class SimpleQueryTask extends AbstractStmtTask implements SimpleStmtTask {
 
 
     @Override
-    protected final boolean canDecode(ByteBuf cumulateBuffer) {
-        return true;
-    }
-
-    @Override
     protected final void onChannelClose() {
         if (this.phase != Phase.END) {
             addError(new SessionCloseException("Unexpected session close."));

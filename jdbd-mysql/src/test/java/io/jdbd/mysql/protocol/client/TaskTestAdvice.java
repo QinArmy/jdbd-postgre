@@ -20,6 +20,7 @@ import org.slf4j.LoggerFactory;
 import org.testng.ITestContext;
 import org.testng.annotations.AfterSuite;
 import org.testng.annotations.Test;
+import reactor.core.publisher.Flux;
 
 import java.math.BigDecimal;
 import java.math.BigInteger;
@@ -33,14 +34,17 @@ import java.util.*;
 import static org.testng.Assert.*;
 
 @Test(groups = {Groups.DATA_PREPARE}, dependsOnGroups = {Groups.SESSION_INITIALIZER, Groups.UTILS})
-public class DataPrepareSuiteTests extends AbstractTaskSuiteTests {
+public class TaskTestAdvice extends AbstractTaskSuiteTests {
 
     private static final Logger LOG = LoggerFactory.getLogger(ComQueryTaskSuiteTests.class);
 
 
     @AfterSuite(timeOut = 10 * 1000)
     public static void afterSuite(ITestContext context) {
-        throw new UnsupportedOperationException();
+        Flux.fromIterable(TASK_ADJUTANT_QUEUE)
+                .flatMap(QuitTask::quit)
+                .then()
+                .block();
 
     }
 
@@ -50,11 +54,11 @@ public class DataPrepareSuiteTests extends AbstractTaskSuiteTests {
 
         final TaskAdjutant adjutant = obtainTaskAdjutant();
 
-        final Path path = Paths.get(ClientTestUtils.getTestResourcesPath().toString(), "script/ddl/comQueryTask.sql");
+        final Path path = Paths.get(ClientTestUtils.getTestResourcesPath().toString(), "script/ddl/mysqlTypes.sql");
 
-        List<String> commandList = new ArrayList<>(2);
+        final List<String> commandList = new ArrayList<>(2);
+        commandList.add("DROP TABLE IF EXISTS mysql_types");
         commandList.add(MySQLStreams.readAsString(path));
-        commandList.add("TRUNCATE mysql_types");
 
         LOG.info("start create mysql_types table.");
 
@@ -75,7 +79,7 @@ public class DataPrepareSuiteTests extends AbstractTaskSuiteTests {
         releaseConnection(adjutant);
     }
 
-    @Test(dependsOnMethods = "prepareData")
+    @Test(enabled = false, dependsOnMethods = "prepareData")
     public void mysqlTypeMetadataMatch() {
         LOG.info("mysqlTypeMatch test start");
         final TaskAdjutant adjutant = obtainTaskAdjutant();
@@ -103,7 +107,7 @@ public class DataPrepareSuiteTests extends AbstractTaskSuiteTests {
         final int rowCount = 10000;
 
         StringBuilder builder = new StringBuilder(40 * rowCount)
-                .append("INSERT INTO mysql_types(name,my_char,my_bit,my_boolean,my_json) VALUES");
+                .append("INSERT INTO mysql_types(my_var_char200,my_char200,my_bit64,my_boolean,my_json) VALUES");
 
         final Random random = new Random();
 

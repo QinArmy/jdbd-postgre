@@ -652,7 +652,6 @@ public abstract class Packets {
             }
         } else if (stmt instanceof StaticMultiStmt) {
             capacity += ((StaticMultiStmt) stmt).getMultiStmt().length();
-
         } else if (stmt instanceof BindMultiStmt) {
             capacity += (((BindMultiStmt) stmt).getStmtGroup().size() * 50);
         }

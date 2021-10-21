@@ -82,10 +82,6 @@ public abstract class CommunicationTask {
         if (this.taskPhase != TaskPhase.STARTED) {
             throw createTaskPhaseException(TaskPhase.STARTED);
         }
-        if (!canDecode(cumulateBuffer)) {
-            return false;
-        }
-
         boolean taskEnd;
         final int oldReaderIndex = cumulateBuffer.readerIndex();
         this.methodStack = MethodStack.DECODE;
@@ -348,10 +344,6 @@ public abstract class CommunicationTask {
      * @return true ,task end.
      */
     protected abstract boolean decode(ByteBuf cumulateBuffer, Consumer<Object> serverStatusConsumer);
-
-
-    protected abstract boolean canDecode(ByteBuf cumulateBuffer);
-
 
 
     /*################################## blow private method ##################################*/

@@ -64,7 +64,7 @@ final class PgTaskExecutor extends CommunicationTaskExecutor<TaskAdjutant> {
     }
 
     @Override
-    protected final Logger obtainLogger() {
+    protected final Logger getLogger() {
         return LOG;
     }
 

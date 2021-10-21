@@ -15,6 +15,7 @@ import java.util.function.Consumer;
  */
 abstract class MySQLTask extends CommunicationTask {
 
+
     final TaskAdjutant adjutant;
 
     final Properties properties;
@@ -25,8 +26,10 @@ abstract class MySQLTask extends CommunicationTask {
         this.properties = adjutant.host().getProperties();
     }
 
+
     @Override
-    protected final boolean canDecode(ByteBuf cumulateBuffer) {
+    protected boolean skipPacketsOnError(ByteBuf cumulateBuffer, Consumer<Object> serverStatusConsumer) {
+        System.out.println("skipPacketsOnError");
         return true;
     }
 

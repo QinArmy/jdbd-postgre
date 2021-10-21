@@ -8,6 +8,7 @@ import io.jdbd.session.DatabaseSessionFactory;
 import io.netty.channel.EventLoopGroup;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.testng.Assert;
 import reactor.netty.resources.LoopResources;
 
 import java.nio.charset.Charset;
@@ -38,7 +39,15 @@ public abstract class AbstractTaskSuiteTests {
 
 
     protected static TaskAdjutant obtainTaskAdjutant() {
-        throw new UnsupportedOperationException();
+        TaskAdjutant adjutant = TASK_ADJUTANT_QUEUE.poll();
+        if (adjutant == null) {
+            adjutant = ClientProtocolFactory.single(DEFAULT_SESSION_ADJUTANT)
+                    .map(AbstractTaskSuiteTests::getTaskAdjutant)
+                    .block();
+            Assert.assertNotNull(adjutant, "adjutant");
+
+        }
+        return adjutant;
     }
 
 

@@ -390,9 +390,6 @@ public abstract class JdbdBinds {
             value = (v ? BigDecimal.ONE : BigDecimal.ZERO);
         } else if (nonNull instanceof BigInteger) {
             value = new BigDecimal((BigInteger) nonNull);
-        } else if (nonNull instanceof Double
-                || nonNull instanceof Float) {
-            value = BigDecimal.valueOf(((Number) nonNull).doubleValue());
         } else {
             throw JdbdExceptions.createNonSupportBindSqlTypeError(batchIndex, sqlType, paramValue);
         }

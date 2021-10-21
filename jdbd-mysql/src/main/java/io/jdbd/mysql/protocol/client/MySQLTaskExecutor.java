@@ -70,7 +70,7 @@ final class MySQLTaskExecutor extends CommunicationTaskExecutor<TaskAdjutant> {
     }
 
     @Override
-    protected Logger obtainLogger() {
+    protected Logger getLogger() {
         return LOG;
     }
 
@@ -81,7 +81,7 @@ final class MySQLTaskExecutor extends CommunicationTaskExecutor<TaskAdjutant> {
 
 
     protected void updateServerStatus(Object serversStatus) {
-        LOG.debug("serversStatus :{}", serversStatus);
+        // LOG.debug("serversStatus :{}", serversStatus);
     }
 
     @Override

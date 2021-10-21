@@ -28,9 +28,45 @@ public class ComQueryDataTypeSuiteTests extends AbstractDataTypeSuiteTests {
      * @see MySQLType#TINYINT
      * @see MySQLType#TINYINT_UNSIGNED
      */
-    @Test//(timeOut = TIME_OUT)
+    @Test(timeOut = TIME_OUT)
     public void tinyIntBindAndExtract() {
         tinyInt();
+    }
+
+    /**
+     * @see MySQLType#SMALLINT
+     * @see MySQLType#SMALLINT_UNSIGNED
+     */
+    @Test(timeOut = TIME_OUT)
+    public void smallIntBindAndExtract() {
+        smallInt();
+    }
+
+    /**
+     * @see MySQLType#MEDIUMINT
+     * @see MySQLType#MEDIUMINT_UNSIGNED
+     */
+    @Test(timeOut = TIME_OUT)
+    public void mediumIntBindAndExtract() {
+        mediumInt();
+    }
+
+    /**
+     * @see MySQLType#INT
+     * @see MySQLType#INT_UNSIGNED
+     */
+    @Test(timeOut = TIME_OUT)
+    public void intBindAndExtract() {
+        integer();
+    }
+
+    /**
+     * @see MySQLType#BIGINT
+     * @see MySQLType#BIGINT_UNSIGNED
+     */
+    @Test(timeOut = TIME_OUT, invocationCount = 100)
+    public void bigIntBindAndExtract() {
+        bigInt();
     }
 
 

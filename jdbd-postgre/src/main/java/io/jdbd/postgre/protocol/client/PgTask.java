@@ -22,17 +22,6 @@ abstract class PgTask extends CommunicationTask {
     }
 
 
-    @Override
-    protected boolean canDecode(ByteBuf cumulateBuffer) {
-        final PostgreUnitTask unitTask = this.unitTask;
-        final boolean yes;
-        if (unitTask == null) {
-            yes = Messages.hasOneMessage(cumulateBuffer);
-        } else {
-            yes = unitTask.hasOnePacket(cumulateBuffer);
-        }
-        return yes;
-    }
 
 
     /**

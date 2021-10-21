@@ -55,6 +55,8 @@ abstract class AbstractResultSetReader implements ResultSetReader {
 
     private ByteBuf bigPayload;
 
+    private long invokerCount = 0;
+
     AbstractResultSetReader(StmtTask task) {
         this.task = task;
         this.adjutant = task.adjutant();
@@ -69,10 +71,10 @@ abstract class AbstractResultSetReader implements ResultSetReader {
         if (resultSetEnd) {
             throw new IllegalStateException("ResultSet have ended.");
         }
-
         try {
             boolean continueRead = Packets.hasOnePacket(cumulateBuffer);
             while (continueRead) {
+                this.invokerCount++;
                 switch (this.phase) {
                     case READ_RESULT_META: {
                         if (readResultSetMeta(cumulateBuffer, serverStatesConsumer)) {
@@ -173,7 +175,6 @@ abstract class AbstractResultSetReader implements ResultSetReader {
         boolean resultSetEnd = false;
         int sequenceId = -1;
         final boolean binaryReader = isBinaryReader();
-
         final boolean cancelled = sink.isCancelled();
         long readRowCount = this.readRowCount;
 

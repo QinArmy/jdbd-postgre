@@ -54,7 +54,6 @@ abstract class AbstractCommandTask extends MySQLTask implements StmtTask {
         } else {
             isCanceled = false;
         }
-        log.trace("Read command response,isCanceled:{}", isCanceled);
         return isCanceled;
     }
 
@@ -140,6 +139,7 @@ abstract class AbstractCommandTask extends MySQLTask implements StmtTask {
      * @return true:task end
      */
     final boolean readResultSet(final ByteBuf cumulateBuffer, final Consumer<Object> serverStatusConsumer) {
+
         final boolean taskEnd;
         switch (this.resultSetReader.read(cumulateBuffer, serverStatusConsumer)) {
             case END_ONE_ERROR: {
@@ -186,6 +186,7 @@ abstract class AbstractCommandTask extends MySQLTask implements StmtTask {
      * @return true: task end.
      */
     final boolean readUpdateResult(final ByteBuf cumulateBuffer, final Consumer<Object> serverStatusConsumer) {
+
         final int payloadLength = Packets.readInt3(cumulateBuffer);
         updateSequenceId(Packets.readInt1AsInt(cumulateBuffer));
         final OkPacket ok;
@@ -209,7 +210,6 @@ abstract class AbstractCommandTask extends MySQLTask implements StmtTask {
         }
         return taskEnd;
     }
-
 
 
 }

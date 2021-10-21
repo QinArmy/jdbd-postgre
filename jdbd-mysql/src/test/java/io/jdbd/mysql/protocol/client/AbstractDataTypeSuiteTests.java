@@ -4,8 +4,12 @@ import io.jdbd.mysql.MySQLType;
 import io.jdbd.mysql.stmt.BindStmt;
 import io.jdbd.mysql.stmt.BindValue;
 import io.jdbd.mysql.stmt.Stmts;
+import io.jdbd.mysql.util.MySQLNumbers;
 import io.jdbd.result.ResultRow;
+import io.jdbd.result.ResultRowMeta;
 import io.jdbd.result.ResultStates;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.util.annotation.Nullable;
@@ -17,8 +21,7 @@ import java.util.List;
 import java.util.Queue;
 import java.util.concurrent.LinkedBlockingQueue;
 
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.*;
 
 /**
  * <p>
@@ -31,6 +34,8 @@ import static org.testng.Assert.assertNotNull;
 abstract class AbstractDataTypeSuiteTests extends AbstractTaskSuiteTests {
 
     private static final Queue<ClientProtocol> PROTOCOL_QUEUE = new LinkedBlockingQueue<>();
+
+    final Logger LOG = LoggerFactory.getLogger(getClass());
 
 
     private final long startId;
@@ -72,7 +77,195 @@ abstract class AbstractDataTypeSuiteTests extends AbstractTaskSuiteTests {
         testType(id, column, type, BigDecimal.valueOf(Byte.MIN_VALUE));
         testType(id, column, type, BigDecimal.valueOf(Byte.MAX_VALUE));
 
+        column = "my_tinyint_unsigned";
+        type = MySQLType.TINYINT_UNSIGNED;
 
+        testType(id, column, type, null);
+
+        testType(id, column, type, (byte) 0);
+        testType(id, column, type, (short) 0xFF);
+        testType(id, column, type, 0xFF);
+        testType(id, column, type, (long) 0xFF);
+        testType(id, column, type, BigInteger.valueOf(0xFF));
+        testType(id, column, type, BigDecimal.valueOf(0xFF));
+
+    }
+
+    /**
+     * @see MySQLType#SMALLINT
+     * @see MySQLType#SMALLINT_UNSIGNED
+     */
+    final void smallInt() {
+        final long id = startId + 2;
+        String column;
+        MySQLType type;
+
+        column = "my_smallint";
+        type = MySQLType.SMALLINT;
+
+        testType(id, column, type, null);
+        testType(id, column, type, (byte) 0);
+
+        testType(id, column, type, Short.MIN_VALUE);
+        testType(id, column, type, Short.MAX_VALUE);
+        testType(id, column, type, (int) Short.MIN_VALUE);
+        testType(id, column, type, (int) Short.MAX_VALUE);
+
+        testType(id, column, type, (long) Short.MIN_VALUE);
+        testType(id, column, type, (long) Short.MAX_VALUE);
+        testType(id, column, type, BigInteger.valueOf(Short.MIN_VALUE));
+        testType(id, column, type, BigInteger.valueOf(Short.MAX_VALUE));
+
+        testType(id, column, type, BigDecimal.valueOf(Short.MIN_VALUE));
+        testType(id, column, type, BigDecimal.valueOf(Short.MAX_VALUE));
+
+        column = "my_smallint_unsigned";
+        type = MySQLType.SMALLINT_UNSIGNED;
+
+        testType(id, column, type, null);
+
+        testType(id, column, type, (byte) 0);
+        testType(id, column, type, 0xFFFF);
+        testType(id, column, type, (long) 0xFFFF);
+        testType(id, column, type, (long) 0xFFFF);
+
+        testType(id, column, type, BigInteger.valueOf(0xFFFF));
+        testType(id, column, type, BigInteger.valueOf(0xFFFF));
+
+        testType(id, column, type, BigDecimal.valueOf(0xFFFF));
+        testType(id, column, type, BigDecimal.valueOf(0xFFFF));
+
+    }
+
+    /**
+     * @see MySQLType#MEDIUMINT
+     * @see MySQLType#MEDIUMINT_UNSIGNED
+     */
+    final void mediumInt() {
+        final long id = startId + 3;
+
+        String column;
+        MySQLType type;
+
+        final int max = 0x7FFF_FF, min = (-max) - 1;
+        column = "my_mediumint";
+        type = MySQLType.MEDIUMINT;
+
+        testType(id, column, type, null);
+        testType(id, column, type, (byte) 0);
+
+        testType(id, column, type, Short.MIN_VALUE);
+        testType(id, column, type, Short.MAX_VALUE);
+        testType(id, column, type, min);
+        testType(id, column, type, max);
+
+        testType(id, column, type, (long) min);
+        testType(id, column, type, (long) max);
+        testType(id, column, type, BigInteger.valueOf(min));
+        testType(id, column, type, BigInteger.valueOf(max));
+
+        testType(id, column, type, BigDecimal.valueOf(min));
+        testType(id, column, type, BigDecimal.valueOf(max));
+
+        column = "my_mediumint_unsigned";
+        type = MySQLType.MEDIUMINT_UNSIGNED;
+
+        testType(id, column, type, null);
+        testType(id, column, type, (byte) 0);
+
+        testType(id, column, type, Short.MAX_VALUE);
+        testType(id, column, type, 0xFFFF_FF);
+        testType(id, column, type, (long) 0xFFFF_FF);
+        testType(id, column, type, BigInteger.valueOf(0xFFFF_FF));
+
+        testType(id, column, type, BigDecimal.valueOf(0xFFFF_FF));
+    }
+
+    /**
+     * @see MySQLType#INT
+     * @see MySQLType#INT_UNSIGNED
+     */
+    final void integer() {
+        final long id = startId + 4;
+
+        String column;
+        MySQLType type;
+
+        column = "my_int";
+        type = MySQLType.INT;
+
+        testType(id, column, type, null);
+        testType(id, column, type, (byte) 0);
+
+        testType(id, column, type, Short.MIN_VALUE);
+        testType(id, column, type, Short.MAX_VALUE);
+        testType(id, column, type, Integer.MIN_VALUE);
+        testType(id, column, type, Integer.MAX_VALUE);
+
+        testType(id, column, type, (long) Integer.MIN_VALUE);
+        testType(id, column, type, (long) Integer.MAX_VALUE);
+        testType(id, column, type, BigInteger.valueOf(Integer.MIN_VALUE));
+        testType(id, column, type, BigInteger.valueOf(Integer.MAX_VALUE));
+
+        testType(id, column, type, BigDecimal.valueOf(Integer.MIN_VALUE));
+        testType(id, column, type, BigDecimal.valueOf(Integer.MAX_VALUE));
+
+        column = "my_int_unsigned";
+        type = MySQLType.INT_UNSIGNED;
+
+        testType(id, column, type, null);
+        testType(id, column, type, (byte) 0);
+
+        testType(id, column, type, Short.MAX_VALUE);
+        testType(id, column, type, Integer.MAX_VALUE);
+        testType(id, column, type, 0xFFFF_FFFFL);
+        testType(id, column, type, BigInteger.valueOf(0xFFFF_FFFFL));
+
+        testType(id, column, type, BigDecimal.valueOf(0xFFFF_FFFFL));
+    }
+
+    /**
+     * @see MySQLType#BIGINT
+     * @see MySQLType#BIGINT_UNSIGNED
+     */
+    final void bigInt() {
+        final long id = startId + 5;
+        LOG.debug("bigInt start");
+        String column;
+        MySQLType type;
+
+        column = "my_bigint";
+        type = MySQLType.BIGINT;
+
+        testType(id, column, type, null);
+        testType(id, column, type, (byte) 0);
+
+        testType(id, column, type, Short.MIN_VALUE);
+        testType(id, column, type, Short.MAX_VALUE);
+        testType(id, column, type, Integer.MIN_VALUE);
+        testType(id, column, type, Integer.MAX_VALUE);
+
+        testType(id, column, type, Long.MIN_VALUE);
+        testType(id, column, type, Long.MAX_VALUE);
+        testType(id, column, type, BigInteger.valueOf(Long.MIN_VALUE));
+        testType(id, column, type, BigInteger.valueOf(Long.MAX_VALUE));
+
+        testType(id, column, type, BigDecimal.valueOf(Long.MIN_VALUE));
+        testType(id, column, type, BigDecimal.valueOf(Long.MAX_VALUE));
+
+        LOG.debug("bigInt unsigned start");
+        column = "my_bigint_unsigned";
+        type = MySQLType.BIGINT_UNSIGNED;
+
+        testType(id, column, type, null);
+        testType(id, column, type, (byte) 0);
+
+        testType(id, column, type, Short.MAX_VALUE);
+        testType(id, column, type, Integer.MAX_VALUE);
+        testType(id, column, type, Long.MAX_VALUE);
+        testType(id, column, type, MySQLNumbers.MAX_UNSIGNED_LONG);
+        LOG.debug("bigInt unsigned end");
+        testType(id, column, type, new BigDecimal(MySQLNumbers.MAX_UNSIGNED_LONG));
     }
 
 
@@ -95,7 +288,7 @@ abstract class AbstractDataTypeSuiteTests extends AbstractTaskSuiteTests {
                 .block();
         assertNotNull(row, "row");
         if (value == null) {
-            assertNotNull(row.get(column));
+            assertNull(row.get(column), column);
         } else {
             assertResult(column, type, row, value);
         }
@@ -103,15 +296,18 @@ abstract class AbstractDataTypeSuiteTests extends AbstractTaskSuiteTests {
     }
 
     private void assertResult(final String column, final MySQLType type, final ResultRow row, final Object nonNull) {
-
         switch (type) {
             case TINYINT:
             case TINYINT_UNSIGNED:
+            case SMALLINT:
+            case SMALLINT_UNSIGNED:
             default: {
+                final ResultRowMeta rowMeta = row.getRowMeta();
+                assertEquals(rowMeta.getSQLType(column), type, column);
+                assertTrue(type.javaType().isInstance(row.getNonNull(column)), column);
                 assertEquals(row.get(column, nonNull.getClass()), nonNull, column);
             }
         }
-
 
     }
 
