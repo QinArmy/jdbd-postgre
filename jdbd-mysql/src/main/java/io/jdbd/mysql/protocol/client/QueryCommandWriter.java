@@ -504,16 +504,16 @@ final class QueryCommandWriter {
         final Object nonNull = bindValue.getNonNull();
 
         final byte[] value;
-        if (nonNull instanceof CharSequence) {
-            value = nonNull.toString().getBytes(this.clientCharset);
-        } else if (nonNull instanceof Enum) {
-            value = ((Enum<?>) nonNull).name().getBytes(this.clientCharset);
-        } else if (nonNull instanceof byte[]) {
-            value = (byte[]) nonNull;
+        if (nonNull instanceof byte[]) {
+            if (StandardCharsets.UTF_8.equals(this.clientCharset)) {
+                value = (byte[]) nonNull;
+            } else {
+                value = new String((byte[]) nonNull, StandardCharsets.UTF_8).getBytes(this.clientCharset);
+            }
         } else {
-            throw MySQLExceptions.createNonSupportBindSqlTypeError(batchIndex, bindValue.getType(), bindValue);
+            value = MySQLBinds.bindNonNullToString(batchIndex, bindValue.getType(), bindValue)
+                    .getBytes(this.clientCharset);
         }
-
         writeOneEscapesValue(packet, value);
 
     }
@@ -572,10 +572,15 @@ final class QueryCommandWriter {
     private void writeBinaryValue(final int batchIndex, final BindValue bindValue, final ByteBuf packet)
             throws SQLException {
         final Object nonNull = bindValue.getNonNull();
-        if (!(nonNull instanceof byte[])) {
+        final byte[] value;
+        if (nonNull instanceof byte[]) {
+            value = (byte[]) nonNull;
+        } else if (nonNull instanceof String) {
+            value = ((String) nonNull).getBytes(this.clientCharset);
+        } else {
             throw MySQLExceptions.createNonSupportBindSqlTypeError(batchIndex, bindValue.getType(), bindValue);
         }
-        writeOneEscapesValue(packet, (byte[]) nonNull);
+        writeOneEscapesValue(packet, value);
 
     }
 

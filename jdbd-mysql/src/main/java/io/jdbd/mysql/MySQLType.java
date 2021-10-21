@@ -198,7 +198,7 @@ public enum MySQLType implements SQLType {
      *
      * </p>
      */
-    TIME(Constants.TYPE_TIME, JDBCType.TIME, LocalTime.class),
+    TIME(Constants.TYPE_TIME, JDBCType.TIME, Object.class),
 
     /**
      * DATE
@@ -316,7 +316,7 @@ public enum MySQLType implements SQLType {
      * <p>
      * Protocol: TYPE_ENUM = 247
      */
-    ENUM(Constants.TYPE_ENUM, JDBCType.VARCHAR, String.class),
+    ENUM(Constants.TYPE_ENUM, JDBCType.CHAR, String.class),
     /**
      * SET('value1','value2',...) [CHARACTER SET charset_name] [COLLATE collation_name]
      * A set. A string object that can have zero or more values, each of which must be chosen from the list
@@ -329,7 +329,7 @@ public enum MySQLType implements SQLType {
      * a unmodifiable {@link Set} ,the type of elements is {@link String} or {@link Enum}
      * </p>
      */
-    SET(Constants.TYPE_SET, JDBCType.VARCHAR, Set.class),
+    SET(Constants.TYPE_SET, JDBCType.CHAR, Set.class),
 
     /**
      * The size of JSON documents stored in JSON columns is limited to the value of the max_allowed_packet system variable (max value 1073741824).

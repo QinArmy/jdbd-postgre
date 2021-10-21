@@ -14,6 +14,7 @@ import org.slf4j.LoggerFactory;
 import reactor.util.annotation.Nullable;
 
 import java.nio.charset.Charset;
+import java.util.Arrays;
 import java.util.Map;
 import java.util.Objects;
 
@@ -29,7 +30,7 @@ final class MySQLColumnMeta {
 
     static final int NOT_NULL_FLAG = 1;
     static final int PRI_KEY_FLAG = 1 << 1;
-    static final int UNIQUE_KEY_FLAG = 1 << 4;
+    static final int UNIQUE_KEY_FLAG = 1 << 2;
     static final int MULTIPLE_KEY_FLAG = 1 << 3;
 
     static final int BLOB_FLAG = 1 << 4;
@@ -177,7 +178,7 @@ final class MySQLColumnMeta {
         return (this.definitionFlags & SET_FLAG) != 0;
     }
 
-    final boolean isBinary() {
+    boolean isBinary() {
         return (this.definitionFlags & BINARY_FLAG) != 0;
     }
 
@@ -228,21 +229,115 @@ final class MySQLColumnMeta {
     @Override
     public String toString() {
         final StringBuilder sb = new StringBuilder("MySQLColumnMeta{");
-        sb.append("catalogName='").append(catalogName).append('\'');
-        sb.append(",\n schemaName='").append(schemaName).append('\'');
-        sb.append(",\n tableName='").append(tableName).append('\'');
-        sb.append(",\n tableAlias='").append(tableAlias).append('\'');
-        sb.append(",\n columnName='").append(columnName).append('\'');
-        sb.append(",\n columnAlias='").append(columnLabel).append('\'');
-        sb.append(",\n collationIndex=").append(collationIndex);
-        sb.append(",\n fixedLength=").append(fixedLength);
-        sb.append(",\n length=").append(length);
-        sb.append(",\n typeFlag=").append(typeFlag);
-        sb.append(",\n definitionFlags=").append(definitionFlags);
-        sb.append(",\n decimals=").append(decimals);
-        sb.append(",\n mysqlType=").append(sqlType);
-        sb.append('}');
+        sb.append("catalogName='").append(catalogName).append('\'')
+                .append(",\n schemaName='").append(schemaName).append('\'')
+                .append(",\n tableName='").append(tableName).append('\'')
+                .append(",\n tableAlias='").append(tableAlias).append('\'')
+                .append(",\n columnName='").append(columnName).append('\'')
+                .append(",\n columnAlias='").append(columnLabel).append('\'')
+                .append(",\n collationIndex=").append(collationIndex)
+                .append(",\n fixedLength=").append(fixedLength)
+                .append(",\n length=").append(length)
+                .append(",\n typeFlag=").append(typeFlag)
+                .append(",\n definitionFlags={\n");
+
+        appendDefinitionFlag(sb);
+
+        sb.append(",decimals=").append(decimals)
+                .append(",\n mysqlType=").append(sqlType)
+                .append('}');
         return sb.toString();
+    }
+
+    private void appendDefinitionFlag(final StringBuilder builder) {
+        final int flag = this.definitionFlags;
+        final char[] bitCharMap = new char[16];
+        Arrays.fill(bitCharMap, '.');
+        int index = bitCharMap.length - 1;
+
+        bitCharMap[index] = (flag & NOT_NULL_FLAG) == 0 ? '0' : '1';
+        builder.append(bitCharMap);
+        bitCharMap[index--] = '.';
+        builder.append(" = Not null\n");
+
+        bitCharMap[index] = (flag & PRI_KEY_FLAG) == 0 ? '0' : '1';
+        builder.append(bitCharMap);
+        bitCharMap[index--] = '.';
+        builder.append(" = Primary key\n");
+
+        bitCharMap[index] = (flag & UNIQUE_KEY_FLAG) == 0 ? '0' : '1';
+        builder.append(bitCharMap);
+        bitCharMap[index--] = '.';
+        builder.append(" = Unique key\n");
+
+        bitCharMap[index] = (flag & MULTIPLE_KEY_FLAG) == 0 ? '0' : '1';
+        builder.append(bitCharMap);
+        bitCharMap[index--] = '.';
+        builder.append(" = Multiple key\n");
+
+
+        bitCharMap[index] = (flag & BLOB_FLAG) == 0 ? '0' : '1';
+        builder.append(bitCharMap);
+        bitCharMap[index--] = '.';
+        builder.append(" = Blob\n");
+
+        bitCharMap[index] = (flag & UNSIGNED_FLAG) == 0 ? '0' : '1';
+        builder.append(bitCharMap);
+        bitCharMap[index--] = '.';
+        builder.append(" = Unsigned\n");
+
+        bitCharMap[index] = (flag & ZEROFILL_FLAG) == 0 ? '0' : '1';
+        builder.append(bitCharMap);
+        bitCharMap[index--] = '.';
+        builder.append(" = Zoro fill\n");
+
+        bitCharMap[index] = (flag & BINARY_FLAG) == 0 ? '0' : '1';
+        builder.append(bitCharMap);
+        bitCharMap[index--] = '.';
+        builder.append(" = Binary\n");
+
+
+        bitCharMap[index] = (flag & ENUM_FLAG) == 0 ? '0' : '1';
+        builder.append(bitCharMap);
+        bitCharMap[index--] = '.';
+        builder.append(" = Enum\n");
+
+        bitCharMap[index] = (flag & AUTO_INCREMENT_FLAG) == 0 ? '0' : '1';
+        builder.append(bitCharMap);
+        bitCharMap[index--] = '.';
+        builder.append(" = Auto increment\n");
+
+        bitCharMap[index] = (flag & TIMESTAMP_FLAG) == 0 ? '0' : '1';
+        builder.append(bitCharMap);
+        bitCharMap[index--] = '.';
+        builder.append(" = Timestamp\n");
+
+        bitCharMap[index] = (flag & SET_FLAG) == 0 ? '0' : '1';
+        builder.append(bitCharMap);
+        bitCharMap[index--] = '.';
+        builder.append(" = Set\n");
+
+
+        bitCharMap[index] = (flag & NO_DEFAULT_VALUE_FLAG) == 0 ? '0' : '1';
+        builder.append(bitCharMap);
+        bitCharMap[index--] = '.';
+        builder.append(" = No default\n");
+
+        bitCharMap[index] = (flag & ON_UPDATE_NOW_FLAG) == 0 ? '0' : '1';
+        builder.append(bitCharMap);
+        bitCharMap[index--] = '.';
+        builder.append(" = On update now\n");
+
+        bitCharMap[index] = (flag & PART_KEY_FLAG) == 0 ? '0' : '1';
+        builder.append(bitCharMap);
+        bitCharMap[index--] = '.';
+        builder.append(" = Part key\n");
+
+        bitCharMap[index] = (flag & NUM_FLAG) == 0 ? '0' : '1';
+        builder.append(bitCharMap);
+        bitCharMap[index] = '.';
+        builder.append(" = Num\n}");
+
     }
 
     int obtainTimeTypePrecision() {
@@ -260,7 +355,7 @@ final class MySQLColumnMeta {
         return precision;
     }
 
-    final int obtainDateTimeTypePrecision() {
+    int obtainDateTimeTypePrecision() {
         final int precision;
         if (this.decimals > 0 && this.decimals < 7) {
             precision = this.decimals;
@@ -275,9 +370,6 @@ final class MySQLColumnMeta {
         return precision;
     }
 
-    final boolean isTiny1AsBit() {
-        return this.typeFlag == Constants.TYPE_TINY && this.length == 1 && !this.isUnsigned();
-    }
 
 
     private FieldType parseFieldType(MySQLColumnMeta columnMeta) {
@@ -304,9 +396,16 @@ final class MySQLColumnMeta {
             case Constants.TYPE_NEWDECIMAL:
                 mySQLType = columnMeta.isUnsigned() ? MySQLType.DECIMAL_UNSIGNED : MySQLType.DECIMAL;
                 break;
-            case Constants.TYPE_TINY:
-                mySQLType = fromTiny(columnMeta, properties);
-                break;
+            case Constants.TYPE_TINY: {
+                final boolean unsigned = columnMeta.isUnsigned();
+                if (columnMeta.length == 1 && unsigned
+                        && properties.getOrDefault(MyKey.transformedBitIsBoolean, Boolean.class)) {
+                    mySQLType = MySQLType.BOOLEAN;
+                } else {
+                    mySQLType = unsigned ? MySQLType.TINYINT_UNSIGNED : MySQLType.TINYINT;
+                }
+            }
+            break;
             case Constants.TYPE_LONG:
                 mySQLType = columnMeta.isUnsigned() ? MySQLType.INT_UNSIGNED : MySQLType.INT;
                 break;
@@ -336,7 +435,7 @@ final class MySQLColumnMeta {
                 mySQLType = fromVarcharOrVarString(columnMeta, properties);
                 break;
             case Constants.TYPE_STRING:
-                mySQLType = fromString(columnMeta, properties);
+                mySQLType = fromString(columnMeta);
                 break;
             case Constants.TYPE_SHORT: {
                 mySQLType = columnMeta.isUnsigned() ? MySQLType.SMALLINT_UNSIGNED : MySQLType.SMALLINT;
@@ -397,6 +496,7 @@ final class MySQLColumnMeta {
         final MySQLColumnMeta[] metaArray = columnCount == 0 ? EMPTY : new MySQLColumnMeta[columnCount];
 
         final TaskAdjutant adjutant = metaAdjutant.adjutant();
+        final boolean debug = LOG.isDebugEnabled();
         int sequenceId = -1;
         for (int i = 0, payloadLength, payloadIndex; i < columnCount; i++) {
             payloadLength = Packets.readInt3(cumulateBuffer);
@@ -404,7 +504,9 @@ final class MySQLColumnMeta {
 
             payloadIndex = cumulateBuffer.readerIndex();
             metaArray[i] = readFor41(cumulateBuffer, adjutant);
-
+            if (debug) {
+                LOG.debug("column[{}] {}", i, metaArray[i]);
+            }
             cumulateBuffer.readerIndex(payloadIndex + payloadLength); //avoid tail filler
         }
         final int negotiatedCapability = adjutant.capability();
@@ -467,23 +569,6 @@ final class MySQLColumnMeta {
                 , typeFlag, definitionFlags
                 , decimals, properties
         );
-    }
-
-    private static MySQLType fromTiny(MySQLColumnMeta columnMeta, Properties properties) {
-        // Adjust for pseudo-boolean
-        final boolean unsigned = columnMeta.isUnsigned();
-        final MySQLType mySQLType;
-        if (columnMeta.isTiny1AsBit()
-                && properties.getOrDefault(MyKey.tinyInt1isBit, Boolean.class)) {
-            if (properties.getOrDefault(MyKey.transformedBitIsBoolean, Boolean.class)) {
-                mySQLType = MySQLType.BOOLEAN;
-            } else {
-                mySQLType = MySQLType.BIT;
-            }
-        } else {
-            mySQLType = unsigned ? MySQLType.TINYINT_UNSIGNED : MySQLType.TINYINT;
-        }
-        return mySQLType;
     }
 
 
@@ -557,15 +642,13 @@ final class MySQLColumnMeta {
         return mySQLType;
     }
 
-    private static MySQLType fromString(MySQLColumnMeta columnMeta, Properties properties) {
+    private static MySQLType fromString(MySQLColumnMeta columnMeta) {
         final MySQLType mySQLType;
         if (columnMeta.isEnum()) {
             mySQLType = MySQLType.ENUM;
         } else if (columnMeta.isSetType()) {
             mySQLType = MySQLType.SET;
-        } else if (columnMeta.isBinary()
-                || (isOpaqueBinary(columnMeta)
-                && !properties.getOrDefault(MyKey.blobsAreStrings, Boolean.class))) {
+        } else if (columnMeta.isBinary() || isOpaqueBinary(columnMeta)) {
             mySQLType = MySQLType.BINARY;
         } else {
             mySQLType = MySQLType.CHAR;

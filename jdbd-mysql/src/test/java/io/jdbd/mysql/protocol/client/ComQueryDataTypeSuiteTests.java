@@ -29,7 +29,7 @@ public class ComQueryDataTypeSuiteTests extends AbstractDataTypeSuiteTests {
      * @see MySQLType#TINYINT_UNSIGNED
      */
     @Test(timeOut = TIME_OUT)
-    public void tinyIntBindAndExtract() {
+    public void tinyIntBindAndGet() {
         tinyInt();
     }
 
@@ -38,7 +38,7 @@ public class ComQueryDataTypeSuiteTests extends AbstractDataTypeSuiteTests {
      * @see MySQLType#SMALLINT_UNSIGNED
      */
     @Test(timeOut = TIME_OUT)
-    public void smallIntBindAndExtract() {
+    public void smallIntBindAndGet() {
         smallInt();
     }
 
@@ -47,7 +47,7 @@ public class ComQueryDataTypeSuiteTests extends AbstractDataTypeSuiteTests {
      * @see MySQLType#MEDIUMINT_UNSIGNED
      */
     @Test(timeOut = TIME_OUT)
-    public void mediumIntBindAndExtract() {
+    public void mediumIntBindAndGet() {
         mediumInt();
     }
 
@@ -56,7 +56,7 @@ public class ComQueryDataTypeSuiteTests extends AbstractDataTypeSuiteTests {
      * @see MySQLType#INT_UNSIGNED
      */
     @Test(timeOut = TIME_OUT)
-    public void intBindAndExtract() {
+    public void intBindAndGet() {
         integer();
     }
 
@@ -64,9 +64,95 @@ public class ComQueryDataTypeSuiteTests extends AbstractDataTypeSuiteTests {
      * @see MySQLType#BIGINT
      * @see MySQLType#BIGINT_UNSIGNED
      */
-    @Test(timeOut = TIME_OUT, invocationCount = 100)
-    public void bigIntBindAndExtract() {
+    @Test(timeOut = TIME_OUT)
+    public void bigIntBindAndGet() {
         bigInt();
+    }
+
+    /**
+     * @see MySQLType#DECIMAL
+     * @see MySQLType#DECIMAL_UNSIGNED
+     */
+    @Test(timeOut = TIME_OUT)
+    public void decimalBindAndGet() {
+        decimal();
+    }
+
+    /**
+     * @see MySQLType#FLOAT
+     * @see MySQLType#FLOAT_UNSIGNED
+     */
+    @SuppressWarnings("deprecation")
+    @Test(timeOut = TIME_OUT)
+    public void floatBindAndGet() {
+        floatType();
+    }
+
+    /**
+     * @see MySQLType#DOUBLE
+     * @see MySQLType#DOUBLE_UNSIGNED
+     */
+    @SuppressWarnings("deprecation")
+    @Test(timeOut = TIME_OUT)
+    public void doubleBindAndGet() {
+        doubleType();
+    }
+
+    /**
+     * @see MySQLType#CHAR
+     */
+    @Test(timeOut = TIME_OUT)
+    public void charBindAndGet() {
+        charType();
+    }
+
+    /**
+     * @see MySQLType#VARCHAR
+     */
+    @Test(timeOut = TIME_OUT)
+    public void varCharBindAndGet() {
+        varChar();
+    }
+
+    /**
+     * @see MySQLType#BINARY
+     */
+    @Test(timeOut = TIME_OUT)
+    public void binaryBindAndGet() {
+        binary();
+    }
+
+    /**
+     * @see MySQLType#VARBINARY
+     */
+    @Test(timeOut = TIME_OUT)
+    public void varBinaryBindAndGet() {
+        varBinary();
+    }
+
+    /**
+     * @see MySQLType#VARBINARY
+     */
+    @Test
+    public void enumBindAndGet() {
+        enumType();
+    }
+
+
+    /**
+     * @see MySQLType#SET
+     */
+    @Test
+    public void setBindAndGet() {
+        setType();
+    }
+
+    /**
+     * @see MySQLType#TIME
+     */
+    @Test
+    public void timeBindAndGet() {
+        time();
     }
 
 

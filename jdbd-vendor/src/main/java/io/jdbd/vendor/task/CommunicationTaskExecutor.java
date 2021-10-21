@@ -147,12 +147,20 @@ public abstract class CommunicationTaskExecutor<T extends ITaskAdjutant> impleme
      * @see #startHeadIfNeed()
      * @see #doOnNextInEventLoop(ByteBuf)
      */
-    protected final void drainToTask(DrainType type) {
+    protected final void drainToTask(final DrainType type) {
         ByteBuf cumulateBuffer = this.cumulateBuffer;
-        if (cumulateBuffer == null) {
-
-            cumulateBuffer = Unpooled.EMPTY_BUFFER;
+        if (type == DrainType.NEXT) {
+            if (cumulateBuffer == null || !cumulateBuffer.isReadable()) {
+                return;
+            }
+        } else if (type == DrainType.START_NULL) {
+            if (cumulateBuffer == null) {
+                cumulateBuffer = Unpooled.EMPTY_BUFFER;
+            }
+        } else if (cumulateBuffer == null) {
+            return;
         }
+
 
         CommunicationTask currentTask = this.currentTask;
         if (currentTask == null) {
