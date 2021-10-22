@@ -1,6 +1,6 @@
 package io.jdbd.vendor.conf;
 
-import io.jdbd.config.PropertyException;
+import io.jdbd.PropertyException;
 import reactor.util.annotation.Nullable;
 
 import java.util.Collections;

@@ -23,7 +23,7 @@ import java.util.function.Consumer;
  * @see BindStatement
  * @see PreparedStatement
  */
-public interface BindableSingleStatement extends Statement {
+public interface BindSingleStatement extends Statement {
 
 
     /**

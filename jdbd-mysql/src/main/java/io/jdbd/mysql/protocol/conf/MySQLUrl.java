@@ -1,8 +1,8 @@
 package io.jdbd.mysql.protocol.conf;
 
 
-import io.jdbd.config.PropertyException;
-import io.jdbd.config.UrlException;
+import io.jdbd.PropertyException;
+import io.jdbd.UrlException;
 import io.jdbd.mysql.protocol.client.Charsets;
 import io.jdbd.mysql.protocol.client.ClientProtocol;
 import io.jdbd.vendor.conf.*;

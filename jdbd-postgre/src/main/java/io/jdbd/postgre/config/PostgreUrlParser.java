@@ -1,6 +1,6 @@
 package io.jdbd.postgre.config;
 
-import io.jdbd.config.UrlException;
+import io.jdbd.UrlException;
 import io.jdbd.postgre.util.PgCollections;
 import io.jdbd.postgre.util.PgStrings;
 import io.jdbd.vendor.conf.JdbcUrlParser;

@@ -57,8 +57,8 @@ final class PrepareLongParameterWriter implements PrepareExecuteCommandWriter.Lo
 
     PrepareLongParameterWriter(final PrepareStmtTask statementTask) {
         this.statementTask = statementTask;
-        this.statementId = statementTask.obtainStatementId();
-        this.adjutant = statementTask.obtainAdjutant();
+        this.statementId = statementTask.getStatementId();
+        this.adjutant = statementTask.adjutant();
         this.properties = this.adjutant.host().getProperties();
 
         this.blobSendChunkSize = obtainBlobSendChunkSize();
@@ -94,7 +94,7 @@ final class PrepareLongParameterWriter implements PrepareExecuteCommandWriter.Lo
         } else if (value instanceof Publisher) {
             flux = sendPublisher(stmtIndex, paramValue.getIndex(), (Publisher<?>) value);
         } else {
-            MySQLColumnMeta[] paramMetaArray = this.statementTask.obtainParameterMetas();
+            MySQLColumnMeta[] paramMetaArray = this.statementTask.getParameterMetas();
             MySQLType mySQLType = paramMetaArray[paramValue.getIndex()].sqlType;
             flux = Flux.error(MySQLExceptions.createUnsupportedParamTypeError(stmtIndex, mySQLType, paramValue));
         }
@@ -249,7 +249,7 @@ final class PrepareLongParameterWriter implements PrepareExecuteCommandWriter.Lo
         }
 
         final Charset charset;
-        if (this.statementTask.obtainParameterMetas()[paramIndex].sqlType.isLongString()) {
+        if (this.statementTask.getParameterMetas()[paramIndex].sqlType.isLongString()) {
             charset = obtainClobCharset();
         } else {
             charset = this.adjutant.charsetClient();
@@ -327,7 +327,7 @@ final class PrepareLongParameterWriter implements PrepareExecuteCommandWriter.Lo
 
     private Charset obtainCharset(final int paramIndex) {
         final Charset charset;
-        if (this.statementTask.obtainParameterMetas()[paramIndex].sqlType.isLongString()) {
+        if (this.statementTask.getParameterMetas()[paramIndex].sqlType.isLongString()) {
             charset = obtainClobCharset();
         } else {
             charset = this.adjutant.charsetClient();

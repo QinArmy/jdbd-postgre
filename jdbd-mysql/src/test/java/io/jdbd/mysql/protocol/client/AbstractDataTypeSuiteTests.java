@@ -8,6 +8,8 @@ import io.jdbd.mysql.type.City;
 import io.jdbd.mysql.type.TrueOrFalse;
 import io.jdbd.mysql.util.MySQLArrays;
 import io.jdbd.mysql.util.MySQLNumbers;
+import io.jdbd.mysql.util.MySQLStreams;
+import io.jdbd.mysql.util.MySQLTimes;
 import io.jdbd.result.ResultRow;
 import io.jdbd.result.ResultRowMeta;
 import io.jdbd.result.ResultStates;
@@ -17,13 +19,24 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.util.annotation.Nullable;
 
+import java.io.IOException;
+import java.io.OutputStream;
 import java.math.BigDecimal;
 import java.math.BigInteger;
+import java.nio.ByteBuffer;
+import java.nio.channels.FileChannel;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.Year;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Queue;
+import java.util.Set;
 import java.util.concurrent.LinkedBlockingQueue;
 
 import static org.testng.Assert.*;
@@ -400,7 +413,7 @@ abstract class AbstractDataTypeSuiteTests extends AbstractTaskSuiteTests {
      */
     final void charType() {
         final long id = startId + 9;
-        final String text = "army's name,; \\  \" 'text' '\032' \0 % _ ";
+        final String text = "army's name,; \\  \" 'text' '\032' \0 % _";
         String column;
         MySQLType type;
 
@@ -436,7 +449,13 @@ abstract class AbstractDataTypeSuiteTests extends AbstractTaskSuiteTests {
      */
     final void binary() {
         final long id = startId + 11;
-        final String text = "army's name,; \\  \" 'text' '\032' \0 % _ ";
+        final StringBuilder builder = new StringBuilder(60);
+        builder.append("army's name,; \\  \" 'text' '\032' \0 % _");
+
+        for (int i = 0, end = 60 - builder.length(); i < end; i++) {
+            builder.append(' ');
+        }
+        final String text = builder.toString();
         String column;
         MySQLType type;
 
@@ -444,7 +463,6 @@ abstract class AbstractDataTypeSuiteTests extends AbstractTaskSuiteTests {
         type = MySQLType.BINARY;
 
         testType(id, column, type, null);
-        testType(id, column, type, "");
         testType(id, column, type, text);
         testType(id, column, type, text.getBytes(StandardCharsets.UTF_8));
 
@@ -485,21 +503,6 @@ abstract class AbstractDataTypeSuiteTests extends AbstractTaskSuiteTests {
         testType(id, column, type, "T");
 
         testType(id, column, type, "F");
-
-        type = MySQLType.VARCHAR;
-
-        testType(id, column, type, TrueOrFalse.T);
-        testType(id, column, type, TrueOrFalse.F);
-        testType(id, column, type, "T");
-        testType(id, column, type, "F");
-
-        type = MySQLType.CHAR;
-
-        testType(id, column, type, TrueOrFalse.T);
-        testType(id, column, type, TrueOrFalse.F);
-        testType(id, column, type, "T");
-        testType(id, column, type, "F");
-
     }
 
     /**
@@ -531,14 +534,267 @@ abstract class AbstractDataTypeSuiteTests extends AbstractTaskSuiteTests {
         column = "my_time";
         type = MySQLType.TIME;
 
-//        testType(id, column, type, null);
-//        testType(id, column, type, LocalTime.MIDNIGHT);
-//        testType(id, column, type, LocalTime.NOON);
-        testType(id, column, type, LocalTime.MAX);
+        testType(id, column, type, null);
+        testType(id, column, type, LocalTime.MIDNIGHT);
+        testType(id, column, type, LocalTime.NOON);
+        testType(id, column, type, LocalTime.parse("23:59:59"));
 
+        testType(id, column, type, "23:59:59");
 
     }
 
+    /**
+     * @see MySQLType#DATE
+     */
+    final void date() {
+        final long id = startId + 16;
+        String column;
+        MySQLType type;
+
+        column = "my_date";
+        type = MySQLType.DATE;
+
+        testType(id, column, type, null);
+        testType(id, column, type, LocalDate.now());
+        testType(id, column, type, LocalDate.parse("1000-01-01"));
+        testType(id, column, type, LocalDate.parse("9999-12-31"));
+
+        testType(id, column, type, "1000-01-01");
+        testType(id, column, type, "9999-12-31");
+    }
+
+    /**
+     * @see MySQLType#TIMESTAMP
+     */
+    final void timestamp() {
+        final long id = startId + 17;
+        String column;
+        MySQLType type;
+
+        column = "my_timestamp";
+        type = MySQLType.TIMESTAMP;
+
+        testType(id, column, type, null);
+        testType(id, column, type, LocalDateTime.parse("1970-01-02 00:00:01", MySQLTimes.ISO_LOCAL_DATETIME_FORMATTER));
+        testType(id, column, type, LocalDateTime.parse("2038-01-19 03:14:07", MySQLTimes.ISO_LOCAL_DATETIME_FORMATTER));
+
+        testType(id, column, type, "1970-01-02 00:00:01");// relate time_zone,so can't use '1970-01-01 00:00:01'
+        testType(id, column, type, "2038-01-19 03:14:07");
+    }
+
+    /**
+     * @see MySQLType#DATETIME
+     */
+    final void dateTime() {
+        final long id = startId + 18;
+        String column;
+        MySQLType type;
+
+        column = "my_datetime";
+        type = MySQLType.DATETIME;
+
+        testType(id, column, type, null);
+        testType(id, column, type, LocalDateTime.parse("1000-01-01 00:00:00", MySQLTimes.ISO_LOCAL_DATETIME_FORMATTER));
+        testType(id, column, type, LocalDateTime.parse("9999-12-31 23:59:59", MySQLTimes.ISO_LOCAL_DATETIME_FORMATTER));
+
+        testType(id, column, type, "1000-01-01 00:00:00");// relate time_zone,so can't use '1970-01-01 00:00:01'
+        testType(id, column, type, "9999-12-31 23:59:59");
+    }
+
+    /**
+     * @see MySQLType#TINYTEXT
+     */
+    final void tinyText() {
+        final long id = startId + 19;
+        final String text = "army's name,; \\  \" 'text' '\032' \0 % _ ";
+        final String column = "my_tiny_text";
+        final MySQLType type = MySQLType.TINYTEXT;
+
+        testType(id, column, type, null);
+        testType(id, column, type, "");
+        testType(id, column, type, text);
+        testType(id, column, type, text.getBytes(StandardCharsets.UTF_8));
+    }
+
+    /**
+     * @see MySQLType#TEXT
+     */
+    final void text() {
+        final long id = startId + 20;
+        final String text = "army's name,; \\  \" 'text' '\032' \0 % _ ";
+        final String column = "my_text";
+        final MySQLType type = MySQLType.TEXT;
+
+        testType(id, column, type, null);
+        testType(id, column, type, "");
+        testType(id, column, type, text);
+        testType(id, column, type, text.getBytes(StandardCharsets.UTF_8));
+    }
+
+    /**
+     * @see MySQLType#MEDIUMTEXT
+     */
+    final void mediumText() {
+        final long id = startId + 21;
+        final String text = "army's name,; \\  \" 'text' '\032' \0 % _ ";
+        final String column = "my_medium_text";
+        final MySQLType type = MySQLType.MEDIUMTEXT;
+
+        testType(id, column, type, null);
+        testType(id, column, type, "");
+        testType(id, column, type, text);
+        testType(id, column, type, text.getBytes(StandardCharsets.UTF_8));
+    }
+
+    /**
+     * @see MySQLType#LONGTEXT
+     */
+    final void longText() throws IOException {
+        final long id = startId + 22;
+        final String text = "army's name,; \\  \" 'text' '\032' \0 % _ ";
+        final byte[] bytes = text.getBytes(StandardCharsets.UTF_8);
+        final String column = "my_long_text";
+        final MySQLType type = MySQLType.LONGTEXT;
+
+        testType(id, column, type, null);
+        testType(id, column, type, "");
+        testType(id, column, type, text);
+        testType(id, column, type, bytes);
+
+        final Path path = Files.createTempFile("longText", "txt");
+
+        try {
+            try (OutputStream out = Files.newOutputStream(path, StandardOpenOption.WRITE)) {
+                for (int i = 0; i < 2000; i++) {
+                    out.write(bytes);
+                }
+            }
+
+            testType(id, column, type, path);
+        } finally {
+            Files.deleteIfExists(path);
+        }
+
+    }
+
+
+    /**
+     * @see MySQLType#TINYBLOB
+     */
+    final void tinyBlob() {
+        final long id = startId + 23;
+        final String text = "army's name,; \\  \" 'text' '\032' \0 % _ ";
+        final String column = "my_tiny_blob";
+        final MySQLType type = MySQLType.TINYBLOB;
+
+        testType(id, column, type, null);
+        testType(id, column, type, "");
+        testType(id, column, type, text);
+        testType(id, column, type, text.getBytes(StandardCharsets.UTF_8));
+    }
+
+    /**
+     * @see MySQLType#BLOB
+     */
+    final void blob() {
+        final long id = startId + 24;
+        final String text = "army's name,; \\  \" 'text' '\032' \0 % _ ";
+        final String column = "my_blob";
+        final MySQLType type = MySQLType.BLOB;
+
+        testType(id, column, type, null);
+        testType(id, column, type, "");
+        testType(id, column, type, text);
+        testType(id, column, type, text.getBytes(StandardCharsets.UTF_8));
+    }
+
+    /**
+     * @see MySQLType#MEDIUMBLOB
+     */
+    final void mediumBlob() {
+        final long id = startId + 25;
+        final String text = "army's name,; \\  \" 'text' '\032' \0 % _ ";
+        final String column = "my_medium_blob";
+        final MySQLType type = MySQLType.MEDIUMBLOB;
+
+        testType(id, column, type, null);
+        testType(id, column, type, "");
+        testType(id, column, type, text);
+        testType(id, column, type, text.getBytes(StandardCharsets.UTF_8));
+    }
+
+    /**
+     * @see MySQLType#LONGBLOB
+     */
+    final void longBlob() throws IOException {
+        final long id = startId + 26;
+        final String text = "army's name,; \\  \" 'text' '\032' \0 % _ ";
+        final byte[] bytes = text.getBytes(StandardCharsets.UTF_8);
+        final String column = "my_long_blob";
+        final MySQLType type = MySQLType.LONGBLOB;
+
+        testType(id, column, type, null);
+        testType(id, column, type, "");
+        testType(id, column, type, text);
+        testType(id, column, type, bytes);
+
+        final Path path = Files.createTempFile("longBlob", "txt");
+
+        try {
+            try (OutputStream out = Files.newOutputStream(path, StandardOpenOption.WRITE)) {
+                for (int i = 0; i < 2000; i++) {
+                    out.write(bytes);
+                }
+            }
+
+            testType(id, column, type, path);
+        } finally {
+            Files.deleteIfExists(path);
+        }
+
+    }
+
+    /**
+     * @see MySQLType#BIT
+     */
+    final void bitType() {
+        final long id = startId + 27;
+        final String column = "my_bit64";
+        final MySQLType type = MySQLType.BIT;
+
+        testType(id, column, type, null);
+        testType(id, column, type, -1L);
+        testType(id, column, type, 0L);
+        testType(id, column, type, 0B0101L);
+
+        testType(id, column, type, 0xFF);
+
+    }
+
+    /**
+     * @see MySQLType#YEAR
+     */
+    final void year() {
+        final long id = startId + 28;
+        final String column = "my_year";
+        final MySQLType type = MySQLType.YEAR;
+
+        testType(id, column, type, null);
+        testType(id, column, type, Year.now());
+        testType(id, column, type, Year.now().getValue());
+        testType(id, column, type, (short) Year.now().getValue());
+
+    }
+
+    /**
+     * @see MySQLType#GEOMETRY
+     */
+    final void point() {
+        final long id = startId + 29;
+        final String column = "my_point";
+        final MySQLType type = MySQLType.GEOMETRY;
+        // Geometries.point()
+    }
 
     private ResultRow testType(final long id, final String column, final MySQLType type, @Nullable final Object value) {
 
@@ -569,9 +825,23 @@ abstract class AbstractDataTypeSuiteTests extends AbstractTaskSuiteTests {
     @SuppressWarnings("deprecation")
     private void assertResult(final String column, final MySQLType type, final ResultRow row, final Object nonNull) {
         boolean useDefault = false;
-        switch (type) {
-            case TIME: {
-                LOG.debug("result:{} ,noNull:{}", row.get(column, String.class), nonNull);
+        switch ((MySQLType) row.getRowMeta().getSQLType(column)) {
+            case SET: {
+                final Set<?> valueSet = (Set<?>) nonNull;
+                boolean isEnum = false;
+                for (Object o : valueSet) {
+                    isEnum = o instanceof City;
+                    break;
+                }
+
+                final Set<?> result;
+                if (isEnum) {
+                    result = row.getSet(column, City.class);
+                } else {
+                    result = row.getSet(column, String.class);
+                }
+                assertEquals(result.size(), valueSet.size());
+                assertEquals(result, valueSet, column);
             }
             break;
             case DECIMAL:
@@ -604,8 +874,36 @@ abstract class AbstractDataTypeSuiteTests extends AbstractTaskSuiteTests {
                 }
             }
             break;
+            case LONGTEXT: {
+                if (!(nonNull instanceof Path)) {
+                    useDefault = true;
+                    break;
+                }
+                try {
+                    String string = MySQLStreams.readAsString((Path) nonNull, StandardCharsets.UTF_8);
+                    assertEquals(row.get(column, String.class), string, column);
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+            break;
+            case LONGBLOB: {
+                if (!(nonNull instanceof Path)) {
+                    useDefault = true;
+                    break;
+                }
+                try (FileChannel channel = FileChannel.open((Path) nonNull, StandardOpenOption.READ)) {
+                    final byte[] bufferArray = new byte[(int) channel.size()];
+                    final ByteBuffer buffer = ByteBuffer.wrap(bufferArray);
+                    channel.read(buffer);
+                    buffer.flip();
+                    assertEquals(row.get(column, byte[].class), bufferArray, column);
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+            break;
             default: {
-                // no-op
                 useDefault = true;
             }
         }

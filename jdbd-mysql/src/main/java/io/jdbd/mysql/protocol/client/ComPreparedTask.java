@@ -42,7 +42,7 @@ import java.util.function.Function;
  * @see BinaryResultSetReader
  * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_command_phase_ps.html">Prepared Statements</a>
  */
-final class ComPreparedTask extends AbstractCommandTask implements PrepareStmtTask, PrepareTask<MySQLType> {
+final class ComPreparedTask extends MySQLCommandTask implements PrepareStmtTask, PrepareTask<MySQLType> {
 
 
     /**
@@ -207,9 +207,13 @@ final class ComPreparedTask extends AbstractCommandTask implements PrepareStmtTa
         this.commandWriter = PrepareExecuteCommandWriter.create(this);
     }
 
+    @Override
+    public ParamSingleStmt getStmt() {
+        return this.stmt;
+    }
 
     @Override
-    public int obtainStatementId() {
+    public int getStatementId() {
         if (this.paramMetas == null) {
             throw new IllegalStateException("before prepare");
         }
@@ -217,15 +221,14 @@ final class ComPreparedTask extends AbstractCommandTask implements PrepareStmtTa
     }
 
     @Override
-    public MySQLColumnMeta[] obtainParameterMetas() {
+    public MySQLColumnMeta[] getParameterMetas() {
         return Objects.requireNonNull(this.paramMetas, "this.parameterMetas");
     }
 
     @Override
-    public TaskAdjutant obtainAdjutant() {
-        return this.adjutant;
+    public void handleNoExecuteMessage() {
+        //TODO
     }
-
 
     @Override
     public boolean supportFetch() {
@@ -358,9 +361,7 @@ final class ComPreparedTask extends AbstractCommandTask implements PrepareStmtTa
     protected Publisher<ByteBuf> start() {
         Publisher<ByteBuf> publisher;
         try {
-            publisher = Packets.createSimpleCommand(Packets.COM_STMT_PREPARE, this.stmt.getSql()
-                    , this.adjutant, this::addAndGetSequenceId);
-
+            publisher = createPreparePacket();
             this.phase = Phase.READ_PREPARE_RESPONSE;
 
             if (LOG.isTraceEnabled()) {
@@ -507,7 +508,6 @@ final class ComPreparedTask extends AbstractCommandTask implements PrepareStmtTa
         assertPhase(Phase.EXECUTE);
 
         if (this.nextGroupNeedReset) {
-            this.nextGroupNeedReset = false;
             this.packetPublisher = Mono.just(createResetPacket());
             this.phase = Phase.READ_RESET_RESPONSE;
             return false;
@@ -573,6 +573,19 @@ final class ComPreparedTask extends AbstractCommandTask implements PrepareStmtTa
     }
 
     /*################################## blow private method ##################################*/
+
+    private Publisher<ByteBuf> createPreparePacket() {
+        final byte[] sqlBytes;
+        sqlBytes = this.stmt.getSql().getBytes(this.adjutant.charsetClient());
+
+        final ByteBuf packet;
+        packet = this.adjutant.allocator().buffer(Packets.HEADER_SIZE + 1 + sqlBytes.length);
+        packet.writeZero(Packets.HEADER_SIZE);  // placeholder of header
+
+        packet.writeByte(Packets.COM_STMT_PREPARE);
+        packet.writeBytes(sqlBytes);
+        return Packets.createPacketPublisher(packet, this::addAndGetSequenceId, this.adjutant);
+    }
 
     private ParamSingleStmt getActualStmt() {
         ParamSingleStmt stmt = this.stmt;
@@ -772,7 +785,7 @@ final class ComPreparedTask extends AbstractCommandTask implements PrepareStmtTa
     private boolean readPrepareResponse(final ByteBuf cumulateBuffer) {
         assertPhase(Phase.READ_PREPARE_RESPONSE);
 
-        final int headFlag = Packets.getInt1AsInt(cumulateBuffer, cumulateBuffer.readerIndex() + Packets.HEADER_SIZE);
+        final int headFlag = Packets.getHeaderFlag(cumulateBuffer);
         final boolean taskEnd;
         switch (headFlag) {
             case ErrorPacket.ERROR_HEADER: {
@@ -791,7 +804,7 @@ final class ComPreparedTask extends AbstractCommandTask implements PrepareStmtTa
                 final int numColumns = Packets.readInt2AsInt(cumulateBuffer);//3. num_columns
                 final int numParams = Packets.readInt2AsInt(cumulateBuffer);//4. num_params
                 cumulateBuffer.readByte(); //5. skip filler
-                if (payloadLength > 10) {
+                if (payloadLength >= 12) {
                     final int warnings = Packets.readInt2AsInt(cumulateBuffer);//6. warning_count
                     if (warnings > 0) {
                         this.warning = JdbdWarning.create(String.format("produce %s warnings", warnings));

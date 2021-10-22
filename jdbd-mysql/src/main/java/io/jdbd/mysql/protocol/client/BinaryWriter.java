@@ -25,7 +25,7 @@ abstract class BinaryWriter {
 
     @SuppressWarnings("deprecation")
     static void writeNonNullBinary(ByteBuf packet, final int batchIndex, final MySQLType type
-            , Value paramValue, final Charset charset) throws SQLException {
+            , Value paramValue, final int precision, final Charset charset) throws SQLException {
 
         switch (type) {
             case BOOLEAN:
@@ -170,11 +170,11 @@ abstract class BinaryWriter {
             break;
             case TIMESTAMP:
             case DATETIME: {
-                writeDatetime(packet, batchIndex, type, paramValue, charset);
+                writeDatetime(packet, batchIndex, type, paramValue, precision, charset);
             }
             break;
             case TIME: {
-                writeTime(packet, batchIndex, type, paramValue);
+                writeTime(packet, batchIndex, type, paramValue, precision);
             }
             case DATE: {
                 final LocalDate value;
@@ -203,7 +203,8 @@ abstract class BinaryWriter {
     }
 
 
-    private static void writeTime(ByteBuf packet, final int batchIndex, final MySQLType type, Value paramValue)
+    private static void writeTime(ByteBuf packet, final int batchIndex, final MySQLType type, Value paramValue
+            , final int precision)
             throws SQLException {
         final Object nonNull = paramValue.getNonNull();
         if (nonNull instanceof Duration) {
@@ -216,7 +217,8 @@ abstract class BinaryWriter {
             if (!MySQLTimes.canConvertToTimeType(duration)) {
                 throw JdbdExceptions.outOfTypeRange(batchIndex, type, paramValue);
             }
-            packet.writeByte(12); //1. length ,always have micro second ,because for BindStatement
+            final int microSeconds = truncateMicroSeconds(duration.getNano() / 1000, precision);
+            packet.writeByte(microSeconds > 0 ? 12 : 8); //1. length
             packet.writeByte(negative ? 1 : 0); //2. is_negative
 
             long totalSeconds = duration.getSeconds();
@@ -230,43 +232,49 @@ abstract class BinaryWriter {
             totalSeconds %= 60;
 
             packet.writeByte((int) totalSeconds); //6. second
-            Packets.writeInt4(packet, duration.getNano() / 1000); //7. microsecond
+            if (microSeconds > 0) {
+                Packets.writeInt4(packet, microSeconds); // microsecond
+            }
         } else {
             final LocalTime value;
             value = MySQLBinds.bindNonNullToLocalTime(batchIndex, type, paramValue);
-            packet.writeByte(12); //1. length ,always have micro second ,because for BindStatement
+            final int microSeconds = truncateMicroSeconds(value.get(ChronoField.MICRO_OF_SECOND), precision);
+            packet.writeByte(microSeconds > 0 ? 12 : 8); //1. length
             packet.writeByte(0); //2. is_negative
             packet.writeZero(4); //3. days
 
             packet.writeByte(value.getHour()); //4. hour
             packet.writeByte(value.getMinute()); //5. minute
             packet.writeByte(value.getSecond()); ///6. second
-            Packets.writeInt4(packet, value.get(ChronoField.MICRO_OF_SECOND)); // microsecond
+            if (microSeconds > 0) {
+                Packets.writeInt4(packet, microSeconds); // microsecond
+            }
         }
 
 
     }
 
     private static void writeDatetime(ByteBuf packet, final int batchIndex, MySQLType type, Value paramValue
-            , Charset clientCharset)
+            , final int precision, Charset clientCharset)
             throws SQLException {
         final Object nonNull = paramValue.getNonNull();
 
         if (nonNull instanceof OffsetDateTime) {
             final byte[] bytes;
-            bytes = ((OffsetDateTime) nonNull).format(MySQLTimes.ISO_OFFSET_DATETIME_FORMATTER)
+            bytes = ((OffsetDateTime) nonNull).format(MySQLTimes.getDateTimeFormatter(precision))
                     .getBytes(clientCharset);
             Packets.writeStringLenEnc(packet, bytes);
         } else if (nonNull instanceof ZonedDateTime) {
             final byte[] bytes;
-            bytes = ((ZonedDateTime) nonNull).toOffsetDateTime().format(MySQLTimes.ISO_OFFSET_DATETIME_FORMATTER)
+            bytes = ((ZonedDateTime) nonNull).toOffsetDateTime().format(MySQLTimes.getDateTimeFormatter(precision))
                     .getBytes(clientCharset);
             Packets.writeStringLenEnc(packet, bytes);
         } else {
             final LocalDateTime value;
             value = MySQLBinds.bindNonNullToLocalDateTime(batchIndex, type, paramValue);
+            final int microSeconds = truncateMicroSeconds(value.get(ChronoField.MICRO_OF_SECOND), precision);
 
-            packet.writeByte(11); // length ,always have micro second ,because for BindStatement
+            packet.writeByte(microSeconds > 0 ? 11 : 7); // length ,always have micro second ,because for BindStatement
             Packets.writeInt2(packet, value.getYear()); // year
             packet.writeByte(value.getMonthValue()); // month
             packet.writeByte(value.getDayOfMonth()); // day
@@ -274,10 +282,47 @@ abstract class BinaryWriter {
             packet.writeByte(value.getHour()); // hour
             packet.writeByte(value.getMinute()); // minute
             packet.writeByte(value.getSecond()); // second
-            Packets.writeInt4(packet, value.get(ChronoField.MICRO_OF_SECOND)); // microsecond
+            if (microSeconds > 0) {
+                Packets.writeInt4(packet, microSeconds); // microsecond
+            }
         }
 
 
+    }
+
+
+    /**
+     * @see #writeTime(ByteBuf, int, MySQLType, Value, int)
+     * @see #writeDatetime(ByteBuf, int, MySQLType, Value, int, Charset)
+     */
+    private static int truncateMicroSeconds(final int microSeconds, final int precision) {
+        final int newMicroSeconds;
+        switch (precision) {
+            case 0:
+                newMicroSeconds = 0;
+                break;
+            case 1:
+                newMicroSeconds = microSeconds - (microSeconds % 100000);
+                break;
+            case 2:
+                newMicroSeconds = microSeconds - (microSeconds % 10000);
+                break;
+            case 3:
+                newMicroSeconds = microSeconds - (microSeconds % 1000);
+                break;
+            case 4:
+                newMicroSeconds = microSeconds - (microSeconds % 100);
+                break;
+            case 5:
+                newMicroSeconds = microSeconds - (microSeconds % 10);
+                break;
+            case 6:
+                newMicroSeconds = microSeconds;
+                break;
+            default:
+                throw new IllegalArgumentException(String.format("precision[%s] not in [0,6]", precision));
+        }
+        return newMicroSeconds;
     }
 
 

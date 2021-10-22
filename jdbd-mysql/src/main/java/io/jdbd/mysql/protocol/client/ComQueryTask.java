@@ -56,7 +56,7 @@ import java.util.function.Supplier;
  * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_com_query.html">Protocol::COM_QUERY</a>
  * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_com_query_response.html">Protocol::COM_QUERY Response</a>
  */
-final class ComQueryTask extends AbstractCommandTask {
+final class ComQueryTask extends MySQLCommandTask {
 
     /*################################## blow StaticStatement spi underlying method ##################################*/
 
@@ -391,7 +391,7 @@ final class ComQueryTask extends AbstractCommandTask {
             if (log.isDebugEnabled()) {
                 log.debug("create COM_QUERY packet error for {}", stmt.getClass().getName(), e);
             }
-            this.phase = Phase.START_ERROR;
+            this.phase = Phase.ERROR_ON_START;
             publisher = null;
             if (MySQLExceptions.isByteBufOutflow(e)) {
                 addError(MySQLExceptions.tooLargeObject(e));
@@ -405,7 +405,7 @@ final class ComQueryTask extends AbstractCommandTask {
 
     @Override
     protected boolean decode(final ByteBuf cumulateBuffer, final Consumer<Object> serverStatusConsumer) {
-        if (this.phase == Phase.START_ERROR) {
+        if (this.phase == Phase.ERROR_ON_START) {
             publishError(this.sink::error);
             return true;
         }
@@ -816,7 +816,7 @@ final class ComQueryTask extends AbstractCommandTask {
 
 
     private enum Phase {
-        START_ERROR,
+        ERROR_ON_START,
         READ_EXECUTE_RESPONSE,
         READ_TEXT_RESULT_SET,
         TASK_END

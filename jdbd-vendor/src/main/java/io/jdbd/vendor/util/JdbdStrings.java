@@ -1,6 +1,6 @@
 package io.jdbd.vendor.util;
 
-import io.jdbd.config.UrlException;
+import io.jdbd.UrlException;
 import io.qinarmy.util.StringUtils;
 
 import java.io.UnsupportedEncodingException;

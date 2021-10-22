@@ -161,7 +161,7 @@ final class MySQLColumnMeta {
                 break;
             case TIMESTAMP:
             case DATETIME:
-                precision = obtainDateTimeTypePrecision();
+                precision = getDateTimeTypePrecision();
                 break;
             default:
                 precision = -1;
@@ -229,7 +229,7 @@ final class MySQLColumnMeta {
     @Override
     public String toString() {
         final StringBuilder sb = new StringBuilder("MySQLColumnMeta{");
-        sb.append("catalogName='").append(catalogName).append('\'')
+        sb.append("\ncatalogName='").append(catalogName).append('\'')
                 .append(",\n schemaName='").append(schemaName).append('\'')
                 .append(",\n tableName='").append(tableName).append('\'')
                 .append(",\n tableAlias='").append(tableAlias).append('\'')
@@ -355,7 +355,7 @@ final class MySQLColumnMeta {
         return precision;
     }
 
-    int obtainDateTimeTypePrecision() {
+    int getDateTimeTypePrecision() {
         final int precision;
         if (this.decimals > 0 && this.decimals < 7) {
             precision = this.decimals;

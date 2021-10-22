@@ -261,7 +261,7 @@ public abstract class MySQLTimes extends JdbdTimes {
      */
     public static DateTimeFormatter obtainTimeFormatterByText(String timeText) {
         final int index = timeText.lastIndexOf('.');
-        return MySQLTimes.obtainTimeFormatter(index < 0 ? 0 : (timeText.length() - index - 1));
+        return MySQLTimes.getTimeFormatter(index < 0 ? 0 : (timeText.length() - index - 1));
     }
 
     /**
@@ -269,11 +269,11 @@ public abstract class MySQLTimes extends JdbdTimes {
      */
     public static DateTimeFormatter obtainDateTimeFormatterByText(String dateTimeText) {
         final int index = dateTimeText.lastIndexOf('.');
-        return MySQLTimes.obtainDateTimeFormatter(index < 0 ? 0 : (dateTimeText.length() - index - 1));
+        return MySQLTimes.getDateTimeFormatter(index < 0 ? 0 : (dateTimeText.length() - index - 1));
     }
 
 
-    public static DateTimeFormatter obtainTimeFormatter(final int microPrecision) {
+    public static DateTimeFormatter getTimeFormatter(final int microPrecision) {
         final DateTimeFormatter formatter;
         switch (microPrecision) {
             case 0:
@@ -305,7 +305,7 @@ public abstract class MySQLTimes extends JdbdTimes {
         return formatter;
     }
 
-    public static DateTimeFormatter obtainDateTimeFormatter(final int microPrecision) {
+    public static DateTimeFormatter getDateTimeFormatter(final int microPrecision) {
         final DateTimeFormatter formatter;
 
         switch (microPrecision) {

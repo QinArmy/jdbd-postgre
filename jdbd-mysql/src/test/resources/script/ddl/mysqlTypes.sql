@@ -7,7 +7,7 @@ CREATE TABLE IF NOT EXISTS mysql_types (
     my_date               date                                                                NULL DEFAULT '1970-01-01',
     my_time               time                                                                NULL DEFAULT '00:00:00',
     my_time1              time(1)                                                             NULL DEFAULT '00:00:00.0',
-
+    my_year               year                                                                NULL DEFAULT 1970,
 
     my_var_char200        VARCHAR(200)                                                        NULL DEFAULT '',
     my_char200            char(200)                                                           NULL DEFAULT '',
@@ -43,7 +43,7 @@ CREATE TABLE IF NOT EXISTS mysql_types (
     my_set                set ('BEIJING','SHANGHAI','SHENZHEN','XIANGGANG','TAIBEI','AOMENG') NULL DEFAULT 'BEIJING',
     my_json               json                                                                NULL,
 
-    my_tinyblob           tinyblob                                                            NULL,
+    my_tiny_blob          tinyblob                                                            NULL,
     my_blob               blob                                                                NULL,
     my_medium_blob        mediumblob                                                          NULL,
     my_long_blob          longblob                                                            NULL,

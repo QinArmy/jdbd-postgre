@@ -12,6 +12,7 @@ import io.jdbd.type.geometry.LongString;
 import io.jdbd.vendor.util.JdbdCollections;
 import io.jdbd.vendor.util.JdbdStrings;
 import io.jdbd.vendor.util.JdbdTimes;
+import org.reactivestreams.Publisher;
 import reactor.util.annotation.Nullable;
 
 import java.math.BigDecimal;
@@ -191,6 +192,18 @@ public abstract class AbstractResultRow<R extends ResultRowMeta> implements Resu
     public final <K, V> Map<K, V> getMap(String columnLabel, Class<K> keyClass, Class<V> valueClass) {
         return getMap(this.rowMeta.getColumnIndex(columnLabel), keyClass, valueClass);
     }
+
+
+    @Override
+    public <T> Publisher<T> getPublisher(int indexBaseZero, Class<T> valueClass) {
+        throw createNotSupportedException(indexBaseZero, valueClass);
+    }
+
+    @Override
+    public final <T> Publisher<T> getPublisher(String columnLabel, Class<T> valueClass) {
+        return getPublisher(this.rowMeta.getColumnIndex(columnLabel), valueClass);
+    }
+
 
     /*################################## blow protected template method ##################################*/
 
@@ -668,10 +681,12 @@ public abstract class AbstractResultRow<R extends ResultRowMeta> implements Resu
 
         try {
             final Year value;
-            if (nonNull instanceof LocalDate) {
-                value = Year.from((LocalDate) nonNull);
+            if (nonNull instanceof Year) {
+                value = (Year) nonNull;
             } else if (nonNull instanceof Integer) {
                 value = Year.of((Integer) nonNull);
+            } else if (nonNull instanceof Short) {
+                value = Year.of((Short) nonNull);
             } else {
                 final int v;
                 if (nonNull instanceof String) {
@@ -1108,6 +1123,8 @@ public abstract class AbstractResultRow<R extends ResultRowMeta> implements Resu
             }
         } else if (nonNull instanceof Boolean) {
             value = ((Boolean) nonNull) ? 1 : 0;
+        } else if (nonNull instanceof Year) {
+            value = ((Year) nonNull).getValue();
         } else if (nonNull instanceof BitSet) {
             final BitSet v = (BitSet) nonNull;
             if (v.length() < 33) {
@@ -1174,6 +1191,12 @@ public abstract class AbstractResultRow<R extends ResultRowMeta> implements Resu
             }
         } else if (nonNull instanceof Boolean) {
             value = ((Boolean) nonNull) ? (short) 1 : (short) 0;
+        } else if (nonNull instanceof Year) {
+            final int v = ((Year) nonNull).getValue();
+            if (v > Short.MAX_VALUE || v < Short.MIN_VALUE) {
+                throw createOutOfRangeException(indexBaseZero, Short.class, Short.MIN_VALUE, Short.MAX_VALUE);
+            }
+            value = (short) v;
         } else {
             throw createNotSupportedException(indexBaseZero, Short.class);
         }

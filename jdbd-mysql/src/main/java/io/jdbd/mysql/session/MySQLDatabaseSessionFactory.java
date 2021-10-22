@@ -2,8 +2,8 @@ package io.jdbd.mysql.session;
 
 import io.jdbd.DriverVersion;
 import io.jdbd.ProductFamily;
-import io.jdbd.config.PropertyException;
-import io.jdbd.config.UrlException;
+import io.jdbd.PropertyException;
+import io.jdbd.UrlException;
 import io.jdbd.mysql.MySQLDriver;
 import io.jdbd.mysql.protocol.authentication.AuthenticationPlugin;
 import io.jdbd.mysql.protocol.authentication.PluginUtils;

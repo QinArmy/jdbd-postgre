@@ -45,7 +45,7 @@ abstract class MySQLResultRow extends AbstractResultRow<MySQLRowMeta> {
             throws UnsupportedConvertingException {
         final Set<T> set;
         if (nonValue instanceof Set) {
-            if (this.rowMeta.columnMetaArray[indexBaseZero].isSetType()) {
+            if (this.rowMeta.columnMetaArray[indexBaseZero].sqlType == MySQLType.SET) {
                 Set<String> stringSet = (Set<String>) nonValue;
                 if (elementClass == String.class) {
                     set = (Set<T>) stringSet;

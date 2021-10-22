@@ -14,9 +14,7 @@ import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
-import java.util.Collection;
-import java.util.Enumeration;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
@@ -49,9 +47,9 @@ public abstract class DriverManager {
 
 
     /**
-     * @throws NotFoundDriverException          when not found any driver for url.
-     * @throws io.jdbd.config.UrlException      when url error.
-     * @throws io.jdbd.config.PropertyException when properties error.
+     * @throws NotFoundDriverException when not found any driver for url.
+     * @throws UrlException            when url error.
+     * @throws PropertyException       when properties error.
      */
     public static DatabaseSessionFactory createSessionFactory(final String url, final Map<String, String> properties) {
         return findTargetDriver(url)
@@ -73,9 +71,9 @@ public abstract class DriverManager {
      *     </ul>
      * </p>
      *
-     * @throws NotFoundDriverException          when not found any driver for url.
-     * @throws io.jdbd.config.UrlException      when url error.
-     * @throws io.jdbd.config.PropertyException when properties error.
+     * @throws NotFoundDriverException when not found any driver for url.
+     * @throws UrlException            when url error.
+     * @throws PropertyException       when properties error.
      */
     public static DatabaseSessionFactory forPoolVendor(final String url, final Map<String, String> properties)
             throws JdbdNonSQLException {
@@ -128,15 +126,22 @@ public abstract class DriverManager {
         int driverCount = 0;
         try (BufferedReader reader = new BufferedReader(new InputStreamReader(url.openStream(), charset))) {
             String line;
-            Driver driver;
+
+            final List<Driver> driverList = new ArrayList<>(1);
             while ((line = reader.readLine()) != null) {
-                driver = getDriverInstance(line);
-                if (driver != null && DRIVER_MAP.putIfAbsent(driver.getClass(), driver) == null) {
+                Driver driver = getDriverInstance(line);
+                if (driver != null) {
+                    driverList.add(driver);
+                }
+            }
+            for (Driver driver : driverList) {
+                if (DRIVER_MAP.putIfAbsent(driver.getClass(), driver) == null) {
                     driverCount++;
                 }
             }
         } catch (Throwable e) {
             //  don't follow io.jdbd.Driver contract,so ignore this url.
+            driverCount = 0;
         }
         return driverCount;
     }

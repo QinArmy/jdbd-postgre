@@ -33,7 +33,7 @@ import java.util.function.Consumer;
  *     {@link PreparedStatement} have no close() method.
  * </p>
  */
-public interface PreparedStatement extends BindableSingleStatement, BindableMultiResultStatement {
+public interface PreparedStatement extends BindSingleStatement, BindMultiResultStatement {
 
 
     @Override

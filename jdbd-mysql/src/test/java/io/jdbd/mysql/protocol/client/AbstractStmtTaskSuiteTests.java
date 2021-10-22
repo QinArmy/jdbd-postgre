@@ -1221,7 +1221,7 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractTaskSuiteTests 
         } else {
             bindTime = (LocalTime) bindParam;
         }
-        final DateTimeFormatter formatter = MySQLTimes.obtainTimeFormatter(
+        final DateTimeFormatter formatter = MySQLTimes.getTimeFormatter(
                 (int) resultRow.getRowMeta().getPrecision("field"));
 
         final LocalTime time = LocalTime.parse(bindTime.format(formatter), MySQLTimes.MYSQL_TIME_FORMATTER);
@@ -1718,7 +1718,7 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractTaskSuiteTests 
 
         io.jdbd.vendor.conf.Properties properties = taskAdjutant.host().getProperties();
         if (properties.getOrDefault(MyKey.timeTruncateFractional, Boolean.class)) {
-            DateTimeFormatter formatter = MySQLTimes.obtainDateTimeFormatter(precision);
+            DateTimeFormatter formatter = MySQLTimes.getDateTimeFormatter(precision);
             final String resultText, bindText;
             resultText = resultDateTime.format(formatter);
             bindText = bindDateTime.format(formatter);

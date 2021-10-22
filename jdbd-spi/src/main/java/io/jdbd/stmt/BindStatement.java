@@ -11,7 +11,7 @@ import org.reactivestreams.Publisher;
 import java.sql.JDBCType;
 import java.util.function.Consumer;
 
-public interface BindStatement extends BindableSingleStatement, BindableMultiResultStatement {
+public interface BindStatement extends BindSingleStatement, BindMultiResultStatement {
 
 
     boolean supportPublisher();

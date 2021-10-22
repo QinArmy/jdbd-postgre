@@ -1,18 +1,24 @@
 package io.jdbd.mysql.protocol.client;
 
+import io.jdbd.vendor.stmt.ParamSingleStmt;
+
 interface PrepareStmtTask {
 
-    /**
-     * @throws IllegalStateException throw when before prepare.
-     */
-    int obtainStatementId();
+    ParamSingleStmt getStmt();
 
     /**
      * @throws IllegalStateException throw when before prepare.
      */
-    MySQLColumnMeta[] obtainParameterMetas();
+    int getStatementId();
 
-    TaskAdjutant obtainAdjutant();
+    /**
+     * @throws IllegalStateException throw when before prepare.
+     */
+    MySQLColumnMeta[] getParameterMetas();
+
+    TaskAdjutant adjutant();
+
+    int addAndGetSequenceId();
 
     default void startSafeSequenceId() {
         throw new UnsupportedOperationException();
@@ -26,8 +32,12 @@ interface PrepareStmtTask {
         throw new UnsupportedOperationException();
     }
 
+    void addErrorToTask(Throwable error);
+
     boolean supportFetch();
 
     void nextGroupReset();
+
+    void handleNoExecuteMessage();
 
 }

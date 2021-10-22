@@ -1,6 +1,6 @@
 package io.jdbd.postgre.protocol.client;
 
-import io.jdbd.config.PropertyException;
+import io.jdbd.PropertyException;
 import io.jdbd.postgre.PgJdbdException;
 import io.jdbd.postgre.PgReConnectableException;
 import io.jdbd.postgre.PgServerVersion;

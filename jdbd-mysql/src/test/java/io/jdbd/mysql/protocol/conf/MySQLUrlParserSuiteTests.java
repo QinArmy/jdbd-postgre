@@ -1,6 +1,6 @@
 package io.jdbd.mysql.protocol.conf;
 
-import io.jdbd.config.UrlException;
+import io.jdbd.UrlException;
 import io.jdbd.mysql.Groups;
 import io.jdbd.mysql.protocol.client.Enums;
 import io.jdbd.mysql.util.MySQLStrings;

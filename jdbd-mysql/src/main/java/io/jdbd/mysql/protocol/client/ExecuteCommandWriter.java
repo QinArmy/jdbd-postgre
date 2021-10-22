@@ -10,11 +10,8 @@ import java.util.List;
 
 interface ExecuteCommandWriter {
 
-    Publisher<ByteBuf> writeCommand(int stmtIndex, List<? extends ParamValue> parameterGroup)
-            throws SQLException;
 
-
-    Publisher<ByteBuf> writeCommand(int stmtIndex) throws SQLException;
+    Publisher<ByteBuf> writeCommand(int batchIndex) throws SQLException;
 
 
     interface LongParameterWriter {

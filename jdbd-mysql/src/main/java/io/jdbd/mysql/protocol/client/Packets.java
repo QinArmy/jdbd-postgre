@@ -587,6 +587,7 @@ public abstract class Packets {
     /**
      * @return a sync Publisher that is created by {@link Mono#just(Object)} or {@link Flux#fromIterable(Iterable)}.
      */
+    @Deprecated
     public static Publisher<ByteBuf> createSimpleCommand(final byte cmdFlag, String sql
             , TaskAdjutant adjutant, Supplier<Integer> sequenceId) {
 

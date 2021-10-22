@@ -7,7 +7,8 @@ import java.util.Objects;
 public final class MySQLServerVersion implements Comparable<MySQLServerVersion>, ServerVersion {
 
     private static final MySQLServerVersion MIN_VERSION = new MySQLServerVersion("0.0.0", 0, 0, 0);
-    public static final MySQLServerVersion V8_0_19 = new MySQLServerVersion("8.0.19", 8, 0, 10);
+    public static final MySQLServerVersion V8_0_19 = new MySQLServerVersion("8.0.19", 8, 0, 19);
+    public static final MySQLServerVersion V8_0_26 = new MySQLServerVersion("8.0.26", 8, 0, 26);
 
     private final String completeVersion;
     private final int major;

@@ -1,7 +1,7 @@
 package io.jdbd.postgre.config;
 
 
-import io.jdbd.config.UrlException;
+import io.jdbd.UrlException;
 import io.jdbd.postgre.Group;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

@@ -2,6 +2,8 @@ package io.jdbd.postgre.session;
 
 import io.jdbd.DriverVersion;
 import io.jdbd.ProductFamily;
+import io.jdbd.PropertyException;
+import io.jdbd.UrlException;
 import io.jdbd.postgre.PgDriver;
 import io.jdbd.postgre.config.PgKey;
 import io.jdbd.postgre.config.PgUrl;
@@ -19,8 +21,8 @@ import java.util.Map;
 public class PgDatabaseSessionFactory implements DatabaseSessionFactory {
 
     /**
-     * @throws io.jdbd.config.UrlException      when url error.
-     * @throws io.jdbd.config.PropertyException when properties error.
+     * @throws UrlException      when url error.
+     * @throws PropertyException when properties error.
      */
     public static PgDatabaseSessionFactory create(final String url, final Map<String, String> properties) {
         final PgUrl pgUrl;
@@ -29,8 +31,8 @@ public class PgDatabaseSessionFactory implements DatabaseSessionFactory {
     }
 
     /**
-     * @throws io.jdbd.config.UrlException      when url error.
-     * @throws io.jdbd.config.PropertyException when properties error.
+     * @throws UrlException      when url error.
+     * @throws PropertyException when properties error.
      */
     public static PgDatabaseSessionFactory forPoolVendor(final String url, final Map<String, String> properties) {
         final PgUrl pgUrl;

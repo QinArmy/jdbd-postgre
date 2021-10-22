@@ -2,6 +2,7 @@ package io.jdbd.result;
 
 import io.jdbd.JdbdSQLException;
 import io.jdbd.lang.Nullable;
+import org.reactivestreams.Publisher;
 
 import java.util.List;
 import java.util.Map;
@@ -43,7 +44,7 @@ public interface ResultRow extends Result {
 
 
     @Nullable
-    <T> T get(int indexBaseZero, Class<T> columnClass) throws JdbdSQLException, UnsupportedConvertingException;
+    <T> T get(int indexBaseZero, Class<T> columnClass);
 
 
     /**
@@ -96,6 +97,10 @@ public interface ResultRow extends Result {
             throws JdbdSQLException, UnsupportedConvertingException;
 
     <K, V> Map<K, V> getMap(String columnLabel, Class<K> keyClass, Class<V> valueClass);
+
+    <T> Publisher<T> getPublisher(int indexBaseZero, Class<T> valueClass);
+
+    <T> Publisher<T> getPublisher(String columnLabel, Class<T> valueClass);
 
 
 }

@@ -3,19 +3,24 @@ package io.jdbd.mysql.protocol.client;
 import io.jdbd.JdbdException;
 import io.jdbd.mysql.MySQLType;
 import io.jdbd.mysql.protocol.Constants;
+import io.jdbd.mysql.protocol.MySQLServerVersion;
+import io.jdbd.mysql.stmt.MySQLStmt;
+import io.jdbd.mysql.stmt.QueryAttr;
 import io.jdbd.mysql.util.MySQLBinds;
 import io.jdbd.mysql.util.MySQLConvertUtils;
 import io.jdbd.mysql.util.MySQLExceptions;
 import io.jdbd.mysql.util.MySQLTimes;
 import io.jdbd.type.CodeEnum;
-import io.jdbd.vendor.stmt.ParamValue;
+import io.jdbd.vendor.stmt.*;
 import io.netty.buffer.ByteBuf;
 import org.reactivestreams.Publisher;
 import reactor.core.publisher.Flux;
-import reactor.core.publisher.Mono;
+import reactor.core.publisher.FluxSink;
 
 import java.math.BigDecimal;
 import java.math.BigInteger;
+import java.nio.charset.Charset;
+import java.nio.file.Path;
 import java.sql.SQLException;
 import java.time.*;
 import java.time.format.DateTimeParseException;
@@ -23,10 +28,7 @@ import java.time.temporal.ChronoField;
 import java.time.temporal.Temporal;
 import java.time.temporal.TemporalAccessor;
 import java.time.temporal.TemporalAmount;
-import java.util.ArrayList;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 
 
 /**
@@ -35,92 +37,138 @@ import java.util.Set;
  */
 final class PrepareExecuteCommandWriter implements ExecuteCommandWriter {
 
-    static ExecuteCommandWriter create(StmtTask stmtTask) {
-        return null;
+    static PrepareExecuteCommandWriter create(final PrepareStmtTask stmtTask) {
+        return new PrepareExecuteCommandWriter(stmtTask);
     }
 
 
-    private final PrepareStmtTask statementTask;
+    private final PrepareStmtTask stmtTask;
 
-    private final int statementId;
+    private final ParamSingleStmt stmt;
 
-    private final MySQLColumnMeta[] paramMetaArray;
+    private final TaskAdjutant adjutant;
 
-    private final ClientProtocolAdjutant adjutant;
+    private final int capability;
 
-    private final boolean fetchResultSet;
+    private final boolean supportQueryAttr;
+
+    private final MySQLServerVersion serverVersion;
 
 
-    PrepareExecuteCommandWriter(final PrepareStmtTask statementTask) {
-        this.statementTask = statementTask;
-        this.statementId = statementTask.obtainStatementId();
-        this.paramMetaArray = statementTask.obtainParameterMetas();
-        this.adjutant = statementTask.obtainAdjutant();
+    private PrepareExecuteCommandWriter(final PrepareStmtTask stmtTask) {
+        this.stmtTask = stmtTask;
+        this.stmt = stmtTask.getStmt();
+        this.adjutant = stmtTask.adjutant();
+        this.capability = this.adjutant.capability();
 
-        this.fetchResultSet = statementTask.supportFetch();
+        this.supportQueryAttr = Capabilities.supportQueryAttr(this.capability);
+        this.serverVersion = this.adjutant.handshake10().getServerVersion();
+        ;
     }
 
 
     @Override
-    public Publisher<ByteBuf> writeCommand(final int stmtIndex, final List<? extends ParamValue> parameterGroup)
-            throws SQLException {
-        final MySQLColumnMeta[] paramMetaArray = this.paramMetaArray;
-        MySQLBinds.assertParamCountMatch(stmtIndex, paramMetaArray.length, parameterGroup.size());
+    public Publisher<ByteBuf> writeCommand(final int batchIndex) throws SQLException {
+        final List<? extends ParamValue> bindGroup;
+        bindGroup = getBindGroup(batchIndex);
 
-        int nonLongDataCount = 0;
+        final MySQLColumnMeta[] paramMetaArray = Objects.requireNonNull(this.stmtTask.getParameterMetas());
+        MySQLBinds.assertParamCountMatch(batchIndex, paramMetaArray.length, bindGroup.size());
+
+        int longDataCount = 0;
         for (int i = 0; i < paramMetaArray.length; i++) {
-            ParamValue paramValue = parameterGroup.get(i);
+            final ParamValue paramValue = bindGroup.get(i);
             if (paramValue.getIndex() != i) {
                 // hear invoker has bug
-                throw MySQLExceptions.createBindValueParamIndexNotMatchError(stmtIndex, paramValue, i);
+                throw MySQLExceptions.createBindValueParamIndexNotMatchError(batchIndex, paramValue, i);
             }
-            if (!paramValue.isLongData()) {
-                nonLongDataCount++;
+            final Object value = paramValue.get();
+            if (value instanceof Publisher || value instanceof Path) {
+                longDataCount++;
             }
         }
-
         final Publisher<ByteBuf> publisher;
-        if (paramMetaArray.length == 0) {
+        if (paramMetaArray.length == 0 && !this.supportQueryAttr) {
             // this 'if' block handle no bind parameter.
-            ByteBuf packet = createExecutePacketBuffer(10);
-            Packets.writeHeader(packet, this.statementTask.safelyAddAndGetSequenceId());
-            publisher = Mono.just(packet);
+            final ByteBuf packet;
+            packet = createExecutePacket(10);
+            publisher = Packets.createPacketPublisher(packet, this.stmtTask::addAndGetSequenceId, this.adjutant);
+        } else if (longDataCount == 0) {
+            // this 'if' block handle no long parameter.
+            publisher = bindParameters(batchIndex, bindGroup);
         } else {
-            if (nonLongDataCount == paramMetaArray.length) {
-                // this 'if' block handle no long parameter.
-                publisher = createExecutionPackets(stmtIndex, parameterGroup);
-            } else {
-                // start safe sequence id
-                this.statementTask.startSafeSequenceId();
-                publisher = new PrepareLongParameterWriter(this.statementTask)
-                        .write(stmtIndex, parameterGroup)
-                        .concatWith(defferCreateExecutionPackets(stmtIndex, parameterGroup))
-                        // below end safe sequence id
-                        .doOnError(error -> this.statementTask.endSafeSequenceId())
-                        .doOnComplete(this.statementTask::endSafeSequenceId);
-            }
+            // start safe sequence id
+            publisher = new PrepareLongParameterWriter(this.stmtTask)
+                    .write(batchIndex, bindGroup)
+                    .concatWith(defferBindParameters(batchIndex, bindGroup));
         }
         return publisher;
     }
 
-    @Override
-    public Publisher<ByteBuf> writeCommand(int stmtIndex) throws SQLException {
-        return null;
-    }
-
     /*################################## blow private method ##################################*/
 
-    private Flux<ByteBuf> defferCreateExecutionPackets(final int stmtIndex
-            , final List<? extends ParamValue> parameterGroup) {
-        return Flux.defer(() -> {
-            Flux<ByteBuf> flux;
-            try {
-                flux = createExecutionPackets(stmtIndex, parameterGroup);
-            } catch (Throwable e) {
-                flux = Flux.error(MySQLExceptions.wrap(e));
+    private List<? extends ParamValue> getBindGroup(final int batchIndex) {
+        ParamSingleStmt stmt = this.stmt;
+        if (stmt instanceof PrepareStmt) {
+            stmt = ((PrepareStmt) stmt).getStmt();
+        }
+        final List<? extends ParamValue> bindGroup;
+        if (stmt instanceof ParamStmt) {
+            if (batchIndex > -1) {
+                String m = String.format("batchIndex[%s] isn't negative for stmt[%s].", batchIndex, stmt);
+                throw new IllegalArgumentException(m);
             }
-            return flux;
+            bindGroup = ((ParamStmt) stmt).getBindGroup();
+        } else if (stmt instanceof ParamBatchStmt) {
+            final ParamBatchStmt<? extends ParamValue> batchStmt = (ParamBatchStmt<? extends ParamValue>) stmt;
+            if (batchIndex >= batchStmt.getGroupList().size()) {
+                String m = String.format("batchIndex[%s] great or equal than group size[%s] for stmt[%s]."
+                        , batchIndex, batchStmt.getGroupList().size(), stmt);
+                throw new IllegalArgumentException(m);
+            }
+            bindGroup = batchStmt.getGroupList().get(batchIndex);
+        } else {
+            // here bug
+            String m = String.format("Unknown stmt type %s", stmt);
+            throw new IllegalStateException(m);
+        }
+        return bindGroup;
+    }
+
+    private Map<String, QueryAttr> getQueryAttribute() {
+        ParamSingleStmt stmt = this.stmt;
+        if (stmt instanceof PrepareStmt) {
+            stmt = ((PrepareStmt) stmt).getStmt();
+        }
+        final Map<String, QueryAttr> queryAttrMap;
+        if (stmt instanceof MySQLStmt) {
+            queryAttrMap = ((MySQLStmt) stmt).getQueryAttrs();
+        } else {
+            queryAttrMap = Collections.emptyMap();
+        }
+        return queryAttrMap;
+    }
+
+    private Publisher<ByteBuf> defferBindParameters(final int batchIndex, final List<? extends ParamValue> bindGroup) {
+        return Flux.create(sink -> {
+            if (this.adjutant.inEventLoop()) {
+                defferBIndParamInEventLoop(batchIndex, bindGroup, sink);
+            } else {
+                this.adjutant.execute(() -> defferBIndParamInEventLoop(batchIndex, bindGroup, sink));
+            }
         });
+    }
+
+    private void defferBIndParamInEventLoop(final int batchIndex, final List<? extends ParamValue> bindGroup
+            , final FluxSink<ByteBuf> sink) {
+        try {
+            Flux.from(bindParameters(batchIndex, bindGroup))
+                    .subscribe(sink::next, sink::error, sink::complete);
+        } catch (Throwable e) {
+            this.stmtTask.addErrorToTask(e);
+            this.stmtTask.handleNoExecuteMessage();
+            sink.complete();
+        }
     }
 
 
@@ -128,108 +176,141 @@ final class PrepareExecuteCommandWriter implements ExecuteCommandWriter {
      * @return {@link Flux} that is created by {@link Flux#fromIterable(Iterable)} method.
      * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_com_stmt_execute.html">Protocol::COM_STMT_EXECUTE</a>
      */
-    private Flux<ByteBuf> createExecutionPackets(final int stmtIndex, final List<? extends ParamValue> parameterGroup)
+    private Publisher<ByteBuf> bindParameters(final int batchIndex, final List<? extends ParamValue> bindGroup)
             throws JdbdException, SQLException {
 
 
-        final MySQLColumnMeta[] parameterMetaArray = this.paramMetaArray;
-        MySQLBinds.assertParamCountMatch(stmtIndex, parameterMetaArray.length, parameterGroup.size());
+        final MySQLColumnMeta[] paramMetaArray = this.stmtTask.getParameterMetas();
+        MySQLBinds.assertParamCountMatch(batchIndex, paramMetaArray.length, bindGroup.size());
 
-        ByteBuf packet;
-        packet = createExecutePacketBuffer(1024);
+        final Map<String, QueryAttr> queryAttrMap = getQueryAttribute();
 
-        //fill parameter_values
-        LinkedList<ByteBuf> packetList = new LinkedList<>();
-        Flux<ByteBuf> flux;
+        final ByteBuf packet;
+        packet = createExecutePacket(1024);
+
         try {
+            final boolean supportQueryAttr = this.supportQueryAttr;
+            final int paramCount;
+            if (supportQueryAttr) {
+                paramCount = paramMetaArray.length + queryAttrMap.size();
+                Packets.writeIntLenEnc(packet, paramCount); // parameter_count
+            } else {
+                paramCount = paramMetaArray.length;
+            }
+            final boolean zoneSuffix = this.serverVersion.meetsMinimum(MySQLServerVersion.V8_0_19);
+
+            final byte[] nullBitsMap = new byte[(paramCount + 7) >> 3];
             final int nullBitsMapIndex = packet.writerIndex();
-            final byte[] nullBitsMap = new byte[(parameterMetaArray.length + 7) >> 3];
             packet.writeZero(nullBitsMap.length); // placeholder for fill null_bitmap
             packet.writeByte(1); //fill new_params_bind_flag
 
             //1. make nullBitsMap and fill  parameter_types
-            final List<MySQLType> bindTypeList = new ArrayList<>(parameterMetaArray.length);
-            for (int i = 0; i < parameterMetaArray.length; i++) {
-                ParamValue paramValue = parameterGroup.get(i);
-                if (paramValue.get() == null) {
-                    nullBitsMap[i >> 3] |= (1 << (i & 7));
+            final List<MySQLType> bindTypeList = new ArrayList<>(paramCount);
+            for (int i = 0; i < paramMetaArray.length; i++) {
+                final ParamValue paramValue = bindGroup.get(i);
+                final Object value = paramValue.get();
+                if (value instanceof Publisher || value instanceof Path) {
+                    // long parameter
+                    continue;
                 }
-                MySQLType bindType = decideBindType(stmtIndex, parameterMetaArray[i], paramValue);
+                final MySQLType bindType;
+                if (value == null) {
+                    nullBitsMap[i >> 3] |= (1 << (i & 7));
+                    bindType = MySQLType.NULL; // filler
+                } else {
+                    bindType = decideBindType(batchIndex, paramMetaArray[i], paramValue);
+                }
                 bindTypeList.add(bindType);
-                //fill  parameter_types
                 Packets.writeInt2(packet, bindType.parameterType);
+                if (supportQueryAttr) {
+                    packet.writeByte(0); //string<lenenc> parameter_name
+                }
             }
+
+            final Charset clientCharset = this.adjutant.charsetClient();
+            final List<QueryAttr> attrList;
+            if (supportQueryAttr) {
+                attrList = new ArrayList<>(queryAttrMap.size());
+                int queryAttrIndex = paramMetaArray.length;
+                for (Map.Entry<String, QueryAttr> e : queryAttrMap.entrySet()) {
+                    final QueryAttr queryAttr = e.getValue();
+                    attrList.add(queryAttr); // store  Query Attribute
+                    if (queryAttr.get() == null) {
+                        nullBitsMap[queryAttrIndex >> 3] |= (1 << (queryAttrIndex & 7));
+                    }
+                    final MySQLType bindType = queryAttr.getType();
+                    bindTypeList.add(bindType);
+                    Packets.writeInt2(packet, bindType.parameterType);
+                    Packets.writeStringLenEnc(packet, e.getKey().getBytes(clientCharset));
+                    queryAttrIndex++;
+                }
+            } else {
+                attrList = Collections.emptyList();
+            }
+
 
             final int writeIndex = packet.writerIndex();
             packet.writerIndex(nullBitsMapIndex);
-
             packet.writeBytes(nullBitsMap); //fill null_bitmap
-
             packet.writerIndex(writeIndex); // reset writeIndex
 
-            ParamValue paramValue;
-            final int maxAllowedPayload = this.adjutant.host().maxAllowedPayload();
-            int wroteBytes = 0;
-
-            for (int i = 0; i < parameterMetaArray.length; i++) {
-                paramValue = parameterGroup.get(i);
-                if (paramValue.isLongData() || paramValue.get() == null) {
+            // below write bind parameter values
+            for (int i = 0, precision; i < paramMetaArray.length; i++) {
+                ParamValue paramValue = bindGroup.get(i);
+                Object value = paramValue.get();
+                if (value == null || value instanceof Publisher || value instanceof Path) {
                     continue;
                 }
-                while (packet.readableBytes() >= Packets.MAX_PACKET) {
-                    ByteBuf temp = packet.readRetainedSlice(Packets.MAX_PACKET);
-                    Packets.writeHeader(temp, this.statementTask.safelyAddAndGetSequenceId());
-                    packetList.add(temp);
-                    wroteBytes += Packets.MAX_PAYLOAD;
-
-                    temp = this.adjutant.createPacketBuffer(Math.min(1024, packet.readableBytes()));
-                    temp.writeBytes(packet);
-                    packet.release();
-                    packet = temp;
-
-                    if (wroteBytes < 0 || wroteBytes > maxAllowedPayload) {
-                        throw MySQLExceptions.createNetPacketTooLargeException(maxAllowedPayload);
-                    }
+                MySQLType type = bindTypeList.get(i);
+                switch (type) {
+                    case TIME:
+                    case DATETIME:
+                    case TIMESTAMP:
+                        precision = paramMetaArray[i].getDateTimeTypePrecision();
+                        break;
+                    default:
+                        precision = 0;
                 }
+                BinaryWriter.writeNonNullBinary(packet, batchIndex, type, paramValue, precision, clientCharset);
 
-                // bind parameter bto packet buffer
-                bindParameter(packet, stmtIndex, bindTypeList.get(i), parameterMetaArray[i], paramValue);
             }
-            wroteBytes += (packet.readableBytes() - Packets.HEADER_SIZE);
-            if (wroteBytes < 0 || wroteBytes > maxAllowedPayload) {
-                throw MySQLExceptions.createNetPacketTooLargeException(maxAllowedPayload);
+            // below write query attribute
+            for (QueryAttr queryAttr : attrList) {
+                BinaryWriter.writeNonNullBinary(packet, batchIndex, queryAttr.getType(), queryAttr, 0, clientCharset);
             }
 
-            Packets.writeHeader(packet, this.statementTask.safelyAddAndGetSequenceId());
-            packetList.add(packet);
+            return Packets.createPacketPublisher(packet, this.stmtTask::addAndGetSequenceId, this.adjutant);
 
-
-            flux = Flux.fromIterable(packetList);
         } catch (Throwable e) {
-            MySQLBinds.releaseOnError(packetList, packet);
-            flux = Flux.error(MySQLExceptions.wrap(e));
+            packet.release();
+            throw e;
+
         }
-        return flux;
     }
 
 
     /**
-     * @see #createExecutionPackets(int, List)
+     * @see #bindParameters(int, List)
      * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_com_stmt_execute.html">Protocol::COM_STMT_EXECUTE</a>
      */
-    private ByteBuf createExecutePacketBuffer(int initialPayloadCapacity) {
+    private ByteBuf createExecutePacket(final int capacity) {
 
-        ByteBuf packet = this.adjutant.createPacketBuffer(Math.min(initialPayloadCapacity, Packets.MAX_PAYLOAD));
+        final ByteBuf packet;
+        packet = this.adjutant.allocator().buffer(Packets.HEADER_SIZE + capacity, Integer.MAX_VALUE);
+        packet.writeZero(Packets.HEADER_SIZE); // placeholder of header
 
         packet.writeByte(Packets.COM_STMT_EXECUTE); // 1.status
-        Packets.writeInt4(packet, this.statementId);// 2. statement_id
+        Packets.writeInt4(packet, this.stmtTask.getStatementId());// 2. statement_id
         //3.cursor Flags, reactive api not support cursor
-        if (this.fetchResultSet) {
-            packet.writeByte(Constants.CURSOR_TYPE_READ_ONLY);
-        } else {
-            packet.writeByte(Constants.CURSOR_TYPE_NO_CURSOR);
+        int flags = Constants.CURSOR_TYPE_NO_CURSOR;
+        if (this.stmtTask.supportFetch()) {
+            flags |= Constants.CURSOR_TYPE_READ_ONLY;
         }
-        Packets.writeInt4(packet, 1);//4. iteration_count,Number of times to execute the statement. Currently always 1.
+        if (this.supportQueryAttr) {
+            flags |= Constants.PARAMETER_COUNT_AVAILABLE;
+        }
+        packet.writeByte(flags); // flags
+        Packets.writeInt4(packet, 1);//4. iteration_count,Number of times to execute the statement. Currently, always 1.
 
         return packet;
     }
@@ -338,7 +419,7 @@ final class PrepareExecuteCommandWriter implements ExecuteCommandWriter {
 
 
     /**
-     * @see #createExecutePacketBuffer(int)
+     * @see #createExecutePacket(int)
      * @see #decideBindType(int, MySQLColumnMeta, ParamValue)
      */
     @SuppressWarnings("deprecation")
@@ -566,7 +647,7 @@ final class PrepareExecuteCommandWriter implements ExecuteCommandWriter {
             , final ParamValue bindValue) {
         final Object nonNull = bindValue.getNonNull();
 
-        final int microPrecision = parameterMeta.obtainDateTimeTypePrecision();
+        final int microPrecision = parameterMeta.getDateTimeTypePrecision();
         final int length = microPrecision > 0 ? 12 : 8;
 
         if (nonNull instanceof Duration) {
@@ -607,7 +688,7 @@ final class PrepareExecuteCommandWriter implements ExecuteCommandWriter {
             String timeText = (String) nonNull;
             try {
                 time = OffsetTime.of(LocalTime.parse(timeText, MySQLTimes.MYSQL_TIME_FORMATTER)
-                        , this.adjutant.obtainZoneOffsetClient())
+                                , this.adjutant.obtainZoneOffsetClient())
                         .withOffsetSameInstant(this.adjutant.obtainZoneOffsetDatabase())
                         .toLocalTime();
             } catch (DateTimeParseException e) {
@@ -692,7 +773,7 @@ final class PrepareExecuteCommandWriter implements ExecuteCommandWriter {
             throw MySQLExceptions.createTypeNotMatchException(stmtIndex, parameterMeta.sqlType, bindValue);
         }
 
-        final int microPrecision = parameterMeta.obtainDateTimeTypePrecision();
+        final int microPrecision = parameterMeta.getDateTimeTypePrecision();
         buffer.writeByte(microPrecision > 0 ? 11 : 7); // length
         Packets.writeInt2(buffer, dateTime.getYear()); // year
         buffer.writeByte(dateTime.getMonthValue()); // month

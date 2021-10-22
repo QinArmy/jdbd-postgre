@@ -9,7 +9,7 @@ import org.reactivestreams.Publisher;
 
 import java.sql.JDBCType;
 
-public interface MultiStatement extends BindableMultiResultStatement {
+public interface MultiStatement extends BindMultiResultStatement {
 
     /**
      * @param sql must have text.

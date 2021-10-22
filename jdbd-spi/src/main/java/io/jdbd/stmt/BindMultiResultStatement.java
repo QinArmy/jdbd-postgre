@@ -21,7 +21,7 @@ import org.reactivestreams.Publisher;
  * @see PreparedStatement
  * @see MultiStatement
  */
-public interface BindableMultiResultStatement extends Statement {
+public interface BindMultiResultStatement extends Statement {
 
 
     void bind(int index, @Nullable Object nullable) throws JdbdException;

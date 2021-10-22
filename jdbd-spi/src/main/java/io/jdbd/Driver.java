@@ -17,9 +17,9 @@ public interface Driver {
 
     /**
      * @param url jdbc url
-     * @throws io.jdbd.config.UrlException      when url error.
-     * @throws io.jdbd.config.PropertyException when properties error.
-     * @throws NullPointerException             when url or properties is null
+     * @throws UrlException         when url error.
+     * @throws PropertyException    when properties error.
+     * @throws NullPointerException when url or properties is null
      */
     DatabaseSessionFactory createSessionFactory(String url, Map<String, String> properties);
 
@@ -37,8 +37,8 @@ public interface Driver {
      * </p>
      *
      * @param url jdbc url
-     * @throws io.jdbd.config.UrlException      when url error.
-     * @throws io.jdbd.config.PropertyException when properties error.
+     * @throws UrlException      when url error.
+     * @throws PropertyException when properties error.
      * @throws NullPointerException             when url or properties is null
      */
     DatabaseSessionFactory forPoolVendor(String url, Map<String, String> properties);

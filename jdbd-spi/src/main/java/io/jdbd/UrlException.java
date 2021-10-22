@@ -1,6 +1,5 @@
-package io.jdbd.config;
+package io.jdbd;
 
-import io.jdbd.JdbdNonSQLException;
 import io.jdbd.lang.Nullable;
 
 public class UrlException extends JdbdNonSQLException {

@@ -1,8 +1,8 @@
 package io.jdbd.mysql.protocol.client;
 
-import io.jdbd.mysql.MySQLType;
 import io.jdbd.mysql.util.MySQLConvertUtils;
 import io.jdbd.mysql.util.MySQLExceptions;
+import io.jdbd.mysql.util.MySQLNumbers;
 import io.jdbd.mysql.util.MySQLTimes;
 import io.jdbd.result.ResultRow;
 import io.jdbd.vendor.type.LongBinaries;
@@ -20,7 +20,6 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.Year;
 import java.time.format.DateTimeFormatter;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.function.Consumer;
 
@@ -211,11 +210,13 @@ final class TextResultSetReader extends AbstractResultSetReader {
             }
             break;
             case BIT: {
-                columnText = Packets.readStringLenEnc(cumulateBuffer, columnCharset);
-                if (columnText == null) {
+                final byte[] bytes;
+                bytes = Packets.readBytesLenEnc(cumulateBuffer);
+                ;
+                if (bytes == null) {
                     value = null;
                 } else {
-                    value = Long.parseUnsignedLong(columnText, 2);
+                    value = MySQLNumbers.readLongFromBigEndian(bytes, 0, bytes.length);
                 }
             }
             break;
@@ -224,6 +225,7 @@ final class TextResultSetReader extends AbstractResultSetReader {
                 if (columnText == null) {
                     value = null;
                 } else if (columnText.equals("0000-00-00")) {
+                    //TODO write test use case
                     value = handleZeroDateBehavior("DATE");
                 } else {
                     value = LocalDate.parse(columnText, DateTimeFormatter.ISO_LOCAL_DATE);
@@ -271,10 +273,10 @@ final class TextResultSetReader extends AbstractResultSetReader {
             case JSON:
             case LONGTEXT: {
                 columnText = Packets.readStringLenEnc(cumulateBuffer, columnCharset);
-                if (columnText != null && columnMeta.sqlType == MySQLType.LONGTEXT) {
-                    value = LongStrings.fromString(columnText);
+                if (columnText == null) {
+                    value = null;
                 } else {
-                    value = columnText;
+                    value = LongStrings.fromString(columnText);
                 }
             }
             break;
@@ -288,20 +290,19 @@ final class TextResultSetReader extends AbstractResultSetReader {
             }
             break;
             case GEOMETRY: {
-                final byte[] bytes = Packets.readBytesLenEnc(cumulateBuffer);
-                if (bytes == null) {
-                    value = null;
-                } else {
-                    // drop MySQL internal 4 bytes for integer SRID
-                    value = LongBinaries.fromArray(Arrays.copyOfRange(bytes, 4, bytes.length));
-                }
+                final int length = Packets.readLenEncAsInt(cumulateBuffer);
+                cumulateBuffer.skipBytes(4);// drop MySQL internal 4 bytes for integer SRID
+
+                final byte[] bytes = new byte[length - 4];
+                cumulateBuffer.readBytes(bytes);
+                value = LongBinaries.fromArray(bytes);
             }
             break;
+            case BINARY:
+            case VARBINARY:
             case TINYBLOB:
             case BLOB:
-            case MEDIUMBLOB:
-            case BINARY:
-            case VARBINARY: {
+            case MEDIUMBLOB: {
                 // unknown
                 value = Packets.readBytesLenEnc(cumulateBuffer);
             }

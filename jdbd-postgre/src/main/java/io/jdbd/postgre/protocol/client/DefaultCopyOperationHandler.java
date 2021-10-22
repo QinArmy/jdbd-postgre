@@ -11,7 +11,7 @@ import io.jdbd.postgre.syntax.CopyOperation;
 import io.jdbd.postgre.syntax.CopyOut;
 import io.jdbd.postgre.syntax.PgParser;
 import io.jdbd.postgre.util.PgExceptions;
-import io.jdbd.stmt.BindableSingleStatement;
+import io.jdbd.stmt.BindSingleStatement;
 import io.jdbd.stmt.ExportSubscriberFunctionException;
 import io.jdbd.stmt.StaticStatement;
 import io.jdbd.vendor.stmt.StaticBatchStmt;
@@ -380,14 +380,14 @@ final class DefaultCopyOperationHandler implements CopyOperationHandler {
             if (resultIndex != 0) {
                 // here 1. bug ; 2. postgre CALL command add new feature that CALL command can return multi CommendComplete message.
                 throw new SQLException(String.format("COPY-OUT only is supported with single result in %s"
-                        , BindableSingleStatement.class.getName()));
+                        , BindSingleStatement.class.getName()));
             }
             function = stmt.getExportSubscriber();
         } else if (stmt instanceof BindBatchStmt) {
             final List<List<BindValue>> groupList = ((BindBatchStmt) stmt).getGroupList();
             if (resultIndex != 0 || groupList.size() != 1) {
                 throw new SQLException(String.format("COPY-OUT only is supported with single bind in %s"
-                        , BindableSingleStatement.class.getName()));
+                        , BindSingleStatement.class.getName()));
             }
             function = stmt.getExportSubscriber();
         } else if (stmt instanceof BindMultiStmt) {

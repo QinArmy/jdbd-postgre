@@ -1,6 +1,6 @@
 package io.jdbd.vendor.conf;
 
-import io.jdbd.config.PropertyException;
+import io.jdbd.PropertyException;
 import io.qinarmy.env.ImmutableMapEnvironment;
 import io.qinarmy.env.convert.Converter;
 import io.qinarmy.env.convert.ConverterManager;

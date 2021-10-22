@@ -15,6 +15,7 @@ import io.jdbd.vendor.stmt.StaticBatchStmt;
 import io.jdbd.vendor.stmt.StaticMultiStmt;
 import io.jdbd.vendor.stmt.StaticStmt;
 import io.jdbd.vendor.stmt.Stmt;
+import io.jdbd.vendor.util.JdbdExceptions;
 import io.netty.buffer.ByteBuf;
 import org.reactivestreams.Publisher;
 import reactor.core.publisher.Flux;
@@ -436,7 +437,19 @@ final class QueryCommandWriter {
                 writeDateTimeValue(batchIndex, bindValue, packet);
             }
             break;
-            case GEOMETRY: // GEOMETRY use string or binary
+            case GEOMETRY: {
+                final Object nonNull = bindValue.getNonNull();
+                if (nonNull instanceof Path) {
+                    writeBinaryPath(batchIndex, bindValue, packet);
+                } else if (nonNull instanceof byte[]) {
+                    writeOneEscapesValue(packet, (byte[]) nonNull);
+                } else if (nonNull instanceof String) {
+                    writeOneEscapesValue(packet, ((String) nonNull).getBytes(this.clientCharset));
+                } else {
+                    throw JdbdExceptions.createNonSupportBindSqlTypeError(batchIndex, bindValue.getType(), bindValue);
+                }
+            }
+            break;
             case UNKNOWN:
             case NULL:
                 throw MySQLExceptions.createUnsupportedParamTypeError(batchIndex, bindValue.getType(), bindValue);
@@ -475,6 +488,8 @@ final class QueryCommandWriter {
             value = ((Year) nonNull).getValue();
         } else if (nonNull instanceof Integer) {
             value = (Integer) nonNull;
+        } else if (nonNull instanceof Short) {
+            value = (Short) nonNull;
         } else {
             throw MySQLExceptions.createNonSupportBindSqlTypeError(batchIndex, bindValue.getType(), bindValue);
         }
@@ -711,9 +726,7 @@ final class QueryCommandWriter {
                 lastWritten = i + 1;
             } else if (b == Constants.BACK_SLASH_BYTE
                     || b == Constants.QUOTE_CHAR_BYTE
-                    || b == Constants.DOUBLE_QUOTE_BYTE
-                    || b == Constants.PERCENT_BYTE
-                    || b == Constants.UNDERLINE_BYTE) {
+                    || b == Constants.DOUBLE_QUOTE_BYTE) {
                 if (i > lastWritten) {
                     packet.writeBytes(bytes, lastWritten, i - lastWritten);
                 }
@@ -787,7 +800,7 @@ final class QueryCommandWriter {
 
         // below write parameter_values for query attribute
         for (final QueryAttr queryAttr : queryAttrList) {
-            BinaryWriter.writeNonNullBinary(packet, -1, queryAttr.getType(), queryAttr, clientCharset);
+            BinaryWriter.writeNonNullBinary(packet, -1, queryAttr.getType(), queryAttr, 6, clientCharset);
         }
 
 

@@ -17,7 +17,7 @@ import java.util.function.Supplier;
  * @see QuitTask
  * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_command_phase.html">Command Phase</a>
  */
-abstract class AbstractCommandTask extends MySQLTask implements StmtTask {
+abstract class MySQLCommandTask extends MySQLTask implements StmtTask {
 
     final Logger log = LoggerFactory.getLogger(getClass());
 
@@ -33,7 +33,7 @@ abstract class AbstractCommandTask extends MySQLTask implements StmtTask {
 
     private boolean downstreamCanceled;
 
-    AbstractCommandTask(TaskAdjutant adjutant, final ResultSink sink) {
+    MySQLCommandTask(TaskAdjutant adjutant, final ResultSink sink) {
         super(adjutant, sink::error);
         this.sink = sink;
         this.negotiatedCapability = adjutant.capability();
@@ -67,6 +67,7 @@ abstract class AbstractCommandTask extends MySQLTask implements StmtTask {
         addError(error);
     }
 
+
     @Override
     public final TaskAdjutant adjutant() {
         return this.adjutant;
@@ -79,6 +80,15 @@ abstract class AbstractCommandTask extends MySQLTask implements StmtTask {
         } else {
             this.sequenceId = sequenceId & 0xFF;
         }
+    }
+
+    public final int addAndGetSequenceId() {
+        int sequenceId = ++this.sequenceId;
+        if (sequenceId > 0xFF) {
+            sequenceId &= 0xFF;
+            this.sequenceId = sequenceId;
+        }
+        return sequenceId;
     }
 
 
@@ -98,15 +108,6 @@ abstract class AbstractCommandTask extends MySQLTask implements StmtTask {
         return this.sequenceId;
     }
 
-
-    public final int addAndGetSequenceId() {
-        int sequenceId = ++this.sequenceId;
-        if (sequenceId > 0xFF) {
-            sequenceId &= 0xFF;
-            this.sequenceId = sequenceId;
-        }
-        return sequenceId;
-    }
 
     abstract void handleReadResultSetEnd();
 

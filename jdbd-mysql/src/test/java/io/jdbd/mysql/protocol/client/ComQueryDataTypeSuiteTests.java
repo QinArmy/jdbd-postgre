@@ -8,6 +8,8 @@ import org.testng.annotations.Test;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+import java.io.IOException;
+
 public class ComQueryDataTypeSuiteTests extends AbstractDataTypeSuiteTests {
 
     public ComQueryDataTypeSuiteTests() {
@@ -99,6 +101,14 @@ public class ComQueryDataTypeSuiteTests extends AbstractDataTypeSuiteTests {
     }
 
     /**
+     * @see MySQLType#BIT
+     */
+    @Test
+    public void bitBindAndGet() {
+        bitType();
+    }
+
+    /**
      * @see MySQLType#CHAR
      */
     @Test(timeOut = TIME_OUT)
@@ -153,6 +163,102 @@ public class ComQueryDataTypeSuiteTests extends AbstractDataTypeSuiteTests {
     @Test
     public void timeBindAndGet() {
         time();
+    }
+
+    /**
+     * @see MySQLType#DATE
+     */
+    @Test
+    public void dateBindAndGet() {
+        date();
+    }
+
+    /**
+     * @see MySQLType#YEAR
+     */
+    @Test
+    public void yearBindAndGet() {
+        year();
+    }
+
+    /**
+     * @see MySQLType#TIMESTAMP
+     */
+    @Test
+    public void timestampBindAndGet() {
+        timestamp();
+    }
+
+    /**
+     * @see MySQLType#DATETIME
+     */
+    @Test
+    public void datetimeBindAndGet() {
+        dateTime();
+    }
+
+    /**
+     * @see MySQLType#TINYTEXT
+     */
+    @Test
+    public void tinyTextBindAndGet() {
+        tinyText();
+    }
+
+    /**
+     * @see MySQLType#TEXT
+     */
+    @Test
+    public void textBindAndGet() {
+        text();
+    }
+
+    /**
+     * @see MySQLType#MEDIUMTEXT
+     */
+    @Test
+    public void mediumTextBindAndGet() {
+        mediumText();
+    }
+
+    /**
+     * @see MySQLType#LONGTEXT
+     */
+    @Test
+    public void longTextBindAndGet() throws IOException {
+        longText();
+    }
+
+    /**
+     * @see MySQLType#TINYBLOB
+     */
+    @Test
+    public void tinyBlobBindAndGet() {
+        tinyBlob();
+    }
+
+    /**
+     * @see MySQLType#BLOB
+     */
+    @Test
+    public void blobBindAndGet() {
+        blob();
+    }
+
+    /**
+     * @see MySQLType#MEDIUMBLOB
+     */
+    @Test
+    public void mediumBlobBindAndGet() {
+        mediumBlob();
+    }
+
+    /**
+     * @see MySQLType#LONGBLOB
+     */
+    @Test
+    public void longBlobBindAndGet() throws IOException {
+        longBlob();
     }
 
 
