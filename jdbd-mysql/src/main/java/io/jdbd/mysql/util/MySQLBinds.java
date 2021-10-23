@@ -250,37 +250,6 @@ public abstract class MySQLBinds extends JdbdBinds {
         return builder.toString();
     }
 
-    public static String bindNonNullToBit(final int batchIndex, SQLType sqlType, Value paramValue)
-            throws SQLException {
-        final Object nonNull = paramValue.getNonNull();
-        final String value;
-
-        if (nonNull instanceof Long) {
-            value = Long.toBinaryString((Long) nonNull);
-        } else if (nonNull instanceof Integer) {
-            value = Integer.toBinaryString((Integer) nonNull);
-        } else if (nonNull instanceof Short) {
-            value = Integer.toBinaryString(((Short) nonNull) & 0xFFFF);
-        } else if (nonNull instanceof Byte) {
-            value = Integer.toBinaryString(((Byte) nonNull) & 0xFF);
-        } else if (nonNull instanceof BitSet) {
-            final BitSet v = (BitSet) nonNull;
-            if (v.length() > 64) {
-                throw JdbdExceptions.outOfTypeRange(batchIndex, sqlType, paramValue);
-            }
-            value = MySQLStrings.bitSetToBitString(v, true);
-        } else if (nonNull instanceof String) {
-            final String v = (String) nonNull;
-            if (v.length() > 64 || !MySQLStrings.isBinaryString(v)) {
-                throw JdbdExceptions.outOfTypeRange(batchIndex, sqlType, paramValue);
-            }
-            value = v;
-        } else {
-            throw JdbdExceptions.createNonSupportBindSqlTypeError(batchIndex, sqlType, paramValue);
-        }
-        return value;
-    }
-
 
     public static void assertParamCountMatch(int stmtIndex, int paramCount, int bindCount)
             throws SQLException {

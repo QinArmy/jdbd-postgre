@@ -30,9 +30,9 @@ public class JdbcUnitTests {
         prop.put("useServerPrepStmts", "true");
 
         try (Connection conn = DriverManager.getConnection(URL, prop)) {
-            String sql = "CALL demoSp(?)";
-            try (CallableStatement stmt = conn.prepareCall(sql)) {
-                stmt.setString(1, "QinArmy");
+            String sql = "SELECT t.my_bit64 FROM  mysql_types AS t WHERE t.id =?";
+            try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+                stmt.setLong(1, 1);
 //                stmt.registerOutParameter(1, MysqlType.INT);
 
                 stmt.execute();

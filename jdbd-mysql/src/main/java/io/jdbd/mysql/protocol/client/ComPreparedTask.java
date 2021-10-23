@@ -232,7 +232,7 @@ final class ComPreparedTask extends MySQLCommandTask implements PrepareStmtTask,
 
     @Override
     public boolean supportFetch() {
-        return false;
+        return this.rowMeta != null && this.stmt.getFetchSize() > 0;
     }
 
     @Override
@@ -532,6 +532,7 @@ final class ComPreparedTask extends MySQLCommandTask implements PrepareStmtTask,
         }
         boolean taskEnd = false;
         try {
+            updateSequenceId(-1); // reset sequence id
             this.packetPublisher = this.commandWriter.writeCommand(batchIndex);
             this.phase = Phase.READ_EXECUTE_RESPONSE;
         } catch (Throwable e) {
@@ -754,7 +755,7 @@ final class ComPreparedTask extends MySQLCommandTask implements PrepareStmtTask,
             }
             break;
             case 0: {
-                cumulateBuffer.skipBytes(5); //skip status and statementId
+                cumulateBuffer.skipBytes(4); //statementId
                 final int numColumns = Packets.readInt2AsInt(cumulateBuffer);
                 final int numParams = Packets.readInt2AsInt(cumulateBuffer);
                 cumulateBuffer.readerIndex(payloadIndex + payloadLength); // to next packet.

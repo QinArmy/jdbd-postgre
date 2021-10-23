@@ -32,6 +32,20 @@ public abstract class MySQLStrings extends JdbdStrings {
         return true;
     }
 
+    public static byte[] binaryStringToBytes(final char[] binaryString) {
+        final byte[] bytes = new byte[(binaryString.length + 7) >> 3];
+        char ch;
+        for (int i = 0; i < binaryString.length; i++) {
+            ch = binaryString[i];
+            if (ch == '1') {
+                bytes[i >> 3] |= (1 << (i & 7));
+            } else if (ch != '0') {
+                throw new IllegalArgumentException("binaryString isn't binary string.");
+            }
+        }
+        return bytes;
+    }
+
     public static String trimTrailingSpace(final String text) {
         String newText = null;
         final int length = text.length();

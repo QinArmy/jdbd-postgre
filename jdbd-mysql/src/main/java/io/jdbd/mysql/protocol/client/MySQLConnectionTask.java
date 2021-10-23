@@ -646,6 +646,9 @@ final class MySQLConnectionTask extends CommunicationTask implements Authenticat
         final boolean useConnectWithDb = MySQLStrings.hasText(this.hostInfo.getDbName())
                 && !env.getOrDefault(MyKey.createDatabaseIfNotExist, Boolean.class);
 
+        // Servers between 8.0.23 8.0.25 are affected by Bug#103102, Bug#103268 and Bug#103377. Query attributes cannot be sent to these servers.
+        final boolean supportQueryAttr = handshake.getServerVersion().meetsMinimum(MySQLServerVersion.V8_0_26);
+
         return Capabilities.CLIENT_SECURE_CONNECTION
                 | Capabilities.CLIENT_PLUGIN_AUTH
                 | (serverCapability & Capabilities.CLIENT_LONG_PASSWORD)  //
@@ -671,7 +674,7 @@ final class MySQLConnectionTask extends CommunicationTask implements Authenticat
                 | (env.getOrDefault(MyKey.sslMode, Enums.SslMode.class) != Enums.SslMode.DISABLED ? (serverCapability & Capabilities.CLIENT_SSL) : 0)
                 | (serverCapability & Capabilities.CLIENT_SESSION_TRACK) // TODO ZORO MYSQLCONNJ-437?
 
-                | (serverCapability & Capabilities.CLIENT_QUERY_ATTRIBUTES)
+                | (supportQueryAttr ? (serverCapability & Capabilities.CLIENT_QUERY_ATTRIBUTES) : 0)
                 ;
     }
 

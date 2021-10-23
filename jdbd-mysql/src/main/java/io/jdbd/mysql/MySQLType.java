@@ -305,7 +305,7 @@ public enum MySQLType implements SQLType {
      * A bit-field type. M indicates the number of bits per value, from 1 to 64. The default is 1 if M is omitted.
      * Protocol: TYPE_BIT = 16
      */
-    BIT(Constants.TYPE_BIT, JDBCType.BIT, Long.class),
+    BIT(Constants.TYPE_BIT, true, JDBCType.BIT, Long.class),
 
     /**
      * ENUM('value1','value2',...) [CHARACTER SET charset_name] [COLLATE collation_name]
@@ -460,29 +460,29 @@ public enum MySQLType implements SQLType {
      * <p>
      * Has no protocol ID.
      */
-    UNKNOWN(-1, JDBCType.OTHER, Object.class);
+    UNKNOWN((short) -1, JDBCType.OTHER, Object.class);
 
     private final JDBCType jdbcType;
 
     private final Class<?> javaType;
 
-    public final int typeFlag;
+    public short typeFlag;
 
     public final boolean unsigned;
 
-    public final int parameterType;
+    public final short parameterType;
 
-    MySQLType(int typeFlag, JDBCType jdbcType, Class<?> javaType) {
+    MySQLType(short typeFlag, JDBCType jdbcType, Class<?> javaType) {
         this(typeFlag, false, jdbcType, javaType);
     }
 
-    MySQLType(int typeFlag, boolean unsigned, JDBCType jdbcType, Class<?> javaType) {
+    MySQLType(short typeFlag, boolean unsigned, JDBCType jdbcType, Class<?> javaType) {
         this.typeFlag = typeFlag;
         this.unsigned = unsigned;
         this.jdbcType = jdbcType;
         this.javaType = javaType;
 
-        this.parameterType = unsigned ? (0B1000_0000 | typeFlag) : typeFlag;
+        this.parameterType = (short) (unsigned ? (0x8000 | typeFlag) : typeFlag);
     }
 
     @Override
@@ -518,7 +518,7 @@ public enum MySQLType implements SQLType {
 
     @Override
     public Integer getVendorTypeNumber() {
-        return this.typeFlag;
+        return (int) this.typeFlag;
     }
 
     @Override

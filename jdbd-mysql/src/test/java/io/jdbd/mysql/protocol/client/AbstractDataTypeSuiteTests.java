@@ -943,17 +943,17 @@ abstract class AbstractDataTypeSuiteTests extends AbstractTaskSuiteTests {
         return Mono.error(new RuntimeException("update failure"));
     }
 
-    private Mono<ClientProtocol> getClientProtocol() {
-        final Mono<ClientProtocol> mono;
-        ClientProtocol protocol;
-        protocol = PROTOCOL_QUEUE.poll();
-        if (protocol == null) {
-            mono = ClientProtocolFactory.single(DEFAULT_SESSION_ADJUTANT);
-        } else {
-            mono = Mono.just(protocol);
-        }
-        return mono;
-    }
+     Mono<ClientProtocol> getClientProtocol() {
+         final Mono<ClientProtocol> mono;
+         ClientProtocol protocol;
+         protocol = PROTOCOL_QUEUE.poll();
+         if (protocol == null) {
+             mono = ClientProtocolFactory.single(DEFAULT_SESSION_ADJUTANT);
+         } else {
+             mono = Mono.just(protocol);
+         }
+         return mono;
+     }
 
 
 }

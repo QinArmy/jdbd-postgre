@@ -1,20 +1,15 @@
 package io.jdbd.mysql.protocol.client;
 
 import io.jdbd.JdbdSQLException;
+import io.jdbd.meta.SQLType;
 import io.jdbd.mysql.SQLMode;
 import io.jdbd.mysql.protocol.Constants;
 import io.jdbd.mysql.protocol.MySQLServerVersion;
 import io.jdbd.mysql.stmt.*;
 import io.jdbd.mysql.syntax.MySQLParser;
-import io.jdbd.mysql.util.MySQLBinds;
-import io.jdbd.mysql.util.MySQLBuffers;
-import io.jdbd.mysql.util.MySQLExceptions;
-import io.jdbd.mysql.util.MySQLTimes;
+import io.jdbd.mysql.util.*;
 import io.jdbd.stmt.LongDataReadException;
-import io.jdbd.vendor.stmt.StaticBatchStmt;
-import io.jdbd.vendor.stmt.StaticMultiStmt;
-import io.jdbd.vendor.stmt.StaticStmt;
-import io.jdbd.vendor.stmt.Stmt;
+import io.jdbd.vendor.stmt.*;
 import io.jdbd.vendor.util.JdbdExceptions;
 import io.netty.buffer.ByteBuf;
 import org.reactivestreams.Publisher;
@@ -35,10 +30,7 @@ import java.time.OffsetDateTime;
 import java.time.Year;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.function.Supplier;
 
 
@@ -503,7 +495,7 @@ final class QueryCommandWriter {
             throws SQLException {
 
         final String value;
-        value = MySQLBinds.bindNonNullToBit(batchIndex, bindValue.getType(), bindValue);
+        value = bindNonNullToBit(batchIndex, bindValue.getType(), bindValue);
 
         packet.writeByte('B');
         packet.writeByte(Constants.QUOTE_CHAR_BYTE);
@@ -693,6 +685,38 @@ final class QueryCommandWriter {
         packet.writeBytes(value.getBytes(this.clientCharset));
         packet.writeByte(Constants.QUOTE_CHAR_BYTE);
 
+    }
+
+
+    private static String bindNonNullToBit(final int batchIndex, SQLType sqlType, Value paramValue)
+            throws SQLException {
+        final Object nonNull = paramValue.getNonNull();
+        final String value;
+
+        if (nonNull instanceof Long) {
+            value = Long.toBinaryString((Long) nonNull);
+        } else if (nonNull instanceof Integer) {
+            value = Integer.toBinaryString((Integer) nonNull);
+        } else if (nonNull instanceof Short) {
+            value = Integer.toBinaryString(((Short) nonNull) & 0xFFFF);
+        } else if (nonNull instanceof Byte) {
+            value = Integer.toBinaryString(((Byte) nonNull) & 0xFF);
+        } else if (nonNull instanceof BitSet) {
+            final BitSet v = (BitSet) nonNull;
+            if (v.length() > 64) {
+                throw JdbdExceptions.outOfTypeRange(batchIndex, sqlType, paramValue);
+            }
+            value = MySQLStrings.bitSetToBitString(v, true);
+        } else if (nonNull instanceof String) {
+            final String v = (String) nonNull;
+            if (v.length() > 64 || !MySQLStrings.isBinaryString(v)) {
+                throw JdbdExceptions.outOfTypeRange(batchIndex, sqlType, paramValue);
+            }
+            value = v;
+        } else {
+            throw JdbdExceptions.createNonSupportBindSqlTypeError(batchIndex, sqlType, paramValue);
+        }
+        return value;
     }
 
 

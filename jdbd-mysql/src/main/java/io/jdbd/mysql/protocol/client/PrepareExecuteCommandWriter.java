@@ -7,9 +7,7 @@ import io.jdbd.mysql.protocol.MySQLServerVersion;
 import io.jdbd.mysql.stmt.MySQLStmt;
 import io.jdbd.mysql.stmt.QueryAttr;
 import io.jdbd.mysql.util.MySQLBinds;
-import io.jdbd.mysql.util.MySQLConvertUtils;
 import io.jdbd.mysql.util.MySQLExceptions;
-import io.jdbd.mysql.util.MySQLTimes;
 import io.jdbd.type.CodeEnum;
 import io.jdbd.vendor.stmt.*;
 import io.netty.buffer.ByteBuf;
@@ -23,8 +21,6 @@ import java.nio.charset.Charset;
 import java.nio.file.Path;
 import java.sql.SQLException;
 import java.time.*;
-import java.time.format.DateTimeParseException;
-import java.time.temporal.ChronoField;
 import java.time.temporal.Temporal;
 import java.time.temporal.TemporalAccessor;
 import java.time.temporal.TemporalAmount;
@@ -211,14 +207,16 @@ final class PrepareExecuteCommandWriter implements ExecuteCommandWriter {
                 final Object value = paramValue.get();
                 if (value instanceof Publisher || value instanceof Path) {
                     // long parameter
+                    bindTypeList.add(MySQLType.NULL);// filler
                     continue;
                 }
                 final MySQLType bindType;
                 if (value == null) {
                     nullBitsMap[i >> 3] |= (1 << (i & 7));
-                    bindType = MySQLType.NULL; // filler
+                    bindType = paramMetaArray[i].sqlType; // filler
                 } else {
-                    bindType = decideBindType(batchIndex, paramMetaArray[i], paramValue);
+                    bindType = paramMetaArray[i].sqlType;
+                    // bindType = decideBindType(batchIndex, paramMetaArray[i], paramValue);
                 }
                 bindTypeList.add(bindType);
                 Packets.writeInt2(packet, bindType.parameterType);
@@ -276,7 +274,8 @@ final class PrepareExecuteCommandWriter implements ExecuteCommandWriter {
             }
             // below write query attribute
             for (QueryAttr queryAttr : attrList) {
-                BinaryWriter.writeNonNullBinary(packet, batchIndex, queryAttr.getType(), queryAttr, 0, clientCharset);
+                // use precision 6 ,because query attribute no metadata.
+                BinaryWriter.writeNonNullBinary(packet, batchIndex, queryAttr.getType(), queryAttr, 6, clientCharset);
             }
 
             return Packets.createPacketPublisher(packet, this.stmtTask::addAndGetSequenceId, this.adjutant);
@@ -315,7 +314,7 @@ final class PrepareExecuteCommandWriter implements ExecuteCommandWriter {
         return packet;
     }
 
-    private MySQLType decideBindType(int stmtIndex, MySQLColumnMeta meta, ParamValue paramValue) {
+    private MySQLType decideBindType(final int stmtIndex, MySQLColumnMeta meta, ParamValue paramValue) {
         final Object nonNull = paramValue.getNonNull();
         final MySQLType targetType = meta.sqlType;
         final MySQLType bindType;
@@ -417,458 +416,6 @@ final class PrepareExecuteCommandWriter implements ExecuteCommandWriter {
         return bindType;
     }
 
-
-    /**
-     * @see #createExecutePacket(int)
-     * @see #decideBindType(int, MySQLColumnMeta, ParamValue)
-     */
-    @SuppressWarnings("deprecation")
-    private void bindParameter(ByteBuf buffer, int stmtIndex, final MySQLType bindType, MySQLColumnMeta meta
-            , ParamValue paramValue)
-            throws SQLException {
-
-        switch (bindType) {
-            case MEDIUMINT:
-            case MEDIUMINT_UNSIGNED:
-            case INT:
-            case INT_UNSIGNED:
-                bindToInt4(buffer, stmtIndex, meta, paramValue);
-                break;
-            case BIGINT:
-            case BIGINT_UNSIGNED:
-                bindToInt8(buffer, stmtIndex, meta, paramValue);
-                break;
-            case FLOAT:
-            case FLOAT_UNSIGNED:
-                bindToFloat(buffer, stmtIndex, meta, paramValue);
-                break;
-            case DOUBLE:
-            case DOUBLE_UNSIGNED:
-                bindToDouble(buffer, stmtIndex, meta, paramValue);
-                break;
-            case BOOLEAN:
-            case TINYINT:
-            case TINYINT_UNSIGNED:
-                bindToInt1(buffer, stmtIndex, meta, paramValue);
-                break;
-            case SMALLINT:
-            case SMALLINT_UNSIGNED:
-            case YEAR:
-                bindInt2(buffer, stmtIndex, meta, paramValue);
-                break;
-            case DECIMAL:
-            case DECIMAL_UNSIGNED:
-                bindToDecimal(buffer, stmtIndex, meta, paramValue);
-                break;
-            case ENUM:
-            case VARCHAR:
-            case CHAR:
-            case JSON:
-            case TINYTEXT:
-            case MEDIUMTEXT:
-            case TEXT:
-            case LONGTEXT:
-                // below binary
-            case BINARY:
-            case VARBINARY:
-            case TINYBLOB:
-            case MEDIUMBLOB:
-            case BLOB:
-            case LONGBLOB:
-            case GEOMETRY:
-                bindToStringType(buffer, stmtIndex, meta, paramValue);
-                break;
-            case TIME:
-                bindToTime(buffer, stmtIndex, meta, paramValue);
-                break;
-            case DATE:
-                bindToDate(buffer, stmtIndex, meta, paramValue);
-                break;
-            case DATETIME:
-            case TIMESTAMP:
-                bindToDatetime(buffer, stmtIndex, meta, paramValue);
-                break;
-            case BIT:
-            case SET:
-                // here bug.
-                throw new IllegalStateException(
-                        String.format("MySQL %s type bind must convert by java type.", bindType));
-            case NULL:
-            case UNKNOWN:
-                throw MySQLExceptions.createUnsupportedParamTypeError(stmtIndex, meta.sqlType, paramValue);
-            default:
-                throw MySQLExceptions.createUnexpectedEnumException(meta.sqlType);
-        }
-    }
-
-    /**
-     * @see #bindParameter(ByteBuf, int, MySQLType, MySQLColumnMeta, ParamValue)
-     */
-    private void bindToInt1(final ByteBuf buffer, final int stmtIndex, final MySQLColumnMeta parameterMeta
-            , final ParamValue bindValue) {
-        final Object nonNull = bindValue.getNonNull();
-        final int int1;
-        if (nonNull instanceof Byte) {
-            int1 = (Byte) nonNull;
-        } else if (nonNull instanceof Boolean) {
-            int1 = (Boolean) nonNull ? 1 : 0;
-        } else if (nonNull instanceof Month) {
-            int1 = ((Month) nonNull).getValue();
-        } else if (nonNull instanceof DayOfWeek) {
-            int1 = ((DayOfWeek) nonNull).getValue();
-        } else if (nonNull instanceof String) {
-            Boolean b = MySQLConvertUtils.tryConvertToBoolean((String) nonNull);
-            if (b == null) {
-                try {
-                    if (parameterMeta.sqlType == MySQLType.TINYINT_UNSIGNED) {
-                        int1 = Short.parseShort((String) nonNull);
-                    } else {
-                        int1 = Byte.parseByte((String) nonNull);
-                    }
-                } catch (NumberFormatException e) {
-                    throw MySQLExceptions.createTypeNotMatchException(stmtIndex, parameterMeta.sqlType, bindValue);
-                }
-            } else {
-                int1 = b ? 1 : 0;
-            }
-        } else {
-            throw MySQLExceptions.createTypeNotMatchException(stmtIndex, parameterMeta.sqlType, bindValue);
-        }
-        Packets.writeInt1(buffer, int1);
-    }
-
-    /**
-     * @see #bindParameter(ByteBuf, int, MySQLType, MySQLColumnMeta, ParamValue)
-     */
-    private void bindInt2(final ByteBuf buffer, int stmtIndex, final MySQLColumnMeta parameterMeta
-            , final ParamValue bindValue) {
-        final Object nonNullValue = bindValue.getNonNull();
-        final int int2;
-        if (nonNullValue instanceof Year) {
-            int2 = ((Year) nonNullValue).getValue();
-        } else if (nonNullValue instanceof Short) {
-            int2 = (Short) nonNullValue;
-        } else {
-            throw MySQLExceptions.createTypeNotMatchException(stmtIndex, parameterMeta.sqlType, bindValue);
-        }
-        Packets.writeInt2(buffer, int2);
-    }
-
-    /**
-     * @see #bindParameter(ByteBuf, int, MySQLType, MySQLColumnMeta, ParamValue)
-     * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_binary_resultset.html#sect_protocol_binary_resultset_row_value">Binary Protocol Value</a>
-     */
-    private void bindToDecimal(final ByteBuf buffer, final int stmtIndex, final MySQLColumnMeta parameterMeta
-            , final ParamValue paramValue) {
-        final Object nonNullValue = paramValue.getNonNull();
-        final String decimal;
-        if (nonNullValue instanceof BigDecimal) {
-            BigDecimal num = (BigDecimal) nonNullValue;
-            decimal = num.toPlainString();
-        } else if (nonNullValue instanceof BigInteger) {
-            BigInteger num = (BigInteger) nonNullValue;
-            decimal = num.toString();
-        } else {
-            throw MySQLExceptions.createTypeNotMatchException(stmtIndex, parameterMeta.sqlType, paramValue);
-        }
-        Packets.writeStringLenEnc(buffer, decimal.getBytes(this.adjutant.charsetClient()));
-    }
-
-    /**
-     * @see #bindParameter(ByteBuf, int, MySQLType, MySQLColumnMeta, ParamValue)
-     * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_binary_resultset.html#sect_protocol_binary_resultset_row_value">Binary Protocol Value</a>
-     */
-    private void bindToInt4(final ByteBuf buffer, final int stmtIndex, final MySQLColumnMeta meta
-            , final ParamValue paramValue) {
-        final Object nonNull = paramValue.getNonNull();
-        final int int4;
-        if (nonNull instanceof Integer) {
-            int4 = (Integer) nonNull;
-        } else if (nonNull instanceof ZoneOffset) {
-            int4 = ((ZoneOffset) nonNull).getTotalSeconds();
-        } else if (nonNull instanceof ZoneId) {
-            int4 = MySQLTimes.toZoneOffset((ZoneId) nonNull).getTotalSeconds();
-        } else {
-            throw MySQLExceptions.createTypeNotMatchException(stmtIndex, meta.sqlType, paramValue);
-        }
-        Packets.writeInt4(buffer, int4);
-    }
-
-    /**
-     * @see #bindParameter(ByteBuf, int, MySQLType, MySQLColumnMeta, ParamValue)
-     */
-    private void bindToFloat(final ByteBuf buffer, int stmtIndex, final MySQLColumnMeta meta
-            , final ParamValue bindValue) {
-        final Object nonNullValue = bindValue.getNonNull();
-        if (nonNullValue instanceof Float) {
-            Packets.writeInt4(buffer, Float.floatToIntBits((Float) nonNullValue));
-        } else {
-            throw MySQLExceptions.createTypeNotMatchException(stmtIndex, meta.sqlType, bindValue);
-        }
-
-    }
-
-    /**
-     * @see #bindParameter(ByteBuf, int, MySQLType, MySQLColumnMeta, ParamValue)
-     */
-    private void bindToInt8(final ByteBuf buffer, int stmtIndex, final MySQLColumnMeta meta
-            , final ParamValue bindValue) {
-        final Object nonNull = bindValue.getNonNull();
-        final long int8;
-        if (nonNull instanceof Long) {
-            int8 = (Long) nonNull;
-        } else if (nonNull instanceof Instant) {
-            int8 = ((Instant) nonNull).getEpochSecond();
-        } else {
-            throw MySQLExceptions.createTypeNotMatchException(stmtIndex, meta.sqlType, bindValue);
-        }
-        Packets.writeInt8(buffer, int8);
-    }
-
-
-    /**
-     * @see #bindParameter(ByteBuf, int, MySQLType, MySQLColumnMeta, ParamValue)
-     */
-    private void bindToDouble(final ByteBuf buffer, int stmtIndex, final MySQLColumnMeta parameterMeta
-            , final ParamValue bindValue) {
-        final Object nonNull = bindValue.getNonNull();
-        if (nonNull instanceof Double) {
-            Packets.writeInt8(buffer, Double.doubleToLongBits((Double) nonNull));
-        } else {
-            throw MySQLExceptions.createTypeNotMatchException(stmtIndex, parameterMeta.sqlType, bindValue);
-        }
-    }
-
-    /**
-     * @see #bindParameter(ByteBuf, int, MySQLType, MySQLColumnMeta, ParamValue)
-     * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_binary_resultset.html#sect_protocol_binary_resultset_row_value">ProtocolBinary::MYSQL_TYPE_TIME</a>
-     */
-    private void bindToTime(final ByteBuf buffer, int stmtIndex, final MySQLColumnMeta parameterMeta
-            , final ParamValue bindValue) {
-        final Object nonNull = bindValue.getNonNull();
-
-        final int microPrecision = parameterMeta.getDateTimeTypePrecision();
-        final int length = microPrecision > 0 ? 12 : 8;
-
-        if (nonNull instanceof Duration) {
-            final Duration duration = (Duration) nonNull;
-            if (!MySQLTimes.canConvertToTimeType(duration)) {
-                throw MySQLExceptions.createDurationRangeException(stmtIndex, parameterMeta.sqlType, bindValue);
-            }
-            buffer.writeByte(length); //1. length
-            buffer.writeByte(duration.isNegative() ? 1 : 0); //2. is_negative
-
-            long totalSeconds = Math.abs(duration.getSeconds());
-            Packets.writeInt4(buffer, (int) (totalSeconds / (3600 * 24))); //3. days
-            totalSeconds %= (3600 * 24);
-
-            buffer.writeByte((int) (totalSeconds / 3600)); //4. hour
-            totalSeconds %= 3600;
-
-            buffer.writeByte((int) (totalSeconds / 60)); //5. minute
-            totalSeconds %= 60;
-
-            buffer.writeByte((int) totalSeconds); //6. second
-            if (length == 12) {
-                //7, micro seconds
-                Packets.writeInt4(buffer, truncateMicroSeconds(duration.getNano() / 1000, microPrecision));
-            }
-            return;
-        }
-
-        final LocalTime time;
-        if (nonNull instanceof LocalTime) {
-            time = OffsetTime.of((LocalTime) nonNull, this.adjutant.obtainZoneOffsetClient())
-                    .withOffsetSameInstant(this.adjutant.obtainZoneOffsetDatabase())
-                    .toLocalTime();
-        } else if (nonNull instanceof OffsetTime) {
-            time = ((OffsetTime) nonNull).withOffsetSameInstant(this.adjutant.obtainZoneOffsetDatabase())
-                    .toLocalTime();
-        } else if (nonNull instanceof String) {
-            String timeText = (String) nonNull;
-            try {
-                time = OffsetTime.of(LocalTime.parse(timeText, MySQLTimes.MYSQL_TIME_FORMATTER)
-                                , this.adjutant.obtainZoneOffsetClient())
-                        .withOffsetSameInstant(this.adjutant.obtainZoneOffsetDatabase())
-                        .toLocalTime();
-            } catch (DateTimeParseException e) {
-                throw MySQLExceptions.createTypeNotMatchException(stmtIndex, parameterMeta.sqlType, bindValue, e);
-            }
-        } else {
-            throw MySQLExceptions.createTypeNotMatchException(stmtIndex, parameterMeta.sqlType, bindValue);
-        }
-        if (time != null) {
-            buffer.writeByte(length); //1. length
-            buffer.writeByte(0); //2. is_negative
-            buffer.writeZero(4); //3. days
-
-            buffer.writeByte(time.getHour()); //4. hour
-            buffer.writeByte(time.getMinute()); //5. minute
-            buffer.writeByte(time.getSecond()); ///6. second
-
-            if (length == 12) {
-                //7, micro seconds
-                Packets.writeInt4(buffer
-                        , truncateMicroSeconds(time.get(ChronoField.MICRO_OF_SECOND), microPrecision));
-            }
-        }
-
-    }
-
-    /**
-     * @see #bindParameter(ByteBuf, int, MySQLType, MySQLColumnMeta, ParamValue)
-     */
-    private void bindToDate(final ByteBuf buffer, int stmtIndex, MySQLColumnMeta columnMeta, ParamValue bindValue) {
-        final Object nonNull = bindValue.getNonNull();
-
-        final LocalDate date;
-        if (nonNull instanceof LocalDate) {
-            date = (LocalDate) nonNull;
-        } else if (nonNull instanceof YearMonth) {
-            YearMonth yearMonth = (YearMonth) nonNull;
-            date = LocalDate.of(yearMonth.getYear(), yearMonth.getMonth(), 1);
-        } else if (nonNull instanceof MonthDay) {
-            MonthDay monthDay = (MonthDay) nonNull;
-            date = LocalDate.of(1970, monthDay.getMonth(), monthDay.getDayOfMonth());
-        } else {
-            throw MySQLExceptions.createTypeNotMatchException(stmtIndex, columnMeta.sqlType, bindValue);
-        }
-        buffer.writeByte(4); // length
-        Packets.writeInt2(buffer, date.getYear()); // year
-        buffer.writeByte(date.getMonthValue()); // month
-        buffer.writeByte(date.getDayOfMonth()); // day
-    }
-
-    /**
-     * @see #bindParameter(ByteBuf, int, MySQLType, MySQLColumnMeta, ParamValue)
-     */
-    private void bindToDatetime(final ByteBuf buffer, int stmtIndex, final MySQLColumnMeta parameterMeta
-            , final ParamValue bindValue) {
-        final Object nonNull = bindValue.getNonNull();
-
-        final LocalDateTime dateTime;
-        if (nonNull instanceof LocalDateTime) {
-            dateTime = OffsetDateTime.of((LocalDateTime) nonNull, this.adjutant.obtainZoneOffsetClient())
-                    .withOffsetSameInstant(this.adjutant.obtainZoneOffsetDatabase())
-                    .toLocalDateTime();
-        } else if (nonNull instanceof ZonedDateTime) {
-            dateTime = ((ZonedDateTime) nonNull)
-                    .withZoneSameInstant(this.adjutant.obtainZoneOffsetDatabase())
-                    .toLocalDateTime();
-        } else if (nonNull instanceof OffsetDateTime) {
-            dateTime = ((OffsetDateTime) nonNull)
-                    .withOffsetSameInstant(this.adjutant.obtainZoneOffsetDatabase())
-                    .toLocalDateTime();
-        } else if (nonNull instanceof String) {
-            try {
-                LocalDateTime localDateTime = LocalDateTime.parse((String) nonNull
-                        , MySQLTimes.MYSQL_DATETIME_FORMATTER);
-                dateTime = OffsetDateTime.of(localDateTime, this.adjutant.obtainZoneOffsetClient())
-                        .withOffsetSameInstant(this.adjutant.obtainZoneOffsetDatabase())
-                        .toLocalDateTime();
-            } catch (DateTimeParseException e) {
-                throw MySQLExceptions.createTypeNotMatchException(stmtIndex, parameterMeta.sqlType, bindValue, e);
-            }
-        } else {
-            throw MySQLExceptions.createTypeNotMatchException(stmtIndex, parameterMeta.sqlType, bindValue);
-        }
-
-        final int microPrecision = parameterMeta.getDateTimeTypePrecision();
-        buffer.writeByte(microPrecision > 0 ? 11 : 7); // length
-        Packets.writeInt2(buffer, dateTime.getYear()); // year
-        buffer.writeByte(dateTime.getMonthValue()); // month
-        buffer.writeByte(dateTime.getDayOfMonth()); // day
-
-        buffer.writeByte(dateTime.getHour()); // hour
-        buffer.writeByte(dateTime.getMinute()); // minute
-        buffer.writeByte(dateTime.getSecond()); // second
-
-        if (microPrecision > 0) {
-            // micro second
-            Packets.writeInt4(buffer
-                    , truncateMicroSeconds(dateTime.get(ChronoField.MICRO_OF_SECOND), microPrecision));
-        }
-
-    }
-
-
-    /**
-     * @see #bindParameter(ByteBuf, int, MySQLType, MySQLColumnMeta, ParamValue)
-     */
-    private void bindToStringType(final ByteBuf buffer, final int stmtIndex, final MySQLColumnMeta meta
-            , final ParamValue bindValue) {
-        final Object nonNull = bindValue.getNonNull();
-        if (nonNull instanceof CharSequence || nonNull instanceof Character) {
-            Packets.writeStringLenEnc(buffer, nonNull.toString().getBytes(this.adjutant.charsetClient()));
-        } else if (nonNull instanceof byte[]) {
-            Packets.writeStringLenEnc(buffer, (byte[]) nonNull);
-        } else if (nonNull instanceof Enum) {
-            Packets.writeStringLenEnc(buffer, ((Enum<?>) nonNull).name()
-                    .getBytes(this.adjutant.charsetClient()));
-        } else if (nonNull instanceof Set) {
-            Set<?> set = (Set<?>) nonNull;
-            StringBuilder builder = new StringBuilder(set.size() * 6);
-            int index = 0;
-            for (Object o : set) {
-                if (index > 0) {
-                    builder.append(",");
-                }
-                if (o instanceof String) {
-                    builder.append((String) o);
-                } else if (o instanceof Enum) {
-                    builder.append(((Enum<?>) o).name());
-                } else {
-                    throw MySQLExceptions.createTypeNotMatchException(stmtIndex, meta.sqlType, bindValue);
-                }
-                index++;
-            }
-            Packets.writeStringLenEnc(buffer, builder.toString().getBytes(this.adjutant.charsetClient()));
-        } else {
-            throw MySQLExceptions.createTypeNotMatchException(stmtIndex, meta.sqlType, bindValue);
-        }
-
-    }
-
-
-
-    /*################################## blow private static method ##################################*/
-
-    /**
-     * @see #bindToTime(ByteBuf, int, MySQLColumnMeta, ParamValue)
-     * @see #bindToDatetime(ByteBuf, int, MySQLColumnMeta, ParamValue)
-     */
-    private static int truncateMicroSeconds(final int microSeconds, final int precision) {
-        final int newMicroSeconds;
-        switch (precision) {
-            case 0:
-                newMicroSeconds = 0;
-                break;
-            case 1:
-                newMicroSeconds = (microSeconds / 100000) * 100000;
-                break;
-            case 2:
-                newMicroSeconds = (microSeconds / 10000) * 10000;
-                break;
-            case 3:
-                newMicroSeconds = (microSeconds / 1000) * 1000;
-                break;
-            case 4:
-                newMicroSeconds = (microSeconds / 100) * 100;
-                break;
-            case 5:
-                newMicroSeconds = (microSeconds / 10) * 10;
-                break;
-            case 6:
-                newMicroSeconds = microSeconds;
-                break;
-            default:
-                throw new IllegalArgumentException(String.format("precision[%s] not in [0,6]", precision));
-        }
-        return newMicroSeconds;
-    }
-
-
-    /*################################## blow private static convert method ##################################*/
 
 
 }

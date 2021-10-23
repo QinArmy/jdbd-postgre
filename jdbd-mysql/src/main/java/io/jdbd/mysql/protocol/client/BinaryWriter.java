@@ -3,6 +3,8 @@ package io.jdbd.mysql.protocol.client;
 
 import io.jdbd.mysql.MySQLType;
 import io.jdbd.mysql.util.MySQLBinds;
+import io.jdbd.mysql.util.MySQLNumbers;
+import io.jdbd.mysql.util.MySQLStrings;
 import io.jdbd.mysql.util.MySQLTimes;
 import io.jdbd.vendor.stmt.Value;
 import io.jdbd.vendor.util.JdbdExceptions;
@@ -15,6 +17,7 @@ import java.nio.charset.StandardCharsets;
 import java.sql.SQLException;
 import java.time.*;
 import java.time.temporal.ChronoField;
+import java.util.BitSet;
 
 abstract class BinaryWriter {
 
@@ -23,6 +26,9 @@ abstract class BinaryWriter {
     }
 
 
+    /**
+     * @param precision 0 or {@link MySQLType#TIME} and {@link MySQLType#DATETIME} precision
+     */
     @SuppressWarnings("deprecation")
     static void writeNonNullBinary(ByteBuf packet, final int batchIndex, final MySQLType type
             , Value paramValue, final int precision, final Charset charset) throws SQLException {
@@ -83,7 +89,7 @@ abstract class BinaryWriter {
                 final BigInteger value;
                 value = MySQLBinds.bindToBigInteger(batchIndex, type, paramValue);
                 final byte[] bytes = value.toByteArray();
-                if (value.compareTo(BigInteger.ZERO) < 0 || bytes.length > 9 || bytes[0] != 0) {
+                if (value.compareTo(BigInteger.ZERO) < 0 || bytes.length > 9 || (bytes.length == 9 && bytes[0] != 0)) {
                     throw JdbdExceptions.outOfTypeRange(batchIndex, type, paramValue);
                 }
                 final byte[] int8Bytes = new byte[8];
@@ -187,9 +193,7 @@ abstract class BinaryWriter {
             }
             break;
             case BIT: {
-                final byte[] bytes;
-                bytes = MySQLBinds.bindNonNullToBit(batchIndex, type, paramValue).getBytes(charset);
-                Packets.writeStringLenEnc(packet, bytes);
+                writeBit(packet, batchIndex, type, paramValue);
             }
             break;
             case NULL:
@@ -200,6 +204,36 @@ abstract class BinaryWriter {
 
         }
 
+    }
+
+    private static void writeBit(ByteBuf packet, final int batchIndex, final MySQLType type, Value paramValue)
+            throws SQLException {
+        final Object nonNull = paramValue.getNonNull();
+        final byte[] bitBytes;
+        if (nonNull instanceof Long) {
+            bitBytes = MySQLNumbers.toBinaryBytes((Long) nonNull, true);
+        } else if (nonNull instanceof Integer) {
+            bitBytes = MySQLNumbers.toBinaryBytes((Integer) nonNull, true);
+        } else if (nonNull instanceof Short) {
+            bitBytes = MySQLNumbers.toBinaryBytes(((Short) nonNull) & 0xFFFFL, true);
+        } else if (nonNull instanceof Byte) {
+            bitBytes = MySQLNumbers.toBinaryBytes(((Byte) nonNull) & 0xFFL, true);
+        } else if (nonNull instanceof BitSet) {
+            final BitSet v = (BitSet) nonNull;
+            if (v.length() > 64) {
+                throw JdbdExceptions.outOfTypeRange(batchIndex, type, paramValue);
+            }
+            bitBytes = MySQLNumbers.toBinaryBytes(v.toLongArray()[0], true);
+        } else if (nonNull instanceof String) {
+            final String v = (String) nonNull;
+            if (v.length() > 64) {
+                throw JdbdExceptions.outOfTypeRange(batchIndex, type, paramValue);
+            }
+            bitBytes = MySQLStrings.binaryStringToBytes(v.toCharArray());
+        } else {
+            throw JdbdExceptions.createNonSupportBindSqlTypeError(batchIndex, type, paramValue);
+        }
+        Packets.writeStringLenEnc(packet, bitBytes);
     }
 
 
