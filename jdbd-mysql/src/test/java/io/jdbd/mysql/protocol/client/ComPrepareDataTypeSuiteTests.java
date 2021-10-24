@@ -50,7 +50,7 @@ public class ComPrepareDataTypeSuiteTests extends AbstractDataTypeSuiteTests {
      * @see MySQLType#MEDIUMINT
      * @see MySQLType#MEDIUMINT_UNSIGNED
      */
-    @Test(timeOut = TIME_OUT)
+    @Test//(timeOut = TIME_OUT)
     public void mediumIntBindAndGet() {
         mediumInt();
     }

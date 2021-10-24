@@ -174,7 +174,7 @@ abstract class AbstractDataTypeSuiteTests extends AbstractTaskSuiteTests {
 
         testType(id, column, type, null);
         testType(id, column, type, (byte) 0);
-        testType(id, column, type, Short.MIN_VALUE);
+        testType(id, column, type, -1);
         testType(id, column, type, Short.MAX_VALUE);
 
         testType(id, column, type, min);
@@ -763,7 +763,7 @@ abstract class AbstractDataTypeSuiteTests extends AbstractTaskSuiteTests {
         final MySQLType type = MySQLType.BIT;
 
         testType(id, column, type, null);
-        testType(id, column, type, -1L);
+        //testType(id, column, type, -1L);
         testType(id, column, type, 0L);
         testType(id, column, type, 0B0101L);
 
@@ -781,8 +781,11 @@ abstract class AbstractDataTypeSuiteTests extends AbstractTaskSuiteTests {
 
         testType(id, column, type, null);
         testType(id, column, type, Year.now());
-        testType(id, column, type, Year.now().getValue());
-        testType(id, column, type, (short) Year.now().getValue());
+        testType(id, column, type, (short) 1901);
+        testType(id, column, type, (short) 2155);
+
+        testType(id, column, type, 1901);
+        testType(id, column, type, 2155);
 
     }
 

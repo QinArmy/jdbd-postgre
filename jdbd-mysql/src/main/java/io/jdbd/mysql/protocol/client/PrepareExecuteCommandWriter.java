@@ -8,22 +8,15 @@ import io.jdbd.mysql.stmt.MySQLStmt;
 import io.jdbd.mysql.stmt.QueryAttr;
 import io.jdbd.mysql.util.MySQLBinds;
 import io.jdbd.mysql.util.MySQLExceptions;
-import io.jdbd.type.CodeEnum;
 import io.jdbd.vendor.stmt.*;
 import io.netty.buffer.ByteBuf;
 import org.reactivestreams.Publisher;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.FluxSink;
 
-import java.math.BigDecimal;
-import java.math.BigInteger;
 import java.nio.charset.Charset;
 import java.nio.file.Path;
 import java.sql.SQLException;
-import java.time.*;
-import java.time.temporal.Temporal;
-import java.time.temporal.TemporalAccessor;
-import java.time.temporal.TemporalAmount;
 import java.util.*;
 
 
@@ -71,7 +64,7 @@ final class PrepareExecuteCommandWriter implements ExecuteCommandWriter {
         final MySQLColumnMeta[] paramMetaArray = Objects.requireNonNull(this.stmtTask.getParameterMetas());
         MySQLBinds.assertParamCountMatch(batchIndex, paramMetaArray.length, bindGroup.size());
 
-        int longDataCount = 0;
+        final List<ParamValue> longParamList = new ArrayList<>();
         for (int i = 0; i < paramMetaArray.length; i++) {
             final ParamValue paramValue = bindGroup.get(i);
             if (paramValue.getIndex() != i) {
@@ -80,7 +73,7 @@ final class PrepareExecuteCommandWriter implements ExecuteCommandWriter {
             }
             final Object value = paramValue.get();
             if (value instanceof Publisher || value instanceof Path) {
-                longDataCount++;
+                longParamList.add(paramValue);
             }
         }
         final Publisher<ByteBuf> publisher;
@@ -89,13 +82,14 @@ final class PrepareExecuteCommandWriter implements ExecuteCommandWriter {
             final ByteBuf packet;
             packet = createExecutePacket(10);
             publisher = Packets.createPacketPublisher(packet, this.stmtTask::addAndGetSequenceId, this.adjutant);
-        } else if (longDataCount == 0) {
+        } else if (longParamList.size() == 0) {
             // this 'if' block handle no long parameter.
             publisher = bindParameters(batchIndex, bindGroup);
         } else {
             // start safe sequence id
+            this.stmtTask.nextGroupReset();
             publisher = new PrepareLongParameterWriter(this.stmtTask)
-                    .write(batchIndex, bindGroup)
+                    .write(batchIndex, longParamList)
                     .concatWith(defferBindParameters(batchIndex, bindGroup));
         }
         return publisher;
@@ -193,7 +187,6 @@ final class PrepareExecuteCommandWriter implements ExecuteCommandWriter {
             } else {
                 paramCount = paramMetaArray.length;
             }
-            final boolean zoneSuffix = this.serverVersion.meetsMinimum(MySQLServerVersion.V8_0_19);
 
             final byte[] nullBitsMap = new byte[(paramCount + 7) >> 3];
             final int nullBitsMapIndex = packet.writerIndex();
@@ -201,25 +194,21 @@ final class PrepareExecuteCommandWriter implements ExecuteCommandWriter {
             packet.writeByte(1); //fill new_params_bind_flag
 
             //1. make nullBitsMap and fill  parameter_types
-            final List<MySQLType> bindTypeList = new ArrayList<>(paramCount);
             for (int i = 0; i < paramMetaArray.length; i++) {
                 final ParamValue paramValue = bindGroup.get(i);
                 final Object value = paramValue.get();
                 if (value instanceof Publisher || value instanceof Path) {
                     // long parameter
-                    bindTypeList.add(MySQLType.NULL);// filler
                     continue;
                 }
-                final MySQLType bindType;
+                final MySQLType actualType;
                 if (value == null) {
                     nullBitsMap[i >> 3] |= (1 << (i & 7));
-                    bindType = paramMetaArray[i].sqlType; // filler
+                    actualType = paramMetaArray[i].sqlType;
                 } else {
-                    bindType = paramMetaArray[i].sqlType;
-                    // bindType = decideBindType(batchIndex, paramMetaArray[i], paramValue);
+                    actualType = BinaryWriter.decideActualType(paramMetaArray[i].sqlType, paramValue);
                 }
-                bindTypeList.add(bindType);
-                Packets.writeInt2(packet, bindType.parameterType);
+                Packets.writeInt2(packet, actualType.parameterType);
                 if (supportQueryAttr) {
                     packet.writeByte(0); //string<lenenc> parameter_name
                 }
@@ -236,9 +225,8 @@ final class PrepareExecuteCommandWriter implements ExecuteCommandWriter {
                     if (queryAttr.get() == null) {
                         nullBitsMap[queryAttrIndex >> 3] |= (1 << (queryAttrIndex & 7));
                     }
-                    final MySQLType bindType = queryAttr.getType();
-                    bindTypeList.add(bindType);
-                    Packets.writeInt2(packet, bindType.parameterType);
+                    final MySQLType actualType = BinaryWriter.decideActualType(queryAttr.getType(), queryAttr);
+                    Packets.writeInt2(packet, actualType.parameterType);
                     Packets.writeStringLenEnc(packet, e.getKey().getBytes(clientCharset));
                     queryAttrIndex++;
                 }
@@ -259,17 +247,18 @@ final class PrepareExecuteCommandWriter implements ExecuteCommandWriter {
                 if (value == null || value instanceof Publisher || value instanceof Path) {
                     continue;
                 }
-                MySQLType type = bindTypeList.get(i);
-                switch (type) {
+                final MySQLColumnMeta meta = paramMetaArray[i];
+                final MySQLType expected = meta.sqlType;
+                switch (expected) {
                     case TIME:
                     case DATETIME:
                     case TIMESTAMP:
-                        precision = paramMetaArray[i].getDateTimeTypePrecision();
+                        precision = meta.getDateTimeTypePrecision();
                         break;
                     default:
                         precision = 0;
                 }
-                BinaryWriter.writeNonNullBinary(packet, batchIndex, type, paramValue, precision, clientCharset);
+                BinaryWriter.writeNonNullBinary(packet, batchIndex, expected, paramValue, precision, clientCharset);
 
             }
             // below write query attribute
@@ -313,109 +302,6 @@ final class PrepareExecuteCommandWriter implements ExecuteCommandWriter {
 
         return packet;
     }
-
-    private MySQLType decideBindType(final int stmtIndex, MySQLColumnMeta meta, ParamValue paramValue) {
-        final Object nonNull = paramValue.getNonNull();
-        final MySQLType targetType = meta.sqlType;
-        final MySQLType bindType;
-        if (nonNull instanceof Number) {
-            if (nonNull instanceof Long) {
-                bindType = MySQLType.BIGINT;
-            } else if (nonNull instanceof Integer) {
-                bindType = MySQLType.INT;
-            } else if (nonNull instanceof Short) {
-                bindType = MySQLType.SMALLINT;
-            } else if (nonNull instanceof Byte) {
-                bindType = MySQLType.TINYINT;
-            } else if (nonNull instanceof Double) {
-                bindType = MySQLType.DOUBLE;
-            } else if (nonNull instanceof Float) {
-                bindType = MySQLType.FLOAT;
-            } else if (nonNull instanceof BigDecimal || nonNull instanceof BigInteger) {
-                bindType = MySQLType.DECIMAL;
-            } else {
-                throw MySQLExceptions.createWrongArgumentsException(stmtIndex, meta.sqlType, paramValue, null);
-            }
-        } else if (nonNull instanceof Boolean) {
-            if (targetType == MySQLType.CHAR
-                    || targetType == MySQLType.VARCHAR) {
-                bindType = targetType;
-            } else {
-                bindType = MySQLType.TINYINT;
-            }
-        } else if (nonNull instanceof String) {
-            if (targetType == MySQLType.DATETIME
-                    || targetType == MySQLType.TIMESTAMP
-                    || targetType == MySQLType.TIME
-                    || targetType == MySQLType.JSON) {
-                bindType = targetType;
-            } else {
-                bindType = MySQLType.VARCHAR;
-            }
-        } else if (nonNull instanceof Temporal) {
-            if (nonNull instanceof LocalDateTime
-                    || nonNull instanceof OffsetDateTime
-                    || nonNull instanceof ZonedDateTime) {
-                bindType = MySQLType.DATETIME;
-            } else if (nonNull instanceof LocalDate
-                    || nonNull instanceof YearMonth) {
-                bindType = MySQLType.DATE;
-            } else if (nonNull instanceof LocalTime
-                    || nonNull instanceof OffsetTime) {
-                bindType = MySQLType.TIME;
-            } else if (nonNull instanceof Year) {
-                bindType = MySQLType.SMALLINT;
-            } else if (nonNull instanceof Instant) {
-                bindType = MySQLType.BIGINT;
-            } else {
-                throw MySQLExceptions.createWrongArgumentsException(stmtIndex, meta.sqlType, paramValue, null);
-            }
-        } else if (nonNull instanceof byte[]) {
-            bindType = MySQLType.VARBINARY;
-        } else if (nonNull instanceof TemporalAccessor) {
-            if (targetType == MySQLType.JSON) {
-                bindType = targetType;
-            } else if (nonNull instanceof MonthDay) {
-                bindType = MySQLType.DATE;
-            } else if (nonNull instanceof Month
-                    || nonNull instanceof DayOfWeek) {
-                if (targetType == MySQLType.ENUM
-                        || targetType == MySQLType.CHAR
-                        || targetType == MySQLType.VARCHAR) {
-                    bindType = targetType;
-                } else {
-                    bindType = MySQLType.TINYINT;
-                }
-            } else if (nonNull instanceof ZoneOffset) {
-                bindType = MySQLType.INT;
-            } else {
-                throw MySQLExceptions.createWrongArgumentsException(stmtIndex, meta.sqlType, paramValue, null);
-            }
-        } else if (nonNull instanceof TemporalAmount) {
-            if (nonNull instanceof Duration) {
-                bindType = MySQLType.TIME;
-            } else {
-                throw MySQLExceptions.createWrongArgumentsException(stmtIndex, meta.sqlType, paramValue, null);
-            }
-        } else if (nonNull instanceof Enum) {
-            if (targetType == MySQLType.ENUM
-                    || targetType == MySQLType.CHAR
-                    || targetType == MySQLType.VARCHAR) {
-                bindType = targetType;
-            } else {
-                bindType = MySQLType.CHAR;
-            }
-        } else if (nonNull instanceof CodeEnum
-                || nonNull instanceof ZoneId) {
-            bindType = MySQLType.INT;
-        } else if (nonNull instanceof Set) {
-            bindType = MySQLType.VARCHAR;
-        } else {
-            throw MySQLExceptions.createWrongArgumentsException(stmtIndex, meta.sqlType, paramValue, null);
-        }
-        return bindType;
-    }
-
 
 
 }

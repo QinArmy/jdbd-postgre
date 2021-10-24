@@ -205,6 +205,9 @@ public abstract class MySQLBinds extends JdbdBinds {
     }
 
 
+    /**
+     * @see <a href="https://dev.mysql.com/doc/refman/8.0/en/year.html">The YEAR Type</a>
+     */
     public static int bindNonNullToYear(final int batchIndex, SQLType sqlType, Value paramValue)
             throws SQLException {
         final Object nonNull = paramValue.getNonNull();
@@ -219,7 +222,7 @@ public abstract class MySQLBinds extends JdbdBinds {
             throw JdbdExceptions.createNonSupportBindSqlTypeError(batchIndex, sqlType, paramValue);
         }
 
-        if (value > Short.MAX_VALUE || value < Short.MIN_VALUE) {
+        if (value > 2155 || (value < 1901 && value != 0)) {
             throw JdbdExceptions.outOfTypeRange(batchIndex, sqlType, paramValue);
         }
         return value;

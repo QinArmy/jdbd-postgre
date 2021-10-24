@@ -1,11 +1,8 @@
 package io.jdbd.mysql.protocol.client;
 
 import io.jdbd.mysql.MySQLJdbdException;
-import io.jdbd.mysql.MySQLType;
 import io.jdbd.mysql.protocol.Constants;
-import io.jdbd.mysql.util.MySQLConvertUtils;
 import io.jdbd.mysql.util.MySQLExceptions;
-import io.jdbd.mysql.util.MySQLNumbers;
 import io.jdbd.result.ResultRow;
 import io.jdbd.vendor.type.LongBinaries;
 import io.jdbd.vendor.type.LongStrings;
@@ -17,7 +14,6 @@ import reactor.util.annotation.Nullable;
 import java.math.BigDecimal;
 import java.nio.charset.Charset;
 import java.time.*;
-import java.util.Arrays;
 import java.util.function.Consumer;
 
 
@@ -58,9 +54,6 @@ final class BinaryResultSetReader extends AbstractResultSetReader {
     }
 
 
-    /**
-     * @see #readResultRows(ByteBuf, Consumer)
-     */
     @Override
     ResultRow readOneRow(final ByteBuf cumulateBuffer, final MySQLRowMeta rowMeta) {
         final MySQLColumnMeta[] columnMetas = rowMeta.columnMetaArray;
@@ -86,154 +79,168 @@ final class BinaryResultSetReader extends AbstractResultSetReader {
     /**
      * @return maybe null ,only when {@code DATETIME} is zero.
      */
+    @SuppressWarnings("deprecation")
     @Nullable
     @Override
-    Object readColumnValue(final ByteBuf cumulateBuffer, final MySQLColumnMeta columnMeta) {
-        final Charset columnCharset = this.adjutant.obtainColumnCharset(columnMeta.columnCharset);
+    Object readColumnValue(final ByteBuf cumulateBuffer, final MySQLColumnMeta meta) {
+        final Charset columnCharset = this.adjutant.obtainColumnCharset(meta.columnCharset);
         final Object value;
         final byte[] bytes;
-        switch (columnMeta.typeFlag) { // binary protocol must switch columnMeta.typeFlag
-            case Constants.TYPE_TINY: {
-                value = columnMeta.isUnsigned() ? cumulateBuffer.readUnsignedByte() : cumulateBuffer.readByte();
+        switch (meta.sqlType) { // binary protocol must switch columnMeta.typeFlag
+            case TINYINT: {
+                value = cumulateBuffer.readByte();
             }
             break;
-            case Constants.TYPE_SHORT: {
-                if (columnMeta.isUnsigned()) {
-                    value = Packets.readInt2AsInt(cumulateBuffer);
-                } else {
-                    value = (short) Packets.readInt2AsInt(cumulateBuffer);
+            case TINYINT_UNSIGNED: {
+                value = (short) (cumulateBuffer.readByte() & 0xFF);
+            }
+            break;
+            case SMALLINT: {
+                value = (short) Packets.readInt2AsInt(cumulateBuffer);
+            }
+            break;
+            case SMALLINT_UNSIGNED: {
+                value = Packets.readInt2AsInt(cumulateBuffer);
+            }
+            break;
+            case MEDIUMINT: {
+                final int v = Packets.readInt3(cumulateBuffer);
+                if ((v & 0x80_00_00) == 0) {//positive
+                    value = v;
+                } else {//negative
+                    final int complement = (v & 0x7F_FF_FF);
+                    if (complement == 0) {
+                        value = (-(0x7F_FF_FF) - 1);
+                    } else {
+                        value = -((complement - 1) ^ 0x7F_FF_FF);
+                    }
                 }
             }
             break;
-            case Constants.TYPE_INT24: {
+            case MEDIUMINT_UNSIGNED: {
                 value = Packets.readInt3(cumulateBuffer);
             }
             break;
-            case Constants.TYPE_LONG: {
-                if (columnMeta.isUnsigned()) {
-                    value = Packets.readInt4AsLong(cumulateBuffer);
-                } else {
-                    value = Packets.readInt4(cumulateBuffer);
-                }
+            case INT: {
+                value = Packets.readInt4(cumulateBuffer);
             }
             break;
-            case Constants.TYPE_LONGLONG: {
-                if (columnMeta.isUnsigned()) {
-                    value = Packets.readInt8AsBigInteger(cumulateBuffer);
-                } else {
-                    value = Packets.readInt8(cumulateBuffer);
-                }
+            case INT_UNSIGNED: {
+                value = Packets.readInt4AsLong(cumulateBuffer);
             }
             break;
-            case Constants.TYPE_DECIMAL:
-            case Constants.TYPE_NEWDECIMAL: {
+            case BIGINT: {
+                value = Packets.readInt8(cumulateBuffer);
+            }
+            break;
+            case BIGINT_UNSIGNED: {
+                value = Packets.readInt8AsBigInteger(cumulateBuffer);
+            }
+            break;
+            case DECIMAL:
+            case DECIMAL_UNSIGNED: {
                 bytes = Packets.readBytesLenEnc(cumulateBuffer);
                 if (bytes == null) {
-                    throw createResponseNullBinaryError(columnMeta);
+                    throw createResponseNullBinaryError(meta);
                 }
                 value = new BigDecimal(new String(bytes, columnCharset));
             }
             break;
-            case Constants.TYPE_FLOAT: {
+            case FLOAT:
+            case FLOAT_UNSIGNED: {
                 value = Float.intBitsToFloat(Packets.readInt4(cumulateBuffer));
             }
             break;
-            case Constants.TYPE_DOUBLE: {
-                value = Double.longBitsToDouble(Packets.readInt4(cumulateBuffer));
+            case DOUBLE:
+            case DOUBLE_UNSIGNED: {
+                value = Double.longBitsToDouble(Packets.readInt8(cumulateBuffer));
             }
             break;
-            case Constants.TYPE_BOOL: {
+            case BOOLEAN: {
                 value = cumulateBuffer.readByte() != 0;
             }
             break;
-            case Constants.TYPE_NULL: // null as bytes
-            case Constants.TYPE_STRING:
-            case Constants.TYPE_VAR_STRING:
-            case Constants.TYPE_VARCHAR:
-            case Constants.TYPE_ENUM:
-            case Constants.TYPE_TINY_BLOB:
-            case Constants.TYPE_BLOB:
-            case Constants.TYPE_MEDIUM_BLOB: {
-                bytes = Packets.readBytesLenEnc(cumulateBuffer);
-                if (bytes == null) {
-                    throw createResponseNullBinaryError(columnMeta);
-                }
-                if (columnMeta.sqlType == MySQLType.ENUM || columnMeta.sqlType.isStringType()) {
-                    value = new String(bytes, columnCharset);
-                } else {
-                    value = bytes;
+            case BIT: {
+                value = readBitType(cumulateBuffer);
+                if (value == null) {
+                    throw createResponseNullBinaryError(meta);
                 }
             }
             break;
-            case Constants.TYPE_BIT: {
-                bytes = Packets.readBytesLenEnc(cumulateBuffer);
-                if (bytes == null) {
-                    throw createResponseNullBinaryError(columnMeta);
-                }
-                value = MySQLNumbers.readLongFromBigEndian(bytes, 0, bytes.length);
-            }
-            break;
-
-            case Constants.TYPE_DATE: {
-                value = readBinaryDate(cumulateBuffer);
-            }
-            break;
-            case Constants.TYPE_TIMESTAMP:
-            case Constants.TYPE_DATETIME: {
-                value = readBinaryDateTime(cumulateBuffer);
-            }
-            break;
-            case Constants.TYPE_TIME: {
+            case TIME: {
                 value = readBinaryTimeType(cumulateBuffer);
             }
             break;
-            case Constants.TYPE_LONG_BLOB: {
-                bytes = Packets.readBytesLenEnc(cumulateBuffer);
-                if (bytes == null) {
-                    throw createResponseNullBinaryError(columnMeta);
-                }
-                if (columnMeta.sqlType.isStringType()) {
-                    value = LongStrings.fromString(new String(bytes, columnCharset));
-                } else {
-                    value = LongBinaries.fromArray(bytes);
-                }
+            case DATE: {
+                value = readBinaryDate(cumulateBuffer);
             }
             break;
-            case Constants.TYPE_JSON: {
+            case YEAR: {
+                value = Year.of(Packets.readInt2AsInt(cumulateBuffer));
+            }
+            break;
+            case TIMESTAMP:
+            case DATETIME: {
+                value = readBinaryDateTime(cumulateBuffer);
+            }
+            break;
+            case CHAR:
+            case VARCHAR:
+            case TINYTEXT:
+            case TEXT:
+            case ENUM:
+            case MEDIUMTEXT: {
                 bytes = Packets.readBytesLenEnc(cumulateBuffer);
                 if (bytes == null) {
-                    throw createResponseNullBinaryError(columnMeta);
+                    throw createResponseNullBinaryError(meta);
+                }
+                value = new String(bytes, columnCharset);
+            }
+            break;
+            case LONGTEXT:
+            case JSON: {
+                bytes = Packets.readBytesLenEnc(cumulateBuffer);
+                if (bytes == null) {
+                    throw createResponseNullBinaryError(meta);
                 }
                 value = LongStrings.fromString(new String(bytes, columnCharset));
             }
             break;
-            case Constants.TYPE_SET: {
-                bytes = Packets.readBytesLenEnc(cumulateBuffer);
-                if (bytes == null) {
-                    throw createResponseNullBinaryError(columnMeta);
+            case SET: {
+                value = readSetType(cumulateBuffer, columnCharset);
+                if (value == null) {
+                    throw createResponseNullBinaryError(meta);
                 }
-                value = MySQLConvertUtils.convertToSetType(new String(bytes, columnCharset));
             }
             break;
-            case Constants.TYPE_YEAR: {
-                value = Year.of(Packets.readInt2AsInt(cumulateBuffer));
+            case BINARY:
+            case VARBINARY:
+            case TINYBLOB:
+            case BLOB:
+            case MEDIUMBLOB: {
+                value = Packets.readBytesLenEnc(cumulateBuffer);
             }
             break;
-            case Constants.TYPE_GEOMETRY: {
+            case LONGBLOB: {
                 bytes = Packets.readBytesLenEnc(cumulateBuffer);
                 if (bytes == null) {
-                    throw createResponseNullBinaryError(columnMeta);
-                }
-                value = LongBinaries.fromArray(Arrays.copyOfRange(bytes, 4, bytes.length));// skip geometry prefix
-            }
-            break;
-            default: {
-                // unknown type
-                bytes = Packets.readBytesLenEnc(cumulateBuffer);
-                if (bytes == null) {
-                    throw createResponseNullBinaryError(columnMeta);
+                    throw createResponseNullBinaryError(meta);
                 }
                 value = LongBinaries.fromArray(bytes);
+            }
+            break;
+            case GEOMETRY: {
+                final int length = Packets.readLenEncAsInt(cumulateBuffer);
+                cumulateBuffer.skipBytes(4);// skip geometry prefix
+                bytes = new byte[length - 4];
+                cumulateBuffer.readBytes(bytes);
+                value = LongBinaries.fromArray(bytes);
+            }
+            break;
+            case UNKNOWN:
+            case NULL:
+            default: {
+                value = readUnknown(cumulateBuffer, meta, columnCharset);
             }
 
         }

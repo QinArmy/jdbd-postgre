@@ -305,7 +305,7 @@ public enum MySQLType implements SQLType {
      * A bit-field type. M indicates the number of bits per value, from 1 to 64. The default is 1 if M is omitted.
      * Protocol: TYPE_BIT = 16
      */
-    BIT(Constants.TYPE_BIT, true, JDBCType.BIT, Long.class),
+    BIT(Constants.TYPE_BIT, JDBCType.BIT, Long.class),
 
     /**
      * ENUM('value1','value2',...) [CHARACTER SET charset_name] [COLLATE collation_name]

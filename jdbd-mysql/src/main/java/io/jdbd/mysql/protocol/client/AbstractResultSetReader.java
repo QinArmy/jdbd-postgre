@@ -4,9 +4,11 @@ import io.jdbd.JdbdException;
 import io.jdbd.JdbdSQLException;
 import io.jdbd.mysql.MySQLType;
 import io.jdbd.mysql.protocol.conf.MyKey;
+import io.jdbd.mysql.util.MySQLConvertUtils;
 import io.jdbd.mysql.util.MySQLExceptions;
 import io.jdbd.result.BigRowIoException;
 import io.jdbd.result.ResultRow;
+import io.jdbd.type.LongBinary;
 import io.jdbd.vendor.conf.Properties;
 import io.jdbd.vendor.type.LongBinaries;
 import io.jdbd.vendor.type.LongStrings;
@@ -17,6 +19,7 @@ import reactor.util.annotation.Nullable;
 
 import java.io.IOException;
 import java.io.OutputStream;
+import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -24,6 +27,7 @@ import java.nio.file.StandardOpenOption;
 import java.time.LocalDate;
 import java.util.Arrays;
 import java.util.Objects;
+import java.util.Set;
 import java.util.function.Consumer;
 
 abstract class AbstractResultSetReader implements ResultSetReader {
@@ -157,6 +161,60 @@ abstract class AbstractResultSetReader implements ResultSetReader {
 
 
     /*################################## blow final packet method ##################################*/
+
+    @Nullable
+    final Set<String> readSetType(final ByteBuf cumulateBuffer, final Charset columnCharset) {
+        final byte[] bytes;
+        bytes = Packets.readBytesLenEnc(cumulateBuffer);
+        final Set<String> set;
+        if (bytes == null) {
+            set = null;
+        } else {
+            set = MySQLConvertUtils.convertToSetType(new String(bytes, columnCharset));
+        }
+        return set;
+    }
+
+    final LongBinary readGeometry(final ByteBuf cumulateBuffer) {
+        final int length = Packets.readLenEncAsInt(cumulateBuffer);
+        cumulateBuffer.skipBytes(4);// skip MySQL internal 4 bytes for integer SRID
+        final byte[] bytes = new byte[length - 4];
+        cumulateBuffer.readBytes(bytes);
+        return LongBinaries.fromArray(bytes);
+    }
+
+    @Nullable
+    final Long readBitType(final ByteBuf cumulateBuffer) {
+        final byte[] bytes;
+        bytes = Packets.readBytesLenEnc(cumulateBuffer);
+        final Long value;
+        if (bytes == null) {
+            value = null;
+        } else {
+            long v = 0L;
+            for (int i = 0, bits = (bytes.length - 1) << 3; i < bytes.length; i++, bits -= 8) {
+                v |= ((bytes[i] & 0xFFL) << bits);
+            }
+            value = v;
+        }
+        return value;
+    }
+
+    @Nullable
+    final Object readUnknown(final ByteBuf cumulateBuffer, final MySQLColumnMeta meta, final Charset columnCharset) {
+        final byte[] bytes;
+        bytes = Packets.readBytesLenEnc(cumulateBuffer);
+        final Object value;
+        if (bytes == null) {
+            value = null;
+        } else if (meta.isBinary()) {
+            value = LongBinaries.fromArray(bytes);
+        } else {
+            value = LongStrings.fromString(new String(bytes, columnCharset));
+        }
+        return value;
+    }
+
 
     /**
      * @return true: read ResultSet end.

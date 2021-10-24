@@ -1,8 +1,5 @@
 package io.jdbd.mysql.protocol.client;
 
-import io.jdbd.mysql.util.MySQLConvertUtils;
-import io.jdbd.mysql.util.MySQLExceptions;
-import io.jdbd.mysql.util.MySQLNumbers;
 import io.jdbd.mysql.util.MySQLTimes;
 import io.jdbd.result.ResultRow;
 import io.jdbd.vendor.type.LongBinaries;
@@ -20,7 +17,6 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.Year;
 import java.time.format.DateTimeFormatter;
-import java.util.Collections;
 import java.util.function.Consumer;
 
 final class TextResultSetReader extends AbstractResultSetReader {
@@ -95,15 +91,16 @@ final class TextResultSetReader extends AbstractResultSetReader {
     }
 
 
+    @SuppressWarnings("deprecation")
     @Nullable
     @Override
-    Object readColumnValue(final ByteBuf cumulateBuffer, final MySQLColumnMeta columnMeta) {
+    Object readColumnValue(final ByteBuf cumulateBuffer, final MySQLColumnMeta meta) {
 
-        final Charset columnCharset = this.adjutant.obtainColumnCharset(columnMeta.columnCharset);
+        final Charset columnCharset = this.adjutant.obtainColumnCharset(meta.columnCharset);
 
         String columnText;
         final Object value;
-        switch (columnMeta.sqlType) {
+        switch (meta.sqlType) {
             case TINYINT: {
                 columnText = Packets.readStringLenEnc(cumulateBuffer, columnCharset);
                 if (columnText == null) {
@@ -160,23 +157,13 @@ final class TextResultSetReader extends AbstractResultSetReader {
                 value = columnText == null ? null : new BigDecimal(columnText);
             }
             break;
-            case UNKNOWN:
-            case NULL:
-            case CHAR:
-            case VARCHAR:
-            case ENUM:
-            case TINYTEXT:
-            case TEXT:
-            case MEDIUMTEXT: {
-                value = Packets.readStringLenEnc(cumulateBuffer, columnCharset);
-            }
-            break;
-            case SET: {
+            case FLOAT_UNSIGNED:
+            case FLOAT: {
                 columnText = Packets.readStringLenEnc(cumulateBuffer, columnCharset);
                 if (columnText == null) {
-                    value = Collections.<String>emptySet();
+                    value = null;
                 } else {
-                    value = MySQLConvertUtils.convertToSetType(columnText);
+                    value = Float.parseFloat(columnText);
                 }
             }
             break;
@@ -190,33 +177,27 @@ final class TextResultSetReader extends AbstractResultSetReader {
                 }
             }
             break;
-            case FLOAT_UNSIGNED:
-            case FLOAT: {
-                columnText = Packets.readStringLenEnc(cumulateBuffer, columnCharset);
-                if (columnText == null) {
-                    value = null;
-                } else {
-                    value = Float.parseFloat(columnText);
-                }
-            }
-            break;
             case BOOLEAN: {
                 columnText = Packets.readStringLenEnc(cumulateBuffer, columnCharset);
                 if (columnText == null) {
                     value = null;
                 } else {
-                    value = MySQLConvertUtils.convertObjectToBoolean(columnText);
+                    value = Byte.parseByte(columnText) != 0;
                 }
             }
             break;
             case BIT: {
-                final byte[] bytes;
-                bytes = Packets.readBytesLenEnc(cumulateBuffer);
-                ;
-                if (bytes == null) {
+                value = readBitType(cumulateBuffer);
+            }
+            break;
+            case TIME: {
+                columnText = Packets.readStringLenEnc(cumulateBuffer, columnCharset);
+                if (columnText == null) {
                     value = null;
+                } else if (MySQLTimes.isDuration(columnText)) {
+                    value = MySQLTimes.parseTimeAsDuration(columnText);
                 } else {
-                    value = MySQLNumbers.readLongFromBigEndian(bytes, 0, bytes.length);
+                    value = LocalTime.parse(columnText, MySQLTimes.ISO_LOCAL_TIME_FORMATTER);
                 }
             }
             break;
@@ -259,15 +240,13 @@ final class TextResultSetReader extends AbstractResultSetReader {
                 }
             }
             break;
-            case TIME: {
-                columnText = Packets.readStringLenEnc(cumulateBuffer, columnCharset);
-                if (columnText == null) {
-                    value = null;
-                } else if (MySQLTimes.isDuration(columnText)) {
-                    value = MySQLTimes.parseTimeAsDuration(columnText);
-                } else {
-                    value = LocalTime.parse(columnText, MySQLTimes.ISO_LOCAL_TIME_FORMATTER);
-                }
+            case CHAR:
+            case VARCHAR:
+            case ENUM:
+            case TINYTEXT:
+            case TEXT:
+            case MEDIUMTEXT: {
+                value = Packets.readStringLenEnc(cumulateBuffer, columnCharset);
             }
             break;
             case JSON:
@@ -280,6 +259,18 @@ final class TextResultSetReader extends AbstractResultSetReader {
                 }
             }
             break;
+            case SET: {
+                value = readSetType(cumulateBuffer, columnCharset);
+            }
+            break;
+            case BINARY:
+            case VARBINARY:
+            case TINYBLOB:
+            case BLOB:
+            case MEDIUMBLOB: {
+                value = Packets.readBytesLenEnc(cumulateBuffer);
+            }
+            break;
             case LONGBLOB: {
                 final byte[] array = Packets.readBytesLenEnc(cumulateBuffer);
                 if (array == null) {
@@ -290,25 +281,14 @@ final class TextResultSetReader extends AbstractResultSetReader {
             }
             break;
             case GEOMETRY: {
-                final int length = Packets.readLenEncAsInt(cumulateBuffer);
-                cumulateBuffer.skipBytes(4);// drop MySQL internal 4 bytes for integer SRID
-
-                final byte[] bytes = new byte[length - 4];
-                cumulateBuffer.readBytes(bytes);
-                value = LongBinaries.fromArray(bytes);
+                value = readGeometry(cumulateBuffer);
             }
             break;
-            case BINARY:
-            case VARBINARY:
-            case TINYBLOB:
-            case BLOB:
-            case MEDIUMBLOB: {
-                // unknown
-                value = Packets.readBytesLenEnc(cumulateBuffer);
+            case UNKNOWN:
+            case NULL:
+            default: {
+                value = readUnknown(cumulateBuffer, meta, columnCharset);
             }
-            break;
-            default:
-                throw MySQLExceptions.createUnexpectedEnumException(columnMeta.sqlType);
 
         }
         return value;

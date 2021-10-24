@@ -674,7 +674,7 @@ final class MySQLConnectionTask extends CommunicationTask implements Authenticat
                 | (env.getOrDefault(MyKey.sslMode, Enums.SslMode.class) != Enums.SslMode.DISABLED ? (serverCapability & Capabilities.CLIENT_SSL) : 0)
                 | (serverCapability & Capabilities.CLIENT_SESSION_TRACK) // TODO ZORO MYSQLCONNJ-437?
 
-                | (supportQueryAttr ? (serverCapability & Capabilities.CLIENT_QUERY_ATTRIBUTES) : 0)
+                | (/*supportQueryAttr ? (serverCapability & Capabilities.CLIENT_QUERY_ATTRIBUTES) :*/ 0)
                 ;
     }
 

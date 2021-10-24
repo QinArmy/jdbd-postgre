@@ -231,6 +231,11 @@ final class ComPreparedTask extends MySQLCommandTask implements PrepareStmtTask,
     }
 
     @Override
+    public void handleLongParamSendFailure() {
+
+    }
+
+    @Override
     public boolean supportFetch() {
         return this.rowMeta != null && this.stmt.getFetchSize() > 0;
     }

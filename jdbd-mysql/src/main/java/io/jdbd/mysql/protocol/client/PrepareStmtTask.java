@@ -40,4 +40,6 @@ interface PrepareStmtTask {
 
     void handleNoExecuteMessage();
 
+    void handleLongParamSendFailure(Throwable error);
+
 }

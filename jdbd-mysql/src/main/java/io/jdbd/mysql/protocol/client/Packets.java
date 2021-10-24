@@ -106,7 +106,7 @@ public abstract class Packets {
     }
 
     public static long readInt4AsLong(ByteBuf byteBuf) {
-        return byteBuf.readUnsignedIntLE();
+        return readInt4(byteBuf) & 0xFFFF_FFFFL;
     }
 
     public static int readInt4(ByteBuf byteBuf) {

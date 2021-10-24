@@ -3,8 +3,6 @@ package io.jdbd.mysql.protocol.client;
 
 import io.jdbd.mysql.MySQLType;
 import io.jdbd.mysql.util.MySQLBinds;
-import io.jdbd.mysql.util.MySQLNumbers;
-import io.jdbd.mysql.util.MySQLStrings;
 import io.jdbd.mysql.util.MySQLTimes;
 import io.jdbd.vendor.stmt.Value;
 import io.jdbd.vendor.util.JdbdExceptions;
@@ -18,6 +16,7 @@ import java.sql.SQLException;
 import java.time.*;
 import java.time.temporal.ChronoField;
 import java.util.BitSet;
+import java.util.Set;
 
 abstract class BinaryWriter {
 
@@ -27,38 +26,39 @@ abstract class BinaryWriter {
 
 
     /**
-     * @param precision 0 or {@link MySQLType#TIME} and {@link MySQLType#DATETIME} precision
+     * @param expectedType from COM_PREPARE_STMT parameter metadata or query attribute bind method.
+     * @param precision    0 or {@link MySQLType#TIME} and {@link MySQLType#DATETIME} precision
      */
     @SuppressWarnings("deprecation")
-    static void writeNonNullBinary(ByteBuf packet, final int batchIndex, final MySQLType type
+    static void writeNonNullBinary(ByteBuf packet, final int batchIndex, final MySQLType expectedType
             , Value paramValue, final int precision, final Charset charset) throws SQLException {
 
-        switch (type) {
+        switch (expectedType) {
             case BOOLEAN:
             case TINYINT: {
-                packet.writeByte(MySQLBinds.bindNonNullToByte(batchIndex, type, paramValue));
+                packet.writeByte(MySQLBinds.bindNonNullToByte(batchIndex, expectedType, paramValue));
             }
             break;
             case TINYINT_UNSIGNED: {
                 final short value;
-                value = MySQLBinds.bindNonNullToShort(batchIndex, type, paramValue);
+                value = MySQLBinds.bindNonNullToShort(batchIndex, expectedType, paramValue);
                 if ((value & (~0xFF)) != 0) {
-                    throw JdbdExceptions.outOfTypeRange(batchIndex, type, paramValue);
+                    throw JdbdExceptions.outOfTypeRange(batchIndex, expectedType, paramValue);
                 }
                 packet.writeByte(value);
             }
             break;
             case SMALLINT: {
-                final short value;
-                value = MySQLBinds.bindNonNullToShort(batchIndex, type, paramValue);
+                final int value;
+                value = MySQLBinds.bindNonNullToShort(batchIndex, expectedType, paramValue);
                 Packets.writeInt2(packet, value);
             }
             break;
             case SMALLINT_UNSIGNED: {
                 final int value;
-                value = MySQLBinds.bindNonNullToInt(batchIndex, type, paramValue);
+                value = MySQLBinds.bindNonNullToInt(batchIndex, expectedType, paramValue);
                 if ((value & (~0xFFFF)) != 0) {
-                    throw JdbdExceptions.outOfTypeRange(batchIndex, type, paramValue);
+                    throw JdbdExceptions.outOfTypeRange(batchIndex, expectedType, paramValue);
                 }
                 Packets.writeInt2(packet, value);
             }
@@ -66,31 +66,31 @@ abstract class BinaryWriter {
             case MEDIUMINT_UNSIGNED:
             case INT: {
                 final int value;
-                value = MySQLBinds.bindNonNullToInt(batchIndex, type, paramValue);
+                value = MySQLBinds.bindNonNullToInt(batchIndex, expectedType, paramValue);
                 Packets.writeInt4(packet, value);
             }
             break;
             case INT_UNSIGNED: {
                 final long value;
-                value = MySQLBinds.bindNonNullToLong(batchIndex, type, paramValue);
+                value = MySQLBinds.bindNonNullToLong(batchIndex, expectedType, paramValue);
                 if ((value & (~0xFFFF_FFFFL)) != 0) {
-                    throw JdbdExceptions.outOfTypeRange(batchIndex, type, paramValue);
+                    throw JdbdExceptions.outOfTypeRange(batchIndex, expectedType, paramValue);
                 }
                 Packets.writeInt4(packet, (int) value);
             }
             break;
             case BIGINT: {
                 final long value;
-                value = MySQLBinds.bindNonNullToLong(batchIndex, type, paramValue);
+                value = MySQLBinds.bindNonNullToLong(batchIndex, expectedType, paramValue);
                 Packets.writeInt8(packet, value);
             }
             break;
             case BIGINT_UNSIGNED: {
                 final BigInteger value;
-                value = MySQLBinds.bindToBigInteger(batchIndex, type, paramValue);
+                value = MySQLBinds.bindToBigInteger(batchIndex, expectedType, paramValue);
                 final byte[] bytes = value.toByteArray();
                 if (value.compareTo(BigInteger.ZERO) < 0 || bytes.length > 9 || (bytes.length == 9 && bytes[0] != 0)) {
-                    throw JdbdExceptions.outOfTypeRange(batchIndex, type, paramValue);
+                    throw JdbdExceptions.outOfTypeRange(batchIndex, expectedType, paramValue);
                 }
                 final byte[] int8Bytes = new byte[8];
                 final int end = Math.min(int8Bytes.length, bytes.length);
@@ -102,59 +102,56 @@ abstract class BinaryWriter {
             break;
             case YEAR: {
                 final int value;
-                value = MySQLBinds.bindNonNullToYear(batchIndex, type, paramValue);
+                value = MySQLBinds.bindNonNullToYear(batchIndex, expectedType, paramValue);
                 Packets.writeInt2(packet, value);
             }
             break;
             case DECIMAL:
             case DECIMAL_UNSIGNED: {
                 final BigDecimal value;
-                value = MySQLBinds.bindNonNullToDecimal(batchIndex, type, paramValue);
+                value = MySQLBinds.bindNonNullToDecimal(batchIndex, expectedType, paramValue);
                 Packets.writeStringLenEnc(packet, value.toPlainString().getBytes(charset));
             }
             break;
             case FLOAT:
             case FLOAT_UNSIGNED: {
                 final float value;
-                value = MySQLBinds.bindNonNullToFloat(batchIndex, type, paramValue);
+                value = MySQLBinds.bindNonNullToFloat(batchIndex, expectedType, paramValue);
                 Packets.writeInt4(packet, Float.floatToIntBits(value));
             }
             break;
             case DOUBLE:
             case DOUBLE_UNSIGNED: {
                 final double value;
-                value = MySQLBinds.bindNonNullToDouble(batchIndex, type, paramValue);
+                value = MySQLBinds.bindNonNullToDouble(batchIndex, expectedType, paramValue);
                 Packets.writeInt8(packet, Double.doubleToLongBits(value));
             }
             break;
             case SET: {
                 final String value;
-                value = MySQLBinds.bindNonNullToSetType(batchIndex, type, paramValue);
+                value = MySQLBinds.bindNonNullToSetType(batchIndex, expectedType, paramValue);
                 Packets.writeStringLenEnc(packet, value.getBytes(charset));
+            }
+            break;
+            case VARCHAR: {
+                if (paramValue.getNonNull() instanceof Set) {
+                    // Server response parameter metadata no MYSQL_TYPE_SET ,it's MYSQL_TYPE_VARCHAR
+                    final String value;
+                    value = MySQLBinds.bindNonNullToSetType(batchIndex, expectedType, paramValue);
+                    Packets.writeStringLenEnc(packet, value.getBytes(charset));
+                } else {
+                    writeString(packet, batchIndex, expectedType, paramValue, charset);
+                }
             }
             break;
             case ENUM:
             case CHAR:
-            case VARCHAR:
             case TINYTEXT:
             case MEDIUMTEXT:
             case TEXT:
             case LONGTEXT:
             case JSON: {
-                final Object nonNull = paramValue.getNonNull();
-                if (nonNull instanceof byte[]) {
-                    final byte[] bytes = (byte[]) nonNull;
-                    if (StandardCharsets.UTF_8.equals(charset)) {
-                        Packets.writeStringLenEnc(packet, bytes);
-                    } else {
-                        final byte[] textBytes = new String(bytes, StandardCharsets.UTF_8).getBytes(charset);
-                        Packets.writeStringLenEnc(packet, textBytes);
-                    }
-                } else {
-                    final String value;
-                    value = MySQLBinds.bindNonNullToString(batchIndex, type, paramValue);
-                    Packets.writeStringLenEnc(packet, value.getBytes(charset));
-                }
+                writeString(packet, batchIndex, expectedType, paramValue, charset);
             }
             break;
             case BINARY:
@@ -170,21 +167,22 @@ abstract class BinaryWriter {
                 } else if (nonNull instanceof String) {
                     Packets.writeStringLenEnc(packet, ((String) nonNull).getBytes(charset));
                 } else {
-                    throw JdbdExceptions.createNonSupportBindSqlTypeError(batchIndex, type, paramValue);
+                    throw JdbdExceptions.createNonSupportBindSqlTypeError(batchIndex, expectedType, paramValue);
                 }
             }
             break;
             case TIMESTAMP:
             case DATETIME: {
-                writeDatetime(packet, batchIndex, type, paramValue, precision, charset);
+                writeDatetime(packet, batchIndex, expectedType, paramValue, precision, charset);
             }
             break;
             case TIME: {
-                writeTime(packet, batchIndex, type, paramValue, precision);
+                writeTime(packet, batchIndex, expectedType, paramValue, precision);
             }
+            break;
             case DATE: {
                 final LocalDate value;
-                value = MySQLBinds.bindNonNullToLocalDate(batchIndex, type, paramValue);
+                value = MySQLBinds.bindNonNullToLocalDate(batchIndex, expectedType, paramValue);
 
                 packet.writeByte(4); // length
                 Packets.writeInt2(packet, value.getYear());// year
@@ -193,47 +191,68 @@ abstract class BinaryWriter {
             }
             break;
             case BIT: {
-                writeBit(packet, batchIndex, type, paramValue);
+                writeBit(packet, batchIndex, expectedType, paramValue);
             }
             break;
             case NULL:
             case UNKNOWN:
             default: {
-                throw JdbdExceptions.createNonSupportBindSqlTypeError(batchIndex, type, paramValue);
+                throw JdbdExceptions.createNonSupportBindSqlTypeError(batchIndex, expectedType, paramValue);
             }
 
         }
 
     }
 
-    private static void writeBit(ByteBuf packet, final int batchIndex, final MySQLType type, Value paramValue)
+    private static void writeString(ByteBuf packet, final int batchIndex, final MySQLType expectedType
+            , Value paramValue, Charset charset)
             throws SQLException {
         final Object nonNull = paramValue.getNonNull();
-        final byte[] bitBytes;
+        if (nonNull instanceof byte[]) {
+            final byte[] bytes = (byte[]) nonNull;
+            if (StandardCharsets.UTF_8.equals(charset)) {
+                Packets.writeStringLenEnc(packet, bytes);
+            } else {
+                final byte[] textBytes = new String(bytes, StandardCharsets.UTF_8).getBytes(charset);
+                Packets.writeStringLenEnc(packet, textBytes);
+            }
+        } else {
+            final String value;
+            value = MySQLBinds.bindNonNullToString(batchIndex, expectedType, paramValue);
+            Packets.writeStringLenEnc(packet, value.getBytes(charset));
+        }
+    }
+
+
+    /**
+     * @param expectedType from COM_PREPARE_STMT parameter metadata or query attribute bind method.
+     * @see #decideActualType(MySQLType, Value)
+     */
+    private static void writeBit(ByteBuf packet, final int batchIndex, final MySQLType expectedType, Value paramValue)
+            throws SQLException {
+        final Object nonNull = paramValue.getNonNull();
+        final long value;
         if (nonNull instanceof Long) {
-            bitBytes = MySQLNumbers.toBinaryBytes((Long) nonNull, true);
+            value = (Long) nonNull;
         } else if (nonNull instanceof Integer) {
-            bitBytes = MySQLNumbers.toBinaryBytes((Integer) nonNull, true);
+            value = (Integer) nonNull & 0xFFFF_FFFFL;
         } else if (nonNull instanceof Short) {
-            bitBytes = MySQLNumbers.toBinaryBytes(((Short) nonNull) & 0xFFFFL, true);
+            value = (Short) nonNull & 0xFFFFL;
         } else if (nonNull instanceof Byte) {
-            bitBytes = MySQLNumbers.toBinaryBytes(((Byte) nonNull) & 0xFFL, true);
+            value = (Byte) nonNull & 0xFFL;
         } else if (nonNull instanceof BitSet) {
             final BitSet v = (BitSet) nonNull;
             if (v.length() > 64) {
-                throw JdbdExceptions.outOfTypeRange(batchIndex, type, paramValue);
+                throw JdbdExceptions.outOfTypeRange(batchIndex, expectedType, paramValue);
             }
-            bitBytes = MySQLNumbers.toBinaryBytes(v.toLongArray()[0], true);
+            value = v.toLongArray()[0];
         } else if (nonNull instanceof String) {
-            final String v = (String) nonNull;
-            if (v.length() > 64) {
-                throw JdbdExceptions.outOfTypeRange(batchIndex, type, paramValue);
-            }
-            bitBytes = MySQLStrings.binaryStringToBytes(v.toCharArray());
+            value = Long.parseUnsignedLong((String) nonNull, 2);
         } else {
-            throw JdbdExceptions.createNonSupportBindSqlTypeError(batchIndex, type, paramValue);
+            throw JdbdExceptions.createNonSupportBindSqlTypeError(batchIndex, expectedType, paramValue);
         }
-        Packets.writeStringLenEnc(packet, bitBytes);
+        // MySQL server 8.0.27 and before don't support send MYSQL_TYPE_BIT
+        Packets.writeInt8(packet, value);
     }
 
 
@@ -360,4 +379,35 @@ abstract class BinaryWriter {
     }
 
 
+    static MySQLType decideActualType(final MySQLType expectedType, final Value paramValue) {
+        final Object nonNull = paramValue.getNonNull();
+        final MySQLType bindType;
+        switch (expectedType) {
+            case BIT: {
+                // Server 8.0.27 and before ,can't bind BIT type.
+                //@see writeBit method.
+                bindType = MySQLType.BIGINT;
+            }
+            break;
+            case YEAR: {
+                //  Server 8.0.27 ,if bind YEAR type server response 'Malformed communication packet.'
+                bindType = MySQLType.SMALLINT;
+            }
+            break;
+            case DATETIME:
+            case TIMESTAMP: {
+                if (nonNull instanceof OffsetDateTime || nonNull instanceof ZonedDateTime) {
+                    //As of MySQL 8.0.19 can append zone
+                    bindType = MySQLType.VARCHAR;
+                } else {
+                    bindType = expectedType;
+                }
+            }
+            break;
+            default: {
+                bindType = expectedType;
+            }
+        }
+        return bindType;
+    }
 }
