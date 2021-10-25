@@ -687,7 +687,7 @@ public abstract class Packets {
         }
         final Publisher<ByteBuf> publisher;
         if (payload >= Packets.MAX_PAYLOAD) {
-            publisher = Packets.divideBigPacket(packet, adjutant.allocator(), sequenceId);
+            publisher = Flux.fromIterable(Packets.divideBigPacket(packet, adjutant.allocator(), sequenceId));
         } else {
             Packets.writeHeader(packet, sequenceId.get());
             publisher = Mono.just(packet);
@@ -704,7 +704,7 @@ public abstract class Packets {
      * @param bigPacket a big packet that header is placeholder.
      * @return a sync Publisher that is created by {@link Mono#just(Object)} or {@link Flux#fromIterable(Iterable)}.
      */
-    public static Publisher<ByteBuf> divideBigPacket(final ByteBuf bigPacket, ByteBufAllocator allocator
+    public static Iterable<ByteBuf> divideBigPacket(final ByteBuf bigPacket, ByteBufAllocator allocator
             , Supplier<Integer> sequenceId) {
         if (bigPacket.readableBytes() < MAX_PACKET) {
             throw new IllegalArgumentException("bigPacket not big packet");
@@ -735,7 +735,7 @@ public abstract class Packets {
         if (packetList.size() == 1 || length == MAX_PAYLOAD) {
             packetList.add(createEmptyPacket(allocator, sequenceId.get()));
         }
-        return Flux.fromIterable(packetList);
+        return packetList;
     }
 
 

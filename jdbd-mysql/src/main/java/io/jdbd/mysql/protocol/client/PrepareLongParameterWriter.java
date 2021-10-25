@@ -4,9 +4,9 @@ import io.jdbd.mysql.MySQLType;
 import io.jdbd.mysql.protocol.conf.MyKey;
 import io.jdbd.mysql.stmt.BindValue;
 import io.jdbd.mysql.util.MySQLExceptions;
+import io.jdbd.stmt.LongDataReadException;
 import io.jdbd.vendor.conf.Properties;
 import io.jdbd.vendor.stmt.ParamValue;
-import io.jdbd.vendor.util.JdbdExceptions;
 import io.netty.buffer.ByteBuf;
 import org.reactivestreams.Publisher;
 import org.reactivestreams.Subscriber;
@@ -15,17 +15,18 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.FluxSink;
-import reactor.util.annotation.Nullable;
 
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
+import java.nio.charset.CharacterCodingException;
 import java.nio.charset.Charset;
 import java.nio.charset.CharsetDecoder;
 import java.nio.charset.CharsetEncoder;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
+import java.sql.SQLException;
 import java.util.List;
+import java.util.function.Consumer;
 
 /**
  * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_com_stmt_send_long_data.html">Protocol::COM_STMT_SEND_LONG_DATA</a>
@@ -76,11 +77,17 @@ final class PrepareLongParameterWriter implements PrepareExecuteCommandWriter.Lo
     @Override
     public Flux<ByteBuf> write(final int stmtIndex, List<? extends ParamValue> valueList) {
         return Flux.fromIterable(valueList)
+                .filter(this::isLongData)
                 .flatMap(paramValue -> sendLongData(stmtIndex, paramValue));
     }
 
 
     /*################################## blow private method ##################################*/
+
+    private boolean isLongData(final ParamValue paramValue) {
+        final Object nonNull = paramValue.getNonNull();
+        return nonNull instanceof Path || nonNull instanceof Publisher;
+    }
 
 
     /**
@@ -91,7 +98,14 @@ final class PrepareLongParameterWriter implements PrepareExecuteCommandWriter.Lo
 
         final Publisher<ByteBuf> flux;
         if (value instanceof Path) {
-            flux = sendPathParameter(batchIndex, paramValue);
+            flux = Flux.create(sink -> {
+                if (this.adjutant.inEventLoop()) {
+                    sendPathParameterInEventLoop(batchIndex, paramValue, sink);
+                } else {
+                    this.adjutant.execute(() -> sendPathParameterInEventLoop(batchIndex, paramValue, sink));
+                }
+
+            });
         } else if (value instanceof Publisher) {
             flux = new PacketSource(this, batchIndex, paramValue);
         } else {
@@ -103,58 +117,28 @@ final class PrepareLongParameterWriter implements PrepareExecuteCommandWriter.Lo
     }
 
 
-    /**
-     * @see #sendLongData(int, ParamValue)
-     */
-    private Publisher<ByteBuf> sendPathParameter(final int batchIndex, final ParamValue paramValue) {
-        return Flux.create(sink -> {
-            if (this.adjutant.inEventLoop()) {
-                sendPathParameterInEventLoop(batchIndex, paramValue, sink);
-            } else {
-                this.adjutant.execute(() -> sendPathParameterInEventLoop(batchIndex, paramValue, sink));
-            }
-
-        });
-    }
-
-
-    private void handleSendError(final Throwable error) {
-        if (this.adjutant.inEventLoop()) {
-            this.stmtTask.handleLongParamSendFailure(error);
+    private void sendPathParameterInEventLoop(final int batchIndex, final ParamValue paramValue
+            , final FluxSink<ByteBuf> sink) {
+        if (isTextData(paramValue)) {
+            sendTextPathInEventLoop(batchIndex, paramValue, sink);
         } else {
-            this.adjutant.execute(() -> this.stmtTask.handleLongParamSendFailure(error));
+            sendBinaryPathInEventLoop(batchIndex, paramValue, sink);
         }
     }
 
-
-    private void sendPublisherInEventLoop(final int batchIndex, final ParamValue paramValue
-            , final FluxSink<ByteBuf> sink) {
-
-    }
-
-    private void sendPathParameterInEventLoop(final int batchIndex, final ParamValue paramValue
-            , final FluxSink<ByteBuf> sink) {
-        final MySQLType sqlType = this.columnMetas[paramValue.getIndex()].sqlType;
-        switch (sqlType) {
+    private boolean isTextData(final ParamValue paramValue) {
+        final boolean textData;
+        switch (this.columnMetas[paramValue.getIndex()].sqlType) {
             case TEXT:
             case MEDIUMTEXT:
             case LONGTEXT:
             case JSON:
-                sendTextPathInEventLoop(batchIndex, paramValue, sink);
+                textData = true;
                 break;
-            case BLOB:
-            case MEDIUMBLOB:
-            case LONGBLOB:
-            case GEOMETRY:
-                sendBinaryPathInEventLoop(batchIndex, paramValue, sink);
-                break;
-            default: {
-                final Throwable e;
-                e = JdbdExceptions.createNonSupportBindSqlTypeError(batchIndex, sqlType, paramValue);
-                sink.complete(); // no send error.
-                handleSendError(e);
-            }
+            default:
+                textData = false;
         }
+        return textData;
     }
 
 
@@ -168,16 +152,16 @@ final class PrepareLongParameterWriter implements PrepareExecuteCommandWriter.Lo
         try (FileChannel channel = FileChannel.open((Path) paramValue.getNonNull(), StandardOpenOption.READ)) {
 
             final Charset clientChart = this.adjutant.charsetClient();
-            final boolean isUtf8 = StandardCharsets.UTF_8.equals(clientChart);
+            final Charset textCharset = this.getTextCharset();
             final CharsetEncoder encoder;
             final CharsetDecoder decoder;
 
-            if (isUtf8) {
+            if (textCharset.equals(clientChart)) {
                 encoder = null;
                 decoder = null;
             } else {
                 encoder = clientChart.newEncoder();
-                decoder = StandardCharsets.UTF_8.newDecoder();
+                decoder = textCharset.newDecoder();
             }
             final byte[] bufferArray = new byte[2048];
 
@@ -187,7 +171,7 @@ final class PrepareLongParameterWriter implements PrepareExecuteCommandWriter.Lo
 
             while (channel.read(buffer) > 0) {
                 buffer.flip();
-                if (isUtf8) {
+                if (decoder == null || encoder == null) {
                     packet = writeOneBuffer(packet, paramIndex, bufferArray, buffer.limit(), sink);
                 } else {
                     final ByteBuffer decodedBuffer = encoder.encode(decoder.decode(buffer));
@@ -197,12 +181,13 @@ final class PrepareLongParameterWriter implements PrepareExecuteCommandWriter.Lo
                 }
                 buffer.clear();
             }
-            handleLastPacket(packet, sink);
-        } catch (Throwable e) {
-            handleWriteError(packet, batchIndex, e, paramValue);
-        } finally {
-            // don't emit error
+            handleLastPacket(packet, sink::next);
             sink.complete();
+        } catch (Throwable e) {
+            if (packet != null && packet.refCnt() > 0) {
+                packet.release();
+            }
+            sink.error(createReadError(batchIndex, e, paramValue));
         }
 
     }
@@ -225,36 +210,32 @@ final class PrepareLongParameterWriter implements PrepareExecuteCommandWriter.Lo
                 packet = writeOneBuffer(packet, paramIndex, bufferArray, buffer.limit(), sink);
                 buffer.clear();
             }
-            handleLastPacket(packet, sink);
-        } catch (Throwable e) {
-            handleWriteError(packet, batchIndex, e, paramValue);
-        } finally {
-            // don't emit error
+            handleLastPacket(packet, sink::next);
             sink.complete();
+        } catch (Throwable e) {
+            if (packet != null && packet.refCnt() > 0) {
+                packet.release();
+            }
+            sink.error(createReadError(batchIndex, e, paramValue));
         }
+
     }
 
     /**
      * @see #sendTextPathInEventLoop(int, ParamValue, FluxSink)
      * @see #sendBinaryPathInEventLoop(int, ParamValue, FluxSink)
      */
-    private void handleLastPacket(ByteBuf packet, FluxSink<ByteBuf> sink) {
+    private void handleLastPacket(ByteBuf packet, Consumer<ByteBuf> sink) {
         if (packet.readableBytes() > Packets.HEADER_SIZE + LONG_DATA_PREFIX_SIZE) {
             Packets.writeHeader(packet, this.stmtTask.addAndGetSequenceId());
-            sink.next(packet);
+            sink.accept(packet);
         } else {
             packet.release();
         }
     }
 
-    /**
-     * @see #sendTextPathInEventLoop(int, ParamValue, FluxSink)
-     * @see #sendBinaryPathInEventLoop(int, ParamValue, FluxSink)
-     */
-    private void handleWriteError(@Nullable ByteBuf packet, int batchIndex, Throwable e, ParamValue paramValue) {
-        if (packet != null && packet.refCnt() > 0) {
-            packet.release();
-        }
+
+    private LongDataReadException createReadError(int batchIndex, Throwable e, ParamValue paramValue) {
         BindValue bindValue;
         if (paramValue instanceof BindValue) {
             bindValue = (BindValue) paramValue;
@@ -262,8 +243,7 @@ final class PrepareLongParameterWriter implements PrepareExecuteCommandWriter.Lo
             int paramIndex = paramValue.getIndex();
             bindValue = BindValue.wrap(paramIndex, this.columnMetas[paramIndex].sqlType, paramValue.get());
         }
-        Throwable error = MySQLExceptions.createLongDataReadException(batchIndex, bindValue, e);
-        handleSendError(error);
+        return MySQLExceptions.createLongDataReadException(batchIndex, bindValue, e);
     }
 
     private ByteBuf writeOneBuffer(ByteBuf packet, final int paramIndex, final byte[] buffer, final int length
@@ -317,20 +297,12 @@ final class PrepareLongParameterWriter implements PrepareExecuteCommandWriter.Lo
     }
 
 
-    private Charset obtainCharset(final int paramIndex) {
-        final Charset charset;
-        if (this.stmtTask.getParameterMetas()[paramIndex].sqlType.isLongString()) {
-            charset = obtainClobCharset();
-        } else {
-            charset = this.adjutant.charsetClient();
-        }
-        return charset;
-    }
-
     /**
-     * @see #writeCharArray(ByteBuf, FluxSink, int, char[], int)
+     * <p>
+     * Get text charset for {@link Publisher} or {@link Path}
+     * </p>
      */
-    private Charset obtainClobCharset() {
+    private Charset getTextCharset() {
         Charset charset = this.properties.get(MyKey.clobCharacterEncoding, Charset.class);
         if (charset == null) {
             charset = this.adjutant.charsetClient();
@@ -357,11 +329,14 @@ final class PrepareLongParameterWriter implements PrepareExecuteCommandWriter.Lo
         }
 
         @Override
-        public void subscribe(Subscriber<? super ByteBuf> s) {
+        public void subscribe(final Subscriber<? super ByteBuf> s) {
             try {
+                // subscribe upstream
                 final PacketSubscription subscription;
                 subscription = new PacketSubscription(this.parameterWriter, this.batchIndex, this.paramValue, s);
                 ((Publisher<?>) this.paramValue.getNonNull()).subscribe(subscription);
+
+                // invoke downstream  onSubscribe;
                 s.onSubscribe(subscription);
             } catch (Throwable e) {
                 s.onError(MySQLExceptions.wrapIfNonJvmFatal(e));
@@ -381,9 +356,17 @@ final class PrepareLongParameterWriter implements PrepareExecuteCommandWriter.Lo
 
         private final Subscriber<? super ByteBuf> subscriber;
 
+        private final CharsetDecoder decoder;
+
+        private final CharsetEncoder encoder;
+
+        private final boolean textData;
+
         private ByteBuf packet;
 
         private Subscription upstream;
+
+        private boolean terminate;
 
         private PacketSubscription(PrepareLongParameterWriter parameterWriter, int batchIndex
                 , ParamValue paramValue, Subscriber<? super ByteBuf> subscriber) {
@@ -392,7 +375,33 @@ final class PrepareLongParameterWriter implements PrepareExecuteCommandWriter.Lo
             this.paramValue = paramValue;
             this.subscriber = subscriber;
 
-            subscriber.onSubscribe(this);
+            final Charset textCharset, clientCharset;
+            textCharset = parameterWriter.getTextCharset();
+            clientCharset = parameterWriter.adjutant.charsetClient();
+
+            switch (parameterWriter.columnMetas[paramValue.getIndex()].sqlType) {
+                case TEXT:
+                case MEDIUMTEXT:
+                case LONGTEXT:
+                case JSON: {
+                    this.textData = true;
+                    if (textCharset.equals(clientCharset)) {
+                        this.encoder = null;
+                        this.decoder = null;
+                    } else {
+                        this.decoder = textCharset.newDecoder();
+                        this.encoder = clientCharset.newEncoder();
+                    }
+                }
+                break;
+                default: {
+                    this.textData = false;
+                    this.encoder = null;
+                    this.decoder = null;
+                }
+            }
+
+
         }
 
         @Override
@@ -411,9 +420,9 @@ final class PrepareLongParameterWriter implements PrepareExecuteCommandWriter.Lo
                 s.cancel();
             }
             if (this.parameterWriter.adjutant.inEventLoop()) {
-                releasePacketInEventLoop();
+                downstreamOnCancel();
             } else {
-                this.parameterWriter.adjutant.execute(this::releasePacketInEventLoop);
+                this.parameterWriter.adjutant.execute(this::downstreamOnCancel);
             }
 
         }
@@ -425,29 +434,148 @@ final class PrepareLongParameterWriter implements PrepareExecuteCommandWriter.Lo
 
         @Override
         public void onNext(final Object item) {
-            if (!(item instanceof byte[])) {
-                return;
+            if (this.parameterWriter.adjutant.inEventLoop()) {
+                onNextInEventLoop(item);
+            } else {
+                this.parameterWriter.adjutant.execute(() -> onNextInEventLoop(item));
             }
-
-
         }
 
         @Override
-        public void onError(Throwable t) {
-
+        public void onError(final Throwable error) {
+            if (this.parameterWriter.adjutant.inEventLoop()) {
+                onErrorInEventLoop(error);
+            } else {
+                this.parameterWriter.adjutant.execute(() -> onErrorInEventLoop(error));
+            }
         }
 
         @Override
         public void onComplete() {
+            if (this.parameterWriter.adjutant.inEventLoop()) {
+                onCompleteInEventLoop();
+            } else {
+                this.parameterWriter.adjutant.execute(this::onCompleteInEventLoop);
+            }
+        }
+
+
+        private void onNextInEventLoop(final Object item) {
+            if (this.terminate) {
+                return;
+            }
+            if (item instanceof byte[]) {
+                try {
+                    if (this.textData) {
+                        writeTextData((byte[]) item);
+                    } else {
+                        writeBinaryData((byte[]) item);
+                    }
+                } catch (Throwable e) {
+                    this.onErrorInEventLoop(e);
+                }
+            } else {
+                String msg = String.format("batch[%s] parameter[%s] Publisher element isn't byte[]."
+                        , this.batchIndex, this.paramValue.getIndex());
+                this.onErrorInEventLoop(new SQLException(msg));
+            }
 
         }
 
-        private void releasePacketInEventLoop() {
+        private void writeTextData(final byte[] data) throws CharacterCodingException {
+            final CharsetDecoder decoder = this.decoder;
+            final CharsetEncoder encoder = this.encoder;
+
+            final byte[] encodeArray;
+            if (decoder != null && encoder != null) {
+                final ByteBuffer buffer;
+                buffer = encoder.encode(decoder.decode(ByteBuffer.wrap(data)));
+                encodeArray = new byte[buffer.remaining()];
+                buffer.get(encodeArray);
+            } else {
+                encodeArray = data;
+            }
+            writeBinaryData(encodeArray);
+        }
+
+        private void writeBinaryData(final byte[] data) {
+            ByteBuf packet = this.packet;
+            if (packet == null) {
+                packet = this.parameterWriter.createLongDataPacket(this.paramValue.getIndex(), data.length);
+                this.packet = packet;
+            }
+
+            for (int offset = 0, length; offset < data.length; ) {
+                length = Math.min(packet.maxWritableBytes(), data.length - offset);
+                packet.writeBytes(data, offset, length);
+
+                offset += length;
+                if (packet.maxWritableBytes() > 0) {
+                    break;
+                }
+
+                Packets.writeHeader(packet, this.parameterWriter.stmtTask.addAndGetSequenceId());
+                this.subscriber.onNext(packet);
+
+                if (offset == data.length) {
+                    this.packet = null;
+                    break;
+                }
+                packet = this.parameterWriter.createLongDataPacket(this.paramValue.getIndex(), data.length - offset);
+                this.packet = packet;
+            }
+        }
+
+        private void onCompleteInEventLoop() {
+            final ByteBuf packet = this.packet;
+            if (packet != null) {
+                this.parameterWriter.handleLastPacket(packet, this.subscriber::onNext);
+                this.packet = null;
+            }
+            this.subscriber.onComplete();
+        }
+
+
+        private void onErrorInEventLoop(final Throwable e) {
+            if (this.terminate) {
+                return;
+            }
+            this.terminate = true;
             final ByteBuf packet = this.packet;
             if (packet != null && packet.refCnt() > 0) {
                 packet.release();
                 this.packet = null;
             }
+            cancelSubscribeOnError();
+            final Throwable error;
+            error = this.parameterWriter.createReadError(this.batchIndex, e, this.paramValue);
+            this.subscriber.onError(error);
+        }
+
+        private void cancelSubscribeOnError() {
+            final Subscription s = this.upstream;
+            if (s != null) {
+                try {
+                    s.cancel();
+                } catch (Throwable e) {
+                    // Subscription.cannel() shouldn't throw error.
+                    LOG.debug("subscription cancel() throw error", e);
+                }
+            }
+
+        }
+
+        private void downstreamOnCancel() {
+            if (this.terminate) {
+                return;
+            }
+            this.terminate = true;
+            final ByteBuf packet = this.packet;
+            if (packet != null && packet.refCnt() > 0) {
+                packet.release();
+                this.packet = null;
+            }
+
         }
 
     }

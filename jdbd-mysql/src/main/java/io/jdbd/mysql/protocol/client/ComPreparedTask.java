@@ -231,7 +231,7 @@ final class ComPreparedTask extends MySQLCommandTask implements PrepareStmtTask,
     }
 
     @Override
-    public void handleLongParamSendFailure() {
+    public void handleLongParamSendFailure(Throwable error) {
 
     }
 

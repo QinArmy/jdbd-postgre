@@ -41,13 +41,13 @@ import java.util.Objects;
 /**
  * @see ExtendedQueryTask
  */
-final class DefaultExtendedCommandWriter implements ExtendedCommandWriter {
+final class PgExtendedCommandWriter implements ExtendedCommandWriter {
 
-    static DefaultExtendedCommandWriter create(ExtendedStmtTask stmtTask) throws SQLException {
-        return new DefaultExtendedCommandWriter(stmtTask);
+    static PgExtendedCommandWriter create(ExtendedStmtTask stmtTask) throws SQLException {
+        return new PgExtendedCommandWriter(stmtTask);
     }
 
-    private static final Logger LOG = LoggerFactory.getLogger(DefaultExtendedCommandWriter.class);
+    private static final Logger LOG = LoggerFactory.getLogger(PgExtendedCommandWriter.class);
 
     private final ExtendedStmtTask stmtTask;
 
@@ -72,7 +72,7 @@ final class DefaultExtendedCommandWriter implements ExtendedCommandWriter {
     private int fetchSize;
 
 
-    private DefaultExtendedCommandWriter(final ExtendedStmtTask stmtTask) throws SQLException {
+    private PgExtendedCommandWriter(final ExtendedStmtTask stmtTask) throws SQLException {
         this.stmtTask = stmtTask;
         this.adjutant = stmtTask.adjutant();
         this.stmt = stmtTask.getStmt();
@@ -94,44 +94,43 @@ final class DefaultExtendedCommandWriter implements ExtendedCommandWriter {
 
 
     @Override
-    public final boolean isOneShot() {
+    public boolean isOneShot() {
         return this.oneShot;
     }
 
-
     @Override
-    public final boolean supportFetch() {
+    public boolean supportFetch() {
         return this.fetchSize > 0 && PgStrings.hasText(this.portalName);
     }
 
     @Override
-    public final boolean needClose() {
+    public boolean needClose() {
         return !this.statementName.isEmpty() && getCache() == null;
     }
 
     @Nullable
     @Override
-    public final CachePrepare getCache() {
+    public CachePrepare getCache() {
         return null;
     }
 
     @Override
-    public final int getFetchSize() {
+    public int getFetchSize() {
         return this.fetchSize;
     }
 
     @Override
-    public final String getReplacedSql() {
+    public String getReplacedSql() {
         return this.replacedSql;
     }
 
     @Override
-    public final String getStatementName() {
+    public String getStatementName() {
         return this.statementName;
     }
 
     @Override
-    public final Publisher<ByteBuf> prepare() {
+    public Publisher<ByteBuf> prepare() {
         if (this.oneShot) {
             throw new IllegalStateException("Current is  one shot");
         }
@@ -143,7 +142,7 @@ final class DefaultExtendedCommandWriter implements ExtendedCommandWriter {
     }
 
     @Override
-    public final Publisher<ByteBuf> executeOneShot() {
+    public Publisher<ByteBuf> executeOneShot() {
         final List<BindValue> bindGroup = obtainBindGroupForOneShot();
         if (bindGroup.size() > 0 || !this.oneShot) {
             throw new IllegalStateException("Not one shot");
@@ -164,7 +163,7 @@ final class DefaultExtendedCommandWriter implements ExtendedCommandWriter {
 
 
     @Override
-    public final Publisher<ByteBuf> bindAndExecute() {
+    public Publisher<ByteBuf> bindAndExecute() {
         if (this.paramTypeList != null) {
             throw new IllegalStateException("duplication execute.");
         }
@@ -182,7 +181,7 @@ final class DefaultExtendedCommandWriter implements ExtendedCommandWriter {
     }
 
     @Override
-    public final Publisher<ByteBuf> fetch() {
+    public Publisher<ByteBuf> fetch() {
         if (!supportFetch()) {
             throw new IllegalStateException("Not support fetch.");
         }
@@ -192,7 +191,7 @@ final class DefaultExtendedCommandWriter implements ExtendedCommandWriter {
     }
 
     @Override
-    public final Publisher<ByteBuf> closeStatement() {
+    public Publisher<ByteBuf> closeStatement() {
         if (!needClose()) {
             throw new IllegalStateException("Don't need close.");
         }
@@ -1236,19 +1235,19 @@ final class DefaultExtendedCommandWriter implements ExtendedCommandWriter {
             this.paramIndex = paramIndex;
             this.channelSInk = channelSInk;
 
-            this.adjutant = DefaultExtendedCommandWriter.this.adjutant;
+            this.adjutant = PgExtendedCommandWriter.this.adjutant;
             this.binaryData = pgType.supportBinaryPublisher();
             this.clientCharset = adjutant.clientCharset();
         }
 
         @Override
-        public final void onSubscribe(Subscription s) {
+        public void onSubscribe(Subscription s) {
             this.subscription = s;
             s.request(Long.MAX_VALUE);
         }
 
         @Override
-        public final void onNext(final Object obj) {
+        public void onNext(final Object obj) {
             if (this.error != null) {
                 return;
             }
@@ -1260,7 +1259,7 @@ final class DefaultExtendedCommandWriter implements ExtendedCommandWriter {
         }
 
         @Override
-        public final void onError(final Throwable t) {
+        public void onError(final Throwable t) {
             if (this.adjutant.inEventLoop()) {
                 onErrorInEventLoop(t);
             } else {
@@ -1269,7 +1268,7 @@ final class DefaultExtendedCommandWriter implements ExtendedCommandWriter {
         }
 
         @Override
-        public final void onComplete() {
+        public void onComplete() {
             if (this.adjutant.inEventLoop()) {
                 onCompleteInEventLoop();
             } else {

@@ -125,7 +125,7 @@ final class ExtendedQueryTask extends AbstractStmtTask implements PrepareTask<Pg
      */
     private ExtendedQueryTask(BindStmt stmt, ResultSink sink, TaskAdjutant adjutant) throws SQLException {
         super(adjutant, sink, stmt);
-        this.commandWriter = DefaultExtendedCommandWriter.create(this);
+        this.commandWriter = PgExtendedCommandWriter.create(this);
     }
 
     /**
@@ -135,7 +135,7 @@ final class ExtendedQueryTask extends AbstractStmtTask implements PrepareTask<Pg
      */
     private ExtendedQueryTask(ResultSink sink, BindBatchStmt stmt, TaskAdjutant adjutant) throws SQLException {
         super(adjutant, sink, stmt);
-        this.commandWriter = DefaultExtendedCommandWriter.create(this);
+        this.commandWriter = PgExtendedCommandWriter.create(this);
     }
 
     /**
@@ -143,7 +143,7 @@ final class ExtendedQueryTask extends AbstractStmtTask implements PrepareTask<Pg
      */
     private ExtendedQueryTask(TaskAdjutant adjutant, PrepareStmt stmt, PrepareResultSink sink) throws SQLException {
         super(adjutant, sink, stmt);
-        this.commandWriter = DefaultExtendedCommandWriter.create(this);
+        this.commandWriter = PgExtendedCommandWriter.create(this);
     }
 
     /*################################## blow PrepareStmtTask method ##################################*/
