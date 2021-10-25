@@ -29,4 +29,6 @@ interface TaskAdjutant extends ITaskAdjutant, ClientProtocolAdjutant, MySQLParse
 
     Map<String, Collation> nameCollationMap();
 
+    boolean inTransaction();
+
 }

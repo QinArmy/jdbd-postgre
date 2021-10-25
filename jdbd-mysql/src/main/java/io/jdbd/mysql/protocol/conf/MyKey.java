@@ -187,7 +187,7 @@ public enum MyKey implements PropertyKey {
 
     //below BLOB/CLOB processing https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-blob-clob-processing.html
     autoDeserialize("false", Boolean.class), //
-    blobSendChunkSize("1048576", Integer.class), //
+    blobSendChunkSize(Integer.toString(0xFF_FF_FE), Integer.class), //
     @Deprecated
     blobsAreStrings("false", Boolean.class), //
     clobCharacterEncoding(null, Charset.class), //

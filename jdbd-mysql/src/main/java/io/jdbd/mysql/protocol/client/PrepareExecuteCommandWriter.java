@@ -11,8 +11,11 @@ import io.jdbd.mysql.util.MySQLExceptions;
 import io.jdbd.vendor.stmt.*;
 import io.netty.buffer.ByteBuf;
 import org.reactivestreams.Publisher;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.FluxSink;
+import reactor.core.publisher.Mono;
 
 import java.nio.charset.Charset;
 import java.nio.file.Path;
@@ -30,6 +33,7 @@ final class PrepareExecuteCommandWriter implements ExecuteCommandWriter {
         return new PrepareExecuteCommandWriter(stmtTask);
     }
 
+    private final Logger LOG = LoggerFactory.getLogger(PrepareExecuteCommandWriter.class);
 
     private final PrepareStmtTask stmtTask;
 
@@ -43,6 +47,8 @@ final class PrepareExecuteCommandWriter implements ExecuteCommandWriter {
 
     private final MySQLServerVersion serverVersion;
 
+    private LongParameterWriter longParamWriter;
+
 
     private PrepareExecuteCommandWriter(final PrepareStmtTask stmtTask) {
         this.stmtTask = stmtTask;
@@ -52,7 +58,6 @@ final class PrepareExecuteCommandWriter implements ExecuteCommandWriter {
 
         this.supportQueryAttr = Capabilities.supportQueryAttr(this.capability);
         this.serverVersion = this.adjutant.handshake10().getServerVersion();
-        ;
     }
 
 
@@ -71,8 +76,7 @@ final class PrepareExecuteCommandWriter implements ExecuteCommandWriter {
                 // hear invoker has bug
                 throw MySQLExceptions.createBindValueParamIndexNotMatchError(batchIndex, paramValue, i);
             }
-            final Object value = paramValue.get();
-            if (value instanceof Publisher || value instanceof Path) {
+            if (paramValue.isLongData()) {
                 longParamList.add(paramValue);
             }
         }
@@ -81,21 +85,43 @@ final class PrepareExecuteCommandWriter implements ExecuteCommandWriter {
             // this 'if' block handle no bind parameter.
             final ByteBuf packet;
             packet = createExecutePacket(10);
+            this.stmtTask.resetSequenceId(); // reset sequenceId before write header
             publisher = Packets.createPacketPublisher(packet, this.stmtTask::addAndGetSequenceId, this.adjutant);
         } else if (longParamList.size() == 0) {
             // this 'if' block handle no long parameter.
             publisher = bindParameters(batchIndex, bindGroup);
         } else {
-            // start safe sequence id
-            this.stmtTask.nextGroupReset();
-            publisher = new PrepareLongParameterWriter(this.stmtTask)
-                    .write(batchIndex, longParamList)
-                    .concatWith(defferBindParameters(batchIndex, bindGroup));
+            // start next group need reset
+            LongParameterWriter longParamWriter = this.longParamWriter;
+            if (longParamWriter == null) {
+                longParamWriter = new PrepareLongParameterWriter(this.stmtTask);
+                this.longParamWriter = longParamWriter;
+            }
+            publisher = longParamWriter.write(batchIndex, longParamList)
+                    .concatWith(defferBindParameters(batchIndex, bindGroup))
+                    .onErrorResume(this::handleSendError);
         }
         return publisher;
     }
 
     /*################################## blow private method ##################################*/
+
+    private <T> Publisher<T> handleSendError(final Throwable e) {
+        final Mono<T> empty;
+        if (this.adjutant.inEventLoop()) {
+            this.stmtTask.addErrorToTask(e);
+            this.stmtTask.handleExecuteMessageError();
+            empty = Mono.empty();
+        } else {
+            empty = Mono.create(sink -> this.adjutant.execute(() -> {
+                this.stmtTask.addErrorToTask(e);
+                this.stmtTask.handleExecuteMessageError();
+                sink.success();
+            }));
+        }
+        return empty;
+    }
+
 
     private List<? extends ParamValue> getBindGroup(final int batchIndex) {
         ParamSingleStmt stmt = this.stmt;
@@ -156,7 +182,7 @@ final class PrepareExecuteCommandWriter implements ExecuteCommandWriter {
                     .subscribe(sink::next, sink::error, sink::complete);
         } catch (Throwable e) {
             this.stmtTask.addErrorToTask(e);
-            this.stmtTask.handleNoExecuteMessage();
+            this.stmtTask.handleExecuteMessageError();
             sink.complete();
         }
     }
@@ -168,7 +194,6 @@ final class PrepareExecuteCommandWriter implements ExecuteCommandWriter {
      */
     private Publisher<ByteBuf> bindParameters(final int batchIndex, final List<? extends ParamValue> bindGroup)
             throws JdbdException, SQLException {
-
 
         final MySQLColumnMeta[] paramMetaArray = this.stmtTask.getParameterMetas();
         MySQLBinds.assertParamCountMatch(batchIndex, paramMetaArray.length, bindGroup.size());
@@ -196,14 +221,11 @@ final class PrepareExecuteCommandWriter implements ExecuteCommandWriter {
             //1. make nullBitsMap and fill  parameter_types
             for (int i = 0; i < paramMetaArray.length; i++) {
                 final ParamValue paramValue = bindGroup.get(i);
-                final Object value = paramValue.get();
-                if (value instanceof Publisher || value instanceof Path) {
-                    // long parameter
-                    continue;
-                }
                 final MySQLType actualType;
-                if (value == null) {
+                if (paramValue.get() == null) {
                     nullBitsMap[i >> 3] |= (1 << (i & 7));
+                    actualType = paramMetaArray[i].sqlType;
+                } else if (paramValue.isLongData()) {
                     actualType = paramMetaArray[i].sqlType;
                 } else {
                     actualType = BinaryWriter.decideActualType(paramMetaArray[i].sqlType, paramValue);
@@ -267,6 +289,7 @@ final class PrepareExecuteCommandWriter implements ExecuteCommandWriter {
                 BinaryWriter.writeNonNullBinary(packet, batchIndex, queryAttr.getType(), queryAttr, 6, clientCharset);
             }
 
+            this.stmtTask.resetSequenceId(); // reset sequenceId before write header
             return Packets.createPacketPublisher(packet, this.stmtTask::addAndGetSequenceId, this.adjutant);
 
         } catch (Throwable e) {

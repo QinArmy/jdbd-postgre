@@ -453,6 +453,7 @@ final class ComQueryTask extends MySQLCommandTask {
         } else {
             this.phase = Phase.TASK_END;
             addError(MySQLExceptions.wrapIfNonJvmFatal(e));
+            log.error("occur error ", e);
             publishError(this.sink::error);
         }
         return Action.TASK_END;

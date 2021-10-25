@@ -1,6 +1,7 @@
 package io.jdbd.mysql.protocol.client;
 
 import io.jdbd.JdbdSQLException;
+import io.jdbd.mysql.MySQLJdbdException;
 import io.jdbd.mysql.SQLMode;
 import io.jdbd.mysql.Server;
 import io.jdbd.mysql.protocol.Constants;
@@ -75,23 +76,33 @@ public abstract class ClientProtocolFactory {
 
         @Override
         public Mono<SessionManager> reset() {
-            final Pair<Charset, String> connClientPair = getConnClientPair();
-            final Pair<Charset, String> resultsCharsetPair = getResultsCharsetPair();
+
+            final Pair<Charset, String> connClientPair;
+            final Pair<Charset, String> resultsCharsetPair;
+            final String setCustomVariablesSql;
+            try {
+                setCustomVariablesSql = createSetVariablesSql();
+                connClientPair = getConnClientPair();
+                resultsCharsetPair = getResultsCharsetPair();
+            } catch (Throwable e) {
+                return Mono.error(e);
+            }
             final Charset clientCharset = connClientPair.getFirst();
             final Charset resultCharset = resultsCharsetPair.getFirst();
 
             final List<String> sqlGroup = new ArrayList<>(8);
-
-            sqlGroup.add(connClientPair.getSecond());
-            sqlGroup.add(resultsCharsetPair.getSecond());
-            sqlGroup.add(createKeyVariablesSql());
-            sqlGroup.add("SELECT @@SESSION.sql_mode");
+            sqlGroup.add(setCustomVariablesSql); //1.
+            sqlGroup.add(connClientPair.getSecond());//2.
+            sqlGroup.add(resultsCharsetPair.getSecond());//3.
+            sqlGroup.add(createKeyVariablesSql());//4.
+            sqlGroup.add("SELECT @@SESSION.sql_mode");//5.
 
             final MultiResult result = ComQueryTask.batchAsMulti(Stmts.batch(sqlGroup), this.executor.taskAdjutant());
-            return Mono.from(result.nextUpdate()) //1. SET character_set_connection and character_set_client
-                    .then(Mono.from(result.nextUpdate()))//2.SET character_set_results
-                    .then(Mono.from(result.nextUpdate()))//3.SET key variables
-                    .thenMany(result.nextQuery())//4. SELECT sql_mode
+            return Mono.from(result.nextUpdate())//1. SET custom variables
+                    .then(Mono.from(result.nextUpdate()))//2. SET character_set_connection and character_set_client
+                    .then(Mono.from(result.nextUpdate()))//3.SET character_set_results
+                    .then(Mono.from(result.nextUpdate()))//4.SET key variables
+                    .thenMany(result.nextQuery())//5. SELECT sql_mode
                     .last()
                     .map(row -> new DefaultServer(clientCharset, resultCharset, row.getNonNull(0, String.class)))
                     .doOnSuccess(this.executor::resetTaskAdjutant)
@@ -212,6 +223,19 @@ public abstract class ClientProtocolFactory {
                 charsetResults = Charset.forName(myCharset.javaEncodingsUcList.get(0));
             }
             return new Pair<>(charsetResults, command);
+        }
+
+        private String createSetVariablesSql() throws MySQLJdbdException {
+            final TaskAdjutant adjutant = this.executor.taskAdjutant();
+            final Properties properties = adjutant.host().getProperties();
+            final String pairString = properties.get(MyKey.sessionVariables);
+            final String sql;
+            if (MySQLStrings.hasText(pairString)) {
+                sql = Commands.buildSetVariableCommand(pairString);
+            } else {
+                sql = "SET @@session.character_set_results = DEFAULT";
+            }
+            return sql;
         }
 
         private Pair<Charset, String> getConnClientPair() {

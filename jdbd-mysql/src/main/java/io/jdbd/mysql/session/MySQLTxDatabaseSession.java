@@ -4,6 +4,7 @@ import io.jdbd.mysql.protocol.client.ClientProtocol;
 import io.jdbd.pool.PoolTxDatabaseSession;
 import io.jdbd.session.TransactionOption;
 import io.jdbd.session.TxDatabaseSession;
+import org.reactivestreams.Publisher;
 import reactor.core.publisher.Mono;
 
 /**
@@ -28,22 +29,31 @@ class MySQLTxDatabaseSession extends MySQLDatabaseSession implements TxDatabaseS
 
     @Override
     public final Mono<TransactionOption> getTransactionOption() {
-        return null;
+        return this.protocol.getTransactionOption();
     }
 
     @Override
     public final Mono<TxDatabaseSession> startTransaction(TransactionOption option) {
-        return null;
+        return this.protocol.startTransaction(option)
+                .thenReturn(this);
+    }
+
+    @Override
+    public final Publisher<TxDatabaseSession> setTransactionOption(TransactionOption option) {
+        return this.protocol.setTransactionOption(option)
+                .thenReturn(this);
     }
 
     @Override
     public final Mono<TxDatabaseSession> commit() {
-        return null;
+        return this.protocol.commit()
+                .thenReturn(this);
     }
 
     @Override
     public final Mono<TxDatabaseSession> rollback() {
-        return null;
+        return this.protocol.rollback()
+                .thenReturn(this);
     }
 
 

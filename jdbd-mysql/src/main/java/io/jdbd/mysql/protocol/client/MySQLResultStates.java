@@ -28,7 +28,7 @@ abstract class MySQLResultStates implements ResultStates {
     private MySQLResultStates(final int resultIndex, final TerminatorPacket terminator) {
         this.resultIndex = resultIndex;
         if (terminator instanceof OkPacket) {
-           final OkPacket ok = (OkPacket) terminator;
+            final OkPacket ok = (OkPacket) terminator;
             this.serverStatus = ok.getStatusFags();
             this.affectedRows = ok.getAffectedRows();
             this.insertedId = ok.getLastInsertId();
@@ -60,6 +60,11 @@ abstract class MySQLResultStates implements ResultStates {
         return true;
     }
 
+    public final boolean inTransaction() {
+        final int serverStatus = this.serverStatus;
+        return (serverStatus & TerminatorPacket.SERVER_STATUS_IN_TRANS) != 0
+                || (serverStatus & TerminatorPacket.SERVER_STATUS_AUTOCOMMIT) != 0;
+    }
 
     @Override
     public final long getAffectedRows() {

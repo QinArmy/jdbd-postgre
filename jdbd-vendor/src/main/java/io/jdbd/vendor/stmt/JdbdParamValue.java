@@ -1,6 +1,9 @@
 package io.jdbd.vendor.stmt;
 
+import org.reactivestreams.Publisher;
 import reactor.util.annotation.Nullable;
+
+import java.nio.file.Path;
 
 public class JdbdParamValue implements ParamValue {
 
@@ -25,6 +28,11 @@ public class JdbdParamValue implements ParamValue {
         return this.index;
     }
 
+    @Override
+    public boolean isLongData() {
+        final Object value = this.value;
+        return value instanceof Path || value instanceof Publisher;
+    }
 
     @Nullable
     @Override

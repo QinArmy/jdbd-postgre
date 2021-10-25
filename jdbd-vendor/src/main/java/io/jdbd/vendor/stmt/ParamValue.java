@@ -15,8 +15,6 @@ public interface ParamValue extends Value {
 
     int getIndex();
 
-    default boolean isLongData() {
-        return false;
-    }
+    boolean isLongData();
 
 }

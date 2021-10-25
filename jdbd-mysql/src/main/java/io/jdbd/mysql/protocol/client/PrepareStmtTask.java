@@ -20,17 +20,7 @@ interface PrepareStmtTask {
 
     int addAndGetSequenceId();
 
-    default void startSafeSequenceId() {
-        throw new UnsupportedOperationException();
-    }
-
-    default void endSafeSequenceId() {
-        throw new UnsupportedOperationException();
-    }
-
-    default int safelyAddAndGetSequenceId() {
-        throw new UnsupportedOperationException();
-    }
+   void resetSequenceId();
 
     void addErrorToTask(Throwable error);
 
@@ -38,8 +28,7 @@ interface PrepareStmtTask {
 
     void nextGroupReset();
 
-    void handleNoExecuteMessage();
+    void handleExecuteMessageError();
 
-    void handleLongParamSendFailure(Throwable error);
 
 }

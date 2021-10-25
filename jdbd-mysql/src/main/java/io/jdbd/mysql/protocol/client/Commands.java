@@ -18,7 +18,7 @@ abstract class Commands {
     static final String RESULTSET_METADATA = "resultset_metadata";
 
 
-    static String buildSetVariableCommand(String pairString) {
+    static String buildSetVariableCommand(String pairString) throws MySQLJdbdException {
         List<String> pairList = MySQLStrings.split(pairString, ",;", "\"'(", "\"')");
         StringBuilder builder = new StringBuilder("SET ");
         int index = 0;

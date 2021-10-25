@@ -381,6 +381,11 @@ final class MySQLTaskExecutor extends CommunicationTaskExecutor<TaskAdjutant> {
         }
 
         @Override
+        public boolean inTransaction() {
+            return false;
+        }
+
+        @Override
         public Server obtainServer() {
             Server server = this.server;
             if (server == null) {

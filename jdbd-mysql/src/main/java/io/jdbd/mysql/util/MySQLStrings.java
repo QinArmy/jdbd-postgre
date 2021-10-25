@@ -1,5 +1,6 @@
 package io.jdbd.mysql.util;
 
+import io.jdbd.mysql.MySQLJdbdException;
 import io.jdbd.vendor.util.JdbdStrings;
 
 import java.nio.charset.Charset;
@@ -9,6 +10,20 @@ import java.util.Objects;
 import java.util.Stack;
 
 public abstract class MySQLStrings extends JdbdStrings {
+
+    public static boolean parseMySqlBoolean(final String variableName, final String value) throws MySQLJdbdException {
+        final boolean on;
+        if (value.equalsIgnoreCase("0") || value.equalsIgnoreCase("OFF")) {
+            on = false;
+        } else if (value.equalsIgnoreCase("1") || value.equalsIgnoreCase("ON")) {
+            on = true;
+        } else {
+            final String m;
+            m = String.format("%s[%s] couldn't map to %s", variableName, value, Boolean.class.getName());
+            throw new MySQLJdbdException(m);
+        }
+        return on;
+    }
 
 
     public static byte[] getBytesNullTerminated(String text, Charset charset) {

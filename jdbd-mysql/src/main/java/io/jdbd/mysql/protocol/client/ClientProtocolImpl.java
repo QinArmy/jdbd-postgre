@@ -1,17 +1,20 @@
 package io.jdbd.mysql.protocol.client;
 
+import io.jdbd.mysql.MySQLJdbdException;
 import io.jdbd.mysql.MySQLType;
-import io.jdbd.mysql.Server;
-import io.jdbd.mysql.stmt.BindBatchStmt;
-import io.jdbd.mysql.stmt.BindMultiStmt;
-import io.jdbd.mysql.stmt.BindStmt;
-import io.jdbd.mysql.stmt.BindValue;
+import io.jdbd.mysql.protocol.MySQLServerVersion;
+import io.jdbd.mysql.stmt.*;
+import io.jdbd.mysql.util.MySQLExceptions;
+import io.jdbd.mysql.util.MySQLStrings;
 import io.jdbd.result.MultiResult;
 import io.jdbd.result.OrderedFlux;
 import io.jdbd.result.ResultRow;
 import io.jdbd.result.ResultStates;
+import io.jdbd.session.Isolation;
 import io.jdbd.session.ServerVersion;
+import io.jdbd.session.TransactionOption;
 import io.jdbd.stmt.PreparedStatement;
+import io.jdbd.vendor.session.TransactionOptionImpl;
 import io.jdbd.vendor.stmt.StaticBatchStmt;
 import io.jdbd.vendor.stmt.StaticMultiStmt;
 import io.jdbd.vendor.stmt.StaticStmt;
@@ -19,9 +22,13 @@ import io.jdbd.vendor.task.PrepareTask;
 import org.reactivestreams.Publisher;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import reactor.core.publisher.MonoSink;
 
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 
 /**
@@ -165,6 +172,54 @@ final class ClientProtocolImpl implements ClientProtocol {
         return ComQueryTask.multiStmtAsFlux(stmt, this.adjutant);
     }
 
+    @Override
+    public Mono<TransactionOption> getTransactionOption() {
+        final MySQLServerVersion version = this.adjutant.handshake10().getServerVersion();
+        final StringBuilder builder = new StringBuilder(139);
+        if (version.meetsMinimum(8, 0, 3)
+                || (version.meetsMinimum(5, 7, 20) && !version.meetsMinimum(8, 0, 0))) {
+            builder.append("SELECT @@session.transaction_isolation AS txLevel")
+                    .append(",@@session.transaction_read_only AS txReadOnly");
+        } else {
+            builder.append("SELECT @@session.tx_isolation AS txLevel")
+                    .append(",@@session.tx_read_only AS txReadOnly");
+        }
+        builder.append(",@@session.autocommit AS txAutoCommit");
+
+        final AtomicReference<ResultStates> statesHolder = new AtomicReference<>(null);
+
+        return ComQueryTask.query(Stmts.stmt(builder.toString(), statesHolder::set), this.adjutant)
+                .last() // must wait for last ,because statesHolder
+                .map(row -> mapTxOption(row, statesHolder.get()));
+    }
+
+
+    @Override
+    public Mono<Void> startTransaction(final TransactionOption option) {
+        return Mono.create(sink -> {
+            if (this.adjutant.inEventLoop()) {
+                startTransactionInEventLoop(option, sink);
+            } else {
+                this.adjutant.execute(() -> startTransactionInEventLoop(option, sink));
+            }
+        });
+    }
+
+
+    @Override
+    public Mono<Void> setTransactionOption(TransactionOption option) {
+        return null;
+    }
+
+    @Override
+    public Mono<Void> commit() {
+        return null;
+    }
+
+    @Override
+    public Mono<Void> rollback() {
+        return null;
+    }
 
     @Override
     public Mono<Void> close() {
@@ -200,8 +255,95 @@ final class ClientProtocolImpl implements ClientProtocol {
 
     /*################################## blow private method ##################################*/
 
-    private void resetTaskAdjutant(Server server) {
-        // MySQLTaskExecutor.resetTaskAdjutant(this.executor, server);
+    /**
+     * @see #startTransaction(TransactionOption)
+     */
+    private void startTransactionInEventLoop(final TransactionOption option, final MonoSink<Void> sink) {
+        final TaskAdjutant adjutant = this.adjutant;
+        if (adjutant.inTransaction()) {
+            sink.error(MySQLExceptions.transactionExists(adjutant.handshake10().getThreadId()));
+            return;
+        }
+
+        final StringBuilder builder = new StringBuilder();
+        builder.append("SET TRANSACTION ISOLATION LEVEL ");
+        final Isolation isolation = option.getIsolation();
+        switch (isolation) {
+            case READ_COMMITTED:
+                builder.append("READ COMMITTED");
+                break;
+            case REPEATABLE_READ:
+                builder.append("REPEATABLE READ");
+                break;
+            case SERIALIZABLE:
+                builder.append("SERIALIZABLE");
+                break;
+            case READ_UNCOMMITTED:
+                builder.append("READ UNCOMMITTED");
+                break;
+            default:
+                sink.error(MySQLExceptions.createUnexpectedEnumException(isolation));
+        }
+
+        final List<String> sqlGroup = new ArrayList<>(2);
+        sqlGroup.add(builder.toString());
+        if (option.isReadOnly()) {
+            sqlGroup.add("START TRANSACTION READ ONLY");
+        } else {
+            sqlGroup.add("START TRANSACTION READ WRITE");
+        }
+        ComQueryTask.batchUpdate(Stmts.batch(sqlGroup), adjutant)
+                .collectList()
+                .subscribe(list -> validateStartTransactionResult(list, sink), sink::error);
+    }
+
+    /**
+     * @see #startTransactionInEventLoop(TransactionOption, MonoSink)
+     */
+    private void validateStartTransactionResult(List<ResultStates> list, MonoSink<Void> sink) {
+        if (list.size() != 2) {
+            sink.error(new MySQLJdbdException("start transaction failure."));
+            return;
+        }
+        final MySQLResultStates states = (MySQLResultStates) list.get(1);
+        if (states.inTransaction()) {
+            sink.success();
+        } else {
+            sink.error(new MySQLJdbdException("start transaction failure."));
+        }
+    }
+
+
+    /**
+     * @see #getTransactionOption()
+     */
+    private TransactionOption mapTxOption(final ResultRow row, final ResultStates states) {
+        Objects.requireNonNull(states, "states");
+
+        final String txLevel;
+        txLevel = row.getNonNull("txLevel", String.class);
+
+        final Isolation isolation;
+        if (txLevel.equalsIgnoreCase("READ-COMMITTED")) {
+            isolation = Isolation.READ_COMMITTED;
+        } else if (txLevel.equalsIgnoreCase("REPEATABLE-READ")) {
+            isolation = Isolation.REPEATABLE_READ;
+        } else if (txLevel.equalsIgnoreCase("SERIALIZABLE")) {
+            isolation = Isolation.SERIALIZABLE;
+        } else if (txLevel.equalsIgnoreCase("READ-UNCOMMITTED")) {
+            isolation = Isolation.READ_UNCOMMITTED;
+        } else {
+            final String m;
+            m = String.format("transaction_isolation[%s] couldn't map to %s", txLevel, Isolation.class.getName());
+            throw new MySQLJdbdException(m);
+        }
+
+        final boolean readOnly, autoCommit;
+        readOnly = MySQLStrings.parseMySqlBoolean("transaction_read_only", row.getNonNull("txReadOnly", String.class));
+        autoCommit = MySQLStrings.parseMySqlBoolean("autocommit", row.getNonNull("txAutoCommit", String.class));
+
+        final MySQLResultStates mysqlStates = (MySQLResultStates) states;
+        return TransactionOptionImpl.option(isolation, readOnly, autoCommit || mysqlStates.inTransaction());
     }
 
     private boolean usePrepare(final BindBatchStmt stmt) {

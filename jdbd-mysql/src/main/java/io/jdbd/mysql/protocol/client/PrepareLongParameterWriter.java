@@ -77,17 +77,12 @@ final class PrepareLongParameterWriter implements PrepareExecuteCommandWriter.Lo
     @Override
     public Flux<ByteBuf> write(final int stmtIndex, List<? extends ParamValue> valueList) {
         return Flux.fromIterable(valueList)
-                .filter(this::isLongData)
+                .filter(ParamValue::isLongData)
                 .flatMap(paramValue -> sendLongData(stmtIndex, paramValue));
     }
 
 
     /*################################## blow private method ##################################*/
-
-    private boolean isLongData(final ParamValue paramValue) {
-        final Object nonNull = paramValue.getNonNull();
-        return nonNull instanceof Path || nonNull instanceof Publisher;
-    }
 
 
     /**
@@ -227,8 +222,7 @@ final class PrepareLongParameterWriter implements PrepareExecuteCommandWriter.Lo
      */
     private void handleLastPacket(ByteBuf packet, Consumer<ByteBuf> sink) {
         if (packet.readableBytes() > Packets.HEADER_SIZE + LONG_DATA_PREFIX_SIZE) {
-            Packets.writeHeader(packet, this.stmtTask.addAndGetSequenceId());
-            sink.accept(packet);
+            this.sendLongDataPacket(packet, sink);
         } else {
             packet.release();
         }
@@ -256,8 +250,7 @@ final class PrepareLongParameterWriter implements PrepareExecuteCommandWriter.Lo
             packet.writeBytes(buffer, 0, length);
         } else {
             packet.writeBytes(buffer, 0, maxWritableBytes);
-            Packets.writeHeader(packet, this.stmtTask.addAndGetSequenceId());
-            sink.next(packet);
+            this.sendLongDataPacket(packet, sink::next);
 
             final int resetLength = length - maxWritableBytes;
             packet = createLongDataPacket(paramIndex, resetLength);
@@ -265,6 +258,20 @@ final class PrepareLongParameterWriter implements PrepareExecuteCommandWriter.Lo
 
         }
         return packet;
+    }
+
+    private void sendLongDataPacket(final ByteBuf packet, Consumer<ByteBuf> sink) {
+        this.stmtTask.resetSequenceId();
+        if (packet.readableBytes() < Packets.MAX_PACKET) {
+            Packets.writeHeader(packet, this.stmtTask.addAndGetSequenceId());
+            sink.accept(packet);
+        } else {
+            final Iterable<ByteBuf> iterable;
+            iterable = Packets.divideBigPacket(packet, this.adjutant.allocator(), this.stmtTask::addAndGetSequenceId);
+            for (ByteBuf buffer : iterable) {
+                sink.accept(buffer);
+            }
+        }
     }
 
 
@@ -379,28 +386,20 @@ final class PrepareLongParameterWriter implements PrepareExecuteCommandWriter.Lo
             textCharset = parameterWriter.getTextCharset();
             clientCharset = parameterWriter.adjutant.charsetClient();
 
-            switch (parameterWriter.columnMetas[paramValue.getIndex()].sqlType) {
-                case TEXT:
-                case MEDIUMTEXT:
-                case LONGTEXT:
-                case JSON: {
-                    this.textData = true;
-                    if (textCharset.equals(clientCharset)) {
-                        this.encoder = null;
-                        this.decoder = null;
-                    } else {
-                        this.decoder = textCharset.newDecoder();
-                        this.encoder = clientCharset.newEncoder();
-                    }
-                }
-                break;
-                default: {
-                    this.textData = false;
+            if (parameterWriter.isTextData(paramValue)) {
+                this.textData = true;
+                if (textCharset.equals(clientCharset)) {
                     this.encoder = null;
                     this.decoder = null;
+                } else {
+                    this.decoder = textCharset.newDecoder();
+                    this.encoder = clientCharset.newEncoder();
                 }
+            } else {
+                this.textData = false;
+                this.encoder = null;
+                this.decoder = null;
             }
-
 
         }
 
@@ -513,9 +512,7 @@ final class PrepareLongParameterWriter implements PrepareExecuteCommandWriter.Lo
                 if (packet.maxWritableBytes() > 0) {
                     break;
                 }
-
-                Packets.writeHeader(packet, this.parameterWriter.stmtTask.addAndGetSequenceId());
-                this.subscriber.onNext(packet);
+                this.parameterWriter.sendLongDataPacket(packet, this.subscriber::onNext);
 
                 if (offset == data.length) {
                     this.packet = null;

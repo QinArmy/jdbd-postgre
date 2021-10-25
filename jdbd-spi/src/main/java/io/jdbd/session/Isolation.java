@@ -3,13 +3,6 @@ package io.jdbd.session;
 import java.sql.Connection;
 
 public enum Isolation {
-    /**
-     * Use the default isolation level of the underlying datastore.
-     * All other levels correspond to the JDBC isolation levels.
-     *
-     * @see java.sql.Connection
-     */
-    DEFAULT(-1, ""),
 
     /**
      * A constant indicating that dirty reads, non-repeatable reads and phantom reads
@@ -64,6 +57,20 @@ public enum Isolation {
     Isolation(int level, String command) {
         this.level = level;
         this.command = command;
+    }
+
+    /**
+     * for method reference
+     */
+    public int getLevel() {
+        return this.level;
+    }
+
+    /**
+     * for method reference
+     */
+    public String getCommand() {
+        return this.command;
     }
 
 

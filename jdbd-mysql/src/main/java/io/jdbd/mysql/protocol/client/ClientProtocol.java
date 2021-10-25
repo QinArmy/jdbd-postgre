@@ -9,10 +9,7 @@ import io.jdbd.result.MultiResult;
 import io.jdbd.result.OrderedFlux;
 import io.jdbd.result.ResultRow;
 import io.jdbd.result.ResultStates;
-import io.jdbd.session.DatabaseSession;
-import io.jdbd.session.ServerVersion;
-import io.jdbd.session.TxDatabaseSession;
-import io.jdbd.session.XaDatabaseSession;
+import io.jdbd.session.*;
 import io.jdbd.stmt.BindStatement;
 import io.jdbd.stmt.MultiStatement;
 import io.jdbd.stmt.PreparedStatement;
@@ -186,6 +183,17 @@ public interface ClientProtocol {
      * @see ComPreparedTask#prepare(String, TaskAdjutant, Function)
      */
     Mono<PreparedStatement> prepare(String sql, Function<PrepareTask<MySQLType>, PreparedStatement> function);
+
+    Mono<TransactionOption> getTransactionOption();
+
+    Mono<Void> startTransaction(TransactionOption option);
+
+    Mono<Void> setTransactionOption(TransactionOption option);
+
+    Mono<Void> commit();
+
+    Mono<Void> rollback();
+
 
     Mono<Void> reset();
 

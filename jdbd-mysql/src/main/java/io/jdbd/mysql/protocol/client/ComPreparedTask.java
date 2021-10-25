@@ -213,6 +213,11 @@ final class ComPreparedTask extends MySQLCommandTask implements PrepareStmtTask,
     }
 
     @Override
+    public void resetSequenceId() {
+        updateSequenceId(-1);
+    }
+
+    @Override
     public int getStatementId() {
         if (this.paramMetas == null) {
             throw new IllegalStateException("before prepare");
@@ -226,13 +231,8 @@ final class ComPreparedTask extends MySQLCommandTask implements PrepareStmtTask,
     }
 
     @Override
-    public void handleNoExecuteMessage() {
+    public void handleExecuteMessageError() {
         //TODO
-    }
-
-    @Override
-    public void handleLongParamSendFailure(Throwable error) {
-
     }
 
     @Override
@@ -477,6 +477,12 @@ final class ComPreparedTask extends MySQLCommandTask implements PrepareStmtTask,
         }
     }
 
+    @Override
+    protected boolean skipPacketsOnError(ByteBuf cumulateBuffer, Consumer<Object> serverStatusConsumer) {
+        log.debug("error ");
+        return super.skipPacketsOnError(cumulateBuffer, serverStatusConsumer);
+    }
+
     /*################################## blow packet template method ##################################*/
 
     @Override
@@ -537,7 +543,6 @@ final class ComPreparedTask extends MySQLCommandTask implements PrepareStmtTask,
         }
         boolean taskEnd = false;
         try {
-            updateSequenceId(-1); // reset sequence id
             this.packetPublisher = this.commandWriter.writeCommand(batchIndex);
             this.phase = Phase.READ_EXECUTE_RESPONSE;
         } catch (Throwable e) {

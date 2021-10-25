@@ -738,19 +738,43 @@ abstract class AbstractDataTypeSuiteTests extends AbstractTaskSuiteTests {
         testType(id, column, type, text);
         testType(id, column, type, bytes);
 
+        LOG.debug("longBlob id:{}", id);
         final Path path = Files.createTempFile("longBlob", "txt");
-
         try {
-            try (OutputStream out = Files.newOutputStream(path, StandardOpenOption.WRITE)) {
-                for (int i = 0; i < 2000; i++) {
-                    out.write(bytes);
-                }
-            }
-
+            writeBigFile(path, bytes);
             testType(id, column, type, path);
         } finally {
             Files.deleteIfExists(path);
         }
+
+    }
+
+    final void writeBigFile(final Path path, final byte[] unitData) throws IOException {
+        LOG.debug("temp file path:{}", path);
+        try (FileChannel channel = FileChannel.open(path, StandardOpenOption.WRITE)) {
+            final ByteBuffer buffer;
+            if (unitData.length < 0xFF_FF_FF) {
+                final byte[] chunk = new byte[0xFF_FF_FF];
+                for (int i = 0, j = 0; i < chunk.length; i++, j++) {
+                    if (j >= unitData.length) {
+                        j = 0;
+                    }
+                    chunk[i] = unitData[j];
+                }
+                buffer = ByteBuffer.wrap(chunk);
+            } else {
+                buffer = ByteBuffer.wrap(unitData);
+            }
+            final int maxLength = (1 << 29);
+            buffer.flip();
+            for (int wroteBytes = 0; wroteBytes < maxLength; ) {
+                wroteBytes += buffer.remaining();
+                channel.write(buffer);
+                buffer.clear();
+            }
+            LOG.debug("temp file size:{}", channel.size());
+        }
+
 
     }
 
@@ -946,17 +970,17 @@ abstract class AbstractDataTypeSuiteTests extends AbstractTaskSuiteTests {
         return Mono.error(new RuntimeException("update failure"));
     }
 
-     Mono<ClientProtocol> getClientProtocol() {
-         final Mono<ClientProtocol> mono;
-         ClientProtocol protocol;
-         protocol = PROTOCOL_QUEUE.poll();
-         if (protocol == null) {
-             mono = ClientProtocolFactory.single(DEFAULT_SESSION_ADJUTANT);
-         } else {
-             mono = Mono.just(protocol);
-         }
-         return mono;
-     }
+    Mono<ClientProtocol> getClientProtocol() {
+        final Mono<ClientProtocol> mono;
+        ClientProtocol protocol;
+        protocol = PROTOCOL_QUEUE.poll();
+        if (protocol == null) {
+            mono = ClientProtocolFactory.single(DEFAULT_SESSION_ADJUTANT);
+        } else {
+            mono = Mono.just(protocol);
+        }
+        return mono;
+    }
 
 
 }

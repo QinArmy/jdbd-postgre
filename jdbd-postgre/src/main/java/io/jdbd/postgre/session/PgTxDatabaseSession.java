@@ -33,6 +33,11 @@ class PgTxDatabaseSession extends PgDatabaseSession implements TxDatabaseSession
     }
 
     @Override
+    public final Mono<TxDatabaseSession> setTransactionOption(TransactionOption option) {
+        return null;
+    }
+
+    @Override
     public final Mono<TxDatabaseSession> commit() {
         return null;
     }

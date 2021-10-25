@@ -297,6 +297,13 @@ public abstract class JdbdExceptions extends ExceptionUtils {
         throw new JdbdSQLException(new SQLException(m));
     }
 
+    public static JdbdSQLException transactionExists(Object sessionId) {
+        String m;
+        m = String.format("Session[%s] in transaction ,reject start a new transaction before commit or rollback."
+                , sessionId);
+        throw new JdbdSQLException(new SQLException(m));
+    }
+
 
     /*################################## blow protected method ##################################*/
 

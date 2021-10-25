@@ -16,6 +16,8 @@ public interface TxDatabaseSession extends DatabaseSession {
 
     Publisher<TxDatabaseSession> startTransaction(TransactionOption option);
 
+    Publisher<TxDatabaseSession> setTransactionOption(TransactionOption option);
+
     Publisher<TxDatabaseSession> commit();
 
     Publisher<TxDatabaseSession> rollback();

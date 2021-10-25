@@ -53,8 +53,8 @@ public class ComQueryTaskBigColumnSuiteTests extends AbstractTaskSuiteTests {
 
         sql = "CALL queryNow(?,?)";
         list = new ArrayList<>(2);
-        list.add(MySQLParamValue.create(0, 0));
-        list.add(MySQLParamValue.create(1, ""));
+        list.add(MySQLParamValue.wrap(0, 0));
+        list.add(MySQLParamValue.wrap(1, ""));
         ResultStates states;
         states = ComPreparedTask.update(Stmts.multiPrepare(sql, list), adjutant)
                 .block();

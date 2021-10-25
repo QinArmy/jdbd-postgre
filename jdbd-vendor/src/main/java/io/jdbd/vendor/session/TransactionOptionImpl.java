@@ -1,18 +1,27 @@
-package io.jdbd.session;
+package io.jdbd.vendor.session;
+
+import io.jdbd.session.Isolation;
+import io.jdbd.session.TransactionOption;
 
 import java.util.Objects;
 
-final class TransactionOptionImpl implements TransactionOption {
+public final class TransactionOptionImpl implements TransactionOption {
 
-    static TransactionOptionImpl option(Isolation isolation, boolean readOnly) {
-        return new TransactionOptionImpl(isolation, readOnly);
+    public static TransactionOption option(Isolation isolation, boolean readOnly, final boolean inTransaction) {
+        final TransactionOption option;
+        if (inTransaction) {
+            option = new TransactionOptionImpl(isolation, readOnly);
+        } else {
+            option = TransactionOption.option(isolation, readOnly);
+        }
+        return option;
     }
 
     private final Isolation isolation;
 
     private final boolean readOnly;
 
-    private TransactionOptionImpl(Isolation isolation, boolean readOnly) {
+    TransactionOptionImpl(Isolation isolation, boolean readOnly) {
         this.isolation = isolation;
         this.readOnly = readOnly;
     }
@@ -29,12 +38,13 @@ final class TransactionOptionImpl implements TransactionOption {
 
     @Override
     public boolean inTransaction() {
-        return false;
+        return true;
     }
+
 
     @Override
     public int hashCode() {
-        return Objects.hash(false, this.isolation, this.readOnly);
+        return Objects.hash(true, this.isolation, this.readOnly);
     }
 
     @Override
@@ -44,7 +54,7 @@ final class TransactionOptionImpl implements TransactionOption {
             match = true;
         } else if (obj instanceof TransactionOption) {
             final TransactionOption option = (TransactionOption) obj;
-            match = !option.inTransaction()
+            match = option.inTransaction()
                     && option.getIsolation() == this.isolation
                     && option.isReadOnly() == this.readOnly;
         } else {
@@ -55,7 +65,7 @@ final class TransactionOptionImpl implements TransactionOption {
 
     @Override
     public String toString() {
-        return String.format("TransactionOption{inTransaction:false,isolation:%s,readOnly:%s}."
+        return String.format("TransactionOption{inTransaction:true,isolation:%s,readOnly:%s}."
                 , this.isolation, this.readOnly);
     }
 
