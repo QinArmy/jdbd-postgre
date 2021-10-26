@@ -18,7 +18,7 @@ interface PrepareStmtTask {
 
     TaskAdjutant adjutant();
 
-    int addAndGetSequenceId();
+    int nextSequenceId();
 
    void resetSequenceId();
 

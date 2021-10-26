@@ -263,11 +263,11 @@ final class PrepareLongParameterWriter implements PrepareExecuteCommandWriter.Lo
     private void sendLongDataPacket(final ByteBuf packet, Consumer<ByteBuf> sink) {
         this.stmtTask.resetSequenceId();
         if (packet.readableBytes() < Packets.MAX_PACKET) {
-            Packets.writeHeader(packet, this.stmtTask.addAndGetSequenceId());
+            Packets.writeHeader(packet, this.stmtTask.nextSequenceId());
             sink.accept(packet);
         } else {
             final Iterable<ByteBuf> iterable;
-            iterable = Packets.divideBigPacket(packet, this.adjutant.allocator(), this.stmtTask::addAndGetSequenceId);
+            iterable = Packets.divideBigPacket(packet, this.adjutant.allocator(), this.stmtTask::nextSequenceId);
             for (ByteBuf buffer : iterable) {
                 sink.accept(buffer);
             }

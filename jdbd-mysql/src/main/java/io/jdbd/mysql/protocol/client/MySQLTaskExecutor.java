@@ -386,6 +386,11 @@ final class MySQLTaskExecutor extends CommunicationTaskExecutor<TaskAdjutant> {
         }
 
         @Override
+        public boolean isAutoCommit() {
+            return false;
+        }
+
+        @Override
         public Server obtainServer() {
             Server server = this.server;
             if (server == null) {

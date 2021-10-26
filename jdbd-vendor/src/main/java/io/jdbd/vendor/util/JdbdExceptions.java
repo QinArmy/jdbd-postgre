@@ -297,11 +297,22 @@ public abstract class JdbdExceptions extends ExceptionUtils {
         throw new JdbdSQLException(new SQLException(m));
     }
 
-    public static JdbdSQLException transactionExists(Object sessionId) {
+    public static JdbdSQLException transactionExistsRejectStart(Object sessionId) {
         String m;
         m = String.format("Session[%s] in transaction ,reject start a new transaction before commit or rollback."
                 , sessionId);
         throw new JdbdSQLException(new SQLException(m));
+    }
+
+    public static JdbdSQLException transactionExistsRejectSet(Object sessionId) {
+        String m;
+        m = String.format("Session[%s] in transaction ,reject set transaction characteristic before commit or rollback."
+                , sessionId);
+        throw new JdbdSQLException(new SQLException(m));
+    }
+
+    public static JdbdException xaException() {
+        return new JdbdSQLException(new SQLException(""));
     }
 
 

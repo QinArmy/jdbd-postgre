@@ -366,7 +366,7 @@ final class ComQueryTask extends MySQLCommandTask {
     protected Publisher<ByteBuf> start() {
         Publisher<ByteBuf> publisher;
         final Stmt stmt = this.stmt;
-        final Supplier<Integer> sequenceId = this::addAndGetSequenceId;
+        final Supplier<Integer> sequenceId = this::nextSequenceId;
         try {
             if (stmt instanceof StaticStmt) {
                 publisher = QueryCommandWriter.createStaticCommand(stmt, sequenceId, this.adjutant);
@@ -571,7 +571,7 @@ final class ComQueryTask extends MySQLCommandTask {
                 String message = String.format("Local file[%s] read occur error.", path);
                 addError(new LocalFileException(path, message));
             }
-            final ByteBuf packet = Packets.createEmptyPacket(this.adjutant.allocator(), addAndGetSequenceId());
+            final ByteBuf packet = Packets.createEmptyPacket(this.adjutant.allocator(), nextSequenceId());
             this.packetPublisher = Mono.just(packet);
         }
 
@@ -599,7 +599,7 @@ final class ComQueryTask extends MySQLCommandTask {
                 addError(new LocalFileException(path, 0L, m, e));
             }
             // send empty packet for end
-            sink.next(Packets.createEmptyPacket(this.adjutant.allocator(), addAndGetSequenceId()));
+            sink.next(Packets.createEmptyPacket(this.adjutant.allocator(), nextSequenceId()));
         } finally {
             sink.complete();
         }
@@ -635,7 +635,7 @@ final class ComQueryTask extends MySQLCommandTask {
                     packet.writeBytes(bufferArray, 0, maxWritableBytes);
                     inputBuffer.position(maxWritableBytes); // modify position
 
-                    Packets.writeHeader(packet, this.addAndGetSequenceId());
+                    Packets.writeHeader(packet, this.nextSequenceId());
                     sink.next(packet);
 
                     capacity = (int) Math.min(Packets.MAX_PACKET, Packets.HEADER_SIZE + restFileBytes + inputBuffer.remaining());
@@ -646,12 +646,12 @@ final class ComQueryTask extends MySQLCommandTask {
                 inputBuffer.clear();
             }
             if (packet.readableBytes() > Packets.HEADER_SIZE) {
-                Packets.writeHeader(packet, this.addAndGetSequenceId());
+                Packets.writeHeader(packet, this.nextSequenceId());
                 sink.next(packet);
             } else {
                 packet.release();
             }
-            sink.next(Packets.createEmptyPacket(allocator, this.addAndGetSequenceId()));
+            sink.next(Packets.createEmptyPacket(allocator, this.nextSequenceId()));
         } catch (Throwable e) {
             if (packet != null) {
                 packet.release();
@@ -706,7 +706,7 @@ final class ComQueryTask extends MySQLCommandTask {
                     offset += maxWritableBytes; // modify outLength
                     outLength -= maxWritableBytes;
 
-                    Packets.writeHeader(packet, this.addAndGetSequenceId());
+                    Packets.writeHeader(packet, this.nextSequenceId());
                     sink.next(packet);
 
                     capacity = (int) Math.min(Packets.MAX_PACKET, Packets.HEADER_SIZE + restFileBytes + outLength);
@@ -720,12 +720,12 @@ final class ComQueryTask extends MySQLCommandTask {
 
             }
             if (packet.readableBytes() > Packets.HEADER_SIZE) {
-                Packets.writeHeader(packet, this.addAndGetSequenceId());
+                Packets.writeHeader(packet, this.nextSequenceId());
                 sink.next(packet);
             } else {
                 packet.release();
             }
-            sink.next(Packets.createEmptyPacket(allocator, this.addAndGetSequenceId()));
+            sink.next(Packets.createEmptyPacket(allocator, this.nextSequenceId()));
         } catch (Throwable e) {
             if (packet != null) {
                 packet.release();

@@ -567,7 +567,7 @@ final class ComPreparedTask extends MySQLCommandTask implements PrepareStmtTask,
             final ByteBuf packet = this.adjutant.allocator().buffer(13);
 
             Packets.writeInt3(packet, 9);
-            packet.writeByte(addAndGetSequenceId());
+            packet.writeByte(nextSequenceId());
 
             packet.writeByte(Packets.COM_STMT_FETCH);
             Packets.writeInt4(packet, this.statementId);
@@ -595,7 +595,7 @@ final class ComPreparedTask extends MySQLCommandTask implements PrepareStmtTask,
 
         packet.writeByte(Packets.COM_STMT_PREPARE);
         packet.writeBytes(sqlBytes);
-        return Packets.createPacketPublisher(packet, this::addAndGetSequenceId, this.adjutant);
+        return Packets.createPacketPublisher(packet, this::nextSequenceId, this.adjutant);
     }
 
     private ParamSingleStmt getActualStmt() {

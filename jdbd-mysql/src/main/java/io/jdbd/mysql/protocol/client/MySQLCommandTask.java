@@ -8,13 +8,18 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.function.Consumer;
-import java.util.function.Supplier;
 
 /**
- * Base class of All MySQL command phase communication task.
+ * <p>
+ * This class is base class of below:
+ *     <ul>
+ *         <li>{@link ComQueryTask}</li>
+ *         <li>{@link ComPreparedTask}</li>
+ *     </ul>
+ * </p>
  *
  * @see ComQueryTask
- * @see QuitTask
+ * @see ComPreparedTask
  * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_command_phase.html">Command Phase</a>
  */
 abstract class MySQLCommandTask extends MySQLTask implements StmtTask {
@@ -27,7 +32,7 @@ abstract class MySQLCommandTask extends MySQLTask implements StmtTask {
 
     private final ResultSetReader resultSetReader;
 
-    private int sequenceId = -1;
+    private int sequenceId = 0;
 
     private int resultIndex;
 
@@ -75,15 +80,15 @@ abstract class MySQLCommandTask extends MySQLTask implements StmtTask {
 
     @Override
     public final void updateSequenceId(final int sequenceId) {
-        if (sequenceId < 0) {
-            this.sequenceId = -1;
+        if (sequenceId <= 0) {
+            this.sequenceId = 0;
         } else {
             this.sequenceId = sequenceId & 0xFF;
         }
     }
 
-    public final int addAndGetSequenceId() {
-        int sequenceId = ++this.sequenceId;
+    public final int nextSequenceId() {
+        int sequenceId = this.sequenceId++;
         if (sequenceId > 0xFF) {
             sequenceId &= 0xFF;
             this.sequenceId = sequenceId;
@@ -91,21 +96,9 @@ abstract class MySQLCommandTask extends MySQLTask implements StmtTask {
         return sequenceId;
     }
 
-
     @Override
-    public final boolean readResultStateWithReturning(ByteBuf cumulateBuffer, Supplier<Integer> resultIndexes) {
-
-        return false;
-    }
-
-    @Override
-    public final int getAndIncrementResultIndex() {
+    public final int nextResultIndex() {
         return this.resultIndex++;
-    }
-
-
-    public final int obtainSequenceId() {
-        return this.sequenceId;
     }
 
 
@@ -194,7 +187,7 @@ abstract class MySQLCommandTask extends MySQLTask implements StmtTask {
         ok = OkPacket.read(cumulateBuffer.readSlice(payloadLength), this.negotiatedCapability);
         serverStatusConsumer.accept(ok);
 
-        final int resultIndex = getAndIncrementResultIndex(); // must increment result index.
+        final int resultIndex = nextResultIndex(); // must increment result index.
         final boolean noMoreResult = !ok.hasMoreResult();
 
         final boolean taskEnd;

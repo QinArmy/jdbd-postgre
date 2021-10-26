@@ -64,7 +64,7 @@ final class MySQLRowMeta implements ResultRowMeta {
         final TaskAdjutant adjutant = stmtTask.adjutant();
 
         return new MySQLRowMeta(metaArray
-                , stmtTask.getAndIncrementResultIndex()
+                , stmtTask.nextResultIndex()
                 , adjutant.obtainCustomCollationMap());
     }
 

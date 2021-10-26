@@ -31,4 +31,6 @@ interface TaskAdjutant extends ITaskAdjutant, ClientProtocolAdjutant, MySQLParse
 
     boolean inTransaction();
 
+    boolean isAutoCommit();
+
 }

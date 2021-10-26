@@ -86,7 +86,7 @@ final class PrepareExecuteCommandWriter implements ExecuteCommandWriter {
             final ByteBuf packet;
             packet = createExecutePacket(10);
             this.stmtTask.resetSequenceId(); // reset sequenceId before write header
-            publisher = Packets.createPacketPublisher(packet, this.stmtTask::addAndGetSequenceId, this.adjutant);
+            publisher = Packets.createPacketPublisher(packet, this.stmtTask::nextSequenceId, this.adjutant);
         } else if (longParamList.size() == 0) {
             // this 'if' block handle no long parameter.
             publisher = bindParameters(batchIndex, bindGroup);
@@ -290,7 +290,7 @@ final class PrepareExecuteCommandWriter implements ExecuteCommandWriter {
             }
 
             this.stmtTask.resetSequenceId(); // reset sequenceId before write header
-            return Packets.createPacketPublisher(packet, this.stmtTask::addAndGetSequenceId, this.adjutant);
+            return Packets.createPacketPublisher(packet, this.stmtTask::nextSequenceId, this.adjutant);
 
         } catch (Throwable e) {
             packet.release();

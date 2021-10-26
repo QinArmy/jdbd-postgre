@@ -207,19 +207,36 @@ final class ClientProtocolImpl implements ClientProtocol {
 
 
     @Override
-    public Mono<Void> setTransactionOption(TransactionOption option) {
-        return null;
+    public Mono<Void> setTransactionOption(final TransactionOption option) {
+        return Mono.create(sink -> {
+            if (this.adjutant.inEventLoop()) {
+                setTransactionOptionInEventLoop(option, sink);
+            } else {
+                this.adjutant.execute(() -> setTransactionOptionInEventLoop(option, sink));
+            }
+        });
     }
 
     @Override
     public Mono<Void> commit() {
-        return null;
+        final List<String> sqlGroup = new ArrayList<>(2);
+        sqlGroup.add("COMMIT");
+        sqlGroup.add("SET @@session.autocommit = 1");
+        return ComQueryTask.batchUpdate(Stmts.batch(sqlGroup), this.adjutant)
+                .collectList()
+                .flatMap(this::validateCommitResult);
     }
 
     @Override
     public Mono<Void> rollback() {
-        return null;
+        final List<String> sqlGroup = new ArrayList<>(2);
+        sqlGroup.add("ROLLBACK");
+        sqlGroup.add("SET @@session.autocommit = 1");
+        return ComQueryTask.batchUpdate(Stmts.batch(sqlGroup), this.adjutant)
+                .collectList()
+                .flatMap(this::validateRollbackResult);
     }
+
 
     @Override
     public Mono<Void> close() {
@@ -234,8 +251,8 @@ final class ClientProtocolImpl implements ClientProtocol {
     }
 
     @Override
-    public Mono<Void> ping(int timeSeconds) {
-        return null;
+    public Mono<Void> ping(final int timeSeconds) {
+        return PingTask.ping(timeSeconds, this.adjutant);
     }
 
     @Override
@@ -255,19 +272,73 @@ final class ClientProtocolImpl implements ClientProtocol {
 
     /*################################## blow private method ##################################*/
 
+
+    /**
+     * @see #setTransactionOptionInEventLoop(TransactionOption, MonoSink)
+     */
+    private void setTransactionOptionInEventLoop(final TransactionOption option, final MonoSink<Void> sink) {
+        final TaskAdjutant adjutant = this.adjutant;
+        if (adjutant.inTransaction()) {
+            sink.error(MySQLExceptions.transactionExistsRejectSet(adjutant.handshake10().getThreadId()));
+            return;
+        }
+        final StringBuilder builder = new StringBuilder(70);
+        builder.append("SET SESSION TRANSACTION ISOLATION LEVEL ");
+
+        try {
+            appendSetIsolation(option.getIsolation(), builder);
+        } catch (Throwable e) {
+            sink.error(e);
+            return;
+        }
+
+        if (option.isReadOnly()) {
+            builder.append(",READ ONLY");
+        } else {
+            builder.append(",READ WRITE");
+        }
+        ComQueryTask.update(Stmts.stmt(builder.toString()), adjutant)
+                .subscribe(states -> sink.success(), sink::error);
+    }
+
+
     /**
      * @see #startTransaction(TransactionOption)
      */
     private void startTransactionInEventLoop(final TransactionOption option, final MonoSink<Void> sink) {
         final TaskAdjutant adjutant = this.adjutant;
         if (adjutant.inTransaction()) {
-            sink.error(MySQLExceptions.transactionExists(adjutant.handshake10().getThreadId()));
+            sink.error(MySQLExceptions.transactionExistsRejectStart(adjutant.handshake10().getThreadId()));
             return;
         }
 
-        final StringBuilder builder = new StringBuilder();
+        final StringBuilder builder = new StringBuilder(50);
         builder.append("SET TRANSACTION ISOLATION LEVEL ");
-        final Isolation isolation = option.getIsolation();
+
+        try {
+            appendSetIsolation(option.getIsolation(), builder);
+        } catch (Throwable e) {
+            sink.error(e);
+            return;
+        }
+
+        final List<String> sqlGroup = new ArrayList<>(2);
+        sqlGroup.add(builder.toString());
+        if (option.isReadOnly()) {
+            sqlGroup.add("START TRANSACTION READ ONLY");
+        } else {
+            sqlGroup.add("START TRANSACTION READ WRITE");
+        }
+        ComQueryTask.batchUpdate(Stmts.batch(sqlGroup), adjutant)
+                .collectList()
+                .subscribe(list -> validateStartTransactionResult(list, sink), sink::error);
+    }
+
+    /**
+     * @see #setTransactionOptionInEventLoop(TransactionOption, MonoSink)
+     * @see #startTransaction(TransactionOption)
+     */
+    private void appendSetIsolation(final Isolation isolation, final StringBuilder builder) {
         switch (isolation) {
             case READ_COMMITTED:
                 builder.append("READ COMMITTED");
@@ -282,19 +353,9 @@ final class ClientProtocolImpl implements ClientProtocol {
                 builder.append("READ UNCOMMITTED");
                 break;
             default:
-                sink.error(MySQLExceptions.createUnexpectedEnumException(isolation));
+                throw MySQLExceptions.createUnexpectedEnumException(isolation);
         }
 
-        final List<String> sqlGroup = new ArrayList<>(2);
-        sqlGroup.add(builder.toString());
-        if (option.isReadOnly()) {
-            sqlGroup.add("START TRANSACTION READ ONLY");
-        } else {
-            sqlGroup.add("START TRANSACTION READ WRITE");
-        }
-        ComQueryTask.batchUpdate(Stmts.batch(sqlGroup), adjutant)
-                .collectList()
-                .subscribe(list -> validateStartTransactionResult(list, sink), sink::error);
     }
 
     /**
@@ -345,6 +406,44 @@ final class ClientProtocolImpl implements ClientProtocol {
         final MySQLResultStates mysqlStates = (MySQLResultStates) states;
         return TransactionOptionImpl.option(isolation, readOnly, autoCommit || mysqlStates.inTransaction());
     }
+
+
+    /**
+     * @see #commit()
+     */
+    private Mono<Void> validateCommitResult(List<ResultStates> statesList) {
+        final Mono<Void> mono;
+        if (statesList.size() != 2) {
+            mono = Mono.error(new MySQLJdbdException("COMMIT command execute failure"));
+        } else {
+            final MySQLResultStates states = (MySQLResultStates) statesList.get(1);
+            if (states.inTransaction()) {
+                mono = Mono.error(new MySQLJdbdException("COMMIT command execute failure"));
+            } else {
+                mono = Mono.empty();
+            }
+        }
+        return mono;
+    }
+
+    /**
+     * @see #rollback()
+     */
+    private Mono<Void> validateRollbackResult(List<ResultStates> statesList) {
+        final Mono<Void> mono;
+        if (statesList.size() != 2) {
+            mono = Mono.error(new MySQLJdbdException("ROLLBACK command execute failure"));
+        } else {
+            final MySQLResultStates states = (MySQLResultStates) statesList.get(1);
+            if (states.inTransaction()) {
+                mono = Mono.error(new MySQLJdbdException("ROLLBACK command execute failure"));
+            } else {
+                mono = Mono.empty();
+            }
+        }
+        return mono;
+    }
+
 
     private boolean usePrepare(final BindBatchStmt stmt) {
         boolean prepare = false;
