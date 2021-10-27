@@ -57,14 +57,10 @@ abstract class TerminatorPacket implements MySQLPacket {
         return (this.statusFags & SERVER_MORE_RESULTS_EXISTS) != 0;
     }
 
-    public final boolean hasTransaction() {
-        return (this.statusFags & SERVER_STATUS_AUTOCOMMIT) == 0
-                || (this.statusFags & SERVER_STATUS_IN_TRANS) != 0;
-    }
-
     public final boolean isReadOnly() {
         return (this.statusFags & SERVER_STATUS_IN_TRANS_READONLY) != 0;
     }
+
 
     final void appendServerStatus(final StringBuilder builder) {
         final int statusFags = this.statusFags;
@@ -150,6 +146,12 @@ abstract class TerminatorPacket implements MySQLPacket {
         bitCharMap[index] = '.';
         builder.append(" = Session state changed");
 
+    }
+
+
+    public static boolean inTransaction(final int statusFags) {
+        return (statusFags & SERVER_STATUS_AUTOCOMMIT) == 0
+                || (statusFags & SERVER_STATUS_IN_TRANS) != 0;
     }
 
 }

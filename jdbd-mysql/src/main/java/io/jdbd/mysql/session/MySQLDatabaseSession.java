@@ -4,10 +4,7 @@ import io.jdbd.meta.DatabaseMetaData;
 import io.jdbd.mysql.MySQLType;
 import io.jdbd.mysql.protocol.client.ClientProtocol;
 import io.jdbd.mysql.util.MySQLStrings;
-import io.jdbd.session.DatabaseSession;
-import io.jdbd.session.DatabaseSessionFactory;
-import io.jdbd.session.SavePoint;
-import io.jdbd.session.ServerVersion;
+import io.jdbd.session.*;
 import io.jdbd.stmt.BindStatement;
 import io.jdbd.stmt.MultiStatement;
 import io.jdbd.stmt.PreparedStatement;
@@ -38,6 +35,12 @@ abstract class MySQLDatabaseSession implements DatabaseSession {
     MySQLDatabaseSession(SessionAdjutant adjutant, ClientProtocol protocol) {
         this.adjutant = adjutant;
         this.protocol = protocol;
+    }
+
+
+    @Override
+    public final Mono<TransactionOption> getTransactionOption() {
+        return this.protocol.getTransactionOption();
     }
 
     @Override

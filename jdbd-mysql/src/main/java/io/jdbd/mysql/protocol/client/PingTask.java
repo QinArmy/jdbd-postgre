@@ -53,7 +53,9 @@ final class PingTask extends MySQLTask {
         final int payloadLength;
         payloadLength = Packets.readInt3(cumulateBuffer);
         cumulateBuffer.readByte(); // skip sequenceId
-        OkPacket.read(cumulateBuffer.readSlice(payloadLength), this.adjutant.capability());
+        final OkPacket ok;
+        ok = OkPacket.read(cumulateBuffer.readSlice(payloadLength), this.adjutant.capability());
+        serverStatusConsumer.accept(ok);
         this.taskEnd = true;
         return true;
     }

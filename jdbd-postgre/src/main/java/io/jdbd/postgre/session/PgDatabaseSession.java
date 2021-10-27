@@ -3,10 +3,7 @@ package io.jdbd.postgre.session;
 import io.jdbd.meta.DatabaseMetaData;
 import io.jdbd.postgre.PgType;
 import io.jdbd.postgre.protocol.client.ClientProtocol;
-import io.jdbd.session.DatabaseSession;
-import io.jdbd.session.DatabaseSessionFactory;
-import io.jdbd.session.SavePoint;
-import io.jdbd.session.ServerVersion;
+import io.jdbd.session.*;
 import io.jdbd.stmt.BindStatement;
 import io.jdbd.stmt.MultiStatement;
 import io.jdbd.stmt.PreparedStatement;
@@ -35,6 +32,11 @@ abstract class PgDatabaseSession implements DatabaseSession {
     PgDatabaseSession(SessionAdjutant adjutant, ClientProtocol protocol) {
         this.adjutant = adjutant;
         this.protocol = protocol;
+    }
+
+    @Override
+    public final Mono<TransactionOption> getTransactionOption() {
+        return null;
     }
 
     @Override

@@ -27,10 +27,6 @@ class MySQLTxDatabaseSession extends MySQLDatabaseSession implements TxDatabaseS
         super(adjutant, protocol);
     }
 
-    @Override
-    public final Mono<TransactionOption> getTransactionOption() {
-        return this.protocol.getTransactionOption();
-    }
 
     @Override
     public final Mono<TxDatabaseSession> startTransaction(TransactionOption option) {

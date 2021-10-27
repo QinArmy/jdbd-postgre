@@ -61,9 +61,7 @@ abstract class MySQLResultStates implements ResultStates {
     }
 
     public final boolean inTransaction() {
-        final int serverStatus = this.serverStatus;
-        return (serverStatus & TerminatorPacket.SERVER_STATUS_IN_TRANS) != 0
-                || (serverStatus & TerminatorPacket.SERVER_STATUS_AUTOCOMMIT) != 0;
+        return TerminatorPacket.inTransaction(this.serverStatus);
     }
 
     @Override

@@ -2,21 +2,15 @@ package io.jdbd.session;
 
 import org.reactivestreams.Publisher;
 
-import java.sql.Connection;
-
 
 public interface TxDatabaseSession extends DatabaseSession {
 
-    /**
-     * @see Connection#isReadOnly()
-     * @see Connection#getTransactionIsolation()
-     * @see Connection#getAutoCommit()
-     */
-    Publisher<TransactionOption> getTransactionOption();
+
+    @Override
+    Publisher<TxDatabaseSession> setTransactionOption(TransactionOption option);
 
     Publisher<TxDatabaseSession> startTransaction(TransactionOption option);
 
-    Publisher<TxDatabaseSession> setTransactionOption(TransactionOption option);
 
     Publisher<TxDatabaseSession> commit();
 

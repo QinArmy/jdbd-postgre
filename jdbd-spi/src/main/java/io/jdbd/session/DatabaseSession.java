@@ -7,10 +7,19 @@ import io.jdbd.stmt.PreparedStatement;
 import io.jdbd.stmt.StaticStatement;
 import org.reactivestreams.Publisher;
 
+import java.sql.Connection;
+
 
 public interface DatabaseSession {
 
     DatabaseMetaData getDatabaseMetaData();
+
+    /**
+     * @see Connection#isReadOnly()
+     * @see Connection#getTransactionIsolation()
+     * @see Connection#getAutoCommit()
+     */
+    Publisher<TransactionOption> getTransactionOption();
 
 
     StaticStatement statement();

@@ -2,7 +2,17 @@ package io.jdbd.session;
 
 import org.reactivestreams.Publisher;
 
-
+/**
+ * <p>
+ * This interface extends {@link DatabaseSession} for support XA interface based on
+ * the X/Open CAE Specification (Distributed Transaction Processing: The XA Specification).
+ * This document is published by The Open Group and available at
+ * <a href="http://www.opengroup.org/public/pubs/catalog/c193.htm">The XA Specification</a>,
+ * here ,you can download the pdf about The XA Specification.
+ * </p>
+ *
+ * @see <a href="http://www.opengroup.org/public/pubs/catalog/c193.htm">The XA Specification</a>
+ */
 public interface XaDatabaseSession extends DatabaseSession {
 
     int TMENDRSCAN = 8388608;
@@ -18,6 +28,7 @@ public interface XaDatabaseSession extends DatabaseSession {
     int TMSUSPEND = 33554432;
     int XA_RDONLY = 3;
     int XA_OK = 0;
+
 
     Publisher<XaDatabaseSession> start(Xid xid, int flags);
 
