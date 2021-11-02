@@ -536,13 +536,13 @@ public abstract class MySQLCodes {
         map.put(ER_ILLEGAL_VALUE_FOR_TYPE, MySQLStates.INVALID_DATETIME_FORMAT);
 
         map.put(ER_PROCACCESS_DENIED_ERROR, MySQLStates.SYNTAX_ERROR);
-        map.put(ER_XAER_NOTA, MySQLStates.XAER_NOTA);
-        map.put(ER_XAER_INVAL, MySQLStates.XAER_INVAL);
-        map.put(ER_XAER_RMFAIL, MySQLStates.XAER_RMFAIL);
+        map.put(ER_XAER_NOTA, MySQLStates.ER_XAER_NOTA);
+        map.put(ER_XAER_INVAL, MySQLStates.ER_XAER_INVAL);
+        map.put(ER_XAER_RMFAIL, MySQLStates.ER_XAER_RMFAIL);
 
-        map.put(ER_XAER_OUTSIDE, MySQLStates.XAER_OUTSIDE);
-        map.put(ER_XA_RMERR, MySQLStates.XA_RMERR);
-        map.put(ER_XA_RBROLLBACK, MySQLStates.XA_RBROLLBACK);
+        map.put(ER_XAER_OUTSIDE, MySQLStates.ER_XAER_OUTSIDE);
+        map.put(ER_XA_RMERR, MySQLStates.ER_XA_RMERR);
+        map.put(ER_XA_RBROLLBACK, MySQLStates.ER_XA_RBROLLBACK);
         map.put(ER_NONEXISTING_PROC_GRANT, MySQLStates.SYNTAX_ERROR);
 
         map.put(ER_DATA_TOO_LONG, MySQLStates.STRING_DATA_RIGHT_TRUNCATION);
@@ -560,7 +560,7 @@ public abstract class MySQLCodes {
         map.put(ER_TOO_LONG_BODY, MySQLStates.SYNTAX_ERROR);
         map.put(ER_TOO_BIG_DISPLAYWIDTH, MySQLStates.SYNTAX_ERROR);
 
-        map.put(ER_XAER_DUPID, MySQLStates.XAER_DUPID);
+        map.put(ER_XAER_DUPID, MySQLStates.ER_XAER_DUPID);
         map.put(ER_DATETIME_FUNCTION_OVERFLOW, MySQLStates.DATETIME_FIELD_OVERFLOW);
         map.put(ER_ROW_IS_REFERENCED_2, MySQLStates.INTEGRITY_CONSTRAINT_VIOLATION);
         map.put(ER_NO_REFERENCED_ROW_2, MySQLStates.INTEGRITY_CONSTRAINT_VIOLATION);
@@ -580,7 +580,7 @@ public abstract class MySQLCodes {
         map.put(ER_DUP_ENTRY_WITH_KEY_NAME, MySQLStates.INTEGRITY_CONSTRAINT_VIOLATION);
         map.put(ER_XA_RBTIMEOUT, MySQLStates.XA_RBTIMEOUT);
 
-        map.put(ER_XA_RBDEADLOCK, MySQLStates.XA_RBDEADLOCK);
+        map.put(ER_XA_RBDEADLOCK, MySQLStates.ER_XA_RBDEADLOCK);
         map.put(ER_FUNC_INEXISTENT_NAME_COLLISION, MySQLStates.SYNTAX_ERROR);
         map.put(ER_DUP_SIGNAL_SET, MySQLStates.SYNTAX_ERROR);
         map.put(ER_SIGNAL_WARN, MySQLStates.WARNING);

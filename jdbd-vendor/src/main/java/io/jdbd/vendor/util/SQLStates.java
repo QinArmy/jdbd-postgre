@@ -339,5 +339,18 @@ public abstract class SQLStates {
     public static final String INDEX_CORRUPTED = "VX003";
     public static final String PLAN_TO_SQL_INTERNAL_EROR = "VX004";
 
+    //Xa
+    public static final String ER_XAER_NOTA = "XAE04";
+    public static final String ER_XAER_INVAL = "XAE05";
+    public static final String ER_XAER_RMFAIL = "XAE07";
+    public static final String ER_XAER_OUTSIDE = "XAE09";
+
+    public static final String ER_XA_RMERR = "XAE03";
+    public static final String ER_XA_RBROLLBACK = "XA100";
+    public static final String ER_XAER_DUPID = "XAE08";
+    public static final String XA_RBTIMEOUT = "XA106";
+
+    public static final String ER_XA_RBDEADLOCK = "XA102";
+
 
 }

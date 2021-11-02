@@ -58,7 +58,7 @@ abstract class TerminatorPacket implements MySQLPacket {
     }
 
     public final boolean isReadOnly() {
-        return (this.statusFags & SERVER_STATUS_IN_TRANS_READONLY) != 0;
+        return isReadOnly(this.statusFags);
     }
 
 
@@ -152,6 +152,14 @@ abstract class TerminatorPacket implements MySQLPacket {
     public static boolean inTransaction(final int statusFags) {
         return (statusFags & SERVER_STATUS_AUTOCOMMIT) == 0
                 || (statusFags & SERVER_STATUS_IN_TRANS) != 0;
+    }
+
+    public static boolean startedTransaction(final int statusFags) {
+        return (statusFags & SERVER_STATUS_IN_TRANS) != 0;
+    }
+
+    public static boolean isReadOnly(final int statusFags) {
+        return (statusFags & SERVER_STATUS_IN_TRANS_READONLY) != 0;
     }
 
 }

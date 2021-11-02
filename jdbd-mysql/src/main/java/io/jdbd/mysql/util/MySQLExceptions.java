@@ -53,7 +53,7 @@ public abstract class MySQLExceptions extends JdbdExceptions {
     }
 
     public static JdbdSQLException createErrorPacketException(ErrorPacket error) {
-        return new JdbdSQLException(createSQLException(error));
+        return JdbdSQLException.create(createSQLException(error));
     }
 
     /**

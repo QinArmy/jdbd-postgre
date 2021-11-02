@@ -94,17 +94,7 @@ public abstract class MySQLStates extends SQLStates {
     public static final String CLI_SPECIFIC_CONDITION = "HY000";
 
     public static final String MEMORY_ALLOCATION_ERROR = "HY001";
-    public static final String XA_RBROLLBACK = "XA100";
-    public static final String XA_RBDEADLOCK = "XA102";
-    public static final String XA_RBTIMEOUT = "XA106";
 
-    public static final String XA_RMERR = "XAE03";
-    public static final String XAER_NOTA = "XAE04";
-    public static final String XAER_INVAL = "XAE05";
-    public static final String XAER_RMFAIL = "XAE07";
-
-    public static final String XAER_DUPID = "XAE08";
-    public static final String XAER_OUTSIDE = "XAE09";
     public static final String ER_WRONG_ARGUMENTS = "HY000";
 
 

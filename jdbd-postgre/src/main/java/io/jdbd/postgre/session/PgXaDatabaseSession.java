@@ -7,6 +7,11 @@ import io.jdbd.session.Xid;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+/**
+ * <p>
+ * This class is implementation of {@link XaDatabaseSession} with Postgre client protocol.
+ * </p>
+ */
 class PgXaDatabaseSession extends PgDatabaseSession implements XaDatabaseSession {
 
 
@@ -50,7 +55,7 @@ class PgXaDatabaseSession extends PgDatabaseSession implements XaDatabaseSession
     }
 
     @Override
-    public final Flux<Xid> recover(int flag) {
+    public final Flux<Xid> recover(int flags) {
         return null;
     }
 

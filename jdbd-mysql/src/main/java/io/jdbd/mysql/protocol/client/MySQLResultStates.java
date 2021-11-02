@@ -14,7 +14,7 @@ abstract class MySQLResultStates implements ResultStates {
 
     private final int resultIndex;
 
-    private final int serverStatus;
+     final int serverStatus;
 
     private final long affectedRows;
 

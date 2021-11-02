@@ -199,6 +199,11 @@ public interface ClientProtocol {
 
     Mono<Void> ping(int timeSeconds);
 
+    boolean inTransaction(ResultStates states);
+
+    boolean startedTransaction(ResultStates states);
+
+    boolean isReadOnlyTransaction(ResultStates states);
 
     boolean supportMultiStmt();
 

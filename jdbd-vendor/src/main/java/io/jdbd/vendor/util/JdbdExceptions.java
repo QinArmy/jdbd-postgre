@@ -2,6 +2,7 @@ package io.jdbd.vendor.util;
 
 import io.jdbd.JdbdException;
 import io.jdbd.JdbdSQLException;
+import io.jdbd.JdbdXaException;
 import io.jdbd.meta.SQLType;
 import io.jdbd.stmt.*;
 import io.jdbd.vendor.JdbdCompositeException;
@@ -311,12 +312,36 @@ public abstract class JdbdExceptions extends ExceptionUtils {
         throw new JdbdSQLException(new SQLException(m));
     }
 
-    public static JdbdException xaException() {
-        return new JdbdSQLException(new SQLException(""));
+
+    public static JdbdXaException xaInvalidFlagForStart(final int flags) {
+        return xaInvalidFlag(flags, "start(Xid xid,int flags)");
+    }
+
+    public static JdbdXaException xaInvalidFlagForEnd(final int flags) {
+        return xaInvalidFlag(flags, "end(Xid xid,int flags)");
+    }
+
+    public static JdbdXaException xaInvalidFlagForRecover(final int flags) {
+        return xaInvalidFlag(flags, "recover(int flags)");
+    }
+
+    public static JdbdXaException xaGtridNoText() {
+        return new JdbdXaException("gtrid of xid must have text.", SQLStates.ER_XAER_NOTA, JdbdXaException.XAER_NOTA);
+    }
+
+    public static JdbdXaException xaGtridBeyond64Bytes() {
+        return new JdbdXaException("bytes length of gtrid beyond 64 bytes.", SQLStates.ER_XAER_NOTA, JdbdXaException.XAER_NOTA);
+    }
+
+    public static JdbdXaException xaBqualBeyond64Bytes() {
+        return new JdbdXaException("bytes length of bqual beyond 64 bytes.", SQLStates.ER_XAER_NOTA, JdbdXaException.XAER_NOTA);
     }
 
 
+
+
     /*################################## blow protected method ##################################*/
+
 
     protected static Object getValueLabel(Value value) {
         final Object paramLabel;
@@ -328,6 +353,12 @@ public abstract class JdbdExceptions extends ExceptionUtils {
             throw new IllegalArgumentException(String.format("Unknown %s type[%s]", Value.class.getName(), value));
         }
         return paramLabel;
+    }
+
+
+    private static JdbdXaException xaInvalidFlag(final int flags, final String method) {
+        String m = String.format("XA invalid flag[%s] for method %s", Integer.toBinaryString(flags), method);
+        return new JdbdXaException(m, SQLStates.ER_XAER_INVAL, JdbdXaException.XAER_INVAL);
     }
 
 

@@ -1,5 +1,6 @@
 package io.jdbd.session;
 
+import io.jdbd.JdbdXaException;
 import org.reactivestreams.Publisher;
 
 /**
@@ -15,34 +16,50 @@ import org.reactivestreams.Publisher;
  */
 public interface XaDatabaseSession extends DatabaseSession {
 
-    int TMENDRSCAN = 8388608;
-    int TMFAIL = 536870912;
-    int TMJOIN = 2097152;
     int TMNOFLAGS = 0;
+    int TMJOIN = 1 << 21;
+    int TMENDRSCAN = 1 << 23;
+    int TMSTARTRSCAN = 1 << 24;
 
-    int TMONEPHASE = 1073741824;
-    int TMRESUME = 134217728;
-    int TMSTARTRSCAN = 16777216;
-    int TMSUCCESS = 67108864;
+    int TMSUSPEND = 1 << 25;
+    int TMSUCCESS = 1 << 26;
+    int TMRESUME = 1 << 27;
+    int TMFAIL = 1 << 29;
 
-    int TMSUSPEND = 33554432;
+    int TMONEPHASE = 1 << 30;
+
+
     int XA_RDONLY = 3;
     int XA_OK = 0;
 
-
+    /**
+     * <p>
+     * Start work on behalf of a transaction branch.The appropriate method in XA interface is
+     * int xa_start(XID ∗xid, int rmid, long flags).
+     * </p>
+     *
+     * @param flags bit set, support below flags:
+     *              <ul>
+     *                  <li>{@link #TMNOFLAGS}</li>
+     *                  <li>{@link #TMJOIN} Note that this flag cannot be used in conjunction with {@link #TMRESUME}</li>
+     *                  <li>{@link #TMRESUME} Note that this flag cannot be used in conjunction with {@link #TMJOIN}</li>
+     *              </ul>
+     * @return a Publisher that only emitting an element or error.The element is this instance.
+     * @throws JdbdXaException emit(not throw),when
+     */
     Publisher<XaDatabaseSession> start(Xid xid, int flags);
-
-    Publisher<XaDatabaseSession> commit(Xid xid, boolean onePhase);
 
     Publisher<XaDatabaseSession> end(Xid xid, int flags);
 
-    Publisher<XaDatabaseSession> forget(Xid xid);
-
     Publisher<Integer> prepare(Xid xid);
 
-    Publisher<Xid> recover(int flag);
+    Publisher<XaDatabaseSession> commit(Xid xid, boolean onePhase);
 
     Publisher<XaDatabaseSession> rollback(Xid xid);
+
+    Publisher<XaDatabaseSession> forget(Xid xid);
+
+    Publisher<Xid> recover(int flags);
 
 
 }

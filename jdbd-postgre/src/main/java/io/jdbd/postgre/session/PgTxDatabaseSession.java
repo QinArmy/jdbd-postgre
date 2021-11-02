@@ -22,10 +22,6 @@ class PgTxDatabaseSession extends PgDatabaseSession implements TxDatabaseSession
         super(adjutant, protocol);
     }
 
-    @Override
-    public final Mono<TransactionOption> getTransactionOption() {
-        return null;
-    }
 
     @Override
     public final Mono<TxDatabaseSession> startTransaction(TransactionOption option) {

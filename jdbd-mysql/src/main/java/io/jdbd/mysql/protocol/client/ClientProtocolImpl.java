@@ -256,6 +256,21 @@ final class ClientProtocolImpl implements ClientProtocol {
     }
 
     @Override
+    public boolean inTransaction(ResultStates states) {
+        return TerminatorPacket.inTransaction(((MySQLResultStates) states).serverStatus);
+    }
+
+    @Override
+    public boolean startedTransaction(ResultStates states) {
+        return TerminatorPacket.startedTransaction(((MySQLResultStates) states).serverStatus);
+    }
+
+    @Override
+    public boolean isReadOnlyTransaction(ResultStates states) {
+        return TerminatorPacket.isReadOnly(((MySQLResultStates) states).serverStatus);
+    }
+
+    @Override
     public boolean supportMultiStmt() {
         return Capabilities.supportMultiStatement(this.adjutant.capability());
     }
