@@ -97,7 +97,7 @@ final class PgMultiStatement extends PgStatement implements MultiStatement {
     }
 
     @Override
-    public final Flux<ResultStates> executeBatch() {
+    public final Flux<ResultStates> executeBatchUpdate() {
         return this.session.protocol.multiStmtBatch(createMultiBindStmt());
     }
 
@@ -140,7 +140,7 @@ final class PgMultiStatement extends PgStatement implements MultiStatement {
     }
 
     /**
-     * @see #executeBatch()
+     * @see #executeBatchUpdate()
      * @see #executeBatchAsMulti()
      * @see #executeBatchAsFlux()
      */

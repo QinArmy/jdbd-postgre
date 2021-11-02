@@ -26,7 +26,7 @@ public interface BindMultiResultStatement extends Statement {
 
     void bind(int index, @Nullable Object nullable) throws JdbdException;
 
-    Publisher<ResultStates> executeBatch();
+    Publisher<ResultStates> executeBatchUpdate();
 
     /**
      * @see BindStatement#executeBatchAsMulti()

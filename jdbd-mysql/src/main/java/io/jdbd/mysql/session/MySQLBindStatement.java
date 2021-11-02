@@ -173,7 +173,7 @@ final class MySQLBindStatement extends MySQLStatement implements AttrBindStateme
     }
 
     @Override
-    public Flux<ResultStates> executeBatch() {
+    public Flux<ResultStates> executeBatchUpdate() {
         final Flux<ResultStates> flux;
         if (this.bindGroup == null) {
             flux = Flux.error(MySQLExceptions.cannotReuseStatement(BindStatement.class));

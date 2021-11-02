@@ -175,7 +175,7 @@ final class PgBindStatement extends PgStatement implements BindStatement {
     }
 
     @Override
-    public Flux<ResultStates> executeBatch() {
+    public Flux<ResultStates> executeBatchUpdate() {
         final Flux<ResultStates> flux;
         if (this.paramGroupList.isEmpty()) {
             flux = Flux.error(PgExceptions.noAnyParamGroupError());

@@ -66,7 +66,7 @@ final class SimpleQueryTask extends AbstractStmtTask implements SimpleStmtTask {
 
     /**
      * <p>
-     * This method is underlying api of {@link StaticStatement#executeBatch(java.util.List)} method.
+     * This method is underlying api of {@link StaticStatement#executeBatchUpdate(java.util.List)} method.
      * </p>
      */
     static Flux<ResultStates> batchUpdate(StaticBatchStmt stmt, TaskAdjutant adjutant) {
@@ -169,7 +169,7 @@ final class SimpleQueryTask extends AbstractStmtTask implements SimpleStmtTask {
 
     /**
      * <p>
-     * This method is one of underlying api of {@link BindStatement#executeBatch()} method.
+     * This method is one of underlying api of {@link BindStatement#executeBatchUpdate()} method.
      * </p>
      */
     static Flux<ResultStates> bindableBatchUpdate(BindBatchStmt stmt, TaskAdjutant adjutant) {
@@ -223,7 +223,7 @@ final class SimpleQueryTask extends AbstractStmtTask implements SimpleStmtTask {
 
     /**
      * <p>
-     * This method is underlying api of {@link MultiStatement#executeBatch()} method.
+     * This method is underlying api of {@link MultiStatement#executeBatchUpdate()} method.
      * </p>
      */
     static Flux<ResultStates> multiStmtBatch(BindMultiStmt stmt, TaskAdjutant adjutant) {

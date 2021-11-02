@@ -64,7 +64,7 @@ final class MySQLStaticStatement extends MySQLStatement implements AttrStaticSta
     }
 
     @Override
-    public Flux<ResultStates> executeBatch(final List<String> sqlGroup) {
+    public Flux<ResultStates> executeBatchUpdate(final List<String> sqlGroup) {
         Objects.requireNonNull(sqlGroup, "sqlGroup");
         final Flux<ResultStates> flux;
         if (sqlGroup.size() == 0) {

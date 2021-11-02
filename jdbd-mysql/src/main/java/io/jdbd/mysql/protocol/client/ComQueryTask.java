@@ -104,7 +104,7 @@ final class ComQueryTask extends MySQLCommandTask {
 
     /**
      * <p>
-     * This method is underlying api of {@link StaticStatement#executeBatch(List)} method.
+     * This method is underlying api of {@link StaticStatement#executeBatchUpdate(List)} method.
      * </p>
      *
      * @see #ComQueryTask(Stmt, ResultSink, TaskAdjutant)
@@ -223,7 +223,7 @@ final class ComQueryTask extends MySQLCommandTask {
 
     /**
      * <p>
-     * This method is one of underlying api of {@link BindStatement#executeBatch()} method.
+     * This method is one of underlying api of {@link BindStatement#executeBatchUpdate()} method.
      * </p>
      *
      * @see ClientProtocol#bindBatch(BindBatchStmt)

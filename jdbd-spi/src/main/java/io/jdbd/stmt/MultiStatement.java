@@ -16,7 +16,7 @@ public interface MultiStatement extends BindMultiResultStatement {
      * @throws IllegalArgumentException when sql has no text.
      * @throws JdbdException            when reuse this instance after invoke below method:
      *                                  <ul>
-     *                                      <li>{@link #executeBatch()}</li>
+     *                                      <li>{@link #executeBatchUpdate()}</li>
      *                                      <li>{@link #executeBatchAsMulti()}</li>
      *                                      <li>{@link #executeBatchAsFlux()}</li>
      *                                  </ul>
@@ -51,7 +51,7 @@ public interface MultiStatement extends BindMultiResultStatement {
 
 
     @Override
-    Publisher<ResultStates> executeBatch();
+    Publisher<ResultStates> executeBatchUpdate();
 
     @Override
     MultiResult executeBatchAsMulti();

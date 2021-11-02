@@ -202,7 +202,7 @@ final class PgPreparedStatement extends PgStatement implements PreparedStatement
     }
 
     @Override
-    public Flux<ResultStates> executeBatch() {
+    public Flux<ResultStates> executeBatchUpdate() {
         final Flux<ResultStates> flux;
         if (this.paramGroup == null) {
             flux = Flux.error(PgExceptions.cannotReuseStatement(PreparedStatement.class));

@@ -195,7 +195,7 @@ final class MySQLPreparedStatement extends MySQLStatement implements AttrPrepare
     }
 
     @Override
-    public Flux<ResultStates> executeBatch() {
+    public Flux<ResultStates> executeBatchUpdate() {
         final Flux<ResultStates> flux;
         if (this.paramGroup == null) {
             flux = Flux.error(MySQLExceptions.cannotReuseStatement(PreparedStatement.class));

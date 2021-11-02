@@ -21,7 +21,7 @@ import java.util.function.Consumer;
  * <ul>
  *     <li>{@link #executeUpdate()}</li>
  *     <li>{@link #executeQuery()}</li>
- *     <li>{@link #executeBatch()}</li>
+ *     <li>{@link #executeBatchUpdate()}</li>
  *     <li>{@link #executeQuery(Consumer)}</li>
  *     <li>{@link #executeBatchAsMulti()}</li>
  *     <li>{@link #executeBatchAsFlux()}</li>
@@ -73,7 +73,7 @@ public interface PreparedStatement extends BindSingleStatement, BindMultiResultS
     Publisher<ResultRow> executeQuery(Consumer<ResultStates> statesConsumer);
 
     @Override
-    Publisher<ResultStates> executeBatch();
+    Publisher<ResultStates> executeBatchUpdate();
 
     @Override
     MultiResult executeBatchAsMulti();

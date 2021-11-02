@@ -104,7 +104,7 @@ final class MySQLMultiStatement extends MySQLStatement implements AttrMultiState
     }
 
     @Override
-    public Flux<ResultStates> executeBatch() {
+    public Flux<ResultStates> executeBatchUpdate() {
         final List<BindStmt> stmtGroup = this.stmtGroup;
         final Flux<ResultStates> flux;
         if (this.bindGroup == null && stmtGroup.size() > 0) {

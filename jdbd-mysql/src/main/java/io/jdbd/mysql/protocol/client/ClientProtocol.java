@@ -76,7 +76,7 @@ public interface ClientProtocol {
 
     /**
      * <p>
-     * This method is underlying api of {@link StaticStatement#executeBatch(List)} method.
+     * This method is underlying api of {@link StaticStatement#executeBatchUpdate(List)} method.
      * </p>
      *
      * @see ComQueryTask#batchUpdate(StaticBatchStmt, TaskAdjutant)
@@ -125,7 +125,7 @@ public interface ClientProtocol {
 
     /**
      * <p>
-     * This method is one of underlying api of {@link BindStatement#executeBatch()} method.
+     * This method is one of underlying api of {@link BindStatement#executeBatchUpdate()} method.
      * </p>
      *
      * @see ComQueryTask#bindBatch(BindBatchStmt, TaskAdjutant)
@@ -152,7 +152,7 @@ public interface ClientProtocol {
 
     /**
      * <p>
-     * This method is underlying api of {@link MultiStatement#executeBatch()} method.
+     * This method is underlying api of {@link MultiStatement#executeBatchUpdate()} method.
      * </p>
      */
     Flux<ResultStates> multiStmtBatch(BindMultiStmt stmt);

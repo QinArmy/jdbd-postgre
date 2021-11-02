@@ -89,7 +89,7 @@ final class ComPreparedTask extends MySQLCommandTask implements PrepareStmtTask,
 
     /**
      * <p>
-     * This method is one of underlying api of {@link BindStatement#executeBatch()} method.
+     * This method is one of underlying api of {@link BindStatement#executeBatchUpdate()} method.
      * </p>
      *
      * @see #ComPreparedTask(ParamSingleStmt, ResultSink, TaskAdjutant)

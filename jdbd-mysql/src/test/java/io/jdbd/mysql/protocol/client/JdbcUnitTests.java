@@ -5,6 +5,7 @@ import org.slf4j.LoggerFactory;
 import org.testng.annotations.Test;
 
 import java.sql.*;
+import java.time.Year;
 import java.util.Properties;
 
 public class JdbcUnitTests {
@@ -30,12 +31,23 @@ public class JdbcUnitTests {
         prop.put("useServerPrepStmts", "true");
 
         try (Connection conn = DriverManager.getConnection(URL, prop)) {
-            String sql = "SELECT t.my_bit64 FROM  mysql_types AS t WHERE t.id =?";
-            try (PreparedStatement stmt = conn.prepareStatement(sql)) {
-                stmt.setLong(1, 1);
+            String sql = "INSERT INTO mysql_types(my_year) VALUES(?),(?)";
+            try (PreparedStatement stmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+                stmt.setInt(1, Year.now().getValue());
+                stmt.setInt(2, Year.now().getValue());
 //                stmt.registerOutParameter(1, MysqlType.INT);
+                int rows;
+                rows = stmt.executeUpdate();
+                LOG.info("update rows:{}", rows);
+                try (ResultSet resultSet = stmt.getGeneratedKeys()) {
+                    int count = 0;
+                    while (resultSet.next()) {
+                        LOG.info("insert id:{}", resultSet.getLong(1));
+                        count++;
+                    }
+                    LOG.info("id count:{}", count);
+                }
 
-                stmt.execute();
             }
         }
     }

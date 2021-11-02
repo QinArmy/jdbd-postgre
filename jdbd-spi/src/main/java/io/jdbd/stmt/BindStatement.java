@@ -62,7 +62,7 @@ public interface BindStatement extends BindSingleStatement, BindMultiResultState
     Publisher<ResultRow> executeQuery(Consumer<ResultStates> statesConsumer);
 
     @Override
-    Publisher<ResultStates> executeBatch();
+    Publisher<ResultStates> executeBatchUpdate();
 
     @Override
     MultiResult executeBatchAsMulti();

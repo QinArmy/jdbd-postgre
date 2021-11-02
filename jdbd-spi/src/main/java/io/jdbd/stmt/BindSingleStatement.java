@@ -57,10 +57,10 @@ public interface BindSingleStatement extends Statement {
     Publisher<ResultRow> executeQuery(Consumer<ResultStates> statesConsumer);
 
     /**
-     * @see BindStatement#executeBatch()
-     * @see PreparedStatement#executeBatch()
+     * @see BindStatement#executeBatchUpdate()
+     * @see PreparedStatement#executeBatchUpdate()
      */
-    Publisher<ResultStates> executeBatch();
+    Publisher<ResultStates> executeBatchUpdate();
 
     /**
      * @see BindStatement#executeBatchAsMulti()

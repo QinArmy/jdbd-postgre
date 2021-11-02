@@ -83,7 +83,7 @@ public class PreparedStatementSuiteTests extends AbstractStatementTests {
     }
 
     /**
-     * @see PreparedStatement#executeBatch()
+     * @see PreparedStatement#executeBatchUpdate()
      */
     @Test(timeOut = TIME_OUT)
     public void batchUpdateWithoutParameter() {
@@ -98,7 +98,7 @@ public class PreparedStatementSuiteTests extends AbstractStatementTests {
         statesList = Mono.from(session.prepare(sql))
                 .flatMapMany(statement -> {
                     statement.addBatch();
-                    return statement.executeBatch();
+                    return statement.executeBatchUpdate();
                 })
                 .collectList()
                 .block();
@@ -237,7 +237,7 @@ public class PreparedStatementSuiteTests extends AbstractStatementTests {
     }
 
     /**
-     * @see PreparedStatement#executeBatch()
+     * @see PreparedStatement#executeBatchUpdate()
      */
     @Test(timeOut = TIME_OUT)
     public void batchUpdate() {
@@ -255,7 +255,7 @@ public class PreparedStatementSuiteTests extends AbstractStatementTests {
                         statement.bind(0, startId + i);
                         statement.addBatch();
                     }
-                    return statement.executeBatch();
+                    return statement.executeBatchUpdate();
                 })
                 .collectList()
                 .block();

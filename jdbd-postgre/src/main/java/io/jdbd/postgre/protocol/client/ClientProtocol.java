@@ -50,7 +50,7 @@ public interface ClientProtocol {
 
     /**
      * <p>
-     * This method is underlying api of {@link StaticStatement#executeBatch(List)} method.
+     * This method is underlying api of {@link StaticStatement#executeBatchUpdate(List)} method.
      * </p>
      */
     Flux<ResultStates> batchUpdate(StaticBatchStmt stmt);
@@ -93,7 +93,7 @@ public interface ClientProtocol {
 
     /**
      * <p>
-     * This method is one of underlying api of {@link BindStatement#executeBatch()} method.
+     * This method is one of underlying api of {@link BindStatement#executeBatchUpdate()} method.
      * </p>
      */
     Flux<ResultStates> bindBatch(BindBatchStmt stmt);

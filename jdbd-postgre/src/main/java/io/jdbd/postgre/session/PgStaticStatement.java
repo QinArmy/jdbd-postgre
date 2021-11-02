@@ -38,7 +38,7 @@ final class PgStaticStatement extends PgStatement implements StaticStatement {
     }
 
     @Override
-    public final Flux<ResultStates> executeBatch(List<String> sqlGroup) {
+    public final Flux<ResultStates> executeBatchUpdate(List<String> sqlGroup) {
         return this.session.protocol.batchUpdate(PgStmts.batch(sqlGroup, this));
     }
 

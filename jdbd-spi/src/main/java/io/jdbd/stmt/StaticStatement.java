@@ -173,7 +173,7 @@ public interface StaticStatement extends Statement {
     Publisher<ResultRow> executeQuery(String sql, Consumer<ResultStates> statesConsumer);
 
 
-    Publisher<ResultStates> executeBatch(List<String> sqlGroup);
+    Publisher<ResultStates> executeBatchUpdate(List<String> sqlGroup);
 
 
     MultiResult executeBatchAsMulti(List<String> sqlGroup);

@@ -14,6 +14,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
 import java.sql.*;
+import java.time.Year;
 import java.util.Arrays;
 import java.util.Properties;
 
@@ -45,21 +46,23 @@ public class JdbcUnitTests {
         properties.put("binaryTransferEnable", "1562");
 
         try (Connection conn = DriverManager.getConnection(url, properties)) {
-            String sql = "SELECT t.my_varbit_64 as myBit FROM my_types as t  WHERE t.id = ?";
+            String sql = "INSERT INTO my_types(my_integer) VALUES(?) RETURNING id AS \"id\"";
             try (PreparedStatement stmt = conn.prepareStatement(sql)) {
-                stmt.getMetaData();
-                stmt.setLong(1, 1);
-                try (ResultSet resultSet = stmt.executeQuery()) {
-                    while (resultSet.next()) {
-                        LOG.info("myBit:{}", resultSet.getString("myBit"));
-                    }
-                }
-                try (ResultSet resultSet = stmt.executeQuery()) {
-                    while (resultSet.next()) {
-                        LOG.info("myBit:{}", resultSet.getString("myBit"));
-                    }
-                }
+                stmt.setLong(1, Year.now().getValue());
+                stmt.addBatch();
+                stmt.setLong(1, Year.now().getValue());
+                stmt.addBatch();
 
+
+                LOG.info("rows.length:{}", stmt.execute());
+                LOG.info("type:{}", stmt.getResultSetType());
+                while (stmt.getMoreResults()) {
+                    try (ResultSet resultSet = stmt.getResultSet()) {
+                        while (resultSet.next()) {
+                            LOG.info("id:{}", resultSet.getLong(1));
+                        }
+                    }
+                }
             }
         }
 
