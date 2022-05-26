@@ -144,6 +144,7 @@ public final class DefaultMySQLParser implements MySQLParser {
             } else if (inQuotes) {
                 //  only respect quotes when not in a quoted identifier
                 if (ch == QUOTE) {
+                    //TODO 需要检测 前面是不 BACK_SLASH
                     inQuotes = false;
                 } else if (ch == BACK_SLASH && backslashEscapes) {
                     i++;// next character is escaped

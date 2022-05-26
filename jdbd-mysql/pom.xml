@@ -106,6 +106,12 @@
             <groupId>org.testng</groupId>
             <artifactId>testng</artifactId>
         </dependency>
+        <dependency>
+            <groupId>org.firebirdsql.jdbc</groupId>
+            <artifactId>jaybird</artifactId>
+            <version>4.0.5.java8</version>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
     <build>

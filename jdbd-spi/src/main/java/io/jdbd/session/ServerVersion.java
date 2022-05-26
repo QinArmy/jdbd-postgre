@@ -10,4 +10,6 @@ public interface ServerVersion {
 
     int getSubMinor();
 
+    boolean meetsMinimum(int major, int minor, int subMinor);
+
 }

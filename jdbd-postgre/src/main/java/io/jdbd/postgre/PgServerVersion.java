@@ -81,6 +81,12 @@ public final class PgServerVersion implements Comparable<PgServerVersion>, Serve
     }
 
     @Override
+    public boolean meetsMinimum(final int major, final int minor, final int subMinor) {
+        // TODO
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
     public final boolean equals(@Nullable Object nullable) {
         final boolean match;
         if (nullable == this) {
