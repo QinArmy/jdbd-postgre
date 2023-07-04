@@ -2,6 +2,7 @@ package io.jdbd.mysql.session;
 
 import io.jdbd.JdbdException;
 import io.jdbd.JdbdSQLException;
+import io.jdbd.meta.DataType;
 import io.jdbd.meta.SQLType;
 import io.jdbd.mysql.MySQLJdbdException;
 import io.jdbd.mysql.MySQLType;
@@ -46,7 +47,7 @@ final class MySQLMultiStatement extends MySQLStatement implements AttrMultiState
 
 
     @Override
-    public void addStatement(final String sql) throws JdbdException {
+    public MultiStatement addStatement(final String sql) throws JdbdException {
         checkReuse();
         if (!MySQLStrings.hasText(sql)) {
             throw new IllegalArgumentException("Sql must have text.");
@@ -54,11 +55,12 @@ final class MySQLMultiStatement extends MySQLStatement implements AttrMultiState
         final List<BindValue> bindGroup = new ArrayList<>();
         this.stmtGroup.add(Stmts.elementOfMulti(sql, bindGroup));
         this.bindGroup = bindGroup;
+        return this;
     }
 
 
     @Override
-    public void bind(final int indexBasedZero, final JDBCType jdbcType, @Nullable final Object nullable)
+    public MultiStatement bind(final int indexBasedZero, final JDBCType jdbcType, @Nullable final Object nullable)
             throws JdbdException {
         checkReuse();
         final List<BindValue> bindGroup = this.bindGroup;
@@ -70,28 +72,30 @@ final class MySQLMultiStatement extends MySQLStatement implements AttrMultiState
         }
         final MySQLType type = MySQLBinds.mapJdbcTypeToMySQLType(jdbcType, nullable);
         bindGroup.add(BindValue.wrap(indexBasedZero, type, nullable));
+        return this;
     }
 
     @Override
-    public void bind(final int indexBasedZero, final SQLType sqlType, @Nullable final Object nullable)
+    public MultiStatement bind(final int indexBasedZero, final DataType dataType, @Nullable final Object nullable)
             throws JdbdException {
         checkReuse();
         final List<BindValue> bindGroup = this.bindGroup;
         if (bindGroup == null) {
             throw MySQLExceptions.createEmptySqlException();
         }
-        if (!(sqlType instanceof MySQLType)) {
+        if (!(dataType instanceof MySQLType)) {
             String m = String.format("sqlType isn't a instance of %s", MySQLType.class.getName());
             throw new MySQLJdbdException(m);
         }
         if (indexBasedZero < 0) {
             throw MySQLExceptions.invalidParameterValue(this.stmtGroup.size(), indexBasedZero);
         }
-        bindGroup.add(BindValue.wrap(indexBasedZero, (MySQLType) sqlType, nullable));
+        bindGroup.add(BindValue.wrap(indexBasedZero, (MySQLType) dataType, nullable));
+        return this;
     }
 
     @Override
-    public void bind(final int indexBasedZero, @Nullable final Object nullable) throws JdbdException {
+    public MultiStatement bind(final int indexBasedZero, @Nullable final Object nullable) throws JdbdException {
         checkReuse();
         final List<BindValue> bindGroup = this.bindGroup;
         if (bindGroup == null) {
@@ -101,6 +105,7 @@ final class MySQLMultiStatement extends MySQLStatement implements AttrMultiState
             throw MySQLExceptions.invalidParameterValue(this.stmtGroup.size(), indexBasedZero);
         }
         bindGroup.add(BindValue.wrap(indexBasedZero, MySQLBinds.inferMySQLType(nullable), nullable));
+        return this;
     }
 
     @Override

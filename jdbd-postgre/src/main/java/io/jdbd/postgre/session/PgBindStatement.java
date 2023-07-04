@@ -2,6 +2,7 @@ package io.jdbd.postgre.session;
 
 import io.jdbd.JdbdException;
 import io.jdbd.JdbdSQLException;
+import io.jdbd.meta.DataType;
 import io.jdbd.meta.SQLType;
 import io.jdbd.postgre.PgJdbdException;
 import io.jdbd.postgre.PgType;
@@ -67,31 +68,34 @@ final class PgBindStatement extends PgStatement implements BindStatement {
     }
 
     @Override
-    public void bind(final int indexBasedZero, final JDBCType jdbcType, final @Nullable Object nullable)
+    public BindStatement bind(final int indexBasedZero, final JDBCType jdbcType, final @Nullable Object nullable)
             throws JdbdException {
         final PgType pgType = PgBinds.mapJdbcTypeToPgType(jdbcType, nullable);
         this.paramGroup.add(BindValue.wrap(checkIndex(indexBasedZero), pgType, nullable));
+        return this;
     }
 
     @Override
-    public void bind(final int indexBasedZero, final SQLType sqlType, final @Nullable Object nullable)
+    public BindStatement bind(final int indexBasedZero, final DataType dataType, final @Nullable Object nullable)
             throws JdbdException {
 
-        if (!(sqlType instanceof PgType)) {
+        if (!(dataType instanceof PgType)) {
             String m = String.format("sqlType isn't a instance of %s", PgType.class.getName());
             throw new PgJdbdException(m);
         }
-        this.paramGroup.add(BindValue.wrap(checkIndex(indexBasedZero), (PgType) sqlType, nullable));
+        this.paramGroup.add(BindValue.wrap(checkIndex(indexBasedZero), (PgType) dataType, nullable));
+        return this;
     }
 
     @Override
-    public void bind(final int indexBasedZero, final @Nullable Object nullable)
+    public BindStatement bind(final int indexBasedZero, final @Nullable Object nullable)
             throws JdbdException {
         this.paramGroup.add(BindValue.wrap(checkIndex(indexBasedZero), PgBinds.inferPgType(nullable), nullable));
+        return this;
     }
 
     @Override
-    public void addBatch() throws JdbdException {
+    public BindStatement addBatch() throws JdbdException {
         final List<BindValue> paramGroup = this.paramGroup;
         int firstGroupSize = this.firstGroupSize;
 
@@ -126,7 +130,7 @@ final class PgBindStatement extends PgStatement implements BindStatement {
             }
 
         }
-
+        return this;
     }
 
     @Override

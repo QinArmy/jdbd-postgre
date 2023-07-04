@@ -2,18 +2,15 @@ package io.jdbd.stmt;
 
 
 import io.jdbd.JdbdException;
-import io.jdbd.lang.Nullable;
-import io.jdbd.result.MultiResult;
-import io.jdbd.result.OrderedFlux;
-import io.jdbd.result.ResultRow;
-import io.jdbd.result.ResultStates;
+import io.jdbd.result.*;
 import org.reactivestreams.Publisher;
 
 import java.util.function.Consumer;
+import java.util.function.Function;
 
 /**
  * <p>
- * This interface is base interface of below:
+ * This interface is base interface of followning:
  *     <ul>
  *         <li>{@link BindStatement}</li>
  *         <li>{@link PreparedStatement}</li>
@@ -23,20 +20,14 @@ import java.util.function.Consumer;
  * @see BindStatement
  * @see PreparedStatement
  */
-public interface BindSingleStatement extends Statement {
+public interface BindSingleStatement extends ParameterStatement {
 
-
-    /**
-     * @see BindStatement#bind(int, Object)
-     * @see PreparedStatement#bind(int, Object)
-     */
-    void bind(int indexBasedZero, @Nullable Object nullable) throws JdbdException;
 
     /**
      * @see BindStatement#addBatch()
      * @see PreparedStatement#addBatch()
      */
-    void addBatch() throws JdbdException;
+    BindSingleStatement addBatch() throws JdbdException;
 
     /**
      * @see BindStatement#executeUpdate()
@@ -48,13 +39,32 @@ public interface BindSingleStatement extends Statement {
      * @see BindStatement#executeQuery()
      * @see PreparedStatement#executeQuery()
      */
-    Publisher<ResultRow> executeQuery();
+    @Deprecated
+  default    Publisher<ResultRow> executeQuery(){
+        throw new UnsupportedOperationException();
+    }
 
     /**
      * @see BindStatement#executeQuery(Consumer)
      * @see PreparedStatement#executeQuery(Consumer)
      */
-    Publisher<ResultRow> executeQuery(Consumer<ResultStates> statesConsumer);
+    @Deprecated
+   default   Publisher<ResultRow> executeQuery(Consumer<ResultStates> statesConsumer){
+        throw new UnsupportedOperationException();
+    }
+
+    default <R> Publisher<R> executeQuery(Function<CurrentRow, R> function) {
+        throw new UnsupportedOperationException();
+    }
+
+
+    /**
+     * @see BindStatement#executeQuery(Consumer)
+     * @see PreparedStatement#executeQuery(Consumer)
+     */
+    default <R> Publisher<R> executeQuery(Function<CurrentRow, R> function, Consumer<ResultStates> statesConsumer) {
+        throw new UnsupportedOperationException();
+    }
 
     /**
      * @see BindStatement#executeBatchUpdate()

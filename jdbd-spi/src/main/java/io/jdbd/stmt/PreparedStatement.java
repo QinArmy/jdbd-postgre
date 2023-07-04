@@ -3,10 +3,12 @@ package io.jdbd.stmt;
 import io.jdbd.JdbdException;
 import io.jdbd.JdbdSQLException;
 import io.jdbd.lang.Nullable;
+import io.jdbd.meta.DataType;
 import io.jdbd.result.*;
 import io.jdbd.session.DatabaseSession;
 import org.reactivestreams.Publisher;
 
+import java.sql.JDBCType;
 import java.util.List;
 import java.util.function.Consumer;
 
@@ -43,6 +45,8 @@ public interface PreparedStatement extends BindSingleStatement, BindMultiResultS
     boolean supportOutParameter();
 
 
+
+
     List<? extends io.jdbd.meta.SQLType> getParameterTypes();
 
     @Nullable
@@ -52,13 +56,19 @@ public interface PreparedStatement extends BindSingleStatement, BindMultiResultS
      * {@inheritDoc }
      */
     @Override
-    void bind(int indexBasedZero, @Nullable Object nullable) throws JdbdException;
+    PreparedStatement bind(int indexBasedZero, @Nullable Object nullable) throws JdbdException;
+
+    @Override
+    PreparedStatement bind(int indexBasedZero, JDBCType jdbcType,@Nullable Object nullable) throws JdbdException;
+
+    @Override
+    PreparedStatement bind(int indexBasedZero, DataType dataType,@Nullable  Object nullable) throws JdbdException;
 
     /**
      * {@inheritDoc }
      */
     @Override
-    void addBatch() throws JdbdException;
+    PreparedStatement addBatch() throws JdbdException;
 
     @Override
     Publisher<ResultStates> executeUpdate();

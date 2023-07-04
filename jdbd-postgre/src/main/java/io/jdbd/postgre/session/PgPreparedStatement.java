@@ -2,6 +2,7 @@ package io.jdbd.postgre.session;
 
 import io.jdbd.JdbdException;
 import io.jdbd.JdbdSQLException;
+import io.jdbd.meta.DataType;
 import io.jdbd.meta.SQLType;
 import io.jdbd.postgre.PgType;
 import io.jdbd.postgre.stmt.PgStmts;
@@ -23,6 +24,7 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.util.annotation.Nullable;
 
+import java.sql.JDBCType;
 import java.util.*;
 import java.util.function.Consumer;
 
@@ -89,7 +91,7 @@ final class PgPreparedStatement extends PgStatement implements PreparedStatement
     }
 
     @Override
-    public void bind(final int indexBasedZero, final @Nullable Object nullable)
+    public PreparedStatement bind(final int indexBasedZero, final @Nullable Object nullable)
             throws JdbdException {
         final List<ParamValue> paramGroup = this.paramGroup;
         if (paramGroup == null) {
@@ -102,11 +104,23 @@ final class PgPreparedStatement extends PgStatement implements PreparedStatement
         }
 
         paramGroup.add(JdbdParamValue.wrap(indexBasedZero, nullable));
+        return this;
     }
 
+    @Override
+    public PreparedStatement bind(int indexBasedZero, JDBCType jdbcType,  final @Nullable Object nullable)
+            throws JdbdException {
+        return this;
+    }
 
     @Override
-    public void addBatch() throws JdbdException {
+    public PreparedStatement bind(int indexBasedZero, DataType dataType, final @Nullable Object nullable)
+            throws JdbdException {
+        return this;
+    }
+
+    @Override
+    public PreparedStatement addBatch() throws JdbdException {
         final List<ParamValue> paramGroup = this.paramGroup;
         final int paramCount = this.paramCount;
 
@@ -129,7 +143,7 @@ final class PgPreparedStatement extends PgStatement implements PreparedStatement
             this.stmtTask.closeOnBindError(error); // close prepare statement.
             throw error;
         }
-
+        return this;
     }
 
 

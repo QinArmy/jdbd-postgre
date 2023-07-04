@@ -2,6 +2,7 @@ package io.jdbd.mysql.session;
 
 import io.jdbd.JdbdException;
 import io.jdbd.JdbdSQLException;
+import io.jdbd.meta.DataType;
 import io.jdbd.meta.SQLType;
 import io.jdbd.mysql.MySQLType;
 import io.jdbd.mysql.stmt.AttrPreparedStatement;
@@ -25,11 +26,13 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.util.annotation.Nullable;
 
+import java.sql.JDBCType;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.function.Consumer;
+import java.util.function.Function;
 
 /**
  * <p>
@@ -77,7 +80,7 @@ final class MySQLPreparedStatement extends MySQLStatement implements AttrPrepare
     }
 
     @Override
-    public void bind(final int indexBasedZero, final @Nullable Object nullable) throws JdbdException {
+    public PreparedStatement bind(final int indexBasedZero, final @Nullable Object nullable) throws JdbdException {
         checkReuse();
         final List<ParamValue> paramGroup = this.paramGroup;
         if (indexBasedZero < 0 || indexBasedZero >= this.paramCount) {
@@ -87,10 +90,22 @@ final class MySQLPreparedStatement extends MySQLStatement implements AttrPrepare
             throw error;
         }
         paramGroup.add(JdbdParamValue.wrap(indexBasedZero, nullable));
+        return this;
     }
 
     @Override
-    public void addBatch() {
+    public PreparedStatement bind(int indexBasedZero, JDBCType jdbcType,@Nullable Object nullable) throws JdbdException {
+        return this;
+    }
+
+    @Override
+    public PreparedStatement bind(int indexBasedZero, DataType dataType,@Nullable Object nullable) throws JdbdException {
+        return this;
+    }
+
+
+    @Override
+    public PreparedStatement addBatch() {
         final List<ParamValue> paramGroup = this.paramGroup;
         final int paramCount = this.paramCount;
 
@@ -113,7 +128,7 @@ final class MySQLPreparedStatement extends MySQLStatement implements AttrPrepare
         if (paramCount > 0) {
             this.paramGroup = new ArrayList<>(paramCount);
         }
-
+        return this;
     }
 
     @Override
@@ -192,6 +207,16 @@ final class MySQLPreparedStatement extends MySQLStatement implements AttrPrepare
         }
         clearStatementToAvoidReuse();
         return flux;
+    }
+
+    @Override
+    public <R> Publisher<R> executeQuery(Function<CurrentRow, R> function) {
+        return AttrPreparedStatement.super.executeQuery(function);
+    }
+
+    @Override
+    public <R> Publisher<R> executeQuery(Function<CurrentRow, R> function, Consumer<ResultStates> statesConsumer) {
+        return AttrPreparedStatement.super.executeQuery(function, statesConsumer);
     }
 
     @Override

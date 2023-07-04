@@ -2,6 +2,7 @@ package io.jdbd.postgre.session;
 
 import io.jdbd.JdbdException;
 import io.jdbd.JdbdSQLException;
+import io.jdbd.meta.DataType;
 import io.jdbd.meta.SQLType;
 import io.jdbd.postgre.PgType;
 import io.jdbd.postgre.stmt.BindMultiStmt;
@@ -50,7 +51,7 @@ final class PgMultiStatement extends PgStatement implements MultiStatement {
     }
 
     @Override
-    public final void addStatement(final String sql) {
+    public  MultiStatement addStatement(final String sql) {
         if (!PgStrings.hasText(sql)) {
             throw new IllegalArgumentException("Sql must have text.");
         }
@@ -63,10 +64,11 @@ final class PgMultiStatement extends PgStatement implements MultiStatement {
         }
         this.currentSql = sql;
         this.paramGroup = new ArrayList<>();
+        return this;
     }
 
     @Override
-    public final void bind(final int indexBasedZero, final JDBCType jdbcType, final @Nullable Object nullable)
+    public  MultiStatement bind(final int indexBasedZero, final JDBCType jdbcType, final @Nullable Object nullable)
             throws JdbdException {
         final List<BindValue> paramGroup = this.paramGroup;
         if (paramGroup == null) {
@@ -74,55 +76,58 @@ final class PgMultiStatement extends PgStatement implements MultiStatement {
         }
         final PgType pgType = PgBinds.mapJdbcTypeToPgType(jdbcType, nullable);
         paramGroup.add(BindValue.wrap(checkIndex(indexBasedZero), pgType, nullable));
+        return this;
     }
 
     @Override
-    public final void bind(final int indexBasedZero, final SQLType sqlType, final @Nullable Object nullable)
+    public  MultiStatement bind(final int indexBasedZero, final DataType dataType, final @Nullable Object nullable)
             throws JdbdException {
         final List<BindValue> paramGroup = this.paramGroup;
         if (paramGroup == null) {
             throw PgExceptions.multiStmtNoSql();
         }
-        paramGroup.add(BindValue.wrap(checkIndex(indexBasedZero), checkSqlType(sqlType), nullable));
+        paramGroup.add(BindValue.wrap(checkIndex(indexBasedZero), checkSqlType(dataType), nullable));
+        return this;
     }
 
     @Override
-    public final void bind(final int indexBasedZero, final @Nullable Object nullable)
+    public  MultiStatement bind(final int indexBasedZero, final @Nullable Object nullable)
             throws JdbdException {
         final List<BindValue> paramGroup = this.paramGroup;
         if (paramGroup == null) {
             throw PgExceptions.multiStmtNoSql();
         }
         paramGroup.add(BindValue.wrap(checkIndex(indexBasedZero), PgBinds.inferPgType(nullable), nullable));
+        return this;
     }
 
     @Override
-    public final Flux<ResultStates> executeBatchUpdate() {
+    public  Flux<ResultStates> executeBatchUpdate() {
         return this.session.protocol.multiStmtBatch(createMultiBindStmt());
     }
 
     @Override
-    public final MultiResult executeBatchAsMulti() {
+    public  MultiResult executeBatchAsMulti() {
         return this.session.protocol.multiStmtAsMulti(createMultiBindStmt());
     }
 
     @Override
-    public final OrderedFlux executeBatchAsFlux() {
+    public  OrderedFlux executeBatchAsFlux() {
         return this.session.protocol.multiStmtAsFlux(createMultiBindStmt());
     }
 
     @Override
-    public final boolean setFetchSize(int fetchSize) {
+    public  boolean setFetchSize(int fetchSize) {
         return false;
     }
 
     @Override
-    public final boolean supportPublisher() {
+    public  boolean supportPublisher() {
         return false;
     }
 
     @Override
-    public final int getFetchSize() {
+    public  int getFetchSize() {
         return 0;
     }
 

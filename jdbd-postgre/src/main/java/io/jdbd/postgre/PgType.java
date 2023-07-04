@@ -1,6 +1,7 @@
 package io.jdbd.postgre;
 
 
+import io.jdbd.meta.BooleanMode;
 import io.jdbd.type.Interval;
 import io.jdbd.type.LongBinary;
 import io.jdbd.type.geo.Line;
@@ -173,6 +174,12 @@ public enum PgType implements io.jdbd.meta.SQLType {
     }
 
     @Override
+    public String typeName() {
+        return null;
+    }
+
+
+    @Override
     public final Class<?> javaType() {
         return this.javaType;
     }
@@ -325,6 +332,16 @@ public enum PgType implements io.jdbd.meta.SQLType {
     }
 
     @Override
+    public boolean isUnknown() {
+        return false;
+    }
+
+    @Override
+    public BooleanMode isUserDefined() {
+        return null;
+    }
+
+    @Override
     public final boolean supportPublisher() {
         return supportBinaryPublisher() || supportTextPublisher();
 
@@ -350,35 +367,14 @@ public enum PgType implements io.jdbd.meta.SQLType {
     }
 
 
-    @Override
-    public final String getName() {
-        final String name;
-        if (this.jdbcType == JDBCType.ARRAY) {
-            name = "[L" + toActualTypeName();
-        } else {
-            name = getNonArrayTypeName();
-        }
-        return name;
-    }
-
 
     @Override
     public final String getVendor() {
         return PgType.class.getPackage().getName();
     }
 
-    @Override
-    public final Integer getVendorTypeNumber() {
-        return (int) this.typeOid;
-    }
-
-    public final int getTypeOid() {
-        return this.typeOid;
-    }
-
 
     /**
-     * @see #getName()
      */
     private String getNonArrayTypeName() {
         final String name;

@@ -1,5 +1,6 @@
 package io.jdbd.mysql;
 
+import io.jdbd.meta.BooleanMode;
 import io.jdbd.meta.SQLType;
 import io.jdbd.mysql.protocol.Constants;
 import io.jdbd.type.LongBinary;
@@ -485,24 +486,26 @@ public enum MySQLType implements SQLType {
         this.parameterType = (short) (unsigned ? (0x8000 | typeFlag) : typeFlag);
     }
 
+
+
     @Override
-    public JDBCType jdbcType() {
+    public final JDBCType jdbcType() {
         return this.jdbcType;
     }
 
     @Override
-    public Class<?> javaType() {
+    public final String typeName() {
+        return null;
+    }
+
+    @Override
+    public final Class<?> javaType() {
         return this.javaType;
     }
 
     @Override
     public final SQLType elementType() {
         return null;
-    }
-
-    @Override
-    public String getName() {
-        return name();
     }
 
     @Override
@@ -516,10 +519,6 @@ public enum MySQLType implements SQLType {
     }
 
 
-    @Override
-    public Integer getVendorTypeNumber() {
-        return (int) this.typeFlag;
-    }
 
     @Override
     public boolean isLongString() {
@@ -581,6 +580,16 @@ public enum MySQLType implements SQLType {
     @Override
     public boolean isArray() {
         return false;
+    }
+
+    @Override
+    public boolean isUnknown() {
+        return false;
+    }
+
+    @Override
+    public BooleanMode isUserDefined() {
+        return null;
     }
 
 

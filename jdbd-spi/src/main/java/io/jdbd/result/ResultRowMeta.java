@@ -2,6 +2,7 @@ package io.jdbd.result;
 
 import io.jdbd.JdbdSQLException;
 import io.jdbd.lang.Nullable;
+import io.jdbd.meta.DataType;
 import io.jdbd.meta.KeyMode;
 import io.jdbd.meta.NullMode;
 import io.jdbd.meta.SQLType;
@@ -12,7 +13,7 @@ import java.util.List;
 /**
  * @see ResultRow
  */
-public interface ResultRowMeta {
+public interface ResultRowMeta extends Result {
 
     /**
      * @return index of this Query result, based zero.
@@ -28,6 +29,24 @@ public interface ResultRowMeta {
      * @return the number of columns
      */
     int getColumnCount();
+
+
+    default DataType getDataType(int indexBaseZero){
+        throw new UnsupportedOperationException();
+    }
+
+    default DataType getDataType(String columnLabel){
+        throw new UnsupportedOperationException();
+    }
+
+
+    default JDBCType getJdbcType(int indexBaseZero){
+        throw new UnsupportedOperationException();
+    }
+
+    default JDBCType getJdbcType(String columnLabel){
+        throw new UnsupportedOperationException();
+    }
 
 
     default FieldType getFieldType(int indexBaseZero) {

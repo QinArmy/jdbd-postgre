@@ -2,6 +2,7 @@ package io.jdbd.mysql.session;
 
 import io.jdbd.JdbdException;
 import io.jdbd.JdbdSQLException;
+import io.jdbd.meta.DataType;
 import io.jdbd.meta.SQLType;
 import io.jdbd.mysql.MySQLJdbdException;
 import io.jdbd.mysql.MySQLType;
@@ -54,15 +55,23 @@ final class MySQLBindStatement extends MySQLStatement implements AttrBindStateme
     }
 
     @Override
-    public void bind(final int indexBasedZero, final JDBCType jdbcType, @Nullable final Object nullable)
+    public BindStatement bind(final int indexBasedZero, @Nullable final Object nullable) throws JdbdException {
+        checkReuse();
+        this.bindGroup.add(BindValue.wrap(checkIndex(indexBasedZero), MySQLBinds.inferMySQLType(nullable), nullable));
+        return this;
+    }
+
+    @Override
+    public BindStatement bind(final int indexBasedZero, final JDBCType jdbcType, @Nullable final Object nullable)
             throws JdbdException {
         checkReuse();
         final MySQLType type = MySQLBinds.mapJdbcTypeToMySQLType(jdbcType, nullable);
         this.bindGroup.add(BindValue.wrap(checkIndex(indexBasedZero), type, nullable));
+        return this;
     }
 
     @Override
-    public void bind(final int indexBasedZero, final SQLType sqlType, @Nullable final Object nullable)
+    public BindStatement bind(final int indexBasedZero, final DataType sqlType, @Nullable final Object nullable)
             throws JdbdException {
         checkReuse();
         if (!(sqlType instanceof MySQLType)) {
@@ -70,16 +79,13 @@ final class MySQLBindStatement extends MySQLStatement implements AttrBindStateme
             throw new MySQLJdbdException(m);
         }
         this.bindGroup.add(BindValue.wrap(checkIndex(indexBasedZero), (MySQLType) sqlType, nullable));
+        return this;
     }
 
-    @Override
-    public void bind(final int indexBasedZero, @Nullable final Object nullable) throws JdbdException {
-        checkReuse();
-        this.bindGroup.add(BindValue.wrap(checkIndex(indexBasedZero), MySQLBinds.inferMySQLType(nullable), nullable));
-    }
+
 
     @Override
-    public void addBatch() throws JdbdException {
+    public BindStatement addBatch() throws JdbdException {
         checkReuse();
         // add bind group
         final List<BindValue> paramGroup = this.bindGroup;
@@ -115,7 +121,7 @@ final class MySQLBindStatement extends MySQLStatement implements AttrBindStateme
                 this.bindGroup = new ArrayList<>(firstGroupSize);
             }
         }
-
+        return this;
     }
 
     @Override

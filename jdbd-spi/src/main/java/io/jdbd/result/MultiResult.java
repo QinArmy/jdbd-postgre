@@ -1,9 +1,12 @@
 package io.jdbd.result;
 
 
+import io.jdbd.stmt.BindStatement;
+import io.jdbd.stmt.PreparedStatement;
 import org.reactivestreams.Publisher;
 
 import java.util.function.Consumer;
+import java.util.function.Function;
 
 public interface MultiResult {
 
@@ -25,6 +28,19 @@ public interface MultiResult {
      * @see #nextQuery(Consumer)
      */
     Publisher<ResultRow> nextQuery();
+
+    default <R> Publisher<R> nextQuery(Function<CurrentRow, R> function) {
+        throw new UnsupportedOperationException();
+    }
+
+
+    /**
+     * @see BindStatement#executeQuery(Consumer)
+     * @see PreparedStatement#executeQuery(Consumer)
+     */
+    default <R> Publisher<R> nextQuery(Function<CurrentRow, R> function, Consumer<ResultStates> statesConsumer) {
+        throw new UnsupportedOperationException();
+    }
 
 
 }

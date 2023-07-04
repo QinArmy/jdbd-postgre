@@ -1,6 +1,7 @@
 package io.jdbd.postgre.session;
 
 import io.jdbd.JdbdException;
+import io.jdbd.meta.DataType;
 import io.jdbd.meta.SQLType;
 import io.jdbd.postgre.PgJdbdException;
 import io.jdbd.postgre.PgType;
@@ -121,7 +122,7 @@ abstract class PgStatement implements Statement, StatementOption {
     /*################################## blow packet static method ##################################*/
 
 
-    static PgType checkSqlType(final SQLType sqlType) throws JdbdException {
+    static PgType checkSqlType(final DataType sqlType) throws JdbdException {
         Objects.requireNonNull(sqlType, "sqlType");
         if (!(sqlType instanceof PgType)) {
             String m = String.format("sqlType isn't a instance of %s", PgType.class.getName());
