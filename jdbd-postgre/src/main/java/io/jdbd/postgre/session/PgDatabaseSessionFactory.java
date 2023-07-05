@@ -10,8 +10,8 @@ import io.jdbd.postgre.config.PgUrl;
 import io.jdbd.postgre.protocol.client.ClientProtocol;
 import io.jdbd.postgre.protocol.client.ClientProtocolFactory;
 import io.jdbd.session.DatabaseSessionFactory;
-import io.jdbd.session.TxDatabaseSession;
-import io.jdbd.session.XaDatabaseSession;
+import io.jdbd.session.LocalDatabaseSession;
+import io.jdbd.session.RmDatabaseSession;
 import io.netty.channel.EventLoopGroup;
 import reactor.core.publisher.Mono;
 import reactor.netty.resources.LoopResources;
@@ -60,14 +60,14 @@ public class PgDatabaseSessionFactory implements DatabaseSessionFactory {
 
 
     @Override
-    public Mono<TxDatabaseSession> getTxSession() {
+    public Mono<LocalDatabaseSession> getTxSession() {
         // TODO complete me
         return ClientProtocolFactory.single(this.sessionAdjutant, 0)
                 .map(this::createTxSession);
     }
 
     @Override
-    public Mono<XaDatabaseSession> getXaSession() {
+    public Mono<RmDatabaseSession> getXaSession() {
         // TODO complete me
         return ClientProtocolFactory.single(this.sessionAdjutant, 0)
                 .map(this::createXaSession);
@@ -88,12 +88,12 @@ public class PgDatabaseSessionFactory implements DatabaseSessionFactory {
     /**
      * @see #getTxSession()
      */
-    private TxDatabaseSession createTxSession(final ClientProtocol protocol) {
-        final TxDatabaseSession session;
+    private LocalDatabaseSession createTxSession(final ClientProtocol protocol) {
+        final LocalDatabaseSession session;
         if (this.forPoolVendor) {
-            session = PgTxDatabaseSession.forPoolVendor(this.sessionAdjutant, protocol);
+            session = PgLocalDatabaseSession.forPoolVendor(this.sessionAdjutant, protocol);
         } else {
-            session = PgTxDatabaseSession.create(this.sessionAdjutant, protocol);
+            session = PgLocalDatabaseSession.create(this.sessionAdjutant, protocol);
         }
         return session;
     }
@@ -101,8 +101,8 @@ public class PgDatabaseSessionFactory implements DatabaseSessionFactory {
     /**
      * @see #getXaSession()
      */
-    private XaDatabaseSession createXaSession(ClientProtocol protocol) {
-        final XaDatabaseSession session;
+    private RmDatabaseSession createXaSession(ClientProtocol protocol) {
+        final RmDatabaseSession session;
         if (this.forPoolVendor) {
             session = PgXaDatabaseSession.forPoolVendor(this.sessionAdjutant, protocol);
         } else {

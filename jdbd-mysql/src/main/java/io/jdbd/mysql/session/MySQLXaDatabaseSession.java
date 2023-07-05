@@ -11,7 +11,7 @@ import io.jdbd.mysql.util.MySQLStrings;
 import io.jdbd.pool.PoolXaDatabaseSession;
 import io.jdbd.result.ResultRow;
 import io.jdbd.result.ResultStates;
-import io.jdbd.session.XaDatabaseSession;
+import io.jdbd.session.RmDatabaseSession;
 import io.jdbd.session.Xid;
 import io.jdbd.vendor.session.XidImpl;
 import io.jdbd.vendor.util.JdbdExceptions;
@@ -23,12 +23,12 @@ import java.util.Objects;
 
 /**
  * <p>
- * This class is implementation of {@link XaDatabaseSession} with MySQL client protocol.
+ * This class is implementation of {@link RmDatabaseSession} with MySQL client protocol.
  * </p>
  */
-class MySQLXaDatabaseSession extends MySQLDatabaseSession implements XaDatabaseSession {
+class MySQLXaDatabaseSession extends MySQLDatabaseSession implements RmDatabaseSession {
 
-    static XaDatabaseSession create(SessionAdjutant adjutant, ClientProtocol protocol) {
+    static RmDatabaseSession create(SessionAdjutant adjutant, ClientProtocol protocol) {
         return new MySQLXaDatabaseSession(adjutant, protocol);
     }
 
@@ -42,7 +42,7 @@ class MySQLXaDatabaseSession extends MySQLDatabaseSession implements XaDatabaseS
 
 
     @Override
-    public final Mono<XaDatabaseSession> start(final Xid xid, final int flags) {
+    public final Mono<RmDatabaseSession> start(final Xid xid, final int flags) {
         final StringBuilder builder = new StringBuilder(140);
         builder.append("XA START");
         try {
@@ -70,7 +70,7 @@ class MySQLXaDatabaseSession extends MySQLDatabaseSession implements XaDatabaseS
 
 
     @Override
-    public final Mono<XaDatabaseSession> end(final Xid xid, final int flags) {
+    public final Mono<RmDatabaseSession> end(final Xid xid, final int flags) {
         final StringBuilder builder = new StringBuilder(140);
         builder.append("XA END");
         try {
@@ -109,7 +109,7 @@ class MySQLXaDatabaseSession extends MySQLDatabaseSession implements XaDatabaseS
 
 
     @Override
-    public final Mono<XaDatabaseSession> commit(Xid xid, final boolean onePhase) {
+    public final Mono<RmDatabaseSession> commit(Xid xid, final boolean onePhase) {
         final StringBuilder builder = new StringBuilder(140);
         builder.append("XA COMMIT");
         try {
@@ -126,7 +126,7 @@ class MySQLXaDatabaseSession extends MySQLDatabaseSession implements XaDatabaseS
     }
 
     @Override
-    public final Mono<XaDatabaseSession> rollback(final Xid xid) {
+    public final Mono<RmDatabaseSession> rollback(final Xid xid) {
         final StringBuilder builder = new StringBuilder(140);
         builder.append("XA ROLLBACK");
         try {
@@ -140,7 +140,7 @@ class MySQLXaDatabaseSession extends MySQLDatabaseSession implements XaDatabaseS
     }
 
     @Override
-    public final Mono<XaDatabaseSession> forget(final Xid xid) {
+    public final Mono<RmDatabaseSession> forget(final Xid xid) {
         // mysql doesn't support this
         return Mono.just(this);
     }

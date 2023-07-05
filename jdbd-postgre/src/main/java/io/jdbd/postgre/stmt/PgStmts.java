@@ -43,7 +43,7 @@ public abstract class PgStmts extends JdbdStmts {
     }
 
     /**
-     * This class used by {@link io.jdbd.stmt.MultiStatement}, so if paramGroup is empty
+     * This class used by {@link io.jdbd.statement.MultiStatement}, so if paramGroup is empty
      * ,just do {@link Collections#unmodifiableList(List)}.
      */
     public static BindStmt bind(String sql, List<BindValue> bindGroup) {

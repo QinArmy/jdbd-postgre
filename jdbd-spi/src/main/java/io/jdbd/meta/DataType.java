@@ -1,6 +1,6 @@
 package io.jdbd.meta;
 
-import io.jdbd.stmt.ParameterStatement;
+import io.jdbd.statement.ParameterStatement;
 
 import java.sql.JDBCType;
 

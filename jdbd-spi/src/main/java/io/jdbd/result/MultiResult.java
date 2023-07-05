@@ -1,8 +1,8 @@
 package io.jdbd.result;
 
 
-import io.jdbd.stmt.BindStatement;
-import io.jdbd.stmt.PreparedStatement;
+import io.jdbd.statement.BindStatement;
+import io.jdbd.statement.PreparedStatement;
 import org.reactivestreams.Publisher;
 
 import java.util.function.Consumer;
@@ -16,31 +16,21 @@ public interface MultiResult {
      * ,like {@code reactor.core.publisher.Mono}.
      * @throws NoMoreResultException emit when {@link MultiResult} end and no buffer.
      */
-    Publisher<ResultStates> nextUpdate();
+    Publisher< ResultStates> nextUpdate();
 
     /**
      * @return A Reactive Streams {@link Publisher} with rx operators that emits 0 to N elements
      * ,like {@code reactor.core.publisher.Flux}.
      */
-    Publisher<ResultRow> nextQuery(Consumer<ResultStates> statesConsumer);
+
+    Publisher<ResultRow> nextQuery(Consumer<ResultStates> consumer);
 
     /**
      * @see #nextQuery(Consumer)
      */
-    Publisher<ResultRow> nextQuery();
 
-    default <R> Publisher<R> nextQuery(Function<CurrentRow, R> function) {
-        throw new UnsupportedOperationException();
-    }
+     Publisher<ResultRow> nextQuery();
 
-
-    /**
-     * @see BindStatement#executeQuery(Consumer)
-     * @see PreparedStatement#executeQuery(Consumer)
-     */
-    default <R> Publisher<R> nextQuery(Function<CurrentRow, R> function, Consumer<ResultStates> statesConsumer) {
-        throw new UnsupportedOperationException();
-    }
 
 
 }

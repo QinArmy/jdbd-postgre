@@ -10,9 +10,9 @@ import io.jdbd.mysql.stmt.Stmts;
 import io.jdbd.mysql.util.MySQLExceptions;
 import io.jdbd.result.*;
 import io.jdbd.session.DatabaseSession;
-import io.jdbd.stmt.PreparedStatement;
-import io.jdbd.stmt.ResultType;
-import io.jdbd.stmt.SubscribeException;
+import io.jdbd.statement.PreparedStatement;
+import io.jdbd.statement.ResultType;
+import io.jdbd.statement.SubscribeException;
 import io.jdbd.vendor.result.MultiResults;
 import io.jdbd.vendor.stmt.JdbdParamValue;
 import io.jdbd.vendor.stmt.ParamBatchStmt;
@@ -103,6 +103,10 @@ final class MySQLPreparedStatement extends MySQLStatement implements AttrPrepare
         return this;
     }
 
+    @Override
+    public PreparedStatement bind(int indexBasedZero, String dataTypeName, @Nullable Object nullable) throws JdbdException {
+        return this;
+    }
 
     @Override
     public PreparedStatement addBatch() {
@@ -131,15 +135,10 @@ final class MySQLPreparedStatement extends MySQLStatement implements AttrPrepare
         return this;
     }
 
-    @Override
-    public List<? extends SQLType> getParameterTypes() {
-        return this.paramTypes;
-    }
 
-    @Nullable
     @Override
-    public ResultRowMeta getResultRowMeta() throws JdbdSQLException {
-        return this.rowMeta;
+    public List<? extends DataType> getParameterTypes() {
+        return null;
     }
 
     @Override

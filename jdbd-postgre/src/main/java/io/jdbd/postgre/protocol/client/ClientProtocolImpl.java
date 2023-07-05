@@ -11,7 +11,7 @@ import io.jdbd.result.OrderedFlux;
 import io.jdbd.result.ResultRow;
 import io.jdbd.result.ResultStates;
 import io.jdbd.session.ServerVersion;
-import io.jdbd.stmt.PreparedStatement;
+import io.jdbd.statement.PreparedStatement;
 import io.jdbd.vendor.stmt.StaticBatchStmt;
 import io.jdbd.vendor.stmt.StaticStmt;
 import io.jdbd.vendor.task.PrepareTask;

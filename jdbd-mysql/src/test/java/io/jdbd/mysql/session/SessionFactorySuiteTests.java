@@ -4,8 +4,8 @@ import io.jdbd.DriverManager;
 import io.jdbd.mysql.protocol.client.ClientTestUtils;
 import io.jdbd.mysql.protocol.conf.MyKey;
 import io.jdbd.session.DatabaseSessionFactory;
-import io.jdbd.session.TxDatabaseSession;
-import io.jdbd.stmt.StaticStatement;
+import io.jdbd.session.LocalDatabaseSession;
+import io.jdbd.statement.StaticStatement;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.annotations.Test;
@@ -33,7 +33,7 @@ public class SessionFactorySuiteTests {
         configMap.put(MyKey.sslMode.getKey(), "DISABLED");
         final DatabaseSessionFactory factory;
         factory = DriverManager.forPoolVendor(configMap.get("url"), configMap);
-        final TxDatabaseSession session;
+        final LocalDatabaseSession session;
         session = Mono.from(factory.getTxSession())
                 .block();
         assertNotNull(session, "session");

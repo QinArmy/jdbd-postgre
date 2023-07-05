@@ -4,7 +4,7 @@ import io.jdbd.mysql.MySQLType;
 import io.jdbd.mysql.protocol.conf.MyKey;
 import io.jdbd.mysql.stmt.BindValue;
 import io.jdbd.mysql.util.MySQLExceptions;
-import io.jdbd.stmt.LongDataReadException;
+import io.jdbd.statement.LongDataReadException;
 import io.jdbd.vendor.conf.Properties;
 import io.jdbd.vendor.stmt.ParamValue;
 import io.netty.buffer.ByteBuf;

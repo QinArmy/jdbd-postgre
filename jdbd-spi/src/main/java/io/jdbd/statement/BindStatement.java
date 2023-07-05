@@ -1,4 +1,4 @@
-package io.jdbd.stmt;
+package io.jdbd.statement;
 
 import io.jdbd.JdbdException;
 import io.jdbd.lang.Nullable;
@@ -10,22 +10,12 @@ import org.reactivestreams.Publisher;
 
 import java.sql.JDBCType;
 
-public interface MultiStatement extends BindMultiResultStatement,ParameterStatement {
+public interface BindStatement extends BindSingleStatement {
 
-    /**
-     * @param sql must have text.
-     * @throws IllegalArgumentException when sql has no text.
-     * @throws JdbdException            when reuse this instance after invoke below method:
-     *                                  <ul>
-     *                                      <li>{@link #executeBatchUpdate()}</li>
-     *                                      <li>{@link #executeBatchAsMulti()}</li>
-     *                                      <li>{@link #executeBatchAsFlux()}</li>
-     *                                  </ul>
-     */
-    MultiStatement addStatement(String sql) throws JdbdException;
+
 
     @Override
-    MultiStatement bind(int indexBasedZero, @Nullable Object nullable) throws JdbdException;
+    BindStatement bind(int indexBasedZero, @Nullable Object nullable) throws JdbdException;
 
     /**
      * <p>
@@ -37,7 +27,7 @@ public interface MultiStatement extends BindMultiResultStatement,ParameterStatem
      * @param nullable       nullable null the parameter value
      */
     @Override
-    MultiStatement bind(int indexBasedZero, JDBCType jdbcType, @Nullable Object nullable) throws JdbdException;
+    BindStatement bind(int indexBasedZero, JDBCType jdbcType, @Nullable Object nullable) throws JdbdException;
 
     /**
      * <p>
@@ -49,8 +39,26 @@ public interface MultiStatement extends BindMultiResultStatement,ParameterStatem
      * @param dataType        nonNullValue mapping sql data type name(must upper case).
      */
     @Override
-    MultiStatement bind(int indexBasedZero, DataType dataType, @Nullable Object nullable) throws JdbdException;
+    BindStatement bind(int indexBasedZero, DataType dataType, @Nullable Object nullable) throws JdbdException;
 
+    /**
+     * <p>
+     * SQL parameter placeholder must be {@code ?}
+     * </p>
+     *
+     * @param indexBasedZero parameter placeholder index based zero.
+     * @param nullable       nullable the parameter value
+     * @param dataTypeName        nonNullValue mapping sql data type name(must upper case).
+     */
+    @Override
+    BindStatement bind(int indexBasedZero, String dataTypeName, @Nullable Object nullable) throws JdbdException;
+
+
+    @Override
+    BindStatement addBatch() throws JdbdException;
+
+    @Override
+    Publisher<ResultStates> executeUpdate();
 
 
     @Override
@@ -59,8 +67,6 @@ public interface MultiStatement extends BindMultiResultStatement,ParameterStatem
     @Override
     MultiResult executeBatchAsMulti();
 
-    @Override
     OrderedFlux executeBatchAsFlux();
-
 
 }

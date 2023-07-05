@@ -13,7 +13,7 @@ import io.jdbd.result.ResultStates;
 import io.jdbd.session.Isolation;
 import io.jdbd.session.ServerVersion;
 import io.jdbd.session.TransactionOption;
-import io.jdbd.stmt.PreparedStatement;
+import io.jdbd.statement.PreparedStatement;
 import io.jdbd.vendor.session.TransactionOptionImpl;
 import io.jdbd.vendor.stmt.StaticBatchStmt;
 import io.jdbd.vendor.stmt.StaticMultiStmt;

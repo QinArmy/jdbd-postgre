@@ -4,8 +4,8 @@ import io.jdbd.result.Result;
 import io.jdbd.result.ResultRow;
 import io.jdbd.result.ResultStates;
 import io.jdbd.result.ResultStatusConsumerException;
-import io.jdbd.stmt.ResultType;
-import io.jdbd.stmt.SubscribeException;
+import io.jdbd.statement.ResultType;
+import io.jdbd.statement.SubscribeException;
 import org.reactivestreams.Subscription;
 import reactor.core.publisher.FluxSink;
 

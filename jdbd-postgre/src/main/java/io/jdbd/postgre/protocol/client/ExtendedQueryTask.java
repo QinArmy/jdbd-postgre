@@ -9,7 +9,7 @@ import io.jdbd.postgre.util.PgCollections;
 import io.jdbd.postgre.util.PgExceptions;
 import io.jdbd.result.*;
 import io.jdbd.session.SessionCloseException;
-import io.jdbd.stmt.PreparedStatement;
+import io.jdbd.statement.PreparedStatement;
 import io.jdbd.vendor.result.MultiResults;
 import io.jdbd.vendor.result.ResultSink;
 import io.jdbd.vendor.stmt.*;

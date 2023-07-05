@@ -12,9 +12,9 @@ import java.util.function.Function;
  * This interface representing stmt have only multi sql,and no parameter placeholder.
  * This implementation of this interface is used by the implementation of below methods:
  * <u>
- * <li>{@link io.jdbd.stmt.StaticStatement#executeUpdate(String)}</li>
- * <li>{@link io.jdbd.stmt.StaticStatement#executeQuery(String)}</li>
- * <li>{@link io.jdbd.stmt.StaticStatement#executeQuery(String, java.util.function.Consumer)}</li>
+ * <li>{@link io.jdbd.statement.StaticStatement#executeUpdate(String)}</li>
+ * <li>{@link io.jdbd.statement.StaticStatement#executeQuery(String)}</li>
+ * <li>{@link io.jdbd.statement.StaticStatement#executeQuery(String, java.util.function.Consumer)}</li>
  * </u>
  * </p>
  */

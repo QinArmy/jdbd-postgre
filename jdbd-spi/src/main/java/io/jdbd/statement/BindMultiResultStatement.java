@@ -1,7 +1,5 @@
-package io.jdbd.stmt;
+package io.jdbd.statement;
 
-import io.jdbd.JdbdException;
-import io.jdbd.lang.Nullable;
 import io.jdbd.result.MultiResult;
 import io.jdbd.result.OrderedFlux;
 import io.jdbd.result.ResultStates;
@@ -25,7 +23,7 @@ public interface BindMultiResultStatement extends Statement {
 
 
 
-    Publisher<ResultStates> executeBatchUpdate();
+    Publisher< ResultStates> executeBatchUpdate();
 
     /**
      * @see BindStatement#executeBatchAsMulti()

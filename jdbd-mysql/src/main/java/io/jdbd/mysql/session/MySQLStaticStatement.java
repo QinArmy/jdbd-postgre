@@ -20,7 +20,7 @@ import java.util.function.Consumer;
 
 /**
  * <p>
- * This interface is a implementation of {@link io.jdbd.stmt.StaticStatement} with MySQL client protocol.
+ * This interface is a implementation of {@link io.jdbd.statement.StaticStatement} with MySQL client protocol.
  * </p>
  */
 final class MySQLStaticStatement extends MySQLStatement implements AttrStaticStatement {

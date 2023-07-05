@@ -2,7 +2,7 @@ package io.jdbd.vendor.task;
 
 import io.jdbd.JdbdException;
 import io.jdbd.session.SessionCloseException;
-import io.jdbd.stmt.TaskQueueOverflowException;
+import io.jdbd.statement.TaskQueueOverflowException;
 import io.jdbd.vendor.conf.HostInfo;
 import io.jdbd.vendor.util.JdbdExceptions;
 import io.netty.buffer.ByteBuf;

@@ -2,11 +2,10 @@ package io.jdbd.postgre.session;
 
 import io.jdbd.JdbdException;
 import io.jdbd.meta.DataType;
-import io.jdbd.meta.SQLType;
 import io.jdbd.postgre.PgJdbdException;
 import io.jdbd.postgre.PgType;
 import io.jdbd.session.DatabaseSession;
-import io.jdbd.stmt.Statement;
+import io.jdbd.statement.Statement;
 import io.jdbd.vendor.stmt.StatementOption;
 import org.reactivestreams.Publisher;
 import org.reactivestreams.Subscriber;
@@ -50,8 +49,9 @@ abstract class PgStatement implements Statement, StatementOption {
     }
 
     @Override
-    public final void setTimeout(int seconds) {
+    public final Statement setTimeout(int seconds) {
         this.timeout = seconds;
+        return this;
     }
 
 

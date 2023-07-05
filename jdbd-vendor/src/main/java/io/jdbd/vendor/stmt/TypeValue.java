@@ -7,8 +7,8 @@ package io.jdbd.vendor.stmt;
  * and can wrap {@link io.jdbd.meta.SQLType} .
  * This interface can be used by the implementation jdbd spi for below:
  * <ul>
- *     <li>{@link io.jdbd.stmt.BindStatement}</li>
- *     <li>{@link io.jdbd.stmt.MultiStatement}</li>
+ *     <li>{@link io.jdbd.statement.BindStatement}</li>
+ *     <li>{@link io.jdbd.statement.MultiStatement}</li>
  * </ul>
  * </p>
  */

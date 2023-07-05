@@ -2,7 +2,7 @@
    * database driver 本质上是为框架开发者开发的,不是给应用开发者开发的,因为在这个时代 应用开发者如果选择直接使用 driver api 开发应用那是不明智的.
    * 基于以上原因 bind 方法只能通过循环调用,这时 bind 方法的返回值毫无意义.
 
-2. 为什么 io.jdbd.stmt.PreparedStatement 接口只有一个 bind 方法且不能指定 sql type?
+2. 为什么 io.jdbd.statement.PreparedStatement 接口只有一个 bind 方法且不能指定 sql type?
    * prepare 语句已经从数据库 server 获取了参数类型和参数个数,这时 sql 类型是无意义的,所以只需要一个 bind 方法.
 
 3. 为什么 statement 的 bind 方法不支持命名参数?
@@ -11,15 +11,15 @@
    * ? 作为参数占位符有多年的用户基础.
    * 命名参数不是必需的, 秦军 开源组织的理念是 "若可有可无,则尽可能选择 无".
 
-4. 为什么要为 io.jdbd.stmt.PreparedStatement 和 io.jdbd.stmt.BindStatement 设计 base interface io.jdbd.stmt.BindSingleStatement
+4. 为什么要为 io.jdbd.statement.PreparedStatement 和 io.jdbd.statement.BindStatement 设计 base interface io.jdbd.statement.BindSingleStatement
    ?
    * 它们有共同的方法,设计 base interface 是常规
-   * 更重要的是 在一些场景下可以使用 io.jdbd.stmt.BindSingleStatement 的方法引用.
+   * 更重要的是 在一些场景下可以使用 io.jdbd.statement.BindSingleStatement 的方法引用.
 
-5. 为什么要为 io.jdbd.stmt.PreparedStatement 和 io.jdbd.stmt.MultiStatement 设计 base interface
-   io.jdbd.stmt.BindMultiResultStatement ?
+5. 为什么要为 io.jdbd.statement.PreparedStatement 和 io.jdbd.statement.MultiStatement 设计 base interface
+   io.jdbd.statement.BindMultiResultStatement ?
    * 它们有共同的方法,设计 base interface 是常规
-   * 更重要的是 在一些场景下可以使用 io.jdbd.stmt.BindMultiResultStatement 的方法引用.
+   * 更重要的是 在一些场景下可以使用 io.jdbd.statement.BindMultiResultStatement 的方法引用.
 
 6. 为什么 io.jdbd.vendor.result.MultiResultSink 没有 isCancelled 方法?
    * 要让下游能能到信号,避免 bug.

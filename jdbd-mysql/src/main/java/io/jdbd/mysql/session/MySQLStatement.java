@@ -4,9 +4,8 @@ import io.jdbd.JdbdSQLException;
 import io.jdbd.mysql.MySQLType;
 import io.jdbd.mysql.stmt.AttrStatement;
 import io.jdbd.mysql.stmt.QueryAttr;
-import io.jdbd.mysql.stmt.StatementOption;
 import io.jdbd.session.DatabaseSession;
-import io.jdbd.stmt.Statement;
+import io.jdbd.statement.Statement;
 import org.reactivestreams.Publisher;
 import org.reactivestreams.Subscriber;
 import reactor.util.annotation.Nullable;
@@ -68,8 +67,9 @@ abstract class MySQLStatement implements Statement, AttrStatement {
 
 
     @Override
-    public final void setTimeout(final int seconds) {
+    public final Statement setTimeout(final int seconds) {
         this.statementOption.timeoutSeconds = seconds;
+        return this;
     }
 
 
@@ -95,7 +95,7 @@ abstract class MySQLStatement implements Statement, AttrStatement {
     }
 
 
-    static final class MySQLStatementOption implements StatementOption {
+    static final class MySQLStatementOption implements io.jdbd.mysql.stmt.MySQLStatementOption {
 
         private int timeoutSeconds;
 

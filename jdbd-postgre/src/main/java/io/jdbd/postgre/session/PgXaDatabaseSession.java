@@ -2,17 +2,17 @@ package io.jdbd.postgre.session;
 
 import io.jdbd.pool.PoolXaDatabaseSession;
 import io.jdbd.postgre.protocol.client.ClientProtocol;
-import io.jdbd.session.XaDatabaseSession;
+import io.jdbd.session.RmDatabaseSession;
 import io.jdbd.session.Xid;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 /**
  * <p>
- * This class is implementation of {@link XaDatabaseSession} with Postgre client protocol.
+ * This class is implementation of {@link RmDatabaseSession} with Postgre client protocol.
  * </p>
  */
-class PgXaDatabaseSession extends PgDatabaseSession implements XaDatabaseSession {
+class PgXaDatabaseSession extends PgDatabaseSession implements RmDatabaseSession {
 
 
     static PgXaDatabaseSession create(SessionAdjutant adjutant, ClientProtocol protocol) {
@@ -30,22 +30,22 @@ class PgXaDatabaseSession extends PgDatabaseSession implements XaDatabaseSession
 
 
     @Override
-    public final Mono<XaDatabaseSession> start(Xid xid, int flags) {
+    public final Mono<RmDatabaseSession> start(Xid xid, int flags) {
         return null;
     }
 
     @Override
-    public final Mono<XaDatabaseSession> commit(Xid xid, boolean onePhase) {
+    public final Mono<RmDatabaseSession> commit(Xid xid, boolean onePhase) {
         return null;
     }
 
     @Override
-    public final Mono<XaDatabaseSession> end(Xid xid, int flags) {
+    public final Mono<RmDatabaseSession> end(Xid xid, int flags) {
         return null;
     }
 
     @Override
-    public final Mono<XaDatabaseSession> forget(Xid xid) {
+    public final Mono<RmDatabaseSession> forget(Xid xid) {
         return null;
     }
 
@@ -60,7 +60,7 @@ class PgXaDatabaseSession extends PgDatabaseSession implements XaDatabaseSession
     }
 
     @Override
-    public final Mono<XaDatabaseSession> rollback(Xid xid) {
+    public final Mono<RmDatabaseSession> rollback(Xid xid) {
         return null;
     }
 

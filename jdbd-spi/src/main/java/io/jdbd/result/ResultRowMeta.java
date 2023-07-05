@@ -35,7 +35,22 @@ public interface ResultRowMeta extends Result {
         throw new UnsupportedOperationException();
     }
 
+    /**
+     * @return data type name in database. If support ,upper case precedence.
+     */
+    default String getDataTypeName(int indexBaseZero){
+        throw new UnsupportedOperationException();
+    }
+
     default DataType getDataType(String columnLabel){
+        throw new UnsupportedOperationException();
+    }
+
+
+    /**
+     * @return data type name in database. If support ,upper case precedence.
+     */
+    default String getDataTypeName(String columnLabel){
         throw new UnsupportedOperationException();
     }
 
@@ -139,9 +154,14 @@ public interface ResultRowMeta extends Result {
      * @throws JdbdSQLException if a database access error occurs
      * @see #getColumnIndex(String)
      */
-    SQLType getSQLType(int indexBaseZero) throws JdbdSQLException;
+   default   SQLType getSQLType(int indexBaseZero) throws JdbdSQLException{
+       throw new UnsupportedOperationException();
+   }
 
-    SQLType getSQLType(String columnLabel) throws JdbdSQLException;
+   default    SQLType getSQLType(String columnLabel) throws JdbdSQLException{
+       throw new UnsupportedOperationException();
+   }
+
 
     /**
      * @param indexBaseZero base 0,the first column is 0, the second is 1, ...

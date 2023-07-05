@@ -3,7 +3,6 @@ package io.jdbd.postgre.session;
 import io.jdbd.JdbdException;
 import io.jdbd.JdbdSQLException;
 import io.jdbd.meta.DataType;
-import io.jdbd.meta.SQLType;
 import io.jdbd.postgre.PgJdbdException;
 import io.jdbd.postgre.PgType;
 import io.jdbd.postgre.stmt.BindBatchStmt;
@@ -18,9 +17,9 @@ import io.jdbd.result.MultiResult;
 import io.jdbd.result.OrderedFlux;
 import io.jdbd.result.ResultRow;
 import io.jdbd.result.ResultStates;
-import io.jdbd.stmt.BindStatement;
-import io.jdbd.stmt.ResultType;
-import io.jdbd.stmt.SubscribeException;
+import io.jdbd.statement.BindStatement;
+import io.jdbd.statement.ResultType;
+import io.jdbd.statement.SubscribeException;
 import io.jdbd.vendor.result.MultiResults;
 import io.jdbd.vendor.util.JdbdBinds;
 import reactor.core.publisher.Flux;
@@ -37,12 +36,12 @@ import java.util.function.Consumer;
  * This class is a implementation of {@link BindStatement} with postgre client protocol.
  * </p>
  *
- * @see PgDatabaseSession#bindable(String)
+ * @see PgDatabaseSession#bindStatement(String)
  */
 final class PgBindStatement extends PgStatement implements BindStatement {
 
     /**
-     * @see PgDatabaseSession#bindable(String)
+     * @see PgDatabaseSession#bindStatement(String)
      */
     static PgBindStatement create(String sql, PgDatabaseSession session) {
         if (!PgStrings.hasText(sql)) {
@@ -68,6 +67,14 @@ final class PgBindStatement extends PgStatement implements BindStatement {
     }
 
     @Override
+    public BindStatement bind(final int indexBasedZero, final @Nullable Object nullable)
+            throws JdbdException {
+        this.paramGroup.add(BindValue.wrap(checkIndex(indexBasedZero), PgBinds.inferPgType(nullable), nullable));
+        return this;
+    }
+
+
+    @Override
     public BindStatement bind(final int indexBasedZero, final JDBCType jdbcType, final @Nullable Object nullable)
             throws JdbdException {
         final PgType pgType = PgBinds.mapJdbcTypeToPgType(jdbcType, nullable);
@@ -88,9 +95,7 @@ final class PgBindStatement extends PgStatement implements BindStatement {
     }
 
     @Override
-    public BindStatement bind(final int indexBasedZero, final @Nullable Object nullable)
-            throws JdbdException {
-        this.paramGroup.add(BindValue.wrap(checkIndex(indexBasedZero), PgBinds.inferPgType(nullable), nullable));
+    public BindStatement bind(int indexBasedZero, String dataTypeName,final @Nullable Object nullable) throws JdbdException {
         return this;
     }
 

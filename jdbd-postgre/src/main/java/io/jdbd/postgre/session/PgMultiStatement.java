@@ -3,7 +3,6 @@ package io.jdbd.postgre.session;
 import io.jdbd.JdbdException;
 import io.jdbd.JdbdSQLException;
 import io.jdbd.meta.DataType;
-import io.jdbd.meta.SQLType;
 import io.jdbd.postgre.PgType;
 import io.jdbd.postgre.stmt.BindMultiStmt;
 import io.jdbd.postgre.stmt.BindStmt;
@@ -15,7 +14,7 @@ import io.jdbd.postgre.util.PgStrings;
 import io.jdbd.result.MultiResult;
 import io.jdbd.result.OrderedFlux;
 import io.jdbd.result.ResultStates;
-import io.jdbd.stmt.MultiStatement;
+import io.jdbd.statement.MultiStatement;
 import reactor.core.publisher.Flux;
 import reactor.util.annotation.Nullable;
 
@@ -29,12 +28,12 @@ import java.util.Objects;
  * This class is a implementation of {@link MultiStatement} with postgre client protocol.
  * </p>
  *
- * @see PgDatabaseSession#multi()
+ * @see PgDatabaseSession#multiStatement()
  */
 final class PgMultiStatement extends PgStatement implements MultiStatement {
 
     /**
-     * @see PgDatabaseSession#multi()
+     * @see PgDatabaseSession#multiStatement()
      */
     static PgMultiStatement create(PgDatabaseSession session) {
         return new PgMultiStatement(session);
@@ -68,6 +67,17 @@ final class PgMultiStatement extends PgStatement implements MultiStatement {
     }
 
     @Override
+    public  MultiStatement bind(final int indexBasedZero, final @Nullable Object nullable)
+            throws JdbdException {
+        final List<BindValue> paramGroup = this.paramGroup;
+        if (paramGroup == null) {
+            throw PgExceptions.multiStmtNoSql();
+        }
+        paramGroup.add(BindValue.wrap(checkIndex(indexBasedZero), PgBinds.inferPgType(nullable), nullable));
+        return this;
+    }
+
+    @Override
     public  MultiStatement bind(final int indexBasedZero, final JDBCType jdbcType, final @Nullable Object nullable)
             throws JdbdException {
         final List<BindValue> paramGroup = this.paramGroup;
@@ -91,13 +101,7 @@ final class PgMultiStatement extends PgStatement implements MultiStatement {
     }
 
     @Override
-    public  MultiStatement bind(final int indexBasedZero, final @Nullable Object nullable)
-            throws JdbdException {
-        final List<BindValue> paramGroup = this.paramGroup;
-        if (paramGroup == null) {
-            throw PgExceptions.multiStmtNoSql();
-        }
-        paramGroup.add(BindValue.wrap(checkIndex(indexBasedZero), PgBinds.inferPgType(nullable), nullable));
+    public MultiStatement bind(int indexBasedZero, String dataTypeName,@Nullable Object nullable) throws JdbdException {
         return this;
     }
 

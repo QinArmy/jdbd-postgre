@@ -2,8 +2,8 @@ package io.jdbd.vendor.result;
 
 import io.jdbd.JdbdException;
 import io.jdbd.result.*;
-import io.jdbd.stmt.ResultType;
-import io.jdbd.stmt.SubscribeException;
+import io.jdbd.statement.ResultType;
+import io.jdbd.statement.SubscribeException;
 import io.jdbd.vendor.task.ITaskAdjutant;
 import io.jdbd.vendor.util.JdbdExceptions;
 import io.jdbd.vendor.util.JdbdFunctions;

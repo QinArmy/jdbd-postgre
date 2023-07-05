@@ -3,7 +3,6 @@ package io.jdbd.mysql.session;
 import io.jdbd.JdbdException;
 import io.jdbd.JdbdSQLException;
 import io.jdbd.meta.DataType;
-import io.jdbd.meta.SQLType;
 import io.jdbd.mysql.MySQLJdbdException;
 import io.jdbd.mysql.MySQLType;
 import io.jdbd.mysql.stmt.*;
@@ -13,8 +12,8 @@ import io.jdbd.mysql.util.MySQLStrings;
 import io.jdbd.result.MultiResult;
 import io.jdbd.result.OrderedFlux;
 import io.jdbd.result.ResultStates;
-import io.jdbd.stmt.BindStatement;
-import io.jdbd.stmt.MultiStatement;
+import io.jdbd.statement.BindStatement;
+import io.jdbd.statement.MultiStatement;
 import io.jdbd.vendor.result.MultiResults;
 import reactor.core.publisher.Flux;
 import reactor.util.annotation.Nullable;
@@ -25,7 +24,7 @@ import java.util.List;
 
 /**
  * <p>
- * This interface is a implementation of {@link io.jdbd.stmt.MultiStatement} with MySQL client protocol.
+ * This interface is a implementation of {@link io.jdbd.statement.MultiStatement} with MySQL client protocol.
  * </p>
  */
 final class MySQLMultiStatement extends MySQLStatement implements AttrMultiStatement {
@@ -105,6 +104,11 @@ final class MySQLMultiStatement extends MySQLStatement implements AttrMultiState
             throw MySQLExceptions.invalidParameterValue(this.stmtGroup.size(), indexBasedZero);
         }
         bindGroup.add(BindValue.wrap(indexBasedZero, MySQLBinds.inferMySQLType(nullable), nullable));
+        return this;
+    }
+
+    @Override
+    public MultiStatement bind(int indexBasedZero, String dataTypeName, @Nullable  Object nullable) throws JdbdException {
         return this;
     }
 

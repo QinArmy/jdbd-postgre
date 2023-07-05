@@ -3,12 +3,13 @@ package io.jdbd.postgre.statement;
 import io.jdbd.JdbdException;
 import io.jdbd.postgre.Group;
 import io.jdbd.postgre.PgTestUtils;
+import io.jdbd.result.CurrentRow;
 import io.jdbd.result.MultiResult;
 import io.jdbd.result.ResultRow;
 import io.jdbd.result.ResultStates;
 import io.jdbd.session.DatabaseSession;
-import io.jdbd.session.TxDatabaseSession;
-import io.jdbd.stmt.PreparedStatement;
+import io.jdbd.session.LocalDatabaseSession;
+import io.jdbd.statement.PreparedStatement;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.annotations.Test;
@@ -37,15 +38,15 @@ public class PreparedStatementSuiteTests extends AbstractStatementTests {
      */
     @Test(timeOut = TIME_OUT)
     public void updateWithoutParameter() {
-        final TxDatabaseSession session;
+        final LocalDatabaseSession session;
         session = getSession();
         final long id = START_ID + 1;
         final String sql = String.format("UPDATE my_types AS t SET my_boolean = TRUE WHERE t.id = %s", id);
 
         final ResultStates states;
         states = Mono.from(session.prepare(sql))
-                .flatMap(statement -> Mono.from(statement.executeUpdate()))
-                .block();
+                .flatMapMany(PreparedStatement::executeUpdate)
+                .blockFirst();
 
         assertNotNull(states, "states");
         PgTestUtils.assertUpdateOneWithoutMoreResult(states);
@@ -58,7 +59,7 @@ public class PreparedStatementSuiteTests extends AbstractStatementTests {
      */
     @Test(timeOut = TIME_OUT)
     public void queryWithoutParameter() {
-        final TxDatabaseSession session;
+        final LocalDatabaseSession session;
         session = getSession();
         final long id = START_ID + 2;
         final String sql = String.format("SELECT t.* FROM my_types AS t WHERE t.id = %s", id);
@@ -67,8 +68,8 @@ public class PreparedStatementSuiteTests extends AbstractStatementTests {
 
         final List<ResultRow> rowList;
 
-        rowList = Mono.from(session.prepare(sql))
-                .flatMapMany(statement -> statement.executeQuery(statesHolder::set))
+        rowList = Flux.from(session.prepare(sql))
+                .flatMap(PreparedStatement::executeQuery)
                 .collectList()
                 .block();
 
@@ -87,7 +88,7 @@ public class PreparedStatementSuiteTests extends AbstractStatementTests {
      */
     @Test(timeOut = TIME_OUT)
     public void batchUpdateWithoutParameter() {
-        final TxDatabaseSession session;
+        final LocalDatabaseSession session;
         session = getSession();
 
         final long id = START_ID + 3;
@@ -115,7 +116,7 @@ public class PreparedStatementSuiteTests extends AbstractStatementTests {
      */
     @Test(timeOut = TIME_OUT)
     public void batchAsMultiWithoutParameter() {
-        final TxDatabaseSession session;
+        final LocalDatabaseSession session;
         session = getSession();
 
         final long id = START_ID + 4;
@@ -140,7 +141,7 @@ public class PreparedStatementSuiteTests extends AbstractStatementTests {
      */
     @Test(timeOut = TIME_OUT)
     public void batchAsFluxWithoutParameter() {
-        final TxDatabaseSession session;
+        final LocalDatabaseSession session;
         session = getSession();
 
         final long id = START_ID + 5;
@@ -172,7 +173,7 @@ public class PreparedStatementSuiteTests extends AbstractStatementTests {
      */
     @Test(timeOut = TIME_OUT)
     public void update() {
-        final TxDatabaseSession session;
+        final LocalDatabaseSession session;
         session = getSession();
         final long id = START_ID + 6;
         final String sql = "UPDATE my_types AS t SET my_boolean = TRUE WHERE t.id = ? ";
@@ -202,7 +203,7 @@ public class PreparedStatementSuiteTests extends AbstractStatementTests {
      */
     @Test(timeOut = TIME_OUT)
     public void query() {
-        final TxDatabaseSession session;
+        final LocalDatabaseSession session;
         session = getSession();
         final long id = START_ID + 7;
         final String sql = "SELECT t.* FROM my_types AS t WHERE t.id = ?";
@@ -241,7 +242,7 @@ public class PreparedStatementSuiteTests extends AbstractStatementTests {
      */
     @Test(timeOut = TIME_OUT)
     public void batchUpdate() {
-        final TxDatabaseSession session;
+        final LocalDatabaseSession session;
         session = getSession();
         final int batchCount = 10;
         final long startId = START_ID + 8;
@@ -283,7 +284,7 @@ public class PreparedStatementSuiteTests extends AbstractStatementTests {
      */
     @Test(timeOut = TIME_OUT)
     public void batchAsMulti() {
-        final TxDatabaseSession session;
+        final LocalDatabaseSession session;
         session = getSession();
 
         final int batchCount = 4;
@@ -326,7 +327,7 @@ public class PreparedStatementSuiteTests extends AbstractStatementTests {
      */
     @Test(timeOut = TIME_OUT)
     public void batchAsFlux() {
-        final TxDatabaseSession session;
+        final LocalDatabaseSession session;
         session = getSession();
 
         final int batchCount = 10;
@@ -368,7 +369,7 @@ public class PreparedStatementSuiteTests extends AbstractStatementTests {
      */
     @Test(timeOut = TIME_OUT)
     public void abandonBind() {
-        final TxDatabaseSession session;
+        final LocalDatabaseSession session;
         session = getSession();
 
         final String sql = "UPDATE my_types AS t SET my_boolean = TRUE WHERE t.id = ? ";
@@ -399,7 +400,7 @@ public class PreparedStatementSuiteTests extends AbstractStatementTests {
      */
     @Test(timeOut = TIME_OUT)
     public void bindingOccurError() {
-        final TxDatabaseSession session;
+        final LocalDatabaseSession session;
         session = getSession();
 
         final String sql = "UPDATE my_types AS t SET my_boolean = TRUE WHERE t.id = ? ";

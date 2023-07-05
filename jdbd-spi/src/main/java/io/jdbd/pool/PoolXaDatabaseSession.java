@@ -1,9 +1,9 @@
 package io.jdbd.pool;
 
-import io.jdbd.session.XaDatabaseSession;
+import io.jdbd.session.RmDatabaseSession;
 import org.reactivestreams.Publisher;
 
-public interface PoolXaDatabaseSession extends XaDatabaseSession, PoolDatabaseSession {
+public interface PoolXaDatabaseSession extends RmDatabaseSession, PoolDatabaseSession {
 
 
     @Override

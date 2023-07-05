@@ -3,7 +3,6 @@ package io.jdbd.mysql.session;
 import io.jdbd.JdbdException;
 import io.jdbd.JdbdSQLException;
 import io.jdbd.meta.DataType;
-import io.jdbd.meta.SQLType;
 import io.jdbd.mysql.MySQLJdbdException;
 import io.jdbd.mysql.MySQLType;
 import io.jdbd.mysql.stmt.*;
@@ -13,9 +12,9 @@ import io.jdbd.result.MultiResult;
 import io.jdbd.result.OrderedFlux;
 import io.jdbd.result.ResultRow;
 import io.jdbd.result.ResultStates;
-import io.jdbd.stmt.BindStatement;
-import io.jdbd.stmt.ResultType;
-import io.jdbd.stmt.SubscribeException;
+import io.jdbd.statement.BindStatement;
+import io.jdbd.statement.ResultType;
+import io.jdbd.statement.SubscribeException;
 import io.jdbd.vendor.result.MultiResults;
 import io.jdbd.vendor.util.JdbdBinds;
 import io.jdbd.vendor.util.JdbdFunctions;
@@ -32,7 +31,7 @@ import java.util.function.Consumer;
 
 /**
  * <p>
- * This interface is a implementation of {@link io.jdbd.stmt.BindStatement} with MySQL client protocol.
+ * This interface is a implementation of {@link io.jdbd.statement.BindStatement} with MySQL client protocol.
  * </p>
  */
 final class MySQLBindStatement extends MySQLStatement implements AttrBindStatement {
@@ -82,7 +81,10 @@ final class MySQLBindStatement extends MySQLStatement implements AttrBindStateme
         return this;
     }
 
-
+    @Override
+    public BindStatement bind(int indexBasedZero, String dataTypeName,@Nullable Object nullable) throws JdbdException {
+        return this;
+    }
 
     @Override
     public BindStatement addBatch() throws JdbdException {

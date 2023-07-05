@@ -1,7 +1,7 @@
 package io.jdbd.vendor.result;
 
 import io.jdbd.result.*;
-import io.jdbd.stmt.ResultType;
+import io.jdbd.statement.ResultType;
 import io.jdbd.vendor.util.JdbdExceptions;
 import org.reactivestreams.Subscription;
 import reactor.core.publisher.Flux;

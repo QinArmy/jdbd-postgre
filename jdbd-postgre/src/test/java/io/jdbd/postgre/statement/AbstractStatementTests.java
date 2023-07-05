@@ -4,7 +4,7 @@ import io.jdbd.DriverManager;
 import io.jdbd.pool.PoolTxDatabaseSession;
 import io.jdbd.postgre.ClientTestUtils;
 import io.jdbd.session.DatabaseSessionFactory;
-import io.jdbd.session.TxDatabaseSession;
+import io.jdbd.session.LocalDatabaseSession;
 import reactor.core.publisher.Mono;
 
 import java.util.Map;
@@ -17,12 +17,12 @@ abstract class AbstractStatementTests {
 
     static final DatabaseSessionFactory DEFAULT_FACTORY = createDefaultSessionFactory();
 
-    static final Queue<TxDatabaseSession> SESSION_QUEUE = new LinkedBlockingQueue<>();
+    static final Queue<LocalDatabaseSession> SESSION_QUEUE = new LinkedBlockingQueue<>();
 
     static final long TIME_OUT = 5000L;
 
-    final TxDatabaseSession getSession() {
-        TxDatabaseSession session;
+    final LocalDatabaseSession getSession() {
+        LocalDatabaseSession session;
 
         session = SESSION_QUEUE.poll();
         if (session == null) {
@@ -33,7 +33,7 @@ abstract class AbstractStatementTests {
         return session;
     }
 
-    void closeSession(TxDatabaseSession session) {
+    void closeSession(LocalDatabaseSession session) {
         if (session instanceof PoolTxDatabaseSession) {
             Mono.from(((PoolTxDatabaseSession) session).reset())
                     .map(SESSION_QUEUE::offer)

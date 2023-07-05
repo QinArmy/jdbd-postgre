@@ -7,7 +7,7 @@ import io.jdbd.postgre.PgType;
 import io.jdbd.postgre.stmt.*;
 import io.jdbd.postgre.util.PgTimes;
 import io.jdbd.result.*;
-import io.jdbd.stmt.SubscribeException;
+import io.jdbd.statement.SubscribeException;
 import io.jdbd.vendor.stmt.StaticBatchStmt;
 import io.jdbd.vendor.stmt.StaticStmt;
 import org.slf4j.Logger;

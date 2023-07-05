@@ -10,9 +10,9 @@ import io.jdbd.postgre.util.PgExceptions;
 import io.jdbd.postgre.util.PgFunctions;
 import io.jdbd.result.*;
 import io.jdbd.session.DatabaseSession;
-import io.jdbd.stmt.PreparedStatement;
-import io.jdbd.stmt.ResultType;
-import io.jdbd.stmt.SubscribeException;
+import io.jdbd.statement.PreparedStatement;
+import io.jdbd.statement.ResultType;
+import io.jdbd.statement.SubscribeException;
 import io.jdbd.vendor.result.MultiResults;
 import io.jdbd.vendor.stmt.JdbdParamValue;
 import io.jdbd.vendor.stmt.ParamBatchStmt;
@@ -20,6 +20,7 @@ import io.jdbd.vendor.stmt.ParamStmt;
 import io.jdbd.vendor.stmt.ParamValue;
 import io.jdbd.vendor.task.PrepareTask;
 import io.jdbd.vendor.util.JdbdBinds;
+import org.reactivestreams.Publisher;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.util.annotation.Nullable;
@@ -77,17 +78,8 @@ final class PgPreparedStatement extends PgStatement implements PreparedStatement
 
 
     @Override
-    public List<? extends SQLType> getParameterTypes() {
-        return this.paramTypeList;
-    }
-
-    @Override
-    public ResultRowMeta getResultRowMeta() throws JdbdSQLException {
-        final ResultRowMeta meta = this.rowMeta;
-        if (meta == null) {
-            throw PgExceptions.noReturnColumn();
-        }
-        return meta;
+    public List<? extends DataType> getParameterTypes() {
+        return null;
     }
 
     @Override
@@ -115,6 +107,12 @@ final class PgPreparedStatement extends PgStatement implements PreparedStatement
 
     @Override
     public PreparedStatement bind(int indexBasedZero, DataType dataType, final @Nullable Object nullable)
+            throws JdbdException {
+        return this;
+    }
+
+    @Override
+    public PreparedStatement bind(int indexBasedZero, String dataTypeName,final @Nullable  Object nullable)
             throws JdbdException {
         return this;
     }

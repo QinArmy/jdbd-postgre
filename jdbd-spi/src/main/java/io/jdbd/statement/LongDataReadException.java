@@ -1,4 +1,4 @@
-package io.jdbd.stmt;
+package io.jdbd.statement;
 
 
 import io.jdbd.JdbdNonSQLException;

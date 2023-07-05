@@ -2,7 +2,7 @@ package io.jdbd.mysql.util;
 
 import io.jdbd.meta.SQLType;
 import io.jdbd.mysql.MySQLType;
-import io.jdbd.stmt.UnsupportedBindJavaTypeException;
+import io.jdbd.statement.UnsupportedBindJavaTypeException;
 import io.jdbd.vendor.stmt.Value;
 import io.jdbd.vendor.util.JdbdBinds;
 import io.jdbd.vendor.util.JdbdExceptions;

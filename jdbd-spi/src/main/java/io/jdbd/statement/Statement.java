@@ -1,4 +1,4 @@
-package io.jdbd.stmt;
+package io.jdbd.statement;
 
 
 import io.jdbd.session.DatabaseSession;
@@ -15,6 +15,7 @@ import java.util.function.Function;
  *         <li>{@link StaticStatement}</li>
  *         <li>{@link BindStatement}</li>
  *         <li>{@link PreparedStatement}</li>
+ *         <li>{@link OneStepPrepareStatement}</li>
  *         <li>{@link MultiStatement}</li>
  *     </ul>
  * </p>
@@ -26,6 +27,7 @@ import java.util.function.Function;
  * @see StaticStatement
  * @see BindStatement
  * @see PreparedStatement
+ * @see OneStepPrepareStatement
  * @see MultiStatement
  */
 public interface Statement {
@@ -45,7 +47,7 @@ public interface Statement {
 
     boolean supportOutParameter();
 
-    void setTimeout(int seconds);
+    Statement setTimeout(int seconds);
 
 
     /**

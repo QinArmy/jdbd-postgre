@@ -8,7 +8,7 @@ import io.jdbd.mysql.protocol.MySQLServerVersion;
 import io.jdbd.mysql.stmt.*;
 import io.jdbd.mysql.syntax.MySQLParser;
 import io.jdbd.mysql.util.*;
-import io.jdbd.stmt.LongDataReadException;
+import io.jdbd.statement.LongDataReadException;
 import io.jdbd.vendor.stmt.*;
 import io.jdbd.vendor.util.JdbdExceptions;
 import io.netty.buffer.ByteBuf;

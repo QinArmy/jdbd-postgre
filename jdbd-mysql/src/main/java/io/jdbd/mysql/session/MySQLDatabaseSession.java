@@ -4,13 +4,19 @@ import io.jdbd.meta.DatabaseMetaData;
 import io.jdbd.mysql.MySQLType;
 import io.jdbd.mysql.protocol.client.ClientProtocol;
 import io.jdbd.mysql.util.MySQLStrings;
+import io.jdbd.result.CurrentRow;
+import io.jdbd.result.MultiResult;
+import io.jdbd.result.OrderedFlux;
+import io.jdbd.result.ResultStates;
 import io.jdbd.session.*;
-import io.jdbd.stmt.BindStatement;
-import io.jdbd.stmt.MultiStatement;
-import io.jdbd.stmt.PreparedStatement;
-import io.jdbd.stmt.StaticStatement;
+import io.jdbd.statement.*;
 import io.jdbd.vendor.task.PrepareTask;
+import org.reactivestreams.Publisher;
 import reactor.core.publisher.Mono;
+
+import java.util.List;
+import java.util.function.Consumer;
+import java.util.function.Function;
 
 
 /**
@@ -39,6 +45,41 @@ abstract class MySQLDatabaseSession implements DatabaseSession {
 
 
     @Override
+    public final Publisher<ResultStates> executeUpdate(String sql) {
+        return null;
+    }
+
+    @Override
+    public final <R> Publisher<R> executeQuery(String sql, Function<CurrentRow, R> function) {
+        return null;
+    }
+
+    @Override
+    public final <R> Publisher<R> executeQuery(String sql, Function<CurrentRow, R> function, Consumer<ResultStates> statesConsumer) {
+        return null;
+    }
+
+    @Override
+    public final Publisher<ResultStates> executeBatchUpdate(List<String> sqlGroup) {
+        return null;
+    }
+
+    @Override
+    public final MultiResult executeBatchAsMulti(List<String> sqlGroup) {
+        return null;
+    }
+
+    @Override
+    public final OrderedFlux executeBatchAsFlux(List<String> sqlGroup) {
+        return null;
+    }
+
+    @Override
+    public final OrderedFlux executeAsFlux(String multiStmt) {
+        return null;
+    }
+
+    @Override
     public final Mono<TransactionOption> getTransactionOption() {
         return this.protocol.getTransactionOption();
     }
@@ -58,7 +99,12 @@ abstract class MySQLDatabaseSession implements DatabaseSession {
 
 
     @Override
-    public final BindStatement bindable(final String sql) {
+    public OneStepPrepareStatement oneStep(String sql) {
+        return null;
+    }
+
+    @Override
+    public final BindStatement bindStatement(final String sql) {
         if (!MySQLStrings.hasText(sql)) {
             throw new IllegalArgumentException("sql must has text.");
         }
@@ -66,7 +112,7 @@ abstract class MySQLDatabaseSession implements DatabaseSession {
     }
 
     @Override
-    public final MultiStatement multi() {
+    public final MultiStatement multiStatement() {
         return MySQLMultiStatement.create(this);
     }
 

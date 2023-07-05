@@ -4,7 +4,7 @@ import io.jdbd.JdbdException;
 import io.jdbd.JdbdSQLException;
 import io.jdbd.JdbdXaException;
 import io.jdbd.meta.SQLType;
-import io.jdbd.stmt.*;
+import io.jdbd.statement.*;
 import io.jdbd.vendor.JdbdCompositeException;
 import io.jdbd.vendor.JdbdUnknownException;
 import io.jdbd.vendor.stmt.CannotReuseStatementException;

@@ -8,9 +8,9 @@ import org.reactivestreams.Publisher;
 public interface DatabaseSessionFactory {
 
 
-    Publisher<TxDatabaseSession> getTxSession();
+    Publisher<LocalDatabaseSession> getTxSession();
 
-    Publisher<XaDatabaseSession> getXaSession();
+    Publisher<RmDatabaseSession> getXaSession();
 
 
     DriverVersion getDriverVersion();

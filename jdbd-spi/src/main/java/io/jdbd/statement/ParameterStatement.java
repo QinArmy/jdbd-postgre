@@ -1,4 +1,4 @@
-package io.jdbd.stmt;
+package io.jdbd.statement;
 
 import io.jdbd.JdbdException;
 import io.jdbd.lang.Nullable;
@@ -12,6 +12,7 @@ import java.sql.JDBCType;
  *     <ul>
  *         <li>{@link BindStatement}</li>
  *         <li>{@link PreparedStatement}</li>
+ *         <li>{@link OneStepPrepareStatement}</li>
  *         <li>{@link MultiStatement}</li>
  *     </ul>
  * </p>
@@ -50,5 +51,17 @@ public interface ParameterStatement extends Statement {
      * @param dataType       nonNullValue mapping sql data type name(must upper case).
      */
     ParameterStatement bind(int indexBasedZero, DataType dataType, @Nullable Object nullable) throws JdbdException;
+
+
+    /**
+     * <p>
+     * SQL parameter placeholder must be {@code ?}
+     * </p>
+     *
+     * @param indexBasedZero parameter placeholder index based zero.
+     * @param nullable       nullable the parameter value
+     * @param dataTypeName        nonNullValue mapping sql data type name(must upper case).
+     */
+    ParameterStatement bind(int indexBasedZero, String dataTypeName, @Nullable Object nullable) throws JdbdException;
 
 }

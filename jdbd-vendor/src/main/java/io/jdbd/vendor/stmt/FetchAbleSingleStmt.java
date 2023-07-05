@@ -14,12 +14,12 @@ import java.util.function.Consumer;
  *      </ul>
  *      The implementation of this interface is used by the implementation of below methods:
  *      <u>
- *          <li>{@link io.jdbd.stmt.StaticStatement#executeQuery(String)}</li>
- *          <li>{@link io.jdbd.stmt.StaticStatement#executeQuery(String, Consumer)}</li>
- *          <li>{@link io.jdbd.stmt.PreparedStatement#executeQuery()}</li>
- *          <li>{@link io.jdbd.stmt.PreparedStatement#executeQuery(Consumer)}</li>
- *          <li>{@link io.jdbd.stmt.BindStatement#executeQuery()}</li>
- *          <li>{@link io.jdbd.stmt.BindStatement#executeQuery(Consumer)}</li>
+ *          <li>{@link io.jdbd.statement.StaticStatement#executeQuery(String)}</li>
+ *          <li>{@link io.jdbd.statement.StaticStatement#executeQuery(String, Consumer)}</li>
+ *          <li>{@link io.jdbd.statement.PreparedStatement#executeQuery()}</li>
+ *          <li>{@link io.jdbd.statement.PreparedStatement#executeQuery(Consumer)}</li>
+ *          <li>{@link io.jdbd.statement.BindStatement#executeQuery()}</li>
+ *          <li>{@link io.jdbd.statement.BindStatement#executeQuery(Consumer)}</li>
  *      </u>
  * </p>
  * <p>

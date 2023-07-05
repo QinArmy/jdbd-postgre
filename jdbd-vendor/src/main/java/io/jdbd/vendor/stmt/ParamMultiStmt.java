@@ -9,7 +9,7 @@ import java.util.function.Function;
 /**
  * <p>
  * This interface representing multi {@link ParamStmt}.
- * This used by {@link io.jdbd.stmt.MultiStatement} for wrap sql and params.
+ * This used by {@link io.jdbd.statement.MultiStatement} for wrap sql and params.
  * </p>
  */
 public interface ParamMultiStmt extends Stmt {

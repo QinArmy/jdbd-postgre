@@ -11,7 +11,7 @@ import io.jdbd.postgre.stmt.BindValue;
 import io.jdbd.postgre.syntax.PgParser;
 import io.jdbd.postgre.syntax.PgStatement;
 import io.jdbd.postgre.util.*;
-import io.jdbd.stmt.LongDataReadException;
+import io.jdbd.statement.LongDataReadException;
 import io.jdbd.vendor.stmt.StaticBatchStmt;
 import io.jdbd.vendor.syntax.SQLParser;
 import io.netty.buffer.ByteBuf;

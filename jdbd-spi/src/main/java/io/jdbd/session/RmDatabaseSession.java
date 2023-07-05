@@ -14,7 +14,7 @@ import org.reactivestreams.Publisher;
  *
  * @see <a href="http://www.opengroup.org/public/pubs/catalog/c193.htm">The XA Specification</a>
  */
-public interface XaDatabaseSession extends DatabaseSession {
+public interface RmDatabaseSession extends DatabaseSession {
 
     int TMNOFLAGS = 0;
     int TMJOIN = 1 << 21;
@@ -47,17 +47,17 @@ public interface XaDatabaseSession extends DatabaseSession {
      * @return a Publisher that only emitting an element or error.The element is this instance.
      * @throws JdbdXaException emit(not throw),when
      */
-    Publisher<XaDatabaseSession> start(Xid xid, int flags);
+    Publisher<RmDatabaseSession> start(Xid xid, int flags);
 
-    Publisher<XaDatabaseSession> end(Xid xid, int flags);
+    Publisher<RmDatabaseSession> end(Xid xid, int flags);
 
     Publisher<Integer> prepare(Xid xid);
 
-    Publisher<XaDatabaseSession> commit(Xid xid, boolean onePhase);
+    Publisher<RmDatabaseSession> commit(Xid xid, boolean onePhase);
 
-    Publisher<XaDatabaseSession> rollback(Xid xid);
+    Publisher<RmDatabaseSession> rollback(Xid xid);
 
-    Publisher<XaDatabaseSession> forget(Xid xid);
+    Publisher<RmDatabaseSession> forget(Xid xid);
 
     Publisher<Xid> recover(int flags);
 

@@ -1,9 +1,9 @@
 package io.jdbd.pool;
 
-import io.jdbd.session.TxDatabaseSession;
+import io.jdbd.session.LocalDatabaseSession;
 import org.reactivestreams.Publisher;
 
-public interface PoolTxDatabaseSession extends PoolDatabaseSession, TxDatabaseSession {
+public interface PoolTxDatabaseSession extends PoolDatabaseSession, LocalDatabaseSession {
 
 
     @Override

@@ -26,4 +26,7 @@ How to clear channel?
 7. 为什么 ResultRow 的 get 方法不支持浮点型( float 和 double) 与其它数字类型相互转换?
    1. jdbd 的理念是 转换不能损失精度,而将浮点型是不精确的,它不能做到这一点.
    2. statement 的 bind 也不支持浮点型与其它数字类型的相互转换
+8. 为什么 return Publisher&lt; ResultStates> 而不是 Publisher&lt; ? extends ResultStates> ?
+   * 后者虽然方便了 driver 开发者,但 application 开发者在调用 reactor.core.publisher.Mono.concatWith() 等方法是不方便
+   在有冲突时应优先方便 application 开发者.
     

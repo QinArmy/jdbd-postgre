@@ -1,6 +1,6 @@
 package io.jdbd.mysql.stmt;
 
-import io.jdbd.stmt.StaticStatement;
+import io.jdbd.statement.StaticStatement;
 
 public interface AttrStaticStatement extends AttrStatement, StaticStatement {
 

@@ -1,23 +1,27 @@
-package io.jdbd.stmt;
+package io.jdbd.statement;
 
 import io.jdbd.JdbdSQLException;
-import io.jdbd.result.MultiResult;
-import io.jdbd.result.OrderedFlux;
-import io.jdbd.result.ResultRow;
-import io.jdbd.result.ResultStates;
+import io.jdbd.result.*;
 import io.jdbd.session.DatabaseSession;
 import io.jdbd.session.SessionCloseException;
 import org.reactivestreams.Publisher;
 
 import java.util.List;
 import java.util.function.Consumer;
+import java.util.function.Function;
 
 /**
  * <p>
- * This interface is reactive version of {@code java.sql.Statement}
+ *     This interface is base interface of following:
+ *     <ul>
+ *         <li>{@link Statement}</li>
+ *         <li>{@link DatabaseSession}</li>
+ *     </ul>
  * </p>
+ * @since 1.0
  */
-public interface StaticStatement extends Statement {
+public interface StaticStatementSpec {
+
 
 
     /**
@@ -153,10 +157,10 @@ public interface StaticStatement extends Statement {
      */
     Publisher<ResultStates> executeUpdate(String sql);
 
-    /**
-     * @see #executeQuery(String, Consumer)
-     */
-    Publisher<ResultRow> executeQuery(String sql);
+
+    default  <R> Publisher<R> executeQuery(String sql, Function<CurrentRow,R> function){
+        throw new UnsupportedOperationException();
+    }
 
     /**
      * Executes the SQL query in this <code>PreparedStatement</code> object
@@ -170,7 +174,10 @@ public interface StaticStatement extends Statement {
      * statement does not return a <code>ResultSet</code> object
      * </p>
      */
-    Publisher<ResultRow> executeQuery(String sql, Consumer<ResultStates> statesConsumer);
+    default  <R> Publisher<R> executeQuery(String sql, Function<CurrentRow,R> function, Consumer<ResultStates> statesConsumer){
+        throw new UnsupportedOperationException();
+    }
+
 
 
     Publisher<ResultStates> executeBatchUpdate(List<String> sqlGroup);
@@ -181,6 +188,4 @@ public interface StaticStatement extends Statement {
     OrderedFlux executeBatchAsFlux(List<String> sqlGroup);
 
     OrderedFlux executeAsFlux(String multiStmt);
-
-
 }

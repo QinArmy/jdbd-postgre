@@ -9,7 +9,7 @@ import java.util.function.Function;
 /**
  * <p>
  * This interface representing object that wrap sql and parameter and option(eg: timeout).
- * The implementation of this interface is used by the implementation of {@link io.jdbd.stmt.Statement}
+ * The implementation of this interface is used by the implementation of {@link io.jdbd.statement.Statement}
  * </p>
  * <p>
  * This interface is a base interface of :

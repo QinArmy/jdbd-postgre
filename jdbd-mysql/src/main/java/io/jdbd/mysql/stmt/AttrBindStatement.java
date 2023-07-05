@@ -1,6 +1,6 @@
 package io.jdbd.mysql.stmt;
 
-import io.jdbd.stmt.BindStatement;
+import io.jdbd.statement.BindStatement;
 
 public interface AttrBindStatement extends AttrStatement, BindStatement {
 

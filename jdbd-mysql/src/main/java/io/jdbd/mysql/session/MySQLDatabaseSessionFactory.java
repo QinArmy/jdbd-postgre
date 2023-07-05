@@ -14,8 +14,8 @@ import io.jdbd.mysql.protocol.conf.MySQLUrl;
 import io.jdbd.mysql.util.MySQLExceptions;
 import io.jdbd.mysql.util.MySQLStrings;
 import io.jdbd.session.DatabaseSessionFactory;
-import io.jdbd.session.TxDatabaseSession;
-import io.jdbd.session.XaDatabaseSession;
+import io.jdbd.session.LocalDatabaseSession;
+import io.jdbd.session.RmDatabaseSession;
 import io.jdbd.vendor.conf.Properties;
 import io.netty.channel.EventLoopGroup;
 import reactor.core.publisher.Mono;
@@ -52,13 +52,13 @@ public final class MySQLDatabaseSessionFactory implements DatabaseSessionFactory
     }
 
     @Override
-    public Mono<TxDatabaseSession> getTxSession() {
+    public Mono<LocalDatabaseSession> getTxSession() {
         return getClientProtocol()
                 .map(this::createTxSession);
     }
 
     @Override
-    public Mono<XaDatabaseSession> getXaSession() {
+    public Mono<RmDatabaseSession> getXaSession() {
         return getClientProtocol()
                 .map(this::createXaSession);
     }
@@ -95,8 +95,8 @@ public final class MySQLDatabaseSessionFactory implements DatabaseSessionFactory
     /**
      * @see #getTxSession()
      */
-    private TxDatabaseSession createTxSession(final ClientProtocol protocol) {
-        final TxDatabaseSession session;
+    private LocalDatabaseSession createTxSession(final ClientProtocol protocol) {
+        final LocalDatabaseSession session;
         if (this.forPoolVendor) {
             session = MySQLTxDatabaseSession.forPoolVendor(this.adjutant, protocol);
         } else {
@@ -108,8 +108,8 @@ public final class MySQLDatabaseSessionFactory implements DatabaseSessionFactory
     /**
      * @see #getXaSession()
      */
-    private XaDatabaseSession createXaSession(ClientProtocol protocol) {
-        final XaDatabaseSession session;
+    private RmDatabaseSession createXaSession(ClientProtocol protocol) {
+        final RmDatabaseSession session;
         if (this.forPoolVendor) {
             session = MySQLXaDatabaseSession.forPoolVendor(this.adjutant, protocol);
         } else {

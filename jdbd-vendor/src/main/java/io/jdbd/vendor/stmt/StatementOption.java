@@ -8,7 +8,7 @@ import java.util.function.Function;
 
 /**
  * <p>
- * This interface representing option of {@link io.jdbd.stmt.Statement},
+ * This interface representing option of {@link io.jdbd.statement.Statement},
  * and is used by  the implementation of {@link Stmt} .
  * </p>
  */

@@ -3,14 +3,19 @@ package io.jdbd.postgre.session;
 import io.jdbd.meta.DatabaseMetaData;
 import io.jdbd.postgre.PgType;
 import io.jdbd.postgre.protocol.client.ClientProtocol;
+import io.jdbd.result.CurrentRow;
+import io.jdbd.result.MultiResult;
+import io.jdbd.result.OrderedFlux;
+import io.jdbd.result.ResultStates;
 import io.jdbd.session.*;
-import io.jdbd.stmt.BindStatement;
-import io.jdbd.stmt.MultiStatement;
-import io.jdbd.stmt.PreparedStatement;
-import io.jdbd.stmt.StaticStatement;
+import io.jdbd.statement.*;
 import io.jdbd.vendor.task.PrepareTask;
 import org.reactivestreams.Publisher;
 import reactor.core.publisher.Mono;
+
+import java.util.List;
+import java.util.function.Consumer;
+import java.util.function.Function;
 
 
 /**
@@ -18,7 +23,7 @@ import reactor.core.publisher.Mono;
  * <p>
  * This class is base class of :
  *     <ul>
- *         <li>{@link PgTxDatabaseSession}</li>
+ *         <li>{@link PgLocalDatabaseSession}</li>
  *         <li>{@link PgXaDatabaseSession}</li>
  *     </ul>
  * </p>
@@ -32,6 +37,42 @@ abstract class PgDatabaseSession implements DatabaseSession {
     PgDatabaseSession(SessionAdjutant adjutant, ClientProtocol protocol) {
         this.adjutant = adjutant;
         this.protocol = protocol;
+    }
+
+
+    @Override
+    public final Publisher<ResultStates> executeUpdate(String sql) {
+        return null;
+    }
+
+    @Override
+    public final <R> Publisher<R> executeQuery(String sql, Function<CurrentRow, R> function) {
+        return null;
+    }
+
+    @Override
+    public final <R> Publisher<R> executeQuery(String sql, Function<CurrentRow, R> function, Consumer<ResultStates> statesConsumer) {
+        return null;
+    }
+
+    @Override
+    public final Publisher<ResultStates> executeBatchUpdate(List<String> sqlGroup) {
+        return null;
+    }
+
+    @Override
+    public final MultiResult executeBatchAsMulti(List<String> sqlGroup) {
+        return null;
+    }
+
+    @Override
+    public final OrderedFlux executeBatchAsFlux(List<String> sqlGroup) {
+        return null;
+    }
+
+    @Override
+    public final OrderedFlux executeAsFlux(String multiStmt) {
+        return null;
     }
 
     @Override
@@ -56,12 +97,17 @@ abstract class PgDatabaseSession implements DatabaseSession {
     }
 
     @Override
-    public final BindStatement bindable(final String sql) {
+    public OneStepPrepareStatement oneStep(String sql) {
+        return null;
+    }
+
+    @Override
+    public final BindStatement bindStatement(final String sql) {
         return PgBindStatement.create(sql, this);
     }
 
     @Override
-    public final MultiStatement multi() {
+    public final MultiStatement multiStatement() {
         return PgMultiStatement.create(this);
     }
 

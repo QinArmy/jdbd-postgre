@@ -10,10 +10,10 @@ import io.jdbd.result.OrderedFlux;
 import io.jdbd.result.ResultRow;
 import io.jdbd.result.ResultStates;
 import io.jdbd.session.*;
-import io.jdbd.stmt.BindStatement;
-import io.jdbd.stmt.MultiStatement;
-import io.jdbd.stmt.PreparedStatement;
-import io.jdbd.stmt.StaticStatement;
+import io.jdbd.statement.BindStatement;
+import io.jdbd.statement.MultiStatement;
+import io.jdbd.statement.PreparedStatement;
+import io.jdbd.statement.StaticStatement;
 import io.jdbd.vendor.stmt.StaticBatchStmt;
 import io.jdbd.vendor.stmt.StaticMultiStmt;
 import io.jdbd.vendor.stmt.StaticStmt;
@@ -30,8 +30,8 @@ import java.util.function.Function;
  * <p>
  * This interface is underlying api of below interfaces:
  *     <ul>
- *         <li>{@link TxDatabaseSession}</li>
- *         <li>{@link XaDatabaseSession}</li>
+ *         <li>{@link LocalDatabaseSession}</li>
+ *         <li>{@link RmDatabaseSession}</li>
  *         <li>{@link StaticStatement}</li>
  *         <li>{@link BindStatement}</li>
  *         <li>{@link PreparedStatement}</li>
