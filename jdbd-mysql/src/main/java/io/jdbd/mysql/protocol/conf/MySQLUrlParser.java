@@ -77,7 +77,8 @@ final class MySQLUrlParser implements JdbcUrlParser {
         this.query = matcher.group("query"); // Don't decode just yet.
 
         // 2-1 parse url query properties
-        Map<String, Object> parseProperties = parseQueryProperties();
+        final Map<String, Object> parseProperties;
+        parseProperties = parseQueryProperties();
 
         //2-2 parse user and password from url
         String actualAuthority = this.authority;
@@ -153,13 +154,13 @@ final class MySQLUrlParser implements JdbcUrlParser {
      * @return a modifiable map
      */
     private Map<String, Object> parseQueryProperties() {
-        String query = this.query;
+        final String query = this.query;
         if (MySQLStrings.isEmpty(query)) {
             return MySQLCollections.hashMap();
         }
-        String[] queryPairs = query.split("&");
+        final String[] queryPairs = query.split("&");
 
-        Map<String, Object> properties = MySQLCollections.hashMap();
+        final Map<String, Object> properties = MySQLCollections.hashMap();
         try {
             for (String pair : queryPairs) {
                 String[] kv = pair.split("=");

@@ -1,6 +1,6 @@
 package io.jdbd.vendor.conf;
 
-import io.jdbd.PropertyException;
+import io.jdbd.JdbdException;
 import io.qinarmy.env.ImmutableMapEnvironment;
 import io.qinarmy.env.convert.Converter;
 import io.qinarmy.env.convert.ConverterManager;
@@ -147,7 +147,7 @@ public final class ImmutableMapProperties extends ImmutableMapEnvironment implem
         }
         String defaultText = key.getDefault();
         if (defaultText == null) {
-            throw new PropertyException(key.getKey(), String.format("not found value for key[%s]", key.getKey()));
+            throw new JdbdException(String.format("not found value for key[%s]", key.getKey()));
         }
         return defaultText;
     }
@@ -160,12 +160,11 @@ public final class ImmutableMapProperties extends ImmutableMapEnvironment implem
         }
         String defaultText = key.getDefault();
         if (defaultText == null) {
-            throw new PropertyException(key.getKey(), String.format("not found value for key[%s]", key.getKey()));
+            throw new JdbdException(String.format("not found value for key[%s]", key.getKey()));
         } else {
             Converter<T> converter = this.converterManager.getConverter(targetType);
             if (converter == null) {
-                throw new PropertyException(
-                        key.getKey(), String.format("not found Converter for [%s,%s]", String.class, targetType));
+                throw new JdbdException(String.format("not found Converter for [%s,%s]", String.class, targetType));
             } else {
                 try {
                     value = converter.convert(defaultText);
@@ -177,9 +176,9 @@ public final class ImmutableMapProperties extends ImmutableMapEnvironment implem
         return value;
     }
 
-    private static PropertyException cannotConvertException(PropertyKey key, Class<?> targetType, Throwable e) {
+    private static JdbdException cannotConvertException(PropertyKey key, Class<?> targetType, Throwable e) {
         String m = String.format("Property[%s] value couldn't convert to %s.", key, targetType.getName());
-        return new PropertyException(key.getKey(), m);
+        return new JdbdException(m, e);
     }
 
 

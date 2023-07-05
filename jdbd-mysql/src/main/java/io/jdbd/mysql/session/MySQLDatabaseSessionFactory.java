@@ -1,10 +1,7 @@
 package io.jdbd.mysql.session;
 
-import io.jdbd.DriverVersion;
 import io.jdbd.JdbdException;
-import io.jdbd.ProductFamily;
 import io.jdbd.PropertyException;
-import io.jdbd.mysql.MySQLDriver;
 import io.jdbd.mysql.protocol.authentication.AuthenticationPlugin;
 import io.jdbd.mysql.protocol.authentication.PluginUtils;
 import io.jdbd.mysql.protocol.client.ClientProtocol;
@@ -64,14 +61,10 @@ public final class MySQLDatabaseSessionFactory implements DatabaseSessionFactory
                 .map(this::createXaSession);
     }
 
-    @Override
-    public DriverVersion getDriverVersion() {
-        return MySQLDriver.getVersion();
-    }
 
     @Override
-    public ProductFamily getProductFamily() {
-        return ProductFamily.MySQL;
+    public String getProductName() {
+        return "MySQL";
     }
 
     @Override

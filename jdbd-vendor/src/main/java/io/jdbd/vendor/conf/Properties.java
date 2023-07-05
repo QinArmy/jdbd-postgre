@@ -1,6 +1,6 @@
 package io.jdbd.vendor.conf;
 
-import io.jdbd.PropertyException;
+import io.jdbd.JdbdException;
 import reactor.util.annotation.Nullable;
 
 import java.util.Collections;
@@ -45,7 +45,7 @@ public interface Properties {
      * @param targetType the expected type of the property value
      */
     @Nullable
-    <T> T get(PropertyKey key, Class<T> targetType) throws PropertyException;
+    <T> T get(PropertyKey key, Class<T> targetType) throws JdbdException;
 
     /**
      * Return the property value associated with the given key,
@@ -55,7 +55,7 @@ public interface Properties {
      * @param targetType   the expected type of the property value
      * @param defaultValue the default value to return if no value is found
      */
-    <T> T get(PropertyKey key, Class<T> targetType, T defaultValue) throws PropertyException;
+    <T> T get(PropertyKey key, Class<T> targetType, T defaultValue) throws JdbdException;
 
     /**
      * Return the property value associated with the given key,but not {@link String} ,the the property value showSQL:
@@ -65,7 +65,7 @@ public interface Properties {
      * @param key the property name to resolve
      * @return a  list
      */
-    List<String> getList(PropertyKey key) throws PropertyException;
+    List<String> getList(PropertyKey key) throws JdbdException;
 
     /**
      * Return the property value associated with the given key,but not {@link String} ,the the property value showSQL:
@@ -76,18 +76,18 @@ public interface Properties {
      * @param elementType the expected type of the property value
      * @return a  list
      */
-    <T> List<T> getList(PropertyKey key, Class<T> elementType) throws PropertyException;
+    <T> List<T> getList(PropertyKey key, Class<T> elementType) throws JdbdException;
 
     /**
      * Return the property value associated with the given key,
      * or {@link Collections#emptyList()} if the key cannot be resolved.
      *
-     * @param key             the property name to resolve
+     * @param key         the property name to resolve
      * @param elementType the expected type of the property value
-     * @param defaultList     the default list to return if no value is found
+     * @param defaultList the default list to return if no value is found
      * @return a  li
      */
-    <T> List<T> getList(PropertyKey key, Class<T> elementType, List<T> defaultList) throws PropertyException;
+    <T> List<T> getList(PropertyKey key, Class<T> elementType, List<T> defaultList) throws JdbdException;
 
     /**
      * Return the property value associated with the given key,but not {@link String} ,the the property value showSQL:
@@ -98,9 +98,9 @@ public interface Properties {
      * @param elementType the expected type of the property value
      * @return a  list
      */
-    <T> Set<T> getSet(PropertyKey key, Class<T> elementType) throws PropertyException;
+    <T> Set<T> getSet(PropertyKey key, Class<T> elementType) throws JdbdException;
 
-    Set<String> getSet(PropertyKey key) throws PropertyException;
+    Set<String> getSet(PropertyKey key) throws JdbdException;
 
     /**
      * Return the property value associated with the given key,but not {@link String} ,the the property value showSQL:
@@ -112,26 +112,26 @@ public interface Properties {
      * @param defaultSet      the default set to return if no value is found
      * @return a  list
      */
-    <T> Set<T> getSet(PropertyKey key, Class<T> elementType, Set<T> defaultSet) throws PropertyException;
+    <T> Set<T> getSet(PropertyKey key, Class<T> elementType, Set<T> defaultSet) throws JdbdException;
 
     /**
      * Return the property value associated with the given key (never {@code null}).
      *
-     * @throws PropertyException if the key cannot be resolved
+     * @throws JdbdException if the key cannot be resolved
      */
-    String getNonNull(PropertyKey key) throws PropertyException;
+    String getNonNull(PropertyKey key) throws JdbdException;
 
     /**
      * Return the property value associated with the given key, converted to the given
      * targetType (never {@code null}).
      *
-     * @throws PropertyException if the given key cannot be resolved
+     * @throws JdbdException if the given key cannot be resolved
      */
-    <T> T getNonNull(PropertyKey key, Class<T> targetType) throws PropertyException;
+    <T> T getNonNull(PropertyKey key, Class<T> targetType) throws JdbdException;
 
-    String getOrDefault(PropertyKey key) throws PropertyException;
+    String getOrDefault(PropertyKey key) throws JdbdException;
 
-    <T> T getOrDefault(PropertyKey key, Class<T> targetType) throws PropertyException;
+    <T> T getOrDefault(PropertyKey key, Class<T> targetType) throws JdbdException;
 
 
 }

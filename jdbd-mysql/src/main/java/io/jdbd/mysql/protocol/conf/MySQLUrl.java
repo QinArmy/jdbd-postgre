@@ -1,17 +1,16 @@
 package io.jdbd.mysql.protocol.conf;
 
 
-import io.jdbd.PropertyException;
-import io.jdbd.UrlException;
+import io.jdbd.JdbdException;
 import io.jdbd.mysql.protocol.client.Charsets;
 import io.jdbd.mysql.protocol.client.ClientProtocol;
+import io.jdbd.mysql.util.MySQLCollections;
 import io.jdbd.vendor.conf.*;
 import io.qinarmy.env.convert.ConverterManager;
 import io.qinarmy.env.convert.ImmutableConverterManager;
 import reactor.util.annotation.Nullable;
 
 import java.nio.charset.Charset;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -120,10 +119,10 @@ public final class MySQLUrl extends AbstractJdbcUrl {
     }
 
     private static List<MySQLHost> createHostInfoList(JdbcUrlParser parser) {
-        final List<Map<String, String>> hostMapList = parser.getHostInfo();
+        final List<Map<String, Object>> hostMapList = parser.getHostInfo();
 
         final int hostSize = hostMapList.size();
-        List<MySQLHost> hostInfoList = new ArrayList<>(hostSize);
+        List<MySQLHost> hostInfoList = MySQLCollections.arrayList(hostSize);
         for (int i = 0; i < hostSize; i++) {
             hostInfoList.add(MySQLHost.create(parser, i));
         }
@@ -131,25 +130,8 @@ public final class MySQLUrl extends AbstractJdbcUrl {
     }
 
     private static void checkUrlProperties(final Properties properties) {
-        MyKey currentKey = null;
-        try {
-            for (MyKey key : MyKey.values()) {
-                currentKey = key;
-                properties.get(key, key.getJavaType());
-            }
-        } catch (PropertyException e) {
-            throw e;
-        } catch (Throwable e) {
-            final String m, propName;
-            if (currentKey == null) {
-                // never here
-                propName = "unknown property";
-                m = "Property error";
-            } else {
-                propName = currentKey.getKey();
-                m = String.format("Property[%s] format error.", propName);
-            }
-            throw new PropertyException(propName, m, e);
+        for (MyKey key : MyKey.values()) {
+            properties.get(key, key.getJavaType());
         }
     }
 
@@ -161,17 +143,17 @@ public final class MySQLUrl extends AbstractJdbcUrl {
         charset = properties.get(MyKey.characterEncoding, Charset.class);
         if (charset != null && Charsets.isUnsupportedCharsetClient(charset.name())) {
             String m = String.format(
-                    "Property[%s] value[%s] isn unsupported client charset,because encode US_ASCII as multi bytes."
-                    , MyKey.characterEncoding, charset.name());
-            throw new PropertyException(MyKey.characterEncoding.getKey(), m);
+                    "Property[%s] value[%s] isn unsupported client charset,because encode US_ASCII as multi bytes.",
+                    MyKey.characterEncoding, charset.name());
+            throw new JdbdException(m);
         }
 
 
     }
 
-    private static PropertyException errorPropertyValue(final MyKey key) {
+    private static JdbdException errorPropertyValue(final MyKey key) {
         String m = String.format("Property[%s] value error.", key);
-        return new PropertyException(key.getKey(), m);
+        return new JdbdException(m);
     }
 
 
@@ -262,7 +244,7 @@ public final class MySQLUrl extends AbstractJdbcUrl {
 
         /**
          * Returns the {@link Protocol} corresponding to the given scheme and number of hosts, if any.
-         * Otherwise throws an {@link UrlException}.
+         * Otherwise throws an {@link JdbdException}.
          * Calling this method with the argument n lower than 0 skips the hosts cardinality validation.
          *
          * @param scheme one of supported schemes
@@ -275,8 +257,8 @@ public final class MySQLUrl extends AbstractJdbcUrl {
                     return t;
                 }
             }
-            String message = String.format("unsupported scheme[%s] and hosts cardinality[%s]", scheme, n);
-            throw new UrlException(url, message);
+            String m = String.format("unsupported scheme[%s] and hosts cardinality[%s] in url[%s]", scheme, n, url);
+            throw new JdbdException(m);
         }
 
         /**
@@ -286,12 +268,14 @@ public final class MySQLUrl extends AbstractJdbcUrl {
          * @return true if the given scheme is supported by driver
          */
         public static boolean isSupported(String scheme) {
+            boolean support = false;
             for (Protocol t : values()) {
                 if (t.getScheme().equalsIgnoreCase(scheme)) {
-                    return true;
+                    support = true;
+                    break;
                 }
             }
-            return false;
+            return support;
         }
     }
 
