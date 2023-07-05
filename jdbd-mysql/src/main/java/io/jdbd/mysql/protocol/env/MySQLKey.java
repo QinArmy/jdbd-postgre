@@ -7,8 +7,10 @@ import io.jdbd.mysql.protocol.client.Enums;
 import io.jdbd.mysql.util.MySQLStrings;
 import io.jdbd.vendor.env.OnlyReactor;
 import io.jdbd.vendor.env.Redefine;
+import reactor.netty.resources.ConnectionProvider;
 
 import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.time.ZoneOffset;
 
@@ -180,6 +182,292 @@ public final class MySQLKey<T> {
      * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-connection.html">useAffectedRows</a>
      */
     public static final MySQLKey<Boolean> USE_AFFECTED_ROWS = new MySQLKey<>("useAffectedRows", Boolean.class, Boolean.FALSE);
+
+    /*-------------------below Session group-------------------*/
+
+    /**
+     * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-session.html">sessionVariables</a>
+     */
+    public static final MySQLKey<String> SESSION_VARIABLES = new MySQLKey<>("sessionVariables", String.class, null);
+
+    /**
+     * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-session.html">characterEncoding</a>
+     */
+    public static final MySQLKey<Charset> CHARACTER_ENCODING = new MySQLKey<>("characterEncoding", Charset.class, StandardCharsets.UTF_8);
+
+    /**
+     * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-session.html">characterSetResults</a>
+     */
+    public static final MySQLKey<String> CHARACTER_SET_RESULTS = new MySQLKey<>("characterSetResults", String.class, null);
+
+    /**
+     * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-session.html">connectionCollation</a>
+     */
+    public static final MySQLKey<String> CONNECTION_COLLATION = new MySQLKey<>("connectionCollation", String.class, null);
+
+    /**
+     * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-session.html">connectionCollation</a>
+     * @since MySQL 8.0.26
+     */
+    public static final MySQLKey<String> CUSTOM_CHARSET_MAPPING = new MySQLKey<>("customCharsetMapping", String.class, null);
+
+    /**
+     * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-session.html">trackSessionState</a>
+     * @since MySQL 8.0.26
+     */
+    public static final MySQLKey<Boolean> TRACK_SESSION_STATE = new MySQLKey<>("trackSessionState", Boolean.class, Boolean.FALSE);
+
+
+    /*-------------------below Networking group-------------------*/
+
+    /**
+     * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-networking.html">socksProxyHost</a>
+     */
+    public static final MySQLKey<String> SOCKS_PROXY_HOST = new MySQLKey<>("socksProxyHost", String.class, null);
+
+    /**
+     * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-networking.html">socksProxyPort</a>
+     */
+    public static final MySQLKey<Integer> SOCKS_PROXY_PORT = new MySQLKey<>("socksProxyPort", Integer.class, 1080);
+
+    /**
+     * <p>
+     * The class name that must is the implementation of {@link ConnectionProvider}.
+     * The class must provide public static factory getInstance().For example :
+     * <pre><br/>
+     *   public static ConnectionProvider getInstance() {
+     *       return instance;
+     *   }
+     * </pre>
+     * </p>
+     *
+     * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-networking.html">socketFactory</a>
+     */
+    @Redefine
+    public static final MySQLKey<ConnectionProvider> SOCKET_FACTORY = new MySQLKey<>("socketFactory", ConnectionProvider.class, null);
+
+
+    /**
+     * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-networking.html">connectTimeout</a>
+     */
+    public static final MySQLKey<Long> CONNECT_TIMEOUT = new MySQLKey<>("connectTimeout", Long.class, 0L);
+
+    /**
+     * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-networking.html">socketTimeout</a>
+     */
+    public static final MySQLKey<Long> SOCKET_TIMEOUT = new MySQLKey<>("socketTimeout", Long.class, 0L);
+
+    /**
+     * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-networking.html">dnsSrv</a>
+     * @since MySQL 8.0.19
+     */
+    public static final MySQLKey<Boolean> DNS_SRV = new MySQLKey<>("dnsSrv", Boolean.class, Boolean.FALSE);
+
+    /**
+     * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-networking.html">localSocketAddress</a>
+     */
+    public static final MySQLKey<String> LOCAL_SOCKET_ADDRESS = new MySQLKey<>("localSocketAddress", String.class, null);
+
+    /**
+     * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-networking.html">maxAllowedPacket</a>
+     * @see <a href="https://dev.mysql.com/doc/refman/8.0/en/server-system-variables.html#sysvar_max_allowed_packet">max_allowed_packet</a>
+     */
+    public static final MySQLKey<Integer> MAX_ALLOWED_PACKET = new MySQLKey<>("maxAllowedPacket", Integer.class, 65535);
+
+    /**
+     * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-networking.html">socksProxyRemoteDns</a>
+     * @since MySQL 8.0.29
+     */
+    public static final MySQLKey<Boolean> SOCKS_PROXY_REMOTE_DNS = new MySQLKey<>("socksProxyRemoteDns", Boolean.class, Boolean.FALSE);
+
+
+    /**
+     * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-networking.html">tcpKeepAlive</a>
+     * @since MySQL 5.0.7
+     */
+    public static final MySQLKey<Boolean> TCP_KEEP_ALIVE = new MySQLKey<>("tcpKeepAlive", Boolean.class, Boolean.TRUE);
+
+    /**
+     * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-networking.html">tcpNoDelay</a>
+     * @since MySQL 5.0.7
+     */
+    public static final MySQLKey<Boolean> TCP_NO_DELAY = new MySQLKey<>("tcpNoDelay", Boolean.class, Boolean.TRUE);
+
+    /**
+     * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-networking.html">tcpRcvBuf</a>
+     * @since MySQL 5.0.7
+     */
+    public static final MySQLKey<Integer> TCP_RCV_BUF = new MySQLKey<>("tcpRcvBuf", Integer.class, 0);
+
+    /**
+     * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-networking.html">tcpSndBuf</a>
+     * @since MySQL 5.0.7
+     */
+    public static final MySQLKey<Integer> TCP_SND_BUF = new MySQLKey<>("tcpSndBuf", Integer.class, 0);
+
+
+    /**
+     * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-networking.html">tcpTrafficClass</a>
+     * @since MySQL 5.0.7
+     */
+    public static final MySQLKey<Integer> TCP_TRAFFIC_CLASS = new MySQLKey<>("tcpTrafficClass", Integer.class, 0);
+
+    /**
+     * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-networking.html">useCompression</a>
+     * @since MySQL 3.0.17
+     */
+    public static final MySQLKey<Boolean> USE_COMPRESSION = new MySQLKey<>("useCompression", Boolean.class, Boolean.FALSE);
+
+
+    /**
+     * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-networking.html">useUnbufferedInput</a>
+     * @since MySQL 3.0.11
+     */
+    public static final MySQLKey<Boolean> USE_UNBUFFERED_INPUT = new MySQLKey<>("useUnbufferedInput", Boolean.class, Boolean.TRUE);
+
+
+    /*-------------------below Security group-------------------*/
+
+    /**
+     * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-security.html">paranoid</a>
+     * @since MySQL 3.0.1
+     */
+    public static final MySQLKey<Boolean> PARANOID = new MySQLKey<>("paranoid", Boolean.class, Boolean.FALSE);
+
+    /**
+     * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-security.html">serverRSAPublicKeyFile</a>
+     * @since MySQL 5.1.31
+     */
+    public static final MySQLKey<Path> SERVER_RSA_PUBLIC_KEY_FILE = new MySQLKey<>("serverRSAPublicKeyFile", Path.class, null);
+
+    /**
+     * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-security.html">allowPublicKeyRetrieval</a>
+     * @since MySQL 5.1.31
+     */
+    public static final MySQLKey<Boolean> ALLOW_PUBLIC_KEY_RETRIEVAL = new MySQLKey<>("allowPublicKeyRetrieval", Boolean.class, Boolean.FALSE);
+
+    /**
+     * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-security.html">sslMode</a>
+     * @since MySQL 8.0.13
+     */
+    public static final MySQLKey<Enums.SslMode> SSL_MODE = new MySQLKey<>("sslMode", Enums.SslMode.class, Enums.SslMode.PREFERRED);
+
+    /**
+     * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-security.html">trustCertificateKeyStoreUrl</a>
+     * @since MySQL 5.1.0
+     */
+    public static final MySQLKey<String> TRUST_CERTIFICATE_KEY_STORE_URL = new MySQLKey<>("trustCertificateKeyStoreUrl", String.class, null);
+
+    /**
+     * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-security.html">trustCertificateKeyStoreType</a>
+     * @since MySQL 5.1.0
+     */
+    public static final MySQLKey<String> TRUST_CERTIFICATE_KEY_STORE_TYPE = new MySQLKey<>("trustCertificateKeyStoreType", String.class, "JKS");
+
+    /**
+     * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-security.html">trustCertificateKeyStorePassword</a>
+     * @since MySQL 5.1.0
+     */
+    public static final MySQLKey<String> TRUST_CERTIFICATE_KEY_STORE_PASSWORD = new MySQLKey<>("trustCertificateKeyStorePassword", String.class, null);
+
+
+    /**
+     * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-security.html">fallbackToSystemTrustStore</a>
+     * @since MySQL 8.0.22
+     */
+    public static final MySQLKey<Boolean> FALLBACK_TO_SYSTEM_TRUST_STORE = new MySQLKey<>("fallbackToSystemTrustStore", Boolean.class, Boolean.TRUE);
+
+    /**
+     * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-security.html">clientCertificateKeyStoreUrl</a>
+     * @since MySQL 5.1.0
+     */
+    public static final MySQLKey<String> CLIENT_CERTIFICATE_KEY_STORE_URL = new MySQLKey<>("clientCertificateKeyStoreUrl", String.class, null);
+
+    /**
+     * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-security.html">clientCertificateKeyStoreType</a>
+     * @since MySQL 5.1.0
+     */
+    public static final MySQLKey<String> CLIENT_CERTIFICATE_KEY_STORE_TYPE = new MySQLKey<>("clientCertificateKeyStoreType", String.class, "JKS");
+
+    /**
+     * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-security.html">clientCertificateKeyStorePassword</a>
+     * @since MySQL 5.1.0
+     */
+    public static final MySQLKey<String> CLIENT_CERTIFICATE_KEY_STORE_PASSWORD = new MySQLKey<>("clientCertificateKeyStorePassword", String.class, null);
+
+    /**
+     * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-security.html">fallbackToSystemKeyStore</a>
+     * @since MySQL 8.0.22
+     */
+    public static final MySQLKey<Boolean> FALLBACK_TO_SYSTEM_KEY_STORE = new MySQLKey<>("fallbackToSystemKeyStore", Boolean.class, Boolean.TRUE);
+
+    /**
+     * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-security.html">tlsCiphersuites</a>
+     * @since MySQL 5.1.35
+     */
+    public static final MySQLKey<String> TLS_CIPHER_SUITES = new MySQLKey<>("tlsCiphersuites", String.class, null);
+
+
+    /**
+     * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-security.html">tlsVersions</a>
+     * @since MySQL 8.0.8
+     */
+    public static final MySQLKey<String> TLS_VERSIONS = new MySQLKey<>("tlsVersions", String.class, null);
+
+    /**
+     * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-security.html">allowLoadLocalInfile</a>
+     * @since MySQL 3.0.3
+     */
+    public static final MySQLKey<Boolean> ALLOW_LOAD_LOCAL_INFILE = new MySQLKey<>("allowLoadLocalInfile", Boolean.class, Boolean.FALSE);
+
+    /**
+     * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-security.html">allowLoadLocalInfileInPath</a>
+     * @since MySQL 8.0.8
+     */
+    public static final MySQLKey<Path> ALLOW_LOAD_LOCAL_INFILE_IN_PATH = new MySQLKey<>("allowLoadLocalInfileInPath", Path.class, null);
+
+    /**
+     * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-security.html">allowMultiQueries</a>
+     * @since MySQL 3.1.1
+     */
+    public static final MySQLKey<Boolean> ALLOW_MULTI_QUERIES = new MySQLKey<>("allowMultiQueries", Boolean.class, Boolean.FALSE);
+
+
+    /**
+     * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-security.html">allowUrlInLocalInfile</a>
+     * @since MySQL 3.1.4
+     */
+    public static final MySQLKey<Boolean> ALLOW_URL_IN_LOCAL_INFILE = new MySQLKey<>("allowUrlInLocalInfile", Boolean.class, Boolean.FALSE);
+
+
+    /*-------------------below Statements group-------------------*/
+
+    /**
+     * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-statements.html">cacheDefaultTimeZone</a>
+     * @since MySQL 8.0.20
+     */
+    public static final MySQLKey<Boolean> CACHE_DEFAULT_TIME_ZONE = new MySQLKey<>("cacheDefaultTimeZone", Boolean.class, Boolean.TRUE);
+
+
+    /**
+     * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-statements.html">continueBatchOnError</a>
+     * @since MySQL 3.0.3
+     */
+    public static final MySQLKey<Boolean> CONTINUE_BATCH_ON_ERROR = new MySQLKey<>("continueBatchOnError", Boolean.class, Boolean.TRUE);
+
+    /**
+     * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-statements.html">dontTrackOpenResources</a>
+     * @since MySQL 3.1.7
+     */
+    public static final MySQLKey<Boolean> DONT_TRACK_OPEN_RESOURCES = new MySQLKey<>("dontTrackOpenResources", Boolean.class, Boolean.FALSE);
+
+    //TODO queryInterceptors
+
+    /**
+     * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-statements.html">queryTimeoutKillsConnection</a>
+     * @since MySQL 5.1.9
+     */
+    public static final MySQLKey<Boolean> QUERY_TIMEOUT_KILLS_CONNECTION = new MySQLKey<>("queryTimeoutKillsConnection", Boolean.class, Boolean.FALSE);
 
 
     //below  Group
