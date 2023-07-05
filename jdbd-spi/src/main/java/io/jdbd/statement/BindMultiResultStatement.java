@@ -10,13 +10,13 @@ import org.reactivestreams.Publisher;
  * This interface is base interface of below:
  *     <ul>
  *         <li>{@link BindStatement}</li>
- *         <li>{@link PreparedStatement}</li>
+ *         <li>{@link ServerPrepareStatement}</li>
  *         <li>{@link MultiStatement}</li>
  *     </ul>
  * </p>
  *
  * @see BindStatement
- * @see PreparedStatement
+ * @see ServerPrepareStatement
  * @see MultiStatement
  */
 public interface BindMultiResultStatement extends Statement {

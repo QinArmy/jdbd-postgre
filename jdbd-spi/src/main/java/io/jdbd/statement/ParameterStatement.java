@@ -52,16 +52,23 @@ public interface ParameterStatement extends Statement {
      */
     ParameterStatement bind(int indexBasedZero, DataType dataType, @Nullable Object nullable) throws JdbdException;
 
+    /**
+     * {@inheritDoc }
+     */
+    @Override
+    ParameterStatement bindStmtVar(String name, @Nullable Object nullable) throws JdbdException;
 
     /**
-     * <p>
-     * SQL parameter placeholder must be {@code ?}
-     * </p>
-     *
-     * @param indexBasedZero parameter placeholder index based zero.
-     * @param nullable       nullable the parameter value
-     * @param dataTypeName        nonNullValue mapping sql data type name(must upper case).
+     * {@inheritDoc }
      */
-    ParameterStatement bind(int indexBasedZero, String dataTypeName, @Nullable Object nullable) throws JdbdException;
+    @Override
+    ParameterStatement bindStmtVar(String name, JDBCType jdbcType, @Nullable Object nullable) throws JdbdException;
+
+    /**
+     * {@inheritDoc }
+     */
+    @Override
+    ParameterStatement bindStmtVar(String name, DataType dataType, @Nullable Object nullable) throws JdbdException;
+
 
 }

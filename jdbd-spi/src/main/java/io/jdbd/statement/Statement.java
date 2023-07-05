@@ -100,11 +100,6 @@ public interface Statement {
     Statement bindStmtVar(String name, DataType dataType, @Nullable Object nullable) throws JdbdException;
 
 
-    /**
-     * @see DatabaseSession#supportStmtVar()
-     * @see #supportStmtVar()
-     */
-    Statement bindStmtVar(String name, String dataTypeName, @Nullable Object nullable) throws JdbdException;
 
 
     DatabaseSession getSession();

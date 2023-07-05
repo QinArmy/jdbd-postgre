@@ -1,7 +1,10 @@
 package io.jdbd.statement;
 
 import io.jdbd.JdbdSQLException;
-import io.jdbd.result.*;
+import io.jdbd.result.CurrentRow;
+import io.jdbd.result.MultiResult;
+import io.jdbd.result.OrderedFlux;
+import io.jdbd.result.ResultStates;
 import io.jdbd.session.DatabaseSession;
 import io.jdbd.session.SessionCloseException;
 import org.reactivestreams.Publisher;
@@ -21,6 +24,7 @@ import java.util.function.Function;
  * @since 1.0
  */
 public interface StaticStatementSpec {
+
 
 
 
@@ -158,9 +162,7 @@ public interface StaticStatementSpec {
     Publisher<ResultStates> executeUpdate(String sql);
 
 
-    default  <R> Publisher<R> executeQuery(String sql, Function<CurrentRow,R> function){
-        throw new UnsupportedOperationException();
-    }
+    <R> Publisher<R> executeQuery(String sql, Function<CurrentRow, R> function);
 
     /**
      * Executes the SQL query in this <code>PreparedStatement</code> object
@@ -174,9 +176,7 @@ public interface StaticStatementSpec {
      * statement does not return a <code>ResultSet</code> object
      * </p>
      */
-    default  <R> Publisher<R> executeQuery(String sql, Function<CurrentRow,R> function, Consumer<ResultStates> statesConsumer){
-        throw new UnsupportedOperationException();
-    }
+    <R> Publisher<R> executeQuery(String sql, Function<CurrentRow, R> function, Consumer<ResultStates> statesConsumer);
 
 
 

@@ -3,12 +3,12 @@ package io.jdbd.statement;
 import io.jdbd.JdbdException;
 import io.jdbd.lang.Nullable;
 import io.jdbd.meta.DataType;
-import io.jdbd.result.*;
+import io.jdbd.result.Warning;
 import io.jdbd.session.DatabaseSession;
+import org.reactivestreams.Publisher;
 
 import java.sql.JDBCType;
 import java.util.List;
-import java.util.function.Consumer;
 
 /**
  * <p>
@@ -22,7 +22,6 @@ import java.util.function.Consumer;
  *     <li>{@link #executeUpdate()}</li>
  *     <li>{@link #executeQuery()}</li>
  *     <li>{@link #executeBatchUpdate()}</li>
- *     <li>{@link #executeQuery(Consumer)}</li>
  *     <li>{@link #executeBatchAsMulti()}</li>
  *     <li>{@link #executeBatchAsFlux()}</li>
  *     <li>{@link #abandonBind()}</li>
@@ -64,13 +63,40 @@ public interface PreparedStatement extends ServerPrepareStatement {
      * {@inheritDoc }
      */
     @Override
-    PreparedStatement bind(int indexBasedZero, String dataTypeName,@Nullable  Object nullable) throws JdbdException;
+    PreparedStatement addBatch() throws JdbdException;
 
     /**
      * {@inheritDoc }
      */
     @Override
-    PreparedStatement addBatch() throws JdbdException;
+    PreparedStatement bindStmtVar(String name, @Nullable Object nullable) throws JdbdException;
+
+    /**
+     * {@inheritDoc }
+     */
+    @Override
+    PreparedStatement bindStmtVar(String name, JDBCType jdbcType, @Nullable Object nullable) throws JdbdException;
+
+    /**
+     * {@inheritDoc }
+     */
+    @Override
+    PreparedStatement bindStmtVar(String name, DataType dataType, @Nullable Object nullable) throws JdbdException;
+
+
+    /**
+     * <p>
+     * This method close this  {@link PreparedStatement} if you don't invoke any executeXxx() method.
+     * </p>
+     * <p>
+     * Abandon binding before invoke executeXxx() method.
+     * </p>
+     *
+     * @return Publisher like {@code reactor.core.publisher.Mono} ,
+     * if success emit {@link DatabaseSession} that create this {@link PreparedStatement}.
+     * @throws JdbdException emit(not throw), when after invoking executeXxx().
+     */
+    Publisher<DatabaseSession> abandonBind();
 
 
 }
