@@ -1,9 +1,9 @@
 package io.jdbd.mysql.session;
 
 import io.jdbd.DriverVersion;
+import io.jdbd.JdbdException;
 import io.jdbd.ProductFamily;
 import io.jdbd.PropertyException;
-import io.jdbd.UrlException;
 import io.jdbd.mysql.MySQLDriver;
 import io.jdbd.mysql.protocol.authentication.AuthenticationPlugin;
 import io.jdbd.mysql.protocol.authentication.PluginUtils;
@@ -30,15 +30,13 @@ import java.util.Map;
 public final class MySQLDatabaseSessionFactory implements DatabaseSessionFactory {
 
     public static MySQLDatabaseSessionFactory create(String url, Map<String, Object> properties)
-            throws UrlException, PropertyException {
-        throw new UnsupportedOperationException();
-        // return new MySQLDatabaseSessionFactory(MySQLUrl.getInstance(url, properties), false);
+            throws JdbdException {
+        return new MySQLDatabaseSessionFactory(MySQLUrl.getInstance(url, properties), false);
     }
 
-    public static MySQLDatabaseSessionFactory forPoolVendor(String url, Map<String, Object> properties,Object poolAdvice)
-            throws UrlException, PropertyException {
-        throw new UnsupportedOperationException();
-       // return new MySQLDatabaseSessionFactory(MySQLUrl.getInstance(url, properties), true);
+    public static MySQLDatabaseSessionFactory forPoolVendor(String url, Map<String, Object> properties)
+            throws JdbdException {
+        return new MySQLDatabaseSessionFactory(MySQLUrl.getInstance(url, properties), true);
     }
 
 

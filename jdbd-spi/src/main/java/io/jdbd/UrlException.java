@@ -2,6 +2,7 @@ package io.jdbd;
 
 import io.jdbd.lang.Nullable;
 
+@Deprecated
 public class UrlException extends JdbdNonSQLException {
 
     private final String url;

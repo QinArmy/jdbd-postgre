@@ -20,11 +20,11 @@ public interface JdbcUrlParser {
     /**
      * @return a unmodifiable map
      */
-    Map<String, String> getGlobalProperties();
+    Map<String, Object> getGlobalProperties();
 
     /**
      * @return a unmodifiable list
      */
-    List<Map<String, String>> getHostInfo();
+    List<Map<String, Object>> getHostInfo();
 
 }

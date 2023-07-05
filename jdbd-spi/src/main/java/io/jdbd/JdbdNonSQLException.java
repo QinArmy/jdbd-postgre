@@ -3,6 +3,7 @@ package io.jdbd;
 
 import io.jdbd.lang.Nullable;
 
+@Deprecated
 public abstract class JdbdNonSQLException extends JdbdException {
 
     public JdbdNonSQLException(String message) {

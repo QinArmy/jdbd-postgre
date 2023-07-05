@@ -1,14 +1,21 @@
-package io.jdbd.stmt;
+package io.jdbd.vendor.stmt;
 
 import org.reactivestreams.Publisher;
 import org.reactivestreams.Subscriber;
 
-import javax.annotation.Nullable;
+import java.util.List;
 import java.util.function.Function;
 
-public interface StaticMultiStmt extends BatchStmt {
+/**
+ * <p>
+ * This interface representing multi {@link ParamStmt}.
+ * This used by {@link io.jdbd.statement.MultiStatement} for wrap sql and params.
+ * </p>
+ */
+public interface ParamMultiStmt extends Stmt {
 
-    String getMultiStmt();
+    List<? extends ParamStmt> getStmtList();
+
 
     /**
      * @return always 0 .
@@ -17,16 +24,14 @@ public interface StaticMultiStmt extends BatchStmt {
     int getFetchSize();
 
     /**
-     * @return always null.
+     * @return always null
      */
-    @Nullable
     @Override
     Function<Object, Publisher<byte[]>> getImportPublisher();
 
     /**
-     * @return always null.
+     * @return always null
      */
-    @Nullable
     @Override
     Function<Object, Subscriber<byte[]>> getExportSubscriber();
 

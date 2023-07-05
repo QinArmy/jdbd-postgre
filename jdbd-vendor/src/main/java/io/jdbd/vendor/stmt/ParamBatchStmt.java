@@ -1,4 +1,4 @@
-package io.jdbd.stmt;
+package io.jdbd.vendor.stmt;
 
 import org.reactivestreams.Publisher;
 import org.reactivestreams.Subscriber;

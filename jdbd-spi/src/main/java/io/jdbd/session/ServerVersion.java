@@ -1,12 +1,9 @@
 package io.jdbd.session;
 
-public interface ServerVersion {
+import io.jdbd.VersionSpec;
 
-    String getVersion();
+public interface ServerVersion extends VersionSpec {
 
-    int getMajor();
-
-    int getMinor();
 
     int getSubMinor();
 

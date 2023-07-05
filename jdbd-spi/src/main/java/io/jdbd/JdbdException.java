@@ -8,14 +8,14 @@ import io.jdbd.lang.Nullable;
  * @see JdbdSQLException
  * @see JdbdNonSQLException
  */
-public  class JdbdException extends RuntimeException {
+public class JdbdException extends RuntimeException {
 
-    JdbdException(String message) {
+    public JdbdException(String message) {
         super(message);
     }
 
 
-    JdbdException(String message, @Nullable Throwable cause) {
+    public JdbdException(String message, @Nullable Throwable cause) {
         super(message, cause);
     }
 
@@ -24,7 +24,7 @@ public  class JdbdException extends RuntimeException {
         super(message, cause);
     }
 
-    JdbdException(String message, @Nullable Throwable cause
+    public JdbdException(String message, @Nullable Throwable cause
             , boolean enableSuppression, boolean writableStackTrace) {
         super(message, cause, enableSuppression, writableStackTrace);
     }

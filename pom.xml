@@ -13,7 +13,6 @@
         <module>jdbd-mysql</module>
         <module>jdbd-vendor</module>
         <module>jdbd-postgre</module>
-        <module>jdbd-pool</module>
     </modules>
 
     <organization>
@@ -55,11 +54,6 @@
             <dependency>
                 <groupId>io.jdbd</groupId>
                 <artifactId>jdbd-spi</artifactId>
-                <version>${project.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>io.jdbd</groupId>
-                <artifactId>jdbd-pool</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>

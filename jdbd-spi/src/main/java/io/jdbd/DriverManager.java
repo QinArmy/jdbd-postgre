@@ -6,7 +6,6 @@ import io.jdbd.session.DatabaseSessionFactory;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.net.URL;
@@ -25,7 +24,7 @@ public abstract class DriverManager {
     }
 
 
-    private static final ConcurrentMap<Class<? extends io.jdbd.Driver>, Driver> DRIVER_MAP = new ConcurrentHashMap<>();
+    private static final ConcurrentMap<Class<? extends Driver>, Driver> DRIVER_MAP = new ConcurrentHashMap<>();
 
     static {
         reload();
@@ -51,7 +50,8 @@ public abstract class DriverManager {
      * @throws UrlException            when url error.
      * @throws PropertyException       when properties error.
      */
-    public static DatabaseSessionFactory createSessionFactory(final String url, final Map<String, Object> properties) {
+    public static DatabaseSessionFactory createSessionFactory(final String url, final Map<String, Object> properties)
+            throws JdbdException {
         return findTargetDriver(url)
                 .createSessionFactory(url, properties);
 
@@ -70,16 +70,11 @@ public abstract class DriverManager {
      *         <li>{@link DatabaseSessionFactory#globalSession()} returning instance is {@code  io.jdbd.pool.PoolGlobalDatabaseSession} instance</li>
      *     </ul>
      * </p>
-     *
-     * @throws NotFoundDriverException when not found any driver for url.
-     * @throws UrlException            when url error.
-     * @throws PropertyException       when properties error.
      */
-    public static DatabaseSessionFactory forPoolVendor(final String url, final Map<String, Object> properties,
-                                                       final Object poolAdvice)
-            throws JdbdNonSQLException {
+    public static DatabaseSessionFactory forPoolVendor(final String url, final Map<String, Object> properties)
+            throws JdbdException {
         return findTargetDriver(url)
-                .forPoolVendor(url, properties,poolAdvice);
+                .forPoolVendor(url, properties);
     }
 
     /*################################## blow private static method ##################################*/
@@ -94,8 +89,7 @@ public abstract class DriverManager {
             }
         }
         if (targetDriver == null) {
-
-            throw new NotFoundDriverException(url);
+            throw new JdbdException(String.format("Not found driver for url %s", url));
         }
         return targetDriver;
     }
@@ -153,14 +147,13 @@ public abstract class DriverManager {
         try {
             final Class<?> driverClass;
             driverClass = Class.forName(className);
-            final Constructor<?> constructor = driverClass.getDeclaredConstructor();
             final Method method = driverClass.getMethod("getInstance");
-            final int methodMod = method.getModifiers();
+            final int modifier = method.getModifiers();
             if (Driver.class.isAssignableFrom(driverClass)
-                    && Modifier.isPrivate(constructor.getModifiers())
-                    && Modifier.isPublic(methodMod)
-                    && Modifier.isStatic(methodMod)
-                    && method.getReturnType() == driverClass) {
+                    && Modifier.isPublic(modifier)
+                    && Modifier.isStatic(modifier)
+                    && method.getParameterCount() == 0
+                    && Driver.class.isAssignableFrom(method.getReturnType())) {
                 instance = (Driver) method.invoke(null);
             } else {
                 instance = null;

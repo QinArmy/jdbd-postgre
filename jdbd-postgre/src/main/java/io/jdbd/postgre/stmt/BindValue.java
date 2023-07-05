@@ -1,9 +1,9 @@
 package io.jdbd.postgre.stmt;
 
 import io.jdbd.postgre.PgType;
-import io.jdbd.stmt.JdbdParamValue;
-import io.jdbd.stmt.ParamValue;
-import io.jdbd.stmt.TypeValue;
+import io.jdbd.vendor.stmt.JdbdParamValue;
+import io.jdbd.vendor.stmt.ParamValue;
+import io.jdbd.vendor.stmt.TypeValue;
 import reactor.util.annotation.Nullable;
 
 /**

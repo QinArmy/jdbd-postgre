@@ -15,10 +15,6 @@
             <groupId>io.jdbd</groupId>
             <artifactId>jdbd-spi</artifactId>
         </dependency>
-        <dependency>
-            <groupId>io.jdbd</groupId>
-            <artifactId>jdbd-pool</artifactId>
-        </dependency>
 
         <dependency>
             <groupId>io.projectreactor.netty</groupId>

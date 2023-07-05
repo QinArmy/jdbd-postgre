@@ -3,8 +3,22 @@ package io.jdbd;
 import io.jdbd.session.DatabaseSessionFactory;
 
 import java.util.Map;
-import java.util.function.Function;
 
+
+/**
+ * <p>
+ * This interface representing database driver. This interface is implemented by database vendor.
+ * The implementation of this interface must provide public static factory method, like following :
+ * <pre><br/>
+ *   public static Driver getInstance() {
+ *       return INSTANCE;
+ *   }
+ *  </pre>
+ * </p>
+ *
+ * @see DriverManager
+ * @since 1.0
+ */
 public interface Driver {
 
 
@@ -18,11 +32,8 @@ public interface Driver {
 
     /**
      * @param url jdbc url
-     * @throws UrlException         when url error.
-     * @throws PropertyException    when properties error.
-     * @throws NullPointerException when url or properties is null
      */
-    DatabaseSessionFactory createSessionFactory(String url, Map<String, Object> properties);
+    DatabaseSessionFactory createSessionFactory(String url, Map<String, Object> properties) throws JdbdException;
 
     /**
      * <p>
@@ -32,18 +43,19 @@ public interface Driver {
      *
      * <p>  This method return {@link DatabaseSessionFactory} has below feature.
      *     <ul>
-     *         <li>{@link DatabaseSessionFactory#localSession()} returning instance is {@code  io.jdbd.pool.PoolLocalDatabaseSession} instance</li>
-     *         <li>{@link DatabaseSessionFactory#globalSession()} returning instance is {@code  io.jdbd.pool.PoolGlobalDatabaseSession} instance</li>
+     *         <li>{@link DatabaseSessionFactory#localSession()} returning instance is {@link   io.jdbd.pool.PoolLocalDatabaseSession} instance</li>
+     *         <li>{@link DatabaseSessionFactory#globalSession()} returning instance is {@link  io.jdbd.pool.PoolGlobalDatabaseSession} instance</li>
      *     </ul>
      * </p>
+     * <p>
+     *     This method is used by pool vendor,application developer shouldn't use this method.
+     *     <strong>NOTE</strong> : driver developer are not responsible for pooling.
+     * </p>
      *
-     * @param url        jdbc url
-     * @param function return the instance of {@code io.jdbd.pool.PoolAdvice}.
-     * @throws UrlException         when url error.
-     * @throws PropertyException    when properties error.
-     * @throws NullPointerException when url or properties is null
+     * @param url jdbc url
      */
-    DatabaseSessionFactory forPoolVendor(String url, Map<String, Object> properties, Function<DatabaseSessionFactory,?> function);
+    DatabaseSessionFactory forPoolVendor(String url, Map<String, Object> properties) throws JdbdException;
 
+    DriverVersion getVersion();
 
 }

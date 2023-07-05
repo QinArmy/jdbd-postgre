@@ -421,7 +421,7 @@ public enum MyKey implements PropertyKey {
 
 
     @Override
-    public String toString() {
+    public final String toString() {
         return this.keyName;
     }
 
@@ -431,34 +431,34 @@ public enum MyKey implements PropertyKey {
      * @return the key name associated with the enum element.
      */
     @Override
-    public String getKey() {
+    public final String getKey() {
         return this.keyName;
     }
 
     @Nullable
     @Override
-    public String getAlias() {
+    public final String getAlias() {
         return this.ccAlias;
     }
 
 
     @Nullable
-    public String getDefault() {
+    public final String getDefault() {
         return this.defaultValue;
     }
 
-    public String getRequiredDefault() {
+    public final String getRequiredDefault() {
         return Objects.requireNonNull(this.defaultValue, "defaultValue");
     }
 
 
     @Override
-    public Class<?> getJavaType() {
+    public final Class<?> getJavaType() {
         return this.javaType;
     }
 
     @Override
-    public boolean isCaseSensitive() {
+    public final boolean isCaseSensitive() {
         return this.caseSensitive;
     }
 

@@ -1,17 +1,17 @@
 package io.jdbd.mysql.protocol.conf;
 
-import io.jdbd.UrlException;
+import io.jdbd.JdbdException;
 import io.jdbd.mysql.util.MySQLCollections;
 import io.jdbd.mysql.util.MySQLStrings;
 import io.jdbd.vendor.conf.HostInfo;
 import io.jdbd.vendor.conf.JdbcUrlParser;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.UnsupportedEncodingException;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
-import java.util.*;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -30,7 +30,7 @@ final class MySQLUrlParser implements JdbcUrlParser {
      * @param connString The connection string to parse.
      * @return an instance of {@link MySQLUrlParser}
      */
-    static MySQLUrlParser parseMySQLUrl(String connString, Map<String, String> properties) {
+    static MySQLUrlParser parseMySQLUrl(String connString, Map<String, Object> properties) {
         return new MySQLUrlParser(connString, properties);
     }
 
@@ -44,31 +44,31 @@ final class MySQLUrlParser implements JdbcUrlParser {
 
     private static final Pattern SCHEME_PTRN = Pattern.compile("(?<scheme>[\\w\\+:%]+).*");
 
-    private final Logger LOG = LoggerFactory.getLogger(MySQLUrlParser.class);
-
     private final String originalUrl;
     private final String schema;
     private final String authority;
     private final String path;
     private final String query;
 
-    private final List<Map<String, String>> hostInfo;
+    private final List<Map<String, Object>> hostInfo;
 
-    private final Map<String, String> globalProperties;
+    private final Map<String, Object> globalProperties;
 
     /**
      * Constructs a connection string parser for the given connection string.
      *
      * @param connString the connection string to parse
      */
-    private MySQLUrlParser(String connString, final Map<String, String> properties) {
+    private MySQLUrlParser(String connString, final Map<String, Object> properties) {
         if (!isConnectionStringSupported(connString)) {
-            throw new UrlException(connString, "unsupported url schema");
+            String m = String.format("unsupported url[%s] schema", connString);
+            throw new JdbdException(m);
         }
         this.originalUrl = connString;
         Matcher matcher = CONNECTION_STRING_PTRN.matcher(connString);
         if (!matcher.matches()) {
-            throw new UrlException(connString, "url schema not match.");
+            String m = String.format("url[%s] schema not match.", connString);
+            throw new JdbdException(m);
         }
         // 1. parse url partition.
         this.schema = decodeSkippingPlusSign(matcher.group("scheme"));
@@ -77,7 +77,7 @@ final class MySQLUrlParser implements JdbcUrlParser {
         this.query = matcher.group("query"); // Don't decode just yet.
 
         // 2-1 parse url query properties
-        Map<String, String> parseProperties = parseQueryProperties();
+        Map<String, Object> parseProperties = parseQueryProperties();
 
         //2-2 parse user and password from url
         String actualAuthority = this.authority;
@@ -89,7 +89,7 @@ final class MySQLUrlParser implements JdbcUrlParser {
 
         //3. create global properties
         int capacity = (int) ((properties.size() + parseProperties.size()) * 0.75F);
-        final Map<String, String> globalProperties = new HashMap<>(capacity);
+        final Map<String, Object> globalProperties = MySQLCollections.hashMap(capacity);
         //firstly query properties
         globalProperties.putAll(parseProperties);
         //secondly properties
@@ -116,12 +116,12 @@ final class MySQLUrlParser implements JdbcUrlParser {
     }
 
     @Override
-    public Map<String, String> getGlobalProperties() {
+    public Map<String, Object> getGlobalProperties() {
         return this.globalProperties;
     }
 
     @Override
-    public List<Map<String, String>> getHostInfo() {
+    public List<Map<String, Object>> getHostInfo() {
         return this.hostInfo;
     }
 
@@ -152,19 +152,19 @@ final class MySQLUrlParser implements JdbcUrlParser {
     /**
      * @return a modifiable map
      */
-    private Map<String, String> parseQueryProperties() {
+    private Map<String, Object> parseQueryProperties() {
         String query = this.query;
         if (MySQLStrings.isEmpty(query)) {
-            return new HashMap<>();
+            return MySQLCollections.hashMap();
         }
         String[] queryPairs = query.split("&");
 
-        Map<String, String> properties = new HashMap<>();
+        Map<String, Object> properties = MySQLCollections.hashMap();
         try {
             for (String pair : queryPairs) {
                 String[] kv = pair.split("=");
                 if (kv.length == 0 || kv.length > 2) {
-                    throw new UrlException(String.format("query[%s] error of url.", query), this.originalUrl);
+                    throw new JdbdException(String.format("query[%s] error of url.", query));
                 }
                 if (kv.length == 2) {
                     properties.put(URLDecoder.decode(kv[0], "UTF-8"), URLDecoder.decode(kv[1], "UTF-8"));
@@ -172,12 +172,12 @@ final class MySQLUrlParser implements JdbcUrlParser {
             }
         } catch (UnsupportedEncodingException e) {
             // use UTF-8 never here
-            throw new UrlException(this.originalUrl, "Unsupported charset", e);
+            throw new JdbdException("Unsupported charset", e);
         }
         return properties;
     }
 
-    private String parseUserInfo(Map<String, String> properties) {
+    private String parseUserInfo(final Map<String, Object> properties) {
         String authority = this.authority;
         int index = authority.indexOf('@');
         if (index < 0) {
@@ -186,8 +186,7 @@ final class MySQLUrlParser implements JdbcUrlParser {
         String userInfo = authority.substring(0, index);
         String[] userInfoPair = userInfo.split(":");
         if (userInfoPair.length == 0 || userInfoPair.length > 2) {
-            String message = String.format("user info[%s] error of url.", userInfo);
-            throw new UrlException(this.originalUrl, message);
+            throw new JdbdException(String.format("user info[%s] error of url.", userInfo));
         }
         try {
             properties.put(MyKey.user.getKey(), URLDecoder.decode(userInfoPair[0], "UTF-8"));
@@ -196,7 +195,7 @@ final class MySQLUrlParser implements JdbcUrlParser {
             }
         } catch (UnsupportedEncodingException e) {
             //never here
-            throw new UrlException(this.originalUrl, "Unsupported charset.", e);
+            throw new JdbdException("Unsupported charset", e);
         }
         return authority.substring(index + 1);
     }
@@ -205,7 +204,7 @@ final class MySQLUrlParser implements JdbcUrlParser {
     /**
      * @return a unmodifiable list
      */
-    private List<Map<String, String>> parseHostList(String multiHostsSegment) {
+    private List<Map<String, Object>> parseHostList(String multiHostsSegment) {
         if (multiHostsSegment.startsWith("[") && multiHostsSegment.endsWith("]")) {
             multiHostsSegment = multiHostsSegment.substring(1, multiHostsSegment.length() - 1);
         }
@@ -213,7 +212,7 @@ final class MySQLUrlParser implements JdbcUrlParser {
         final List<Character> markList = obtainMarkList();
         final int len = authority.length();
 
-        List<Map<String, String>> hostPropertiesList = new ArrayList<>();
+        List<Map<String, Object>> hostPropertiesList = MySQLCollections.arrayList();
 
         for (int openingMarkIndex = MySQLStrings.indexNonSpace(authority); openingMarkIndex > -1; ) {
             char openingMarker = authority.charAt(openingMarkIndex);
@@ -221,8 +220,8 @@ final class MySQLUrlParser implements JdbcUrlParser {
                 // this 'if'  block for key-value host
                 int index = authority.indexOf(')', openingMarkIndex);
                 if (index < 0) {
-                    String message = String.format("%s no closing mark", authority.substring(openingMarkIndex));
-                    throw new UrlException(this.originalUrl, message);
+                    String m = String.format("%s no closing mark", authority.substring(openingMarkIndex));
+                    throw new JdbdException(m);
                 }
                 index++; // right shift to comma or ending.
                 hostPropertiesList.add(parseKeyValueHost(authority.substring(openingMarkIndex, index)));
@@ -276,11 +275,11 @@ final class MySQLUrlParser implements JdbcUrlParser {
                 }
             }
         }
-        List<Map<String, String>> actualHostList;
+        List<Map<String, Object>> actualHostList;
         if (hostPropertiesList.size() == 1) {
             actualHostList = Collections.singletonList(hostPropertiesList.get(0));
         } else {
-            actualHostList = new ArrayList<>(hostPropertiesList.size());
+            actualHostList = MySQLCollections.arrayList(hostPropertiesList.size());
             actualHostList.addAll(hostPropertiesList);
             actualHostList = Collections.unmodifiableList(actualHostList);
         }
@@ -291,7 +290,7 @@ final class MySQLUrlParser implements JdbcUrlParser {
     /**
      * @return a unmodifiable map
      */
-    private Map<String, String> parseAddressEqualsHost(String addressEqualsHost) {
+    private Map<String, Object> parseAddressEqualsHost(String addressEqualsHost) {
         int openingMarkersIndex = addressEqualsHost.indexOf('(');
         if (openingMarkersIndex < 0) {
             throw new IllegalArgumentException(String.format("addressEqualsHost[%s] error.", addressEqualsHost));
@@ -299,7 +298,7 @@ final class MySQLUrlParser implements JdbcUrlParser {
 
         final int originalOpeningMarkersIndex = openingMarkersIndex;
         int closingMarkersIndex;
-        Map<String, String> hostKeyValueMap = new HashMap<>();
+        Map<String, Object> hostKeyValueMap = MySQLCollections.hashMap();
         while ((closingMarkersIndex = addressEqualsHost.indexOf(')', openingMarkersIndex)) > 0) {
             String pair = addressEqualsHost.substring(openingMarkersIndex + 1, closingMarkersIndex);
             String[] kv = pair.split("=");
@@ -322,7 +321,7 @@ final class MySQLUrlParser implements JdbcUrlParser {
     /**
      * @return a unmodifiable map
      */
-    private Map<String, String> parseKeyValueHost(String keyValueHost) {
+    private Map<String, Object> parseKeyValueHost(String keyValueHost) {
         int openingMarkersIndex = keyValueHost.indexOf('(');
         int closingMarkersIndex = keyValueHost.lastIndexOf(')');
 
@@ -335,7 +334,7 @@ final class MySQLUrlParser implements JdbcUrlParser {
         if (pairArray.length == 0) {
             throw createFormatException(keyValueHost);
         }
-        Map<String, String> hostKeyValueMap = new HashMap<>((int) (pairArray.length / 0.75F));
+        Map<String, Object> hostKeyValueMap = MySQLCollections.hashMap((int) (pairArray.length / 0.75F));
         for (String pair : pairArray) {
             String[] kv = pair.split("=");
             if (kv.length != 2) {
@@ -349,12 +348,12 @@ final class MySQLUrlParser implements JdbcUrlParser {
     /**
      * @return a unmodifiable map
      */
-    private Map<String, String> parseHostPortHost(String hostPortHost) {
+    private Map<String, Object> parseHostPortHost(String hostPortHost) {
         String[] hostPortPair = hostPortHost.split(":");
         if (hostPortPair.length == 0 || hostPortPair.length > 2) {
             throw createFormatException(hostPortHost);
         }
-        Map<String, String> hostKeyValueMap = new HashMap<>(4);
+        Map<String, Object> hostKeyValueMap = MySQLCollections.hashMap(4);
         hostKeyValueMap.put(MyKey.host.getKey(), hostPortPair[0].trim());
 
         if (hostPortPair.length == 2) {
@@ -365,7 +364,7 @@ final class MySQLUrlParser implements JdbcUrlParser {
 
 
     private List<Character> obtainMarkList() {
-        List<Character> chList = new ArrayList<>(4);
+        List<Character> chList = MySQLCollections.arrayList(4);
         chList.add(',');
         chList.add('=');
         chList.add('(');
@@ -410,26 +409,26 @@ final class MySQLUrlParser implements JdbcUrlParser {
     }
 
 
-    private List<Map<String, String>> createDefaultHostList() {
-        Map<String, String> props = new HashMap<>(4);
+    private List<Map<String, Object>> createDefaultHostList() {
+        Map<String, Object> props = MySQLCollections.hashMap(4);
         props.put(MyKey.host.getKey(), HostInfo.DEFAULT_HOST);
         props.put(MyKey.port.getKey(), Integer.toString(MySQLUrl.DEFAULT_PORT));
         return Collections.singletonList(props);
     }
 
-    private UrlException createAuthorityEndWithCommaException() {
-        String message = String.format("\"%s\" can't end with comma", this.authority);
-        throw new UrlException(this.originalUrl, message);
+    private JdbdException createAuthorityEndWithCommaException() {
+        String m = String.format("\"%s\" can't end with comma", this.authority);
+        return new JdbdException(m);
     }
 
-    private UrlException createParenthesisNotMatchException(String hostSegment) {
-        String message = String.format("\"%s\" parenthesis count not match.", hostSegment);
-        return new UrlException(this.originalUrl, message);
+    private JdbdException createParenthesisNotMatchException(String hostSegment) {
+        String m = String.format("\"%s\" parenthesis count not match.", hostSegment);
+        return new JdbdException(m);
     }
 
-    private UrlException createFormatException(String hostSegment) {
-        String message = String.format("\"%s\" format error.", hostSegment);
-        return new UrlException(this.originalUrl, message);
+    private JdbdException createFormatException(String hostSegment) {
+        String m = String.format("\"%s\" format error.", hostSegment);
+        return new JdbdException(m);
     }
 
 
@@ -489,8 +488,8 @@ final class MySQLUrlParser implements JdbcUrlParser {
             return URLDecoder.decode(text, StandardCharsets.UTF_8.name());
         } catch (UnsupportedEncodingException e) {
             // Won't happen.
+            throw new JdbdException(e.getMessage(), e);
         }
-        return "";
     }
 
     /**
@@ -506,9 +505,8 @@ final class MySQLUrlParser implements JdbcUrlParser {
         try {
             return URLDecoder.decode(text, StandardCharsets.UTF_8.name());
         } catch (UnsupportedEncodingException e) {
-            // Won't happen.
+            throw new JdbdException(e.getMessage(), e);
         }
-        return "";
     }
 
 

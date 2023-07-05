@@ -2,8 +2,7 @@ package io.jdbd.mysql;
 
 import io.jdbd.Driver;
 import io.jdbd.DriverVersion;
-import io.jdbd.PropertyException;
-import io.jdbd.UrlException;
+import io.jdbd.JdbdException;
 import io.jdbd.mysql.protocol.conf.MySQLUrl;
 import io.jdbd.mysql.session.MySQLDatabaseSessionFactory;
 import io.jdbd.session.DatabaseSessionFactory;
@@ -16,7 +15,7 @@ public final class MySQLDriver implements Driver {
 
     private static final MySQLDriver INSTANCE = new MySQLDriver();
 
-    public static MySQLDriver getInstance() {
+    public static Driver getInstance() {
         return INSTANCE;
     }
 
@@ -31,21 +30,22 @@ public final class MySQLDriver implements Driver {
 
     @Override
     public DatabaseSessionFactory createSessionFactory(String url, Map<String, Object> properties)
-            throws UrlException, PropertyException {
+            throws JdbdException {
         Objects.requireNonNull(url, "url");
         Objects.requireNonNull(properties, "properties");
         return MySQLDatabaseSessionFactory.create(url, properties);
     }
 
     @Override
-    public DatabaseSessionFactory forPoolVendor(String url, Map<String, Object> properties,Object poolAdvice)
-            throws UrlException, PropertyException {
+    public DatabaseSessionFactory forPoolVendor(String url, Map<String, Object> properties)
+            throws JdbdException {
         Objects.requireNonNull(url, "url");
         Objects.requireNonNull(properties, "properties");
-        return MySQLDatabaseSessionFactory.forPoolVendor(url, properties,poolAdvice);
+        return MySQLDatabaseSessionFactory.forPoolVendor(url, properties);
     }
 
-    public static DriverVersion getVersion() {
+    @Override
+    public DriverVersion getVersion() {
         return VersionHolder.VERSION;
     }
 

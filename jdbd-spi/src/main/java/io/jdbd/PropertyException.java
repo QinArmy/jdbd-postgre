@@ -2,6 +2,7 @@ package io.jdbd;
 
 import io.jdbd.lang.Nullable;
 
+@Deprecated
 public class PropertyException extends JdbdNonSQLException {
 
     private final String propertyName;
