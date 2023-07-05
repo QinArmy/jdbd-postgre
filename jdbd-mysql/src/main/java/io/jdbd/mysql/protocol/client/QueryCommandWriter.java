@@ -179,7 +179,7 @@ final class QueryCommandWriter {
      */
     private Publisher<ByteBuf> writeMultiCommand(final BindMultiStmt multiStmt)
             throws SQLException, LongDataReadException {
-        final List<BindStmt> stmtGroup = multiStmt.getStmtGroup();
+        final List<BindStmt> stmtGroup = multiStmt.getStmtList();
         final int size = stmtGroup.size();
         final MySQLParser parser = this.adjutant.sqlParser();
         final ByteBuf packet;

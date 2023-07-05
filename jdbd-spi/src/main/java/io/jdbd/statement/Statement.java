@@ -1,10 +1,14 @@
 package io.jdbd.statement;
 
 
+import io.jdbd.JdbdException;
+import io.jdbd.lang.Nullable;
+import io.jdbd.meta.DataType;
 import io.jdbd.session.DatabaseSession;
 import org.reactivestreams.Publisher;
 import org.reactivestreams.Subscriber;
 
+import java.sql.JDBCType;
 import java.util.function.Function;
 
 
@@ -47,6 +51,8 @@ public interface Statement {
 
     boolean supportOutParameter();
 
+    boolean supportStmtVar();
+
     Statement setTimeout(int seconds);
 
 
@@ -73,6 +79,32 @@ public interface Statement {
     boolean setImportPublisher(Function<Object, Publisher<byte[]>> function);
 
     boolean setExportSubscriber(Function<Object, Subscriber<byte[]>> function);
+
+
+    /**
+     * @see DatabaseSession#supportStmtVar()
+     * @see #supportStmtVar()
+     */
+    Statement bindStmtVar(String name, @Nullable Object nullable) throws JdbdException;
+
+    /**
+     * @see DatabaseSession#supportStmtVar()
+     * @see #supportStmtVar()
+     */
+    Statement bindStmtVar(String name, JDBCType jdbcType, @Nullable Object nullable) throws JdbdException;
+
+    /**
+     * @see DatabaseSession#supportStmtVar()
+     * @see #supportStmtVar()
+     */
+    Statement bindStmtVar(String name, DataType dataType, @Nullable Object nullable) throws JdbdException;
+
+
+    /**
+     * @see DatabaseSession#supportStmtVar()
+     * @see #supportStmtVar()
+     */
+    Statement bindStmtVar(String name, String dataTypeName, @Nullable Object nullable) throws JdbdException;
 
 
     DatabaseSession getSession();

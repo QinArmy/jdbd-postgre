@@ -3,6 +3,7 @@ package io.jdbd;
 import io.jdbd.session.DatabaseSessionFactory;
 
 import java.util.Map;
+import java.util.function.Function;
 
 public interface Driver {
 
@@ -21,7 +22,7 @@ public interface Driver {
      * @throws PropertyException    when properties error.
      * @throws NullPointerException when url or properties is null
      */
-    DatabaseSessionFactory createSessionFactory(String url, Map<String, String> properties);
+    DatabaseSessionFactory createSessionFactory(String url, Map<String, Object> properties);
 
     /**
      * <p>
@@ -31,17 +32,18 @@ public interface Driver {
      *
      * <p>  This method return {@link DatabaseSessionFactory} has below feature.
      *     <ul>
-     *         <li>{@link DatabaseSessionFactory#getTxSession()} returning instance is {@link io.jdbd.pool.PoolTxDatabaseSession} instance</li>
-     *         <li>{@link DatabaseSessionFactory#getXaSession()} returning instance is {@link io.jdbd.pool.PoolXaDatabaseSession} instance</li>
+     *         <li>{@link DatabaseSessionFactory#localSession()} returning instance is {@code  io.jdbd.pool.PoolLocalDatabaseSession} instance</li>
+     *         <li>{@link DatabaseSessionFactory#globalSession()} returning instance is {@code  io.jdbd.pool.PoolGlobalDatabaseSession} instance</li>
      *     </ul>
      * </p>
      *
-     * @param url jdbc url
-     * @throws UrlException      when url error.
-     * @throws PropertyException when properties error.
-     * @throws NullPointerException             when url or properties is null
+     * @param url        jdbc url
+     * @param function return the instance of {@code io.jdbd.pool.PoolAdvice}.
+     * @throws UrlException         when url error.
+     * @throws PropertyException    when properties error.
+     * @throws NullPointerException when url or properties is null
      */
-    DatabaseSessionFactory forPoolVendor(String url, Map<String, String> properties);
+    DatabaseSessionFactory forPoolVendor(String url, Map<String, Object> properties, Function<DatabaseSessionFactory,?> function);
 
 
 }

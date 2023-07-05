@@ -3,8 +3,6 @@ package io.jdbd.meta;
 import io.jdbd.lang.Nullable;
 import io.jdbd.result.ResultRow;
 
-import java.sql.JDBCType;
-
 /**
  * @since 1.0
  */
@@ -12,9 +10,9 @@ public interface SQLType extends DataType {
 
 
     /**
-     * @see ResultRow#get(String)
+     * @see io.jdbd.result.JdbdRow#get(String)
      */
-    Class<?> javaType();
+    Class<?> outputJavaType();
 
     /**
      * <p>
@@ -57,8 +55,6 @@ public interface SQLType extends DataType {
     boolean isDecimal();
 
     boolean isCaseSensitive();
-
-    boolean isArray();
 
     boolean supportPublisher();
 

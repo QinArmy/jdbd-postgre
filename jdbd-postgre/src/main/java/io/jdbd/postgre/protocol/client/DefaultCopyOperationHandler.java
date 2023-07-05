@@ -14,9 +14,9 @@ import io.jdbd.postgre.util.PgExceptions;
 import io.jdbd.statement.BindSingleStatement;
 import io.jdbd.statement.ExportSubscriberFunctionException;
 import io.jdbd.statement.StaticStatement;
-import io.jdbd.vendor.stmt.StaticBatchStmt;
-import io.jdbd.vendor.stmt.StaticStmt;
-import io.jdbd.vendor.stmt.Stmt;
+import io.jdbd.stmt.StaticBatchStmt;
+import io.jdbd.stmt.StaticStmt;
+import io.jdbd.stmt.Stmt;
 import io.jdbd.vendor.util.FunctionWithError;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
@@ -260,7 +260,7 @@ final class DefaultCopyOperationHandler implements CopyOperationHandler {
             }
             path = obtainPathFromParamGroup(groupList.get(resultIndex), resultIndex, bindIndex);
         } else if (stmt instanceof BindMultiStmt) {
-            final List<BindStmt> stmtGroup = ((BindMultiStmt) stmt).getStmtGroup();
+            final List<BindStmt> stmtGroup = ((BindMultiStmt) stmt).getStmtList();
             if (resultIndex >= stmtGroup.size()) {
                 // here  bug
                 throw new IllegalStateException(String.format("IllegalState can't found COPY command,%s", this));
@@ -391,7 +391,7 @@ final class DefaultCopyOperationHandler implements CopyOperationHandler {
             }
             function = stmt.getExportSubscriber();
         } else if (stmt instanceof BindMultiStmt) {
-            final List<BindStmt> stmtGroup = ((BindMultiStmt) stmt).getStmtGroup();
+            final List<BindStmt> stmtGroup = ((BindMultiStmt) stmt).getStmtList();
             if (resultIndex >= stmtGroup.size()) {
                 // here 1. bug ; 2. postgre CALL command add new feature that CALL command can return multi CommendComplete message.
                 throw new SQLException("Not found Subscriber for COPY-OUT.");
@@ -475,7 +475,7 @@ final class DefaultCopyOperationHandler implements CopyOperationHandler {
             }
             copyOperation = function.apply(((BindStmt) stmt).getSql());
         } else if (stmt instanceof BindMultiStmt) {
-            final List<BindStmt> stmtGroup = ((BindMultiStmt) stmt).getStmtGroup();
+            final List<BindStmt> stmtGroup = ((BindMultiStmt) stmt).getStmtList();
             if (resultIndex >= stmtGroup.size()) {
                 // here 1. bug ; 2. postgre CALL command add new feature that CALL command can return multi CommendComplete message.
                 throw new IllegalStateException(String.format("IllegalState can't found COPY command,%s", this));

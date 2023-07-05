@@ -3,7 +3,6 @@ package io.jdbd.mysql.session;
 import io.jdbd.JdbdException;
 import io.jdbd.JdbdSQLException;
 import io.jdbd.meta.DataType;
-import io.jdbd.meta.SQLType;
 import io.jdbd.mysql.MySQLType;
 import io.jdbd.mysql.stmt.AttrPreparedStatement;
 import io.jdbd.mysql.stmt.Stmts;
@@ -137,7 +136,7 @@ final class MySQLPreparedStatement extends MySQLStatement implements AttrPrepare
 
 
     @Override
-    public List<? extends DataType> getParameterTypes() {
+    public List<? extends DataType> getParamTypeList() {
         return null;
     }
 

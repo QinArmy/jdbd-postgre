@@ -1,7 +1,7 @@
 package io.jdbd.postgre.statement;
 
 import io.jdbd.DriverManager;
-import io.jdbd.pool.PoolTxDatabaseSession;
+import io.jdbd.pool.PoolLocalDatabaseSession;
 import io.jdbd.postgre.ClientTestUtils;
 import io.jdbd.session.DatabaseSessionFactory;
 import io.jdbd.session.LocalDatabaseSession;
@@ -26,7 +26,7 @@ abstract class AbstractStatementTests {
 
         session = SESSION_QUEUE.poll();
         if (session == null) {
-            session = Mono.from(DEFAULT_FACTORY.getTxSession())
+            session = Mono.from(DEFAULT_FACTORY.localSession())
                     .block();
             assertNotNull(session, "session");
         }
@@ -34,8 +34,8 @@ abstract class AbstractStatementTests {
     }
 
     void closeSession(LocalDatabaseSession session) {
-        if (session instanceof PoolTxDatabaseSession) {
-            Mono.from(((PoolTxDatabaseSession) session).reset())
+        if (session instanceof PoolLocalDatabaseSession) {
+            Mono.from(((PoolLocalDatabaseSession) session).reset())
                     .map(SESSION_QUEUE::offer)
                     .subscribe();
         } else {

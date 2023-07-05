@@ -1,10 +1,9 @@
 package io.jdbd.mysql.session;
 
 import io.jdbd.mysql.protocol.client.ClientProtocol;
-import io.jdbd.pool.PoolTxDatabaseSession;
+import io.jdbd.pool.PoolLocalDatabaseSession;
 import io.jdbd.session.TransactionOption;
 import io.jdbd.session.LocalDatabaseSession;
-import org.reactivestreams.Publisher;
 import reactor.core.publisher.Mono;
 
 /**
@@ -19,7 +18,7 @@ class MySQLTxDatabaseSession extends MySQLDatabaseSession implements LocalDataba
         return new MySQLTxDatabaseSession(adjutant, protocol);
     }
 
-    static PoolTxDatabaseSession forPoolVendor(SessionAdjutant adjutant, ClientProtocol protocol) {
+    static PoolLocalDatabaseSession forPoolVendor(SessionAdjutant adjutant, ClientProtocol protocol) {
         return new MySQLPoolTxDatabaseSession(adjutant, protocol);
     }
 
@@ -50,24 +49,24 @@ class MySQLTxDatabaseSession extends MySQLDatabaseSession implements LocalDataba
 
     /**
      * <p>
-     * This class is implementation of {@link PoolTxDatabaseSession} with MySQL client protocol.
+     * This class is implementation of {@link PoolLocalDatabaseSession} with MySQL client protocol.
      * </p>
      */
     private static final class MySQLPoolTxDatabaseSession extends MySQLTxDatabaseSession
-            implements PoolTxDatabaseSession {
+            implements PoolLocalDatabaseSession {
 
         private MySQLPoolTxDatabaseSession(SessionAdjutant adjutant, ClientProtocol protocol) {
             super(adjutant, protocol);
         }
 
         @Override
-        public Mono<PoolTxDatabaseSession> ping(int timeoutSeconds) {
+        public Mono<PoolLocalDatabaseSession> ping(int timeoutSeconds) {
             return this.protocol.ping(timeoutSeconds)
                     .thenReturn(this);
         }
 
         @Override
-        public Mono<PoolTxDatabaseSession> reset() {
+        public Mono<PoolLocalDatabaseSession> reset() {
             return this.protocol.reset()
                     .thenReturn(this);
         }

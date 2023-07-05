@@ -1,8 +1,8 @@
-package io.jdbd.vendor.stmt;
+package io.jdbd.stmt;
 
+import io.jdbd.lang.Nullable;
 import org.reactivestreams.Publisher;
 import org.reactivestreams.Subscriber;
-import reactor.util.annotation.Nullable;
 
 import java.util.function.Function;
 
@@ -12,7 +12,7 @@ import java.util.function.Function;
  * and is used by  the implementation of {@link Stmt} .
  * </p>
  */
-public interface StatementOption {
+public interface StmtOption {
 
     int getTimeout();
 

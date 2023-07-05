@@ -14,7 +14,7 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 
 
-public interface DatabaseSession  extends StaticStatementSpec {
+public interface DatabaseSession  extends StaticStatementSpec ,Closeable{
 
 
     /**
@@ -108,6 +108,8 @@ public interface DatabaseSession  extends StaticStatementSpec {
      */
     boolean supportSavePoints();
 
+    boolean supportStmtVar();
+
     boolean supportMultiStatement();
 
 
@@ -135,6 +137,5 @@ public interface DatabaseSession  extends StaticStatementSpec {
 
     boolean isBelongTo(DatabaseSessionFactory factory);
 
-    Publisher<Void> close();
 
 }

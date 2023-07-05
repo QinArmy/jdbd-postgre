@@ -249,7 +249,7 @@ final class MySQLRowMeta implements ResultRowMeta {
 
     @Override
     public final Class<?> getColumnClass(final int indexBaseZero) throws JdbdSQLException {
-        return this.columnMetaArray[checkIndex(indexBaseZero)].sqlType.javaType();
+        return this.columnMetaArray[checkIndex(indexBaseZero)].sqlType.outputJavaType();
     }
 
 

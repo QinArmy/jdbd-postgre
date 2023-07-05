@@ -30,7 +30,7 @@ public final class MySQLDriver implements Driver {
     }
 
     @Override
-    public DatabaseSessionFactory createSessionFactory(String url, Map<String, String> properties)
+    public DatabaseSessionFactory createSessionFactory(String url, Map<String, Object> properties)
             throws UrlException, PropertyException {
         Objects.requireNonNull(url, "url");
         Objects.requireNonNull(properties, "properties");
@@ -38,11 +38,11 @@ public final class MySQLDriver implements Driver {
     }
 
     @Override
-    public DatabaseSessionFactory forPoolVendor(String url, Map<String, String> properties)
+    public DatabaseSessionFactory forPoolVendor(String url, Map<String, Object> properties,Object poolAdvice)
             throws UrlException, PropertyException {
         Objects.requireNonNull(url, "url");
         Objects.requireNonNull(properties, "properties");
-        return MySQLDatabaseSessionFactory.forPoolVendor(url, properties);
+        return MySQLDatabaseSessionFactory.forPoolVendor(url, properties,poolAdvice);
     }
 
     public static DriverVersion getVersion() {

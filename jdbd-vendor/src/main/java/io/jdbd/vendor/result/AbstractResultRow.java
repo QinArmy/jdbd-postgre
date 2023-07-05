@@ -61,7 +61,7 @@ public abstract class AbstractResultRow<R extends ResultRowMeta> implements Resu
         if (needParse(indexBaseZero, null)) {
             value = parseColumn(indexBaseZero, value, null);
         }
-        final Class<?> javaType = this.rowMeta.getSQLType(indexBaseZero).javaType();
+        final Class<?> javaType = this.rowMeta.getSQLType(indexBaseZero).outputJavaType();
         if (!javaType.isInstance(value)) {
             value = convertNonNullValue(indexBaseZero, value, javaType);
         }

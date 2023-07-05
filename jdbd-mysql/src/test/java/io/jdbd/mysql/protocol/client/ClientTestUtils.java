@@ -115,7 +115,7 @@ public abstract class ClientTestUtils {
         return ENV;
     }
 
-    public static Map<String, String> loadConfigMap() {
+    public static Map<String, Object> loadConfigMap() {
         final Path path = Paths.get(getTestResourcesPath().toString(), "mysql.properties");
         try {
             return MySQLCollections.loadProperties(path);

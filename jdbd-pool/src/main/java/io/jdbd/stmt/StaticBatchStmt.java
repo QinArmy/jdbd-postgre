@@ -1,8 +1,8 @@
-package io.jdbd.vendor.stmt;
+package io.jdbd.stmt;
 
+import io.jdbd.lang.Nullable;
 import org.reactivestreams.Publisher;
 import org.reactivestreams.Subscriber;
-import reactor.util.annotation.Nullable;
 
 import java.util.List;
 import java.util.function.Function;

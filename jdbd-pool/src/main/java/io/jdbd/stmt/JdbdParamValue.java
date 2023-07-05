@@ -1,7 +1,7 @@
-package io.jdbd.vendor.stmt;
+package io.jdbd.stmt;
 
+import io.jdbd.lang.Nullable;
 import org.reactivestreams.Publisher;
-import reactor.util.annotation.Nullable;
 
 import java.nio.file.Path;
 

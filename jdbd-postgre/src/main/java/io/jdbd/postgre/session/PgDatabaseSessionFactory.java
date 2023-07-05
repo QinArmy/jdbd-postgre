@@ -13,6 +13,7 @@ import io.jdbd.session.DatabaseSessionFactory;
 import io.jdbd.session.LocalDatabaseSession;
 import io.jdbd.session.RmDatabaseSession;
 import io.netty.channel.EventLoopGroup;
+import org.reactivestreams.Publisher;
 import reactor.core.publisher.Mono;
 import reactor.netty.resources.LoopResources;
 
@@ -60,14 +61,14 @@ public class PgDatabaseSessionFactory implements DatabaseSessionFactory {
 
 
     @Override
-    public Mono<LocalDatabaseSession> getTxSession() {
+    public Mono<LocalDatabaseSession> localSession() {
         // TODO complete me
         return ClientProtocolFactory.single(this.sessionAdjutant, 0)
                 .map(this::createTxSession);
     }
 
     @Override
-    public Mono<RmDatabaseSession> getXaSession() {
+    public Mono<RmDatabaseSession> globalSession() {
         // TODO complete me
         return ClientProtocolFactory.single(this.sessionAdjutant, 0)
                 .map(this::createXaSession);
@@ -83,10 +84,15 @@ public class PgDatabaseSessionFactory implements DatabaseSessionFactory {
         return ProductFamily.Postgre;
     }
 
+    @Override
+    public Publisher<Void> close() {
+        return null;
+    }
+
     /*################################## blow private method ##################################*/
 
     /**
-     * @see #getTxSession()
+     * @see #localSession()
      */
     private LocalDatabaseSession createTxSession(final ClientProtocol protocol) {
         final LocalDatabaseSession session;
@@ -99,7 +105,7 @@ public class PgDatabaseSessionFactory implements DatabaseSessionFactory {
     }
 
     /**
-     * @see #getXaSession()
+     * @see #globalSession()
      */
     private RmDatabaseSession createXaSession(ClientProtocol protocol) {
         final RmDatabaseSession session;

@@ -14,6 +14,7 @@ import reactor.netty.resources.LoopResources;
 import java.nio.charset.Charset;
 import java.util.Collections;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Queue;
 import java.util.concurrent.LinkedBlockingQueue;
 
@@ -68,7 +69,7 @@ public abstract class AbstractTaskSuiteTests {
     /*################################## blow private method ##################################*/
 
     private static SessionAdjutant createDefaultSessionAdjutant() {
-        final Map<String, String> map;
+        final Map<String, Object> map;
         map = ClientTestUtils.loadConfigMap();
         map.put("sslMode", Enums.SslMode.DISABLED.name());
         return new SessionAdjutantForSingleHostTest(MySQLUrl.getInstance(map.get("url"), map));

@@ -1,9 +1,7 @@
 package io.jdbd.postgre.session;
 
 import io.jdbd.JdbdException;
-import io.jdbd.JdbdSQLException;
 import io.jdbd.meta.DataType;
-import io.jdbd.meta.SQLType;
 import io.jdbd.postgre.PgType;
 import io.jdbd.postgre.stmt.PgStmts;
 import io.jdbd.postgre.util.PgExceptions;
@@ -20,7 +18,6 @@ import io.jdbd.vendor.stmt.ParamStmt;
 import io.jdbd.vendor.stmt.ParamValue;
 import io.jdbd.vendor.task.PrepareTask;
 import io.jdbd.vendor.util.JdbdBinds;
-import org.reactivestreams.Publisher;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.util.annotation.Nullable;
@@ -78,7 +75,7 @@ final class PgPreparedStatement extends PgStatement implements PreparedStatement
 
 
     @Override
-    public List<? extends DataType> getParameterTypes() {
+    public List<? extends DataType> getParamTypeList() {
         return null;
     }
 

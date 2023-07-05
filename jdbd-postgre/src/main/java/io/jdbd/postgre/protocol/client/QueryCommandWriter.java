@@ -120,7 +120,7 @@ final class QueryCommandWriter {
         try {
             QueryCommandWriter writer = new QueryCommandWriter(adjutant);
             final ByteBuf message;
-            message = writer.writeMultiBindCommand(stmt.getStmtGroup());
+            message = writer.writeMultiBindCommand(stmt.getStmtList());
             return Mono.just(message);
         } catch (Throwable e) {
             throw PgExceptions.wrapForMessage(e);

@@ -364,7 +364,7 @@ public abstract class Stmts extends JdbdStmts {
         }
 
         @Override
-        public List<BindStmt> getStmtGroup() {
+        public List<BindStmt> getStmtList() {
             return this.stmtGroup;
         }
 
@@ -402,7 +402,7 @@ public abstract class Stmts extends JdbdStmts {
         }
 
         @Override
-        public List<BindStmt> getStmtGroup() {
+        public List<BindStmt> getStmtList() {
             return this.stmtList;
         }
 

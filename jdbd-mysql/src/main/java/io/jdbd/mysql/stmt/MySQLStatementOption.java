@@ -1,11 +1,11 @@
 package io.jdbd.mysql.stmt;
 
-import io.jdbd.vendor.stmt.StatementOption;
+import io.jdbd.vendor.stmt.StmtOption;
 
 import java.util.Collections;
 import java.util.Map;
 
-public interface MySQLStatementOption extends StatementOption {
+public interface MySQLStatementOption extends StmtOption {
 
     /**
      * @return {@link Collections#emptyMap()} or  a modified map.

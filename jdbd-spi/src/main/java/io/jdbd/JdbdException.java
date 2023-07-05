@@ -8,7 +8,7 @@ import io.jdbd.lang.Nullable;
  * @see JdbdSQLException
  * @see JdbdNonSQLException
  */
-public abstract class JdbdException extends RuntimeException {
+public  class JdbdException extends RuntimeException {
 
     JdbdException(String message) {
         super(message);
@@ -19,6 +19,7 @@ public abstract class JdbdException extends RuntimeException {
         super(message, cause);
     }
 
+    @Deprecated
     JdbdException(@Nullable Throwable cause, String message) {
         super(message, cause);
     }

@@ -9,10 +9,10 @@ import io.jdbd.postgre.util.PgArrays;
 import io.jdbd.postgre.util.PgExceptions;
 import io.jdbd.result.Result;
 import io.jdbd.result.ResultRowMeta;
+import io.jdbd.stmt.SingleStmt;
+import io.jdbd.stmt.StaticBatchStmt;
+import io.jdbd.stmt.Stmt;
 import io.jdbd.vendor.result.ResultSink;
-import io.jdbd.vendor.stmt.SingleStmt;
-import io.jdbd.vendor.stmt.StaticBatchStmt;
-import io.jdbd.vendor.stmt.Stmt;
 import io.netty.buffer.ByteBuf;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -490,7 +490,7 @@ abstract class AbstractStmtTask extends PgTask implements StmtTask {
                 final List<String> sqlList = parser.separateMultiStmt(((SingleStmt) stmt).getSql());
                 sql = sqlList.get(resultIndex);
             } else if (stmt instanceof BindMultiStmt) {
-                final BindStmt bindStmt = ((BindMultiStmt) stmt).getStmtGroup().get(resultIndex);
+                final BindStmt bindStmt = ((BindMultiStmt) stmt).getStmtList().get(resultIndex);
                 sql = bindStmt.getSql();
             } else if (stmt instanceof StaticBatchStmt) {
                 sql = ((StaticBatchStmt) stmt).getSqlGroup().get(resultIndex);

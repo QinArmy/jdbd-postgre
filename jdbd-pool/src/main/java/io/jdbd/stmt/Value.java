@@ -1,6 +1,7 @@
-package io.jdbd.vendor.stmt;
+package io.jdbd.stmt;
 
-import reactor.util.annotation.Nullable;
+
+import io.jdbd.lang.Nullable;
 
 /**
  * <p>

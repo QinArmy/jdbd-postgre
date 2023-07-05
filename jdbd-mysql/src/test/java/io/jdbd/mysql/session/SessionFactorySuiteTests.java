@@ -12,6 +12,7 @@ import org.testng.annotations.Test;
 import reactor.core.publisher.Mono;
 
 import java.util.Map;
+import java.util.Objects;
 
 import static org.testng.Assert.assertNotNull;
 
@@ -25,16 +26,16 @@ public class SessionFactorySuiteTests {
     private static final Logger LOG = LoggerFactory.getLogger(SessionFactorySuiteTests.class);
 
     /**
-     * @see MySQLDatabaseSessionFactory#getTxSession()
+     * @see MySQLDatabaseSessionFactory#localSession()
      */
     @Test
     public void getTxSession() {
-        final Map<String, String> configMap = ClientTestUtils.loadConfigMap();
+        final Map<String, Object> configMap = ClientTestUtils.loadConfigMap();
         configMap.put(MyKey.sslMode.getKey(), "DISABLED");
         final DatabaseSessionFactory factory;
         factory = DriverManager.forPoolVendor(configMap.get("url"), configMap);
         final LocalDatabaseSession session;
-        session = Mono.from(factory.getTxSession())
+        session = Mono.from(factory.localSession())
                 .block();
         assertNotNull(session, "session");
         final StaticStatement statement = session.statement();

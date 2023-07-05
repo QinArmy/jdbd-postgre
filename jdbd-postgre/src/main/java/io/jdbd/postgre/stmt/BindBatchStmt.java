@@ -1,6 +1,7 @@
 package io.jdbd.postgre.stmt;
 
-import io.jdbd.vendor.stmt.ParamBatchStmt;
+
+import io.jdbd.stmt.ParamBatchStmt;
 
 import java.util.List;
 

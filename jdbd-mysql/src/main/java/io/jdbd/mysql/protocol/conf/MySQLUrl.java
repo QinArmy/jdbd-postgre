@@ -24,7 +24,7 @@ public final class MySQLUrl extends AbstractJdbcUrl {
 
     public static final int DEFAULT_PORT = 3306;
 
-    public static MySQLUrl getInstance(final String url, final Map<String, String> properties) {
+    public static MySQLUrl getInstance(final String url, final Map<String, Object> properties) {
         final MySQLUrl mySQLUrl;
         mySQLUrl = new MySQLUrl(MySQLUrlParser.parseMySQLUrl(url, properties));
         checkUrlProperties(mySQLUrl.getCommonProps());

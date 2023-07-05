@@ -1,6 +1,6 @@
 package io.jdbd.postgre.session;
 
-import io.jdbd.pool.PoolTxDatabaseSession;
+import io.jdbd.pool.PoolLocalDatabaseSession;
 import io.jdbd.postgre.protocol.client.ClientProtocol;
 import io.jdbd.session.TransactionOption;
 import io.jdbd.session.LocalDatabaseSession;
@@ -41,20 +41,20 @@ class PgLocalDatabaseSession extends PgDatabaseSession implements LocalDatabaseS
 
 
     private static final class PgPoolLocalDatabaseSession extends PgLocalDatabaseSession
-            implements PoolTxDatabaseSession {
+            implements PoolLocalDatabaseSession {
 
         private PgPoolLocalDatabaseSession(SessionAdjutant adjutant, ClientProtocol protocol) {
             super(adjutant, protocol);
         }
 
         @Override
-        public Mono<PoolTxDatabaseSession> ping(final int timeoutSeconds) {
+        public Mono<PoolLocalDatabaseSession> ping(final int timeoutSeconds) {
             return this.protocol.ping(timeoutSeconds)
                     .thenReturn(this);
         }
 
         @Override
-        public Mono<PoolTxDatabaseSession> reset() {
+        public Mono<PoolLocalDatabaseSession> reset() {
             return this.protocol.reset()
                     .thenReturn(this);
         }

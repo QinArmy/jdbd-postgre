@@ -1,6 +1,6 @@
 package io.jdbd.mysql.stmt;
 
-import io.jdbd.vendor.stmt.JdbdParamValue;
+import io.jdbd.stmt.JdbdParamValue;
 import reactor.util.annotation.Nullable;
 
 public class MySQLParamValue extends JdbdParamValue {

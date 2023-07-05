@@ -384,7 +384,7 @@ public class TaskTestAdvice extends AbstractTaskSuiteTests {
         // below float_unsigned
         final Object myFloatUnsigned = row.get("myFloatUnsigned");
         assertNotNull(myFloatUnsigned, "myFloatUnsigned");
-        assertSame(myFloatUnsigned.getClass(), MySQLType.FLOAT_UNSIGNED.javaType(), "myFloatUnsigned java class.");
+        assertSame(myFloatUnsigned.getClass(), MySQLType.FLOAT_UNSIGNED.outputJavaType(), "myFloatUnsigned java class.");
         assertEquals(rowMeta.getSQLType("myFloatUnsigned"), MySQLType.FLOAT_UNSIGNED, "myFloatUnsigned mysql type");
         assertTrue(rowMeta.isUnsigned("myFloatUnsigned"), "myFloatUnsigned isUnsigned");
         assertEquals(rowMeta.getNullMode("myFloatUnsigned"), NullMode.NON_NULL, "myFloatUnsigned null mode.");
@@ -392,7 +392,7 @@ public class TaskTestAdvice extends AbstractTaskSuiteTests {
         // below double assert
         final Object myDouble = row.get("myDouble");
         assertNotNull(myDouble, "myDouble");
-        assertSame(myDouble.getClass(), MySQLType.DOUBLE_UNSIGNED.javaType(), "myDouble java class.");
+        assertSame(myDouble.getClass(), MySQLType.DOUBLE_UNSIGNED.outputJavaType(), "myDouble java class.");
         assertEquals(rowMeta.getSQLType("myDouble"), MySQLType.DOUBLE, "myDouble mysql type");
         assertFalse(rowMeta.isUnsigned("myDouble"), "myDouble isUnsigned");
         assertEquals(rowMeta.getNullMode("myDouble"), NullMode.NON_NULL, "myDouble null mode.");
@@ -400,7 +400,7 @@ public class TaskTestAdvice extends AbstractTaskSuiteTests {
         // below double_unsigned assert
         final Object myDoubleUnsigned = row.get("myDoubleUnsigned");
         assertNotNull(myDoubleUnsigned, "myDoubleUnsigned");
-        assertSame(myDoubleUnsigned.getClass(), MySQLType.DOUBLE_UNSIGNED.javaType(), "myDoubleUnsigned java class.");
+        assertSame(myDoubleUnsigned.getClass(), MySQLType.DOUBLE_UNSIGNED.outputJavaType(), "myDoubleUnsigned java class.");
         assertEquals(rowMeta.getSQLType("myDoubleUnsigned"), MySQLType.DOUBLE_UNSIGNED, "myDoubleUnsigned mysql type");
         assertTrue(rowMeta.isUnsigned("myDoubleUnsigned"), "myDoubleUnsigned isUnsigned");
         assertEquals(rowMeta.getNullMode("myDoubleUnsigned"), NullMode.NON_NULL, "myDoubleUnsigned null mode.");

@@ -19,12 +19,12 @@ public abstract class JdbdCollections extends io.qinarmy.util.CollectionUtils {
     /**
      * @return a modified map
      */
-    public static Map<String, String> loadProperties(final Path path) throws IOException {
+    public static Map<String, Object> loadProperties(final Path path) throws IOException {
 
         try (InputStream in = Files.newInputStream(path, StandardOpenOption.READ)) {
             final Properties properties = new Properties();
             properties.load(in);
-            final Map<String, String> map = new HashMap<>((int) (properties.size() / 0.75F));
+            final Map<String, Object> map = new HashMap<>((int) (properties.size() / 0.75F));
             for (Object key : properties.keySet()) {
                 String k = key.toString();
                 map.put(k, properties.getProperty(k));

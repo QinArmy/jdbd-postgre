@@ -3,7 +3,7 @@ package io.jdbd.postgre.stmt;
 import io.jdbd.postgre.PgType;
 import io.jdbd.result.ResultStates;
 import io.jdbd.vendor.stmt.JdbdStmts;
-import io.jdbd.vendor.stmt.StatementOption;
+import io.jdbd.vendor.stmt.StmtOption;
 import io.jdbd.vendor.stmt.StaticBatchStmt;
 import io.jdbd.vendor.stmt.StaticStmt;
 import io.jdbd.vendor.util.JdbdFunctions;
@@ -19,17 +19,17 @@ import java.util.function.Function;
 
 public abstract class PgStmts extends JdbdStmts {
 
-    public static StaticStmt stmt(String sql, StatementOption option) {
+    public static StaticStmt stmt(String sql, StmtOption option) {
         Objects.requireNonNull(sql, "sql");
         return new PgOptionStaticStmt(sql, option);
     }
 
-    public static StaticStmt stmt(String sql, Consumer<ResultStates> statesConsumer, StatementOption option) {
+    public static StaticStmt stmt(String sql, Consumer<ResultStates> statesConsumer, StmtOption option) {
         Objects.requireNonNull(sql, "sql");
         return new PgOptionQueryStaticStmt(sql, statesConsumer, option);
     }
 
-    public static StaticBatchStmt batch(final List<String> sqlGroup, final StatementOption option) {
+    public static StaticBatchStmt batch(final List<String> sqlGroup, final StmtOption option) {
         return new PgOptionStaticBatchStmt(sqlGroup, option);
     }
 
@@ -58,19 +58,19 @@ public abstract class PgStmts extends JdbdStmts {
         return new PgSimpleBindBatchStmt(sql, groupList);
     }
 
-    public static BindStmt bind(String sql, List<BindValue> paramGroup, StatementOption option) {
+    public static BindStmt bind(String sql, List<BindValue> paramGroup, StmtOption option) {
         Objects.requireNonNull(sql, "sql");
         return new PgOptionBindStmt(sql, paramGroup, option);
     }
 
     public static BindStmt bind(String sql, List<BindValue> paramGroup, Consumer<ResultStates> statesConsumer
-            , StatementOption option) {
+            , StmtOption option) {
         Objects.requireNonNull(sql, "sql");
         return new PgOptionQueryBindStmt(sql, paramGroup, statesConsumer, option);
     }
 
 
-    public static BindBatchStmt bindBatch(String sql, List<List<BindValue>> groupList, StatementOption option) {
+    public static BindBatchStmt bindBatch(String sql, List<List<BindValue>> groupList, StmtOption option) {
         Objects.requireNonNull(sql, "sql");
         return new PgOptionBindBatchStmt(sql, groupList, option);
     }
@@ -79,7 +79,7 @@ public abstract class PgStmts extends JdbdStmts {
         return new PgSimpleBindMultiStmt(stmtGroup);
     }
 
-    public static BindMultiStmt multi(List<BindStmt> stmtGroup, StatementOption option) {
+    public static BindMultiStmt multi(List<BindStmt> stmtGroup, StmtOption option) {
         return new PgOptionBindMultiStmt(stmtGroup, option);
     }
 
@@ -90,7 +90,7 @@ public abstract class PgStmts extends JdbdStmts {
 
         private final Function<Object, Subscriber<byte[]>> exportSubscriber;
 
-        private PgOptionStaticStmt(String sql, StatementOption option) {
+        private PgOptionStaticStmt(String sql, StmtOption option) {
             super(sql, option);
             this.importPublisher = option.getImportPublisher();
             this.exportSubscriber = option.getExportSubscriber();
@@ -114,7 +114,7 @@ public abstract class PgStmts extends JdbdStmts {
 
         private final Function<Object, Subscriber<byte[]>> exportSubscriber;
 
-        private PgOptionQueryStaticStmt(String sql, Consumer<ResultStates> statesConsumer, StatementOption option) {
+        private PgOptionQueryStaticStmt(String sql, Consumer<ResultStates> statesConsumer, StmtOption option) {
             super(sql, statesConsumer, option);
             this.importPublisher = option.getImportPublisher();
             this.exportSubscriber = option.getExportSubscriber();
@@ -139,7 +139,7 @@ public abstract class PgStmts extends JdbdStmts {
 
         private final Function<Object, Subscriber<byte[]>> exportSubscriber;
 
-        private PgOptionStaticBatchStmt(List<String> sqlGroup, StatementOption option) {
+        private PgOptionStaticBatchStmt(List<String> sqlGroup, StmtOption option) {
             super(sqlGroup, option);
             if (this.sqlGroup.size() == 1) {
                 this.importPublisher = option.getImportPublisher();
@@ -191,7 +191,7 @@ public abstract class PgStmts extends JdbdStmts {
 
         private final Function<Object, Subscriber<byte[]>> exportSubscriber;
 
-        private PgOptionBindStmt(String sql, List<BindValue> bindGroup, StatementOption option) {
+        private PgOptionBindStmt(String sql, List<BindValue> bindGroup, StmtOption option) {
             super(sql, bindGroup, option);
             this.importPublisher = option.getImportPublisher();
             this.exportSubscriber = option.getExportSubscriber();
@@ -226,7 +226,7 @@ public abstract class PgStmts extends JdbdStmts {
         private final Function<Object, Subscriber<byte[]>> exportSubscriber;
 
         private PgOptionQueryBindStmt(String sql, List<BindValue> bindGroup
-                , Consumer<ResultStates> statesConsumer, StatementOption option) {
+                , Consumer<ResultStates> statesConsumer, StmtOption option) {
             super(sql, bindGroup, statesConsumer, option);
             this.importPublisher = option.getImportPublisher();
             this.exportSubscriber = option.getExportSubscriber();
@@ -250,7 +250,7 @@ public abstract class PgStmts extends JdbdStmts {
 
         private final Function<Object, Subscriber<byte[]>> exportSubscriber;
 
-        private PgOptionBindBatchStmt(String sql, List<List<BindValue>> groupList, StatementOption option) {
+        private PgOptionBindBatchStmt(String sql, List<List<BindValue>> groupList, StmtOption option) {
             super(sql, groupList, option);
             if (this.groupList.size() == 1) {
                 this.importPublisher = option.getImportPublisher();
@@ -283,7 +283,7 @@ public abstract class PgStmts extends JdbdStmts {
         }
 
         @Override
-        public List<BindStmt> getStmtGroup() {
+        public List<BindStmt> getStmtList() {
             return this.stmtGroup;
         }
 
@@ -315,13 +315,13 @@ public abstract class PgStmts extends JdbdStmts {
 
         private final int timeout;
 
-        public PgOptionBindMultiStmt(List<BindStmt> stmtList, StatementOption option) {
+        public PgOptionBindMultiStmt(List<BindStmt> stmtList, StmtOption option) {
             this.stmtList = wrapGroup(stmtList);
             this.timeout = option.getTimeout();
         }
 
         @Override
-        public List<BindStmt> getStmtGroup() {
+        public List<BindStmt> getStmtList() {
             return this.stmtList;
         }
 

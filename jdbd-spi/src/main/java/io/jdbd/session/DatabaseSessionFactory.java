@@ -5,17 +5,19 @@ import io.jdbd.ProductFamily;
 import org.reactivestreams.Publisher;
 
 
-public interface DatabaseSessionFactory {
+public interface DatabaseSessionFactory extends Closeable {
 
 
-    Publisher<LocalDatabaseSession> getTxSession();
+    Publisher<LocalDatabaseSession> localSession();
 
-    Publisher<RmDatabaseSession> getXaSession();
+    Publisher<RmDatabaseSession> globalSession();
 
 
     DriverVersion getDriverVersion();
 
     ProductFamily getProductFamily();
+
+
 
 
 }

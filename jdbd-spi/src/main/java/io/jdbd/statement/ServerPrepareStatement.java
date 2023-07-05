@@ -39,12 +39,21 @@ public interface ServerPrepareStatement extends BindSingleStatement {
     @Override
     ServerPrepareStatement bind(int indexBasedZero, @Nullable Object nullable) throws JdbdException;
 
+    /**
+     * {@inheritDoc }
+     */
     @Override
     ServerPrepareStatement bind(int indexBasedZero, JDBCType jdbcType, @Nullable Object nullable) throws JdbdException;
 
+    /**
+     * {@inheritDoc }
+     */
     @Override
     ServerPrepareStatement bind(int indexBasedZero, DataType dataType, @Nullable Object nullable) throws JdbdException;
 
+    /**
+     * {@inheritDoc }
+     */
     @Override
     ServerPrepareStatement bind(int indexBasedZero, String dataTypeName, @Nullable Object nullable) throws JdbdException;
 

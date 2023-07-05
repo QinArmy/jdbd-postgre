@@ -2,7 +2,7 @@ package io.jdbd.mysql.stmt;
 
 import io.jdbd.lang.Nullable;
 import io.jdbd.mysql.MySQLType;
-import io.jdbd.vendor.stmt.TypeValue;
+import io.jdbd.stmt.TypeValue;
 
 
 public final class BindValue extends MySQLParamValue implements TypeValue {

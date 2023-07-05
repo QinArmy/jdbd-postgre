@@ -18,6 +18,7 @@ import io.jdbd.session.LocalDatabaseSession;
 import io.jdbd.session.RmDatabaseSession;
 import io.jdbd.vendor.conf.Properties;
 import io.netty.channel.EventLoopGroup;
+import org.reactivestreams.Publisher;
 import reactor.core.publisher.Mono;
 import reactor.netty.resources.LoopResources;
 
@@ -28,14 +29,16 @@ import java.util.Map;
 
 public final class MySQLDatabaseSessionFactory implements DatabaseSessionFactory {
 
-    public static MySQLDatabaseSessionFactory create(String url, Map<String, String> properties)
+    public static MySQLDatabaseSessionFactory create(String url, Map<String, Object> properties)
             throws UrlException, PropertyException {
-        return new MySQLDatabaseSessionFactory(MySQLUrl.getInstance(url, properties), false);
+        throw new UnsupportedOperationException();
+        // return new MySQLDatabaseSessionFactory(MySQLUrl.getInstance(url, properties), false);
     }
 
-    public static MySQLDatabaseSessionFactory forPoolVendor(String url, Map<String, String> properties)
+    public static MySQLDatabaseSessionFactory forPoolVendor(String url, Map<String, Object> properties,Object poolAdvice)
             throws UrlException, PropertyException {
-        return new MySQLDatabaseSessionFactory(MySQLUrl.getInstance(url, properties), true);
+        throw new UnsupportedOperationException();
+       // return new MySQLDatabaseSessionFactory(MySQLUrl.getInstance(url, properties), true);
     }
 
 
@@ -52,13 +55,13 @@ public final class MySQLDatabaseSessionFactory implements DatabaseSessionFactory
     }
 
     @Override
-    public Mono<LocalDatabaseSession> getTxSession() {
+    public Mono<LocalDatabaseSession> localSession() {
         return getClientProtocol()
                 .map(this::createTxSession);
     }
 
     @Override
-    public Mono<RmDatabaseSession> getXaSession() {
+    public Mono<RmDatabaseSession> globalSession() {
         return getClientProtocol()
                 .map(this::createXaSession);
     }
@@ -73,6 +76,10 @@ public final class MySQLDatabaseSessionFactory implements DatabaseSessionFactory
         return ProductFamily.MySQL;
     }
 
+    @Override
+    public Publisher<Void> close() {
+        return null;
+    }
 
     private Mono<ClientProtocol> getClientProtocol() {
         final Mono<ClientProtocol> protocolMono;
@@ -93,7 +100,7 @@ public final class MySQLDatabaseSessionFactory implements DatabaseSessionFactory
     }
 
     /**
-     * @see #getTxSession()
+     * @see #localSession()
      */
     private LocalDatabaseSession createTxSession(final ClientProtocol protocol) {
         final LocalDatabaseSession session;
@@ -106,7 +113,7 @@ public final class MySQLDatabaseSessionFactory implements DatabaseSessionFactory
     }
 
     /**
-     * @see #getXaSession()
+     * @see #globalSession()
      */
     private RmDatabaseSession createXaSession(ClientProtocol protocol) {
         final RmDatabaseSession session;

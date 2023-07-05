@@ -1,8 +1,8 @@
-package io.jdbd.vendor.stmt;
+package io.jdbd.stmt;
 
+import io.jdbd.lang.Nullable;
 import org.reactivestreams.Publisher;
 import org.reactivestreams.Subscriber;
-import reactor.util.annotation.Nullable;
 
 import java.util.function.Function;
 
@@ -14,11 +14,11 @@ import java.util.function.Function;
  * <p>
  * This interface is a base interface of :
  *     <ul>
- *         <li>{@link io.jdbd.vendor.stmt.StaticStmt}</li>
- *         <li>{@link io.jdbd.vendor.stmt.StaticBatchStmt}</li>
- *         <li>{@link io.jdbd.vendor.stmt.ParamStmt}</li>
- *         <li>{@link io.jdbd.vendor.stmt.ParamBatchStmt}</li>
- *         <li>{@link io.jdbd.vendor.stmt.ParamMultiStmt}</li>
+ *         <li>{@link StaticStmt}</li>
+ *         <li>{@link StaticBatchStmt}</li>
+ *         <li>{@link ParamStmt}</li>
+ *         <li>{@link ParamBatchStmt}</li>
+ *         <li>{@link ParamMultiStmt}</li>
  *     </ul>
  * </p>
  * </p>

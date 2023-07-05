@@ -55,7 +55,7 @@ public class PgResultRow extends AbstractResultRow<PgRowMeta> {
         if (!(nonNull instanceof byte[]) && nonNull.getClass().isArray() && meta.sqlType.isArray()) {
             final Pair<Class<?>, Integer> pair = JdbdArrays.getArrayDimensions(nonNull.getClass());
             final PgType elementType = Objects.requireNonNull(meta.sqlType.elementType());
-            if (pair.getFirst() == elementType.javaType() && pair.getSecond() == 1) {
+            if (pair.getFirst() == elementType.outputJavaType() && pair.getSecond() == 1) {
                 value = convertOneDimensionArrayToList(nonNull, elementClass);
             } else {
                 value = super.convertNonNullToList(indexBaseZero, nonNull, elementClass);

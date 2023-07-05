@@ -6,7 +6,7 @@ import io.jdbd.postgre.PgJdbdException;
 import io.jdbd.postgre.PgType;
 import io.jdbd.session.DatabaseSession;
 import io.jdbd.statement.Statement;
-import io.jdbd.vendor.stmt.StatementOption;
+import io.jdbd.vendor.stmt.StmtOption;
 import org.reactivestreams.Publisher;
 import org.reactivestreams.Subscriber;
 import reactor.util.annotation.Nullable;
@@ -22,7 +22,7 @@ import java.util.function.Function;
  *     </ul>
  * </p>
  */
-abstract class PgStatement implements Statement, StatementOption {
+abstract class PgStatement implements Statement, StmtOption {
 
     final PgDatabaseSession session;
 

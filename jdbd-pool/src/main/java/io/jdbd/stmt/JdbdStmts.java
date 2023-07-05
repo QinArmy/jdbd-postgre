@@ -1,8 +1,7 @@
-package io.jdbd.vendor.stmt;
+package io.jdbd.stmt;
 
 
 import io.jdbd.result.ResultStates;
-import io.jdbd.vendor.util.JdbdFunctions;
 import org.reactivestreams.Publisher;
 import org.reactivestreams.Subscriber;
 
@@ -18,6 +17,11 @@ public abstract class JdbdStmts {
     protected JdbdStmts() {
         throw new UnsupportedOperationException();
     }
+
+    public static final Consumer<ResultStates> IGNORE_RESULT_STATES = JdbdStmts::ignoreResultStates;
+
+
+
 
 
     public static StaticStmt stmt(final String sql) {
@@ -38,21 +42,21 @@ public abstract class JdbdStmts {
         return new SimpleStaticMultiStmt(multiStmt);
     }
 
-    public static StaticStmt stmt(String sql, StatementOption option) {
+    public static StaticStmt stmt(String sql, StmtOption option) {
         Objects.requireNonNull(sql, "sql");
         return new OptionStaticStmt(sql, option);
     }
 
-    public static StaticStmt stmt(String sql, Consumer<ResultStates> statesConsumer, StatementOption option) {
+    public static StaticStmt stmt(String sql, Consumer<ResultStates> statesConsumer, StmtOption option) {
         Objects.requireNonNull(sql, "sql");
         return new OptionQueryStaticStmt(sql, statesConsumer, option);
     }
 
-    public static StaticBatchStmt batch(final List<String> sqlGroup, final StatementOption option) {
+    public static StaticBatchStmt batch(final List<String> sqlGroup, final StmtOption option) {
         return new OptionStaticBatchStmt(sqlGroup, option);
     }
 
-    public static StaticMultiStmt multiStmt(String multiStmt, StatementOption option) {
+    public static StaticMultiStmt multiStmt(String multiStmt, StmtOption option) {
         return new OptionStaticMultiStmt(multiStmt, option);
     }
 
@@ -69,17 +73,17 @@ public abstract class JdbdStmts {
         return new SimpleParamBatchStmt<>(sql, groupList);
     }
 
-    public static ParamStmt paramStmt(String sql, List<ParamValue> paramGroup, StatementOption option) {
+    public static ParamStmt paramStmt(String sql, List<ParamValue> paramGroup, StmtOption option) {
         return new OptionParamStmt<>(sql, paramGroup, option);
     }
 
     public static ParamStmt paramStmt(String sql, List<ParamValue> paramGroup
-            , Consumer<ResultStates> statesConsumer, StatementOption option) {
+            , Consumer<ResultStates> statesConsumer, StmtOption option) {
         return new OptionQueryParamStmt<>(sql, paramGroup, statesConsumer, option);
     }
 
     public static ParamBatchStmt<ParamValue> paramBatch(String sql, List<List<ParamValue>> groupList
-            , StatementOption option) {
+            , StmtOption option) {
         return new OptionParamBatchStmt<>(sql, groupList, option);
     }
 
@@ -223,7 +227,7 @@ public abstract class JdbdStmts {
 
         @Override
         public Consumer<ResultStates> getStatusConsumer() {
-            return JdbdFunctions.noActionConsumer();
+            return IGNORE_RESULT_STATES;
         }
 
         @Override
@@ -331,7 +335,7 @@ public abstract class JdbdStmts {
 
         private final int timeout;
 
-        protected OptionStaticStmt(String sql, StatementOption option) {
+        protected OptionStaticStmt(String sql, StmtOption option) {
             this.sql = sql;
             this.timeout = option.getTimeout();
         }
@@ -353,7 +357,7 @@ public abstract class JdbdStmts {
 
         @Override
         public Consumer<ResultStates> getStatusConsumer() {
-            return JdbdFunctions.noActionConsumer();
+            return IGNORE_RESULT_STATES;
         }
 
         @Override
@@ -374,7 +378,7 @@ public abstract class JdbdStmts {
         private final Consumer<ResultStates> statesConsumer;
 
         protected OptionQueryStaticStmt(String sql, Consumer<ResultStates> statesConsumer
-                , StatementOption option) {
+                , StmtOption option) {
             super(sql, option);
             this.fetchSize = option.getFetchSize();
             this.statesConsumer = statesConsumer;
@@ -401,7 +405,7 @@ public abstract class JdbdStmts {
 
         private final int fetchSize;
 
-        protected OptionStaticBatchStmt(final List<String> sqlGroup, StatementOption option) {
+        protected OptionStaticBatchStmt(final List<String> sqlGroup, StmtOption option) {
             this.sqlGroup = wrapGroup(sqlGroup);
             this.timeout = option.getTimeout();
             this.fetchSize = this.sqlGroup.size() == 1 ? option.getFetchSize() : 0;
@@ -440,7 +444,7 @@ public abstract class JdbdStmts {
 
         private final int timeout;
 
-        protected OptionStaticMultiStmt(String multiStmt, StatementOption option) {
+        protected OptionStaticMultiStmt(String multiStmt, StmtOption option) {
             this.multiStmt = multiStmt;
             this.timeout = option.getTimeout();
 
@@ -506,7 +510,7 @@ public abstract class JdbdStmts {
 
         @Override
         public Consumer<ResultStates> getStatusConsumer() {
-            return JdbdFunctions.noActionConsumer();
+            return IGNORE_RESULT_STATES;
         }
 
         @Override
@@ -591,7 +595,7 @@ public abstract class JdbdStmts {
 
         private final int timeout;
 
-        protected OptionParamStmt(String sql, List<T> bindGroup, StatementOption option) {
+        protected OptionParamStmt(String sql, List<T> bindGroup, StmtOption option) {
             this.sql = sql;
             this.bindGroup = wrapBindGroup(bindGroup);
             this.timeout = option.getTimeout();
@@ -605,7 +609,7 @@ public abstract class JdbdStmts {
 
         @Override
         public Consumer<ResultStates> getStatusConsumer() {
-            return JdbdFunctions.noActionConsumer();
+            return IGNORE_RESULT_STATES;
         }
 
         @Override
@@ -644,7 +648,7 @@ public abstract class JdbdStmts {
         private final Consumer<ResultStates> statesConsumer;
 
         protected OptionQueryParamStmt(String sql, List<T> bindGroup
-                , Consumer<ResultStates> statesConsumer, StatementOption option) {
+                , Consumer<ResultStates> statesConsumer, StmtOption option) {
             super(sql, bindGroup, option);
             this.fetchSize = option.getFetchSize();
             this.statesConsumer = statesConsumer;
@@ -673,7 +677,7 @@ public abstract class JdbdStmts {
         private final int fetchSize;
 
         protected OptionParamBatchStmt(final String sql, final List<List<T>> groupList
-                , final StatementOption option) {
+                , final StmtOption option) {
             this.sql = sql;
             this.timeout = option.getTimeout();
             this.groupList = wrapGroupList(groupList);
@@ -745,7 +749,7 @@ public abstract class JdbdStmts {
 
         @Override
         public final Consumer<ResultStates> getStatusConsumer() {
-            return JdbdFunctions.noActionConsumer();
+            return IGNORE_RESULT_STATES;
         }
 
         @Override
@@ -765,5 +769,12 @@ public abstract class JdbdStmts {
 
     }
 
+
+
+
+
+    private static void ignoreResultStates(ResultStates states){
+        //no-op
+    }
 
 }

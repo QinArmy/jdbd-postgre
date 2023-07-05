@@ -51,7 +51,7 @@ public abstract class DriverManager {
      * @throws UrlException            when url error.
      * @throws PropertyException       when properties error.
      */
-    public static DatabaseSessionFactory createSessionFactory(final String url, final Map<String, String> properties) {
+    public static DatabaseSessionFactory createSessionFactory(final String url, final Map<String, Object> properties) {
         return findTargetDriver(url)
                 .createSessionFactory(url, properties);
 
@@ -66,8 +66,8 @@ public abstract class DriverManager {
      *
      * <p>  This method returning {@link DatabaseSessionFactory} has below feature.
      *     <ul>
-     *         <li>{@link DatabaseSessionFactory#getTxSession()} returning instance is {@link io.jdbd.pool.PoolTxDatabaseSession} instance</li>
-     *         <li>{@link DatabaseSessionFactory#getXaSession()} returning instance is {@link io.jdbd.pool.PoolXaDatabaseSession} instance</li>
+     *         <li>{@link DatabaseSessionFactory#localSession()} returning instance is {@code  io.jdbd.pool.PoolLocalDatabaseSession} instance</li>
+     *         <li>{@link DatabaseSessionFactory#globalSession()} returning instance is {@code  io.jdbd.pool.PoolGlobalDatabaseSession} instance</li>
      *     </ul>
      * </p>
      *
@@ -75,10 +75,11 @@ public abstract class DriverManager {
      * @throws UrlException            when url error.
      * @throws PropertyException       when properties error.
      */
-    public static DatabaseSessionFactory forPoolVendor(final String url, final Map<String, String> properties)
+    public static DatabaseSessionFactory forPoolVendor(final String url, final Map<String, Object> properties,
+                                                       final Object poolAdvice)
             throws JdbdNonSQLException {
         return findTargetDriver(url)
-                .forPoolVendor(url, properties);
+                .forPoolVendor(url, properties,poolAdvice);
     }
 
     /*################################## blow private static method ##################################*/

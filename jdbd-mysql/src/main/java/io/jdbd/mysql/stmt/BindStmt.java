@@ -1,6 +1,7 @@
 package io.jdbd.mysql.stmt;
 
-import io.jdbd.vendor.stmt.ParamStmt;
+
+import io.jdbd.stmt.ParamStmt;
 
 import java.util.List;
 

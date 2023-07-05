@@ -36,25 +36,39 @@ import java.util.function.Consumer;
 public interface PreparedStatement extends ServerPrepareStatement {
 
 
-    List< ? extends DataType> getParameterTypes();
+    List< ? extends DataType> getParamTypeList();
 
 
     @Nullable
     Warning getWaring();
 
-
+    /**
+     * {@inheritDoc }
+     */
     @Override
     PreparedStatement bind(int indexBasedZero,@Nullable Object nullable) throws JdbdException;
 
+    /**
+     * {@inheritDoc }
+     */
     @Override
     PreparedStatement bind(int indexBasedZero, JDBCType jdbcType,@Nullable  Object nullable) throws JdbdException;
 
+    /**
+     * {@inheritDoc }
+     */
     @Override
     PreparedStatement bind(int indexBasedZero, DataType dataType,@Nullable  Object nullable) throws JdbdException;
 
+    /**
+     * {@inheritDoc }
+     */
     @Override
     PreparedStatement bind(int indexBasedZero, String dataTypeName,@Nullable  Object nullable) throws JdbdException;
 
+    /**
+     * {@inheritDoc }
+     */
     @Override
     PreparedStatement addBatch() throws JdbdException;
 

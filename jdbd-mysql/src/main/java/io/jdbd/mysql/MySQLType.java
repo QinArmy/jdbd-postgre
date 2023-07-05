@@ -499,7 +499,7 @@ public enum MySQLType implements SQLType {
     }
 
     @Override
-    public final Class<?> javaType() {
+    public final Class<?> outputJavaType() {
         return this.javaType;
     }
 

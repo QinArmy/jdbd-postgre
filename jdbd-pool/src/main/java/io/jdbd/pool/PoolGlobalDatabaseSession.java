@@ -3,17 +3,17 @@ package io.jdbd.pool;
 import io.jdbd.session.RmDatabaseSession;
 import org.reactivestreams.Publisher;
 
-public interface PoolXaDatabaseSession extends RmDatabaseSession, PoolDatabaseSession {
+public interface PoolGlobalDatabaseSession extends RmDatabaseSession, PoolDatabaseSession {
 
 
     @Override
-    Publisher<PoolXaDatabaseSession> ping(int timeoutSeconds);
+    Publisher<PoolGlobalDatabaseSession> ping(int timeoutSeconds);
 
     /**
      * @return Publisher that emit this when success.
      */
     @Override
-    Publisher<PoolXaDatabaseSession> reset();
+    Publisher<PoolGlobalDatabaseSession> reset();
 
 
 }

@@ -1,4 +1,4 @@
-package io.jdbd.vendor.stmt;
+package io.jdbd.stmt;
 
 import io.jdbd.result.ResultStates;
 

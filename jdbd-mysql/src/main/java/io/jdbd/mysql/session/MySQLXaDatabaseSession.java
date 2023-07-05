@@ -8,7 +8,7 @@ import io.jdbd.mysql.stmt.Stmts;
 import io.jdbd.mysql.util.MySQLBuffers;
 import io.jdbd.mysql.util.MySQLExceptions;
 import io.jdbd.mysql.util.MySQLStrings;
-import io.jdbd.pool.PoolXaDatabaseSession;
+import io.jdbd.pool.PoolGlobalDatabaseSession;
 import io.jdbd.result.ResultRow;
 import io.jdbd.result.ResultStates;
 import io.jdbd.session.RmDatabaseSession;
@@ -32,7 +32,7 @@ class MySQLXaDatabaseSession extends MySQLDatabaseSession implements RmDatabaseS
         return new MySQLXaDatabaseSession(adjutant, protocol);
     }
 
-    static PoolXaDatabaseSession forPoolVendor(SessionAdjutant adjutant, ClientProtocol protocol) {
+    static PoolGlobalDatabaseSession forPoolVendor(SessionAdjutant adjutant, ClientProtocol protocol) {
         return new MySQLPoolXaDatabaseSession(adjutant, protocol);
     }
 
@@ -261,24 +261,24 @@ class MySQLXaDatabaseSession extends MySQLDatabaseSession implements RmDatabaseS
 
     /**
      * <p>
-     * This class is implementation of {@link PoolXaDatabaseSession} with MySQL client protocol.
+     * This class is implementation of {@link PoolGlobalDatabaseSession} with MySQL client protocol.
      * </p>
      */
     private static final class MySQLPoolXaDatabaseSession extends MySQLXaDatabaseSession
-            implements PoolXaDatabaseSession {
+            implements PoolGlobalDatabaseSession {
 
         private MySQLPoolXaDatabaseSession(SessionAdjutant adjutant, ClientProtocol protocol) {
             super(adjutant, protocol);
         }
 
         @Override
-        public Mono<PoolXaDatabaseSession> ping(int timeoutSeconds) {
+        public Mono<PoolGlobalDatabaseSession> ping(int timeoutSeconds) {
             return this.protocol.ping(timeoutSeconds)
                     .thenReturn(this);
         }
 
         @Override
-        public Mono<PoolXaDatabaseSession> reset() {
+        public Mono<PoolGlobalDatabaseSession> reset() {
             return this.protocol.reset()
                     .thenReturn(this);
         }
