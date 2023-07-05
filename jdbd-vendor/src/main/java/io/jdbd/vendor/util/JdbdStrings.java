@@ -1,12 +1,16 @@
 package io.jdbd.vendor.util;
 
+import io.jdbd.JdbdException;
 import io.jdbd.UrlException;
+import io.jdbd.lang.Nullable;
 import io.qinarmy.util.StringUtils;
 
 import java.io.UnsupportedEncodingException;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.util.BitSet;
+import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.regex.Pattern;
 
@@ -17,6 +21,32 @@ public abstract class JdbdStrings extends StringUtils {
     }
 
     public static final Pattern NUMBER_PATTERN = Pattern.compile("^-?\\d+(?:\\.\\d+(?:[eE]-?\\d+))?$");
+
+    public static StringBuilder builder() {
+        return new StringBuilder();
+    }
+
+
+    /**
+     * @return a unmodified list
+     */
+    public static List<Pair<String, String>> parseStringPairList(final @Nullable String text) throws JdbdException {
+        final String[] groupArray;
+        if (text == null || (groupArray = text.split(",")).length == 0) {
+            return Collections.emptyList();
+        }
+
+        final List<Pair<String, String>> list = JdbdCollections.arrayList(groupArray.length);
+        String[] pairArray;
+        for (String group : groupArray) {
+            pairArray = group.split(":");
+            if (pairArray.length != 2) {
+                throw new JdbdException(String.format("%s format error", text));
+            }
+            list.add(Pair.create(pairArray[0].trim(), pairArray[1].trim()));
+        }
+        return JdbdCollections.unmodifiableList(list);
+    }
 
 
     public static void parseQueryPair(final String originalUrl, String[] pairArray, Map<String, String> map) {

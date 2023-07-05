@@ -1,7 +1,6 @@
 package io.jdbd.mysql.protocol.client;
 
 import io.jdbd.JdbdSQLException;
-import io.jdbd.env.Properties;
 import io.jdbd.mysql.MySQLJdbdException;
 import io.jdbd.mysql.SQLMode;
 import io.jdbd.mysql.Server;
@@ -11,9 +10,11 @@ import io.jdbd.mysql.protocol.conf.MyKey;
 import io.jdbd.mysql.session.SessionAdjutant;
 import io.jdbd.mysql.stmt.Stmts;
 import io.jdbd.mysql.util.MySQLArrays;
+import io.jdbd.mysql.util.MySQLCollections;
 import io.jdbd.mysql.util.MySQLStrings;
 import io.jdbd.result.MultiResult;
 import io.jdbd.result.ResultRow;
+import io.jdbd.vendor.env.Properties;
 import io.jdbd.vendor.util.SQLStates;
 import io.qinarmy.util.Pair;
 import org.slf4j.Logger;
@@ -90,7 +91,7 @@ public abstract class ClientProtocolFactory {
             final Charset clientCharset = connClientPair.getFirst();
             final Charset resultCharset = resultsCharsetPair.getFirst();
 
-            final List<String> sqlGroup = new ArrayList<>(8);
+            final List<String> sqlGroup = MySQLCollections.arrayList(8);
             sqlGroup.add(setCustomVariablesSql); //1.
             sqlGroup.add(connClientPair.getSecond());//2.
             sqlGroup.add(resultsCharsetPair.getSecond());//3.

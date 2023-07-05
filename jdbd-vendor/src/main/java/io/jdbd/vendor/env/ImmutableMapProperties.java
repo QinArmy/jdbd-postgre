@@ -1,4 +1,4 @@
-package io.jdbd.env;
+package io.jdbd.vendor.env;
 
 import io.jdbd.JdbdException;
 import io.qinarmy.env.ImmutableMapEnvironment;

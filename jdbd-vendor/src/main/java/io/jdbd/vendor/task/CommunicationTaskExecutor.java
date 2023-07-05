@@ -1,9 +1,9 @@
 package io.jdbd.vendor.task;
 
 import io.jdbd.JdbdException;
-import io.jdbd.env.HostInfo;
 import io.jdbd.session.SessionCloseException;
 import io.jdbd.statement.TaskQueueOverflowException;
+import io.jdbd.vendor.env.HostInfo;
 import io.jdbd.vendor.util.JdbdExceptions;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;

@@ -2,10 +2,10 @@ package io.jdbd.mysql.protocol.conf;
 
 
 import io.jdbd.JdbdException;
-import io.jdbd.env.*;
 import io.jdbd.mysql.protocol.client.Charsets;
 import io.jdbd.mysql.protocol.client.ClientProtocol;
 import io.jdbd.mysql.util.MySQLCollections;
+import io.jdbd.vendor.env.*;
 import io.qinarmy.env.convert.ConverterManager;
 import io.qinarmy.env.convert.ImmutableConverterManager;
 import reactor.util.annotation.Nullable;
@@ -214,8 +214,8 @@ public final class MySQLUrl extends AbstractJdbcUrl {
             this(scheme, cardinality, null, null);
         }
 
-        Protocol(String scheme, HostsCardinality cardinality
-                , @Nullable MyKey dnsSrvPropertyKey, @Nullable Protocol alternateDnsSrvType) {
+        Protocol(String scheme, HostsCardinality cardinality, @Nullable MyKey dnsSrvPropertyKey,
+                 @Nullable Protocol alternateDnsSrvType) {
             this.scheme = scheme;
             this.cardinality = cardinality;
             this.dnsSrvPropertyKey = dnsSrvPropertyKey;
@@ -223,21 +223,21 @@ public final class MySQLUrl extends AbstractJdbcUrl {
         }
 
 
-        public String getScheme() {
+        public final String getScheme() {
             return this.scheme;
         }
 
-        public HostsCardinality getCardinality() {
+        public final HostsCardinality getCardinality() {
             return this.cardinality;
         }
 
         @Nullable
-        public MyKey getDnsSrvPropertyKey() {
+        public final MyKey getDnsSrvPropertyKey() {
             return this.dnsSrvPropertyKey;
         }
 
         @Nullable
-        public Protocol getAlternateDnsSrvType() {
+        public final Protocol getAlternateDnsSrvType() {
             return this.alternateDnsSrvType;
         }
 

@@ -64,12 +64,12 @@ final class Handshake10 implements MySQLPacket {
                 authPluginName = Packets.readStringTerm(payload, StandardCharsets.US_ASCII);
             }
         }
-        return new Handshake10(serverVersion
-                , threadId, authPluginDataPart1
-                , filler, capabilityFlags
-                , characterSet, statusFlags
-                , authPluginDataLen, authPluginDataPart2
-                , authPluginName);
+        return new Handshake10(serverVersion,
+                threadId, authPluginDataPart1,
+                filler, capabilityFlags,
+                characterSet, statusFlags,
+                authPluginDataLen, authPluginDataPart2,
+                authPluginName);
     }
 
 

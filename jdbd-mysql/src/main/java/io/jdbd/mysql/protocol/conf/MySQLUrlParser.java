@@ -1,10 +1,10 @@
 package io.jdbd.mysql.protocol.conf;
 
 import io.jdbd.JdbdException;
-import io.jdbd.env.HostInfo;
-import io.jdbd.env.JdbcUrlParser;
 import io.jdbd.mysql.util.MySQLCollections;
 import io.jdbd.mysql.util.MySQLStrings;
+import io.jdbd.vendor.env.HostInfo;
+import io.jdbd.vendor.env.JdbcUrlParser;
 
 import java.io.UnsupportedEncodingException;
 import java.net.URLDecoder;

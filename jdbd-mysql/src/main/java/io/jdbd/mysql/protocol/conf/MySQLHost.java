@@ -1,8 +1,8 @@
 package io.jdbd.mysql.protocol.conf;
 
-import io.jdbd.env.AbstractHostInfo;
-import io.jdbd.env.JdbcUrlParser;
-import io.jdbd.env.PropertyKey;
+import io.jdbd.vendor.env.AbstractHostInfo;
+import io.jdbd.vendor.env.JdbcUrlParser;
+import io.jdbd.vendor.env.PropertyKey;
 
 import java.util.Collections;
 import java.util.Map;

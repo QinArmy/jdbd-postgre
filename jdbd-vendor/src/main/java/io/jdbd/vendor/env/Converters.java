@@ -1,7 +1,20 @@
-package io.jdbd.env;
+package io.jdbd.vendor.env;
 
 import io.jdbd.JdbdException;
+import io.jdbd.lang.Nullable;
+import io.jdbd.vendor.util.JdbdCollections;
 
+import java.lang.reflect.Field;
+import java.lang.reflect.Modifier;
+import java.math.BigDecimal;
+import java.math.BigInteger;
+import java.nio.charset.Charset;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.time.ZoneOffset;
+import java.util.Locale;
+import java.util.Map;
+import java.util.UUID;
 import java.util.function.Consumer;
 
 public abstract class Converters {
@@ -29,6 +42,8 @@ public abstract class Converters {
         consumer.accept(StringToCharsetConverter.INSTANCE);
         consumer.accept(StringToPathConverter.INSTANCE);
         consumer.accept(StringToUuidConverter.INSTANCE);
+
+        consumer.accept(StringToZoneOffsetConverter.INSTANCE);
 
     }
 
@@ -73,7 +88,7 @@ public abstract class Converters {
                 }
                 return value;
             } catch (NumberFormatException e) {
-                throw new JdbdException(e.getMessage(), e);
+                throw convertFailure(source, target(), e);
             }
         }
 
@@ -102,7 +117,7 @@ public abstract class Converters {
                 }
                 return value;
             } catch (NumberFormatException e) {
-                throw new JdbdException(e.getMessage(), e);
+                throw convertFailure(source, target(), e);
             }
         }
 
@@ -121,7 +136,7 @@ public abstract class Converters {
         }
 
         @Override
-        public Integer convert(String source) throws JdbdException {
+        public Integer convert(final String source) throws JdbdException {
             try {
                 final int value;
                 if (isHexNumber(source)) {
@@ -131,10 +146,11 @@ public abstract class Converters {
                 }
                 return value;
             } catch (NumberFormatException e) {
-                throw new JdbdException(e.getMessage(), e);
+                throw convertFailure(source, target(), e);
             }
         }
-    }
+
+    }//StringToIntegerConverter
 
     private static final class StringToLongConverter implements Converter<Long> {
 
@@ -149,10 +165,21 @@ public abstract class Converters {
         }
 
         @Override
-        public Long convert(String source) throws JdbdException {
-            return isHexNumber(source) ? Long.decode(source) : Long.parseLong(source);
+        public Long convert(final String source) throws JdbdException {
+            try {
+                final long value;
+                if (isHexNumber(source)) {
+                    value = Long.decode(source);
+                } else {
+                    value = Long.parseLong(source);
+                }
+                return value;
+            } catch (NumberFormatException e) {
+                throw convertFailure(source, target(), e);
+            }
         }
-    }
+
+    }//StringToLongConverter
 
     private static final class StringToFloatConverter implements Converter<Float> {
 
@@ -167,10 +194,15 @@ public abstract class Converters {
         }
 
         @Override
-        public Float convert(String source) throws IllegalArgumentException {
-            return Float.parseFloat(source);
+        public Float convert(String source) throws JdbdException {
+            try {
+                return Float.parseFloat(source);
+            } catch (NumberFormatException e) {
+                throw convertFailure(source, target(), e);
+            }
         }
-    }
+
+    }//StringToFloatConverter
 
     private static final class StringToDoubleConverter implements Converter<Double> {
 
@@ -185,10 +217,15 @@ public abstract class Converters {
         }
 
         @Override
-        public Double convert(String source) throws IllegalArgumentException {
-            return Double.parseDouble(source);
+        public Double convert(String source) throws JdbdException {
+            try {
+                return Double.parseDouble(source);
+            } catch (NumberFormatException e) {
+                throw convertFailure(source, target(), e);
+            }
         }
-    }
+
+    }//StringToDoubleConverter
 
     private static final class StringToBigDecimalConverter implements Converter<BigDecimal> {
 
@@ -203,10 +240,15 @@ public abstract class Converters {
         }
 
         @Override
-        public BigDecimal convert(String source) throws IllegalArgumentException {
-            return new BigDecimal(source);
+        public BigDecimal convert(String source) throws JdbdException {
+            try {
+                return new BigDecimal(source);
+            } catch (NumberFormatException e) {
+                throw convertFailure(source, target(), e);
+            }
         }
-    }
+
+    }//StringToBigDecimalConverter
 
     private static final class StringToBigIntegerConverter implements Converter<BigInteger> {
 
@@ -221,10 +263,15 @@ public abstract class Converters {
         }
 
         @Override
-        public BigInteger convert(String source) throws IllegalArgumentException {
-            return new BigInteger(source);
+        public BigInteger convert(String source) throws JdbdException {
+            try {
+                return new BigInteger(source);
+            } catch (NumberFormatException e) {
+                throw convertFailure(source, target(), e);
+            }
         }
-    }
+
+    }//StringToBigIntegerConverter
 
     private static final class StringToBooleanConverter implements Converter<Boolean> {
 
@@ -240,49 +287,39 @@ public abstract class Converters {
         }
 
         @Override
-        public Boolean convert(String source) throws IllegalArgumentException {
-            try {
-                return Boolean.parseBoolean(source);
-            } catch (NumberFormatException e) {
-                throw new IllegalArgumentException("source error", e);
+        public Boolean convert(final String source) throws JdbdException {
+            final boolean value;
+            switch (source.toLowerCase(Locale.ROOT)) {
+                case "true":
+                case "on":
+                case "yes":
+                    value = true;
+                    break;
+                case "false":
+                case "off":
+                case "no":
+                    value = false;
+                    break;
+                default:
+                    throw convertFailure(source, target(), null);
             }
+            return value;
         }
-    }
+
+    }//StringToBooleanConverter
 
     static final class StringToEnumConverter<T extends Enum<T>> implements Converter<T> {
 
-        @SuppressWarnings("unchecked")
-        public static <T extends Enum<T>> StringToEnumConverter<T> getInstance(Class<? extends Enum<?>> enumClass) {
-            return new StringToEnumConverter<>((Class<T>) enumClass);
+
+        static <T extends Enum<T>> StringToEnumConverter<T> getInstance(Class<T> enumClass) {
+            return new StringToEnumConverter<>(enumClass);
         }
 
         private final Class<T> enumClass;
 
-        private final Method valueOfTextMethod;
 
         private StringToEnumConverter(Class<T> enumClass) {
             this.enumClass = enumClass;
-
-            if (NonNameEnum.class.isAssignableFrom(enumClass)) {
-                Method method;
-                try {
-                    method = this.enumClass.getMethod("valueOfText", String.class);
-                } catch (NoSuchMethodException e) {
-                    throw new IllegalArgumentException(e);
-                }
-                if (Modifier.isPublic(method.getModifiers())
-                        && Modifier.isStatic(method.getModifiers())
-                        && method.getReturnType() == this.enumClass) {
-                    this.valueOfTextMethod = method;
-                } else {
-                    throw new IllegalArgumentException(
-                            String.format("%s implements %s,but not found valueOfText method."
-                                    , enumClass.getName(), NonNameEnum.class.getName()));
-                }
-            } else {
-                this.valueOfTextMethod = null;
-            }
-
         }
 
 
@@ -292,23 +329,73 @@ public abstract class Converters {
         }
 
         @Override
-        public T convert(String source) throws IllegalArgumentException {
-            final T result;
-            if (NonNameEnum.class.isAssignableFrom(this.enumClass)) {
-                try {
-                    result = this.enumClass.cast(this.valueOfTextMethod.invoke(null, source));
-                } catch (IllegalAccessException | InvocationTargetException e) {
-                    throw new IllegalStateException(e);
-                }
-            } else {
-                result = Enum.valueOf(this.enumClass, source);
+        public T convert(String source) throws JdbdException {
+            try {
+                return Enum.valueOf(this.enumClass, source);
+            } catch (IllegalArgumentException e) {
+                throw convertFailure(source, target(), e);
             }
-            return result;
         }
 
 
-    }
+    }//StringToEnumConverter
 
+
+    static final class StringToTextEnumConverter<T extends TextEnum> implements Converter<T> {
+
+
+        static <T extends TextEnum> StringToTextEnumConverter<T> getInstance(Class<T> enumClass) {
+            if (!Enum.class.isAssignableFrom(enumClass)) {
+                throw new JdbdException(String.format("%s isn't %s.", enumClass.getName(), TextEnum.class));
+            }
+            for (Field field : enumClass.getDeclaredFields()) {
+                if (!Modifier.isFinal(field.getModifiers())) {
+                    throw new JdbdException(String.format("%s %s isn't final.", enumClass.getName(), field.getName()));
+                }
+            }
+            return new StringToTextEnumConverter<>(enumClass);
+        }
+
+        private final Class<T> enumClass;
+
+        private final Map<String, T> enumMap;
+
+        private StringToTextEnumConverter(final Class<T> enumClass) {
+            this.enumClass = enumClass;
+
+            final T[] array;
+            array = enumClass.getEnumConstants();
+            final Map<String, T> map = JdbdCollections.hashMap((int) (array.length / 0.75f));
+
+            String text;
+            for (T e : array) {
+                text = e.text();
+                if (map.putIfAbsent(e.text(), e) != null) {
+                    throw new JdbdException(String.format("%s text[%s] duplication.", enumClass.getName(), text));
+                }
+            }
+
+            this.enumMap = JdbdCollections.unmodifiableMap(map);
+        }
+
+
+        @Override
+        public Class<T> target() {
+            return this.enumClass;
+        }
+
+        @Override
+        public T convert(String source) throws JdbdException {
+            final T value;
+            value = this.enumMap.get(source);
+            if (value == null) {
+                throw convertFailure(source, target(), null);
+            }
+            return value;
+        }
+
+
+    }//StringToTextEnumConverter
 
     private static final class StringToPathConverter implements Converter<Path> {
 
@@ -323,15 +410,15 @@ public abstract class Converters {
         }
 
         @Override
-        public Path convert(String source) throws IllegalArgumentException {
+        public Path convert(String source) throws JdbdException {
             try {
                 return Paths.get(source);
-            } catch (Throwable e) {
-                throw new IllegalArgumentException(e);
+            } catch (Exception e) {
+                throw convertFailure(source, target(), e);
             }
         }
 
-    }
+    }//StringToPathConverter
 
     private static final class StringToCharsetConverter implements Converter<Charset> {
 
@@ -346,14 +433,14 @@ public abstract class Converters {
         }
 
         @Override
-        public Charset convert(String source) throws IllegalArgumentException {
+        public Charset convert(String source) throws JdbdException {
             try {
                 return Charset.forName(source);
             } catch (Exception e) {
-                throw new IllegalArgumentException(e);
+                throw convertFailure(source, target(), e);
             }
         }
-    }
+    }//StringToCharsetConverter
 
     private static final class StringToUuidConverter implements Converter<UUID> {
 
@@ -368,15 +455,39 @@ public abstract class Converters {
         }
 
         @Override
-        public UUID convert(String source) throws IllegalArgumentException {
+        public UUID convert(String source) throws JdbdException {
             try {
                 return UUID.fromString(source);
             } catch (Exception e) {
-                throw new IllegalArgumentException(e);
+                throw convertFailure(source, target(), e);
             }
         }
-    }
 
+    }//StringToUuidConverter
+
+
+    private static final class StringToZoneOffsetConverter implements Converter<ZoneOffset> {
+
+        static final StringToZoneOffsetConverter INSTANCE = new StringToZoneOffsetConverter();
+
+        private StringToZoneOffsetConverter() {
+        }
+
+        @Override
+        public Class<ZoneOffset> target() {
+            return ZoneOffset.class;
+        }
+
+        @Override
+        public ZoneOffset convert(String source) throws JdbdException {
+            try {
+                return ZoneOffset.of(source);
+            } catch (Exception e) {
+                throw convertFailure(source, target(), e);
+            }
+        }
+
+    }//StringToZoneOffsetConverter
 
     /**
      * Determine whether the given {@code value} String indicates a hex number,
@@ -386,6 +497,18 @@ public abstract class Converters {
     private static boolean isHexNumber(String value) {
         int index = (value.startsWith("-") ? 1 : 0);
         return (value.startsWith("0x", index) || value.startsWith("0X", index) || value.startsWith("#", index));
+    }
+
+
+    private static JdbdException convertFailure(@Nullable String source, Class<?> javaType, @Nullable Throwable clause) {
+        final String m = String.format("%s couldn't convert to %s .", source, javaType.getName());
+        final JdbdException e;
+        if (clause == null) {
+            e = new JdbdException(m);
+        } else {
+            e = new JdbdException(m, clause);
+        }
+        return e;
     }
 
 }

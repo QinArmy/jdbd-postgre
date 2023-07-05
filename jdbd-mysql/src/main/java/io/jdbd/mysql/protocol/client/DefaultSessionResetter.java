@@ -1,7 +1,6 @@
 package io.jdbd.mysql.protocol.client;
 
 import io.jdbd.JdbdSQLException;
-import io.jdbd.env.Properties;
 import io.jdbd.mysql.SQLMode;
 import io.jdbd.mysql.Server;
 import io.jdbd.mysql.protocol.Constants;
@@ -12,6 +11,7 @@ import io.jdbd.mysql.util.MySQLExceptions;
 import io.jdbd.mysql.util.MySQLStrings;
 import io.jdbd.mysql.util.MySQLTimes;
 import io.jdbd.result.ResultRow;
+import io.jdbd.vendor.env.Properties;
 import io.jdbd.vendor.util.SQLStates;
 import io.qinarmy.util.Pair;
 import org.slf4j.Logger;

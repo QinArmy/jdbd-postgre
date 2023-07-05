@@ -40,7 +40,7 @@
         <jackson.module.version>2.11.0</jackson.module.version>
         <jackson.datatype.version>2.11.0</jackson.datatype.version>
 
-        <mysql.versioin>8.0.26</mysql.versioin>
+        <mysql.versioin>8.0.33</mysql.versioin>
         <r2dbc-postgresql.version>0.8.5.RELEASE</r2dbc-postgresql.version>
 
         <slf4.version>1.7.30</slf4.version>

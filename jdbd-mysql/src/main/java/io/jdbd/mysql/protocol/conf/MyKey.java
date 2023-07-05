@@ -1,11 +1,11 @@
 package io.jdbd.mysql.protocol.conf;
 
-import io.jdbd.env.OnlyReactor;
-import io.jdbd.env.PropertyKey;
-import io.jdbd.env.Redefine;
 import io.jdbd.mysql.protocol.Constants;
 import io.jdbd.mysql.protocol.authentication.MySQLNativePasswordPlugin;
 import io.jdbd.mysql.protocol.client.Enums;
+import io.jdbd.vendor.env.OnlyReactor;
+import io.jdbd.vendor.env.PropertyKey;
+import io.jdbd.vendor.env.Redefine;
 import reactor.util.annotation.Nullable;
 
 import java.nio.charset.Charset;

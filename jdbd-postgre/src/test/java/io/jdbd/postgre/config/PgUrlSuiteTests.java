@@ -1,7 +1,7 @@
 package io.jdbd.postgre.config;
 
-import io.jdbd.env.Properties;
 import io.jdbd.postgre.Group;
+import io.jdbd.vendor.env.Properties;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.annotations.Test;

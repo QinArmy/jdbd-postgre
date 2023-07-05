@@ -1,6 +1,6 @@
 package io.jdbd.mysql.protocol;
 
-import io.jdbd.env.HostInfo;
+import io.jdbd.vendor.env.HostInfo;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
 

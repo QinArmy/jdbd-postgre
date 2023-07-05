@@ -1,6 +1,5 @@
 package io.jdbd.postgre.protocol.client;
 
-import io.jdbd.env.HostInfo;
 import io.jdbd.postgre.*;
 import io.jdbd.postgre.config.PgHost;
 import io.jdbd.postgre.session.SessionAdjutant;
@@ -11,6 +10,7 @@ import io.jdbd.postgre.util.PgStrings;
 import io.jdbd.postgre.util.PgTimes;
 import io.jdbd.result.ResultRow;
 import io.jdbd.result.ResultRowMeta;
+import io.jdbd.vendor.env.HostInfo;
 import io.jdbd.vendor.task.CommunicationTask;
 import io.jdbd.vendor.task.CommunicationTaskExecutor;
 import io.netty.buffer.ByteBuf;

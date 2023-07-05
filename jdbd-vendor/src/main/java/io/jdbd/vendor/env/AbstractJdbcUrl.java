@@ -1,4 +1,4 @@
-package io.jdbd.env;
+package io.jdbd.vendor.env;
 
 import io.jdbd.vendor.util.JdbdStrings;
 import reactor.util.annotation.Nullable;

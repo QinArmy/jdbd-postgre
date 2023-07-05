@@ -1,5 +1,6 @@
-package io.jdbd.env;
+package io.jdbd.vendor.env;
 
+import io.jdbd.env.JdbdEnvironment;
 import reactor.util.annotation.Nullable;
 
 /**
@@ -27,7 +28,10 @@ public interface HostInfo {
 
     boolean isPasswordLess();
 
+    @Deprecated
     Properties getProperties();
+
+    JdbdEnvironment getEnvironment();
 
     @Nullable
     String getDbName();

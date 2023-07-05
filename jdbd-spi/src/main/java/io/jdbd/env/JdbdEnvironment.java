@@ -53,32 +53,6 @@ public interface JdbdEnvironment {
      */
     <T> T getNonNull(String keyName, Class<T> valueClass) throws JdbdException;
 
-    /**
-     * @throws JdbdException throw when <ul>
-     *                       <li>converting failure</li>
-     *                       <li>keyName is password or private key</li>
-     *                       </ul>
-     */
-    @Nullable
-    <T> T get(JdbdKey<T> key) throws JdbdException;
-
-    /**
-     * @throws JdbdException throw when <ul>
-     *                       <li>converting failure</li>
-     *                       <li>value is null and default value is null</li>
-     *                       <li>keyName is password or private key</li>
-     *                       </ul>
-     */
-    <T> T getOrDefault(JdbdKey<T> key) throws JdbdException;
-
-    /**
-     * @throws JdbdException throw when <ul>
-     *                       <li>converting failure</li>
-     *                       <li>value is null</li>
-     *                       <li>keyName is password or private key</li>
-     *                       </ul>
-     */
-    <T> T getRequired(JdbdKey<T> key) throws JdbdException;
 
 
 }

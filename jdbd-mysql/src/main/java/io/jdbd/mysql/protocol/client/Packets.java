@@ -24,6 +24,10 @@ import java.util.function.Supplier;
 public abstract class Packets {
 
 
+    private Packets() {
+        throw new UnsupportedOperationException();
+    }
+
     public static final long NULL_LENGTH = -1L;
 
     public static final int HEADER_SIZE = 4;
@@ -83,8 +87,7 @@ public abstract class Packets {
 
 
     public static int readInt2AsInt(ByteBuf byteBuf) {
-        return (byteBuf.readByte() & BIT_8)
-                | ((byteBuf.readByte() & BIT_8) << 8);
+        return (byteBuf.readByte() & BIT_8) | ((byteBuf.readByte() & BIT_8) << 8);
     }
 
 
@@ -129,8 +132,7 @@ public abstract class Packets {
                 | ((byteBuf.readByte() & BIT_8L) << 16)
                 | ((byteBuf.readByte() & BIT_8L) << 24)
                 | ((byteBuf.readByte() & BIT_8L) << 32)
-                | ((byteBuf.readByte() & BIT_8L) << 40)
-                ;
+                | ((byteBuf.readByte() & BIT_8L) << 40);
     }
 
     public static long getInt6(ByteBuf byteBuf, int index) {
@@ -139,8 +141,7 @@ public abstract class Packets {
                 | ((byteBuf.getByte(index++) & BIT_8L) << 16)
                 | ((byteBuf.getByte(index++) & BIT_8L) << 24)
                 | ((byteBuf.getByte(index++) & BIT_8L) << 32)
-                | ((byteBuf.getByte(index) & BIT_8L) << 40)
-                ;
+                | ((byteBuf.getByte(index) & BIT_8L) << 40);
     }
 
 

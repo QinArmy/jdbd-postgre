@@ -1,7 +1,6 @@
 package io.jdbd.mysql.protocol.client;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.jdbd.env.Properties;
 import io.jdbd.meta.NullMode;
 import io.jdbd.meta.SQLType;
 import io.jdbd.mysql.Groups;
@@ -15,6 +14,7 @@ import io.jdbd.result.ResultRow;
 import io.jdbd.result.ResultRowMeta;
 import io.jdbd.result.ResultStates;
 import io.jdbd.vendor.JdbdCompositeException;
+import io.jdbd.vendor.env.Properties;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.ITestContext;

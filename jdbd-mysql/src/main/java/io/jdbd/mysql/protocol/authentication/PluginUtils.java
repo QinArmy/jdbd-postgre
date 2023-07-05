@@ -1,11 +1,11 @@
 package io.jdbd.mysql.protocol.authentication;
 
 import io.jdbd.PropertyException;
-import io.jdbd.env.Properties;
 import io.jdbd.mysql.protocol.conf.MyKey;
 import io.jdbd.mysql.session.SessionAdjutant;
 import io.jdbd.mysql.util.MySQLCollections;
 import io.jdbd.mysql.util.MySQLStrings;
+import io.jdbd.vendor.env.Properties;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

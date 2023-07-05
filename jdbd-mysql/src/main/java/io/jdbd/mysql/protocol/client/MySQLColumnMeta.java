@@ -1,12 +1,12 @@
 package io.jdbd.mysql.protocol.client;
 
-import io.jdbd.env.Properties;
 import io.jdbd.meta.NullMode;
 import io.jdbd.mysql.MySQLType;
 import io.jdbd.mysql.protocol.Constants;
 import io.jdbd.mysql.protocol.conf.MyKey;
 import io.jdbd.mysql.util.MySQLStrings;
 import io.jdbd.result.FieldType;
+import io.jdbd.vendor.env.Properties;
 import io.netty.buffer.ByteBuf;
 import io.qinarmy.util.StringUtils;
 import org.slf4j.Logger;

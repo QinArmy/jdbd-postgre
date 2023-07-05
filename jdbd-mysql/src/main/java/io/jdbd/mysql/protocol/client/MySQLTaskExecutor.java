@@ -1,7 +1,6 @@
 package io.jdbd.mysql.protocol.client;
 
-import io.jdbd.env.HostInfo;
-import io.jdbd.mysql.MySQLJdbdException;
+import io.jdbd.JdbdException;
 import io.jdbd.mysql.Server;
 import io.jdbd.mysql.protocol.authentication.AuthenticationPlugin;
 import io.jdbd.mysql.protocol.conf.MySQLHost;
@@ -10,6 +9,7 @@ import io.jdbd.mysql.session.SessionAdjutant;
 import io.jdbd.mysql.syntax.DefaultMySQLParser;
 import io.jdbd.mysql.syntax.MySQLParser;
 import io.jdbd.mysql.syntax.MySQLStatement;
+import io.jdbd.vendor.env.HostInfo;
 import io.jdbd.vendor.task.CommunicationTask;
 import io.jdbd.vendor.task.CommunicationTaskExecutor;
 import io.netty.buffer.ByteBuf;
@@ -41,9 +41,8 @@ final class MySQLTaskExecutor extends CommunicationTaskExecutor<TaskAdjutant> {
                     .connect()
                     .map(connection -> new MySQLTaskExecutor(connection, hostInfo, sessionAdjutant));
         } else {
-            IllegalArgumentException e = new IllegalArgumentException(
-                    String.format("hostIndex[%s] not in [0,%s)", hostIndex, hostInfoList.size()));
-            mono = Mono.error(new MySQLJdbdException(e, "Not found HostInfo in url."));
+            String m = String.format("hostIndex[%s] not in [0,%s)", hostIndex, hostInfoList.size());
+            mono = Mono.error(new JdbdException("Not found HostInfo in url.", new IllegalArgumentException(m)));
         }
         return mono;
     }

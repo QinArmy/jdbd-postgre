@@ -1,14 +1,14 @@
 package io.jdbd.mysql.protocol.client;
 
 import io.jdbd.JdbdSQLException;
-import io.jdbd.env.HostInfo;
-import io.jdbd.env.Properties;
 import io.jdbd.mysql.MySQLJdbdException;
 import io.jdbd.mysql.protocol.MySQLServerVersion;
 import io.jdbd.mysql.protocol.X509TrustManagerWrapper;
 import io.jdbd.mysql.protocol.conf.MyKey;
 import io.jdbd.mysql.util.MySQLStates;
 import io.jdbd.mysql.util.MySQLStrings;
+import io.jdbd.vendor.env.HostInfo;
+import io.jdbd.vendor.env.Properties;
 import io.jdbd.vendor.util.SQLStates;
 import io.netty.buffer.ByteBufAllocator;
 import io.netty.handler.ssl.*;

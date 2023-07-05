@@ -1,7 +1,7 @@
 package io.jdbd.postgre.protocol;
 
-import io.jdbd.env.HostInfo;
 import io.jdbd.postgre.config.PgKey;
+import io.jdbd.vendor.env.HostInfo;
 import io.jdbd.vendor.task.AbstractSslProviderBuilder;
 import io.jdbd.vendor.task.SslMode;
 import reactor.util.annotation.Nullable;

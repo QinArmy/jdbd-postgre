@@ -2,7 +2,7 @@ package io.jdbd.mysql.session;
 
 import io.jdbd.JdbdException;
 import io.jdbd.PropertyException;
-import io.jdbd.env.Properties;
+import io.jdbd.env.JdbdEnvironment;
 import io.jdbd.mysql.protocol.authentication.AuthenticationPlugin;
 import io.jdbd.mysql.protocol.authentication.PluginUtils;
 import io.jdbd.mysql.protocol.client.ClientProtocol;
@@ -14,6 +14,7 @@ import io.jdbd.mysql.util.MySQLStrings;
 import io.jdbd.session.DatabaseSessionFactory;
 import io.jdbd.session.LocalDatabaseSession;
 import io.jdbd.session.RmDatabaseSession;
+import io.jdbd.vendor.env.Properties;
 import io.netty.channel.EventLoopGroup;
 import org.reactivestreams.Publisher;
 import reactor.core.publisher.Mono;
@@ -69,6 +70,11 @@ public final class MySQLDatabaseSessionFactory implements DatabaseSessionFactory
 
     @Override
     public Publisher<Void> close() {
+        return null;
+    }
+
+    @Override
+    public JdbdEnvironment environment() {
         return null;
     }
 

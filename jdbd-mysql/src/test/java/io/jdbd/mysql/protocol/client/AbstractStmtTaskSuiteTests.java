@@ -2,7 +2,6 @@ package io.jdbd.mysql.protocol.client;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.jdbd.env.Properties;
 import io.jdbd.mysql.MySQLType;
 import io.jdbd.mysql.SQLMode;
 import io.jdbd.mysql.protocol.conf.MyKey;
@@ -14,6 +13,7 @@ import io.jdbd.mysql.type.TrueOrFalse;
 import io.jdbd.mysql.util.*;
 import io.jdbd.result.ResultRow;
 import io.jdbd.result.ResultStates;
+import io.jdbd.vendor.env.Properties;
 import io.jdbd.vendor.util.GeometryUtils;
 import org.slf4j.Logger;
 import reactor.core.publisher.Flux;

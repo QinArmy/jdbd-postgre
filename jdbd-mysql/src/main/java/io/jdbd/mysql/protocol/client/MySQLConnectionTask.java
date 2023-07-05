@@ -2,8 +2,6 @@ package io.jdbd.mysql.protocol.client;
 
 import io.jdbd.JdbdException;
 import io.jdbd.JdbdSQLException;
-import io.jdbd.env.HostInfo;
-import io.jdbd.env.Properties;
 import io.jdbd.mysql.MySQLJdbdException;
 import io.jdbd.mysql.protocol.AuthenticateAssistant;
 import io.jdbd.mysql.protocol.Constants;
@@ -17,6 +15,8 @@ import io.jdbd.mysql.util.MySQLCollections;
 import io.jdbd.mysql.util.MySQLExceptions;
 import io.jdbd.mysql.util.MySQLStrings;
 import io.jdbd.session.SessionCloseException;
+import io.jdbd.vendor.env.HostInfo;
+import io.jdbd.vendor.env.Properties;
 import io.jdbd.vendor.task.CommunicationTask;
 import io.jdbd.vendor.task.ConnectionTask;
 import io.jdbd.vendor.task.SslWrapper;
