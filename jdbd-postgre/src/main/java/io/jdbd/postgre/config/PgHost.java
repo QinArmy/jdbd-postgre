@@ -1,8 +1,8 @@
 package io.jdbd.postgre.config;
 
-import io.jdbd.vendor.conf.AbstractHostInfo;
-import io.jdbd.vendor.conf.JdbcUrlParser;
-import io.jdbd.vendor.conf.Properties;
+import io.jdbd.env.AbstractHostInfo;
+import io.jdbd.env.JdbcUrlParser;
+import io.jdbd.env.Properties;
 
 import java.util.Map;
 

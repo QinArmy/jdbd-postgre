@@ -1,7 +1,7 @@
 package io.jdbd.vendor.task;
 
-import io.jdbd.vendor.conf.HostInfo;
-import io.jdbd.vendor.conf.Properties;
+import io.jdbd.env.HostInfo;
+import io.jdbd.env.Properties;
 import io.jdbd.vendor.util.JdbdStrings;
 import io.netty.buffer.ByteBufAllocator;
 import io.netty.handler.ssl.SslContext;

@@ -1,11 +1,11 @@
 package io.jdbd.mysql.protocol.conf;
 
 import io.jdbd.UrlException;
+import io.jdbd.env.HostInfo;
+import io.jdbd.env.Properties;
 import io.jdbd.mysql.Groups;
 import io.jdbd.mysql.protocol.client.Enums;
 import io.jdbd.mysql.util.MySQLStrings;
-import io.jdbd.vendor.conf.HostInfo;
-import io.jdbd.vendor.conf.Properties;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;

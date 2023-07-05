@@ -1,9 +1,9 @@
 package io.jdbd.postgre.config;
 
 import io.jdbd.UrlException;
+import io.jdbd.env.JdbcUrlParser;
 import io.jdbd.postgre.util.PgCollections;
 import io.jdbd.postgre.util.PgStrings;
-import io.jdbd.vendor.conf.JdbcUrlParser;
 import reactor.util.annotation.Nullable;
 
 import java.util.*;

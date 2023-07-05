@@ -157,7 +157,7 @@ abstract class MySQLDatabaseSession implements DatabaseSession {
     }
 
     @Override
-    public final ServerVersion getServerVersion() {
+    public final ServerVersion serverVersion() {
         return this.protocol.getServerVersion();
     }
 

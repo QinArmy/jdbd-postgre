@@ -1,5 +1,6 @@
 package io.jdbd.session;
 
+import io.jdbd.env.JdbdEnvironment;
 import io.jdbd.meta.DatabaseMetaData;
 import io.jdbd.result.CurrentRow;
 import io.jdbd.result.MultiResult;
@@ -79,7 +80,6 @@ public interface DatabaseSession  extends StaticStatementSpec ,Closeable{
     Publisher<TransactionOption> getTransactionOption();
 
 
-
     StaticStatement statement();
 
     /**
@@ -130,12 +130,14 @@ public interface DatabaseSession  extends StaticStatementSpec ,Closeable{
      */
     boolean isClosed();
 
-    ServerVersion getServerVersion();
+    ServerVersion serverVersion();
 
 
     boolean isSameFactory(DatabaseSession session);
 
     boolean isBelongTo(DatabaseSessionFactory factory);
+
+    JdbdEnvironment environment();
 
 
 }

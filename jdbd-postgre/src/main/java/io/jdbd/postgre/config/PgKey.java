@@ -1,7 +1,7 @@
 package io.jdbd.postgre.config;
 
-import io.jdbd.vendor.conf.PropertyKey;
-import io.jdbd.vendor.conf.Redefine;
+import io.jdbd.env.PropertyKey;
+import io.jdbd.env.Redefine;
 import io.jdbd.vendor.task.SslMode;
 import reactor.util.annotation.Nullable;
 

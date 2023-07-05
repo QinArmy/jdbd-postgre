@@ -1,2 +1,2 @@
 @reactor.util.annotation.NonNullApi
-package io.jdbd.vendor.conf;
+package io.jdbd.env;

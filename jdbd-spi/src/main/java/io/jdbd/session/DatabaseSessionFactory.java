@@ -1,5 +1,6 @@
 package io.jdbd.session;
 
+import io.jdbd.env.JdbdEnvironment;
 import org.reactivestreams.Publisher;
 
 
@@ -14,7 +15,9 @@ public interface DatabaseSessionFactory extends Closeable {
     /**
      * @return database product name.
      */
-    String getProductName();
+    String productName();
+
+    JdbdEnvironment environment();
 
 
 }

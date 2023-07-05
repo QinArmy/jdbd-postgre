@@ -2,6 +2,7 @@ package io.jdbd.mysql.protocol.client;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.jdbd.env.Properties;
 import io.jdbd.mysql.MySQLType;
 import io.jdbd.mysql.SQLMode;
 import io.jdbd.mysql.protocol.conf.MyKey;
@@ -1716,7 +1717,7 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractTaskSuiteTests 
         }
 
 
-        io.jdbd.vendor.conf.Properties properties = taskAdjutant.host().getProperties();
+        Properties properties = taskAdjutant.host().getProperties();
         if (properties.getOrDefault(MyKey.timeTruncateFractional, Boolean.class)) {
             DateTimeFormatter formatter = MySQLTimes.getDateTimeFormatter(precision);
             final String resultText, bindText;

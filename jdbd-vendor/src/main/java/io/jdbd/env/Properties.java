@@ -1,4 +1,4 @@
-package io.jdbd.vendor.conf;
+package io.jdbd.env;
 
 import io.jdbd.JdbdException;
 import reactor.util.annotation.Nullable;
@@ -8,6 +8,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+/**
+ * @deprecated use {@link JdbdEnvironment}
+ */
+@Deprecated
 public interface Properties {
 
     /**

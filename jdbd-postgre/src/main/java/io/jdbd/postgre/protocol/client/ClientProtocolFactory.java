@@ -1,5 +1,6 @@
 package io.jdbd.postgre.protocol.client;
 
+import io.jdbd.env.Properties;
 import io.jdbd.postgre.PgJdbdException;
 import io.jdbd.postgre.PgServerVersion;
 import io.jdbd.postgre.Server;
@@ -11,7 +12,6 @@ import io.jdbd.postgre.util.PgStrings;
 import io.jdbd.result.Result;
 import io.jdbd.result.ResultRow;
 import io.jdbd.result.ResultRowMeta;
-import io.jdbd.vendor.conf.Properties;
 import io.jdbd.vendor.stmt.JdbdStmts;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

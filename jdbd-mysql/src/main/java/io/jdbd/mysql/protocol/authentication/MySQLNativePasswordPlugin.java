@@ -1,9 +1,9 @@
 package io.jdbd.mysql.protocol.authentication;
 
+import io.jdbd.env.HostInfo;
 import io.jdbd.mysql.protocol.AuthenticateAssistant;
 import io.jdbd.mysql.protocol.client.Packets;
 import io.jdbd.mysql.util.MySQLStrings;
-import io.jdbd.vendor.conf.HostInfo;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 

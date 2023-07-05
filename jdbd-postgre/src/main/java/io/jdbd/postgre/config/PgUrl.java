@@ -1,6 +1,6 @@
 package io.jdbd.postgre.config;
 
-import io.jdbd.vendor.conf.*;
+import io.jdbd.env.*;
 import io.qinarmy.env.convert.ConverterManager;
 import io.qinarmy.env.convert.ImmutableConverterManager;
 

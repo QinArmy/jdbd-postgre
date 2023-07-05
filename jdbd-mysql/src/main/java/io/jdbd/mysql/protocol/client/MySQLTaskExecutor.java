@@ -1,5 +1,6 @@
 package io.jdbd.mysql.protocol.client;
 
+import io.jdbd.env.HostInfo;
 import io.jdbd.mysql.MySQLJdbdException;
 import io.jdbd.mysql.Server;
 import io.jdbd.mysql.protocol.authentication.AuthenticationPlugin;
@@ -9,7 +10,6 @@ import io.jdbd.mysql.session.SessionAdjutant;
 import io.jdbd.mysql.syntax.DefaultMySQLParser;
 import io.jdbd.mysql.syntax.MySQLParser;
 import io.jdbd.mysql.syntax.MySQLStatement;
-import io.jdbd.vendor.conf.HostInfo;
 import io.jdbd.vendor.task.CommunicationTask;
 import io.jdbd.vendor.task.CommunicationTaskExecutor;
 import io.netty.buffer.ByteBuf;

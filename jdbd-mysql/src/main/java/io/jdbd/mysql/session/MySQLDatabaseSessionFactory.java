@@ -2,6 +2,7 @@ package io.jdbd.mysql.session;
 
 import io.jdbd.JdbdException;
 import io.jdbd.PropertyException;
+import io.jdbd.env.Properties;
 import io.jdbd.mysql.protocol.authentication.AuthenticationPlugin;
 import io.jdbd.mysql.protocol.authentication.PluginUtils;
 import io.jdbd.mysql.protocol.client.ClientProtocol;
@@ -13,7 +14,6 @@ import io.jdbd.mysql.util.MySQLStrings;
 import io.jdbd.session.DatabaseSessionFactory;
 import io.jdbd.session.LocalDatabaseSession;
 import io.jdbd.session.RmDatabaseSession;
-import io.jdbd.vendor.conf.Properties;
 import io.netty.channel.EventLoopGroup;
 import org.reactivestreams.Publisher;
 import reactor.core.publisher.Mono;
@@ -63,7 +63,7 @@ public final class MySQLDatabaseSessionFactory implements DatabaseSessionFactory
 
 
     @Override
-    public String getProductName() {
+    public String productName() {
         return "MySQL";
     }
 

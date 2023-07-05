@@ -1,4 +1,4 @@
-package io.jdbd.vendor.conf;
+package io.jdbd.env;
 
 import java.lang.annotation.Documented;
 import java.lang.annotation.Retention;
@@ -10,6 +10,6 @@ import static java.lang.annotation.ElementType.FIELD;
 @Documented
 @Retention(RetentionPolicy.RUNTIME)
 @Target(value = {FIELD})
-public @interface Redefine {
+public @interface OnlyReactor {
 
 }

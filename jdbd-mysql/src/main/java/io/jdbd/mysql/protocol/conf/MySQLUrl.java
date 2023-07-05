@@ -2,10 +2,10 @@ package io.jdbd.mysql.protocol.conf;
 
 
 import io.jdbd.JdbdException;
+import io.jdbd.env.*;
 import io.jdbd.mysql.protocol.client.Charsets;
 import io.jdbd.mysql.protocol.client.ClientProtocol;
 import io.jdbd.mysql.util.MySQLCollections;
-import io.jdbd.vendor.conf.*;
 import io.qinarmy.env.convert.ConverterManager;
 import io.qinarmy.env.convert.ImmutableConverterManager;
 import reactor.util.annotation.Nullable;

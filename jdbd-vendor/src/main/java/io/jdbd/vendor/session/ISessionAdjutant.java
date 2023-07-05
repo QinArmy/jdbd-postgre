@@ -1,9 +1,9 @@
 package io.jdbd.vendor.session;
 
+import io.jdbd.env.JdbcUrl;
+import io.jdbd.env.PropertyKey;
 import io.jdbd.session.DatabaseSession;
 import io.jdbd.session.DatabaseSessionFactory;
-import io.jdbd.vendor.conf.JdbcUrl;
-import io.jdbd.vendor.conf.PropertyKey;
 import io.netty.channel.EventLoopGroup;
 
 /**

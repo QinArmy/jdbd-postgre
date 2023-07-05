@@ -1,9 +1,8 @@
-package io.jdbd.vendor.conf;
+package io.jdbd.env;
 
 import reactor.util.annotation.Nullable;
 
 /**
- * @param <K> database vendor property key type.
  * @see JdbcUrl
  */
 public interface HostInfo {
