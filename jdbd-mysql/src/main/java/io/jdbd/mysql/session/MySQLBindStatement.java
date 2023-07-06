@@ -37,7 +37,7 @@ final class MySQLBindStatement extends MySQLStatement implements AttrBindStateme
 
     private final String sql;
 
-    private final List<List<BindValue>> bindGroupList = MySQLCollections.arrayList();
+    private List<List<BindValue>> bindGroupList;
 
     private List<BindValue> bindGroup = MySQLCollections.arrayList();
 
@@ -155,12 +155,11 @@ final class MySQLBindStatement extends MySQLStatement implements AttrBindStateme
 
     @Override
     public <R> Flux<R> executeQuery(final Function<CurrentRow, R> function, final Consumer<ResultStates> consumer) {
-
         final List<BindValue> paramGroup = this.bindGroup;
         final JdbdException error;
         if (paramGroup == null) {
             error = MySQLExceptions.cannotReuseStatement(BindStatement.class);
-        } else if (this.bindGroupList.size() > 0) {
+        } else if (this.bindGroupList != null) {
             error = new SubscribeException(ResultType.QUERY, ResultType.BATCH);
         } else {
             error = JdbdBinds.sortAndCheckParamGroup(0, paramGroup);

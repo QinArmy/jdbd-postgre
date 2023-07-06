@@ -3,6 +3,10 @@ package io.jdbd.statement;
 import io.jdbd.JdbdException;
 import io.jdbd.lang.Nullable;
 import io.jdbd.meta.DataType;
+import org.reactivestreams.Publisher;
+import org.reactivestreams.Subscriber;
+
+import java.util.function.Function;
 
 public interface MultiStatement extends BindMultiResultStatement,ParameterStatement {
 
@@ -41,6 +45,31 @@ public interface MultiStatement extends BindMultiResultStatement,ParameterStatem
      */
     @Override
     MultiStatement bindStmtVar(String name, DataType dataType, @Nullable Object nullable) throws JdbdException;
+
+
+    /**
+     * {@inheritDoc }
+     */
+    @Override
+    MultiStatement setTimeout(int seconds) throws JdbdException;
+
+    /**
+     * {@inheritDoc }
+     */
+    @Override
+    MultiStatement setFetchSize(int fetchSize) throws JdbdException;
+
+    /**
+     * {@inheritDoc }
+     */
+    @Override
+    MultiStatement setImportPublisher(Function<Object, Publisher<byte[]>> function) throws JdbdException;
+
+    /**
+     * {@inheritDoc }
+     */
+    @Override
+    MultiStatement setExportSubscriber(Function<Object, Subscriber<byte[]>> function) throws JdbdException;
 
 
 }

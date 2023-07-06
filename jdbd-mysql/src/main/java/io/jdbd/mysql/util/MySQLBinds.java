@@ -1,5 +1,7 @@
 package io.jdbd.mysql.util;
 
+import io.jdbd.lang.Nullable;
+import io.jdbd.meta.DataType;
 import io.jdbd.meta.SQLType;
 import io.jdbd.mysql.MySQLType;
 import io.jdbd.statement.UnsupportedBindJavaTypeException;
@@ -8,7 +10,6 @@ import io.jdbd.vendor.util.JdbdBinds;
 import io.jdbd.vendor.util.JdbdExceptions;
 import io.netty.buffer.ByteBuf;
 import org.reactivestreams.Publisher;
-import reactor.util.annotation.Nullable;
 
 import java.nio.file.Path;
 import java.sql.JDBCType;
@@ -146,6 +147,13 @@ public abstract class MySQLBinds extends JdbdBinds {
         return type;
     }
 
+
+    @Nullable
+    public static DataType handleDataType(final DataType dataType) {
+        return dataType;
+    }
+
+    @Nullable
     public static MySQLType inferMySQLType(final @Nullable Object nullable) throws UnsupportedBindJavaTypeException {
         final MySQLType type;
         if (nullable == null) {

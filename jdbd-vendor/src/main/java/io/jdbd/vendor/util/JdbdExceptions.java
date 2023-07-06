@@ -36,10 +36,8 @@ public abstract class JdbdExceptions extends ExceptionUtils {
         JdbdException je;
         if (e instanceof JdbdException) {
             je = (JdbdException) e;
-        } else if (e instanceof SQLException) {
-            je = new JdbdSQLException((SQLException) e);
         } else {
-            je = new JdbdUnknownException(String.format("Unknown error,%s", e.getMessage()), e);
+            je = new JdbdException(String.format("Unknown error,%s", e.getMessage()), e);
         }
         return je;
     }
@@ -57,6 +55,40 @@ public abstract class JdbdExceptions extends ExceptionUtils {
 
     public static NullPointerException statesConsumerIsNull() {
         return new NullPointerException(String.format("%s consumer must non-null", ResultStates.class.getName()));
+    }
+
+    public static NullPointerException dataTypeIsNull() {
+        return new NullPointerException("dataType must non-null");
+    }
+
+    public static RuntimeException stmtVarNameHaveNoText(@Nullable String name) {
+        final RuntimeException error;
+        if (name == null) {
+            error = new NullPointerException("statement variable name must non-null.");
+        } else {
+            error = new IllegalArgumentException("statement variable name must have text.");
+        }
+        return error;
+    }
+
+    public static JdbdException dontSupportImporter(String database) {
+        return new JdbdException(String.format("%s don't support importer.", database));
+    }
+
+
+    public static JdbdException dontSupportExporter(String database) {
+        return new JdbdException(String.format("%s don't support exporter.", database));
+    }
+
+
+    public static String safeClassName(@Nullable Object value) {
+        return value == null ? "" : value.getClass().getName();
+    }
+
+    public static JdbdException cannotMatchBuildInSqlType(Object indexOrName, @Nullable Object value) {
+        String m = String.format("Couldn't match java type[%s] to build-in database data type for index/name %s",
+                safeClassName(value), indexOrName);
+        return new JdbdException(m);
     }
 
     public static JdbdException wrap(Throwable e, String format, @Nullable Object... args) {

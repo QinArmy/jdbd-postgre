@@ -6,8 +6,10 @@ import io.jdbd.meta.DataType;
 import io.jdbd.result.Warning;
 import io.jdbd.session.DatabaseSession;
 import org.reactivestreams.Publisher;
+import org.reactivestreams.Subscriber;
 
 import java.util.List;
+import java.util.function.Function;
 
 /**
  * <p>
@@ -69,6 +71,31 @@ public interface PreparedStatement extends ServerPrepareStatement {
      */
     @Override
     PreparedStatement bindStmtVar(String name, DataType dataType, @Nullable Object nullable) throws JdbdException;
+
+
+    /**
+     * {@inheritDoc }
+     */
+    @Override
+    PreparedStatement setTimeout(int seconds) throws JdbdException;
+
+    /**
+     * {@inheritDoc }
+     */
+    @Override
+    PreparedStatement setFetchSize(int fetchSize) throws JdbdException;
+
+    /**
+     * {@inheritDoc }
+     */
+    @Override
+    PreparedStatement setImportPublisher(Function<Object, Publisher<byte[]>> function) throws JdbdException;
+
+    /**
+     * {@inheritDoc }
+     */
+    @Override
+    PreparedStatement setExportSubscriber(Function<Object, Subscriber<byte[]>> function) throws JdbdException;
 
 
     /**

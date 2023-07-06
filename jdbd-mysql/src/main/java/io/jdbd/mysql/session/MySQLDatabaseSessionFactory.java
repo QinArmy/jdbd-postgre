@@ -27,6 +27,8 @@ import java.util.Map;
 
 public final class MySQLDatabaseSessionFactory implements DatabaseSessionFactory {
 
+    static final String MY_SQL = "MySQL";
+
     public static MySQLDatabaseSessionFactory create(String url, Map<String, Object> properties)
             throws JdbdException {
         return new MySQLDatabaseSessionFactory(MySQLUrl.getInstance(url, properties), false);

@@ -1,6 +1,5 @@
 package io.jdbd.mysql.session;
 
-import io.jdbd.mysql.stmt.AttrStaticStatement;
 import io.jdbd.mysql.stmt.Stmts;
 import io.jdbd.mysql.util.MySQLExceptions;
 import io.jdbd.mysql.util.MySQLStrings;
@@ -8,6 +7,7 @@ import io.jdbd.result.MultiResult;
 import io.jdbd.result.OrderedFlux;
 import io.jdbd.result.ResultRow;
 import io.jdbd.result.ResultStates;
+import io.jdbd.statement.StaticStatement;
 import io.jdbd.vendor.result.MultiResults;
 import io.jdbd.vendor.util.JdbdFunctions;
 import reactor.core.publisher.Flux;
@@ -23,7 +23,7 @@ import java.util.function.Consumer;
  * This interface is a implementation of {@link io.jdbd.statement.StaticStatement} with MySQL client protocol.
  * </p>
  */
-final class MySQLStaticStatement extends MySQLStatement implements AttrStaticStatement {
+final class MySQLStaticStatement extends MySQLStatement implements StaticStatement {
 
 
     static MySQLStaticStatement create(final MySQLDatabaseSession session) {

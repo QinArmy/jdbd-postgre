@@ -26,6 +26,23 @@ public abstract class JdbdStrings extends StringUtils {
         return new StringBuilder();
     }
 
+    public static boolean hasText(final @Nullable CharSequence str) {
+        final int strLen;
+
+        if (str == null || (strLen = str.length()) == 0) {
+            return false;
+        }
+        boolean match = false;
+        for (int i = 0; i < strLen; i++) {
+            if (Character.isWhitespace(str.charAt(i))) {
+                continue;
+            }
+            match = true;
+            break;
+        }
+        return match;
+    }
+
 
     /**
      * @return a unmodified list

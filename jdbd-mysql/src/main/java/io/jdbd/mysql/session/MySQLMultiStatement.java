@@ -107,10 +107,6 @@ final class MySQLMultiStatement extends MySQLStatement implements AttrMultiState
         return this;
     }
 
-    @Override
-    public MultiStatement bind(int indexBasedZero, String dataTypeName, @Nullable  Object nullable) throws JdbdException {
-        return this;
-    }
 
     @Override
     public Flux<ResultStates> executeBatchUpdate() {

@@ -3,6 +3,10 @@ package io.jdbd.statement;
 import io.jdbd.JdbdException;
 import io.jdbd.lang.Nullable;
 import io.jdbd.meta.DataType;
+import org.reactivestreams.Publisher;
+import org.reactivestreams.Subscriber;
+
+import java.util.function.Function;
 
 /**
  * <p>
@@ -48,6 +52,31 @@ public interface ServerPrepareStatement extends BindSingleStatement {
      */
     @Override
     ServerPrepareStatement addBatch() throws JdbdException;
+
+
+    /**
+     * {@inheritDoc }
+     */
+    @Override
+    ServerPrepareStatement setTimeout(int seconds) throws JdbdException;
+
+    /**
+     * {@inheritDoc }
+     */
+    @Override
+    ServerPrepareStatement setFetchSize(int fetchSize) throws JdbdException;
+
+    /**
+     * {@inheritDoc }
+     */
+    @Override
+    ServerPrepareStatement setImportPublisher(Function<Object, Publisher<byte[]>> function) throws JdbdException;
+
+    /**
+     * {@inheritDoc }
+     */
+    @Override
+    ServerPrepareStatement setExportSubscriber(Function<Object, Subscriber<byte[]>> function) throws JdbdException;
 
 
 }

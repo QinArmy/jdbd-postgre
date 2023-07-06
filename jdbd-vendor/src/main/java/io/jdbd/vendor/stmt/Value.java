@@ -2,6 +2,7 @@ package io.jdbd.vendor.stmt;
 
 
 import io.jdbd.lang.Nullable;
+import io.jdbd.meta.DataType;
 
 /**
  * <p>
@@ -11,7 +12,6 @@ import io.jdbd.lang.Nullable;
  * <UL>
  * <li>{@link ParamValue}</li>
  * <li>{@link NamedValue }</li>
- * <li>{@link TypeValue }</li>
  * </UL>
  * </p>
  * </p>
@@ -25,5 +25,11 @@ public interface Value {
     Object get();
 
     Object getNonNull() throws NullPointerException;
+
+
+    /**
+     * @return sql type of bind value.
+     */
+    DataType getType();
 
 }

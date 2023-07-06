@@ -3,6 +3,10 @@ package io.jdbd.statement;
 import io.jdbd.JdbdException;
 import io.jdbd.lang.Nullable;
 import io.jdbd.meta.DataType;
+import org.reactivestreams.Publisher;
+import org.reactivestreams.Subscriber;
+
+import java.util.function.Function;
 
 public interface OneStepPrepareStatement extends ServerPrepareStatement {
 
@@ -37,6 +41,30 @@ public interface OneStepPrepareStatement extends ServerPrepareStatement {
      */
     @Override
     OneStepPrepareStatement addBatch() throws JdbdException;
+
+    /**
+     * {@inheritDoc }
+     */
+    @Override
+    OneStepPrepareStatement setTimeout(int seconds) throws JdbdException;
+
+    /**
+     * {@inheritDoc }
+     */
+    @Override
+    OneStepPrepareStatement setFetchSize(int fetchSize) throws JdbdException;
+
+    /**
+     * {@inheritDoc }
+     */
+    @Override
+    OneStepPrepareStatement setImportPublisher(Function<Object, Publisher<byte[]>> function) throws JdbdException;
+
+    /**
+     * {@inheritDoc }
+     */
+    @Override
+    OneStepPrepareStatement setExportSubscriber(Function<Object, Subscriber<byte[]>> function) throws JdbdException;
 
 
 }

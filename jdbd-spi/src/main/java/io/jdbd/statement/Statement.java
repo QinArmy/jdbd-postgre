@@ -68,23 +68,13 @@ public interface Statement {
      * </p>
      *
      * @param fetchSize fetch size ,positive support
-     * @return true :<ul>
-     * <li>fetchSize great than zero</li>
-     * <li>driver implementation support fetch</li>
-     * </ul>
      */
-    boolean setFetchSize(int fetchSize);
+    Statement setFetchSize(int fetchSize) throws JdbdException;
 
-    boolean setImportPublisher(Function<Object, Publisher<byte[]>> function);
+    Statement setImportPublisher(Function<Object, Publisher<byte[]>> function) throws JdbdException;
 
-    boolean setExportSubscriber(Function<Object, Subscriber<byte[]>> function);
+    Statement setExportSubscriber(Function<Object, Subscriber<byte[]>> function) throws JdbdException;
 
-
-    /**
-     * @see DatabaseSession#supportStmtVar()
-     * @see #supportStmtVar()
-     */
-    Statement bindStmtVar(String name, @Nullable Object nullable) throws JdbdException;
 
     /**
      * @see DatabaseSession#supportStmtVar()

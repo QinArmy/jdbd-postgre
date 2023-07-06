@@ -3,6 +3,10 @@ package io.jdbd.statement;
 import io.jdbd.JdbdException;
 import io.jdbd.lang.Nullable;
 import io.jdbd.meta.DataType;
+import org.reactivestreams.Publisher;
+import org.reactivestreams.Subscriber;
+
+import java.util.function.Function;
 
 /**
  * <p>
@@ -51,6 +55,31 @@ public interface ParameterStatement extends Statement {
      */
     @Override
     ParameterStatement bindStmtVar(String name, DataType dataType, @Nullable Object nullable) throws JdbdException;
+
+
+    /**
+     * {@inheritDoc }
+     */
+    @Override
+    ParameterStatement setTimeout(int seconds) throws JdbdException;
+
+    /**
+     * {@inheritDoc }
+     */
+    @Override
+    ParameterStatement setFetchSize(int fetchSize) throws JdbdException;
+
+    /**
+     * {@inheritDoc }
+     */
+    @Override
+    ParameterStatement setImportPublisher(Function<Object, Publisher<byte[]>> function) throws JdbdException;
+
+    /**
+     * {@inheritDoc }
+     */
+    @Override
+    ParameterStatement setExportSubscriber(Function<Object, Subscriber<byte[]>> function) throws JdbdException;
 
 
 }

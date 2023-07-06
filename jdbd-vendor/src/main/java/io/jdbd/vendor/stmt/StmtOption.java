@@ -4,6 +4,7 @@ import io.jdbd.lang.Nullable;
 import org.reactivestreams.Publisher;
 import org.reactivestreams.Subscriber;
 
+import java.util.Map;
 import java.util.function.Function;
 
 /**
@@ -17,6 +18,11 @@ public interface StmtOption {
     int getTimeout();
 
     int getFetchSize();
+
+    /**
+     * @return a unmodified map.
+     */
+    Map<String, NamedValue> getStmtVarMap();
 
     /**
      * <p>

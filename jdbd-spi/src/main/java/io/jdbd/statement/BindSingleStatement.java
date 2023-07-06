@@ -8,6 +8,7 @@ import io.jdbd.result.CurrentRow;
 import io.jdbd.result.ResultRow;
 import io.jdbd.result.ResultStates;
 import org.reactivestreams.Publisher;
+import org.reactivestreams.Subscriber;
 
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -25,6 +26,7 @@ import java.util.function.Function;
  * @see ServerPrepareStatement
  */
 public interface BindSingleStatement extends ParameterStatement, BindMultiResultStatement {
+
 
     /**
      * {@inheritDoc }
@@ -50,6 +52,31 @@ public interface BindSingleStatement extends ParameterStatement, BindMultiResult
      */
     @Override
     BindSingleStatement bindStmtVar(String name, DataType dataType, @Nullable Object nullable) throws JdbdException;
+
+
+    /**
+     * {@inheritDoc }
+     */
+    @Override
+    BindSingleStatement setTimeout(int seconds) throws JdbdException;
+
+    /**
+     * {@inheritDoc }
+     */
+    @Override
+    BindSingleStatement setFetchSize(int fetchSize) throws JdbdException;
+
+    /**
+     * {@inheritDoc }
+     */
+    @Override
+    BindSingleStatement setImportPublisher(Function<Object, Publisher<byte[]>> function) throws JdbdException;
+
+    /**
+     * {@inheritDoc }
+     */
+    @Override
+    BindSingleStatement setExportSubscriber(Function<Object, Subscriber<byte[]>> function) throws JdbdException;
 
 
     /**

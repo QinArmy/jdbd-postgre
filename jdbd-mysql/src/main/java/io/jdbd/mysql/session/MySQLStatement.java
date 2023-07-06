@@ -1,15 +1,20 @@
 package io.jdbd.mysql.session;
 
+import io.jdbd.JdbdException;
 import io.jdbd.JdbdSQLException;
+import io.jdbd.lang.Nullable;
+import io.jdbd.meta.DataType;
 import io.jdbd.mysql.MySQLType;
-import io.jdbd.mysql.stmt.AttrStatement;
 import io.jdbd.mysql.stmt.MySQLStmtOption;
 import io.jdbd.mysql.stmt.QueryAttr;
 import io.jdbd.session.DatabaseSession;
 import io.jdbd.statement.Statement;
+import io.jdbd.vendor.stmt.NamedValue;
+import io.jdbd.vendor.stmt.StmtOption;
+import io.jdbd.vendor.util.JdbdExceptions;
+import io.jdbd.vendor.util.JdbdStrings;
 import org.reactivestreams.Publisher;
 import org.reactivestreams.Subscriber;
-import reactor.util.annotation.Nullable;
 
 import java.nio.file.Path;
 import java.sql.SQLException;
@@ -25,18 +30,22 @@ import java.util.function.Function;
  * This interface is a implementation of {@link Statement} with MySQL client protocol.
  * </p>
  */
-abstract class MySQLStatement implements Statement, AttrStatement {
+abstract class MySQLStatement<S extends Statement> implements Statement, StmtOption {
 
     final MySQLDatabaseSession session;
 
     final MySQLStatementOption statementOption = new MySQLStatementOption();
+
+    private int timeoutSeconds;
+
+    private int fetchSize;
+
 
     MySQLStatement(MySQLDatabaseSession session) {
         this.session = session;
     }
 
 
-    @Override
     public final void bindQueryAttr(final String name, final MySQLType type, @Nullable Object value) {
         checkReuse();
         Objects.requireNonNull(name, "name");
@@ -57,33 +66,34 @@ abstract class MySQLStatement implements Statement, AttrStatement {
 
 
     @Override
+    public final S bindStmtVar(final String name, final @Nullable DataType dataType,
+                               final @Nullable Object nullable) throws JdbdException {
+        RuntimeException error = null;
+        if (!JdbdStrings.hasText(name)) {
+            error = JdbdExceptions.stmtVarNameHaveNoText(name);
+        } else if (dataType == null) {
+            error = JdbdExceptions.dataTypeIsNull();
+        }
+        if (error != null) {
+            this.closeOnBindError(error);
+            throw JdbdExceptions.wrap(error);
+        }
+        return (S) this;
+    }
+
+    @Override
     public final DatabaseSession getSession() {
         return this.session;
     }
 
     @Override
-    public final <T extends DatabaseSession> T getSession(Class<T> sessionClass) {
-        return sessionClass.cast(this.session);
-    }
-
-
-    @Override
-    public final Statement setTimeout(final int seconds) {
-        this.statementOption.timeoutSeconds = seconds;
-        return this;
-    }
-
-
-    @Override
-    public final boolean setImportPublisher(Function<Object, Publisher<byte[]>> function) {
-        //always false ,MySQL not support import.
-        return false;
-    }
-
-    @Override
-    public final boolean setExportSubscriber(Function<Object, Subscriber<byte[]>> function) {
-        //always false ,MySQL not support export.
-        return false;
+    public final <T extends DatabaseSession> T getSession(final Class<T> sessionClass) {
+        try {
+            return sessionClass.cast(this.session);
+        } catch (Throwable e) {
+            closeOnBindError(e);
+            throw JdbdExceptions.wrap(e);
+        }
     }
 
 
@@ -92,7 +102,35 @@ abstract class MySQLStatement implements Statement, AttrStatement {
         return this.session.supportStmtVar();
     }
 
-    abstract void checkReuse() throws JdbdSQLException;
+    @Override
+    public final S setTimeout(int seconds) {
+        this.timeoutSeconds = seconds;
+        return (S) this;
+    }
+
+    @Override
+    public final S setFetchSize(int fetchSize) throws JdbdException {
+        this.fetchSize = fetchSize;
+        return (S) this;
+    }
+
+    @Override
+    public final S setImportPublisher(Function<Object, Publisher<byte[]>> function) throws JdbdException {
+        final JdbdException error;
+        error = JdbdExceptions.dontSupportImporter(MySQLDatabaseSessionFactory.MY_SQL);
+        this.closeOnBindError(error);
+        throw error;
+    }
+
+    @Override
+    public final S setExportSubscriber(Function<Object, Subscriber<byte[]>> function) throws JdbdException {
+        final JdbdException error;
+        error = JdbdExceptions.dontSupportExporter(MySQLDatabaseSessionFactory.MY_SQL);
+        this.closeOnBindError(error);
+        throw error;
+    }
+
+    abstract void checkReuse() throws JdbdException;
 
     /**
      * @see MySQLPreparedStatement
@@ -104,13 +142,9 @@ abstract class MySQLStatement implements Statement, AttrStatement {
 
     static final class MySQLStatementOption implements MySQLStmtOption {
 
-        private int timeoutSeconds;
+        private Map<String, NamedValue> commonAttrMap;
 
-        int fetchSize;
-
-        private Map<String, QueryAttr> commonAttrGroup;
-
-        private Map<String, QueryAttr> queryAttrGroup;
+        private Map<String, NamedValue> queryAttrMap;
 
         @Override
         public int getTimeout() {
@@ -137,7 +171,7 @@ abstract class MySQLStatement implements Statement, AttrStatement {
         }
 
         @Override
-        public Map<String, QueryAttr> getAttrGroup() {
+        public Map<String, QueryAttr> getStmtVarMap() {
             Map<String, QueryAttr> queryAttrGroup = this.queryAttrGroup;
             if (queryAttrGroup == null) {
                 queryAttrGroup = Collections.emptyMap();
