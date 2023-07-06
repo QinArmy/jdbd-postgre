@@ -1,14 +1,15 @@
 package io.jdbd.vendor.result;
 
+import io.jdbd.result.CurrentRow;
 import io.jdbd.result.MultiResult;
 import io.jdbd.result.OrderedFlux;
-import io.jdbd.result.ResultRow;
 import io.jdbd.result.ResultStates;
 import io.jdbd.vendor.task.ITaskAdjutant;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.util.function.Consumer;
+import java.util.function.Function;
 
 public abstract class MultiResults {
 
@@ -31,9 +32,9 @@ public abstract class MultiResults {
         return UpdateResultSubscriber.create(callback);
     }
 
-    public static Flux<ResultRow> query(Consumer<ResultStates> stateConsumer
-            , Consumer<ResultSink> callback) {
-        return QueryResultSubscriber.create(stateConsumer, callback);
+    public static <R> Flux<R> query(Function<CurrentRow, R> function, Consumer<ResultStates> stateConsumer,
+                                    Consumer<ResultSink> callback) {
+        return QueryResultSubscriber.create(function, stateConsumer, callback);
     }
 
     public static Flux<ResultStates> batchUpdate(Consumer<ResultSink> consumer) {

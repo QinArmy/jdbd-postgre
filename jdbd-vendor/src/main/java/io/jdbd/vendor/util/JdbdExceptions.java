@@ -4,10 +4,11 @@ import io.jdbd.JdbdException;
 import io.jdbd.JdbdSQLException;
 import io.jdbd.JdbdXaException;
 import io.jdbd.meta.SQLType;
+import io.jdbd.result.CurrentRow;
+import io.jdbd.result.ResultStates;
 import io.jdbd.statement.*;
 import io.jdbd.vendor.JdbdCompositeException;
 import io.jdbd.vendor.JdbdUnknownException;
-import io.jdbd.vendor.stmt.CannotReuseStatementException;
 import io.jdbd.vendor.stmt.NamedValue;
 import io.jdbd.vendor.stmt.ParamValue;
 import io.jdbd.vendor.stmt.Value;
@@ -20,6 +21,7 @@ import java.nio.charset.Charset;
 import java.nio.file.Path;
 import java.sql.SQLException;
 import java.util.List;
+import java.util.function.Function;
 
 public abstract class JdbdExceptions extends ExceptionUtils {
 
@@ -40,6 +42,21 @@ public abstract class JdbdExceptions extends ExceptionUtils {
             je = new JdbdUnknownException(String.format("Unknown error,%s", e.getMessage()), e);
         }
         return je;
+    }
+
+
+    public static JdbdException queryMapFuncError(Function<CurrentRow, ?> function) {
+        String m = String.format("query map function %s couldn't return null or %s ",
+                function, CurrentRow.class.getName());
+        return new JdbdException(m);
+    }
+
+    public static NullPointerException queryMapFuncIsNull() {
+        return new NullPointerException("query map function must non-null");
+    }
+
+    public static NullPointerException statesConsumerIsNull() {
+        return new NullPointerException(String.format("%s consumer must non-null", ResultStates.class.getName()));
     }
 
     public static JdbdException wrap(Throwable e, String format, @Nullable Object... args) {
@@ -135,8 +152,8 @@ public abstract class JdbdExceptions extends ExceptionUtils {
         return new SQLException(reason, SQLStates.SYNTAX_ERROR);
     }
 
-    public static CannotReuseStatementException cannotReuseStatement(Class<? extends Statement> stmtClass) {
-        return new CannotReuseStatementException(String.format("Can't reuse %s .", stmtClass.getName()));
+    public static JdbdException cannotReuseStatement(Class<? extends Statement> stmtClass) {
+        return new JdbdException(String.format("Can't reuse %s .", stmtClass.getName()));
     }
 
     public static StatementClosedException preparedStatementClosed() {

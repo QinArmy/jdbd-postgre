@@ -59,8 +59,8 @@ public abstract class JdbdBinds {
 
 
     @Nullable
-    public static JdbdSQLException sortAndCheckParamGroup(final int groupIndex
-            , final List<? extends ParamValue> paramGroup) {
+    public static JdbdSQLException sortAndCheckParamGroup(final int groupIndex,
+                                                          final List<? extends ParamValue> paramGroup) {
 
         paramGroup.sort(Comparator.comparingInt(ParamValue::getIndex));
 

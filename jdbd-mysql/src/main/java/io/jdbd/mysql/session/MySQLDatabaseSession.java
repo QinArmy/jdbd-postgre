@@ -80,7 +80,7 @@ abstract class MySQLDatabaseSession implements DatabaseSession {
     }
 
     @Override
-    public final Mono<TransactionOption> getTransactionOption() {
+    public final Mono<TransactionStatus> transactionStatus() {
         return this.protocol.getTransactionOption();
     }
 
@@ -117,7 +117,7 @@ abstract class MySQLDatabaseSession implements DatabaseSession {
     }
 
     @Override
-    public final DatabaseMetaData getDatabaseMetaData() {
+    public final DatabaseMetaData databaseMetaData() {
         throw new UnsupportedOperationException();
     }
 

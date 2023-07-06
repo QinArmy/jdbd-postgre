@@ -4,8 +4,6 @@ import io.jdbd.JdbdException;
 import io.jdbd.lang.Nullable;
 import io.jdbd.meta.DataType;
 
-import java.sql.JDBCType;
-
 public interface MultiStatement extends BindMultiResultStatement,ParameterStatement {
 
     /**
@@ -30,12 +28,6 @@ public interface MultiStatement extends BindMultiResultStatement,ParameterStatem
      * {@inheritDoc }
      */
     @Override
-    MultiStatement bind(int indexBasedZero, JDBCType jdbcType, @Nullable Object nullable) throws JdbdException;
-
-    /**
-     * {@inheritDoc }
-     */
-    @Override
     MultiStatement bind(int indexBasedZero, DataType dataType, @Nullable Object nullable) throws JdbdException;
 
     /**
@@ -43,12 +35,6 @@ public interface MultiStatement extends BindMultiResultStatement,ParameterStatem
      */
     @Override
     MultiStatement bindStmtVar(String name, @Nullable Object nullable) throws JdbdException;
-
-    /**
-     * {@inheritDoc }
-     */
-    @Override
-    MultiStatement bindStmtVar(String name, JDBCType jdbcType, @Nullable Object nullable) throws JdbdException;
 
     /**
      * {@inheritDoc }

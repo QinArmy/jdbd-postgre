@@ -6,11 +6,9 @@ public interface TransactionOption {
 
     boolean isReadOnly();
 
-    boolean inTransaction();
-
 
     static TransactionOption option(Isolation isolation, boolean readOnly) {
-        return TransactionOptionImpl.option(isolation, readOnly);
+        return JdbdTransactionOption.option(isolation, readOnly);
     }
 
 }

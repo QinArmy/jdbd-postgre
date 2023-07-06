@@ -7,7 +7,6 @@ import io.jdbd.result.Warning;
 import io.jdbd.session.DatabaseSession;
 import org.reactivestreams.Publisher;
 
-import java.sql.JDBCType;
 import java.util.List;
 
 /**
@@ -51,12 +50,6 @@ public interface PreparedStatement extends ServerPrepareStatement {
      * {@inheritDoc }
      */
     @Override
-    PreparedStatement bind(int indexBasedZero, JDBCType jdbcType,@Nullable  Object nullable) throws JdbdException;
-
-    /**
-     * {@inheritDoc }
-     */
-    @Override
     PreparedStatement bind(int indexBasedZero, DataType dataType,@Nullable  Object nullable) throws JdbdException;
 
     /**
@@ -70,12 +63,6 @@ public interface PreparedStatement extends ServerPrepareStatement {
      */
     @Override
     PreparedStatement bindStmtVar(String name, @Nullable Object nullable) throws JdbdException;
-
-    /**
-     * {@inheritDoc }
-     */
-    @Override
-    PreparedStatement bindStmtVar(String name, JDBCType jdbcType, @Nullable Object nullable) throws JdbdException;
 
     /**
      * {@inheritDoc }

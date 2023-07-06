@@ -3,6 +3,8 @@ package io.jdbd.session;
 
 public enum Isolation {
 
+    DEFAULT,
+
     /**
      * A constant indicating that dirty reads, non-repeatable reads and phantom reads
      * can occur. This level allows a row changed by one transaction to be read by

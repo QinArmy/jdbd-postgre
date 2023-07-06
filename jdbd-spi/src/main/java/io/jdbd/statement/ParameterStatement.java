@@ -4,8 +4,6 @@ import io.jdbd.JdbdException;
 import io.jdbd.lang.Nullable;
 import io.jdbd.meta.DataType;
 
-import java.sql.JDBCType;
-
 /**
  * <p>
  *     This interface is base interface of following :
@@ -31,17 +29,6 @@ public interface ParameterStatement extends Statement {
      * <p>
      * SQL parameter placeholder must be {@code ?}
      * </p>
-     *
-     * @param indexBasedZero parameter placeholder index based zero.
-     * @param jdbcType       mapping {@link JDBCType}
-     * @param nullable       nullable null the parameter value
-     */
-    ParameterStatement bind(int indexBasedZero, JDBCType jdbcType, @Nullable Object nullable) throws JdbdException;
-
-    /**
-     * <p>
-     * SQL parameter placeholder must be {@code ?}
-     * </p>
      * <p>
      * This method use {@link DataType#typeName()} bind parameter.
      * </p>
@@ -58,11 +45,6 @@ public interface ParameterStatement extends Statement {
     @Override
     ParameterStatement bindStmtVar(String name, @Nullable Object nullable) throws JdbdException;
 
-    /**
-     * {@inheritDoc }
-     */
-    @Override
-    ParameterStatement bindStmtVar(String name, JDBCType jdbcType, @Nullable Object nullable) throws JdbdException;
 
     /**
      * {@inheritDoc }

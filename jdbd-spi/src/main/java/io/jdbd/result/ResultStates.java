@@ -7,6 +7,7 @@ public interface ResultStates extends Result {
         return true;
     }
 
+    boolean inTransaction();
 
     long getAffectedRows();
 

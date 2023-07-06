@@ -4,8 +4,6 @@ import io.jdbd.JdbdException;
 import io.jdbd.lang.Nullable;
 import io.jdbd.meta.DataType;
 
-import java.sql.JDBCType;
-
 public interface BindStatement extends BindSingleStatement {
 
     /**
@@ -14,11 +12,6 @@ public interface BindStatement extends BindSingleStatement {
     @Override
     BindStatement bind(int indexBasedZero, @Nullable Object nullable) throws JdbdException;
 
-    /**
-     * {@inheritDoc }
-     */
-    @Override
-    BindStatement bind(int indexBasedZero, JDBCType jdbcType, @Nullable Object nullable) throws JdbdException;
 
     /**
      * {@inheritDoc }
@@ -32,12 +25,6 @@ public interface BindStatement extends BindSingleStatement {
      */
     @Override
     BindStatement bindStmtVar(String name, @Nullable Object nullable) throws JdbdException;
-
-    /**
-     * {@inheritDoc }
-     */
-    @Override
-    BindStatement bindStmtVar(String name, JDBCType jdbcType, @Nullable Object nullable) throws JdbdException;
 
     /**
      * {@inheritDoc }

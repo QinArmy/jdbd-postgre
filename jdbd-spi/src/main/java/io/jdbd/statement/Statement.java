@@ -8,7 +8,6 @@ import io.jdbd.session.DatabaseSession;
 import org.reactivestreams.Publisher;
 import org.reactivestreams.Subscriber;
 
-import java.sql.JDBCType;
 import java.util.function.Function;
 
 
@@ -86,12 +85,6 @@ public interface Statement {
      * @see #supportStmtVar()
      */
     Statement bindStmtVar(String name, @Nullable Object nullable) throws JdbdException;
-
-    /**
-     * @see DatabaseSession#supportStmtVar()
-     * @see #supportStmtVar()
-     */
-    Statement bindStmtVar(String name, JDBCType jdbcType, @Nullable Object nullable) throws JdbdException;
 
     /**
      * @see DatabaseSession#supportStmtVar()

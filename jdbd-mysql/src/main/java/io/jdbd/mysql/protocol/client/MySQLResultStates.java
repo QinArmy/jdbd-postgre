@@ -60,6 +60,7 @@ abstract class MySQLResultStates implements ResultStates {
         return true;
     }
 
+    @Override
     public final boolean inTransaction() {
         return TerminatorPacket.inTransaction(this.serverStatus);
     }

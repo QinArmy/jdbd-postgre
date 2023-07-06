@@ -1,5 +1,6 @@
 package io.jdbd.vendor.result;
 
+import io.jdbd.lang.Nullable;
 import io.jdbd.result.*;
 import io.jdbd.statement.ResultType;
 import io.jdbd.vendor.util.JdbdExceptions;
@@ -9,32 +10,39 @@ import reactor.core.publisher.FluxSink;
 
 import java.util.List;
 import java.util.function.Consumer;
+import java.util.function.Function;
 
 /**
  * @see FluxResult
  */
-final class QueryResultSubscriber extends AbstractResultSubscriber {
+final class QueryResultSubscriber<R> extends AbstractResultSubscriber {
 
-    static Flux<ResultRow> create(Consumer<ResultStates> stateConsumer
-            , Consumer<ResultSink> callback) {
-        final OrderedFlux result = FluxResult.create(sink -> {
-            try {
-                callback.accept(sink);
-            } catch (Throwable e) {
-                sink.error(JdbdExceptions.wrap(e));
-            }
-        });
-        return Flux.create(sink -> result.subscribe(new QueryResultSubscriber(sink, stateConsumer)));
+    static <R> Flux<R> create(final @Nullable Function<CurrentRow, R> function,
+                              final @Nullable Consumer<ResultStates> stateConsumer,
+                              final Consumer<ResultSink> callback) {
+        final Flux<R> flux;
+        if (function == null) {
+            flux = Flux.error(JdbdExceptions.queryMapFuncIsNull());
+        } else if (stateConsumer == null) {
+            flux = Flux.error(JdbdExceptions.statesConsumerIsNull());
+        } else {
+            flux = Flux.create(sink -> FluxResult.create(callback)
+                    .subscribe(new QueryResultSubscriber<>(function, sink, stateConsumer)));
+        }
+        return flux;
     }
 
+    private final Function<CurrentRow, R> function;
 
-    private final FluxSink<ResultRow> sink;
+    private final FluxSink<R> sink;
 
     private final Consumer<ResultStates> stateConsumer;
 
     private ResultStates state;
 
-    private QueryResultSubscriber(FluxSink<ResultRow> sink, Consumer<ResultStates> stateConsumer) {
+    private QueryResultSubscriber(Function<CurrentRow, R> function, FluxSink<R> sink,
+                                  Consumer<ResultStates> stateConsumer) {
+        this.function = function;
         this.sink = sink;
         this.stateConsumer = stateConsumer;
     }
@@ -59,8 +67,14 @@ final class QueryResultSubscriber extends AbstractResultSubscriber {
 
         if (result.getResultIndex() != 0) {
             addSubscribeError(ResultType.MULTI_RESULT);
-        } else if (result instanceof ResultRow) {
-            this.sink.next((ResultRow) result);
+        } else if (result instanceof CurrentRow) {
+            final R row;
+            row = this.function.apply((CurrentRow) result);
+            if (row == null || row == result) {
+                this.addError(JdbdExceptions.queryMapFuncError(function));
+            } else {
+                this.sink.next(row);
+            }
         } else if (result instanceof ResultStates) {
             final ResultStates state = (ResultStates) result;
             if (!state.hasColumn()) {

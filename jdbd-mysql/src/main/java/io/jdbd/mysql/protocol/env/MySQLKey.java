@@ -1020,6 +1020,157 @@ public final class MySQLKey<T> {
     public static final MySQLKey<Integer> PREP_STMT_CACHE_SQL_LIMIT = new MySQLKey<>("prepStmtCacheSqlLimit", Integer.class, 256);
 
 
+//    /**
+//     * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-performance-extensions.html">queryInfoCacheFactory</a>
+//     * @since MySQL Driver 5.1.1
+//     * @deprecated jdbd don't need this option
+//     */
+//    @Deprecated
+//    public static final MySQLKey<String> QUERY_INFO_CACHE_FACTORY = new MySQLKey<>("queryInfoCacheFactory", String.class, null);
+//
+
+    /**
+     * TODO support ?
+     *
+     * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-performance-extensions.html">alwaysSendSetIsolation</a>
+     * @since MySQL Driver 3.1.7
+     */
+    public static final MySQLKey<Boolean> ALWAYS_SEND_SET_ISOLATION = new MySQLKey<>("alwaysSendSetIsolation", Boolean.class, Boolean.TRUE);
+
+    /**
+     * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-performance-extensions.html">maintainTimeStats</a>
+     * @since MySQL Driver 3.1.9
+     */
+    public static final MySQLKey<Boolean> MAINTAIN_TIME_STATS = new MySQLKey<>("maintainTimeStats", Boolean.class, Boolean.TRUE);
+
+//    /**
+//     *
+//     * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-performance-extensions.html">useCursorFetch</a>
+//     * @since MySQL Driver 5.0.0
+//     * @deprecated jdbd don't need this option,jdbd is reactive .
+//     */
+//    @Deprecated
+//    public static final MySQLKey<Boolean> USE_CURSOR_FETCH = new MySQLKey<>("useCursorFetch", Boolean.class, Boolean.FALSE);
+//
+
+    /**
+     * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-performance-extensions.html">cacheCallableStmts</a>
+     * @since MySQL Driver 3.1.2
+     */
+    public static final MySQLKey<Boolean> CACHE_CALLABLE_STMTS = new MySQLKey<>("cacheCallableStmts", Boolean.class, Boolean.FALSE);
+
+
+    /**
+     * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-performance-extensions.html">cachePrepStmts</a>
+     * @since MySQL Driver 3.0.10
+     */
+    public static final MySQLKey<Boolean> CACHE_PREP_STMTS = new MySQLKey<>("cachePrepStmts", Boolean.class, Boolean.FALSE);
+
+    /**
+     * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-performance-extensions.html">cacheResultSetMetadata</a>
+     * @since MySQL Driver 3.1.1
+     */
+    public static final MySQLKey<Boolean> CACHE_RESULT_SET_METADATA = new MySQLKey<>("cacheResultSetMetadata", Boolean.class, Boolean.FALSE);
+
+    /**
+     * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-performance-extensions.html">cacheServerConfiguration</a>
+     * @since MySQL Driver 3.1.5
+     */
+    public static final MySQLKey<Boolean> CACHE_SERVER_CONFIGURATION = new MySQLKey<>("cacheServerConfiguration", Boolean.class, Boolean.FALSE);
+
+    /**
+     * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-performance-extensions.html">defaultFetchSize</a>
+     * @since MySQL Driver 3.1.9
+     */
+    public static final MySQLKey<Integer> DEFAULT_FETCH_SIZE = new MySQLKey<>("defaultFetchSize", Integer.class, 0);
+
+
+    /**
+     * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-performance-extensions.html">dontCheckOnDuplicateKeyUpdateInSQL</a>
+     * @since MySQL Driver 5.1.32
+     */
+    public static final MySQLKey<Boolean> DONT_CHECK_ON_DUPLICATE_KEY_UPDATE_IN_SQL = new MySQLKey<>("dontCheckOnDuplicateKeyUpdateInSQL", Boolean.class, Boolean.FALSE);
+
+
+//    /**
+//     *
+//     * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-performance-extensions.html">elideSetAutoCommits</a>
+//     * @since MySQL Driver 3.1.3
+//     * @deprecated jdbd don't this option
+//     */
+//    @Deprecated
+//    public static final MySQLKey<Boolean> ELIDE_SET_AUTO_COMMITS = new MySQLKey<>("elideSetAutoCommits", Boolean.class, Boolean.FALSE);
+//
+
+    /**
+     * <p>
+     *     TODO support ?   jdbd must escape
+     * </p>
+     *
+     * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-performance-extensions.html">enableEscapeProcessing</a>
+     * @since MySQL Driver 6.0.1
+     */
+    public static final MySQLKey<Boolean> ENABLE_ESCAPE_PROCESSING = new MySQLKey<>("enableEscapeProcessing", Boolean.class, Boolean.TRUE);
+
+    /**
+     * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-performance-extensions.html">enableQueryTimeouts</a>
+     * @since MySQL Driver 5.0.6
+     */
+    public static final MySQLKey<Boolean> ENABLE_QUERY_TIMEOUTS = new MySQLKey<>("enableQueryTimeouts", Boolean.class, Boolean.TRUE);
+
+
+    /**
+     * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-performance-extensions.html">largeRowSizeThreshold</a>
+     * @since MySQL Driver 5.1.1
+     */
+    public static final MySQLKey<Integer> LARGE_ROW_SIZE_THRESHOLD = new MySQLKey<>("largeRowSizeThreshold", Integer.class, 2048);
+
+    /**
+     * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-performance-extensions.html">readOnlyPropagatesToServer</a>
+     * @since MySQL Driver 5.1.35
+     */
+    public static final MySQLKey<Boolean> READ_ONLY_PROPAGATES_TO_SERVER = new MySQLKey<>("readOnlyPropagatesToServer", Boolean.class, Boolean.TRUE);
+
+    /**
+     * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-performance-extensions.html">rewriteBatchedStatements</a>
+     * @since MySQL Driver 3.1.13
+     */
+    public static final MySQLKey<Boolean> REWRITE_BATCHED_STATEMENTS = new MySQLKey<>("rewriteBatchedStatements", Boolean.class, Boolean.FALSE);
+
+    /**
+     * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-performance-extensions.html">useReadAheadInput</a>
+     * @since MySQL Driver 3.1.5
+     */
+    public static final MySQLKey<Boolean> USE_READ_AHEAD_INPUT = new MySQLKey<>("useReadAheadInput", Boolean.class, Boolean.TRUE);
+
+    /*-------------------below Debugging/Profiling group-------------------*/
+
+    // logger ; don't support
+
+    // profilerEventHandler ; don't support
+
+    // useNanosForElapsedTime ; don't support
+
+    // maxQuerySizeToLog ; don't support
+
+
+    /*-------------------below Exceptions/Warnings group -------------------*/
+
+    /**
+     * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-performance-extensions.html">ignoreNonTxTables</a>
+     * @since MySQL Driver 3.0.9
+     */
+    public static final MySQLKey<Boolean> IGNORE_NON_TX_TABLES = new MySQLKey<>("ignoreNonTxTables", Boolean.class, Boolean.FALSE);
+
+    /**
+     * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-performance-extensions.html">includeInnodbStatusInDeadlockExceptions</a>
+     * @since MySQL Driver 5.0.7
+     */
+    public static final MySQLKey<Boolean> INCLUDE_INNODB_STATUS_IN_DEAD_LOCK_EXCEPTIONS = new MySQLKey<>("includeInnodbStatusInDeadlockExceptions", Boolean.class, Boolean.FALSE);
+
+    //TODO add other Exceptions/Warnings option
+
+
     //below  Group
 
     /**

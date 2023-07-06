@@ -1,15 +1,14 @@
 package io.jdbd.vendor.result;
 
 import io.jdbd.result.Result;
-import io.jdbd.result.ResultRow;
 import io.jdbd.result.ResultStates;
 import io.jdbd.result.ResultStatusConsumerException;
 import io.jdbd.statement.ResultType;
 import io.jdbd.statement.SubscribeException;
+import io.jdbd.vendor.util.JdbdCollections;
 import org.reactivestreams.Subscription;
 import reactor.core.publisher.FluxSink;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
 
@@ -28,7 +27,7 @@ abstract class AbstractResultSubscriber implements ResultSubscriber {
     /**
      * @return true : stateConsumer throw error
      */
-    final boolean fluxSinkComplete(FluxSink<ResultRow> sink, Consumer<ResultStates> stateConsumer, ResultStates state) {
+    final boolean fluxSinkComplete(FluxSink<?> sink, Consumer<ResultStates> stateConsumer, ResultStates state) {
         Throwable consumerError = null;
         try {
             stateConsumer.accept(state);
@@ -38,7 +37,8 @@ abstract class AbstractResultSubscriber implements ResultSubscriber {
         if (consumerError == null) {
             sink.complete();
         } else {
-            ResultStatusConsumerException re = ResultStatusConsumerException.create(stateConsumer, consumerError);
+            final ResultStatusConsumerException re;
+            re = ResultStatusConsumerException.create(stateConsumer, consumerError);
             addError(re);
             sink.error(re);
         }
@@ -93,8 +93,7 @@ abstract class AbstractResultSubscriber implements ResultSubscriber {
     final void addError(Throwable error) {
         List<Throwable> errorList = this.errorList;
         if (errorList == null) {
-            errorList = new ArrayList<>();
-            this.errorList = errorList;
+            this.errorList = errorList = JdbdCollections.arrayList();
             final Subscription s = this.subscription;
             if (s != null) {
                 s.cancel();

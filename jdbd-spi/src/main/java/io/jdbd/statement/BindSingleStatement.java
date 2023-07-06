@@ -9,7 +9,6 @@ import io.jdbd.result.ResultRow;
 import io.jdbd.result.ResultStates;
 import org.reactivestreams.Publisher;
 
-import java.sql.JDBCType;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
@@ -33,11 +32,6 @@ public interface BindSingleStatement extends ParameterStatement, BindMultiResult
     @Override
     BindSingleStatement bind(int indexBasedZero, @Nullable Object nullable) throws JdbdException;
 
-    /**
-     * {@inheritDoc }
-     */
-    @Override
-    BindSingleStatement bind(int indexBasedZero, JDBCType jdbcType, @Nullable Object nullable) throws JdbdException;
 
     /**
      * {@inheritDoc }
@@ -50,12 +44,6 @@ public interface BindSingleStatement extends ParameterStatement, BindMultiResult
      */
     @Override
     BindSingleStatement bindStmtVar(String name, @Nullable Object nullable) throws JdbdException;
-
-    /**
-     * {@inheritDoc }
-     */
-    @Override
-    BindSingleStatement bindStmtVar(String name, JDBCType jdbcType, @Nullable Object nullable) throws JdbdException;
 
     /**
      * {@inheritDoc }

@@ -4,8 +4,6 @@ import io.jdbd.JdbdException;
 import io.jdbd.lang.Nullable;
 import io.jdbd.meta.DataType;
 
-import java.sql.JDBCType;
-
 /**
  * <p>
  * This interface is base interface of following:
@@ -30,12 +28,6 @@ public interface ServerPrepareStatement extends BindSingleStatement {
      * {@inheritDoc }
      */
     @Override
-    ServerPrepareStatement bind(int indexBasedZero, JDBCType jdbcType, @Nullable Object nullable) throws JdbdException;
-
-    /**
-     * {@inheritDoc }
-     */
-    @Override
     ServerPrepareStatement bind(int indexBasedZero, DataType dataType, @Nullable Object nullable) throws JdbdException;
 
     /**
@@ -43,12 +35,6 @@ public interface ServerPrepareStatement extends BindSingleStatement {
      */
     @Override
     ServerPrepareStatement bindStmtVar(String name, @Nullable Object nullable) throws JdbdException;
-
-    /**
-     * {@inheritDoc }
-     */
-    @Override
-    ServerPrepareStatement bindStmtVar(String name, JDBCType jdbcType, @Nullable Object nullable) throws JdbdException;
 
     /**
      * {@inheritDoc }

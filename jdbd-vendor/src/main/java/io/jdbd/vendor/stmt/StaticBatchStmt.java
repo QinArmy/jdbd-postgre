@@ -5,6 +5,7 @@ import org.reactivestreams.Publisher;
 import org.reactivestreams.Subscriber;
 
 import java.util.List;
+import java.util.function.Consumer;
 import java.util.function.Function;
 
 /**
@@ -13,8 +14,8 @@ import java.util.function.Function;
  * This implementation of this interface is used by the implementation of below methods:
  * <u>
  * <li>{@link io.jdbd.statement.StaticStatement#executeUpdate(String)}</li>
- * <li>{@link io.jdbd.statement.StaticStatement#executeQuery(String)}</li>
- * <li>{@link io.jdbd.statement.StaticStatement#executeQuery(String, java.util.function.Consumer)}</li>
+ * <li>{@link io.jdbd.statement.StaticStatement#executeQuery(String, Function)}</li>
+ * <li>{@link io.jdbd.statement.StaticStatement#executeQuery(String, Function, Consumer)}</li>
  * </u>
  * </p>
  */

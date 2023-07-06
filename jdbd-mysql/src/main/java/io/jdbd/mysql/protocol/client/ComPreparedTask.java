@@ -69,15 +69,17 @@ final class ComPreparedTask extends MySQLCommandTask implements PrepareStmtTask,
      * This method is one of underlying api of below methods:
      * <ul>
      *     <li>{@link BindStatement#executeQuery()}</li>
-     *      <li>{@link BindStatement#executeQuery(Consumer)}</li>
+     *     <li>{@link BindStatement#executeQuery(Function)}</li>
+     *     <li>{@link BindStatement#executeQuery(Function, Consumer)}</li>
      * </ul>
      * </p>
      *
      * @see #ComPreparedTask(ParamSingleStmt, ResultSink, TaskAdjutant)
-     * @see ComQueryTask#bindQuery(BindStmt, TaskAdjutant)
+     * @see ComQueryTask#bindQuery(BindStmt, Function, Consumer, TaskAdjutant)
      */
-    static Flux<ResultRow> query(final ParamStmt stmt, final TaskAdjutant adjutant) {
-        return MultiResults.query(stmt.getStatusConsumer(), sink -> {
+    static <R> Flux<R> query(final ParamStmt stmt, final Function<CurrentRow, R> function,
+                             final Consumer<ResultStates> consumer, final TaskAdjutant adjutant) {
+        return MultiResults.query(function, consumer, sink -> {
             try {
                 ComPreparedTask task = new ComPreparedTask(stmt, sink, adjutant);
                 task.submit(sink::error);

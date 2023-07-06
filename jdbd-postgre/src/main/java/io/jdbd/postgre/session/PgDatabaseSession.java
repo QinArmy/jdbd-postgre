@@ -76,12 +76,12 @@ abstract class PgDatabaseSession implements DatabaseSession {
     }
 
     @Override
-    public final Mono<TransactionOption> getTransactionOption() {
+    public final Mono<TransactionOption> transactionStatus() {
         return null;
     }
 
     @Override
-    public final DatabaseMetaData getDatabaseMetaData() {
+    public final DatabaseMetaData databaseMetaData() {
         return null;
     }
 

@@ -1,6 +1,5 @@
 package io.jdbd.session;
 
-import io.jdbd.env.JdbdEnvironment;
 import io.jdbd.meta.DatabaseMetaData;
 import io.jdbd.result.CurrentRow;
 import io.jdbd.result.MultiResult;
@@ -74,10 +73,10 @@ public interface DatabaseSession  extends StaticStatementSpec ,Closeable{
     @Override
     OrderedFlux executeAsFlux(String multiStmt);
 
-    DatabaseMetaData getDatabaseMetaData();
+    DatabaseMetaData databaseMetaData();
 
 
-    Publisher<TransactionOption> getTransactionOption();
+    Publisher<TransactionStatus> transactionStatus();
 
 
     StaticStatement statement();
@@ -137,7 +136,6 @@ public interface DatabaseSession  extends StaticStatementSpec ,Closeable{
 
     boolean isBelongTo(DatabaseSessionFactory factory);
 
-    JdbdEnvironment environment();
 
 
 }

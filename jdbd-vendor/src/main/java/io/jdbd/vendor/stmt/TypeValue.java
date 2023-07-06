@@ -1,6 +1,8 @@
 package io.jdbd.vendor.stmt;
 
 
+import io.jdbd.meta.DataType;
+
 /**
  * <p>
  * This interface extends {@link Value},representing a value that is bound to sql
@@ -21,6 +23,6 @@ public interface TypeValue extends Value {
      *
      * @return sql type of bind value.
      */
-    io.jdbd.meta.SQLType getType();
+    DataType getType();
 
 }

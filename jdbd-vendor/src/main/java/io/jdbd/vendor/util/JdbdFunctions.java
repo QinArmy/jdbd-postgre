@@ -9,6 +9,7 @@ public abstract class JdbdFunctions {
     }
 
 
+    @Deprecated
     public static <T> Consumer<T> noActionConsumer() {
         return JdbdFunctions::noAction;
     }

@@ -5,10 +5,7 @@ import io.jdbd.mysql.stmt.BindBatchStmt;
 import io.jdbd.mysql.stmt.BindMultiStmt;
 import io.jdbd.mysql.stmt.BindStmt;
 import io.jdbd.mysql.util.MySQLExceptions;
-import io.jdbd.result.MultiResult;
-import io.jdbd.result.OrderedFlux;
-import io.jdbd.result.ResultRow;
-import io.jdbd.result.ResultStates;
+import io.jdbd.result.*;
 import io.jdbd.statement.BindStatement;
 import io.jdbd.statement.LocalFileException;
 import io.jdbd.statement.MultiStatement;
@@ -33,6 +30,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
 import java.util.List;
 import java.util.function.Consumer;
+import java.util.function.Function;
 import java.util.function.Supplier;
 
 /**
@@ -204,14 +202,16 @@ final class ComQueryTask extends MySQLCommandTask {
      * This method is one of underlying api of below methods:
      * <ul>
      *     <li>{@link BindStatement#executeQuery()}</li>
-     *     <li>{@link BindStatement#executeQuery(Consumer)}</li>
+     *     <li>{@link BindStatement#executeQuery(Function)}</li>
+     *     <li>{@link BindStatement#executeQuery(Function, Consumer)}</li>
      * </ul>
      * </p>
      *
-     * @see ClientProtocol#bindQuery(BindStmt)
+     * @see ClientProtocol#bindQuery(BindStmt, boolean, Function, Consumer)
      */
-    static Flux<ResultRow> bindQuery(final BindStmt stmt, final TaskAdjutant adjutant) {
-        return MultiResults.query(stmt.getStatusConsumer(), sink -> {
+    static <R> Flux<R> bindQuery(final BindStmt stmt, final Function<CurrentRow, R> function,
+                                 final Consumer<ResultStates> consumer, final TaskAdjutant adjutant) {
+        return MultiResults.query(function, consumer, sink -> {
             try {
                 ComQueryTask task = new ComQueryTask(stmt, sink, adjutant);
                 task.submit(sink::error);

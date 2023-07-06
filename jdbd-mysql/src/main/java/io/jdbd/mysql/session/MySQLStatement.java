@@ -3,6 +3,7 @@ package io.jdbd.mysql.session;
 import io.jdbd.JdbdSQLException;
 import io.jdbd.mysql.MySQLType;
 import io.jdbd.mysql.stmt.AttrStatement;
+import io.jdbd.mysql.stmt.MySQLStmtOption;
 import io.jdbd.mysql.stmt.QueryAttr;
 import io.jdbd.session.DatabaseSession;
 import io.jdbd.statement.Statement;
@@ -85,6 +86,12 @@ abstract class MySQLStatement implements Statement, AttrStatement {
         return false;
     }
 
+
+    @Override
+    public final boolean supportStmtVar() {
+        return this.session.supportStmtVar();
+    }
+
     abstract void checkReuse() throws JdbdSQLException;
 
     /**
@@ -95,7 +102,7 @@ abstract class MySQLStatement implements Statement, AttrStatement {
     }
 
 
-    static final class MySQLStatementOption implements io.jdbd.mysql.stmt.MySQLStatementOption {
+    static final class MySQLStatementOption implements MySQLStmtOption {
 
         private int timeoutSeconds;
 

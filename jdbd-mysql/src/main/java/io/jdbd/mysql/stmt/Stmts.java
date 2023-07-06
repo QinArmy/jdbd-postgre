@@ -17,33 +17,33 @@ import java.util.function.Function;
 public abstract class Stmts extends JdbdStmts {
 
 
-    public static StaticStmt stmt(String sql, MySQLStatementOption option) {
+    public static StaticStmt stmt(String sql, MySQLStmtOption option) {
         return new MySQLOptionStaticStmt(sql, option);
     }
 
-    public static StaticStmt stmt(String sql, Consumer<ResultStates> statesConsumer, MySQLStatementOption option) {
+    public static StaticStmt stmt(String sql, Consumer<ResultStates> statesConsumer, MySQLStmtOption option) {
         return new MySQLQueryOptionStaticStmt(sql, statesConsumer, option);
     }
 
-    public static StaticBatchStmt batch(List<String> sqlGroup, MySQLStatementOption option) {
+    public static StaticBatchStmt batch(List<String> sqlGroup, MySQLStmtOption option) {
         return new MySQLOptionStaticBatchStmt(sqlGroup, option);
     }
 
-    public static StaticMultiStmt multiStmt(String multiSql, MySQLStatementOption option) {
+    public static StaticMultiStmt multiStmt(String multiSql, MySQLStmtOption option) {
         return new MySQLOptionStaticMultiStmt(multiSql, option);
     }
 
-    public static ParamStmt paramStmt(String sql, List<ParamValue> bindGroup, MySQLStatementOption option) {
+    public static ParamStmt paramStmt(String sql, List<ParamValue> bindGroup, MySQLStmtOption option) {
         return new MySQLOptionParamStmt<>(sql, bindGroup, option);
     }
 
     public static ParamStmt paramStmt(String sql, List<ParamValue> paramGroup
-            , Consumer<ResultStates> statesConsumer, MySQLStatementOption option) {
+            , Consumer<ResultStates> statesConsumer, MySQLStmtOption option) {
         return new MySQLOptionQueryParamStmt<>(sql, paramGroup, statesConsumer, option);
     }
 
     public static ParamBatchStmt<ParamValue> paramBatch(String sql, List<List<ParamValue>> groupList
-            , MySQLStatementOption option) {
+            , MySQLStmtOption option) {
         return new MySQLOptionParamBatchStmt<>(sql, groupList, option);
     }
 
@@ -67,16 +67,17 @@ public abstract class Stmts extends JdbdStmts {
         return new MySQLSimpleBindBatchStmt(sql, groupList);
     }
 
-    public static BindStmt bind(String sql, List<BindValue> bindGroup, MySQLStatementOption option) {
+    public static BindStmt bind(String sql, List<BindValue> bindGroup, MySQLStmtOption option) {
         return new MySQLOptionBindStmt(sql, bindGroup, option);
     }
 
     public static BindStmt bind(String sql, List<BindValue> bindGroup, Consumer<ResultStates> statesConsumer
-            , MySQLStatementOption option) {
+            , MySQLStmtOption option) {
         return new MySQLOptionQueryBindStmt(sql, bindGroup, statesConsumer, option);
     }
 
-    public static BindBatchStmt bindBatch(String sql, List<List<BindValue>> groupList, MySQLStatementOption option) {
+
+    public static BindBatchStmt bindBatch(String sql, List<List<BindValue>> groupList, MySQLStmtOption option) {
         return new MySQLOptionBindBatchStmt(sql, groupList, option);
     }
 
@@ -89,7 +90,7 @@ public abstract class Stmts extends JdbdStmts {
         return new MySQLSimpleBindMultiStmt(stmtList);
     }
 
-    public static BindMultiStmt multi(List<BindStmt> stmtList, MySQLStatementOption option) {
+    public static BindMultiStmt multi(List<BindStmt> stmtList, MySQLStmtOption option) {
         return new MySQLOptionBindMultiStmt(stmtList, option);
     }
 
@@ -115,7 +116,7 @@ public abstract class Stmts extends JdbdStmts {
 
         private final Map<String, QueryAttr> queryAttrs;
 
-        private MySQLOptionStaticStmt(final String sql, final MySQLStatementOption option) {
+        private MySQLOptionStaticStmt(final String sql, final MySQLStmtOption option) {
             super(sql, option);
             this.queryAttrs = wrapQueryAttrs(option.getAttrGroup());
         }
@@ -134,7 +135,7 @@ public abstract class Stmts extends JdbdStmts {
         private final Map<String, QueryAttr> queryAttrs;
 
 
-        private MySQLQueryOptionStaticStmt(String sql, Consumer<ResultStates> statesConsumer, MySQLStatementOption option) {
+        private MySQLQueryOptionStaticStmt(String sql, Consumer<ResultStates> statesConsumer, MySQLStmtOption option) {
             super(sql, statesConsumer, option);
             this.queryAttrs = wrapQueryAttrs(option.getAttrGroup());
         }
@@ -152,7 +153,7 @@ public abstract class Stmts extends JdbdStmts {
 
         private final Map<String, QueryAttr> queryAttrs;
 
-        private MySQLOptionStaticBatchStmt(List<String> sqlGroup, MySQLStatementOption option) {
+        private MySQLOptionStaticBatchStmt(List<String> sqlGroup, MySQLStmtOption option) {
             super(sqlGroup, option);
             this.queryAttrs = wrapQueryAttrs(option.getAttrGroup());
         }
@@ -169,7 +170,7 @@ public abstract class Stmts extends JdbdStmts {
 
         private final Map<String, QueryAttr> queryAttrs;
 
-        private MySQLOptionStaticMultiStmt(final String multiStmt, final MySQLStatementOption option) {
+        private MySQLOptionStaticMultiStmt(final String multiStmt, final MySQLStmtOption option) {
             super(multiStmt, option);
             this.queryAttrs = wrapQueryAttrs(option.getAttrGroup());
         }
@@ -189,7 +190,7 @@ public abstract class Stmts extends JdbdStmts {
 
         private final Map<String, QueryAttr> queryAttrs;
 
-        private MySQLOptionParamStmt(final String sql, final List<T> bindGroup, final MySQLStatementOption option) {
+        private MySQLOptionParamStmt(final String sql, final List<T> bindGroup, final MySQLStmtOption option) {
             super(sql, bindGroup, option);
             this.queryAttrs = wrapQueryAttrs(option.getAttrGroup());
         }
@@ -227,7 +228,7 @@ public abstract class Stmts extends JdbdStmts {
         private final Map<String, QueryAttr> queryAttrs;
 
         private MySQLOptionQueryParamStmt(String sql, List<T> bindGroup
-                , Consumer<ResultStates> statesConsumer, MySQLStatementOption option) {
+                , Consumer<ResultStates> statesConsumer, MySQLStmtOption option) {
             super(sql, bindGroup, statesConsumer, option);
             this.queryAttrs = wrapQueryAttrs(option.getAttrGroup());
 
@@ -257,7 +258,7 @@ public abstract class Stmts extends JdbdStmts {
         private final Map<String, QueryAttr> queryAttrs;
 
         private MySQLOptionParamBatchStmt(final String sql, final List<List<T>> groupList
-                , final MySQLStatementOption option) {
+                , final MySQLStmtOption option) {
             super(sql, groupList, option);
             this.queryAttrs = wrapQueryAttrs(option.getAttrGroup());
 
@@ -310,7 +311,7 @@ public abstract class Stmts extends JdbdStmts {
 
     private static class MySQLOptionBindStmt extends MySQLOptionParamStmt<BindValue> implements BindStmt {
 
-        private MySQLOptionBindStmt(String sql, List<BindValue> bindGroup, MySQLStatementOption option) {
+        private MySQLOptionBindStmt(String sql, List<BindValue> bindGroup, MySQLStmtOption option) {
             super(sql, bindGroup, option);
         }
 
@@ -320,7 +321,7 @@ public abstract class Stmts extends JdbdStmts {
             implements BindStmt {
 
         private MySQLOptionQueryBindStmt(String sql, List<BindValue> bindGroup
-                , Consumer<ResultStates> statesConsumer, MySQLStatementOption option) {
+                , Consumer<ResultStates> statesConsumer, MySQLStmtOption option) {
             super(sql, bindGroup, statesConsumer, option);
         }
 
@@ -329,7 +330,7 @@ public abstract class Stmts extends JdbdStmts {
     private static final class MySQLOptionBindBatchStmt extends MySQLOptionParamBatchStmt<BindValue>
             implements BindBatchStmt {
 
-        private MySQLOptionBindBatchStmt(String sql, List<List<BindValue>> groupList, MySQLStatementOption option) {
+        private MySQLOptionBindBatchStmt(String sql, List<List<BindValue>> groupList, MySQLStmtOption option) {
             super(sql, groupList, option);
         }
 
@@ -396,7 +397,7 @@ public abstract class Stmts extends JdbdStmts {
 
         private final int timeout;
 
-        public MySQLOptionBindMultiStmt(List<BindStmt> stmtList, MySQLStatementOption option) {
+        public MySQLOptionBindMultiStmt(List<BindStmt> stmtList, MySQLStmtOption option) {
             this.stmtList = wrapGroup(stmtList);
             this.timeout = option.getTimeout();
         }
