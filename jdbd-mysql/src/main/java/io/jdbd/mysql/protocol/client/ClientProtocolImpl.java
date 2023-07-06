@@ -69,8 +69,8 @@ final class ClientProtocolImpl implements ClientProtocol {
     }
 
     @Override
-    public Flux<ResultRow> query(final StaticStmt stmt) {
-        return ComQueryTask.query(stmt, this.adjutant);
+    public <R> Flux<R> query(final StaticStmt stmt, Function<CurrentRow, R> function, Consumer<ResultStates> consumer) {
+        return ComQueryTask.query(stmt, function, consumer, this.adjutant);
     }
 
     @Override

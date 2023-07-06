@@ -4,7 +4,10 @@ import io.jdbd.mysql.MySQLType;
 import io.jdbd.mysql.stmt.BindBatchStmt;
 import io.jdbd.mysql.stmt.BindMultiStmt;
 import io.jdbd.mysql.stmt.BindStmt;
-import io.jdbd.result.*;
+import io.jdbd.result.CurrentRow;
+import io.jdbd.result.MultiResult;
+import io.jdbd.result.OrderedFlux;
+import io.jdbd.result.ResultStates;
 import io.jdbd.session.DatabaseSession;
 import io.jdbd.session.ServerVersion;
 import io.jdbd.session.TransactionOption;
@@ -39,7 +42,7 @@ public interface Protocol {
      * This method is underlying api of below methods:
      * </p>
      */
-    Flux<ResultRow> query(StaticStmt stmt);
+    <R> Flux<R> query(StaticStmt stmt, Function<CurrentRow, R> function, Consumer<ResultStates> consumer);
 
 
     /**

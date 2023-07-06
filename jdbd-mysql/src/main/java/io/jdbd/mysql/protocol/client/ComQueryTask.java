@@ -5,7 +5,10 @@ import io.jdbd.mysql.stmt.BindBatchStmt;
 import io.jdbd.mysql.stmt.BindMultiStmt;
 import io.jdbd.mysql.stmt.BindStmt;
 import io.jdbd.mysql.util.MySQLExceptions;
-import io.jdbd.result.*;
+import io.jdbd.result.CurrentRow;
+import io.jdbd.result.MultiResult;
+import io.jdbd.result.OrderedFlux;
+import io.jdbd.result.ResultStates;
 import io.jdbd.statement.BindStatement;
 import io.jdbd.statement.LocalFileException;
 import io.jdbd.statement.MultiStatement;
@@ -89,8 +92,9 @@ final class ComQueryTask extends MySQLCommandTask {
      * @see #ComQueryTask(Stmt, ResultSink, TaskAdjutant)
      * @see ClientProtocol#query(StaticStmt)
      */
-    static Flux<ResultRow> query(final StaticStmt stmt, final TaskAdjutant adjutant) {
-        return MultiResults.query(stmt.getStatusConsumer(), sink -> {
+    static <R> Flux<R> query(final StaticStmt stmt, final Function<CurrentRow, R> function,
+                             final Consumer<ResultStates> consumer, final TaskAdjutant adjutant) {
+        return MultiResults.query(function, consumer, sink -> {
             try {
                 ComQueryTask task = new ComQueryTask(stmt, sink, adjutant);
                 task.submit(sink::error);

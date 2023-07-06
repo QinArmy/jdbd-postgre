@@ -10,11 +10,6 @@ import java.util.function.Function;
 
 public interface OneStepPrepareStatement extends ServerPrepareStatement {
 
-    /**
-     * {@inheritDoc }
-     */
-    @Override
-    OneStepPrepareStatement bind(int indexBasedZero, @Nullable Object nullable) throws JdbdException;
 
     /**
      * {@inheritDoc }
@@ -22,12 +17,6 @@ public interface OneStepPrepareStatement extends ServerPrepareStatement {
     @Override
     OneStepPrepareStatement bind(int indexBasedZero, DataType dataType, @Nullable Object nullable) throws JdbdException;
 
-
-    /**
-     * {@inheritDoc }
-     */
-    @Override
-    OneStepPrepareStatement bindStmtVar(String name, @Nullable Object nullable) throws JdbdException;
 
     /**
      * {@inheritDoc }

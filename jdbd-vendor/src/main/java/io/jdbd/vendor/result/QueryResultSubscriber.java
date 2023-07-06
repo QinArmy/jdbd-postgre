@@ -15,7 +15,7 @@ import java.util.function.Function;
 /**
  * @see FluxResult
  */
-final class QueryResultSubscriber<R> extends AbstractResultSubscriber {
+final class QueryResultSubscriber<R> extends JdbdResultSubscriber {
 
     static <R> Flux<R> create(final @Nullable Function<CurrentRow, R> function,
                               final @Nullable Consumer<ResultStates> stateConsumer,
@@ -27,7 +27,8 @@ final class QueryResultSubscriber<R> extends AbstractResultSubscriber {
             flux = Flux.error(JdbdExceptions.statesConsumerIsNull());
         } else {
             flux = Flux.create(sink -> FluxResult.create(callback)
-                    .subscribe(new QueryResultSubscriber<>(function, sink, stateConsumer)));
+                    .subscribe(new QueryResultSubscriber<>(function, sink, stateConsumer))
+            );
         }
         return flux;
     }
@@ -68,12 +69,16 @@ final class QueryResultSubscriber<R> extends AbstractResultSubscriber {
         if (result.getResultIndex() != 0) {
             addSubscribeError(ResultType.MULTI_RESULT);
         } else if (result instanceof CurrentRow) {
-            final R row;
-            row = this.function.apply((CurrentRow) result);
-            if (row == null || row == result) {
-                this.addError(JdbdExceptions.queryMapFuncError(function));
-            } else {
-                this.sink.next(row);
+            try {
+                final R row;
+                row = this.function.apply((CurrentRow) result);
+                if (row == null || row == result) {
+                    this.addError(JdbdExceptions.queryMapFuncError(this.function));
+                } else {
+                    this.sink.next(row);
+                }
+            } catch (Throwable e) {
+                this.addError(e);
             }
         } else if (result instanceof ResultStates) {
             final ResultStates state = (ResultStates) result;
@@ -90,7 +95,7 @@ final class QueryResultSubscriber<R> extends AbstractResultSubscriber {
             } else {
                 throw createDuplicationResultState(state);
             }
-        } else {
+        } else if (!(result instanceof ResultRowMeta)) {
             throw createUnknownTypeError(result);
         }
     }

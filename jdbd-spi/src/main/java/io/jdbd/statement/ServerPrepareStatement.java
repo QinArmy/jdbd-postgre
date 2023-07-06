@@ -26,19 +26,7 @@ public interface ServerPrepareStatement extends BindSingleStatement {
      * {@inheritDoc }
      */
     @Override
-    ServerPrepareStatement bind(int indexBasedZero, @Nullable Object nullable) throws JdbdException;
-
-    /**
-     * {@inheritDoc }
-     */
-    @Override
     ServerPrepareStatement bind(int indexBasedZero, DataType dataType, @Nullable Object nullable) throws JdbdException;
-
-    /**
-     * {@inheritDoc }
-     */
-    @Override
-    ServerPrepareStatement bindStmtVar(String name, @Nullable Object nullable) throws JdbdException;
 
     /**
      * {@inheritDoc }

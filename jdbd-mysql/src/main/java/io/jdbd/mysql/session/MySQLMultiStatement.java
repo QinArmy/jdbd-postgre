@@ -64,7 +64,7 @@ final class MySQLMultiStatement extends MySQLStatement implements AttrMultiState
         checkReuse();
         final List<BindValue> bindGroup = this.bindGroup;
         if (bindGroup == null) {
-            throw MySQLExceptions.createEmptySqlException();
+            throw MySQLExceptions.sqlIsEmpty();
         }
         if (indexBasedZero < 0) {
             throw MySQLExceptions.invalidParameterValue(this.stmtGroup.size(), indexBasedZero);
@@ -80,7 +80,7 @@ final class MySQLMultiStatement extends MySQLStatement implements AttrMultiState
         checkReuse();
         final List<BindValue> bindGroup = this.bindGroup;
         if (bindGroup == null) {
-            throw MySQLExceptions.createEmptySqlException();
+            throw MySQLExceptions.sqlIsEmpty();
         }
         if (!(dataType instanceof MySQLType)) {
             String m = String.format("sqlType isn't a instance of %s", MySQLType.class.getName());
@@ -98,7 +98,7 @@ final class MySQLMultiStatement extends MySQLStatement implements AttrMultiState
         checkReuse();
         final List<BindValue> bindGroup = this.bindGroup;
         if (bindGroup == null) {
-            throw MySQLExceptions.createEmptySqlException();
+            throw MySQLExceptions.sqlIsEmpty();
         }
         if (indexBasedZero < 0) {
             throw MySQLExceptions.invalidParameterValue(this.stmtGroup.size(), indexBasedZero);

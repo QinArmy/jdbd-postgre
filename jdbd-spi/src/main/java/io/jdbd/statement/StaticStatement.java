@@ -20,6 +20,12 @@ public interface StaticStatement extends Statement, StaticStatementSpec {
      * {@inheritDoc }
      */
     @Override
+    StaticStatement bindStmtVar(String name, DataType dataType, @Nullable Object nullable) throws JdbdException;
+
+    /**
+     * {@inheritDoc }
+     */
+    @Override
     StaticStatement setTimeout(int seconds) throws JdbdException;
 
     /**
@@ -40,17 +46,6 @@ public interface StaticStatement extends Statement, StaticStatementSpec {
     @Override
     StaticStatement setExportSubscriber(Function<Object, Subscriber<byte[]>> function) throws JdbdException;
 
-    /**
-     * {@inheritDoc }
-     */
-    @Override
-    StaticStatement bindStmtVar(String name, @Nullable Object nullable) throws JdbdException;
-
-    /**
-     * {@inheritDoc }
-     */
-    @Override
-    StaticStatement bindStmtVar(String name, DataType dataType, @Nullable Object nullable) throws JdbdException;
 
 
 }

@@ -10,12 +10,14 @@ import reactor.core.publisher.Mono;
 import reactor.util.annotation.Nullable;
 
 import java.util.List;
+import java.util.function.Consumer;
+import java.util.function.Function;
 
 public interface PrepareTask<T extends SQLType> {
 
     Mono<ResultStates> executeUpdate(ParamStmt stmt);
 
-    Flux<ResultRow> executeQuery(ParamStmt stmt);
+    <R> Flux<R> executeQuery(ParamStmt stmt, Function<CurrentRow, R> function, Consumer<ResultStates> consumer);
 
     Flux<ResultStates> executeBatch(ParamBatchStmt<ParamValue> stmt);
 

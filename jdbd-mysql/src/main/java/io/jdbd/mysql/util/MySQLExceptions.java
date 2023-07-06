@@ -1,5 +1,6 @@
 package io.jdbd.mysql.util;
 
+import io.jdbd.JdbdException;
 import io.jdbd.JdbdSQLException;
 import io.jdbd.mysql.MySQLJdbdException;
 import io.jdbd.mysql.MySQLType;
@@ -95,13 +96,10 @@ public abstract class MySQLExceptions extends JdbdExceptions {
         return containException(e, MySQLFatalIoException.class);
     }
 
-    public static JdbdSQLException createEmptySqlException() {
-        return new JdbdSQLException(createQueryIsEmptyError());
+    public static JdbdException sqlIsEmpty() {
+        return new JdbdException("Query was empty", "42000", 1065);
     }
 
-    public static JdbdSQLException createMultiStatementException() {
-        return new JdbdSQLException(createMultiStatementError());
-    }
 
     public static JdbdSQLException notSupportMultiStatementException() {
         String m;

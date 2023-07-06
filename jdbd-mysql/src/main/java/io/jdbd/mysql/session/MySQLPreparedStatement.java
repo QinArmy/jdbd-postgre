@@ -4,7 +4,6 @@ import io.jdbd.JdbdException;
 import io.jdbd.JdbdSQLException;
 import io.jdbd.meta.DataType;
 import io.jdbd.mysql.MySQLType;
-import io.jdbd.mysql.stmt.AttrPreparedStatement;
 import io.jdbd.mysql.stmt.Stmts;
 import io.jdbd.mysql.util.MySQLExceptions;
 import io.jdbd.result.*;
@@ -15,21 +14,17 @@ import io.jdbd.statement.SubscribeException;
 import io.jdbd.vendor.result.MultiResults;
 import io.jdbd.vendor.stmt.JdbdParamValue;
 import io.jdbd.vendor.stmt.ParamBatchStmt;
-import io.jdbd.vendor.stmt.ParamStmt;
 import io.jdbd.vendor.stmt.ParamValue;
 import io.jdbd.vendor.task.PrepareTask;
 import io.jdbd.vendor.util.JdbdBinds;
-import io.jdbd.vendor.util.JdbdFunctions;
 import org.reactivestreams.Publisher;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.util.annotation.Nullable;
 
-import java.sql.JDBCType;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.Objects;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
@@ -38,7 +33,7 @@ import java.util.function.Function;
  * This interface is a implementation of {@link PreparedStatement} with MySQL client protocol.
  * </p>
  */
-final class MySQLPreparedStatement extends MySQLStatement implements AttrPreparedStatement {
+final class MySQLPreparedStatement extends MySQLStatement<PreparedStatement> implements PreparedStatement {
 
     static MySQLPreparedStatement create(MySQLDatabaseSession session, PrepareTask<MySQLType> task) {
         return new MySQLPreparedStatement(session, task);
@@ -56,7 +51,7 @@ final class MySQLPreparedStatement extends MySQLStatement implements AttrPrepare
 
     private final int paramCount;
 
-    private final List<List<ParamValue>> paramGroupList = new ArrayList<>();
+    private List<List<ParamValue>> paramGroupList;
 
     private List<ParamValue> paramGroup;
 
@@ -78,8 +73,9 @@ final class MySQLPreparedStatement extends MySQLStatement implements AttrPrepare
 
     }
 
+
     @Override
-    public PreparedStatement bind(final int indexBasedZero, final @Nullable Object nullable) throws JdbdException {
+    public PreparedStatement bind(int indexBasedZero, DataType dataType, @Nullable Object nullable) throws JdbdException {
         checkReuse();
         final List<ParamValue> paramGroup = this.paramGroup;
         if (indexBasedZero < 0 || indexBasedZero >= this.paramCount) {
@@ -92,19 +88,140 @@ final class MySQLPreparedStatement extends MySQLStatement implements AttrPrepare
         return this;
     }
 
+
     @Override
-    public PreparedStatement bind(int indexBasedZero, JDBCType jdbcType,@Nullable Object nullable) throws JdbdException {
-        return this;
+    public List<? extends DataType> getParamTypeList() {
+        return this.paramTypes;
     }
 
     @Override
-    public PreparedStatement bind(int indexBasedZero, DataType dataType,@Nullable Object nullable) throws JdbdException {
-        return this;
+    public Publisher<ResultStates> executeUpdate() {
+        final List<ParamValue> paramGroup = this.paramGroup;
+
+        final Throwable error;
+        if (paramGroup == null) {
+            error = MySQLExceptions.cannotReuseStatement(PreparedStatement.class);
+        } else if (this.rowMeta != null) {
+            error = new SubscribeException(ResultType.UPDATE, ResultType.QUERY);
+        } else if (this.paramGroupList != null) {
+            error = new SubscribeException(ResultType.UPDATE, ResultType.BATCH);
+        } else if (paramGroup.size() != this.paramCount) {
+            error = MySQLExceptions.parameterCountMatch(0, this.paramCount, paramGroup.size());
+        } else {
+            error = JdbdBinds.sortAndCheckParamGroup(0, paramGroup);
+        }
+
+        final Mono<ResultStates> mono;
+        if (error == null) {
+            this.fetchSize = 0;
+            mono = this.stmtTask.executeUpdate(Stmts.paramStmt(this.sql, paramGroup, this));
+        } else {
+            this.stmtTask.closeOnBindError(error); // close prepare statement.
+            mono = Mono.error(error);
+        }
+        clearStatementToAvoidReuse();
+        return mono;
     }
 
     @Override
-    public PreparedStatement bind(int indexBasedZero, String dataTypeName, @Nullable Object nullable) throws JdbdException {
-        return this;
+    public Publisher<ResultRow> executeQuery() {
+        return this.executeQuery(CurrentRow::asResultRow, Stmts.IGNORE_RESULT_STATES);
+    }
+
+    @Override
+    public <R> Publisher<R> executeQuery(Function<CurrentRow, R> function) {
+        return this.executeQuery(function, Stmts.IGNORE_RESULT_STATES);
+    }
+
+    @Override
+    public <R> Publisher<R> executeQuery(Function<CurrentRow, R> function, Consumer<ResultStates> consumer) {
+
+        final List<ParamValue> paramGroup = this.paramGroup;
+        final Throwable error;
+        if (paramGroup == null) {
+            error = MySQLExceptions.cannotReuseStatement(PreparedStatement.class);
+        } else if (this.rowMeta == null) {
+            error = new SubscribeException(ResultType.QUERY, ResultType.UPDATE);
+        } else if (this.paramGroupList != null) {
+            error = new SubscribeException(ResultType.QUERY, ResultType.BATCH);
+        } else if (paramGroup.size() != this.paramCount) {
+            error = MySQLExceptions.parameterCountMatch(0, this.paramCount, paramGroup.size());
+        } else {
+            error = JdbdBinds.sortAndCheckParamGroup(0, paramGroup);
+        }
+
+        this.endStmtOption();
+
+        final Flux<R> flux;
+        if (error == null) {
+            flux = this.stmtTask.executeQuery(Stmts.paramStmt(this.sql, paramGroup, this), function, consumer);
+        } else {
+            this.stmtTask.closeOnBindError(error); // close prepare statement.
+            flux = Flux.error(error);
+        }
+        clearStatementToAvoidReuse();
+        return flux;
+    }
+
+    @Override
+    public Flux<ResultStates> executeBatchUpdate() {
+        this.endStmtOption();
+
+        final Flux<ResultStates> flux;
+        final List<List<ParamValue>> paramGroupList = this.paramGroupList;
+        if (this.paramGroup == null) {
+            flux = Flux.error(MySQLExceptions.cannotReuseStatement(PreparedStatement.class));
+        } else if (paramGroupList == null || paramGroupList.size() == 0) {
+            final JdbdException error = MySQLExceptions.noAnyParamGroupError();
+            this.stmtTask.closeOnBindError(error); // close prepare statement.
+            flux = Flux.error(error);
+        } else {
+            flux = this.stmtTask.executeBatch(Stmts.paramBatch(this.sql, paramGroupList, this));
+        }
+        clearStatementToAvoidReuse();
+        return flux;
+    }
+
+    @Override
+    public MultiResult executeBatchAsMulti() {
+        this.endStmtOption();
+
+        final MultiResult result;
+        if (this.paramGroup == null) {
+            result = MultiResults.error(MySQLExceptions.cannotReuseStatement(PreparedStatement.class));
+        } else if (this.paramGroupList.size() == 0) {
+            final JdbdException error = MySQLExceptions.noAnyParamGroupError();
+            this.stmtTask.closeOnBindError(error); // close prepare statement.
+            result = MultiResults.error(error);
+        } else {
+            this.statementOption.fetchSize = 0; // executeBatchAsMulti() don't support fetch.
+            final ParamBatchStmt<ParamValue> stmt;
+            stmt = Stmts.paramBatch(this.sql, this.paramGroupList, this);
+            result = this.stmtTask.executeBatchAsMulti(stmt);
+        }
+        clearStatementToAvoidReuse();
+        return result;
+    }
+
+
+    @Override
+    public OrderedFlux executeBatchAsFlux() {
+        this.endStmtOption();
+
+        final OrderedFlux flux;
+        if (this.paramGroup == null) {
+            flux = MultiResults.fluxError(MySQLExceptions.cannotReuseStatement(PreparedStatement.class));
+        } else if (this.paramGroupList.size() == 0) {
+            final JdbdException error = MySQLExceptions.noAnyParamGroupError();
+            this.stmtTask.closeOnBindError(error); // close prepare statement.
+            flux = MultiResults.fluxError(error);
+        } else {
+            final ParamBatchStmt<ParamValue> stmt;
+            stmt = Stmts.paramBatch(this.sql, this.paramGroupList, this.statementOption);
+            flux = this.stmtTask.executeBatchAsFlux(stmt);
+        }
+        clearStatementToAvoidReuse();
+        return flux;
     }
 
     @Override
@@ -134,151 +251,6 @@ final class MySQLPreparedStatement extends MySQLStatement implements AttrPrepare
         return this;
     }
 
-
-    @Override
-    public List<? extends DataType> getParamTypeList() {
-        return null;
-    }
-
-    @Override
-    public Mono<ResultStates> executeUpdate() {
-        final List<ParamValue> paramGroup = this.paramGroup;
-
-        final Throwable error;
-        if (paramGroup == null) {
-            error = MySQLExceptions.cannotReuseStatement(PreparedStatement.class);
-        } else if (this.rowMeta != null) {
-            error = new SubscribeException(ResultType.UPDATE, ResultType.QUERY);
-        } else if (this.paramGroupList.size() > 0) {
-            error = new SubscribeException(ResultType.UPDATE, ResultType.BATCH);
-        } else if (paramGroup.size() != this.paramCount) {
-            error = MySQLExceptions.parameterCountMatch(0, this.paramCount, paramGroup.size());
-        } else {
-            error = JdbdBinds.sortAndCheckParamGroup(0, paramGroup);
-        }
-
-        final Mono<ResultStates> mono;
-        if (error == null) {
-            this.statementOption.fetchSize = 0;
-            ParamStmt stmt = Stmts.paramStmt(this.sql, paramGroup, this.statementOption);
-            mono = this.stmtTask.executeUpdate(stmt);
-        } else {
-            this.stmtTask.closeOnBindError(error); // close prepare statement.
-            mono = Mono.error(error);
-        }
-        clearStatementToAvoidReuse();
-        return mono;
-    }
-
-    @Override
-    public Flux<ResultRow> executeQuery() {
-        return executeQuery(JdbdFunctions.noActionConsumer());
-    }
-
-    @Override
-    public Flux<ResultRow> executeQuery(Consumer<ResultStates> statesConsumer) {
-        Objects.requireNonNull(statesConsumer, "statesConsumer");
-
-        final List<ParamValue> paramGroup = this.paramGroup;
-
-        final Throwable error;
-        if (paramGroup == null) {
-            error = MySQLExceptions.cannotReuseStatement(PreparedStatement.class);
-        } else if (this.rowMeta == null) {
-            error = new SubscribeException(ResultType.QUERY, ResultType.UPDATE);
-        } else if (this.paramGroupList.size() > 0) {
-            error = new SubscribeException(ResultType.QUERY, ResultType.BATCH);
-        } else if (paramGroup.size() != this.paramCount) {
-            error = MySQLExceptions.parameterCountMatch(0, this.paramCount, paramGroup.size());
-        } else {
-            error = JdbdBinds.sortAndCheckParamGroup(0, paramGroup);
-        }
-
-        final Flux<ResultRow> flux;
-        if (error == null) {
-            final ParamStmt stmt;
-            stmt = Stmts.paramStmt(this.sql, paramGroup, statesConsumer, this.statementOption);
-            flux = this.stmtTask.executeQuery(stmt);
-        } else {
-            this.stmtTask.closeOnBindError(error); // close prepare statement.
-            flux = Flux.error(error);
-        }
-        clearStatementToAvoidReuse();
-        return flux;
-    }
-
-    @Override
-    public <R> Publisher<R> executeQuery(Function<CurrentRow, R> function) {
-        return AttrPreparedStatement.super.executeQuery(function);
-    }
-
-    @Override
-    public <R> Publisher<R> executeQuery(Function<CurrentRow, R> function, Consumer<ResultStates> statesConsumer) {
-        return AttrPreparedStatement.super.executeQuery(function, statesConsumer);
-    }
-
-    @Override
-    public Flux<ResultStates> executeBatchUpdate() {
-        final Flux<ResultStates> flux;
-        if (this.paramGroup == null) {
-            flux = Flux.error(MySQLExceptions.cannotReuseStatement(PreparedStatement.class));
-        } else if (this.paramGroupList.size() == 0) {
-            final JdbdException error = MySQLExceptions.noAnyParamGroupError();
-            this.stmtTask.closeOnBindError(error); // close prepare statement.
-            flux = Flux.error(error);
-        } else {
-            final ParamBatchStmt<ParamValue> stmt;
-            stmt = Stmts.paramBatch(this.sql, this.paramGroupList, this.statementOption);
-            flux = this.stmtTask.executeBatch(stmt);
-        }
-        clearStatementToAvoidReuse();
-        return flux;
-    }
-
-    @Override
-    public MultiResult executeBatchAsMulti() {
-        final MultiResult result;
-        if (this.paramGroup == null) {
-            result = MultiResults.error(MySQLExceptions.cannotReuseStatement(PreparedStatement.class));
-        } else if (this.paramGroupList.size() == 0) {
-            final JdbdException error = MySQLExceptions.noAnyParamGroupError();
-            this.stmtTask.closeOnBindError(error); // close prepare statement.
-            result = MultiResults.error(error);
-        } else {
-            this.statementOption.fetchSize = 0; // executeBatchAsMulti() don't support fetch.
-            final ParamBatchStmt<ParamValue> stmt;
-            stmt = Stmts.paramBatch(this.sql, this.paramGroupList, this.statementOption);
-            result = this.stmtTask.executeBatchAsMulti(stmt);
-        }
-        clearStatementToAvoidReuse();
-        return result;
-    }
-
-
-    @Override
-    public OrderedFlux executeBatchAsFlux() {
-        final OrderedFlux flux;
-        if (this.paramGroup == null) {
-            flux = MultiResults.fluxError(MySQLExceptions.cannotReuseStatement(PreparedStatement.class));
-        } else if (this.paramGroupList.size() == 0) {
-            final JdbdException error = MySQLExceptions.noAnyParamGroupError();
-            this.stmtTask.closeOnBindError(error); // close prepare statement.
-            flux = MultiResults.fluxError(error);
-        } else {
-            final ParamBatchStmt<ParamValue> stmt;
-            stmt = Stmts.paramBatch(this.sql, this.paramGroupList, this.statementOption);
-            flux = this.stmtTask.executeBatchAsFlux(stmt);
-        }
-        clearStatementToAvoidReuse();
-        return flux;
-    }
-
-
-    @Override
-    public boolean setFetchSize(final int fetchSize) {
-        this.statementOption.fetchSize = fetchSize;
-        return fetchSize > 0;
-    }
 
     @Override
     public boolean supportPublisher() {

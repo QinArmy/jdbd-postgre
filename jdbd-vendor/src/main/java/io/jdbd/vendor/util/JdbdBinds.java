@@ -1,6 +1,6 @@
 package io.jdbd.vendor.util;
 
-import io.jdbd.JdbdSQLException;
+import io.jdbd.JdbdException;
 import io.jdbd.meta.SQLType;
 import io.jdbd.type.Interval;
 import io.jdbd.vendor.stmt.ParamBatchStmt;
@@ -59,12 +59,12 @@ public abstract class JdbdBinds {
 
 
     @Nullable
-    public static JdbdSQLException sortAndCheckParamGroup(final int groupIndex,
-                                                          final List<? extends ParamValue> paramGroup) {
+    public static JdbdException sortAndCheckParamGroup(final int groupIndex,
+                                                       final List<? extends ParamValue> paramGroup) {
 
         paramGroup.sort(Comparator.comparingInt(ParamValue::getIndex));
 
-        JdbdSQLException error = null;
+        JdbdException error = null;
         final int size = paramGroup.size();
         for (int i = 0, index; i < size; i++) {
             index = paramGroup.get(i).getIndex();

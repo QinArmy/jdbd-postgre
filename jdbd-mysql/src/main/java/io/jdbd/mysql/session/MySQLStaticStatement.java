@@ -3,27 +3,24 @@ package io.jdbd.mysql.session;
 import io.jdbd.mysql.stmt.Stmts;
 import io.jdbd.mysql.util.MySQLExceptions;
 import io.jdbd.mysql.util.MySQLStrings;
-import io.jdbd.result.MultiResult;
-import io.jdbd.result.OrderedFlux;
-import io.jdbd.result.ResultRow;
-import io.jdbd.result.ResultStates;
+import io.jdbd.result.*;
 import io.jdbd.statement.StaticStatement;
 import io.jdbd.vendor.result.MultiResults;
-import io.jdbd.vendor.util.JdbdFunctions;
+import org.reactivestreams.Publisher;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.util.List;
-import java.util.Objects;
 import java.util.function.Consumer;
+import java.util.function.Function;
 
 
 /**
  * <p>
- * This interface is a implementation of {@link io.jdbd.statement.StaticStatement} with MySQL client protocol.
+ * This interface is a implementation of {@link io.jdbd.statement.StaticStatement} with MySQL protocol.
  * </p>
  */
-final class MySQLStaticStatement extends MySQLStatement implements StaticStatement {
+final class MySQLStaticStatement extends MySQLStatement<StaticStatement> implements StaticStatement {
 
 
     static MySQLStaticStatement create(final MySQLDatabaseSession session) {
@@ -36,41 +33,49 @@ final class MySQLStaticStatement extends MySQLStatement implements StaticStateme
 
 
     @Override
-    public Mono<ResultStates> executeUpdate(final String sql) {
+    public Publisher<ResultStates> executeUpdate(final String sql) {
+        this.endStmtOption();
         final Mono<ResultStates> mono;
         if (MySQLStrings.hasText(sql)) {
-            mono = this.session.protocol.update(Stmts.stmt(sql, this.statementOption));
+            mono = this.session.protocol.update(Stmts.stmt(sql, this));
         } else {
-            mono = Mono.error(MySQLExceptions.createEmptySqlException());
+            mono = Mono.error(MySQLExceptions.sqlIsEmpty());
         }
         return mono;
     }
 
     @Override
-    public Flux<ResultRow> executeQuery(final String sql) {
-        return executeQuery(sql, JdbdFunctions.noActionConsumer());
+    public Publisher<ResultRow> executeQuery(String sql) {
+        return this.executeQuery(sql, CurrentRow::asResultRow, Stmts.IGNORE_RESULT_STATES);
     }
 
     @Override
-    public Flux<ResultRow> executeQuery(final String sql, final Consumer<ResultStates> statesConsumer) {
-        Objects.requireNonNull(statesConsumer, "statesConsumer");
-        final Flux<ResultRow> flux;
+    public <R> Publisher<R> executeQuery(String sql, Function<CurrentRow, R> function) {
+        return this.executeQuery(sql, function, Stmts.IGNORE_RESULT_STATES);
+    }
+
+    @Override
+    public <R> Publisher<R> executeQuery(String sql, Function<CurrentRow, R> function, Consumer<ResultStates> consumer) {
+        this.endStmtOption();
+
+        final Flux<R> flux;
         if (MySQLStrings.hasText(sql)) {
-            flux = this.session.protocol.query(Stmts.stmt(sql, statesConsumer, this.statementOption));
+            flux = this.session.protocol.query(Stmts.stmt(sql, this), function, consumer);
         } else {
-            flux = Flux.error(MySQLExceptions.createEmptySqlException());
+            flux = Flux.error(MySQLExceptions.sqlIsEmpty());
         }
         return flux;
     }
 
     @Override
-    public Flux<ResultStates> executeBatchUpdate(final List<String> sqlGroup) {
-        Objects.requireNonNull(sqlGroup, "sqlGroup");
+    public Publisher<ResultStates> executeBatchUpdate(final List<String> sqlGroup) {
+        this.endStmtOption();
+
         final Flux<ResultStates> flux;
         if (sqlGroup.size() == 0) {
-            flux = Flux.error(MySQLExceptions.createEmptySqlException());
+            flux = Flux.error(MySQLExceptions.sqlIsEmpty());
         } else {
-            flux = this.session.protocol.batchUpdate(Stmts.batch(sqlGroup, this.statementOption));
+            flux = this.session.protocol.batchUpdate(Stmts.batch(sqlGroup, this));
         }
         return flux;
     }
@@ -78,24 +83,26 @@ final class MySQLStaticStatement extends MySQLStatement implements StaticStateme
 
     @Override
     public MultiResult executeBatchAsMulti(final List<String> sqlGroup) {
-        Objects.requireNonNull(sqlGroup, "sqlGroup");
+        this.endStmtOption();
+
         final MultiResult result;
         if (sqlGroup.size() == 0) {
-            result = MultiResults.error(MySQLExceptions.createEmptySqlException());
+            result = MultiResults.error(MySQLExceptions.sqlIsEmpty());
         } else {
-            result = this.session.protocol.batchAsMulti(Stmts.batch(sqlGroup, this.statementOption));
+            result = this.session.protocol.batchAsMulti(Stmts.batch(sqlGroup, this));
         }
         return result;
     }
 
     @Override
     public OrderedFlux executeBatchAsFlux(final List<String> sqlGroup) {
-        Objects.requireNonNull(sqlGroup, "sqlGroup");
+        this.endStmtOption();
+
         final OrderedFlux flux;
         if (sqlGroup.size() == 0) {
-            flux = MultiResults.fluxError(MySQLExceptions.createEmptySqlException());
+            flux = MultiResults.fluxError(MySQLExceptions.sqlIsEmpty());
         } else {
-            flux = this.session.protocol.batchAsFlux(Stmts.batch(sqlGroup, this.statementOption));
+            flux = this.session.protocol.batchAsFlux(Stmts.batch(sqlGroup, this));
         }
         return flux;
     }
@@ -103,13 +110,15 @@ final class MySQLStaticStatement extends MySQLStatement implements StaticStateme
 
     @Override
     public OrderedFlux executeAsFlux(final String multiStmt) {
+        this.endStmtOption();
+
         final OrderedFlux flux;
         if (!MySQLStrings.hasText(multiStmt)) {
-            flux = MultiResults.fluxError(MySQLExceptions.createEmptySqlException());
+            flux = MultiResults.fluxError(MySQLExceptions.sqlIsEmpty());
         } else if (!this.session.supportMultiStatement()) {
-            flux = MultiResults.fluxError(MySQLExceptions.createMultiStatementException());
+            flux = MultiResults.fluxError(MySQLExceptions.dontSupportMultiStmt());
         } else {
-            flux = this.session.protocol.executeAsFlux(Stmts.multiStmt(multiStmt, this.statementOption));
+            flux = this.session.protocol.executeAsFlux(Stmts.multiStmt(multiStmt, this));
         }
         return flux;
     }
@@ -128,11 +137,6 @@ final class MySQLStaticStatement extends MySQLStatement implements StaticStateme
         return false;
     }
 
-    @Override
-    public boolean setFetchSize(int fetchSize) {
-        // always false,MySQL ComQuery protocol don't support.
-        return false;
-    }
 
     /*################################## blow Statement packet template method ##################################*/
 

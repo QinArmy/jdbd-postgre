@@ -1,27 +1,25 @@
 package io.jdbd.mysql.session;
 
 import io.jdbd.JdbdException;
-import io.jdbd.JdbdSQLException;
 import io.jdbd.lang.Nullable;
 import io.jdbd.meta.DataType;
 import io.jdbd.mysql.MySQLType;
-import io.jdbd.mysql.stmt.MySQLStmtOption;
-import io.jdbd.mysql.stmt.QueryAttr;
+import io.jdbd.mysql.util.MySQLBinds;
+import io.jdbd.mysql.util.MySQLCollections;
+import io.jdbd.mysql.util.MySQLExceptions;
 import io.jdbd.session.DatabaseSession;
 import io.jdbd.statement.Statement;
+import io.jdbd.vendor.stmt.JdbdValues;
 import io.jdbd.vendor.stmt.NamedValue;
 import io.jdbd.vendor.stmt.StmtOption;
-import io.jdbd.vendor.util.JdbdExceptions;
 import io.jdbd.vendor.util.JdbdStrings;
 import org.reactivestreams.Publisher;
 import org.reactivestreams.Subscriber;
 
 import java.nio.file.Path;
-import java.sql.SQLException;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Objects;
 import java.util.function.Function;
 
 
@@ -34,11 +32,11 @@ abstract class MySQLStatement<S extends Statement> implements Statement, StmtOpt
 
     final MySQLDatabaseSession session;
 
-    final MySQLStatementOption statementOption = new MySQLStatementOption();
-
     private int timeoutSeconds;
 
-    private int fetchSize;
+    int fetchSize;
+
+    private Map<String, NamedValue> queryAttrMap;
 
 
     MySQLStatement(MySQLDatabaseSession session) {
@@ -46,37 +44,37 @@ abstract class MySQLStatement<S extends Statement> implements Statement, StmtOpt
     }
 
 
-    public final void bindQueryAttr(final String name, final MySQLType type, @Nullable Object value) {
-        checkReuse();
-        Objects.requireNonNull(name, "name");
-        if (value instanceof Publisher || value instanceof Path) {
-
-            String m = String.format("Query Attribute don't support java type[%s]", value.getClass().getName());
-            JdbdSQLException error = new JdbdSQLException(new SQLException(m));
-            closeOnBindError(error);
-            throw error;
-        }
-        Map<String, QueryAttr> commonAttrMap = this.statementOption.commonAttrGroup;
-        if (commonAttrMap == null) {
-            commonAttrMap = new HashMap<>();
-            this.statementOption.commonAttrGroup = commonAttrMap;
-        }
-        commonAttrMap.put(name, QueryAttr.wrap(name, type, value));
-    }
-
-
+    @SuppressWarnings("unchecked")
     @Override
     public final S bindStmtVar(final String name, final @Nullable DataType dataType,
                                final @Nullable Object nullable) throws JdbdException {
         RuntimeException error = null;
+        final MySQLType type;
         if (!JdbdStrings.hasText(name)) {
-            error = JdbdExceptions.stmtVarNameHaveNoText(name);
+            error = MySQLExceptions.stmtVarNameHaveNoText(name);
         } else if (dataType == null) {
-            error = JdbdExceptions.dataTypeIsNull();
+            error = MySQLExceptions.dataTypeIsNull();
+        } else if (nullable instanceof Publisher || nullable instanceof Path) {
+            error = MySQLExceptions.dontSupportJavaType(name, nullable, MySQLDatabaseSessionFactory.MY_SQL);
+        } else if ((type = MySQLBinds.handleDataType(dataType)) == null) {
+            error = MySQLExceptions.dontSupportDataType(dataType, MySQLDatabaseSessionFactory.MY_SQL);
+        } else {
+            Map<String, NamedValue> map = this.queryAttrMap;
+            if (map == null) {
+                this.queryAttrMap = map = MySQLCollections.hashMap();
+            } else if (!(map instanceof HashMap)) {
+                // here,have closed
+                throw MySQLExceptions.cannotReuseStatement(getClass());
+            }
+
+            if (map.putIfAbsent(name, JdbdValues.namedValue(name, type, nullable)) != null) {
+                error = MySQLExceptions.stmtVarDuplication(name);
+            }
         }
+
         if (error != null) {
             this.closeOnBindError(error);
-            throw JdbdExceptions.wrap(error);
+            throw MySQLExceptions.wrap(error);
         }
         return (S) this;
     }
@@ -92,7 +90,7 @@ abstract class MySQLStatement<S extends Statement> implements Statement, StmtOpt
             return sessionClass.cast(this.session);
         } catch (Throwable e) {
             closeOnBindError(e);
-            throw JdbdExceptions.wrap(e);
+            throw MySQLExceptions.wrap(e);
         }
     }
 
@@ -102,12 +100,14 @@ abstract class MySQLStatement<S extends Statement> implements Statement, StmtOpt
         return this.session.supportStmtVar();
     }
 
+    @SuppressWarnings("unchecked")
     @Override
     public final S setTimeout(int seconds) {
         this.timeoutSeconds = seconds;
         return (S) this;
     }
 
+    @SuppressWarnings("unchecked")
     @Override
     public final S setFetchSize(int fetchSize) throws JdbdException {
         this.fetchSize = fetchSize;
@@ -117,7 +117,7 @@ abstract class MySQLStatement<S extends Statement> implements Statement, StmtOpt
     @Override
     public final S setImportPublisher(Function<Object, Publisher<byte[]>> function) throws JdbdException {
         final JdbdException error;
-        error = JdbdExceptions.dontSupportImporter(MySQLDatabaseSessionFactory.MY_SQL);
+        error = MySQLExceptions.dontSupportImporter(MySQLDatabaseSessionFactory.MY_SQL);
         this.closeOnBindError(error);
         throw error;
     }
@@ -125,9 +125,52 @@ abstract class MySQLStatement<S extends Statement> implements Statement, StmtOpt
     @Override
     public final S setExportSubscriber(Function<Object, Subscriber<byte[]>> function) throws JdbdException {
         final JdbdException error;
-        error = JdbdExceptions.dontSupportExporter(MySQLDatabaseSessionFactory.MY_SQL);
+        error = MySQLExceptions.dontSupportExporter(MySQLDatabaseSessionFactory.MY_SQL);
         this.closeOnBindError(error);
         throw error;
+    }
+
+
+    @Override
+    public final int getTimeout() {
+        return this.timeoutSeconds;
+    }
+
+    @Override
+    public final int getFetchSize() {
+        return this.fetchSize;
+    }
+
+    @Override
+    public final Map<String, NamedValue> getStmtVarMap() {
+        Map<String, NamedValue> map = this.queryAttrMap;
+        if (map == null) {
+            map = Collections.emptyMap();
+        } else if (map instanceof HashMap) {
+            map = MySQLCollections.unmodifiableMap(map);
+        }// here couldn't modify this.queryAttrMap
+        return map;
+    }
+
+    @Override
+    public final Function<Object, Publisher<byte[]>> getImportPublisher() {
+        // always null
+        return null;
+    }
+
+    @Override
+    public final Function<Object, Subscriber<byte[]>> getExportSubscriber() {
+        // always null
+        return null;
+    }
+
+    final void endStmtOption() {
+        final Map<String, NamedValue> map = this.queryAttrMap;
+        if (map == null) {
+            this.queryAttrMap = Collections.emptyMap();
+        } else if (map instanceof HashMap) {
+            this.queryAttrMap = MySQLCollections.unmodifiableMap(map);
+        }
     }
 
     abstract void checkReuse() throws JdbdException;
@@ -137,51 +180,6 @@ abstract class MySQLStatement<S extends Statement> implements Statement, StmtOpt
      */
     void closeOnBindError(Throwable error) {
         // no-op
-    }
-
-
-    static final class MySQLStatementOption implements MySQLStmtOption {
-
-        private Map<String, NamedValue> commonAttrMap;
-
-        private Map<String, NamedValue> queryAttrMap;
-
-        @Override
-        public int getTimeout() {
-            return this.timeoutSeconds;
-        }
-
-        @Override
-        public int getFetchSize() {
-            final int fetchSize = this.fetchSize;
-            if (fetchSize > 0) {
-                this.fetchSize = 0;
-            }
-            return fetchSize;
-        }
-
-        @Override
-        public Function<Object, Publisher<byte[]>> getImportPublisher() {
-            return null;
-        }
-
-        @Override
-        public Function<Object, Subscriber<byte[]>> getExportSubscriber() {
-            return null;
-        }
-
-        @Override
-        public Map<String, QueryAttr> getStmtVarMap() {
-            Map<String, QueryAttr> queryAttrGroup = this.queryAttrGroup;
-            if (queryAttrGroup == null) {
-                queryAttrGroup = Collections.emptyMap();
-            } else {
-                this.queryAttrGroup = null;
-            }
-            return queryAttrGroup;
-        }
-
-
     }
 
 

@@ -12,13 +12,13 @@ import reactor.core.publisher.FluxSink;
 import java.util.List;
 import java.util.function.Consumer;
 
-abstract class AbstractResultSubscriber implements ResultSubscriber {
+abstract class JdbdResultSubscriber implements ResultSubscriber {
 
     List<Throwable> errorList;
 
     Subscription subscription;
 
-    AbstractResultSubscriber() {
+    JdbdResultSubscriber() {
     }
 
 

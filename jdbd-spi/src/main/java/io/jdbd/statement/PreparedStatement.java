@@ -9,6 +9,7 @@ import org.reactivestreams.Publisher;
 import org.reactivestreams.Subscriber;
 
 import java.util.List;
+import java.util.function.Consumer;
 import java.util.function.Function;
 
 /**
@@ -16,27 +17,30 @@ import java.util.function.Function;
  * This interface is reactive version of {@code java.sql.PreparedStatement}
  * </p>
  * <p>
- * You must invoke one of below methods,or {@link DatabaseSession} of this {@link PreparedStatement}
- * can't execute any new {@link Statement},because this session will wait(maybe in task queue)
- * for you invoke one of below methods.
+ * You must invoke one of following :
  * <ul>
  *     <li>{@link #executeUpdate()}</li>
  *     <li>{@link #executeQuery()}</li>
+ *     <li>{@link #executeQuery(Function)}</li>
+ *     <li>{@link #executeQuery(Function, Consumer)}</li>
  *     <li>{@link #executeBatchUpdate()}</li>
  *     <li>{@link #executeBatchAsMulti()}</li>
  *     <li>{@link #executeBatchAsFlux()}</li>
  *     <li>{@link #abandonBind()}</li>
  * </ul>
+ * or {@link DatabaseSession} of this {@link PreparedStatement}
+ * can't execute any new {@link Statement},because this session will wait(maybe in task queue)
+ * for you invoke one of above.
  * </p>
  * <p>
- *     NOTE: {@link PreparedStatement} is auto close after you invoke executeXxx() method,or binding occur error,so
+ *     <strong>NOTE</strong>: {@link PreparedStatement} is auto close after you invoke executeXxx() method,or binding occur error,so
  *     {@link PreparedStatement} have no close() method.
  * </p>
  */
 public interface PreparedStatement extends ServerPrepareStatement {
 
 
-    List< ? extends DataType> getParamTypeList();
+    List<? extends DataType> getParamTypeList();
 
 
     @Nullable
@@ -46,31 +50,20 @@ public interface PreparedStatement extends ServerPrepareStatement {
      * {@inheritDoc }
      */
     @Override
-    PreparedStatement bind(int indexBasedZero,@Nullable Object nullable) throws JdbdException;
+    PreparedStatement bind(int indexBasedZero, DataType dataType, @Nullable Object nullable) throws JdbdException;
 
-    /**
-     * {@inheritDoc }
-     */
-    @Override
-    PreparedStatement bind(int indexBasedZero, DataType dataType,@Nullable  Object nullable) throws JdbdException;
-
-    /**
-     * {@inheritDoc }
-     */
-    @Override
-    PreparedStatement addBatch() throws JdbdException;
-
-    /**
-     * {@inheritDoc }
-     */
-    @Override
-    PreparedStatement bindStmtVar(String name, @Nullable Object nullable) throws JdbdException;
 
     /**
      * {@inheritDoc }
      */
     @Override
     PreparedStatement bindStmtVar(String name, DataType dataType, @Nullable Object nullable) throws JdbdException;
+
+    /**
+     * {@inheritDoc }
+     */
+    @Override
+    PreparedStatement addBatch() throws JdbdException;
 
 
     /**

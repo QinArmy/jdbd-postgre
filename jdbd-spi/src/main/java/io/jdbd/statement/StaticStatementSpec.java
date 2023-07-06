@@ -1,10 +1,7 @@
 package io.jdbd.statement;
 
 import io.jdbd.JdbdSQLException;
-import io.jdbd.result.CurrentRow;
-import io.jdbd.result.MultiResult;
-import io.jdbd.result.OrderedFlux;
-import io.jdbd.result.ResultStates;
+import io.jdbd.result.*;
 import io.jdbd.session.DatabaseSession;
 import org.reactivestreams.Publisher;
 
@@ -157,6 +154,7 @@ public interface StaticStatementSpec {
      */
     Publisher<ResultStates> executeUpdate(String sql);
 
+    Publisher<ResultRow> executeQuery(String sql);
 
     <R> Publisher<R> executeQuery(String sql, Function<CurrentRow, R> function);
 

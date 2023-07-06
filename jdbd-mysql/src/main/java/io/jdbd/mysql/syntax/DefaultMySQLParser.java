@@ -112,7 +112,7 @@ public final class DefaultMySQLParser implements MySQLParser {
 
     private Object doParse(final String sql, final Mode mode) throws SQLException {
         if (!JdbdStrings.hasText(sql)) {
-            throw MySQLExceptions.createEmptySqlException();
+            throw MySQLExceptions.sqlIsEmpty();
         }
         final boolean ansiQuotes = this.sqlModeFunction.apply(SQLMode.ANSI_QUOTES);
         final boolean backslashEscapes = !this.sqlModeFunction.apply(SQLMode.NO_BACKSLASH_ESCAPES);

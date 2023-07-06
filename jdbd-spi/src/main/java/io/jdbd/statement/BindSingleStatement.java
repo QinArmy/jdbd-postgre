@@ -28,24 +28,12 @@ import java.util.function.Function;
 public interface BindSingleStatement extends ParameterStatement, BindMultiResultStatement {
 
 
-    /**
-     * {@inheritDoc }
-     */
-    @Override
-    BindSingleStatement bind(int indexBasedZero, @Nullable Object nullable) throws JdbdException;
-
 
     /**
      * {@inheritDoc }
      */
     @Override
     BindSingleStatement bind(int indexBasedZero, DataType dataType, @Nullable Object nullable) throws JdbdException;
-
-    /**
-     * {@inheritDoc }
-     */
-    @Override
-    BindSingleStatement bindStmtVar(String name, @Nullable Object nullable) throws JdbdException;
 
     /**
      * {@inheritDoc }

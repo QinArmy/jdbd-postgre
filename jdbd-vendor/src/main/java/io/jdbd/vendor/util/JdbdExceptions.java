@@ -3,6 +3,8 @@ package io.jdbd.vendor.util;
 import io.jdbd.JdbdException;
 import io.jdbd.JdbdSQLException;
 import io.jdbd.JdbdXaException;
+import io.jdbd.lang.Nullable;
+import io.jdbd.meta.DataType;
 import io.jdbd.meta.SQLType;
 import io.jdbd.result.CurrentRow;
 import io.jdbd.result.ResultStates;
@@ -15,7 +17,6 @@ import io.jdbd.vendor.stmt.Value;
 import io.qinarmy.util.ExceptionUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import reactor.util.annotation.Nullable;
 
 import java.nio.charset.Charset;
 import java.nio.file.Path;
@@ -61,6 +62,10 @@ public abstract class JdbdExceptions extends ExceptionUtils {
         return new NullPointerException("dataType must non-null");
     }
 
+    public static JdbdException dontSupportDataType(DataType dataType, String database) {
+        return new JdbdException(String.format("%s don't support %s[%s]", database, DataType.class.getName(), dataType));
+    }
+
     public static RuntimeException stmtVarNameHaveNoText(@Nullable String name) {
         final RuntimeException error;
         if (name == null) {
@@ -85,10 +90,15 @@ public abstract class JdbdExceptions extends ExceptionUtils {
         return value == null ? "" : value.getClass().getName();
     }
 
-    public static JdbdException cannotMatchBuildInSqlType(Object indexOrName, @Nullable Object value) {
-        String m = String.format("Couldn't match java type[%s] to build-in database data type for index/name %s",
-                safeClassName(value), indexOrName);
+    public static JdbdException dontSupportJavaType(Object indexOrName, @Nullable Object value, String database) {
+        String m;
+        m = String.format("%s don't support java type[%s] for index/name[%s]", database, safeClassName(value),
+                indexOrName);
         return new JdbdException(m);
+    }
+
+    public static JdbdException stmtVarDuplication(String name) {
+        return new JdbdException(String.format("statement variable[%s] duplication.", name));
     }
 
     public static JdbdException wrap(Throwable e, String format, @Nullable Object... args) {
@@ -109,6 +119,11 @@ public abstract class JdbdExceptions extends ExceptionUtils {
             je = new JdbdUnknownException(message, e);
         }
         return je;
+    }
+
+    public static JdbdException dontSupportMultiStmt() {
+        return new JdbdException("You have an error in your SQL syntax,sql is multi statement; near ';' ",
+                SQLStates.SYNTAX_ERROR, 0);
     }
 
     public static Throwable wrapForMessage(final Throwable e) {
@@ -230,7 +245,7 @@ public abstract class JdbdExceptions extends ExceptionUtils {
         return new JdbdSQLException(new SQLException(m, SQLStates.INVALID_PARAMETER_VALUE));
     }
 
-    public static JdbdSQLException parameterCountMatch(int batchIndex, int paramCount, int bindCount) {
+    public static JdbdException parameterCountMatch(int batchIndex, int paramCount, int bindCount) {
         String m;
         if (batchIndex < 0) {
             m = String.format("parameter count[%s] and bind count[%s] not match.", paramCount, bindCount);
@@ -238,10 +253,10 @@ public abstract class JdbdExceptions extends ExceptionUtils {
             m = String.format("Batch[index:%s] parameter count[%s] and bind count[%s] not match."
                     , batchIndex, paramCount, bindCount);
         }
-        return new JdbdSQLException(new SQLException(m, SQLStates.INVALID_PARAMETER_VALUE));
+        return new JdbdException(m, SQLStates.INVALID_PARAMETER_VALUE, 0);
     }
 
-    public static JdbdSQLException duplicationParameter(int stmtIndex, int paramIndex) {
+    public static JdbdException duplicationParameter(int stmtIndex, int paramIndex) {
         String m;
         if (stmtIndex == 0) {
             m = String.format("parameter [index:%s] duplication.", paramIndex);
@@ -249,10 +264,10 @@ public abstract class JdbdExceptions extends ExceptionUtils {
             m = String.format("Batch[index:%s] parameter [index:%s] duplication."
                     , stmtIndex, paramIndex);
         }
-        return new JdbdSQLException(new SQLException(m, SQLStates.INVALID_PARAMETER_VALUE));
+        return new JdbdException(m, SQLStates.INVALID_PARAMETER_VALUE, 0);
     }
 
-    public static JdbdSQLException noParameterValue(int stmtIndex, int paramIndex) {
+    public static JdbdException noParameterValue(int stmtIndex, int paramIndex) {
         String m;
         if (stmtIndex == 0) {
             m = String.format("No value specified for parameter[index:%s].", paramIndex);
@@ -260,7 +275,7 @@ public abstract class JdbdExceptions extends ExceptionUtils {
             m = String.format("Batch[index:%s] No value specified for parameter[index:%s]."
                     , stmtIndex, paramIndex);
         }
-        return new JdbdSQLException(new SQLException(m, SQLStates.INVALID_PARAMETER_VALUE));
+        return new JdbdException(m, SQLStates.INVALID_PARAMETER_VALUE, 0);
     }
 
     public static JdbdSQLException noAnyParamGroupError() {

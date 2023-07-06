@@ -14,6 +14,7 @@ import io.jdbd.vendor.result.MultiResults;
 import io.jdbd.vendor.result.ResultSink;
 import io.jdbd.vendor.stmt.*;
 import io.jdbd.vendor.task.PrepareTask;
+import io.jdbd.vendor.util.JdbdExceptions;
 import io.netty.buffer.ByteBuf;
 import org.reactivestreams.Publisher;
 import org.reactivestreams.Subscriber;
@@ -262,14 +263,24 @@ final class ComPreparedTask extends MySQLCommandTask implements PrepareStmtTask,
         return MultiResults.update(sink -> executeAfterBinding(sink, stmt));
     }
 
-    /**
-     * @see PrepareTask#executeQuery(ParamStmt)
-     */
-    @Override
-    public Flux<ResultRow> executeQuery(ParamStmt stmt) {
-        return MultiResults.query(stmt.getStatusConsumer(), sink -> executeAfterBinding(sink, stmt));
-    }
 
+    @Override
+    public <R> Flux<R> executeQuery(ParamStmt stmt, final @Nullable Function<CurrentRow, R> function,
+                                    @Nullable Consumer<ResultStates> consumer) {
+        final RuntimeException error;
+        if (function == null) {
+            error = JdbdExceptions.queryMapFuncIsNull();
+        } else if (consumer == null) {
+            error = JdbdExceptions.statesConsumerIsNull();
+        } else {
+            error = null;
+        }
+        if (error != null) {
+            this.closeOnBindError(error);
+            return Flux.error(error);
+        }
+        return MultiResults.query(function, consumer, sink -> executeAfterBinding(sink, stmt));
+    }
 
     /**
      * @see PrepareTask#executeBatch(ParamBatchStmt)
@@ -611,7 +622,7 @@ final class ComPreparedTask extends MySQLCommandTask implements PrepareStmtTask,
 
     /**
      * @see #executeUpdate(ParamStmt)
-     * @see #executeQuery(ParamStmt)
+     * @see #executeQuery(ParamStmt, Function, Consumer)
      * @see #executeBatch(ParamBatchStmt)
      * @see #executeBatchAsMulti(ParamBatchStmt)
      * @see #executeBatchAsFlux(ParamBatchStmt)

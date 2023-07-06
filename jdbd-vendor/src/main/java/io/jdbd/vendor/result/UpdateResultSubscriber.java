@@ -13,7 +13,7 @@ import java.util.function.Consumer;
 /**
  * @see FluxResult
  */
-final class UpdateResultSubscriber extends AbstractResultSubscriber {
+final class UpdateResultSubscriber extends JdbdResultSubscriber {
 
     static Mono<ResultStates> create(Consumer<ResultSink> callback) {
         final OrderedFlux result = FluxResult.create(sink -> {

@@ -23,7 +23,7 @@ import java.util.function.Consumer;
 /**
  * @see FluxResult
  */
-final class MultiResultSubscriber extends AbstractResultSubscriber {
+final class MultiResultSubscriber extends JdbdResultSubscriber {
 
 
     static MultiResult create(ITaskAdjutant adjutant, Consumer<ResultSink> callback) {
@@ -168,7 +168,7 @@ final class MultiResultSubscriber extends AbstractResultSubscriber {
                     }
                 }
             } else {
-                throw AbstractResultSubscriber.createUnknownTypeError(currentResult);
+                throw JdbdResultSubscriber.createUnknownTypeError(currentResult);
             }
 
         }

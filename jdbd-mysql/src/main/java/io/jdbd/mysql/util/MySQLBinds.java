@@ -149,8 +149,8 @@ public abstract class MySQLBinds extends JdbdBinds {
 
 
     @Nullable
-    public static DataType handleDataType(final DataType dataType) {
-        return dataType;
+    public static MySQLType handleDataType(final DataType dataType) {
+        return null;
     }
 
     @Nullable
