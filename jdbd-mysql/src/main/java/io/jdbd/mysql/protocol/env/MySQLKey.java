@@ -1,18 +1,15 @@
 package io.jdbd.mysql.protocol.env;
 
 import io.jdbd.lang.Nullable;
-import io.jdbd.mysql.protocol.Constants;
 import io.jdbd.mysql.protocol.authentication.MySQLNativePasswordPlugin;
 import io.jdbd.mysql.protocol.client.Enums;
 import io.jdbd.mysql.util.MySQLStrings;
-import io.jdbd.vendor.env.OnlyReactor;
 import io.jdbd.vendor.env.Redefine;
 import reactor.netty.resources.ConnectionProvider;
 
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
-import java.time.ZoneOffset;
 
 public final class MySQLKey<T> {
 
@@ -41,7 +38,7 @@ public final class MySQLKey<T> {
      * password1
      *
      * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-authentication.html">password1</a>
-     * @since MySQL 8.0.28
+     * @since MySQL Driver  8.0.28
      */
     public static final MySQLKey<String> PASSWORD1 = new MySQLKey<>("password1", String.class, null);
 
@@ -49,7 +46,7 @@ public final class MySQLKey<T> {
      * password2
      *
      * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-authentication.html">password2</a>
-     * @since MySQL 8.0.28
+     * @since MySQL Driver  8.0.28
      */
     public static final MySQLKey<String> PASSWORD2 = new MySQLKey<>("password2", String.class, null);
 
@@ -57,7 +54,7 @@ public final class MySQLKey<T> {
      * password3
      *
      * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-authentication.html">password3</a>
-     * @since MySQL 8.0.28
+     * @since MySQL Driver  8.0.28
      */
     public static final MySQLKey<String> PASSWORD3 = new MySQLKey<>("password3", String.class, null);
 
@@ -80,26 +77,26 @@ public final class MySQLKey<T> {
 
     /**
      * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-authentication.html">ociConfigFile</a>
-     * @since MySQL 8.0.27
+     * @since MySQL Driver  8.0.27
      */
     public static final MySQLKey<String> OCI_CONFIG_FILE = new MySQLKey<>("ociConfigFile", String.class, null);
 
     /**
      * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-authentication.html">ociConfigProfile</a>
-     * @since MySQL 8.0.33
+     * @since MySQL Driver  8.0.33
      */
     public static final MySQLKey<String> OCI_CONFIG_PROFILE = new MySQLKey<>("ociConfigProfile", String.class, "DEFAULT");
 
     /**
      * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-authentication.html">authenticationFidoCallbackHandler</a>
-     * @since MySQL 8.0.29
+     * @since MySQL Driver  8.0.29
      */
     @Deprecated
     public static final MySQLKey<String> AUTHENTICATION_FIDO_CALLBACK_HANDLER = new MySQLKey<>("authenticationFidoCallbackHandler", String.class, null);
 
     /**
      * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-authentication.html">ldapServerHostname</a>
-     * @since MySQL 8.0.23
+     * @since MySQL Driver  8.0.23
      */
     public static final MySQLKey<String> LDAP_SERVER_HOSTNAME = new MySQLKey<>("ldapServerHostname", String.class, null);
 
@@ -207,13 +204,13 @@ public final class MySQLKey<T> {
 
     /**
      * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-session.html">connectionCollation</a>
-     * @since MySQL 8.0.26
+     * @since MySQL Driver  8.0.26
      */
     public static final MySQLKey<String> CUSTOM_CHARSET_MAPPING = new MySQLKey<>("customCharsetMapping", String.class, null);
 
     /**
      * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-session.html">trackSessionState</a>
-     * @since MySQL 8.0.26
+     * @since MySQL Driver  8.0.26
      */
     public static final MySQLKey<Boolean> TRACK_SESSION_STATE = new MySQLKey<>("trackSessionState", Boolean.class, Boolean.FALSE);
 
@@ -259,7 +256,7 @@ public final class MySQLKey<T> {
 
     /**
      * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-networking.html">dnsSrv</a>
-     * @since MySQL 8.0.19
+     * @since MySQL Driver  8.0.19
      */
     public static final MySQLKey<Boolean> DNS_SRV = new MySQLKey<>("dnsSrv", Boolean.class, Boolean.FALSE);
 
@@ -276,52 +273,52 @@ public final class MySQLKey<T> {
 
     /**
      * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-networking.html">socksProxyRemoteDns</a>
-     * @since MySQL 8.0.29
+     * @since MySQL Driver  8.0.29
      */
     public static final MySQLKey<Boolean> SOCKS_PROXY_REMOTE_DNS = new MySQLKey<>("socksProxyRemoteDns", Boolean.class, Boolean.FALSE);
 
 
     /**
      * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-networking.html">tcpKeepAlive</a>
-     * @since MySQL 5.0.7
+     * @since MySQL Driver  5.0.7
      */
     public static final MySQLKey<Boolean> TCP_KEEP_ALIVE = new MySQLKey<>("tcpKeepAlive", Boolean.class, Boolean.TRUE);
 
     /**
      * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-networking.html">tcpNoDelay</a>
-     * @since MySQL 5.0.7
+     * @since MySQL Driver  5.0.7
      */
     public static final MySQLKey<Boolean> TCP_NO_DELAY = new MySQLKey<>("tcpNoDelay", Boolean.class, Boolean.TRUE);
 
     /**
      * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-networking.html">tcpRcvBuf</a>
-     * @since MySQL 5.0.7
+     * @since MySQL Driver  5.0.7
      */
     public static final MySQLKey<Integer> TCP_RCV_BUF = new MySQLKey<>("tcpRcvBuf", Integer.class, 0);
 
     /**
      * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-networking.html">tcpSndBuf</a>
-     * @since MySQL 5.0.7
+     * @since MySQL Driver  5.0.7
      */
     public static final MySQLKey<Integer> TCP_SND_BUF = new MySQLKey<>("tcpSndBuf", Integer.class, 0);
 
 
     /**
      * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-networking.html">tcpTrafficClass</a>
-     * @since MySQL 5.0.7
+     * @since MySQL Driver  5.0.7
      */
     public static final MySQLKey<Integer> TCP_TRAFFIC_CLASS = new MySQLKey<>("tcpTrafficClass", Integer.class, 0);
 
     /**
      * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-networking.html">useCompression</a>
-     * @since MySQL 3.0.17
+     * @since MySQL Driver  3.0.17
      */
     public static final MySQLKey<Boolean> USE_COMPRESSION = new MySQLKey<>("useCompression", Boolean.class, Boolean.FALSE);
 
 
     /**
      * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-networking.html">useUnbufferedInput</a>
-     * @since MySQL 3.0.11
+     * @since MySQL Driver  3.0.11
      */
     public static final MySQLKey<Boolean> USE_UNBUFFERED_INPUT = new MySQLKey<>("useUnbufferedInput", Boolean.class, Boolean.TRUE);
 
@@ -330,112 +327,112 @@ public final class MySQLKey<T> {
 
     /**
      * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-security.html">paranoid</a>
-     * @since MySQL 3.0.1
+     * @since MySQL Driver  3.0.1
      */
     public static final MySQLKey<Boolean> PARANOID = new MySQLKey<>("paranoid", Boolean.class, Boolean.FALSE);
 
     /**
      * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-security.html">serverRSAPublicKeyFile</a>
-     * @since MySQL 5.1.31
+     * @since MySQL Driver  5.1.31
      */
     public static final MySQLKey<Path> SERVER_RSA_PUBLIC_KEY_FILE = new MySQLKey<>("serverRSAPublicKeyFile", Path.class, null);
 
     /**
      * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-security.html">allowPublicKeyRetrieval</a>
-     * @since MySQL 5.1.31
+     * @since MySQL Driver  5.1.31
      */
     public static final MySQLKey<Boolean> ALLOW_PUBLIC_KEY_RETRIEVAL = new MySQLKey<>("allowPublicKeyRetrieval", Boolean.class, Boolean.FALSE);
 
     /**
      * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-security.html">sslMode</a>
-     * @since MySQL 8.0.13
+     * @since MySQL Driver  8.0.13
      */
     public static final MySQLKey<Enums.SslMode> SSL_MODE = new MySQLKey<>("sslMode", Enums.SslMode.class, Enums.SslMode.PREFERRED);
 
     /**
      * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-security.html">trustCertificateKeyStoreUrl</a>
-     * @since MySQL 5.1.0
+     * @since MySQL Driver  5.1.0
      */
     public static final MySQLKey<String> TRUST_CERTIFICATE_KEY_STORE_URL = new MySQLKey<>("trustCertificateKeyStoreUrl", String.class, null);
 
     /**
      * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-security.html">trustCertificateKeyStoreType</a>
-     * @since MySQL 5.1.0
+     * @since MySQL Driver  5.1.0
      */
     public static final MySQLKey<String> TRUST_CERTIFICATE_KEY_STORE_TYPE = new MySQLKey<>("trustCertificateKeyStoreType", String.class, "JKS");
 
     /**
      * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-security.html">trustCertificateKeyStorePassword</a>
-     * @since MySQL 5.1.0
+     * @since MySQL Driver  5.1.0
      */
     public static final MySQLKey<String> TRUST_CERTIFICATE_KEY_STORE_PASSWORD = new MySQLKey<>("trustCertificateKeyStorePassword", String.class, null);
 
 
     /**
      * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-security.html">fallbackToSystemTrustStore</a>
-     * @since MySQL 8.0.22
+     * @since MySQL Driver  8.0.22
      */
     public static final MySQLKey<Boolean> FALLBACK_TO_SYSTEM_TRUST_STORE = new MySQLKey<>("fallbackToSystemTrustStore", Boolean.class, Boolean.TRUE);
 
     /**
      * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-security.html">clientCertificateKeyStoreUrl</a>
-     * @since MySQL 5.1.0
+     * @since MySQL Driver  5.1.0
      */
     public static final MySQLKey<String> CLIENT_CERTIFICATE_KEY_STORE_URL = new MySQLKey<>("clientCertificateKeyStoreUrl", String.class, null);
 
     /**
      * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-security.html">clientCertificateKeyStoreType</a>
-     * @since MySQL 5.1.0
+     * @since MySQL Driver  5.1.0
      */
     public static final MySQLKey<String> CLIENT_CERTIFICATE_KEY_STORE_TYPE = new MySQLKey<>("clientCertificateKeyStoreType", String.class, "JKS");
 
     /**
      * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-security.html">clientCertificateKeyStorePassword</a>
-     * @since MySQL 5.1.0
+     * @since MySQL Driver  5.1.0
      */
     public static final MySQLKey<String> CLIENT_CERTIFICATE_KEY_STORE_PASSWORD = new MySQLKey<>("clientCertificateKeyStorePassword", String.class, null);
 
     /**
      * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-security.html">fallbackToSystemKeyStore</a>
-     * @since MySQL 8.0.22
+     * @since MySQL Driver  8.0.22
      */
     public static final MySQLKey<Boolean> FALLBACK_TO_SYSTEM_KEY_STORE = new MySQLKey<>("fallbackToSystemKeyStore", Boolean.class, Boolean.TRUE);
 
     /**
      * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-security.html">tlsCiphersuites</a>
-     * @since MySQL 5.1.35
+     * @since MySQL Driver  5.1.35
      */
     public static final MySQLKey<String> TLS_CIPHER_SUITES = new MySQLKey<>("tlsCiphersuites", String.class, null);
 
 
     /**
      * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-security.html">tlsVersions</a>
-     * @since MySQL 8.0.8
+     * @since MySQL Driver  8.0.8
      */
     public static final MySQLKey<String> TLS_VERSIONS = new MySQLKey<>("tlsVersions", String.class, null);
 
     /**
      * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-security.html">allowLoadLocalInfile</a>
-     * @since MySQL 3.0.3
+     * @since MySQL Driver  3.0.3
      */
     public static final MySQLKey<Boolean> ALLOW_LOAD_LOCAL_INFILE = new MySQLKey<>("allowLoadLocalInfile", Boolean.class, Boolean.FALSE);
 
     /**
      * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-security.html">allowLoadLocalInfileInPath</a>
-     * @since MySQL 8.0.8
+     * @since MySQL Driver  8.0.8
      */
     public static final MySQLKey<Path> ALLOW_LOAD_LOCAL_INFILE_IN_PATH = new MySQLKey<>("allowLoadLocalInfileInPath", Path.class, null);
 
     /**
      * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-security.html">allowMultiQueries</a>
-     * @since MySQL 3.1.1
+     * @since MySQL Driver  3.1.1
      */
     public static final MySQLKey<Boolean> ALLOW_MULTI_QUERIES = new MySQLKey<>("allowMultiQueries", Boolean.class, Boolean.FALSE);
 
 
     /**
      * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-security.html">allowUrlInLocalInfile</a>
-     * @since MySQL 3.1.4
+     * @since MySQL Driver  3.1.4
      */
     public static final MySQLKey<Boolean> ALLOW_URL_IN_LOCAL_INFILE = new MySQLKey<>("allowUrlInLocalInfile", Boolean.class, Boolean.FALSE);
 
@@ -444,20 +441,20 @@ public final class MySQLKey<T> {
 
     /**
      * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-statements.html">cacheDefaultTimeZone</a>
-     * @since MySQL 8.0.20
+     * @since MySQL Driver  8.0.20
      */
     public static final MySQLKey<Boolean> CACHE_DEFAULT_TIME_ZONE = new MySQLKey<>("cacheDefaultTimeZone", Boolean.class, Boolean.TRUE);
 
 
     /**
      * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-statements.html">continueBatchOnError</a>
-     * @since MySQL 3.0.3
+     * @since MySQL Driver  3.0.3
      */
     public static final MySQLKey<Boolean> CONTINUE_BATCH_ON_ERROR = new MySQLKey<>("continueBatchOnError", Boolean.class, Boolean.TRUE);
 
     /**
      * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-statements.html">dontTrackOpenResources</a>
-     * @since MySQL 3.1.7
+     * @since MySQL Driver  3.1.7
      */
     public static final MySQLKey<Boolean> DONT_TRACK_OPEN_RESOURCES = new MySQLKey<>("dontTrackOpenResources", Boolean.class, Boolean.FALSE);
 
@@ -465,9 +462,562 @@ public final class MySQLKey<T> {
 
     /**
      * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-statements.html">queryTimeoutKillsConnection</a>
-     * @since MySQL 5.1.9
+     * @since MySQL Driver  5.1.9
      */
     public static final MySQLKey<Boolean> QUERY_TIMEOUT_KILLS_CONNECTION = new MySQLKey<>("queryTimeoutKillsConnection", Boolean.class, Boolean.FALSE);
+
+    /*-------------------below Prepared Statements group-------------------*/
+
+    /**
+     * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-prepared-statements.html">allowNanAndInf</a>
+     * @since MySQL Driver  3.1.5
+     */
+    public static final MySQLKey<Boolean> ALLOW_NAN_AND_INF = new MySQLKey<>("allowNanAndInf", Boolean.class, Boolean.FALSE);
+
+//    /**
+//     * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-prepared-statements.html">allowNanAndInf</a>
+//     * @deprecated jdbd don't support streams/readers
+//     * @since MySQL Driver  3.1.12
+//     */
+//    @Deprecated
+//    public static final MySQLKey<Boolean> AUTO_CLOSE_PSTMT_STREAMS = new MySQLKey<>("autoClosePStmtStreams", Boolean.class, Boolean.FALSE);
+
+    /**
+     * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-prepared-statements.html">compensateOnDuplicateKeyUpdateCounts</a>
+     * @since MySQL Driver  5.1.7
+     */
+    public static final MySQLKey<Boolean> COMPENSATE_ON_DUPLICATE_KEY_UPDATE_COUNTS = new MySQLKey<>("compensateOnDuplicateKeyUpdateCounts", Boolean.class, Boolean.FALSE);
+
+    /**
+     * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-prepared-statements.html">emulateUnsupportedPstmts</a>
+     * @since MySQL Driver  3.1.7
+     */
+    public static final MySQLKey<Boolean> EMULATE_UNSUPPORTED_PSTMTS = new MySQLKey<>("emulateUnsupportedPstmts", Boolean.class, Boolean.TRUE);
+
+    /**
+     * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-prepared-statements.html">generateSimpleParameterMetadata</a>
+     * @since MySQL Driver  5.0.5
+     */
+    public static final MySQLKey<Boolean> GENERATE_SIMPLE_PARAMETER_METADATA = new MySQLKey<>("generateSimpleParameterMetadata", Boolean.class, Boolean.FALSE);
+
+    /**
+     * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-prepared-statements.html">processEscapeCodesForPrepStmts</a>
+     * @since MySQL Driver  3.1.12
+     */
+    public static final MySQLKey<Boolean> PROCESS_ESCAPE_CODES_FOR_PREP_STMTS = new MySQLKey<>("processEscapeCodesForPrepStmts", Boolean.class, Boolean.TRUE);
+
+//    /**
+//     * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-prepared-statements.html">useServerPrepStmts</a>
+//     * @deprecated jdbd don't need this option
+//     * @since MySQL Driver  3.1.0
+//     */
+//    @Deprecated
+//    public static final MySQLKey<Boolean> USE_SERVER_PREP_STMTS = new MySQLKey<>("useServerPrepStmts", Boolean.class, Boolean.FALSE);
+
+
+//    /**
+//     * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-prepared-statements.html">useStreamLengthsInPrepStmts</a>
+//     * @deprecated jdbd don't need this option
+//     * @since MySQL Driver  3.0.2
+//     */
+//    @Deprecated
+//    public static final MySQLKey<Boolean> useStreamLengthsInPrepStmts = new MySQLKey<>("useStreamLengthsInPrepStmts", Boolean.class, Boolean.TRUE);
+
+    /*-------------------below Result Sets group-------------------*/
+
+//    /**
+//     * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-result-sets.html">clobberStreamingResults</a>
+//     * @since MySQL Driver  3.1.12
+//     * @deprecated jdbd don't need this option
+//     */
+//    @Deprecated
+//    public static final MySQLKey<Boolean> clobberStreamingResults = new MySQLKey<>("clobberStreamingResults", Boolean.class, Boolean.FALSE);
+
+    /**
+     * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-result-sets.html">emptyStringsConvertToZero</a>
+     * @since MySQL Driver  3.1.12
+     */
+    public static final MySQLKey<Boolean> EMPTY_STRINGS_CONVERT_TO_ZERO = new MySQLKey<>("emptyStringsConvertToZero", Boolean.class, Boolean.TRUE);
+
+//    /**
+//     * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-result-sets.html">holdResultsOpenOverStatementClose</a>
+//     * @since MySQL Driver  3.1.7
+//     * @deprecated jdbd don't need this option
+//     */
+//    @Deprecated
+//    public static final MySQLKey<Boolean> HOLD_RESULTS_OPEN_OVER_STATEMENT_CLOSE = new MySQLKey<>("holdResultsOpenOverStatementClose", Boolean.class, Boolean.FALSE);
+
+    /**
+     * <p>
+     * Jdbd throw {@link io.jdbd.JdbdException} not {@code java.sql.DataTruncation}
+     * </p>
+     *
+     * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-result-sets.html">jdbcCompliantTruncation</a>
+     * @since MySQL Driver  3.1.2
+     */
+    public static final MySQLKey<Boolean> JDBC_COMPLIANT_TRUNCATION = new MySQLKey<>("jdbcCompliantTruncation", Boolean.class, Boolean.TRUE);
+
+    /**
+     * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-result-sets.html">maxRows</a>
+     * @since MySQL Driver  all versions
+     */
+    public static final MySQLKey<Integer> MAX_ROWS = new MySQLKey<>("maxRows", Integer.class, 0);
+
+
+    /**
+     * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-result-sets.html">netTimeoutForStreamingResults</a>
+     * @since MySQL Driver  5.1.0
+     */
+    public static final MySQLKey<Integer> NET_TIMEOUT_FOR_STREAMING_RESULTS = new MySQLKey<>("netTimeoutForStreamingResults", Integer.class, 600);
+
+    /**
+     * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-result-sets.html">padCharsWithSpace</a>
+     * @since MySQL Driver  5.0.6
+     */
+    public static final MySQLKey<Boolean> PAD_CHARS_WITH_SPACE = new MySQLKey<>("padCharsWithSpace", Boolean.class, Boolean.FALSE);
+
+
+    /**
+     * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-result-sets.html">populateInsertRowWithDefaultValues</a>
+     * @since MySQL Driver  5.0.5
+     */
+    public static final MySQLKey<Boolean> POPULATE_INSERT_ROW_WITH_DEFAULT_VALUES = new MySQLKey<>("populateInsertRowWithDefaultValues", Boolean.class, Boolean.FALSE);
+
+
+//    /**
+//     * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-result-sets.html">scrollTolerantForwardOnly</a>
+//     * @since MySQL Driver  8.0.24
+//     * @deprecated jdbd don't need this option
+//     */
+//    @Deprecated
+//    public static final MySQLKey<Boolean> SCROLL_TOLERANT_FORWARD_ONLY = new MySQLKey<>("scrollTolerantForwardOnly", Boolean.class, Boolean.FALSE);
+
+    /**
+     * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-result-sets.html">strictUpdates</a>
+     * @since MySQL Driver  3.0.4
+     */
+    public static final MySQLKey<Boolean> STRICT_UPDATES = new MySQLKey<>("strictUpdates", Boolean.class, Boolean.TRUE);
+
+    /**
+     * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-result-sets.html">tinyInt1isBit</a>
+     * @since MySQL Driver  3.0.16
+     */
+    public static final MySQLKey<Boolean> TINY_INT1_IS_BIT = new MySQLKey<>("tinyInt1isBit", Boolean.class, Boolean.TRUE);
+
+
+    /**
+     * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-result-sets.html">transformedBitIsBoolean</a>
+     * @since MySQL Driver  3.1.9
+     */
+    public static final MySQLKey<Boolean> TRANS_FORMED_BIT_IS_BOOLEAN = new MySQLKey<>("transformedBitIsBoolean", Boolean.class, Boolean.FALSE);
+
+    /*-------------------below Metadata group-------------------*/
+
+    /**
+     * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-metadata.html">getProceduresReturnsFunctions</a>
+     * @since MySQL Driver  5.1.26
+     */
+    public static final MySQLKey<Boolean> GET_PROCEDURES_RETURNS_FUNCTIONS = new MySQLKey<>("getProceduresReturnsFunctions", Boolean.class, Boolean.TRUE);
+
+
+    /**
+     * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-metadata.html">noAccessToProcedureBodies</a>
+     * @since MySQL Driver  5.0.3
+     */
+    public static final MySQLKey<Boolean> NO_ACCESS_TO_PROCEDURE_BODIES = new MySQLKey<>("noAccessToProcedureBodies", Boolean.class, Boolean.FALSE);
+
+
+    /**
+     * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-metadata.html">nullDatabaseMeansCurrent</a>
+     * @since MySQL Driver  3.1.8
+     */
+    public static final MySQLKey<Boolean> NULL_DATABASE_MEANS_CURRENT = new MySQLKey<>("nullDatabaseMeansCurrent", Boolean.class, Boolean.FALSE);
+
+    /**
+     * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-metadata.html">useHostsInPrivileges</a>
+     * @since MySQL Driver  3.0.2
+     */
+    public static final MySQLKey<Boolean> USE_HOSTS_IN_PRIVILEGES = new MySQLKey<>("useHostsInPrivileges", Boolean.class, Boolean.TRUE);
+
+    /**
+     * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-metadata.html">useInformationSchema</a>
+     * @since MySQL Driver  5.0.0
+     */
+    public static final MySQLKey<Boolean> USE_INFORMATION_SCHEMA = new MySQLKey<>("useInformationSchema", Boolean.class, Boolean.FALSE);
+
+    /*-------------------below BLOB/CLOB processing group-------------------*/
+
+    /**
+     * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-blob-clob-processing.html">autoDeserialize</a>
+     * @since MySQL Driver  3.1.5
+     * @deprecated don't support
+     */
+    @Deprecated
+    public static final MySQLKey<Boolean> AUTO_DESERIALIZE = new MySQLKey<>("autoDeserialize", Boolean.class, Boolean.FALSE);
+
+    /**
+     * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-blob-clob-processing.html">blobSendChunkSize</a>
+     * @since MySQL Driver  3.1.9
+     */
+    public static final MySQLKey<Integer> BLOB_SEND_CHUNK_SIZE = new MySQLKey<>("blobSendChunkSize", Integer.class, 1048576);
+
+    /**
+     * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-blob-clob-processing.html">blobsAreStrings</a>
+     * @since MySQL Driver  5.0.8
+     */
+    public static final MySQLKey<Boolean> BLOBS_ARE_STRINGS = new MySQLKey<>("blobsAreStrings", Boolean.class, Boolean.FALSE);
+
+    /**
+     * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-blob-clob-processing.html">clobCharacterEncoding</a>
+     * @since MySQL Driver  5.0.0
+     */
+    public static final MySQLKey<String> CLOB_CHARACTER_ENCODING = new MySQLKey<>("clobCharacterEncoding", String.class, null);
+
+
+    /**
+     * TODO support ?
+     *
+     * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-blob-clob-processing.html">emulateLocators</a>
+     * @see #LOCATOR_FETCH_BUFFER_SIZE
+     * @since MySQL Driver  3.1.0
+     */
+    public static final MySQLKey<Boolean> EMULATE_LOCATORS = new MySQLKey<>("emulateLocators", Boolean.class, Boolean.FALSE);
+
+
+    /**
+     * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-blob-clob-processing.html">functionsNeverReturnBlobs</a>
+     * @since MySQL Driver  5.0.8
+     */
+    public static final MySQLKey<Boolean> FUNCTIONS_NEVER_RETURN_BLOBS = new MySQLKey<>("functionsNeverReturnBlobs", Boolean.class, Boolean.FALSE);
+
+    /**
+     * TODO support ?
+     *
+     * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-blob-clob-processing.html">locatorFetchBufferSize</a>
+     * @see #EMULATE_LOCATORS
+     * @since MySQL Driver  3.2.1
+     */
+    public static final MySQLKey<Integer> LOCATOR_FETCH_BUFFER_SIZE = new MySQLKey<>("locatorFetchBufferSize", Integer.class, 1048576);
+
+    /*-------------------below Datetime types processing group-------------------*/
+
+
+    /**
+     * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-datetime-types-processing.html">connectionTimeZone</a>
+     * @since MySQL Driver  3.0.2
+     */
+    public static final MySQLKey<String> CONNECTION_TIME_ZONE = new MySQLKey<>("connectionTimeZone", String.class, null);
+
+    /**
+     * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-blob-clob-processing.html">forceConnectionTimeZoneToSession</a>
+     * @since MySQL Driver  8.0.23
+     */
+    public static final MySQLKey<Boolean> FORCE_CONNECTION_TIME_ZONE_TO_SESSION = new MySQLKey<>("forceConnectionTimeZoneToSession", Boolean.class, Boolean.FALSE);
+
+//    /**
+//     * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-blob-clob-processing.html">noDatetimeStringSync</a>
+//     * @deprecated don't support
+//     * @since MySQL Driver  3.1.7
+//     */
+//    @Deprecated
+//    public static final MySQLKey<Boolean> noDatetimeStringSync = new MySQLKey<>("noDatetimeStringSync", Boolean.class, Boolean.FALSE);
+
+
+    /**
+     * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-blob-clob-processing.html">preserveInstants</a>
+     * @since MySQL Driver  8.0.23
+     */
+    public static final MySQLKey<Boolean> PRESERVE_INSTANTS = new MySQLKey<>("preserveInstants", Boolean.class, Boolean.TRUE);
+
+    /**
+     * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-blob-clob-processing.html">sendFractionalSeconds</a>
+     * @since MySQL Driver  5.1.37
+     */
+    public static final MySQLKey<Boolean> SEND_FRACTIONAL_SECONDS = new MySQLKey<>("sendFractionalSeconds", Boolean.class, Boolean.TRUE);
+
+    /**
+     * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-blob-clob-processing.html">sendFractionalSecondsForTime</a>
+     * @since MySQL Driver  8.0.23
+     */
+    public static final MySQLKey<Boolean> SEND_FRACTIONAL_SECONDS_FOR_TIME = new MySQLKey<>("sendFractionalSecondsForTime", Boolean.class, Boolean.TRUE);
+
+//    /**
+//     * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-blob-clob-processing.html">treatUtilDateAsTimestamp</a>
+//     * @since MySQL Driver  5.0.5
+//     * @deprecated jdbd don't need this option
+//     */
+//    @Deprecated
+//    public static final MySQLKey<Boolean> TREAT_UTIL_DATE_AS_TIMESTAMP = new MySQLKey<>("treatUtilDateAsTimestamp", Boolean.class, Boolean.TRUE);
+
+
+//    /**
+//     * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-blob-clob-processing.html">yearIsDateType</a>
+//     * @since MySQL Driver  3.1.9
+//     * @deprecated jdbd don't need this option
+//     */
+//    @Deprecated
+//    public static final MySQLKey<Boolean> YEAR_IS_DATE_TYPE = new MySQLKey<>("yearIsDateType", Boolean.class, Boolean.TRUE);
+
+
+    /**
+     * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-blob-clob-processing.html">zeroDateTimeBehavior</a>
+     * @since MySQL Driver  3.1.4
+     */
+    public static final MySQLKey<Enums.ZeroDatetimeBehavior> ZERO_DATE_TIME_BEHAVIOR = new MySQLKey<>("zeroDateTimeBehavior", Enums.ZeroDatetimeBehavior.class, Enums.ZeroDatetimeBehavior.EXCEPTION);
+
+    /*-------------------below High Availability and Clustering group-------------------*/
+
+    /**
+     * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-high-availability-and-clustering.html">autoReconnect</a>
+     * @see #MAX_RECONNECTS
+     * @since MySQL Driver  1.1
+     */
+    public static final MySQLKey<Boolean> AUTO_RECONNECT = new MySQLKey<>("autoReconnect", Boolean.class, Boolean.FALSE);
+
+
+//    /**
+//     * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-high-availability-and-clustering.html">autoReconnectForPools</a>
+//     * @since MySQL Driver  3.1.3
+//     * @deprecated jdbd don't need this option
+//     */
+//    @Deprecated
+//    public static final MySQLKey<Boolean> AUTO_RECONNECT_FOR_POOLS = new MySQLKey<>("autoReconnectForPools", Boolean.class, Boolean.FALSE);
+//
+
+    /**
+     * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-high-availability-and-clustering.html">failOverReadOnly</a>
+     * @since MySQL Driver  3.0.12
+     */
+    public static final MySQLKey<Boolean> FAIL_OVER_READ_ONLY = new MySQLKey<>("failOverReadOnly", Boolean.class, Boolean.TRUE);
+
+
+    /**
+     * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-high-availability-and-clustering.html">maxReconnects</a>
+     * @see #AUTO_RECONNECT
+     * @since MySQL Driver  1.1
+     */
+    public static final MySQLKey<Integer> MAX_RECONNECTS = new MySQLKey<>("maxReconnects", Integer.class, 3);
+
+    /**
+     * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-high-availability-and-clustering.html">reconnectAtTxEnd</a>
+     * @since MySQL Driver  3.0.10
+     */
+    public static final MySQLKey<Boolean> RECONNECT_AT_TX_END = new MySQLKey<>("reconnectAtTxEnd", Boolean.class, Boolean.FALSE);
+
+    /**
+     * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-high-availability-and-clustering.html">retriesAllDown</a>
+     * @since MySQL Driver  5.1.6
+     */
+    public static final MySQLKey<Integer> RETRIES_ALL_DOWN = new MySQLKey<>("retriesAllDown", Integer.class, 120);
+
+    /**
+     * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-high-availability-and-clustering.html">initialTimeout</a>
+     * @since MySQL Driver  1.1
+     */
+    public static final MySQLKey<Integer> INITIAL_TIMEOUT = new MySQLKey<>("initialTimeout", Integer.class, 2);
+
+
+    /**
+     * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-high-availability-and-clustering.html">queriesBeforeRetrySource</a>
+     * @since MySQL Driver  3.0.2
+     */
+    public static final MySQLKey<Integer> QUERIES_BEFORE_RETRY_SOURCE = new MySQLKey<>("queriesBeforeRetrySource", Integer.class, 50);
+
+
+    /**
+     * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-high-availability-and-clustering.html">secondsBeforeRetrySource</a>
+     * @since MySQL Driver 3.0.2
+     */
+    public static final MySQLKey<Integer> SECONDS_BEFORE_RETRY_SOURCE = new MySQLKey<>("secondsBeforeRetrySource", Integer.class, 30);
+
+
+    /**
+     * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-high-availability-and-clustering.html">allowReplicaDownConnections</a>
+     * @since MySQL Driver 6.0.2
+     */
+    public static final MySQLKey<Boolean> ALLOW_REPLICA_DOWN_CONNECTIONS = new MySQLKey<>("allowReplicaDownConnections", Boolean.class, Boolean.FALSE);
+
+
+    /**
+     * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-high-availability-and-clustering.html">allowSourceDownConnections</a>
+     * @since MySQL Driver 5.1.27
+     */
+    public static final MySQLKey<Boolean> ALLOW_SOURCE_DOWN_CONNECTIONS = new MySQLKey<>("allowSourceDownConnections", Boolean.class, Boolean.FALSE);
+
+
+    /**
+     * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-high-availability-and-clustering.html">ha.enableJMX</a>
+     * @since MySQL Driver 5.1.27
+     */
+    public static final MySQLKey<Boolean> HA_ENABLE_JMX = new MySQLKey<>("ha.enableJMX", Boolean.class, Boolean.FALSE);
+
+
+    /**
+     * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-high-availability-and-clustering.html">loadBalanceHostRemovalGracePeriod</a>
+     * @since MySQL Driver 6.0.3
+     */
+    public static final MySQLKey<Integer> LOAD_BALANCE_HOST_REMOVAL_GRACE_PERIOD = new MySQLKey<>("loadBalanceHostRemovalGracePeriod", Integer.class, 15000);
+
+
+    /**
+     * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-high-availability-and-clustering.html">readFromSourceWhenNoReplicas</a>
+     * @since MySQL Driver 6.0.2
+     */
+    public static final MySQLKey<Boolean> READ_FROM_SOURCE_WHEN_NO_REPLICAS = new MySQLKey<>("readFromSourceWhenNoReplicas", Boolean.class, Boolean.FALSE);
+
+    /**
+     * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-high-availability-and-clustering.html">selfDestructOnPingMaxOperations</a>
+     * @since MySQL Driver 5.1.6
+     */
+    public static final MySQLKey<Integer> SELF_DESTRUCT_ON_PING_MAX_OPERATIONS = new MySQLKey<>("selfDestructOnPingMaxOperations", Integer.class, 0);
+
+
+    /**
+     * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-high-availability-and-clustering.html">selfDestructOnPingSecondsLifetime</a>
+     * @since MySQL Driver 5.1.6
+     */
+    public static final MySQLKey<Integer> SELF_DESTRUCT_ON_PING_SECONDS_LIFE_TIME = new MySQLKey<>("selfDestructOnPingSecondsLifetime", Integer.class, 0);
+
+
+    /**
+     * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-high-availability-and-clustering.html">ha.loadBalanceStrategy</a>
+     * @since MySQL Driver 5.0.6
+     */
+    public static final MySQLKey<String> HA_LOAD_BALANCE_STRATEGY = new MySQLKey<>("ha.loadBalanceStrategy", String.class, "random");
+
+
+    /**
+     * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-high-availability-and-clustering.html">loadBalanceAutoCommitStatementRegex</a>
+     * @since MySQL Driver 5.1.15
+     */
+    public static final MySQLKey<String> LOAD_BALANCE_AUTO_COMMIT_STATEMENT_REGEX = new MySQLKey<>("loadBalanceAutoCommitStatementRegex", String.class, null);
+
+    /**
+     * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-high-availability-and-clustering.html">loadBalanceAutoCommitStatementThreshold</a>
+     * @since MySQL Driver 5.1.15
+     */
+    public static final MySQLKey<Integer> LOAD_BALANCE_AUTO_COMMIT_STATEMENT_THRESHOLD = new MySQLKey<>("loadBalanceAutoCommitStatementThreshold", Integer.class, 0);
+
+    /**
+     * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-high-availability-and-clustering.html">loadBalanceBlocklistTimeout</a>
+     * @since MySQL Driver 5.1.0
+     */
+    public static final MySQLKey<Integer> LOAD_BALANCE_BLOCK_LIST_TIMEOUT = new MySQLKey<>("loadBalanceBlocklistTimeout", Integer.class, 0);
+
+
+    /**
+     * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-high-availability-and-clustering.html">loadBalanceConnectionGroup</a>
+     * @since MySQL Driver 5.1.13
+     */
+    public static final MySQLKey<String> LOAD_BALANCE_CONNECTION_GROUP = new MySQLKey<>("loadBalanceConnectionGroup", String.class, null);
+
+    /**
+     * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-high-availability-and-clustering.html">loadBalanceExceptionChecker</a>
+     * @since MySQL Driver 5.1.13
+     */
+    public static final MySQLKey<String> LOAD_BALANCE_EXCEPTION_CHECKER = new MySQLKey<>("loadBalanceExceptionChecker", String.class, null);
+
+    /**
+     * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-high-availability-and-clustering.html">loadBalancePingTimeout</a>
+     * @since MySQL Driver 5.1.13
+     */
+    public static final MySQLKey<Integer> LOAD_BALANCE_PING_TIMEOUT = new MySQLKey<>("loadBalancePingTimeout", Integer.class, 0);
+
+    /**
+     * TODO support ?
+     *
+     * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-high-availability-and-clustering.html">loadBalanceSQLExceptionSubclassFailover</a>
+     * @since MySQL Driver 5.1.13
+     */
+    public static final MySQLKey<String> LOAD_BALANCE_SQL_EXCEPTION_SUBCLASS_FAILOVER = new MySQLKey<>("loadBalanceSQLExceptionSubclassFailover", String.class, null);
+
+    /**
+     * TODO support ?
+     *
+     * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-high-availability-and-clustering.html">loadBalanceSQLStateFailover</a>
+     * @since MySQL Driver 5.1.13
+     */
+    public static final MySQLKey<String> LOAD_BALANCE_SQL_STATE_FAILOVER = new MySQLKey<>("loadBalanceSQLStateFailover", String.class, null);
+
+
+    /**
+     * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-high-availability-and-clustering.html">loadBalanceValidateConnectionOnSwapServer</a>
+     * @since MySQL Driver 5.1.13
+     */
+    public static final MySQLKey<Boolean> LOAD_BALANCE_VALIDATE_CONNECTION_ON_SWAP_SERVER = new MySQLKey<>("loadBalanceValidateConnectionOnSwapServer", Boolean.class, Boolean.FALSE);
+
+    /**
+     * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-high-availability-and-clustering.html">pinGlobalTxToPhysicalConnection</a>
+     * @since MySQL Driver 5.0.1
+     */
+    public static final MySQLKey<Boolean> PIN_GLOBAL_TX_TO_PHYSICAL_CONNECTION = new MySQLKey<>("pinGlobalTxToPhysicalConnection", Boolean.class, Boolean.FALSE);
+
+    /**
+     * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-high-availability-and-clustering.html">replicationConnectionGroup</a>
+     * @since MySQL Driver 8.0.7
+     */
+    public static final MySQLKey<String> REPLICATION_CONNECTION_GROUP = new MySQLKey<>("replicationConnectionGroup", String.class, null);
+
+
+    /**
+     * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-high-availability-and-clustering.html">resourceId</a>
+     * @since MySQL Driver 5.0.1
+     */
+    public static final MySQLKey<String> RESOURCE_ID = new MySQLKey<>("resourceId", String.class, null);
+
+
+    /**
+     * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-high-availability-and-clustering.html">serverAffinityOrder</a>
+     * @since MySQL Driver 8.0.8
+     */
+    public static final MySQLKey<String> SERVER_AFFINITY_ORDER = new MySQLKey<>("serverAffinityOrder", String.class, null);
+
+
+    /*-------------------below Performance Extensions group-------------------*/
+
+    /**
+     * TODO support ?
+     *
+     * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-performance-extensions.html">callableStmtCacheSize</a>
+     * @since MySQL Driver 3.1.2
+     */
+    public static final MySQLKey<Integer> CALLABLE_STMT_CACHE_SIZE = new MySQLKey<>("callableStmtCacheSize", Integer.class, 100);
+
+    /**
+     * TODO support ?
+     *
+     * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-performance-extensions.html">metadataCacheSize</a>
+     * @since MySQL Driver 3.1.1
+     */
+    public static final MySQLKey<Integer> METADATA_CACHE_SIZE = new MySQLKey<>("metadataCacheSize", Integer.class, 50);
+
+
+    /**
+     * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-performance-extensions.html">useLocalSessionState</a>
+     * @since MySQL Driver 3.1.7
+     */
+    public static final MySQLKey<Boolean> USE_LOCAL_SESSION_STATE = new MySQLKey<>("useLocalSessionState", Boolean.class, Boolean.FALSE);
+
+    /**
+     * TODO support ?
+     *
+     * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-performance-extensions.html">useLocalTransactionState</a>
+     * @since MySQL Driver 5.1.7
+     */
+    public static final MySQLKey<Boolean> USE_LOCAL_TRANSACTION_STATE = new MySQLKey<>("useLocalTransactionState", Boolean.class, Boolean.FALSE);
+
+    /**
+     * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-performance-extensions.html">prepStmtCacheSize</a>
+     * @since MySQL Driver 3.0.10
+     */
+    public static final MySQLKey<Integer> PREP_STMT_CACHE_SIZE = new MySQLKey<>("prepStmtCacheSize", Integer.class, 25);
+
+
+    /**
+     * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-performance-extensions.html">prepStmtCacheSqlLimit</a>
+     * @since MySQL Driver 3.0.10
+     */
+    public static final MySQLKey<Integer> PREP_STMT_CACHE_SQL_LIMIT = new MySQLKey<>("prepStmtCacheSqlLimit", Integer.class, 256);
 
 
     //below  Group
@@ -512,459 +1062,6 @@ public final class MySQLKey<T> {
      */
     public static final MySQLKey<String> DB_NAME = new MySQLKey<>("dbname", String.class, null);
     // blow Connection Group
-
-
-    detectCustomCollations("false",Boolean .class), //
-
-    disabledAuthenticationPlugins(null,String .class), //
-
-    disconnectOnExpiredPasswords("true",Boolean .class), //
-
-    interactiveClient("false",Boolean .class), //
-
-    ldapServerHostname(String .class), //
-
-    passwordCharacterEncoding(Charset .class), //
-
-    propertiesTransform(Class .class), //
-
-    rollbackOnPooledClose("true",Boolean .class), //
-
-    useAffectedRows("false",Boolean .class), //
-
-
-    // blow Session Group https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-session.html
-    sessionVariables(String .class), //
-
-    characterEncoding(Charset .class), //
-
-    characterSetResults(String .class), //
-
-    connectionCollation(String .class), //
-
-    customCharsetMapping(String .class),
-
-    // blow Networking Group https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-networking.html
-    socksProxyHost(String .class), //
-
-    socksProxyPort("1080",Integer .class), //
-
-    @Redefine
-    socketFactory(null,Class .class), //
-
-    connectTimeout("0",Long .class), //
-
-    socketTimeout("0",Long .class), //
-
-    dnsSrv("false",Boolean .class), //
-
-    localSocketAddress(null,String .class), //
-
-    maxAllowedPacket("maxAllowedPacket",Integer.toString(1<<26),Integer.class), //
-
-    tcpKeepAlive("true",Boolean .class), //
-
-    tcpNoDelay("true",Boolean .class), //
-
-    tcpRcvBuf("0",Integer .class), //
-
-    tcpSndBuf("0",Integer .class), //
-
-    tcpTrafficClass("0",Integer .class), //
-
-    useCompression("false",Boolean .class), //
-
-    useUnbufferedInput("true",Boolean .class), //
-
-    // blow Security Group https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-security.html
-    paranoid("false",Boolean .class, false), //
-
-    serverRSAPublicKeyFile(null,Path .class), //
-
-    allowPublicKeyRetrieval("false",Boolean .class), //
-
-    sslMode("PREFERRED",Enums.SslMode .class), //
-
-    trustCertificateKeyStoreUrl(null,Path .class), //
-
-    trustCertificateKeyStoreType("JKS",String .class), //
-
-    trustCertificateKeyStorePassword(null,String .class), //
-
-    fallbackToSystemTrustStore("true",Boolean .class), //
-
-    clientCertificateKeyStoreUrl(null,Path .class), //
-
-    clientCertificateKeyStoreType("JKS",String .class), //
-
-    clientCertificateKeyStorePassword(null,String .class), //
-
-    fallbackToSystemKeyStore("true",Boolean .class), //
-
-    enabledSSLCipherSuites(null,String .class), //
-
-    enabledTLSProtocols(null,String .class), //
-
-    allowLoadLocalInfile("false",Boolean .class), //
-
-    allowLoadLocalInfileInPath(null,Path .class), //
-
-    /**
-     * @deprecated jdbd always allow.
-     */
-    @Deprecated
-    allowMultiQueries("false",Boolean .class), //
-
-    allowUrlInLocalInfile("false",Boolean .class), //
-
-    @Deprecated
-    requireSSL("false",Boolean .class), //
-
-    @Deprecated
-    useSSL("true",Boolean .class), //
-
-    @Deprecated
-    verifyServerCertificate("false",Boolean .class), //
-
-    //below Statements Group https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-statements.html
-
-    cacheDefaultTimezone("true",Boolean .class), //
-
-    continueBatchOnError("true",Boolean .class), //
-
-    dontTrackOpenResources("false",Boolean .class), //
-
-    queryInterceptors(null,String .class), //
-
-    queryTimeoutKillsConnection("false",Boolean .class), //
-
-    //below  Prepared Statements https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-prepared-statements.html
-    allowNanAndInf("false",Boolean .class), //
-
-    autoClosePStmtStreams("false",Boolean .class), //
-
-    compensateOnDuplicateKeyUpdateCounts("false",Boolean .class), //
-
-    emulateUnsupportedPstmts("true",Boolean .class), //
-
-    generateSimpleParameterMetadata("false",Boolean .class), //
-
-    processEscapeCodesForPrepStmts("true",Boolean .class), //
-
-    useServerPrepStmts("false",Boolean .class), //
-
-    useStreamLengthsInPrepStmts("true",Boolean .class), //
-
-    //below  Result Sets https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-result-sets.html
-    clobberStreamingResults("false",Boolean .class), //
-
-    emptyStringsConvertToZero("true",Boolean .class), //
-
-    holdResultsOpenOverStatementClose("false",Boolean .class), //
-
-    jdbcCompliantTruncation("true",Boolean .class), //
-
-    maxRows("-1",Integer .class), //
-
-    netTimeoutForStreamingResults("600",Integer .class), //
-
-    padCharsWithSpace("false",Boolean .class), //
-
-    populateInsertRowWithDefaultValues("false",Boolean .class), //
-
-    strictUpdates("true",Boolean .class), //
-
-    @Deprecated
-    tinyInt1isBit("true",Boolean .class), //
-
-    transformedBitIsBoolean("false",Boolean .class), //
-
-    //below Metadata Group https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-metadata.html
-
-    getProceduresReturnsFunctions("true",Boolean .class), //
-
-    noAccessToProcedureBodies("false",Boolean .class), //
-
-    nullDatabaseMeansCurrent("nullDatabaseMeansCurrent","nullCatalogMeansCurrent","false",Boolean .class), //
-
-    useHostsInPrivileges("true",Boolean .class), //
-
-    useInformationSchema("false",Boolean .class), //
-
-    //below BLOB/CLOB processing https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-blob-clob-processing.html
-    autoDeserialize("false",Boolean .class), //
-
-    blobSendChunkSize(Integer.toString(0xFF_FF_FE),Integer.class), //
-
-    @Deprecated
-    blobsAreStrings("false",Boolean .class), //
-
-    clobCharacterEncoding(null,Charset .class), //
-
-    emulateLocators("false",Boolean .class), //
-
-    functionsNeverReturnBlobs("false",Boolean .class), //
-
-    locatorFetchBufferSize("1048576",Integer .class), //
-
-    //below Datetime types processing  https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-datetime-types-processing.html
-    connectionTimeZone(Constants.LOCAL, ZoneOffset .class),
-
-    forceConnectionTimeZoneToSession("false",Boolean .class), //
-
-    noDatetimeStringSync("false",Boolean .class), //
-
-    preserveInstants("true",Boolean .class), //
-
-    sendFractionalSeconds("true",Boolean .class), //
-
-    sendFractionalSecondsForTime("true",Boolean .class), //
-
-    treatUtilDateAsTimestamp("true",Boolean .class), //
-
-    yearIsDateType("true",Boolean .class), //
-
-    zeroDateTimeBehavior("EXCEPTION",Enums.ZeroDatetimeBehavior .class), //
-
-    //below High Availability and Clustering https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-high-availability-and-clustering.html
-
-    autoReconnect("false",Boolean .class), //
-
-    autoReconnectForPools("false",Boolean .class), //
-
-    failOverReadOnly("true",Boolean .class), //
-
-    maxReconnects("3",Integer .class), //
-
-    reconnectAtTxEnd("false",Boolean .class), //
-
-    retriesAllDown("120",Integer .class), //
-
-    initialTimeout("2",Integer .class), //
-
-    queriesBeforeRetrySource("50",Integer .class), //
-
-    secondsBeforeRetrySource("30",Integer .class), //
-
-    allowReplicaDownConnections("false",Boolean .class), //
-
-    allowSourceDownConnections("false",Boolean .class), //
-
-    ha_enableJMX("ha.enableJMX","haEnableJMX","false",Boolean .class), //
-
-    loadBalanceHostRemovalGracePeriod("15000",Integer .class), //
-
-    readFromSourceWhenNoReplicas("readFromSourceWhenNoReplicas","readFromMasterWhenNoSlaves","false",Boolean .class), //
-
-    selfDestructOnPingMaxOperations("0",Integer .class), //
-
-    selfDestructOnPingSecondsLifetime("0",Integer .class), //
-
-    ha_loadBalanceStrategy("ha.loadBalanceStrategy","haLoadBalanceStrategy","random",String .class), //
-
-    loadBalanceAutoCommitStatementRegex(null,String .class), //
-
-    loadBalanceAutoCommitStatementThreshold("0",Integer .class), //
-
-    loadBalanceBlocklistTimeout("loadBalanceBlocklistTimeout","loadBalanceBlacklistTimeout","0",Integer .class),
-
-    loadBalanceConnectionGroup(null,String .class), //
-
-    loadBalanceExceptionChecker("com.mysql.cj.jdbc.ha.StandardLoadBalanceExceptionChecker",Class .class), //
-
-    loadBalancePingTimeout("0",Long .class), //
-
-    loadBalanceSQLExceptionSubclassFailover(null,String .class), //
-
-    loadBalanceSQLStateFailover(null,String .class), //
-
-    loadBalanceValidateConnectionOnSwapServer("false",Boolean .class), //
-
-    pinGlobalTxToPhysicalConnection("false",Boolean .class), //
-
-    replicationConnectionGroup(null,String .class), //
-
-    resourceId(null,String .class), //
-
-    serverAffinityOrder(null,String .class), //
-
-    //below Performance Extensions
-    callableStmtCacheSize("100",Integer .class), //
-
-    metadataCacheSize("50",Integer .class), //
-
-    useLocalSessionState("false",Boolean .class), //
-
-    useLocalTransactionState("false",Boolean .class), //
-
-    prepStmtCacheSize("25",Integer .class), //
-
-    prepStmtCacheSqlLimit("256",Integer .class), //
-
-    parseInfoCacheFactory("com.mysql.cj.PerConnectionLRUFactory",Class .class), //
-
-    serverConfigCacheFactory("com.mysql.cj.util.PerVmServerConfigCacheFactory",Class .class), //
-
-    alwaysSendSetIsolation("true",Boolean .class), //
-
-    maintainTimeStats("true",Boolean .class), //
-
-    useCursorFetch("false",Boolean .class), //
-
-    cacheCallableStmts("false",Boolean .class), //
-
-    cachePrepStmts("false",Boolean .class), //
-
-    cacheResultSetMetadata("false",Boolean .class), //
-
-    cacheServerConfiguration("false",Boolean .class), //
-
-    defaultFetchSize("0",Boolean .class), //
-
-    dontCheckOnDuplicateKeyUpdateInSQL("false",Boolean .class), //
-
-    elideSetAutoCommits("false",Boolean .class), //
-
-    enableEscapeProcessing("true",Boolean .class), //
-
-    enableQueryTimeouts("true",Boolean .class), //
-
-    largeRowSizeThreshold("2048",Integer .class), //
-
-    readOnlyPropagatesToServer("true",Boolean .class), //
-
-    rewriteBatchedStatements("false",Boolean .class), //
-
-    useReadAheadInput("true",Boolean .class), //
-
-    //below  Debugging/Profiling https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-debugging-profiling.html
-    logger("com.mysql.cj.log.StandardLogger",Class .class), //
-
-    profilerEventHandler("com.mysql.cj.log.LoggingProfilerEventHandler",Class .class), //
-
-    useNanosForElapsedTime("false",Boolean .class), //
-
-    maxQuerySizeToLog("2048",Integer .class), //
-
-    profileSQL("false",Boolean .class), //
-
-    logSlowQueries("false",Boolean .class), //
-
-    slowQueryThresholdMillis("2000",Long .class), //
-
-    slowQueryThresholdNanos("0",Long .class), //
-
-    autoSlowLog("true",Boolean .class), //
-
-    explainSlowQueries("false",Boolean .class), //
-
-    gatherPerfMetrics("false",Boolean .class), //
-
-    reportMetricsIntervalMillis("30000",Long .class), //
-
-    logXaCommands("false",Boolean .class), //
-
-    traceProtocol("false",Boolean .class), //
-
-    enablePacketDebug("false",Boolean .class), //
-
-    packetDebugBufferSize("20",Integer .class), //
-
-    useUsageAdvisor("false",Boolean .class), //
-
-    resultSetSizeThreshold("100",Integer .class), //
-
-    autoGenerateTestcaseScript("false",Boolean .class), //
-
-    //below  Exceptions/Warnings https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-exceptions-warnings.html
-    dumpQueriesOnException("false",Boolean .class), //
-
-    exceptionInterceptors(null,String .class), //
-
-    ignoreNonTxTables("false",Boolean .class), //
-
-    includeInnodbStatusInDeadlockExceptions("false",Boolean .class), //
-
-    includeThreadDumpInDeadlockExceptions("false",Boolean .class), //
-
-    includeThreadNamesAsStatementComment("false",Boolean .class), //
-
-    useOnlyServerErrorMessages("true",Boolean .class), //
-
-    //below Tunes for integration with other products https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-tunes-for-integration-with-other-products.html
-    overrideSupportsIntegrityEnhancementFacility("false",Boolean .class), //
-
-    ultraDevHack("false",Boolean .class), //
-
-    //below JDBC compliance https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-jdbc-compliance.html
-    useColumnNamesInFindColumn("false",Boolean .class), //
-
-    pedantic("false",Boolean .class), //
-
-    useOldAliasMetadataBehavior("false",Boolean .class), //
-
-    //below X Protocol and X DevAPI https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-x-protocol-and-x-devapi.html
-    xdevapiAuth("xdevapi.auth","xdevapiAuth","PLAIN",String .class), //
-
-    xdevapiCompression("xdevapi.compression","xdevapiCompression","PREFERRED",Enums.Compression .class), //
-
-    xdevapiCompressionAlgorithm("xdevapi.compression-algorithm","xdevapiCompressionAlgorithm",null,String .class), //
-
-    xdevapiCompressionExtensions("xdevapi.compression-extensions","xdevapiCompressionExtensions",null,String .class), //
-
-    xdevapiConnectTimeout("xdevapi.connect-timeout","xdevapiConnectTimeout","10000",Long .class), //
-
-    xdevapiConnectionAttributes("xdevapi.connection-attributes","xdevapiConnectionAttributes",null,String .class), //
-
-    xdevapiDnsSrv("xdevapi.dns-srv","xdevapiDnsSrv","false",Boolean .class), //
-
-    xdevapiFallbackToSystemKeyStore("xdevapi.fallback-to-system-keystore","xdevapiFallbackToSystemKeyStore","true",Boolean .class), //
-
-    xdevapiFallbackToSystemTrustStore("xdevapi.fallback-to-system-truststore","xdevapiFallbackToSystemTrustStore","true",Boolean .class), //
-
-    xdevapiSslKeyStoreUrl("xdevapi.ssl-keystore","xdevapiSslKeystore",null,String .class), //
-
-    xdevapiSslKeyStorePassword("xdevapi.ssl-keystore-password","xdevapiSslKeystorePassword",null,String .class), //
-
-    xdevapiSslKeyStoreType("xdevapi.ssl-keystore-type","xdevapiSslKeystoreType","JKS",String .class), //
-
-    xdevapiSslMode("xdevapi.ssl-mode","xdevapiSslMode","",Enums.XdevapiSslMode .class), //
-
-    xdevapiSSLTrustStoreUrl("xdevapi.ssl-truststore","xdevapiSSLTruststore",null,String .class), //
-
-    xdevapiSSLTrustStorePassword("xdevapi.ssl-truststore-password","xdevapiSSLTruststorePassword",null,String .class), //
-
-    xdevapiSSLTrustStoreType("xdevapi.ssl-truststore-type","xdevapiSSLTruststoreType","JKS",String .class), //
-
-    xdevapiTlsCiphersuites("xdevapi.tls-ciphersuites","xdevapiTlsCiphersuites",null,String .class), //
-
-    xdevapiTlsVersions("xdevapi.tls-versions","xdevapiTlsVersions",null,String .class), //
-
-
-    //below unknown
-    allowMasterDownConnections("allowMasterDownConnections","false",Boolean .class), //
-
-    allowSlaveDownConnections("allowSlaveDownConnections","false",Boolean .class), //
-
-    loadBalanceBlacklistTimeout("loadBalanceBlacklistTimeout","0",Integer .class), //
-
-    queriesBeforeRetryMaster("queriesBeforeRetryMaster","50",Integer .class), //
-
-    readFromMasterWhenNoSlaves("readFromMasterWhenNoSlaves","false",Boolean .class), //
-
-    secondsBeforeRetryMaster("secondsBeforeRetryMaster","30",Object .class), //
-
-    xdevapiAsyncResponseTimeout("xdevapi.asyncResponseTimeout","xdevapiAsyncResponseTimeout",null,Object .class), //
-
-    xdevapiUseAsyncProtocol("xdevapi.useAsyncProtocol","xdevapiUseAsyncProtocol",null,Object .class), //
-
-    @OnlyReactor
-    timeTruncateFractional("timeTruncateFractional","true",Boolean .class),
-
-    @OnlyReactor
-    clientPrepareSupportStream("false",Boolean .class),
-
-    factoryWorkerCount("50",Integer .class);
 
 
     public final String name;
