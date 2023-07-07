@@ -1,7 +1,6 @@
 package io.jdbd.mysql.session;
 
-import io.jdbd.mysql.protocol.client.ClientProtocol;
-import io.jdbd.pool.PoolDatabaseSession;
+import io.jdbd.mysql.protocol.MySQLProtocol;
 import io.jdbd.pool.PoolLocalDatabaseSession;
 import io.jdbd.session.LocalDatabaseSession;
 import io.jdbd.session.TransactionOption;
@@ -16,16 +15,19 @@ import reactor.core.publisher.Mono;
 class MySQLLocalDatabaseSession extends MySQLDatabaseSession<LocalDatabaseSession> implements LocalDatabaseSession {
 
 
-    static LocalDatabaseSession create(SessionAdjutant adjutant, ClientProtocol protocol) {
-        return new MySQLLocalDatabaseSession(adjutant, protocol);
+    static LocalDatabaseSession create(MySQLDatabaseSessionFactory factory, MySQLProtocol protocol) {
+        return new MySQLLocalDatabaseSession(factory, protocol);
     }
 
-    static PoolLocalDatabaseSession forPoolVendor(SessionAdjutant adjutant, ClientProtocol protocol) {
-        return new MySQLPoolTxDatabaseSession(adjutant, protocol);
+    static PoolLocalDatabaseSession forPoolVendor(MySQLDatabaseSessionFactory factory, MySQLProtocol protocol) {
+        return new MySQLPoolLocalDatabaseSession(factory, protocol);
     }
 
-    private MySQLLocalDatabaseSession(SessionAdjutant adjutant, ClientProtocol protocol) {
-        super(adjutant, protocol);
+    /**
+     * private constructor
+     */
+    private MySQLLocalDatabaseSession(MySQLDatabaseSessionFactory factory, MySQLProtocol protocol) {
+        super(factory, protocol);
     }
 
 
@@ -37,7 +39,7 @@ class MySQLLocalDatabaseSession extends MySQLDatabaseSession<LocalDatabaseSessio
 
     @Override
     public final boolean inTransaction() {
-        return LocalDatabaseSession.super.inTransaction();
+        return this.protocol.inTransaction();
     }
 
     @Override
@@ -57,18 +59,21 @@ class MySQLLocalDatabaseSession extends MySQLDatabaseSession<LocalDatabaseSessio
      * <p>
      * This class is implementation of {@link PoolLocalDatabaseSession} with MySQL client protocol.
      * </p>
+     *
+     * @since 1.0
      */
-    private static final class MySQLPoolTxDatabaseSession extends MySQLLocalDatabaseSession
+    private static final class MySQLPoolLocalDatabaseSession extends MySQLLocalDatabaseSession
             implements PoolLocalDatabaseSession {
 
-        private MySQLPoolTxDatabaseSession(SessionAdjutant adjutant, ClientProtocol protocol) {
-            super(adjutant, protocol);
+        private MySQLPoolLocalDatabaseSession(MySQLDatabaseSessionFactory factory, MySQLProtocol protocol) {
+            super(factory, protocol);
         }
 
 
         @Override
-        public Publisher<? extends PoolDatabaseSession> reconnect(int maxReconnect) {
-            return null;
+        public Publisher<PoolLocalDatabaseSession> reconnect(int maxReconnect) {
+            return this.protocol.reconnect(maxReconnect)
+                    .thenReturn(this);
         }
 
         @Override
@@ -84,7 +89,7 @@ class MySQLLocalDatabaseSession extends MySQLDatabaseSession<LocalDatabaseSessio
         }
 
 
-    }
+    }// MySQLPoolLocalDatabaseSession
 
 
 }

@@ -8,6 +8,7 @@ import java.util.Map;
 /**
  * @see <a href="https://docs.oracle.com/javase/tutorial/jdbc/basics/connecting.html">Specifying Database Connection URLs</a>
  */
+@Deprecated
 public interface JdbdEnvironment {
 
     String protocol();

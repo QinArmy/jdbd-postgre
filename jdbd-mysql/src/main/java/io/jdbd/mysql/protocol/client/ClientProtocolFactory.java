@@ -5,8 +5,11 @@ import io.jdbd.mysql.MySQLJdbdException;
 import io.jdbd.mysql.SQLMode;
 import io.jdbd.mysql.Server;
 import io.jdbd.mysql.protocol.Constants;
+import io.jdbd.mysql.protocol.MySQLProtocol;
+import io.jdbd.mysql.protocol.MySQLProtocolFactory;
 import io.jdbd.mysql.protocol.MySQLServerVersion;
 import io.jdbd.mysql.protocol.conf.MyKey;
+import io.jdbd.mysql.protocol.env.ProtocolEnvironment;
 import io.jdbd.mysql.session.SessionAdjutant;
 import io.jdbd.mysql.stmt.Stmts;
 import io.jdbd.mysql.util.MySQLArrays;
@@ -29,13 +32,17 @@ import java.sql.SQLException;
 import java.time.ZoneOffset;
 import java.util.*;
 
-public abstract class ClientProtocolFactory {
+public final class ClientProtocolFactory implements MySQLProtocolFactory {
 
     private ClientProtocolFactory() {
         throw new UnsupportedOperationException();
     }
 
     private static final Logger LOG = LoggerFactory.getLogger(ClientProtocolFactory.class);
+
+    public static ClientProtocolFactory from(ProtocolEnvironment env) {
+        throw new UnsupportedOperationException();
+    }
 
 
     public static Mono<ClientProtocol> single(final SessionAdjutant sessionAdjutant) {
@@ -47,6 +54,11 @@ public abstract class ClientProtocolFactory {
                 .map(ClientProtocolImpl::create);         //6. create ClientProtocol
     }
 
+
+    @Override
+    public Mono<MySQLProtocol> createProtocol() {
+        return null;
+    }
 
     private static final class SessionManagerImpl implements SessionManager {
 

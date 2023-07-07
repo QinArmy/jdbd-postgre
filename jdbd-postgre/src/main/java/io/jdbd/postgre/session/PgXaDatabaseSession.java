@@ -1,6 +1,6 @@
 package io.jdbd.postgre.session;
 
-import io.jdbd.pool.PoolGlobalDatabaseSession;
+import io.jdbd.pool.PoolRmDatabaseSession;
 import io.jdbd.postgre.protocol.client.ClientProtocol;
 import io.jdbd.session.RmDatabaseSession;
 import io.jdbd.session.Xid;
@@ -65,20 +65,20 @@ class PgXaDatabaseSession extends PgDatabaseSession implements RmDatabaseSession
     }
 
 
-    private static final class PgPoolXaDatabaseSession extends PgXaDatabaseSession implements PoolGlobalDatabaseSession {
+    private static final class PgPoolXaDatabaseSession extends PgXaDatabaseSession implements PoolRmDatabaseSession {
 
         private PgPoolXaDatabaseSession(SessionAdjutant adjutant, ClientProtocol protocol) {
             super(adjutant, protocol);
         }
 
         @Override
-        public Mono<PoolGlobalDatabaseSession> ping(final int timeoutSeconds) {
+        public Mono<PoolRmDatabaseSession> ping(final int timeoutSeconds) {
             return this.protocol.ping(timeoutSeconds)
                     .thenReturn(this);
         }
 
         @Override
-        public Mono<PoolGlobalDatabaseSession> reset() {
+        public Mono<PoolRmDatabaseSession> reset() {
             return this.protocol.reset()
                     .thenReturn(this);
         }

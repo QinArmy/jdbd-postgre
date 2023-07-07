@@ -68,7 +68,7 @@ public class PgDatabaseSessionFactory implements DatabaseSessionFactory {
     }
 
     @Override
-    public Mono<RmDatabaseSession> globalSession() {
+    public Mono<RmDatabaseSession> rmSession() {
         // TODO complete me
         return ClientProtocolFactory.single(this.sessionAdjutant, 0)
                 .map(this::createXaSession);
@@ -105,7 +105,7 @@ public class PgDatabaseSessionFactory implements DatabaseSessionFactory {
     }
 
     /**
-     * @see #globalSession()
+     * @see #rmSession()
      */
     private RmDatabaseSession createXaSession(ClientProtocol protocol) {
         final RmDatabaseSession session;

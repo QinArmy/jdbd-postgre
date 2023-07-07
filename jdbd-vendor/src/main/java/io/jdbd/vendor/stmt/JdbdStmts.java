@@ -105,6 +105,10 @@ public abstract class JdbdStmts {
         return new OptionParamBatchStmt<>(sql, groupList, option);
     }
 
+    public static ParamMultiStmt multiStmt(List<ParamStmt> stmtList, StmtOption option) {
+        throw new UnsupportedOperationException();
+    }
+
 
     @Deprecated
     public static ParamBatchStmt<ParamValue> batch(String sql, List<List<ParamValue>> groupList) {

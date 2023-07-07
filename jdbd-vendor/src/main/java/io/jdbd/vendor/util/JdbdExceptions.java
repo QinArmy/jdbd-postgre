@@ -45,6 +45,10 @@ public abstract class JdbdExceptions extends ExceptionUtils {
     }
 
 
+    public static JdbdException unexpectedEnum(Enum<?> e) {
+        return new JdbdException(String.format("unexpected enum %s", e));
+    }
+
     public static JdbdException queryMapFuncError(Function<CurrentRow, ?> function) {
         String m = String.format("query map function %s couldn't return null or %s ",
                 function, CurrentRow.class.getName());
@@ -93,8 +97,15 @@ public abstract class JdbdExceptions extends ExceptionUtils {
 
     public static JdbdException dontSupportJavaType(Object indexOrName, @Nullable Object value, String database) {
         String m;
-        m = String.format("%s don't support java type[%s] for index/name[%s]", database, safeClassName(value),
+        m = String.format("%s don't support java type[%s] at index/name[%s]", database, safeClassName(value),
                 indexOrName);
+        return new JdbdException(m);
+    }
+
+    public static JdbdException dontSupportOutParameter(Object indexOrName, Class<? extends Statement> stmtClass,
+                                                        String database) {
+        String m = String.format("%s %s don't support %s at index/name %s.", database, stmtClass.getName(),
+                OutParameter.class.getName(), indexOrName);
         return new JdbdException(m);
     }
 
@@ -162,7 +173,6 @@ public abstract class JdbdExceptions extends ExceptionUtils {
 
     public static boolean isJvmFatal(@Nullable Throwable e) {
         return e instanceof VirtualMachineError
-                || e instanceof ThreadDeath
                 || e instanceof LinkageError;
     }
 
@@ -209,8 +219,8 @@ public abstract class JdbdExceptions extends ExceptionUtils {
     }
 
 
-    public static JdbdSQLException multiStmtNoSql() {
-        return new JdbdSQLException(new SQLException("MultiStatement no sql,should invoke addStmt(String) method."));
+    public static JdbdException multiStmtNoSql() {
+        return new JdbdException("MultiStatement no sql,should invoke addStatement(String) method.");
     }
 
     public static JdbdSQLException noReturnColumn() {

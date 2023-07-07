@@ -102,7 +102,9 @@ public interface DatabaseProtocol {
      * This method is underlying api of {@link MultiStatement#executeBatchUpdate()} method.
      * </p>
      */
-    Flux<ResultStates> multiStmtBatch(ParamMultiStmt stmt);
+    Flux<ResultStates> multiStmtBatchUpdate(ParamMultiStmt stmt);
+
+    BatchQuery multiStmtBatchQuery(ParamMultiStmt stmt);
 
     /**
      * <p>

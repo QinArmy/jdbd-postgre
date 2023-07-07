@@ -3,18 +3,20 @@ package io.jdbd.mysql.session;
 
 import io.jdbd.JdbdXaException;
 import io.jdbd.mysql.MySQLJdbdException;
-import io.jdbd.mysql.protocol.client.ClientProtocol;
+import io.jdbd.mysql.protocol.MySQLProtocol;
 import io.jdbd.mysql.stmt.Stmts;
 import io.jdbd.mysql.util.MySQLBuffers;
 import io.jdbd.mysql.util.MySQLExceptions;
 import io.jdbd.mysql.util.MySQLStrings;
-import io.jdbd.pool.PoolGlobalDatabaseSession;
+import io.jdbd.pool.PoolRmDatabaseSession;
+import io.jdbd.result.CurrentRow;
 import io.jdbd.result.ResultRow;
 import io.jdbd.result.ResultStates;
 import io.jdbd.session.RmDatabaseSession;
 import io.jdbd.session.Xid;
 import io.jdbd.vendor.session.XidImpl;
 import io.jdbd.vendor.util.JdbdExceptions;
+import org.reactivestreams.Publisher;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -26,18 +28,22 @@ import java.util.Objects;
  * This class is implementation of {@link RmDatabaseSession} with MySQL client protocol.
  * </p>
  */
-class MySQLXaDatabaseSession extends MySQLDatabaseSession implements RmDatabaseSession {
+class MySQLRmDatabaseSession extends MySQLDatabaseSession<RmDatabaseSession> implements RmDatabaseSession {
 
-    static RmDatabaseSession create(SessionAdjutant adjutant, ClientProtocol protocol) {
-        return new MySQLXaDatabaseSession(adjutant, protocol);
+    static RmDatabaseSession create(MySQLDatabaseSessionFactory factory, MySQLProtocol protocol) {
+        return new MySQLRmDatabaseSession(factory, protocol);
     }
 
-    static PoolGlobalDatabaseSession forPoolVendor(SessionAdjutant adjutant, ClientProtocol protocol) {
-        return new MySQLPoolXaDatabaseSession(adjutant, protocol);
+    static PoolRmDatabaseSession forPoolVendor(MySQLDatabaseSessionFactory factory, MySQLProtocol protocol) {
+        return new MySQLPoolRmDatabaseSession(factory, protocol);
     }
 
-    private MySQLXaDatabaseSession(SessionAdjutant adjutant, ClientProtocol protocol) {
-        super(adjutant, protocol);
+
+    /**
+     * private constructor
+     */
+    private MySQLRmDatabaseSession(MySQLDatabaseSessionFactory factory, MySQLProtocol protocol) {
+        super(factory, protocol);
     }
 
 
@@ -153,7 +159,7 @@ class MySQLXaDatabaseSession extends MySQLDatabaseSession implements RmDatabaseS
         } else if ((flags & TMSTARTRSCAN) == 0) {
             flux = Flux.empty();
         } else {
-            flux = this.protocol.query(Stmts.stmt("XA RECOVER"))
+            flux = this.protocol.query(Stmts.stmt("XA RECOVER"), CurrentRow::asResultRow)
                     .map(this::mapRecoverResult);
         }
         return flux;
@@ -261,29 +267,35 @@ class MySQLXaDatabaseSession extends MySQLDatabaseSession implements RmDatabaseS
 
     /**
      * <p>
-     * This class is implementation of {@link PoolGlobalDatabaseSession} with MySQL client protocol.
+     * This class is implementation of {@link PoolRmDatabaseSession} with MySQL client protocol.
      * </p>
      */
-    private static final class MySQLPoolXaDatabaseSession extends MySQLXaDatabaseSession
-            implements PoolGlobalDatabaseSession {
+    private static final class MySQLPoolRmDatabaseSession extends MySQLRmDatabaseSession
+            implements PoolRmDatabaseSession {
 
-        private MySQLPoolXaDatabaseSession(SessionAdjutant adjutant, ClientProtocol protocol) {
-            super(adjutant, protocol);
+        private MySQLPoolRmDatabaseSession(MySQLDatabaseSessionFactory factory, MySQLProtocol protocol) {
+            super(factory, protocol);
         }
 
         @Override
-        public Mono<PoolGlobalDatabaseSession> ping(int timeoutSeconds) {
+        public Publisher<PoolRmDatabaseSession> reconnect(int maxReconnect) {
+            return this.protocol.reconnect(maxReconnect)
+                    .thenReturn(this);
+        }
+
+        @Override
+        public Mono<PoolRmDatabaseSession> ping(int timeoutSeconds) {
             return this.protocol.ping(timeoutSeconds)
                     .thenReturn(this);
         }
 
         @Override
-        public Mono<PoolGlobalDatabaseSession> reset() {
+        public Mono<PoolRmDatabaseSession> reset() {
             return this.protocol.reset()
                     .thenReturn(this);
         }
 
 
-    }
+    }// MySQLPoolRmDatabaseSession
 
 }

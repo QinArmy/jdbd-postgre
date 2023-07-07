@@ -2,13 +2,14 @@ package io.jdbd.mysql.session;
 
 import io.jdbd.JdbdException;
 import io.jdbd.PropertyException;
-import io.jdbd.env.JdbdEnvironment;
+import io.jdbd.mysql.protocol.MySQLProtocol;
+import io.jdbd.mysql.protocol.MySQLProtocolFactory;
 import io.jdbd.mysql.protocol.authentication.AuthenticationPlugin;
 import io.jdbd.mysql.protocol.authentication.PluginUtils;
-import io.jdbd.mysql.protocol.client.ClientProtocol;
 import io.jdbd.mysql.protocol.client.ClientProtocolFactory;
 import io.jdbd.mysql.protocol.conf.MyKey;
 import io.jdbd.mysql.protocol.conf.MySQLUrl;
+import io.jdbd.mysql.protocol.env.ProtocolEnvironment;
 import io.jdbd.mysql.util.MySQLExceptions;
 import io.jdbd.mysql.util.MySQLStrings;
 import io.jdbd.session.DatabaseSessionFactory;
@@ -31,95 +32,90 @@ public final class MySQLDatabaseSessionFactory implements DatabaseSessionFactory
 
     public static MySQLDatabaseSessionFactory create(String url, Map<String, Object> properties)
             throws JdbdException {
-        return new MySQLDatabaseSessionFactory(MySQLUrl.getInstance(url, properties), false);
+        return new MySQLDatabaseSessionFactory(createProtocolFactory(url, properties), false);
     }
 
     public static MySQLDatabaseSessionFactory forPoolVendor(String url, Map<String, Object> properties)
             throws JdbdException {
-        return new MySQLDatabaseSessionFactory(MySQLUrl.getInstance(url, properties), true);
+        return new MySQLDatabaseSessionFactory(createProtocolFactory(url, properties), true);
     }
 
 
-    private final MySQLUrl mySQLUrl;
+    private static MySQLProtocolFactory createProtocolFactory(String url, Map<String, Object> properties) {
+        final ProtocolEnvironment env;
+        env = ProtocolEnvironment.parse(url, properties);
+
+        final MySQLProtocolFactory factory;
+        switch (env.type()) {
+            case CLIENT:
+                factory = ClientProtocolFactory.from(env);
+                break;
+            case X:
+            default:
+                // no bug,never here
+                throw MySQLExceptions.unexpectedEnum(env.type());
+        }
+
+        return factory;
+    }
+
+
+    private final MySQLProtocolFactory protocolFactory;
 
     private final boolean forPoolVendor;
 
-    private final MySQLSessionAdjutant adjutant;
 
-    private MySQLDatabaseSessionFactory(MySQLUrl mySQLUrl, boolean forPoolVendor) {
-        this.mySQLUrl = mySQLUrl;
+    private MySQLDatabaseSessionFactory(MySQLProtocolFactory protocolFactory, boolean forPoolVendor) {
+        this.protocolFactory = protocolFactory;
         this.forPoolVendor = forPoolVendor;
-        this.adjutant = new MySQLSessionAdjutant(this);
     }
 
     @Override
     public Mono<LocalDatabaseSession> localSession() {
-        return getClientProtocol()
-                .map(this::createTxSession);
+        return this.protocolFactory.createProtocol()
+                .map(this::createLocalSession);
     }
 
     @Override
-    public Mono<RmDatabaseSession> globalSession() {
-        return getClientProtocol()
-                .map(this::createXaSession);
+    public Mono<RmDatabaseSession> rmSession() {
+        return this.protocolFactory.createProtocol()
+                .map(this::createRmSession);
     }
 
 
     @Override
     public String productName() {
-        return "MySQL";
+        return MY_SQL;
     }
 
     @Override
     public Publisher<Void> close() {
-        return null;
+        return this.protocolFactory.close();
     }
 
-    @Override
-    public JdbdEnvironment environment() {
-        return null;
-    }
-
-    private Mono<ClientProtocol> getClientProtocol() {
-        final Mono<ClientProtocol> protocolMono;
-        switch (mySQLUrl.protocolType) {
-            case SINGLE_CONNECTION:
-                protocolMono = ClientProtocolFactory.single(this.adjutant);
-                break;
-            case FAILOVER_CONNECTION:
-            case FAILOVER_DNS_SRV_CONNECTION:
-            case LOADBALANCE_CONNECTION:
-            case LOADBALANCE_DNS_SRV_CONNECTION:
-            case REPLICATION_CONNECTION:
-            case REPLICATION_DNS_SRV_CONNECTION:
-            default:
-                throw MySQLExceptions.createUnexpectedEnumException(mySQLUrl.protocolType);
-        }
-        return protocolMono;
-    }
 
     /**
      * @see #localSession()
      */
-    private LocalDatabaseSession createTxSession(final ClientProtocol protocol) {
+    private LocalDatabaseSession createLocalSession(final MySQLProtocol protocol) {
         final LocalDatabaseSession session;
         if (this.forPoolVendor) {
-            session = MySQLLocalDatabaseSession.forPoolVendor(this.adjutant, protocol);
+            session = MySQLLocalDatabaseSession.forPoolVendor(this, protocol);
         } else {
-            session = MySQLLocalDatabaseSession.create(this.adjutant, protocol);
+            session = MySQLLocalDatabaseSession.create(this, protocol);
         }
         return session;
     }
 
     /**
-     * @see #globalSession()
+     * @see #rmSession()
      */
-    private RmDatabaseSession createXaSession(ClientProtocol protocol) {
+    private RmDatabaseSession createRmSession(final MySQLProtocol protocol) {
         final RmDatabaseSession session;
         if (this.forPoolVendor) {
-            session = MySQLXaDatabaseSession.forPoolVendor(this.adjutant, protocol);
+            session = MySQLRmDatabaseSession.forPoolVendor(this, protocol);
         } else {
-            session = MySQLXaDatabaseSession.create(this.adjutant, protocol);
+            session = MySQLRmDatabaseSession.create(this, protocol);
         }
         return session;
     }

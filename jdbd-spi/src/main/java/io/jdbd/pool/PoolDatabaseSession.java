@@ -9,7 +9,7 @@ import org.reactivestreams.Publisher;
  * This interface is base interface of following :
  *     <ul>
  *         <li>{@link PoolLocalDatabaseSession}</li>
- *         <li>{@link PoolGlobalDatabaseSession}</li>
+ *         <li>{@link PoolRmDatabaseSession}</li>
  *     </ul>
  * </p>
  * <p>
@@ -23,13 +23,19 @@ import org.reactivestreams.Publisher;
  */
 public interface PoolDatabaseSession extends DatabaseSession {
 
+    /**
+     * @return {@link Publisher} that emit <strong>this</strong> when success.
+     */
     Publisher<? extends PoolDatabaseSession> reconnect(int maxReconnect);
 
+    /**
+     * @return {@link Publisher} that emit <strong>this</strong> when success.
+     */
     Publisher<? extends PoolDatabaseSession> ping(int timeoutSeconds);
 
 
     /**
-     * @return Publisher that emit this when success.
+     * @return {@link Publisher} that emit <strong>this</strong> when success.
      */
     Publisher<? extends PoolDatabaseSession> reset();
 

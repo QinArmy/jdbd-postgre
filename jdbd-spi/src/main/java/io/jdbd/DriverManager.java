@@ -67,7 +67,7 @@ public abstract class DriverManager {
      * <p>  This method returning {@link DatabaseSessionFactory} has below feature.
      *     <ul>
      *         <li>{@link DatabaseSessionFactory#localSession()} returning instance is {@code  io.jdbd.pool.PoolLocalDatabaseSession} instance</li>
-     *         <li>{@link DatabaseSessionFactory#globalSession()} returning instance is {@code  io.jdbd.pool.PoolGlobalDatabaseSession} instance</li>
+     *         <li>{@link DatabaseSessionFactory#rmSession()} returning instance is {@code  io.jdbd.pool.PoolGlobalDatabaseSession} instance</li>
      *     </ul>
      * </p>
      */

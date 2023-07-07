@@ -56,9 +56,6 @@ public abstract class Stmts extends JdbdStmts {
         return new MySQLSimpleBindMultiStmt(stmtList);
     }
 
-    public static BindMultiStmt multi(List<BindStmt> stmtList, MySQLStmtOption option) {
-        return new MySQLOptionBindMultiStmt(stmtList, option);
-    }
 
     @Deprecated
     public static BindBatchStmt batchBind(String sql, List<List<BindValue>> paramGroupList) {

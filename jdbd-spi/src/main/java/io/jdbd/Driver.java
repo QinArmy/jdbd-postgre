@@ -1,5 +1,6 @@
 package io.jdbd;
 
+import io.jdbd.pool.PoolRmDatabaseSession;
 import io.jdbd.session.DatabaseSessionFactory;
 
 import java.util.Map;
@@ -44,7 +45,7 @@ public interface Driver {
      * <p>  This method return {@link DatabaseSessionFactory} has below feature.
      *     <ul>
      *         <li>{@link DatabaseSessionFactory#localSession()} returning instance is {@link   io.jdbd.pool.PoolLocalDatabaseSession} instance</li>
-     *         <li>{@link DatabaseSessionFactory#globalSession()} returning instance is {@link  io.jdbd.pool.PoolGlobalDatabaseSession} instance</li>
+     *         <li>{@link DatabaseSessionFactory#rmSession()} returning instance is {@link  PoolRmDatabaseSession} instance</li>
      *     </ul>
      * </p>
      * <p>

@@ -4,12 +4,9 @@ import io.jdbd.JdbdException;
 import io.jdbd.JdbdSQLException;
 import io.jdbd.lang.Nullable;
 import io.jdbd.meta.DataType;
-import io.jdbd.mysql.MySQLJdbdException;
 import io.jdbd.mysql.MySQLType;
-import io.jdbd.mysql.stmt.BindMultiStmt;
-import io.jdbd.mysql.stmt.BindStmt;
-import io.jdbd.mysql.stmt.BindValue;
 import io.jdbd.mysql.stmt.Stmts;
+import io.jdbd.mysql.util.MySQLBinds;
 import io.jdbd.mysql.util.MySQLCollections;
 import io.jdbd.mysql.util.MySQLExceptions;
 import io.jdbd.mysql.util.MySQLStrings;
@@ -17,14 +14,20 @@ import io.jdbd.result.BatchQuery;
 import io.jdbd.result.MultiResult;
 import io.jdbd.result.OrderedFlux;
 import io.jdbd.result.ResultStates;
-import io.jdbd.statement.BindStatement;
 import io.jdbd.statement.MultiStatement;
+import io.jdbd.statement.OutParameter;
 import io.jdbd.vendor.result.MultiResults;
+import io.jdbd.vendor.stmt.JdbdValues;
 import io.jdbd.vendor.stmt.ParamStmt;
 import io.jdbd.vendor.stmt.ParamValue;
+import io.jdbd.vendor.util.JdbdBinds;
+import org.reactivestreams.Publisher;
 import reactor.core.publisher.Flux;
 
+import java.nio.file.Path;
 import java.util.List;
+
+import static io.jdbd.mysql.session.MySQLDatabaseSessionFactory.MY_SQL;
 
 /**
  * <p>
@@ -63,10 +66,12 @@ final class MySQLMultiStatement extends MySQLStatement<MultiStatement> implement
 
         if (paramGroup == EMPTY_PARAM_GROUP) {
             error = MySQLExceptions.cannotReuseStatement(MultiStatement.class);
-        } else if (MySQLStrings.hasText(sql)) {
+        } else if (!MySQLStrings.hasText(sql)) {
+            error = MySQLExceptions.sqlIsEmpty();
+        } else if (paramGroup == null) {
             error = null;
         } else {
-            error = MySQLExceptions.sqlIsEmpty();
+            error = JdbdBinds.sortAndCheckParamGroup(this.stmtGroup.size(), paramGroup);
         }
 
         if (error != null) {
@@ -88,34 +93,55 @@ final class MySQLMultiStatement extends MySQLStatement<MultiStatement> implement
     @Override
     public MultiStatement bind(final int indexBasedZero, final @Nullable DataType dataType,
                                final @Nullable Object nullable) throws JdbdException {
-        checkReuse();
-        final List<BindValue> bindGroup = this.paramGroup;
-        if (bindGroup == null) {
-            throw MySQLExceptions.sqlIsEmpty();
+
+        List<ParamValue> paramGroup = this.paramGroup;
+
+        final MySQLType type;
+
+        final RuntimeException error;
+        if (paramGroup == EMPTY_PARAM_GROUP) {
+            error = MySQLExceptions.cannotReuseStatement(MultiStatement.class);
+        } else if (indexBasedZero < 0) {
+            error = MySQLExceptions.invalidParameterValue(this.stmtGroup.size(), indexBasedZero);
+        } else if (nullable instanceof OutParameter) {
+            error = MySQLExceptions.dontSupportOutParameter(indexBasedZero, MultiStatement.class, MY_SQL);
+        } else if (nullable instanceof Publisher || nullable instanceof Path) {
+            error = MySQLExceptions.dontSupportJavaType(indexBasedZero, nullable, MY_SQL);
+        } else if (dataType == null) {
+            error = MySQLExceptions.dataTypeIsNull();
+        } else if ((type = MySQLBinds.handleDataType(dataType)) == null) {
+            error = MySQLExceptions.dontSupportDataType(dataType, MY_SQL);
+        } else {
+            error = null;
+            if (paramGroup == null) {
+                this.paramGroup = paramGroup = MySQLCollections.arrayList();
+            }
+            paramGroup.add(JdbdValues.paramValue(indexBasedZero, type, nullable));
         }
-        if (!(dataType instanceof MySQLType)) {
-            String m = String.format("sqlType isn't a instance of %s", MySQLType.class.getName());
-            throw new MySQLJdbdException(m);
+
+        if (error != null) {
+            clearStatementToAvoidReuse();
+            throw MySQLExceptions.wrap(error);
         }
-        if (indexBasedZero < 0) {
-            throw MySQLExceptions.invalidParameterValue(this.stmtGroup.size(), indexBasedZero);
-        }
-        bindGroup.add(BindValue.wrap(indexBasedZero, (MySQLType) dataType, nullable));
         return this;
     }
 
 
     @Override
     public Flux<ResultStates> executeBatchUpdate() {
-        final List<BindStmt> stmtGroup = this.stmtGroup;
+
+        if (this.paramGroup == EMPTY_PARAM_GROUP) {
+            return Flux.error(MySQLExceptions.cannotReuseStatement(MultiStatement.class));
+        }
+
+        this.endMultiStatement();
+
+        final List<ParamStmt> stmtGroup = this.stmtGroup;
         final Flux<ResultStates> flux;
-        if (this.paramGroup == null && stmtGroup.size() > 0) {
-            flux = Flux.error(MySQLExceptions.cannotReuseStatement(BindStatement.class));
-        } else if (stmtGroup.size() == 0) {
-            flux = Flux.error(MySQLExceptions.noAnyParamGroupError());
+        if (stmtGroup.size() == 0) {
+            flux = Flux.error(MySQLExceptions.multiStmtNoSql());
         } else {
-            final BindMultiStmt stmt = Stmts.multi(stmtGroup, this.statementOption);
-            flux = this.session.protocol.multiStmtBatch(stmt);
+            flux = this.session.protocol.multiStmtBatchUpdate(Stmts.multiStmt(stmtGroup, this));
         }
         clearStatementToAvoidReuse();
         return flux;
@@ -123,36 +149,57 @@ final class MySQLMultiStatement extends MySQLStatement<MultiStatement> implement
 
     @Override
     public BatchQuery executeBatchQuery() {
-        return null;
+        if (this.paramGroup == EMPTY_PARAM_GROUP) {
+            return MultiResults.batchQueryError(MySQLExceptions.cannotReuseStatement(MultiStatement.class));
+        }
+
+        this.endMultiStatement();
+
+        final List<ParamStmt> stmtGroup = this.stmtGroup;
+        final BatchQuery batchQuery;
+        if (stmtGroup.size() == 0) {
+            batchQuery = MultiResults.batchQueryError(MySQLExceptions.multiStmtNoSql());
+        } else {
+            batchQuery = this.session.protocol.multiStmtBatchQuery(Stmts.multiStmt(stmtGroup, this));
+        }
+        clearStatementToAvoidReuse();
+        return batchQuery;
     }
 
     @Override
     public MultiResult executeBatchAsMulti() {
-        final List<BindStmt> stmtGroup = this.stmtGroup;
-        final MultiResult result;
-        if (this.paramGroup == null && stmtGroup.size() > 0) {
-            result = MultiResults.error(MySQLExceptions.cannotReuseStatement(BindStatement.class));
-        } else if (stmtGroup.size() == 0) {
-            result = MultiResults.error(MySQLExceptions.noAnyParamGroupError());
+        if (this.paramGroup == EMPTY_PARAM_GROUP) {
+            return MultiResults.error(MySQLExceptions.cannotReuseStatement(MultiStatement.class));
+        }
+
+        this.endMultiStatement();
+
+        final List<ParamStmt> stmtGroup = this.stmtGroup;
+        final MultiResult multiResult;
+        if (stmtGroup.size() == 0) {
+            multiResult = MultiResults.error(MySQLExceptions.multiStmtNoSql());
         } else {
-            final BindMultiStmt stmt = Stmts.multi(stmtGroup, this.statementOption);
-            result = this.session.protocol.multiStmtAsMulti(stmt);
+            multiResult = this.session.protocol.multiStmtAsMulti(Stmts.multiStmt(stmtGroup, this));
         }
         clearStatementToAvoidReuse();
-        return result;
+        return multiResult;
     }
 
     @Override
     public OrderedFlux executeBatchAsFlux() {
-        final List<BindStmt> stmtGroup = this.stmtGroup;
+
+        if (this.paramGroup == EMPTY_PARAM_GROUP) {
+            return MultiResults.fluxError(MySQLExceptions.cannotReuseStatement(MultiStatement.class));
+        }
+
+        this.endMultiStatement();
+
+        final List<ParamStmt> stmtGroup = this.stmtGroup;
         final OrderedFlux flux;
-        if (this.paramGroup == null && stmtGroup.size() > 0) {
-            flux = MultiResults.fluxError(MySQLExceptions.cannotReuseStatement(BindStatement.class));
-        } else if (stmtGroup.size() == 0) {
-            flux = MultiResults.fluxError(MySQLExceptions.noAnyParamGroupError());
+        if (stmtGroup.size() == 0) {
+            flux = MultiResults.fluxError(MySQLExceptions.multiStmtNoSql());
         } else {
-            final BindMultiStmt stmt = Stmts.multi(stmtGroup, this.statementOption);
-            flux = this.session.protocol.multiStmtAsFlux(stmt);
+            flux = this.session.protocol.multiStmtAsFlux(Stmts.multiStmt(stmtGroup, this));
         }
         clearStatementToAvoidReuse();
         return flux;
@@ -201,6 +248,15 @@ final class MySQLMultiStatement extends MySQLStatement<MultiStatement> implement
         this.currentSql = null;
         this.paramGroup = EMPTY_PARAM_GROUP;
         this.stmtGroup.clear();
+    }
+
+    private void endMultiStatement() {
+        final String lastSql = this.currentSql;
+        if (lastSql != null) {
+            this.stmtGroup.add(Stmts.paramStmt(lastSql, this.paramGroup, this));
+        }
+        this.currentSql = null;
+        this.paramGroup = null;
     }
 
 
