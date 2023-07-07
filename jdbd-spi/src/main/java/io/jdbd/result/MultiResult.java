@@ -1,12 +1,9 @@
 package io.jdbd.result;
 
 
-import io.jdbd.statement.BindStatement;
-import io.jdbd.statement.PreparedStatement;
 import org.reactivestreams.Publisher;
 
 import java.util.function.Consumer;
-import java.util.function.Function;
 
 public interface MultiResult {
 

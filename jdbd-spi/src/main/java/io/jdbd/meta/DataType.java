@@ -1,15 +1,15 @@
 package io.jdbd.meta;
 
-import io.jdbd.statement.ParameterStatement;
+import io.jdbd.statement.ParametrizedStatement;
 
 /**
  * <p>
  * This interface representing sql data type,this interface is used by following:
  *     <ul>
- *         <li>{@link ParameterStatement#bind(int, DataType, Object)}</li>
+ *         <li>{@link ParametrizedStatement#bind(int, DataType, Object)}</li>
  *         <li>{@link io.jdbd.result.ResultRowMeta#getDataType(int)}</li>
  *     </ul>
- *     {@link ParameterStatement#bind(int, DataType, Object)} use {@link #typeName()} bind parameter, if not {@link JdbdType}.
+ *     {@link ParametrizedStatement#bind(int, DataType, Object)} use {@link #typeName()} bind parameter, if not {@link JdbdType}.
  * </p>
  * <p>
  *     The Known superinterfaces:

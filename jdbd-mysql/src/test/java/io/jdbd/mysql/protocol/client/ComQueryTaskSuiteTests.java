@@ -341,7 +341,7 @@ public class ComQueryTaskSuiteTests extends AbstractStmtTaskSuiteTests {
 
             fail("batchUpdateContainQueryWithSingleStmtMode test failure.");
         } catch (SubscribeException e) {
-            assertEquals(e.getSubscribeType(), ResultType.BATCH, "getSubscribeType");
+            assertEquals(e.getSubscribeType(), ResultType.BATCH_UPDATE, "getSubscribeType");
             assertEquals(e.getActualType(), ResultType.QUERY, "getActualType");
         } catch (Throwable e) {
             fail("batchUpdateContainQueryWithSingleStmtMode test failure.", e);
@@ -366,7 +366,7 @@ public class ComQueryTaskSuiteTests extends AbstractStmtTaskSuiteTests {
 
             fail("batchUpdateContainQueryWithSingleStmtMode test failure.");
         } catch (SubscribeException e) {
-            assertEquals(e.getSubscribeType(), ResultType.BATCH, "getSubscribeType");
+            assertEquals(e.getSubscribeType(), ResultType.BATCH_UPDATE, "getSubscribeType");
             assertEquals(e.getActualType(), ResultType.QUERY, "getActualType");
         } catch (Throwable e) {
             fail("batchUpdateContainQueryWithSingleStmtMode test failure.", e);
@@ -492,7 +492,7 @@ public class ComQueryTaskSuiteTests extends AbstractStmtTaskSuiteTests {
 
             fail("batchUpdateContainQueryWithTempMultiMode test failure.");
         } catch (SubscribeException e) {
-            assertEquals(e.getSubscribeType(), ResultType.BATCH, "getSubscribeType");
+            assertEquals(e.getSubscribeType(), ResultType.BATCH_UPDATE, "getSubscribeType");
             assertEquals(e.getActualType(), ResultType.QUERY, "getActualType");
         } catch (Throwable e) {
             if (e instanceof JdbdCompositeException) {
@@ -524,7 +524,7 @@ public class ComQueryTaskSuiteTests extends AbstractStmtTaskSuiteTests {
 
             fail("batchUpdateContainQueryWithTempMultiMode test failure.");
         } catch (SubscribeException e) {
-            assertEquals(e.getSubscribeType(), ResultType.BATCH, "getSubscribeType");
+            assertEquals(e.getSubscribeType(), ResultType.BATCH_UPDATE, "getSubscribeType");
             assertEquals(e.getActualType(), ResultType.QUERY, "getActualType");
         } catch (Throwable e) {
             if (e instanceof JdbdCompositeException) {
@@ -737,7 +737,7 @@ public class ComQueryTaskSuiteTests extends AbstractStmtTaskSuiteTests {
 
             fail("bindableBatchIsQueryWithSingleStmtMode test failure.");
         } catch (SubscribeException e) {
-            assertEquals(e.getSubscribeType(), ResultType.BATCH, "getSubscribeType");
+            assertEquals(e.getSubscribeType(), ResultType.BATCH_UPDATE, "getSubscribeType");
             assertEquals(e.getActualType(), ResultType.QUERY, "getActualType");
         } catch (Throwable e) {
             if (e instanceof JdbdCompositeException) {
@@ -783,7 +783,7 @@ public class ComQueryTaskSuiteTests extends AbstractStmtTaskSuiteTests {
 
             fail("bindableBatchIsQueryWithTempMultiMode test failure.");
         } catch (SubscribeException e) {
-            assertEquals(e.getSubscribeType(), ResultType.BATCH, "getSubscribeType");
+            assertEquals(e.getSubscribeType(), ResultType.BATCH_UPDATE, "getSubscribeType");
             assertEquals(e.getActualType(), ResultType.QUERY, "getActualType");
         } catch (Throwable e) {
             if (e instanceof JdbdCompositeException) {

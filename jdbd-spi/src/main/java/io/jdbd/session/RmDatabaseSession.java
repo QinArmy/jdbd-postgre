@@ -32,6 +32,12 @@ public interface RmDatabaseSession extends DatabaseSession {
     int XA_RDONLY = 3;
     int XA_OK = 0;
 
+    @Override
+    Publisher<RmDatabaseSession> releaseSavePoint(SavePoint savepoint);
+
+    @Override
+    Publisher<RmDatabaseSession> rollbackToSavePoint(SavePoint savepoint);
+
     /**
      * <p>
      * Start work on behalf of a transaction branch.The appropriate method in XA interface is

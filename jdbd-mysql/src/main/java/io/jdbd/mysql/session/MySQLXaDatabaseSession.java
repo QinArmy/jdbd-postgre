@@ -197,7 +197,7 @@ class MySQLXaDatabaseSession extends MySQLDatabaseSession implements RmDatabaseS
      * @see #start(Xid, int)
      */
     private ResultStates mapStartResult(final ResultStates states) {
-        if (this.protocol.startedTransaction(states)) {
+        if (this.protocol.isStartedTransaction(states)) {
             return states;
         }
         throw new MySQLJdbdException("XA START failure,session not in XA transaction.");
@@ -214,7 +214,7 @@ class MySQLXaDatabaseSession extends MySQLDatabaseSession implements RmDatabaseS
      * @see #commit(Xid, boolean)
      */
     private ResultStates mapCommitResult(final ResultStates states) {
-        if (this.protocol.startedTransaction(states)) {
+        if (this.protocol.isStartedTransaction(states)) {
             throw new MySQLJdbdException("XA COMMIT failure,session still in transaction.");
         }
         return states;
@@ -224,7 +224,7 @@ class MySQLXaDatabaseSession extends MySQLDatabaseSession implements RmDatabaseS
      * @see #commit(Xid, boolean)
      */
     private ResultStates mapRollbackResult(final ResultStates states) {
-        if (this.protocol.startedTransaction(states)) {
+        if (this.protocol.isStartedTransaction(states)) {
             throw new MySQLJdbdException("XA ROLLBACK failure,session still in transaction.");
         }
         return states;

@@ -8,6 +8,7 @@ import io.jdbd.meta.DataType;
 import io.jdbd.meta.SQLType;
 import io.jdbd.result.CurrentRow;
 import io.jdbd.result.ResultStates;
+import io.jdbd.session.SavePoint;
 import io.jdbd.statement.*;
 import io.jdbd.vendor.JdbdCompositeException;
 import io.jdbd.vendor.JdbdUnknownException;
@@ -284,6 +285,10 @@ public abstract class JdbdExceptions extends ExceptionUtils {
 
     public static JdbdException noInvokeAddBatch() {
         return new JdbdException("Not invoke addBatch()", SQLStates.INVALID_PARAMETER_VALUE, 0);
+    }
+
+    public static JdbdException unknownSavePoint(SavePoint savePoint) {
+        return new JdbdException(String.format("unknown %s %s", SavePoint.class.getName(), savePoint));
     }
 
     public static JdbdSQLException batchAsMultiNonSupportFetch() {

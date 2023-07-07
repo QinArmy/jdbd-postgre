@@ -1,10 +1,12 @@
 package io.jdbd.vendor.stmt;
 
 
+import io.jdbd.meta.DataType;
 import io.jdbd.result.ResultStates;
 import io.jdbd.vendor.util.JdbdCollections;
 import org.reactivestreams.Publisher;
 import org.reactivestreams.Subscriber;
+import reactor.util.annotation.Nullable;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -26,12 +28,10 @@ public abstract class JdbdStmts {
 
 
     public static StaticStmt stmt(final String sql) {
-        Objects.requireNonNull(sql, "sql");
         return new SimpleStaticStmt(sql);
     }
 
     public static StaticStmt stmt(final String sql, Consumer<ResultStates> statusConsumer) {
-        Objects.requireNonNull(sql, "sql");
         return new SimpleQueryStaticStmt(sql, statusConsumer);
     }
 
@@ -57,6 +57,15 @@ public abstract class JdbdStmts {
         return new OptionStaticBatchStmt(sqlGroup, option);
     }
 
+
+    public static ParamStmt single(String sql, ParamStmt bindValue) {
+        throw new UnsupportedOperationException();
+    }
+
+    public static ParamStmt single(String sql, DataType type, @Nullable Object value) {
+        throw new UnsupportedOperationException();
+    }
+
     public static StaticMultiStmt multiStmt(String multiStmt, StmtOption option) {
         return new OptionStaticMultiStmt(multiStmt, option);
     }
@@ -70,7 +79,7 @@ public abstract class JdbdStmts {
         return new SimpleQueryParamStmt<>(sql, paramGroup, statesConsumer);
     }
 
-    public static ParamBatchStmt<ParamValue> paramBatch(String sql, List<List<ParamValue>> groupList) {
+    public static ParamBatchStmt paramBatch(String sql, List<List<ParamValue>> groupList) {
         return new SimpleParamBatchStmt<>(sql, groupList);
     }
 

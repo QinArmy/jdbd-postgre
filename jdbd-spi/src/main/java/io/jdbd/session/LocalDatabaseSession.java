@@ -8,10 +8,16 @@ public interface LocalDatabaseSession extends DatabaseSession {
 
     Publisher<LocalDatabaseSession> startTransaction(TransactionOption option);
 
-    default boolean inTransaction(){
+    default boolean inTransaction() {
         return false;
     }
 
+
+    @Override
+    Publisher<LocalDatabaseSession> releaseSavePoint(SavePoint savepoint);
+
+    @Override
+    Publisher<LocalDatabaseSession> rollbackToSavePoint(SavePoint savepoint);
 
     Publisher<LocalDatabaseSession> commit();
 

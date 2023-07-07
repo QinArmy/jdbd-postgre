@@ -1,12 +1,10 @@
 package io.jdbd.mysql.stmt;
 
-import io.jdbd.mysql.MySQLType;
 import io.jdbd.result.ResultStates;
 import io.jdbd.vendor.stmt.*;
 import io.jdbd.vendor.util.JdbdFunctions;
 import org.reactivestreams.Publisher;
 import org.reactivestreams.Subscriber;
-import reactor.util.annotation.Nullable;
 
 import java.util.Collections;
 import java.util.List;
@@ -47,13 +45,7 @@ public abstract class Stmts extends JdbdStmts {
         return new MySQLOptionParamBatchStmt<>(sql, groupList, option);
     }
 
-    public static BindStmt single(String sql, BindValue bindValue) {
-        return new MySQLSimpleBindStmt(sql, Collections.singletonList(bindValue));
-    }
 
-    public static BindStmt single(String sql, MySQLType type, @Nullable Object value) {
-        return new MySQLSimpleBindStmt(sql, Collections.singletonList(BindValue.wrap(0, type, value)));
-    }
 
     public static BindStmt bind(String sql, List<BindValue> bindGroup) {
         return new MySQLSimpleBindStmt(sql, bindGroup);

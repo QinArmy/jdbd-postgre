@@ -93,7 +93,7 @@ final class BatchUpdateResultSubscriber extends JdbdResultSubscriber {
 
     @Override
     ResultType getSubscribeType() {
-        return ResultType.BATCH;
+        return ResultType.BATCH_UPDATE;
     }
 
 

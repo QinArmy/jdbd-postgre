@@ -144,7 +144,7 @@ final class PgBindStatement extends PgStatement implements BindStatement {
 
         final Mono<ResultStates> mono;
         if (!this.paramGroupList.isEmpty()) {
-            mono = Mono.error(new SubscribeException(ResultType.UPDATE, ResultType.BATCH));
+            mono = Mono.error(new SubscribeException(ResultType.UPDATE, ResultType.BATCH_UPDATE));
         } else {
             final JdbdException error;
             error = JdbdBinds.sortAndCheckParamGroup(0, paramGroup);
@@ -178,7 +178,7 @@ final class PgBindStatement extends PgStatement implements BindStatement {
             BindStmt stmt = PgStmts.bind(this.sql, paramGroup, statesConsumer, this);
             flux = this.session.protocol.bindQuery(stmt);
         } else {
-            flux = Flux.error(new SubscribeException(ResultType.QUERY, ResultType.BATCH));
+            flux = Flux.error(new SubscribeException(ResultType.QUERY, ResultType.BATCH_UPDATE));
         }
         return flux;
     }

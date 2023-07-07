@@ -3,6 +3,7 @@ package io.jdbd.statement;
 import io.jdbd.JdbdException;
 import io.jdbd.lang.Nullable;
 import io.jdbd.meta.DataType;
+import io.jdbd.result.OutResult;
 import org.reactivestreams.Publisher;
 import org.reactivestreams.Subscriber;
 
@@ -10,18 +11,20 @@ import java.util.function.Function;
 
 /**
  * <p>
+ * This interface representing parametrized statement that SQL parameter placeholder must be {@code ?} .
+ * </p>
+ * <p>
  * This interface is base interface of following :
  *     <ul>
  *         <li>{@link BindStatement}</li>
  *         <li>{@link PreparedStatement}</li>
- *         <li>{@link OneStepPrepareStatement}</li>
  *         <li>{@link MultiStatement}</li>
  *     </ul>
  * </p>
  *
  * @since 1.0
  */
-public interface ParameterStatement extends Statement {
+public interface ParametrizedStatement extends Statement {
 
 
     /**
@@ -42,43 +45,45 @@ public interface ParameterStatement extends Statement {
      * </ul>
      * </p>
      *
-     * @param indexBasedZero parameter placeholder index based zero.
-     * @param nullable       nullable the parameter value
+     * @param indexBasedZero parameter placeholder index based zero, the first value is 0 .
      * @param dataType       parameter type.
+     * @param nullable       nullable the parameter value; If value is {@link OutParameter}  type,then it representing out parameter of stored procedure.
+     *                       see {@link  OutResult}.
+     * @see OutParameter
      */
-    ParameterStatement bind(int indexBasedZero, DataType dataType, @Nullable Object nullable) throws JdbdException;
+    ParametrizedStatement bind(int indexBasedZero, DataType dataType, @Nullable Object nullable) throws JdbdException;
 
 
     /**
      * {@inheritDoc }
      */
     @Override
-    ParameterStatement bindStmtVar(String name, DataType dataType, @Nullable Object nullable) throws JdbdException;
+    ParametrizedStatement bindStmtVar(String name, DataType dataType, @Nullable Object nullable) throws JdbdException;
 
 
     /**
      * {@inheritDoc }
      */
     @Override
-    ParameterStatement setTimeout(int seconds) throws JdbdException;
+    ParametrizedStatement setTimeout(int seconds) throws JdbdException;
 
     /**
      * {@inheritDoc }
      */
     @Override
-    ParameterStatement setFetchSize(int fetchSize) throws JdbdException;
+    ParametrizedStatement setFetchSize(int fetchSize) throws JdbdException;
 
     /**
      * {@inheritDoc }
      */
     @Override
-    ParameterStatement setImportPublisher(Function<Object, Publisher<byte[]>> function) throws JdbdException;
+    ParametrizedStatement setImportPublisher(Function<Object, Publisher<byte[]>> function) throws JdbdException;
 
     /**
      * {@inheritDoc }
      */
     @Override
-    ParameterStatement setExportSubscriber(Function<Object, Subscriber<byte[]>> function) throws JdbdException;
+    ParametrizedStatement setExportSubscriber(Function<Object, Subscriber<byte[]>> function) throws JdbdException;
 
 
 }

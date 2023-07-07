@@ -68,12 +68,12 @@ public abstract class JdbdCollections {
     }
 
 
-    public static boolean isEmpty(@io.qinarmy.lang.Nullable Collection<?> collection) {
-        return collection == null || collection.isEmpty();
+    public static boolean isEmpty(@Nullable Collection<?> collection) {
+        return collection == null || collection.size() == 0;
     }
 
-    public static boolean isEmpty(@io.qinarmy.lang.Nullable Map<?, ?> map) {
-        return map == null || map.isEmpty();
+    public static boolean isEmpty(@Nullable Map<?, ?> map) {
+        return map == null || map.size() == 0;
     }
 
 

@@ -172,7 +172,7 @@ final class ClientProtocolImpl implements ClientProtocol {
     }
 
     @Override
-    public Mono<TransactionStatus> getTransactionOption() {
+    public Mono<TransactionStatus> transactionStatus() {
         final MySQLServerVersion version = this.adjutant.handshake10().getServerVersion();
         final StringBuilder builder = new StringBuilder(139);
         if (version.meetsMinimum(8, 0, 3)
@@ -255,7 +255,7 @@ final class ClientProtocolImpl implements ClientProtocol {
     }
 
     @Override
-    public boolean startedTransaction(ResultStates states) {
+    public boolean isStartedTransaction(ResultStates states) {
         return TerminatorPacket.startedTransaction(((MySQLResultStates) states).serverStatus);
     }
 
@@ -270,7 +270,7 @@ final class ClientProtocolImpl implements ClientProtocol {
     }
 
     @Override
-    public ServerVersion getServerVersion() {
+    public ServerVersion serverVersion() {
         return this.adjutant.handshake10().getServerVersion();
     }
 
@@ -385,7 +385,7 @@ final class ClientProtocolImpl implements ClientProtocol {
 
 
     /**
-     * @see #getTransactionOption()
+     * @see #transactionStatus()
      */
     private TransactionStatus mapTxOption(final ResultRow row, final ResultStates states) {
         Objects.requireNonNull(states, "states");

@@ -18,15 +18,14 @@ import java.util.function.Function;
  * This interface is base interface of followning:
  *     <ul>
  *         <li>{@link BindStatement}</li>
- *         <li>{@link ServerPrepareStatement}</li>
+ *         <li>{@link PreparedStatement}</li>
  *     </ul>
  * </p>
  *
  * @see BindStatement
- * @see ServerPrepareStatement
+ * @see PreparedStatement
  */
-public interface BindSingleStatement extends ParameterStatement, BindMultiResultStatement {
-
+public interface BindSingleStatement extends ParametrizedStatement, BindMultiResultStatement {
 
 
     /**

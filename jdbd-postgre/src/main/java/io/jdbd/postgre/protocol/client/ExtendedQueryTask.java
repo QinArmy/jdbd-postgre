@@ -441,7 +441,7 @@ final class ExtendedQueryTask extends AbstractStmtTask implements PrepareTask<Pg
     /**
      * @see #executeUpdate(ParamStmt)
      * @see #executeQuery(ParamStmt)
-     * @see #executeBatch(ParamBatchStmt)
+     * @see #executeBatchUpdate(ParamBatchStmt)
      * @see #executeBatchAsMulti(ParamBatchStmt)
      * @see #executeBatchAsFlux(ParamBatchStmt)
      */

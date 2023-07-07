@@ -2,7 +2,14 @@ package io.jdbd.session;
 
 import io.jdbd.JdbdException;
 
-
+/**
+ * <p>
+ * This enum is a standard implementation of {@link TransactionStatus}
+ * that {@link TransactionStatus#inTransaction()} always is false.
+ * </p>
+ *
+ * @since 1.0
+ */
 enum JdbdTransactionOption implements TransactionStatus {
 
     DEFAULT_READ(Isolation.DEFAULT, true),
@@ -72,8 +79,11 @@ enum JdbdTransactionOption implements TransactionStatus {
 
     @Override
     public final String toString() {
-        return String.format("%s[isolation:%s,readOnly:%s].", JdbdTransactionOption.class.getName(),
-                this.isolation.name(), this.readOnly);
+        return String.format("%s[inTransaction:false,isolation:%s,readOnly:%s].",
+                JdbdTransactionOption.class.getName(),
+                this.isolation.name(),
+                this.readOnly
+        );
     }
 
 

@@ -23,7 +23,7 @@ import org.reactivestreams.Publisher;
  */
 public interface PoolDatabaseSession extends DatabaseSession {
 
-    Publisher<? extends PoolDatabaseSession> reconnect();
+    Publisher<? extends PoolDatabaseSession> reconnect(int maxReconnect);
 
     Publisher<? extends PoolDatabaseSession> ping(int timeoutSeconds);
 

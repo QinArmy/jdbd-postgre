@@ -38,7 +38,7 @@ import java.util.function.Function;
  *     {@link PreparedStatement} have no close() method.
  * </p>
  */
-public interface PreparedStatement extends ServerPrepareStatement {
+public interface PreparedStatement extends BindSingleStatement {
 
     @Nullable
     ResultRowMeta resultRowMeta();

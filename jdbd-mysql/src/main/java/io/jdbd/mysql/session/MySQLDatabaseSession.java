@@ -2,16 +2,23 @@ package io.jdbd.mysql.session;
 
 import io.jdbd.meta.DatabaseMetaData;
 import io.jdbd.mysql.MySQLType;
-import io.jdbd.mysql.protocol.client.ClientProtocol;
+import io.jdbd.mysql.protocol.MySQLProtocol;
+import io.jdbd.mysql.stmt.Stmts;
+import io.jdbd.mysql.util.MySQLCollections;
+import io.jdbd.mysql.util.MySQLExceptions;
 import io.jdbd.mysql.util.MySQLStrings;
-import io.jdbd.result.CurrentRow;
-import io.jdbd.result.MultiResult;
-import io.jdbd.result.OrderedFlux;
-import io.jdbd.result.ResultStates;
+import io.jdbd.result.*;
 import io.jdbd.session.*;
-import io.jdbd.statement.*;
+import io.jdbd.statement.BindStatement;
+import io.jdbd.statement.MultiStatement;
+import io.jdbd.statement.PreparedStatement;
+import io.jdbd.statement.StaticStatement;
+import io.jdbd.vendor.result.JdbdSavePoint;
+import io.jdbd.vendor.result.MultiResults;
+import io.jdbd.vendor.stmt.ParamStmt;
 import io.jdbd.vendor.task.PrepareTask;
 import org.reactivestreams.Publisher;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.util.List;
@@ -26,62 +33,95 @@ import java.util.function.Function;
  * <ul>
  *     <li>{@link MySQLStaticStatement}</li>
  *     <li>{@link MySQLPreparedStatement}</li>
+ *     <li>{@link MySQLOneStepPrepareStatement}</li>
  *     <li>{@link MySQLBindStatement}</li>
  *     <li>{@link MySQLMultiStatement}</li>
  * </ul>
  *
  * </p>
  */
-abstract class MySQLDatabaseSession implements DatabaseSession {
+abstract class MySQLDatabaseSession<S extends DatabaseSession> implements DatabaseSession {
 
-    final SessionAdjutant adjutant;
+    final MySQLDatabaseSessionFactory factory;
 
-    final ClientProtocol protocol;
+    final MySQLProtocol protocol;
 
-    MySQLDatabaseSession(SessionAdjutant adjutant, ClientProtocol protocol) {
-        this.adjutant = adjutant;
+    MySQLDatabaseSession(MySQLDatabaseSessionFactory factory, MySQLProtocol protocol) {
+        this.factory = factory;
         this.protocol = protocol;
     }
 
 
     @Override
     public final Publisher<ResultStates> executeUpdate(String sql) {
-        return null;
+        if (!MySQLStrings.hasText(sql)) {
+            return Mono.error(MySQLExceptions.sqlIsEmpty());
+        }
+        return this.protocol.update(Stmts.stmt(sql));
+    }
+
+    @Override
+    public final Publisher<ResultRow> executeQuery(String sql) {
+        return this.executeQuery(sql, CurrentRow::asResultRow, Stmts.IGNORE_RESULT_STATES);
     }
 
     @Override
     public final <R> Publisher<R> executeQuery(String sql, Function<CurrentRow, R> function) {
-        return null;
+        return this.executeQuery(sql, function, Stmts.IGNORE_RESULT_STATES);
     }
 
     @Override
-    public final <R> Publisher<R> executeQuery(String sql, Function<CurrentRow, R> function, Consumer<ResultStates> statesConsumer) {
-        return null;
+    public final <R> Publisher<R> executeQuery(String sql, Function<CurrentRow, R> function,
+                                               Consumer<ResultStates> consumer) {
+        if (!MySQLStrings.hasText(sql)) {
+            return Flux.error(MySQLExceptions.sqlIsEmpty());
+        }
+        return this.protocol.query(Stmts.stmt(sql, consumer), function);
+    }
+
+    @Override
+    public final BatchQuery executeBatchQuery(List<String> sqlGroup) {
+        if (MySQLCollections.isEmpty(sqlGroup)) {
+            return MultiResults.batchQueryError(MySQLExceptions.sqlIsEmpty());
+        }
+        return this.protocol.batchQuery(Stmts.batch(sqlGroup));
     }
 
     @Override
     public final Publisher<ResultStates> executeBatchUpdate(List<String> sqlGroup) {
-        return null;
+        if (MySQLCollections.isEmpty(sqlGroup)) {
+            return Flux.error(MySQLExceptions.sqlIsEmpty());
+        }
+        return this.protocol.batchUpdate(Stmts.batch(sqlGroup));
     }
 
     @Override
     public final MultiResult executeBatchAsMulti(List<String> sqlGroup) {
-        return null;
+        if (MySQLCollections.isEmpty(sqlGroup)) {
+            return MultiResults.error(MySQLExceptions.sqlIsEmpty());
+        }
+        return this.protocol.batchAsMulti(Stmts.batch(sqlGroup));
     }
 
     @Override
     public final OrderedFlux executeBatchAsFlux(List<String> sqlGroup) {
-        return null;
+        if (MySQLCollections.isEmpty(sqlGroup)) {
+            return MultiResults.fluxError(MySQLExceptions.sqlIsEmpty());
+        }
+        return this.protocol.batchAsFlux(Stmts.batch(sqlGroup));
     }
 
     @Override
     public final OrderedFlux executeAsFlux(String multiStmt) {
-        return null;
+        if (!MySQLStrings.hasText(multiStmt)) {
+            return MultiResults.fluxError(MySQLExceptions.sqlIsEmpty());
+        }
+        return this.protocol.executeAsFlux(Stmts.multiStmt(multiStmt));
     }
 
     @Override
-    public final Mono<TransactionStatus> transactionStatus() {
-        return this.protocol.getTransactionOption();
+    public final Publisher<TransactionStatus> transactionStatus() {
+        return this.protocol.transactionStatus();
     }
 
     @Override
@@ -90,25 +130,25 @@ abstract class MySQLDatabaseSession implements DatabaseSession {
     }
 
     @Override
-    public final Mono<PreparedStatement> prepare(final String sql) {
+    public final Publisher<PreparedStatement> prepare(final String sql) {
         if (!MySQLStrings.hasText(sql)) {
-            throw new IllegalArgumentException("sql must has text.");
+            return Mono.error(MySQLExceptions.sqlIsEmpty());
         }
         return this.protocol.prepare(sql, this::createPreparedStatement);
     }
 
 
     @Override
-    public OneStepPrepareStatement oneStep(String sql) {
-        return null;
+    public final BindStatement bindStatement(final String sql) {
+        if (!MySQLStrings.hasText(sql)) {
+            throw MySQLExceptions.sqlIsEmpty();
+        }
+        return MySQLBindStatement.create(this, sql);
     }
 
     @Override
-    public final BindStatement bindStatement(final String sql) {
-        if (!MySQLStrings.hasText(sql)) {
-            throw new IllegalArgumentException("sql must has text.");
-        }
-        return MySQLBindStatement.create(this, sql);
+    public final BindStatement bindStatement(String sql, boolean forcePrepare) {
+        return null;
     }
 
     @Override
@@ -119,6 +159,12 @@ abstract class MySQLDatabaseSession implements DatabaseSession {
     @Override
     public final DatabaseMetaData databaseMetaData() {
         throw new UnsupportedOperationException();
+    }
+
+
+    @Override
+    public final boolean supportStmtVar() {
+        return this.protocol.serverVersion().meetsMinimum(8, 0, 23);
     }
 
     @Override
@@ -132,23 +178,39 @@ abstract class MySQLDatabaseSession implements DatabaseSession {
     }
 
     @Override
-    public final Mono<SavePoint> setSavePoint() {
-        throw new UnsupportedOperationException();
+    public final Publisher<SavePoint> setSavePoint() {
+        return this.protocol.createSavePoint();
     }
 
     @Override
-    public final Mono<SavePoint> setSavePoint(final String name) {
-        throw new UnsupportedOperationException();
+    public final Publisher<SavePoint> setSavePoint(final String name) {
+        return this.protocol.createSavePoint(name);
     }
 
+    @SuppressWarnings("unchecked")
     @Override
-    public final Mono<Void> releaseSavePoint(final SavePoint savepoint) {
-        throw new UnsupportedOperationException();
+    public final Publisher<S> releaseSavePoint(final SavePoint savepoint) {
+        if (!(savepoint instanceof JdbdSavePoint && MySQLStrings.hasText(savepoint.name()))) {
+            return Mono.error(MySQLExceptions.unknownSavePoint(savepoint));
+        }
+
+        final ParamStmt stmt;
+        stmt = Stmts.single("RELEASE SAVEPOINT ? ", MySQLType.VARCHAR, savepoint.name());
+        return this.protocol.bindUpdate(stmt, false)
+                .thenReturn((S) this);
     }
 
+    @SuppressWarnings("unchecked")
     @Override
-    public final Mono<Void> rollbackToSavePoint(final SavePoint savepoint) {
-        throw new UnsupportedOperationException();
+    public final Publisher<S> rollbackToSavePoint(final SavePoint savepoint) {
+        if (!(savepoint instanceof JdbdSavePoint && MySQLStrings.hasText(savepoint.name()))) {
+            return Mono.error(MySQLExceptions.unknownSavePoint(savepoint));
+        }
+
+        final ParamStmt stmt;
+        stmt = Stmts.single("ROLLBACK TO SAVEPOINT ? ", MySQLType.VARCHAR, savepoint.name());
+        return this.protocol.bindUpdate(stmt, false)
+                .thenReturn((S) this);
     }
 
     @Override
@@ -158,7 +220,7 @@ abstract class MySQLDatabaseSession implements DatabaseSession {
 
     @Override
     public final ServerVersion serverVersion() {
-        return this.protocol.getServerVersion();
+        return this.protocol.serverVersion();
     }
 
     @Override
@@ -180,7 +242,7 @@ abstract class MySQLDatabaseSession implements DatabaseSession {
 
     /*################################## blow private method ##################################*/
 
-    private PreparedStatement createPreparedStatement(final PrepareTask<MySQLType> task) {
+    private PreparedStatement createPreparedStatement(final PrepareTask task) {
         return MySQLPreparedStatement.create(this, task);
     }
 

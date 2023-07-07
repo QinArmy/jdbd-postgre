@@ -1,10 +1,9 @@
 package io.jdbd.vendor.task;
 
-import io.jdbd.meta.SQLType;
+import io.jdbd.meta.DataType;
 import io.jdbd.result.*;
 import io.jdbd.vendor.stmt.ParamBatchStmt;
 import io.jdbd.vendor.stmt.ParamStmt;
-import io.jdbd.vendor.stmt.ParamValue;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.util.annotation.Nullable;
@@ -13,19 +12,21 @@ import java.util.List;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
-public interface PrepareTask<T extends SQLType> {
+public interface PrepareTask {
 
     Mono<ResultStates> executeUpdate(ParamStmt stmt);
 
     <R> Flux<R> executeQuery(ParamStmt stmt, Function<CurrentRow, R> function, Consumer<ResultStates> consumer);
 
-    Flux<ResultStates> executeBatch(ParamBatchStmt<ParamValue> stmt);
+    Flux<ResultStates> executeBatchUpdate(ParamBatchStmt stmt);
 
-    MultiResult executeBatchAsMulti(ParamBatchStmt<ParamValue> stmt);
+    BatchQuery executeBatchQuery(ParamBatchStmt stmt);
 
-    OrderedFlux executeBatchAsFlux(ParamBatchStmt<ParamValue> stmt);
+    MultiResult executeBatchAsMulti(ParamBatchStmt stmt);
 
-    List<T> getParamTypes();
+    OrderedFlux executeBatchAsFlux(ParamBatchStmt stmt);
+
+    List<? extends DataType> getParamTypes();
 
     @Nullable
     ResultRowMeta getRowMeta();

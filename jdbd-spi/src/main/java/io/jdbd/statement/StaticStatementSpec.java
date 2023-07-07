@@ -176,6 +176,7 @@ public interface StaticStatementSpec {
 
     Publisher<ResultStates> executeBatchUpdate(List<String> sqlGroup);
 
+    BatchQuery executeBatchQuery(List<String> sqlGroup);
 
     MultiResult executeBatchAsMulti(List<String> sqlGroup);
 

@@ -283,7 +283,7 @@ final class ComPreparedTask extends MySQLCommandTask implements PrepareStmtTask,
     }
 
     /**
-     * @see PrepareTask#executeBatch(ParamBatchStmt)
+     * @see PrepareTask#executeBatchUpdate(ParamBatchStmt)
      */
     @Override
     public Flux<ResultStates> executeBatch(final ParamBatchStmt<ParamValue> stmt) {
@@ -623,7 +623,7 @@ final class ComPreparedTask extends MySQLCommandTask implements PrepareStmtTask,
     /**
      * @see #executeUpdate(ParamStmt)
      * @see #executeQuery(ParamStmt, Function, Consumer)
-     * @see #executeBatch(ParamBatchStmt)
+     * @see #executeBatchUpdate(ParamBatchStmt)
      * @see #executeBatchAsMulti(ParamBatchStmt)
      * @see #executeBatchAsFlux(ParamBatchStmt)
      */

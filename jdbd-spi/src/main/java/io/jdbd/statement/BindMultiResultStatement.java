@@ -1,5 +1,6 @@
 package io.jdbd.statement;
 
+import io.jdbd.result.BatchQuery;
 import io.jdbd.result.MultiResult;
 import io.jdbd.result.OrderedFlux;
 import io.jdbd.result.ResultStates;
@@ -22,8 +23,9 @@ import org.reactivestreams.Publisher;
 public interface BindMultiResultStatement extends Statement {
 
 
+    Publisher<ResultStates> executeBatchUpdate();
 
-    Publisher< ResultStates> executeBatchUpdate();
+    BatchQuery executeBatchQuery();
 
     /**
      * @see BindStatement#executeBatchAsMulti()

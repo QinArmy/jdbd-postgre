@@ -153,7 +153,7 @@ final class PgPreparedStatement extends PgStatement implements PreparedStatement
         } else if (this.rowMeta != null) {
             error = new SubscribeException(ResultType.UPDATE, ResultType.QUERY);
         } else if (!this.paramGroupList.isEmpty()) {
-            error = new SubscribeException(ResultType.UPDATE, ResultType.BATCH);
+            error = new SubscribeException(ResultType.UPDATE, ResultType.BATCH_UPDATE);
         } else if (paramGroup.size() != this.paramCount) {
             error = PgExceptions.parameterCountMatch(0, this.paramCount, paramGroup.size());
         } else {
@@ -191,7 +191,7 @@ final class PgPreparedStatement extends PgStatement implements PreparedStatement
         } else if (this.rowMeta == null) {
             error = new SubscribeException(ResultType.QUERY, ResultType.UPDATE);
         } else if (!this.paramGroupList.isEmpty()) {
-            error = new SubscribeException(ResultType.QUERY, ResultType.BATCH);
+            error = new SubscribeException(ResultType.QUERY, ResultType.BATCH_UPDATE);
         } else if (paramGroup.size() != this.paramCount) {
             error = PgExceptions.parameterCountMatch(0, this.paramCount, paramGroup.size());
         } else {
@@ -222,7 +222,7 @@ final class PgPreparedStatement extends PgStatement implements PreparedStatement
         } else {
             ParamBatchStmt<ParamValue> stmt;
             stmt = PgStmts.paramBatch(this.sql, this.paramGroupList, this);
-            flux = this.stmtTask.executeBatch(stmt);
+            flux = this.stmtTask.executeBatchUpdate(stmt);
         }
         clearStatementToAvoidReuse();
         return flux;

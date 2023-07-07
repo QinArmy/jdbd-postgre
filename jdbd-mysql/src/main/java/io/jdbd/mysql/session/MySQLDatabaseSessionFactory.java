@@ -104,9 +104,9 @@ public final class MySQLDatabaseSessionFactory implements DatabaseSessionFactory
     private LocalDatabaseSession createTxSession(final ClientProtocol protocol) {
         final LocalDatabaseSession session;
         if (this.forPoolVendor) {
-            session = MySQLTxDatabaseSession.forPoolVendor(this.adjutant, protocol);
+            session = MySQLLocalDatabaseSession.forPoolVendor(this.adjutant, protocol);
         } else {
-            session = MySQLTxDatabaseSession.create(this.adjutant, protocol);
+            session = MySQLLocalDatabaseSession.create(this.adjutant, protocol);
         }
         return session;
     }

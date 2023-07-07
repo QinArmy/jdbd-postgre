@@ -44,7 +44,7 @@ abstract class MySQLStatement<S extends Statement> implements Statement, StmtOpt
     private Map<String, NamedValue> queryAttrMap;
 
 
-    MySQLStatement(MySQLDatabaseSession session) {
+    MySQLStatement(MySQLDatabaseSession<?> session) {
         this.session = session;
     }
 

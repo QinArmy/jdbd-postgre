@@ -10,11 +10,12 @@ import java.util.function.Function;
 
 public interface BindStatement extends BindSingleStatement {
 
+
     /**
-     * {@inheritDoc }
+     * @return true : must use server prepare statement.
+     * @see io.jdbd.session.DatabaseSession#bindStatement(String, boolean)
      */
-    @Override
-    BindStatement bind(int indexBasedZero, @Nullable Object nullable) throws JdbdException;
+    boolean isForcePrepare();
 
 
     /**
@@ -23,12 +24,6 @@ public interface BindStatement extends BindSingleStatement {
     @Override
     BindStatement bind(int indexBasedZero, DataType dataType, @Nullable Object nullable) throws JdbdException;
 
-
-    /**
-     * {@inheritDoc }
-     */
-    @Override
-    BindStatement bindStmtVar(String name, @Nullable Object nullable) throws JdbdException;
 
     /**
      * {@inheritDoc }

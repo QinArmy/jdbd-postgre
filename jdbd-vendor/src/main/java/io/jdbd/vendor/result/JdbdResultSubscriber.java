@@ -54,7 +54,7 @@ abstract class JdbdResultSubscriber implements ResultSubscriber {
         boolean add = true;
         switch (resultType) {
             case UPDATE:
-            case BATCH:
+            case BATCH_UPDATE:
             case QUERY: {
                 for (Throwable e : errorList) {
                     if (e.getClass() == SubscribeException.class) {

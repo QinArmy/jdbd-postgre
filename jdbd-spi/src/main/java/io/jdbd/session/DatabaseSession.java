@@ -13,13 +13,26 @@ import java.util.List;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
-
-public interface DatabaseSession  extends StaticStatementSpec ,Closeable{
+/**
+ * <p>
+ * This interface representing database session, This interface is reactive version of {@code   java.sql.Connection}.
+ * </p>
+ * <p>
+ * This interface is base interface of following :
+ *     <ul>
+ *         <li>{@link LocalDatabaseSession}</li>
+ *         <li>{@link RmDatabaseSession}</li>
+ *     </ul>
+ * </p>
+ *
+ * @since 1.0
+ */
+public interface DatabaseSession extends StaticStatementSpec, Closeable {
 
 
     /**
      * <p>
-     *     Execute sql without any statement option. So dont' create {@link StaticStatement}.
+     * Execute sql without any statement option. So dont' create {@link StaticStatement}.
      * </p>
      */
     @Override
@@ -27,23 +40,23 @@ public interface DatabaseSession  extends StaticStatementSpec ,Closeable{
 
     /**
      * <p>
-     *     Execute sql without any statement option. So dont' create {@link StaticStatement}.
+     * Execute sql without any statement option. So dont' create {@link StaticStatement}.
      * </p>
      */
     @Override
-     <R> Publisher<R> executeQuery(String sql, Function<CurrentRow, R> function) ;
+    <R> Publisher<R> executeQuery(String sql, Function<CurrentRow, R> function);
 
     /**
      * <p>
-     *     Execute sql without any statement option. So dont' create {@link StaticStatement}.
+     * Execute sql without any statement option. So dont' create {@link StaticStatement}.
      * </p>
      */
     @Override
-     <R> Publisher<R> executeQuery(String sql, Function<CurrentRow, R> function, Consumer<ResultStates> statesConsumer);
+    <R> Publisher<R> executeQuery(String sql, Function<CurrentRow, R> function, Consumer<ResultStates> statesConsumer);
 
     /**
      * <p>
-     *     Execute sql without any statement option. So dont' create {@link StaticStatement}.
+     * Execute sql without any statement option. So dont' create {@link StaticStatement}.
      * </p>
      */
     @Override
@@ -51,7 +64,7 @@ public interface DatabaseSession  extends StaticStatementSpec ,Closeable{
 
     /**
      * <p>
-     *     Execute sql without any statement option. So dont' create {@link StaticStatement}.
+     * Execute sql without any statement option. So dont' create {@link StaticStatement}.
      * </p>
      */
     @Override
@@ -59,7 +72,7 @@ public interface DatabaseSession  extends StaticStatementSpec ,Closeable{
 
     /**
      * <p>
-     *     Execute sql without any statement option. So dont' create {@link StaticStatement}.
+     * Execute sql without any statement option. So dont' create {@link StaticStatement}.
      * </p>
      */
     @Override
@@ -67,7 +80,7 @@ public interface DatabaseSession  extends StaticStatementSpec ,Closeable{
 
     /**
      * <p>
-     *     Execute sql without any statement option. So dont' create {@link StaticStatement}.
+     * Execute sql without any statement option. So dont' create {@link StaticStatement}.
      * </p>
      */
     @Override
@@ -89,16 +102,16 @@ public interface DatabaseSession  extends StaticStatementSpec ,Closeable{
      *
      * @return A Reactive Streams {@link Publisher} with basic rx operators that completes successfully by
      * emitting an element, or with an error. Like {@code reactor.core.publisher.Mono}
-     * @see #oneStep(String)
      */
     Publisher<PreparedStatement> prepare(String sql);
 
-    /**
-     * @see #prepare(String)
-     */
-    OneStepPrepareStatement oneStep(String sql);
-
     BindStatement bindStatement(String sql);
+
+    /**
+     * @param forcePrepare true : must use server prepare statement.
+     * @see BindStatement#isForcePrepare()
+     */
+    BindStatement bindStatement(String sql, boolean forcePrepare);
 
     MultiStatement multiStatement();
 
@@ -118,10 +131,10 @@ public interface DatabaseSession  extends StaticStatementSpec ,Closeable{
     Publisher<SavePoint> setSavePoint(String name);
 
 
-    Publisher<Void> releaseSavePoint(SavePoint savepoint);
+    Publisher<? extends DatabaseSession> releaseSavePoint(SavePoint savepoint);
 
 
-    Publisher<Void> rollbackToSavePoint(SavePoint savepoint);
+    Publisher<? extends DatabaseSession> rollbackToSavePoint(SavePoint savepoint);
 
 
     /**
@@ -135,7 +148,6 @@ public interface DatabaseSession  extends StaticStatementSpec ,Closeable{
     boolean isSameFactory(DatabaseSession session);
 
     boolean isBelongTo(DatabaseSessionFactory factory);
-
 
 
 }

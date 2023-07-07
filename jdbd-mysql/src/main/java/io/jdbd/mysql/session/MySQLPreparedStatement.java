@@ -35,15 +35,15 @@ import static io.jdbd.mysql.session.MySQLDatabaseSessionFactory.MY_SQL;
  */
 final class MySQLPreparedStatement extends MySQLStatement<PreparedStatement> implements PreparedStatement {
 
-    static MySQLPreparedStatement create(MySQLDatabaseSession session, PrepareTask<MySQLType> task) {
+    static MySQLPreparedStatement create(MySQLDatabaseSession<?> session, PrepareTask task) {
         return new MySQLPreparedStatement(session, task);
     }
 
     private final String sql;
 
-    private final PrepareTask<MySQLType> stmtTask;
+    private final PrepareTask stmtTask;
 
-    private final List<MySQLType> paramTypes;
+    private final List<? extends DataType> paramTypes;
 
     private final ResultRowMeta rowMeta;
 
@@ -55,7 +55,7 @@ final class MySQLPreparedStatement extends MySQLStatement<PreparedStatement> imp
 
     private List<ParamValue> paramGroup;
 
-    private MySQLPreparedStatement(final MySQLDatabaseSession session, final PrepareTask<MySQLType> stmtTask) {
+    private MySQLPreparedStatement(final MySQLDatabaseSession<?> session, final PrepareTask stmtTask) {
         super(session);
         this.sql = stmtTask.getSql();
         this.stmtTask = stmtTask;
@@ -64,7 +64,6 @@ final class MySQLPreparedStatement extends MySQLStatement<PreparedStatement> imp
 
         this.warning = stmtTask.getWarning();
         this.paramCount = this.paramTypes.size();
-
     }
 
     @Override
@@ -175,7 +174,7 @@ final class MySQLPreparedStatement extends MySQLStatement<PreparedStatement> imp
         } else if (this.rowMeta != null) {
             error = new SubscribeException(ResultType.UPDATE, ResultType.QUERY);
         } else if (this.paramGroupList != null) {
-            error = new SubscribeException(ResultType.UPDATE, ResultType.BATCH);
+            error = new SubscribeException(ResultType.UPDATE, ResultType.BATCH_UPDATE);
         } else if (paramSize != this.paramCount) {
             error = MySQLExceptions.parameterCountMatch(0, this.paramCount, paramSize);
         } else if (paramGroup == null) {
@@ -220,7 +219,7 @@ final class MySQLPreparedStatement extends MySQLStatement<PreparedStatement> imp
         } else if (this.rowMeta == null) {
             error = new SubscribeException(ResultType.QUERY, ResultType.UPDATE);
         } else if (this.paramGroupList != null) {
-            error = new SubscribeException(ResultType.QUERY, ResultType.BATCH);
+            error = new SubscribeException(ResultType.QUERY, ResultType.BATCH_UPDATE);
         } else if (paramSize != this.paramCount) {
             error = MySQLExceptions.parameterCountMatch(0, this.paramCount, paramSize);
         } else if (paramGroup == null) {
@@ -242,6 +241,38 @@ final class MySQLPreparedStatement extends MySQLStatement<PreparedStatement> imp
     }
 
     @Override
+    public BatchQuery executeBatchQuery() {
+        this.endStmtOption();
+
+
+        final List<List<ParamValue>> paramGroupList = this.paramGroupList;
+        final List<ParamValue> paramGroup = this.paramGroup;
+
+        final RuntimeException error;
+        if (paramGroup == EMPTY_PARAM_GROUP) {
+            error = MySQLExceptions.cannotReuseStatement(PreparedStatement.class);
+        } else if (paramGroup != null) {
+            error = MySQLExceptions.noInvokeAddBatch();
+        } else if (paramGroupList == null || paramGroupList.size() == 0) {
+            error = MySQLExceptions.noAnyParamGroupError();
+        } else if (this.rowMeta == null) {
+            error = new SubscribeException(ResultType.BATCH_QUERY, ResultType.UPDATE);
+        } else {
+            error = null;
+        }
+
+        final BatchQuery batchQuery;
+        if (error == null) {
+            batchQuery = this.stmtTask.executeBatchQuery(Stmts.paramBatch(this.sql, paramGroupList, this));
+        } else {
+            this.stmtTask.closeOnBindError(error); // close prepare statement.
+            batchQuery = MultiResults.batchQueryError(MySQLExceptions.wrap(error));
+        }
+        clearStatementToAvoidReuse();
+        return batchQuery;
+    }
+
+    @Override
     public Publisher<ResultStates> executeBatchUpdate() {
         this.endStmtOption();
 
@@ -257,14 +288,14 @@ final class MySQLPreparedStatement extends MySQLStatement<PreparedStatement> imp
         } else if (paramGroupList == null || paramGroupList.size() == 0) {
             error = MySQLExceptions.noAnyParamGroupError();
         } else if (this.rowMeta != null) {
-            error = new SubscribeException(ResultType.QUERY, ResultType.BATCH);
+            error = new SubscribeException(ResultType.QUERY, ResultType.BATCH_UPDATE);
         } else {
             error = null;
         }
 
         final Flux<ResultStates> flux;
         if (error == null) {
-            flux = this.stmtTask.executeBatch(Stmts.paramBatch(this.sql, paramGroupList, this));
+            flux = this.stmtTask.executeBatchUpdate(Stmts.paramBatch(this.sql, paramGroupList, this));
         } else {
             this.stmtTask.closeOnBindError(error); // close prepare statement.
             flux = Flux.error(MySQLExceptions.wrap(error));

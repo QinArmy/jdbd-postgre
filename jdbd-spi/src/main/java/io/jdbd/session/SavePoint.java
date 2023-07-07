@@ -29,7 +29,7 @@ public interface SavePoint {
      * @throws JdbdException if this is a named savepoint
      * @since 1.0
      */
-    int getSavePointId() throws JdbdException;
+    int id() throws JdbdException;
 
     /**
      * Retrieves the name of the savepoint that this <code>Savepoint</code>
@@ -39,7 +39,19 @@ public interface SavePoint {
      * @throws JdbdException if this is an un-named savepoint
      * @since 1.0
      */
-    String getSavePointName() throws JdbdException;
+    String name() throws JdbdException;
+
+    /**
+     * override {@link Object#hashCode()}
+     */
+    @Override
+    int hashCode();
+
+    /**
+     * override {@link Object#equals(Object)}
+     */
+    @Override
+    boolean equals(Object obj);
 
     /**
      * @return save point info, contain {@link Object#hashCode()}.

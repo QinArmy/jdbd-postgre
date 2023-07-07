@@ -1,9 +1,6 @@
 package io.jdbd.vendor.result;
 
-import io.jdbd.result.CurrentRow;
-import io.jdbd.result.MultiResult;
-import io.jdbd.result.OrderedFlux;
-import io.jdbd.result.ResultStates;
+import io.jdbd.result.*;
 import io.jdbd.vendor.task.ITaskAdjutant;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -27,6 +24,9 @@ public abstract class MultiResults {
         return new OrderedFluxError(error);
     }
 
+    public static BatchQuery batchQueryError(Throwable error) {
+        throw new UnsupportedOperationException();
+    }
 
     public static Mono<ResultStates> update(Consumer<ResultSink> callback) {
         return UpdateResultSubscriber.create(callback);
