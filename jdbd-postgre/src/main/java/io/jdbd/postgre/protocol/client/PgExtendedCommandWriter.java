@@ -466,7 +466,7 @@ final class PgExtendedCommandWriter implements ExtendedCommandWriter {
 
         switch (pgType) {
             case BOOLEAN: {// binary format
-                if (PgBinds.bindNonNullToBoolean(batchIndex, pgType, paramValue)) {
+                if (PgBinds.bindToBoolean(batchIndex, pgType, paramValue)) {
                     message.writeByte(1);
                 } else {
                     message.writeByte(0);
@@ -474,16 +474,16 @@ final class PgExtendedCommandWriter implements ExtendedCommandWriter {
             }
             break;
             case SMALLINT: {// binary format
-                message.writeShort(PgBinds.bindNonNullToShort(batchIndex, pgType, paramValue));
+                message.writeShort(PgBinds.bindToShort(batchIndex, pgType, paramValue));
             }
             break;
             case INTEGER: {// binary format
-                message.writeInt(PgBinds.bindNonNullToInt(batchIndex, pgType, paramValue));
+                message.writeInt(PgBinds.bindToInt(batchIndex, pgType, paramValue));
             }
             break;
             case OID:
             case BIGINT: {// binary format
-                message.writeLong(PgBinds.bindNonNullToLong(batchIndex, pgType, paramValue));
+                message.writeLong(PgBinds.bindToLong(batchIndex, pgType, paramValue));
             }
             break;
             case REAL: {// binary format

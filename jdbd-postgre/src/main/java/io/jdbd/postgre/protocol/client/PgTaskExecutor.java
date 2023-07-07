@@ -135,7 +135,7 @@ final class PgTaskExecutor extends CommunicationTaskExecutor<TaskAdjutant> {
     /*################################## blow private static class ##################################*/
 
 
-    private static final class TaskAdjutantWrapper extends AbstractTaskAdjutant implements TaskAdjutant {
+    private static final class TaskAdjutantWrapper extends JdbdTaskAdjutant implements TaskAdjutant {
 
         private final PgTaskExecutor taskExecutor;
 

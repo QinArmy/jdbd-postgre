@@ -3,7 +3,7 @@ package io.jdbd.vendor.task;
 import io.jdbd.JdbdException;
 import io.jdbd.session.SessionCloseException;
 import io.jdbd.statement.TaskQueueOverflowException;
-import io.jdbd.vendor.env.HostInfo;
+import io.jdbd.vendor.env.JdbdHost;
 import io.jdbd.vendor.util.JdbdExceptions;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
@@ -49,7 +49,7 @@ public abstract class CommunicationTaskExecutor<T extends ITaskAdjutant> impleme
 
     protected final T taskAdjutant;
 
-    private final Queue<CommunicationTask> taskQueue = Queues.<CommunicationTask>small().get();
+    private final Queue<CommunicationTask> taskQueue;
 
     private final TaskSignal taskSignal;
 
@@ -69,7 +69,8 @@ public abstract class CommunicationTaskExecutor<T extends ITaskAdjutant> impleme
     private boolean urgencyTask;
 
 
-    protected CommunicationTaskExecutor(Connection connection) {
+    protected CommunicationTaskExecutor(Connection connection, int taskQueueSize) {
+        this.taskQueue = Queues.<CommunicationTask>get(taskQueueSize).get();
         updateConnection(connection);
         this.taskSignal = new TaskSingleImpl(this);
 
@@ -149,6 +150,7 @@ public abstract class CommunicationTaskExecutor<T extends ITaskAdjutant> impleme
      */
     protected final void drainToTask(final DrainType type) {
         ByteBuf cumulateBuffer = this.cumulateBuffer;
+
         if (type == DrainType.NEXT) {
             if (cumulateBuffer == null || !cumulateBuffer.isReadable()) {
                 return;
@@ -205,7 +207,7 @@ public abstract class CommunicationTaskExecutor<T extends ITaskAdjutant> impleme
 
     protected abstract T createTaskAdjutant();
 
-    protected abstract HostInfo obtainHostInfo();
+    protected abstract JdbdHost obtainHostInfo();
 
     /**
      * @return true : clear channel complement
@@ -474,7 +476,7 @@ public abstract class CommunicationTaskExecutor<T extends ITaskAdjutant> impleme
 
         if (sslObject instanceof SslProvider) {
             SslProvider sslProvider = (SslProvider) sslObject;
-            HostInfo hostInfo = obtainHostInfo();
+            final JdbdHost hostInfo = obtainHostInfo();
             InetSocketAddress address = InetSocketAddress.createUnresolved(hostInfo.getHost(), hostInfo.getPort());
             sslProvider.addSslHandler(this.connection.channel(), address, traceEnabled);
         } else if (sslObject instanceof SslHandler) {

@@ -8,10 +8,10 @@ import java.util.Collections;
 import java.util.Map;
 
 
-public final class MySQLHost extends AbstractHostInfo {
+public final class MySQLHost0 extends AbstractHostInfo {
 
-    static MySQLHost create(JdbcUrlParser parser, int index) {
-        return new MySQLHost(parser, index);
+    static MySQLHost0 create(JdbcUrlParser parser, int index) {
+        return new MySQLHost0(parser, index);
     }
 
 
@@ -24,7 +24,7 @@ public final class MySQLHost extends AbstractHostInfo {
 
     private final boolean clientPrepareSupportStream;
 
-    private MySQLHost(JdbcUrlParser parser, int index) {
+    private MySQLHost0(JdbcUrlParser parser, int index) {
         super(parser, index);
         this.cacheMap = createCacheMap();
         this.maxAllowedPayload = parseMaxAllowedPacket();

@@ -1,4 +1,4 @@
-package io.jdbd.mysql.protocol.env;
+package io.jdbd.mysql.env;
 
 import io.jdbd.lang.Nullable;
 import io.jdbd.mysql.protocol.authentication.MySQLNativePasswordPlugin;
@@ -1212,7 +1212,13 @@ public final class MySQLKey<T> {
      * The database value from the properties instance passed to the driver.
      */
     public static final MySQLKey<String> DB_NAME = new MySQLKey<>("dbname", String.class, null);
+
     // blow Connection Group
+
+
+    public static final MySQLKey<Integer> FACTORY_WORKER_COUNT = new MySQLKey<>("factory_work_count", Integer.class, 50);
+
+    public static final MySQLKey<Integer> FACTORY_TASK_QUEUE_SIZE = new MySQLKey<>("factory_task_queue_size", Integer.class, 18);
 
 
     public final String name;

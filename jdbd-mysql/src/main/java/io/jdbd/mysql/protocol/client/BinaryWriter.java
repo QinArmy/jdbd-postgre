@@ -36,12 +36,12 @@ abstract class BinaryWriter {
         switch (expectedType) {
             case BOOLEAN:
             case TINYINT: {
-                packet.writeByte(MySQLBinds.bindNonNullToByte(batchIndex, expectedType, paramValue));
+                packet.writeByte(MySQLBinds.bindToByte(batchIndex, expectedType, paramValue));
             }
             break;
             case TINYINT_UNSIGNED: {
                 final short value;
-                value = MySQLBinds.bindNonNullToShort(batchIndex, expectedType, paramValue);
+                value = MySQLBinds.bindToShort(batchIndex, expectedType, paramValue);
                 if ((value & (~0xFF)) != 0) {
                     throw JdbdExceptions.outOfTypeRange(batchIndex, expectedType, paramValue);
                 }
@@ -50,13 +50,13 @@ abstract class BinaryWriter {
             break;
             case SMALLINT: {
                 final int value;
-                value = MySQLBinds.bindNonNullToShort(batchIndex, expectedType, paramValue);
+                value = MySQLBinds.bindToShort(batchIndex, expectedType, paramValue);
                 Packets.writeInt2(packet, value);
             }
             break;
             case SMALLINT_UNSIGNED: {
                 final int value;
-                value = MySQLBinds.bindNonNullToInt(batchIndex, expectedType, paramValue);
+                value = MySQLBinds.bindToInt(batchIndex, expectedType, paramValue);
                 if ((value & (~0xFFFF)) != 0) {
                     throw JdbdExceptions.outOfTypeRange(batchIndex, expectedType, paramValue);
                 }
@@ -66,13 +66,13 @@ abstract class BinaryWriter {
             case MEDIUMINT_UNSIGNED:
             case INT: {
                 final int value;
-                value = MySQLBinds.bindNonNullToInt(batchIndex, expectedType, paramValue);
+                value = MySQLBinds.bindToInt(batchIndex, expectedType, paramValue);
                 Packets.writeInt4(packet, value);
             }
             break;
             case INT_UNSIGNED: {
                 final long value;
-                value = MySQLBinds.bindNonNullToLong(batchIndex, expectedType, paramValue);
+                value = MySQLBinds.bindToLong(batchIndex, expectedType, paramValue);
                 if ((value & (~0xFFFF_FFFFL)) != 0) {
                     throw JdbdExceptions.outOfTypeRange(batchIndex, expectedType, paramValue);
                 }
@@ -81,7 +81,7 @@ abstract class BinaryWriter {
             break;
             case BIGINT: {
                 final long value;
-                value = MySQLBinds.bindNonNullToLong(batchIndex, expectedType, paramValue);
+                value = MySQLBinds.bindToLong(batchIndex, expectedType, paramValue);
                 Packets.writeInt8(packet, value);
             }
             break;

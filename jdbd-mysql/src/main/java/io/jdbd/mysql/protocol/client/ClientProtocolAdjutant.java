@@ -1,7 +1,7 @@
 package io.jdbd.mysql.protocol.client;
 
 import io.jdbd.mysql.Server;
-import io.jdbd.mysql.protocol.conf.MySQLHost;
+import io.jdbd.mysql.protocol.conf.MySQLHost0;
 import io.jdbd.mysql.protocol.conf.MySQLUrl;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
@@ -43,7 +43,7 @@ interface ClientProtocolAdjutant extends ResultRowAdjutant {
 
     ByteBufAllocator allocator();
 
-    MySQLHost host();
+    MySQLHost0 host();
 
     MySQLUrl mysqlUrl();
 

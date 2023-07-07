@@ -307,16 +307,27 @@ public abstract class JdbdExceptions extends ExceptionUtils {
     }
 
 
-    public static SQLException outOfTypeRange(int batchIndex, SQLType sqlType, Value bindValue) {
+    public static JdbdException outOfTypeRange(final int batchIndex, final Value value) {
+        return outOfTypeRange(batchIndex, value, null);
+
+    }
+
+    public static JdbdException outOfTypeRange(final int batchIndex, final Value value, final @Nullable Throwable cause) {
         String m;
         if (batchIndex < 0) {
-            m = String.format("parameter[%s] value out of number range for %s"
-                    , getValueLabel(bindValue), sqlType);
+            m = String.format("parameter[%s] value out of number range for %s",
+                    getValueLabel(value), value.getType());
         } else {
-            m = String.format("batch[%s] parameter[%s] value out of number range for %s"
-                    , batchIndex, getValueLabel(bindValue), sqlType);
+            m = String.format("batch[%s] parameter[%s] value out of number range for %s",
+                    batchIndex, getValueLabel(value), value.getType());
         }
-        return new SQLException(m);
+        final JdbdException e;
+        if (cause == null) {
+            e = new JdbdException(m, SQLStates.INVALID_PARAMETER_VALUE, 0);
+        } else {
+            e = new JdbdException(m, SQLStates.INVALID_PARAMETER_VALUE, 0, cause);
+        }
+        return e;
 
     }
 
@@ -357,21 +368,21 @@ public abstract class JdbdExceptions extends ExceptionUtils {
     /**
      * @param batchIndex negative:single stmt;not negative representing batch index of batch operation.
      */
-    public static SQLException createNonSupportBindSqlTypeError(int batchIndex, SQLType sqlType, Value bindValue) {
+    public static JdbdException createNonSupportBindSqlTypeError(int batchIndex, final Value bindValue) {
         final String m;
         if (batchIndex < 0) {
             m = String.format("parameter[%s] javaType[%s] bind to sql type[%s] not supported."
                     , getValueLabel(bindValue)
                     , bindValue.getNonNull().getClass().getName()
-                    , sqlType);
+                    , bindValue.getType());
         } else {
             m = String.format("batch[%s] parameter[%s] javaType[%s] bind to sql type[%s] not supported."
                     , batchIndex
                     , getValueLabel(bindValue)
                     , bindValue.getNonNull().getClass().getName()
-                    , sqlType);
+                    , bindValue.getType());
         }
-        return new SQLException(m);
+        return new JdbdException(m, SQLStates.INVALID_PARAMETER_VALUE, 0);
     }
 
     public static JdbdSQLException notSupportClientCharset(final Charset charset) {

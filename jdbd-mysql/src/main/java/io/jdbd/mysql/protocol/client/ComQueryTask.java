@@ -34,7 +34,7 @@ import java.nio.file.*;
 import java.util.List;
 import java.util.function.Consumer;
 import java.util.function.Function;
-import java.util.function.Supplier;
+import java.util.function.IntSupplier;
 
 /**
  * <p>
@@ -370,7 +370,7 @@ final class ComQueryTask extends MySQLCommandTask {
     protected Publisher<ByteBuf> start() {
         Publisher<ByteBuf> publisher;
         final Stmt stmt = this.stmt;
-        final Supplier<Integer> sequenceId = this::nextSequenceId;
+        final IntSupplier sequenceId = this::nextSequenceId;
         try {
             if (stmt instanceof StaticStmt) {
                 publisher = QueryCommandWriter.createStaticCommand(stmt, sequenceId, this.adjutant);
@@ -379,8 +379,8 @@ final class ComQueryTask extends MySQLCommandTask {
                 publisher = QueryCommandWriter.createStaticBatchCommand(batchStmt, sequenceId, this.adjutant);
             } else if (stmt instanceof StaticMultiStmt) {
                 publisher = QueryCommandWriter.createStaticCommand(stmt, sequenceId, this.adjutant);
-            } else if (stmt instanceof BindStmt) {
-                publisher = QueryCommandWriter.createBindableCommand((BindStmt) stmt, sequenceId, this.adjutant);
+            } else if (stmt instanceof ParamStmt) {
+                publisher = QueryCommandWriter.createBindableCommand((ParamStmt) stmt, sequenceId, this.adjutant);
             } else if (stmt instanceof BindBatchStmt) {
                 final BindBatchStmt batchStmt = (BindBatchStmt) stmt;
                 publisher = QueryCommandWriter.createBindableBatchCommand(batchStmt, sequenceId, this.adjutant);

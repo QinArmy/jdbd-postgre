@@ -1,6 +1,7 @@
 package io.jdbd.mysql.protocol.conf;
 
 import io.jdbd.JdbdException;
+import io.jdbd.mysql.env.ProtocolType;
 import io.jdbd.mysql.util.MySQLCollections;
 import io.jdbd.mysql.util.MySQLStrings;
 import io.jdbd.vendor.env.HostInfo;
@@ -463,14 +464,14 @@ final class MySQLUrlParser implements JdbcUrlParser {
 
 
     /**
-     * Checks if the scheme part of given connection string matches one of the {@link io.jdbd.mysql.protocol.conf.MySQLUrl.Protocol}s supported by Connector/J.
+     * Checks if the scheme part of given connection string matches one of the {@link ProtocolType}s supported by Connector/J.
      *
      * @param connString connection string
      * @return true if supported
      */
     public static boolean isConnectionStringSupported(String connString) {
         Matcher matcher = SCHEME_PTRN.matcher(connString);
-        return matcher.matches() && MySQLUrl.Protocol.isSupported(decodeSkippingPlusSign(matcher.group("scheme")));
+        return matcher.matches() && ProtocolType.isSupported(decodeSkippingPlusSign(matcher.group("scheme")));
     }
 
 

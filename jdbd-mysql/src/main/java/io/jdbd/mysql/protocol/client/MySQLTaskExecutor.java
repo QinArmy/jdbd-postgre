@@ -1,15 +1,14 @@
 package io.jdbd.mysql.protocol.client;
 
-import io.jdbd.JdbdException;
 import io.jdbd.mysql.Server;
 import io.jdbd.mysql.protocol.authentication.AuthenticationPlugin;
-import io.jdbd.mysql.protocol.conf.MySQLHost;
+import io.jdbd.mysql.protocol.conf.MySQLHost0;
 import io.jdbd.mysql.protocol.conf.MySQLUrl;
 import io.jdbd.mysql.session.SessionAdjutant;
 import io.jdbd.mysql.syntax.DefaultMySQLParser;
 import io.jdbd.mysql.syntax.MySQLParser;
 import io.jdbd.mysql.syntax.MySQLStatement;
-import io.jdbd.vendor.env.HostInfo;
+import io.jdbd.vendor.env.JdbdHost;
 import io.jdbd.vendor.task.CommunicationTask;
 import io.jdbd.vendor.task.CommunicationTaskExecutor;
 import io.netty.buffer.ByteBuf;
@@ -24,27 +23,24 @@ import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.sql.SQLException;
 import java.time.ZoneOffset;
-import java.util.*;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Objects;
 
 final class MySQLTaskExecutor extends CommunicationTaskExecutor<TaskAdjutant> {
 
     static Mono<MySQLTaskExecutor> create(final int hostIndex, SessionAdjutant sessionAdjutant) {
-        List<MySQLHost> hostInfoList = sessionAdjutant.jdbcUrl().getHostList();
+        throw new UnsupportedOperationException();
+    }
 
-        final Mono<MySQLTaskExecutor> mono;
-        if (hostIndex > -1 && hostIndex < hostInfoList.size()) {
-            final MySQLHost hostInfo = hostInfoList.get(hostIndex);
-            mono = TcpClient.create()
-                    .runOn(sessionAdjutant.eventLoopGroup())
-                    .host(hostInfo.getHost())
-                    .port(hostInfo.getPort())
-                    .connect()
-                    .map(connection -> new MySQLTaskExecutor(connection, hostInfo, sessionAdjutant));
-        } else {
-            String m = String.format("hostIndex[%s] not in [0,%s)", hostIndex, hostInfoList.size());
-            mono = Mono.error(new JdbdException("Not found HostInfo in url.", new IllegalArgumentException(m)));
-        }
-        return mono;
+    static Mono<MySQLTaskExecutor> create(final ClientProtocolFactory factory) {
+        return TcpClient.create()
+                .runOn(factory.eventLoopGroup)
+                .host(factory.hostEnv.getHost())
+                .port(factory.hostEnv.getPort())
+                .connect()
+                .map(connection -> new MySQLTaskExecutor(connection, factory));
     }
 
 
@@ -55,17 +51,14 @@ final class MySQLTaskExecutor extends CommunicationTaskExecutor<TaskAdjutant> {
 
     private static final Logger LOG = LoggerFactory.getLogger(MySQLTaskExecutor.class);
 
-    final MySQLHost hostInfo;
 
-    final SessionAdjutant sessionAdjutant;
+    private final ClientProtocolFactory protocolFactory;
 
     private volatile int serverStatus;
 
-    private MySQLTaskExecutor(Connection connection, MySQLHost hostInfo
-            , SessionAdjutant sessionAdjutant) {
-        super(connection);
-        this.hostInfo = hostInfo;
-        this.sessionAdjutant = sessionAdjutant;
+    private MySQLTaskExecutor(Connection connection, ClientProtocolFactory factory) {
+        super(connection, factory.factoryTaskQueueSize);
+        this.protocolFactory = factory;
     }
 
     @Override
@@ -84,8 +77,8 @@ final class MySQLTaskExecutor extends CommunicationTaskExecutor<TaskAdjutant> {
     }
 
     @Override
-    protected HostInfo obtainHostInfo() {
-        return this.hostInfo;
+    protected JdbdHost obtainHostInfo() {
+        return this.protocolFactory.hostEnv;
     }
 
     @Override
@@ -96,29 +89,28 @@ final class MySQLTaskExecutor extends CommunicationTaskExecutor<TaskAdjutant> {
 
     void setAuthenticateResult(AuthenticateResult result) {
         synchronized (this.taskAdjutant) {
-            TaskAdjutantWrapper adjutantWrapper = (TaskAdjutantWrapper) this.taskAdjutant;
-            if (adjutantWrapper.handshake10 == null
-                    && adjutantWrapper.negotiatedCapability == 0) {
-                // 1.
-                Handshake10 handshake = Objects.requireNonNull(result, "result").handshakeV10Packet();
-                adjutantWrapper.handshake10 = Objects.requireNonNull(handshake, "handshake");
-
-                //2.
-                Charset serverCharset = Charsets.getJavaCharsetByCollationIndex(handshake.getCollationIndex());
-                if (serverCharset == null) {
-                    throw new IllegalArgumentException("server handshake charset is null");
-                }
-                adjutantWrapper.serverHandshakeCharset = serverCharset;
-
-                // 3.
-                int negotiatedCapability = result.capability();
-                if (negotiatedCapability == 0) {
-                    throw new IllegalArgumentException("result error.");
-                }
-                adjutantWrapper.negotiatedCapability = negotiatedCapability;
-            } else {
+            final TaskAdjutantWrapper adjutantWrapper = (TaskAdjutantWrapper) this.taskAdjutant;
+            if (adjutantWrapper.handshake10 != null || adjutantWrapper.negotiatedCapability != 0) {
                 throw new IllegalStateException("Duplicate update AuthenticateResult");
             }
+
+            // 1.
+            Handshake10 handshake = Objects.requireNonNull(result, "result").handshakeV10Packet();
+            adjutantWrapper.handshake10 = Objects.requireNonNull(handshake, "handshake");
+
+            //2.
+            Charset serverCharset = Charsets.getJavaCharsetByCollationIndex(handshake.getCollationIndex());
+            if (serverCharset == null) {
+                throw new IllegalArgumentException("server handshake charset is null");
+            }
+            adjutantWrapper.serverHandshakeCharset = serverCharset;
+
+            // 3.
+            int negotiatedCapability = result.capability();
+            if (negotiatedCapability == 0) {
+                throw new IllegalArgumentException("result error.");
+            }
+            adjutantWrapper.negotiatedCapability = negotiatedCapability;
 
 
         }
@@ -305,8 +297,8 @@ final class MySQLTaskExecutor extends CommunicationTaskExecutor<TaskAdjutant> {
         }
 
         @Override
-        public MySQLHost host() {
-            return this.taskExecutor.hostInfo;
+        public MySQLHost0 host() {
+            return this.taskExecutor.protocolFactory.hostEnv;
         }
 
         @Override

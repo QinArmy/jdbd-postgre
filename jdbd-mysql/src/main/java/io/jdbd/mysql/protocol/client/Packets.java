@@ -3,6 +3,7 @@ package io.jdbd.mysql.protocol.client;
 import io.jdbd.mysql.MySQLJdbdException;
 import io.jdbd.mysql.stmt.BindMultiStmt;
 import io.jdbd.mysql.stmt.MySQLStmt;
+import io.jdbd.mysql.util.MySQLCollections;
 import io.jdbd.mysql.util.MySQLExceptions;
 import io.jdbd.vendor.stmt.*;
 import io.netty.buffer.ByteBuf;
@@ -19,6 +20,7 @@ import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.function.Function;
+import java.util.function.IntSupplier;
 import java.util.function.Supplier;
 
 public abstract class Packets {
@@ -386,7 +388,7 @@ public abstract class Packets {
      * @return true ,at least have one packet.
      */
     public static boolean hasOnePacket(ByteBuf cumulateBuffer) {
-        int readableBytes = cumulateBuffer.readableBytes();
+        final int readableBytes = cumulateBuffer.readableBytes();
         return readableBytes > HEADER_SIZE
                 && (readableBytes >= HEADER_SIZE + getInt3(cumulateBuffer, cumulateBuffer.readerIndex()));
     }
@@ -650,7 +652,7 @@ public abstract class Packets {
             if (stmt instanceof ParamStmt) {
                 capacity += (((ParamStmt) stmt).getBindGroup().size() * 6);
             } else if (stmt instanceof ParamBatchStmt) {
-                capacity += (((ParamBatchStmt<?>) stmt).getGroupList().size() * 10);
+                capacity += (((ParamBatchStmt) stmt).getGroupList().size() * 10);
             }
         } else if (stmt instanceof StaticMultiStmt) {
             capacity += ((StaticMultiStmt) stmt).getMultiStmt().length();
@@ -678,7 +680,7 @@ public abstract class Packets {
      * @param packet a big packet that header is placeholder.
      * @return a sync Publisher that is created by {@link Mono#just(Object)} or {@link Flux#fromIterable(Iterable)}.
      */
-    public static Publisher<ByteBuf> createPacketPublisher(final ByteBuf packet, final Supplier<Integer> sequenceId
+    public static Publisher<ByteBuf> createPacketPublisher(final ByteBuf packet, final IntSupplier sequenceId
             , final TaskAdjutant adjutant) {
 
         final int maxAllowedPayload = adjutant.mysqlUrl().getMaxAllowedPayload();
@@ -690,7 +692,7 @@ public abstract class Packets {
         if (payload >= Packets.MAX_PAYLOAD) {
             publisher = Flux.fromIterable(Packets.divideBigPacket(packet, adjutant.allocator(), sequenceId));
         } else {
-            Packets.writeHeader(packet, sequenceId.get());
+            Packets.writeHeader(packet, sequenceId.getAsInt());
             publisher = Mono.just(packet);
         }
         return publisher;
@@ -706,7 +708,7 @@ public abstract class Packets {
      * @return a sync Publisher that is created by {@link Mono#just(Object)} or {@link Flux#fromIterable(Iterable)}.
      */
     public static Iterable<ByteBuf> divideBigPacket(final ByteBuf bigPacket, ByteBufAllocator allocator
-            , Supplier<Integer> sequenceId) {
+            , IntSupplier sequenceId) {
         if (bigPacket.readableBytes() < MAX_PACKET) {
             throw new IllegalArgumentException("bigPacket not big packet");
         }
@@ -714,9 +716,9 @@ public abstract class Packets {
 
         int length = MAX_PACKET;
         packet.writeBytes(bigPacket, length);
-        writeHeader(packet, sequenceId.get());
+        writeHeader(packet, sequenceId.getAsInt());
 
-        final List<ByteBuf> packetList = new ArrayList<>();
+        final List<ByteBuf> packetList = MySQLCollections.arrayList();
         packetList.add(packet);
 
         while (bigPacket.isReadable()) {
@@ -726,7 +728,7 @@ public abstract class Packets {
             packet.writeZero(HEADER_SIZE); // placeholder of header
             packet.writeBytes(bigPacket, length);
 
-            writeHeader(packet, sequenceId.get());
+            writeHeader(packet, sequenceId.getAsInt());
             packetList.add(packet);
 
         }
@@ -734,7 +736,7 @@ public abstract class Packets {
             bigPacket.release(); // must release
         }
         if (packetList.size() == 1 || length == MAX_PAYLOAD) {
-            packetList.add(createEmptyPacket(allocator, sequenceId.get()));
+            packetList.add(createEmptyPacket(allocator, sequenceId.getAsInt()));
         }
         return packetList;
     }

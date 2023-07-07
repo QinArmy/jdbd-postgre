@@ -2,6 +2,7 @@ package io.jdbd.mysql.protocol.conf;
 
 import io.jdbd.UrlException;
 import io.jdbd.mysql.Groups;
+import io.jdbd.mysql.env.ProtocolType;
 import io.jdbd.mysql.protocol.client.Enums;
 import io.jdbd.mysql.util.MySQLStrings;
 import io.jdbd.vendor.env.HostInfo;
@@ -51,9 +52,9 @@ public class MySQLUrlParserSuiteTests {
         final Map<String, String> propMap = Collections.singletonMap(MyKey.user.getKey(), "army_w");
 
         MySQLUrl mySQLUrl = MySQLUrl.getInstance(url, propMap);
-        Assert.assertEquals(mySQLUrl.protocolType, MySQLUrl.Protocol.SINGLE_CONNECTION, "protocolType");
-        Assert.assertEquals(mySQLUrl.getProtocol(), MySQLUrl.Protocol.SINGLE_CONNECTION.getScheme(), "protocol");
-        List<MySQLHost> hostInfoList = mySQLUrl.getHostList();
+        Assert.assertEquals(mySQLUrl.protocolType, ProtocolType.SINGLE_CONNECTION, "protocolType");
+        Assert.assertEquals(mySQLUrl.getProtocol(), ProtocolType.SINGLE_CONNECTION.getScheme(), "protocol");
+        List<MySQLHost0> hostInfoList = mySQLUrl.getHostList();
 
         Assert.assertEquals(hostInfoList.size(), 1, "hostList size");
         HostInfo hostInfo = hostInfoList.get(0);
@@ -73,7 +74,7 @@ public class MySQLUrlParserSuiteTests {
     @Test
     public void failoverConnection() throws Exception {
 
-        String protocol = MySQLUrl.Protocol.FAILOVER_CONNECTION.getScheme();
+        String protocol = ProtocolType.FAILOVER_CONNECTION.getScheme();
         String host1 = "address=(host=kafka)(port=3435)(paranoid=false)";
         String host2 = "localhost:8080";
         String host3 = "( host  =  kosmo , port = 3306 )";
@@ -114,11 +115,11 @@ public class MySQLUrlParserSuiteTests {
 
         // global assert
         Assert.assertEquals(mySQLUrl.getOriginalUrl(), url, "url");
-        Assert.assertEquals(mySQLUrl.protocolType, MySQLUrl.Protocol.FAILOVER_CONNECTION, "protocolType");
-        Assert.assertEquals(mySQLUrl.getProtocol(), MySQLUrl.Protocol.FAILOVER_CONNECTION.getScheme(), "protocol");
+        Assert.assertEquals(mySQLUrl.protocolType, ProtocolType.FAILOVER_CONNECTION, "protocolType");
+        Assert.assertEquals(mySQLUrl.getProtocol(), ProtocolType.FAILOVER_CONNECTION.getScheme(), "protocol");
         Assert.assertNull(mySQLUrl.getSubProtocol(), "subProtocol");
 
-        List<MySQLHost> hostInfoList = mySQLUrl.getHostList();
+        List<MySQLHost0> hostInfoList = mySQLUrl.getHostList();
         Assert.assertEquals(hostInfoList.size(), 6, "hostInfoList size");
 
         // host 1 assert
@@ -200,9 +201,9 @@ public class MySQLUrlParserSuiteTests {
 
         MySQLUrl mySQLUrl = MySQLUrl.getInstance(url, Collections.emptyMap());
 
-        Assert.assertEquals(mySQLUrl.protocolType, MySQLUrl.Protocol.SINGLE_CONNECTION, "protocolType");
-        Assert.assertEquals(mySQLUrl.getProtocol(), MySQLUrl.Protocol.SINGLE_CONNECTION.getScheme(), "schema");
-        List<MySQLHost> hostInfoList = mySQLUrl.getHostList();
+        Assert.assertEquals(mySQLUrl.protocolType, ProtocolType.SINGLE_CONNECTION, "protocolType");
+        Assert.assertEquals(mySQLUrl.getProtocol(), ProtocolType.SINGLE_CONNECTION.getScheme(), "schema");
+        List<MySQLHost0> hostInfoList = mySQLUrl.getHostList();
         Assert.assertEquals(hostInfoList.size(), 1, "hostList size");
 
         HostInfo hostInfo = hostInfoList.get(0);

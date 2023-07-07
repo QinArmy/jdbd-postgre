@@ -2,13 +2,13 @@ package io.jdbd.mysql.protocol.conf;
 
 
 import io.jdbd.JdbdException;
+import io.jdbd.mysql.env.ProtocolType;
 import io.jdbd.mysql.protocol.client.Charsets;
 import io.jdbd.mysql.protocol.client.ClientProtocol;
 import io.jdbd.mysql.util.MySQLCollections;
 import io.jdbd.vendor.env.*;
 import io.qinarmy.env.convert.ConverterManager;
 import io.qinarmy.env.convert.ImmutableConverterManager;
-import reactor.util.annotation.Nullable;
 
 import java.nio.charset.Charset;
 import java.util.List;
@@ -27,7 +27,7 @@ public final class MySQLUrl extends AbstractJdbcUrl {
         final MySQLUrl mySQLUrl;
         mySQLUrl = new MySQLUrl(MySQLUrlParser.parseMySQLUrl(url, properties));
         checkUrlProperties(mySQLUrl.getCommonProps());
-        for (MySQLHost host : mySQLUrl.hostList) {
+        for (MySQLHost0 host : mySQLUrl.hostList) {
             Properties props = host.getProperties();
             checkUrlProperties(props);
             checkKeyProperties(props);
@@ -39,7 +39,7 @@ public final class MySQLUrl extends AbstractJdbcUrl {
 
     public static boolean acceptsUrl(final String url) {
         boolean accept = false;
-        for (Protocol protocol : Protocol.values()) {
+        for (ProtocolType protocol : ProtocolType.values()) {
             if (url.startsWith(protocol.scheme)) {
                 accept = true;
                 break;
@@ -48,26 +48,26 @@ public final class MySQLUrl extends AbstractJdbcUrl {
         return accept;
     }
 
-    public final Protocol protocolType;
+    public final ProtocolType protocolType;
 
-    private final List<MySQLHost> hostList;
+    private final List<MySQLHost0> hostList;
 
     private final int maxAllowedPayload;
 
     private MySQLUrl(MySQLUrlParser parser) {
         super(parser);
         this.hostList = createHostInfoList(parser);
-        this.protocolType = Protocol.fromValue(this.getOriginalUrl(), this.getProtocol(), this.getHostList().size());
+        this.protocolType = ProtocolType.fromValue(this.getOriginalUrl(), this.getProtocol(), this.getHostList().size());
         this.maxAllowedPayload = parseMaxAllowedPacket();
     }
 
     @Override
-    public MySQLHost getPrimaryHost() {
+    public MySQLHost0 getPrimaryHost() {
         return this.hostList.get(0);
     }
 
     @Override
-    public List<MySQLHost> getHostList() {
+    public List<MySQLHost0> getHostList() {
         return this.hostList;
     }
 
@@ -118,13 +118,13 @@ public final class MySQLUrl extends AbstractJdbcUrl {
         return ImmutableMapProperties.getInstance(map, converterManager);
     }
 
-    private static List<MySQLHost> createHostInfoList(JdbcUrlParser parser) {
+    private static List<MySQLHost0> createHostInfoList(JdbcUrlParser parser) {
         final List<Map<String, Object>> hostMapList = parser.getHostInfo();
 
         final int hostSize = hostMapList.size();
-        List<MySQLHost> hostInfoList = MySQLCollections.arrayList(hostSize);
+        List<MySQLHost0> hostInfoList = MySQLCollections.arrayList(hostSize);
         for (int i = 0; i < hostSize; i++) {
-            hostInfoList.add(MySQLHost.create(parser, i));
+            hostInfoList.add(MySQLHost0.create(parser, i));
         }
         return hostInfoList;
     }
@@ -154,129 +154,6 @@ public final class MySQLUrl extends AbstractJdbcUrl {
     private static JdbdException errorPropertyValue(final MyKey key) {
         String m = String.format("Property[%s] value error.", key);
         return new JdbdException(m);
-    }
-
-
-    /**
-     * The rules describing the number of hosts a database URL may contain.
-     */
-    public enum HostsCardinality {
-
-        SINGLE {
-            @Override
-            public boolean assertSize(int n) {
-                return n == 1;
-            }
-        },
-        MULTIPLE {
-            @Override
-            public boolean assertSize(int n) {
-                return n > 1;
-            }
-        },
-        ONE_OR_MORE {
-            @Override
-            public boolean assertSize(int n) {
-                return n >= 1;
-            }
-        };
-
-        public abstract boolean assertSize(int n);
-    }
-
-
-    /**
-     * <p>
-     * {@code com.mysql.cj.conf.ConnectionUrl.Type}
-     * </p>
-     */
-    public enum Protocol {
-
-        // DNS SRV schemes (cardinality is validated by implementing classes):
-        FAILOVER_DNS_SRV_CONNECTION("jdbc:mysql+srv:", HostsCardinality.ONE_OR_MORE), //
-        LOADBALANCE_DNS_SRV_CONNECTION("jdbc:mysql+srv:loadbalance:", HostsCardinality.ONE_OR_MORE), //
-        REPLICATION_DNS_SRV_CONNECTION("jdbc:mysql+srv:replication:", HostsCardinality.ONE_OR_MORE), //
-        // Standard schemes:
-        SINGLE_CONNECTION("jdbc:mysql:", HostsCardinality.SINGLE, MyKey.dnsSrv, FAILOVER_DNS_SRV_CONNECTION), //
-        FAILOVER_CONNECTION("jdbc:mysql:", HostsCardinality.MULTIPLE, MyKey.dnsSrv,
-                FAILOVER_DNS_SRV_CONNECTION), //
-        LOADBALANCE_CONNECTION("jdbc:mysql:loadbalance:", HostsCardinality.ONE_OR_MORE, MyKey.dnsSrv,
-                LOADBALANCE_DNS_SRV_CONNECTION), //
-        REPLICATION_CONNECTION("jdbc:mysql:replication:", HostsCardinality.ONE_OR_MORE, MyKey.dnsSrv,
-                REPLICATION_DNS_SRV_CONNECTION); //
-
-        private final String scheme;
-        private final HostsCardinality cardinality;
-        private final MyKey dnsSrvPropertyKey;
-        private final Protocol alternateDnsSrvType;
-
-        Protocol(String scheme, HostsCardinality cardinality) {
-            this(scheme, cardinality, null, null);
-        }
-
-        Protocol(String scheme, HostsCardinality cardinality, @Nullable MyKey dnsSrvPropertyKey,
-                 @Nullable Protocol alternateDnsSrvType) {
-            this.scheme = scheme;
-            this.cardinality = cardinality;
-            this.dnsSrvPropertyKey = dnsSrvPropertyKey;
-            this.alternateDnsSrvType = alternateDnsSrvType;
-        }
-
-
-        public final String getScheme() {
-            return this.scheme;
-        }
-
-        public final HostsCardinality getCardinality() {
-            return this.cardinality;
-        }
-
-        @Nullable
-        public final MyKey getDnsSrvPropertyKey() {
-            return this.dnsSrvPropertyKey;
-        }
-
-        @Nullable
-        public final Protocol getAlternateDnsSrvType() {
-            return this.alternateDnsSrvType;
-        }
-
-
-        /**
-         * Returns the {@link Protocol} corresponding to the given scheme and number of hosts, if any.
-         * Otherwise throws an {@link JdbdException}.
-         * Calling this method with the argument n lower than 0 skips the hosts cardinality validation.
-         *
-         * @param scheme one of supported schemes
-         * @param n      the number of hosts in the database URL
-         * @return the {@link Protocol} corresponding to the given protocol and number of hosts
-         */
-        public static Protocol fromValue(String url, String scheme, int n) {
-            for (Protocol t : Protocol.values()) {
-                if (t.getScheme().equalsIgnoreCase(scheme) && (n < 0 || t.getCardinality().assertSize(n))) {
-                    return t;
-                }
-            }
-            String m = String.format("unsupported scheme[%s] and hosts cardinality[%s] in url[%s]", scheme, n, url);
-            throw new JdbdException(m);
-        }
-
-        /**
-         * Checks if the given scheme corresponds to one of the connection types the driver supports.
-         *
-         * @param scheme scheme part from connection string, like "jdbc:mysql:"
-         * @return true if the given scheme is supported by driver
-         */
-        public static boolean isSupported(String scheme) {
-            boolean support = false;
-            for (Protocol t : values()) {
-                if (t.getScheme().equalsIgnoreCase(scheme)) {
-                    support = true;
-                    break;
-                }
-            }
-            return support;
-        }
     }
 
 

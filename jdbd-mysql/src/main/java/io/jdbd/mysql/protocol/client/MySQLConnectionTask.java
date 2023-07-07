@@ -10,7 +10,7 @@ import io.jdbd.mysql.protocol.authentication.AuthenticationPlugin;
 import io.jdbd.mysql.protocol.authentication.PluginUtils;
 import io.jdbd.mysql.protocol.authentication.Sha256PasswordPlugin;
 import io.jdbd.mysql.protocol.conf.MyKey;
-import io.jdbd.mysql.protocol.conf.MySQLHost;
+import io.jdbd.mysql.protocol.conf.MySQLHost0;
 import io.jdbd.mysql.util.MySQLCollections;
 import io.jdbd.mysql.util.MySQLExceptions;
 import io.jdbd.mysql.util.MySQLStrings;
@@ -68,7 +68,7 @@ final class MySQLConnectionTask extends CommunicationTask implements Authenticat
 
     private final Map<String, AuthenticationPlugin> pluginMap;
 
-    private final MySQLHost hostInfo;
+    private final MySQLHost0 hostInfo;
 
     private final Properties properties;
 

@@ -276,18 +276,18 @@ final class QueryCommandWriter {
 
         switch (bindValue.getType()) {
             case SMALLINT: {
-                final short value = PgBinds.bindNonNullToShort(batchIndex, bindValue.getType(), bindValue);
+                final short value = PgBinds.bindToShort(batchIndex, bindValue.getType(), bindValue);
                 message.writeBytes(Short.toString(value).getBytes(this.clientCharset));
             }
             break;
             case INTEGER: {
-                final int value = PgBinds.bindNonNullToInt(batchIndex, bindValue.getType(), bindValue);
+                final int value = PgBinds.bindToInt(batchIndex, bindValue.getType(), bindValue);
                 message.writeBytes(Integer.toString(value).getBytes(this.clientCharset));
             }
             break;
             case OID:
             case BIGINT: {
-                final long value = PgBinds.bindNonNullToLong(batchIndex, bindValue.getType(), bindValue);
+                final long value = PgBinds.bindToLong(batchIndex, bindValue.getType(), bindValue);
                 message.writeBytes(Long.toString(value).getBytes(this.clientCharset));
             }
             break;
@@ -307,7 +307,7 @@ final class QueryCommandWriter {
             }
             break;
             case BOOLEAN: {
-                final boolean value = PgBinds.bindNonNullToBoolean(batchIndex, bindValue.getType(), bindValue);
+                final boolean value = PgBinds.bindToBoolean(batchIndex, bindValue.getType(), bindValue);
                 message.writeBytes((value ? PgConstant.TRUE : PgConstant.FALSE).getBytes(this.clientCharset));
             }
             break;

@@ -16,8 +16,15 @@ public class JdbdException extends RuntimeException {
         this.vendorCode = 0;
     }
 
+
     public JdbdException(String message, String sqlState, int vendorCode) {
         super(message);
+        this.sqlState = sqlState;
+        this.vendorCode = vendorCode;
+    }
+
+    public JdbdException(String message, String sqlState, int vendorCode, Throwable cause) {
+        super(message, cause);
         this.sqlState = sqlState;
         this.vendorCode = vendorCode;
     }

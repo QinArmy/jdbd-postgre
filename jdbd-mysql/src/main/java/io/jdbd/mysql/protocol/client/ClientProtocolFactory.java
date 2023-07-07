@@ -4,12 +4,14 @@ import io.jdbd.JdbdSQLException;
 import io.jdbd.mysql.MySQLJdbdException;
 import io.jdbd.mysql.SQLMode;
 import io.jdbd.mysql.Server;
+import io.jdbd.mysql.env.MySQLEnvironment;
+import io.jdbd.mysql.env.MySQLHostEnv;
+import io.jdbd.mysql.env.MySQLKey;
 import io.jdbd.mysql.protocol.Constants;
 import io.jdbd.mysql.protocol.MySQLProtocol;
 import io.jdbd.mysql.protocol.MySQLProtocolFactory;
 import io.jdbd.mysql.protocol.MySQLServerVersion;
 import io.jdbd.mysql.protocol.conf.MyKey;
-import io.jdbd.mysql.protocol.env.ProtocolEnvironment;
 import io.jdbd.mysql.session.SessionAdjutant;
 import io.jdbd.mysql.stmt.Stmts;
 import io.jdbd.mysql.util.MySQLArrays;
@@ -19,11 +21,15 @@ import io.jdbd.result.MultiResult;
 import io.jdbd.result.ResultRow;
 import io.jdbd.vendor.env.Properties;
 import io.jdbd.vendor.util.SQLStates;
+import io.netty.channel.EventLoopGroup;
 import io.qinarmy.util.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import reactor.netty.resources.ConnectionProvider;
+import reactor.netty.resources.LoopResources;
+import reactor.netty.tcp.TcpResources;
 import reactor.util.annotation.Nullable;
 
 import java.nio.charset.Charset;
@@ -34,13 +40,33 @@ import java.util.*;
 
 public final class ClientProtocolFactory implements MySQLProtocolFactory {
 
-    private ClientProtocolFactory() {
-        throw new UnsupportedOperationException();
+    final MySQLHostEnv hostEnv;
+
+    final ConnectionProvider connectionProvider;
+
+    final EventLoopGroup eventLoopGroup;
+
+    final int factoryTaskQueueSize;
+
+    private ClientProtocolFactory(final MySQLHostEnv hostEnv) {
+        this.hostEnv = hostEnv;
+        final ConnectionProvider connectionProvider;
+        connectionProvider = hostEnv.get(MySQLKey.SOCKET_FACTORY);
+        if (connectionProvider == null) {
+            this.connectionProvider = TcpResources.get();
+        } else {
+            this.connectionProvider = connectionProvider;
+        }
+
+        this.eventLoopGroup = LoopResources.create("jdbd-mysql", hostEnv.getOrDefault(MySQLKey.FACTORY_WORKER_COUNT), true)
+                .onClient(true);
+
+        this.factoryTaskQueueSize = hostEnv.getOrDefault(MySQLKey.FACTORY_TASK_QUEUE_SIZE);
     }
 
     private static final Logger LOG = LoggerFactory.getLogger(ClientProtocolFactory.class);
 
-    public static ClientProtocolFactory from(ProtocolEnvironment env) {
+    public static ClientProtocolFactory from(MySQLEnvironment env) {
         throw new UnsupportedOperationException();
     }
 
@@ -57,6 +83,11 @@ public final class ClientProtocolFactory implements MySQLProtocolFactory {
 
     @Override
     public Mono<MySQLProtocol> createProtocol() {
+        return null;
+    }
+
+    @Override
+    public Mono<Void> close() {
         return null;
     }
 

@@ -5,6 +5,7 @@ import io.jdbd.mysql.MySQLType;
 import io.jdbd.vendor.stmt.TypeValue;
 
 
+@Deprecated
 public final class BindValue extends MySQLParamValue implements TypeValue {
 
     public static BindValue wrap(int parameterIndex, MySQLType type, @Nullable Object value) {

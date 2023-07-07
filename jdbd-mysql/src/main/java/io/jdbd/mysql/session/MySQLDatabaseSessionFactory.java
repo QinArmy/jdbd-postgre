@@ -2,6 +2,7 @@ package io.jdbd.mysql.session;
 
 import io.jdbd.JdbdException;
 import io.jdbd.PropertyException;
+import io.jdbd.mysql.env.MySQLEnvironment;
 import io.jdbd.mysql.protocol.MySQLProtocol;
 import io.jdbd.mysql.protocol.MySQLProtocolFactory;
 import io.jdbd.mysql.protocol.authentication.AuthenticationPlugin;
@@ -9,8 +10,6 @@ import io.jdbd.mysql.protocol.authentication.PluginUtils;
 import io.jdbd.mysql.protocol.client.ClientProtocolFactory;
 import io.jdbd.mysql.protocol.conf.MyKey;
 import io.jdbd.mysql.protocol.conf.MySQLUrl;
-import io.jdbd.mysql.protocol.env.ProtocolEnvironment;
-import io.jdbd.mysql.util.MySQLExceptions;
 import io.jdbd.mysql.util.MySQLStrings;
 import io.jdbd.session.DatabaseSessionFactory;
 import io.jdbd.session.LocalDatabaseSession;
@@ -42,21 +41,7 @@ public final class MySQLDatabaseSessionFactory implements DatabaseSessionFactory
 
 
     private static MySQLProtocolFactory createProtocolFactory(String url, Map<String, Object> properties) {
-        final ProtocolEnvironment env;
-        env = ProtocolEnvironment.parse(url, properties);
-
-        final MySQLProtocolFactory factory;
-        switch (env.type()) {
-            case CLIENT:
-                factory = ClientProtocolFactory.from(env);
-                break;
-            case X:
-            default:
-                // no bug,never here
-                throw MySQLExceptions.unexpectedEnum(env.type());
-        }
-
-        return factory;
+        return ClientProtocolFactory.from(MySQLEnvironment.parse(url, properties));
     }
 
 
