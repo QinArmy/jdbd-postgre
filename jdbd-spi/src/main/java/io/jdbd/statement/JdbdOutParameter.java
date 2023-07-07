@@ -66,12 +66,20 @@ final class JdbdOutParameter implements OutParameter {
 
     @Override
     public String toString() {
-        return String.format("%s[name:%s,value:%s,hash:%s]",
-                JdbdOutParameter.class.getName(),
-                this.name,
-                this.value,
-                System.identityHashCode(this)
-        );
+        final StringBuilder builder = new StringBuilder();
+        builder.append(this.getClass().getName())
+                .append("[ name : ")
+                .append(this.name)
+                .append(" , value : ");
+        if (this.value instanceof String) {
+            builder.append('?');
+        } else {
+            builder.append(this.value);
+        }
+        return builder.append(" , hash : ")
+                .append(System.identityHashCode(this))
+                .append(" ]")
+                .toString();
     }
 
 

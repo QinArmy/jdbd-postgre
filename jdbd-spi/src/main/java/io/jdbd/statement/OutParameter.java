@@ -43,7 +43,8 @@ public interface OutParameter {
     /**
      * override {@link Object#toString()}
      *
-     * @return out parameter info, contain {@link Object#hashCode()}.
+     * @return out parameter info, contain {@link System#identityHashCode(Object)},
+     * but if {@link #value()} is {@link String} , then always output {@code ?} ,because of information safe.
      */
     @Override
     String toString();

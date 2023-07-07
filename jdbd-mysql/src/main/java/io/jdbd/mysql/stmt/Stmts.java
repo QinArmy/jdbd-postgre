@@ -47,32 +47,6 @@ public abstract class Stmts extends JdbdStmts {
 
 
 
-    public static BindStmt bind(String sql, List<BindValue> bindGroup) {
-        return new MySQLSimpleBindStmt(sql, bindGroup);
-    }
-
-    public static BindStmt bind(String sql, List<BindValue> bindGroup, Consumer<ResultStates> statesConsumer) {
-        return new MySQLSimpleQueryBindStmt(sql, bindGroup, statesConsumer);
-    }
-
-    public static BindBatchStmt bindBatch(String sql, List<List<BindValue>> groupList) {
-        return new MySQLSimpleBindBatchStmt(sql, groupList);
-    }
-
-    public static BindStmt bind(String sql, List<BindValue> bindGroup, MySQLStmtOption option) {
-        return new MySQLOptionBindStmt(sql, bindGroup, option);
-    }
-
-    public static BindStmt bind(String sql, List<BindValue> bindGroup, Consumer<ResultStates> statesConsumer
-            , MySQLStmtOption option) {
-        return new MySQLOptionQueryBindStmt(sql, bindGroup, statesConsumer, option);
-    }
-
-
-    public static BindBatchStmt bindBatch(String sql, List<List<BindValue>> groupList, MySQLStmtOption option) {
-        return new MySQLOptionBindBatchStmt(sql, groupList, option);
-    }
-
     public static BindStmt elementOfMulti(String sql, List<BindValue> paramGroup) {
         return new MySQLElementBindStmt(sql, paramGroup);
     }

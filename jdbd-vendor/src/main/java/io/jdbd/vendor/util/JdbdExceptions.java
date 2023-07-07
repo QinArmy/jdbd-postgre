@@ -123,7 +123,7 @@ public abstract class JdbdExceptions extends ExceptionUtils {
     }
 
     public static JdbdException dontSupportMultiStmt() {
-        return new JdbdException("You have an error in your SQL syntax,sql is multi statement; near ';' ",
+        return new JdbdException("current session don't support multi-statement.",
                 SQLStates.SYNTAX_ERROR, 0);
     }
 
@@ -234,7 +234,7 @@ public abstract class JdbdExceptions extends ExceptionUtils {
     }
 
 
-    public static JdbdSQLException notMatchWithFirstParamGroupCount(int stmtIndex, int paramCount, int firstGroupSize) {
+    public static JdbdException notMatchWithFirstParamGroupCount(int stmtIndex, int paramCount, int firstGroupSize) {
         final String m;
         if (stmtIndex == 0) {
             m = String.format("Param count[%s] and first group param count[%s] not match."
@@ -243,7 +243,7 @@ public abstract class JdbdExceptions extends ExceptionUtils {
             m = String.format("Group[index:%s] param count[%s] and first group param count[%s] not match."
                     , stmtIndex, paramCount, firstGroupSize);
         }
-        return new JdbdSQLException(new SQLException(m, SQLStates.INVALID_PARAMETER_VALUE));
+        return new JdbdException(m, SQLStates.INVALID_PARAMETER_VALUE, 0);
     }
 
     public static JdbdException parameterCountMatch(int batchIndex, int paramCount, int bindCount) {

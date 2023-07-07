@@ -19,4 +19,9 @@ public interface VersionSpec {
 
     String getVersion();
 
+
+    int getSubMinor();
+
+    boolean meetsMinimum(int major, int minor, int subMinor);
+
 }

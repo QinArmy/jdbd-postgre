@@ -1,6 +1,7 @@
 package io.jdbd.mysql.session;
 
 import io.jdbd.mysql.stmt.Stmts;
+import io.jdbd.mysql.util.MySQLCollections;
 import io.jdbd.mysql.util.MySQLExceptions;
 import io.jdbd.mysql.util.MySQLStrings;
 import io.jdbd.result.*;
@@ -17,17 +18,19 @@ import java.util.function.Function;
 
 /**
  * <p>
- * This interface is a implementation of {@link io.jdbd.statement.StaticStatement} with MySQL protocol.
+ * This interface is a implementation of {@link StaticStatement} with MySQL protocol.
  * </p>
+ *
+ * @since 1.0
  */
 final class MySQLStaticStatement extends MySQLStatement<StaticStatement> implements StaticStatement {
 
 
-    static MySQLStaticStatement create(final MySQLDatabaseSession session) {
+    static MySQLStaticStatement create(final MySQLDatabaseSession<?> session) {
         return new MySQLStaticStatement(session);
     }
 
-    private MySQLStaticStatement(final MySQLDatabaseSession session) {
+    private MySQLStaticStatement(final MySQLDatabaseSession<?> session) {
         super(session);
     }
 
@@ -35,13 +38,11 @@ final class MySQLStaticStatement extends MySQLStatement<StaticStatement> impleme
     @Override
     public Publisher<ResultStates> executeUpdate(final String sql) {
         this.endStmtOption();
-        final Mono<ResultStates> mono;
-        if (MySQLStrings.hasText(sql)) {
-            mono = this.session.protocol.update(Stmts.stmt(sql, this));
-        } else {
-            mono = Mono.error(MySQLExceptions.sqlIsEmpty());
+
+        if (!MySQLStrings.hasText(sql)) {
+            return Mono.error(MySQLExceptions.sqlIsEmpty());
         }
-        return mono;
+        return this.session.protocol.update(Stmts.stmt(sql, this));
     }
 
     @Override
@@ -55,29 +56,34 @@ final class MySQLStaticStatement extends MySQLStatement<StaticStatement> impleme
     }
 
     @Override
-    public <R> Publisher<R> executeQuery(String sql, Function<CurrentRow, R> function, Consumer<ResultStates> consumer) {
+    public <R> Publisher<R> executeQuery(final String sql, final Function<CurrentRow, R> function,
+                                         final Consumer<ResultStates> consumer) {
         this.endStmtOption();
 
-        final Flux<R> flux;
-        if (MySQLStrings.hasText(sql)) {
-            flux = this.session.protocol.query(Stmts.stmt(sql, this), function, consumer);
-        } else {
-            flux = Flux.error(MySQLExceptions.sqlIsEmpty());
+        if (!MySQLStrings.hasText(sql)) {
+            return Flux.error(MySQLExceptions.sqlIsEmpty());
         }
-        return flux;
+        return this.session.protocol.query(Stmts.stmt(sql, consumer, this), function);
     }
 
     @Override
     public Publisher<ResultStates> executeBatchUpdate(final List<String> sqlGroup) {
         this.endStmtOption();
 
-        final Flux<ResultStates> flux;
-        if (sqlGroup.size() == 0) {
-            flux = Flux.error(MySQLExceptions.sqlIsEmpty());
-        } else {
-            flux = this.session.protocol.batchUpdate(Stmts.batch(sqlGroup, this));
+        if (MySQLCollections.isEmpty(sqlGroup)) {
+            return Flux.error(MySQLExceptions.sqlIsEmpty());
         }
-        return flux;
+        return this.session.protocol.batchUpdate(Stmts.batch(sqlGroup, this));
+    }
+
+    @Override
+    public BatchQuery executeBatchQuery(final List<String> sqlGroup) {
+        this.endStmtOption();
+
+        if (MySQLCollections.isEmpty(sqlGroup)) {
+            return MultiResults.batchQueryError(MySQLExceptions.sqlIsEmpty());
+        }
+        return this.session.protocol.batchQuery(Stmts.batch(sqlGroup));
     }
 
 
@@ -85,26 +91,20 @@ final class MySQLStaticStatement extends MySQLStatement<StaticStatement> impleme
     public MultiResult executeBatchAsMulti(final List<String> sqlGroup) {
         this.endStmtOption();
 
-        final MultiResult result;
-        if (sqlGroup.size() == 0) {
-            result = MultiResults.error(MySQLExceptions.sqlIsEmpty());
-        } else {
-            result = this.session.protocol.batchAsMulti(Stmts.batch(sqlGroup, this));
+        if (MySQLCollections.isEmpty(sqlGroup)) {
+            return MultiResults.error(MySQLExceptions.sqlIsEmpty());
         }
-        return result;
+        return this.session.protocol.batchAsMulti(Stmts.batch(sqlGroup, this));
     }
 
     @Override
     public OrderedFlux executeBatchAsFlux(final List<String> sqlGroup) {
         this.endStmtOption();
 
-        final OrderedFlux flux;
-        if (sqlGroup.size() == 0) {
-            flux = MultiResults.fluxError(MySQLExceptions.sqlIsEmpty());
-        } else {
-            flux = this.session.protocol.batchAsFlux(Stmts.batch(sqlGroup, this));
+        if (MySQLCollections.isEmpty(sqlGroup)) {
+            return MultiResults.fluxError(MySQLExceptions.sqlIsEmpty());
         }
-        return flux;
+        return this.session.protocol.batchAsFlux(Stmts.batch(sqlGroup, this));
     }
 
 
@@ -113,12 +113,12 @@ final class MySQLStaticStatement extends MySQLStatement<StaticStatement> impleme
         this.endStmtOption();
 
         final OrderedFlux flux;
-        if (!MySQLStrings.hasText(multiStmt)) {
-            flux = MultiResults.fluxError(MySQLExceptions.sqlIsEmpty());
-        } else if (!this.session.supportMultiStatement()) {
+        if (!this.session.protocol.supportMultiStmt()) {
             flux = MultiResults.fluxError(MySQLExceptions.dontSupportMultiStmt());
-        } else {
+        } else if (MySQLStrings.hasText(multiStmt)) {
             flux = this.session.protocol.executeAsFlux(Stmts.multiStmt(multiStmt, this));
+        } else {
+            flux = MultiResults.fluxError(MySQLExceptions.sqlIsEmpty());
         }
         return flux;
     }
@@ -135,6 +135,18 @@ final class MySQLStaticStatement extends MySQLStatement<StaticStatement> impleme
     public boolean supportOutParameter() {
         // always false,MySQL COM_QUERY protocol don't support.
         return false;
+    }
+
+    @Override
+    public String toString() {
+        return MySQLStrings.builder()
+                .append(getClass().getName())
+                .append("[ session : ")
+                .append(this.session)
+                .append(" , hash : ")
+                .append(System.identityHashCode(this))
+                .append(" ]")
+                .toString();
     }
 
 

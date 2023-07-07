@@ -1,5 +1,6 @@
 package io.jdbd.session;
 
+import io.jdbd.JdbdException;
 import io.jdbd.meta.DatabaseMetaData;
 import io.jdbd.result.CurrentRow;
 import io.jdbd.result.MultiResult;
@@ -8,7 +9,6 @@ import io.jdbd.result.ResultStates;
 import io.jdbd.statement.*;
 import org.reactivestreams.Publisher;
 
-import java.sql.Connection;
 import java.util.List;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -111,9 +111,9 @@ public interface DatabaseSession extends StaticStatementSpec, Closeable {
      * @param forcePrepare true : must use server prepare statement.
      * @see BindStatement#isForcePrepare()
      */
-    BindStatement bindStatement(String sql, boolean forcePrepare);
+    BindStatement bindStatement(String sql, boolean forcePrepare) throws JdbdException;
 
-    MultiStatement multiStatement();
+    MultiStatement multiStatement() throws JdbdException;
 
     /**
      * @see java.sql.DatabaseMetaData#supportsSavepoints()
@@ -124,6 +124,8 @@ public interface DatabaseSession extends StaticStatementSpec, Closeable {
 
     boolean supportMultiStatement();
 
+    boolean supportOutParameter();
+
 
     Publisher<SavePoint> setSavePoint();
 
@@ -131,23 +133,26 @@ public interface DatabaseSession extends StaticStatementSpec, Closeable {
     Publisher<SavePoint> setSavePoint(String name);
 
 
+    /**
+     * @return the {@link Publisher} that completes successfully by
+     * emitting an element(<strong>this</strong>), or with an error. Like {@code  reactor.core.publisher.Mono}
+     */
     Publisher<? extends DatabaseSession> releaseSavePoint(SavePoint savepoint);
 
 
+    /**
+     * @return the {@link Publisher} that completes successfully by
+     * emitting an element(<strong>this</strong>), or with an error. Like {@code  reactor.core.publisher.Mono}
+     */
     Publisher<? extends DatabaseSession> rollbackToSavePoint(SavePoint savepoint);
 
 
-    /**
-     * @see Connection#isClosed()
-     */
     boolean isClosed();
 
     ServerVersion serverVersion();
 
 
     boolean isSameFactory(DatabaseSession session);
-
-    boolean isBelongTo(DatabaseSessionFactory factory);
 
 
 }

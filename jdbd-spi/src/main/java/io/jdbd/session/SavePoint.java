@@ -21,6 +21,8 @@ import io.jdbd.JdbdException;
 
 public interface SavePoint {
 
+    boolean isNamed();
+
     /**
      * Retrieves the generated ID for the savepoint that this
      * <code>Savepoint</code> object represents.
@@ -54,7 +56,9 @@ public interface SavePoint {
     boolean equals(Object obj);
 
     /**
-     * @return save point info, contain {@link Object#hashCode()}.
+     * override {@link Object#toString()}
+     *
+     * @return save point info, contain {@link System#identityHashCode(Object)}.
      */
     @Override
     String toString();

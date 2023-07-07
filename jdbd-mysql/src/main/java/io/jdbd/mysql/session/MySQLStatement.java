@@ -8,6 +8,7 @@ import io.jdbd.mysql.util.MySQLBinds;
 import io.jdbd.mysql.util.MySQLCollections;
 import io.jdbd.mysql.util.MySQLExceptions;
 import io.jdbd.session.DatabaseSession;
+import io.jdbd.statement.OutParameter;
 import io.jdbd.statement.Statement;
 import io.jdbd.vendor.stmt.JdbdValues;
 import io.jdbd.vendor.stmt.NamedValue;
@@ -24,18 +25,31 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 
+import static io.jdbd.mysql.session.MySQLDatabaseSessionFactory.MY_SQL;
+
 
 /**
  * <p>
  * This interface is a implementation of {@link Statement} with MySQL client protocol.
  * </p>
+ * <p>
+ * This class is base class of following :
+ *     <ul>
+ *         <li>{@link MySQLStaticStatement}</li>
+ *         <li>{@link MySQLPreparedStatement}</li>
+ *         <li>{@link MySQLBindStatement}</li>
+ *         <li>{@link MySQLMultiStatement}</li>
+ *     </ul>
+ * </p>
+ *
+ * @since 1.0
  */
 abstract class MySQLStatement<S extends Statement> implements Statement, StmtOption {
 
 
     static final List<ParamValue> EMPTY_PARAM_GROUP = Collections.emptyList();
 
-    final MySQLDatabaseSession session;
+    final MySQLDatabaseSession<?> session;
 
     private int timeoutSeconds;
 
@@ -59,10 +73,10 @@ abstract class MySQLStatement<S extends Statement> implements Statement, StmtOpt
             error = MySQLExceptions.stmtVarNameHaveNoText(name);
         } else if (dataType == null) {
             error = MySQLExceptions.dataTypeIsNull();
-        } else if (nullable instanceof Publisher || nullable instanceof Path) {
-            error = MySQLExceptions.dontSupportJavaType(name, nullable, MySQLDatabaseSessionFactory.MY_SQL);
+        } else if (nullable instanceof Publisher || nullable instanceof Path || nullable instanceof OutParameter) {
+            error = MySQLExceptions.dontSupportJavaType(name, nullable, MY_SQL);
         } else if ((type = MySQLBinds.handleDataType(dataType)) == null) {
-            error = MySQLExceptions.dontSupportDataType(dataType, MySQLDatabaseSessionFactory.MY_SQL);
+            error = MySQLExceptions.dontSupportDataType(dataType, MY_SQL);
         } else {
             Map<String, NamedValue> map = this.queryAttrMap;
             if (map == null) {
@@ -122,7 +136,7 @@ abstract class MySQLStatement<S extends Statement> implements Statement, StmtOpt
     @Override
     public final S setImportPublisher(Function<Object, Publisher<byte[]>> function) throws JdbdException {
         final JdbdException error;
-        error = MySQLExceptions.dontSupportImporter(MySQLDatabaseSessionFactory.MY_SQL);
+        error = MySQLExceptions.dontSupportImporter(MY_SQL);
         this.closeOnBindError(error);
         throw error;
     }
@@ -130,7 +144,7 @@ abstract class MySQLStatement<S extends Statement> implements Statement, StmtOpt
     @Override
     public final S setExportSubscriber(Function<Object, Subscriber<byte[]>> function) throws JdbdException {
         final JdbdException error;
-        error = MySQLExceptions.dontSupportExporter(MySQLDatabaseSessionFactory.MY_SQL);
+        error = MySQLExceptions.dontSupportExporter(MY_SQL);
         this.closeOnBindError(error);
         throw error;
     }
@@ -168,6 +182,18 @@ abstract class MySQLStatement<S extends Statement> implements Statement, StmtOpt
         // always null
         return null;
     }
+
+
+    @Override
+    public final int hashCode() {
+        return super.hashCode();
+    }
+
+    @Override
+    public final boolean equals(Object obj) {
+        return obj == this;
+    }
+
 
     final void endStmtOption() {
         final Map<String, NamedValue> map = this.queryAttrMap;

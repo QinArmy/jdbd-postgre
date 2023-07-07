@@ -1,5 +1,6 @@
 package io.jdbd.mysql.session;
 
+import io.jdbd.JdbdException;
 import io.jdbd.meta.DatabaseMetaData;
 import io.jdbd.mysql.MySQLType;
 import io.jdbd.mysql.protocol.MySQLProtocol;
@@ -8,13 +9,16 @@ import io.jdbd.mysql.util.MySQLCollections;
 import io.jdbd.mysql.util.MySQLExceptions;
 import io.jdbd.mysql.util.MySQLStrings;
 import io.jdbd.result.*;
-import io.jdbd.session.*;
+import io.jdbd.session.DatabaseSession;
+import io.jdbd.session.SavePoint;
+import io.jdbd.session.ServerVersion;
+import io.jdbd.session.TransactionStatus;
 import io.jdbd.statement.BindStatement;
 import io.jdbd.statement.MultiStatement;
 import io.jdbd.statement.PreparedStatement;
 import io.jdbd.statement.StaticStatement;
-import io.jdbd.vendor.result.JdbdSavePoint;
 import io.jdbd.vendor.result.MultiResults;
+import io.jdbd.vendor.result.NamedSavePoint;
 import io.jdbd.vendor.stmt.ParamStmt;
 import io.jdbd.vendor.task.PrepareTask;
 import org.reactivestreams.Publisher;
@@ -33,7 +37,6 @@ import java.util.function.Function;
  * <ul>
  *     <li>{@link MySQLStaticStatement}</li>
  *     <li>{@link MySQLPreparedStatement}</li>
- *     <li>{@link MySQLOneStepPrepareStatement}</li>
  *     <li>{@link MySQLBindStatement}</li>
  *     <li>{@link MySQLMultiStatement}</li>
  * </ul>
@@ -53,7 +56,7 @@ abstract class MySQLDatabaseSession<S extends DatabaseSession> implements Databa
 
 
     @Override
-    public final Publisher<ResultStates> executeUpdate(String sql) {
+    public final Publisher<ResultStates> executeUpdate(final String sql) {
         if (!MySQLStrings.hasText(sql)) {
             return Mono.error(MySQLExceptions.sqlIsEmpty());
         }
@@ -71,8 +74,8 @@ abstract class MySQLDatabaseSession<S extends DatabaseSession> implements Databa
     }
 
     @Override
-    public final <R> Publisher<R> executeQuery(String sql, Function<CurrentRow, R> function,
-                                               Consumer<ResultStates> consumer) {
+    public final <R> Publisher<R> executeQuery(final String sql, final Function<CurrentRow, R> function,
+                                               final Consumer<ResultStates> consumer) {
         if (!MySQLStrings.hasText(sql)) {
             return Flux.error(MySQLExceptions.sqlIsEmpty());
         }
@@ -80,7 +83,7 @@ abstract class MySQLDatabaseSession<S extends DatabaseSession> implements Databa
     }
 
     @Override
-    public final BatchQuery executeBatchQuery(List<String> sqlGroup) {
+    public final BatchQuery executeBatchQuery(final List<String> sqlGroup) {
         if (MySQLCollections.isEmpty(sqlGroup)) {
             return MultiResults.batchQueryError(MySQLExceptions.sqlIsEmpty());
         }
@@ -88,7 +91,7 @@ abstract class MySQLDatabaseSession<S extends DatabaseSession> implements Databa
     }
 
     @Override
-    public final Publisher<ResultStates> executeBatchUpdate(List<String> sqlGroup) {
+    public final Publisher<ResultStates> executeBatchUpdate(final List<String> sqlGroup) {
         if (MySQLCollections.isEmpty(sqlGroup)) {
             return Flux.error(MySQLExceptions.sqlIsEmpty());
         }
@@ -96,7 +99,7 @@ abstract class MySQLDatabaseSession<S extends DatabaseSession> implements Databa
     }
 
     @Override
-    public final MultiResult executeBatchAsMulti(List<String> sqlGroup) {
+    public final MultiResult executeBatchAsMulti(final List<String> sqlGroup) {
         if (MySQLCollections.isEmpty(sqlGroup)) {
             return MultiResults.error(MySQLExceptions.sqlIsEmpty());
         }
@@ -104,7 +107,7 @@ abstract class MySQLDatabaseSession<S extends DatabaseSession> implements Databa
     }
 
     @Override
-    public final OrderedFlux executeBatchAsFlux(List<String> sqlGroup) {
+    public final OrderedFlux executeBatchAsFlux(final List<String> sqlGroup) {
         if (MySQLCollections.isEmpty(sqlGroup)) {
             return MultiResults.fluxError(MySQLExceptions.sqlIsEmpty());
         }
@@ -112,7 +115,7 @@ abstract class MySQLDatabaseSession<S extends DatabaseSession> implements Databa
     }
 
     @Override
-    public final OrderedFlux executeAsFlux(String multiStmt) {
+    public final OrderedFlux executeAsFlux(final String multiStmt) {
         if (!MySQLStrings.hasText(multiStmt)) {
             return MultiResults.fluxError(MySQLExceptions.sqlIsEmpty());
         }
@@ -140,19 +143,22 @@ abstract class MySQLDatabaseSession<S extends DatabaseSession> implements Databa
 
     @Override
     public final BindStatement bindStatement(final String sql) {
+        return this.bindStatement(sql, false);
+    }
+
+    @Override
+    public final BindStatement bindStatement(final String sql, final boolean forcePrepare) {
         if (!MySQLStrings.hasText(sql)) {
             throw MySQLExceptions.sqlIsEmpty();
         }
-        return MySQLBindStatement.create(this, sql);
+        return MySQLBindStatement.create(this, sql, forcePrepare);
     }
 
     @Override
-    public final BindStatement bindStatement(String sql, boolean forcePrepare) {
-        return null;
-    }
-
-    @Override
-    public final MultiStatement multiStatement() {
+    public final MultiStatement multiStatement() throws JdbdException {
+        if (!this.protocol.supportMultiStmt()) {
+            throw MySQLExceptions.dontSupportMultiStmt();
+        }
         return MySQLMultiStatement.create(this);
     }
 
@@ -164,7 +170,12 @@ abstract class MySQLDatabaseSession<S extends DatabaseSession> implements Databa
 
     @Override
     public final boolean supportStmtVar() {
-        return this.protocol.serverVersion().meetsMinimum(8, 0, 23);
+        return this.protocol.supportStmtVar();
+    }
+
+    @Override
+    public final boolean supportSavePoints() {
+        return this.protocol.supportSavePoints();
     }
 
     @Override
@@ -173,8 +184,8 @@ abstract class MySQLDatabaseSession<S extends DatabaseSession> implements Databa
     }
 
     @Override
-    public final boolean supportSavePoints() {
-        return true;
+    public final boolean supportOutParameter() {
+        return this.protocol.supportOutParameter();
     }
 
     @Override
@@ -190,7 +201,7 @@ abstract class MySQLDatabaseSession<S extends DatabaseSession> implements Databa
     @SuppressWarnings("unchecked")
     @Override
     public final Publisher<S> releaseSavePoint(final SavePoint savepoint) {
-        if (!(savepoint instanceof JdbdSavePoint && MySQLStrings.hasText(savepoint.name()))) {
+        if (!(savepoint instanceof NamedSavePoint && MySQLStrings.hasText(savepoint.name()))) {
             return Mono.error(MySQLExceptions.unknownSavePoint(savepoint));
         }
 
@@ -203,7 +214,7 @@ abstract class MySQLDatabaseSession<S extends DatabaseSession> implements Databa
     @SuppressWarnings("unchecked")
     @Override
     public final Publisher<S> rollbackToSavePoint(final SavePoint savepoint) {
-        if (!(savepoint instanceof JdbdSavePoint && MySQLStrings.hasText(savepoint.name()))) {
+        if (!(savepoint instanceof NamedSavePoint && MySQLStrings.hasText(savepoint.name()))) {
             return Mono.error(MySQLExceptions.unknownSavePoint(savepoint));
         }
 
@@ -225,13 +236,9 @@ abstract class MySQLDatabaseSession<S extends DatabaseSession> implements Databa
 
     @Override
     public final boolean isSameFactory(DatabaseSession session) {
-        throw new UnsupportedOperationException();
+        return session instanceof MySQLDatabaseSession && ((MySQLDatabaseSession<?>) session).factory == this.factory;
     }
 
-    @Override
-    public final boolean isBelongTo(DatabaseSessionFactory factory) {
-        throw new UnsupportedOperationException();
-    }
 
     @Override
     public final Mono<Void> close() {

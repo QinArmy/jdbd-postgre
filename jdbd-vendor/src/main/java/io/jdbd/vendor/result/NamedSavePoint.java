@@ -4,29 +4,20 @@ import io.jdbd.JdbdException;
 import io.jdbd.session.SavePoint;
 import io.jdbd.vendor.util.JdbdStrings;
 
-import java.util.Objects;
-
 /**
- * @see NamedSavePoint
+ * @see JdbdSavePoint
  * @see UnNamedSavePoint
  * @since 1.0
  */
-public final class JdbdSavePoint implements SavePoint {
+public final class NamedSavePoint implements SavePoint {
 
-    public static SavePoint from(int id, String name) {
-        return new JdbdSavePoint(id, name);
+    public static SavePoint fromName(String name) {
+        return new NamedSavePoint(name);
     }
-
-
-    private final int id;
 
     private final String name;
 
-    /**
-     * private constructor
-     */
-    private JdbdSavePoint(int id, String name) {
-        this.id = id;
+    private NamedSavePoint(String name) {
         this.name = name;
     }
 
@@ -37,7 +28,7 @@ public final class JdbdSavePoint implements SavePoint {
 
     @Override
     public int id() throws JdbdException {
-        return this.id;
+        throw new JdbdException("this is named save point");
     }
 
     @Override
@@ -45,10 +36,9 @@ public final class JdbdSavePoint implements SavePoint {
         return this.name;
     }
 
-
     @Override
     public int hashCode() {
-        return Objects.hash(this.id, this.name);
+        return this.name.hashCode();
     }
 
     @Override
@@ -56,9 +46,8 @@ public final class JdbdSavePoint implements SavePoint {
         final boolean match;
         if (obj == this) {
             match = true;
-        } else if (obj instanceof JdbdSavePoint) {
-            final JdbdSavePoint o = (JdbdSavePoint) obj;
-            match = o.id == this.id && o.name.equals(this.name);
+        } else if (obj instanceof NamedSavePoint) {
+            match = ((NamedSavePoint) obj).name.equals(this.name);
         } else {
             match = false;
         }
@@ -68,10 +57,8 @@ public final class JdbdSavePoint implements SavePoint {
     @Override
     public String toString() {
         return JdbdStrings.builder()
-                .append(JdbdSavePoint.class.getName())
-                .append("[ id : ")
-                .append(this.id)
-                .append(" , name : ")
+                .append(NamedSavePoint.class.getName())
+                .append("[ name : ")
                 .append(this.name)
                 .append(" , hash : ")
                 .append(System.identityHashCode(this))
@@ -80,4 +67,4 @@ public final class JdbdSavePoint implements SavePoint {
     }
 
 
-}
+}//NamedSavePoint

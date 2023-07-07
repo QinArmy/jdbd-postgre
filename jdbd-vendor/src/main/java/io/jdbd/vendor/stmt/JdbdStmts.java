@@ -1,12 +1,12 @@
 package io.jdbd.vendor.stmt;
 
 
+import io.jdbd.lang.Nullable;
 import io.jdbd.meta.DataType;
 import io.jdbd.result.ResultStates;
 import io.jdbd.vendor.util.JdbdCollections;
 import org.reactivestreams.Publisher;
 import org.reactivestreams.Subscriber;
-import reactor.util.annotation.Nullable;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -23,8 +23,7 @@ public abstract class JdbdStmts {
 
     public static final Consumer<ResultStates> IGNORE_RESULT_STATES = JdbdStmts::ignoreResultStates;
 
-
-
+    protected static final List<ParamValue> EMPTY_PARAM_GROUP = Collections.emptyList();
 
 
     public static StaticStmt stmt(final String sql) {
@@ -70,12 +69,16 @@ public abstract class JdbdStmts {
         return new OptionStaticMultiStmt(multiStmt, option);
     }
 
-    public static ParamStmt paramStmt(String sql, List<? extends ParamValue> paramGroup) {
+    public static ParamStmt paramStmt(final String sql, @Nullable List<ParamValue> paramGroup) {
+        if (paramGroup == null) {
+            paramGroup = EMPTY_PARAM_GROUP;
+        } else {
+            paramGroup = JdbdCollections.unmodifiableList(paramGroup);
+        }
         return new SimpleParamStmt<>(sql, paramGroup);
     }
 
-    public static ParamStmt paramStmt(String sql, List<? extends ParamValue> paramGroup
-            , Consumer<ResultStates> statesConsumer) {
+    public static ParamStmt paramStmt(String sql, List<ParamValue> paramGroup, Consumer<ResultStates> statesConsumer) {
         return new SimpleQueryParamStmt<>(sql, paramGroup, statesConsumer);
     }
 
@@ -83,7 +86,12 @@ public abstract class JdbdStmts {
         return new SimpleParamBatchStmt<>(sql, groupList);
     }
 
-    public static ParamStmt paramStmt(String sql, List<ParamValue> paramGroup, StmtOption option) {
+    public static ParamStmt paramStmt(final String sql, @Nullable List<ParamValue> paramGroup, StmtOption option) {
+        if (paramGroup == null) {
+            paramGroup = EMPTY_PARAM_GROUP;
+        } else {
+            paramGroup = JdbdCollections.unmodifiableList(paramGroup);
+        }
         return new OptionParamStmt<>(sql, paramGroup, option);
     }
 
@@ -495,7 +503,7 @@ public abstract class JdbdStmts {
 
         protected SimpleParamStmt(String sql, List<T> bindGroup) {
             this.sql = sql;
-            this.bindGroup = wrapBindGroup(bindGroup);
+            this.bindGroup = bindGroup;
         }
 
         @Override
@@ -780,10 +788,7 @@ public abstract class JdbdStmts {
     }
 
 
-
-
-
-    private static void ignoreResultStates(ResultStates states){
+    private static void ignoreResultStates(ResultStates states) {
         //no-op
     }
 

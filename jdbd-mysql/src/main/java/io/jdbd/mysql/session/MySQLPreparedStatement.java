@@ -8,6 +8,7 @@ import io.jdbd.mysql.stmt.Stmts;
 import io.jdbd.mysql.util.MySQLBinds;
 import io.jdbd.mysql.util.MySQLCollections;
 import io.jdbd.mysql.util.MySQLExceptions;
+import io.jdbd.mysql.util.MySQLStrings;
 import io.jdbd.result.*;
 import io.jdbd.session.DatabaseSession;
 import io.jdbd.statement.PreparedStatement;
@@ -32,6 +33,8 @@ import static io.jdbd.mysql.session.MySQLDatabaseSessionFactory.MY_SQL;
  * <p>
  * This interface is a implementation of {@link PreparedStatement} with MySQL client protocol.
  * </p>
+ *
+ * @since 1.0
  */
 final class MySQLPreparedStatement extends MySQLStatement<PreparedStatement> implements PreparedStatement {
 
@@ -379,8 +382,22 @@ final class MySQLPreparedStatement extends MySQLStatement<PreparedStatement> imp
 
     @Override
     public boolean supportOutParameter() {
-        // always true,out parameter return as extra Result.
-        return true;
+        return this.session.protocol.supportOutParameter();
+    }
+
+
+    @Override
+    public String toString() {
+        return MySQLStrings.builder()
+                .append(getClass().getName())
+                .append("[ session : ")
+                .append(this.session)
+                .append(" , sql : ")
+                .append(this.sql)
+                .append(" , hash : ")
+                .append(System.identityHashCode(this))
+                .append(" ]")
+                .toString();
     }
 
 

@@ -4,26 +4,33 @@ import io.jdbd.JdbdException;
 import io.jdbd.JdbdSQLException;
 import io.jdbd.lang.Nullable;
 import io.jdbd.meta.DataType;
-import io.jdbd.mysql.stmt.BindBatchStmt;
-import io.jdbd.mysql.stmt.BindStmt;
-import io.jdbd.mysql.stmt.BindValue;
+import io.jdbd.mysql.MySQLType;
 import io.jdbd.mysql.stmt.Stmts;
+import io.jdbd.mysql.util.MySQLBinds;
 import io.jdbd.mysql.util.MySQLCollections;
 import io.jdbd.mysql.util.MySQLExceptions;
+import io.jdbd.mysql.util.MySQLStrings;
 import io.jdbd.result.*;
 import io.jdbd.statement.BindStatement;
+import io.jdbd.statement.OutParameter;
 import io.jdbd.statement.ResultType;
 import io.jdbd.statement.SubscribeException;
 import io.jdbd.vendor.result.MultiResults;
+import io.jdbd.vendor.stmt.JdbdValues;
+import io.jdbd.vendor.stmt.ParamBatchStmt;
+import io.jdbd.vendor.stmt.ParamStmt;
 import io.jdbd.vendor.stmt.ParamValue;
 import io.jdbd.vendor.util.JdbdBinds;
+import org.reactivestreams.Publisher;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
-import java.util.Collections;
+import java.nio.file.Path;
 import java.util.List;
 import java.util.function.Consumer;
 import java.util.function.Function;
+
+import static io.jdbd.mysql.session.MySQLDatabaseSessionFactory.MY_SQL;
 
 /**
  * <p>
@@ -44,12 +51,15 @@ final class MySQLBindStatement extends MySQLStatement<BindStatement> implements 
 
     private List<ParamValue> paramGroup;
 
-    private int firstGroupSize = -1;
+    private int firstParamSize = -1;
 
-    public MySQLBindStatement(final MySQLDatabaseSession<?> session, final String sql, boolean forcePrepare) {
+    private boolean usePrepare;
+
+    public MySQLBindStatement(final MySQLDatabaseSession<?> session, final String sql, final boolean forcePrepare) {
         super(session);
         this.sql = sql;
         this.forcePrepare = forcePrepare;
+        this.usePrepare = forcePrepare;
     }
 
     @Override
@@ -57,106 +67,162 @@ final class MySQLBindStatement extends MySQLStatement<BindStatement> implements 
         return this.forcePrepare;
     }
 
+
     @Override
-    public BindStatement bind(final int indexBasedZero, final @Nullable DataType sqlType,
+    public BindStatement bind(final int indexBasedZero, final @Nullable DataType dataType,
                               final @Nullable Object nullable) throws JdbdException {
 
+        List<ParamValue> paramGroup = this.paramGroup;
+        if (paramGroup == EMPTY_PARAM_GROUP) {
+            throw MySQLExceptions.cannotReuseStatement(BindStatement.class);
+        }
+
+        final int firstGroupSize = this.firstParamSize;
+
+        final RuntimeException error;
+        final MySQLType type;
+
+        if (indexBasedZero < 0) {
+            List<List<ParamValue>> paramGroupList = this.paramGroupList;
+            final int groupSize = paramGroupList == null ? 0 : paramGroupList.size();
+            error = MySQLExceptions.invalidParameterValue(groupSize, indexBasedZero);
+        } else if (indexBasedZero == firstGroupSize) {
+            List<List<ParamValue>> paramGroupList = this.paramGroupList;
+            final int groupSize = paramGroupList == null ? 0 : paramGroupList.size();
+            error = MySQLExceptions.notMatchWithFirstParamGroupCount(groupSize, indexBasedZero, firstGroupSize);
+        } else if (dataType == null) {
+            error = MySQLExceptions.dataTypeIsNull();
+        } else if ((type = MySQLBinds.handleDataType(dataType)) == null) {
+            error = MySQLExceptions.dontSupportDataType(dataType, MY_SQL);
+        } else {
+            error = null;
+            if (paramGroup == null) {
+                this.paramGroup = paramGroup = MySQLCollections.arrayList(firstGroupSize < 0 ? 0 : firstGroupSize);
+            }
+            if (nullable instanceof OutParameter
+                    || nullable instanceof Publisher
+                    || nullable instanceof Path) { // TODO long string or binary
+                this.usePrepare = true;
+            }
+            paramGroup.add(JdbdValues.paramValue(indexBasedZero, type, nullable));
+        }
+
+        if (error != null) {
+            clearStatementToAvoidReuse();
+            throw MySQLExceptions.wrap(error);
+        }
         return this;
     }
 
 
     @Override
     public BindStatement addBatch() throws JdbdException {
-        checkReuse();
+
         // add bind group
-        final List<BindValue> paramGroup = this.paramGroup;
-        int firstGroupSize = this.firstGroupSize;
+        final List<ParamValue> paramGroup = this.paramGroup;
 
-        if (firstGroupSize < 0) {
-            firstGroupSize = paramGroup.size();
-            this.firstGroupSize = firstGroupSize;
+        if (paramGroup == EMPTY_PARAM_GROUP) {
+            throw MySQLExceptions.cannotReuseStatement(BindStatement.class);
+        }
+        List<List<ParamValue>> paramGroupList = this.paramGroupList;
+
+        final int paramSize = paramGroup == null ? 0 : paramGroup.size();
+        final int groupSize = paramGroupList == null ? 0 : paramGroupList.size();
+
+        int firstParamSize = this.firstParamSize;
+        if (firstParamSize < 0) {
+            this.firstParamSize = firstParamSize = paramSize;
         }
 
-        if (paramGroup.size() != firstGroupSize) {
-            throw MySQLExceptions.notMatchWithFirstParamGroupCount(this.bindGroupList.size()
-                    , paramGroup.size(), firstGroupSize);
+        final RuntimeException error;
+        if (paramSize != firstParamSize) {
+            error = MySQLExceptions.notMatchWithFirstParamGroupCount(groupSize, paramSize, firstParamSize);
+        } else if (paramGroup == null) {
+            error = null;
         } else {
-            final JdbdException error = JdbdBinds.sortAndCheckParamGroup(this.bindGroupList.size(), paramGroup);
-            if (error != null) {
-                throw error;
-            }
+            error = JdbdBinds.sortAndCheckParamGroup(groupSize, paramGroup);
         }
 
-        switch (paramGroup.size()) {
-            case 0: {
-                this.bindGroupList.add(Collections.emptyList());
-            }
-            break;
-            case 1: {
-                this.bindGroupList.add(Collections.singletonList(paramGroup.get(0)));
-                this.paramGroup = MySQLCollections.arrayList(1);
-            }
-            break;
-            default: {
-                this.bindGroupList.add(Collections.unmodifiableList(paramGroup));
-                this.paramGroup = MySQLCollections.arrayList(firstGroupSize);
-            }
+        if (error != null) {
+            clearStatementToAvoidReuse();
+            throw MySQLExceptions.wrap(error);
         }
+
+        if (paramGroupList == null) {
+            this.paramGroupList = paramGroupList = MySQLCollections.arrayList();
+        }
+
+        if (paramGroup == null) {
+            paramGroupList.add(EMPTY_PARAM_GROUP);
+        } else {
+            paramGroupList.add(MySQLCollections.unmodifiableList(paramGroup));
+        }
+        this.paramGroup = null; // clear for next batch
         return this;
     }
 
+
     @Override
     public Mono<ResultStates> executeUpdate() {
-        final List<BindValue> paramGroup = this.paramGroup;
-        final JdbdException error;
-        if (paramGroup == null) {
-            error = MySQLExceptions.cannotReuseStatement(BindStatement.class);
-        } else if (this.bindGroupList.size() > 0) {
+        this.endStmtOption();
+
+        final List<ParamValue> paramGroup = this.paramGroup;
+        if (paramGroup == EMPTY_PARAM_GROUP) {
+            throw MySQLExceptions.cannotReuseStatement(BindStatement.class);
+        }
+
+        final RuntimeException error;
+        if (this.paramGroupList != null) {
             error = new SubscribeException(ResultType.UPDATE, ResultType.BATCH_UPDATE);
+        } else if (paramGroup == null) {
+            error = null;
         } else {
             error = JdbdBinds.sortAndCheckParamGroup(0, paramGroup);
         }
+
         final Mono<ResultStates> mono;
         if (error == null) {
-            this.statementOption.fetchSize = 0;
-            final BindStmt stmt;
-            stmt = Stmts.bind(this.sql, paramGroup, this.statementOption);
-            mono = this.session.protocol.bindUpdate(stmt, false);
+            this.fetchSize = 0;
+            mono = this.session.protocol.bindUpdate(Stmts.paramStmt(this.sql, paramGroup, this), isUsePrepare());
         } else {
-            mono = Mono.error(error);
+            mono = Mono.error(MySQLExceptions.wrap(error));
         }
         clearStatementToAvoidReuse();
         return mono;
     }
 
     @Override
-    public Flux<ResultRow> executeQuery() {
+    public Publisher<ResultRow> executeQuery() {
         return this.executeQuery(CurrentRow::asResultRow, Stmts.IGNORE_RESULT_STATES);
     }
 
     @Override
-    public <R> Flux<R> executeQuery(Function<CurrentRow, R> function) {
+    public <R> Publisher<R> executeQuery(Function<CurrentRow, R> function) {
         return this.executeQuery(function, Stmts.IGNORE_RESULT_STATES);
     }
 
     @Override
-    public <R> Flux<R> executeQuery(final Function<CurrentRow, R> function, final Consumer<ResultStates> consumer) {
-        final List<BindValue> paramGroup = this.paramGroup;
-        final JdbdException error;
-        if (paramGroup == null) {
+    public <R> Publisher<R> executeQuery(final Function<CurrentRow, R> function, final Consumer<ResultStates> consumer) {
+        this.endStmtOption();
+
+        final List<ParamValue> paramGroup = this.paramGroup;
+        final RuntimeException error;
+        if (paramGroup == EMPTY_PARAM_GROUP) {
             error = MySQLExceptions.cannotReuseStatement(BindStatement.class);
-        } else if (this.bindGroupList != null) {
+        } else if (this.paramGroupList != null) {
             error = new SubscribeException(ResultType.QUERY, ResultType.BATCH_UPDATE);
+        } else if (paramGroup == null) {
+            error = null;
         } else {
             error = JdbdBinds.sortAndCheckParamGroup(0, paramGroup);
         }
         final Flux<R> flux;
         if (error == null) {
-            final BindStmt stmt;
-            stmt = Stmts.bind(this.sql, paramGroup, this.statementOption);
-            flux = this.session.protocol.bindQuery(stmt, false, function, consumer);
+            final ParamStmt stmt;
+            stmt = Stmts.paramStmt(this.sql, paramGroup, this);
+            flux = this.session.protocol.bindQuery(stmt, isUsePrepare(), function);
         } else {
-            flux = Flux.error(error);
+            flux = Flux.error(MySQLExceptions.wrap(error));
         }
         clearStatementToAvoidReuse();
         return flux;
@@ -164,17 +230,29 @@ final class MySQLBindStatement extends MySQLStatement<BindStatement> implements 
 
 
     @Override
-    public Flux<ResultStates> executeBatchUpdate() {
-        final Flux<ResultStates> flux;
-        if (this.paramGroup == null) {
-            flux = Flux.error(MySQLExceptions.cannotReuseStatement(BindStatement.class));
-        } else if (this.bindGroupList.size() == 0) {
-            flux = Flux.error(MySQLExceptions.noAnyParamGroupError());
+    public Publisher<ResultStates> executeBatchUpdate() {
+        this.endStmtOption();
+
+        final List<List<ParamValue>> paramGroupList = this.paramGroupList;
+        final List<ParamValue> paramGroup = this.paramGroup;
+
+        final RuntimeException error;
+        if (paramGroup == EMPTY_PARAM_GROUP) {
+            error = MySQLExceptions.cannotReuseStatement(BindStatement.class);
+        } else if (paramGroup != null) {
+            error = MySQLExceptions.noInvokeAddBatch();
+        } else if (paramGroupList == null) {
+            error = MySQLExceptions.noAnyParamGroupError();
         } else {
-            this.statementOption.fetchSize = 0; // executeBatch() don't support fetch.
-            final BindBatchStmt stmt;
-            stmt = Stmts.bindBatch(this.sql, this.bindGroupList, this.statementOption);
-            flux = this.session.protocol.bindBatch(stmt, false);
+            error = null;
+        }
+        final Flux<ResultStates> flux;
+        if (error == null) {
+            final ParamBatchStmt stmt;
+            stmt = Stmts.paramBatch(this.sql, paramGroupList, this);
+            flux = this.session.protocol.bindBatchUpdate(stmt, isUsePrepare());
+        } else {
+            flux = Flux.error(MySQLExceptions.wrap(error));
         }
         clearStatementToAvoidReuse();
         return flux;
@@ -182,37 +260,86 @@ final class MySQLBindStatement extends MySQLStatement<BindStatement> implements 
 
     @Override
     public BatchQuery executeBatchQuery() {
-        return null;
+        this.endStmtOption();
+
+        final List<List<ParamValue>> paramGroupList = this.paramGroupList;
+        final List<ParamValue> paramGroup = this.paramGroup;
+
+        final RuntimeException error;
+        if (paramGroup == EMPTY_PARAM_GROUP) {
+            error = MySQLExceptions.cannotReuseStatement(BindStatement.class);
+        } else if (paramGroup != null) {
+            error = MySQLExceptions.noInvokeAddBatch();
+        } else if (paramGroupList == null) {
+            error = MySQLExceptions.noAnyParamGroupError();
+        } else {
+            error = null;
+        }
+        final BatchQuery batchQuery;
+        if (error == null) {
+            final ParamBatchStmt stmt;
+            stmt = Stmts.paramBatch(this.sql, paramGroupList, this);
+            batchQuery = this.session.protocol.bindBatchQuery(stmt, isUsePrepare());
+        } else {
+            batchQuery = MultiResults.batchQueryError(MySQLExceptions.wrap(error));
+        }
+        clearStatementToAvoidReuse();
+        return batchQuery;
     }
 
     @Override
     public MultiResult executeBatchAsMulti() {
-        final MultiResult result;
-        if (this.paramGroup == null) {
-            result = MultiResults.error(MySQLExceptions.cannotReuseStatement(BindStatement.class));
-        } else if (this.bindGroupList.size() == 0) {
-            result = MultiResults.error(MySQLExceptions.noAnyParamGroupError());
+        this.endStmtOption();
+
+        final List<List<ParamValue>> paramGroupList = this.paramGroupList;
+        final List<ParamValue> paramGroup = this.paramGroup;
+
+        final RuntimeException error;
+        if (paramGroup == EMPTY_PARAM_GROUP) {
+            error = MySQLExceptions.cannotReuseStatement(BindStatement.class);
+        } else if (paramGroup != null) {
+            error = MySQLExceptions.noInvokeAddBatch();
+        } else if (paramGroupList == null) {
+            error = MySQLExceptions.noAnyParamGroupError();
         } else {
-            this.statementOption.fetchSize = 0; // executeBatchAsMulti() don't support fetch.
-            final BindBatchStmt stmt;
-            stmt = Stmts.bindBatch(this.sql, this.bindGroupList, this.statementOption);
-            result = this.session.protocol.bindBatchAsMulti(stmt, false);
+            error = null;
+        }
+        final MultiResult multiResult;
+        if (error == null) {
+            final ParamBatchStmt stmt;
+            stmt = Stmts.paramBatch(this.sql, paramGroupList, this);
+            multiResult = this.session.protocol.bindBatchAsMulti(stmt, isUsePrepare());
+        } else {
+            multiResult = MultiResults.error(MySQLExceptions.wrap(error));
         }
         clearStatementToAvoidReuse();
-        return result;
+        return multiResult;
     }
 
     @Override
     public OrderedFlux executeBatchAsFlux() {
-        final OrderedFlux flux;
-        if (this.paramGroup == null) {
-            flux = MultiResults.fluxError(MySQLExceptions.cannotReuseStatement(BindStatement.class));
-        } else if (this.bindGroupList.size() == 0) {
-            flux = MultiResults.fluxError(MySQLExceptions.noAnyParamGroupError());
+        this.endStmtOption();
+
+        final List<List<ParamValue>> paramGroupList = this.paramGroupList;
+        final List<ParamValue> paramGroup = this.paramGroup;
+
+        final RuntimeException error;
+        if (paramGroup == EMPTY_PARAM_GROUP) {
+            error = MySQLExceptions.cannotReuseStatement(BindStatement.class);
+        } else if (paramGroup != null) {
+            error = MySQLExceptions.noInvokeAddBatch();
+        } else if (paramGroupList == null) {
+            error = MySQLExceptions.noAnyParamGroupError();
         } else {
-            final BindBatchStmt stmt;
-            stmt = Stmts.bindBatch(this.sql, this.bindGroupList, this.statementOption);
-            flux = this.session.protocol.bindBatchAsFlux(stmt, false);
+            error = null;
+        }
+        final OrderedFlux flux;
+        if (error == null) {
+            final ParamBatchStmt stmt;
+            stmt = Stmts.paramBatch(this.sql, paramGroupList, this);
+            flux = this.session.protocol.bindBatchAsFlux(stmt, isUsePrepare());
+        } else {
+            flux = MultiResults.fluxError(MySQLExceptions.wrap(error));
         }
         clearStatementToAvoidReuse();
         return flux;
@@ -229,14 +356,27 @@ final class MySQLBindStatement extends MySQLStatement<BindStatement> implements 
 
     @Override
     public boolean supportOutParameter() {
-        // use PreparedStatement,because couldn't realize out parameter.
-        return false;
+        // adapt to PreparedStatement
+        return true;
     }
 
+
     @Override
-    public boolean setFetchSize(final int fetchSize) {
-        this.statementOption.fetchSize = fetchSize;
-        return fetchSize > 0;
+    public String toString() {
+        return MySQLStrings.builder()
+                .append(getClass().getName())
+                .append("[ session : ")
+                .append(this.session)
+                .append(" , sql : ")
+                .append(this.sql)
+                .append(" , forcePrepare : ")
+                .append(this.forcePrepare)
+                .append(" , usePrepare : ")
+                .append(this.usePrepare)
+                .append(" , hash : ")
+                .append(System.identityHashCode(this))
+                .append(" ]")
+                .toString();
     }
 
 
@@ -251,22 +391,14 @@ final class MySQLBindStatement extends MySQLStatement<BindStatement> implements 
 
     /*################################## blow private method ##################################*/
 
-    /**
-     * @throws JdbdSQLException when indexBasedZero error
-     */
-    private int checkIndex(final int indexBasedZero) throws JdbdSQLException {
-        if (indexBasedZero < 0) {
-            throw MySQLExceptions.invalidParameterValue(this.bindGroupList.size(), indexBasedZero);
-        }
-        final int firstGroupSize = this.firstGroupSize;
-        if (firstGroupSize > -1 && indexBasedZero >= firstGroupSize) {
-            throw MySQLExceptions.beyondFirstParamGroupRange(indexBasedZero, firstGroupSize);
-        }
-        return indexBasedZero;
-    }
 
     private void clearStatementToAvoidReuse() {
-        this.paramGroup = null;
+        this.paramGroupList = null;
+        this.paramGroup = EMPTY_PARAM_GROUP;
+    }
+
+    private boolean isUsePrepare() {
+        return this.forcePrepare || this.usePrepare || this.fetchSize > 0;
     }
 
 

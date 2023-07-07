@@ -72,14 +72,16 @@ public interface DatabaseProtocol {
      * This method is one of underlying api of below methods:
      * </p>
      */
-    <R> Flux<R> bindQuery(ParamStmt stmt, boolean forcePrepare, Function<CurrentRow, R> function, Consumer<ResultStates> consumer);
+    <R> Flux<R> bindQuery(ParamStmt stmt, boolean forcePrepare, Function<CurrentRow, R> function);
 
     /**
      * <p>
      * This method is one of underlying api of {@link BindStatement#executeBatchUpdate()} method.
      * </p>
      */
-    Flux<ResultStates> bindBatch(ParamBatchStmt stmt, boolean forcePrepare);
+    Flux<ResultStates> bindBatchUpdate(ParamBatchStmt stmt, boolean forcePrepare);
+
+    BatchQuery bindBatchQuery(ParamBatchStmt stmt, boolean forcePrepare);
 
     /**
      * <p>
@@ -134,6 +136,12 @@ public interface DatabaseProtocol {
     boolean isReadOnlyTransaction(ResultStates states);
 
     boolean supportMultiStmt();
+
+    boolean supportOutParameter();
+
+    boolean supportSavePoints();
+
+    boolean supportStmtVar();
 
     Mono<SavePoint> createSavePoint();
 
