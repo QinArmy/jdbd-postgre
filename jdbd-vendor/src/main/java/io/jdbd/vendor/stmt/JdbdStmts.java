@@ -2,6 +2,7 @@ package io.jdbd.vendor.stmt;
 
 
 import io.jdbd.result.ResultStates;
+import io.jdbd.vendor.util.JdbdCollections;
 import org.reactivestreams.Publisher;
 import org.reactivestreams.Subscriber;
 
@@ -597,7 +598,7 @@ public abstract class JdbdStmts {
 
         protected OptionParamStmt(String sql, List<T> bindGroup, StmtOption option) {
             this.sql = sql;
-            this.bindGroup = wrapBindGroup(bindGroup);
+            this.bindGroup = JdbdCollections.unmodifiableList(bindGroup);
             this.timeout = option.getTimeout();
 
         }

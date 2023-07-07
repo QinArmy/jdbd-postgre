@@ -3,6 +3,7 @@ package io.jdbd.statement;
 import io.jdbd.JdbdException;
 import io.jdbd.lang.Nullable;
 import io.jdbd.meta.DataType;
+import io.jdbd.result.ResultRowMeta;
 import io.jdbd.result.Warning;
 import io.jdbd.session.DatabaseSession;
 import org.reactivestreams.Publisher;
@@ -39,12 +40,14 @@ import java.util.function.Function;
  */
 public interface PreparedStatement extends ServerPrepareStatement {
 
+    @Nullable
+    ResultRowMeta resultRowMeta();
 
-    List<? extends DataType> getParamTypeList();
+    List<? extends DataType> paramTypeList();
 
 
     @Nullable
-    Warning getWaring();
+    Warning waring();
 
     /**
      * {@inheritDoc }

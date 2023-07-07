@@ -11,6 +11,7 @@ import io.jdbd.session.DatabaseSession;
 import io.jdbd.statement.Statement;
 import io.jdbd.vendor.stmt.JdbdValues;
 import io.jdbd.vendor.stmt.NamedValue;
+import io.jdbd.vendor.stmt.ParamValue;
 import io.jdbd.vendor.stmt.StmtOption;
 import io.jdbd.vendor.util.JdbdStrings;
 import org.reactivestreams.Publisher;
@@ -19,6 +20,7 @@ import org.reactivestreams.Subscriber;
 import java.nio.file.Path;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 
@@ -29,6 +31,9 @@ import java.util.function.Function;
  * </p>
  */
 abstract class MySQLStatement<S extends Statement> implements Statement, StmtOption {
+
+
+    static final List<ParamValue> EMPTY_PARAM_GROUP = Collections.emptyList();
 
     final MySQLDatabaseSession session;
 

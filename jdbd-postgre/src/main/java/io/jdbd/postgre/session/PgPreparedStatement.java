@@ -75,7 +75,7 @@ final class PgPreparedStatement extends PgStatement implements PreparedStatement
 
 
     @Override
-    public List<? extends DataType> getParamTypeList() {
+    public List<? extends DataType> paramTypeList() {
         return null;
     }
 
@@ -272,7 +272,7 @@ final class PgPreparedStatement extends PgStatement implements PreparedStatement
 
     @Nullable
     @Override
-    public Warning getWaring() {
+    public Warning waring() {
         return this.warning;
     }
 

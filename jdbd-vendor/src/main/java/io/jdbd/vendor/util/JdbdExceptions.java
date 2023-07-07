@@ -216,14 +216,14 @@ public abstract class JdbdExceptions extends ExceptionUtils {
         return new JdbdSQLException(new SQLException("No return column"));
     }
 
-    public static JdbdSQLException invalidParameterValue(int stmtIndex, int paramIndex) {
+    public static JdbdException invalidParameterValue(int stmtIndex, int paramIndex) {
         String m;
         if (stmtIndex == 0) {
             m = String.format("Invalid parameter at  param[index:%s]", paramIndex);
         } else {
             m = String.format("Invalid parameter at batch[index:%s] param[index:%s]", stmtIndex, paramIndex);
         }
-        return new JdbdSQLException(new SQLException(m, SQLStates.INVALID_PARAMETER_VALUE));
+        return new JdbdException(m, SQLStates.INVALID_PARAMETER_VALUE, 0);
     }
 
     public static JdbdSQLException beyondFirstParamGroupRange(int indexBasedZero, int firstGroupSize) {
@@ -278,9 +278,12 @@ public abstract class JdbdExceptions extends ExceptionUtils {
         return new JdbdException(m, SQLStates.INVALID_PARAMETER_VALUE, 0);
     }
 
-    public static JdbdSQLException noAnyParamGroupError() {
-        return new JdbdSQLException(
-                new SQLException("Not found any parameter group.", SQLStates.INVALID_PARAMETER_VALUE));
+    public static JdbdException noAnyParamGroupError() {
+        return new JdbdException("Not found any parameter group.", SQLStates.INVALID_PARAMETER_VALUE, 0);
+    }
+
+    public static JdbdException noInvokeAddBatch() {
+        return new JdbdException("Not invoke addBatch()", SQLStates.INVALID_PARAMETER_VALUE, 0);
     }
 
     public static JdbdSQLException batchAsMultiNonSupportFetch() {
