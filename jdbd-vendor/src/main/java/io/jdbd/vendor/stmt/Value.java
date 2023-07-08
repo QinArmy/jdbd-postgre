@@ -3,6 +3,7 @@ package io.jdbd.vendor.stmt;
 
 import io.jdbd.lang.Nullable;
 import io.jdbd.meta.DataType;
+import io.jdbd.statement.Parameter;
 
 /**
  * <p>
@@ -21,10 +22,29 @@ import io.jdbd.meta.DataType;
  */
 public interface Value {
 
+    /**
+     * @return parameter value that maybe is {@link Parameter}
+     */
     @Nullable
     Object get();
 
+    /**
+     * @return non-null parameter that maybe is {@link Parameter}
+     * @throws NullPointerException throw when parameter is null
+     */
     Object getNonNull() throws NullPointerException;
+
+    /**
+     * @return parameter value or {@link Parameter#value()}
+     */
+    @Nullable
+    Object getValue();
+
+    /**
+     * @return non-null parameter value or {@link Parameter#value()}
+     * @throws NullPointerException throw when parameter value is null or {@link Parameter#value()} is null.
+     */
+    Object getNonNullValue() throws NullPointerException;
 
 
     /**

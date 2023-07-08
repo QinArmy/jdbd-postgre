@@ -21,13 +21,15 @@ import io.jdbd.result.OutResult;
  * @see io.jdbd.result.OutResult
  * @since 1.0
  */
-public interface OutParameter {
+public interface OutParameter extends Parameter {
+
 
     /**
      * @return out parameter name.
      * @see OutResult#outParamName()
      */
     String name();
+
 
     /**
      * @return out parameter value.
@@ -58,7 +60,7 @@ public interface OutParameter {
 
 
     static OutParameter from(String name, @Nullable Object value) {
-        return JdbdOutParameter.create(name, value);
+        return JdbdParameters.outParam(name, value);
     }
 
 

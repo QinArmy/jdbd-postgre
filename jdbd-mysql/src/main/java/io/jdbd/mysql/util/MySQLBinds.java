@@ -44,7 +44,7 @@ public abstract class MySQLBinds extends JdbdBinds {
     }
 
     public static String bindToSetType(final int batchIndex, final Value paramValue) {
-        final Object nonNull = paramValue.getNonNull();
+        final Object nonNull = paramValue.getNonNullValue();
         if (nonNull instanceof String) {
             return (String) nonNull;
         }

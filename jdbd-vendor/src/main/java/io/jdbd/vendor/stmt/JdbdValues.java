@@ -2,6 +2,7 @@ package io.jdbd.vendor.stmt;
 
 import io.jdbd.lang.Nullable;
 import io.jdbd.meta.DataType;
+import io.jdbd.statement.Parameter;
 
 import java.util.Objects;
 
@@ -40,6 +41,27 @@ public abstract class JdbdValues {
         @Override
         public final Object getNonNull() throws NullPointerException {
             final Object value = this.value;
+            if (value == null) {
+                throw new NullPointerException("value is null");
+            }
+            return value;
+        }
+
+        @Override
+        public final Object getValue() {
+            Object value = this.value;
+            if (value instanceof Parameter) {
+                value = ((Parameter) value).value();
+            }
+            return value;
+        }
+
+        @Override
+        public final Object getNonNullValue() throws NullPointerException {
+            Object value = this.value;
+            if (value instanceof Parameter) {
+                value = ((Parameter) value).value();
+            }
             if (value == null) {
                 throw new NullPointerException("value is null");
             }

@@ -195,13 +195,13 @@ public abstract class MySQLTimes extends JdbdTimes {
     }
 
 
-    public static boolean canConvertToTimeType(Duration duration) {
+    public static boolean isOverflowDuration(final Duration duration) {
         final long abs = Math.abs(duration.getSeconds());
-        return (abs < DURATION_MAX_SECOND) || (abs == DURATION_MAX_SECOND && duration.getNano() == 0L);
+        return (abs > DURATION_MAX_SECOND) || (abs == DURATION_MAX_SECOND && duration.getNano() > 0L);
     }
 
     public static String durationToTimeText(Duration duration) {
-        if (!canConvertToTimeType(duration)) {
+        if (isOverflowDuration(duration)) {
             throw new IllegalArgumentException("duration too big,can't convert to MySQL TIME type.");
         }
         int restSecond = (int) Math.abs(duration.getSeconds());
@@ -272,7 +272,7 @@ public abstract class MySQLTimes extends JdbdTimes {
         return MySQLTimes.getDateTimeFormatter(index < 0 ? 0 : (dateTimeText.length() - index - 1));
     }
 
-
+    @Deprecated
     public static DateTimeFormatter getTimeFormatter(final int microPrecision) {
         final DateTimeFormatter formatter;
         switch (microPrecision) {
@@ -305,6 +305,7 @@ public abstract class MySQLTimes extends JdbdTimes {
         return formatter;
     }
 
+    @Deprecated
     public static DateTimeFormatter getDateTimeFormatter(final int microPrecision) {
         final DateTimeFormatter formatter;
 
