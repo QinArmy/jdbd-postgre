@@ -487,12 +487,12 @@ final class PgExtendedCommandWriter implements ExtendedCommandWriter {
             }
             break;
             case REAL: {// binary format
-                final float value = PgBinds.bindNonNullToFloat(batchIndex, pgType, paramValue);
+                final float value = PgBinds.bindToFloat(batchIndex, pgType, paramValue);
                 message.writeInt(Float.floatToIntBits(value));
             }
             break;
             case DOUBLE: {// binary format
-                final double value = PgBinds.bindNonNullToDouble(batchIndex, pgType, paramValue);
+                final double value = PgBinds.bindToDouble(batchIndex, pgType, paramValue);
                 message.writeLong(Double.doubleToLongBits(value));
             }
             break;
@@ -502,7 +502,7 @@ final class PgExtendedCommandWriter implements ExtendedCommandWriter {
                 if (bindValue instanceof String && PgConstant.NaN.equalsIgnoreCase((String) bindValue)) {
                     value = (String) bindValue;
                 } else {
-                    value = PgBinds.bindNonNullToDecimal(batchIndex, pgType, paramValue).toPlainString();
+                    value = PgBinds.bindToDecimal(batchIndex, pgType, paramValue).toPlainString();
                 }
                 message.writeBytes(value.getBytes(clientCharset));
             }
@@ -520,7 +520,7 @@ final class PgExtendedCommandWriter implements ExtendedCommandWriter {
             case MONEY:
             case UUID: {
                 final String value;
-                value = PgBinds.bindNonNullToString(batchIndex, pgType, paramValue);
+                value = PgBinds.bindToString(batchIndex, pgType, paramValue);
                 message.writeBytes(value.getBytes(clientCharset));
             }
             break;
@@ -531,7 +531,7 @@ final class PgExtendedCommandWriter implements ExtendedCommandWriter {
                     message.writeBytes((byte[]) nonNull);
                 } else {
                     final String value;
-                    value = PgBinds.bindNonNullToString(batchIndex, pgType, paramValue);
+                    value = PgBinds.bindToString(batchIndex, pgType, paramValue);
                     message.writeBytes(value.getBytes(clientCharset));
                 }
             }
@@ -554,14 +554,14 @@ final class PgExtendedCommandWriter implements ExtendedCommandWriter {
             break;
             case TIME: {// text format
                 final String value;
-                value = PgBinds.bindNonNullToLocalTime(batchIndex, pgType, paramValue)
+                value = PgBinds.bindToLocalTime(batchIndex, pgType, paramValue)
                         .format(PgTimes.ISO_LOCAL_TIME_FORMATTER);
                 message.writeBytes(value.getBytes(clientCharset));
             }
             break;
             case TIMETZ: {// text format
                 final String value;
-                value = PgBinds.bindNonNullToOffsetTime(batchIndex, pgType, paramValue)
+                value = PgBinds.bindToOffsetTime(batchIndex, pgType, paramValue)
                         .format(PgTimes.ISO_OFFSET_TIME_FORMATTER);
                 message.writeBytes(value.getBytes(clientCharset));
             }
@@ -580,7 +580,7 @@ final class PgExtendedCommandWriter implements ExtendedCommandWriter {
             break;
             case INTERVAL: {// text format
                 final String value;
-                value = PgBinds.bindNonNullToInterval(batchIndex, pgType, paramValue);
+                value = PgBinds.bindToInterval(batchIndex, pgType, paramValue);
                 message.writeBytes(value.getBytes(clientCharset));
             }
             break;
@@ -827,11 +827,11 @@ final class PgExtendedCommandWriter implements ExtendedCommandWriter {
                     value = v;
                     break;
                 default:
-                    value = PgBinds.bindNonNullToLocalDate(batchIndex, pgType, paramValue)
+                    value = PgBinds.bindToLocalDate(batchIndex, pgType, paramValue)
                             .format(PgTimes.PG_ISO_LOCAL_DATE_FORMATTER);
             }
         } else {
-            value = PgBinds.bindNonNullToLocalDate(batchIndex, pgType, paramValue)
+            value = PgBinds.bindToLocalDate(batchIndex, pgType, paramValue)
                     .format(PgTimes.PG_ISO_LOCAL_DATE_FORMATTER);
         }
         message.writeBytes(value.getBytes(this.adjutant.clientCharset()));
@@ -852,11 +852,11 @@ final class PgExtendedCommandWriter implements ExtendedCommandWriter {
                     value = v;
                     break;
                 default:
-                    value = PgBinds.bindNonNullToLocalDateTime(batchIndex, pgType, paramValue)
+                    value = PgBinds.bindToLocalDateTime(batchIndex, pgType, paramValue)
                             .format(PgTimes.PG_ISO_LOCAL_DATETIME_FORMATTER);
             }
         } else {
-            value = PgBinds.bindNonNullToLocalDateTime(batchIndex, pgType, paramValue)
+            value = PgBinds.bindToLocalDateTime(batchIndex, pgType, paramValue)
                     .format(PgTimes.PG_ISO_LOCAL_DATETIME_FORMATTER);
         }
         message.writeBytes(value.getBytes(this.adjutant.clientCharset()));
@@ -877,11 +877,11 @@ final class PgExtendedCommandWriter implements ExtendedCommandWriter {
                     value = v;
                     break;
                 default:
-                    value = PgBinds.bindNonNullToOffsetDateTime(batchIndex, pgType, paramValue)
+                    value = PgBinds.bindToOffsetDateTime(batchIndex, pgType, paramValue)
                             .format(PgTimes.PG_ISO_OFFSET_DATETIME_FORMATTER);
             }
         } else {
-            value = PgBinds.bindNonNullToOffsetDateTime(batchIndex, pgType, paramValue)
+            value = PgBinds.bindToOffsetDateTime(batchIndex, pgType, paramValue)
                     .format(PgTimes.PG_ISO_OFFSET_DATETIME_FORMATTER);
         }
         message.writeBytes(value.getBytes(this.adjutant.clientCharset()));
@@ -899,7 +899,7 @@ final class PgExtendedCommandWriter implements ExtendedCommandWriter {
         } else if (bindValue instanceof byte[]) {
             message.writeBytes((byte[]) bindValue);
         } else {
-            final String text = PgBinds.bindNonNullToString(batchIndex, pgType, paramValue);
+            final String text = PgBinds.bindToString(batchIndex, pgType, paramValue);
             message.writeBytes(text.getBytes(this.adjutant.clientCharset()));
         }
     }

@@ -17,13 +17,13 @@ public class JdbdException extends RuntimeException {
     }
 
 
-    public JdbdException(String message, String sqlState, int vendorCode) {
+    public JdbdException(String message, @Nullable String sqlState, int vendorCode) {
         super(message);
         this.sqlState = sqlState;
         this.vendorCode = vendorCode;
     }
 
-    public JdbdException(String message, String sqlState, int vendorCode, Throwable cause) {
+    public JdbdException(String message, @Nullable String sqlState, int vendorCode, Throwable cause) {
         super(message, cause);
         this.sqlState = sqlState;
         this.vendorCode = vendorCode;

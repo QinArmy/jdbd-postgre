@@ -54,11 +54,10 @@ final class QuitTask extends MySQLTask {
         }
         final int payloadLength = Packets.readInt3(cumulateBuffer);
         cumulateBuffer.readByte();
-        int payloadStartIndex = cumulateBuffer.readerIndex();
+        final int payloadStartIndex = cumulateBuffer.readerIndex();
 
         ErrorPacket error;
-        error = ErrorPacket.read(cumulateBuffer
-                , this.adjutant.capability(), this.adjutant.obtainCharsetError());
+        error = ErrorPacket.read(cumulateBuffer, this.adjutant.capability(), this.adjutant.obtainCharsetError());
         cumulateBuffer.readerIndex(payloadStartIndex + payloadLength);
 
         this.sink.error(MySQLExceptions.createErrorPacketException(error));
@@ -81,7 +80,6 @@ final class QuitTask extends MySQLTask {
         this.taskEnd = true;
         this.sink.success();
     }
-
 
 
 }

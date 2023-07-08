@@ -280,13 +280,13 @@ final class PrepareExecuteCommandWriter implements ExecuteCommandWriter {
                     default:
                         precision = 0;
                 }
-                BinaryWriter.writeNonNullBinary(packet, batchIndex, expected, paramValue, precision, clientCharset);
+                BinaryWriter.writeBinary(packet, batchIndex, expected, paramValue, precision, clientCharset);
 
             }
             // below write query attribute
             for (QueryAttr queryAttr : attrList) {
                 // use precision 6 ,because query attribute no metadata.
-                BinaryWriter.writeNonNullBinary(packet, batchIndex, queryAttr.getType(), queryAttr, 6, clientCharset);
+                BinaryWriter.writeBinary(packet, batchIndex, queryAttr.getType(), queryAttr, 6, clientCharset);
             }
 
             this.stmtTask.resetSequenceId(); // reset sequenceId before write header

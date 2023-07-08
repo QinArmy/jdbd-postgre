@@ -15,7 +15,6 @@ import io.jdbd.vendor.JdbdUnknownException;
 import io.jdbd.vendor.stmt.NamedValue;
 import io.jdbd.vendor.stmt.ParamValue;
 import io.jdbd.vendor.stmt.Value;
-import io.qinarmy.util.ExceptionUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -25,7 +24,7 @@ import java.sql.SQLException;
 import java.util.List;
 import java.util.function.Function;
 
-public abstract class JdbdExceptions extends ExceptionUtils {
+public abstract class JdbdExceptions {
 
     protected JdbdExceptions() {
         throw new UnsupportedOperationException();
@@ -331,7 +330,7 @@ public abstract class JdbdExceptions extends ExceptionUtils {
 
     }
 
-    public static SQLException beyondMessageLength(int batchIndex, ParamValue bindValue) {
+    public static JdbdException beyondMessageLength(int batchIndex, ParamValue bindValue) {
         String m;
         if (batchIndex < 0) {
             m = String.format("parameter[%s] too long so beyond message rest length"
@@ -340,15 +339,15 @@ public abstract class JdbdExceptions extends ExceptionUtils {
             m = String.format("batch[%s] parameter[%s] too long so beyond message rest length"
                     , batchIndex, bindValue.getIndex());
         }
-        return new SQLException(m);
+        return new JdbdException(m);
     }
 
-    public static SQLException tooLargeObject() {
-        return new SQLException("Object too large,beyond message length.");
+    public static JdbdException tooLargeObject() {
+        return new JdbdException("Object too large,beyond message length.");
     }
 
-    public static SQLException tooLargeObject(Throwable e) {
-        return new SQLException("Object too large,beyond message length.", e);
+    public static JdbdException tooLargeObject(Throwable e) {
+        return new JdbdException("Object too large,beyond message length.", e);
     }
 
     public static LocalFileException localFileWriteError(int batchIndex, SQLType sqlType

@@ -292,17 +292,17 @@ final class QueryCommandWriter {
             }
             break;
             case DECIMAL: {
-                final BigDecimal value = PgBinds.bindNonNullToDecimal(batchIndex, bindValue.getType(), bindValue);
+                final BigDecimal value = PgBinds.bindToDecimal(batchIndex, bindValue.getType(), bindValue);
                 message.writeBytes(value.toPlainString().getBytes(this.clientCharset));
             }
             break;
             case REAL: {
-                final float value = PgBinds.bindNonNullToFloat(batchIndex, bindValue.getType(), bindValue);
+                final float value = PgBinds.bindToFloat(batchIndex, bindValue.getType(), bindValue);
                 message.writeBytes(Float.toString(value).getBytes(this.clientCharset));
             }
             break;
             case DOUBLE: {
-                final double value = PgBinds.bindNonNullToDouble(batchIndex, bindValue.getType(), bindValue);
+                final double value = PgBinds.bindToDouble(batchIndex, bindValue.getType(), bindValue);
                 message.writeBytes(Double.toString(value).getBytes(this.clientCharset));
             }
             break;
@@ -747,7 +747,7 @@ final class QueryCommandWriter {
         }
 
         final LocalDate value;
-        value = PgBinds.bindNonNullToLocalDate(batchIndex, bindValue.getType(), bindValue);
+        value = PgBinds.bindToLocalDate(batchIndex, bindValue.getType(), bindValue);
         try {
             message.writeByte(PgConstant.QUOTE_BYTE);
             message.writeBytes(value.format(PgTimes.PG_ISO_LOCAL_DATE_FORMATTER).getBytes(this.clientCharset));
@@ -766,7 +766,7 @@ final class QueryCommandWriter {
             throws SQLException {
 
         final LocalTime value;
-        value = PgBinds.bindNonNullToLocalTime(batchIndex, bindValue.getType(), bindValue);
+        value = PgBinds.bindToLocalTime(batchIndex, bindValue.getType(), bindValue);
         message.writeByte(PgConstant.QUOTE_BYTE);
         message.writeBytes(value.format(PgTimes.ISO_LOCAL_TIME_FORMATTER).getBytes(this.clientCharset));
         message.writeByte(PgConstant.QUOTE_BYTE);
@@ -778,7 +778,7 @@ final class QueryCommandWriter {
     private void bindNonNullToOffsetTime(final int batchIndex, BindValue bindValue, ByteBuf message)
             throws SQLException {
         final OffsetTime value;
-        value = PgBinds.bindNonNullToOffsetTime(batchIndex, bindValue.getType(), bindValue);
+        value = PgBinds.bindToOffsetTime(batchIndex, bindValue.getType(), bindValue);
         message.writeByte(PgConstant.QUOTE_BYTE);
         message.writeBytes(value.format(PgTimes.ISO_OFFSET_TIME_FORMATTER).getBytes(this.clientCharset));
         message.writeByte(PgConstant.QUOTE_BYTE);
@@ -796,7 +796,7 @@ final class QueryCommandWriter {
         }
 
         final OffsetDateTime value;
-        value = PgBinds.bindNonNullToOffsetDateTime(batchIndex, bindValue.getType(), bindValue);
+        value = PgBinds.bindToOffsetDateTime(batchIndex, bindValue.getType(), bindValue);
         try {
             message.writeByte(PgConstant.QUOTE_BYTE);
             message.writeBytes(value.format(PgTimes.PG_ISO_OFFSET_DATETIME_FORMATTER).getBytes(this.clientCharset));
@@ -819,7 +819,7 @@ final class QueryCommandWriter {
         }
 
         final LocalDateTime value;
-        value = PgBinds.bindNonNullToLocalDateTime(batchIndex, bindValue.getType(), bindValue);
+        value = PgBinds.bindToLocalDateTime(batchIndex, bindValue.getType(), bindValue);
 
         message.writeByte(PgConstant.QUOTE_BYTE);
         try {
@@ -882,7 +882,7 @@ final class QueryCommandWriter {
     private void bindNonNullToInterval(final int stmtIndex, BindValue bindValue, ByteBuf message)
             throws SQLException {
         final String intervalString;
-        intervalString = PgBinds.bindNonNullToInterval(stmtIndex, bindValue.getType(), bindValue);
+        intervalString = PgBinds.bindToInterval(stmtIndex, bindValue.getType(), bindValue);
 
         message.writeByte(PgConstant.QUOTE_BYTE);
         message.writeBytes(intervalString.getBytes(this.clientCharset));

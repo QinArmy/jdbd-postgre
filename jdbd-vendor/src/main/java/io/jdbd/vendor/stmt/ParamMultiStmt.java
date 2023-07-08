@@ -14,7 +14,7 @@ import java.util.function.Function;
  */
 public interface ParamMultiStmt extends Stmt {
 
-    List<? extends ParamStmt> getStmtList();
+    List<ParamStmt> getStmtList();
 
 
     /**

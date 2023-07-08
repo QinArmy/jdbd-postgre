@@ -3,13 +3,13 @@ package io.jdbd.mysql.protocol.client;
 
 import io.jdbd.mysql.MySQLType;
 import io.jdbd.mysql.util.MySQLBinds;
+import io.jdbd.mysql.util.MySQLExceptions;
 import io.jdbd.mysql.util.MySQLTimes;
 import io.jdbd.vendor.stmt.Value;
 import io.jdbd.vendor.util.JdbdExceptions;
 import io.netty.buffer.ByteBuf;
 
 import java.math.BigDecimal;
-import java.math.BigInteger;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.sql.SQLException;
@@ -18,6 +18,14 @@ import java.time.temporal.ChronoField;
 import java.util.BitSet;
 import java.util.Set;
 
+/**
+ * <p>
+ * This util class provider method that write MySQL Binary Protocol.
+ * </p>
+ *
+ * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_binary_resultset.html">Binary Protocol Resultset</a>
+ * @since 1.0
+ */
 abstract class BinaryWriter {
 
     private BinaryWriter() {
@@ -26,110 +34,99 @@ abstract class BinaryWriter {
 
 
     /**
-     * @param expectedType from COM_PREPARE_STMT parameter metadata or query attribute bind method.
-     * @param precision    0 or {@link MySQLType#TIME} and {@link MySQLType#DATETIME} precision
+     * @param precision 0 or {@link MySQLType#TIME} and {@link MySQLType#DATETIME} precision
      */
-    @SuppressWarnings("deprecation")
-    static void writeNonNullBinary(ByteBuf packet, final int batchIndex, final MySQLType expectedType
-            , Value paramValue, final int precision, final Charset charset) throws SQLException {
 
-        switch (expectedType) {
-            case BOOLEAN:
-            case TINYINT: {
-                packet.writeByte(MySQLBinds.bindToByte(batchIndex, expectedType, paramValue));
+    static void writeBinary(final ByteBuf packet, final int batchIndex, final Value paramValue,
+                            final int precision, final Charset charset) {
+
+        switch ((MySQLType) paramValue.getType()) {
+            case BOOLEAN: {
+                final boolean v = MySQLBinds.bindToBoolean(batchIndex, paramValue);
+                packet.writeByte(v ? 1 : 0);
             }
             break;
-            case TINYINT_UNSIGNED: {
-                final short value;
-                value = MySQLBinds.bindToShort(batchIndex, expectedType, paramValue);
-                if ((value & (~0xFF)) != 0) {
-                    throw JdbdExceptions.outOfTypeRange(batchIndex, expectedType, paramValue);
-                }
-                packet.writeByte(value);
-            }
-            break;
-            case SMALLINT: {
-                final int value;
-                value = MySQLBinds.bindToShort(batchIndex, expectedType, paramValue);
-                Packets.writeInt2(packet, value);
-            }
-            break;
-            case SMALLINT_UNSIGNED: {
-                final int value;
-                value = MySQLBinds.bindToInt(batchIndex, expectedType, paramValue);
-                if ((value & (~0xFFFF)) != 0) {
-                    throw JdbdExceptions.outOfTypeRange(batchIndex, expectedType, paramValue);
-                }
-                Packets.writeInt2(packet, value);
-            }
+            case TINYINT:
+                packet.writeByte(MySQLBinds.bindToInt(batchIndex, paramValue, Byte.MIN_VALUE, Byte.MAX_VALUE));
+                break;
+            case TINYINT_UNSIGNED:
+                packet.writeByte(MySQLBinds.bindToIntUnsigned(batchIndex, paramValue, 0xFF));
+                break;
+            case SMALLINT:
+                Packets.writeInt2(packet, MySQLBinds.bindToInt(batchIndex, paramValue, Short.MIN_VALUE, Short.MAX_VALUE));
+                break;
+            case SMALLINT_UNSIGNED:
+                Packets.writeInt2(packet, MySQLBinds.bindToIntUnsigned(batchIndex, paramValue, 0xFFFF));
+                break;
             case MEDIUMINT:
+                Packets.writeInt3(packet, MySQLBinds.bindToInt(batchIndex, paramValue, 0x8000_00, 0X7FFF_FF));
+                break;
             case MEDIUMINT_UNSIGNED:
-            case INT: {
-                final int value;
-                value = MySQLBinds.bindToInt(batchIndex, expectedType, paramValue);
-                Packets.writeInt4(packet, value);
-            }
-            break;
-            case INT_UNSIGNED: {
-                final long value;
-                value = MySQLBinds.bindToLong(batchIndex, expectedType, paramValue);
-                if ((value & (~0xFFFF_FFFFL)) != 0) {
-                    throw JdbdExceptions.outOfTypeRange(batchIndex, expectedType, paramValue);
-                }
-                Packets.writeInt4(packet, (int) value);
-            }
-            break;
-            case BIGINT: {
-                final long value;
-                value = MySQLBinds.bindToLong(batchIndex, expectedType, paramValue);
-                Packets.writeInt8(packet, value);
-            }
-            break;
-            case BIGINT_UNSIGNED: {
-                final BigInteger value;
-                value = MySQLBinds.bindToBigInteger(batchIndex, expectedType, paramValue);
-                final byte[] bytes = value.toByteArray();
-                if (value.compareTo(BigInteger.ZERO) < 0 || bytes.length > 9 || (bytes.length == 9 && bytes[0] != 0)) {
-                    throw JdbdExceptions.outOfTypeRange(batchIndex, expectedType, paramValue);
-                }
-                final byte[] int8Bytes = new byte[8];
-                final int end = Math.min(int8Bytes.length, bytes.length);
-                for (int i = 0, j = bytes.length - 1; i < end; i++, j--) {
-                    int8Bytes[i] = bytes[j];
-                }
-                packet.writeBytes(int8Bytes);
-            }
-            break;
-            case YEAR: {
-                final int value;
-                value = MySQLBinds.bindNonNullToYear(batchIndex, expectedType, paramValue);
-                Packets.writeInt2(packet, value);
-            }
-            break;
-            case DECIMAL:
-            case DECIMAL_UNSIGNED: {
+                Packets.writeInt3(packet, MySQLBinds.bindToIntUnsigned(batchIndex, paramValue, 0xFFFF_FF));
+                break;
+            case INT:
+                Packets.writeInt4(packet, MySQLBinds.bindToInt(batchIndex, paramValue, Integer.MIN_VALUE, Integer.MAX_VALUE));
+                break;
+            case INT_UNSIGNED:
+                Packets.writeInt4(packet, MySQLBinds.bindToIntUnsigned(batchIndex, paramValue, -1));
+                break;
+            case BIGINT:
+                Packets.writeInt8(packet, MySQLBinds.bindToLong(batchIndex, paramValue, Long.MIN_VALUE, Long.MAX_VALUE));
+                break;
+            case BIGINT_UNSIGNED:
+                Packets.writeInt8(packet, MySQLBinds.bindToLongUnsigned(batchIndex, paramValue, -1L));
+                break;
+            case YEAR:
+                Packets.writeInt2(packet, MySQLBinds.bindToYear(batchIndex, paramValue));
+                break;
+            case DECIMAL: {
                 final BigDecimal value;
-                value = MySQLBinds.bindNonNullToDecimal(batchIndex, expectedType, paramValue);
+                value = MySQLBinds.bindToDecimal(batchIndex, paramValue);
                 Packets.writeStringLenEnc(packet, value.toPlainString().getBytes(charset));
             }
             break;
-            case FLOAT:
-            case FLOAT_UNSIGNED: {
-                final float value;
-                value = MySQLBinds.bindNonNullToFloat(batchIndex, expectedType, paramValue);
-                Packets.writeInt4(packet, Float.floatToIntBits(value));
+            case DECIMAL_UNSIGNED: {
+                final BigDecimal value;
+                value = MySQLBinds.bindToDecimal(batchIndex, paramValue);
+                if (value.compareTo(BigDecimal.ZERO) < 0) {
+                    throw MySQLExceptions.outOfTypeRange(batchIndex, paramValue, null);
+                }
+                Packets.writeStringLenEnc(packet, value.toPlainString().getBytes(charset));
             }
             break;
-            case DOUBLE:
+            case FLOAT: {
+                final float value;
+                value = MySQLBinds.bindToFloat(batchIndex, paramValue);
+                Packets.writeInt4(packet, Float.floatToIntBits(value)); // here string[4] is Little Endian int4
+            }
+            break;
+            case FLOAT_UNSIGNED: {
+                final float value;
+                value = MySQLBinds.bindToFloat(batchIndex, paramValue);
+                if (value < 0.0) {
+                    throw MySQLExceptions.outOfTypeRange(batchIndex, paramValue, null);
+                }
+                Packets.writeInt4(packet, Float.floatToIntBits(value));// here string[4] is Little Endian int4
+            }
+            break;
+            case DOUBLE: {
+                final double value;
+                value = MySQLBinds.bindToDouble(batchIndex, paramValue);
+                Packets.writeInt8(packet, Double.doubleToLongBits(value));// here string[8] is Little Endian int8
+            }
+            break;
             case DOUBLE_UNSIGNED: {
                 final double value;
-                value = MySQLBinds.bindNonNullToDouble(batchIndex, expectedType, paramValue);
-                Packets.writeInt8(packet, Double.doubleToLongBits(value));
+                value = MySQLBinds.bindToDouble(batchIndex, paramValue);
+                if (value < 0.0d) {
+                    throw MySQLExceptions.outOfTypeRange(batchIndex, paramValue, null);
+                }
+                Packets.writeInt8(packet, Double.doubleToLongBits(value));// here string[8] is Little Endian int8
             }
             break;
             case SET: {
                 final String value;
-                value = MySQLBinds.bindNonNullToSetType(batchIndex, expectedType, paramValue);
+                value = MySQLBinds.bindToSetType(batchIndex, paramValue);
                 Packets.writeStringLenEnc(packet, value.getBytes(charset));
             }
             break;
@@ -137,10 +134,10 @@ abstract class BinaryWriter {
                 if (paramValue.getNonNull() instanceof Set) {
                     // Server response parameter metadata no MYSQL_TYPE_SET ,it's MYSQL_TYPE_VARCHAR
                     final String value;
-                    value = MySQLBinds.bindNonNullToSetType(batchIndex, expectedType, paramValue);
+                    value = MySQLBinds.bindToSetType(batchIndex, paramValue);
                     Packets.writeStringLenEnc(packet, value.getBytes(charset));
                 } else {
-                    writeString(packet, batchIndex, expectedType, paramValue, charset);
+                    writeString(packet, batchIndex, paramValue, charset);
                 }
             }
             break;
@@ -150,10 +147,9 @@ abstract class BinaryWriter {
             case MEDIUMTEXT:
             case TEXT:
             case LONGTEXT:
-            case JSON: {
-                writeString(packet, batchIndex, expectedType, paramValue, charset);
-            }
-            break;
+            case JSON:
+                writeString(packet, batchIndex, paramValue, charset);
+                break;
             case BINARY:
             case VARBINARY:
             case TINYBLOB:
@@ -167,13 +163,13 @@ abstract class BinaryWriter {
                 } else if (nonNull instanceof String) {
                     Packets.writeStringLenEnc(packet, ((String) nonNull).getBytes(charset));
                 } else {
-                    throw JdbdExceptions.createNonSupportBindSqlTypeError(batchIndex, expectedType, paramValue);
+                    throw JdbdExceptions.createNonSupportBindSqlTypeError(batchIndex, paramValue);
                 }
             }
             break;
             case TIMESTAMP:
             case DATETIME: {
-                writeDatetime(packet, batchIndex, expectedType, paramValue, precision, charset);
+                writeDatetime(packet, batchIndex, paramValue, precision, charset);
             }
             break;
             case TIME: {
@@ -182,7 +178,7 @@ abstract class BinaryWriter {
             break;
             case DATE: {
                 final LocalDate value;
-                value = MySQLBinds.bindNonNullToLocalDate(batchIndex, expectedType, paramValue);
+                value = MySQLBinds.bindToLocalDate(batchIndex, expectedType, paramValue);
 
                 packet.writeByte(4); // length
                 Packets.writeInt2(packet, value.getYear());// year
@@ -204,9 +200,8 @@ abstract class BinaryWriter {
 
     }
 
-    private static void writeString(ByteBuf packet, final int batchIndex, final MySQLType expectedType
-            , Value paramValue, Charset charset)
-            throws SQLException {
+    private static void writeString(final ByteBuf packet, final int batchIndex, final Value paramValue,
+                                    final Charset charset) {
         final Object nonNull = paramValue.getNonNull();
         if (nonNull instanceof byte[]) {
             final byte[] bytes = (byte[]) nonNull;
@@ -218,7 +213,7 @@ abstract class BinaryWriter {
             }
         } else {
             final String value;
-            value = MySQLBinds.bindNonNullToString(batchIndex, expectedType, paramValue);
+            value = MySQLBinds.bindToString(batchIndex, paramValue);
             Packets.writeStringLenEnc(packet, value.getBytes(charset));
         }
     }
@@ -290,7 +285,7 @@ abstract class BinaryWriter {
             }
         } else {
             final LocalTime value;
-            value = MySQLBinds.bindNonNullToLocalTime(batchIndex, type, paramValue);
+            value = MySQLBinds.bindToLocalTime(batchIndex, type, paramValue);
             final int microSeconds = truncateMicroSeconds(value.get(ChronoField.MICRO_OF_SECOND), precision);
             packet.writeByte(microSeconds > 0 ? 12 : 8); //1. length
             packet.writeByte(0); //2. is_negative
@@ -324,7 +319,7 @@ abstract class BinaryWriter {
             Packets.writeStringLenEnc(packet, bytes);
         } else {
             final LocalDateTime value;
-            value = MySQLBinds.bindNonNullToLocalDateTime(batchIndex, type, paramValue);
+            value = MySQLBinds.bindToLocalDateTime(batchIndex, type, paramValue);
             final int microSeconds = truncateMicroSeconds(value.get(ChronoField.MICRO_OF_SECOND), precision);
 
             packet.writeByte(microSeconds > 0 ? 11 : 7); // length ,always have micro second ,because for BindStatement

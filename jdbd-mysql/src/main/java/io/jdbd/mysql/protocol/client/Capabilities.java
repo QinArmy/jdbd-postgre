@@ -1,5 +1,8 @@
 package io.jdbd.mysql.protocol.client;
 
+/**
+ * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/group__group__cs__capabilities__flags.html">Protocol::OK_Packet</a>
+ */
 abstract class Capabilities {
 
     // below Capabilities Flags https://dev.mysql.com/doc/dev/mysql-server/latest/group__group__cs__capabilities__flags.html

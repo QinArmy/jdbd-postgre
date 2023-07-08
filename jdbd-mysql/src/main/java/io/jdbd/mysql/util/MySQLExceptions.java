@@ -7,7 +7,6 @@ import io.jdbd.mysql.MySQLType;
 import io.jdbd.mysql.protocol.MySQLFatalIoException;
 import io.jdbd.mysql.protocol.client.ErrorPacket;
 import io.jdbd.mysql.protocol.conf.MyKey;
-import io.jdbd.mysql.stmt.BindValue;
 import io.jdbd.mysql.stmt.QueryAttr;
 import io.jdbd.statement.LongDataReadException;
 import io.jdbd.statement.PreparedStatement;
@@ -101,29 +100,21 @@ public abstract class MySQLExceptions extends JdbdExceptions {
     }
 
 
-    public static JdbdSQLException notSupportMultiStatementException() {
-        String m;
-        m = String.format("Not support multi statement,please config MySQL property[%s] in jdbc url or properties map."
-                , MyKey.allowMultiQueries);
-        return new JdbdSQLException(createSyntaxError(m));
-    }
-
-
-    public static SQLException createInvalidParameterNoError(int stmtIndex, int paramIndex) {
+    public static JdbdException createInvalidParameterNoError(int stmtIndex, int paramIndex) {
         String message = String.format("Invalid parameter number[%s] in statement[sequenceId:%s]."
                 , paramIndex, stmtIndex);
-        return new SQLException(message, null, CR_INVALID_PARAMETER_NO);
+        return new JdbdException(message, null, CR_INVALID_PARAMETER_NO);
     }
 
 
-    public static LongDataReadException createLongDataReadException(int stmtIndex, BindValue bindValue
+    public static LongDataReadException createLongDataReadException(int stmtIndex, ParamValue bindValue
             , Throwable cause) {
         final String m;
         if (stmtIndex < 0) {
-            m = String.format("Read long data occur error at parameter[%s] MySQLType[%s]."
+            m = String.format("Read long data occur error at parameter[%s] DataType[%s]."
                     , bindValue.getIndex(), bindValue.getType());
         } else {
-            m = String.format("Read long data occur error at parameter[%s] MySQLType[%s] in statement[sequenceId:%s]."
+            m = String.format("Read long data occur error at parameter[%s] DataType[%s] in statement[sequenceId:%s]."
                     , bindValue.getIndex(), bindValue.getType(), stmtIndex);
         }
         return new LongDataReadException(m, cause);
@@ -149,23 +140,22 @@ public abstract class MySQLExceptions extends JdbdExceptions {
     /**
      * @param stmtIndex [negative,n] ,if single statement ,stmtIndex is negative.
      */
-    public static SQLException createUnsupportedParamTypeError(int stmtIndex, MySQLType mySQLType
-            , ParamValue paramValue) {
-        Class<?> clazz = paramValue.getNonNull().getClass();
+    public static JdbdException createUnsupportedParamTypeError(final int stmtIndex, final ParamValue value) {
+        Class<?> clazz = value.getNonNull().getClass();
         String message;
         if (stmtIndex < 0) {
             message = String.format("Using unsupported param type:%s for MySQLType[%s] at (parameter:%s),please check type or value rang."
-                    , clazz.getName(), mySQLType, paramValue.getIndex());
+                    , clazz.getName(), value.getType(), value.getIndex());
         } else {
             message = String.format("Using unsupported param type:%s for MySQLType[%s] at (parameter:%s) in statement[sequenceId:%s],please check type or value rang."
-                    , clazz.getName(), mySQLType, paramValue.getIndex(), stmtIndex);
+                    , clazz.getName(), value.getType(), value.getIndex(), stmtIndex);
         }
-        return new SQLException(message, null, MySQLCodes.CR_UNSUPPORTED_PARAM_TYPE);
+        return new JdbdException(message, null, MySQLCodes.CR_UNSUPPORTED_PARAM_TYPE);
     }
 
 
-    public static SQLException createBindValueParamIndexNotMatchError(int stmtIndex, ParamValue paramValue
-            , int paramIndex) {
+    public static JdbdException createBindValueParamIndexNotMatchError(int stmtIndex, ParamValue paramValue,
+                                                                       int paramIndex) {
         String message;
         if (stmtIndex < 0) {
             message = String.format("BindValue parameter index[%s] and sql param[%s] not match."
@@ -174,10 +164,10 @@ public abstract class MySQLExceptions extends JdbdExceptions {
             message = String.format("BindValue parameter index[%s] and sql param[%s] not match in statement[sequenceId:%s]"
                     , paramValue.getIndex(), paramIndex, stmtIndex);
         }
-        return new SQLException(message, null, CR_PARAMS_NOT_BOUND);
+        return new JdbdException(message, null, CR_PARAMS_NOT_BOUND);
     }
 
-    public static SQLException createNoParametersExistsError(int stmtIndex) {
+    public static JdbdException createNoParametersExistsError(int stmtIndex) {
         String message;
         if (stmtIndex < 0) {
             message = "No parameters exist in the statement";
@@ -185,14 +175,14 @@ public abstract class MySQLExceptions extends JdbdExceptions {
             message = String.format("No parameters exist in the statement[sequenceId:%s]", stmtIndex);
         }
 
-        return new SQLException(message, null, CR_NO_PARAMETERS_EXISTS);
+        return new JdbdException(message, null, CR_NO_PARAMETERS_EXISTS);
     }
 
     /**
      * @param stmtIndex  [negative,n] ,if single statement ,stmtIndex is negative.
      * @param paramIndex [0,n]
      */
-    public static SQLException createParamsNotBindError(int stmtIndex, int paramIndex) {
+    public static JdbdException createParamsNotBindError(int stmtIndex, int paramIndex) {
         String message;
         if (stmtIndex < 0) {
             message = String.format("No data supplied for parameters[%s] in prepared statement.", paramIndex);
@@ -200,14 +190,14 @@ public abstract class MySQLExceptions extends JdbdExceptions {
             message = String.format("No data supplied for parameters[%s] in statement[sequenceId:%s]."
                     , paramIndex, stmtIndex);
         }
-        return new SQLException(message, null, CR_PARAMS_NOT_BOUND);
+        return new JdbdException(message, null, CR_PARAMS_NOT_BOUND);
     }
 
 
-    public static JdbdSQLException createNetPacketTooLargeException(int maxAllowedPayload) {
+    public static JdbdException createNetPacketTooLargeException(int maxAllowedPayload) {
         String message = String.format("sql length larger than %s[%s]"
                 , MyKey.maxAllowedPacket, maxAllowedPayload);
-        return new JdbdSQLException(createNetPacketTooLargeError(null), message);
+        return new JdbdException(message, createNetPacketTooLargeError(null));
     }
 
 

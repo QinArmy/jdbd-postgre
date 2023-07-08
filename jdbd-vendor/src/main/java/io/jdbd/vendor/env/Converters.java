@@ -3,6 +3,7 @@ package io.jdbd.vendor.env;
 import io.jdbd.JdbdException;
 import io.jdbd.lang.Nullable;
 import io.jdbd.vendor.util.JdbdCollections;
+import io.jdbd.vendor.util.JdbdNumbers;
 import reactor.netty.resources.ConnectionProvider;
 
 import java.lang.reflect.Field;
@@ -66,7 +67,7 @@ public abstract class Converters {
     private static Byte toByte(final Class<?> targetType, final String source) throws JdbdException {
         try {
             final byte value;
-            if (isHexNumber(source)) {
+            if (JdbdNumbers.isHexNumber(source)) {
                 value = Byte.decode(source);
             } else {
                 value = Byte.parseByte(source);
@@ -80,7 +81,7 @@ public abstract class Converters {
     private static Short toShort(final Class<?> targetType, final String source) throws JdbdException {
         try {
             final short value;
-            if (isHexNumber(source)) {
+            if (JdbdNumbers.isHexNumber(source)) {
                 value = Short.decode(source);
             } else {
                 value = Short.parseShort(source);
@@ -95,7 +96,7 @@ public abstract class Converters {
     private static Integer toInt(final Class<?> targetType, final String source) throws JdbdException {
         try {
             final int value;
-            if (isHexNumber(source)) {
+            if (JdbdNumbers.isHexNumber(source)) {
                 value = Integer.decode(source);
             } else {
                 value = Integer.parseInt(source);
@@ -109,7 +110,7 @@ public abstract class Converters {
     private static Long toLong(final Class<?> targetType, final String source) throws JdbdException {
         try {
             final long value;
-            if (isHexNumber(source)) {
+            if (JdbdNumbers.isHexNumber(source)) {
                 value = Long.decode(source);
             } else {
                 value = Long.parseLong(source);
@@ -298,17 +299,6 @@ public abstract class Converters {
         }
 
     }//TextEnumHelper
-
-
-    /**
-     * Determine whether the given {@code value} String indicates a hex number,
-     * i.e. needs to be passed into {@code Integer.decode} instead of
-     * {@code Integer.valueOf}, etc.
-     */
-    private static boolean isHexNumber(String value) {
-        int index = (value.startsWith("-") ? 1 : 0);
-        return (value.startsWith("0x", index) || value.startsWith("0X", index) || value.startsWith("#", index));
-    }
 
 
     private static JdbdException convertFailure(@Nullable String source, Class<?> javaType, @Nullable Throwable clause) {

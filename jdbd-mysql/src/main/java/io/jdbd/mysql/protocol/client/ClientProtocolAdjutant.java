@@ -43,8 +43,10 @@ interface ClientProtocolAdjutant extends ResultRowAdjutant {
 
     ByteBufAllocator allocator();
 
+    @Deprecated
     MySQLHost0 host();
 
+    @Deprecated
     MySQLUrl mysqlUrl();
 
     Server obtainServer();

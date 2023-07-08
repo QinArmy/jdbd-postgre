@@ -4,6 +4,7 @@ import io.jdbd.lang.Nullable;
 import org.reactivestreams.Publisher;
 import org.reactivestreams.Subscriber;
 
+import java.util.List;
 import java.util.function.Function;
 
 /**
@@ -28,6 +29,8 @@ public interface Stmt {
     int getTimeout();
 
     int getFetchSize();
+
+    List<NamedValue> getStmtVarList();
 
     @Nullable
     Function<Object, Publisher<byte[]>> getImportPublisher();

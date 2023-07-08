@@ -34,6 +34,8 @@ public enum JdbdType implements DataType {
      * Identifies the generic SQL type {@code SMALLINT}.
      */
     SMALLINT,
+
+    MEDIUMINT,
     /**
      * Identifies the generic SQL type {@code INTEGER}.
      */
@@ -52,6 +54,8 @@ public enum JdbdType implements DataType {
      * Identifies the generic SQL type {@code SMALLINT}.
      */
     SMALLINT_UNSIGNED,
+
+    MEDIUMINT_UNSIGNED,
     /**
      * Identifies the generic SQL type {@code INTEGER}.
      */

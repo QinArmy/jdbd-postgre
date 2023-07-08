@@ -2,7 +2,6 @@ package io.jdbd.mysql.protocol.client;
 
 import io.jdbd.mysql.MySQLJdbdException;
 import io.jdbd.mysql.stmt.BindMultiStmt;
-import io.jdbd.mysql.stmt.MySQLStmt;
 import io.jdbd.mysql.util.MySQLCollections;
 import io.jdbd.mysql.util.MySQLExceptions;
 import io.jdbd.vendor.stmt.*;
@@ -23,16 +22,16 @@ import java.util.function.Function;
 import java.util.function.IntSupplier;
 import java.util.function.Supplier;
 
-public abstract class Packets {
+ abstract class Packets {
 
 
-    private Packets() {
-        throw new UnsupportedOperationException();
-    }
+     private Packets() {
+         throw new UnsupportedOperationException();
+     }
 
-    public static final long NULL_LENGTH = -1L;
+     public static final long NULL_LENGTH = -1L;
 
-    public static final int HEADER_SIZE = 4;
+     public static final byte HEADER_SIZE = 4;
 
     /**
      * @see ClientProtocol#MAX_PAYLOAD_SIZE
@@ -662,8 +661,8 @@ public abstract class Packets {
 
         if (capacity < 0) {
             capacity = Integer.MAX_VALUE - 128;
-        } else if (stmt instanceof MySQLStmt) {
-            capacity += (((MySQLStmt) stmt).getQueryAttrs().size() * 6);
+        } else {
+            capacity += (stmt.getStmtVarList().size() * 6);
         }
 
         if (capacity < 0) {
@@ -676,22 +675,22 @@ public abstract class Packets {
     }
 
 
-    /**
-     * @param packet a big packet that header is placeholder.
-     * @return a sync Publisher that is created by {@link Mono#just(Object)} or {@link Flux#fromIterable(Iterable)}.
-     */
-    public static Publisher<ByteBuf> createPacketPublisher(final ByteBuf packet, final IntSupplier sequenceId
-            , final TaskAdjutant adjutant) {
+     /**
+      * @param packet a big packet that header is placeholder.
+      * @return a sync Publisher that is created by {@link Mono#just(Object)} or {@link Flux#fromIterable(Iterable)}.
+      */
+     public static Publisher<ByteBuf> createPacketPublisher(final ByteBuf packet, final IntSupplier sequenceId,
+                                                            final TaskAdjutant adjutant) {
 
-        final int maxAllowedPayload = adjutant.mysqlUrl().getMaxAllowedPayload();
-        final int payload = packet.readableBytes() - Packets.HEADER_SIZE;
-        if (payload > maxAllowedPayload) {
-            throw MySQLExceptions.createNetPacketTooLargeException(maxAllowedPayload);
-        }
-        final Publisher<ByteBuf> publisher;
-        if (payload >= Packets.MAX_PAYLOAD) {
-            publisher = Flux.fromIterable(Packets.divideBigPacket(packet, adjutant.allocator(), sequenceId));
-        } else {
+         final int maxAllowedPayload = adjutant.mysqlUrl().getMaxAllowedPayload();
+         final int payload = packet.readableBytes() - Packets.HEADER_SIZE;
+         if (payload > maxAllowedPayload) {
+             throw MySQLExceptions.createNetPacketTooLargeException(maxAllowedPayload);
+         }
+         final Publisher<ByteBuf> publisher;
+         if (payload >= Packets.MAX_PAYLOAD) {
+             publisher = Flux.fromIterable(Packets.divideBigPacket(packet, adjutant.allocator(), sequenceId));
+         } else {
             Packets.writeHeader(packet, sequenceId.getAsInt());
             publisher = Mono.just(packet);
         }

@@ -10,6 +10,9 @@ import java.util.Arrays;
  */
 abstract class TerminatorPacket implements MySQLPacket {
 
+    /**
+     * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/mysql__com_8h.html#a1d854e841086925be1883e4d7b4e8cad">SERVER_STATUS_flags_enum</a>
+     */
     public static final byte SERVER_STATUS_IN_TRANS = 1;
     public static final byte SERVER_STATUS_AUTOCOMMIT = 1 << 1; // Server in auto_commit mode
     public static final byte SERVER_MORE_QUERY_EXISTS = 1 << 2;
@@ -150,8 +153,8 @@ abstract class TerminatorPacket implements MySQLPacket {
 
 
     public static boolean inTransaction(final int statusFags) {
-        return (statusFags & SERVER_STATUS_AUTOCOMMIT) == 0
-                || (statusFags & SERVER_STATUS_IN_TRANS) != 0;
+        return (statusFags & SERVER_STATUS_IN_TRANS) != 0
+                || (statusFags & SERVER_STATUS_AUTOCOMMIT) == 0;
     }
 
     public static boolean startedTransaction(final int statusFags) {
