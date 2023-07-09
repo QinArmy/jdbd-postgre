@@ -1,5 +1,7 @@
 package io.jdbd.type.geometry;
 
+import io.jdbd.type.Point;
+
 import java.io.IOException;
 import java.nio.channels.FileChannel;
 
@@ -9,6 +11,7 @@ import java.nio.channels.FileChannel;
  * JDBD statement bind method not don't support this type,only supported by {@link io.jdbd.result.ResultRow}.
  * </p>
  */
+@Deprecated
 public interface Line extends LineString {
 
     Point getPoint1();

@@ -1,6 +1,7 @@
-package io.jdbd.statement;
+package io.jdbd.type;
 
 import io.jdbd.lang.NonNull;
+import io.jdbd.statement.Parameter;
 import org.reactivestreams.Publisher;
 
 /**
@@ -13,7 +14,7 @@ public interface Clob extends Parameter {
     Publisher<CharSequence> value();
 
     static Clob from(Publisher<CharSequence> source) {
-        return JdbdParameters.clobParam(source);
+        return JdbdTypes.clobParam(source);
     }
 
 }

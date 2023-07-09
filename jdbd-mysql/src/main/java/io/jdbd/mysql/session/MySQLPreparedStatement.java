@@ -87,7 +87,7 @@ final class MySQLPreparedStatement extends MySQLStatement<PreparedStatement> imp
 
     @Override
     public PreparedStatement bind(final int indexBasedZero, final @Nullable DataType dataType,
-                                  final @Nullable Object nullable) throws JdbdException {
+                                  final @Nullable Object value) throws JdbdException {
 
         List<ParamValue> paramGroup = this.paramGroup;
 
@@ -112,7 +112,7 @@ final class MySQLPreparedStatement extends MySQLStatement<PreparedStatement> imp
             if (paramGroup == null) {
                 this.paramGroup = paramGroup = MySQLCollections.arrayList(paramCount);
             }
-            paramGroup.add(JdbdValues.paramValue(indexBasedZero, type, nullable));
+            paramGroup.add(JdbdValues.paramValue(indexBasedZero, type, value));
         }
 
         if (error != null) {

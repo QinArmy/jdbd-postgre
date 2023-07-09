@@ -92,7 +92,7 @@ final class MySQLMultiStatement extends MySQLStatement<MultiStatement> implement
 
     @Override
     public MultiStatement bind(final int indexBasedZero, final @Nullable DataType dataType,
-                               final @Nullable Object nullable) throws JdbdException {
+                               final @Nullable Object value) throws JdbdException {
 
         List<ParamValue> paramGroup = this.paramGroup;
 
@@ -103,10 +103,10 @@ final class MySQLMultiStatement extends MySQLStatement<MultiStatement> implement
             error = MySQLExceptions.cannotReuseStatement(MultiStatement.class);
         } else if (indexBasedZero < 0) {
             error = MySQLExceptions.invalidParameterValue(this.stmtGroup.size(), indexBasedZero);
-        } else if (nullable instanceof OutParameter) {
+        } else if (value instanceof OutParameter) {
             error = MySQLExceptions.dontSupportOutParameter(indexBasedZero, MultiStatement.class, MY_SQL);
-        } else if (nullable instanceof Publisher || nullable instanceof Path) {
-            error = MySQLExceptions.dontSupportJavaType(indexBasedZero, nullable, MY_SQL);
+        } else if (value instanceof Publisher || value instanceof Path) {
+            error = MySQLExceptions.dontSupportJavaType(indexBasedZero, value, MY_SQL);
         } else if (dataType == null) {
             error = MySQLExceptions.dataTypeIsNull();
         } else if ((type = MySQLBinds.handleDataType(dataType)) == null) {
@@ -116,7 +116,7 @@ final class MySQLMultiStatement extends MySQLStatement<MultiStatement> implement
             if (paramGroup == null) {
                 this.paramGroup = paramGroup = MySQLCollections.arrayList();
             }
-            paramGroup.add(JdbdValues.paramValue(indexBasedZero, type, nullable));
+            paramGroup.add(JdbdValues.paramValue(indexBasedZero, type, value));
         }
 
         if (error != null) {

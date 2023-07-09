@@ -5,6 +5,7 @@ import io.jdbd.type.LongBinary;
 import java.io.IOException;
 import java.nio.channels.FileChannel;
 
+@Deprecated
 public interface LongGenericGeometry extends GenericGeometry, LongBinary {
 
 

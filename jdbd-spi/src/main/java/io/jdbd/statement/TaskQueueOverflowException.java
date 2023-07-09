@@ -1,20 +1,17 @@
 package io.jdbd.statement;
 
-import io.jdbd.JdbdNonSQLException;
+import io.jdbd.JdbdException;
 
-public class TaskQueueOverflowException extends JdbdNonSQLException {
+
+public final class TaskQueueOverflowException extends JdbdException {
 
     public TaskQueueOverflowException(String message) {
         super(message);
     }
 
+
     public TaskQueueOverflowException(String message, Throwable cause) {
         super(message, cause);
-    }
-
-    public TaskQueueOverflowException(String message, Throwable cause
-            , boolean enableSuppression, boolean writableStackTrace) {
-        super(message, cause, enableSuppression, writableStackTrace);
     }
 
 

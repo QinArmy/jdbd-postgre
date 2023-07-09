@@ -20,7 +20,7 @@ public interface StaticStatement extends Statement, StaticStatementSpec {
      * {@inheritDoc }
      */
     @Override
-    StaticStatement bindStmtVar(String name, DataType dataType, @Nullable Object nullable) throws JdbdException;
+    StaticStatement bindStmtVar(String name, DataType dataType, @Nullable Object value) throws JdbdException;
 
     /**
      * {@inheritDoc }

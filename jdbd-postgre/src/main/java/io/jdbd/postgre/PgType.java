@@ -4,11 +4,11 @@ package io.jdbd.postgre;
 import io.jdbd.meta.BooleanMode;
 import io.jdbd.type.Interval;
 import io.jdbd.type.LongBinary;
+import io.jdbd.type.Point;
 import io.jdbd.type.geo.Line;
 import io.jdbd.type.geo.LineString;
 import io.jdbd.type.geometry.Circle;
 import io.jdbd.type.geometry.LongString;
-import io.jdbd.type.geometry.Point;
 import reactor.util.annotation.Nullable;
 
 import java.math.BigDecimal;

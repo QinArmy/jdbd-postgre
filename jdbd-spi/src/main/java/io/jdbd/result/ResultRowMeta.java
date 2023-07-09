@@ -2,12 +2,8 @@ package io.jdbd.result;
 
 import io.jdbd.JdbdSQLException;
 import io.jdbd.lang.Nullable;
-import io.jdbd.meta.DataType;
-import io.jdbd.meta.KeyMode;
-import io.jdbd.meta.NullMode;
-import io.jdbd.meta.SQLType;
+import io.jdbd.meta.*;
 
-import java.sql.JDBCType;
 import java.util.List;
 
 /**
@@ -55,11 +51,11 @@ public interface ResultRowMeta extends Result {
     }
 
 
-    default JDBCType getJdbcType(int indexBaseZero){
+    default JdbdType getJdbdType(int indexBaseZero) {
         throw new UnsupportedOperationException();
     }
 
-    default JDBCType getJdbcType(String columnLabel){
+    default JdbdType getJdbdType(String columnLabel) {
         throw new UnsupportedOperationException();
     }
 
@@ -175,16 +171,6 @@ public interface ResultRowMeta extends Result {
      */
     NullMode getNullMode(String columnLabel) throws JdbdSQLException;
 
-
-    /**
-     * @param indexBaseZero base 0,the first column is 0, the second is 1, ...
-     * @throws JdbdSQLException if a database access error occurs
-     * @see #getColumnIndex(String)
-     */
-    @Deprecated
-    default JDBCType getJdbdType(int indexBaseZero) throws JdbdSQLException {
-        throw new UnsupportedOperationException();
-    }
 
 
     /**

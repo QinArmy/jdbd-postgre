@@ -3,6 +3,7 @@ package io.jdbd.statement;
 
 import io.jdbd.JdbdNonSQLException;
 
+@Deprecated
 public class LongDataReadException extends JdbdNonSQLException {
 
     public LongDataReadException(String messageFormat, Throwable cause) {

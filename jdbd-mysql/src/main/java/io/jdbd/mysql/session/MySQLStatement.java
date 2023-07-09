@@ -66,15 +66,15 @@ abstract class MySQLStatement<S extends Statement> implements Statement, StmtOpt
     @SuppressWarnings("unchecked")
     @Override
     public final S bindStmtVar(final String name, final @Nullable DataType dataType,
-                               final @Nullable Object nullable) throws JdbdException {
+                               final @Nullable Object value) throws JdbdException {
         RuntimeException error = null;
         final MySQLType type;
         if (!JdbdStrings.hasText(name)) {
             error = MySQLExceptions.stmtVarNameHaveNoText(name);
         } else if (dataType == null) {
             error = MySQLExceptions.dataTypeIsNull();
-        } else if (nullable instanceof Publisher || nullable instanceof Path || nullable instanceof OutParameter) {
-            error = MySQLExceptions.dontSupportJavaType(name, nullable, MY_SQL);
+        } else if (value instanceof Publisher || value instanceof Path || value instanceof OutParameter) {
+            error = MySQLExceptions.dontSupportJavaType(name, value, MY_SQL);
         } else if ((type = MySQLBinds.handleDataType(dataType)) == null) {
             error = MySQLExceptions.dontSupportDataType(dataType, MY_SQL);
         } else {
@@ -86,7 +86,7 @@ abstract class MySQLStatement<S extends Statement> implements Statement, StmtOpt
                 throw MySQLExceptions.cannotReuseStatement(getClass());
             }
 
-            if (map.putIfAbsent(name, JdbdValues.namedValue(name, type, nullable)) != null) {
+            if (map.putIfAbsent(name, JdbdValues.namedValue(name, type, value)) != null) {
                 error = MySQLExceptions.stmtVarDuplication(name);
             }
         }

@@ -1,6 +1,7 @@
-package io.jdbd.statement;
+package io.jdbd.type;
 
 import io.jdbd.lang.NonNull;
+import io.jdbd.statement.Parameter;
 import org.reactivestreams.Publisher;
 
 import java.nio.charset.Charset;
@@ -14,7 +15,7 @@ public interface Text extends Parameter {
 
 
     static Text from(Charset charset, Publisher<byte[]> source) {
-        return JdbdParameters.textParam(charset, source);
+        return JdbdTypes.textParam(charset, source);
     }
 
 }

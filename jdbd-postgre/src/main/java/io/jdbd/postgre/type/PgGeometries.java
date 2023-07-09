@@ -1,9 +1,9 @@
 package io.jdbd.postgre.type;
 
+import io.jdbd.type.Point;
 import io.jdbd.type.geo.Line;
 import io.jdbd.type.geo.LineString;
 import io.jdbd.type.geometry.Circle;
-import io.jdbd.type.geometry.Point;
 import io.jdbd.type.geometry.WkbType;
 import io.jdbd.vendor.type.Geometries;
 import io.jdbd.vendor.util.JdbdExceptions;

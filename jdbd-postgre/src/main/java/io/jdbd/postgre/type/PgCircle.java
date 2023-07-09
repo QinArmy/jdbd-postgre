@@ -1,7 +1,7 @@
 package io.jdbd.postgre.type;
 
+import io.jdbd.type.Point;
 import io.jdbd.type.geometry.Circle;
-import io.jdbd.type.geometry.Point;
 import io.jdbd.vendor.type.Geometries;
 
 import java.util.Objects;

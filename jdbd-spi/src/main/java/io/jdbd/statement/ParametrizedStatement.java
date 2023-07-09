@@ -4,6 +4,7 @@ import io.jdbd.JdbdException;
 import io.jdbd.lang.Nullable;
 import io.jdbd.meta.DataType;
 import io.jdbd.result.OutResult;
+import io.jdbd.type.*;
 import org.reactivestreams.Publisher;
 import org.reactivestreams.Subscriber;
 
@@ -34,19 +35,19 @@ public interface ParametrizedStatement extends Statement {
      *
      * @param indexBasedZero parameter placeholder index based zero, the first value is 0 .
      * @param dataType       parameter type is following type : <ul>
-     *                       <li>{@link io.jdbd.meta.JdbdType} generic sql type,this method convert {@link io.jdbd.meta.JdbdType} to {@link io.jdbd.meta.SQLType},if failure throw {@link  JdbdException}</li>
+     *                       <li>{@link io.jdbd.meta.JdbdType} generic sql type,this method convert {@link io.jdbd.meta.JdbdType} to appropriate {@link io.jdbd.meta.SQLType},if fail throw {@link  JdbdException}</li>
      *                       <li>{@link io.jdbd.meta.SQLType} database build-in type. It is defined by driver developer.</li>
      *                       <li>the {@link DataType} that application developer define type and it's {@link DataType#typeName()} is supported by database.
      *                             <ul>
-     *                                 <li>If {@link DataType#typeName()} is database build-in type,this method convert dataType to {@link io.jdbd.meta.SQLType} . now {@link DataType#isUserDefined()} return false.</li>
-     *                                 <li>Else if database support user_defined type,then use dataType. now {@link DataType#isUserDefined()} return true.</li>
+     *                                 <li>If {@link DataType#typeName()} is database build-in type,this method convert dataType to appropriate {@link io.jdbd.meta.SQLType} . now {@link DataType#isUserDefined()} return false, or throw {@link JdbdException}.</li>
+     *                                 <li>Else if database support user_defined type,then use dataType. now {@link DataType#isUserDefined()} return true, or throw {@link JdbdException}.</li>
      *                                 <li>Else throw {@link JdbdException}</li>
      *                             </ul>
      *                       </li>
      *                       </ul>
-     * @param nullable       nullable the parameter value; should be following type :
+     * @param value          nullable the parameter value; is following type :
      *                       <ul>
-     *                          <li>generic java type,for example : {@link Boolean} , {@link Integer} , {@link String} , byte[], {@link java.time.LocalDateTime} ,{@link java.util.BitSet}</li>
+     *                          <li>generic java type,for example : {@link Boolean} , {@link Integer} , {@link String} , byte[], {@link java.time.LocalDateTime} ,{@link java.util.BitSet},{@link java.util.List}</li>
      *                          <li>{@link Publisher}  long binary, it must emit byte[]</li>
      *                          <li>{@link java.nio.file.Path} long binary</li>
      *                          <li>{@link Parameter} :
@@ -55,12 +56,19 @@ public interface ParametrizedStatement extends Statement {
      *                                  <li>{@link Blob} long binary</li>
      *                                  <li>{@link Clob} long string</li>
      *                                  <li>{@link Text} long text</li>
-     *                                  <li>{@link BlobPath} long binary</li>
-     *                                  <li>{@link TextPath} long text</li>
+     *                                  <li>{@link BlobPath} long binary,if {@link BlobPath#isDeleteOnClose()} is true , driver will delete file on close,see {@link java.nio.file.StandardOpenOption#DELETE_ON_CLOSE}</li>
+     *                                  <li>{@link TextPath} long text,if {@link TextPath#isDeleteOnClose()} is true , driver will delete file on close,see {@link java.nio.file.StandardOpenOption#DELETE_ON_CLOSE}</li>
      *                              </ol>
      *                          </li>
      *                       </ul>
      * @return <strong>this</strong>
+     * @throws JdbdException throw when : <ul>
+     *                       <li>this statement instance is reused</li>
+     *                       <li>indexBasedZero error</li>
+     *                       <i>dataType is {@link io.jdbd.meta.JdbdType#UNKNOWN} or {@link io.jdbd.meta.JdbdType#DIALECT_TYPE}</i>
+     *                       <li>dataType is null or dataType is supported by database.</li>
+     *                       <li>the java type of value isn't supported by appropriate dataType</li>
+     *                       </ul>
      * @see io.jdbd.meta.JdbdType
      * @see io.jdbd.meta.SQLType
      * @see OutParameter
@@ -70,14 +78,14 @@ public interface ParametrizedStatement extends Statement {
      * @see BlobPath
      * @see TextPath
      */
-    ParametrizedStatement bind(int indexBasedZero, DataType dataType, @Nullable Object nullable) throws JdbdException;
+    ParametrizedStatement bind(int indexBasedZero, DataType dataType, @Nullable Object value) throws JdbdException;
 
 
     /**
      * {@inheritDoc }
      */
     @Override
-    ParametrizedStatement bindStmtVar(String name, DataType dataType, @Nullable Object nullable) throws JdbdException;
+    ParametrizedStatement bindStmtVar(String name, DataType dataType, @Nullable Object value) throws JdbdException;
 
 
     /**

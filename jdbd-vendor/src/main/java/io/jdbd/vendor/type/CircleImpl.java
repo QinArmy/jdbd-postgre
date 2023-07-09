@@ -1,7 +1,7 @@
 package io.jdbd.vendor.type;
 
+import io.jdbd.type.Point;
 import io.jdbd.type.geometry.Circle;
-import io.jdbd.type.geometry.Point;
 
 import java.util.Objects;
 

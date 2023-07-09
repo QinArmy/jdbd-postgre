@@ -1,7 +1,7 @@
 package io.jdbd.vendor.util;
 
+import io.jdbd.type.Point;
 import io.jdbd.type.geometry.LineString;
-import io.jdbd.type.geometry.Point;
 import io.jdbd.type.geometry.WkbType;
 import io.jdbd.vendor.type.Geometries;
 import io.qinarmy.util.Pair;

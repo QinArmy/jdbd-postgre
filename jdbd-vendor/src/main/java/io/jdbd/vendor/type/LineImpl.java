@@ -1,7 +1,7 @@
 package io.jdbd.vendor.type;
 
+import io.jdbd.type.Point;
 import io.jdbd.type.geometry.Line;
-import io.jdbd.type.geometry.Point;
 import io.jdbd.vendor.util.GeometryUtils;
 import reactor.core.publisher.Flux;
 

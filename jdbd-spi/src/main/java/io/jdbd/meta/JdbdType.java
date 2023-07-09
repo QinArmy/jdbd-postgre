@@ -1,17 +1,31 @@
 package io.jdbd.meta;
 
-import java.sql.JDBCType;
-
-
 /**
- * @see JDBCType
+ * <p>
+ * This enum is a implementation of {@link DataType} for the convenience that application bind parameter.
+ * </p>
+ *
+ * @see io.jdbd.statement.ParametrizedStatement#bind(int, DataType, Object)
+ * @see io.jdbd.statement.Statement#bindStmtVar(String, DataType, Object)
  */
 public enum JdbdType implements DataType {
 
     UNKNOWN,
 
     /**
-     * Identifies the generic SQL value {@code NULL}.
+     * Identifies the generic SQL value {@code NULL} . This enum instance representing sql type is unknown and value is null.
+     * <p>
+     *     <ul>
+     *         <li>{@link io.jdbd.result.ResultRowMeta#getJdbdType(int)} return this enm instance if sql type is unknown and value is null. For example : {@code SELECT NULL as result}</li>
+     *         <li>{@link io.jdbd.statement.ParametrizedStatement#bind(int, DataType, Object)} support this enum instance,if application developer don't known type and value is null.</li>
+     *         <li>{@link io.jdbd.statement.Statement#bindStmtVar(String, DataType, Object)} support this enum instance,if application developer don't known type and value is null.</li>
+     *     </ul>
+     *     Actually in most case , application developer known the type of null ,so dont' need this enum instance. For example:
+     *     <pre><br/>
+     *         // stmt is io.jdbd.statement.ParametrizedStatement instance
+     *         stmt.bind(0,JdbdType.BIGINT,null)
+     *     </pre>
+     * </p>
      */
     NULL,
 
@@ -250,11 +264,18 @@ public enum JdbdType implements DataType {
     MULTI_POLYGON,
 
     /**
-     * Indicates that the SQL type
-     * is database-specific and gets mapped to a Java object that can be
-     * accessed via the methods getObject and setObject.
+     * Indicates that the dialect SQL type  , this enum instance is only returned by {@link io.jdbd.result.ResultRowMeta#getJdbdType(int)}.
+     * This enum instance representing the dialect SQL type couldn't be expressed other instance of {@link JdbdType}.
+     * <p>
+     *     <ul>
+     *         <li>{@link io.jdbd.statement.ParametrizedStatement#bind(int, DataType, Object)} don't support this enum instance.</li>
+     *         <li>{@link io.jdbd.statement.Statement#bindStmtVar(String, DataType, Object)} don't support this enum instance.</li>
+     *     </ul>
+     *     If application developer want to bind dialect type ,then application developer should define the new {@link DataType} type
+     *     that it's {@link #typeName()} is supported by database.
+     * </p>
      */
-    OTHER;
+    DIALECT_TYPE;
 
 
     @Override
@@ -270,7 +291,7 @@ public enum JdbdType implements DataType {
 
     @Override
     public final boolean isUnknown() {
-        return false;
+        return this == UNKNOWN;
     }
 
     @Override

@@ -1,5 +1,7 @@
-package io.jdbd.statement;
+package io.jdbd.type;
 
+
+import io.jdbd.statement.PathParameter;
 
 import java.nio.charset.Charset;
 import java.nio.file.Path;
@@ -10,7 +12,7 @@ public interface TextPath extends PathParameter {
 
 
     static TextPath from(boolean deleteOnClose, Charset charset, Path path) {
-        return JdbdParameters.textPathParam(deleteOnClose, charset, path);
+        return JdbdTypes.textPathParam(deleteOnClose, charset, path);
     }
 
 }

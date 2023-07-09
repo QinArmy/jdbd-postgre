@@ -90,13 +90,13 @@ final class PgMultiStatement extends PgStatement implements MultiStatement {
     }
 
     @Override
-    public  MultiStatement bind(final int indexBasedZero, final DataType dataType, final @Nullable Object nullable)
+    public MultiStatement bind(final int indexBasedZero, final DataType dataType, final @Nullable Object value)
             throws JdbdException {
         final List<BindValue> paramGroup = this.paramGroup;
         if (paramGroup == null) {
             throw PgExceptions.multiStmtNoSql();
         }
-        paramGroup.add(BindValue.wrap(checkIndex(indexBasedZero), checkSqlType(dataType), nullable));
+        paramGroup.add(BindValue.wrap(checkIndex(indexBasedZero), checkSqlType(dataType), value));
         return this;
     }
 

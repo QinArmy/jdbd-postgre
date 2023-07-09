@@ -20,6 +20,7 @@ import java.util.Map;
  *      </ul>
  * </p>
  */
+@Deprecated
 public interface CodeEnum {
 
     String name();

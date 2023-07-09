@@ -5,6 +5,7 @@ import io.jdbd.JdbdException;
 import io.jdbd.lang.Nullable;
 import io.jdbd.meta.DataType;
 import io.jdbd.session.DatabaseSession;
+import io.jdbd.type.*;
 import org.reactivestreams.Publisher;
 import org.reactivestreams.Subscriber;
 
@@ -45,19 +46,19 @@ public interface Statement {
      *
      * @param name     statement variable name,must have text.
      * @param dataType parameter type is following type : <ul>
-     *                 <li>{@link io.jdbd.meta.JdbdType} generic sql type,this method convert {@link io.jdbd.meta.JdbdType} to {@link io.jdbd.meta.SQLType},if failure throw {@link  JdbdException}</li>
+     *                 <li>{@link io.jdbd.meta.JdbdType} generic sql type,this method convert {@link io.jdbd.meta.JdbdType} to appropriate {@link io.jdbd.meta.SQLType},if fail throw {@link  JdbdException}</li>
      *                 <li>{@link io.jdbd.meta.SQLType} database build-in type. It is defined by driver developer.</li>
      *                 <li>the {@link DataType} that application developer define type and it's {@link DataType#typeName()} is supported by database.
      *                       <ul>
-     *                           <li>If {@link DataType#typeName()} is database build-in type,this method convert dataType to {@link io.jdbd.meta.SQLType} . now {@link DataType#isUserDefined()} return false.</li>
+     *                           <li>If {@link DataType#typeName()} is database build-in type,this method convert dataType to appropriate {@link io.jdbd.meta.SQLType} . now {@link DataType#isUserDefined()} return false, or throw {@link JdbdException}.</li>
      *                           <li>Else if database support user_defined type,then use dataType. now {@link DataType#isUserDefined()} return true.</li>
      *                           <li>Else throw {@link JdbdException}</li>
      *                       </ul>
      *                 </li>
      *                 </ul>
-     * @param nullable nullable the parameter value; should be following type :
+     * @param value    nullable the parameter value; be following type :
      *                 <ul>
-     *                    <li>generic java type,for example :  {@link Boolean} ,{@link Integer} , {@link String} , byte[], {@link java.time.LocalDateTime} ,{@link java.util.BitSet}</li>
+     *                    <li>generic java type,for example :  {@link Boolean} ,{@link Integer} , {@link String} , byte[], {@link java.time.LocalDateTime} ,{@link java.util.BitSet},{@link java.util.List}</li>
      *                    <li>{@link Publisher}  long binary, it must emit byte[]</li>
      *                    <li>{@link java.nio.file.Path} long binary</li>
      *                    <li>{@link Parameter} :
@@ -65,19 +66,20 @@ public interface Statement {
      *                            <li>{@link Blob} long binary</li>
      *                            <li>{@link Clob} long string</li>
      *                            <li>{@link Text} long text</li>
-     *                            <li>{@link BlobPath} long binary</li>
-     *                            <li>{@link TextPath} long text</li>
+     *                            <li>{@link BlobPath} long binary,if {@link BlobPath#isDeleteOnClose()} is true , driver will delete file on close,see {@link java.nio.file.StandardOpenOption#DELETE_ON_CLOSE}</li>
+     *                            <li>{@link TextPath} long text,if {@link TextPath#isDeleteOnClose()} is true , driver will delete file on close,see {@link java.nio.file.StandardOpenOption#DELETE_ON_CLOSE}</li>
      *                        </ol>
      *                    </li>
      *                 </ul>
      * @return <strong>this</strong>
-     * @throws JdbdException throw when <ul>
+     * @throws JdbdException throw when : <ul>
      *                       <li>{@link DatabaseSession#supportStmtVar()} or {@link #supportStmtVar()} return false</li>
+     *                       <li>this statement instance is reused</li>
      *                       <li>name have no text</li>
      *                       <li>name duplication</li>
-     *                       <li>dataType is no supported by database</li>
-     *                       <li>the java type of nullable is not supported by database</li>
-     *                       <li>reuse this statement instance</li>
+     *                       <i>dataType is {@link io.jdbd.meta.JdbdType#UNKNOWN} or {@link io.jdbd.meta.JdbdType#DIALECT_TYPE}</i>
+     *                       <li>dataType is null or dataType is supported by database.</li>
+     *                       <li>the java type of value isn't supported by appropriate dataType</li>
      *                       </ul>
      * @see DatabaseSession#supportStmtVar()
      * @see #supportStmtVar()
@@ -89,7 +91,7 @@ public interface Statement {
      * @see BlobPath
      * @see TextPath
      */
-    Statement bindStmtVar(String name, DataType dataType, @Nullable Object nullable) throws JdbdException;
+    Statement bindStmtVar(String name, DataType dataType, @Nullable Object value) throws JdbdException;
 
 
     /**

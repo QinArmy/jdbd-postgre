@@ -3,6 +3,7 @@ package io.jdbd.type.geo;
 import io.jdbd.type.geometry.Geometry;
 import org.reactivestreams.Publisher;
 
+@Deprecated
 public interface LongGeometry extends Geometry {
 
     boolean hasUnderlyingFile();

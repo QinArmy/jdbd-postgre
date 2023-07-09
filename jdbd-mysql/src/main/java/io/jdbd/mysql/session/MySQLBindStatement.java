@@ -70,7 +70,7 @@ final class MySQLBindStatement extends MySQLStatement<BindStatement> implements 
 
     @Override
     public BindStatement bind(final int indexBasedZero, final @Nullable DataType dataType,
-                              final @Nullable Object nullable) throws JdbdException {
+                              final @Nullable Object value) throws JdbdException {
 
         List<ParamValue> paramGroup = this.paramGroup;
         if (paramGroup == EMPTY_PARAM_GROUP) {
@@ -99,12 +99,12 @@ final class MySQLBindStatement extends MySQLStatement<BindStatement> implements 
             if (paramGroup == null) {
                 this.paramGroup = paramGroup = MySQLCollections.arrayList(firstGroupSize < 0 ? 0 : firstGroupSize);
             }
-            if (nullable instanceof OutParameter
-                    || nullable instanceof Publisher
-                    || nullable instanceof Path) { // TODO long string or binary
+            if (value instanceof OutParameter
+                    || value instanceof Publisher
+                    || value instanceof Path) { // TODO long string or binary
                 this.usePrepare = true;
             }
-            paramGroup.add(JdbdValues.paramValue(indexBasedZero, type, nullable));
+            paramGroup.add(JdbdValues.paramValue(indexBasedZero, type, value));
         }
 
         if (error != null) {

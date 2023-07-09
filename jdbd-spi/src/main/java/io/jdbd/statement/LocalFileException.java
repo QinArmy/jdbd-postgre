@@ -5,6 +5,7 @@ import io.jdbd.lang.Nullable;
 
 import java.nio.file.Path;
 
+@Deprecated
 public class LocalFileException extends JdbdNonSQLException {
 
     private final Path localFile;

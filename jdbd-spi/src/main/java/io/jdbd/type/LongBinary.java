@@ -3,6 +3,7 @@ package io.jdbd.type;
 import java.io.IOException;
 import java.nio.channels.FileChannel;
 
+@Deprecated
 public interface LongBinary {
 
     boolean isArray();

@@ -53,14 +53,14 @@ public interface PreparedStatement extends BindSingleStatement {
      * {@inheritDoc }
      */
     @Override
-    PreparedStatement bind(int indexBasedZero, DataType dataType, @Nullable Object nullable) throws JdbdException;
+    PreparedStatement bind(int indexBasedZero, DataType dataType, @Nullable Object value) throws JdbdException;
 
 
     /**
      * {@inheritDoc }
      */
     @Override
-    PreparedStatement bindStmtVar(String name, DataType dataType, @Nullable Object nullable) throws JdbdException;
+    PreparedStatement bindStmtVar(String name, DataType dataType, @Nullable Object value) throws JdbdException;
 
     /**
      * {@inheritDoc }

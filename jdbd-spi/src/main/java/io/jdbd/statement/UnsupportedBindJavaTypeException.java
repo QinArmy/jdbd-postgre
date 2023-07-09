@@ -2,6 +2,7 @@ package io.jdbd.statement;
 
 import io.jdbd.JdbdNonSQLException;
 
+@Deprecated
 public final class UnsupportedBindJavaTypeException extends JdbdNonSQLException {
 
     private final Class<?> notSupportType;

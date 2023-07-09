@@ -83,14 +83,14 @@ final class PgBindStatement extends PgStatement implements BindStatement {
     }
 
     @Override
-    public BindStatement bind(final int indexBasedZero, final DataType dataType, final @Nullable Object nullable)
+    public BindStatement bind(final int indexBasedZero, final DataType dataType, final @Nullable Object value)
             throws JdbdException {
 
         if (!(dataType instanceof PgType)) {
             String m = String.format("sqlType isn't a instance of %s", PgType.class.getName());
             throw new PgJdbdException(m);
         }
-        this.paramGroup.add(BindValue.wrap(checkIndex(indexBasedZero), (PgType) dataType, nullable));
+        this.paramGroup.add(BindValue.wrap(checkIndex(indexBasedZero), (PgType) dataType, value));
         return this;
     }
 

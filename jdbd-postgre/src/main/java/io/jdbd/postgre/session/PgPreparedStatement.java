@@ -103,7 +103,7 @@ final class PgPreparedStatement extends PgStatement implements PreparedStatement
     }
 
     @Override
-    public PreparedStatement bind(int indexBasedZero, DataType dataType, final @Nullable Object nullable)
+    public PreparedStatement bind(int indexBasedZero, DataType dataType, final @Nullable Object value)
             throws JdbdException {
         return this;
     }

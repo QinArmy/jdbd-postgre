@@ -1,7 +1,7 @@
 package io.jdbd.postgre.type;
 
+import io.jdbd.type.Point;
 import io.jdbd.type.geo.LineString;
-import io.jdbd.type.geometry.Point;
 import io.jdbd.type.geometry.WkbType;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;

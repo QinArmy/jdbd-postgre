@@ -2,6 +2,7 @@ package io.jdbd.statement;
 
 import io.jdbd.JdbdNonSQLException;
 
+@Deprecated
 public class StatementClosedException extends JdbdNonSQLException {
 
     public StatementClosedException(String messageFormat) {

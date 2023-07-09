@@ -1,6 +1,10 @@
 package io.jdbd.vendor.type;
 
-import io.jdbd.type.geometry.*;
+import io.jdbd.type.Point;
+import io.jdbd.type.geometry.Circle;
+import io.jdbd.type.geometry.Line;
+import io.jdbd.type.geometry.LineString;
+import io.jdbd.type.geometry.WkbType;
 import io.jdbd.vendor.util.GeometryUtils;
 import io.jdbd.vendor.util.JdbdNumbers;
 

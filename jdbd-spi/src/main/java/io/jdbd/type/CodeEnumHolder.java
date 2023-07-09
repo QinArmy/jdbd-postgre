@@ -14,7 +14,8 @@ import java.util.concurrent.ConcurrentMap;
 /**
  * @see CodeEnum
  */
-public abstract class CodeEnumHolder {
+@Deprecated
+abstract class CodeEnumHolder {
 
     private static final ConcurrentMap<Class<?>, Map<Integer, ? extends CodeEnum>> CODE_MAP_HOLDER =
             new ConcurrentHashMap<>();

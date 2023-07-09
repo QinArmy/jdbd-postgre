@@ -1,7 +1,6 @@
 package io.jdbd.type.geometry;
 
 import io.jdbd.lang.Nullable;
-import io.jdbd.type.CodeEnum;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -17,7 +16,8 @@ import java.util.Map;
  *
  * @see <a href="https://www.ogc.org/standards/sfa">Simple Feature Access - Part 1: Common Architecture PDF</a>
  */
-public enum WkbType implements CodeEnum {
+@Deprecated
+public enum WkbType {
 
     GEOMETRY(Constant.GEOMETRY, "GEOMETRY") {
         @Override
@@ -833,7 +833,6 @@ public enum WkbType implements CodeEnum {
     };
 
 
-    private static final Map<Integer, WkbType> CODE_MAP = CodeEnum.getCodeMap(WkbType.class);
 
     private static final Map<String, WkbType> WKT_MAP = createWktMap();
 
@@ -847,23 +846,18 @@ public enum WkbType implements CodeEnum {
         this.wktType = wktType;
     }
 
-    @Override
-    public int code() {
-        return this.code;
-    }
 
-    @Override
-    public String display() {
-        return this.wktType;
+    public final int code() {
+        return this.code;
     }
 
     @Nullable
     public abstract WkbType elementType();
 
-    @Override
+
     public abstract WkbType family();
 
-    public int coordinates() {
+    public final int coordinates() {
         final int coordinateCount;
         if (this.code < 1000) {
             coordinateCount = 2;
@@ -875,7 +869,7 @@ public enum WkbType implements CodeEnum {
         return coordinateCount;
     }
 
-    public boolean sameDimension(WkbType wkbType) {
+    public final boolean sameDimension(WkbType wkbType) {
         final boolean match;
         if (this.code < 1000) {
             match = wkbType.code < 1000;
@@ -889,7 +883,7 @@ public enum WkbType implements CodeEnum {
         return match;
     }
 
-    public boolean supportPointText() {
+    public final boolean supportPointText() {
         final boolean pointText;
         switch (this) {
             case MULTI_POINT:
@@ -1010,7 +1004,7 @@ public enum WkbType implements CodeEnum {
 
     @Nullable
     public static WkbType fromCode(int code) {
-        return CODE_MAP.get(code);
+        throw new UnsupportedOperationException();
     }
 
     public static WkbType fromWkbArray(final byte[] wkbArray, int offset) throws IllegalArgumentException {

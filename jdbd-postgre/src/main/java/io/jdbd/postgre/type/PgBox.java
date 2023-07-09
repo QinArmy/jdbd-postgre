@@ -1,6 +1,6 @@
 package io.jdbd.postgre.type;
 
-import io.jdbd.type.geometry.Point;
+import io.jdbd.type.Point;
 
 import java.util.Objects;
 import java.util.function.Consumer;

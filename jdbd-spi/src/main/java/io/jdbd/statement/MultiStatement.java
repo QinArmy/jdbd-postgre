@@ -26,13 +26,13 @@ public interface MultiStatement extends BindMultiResultStatement, ParametrizedSt
      * {@inheritDoc }
      */
     @Override
-    MultiStatement bind(int indexBasedZero, DataType dataType, @Nullable Object nullable) throws JdbdException;
+    MultiStatement bind(int indexBasedZero, DataType dataType, @Nullable Object value) throws JdbdException;
 
     /**
      * {@inheritDoc }
      */
     @Override
-    MultiStatement bindStmtVar(String name, DataType dataType, @Nullable Object nullable) throws JdbdException;
+    MultiStatement bindStmtVar(String name, DataType dataType, @Nullable Object value) throws JdbdException;
 
 
     /**

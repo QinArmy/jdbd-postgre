@@ -1,11 +1,7 @@
 package io.jdbd.statement;
 
-import io.jdbd.lang.NonNull;
 import io.jdbd.lang.Nullable;
-import org.reactivestreams.Publisher;
 
-import java.nio.charset.Charset;
-import java.nio.file.Path;
 import java.util.Objects;
 
 /**
@@ -26,45 +22,6 @@ abstract class JdbdParameters {
             throw new NullPointerException("out parameter name must non-null");
         }
         return new JdbdOutParameter(name, value);
-    }
-
-    static Blob blobParam(@Nullable Publisher<byte[]> source) {
-        if (source == null) {
-            throw new NullPointerException("source must non-null");
-        }
-        return new JdbdBlob(source);
-    }
-
-    static Clob clobParam(@Nullable Publisher<CharSequence> source) {
-        if (source == null) {
-            throw new NullPointerException("source must non-null");
-        }
-        return new JdbdClob(source);
-    }
-
-    static Text textParam(@Nullable Charset charset, @Nullable Publisher<byte[]> source) {
-        if (charset == null) {
-            throw new NullPointerException("charset must non-null");
-        } else if (source == null) {
-            throw new NullPointerException("source must non-null");
-        }
-        return new JdbdText(charset, source);
-    }
-
-    static TextPath textPathParam(boolean deleteOnClose, @Nullable Charset charset, @Nullable Path path) {
-        if (charset == null) {
-            throw new NullPointerException("charset must non-null");
-        } else if (path == null) {
-            throw new NullPointerException("path must non-null");
-        }
-        return new JdbdTextPath(deleteOnClose, charset, path);
-    }
-
-    static BlobPath blobPathParam(boolean deleteOnClose, @Nullable Path path) {
-        if (path == null) {
-            throw new NullPointerException("path must non-null");
-        }
-        return new JdbdBlobPath(deleteOnClose, path);
     }
 
     /**
@@ -140,146 +97,6 @@ abstract class JdbdParameters {
 
 
     }//JdbdOutParameter
-
-
-    private static final class JdbdBlob implements Blob {
-
-        private final Publisher<byte[]> source;
-
-        private JdbdBlob(Publisher<byte[]> source) {
-            this.source = source;
-        }
-
-        @NonNull
-        @Override
-        public Publisher<byte[]> value() {
-            return this.source;
-        }
-
-
-    }//JdbdBlob
-
-    private static final class JdbdClob implements Clob {
-
-        private final Publisher<CharSequence> source;
-
-        private JdbdClob(Publisher<CharSequence> source) {
-            this.source = source;
-        }
-
-        @NonNull
-        @Override
-        public Publisher<CharSequence> value() {
-            return this.source;
-        }
-
-
-    }//JdbdBlob
-
-
-    private static final class JdbdText implements Text {
-
-        private final Charset charset;
-
-        private final Publisher<byte[]> source;
-
-        private JdbdText(Charset charset, Publisher<byte[]> source) {
-            this.charset = charset;
-            this.source = source;
-        }
-
-        @Override
-        public Charset charset() {
-            return this.charset;
-        }
-
-
-        @NonNull
-        @Override
-        public Publisher<byte[]> value() {
-            return this.source;
-        }
-
-        @Override
-        public String toString() {
-            return String.format("%s[ charset : %s ]", getClass().getName(), this.charset.name());
-        }
-
-
-    }//JdbdText
-
-
-    private static final class JdbdTextPath implements TextPath {
-
-        private final boolean deleteOnClose;
-
-        private final Charset charset;
-
-        private final Path path;
-
-        private JdbdTextPath(boolean deleteOnClose, Charset charset, Path path) {
-            this.deleteOnClose = deleteOnClose;
-            this.charset = charset;
-            this.path = path;
-        }
-
-        @Override
-        public Charset charset() {
-            return this.charset;
-        }
-
-        @Override
-        public boolean isDeleteOnClose() {
-            return this.deleteOnClose;
-        }
-
-        @NonNull
-        @Override
-        public Path value() {
-            return this.path;
-        }
-
-        @Override
-        public String toString() {
-            return String.format("%s[ deleteOnClose : %s , charset : %s , path : %s]",
-                    getClass().getName(), this.deleteOnClose, this.charset.name(), this.path
-            );
-        }
-
-
-    }//JdbdTextPath
-
-    private static final class JdbdBlobPath implements BlobPath {
-
-        private final boolean deleteOnClose;
-
-        private final Path path;
-
-        private JdbdBlobPath(boolean deleteOnClose, Path path) {
-            this.deleteOnClose = deleteOnClose;
-            this.path = path;
-        }
-
-        @Override
-        public boolean isDeleteOnClose() {
-            return this.deleteOnClose;
-        }
-
-        @NonNull
-        @Override
-        public Path value() {
-            return this.path;
-        }
-
-        @Override
-        public String toString() {
-            return String.format("%s[ deleteOnClose : %s , path : %s]",
-                    getClass().getName(), this.deleteOnClose, this.path
-            );
-        }
-
-
-    }//JdbdBlobPath
 
 
 }

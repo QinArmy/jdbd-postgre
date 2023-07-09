@@ -22,14 +22,14 @@ public interface BindStatement extends BindSingleStatement {
      * {@inheritDoc }
      */
     @Override
-    BindStatement bind(int indexBasedZero, DataType dataType, @Nullable Object nullable) throws JdbdException;
+    BindStatement bind(int indexBasedZero, DataType dataType, @Nullable Object value) throws JdbdException;
 
 
     /**
      * {@inheritDoc }
      */
     @Override
-    BindStatement bindStmtVar(String name, DataType dataType, @Nullable Object nullable) throws JdbdException;
+    BindStatement bindStmtVar(String name, DataType dataType, @Nullable Object value) throws JdbdException;
 
     /**
      * {@inheritDoc }

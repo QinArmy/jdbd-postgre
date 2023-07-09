@@ -32,13 +32,13 @@ public interface BindSingleStatement extends ParametrizedStatement, BindMultiRes
      * {@inheritDoc }
      */
     @Override
-    BindSingleStatement bind(int indexBasedZero, DataType dataType, @Nullable Object nullable) throws JdbdException;
+    BindSingleStatement bind(int indexBasedZero, DataType dataType, @Nullable Object value) throws JdbdException;
 
     /**
      * {@inheritDoc }
      */
     @Override
-    BindSingleStatement bindStmtVar(String name, DataType dataType, @Nullable Object nullable) throws JdbdException;
+    BindSingleStatement bindStmtVar(String name, DataType dataType, @Nullable Object value) throws JdbdException;
 
 
     /**

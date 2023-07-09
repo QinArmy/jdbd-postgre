@@ -1,12 +1,14 @@
 package io.jdbd.statement;
 
 import io.jdbd.lang.NonNull;
+import io.jdbd.type.BlobPath;
+import io.jdbd.type.TextPath;
 
 import java.nio.file.Path;
 
 /**
  * <p>
- * This interface is base interface of following :
+ * This interface is only base interface of following :
  *     <ul>
  *         <li>{@link BlobPath}</li>
  *         <li>{@link TextPath}</li>
@@ -17,7 +19,9 @@ import java.nio.file.Path;
  */
 public interface PathParameter extends Parameter {
 
-
+    /**
+     * @see java.nio.file.StandardOpenOption#DELETE_ON_CLOSE
+     */
     boolean isDeleteOnClose();
 
 

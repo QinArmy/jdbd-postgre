@@ -7,6 +7,7 @@ import java.nio.charset.Charset;
 /**
  * This interface adapter of {@link String} or large string.
  */
+@Deprecated
 public interface LongString {
 
     boolean isString();

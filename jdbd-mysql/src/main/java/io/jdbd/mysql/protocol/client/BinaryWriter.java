@@ -17,7 +17,6 @@ import java.nio.charset.StandardCharsets;
 import java.time.*;
 import java.time.temporal.ChronoField;
 import java.util.BitSet;
-import java.util.Set;
 
 /**
  * <p>
@@ -36,7 +35,7 @@ abstract class BinaryWriter {
 
     /**
      * <p>
-     * Bind non-null value with MySQL binary protocol.
+     * Bind non-null and simple(no {@link org.reactivestreams.Publisher} or {@link java.nio.file.Path}) value with MySQL binary protocol.
      * </p>
      *
      * @param precision  negative if dont' need to truncate micro seconds.
@@ -142,19 +141,9 @@ abstract class BinaryWriter {
                 Packets.writeInt8(packet, Double.doubleToLongBits(value));// here string[8] is Little Endian int8
             }
             break;
-            case VARCHAR: {
-                if (paramValue.getNonNull() instanceof Set) {
-                    // Server response parameter metadata no MYSQL_TYPE_SET ,it's MYSQL_TYPE_VARCHAR
-                    final String value;
-                    value = MySQLBinds.bindToSetType(batchIndex, paramValue);
-                    Packets.writeStringLenEnc(packet, value.getBytes(charset));
-                } else {
-                    writeString(packet, batchIndex, paramValue, charset);
-                }
-            }
-            break;
             case ENUM:
             case CHAR:
+            case VARCHAR:
             case TINYTEXT:
             case MEDIUMTEXT:
             case TEXT:
@@ -169,11 +158,10 @@ abstract class BinaryWriter {
             case BLOB:
             case LONGBLOB: {
                 final Object nonNull = paramValue.getNonNullValue();
-                if (nonNull instanceof byte[]) {
-                    Packets.writeStringLenEnc(packet, (byte[]) nonNull);
-                } else { //TODO long data
+                if (!(nonNull instanceof byte[])) {
                     throw JdbdExceptions.createNonSupportBindSqlTypeError(batchIndex, paramValue);
                 }
+                Packets.writeStringLenEnc(packet, (byte[]) nonNull);
             }
             break;
             case TIMESTAMP:

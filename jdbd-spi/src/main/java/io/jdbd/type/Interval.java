@@ -19,9 +19,9 @@ public final class Interval implements TemporalAmount {
 
     static final long NANOS_PER_SECOND = 1000_000_000L;
 
-    static final int SECONDS_PER_MINUTE = 60;
+    static final byte SECONDS_PER_MINUTE = 60;
 
-    static final int SECONDS_PER_HOUR = 3600;
+    static final short SECONDS_PER_HOUR = 3600;
 
 
     private final int years;
@@ -59,28 +59,28 @@ public final class Interval implements TemporalAmount {
         this.nano = nano;
     }
 
-    public final int getYears() {
+    public int getYears() {
         return this.years;
     }
 
-    public final int getMonths() {
+    public int getMonths() {
         return this.months;
     }
 
-    public final int getDays() {
+    public int getDays() {
         return this.days;
     }
 
-    public final long getSeconds() {
+    public long getSeconds() {
         return this.seconds;
     }
 
-    public final int getNano() {
+    public int getNano() {
         return this.nano;
     }
 
     @Override
-    public final long get(final TemporalUnit unit) {
+    public long get(final TemporalUnit unit) {
         if (!(unit instanceof ChronoUnit)) {
             throw new UnsupportedTemporalTypeException("Unsupported unit: " + unit);
         }
@@ -109,7 +109,7 @@ public final class Interval implements TemporalAmount {
     }
 
     @Override
-    public final List<TemporalUnit> getUnits() {
+    public List<TemporalUnit> getUnits() {
         final List<TemporalUnit> unitList;
         if (this == ZERO) {
             unitList = Collections.emptyList();
@@ -124,12 +124,12 @@ public final class Interval implements TemporalAmount {
     }
 
 
-    public final boolean isZero() {
+    public boolean isZero() {
         return this == ZERO;
     }
 
     @Override
-    public final Temporal addTo(Temporal temporal) {
+    public Temporal addTo(Temporal temporal) {
         if (this.years != 0) {
             temporal = temporal.plus(this.years, ChronoUnit.YEARS);
         }
@@ -154,7 +154,7 @@ public final class Interval implements TemporalAmount {
     }
 
     @Override
-    public final Temporal subtractFrom(Temporal temporal) {
+    public Temporal subtractFrom(Temporal temporal) {
         if (this.years != 0) {
             temporal = temporal.minus(this.years, ChronoUnit.YEARS);
         }
@@ -179,16 +179,16 @@ public final class Interval implements TemporalAmount {
 
 
     @Override
-    public final int hashCode() {
+    public int hashCode() {
         return Objects.hash(this.years, this.months, this.days, this.seconds, this.nano);
     }
 
     @Override
-    public final boolean equals(Object obj) {
+    public boolean equals(Object obj) {
         return equals(obj, false);
     }
 
-    public final boolean equals(Object obj, final boolean microPrecision) {
+    public boolean equals(Object obj, final boolean microPrecision) {
         final boolean match;
         if (obj == this) {
             match = true;
@@ -209,15 +209,15 @@ public final class Interval implements TemporalAmount {
         return match;
     }
 
-    public final boolean isDuration() {
+    public boolean isDuration() {
         return (this.years | this.months | this.days) == 0;
     }
 
-    public final boolean isPeriod() {
+    public boolean isPeriod() {
         return (this.seconds | this.nano) == 0;
     }
 
-    public final Duration toDurationExact() throws DateTimeException {
+    public Duration toDurationExact() throws DateTimeException {
         if (!isDuration()) {
             throw new DateTimeException(String.format("[%s] can't convert to %s .", this, Duration.class.getName()));
         }
@@ -230,7 +230,7 @@ public final class Interval implements TemporalAmount {
         return duration;
     }
 
-    public final Period toPeriodExact() throws DateTimeException {
+    public Period toPeriodExact() throws DateTimeException {
         if (!isPeriod()) {
             throw new DateTimeException(String.format("[%s] can't convert to %s .", this, Duration.class.getName()));
         }
@@ -238,7 +238,7 @@ public final class Interval implements TemporalAmount {
     }
 
     @Override
-    public final String toString() {
+    public String toString() {
         return toString(false);
     }
 
@@ -369,7 +369,7 @@ public final class Interval implements TemporalAmount {
         }
 
         final long secOfHm; // the sum seconds of hour and minute
-        secOfHm = Math.addExact(Math.multiplyExact(timePart[0], SECONDS_PER_HOUR), Math.multiplyExact(timePart[1], SECONDS_PER_MINUTE));
+        secOfHm = Math.addExact(Math.multiplyExact(timePart[0], (long) SECONDS_PER_HOUR), Math.multiplyExact(timePart[1], (long) SECONDS_PER_MINUTE));
         final long secondPointLeft = timePart[2], secondPointRight = timePart[3];
         if (secondPointRight < 0 && secondPointLeft != 0) {
             // here bug
