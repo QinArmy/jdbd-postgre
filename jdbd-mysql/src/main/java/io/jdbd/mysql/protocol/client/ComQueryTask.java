@@ -415,25 +415,23 @@ final class ComQueryTask extends MySQLCommandTask {
         boolean taskEnd = false, continueRead = Packets.hasOnePacket(cumulateBuffer);
         while (continueRead) {
             switch (this.phase) {
-                case READ_EXECUTE_RESPONSE: {
+                case READ_EXECUTE_RESPONSE:
                     taskEnd = readExecuteResponse(cumulateBuffer, serverStatusConsumer);
-                    //TODO 根据下面这个思想优化 jdbd-postgre
-                    continueRead = !taskEnd
-                            && this.phase != Phase.READ_TEXT_RESULT_SET
-                            && Packets.hasOnePacket(cumulateBuffer);
-                }
-                break;
-                case READ_TEXT_RESULT_SET: {
+                    break;
+                case READ_TEXT_RESULT_SET:
                     taskEnd = readResultSet(cumulateBuffer, serverStatusConsumer);
-                    continueRead = !taskEnd
-                            && this.phase != Phase.READ_TEXT_RESULT_SET
-                            && Packets.hasOnePacket(cumulateBuffer);
-                }
-                break;
+                    break;
                 default:
-                    throw MySQLExceptions.createUnexpectedEnumException(this.phase);
-            }
+                    throw MySQLExceptions.unexpectedEnum(this.phase);
+            }// switch
+
+            //TODO 根据下面这个思想优化 jdbd-postgre
+            continueRead = !taskEnd
+                    && this.phase != Phase.READ_TEXT_RESULT_SET
+                    && Packets.hasOnePacket(cumulateBuffer);
+
         }
+
         if (taskEnd) {
             if (log.isTraceEnabled()) {
                 log.trace("COM_QUERY instant[{}] task end.", this);
@@ -498,9 +496,10 @@ final class ComQueryTask extends MySQLCommandTask {
      * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_com_query_response.html">Protocol::COM_QUERY Response</a>
      */
     private boolean readExecuteResponse(final ByteBuf cumulateBuffer, final Consumer<Object> serverStatusConsumer) {
-        assertPhase(Phase.READ_EXECUTE_RESPONSE);
+        assert this.phase == Phase.READ_EXECUTE_RESPONSE;
 
-        final ComQueryResponse response = detectComQueryResponseType(cumulateBuffer, this.negotiatedCapability);
+        final ComQueryResponse response;
+        response = detectComQueryResponseType(cumulateBuffer, this.capability);
         boolean taskEnd = false;
         switch (response) {
             case ERROR: {
@@ -508,10 +507,9 @@ final class ComQueryTask extends MySQLCommandTask {
                 taskEnd = true;
             }
             break;
-            case OK: {
+            case OK:
                 taskEnd = readUpdateResult(cumulateBuffer, serverStatusConsumer);
-            }
-            break;
+                break;
             case LOCAL_INFILE_REQUEST: {
                 sendLocalFile(cumulateBuffer);
                 this.phase = Phase.READ_EXECUTE_RESPONSE;
@@ -523,7 +521,7 @@ final class ComQueryTask extends MySQLCommandTask {
             }
             break;
             default:
-                throw MySQLExceptions.createUnexpectedEnumException(response);
+                throw MySQLExceptions.unexpectedEnum(response);
         }
         return taskEnd;
     }
@@ -752,13 +750,14 @@ final class ComQueryTask extends MySQLCommandTask {
      *
      * @see #decode(ByteBuf, Consumer)
      */
-    private static ComQueryResponse detectComQueryResponseType(final ByteBuf cumulateBuffer, final int negotiatedCapability) {
+    private static ComQueryResponse detectComQueryResponseType(final ByteBuf cumulateBuffer, final int capability) {
         int readerIndex = cumulateBuffer.readerIndex();
-        final int payloadLength = Packets.getInt3(cumulateBuffer, readerIndex);
+        final int payloadLength;
+        payloadLength = Packets.getInt3(cumulateBuffer, readerIndex);
         // skip header
         readerIndex += Packets.HEADER_SIZE;
         final ComQueryResponse responseType;
-        final boolean metadata = (negotiatedCapability & Capabilities.CLIENT_OPTIONAL_RESULTSET_METADATA) != 0;
+        final boolean metadata = (capability & Capabilities.CLIENT_OPTIONAL_RESULTSET_METADATA) != 0;
 
         switch (Packets.getInt1AsInt(cumulateBuffer, readerIndex++)) {
             case 0: {// TODO 更准确

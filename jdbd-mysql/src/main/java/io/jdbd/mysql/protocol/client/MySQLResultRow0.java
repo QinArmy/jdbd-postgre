@@ -12,15 +12,15 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
-abstract class MySQLResultRow extends AbstractResultRow<MySQLRowMeta> {
+abstract class MySQLResultRow0 extends AbstractResultRow<MySQLRowMeta> {
 
-    static MySQLResultRow from(Object[] columnValues, MySQLRowMeta rowMeta, ResultRowAdjutant adjutant) {
+    static MySQLResultRow0 from(Object[] columnValues, MySQLRowMeta rowMeta, ResultRowAdjutant adjutant) {
         return new SimpleMySQLResultRow(columnValues, rowMeta, adjutant);
     }
 
     private final ResultRowAdjutant adjutant;
 
-    private MySQLResultRow(Object[] columnValues, MySQLRowMeta rowMeta, ResultRowAdjutant adjutant) {
+    private MySQLResultRow0(Object[] columnValues, MySQLRowMeta rowMeta, ResultRowAdjutant adjutant) {
         super(rowMeta, columnValues);
         this.adjutant = adjutant;
     }
@@ -140,7 +140,7 @@ abstract class MySQLResultRow extends AbstractResultRow<MySQLRowMeta> {
     /*################################## blow private method ##################################*/
 
 
-    private static final class SimpleMySQLResultRow extends MySQLResultRow {
+    private static final class SimpleMySQLResultRow extends MySQLResultRow0 {
 
         private SimpleMySQLResultRow(Object[] columnValues, MySQLRowMeta rowMeta, ResultRowAdjutant adjutant) {
             super(columnValues, rowMeta, adjutant);

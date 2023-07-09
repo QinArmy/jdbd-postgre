@@ -50,8 +50,8 @@ public abstract class MySQLExceptions extends JdbdExceptions {
         return e;
     }
 
-    public static JdbdSQLException createErrorPacketException(ErrorPacket error) {
-        return JdbdSQLException.create(createSQLException(error));
+    public static JdbdException createErrorPacketException(ErrorPacket error) {
+        return new JdbdException(error.getErrorMessage(), error.getSqlState(), error.getErrorCode());
     }
 
     /**
@@ -73,7 +73,7 @@ public abstract class MySQLExceptions extends JdbdExceptions {
         return new JdbdSQLException(new SQLException(message));
     }
 
-    public static JdbdSQLException createFatalIoException(@Nullable Throwable e, String format
+    public static JdbdException createFatalIoException(@Nullable Throwable e, String format
             , @Nullable Object... args) {
         String message;
         if (args == null || args.length == 0) {
@@ -81,10 +81,10 @@ public abstract class MySQLExceptions extends JdbdExceptions {
         } else {
             message = String.format(format, args);
         }
-        return new JdbdSQLException(new MySQLFatalIoException(message, e));
+        return new JdbdException(message);
     }
 
-    public static JdbdSQLException createFatalIoException(String format, @Nullable Object... args) {
+    public static JdbdException createFatalIoException(String format, @Nullable Object... args) {
         return createFatalIoException(null, format, args);
     }
 

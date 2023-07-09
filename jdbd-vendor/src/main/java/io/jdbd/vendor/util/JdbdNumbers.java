@@ -22,12 +22,34 @@ public abstract class JdbdNumbers extends NumberUtils {
         return value;
     }
 
-    public static void writeDouble(final double value, final boolean bigEndian, final byte[] wkbArray, final int offset) {
-        final int end = offset + 8;
-        if (wkbArray.length < end) {
+
+    public static void writeInt(final int bitSet, final boolean bigEndian, final byte[] wkbArray, final int offset) {
+        final int end = offset + 4;
+        if (offset < 0) {
+            throw new IllegalArgumentException("offset error");
+        } else if (wkbArray.length < end) {
             throw new IllegalArgumentException("overflow");
         }
-        final long bitSet = Double.doubleToLongBits(value);
+        if (bigEndian) {
+            for (int i = offset, bitCount = 24; i < end; i++, bitCount -= 8) {
+                wkbArray[i] = (byte) (bitSet >> bitCount);
+            }
+        } else {
+            for (int i = offset, bitCount = 0; i < end; i++, bitCount += 8) {
+                wkbArray[i] = (byte) (bitSet >> bitCount);
+            }
+        }
+
+
+    }
+
+    public static void writeLong(final long bitSet, final boolean bigEndian, final byte[] wkbArray, final int offset) {
+        final int end = offset + 8;
+        if (offset < 0) {
+            throw new IllegalArgumentException("offset error");
+        } else if (wkbArray.length < end) {
+            throw new IllegalArgumentException("overflow");
+        }
         if (bigEndian) {
             for (int i = offset, bitCount = 56; i < end; i++, bitCount -= 8) {
                 wkbArray[i] = (byte) (bitSet >> bitCount);

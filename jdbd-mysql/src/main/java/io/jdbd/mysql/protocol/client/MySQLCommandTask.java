@@ -28,7 +28,7 @@ abstract class MySQLCommandTask extends MySQLTask implements StmtTask {
 
     final ResultSink sink;
 
-    final int negotiatedCapability;
+    final int capability;
 
     private final ResultSetReader resultSetReader;
 
@@ -41,7 +41,7 @@ abstract class MySQLCommandTask extends MySQLTask implements StmtTask {
     MySQLCommandTask(TaskAdjutant adjutant, final ResultSink sink) {
         super(adjutant, sink::error);
         this.sink = sink;
-        this.negotiatedCapability = adjutant.capability();
+        this.capability = adjutant.capability();
         this.resultSetReader = createResultSetReader();
     }
 
@@ -51,7 +51,7 @@ abstract class MySQLCommandTask extends MySQLTask implements StmtTask {
     @Override
     public final boolean isCancelled() {
         final boolean isCanceled;
-        if (this.downstreamCanceled || hasError()) {
+        if (this.downstreamCanceled || this.hasError()) {
             isCanceled = true;
         } else if (this.sink.isCancelled()) {
             log.trace("Downstream cancel subscribe.");
@@ -121,11 +121,12 @@ abstract class MySQLCommandTask extends MySQLTask implements StmtTask {
 
 
     final void readErrorPacket(final ByteBuf cumulateBuffer) {
-        final int payloadLength = Packets.readInt3(cumulateBuffer);
+        final int payloadLength;
+        payloadLength = Packets.readInt3(cumulateBuffer);
         updateSequenceId(Packets.readInt1AsInt(cumulateBuffer)); //  sequence_id
         final ErrorPacket error;
         error = ErrorPacket.read(cumulateBuffer.readSlice(payloadLength)
-                , this.negotiatedCapability, this.adjutant.obtainCharsetError());
+                , this.capability, this.adjutant.obtainCharsetError());
         addError(MySQLExceptions.createErrorPacketException(error));
     }
 
@@ -136,9 +137,8 @@ abstract class MySQLCommandTask extends MySQLTask implements StmtTask {
 
         final boolean taskEnd;
         switch (this.resultSetReader.read(cumulateBuffer, serverStatusConsumer)) {
-            case END_ONE_ERROR: {
+            case END_ONE_ERROR:
                 taskEnd = true;
-            }
             break;
             case MORE_FETCH: {
                 handleReadResultSetEnd();
@@ -149,9 +149,8 @@ abstract class MySQLCommandTask extends MySQLTask implements StmtTask {
                 }
             }
             break;
-            case MORE_CUMULATE: {
+            case MORE_CUMULATE:
                 taskEnd = false;
-            }
             break;
             case NO_MORE_RESULT: {
                 handleReadResultSetEnd();
@@ -181,11 +180,28 @@ abstract class MySQLCommandTask extends MySQLTask implements StmtTask {
      */
     final boolean readUpdateResult(final ByteBuf cumulateBuffer, final Consumer<Object> serverStatusConsumer) {
 
-        final int payloadLength = Packets.readInt3(cumulateBuffer);
+        final int payloadLength;
+        payloadLength = Packets.readInt3(cumulateBuffer);
         updateSequenceId(Packets.readInt1AsInt(cumulateBuffer));
+
+        final int readIndex, writeIndex, endIndex;
+        readIndex = cumulateBuffer.readerIndex();
+        writeIndex = cumulateBuffer.writerIndex();
+
+        endIndex = readIndex + payloadLength;
+        if (endIndex != writeIndex) {
+            cumulateBuffer.writerIndex(endIndex);
+        }
+
         final OkPacket ok;
-        ok = OkPacket.read(cumulateBuffer.readSlice(payloadLength), this.negotiatedCapability);
+        ok = OkPacket.read(cumulateBuffer, this.capability);
         serverStatusConsumer.accept(ok);
+
+        cumulateBuffer.readerIndex(endIndex);
+
+        if (endIndex != writeIndex) {
+            cumulateBuffer.writerIndex(writeIndex);
+        }
 
         final int resultIndex = nextResultIndex(); // must increment result index.
         final boolean noMoreResult = !ok.hasMoreResult();

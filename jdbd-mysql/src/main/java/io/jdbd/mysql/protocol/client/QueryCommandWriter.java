@@ -137,11 +137,11 @@ final class QueryCommandWriter {
     /**
      * @return a unmodifiable list.
      */
-    static Publisher<ByteBuf> createBindableBatchCommand(ParamBatchStmt wrapper, IntSupplier sequenceIdSupplier,
+    static Publisher<ByteBuf> createBindableBatchCommand(ParamBatchStmt stmt, IntSupplier sequenceIdSupplier,
                                                          TaskAdjutant adjutant) throws JdbdException {
 
         return new QueryCommandWriter(sequenceIdSupplier, adjutant)
-                .writeBindableBatchCommand(wrapper);
+                .writeBindableBatchCommand(stmt);
     }
 
 
@@ -253,7 +253,7 @@ final class QueryCommandWriter {
             return Packets.createPacketPublisher(packet, this.sequenceId, this.adjutant);
         } catch (Throwable e) {
             packet.release();
-            throw e;
+            throw JdbdExceptions.wrap(e);
         }
     }
 

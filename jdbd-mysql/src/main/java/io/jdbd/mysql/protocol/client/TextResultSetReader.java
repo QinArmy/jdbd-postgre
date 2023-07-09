@@ -19,7 +19,7 @@ import java.time.Year;
 import java.time.format.DateTimeFormatter;
 import java.util.function.Consumer;
 
-final class TextResultSetReader extends AbstractResultSetReader {
+final class TextResultSetReader extends MySQLResultSetReader {
 
     static TextResultSetReader create(StmtTask task) {
         return new TextResultSetReader(task);
@@ -36,11 +36,11 @@ final class TextResultSetReader extends AbstractResultSetReader {
     @Override
     boolean readResultSetMeta(final ByteBuf cumulateBuffer, final Consumer<Object> serverStatesConsumer) {
 
-        if ((this.negotiatedCapability & Capabilities.CLIENT_OPTIONAL_RESULTSET_METADATA) != 0) {
+        if ((this.capability & Capabilities.CLIENT_OPTIONAL_RESULTSET_METADATA) != 0) {
             throw new IllegalStateException("Not support CLIENT_OPTIONAL_RESULTSET_METADATA");
         }
 
-        final boolean endOfMeta = (this.negotiatedCapability & Capabilities.CLIENT_DEPRECATE_EOF) == 0;
+        final boolean endOfMeta = (this.capability & Capabilities.CLIENT_DEPRECATE_EOF) == 0;
         final boolean metaEnd;
         if (MySQLRowMeta.canReadMeta(cumulateBuffer, endOfMeta)) {
             doReadRowMeta(cumulateBuffer);
@@ -49,7 +49,7 @@ final class TextResultSetReader extends AbstractResultSetReader {
                 this.task.updateSequenceId(Packets.readInt1AsInt(cumulateBuffer));
 
                 final EofPacket eof;
-                eof = EofPacket.read(cumulateBuffer.readSlice(payloadLength), this.negotiatedCapability);
+                eof = EofPacket.read(cumulateBuffer.readSlice(payloadLength), this.capability);
                 serverStatesConsumer.accept(eof);
             }
             metaEnd = true;
@@ -82,7 +82,7 @@ final class TextResultSetReader extends AbstractResultSetReader {
             }
             rowValues[i] = readColumnValue(cumulateBuffer, columnMetaArray[i]);
         }
-        return MySQLResultRow.from(rowValues, rowMeta, this.adjutant);
+        return MySQLResultRow0.from(rowValues, rowMeta, this.adjutant);
     }
 
     @Override

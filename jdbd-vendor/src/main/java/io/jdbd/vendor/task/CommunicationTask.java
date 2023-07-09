@@ -1,13 +1,13 @@
 package io.jdbd.vendor.task;
 
 import io.jdbd.session.SessionCloseException;
+import io.jdbd.vendor.util.JdbdCollections;
 import io.jdbd.vendor.util.JdbdExceptions;
 import io.netty.buffer.ByteBuf;
 import org.reactivestreams.Publisher;
 import reactor.core.publisher.Mono;
 import reactor.util.annotation.Nullable;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.function.Consumer;
@@ -283,8 +283,7 @@ public abstract class CommunicationTask {
     protected final void addError(Throwable error) {
         List<Throwable> errorList = this.errorList;
         if (errorList == null) {
-            errorList = new ArrayList<>();
-            this.errorList = errorList;
+            this.errorList = errorList = JdbdCollections.arrayList();
         }
         errorList.add(JdbdExceptions.wrapIfNonJvmFatal(error));
     }

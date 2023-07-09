@@ -19,7 +19,7 @@ import java.util.Set;
  * </p>
  * @since 1.0
  */
-public interface JdbdRow extends Result{
+public interface JdbdRow extends Result {
 
 
     ResultRowMeta getRowMeta();
@@ -28,7 +28,25 @@ public interface JdbdRow extends Result{
      * @see SQLType#outputJavaType()
      */
     @Nullable
-    Object get(int indexBaseZero) throws JdbdException;
+    Object get(int indexBasedZero) throws JdbdException;
+
+    @Nullable
+    <T> T get(int indexBasedZero, Class<T> columnClass) throws JdbdException;
+
+    Object getNonNull(int indexBasedZero) throws NullPointerException, JdbdException;
+
+    <T> T getNonNull(int indexBasedZero, Class<T> columnClass) throws NullPointerException, JdbdException;
+
+    <T> List<T> getList(int indexBasedZero, Class<T> elementClass) throws JdbdException;
+
+
+    <T> Set<T> getSet(int indexBasedZero, Class<T> elementClass) throws JdbdException;
+
+
+    <K, V> Map<K, V> getMap(int indexBasedZero, Class<K> keyClass, Class<V> valueClass) throws JdbdException;
+
+
+    <T> Publisher<T> getPublisher(int indexBasedZero, Class<T> valueClass) throws JdbdException;
 
 
     /**
@@ -46,9 +64,6 @@ public interface JdbdRow extends Result{
     Object get(String columnLabel)throws JdbdException;
 
 
-    @Nullable
-    <T> T get(int indexBaseZero, Class<T> columnClass)throws JdbdException;
-
 
     /**
      * <p>
@@ -64,28 +79,17 @@ public interface JdbdRow extends Result{
     @Nullable
     <T> T get(String columnLabel, Class<T> columnClass)throws JdbdException;
 
-    Object getNonNull(int indexBaseZero) throws NullPointerException,JdbdException;
-
-    <T> T getNonNull(int indexBaseZero, Class<T> columnClass) throws NullPointerException,JdbdException;
 
     Object getNonNull(String columnLabel)throws NullPointerException,JdbdException;
 
     <T> T getNonNull(String columnLabel, Class<T> columnClass) throws NullPointerException,JdbdException;
 
-    /**
-     * @return a unmodifiable list.
-     */
-    <T> List<T> getList(int indexBaseZero, Class<T> elementClass)throws JdbdException;
 
     /**
      * @see #getSet(int, Class)
      */
     <T> List<T> getList(String columnLabel, Class<T> elementClass)throws JdbdException;
 
-    /**
-     * @return a unmodifiable set.
-     */
-    <T> Set<T> getSet(int indexBaseZero, Class<T> elementClass) throws JdbdException;
 
     /**
      * @see #getSet(int, Class)
@@ -93,11 +97,7 @@ public interface JdbdRow extends Result{
     <T> Set<T> getSet(String columnLabel, Class<T> elementClass)throws JdbdException;
 
 
-    <K, V> Map<K, V> getMap(int indexBaseZero, Class<K> keyClass, Class<V> valueClass)throws JdbdException;
-
     <K, V> Map<K, V> getMap(String columnLabel, Class<K> keyClass, Class<V> valueClass)throws JdbdException;
-
-    <T> Publisher<T> getPublisher(int indexBaseZero, Class<T> valueClass)throws JdbdException;
 
     <T> Publisher<T> getPublisher(String columnLabel, Class<T> valueClass)throws JdbdException;
 

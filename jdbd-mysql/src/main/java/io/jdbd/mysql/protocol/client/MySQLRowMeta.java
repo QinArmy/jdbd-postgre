@@ -1,18 +1,19 @@
 package io.jdbd.mysql.protocol.client;
 
+import io.jdbd.JdbdException;
+import io.jdbd.meta.DataType;
+import io.jdbd.meta.JdbdType;
+import io.jdbd.meta.KeyMode;
 import io.jdbd.meta.NullMode;
-import io.jdbd.meta.SQLType;
 import io.jdbd.mysql.MySQLType;
-import io.jdbd.mysql.util.MySQLStrings;
+import io.jdbd.result.FieldType;
 import io.jdbd.result.ResultRowMeta;
+import io.jdbd.vendor.result.VendorResultRowMeta;
 import io.netty.buffer.ByteBuf;
-import io.qinarmy.util.StringUtils;
 import reactor.util.annotation.Nullable;
 
 import java.nio.charset.Charset;
-import java.sql.JDBCType;
 import java.sql.SQLException;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -20,7 +21,7 @@ import java.util.Map;
 /**
  * This class is a implementation of {@link ResultRowMeta}
  */
-final class MySQLRowMeta implements ResultRowMeta {
+final class MySQLRowMeta extends VendorResultRowMeta {
 
     static boolean canReadMeta(final ByteBuf cumulateBuffer, final boolean endOfMeta) {
         final int originalReaderIndex = cumulateBuffer.readerIndex();
@@ -89,7 +90,6 @@ final class MySQLRowMeta implements ResultRowMeta {
         return new MySQLRowMeta(mySQLColumnMetas, 0, customCollationMap);
     }
 
-    private final int resultIndex;
 
     final MySQLColumnMeta[] columnMetaArray;
 
@@ -98,210 +98,125 @@ final class MySQLRowMeta implements ResultRowMeta {
     int metaIndex = 0;
 
     private MySQLRowMeta(final MySQLColumnMeta[] columnMetaArray) {
-        this.resultIndex = -1;
+        super(-1);
         this.columnMetaArray = columnMetaArray;
         this.customCollationMap = Collections.emptyMap();
     }
 
     private MySQLRowMeta(final MySQLColumnMeta[] columnMetaArray, final int resultIndex
             , Map<Integer, Charsets.CustomCollation> customCollationMap) {
+        super(resultIndex);
         if (resultIndex < 0) {
             throw new IllegalArgumentException("resultIndex must great than -1");
         }
-        this.resultIndex = resultIndex;
         this.columnMetaArray = columnMetaArray;
         this.customCollationMap = customCollationMap;
 
     }
 
     @Override
-    public final int getResultIndex() {
-        return this.resultIndex;
-    }
-
-    @Override
-    public final int getColumnCount() {
+    public int getColumnCount() {
         return this.columnMetaArray.length;
     }
 
+    @Override
+    public DataType getDataType(int indexBasedZero) throws JdbdException {
+        return null;
+    }
+
+    @Override
+    public String getTypeName(int indexBasedZero) throws JdbdException {
+        return null;
+    }
+
+    @Override
+    public JdbdType getJdbdType(int indexBasedZero) throws JdbdException {
+        return null;
+    }
+
+    @Override
+    public FieldType getFieldType(int indexBasedZero) throws JdbdException {
+        return null;
+    }
+
+    @Override
+    public boolean isSigned(int indexBasedZero) throws JdbdException {
+        return false;
+    }
+
+    @Override
+    public boolean isAutoIncrement(int indexBasedZero) throws JdbdException {
+        return false;
+    }
+
+    @Override
+    public String getCatalogName(int indexBasedZero) throws JdbdException {
+        return null;
+    }
+
+    @Override
+    public String getSchemaName(int indexBasedZero) throws JdbdException {
+        return null;
+    }
+
+    @Override
+    public String getTableName(int indexBasedZero) throws JdbdException {
+        return null;
+    }
+
+    @Override
+    public String getColumnName(int indexBasedZero) throws JdbdException {
+        return null;
+    }
+
+    @Override
+    public int getPrecision(int indexBasedZero) throws JdbdException {
+        return 0;
+    }
+
+    @Override
+    public int getScale(int indexBasedZero) throws JdbdException {
+        return 0;
+    }
+
+    @Override
+    public KeyMode getKeyMode(int indexBasedZero) throws JdbdException {
+        return null;
+    }
+
+    @Override
+    public NullMode getNullMode(int indexBasedZero) throws JdbdException {
+        return null;
+    }
+
+    @Override
+    public boolean isReadOnly(int indexBasedZero) throws JdbdException {
+        return false;
+    }
+
+    @Override
+    public boolean isWritable(int indexBasedZero) throws JdbdException {
+        return false;
+    }
+
+    @Override
+    public Class<?> getOutputJavaType(int indexBasedZero) throws JdbdException {
+        return null;
+    }
 
     @Override
     public List<String> getColumnLabelList() {
-        List<String> columnAliaList;
-        if (this.columnMetaArray.length == 1) {
-            columnAliaList = Collections.singletonList(this.columnMetaArray[0].columnLabel);
-        } else {
-            columnAliaList = new ArrayList<>(this.columnMetaArray.length);
-            for (MySQLColumnMeta columnMeta : this.columnMetaArray) {
-                columnAliaList.add(columnMeta.columnLabel);
-            }
-            columnAliaList = Collections.unmodifiableList(columnAliaList);
-        }
-        return columnAliaList;
+        return null;
     }
 
     @Override
-    public final JDBCType getJdbdType(int indexBaseZero) throws JdbdSQLException {
-        return this.columnMetaArray[checkIndex(indexBaseZero)].sqlType.jdbcType();
-    }
-
-
-    @Override
-    public final boolean isPhysicalColumn(int indexBaseZero) throws JdbdSQLException {
-        MySQLColumnMeta columnMeta = this.columnMetaArray[checkIndex(indexBaseZero)];
-        return StringUtils.hasText(columnMeta.tableName)
-                && StringUtils.hasText(columnMeta.columnName);
-    }
-
-
-    @Override
-    public final SQLType getSQLType(int indexBaseZero) throws JdbdSQLException {
-        return this.columnMetaArray[checkIndex(indexBaseZero)].sqlType;
+    public String getColumnLabel(int indexBasedZero) throws JdbdException {
+        return null;
     }
 
     @Override
-    public final SQLType getSQLType(String columnLabel) throws JdbdSQLException {
-        return getSQLType(getColumnIndex(columnLabel));
-    }
-
-    @Override
-    public final NullMode getNullMode(final int indexBaseZero) throws JdbdSQLException {
-        return this.columnMetaArray[checkIndex(indexBaseZero)].getNullMode();
-    }
-
-    @Override
-    public NullMode getNullMode(final String columnLabel) throws JdbdSQLException {
-        return getNullMode(convertToIndex(columnLabel));
-    }
-
-    @Override
-    public final boolean isUnsigned(int indexBaseZero) throws JdbdSQLException {
-        return this.columnMetaArray[checkIndex(indexBaseZero)].sqlType.isUnsigned();
-    }
-
-    @Override
-    public final boolean isUnsigned(String columnAlias) throws JdbdSQLException {
-        return isUnsigned(convertToIndex(columnAlias));
-    }
-
-    @Override
-    public final boolean isAutoIncrement(int indexBaseZero) throws JdbdSQLException {
-        return this.columnMetaArray[checkIndex(indexBaseZero)].isAutoIncrement();
-    }
-
-    @Override
-    public final boolean isAutoIncrement(final String columnAlias) throws JdbdSQLException {
-        return isAutoIncrement(convertToIndex(columnAlias));
-    }
-
-
-    @Nullable
-    @Override
-    public final String getCatalogName(int indexBaseZero) throws JdbdSQLException {
-        return this.columnMetaArray[checkIndex(indexBaseZero)].catalogName;
-    }
-
-
-    @Nullable
-    @Override
-    public final String getSchemaName(int indexBaseZero) throws JdbdSQLException {
-        return this.columnMetaArray[checkIndex(indexBaseZero)].schemaName;
-    }
-
-
-    @Nullable
-    @Override
-    public final String getTableName(int indexBaseZero) throws JdbdSQLException {
-        return this.columnMetaArray[checkIndex(indexBaseZero)].tableName;
-    }
-
-
-    @Override
-    public final String getColumnLabel(int indexBaseZero) throws JdbdSQLException {
-        return this.columnMetaArray[checkIndex(indexBaseZero)].columnLabel;
-    }
-
-    @Override
-    public int getColumnIndex(String columnLabel) throws JdbdSQLException {
-        return convertToIndex(columnLabel);
-    }
-
-    @Nullable
-    @Override
-    public final String getColumnName(int indexBaseZero) throws JdbdSQLException {
-        return this.columnMetaArray[checkIndex(indexBaseZero)].columnName;
-    }
-
-    @Override
-    public boolean isReadOnly(int indexBaseZero) throws JdbdSQLException {
-        MySQLColumnMeta columnMeta = this.columnMetaArray[checkIndex(indexBaseZero)];
-        return MySQLStrings.isEmpty(columnMeta.tableName)
-                && MySQLStrings.isEmpty(columnMeta.columnName);
-    }
-
-
-    @Override
-    public final boolean isWritable(int indexBaseZero) throws JdbdSQLException {
-        return !isReadOnly(indexBaseZero);
-    }
-
-
-    @Override
-    public final Class<?> getColumnClass(final int indexBaseZero) throws JdbdSQLException {
-        return this.columnMetaArray[checkIndex(indexBaseZero)].sqlType.outputJavaType();
-    }
-
-
-    @Override
-    public final int getPrecision(final int indexBaseZero) throws JdbdSQLException {
-        return (int) this.columnMetaArray[checkIndex(indexBaseZero)]
-                .obtainPrecision(this.customCollationMap);
-    }
-
-    @Override
-    public final int getPrecision(final String columnAlias) throws JdbdSQLException {
-        return (int) this.columnMetaArray[convertToIndex(columnAlias)]
-                .obtainPrecision(this.customCollationMap);
-    }
-
-    @Override
-    public int getScale(final int indexBaseZero) throws JdbdSQLException {
-        return this.columnMetaArray[checkIndex(indexBaseZero)].getScale();
-    }
-
-    @Override
-    public final int getScale(final String columnAlias) throws JdbdSQLException {
-        return this.columnMetaArray[convertToIndex(columnAlias)].getScale();
-    }
-
-    @Override
-    public final boolean isPrimaryKey(final int indexBaseZero) throws JdbdSQLException {
-        return this.columnMetaArray[checkIndex(indexBaseZero)].isPrimaryKey();
-    }
-
-    @Override
-    public final boolean isPrimaryKey(final String columnAlias) throws JdbdSQLException {
-        return this.columnMetaArray[convertToIndex(columnAlias)].isPrimaryKey();
-    }
-
-    @Override
-    public final boolean isUniqueKey(final int indexBaseZero) throws JdbdSQLException {
-        return this.columnMetaArray[checkIndex(indexBaseZero)].isUniqueKey();
-    }
-
-    @Override
-    public final boolean isUniqueKey(final String columnAlias) throws JdbdSQLException {
-        return this.columnMetaArray[convertToIndex(columnAlias)].isUniqueKey();
-    }
-
-    @Override
-    public final boolean isMultipleKey(final int indexBaseZero) throws JdbdSQLException {
-        return this.columnMetaArray[checkIndex(indexBaseZero)].isMultipleKey();
-    }
-
-    @Override
-    public final boolean isMultipleKey(final String columnAlias) throws JdbdSQLException {
-        return this.columnMetaArray[convertToIndex(columnAlias)].isMultipleKey();
+    public int getColumnIndex(String columnLabel) throws JdbdException {
+        return 0;
     }
 
     boolean isReady() {

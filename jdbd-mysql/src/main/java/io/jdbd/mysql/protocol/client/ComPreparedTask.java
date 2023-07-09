@@ -783,7 +783,7 @@ final class ComPreparedTask extends MySQLCommandTask implements PrepareStmtTask,
                 final int numParams = Packets.readInt2AsInt(cumulateBuffer);
                 cumulateBuffer.readerIndex(payloadIndex + payloadLength); // to next packet.
 
-                final boolean deprecateEof = Capabilities.deprecateEof(this.negotiatedCapability);
+                final boolean deprecateEof = Capabilities.deprecateEof(this.capability);
                 final int packetNumber = deprecateEof ? (numParams + numColumns) : (numParams + numColumns + 2);
                 canRead = Packets.hasPacketNumber(cumulateBuffer, packetNumber);
             }
@@ -833,7 +833,7 @@ final class ComPreparedTask extends MySQLCommandTask implements PrepareStmtTask,
                     if (warnings > 0) {
                         this.warning = JdbdWarning.create(String.format("produce %s warnings", warnings));
                     }
-                    if ((this.negotiatedCapability & Capabilities.CLIENT_OPTIONAL_RESULTSET_METADATA) != 0) {
+                    if ((this.capability & Capabilities.CLIENT_OPTIONAL_RESULTSET_METADATA) != 0) {
                         cumulateBuffer.readByte(); //7. skip metadata_follows
                         throw new IllegalStateException("Not support CLIENT_OPTIONAL_RESULTSET_METADATA"); //7. metadata_follows
                     }
@@ -970,7 +970,7 @@ final class ComPreparedTask extends MySQLCommandTask implements PrepareStmtTask,
                 final int payloadLength = Packets.readInt3(cumulateBuffer);
                 updateSequenceId(Packets.readInt1AsInt(cumulateBuffer));
                 final OkPacket ok;
-                ok = OkPacket.read(cumulateBuffer.readSlice(payloadLength), this.negotiatedCapability);
+                ok = OkPacket.read(cumulateBuffer.readSlice(payloadLength), this.capability);
                 serverStatusConsumer.accept(ok);
                 this.nextGroupNeedReset = false;
                 taskEnd = false;

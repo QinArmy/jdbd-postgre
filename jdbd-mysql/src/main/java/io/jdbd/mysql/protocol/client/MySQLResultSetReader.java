@@ -28,7 +28,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.function.Consumer;
 
-abstract class AbstractResultSetReader implements ResultSetReader {
+abstract class MySQLResultSetReader implements ResultSetReader {
 
     static final Path TEMP_DIRECTORY = Paths.get(System.getProperty("java.io.tmpdir"), "jdbd/mysql/bigRow")
             .toAbsolutePath();
@@ -41,7 +41,7 @@ abstract class AbstractResultSetReader implements ResultSetReader {
 
     final Properties properties;
 
-    final int negotiatedCapability;
+    final int capability;
 
     private MySQLRowMeta rowMeta;
 
@@ -59,11 +59,11 @@ abstract class AbstractResultSetReader implements ResultSetReader {
 
     private long invokerCount = 0;
 
-    AbstractResultSetReader(StmtTask task) {
+    MySQLResultSetReader(StmtTask task) {
         this.task = task;
         this.adjutant = task.adjutant();
         this.properties = this.adjutant.host().getProperties();
-        this.negotiatedCapability = this.adjutant.capability();
+        this.capability = this.adjutant.capability();
     }
 
     @Override
@@ -71,10 +71,12 @@ abstract class AbstractResultSetReader implements ResultSetReader {
             throws JdbdException {
         boolean resultSetEnd = this.resultSetEnd;
         if (resultSetEnd) {
+            // no bug,never here
             throw new IllegalStateException("ResultSet have ended.");
         }
         try {
-            boolean continueRead = Packets.hasOnePacket(cumulateBuffer);
+            boolean continueRead;
+            continueRead = Packets.hasOnePacket(cumulateBuffer);
             while (continueRead) {
                 this.invokerCount++;
                 switch (this.phase) {
@@ -110,7 +112,7 @@ abstract class AbstractResultSetReader implements ResultSetReader {
                     }
                     break;
                     default:
-                        throw MySQLExceptions.createUnexpectedEnumException(this.phase);
+                        throw MySQLExceptions.unexpectedEnum(this.phase);
                 }
             }
         } catch (Throwable e) {
@@ -263,7 +265,7 @@ abstract class AbstractResultSetReader implements ResultSetReader {
                             this.bigPayload = null;
                             break;
                         default:
-                            throw MySQLExceptions.createUnexpectedEnumException(mode);
+                            throw MySQLExceptions.unexpectedEnum(mode);
                     }
                 } else {
                     cumulateBuffer.skipBytes(3); // skip payload length
@@ -355,7 +357,7 @@ abstract class AbstractResultSetReader implements ResultSetReader {
         final int payloadLength = Packets.readInt3(cumulateBuffer);
         final int sequenceId = Packets.readInt1AsInt(cumulateBuffer);
         final ErrorPacket error;
-        error = ErrorPacket.read(cumulateBuffer.readSlice(payloadLength), this.negotiatedCapability
+        error = ErrorPacket.read(cumulateBuffer.readSlice(payloadLength), this.capability
                 , this.adjutant.obtainCharsetError());
         this.task.addErrorToTask(MySQLExceptions.createErrorPacketException(error));
         this.resultSetEnd = true;
@@ -371,7 +373,7 @@ abstract class AbstractResultSetReader implements ResultSetReader {
         final int payloadLength = Packets.readInt3(cumulateBuffer);
         final int sequenceId = Packets.readInt1AsInt(cumulateBuffer);
 
-        final int negotiatedCapability = this.negotiatedCapability;
+        final int negotiatedCapability = this.capability;
         final TerminatorPacket tp;
         if (Capabilities.deprecateEof(negotiatedCapability)) {
             tp = OkPacket.read(cumulateBuffer.readSlice(payloadLength), negotiatedCapability);
@@ -629,7 +631,7 @@ abstract class AbstractResultSetReader implements ResultSetReader {
             this.readRowCount++;
             this.bigRowData = null;
             if (!this.task.isCancelled()) {
-                this.task.next(MySQLResultRow.from(bigRowData.values, rowMeta, this.adjutant));
+                this.task.next(MySQLResultRow0.from(bigRowData.values, rowMeta, this.adjutant));
             }
         }
         return bigRowEnd;

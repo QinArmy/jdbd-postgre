@@ -20,7 +20,7 @@ import java.util.function.Consumer;
 /**
  * @see ComPreparedTask
  */
-final class BinaryResultSetReader extends AbstractResultSetReader {
+final class BinaryResultSetReader extends MySQLResultSetReader {
 
     static BinaryResultSetReader create(StmtTask task) {
         return new BinaryResultSetReader(task);
@@ -73,7 +73,7 @@ final class BinaryResultSetReader extends AbstractResultSetReader {
             }
             columnValues[i] = readColumnValue(cumulateBuffer, columnMeta);
         }
-        return MySQLResultRow.from(columnValues, rowMeta, this.adjutant);
+        return MySQLResultRow0.from(columnValues, rowMeta, this.adjutant);
     }
 
     /**

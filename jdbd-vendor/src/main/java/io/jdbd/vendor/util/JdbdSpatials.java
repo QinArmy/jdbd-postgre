@@ -10,12 +10,15 @@ public abstract class JdbdSpatials {
 
         int offset = 0;
         wkbArray[offset++] = (byte) (bigEndian ? 0 : 1);
-        wkbArray[offset++] = 1;
+        JdbdNumbers.writeInt(1, bigEndian, wkbArray, offset);
+        offset += 4;
 
-        JdbdNumbers.writeDouble(point.getX(), bigEndian, wkbArray, offset);
+        JdbdNumbers.writeLong(Double.doubleToLongBits(point.getX()), bigEndian, wkbArray, offset);
         offset += 8;
-        JdbdNumbers.writeDouble(point.getY(), bigEndian, wkbArray, offset);
+        JdbdNumbers.writeLong(Double.doubleToLongBits(point.getY()), bigEndian, wkbArray, offset);
         return wkbArray;
     }
+
+
 
 }
