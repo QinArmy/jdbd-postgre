@@ -383,10 +383,10 @@ public abstract class JdbdExceptions {
         return new JdbdException(m, SQLStates.INVALID_PARAMETER_VALUE, 0);
     }
 
-    public static JdbdSQLException notSupportClientCharset(final Charset charset) {
-        String m = String.format("client charset[%s] isn't supported,because %s encode ASCII to multi bytes."
-                , charset.name(), charset.name());
-        throw new JdbdSQLException(new SQLException(m));
+    public static JdbdException notSupportClientCharset(final Charset charset) {
+        String m = String.format("client charset[%s] isn't supported,because %s encode ASCII to multi bytes.",
+                charset.name(), charset.name());
+        throw new JdbdException(m);
     }
 
     public static JdbdSQLException transactionExistsRejectStart(Object sessionId) {

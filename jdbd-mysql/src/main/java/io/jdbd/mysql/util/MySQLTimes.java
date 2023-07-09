@@ -200,9 +200,9 @@ public abstract class MySQLTimes extends JdbdTimes {
         return (abs > DURATION_MAX_SECOND) || (abs == DURATION_MAX_SECOND && duration.getNano() > 0L);
     }
 
-    public static String durationToTimeText(Duration duration) {
+    public static String durationToTimeText(final Duration duration) {
         if (isOverflowDuration(duration)) {
-            throw new IllegalArgumentException("duration too big,can't convert to MySQL TIME type.");
+            throw new DateTimeException("duration too big,can't convert to MySQL TIME type.");
         }
         int restSecond = (int) Math.abs(duration.getSeconds());
         final int hours, minutes, seconds;

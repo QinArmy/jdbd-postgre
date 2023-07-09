@@ -73,7 +73,7 @@ final class Handshake10 implements MySQLPacket {
     }
 
 
-    private final MySQLServerVersion serverVersion;
+     final MySQLServerVersion serverVersion;
 
     private final long threadId;
 

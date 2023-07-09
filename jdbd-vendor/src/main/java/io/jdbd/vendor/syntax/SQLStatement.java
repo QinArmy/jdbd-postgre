@@ -9,8 +9,6 @@ public interface SQLStatement {
      */
     List<String> getStaticSql();
 
-    @Deprecated
-    int getParamCount();
 
     String getSql();
 

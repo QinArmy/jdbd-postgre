@@ -1,14 +1,14 @@
 package io.jdbd.vendor.syntax;
 
 
-import java.sql.SQLException;
+import io.jdbd.JdbdException;
 
 public interface SQLParser {
 
 
-    SQLStatement parse(String singleSql) throws SQLException;
+    SQLStatement parse(String singleSql) throws JdbdException;
 
 
-    boolean isSingleStmt(String sql) throws SQLException;
+    boolean isSingleStmt(String sql) throws JdbdException;
 
 }

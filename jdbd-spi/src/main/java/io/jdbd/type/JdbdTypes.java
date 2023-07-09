@@ -236,6 +236,7 @@ abstract class JdbdTypes {
             return match;
         }
 
+
         @Override
         public String toString() {
             return String.format("Point(%s %s)", this.x, this.y);

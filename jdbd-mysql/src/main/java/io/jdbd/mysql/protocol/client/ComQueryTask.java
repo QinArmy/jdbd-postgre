@@ -369,19 +369,18 @@ final class ComQueryTask extends MySQLCommandTask {
     protected Publisher<ByteBuf> start() {
         Publisher<ByteBuf> publisher;
         final Stmt stmt = this.stmt;
-        final IntSupplier sequenceId = this::nextSequenceId;
+
         try {
-            if (stmt instanceof StaticStmt) {
+            final IntSupplier sequenceId = this::nextSequenceId;
+            if (stmt instanceof StaticStmt || stmt instanceof StaticMultiStmt) {
                 publisher = QueryCommandWriter.createStaticCommand(stmt, sequenceId, this.adjutant);
             } else if (stmt instanceof StaticBatchStmt) {
                 final StaticBatchStmt batchStmt = (StaticBatchStmt) stmt;
                 publisher = QueryCommandWriter.createStaticBatchCommand(batchStmt, sequenceId, this.adjutant);
-            } else if (stmt instanceof StaticMultiStmt) {
-                publisher = QueryCommandWriter.createStaticCommand(stmt, sequenceId, this.adjutant);
             } else if (stmt instanceof ParamStmt) {
                 publisher = QueryCommandWriter.createBindableCommand((ParamStmt) stmt, sequenceId, this.adjutant);
-            } else if (stmt instanceof BindBatchStmt) {
-                final BindBatchStmt batchStmt = (BindBatchStmt) stmt;
+            } else if (stmt instanceof ParamBatchStmt) {
+                final ParamBatchStmt batchStmt = (ParamBatchStmt) stmt;
                 publisher = QueryCommandWriter.createBindableBatchCommand(batchStmt, sequenceId, this.adjutant);
             } else if (stmt instanceof BindMultiStmt) {
                 final BindMultiStmt multiStmt = (BindMultiStmt) stmt;

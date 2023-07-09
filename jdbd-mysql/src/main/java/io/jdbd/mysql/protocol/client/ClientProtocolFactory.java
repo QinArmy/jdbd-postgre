@@ -47,6 +47,8 @@ public final class ClientProtocolFactory implements MySQLProtocolFactory {
 
     final int factoryTaskQueueSize;
 
+    final int maxAllowedPayload;
+
     private ClientProtocolFactory(final MySQLHostEnv hostEnv) {
         this.hostEnv = hostEnv;
         final ConnectionProvider connectionProvider;
@@ -61,6 +63,7 @@ public final class ClientProtocolFactory implements MySQLProtocolFactory {
                 .onClient(true);
 
         this.factoryTaskQueueSize = hostEnv.getOrDefault(MySQLKey.FACTORY_TASK_QUEUE_SIZE);
+        this.maxAllowedPayload = 1 << 30; //TODO
     }
 
     private static final Logger LOG = LoggerFactory.getLogger(ClientProtocolFactory.class);

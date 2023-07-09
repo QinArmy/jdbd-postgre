@@ -131,8 +131,8 @@ public abstract class MySQLExceptions extends JdbdExceptions {
         return new SQLException(message, MySQLStates.SYNTAX_ERROR, MySQLCodes.ER_SYNTAX_ERROR, cause);
     }
 
-    public static SQLException createQueryIsEmptyError() {
-        return new SQLException("Query was empty", "42000", 1065);
+    public static JdbdException createQueryIsEmptyError() {
+        return new JdbdException("Query was empty", MySQLStates.SYNTAX_ERROR, 1065);
     }
 
     /**

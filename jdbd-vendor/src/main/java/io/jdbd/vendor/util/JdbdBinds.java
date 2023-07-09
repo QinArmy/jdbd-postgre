@@ -370,6 +370,21 @@ public abstract class JdbdBinds {
         return value;
     }
 
+    /**
+     * @return {@link Number} or {@link String}
+     */
+    public static Object bindToJson(final int batchIndex, final Value paramValue) {
+        final Object nonNull = paramValue.getNonNullValue();
+        final Object value;
+
+        if (nonNull instanceof String || nonNull instanceof Number) {
+            value = nonNull;
+        } else {
+            value = bindToString(batchIndex, paramValue);
+        }
+        return value;
+    }
+
 
     public static LocalDate bindToLocalDate(final int batchIndex, final Value paramValue) {
         final Object nonNull = paramValue.getNonNullValue();

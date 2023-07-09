@@ -50,8 +50,8 @@ abstract class Capabilities {
         return (negotiatedCapability & CLIENT_DEPRECATE_EOF) != 0;
     }
 
-    static boolean supportQueryAttr(final int negotiatedCapability) {
-        return (negotiatedCapability & CLIENT_QUERY_ATTRIBUTES) != 0;
+    static boolean supportQueryAttr(final int capability) {
+        return (capability & CLIENT_QUERY_ATTRIBUTES) != 0;
     }
 
 

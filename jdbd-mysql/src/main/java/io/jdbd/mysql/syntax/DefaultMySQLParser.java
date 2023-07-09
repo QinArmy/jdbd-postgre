@@ -1,5 +1,6 @@
 package io.jdbd.mysql.syntax;
 
+import io.jdbd.JdbdException;
 import io.jdbd.mysql.SQLMode;
 import io.jdbd.mysql.protocol.Constants;
 import io.jdbd.mysql.util.MySQLExceptions;
@@ -78,7 +79,7 @@ public final class DefaultMySQLParser implements MySQLParser {
     }
 
     @Override
-    public final MySQLStatement parse(final String sql) throws SQLException {
+    public MySQLStatement parse(final String sql) throws JdbdException {
         Object value = doParse(sql, Mode.PARSE);
         if (value instanceof MySQLStatement) {
             return (MySQLStatement) value;
@@ -87,7 +88,7 @@ public final class DefaultMySQLParser implements MySQLParser {
     }
 
     @Override
-    public boolean isSingleStmt(String sql) throws SQLException {
+    public boolean isSingleStmt(String sql) throws JdbdException {
         Object value;
         value = doParse(sql, Mode.SINGLE);
         if (value instanceof Integer) {
@@ -97,7 +98,7 @@ public final class DefaultMySQLParser implements MySQLParser {
     }
 
     @Override
-    public boolean isMultiStmt(String sql) throws SQLException {
+    public boolean isMultiStmt(String sql) throws JdbdException {
         Object value;
         value = doParse(sql, Mode.MULTI);
         if (value instanceof Integer) {
@@ -109,7 +110,7 @@ public final class DefaultMySQLParser implements MySQLParser {
         throw new IllegalStateException("parser bug.");
     }
 
-    private Object doParse(final String sql, final Mode mode) throws SQLException {
+    private Object doParse(final String sql, final Mode mode) throws JdbdException {
         if (!JdbdStrings.hasText(sql)) {
             throw MySQLExceptions.sqlIsEmpty();
         }

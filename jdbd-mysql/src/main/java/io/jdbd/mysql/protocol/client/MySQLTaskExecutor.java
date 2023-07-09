@@ -1,5 +1,6 @@
 package io.jdbd.mysql.protocol.client;
 
+import io.jdbd.JdbdException;
 import io.jdbd.mysql.Server;
 import io.jdbd.mysql.protocol.authentication.AuthenticationPlugin;
 import io.jdbd.mysql.protocol.conf.MySQLHost0;
@@ -21,7 +22,6 @@ import reactor.util.annotation.Nullable;
 
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
-import java.sql.SQLException;
 import java.time.ZoneOffset;
 import java.util.Collections;
 import java.util.HashMap;
@@ -392,7 +392,7 @@ final class MySQLTaskExecutor extends CommunicationTaskExecutor<TaskAdjutant> {
 
 
         @Override
-        public MySQLStatement parse(String singleSql) throws SQLException {
+        public MySQLStatement parse(String singleSql) throws JdbdException {
             MySQLParser parser = this.mySQLParser;
             if (parser == null) {
                 throw new IllegalStateException("Cannot access MySQLParser now.");
@@ -401,7 +401,7 @@ final class MySQLTaskExecutor extends CommunicationTaskExecutor<TaskAdjutant> {
         }
 
         @Override
-        public boolean isSingleStmt(String sql) throws SQLException {
+        public boolean isSingleStmt(String sql) throws JdbdException {
             MySQLParser parser = this.mySQLParser;
             if (parser == null) {
                 throw new IllegalStateException("Cannot access MySQLParser now.");
@@ -410,7 +410,7 @@ final class MySQLTaskExecutor extends CommunicationTaskExecutor<TaskAdjutant> {
         }
 
         @Override
-        public boolean isMultiStmt(String sql) throws SQLException {
+        public boolean isMultiStmt(String sql) throws JdbdException {
             MySQLParser parser = this.mySQLParser;
             if (parser == null) {
                 throw new IllegalStateException("Cannot access MySQLParser now.");

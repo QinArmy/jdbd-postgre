@@ -5,7 +5,6 @@ import io.jdbd.session.SavePoint;
 import io.jdbd.vendor.util.JdbdStrings;
 
 /**
- * @see JdbdSavePoint
  * @see NamedSavePoint
  * @since 1.0
  */

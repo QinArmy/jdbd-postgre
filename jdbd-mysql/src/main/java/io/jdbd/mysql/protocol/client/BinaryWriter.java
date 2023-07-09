@@ -219,12 +219,14 @@ abstract class BinaryWriter {
 
 
     /**
+     * @param supportZoneOffset Beginning with MySQL 8.0.19, you can specify a time zone offset when inserting TIMESTAMP and DATETIME values into a table.
      * @see #writeBinary(ByteBuf, int, Value, int, Charset, ZoneOffset)
      */
-    static MySQLType decideActualType(final MySQLType expectedType, final Value paramValue) {
+    static MySQLType decideActualType(final Value paramValue, final boolean supportZoneOffset) {
         final Object nonNull = paramValue.getNonNullValue();
+        final MySQLType type = (MySQLType) paramValue.getType();
         final MySQLType bindType;
-        switch (expectedType) {
+        switch (type) {
             case BIT: {
                 // Server 8.0.27 and before ,can't bind BIT type.
                 //@see writeBit method.
@@ -236,26 +238,24 @@ abstract class BinaryWriter {
                 bindType = MySQLType.SMALLINT;
             }
             break;
-            case DATETIME:
-            case TIMESTAMP: {
-                if (nonNull instanceof OffsetDateTime || nonNull instanceof ZonedDateTime) {
+            case DATETIME: {
+                if (supportZoneOffset || nonNull instanceof OffsetDateTime || nonNull instanceof ZonedDateTime) {
                     //As of MySQL 8.0.19 can append zone
                     bindType = MySQLType.VARCHAR;
                 } else {
-                    bindType = expectedType;
+                    bindType = type;
                 }
             }
             break;
-            default: {
-                bindType = expectedType;
-            }
+            default:
+                bindType = type;
         }
         return bindType;
     }
 
 
     /**
-     * @see #decideActualType(MySQLType, Value)
+     * @see #decideActualType(Value, boolean)
      * @see #writeBinary(ByteBuf, int, Value, int, Charset, ZoneOffset)
      */
     private static void writeBit(final ByteBuf packet, final int batchIndex, final Value paramValue) {
