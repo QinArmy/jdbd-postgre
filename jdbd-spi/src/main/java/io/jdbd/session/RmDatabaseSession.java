@@ -1,6 +1,5 @@
 package io.jdbd.session;
 
-import io.jdbd.JdbdXaException;
 import org.reactivestreams.Publisher;
 
 /**

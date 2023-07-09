@@ -1,17 +1,16 @@
 package io.jdbd.vendor.util;
 
 import io.jdbd.JdbdException;
-import io.jdbd.JdbdSQLException;
-import io.jdbd.JdbdXaException;
 import io.jdbd.lang.Nullable;
 import io.jdbd.meta.DataType;
 import io.jdbd.meta.SQLType;
 import io.jdbd.result.CurrentRow;
 import io.jdbd.result.ResultStates;
 import io.jdbd.session.SavePoint;
-import io.jdbd.statement.*;
+import io.jdbd.statement.OutParameter;
+import io.jdbd.statement.PreparedStatement;
+import io.jdbd.statement.Statement;
 import io.jdbd.vendor.JdbdCompositeException;
-import io.jdbd.vendor.JdbdUnknownException;
 import io.jdbd.vendor.stmt.NamedValue;
 import io.jdbd.vendor.stmt.ParamValue;
 import io.jdbd.vendor.stmt.Value;

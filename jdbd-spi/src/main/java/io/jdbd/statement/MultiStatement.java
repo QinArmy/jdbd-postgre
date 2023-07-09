@@ -8,7 +8,7 @@ import org.reactivestreams.Subscriber;
 
 import java.util.function.Function;
 
-public interface MultiStatement extends BindMultiResultStatement, ParametrizedStatement {
+public interface MultiStatement extends MultiResultStatement, ParametrizedStatement {
 
     /**
      * @param sql must have text.

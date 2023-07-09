@@ -1,7 +1,6 @@
 package io.jdbd.mysql.session;
 
 
-import io.jdbd.JdbdXaException;
 import io.jdbd.mysql.MySQLJdbdException;
 import io.jdbd.mysql.protocol.MySQLProtocol;
 import io.jdbd.mysql.stmt.Stmts;

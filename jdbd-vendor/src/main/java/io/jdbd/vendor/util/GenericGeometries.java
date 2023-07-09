@@ -11,6 +11,7 @@ import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.Objects;
 
+@Deprecated
 abstract class GenericGeometries {
 
     GenericGeometries() {
@@ -141,7 +142,6 @@ abstract class GenericGeometries {
     public static String lineStringToWkt(final byte[] wkbArray) {
         return lineStringToWkt(wkbArray, new int[]{0});
     }
-
 
 
     /**

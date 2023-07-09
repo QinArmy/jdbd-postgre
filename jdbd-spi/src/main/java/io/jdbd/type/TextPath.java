@@ -1,8 +1,6 @@
 package io.jdbd.type;
 
 
-import io.jdbd.statement.PathParameter;
-
 import java.nio.charset.Charset;
 import java.nio.file.Path;
 

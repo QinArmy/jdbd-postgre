@@ -10,7 +10,6 @@ import io.jdbd.result.MultiResult;
 import io.jdbd.result.OrderedFlux;
 import io.jdbd.result.ResultStates;
 import io.jdbd.statement.BindStatement;
-import io.jdbd.statement.LocalFileException;
 import io.jdbd.statement.MultiStatement;
 import io.jdbd.statement.StaticStatement;
 import io.jdbd.vendor.result.MultiResults;

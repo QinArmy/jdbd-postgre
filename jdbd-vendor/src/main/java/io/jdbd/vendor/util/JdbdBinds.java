@@ -12,6 +12,7 @@ import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.time.*;
 import java.time.temporal.TemporalAccessor;
+import java.util.BitSet;
 import java.util.Comparator;
 import java.util.List;
 import java.util.UUID;
@@ -348,14 +349,21 @@ public abstract class JdbdBinds {
         } else if (nonNull instanceof BigDecimal) {
             value = ((BigDecimal) nonNull).toPlainString();
         } else if (nonNull instanceof Number
+                || nonNull instanceof LocalDate
                 || nonNull instanceof UUID
-                || nonNull instanceof LocalTime
-                || nonNull instanceof LocalDate) {
+                || nonNull instanceof YearMonth
+                || nonNull instanceof MonthDay) {
             value = nonNull.toString();
         } else if (nonNull instanceof LocalDateTime) {
             value = ((LocalDateTime) nonNull).format(JdbdTimes.DATETIME_FORMATTER_6);
         } else if (nonNull instanceof OffsetDateTime || nonNull instanceof ZonedDateTime) {
             value = JdbdTimes.OFFSET_DATETIME_FORMATTER_6.format((TemporalAccessor) nonNull);
+        } else if (nonNull instanceof LocalTime) {
+            value = JdbdTimes.TIME_FORMATTER_6.format((LocalTime) nonNull);
+        } else if (nonNull instanceof OffsetTime) {
+            value = JdbdTimes.OFFSET_TIME_FORMATTER_6.format((OffsetTime) nonNull);
+        } else if (nonNull instanceof BitSet) {
+            value = JdbdStrings.bitSetToBitString((BitSet) nonNull, true);
         } else {
             throw JdbdExceptions.createNonSupportBindSqlTypeError(batchIndex, paramValue);
         }

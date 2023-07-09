@@ -9,6 +9,7 @@ import reactor.core.publisher.Flux;
 import java.nio.channels.FileChannel;
 import java.util.Arrays;
 
+@Deprecated
 abstract class LineStrings {
 
     private LineStrings() {
@@ -76,8 +77,6 @@ abstract class LineStrings {
         }
 
     }
-
-
 
 
 }

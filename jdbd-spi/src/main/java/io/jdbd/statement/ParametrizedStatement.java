@@ -47,7 +47,9 @@ public interface ParametrizedStatement extends Statement {
      *                       </ul>
      * @param value          nullable the parameter value; is following type :
      *                       <ul>
-     *                          <li>generic java type,for example : {@link Boolean} , {@link Integer} , {@link String} , byte[], {@link java.time.LocalDateTime} ,{@link java.util.BitSet},{@link java.util.List}</li>
+     *                          <li>generic java type,for example : {@link Boolean} , {@link Integer} , {@link String} ,{@link Enum} ,byte[],{@link Integer[]} ,{@link java.time.LocalDateTime} , {@link java.time.Duration} ,{@link java.time.YearMonth} ,{@link java.util.BitSet},{@link java.util.List}</li>
+     *                          <li>{@link Point} spatial point type</li>
+     *                          <li>{@link Interval} the composite of {@link java.time.Period} and {@link java.time.Duration}</li>
      *                          <li>{@link Publisher}  long binary, it must emit byte[]</li>
      *                          <li>{@link java.nio.file.Path} long binary</li>
      *                          <li>{@link Parameter} :
@@ -63,7 +65,15 @@ public interface ParametrizedStatement extends Statement {
      *                       </ul>
      * @return <strong>this</strong>
      * @throws JdbdException throw when : <ul>
-     *                       <li>this statement instance is reused</li>
+     *                       <li>this statement instance is reused.Because jdbd is reactive and multi-thread and jdbd provide :
+     *                              <ol>
+     *                                  <li>{@link MultiResultStatement#executeBatchUpdate()}</li>
+     *                                  <li>{@link MultiResultStatement#executeBatchQuery()} </li>
+     *                                  <li>{@link MultiResultStatement#executeBatchAsMulti()}</li>
+     *                                  <li>{@link MultiResultStatement#executeBatchAsFlux()}</li>
+     *                              </ol>
+     *                              ,you don't need to reuse statement instance.
+     *                       </li>
      *                       <li>indexBasedZero error</li>
      *                       <i>dataType is {@link io.jdbd.meta.JdbdType#UNKNOWN} or {@link io.jdbd.meta.JdbdType#DIALECT_TYPE}</i>
      *                       <li>dataType is null or dataType is supported by database.</li>
@@ -71,6 +81,7 @@ public interface ParametrizedStatement extends Statement {
      *                       </ul>
      * @see io.jdbd.meta.JdbdType
      * @see io.jdbd.meta.SQLType
+     * @see Point
      * @see OutParameter
      * @see Blob
      * @see Clob

@@ -50,7 +50,7 @@ public abstract class JdbdValues {
         @Override
         public final Object getValue() {
             Object value = this.value;
-            if (value instanceof Parameter) {
+            while (value instanceof Parameter) {
                 value = ((Parameter) value).value();
             }
             return value;
@@ -59,7 +59,7 @@ public abstract class JdbdValues {
         @Override
         public final Object getNonNullValue() throws NullPointerException {
             Object value = this.value;
-            if (value instanceof Parameter) {
+            while (value instanceof Parameter) {
                 value = ((Parameter) value).value();
             }
             if (value == null) {

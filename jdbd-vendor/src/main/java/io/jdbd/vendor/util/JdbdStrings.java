@@ -1,7 +1,6 @@
 package io.jdbd.vendor.util;
 
 import io.jdbd.JdbdException;
-import io.jdbd.UrlException;
 import io.jdbd.lang.Nullable;
 import io.qinarmy.util.StringUtils;
 

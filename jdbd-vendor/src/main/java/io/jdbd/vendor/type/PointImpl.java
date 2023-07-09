@@ -5,6 +5,7 @@ import io.jdbd.vendor.util.GeometryUtils;
 
 import java.util.Objects;
 
+@Deprecated
 final class PointImpl implements Point {
 
     static PointImpl create(double x, double y) {

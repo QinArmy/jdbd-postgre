@@ -1,7 +1,6 @@
 package io.jdbd.mysql.session;
 
 import io.jdbd.JdbdException;
-import io.jdbd.JdbdSQLException;
 import io.jdbd.lang.Nullable;
 import io.jdbd.meta.DataType;
 import io.jdbd.mysql.MySQLType;

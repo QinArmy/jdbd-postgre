@@ -3,7 +3,6 @@ package io.jdbd.mysql;
 import io.jdbd.meta.BooleanMode;
 import io.jdbd.meta.SQLType;
 import io.jdbd.mysql.protocol.Constants;
-import io.jdbd.type.LongBinary;
 import io.jdbd.type.geometry.LongString;
 
 import java.math.BigDecimal;

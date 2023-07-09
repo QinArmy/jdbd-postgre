@@ -1,6 +1,5 @@
 package io.jdbd.result;
 
-import io.jdbd.JdbdSQLException;
 import io.jdbd.lang.Nullable;
 import io.jdbd.meta.*;
 

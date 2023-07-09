@@ -2,7 +2,6 @@ package io.jdbd.postgre;
 
 import io.jdbd.Driver;
 import io.jdbd.DriverVersion;
-import io.jdbd.JdbdNonSQLException;
 import io.jdbd.postgre.session.PgDatabaseSessionFactory;
 import io.jdbd.session.DatabaseSessionFactory;
 import io.jdbd.vendor.util.DefaultDriverVersion;

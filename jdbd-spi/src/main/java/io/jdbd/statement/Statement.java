@@ -58,7 +58,9 @@ public interface Statement {
      *                 </ul>
      * @param value    nullable the parameter value; be following type :
      *                 <ul>
-     *                    <li>generic java type,for example :  {@link Boolean} ,{@link Integer} , {@link String} , byte[], {@link java.time.LocalDateTime} ,{@link java.util.BitSet},{@link java.util.List}</li>
+     *                    <li>generic java type,for example : {@link Boolean} , {@link Integer} , {@link String} , byte[],{@link Integer[]} ,{@link java.time.LocalDateTime} , {@link java.time.Duration} ,{@link java.time.YearMonth} ,{@link java.util.BitSet},{@link java.util.List}</li>
+     *                    <li>{@link Point} spatial point type</li>
+     *                    <li>{@link Interval} the composite of {@link java.time.Period} and {@link java.time.Duration}</li>
      *                    <li>{@link Publisher}  long binary, it must emit byte[]</li>
      *                    <li>{@link java.nio.file.Path} long binary</li>
      *                    <li>{@link Parameter} :
@@ -74,7 +76,15 @@ public interface Statement {
      * @return <strong>this</strong>
      * @throws JdbdException throw when : <ul>
      *                       <li>{@link DatabaseSession#supportStmtVar()} or {@link #supportStmtVar()} return false</li>
-     *                       <li>this statement instance is reused</li>
+     *                       <li>this statement instance is reused.Because jdbd is reactive and multi-thread and jdbd provide :
+     *                              <ol>
+     *                                  <li>{@link MultiResultStatement#executeBatchUpdate()}</li>
+     *                                  <li>{@link MultiResultStatement#executeBatchQuery()} </li>
+     *                                  <li>{@link MultiResultStatement#executeBatchAsMulti()}</li>
+     *                                  <li>{@link MultiResultStatement#executeBatchAsFlux()}</li>
+     *                              </ol>
+     *                              ,you don't need to reuse statement instance.
+     *                       </li>
      *                       <li>name have no text</li>
      *                       <li>name duplication</li>
      *                       <i>dataType is {@link io.jdbd.meta.JdbdType#UNKNOWN} or {@link io.jdbd.meta.JdbdType#DIALECT_TYPE}</i>
@@ -85,6 +95,7 @@ public interface Statement {
      * @see #supportStmtVar()
      * @see io.jdbd.meta.JdbdType
      * @see io.jdbd.meta.SQLType
+     * @see Point
      * @see Blob
      * @see Clob
      * @see Text

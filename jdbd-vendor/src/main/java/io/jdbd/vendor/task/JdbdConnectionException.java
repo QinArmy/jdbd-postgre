@@ -1,8 +1,8 @@
 package io.jdbd.vendor.task;
 
-import io.jdbd.JdbdNonSQLException;
+import io.jdbd.JdbdException;
 
-final class JdbdConnectionException extends JdbdNonSQLException {
+final class JdbdConnectionException extends JdbdException {
 
 
     public JdbdConnectionException(String message) {

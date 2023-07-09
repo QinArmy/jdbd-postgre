@@ -1,7 +1,5 @@
 package io.jdbd.vendor.type;
 
-import io.jdbd.type.LongBinary;
-
 import java.io.IOException;
 import java.nio.channels.FileChannel;
 import java.nio.file.Files;
@@ -10,6 +8,8 @@ import java.nio.file.StandardOpenOption;
 import java.util.Arrays;
 import java.util.Objects;
 
+
+@Deprecated
 public abstract class LongBinaries implements LongBinary {
 
     public static LongBinary fromArray(byte[] array) {

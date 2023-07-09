@@ -1,8 +1,8 @@
 package io.jdbd.postgre;
 
-import io.jdbd.JdbdNonSQLException;
+import io.jdbd.JdbdException;
 
-public class PgJdbdException extends JdbdNonSQLException {
+public class PgJdbdException extends JdbdException {
 
     public PgJdbdException(String message) {
         super(message);

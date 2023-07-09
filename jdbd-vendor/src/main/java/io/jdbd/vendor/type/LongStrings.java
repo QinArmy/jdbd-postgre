@@ -10,6 +10,7 @@ import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.util.Objects;
 
+@Deprecated
 public abstract class LongStrings implements LongString {
 
 

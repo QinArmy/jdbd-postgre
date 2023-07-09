@@ -1,7 +1,6 @@
 package io.jdbd.mysql.protocol.client;
 
 
-import io.jdbd.JdbdSQLException;
 import io.jdbd.mysql.Groups;
 import io.jdbd.mysql.stmt.BindStmt;
 import io.jdbd.mysql.stmt.Stmts;

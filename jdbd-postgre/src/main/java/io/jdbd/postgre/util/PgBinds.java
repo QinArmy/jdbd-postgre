@@ -1,9 +1,7 @@
 package io.jdbd.postgre.util;
 
-import io.jdbd.JdbdSQLException;
 import io.jdbd.postgre.PgConstant;
 import io.jdbd.postgre.PgType;
-import io.jdbd.statement.UnsupportedBindJavaTypeException;
 import io.jdbd.type.Interval;
 import io.jdbd.type.Point;
 import io.jdbd.type.geometry.Circle;

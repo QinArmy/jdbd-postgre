@@ -1,6 +1,5 @@
 package io.jdbd.statement;
 
-import io.jdbd.JdbdSQLException;
 import io.jdbd.result.*;
 import io.jdbd.session.DatabaseSession;
 import org.reactivestreams.Publisher;

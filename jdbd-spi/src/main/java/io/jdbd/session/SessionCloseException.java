@@ -1,8 +1,8 @@
 package io.jdbd.session;
 
-import io.jdbd.JdbdNonSQLException;
+import io.jdbd.JdbdException;
 
-public class SessionCloseException extends JdbdNonSQLException {
+public class SessionCloseException extends JdbdException {
 
     public static SessionCloseException create() {
         return new SessionCloseException("database session closed.");

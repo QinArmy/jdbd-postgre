@@ -13,7 +13,6 @@ import io.jdbd.postgre.util.PgStrings;
 import io.jdbd.postgre.util.PgTimes;
 import io.jdbd.result.UnsupportedConvertingException;
 import io.jdbd.type.Interval;
-import io.jdbd.type.LongBinary;
 import io.jdbd.type.Point;
 import io.jdbd.type.geo.Line;
 import io.jdbd.type.geo.LineString;

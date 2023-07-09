@@ -1,9 +1,9 @@
 package io.jdbd.result;
 
-import io.jdbd.JdbdNonSQLException;
+import io.jdbd.JdbdException;
 import io.jdbd.meta.SQLType;
 
-public class UnsupportedConvertingException extends JdbdNonSQLException {
+public class UnsupportedConvertingException extends JdbdException {
 
     private final SQLType sourceType;
 

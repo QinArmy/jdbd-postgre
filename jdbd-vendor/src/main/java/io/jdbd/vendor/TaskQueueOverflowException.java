@@ -1,4 +1,4 @@
-package io.jdbd.statement;
+package io.jdbd.vendor;
 
 import io.jdbd.JdbdException;
 

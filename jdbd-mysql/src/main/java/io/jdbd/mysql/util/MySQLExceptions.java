@@ -1,14 +1,12 @@
 package io.jdbd.mysql.util;
 
 import io.jdbd.JdbdException;
-import io.jdbd.JdbdSQLException;
 import io.jdbd.mysql.MySQLJdbdException;
 import io.jdbd.mysql.MySQLType;
 import io.jdbd.mysql.protocol.MySQLFatalIoException;
 import io.jdbd.mysql.protocol.client.ErrorPacket;
 import io.jdbd.mysql.protocol.conf.MyKey;
 import io.jdbd.mysql.stmt.QueryAttr;
-import io.jdbd.statement.LongDataReadException;
 import io.jdbd.statement.PreparedStatement;
 import io.jdbd.statement.StaticStatement;
 import io.jdbd.vendor.stmt.ParamValue;

@@ -8,6 +8,7 @@ import io.jdbd.type.geometry.WkbType;
 import io.jdbd.vendor.util.GeometryUtils;
 import io.jdbd.vendor.util.JdbdNumbers;
 
+@Deprecated
 public abstract class Geometries {
 
     protected Geometries() {

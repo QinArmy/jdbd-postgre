@@ -17,9 +17,9 @@
    * 更重要的是 在一些场景下可以使用 io.jdbd.statement.BindSingleStatement 的方法引用.
 
 5. 为什么要为 io.jdbd.statement.PreparedStatement 和 io.jdbd.statement.MultiStatement 设计 base interface
-   io.jdbd.statement.BindMultiResultStatement ?
-   * 它们有共同的方法,设计 base interface 是常规
-   * 更重要的是 在一些场景下可以使用 io.jdbd.statement.BindMultiResultStatement 的方法引用.
+   io.jdbd.statement.MultiResultStatement ?
+    * 它们有共同的方法,设计 base interface 是常规
+    * 更重要的是 在一些场景下可以使用 io.jdbd.statement.MultiResultStatement 的方法引用.
 
 6. 为什么 io.jdbd.vendor.result.MultiResultSink 没有 isCancelled 方法?
    * 要让下游能能到信号,避免 bug.

@@ -11,16 +11,16 @@ import org.reactivestreams.Publisher;
  * This interface is base interface of below:
  *     <ul>
  *         <li>{@link BindStatement}</li>
- *         <li>{@link ServerPrepareStatement}</li>
+ *         <li>{@link PreparedStatement}</li>
  *         <li>{@link MultiStatement}</li>
  *     </ul>
  * </p>
  *
  * @see BindStatement
- * @see ServerPrepareStatement
+ * @see PreparedStatement
  * @see MultiStatement
  */
-public interface BindMultiResultStatement extends Statement {
+public interface MultiResultStatement extends Statement {
 
 
     Publisher<ResultStates> executeBatchUpdate();

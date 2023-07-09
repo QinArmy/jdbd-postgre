@@ -3,7 +3,6 @@ package io.jdbd.postgre;
 
 import io.jdbd.meta.BooleanMode;
 import io.jdbd.type.Interval;
-import io.jdbd.type.LongBinary;
 import io.jdbd.type.Point;
 import io.jdbd.type.geo.Line;
 import io.jdbd.type.geo.LineString;

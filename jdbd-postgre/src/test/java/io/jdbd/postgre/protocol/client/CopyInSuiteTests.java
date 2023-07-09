@@ -1,6 +1,5 @@
 package io.jdbd.postgre.protocol.client;
 
-import io.jdbd.JdbdSQLException;
 import io.jdbd.postgre.ClientTestUtils;
 import io.jdbd.postgre.Group;
 import io.jdbd.postgre.PgType;

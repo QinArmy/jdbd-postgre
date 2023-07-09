@@ -2,11 +2,10 @@ package io.jdbd.type;
 
 
 import io.jdbd.lang.NonNull;
-import io.jdbd.statement.Parameter;
 import org.reactivestreams.Publisher;
 
 
-public interface Blob extends Parameter {
+public interface Blob extends PublisherParameter {
 
     @NonNull
     Publisher<byte[]> value();

@@ -5,6 +5,7 @@ import java.nio.file.Path;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
+@Deprecated
 abstract class TempFiles {
 
     private TempFiles() {

@@ -1,6 +1,5 @@
 package io.jdbd.postgre.util;
 
-import io.jdbd.JdbdSQLException;
 import io.jdbd.postgre.protocol.client.ErrorMessage;
 import io.jdbd.postgre.stmt.BindValue;
 import io.jdbd.vendor.util.JdbdExceptions;

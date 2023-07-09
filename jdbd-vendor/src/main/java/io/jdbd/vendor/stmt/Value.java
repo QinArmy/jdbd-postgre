@@ -23,26 +23,39 @@ import io.jdbd.statement.Parameter;
 public interface Value {
 
     /**
-     * @return parameter value that maybe is {@link Parameter}
+     * @return <ul>
+     * <li>null</li>
+     * <li>non-{@link Parameter} instance</li>
+     * <li>{@link Parameter instance}</li>
+     * </ul>
      */
     @Nullable
     Object get();
 
     /**
-     * @return non-null parameter that maybe is {@link Parameter}
-     * @throws NullPointerException throw when parameter is null
+     * @return <ul>
+     *     <li>non-{@link Parameter} instance</li>
+     *     <li>{@link Parameter instance}</li>
+     * </ul>
+     * @throws NullPointerException throw when param is null
      */
     Object getNonNull() throws NullPointerException;
 
     /**
-     * @return parameter value or {@link Parameter#value()}
+     * @return <ul>
+     *     <li>null</li>
+     *     <li>non-{@link Parameter} instance</li>
+     * </ul>
      */
     @Nullable
     Object getValue();
 
     /**
-     * @return non-null parameter value or {@link Parameter#value()}
-     * @throws NullPointerException throw when parameter value is null or {@link Parameter#value()} is null.
+     * @return non-{@link Parameter} instance
+     * @throws NullPointerException throw when <ul>
+     *     <li>param is null</li>
+     *     <li>{@link Parameter#value()} is null</li>
+     * </ul>
      */
     Object getNonNullValue() throws NullPointerException;
 

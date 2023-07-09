@@ -1,9 +1,9 @@
 package io.jdbd.mysql;
 
-import io.jdbd.JdbdNonSQLException;
+import io.jdbd.JdbdException;
 import reactor.util.annotation.Nullable;
 
-public class MySQLJdbdException extends JdbdNonSQLException {
+public class MySQLJdbdException extends JdbdException {
 
     @Deprecated
     public MySQLJdbdException(String message, Object... args) {

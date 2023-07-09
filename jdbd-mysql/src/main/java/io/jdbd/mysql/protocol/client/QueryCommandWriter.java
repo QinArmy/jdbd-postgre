@@ -1,14 +1,12 @@
 package io.jdbd.mysql.protocol.client;
 
 import io.jdbd.JdbdException;
-import io.jdbd.JdbdSQLException;
 import io.jdbd.mysql.MySQLType;
 import io.jdbd.mysql.SQLMode;
 import io.jdbd.mysql.protocol.Constants;
 import io.jdbd.mysql.protocol.MySQLServerVersion;
 import io.jdbd.mysql.syntax.MySQLParser;
 import io.jdbd.mysql.util.*;
-import io.jdbd.statement.LongDataReadException;
 import io.jdbd.vendor.stmt.*;
 import io.jdbd.vendor.util.JdbdExceptions;
 import io.netty.buffer.ByteBuf;

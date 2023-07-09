@@ -1,7 +1,6 @@
 package io.jdbd.mysql.session;
 
 import io.jdbd.JdbdException;
-import io.jdbd.JdbdSQLException;
 import io.jdbd.lang.Nullable;
 import io.jdbd.meta.DataType;
 import io.jdbd.mysql.MySQLType;
@@ -13,8 +12,8 @@ import io.jdbd.mysql.util.MySQLStrings;
 import io.jdbd.result.*;
 import io.jdbd.statement.BindStatement;
 import io.jdbd.statement.OutParameter;
-import io.jdbd.statement.ResultType;
-import io.jdbd.statement.SubscribeException;
+import io.jdbd.vendor.ResultType;
+import io.jdbd.vendor.SubscribeException;
 import io.jdbd.vendor.result.MultiResults;
 import io.jdbd.vendor.stmt.JdbdValues;
 import io.jdbd.vendor.stmt.ParamBatchStmt;

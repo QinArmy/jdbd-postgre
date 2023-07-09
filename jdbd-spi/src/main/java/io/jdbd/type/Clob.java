@@ -1,14 +1,13 @@
 package io.jdbd.type;
 
 import io.jdbd.lang.NonNull;
-import io.jdbd.statement.Parameter;
 import org.reactivestreams.Publisher;
 
 /**
  * @see Text
  * @since 1.0
  */
-public interface Clob extends Parameter {
+public interface Clob extends PublisherParameter {
 
     @NonNull
     Publisher<CharSequence> value();

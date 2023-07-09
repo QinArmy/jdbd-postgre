@@ -4,16 +4,16 @@ import io.jdbd.lang.Nullable;
 import io.jdbd.session.DatabaseSessionFactory;
 
 import java.io.BufferedReader;
-import java.io.IOException;
 import java.io.InputStreamReader;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.net.URL;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
-import java.security.AccessController;
-import java.security.PrivilegedAction;
-import java.util.*;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Enumeration;
+import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
@@ -31,29 +31,40 @@ public abstract class DriverManager {
     }
 
 
-    public static int reload() {
+    public static int reload() throws JdbdException {
         return reload(Thread.currentThread().getContextClassLoader());
     }
 
-    public static int reload(@Nullable final ClassLoader loader) {
-        final PrivilegedAction<Integer> action = () -> doReload(loader);
-        return AccessController.doPrivileged(action);
+    public static int reload(@Nullable final ClassLoader loader) throws JdbdException {
+        try {
+            final Enumeration<URL> enumeration;
+            final String name = "META-INF/jdbd/io.jdbd.Driver";
+            if (loader == null) {
+                enumeration = ClassLoader.getSystemResources(name);
+            } else {
+                enumeration = loader.getResources(name);
+            }
+
+            int driverCount = 0;
+            while (enumeration.hasMoreElements()) {
+                driverCount += loadDriverInstances(enumeration.nextElement());
+            }
+            return driverCount;
+        } catch (Throwable e) {
+            //no bug and no security,never here
+            throw new JdbdException(e.getMessage(), e);
+        }
+
     }
 
     public static Collection<Driver> getDrivers() {
-        return DRIVER_MAP.values();
+        return Collections.unmodifiableCollection(DRIVER_MAP.values());
     }
 
 
-    /**
-     * @throws NotFoundDriverException when not found any driver for url.
-     * @throws UrlException            when url error.
-     * @throws PropertyException       when properties error.
-     */
     public static DatabaseSessionFactory createSessionFactory(final String url, final Map<String, Object> properties)
             throws JdbdException {
-        return findTargetDriver(url)
-                .createSessionFactory(url, properties);
+        return findTargetDriver(url).createSessionFactory(url, properties);
 
     }
 
@@ -73,14 +84,13 @@ public abstract class DriverManager {
      */
     public static DatabaseSessionFactory forPoolVendor(final String url, final Map<String, Object> properties)
             throws JdbdException {
-        return findTargetDriver(url)
-                .forPoolVendor(url, properties);
+        return findTargetDriver(url).forPoolVendor(url, properties);
     }
 
     /*################################## blow private static method ##################################*/
 
 
-    private static Driver findTargetDriver(final String url) throws NotFoundDriverException {
+    private static Driver findTargetDriver(final String url) throws JdbdException {
         Driver targetDriver = null;
         for (Driver driver : DRIVER_MAP.values()) {
             if (driver.acceptsUrl(url)) {
@@ -95,50 +105,29 @@ public abstract class DriverManager {
     }
 
 
-    private static int doReload(@Nullable final ClassLoader loader) {
-        try {
-            final Enumeration<URL> enumeration;
-            final String name = "META-INF/jdbd/io.jdbd.Driver";
-            if (loader == null) {
-                enumeration = ClassLoader.getSystemResources(name);
-            } else {
-                enumeration = loader.getResources(name);
-            }
-
-            int driverCount = 0;
-            while (enumeration.hasMoreElements()) {
-                driverCount += loadDriverInstances(enumeration.nextElement());
-            }
-            return driverCount;
-        } catch (IOException e) {
-            //no bug and no security,never here
-            throw new RuntimeException(e);
-        }
-    }
-
-    private static int loadDriverInstances(final URL url) {
+    private static int loadDriverInstances(final URL url) throws JdbdException {
         final Charset charset = StandardCharsets.UTF_8;
-        int driverCount = 0;
+
         try (BufferedReader reader = new BufferedReader(new InputStreamReader(url.openStream(), charset))) {
             String line;
-
-            final List<Driver> driverList = new ArrayList<>(1);
+            Driver driver;
+            int driverCount = 0;
             while ((line = reader.readLine()) != null) {
-                Driver driver = getDriverInstance(line);
-                if (driver != null) {
-                    driverList.add(driver);
+                driver = getDriverInstance(line);
+                if (driver == null) {
+                    continue;
                 }
-            }
-            for (Driver driver : driverList) {
                 if (DRIVER_MAP.putIfAbsent(driver.getClass(), driver) == null) {
                     driverCount++;
                 }
             }
+
+            return driverCount;
         } catch (Throwable e) {
-            //  don't follow io.jdbd.Driver contract,so ignore this url.
-            driverCount = 0;
+            //  don't follow io.jdbd.Driver contract
+            throw new JdbdException(e.getMessage(), e);
         }
-        return driverCount;
+
     }
 
     @Nullable
@@ -147,7 +136,8 @@ public abstract class DriverManager {
         try {
             final Class<?> driverClass;
             driverClass = Class.forName(className);
-            final Method method = driverClass.getMethod("getInstance");
+            final Method method;
+            method = driverClass.getMethod("getInstance");
             final int modifier = method.getModifiers();
             if (Driver.class.isAssignableFrom(driverClass)
                     && Modifier.isPublic(modifier)

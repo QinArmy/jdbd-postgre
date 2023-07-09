@@ -1,6 +1,5 @@
 package io.jdbd.postgre.protocol.client;
 
-import io.jdbd.JdbdSQLException;
 import io.jdbd.postgre.PgJdbdException;
 import io.jdbd.postgre.stmt.BindBatchStmt;
 import io.jdbd.postgre.stmt.BindMultiStmt;
@@ -12,7 +11,6 @@ import io.jdbd.postgre.syntax.CopyOut;
 import io.jdbd.postgre.syntax.PgParser;
 import io.jdbd.postgre.util.PgExceptions;
 import io.jdbd.statement.BindSingleStatement;
-import io.jdbd.statement.ExportSubscriberFunctionException;
 import io.jdbd.statement.StaticStatement;
 import io.jdbd.vendor.stmt.StaticBatchStmt;
 import io.jdbd.vendor.stmt.StaticStmt;

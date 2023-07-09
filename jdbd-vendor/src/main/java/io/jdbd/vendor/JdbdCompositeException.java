@@ -1,6 +1,6 @@
 package io.jdbd.vendor;
 
-import io.jdbd.JdbdNonSQLException;
+import io.jdbd.JdbdException;
 import io.jdbd.lang.Nullable;
 import io.jdbd.vendor.util.JdbdCollections;
 
@@ -9,7 +9,7 @@ import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.util.List;
 
-public class JdbdCompositeException extends JdbdNonSQLException {
+public class JdbdCompositeException extends JdbdException {
 
     private final List<? extends Throwable> errorList;
 

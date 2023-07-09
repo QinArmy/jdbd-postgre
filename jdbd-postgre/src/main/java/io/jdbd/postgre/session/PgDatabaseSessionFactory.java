@@ -1,9 +1,6 @@
 package io.jdbd.postgre.session;
 
 import io.jdbd.DriverVersion;
-import io.jdbd.ProductFamily;
-import io.jdbd.PropertyException;
-import io.jdbd.UrlException;
 import io.jdbd.postgre.PgDriver;
 import io.jdbd.postgre.config.PgKey;
 import io.jdbd.postgre.config.PgUrl;

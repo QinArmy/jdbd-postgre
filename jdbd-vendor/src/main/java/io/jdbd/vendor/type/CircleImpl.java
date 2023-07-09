@@ -5,6 +5,7 @@ import io.jdbd.type.geometry.Circle;
 
 import java.util.Objects;
 
+@Deprecated
 final class CircleImpl implements Circle {
 
     static CircleImpl create(Point center, double radius) {

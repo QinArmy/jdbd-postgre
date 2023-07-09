@@ -25,7 +25,7 @@ import java.util.function.Function;
  * @see BindStatement
  * @see PreparedStatement
  */
-public interface BindSingleStatement extends ParametrizedStatement, BindMultiResultStatement {
+public interface BindSingleStatement extends ParametrizedStatement, MultiResultStatement {
 
 
     /**

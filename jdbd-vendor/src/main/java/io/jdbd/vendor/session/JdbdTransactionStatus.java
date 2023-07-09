@@ -7,9 +7,6 @@ import io.jdbd.session.TransactionStatus;
 
 public enum JdbdTransactionStatus implements TransactionStatus {
 
-    DEFAULT_READ(Isolation.DEFAULT, true),
-    DEFAULT_WRITE(Isolation.DEFAULT, false),
-
     READ_UNCOMMITTED_READ(Isolation.READ_UNCOMMITTED, true),
     READ_UNCOMMITTED_WRITE(Isolation.READ_UNCOMMITTED, false),
 
@@ -24,6 +21,9 @@ public enum JdbdTransactionStatus implements TransactionStatus {
 
     public static TransactionStatus txStatus(final Isolation isolation, final boolean readOnly,
                                              final boolean inTransaction) {
+        if (isolation == Isolation.DEFAULT) {
+            throw new IllegalArgumentException();
+        }
         final TransactionStatus status;
         if (!inTransaction) {
             status = (TransactionStatus) TransactionOption.option(isolation, readOnly);
@@ -31,9 +31,6 @@ public enum JdbdTransactionStatus implements TransactionStatus {
             return status;
         }
         switch (isolation) {
-            case DEFAULT:
-                status = readOnly ? DEFAULT_READ : DEFAULT_WRITE;
-                break;
             case READ_UNCOMMITTED:
                 status = readOnly ? READ_UNCOMMITTED_READ : READ_UNCOMMITTED_WRITE;
                 break;

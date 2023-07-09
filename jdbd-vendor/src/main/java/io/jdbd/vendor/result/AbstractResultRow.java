@@ -1,13 +1,10 @@
 package io.jdbd.vendor.result;
 
-import io.jdbd.JdbdSQLException;
 import io.jdbd.meta.SQLType;
 import io.jdbd.result.ResultRow;
 import io.jdbd.result.ResultRowMeta;
 import io.jdbd.result.UnsupportedConvertingException;
-import io.jdbd.type.CodeEnum;
 import io.jdbd.type.Interval;
-import io.jdbd.type.LongBinary;
 import io.jdbd.type.geometry.LongString;
 import io.jdbd.vendor.util.JdbdCollections;
 import io.jdbd.vendor.util.JdbdStrings;

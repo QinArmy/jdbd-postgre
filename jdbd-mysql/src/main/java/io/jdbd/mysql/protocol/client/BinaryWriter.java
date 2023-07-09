@@ -13,7 +13,6 @@ import io.netty.buffer.ByteBuf;
 
 import java.math.BigDecimal;
 import java.nio.charset.Charset;
-import java.nio.charset.StandardCharsets;
 import java.time.*;
 import java.time.temporal.ChronoField;
 import java.util.BitSet;
@@ -148,9 +147,12 @@ abstract class BinaryWriter {
             case MEDIUMTEXT:
             case TEXT:
             case LONGTEXT:
-            case JSON:
-                writeString(packet, batchIndex, paramValue, charset);
-                break;
+            case JSON: {
+                final String value;
+                value = MySQLBinds.bindToString(batchIndex, paramValue);
+                Packets.writeStringLenEnc(packet, value.getBytes(charset));
+            }
+            break;
             case BINARY:
             case VARBINARY:
             case TINYBLOB:
@@ -208,9 +210,8 @@ abstract class BinaryWriter {
             break;
             case NULL:
             case UNKNOWN:
-            default: {
+            default:
                 throw JdbdExceptions.createNonSupportBindSqlTypeError(batchIndex, paramValue);
-            }
 
         }
 
@@ -250,24 +251,6 @@ abstract class BinaryWriter {
             }
         }
         return bindType;
-    }
-
-    private static void writeString(final ByteBuf packet, final int batchIndex, final Value paramValue,
-                                    final Charset charset) {
-        final Object nonNull = paramValue.getNonNull();
-        if (nonNull instanceof byte[]) {
-            final byte[] bytes = (byte[]) nonNull;
-            if (StandardCharsets.UTF_8.equals(charset)) {
-                Packets.writeStringLenEnc(packet, bytes);
-            } else {
-                final byte[] textBytes = new String(bytes, StandardCharsets.UTF_8).getBytes(charset);
-                Packets.writeStringLenEnc(packet, textBytes);
-            }
-        } else {
-            final String value;
-            value = MySQLBinds.bindToString(batchIndex, paramValue);
-            Packets.writeStringLenEnc(packet, value.getBytes(charset));
-        }
     }
 
 

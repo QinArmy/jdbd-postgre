@@ -1,6 +1,5 @@
 package io.jdbd.mysql.protocol.client;
 
-import io.jdbd.JdbdSQLException;
 import io.jdbd.mysql.Groups;
 import io.jdbd.mysql.MySQLType;
 import io.jdbd.mysql.protocol.conf.MyKey;
@@ -10,8 +9,8 @@ import io.jdbd.result.MultiResult;
 import io.jdbd.result.NoMoreResultException;
 import io.jdbd.result.ResultRow;
 import io.jdbd.result.ResultStates;
-import io.jdbd.statement.ResultType;
-import io.jdbd.statement.SubscribeException;
+import io.jdbd.vendor.ResultType;
+import io.jdbd.vendor.SubscribeException;
 import io.jdbd.vendor.stmt.StaticBatchStmt;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

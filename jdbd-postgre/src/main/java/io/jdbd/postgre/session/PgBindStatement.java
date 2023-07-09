@@ -1,7 +1,6 @@
 package io.jdbd.postgre.session;
 
 import io.jdbd.JdbdException;
-import io.jdbd.JdbdSQLException;
 import io.jdbd.meta.DataType;
 import io.jdbd.postgre.PgJdbdException;
 import io.jdbd.postgre.PgType;
@@ -18,8 +17,8 @@ import io.jdbd.result.OrderedFlux;
 import io.jdbd.result.ResultRow;
 import io.jdbd.result.ResultStates;
 import io.jdbd.statement.BindStatement;
-import io.jdbd.statement.ResultType;
-import io.jdbd.statement.SubscribeException;
+import io.jdbd.vendor.ResultType;
+import io.jdbd.vendor.SubscribeException;
 import io.jdbd.vendor.result.MultiResults;
 import io.jdbd.vendor.util.JdbdBinds;
 import reactor.core.publisher.Flux;

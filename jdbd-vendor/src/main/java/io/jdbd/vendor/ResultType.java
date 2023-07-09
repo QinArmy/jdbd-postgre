@@ -1,4 +1,4 @@
-package io.jdbd.statement;
+package io.jdbd.vendor;
 
 public enum ResultType {
     UPDATE,

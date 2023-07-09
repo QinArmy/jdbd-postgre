@@ -2,6 +2,9 @@ package io.jdbd.type;
 
 /**
  * This interface representing geometry point.
+ * <p>
+ * Application developer can create instance by {@link #from(double, double)}.
+ * </p>
  *
  * @see <a href="https://www.ogc.org/standards/sfa">Simple Feature Access - Part 1: Common Architecture PDF</a>
  * @see <a href="https://portal.ogc.org/files/?artifact_id=25355">PDF download</a>
@@ -27,7 +30,7 @@ public interface Point {
     /**
      * override {@link Object#toString()}
      *
-     * @return WKT
+     * @return expression of point ,for example WKT , dialect format.
      */
     @Override
     String toString();

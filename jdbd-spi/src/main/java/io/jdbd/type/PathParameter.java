@@ -1,8 +1,6 @@
-package io.jdbd.statement;
+package io.jdbd.type;
 
 import io.jdbd.lang.NonNull;
-import io.jdbd.type.BlobPath;
-import io.jdbd.type.TextPath;
 
 import java.nio.file.Path;
 
@@ -17,7 +15,7 @@ import java.nio.file.Path;
  *
  * @since 1.0
  */
-public interface PathParameter extends Parameter {
+public interface PathParameter extends LongParameter {
 
     /**
      * @see java.nio.file.StandardOpenOption#DELETE_ON_CLOSE

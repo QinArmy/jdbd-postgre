@@ -8,6 +8,7 @@ import reactor.core.publisher.Flux;
 import java.nio.channels.FileChannel;
 import java.util.Objects;
 
+@Deprecated
 final class LineImpl implements Line {
 
     static LineImpl create(Point point1, Point point2) {

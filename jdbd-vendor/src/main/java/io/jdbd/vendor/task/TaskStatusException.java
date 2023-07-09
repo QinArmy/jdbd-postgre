@@ -1,9 +1,9 @@
 package io.jdbd.vendor.task;
 
-import io.jdbd.JdbdNonSQLException;
+import io.jdbd.JdbdException;
 import reactor.util.annotation.Nullable;
 
-final class TaskStatusException extends JdbdNonSQLException {
+final class TaskStatusException extends JdbdException {
 
 
     TaskStatusException(String messageFormat) {

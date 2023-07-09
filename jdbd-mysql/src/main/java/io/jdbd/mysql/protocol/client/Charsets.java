@@ -1,7 +1,6 @@
 package io.jdbd.mysql.protocol.client;
 
 
-import io.jdbd.JdbdSQLException;
 import io.jdbd.mysql.MySQLJdbdException;
 import io.jdbd.mysql.protocol.MySQLServerVersion;
 import reactor.util.annotation.Nullable;
