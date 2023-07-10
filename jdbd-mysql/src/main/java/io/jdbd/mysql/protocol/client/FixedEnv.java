@@ -3,6 +3,13 @@ package io.jdbd.mysql.protocol.client;
 import io.jdbd.mysql.env.MySQLEnvironment;
 import io.jdbd.mysql.env.MySQLKey;
 
+/**
+ * <p>
+ * This class is base class of {@link ClientProtocolFactory}.
+ * </p>
+ *
+ * @since 1.0
+ */
 abstract class FixedEnv {
 
     final boolean transformedBitIsBoolean;

@@ -1,6 +1,7 @@
 package io.jdbd.vendor.result;
 
 import io.jdbd.JdbdException;
+import io.jdbd.lang.Nullable;
 import io.jdbd.vendor.util.*;
 
 import java.math.BigDecimal;
@@ -13,6 +14,81 @@ public abstract class ColumnConverts {
 
     private ColumnConverts() {
         throw new UnsupportedOperationException();
+    }
+
+
+    @SuppressWarnings("unchecked")
+    public static <T> T convertToTarget(final ColumnMeta meta, final Object source, final Class<T> targetClass,
+                                        final @Nullable ZoneOffset serverZone) {
+        final Object value;
+        if (targetClass == String.class) {
+            value = ColumnConverts.convertToString(meta, source);
+        } else if (targetClass == Boolean.class) {
+            value = ColumnConverts.convertToBoolean(meta, source);
+        } else if (Number.class.isAssignableFrom(targetClass)) {
+            if (targetClass == Integer.class) {
+                value = convertToInt(meta, source);
+            } else if (targetClass == Long.class) {
+                value = convertToLong(meta, source);
+            } else if (targetClass == BigDecimal.class) {
+                value = convertToBigDecimal(meta, source);
+            } else if (targetClass == BigInteger.class) {
+                value = convertToBigInteger(meta, source);
+            } else if (targetClass == Double.class) {
+                value = convertToDouble(meta, source);
+            } else if (targetClass == Float.class) {
+                value = convertToFloat(meta, source);
+            } else if (targetClass == Short.class) {
+                value = convertToShort(meta, source);
+            } else if (targetClass == Byte.class) {
+                value = convertToByte(meta, source);
+            } else {
+                throw JdbdExceptions.cannotConvertColumnValue(meta, source, targetClass, null);
+            }
+        } else if (TemporalAccessor.class.isAssignableFrom(targetClass)) {
+            if (targetClass == LocalDateTime.class) {
+                value = convertToLocalDateTime(meta, source);
+            } else if (targetClass == LocalDate.class) {
+                value = convertToLocalDate(meta, source);
+            } else if (targetClass == OffsetDateTime.class) {
+                value = convertToOffsetDateTime(meta, source, serverZone);
+            } else if (targetClass == ZonedDateTime.class) {
+                value = convertToZonedDateTime(meta, source, serverZone);
+            } else if (targetClass == LocalTime.class) {
+                value = convertToLocalTime(meta, source);
+            } else if (targetClass == OffsetTime.class) {
+                value = convertToOffsetTime(meta, source, serverZone);
+            } else if (targetClass == YearMonth.class) {
+                value = convertToYearMonth(meta, source);
+            } else if (targetClass == MonthDay.class) {
+                value = convertToMonthDay(meta, source);
+            } else if (targetClass == Month.class) {
+                value = convertToMonth(meta, source);
+            } else if (targetClass == DayOfWeek.class) {
+                value = convertToDayOfWeek(meta, source);
+            } else {
+                throw JdbdExceptions.cannotConvertColumnValue(meta, source, targetClass, null);
+            }
+        } else if (Enum.class.isAssignableFrom(targetClass)) {
+            if (!(source instanceof String)) {
+                throw JdbdExceptions.cannotConvertColumnValue(meta, source, targetClass, null);
+            } else if (targetClass.isAnonymousClass()) {
+                value = convertToEnum(targetClass.getSuperclass(), (String) source);
+            } else {
+                value = convertToEnum(targetClass, (String) source);
+            }
+        } else if (targetClass == BitSet.class) {
+            value = convertToBitSet(meta, source);
+        } else {
+            throw JdbdExceptions.cannotConvertColumnValue(meta, source, targetClass, null);
+        }
+        return (T) value;
+    }
+
+
+    @SuppressWarnings("unchecked")
+    public static <T extends Enum<T>> T convertToEnum(Class<?> enumClass, String source) {
+        return Enum.valueOf((Class<T>) enumClass, source);
     }
 
 
@@ -58,7 +134,7 @@ public abstract class ColumnConverts {
      */
     public static byte convertToByte(final ColumnMeta meta, final Object source) throws JdbdException {
         final int value;
-        if (meta.isUnsigned()) {
+        if (meta.isUnsigned() || meta.isBit()) {
             value = convertToIntUnsignedValue(meta, source, Byte.class, 0xFF);
         } else {
             value = convertToIntValue(meta, source, Byte.class, Byte.MIN_VALUE, Byte.MAX_VALUE);
@@ -71,9 +147,9 @@ public abstract class ColumnConverts {
      * @throws ArithmeticException   throw when source overflow to target
      * @throws JdbdException         throw when source couldn't convert or overflow.
      */
-    public static short convertToShot(final ColumnMeta meta, final Object source) throws JdbdException {
+    public static short convertToShort(final ColumnMeta meta, final Object source) throws JdbdException {
         final int value;
-        if (meta.isUnsigned()) {
+        if (meta.isUnsigned() || meta.isBit()) {
             value = convertToIntUnsignedValue(meta, source, Short.class, 0xFFFF);
         } else {
             value = convertToIntValue(meta, source, Short.class, Short.MIN_VALUE, Short.MAX_VALUE);
@@ -88,7 +164,7 @@ public abstract class ColumnConverts {
      */
     public static int convertToInt(final ColumnMeta meta, final Object source) throws JdbdException {
         final int value;
-        if (meta.isUnsigned()) {
+        if (meta.isUnsigned() || meta.isBit()) {
             value = convertToIntUnsignedValue(meta, source, Integer.class, -1);
         } else {
             value = convertToIntValue(meta, source, Integer.class, Integer.MIN_VALUE, Integer.MAX_VALUE);
@@ -103,7 +179,7 @@ public abstract class ColumnConverts {
      */
     public static long convertToLong(final ColumnMeta meta, final Object source) throws JdbdException {
         final long value;
-        if (meta.isUnsigned()) {
+        if (meta.isUnsigned() || meta.isBit()) {
             value = convertToLongUnsignedValue(meta, source, Long.class, -1L);
         } else {
             value = convertToLongValue(meta, source, Long.class, Long.MIN_VALUE, Long.MAX_VALUE);
@@ -272,6 +348,166 @@ public abstract class ColumnConverts {
         return value;
     }
 
+    /**
+     * @throws DateTimeException throw when source is error date time {@link String}
+     * @throws JdbdException     throw when source couldn't convert or overflow.
+     */
+    public static LocalDateTime convertToLocalDateTime(final ColumnMeta meta, final Object source)
+            throws JdbdException {
+
+        final LocalDateTime value;
+        if (source instanceof LocalDateTime) {
+            value = (LocalDateTime) source;
+        } else if (source instanceof String) {
+            value = LocalDateTime.parse((String) source, JdbdTimes.DATETIME_FORMATTER_6);
+        } else if (source instanceof LocalDate) {
+            value = LocalDateTime.of((LocalDate) source, LocalTime.MIDNIGHT);
+        } else {
+            throw JdbdExceptions.cannotConvertColumnValue(meta, source, LocalDateTime.class, null);
+        }
+        return value;
+    }
+
+    /**
+     * @throws DateTimeException throw when source is error date time {@link String}
+     * @throws JdbdException     throw when source couldn't convert or overflow.
+     */
+    public static LocalDate convertToLocalDate(final ColumnMeta meta, final Object source) {
+        final LocalDate value;
+        if (source instanceof LocalDate) {
+            value = (LocalDate) source;
+        } else if (source instanceof String) {
+            value = LocalDate.parse((String) source);
+        } else if (source instanceof LocalDateTime) {
+            value = ((LocalDateTime) source).toLocalDate();
+        } else {
+            throw JdbdExceptions.cannotConvertColumnValue(meta, source, LocalDate.class, null);
+        }
+        return value;
+    }
+
+    /**
+     * @throws DateTimeException throw when source is error date time {@link String}
+     * @throws JdbdException     throw when source couldn't convert or overflow.
+     */
+    public static LocalTime convertToLocalTime(final ColumnMeta meta, final Object source)
+            throws JdbdException {
+
+        final LocalTime value;
+        if (source instanceof LocalTime) {
+            value = (LocalTime) source;
+        } else if (source instanceof String) {
+            value = LocalTime.parse((String) source, JdbdTimes.TIME_FORMATTER_6);
+        } else {
+            throw JdbdExceptions.cannotConvertColumnValue(meta, source, LocalTime.class, null);
+        }
+        return value;
+    }
+
+    /**
+     * @throws DateTimeException throw when source is error date time {@link String}
+     * @throws JdbdException     throw when source couldn't convert or overflow.
+     */
+    public static YearMonth convertToYearMonth(final ColumnMeta meta, final Object source) throws JdbdException {
+        final YearMonth value;
+        if (source instanceof YearMonth) {
+            value = (YearMonth) source;
+        } else if (source instanceof String) {
+            value = YearMonth.parse((String) source);
+        } else if (source instanceof LocalDate || source instanceof LocalDateTime) {
+            value = YearMonth.from((TemporalAccessor) source);
+        } else {
+            throw JdbdExceptions.cannotConvertColumnValue(meta, source, YearMonth.class, null);
+        }
+        return value;
+    }
+
+    /**
+     * @throws DateTimeException throw when source is error date time {@link String}
+     * @throws JdbdException     throw when source couldn't convert or overflow.
+     */
+    public static MonthDay convertToMonthDay(final ColumnMeta meta, final Object source) throws JdbdException {
+        final MonthDay value;
+        if (source instanceof MonthDay) {
+            value = (MonthDay) source;
+        } else if (source instanceof String) {
+            value = MonthDay.parse((String) source);
+        } else if (source instanceof LocalDate || source instanceof LocalDateTime) {
+            value = MonthDay.from((TemporalAccessor) source);
+        } else {
+            throw JdbdExceptions.cannotConvertColumnValue(meta, source, MonthDay.class, null);
+        }
+        return value;
+    }
+
+    /**
+     * @throws DateTimeException throw when source is error date time {@link String}
+     * @throws JdbdException     throw when source couldn't convert or overflow.
+     */
+    public static Month convertToMonth(final ColumnMeta meta, final Object source) throws JdbdException {
+        final Month value;
+        if (source instanceof Month) {
+            value = (Month) source;
+        } else if (source instanceof String) {
+            value = Month.valueOf((String) source);
+        } else if (source instanceof LocalDate
+                || source instanceof LocalDateTime
+                || source instanceof YearMonth
+                || source instanceof MonthDay) {
+            value = Month.from((TemporalAccessor) source);
+        } else {
+            throw JdbdExceptions.cannotConvertColumnValue(meta, source, Month.class, null);
+        }
+        return value;
+    }
+
+    /**
+     * @throws DateTimeException throw when source is error date time {@link String}
+     * @throws JdbdException     throw when source couldn't convert or overflow.
+     */
+    public static DayOfWeek convertToDayOfWeek(final ColumnMeta meta, final Object source) throws JdbdException {
+        final DayOfWeek value;
+        if (source instanceof DayOfWeek) {
+            value = (DayOfWeek) source;
+        } else if (source instanceof String) {
+            value = DayOfWeek.valueOf((String) source);
+        } else if (source instanceof LocalDate
+                || source instanceof LocalDateTime) {
+            value = DayOfWeek.from((TemporalAccessor) source);
+        } else {
+            throw JdbdExceptions.cannotConvertColumnValue(meta, source, DayOfWeek.class, null);
+        }
+        return value;
+    }
+
+    /**
+     * @throws JdbdException throw when source couldn't convert or overflow.
+     */
+    public static BitSet convertToBitSet(final ColumnMeta meta, final Object source) throws JdbdException {
+        final BitSet value;
+        if (source instanceof BitSet) {
+            value = (BitSet) source;
+        } else if (source instanceof String) {
+            if (!(JdbdStrings.isBinaryString((String) source))) {
+                throw JdbdExceptions.cannotConvertColumnValue(meta, source, BitSet.class, null);
+            }
+            value = JdbdStrings.bitStringToBitSet((String) source, true);
+        } else if (source instanceof Long) {
+            value = BitSet.valueOf(new long[]{(Long) source});
+        } else if (source instanceof Integer) {
+            value = BitSet.valueOf(new long[]{((Integer) source) & 0xFFFF_FFFFL});
+        } else if (source instanceof Short) {
+            value = BitSet.valueOf(new long[]{((Short) source) & 0xFFFFL});
+        } else if (source instanceof Byte) {
+            value = BitSet.valueOf(new long[]{((Byte) source) & 0xFFL});
+        } else if (source instanceof BigInteger) {
+            value = JdbdStrings.bitStringToBitSet(((BigInteger) source).toString(2), true);
+        } else {
+            throw JdbdExceptions.cannotConvertColumnValue(meta, source, BitSet.class, null);
+        }
+        return value;
+    }
+
 
     /**
      * @throws NumberFormatException throw when source is error number {@link String}
@@ -302,7 +538,6 @@ public abstract class ColumnConverts {
         } else {
             throw JdbdExceptions.cannotConvertColumnValue(meta, source, targetClass, null);
         }
-
         if (value < minValue || value > maxValue) {
             throw JdbdExceptions.columnValueOverflow(meta, source, targetClass, null);
         }
@@ -351,6 +586,18 @@ public abstract class ColumnConverts {
                 throw JdbdExceptions.columnValueOverflow(meta, source, targetClass, null);
             }
             value = (int) v;
+        } else if (source instanceof BitSet) {
+            final BitSet v = (BitSet) source;
+            if (v.length() > 32) {
+                throw JdbdExceptions.cannotConvertColumnValue(meta, source, targetClass, null);
+            }
+            int bitSet = 0;
+            for (int i = 0; i < 32; i++) {
+                if (v.get(i)) {
+                    bitSet |= (1 << i);
+                }
+            }
+            value = bitSet;
         } else {
             throw JdbdExceptions.cannotConvertColumnValue(meta, source, targetClass, null);
         }
@@ -421,12 +668,74 @@ public abstract class ColumnConverts {
             value = Long.parseUnsignedLong(source.toString());
         } else if (source instanceof BigDecimal) {
             value = Long.parseUnsignedLong(((BigDecimal) source).stripTrailingZeros().toPlainString());
+        } else if (source instanceof BitSet) {
+            final BitSet v = (BitSet) source;
+            if (v.length() > 64) {
+                throw JdbdExceptions.cannotConvertColumnValue(meta, source, targetClass, null);
+            }
+            long bitSet = 0;
+            for (int i = 0; i < 64; i++) {
+                if (v.get(i)) {
+                    bitSet |= (1L << i);
+                }
+            }
+            value = bitSet;
         } else {
             throw JdbdExceptions.cannotConvertColumnValue(meta, source, targetClass, null);
         }
 
         if (maxValue != -1L && (value & (~maxValue)) != 0) {
             throw JdbdExceptions.columnValueOverflow(meta, source, targetClass, null);
+        }
+        return value;
+    }
+
+
+    public static OffsetDateTime convertToOffsetDateTime(final ColumnMeta meta, final Object source,
+                                                         final @Nullable ZoneOffset serverZone) {
+        final OffsetDateTime value;
+        if (source instanceof OffsetDateTime) {
+            value = (OffsetDateTime) source;
+        } else if (source instanceof ZonedDateTime) {
+            value = ((ZonedDateTime) source).toOffsetDateTime();
+        } else if (source instanceof String) {
+            value = OffsetDateTime.parse((String) source, JdbdTimes.OFFSET_DATETIME_FORMATTER_6);
+        } else if (source instanceof LocalDateTime && serverZone != null) {
+            value = OffsetDateTime.of((LocalDateTime) source, serverZone);
+        } else {
+            throw JdbdExceptions.cannotConvertColumnValue(meta, source, OffsetDateTime.class, null);
+        }
+        return value;
+    }
+
+    public static ZonedDateTime convertToZonedDateTime(final ColumnMeta meta, final Object source,
+                                                       final @Nullable ZoneOffset serverZone) {
+        final ZonedDateTime value;
+        if (source instanceof ZonedDateTime) {
+            value = (ZonedDateTime) source;
+        } else if (source instanceof OffsetDateTime) {
+            value = ((OffsetDateTime) source).toZonedDateTime();
+        } else if (source instanceof String) {
+            value = ZonedDateTime.parse((String) source, JdbdTimes.OFFSET_DATETIME_FORMATTER_6);
+        } else if (source instanceof LocalDateTime && serverZone != null) {
+            value = ZonedDateTime.of((LocalDateTime) source, serverZone);
+        } else {
+            throw JdbdExceptions.cannotConvertColumnValue(meta, source, ZonedDateTime.class, null);
+        }
+        return value;
+    }
+
+    public static OffsetTime convertToOffsetTime(final ColumnMeta meta, final Object source,
+                                                 final @Nullable ZoneOffset serverZone) {
+        final OffsetTime value;
+        if (source instanceof OffsetTime) {
+            value = (OffsetTime) source;
+        } else if (source instanceof String) {
+            value = OffsetTime.parse((String) source, JdbdTimes.OFFSET_TIME_FORMATTER_6);
+        } else if (source instanceof LocalTime && serverZone != null) {
+            value = OffsetTime.of((LocalTime) source, serverZone);
+        } else {
+            throw JdbdExceptions.cannotConvertColumnValue(meta, source, OffsetTime.class, null);
         }
         return value;
     }

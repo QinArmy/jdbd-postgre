@@ -378,6 +378,12 @@ public abstract class JdbdExceptions {
         return e;
     }
 
+
+    public static NullPointerException columnIsNull(ColumnMeta meta) {
+        String m = String.format("column[index:%s,label:%s] is null", meta.getColumnIndex(), meta.getColumnLabel());
+        return new NullPointerException(m);
+    }
+
     public static JdbdException beyondMessageLength(int batchIndex, ParamValue bindValue) {
         String m;
         if (batchIndex < 0) {

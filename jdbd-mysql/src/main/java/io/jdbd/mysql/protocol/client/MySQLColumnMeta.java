@@ -463,6 +463,7 @@ final class MySQLColumnMeta implements ColumnMeta {
     }
 
 
+    @SuppressWarnings("deprecation")
     private static MySQLType parseSqlType(final MySQLColumnMeta columnMeta, final FixedEnv env) {
         final MySQLType type;
         switch (columnMeta.typeFlag) {
@@ -510,10 +511,9 @@ final class MySQLColumnMeta implements ColumnMeta {
             case Constants.TYPE_STRING:
                 type = fromString(columnMeta);
                 break;
-            case Constants.TYPE_SHORT: {
+            case Constants.TYPE_SHORT:
                 type = columnMeta.isUnsigned() ? MySQLType.SMALLINT_UNSIGNED : MySQLType.SMALLINT;
-            }
-            break;
+                break;
             case Constants.TYPE_BIT:
                 type = MySQLType.BIT;
                 break;
@@ -536,19 +536,19 @@ final class MySQLColumnMeta implements ColumnMeta {
                 type = columnMeta.isUnsigned() ? MySQLType.DOUBLE_UNSIGNED : MySQLType.DOUBLE;
                 break;
             case Constants.TYPE_TINY_BLOB: {
-                type = fromTinyBlob(columnMeta, properties);
+                type = fromTinyBlob(columnMeta, env);
             }
             break;
             case Constants.TYPE_MEDIUM_BLOB: {
-                type = fromMediumBlob(columnMeta, properties);
+                type = fromMediumBlob(columnMeta, env);
             }
             break;
             case Constants.TYPE_LONG_BLOB: {
-                type = fromLongBlob(columnMeta, properties);
+                type = fromLongBlob(columnMeta, env);
             }
             break;
             case Constants.TYPE_BLOB:
-                type = fromBlob(columnMeta, properties);
+                type = fromBlob(columnMeta, env);
                 break;
             case Constants.TYPE_BOOL:
                 type = MySQLType.BOOLEAN;

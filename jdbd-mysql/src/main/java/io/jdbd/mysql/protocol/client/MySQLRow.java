@@ -1,6 +1,7 @@
 package io.jdbd.mysql.protocol.client;
 
 import io.jdbd.JdbdException;
+import io.jdbd.mysql.util.MySQLExceptions;
 import io.jdbd.result.CurrentRow;
 import io.jdbd.result.ResultRow;
 import io.jdbd.result.ResultRowMeta;
@@ -14,9 +15,6 @@ import java.util.function.BiFunction;
 import java.util.function.IntFunction;
 
 abstract class MySQLRow extends VendorRow {
-
-
-
 
     final MySQLRowMeta rowMeta;
 
@@ -56,13 +54,32 @@ abstract class MySQLRow extends VendorRow {
     }
 
     @Override
-    public final <T> T get(int indexBasedZero, Class<T> columnClass) throws JdbdException {
+    public final <T> T get(final int indexBasedZero, final Class<T> columnClass) throws JdbdException {
+        final MySQLRowMeta rowMeta;
+        rowMeta = this.rowMeta;
+
+        final Object source;
+        source = this.columnArray[rowMeta.checkIndex(indexBasedZero)];
+
+        if (columnClass.isInstance(source)) {
+            return (T) source;
+        }
+
+        final MySQLColumnMeta meta;
+        meta = rowMeta.columnMetaArray[indexBasedZero];
+
+
         return null;
     }
 
     @Override
-    public Object getNonNull(int indexBasedZero) throws NullPointerException, JdbdException {
-        return null;
+    public final Object getNonNull(final int indexBasedZero) throws NullPointerException, JdbdException {
+        final Object value;
+        value = this.columnArray[this.rowMeta.checkIndex(indexBasedZero)];
+        if (value == null) {
+            throw MySQLExceptions.columnIsNull(this.rowMeta.columnMetaArray[indexBasedZero]);
+        }
+        return value;
     }
 
     @Override

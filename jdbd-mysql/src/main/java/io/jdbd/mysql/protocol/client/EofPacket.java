@@ -9,14 +9,12 @@ public final class EofPacket extends TerminatorPacket {
     public static EofPacket read(ByteBuf payloadBuffer, final int capabilities) {
         if (Packets.readInt1AsInt(payloadBuffer) != EOF_HEADER) {
             throw new IllegalArgumentException("packetBuf isn't error packet.");
-        }
-        int statusFags, warnings;
-        if ((capabilities & Capabilities.CLIENT_PROTOCOL_41) != 0) {
-            statusFags = Packets.readInt2AsInt(payloadBuffer);
-            warnings = Packets.readInt2AsInt(payloadBuffer);
-        } else {
+        } else if ((capabilities & Capabilities.CLIENT_PROTOCOL_41) == 0) {
             throw new IllegalArgumentException("only supported CLIENT_PROTOCOL_41.");
         }
+        final int statusFags, warnings;
+        statusFags = Packets.readInt2AsInt(payloadBuffer);
+        warnings = Packets.readInt2AsInt(payloadBuffer);
         return new EofPacket(statusFags, warnings);
     }
 
