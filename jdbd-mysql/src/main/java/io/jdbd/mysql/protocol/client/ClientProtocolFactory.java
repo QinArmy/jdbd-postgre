@@ -37,7 +37,7 @@ import java.sql.SQLException;
 import java.time.ZoneOffset;
 import java.util.*;
 
-public final class ClientProtocolFactory implements MySQLProtocolFactory {
+public final class ClientProtocolFactory extends FixedEnv implements MySQLProtocolFactory {
 
     final MySQLHostEnv hostEnv;
 
@@ -50,6 +50,7 @@ public final class ClientProtocolFactory implements MySQLProtocolFactory {
     final int maxAllowedPayload;
 
     private ClientProtocolFactory(final MySQLHostEnv hostEnv) {
+        super(hostEnv);
         this.hostEnv = hostEnv;
         final ConnectionProvider connectionProvider;
         connectionProvider = hostEnv.get(MySQLKey.SOCKET_FACTORY);

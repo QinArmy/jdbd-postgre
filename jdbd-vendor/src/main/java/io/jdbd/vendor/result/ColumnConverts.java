@@ -1,11 +1,13 @@
 package io.jdbd.vendor.result;
 
 import io.jdbd.JdbdException;
-import io.jdbd.vendor.util.JdbdExceptions;
-import io.jdbd.vendor.util.JdbdNumbers;
+import io.jdbd.vendor.util.*;
 
 import java.math.BigDecimal;
 import java.math.BigInteger;
+import java.time.*;
+import java.time.temporal.TemporalAccessor;
+import java.util.BitSet;
 
 public abstract class ColumnConverts {
 
@@ -105,6 +107,167 @@ public abstract class ColumnConverts {
             value = convertToLongUnsignedValue(meta, source, Long.class, -1L);
         } else {
             value = convertToLongValue(meta, source, Long.class, Long.MIN_VALUE, Long.MAX_VALUE);
+        }
+        return value;
+    }
+
+    public static float convertToFloat(final ColumnMeta meta, final Object source) throws JdbdException {
+        final float value;
+        if (source instanceof Float) {
+            value = (Float) source;
+        } else if (source instanceof Short || source instanceof Byte) {
+            value = ((Number) source).floatValue();
+        } else if (source instanceof String) {
+            value = Float.parseFloat((String) source);
+        } else if (source instanceof Boolean) {
+            value = ((Boolean) source) ? 1.0F : 0.0F;
+        } else {
+            throw JdbdExceptions.cannotConvertColumnValue(meta, source, Float.class, null);
+        }
+        if (value < 0.0f && meta.isUnsigned()) {
+            throw JdbdExceptions.columnValueOverflow(meta, source, Float.class, null);
+        }
+        return value;
+    }
+
+    public static double convertToDouble(final ColumnMeta meta, final Object source) throws JdbdException {
+        final double value;
+        if (source instanceof Double) {
+            value = (Double) source;
+        } else if (source instanceof Integer
+                || source instanceof Short
+                || source instanceof Byte
+                || source instanceof Float) {
+            value = ((Number) source).doubleValue();
+        } else if (source instanceof String) {
+            value = Double.parseDouble((String) source);
+        } else if (source instanceof Boolean) {
+            value = ((Boolean) source) ? 1.0 : 0.0;
+        } else {
+            throw JdbdExceptions.cannotConvertColumnValue(meta, source, Double.class, null);
+        }
+        if (value < 0.0 && meta.isUnsigned()) {
+            throw JdbdExceptions.columnValueOverflow(meta, source, Double.class, null);
+        }
+        return value;
+    }
+
+    /**
+     * @throws NumberFormatException throw when source is error number {@link String}
+     * @throws ArithmeticException   throw when source overflow to target
+     * @throws JdbdException         throw when source couldn't convert or overflow.
+     */
+    public static BigInteger convertToBigInteger(final ColumnMeta meta, final Object source) throws JdbdException {
+        final BigInteger value;
+
+        if (source instanceof BigInteger) {
+            value = (BigInteger) source;
+        } else if (source instanceof String) {
+            value = new BigInteger((String) source);
+        } else if (source instanceof Long
+                || source instanceof Integer
+                || source instanceof Short
+                || source instanceof Byte) {
+            value = BigInteger.valueOf(((Number) source).longValue());
+        } else if (source instanceof Boolean) {
+            final boolean v = (Boolean) source;
+            value = (v ? BigInteger.ONE : BigInteger.ZERO);
+        } else if (source instanceof BigDecimal) {
+            value = ((BigDecimal) source).toBigIntegerExact();
+        } else {
+            throw JdbdExceptions.cannotConvertColumnValue(meta, source, BigInteger.class, null);
+        }
+
+        if (meta.isUnsigned() && value.compareTo(BigInteger.ZERO) < 0) {
+            throw JdbdExceptions.columnValueOverflow(meta, source, BigInteger.class, null);
+        }
+        return value;
+    }
+
+    /**
+     * @throws NumberFormatException throw when source is error number {@link String}
+     * @throws ArithmeticException   throw when source overflow to target
+     * @throws JdbdException         throw when source couldn't convert or overflow.
+     */
+    public static BigDecimal convertToBigDecimal(final ColumnMeta meta, final Object source) throws JdbdException {
+        final BigDecimal value;
+
+        if (source instanceof BigDecimal) {
+            value = (BigDecimal) source;
+        } else if (source instanceof String) {
+            value = new BigDecimal((String) source);
+        } else if (source instanceof Long
+                || source instanceof Integer
+                || source instanceof Short
+                || source instanceof Byte) {
+            value = BigDecimal.valueOf(((Number) source).longValue());
+        } else if (source instanceof Boolean) {
+            final boolean v = (Boolean) source;
+            value = (v ? BigDecimal.ONE : BigDecimal.ZERO);
+        } else if (source instanceof Double || source instanceof Float) {
+            value = new BigDecimal(source.toString());
+        } else if (source instanceof BigInteger) {
+            value = new BigDecimal((BigInteger) source);
+        } else {
+            throw JdbdExceptions.cannotConvertColumnValue(meta, source, BigDecimal.class, null);
+        }
+
+        if (meta.isUnsigned() && value.compareTo(BigDecimal.ZERO) < 0) {
+            throw JdbdExceptions.columnValueOverflow(meta, source, BigDecimal.class, null);
+        }
+        return value;
+    }
+
+
+    /**
+     * @throws NumberFormatException throw when source is error number {@link String}
+     * @throws ArithmeticException   throw when source overflow to target
+     * @throws JdbdException         throw when source couldn't convert or overflow.
+     */
+    public static String convertToString(final ColumnMeta meta, final Object source) throws JdbdException {
+        final String value;
+        if (source instanceof String) {
+            value = (String) source;
+        } else if (source instanceof BigDecimal) {
+            value = ((BigDecimal) source).toPlainString();
+        } else if (source instanceof Number) {
+            if (!meta.isBit()) {
+                value = source.toString();
+            } else if (source instanceof Integer) {
+                value = Integer.toBinaryString((Integer) source);
+            } else if (source instanceof Long) {
+                value = Long.toBinaryString((Long) source);
+            } else if (source instanceof BigInteger) {
+                value = ((BigInteger) source).toString(2);
+            } else if (source instanceof Short) {
+                value = Integer.toBinaryString(((Short) source) & 0xFF_FF);
+            } else if (source instanceof Byte) {
+                value = Integer.toBinaryString(((Byte) source) & 0xFF);
+            } else {
+                throw JdbdExceptions.cannotConvertColumnValue(meta, source, String.class, null);
+            }
+        } else if (source instanceof TemporalAccessor) {
+            if (source instanceof LocalDateTime) {
+                value = JdbdTimes.DATETIME_FORMATTER_6.format((LocalDateTime) source);
+            } else if (source instanceof OffsetDateTime || source instanceof ZonedDateTime) {
+                value = JdbdTimes.OFFSET_DATETIME_FORMATTER_6.format((TemporalAccessor) source);
+            } else if (source instanceof LocalDate
+                    || source instanceof YearMonth
+                    || source instanceof MonthDay) {
+                value = source.toString();
+            } else if (source instanceof LocalTime) {
+                value = JdbdTimes.TIME_FORMATTER_6.format((LocalTime) source);
+            } else if (source instanceof OffsetTime) {
+                value = JdbdTimes.OFFSET_TIME_FORMATTER_6.format((OffsetTime) source);
+            } else {
+                throw JdbdExceptions.cannotConvertColumnValue(meta, source, String.class, null);
+            }
+        } else if (source instanceof byte[]) {
+            value = JdbdBuffers.hexEscapesText(false, (byte[]) source, ((byte[]) source).length);
+        } else if (source instanceof BitSet) {
+            value = JdbdStrings.bitSetToBitString((BitSet) source, true);
+        } else {
+            throw JdbdExceptions.cannotConvertColumnValue(meta, source, String.class, null);
         }
         return value;
     }

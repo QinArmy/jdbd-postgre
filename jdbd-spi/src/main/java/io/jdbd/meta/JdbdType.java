@@ -166,20 +166,6 @@ public enum JdbdType implements DataType {
     INTERVAL,
 
     /**
-     * Indicates that the SQL type
-     * is database-specific and gets mapped to a Java object that can be
-     * accessed via the methods getObject and setObject.
-     */
-    JAVA_OBJECT,
-    /**
-     * Identifies the generic SQL type {@code DISTINCT}.
-     */
-    DISTINCT,
-    /**
-     * Identifies the generic SQL type {@code STRUCT}.
-     */
-    STRUCT,
-    /**
      * Identifies the generic SQL type {@code ARRAY}.
      */
     ARRAY,

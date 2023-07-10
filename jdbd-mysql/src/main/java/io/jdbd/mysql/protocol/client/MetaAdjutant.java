@@ -1,8 +1,8 @@
 package io.jdbd.mysql.protocol.client;
 
-public interface MetaAdjutant {
+ interface MetaAdjutant {
 
-    TaskAdjutant adjutant();
+     TaskAdjutant adjutant();
 
-    void updateSequenceId(int sequenceId);
-}
+     void updateSequenceId(int sequenceId);
+ }

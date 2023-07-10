@@ -2,7 +2,6 @@ package io.jdbd.vendor.result;
 
 import io.jdbd.meta.DataType;
 
-import java.nio.charset.Charset;
 
 public interface ColumnMeta {
 
@@ -12,11 +11,9 @@ public interface ColumnMeta {
 
      String getColumnLabel();
 
-     Class<?> getOutputJavaType();
-
-     Charset getColumnCharset();
-
      boolean isUnsigned();
+
+     boolean isBit();
 
 
 }

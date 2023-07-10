@@ -4,7 +4,6 @@ import io.jdbd.meta.DataType;
 import io.jdbd.meta.NullMode;
 import io.jdbd.mysql.MySQLType;
 import io.jdbd.mysql.protocol.Constants;
-import io.jdbd.mysql.protocol.conf.MyKey;
 import io.jdbd.mysql.util.MySQLStrings;
 import io.jdbd.result.FieldType;
 import io.jdbd.vendor.env.Properties;
@@ -13,12 +12,10 @@ import io.netty.buffer.ByteBuf;
 import io.qinarmy.util.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import reactor.util.annotation.Nullable;
 
 import java.nio.charset.Charset;
 import java.util.Arrays;
 import java.util.Map;
-import java.util.Objects;
 
 /**
  * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/group__group__cs__column__definition__flags.html"> Column Definition Flags</a>
@@ -56,7 +53,7 @@ final class MySQLColumnMeta implements ColumnMeta {
 
     final String tableName;
 
-    final String tableAlias;
+    final String tableLabel;
 
     final String columnName;
 
@@ -80,39 +77,61 @@ final class MySQLColumnMeta implements ColumnMeta {
 
     final MySQLType sqlType;
 
-    private MySQLColumnMeta(
-            @Nullable String catalogName, @Nullable String schemaName
-            , @Nullable String tableName, @Nullable String tableAlias
-            , @Nullable String columnName, String columnLabel
-            , int collationIndex, Charset columnCharset
-            , long fixedLength, long length
-            , int typeFlag, int definitionFlags
-            , short decimals, Properties properties) {
 
-        this.catalogName = catalogName;
-        this.schemaName = schemaName;
-        this.tableName = tableName;
-        this.tableAlias = tableAlias;
+    /**
+     * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_com_query_response_text_resultset_column_definition.html">Protocol::ColumnDefinition41</a>
+     */
+    private MySQLColumnMeta(final ByteBuf cumulateBuffer, final Charset metaCharset,
+                            final Map<Integer, Charsets.CustomCollation> customCollationMap, final FixedEnv env) {
 
-        this.columnName = columnName;
+        // 1. catalog
+        this.catalogName = Packets.readStringLenEnc(cumulateBuffer, metaCharset);
+        // 2. schema
+        this.schemaName = Packets.readStringLenEnc(cumulateBuffer, metaCharset);
+        // 3. table,virtual table name
+        this.tableLabel = Packets.readStringLenEnc(cumulateBuffer, metaCharset);
+        // 4. org_table,physical table name
+        this.tableName = Packets.readStringLenEnc(cumulateBuffer, metaCharset);
+
+        // 5. name ,virtual column name,alias in select statement
+        final String columnLabel;
+        columnLabel = Packets.readStringLenEnc(cumulateBuffer, metaCharset);
+        if (columnLabel == null) {
+            throw new NullPointerException("columnLabel is null, MySQL protocol error");
+        }
         this.columnLabel = columnLabel;
-        this.collationIndex = collationIndex;
-        this.columnCharset = columnCharset;
+        // 6. org_name,physical column name
+        this.columnName = Packets.readStringLenEnc(cumulateBuffer, metaCharset);
+        // 7. length of fixed length fields ,[0x0c]
+        //
+        this.fixedLength = Packets.readLenEnc(cumulateBuffer);
+        // 8. character_set of column
+        this.collationIndex = Packets.readInt2AsInt(cumulateBuffer);
+        this.columnCharset = Charsets.getJavaCharsetByCollationIndex(this.collationIndex, customCollationMap);
+        // 9. column_length,maximum length of the field
+        this.length = Packets.readInt4AsLong(cumulateBuffer);
+        // 10. type,type of the column as defined in enum_field_types,type of the column as defined in enum_field_types
+        this.typeFlag = Packets.readInt1AsInt(cumulateBuffer);
+        // 11. flags,Flags as defined in Column Definition Flags
+        this.definitionFlags = Packets.readInt2AsInt(cumulateBuffer);
+        // 12. decimals,max shown decimal digits:
+        //0x00 for integers and static strings
+        //0x1f for dynamic strings, double, float
+        //0x00 to 0x51 for decimals
+        this.decimals = (short) Packets.readInt1AsInt(cumulateBuffer);
 
-        this.fixedLength = fixedLength;
-        this.length = length;
-        this.typeFlag = typeFlag;
-        this.definitionFlags = definitionFlags;
-
-        this.decimals = decimals;
         this.fieldType = parseFieldType(this);
-        // mysqlType must be last
-        this.sqlType = from(this, properties);
+        this.sqlType = parseSqlType(this, env);
     }
 
     @Override
     public int getColumnIndex() {
         return 0;
+    }
+
+    @Override
+    public boolean isBit() {
+        return false;
     }
 
     @Override
@@ -188,11 +207,6 @@ final class MySQLColumnMeta implements ColumnMeta {
         return this.columnLabel;
     }
 
-    @Override
-    public Class<?> getOutputJavaType() {
-        return this.sqlType.outputJavaType();
-    }
-
     public int getScale() {
         final int scale;
         switch (sqlType) {
@@ -206,10 +220,6 @@ final class MySQLColumnMeta implements ColumnMeta {
         return scale;
     }
 
-    @Override
-    public Charset getColumnCharset() {
-        return this.columnCharset;
-    }
 
     final boolean isEnum() {
         return (this.definitionFlags & ENUM_FLAG) != 0;
@@ -261,7 +271,7 @@ final class MySQLColumnMeta implements ColumnMeta {
         sb.append("\ncatalogName='").append(catalogName).append('\'')
                 .append(",\n schemaName='").append(schemaName).append('\'')
                 .append(",\n tableName='").append(tableName).append('\'')
-                .append(",\n tableAlias='").append(tableAlias).append('\'')
+                .append(",\n tableAlias='").append(tableLabel).append('\'')
                 .append(",\n columnName='").append(columnName).append('\'')
                 .append(",\n columnAlias='").append(columnLabel).append('\'')
                 .append(",\n collationIndex=").append(collationIndex)
@@ -400,8 +410,43 @@ final class MySQLColumnMeta implements ColumnMeta {
     }
 
 
+    static MySQLColumnMeta[] readMetas(final ByteBuf cumulateBuffer, final int columnCount, final MetaAdjutant metaAdjutant) {
 
-    private FieldType parseFieldType(MySQLColumnMeta columnMeta) {
+        final MySQLColumnMeta[] metaArray = columnCount == 0 ? EMPTY : new MySQLColumnMeta[columnCount];
+
+        final TaskAdjutant adjutant = metaAdjutant.adjutant();
+        final Charset metaCharset = adjutant.obtainCharsetMeta();
+        final FixedEnv env = adjutant.getFactory();
+        final Map<Integer, Charsets.CustomCollation> customCollationMap = adjutant.obtainCustomCollationMap();
+
+        final boolean debug = LOG.isDebugEnabled();
+        int sequenceId = -1;
+        for (int i = 0, payloadLength, payloadIndex; i < columnCount; i++) {
+            payloadLength = Packets.readInt3(cumulateBuffer);
+            sequenceId = Packets.readInt1AsInt(cumulateBuffer);
+
+            payloadIndex = cumulateBuffer.readerIndex();
+
+            metaArray[i] = new MySQLColumnMeta(cumulateBuffer, metaCharset, customCollationMap, env);
+            if (debug) {
+                LOG.debug("column[{}] {}", i, metaArray[i]);
+            }
+            cumulateBuffer.readerIndex(payloadIndex + payloadLength); //avoid tail filler
+        }
+        final int capability = adjutant.capability();
+        if ((capability & Capabilities.CLIENT_DEPRECATE_EOF) == 0) {
+            final int payloadLength = Packets.readInt3(cumulateBuffer);
+            sequenceId = Packets.readInt1AsInt(cumulateBuffer);
+            EofPacket.read(cumulateBuffer.readSlice(payloadLength), capability); // skip eof packet.
+        }
+        if (sequenceId > -1) {
+            metaAdjutant.updateSequenceId(sequenceId);
+        }
+        return metaArray;
+    }
+
+
+    private static FieldType parseFieldType(MySQLColumnMeta columnMeta) {
         final String tableName = columnMeta.tableName;
         final FieldType fieldType;
         if (MySQLStrings.hasText(tableName)) {
@@ -418,202 +463,118 @@ final class MySQLColumnMeta implements ColumnMeta {
     }
 
 
-    private MySQLType from(MySQLColumnMeta columnMeta, Properties properties) {
-        final MySQLType mySQLType;
+    private static MySQLType parseSqlType(final MySQLColumnMeta columnMeta, final FixedEnv env) {
+        final MySQLType type;
         switch (columnMeta.typeFlag) {
             case Constants.TYPE_DECIMAL:
             case Constants.TYPE_NEWDECIMAL:
-                mySQLType = columnMeta.isUnsigned() ? MySQLType.DECIMAL_UNSIGNED : MySQLType.DECIMAL;
+                type = columnMeta.isUnsigned() ? MySQLType.DECIMAL_UNSIGNED : MySQLType.DECIMAL;
                 break;
             case Constants.TYPE_TINY: {
                 final boolean unsigned = columnMeta.isUnsigned();
-                if (columnMeta.length == 1 && unsigned
-                        && properties.getOrDefault(MyKey.transformedBitIsBoolean, Boolean.class)) {
-                    mySQLType = MySQLType.BOOLEAN;
+                if (columnMeta.length == 1 && unsigned && env.transformedBitIsBoolean) {
+                    type = MySQLType.BOOLEAN;
                 } else {
-                    mySQLType = unsigned ? MySQLType.TINYINT_UNSIGNED : MySQLType.TINYINT;
+                    type = unsigned ? MySQLType.TINYINT_UNSIGNED : MySQLType.TINYINT;
                 }
             }
             break;
             case Constants.TYPE_LONG:
-                mySQLType = columnMeta.isUnsigned() ? MySQLType.INT_UNSIGNED : MySQLType.INT;
+                type = columnMeta.isUnsigned() ? MySQLType.INT_UNSIGNED : MySQLType.INT;
                 break;
             case Constants.TYPE_LONGLONG:
-                mySQLType = columnMeta.isUnsigned() ? MySQLType.BIGINT_UNSIGNED : MySQLType.BIGINT;
+                type = columnMeta.isUnsigned() ? MySQLType.BIGINT_UNSIGNED : MySQLType.BIGINT;
                 break;
             case Constants.TYPE_TIMESTAMP:
-                mySQLType = MySQLType.TIMESTAMP;
+                type = MySQLType.TIMESTAMP;
                 break;
             case Constants.TYPE_INT24:
-                mySQLType = columnMeta.isUnsigned() ? MySQLType.MEDIUMINT_UNSIGNED : MySQLType.MEDIUMINT;
+                type = columnMeta.isUnsigned() ? MySQLType.MEDIUMINT_UNSIGNED : MySQLType.MEDIUMINT;
                 break;
             case Constants.TYPE_DATE:
-                mySQLType = MySQLType.DATE;
+                type = MySQLType.DATE;
                 break;
             case Constants.TYPE_TIME:
-                mySQLType = MySQLType.TIME;
+                type = MySQLType.TIME;
                 break;
             case Constants.TYPE_DATETIME:
-                mySQLType = MySQLType.DATETIME;
+                type = MySQLType.DATETIME;
                 break;
             case Constants.TYPE_YEAR:
-                mySQLType = MySQLType.YEAR;
+                type = MySQLType.YEAR;
                 break;
             case Constants.TYPE_VARCHAR:
             case Constants.TYPE_VAR_STRING:
-                mySQLType = fromVarcharOrVarString(columnMeta, properties);
+                type = fromVarcharOrVarString(columnMeta, env);
                 break;
             case Constants.TYPE_STRING:
-                mySQLType = fromString(columnMeta);
+                type = fromString(columnMeta);
                 break;
             case Constants.TYPE_SHORT: {
-                mySQLType = columnMeta.isUnsigned() ? MySQLType.SMALLINT_UNSIGNED : MySQLType.SMALLINT;
+                type = columnMeta.isUnsigned() ? MySQLType.SMALLINT_UNSIGNED : MySQLType.SMALLINT;
             }
             break;
             case Constants.TYPE_BIT:
-                mySQLType = MySQLType.BIT;
+                type = MySQLType.BIT;
                 break;
             case Constants.TYPE_JSON:
-                mySQLType = MySQLType.JSON;
+                type = MySQLType.JSON;
                 break;
             case Constants.TYPE_ENUM:
-                mySQLType = MySQLType.ENUM;
+                type = MySQLType.ENUM;
                 break;
             case Constants.TYPE_SET:
-                mySQLType = MySQLType.SET;
+                type = MySQLType.SET;
                 break;
             case Constants.TYPE_NULL:
-                mySQLType = MySQLType.NULL;
+                type = MySQLType.NULL;
                 break;
             case Constants.TYPE_FLOAT:
-                mySQLType = columnMeta.isUnsigned() ? MySQLType.FLOAT_UNSIGNED : MySQLType.FLOAT;
+                type = columnMeta.isUnsigned() ? MySQLType.FLOAT_UNSIGNED : MySQLType.FLOAT;
                 break;
             case Constants.TYPE_DOUBLE:
-                mySQLType = columnMeta.isUnsigned() ? MySQLType.DOUBLE_UNSIGNED : MySQLType.DOUBLE;
+                type = columnMeta.isUnsigned() ? MySQLType.DOUBLE_UNSIGNED : MySQLType.DOUBLE;
                 break;
             case Constants.TYPE_TINY_BLOB: {
-                mySQLType = fromTinyBlob(columnMeta, properties);
+                type = fromTinyBlob(columnMeta, properties);
             }
             break;
             case Constants.TYPE_MEDIUM_BLOB: {
-                mySQLType = fromMediumBlob(columnMeta, properties);
+                type = fromMediumBlob(columnMeta, properties);
             }
             break;
             case Constants.TYPE_LONG_BLOB: {
-                mySQLType = fromLongBlob(columnMeta, properties);
+                type = fromLongBlob(columnMeta, properties);
             }
             break;
             case Constants.TYPE_BLOB:
-                mySQLType = fromBlob(columnMeta, properties);
+                type = fromBlob(columnMeta, properties);
                 break;
             case Constants.TYPE_BOOL:
-                mySQLType = MySQLType.BOOLEAN;
+                type = MySQLType.BOOLEAN;
                 break;
             case Constants.TYPE_GEOMETRY:
-                mySQLType = MySQLType.GEOMETRY;
+                type = MySQLType.GEOMETRY;
                 break;
             default:
-                mySQLType = MySQLType.UNKNOWN;
+                type = MySQLType.UNKNOWN;
         }
-        return mySQLType;
+        return type;
     }
 
 
-    static MySQLColumnMeta[] readMetas(final ByteBuf cumulateBuffer, final int columnCount
-            , final MetaAdjutant metaAdjutant) {
-
-        final MySQLColumnMeta[] metaArray = columnCount == 0 ? EMPTY : new MySQLColumnMeta[columnCount];
-
-        final TaskAdjutant adjutant = metaAdjutant.adjutant();
-        final boolean debug = LOG.isDebugEnabled();
-        int sequenceId = -1;
-        for (int i = 0, payloadLength, payloadIndex; i < columnCount; i++) {
-            payloadLength = Packets.readInt3(cumulateBuffer);
-            sequenceId = Packets.readInt1AsInt(cumulateBuffer);
-
-            payloadIndex = cumulateBuffer.readerIndex();
-            metaArray[i] = readFor41(cumulateBuffer, adjutant);
-            if (debug) {
-                LOG.debug("column[{}] {}", i, metaArray[i]);
-            }
-            cumulateBuffer.readerIndex(payloadIndex + payloadLength); //avoid tail filler
-        }
-        final int negotiatedCapability = adjutant.capability();
-        if ((negotiatedCapability & Capabilities.CLIENT_DEPRECATE_EOF) == 0) {
-            final int payloadLength = Packets.readInt3(cumulateBuffer);
-            sequenceId = Packets.readInt1AsInt(cumulateBuffer);
-            EofPacket.read(cumulateBuffer.readSlice(payloadLength), negotiatedCapability); // skip eof packet.
-        }
-        if (sequenceId > -1) {
-            metaAdjutant.updateSequenceId(sequenceId);
-        }
-        return metaArray;
-    }
-
-    /**
-     * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_com_query_response_text_resultset_column_definition.html">Protocol::ColumnDefinition41</a>
-     */
-    private static MySQLColumnMeta readFor41(final ByteBuf cumulateBuffer, final TaskAdjutant adjutant) {
-        final Charset metaCharset = adjutant.obtainCharsetMeta();
-        final Properties properties = adjutant.host().getProperties();
-        // 1. catalog
-        final String catalogName = Packets.readStringLenEnc(cumulateBuffer, metaCharset);
-        // 2. schema
-        final String schemaName = Packets.readStringLenEnc(cumulateBuffer, metaCharset);
-        // 3. table,virtual table name
-        final String tableAlias = Packets.readStringLenEnc(cumulateBuffer, metaCharset);
-        // 4. org_table,physical table name
-        final String tableName = Packets.readStringLenEnc(cumulateBuffer, metaCharset);
-
-        // 5. name ,virtual column name,alias in select statement
-        final String columnLabel = Objects.requireNonNull(Packets.readStringLenEnc(cumulateBuffer, metaCharset)
-                , "columnLabel");
-        // 6. org_name,physical column name
-        final String columnName = Packets.readStringLenEnc(cumulateBuffer, metaCharset);
-        // 7. length of fixed length fields ,[0x0c]
-        //
-        final long fixLength = Packets.readLenEnc(cumulateBuffer);
-        // 8. character_set of column
-        final int collationIndex = Packets.readInt2AsInt(cumulateBuffer);
-        Charset columnCharset = Charsets.getJavaCharsetByCollationIndex(collationIndex
-                , adjutant.obtainCustomCollationMap());
-        // 9. column_length,maximum length of the field
-        final long length = Packets.readInt4AsLong(cumulateBuffer);
-        // 10. type,type of the column as defined in enum_field_types,type of the column as defined in enum_field_types
-        final int typeFlag = Packets.readInt1AsInt(cumulateBuffer);
-        // 11. flags,Flags as defined in Column Definition Flags
-        final int definitionFlags = Packets.readInt2AsInt(cumulateBuffer);
-        // 12. decimals,max shown decimal digits:
-        //0x00 for integers and static strings
-        //0x1f for dynamic strings, double, float
-        //0x00 to 0x51 for decimals
-        final short decimals = (short) Packets.readInt1AsInt(cumulateBuffer);
-
-        return new MySQLColumnMeta(
-                catalogName, schemaName
-                , tableName, tableAlias
-                , columnName, columnLabel
-                , collationIndex, columnCharset
-                , fixLength, length
-                , typeFlag, definitionFlags
-                , decimals, properties
-        );
-    }
-
-
-    private static MySQLType fromVarcharOrVarString(MySQLColumnMeta columnMeta, Properties properties) {
-        final MySQLType mySQLType;
-        if (columnMeta.isEnum()) {
-            mySQLType = MySQLType.ENUM;
-        } else if (columnMeta.isSetType()) {
-            mySQLType = MySQLType.SET;
-        } else if (isOpaqueBinary(columnMeta)
-                && !isFunctionsNeverReturnBlobs(columnMeta, properties)) {
-            mySQLType = MySQLType.VARBINARY;
+    private static MySQLType fromVarcharOrVarString(final MySQLColumnMeta meta, final FixedEnv env) {
+        final MySQLType type;
+        if (meta.isEnum()) {
+            type = MySQLType.ENUM;
+        } else if (meta.isSetType()) {
+            type = MySQLType.SET;
+        } else if (isOpaqueBinary(meta) && !isFunctionsNeverReturnBlobs(meta, env)) {
+            type = MySQLType.VARBINARY;
         } else {
-            mySQLType = MySQLType.VARCHAR;
+            type = MySQLType.VARCHAR;
         }
-        return mySQLType;
+        return type;
     }
 
     private static MySQLType fromBlob(MySQLColumnMeta columnMeta, Properties properties) {
@@ -702,16 +663,15 @@ final class MySQLColumnMeta implements ColumnMeta {
 
     }
 
-    private static boolean isFunctionsNeverReturnBlobs(MySQLColumnMeta columnMeta, Properties properties) {
-        return StringUtils.isEmpty(columnMeta.tableName)
-                && properties.getOrDefault(MyKey.functionsNeverReturnBlobs, Boolean.class);
+    private static boolean isFunctionsNeverReturnBlobs(final MySQLColumnMeta meta, final FixedEnv env) {
+        return StringUtils.isEmpty(meta.tableName) && env.functionsNeverReturnBlobs;
     }
 
-    private static boolean isBlobTypeReturnText(MySQLColumnMeta columnMeta, Properties properties) {
-        return !columnMeta.isBinary()
-                || columnMeta.collationIndex != Charsets.MYSQL_COLLATION_INDEX_binary
-                || properties.getOrDefault(MyKey.blobsAreStrings, Boolean.class)
-                || isFunctionsNeverReturnBlobs(columnMeta, properties);
+    private static boolean isBlobTypeReturnText(final MySQLColumnMeta meta, final FixedEnv env) {
+        return !meta.isBinary()
+                || meta.collationIndex != Charsets.MYSQL_COLLATION_INDEX_binary
+                || env.blobsAreStrings
+                || isFunctionsNeverReturnBlobs(meta, env);
     }
 
 

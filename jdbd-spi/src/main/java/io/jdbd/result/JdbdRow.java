@@ -5,6 +5,8 @@ import io.jdbd.lang.Nullable;
 import io.jdbd.meta.SQLType;
 import org.reactivestreams.Publisher;
 
+import java.nio.file.CopyOption;
+import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -27,7 +29,35 @@ public interface JdbdRow extends Result {
     ResultRowMeta getRowMeta();
 
     /**
+     * <p>
+     * Bit row means that exists at least one big column. see {@link #isBigColumn(int)}
+     * </p>
+     *
+     * @return true : big row
+     */
+    boolean isBigRow();
+
+    /**
+     * <p>
+     * Big column means that byte size is large,possibly is 1GB or more. For example LONG BLOB ,LONG TEXT,GEOMETRY_COLLECTION.
+     * Driver cache them to local temp directory.
+     * So {@link #get(int)} return :
+     *      <ul>
+     *          <li>{@link io.jdbd.type.BlobPath}</li>
+     *          <li>{@link io.jdbd.type.TextPath}</li>
+     *      </ul>
+     *      If you need to store them ,then you must move them to other directory by {@link java.nio.file.Files#move(Path, Path, CopyOption...)} method.
+     *      Else driver will delete them after result set end.
+     * </p>
+     *
+     * @param indexBasedZero index based zero,the first value is 0 .
+     * @return true : big column
+     */
+    boolean isBigColumn(int indexBasedZero);
+
+    /**
      * @see SQLType#outputJavaType()
+     * @see #isBigColumn(int)
      */
     @Nullable
     Object get(int indexBasedZero) throws JdbdException;
@@ -55,6 +85,8 @@ public interface JdbdRow extends Result {
 
     <T> Publisher<T> getPublisher(int indexBasedZero, Class<T> valueClass) throws JdbdException;
 
+
+    boolean isBigColumn(String columnLabel);
 
     /**
      * <p>
