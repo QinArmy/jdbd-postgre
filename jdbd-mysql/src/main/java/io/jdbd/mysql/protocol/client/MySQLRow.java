@@ -7,14 +7,15 @@ import io.jdbd.result.ResultRowMeta;
 import io.jdbd.vendor.result.VendorRow;
 import org.reactivestreams.Publisher;
 
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.BiFunction;
+import java.util.function.IntFunction;
 
 abstract class MySQLRow extends VendorRow {
 
-    private static final Map<String, Integer> EMPTY_LABEL_INDEX_MAP = Collections.emptyMap();
+
 
 
     final MySQLRowMeta rowMeta;
@@ -51,11 +52,11 @@ abstract class MySQLRow extends VendorRow {
 
     @Override
     public final Object get(int indexBasedZero) throws JdbdException {
-        return this.columnArray[indexBasedZero];
+        return this.columnArray[this.rowMeta.checkIndex(indexBasedZero)];
     }
 
     @Override
-    public <T> T get(int indexBasedZero, Class<T> columnClass) throws JdbdException {
+    public final <T> T get(int indexBasedZero, Class<T> columnClass) throws JdbdException {
         return null;
     }
 
@@ -69,30 +70,28 @@ abstract class MySQLRow extends VendorRow {
         return null;
     }
 
+
     @Override
-    public <T> List<T> getList(int indexBasedZero, Class<T> elementClass) throws JdbdException {
+    public <T> List<T> getList(int indexBasedZero, Class<T> elementClass, IntFunction<List<T>> constructor)
+            throws JdbdException {
         return null;
     }
 
     @Override
-    public <T> Set<T> getSet(int indexBasedZero, Class<T> elementClass) throws JdbdException {
+    public <T> Set<T> getSet(int indexBasedZero, Class<T> elementClass, IntFunction<Set<T>> constructor)
+            throws JdbdException {
         return null;
     }
 
     @Override
-    public <K, V> Map<K, V> getMap(int indexBasedZero, Class<K> keyClass, Class<V> valueClass) throws JdbdException {
+    public <K, V> Map<K, V> getMap(int indexBasedZero, Class<K> keyClass, Class<V> valueClass, IntFunction<Map<K, V>> constructor)
+            throws JdbdException {
         return null;
     }
 
     @Override
     public <T> Publisher<T> getPublisher(int indexBasedZero, Class<T> valueClass) throws JdbdException {
         return null;
-    }
-
-
-    @Override
-    protected final int mapToIndex(final String columnLabel) {
-        return 0;
     }
 
 
@@ -117,6 +116,11 @@ abstract class MySQLRow extends VendorRow {
 
 
     }//MySQLResultRow
+
+
+    private static <T> BiFunction<MySQLColumnMeta, Class<T>, T> getConverter(Class<T> targetClass) {
+        throw new UnsupportedOperationException();
+    }
 
 
 }

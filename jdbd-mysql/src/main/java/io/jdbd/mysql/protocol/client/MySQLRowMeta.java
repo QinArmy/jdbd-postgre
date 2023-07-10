@@ -243,7 +243,7 @@ final class MySQLRowMeta extends VendorResultRowMeta {
         return this.columnMetaArray[checkIndex(indexBaseZero)].columnCharset;
     }
 
-    private int checkIndex(int indexBaseZero) {
+    int checkIndex(int indexBaseZero) {
         if (indexBaseZero < 0 || indexBaseZero >= this.columnMetaArray.length) {
             throw new JdbdSQLException(new SQLException(
                     String.format("index[%s] out of bounds[0 -- %s].", indexBaseZero, columnMetaArray.length - 1)));

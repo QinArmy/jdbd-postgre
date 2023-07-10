@@ -8,7 +8,12 @@ import io.jdbd.meta.NullMode;
 import io.jdbd.result.FieldType;
 import io.jdbd.result.ResultRowMeta;
 
+import java.util.Collections;
+import java.util.Map;
+
 public abstract class VendorResultRowMeta implements ResultRowMeta {
+
+    protected static final Map<String, Integer> EMPTY_LABEL_INDEX_MAP = Collections.emptyMap();
 
     public final int resultIndex;
 

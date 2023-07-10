@@ -11,6 +11,7 @@ import io.jdbd.statement.OutParameter;
 import io.jdbd.statement.PreparedStatement;
 import io.jdbd.statement.Statement;
 import io.jdbd.vendor.JdbdCompositeException;
+import io.jdbd.vendor.result.ColumnMeta;
 import io.jdbd.vendor.stmt.NamedValue;
 import io.jdbd.vendor.stmt.ParamValue;
 import io.jdbd.vendor.stmt.Value;
@@ -299,11 +300,6 @@ public abstract class JdbdExceptions {
         return new JdbdException(String.format("unknown %s %s", SavePoint.class.getName(), savePoint));
     }
 
-    public static JdbdSQLException batchAsMultiNonSupportFetch() {
-        return new JdbdSQLException(
-                new SQLException("executeBatchAsMulti() not support fetch.", SQLStates.INVALID_PARAMETER_VALUE));
-    }
-
 
     public static JdbdException outOfTypeRange(final int batchIndex, final Value value) {
         return outOfTypeRange(batchIndex, value, null);
@@ -327,6 +323,59 @@ public abstract class JdbdExceptions {
         }
         return e;
 
+    }
+
+    public static JdbdException cannotConvertColumnValue(ColumnMeta meta, Object source, Class<?> targetClass,
+                                                         @Nullable Throwable cause) {
+        final String valueMsg;
+        if (source instanceof String) {
+            valueMsg = "${text}"; // for information safe
+        } else {
+            valueMsg = source.toString();
+        }
+        String m;
+        m = String.format("couldn't convert %s[%s] to %s for column[index:%s,label:%s,typeName:%s]",
+                source.getClass().getName(),
+                valueMsg,
+                targetClass.getName(),
+                meta.getColumnIndex(),
+                meta.getColumnLabel(),
+                meta.getDataType().typeName()
+        );
+
+        final JdbdException e;
+        if (cause == null) {
+            e = new JdbdException(m);
+        } else {
+            e = new JdbdException(m, cause);
+        }
+        return e;
+    }
+
+    public static JdbdException columnValueOverflow(ColumnMeta meta, Object source, Class<?> targetClass,
+                                                    @Nullable Throwable cause) {
+        final String valueMsg;
+        if (source instanceof String) {
+            valueMsg = "${text}"; // for information safe
+        } else {
+            valueMsg = source.toString();
+        }
+        String m;
+        m = String.format("column[index:%s,label:%s,typeName:%s] value %s[%s] overflow for target %s ",
+                meta.getColumnIndex(),
+                meta.getColumnLabel(),
+                meta.getDataType().typeName(),
+                source.getClass().getName(),
+                valueMsg,
+                targetClass.getName());
+
+        final JdbdException e;
+        if (cause == null) {
+            e = new JdbdException(m);
+        } else {
+            e = new JdbdException(m, cause);
+        }
+        return e;
     }
 
     public static JdbdException beyondMessageLength(int batchIndex, ParamValue bindValue) {

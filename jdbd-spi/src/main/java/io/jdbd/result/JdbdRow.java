@@ -8,15 +8,17 @@ import org.reactivestreams.Publisher;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.IntFunction;
 
 /**
  * <p>
- *     This interface is base interface of following :
+ * This interface is base interface of following :
  *     <ul>
  *         <li>{@link ResultRow}</li>
  *         <li>{@link CurrentRow}</li>
  *     </ul>
  * </p>
+ *
  * @since 1.0
  */
 public interface JdbdRow extends Result {
@@ -39,11 +41,16 @@ public interface JdbdRow extends Result {
 
     <T> List<T> getList(int indexBasedZero, Class<T> elementClass) throws JdbdException;
 
+    <T> List<T> getList(int indexBasedZero, Class<T> elementClass, IntFunction<List<T>> constructor) throws JdbdException;
 
     <T> Set<T> getSet(int indexBasedZero, Class<T> elementClass) throws JdbdException;
 
+    <T> Set<T> getSet(int indexBasedZero, Class<T> elementClass, IntFunction<Set<T>> constructor) throws JdbdException;
+
 
     <K, V> Map<K, V> getMap(int indexBasedZero, Class<K> keyClass, Class<V> valueClass) throws JdbdException;
+
+    <K, V> Map<K, V> getMap(int indexBasedZero, Class<K> keyClass, Class<V> valueClass, IntFunction<Map<K, V>> constructor) throws JdbdException;
 
 
     <T> Publisher<T> getPublisher(int indexBasedZero, Class<T> valueClass) throws JdbdException;
@@ -61,8 +68,7 @@ public interface JdbdRow extends Result {
      * @see #get(int)
      */
     @Nullable
-    Object get(String columnLabel)throws JdbdException;
-
+    Object get(String columnLabel) throws JdbdException;
 
 
     /**
@@ -77,29 +83,34 @@ public interface JdbdRow extends Result {
      * @see #get(int, Class)
      */
     @Nullable
-    <T> T get(String columnLabel, Class<T> columnClass)throws JdbdException;
+    <T> T get(String columnLabel, Class<T> columnClass) throws JdbdException;
 
 
-    Object getNonNull(String columnLabel)throws NullPointerException,JdbdException;
+    Object getNonNull(String columnLabel) throws NullPointerException, JdbdException;
 
-    <T> T getNonNull(String columnLabel, Class<T> columnClass) throws NullPointerException,JdbdException;
-
-
-    /**
-     * @see #getSet(int, Class)
-     */
-    <T> List<T> getList(String columnLabel, Class<T> elementClass)throws JdbdException;
+    <T> T getNonNull(String columnLabel, Class<T> columnClass) throws NullPointerException, JdbdException;
 
 
     /**
      * @see #getSet(int, Class)
      */
-    <T> Set<T> getSet(String columnLabel, Class<T> elementClass)throws JdbdException;
+    <T> List<T> getList(String columnLabel, Class<T> elementClass) throws JdbdException;
+
+    <T> List<T> getList(String columnLabel, Class<T> elementClass, IntFunction<List<T>> constructor) throws JdbdException;
+
+    /**
+     * @see #getSet(int, Class)
+     */
+    <T> Set<T> getSet(String columnLabel, Class<T> elementClass) throws JdbdException;
+
+    <T> Set<T> getSet(String columnLabel, Class<T> elementClass, IntFunction<Set<T>> constructor) throws JdbdException;
 
 
-    <K, V> Map<K, V> getMap(String columnLabel, Class<K> keyClass, Class<V> valueClass)throws JdbdException;
+    <K, V> Map<K, V> getMap(String columnLabel, Class<K> keyClass, Class<V> valueClass) throws JdbdException;
 
-    <T> Publisher<T> getPublisher(String columnLabel, Class<T> valueClass)throws JdbdException;
+    <K, V> Map<K, V> getMap(String columnLabel, Class<K> keyClass, Class<V> valueClass, IntFunction<Map<K, V>> constructor) throws JdbdException;
+
+    <T> Publisher<T> getPublisher(String columnLabel, Class<T> valueClass) throws JdbdException;
 
 
 }

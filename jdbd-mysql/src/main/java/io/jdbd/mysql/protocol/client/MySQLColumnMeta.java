@@ -1,5 +1,6 @@
 package io.jdbd.mysql.protocol.client;
 
+import io.jdbd.meta.DataType;
 import io.jdbd.meta.NullMode;
 import io.jdbd.mysql.MySQLType;
 import io.jdbd.mysql.protocol.Constants;
@@ -7,6 +8,7 @@ import io.jdbd.mysql.protocol.conf.MyKey;
 import io.jdbd.mysql.util.MySQLStrings;
 import io.jdbd.result.FieldType;
 import io.jdbd.vendor.env.Properties;
+import io.jdbd.vendor.result.ColumnMeta;
 import io.netty.buffer.ByteBuf;
 import io.qinarmy.util.StringUtils;
 import org.slf4j.Logger;
@@ -22,7 +24,7 @@ import java.util.Objects;
  * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/group__group__cs__column__definition__flags.html"> Column Definition Flags</a>
  * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_com_query_response_text_resultset_column_definition.html"> Column Definition Protocol</a>
  */
-final class MySQLColumnMeta {
+final class MySQLColumnMeta implements ColumnMeta {
 
     static final MySQLColumnMeta[] EMPTY = new MySQLColumnMeta[0];
 
@@ -108,7 +110,12 @@ final class MySQLColumnMeta {
         this.sqlType = from(this, properties);
     }
 
+    @Override
+    public int getColumnIndex() {
+        return 0;
+    }
 
+    @Override
     public boolean isUnsigned() {
         return (this.definitionFlags & UNSIGNED_FLAG) != 0;
     }
@@ -170,6 +177,40 @@ final class MySQLColumnMeta {
         return precision;
     }
 
+
+    @Override
+    public DataType getDataType() {
+        return this.sqlType;
+    }
+
+    @Override
+    public String getColumnLabel() {
+        return this.columnLabel;
+    }
+
+    @Override
+    public Class<?> getOutputJavaType() {
+        return this.sqlType.outputJavaType();
+    }
+
+    public int getScale() {
+        final int scale;
+        switch (sqlType) {
+            case DECIMAL:
+            case DECIMAL_UNSIGNED:
+                scale = this.decimals;
+                break;
+            default:
+                scale = -1;
+        }
+        return scale;
+    }
+
+    @Override
+    public Charset getColumnCharset() {
+        return this.columnCharset;
+    }
+
     final boolean isEnum() {
         return (this.definitionFlags & ENUM_FLAG) != 0;
     }
@@ -202,18 +243,6 @@ final class MySQLColumnMeta {
         return (this.definitionFlags & UNIQUE_KEY_FLAG) != 0;
     }
 
-    final int getScale() {
-        final int scale;
-        switch (sqlType) {
-            case DECIMAL:
-            case DECIMAL_UNSIGNED:
-                scale = this.decimals;
-                break;
-            default:
-                scale = -1;
-        }
-        return scale;
-    }
 
     final NullMode getNullMode() {
         final NullMode nullMode;
