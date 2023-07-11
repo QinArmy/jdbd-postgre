@@ -137,7 +137,7 @@ abstract class MySQLCommandTask extends MySQLTask implements StmtTask {
 
         final boolean taskEnd;
         switch (this.resultSetReader.read(cumulateBuffer, serverStatusConsumer)) {
-            case END_ONE_ERROR:
+            case END_ON_ERROR:
                 taskEnd = true;
             break;
             case MORE_FETCH: {

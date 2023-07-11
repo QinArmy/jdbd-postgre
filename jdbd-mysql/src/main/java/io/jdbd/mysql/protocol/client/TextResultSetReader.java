@@ -1,9 +1,9 @@
 package io.jdbd.mysql.protocol.client;
 
+import io.jdbd.JdbdException;
+import io.jdbd.mysql.util.MySQLExceptions;
 import io.jdbd.mysql.util.MySQLTimes;
 import io.jdbd.result.ResultRow;
-import io.jdbd.vendor.type.LongBinaries;
-import io.jdbd.vendor.type.LongStrings;
 import io.netty.buffer.ByteBuf;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -32,6 +32,11 @@ final class TextResultSetReader extends MySQLResultSetReader {
         super(task);
     }
 
+
+    @Override
+    public States read(ByteBuf cumulateBuffer, Consumer<Object> serverStatesConsumer) throws JdbdException {
+        return null;
+    }
 
     @Override
     boolean readResultSetMeta(final ByteBuf cumulateBuffer, final Consumer<Object> serverStatesConsumer) {
@@ -93,210 +98,167 @@ final class TextResultSetReader extends MySQLResultSetReader {
 
     @SuppressWarnings("deprecation")
     @Nullable
-    @Override
-    Object readColumnValue(final ByteBuf cumulateBuffer, final MySQLColumnMeta meta) {
+    Object readOneColumn(final ByteBuf payload, final int readableBytes, final MySQLColumnMeta meta,
+                         final TextCurrentRow currentRow) {
 
-        final Charset columnCharset = this.adjutant.obtainColumnCharset(meta.columnCharset);
 
         String columnText;
         final Object value;
+        final byte[] bytes;
         switch (meta.sqlType) {
-            case TINYINT: {
-                columnText = Packets.readStringLenEnc(cumulateBuffer, columnCharset);
-                if (columnText == null) {
-                    value = null;
-                } else {
-                    value = Byte.parseByte(columnText);
-                }
-            }
-            break;
-            case TINYINT_UNSIGNED:
-            case SMALLINT: {
-                columnText = Packets.readStringLenEnc(cumulateBuffer, columnCharset);
-                if (columnText == null) {
-                    value = null;
-                } else {
-                    value = Short.parseShort(columnText);
-                }
-            }
-            break;
-            case SMALLINT_UNSIGNED:
-            case MEDIUMINT:
-            case MEDIUMINT_UNSIGNED:
-            case INT: {
-                columnText = Packets.readStringLenEnc(cumulateBuffer, columnCharset);
-                if (columnText == null) {
-                    value = null;
-                } else {
-                    value = Integer.parseInt(columnText);
-                }
-            }
-            break;
-            case INT_UNSIGNED:
-            case BIGINT: {
-                columnText = Packets.readStringLenEnc(cumulateBuffer, columnCharset);
-                if (columnText == null) {
-                    value = null;
-                } else {
-                    value = Long.parseLong(columnText);
-                }
-            }
-            break;
-            case BIGINT_UNSIGNED: {
-                columnText = Packets.readStringLenEnc(cumulateBuffer, columnCharset);
-                if (columnText == null) {
-                    value = null;
-                } else {
-                    value = new BigInteger(columnText);
-                }
-            }
-            break;
-            case DECIMAL_UNSIGNED:
-            case DECIMAL: {
-                columnText = Packets.readStringLenEnc(cumulateBuffer, columnCharset);
-                value = columnText == null ? null : new BigDecimal(columnText);
-            }
-            break;
-            case FLOAT_UNSIGNED:
-            case FLOAT: {
-                columnText = Packets.readStringLenEnc(cumulateBuffer, columnCharset);
-                if (columnText == null) {
-                    value = null;
-                } else {
-                    value = Float.parseFloat(columnText);
-                }
-            }
-            break;
-            case DOUBLE_UNSIGNED:
-            case DOUBLE: {
-                columnText = Packets.readStringLenEnc(cumulateBuffer, columnCharset);
-                if (columnText == null) {
-                    value = null;
-                } else {
-                    value = Double.parseDouble(columnText);
-                }
-            }
-            break;
-            case BOOLEAN: {
-                columnText = Packets.readStringLenEnc(cumulateBuffer, columnCharset);
-                if (columnText == null) {
-                    value = null;
-                } else {
-                    value = Byte.parseByte(columnText) != 0;
-                }
-            }
-            break;
-            case BIT: {
-                value = readBitType(cumulateBuffer);
-            }
-            break;
-            case TIME: {
-                columnText = Packets.readStringLenEnc(cumulateBuffer, columnCharset);
-                if (columnText == null) {
-                    value = null;
-                } else if (MySQLTimes.isDuration(columnText)) {
-                    value = MySQLTimes.parseTimeAsDuration(columnText);
-                } else {
-                    value = LocalTime.parse(columnText, MySQLTimes.ISO_LOCAL_TIME_FORMATTER);
-                }
-            }
-            break;
-            case DATE: {
-                columnText = Packets.readStringLenEnc(cumulateBuffer, columnCharset);
-                if (columnText == null) {
-                    value = null;
-                } else if (columnText.equals("0000-00-00")) {
-                    //TODO write test use case
-                    value = handleZeroDateBehavior("DATE");
-                } else {
-                    value = LocalDate.parse(columnText, DateTimeFormatter.ISO_LOCAL_DATE);
-                }
-            }
-            break;
-            case YEAR: {
-                columnText = Packets.readStringLenEnc(cumulateBuffer, columnCharset);
-                if (columnText == null) {
-                    value = null;
-                } else {
-                    value = Year.of(Integer.parseInt(columnText));
-                }
-            }
-            break;
-            case TIMESTAMP:
-            case DATETIME: {
-                columnText = Packets.readStringLenEnc(cumulateBuffer, columnCharset);
-                if (columnText == null) {
-                    value = null;
-                } else if (columnText.startsWith("0000-00-00")) {
-                    LocalDate date = handleZeroDateBehavior("DATETIME");
-                    if (date == null) {
-                        value = null;
-                    } else {
-                        LocalTime time = LocalTime.parse(columnText.substring(11), MySQLTimes.MYSQL_TIME_FORMATTER);
-                        value = LocalDateTime.of(date, time);
-                    }
-                } else {
-                    value = LocalDateTime.parse(columnText, MySQLTimes.ISO_LOCAL_DATETIME_FORMATTER);
-                }
-            }
-            break;
-            case CHAR:
-            case VARCHAR:
-            case ENUM:
-            case TINYTEXT:
-            case TEXT:
-            case MEDIUMTEXT: {
-                value = Packets.readStringLenEnc(cumulateBuffer, columnCharset);
-            }
-            break;
-            case JSON:
-            case LONGTEXT: {
-                columnText = Packets.readStringLenEnc(cumulateBuffer, columnCharset);
-                if (columnText == null) {
-                    value = null;
-                } else {
-                    value = LongStrings.fromString(columnText);
-                }
-            }
-            break;
-            case SET: {
-                value = readSetType(cumulateBuffer, columnCharset);
-            }
-            break;
-            case BINARY:
-            case VARBINARY:
-            case TINYBLOB:
-            case BLOB:
-            case MEDIUMBLOB: {
-                value = Packets.readBytesLenEnc(cumulateBuffer);
-            }
-            break;
-            case LONGBLOB: {
-                final byte[] array = Packets.readBytesLenEnc(cumulateBuffer);
-                if (array == null) {
-                    value = null;
-                } else {
-                    value = LongBinaries.fromArray(array);
-                }
-            }
-            break;
-            case GEOMETRY: {
-                value = readGeometry(cumulateBuffer);
-            }
-            break;
-            case UNKNOWN:
             case NULL:
+                throw MySQLExceptions.createFatalIoException("server text protocol return null type", null);
+            case LONGTEXT:
+            case JSON:
+                value = readLongText(payload, meta, currentRow);
+                break;
+            case GEOMETRY:
+                value = readGeometry(payload, meta, currentRow);
+                break;
+            case LONGBLOB:
+            case UNKNOWN:
+                value = readLongBlob(payload, meta, currentRow);
+                break;
             default: {
-                value = readUnknown(cumulateBuffer, meta, columnCharset);
-            }
+                final int lenEnc;
+                if (readableBytes == 0 || (lenEnc = Packets.readLenEncAsInt(payload)) > readableBytes) {
+                    value = MORE_CUMULATE_OBJECT;
+                    break;
+                }
+                bytes = new byte[lenEnc];
+                payload.readBytes(bytes);
 
-        }
+                final Charset columnCharset;
+                columnCharset = this.adjutant.columnCharset(meta.columnCharset);
+
+                switch (meta.sqlType) {
+                    case BOOLEAN:
+                        value = Byte.parseByte(new String(bytes, columnCharset)) != 0;
+                        break;
+                    case TINYINT:
+                        value = Byte.parseByte(new String(bytes, columnCharset));
+                        break;
+                    case TINYINT_UNSIGNED:
+                    case SMALLINT:
+                        value = Short.parseShort(new String(bytes, columnCharset));
+                        break;
+                    case SMALLINT_UNSIGNED:
+                    case MEDIUMINT:
+                    case MEDIUMINT_UNSIGNED:
+                    case INT:
+                        value = Integer.parseInt(new String(bytes, columnCharset));
+                        break;
+                    case INT_UNSIGNED:
+                    case BIGINT:
+                        value = Long.parseLong(new String(bytes, columnCharset));
+                        break;
+                    case BIGINT_UNSIGNED:
+                        value = new BigInteger(new String(bytes, columnCharset));
+                        break;
+                    case DECIMAL_UNSIGNED:
+                    case DECIMAL:
+                        value = new BigDecimal(new String(bytes, columnCharset));
+                        break;
+                    case FLOAT_UNSIGNED:
+                    case FLOAT:
+                        value = Float.parseFloat(new String(bytes, columnCharset));
+                        break;
+                    case DOUBLE_UNSIGNED:
+                    case DOUBLE:
+                        value = Double.parseDouble(new String(bytes, columnCharset));
+                        break;
+                    case CHAR:
+                    case VARCHAR:
+                    case ENUM:
+                    case SET:
+                    case TINYTEXT:
+                    case TEXT:
+                    case MEDIUMTEXT:
+                        value = new String(bytes, columnCharset);
+                        break;
+                    case BIT:
+                        value = parseBitAsLong(bytes);
+                        break;
+                    case TIME:
+                        value = LocalTime.parse(new String(bytes, columnCharset));
+                        break;
+                    case DATE: {
+                        columnText = new String(bytes, columnCharset);
+                        if (columnText.equals("0000-00-00")) {
+                            value = handleZeroDateBehavior("DATE");
+                        } else {
+                            value = LocalDate.parse(columnText, DateTimeFormatter.ISO_LOCAL_DATE);
+                        }
+                    }
+                    break;
+                    case YEAR:
+                        value = Year.of(Integer.parseInt(new String(bytes, columnCharset)));
+                        break;
+                    case TIMESTAMP:
+                    case DATETIME: {
+                        columnText = new String(bytes, columnCharset);
+                        final LocalDate date;
+                        if (!columnText.startsWith("0000-00-00")) {
+                            value = LocalDateTime.parse(columnText, MySQLTimes.DATETIME_FORMATTER_6);
+                        } else if ((date = handleZeroDateBehavior("DATETIME")) == null) {
+                            value = null;
+                        } else {
+                            LocalTime time = LocalTime.parse(columnText.substring(11), MySQLTimes.TIME_FORMATTER_6);
+                            value = LocalDateTime.of(date, time);
+                        }
+                    }
+                    break;
+                    case BINARY:
+                    case VARBINARY:
+                    case TINYBLOB:
+                    case BLOB:
+                    case MEDIUMBLOB:
+                        value = bytes;
+                        break;
+                    default:
+                        throw MySQLExceptions.unexpectedEnum(meta.sqlType);
+
+                } // inter switch
+
+            } // outer switch default
+
+        } // outer switch
+
+
         return value;
     }
 
 
 
     /*################################## blow private method ##################################*/
+
+
+    private static final class TextCurrentRow extends MySQLCurrentRow {
+
+        private int columnIndex = 0;
+
+        private long rowCount = 0L;
+
+        private TextCurrentRow(MySQLRowMeta rowMeta) {
+            super(rowMeta);
+        }
+
+        @Override
+        public long rowNumber() {
+            return this.rowCount;
+        }
+
+
+        @Override
+        void doRest() {
+            if (this.columnIndex != this.columnArray.length) {
+                throw new IllegalStateException();
+            }
+            this.columnIndex = 0;
+        }
+
+
+    }//BinaryCurrentRow
 
 
 }

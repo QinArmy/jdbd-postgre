@@ -14,6 +14,7 @@ import reactor.util.annotation.Nullable;
 
 import java.nio.charset.Charset;
 import java.sql.SQLException;
+import java.time.ZoneOffset;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -49,7 +50,7 @@ final class MySQLRowMeta extends VendorResultRowMeta {
      * Read column metadata from text protocol.
      * </p>
      */
-    static MySQLRowMeta readForText(final ByteBuf cumulateBuffer, final StmtTask stmtTask) {
+    static MySQLRowMeta readForRows(final ByteBuf cumulateBuffer, final StmtTask stmtTask) {
 
         final int payloadLength = Packets.readInt3(cumulateBuffer);
         stmtTask.updateSequenceId(Packets.readInt1AsInt(cumulateBuffer));// update sequenceId
@@ -63,9 +64,7 @@ final class MySQLRowMeta extends VendorResultRowMeta {
 
         final TaskAdjutant adjutant = stmtTask.adjutant();
 
-        return new MySQLRowMeta(metaArray
-                , stmtTask.nextResultIndex()
-                , adjutant.obtainCustomCollationMap());
+        return new MySQLRowMeta(metaArray, stmtTask.nextResultIndex(), adjutant.obtainCustomCollationMap());
     }
 
 
@@ -95,7 +94,11 @@ final class MySQLRowMeta extends VendorResultRowMeta {
 
     final Map<Integer, Charsets.CustomCollation> customCollationMap;
 
+
+    ZoneOffset serverZone;
+
     int metaIndex = 0;
+
 
     private MySQLRowMeta(final MySQLColumnMeta[] columnMetaArray) {
         super(-1);

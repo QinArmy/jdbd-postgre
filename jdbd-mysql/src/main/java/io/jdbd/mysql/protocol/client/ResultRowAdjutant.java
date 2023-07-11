@@ -14,7 +14,7 @@ interface ResultRowAdjutant {
     @Nullable
     Charset getCharsetResults();
 
-    Charset obtainColumnCharset(Charset columnCharset);
+    Charset columnCharset(Charset columnCharset);
 
 
 }

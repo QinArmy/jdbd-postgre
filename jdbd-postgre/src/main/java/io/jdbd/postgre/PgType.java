@@ -368,7 +368,7 @@ public enum PgType implements io.jdbd.meta.SQLType {
 
 
     @Override
-    public final String getVendor() {
+    public final String vendor() {
         return PgType.class.getPackage().getName();
     }
 

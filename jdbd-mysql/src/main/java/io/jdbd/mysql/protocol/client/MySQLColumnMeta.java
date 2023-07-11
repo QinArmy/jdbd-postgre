@@ -47,6 +47,8 @@ final class MySQLColumnMeta implements ColumnMeta {
     static final int PART_KEY_FLAG = 1 << 14;
     static final int NUM_FLAG = 1 << 15;
 
+    final int columnIndex;
+
     final String catalogName;
 
     final String schemaName;
@@ -81,9 +83,10 @@ final class MySQLColumnMeta implements ColumnMeta {
     /**
      * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_com_query_response_text_resultset_column_definition.html">Protocol::ColumnDefinition41</a>
      */
-    private MySQLColumnMeta(final ByteBuf cumulateBuffer, final Charset metaCharset,
+    private MySQLColumnMeta(int columnIndex, final ByteBuf cumulateBuffer, final Charset metaCharset,
                             final Map<Integer, Charsets.CustomCollation> customCollationMap, final FixedEnv env) {
 
+        this.columnIndex = columnIndex;
         // 1. catalog
         this.catalogName = Packets.readStringLenEnc(cumulateBuffer, metaCharset);
         // 2. schema
@@ -126,7 +129,7 @@ final class MySQLColumnMeta implements ColumnMeta {
 
     @Override
     public int getColumnIndex() {
-        return 0;
+        return this.columnIndex;
     }
 
     @Override
@@ -427,7 +430,7 @@ final class MySQLColumnMeta implements ColumnMeta {
 
             payloadIndex = cumulateBuffer.readerIndex();
 
-            metaArray[i] = new MySQLColumnMeta(cumulateBuffer, metaCharset, customCollationMap, env);
+            metaArray[i] = new MySQLColumnMeta(i, cumulateBuffer, metaCharset, customCollationMap, env);
             if (debug) {
                 LOG.debug("column[{}] {}", i, metaArray[i]);
             }

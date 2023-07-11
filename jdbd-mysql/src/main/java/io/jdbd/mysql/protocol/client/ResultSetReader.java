@@ -15,7 +15,7 @@ interface ResultSetReader {
         MORE_RESULT,
         MORE_FETCH,
         NO_MORE_RESULT,
-        END_ONE_ERROR;
+        END_ON_ERROR;
     }
 
 

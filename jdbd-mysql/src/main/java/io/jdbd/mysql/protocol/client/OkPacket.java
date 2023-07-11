@@ -18,6 +18,27 @@ public final class OkPacket extends TerminatorPacket {
 
     public static final int OK_HEADER = 0x00;
 
+
+    public static OkPacket readCumulate(final ByteBuf cumulateBuffer, final int payloadLength,
+                                        final int capabilities) {
+        final int writerIndex, limitIndex;
+        writerIndex = cumulateBuffer.writerIndex();
+
+        limitIndex = cumulateBuffer.readerIndex() + payloadLength;
+        if (limitIndex != writerIndex) {
+            cumulateBuffer.writerIndex(limitIndex);
+        }
+
+
+        final OkPacket packet;
+        packet = read(cumulateBuffer, capabilities);
+
+        if (limitIndex != writerIndex) {
+            cumulateBuffer.writerIndex(writerIndex);
+        }
+        return packet;
+    }
+
     /**
      * @param payload    a packet buffer than skip header .
      * @param capability <ul>

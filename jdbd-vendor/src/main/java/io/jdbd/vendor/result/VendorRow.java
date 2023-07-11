@@ -3,6 +3,7 @@ package io.jdbd.vendor.result;
 import io.jdbd.JdbdException;
 import io.jdbd.result.JdbdRow;
 import io.jdbd.vendor.util.JdbdCollections;
+import io.jdbd.vendor.util.JdbdExceptions;
 import org.reactivestreams.Publisher;
 
 import java.util.HashSet;
@@ -13,6 +14,32 @@ import java.util.function.IntFunction;
 
 public abstract class VendorRow implements JdbdRow {
 
+
+    @Override
+    public final boolean isBigColumn(String columnLabel) {
+        return this.isBigColumn(getRowMeta().getColumnIndex(columnLabel));
+    }
+
+    @Override
+    public final Object getNonNull(final int indexBasedZero) throws NullPointerException, JdbdException {
+        final Object value;
+        value = this.get(indexBasedZero);
+        if (value == null) {
+            throw JdbdExceptions.columnIsNull(this.getColumnMeta(indexBasedZero));
+        }
+        return value;
+    }
+
+    @Override
+    public final <T> T getNonNull(final int indexBasedZero, final Class<T> columnClass)
+            throws NullPointerException, JdbdException {
+        final T value;
+        value = this.get(indexBasedZero, columnClass);
+        if (value == null) {
+            throw JdbdExceptions.columnIsNull(this.getColumnMeta(indexBasedZero));
+        }
+        return value;
+    }
 
     @Override
     public final <T> List<T> getList(int indexBasedZero, Class<T> elementClass) throws JdbdException {
@@ -29,6 +56,7 @@ public abstract class VendorRow implements JdbdRow {
             throws JdbdException {
         return this.getMap(indexBasedZero, keyClass, valueClass, JdbdCollections::hashMap);
     }
+
 
     @Override
     public final Object get(String columnLabel) throws JdbdException {
@@ -88,6 +116,8 @@ public abstract class VendorRow implements JdbdRow {
     public final <T> Publisher<T> getPublisher(String columnLabel, Class<T> valueClass) throws JdbdException {
         return this.getPublisher(getRowMeta().getColumnIndex(columnLabel), valueClass);
     }
+
+    protected abstract ColumnMeta getColumnMeta(int safeIndex);
 
 
 }

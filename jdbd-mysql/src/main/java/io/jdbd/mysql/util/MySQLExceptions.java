@@ -1,6 +1,7 @@
 package io.jdbd.mysql.util;
 
 import io.jdbd.JdbdException;
+import io.jdbd.lang.Nullable;
 import io.jdbd.mysql.MySQLJdbdException;
 import io.jdbd.mysql.MySQLType;
 import io.jdbd.mysql.protocol.MySQLFatalIoException;
@@ -11,7 +12,6 @@ import io.jdbd.statement.PreparedStatement;
 import io.jdbd.statement.StaticStatement;
 import io.jdbd.vendor.stmt.ParamValue;
 import io.jdbd.vendor.util.JdbdExceptions;
-import reactor.util.annotation.Nullable;
 
 import java.sql.SQLException;
 
@@ -73,19 +73,14 @@ public abstract class MySQLExceptions extends JdbdExceptions {
         return new JdbdSQLException(new SQLException(message));
     }
 
-    public static JdbdException createFatalIoException(@Nullable Throwable e, String format
-            , @Nullable Object... args) {
-        String message;
-        if (args == null || args.length == 0) {
-            message = format;
+    public static JdbdException createFatalIoException(String message, @Nullable Throwable cause) {
+        final JdbdException e;
+        if (cause == null) {
+            e = new JdbdException(message);
         } else {
-            message = String.format(format, args);
+            e = new JdbdException(message, cause);
         }
-        return new JdbdException(message);
-    }
-
-    public static JdbdException createFatalIoException(String format, @Nullable Object... args) {
-        return createFatalIoException(null, format, args);
+        return e;
     }
 
 
@@ -204,8 +199,8 @@ public abstract class MySQLExceptions extends JdbdExceptions {
         return createTypeNotMatchException(stmtIndex, mySQLType, paramValue, null);
     }
 
-    public static JdbdSQLException createTypeNotMatchException(int stmtIndex, MySQLType mySQLType
-            , ParamValue paramValue, @Nullable Throwable cause) {
+    public static JdbdException createTypeNotMatchException(int stmtIndex, MySQLType mySQLType,
+                                                            ParamValue paramValue, @Nullable Throwable cause) {
         String message;
         if (stmtIndex < 0) {
             message = String.format("Bind parameter[%s] MySQLType[%s] and JavaType[%s] value not match."
@@ -220,10 +215,10 @@ public abstract class MySQLExceptions extends JdbdExceptions {
                     , mySQLType
                     , paramValue.getNonNull().getClass().getName());
         }
-        return new JdbdSQLException(createTruncatedWrongValueForField(message, cause));
+        return new JdbdException(createTruncatedWrongValueForField(message, cause));
     }
 
-    public static JdbdSQLException createDurationRangeException(int stmtIndex, MySQLType mySQLType
+    public static JdbdException createDurationRangeException(int stmtIndex, MySQLType mySQLType
             , ParamValue paramValue) {
         String message;
         if (stmtIndex < 0) {
@@ -235,10 +230,10 @@ public abstract class MySQLExceptions extends JdbdExceptions {
                     "Parameter Group[%s] Bind parameter[%s] MySQLType[%s] Duration[%s] beyond [-838:59:59,838:59:59]"
                     , stmtIndex, paramValue.getIndex(), mySQLType, paramValue.get());
         }
-        return new JdbdSQLException(createTruncatedWrongValue(message, null));
+        return new JdbdException(createTruncatedWrongValue(message, null));
     }
 
-    public static JdbdSQLException createNotSupportScaleException(int stmtIndex, MySQLType mySQLType
+    public static JdbdException createNotSupportScaleException(int stmtIndex, MySQLType mySQLType
             , ParamValue paramValue) {
         final String message;
         if (stmtIndex < 0) {
@@ -248,10 +243,10 @@ public abstract class MySQLExceptions extends JdbdExceptions {
             message = String.format("Parameter Group[%s] Bind parameter[%s] is MySQLType[%s],not support fraction."
                     , stmtIndex, paramValue.getIndex(), mySQLType);
         }
-        return new JdbdSQLException(createDataOutOfRangeError(message, null));
+        return new JdbdException(createDataOutOfRangeError(message, null));
     }
 
-    public static JdbdSQLException createDataTooLongException(int stmtIndex, MySQLType mySQLType
+    public static JdbdException createDataTooLongException(int stmtIndex, MySQLType mySQLType
             , ParamValue paramValue) {
         final String message;
         if (stmtIndex < 0) {
@@ -261,10 +256,10 @@ public abstract class MySQLExceptions extends JdbdExceptions {
             message = String.format("Parameter Group[%s] Bind parameter[%s] MySQLType[%s] too long."
                     , stmtIndex, paramValue.getIndex(), mySQLType);
         }
-        return new JdbdSQLException(createDataTooLongError(message, null));
+        return new JdbdException(createDataTooLongError(message, null));
     }
 
-    public static JdbdSQLException createNumberRangErrorException(int stmtIndex, MySQLType mySQLType
+    public static JdbdException createNumberRangErrorException(int stmtIndex, MySQLType mySQLType
             , ParamValue bindValue, @Nullable Throwable cause, Number lower, Number upper) {
         final String message;
         if (stmtIndex < 0) {
@@ -274,15 +269,15 @@ public abstract class MySQLExceptions extends JdbdExceptions {
             message = String.format("Parameter Group[%s] Bind parameter[%s] MySQLType[%s] out range[%s,%s]."
                     , stmtIndex, bindValue.getIndex(), mySQLType, lower, upper);
         }
-        return new JdbdSQLException(createDataOutOfRangeError(message, cause));
+        return new JdbdException(createDataOutOfRangeError(message, cause));
     }
 
-    public static JdbdSQLException createNumberRangErrorException(int stmtIndex, MySQLType mySQLType
+    public static JdbdException createNumberRangErrorException(int stmtIndex, MySQLType mySQLType
             , ParamValue bindValue, Number lower, Number upper) {
         return createNumberRangErrorException(stmtIndex, mySQLType, bindValue, null, lower, upper);
     }
 
-    public static JdbdSQLException createWrongArgumentsException(int stmtIndex, MySQLType mySQLType
+    public static JdbdException createWrongArgumentsException(int stmtIndex, MySQLType mySQLType
             , ParamValue paramValue, @Nullable Throwable cause) {
         String message;
         if (stmtIndex < 0) {
@@ -293,7 +288,7 @@ public abstract class MySQLExceptions extends JdbdExceptions {
                     , stmtIndex, paramValue.getIndex(), mySQLType
                     , paramValue.getNonNull().getClass().getName());
         }
-        return new JdbdSQLException(createWrongArgumentsError(message, cause));
+        return new JdbdException(createWrongArgumentsError(message, cause));
     }
 
     public static SQLException createDataOutOfRangeError(String message, @Nullable Throwable cause) {
@@ -303,10 +298,16 @@ public abstract class MySQLExceptions extends JdbdExceptions {
 
     }
 
-    public static SQLException createTruncatedWrongValue(String message, @Nullable Throwable cause) {
-        return new SQLException(message
-                , MySQLCodes.ERROR_TO_SQL_STATES_MAP.get(MySQLCodes.ER_TRUNCATED_WRONG_VALUE)
-                , MySQLCodes.ER_TRUNCATED_WRONG_VALUE, cause);
+    public static JdbdException createTruncatedWrongValue(String message, @Nullable Throwable cause) {
+        final String sqlStates;
+        sqlStates = MySQLCodes.ERROR_TO_SQL_STATES_MAP.get(MySQLCodes.ER_TRUNCATED_WRONG_VALUE);
+        final JdbdException e;
+        if (cause == null) {
+            e = new JdbdException(message, sqlStates, MySQLCodes.ER_TRUNCATED_WRONG_VALUE);
+        } else {
+            e = new JdbdException(message, sqlStates, MySQLCodes.ER_TRUNCATED_WRONG_VALUE, cause);
+        }
+        return e;
     }
 
     public static SQLException createTruncatedWrongValueForField(String message, @Nullable Throwable cause) {

@@ -1,17 +1,22 @@
 package io.jdbd.mysql.protocol.client;
 
 import io.jdbd.JdbdException;
-import io.jdbd.mysql.util.MySQLExceptions;
+import io.jdbd.mysql.util.MySQLStrings;
+import io.jdbd.mysql.util.MySQLTimes;
 import io.jdbd.result.CurrentRow;
 import io.jdbd.result.ResultRow;
 import io.jdbd.result.ResultRowMeta;
+import io.jdbd.vendor.result.ColumnConverts;
+import io.jdbd.vendor.result.ColumnMeta;
 import io.jdbd.vendor.result.VendorRow;
+import io.jdbd.vendor.util.JdbdExceptions;
 import org.reactivestreams.Publisher;
 
+import java.nio.file.Path;
+import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.function.BiFunction;
 import java.util.function.IntFunction;
 
 abstract class MySQLRow extends VendorRow {
@@ -49,47 +54,42 @@ abstract class MySQLRow extends VendorRow {
     }
 
     @Override
+    public final boolean isBigColumn(final int indexBasedZero) {
+        return this.columnArray[this.rowMeta.checkIndex(indexBasedZero)] instanceof Path;
+    }
+
+    @Override
     public final Object get(int indexBasedZero) throws JdbdException {
         return this.columnArray[this.rowMeta.checkIndex(indexBasedZero)];
     }
 
+    @SuppressWarnings("unchecked")
     @Override
     public final <T> T get(final int indexBasedZero, final Class<T> columnClass) throws JdbdException {
-        final MySQLRowMeta rowMeta;
-        rowMeta = this.rowMeta;
+        final MySQLRowMeta rowMeta = this.rowMeta;
 
         final Object source;
         source = this.columnArray[rowMeta.checkIndex(indexBasedZero)];
 
-        if (columnClass.isInstance(source)) {
+        if (source == null || columnClass.isInstance(source)) {
             return (T) source;
         }
 
-        final MySQLColumnMeta meta;
-        meta = rowMeta.columnMetaArray[indexBasedZero];
-
-
-        return null;
-    }
-
-    @Override
-    public final Object getNonNull(final int indexBasedZero) throws NullPointerException, JdbdException {
-        final Object value;
-        value = this.columnArray[this.rowMeta.checkIndex(indexBasedZero)];
-        if (value == null) {
-            throw MySQLExceptions.columnIsNull(this.rowMeta.columnMetaArray[indexBasedZero]);
+        final MySQLColumnMeta meta = rowMeta.columnMetaArray[indexBasedZero];
+        final T value;
+        if (!(source instanceof Duration)) {
+            value = ColumnConverts.convertToTarget(meta, source, columnClass, rowMeta.serverZone);
+        } else if (columnClass == String.class) {
+            value = (T) MySQLTimes.durationToTimeText((Duration) source);
+        } else {
+            throw JdbdExceptions.cannotConvertColumnValue(meta, source, columnClass, null);
         }
         return value;
     }
 
-    @Override
-    public <T> T getNonNull(int indexBasedZero, Class<T> columnClass) throws NullPointerException, JdbdException {
-        return null;
-    }
-
 
     @Override
-    public <T> List<T> getList(int indexBasedZero, Class<T> elementClass, IntFunction<List<T>> constructor)
+    public final <T> List<T> getList(int indexBasedZero, Class<T> elementClass, IntFunction<List<T>> constructor)
             throws JdbdException {
         return null;
     }
@@ -101,8 +101,8 @@ abstract class MySQLRow extends VendorRow {
     }
 
     @Override
-    public <K, V> Map<K, V> getMap(int indexBasedZero, Class<K> keyClass, Class<V> valueClass, IntFunction<Map<K, V>> constructor)
-            throws JdbdException {
+    public final <K, V> Map<K, V> getMap(int indexBasedZero, Class<K> keyClass, Class<V> valueClass,
+                                         IntFunction<Map<K, V>> constructor) throws JdbdException {
         return null;
     }
 
@@ -111,6 +111,11 @@ abstract class MySQLRow extends VendorRow {
         return null;
     }
 
+
+    @Override
+    protected final ColumnMeta getColumnMeta(final int safeIndex) {
+        return this.rowMeta.columnMetaArray[safeIndex];
+    }
 
     static abstract class JdbdCurrentRow extends MySQLRow implements CurrentRow {
 
@@ -124,20 +129,39 @@ abstract class MySQLRow extends VendorRow {
         }
 
 
+        @Override
+        public final String toString() {
+            return MySQLStrings.builder()
+                    .append(getClass().getSimpleName())
+                    .append("[ resultIndex : ")
+                    .append(getResultIndex())
+                    .append(" , rowNumber : ")
+                    .append(rowNumber())
+                    .append(" , hash : ")
+                    .append(System.identityHashCode(this))
+                    .append(" ]")
+                    .toString();
+        }
+
+
     }//JdbdCurrentRow
 
     private static final class MySQLResultRow extends MySQLRow implements ResultRow {
+
+        private final boolean bigRow;
+
         private MySQLResultRow(JdbdCurrentRow currentRow) {
             super(currentRow);
+            this.bigRow = currentRow.isBigRow();
+        }
+
+        @Override
+        public boolean isBigRow() {
+            return this.bigRow;
         }
 
 
     }//MySQLResultRow
-
-
-    private static <T> BiFunction<MySQLColumnMeta, Class<T>, T> getConverter(Class<T> targetClass) {
-        throw new UnsupportedOperationException();
-    }
 
 
 }

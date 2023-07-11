@@ -105,7 +105,7 @@ abstract class MySQLResultRow0 extends AbstractResultRow<MySQLRowMeta> {
 
     @Override
     protected Charset obtainColumnCharset(final int indexBaseZero) {
-        return this.adjutant.obtainColumnCharset(this.rowMeta.getColumnCharset(indexBaseZero));
+        return this.adjutant.columnCharset(this.rowMeta.getColumnCharset(indexBaseZero));
     }
 
 

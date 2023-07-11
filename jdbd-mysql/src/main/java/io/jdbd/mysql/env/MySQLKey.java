@@ -1143,6 +1143,15 @@ public final class MySQLKey<T> {
      */
     public static final MySQLKey<Boolean> USE_READ_AHEAD_INPUT = new MySQLKey<>("useReadAheadInput", Boolean.class, Boolean.TRUE);
 
+    /**
+     * <p>
+     * jdbd-mysql defined. min value is (0xFFFF_FF * 10) bytes .
+     * </p>
+     *
+     * @since jdbd-mysql 1.0
+     */
+    public static final MySQLKey<Integer> BIG_COLUMN_BOUNDARY_BYTES = new MySQLKey<>("bigColumnBoundaryBytes", Integer.class, 1 << 30);
+
     /*-------------------below Debugging/Profiling group-------------------*/
 
     // logger ; don't support

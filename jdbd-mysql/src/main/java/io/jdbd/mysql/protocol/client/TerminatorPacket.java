@@ -1,6 +1,7 @@
 package io.jdbd.mysql.protocol.client;
 
 import io.jdbd.mysql.protocol.MySQLPacket;
+import io.netty.buffer.ByteBuf;
 
 import java.util.Arrays;
 
@@ -9,6 +10,31 @@ import java.util.Arrays;
  * @see OkPacket
  */
 abstract class TerminatorPacket implements MySQLPacket {
+
+
+    static TerminatorPacket fromCumulate(final ByteBuf cumulateBuffer, final int payloadLength,
+                                         final int capabilities) {
+        final int writerIndex, limitIndex;
+        writerIndex = cumulateBuffer.writerIndex();
+
+        limitIndex = cumulateBuffer.readerIndex() + payloadLength;
+        if (limitIndex != writerIndex) {
+            cumulateBuffer.writerIndex(limitIndex);
+        }
+
+
+        final TerminatorPacket packet;
+        if ((capabilities & Capabilities.CLIENT_DEPRECATE_EOF) == 0) {
+            packet = EofPacket.read(cumulateBuffer, capabilities);
+        } else {
+            packet = OkPacket.read(cumulateBuffer, capabilities);
+        }
+
+        if (limitIndex != writerIndex) {
+            cumulateBuffer.writerIndex(writerIndex);
+        }
+        return packet;
+    }
 
     /**
      * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/mysql__com_8h.html#a1d854e841086925be1883e4d7b4e8cad">SERVER_STATUS_flags_enum</a>

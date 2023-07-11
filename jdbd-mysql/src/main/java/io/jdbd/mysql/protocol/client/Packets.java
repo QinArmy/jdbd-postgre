@@ -22,21 +22,19 @@ import java.util.function.Function;
 import java.util.function.IntSupplier;
 import java.util.function.Supplier;
 
- abstract class Packets {
+abstract class Packets {
 
 
-     private Packets() {
-         throw new UnsupportedOperationException();
-     }
+    private Packets() {
+        throw new UnsupportedOperationException();
+    }
 
-     public static final long NULL_LENGTH = -1L;
+    public static final long NULL_LENGTH = -1L;
 
-     public static final byte HEADER_SIZE = 4;
+    public static final byte HEADER_SIZE = 4;
 
-    /**
-     * @see ClientProtocol#MAX_PAYLOAD_SIZE
-     */
-    public static final int MAX_PAYLOAD = ClientProtocol.MAX_PAYLOAD_SIZE;
+
+    public static final int MAX_PAYLOAD = 0xFFFF_FF;
 
     public static final int MAX_PACKET = HEADER_SIZE + MAX_PAYLOAD;
 
@@ -386,10 +384,59 @@ import java.util.function.Supplier;
      *
      * @return true ,at least have one packet.
      */
-    public static boolean hasOnePacket(ByteBuf cumulateBuffer) {
+    public static boolean hasOnePacket(final ByteBuf cumulateBuffer) {
         final int readableBytes = cumulateBuffer.readableBytes();
         return readableBytes > HEADER_SIZE
                 && (readableBytes >= HEADER_SIZE + getInt3(cumulateBuffer, cumulateBuffer.readerIndex()));
+    }
+
+    /**
+     * @return payload byte number of big packet.
+     */
+    public static int payloadBytesOfBigPacket(final ByteBuf cumulateBuffer) {
+        final int originalIndex;
+        originalIndex = cumulateBuffer.readerIndex();
+
+        int totalPayloadBytes = 0;
+
+        for (int payloadLength; hasOnePacket(cumulateBuffer); ) {
+            payloadLength = readInt3(cumulateBuffer);
+            cumulateBuffer.skipBytes(1 + payloadLength);
+
+            totalPayloadBytes += payloadLength;
+
+            if (payloadLength < MAX_PAYLOAD) {
+                //big packet end
+                break;
+            }
+
+        }
+
+        cumulateBuffer.readerIndex(originalIndex);
+        return totalPayloadBytes;
+    }
+
+    /**
+     * @return sequenceId
+     */
+    public static int readBigPayload(final ByteBuf cumulateBuffer, final ByteBuf payload) {
+        int sequenceId = -1;
+        for (int payloadLength; hasOnePacket(cumulateBuffer); ) {
+            payloadLength = readInt3(cumulateBuffer);
+            sequenceId = Packets.readInt1AsInt(cumulateBuffer);
+
+            if (payloadLength > 0) {
+                cumulateBuffer.readBytes(payload, payloadLength);
+            }
+            if (payloadLength < MAX_PAYLOAD) {
+                break;
+            }
+        }
+        if (sequenceId < 0) {
+            //no bug,never here
+            throw new IllegalArgumentException("non big packet");
+        }
+        return sequenceId;
     }
 
     /**
@@ -404,7 +451,9 @@ import java.util.function.Supplier;
         for (int payloadLength; Packets.hasOnePacket(cumulateBuffer); ) {
             payloadLength = Packets.readInt3(cumulateBuffer);
             cumulateBuffer.skipBytes(1 + payloadLength);
-            packetCount++;
+            if (payloadLength < MAX_PAYLOAD) {
+                packetCount++;
+            }
             if (packetCount >= packetNumber) {
                 break;
             }
@@ -675,22 +724,22 @@ import java.util.function.Supplier;
     }
 
 
-     /**
-      * @param packet a big packet that header is placeholder.
-      * @return a sync Publisher that is created by {@link Mono#just(Object)} or {@link Flux#fromIterable(Iterable)}.
-      */
-     public static Publisher<ByteBuf> createPacketPublisher(final ByteBuf packet, final IntSupplier sequenceId,
-                                                            final TaskAdjutant adjutant) {
+    /**
+     * @param packet a big packet that header is placeholder.
+     * @return a sync Publisher that is created by {@link Mono#just(Object)} or {@link Flux#fromIterable(Iterable)}.
+     */
+    public static Publisher<ByteBuf> createPacketPublisher(final ByteBuf packet, final IntSupplier sequenceId,
+                                                           final TaskAdjutant adjutant) {
 
-         final int maxAllowedPayload = adjutant.getFactory().maxAllowedPayload;
-         final int payload = packet.readableBytes() - Packets.HEADER_SIZE;
-         if (payload > maxAllowedPayload) {
-             throw MySQLExceptions.createNetPacketTooLargeException(maxAllowedPayload);
-         }
-         final Publisher<ByteBuf> publisher;
-         if (payload >= Packets.MAX_PAYLOAD) {
-             publisher = Flux.fromIterable(Packets.divideBigPacket(packet, adjutant.allocator(), sequenceId));
-         } else {
+        final int maxAllowedPayload = adjutant.getFactory().maxAllowedPayload;
+        final int payload = packet.readableBytes() - Packets.HEADER_SIZE;
+        if (payload > maxAllowedPayload) {
+            throw MySQLExceptions.createNetPacketTooLargeException(maxAllowedPayload);
+        }
+        final Publisher<ByteBuf> publisher;
+        if (payload >= Packets.MAX_PAYLOAD) {
+            publisher = Flux.fromIterable(Packets.divideBigPacket(packet, adjutant.allocator(), sequenceId));
+        } else {
             Packets.writeHeader(packet, sequenceId.getAsInt());
             publisher = Mono.just(packet);
         }

@@ -11,6 +11,11 @@ package io.jdbd.result;
  */
 public interface CurrentRow extends JdbdRow {
 
+    /**
+     * @return row number based 1 . the first value is 1 .
+     */
+    long rowNumber();
+
     ResultRow asResultRow();
 
 

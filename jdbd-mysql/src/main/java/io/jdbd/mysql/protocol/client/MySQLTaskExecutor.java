@@ -234,7 +234,7 @@ final class MySQLTaskExecutor extends CommunicationTaskExecutor<TaskAdjutant> {
         }
 
         @Override
-        public Charset obtainColumnCharset(Charset columnCharset) {
+        public Charset columnCharset(Charset columnCharset) {
             Charset charset = getCharsetResults();
             if (charset == null) {
                 charset = columnCharset;

@@ -18,10 +18,23 @@ abstract class FixedEnv {
 
     final boolean blobsAreStrings;
 
+    final int bigColumnBoundaryBytes;
+
+    final MySQLEnvironment env;
+
     FixedEnv(MySQLEnvironment env) {
         this.transformedBitIsBoolean = env.getOrDefault(MySQLKey.TRANS_FORMED_BIT_IS_BOOLEAN);
         this.functionsNeverReturnBlobs = env.getOrDefault(MySQLKey.FUNCTIONS_NEVER_RETURN_BLOBS);
         this.blobsAreStrings = env.getOrDefault(MySQLKey.BLOBS_ARE_STRINGS);
+
+        int bytes;
+        bytes = env.getOrDefault(MySQLKey.BIG_COLUMN_BOUNDARY_BYTES);
+        final int minBytes = 0xFFFF_FF * 10;
+        if (bytes < minBytes) {
+            bytes = minBytes;
+        }
+        this.bigColumnBoundaryBytes = bytes;
+        this.env = env;
     }
 
 }

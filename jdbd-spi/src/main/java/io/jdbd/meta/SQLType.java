@@ -1,12 +1,13 @@
 package io.jdbd.meta;
 
 import io.jdbd.lang.Nullable;
-import io.jdbd.result.ResultRow;
 
 /**
  * @since 1.0
  */
 public interface SQLType extends DataType {
+
+    JdbdType jdbdType();
 
 
     /**
@@ -28,7 +29,7 @@ public interface SQLType extends DataType {
     @Nullable
     SQLType elementType();
 
-    String getVendor();
+    String vendor();
 
 
     /**

@@ -1,24 +1,21 @@
 package io.jdbd.mysql.protocol.client;
 
+import io.jdbd.JdbdException;
+import io.jdbd.lang.Nullable;
 import io.jdbd.mysql.MySQLJdbdException;
-import io.jdbd.mysql.protocol.Constants;
 import io.jdbd.mysql.util.MySQLExceptions;
-import io.jdbd.result.ResultRow;
-import io.jdbd.vendor.type.LongBinaries;
-import io.jdbd.vendor.type.LongStrings;
 import io.netty.buffer.ByteBuf;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import reactor.util.annotation.Nullable;
 
 import java.math.BigDecimal;
-import java.nio.charset.Charset;
 import java.time.*;
 import java.util.function.Consumer;
 
 
 /**
  * @see ComPreparedTask
+ * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_binary_resultset.html">Binary Protocol Resultset</a>
  */
 final class BinaryResultSetReader extends MySQLResultSetReader {
 
@@ -31,9 +28,36 @@ final class BinaryResultSetReader extends MySQLResultSetReader {
     private static final byte BINARY_ROW_HEADER = 0x00;
 
 
+    private BinaryCurrentRow currentRow;
+
+
+    private ByteBuf bigPayload;
+
+
     private BinaryResultSetReader(StmtTask task) {
         super(task);
     }
+
+
+    @Override
+    public States read(final ByteBuf cumulateBuffer, final Consumer<Object> serverStatesConsumer)
+            throws JdbdException {
+        BinaryCurrentRow currentRow = this.currentRow;
+
+        if (currentRow == null && MySQLRowMeta.canReadMeta(cumulateBuffer, false)) {
+            currentRow = new BinaryCurrentRow(MySQLRowMeta.readForRows(cumulateBuffer, this.task));
+            this.currentRow = currentRow;
+        }
+
+        final States states;
+        if (currentRow == null) {
+            states = States.MORE_CUMULATE;
+        } else {
+            states = readRows(cumulateBuffer, serverStatesConsumer);
+        }
+        return states;
+    }
+
 
     @Override
     boolean readResultSetMeta(final ByteBuf cumulateBuffer, final Consumer<Object> statesConsumer) {
@@ -54,58 +78,202 @@ final class BinaryResultSetReader extends MySQLResultSetReader {
     }
 
 
-    @Override
-    ResultRow readOneRow(final ByteBuf cumulateBuffer, final MySQLRowMeta rowMeta) {
-        final MySQLColumnMeta[] columnMetas = rowMeta.columnMetaArray;
-        if (cumulateBuffer.readByte() != BINARY_ROW_HEADER) {
-            throw new IllegalArgumentException("cumulateBuffer isn't binary row");
-        }
-        final byte[] nullBitMap = new byte[(columnMetas.length + 9) / 8];
-        cumulateBuffer.readBytes(nullBitMap); // null_bitmap
+    private States readRows(final ByteBuf cumulateBuffer, final Consumer<Object> serverStatesConsumer) {
+        final BinaryCurrentRow currentRow = this.currentRow;
+        assert currentRow != null;
+        final StmtTask task = this.task;
 
-        final Object[] columnValues = new Object[columnMetas.length];
-        for (int i = 0, byteIndex, bitIndex; i < columnMetas.length; i++) {
-            MySQLColumnMeta columnMeta = columnMetas[i];
-            byteIndex = (i + 2) & (~7);
-            bitIndex = (i + 2) & 7;
-            if ((nullBitMap[byteIndex] & (1 << bitIndex)) != 0) {
+
+        States states = States.MORE_CUMULATE;
+        ByteBuf payload;
+        int sequenceId = -1;
+
+        ByteBuf bigPayload = this.bigPayload;
+        boolean resultSetEnd = false, oneRowEnd, cancelled;
+        cancelled = task.isCancelled();
+
+        for (int payloadLength, packetIndex; Packets.hasOnePacket(cumulateBuffer); ) {
+            packetIndex = cumulateBuffer.readerIndex();
+            payloadLength = Packets.readInt3(cumulateBuffer);
+
+            if (Packets.getInt1AsInt(cumulateBuffer, packetIndex + Packets.HEADER_SIZE) == EofPacket.EOF_HEADER) {
+                sequenceId = Packets.readInt1AsInt(cumulateBuffer);
+
+                final TerminatorPacket terminator;
+                terminator = TerminatorPacket.fromCumulate(cumulateBuffer, payloadLength, this.capability);
+                this.currentRow = null;
+                resultSetEnd = true;
+                serverStatesConsumer.accept(terminator);
+
+                if (!cancelled) {
+                    task.next(MySQLResultStates.fromQuery(currentRow.getResultIndex(), terminator, currentRow.rowCount));
+                }
+                if (terminator.hasMoreFetch()) {
+                    states = States.MORE_FETCH;
+                } else if (terminator.hasMoreResult()) {
+                    states = States.MORE_RESULT;
+                } else {
+                    states = States.NO_MORE_RESULT;
+                }
+                break;
+            }
+
+            if (cancelled) {
+                sequenceId = Packets.readInt1AsInt(cumulateBuffer);
+                cumulateBuffer.skipBytes(payloadLength);
                 continue;
             }
-            columnValues[i] = readColumnValue(cumulateBuffer, columnMeta);
+
+            if (bigPayload != null && payloadLength < Packets.MAX_PAYLOAD) {
+                sequenceId = Packets.readInt1AsInt(cumulateBuffer);
+                payload = cumulateBuffer;
+            } else {
+                if (bigPayload == null) {
+                    this.bigPayload = bigPayload = this.adjutant.allocator()
+                            .buffer(Packets.payloadBytesOfBigPacket(cumulateBuffer), Integer.MAX_VALUE);
+                }
+                payload = bigPayload;
+                sequenceId = Packets.readBigPayload(cumulateBuffer, payload);
+            }
+
+            oneRowEnd = readOneRow(payload, payload != cumulateBuffer, currentRow);
+
+            if (payload == cumulateBuffer) {
+                assert oneRowEnd; // fail ,driver bug or server bug
+                cumulateBuffer.readerIndex(packetIndex + Packets.HEADER_SIZE + packetIndex); //avoid tailor filler
+            } else if (oneRowEnd) {
+                assert payload.readableBytes() == 0; // fail , driver bug.
+                payload.release();
+                this.bigPayload = bigPayload = null;
+            } else if (payload.readableBytes() == 0) {
+                payload.readerIndex(0);
+                payload.writerIndex(0);
+            } else if (payload.readerIndex() > 0) {
+                payload.discardReadBytes();
+            }
+
+            if (oneRowEnd) {
+                // MORE_CUMULATE
+                break;
+            }
+
+            if (!(cancelled = this.error != null)) {
+                currentRow.rowCount++;
+                task.next(currentRow);
+                currentRow.reset();
+            }
         }
-        return MySQLResultRow0.from(columnValues, rowMeta, this.adjutant);
+
+        if (sequenceId > -1) {
+            this.task.updateSequenceId(sequenceId);
+        }
+
+        if (resultSetEnd) {
+            bigPayload = this.bigPayload;
+            if (bigPayload != null && bigPayload.refCnt() > 0) {
+                bigPayload.release();
+            }
+            this.bigPayload = null;
+        }
+        return states;
     }
 
+
     /**
-     * @return maybe null ,only when {@code DATETIME} is zero.
+     * @return true : one row end.
+     */
+    private boolean readOneRow(final ByteBuf payload, final boolean bigRow, final BinaryCurrentRow currentRow) {
+        final MySQLColumnMeta[] metaArray = currentRow.rowMeta.columnMetaArray;
+        if (payload.readByte() != BINARY_ROW_HEADER) {
+            throw new IllegalArgumentException("cumulateBuffer isn't binary row");
+        }
+        final Object[] columnValues = currentRow.columnArray;
+        final byte[] nullBitMap = currentRow.nullBitMap;
+
+        MySQLColumnMeta columnMeta;
+        int columnIndex = currentRow.columnIndex;
+
+        if (columnIndex == 0 && !currentRow.readNullBitMap) {
+            payload.readBytes(nullBitMap); // null_bitmap
+            currentRow.readNullBitMap = true; // avoid big row
+        }
+        Object value;
+        for (int byteIndex, bitIndex; columnIndex < metaArray.length; columnIndex++) {
+            columnMeta = metaArray[columnIndex];
+            byteIndex = (columnIndex + 2) & (~7);
+            bitIndex = (columnIndex + 2) & 7;
+            if ((nullBitMap[byteIndex] & (1 << bitIndex)) != 0) {
+                columnValues[columnIndex] = null;
+                continue;
+            }
+            value = readOneColumn(payload, bigRow, columnMeta, currentRow);
+            if (value == MORE_CUMULATE_OBJECT) {
+                break;
+            }
+            columnValues[columnIndex] = value;
+        }
+        currentRow.columnIndex = columnIndex;
+        return columnIndex == metaArray.length;
+    }
+
+
+    /**
+     * @return <ul>
+     * <li>null : {@code DATETIME} is zero.</li>
+     * <li>{@link #MORE_CUMULATE_OBJECT} more cumulate</li>
+     * <li>column value</li>
+     * </ul>
      */
     @SuppressWarnings("deprecation")
     @Nullable
-    @Override
-    Object readColumnValue(final ByteBuf cumulateBuffer, final MySQLColumnMeta meta) {
-        final Charset columnCharset = this.adjutant.obtainColumnCharset(meta.columnCharset);
+    private Object readOneColumn(final ByteBuf payload, final boolean bigRow, final MySQLColumnMeta meta,
+                                 final BinaryCurrentRow currentRow) {
+        final int readableBytes;
+        if (bigRow) {
+            readableBytes = Integer.MAX_VALUE;
+        } else {
+            readableBytes = payload.readableBytes();
+        }
         final Object value;
         final byte[] bytes;
-        switch (meta.sqlType) { // binary protocol must switch columnMeta.typeFlag
+        switch (meta.sqlType) {
             case TINYINT: {
-                value = cumulateBuffer.readByte();
+                if (readableBytes > 0) {
+                    value = payload.readByte();
+                } else {
+                    value = MORE_CUMULATE_OBJECT;
+                }
             }
             break;
             case TINYINT_UNSIGNED: {
-                value = (short) (cumulateBuffer.readByte() & 0xFF);
+                if (readableBytes > 0) {
+                    value = (short) (payload.readByte() & 0xFF);
+                } else {
+                    value = MORE_CUMULATE_OBJECT;
+                }
             }
             break;
             case SMALLINT: {
-                value = (short) Packets.readInt2AsInt(cumulateBuffer);
+                if (readableBytes > 1) {
+                    value = (short) Packets.readInt2AsInt(payload);
+                } else {
+                    value = MORE_CUMULATE_OBJECT;
+                }
             }
             break;
             case SMALLINT_UNSIGNED: {
-                value = Packets.readInt2AsInt(cumulateBuffer);
+                if (readableBytes > 1) {
+                    value = Packets.readInt2AsInt(payload);
+                } else {
+                    value = MORE_CUMULATE_OBJECT;
+                }
             }
             break;
             case MEDIUMINT: {
-                final int v = Packets.readInt3(cumulateBuffer);
-                if ((v & 0x80_00_00) == 0) {//positive
+                final int v;
+                if (readableBytes < 3) {
+                    value = MORE_CUMULATE_OBJECT;
+                } else if (((v = Packets.readInt3(payload)) & 0x80_00_00) == 0) {//positive
                     value = v;
                 } else {//negative
                     final int complement = (v & 0x7F_FF_FF);
@@ -118,132 +286,156 @@ final class BinaryResultSetReader extends MySQLResultSetReader {
             }
             break;
             case MEDIUMINT_UNSIGNED: {
-                value = Packets.readInt3(cumulateBuffer);
+                if (readableBytes > 2) {
+                    value = Packets.readInt3(payload);
+                } else {
+                    value = MORE_CUMULATE_OBJECT;
+                }
             }
             break;
             case INT: {
-                value = Packets.readInt4(cumulateBuffer);
+                if (readableBytes > 3) {
+                    value = Packets.readInt4(payload);
+                } else {
+                    value = MORE_CUMULATE_OBJECT;
+                }
             }
             break;
             case INT_UNSIGNED: {
-                value = Packets.readInt4AsLong(cumulateBuffer);
+                if (readableBytes > 3) {
+                    value = Packets.readInt4AsLong(payload);
+                } else {
+                    value = MORE_CUMULATE_OBJECT;
+                }
             }
             break;
             case BIGINT: {
-                value = Packets.readInt8(cumulateBuffer);
+                if (readableBytes > 7) {
+                    value = Packets.readInt8(payload);
+                } else {
+                    value = MORE_CUMULATE_OBJECT;
+                }
             }
             break;
             case BIGINT_UNSIGNED: {
-                value = Packets.readInt8AsBigInteger(cumulateBuffer);
+                if (readableBytes > 7) {
+                    value = Packets.readInt8AsBigInteger(payload);
+                } else {
+                    value = MORE_CUMULATE_OBJECT;
+                }
             }
             break;
             case DECIMAL:
             case DECIMAL_UNSIGNED: {
-                bytes = Packets.readBytesLenEnc(cumulateBuffer);
-                if (bytes == null) {
-                    throw createResponseNullBinaryError(meta);
+                final int lenEnc;
+                if (readableBytes == 0 || (lenEnc = Packets.readLenEncAsInt(payload)) > readableBytes) {
+                    value = MORE_CUMULATE_OBJECT;
+                } else {
+                    bytes = new byte[lenEnc];
+                    payload.readBytes(bytes);
+                    value = new BigDecimal(new String(bytes, this.adjutant.columnCharset(meta.columnCharset)));
                 }
-                value = new BigDecimal(new String(bytes, columnCharset));
             }
             break;
             case FLOAT:
             case FLOAT_UNSIGNED: {
-                value = Float.intBitsToFloat(Packets.readInt4(cumulateBuffer));
+                if (readableBytes > 3) {
+                    value = Float.intBitsToFloat(Packets.readInt4(payload));
+                } else {
+                    value = MORE_CUMULATE_OBJECT;
+                }
             }
             break;
             case DOUBLE:
             case DOUBLE_UNSIGNED: {
-                value = Double.longBitsToDouble(Packets.readInt8(cumulateBuffer));
-            }
-            break;
-            case BOOLEAN: {
-                value = cumulateBuffer.readByte() != 0;
-            }
-            break;
-            case BIT: {
-                value = readBitType(cumulateBuffer);
-                if (value == null) {
-                    throw createResponseNullBinaryError(meta);
+                if (readableBytes > 7) {
+                    value = Double.longBitsToDouble(Packets.readInt8(payload));
+                } else {
+                    value = MORE_CUMULATE_OBJECT;
                 }
             }
             break;
-            case TIME: {
-                value = readBinaryTimeType(cumulateBuffer);
+            case BOOLEAN: {
+                if (readableBytes > 0) {
+                    value = payload.readByte() != 0;
+                } else {
+                    value = MORE_CUMULATE_OBJECT;
+                }
             }
             break;
-            case DATE: {
-                value = readBinaryDate(cumulateBuffer);
-            }
-            break;
+            case BIT:
+                value = readBitType(payload, readableBytes);
+                break;
+            case TIME:
+                value = readBinaryTimeType(payload, readableBytes);
+                break;
+            case DATE:
+                value = readBinaryDate(payload, readableBytes);
+                break;
             case YEAR: {
-                value = Year.of(Packets.readInt2AsInt(cumulateBuffer));
+                if (readableBytes > 1) {
+                    value = Year.of(Packets.readInt2AsInt(payload));
+                } else {
+                    value = MORE_CUMULATE_OBJECT;
+                }
             }
             break;
             case TIMESTAMP:
             case DATETIME: {
-                value = readBinaryDateTime(cumulateBuffer);
+                if (readableBytes == 0 || payload.getByte(payload.readerIndex()) > readableBytes) {
+                    value = MORE_CUMULATE_OBJECT;
+                } else {
+                    value = readBinaryDateTime(payload);
+                }
             }
             break;
             case CHAR:
             case VARCHAR:
+            case ENUM:
+            case SET:
             case TINYTEXT:
             case TEXT:
-            case ENUM:
             case MEDIUMTEXT: {
-                bytes = Packets.readBytesLenEnc(cumulateBuffer);
-                if (bytes == null) {
-                    throw createResponseNullBinaryError(meta);
+                final int lenEnc;
+                if (readableBytes == 0 || (lenEnc = Packets.readLenEncAsInt(payload)) > readableBytes) {
+                    value = MORE_CUMULATE_OBJECT;
+                } else {
+                    bytes = new byte[lenEnc];
+                    payload.readBytes(bytes);
+                    value = new String(bytes, this.adjutant.columnCharset(meta.columnCharset));
                 }
-                value = new String(bytes, columnCharset);
             }
             break;
             case LONGTEXT:
-            case JSON: {
-                bytes = Packets.readBytesLenEnc(cumulateBuffer);
-                if (bytes == null) {
-                    throw createResponseNullBinaryError(meta);
-                }
-                value = LongStrings.fromString(new String(bytes, columnCharset));
-            }
-            break;
-            case SET: {
-                value = readSetType(cumulateBuffer, columnCharset);
-                if (value == null) {
-                    throw createResponseNullBinaryError(meta);
-                }
-            }
-            break;
+            case JSON: // handle JSON as long text
+                value = readLongText(payload, meta, currentRow);
+                break;
             case BINARY:
             case VARBINARY:
             case TINYBLOB:
             case BLOB:
             case MEDIUMBLOB: {
-                value = Packets.readBytesLenEnc(cumulateBuffer);
-            }
-            break;
-            case LONGBLOB: {
-                bytes = Packets.readBytesLenEnc(cumulateBuffer);
-                if (bytes == null) {
-                    throw createResponseNullBinaryError(meta);
+                final int lenEnc;
+                if (readableBytes == 0 || (lenEnc = Packets.readLenEncAsInt(payload)) > readableBytes) {
+                    value = MORE_CUMULATE_OBJECT;
+                } else {
+                    bytes = new byte[lenEnc];
+                    payload.readBytes(bytes);
+                    value = bytes;
                 }
-                value = LongBinaries.fromArray(bytes);
             }
             break;
-            case GEOMETRY: {
-                final int length = Packets.readLenEncAsInt(cumulateBuffer);
-                cumulateBuffer.skipBytes(4);// skip geometry prefix
-                bytes = new byte[length - 4];
-                cumulateBuffer.readBytes(bytes);
-                value = LongBinaries.fromArray(bytes);
-            }
-            break;
-            case UNKNOWN:
+            case GEOMETRY:
+                value = readGeometry(payload, meta, currentRow);
+                break;
             case NULL:
-            default: {
-                value = readUnknown(cumulateBuffer, meta, columnCharset);
-            }
+                throw MySQLExceptions.createFatalIoException("server return null type", null);
+            case LONGBLOB:
+            case UNKNOWN:
+            default: // handle unknown as long blob.
+                value = readLongBlob(payload, meta, currentRow);
 
-        }
+        } //switch
         return value;
     }
 
@@ -254,64 +446,6 @@ final class BinaryResultSetReader extends MySQLResultSetReader {
     }
 
 
-    /**
-     * @return -1 : more cumulate.
-     */
-    long obtainColumnBytes(MySQLColumnMeta columnMeta, final ByteBuf payload) {
-        final long columnBytes;
-        switch (columnMeta.typeFlag) {
-            case Constants.TYPE_STRING:
-            case Constants.TYPE_VARCHAR:
-            case Constants.TYPE_VAR_STRING:
-            case Constants.TYPE_TINY_BLOB:
-            case Constants.TYPE_BLOB:
-            case Constants.TYPE_MEDIUM_BLOB:
-            case Constants.TYPE_LONG_BLOB:
-            case Constants.TYPE_GEOMETRY:
-            case Constants.TYPE_NEWDECIMAL:
-            case Constants.TYPE_DECIMAL:
-            case Constants.TYPE_BIT:
-            case Constants.TYPE_ENUM:
-            case Constants.TYPE_SET:
-            case Constants.TYPE_JSON: {
-                columnBytes = Packets.getLenEncTotalByteLength(payload);
-            }
-            break;
-            case Constants.TYPE_DOUBLE:
-            case Constants.TYPE_LONGLONG: {
-                columnBytes = 8L;
-            }
-            break;
-            case Constants.TYPE_FLOAT:
-            case Constants.TYPE_INT24:
-            case Constants.TYPE_LONG: {
-                columnBytes = 4L;
-            }
-            break;
-            case Constants.TYPE_YEAR:
-            case Constants.TYPE_SHORT: {
-                columnBytes = 2L;
-            }
-            break;
-            case Constants.TYPE_BOOL:
-            case Constants.TYPE_TINY: {
-                columnBytes = 1L;
-            }
-            break;
-            case Constants.TYPE_TIMESTAMP:
-            case Constants.TYPE_DATETIME:
-            case Constants.TYPE_TIME:
-            case Constants.TYPE_DATE: {
-                columnBytes = 1L + payload.getByte(payload.readerIndex());
-            }
-            break;
-            default:
-                throw MySQLExceptions.createFatalIoException("Server send unknown type[%s]"
-                        , columnMeta.typeFlag);
-
-        }
-        return columnBytes;
-    }
 
     /*################################## blow private method ##################################*/
 
@@ -321,10 +455,16 @@ final class BinaryResultSetReader extends MySQLResultSetReader {
      * @see #readColumnValue(ByteBuf, MySQLColumnMeta)
      * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_binary_resultset.html#sect_protocol_binary_resultset_row_value_time">ProtocolBinary::MYSQL_TYPE_TIME</a>
      */
-    private Object readBinaryTimeType(ByteBuf byteBuf) {
+    private Object readBinaryTimeType(final ByteBuf byteBuf, final int readableBytes) {
+        if (readableBytes == 0) {
+            return MORE_CUMULATE_OBJECT;
+        }
         final int length = byteBuf.readByte();
         if (length == 0) {
             return LocalTime.MIDNIGHT;
+        } else if (length > readableBytes) {
+            byteBuf.readerIndex(byteBuf.readerIndex() - 1);
+            return MORE_CUMULATE_OBJECT;
         }
         final Object value;
         final boolean negative = byteBuf.readByte() == 1;
@@ -358,9 +498,10 @@ final class BinaryResultSetReader extends MySQLResultSetReader {
      * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_binary_resultset.html#sect_protocol_binary_resultset_row_value_date">ProtocolBinary::MYSQL_TYPE_DATETIME</a>
      */
     @Nullable
-    private LocalDateTime readBinaryDateTime(ByteBuf payload) {
+    private LocalDateTime readBinaryDateTime(final ByteBuf payload) {
+
+        final int length = payload.readByte();
         LocalDateTime dateTime;
-        final byte length = payload.readByte();
         switch (length) {
             case 7: {
                 dateTime = LocalDateTime.of(
@@ -399,7 +540,7 @@ final class BinaryResultSetReader extends MySQLResultSetReader {
             break;
             default:
                 throw MySQLExceptions.createFatalIoException(
-                        String.format("Server send binary MYSQL_TYPE_DATETIME length[%s] error.", length));
+                        String.format("Server send binary MYSQL_TYPE_DATETIME length[%s] error.", length), null);
         }
 
         if (dateTime == null) {
@@ -416,8 +557,15 @@ final class BinaryResultSetReader extends MySQLResultSetReader {
      * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_binary_resultset.html#sect_protocol_binary_resultset_row_value_date">ProtocolBinary::MYSQL_TYPE_DATE</a>
      */
     @Nullable
-    private LocalDate readBinaryDate(ByteBuf payload) {
+    private Object readBinaryDate(final ByteBuf payload, final int readableBytes) {
+        if (readableBytes == 0) {
+            return MORE_CUMULATE_OBJECT;
+        }
         final int length = payload.readByte();
+        if (length > readableBytes) {
+            payload.readerIndex(payload.readerIndex() - 1);
+            return MORE_CUMULATE_OBJECT;
+        }
         LocalDate date;
         switch (length) {
             case 4:
@@ -428,7 +576,7 @@ final class BinaryResultSetReader extends MySQLResultSetReader {
                 break;
             default:
                 throw MySQLExceptions.createFatalIoException(
-                        String.format("Server send binary MYSQL_TYPE_DATE length[%s] error.", length));
+                        String.format("Server send binary MYSQL_TYPE_DATE length[%s] error.", length), null);
         }
         if (date == null) {
             // maybe null
@@ -445,6 +593,38 @@ final class BinaryResultSetReader extends MySQLResultSetReader {
         String m = String.format("MySQL server response null value in binary protocol,meta:%s", meta);
         return new MySQLJdbdException(m);
     }
+
+
+    private static final class BinaryCurrentRow extends MySQLCurrentRow {
+
+
+        private final byte[] nullBitMap;
+
+        private int columnIndex = 0;
+
+        private boolean readNullBitMap;
+
+        private long rowCount = 0L;
+
+        private BinaryCurrentRow(MySQLRowMeta rowMeta) {
+            super(rowMeta);
+            this.nullBitMap = new byte[(rowMeta.columnMetaArray.length + 9) >> 3];
+        }
+
+        @Override
+        public long rowNumber() {
+            return this.rowCount;
+        }
+
+        @Override
+        void doRest() {
+            if (this.columnIndex != this.columnArray.length) {
+                throw new IllegalStateException();
+            }
+            this.readNullBitMap = false;
+            this.columnIndex = 0;
+        }
+    }//BinaryCurrentRow
 
 
 }

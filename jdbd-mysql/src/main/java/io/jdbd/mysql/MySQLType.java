@@ -1,6 +1,7 @@
 package io.jdbd.mysql;
 
 import io.jdbd.meta.BooleanMode;
+import io.jdbd.meta.JdbdType;
 import io.jdbd.meta.SQLType;
 import io.jdbd.mysql.protocol.Constants;
 import io.jdbd.type.geometry.LongString;
@@ -466,7 +467,7 @@ public enum MySQLType implements SQLType {
 
     private final Class<?> javaType;
 
-    public short typeFlag;
+    public final short typeFlag;
 
     public final boolean unsigned;
 
@@ -486,10 +487,9 @@ public enum MySQLType implements SQLType {
     }
 
 
-
     @Override
-    public final JDBCType jdbcType() {
-        return this.jdbcType;
+    public final JdbdType jdbdType() {
+        return null;
     }
 
     @Override
@@ -508,7 +508,7 @@ public enum MySQLType implements SQLType {
     }
 
     @Override
-    public String getVendor() {
+    public final String vendor() {
         return "io.jdbd.mysql";
     }
 
