@@ -4,7 +4,7 @@ import io.jdbd.lang.Nullable;
 
 import java.util.Map;
 
-public interface MySQLEnvironment {
+public interface Environment {
 
     @Nullable
     <T> T get(MySQLKey<T> key);
@@ -14,7 +14,7 @@ public interface MySQLEnvironment {
     <T> T getRequired(MySQLKey<T> key);
 
 
-    static MySQLEnvironment parse(String url, Map<String, Object> properties) {
+    static Environment parse(String url, Map<String, Object> properties) {
         throw new UnsupportedOperationException();
     }
 

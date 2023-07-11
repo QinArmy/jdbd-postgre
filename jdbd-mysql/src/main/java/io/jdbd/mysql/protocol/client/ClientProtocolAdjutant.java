@@ -27,7 +27,7 @@ interface ClientProtocolAdjutant extends ResultRowAdjutant {
     /**
      * @see <a href="https://dev.mysql.com/doc/refman/8.0/en/charset-errors.html">Error Message Character Set</a>
      */
-    Charset obtainCharsetError();
+    Charset errorCharset();
 
     Charset obtainCharsetMeta();
 

@@ -49,7 +49,7 @@ import java.util.function.IntSupplier;
  *     </ul>
  * </p>
  * <p>
- * below is chinese signature:<br/>
+ * following is chinese signature:<br/>
  * 当你在阅读这段代码时,我才真正在写这段代码,你阅读到哪里,我便写到哪里.
  * </p>
  *

@@ -3,7 +3,7 @@ package io.jdbd.mysql.protocol.client;
 import io.jdbd.mysql.MySQLJdbdException;
 import io.jdbd.mysql.SQLMode;
 import io.jdbd.mysql.Server;
-import io.jdbd.mysql.env.MySQLEnvironment;
+import io.jdbd.mysql.env.Environment;
 import io.jdbd.mysql.env.MySQLHostEnv;
 import io.jdbd.mysql.env.MySQLKey;
 import io.jdbd.mysql.protocol.Constants;
@@ -69,7 +69,7 @@ public final class ClientProtocolFactory extends FixedEnv implements MySQLProtoc
 
     private static final Logger LOG = LoggerFactory.getLogger(ClientProtocolFactory.class);
 
-    public static ClientProtocolFactory from(MySQLEnvironment env) {
+    public static ClientProtocolFactory from(Environment env) {
         throw new UnsupportedOperationException();
     }
 

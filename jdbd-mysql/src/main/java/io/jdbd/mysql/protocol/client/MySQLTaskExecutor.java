@@ -246,7 +246,7 @@ final class MySQLTaskExecutor extends CommunicationTaskExecutor<TaskAdjutant> {
          * @see <a href="https://dev.mysql.com/doc/refman/8.0/en/charset-errors.html">Error Message Character Set</a>
          */
         @Override
-        public Charset obtainCharsetError() {
+        public Charset errorCharset() {
             Charset errorCharset = getCharsetResults();
             if (errorCharset == null) {
                 errorCharset = StandardCharsets.UTF_8;

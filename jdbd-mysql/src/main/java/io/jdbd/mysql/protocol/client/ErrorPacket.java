@@ -14,6 +14,26 @@ public final class ErrorPacket implements MySQLPacket {
 
     public static final short ERROR_HEADER = 0xFF;
 
+    static ErrorPacket readCumulate(final ByteBuf cumulateBuffer, final int payloadLength,
+                                    final int capabilities, final Charset errorMsgCharset) {
+        final int writerIndex, limitIndex;
+        writerIndex = cumulateBuffer.writerIndex();
+
+        limitIndex = cumulateBuffer.readerIndex() + payloadLength;
+        if (limitIndex != writerIndex) {
+            cumulateBuffer.writerIndex(limitIndex);
+        }
+
+
+        final ErrorPacket packet;
+        packet = read(cumulateBuffer, capabilities, errorMsgCharset);
+
+        if (limitIndex != writerIndex) {
+            cumulateBuffer.writerIndex(writerIndex);
+        }
+        return packet;
+    }
+
 
     public static ErrorPacket read(final ByteBuf payload, final int capability, final Charset errorMsgCharset) {
         if (Packets.readInt1AsInt(payload) != ERROR_HEADER) {

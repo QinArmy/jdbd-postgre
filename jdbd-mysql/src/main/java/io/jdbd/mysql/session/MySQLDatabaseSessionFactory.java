@@ -1,7 +1,7 @@
 package io.jdbd.mysql.session;
 
 import io.jdbd.JdbdException;
-import io.jdbd.mysql.env.MySQLEnvironment;
+import io.jdbd.mysql.env.Environment;
 import io.jdbd.mysql.protocol.MySQLProtocol;
 import io.jdbd.mysql.protocol.MySQLProtocolFactory;
 import io.jdbd.mysql.protocol.authentication.AuthenticationPlugin;
@@ -40,7 +40,7 @@ public final class MySQLDatabaseSessionFactory implements DatabaseSessionFactory
 
 
     private static MySQLProtocolFactory createProtocolFactory(String url, Map<String, Object> properties) {
-        return ClientProtocolFactory.from(MySQLEnvironment.parse(url, properties));
+        return ClientProtocolFactory.from(Environment.parse(url, properties));
     }
 
 

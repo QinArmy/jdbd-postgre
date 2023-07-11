@@ -1,6 +1,5 @@
 package io.jdbd.mysql.protocol.client;
 
-import io.jdbd.JdbdException;
 import io.jdbd.lang.Nullable;
 import io.jdbd.mysql.MySQLJdbdException;
 import io.jdbd.mysql.util.MySQLExceptions;
@@ -14,6 +13,14 @@ import java.util.function.Consumer;
 
 
 /**
+ * <p>
+ * This class is the implementation reader of MySQL binary ResultSet .
+ * </p>
+ * <p>
+ * following is chinese signature:<br/>
+ * 当你在阅读这段代码时,我才真正在写这段代码,你阅读到哪里,我便写到哪里.
+ * </p>
+ *
  * @see ComPreparedTask
  * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_binary_resultset.html">Binary Protocol Resultset</a>
  */
@@ -40,162 +47,29 @@ final class BinaryResultSetReader extends MySQLResultSetReader {
 
 
     @Override
-    public States read(final ByteBuf cumulateBuffer, final Consumer<Object> serverStatesConsumer)
-            throws JdbdException {
-        BinaryCurrentRow currentRow = this.currentRow;
-
-        if (currentRow == null && MySQLRowMeta.canReadMeta(cumulateBuffer, false)) {
-            currentRow = new BinaryCurrentRow(MySQLRowMeta.readForRows(cumulateBuffer, this.task));
-            this.currentRow = currentRow;
+    MySQLCurrentRow readRowMeta(ByteBuf cumulateBuffer, Consumer<Object> serverStatesConsumer) {
+        if (!MySQLRowMeta.canReadMeta(cumulateBuffer, false)) {
+            return null;
         }
-
-        final States states;
-        if (currentRow == null) {
-            states = States.MORE_CUMULATE;
-        } else {
-            states = readRows(cumulateBuffer, serverStatesConsumer);
-        }
-        return states;
+        return new BinaryCurrentRow(MySQLRowMeta.readForRows(cumulateBuffer, this.task));
     }
-
 
     @Override
-    boolean readResultSetMeta(final ByteBuf cumulateBuffer, final Consumer<Object> statesConsumer) {
-        final boolean metaEnd;
-        if (MySQLRowMeta.canReadMeta(cumulateBuffer, false)) {
-            doReadRowMeta(cumulateBuffer);
-            metaEnd = true;
-        } else {
-            metaEnd = false;
-        }
-        return metaEnd;
-    }
-
-
-    @Override
-    Logger getLogger() {
-        return LOG;
-    }
-
-
-    private States readRows(final ByteBuf cumulateBuffer, final Consumer<Object> serverStatesConsumer) {
-        final BinaryCurrentRow currentRow = this.currentRow;
-        assert currentRow != null;
-        final StmtTask task = this.task;
-
-
-        States states = States.MORE_CUMULATE;
-        ByteBuf payload;
-        int sequenceId = -1;
-
-        ByteBuf bigPayload = this.bigPayload;
-        boolean resultSetEnd = false, oneRowEnd, cancelled;
-        cancelled = task.isCancelled();
-
-        for (int payloadLength, packetIndex; Packets.hasOnePacket(cumulateBuffer); ) {
-            packetIndex = cumulateBuffer.readerIndex();
-            payloadLength = Packets.readInt3(cumulateBuffer);
-
-            if (Packets.getInt1AsInt(cumulateBuffer, packetIndex + Packets.HEADER_SIZE) == EofPacket.EOF_HEADER) {
-                sequenceId = Packets.readInt1AsInt(cumulateBuffer);
-
-                final TerminatorPacket terminator;
-                terminator = TerminatorPacket.fromCumulate(cumulateBuffer, payloadLength, this.capability);
-                this.currentRow = null;
-                resultSetEnd = true;
-                serverStatesConsumer.accept(terminator);
-
-                if (!cancelled) {
-                    task.next(MySQLResultStates.fromQuery(currentRow.getResultIndex(), terminator, currentRow.rowCount));
-                }
-                if (terminator.hasMoreFetch()) {
-                    states = States.MORE_FETCH;
-                } else if (terminator.hasMoreResult()) {
-                    states = States.MORE_RESULT;
-                } else {
-                    states = States.NO_MORE_RESULT;
-                }
-                break;
-            }
-
-            if (cancelled) {
-                sequenceId = Packets.readInt1AsInt(cumulateBuffer);
-                cumulateBuffer.skipBytes(payloadLength);
-                continue;
-            }
-
-            if (bigPayload != null && payloadLength < Packets.MAX_PAYLOAD) {
-                sequenceId = Packets.readInt1AsInt(cumulateBuffer);
-                payload = cumulateBuffer;
-            } else {
-                if (bigPayload == null) {
-                    this.bigPayload = bigPayload = this.adjutant.allocator()
-                            .buffer(Packets.payloadBytesOfBigPacket(cumulateBuffer), Integer.MAX_VALUE);
-                }
-                payload = bigPayload;
-                sequenceId = Packets.readBigPayload(cumulateBuffer, payload);
-            }
-
-            oneRowEnd = readOneRow(payload, payload != cumulateBuffer, currentRow);
-
-            if (payload == cumulateBuffer) {
-                assert oneRowEnd; // fail ,driver bug or server bug
-                cumulateBuffer.readerIndex(packetIndex + Packets.HEADER_SIZE + packetIndex); //avoid tailor filler
-            } else if (oneRowEnd) {
-                assert payload.readableBytes() == 0; // fail , driver bug.
-                payload.release();
-                this.bigPayload = bigPayload = null;
-            } else if (payload.readableBytes() == 0) {
-                payload.readerIndex(0);
-                payload.writerIndex(0);
-            } else if (payload.readerIndex() > 0) {
-                payload.discardReadBytes();
-            }
-
-            if (oneRowEnd) {
-                // MORE_CUMULATE
-                break;
-            }
-
-            if (!(cancelled = this.error != null)) {
-                currentRow.rowCount++;
-                task.next(currentRow);
-                currentRow.reset();
-            }
-        }
-
-        if (sequenceId > -1) {
-            this.task.updateSequenceId(sequenceId);
-        }
-
-        if (resultSetEnd) {
-            bigPayload = this.bigPayload;
-            if (bigPayload != null && bigPayload.refCnt() > 0) {
-                bigPayload.release();
-            }
-            this.bigPayload = null;
-        }
-        return states;
-    }
-
-
-    /**
-     * @return true : one row end.
-     */
-    private boolean readOneRow(final ByteBuf payload, final boolean bigRow, final BinaryCurrentRow currentRow) {
+    boolean readOneRow(final ByteBuf payload, final MySQLCurrentRow currentRow) {
         final MySQLColumnMeta[] metaArray = currentRow.rowMeta.columnMetaArray;
         if (payload.readByte() != BINARY_ROW_HEADER) {
             throw new IllegalArgumentException("cumulateBuffer isn't binary row");
         }
+        final BinaryCurrentRow binaryCurrentRow = (BinaryCurrentRow) currentRow;
         final Object[] columnValues = currentRow.columnArray;
-        final byte[] nullBitMap = currentRow.nullBitMap;
+        final byte[] nullBitMap = binaryCurrentRow.nullBitMap;
 
         MySQLColumnMeta columnMeta;
-        int columnIndex = currentRow.columnIndex;
+        int columnIndex = binaryCurrentRow.columnIndex;
 
-        if (columnIndex == 0 && !currentRow.readNullBitMap) {
+        if (columnIndex == 0 && !binaryCurrentRow.readNullBitMap) {
             payload.readBytes(nullBitMap); // null_bitmap
-            currentRow.readNullBitMap = true; // avoid big row
+            binaryCurrentRow.readNullBitMap = true; // avoid big row
         }
         Object value;
         for (int byteIndex, bitIndex; columnIndex < metaArray.length; columnIndex++) {
@@ -206,14 +80,20 @@ final class BinaryResultSetReader extends MySQLResultSetReader {
                 columnValues[columnIndex] = null;
                 continue;
             }
-            value = readOneColumn(payload, bigRow, columnMeta, currentRow);
+            value = readOneColumn(payload, columnMeta, binaryCurrentRow);
             if (value == MORE_CUMULATE_OBJECT) {
                 break;
             }
             columnValues[columnIndex] = value;
         }
-        currentRow.columnIndex = columnIndex;
+        binaryCurrentRow.columnIndex = columnIndex;
         return columnIndex == metaArray.length;
+    }
+
+
+    @Override
+    Logger getLogger() {
+        return LOG;
     }
 
 
@@ -226,14 +106,10 @@ final class BinaryResultSetReader extends MySQLResultSetReader {
      */
     @SuppressWarnings("deprecation")
     @Nullable
-    private Object readOneColumn(final ByteBuf payload, final boolean bigRow, final MySQLColumnMeta meta,
+    private Object readOneColumn(final ByteBuf payload, final MySQLColumnMeta meta,
                                  final BinaryCurrentRow currentRow) {
         final int readableBytes;
-        if (bigRow) {
-            readableBytes = Integer.MAX_VALUE;
-        } else {
-            readableBytes = payload.readableBytes();
-        }
+        readableBytes = payload.readableBytes();
         final Object value;
         final byte[] bytes;
         switch (meta.sqlType) {
@@ -440,19 +316,13 @@ final class BinaryResultSetReader extends MySQLResultSetReader {
     }
 
 
-    @Override
-    boolean isBinaryReader() {
-        return true;
-    }
-
-
 
     /*################################## blow private method ##################################*/
 
 
     /**
      * @return {@link LocalTime} or {@link Duration}
-     * @see #readColumnValue(ByteBuf, MySQLColumnMeta)
+     * @see #readOneColumn(ByteBuf, MySQLColumnMeta, BinaryCurrentRow)
      * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_binary_resultset.html#sect_protocol_binary_resultset_row_value_time">ProtocolBinary::MYSQL_TYPE_TIME</a>
      */
     private Object readBinaryTimeType(final ByteBuf byteBuf, final int readableBytes) {
@@ -494,7 +364,7 @@ final class BinaryResultSetReader extends MySQLResultSetReader {
 
 
     /**
-     * @see #readColumnValue(ByteBuf, MySQLColumnMeta)
+     * @see #readOneColumn(ByteBuf, MySQLColumnMeta, BinaryCurrentRow)
      * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_binary_resultset.html#sect_protocol_binary_resultset_row_value_date">ProtocolBinary::MYSQL_TYPE_DATETIME</a>
      */
     @Nullable
@@ -505,27 +375,27 @@ final class BinaryResultSetReader extends MySQLResultSetReader {
         switch (length) {
             case 7: {
                 dateTime = LocalDateTime.of(
-                        Packets.readInt2AsInt(payload) // year
-                        , payload.readByte()           // month
-                        , payload.readByte()           // day
+                        Packets.readInt2AsInt(payload), // year
+                        payload.readByte(),        // month
+                        payload.readByte(),        // day
 
-                        , payload.readByte()           // hour
-                        , payload.readByte()           // minute
-                        , payload.readByte()           // second
+                        payload.readByte(),         // hour
+                        payload.readByte(),         // minute
+                        payload.readByte()          // second
                 );
             }
             break;
             case 11: {
                 dateTime = LocalDateTime.of(
-                        Packets.readInt2AsInt(payload) // year
-                        , payload.readByte()           // month
-                        , payload.readByte()           // day
+                        Packets.readInt2AsInt(payload), // year
+                        payload.readByte(),         // month
+                        payload.readByte(),          // day
 
-                        , payload.readByte()           // hour
-                        , payload.readByte()           // minute
-                        , payload.readByte()           // second
+                        payload.readByte(),          // hour
+                        payload.readByte(),         // minute
+                        payload.readByte(),        // second
 
-                        , Packets.readInt4(payload) * 1000 // micro second
+                        Packets.readInt4(payload) * 1000 // micro second
                 );
             }
             break;
@@ -553,7 +423,7 @@ final class BinaryResultSetReader extends MySQLResultSetReader {
     }
 
     /**
-     * @see #readColumnValue(ByteBuf, MySQLColumnMeta)
+     * @see #readOneColumn(ByteBuf, MySQLColumnMeta, BinaryCurrentRow)
      * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_binary_resultset.html#sect_protocol_binary_resultset_row_value_date">ProtocolBinary::MYSQL_TYPE_DATE</a>
      */
     @Nullable
@@ -604,17 +474,12 @@ final class BinaryResultSetReader extends MySQLResultSetReader {
 
         private boolean readNullBitMap;
 
-        private long rowCount = 0L;
 
         private BinaryCurrentRow(MySQLRowMeta rowMeta) {
             super(rowMeta);
             this.nullBitMap = new byte[(rowMeta.columnMetaArray.length + 9) >> 3];
         }
 
-        @Override
-        public long rowNumber() {
-            return this.rowCount;
-        }
 
         @Override
         void doRest() {
@@ -624,6 +489,7 @@ final class BinaryResultSetReader extends MySQLResultSetReader {
             this.readNullBitMap = false;
             this.columnIndex = 0;
         }
+
     }//BinaryCurrentRow
 
 

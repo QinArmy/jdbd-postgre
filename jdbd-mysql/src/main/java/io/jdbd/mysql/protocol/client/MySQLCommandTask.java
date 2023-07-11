@@ -126,7 +126,7 @@ abstract class MySQLCommandTask extends MySQLTask implements StmtTask {
         updateSequenceId(Packets.readInt1AsInt(cumulateBuffer)); //  sequence_id
         final ErrorPacket error;
         error = ErrorPacket.read(cumulateBuffer.readSlice(payloadLength)
-                , this.capability, this.adjutant.obtainCharsetError());
+                , this.capability, this.adjutant.errorCharset());
         addError(MySQLExceptions.createErrorPacketException(error));
     }
 
