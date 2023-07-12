@@ -14,7 +14,6 @@ import reactor.netty.resources.LoopResources;
 import java.nio.charset.Charset;
 import java.util.Collections;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Queue;
 import java.util.concurrent.LinkedBlockingQueue;
 
@@ -61,8 +60,8 @@ public abstract class AbstractTaskSuiteTests {
         return new SessionAdjutantForSingleHostTest(ClientTestUtils.singleUrl(propMap));
     }
 
-    static TaskAdjutant getTaskAdjutant(ClientProtocol clientProtocol) {
-        return ((ClientProtocolImpl) clientProtocol).adjutant;
+    static TaskAdjutant getTaskAdjutant(ClientProtocol0 clientProtocol) {
+        return ((ClientProtocol) clientProtocol).adjutant;
     }
 
 

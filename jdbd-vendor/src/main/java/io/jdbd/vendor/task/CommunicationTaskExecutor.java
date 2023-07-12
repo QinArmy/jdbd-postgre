@@ -8,10 +8,7 @@ import io.jdbd.vendor.util.JdbdExceptions;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
 import io.netty.buffer.Unpooled;
-import io.netty.channel.ChannelHandlerContext;
-import io.netty.channel.ChannelInboundHandlerAdapter;
-import io.netty.channel.ChannelPipeline;
-import io.netty.channel.EventLoop;
+import io.netty.channel.*;
 import io.netty.handler.codec.ByteToMessageDecoder;
 import io.netty.handler.ssl.SslHandler;
 import io.netty.handler.ssl.SslHandshakeCompletionEvent;
@@ -41,11 +38,11 @@ import java.util.function.Consumer;
 public abstract class CommunicationTaskExecutor<T extends ITaskAdjutant> implements CoreSubscriber<ByteBuf>
         , TaskExecutor<T> {
 
-    protected Connection connection;
+    protected final Connection connection;
 
-    protected EventLoop eventLoop;
+    protected final EventLoop eventLoop;
 
-    protected ByteBufAllocator allocator;
+    protected final ByteBufAllocator allocator;
 
     protected final T taskAdjutant;
 
@@ -71,7 +68,12 @@ public abstract class CommunicationTaskExecutor<T extends ITaskAdjutant> impleme
 
     protected CommunicationTaskExecutor(Connection connection, int taskQueueSize) {
         this.taskQueue = Queues.<CommunicationTask>get(taskQueueSize).get();
-        updateConnection(connection);
+        this.connection = connection;
+        final Channel channel;
+        channel = connection.channel();
+        this.eventLoop = channel.eventLoop();
+        this.allocator = channel.alloc();
+
         this.taskSignal = new TaskSingleImpl(this);
 
         this.taskAdjutant = createTaskAdjutant();
@@ -80,12 +82,6 @@ public abstract class CommunicationTaskExecutor<T extends ITaskAdjutant> impleme
                 .retain() // for cumulate
                 .subscribe(this);
 
-    }
-
-    private void updateConnection(Connection connection) {
-        this.connection = connection;
-        this.eventLoop = connection.channel().eventLoop();
-        this.allocator = connection.channel().alloc();
     }
 
 

@@ -616,7 +616,7 @@ final class MySQLConnectionTask extends CommunicationTask implements Authenticat
         // Leaving disabled until standard values are defined
         // props.setProperty("_os", NonRegisteringDriver.OS);
         // props.setProperty("_platform", NonRegisteringDriver.PLATFORM);
-        String clientVersion = ClientProtocol.class.getPackage().getImplementationVersion();
+        String clientVersion = ClientProtocol0.class.getPackage().getImplementationVersion();
         if (clientVersion == null) {
             clientVersion = "jdbd-mysql-test";
         }

@@ -48,12 +48,12 @@ public class LoadDataLocalSuiteTests extends AbstractStmtTaskSuiteTests {
 
     @Override
     Mono<ResultStates> executeUpdate(BindStmt stmt, TaskAdjutant adjutant) {
-        return ComQueryTask.bindUpdate(stmt, adjutant);
+        return ComQueryTask.paramUpdate(stmt, adjutant);
     }
 
     @Override
     Flux<ResultRow> executeQuery(BindStmt stmt, TaskAdjutant adjutant) {
-        return ComQueryTask.bindQuery(stmt, adjutant);
+        return ComQueryTask.paramQuery(stmt, adjutant);
     }
 
     @Override

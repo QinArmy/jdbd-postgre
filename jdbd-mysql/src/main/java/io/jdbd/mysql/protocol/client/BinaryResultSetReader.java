@@ -35,12 +35,6 @@ final class BinaryResultSetReader extends MySQLResultSetReader {
     private static final byte BINARY_ROW_HEADER = 0x00;
 
 
-    private BinaryCurrentRow currentRow;
-
-
-    private ByteBuf bigPayload;
-
-
     private BinaryResultSetReader(StmtTask task) {
         super(task);
     }
@@ -55,7 +49,7 @@ final class BinaryResultSetReader extends MySQLResultSetReader {
     }
 
     @Override
-    boolean readOneRow(final ByteBuf payload, final MySQLCurrentRow currentRow) {
+    boolean readOneRow(final ByteBuf payload, final boolean bigPayload, final MySQLCurrentRow currentRow) {
         final MySQLColumnMeta[] metaArray = currentRow.rowMeta.columnMetaArray;
         if (payload.readByte() != BINARY_ROW_HEADER) {
             throw new IllegalArgumentException("cumulateBuffer isn't binary row");
@@ -72,6 +66,7 @@ final class BinaryResultSetReader extends MySQLResultSetReader {
             binaryCurrentRow.readNullBitMap = true; // avoid big row
         }
         Object value;
+        boolean moreCumulate = false;
         for (int byteIndex, bitIndex; columnIndex < metaArray.length; columnIndex++) {
             columnMeta = metaArray[columnIndex];
             byteIndex = (columnIndex + 2) & (~7);
@@ -80,14 +75,15 @@ final class BinaryResultSetReader extends MySQLResultSetReader {
                 columnValues[columnIndex] = null;
                 continue;
             }
-            value = readOneColumn(payload, columnMeta, binaryCurrentRow);
+            value = readOneColumn(payload, bigPayload, columnMeta, binaryCurrentRow);
             if (value == MORE_CUMULATE_OBJECT) {
+                moreCumulate = true;
                 break;
             }
             columnValues[columnIndex] = value;
         }
         binaryCurrentRow.columnIndex = columnIndex;
-        return columnIndex == metaArray.length;
+        return !moreCumulate && columnIndex == metaArray.length;
     }
 
 
@@ -106,10 +102,14 @@ final class BinaryResultSetReader extends MySQLResultSetReader {
      */
     @SuppressWarnings("deprecation")
     @Nullable
-    private Object readOneColumn(final ByteBuf payload, final MySQLColumnMeta meta,
+    private Object readOneColumn(final ByteBuf payload, final boolean bigPayload, final MySQLColumnMeta meta,
                                  final BinaryCurrentRow currentRow) {
         final int readableBytes;
-        readableBytes = payload.readableBytes();
+        if (bigPayload) {
+            readableBytes = payload.readableBytes();
+        } else {
+            readableBytes = Integer.MAX_VALUE;
+        }
         final Object value;
         final byte[] bytes;
         switch (meta.sqlType) {
@@ -322,7 +322,7 @@ final class BinaryResultSetReader extends MySQLResultSetReader {
 
     /**
      * @return {@link LocalTime} or {@link Duration}
-     * @see #readOneColumn(ByteBuf, MySQLColumnMeta, BinaryCurrentRow)
+     * @see #readOneColumn(ByteBuf, boolean, MySQLColumnMeta, BinaryCurrentRow)
      * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_binary_resultset.html#sect_protocol_binary_resultset_row_value_time">ProtocolBinary::MYSQL_TYPE_TIME</a>
      */
     private Object readBinaryTimeType(final ByteBuf byteBuf, final int readableBytes) {
@@ -364,7 +364,7 @@ final class BinaryResultSetReader extends MySQLResultSetReader {
 
 
     /**
-     * @see #readOneColumn(ByteBuf, MySQLColumnMeta, BinaryCurrentRow)
+     * @see #readOneColumn(ByteBuf, boolean, MySQLColumnMeta, BinaryCurrentRow)
      * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_binary_resultset.html#sect_protocol_binary_resultset_row_value_date">ProtocolBinary::MYSQL_TYPE_DATETIME</a>
      */
     @Nullable
@@ -423,7 +423,7 @@ final class BinaryResultSetReader extends MySQLResultSetReader {
     }
 
     /**
-     * @see #readOneColumn(ByteBuf, MySQLColumnMeta, BinaryCurrentRow)
+     * @see #readOneColumn(ByteBuf, boolean, MySQLColumnMeta, BinaryCurrentRow)
      * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_binary_resultset.html#sect_protocol_binary_resultset_row_value_date">ProtocolBinary::MYSQL_TYPE_DATE</a>
      */
     @Nullable

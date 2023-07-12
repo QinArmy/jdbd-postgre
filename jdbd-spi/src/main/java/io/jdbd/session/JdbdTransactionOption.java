@@ -1,6 +1,8 @@
 package io.jdbd.session;
 
 import io.jdbd.JdbdException;
+import io.jdbd.lang.NonNull;
+import io.jdbd.lang.Nullable;
 
 /**
  * <p>
@@ -12,8 +14,6 @@ import io.jdbd.JdbdException;
  */
 enum JdbdTransactionOption implements TransactionStatus {
 
-    DEFAULT_READ(Isolation.DEFAULT, true),
-    DEFAULT_WRITE(Isolation.DEFAULT, false),
 
     READ_UNCOMMITTED_READ(Isolation.READ_UNCOMMITTED, true),
     READ_UNCOMMITTED_WRITE(Isolation.READ_UNCOMMITTED, false),
@@ -28,12 +28,12 @@ enum JdbdTransactionOption implements TransactionStatus {
     SERIALIZABLE_WRITE(Isolation.SERIALIZABLE, false);
 
 
-    static TransactionOption option(final Isolation isolation, final boolean readOnly) {
+    static TransactionOption option(final @Nullable Isolation isolation, final boolean readOnly) {
+        if (isolation == null) {
+            return readOnly ? DefaultIsolationTransactionOption.READ : DefaultIsolationTransactionOption.WRITE;
+        }
         final TransactionOption option;
         switch (isolation) {
-            case DEFAULT:
-                option = readOnly ? DEFAULT_READ : DEFAULT_WRITE;
-                break;
             case READ_UNCOMMITTED:
                 option = readOnly ? READ_UNCOMMITTED_READ : READ_UNCOMMITTED_WRITE;
                 break;
@@ -61,6 +61,7 @@ enum JdbdTransactionOption implements TransactionStatus {
         this.readOnly = readOnly;
     }
 
+    @NonNull
     @Override
     public final Isolation getIsolation() {
         return this.isolation;
@@ -85,6 +86,40 @@ enum JdbdTransactionOption implements TransactionStatus {
                 this.readOnly
         );
     }
+
+
+    private enum DefaultIsolationTransactionOption implements TransactionOption {
+
+        READ(true),
+        WRITE(false);
+
+        private final boolean readOnly;
+
+        DefaultIsolationTransactionOption(boolean readOnly) {
+            this.readOnly = readOnly;
+        }
+
+        @Override
+        public Isolation getIsolation() {
+            //always null
+            return null;
+        }
+
+        @Override
+        public boolean isReadOnly() {
+            return this.readOnly;
+        }
+
+        @Override
+        public final String toString() {
+            return String.format("%s[isolation:default,readOnly:%s].",
+                    JdbdTransactionOption.class.getName(),
+                    this.readOnly
+            );
+        }
+
+
+    }//DefaultIsolationTransactionOption
 
 
 }

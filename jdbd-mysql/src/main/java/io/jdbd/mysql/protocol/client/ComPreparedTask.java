@@ -76,10 +76,9 @@ final class ComPreparedTask extends MySQLCommandTask implements PrepareStmtTask,
      * </p>
      *
      * @see #ComPreparedTask(ParamSingleStmt, ResultSink, TaskAdjutant)
-     * @see ComQueryTask#bindQuery(BindStmt, Function, Consumer, TaskAdjutant)
+     * @see ComQueryTask#paramQuery(ParamStmt, Function, TaskAdjutant)
      */
-    static <R> Flux<R> query(final ParamStmt stmt, final Function<CurrentRow, R> function,
-                             final Consumer<ResultStates> consumer, final TaskAdjutant adjutant) {
+    static <R> Flux<R> query(final ParamStmt stmt, final Function<CurrentRow, R> function, final TaskAdjutant adjutant) {
         return MultiResults.query(function, consumer, sink -> {
             try {
                 ComPreparedTask task = new ComPreparedTask(stmt, sink, adjutant);
@@ -98,9 +97,21 @@ final class ComPreparedTask extends MySQLCommandTask implements PrepareStmtTask,
      * @see #ComPreparedTask(ParamSingleStmt, ResultSink, TaskAdjutant)
      * @see ComQueryTask#bindBatch(BindBatchStmt, TaskAdjutant)
      */
-    static Flux<ResultStates> batchUpdate(final ParamBatchStmt<? extends ParamValue> stmt
+    static Flux<ResultStates> batchUpdate(final ParamBatchStmt<ParamValue> stmt
             , final TaskAdjutant adjutant) {
         return MultiResults.batchUpdate(sink -> {
+            try {
+                ComPreparedTask task = new ComPreparedTask(stmt, sink, adjutant);
+                task.submit(sink::error);
+            } catch (Throwable e) {
+                sink.error(MySQLExceptions.wrapIfNonJvmFatal(e));
+            }
+
+        });
+    }
+
+    static BatchQuery batchQuery(final ParamBatchStmt stmt, final TaskAdjutant adjutant) {
+        return MultiResults.batchQuery(sink -> {
             try {
                 ComPreparedTask task = new ComPreparedTask(stmt, sink, adjutant);
                 task.submit(sink::error);
@@ -162,12 +173,11 @@ final class ComPreparedTask extends MySQLCommandTask implements PrepareStmtTask,
      * @see DatabaseSession#prepare(String)
      * @see #ComPreparedTask(ParamSingleStmt, ResultSink, TaskAdjutant)
      */
-    static Mono<PreparedStatement> prepare(final String sql, final TaskAdjutant adjutant
-            , final Function<PrepareTask<MySQLType>, PreparedStatement> function) {
+    static Mono<PrepareTask> prepare(final String sql, final TaskAdjutant adjutant) {
         return Mono.create(sink -> {
             try {
                 final MySQLPrepareStmt stmt = new MySQLPrepareStmt(sql);
-                final ResultSink resultSink = new PrepareSink(sink, function);
+                final ResultSink resultSink = new PrepareSink(sink);
                 ComPreparedTask task = new ComPreparedTask(stmt, resultSink, adjutant);
                 task.submit(sink::error);
             } catch (Throwable e) {
@@ -1075,16 +1085,12 @@ final class ComPreparedTask extends MySQLCommandTask implements PrepareStmtTask,
 
     private static final class PrepareSink implements ResultSink {
 
-        private final MonoSink<PreparedStatement> statementSink;
-
-        private final Function<PrepareTask<MySQLType>, PreparedStatement> function;
+        private final MonoSink<PrepareTask> statementSink;
 
         private ResultSink sink;
 
-        private PrepareSink(MonoSink<PreparedStatement> statementSink
-                , Function<PrepareTask<MySQLType>, PreparedStatement> function) {
+        private PrepareSink(MonoSink<PrepareTask> statementSink) {
             this.statementSink = statementSink;
-            this.function = function;
         }
 
         private void setSink(ResultSink sink) {

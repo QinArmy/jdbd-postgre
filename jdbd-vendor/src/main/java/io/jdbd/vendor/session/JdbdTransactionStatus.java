@@ -1,9 +1,12 @@
 package io.jdbd.vendor.session;
 
 import io.jdbd.JdbdException;
+import io.jdbd.lang.NonNull;
 import io.jdbd.session.Isolation;
 import io.jdbd.session.TransactionOption;
 import io.jdbd.session.TransactionStatus;
+
+import java.util.Objects;
 
 public enum JdbdTransactionStatus implements TransactionStatus {
 
@@ -21,9 +24,8 @@ public enum JdbdTransactionStatus implements TransactionStatus {
 
     public static TransactionStatus txStatus(final Isolation isolation, final boolean readOnly,
                                              final boolean inTransaction) {
-        if (isolation == Isolation.DEFAULT) {
-            throw new IllegalArgumentException();
-        }
+        Objects.requireNonNull(isolation);
+
         final TransactionStatus status;
         if (!inTransaction) {
             status = (TransactionStatus) TransactionOption.option(isolation, readOnly);
@@ -58,6 +60,7 @@ public enum JdbdTransactionStatus implements TransactionStatus {
         this.readOnly = readOnly;
     }
 
+    @NonNull
     @Override
     public final Isolation getIsolation() {
         return this.isolation;

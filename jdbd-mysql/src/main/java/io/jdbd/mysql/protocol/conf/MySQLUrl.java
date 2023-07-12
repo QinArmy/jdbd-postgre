@@ -4,7 +4,7 @@ package io.jdbd.mysql.protocol.conf;
 import io.jdbd.JdbdException;
 import io.jdbd.mysql.env.ProtocolType;
 import io.jdbd.mysql.protocol.client.Charsets;
-import io.jdbd.mysql.protocol.client.ClientProtocol;
+import io.jdbd.mysql.protocol.client.ClientProtocol0;
 import io.jdbd.mysql.util.MySQLCollections;
 import io.jdbd.vendor.env.*;
 import io.qinarmy.env.convert.ConverterManager;
@@ -105,8 +105,8 @@ public final class MySQLUrl extends AbstractJdbcUrl {
             value = defaultValue;
         } else if (maxAllowedPacket < minValue) {
             value = minValue;
-        } else if (maxAllowedPacket > ClientProtocol.MAX_PAYLOAD_SIZE) {
-            value = ClientProtocol.MAX_PAYLOAD_SIZE;
+        } else if (maxAllowedPacket > ClientProtocol0.MAX_PAYLOAD_SIZE) {
+            value = ClientProtocol0.MAX_PAYLOAD_SIZE;
         } else {
             value = maxAllowedPacket & (~1023);
         }

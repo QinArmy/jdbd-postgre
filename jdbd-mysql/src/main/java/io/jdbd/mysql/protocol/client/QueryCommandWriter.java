@@ -38,8 +38,8 @@ final class QueryCommandWriter {
      *             </ul>
      * @return a sync Publisher that is created by {@link Mono#just(Object)} or {@link Flux#fromIterable(Iterable)}.
      */
-    static Publisher<ByteBuf> createStaticCommand(final Stmt stmt, final IntSupplier sequenceId,
-                                                  final TaskAdjutant adjutant) throws JdbdException {
+    static Publisher<ByteBuf> staticCommand(final Stmt stmt, final IntSupplier sequenceId,
+                                            final TaskAdjutant adjutant) throws JdbdException {
         final Charset clientCharset = adjutant.charsetClient();
         final byte[] sqlBytes;
         if (stmt instanceof StaticStmt) {
@@ -73,8 +73,8 @@ final class QueryCommandWriter {
      * @return a sync Publisher that is created by {@link Mono#just(Object)} or {@link Flux#fromIterable(Iterable)}.
      * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_com_query.html">Protocol::COM_QUERY</a>
      */
-    static Publisher<ByteBuf> createStaticBatchCommand(final StaticBatchStmt stmt, IntSupplier sequenceId,
-                                                       final TaskAdjutant adjutant) throws JdbdException {
+    static Publisher<ByteBuf> staticBatchCommand(final StaticBatchStmt stmt, IntSupplier sequenceId,
+                                                 final TaskAdjutant adjutant) throws JdbdException {
         final List<String> sqlGroup = stmt.getSqlGroup();
         if (sqlGroup.isEmpty()) {
             throw MySQLExceptions.createQueryIsEmptyError();
@@ -117,7 +117,7 @@ final class QueryCommandWriter {
     /**
      * @return a sync Publisher that is created by {@link Mono#just(Object)} or {@link Flux#fromIterable(Iterable)}.
      */
-    static Publisher<ByteBuf> createBindableCommand(ParamStmt bindStmt, IntSupplier sequenceId, TaskAdjutant adjutant)
+    static Publisher<ByteBuf> bindableCommand(ParamStmt bindStmt, IntSupplier sequenceId, TaskAdjutant adjutant)
             throws JdbdException {
         return new QueryCommandWriter(sequenceId, adjutant)
                 .writeBindableCommand(bindStmt);
@@ -127,8 +127,8 @@ final class QueryCommandWriter {
     /**
      * @return a unmodifiable Iterable.
      */
-    static Publisher<ByteBuf> createBindableMultiCommand(final ParamMultiStmt stmt, IntSupplier sequenceId,
-                                                         TaskAdjutant adjutant) throws JdbdException {
+    static Publisher<ByteBuf> bindableMultiCommand(final ParamMultiStmt stmt, IntSupplier sequenceId,
+                                                   TaskAdjutant adjutant) throws JdbdException {
         return new QueryCommandWriter(sequenceId, adjutant)
                 .writeMultiCommand(stmt);
     }
@@ -137,8 +137,8 @@ final class QueryCommandWriter {
     /**
      * @return a unmodifiable list.
      */
-    static Publisher<ByteBuf> createBindableBatchCommand(ParamBatchStmt stmt, IntSupplier sequenceIdSupplier,
-                                                         TaskAdjutant adjutant) throws JdbdException {
+    static Publisher<ByteBuf> bindableBatchCommand(ParamBatchStmt stmt, IntSupplier sequenceIdSupplier,
+                                                   TaskAdjutant adjutant) throws JdbdException {
 
         return new QueryCommandWriter(sequenceIdSupplier, adjutant)
                 .writeBindableBatchCommand(stmt);
@@ -171,7 +171,7 @@ final class QueryCommandWriter {
 
     /**
      * @return a unmodifiable list.
-     * @see #createBindableMultiCommand(ParamMultiStmt, IntSupplier, TaskAdjutant)
+     * @see #bindableMultiCommand(ParamMultiStmt, IntSupplier, TaskAdjutant)
      */
     private Publisher<ByteBuf> writeMultiCommand(final ParamMultiStmt multiStmt)
             throws JdbdException {
@@ -202,7 +202,7 @@ final class QueryCommandWriter {
 
     /**
      * @return a unmodifiable list.
-     * @see #createBindableCommand(ParamStmt, IntSupplier, TaskAdjutant)
+     * @see #bindableCommand(ParamStmt, IntSupplier, TaskAdjutant)
      */
     private Publisher<ByteBuf> writeBindableCommand(final ParamStmt stmt) throws JdbdException {
         final TaskAdjutant adjutant = this.adjutant;
@@ -227,7 +227,7 @@ final class QueryCommandWriter {
 
     /**
      * @return a unmodifiable list.
-     * @see #createBindableBatchCommand(ParamBatchStmt, IntSupplier, TaskAdjutant)
+     * @see #bindableBatchCommand(ParamBatchStmt, IntSupplier, TaskAdjutant)
      */
     private Publisher<ByteBuf> writeBindableBatchCommand(final ParamBatchStmt stmt)
             throws JdbdException {

@@ -3,7 +3,6 @@ package io.jdbd.session;
 
 public enum Isolation {
 
-    DEFAULT,
 
     /**
      * A constant indicating that dirty reads, non-repeatable reads and phantom reads

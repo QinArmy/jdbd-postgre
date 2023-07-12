@@ -51,7 +51,7 @@ import static org.testng.Assert.*;
  */
 abstract class AbstractDataTypeSuiteTests extends AbstractTaskSuiteTests {
 
-    private static final Queue<ClientProtocol> PROTOCOL_QUEUE = new LinkedBlockingQueue<>();
+    private static final Queue<ClientProtocol0> PROTOCOL_QUEUE = new LinkedBlockingQueue<>();
 
     final Logger LOG = LoggerFactory.getLogger(getClass());
 
@@ -945,7 +945,7 @@ abstract class AbstractDataTypeSuiteTests extends AbstractTaskSuiteTests {
     }
 
 
-    private Mono<ResultRow> executeStmt(final ClientProtocol protocol, final BindStmt updateStmt
+    private Mono<ResultRow> executeStmt(final ClientProtocol0 protocol, final BindStmt updateStmt
             , final BindStmt queryStmt) {
         final TaskAdjutant adjutant = getTaskAdjutant(protocol);
         return executeUpdate(updateStmt, adjutant)
@@ -959,7 +959,7 @@ abstract class AbstractDataTypeSuiteTests extends AbstractTaskSuiteTests {
     }
 
 
-    private <T> Mono<T> closeProtocol(final ClientProtocol protocol) {
+    private <T> Mono<T> closeProtocol(final ClientProtocol0 protocol) {
         return protocol.reset()
                 .doOnSuccess(v -> PROTOCOL_QUEUE.offer(protocol))
                 .then(Mono.empty());
@@ -970,9 +970,9 @@ abstract class AbstractDataTypeSuiteTests extends AbstractTaskSuiteTests {
         return Mono.error(new RuntimeException("update failure"));
     }
 
-    Mono<ClientProtocol> getClientProtocol() {
-        final Mono<ClientProtocol> mono;
-        ClientProtocol protocol;
+    Mono<ClientProtocol0> getClientProtocol() {
+        final Mono<ClientProtocol0> mono;
+        ClientProtocol0 protocol;
         protocol = PROTOCOL_QUEUE.poll();
         if (protocol == null) {
             mono = ClientProtocolFactory.single(DEFAULT_SESSION_ADJUTANT);

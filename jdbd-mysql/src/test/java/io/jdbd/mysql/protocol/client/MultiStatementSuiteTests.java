@@ -578,7 +578,7 @@ public class MultiStatementSuiteTests extends AbstractTaskSuiteTests {
         groupList.add(paramGroup);
 
         final List<ResultStates> resultStatesList;
-        resultStatesList = ComQueryTask.bindBatch(Stmts.batchBind(sql, groupList), adjutant)
+        resultStatesList = ComQueryTask.paramBatchUpdate(Stmts.batchBind(sql, groupList), adjutant)
                 .collectList()
                 .block();
 

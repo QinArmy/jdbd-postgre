@@ -2,7 +2,10 @@ package io.jdbd.vendor.protocol;
 
 import io.jdbd.result.*;
 import io.jdbd.session.*;
-import io.jdbd.statement.*;
+import io.jdbd.statement.BindStatement;
+import io.jdbd.statement.MultiStatement;
+import io.jdbd.statement.StaticStatement;
+import io.jdbd.statement.StaticStatementSpec;
 import io.jdbd.vendor.stmt.*;
 import io.jdbd.vendor.task.PrepareTask;
 import reactor.core.publisher.Flux;
@@ -125,7 +128,7 @@ public interface DatabaseProtocol {
      * This method is underlying api of {@link DatabaseSession#prepare(String)} methods:
      * </p>
      */
-    Mono<PreparedStatement> prepare(String sql, Function<PrepareTask, PreparedStatement> function);
+    Mono<PrepareTask> prepare(String sql);
 
     Mono<TransactionStatus> transactionStatus();
 
@@ -133,7 +136,7 @@ public interface DatabaseProtocol {
 
     Mono<Void> reset();
 
-    Mono<Void> reconnect(int maxReconnect);
+    Mono<Void> reconnect(int maxAttempts);
 
     boolean isReadOnlyTransaction(ResultStates states);
 

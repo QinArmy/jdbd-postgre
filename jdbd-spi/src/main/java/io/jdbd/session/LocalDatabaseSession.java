@@ -1,5 +1,6 @@
 package io.jdbd.session;
 
+import io.jdbd.JdbdException;
 import org.reactivestreams.Publisher;
 
 
@@ -8,9 +9,7 @@ public interface LocalDatabaseSession extends DatabaseSession {
 
     Publisher<LocalDatabaseSession> startTransaction(TransactionOption option);
 
-    default boolean inTransaction() {
-        return false;
-    }
+    boolean inTransaction() throws JdbdException;
 
 
     @Override

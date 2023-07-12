@@ -17,7 +17,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import reactor.core.publisher.Mono;
 import reactor.netty.Connection;
-import reactor.netty.tcp.TcpClient;
 import reactor.util.annotation.Nullable;
 
 import java.nio.charset.Charset;
@@ -27,6 +26,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
 final class MySQLTaskExecutor extends CommunicationTaskExecutor<TaskAdjutant> {
 
@@ -35,10 +35,8 @@ final class MySQLTaskExecutor extends CommunicationTaskExecutor<TaskAdjutant> {
     }
 
     static Mono<MySQLTaskExecutor> create(final ClientProtocolFactory factory) {
-        return TcpClient.create()
-                .runOn(factory.eventLoopGroup)
-                .host(factory.hostEnv.getHost())
-                .port(factory.hostEnv.getPort())
+
+        return factory.tcpClient
                 .connect()
                 .map(connection -> new MySQLTaskExecutor(connection, factory));
     }
@@ -51,14 +49,16 @@ final class MySQLTaskExecutor extends CommunicationTaskExecutor<TaskAdjutant> {
 
     private static final Logger LOG = LoggerFactory.getLogger(MySQLTaskExecutor.class);
 
+    private static final AtomicReferenceFieldUpdater<MySQLTaskExecutor, TerminatorPacket> TERMINATOR =
+            AtomicReferenceFieldUpdater.newUpdater(MySQLTaskExecutor.class, TerminatorPacket.class, "terminator");
 
-    private final ClientProtocolFactory protocolFactory;
+    private final ClientProtocolFactory factory;
 
-    private volatile int serverStatus;
+    private volatile TerminatorPacket terminator;
 
     private MySQLTaskExecutor(Connection connection, ClientProtocolFactory factory) {
         super(connection, factory.factoryTaskQueueSize);
-        this.protocolFactory = factory;
+        this.factory = factory;
     }
 
     @Override
@@ -73,12 +73,12 @@ final class MySQLTaskExecutor extends CommunicationTaskExecutor<TaskAdjutant> {
 
 
     protected void updateServerStatus(Object serversStatus) {
-        // LOG.debug("serversStatus :{}", serversStatus);
+        TERMINATOR.set(this, (TerminatorPacket) serversStatus);
     }
 
     @Override
     protected JdbdHost obtainHostInfo() {
-        return this.protocolFactory.hostEnv;
+        return this.factory.hostEnv;
     }
 
     @Override

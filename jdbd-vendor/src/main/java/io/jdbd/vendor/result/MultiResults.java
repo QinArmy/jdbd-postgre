@@ -41,6 +41,10 @@ public abstract class MultiResults {
         return BatchUpdateResultSubscriber.create(consumer);
     }
 
+    public static BatchQuery batchQuery(ITaskAdjutant adjutant, Consumer<ResultSink> consumer) {
+        throw new UnsupportedOperationException();
+    }
+
     public static MultiResult asMulti(ITaskAdjutant adjutant, Consumer<ResultSink> consumer) {
         return MultiResultSubscriber.create(adjutant, consumer);
     }

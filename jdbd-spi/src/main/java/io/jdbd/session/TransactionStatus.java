@@ -1,10 +1,11 @@
 package io.jdbd.session;
 
+import io.jdbd.lang.NonNull;
+
 public interface TransactionStatus extends TransactionOption {
 
-    /**
-     * @return never {@link Isolation#DEFAULT}
-     */
+
+    @NonNull
     @Override
     Isolation getIsolation();
 

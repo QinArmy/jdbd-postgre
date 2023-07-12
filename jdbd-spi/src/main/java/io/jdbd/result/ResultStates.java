@@ -3,9 +3,7 @@ package io.jdbd.result;
 
 public interface ResultStates extends Result {
 
-    default boolean supportInsertId() {
-        return true;
-    }
+     boolean supportInsertId();
 
     boolean inTransaction();
 

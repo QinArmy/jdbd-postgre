@@ -1,5 +1,6 @@
 package io.jdbd.mysql.protocol.client;
 
+import io.jdbd.mysql.util.MySQLCollections;
 import io.jdbd.mysql.util.MySQLExceptions;
 import io.jdbd.result.Result;
 import io.jdbd.vendor.result.ResultSink;
@@ -7,6 +8,9 @@ import io.netty.buffer.ByteBuf;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.List;
 import java.util.function.Consumer;
 
 /**
@@ -37,6 +41,8 @@ abstract class MySQLCommandTask extends MySQLTask implements StmtTask {
     private int resultIndex;
 
     private boolean downstreamCanceled;
+
+    private List<Path> bigColumnPathList;
 
     MySQLCommandTask(TaskAdjutant adjutant, final ResultSink sink) {
         super(adjutant, sink::error);
@@ -70,6 +76,15 @@ abstract class MySQLCommandTask extends MySQLTask implements StmtTask {
     @Override
     public final void addErrorToTask(Throwable error) {
         addError(error);
+    }
+
+    @Override
+    public final void addBigColumnPath(Path path) {
+        List<Path> bigColumnPathList = this.bigColumnPathList;
+        if (bigColumnPathList == null) {
+            this.bigColumnPathList = bigColumnPathList = MySQLCollections.linkedList();
+        }
+        bigColumnPathList.add(path);
     }
 
 
@@ -125,8 +140,7 @@ abstract class MySQLCommandTask extends MySQLTask implements StmtTask {
         payloadLength = Packets.readInt3(cumulateBuffer);
         updateSequenceId(Packets.readInt1AsInt(cumulateBuffer)); //  sequence_id
         final ErrorPacket error;
-        error = ErrorPacket.read(cumulateBuffer.readSlice(payloadLength)
-                , this.capability, this.adjutant.errorCharset());
+        error = ErrorPacket.readCumulate(cumulateBuffer, payloadLength, this.capability, this.adjutant.errorCharset());
         addError(MySQLExceptions.createErrorPacketException(error));
     }
 
@@ -135,11 +149,13 @@ abstract class MySQLCommandTask extends MySQLTask implements StmtTask {
      */
     final boolean readResultSet(final ByteBuf cumulateBuffer, final Consumer<Object> serverStatusConsumer) {
 
+        final ResultSetReader.States states;
+        states = this.resultSetReader.read(cumulateBuffer, serverStatusConsumer);
         final boolean taskEnd;
-        switch (this.resultSetReader.read(cumulateBuffer, serverStatusConsumer)) {
+        switch (states) {
             case END_ON_ERROR:
                 taskEnd = true;
-            break;
+                break;
             case MORE_FETCH: {
                 handleReadResultSetEnd();
                 if (this.isCancelled()) {
@@ -151,7 +167,7 @@ abstract class MySQLCommandTask extends MySQLTask implements StmtTask {
             break;
             case MORE_CUMULATE:
                 taskEnd = false;
-            break;
+                break;
             case NO_MORE_RESULT: {
                 handleReadResultSetEnd();
                 if (hasMoreGroup()) {
@@ -166,9 +182,8 @@ abstract class MySQLCommandTask extends MySQLTask implements StmtTask {
                 taskEnd = false;
             }
             break;
-            default: {
-                throw new IllegalStateException("Unknown ResultSetReader.States instance.");
-            }
+            default:
+                throw MySQLExceptions.unexpectedEnum(states);
 
         }
         return taskEnd;
@@ -184,24 +199,9 @@ abstract class MySQLCommandTask extends MySQLTask implements StmtTask {
         payloadLength = Packets.readInt3(cumulateBuffer);
         updateSequenceId(Packets.readInt1AsInt(cumulateBuffer));
 
-        final int readIndex, writeIndex, endIndex;
-        readIndex = cumulateBuffer.readerIndex();
-        writeIndex = cumulateBuffer.writerIndex();
-
-        endIndex = readIndex + payloadLength;
-        if (endIndex != writeIndex) {
-            cumulateBuffer.writerIndex(endIndex);
-        }
-
         final OkPacket ok;
-        ok = OkPacket.read(cumulateBuffer, this.capability);
+        ok = OkPacket.readCumulate(cumulateBuffer, payloadLength, this.capability);
         serverStatusConsumer.accept(ok);
-
-        cumulateBuffer.readerIndex(endIndex);
-
-        if (endIndex != writeIndex) {
-            cumulateBuffer.writerIndex(writeIndex);
-        }
 
         final int resultIndex = nextResultIndex(); // must increment result index.
         final boolean noMoreResult = !ok.hasMoreResult();
@@ -219,6 +219,33 @@ abstract class MySQLCommandTask extends MySQLTask implements StmtTask {
             }
         }
         return taskEnd;
+    }
+
+
+    final void deleteBigColumnFileIfNeed() {
+        final List<Path> bigColumnPathList = this.bigColumnPathList;
+        if (bigColumnPathList == null) {
+            return;
+        }
+
+        for (Path path : bigColumnPathList) {
+            deleteBigColumnFile(path);
+        }
+
+        bigColumnPathList.clear();
+        this.bigColumnPathList = null;
+
+    }
+
+
+    /*-------------------below private method-------------------*/
+
+    private void deleteBigColumnFile(final Path path) {
+        try {
+            Files.deleteIfExists(path);
+        } catch (Throwable e) {
+            // ignore error
+        }
     }
 
 

@@ -46,12 +46,12 @@ public class ComQueryTaskSuiteTests extends AbstractStmtTaskSuiteTests {
 
     @Override
     Mono<ResultStates> executeUpdate(BindStmt stmt, TaskAdjutant adjutant) {
-        return ComQueryTask.bindUpdate(stmt, adjutant);
+        return ComQueryTask.paramUpdate(stmt, adjutant);
     }
 
     @Override
     Flux<ResultRow> executeQuery(BindStmt stmt, TaskAdjutant adjutant) {
-        return ComQueryTask.bindQuery(stmt, adjutant);
+        return ComQueryTask.paramQuery(stmt, adjutant);
     }
 
     @Override
@@ -188,7 +188,7 @@ public class ComQueryTaskSuiteTests extends AbstractStmtTaskSuiteTests {
 
         final String sql = "SELECT t.id,t.name,t.create_time as createTime FROM mysql_types as t WHERE t.id > ? ORDER BY t.id LIMIT 50";
         try {
-            ComQueryTask.bindUpdate(Stmts.single(sql, BindValue.wrap(0, MySQLType.BIGINT, 50L)), adjutant)
+            ComQueryTask.paramUpdate(Stmts.single(sql, BindValue.wrap(0, MySQLType.BIGINT, 50L)), adjutant)
                     .block();
             fail("bindableUpdateIsQuery test failure.");
         } catch (SubscribeException e) {
@@ -642,7 +642,7 @@ public class ComQueryTaskSuiteTests extends AbstractStmtTaskSuiteTests {
         groupList.add(paramGroup);
 
         final List<ResultStates> resultStatesList;
-        resultStatesList = ComQueryTask.bindBatch(Stmts.batchBind(sql, groupList), adjutant)
+        resultStatesList = ComQueryTask.paramBatchUpdate(Stmts.batchBind(sql, groupList), adjutant)
                 .collectList()
                 .block();
 
@@ -691,7 +691,7 @@ public class ComQueryTaskSuiteTests extends AbstractStmtTaskSuiteTests {
         groupList.add(paramGroup);
 
         final List<ResultStates> resultStatesList;
-        resultStatesList = ComQueryTask.bindBatch(Stmts.batchBind(sql, groupList), adjutant)
+        resultStatesList = ComQueryTask.paramBatchUpdate(Stmts.batchBind(sql, groupList), adjutant)
                 .collectList()
                 .block();
 
@@ -726,7 +726,7 @@ public class ComQueryTaskSuiteTests extends AbstractStmtTaskSuiteTests {
         groupList.add(Collections.singletonList(BindValue.wrap(0, MySQLType.BIGINT, 150)));
 
         try {
-            ComQueryTask.bindBatch(Stmts.batchBind(sql, groupList), adjutant)
+            ComQueryTask.paramBatchUpdate(Stmts.batchBind(sql, groupList), adjutant)
                     .map(states -> {
                         fail("bindableBatchIsQueryWithSingleStmtMode test failure");
                         return states;
@@ -772,7 +772,7 @@ public class ComQueryTaskSuiteTests extends AbstractStmtTaskSuiteTests {
         groupList.add(Collections.singletonList(BindValue.wrap(0, MySQLType.BIGINT, 160)));
 
         try {
-            ComQueryTask.bindBatch(Stmts.batchBind(sql, groupList), adjutant)
+            ComQueryTask.paramBatchUpdate(Stmts.batchBind(sql, groupList), adjutant)
                     .map(states -> {
                         fail("bindableBatchIsQueryWithTempMultiMode test failure");
                         return states;
@@ -815,7 +815,7 @@ public class ComQueryTaskSuiteTests extends AbstractStmtTaskSuiteTests {
         groupList.add(Collections.singletonList(BindValue.wrap(0, MySQLType.BIGINT, 36L)));
 
         try {
-            ComQueryTask.bindBatch(Stmts.batchBind(sql, groupList), adjutant)
+            ComQueryTask.paramBatchUpdate(Stmts.batchBind(sql, groupList), adjutant)
                     .map(states -> {
                         fail("bindableBatchSyntaxWithSingleStmtMode test failure");
                         return states;
@@ -860,7 +860,7 @@ public class ComQueryTaskSuiteTests extends AbstractStmtTaskSuiteTests {
         groupList.add(Collections.singletonList(BindValue.wrap(0, MySQLType.BIGINT, 37L)));
 
         try {
-            ComQueryTask.bindBatch(Stmts.batchBind(sql, groupList), adjutant)
+            ComQueryTask.paramBatchUpdate(Stmts.batchBind(sql, groupList), adjutant)
                     .map(states -> {
                         fail("bindableBatchSyntaxWithTempMultiMode test failure");
                         return states;

@@ -30,7 +30,7 @@ public class SessionInitializerSuiteTests extends AbstractTaskSuiteTests {
 
     private static final Logger LOG = LoggerFactory.getLogger(SessionInitializerSuiteTests.class);
 
-    private static final ConcurrentMap<Long, ClientProtocol> protocolMap = new ConcurrentHashMap<>();
+    private static final ConcurrentMap<Long, ClientProtocol0> protocolMap = new ConcurrentHashMap<>();
 
     @BeforeClass
     public static void beforeClass() {
@@ -40,10 +40,10 @@ public class SessionInitializerSuiteTests extends AbstractTaskSuiteTests {
     @AfterClass
     public static void afterClass() {
         LOG.info("\n {} group test end.\n", Groups.SESSION_INITIALIZER);
-        LOG.info("close {} ,size:{}", ClientProtocol.class.getName(), protocolMap.size());
+        LOG.info("close {} ,size:{}", ClientProtocol0.class.getName(), protocolMap.size());
 
         Flux.fromIterable(protocolMap.values())
-                .flatMap(ClientProtocol::close)
+                .flatMap(ClientProtocol0::close)
                 .then()
                 .block();
 

@@ -105,7 +105,7 @@ public interface DatabaseSession extends StaticStatementSpec, Closeable {
      */
     Publisher<PreparedStatement> prepare(String sql);
 
-    BindStatement bindStatement(String sql);
+    BindStatement bindStatement(String sql) throws JdbdException;
 
     /**
      * @param forcePrepare true : must use server prepare statement.
@@ -118,13 +118,13 @@ public interface DatabaseSession extends StaticStatementSpec, Closeable {
     /**
      * @see java.sql.DatabaseMetaData#supportsSavepoints()
      */
-    boolean supportSavePoints();
+    boolean supportSavePoints() throws JdbdException;
 
-    boolean supportStmtVar();
+    boolean supportStmtVar() throws JdbdException;
 
-    boolean supportMultiStatement();
+    boolean supportMultiStatement() throws JdbdException;
 
-    boolean supportOutParameter();
+    boolean supportOutParameter() throws JdbdException;
 
 
     Publisher<SavePoint> setSavePoint();

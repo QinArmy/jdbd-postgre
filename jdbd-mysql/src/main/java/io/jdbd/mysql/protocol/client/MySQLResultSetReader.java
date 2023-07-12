@@ -18,9 +18,20 @@ import java.nio.file.StandardOpenOption;
 import java.time.LocalDate;
 import java.util.function.Consumer;
 
+/**
+ * <p>
+ * This class is base class of following :
+ *     <ul>
+ *         <li>{@link TextResultSetReader}</li>
+ *         <li>{@link BinaryResultSetReader}</li>
+ *     </ul>
+ * </p>
+ *
+ * @since 1.0
+ */
 abstract class MySQLResultSetReader implements ResultSetReader {
 
-    static final Path TEMP_DIRECTORY = Paths.get(System.getProperty("java.io.tmpdir"), "jdbd/mysql/big_row")
+    private static final Path TEMP_DIRECTORY = Paths.get(System.getProperty("java.io.tmpdir"), "jdbd/mysql/big_row")
             .toAbsolutePath();
 
 
@@ -36,8 +47,7 @@ abstract class MySQLResultSetReader implements ResultSetReader {
 
     final Environment env;
 
-    Throwable error;
-
+    private Throwable error;
 
     private ByteBuf bigPayload;
 
@@ -59,6 +69,7 @@ abstract class MySQLResultSetReader implements ResultSetReader {
 
         if (currentRow == null && (currentRow = readRowMeta(cumulateBuffer, serverStatesConsumer)) != null) {
             this.currentRow = currentRow;
+            this.task.next(currentRow.rowMeta); // emit ResultRowMeta as the header of query result.
         }
         final States states;
         if (currentRow == null) {
@@ -77,7 +88,7 @@ abstract class MySQLResultSetReader implements ResultSetReader {
     abstract MySQLCurrentRow readRowMeta(ByteBuf cumulateBuffer, Consumer<Object> serverStatesConsumer);
 
 
-    abstract boolean readOneRow(ByteBuf cumulateBuffer, MySQLCurrentRow currentRow);
+    abstract boolean readOneRow(ByteBuf cumulateBuffer, final boolean bigPayload, MySQLCurrentRow currentRow);
 
 
     abstract Logger getLogger();
@@ -391,7 +402,7 @@ abstract class MySQLResultSetReader implements ResultSetReader {
                 continue;
             }
 
-            if (bigPayload != null && payloadLength < Packets.MAX_PAYLOAD) {
+            if (bigPayload == null && payloadLength < Packets.MAX_PAYLOAD) {
                 sequenceId = Packets.readInt1AsInt(cumulateBuffer);
                 writerIndex = cumulateBuffer.writerIndex();
                 if (limitIndex != writerIndex) {
@@ -407,7 +418,7 @@ abstract class MySQLResultSetReader implements ResultSetReader {
                 sequenceId = Packets.readBigPayload(cumulateBuffer, payload);
             }
 
-            oneRowEnd = readOneRow(payload, currentRow);
+            oneRowEnd = readOneRow(payload, payload != cumulateBuffer, currentRow);  // read one row
 
             if (payload == cumulateBuffer) {
                 assert oneRowEnd; // fail ,driver bug or server bug
@@ -417,7 +428,6 @@ abstract class MySQLResultSetReader implements ResultSetReader {
                 }
                 cumulateBuffer.readerIndex(limitIndex); //avoid tailor filler
             } else if (oneRowEnd) {
-                assert payload.readableBytes() == 0; // fail , driver bug.
                 payload.release();
                 this.bigPayload = bigPayload = null;
             } else if (payload.readableBytes() == 0) {
@@ -445,12 +455,14 @@ abstract class MySQLResultSetReader implements ResultSetReader {
         }
 
         if (resultSetEnd) {
+            // reset this instance
             bigPayload = this.bigPayload;
             if (bigPayload != null && bigPayload.refCnt() > 0) {
                 bigPayload.release();
             }
             this.bigPayload = null;
             this.currentRow = null;
+            this.error = null;
         }
         return states;
     }
@@ -458,7 +470,7 @@ abstract class MySQLResultSetReader implements ResultSetReader {
 
     static abstract class MySQLCurrentRow extends MySQLRow.JdbdCurrentRow {
 
-        BigColumn bigColumn;
+        private BigColumn bigColumn;
 
         private long rowCount = 0L;
         private boolean bigRow;
@@ -475,6 +487,10 @@ abstract class MySQLResultSetReader implements ResultSetReader {
         @Override
         public final long rowNumber() {
             return this.rowCount;
+        }
+
+        final boolean isBigColumnNull() {
+            return this.bigColumn == null;
         }
 
         final void setBigColumn(BigColumn bigColumn) {

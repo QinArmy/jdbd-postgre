@@ -26,8 +26,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
-import reactor.netty.resources.ConnectionProvider;
 import reactor.netty.resources.LoopResources;
+import reactor.netty.tcp.TcpClient;
 import reactor.netty.tcp.TcpResources;
 import reactor.util.annotation.Nullable;
 
@@ -41,31 +41,25 @@ public final class ClientProtocolFactory extends FixedEnv implements MySQLProtoc
 
     final MySQLHostEnv hostEnv;
 
-    final ConnectionProvider connectionProvider;
-
-    final EventLoopGroup eventLoopGroup;
-
     final int factoryTaskQueueSize;
 
-    final int maxAllowedPayload;
+
+    final TcpClient tcpClient;
 
     private ClientProtocolFactory(final MySQLHostEnv hostEnv) {
         super(hostEnv);
         this.hostEnv = hostEnv;
-        final ConnectionProvider connectionProvider;
-        connectionProvider = hostEnv.get(MySQLKey.SOCKET_FACTORY);
-        if (connectionProvider == null) {
-            this.connectionProvider = TcpResources.get();
-        } else {
-            this.connectionProvider = connectionProvider;
-        }
 
-        this.eventLoopGroup = LoopResources.create("jdbd-mysql", hostEnv.getOrDefault(MySQLKey.FACTORY_WORKER_COUNT), true)
-                .onClient(true);
 
-        this.factoryTaskQueueSize = hostEnv.getOrDefault(MySQLKey.FACTORY_TASK_QUEUE_SIZE);
-        this.maxAllowedPayload = 1 << 30; //TODO
+        this.factoryTaskQueueSize = hostEnv.getOrMin(MySQLKey.FACTORY_TASK_QUEUE_SIZE, 18);
+
+
+        this.tcpClient = TcpClient.create(hostEnv.get(MySQLKey.SOCKET_FACTORY, TcpResources::get))
+                .runOn(createEventLoopGroup(hostEnv))
+                .host(hostEnv.getHost())
+                .port(hostEnv.getPort());
     }
+
 
     private static final Logger LOG = LoggerFactory.getLogger(ClientProtocolFactory.class);
 
@@ -74,13 +68,13 @@ public final class ClientProtocolFactory extends FixedEnv implements MySQLProtoc
     }
 
 
-    public static Mono<ClientProtocol> single(final SessionAdjutant sessionAdjutant) {
+    public static Mono<ClientProtocol0> single(final SessionAdjutant sessionAdjutant) {
         return MySQLTaskExecutor.create(0, sessionAdjutant)//1. create tcp connection
                 .map(executor -> new SessionManagerImpl(executor, sessionAdjutant, 0))//2. create  SessionManagerImpl
                 .flatMap(SessionManagerImpl::authenticate) //3. authenticate
                 .flatMap(SessionManagerImpl::initializing)//4. initializing
                 .flatMap(SessionManager::reset)           //5. reset
-                .map(ClientProtocolImpl::create);         //6. create ClientProtocol
+                .map(ClientProtocol::create);         //6. create ClientProtocol
     }
 
 
@@ -92,6 +86,12 @@ public final class ClientProtocolFactory extends FixedEnv implements MySQLProtoc
     @Override
     public Mono<Void> close() {
         return null;
+    }
+
+
+    private static EventLoopGroup createEventLoopGroup(final Environment env) {
+        return LoopResources.create("jdbd-mysql", env.getOrDefault(MySQLKey.FACTORY_WORKER_COUNT), true)
+                .onClient(true);
     }
 
     private static final class SessionManagerImpl implements SessionManager {

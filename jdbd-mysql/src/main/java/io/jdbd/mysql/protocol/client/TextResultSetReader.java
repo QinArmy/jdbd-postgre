@@ -15,6 +15,7 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.Year;
 import java.time.format.DateTimeFormatter;
+import java.util.Arrays;
 import java.util.function.Consumer;
 
 
@@ -66,21 +67,28 @@ final class TextResultSetReader extends MySQLResultSetReader {
     }
 
     @Override
-    boolean readOneRow(final ByteBuf cumulateBuffer, final MySQLCurrentRow currentRow) {
+    boolean readOneRow(final ByteBuf cumulateBuffer, final boolean bigPayload, final MySQLCurrentRow currentRow) {
         final MySQLColumnMeta[] columnMetaArray = currentRow.rowMeta.columnMetaArray;
         final Object[] columnValues = currentRow.columnArray;
 
         final TextCurrentRow textCurrentRow = (TextCurrentRow) currentRow;
+        final boolean[] firstBits = textCurrentRow.firstBits;
         int columnIndex = textCurrentRow.columnIndex;
         Object value;
+        boolean moreCumulate = false;
         for (; columnIndex < columnMetaArray.length; columnIndex++) {
-            if (Packets.getInt1AsInt(cumulateBuffer, cumulateBuffer.readerIndex()) == Packets.ENC_0) {
-                cumulateBuffer.readByte();
-                columnValues[columnIndex] = null;
-                continue;
+
+            if (firstBits[columnIndex]) {
+                firstBits[columnIndex] = false;
+                if (Packets.getInt1AsInt(cumulateBuffer, cumulateBuffer.readerIndex()) == Packets.ENC_0) {
+                    cumulateBuffer.readByte();
+                    columnValues[columnIndex] = null;
+                    continue;
+                }
             }
-            value = readOneColumn(cumulateBuffer, columnMetaArray[columnIndex], (TextCurrentRow) currentRow);
+            value = readOneColumn(cumulateBuffer, bigPayload, columnMetaArray[columnIndex], textCurrentRow);
             if (value == MORE_CUMULATE_OBJECT) {
+                moreCumulate = true;
                 break;
             }
             columnValues[columnIndex] = value;
@@ -88,7 +96,7 @@ final class TextResultSetReader extends MySQLResultSetReader {
 
         textCurrentRow.columnIndex = columnIndex;
 
-        return columnIndex == columnMetaArray.length;
+        return !moreCumulate && columnIndex == columnMetaArray.length;
     }
 
 
@@ -100,10 +108,14 @@ final class TextResultSetReader extends MySQLResultSetReader {
 
     @SuppressWarnings("deprecation")
     @Nullable
-    private Object readOneColumn(final ByteBuf payload, final MySQLColumnMeta meta, final TextCurrentRow currentRow) {
+    private Object readOneColumn(final ByteBuf payload, final boolean bigPayload, final MySQLColumnMeta meta,
+                                 final TextCurrentRow currentRow) {
         final int readableBytes;
-        readableBytes = payload.readableBytes();
-
+        if (bigPayload) {
+            readableBytes = payload.readableBytes();
+        } else {
+            readableBytes = Integer.MAX_VALUE;
+        }
         String columnText;
         final Object bigColumnValue;
         final boolean bigColumn;
@@ -246,11 +258,15 @@ final class TextResultSetReader extends MySQLResultSetReader {
 
     private static final class TextCurrentRow extends MySQLCurrentRow {
 
+        private final boolean[] firstBits;
+
         private int columnIndex = 0;
 
 
         private TextCurrentRow(MySQLRowMeta rowMeta) {
             super(rowMeta);
+            this.firstBits = new boolean[rowMeta.columnMetaArray.length];
+            resetFirstBits(this.firstBits);
         }
 
 
@@ -260,6 +276,18 @@ final class TextResultSetReader extends MySQLResultSetReader {
                 throw new IllegalStateException();
             }
             this.columnIndex = 0;
+            resetFirstBits(this.firstBits);
+        }
+
+        /**
+         * don't use {@link Arrays#fill(boolean[], boolean)}
+         */
+        static void resetFirstBits(final boolean[] firstBits) {
+            final int length = firstBits.length;
+            for (int i = 0; i < length; i++) {
+                firstBits[i] = true;
+            }
+
         }
 
 

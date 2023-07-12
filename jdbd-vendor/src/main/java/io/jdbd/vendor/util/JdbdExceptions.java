@@ -175,8 +175,8 @@ public abstract class JdbdExceptions {
                 || e instanceof LinkageError;
     }
 
-    public static UnsupportedBindJavaTypeException notSupportBindJavaType(Class<?> notSupportType) {
-        return new UnsupportedBindJavaTypeException(notSupportType);
+    public static JdbdException notSupportBindJavaType(Class<?> notSupportType) {
+        return new JdbdException(notSupportType);
     }
 
 

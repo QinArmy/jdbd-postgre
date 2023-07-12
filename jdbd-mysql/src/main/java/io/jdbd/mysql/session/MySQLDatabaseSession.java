@@ -35,10 +35,8 @@ import java.util.function.Function;
  * This class is a implementation of {@link DatabaseSession} with MySQL protocol.
  * This class is base class of below class:
  * <ul>
- *     <li>{@link MySQLStaticStatement}</li>
- *     <li>{@link MySQLPreparedStatement}</li>
- *     <li>{@link MySQLBindStatement}</li>
- *     <li>{@link MySQLMultiStatement}</li>
+ *     <li>{@link MySQLLocalDatabaseSession}</li>
+ *     <li>{@link MySQLRmDatabaseSession}</li>
  * </ul>
  *
  * </p>
@@ -137,7 +135,8 @@ abstract class MySQLDatabaseSession<S extends DatabaseSession> implements Databa
         if (!MySQLStrings.hasText(sql)) {
             return Mono.error(MySQLExceptions.sqlIsEmpty());
         }
-        return this.protocol.prepare(sql, this::createPreparedStatement);
+        return this.protocol.prepare(sql)
+                .map(this::createPreparedStatement);
     }
 
 
