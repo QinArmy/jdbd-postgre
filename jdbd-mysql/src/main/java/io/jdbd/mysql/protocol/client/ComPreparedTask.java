@@ -1,12 +1,12 @@
 package io.jdbd.mysql.protocol.client;
 
 import io.jdbd.mysql.MySQLType;
-import io.jdbd.mysql.stmt.BindBatchStmt;
-import io.jdbd.mysql.stmt.BindStmt;
+import io.jdbd.mysql.util.MySQLCollections;
 import io.jdbd.mysql.util.MySQLExceptions;
 import io.jdbd.result.*;
 import io.jdbd.session.DatabaseSession;
 import io.jdbd.session.SessionCloseException;
+import io.jdbd.statement.BindSingleStatement;
 import io.jdbd.statement.BindStatement;
 import io.jdbd.statement.PreparedStatement;
 import io.jdbd.vendor.result.JdbdWarning;
@@ -25,7 +25,6 @@ import reactor.core.publisher.Mono;
 import reactor.core.publisher.MonoSink;
 import reactor.util.annotation.Nullable;
 
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
@@ -33,6 +32,9 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 
 /**
+ * <p>
+ * This class is the implementation of MySQL Prepared protocol.
+ * </p>
  * <p>
  * following is chinese signature:<br/>
  * 当你在阅读这段代码时,我才真正在写这段代码,你阅读到哪里,我便写到哪里.
@@ -43,7 +45,7 @@ import java.util.function.Function;
  * @see BinaryResultSetReader
  * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_command_phase_ps.html">Prepared Statements</a>
  */
-final class ComPreparedTask extends MySQLCommandTask implements PrepareStmtTask, PrepareTask<MySQLType> {
+final class ComPreparedTask extends MySQLCommandTask implements PrepareStmtTask, PrepareTask {
 
 
     /**
@@ -52,7 +54,7 @@ final class ComPreparedTask extends MySQLCommandTask implements PrepareStmtTask,
      * </p>
      *
      * @see #ComPreparedTask(ParamSingleStmt, ResultSink, TaskAdjutant)
-     * @see ComQueryTask#bindUpdate(BindStmt, TaskAdjutant)
+     * @see ComQueryTask#paramUpdate(ParamStmt, TaskAdjutant)
      */
     static Mono<ResultStates> update(final ParamStmt stmt, final TaskAdjutant adjutant) {
         return MultiResults.update(sink -> {
@@ -79,7 +81,7 @@ final class ComPreparedTask extends MySQLCommandTask implements PrepareStmtTask,
      * @see ComQueryTask#paramQuery(ParamStmt, Function, TaskAdjutant)
      */
     static <R> Flux<R> query(final ParamStmt stmt, final Function<CurrentRow, R> function, final TaskAdjutant adjutant) {
-        return MultiResults.query(function, consumer, sink -> {
+        return MultiResults.query(function, stmt.getStatusConsumer(), sink -> {
             try {
                 ComPreparedTask task = new ComPreparedTask(stmt, sink, adjutant);
                 task.submit(sink::error);
@@ -95,10 +97,9 @@ final class ComPreparedTask extends MySQLCommandTask implements PrepareStmtTask,
      * </p>
      *
      * @see #ComPreparedTask(ParamSingleStmt, ResultSink, TaskAdjutant)
-     * @see ComQueryTask#bindBatch(BindBatchStmt, TaskAdjutant)
+     * @see ComQueryTask#paramBatchUpdate(ParamBatchStmt, TaskAdjutant)
      */
-    static Flux<ResultStates> batchUpdate(final ParamBatchStmt<ParamValue> stmt
-            , final TaskAdjutant adjutant) {
+    static Flux<ResultStates> batchUpdate(final ParamBatchStmt stmt, final TaskAdjutant adjutant) {
         return MultiResults.batchUpdate(sink -> {
             try {
                 ComPreparedTask task = new ComPreparedTask(stmt, sink, adjutant);
@@ -110,8 +111,16 @@ final class ComPreparedTask extends MySQLCommandTask implements PrepareStmtTask,
         });
     }
 
+    /**
+     * <p>
+     * This method is one of underlying api of {@link BindSingleStatement#executeBatchQuery()}.
+     * </p>
+     *
+     * @see #ComPreparedTask(ParamSingleStmt, ResultSink, TaskAdjutant)
+     * @see ComQueryTask#paramBatchUpdate(ParamBatchStmt, TaskAdjutant)
+     */
     static BatchQuery batchQuery(final ParamBatchStmt stmt, final TaskAdjutant adjutant) {
-        return MultiResults.batchQuery(sink -> {
+        return MultiResults.batchQuery(adjutant, sink -> {
             try {
                 ComPreparedTask task = new ComPreparedTask(stmt, sink, adjutant);
                 task.submit(sink::error);
@@ -129,9 +138,9 @@ final class ComPreparedTask extends MySQLCommandTask implements PrepareStmtTask,
      * </p>
      *
      * @see #ComPreparedTask(ParamSingleStmt, ResultSink, TaskAdjutant)
-     * @see ComQueryTask#bindBatchAsMulti(BindBatchStmt, TaskAdjutant)
+     * @see ComQueryTask#paramBatchAsMulti(ParamBatchStmt, TaskAdjutant)
      */
-    static MultiResult batchAsMulti(final ParamBatchStmt<? extends ParamValue> stmt, final TaskAdjutant adjutant) {
+    static MultiResult batchAsMulti(final ParamBatchStmt stmt, final TaskAdjutant adjutant) {
         return MultiResults.asMulti(adjutant, sink -> {
             try {
                 ComPreparedTask task = new ComPreparedTask(stmt, sink, adjutant);
@@ -148,9 +157,9 @@ final class ComPreparedTask extends MySQLCommandTask implements PrepareStmtTask,
      * </p>
      *
      * @see #ComPreparedTask(ParamSingleStmt, ResultSink, TaskAdjutant)
-     * @see ComQueryTask#bindBatchAsFlux(BindBatchStmt, TaskAdjutant)
+     * @see ComQueryTask#paramBatchAsFlux(ParamBatchStmt, TaskAdjutant)
      */
-    static OrderedFlux batchAsFlux(final ParamBatchStmt<? extends ParamValue> stmt, final TaskAdjutant adjutant) {
+    static OrderedFlux batchAsFlux(final ParamBatchStmt stmt, final TaskAdjutant adjutant) {
         return MultiResults.asFlux(sink -> {
             try {
                 ComPreparedTask task = new ComPreparedTask(stmt, sink, adjutant);
@@ -216,6 +225,9 @@ final class ComPreparedTask extends MySQLCommandTask implements PrepareStmtTask,
      */
     private ComPreparedTask(final ParamSingleStmt stmt, final ResultSink sink, final TaskAdjutant adjutant) {
         super(adjutant, sink);
+
+        assert (this.capability & Capabilities.CLIENT_OPTIONAL_RESULTSET_METADATA) == 0; // currently, dont' support cache.
+
         this.stmt = stmt;
         this.commandWriter = PrepareExecuteCommandWriter.create(this);
     }
@@ -249,7 +261,7 @@ final class ComPreparedTask extends MySQLCommandTask implements PrepareStmtTask,
     }
 
     @Override
-    public boolean supportFetch() {
+    public boolean isSupportFetch() {
         return this.rowMeta != null && this.stmt.getFetchSize() > 0;
     }
 
@@ -258,10 +270,6 @@ final class ComPreparedTask extends MySQLCommandTask implements PrepareStmtTask,
         this.nextGroupNeedReset = true;
     }
 
-    @Override
-    public String toString() {
-        return this.getClass().getSimpleName();
-    }
 
     /*################################## blow PrepareStmtTask method ##################################*/
 
@@ -296,15 +304,21 @@ final class ComPreparedTask extends MySQLCommandTask implements PrepareStmtTask,
      * @see PrepareTask#executeBatchUpdate(ParamBatchStmt)
      */
     @Override
-    public Flux<ResultStates> executeBatch(final ParamBatchStmt<ParamValue> stmt) {
+    public Flux<ResultStates> executeBatchUpdate(final ParamBatchStmt stmt) {
         return MultiResults.batchUpdate(sink -> executeAfterBinding(sink, stmt));
+    }
+
+
+    @Override
+    public BatchQuery executeBatchQuery(ParamBatchStmt stmt) {
+        return MultiResults.batchQuery(this.adjutant, sink -> executeAfterBinding(sink, stmt));
     }
 
     /**
      * @see PrepareTask#executeBatchAsMulti(ParamBatchStmt)
      */
     @Override
-    public MultiResult executeBatchAsMulti(ParamBatchStmt<ParamValue> stmt) {
+    public MultiResult executeBatchAsMulti(ParamBatchStmt stmt) {
         return MultiResults.asMulti(this.adjutant, sink -> executeAfterBinding(sink, stmt));
     }
 
@@ -312,7 +326,7 @@ final class ComPreparedTask extends MySQLCommandTask implements PrepareStmtTask,
      * @see PrepareTask#executeBatchAsFlux(ParamBatchStmt)
      */
     @Override
-    public OrderedFlux executeBatchAsFlux(ParamBatchStmt<ParamValue> stmt) {
+    public OrderedFlux executeBatchAsFlux(ParamBatchStmt stmt) {
         return MultiResults.asFlux(sink -> executeAfterBinding(sink, stmt));
     }
 
@@ -333,7 +347,7 @@ final class ComPreparedTask extends MySQLCommandTask implements PrepareStmtTask,
             }
             break;
             default: {
-                final List<MySQLType> list = new ArrayList<>(paramMetas.length);
+                final List<MySQLType> list = MySQLCollections.arrayList(paramMetas.length);
                 for (MySQLColumnMeta paramMeta : paramMetas) {
                     list.add(paramMeta.sqlType);
                 }
@@ -416,7 +430,7 @@ final class ComPreparedTask extends MySQLCommandTask implements PrepareStmtTask,
                 case READ_PREPARE_RESPONSE: {
                     if (canReadPrepareResponse(cumulateBuffer)) {
                         // possibly PreparedStatement bind occur error
-                        taskEnd = readPrepareResponse(cumulateBuffer)
+                        taskEnd = readPrepareResponse(cumulateBuffer, serverStatusConsumer)
                                 || this.phase == Phase.ERROR_ON_BINDING
                                 || this.phase == Phase.ABANDON_BINDING;
                     }
@@ -455,7 +469,7 @@ final class ComPreparedTask extends MySQLCommandTask implements PrepareStmtTask,
                 }
                 break;
                 default:
-                    throw MySQLExceptions.createUnexpectedEnumException(this.phase);
+                    throw MySQLExceptions.unexpectedEnum(this.phase);
             }
         }
         if (taskEnd) {
@@ -523,7 +537,7 @@ final class ComPreparedTask extends MySQLCommandTask implements PrepareStmtTask,
         final ParamSingleStmt stmt = getActualStmt();
         final boolean moreGroup;
         if (stmt instanceof ParamBatchStmt) {
-            moreGroup = this.batchIndex < ((ParamBatchStmt<?>) stmt).getGroupList().size();
+            moreGroup = this.batchIndex < ((ParamBatchStmt) stmt).getGroupList().size();
             if (moreGroup) {
                 this.phase = Phase.EXECUTE;
             }
@@ -770,7 +784,7 @@ final class ComPreparedTask extends MySQLCommandTask implements PrepareStmtTask,
 
     /**
      * @return false : need more cumulate
-     * @see #readPrepareResponse(ByteBuf)
+     * @see #readPrepareResponse(ByteBuf, Consumer)
      * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_com_stmt_prepare.html#sect_protocol_com_stmt_prepare_response">COM_STMT_PREPARE Response</a>
      */
     private boolean canReadPrepareResponse(final ByteBuf cumulateBuffer) {
@@ -783,25 +797,40 @@ final class ComPreparedTask extends MySQLCommandTask implements PrepareStmtTask,
         final boolean canRead;
         final int headFlag = Packets.readInt1AsInt(cumulateBuffer);
         switch (headFlag) {
-            case ErrorPacket.ERROR_HEADER: {
+            case ErrorPacket.ERROR_HEADER:
                 canRead = true;
-            }
-            break;
+                break;
             case 0: {
                 cumulateBuffer.skipBytes(4); //statementId
-                final int numColumns = Packets.readInt2AsInt(cumulateBuffer);
-                final int numParams = Packets.readInt2AsInt(cumulateBuffer);
-                cumulateBuffer.readerIndex(payloadIndex + payloadLength); // to next packet.
+                final int numColumns, numParams, capability;
+                numColumns = Packets.readInt2AsInt(cumulateBuffer);
+                numParams = Packets.readInt2AsInt(cumulateBuffer);
+                capability = this.capability;
 
-                final boolean deprecateEof = Capabilities.deprecateEof(this.capability);
-                final int packetNumber = deprecateEof ? (numParams + numColumns) : (numParams + numColumns + 2);
+                int packetNumber = 0;
+                if (payloadLength > 12) {
+                    cumulateBuffer.skipBytes(2); // skip warning_count
+                    if ((capability & Capabilities.CLIENT_OPTIONAL_RESULTSET_METADATA) == 0
+                            || cumulateBuffer.readByte() == 1) {
+                        packetNumber = numColumns + numParams;
+                    }
+                } else if ((capability & Capabilities.CLIENT_OPTIONAL_RESULTSET_METADATA) == 0) {
+                    packetNumber = numColumns + numParams;
+                }
+
+                if (packetNumber > 0 && (capability & Capabilities.CLIENT_DEPRECATE_EOF) == 0) {
+                    packetNumber += 2;
+                }
+
+                cumulateBuffer.readerIndex(payloadIndex + payloadLength); // to next packet,avoid tailor filler.
+
                 canRead = Packets.hasPacketNumber(cumulateBuffer, packetNumber);
             }
             break;
             default: {
                 cumulateBuffer.readerIndex(originalReaderIndex);
-                throw MySQLExceptions.createFatalIoException(
-                        "Server send COM_STMT_PREPARE Response error. header[%s]", headFlag);
+                String m = String.format("Server send COM_STMT_PREPARE Response error. header[%s]", headFlag);
+                throw MySQLExceptions.createFatalIoException(m, null);
             }
 
         }
@@ -816,7 +845,7 @@ final class ComPreparedTask extends MySQLCommandTask implements PrepareStmtTask,
      * @see #canReadPrepareResponse(ByteBuf)
      * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_com_stmt_prepare.html#sect_protocol_com_stmt_prepare_response">COM_STMT_PREPARE Response</a>
      */
-    private boolean readPrepareResponse(final ByteBuf cumulateBuffer) {
+    private boolean readPrepareResponse(final ByteBuf cumulateBuffer, final Consumer<Object> serverStatusConsumer) {
         assertPhase(Phase.READ_PREPARE_RESPONSE);
 
         final int headFlag = Packets.getHeaderFlag(cumulateBuffer);
@@ -828,40 +857,66 @@ final class ComPreparedTask extends MySQLCommandTask implements PrepareStmtTask,
             }
             break;
             case 0: {
-                final int payloadLength = Packets.readInt3(cumulateBuffer);
+                final int payloadLength;
+                payloadLength = Packets.readInt3(cumulateBuffer);
                 updateSequenceId(Packets.readInt1AsInt(cumulateBuffer));
 
                 final int payloadIndex = cumulateBuffer.readerIndex();
 
                 cumulateBuffer.readByte();//1. skip status
                 this.statementId = Packets.readInt4(cumulateBuffer);//2. statement_id
-                final int numColumns = Packets.readInt2AsInt(cumulateBuffer);//3. num_columns
-                final int numParams = Packets.readInt2AsInt(cumulateBuffer);//4. num_params
+
+                final int numColumns, numParams, capability = this.capability;
+                numColumns = Packets.readInt2AsInt(cumulateBuffer);//3. num_columns
+                numParams = Packets.readInt2AsInt(cumulateBuffer);//4. num_params
                 cumulateBuffer.readByte(); //5. skip filler
-                if (payloadLength >= 12) {
+
+                final boolean hasMeta;
+                if (payloadLength > 12) {
                     final int warnings = Packets.readInt2AsInt(cumulateBuffer);//6. warning_count
                     if (warnings > 0) {
                         this.warning = JdbdWarning.create(String.format("produce %s warnings", warnings));
                     }
-                    if ((this.capability & Capabilities.CLIENT_OPTIONAL_RESULTSET_METADATA) != 0) {
-                        cumulateBuffer.readByte(); //7. skip metadata_follows
-                        throw new IllegalStateException("Not support CLIENT_OPTIONAL_RESULTSET_METADATA"); //7. metadata_follows
-                    }
-                }
-                cumulateBuffer.readerIndex(payloadIndex + payloadLength); //avoid tail filler.
 
-                // below read param and column meta data
-                this.paramMetas = MySQLColumnMeta.readMetas(cumulateBuffer, numParams, this);
-                this.rowMeta = MySQLRowMeta.readForPrepare(cumulateBuffer, numColumns, this);
+                    hasMeta = (capability & Capabilities.CLIENT_OPTIONAL_RESULTSET_METADATA) == 0
+                            || cumulateBuffer.readByte() == 1;
+                } else {
+                    hasMeta = (capability & Capabilities.CLIENT_OPTIONAL_RESULTSET_METADATA) == 0;
+                }
+                cumulateBuffer.readerIndex(payloadIndex + payloadLength); //avoid tailor filler.
+
+
+                if (hasMeta) {
+                    // below read param and column meta data
+                    final boolean readEof = (capability & Capabilities.CLIENT_DEPRECATE_EOF) == 0;
+                    this.paramMetas = MySQLColumnMeta.readMetas(cumulateBuffer, numParams, this);
+                    if (readEof) {
+                        readEofOfMeta(cumulateBuffer, serverStatusConsumer);
+                    }
+                    this.rowMeta = MySQLRowMeta.readForPrepare(cumulateBuffer, numColumns, this);
+                    if (readEof) {
+                        readEofOfMeta(cumulateBuffer, serverStatusConsumer);
+                    }
+                } else {
+                    this.paramMetas = MySQLColumnMeta.EMPTY;
+                    this.rowMeta = MySQLRowMeta.EMPTY;
+                }
                 taskEnd = handleReadPrepareComplete();
             }
             break;
             default: {
-                throw MySQLExceptions.createFatalIoException(
-                        "Server send COM_STMT_PREPARE Response error. header[%s]", headFlag);
+                String m = String.format("Server send COM_STMT_PREPARE Response error. header[%s]", headFlag);
+                throw MySQLExceptions.createFatalIoException(m, null);
             }
         }
         return taskEnd;
+    }
+
+    private void readEofOfMeta(final ByteBuf cumulateBuffer, final Consumer<Object> consumer) {
+        final int payloadLength;
+        payloadLength = Packets.readInt3(cumulateBuffer);
+        updateSequenceId(Packets.readInt1AsInt(cumulateBuffer));
+        consumer.accept(EofPacket.readCumulate(cumulateBuffer, payloadLength, this.capability));
     }
 
     /**
@@ -870,7 +925,7 @@ final class ComPreparedTask extends MySQLCommandTask implements PrepareStmtTask,
      * </p>
      *
      * @return true : task end.
-     * @see #readPrepareResponse(ByteBuf)
+     * @see #readPrepareResponse(ByteBuf, Consumer)
      */
     private boolean handleReadPrepareComplete() {
         assertPhase(Phase.READ_PREPARE_RESPONSE);
@@ -879,10 +934,10 @@ final class ComPreparedTask extends MySQLCommandTask implements PrepareStmtTask,
         }
         final ParamSingleStmt stmt = this.stmt;
         final boolean taskEnd;
-        if (stmt instanceof MySQLPrepareStmt) {
+        if (stmt instanceof PrepareStmt) {
             final PrepareSink sink = (PrepareSink) this.sink;
             this.phase = Phase.WAIT_FOR_BINDING; // first modify phase to WAIT_FOR_BINDING
-            sink.statementSink.success(sink.function.apply(this));
+            sink.statementSink.success(this);
             taskEnd = false;
         } else {
             this.phase = Phase.EXECUTE;
@@ -986,8 +1041,10 @@ final class ComPreparedTask extends MySQLCommandTask implements PrepareStmtTask,
                 taskEnd = false;
             }
             break;
-            default:
-                throw MySQLExceptions.createFatalIoException("COM_STMT_RESET response error,flag[%s].", flag);
+            default: {
+                String m = String.format("COM_STMT_RESET response error,flag[%s].", flag);
+                throw MySQLExceptions.createFatalIoException(m, null);
+            }
         }
         return taskEnd;
     }
@@ -1054,6 +1111,11 @@ final class ComPreparedTask extends MySQLCommandTask implements PrepareStmtTask,
                 throw new IllegalStateException("this.stmt is null.");
             }
             return stmt;
+        }
+
+        @Override
+        public List<NamedValue> getStmtVarList() {
+            return this.getStmt().getStmtVarList();
         }
 
         @Override

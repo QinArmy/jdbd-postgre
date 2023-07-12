@@ -35,7 +35,7 @@ interface ClientProtocolAdjutant extends ResultRowAdjutant {
 
     Map<Integer, Charsets.CustomCollation> obtainCustomCollationMap();
 
-    ZoneOffset obtainZoneOffsetDatabase();
+    ZoneOffset serverZone();
 
     ZoneOffset obtainZoneOffsetClient();
 

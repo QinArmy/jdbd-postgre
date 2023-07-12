@@ -94,6 +94,7 @@ public final class ClientProtocolFactory extends FixedEnv implements MySQLProtoc
                 .onClient(true);
     }
 
+
     private static final class SessionManagerImpl implements SessionManager {
 
         private static final List<String> KEY_VARIABLES = MySQLArrays.asUnmodifiableList(

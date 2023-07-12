@@ -49,19 +49,18 @@ final class TextResultSetReader extends MySQLResultSetReader {
         if ((this.capability & Capabilities.CLIENT_OPTIONAL_RESULTSET_METADATA) != 0) {
             throw new IllegalStateException("Not support CLIENT_OPTIONAL_RESULTSET_METADATA");
         }
-        final boolean endOfMeta = (this.capability & Capabilities.CLIENT_DEPRECATE_EOF) == 0;
+        final boolean eofEnd = (this.capability & Capabilities.CLIENT_DEPRECATE_EOF) == 0;
 
-        if (!MySQLRowMeta.canReadMeta(cumulateBuffer, endOfMeta)) {
+        if (!MySQLRowMeta.canReadMeta(cumulateBuffer, eofEnd)) {
             return null;
         }
         final TextCurrentRow currentRow;
         currentRow = new TextCurrentRow(MySQLRowMeta.readForRows(cumulateBuffer, this.task));
-        if (endOfMeta) {
-            final int payloadLength = Packets.readInt3(cumulateBuffer);
+        if (eofEnd) {
+            final int payloadLength;
+            payloadLength = Packets.readInt3(cumulateBuffer);
             this.task.updateSequenceId(Packets.readInt1AsInt(cumulateBuffer));
-            final EofPacket eof;
-            eof = EofPacket.readCumulate(cumulateBuffer, payloadLength, this.capability);
-            serverStatesConsumer.accept(eof);
+            serverStatesConsumer.accept(EofPacket.readCumulate(cumulateBuffer, payloadLength, this.capability));
         }
         return currentRow;
     }

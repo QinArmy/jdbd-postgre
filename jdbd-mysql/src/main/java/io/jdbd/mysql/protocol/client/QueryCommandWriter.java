@@ -749,7 +749,7 @@ final class QueryCommandWriter {
         // below write parameter_values for query attribute
 
         final ZoneOffset serverZone;
-        serverZone = adjutant.obtainZoneOffsetDatabase();
+        serverZone = adjutant.serverZone();
         boolean useServerZone;
         for (int i = 0; i < paramCount; i++) {
             attr = attrList.get(i);

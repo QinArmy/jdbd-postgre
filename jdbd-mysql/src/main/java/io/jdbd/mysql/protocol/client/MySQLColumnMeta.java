@@ -436,12 +436,6 @@ final class MySQLColumnMeta implements ColumnMeta {
             }
             cumulateBuffer.readerIndex(payloadIndex + payloadLength); //avoid tail filler
         }
-        final int capability = adjutant.capability();
-        if ((capability & Capabilities.CLIENT_DEPRECATE_EOF) == 0) {
-            final int payloadLength = Packets.readInt3(cumulateBuffer);
-            sequenceId = Packets.readInt1AsInt(cumulateBuffer);
-            EofPacket.read(cumulateBuffer.readSlice(payloadLength), capability); // skip eof packet.
-        }
         if (sequenceId > -1) {
             metaAdjutant.updateSequenceId(sequenceId);
         }

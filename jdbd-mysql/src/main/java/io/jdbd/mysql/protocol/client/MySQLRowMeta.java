@@ -6,6 +6,7 @@ import io.jdbd.meta.JdbdType;
 import io.jdbd.meta.KeyMode;
 import io.jdbd.meta.NullMode;
 import io.jdbd.mysql.MySQLType;
+import io.jdbd.mysql.util.MySQLTimes;
 import io.jdbd.result.FieldType;
 import io.jdbd.result.ResultRowMeta;
 import io.jdbd.vendor.result.VendorResultRowMeta;
@@ -24,14 +25,22 @@ import java.util.Map;
  */
 final class MySQLRowMeta extends VendorResultRowMeta {
 
-    static boolean canReadMeta(final ByteBuf cumulateBuffer, final boolean endOfMeta) {
+    /**
+     * for {@link #MySQLRowMeta(MySQLColumnMeta[])}
+     */
+    private static final ZoneOffset PSEUDO_SERVER_ZONE = MySQLTimes.systemZoneOffset();
+
+    static final MySQLRowMeta EMPTY = new MySQLRowMeta(MySQLColumnMeta.EMPTY);
+
+
+    static boolean canReadMeta(final ByteBuf cumulateBuffer, final boolean eofEnd) {
         final int originalReaderIndex = cumulateBuffer.readerIndex();
 
         final int payloadLength = Packets.readInt3(cumulateBuffer);
         cumulateBuffer.readByte();// skip sequenceId byte
         final int payloadIndex = cumulateBuffer.readerIndex();
         final int needPacketCount;
-        if (endOfMeta) {
+        if (eofEnd) {
             needPacketCount = Packets.readLenEncAsInt(cumulateBuffer) + 1; // Text ResultSet need End of metadata
         } else {
             needPacketCount = Packets.readLenEncAsInt(cumulateBuffer);
@@ -62,21 +71,19 @@ final class MySQLRowMeta extends VendorResultRowMeta {
         final MySQLColumnMeta[] metaArray;
         metaArray = MySQLColumnMeta.readMetas(cumulateBuffer, columnCount, stmtTask);
 
-        final TaskAdjutant adjutant = stmtTask.adjutant();
-
-        return new MySQLRowMeta(metaArray, stmtTask.nextResultIndex(), adjutant.obtainCustomCollationMap());
+        return new MySQLRowMeta(metaArray, stmtTask);
     }
 
 
     @Nullable
-    static MySQLRowMeta readForPrepare(final ByteBuf cumulateBuffer, final int columnCount
-            , final MetaAdjutant metaAdjutant) {
+    static MySQLRowMeta readForPrepare(final ByteBuf cumulateBuffer, final int columnCount,
+                                       final MetaAdjutant metaAdjutant) {
         final MySQLColumnMeta[] metaArray;
         metaArray = MySQLColumnMeta.readMetas(cumulateBuffer, columnCount, metaAdjutant);
 
         final MySQLRowMeta rowMeta;
         if (metaArray.length == 0) {
-            rowMeta = null;
+            rowMeta = EMPTY;
         } else {
             rowMeta = new MySQLRowMeta(metaArray);
         }
@@ -84,9 +91,8 @@ final class MySQLRowMeta extends VendorResultRowMeta {
     }
 
     @Deprecated
-    static MySQLRowMeta from(MySQLColumnMeta[] mySQLColumnMetas
-            , Map<Integer, Charsets.CustomCollation> customCollationMap) {
-        return new MySQLRowMeta(mySQLColumnMetas, 0, customCollationMap);
+    static MySQLRowMeta from(MySQLColumnMeta[] mySQLColumnMetas, Map<Integer, Charsets.CustomCollation> customCollationMap) {
+        throw new UnsupportedOperationException();
     }
 
 
@@ -95,25 +101,30 @@ final class MySQLRowMeta extends VendorResultRowMeta {
     final Map<Integer, Charsets.CustomCollation> customCollationMap;
 
 
-    ZoneOffset serverZone;
+    final ZoneOffset serverZone;
 
     int metaIndex = 0;
 
 
+    /**
+     * @see #readForPrepare(ByteBuf, int, MetaAdjutant)
+     */
     private MySQLRowMeta(final MySQLColumnMeta[] columnMetaArray) {
         super(-1);
         this.columnMetaArray = columnMetaArray;
         this.customCollationMap = Collections.emptyMap();
+        this.serverZone = PSEUDO_SERVER_ZONE;
     }
 
-    private MySQLRowMeta(final MySQLColumnMeta[] columnMetaArray, final int resultIndex
-            , Map<Integer, Charsets.CustomCollation> customCollationMap) {
-        super(resultIndex);
-        if (resultIndex < 0) {
+    private MySQLRowMeta(final MySQLColumnMeta[] columnMetaArray, StmtTask stmtTask) {
+        super(stmtTask.nextResultIndex());
+        if (this.resultIndex < 0) {
             throw new IllegalArgumentException("resultIndex must great than -1");
         }
         this.columnMetaArray = columnMetaArray;
-        this.customCollationMap = customCollationMap;
+        final TaskAdjutant adjutant = stmtTask.adjutant();
+        this.customCollationMap = adjutant.obtainCustomCollationMap();
+        this.serverZone = adjutant.serverZone();
 
     }
 

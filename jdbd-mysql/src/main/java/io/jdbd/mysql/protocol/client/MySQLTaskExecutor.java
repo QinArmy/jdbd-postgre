@@ -279,7 +279,7 @@ final class MySQLTaskExecutor extends CommunicationTaskExecutor<TaskAdjutant> {
         }
 
         @Override
-        public ZoneOffset obtainZoneOffsetDatabase() {
+        public ZoneOffset serverZone() {
             Server server = this.server;
             if (server == null) {
                 throw new IllegalStateException("Cannot access zoneOffsetDatabase now.");

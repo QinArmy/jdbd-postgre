@@ -94,9 +94,9 @@ final class ClientProtocol implements MySQLProtocol {
     }
 
     @Override
-    public Mono<ResultStates> bindUpdate(ParamStmt stmt, boolean forcePrepare) {
+    public Mono<ResultStates> bindUpdate(ParamStmt stmt, boolean usePrepare) {
         final Mono<ResultStates> mono;
-        if (forcePrepare) {
+        if (usePrepare) {
             mono = ComPreparedTask.update(stmt, this.adjutant);
         } else {
             mono = ComQueryTask.paramUpdate(stmt, this.adjutant);
@@ -105,9 +105,9 @@ final class ClientProtocol implements MySQLProtocol {
     }
 
     @Override
-    public <R> Flux<R> bindQuery(ParamStmt stmt, boolean forcePrepare, Function<CurrentRow, R> function) {
+    public <R> Flux<R> bindQuery(ParamStmt stmt, boolean usePrepare, Function<CurrentRow, R> function) {
         final Flux<R> flux;
-        if (forcePrepare || stmt.getFetchSize() > 0) {
+        if (usePrepare || stmt.getFetchSize() > 0) {
             flux = ComPreparedTask.query(stmt, function, this.adjutant);
         } else {
             flux = ComQueryTask.paramQuery(stmt, function, this.adjutant);
@@ -117,9 +117,9 @@ final class ClientProtocol implements MySQLProtocol {
 
 
     @Override
-    public Flux<ResultStates> bindBatchUpdate(ParamBatchStmt stmt, boolean forcePrepare) {
+    public Flux<ResultStates> bindBatchUpdate(ParamBatchStmt stmt, boolean usePrepare) {
         final Flux<ResultStates> flux;
-        if (forcePrepare) {
+        if (usePrepare) {
             flux = ComPreparedTask.batchUpdate(stmt, this.adjutant);
         } else {
             flux = ComQueryTask.paramBatchUpdate(stmt, this.adjutant);
@@ -128,9 +128,9 @@ final class ClientProtocol implements MySQLProtocol {
     }
 
     @Override
-    public BatchQuery bindBatchQuery(ParamBatchStmt stmt, boolean forcePrepare) {
+    public BatchQuery bindBatchQuery(ParamBatchStmt stmt, boolean usePrepare) {
         final BatchQuery batchQuery;
-        if (forcePrepare) {
+        if (usePrepare) {
             batchQuery = ComPreparedTask.batchQuery(stmt, this.adjutant);
         } else {
             batchQuery = ComQueryTask.paramBatchQuery(stmt, this.adjutant);
@@ -139,9 +139,9 @@ final class ClientProtocol implements MySQLProtocol {
     }
 
     @Override
-    public MultiResult bindBatchAsMulti(final ParamBatchStmt stmt, final boolean forcePrepare) {
+    public MultiResult bindBatchAsMulti(final ParamBatchStmt stmt, final boolean usePrepare) {
         final MultiResult result;
-        if (forcePrepare) {
+        if (usePrepare) {
             result = ComPreparedTask.batchAsMulti(stmt, this.adjutant);
         } else {
             result = ComQueryTask.paramBatchAsMulti(stmt, this.adjutant);
@@ -150,9 +150,9 @@ final class ClientProtocol implements MySQLProtocol {
     }
 
     @Override
-    public OrderedFlux bindBatchAsFlux(final ParamBatchStmt stmt, final boolean forcePrepare) {
+    public OrderedFlux bindBatchAsFlux(final ParamBatchStmt stmt, final boolean usePrepare) {
         final OrderedFlux flux;
-        if (forcePrepare) {
+        if (usePrepare) {
             flux = ComPreparedTask.batchAsFlux(stmt, this.adjutant);
         } else {
             flux = ComQueryTask.paramBatchAsFlux(stmt, this.adjutant);
@@ -174,7 +174,6 @@ final class ClientProtocol implements MySQLProtocol {
     public MultiResult multiStmtAsMulti(ParamMultiStmt stmt) {
         return ComQueryTask.multiStmtAsMulti(stmt, this.adjutant);
     }
-
 
     @Override
     public OrderedFlux multiStmtAsFlux(ParamMultiStmt stmt) {

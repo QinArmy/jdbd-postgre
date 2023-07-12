@@ -314,7 +314,7 @@ final class PrepareExecuteCommandWriter implements ExecuteCommandWriter {
         Packets.writeInt4(packet, this.stmtTask.getStatementId());// 2. statement_id
         //3.cursor Flags, reactive api not support cursor
         int flags = Constants.CURSOR_TYPE_NO_CURSOR;
-        if (this.stmtTask.supportFetch()) {
+        if (this.stmtTask.isSupportFetch()) {
             flags |= Constants.CURSOR_TYPE_READ_ONLY;
         }
         if (this.supportQueryAttr) {

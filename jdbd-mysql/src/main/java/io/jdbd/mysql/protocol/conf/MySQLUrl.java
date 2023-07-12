@@ -4,7 +4,6 @@ package io.jdbd.mysql.protocol.conf;
 import io.jdbd.JdbdException;
 import io.jdbd.mysql.env.ProtocolType;
 import io.jdbd.mysql.protocol.client.Charsets;
-import io.jdbd.mysql.protocol.client.ClientProtocol0;
 import io.jdbd.mysql.util.MySQLCollections;
 import io.jdbd.vendor.env.*;
 import io.qinarmy.env.convert.ConverterManager;
@@ -97,20 +96,7 @@ public final class MySQLUrl extends AbstractJdbcUrl {
      * @see <a href="https://dev.mysql.com/doc/refman/8.0/en/server-system-variables.html#sysvar_max_allowed_packet">max_allowed_packet</a>
      */
     private int parseMaxAllowedPacket() {
-        final int maxAllowedPacket = this.commonProps.getOrDefault(MyKey.maxAllowedPacket, Integer.class);
-        final int defaultValue = 1 << 26, minValue = 1024;
-        final int value;
-        if (maxAllowedPacket < 0 || maxAllowedPacket == defaultValue) {
-            // (1 << 26) is default value
-            value = defaultValue;
-        } else if (maxAllowedPacket < minValue) {
-            value = minValue;
-        } else if (maxAllowedPacket > ClientProtocol0.MAX_PAYLOAD_SIZE) {
-            value = ClientProtocol0.MAX_PAYLOAD_SIZE;
-        } else {
-            value = maxAllowedPacket & (~1023);
-        }
-        return value;
+        throw new UnsupportedOperationException();
     }
 
     public static Properties wrapProperties(Map<String, String> map) {

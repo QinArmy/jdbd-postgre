@@ -49,7 +49,6 @@ import java.util.function.IntSupplier;
  * following is chinese signature:<br/>
  * 当你在阅读这段代码时,我才真正在写这段代码,你阅读到哪里,我便写到哪里.
  * </p>
- *
  * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_com_query.html">Protocol::COM_QUERY</a>
  * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_com_query_response.html">Protocol::COM_QUERY Response</a>
  */
@@ -320,7 +319,7 @@ final class ComQueryTask extends MySQLCommandTask {
 
     /**
      * <p>
-     * This method is the underlying api of below methods {@link BindStatement#executeBatchAsFlux()}.
+     * This method is the underlying api of below methods {@link MultiStatement#executeBatchUpdate()}.
      * </p>
      */
     static Flux<ResultStates> multiStmtBatchUpdate(final ParamMultiStmt stmt, final TaskAdjutant adjutant) {
@@ -334,6 +333,11 @@ final class ComQueryTask extends MySQLCommandTask {
         });
     }
 
+    /**
+     * <p>
+     * This method is the underlying api of below methods {@link MultiStatement#executeBatchQuery()}.
+     * </p>
+     */
     static BatchQuery multiStmtBatchQuery(final ParamMultiStmt stmt, final TaskAdjutant adjutant) {
         return MultiResults.batchQuery(adjutant, sink -> {
             try {

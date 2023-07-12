@@ -24,7 +24,7 @@ interface PrepareStmtTask {
 
     void addErrorToTask(Throwable error);
 
-    boolean supportFetch();
+    boolean isSupportFetch();
 
     void nextGroupReset();
 

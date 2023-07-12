@@ -100,7 +100,7 @@ public class SessionInitializerSuiteTests extends AbstractTaskSuiteTests {
         adjutant = doConnectionTest(propMap);
 
         ZoneOffset zoneOffset = ZoneOffset.of("+04:14");
-        ZoneOffset zoneOffsetDatabase = adjutant.obtainZoneOffsetDatabase();
+        ZoneOffset zoneOffsetDatabase = adjutant.serverZone();
         ZoneOffset zoneOffsetClient = adjutant.obtainZoneOffsetClient();
 
         assertEquals(zoneOffsetClient, zoneOffsetDatabase, "zoneOffsetClient");
