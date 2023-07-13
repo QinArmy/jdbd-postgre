@@ -3,9 +3,6 @@ package io.jdbd.mysql.protocol.client;
 
 import io.jdbd.mysql.Groups;
 import io.jdbd.mysql.MySQLType;
-import io.jdbd.mysql.stmt.BindBatchStmt;
-import io.jdbd.mysql.stmt.BindStmt;
-import io.jdbd.mysql.stmt.BindValue;
 import io.jdbd.mysql.stmt.Stmts;
 import io.jdbd.mysql.util.MySQLCodes;
 import io.jdbd.mysql.util.MySQLExceptions;

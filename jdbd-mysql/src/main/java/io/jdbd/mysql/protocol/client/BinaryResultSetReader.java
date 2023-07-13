@@ -48,6 +48,9 @@ final class BinaryResultSetReader extends MySQLResultSetReader {
         return new BinaryCurrentRow(MySQLRowMeta.readForRows(cumulateBuffer, this.task));
     }
 
+    /**
+     * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_binary_resultset.html">Binary Protocol Resultset</a>
+     */
     @Override
     boolean readOneRow(final ByteBuf payload, final boolean bigPayload, final MySQLCurrentRow currentRow) {
         final MySQLColumnMeta[] metaArray = currentRow.rowMeta.columnMetaArray;
@@ -61,9 +64,9 @@ final class BinaryResultSetReader extends MySQLResultSetReader {
         MySQLColumnMeta columnMeta;
         int columnIndex = binaryCurrentRow.columnIndex;
 
-        if (columnIndex == 0 && !binaryCurrentRow.readNullBitMap) {
+        if (columnIndex == 0 && binaryCurrentRow.readNullBitMap) {
             payload.readBytes(nullBitMap); // null_bitmap
-            binaryCurrentRow.readNullBitMap = true; // avoid big row
+            binaryCurrentRow.readNullBitMap = false; // avoid first column is big column
         }
         Object value;
         boolean moreCumulate = false;
@@ -94,11 +97,12 @@ final class BinaryResultSetReader extends MySQLResultSetReader {
 
 
     /**
-     * @return <ul>
+     * @return one of <ul>
      * <li>null : {@code DATETIME} is zero.</li>
      * <li>{@link #MORE_CUMULATE_OBJECT} more cumulate</li>
      * <li>column value</li>
      * </ul>
+     * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_binary_resultset.html">Binary Protocol Resultset</a>
      */
     @SuppressWarnings("deprecation")
     @Nullable
@@ -307,8 +311,8 @@ final class BinaryResultSetReader extends MySQLResultSetReader {
             case NULL:
                 throw MySQLExceptions.createFatalIoException("server return null type", null);
             case LONGBLOB:
-            case UNKNOWN:
-            default: // handle unknown as long blob.
+            case UNKNOWN:// handle unknown as long blob.
+            default:
                 value = readLongBlob(payload, meta, currentRow);
 
         } //switch
@@ -472,7 +476,7 @@ final class BinaryResultSetReader extends MySQLResultSetReader {
 
         private int columnIndex = 0;
 
-        private boolean readNullBitMap;
+        private boolean readNullBitMap = true;
 
 
         private BinaryCurrentRow(MySQLRowMeta rowMeta) {
@@ -486,7 +490,7 @@ final class BinaryResultSetReader extends MySQLResultSetReader {
             if (this.columnIndex != this.columnArray.length) {
                 throw new IllegalStateException();
             }
-            this.readNullBitMap = false;
+            this.readNullBitMap = true;
             this.columnIndex = 0;
         }
 

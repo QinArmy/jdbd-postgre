@@ -808,8 +808,8 @@ final class ComQueryTask extends MySQLCommandTask {
         final boolean metadata = (capability & Capabilities.CLIENT_OPTIONAL_RESULTSET_METADATA) != 0;
 
         switch (Packets.getInt1AsInt(cumulateBuffer, readerIndex++)) {
-            case 0: {// TODO 更准确
-                if (metadata && obtainLenEncIntByteCount(cumulateBuffer, readerIndex) + 1 == payloadLength) {
+            case 0: {
+                if (metadata && Packets.getLenEnc(cumulateBuffer, readerIndex) + 2 == payloadLength) {
                     responseType = ComQueryResponse.TEXT_RESULT;
                 } else {
                     responseType = ComQueryResponse.OK;

@@ -3,7 +3,6 @@ package io.jdbd.mysql.protocol.client;
 
 import io.jdbd.mysql.Groups;
 import io.jdbd.mysql.protocol.conf.MyKey;
-import io.jdbd.mysql.stmt.BindStmt;
 import io.jdbd.mysql.stmt.Stmts;
 import io.jdbd.mysql.util.MySQLTimes;
 import io.jdbd.result.ResultRow;

@@ -1,6 +1,5 @@
 package io.jdbd.mysql.protocol.client;
 
-import io.jdbd.mysql.stmt.MySQLParamValue;
 import io.jdbd.mysql.stmt.Stmts;
 import io.jdbd.mysql.util.MySQLNumbers;
 import io.jdbd.result.ResultStates;

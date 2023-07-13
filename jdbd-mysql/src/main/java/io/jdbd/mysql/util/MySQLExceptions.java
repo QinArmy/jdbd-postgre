@@ -7,7 +7,6 @@ import io.jdbd.mysql.MySQLType;
 import io.jdbd.mysql.protocol.MySQLFatalIoException;
 import io.jdbd.mysql.protocol.client.ErrorPacket;
 import io.jdbd.mysql.protocol.conf.MyKey;
-import io.jdbd.mysql.stmt.QueryAttr;
 import io.jdbd.statement.PreparedStatement;
 import io.jdbd.statement.StaticStatement;
 import io.jdbd.vendor.stmt.ParamValue;
@@ -147,8 +146,8 @@ public abstract class MySQLExceptions extends JdbdExceptions {
     }
 
 
-    public static JdbdException createBindValueParamIndexNotMatchError(int stmtIndex, ParamValue paramValue,
-                                                                       int paramIndex) {
+    public static JdbdException bindValueParamIndexNotMatchError(int stmtIndex, ParamValue paramValue,
+                                                                 int paramIndex) {
         String message;
         if (stmtIndex < 0) {
             message = String.format("BindValue parameter index[%s] and sql param[%s] not match."

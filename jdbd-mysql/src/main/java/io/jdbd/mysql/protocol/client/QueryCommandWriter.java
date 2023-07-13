@@ -277,7 +277,7 @@ final class QueryCommandWriter {
             paramValue = parameterGroup.get(i);
             if (paramValue.getIndex() != i) {
                 // hear invoker has bug
-                throw MySQLExceptions.createBindValueParamIndexNotMatchError(batchIndex, paramValue, i);
+                throw MySQLExceptions.bindValueParamIndexNotMatchError(batchIndex, paramValue, i);
             }
             packet.writeBytes(staticSqlList.get(i).getBytes(clientCharset));
 

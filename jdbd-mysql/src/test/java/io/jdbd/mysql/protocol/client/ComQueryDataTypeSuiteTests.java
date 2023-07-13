@@ -1,7 +1,6 @@
 package io.jdbd.mysql.protocol.client;
 
 import io.jdbd.mysql.MySQLType;
-import io.jdbd.mysql.stmt.BindStmt;
 import io.jdbd.result.ResultRow;
 import io.jdbd.result.ResultStates;
 import org.testng.annotations.Test;

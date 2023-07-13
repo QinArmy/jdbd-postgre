@@ -2,11 +2,9 @@ package io.jdbd.mysql.protocol.client;
 
 import io.jdbd.JdbdException;
 import io.jdbd.mysql.MySQLType;
-import io.jdbd.mysql.protocol.Constants;
 import io.jdbd.mysql.protocol.MySQLServerVersion;
-import io.jdbd.mysql.stmt.MySQLStmt;
-import io.jdbd.mysql.stmt.QueryAttr;
 import io.jdbd.mysql.util.MySQLBinds;
+import io.jdbd.mysql.util.MySQLCollections;
 import io.jdbd.mysql.util.MySQLExceptions;
 import io.jdbd.vendor.stmt.*;
 import io.netty.buffer.ByteBuf;
@@ -29,11 +27,18 @@ import java.util.*;
  */
 final class PrepareExecuteCommandWriter implements ExecuteCommandWriter {
 
+
     static PrepareExecuteCommandWriter create(final PrepareStmtTask stmtTask) {
         return new PrepareExecuteCommandWriter(stmtTask);
     }
 
     private final Logger LOG = LoggerFactory.getLogger(PrepareExecuteCommandWriter.class);
+
+
+    // below enum_cursor_type @see https://dev.mysql.com/doc/dev/mysql-server/latest/mysql__com_8h.html#a3e5e9e744ff6f7b989a604fd669977da
+    private static final byte CURSOR_TYPE_NO_CURSOR = 0;
+    private static final byte CURSOR_TYPE_READ_ONLY = 1;
+    private static final byte PARAMETER_COUNT_AVAILABLE = 1 << 3;
 
     private final PrepareStmtTask stmtTask;
 
@@ -57,45 +62,50 @@ final class PrepareExecuteCommandWriter implements ExecuteCommandWriter {
         this.capability = this.adjutant.capability();
 
         this.supportQueryAttr = Capabilities.supportQueryAttr(this.capability);
-        this.serverVersion = this.adjutant.handshake10().getServerVersion();
+        this.serverVersion = this.adjutant.handshake10().serverVersion;
     }
 
 
     @Override
     public Publisher<ByteBuf> writeCommand(final int batchIndex) throws SQLException {
-        final List<? extends ParamValue> bindGroup;
+        final List<ParamValue> bindGroup;
         bindGroup = getBindGroup(batchIndex);
 
         final MySQLColumnMeta[] paramMetaArray = Objects.requireNonNull(this.stmtTask.getParameterMetas());
         MySQLBinds.assertParamCountMatch(batchIndex, paramMetaArray.length, bindGroup.size());
 
-        final List<ParamValue> longParamList = new ArrayList<>();
+        List<ParamValue> longParamList = null;
+        ParamValue paramValue;
+        Object value;
         for (int i = 0; i < paramMetaArray.length; i++) {
-            final ParamValue paramValue = bindGroup.get(i);
+            paramValue = bindGroup.get(i);
             if (paramValue.getIndex() != i) {
                 // hear invoker has bug
-                throw MySQLExceptions.createBindValueParamIndexNotMatchError(batchIndex, paramValue, i);
+                throw MySQLExceptions.bindValueParamIndexNotMatchError(batchIndex, paramValue, i);
             }
-            if (paramValue.isLongData()) {
+            value = paramValue.getValue();
+            if (value instanceof Publisher || value instanceof Path) {
+                if (longParamList == null) {
+                    longParamList = MySQLCollections.arrayList();
+                }
                 longParamList.add(paramValue);
             }
         }
         final Publisher<ByteBuf> publisher;
-        if (paramMetaArray.length == 0 && !this.supportQueryAttr) {
+        if (paramMetaArray.length == 0 && (!this.supportQueryAttr || this.stmt.getStmtVarList().size() == 0)) {
             // this 'if' block handle no bind parameter.
             final ByteBuf packet;
             packet = createExecutePacket(10);
             this.stmtTask.resetSequenceId(); // reset sequenceId before write header
             publisher = Packets.createPacketPublisher(packet, this.stmtTask::nextSequenceId, this.adjutant);
-        } else if (longParamList.size() == 0) {
+        } else if (longParamList == null || longParamList.size() == 0) {
             // this 'if' block handle no long parameter.
             publisher = bindParameters(batchIndex, bindGroup);
         } else {
             // start next group need reset
             LongParameterWriter longParamWriter = this.longParamWriter;
             if (longParamWriter == null) {
-                longParamWriter = new PrepareLongParameterWriter(this.stmtTask);
-                this.longParamWriter = longParamWriter;
+                this.longParamWriter = longParamWriter = new PrepareLongParameterWriter(this.stmtTask);
             }
             publisher = longParamWriter.write(batchIndex, longParamList)
                     .concatWith(defferBindParameters(batchIndex, bindGroup))
@@ -123,12 +133,12 @@ final class PrepareExecuteCommandWriter implements ExecuteCommandWriter {
     }
 
 
-    private List<? extends ParamValue> getBindGroup(final int batchIndex) {
+    private List<ParamValue> getBindGroup(final int batchIndex) {
         ParamSingleStmt stmt = this.stmt;
         if (stmt instanceof PrepareStmt) {
             stmt = ((PrepareStmt) stmt).getStmt();
         }
-        final List<? extends ParamValue> bindGroup;
+        final List<ParamValue> bindGroup;
         if (stmt instanceof ParamStmt) {
             if (batchIndex > -1) {
                 String m = String.format("batchIndex[%s] isn't negative for stmt[%s].", batchIndex, stmt);
@@ -136,13 +146,14 @@ final class PrepareExecuteCommandWriter implements ExecuteCommandWriter {
             }
             bindGroup = ((ParamStmt) stmt).getBindGroup();
         } else if (stmt instanceof ParamBatchStmt) {
-            final ParamBatchStmt<? extends ParamValue> batchStmt = (ParamBatchStmt<? extends ParamValue>) stmt;
-            if (batchIndex >= batchStmt.getGroupList().size()) {
+            final ParamBatchStmt batchStmt = (ParamBatchStmt) stmt;
+            final List<List<ParamValue>> groupList = batchStmt.getGroupList();
+            if (batchIndex >= groupList.size()) {
                 String m = String.format("batchIndex[%s] great or equal than group size[%s] for stmt[%s]."
                         , batchIndex, batchStmt.getGroupList().size(), stmt);
                 throw new IllegalArgumentException(m);
             }
-            bindGroup = batchStmt.getGroupList().get(batchIndex);
+            bindGroup = groupList.get(batchIndex);
         } else {
             // here bug
             String m = String.format("Unknown stmt type %s", stmt);
@@ -151,21 +162,8 @@ final class PrepareExecuteCommandWriter implements ExecuteCommandWriter {
         return bindGroup;
     }
 
-    private Map<String, QueryAttr> getQueryAttribute() {
-        ParamSingleStmt stmt = this.stmt;
-        if (stmt instanceof PrepareStmt) {
-            stmt = ((PrepareStmt) stmt).getStmt();
-        }
-        final Map<String, QueryAttr> queryAttrMap;
-        if (stmt instanceof MySQLStmt) {
-            queryAttrMap = ((MySQLStmt) stmt).getQueryAttrs();
-        } else {
-            queryAttrMap = Collections.emptyMap();
-        }
-        return queryAttrMap;
-    }
 
-    private Publisher<ByteBuf> defferBindParameters(final int batchIndex, final List<? extends ParamValue> bindGroup) {
+    private Publisher<ByteBuf> defferBindParameters(final int batchIndex, final List<ParamValue> bindGroup) {
         return Flux.create(sink -> {
             if (this.adjutant.inEventLoop()) {
                 defferBIndParamInEventLoop(batchIndex, bindGroup, sink);
@@ -175,8 +173,8 @@ final class PrepareExecuteCommandWriter implements ExecuteCommandWriter {
         });
     }
 
-    private void defferBIndParamInEventLoop(final int batchIndex, final List<? extends ParamValue> bindGroup
-            , final FluxSink<ByteBuf> sink) {
+    private void defferBIndParamInEventLoop(final int batchIndex, final List<ParamValue> bindGroup,
+                                            final FluxSink<ByteBuf> sink) {
         try {
             Flux.from(bindParameters(batchIndex, bindGroup))
                     .subscribe(sink::next, sink::error, sink::complete);
@@ -192,13 +190,13 @@ final class PrepareExecuteCommandWriter implements ExecuteCommandWriter {
      * @return {@link Flux} that is created by {@link Flux#fromIterable(Iterable)} method.
      * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_com_stmt_execute.html">Protocol::COM_STMT_EXECUTE</a>
      */
-    private Publisher<ByteBuf> bindParameters(final int batchIndex, final List<? extends ParamValue> bindGroup)
-            throws JdbdException, SQLException {
+    private Publisher<ByteBuf> bindParameters(final int batchIndex, final List<ParamValue> bindGroup)
+            throws JdbdException {
 
         final MySQLColumnMeta[] paramMetaArray = this.stmtTask.getParameterMetas();
         MySQLBinds.assertParamCountMatch(batchIndex, paramMetaArray.length, bindGroup.size());
 
-        final Map<String, QueryAttr> queryAttrMap = getQueryAttribute();
+        final List<NamedValue> queryAttrList = this.stmt.getStmtVarList();
 
         final ByteBuf packet;
         packet = createExecutePacket(1024);
@@ -207,7 +205,7 @@ final class PrepareExecuteCommandWriter implements ExecuteCommandWriter {
             final boolean supportQueryAttr = this.supportQueryAttr;
             final int paramCount;
             if (supportQueryAttr) {
-                paramCount = paramMetaArray.length + queryAttrMap.size();
+                paramCount = paramMetaArray.length + queryAttrList.size();
                 Packets.writeIntLenEnc(packet, paramCount); // parameter_count
             } else {
                 paramCount = paramMetaArray.length;
@@ -313,12 +311,12 @@ final class PrepareExecuteCommandWriter implements ExecuteCommandWriter {
         packet.writeByte(Packets.COM_STMT_EXECUTE); // 1.status
         Packets.writeInt4(packet, this.stmtTask.getStatementId());// 2. statement_id
         //3.cursor Flags, reactive api not support cursor
-        int flags = Constants.CURSOR_TYPE_NO_CURSOR;
+        int flags = CURSOR_TYPE_NO_CURSOR;
         if (this.stmtTask.isSupportFetch()) {
-            flags |= Constants.CURSOR_TYPE_READ_ONLY;
+            flags |= CURSOR_TYPE_READ_ONLY;
         }
         if (this.supportQueryAttr) {
-            flags |= Constants.PARAMETER_COUNT_AVAILABLE;
+            flags |= PARAMETER_COUNT_AVAILABLE;
         }
         packet.writeByte(flags); // flags
         Packets.writeInt4(packet, 1);//4. iteration_count,Number of times to execute the statement. Currently, always 1.

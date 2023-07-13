@@ -5,8 +5,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.jdbd.mysql.MySQLType;
 import io.jdbd.mysql.SQLMode;
 import io.jdbd.mysql.protocol.conf.MyKey;
-import io.jdbd.mysql.stmt.BindStmt;
-import io.jdbd.mysql.stmt.BindValue;
 import io.jdbd.mysql.stmt.Stmts;
 import io.jdbd.mysql.type.City;
 import io.jdbd.mysql.type.TrueOrFalse;

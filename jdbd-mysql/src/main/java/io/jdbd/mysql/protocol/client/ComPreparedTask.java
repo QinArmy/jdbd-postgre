@@ -198,6 +198,20 @@ final class ComPreparedTask extends MySQLCommandTask implements PrepareStmtTask,
 
     private static final Logger LOG = LoggerFactory.getLogger(ComPreparedTask.class);
 
+//    /**
+//     * {@code enum_resultset_metadata} No metadata will be sent.
+//     *
+//     * @see #RESULTSET_METADATA_FULL
+//     * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/mysql__com_8h.html#aba06d1157f6dee3f20537154103c91a1">enum_resultset_metadata</a>
+//     */
+//    private static final byte RESULTSET_METADATA_NONE = 0;
+    /**
+     * {@code enum_resultset_metadata} The server will send all metadata.
+     *
+     * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/mysql__com_8h.html#aba06d1157f6dee3f20537154103c91a1">enum_resultset_metadata</a>
+     */
+    private static final byte RESULTSET_METADATA_FULL = 1;
+
     private final ParamSingleStmt stmt;
 
     private final ExecuteCommandWriter commandWriter;
@@ -563,7 +577,7 @@ final class ComPreparedTask extends MySQLCommandTask implements PrepareStmtTask,
 
         final ParamSingleStmt stmt = this.stmt;
         final ParamSingleStmt actualStmt;
-        if (stmt instanceof MySQLPrepareStmt) {
+        if (stmt instanceof PrepareStmt) {
             actualStmt = ((PrepareStmt) stmt).getStmt();
         } else {
             actualStmt = stmt;
@@ -811,7 +825,7 @@ final class ComPreparedTask extends MySQLCommandTask implements PrepareStmtTask,
                 if (payloadLength > 12) {
                     cumulateBuffer.skipBytes(2); // skip warning_count
                     if ((capability & Capabilities.CLIENT_OPTIONAL_RESULTSET_METADATA) == 0
-                            || cumulateBuffer.readByte() == 1) {
+                            || cumulateBuffer.readByte() == RESULTSET_METADATA_FULL) {
                         packetNumber = numColumns + numParams;
                     }
                 } else if ((capability & Capabilities.CLIENT_OPTIONAL_RESULTSET_METADATA) == 0) {
@@ -879,7 +893,7 @@ final class ComPreparedTask extends MySQLCommandTask implements PrepareStmtTask,
                     }
 
                     hasMeta = (capability & Capabilities.CLIENT_OPTIONAL_RESULTSET_METADATA) == 0
-                            || cumulateBuffer.readByte() == 1;
+                            || cumulateBuffer.readByte() == RESULTSET_METADATA_FULL;
                 } else {
                     hasMeta = (capability & Capabilities.CLIENT_OPTIONAL_RESULTSET_METADATA) == 0;
                 }

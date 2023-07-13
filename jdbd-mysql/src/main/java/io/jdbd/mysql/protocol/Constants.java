@@ -69,26 +69,8 @@ public interface Constants {
 
     byte SEMICOLON_BYTE = ';';
 
-    /**
-     * {@code enum_resultset_metadata} No metadata will be sent.
-     *
-     * @see #RESULTSET_METADATA_FULL
-     * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/mysql__com_8h.html#aba06d1157f6dee3f20537154103c91a1">enum_resultset_metadata</a>
-     */
-    byte RESULTSET_METADATA_NONE = 0;
-    /**
-     * {@code enum_resultset_metadata} The server will send all metadata.
-     *
-     * @see #RESULTSET_METADATA_NONE
-     * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/mysql__com_8h.html#aba06d1157f6dee3f20537154103c91a1">enum_resultset_metadata</a>
-     */
-    byte RESULTSET_METADATA_FULL = 1;
-    // below enum_cursor_type @see https://dev.mysql.com/doc/dev/mysql-server/latest/mysql__com_8h.html#a3e5e9e744ff6f7b989a604fd669977da
-    byte CURSOR_TYPE_NO_CURSOR = 0;
-    byte CURSOR_TYPE_READ_ONLY = 1;
-    byte PARAMETER_COUNT_AVAILABLE = 1 << 3;
+
     //below  Protocol field type numbers, see https://dev.mysql.com/doc/dev/mysql-server/latest/field__types_8h.html#a69e798807026a0f7e12b1d6c72374854
-    //
     byte TYPE_DECIMAL = 0;
     byte TYPE_TINY = 1;
     byte TYPE_SHORT = 2;
