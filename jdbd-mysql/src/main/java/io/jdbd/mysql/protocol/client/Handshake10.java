@@ -12,7 +12,7 @@ import java.nio.charset.StandardCharsets;
  */
 final class Handshake10 implements MySQLPacket {
 
-    public static Handshake10 readHandshake(ByteBuf payload) {
+    public static Handshake10 readHandshake(final ByteBuf payload) {
         // below payload
         if (payload.readByte() != 10) {
             throw new IllegalArgumentException("byteBuf isn't Handshake v10 .");
@@ -73,28 +73,31 @@ final class Handshake10 implements MySQLPacket {
     }
 
 
-     final MySQLServerVersion serverVersion;
+    final MySQLServerVersion serverVersion;
 
-    private final long threadId;
+    final long threadId;
 
 
-    private final short filler;
+    final short filler;
 
-    private final int capabilityFlags;
+    /**
+     * server capability .
+     */
+    final int capabilityFlags;
 
-    private final short collationIndex;
+    final short collationIndex;
 
-    private final int statusFlags;
+    final int statusFlags;
 
     /**
      * optional
      */
-    private final short authPluginDataLen;
+    final short authPluginDataLen;
 
 
-    private final String pluginSeed;
+    final String pluginSeed;
 
-    private final String authPluginName;
+    final String authPluginName;
 
     private Handshake10(MySQLServerVersion serverVersion
             , long threadId, String authPluginDataPart1
@@ -141,13 +144,6 @@ final class Handshake10 implements MySQLPacket {
         return this.collationIndex;
     }
 
-    public int getStatusFlags() {
-        return this.statusFlags;
-    }
-
-    public short getAuthPluginDataLen() {
-        return this.authPluginDataLen;
-    }
 
     @Nullable
     public String getAuthPluginName() {

@@ -22,6 +22,10 @@ abstract class FixedEnv {
 
     final int maxAllowedPayload;
 
+    final boolean sendFractionalSeconds;
+
+    final boolean sendFractionalSecondsForTime;
+
     final Environment env;
 
     FixedEnv(Environment env) {
@@ -31,6 +35,9 @@ abstract class FixedEnv {
         this.maxAllowedPayload = parseMaxAllowedPacket(env);
 
         this.bigColumnBoundaryBytes = env.getOrMin(MySQLKey.BIG_COLUMN_BOUNDARY_BYTES, 1 << 27);
+        this.sendFractionalSeconds = env.getOrDefault(MySQLKey.SEND_FRACTIONAL_SECONDS);
+        this.sendFractionalSecondsForTime = env.getOrDefault(MySQLKey.SEND_FRACTIONAL_SECONDS_FOR_TIME);
+
         this.env = env;
     }
 

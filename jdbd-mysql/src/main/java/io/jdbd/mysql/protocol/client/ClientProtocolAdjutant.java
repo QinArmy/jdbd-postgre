@@ -31,6 +31,9 @@ interface ClientProtocolAdjutant extends ResultRowAdjutant {
 
     Charset obtainCharsetMeta();
 
+    /**
+     * @return negotiated capability.
+     */
     int capability();
 
     Map<Integer, Charsets.CustomCollation> obtainCustomCollationMap();

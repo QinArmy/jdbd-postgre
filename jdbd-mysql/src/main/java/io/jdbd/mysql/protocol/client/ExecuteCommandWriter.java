@@ -16,7 +16,7 @@ interface ExecuteCommandWriter {
 
     interface LongParameterWriter {
 
-        Flux<ByteBuf> write(int stmtIndex, List<? extends ParamValue> valueList);
+        Flux<ByteBuf> write(int stmtIndex, List<ParamValue> valueList);
     }
 
 

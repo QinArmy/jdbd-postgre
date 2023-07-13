@@ -29,22 +29,9 @@ interface TaskAdjutant extends ITaskAdjutant, ClientProtocolAdjutant, MySQLParse
 
     Map<String, Collation> nameCollationMap();
 
-    boolean inTransaction();
-
-    boolean isAutoCommit();
-
     ClientProtocolFactory getFactory();
 
     boolean isNoBackslashEscapes();
 
-    /**
-     * <p>
-     * Beginning with MySQL 8.0.19, you can specify a time zone offset when inserting TIMESTAMP and DATETIME values into a table.
-     * Datetime literals that include time zone offsets are accepted as parameter values by prepared statements.
-     * </p>
-     *
-     * @see <a href="https://dev.mysql.com/doc/refman/8.0/en/date-and-time-literals.html">Date and Time Literals</a>
-     */
-    boolean isSupportZoneOffset();
 
 }

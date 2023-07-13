@@ -3,9 +3,11 @@ package io.jdbd.mysql.protocol.client;
 
 import io.jdbd.lang.Nullable;
 import io.jdbd.mysql.MySQLType;
+import io.jdbd.mysql.protocol.MySQLServerVersion;
 import io.jdbd.mysql.util.MySQLBinds;
 import io.jdbd.mysql.util.MySQLExceptions;
 import io.jdbd.mysql.util.MySQLTimes;
+import io.jdbd.vendor.stmt.NamedValue;
 import io.jdbd.vendor.stmt.Value;
 import io.jdbd.vendor.util.JdbdExceptions;
 import io.jdbd.vendor.util.JdbdTimes;
@@ -16,6 +18,7 @@ import java.nio.charset.Charset;
 import java.time.*;
 import java.time.temporal.ChronoField;
 import java.util.BitSet;
+import java.util.List;
 
 /**
  * <p>
@@ -45,9 +48,9 @@ abstract class BinaryWriter {
      *                   <ul>
      *                      <li>{@link OffsetDateTime}</li>
      *                      <li>{@link ZonedDateTime}</li>
-     *                   </ul>  see {@link #decideActualType(MySQLType, Value)}.
+     *                   </ul>  see {@link #decideActualType(Value, boolean)}.
      *                   But if  {@link Value#getType()} is {@link MySQLType#TIME} serverZone must non-null.
-     * @see #decideActualType(MySQLType, Value)
+     * @see #decideActualType(Value, boolean)
      * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_binary_resultset.html">Binary Protocol Resultset</a>
      * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_com_stmt_execute.html">COM_STMT_EXECUTE</a>
      * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_com_query.html">COM_QUERY CLIENT_QUERY_ATTRIBUTES</a>
@@ -217,13 +220,32 @@ abstract class BinaryWriter {
 
     }
 
+    static void writeQueryAttrType(final ByteBuf packet, final List<NamedValue> queryAttrList, final byte[] nullBitsMap,
+                                   final Charset clientCharset, final boolean supportZoneOffset) {
+        final int queryAttrSize = queryAttrList.size();
+        NamedValue namedValue;
+        MySQLType type;
+        for (int i = 0; i < queryAttrSize; i++) {
+            namedValue = queryAttrList.get(i);
+            if (namedValue.getValue() == null) {
+                nullBitsMap[i >> 3] |= (1 << (i & 7));
+            }
+            type = BinaryWriter.decideActualType(namedValue, supportZoneOffset);
+            Packets.writeInt2(packet, type.parameterType);
+            Packets.writeStringLenEnc(packet, namedValue.getName().getBytes(clientCharset));
+        }
+
+    }
+
 
     /**
      * @param supportZoneOffset Beginning with MySQL 8.0.19, you can specify a time zone offset when inserting TIMESTAMP and DATETIME values into a table.
      * @see #writeBinary(ByteBuf, int, Value, int, Charset, ZoneOffset)
+     * @see MySQLServerVersion#isSupportZoneOffset()
+     * @see <a href="https://dev.mysql.com/doc/refman/8.0/en/date-and-time-literals.html">Date and Time Literals</a>
      */
     static MySQLType decideActualType(final Value paramValue, final boolean supportZoneOffset) {
-        final Object nonNull = paramValue.getNonNullValue();
+        final Object source = paramValue.getNonNullValue();
         final MySQLType type = (MySQLType) paramValue.getType();
         final MySQLType bindType;
         switch (type) {
@@ -239,8 +261,9 @@ abstract class BinaryWriter {
             }
             break;
             case DATETIME: {
-                if (supportZoneOffset || nonNull instanceof OffsetDateTime || nonNull instanceof ZonedDateTime) {
+                if (supportZoneOffset || source instanceof OffsetDateTime || source instanceof ZonedDateTime) {
                     //As of MySQL 8.0.19 can append zone
+                    //Datetime literals that include time zone offsets are accepted as parameter values by prepared statements.
                     bindType = MySQLType.VARCHAR;
                 } else {
                     bindType = type;

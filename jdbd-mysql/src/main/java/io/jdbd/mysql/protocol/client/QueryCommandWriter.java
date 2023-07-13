@@ -161,7 +161,7 @@ final class QueryCommandWriter {
         this.adjutant = adjutant;
         this.hexEscape = adjutant.isNoBackslashEscapes();
         this.clientCharset = adjutant.charsetClient();
-        this.supportZoneOffset = adjutant.isSupportZoneOffset();
+        this.supportZoneOffset = adjutant.handshake10().serverVersion.isSupportZoneOffset();
 
     }
 
@@ -724,40 +724,27 @@ final class QueryCommandWriter {
         clientCharset = adjutant.charsetClient();
 
         final boolean supportZoneOffset;
-        supportZoneOffset = adjutant.isSupportZoneOffset();
+        supportZoneOffset = adjutant.handshake10().serverVersion.isSupportZoneOffset();
 
         // write param_type_and_flag and parameter name
-        NamedValue attr;
-        MySQLType type;
-        for (int i = 0; i < paramCount; i++) {
-            attr = attrList.get(i);
-            if (attr.getValue() == null) {
-                nullBitMap[i >> 3] |= (1 << (i & 7));
-                continue;
-            }
-            type = BinaryWriter.decideActualType(attr, supportZoneOffset);
-            Packets.writeInt2(packet, type.parameterType); // param_type_and_flag
-            Packets.writeStringLenEnc(packet, attr.getName().getBytes(clientCharset)); // parameter name
-        }
-        // below write nullBitMap bytes
-        final int curWriterIndex = packet.writerIndex();
-        packet.writerIndex(nullBitMapWriterIndex);
-        packet.writeBytes(nullBitMap);
-        packet.writerIndex(curWriterIndex);
+        BinaryWriter.writeQueryAttrType(packet, attrList, nullBitMap, clientCharset, supportZoneOffset);
 
+        // below write nullBitMap bytes
+        Packets.writeBytesAtIndex(packet, nullBitMap, nullBitMapWriterIndex);
 
         // below write parameter_values for query attribute
 
         final ZoneOffset serverZone;
         serverZone = adjutant.serverZone();
         boolean useServerZone;
+        NamedValue namedValue;
         for (int i = 0; i < paramCount; i++) {
-            attr = attrList.get(i);
-            if (attr.getValue() == null) {
+            namedValue = attrList.get(i);
+            if (namedValue.getValue() == null) {
                 continue;
             }
-            useServerZone = supportZoneOffset && attr.getType() == MySQLType.DATETIME;
-            BinaryWriter.writeBinary(packet, -1, attr, -1, clientCharset, useServerZone ? serverZone : null);
+            useServerZone = supportZoneOffset && namedValue.getType() == MySQLType.DATETIME;
+            BinaryWriter.writeBinary(packet, -1, namedValue, -1, clientCharset, useServerZone ? serverZone : null);
         }
 
     }

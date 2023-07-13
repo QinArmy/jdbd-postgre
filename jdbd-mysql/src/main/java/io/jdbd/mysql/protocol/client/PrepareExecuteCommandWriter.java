@@ -2,7 +2,6 @@ package io.jdbd.mysql.protocol.client;
 
 import io.jdbd.JdbdException;
 import io.jdbd.mysql.MySQLType;
-import io.jdbd.mysql.protocol.MySQLServerVersion;
 import io.jdbd.mysql.util.MySQLBinds;
 import io.jdbd.mysql.util.MySQLCollections;
 import io.jdbd.mysql.util.MySQLExceptions;
@@ -17,8 +16,9 @@ import reactor.core.publisher.Mono;
 
 import java.nio.charset.Charset;
 import java.nio.file.Path;
-import java.sql.SQLException;
-import java.util.*;
+import java.time.ZoneOffset;
+import java.util.List;
+import java.util.Objects;
 
 
 /**
@@ -46,11 +46,15 @@ final class PrepareExecuteCommandWriter implements ExecuteCommandWriter {
 
     private final TaskAdjutant adjutant;
 
-    private final int capability;
-
     private final boolean supportQueryAttr;
 
-    private final MySQLServerVersion serverVersion;
+    private final boolean supportZoneOffset;
+
+    private final FixedEnv fixedEnv;
+
+    private final ZoneOffset serverZone;
+
+    private final Charset clientCharset;
 
     private LongParameterWriter longParamWriter;
 
@@ -58,16 +62,22 @@ final class PrepareExecuteCommandWriter implements ExecuteCommandWriter {
     private PrepareExecuteCommandWriter(final PrepareStmtTask stmtTask) {
         this.stmtTask = stmtTask;
         this.stmt = stmtTask.getStmt();
-        this.adjutant = stmtTask.adjutant();
-        this.capability = this.adjutant.capability();
 
-        this.supportQueryAttr = Capabilities.supportQueryAttr(this.capability);
-        this.serverVersion = this.adjutant.handshake10().serverVersion;
+
+        final TaskAdjutant adjutant = stmtTask.adjutant();
+
+        this.adjutant = adjutant;
+        this.supportQueryAttr = (adjutant.capability() & Capabilities.CLIENT_QUERY_ATTRIBUTES) != 0;
+        this.supportZoneOffset = adjutant.handshake10().serverVersion.isSupportZoneOffset();
+        this.fixedEnv = adjutant.getFactory();
+        this.serverZone = adjutant.serverZone();
+        this.clientCharset = adjutant.charsetClient();
+
     }
 
 
     @Override
-    public Publisher<ByteBuf> writeCommand(final int batchIndex) throws SQLException {
+    public Publisher<ByteBuf> writeCommand(final int batchIndex) throws JdbdException {
         final List<ParamValue> bindGroup;
         bindGroup = getBindGroup(batchIndex);
 
@@ -190,22 +200,24 @@ final class PrepareExecuteCommandWriter implements ExecuteCommandWriter {
      * @return {@link Flux} that is created by {@link Flux#fromIterable(Iterable)} method.
      * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_com_stmt_execute.html">Protocol::COM_STMT_EXECUTE</a>
      */
-    private Publisher<ByteBuf> bindParameters(final int batchIndex, final List<ParamValue> bindGroup)
+    private Publisher<ByteBuf> bindParameters(final int batchIndex, final List<ParamValue> paramGroup)
             throws JdbdException {
 
         final MySQLColumnMeta[] paramMetaArray = this.stmtTask.getParameterMetas();
-        MySQLBinds.assertParamCountMatch(batchIndex, paramMetaArray.length, bindGroup.size());
-
-        final List<NamedValue> queryAttrList = this.stmt.getStmtVarList();
+        MySQLBinds.assertParamCountMatch(batchIndex, paramMetaArray.length, paramGroup.size());
 
         final ByteBuf packet;
         packet = createExecutePacket(1024);
 
         try {
+
+            final List<NamedValue> queryAttrList = this.stmt.getStmtVarList();
+            final int queryAttrSize = queryAttrList.size();
             final boolean supportQueryAttr = this.supportQueryAttr;
+
             final int paramCount;
-            if (supportQueryAttr) {
-                paramCount = paramMetaArray.length + queryAttrList.size();
+            if (supportQueryAttr && queryAttrSize > 0) { //see createExecutePacket(), when only queryAttrSize > 0 PARAMETER_COUNT_AVAILABLE
+                paramCount = paramMetaArray.length + queryAttrSize;
                 Packets.writeIntLenEnc(packet, paramCount); // parameter_count
             } else {
                 paramCount = paramMetaArray.length;
@@ -216,85 +228,124 @@ final class PrepareExecuteCommandWriter implements ExecuteCommandWriter {
             packet.writeZero(nullBitsMap.length); // placeholder for fill null_bitmap
             packet.writeByte(1); //fill new_params_bind_flag
 
+            final boolean supportZoneOffset = this.supportZoneOffset;
+
+            MySQLType type;
+            ParamValue paramValue;
             //1. make nullBitsMap and fill  parameter_types
-            for (int i = 0; i < paramMetaArray.length; i++) {
-                final ParamValue paramValue = bindGroup.get(i);
-                final MySQLType actualType;
-                if (paramValue.get() == null) {
+            final int anonymousParamCount = paramMetaArray.length;
+            for (int i = 0; i < anonymousParamCount; i++) {
+                paramValue = paramGroup.get(i);
+                if (paramValue.getValue() == null) {
                     nullBitsMap[i >> 3] |= (1 << (i & 7));
-                    actualType = paramMetaArray[i].sqlType;
-                } else if (paramValue.isLongData()) {
-                    actualType = paramMetaArray[i].sqlType;
-                } else {
-                    actualType = BinaryWriter.decideActualType(paramMetaArray[i].sqlType, paramValue);
                 }
-                Packets.writeInt2(packet, actualType.parameterType);
+                type = BinaryWriter.decideActualType(paramValue, supportZoneOffset);
+                Packets.writeInt2(packet, type.parameterType);
                 if (supportQueryAttr) {
-                    packet.writeByte(0); //string<lenenc> parameter_name
+                    packet.writeByte(0); //write empty, anonymous parameter, not query attribute parameter. string<lenenc>
                 }
             }
 
-            final Charset clientCharset = this.adjutant.charsetClient();
-            final List<QueryAttr> attrList;
-            if (supportQueryAttr) {
-                attrList = new ArrayList<>(queryAttrMap.size());
-                int queryAttrIndex = paramMetaArray.length;
-                for (Map.Entry<String, QueryAttr> e : queryAttrMap.entrySet()) {
-                    final QueryAttr queryAttr = e.getValue();
-                    attrList.add(queryAttr); // store  Query Attribute
-                    if (queryAttr.get() == null) {
-                        nullBitsMap[queryAttrIndex >> 3] |= (1 << (queryAttrIndex & 7));
-                    }
-                    final MySQLType actualType = BinaryWriter.decideActualType(queryAttr.getType(), queryAttr);
-                    Packets.writeInt2(packet, actualType.parameterType);
-                    Packets.writeStringLenEnc(packet, e.getKey().getBytes(clientCharset));
-                    queryAttrIndex++;
-                }
-            } else {
-                attrList = Collections.emptyList();
+
+            if (supportQueryAttr && queryAttrSize > 0) {
+                BinaryWriter.writeQueryAttrType(packet, queryAttrList, nullBitsMap, this.clientCharset, supportZoneOffset);
             }
 
+            // write nullBitsMap
+            Packets.writeBytesAtIndex(packet, nullBitsMap, nullBitsMapIndex);
 
-            final int writeIndex = packet.writerIndex();
-            packet.writerIndex(nullBitsMapIndex);
-            packet.writeBytes(nullBitsMap); //fill null_bitmap
-            packet.writerIndex(writeIndex); // reset writeIndex
-
-            // below write bind parameter values
-            for (int i = 0, precision; i < paramMetaArray.length; i++) {
-                ParamValue paramValue = bindGroup.get(i);
-                Object value = paramValue.get();
-                if (value == null || value instanceof Publisher || value instanceof Path) {
-                    continue;
-                }
-                final MySQLColumnMeta meta = paramMetaArray[i];
-                final MySQLType expected = meta.sqlType;
-                switch (expected) {
-                    case TIME:
-                    case DATETIME:
-                    case TIMESTAMP:
-                        precision = meta.getDateTimeTypePrecision();
-                        break;
-                    default:
-                        precision = 0;
-                }
-                BinaryWriter.writeBinary(packet, batchIndex, expected, paramValue, precision, clientCharset);
-
+            // write parameter value
+            if (anonymousParamCount > 0) {
+                writeParamValue(packet, batchIndex, paramMetaArray, paramGroup);
             }
-            // below write query attribute
-            for (QueryAttr queryAttr : attrList) {
-                // use precision 6 ,because query attribute no metadata.
-                BinaryWriter.writeBinary(packet, batchIndex, queryAttr.getType(), queryAttr, 6, clientCharset);
+
+            //  write query attribute
+            if (supportQueryAttr && queryAttrSize > 0) {
+                writeParamValue(packet, batchIndex, paramMetaArray, queryAttrList);
             }
 
             this.stmtTask.resetSequenceId(); // reset sequenceId before write header
             return Packets.createPacketPublisher(packet, this.stmtTask::nextSequenceId, this.adjutant);
 
         } catch (Throwable e) {
-            packet.release();
-            throw e;
+            if (packet.refCnt() > 0) {
+                packet.release();
+            }
+            throw MySQLExceptions.wrap(e);
 
         }
+    }
+
+
+    private void writeParamValue(final ByteBuf packet, final int batchIndex, final MySQLColumnMeta[] paramMetaArray,
+                                 final List<? extends Value> paramList) {
+
+        final ZoneOffset serverZone = this.serverZone;
+        final Charset clientCharset = this.clientCharset;
+
+        final boolean supportZoneOffset, sendFractionalSeconds, sendFractionalSecondsForTime;
+        sendFractionalSeconds = this.fixedEnv.sendFractionalSeconds;
+        sendFractionalSecondsForTime = this.fixedEnv.sendFractionalSecondsForTime;
+        supportZoneOffset = this.supportZoneOffset;
+
+        final int paramSize = paramList.size();
+
+        ZoneOffset zoneOffset;
+        MySQLType type;
+
+        Value paramValue;
+        Object value;
+        // below write bind parameter values
+        for (int i = 0, scale; i < paramSize; i++) {
+            paramValue = paramList.get(i);
+            value = paramValue.getValue();
+            if (value == null || value instanceof Publisher || value instanceof Path) {
+                continue;
+            }
+
+            type = (MySQLType) paramValue.getType();
+
+            switch (type) {
+                case DATETIME: {
+                    if (sendFractionalSeconds) {
+                        scale = -1;
+                    } else {
+                        scale = paramMetaArray[i].getScale();
+                    }
+                    if (supportZoneOffset) {
+                        zoneOffset = serverZone;
+                    } else {
+                        zoneOffset = null;
+                    }
+                }
+                break;
+                case TIME: {
+                    if (sendFractionalSeconds && sendFractionalSecondsForTime) {
+                        scale = -1;
+                    } else {
+                        scale = paramMetaArray[i].getScale();
+                    }
+                    zoneOffset = null;
+                }
+                break;
+                case TIMESTAMP: {
+                    if (sendFractionalSeconds) {
+                        scale = -1;
+                    } else {
+                        scale = paramMetaArray[i].getScale();
+                    }
+                    zoneOffset = null;
+                }
+                break;
+                default://no-op
+                    scale = -1;
+                    zoneOffset = null;
+            }
+
+            BinaryWriter.writeBinary(packet, batchIndex, paramValue, scale, clientCharset, zoneOffset);
+
+        }
+
     }
 
 
@@ -315,7 +366,7 @@ final class PrepareExecuteCommandWriter implements ExecuteCommandWriter {
         if (this.stmtTask.isSupportFetch()) {
             flags |= CURSOR_TYPE_READ_ONLY;
         }
-        if (this.supportQueryAttr) {
+        if (this.supportQueryAttr && this.stmt.getStmtVarList().size() > 0) {
             flags |= PARAMETER_COUNT_AVAILABLE;
         }
         packet.writeByte(flags); // flags

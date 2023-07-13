@@ -26,6 +26,19 @@ public final class MySQLServerVersion implements Comparable<MySQLServerVersion>,
         return doCompareTo(other.major, other.minor, other.subMinor);
     }
 
+
+    /**
+     * <p>
+     * Beginning with MySQL 8.0.19, you can specify a time zone offset when inserting TIMESTAMP and DATETIME values into a table.
+     * Datetime literals that include time zone offsets are accepted as parameter values by prepared statements.
+     * </p>
+     *
+     * @see <a href="https://dev.mysql.com/doc/refman/8.0/en/date-and-time-literals.html">Date and Time Literals</a>
+     */
+    public boolean isSupportZoneOffset() {
+        return this.meetsMinimum(8, 0, 19);
+    }
+
     @Override
     public String toString() {
         return this.completeVersion;

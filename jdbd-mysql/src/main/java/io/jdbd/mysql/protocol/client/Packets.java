@@ -904,6 +904,18 @@ abstract class Packets {
     }
 
 
+    public static void writeBytesAtIndex(final ByteBuf buffer, final byte[] bytes, final int index) {
+        final int writableIndex;
+        writableIndex = buffer.writerIndex();
+
+        buffer.writerIndex(index);
+        buffer.writeBytes(bytes);
+
+
+        buffer.writerIndex(writableIndex);
+    }
+
+
     public static boolean isAuthSwitchRequestPacket(ByteBuf payloadBuf) {
         return getInt1AsInt(payloadBuf, payloadBuf.readerIndex()) == 0xFE;
     }

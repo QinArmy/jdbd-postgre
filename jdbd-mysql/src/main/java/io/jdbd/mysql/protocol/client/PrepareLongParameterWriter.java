@@ -73,7 +73,7 @@ final class PrepareLongParameterWriter implements PrepareExecuteCommandWriter.Lo
 
 
     @Override
-    public Flux<ByteBuf> write(final int stmtIndex, List<? extends ParamValue> valueList) {
+    public Flux<ByteBuf> write(final int stmtIndex, List<ParamValue> valueList) {
         return Flux.fromIterable(valueList)
                 .filter(ParamValue::isLongData)
                 .flatMap(paramValue -> sendLongData(stmtIndex, paramValue));

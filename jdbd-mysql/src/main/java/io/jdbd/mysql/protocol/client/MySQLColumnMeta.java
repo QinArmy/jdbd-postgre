@@ -397,6 +397,7 @@ final class MySQLColumnMeta implements ColumnMeta {
         return precision;
     }
 
+
     int getDateTimeTypePrecision() {
         final int precision;
         if (this.decimals > 0 && this.decimals < 7) {
