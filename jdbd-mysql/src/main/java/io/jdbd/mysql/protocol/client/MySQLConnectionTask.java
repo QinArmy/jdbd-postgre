@@ -18,7 +18,6 @@ import io.jdbd.mysql.util.MySQLExceptions;
 import io.jdbd.mysql.util.MySQLStrings;
 import io.jdbd.session.SessionCloseException;
 import io.jdbd.vendor.env.HostInfo;
-import io.jdbd.vendor.env.Properties;
 import io.jdbd.vendor.task.CommunicationTask;
 import io.jdbd.vendor.task.ConnectionTask;
 import io.jdbd.vendor.task.SslWrapper;
@@ -76,9 +75,7 @@ final class MySQLConnectionTask extends CommunicationTask implements Authenticat
 
     private final MySQLHost0 hostInfo;
 
-    private final Properties properties;
-
-    private final FixedEnv fixedEnv;
+    private final Environment env;
 
     private Charset handshakeCharset;
 
@@ -107,16 +104,14 @@ final class MySQLConnectionTask extends CommunicationTask implements Authenticat
 
         this.adjutant = adjutant;
         this.hostInfo = adjutant.host();
-        this.properties = this.hostInfo.getProperties();
-        this.fixedEnv = adjutant.getFactory();
+        this.env = adjutant.getFactory().env;
         this.pluginMap = loadAuthenticationPluginMap();
 
-        Charset charset = this.properties.get(MyKey.characterEncoding, Charset.class);
-        if (charset == null || !Charsets.isSupportCharsetClient(charset)) {
-            charset = StandardCharsets.UTF_8;
-        }
-        this.handshakeCharset = charset;
+
+        this.handshakeCharset = parseCharacterEncoding(this.env);
     }
+
+
 
     /*################################## blow AuthenticateAssistant method ##################################*/
 
@@ -127,7 +122,7 @@ final class MySQLConnectionTask extends CommunicationTask implements Authenticat
 
     @Override
     public Charset getPasswordCharset() {
-        String pwdCharset = this.properties.get(MyKey.passwordCharacterEncoding);
+        String pwdCharset = this.f.get(MyKey.passwordCharacterEncoding);
         return pwdCharset == null ? this.handshakeCharset : Charset.forName(pwdCharset);
     }
 
@@ -163,7 +158,7 @@ final class MySQLConnectionTask extends CommunicationTask implements Authenticat
     }
 
     @Override
-    public final boolean reconnect() {
+    public boolean reconnect() {
         return false;
     }
 
@@ -579,25 +574,25 @@ final class MySQLConnectionTask extends CommunicationTask implements Authenticat
     private Pair<AuthenticationPlugin, Boolean> obtainAuthenticationPlugin() {
         Map<String, AuthenticationPlugin> pluginMap = this.pluginMap;
 
-        Properties properties = this.properties;
+        final Environment env = this.env;
         String pluginName = this.handshake.getAuthPluginName();
 
         AuthenticationPlugin plugin = pluginMap.get(pluginName);
         boolean skipPassword = false;
         final boolean useSsl = isUseSsl();
         if (plugin == null) {
-            plugin = pluginMap.get(PluginUtils.getDefaultMechanism(properties));
+            plugin = pluginMap.get(PluginUtils.getDefaultMechanism(env));
         } else if (Sha256PasswordPlugin.PLUGIN_NAME.equals(pluginName)
                 && !useSsl
-                && properties.get(MyKey.serverRSAPublicKeyFile) == null
-                && !properties.getOrDefault(MyKey.allowPublicKeyRetrieval, Boolean.class)) {
+                && env.get(MySQLKey.SERVER_RSA_PUBLIC_KEY_FILE) == null
+                && !env.getOrDefault(MySQLKey.ALLOW_PUBLIC_KEY_RETRIEVAL)) {
             /*
              * Fall back to default if plugin is 'sha256_password' but required conditions for this to work aren't met. If default is other than
              * 'sha256_password' this will result in an immediate authentication switch request, allowing for other plugins to authenticate
              * successfully. If default is 'sha256_password' then the authentication will fail as expected. In both cases user's password won't be
              * sent to avoid subjecting it to lesser security levels.
              */
-            String defaultPluginName = properties.getOrDefault(MyKey.defaultAuthenticationPlugin);
+            String defaultPluginName = env.getOrDefault(MySQLKey.DEFAULT_AUTHENTICATION_PLUGIN);
             skipPassword = !pluginName.equals(defaultPluginName);
             plugin = pluginMap.get(defaultPluginName);
         }
@@ -609,7 +604,7 @@ final class MySQLConnectionTask extends CommunicationTask implements Authenticat
 
 
     private Map<String, String> createConnectionAttributes() {
-        String connectionStr = this.properties.get(MyKey.connectionAttributes);
+        String connectionStr = this.env.get(MySQLKey.CONNECTION_ATTRIBUTES);
         Map<String, String> attMap = new HashMap<>();
 
         if (connectionStr != null) {
@@ -648,17 +643,15 @@ final class MySQLConnectionTask extends CommunicationTask implements Authenticat
         return charset;
     }
 
-
+    /**
+     * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/group__group__cs__capabilities__flags.html">Capabilities Flags</a>
+     */
     private int createNegotiatedCapability(final Handshake10 handshake) {
         final int serverCapability = handshake.capabilityFlags;
-        final Environment env = this.fixedEnv.env;
+        final Environment env = this.env;
 
         final boolean useConnectWithDb = MySQLStrings.hasText(this.hostInfo.getDbName())
                 && !env.getOrDefault(MySQLKey.CREATE_DATABASE_IF_NOT_EXIST);
-
-        // Servers between 8.0.23 8.0.25 are affected by Bug#103102, Bug#103268 and Bug#103377. Query attributes cannot be sent to these servers.
-        final boolean supportQueryAttr;
-        supportQueryAttr = handshake.serverVersion.isSupportQueryAttr();
 
         return Capabilities.CLIENT_SECURE_CONNECTION
                 | Capabilities.CLIENT_PLUGIN_AUTH
@@ -685,7 +678,7 @@ final class MySQLConnectionTask extends CommunicationTask implements Authenticat
                 | (env.getOrDefault(MySQLKey.SSL_MODE) != Enums.SslMode.DISABLED ? (serverCapability & Capabilities.CLIENT_SSL) : 0)
                 | (env.getOrDefault(MySQLKey.TRACK_SESSION_STATE) ? (serverCapability & Capabilities.CLIENT_SESSION_TRACK) : 0)  // TODO ZORO MYSQLCONNJ-437?
 
-                | (supportQueryAttr ? (serverCapability & Capabilities.CLIENT_QUERY_ATTRIBUTES) : 0)
+                | (handshake.serverVersion.isSupportQueryAttr() ? (serverCapability & Capabilities.CLIENT_QUERY_ATTRIBUTES) : 0)
                 ;
     }
 
@@ -715,8 +708,8 @@ final class MySQLConnectionTask extends CommunicationTask implements Authenticat
     /**
      * @see #loadAuthenticationPluginMap()
      */
-    private static AuthenticationPlugin loadPlugin(Class<? extends AuthenticationPlugin> pluginClass
-            , AuthenticateAssistant assistant) {
+    private static AuthenticationPlugin loadPlugin(Class<? extends AuthenticationPlugin> pluginClass,
+                                                   AuthenticateAssistant assistant) {
         try {
 
             Method method = pluginClass.getDeclaredMethod("getInstance", AuthenticateAssistant.class);
@@ -741,7 +734,15 @@ final class MySQLConnectionTask extends CommunicationTask implements Authenticat
         }
     }
 
+    private static Charset parseCharacterEncoding(Environment env) {
+        Charset charset;
+        charset = env.get(MySQLKey.CHARACTER_ENCODING);
+        if (charset == null || !Charsets.isSupportCharsetClient(charset)) {
+            charset = StandardCharsets.UTF_8;
+        }
+        return charset;
 
+    }
 
 
 

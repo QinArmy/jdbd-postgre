@@ -1,5 +1,7 @@
 package io.jdbd.mysql.protocol.authentication;
 
+import io.jdbd.mysql.env.Environment;
+import io.jdbd.mysql.env.MySQLKey;
 import io.jdbd.mysql.protocol.conf.MyKey;
 import io.jdbd.mysql.session.SessionAdjutant;
 import io.jdbd.mysql.util.MySQLCollections;
@@ -25,10 +27,10 @@ public abstract class PluginUtils {
      * not java-doc
      * @see io.jdbd.mysql.protocol.client.MySQLConnectionTask
      */
-    public static String getDefaultMechanism(Properties properties) {
+    public static String getDefaultMechanism(Environment env) {
         String defaultMechanism;
         defaultMechanism = PLUGIN_MECHANISM_MAPPING.get(
-                properties.getOrDefault(MyKey.defaultAuthenticationPlugin));
+                env.getOrDefault(MySQLKey.DEFAULT_AUTHENTICATION_PLUGIN));
         // here can't be null ,because @see #createPluginClassMap
         return Objects.requireNonNull(defaultMechanism, "defaultMechanism");
     }

@@ -38,6 +38,7 @@ public final class MySQLServerVersion implements Comparable<MySQLServerVersion>,
     }
 
     public boolean isSupportQueryAttr() {
+        // Servers between 8.0.23 8.0.25 are affected by Bug#103102, Bug#103268 and Bug#103377. Query attributes cannot be sent to these servers.
         return this.meetsMinimum(8, 0, 26);
     }
 
