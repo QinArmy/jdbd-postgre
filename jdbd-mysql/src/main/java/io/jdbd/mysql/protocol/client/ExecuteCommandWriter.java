@@ -17,6 +17,7 @@ import java.nio.file.Path;
 import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Objects;
+import java.util.function.IntSupplier;
 
 
 /**
@@ -37,7 +38,10 @@ final class ExecuteCommandWriter implements CommandWriter {
 
     final PrepareStmtTask stmtTask;
 
+    final IntSupplier sequenceId;
+
     final ParamSingleStmt stmt;
+
 
     final TaskAdjutant adjutant;
 
@@ -56,6 +60,7 @@ final class ExecuteCommandWriter implements CommandWriter {
 
     private ExecuteCommandWriter(final PrepareStmtTask stmtTask) {
         this.stmtTask = stmtTask;
+        this.sequenceId = stmtTask::nextSequenceId;
         this.stmt = stmtTask.getStmt();
 
 
@@ -102,7 +107,7 @@ final class ExecuteCommandWriter implements CommandWriter {
             final ByteBuf packet;
             packet = createExecutePacket(10);
             this.stmtTask.resetSequenceId(); // reset sequenceId before write header
-            publisher = Packets.createPacketPublisher(packet, this.stmtTask::nextSequenceId, this.adjutant);
+            publisher = Packets.createPacketPublisher(packet, this.sequenceId, this.adjutant);
         } else if (longParamList == null || longParamList.size() == 0) {
             // this 'if' block handle no long parameter.
             publisher = bindParameters(batchIndex, bindGroup);
@@ -267,7 +272,7 @@ final class ExecuteCommandWriter implements CommandWriter {
             }
 
             this.stmtTask.resetSequenceId(); // reset sequenceId before write header
-            return Packets.createPacketPublisher(packet, this.stmtTask::nextSequenceId, this.adjutant);
+            return Packets.createPacketPublisher(packet, this.sequenceId, this.adjutant);
 
         } catch (Throwable e) {
             if (packet.refCnt() > 0) {

@@ -112,8 +112,7 @@ public abstract class MySQLExceptions extends JdbdExceptions {
     }
 
 
-    public static LongDataReadException createLongDataReadException(int stmtIndex, ParamValue bindValue
-            , Throwable cause) {
+    public static JdbdException longDataReadException(int stmtIndex, ParamValue bindValue, Throwable cause) {
         final String m;
         if (stmtIndex < 0) {
             m = String.format("Read long data occur error at parameter[%s] DataType[%s]."
@@ -122,7 +121,7 @@ public abstract class MySQLExceptions extends JdbdExceptions {
             m = String.format("Read long data occur error at parameter[%s] DataType[%s] in statement[sequenceId:%s]."
                     , bindValue.getIndex(), bindValue.getType(), stmtIndex);
         }
-        return new LongDataReadException(m, cause);
+        return new JdbdException(m, cause);
     }
 
 
