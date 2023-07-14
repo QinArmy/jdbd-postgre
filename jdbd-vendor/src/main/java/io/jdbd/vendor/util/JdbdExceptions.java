@@ -10,6 +10,7 @@ import io.jdbd.session.SavePoint;
 import io.jdbd.statement.OutParameter;
 import io.jdbd.statement.PreparedStatement;
 import io.jdbd.statement.Statement;
+import io.jdbd.type.PathParameter;
 import io.jdbd.vendor.JdbdCompositeException;
 import io.jdbd.vendor.result.ColumnMeta;
 import io.jdbd.vendor.stmt.NamedValue;
@@ -33,14 +34,14 @@ public abstract class JdbdExceptions {
     private static final Logger LOG = LoggerFactory.getLogger(JdbdExceptions.class);
 
 
-    public static JdbdException wrap(Throwable e) {
-        JdbdException je;
-        if (e instanceof JdbdException) {
-            je = (JdbdException) e;
+    public static JdbdException wrap(Throwable cause) {
+        JdbdException e;
+        if (cause instanceof JdbdException) {
+            e = (JdbdException) cause;
         } else {
-            je = new JdbdException(String.format("Unknown error,%s", e.getMessage()), e);
+            e = new JdbdException(String.format("Unknown error,%s", cause.getMessage()), cause);
         }
-        return je;
+        return e;
     }
 
 
@@ -154,8 +155,9 @@ public abstract class JdbdExceptions {
         final String bufClassName = "io.netty.buffer.AbstractByteBuf";
         final String bufClassPrefix = "io.netty.buffer.";
         boolean match = false;
+        String className;
         for (StackTraceElement se : e.getStackTrace()) {
-            final String className = se.getClassName();
+            className = se.getClassName();
             if (className.equals(bufClassName)
                     || className.startsWith(bufClassPrefix)) {
                 match = true;
@@ -350,6 +352,40 @@ public abstract class JdbdExceptions {
             e = new JdbdException(m, cause);
         }
         return e;
+    }
+
+    public static JdbdException dontSupportParam(ColumnMeta meta, Object source, @Nullable Throwable cause) {
+        String m = String.format("column[index:%s,label:%s,typeName:%s] don't support %s .",
+                meta.getColumnIndex(),
+                meta.getColumnLabel(),
+                meta.getDataType().typeName(),
+                safeClassName(source)
+        );
+        final JdbdException e;
+        if (cause == null) {
+            e = new JdbdException(m);
+        } else {
+            e = new JdbdException(m, cause);
+        }
+        return e;
+    }
+
+    public static JdbdException readLocalFileError(int batchIndex, ColumnMeta meta, PathParameter parameter,
+                                                   Throwable cause) {
+        final String batchMsg;
+        if (batchIndex < 0) {
+            batchMsg = "";
+        } else {
+            batchMsg = "batchIndex[%s] ";
+        }
+        String m = String.format("%s column[index:%s,label:%s,typeName:%s] read local file[%s] occur error.",
+                batchMsg,
+                meta.getColumnIndex(),
+                meta.getColumnLabel(),
+                meta.getDataType().typeName(),
+                parameter.value()
+        );
+        return new JdbdException(m, cause);
     }
 
     public static JdbdException columnValueOverflow(ColumnMeta meta, Object source, Class<?> targetClass,

@@ -269,7 +269,7 @@ public final class MySQLKey<T> {
      * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-networking.html">maxAllowedPacket</a>
      * @see <a href="https://dev.mysql.com/doc/refman/8.0/en/server-system-variables.html#sysvar_max_allowed_packet">max_allowed_packet</a>
      */
-    public static final MySQLKey<Integer> MAX_ALLOWED_PACKET = new MySQLKey<>("maxAllowedPacket", Integer.class, 65535);
+    public static final MySQLKey<Integer> MAX_ALLOWED_PACKET = new MySQLKey<>("maxAllowedPacket", Integer.class, 1 << 26); //67108864
 
     /**
      * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-networking.html">socksProxyRemoteDns</a>
@@ -656,10 +656,20 @@ public final class MySQLKey<T> {
     public static final MySQLKey<Boolean> AUTO_DESERIALIZE = new MySQLKey<>("autoDeserialize", Boolean.class, Boolean.FALSE);
 
     /**
+     * <p>
+     *     <ul>
+     *         <li>default: 1 << 20</li>
+     *         <li>min : 1024</li>
+     *         <li>max : {@link #MAX_ALLOWED_PACKET} - 4</li>
+     *     </ul>
+     * </p>
+     *
      * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-blob-clob-processing.html">blobSendChunkSize</a>
+     * @see #MAX_ALLOWED_PACKET
      * @since MySQL Driver  3.1.9
      */
-    public static final MySQLKey<Integer> BLOB_SEND_CHUNK_SIZE = new MySQLKey<>("blobSendChunkSize", Integer.class, 1048576);
+    @Redefine
+    public static final MySQLKey<Integer> BLOB_SEND_CHUNK_SIZE = new MySQLKey<>("blobSendChunkSize", Integer.class, 1 << 20); //1048576
 
     /**
      * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-blob-clob-processing.html">blobsAreStrings</a>

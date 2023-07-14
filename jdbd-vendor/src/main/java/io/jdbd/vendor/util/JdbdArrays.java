@@ -1,14 +1,34 @@
 package io.jdbd.vendor.util;
 
+import io.qinarmy.lang.Nullable;
 import io.qinarmy.util.ArrayUtils;
 import io.qinarmy.util.Pair;
 
 import java.lang.reflect.Array;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.Set;
 
 public abstract class JdbdArrays extends ArrayUtils {
 
     protected JdbdArrays() {
         throw new UnsupportedOperationException();
+    }
+
+
+    @SafeVarargs
+    @SuppressWarnings("varargs")
+    public static <E> Set<E> asSet(@Nullable E... elements) {
+        final Set<E> set;
+        if (elements == null || elements.length == 0) {
+            set = Collections.emptySet();
+        } else if (elements.length == 1) {
+            set = Collections.singleton(elements[0]);
+        } else {
+            set = new HashSet<>((int) (elements.length / 0.75F));
+            Collections.addAll(set, elements);
+        }
+        return set;
     }
 
 

@@ -8,6 +8,14 @@ import org.reactivestreams.Subscriber;
 
 import java.util.function.Function;
 
+/**
+ * <p>
+ * This interface representing the adaptor of client-prepared statement and server-prepared statement.
+ * </p>
+ *
+ * @see io.jdbd.session.DatabaseSession#bindStatement(String, boolean)
+ * @since 1.0
+ */
 public interface BindStatement extends BindSingleStatement {
 
 

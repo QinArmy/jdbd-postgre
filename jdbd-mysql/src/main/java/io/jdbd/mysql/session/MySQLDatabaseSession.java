@@ -146,11 +146,11 @@ abstract class MySQLDatabaseSession<S extends DatabaseSession> implements Databa
     }
 
     @Override
-    public final BindStatement bindStatement(final String sql, final boolean forcePrepare) {
+    public final BindStatement bindStatement(final String sql, final boolean forceServerPrepared) {
         if (!MySQLStrings.hasText(sql)) {
             throw MySQLExceptions.sqlIsEmpty();
         }
-        return MySQLBindStatement.create(this, sql, forcePrepare);
+        return MySQLBindStatement.create(this, sql, forceServerPrepared);
     }
 
     @Override

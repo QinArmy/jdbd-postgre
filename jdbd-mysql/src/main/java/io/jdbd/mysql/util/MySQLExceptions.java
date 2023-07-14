@@ -22,10 +22,23 @@ import java.sql.SQLException;
 public abstract class MySQLExceptions extends JdbdExceptions {
 
 
-    public static int CR_PARAMS_NOT_BOUND = 2031;
-    public static int CR_NO_PARAMETERS_EXISTS = 2033;
-    public static int CR_INVALID_PARAMETER_NO = 2034;
-    public static int CR_UNSUPPORTED_PARAM_TYPE = 2036;
+    public static final short CR_PARAMS_NOT_BOUND = 2031;
+    public static final short CR_NO_PARAMETERS_EXISTS = 2033;
+    public static final short CR_INVALID_PARAMETER_NO = 2034;
+    public static final short CR_UNSUPPORTED_PARAM_TYPE = 2036;
+
+
+    public static JdbdException wrap(final Throwable cause) {
+        final JdbdException e;
+        if (cause instanceof JdbdException) {
+            e = (JdbdException) cause;
+        } else if (isByteBufOutflow(cause)) {
+            e = netPacketTooLargeError(cause);
+        } else {
+            e = new JdbdException(String.format("Unknown error,%s", cause.getMessage()), cause);
+        }
+        return e;
+    }
 
     public static JdbdSQLException wrapSQLExceptionIfNeed(Throwable t) {
         JdbdSQLException e;
@@ -189,7 +202,7 @@ public abstract class MySQLExceptions extends JdbdExceptions {
     public static JdbdException createNetPacketTooLargeException(int maxAllowedPayload) {
         String message = String.format("sql length larger than %s[%s]"
                 , MyKey.maxAllowedPacket, maxAllowedPayload);
-        return new JdbdException(message, createNetPacketTooLargeError(null));
+        return new JdbdException(message, netPacketTooLargeError(null));
     }
 
 
@@ -328,35 +341,21 @@ public abstract class MySQLExceptions extends JdbdExceptions {
                 , MySQLCodes.ER_DATA_TOO_LONG, cause);
     }
 
-
-    /*################################## blow private static method ##################################*/
-
-    private static SQLException createParseError(String message) {
-        return new SQLException(message, "42000", 1064);
-    }
-
-
-    private static SQLException createInvalidParameterError(String message) {
-        return new SQLException(message, null, 2034);
-    }
-
-    public static SQLException createNetPacketTooLargeError(@Nullable Throwable cause) {
-        final SQLException e;
+    public static JdbdException netPacketTooLargeError(@Nullable Throwable cause) {
+        final JdbdException e;
         if (cause == null) {
-            e = new SQLException("Got a packet bigger than 'max_allowed_packet' bytes"
-                    , MySQLStates.COMMUNICATION_LINK_FAILURE, MySQLCodes.ER_NET_PACKET_TOO_LARGE);
+            e = new JdbdException("Got a packet bigger than 'max_allowed_packet' bytes",
+                    MySQLStates.COMMUNICATION_LINK_FAILURE, MySQLCodes.ER_NET_PACKET_TOO_LARGE);
         } else {
-            e = new SQLException("Got a packet bigger than 'max_allowed_packet' bytes"
-                    , MySQLStates.COMMUNICATION_LINK_FAILURE, MySQLCodes.ER_NET_PACKET_TOO_LARGE, cause);
+            e = new JdbdException("Got a packet bigger than 'max_allowed_packet' bytes",
+                    MySQLStates.COMMUNICATION_LINK_FAILURE, MySQLCodes.ER_NET_PACKET_TOO_LARGE, cause);
         }
         return e;
     }
 
-    public static SQLException queryAttrNameNotMatch(final String name, final QueryAttr attr) {
-        final String m;
-        m = String.format("Key[%s] and QueryAttribute[%s] not match.", name, attr.getName());
-        return new SQLException(m);
-    }
+
+
+    /*################################## blow private static method ##################################*/
 
 
 }

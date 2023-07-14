@@ -108,10 +108,14 @@ public interface DatabaseSession extends StaticStatementSpec, Closeable {
     BindStatement bindStatement(String sql) throws JdbdException;
 
     /**
-     * @param forcePrepare true : must use server prepare statement.
+     * <p>
+     * Create the statement that is the adaptor of client-prepared statement and server-prepared statement.
+     * </p>
+     *
+     * @param forceServerPrepared true : must use server-prepared statement.
      * @see BindStatement#isForcePrepare()
      */
-    BindStatement bindStatement(String sql, boolean forcePrepare) throws JdbdException;
+    BindStatement bindStatement(String sql, boolean forceServerPrepared) throws JdbdException;
 
     MultiStatement multiStatement() throws JdbdException;
 

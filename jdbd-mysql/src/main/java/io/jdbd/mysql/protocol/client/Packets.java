@@ -462,7 +462,7 @@ abstract class Packets {
     }
 
 
-    public static void writeHeader(final ByteBuf packetBuf, final int sequenceId) {
+    static void writeHeader(final ByteBuf packetBuf, final int sequenceId) {
         final int readableBytes = packetBuf.readableBytes();
         if (readableBytes < HEADER_SIZE || readableBytes > MAX_PACKET) {
             throw new IllegalArgumentException(String.format("packetBuf readableBytes[%s] error.", readableBytes));
@@ -634,6 +634,7 @@ abstract class Packets {
         return packet;
     }
 
+
     /**
      * @return a sync Publisher that is created by {@link Mono#just(Object)} or {@link Flux#fromIterable(Iterable)}.
      */
@@ -703,8 +704,8 @@ abstract class Packets {
             }
         } else if (stmt instanceof StaticMultiStmt) {
             capacity += ((StaticMultiStmt) stmt).getMultiStmt().length();
-        } else if (stmt instanceof BindMultiStmt) {
-            capacity += (((BindMultiStmt) stmt).getStmtList().size() * 50);
+        } else if (stmt instanceof ParamMultiStmt) {
+            capacity += (((ParamMultiStmt) stmt).getStmtList().size() * 50);
         }
 
         if (capacity < 0) {
@@ -736,13 +737,29 @@ abstract class Packets {
             throw MySQLExceptions.createNetPacketTooLargeException(maxAllowedPayload);
         }
         final Publisher<ByteBuf> publisher;
-        if (payload >= Packets.MAX_PAYLOAD) {
-            publisher = Flux.fromIterable(Packets.divideBigPacket(packet, adjutant.allocator(), sequenceId));
-        } else {
+        if (payload < Packets.MAX_PAYLOAD) {
             Packets.writeHeader(packet, sequenceId.getAsInt());
             publisher = Mono.just(packet);
+        } else {
+            publisher = Flux.fromIterable(Packets.divideBigPacket(packet, sequenceId));
         }
         return publisher;
+    }
+
+    static void sendPackets(final ByteBuf packet, final IntSupplier sequenceId, final FluxSink<ByteBuf> sink) {
+        final int readableBytes, payload;
+        readableBytes = packet.readableBytes();
+        payload = readableBytes - HEADER_SIZE;
+
+        if (payload < MAX_PAYLOAD) {
+            Packets.writeHeader(packet, sequenceId.getAsInt());
+            sink.next(packet);
+        } else {
+            for (ByteBuf smallPacket : divideBigPacket(packet, sequenceId)) {
+                sink.next(smallPacket);
+            }
+        }
+
     }
 
 
@@ -754,12 +771,12 @@ abstract class Packets {
      * @param bigPacket a big packet that header is placeholder.
      * @return a sync Publisher that is created by {@link Mono#just(Object)} or {@link Flux#fromIterable(Iterable)}.
      */
-    public static Iterable<ByteBuf> divideBigPacket(final ByteBuf bigPacket, ByteBufAllocator allocator
-            , IntSupplier sequenceId) {
+    static Iterable<ByteBuf> divideBigPacket(final ByteBuf bigPacket, final IntSupplier sequenceId) {
         if (bigPacket.readableBytes() < MAX_PACKET) {
             throw new IllegalArgumentException("bigPacket not big packet");
         }
-        ByteBuf packet = allocator.buffer(MAX_PACKET, MAX_PACKET);
+        final ByteBufAllocator allocator = bigPacket.alloc();
+        ByteBuf packet = allocator.buffer(MAX_PACKET);
 
         int length = MAX_PACKET;
         packet.writeBytes(bigPacket, length);
@@ -770,7 +787,7 @@ abstract class Packets {
 
         while (bigPacket.isReadable()) {
             length = Math.min(MAX_PAYLOAD, bigPacket.readableBytes());
-            packet = allocator.buffer(HEADER_SIZE + length, MAX_PACKET);
+            packet = allocator.buffer(HEADER_SIZE + length);
 
             packet.writeZero(HEADER_SIZE); // placeholder of header
             packet.writeBytes(bigPacket, length);

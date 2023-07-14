@@ -14,7 +14,8 @@ public interface Environment {
 
     <T> T getOrDefault(MySQLKey<T> key);
 
-    <T extends Comparable<T>> T getOrMin(MySQLKey<T> key, T minValue);
+
+    <T extends Comparable<T>> T getInRange(MySQLKey<T> key, T minValue, T maxValue);
 
     <T> T getRequired(MySQLKey<T> key);
 

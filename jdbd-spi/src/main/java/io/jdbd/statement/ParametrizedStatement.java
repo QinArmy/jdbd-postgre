@@ -50,7 +50,6 @@ public interface ParametrizedStatement extends Statement {
      *                          <li>generic java type,for example : {@link Boolean} , {@link Integer} , {@link String} ,{@link Enum} ,byte[],{@link Integer[]} ,{@link java.time.LocalDateTime} , {@link java.time.Duration} ,{@link java.time.YearMonth} ,{@link java.util.BitSet},{@link java.util.List}</li>
      *                          <li>{@link Point} spatial point type</li>
      *                          <li>{@link Interval} the composite of {@link java.time.Period} and {@link java.time.Duration}</li>
-     *                          <li>{@link java.nio.file.Path} long binary</li>
      *                          <li>{@link Parameter} :
      *                              <ol>
      *                                  <li>{@link OutParameter} that representing out parameter of stored procedure,see {@link  OutResult}</li>

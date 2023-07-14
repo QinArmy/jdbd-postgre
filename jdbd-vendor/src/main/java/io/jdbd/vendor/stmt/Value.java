@@ -34,8 +34,8 @@ public interface Value {
 
     /**
      * @return <ul>
-     *     <li>non-{@link Parameter} instance</li>
-     *     <li>{@link Parameter instance}</li>
+     * <li>non-{@link Parameter} instance</li>
+     * <li>{@link Parameter instance}</li>
      * </ul>
      * @throws NullPointerException throw when param is null
      */
@@ -43,8 +43,8 @@ public interface Value {
 
     /**
      * @return <ul>
-     *     <li>null</li>
-     *     <li>non-{@link Parameter} instance</li>
+     * <li>null</li>
+     * <li>non-{@link Parameter} instance</li>
      * </ul>
      */
     @Nullable
@@ -53,11 +53,16 @@ public interface Value {
     /**
      * @return non-{@link Parameter} instance
      * @throws NullPointerException throw when <ul>
-     *     <li>param is null</li>
-     *     <li>{@link Parameter#value()} is null</li>
-     * </ul>
+     *                              <li>param is null</li>
+     *                              <li>{@link Parameter#value()} is null</li>
+     *                              </ul>
      */
     Object getNonNullValue() throws NullPointerException;
+
+    /**
+     * @return true : if {@link #getValue()} is {@link org.reactivestreams.Publisher} or {@link java.nio.file.Path}.
+     */
+    boolean isLongData();
 
 
     /**

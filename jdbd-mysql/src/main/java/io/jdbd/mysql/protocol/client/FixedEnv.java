@@ -26,6 +26,8 @@ abstract class FixedEnv {
 
     final boolean sendFractionalSecondsForTime;
 
+    final int blobSendChunkSize;
+
     final Environment env;
 
     FixedEnv(Environment env) {
@@ -34,10 +36,10 @@ abstract class FixedEnv {
         this.blobsAreStrings = env.getOrDefault(MySQLKey.BLOBS_ARE_STRINGS);
         this.maxAllowedPayload = parseMaxAllowedPacket(env);
 
-        this.bigColumnBoundaryBytes = env.getOrMin(MySQLKey.BIG_COLUMN_BOUNDARY_BYTES, 1 << 27);
+        this.bigColumnBoundaryBytes = env.getInRange(MySQLKey.BIG_COLUMN_BOUNDARY_BYTES, Packets.MAX_PAYLOAD, 1 << 27);
         this.sendFractionalSeconds = env.getOrDefault(MySQLKey.SEND_FRACTIONAL_SECONDS);
         this.sendFractionalSecondsForTime = env.getOrDefault(MySQLKey.SEND_FRACTIONAL_SECONDS_FOR_TIME);
-
+        this.blobSendChunkSize = env.getInRange(MySQLKey.BLOB_SEND_CHUNK_SIZE, 1024, this.maxAllowedPayload - Packets.HEADER_SIZE);
         this.env = env;
     }
 
@@ -50,7 +52,7 @@ abstract class FixedEnv {
         final int maxAllowedPacket;
         maxAllowedPacket = env.getOrDefault(MySQLKey.MAX_ALLOWED_PACKET);
 
-        final int defaultValue = 1 << 26, minValue = 1024, maxValue = 1 << 30;
+        final int defaultValue = MySQLKey.MAX_ALLOWED_PACKET.defaultValue, minValue = 1024, maxValue = 1 << 30;
 
         final int value;
         if (maxAllowedPacket < 0 || maxAllowedPacket == defaultValue) {

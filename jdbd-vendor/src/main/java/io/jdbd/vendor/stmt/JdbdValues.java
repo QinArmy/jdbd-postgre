@@ -1,9 +1,12 @@
 package io.jdbd.vendor.stmt;
 
+import io.jdbd.JdbdException;
 import io.jdbd.lang.Nullable;
 import io.jdbd.meta.DataType;
 import io.jdbd.statement.Parameter;
+import org.reactivestreams.Publisher;
 
+import java.nio.file.Path;
 import java.util.Objects;
 
 public abstract class JdbdValues {
@@ -50,7 +53,11 @@ public abstract class JdbdValues {
         @Override
         public final Object getValue() {
             Object value = this.value;
-            while (value instanceof Parameter) {
+            for (int i = 0; value instanceof Parameter; i++) {
+                if (i == 2) {
+                    String m = String.format("%s don't support %s", this.type, this.value);
+                    throw new JdbdException(m);
+                }
                 value = ((Parameter) value).value();
             }
             return value;
@@ -58,14 +65,19 @@ public abstract class JdbdValues {
 
         @Override
         public final Object getNonNullValue() throws NullPointerException {
-            Object value = this.value;
-            while (value instanceof Parameter) {
-                value = ((Parameter) value).value();
-            }
+            final Object value;
+            value = getValue();
             if (value == null) {
                 throw new NullPointerException("value is null");
             }
             return value;
+        }
+
+        @Override
+        public final boolean isLongData() {
+            final Object value;
+            value = this.getValue();
+            return value instanceof Publisher || value instanceof Path;
         }
 
         @Override

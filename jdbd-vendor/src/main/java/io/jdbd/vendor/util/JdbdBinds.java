@@ -2,20 +2,25 @@ package io.jdbd.vendor.util;
 
 import io.jdbd.JdbdException;
 import io.jdbd.type.Interval;
+import io.jdbd.type.PathParameter;
 import io.jdbd.vendor.stmt.ParamBatchStmt;
 import io.jdbd.vendor.stmt.ParamValue;
 import io.jdbd.vendor.stmt.Value;
+import io.netty.buffer.ByteBuf;
 import org.reactivestreams.Publisher;
 import reactor.util.annotation.Nullable;
 
+import java.io.IOException;
 import java.math.BigDecimal;
 import java.math.BigInteger;
+import java.nio.ByteBuffer;
+import java.nio.channels.FileChannel;
+import java.nio.charset.Charset;
+import java.nio.file.OpenOption;
+import java.nio.file.StandardOpenOption;
 import java.time.*;
 import java.time.temporal.TemporalAccessor;
-import java.util.BitSet;
-import java.util.Comparator;
-import java.util.List;
-import java.util.UUID;
+import java.util.*;
 
 public abstract class JdbdBinds {
 
@@ -50,6 +55,47 @@ public abstract class JdbdBinds {
             }
         }
         return has;
+    }
+
+    public static Set<OpenOption> openOptionSet(final PathParameter parameter) {
+        final Set<OpenOption> optionSet;
+        if (parameter.isDeleteOnClose()) {
+            optionSet = JdbdArrays.asSet(StandardOpenOption.READ, StandardOpenOption.DELETE_ON_CLOSE);
+        } else {
+            optionSet = Collections.singleton(StandardOpenOption.READ);
+        }
+        return optionSet;
+    }
+
+
+    public static void readFileAndWrite(final FileChannel channel, final ByteBuffer buffer, final ByteBuf packet,
+                                        int restBytes, final Charset textCharset, final Charset clientCharset)
+            throws IOException {
+
+        final int capacityBytes = buffer.capacity();
+
+
+        for (int len, position; restBytes > 0; restBytes -= len) {
+
+            position = capacityBytes - Math.min(capacityBytes, restBytes);
+
+            if (position > 0) {
+                buffer.position(position);
+            }
+
+            len = channel.read(buffer);
+            buffer.flip();
+
+            if (position > 0) {
+                buffer.position(position);
+            }
+
+            packet.writeBytes(clientCharset.encode(textCharset.decode(buffer)));
+            buffer.clear();
+
+        }
+
+
     }
 
 

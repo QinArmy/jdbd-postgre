@@ -40,8 +40,8 @@ import java.util.function.Function;
  * 当你在阅读这段代码时,我才真正在写这段代码,你阅读到哪里,我便写到哪里.
  * </p>
  *
- * @see PrepareExecuteCommandWriter
- * @see PrepareLongParameterWriter
+ * @see ExecuteCommandWriter
+ * @see LongParameterWriter
  * @see BinaryResultSetReader
  * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_command_phase_ps.html">Prepared Statements</a>
  */
@@ -214,7 +214,7 @@ final class ComPreparedTask extends MySQLCommandTask implements PrepareStmtTask,
 
     private final ParamSingleStmt stmt;
 
-    private final ExecuteCommandWriter commandWriter;
+    private final CommandWriter commandWriter;
 
     private int statementId;
 
@@ -243,7 +243,7 @@ final class ComPreparedTask extends MySQLCommandTask implements PrepareStmtTask,
         assert (this.capability & Capabilities.CLIENT_OPTIONAL_RESULTSET_METADATA) == 0; // currently, dont' support cache.
 
         this.stmt = stmt;
-        this.commandWriter = PrepareExecuteCommandWriter.create(this);
+        this.commandWriter = ExecuteCommandWriter.create(this);
     }
 
     @Override
