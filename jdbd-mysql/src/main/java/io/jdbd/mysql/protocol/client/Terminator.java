@@ -9,11 +9,11 @@ import java.util.Arrays;
  * @see EofPacket
  * @see OkPacket
  */
-abstract class TerminatorPacket implements MySQLPacket {
+abstract class Terminator implements MySQLPacket {
 
 
-    static TerminatorPacket fromCumulate(final ByteBuf cumulateBuffer, final int payloadLength,
-                                         final int capabilities) {
+    static Terminator fromCumulate(final ByteBuf cumulateBuffer, final int payloadLength,
+                                   final int capabilities) {
         final int writerIndex, limitIndex;
         writerIndex = cumulateBuffer.writerIndex();
 
@@ -23,7 +23,7 @@ abstract class TerminatorPacket implements MySQLPacket {
         }
 
 
-        final TerminatorPacket packet;
+        final Terminator packet;
         if ((capabilities & Capabilities.CLIENT_DEPRECATE_EOF) == 0) {
             packet = EofPacket.read(cumulateBuffer, capabilities);
         } else {
@@ -39,31 +39,31 @@ abstract class TerminatorPacket implements MySQLPacket {
     /**
      * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/mysql__com_8h.html#a1d854e841086925be1883e4d7b4e8cad">SERVER_STATUS_flags_enum</a>
      */
-    public static final byte SERVER_STATUS_IN_TRANS = 1;
-    public static final byte SERVER_STATUS_AUTOCOMMIT = 1 << 1; // Server in auto_commit mode
-    public static final byte SERVER_MORE_QUERY_EXISTS = 1 << 2;
-    public static final byte SERVER_MORE_RESULTS_EXISTS = 1 << 3; // Multi query - next query exists
+    static final byte SERVER_STATUS_IN_TRANS = 1;
+    static final byte SERVER_STATUS_AUTOCOMMIT = 1 << 1; // Server in auto_commit mode
+    static final byte SERVER_MORE_QUERY_EXISTS = 1 << 2;
+    static final byte SERVER_MORE_RESULTS_EXISTS = 1 << 3; // Multi query - next query exists
 
-    public static final byte SERVER_QUERY_NO_GOOD_INDEX_USED = 1 << 4;
-    public static final byte SERVER_QUERY_NO_INDEX_USED = 1 << 5;
-    public static final byte SERVER_STATUS_CURSOR_EXISTS = 1 << 6;
-    public static final short SERVER_STATUS_LAST_ROW_SENT = 1 << 7; // The server status for 'last-row-sent'
+    static final byte SERVER_QUERY_NO_GOOD_INDEX_USED = 1 << 4;
+    static final byte SERVER_QUERY_NO_INDEX_USED = 1 << 5;
+    static final byte SERVER_STATUS_CURSOR_EXISTS = 1 << 6;
+    static final short SERVER_STATUS_LAST_ROW_SENT = 1 << 7; // The server status for 'last-row-sent'
 
-    public static final short SERVER_STATUS_DB_DROPPED = 1 << 8;
-    public static final short SERVER_STATUS_NO_BACKSLASH_ESCAPES = 1 << 9;
-    public static final short SERVER_STATUS_METADATA_CHANGED = 1 << 10;
-    public static final short SERVER_QUERY_WAS_SLOW = 1 << 11;
+    static final short SERVER_STATUS_DB_DROPPED = 1 << 8;
+    static final short SERVER_STATUS_NO_BACKSLASH_ESCAPES = 1 << 9;
+    static final short SERVER_STATUS_METADATA_CHANGED = 1 << 10;
+    static final short SERVER_QUERY_WAS_SLOW = 1 << 11;
 
-    public static final short SERVER_PS_OUT_PARAMS = 1 << 12;
-    public static final short SERVER_STATUS_IN_TRANS_READONLY = 1 << 13;
-    public static final short SERVER_SESSION_STATE_CHANGED = 1 << 14;
+    static final short SERVER_PS_OUT_PARAMS = 1 << 12;
+    static final short SERVER_STATUS_IN_TRANS_READONLY = 1 << 13;
+    static final short SERVER_SESSION_STATE_CHANGED = 1 << 14;
 
 
     final int warnings;
 
     final int statusFags;
 
-    TerminatorPacket(int warnings, int statusFags) {
+    Terminator(int warnings, int statusFags) {
         this.warnings = warnings;
         this.statusFags = statusFags;
     }

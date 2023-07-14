@@ -374,8 +374,8 @@ abstract class MySQLResultSetReader implements ResultSetReader {
                 case EofPacket.EOF_HEADER: {
                     sequenceId = Packets.readInt1AsInt(cumulateBuffer);
 
-                    final TerminatorPacket terminator;
-                    terminator = TerminatorPacket.fromCumulate(cumulateBuffer, payloadLength, this.capability);
+                    final Terminator terminator;
+                    terminator = Terminator.fromCumulate(cumulateBuffer, payloadLength, this.capability);
                     this.currentRow = null;
                     resultSetEnd = true;
                     serverStatesConsumer.accept(terminator);

@@ -114,8 +114,9 @@ final class ExecuteCommandWriter implements CommandWriter {
         } else {
             LongParameterWriter longParamWriter = this.longParamWriter;
             if (longParamWriter == null) {
-                this.longParamWriter = longParamWriter = new io.jdbd.mysql.protocol.client.LongParameterWriter(this);
+                this.longParamWriter = longParamWriter = LongParameterWriter.create(this);
             }
+            this.stmtTask.nextGroupReset(); // next group need to reset
             final LongParameterWriter longWriter = longParamWriter;
             publisher = Flux.fromIterable(longParamList)
                     .flatMap(param -> longWriter.write(batchIndex, param))
@@ -377,13 +378,6 @@ final class ExecuteCommandWriter implements CommandWriter {
         Packets.writeInt4(packet, 1);//4. iteration_count,Number of times to execute the statement. Currently, always 1.
 
         return packet;
-    }
-
-
-    interface LongParameterWriter {
-
-        Flux<ByteBuf> write(int batchIndex, ParamValue paramValue);
-
     }
 
 

@@ -2,7 +2,7 @@ package io.jdbd.mysql.protocol.client;
 
 import io.netty.buffer.ByteBuf;
 
-public final class EofPacket extends TerminatorPacket {
+public final class EofPacket extends Terminator {
 
     public static final short EOF_HEADER = 0xFE;
 

@@ -51,7 +51,7 @@ public final class ClientProtocolFactory extends FixedEnv implements MySQLProtoc
         this.hostEnv = hostEnv;
 
 
-        this.factoryTaskQueueSize = hostEnv.getOrMin(MySQLKey.FACTORY_TASK_QUEUE_SIZE, 18);
+        this.factoryTaskQueueSize = hostEnv.getInRange(MySQLKey.FACTORY_TASK_QUEUE_SIZE, 3, 4096);
 
 
         this.tcpClient = TcpClient.create(hostEnv.get(MySQLKey.SOCKET_FACTORY, TcpResources::get))

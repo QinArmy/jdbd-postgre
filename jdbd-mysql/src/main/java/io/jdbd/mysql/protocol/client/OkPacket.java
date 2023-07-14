@@ -1,5 +1,6 @@
 package io.jdbd.mysql.protocol.client;
 
+import io.jdbd.mysql.util.MySQLCollections;
 import io.netty.buffer.ByteBuf;
 import io.qinarmy.util.Pair;
 import org.slf4j.Logger;
@@ -7,20 +8,19 @@ import org.slf4j.LoggerFactory;
 import reactor.util.annotation.Nullable;
 
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
 /**
  * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_basic_ok_packet.html">Protocol::OK_Packet</a>
  */
-public final class OkPacket extends TerminatorPacket {
+final class OkPacket extends Terminator {
 
-    public static final int OK_HEADER = 0x00;
+    static final int OK_HEADER = 0x00;
 
 
-    public static OkPacket readCumulate(final ByteBuf cumulateBuffer, final int payloadLength,
-                                        final int capabilities) {
+    static OkPacket readCumulate(final ByteBuf cumulateBuffer, final int payloadLength,
+                                 final int capabilities) {
         final int writerIndex, limitIndex;
         writerIndex = cumulateBuffer.writerIndex();
 
@@ -47,7 +47,7 @@ public final class OkPacket extends TerminatorPacket {
      *                   </ul>
      * @throws IllegalArgumentException packet error.
      */
-    public static OkPacket read(final ByteBuf payload, final int capability) {
+    static OkPacket read(final ByteBuf payload, final int capability) {
         final int type = Packets.readInt1AsInt(payload);
         if (type != OK_HEADER && type != EofPacket.EOF_HEADER) {
             throw new IllegalArgumentException("packetBuf isn't ok packet.");
@@ -79,7 +79,7 @@ public final class OkPacket extends TerminatorPacket {
             if (info == null) {
                 info = "";
             }
-            if ((statusFags & TerminatorPacket.SERVER_SESSION_STATE_CHANGED) != 0 && payload.isReadable()) {
+            if ((statusFags & Terminator.SERVER_SESSION_STATE_CHANGED) != 0 && payload.isReadable()) {
                 stateOption = readSessionStates(payload);
             }
         } else {
@@ -87,6 +87,10 @@ public final class OkPacket extends TerminatorPacket {
         }
         return new OkPacket(affectedRows, lastInsertId
                 , statusFags, warnings, info, stateOption);
+    }
+
+    static boolean isOkPacket(ByteBuf payloadBuf) {
+        return Packets.getInt1AsInt(payloadBuf, payloadBuf.readerIndex()) == OK_HEADER;
     }
 
     private static final Logger LOG = LoggerFactory.getLogger(OkPacket.class);
@@ -106,18 +110,17 @@ public final class OkPacket extends TerminatorPacket {
     private static final byte SESSION_TRACK_TRANSACTION_STATE = 0x05;
 
 
-    private final long affectedRows;
+    final long affectedRows;
 
-    private final long lastInsertId;
+    final long lastInsertId;
 
-    private final String info;
+    final String info;
 
     // below session state
-    private final StateOption stateOption;
+    final StateOption stateOption;
 
-    private OkPacket(long affectedRows, long lastInsertId
-            , int statusFags, int warnings
-            , String info, @Nullable StateOption stateOption) {
+    private OkPacket(long affectedRows, long lastInsertId, int statusFags, int warnings, String info,
+                     @Nullable StateOption stateOption) {
         super(warnings, statusFags);
 
         this.affectedRows = affectedRows;
@@ -143,9 +146,6 @@ public final class OkPacket extends TerminatorPacket {
         return this.stateOption;
     }
 
-    public static boolean isOkPacket(ByteBuf payloadBuf) {
-        return Packets.getInt1AsInt(payloadBuf, payloadBuf.readerIndex()) == OK_HEADER;
-    }
 
     @Override
     public String toString() {
@@ -176,14 +176,14 @@ public final class OkPacket extends TerminatorPacket {
         List<Pair<String, String>> variablePairList = null;
         String schema = null, txCharacteristics = null, txState = null, gtids = null, stateChange = null, unknown = null;
 
-        while (payload.readerIndex() < end) {
-            final int type = Packets.readInt1AsInt(payload);
-            final int dataIndex = payload.readerIndex();
-            final int dataLength = Packets.readLenEncAsInt(payload);
+        for (int type, dataIndex, dataLength; payload.readerIndex() < end; ) {
+            type = Packets.readInt1AsInt(payload);
+            dataIndex = payload.readerIndex();
+            dataLength = Packets.readLenEncAsInt(payload);
             switch (type) {
                 case SESSION_TRACK_SYSTEM_VARIABLES: {
                     if (variablePairList == null) {
-                        variablePairList = new ArrayList<>();
+                        variablePairList = MySQLCollections.arrayList();
                     }
                     final int dataEnd = dataIndex + dataLength;
                     while (payload.readerIndex() < dataEnd) {
@@ -241,10 +241,7 @@ public final class OkPacket extends TerminatorPacket {
         }
 
         payload.readerIndex(end); // avoid tail filler.
-        return new StateOption(variablePairList, schema
-                , txCharacteristics, txState
-                , gtids, stateChange
-                , unknown);
+        return new StateOption(variablePairList, schema, txCharacteristics, txState, gtids, stateChange, unknown);
 
     }
 
@@ -264,10 +261,9 @@ public final class OkPacket extends TerminatorPacket {
 
         private final String unknown;
 
-        private StateOption(@Nullable List<Pair<String, String>> variablePairList, @Nullable String schema
-                , @Nullable String txCharacteristics, @Nullable String txState
-                , @Nullable String gtids, @Nullable String stateChange
-                , @Nullable String unknown) {
+        private StateOption(@Nullable List<Pair<String, String>> variablePairList, @Nullable String schema,
+                            @Nullable String txCharacteristics, @Nullable String txState,
+                            @Nullable String gtids, @Nullable String stateChange, @Nullable String unknown) {
             this.variablePairList = variablePairList == null
                     ? Collections.emptyList()
                     : Collections.unmodifiableList(variablePairList);
@@ -325,7 +321,9 @@ public final class OkPacket extends TerminatorPacket {
             return builder.append("\n}")
                     .toString();
         }
-    }
+
+
+    }//StateOption
 
 
 }

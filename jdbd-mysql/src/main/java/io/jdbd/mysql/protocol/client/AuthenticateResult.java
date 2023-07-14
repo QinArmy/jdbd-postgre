@@ -2,9 +2,9 @@ package io.jdbd.mysql.protocol.client;
 
 final class AuthenticateResult {
 
-    private final Handshake10 handshake10;
+     final Handshake10 handshake10;
 
-    private final int capability;
+    final int capability;
 
     AuthenticateResult(Handshake10 handshake10, int capability) {
         this.handshake10 = handshake10;

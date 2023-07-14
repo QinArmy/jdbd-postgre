@@ -2,8 +2,11 @@ package io.jdbd.mysql.protocol.client;
 
 import io.jdbd.JdbdException;
 import io.jdbd.mysql.MySQLJdbdException;
+import io.jdbd.mysql.env.Environment;
+import io.jdbd.mysql.env.MySQLKey;
 import io.jdbd.mysql.protocol.AuthenticateAssistant;
 import io.jdbd.mysql.protocol.Constants;
+import io.jdbd.mysql.protocol.MySQLProtocol;
 import io.jdbd.mysql.protocol.MySQLServerVersion;
 import io.jdbd.mysql.protocol.authentication.AuthenticationPlugin;
 import io.jdbd.mysql.protocol.authentication.PluginUtils;
@@ -43,12 +46,16 @@ import java.util.*;
 import java.util.function.Consumer;
 
 /**
+ * <p>
+ * This class is the implementation of MySQL connection protocol.
+ * </p>
+ *
  * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_connection_phase.html">Connection Phase</a>
+ * @since 1.0
  */
-final class MySQLConnectionTask extends CommunicationTask implements AuthenticateAssistant
-        , ConnectionTask {
+final class MySQLConnectionTask extends CommunicationTask implements AuthenticateAssistant, ConnectionTask {
 
-    static Mono<AuthenticateResult> authenticate(TaskAdjutant adjutant) {
+    static Mono<AuthenticateResult> authenticate(final TaskAdjutant adjutant) {
         return Mono.create(sink -> {
             try {
                 MySQLConnectionTask task = new MySQLConnectionTask(adjutant, sink);
@@ -70,6 +77,8 @@ final class MySQLConnectionTask extends CommunicationTask implements Authenticat
     private final MySQLHost0 hostInfo;
 
     private final Properties properties;
+
+    private final FixedEnv fixedEnv;
 
     private Charset handshakeCharset;
 
@@ -99,6 +108,7 @@ final class MySQLConnectionTask extends CommunicationTask implements Authenticat
         this.adjutant = adjutant;
         this.hostInfo = adjutant.host();
         this.properties = this.hostInfo.getProperties();
+        this.fixedEnv = adjutant.getFactory();
         this.pluginMap = loadAuthenticationPluginMap();
 
         Charset charset = this.properties.get(MyKey.characterEncoding, Charset.class);
@@ -294,8 +304,8 @@ final class MySQLConnectionTask extends CommunicationTask implements Authenticat
         final ByteBuf payload = cumulateBuffer.readSlice(payloadLength);
         boolean taskEnd;
         if (++this.authCounter > 100) {
-            JdbdSQLException e = new JdbdSQLException(new SQLException("TooManyAuthenticationPluginNegotiations"
-                    , SQLStates.CONNECTION_EXCEPTION));
+            JdbdException e = new JdbdException("TooManyAuthenticationPluginNegotiations",
+                    SQLStates.CONNECTION_EXCEPTION, 0);
             handleAuthenticateFailure(e);
             taskEnd = true;
         } else if (OkPacket.isOkPacket(payload)) {
@@ -458,7 +468,8 @@ final class MySQLConnectionTask extends CommunicationTask implements Authenticat
             payload.release(); // release payload.
         } else {
             // no bug ,never here.
-            throw new MySQLJdbdException("%s send too long auth data.", this.plugin);
+            String m = String.format("%s send too long auth data.", this.plugin);
+            throw new JdbdException(m);
         }
         return packet;
     }
@@ -616,11 +627,11 @@ final class MySQLConnectionTask extends CommunicationTask implements Authenticat
         // Leaving disabled until standard values are defined
         // props.setProperty("_os", NonRegisteringDriver.OS);
         // props.setProperty("_platform", NonRegisteringDriver.PLATFORM);
-        String clientVersion = ClientProtocol0.class.getPackage().getImplementationVersion();
+        String clientVersion = MySQLProtocol.class.getPackage().getImplementationVersion();
         if (clientVersion == null) {
             clientVersion = "jdbd-mysql-test";
         }
-        attMap.put("_client_name", "JDBD-MySQL");
+        attMap.put("_client_name", "jdbd-mysql");
         attMap.put("_client_version", clientVersion);
         attMap.put("_runtime_vendor", Constants.JVM_VENDOR);
         attMap.put("_runtime_version", Constants.JVM_VERSION);
@@ -639,14 +650,15 @@ final class MySQLConnectionTask extends CommunicationTask implements Authenticat
 
 
     private int createNegotiatedCapability(final Handshake10 handshake) {
-        final int serverCapability = handshake.getCapabilityFlags();
-        final Properties env = this.properties;
+        final int serverCapability = handshake.capabilityFlags;
+        final Environment env = this.fixedEnv.env;
 
         final boolean useConnectWithDb = MySQLStrings.hasText(this.hostInfo.getDbName())
-                && !env.getOrDefault(MyKey.createDatabaseIfNotExist, Boolean.class);
+                && !env.getOrDefault(MySQLKey.CREATE_DATABASE_IF_NOT_EXIST);
 
         // Servers between 8.0.23 8.0.25 are affected by Bug#103102, Bug#103268 and Bug#103377. Query attributes cannot be sent to these servers.
-        final boolean supportQueryAttr = handshake.getServerVersion().meetsMinimum(MySQLServerVersion.V8_0_26);
+        final boolean supportQueryAttr;
+        supportQueryAttr = handshake.serverVersion.isSupportQueryAttr();
 
         return Capabilities.CLIENT_SECURE_CONNECTION
                 | Capabilities.CLIENT_PLUGIN_AUTH
@@ -660,20 +672,20 @@ final class MySQLConnectionTask extends CommunicationTask implements Authenticat
 
                 | (serverCapability & Capabilities.CLIENT_DEPRECATE_EOF)  //
                 | (serverCapability & Capabilities.CLIENT_PLUGIN_AUTH_LENENC_CLIENT_DATA)
-                | (env.getOrDefault(MyKey.useCompression, Boolean.class) ? (serverCapability & Capabilities.CLIENT_COMPRESS) : 0)
+                | (env.getOrDefault(MySQLKey.USE_COMPRESSION) ? (serverCapability & Capabilities.CLIENT_COMPRESS) : 0)
                 | (useConnectWithDb ? (serverCapability & Capabilities.CLIENT_CONNECT_WITH_DB) : 0)
 
-                | (env.getOrDefault(MyKey.useAffectedRows, Boolean.class) ? 0 : (serverCapability & Capabilities.CLIENT_FOUND_ROWS))
-                | (env.getOrDefault(MyKey.allowLoadLocalInfile, Boolean.class) ? (serverCapability & Capabilities.CLIENT_LOCAL_FILES) : 0)
-                | (env.getOrDefault(MyKey.interactiveClient, Boolean.class) ? (serverCapability & Capabilities.CLIENT_INTERACTIVE) : 0)
+                | (env.getOrDefault(MySQLKey.USE_AFFECTED_ROWS) ? 0 : (serverCapability & Capabilities.CLIENT_FOUND_ROWS))
+                | (env.getOrDefault(MySQLKey.ALLOW_LOAD_LOCAL_INFILE) ? (serverCapability & Capabilities.CLIENT_LOCAL_FILES) : 0)
+                | (env.getOrDefault(MySQLKey.INTERACTIVE_CLIENT) ? (serverCapability & Capabilities.CLIENT_INTERACTIVE) : 0)
                 | (serverCapability & Capabilities.CLIENT_MULTI_STATEMENTS)
 
-                | (env.getOrDefault(MyKey.disconnectOnExpiredPasswords, Boolean.class) ? 0 : (serverCapability & Capabilities.CLIENT_CAN_HANDLE_EXPIRED_PASSWORD))
-                | (Constants.NONE.equals(env.get(MyKey.connectionAttributes)) ? 0 : (serverCapability & Capabilities.CLIENT_CONNECT_ATTRS))
-                | (env.getOrDefault(MyKey.sslMode, Enums.SslMode.class) != Enums.SslMode.DISABLED ? (serverCapability & Capabilities.CLIENT_SSL) : 0)
-                | (serverCapability & Capabilities.CLIENT_SESSION_TRACK) // TODO ZORO MYSQLCONNJ-437?
+                | (env.getOrDefault(MySQLKey.DISCONNECT_ON_EXPIRED_PASSWORDS) ? 0 : (serverCapability & Capabilities.CLIENT_CAN_HANDLE_EXPIRED_PASSWORD))
+                | (Constants.NONE.equals(env.get(MySQLKey.CONNECTION_ATTRIBUTES)) ? 0 : (serverCapability & Capabilities.CLIENT_CONNECT_ATTRS))
+                | (env.getOrDefault(MySQLKey.SSL_MODE) != Enums.SslMode.DISABLED ? (serverCapability & Capabilities.CLIENT_SSL) : 0)
+                | (env.getOrDefault(MySQLKey.TRACK_SESSION_STATE) ? (serverCapability & Capabilities.CLIENT_SESSION_TRACK) : 0)  // TODO ZORO MYSQLCONNJ-437?
 
-                | (/*supportQueryAttr ? (serverCapability & Capabilities.CLIENT_QUERY_ATTRIBUTES) :*/ 0)
+                | (supportQueryAttr ? (serverCapability & Capabilities.CLIENT_QUERY_ATTRIBUTES) : 0)
                 ;
     }
 

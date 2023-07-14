@@ -4,11 +4,11 @@ import io.jdbd.result.ResultStates;
 
 abstract class MySQLResultStates implements ResultStates {
 
-    static MySQLResultStates fromUpdate(final int resultIndex, final TerminatorPacket terminator) {
+    static MySQLResultStates fromUpdate(final int resultIndex, final Terminator terminator) {
         return new UpdateResultStates(resultIndex, terminator);
     }
 
-    static MySQLResultStates fromQuery(final int resultIndex, final TerminatorPacket terminator, final long rowCount) {
+    static MySQLResultStates fromQuery(final int resultIndex, final Terminator terminator, final long rowCount) {
         return new QueryResultStates(resultIndex, terminator, rowCount);
     }
 
@@ -25,7 +25,7 @@ abstract class MySQLResultStates implements ResultStates {
     private final int warnings;
 
 
-    private MySQLResultStates(final int resultIndex, final TerminatorPacket terminator) {
+    private MySQLResultStates(final int resultIndex, final Terminator terminator) {
         this.resultIndex = resultIndex;
         if (terminator instanceof OkPacket) {
             final OkPacket ok = (OkPacket) terminator;
@@ -62,7 +62,7 @@ abstract class MySQLResultStates implements ResultStates {
 
     @Override
     public final boolean inTransaction() {
-        return TerminatorPacket.inTransaction(this.serverStatus);
+        return Terminator.inTransaction(this.serverStatus);
     }
 
     @Override
@@ -83,14 +83,14 @@ abstract class MySQLResultStates implements ResultStates {
 
     @Override
     public final boolean hasMoreResult() {
-        return (this.serverStatus & TerminatorPacket.SERVER_MORE_RESULTS_EXISTS) != 0;
+        return (this.serverStatus & Terminator.SERVER_MORE_RESULTS_EXISTS) != 0;
     }
 
     @Override
     public final boolean hasMoreFetch() {
         final int serverStatus = this.serverStatus;
-        return (serverStatus & TerminatorPacket.SERVER_STATUS_CURSOR_EXISTS) != 0
-                && (serverStatus & TerminatorPacket.SERVER_STATUS_LAST_ROW_SENT) == 0;
+        return (serverStatus & Terminator.SERVER_STATUS_CURSOR_EXISTS) != 0
+                && (serverStatus & Terminator.SERVER_STATUS_LAST_ROW_SENT) == 0;
     }
 
     @Override
@@ -100,7 +100,7 @@ abstract class MySQLResultStates implements ResultStates {
 
     private static final class UpdateResultStates extends MySQLResultStates {
 
-        private UpdateResultStates(int resultIndex, TerminatorPacket terminator) {
+        private UpdateResultStates(int resultIndex, Terminator terminator) {
             super(resultIndex, terminator);
         }
 
@@ -120,7 +120,7 @@ abstract class MySQLResultStates implements ResultStates {
 
         private final long rowCount;
 
-        private QueryResultStates(int resultIndex, TerminatorPacket terminator, long rowCount) {
+        private QueryResultStates(int resultIndex, Terminator terminator, long rowCount) {
             super(resultIndex, terminator);
             this.rowCount = rowCount;
         }

@@ -25,6 +25,7 @@ import java.util.function.Function;
  *     <li>{@link #executeQuery(Function)}</li>
  *     <li>{@link #executeQuery(Function, Consumer)}</li>
  *     <li>{@link #executeBatchUpdate()}</li>
+ *     <li>{@link #executeBatchQuery()}</li>
  *     <li>{@link #executeBatchAsMulti()}</li>
  *     <li>{@link #executeBatchAsFlux()}</li>
  *     <li>{@link #abandonBind()}</li>
@@ -37,6 +38,7 @@ import java.util.function.Function;
  *     <strong>NOTE</strong>: {@link PreparedStatement} is auto close after you invoke executeXxx() method,or binding occur error,so
  *     {@link PreparedStatement} have no close() method.
  * </p>
+ * @see BindStatement
  */
 public interface PreparedStatement extends BindSingleStatement {
 

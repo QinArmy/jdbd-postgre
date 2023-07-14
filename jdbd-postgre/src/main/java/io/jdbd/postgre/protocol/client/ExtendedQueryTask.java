@@ -12,7 +12,10 @@ import io.jdbd.session.SessionCloseException;
 import io.jdbd.statement.PreparedStatement;
 import io.jdbd.vendor.result.MultiResults;
 import io.jdbd.vendor.result.ResultSink;
-import io.jdbd.vendor.stmt.*;
+import io.jdbd.vendor.stmt.ParamBatchStmt;
+import io.jdbd.vendor.stmt.ParamSingleStmt;
+import io.jdbd.vendor.stmt.ParamStmt;
+import io.jdbd.vendor.stmt.PrepareStmt;
 import io.jdbd.vendor.task.PrepareTask;
 import io.netty.buffer.ByteBuf;
 import org.reactivestreams.Publisher;
@@ -154,22 +157,22 @@ final class ExtendedQueryTask extends AbstractStmtTask implements PrepareTask<Pg
     }
 
     @Override
-    public Flux<ResultRow> executeQuery(final ParamStmt stmt) {
-        return MultiResults.query(stmt.getStatusConsumer(), sink -> executeAfterBinding(sink, stmt));
+    public <R> Flux<R> executeQuery(final ParamStmt stmt, Function<CurrentRow, R> function) {
+        return MultiResults.query(function, stmt.getStatusConsumer(), sink -> executeAfterBinding(sink, stmt));
     }
 
     @Override
-    public Flux<ResultStates> executeBatch(final ParamBatchStmt<ParamValue> stmt) {
+    public Flux<ResultStates> executeBatchUpdate(final ParamBatchStmt stmt) {
         return MultiResults.batchUpdate(sink -> executeAfterBinding(sink, stmt));
     }
 
     @Override
-    public MultiResult executeBatchAsMulti(final ParamBatchStmt<ParamValue> stmt) {
+    public MultiResult executeBatchAsMulti(final ParamBatchStmt stmt) {
         return MultiResults.asMulti(this.adjutant, sink -> executeAfterBinding(sink, stmt));
     }
 
     @Override
-    public OrderedFlux executeBatchAsFlux(ParamBatchStmt<ParamValue> stmt) {
+    public OrderedFlux executeBatchAsFlux(ParamBatchStmt stmt) {
         return MultiResults.asFlux(sink -> executeAfterBinding(sink, stmt));
     }
 

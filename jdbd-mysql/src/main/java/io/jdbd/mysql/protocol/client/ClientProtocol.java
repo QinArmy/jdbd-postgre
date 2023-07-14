@@ -304,12 +304,12 @@ final class ClientProtocol implements MySQLProtocol {
 
     @Override
     public boolean isStartedTransaction(ResultStates states) {
-        return TerminatorPacket.startedTransaction(((MySQLResultStates) states).serverStatus);
+        return Terminator.startedTransaction(((MySQLResultStates) states).serverStatus);
     }
 
     @Override
     public boolean isReadOnlyTransaction(ResultStates states) {
-        return TerminatorPacket.isReadOnly(((MySQLResultStates) states).serverStatus);
+        return Terminator.isReadOnly(((MySQLResultStates) states).serverStatus);
     }
 
     @Override

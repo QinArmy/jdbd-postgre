@@ -210,7 +210,8 @@ final class MySQLPreparedStatement extends MySQLStatement<PreparedStatement> imp
     }
 
     @Override
-    public <R> Publisher<R> executeQuery(Function<CurrentRow, R> function, Consumer<ResultStates> consumer) {
+    public <R> Publisher<R> executeQuery(final @Nullable Function<CurrentRow, R> function,
+                                         final @Nullable Consumer<ResultStates> consumer) {
         this.endStmtOption();
 
         List<ParamValue> paramGroup = this.paramGroup;
@@ -225,6 +226,10 @@ final class MySQLPreparedStatement extends MySQLStatement<PreparedStatement> imp
             error = new SubscribeException(ResultType.QUERY, ResultType.BATCH_UPDATE);
         } else if (paramSize != this.paramCount) {
             error = MySQLExceptions.parameterCountMatch(0, this.paramCount, paramSize);
+        } else if (function == null) {
+            error = MySQLExceptions.queryMapFuncIsNull();
+        } else if (consumer == null) {
+            error = MySQLExceptions.statesConsumerIsNull();
         } else if (paramGroup == null) {
             error = null;
             paramGroup = EMPTY_PARAM_GROUP;
@@ -234,7 +239,7 @@ final class MySQLPreparedStatement extends MySQLStatement<PreparedStatement> imp
 
         final Flux<R> flux;
         if (error == null) {
-            flux = this.stmtTask.executeQuery(Stmts.paramStmt(this.sql, paramGroup, this), function, consumer);
+            flux = this.stmtTask.executeQuery(Stmts.paramStmt(this.sql, paramGroup, consumer, this), function);
         } else {
             this.stmtTask.closeOnBindError(error); // close prepare statement.
             flux = Flux.error(MySQLExceptions.wrap(error));

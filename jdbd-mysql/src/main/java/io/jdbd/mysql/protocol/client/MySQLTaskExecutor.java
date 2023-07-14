@@ -49,12 +49,12 @@ final class MySQLTaskExecutor extends CommunicationTaskExecutor<TaskAdjutant> {
 
     private static final Logger LOG = LoggerFactory.getLogger(MySQLTaskExecutor.class);
 
-    private static final AtomicReferenceFieldUpdater<MySQLTaskExecutor, TerminatorPacket> TERMINATOR =
-            AtomicReferenceFieldUpdater.newUpdater(MySQLTaskExecutor.class, TerminatorPacket.class, "terminator");
+    private static final AtomicReferenceFieldUpdater<MySQLTaskExecutor, Terminator> TERMINATOR =
+            AtomicReferenceFieldUpdater.newUpdater(MySQLTaskExecutor.class, Terminator.class, "terminator");
 
     private final ClientProtocolFactory factory;
 
-    private volatile TerminatorPacket terminator;
+    private volatile Terminator terminator;
 
     private MySQLTaskExecutor(Connection connection, ClientProtocolFactory factory) {
         super(connection, factory.factoryTaskQueueSize);
@@ -73,7 +73,7 @@ final class MySQLTaskExecutor extends CommunicationTaskExecutor<TaskAdjutant> {
 
 
     protected void updateServerStatus(Object serversStatus) {
-        TERMINATOR.set(this, (TerminatorPacket) serversStatus);
+        TERMINATOR.set(this, (Terminator) serversStatus);
     }
 
     @Override

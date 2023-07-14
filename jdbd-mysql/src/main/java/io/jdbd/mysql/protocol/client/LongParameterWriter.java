@@ -23,7 +23,12 @@ import java.util.function.IntSupplier;
 /**
  * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_com_stmt_send_long_data.html">Protocol::COM_STMT_SEND_LONG_DATA</a>
  */
-final class LongParameterWriter implements ExecuteCommandWriter.LongParameterWriter {
+final class LongParameterWriter {
+
+
+    static LongParameterWriter create(ExecuteCommandWriter writer) {
+        return new LongParameterWriter(writer);
+    }
 
     private static final Logger LOG = LoggerFactory.getLogger(LongParameterWriter.class);
 
@@ -33,15 +38,15 @@ final class LongParameterWriter implements ExecuteCommandWriter.LongParameterWri
 
     private final MySQLColumnMeta[] columnMetas;
 
-    LongParameterWriter(ExecuteCommandWriter writer) {
+    private LongParameterWriter(ExecuteCommandWriter writer) {
         this.writer = writer;
         this.statementId = writer.stmtTask.getStatementId();
         this.columnMetas = writer.stmtTask.getParameterMetas();
 
     }
 
-    @Override
-    public Flux<ByteBuf> write(final int batchIndex, final ParamValue paramValue) {
+
+    Flux<ByteBuf> write(final int batchIndex, final ParamValue paramValue) {
         return Flux.create(sink -> {
             if (this.writer.adjutant.inEventLoop()) {
                 sendPathParameterInEventLoop(batchIndex, paramValue, sink);
@@ -334,16 +339,20 @@ final class LongParameterWriter implements ExecuteCommandWriter.LongParameterWri
 
         private void onCompleteInEventLoop() {
             final ByteBuf packet = this.packet;
+            boolean error = false;
             if (packet != null) {
                 if (packet.readableBytes() > Packets.HEADER_SIZE) {
-                    Packets.sendPackets(packet, this.parameterWriter.writer.sequenceId, this.sink);
+                    error = sendPackets(packet);
                 } else {
                     packet.release();
                 }
                 this.packet = null;
             }
+            if (!error) {
+                this.sink.complete();
+            }
 
-            this.sink.complete();
+
         }
 
 
