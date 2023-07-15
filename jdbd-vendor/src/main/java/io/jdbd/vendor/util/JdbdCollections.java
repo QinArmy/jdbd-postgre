@@ -140,6 +140,18 @@ public abstract class JdbdCollections {
         return new FinalLinkedList<>(c);
     }
 
+    public static <E> HashSet<E> hashSet() {
+        return new FinalHashSet<>();
+    }
+
+    public static <E> HashSet<E> hashSet(int initialCapacity) {
+        return new FinalHashSet<>(initialCapacity);
+    }
+
+    public static <E> HashSet<E> hashSet(Collection<? extends E> c) {
+        return new FinalHashSet<>(c);
+    }
+
 
     public static <T> List<T> safeUnmodifiableList(@Nullable List<T> list) {
         if (list == null) {
@@ -245,6 +257,23 @@ public abstract class JdbdCollections {
         }
 
     }//FinalLinkedList
+
+
+    private static final class FinalHashSet<E> extends HashSet<E> {
+
+        private FinalHashSet() {
+        }
+
+        private FinalHashSet(Collection<? extends E> c) {
+            super(c);
+        }
+
+        private FinalHashSet(int initialCapacity) {
+            super(initialCapacity);
+        }
+
+
+    }//FinalHashSet
 
 
     private static final class FinalConcurrentHashMap<K, V> extends ConcurrentHashMap<K, V> {

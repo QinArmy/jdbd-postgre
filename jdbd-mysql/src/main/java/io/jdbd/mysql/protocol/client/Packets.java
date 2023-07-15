@@ -731,7 +731,7 @@ abstract class Packets {
     public static Publisher<ByteBuf> createPacketPublisher(final ByteBuf packet, final IntSupplier sequenceId,
                                                            final TaskAdjutant adjutant) {
 
-        final int maxAllowedPayload = adjutant.getFactory().maxAllowedPayload;
+        final int maxAllowedPayload = adjutant.getFactory().maxAllowedPacket;
         final int payload = packet.readableBytes() - Packets.HEADER_SIZE;
         if (payload > maxAllowedPayload) {
             throw MySQLExceptions.createNetPacketTooLargeException(maxAllowedPayload);

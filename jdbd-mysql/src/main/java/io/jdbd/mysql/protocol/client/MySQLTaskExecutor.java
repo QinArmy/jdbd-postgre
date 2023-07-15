@@ -2,7 +2,6 @@ package io.jdbd.mysql.protocol.client;
 
 import io.jdbd.JdbdException;
 import io.jdbd.mysql.Server;
-import io.jdbd.mysql.protocol.authentication.AuthenticationPlugin;
 import io.jdbd.mysql.protocol.conf.MySQLHost0;
 import io.jdbd.mysql.protocol.conf.MySQLUrl;
 import io.jdbd.mysql.session.SessionAdjutant;
@@ -320,10 +319,6 @@ final class MySQLTaskExecutor extends CommunicationTaskExecutor<TaskAdjutant> {
             return this.taskExecutor.serverStatus;
         }
 
-        @Override
-        public Map<String, Class<? extends AuthenticationPlugin>> obtainPluginMechanismMap() {
-            return this.taskExecutor.sessionAdjutant.pluginClassMap();
-        }
 
         @Override
         public boolean isAuthenticated() {

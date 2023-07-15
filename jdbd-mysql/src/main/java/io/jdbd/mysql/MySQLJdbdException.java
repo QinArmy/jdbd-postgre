@@ -3,6 +3,7 @@ package io.jdbd.mysql;
 import io.jdbd.JdbdException;
 import reactor.util.annotation.Nullable;
 
+@Deprecated
 public class MySQLJdbdException extends JdbdException {
 
     @Deprecated

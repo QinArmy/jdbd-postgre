@@ -1,4 +1,4 @@
-package io.jdbd.mysql.protocol.authentication;
+package io.jdbd.mysql.protocol.client;
 
 
 import io.jdbd.mysql.MySQLJdbdException;

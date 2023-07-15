@@ -1,8 +1,8 @@
 package io.jdbd.mysql.protocol.conf;
 
 import io.jdbd.mysql.protocol.Constants;
-import io.jdbd.mysql.protocol.authentication.MySQLNativePasswordPlugin;
 import io.jdbd.mysql.protocol.client.Enums;
+import io.jdbd.mysql.protocol.client.MySQLNativePasswordPlugin;
 import io.jdbd.vendor.env.OnlyReactor;
 import io.jdbd.vendor.env.PropertyKey;
 import io.jdbd.vendor.env.Redefine;
@@ -18,6 +18,7 @@ import java.util.Objects;
  *
  * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-reference-configuration-properties.html">Configuration Properties</a>
  */
+@Deprecated
 public enum MyKey implements PropertyKey {
     /*
      * Properties individually managed after parsing connection string. These property keys are case insensitive.

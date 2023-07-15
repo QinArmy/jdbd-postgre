@@ -5,6 +5,11 @@ import io.jdbd.vendor.env.JdbdHost;
 
 public interface MySQLHostEnv extends Environment, JdbdHost {
 
+    String getUser();
+
+    @Nullable
+    String getPassword();
+
     @Nullable
     String getDbName();
 

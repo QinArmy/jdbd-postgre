@@ -1,12 +1,11 @@
-package io.jdbd.mysql.protocol.authentication;
+package io.jdbd.mysql.protocol.client;
 
+import io.jdbd.lang.Nullable;
 import io.jdbd.mysql.MySQLJdbdException;
 import io.jdbd.mysql.protocol.AuthenticateAssistant;
-import io.jdbd.mysql.protocol.client.Packets;
 import io.netty.buffer.ByteBuf;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import reactor.util.annotation.Nullable;
 
 import java.nio.charset.Charset;
 import java.security.DigestException;

@@ -1,7 +1,5 @@
 package io.jdbd.mysql.protocol.client;
 
-import io.jdbd.mysql.protocol.authentication.AuthenticationPlugin;
-import io.jdbd.mysql.session.SessionAdjutant;
 import io.jdbd.mysql.syntax.MySQLParser;
 import io.jdbd.vendor.task.ITaskAdjutant;
 
@@ -12,10 +10,6 @@ interface TaskAdjutant extends ITaskAdjutant, ClientProtocolAdjutant, MySQLParse
 
     int getServerStatus();
 
-    /**
-     * @see SessionAdjutant#pluginClassMap()
-     */
-    Map<String, Class<? extends AuthenticationPlugin>> obtainPluginMechanismMap();
 
     boolean isAuthenticated();
 

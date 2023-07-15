@@ -4,24 +4,17 @@ import io.jdbd.JdbdException;
 import io.jdbd.mysql.env.Environment;
 import io.jdbd.mysql.protocol.MySQLProtocol;
 import io.jdbd.mysql.protocol.MySQLProtocolFactory;
-import io.jdbd.mysql.protocol.authentication.AuthenticationPlugin;
-import io.jdbd.mysql.protocol.authentication.PluginUtils;
+import io.jdbd.mysql.protocol.client.AuthenticationPlugin;
 import io.jdbd.mysql.protocol.client.ClientProtocolFactory;
-import io.jdbd.mysql.protocol.conf.MyKey;
 import io.jdbd.mysql.protocol.conf.MySQLUrl;
-import io.jdbd.mysql.util.MySQLStrings;
 import io.jdbd.session.DatabaseSessionFactory;
 import io.jdbd.session.LocalDatabaseSession;
 import io.jdbd.session.RmDatabaseSession;
-import io.jdbd.vendor.env.Properties;
 import io.netty.channel.EventLoopGroup;
 import org.reactivestreams.Publisher;
 import reactor.core.publisher.Mono;
-import reactor.netty.resources.LoopResources;
 
 import java.nio.charset.Charset;
-import java.util.Collections;
-import java.util.HashMap;
 import java.util.Map;
 
 public final class MySQLDatabaseSessionFactory implements DatabaseSessionFactory {
@@ -113,22 +106,17 @@ public final class MySQLDatabaseSessionFactory implements DatabaseSessionFactory
         private final Map<String, Charset> customCharsetMap;
 
         private MySQLSessionAdjutant(MySQLDatabaseSessionFactory factory) {
-            this.factory = factory;
-            final Properties properties = this.factory.mySQLUrl.getCommonProps();
-            final int workerCount = properties.getOrDefault(MyKey.factoryWorkerCount, Integer.class);
-            this.eventLoopGroup = LoopResources.create("jdbd-MySQL", workerCount, true)
-                    .onClient(true);
-            this.customCharsetMap = createCustomCharsetMap(properties);
+            throw new UnsupportedOperationException();
         }
 
         @Override
         public MySQLUrl jdbcUrl() {
-            return this.factory.mySQLUrl;
+            throw new UnsupportedOperationException();
         }
 
         @Override
         public Map<String, Class<? extends AuthenticationPlugin>> pluginClassMap() {
-            return PluginUtils.createPluginClassMap(this.factory.mySQLUrl.getCommonProps());
+            throw new UnsupportedOperationException();
         }
 
         @Override
@@ -149,30 +137,6 @@ public final class MySQLDatabaseSessionFactory implements DatabaseSessionFactory
     }
 
 
-    /**
-     * @return a unmodified map
-     * @throws PropertyException when {@link MyKey#customCharsetMapping} value error.
-     */
-    private static Map<String, Charset> createCustomCharsetMap(final Properties properties) {
-        final String mappingValue;
-        mappingValue = properties.get(MyKey.customCharsetMapping);
-
-        if (!MySQLStrings.hasText(mappingValue)) {
-            return Collections.emptyMap();
-        }
-        final String[] pairs = mappingValue.split(";");
-        String[] valuePair;
-        final Map<String, Charset> tempMap = new HashMap<>((int) (pairs.length / 0.75F));
-        for (String pair : pairs) {
-            valuePair = pair.split(":");
-            if (valuePair.length != 2) {
-                String m = String.format("%s value format error.", MyKey.customCharsetMapping);
-                throw new PropertyException(MyKey.customCharsetMapping.getKey(), m);
-            }
-            tempMap.put(valuePair[0], Charset.forName(valuePair[1]));
-        }
-        return Collections.unmodifiableMap(tempMap);
-    }
 
 
 }

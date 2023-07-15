@@ -26,10 +26,7 @@ public interface Constants {
 
     byte[] SPACE_STAR_SLASH_SPACE_AS_BYTES = new byte[]{(byte) ' ', (byte) '*', (byte) '/', (byte) ' '};
 
-    String JVM_VENDOR = System.getProperty("java.vendor");
-    String JVM_VERSION = System.getProperty("java.version");
-
-//    String OS_NAME = System.getProperty("");
+    //    String OS_NAME = System.getProperty("");
 //    String OS_ARCH = System.getProperty("");
 //    String OS_VERSION = System.getProperty("");
 //    String PLATFORM_ENCODING = System.getProperty("");

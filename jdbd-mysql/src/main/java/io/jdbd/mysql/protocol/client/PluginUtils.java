@@ -1,20 +1,18 @@
-package io.jdbd.mysql.protocol.authentication;
+package io.jdbd.mysql.protocol.client;
 
+import io.jdbd.JdbdException;
 import io.jdbd.mysql.env.Environment;
 import io.jdbd.mysql.env.MySQLKey;
-import io.jdbd.mysql.protocol.conf.MyKey;
-import io.jdbd.mysql.session.SessionAdjutant;
 import io.jdbd.mysql.util.MySQLCollections;
 import io.jdbd.mysql.util.MySQLStrings;
-import io.jdbd.vendor.env.Properties;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.*;
 
-public abstract class PluginUtils {
+abstract class PluginUtils {
 
-    PluginUtils() {
+    private PluginUtils() {
         throw new UnsupportedOperationException();
     }
 
@@ -27,7 +25,7 @@ public abstract class PluginUtils {
      * not java-doc
      * @see io.jdbd.mysql.protocol.client.MySQLConnectionTask
      */
-    public static String getDefaultMechanism(Environment env) {
+    static String getDefaultMechanism(Environment env) {
         String defaultMechanism;
         defaultMechanism = PLUGIN_MECHANISM_MAPPING.get(
                 env.getOrDefault(MySQLKey.DEFAULT_AUTHENTICATION_PLUGIN));
@@ -37,22 +35,22 @@ public abstract class PluginUtils {
 
     /**
      * @return a unmodifiable map ,key : {@link AuthenticationPlugin#getProtocolPluginName()}.
-     * @throws PropertyException throw when below key error:<ul>
-     *                           <li>{@link MyKey#defaultAuthenticationPlugin}</li>
-     *                           <li>{@link MyKey#authenticationPlugins}</li>
-     *                           <li>{@link MyKey#disabledAuthenticationPlugins}</li>
-     *                           </ul>
-     * @see SessionAdjutant#pluginClassMap()
+     * @throws JdbdException throw when below key error:<ul>
+     *                       <li>{@link MySQLKey#DEFAULT_AUTHENTICATION_PLUGIN}</li>
+     *                       <li>{@link MySQLKey#AUTHENTICATION_PLUGINS}</li>
+     *                       <li>{@link MySQLKey#DISABLED_AUTHENTICATION_PLUGINS}</li>
+     *                       </ul>
      */
-    public static Map<String, Class<? extends AuthenticationPlugin>> createPluginClassMap(Properties properties)
-            throws PropertyException {
+    static Map<String, Class<? extends AuthenticationPlugin>> createPluginClassMap(final Environment env)
+            throws JdbdException {
 
         final Map<String, Class<? extends AuthenticationPlugin>> allPluginMap = createAllPluginMap();
 
-        final List<String> disabledMechanismList = loadDisabledPluginMechanismList(properties);
-        final List<String> enabledMechanismList = loadEnabledPluginMechanismList(properties);
+        final List<String> disabledMechanismList, enabledMechanismList;
+        disabledMechanismList = loadMechanismList(env, MySQLKey.DISABLED_AUTHENTICATION_PLUGINS);
+        enabledMechanismList = loadMechanismList(env, MySQLKey.AUTHENTICATION_PLUGINS);
 
-        final String defaultPluginName = properties.getOrDefault(MyKey.defaultAuthenticationPlugin);
+        final String defaultPluginName = env.getOrDefault(MySQLKey.DEFAULT_AUTHENTICATION_PLUGIN);
         final String defaultMechanism = PLUGIN_MECHANISM_MAPPING.get(defaultPluginName);
 
         if (disabledMechanismList.isEmpty()
@@ -69,7 +67,7 @@ public abstract class PluginUtils {
         }
 
         final Map<String, Class<? extends AuthenticationPlugin>> map;
-        map = new HashMap<>((int) (allPluginMap.size() / 0.75F));
+        map = MySQLCollections.hashMap((int) (allPluginMap.size() / 0.75F));
 
         byte defaultFound = 0;
         for (String mechanism : mechanismCollection) {
@@ -86,13 +84,13 @@ public abstract class PluginUtils {
         }
 
         if (defaultFound == 0) {
-            String message = String.format("%s[%s] not fond."
-                    , MyKey.defaultAuthenticationPlugin.getKey(), defaultPluginName);
-            throw new PropertyException(MyKey.defaultAuthenticationPlugin.getKey(), message);
+            String message = String.format("%s[%s] not fond.", MySQLKey.DISABLED_AUTHENTICATION_PLUGINS,
+                    defaultPluginName);
+            throw new JdbdException(message);
         } else if (defaultFound == -1) {
-            String message = String.format("%s[%s] disable."
-                    , MyKey.defaultAuthenticationPlugin.getKey(), defaultPluginName);
-            throw new PropertyException(MyKey.defaultAuthenticationPlugin.getKey(), message);
+            String message = String.format("%s[%s] disable.", MySQLKey.DISABLED_AUTHENTICATION_PLUGINS,
+                    defaultPluginName);
+            throw new JdbdException(message);
         }
 
         if (LOG.isTraceEnabled()) {
@@ -114,10 +112,10 @@ public abstract class PluginUtils {
      * @return a unmodifiable map <ul>
      * <li>key:{@link AuthenticationPlugin#getProtocolPluginName()}</li>
      * </ul>
-     * @see #createPluginClassMap(Properties)
+     * @see #createPluginClassMap(Environment)
      */
     private static Map<String, Class<? extends AuthenticationPlugin>> createAllPluginMap() {
-        Map<String, Class<? extends AuthenticationPlugin>> map = new HashMap<>(8);
+        final Map<String, Class<? extends AuthenticationPlugin>> map = MySQLCollections.hashMap(8);
 
         map.put(MySQLNativePasswordPlugin.PLUGIN_NAME, MySQLNativePasswordPlugin.class);
         map.put(CachingSha2PasswordPlugin.PLUGIN_NAME, CachingSha2PasswordPlugin.class);
@@ -134,10 +132,10 @@ public abstract class PluginUtils {
      * <li>{@link AuthenticationPlugin#getProtocolPluginName()} or {@link AuthenticationPlugin} class name</li>
      * <li>{@link AuthenticationPlugin#getProtocolPluginName()}</li>
      * </ul>
-     * @see #createPluginClassMap(Properties)
+     * @see #createPluginClassMap(Environment)
      */
     private static Map<String, String> createPluginMechanismMapping() {
-        Map<String, String> map = new HashMap<>((int) (10 / 0.75F));
+        final Map<String, String> map = MySQLCollections.hashMap((int) (10 / 0.75F));
 
         map.put(MySQLNativePasswordPlugin.PLUGIN_NAME, MySQLNativePasswordPlugin.PLUGIN_NAME);
         map.put(MySQLNativePasswordPlugin.class.getName(), MySQLNativePasswordPlugin.PLUGIN_NAME);
@@ -157,50 +155,22 @@ public abstract class PluginUtils {
         return Collections.unmodifiableMap(map);
     }
 
-    /**
-     * @return a unmodifiable list,element is {@link AuthenticationPlugin#getProtocolPluginName()}.
-     * @see #createPluginClassMap(Properties)
-     */
-    private static List<String> loadDisabledPluginMechanismList(Properties properties)
-            throws PropertyException {
 
-        String string = properties.get(MyKey.disabledAuthenticationPlugins);
-        if (!MySQLStrings.hasText(string)) {
-            return Collections.emptyList();
-        }
-        String[] mechanismArray = string.split(",");
-        List<String> list = new ArrayList<>(mechanismArray.length);
-        for (String mechanismOrClassName : mechanismArray) {
-            mechanismOrClassName = mechanismOrClassName.trim();
-            String mechanism = PLUGIN_MECHANISM_MAPPING.get(mechanismOrClassName);
-            if (mechanism == null) {
-                String message = String.format("Property[%s] value[%s] isn' mechanism or class name.."
-                        , MyKey.disabledAuthenticationPlugins.getKey(), mechanismOrClassName);
-                throw new PropertyException(MyKey.disabledAuthenticationPlugins.getKey(), message);
-            }
-            list.add(mechanism);
-        }
-        return MySQLCollections.unmodifiableList(list);
-    }
-
-    /**
-     * @return a unmodifiable list,element is {@link AuthenticationPlugin#getProtocolPluginName()}.
-     * @see #createPluginClassMap(Properties)
-     */
-    private static List<String> loadEnabledPluginMechanismList(Properties properties)
-            throws PropertyException {
-        String string = properties.get(MyKey.authenticationPlugins);
+    private static List<String> loadMechanismList(final Environment env, final MySQLKey<String> key)
+            throws JdbdException {
+        String string = env.get(key);
         if (!MySQLStrings.hasText(string)) {
             return Collections.emptyList();
         }
         String[] classNameArray = string.split(",");
-        final List<String> list = new ArrayList<>(classNameArray.length);
+        final List<String> list = MySQLCollections.arrayList(classNameArray.length);
+        String mechanism;
         for (String className : classNameArray) {
-            String mechanism = PLUGIN_MECHANISM_MAPPING.get(className.trim());
+            mechanism = PLUGIN_MECHANISM_MAPPING.get(className.trim());
             if (mechanism == null) {
-                String message = String.format("Property[%s] value[%s] isn' %s implementation class name.."
-                        , MyKey.authenticationPlugins.getKey(), className, AuthenticationPlugin.class.getName());
-                throw new PropertyException(MyKey.authenticationPlugins.getKey(), message);
+                String message = String.format("Property[%s] value[%s] isn' %s implementation class name.",
+                        key.name, className, AuthenticationPlugin.class.getName());
+                throw new JdbdException(message);
             }
             list.add(mechanism);
         }

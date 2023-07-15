@@ -1,9 +1,8 @@
-package io.jdbd.mysql.protocol.authentication;
+package io.jdbd.mysql.protocol.client;
 
 import io.jdbd.mysql.MySQLJdbdException;
 import io.jdbd.mysql.protocol.AuthenticateAssistant;
 import io.jdbd.mysql.protocol.ClientConstants;
-import io.jdbd.mysql.protocol.client.Packets;
 import io.jdbd.mysql.protocol.conf.MyKey;
 import io.jdbd.mysql.util.MySQLStrings;
 import io.jdbd.vendor.env.HostInfo;

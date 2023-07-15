@@ -1,8 +1,6 @@
 package io.jdbd.mysql.protocol.client;
 
 import io.jdbd.mysql.Groups;
-import io.jdbd.mysql.protocol.authentication.CachingSha2PasswordPlugin;
-import io.jdbd.mysql.protocol.authentication.MySQLNativePasswordPlugin;
 import io.jdbd.mysql.protocol.conf.MyKey;
 import io.jdbd.mysql.session.SessionAdjutant;
 import org.slf4j.Logger;

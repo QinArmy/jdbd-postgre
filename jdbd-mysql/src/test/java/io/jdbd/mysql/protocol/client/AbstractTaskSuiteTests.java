@@ -1,7 +1,5 @@
 package io.jdbd.mysql.protocol.client;
 
-import io.jdbd.mysql.protocol.authentication.AuthenticationPlugin;
-import io.jdbd.mysql.protocol.authentication.PluginUtils;
 import io.jdbd.mysql.protocol.conf.MySQLUrl;
 import io.jdbd.mysql.session.SessionAdjutant;
 import io.jdbd.session.DatabaseSessionFactory;

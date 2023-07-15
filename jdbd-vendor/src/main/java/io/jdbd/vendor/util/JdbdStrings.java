@@ -2,18 +2,15 @@ package io.jdbd.vendor.util;
 
 import io.jdbd.JdbdException;
 import io.jdbd.lang.Nullable;
-import io.qinarmy.util.StringUtils;
+import io.qinarmy.util.CollectionUtils;
 
 import java.io.UnsupportedEncodingException;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
-import java.util.BitSet;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.regex.Pattern;
 
-public abstract class JdbdStrings extends StringUtils {
+public abstract class JdbdStrings /*extends StringUtils*/ {
 
     protected JdbdStrings() {
         throw new UnsupportedOperationException();
@@ -65,6 +62,98 @@ public abstract class JdbdStrings extends StringUtils {
     }
 
 
+    /**
+     * @return a modifiable list
+     */
+    public static List<String> spitAsList(@Nullable String text, String regex) {
+        return spitAsList(text, regex, false);
+    }
+
+    public static List<String> spitAsList(@Nullable String text, String regex, final boolean unmodifiable) {
+        final List<String> list;
+        if (hasText(text)) {
+            String[] itemArray = text.split(regex);
+            if (itemArray.length == 1 && unmodifiable) {
+                list = Collections.singletonList(itemArray[0].trim());
+            } else {
+                List<String> tempList = new ArrayList<>(itemArray.length);
+                for (String p : itemArray) {
+                    tempList.add(p.trim());
+                }
+                list = unmodifiable ? Collections.unmodifiableList(tempList) : tempList;
+            }
+        } else if (unmodifiable) {
+            list = Collections.emptyList();
+        } else {
+            list = new ArrayList<>();
+        }
+        return list;
+    }
+
+    /**
+     * @return a modifiable list
+     */
+    public static Set<String> spitAsSet(@Nullable String text, String regex) {
+        final Set<String> set;
+        if (hasText(text)) {
+            String[] itemArray = text.split(regex);
+            set = new HashSet<>((int) (itemArray.length / 0.75F));
+            for (String p : itemArray) {
+                set.add(p.trim());
+            }
+        } else {
+            set = new HashSet<>();
+        }
+        return set;
+    }
+
+    public static Set<String> spitAsSet(@Nullable String text, String regex, final boolean unmodifiable) {
+        final Set<String> set;
+        set = spitAsSet(text, regex);
+        return unmodifiable ? CollectionUtils.unmodifiableSet(set) : set;
+    }
+
+    public static Map<String, String> spitAsMap(final @Nullable String text, final String regex1,
+                                                final String regex2, final boolean unmodifiable) {
+        Map<String, String> map;
+        if (!hasText(text)) {
+            if (unmodifiable) {
+                map = Collections.emptyMap();
+            } else {
+                map = JdbdCollections.hashMap();
+            }
+            return map;
+        }
+        final String[] pairArray = text.split(regex1);
+        map = JdbdCollections.hashMap((int) (pairArray.length / 0.75f));
+        String[] kv;
+        for (String pair : pairArray) {
+            kv = pair.split(regex2);
+            if (kv.length != 2) {
+                throw new IllegalStateException(String.format("%s can't resolve pair.", text));
+            }
+            map.put(kv[0].trim(), kv[1].trim());
+        }
+
+        if (unmodifiable) {
+            map = JdbdCollections.unmodifiableMap(map);
+        }
+        return map;
+    }
+
+    public static String concat(List<String> list, String delimiter) {
+        StringBuilder builder = new StringBuilder();
+        final int size = list.size();
+        for (int i = 0; i < size; i++) {
+            if (i > 0) {
+                builder.append(delimiter);
+            }
+            builder.append(list.get(i));
+        }
+        return builder.toString();
+    }
+
+
     public static void parseQueryPair(final String originalUrl, String[] pairArray, Map<String, String> map) {
         String[] keyValue;
         String key, value;
@@ -72,7 +161,7 @@ public abstract class JdbdStrings extends StringUtils {
             keyValue = pair.split("=");
             if (keyValue.length > 2) {
                 String message = String.format("Postgre url query pair[%s] error. ", pair);
-                throw new UrlException(originalUrl, message);
+                throw new JdbdException(message);
             }
             key = decodeUrlPart(keyValue[0].trim());
             if (keyValue.length == 1) {

@@ -1,8 +1,8 @@
 package io.jdbd.mysql.env;
 
 import io.jdbd.lang.Nullable;
-import io.jdbd.mysql.protocol.authentication.MySQLNativePasswordPlugin;
 import io.jdbd.mysql.protocol.client.Enums;
+import io.jdbd.mysql.protocol.client.MySQLNativePasswordPlugin;
 import io.jdbd.mysql.util.MySQLStrings;
 import io.jdbd.vendor.env.Redefine;
 import reactor.netty.resources.ConnectionProvider;

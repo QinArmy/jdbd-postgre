@@ -6,7 +6,6 @@ import io.jdbd.vendor.util.JdbdCollections;
 import io.jdbd.vendor.util.JdbdExceptions;
 import org.reactivestreams.Publisher;
 
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -48,7 +47,7 @@ public abstract class VendorRow implements JdbdRow {
 
     @Override
     public final <T> Set<T> getSet(int indexBasedZero, Class<T> elementClass) throws JdbdException {
-        return this.getSet(indexBasedZero, elementClass, HashSet::new);
+        return this.getSet(indexBasedZero, elementClass, JdbdCollections::hashSet);
     }
 
     @Override
@@ -91,7 +90,7 @@ public abstract class VendorRow implements JdbdRow {
 
     @Override
     public final <T> Set<T> getSet(String columnLabel, Class<T> elementClass) throws JdbdException {
-        return this.getSet(getRowMeta().getColumnIndex(columnLabel), elementClass, HashSet::new);
+        return this.getSet(getRowMeta().getColumnIndex(columnLabel), elementClass, JdbdCollections::hashSet);
     }
 
     @Override

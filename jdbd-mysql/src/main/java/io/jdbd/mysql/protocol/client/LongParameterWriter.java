@@ -190,7 +190,7 @@ final class LongParameterWriter {
 
     private ByteBuf createLongDataPacket(final int parameterIndex, final int capacity) {
         final ByteBuf packet = this.writer.adjutant.allocator()
-                .buffer(Packets.HEADER_SIZE + capacity, this.writer.fixedEnv.maxAllowedPayload);
+                .buffer(Packets.HEADER_SIZE + capacity, this.writer.fixedEnv.maxAllowedPacket);
         packet.writeZero(Packets.HEADER_SIZE); // placeholder of header
 
         packet.writeByte(Packets.COM_STMT_SEND_LONG_DATA); //status
@@ -320,7 +320,7 @@ final class LongParameterWriter {
             totalBytes += (packet.readableBytes() - Packets.HEADER_SIZE);
 
             this.totalBytes = totalBytes;
-            final boolean error = totalBytes > this.parameterWriter.writer.fixedEnv.maxAllowedPayload;
+            final boolean error = totalBytes > this.parameterWriter.writer.fixedEnv.maxAllowedPacket;
 
             if (error) {
                 this.onErrorInEventLoop(MySQLExceptions.netPacketTooLargeError(null));

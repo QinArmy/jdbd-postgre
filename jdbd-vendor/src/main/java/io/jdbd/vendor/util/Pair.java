@@ -18,6 +18,19 @@ public final class Pair<F, S> {
         this.second = second;
     }
 
+    /**
+     * For {@link java.util.function.Supplier}
+     */
+    public F getFirst() {
+        return this.first;
+    }
+
+    /**
+     * For {@link java.util.function.Supplier}
+     */
+    public S getSecond() {
+        return this.second;
+    }
 
     @Override
     public int hashCode() {
