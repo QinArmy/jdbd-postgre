@@ -3,6 +3,7 @@ package io.jdbd.mysql.protocol.client;
 import io.jdbd.JdbdException;
 import io.jdbd.mysql.MySQLJdbdException;
 import io.jdbd.mysql.env.Environment;
+import io.jdbd.mysql.env.MySQLHostEnv;
 import io.jdbd.mysql.env.MySQLKey;
 import io.jdbd.mysql.protocol.AuthenticateAssistant;
 import io.jdbd.mysql.protocol.Constants;
@@ -12,7 +13,6 @@ import io.jdbd.mysql.protocol.authentication.AuthenticationPlugin;
 import io.jdbd.mysql.protocol.authentication.PluginUtils;
 import io.jdbd.mysql.protocol.authentication.Sha256PasswordPlugin;
 import io.jdbd.mysql.protocol.conf.MyKey;
-import io.jdbd.mysql.protocol.conf.MySQLHost0;
 import io.jdbd.mysql.util.MySQLCollections;
 import io.jdbd.mysql.util.MySQLExceptions;
 import io.jdbd.mysql.util.MySQLStrings;
@@ -69,11 +69,13 @@ final class MySQLConnectionTask extends CommunicationTask implements Authenticat
 
     private final TaskAdjutant adjutant;
 
+    private final FixedEnv fixedEnv;
+
     private final MonoSink<AuthenticateResult> sink;
 
     private final Map<String, AuthenticationPlugin> pluginMap;
 
-    private final MySQLHost0 hostInfo;
+    private final MySQLHostEnv host;
 
     private final Environment env;
 
@@ -101,9 +103,12 @@ final class MySQLConnectionTask extends CommunicationTask implements Authenticat
     private MySQLConnectionTask(TaskAdjutant adjutant, MonoSink<AuthenticateResult> sink) {
         super(adjutant, sink::error);
         this.sink = sink;
-
         this.adjutant = adjutant;
-        this.hostInfo = adjutant.host();
+        final ClientProtocolFactory factory;
+        factory = adjutant.getFactory();
+
+        this.fixedEnv = factory;
+        this.host = factory.hostEnv;
         this.env = adjutant.getFactory().env;
         this.pluginMap = loadAuthenticationPluginMap();
 
@@ -122,13 +127,12 @@ final class MySQLConnectionTask extends CommunicationTask implements Authenticat
 
     @Override
     public Charset getPasswordCharset() {
-        String pwdCharset = this.f.get(MyKey.passwordCharacterEncoding);
-        return pwdCharset == null ? this.handshakeCharset : Charset.forName(pwdCharset);
+        return this.env.get(MySQLKey.PASSWORD_CHARACTER_ENCODING, this::getHandshakeCharset);
     }
 
     @Override
     public HostInfo getHostInfo() {
-        return this.hostInfo;
+        throw new UnsupportedOperationException();
     }
 
     @Override
@@ -251,22 +255,25 @@ final class MySQLConnectionTask extends CommunicationTask implements Authenticat
      */
     private void receiveHandshakeAndSendResponse(final ByteBuf cumulateBuffer) {
         //1. read handshake packet
-        final int payloadLength = Packets.readInt3(cumulateBuffer);
+        final int payloadLength;
+        payloadLength = Packets.readInt3(cumulateBuffer);
         updateSequenceId(Packets.readInt1AsInt(cumulateBuffer));
         final Handshake10 handshake;
-        handshake = Handshake10.readHandshake(cumulateBuffer.readSlice(payloadLength));
+        handshake = Handshake10.read(cumulateBuffer, payloadLength);
         this.handshake = handshake;
+
         if (LOG.isDebugEnabled()) {
             LOG.debug("receive handshake success:\n{}", handshake);
         }
         //2. negotiate capabilities
-        final int negotiatedCapability = createNegotiatedCapability(handshake);
+        final int negotiatedCapability;
+        negotiatedCapability = createNegotiatedCapability(handshake);
         this.capability = negotiatedCapability;
 
         //3.create handshake collation index and charset
         int handshakeCollationIndex;
         handshakeCollationIndex = Charsets.getCollationIndexForJavaEncoding(
-                this.handshakeCharset.name(), handshake.getServerVersion());
+                this.handshakeCharset.name(), handshake.serverVersion);
         if (handshakeCollationIndex == 0) {
             handshakeCollationIndex = Charsets.MYSQL_COLLATION_INDEX_utf8mb4;
             this.handshakeCharset = StandardCharsets.UTF_8;
@@ -274,7 +281,7 @@ final class MySQLConnectionTask extends CommunicationTask implements Authenticat
         this.handshakeCollationIndex = (byte) handshakeCollationIndex;
 
         //4. optional ssl request or send plaintext handshake response.
-        if (Capabilities.supportSsl(negotiatedCapability)) {
+        if ((negotiatedCapability & Capabilities.CLIENT_SSL) != 0) {
             LOG.debug("send ssl request.");
             sendSslRequest();
         } else {
@@ -650,8 +657,10 @@ final class MySQLConnectionTask extends CommunicationTask implements Authenticat
         final int serverCapability = handshake.capabilityFlags;
         final Environment env = this.env;
 
-        final boolean useConnectWithDb = MySQLStrings.hasText(this.hostInfo.getDbName())
+        final boolean useConnectWithDb;
+        useConnectWithDb = MySQLStrings.hasText(this.host.getDbName())
                 && !env.getOrDefault(MySQLKey.CREATE_DATABASE_IF_NOT_EXIST);
+
 
         return Capabilities.CLIENT_SECURE_CONNECTION
                 | Capabilities.CLIENT_PLUGIN_AUTH
@@ -676,7 +685,7 @@ final class MySQLConnectionTask extends CommunicationTask implements Authenticat
                 | (env.getOrDefault(MySQLKey.DISCONNECT_ON_EXPIRED_PASSWORDS) ? 0 : (serverCapability & Capabilities.CLIENT_CAN_HANDLE_EXPIRED_PASSWORD))
                 | (Constants.NONE.equals(env.get(MySQLKey.CONNECTION_ATTRIBUTES)) ? 0 : (serverCapability & Capabilities.CLIENT_CONNECT_ATTRS))
                 | (env.getOrDefault(MySQLKey.SSL_MODE) != Enums.SslMode.DISABLED ? (serverCapability & Capabilities.CLIENT_SSL) : 0)
-                | (env.getOrDefault(MySQLKey.TRACK_SESSION_STATE) ? (serverCapability & Capabilities.CLIENT_SESSION_TRACK) : 0)  // TODO ZORO MYSQLCONNJ-437?
+                | (serverCapability & Capabilities.CLIENT_SESSION_TRACK) // jdbd-mysql always for better sending message and receive message
 
                 | (handshake.serverVersion.isSupportQueryAttr() ? (serverCapability & Capabilities.CLIENT_QUERY_ATTRIBUTES) : 0)
                 ;

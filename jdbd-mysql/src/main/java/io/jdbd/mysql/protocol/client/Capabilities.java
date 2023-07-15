@@ -6,16 +6,16 @@ package io.jdbd.mysql.protocol.client;
 abstract class Capabilities {
 
     // below Capabilities Flags https://dev.mysql.com/doc/dev/mysql-server/latest/group__group__cs__capabilities__flags.html
-    static final int CLIENT_LONG_PASSWORD = 1; /* new more secure passwords */
-    static final int CLIENT_FOUND_ROWS = 1 << 1;
-    static final int CLIENT_LONG_FLAG = 1 << 2; /* Get all column flags */
-    static final int CLIENT_CONNECT_WITH_DB = 1 << 3;
-    static final int CLIENT_COMPRESS = 1 << 5; /* Can use compression protcol */
-    static final int CLIENT_LOCAL_FILES = 1 << 7; /* Can use LOAD DATA LOCAL */
-    static final int CLIENT_PROTOCOL_41 = 1 << 9; // for > 4.1.1
-    static final int CLIENT_INTERACTIVE = 1 << 10;
-    static final int CLIENT_SSL = 1 << 11;
-    static final int CLIENT_TRANSACTIONS = 1 << 13; // Client knows about transactions
+    static final byte CLIENT_LONG_PASSWORD = 1; /* new more secure passwords */
+    static final byte CLIENT_FOUND_ROWS = 1 << 1;
+    static final byte CLIENT_LONG_FLAG = 1 << 2; /* Get all column flags */
+    static final byte CLIENT_CONNECT_WITH_DB = 1 << 3;
+    static final byte CLIENT_COMPRESS = 1 << 5; /* Can use compression protcol */
+    static final short CLIENT_LOCAL_FILES = 1 << 7; /* Can use LOAD DATA LOCAL */
+    static final short CLIENT_PROTOCOL_41 = 1 << 9; // for > 4.1.1
+    static final short CLIENT_INTERACTIVE = 1 << 10;
+    static final short CLIENT_SSL = 1 << 11;
+    static final short CLIENT_TRANSACTIONS = 1 << 13; // Client knows about transactions
     static final int CLIENT_SECURE_CONNECTION = 1 << 15;
     static final int CLIENT_MULTI_STATEMENTS = 1 << 16; // Enable/disable multiquery support
     static final int CLIENT_MULTI_RESULTS = 1 << 17; // Enable/disable multi-results
@@ -40,14 +40,6 @@ abstract class Capabilities {
 
     static boolean supportMultiStatement(final int negotiatedCapability) {
         return (negotiatedCapability & CLIENT_MULTI_STATEMENTS) != 0;
-    }
-
-    static boolean supportPsMultiResult(final int negotiatedCapability) {
-        return (negotiatedCapability & CLIENT_PS_MULTI_RESULTS) != 0;
-    }
-
-    static boolean deprecateEof(final int negotiatedCapability) {
-        return (negotiatedCapability & CLIENT_DEPRECATE_EOF) != 0;
     }
 
     static boolean supportQueryAttr(final int capability) {

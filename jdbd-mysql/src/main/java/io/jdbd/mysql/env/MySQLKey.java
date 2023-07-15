@@ -154,7 +154,7 @@ public final class MySQLKey<T> {
     /**
      * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-connection.html">passwordCharacterEncoding</a>
      */
-    public static final MySQLKey<String> PASSWORD_CHARACTER_ENCODING = new MySQLKey<>("passwordCharacterEncoding", String.class, null);
+    public static final MySQLKey<Charset> PASSWORD_CHARACTER_ENCODING = new MySQLKey<>("passwordCharacterEncoding", Charset.class, null);
 
     /**
      * <p>
@@ -208,11 +208,13 @@ public final class MySQLKey<T> {
      */
     public static final MySQLKey<String> CUSTOM_CHARSET_MAPPING = new MySQLKey<>("customCharsetMapping", String.class, null);
 
-    /**
-     * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-session.html">trackSessionState</a>
-     * @since MySQL Driver  8.0.26
-     */
-    public static final MySQLKey<Boolean> TRACK_SESSION_STATE = new MySQLKey<>("trackSessionState", Boolean.class, Boolean.FALSE);
+//    /**
+//     * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-session.html">trackSessionState</a>
+//     * @since MySQL Driver  8.0.26
+//     * @deprecated jdbd-mysql always support for better receive and send message.
+//     */
+//    @Deprecated
+//    public static final MySQLKey<Boolean> TRACK_SESSION_STATE = new MySQLKey<>("trackSessionState", Boolean.class, Boolean.FALSE);
 
 
     /*-------------------below Networking group-------------------*/
@@ -423,11 +425,13 @@ public final class MySQLKey<T> {
      */
     public static final MySQLKey<Path> ALLOW_LOAD_LOCAL_INFILE_IN_PATH = new MySQLKey<>("allowLoadLocalInfileInPath", Path.class, null);
 
-    /**
-     * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-security.html">allowMultiQueries</a>
-     * @since MySQL Driver  3.1.1
-     */
-    public static final MySQLKey<Boolean> ALLOW_MULTI_QUERIES = new MySQLKey<>("allowMultiQueries", Boolean.class, Boolean.FALSE);
+//    /**
+//     * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-security.html">allowMultiQueries</a>
+//     * @since MySQL Driver  3.1.1
+//     * @deprecated jdbd-mysql always support
+//     */
+//    @Deprecated
+//    public static final MySQLKey<Boolean> ALLOW_MULTI_QUERIES = new MySQLKey<>("allowMultiQueries", Boolean.class, Boolean.FALSE);
 
 
     /**
@@ -646,14 +650,14 @@ public final class MySQLKey<T> {
     public static final MySQLKey<Boolean> USE_INFORMATION_SCHEMA = new MySQLKey<>("useInformationSchema", Boolean.class, Boolean.FALSE);
 
     /*-------------------below BLOB/CLOB processing group-------------------*/
-
-    /**
-     * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-blob-clob-processing.html">autoDeserialize</a>
-     * @since MySQL Driver  3.1.5
-     * @deprecated don't support
-     */
-    @Deprecated
-    public static final MySQLKey<Boolean> AUTO_DESERIALIZE = new MySQLKey<>("autoDeserialize", Boolean.class, Boolean.FALSE);
+//
+//    /**
+//     * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-blob-clob-processing.html">autoDeserialize</a>
+//     * @since MySQL Driver  3.1.5
+//     * @deprecated jdbd-mysql don't support
+//     */
+//    @Deprecated
+//    public static final MySQLKey<Boolean> AUTO_DESERIALIZE = new MySQLKey<>("autoDeserialize", Boolean.class, Boolean.FALSE);
 
     /**
      * <p>
@@ -677,21 +681,25 @@ public final class MySQLKey<T> {
      */
     public static final MySQLKey<Boolean> BLOBS_ARE_STRINGS = new MySQLKey<>("blobsAreStrings", Boolean.class, Boolean.FALSE);
 
-    /**
-     * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-blob-clob-processing.html">clobCharacterEncoding</a>
-     * @since MySQL Driver  5.0.0
-     */
-    public static final MySQLKey<String> CLOB_CHARACTER_ENCODING = new MySQLKey<>("clobCharacterEncoding", String.class, null);
+//    /**
+//     * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-blob-clob-processing.html">clobCharacterEncoding</a>
+//     * @since MySQL Driver  5.0.0
+//     * @deprecated jdbd-mysql don't need this option , see {@link io.jdbd.type.Text} and {@link io.jdbd.type.Clob}
+//     */
+//    @Deprecated
+//    public static final MySQLKey<String> CLOB_CHARACTER_ENCODING = new MySQLKey<>("clobCharacterEncoding", String.class, null);
 
 
-    /**
-     * TODO support ?
-     *
-     * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-blob-clob-processing.html">emulateLocators</a>
-     * @see #LOCATOR_FETCH_BUFFER_SIZE
-     * @since MySQL Driver  3.1.0
-     */
-    public static final MySQLKey<Boolean> EMULATE_LOCATORS = new MySQLKey<>("emulateLocators", Boolean.class, Boolean.FALSE);
+//    /**
+//     *
+//     *
+//     * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-blob-clob-processing.html">emulateLocators</a>
+//     * @see #LOCATOR_FETCH_BUFFER_SIZE
+//     * @since MySQL Driver  3.1.0
+//     * @deprecated jdbd is reactive ,dont' need this option.
+//     */
+//    @Deprecated
+//    public static final MySQLKey<Boolean> EMULATE_LOCATORS = new MySQLKey<>("emulateLocators", Boolean.class, Boolean.FALSE);
 
 
     /**
@@ -700,14 +708,16 @@ public final class MySQLKey<T> {
      */
     public static final MySQLKey<Boolean> FUNCTIONS_NEVER_RETURN_BLOBS = new MySQLKey<>("functionsNeverReturnBlobs", Boolean.class, Boolean.FALSE);
 
-    /**
-     * TODO support ?
-     *
-     * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-blob-clob-processing.html">locatorFetchBufferSize</a>
-     * @see #EMULATE_LOCATORS
-     * @since MySQL Driver  3.2.1
-     */
-    public static final MySQLKey<Integer> LOCATOR_FETCH_BUFFER_SIZE = new MySQLKey<>("locatorFetchBufferSize", Integer.class, 1048576);
+//    /**
+//     *
+//     *
+//     * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-blob-clob-processing.html">locatorFetchBufferSize</a>
+//     * @see #EMULATE_LOCATORS
+//     * @since MySQL Driver  3.2.1
+//     * @deprecated jdbd is reactive ,dont' need this option.
+//     */
+//    @Deprecated
+//    public static final MySQLKey<Integer> LOCATOR_FETCH_BUFFER_SIZE = new MySQLKey<>("locatorFetchBufferSize", Integer.class, 1048576);
 
     /*-------------------below Datetime types processing group-------------------*/
 
@@ -728,6 +738,7 @@ public final class MySQLKey<T> {
 //     * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-blob-clob-processing.html">noDatetimeStringSync</a>
 //     * @deprecated don't support
 //     * @since MySQL Driver  3.1.7
+//     * @deprecated stupid ,jdbd-mysql don't support
 //     */
 //    @Deprecated
 //    public static final MySQLKey<Boolean> noDatetimeStringSync = new MySQLKey<>("noDatetimeStringSync", Boolean.class, Boolean.FALSE);
@@ -763,7 +774,7 @@ public final class MySQLKey<T> {
 //    /**
 //     * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-blob-clob-processing.html">yearIsDateType</a>
 //     * @since MySQL Driver  3.1.9
-//     * @deprecated jdbd don't need this option
+//     * @deprecated jdbd don't need this option,java.time package dont need this option.
 //     */
 //    @Deprecated
 //    public static final MySQLKey<Boolean> YEAR_IS_DATE_TYPE = new MySQLKey<>("yearIsDateType", Boolean.class, Boolean.TRUE);
