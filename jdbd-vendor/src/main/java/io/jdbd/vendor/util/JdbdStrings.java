@@ -2,12 +2,12 @@ package io.jdbd.vendor.util;
 
 import io.jdbd.JdbdException;
 import io.jdbd.lang.Nullable;
-import io.qinarmy.util.CollectionUtils;
 
 import java.io.UnsupportedEncodingException;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
+import java.util.function.IntFunction;
 import java.util.regex.Pattern;
 
 public abstract class JdbdStrings /*extends StringUtils*/ {
@@ -69,48 +69,44 @@ public abstract class JdbdStrings /*extends StringUtils*/ {
         return spitAsList(text, regex, false);
     }
 
-    public static List<String> spitAsList(@Nullable String text, String regex, final boolean unmodifiable) {
-        final List<String> list;
-        if (hasText(text)) {
-            String[] itemArray = text.split(regex);
-            if (itemArray.length == 1 && unmodifiable) {
-                list = Collections.singletonList(itemArray[0].trim());
-            } else {
-                List<String> tempList = new ArrayList<>(itemArray.length);
-                for (String p : itemArray) {
-                    tempList.add(p.trim());
-                }
-                list = unmodifiable ? Collections.unmodifiableList(tempList) : tempList;
-            }
-        } else if (unmodifiable) {
-            list = Collections.emptyList();
+    public static List<String> spitAsList(final @Nullable String text, final String regex, final boolean unmodifiable) {
+        List<String> list;
+        if (unmodifiable) {
+            list = spitAsCollection(text, regex, JdbdStrings::listConstructor);
+            list = JdbdCollections.unmodifiableList(list);
         } else {
-            list = new ArrayList<>();
+            list = spitAsCollection(text, regex, JdbdCollections::arrayList);
         }
         return list;
+
     }
 
-    /**
-     * @return a modifiable list
-     */
-    public static Set<String> spitAsSet(@Nullable String text, String regex) {
-        final Set<String> set;
-        if (hasText(text)) {
-            String[] itemArray = text.split(regex);
-            set = new HashSet<>((int) (itemArray.length / 0.75F));
-            for (String p : itemArray) {
-                set.add(p.trim());
-            }
-        } else {
-            set = new HashSet<>();
+    public static <T extends Collection<String>> T spitAsCollection(final @Nullable String text, final String regex,
+                                                                    final IntFunction<T> constructor) {
+        if (!hasText(text)) {
+            return constructor.apply(0);
         }
-        return set;
+        final String[] itemArray;
+        itemArray = text.split(regex);
+
+        T collection;
+        collection = constructor.apply(itemArray.length);
+        for (String p : itemArray) {
+            collection.add(p.trim());
+        }
+        return collection;
     }
+
 
     public static Set<String> spitAsSet(@Nullable String text, String regex, final boolean unmodifiable) {
-        final Set<String> set;
-        set = spitAsSet(text, regex);
-        return unmodifiable ? CollectionUtils.unmodifiableSet(set) : set;
+        Set<String> set;
+        if (unmodifiable) {
+            set = spitAsCollection(text, regex, JdbdStrings::setConstructor);
+            set = JdbdCollections.unmodifiableSet(set);
+        } else {
+            set = spitAsCollection(text, regex, JdbdCollections::hashSet);
+        }
+        return set;
     }
 
     public static Map<String, String> spitAsMap(final @Nullable String text, final String regex1,
@@ -316,6 +312,21 @@ public abstract class JdbdStrings /*extends StringUtils*/ {
 
     public static String reverse(String text) {
         return new StringBuilder(text).reverse().toString();
+    }
+
+
+    private static List<String> listConstructor(final int initialCapacity) {
+        if (initialCapacity == 0) {
+            return Collections.emptyList();
+        }
+        return JdbdCollections.arrayList(initialCapacity);
+    }
+
+    private static Set<String> setConstructor(final int initialCapacity) {
+        if (initialCapacity == 0) {
+            return Collections.emptySet();
+        }
+        return JdbdCollections.hashSet(initialCapacity);
     }
 
 

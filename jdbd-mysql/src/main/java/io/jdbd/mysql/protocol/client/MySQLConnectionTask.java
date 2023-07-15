@@ -32,17 +32,14 @@ import reactor.core.publisher.Mono;
 import reactor.core.publisher.MonoSink;
 import reactor.util.annotation.Nullable;
 
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
-import java.lang.reflect.Modifier;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
-import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.function.Consumer;
+import java.util.function.Function;
 
 /**
  * <p>
@@ -76,11 +73,11 @@ final class MySQLConnectionTask extends CommunicationTask implements Authenticat
 
     private final MonoSink<AuthenticateResult> sink;
 
-    private final Map<String, AuthenticationPlugin> pluginMap;
-
     private final MySQLHostEnv host;
 
     private final Environment env;
+
+    private final Map<String, AuthenticationPlugin> pluginMap;
 
     private Charset handshakeCharset;
 
@@ -112,12 +109,15 @@ final class MySQLConnectionTask extends CommunicationTask implements Authenticat
 
         this.fixedEnv = factory;
         this.host = factory.hostEnv;
-        this.env = adjutant.getFactory().env;
-        this.pluginMap = loadAuthenticationPluginMap(factory.authPlugMap);
+        this.env = factory.env;
 
 
         this.handshakeCharset = parseCharacterEncoding(this.env);
+
+        this.pluginMap = this.createPluginMap();
     }
+
+
 
 
 
@@ -302,7 +302,7 @@ final class MySQLConnectionTask extends CommunicationTask implements Authenticat
         if (LOG.isTraceEnabled()) {
             LOG.trace("decode authenticate packet ,authCounter:{}", this.authCounter);
         }
-        assertPhase(Phase.AUTHENTICATE);
+        assert this.phase == Phase.AUTHENTICATE;
 
         final int payloadLength = Packets.readInt3(cumulateBuffer);
         updateSequenceId(Packets.readInt1AsInt(cumulateBuffer));
@@ -395,7 +395,7 @@ final class MySQLConnectionTask extends CommunicationTask implements Authenticat
             if (LOG.isDebugEnabled()) {
                 LOG.debug("add {} to ChannelPipeline complete.", SslHandler.class.getName());
             }
-        } catch (SQLException e) {
+        } catch (Throwable e) {
             handleAuthenticateFailure(MySQLExceptions.wrap(e));
         }
     }
@@ -684,56 +684,22 @@ final class MySQLConnectionTask extends CommunicationTask implements Authenticat
                 ;
     }
 
-    private void assertPhase(Phase expectedPhase) {
-        if (this.phase != expectedPhase) {
-            throw new IllegalStateException(String.format("this.phase isn't %s.", expectedPhase));
+
+    private Map<String, AuthenticationPlugin> createPluginMap() {
+        final Map<String, Function<AuthenticateAssistant, AuthenticationPlugin>> pluginFuncMap;
+        pluginFuncMap = this.fixedEnv.pluginFuncMap;
+
+        final Map<String, AuthenticationPlugin> pluginMap;
+        pluginMap = MySQLCollections.hashMap((int) (pluginFuncMap.size() / 0.75f));
+
+        for (Map.Entry<String, Function<AuthenticateAssistant, AuthenticationPlugin>> e : pluginFuncMap.entrySet()) {
+            pluginMap.put(e.getKey(), e.getValue().apply(this));
         }
+        return MySQLCollections.unmodifiableMap(pluginMap);
     }
-
-    /**
-     * @return a unmodifiable map ,key : {@link AuthenticationPlugin#getProtocolPluginName()}.
-     */
-    private Map<String, AuthenticationPlugin> loadAuthenticationPluginMap(final Map<String, Class<? extends AuthenticationPlugin>> pluginClassMap) {
-        Map<String, AuthenticationPlugin> map = MySQLCollections.hashMap((int) (pluginClassMap.size() / 0.75F));
-        for (Map.Entry<String, Class<? extends AuthenticationPlugin>> e : pluginClassMap.entrySet()) {
-            map.put(e.getKey(), loadPlugin(e.getValue(), this));
-        }
-        map = MySQLCollections.unmodifiableMap(map);
-        return map;
-    }
-
-
 
     /*################################## blow private static method ##################################*/
 
-    /**
-     * @see #loadAuthenticationPluginMap(Map)
-     */
-    private static AuthenticationPlugin loadPlugin(Class<? extends AuthenticationPlugin> pluginClass,
-                                                   AuthenticateAssistant assistant) {
-        try {
-
-            Method method = pluginClass.getDeclaredMethod("getInstance", AuthenticateAssistant.class);
-            if (!pluginClass.isAssignableFrom(method.getReturnType())) {
-                String message = String.format("plugin[%s] getInstance return error type.", pluginClass.getName());
-                throw new JdbdException(message);
-            }
-            if (!Modifier.isStatic(method.getModifiers())) {
-                String message = String.format("plugin[%s] getInstance method isn't static.", pluginClass.getName());
-                throw new JdbdException(message);
-            }
-            return (AuthenticationPlugin) method.invoke(null, assistant);
-        } catch (NoSuchMethodException e) {
-            String message = String.format("plugin[%s] no getInstance() factory method.", pluginClass.getName());
-            throw new JdbdException(message, e);
-        } catch (IllegalAccessException | InvocationTargetException e) {
-            String message = String.format("plugin[%s] getInstance() invoke error.", pluginClass.getName());
-            throw new JdbdException(message, e);
-        } catch (Throwable e) {
-            String message = String.format("load plugin[%s] occur error.", pluginClass.getName());
-            throw new JdbdException(message, e);
-        }
-    }
 
     private static Charset parseCharacterEncoding(Environment env) {
         Charset charset;

@@ -1,6 +1,8 @@
 package io.jdbd.mysql.protocol.client;
 
+import io.jdbd.JdbdException;
 import io.jdbd.mysql.MySQLJdbdException;
+import io.jdbd.mysql.env.MySQLHostEnv;
 import io.jdbd.mysql.protocol.MySQLServerVersion;
 import io.jdbd.mysql.protocol.X509TrustManagerWrapper;
 import io.jdbd.mysql.protocol.conf.MyKey;
@@ -37,7 +39,7 @@ final class ReactorSslProviderBuilder {
         return new ReactorSslProviderBuilder();
     }
 
-    private HostInfo hostInfo;
+    private MySQLHostEnv host;
 
     private MySQLServerVersion serverVersion;
 
@@ -49,8 +51,8 @@ final class ReactorSslProviderBuilder {
     private ReactorSslProviderBuilder() {
     }
 
-    public ReactorSslProviderBuilder hostInfo(HostInfo hostInfo) {
-        this.hostInfo = hostInfo;
+    public ReactorSslProviderBuilder hostInfo(MySQLHostEnv host) {
+        this.host = host;
         return this;
     }
 
@@ -72,12 +74,12 @@ final class ReactorSslProviderBuilder {
                 .build();
     }
 
-    public SslHandler buildSslHandler() throws SQLException {
+    public SslHandler buildSslHandler() throws JdbdException {
         HostInfo hostInfo = this.hostInfo;
         return buildSslContext().newHandler(this.allocator, hostInfo.getHost(), hostInfo.getPort());
     }
 
-    public SslContext buildSslContext() throws SQLException {
+    public SslContext buildSslContext() throws JdbdException {
         if (this.hostInfo == null || this.serverVersion == null || this.allocator == null) {
             throw new IllegalStateException("hostInfo or serverVersion or allocator is null");
         }
