@@ -2,8 +2,6 @@ package io.jdbd.mysql.protocol.client;
 
 import io.netty.buffer.ByteBuf;
 
-import java.util.List;
-
 public interface AuthenticationPlugin {
 
     default void reset() {
@@ -17,7 +15,7 @@ public interface AuthenticationPlugin {
      *
      * @return plugin name
      */
-    String getProtocolPluginName();
+    String pluginName();
 
     /**
      * Does this plugin require the connection itself to be confidential
@@ -46,6 +44,7 @@ public interface AuthenticationPlugin {
      *                   should contain data).
      * @return a unmodifiable list,that is list of payload,element is read-only, empty :authentication finish.
      */
-    List<ByteBuf> nextAuthenticationStep(ByteBuf fromServer);
+
+    ByteBuf nextAuthenticationStep(ByteBuf fromServer);
 
 }

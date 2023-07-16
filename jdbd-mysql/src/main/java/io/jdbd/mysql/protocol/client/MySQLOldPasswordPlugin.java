@@ -2,13 +2,10 @@ package io.jdbd.mysql.protocol.client;
 
 import io.jdbd.mysql.protocol.AuthenticateAssistant;
 import io.jdbd.mysql.util.MySQLStrings;
-import io.jdbd.vendor.env.HostInfo;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 
 import java.nio.charset.Charset;
-import java.util.Collections;
-import java.util.List;
 
 /**
  * <p>
@@ -23,20 +20,16 @@ public class MySQLOldPasswordPlugin implements AuthenticationPlugin {
 
     public static final String PLUGIN_NAME = "mysql_old_password";
 
-    public static final String PLUGIN_CLASS = "com.mysql.cj.protocol.a.authentication.MysqlOldPasswordPlugin";
+    private final AuthenticateAssistant assistant;
 
-    private final AuthenticateAssistant protocolAssistant;
 
-    private final HostInfo hostInfo;
-
-    private MySQLOldPasswordPlugin(AuthenticateAssistant protocolAssistant) {
-        this.protocolAssistant = protocolAssistant;
-        this.hostInfo = protocolAssistant.getHostInfo();
+    private MySQLOldPasswordPlugin(AuthenticateAssistant assistant) {
+        this.assistant = assistant;
     }
 
 
     @Override
-    public String getProtocolPluginName() {
+    public String pluginName() {
         return PLUGIN_NAME;
     }
 
@@ -46,20 +39,26 @@ public class MySQLOldPasswordPlugin implements AuthenticationPlugin {
     }
 
     @Override
-    public List<ByteBuf> nextAuthenticationStep(ByteBuf fromServer) {
-        String password = hostInfo.getPassword();
-        ByteBuf payloadBuf;
-        if (MySQLStrings.isEmpty(password)) {
-            payloadBuf = Unpooled.EMPTY_BUFFER;
-        } else {
-            String seed = Packets.readStringTerm(fromServer, Charset.defaultCharset()).substring(0, 8);
-            String cryptString = newCrypt(password, seed, this.protocolAssistant.getPasswordCharset());
-            byte[] payloadBytes = cryptString.getBytes();
+    public ByteBuf nextAuthenticationStep(final ByteBuf fromServer) {
+        final AuthenticateAssistant assistant = this.assistant;
 
-            payloadBuf = this.protocolAssistant.allocator().buffer(payloadBytes.length);
-            payloadBuf.writeBytes(payloadBytes);
+        final String password;
+        password = assistant.getHostInfo().getPassword();
+        final ByteBuf payload;
+        if (MySQLStrings.hasText(password)) {
+            final String seed, cryptString;
+            seed = Packets.readStringTerm(fromServer, Charset.defaultCharset()).substring(0, 8);
+            cryptString = newCrypt(password, seed, this.assistant.getPasswordCharset());
+            final byte[] payloadBytes;
+            payloadBytes = cryptString.getBytes();
+
+            payload = this.assistant.allocator().buffer(payloadBytes.length);
+            payload.writeBytes(payloadBytes);
+
+        } else {
+            payload = Unpooled.EMPTY_BUFFER;
         }
-        return Collections.singletonList(payloadBuf);
+        return payload;
     }
 
     // Right from Monty's code

@@ -2,12 +2,8 @@ package io.jdbd.mysql.protocol.client;
 
 import io.jdbd.mysql.protocol.AuthenticateAssistant;
 import io.jdbd.mysql.util.MySQLStrings;
-import io.jdbd.vendor.env.HostInfo;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
-
-import java.util.Collections;
-import java.util.List;
 
 public class MySQLNativePasswordPlugin implements AuthenticationPlugin {
 
@@ -19,17 +15,14 @@ public class MySQLNativePasswordPlugin implements AuthenticationPlugin {
     public static final String PLUGIN_NAME = "mysql_native_password";
 
 
-    private final AuthenticateAssistant protocolAssistant;
+    private final AuthenticateAssistant assistant;
 
-    private final HostInfo hostInfo;
-
-    private MySQLNativePasswordPlugin(AuthenticateAssistant protocolAssistant) {
-        this.protocolAssistant = protocolAssistant;
-        this.hostInfo = protocolAssistant.getHostInfo();
+    private MySQLNativePasswordPlugin(AuthenticateAssistant assistant) {
+        this.assistant = assistant;
     }
 
     @Override
-    public String getProtocolPluginName() {
+    public String pluginName() {
         return PLUGIN_NAME;
     }
 
@@ -39,21 +32,23 @@ public class MySQLNativePasswordPlugin implements AuthenticationPlugin {
     }
 
     @Override
-    public List<ByteBuf> nextAuthenticationStep(ByteBuf fromServer) {
-        String password = this.hostInfo.getPassword();
+    public ByteBuf nextAuthenticationStep(final ByteBuf fromServer) {
+        final String password;
+        password = this.assistant.getHostInfo().getPassword();
 
-        ByteBuf payloadBuf;
-        if (MySQLStrings.isEmpty(password)) {
-            payloadBuf = Unpooled.EMPTY_BUFFER;
+        final ByteBuf payload;
+        if (MySQLStrings.hasText(password)) {
+            final byte[] passwordBytes, seed, scrambleBytes;
+            passwordBytes = password.getBytes(this.assistant.getPasswordCharset());
+            seed = Packets.readStringTermBytes(fromServer);
+            scrambleBytes = AuthenticateUtils.scramble411(passwordBytes, seed);
+
+            payload = this.assistant.allocator().buffer(scrambleBytes.length);
+            payload.writeBytes(scrambleBytes);
         } else {
-            byte[] passwordBytes = password.getBytes(this.protocolAssistant.getPasswordCharset());
-            byte[] seed = Packets.readStringTermBytes(fromServer);
-            byte[] scrambleBytes = AuthenticateUtils.scramble411(passwordBytes, seed);
-
-            payloadBuf = this.protocolAssistant.allocator().buffer(scrambleBytes.length);
-            payloadBuf.writeBytes(scrambleBytes);
+            payload = Unpooled.EMPTY_BUFFER;
         }
-        return Collections.singletonList(payloadBuf);
+        return payload;
     }
 
 

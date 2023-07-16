@@ -4,7 +4,7 @@ import io.jdbd.mysql.MySQLJdbdException;
 import io.jdbd.mysql.SQLMode;
 import io.jdbd.mysql.Server;
 import io.jdbd.mysql.env.Environment;
-import io.jdbd.mysql.env.MySQLHostEnv;
+import io.jdbd.mysql.env.MySQLHost;
 import io.jdbd.mysql.env.MySQLKey;
 import io.jdbd.mysql.protocol.Constants;
 import io.jdbd.mysql.protocol.MySQLProtocol;
@@ -39,14 +39,14 @@ import java.util.*;
 
 public final class ClientProtocolFactory extends FixedEnv implements MySQLProtocolFactory {
 
-    final MySQLHostEnv hostEnv;
+    final MySQLHost hostEnv;
 
     final int factoryTaskQueueSize;
 
 
     final TcpClient tcpClient;
 
-    private ClientProtocolFactory(final MySQLHostEnv hostEnv) {
+    private ClientProtocolFactory(final MySQLHost hostEnv) {
         super(hostEnv);
         this.hostEnv = hostEnv;
 

@@ -1,35 +1,28 @@
 package io.jdbd.mysql.protocol.client;
 
 import io.jdbd.mysql.protocol.AuthenticateAssistant;
-import io.jdbd.vendor.env.HostInfo;
 import io.netty.buffer.ByteBuf;
 
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
-import java.util.Collections;
-import java.util.List;
 
 public class MySQLClearPasswordPlugin implements AuthenticationPlugin {
 
-    public static MySQLClearPasswordPlugin getInstance(AuthenticateAssistant protocolAssistant) {
-        return new MySQLClearPasswordPlugin(protocolAssistant);
+    public static MySQLClearPasswordPlugin getInstance(AuthenticateAssistant assistant) {
+        return new MySQLClearPasswordPlugin(assistant);
     }
 
     public static final String PLUGIN_NAME = "mysql_clear_password";
 
-    public static final String PLUGIN_CLASS = "com.mysql.cj.protocol.a.authentication.MysqlClearPasswordPlugin";
 
-    private final AuthenticateAssistant protocolAssistant;
+    private final AuthenticateAssistant assistant;
 
-    private final HostInfo hostInfo;
-
-    private MySQLClearPasswordPlugin(AuthenticateAssistant protocolAssistant) {
-        this.protocolAssistant = protocolAssistant;
-        this.hostInfo = protocolAssistant.getHostInfo();
+    private MySQLClearPasswordPlugin(AuthenticateAssistant assistant) {
+        this.assistant = assistant;
     }
 
     @Override
-    public String getProtocolPluginName() {
+    public String pluginName() {
         return PLUGIN_NAME;
     }
 
@@ -39,21 +32,29 @@ public class MySQLClearPasswordPlugin implements AuthenticationPlugin {
     }
 
     @Override
-    public List<ByteBuf> nextAuthenticationStep(ByteBuf fromServer) {
+    public ByteBuf nextAuthenticationStep(final ByteBuf fromServer) {
 
-        AuthenticateAssistant protocolAssistant = this.protocolAssistant;
-        Charset passwordCharset = protocolAssistant.getServerVersion().meetsMinimum(5, 7, 6)
-                ? protocolAssistant.getPasswordCharset() : StandardCharsets.UTF_8;
+        final AuthenticateAssistant assistant = this.assistant;
 
-        String password = this.hostInfo.getPassword();
-        byte[] passwordBytes = password == null
-                ? "".getBytes(passwordCharset)
-                : password.getBytes(passwordCharset);
+        final Charset passwordCharset;
+        if (assistant.getServerVersion().meetsMinimum(5, 7, 6)) {
+            passwordCharset = assistant.getPasswordCharset();
+        } else {
+            passwordCharset = StandardCharsets.UTF_8;
+        }
 
-        ByteBuf payloadBuf = protocolAssistant.allocator().buffer(passwordBytes.length + 1);
-        Packets.writeStringTerm(payloadBuf, passwordBytes);
-
-        return Collections.singletonList(payloadBuf);
+        final String password;
+        password = assistant.getHostInfo().getPassword();
+        byte[] passwordBytes;
+        if (password == null) {
+            passwordBytes = "".getBytes(passwordCharset);
+        } else {
+            passwordBytes = password.getBytes(passwordCharset);
+        }
+        final ByteBuf payload;
+        payload = assistant.allocator().buffer(passwordBytes.length + 1);
+        Packets.writeStringTerm(payload, passwordBytes);
+        return payload;
     }
 
 

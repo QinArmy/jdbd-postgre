@@ -121,7 +121,7 @@ abstract class FixedEnv {
 
 
     /**
-     * @return a unmodifiable map ,key : {@link AuthenticationPlugin#getProtocolPluginName()}.
+     * @return a unmodifiable map ,key : {@link AuthenticationPlugin#pluginName()}.
      * @throws JdbdException throw when below key error:<ul>
      *                       <li>{@link MySQLKey#DEFAULT_AUTHENTICATION_PLUGIN}</li>
      *                       <li>{@link MySQLKey#AUTHENTICATION_PLUGINS}</li>

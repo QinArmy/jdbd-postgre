@@ -1,9 +1,10 @@
 package io.jdbd.mysql.protocol.client;
 
+import io.jdbd.JdbdException;
 import io.jdbd.lang.Nullable;
-import io.jdbd.mysql.MySQLJdbdException;
 import io.jdbd.mysql.protocol.AuthenticateAssistant;
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -38,11 +39,11 @@ public class CachingSha2PasswordPlugin extends Sha256PasswordPlugin {
     }
 
     @Override
-    public String getProtocolPluginName() {
+    public String pluginName() {
         return PLUGIN_NAME;
     }
 
-    @Nullable
+
     @Override
     protected ByteBuf internalNextAuthenticationStep(String password, ByteBuf fromServer) {
         final AuthStage stage = this.stage;
@@ -53,9 +54,9 @@ public class CachingSha2PasswordPlugin extends Sha256PasswordPlugin {
                 String seedString = Packets.readStringTerm(fromServer, Charset.defaultCharset());
                 this.seed = seedString;
 
-                byte[] passwordBytes = password.getBytes(this.protocolAssistant.getPasswordCharset());
+                byte[] passwordBytes = password.getBytes(this.assistant.getPasswordCharset());
                 byte[] sha2Bytes = AuthenticateUtils.scrambleCachingSha2(passwordBytes, seedString.getBytes());
-                ByteBuf payloadBuffer = this.protocolAssistant.allocator().buffer(sha2Bytes.length);
+                ByteBuf payloadBuffer = this.assistant.allocator().buffer(sha2Bytes.length);
                 payloadBuffer.writeBytes(sha2Bytes);
 
                 this.stage = AuthStage.FAST_AUTH_READ_RESULT;
@@ -66,17 +67,17 @@ public class CachingSha2PasswordPlugin extends Sha256PasswordPlugin {
                 switch (flag) {
                     case 3:
                         this.stage = AuthStage.FAST_AUTH_COMPLETE;
-                        return null;
+                        return Unpooled.EMPTY_BUFFER;
                     case 4:
                         this.stage = AuthStage.FULL_AUTH;
                         LOG.debug("Server demand FULL_AUTH");
                         break;
                     default:
-                        throw new MySQLJdbdException("Unknown server response[%s] after fast auth.", flag);
+                        throw new JdbdException(String.format("Unknown server response[%s] after fast auth.", flag));
                 }
             }
         } catch (DigestException e) {
-            throw new MySQLJdbdException(e, "password encrypt failure.");
+            throw new JdbdException("password encrypt failure.", e);
         }
 
         return doNextAuthenticationStep(password, fromServer);
@@ -89,7 +90,7 @@ public class CachingSha2PasswordPlugin extends Sha256PasswordPlugin {
 
     @Override
     protected byte[] encryptPassword(String password) {
-        return this.protocolAssistant.getServerVersion().meetsMinimum(8, 0, 5)
+        return this.assistant.getServerVersion().meetsMinimum(8, 0, 5)
                 ? super.encryptPassword(password)
                 : super.encryptPassword(password, "RSA/ECB/PKCS1Padding");
     }

@@ -17,7 +17,7 @@ public interface SessionAdjutant extends ISessionAdjutant {
      * <p>
      * return a enabled plugin name map.
      *     <ul>
-     *         <li>key : {@link AuthenticationPlugin#getProtocolPluginName()}</li>
+     *         <li>key : {@link AuthenticationPlugin#pluginName()}</li>
      *         <li>value : {@link AuthenticationPlugin} class </li>
      *     </ul>
      * </p>

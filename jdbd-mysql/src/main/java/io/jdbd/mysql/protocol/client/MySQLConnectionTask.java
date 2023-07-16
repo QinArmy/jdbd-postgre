@@ -1,20 +1,17 @@
 package io.jdbd.mysql.protocol.client;
 
 import io.jdbd.JdbdException;
-import io.jdbd.mysql.MySQLJdbdException;
 import io.jdbd.mysql.env.Environment;
-import io.jdbd.mysql.env.MySQLHostEnv;
+import io.jdbd.mysql.env.MySQLHost;
 import io.jdbd.mysql.env.MySQLKey;
 import io.jdbd.mysql.protocol.AuthenticateAssistant;
 import io.jdbd.mysql.protocol.Constants;
 import io.jdbd.mysql.protocol.MySQLProtocol;
 import io.jdbd.mysql.protocol.MySQLServerVersion;
-import io.jdbd.mysql.protocol.conf.MyKey;
 import io.jdbd.mysql.util.MySQLCollections;
 import io.jdbd.mysql.util.MySQLExceptions;
 import io.jdbd.mysql.util.MySQLStrings;
 import io.jdbd.session.SessionCloseException;
-import io.jdbd.vendor.env.HostInfo;
 import io.jdbd.vendor.task.CommunicationTask;
 import io.jdbd.vendor.task.ConnectionTask;
 import io.jdbd.vendor.task.SslWrapper;
@@ -27,15 +24,12 @@ import io.netty.handler.ssl.SslHandler;
 import org.reactivestreams.Publisher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.core.publisher.MonoSink;
 import reactor.util.annotation.Nullable;
 
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.function.Consumer;
@@ -73,7 +67,7 @@ final class MySQLConnectionTask extends CommunicationTask implements Authenticat
 
     private final MonoSink<AuthenticateResult> sink;
 
-    private final MySQLHostEnv host;
+    private final MySQLHost host;
 
     private final Environment env;
 
@@ -134,8 +128,8 @@ final class MySQLConnectionTask extends CommunicationTask implements Authenticat
     }
 
     @Override
-    public HostInfo getHostInfo() {
-        throw new UnsupportedOperationException();
+    public MySQLHost getHostInfo() {
+        return this.host;
     }
 
     @Override
@@ -304,7 +298,8 @@ final class MySQLConnectionTask extends CommunicationTask implements Authenticat
         }
         assert this.phase == Phase.AUTHENTICATE;
 
-        final int payloadLength = Packets.readInt3(cumulateBuffer);
+        final int payloadLength;
+        payloadLength = Packets.readInt3(cumulateBuffer);
         updateSequenceId(Packets.readInt1AsInt(cumulateBuffer));
         final ByteBuf payload = cumulateBuffer.readSlice(payloadLength);
         boolean taskEnd;
@@ -367,7 +362,7 @@ final class MySQLConnectionTask extends CommunicationTask implements Authenticat
             final ByteBuf pluginOut;
             pluginOut = createAuthenticationDataFor41(plugin, pair.second);
             final ByteBuf packet;
-            packet = createHandshakeResponse41(plugin.getProtocolPluginName(), pluginOut);
+            packet = createHandshakeResponse41(plugin.pluginName(), pluginOut);
             LOG.debug("readableBytes:{},length:{}", packet.readableBytes(), Packets.getInt3(packet, 0));
             mono = Mono.just(packet);
         } catch (Throwable e) {
@@ -409,7 +404,7 @@ final class MySQLConnectionTask extends CommunicationTask implements Authenticat
         // 1. client_flag
         Packets.writeInt4(packet, this.capability);
         // 2. max_packet_size
-        Packets.writeInt4(packet, this.adjutant.host().maxAllowedPayload());
+        Packets.writeInt4(packet, this.fixedEnv.maxAllowedPacket);
         // 3.handshake character_set,
         packet.writeByte(this.handshakeCollationIndex);
         // 4. filler
@@ -430,15 +425,15 @@ final class MySQLConnectionTask extends CommunicationTask implements Authenticat
             payload.skipBytes(1); // skip type header
             String pluginName = Packets.readStringTerm(payload, StandardCharsets.US_ASCII);
             LOG.debug("Auth switch request method[{}]", pluginName);
-            if (this.plugin.getProtocolPluginName().equals(pluginName)) {
+            if (this.plugin.pluginName().equals(pluginName)) {
                 authPlugin = this.plugin;
             } else {
                 authPlugin = this.pluginMap.get(pluginName);
                 if (authPlugin == null) {
-                    String message = String.format("BadAuthenticationPlugin[%s] from server,please check %s %s %s three properties."
-                            , pluginName, MyKey.disabledAuthenticationPlugins
-                            , MyKey.authenticationPlugins, MyKey.defaultAuthenticationPlugin);
-                    handleAuthenticateFailure(new MySQLJdbdException(message));
+                    String message = String.format("BadAuthenticationPlugin[%s] from server,please check %s %s %s three properties.",
+                            pluginName, MySQLKey.DISABLED_AUTHENTICATION_PLUGINS,
+                            MySQLKey.AUTHENTICATION_PLUGINS, MySQLKey.DEFAULT_AUTHENTICATION_PLUGIN);
+                    handleAuthenticateFailure(new JdbdException(message));
                     return true;
                 }
             }
@@ -447,14 +442,10 @@ final class MySQLConnectionTask extends CommunicationTask implements Authenticat
             authPlugin = this.plugin;
             payload.skipBytes(1); // skip type header
         }
-        List<ByteBuf> outputList = authPlugin.nextAuthenticationStep(payload);
-        if (!outputList.isEmpty()) {
-            // plugin auth
-            List<ByteBuf> packetList = new ArrayList<>(outputList.size());
-            for (ByteBuf authPayload : outputList) {
-                packetList.add(writeAuthPayload(authPayload));
-            }
-            this.packetPublisher = Flux.fromIterable(packetList);
+        final ByteBuf toServer;
+        toServer = authPlugin.nextAuthenticationStep(payload);
+        if (toServer.isReadable()) {
+            this.packetPublisher = Mono.just(writeAuthPayload(toServer));
         }
         return false;
     }
@@ -482,6 +473,7 @@ final class MySQLConnectionTask extends CommunicationTask implements Authenticat
     }
 
     /**
+     * @see #receiveHandshakeAndSendResponse(ByteBuf)
      * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_connection_phase_packets_protocol_handshake_response.html#sect_protocol_connection_phase_packets_protocol_handshake_response41">Protocol::HandshakeResponse41</a>
      */
     private ByteBuf createHandshakeResponse41(final String authPluginName, final ByteBuf pluginOut) {
@@ -525,7 +517,7 @@ final class MySQLConnectionTask extends CommunicationTask implements Authenticat
         }
         // 9. client connection attributes
         if ((clientFlag & Capabilities.CLIENT_CONNECT_ATTRS) != 0) {
-            Map<String, String> propertySource = createConnectionAttributes();
+            final Map<String, String> propertySource = createConnectionAttributes();
             // length of all key-values,affected rows
             Packets.writeIntLenEnc(packet, propertySource.size());
             for (Map.Entry<String, String> e : propertySource.entrySet()) {
@@ -542,35 +534,32 @@ final class MySQLConnectionTask extends CommunicationTask implements Authenticat
         return packet;
     }
 
-    private ByteBuf createAuthenticationDataFor41(AuthenticationPlugin plugin, boolean skipPassword) {
-        ByteBuf payloadBuf;
+    private ByteBuf createAuthenticationDataFor41(final AuthenticationPlugin plugin, final boolean skipPassword) {
         if (skipPassword) {
-            // skip password
-            payloadBuf = Unpooled.EMPTY_BUFFER;
-        } else {
-            final Handshake10 handshake10 = this.handshake;
-            final String seed = handshake10.pluginSeed;
-            byte[] seedBytes = seed.getBytes();
-            final ByteBuf fromServer;
-            fromServer = this.adjutant.allocator().buffer(seedBytes.length);
-            fromServer.writeBytes(seedBytes);
-            // invoke AuthenticationPlugin
-            final List<ByteBuf> toServer;
-            toServer = plugin.nextAuthenticationStep(fromServer);
-            // release temp fromServer
-            fromServer.release();
-            if (toServer.isEmpty()) {
-                throw new IllegalStateException(String.format(
-                        "AuthenticationPlugin[%s] nextAuthenticationStep return error"
-                        , plugin.getClass().getName()));
-            }
-            payloadBuf = toServer.get(0);
+            return Unpooled.EMPTY_BUFFER;
         }
-        return payloadBuf;
+        final Handshake10 handshake10 = this.handshake;
+        final String seed = handshake10.pluginSeed;
+        final byte[] seedBytes = seed.getBytes();
+        final ByteBuf fromServer;
+        fromServer = this.adjutant.allocator().buffer(seedBytes.length);
+        fromServer.writeBytes(seedBytes);
+        // invoke AuthenticationPlugin
+        final ByteBuf toServer;
+        toServer = plugin.nextAuthenticationStep(fromServer);
+        // release temp fromServer
+        if (fromServer.refCnt() > 0) {
+            fromServer.release();
+        }
+        if (!toServer.isReadable()) {
+            String m = String.format("AuthenticationPlugin[%s] nextAuthenticationStep return error",
+                    plugin.getClass().getName());
+            throw new IllegalStateException(m);
+        }
+        return toServer;
     }
 
     /**
-     * @see #loadAuthenticationPluginMap(Map)
      * @see #authenticateDecode(ByteBuf, Consumer)
      * @see #onChannelClose()
      * @see #processNextAuthenticationNegotiation(ByteBuf)
@@ -591,11 +580,12 @@ final class MySQLConnectionTask extends CommunicationTask implements Authenticat
         final Environment env = this.env;
         String pluginName = this.handshake.authPluginName;
 
-        AuthenticationPlugin plugin = pluginMap.get(pluginName);
+        AuthenticationPlugin plugin;
+        plugin = pluginMap.get(pluginName);
         boolean skipPassword = false;
         final boolean useSsl = isUseSsl();
         if (plugin == null) {
-            plugin = pluginMap.get(PluginUtils.getDefaultMechanism(env));
+            plugin = pluginMap.get(env.getOrDefault(MySQLKey.DEFAULT_AUTHENTICATION_PLUGIN));
         } else if (Sha256PasswordPlugin.PLUGIN_NAME.equals(pluginName)
                 && !useSsl
                 && env.get(MySQLKey.SERVER_RSA_PUBLIC_KEY_FILE) == null

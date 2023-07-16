@@ -2,7 +2,7 @@ package io.jdbd.mysql.protocol.client;
 
 import io.jdbd.JdbdException;
 import io.jdbd.mysql.MySQLJdbdException;
-import io.jdbd.mysql.env.MySQLHostEnv;
+import io.jdbd.mysql.env.MySQLHost;
 import io.jdbd.mysql.protocol.MySQLServerVersion;
 import io.jdbd.mysql.protocol.X509TrustManagerWrapper;
 import io.jdbd.mysql.protocol.conf.MyKey;
@@ -39,19 +39,17 @@ final class ReactorSslProviderBuilder {
         return new ReactorSslProviderBuilder();
     }
 
-    private MySQLHostEnv host;
+    private MySQLHost host;
 
     private MySQLServerVersion serverVersion;
 
     private ByteBufAllocator allocator;
 
-    private Properties properties;
-
 
     private ReactorSslProviderBuilder() {
     }
 
-    public ReactorSslProviderBuilder hostInfo(MySQLHostEnv host) {
+    public ReactorSslProviderBuilder hostInfo(MySQLHost host) {
         this.host = host;
         return this;
     }
@@ -67,8 +65,7 @@ final class ReactorSslProviderBuilder {
     }
 
 
-    public reactor.netty.tcp.SslProvider build() throws SQLException {
-
+    public reactor.netty.tcp.SslProvider build() throws JdbdException {
         return reactor.netty.tcp.SslProvider.builder()
                 .sslContext(buildSslContext())
                 .build();

@@ -1,12 +1,12 @@
 package io.jdbd.mysql.protocol.client;
 
-import io.jdbd.mysql.MySQLJdbdException;
+import io.jdbd.JdbdException;
+import io.jdbd.mysql.env.Environment;
+import io.jdbd.mysql.env.MySQLHost;
+import io.jdbd.mysql.env.MySQLKey;
 import io.jdbd.mysql.protocol.AuthenticateAssistant;
 import io.jdbd.mysql.protocol.ClientConstants;
-import io.jdbd.mysql.protocol.conf.MyKey;
 import io.jdbd.mysql.util.MySQLStrings;
-import io.jdbd.vendor.env.HostInfo;
-import io.jdbd.vendor.env.Properties;
 import io.jdbd.vendor.util.JdbdStreams;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
@@ -21,12 +21,10 @@ import javax.crypto.Cipher;
 import javax.crypto.IllegalBlockSizeException;
 import javax.crypto.NoSuchPaddingException;
 import java.nio.charset.Charset;
-import java.nio.file.Paths;
+import java.nio.file.Path;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.security.PublicKey;
-import java.util.Collections;
-import java.util.List;
 import java.util.Objects;
 
 /**
@@ -47,11 +45,11 @@ public class Sha256PasswordPlugin implements AuthenticationPlugin {
 
     private static final Logger LOG = LoggerFactory.getLogger(Sha256PasswordPlugin.class);
 
-    protected final AuthenticateAssistant protocolAssistant;
+    protected final AuthenticateAssistant assistant;
 
-    protected final HostInfo hostInfo;
+    protected final MySQLHost host;
 
-    protected final Properties env;
+    protected final Environment env;
 
     private final String originalPublicKeyString;
 
@@ -62,18 +60,17 @@ public class Sha256PasswordPlugin implements AuthenticationPlugin {
     protected String seed;
 
 
-    protected Sha256PasswordPlugin(AuthenticateAssistant protocolAssistant
-            , @Nullable String publicKeyString) {
-        this.protocolAssistant = protocolAssistant;
-        this.hostInfo = protocolAssistant.getHostInfo();
+    protected Sha256PasswordPlugin(AuthenticateAssistant assistant, @Nullable String publicKeyString) {
+        this.assistant = assistant;
+        this.host = assistant.getHostInfo();
+        this.env = this.host.environment();
         this.originalPublicKeyString = publicKeyString;
 
         this.publicKeyString = publicKeyString;
-        this.env = protocolAssistant.getHostInfo().getProperties();
     }
 
     @Override
-    public String getProtocolPluginName() {
+    public String pluginName() {
         return PLUGIN_NAME;
     }
 
@@ -90,23 +87,21 @@ public class Sha256PasswordPlugin implements AuthenticationPlugin {
     }
 
     @Override
-    public List<ByteBuf> nextAuthenticationStep(ByteBuf fromServer) {
+    public ByteBuf nextAuthenticationStep(final ByteBuf fromServer) {
 
-        final AuthenticateAssistant protocolAssistant = this.protocolAssistant;
-        final String password = protocolAssistant.getHostInfo().getPassword();
+        final AuthenticateAssistant assistant = this.assistant;
+        final String password = assistant.getHostInfo().getPassword();
 
-        List<ByteBuf> toServer;
-        if (MySQLStrings.isEmpty(password)
-                || !fromServer.isReadable()) {
-            toServer = Collections.singletonList(Unpooled.EMPTY_BUFFER);
+        final ByteBuf toServer;
+        if (MySQLStrings.hasText(password) && fromServer.isReadable()) {
+            toServer = internalNextAuthenticationStep(password, fromServer);
         } else {
-            ByteBuf payloadBuf = internalNextAuthenticationStep(password, fromServer);
-            toServer = payloadBuf == null ? Collections.emptyList() : Collections.singletonList(payloadBuf);
+            toServer = Unpooled.EMPTY_BUFFER;
         }
         return toServer;
     }
 
-    @Nullable
+
     protected ByteBuf internalNextAuthenticationStep(String password, ByteBuf fromServer) {
         return doNextAuthenticationStep(password, fromServer);
     }
@@ -114,7 +109,7 @@ public class Sha256PasswordPlugin implements AuthenticationPlugin {
 
     protected final ByteBuf doNextAuthenticationStep(String password, ByteBuf fromServer) {
         ByteBuf payload;
-        if (this.protocolAssistant.isUseSsl()) {
+        if (this.assistant.isUseSsl()) {
             // allow plain text over SSL
             payload = cratePlainTextPasswordPacket(password);
         } else if (this.publicKeyString != null) {
@@ -122,8 +117,8 @@ public class Sha256PasswordPlugin implements AuthenticationPlugin {
             LOG.trace("authenticate with server public key.");
             this.seed = Packets.readStringTerm(fromServer, Charset.defaultCharset());
             payload = createEncryptPasswordPacketWithPublicKey(password);
-        } else if (!this.env.getOrDefault(MyKey.allowPublicKeyRetrieval, Boolean.class)) {
-            throw new MySQLJdbdException("Don't allow public key retrieval ,can't connect.");
+        } else if (!this.env.getOrDefault(MySQLKey.ALLOW_PUBLIC_KEY_RETRIEVAL)) {
+            throw new JdbdException("Don't allow public key retrieval ,can't connect.");
         } else if (this.publicKeyRequested
                 && fromServer.readableBytes() > ClientConstants.SEED_LENGTH) { // We must request the public key from the server to encrypt the password
             // Servers affected by Bug#70865 could send Auth Switch instead of key after Public Key Retrieval,
@@ -153,7 +148,7 @@ public class Sha256PasswordPlugin implements AuthenticationPlugin {
 
     protected byte[] encryptPassword(String password, String transformation) {
         byte[] passwordBytes;
-        passwordBytes = MySQLStrings.getBytesNullTerminated(password, this.protocolAssistant.getPasswordCharset());
+        passwordBytes = MySQLStrings.getBytesNullTerminated(password, this.assistant.getPasswordCharset());
         byte[] mysqlScrambleBuff = new byte[passwordBytes.length];
         byte[] seedBytes = Objects.requireNonNull(this.seed, "this.seed").getBytes();
 
@@ -172,8 +167,8 @@ public class Sha256PasswordPlugin implements AuthenticationPlugin {
             cipher.init(Cipher.ENCRYPT_MODE, publicKey);
             return cipher.doFinal(mysqlScrambleBuff);
         } catch (NoSuchAlgorithmException | NoSuchPaddingException
-                | InvalidKeyException | IllegalBlockSizeException | BadPaddingException e) {
-            throw new MySQLJdbdException(e, "password encrypt error.");
+                 | InvalidKeyException | IllegalBlockSizeException | BadPaddingException e) {
+            throw new JdbdException("password encrypt error.", e);
         }
     }
 
@@ -181,8 +176,8 @@ public class Sha256PasswordPlugin implements AuthenticationPlugin {
      * @return read-only buffer
      */
     protected final ByteBuf cratePlainTextPasswordPacket(String password) {
-        byte[] passwordBytes = password.getBytes(this.protocolAssistant.getHandshakeCharset());
-        ByteBuf packetBuffer = this.protocolAssistant.allocator().buffer(passwordBytes.length + 1);
+        byte[] passwordBytes = password.getBytes(this.assistant.getHandshakeCharset());
+        ByteBuf packetBuffer = this.assistant.allocator().buffer(passwordBytes.length + 1);
         Packets.writeStringTerm(packetBuffer, passwordBytes);
         return packetBuffer.asReadOnly();
     }
@@ -193,7 +188,7 @@ public class Sha256PasswordPlugin implements AuthenticationPlugin {
     protected final ByteBuf createEncryptPasswordPacketWithPublicKey(String password) {
         byte[] passwordBytes = encryptPassword(password);
 
-        ByteBuf packetBuffer = protocolAssistant.allocator().buffer(passwordBytes.length);
+        ByteBuf packetBuffer = assistant.allocator().buffer(passwordBytes.length);
         packetBuffer.writeBytes(passwordBytes);
         return packetBuffer.asReadOnly();
     }
@@ -205,7 +200,7 @@ public class Sha256PasswordPlugin implements AuthenticationPlugin {
      *             </ul>
      */
     protected final ByteBuf createPublicKeyRetrievalPacket(int flag) {
-        ByteBuf byteBuf = protocolAssistant.allocator().buffer(1);
+        ByteBuf byteBuf = assistant.allocator().buffer(1);
         byteBuf.writeByte(flag);
         return byteBuf;
     }
@@ -214,20 +209,18 @@ public class Sha256PasswordPlugin implements AuthenticationPlugin {
     /*################################## blow static method ##################################*/
 
     @Nullable
-    protected static String tryLoadPublicKeyString(HostInfo hostInfo) {
-
+    protected static String tryLoadPublicKeyString(MySQLHost host) {
+        final Path path;
+        path = host.environment().get(MySQLKey.SERVER_RSA_PUBLIC_KEY_FILE);
+        if (path == null) {
+            return null;
+        }
         try {
-            String serverRSAPublicKeyPath = hostInfo.getProperties().get(MyKey.serverRSAPublicKeyFile);
-            String publicKeyString = null;
-            if (serverRSAPublicKeyPath != null) {
-                publicKeyString = JdbdStreams.readAsString(Paths.get(serverRSAPublicKeyPath));
-            }
-            return publicKeyString;
+            return JdbdStreams.readAsString(path);
         } catch (Throwable e) {
-            throw new MySQLJdbdException(e, "read serverRSAPublicKeyFile error.");
+            throw new JdbdException("read serverRSAPublicKeyFile error.", e);
         }
     }
-
 
 
 }
