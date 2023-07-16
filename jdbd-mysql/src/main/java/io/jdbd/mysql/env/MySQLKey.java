@@ -324,6 +324,16 @@ public final class MySQLKey<T> {
      */
     public static final MySQLKey<Boolean> USE_UNBUFFERED_INPUT = new MySQLKey<>("useUnbufferedInput", Boolean.class, Boolean.TRUE);
 
+    /**
+     * @since jdbd-mysql 1.0
+     */
+    public static final MySQLKey<String> ENABLED_SSL_CIPHER_SUITES = new MySQLKey<>("enabledSSLCipherSuites", String.class, null);
+
+    /**
+     * @since jdbd-mysql 1.0
+     */
+    public static final MySQLKey<String> ENABLED_TLS_PROTOCOLS = new MySQLKey<>("enabledTLSProtocols", String.class, null);
+
 
     /*-------------------below Security group-------------------*/
 

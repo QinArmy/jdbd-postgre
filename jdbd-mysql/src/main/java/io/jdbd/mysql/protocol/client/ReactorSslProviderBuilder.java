@@ -1,30 +1,28 @@
 package io.jdbd.mysql.protocol.client;
 
 import io.jdbd.JdbdException;
-import io.jdbd.mysql.MySQLJdbdException;
+import io.jdbd.mysql.env.Environment;
 import io.jdbd.mysql.env.MySQLHost;
+import io.jdbd.mysql.env.MySQLKey;
+import io.jdbd.mysql.protocol.AuthenticateAssistant;
 import io.jdbd.mysql.protocol.MySQLServerVersion;
 import io.jdbd.mysql.protocol.X509TrustManagerWrapper;
-import io.jdbd.mysql.protocol.conf.MyKey;
+import io.jdbd.mysql.util.MySQLCollections;
 import io.jdbd.mysql.util.MySQLStates;
 import io.jdbd.mysql.util.MySQLStrings;
-import io.jdbd.vendor.env.HostInfo;
-import io.jdbd.vendor.env.Properties;
+import io.jdbd.vendor.util.Pair;
 import io.jdbd.vendor.util.SQLStates;
 import io.netty.buffer.ByteBufAllocator;
 import io.netty.handler.ssl.*;
-import io.qinarmy.util.Pair;
 import reactor.util.annotation.Nullable;
 
 import javax.net.ssl.*;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.MalformedURLException;
-import java.net.URL;
+import java.net.URI;
 import java.security.*;
 import java.security.cert.CertificateException;
-import java.sql.SQLException;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -35,54 +33,43 @@ import java.util.List;
 final class ReactorSslProviderBuilder {
 
 
-    static ReactorSslProviderBuilder builder() {
-        return new ReactorSslProviderBuilder();
+    static ReactorSslProviderBuilder builder(AuthenticateAssistant assistant) {
+        return new ReactorSslProviderBuilder(assistant);
     }
 
-    private MySQLHost host;
+    private final MySQLHost host;
 
-    private MySQLServerVersion serverVersion;
+    private final MySQLServerVersion serverVersion;
 
-    private ByteBufAllocator allocator;
+    private final ByteBufAllocator allocator;
 
+    private final Environment env;
 
-    private ReactorSslProviderBuilder() {
-    }
-
-    public ReactorSslProviderBuilder hostInfo(MySQLHost host) {
-        this.host = host;
-        return this;
-    }
-
-    public ReactorSslProviderBuilder serverVersion(MySQLServerVersion serverVersion) {
-        this.serverVersion = serverVersion;
-        return this;
-    }
-
-    public ReactorSslProviderBuilder allocator(ByteBufAllocator allocator) {
-        this.allocator = allocator;
-        return this;
+    private ReactorSslProviderBuilder(AuthenticateAssistant assistant) {
+        this.host = assistant.getHostInfo();
+        this.serverVersion = assistant.getServerVersion();
+        this.allocator = assistant.allocator();
+        this.env = this.host.environment();
     }
 
 
-    public reactor.netty.tcp.SslProvider build() throws JdbdException {
-        return reactor.netty.tcp.SslProvider.builder()
-                .sslContext(buildSslContext())
-                .build();
-    }
+//    public reactor.netty.tcp.SslProvider build() throws JdbdException {
+//
+//        return reactor.netty.tcp.SslProvider.builder()
+//                .sslContext(buildSslContext())
+//                .build();
+//    }
 
     public SslHandler buildSslHandler() throws JdbdException {
-        HostInfo hostInfo = this.hostInfo;
-        return buildSslContext().newHandler(this.allocator, hostInfo.getHost(), hostInfo.getPort());
+        final MySQLHost host = this.host;
+        return buildSslContext().newHandler(this.allocator, host.getHost(), host.getPort());
     }
 
     public SslContext buildSslContext() throws JdbdException {
-        if (this.hostInfo == null || this.serverVersion == null || this.allocator == null) {
-            throw new IllegalStateException("hostInfo or serverVersion or allocator is null");
-        }
-        this.properties = this.hostInfo.getProperties();
 
-        SslContextBuilder builder = SslContextBuilder.forClient();
+
+        final SslContextBuilder builder;
+        builder = SslContextBuilder.forClient();
         // 1. config TrustManager
         configTrustManager(builder);
         //2. config KeyManager
@@ -104,14 +91,14 @@ final class ReactorSslProviderBuilder {
             return builder.build();
         } catch (SSLException e) {
             String message = String.format("Cannot create %s due to [%s]", SslHandler.class.getName(), e.getMessage());
-            throw new SQLException(message, MySQLStates.SQLCLIENT_UNABLE_TO_ESTABLISH_SQLCONNECTION, e);
+            throw new JdbdException(message, MySQLStates.SQLCLIENT_UNABLE_TO_ESTABLISH_SQLCONNECTION, 0, e);
         }
     }
 
 
     private List<String> obtainAllowedCipherSuitList() {
-        String enabledSSLCipherSuites = this.properties.get(MyKey.enabledSSLCipherSuites);
-        List<String> candidateList = MySQLStrings.spitAsList(enabledSSLCipherSuites, ",");
+        List<String> candidateList;
+        candidateList = MySQLStrings.spitAsList(this.env.get(MySQLKey.ENABLED_SSL_CIPHER_SUITES), ",", false);
 
         if (candidateList.isEmpty()) {
             candidateList = SslUtils.CLIENT_SUPPORT_TLS_CIPHER_LIST;
@@ -119,7 +106,7 @@ final class ReactorSslProviderBuilder {
             candidateList.retainAll(SslUtils.CLIENT_SUPPORT_TLS_CIPHER_LIST);
         }
 
-        List<String> allowedCipherList = new ArrayList<>(candidateList.size());
+        List<String> allowedCipherList = MySQLCollections.arrayList(candidateList.size());
         candidateFor:
         for (String candidate : candidateList) {
             for (String restricted : SslUtils.MYSQL_RESTRICTED_CIPHER_SUBSTR_LIST) {
@@ -136,8 +123,8 @@ final class ReactorSslProviderBuilder {
      * @return a unmodifiable list
      */
     private List<String> obtainAllowedTlsProtocolList() {
-        String enabledTLSProtocols = this.properties.get(MyKey.enabledTLSProtocols);
-        List<String> candidateList = MySQLStrings.spitAsList(enabledTLSProtocols, ",");
+        List<String> candidateList;
+        candidateList = MySQLStrings.spitAsList(this.env.get(MySQLKey.ENABLED_TLS_PROTOCOLS), ",", false);
 
         if (candidateList.isEmpty()) {
             MySQLServerVersion serverVersion = this.serverVersion;
@@ -150,7 +137,7 @@ final class ReactorSslProviderBuilder {
                 candidateList = Collections.unmodifiableList(Arrays.asList(SslUtils.TLSv1_1, SslUtils.TLSv1));
             }
         } else {
-            List<String> supportProtocolList = new ArrayList<>(SslUtils.CLIENT_SUPPORT_TLS_PROTOCOL_LIST);
+            List<String> supportProtocolList = MySQLCollections.arrayList(SslUtils.CLIENT_SUPPORT_TLS_PROTOCOL_LIST);
             supportProtocolList.retainAll(candidateList);
             candidateList = Collections.unmodifiableList(supportProtocolList);
         }
@@ -158,9 +145,9 @@ final class ReactorSslProviderBuilder {
     }
 
 
-    private void configTrustManager(final io.netty.handler.ssl.SslContextBuilder builder) throws SQLException {
-        Enums.SslMode sslMode;
-        sslMode = this.properties.get(MyKey.sslMode, Enums.SslMode.class);
+    private void configTrustManager(final io.netty.handler.ssl.SslContextBuilder builder) throws JdbdException {
+        final Enums.SslMode sslMode;
+        sslMode = this.env.getOrDefault(MySQLKey.SSL_MODE);
         final boolean verify = sslMode == Enums.SslMode.VERIFY_CA
                 || sslMode == Enums.SslMode.VERIFY_IDENTITY;
         try {
@@ -169,8 +156,8 @@ final class ReactorSslProviderBuilder {
 
             if (storePair != null || verify) {
                 TrustManagerFactory tmfWrapper = new TrustManagerFactoryWrapper(
-                        TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm())
-                        , verify, this.hostInfo.getHost());
+                        TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm()),
+                        verify, this.host.getHost());
 
                 if (storePair == null) {
                     tmfWrapper.init((KeyStore) null); //initializes the TrustManagerFactory with the default truststore.
@@ -179,23 +166,23 @@ final class ReactorSslProviderBuilder {
                 }
                 builder.trustManager(tmfWrapper);
             } else {
-                builder.trustManager(new X509TrustManagerWrapper(this.hostInfo.getHost()));
+                builder.trustManager(new X509TrustManagerWrapper(this.host.getHost()));
 
             }
 
         } catch (NoSuchAlgorithmException e) {
-            String message = String.format("%s algorithm[%s] not found.", TrustManagerFactory.class.getName()
-                    , TrustManagerFactory.getDefaultAlgorithm());
-            throw new SQLException(message, MySQLStates.CONNECTION_EXCEPTION, e);
+            String message = String.format("%s algorithm[%s] not found.", TrustManagerFactory.class.getName(),
+                    TrustManagerFactory.getDefaultAlgorithm());
+            throw new JdbdException(message, MySQLStates.CONNECTION_EXCEPTION, 0, e);
         } catch (KeyStoreException e) {
-            String message = String.format("Cannot init %s due to %s", TrustManagerFactory.class.getName()
-                    , e.getMessage());
-            throw new MySQLJdbdException(message, MySQLStates.CONNECTION_EXCEPTION, e);
+            String message = String.format("Cannot init %s due to %s", TrustManagerFactory.class.getName(),
+                    e.getMessage());
+            throw new JdbdException(message, MySQLStates.CONNECTION_EXCEPTION, 0, e);
         }
     }
 
     @Nullable
-    private KeyManagerFactory tryObtainKeyManagerFactory() throws SQLException {
+    private KeyManagerFactory tryObtainKeyManagerFactory() throws JdbdException {
         try {
             Pair<KeyStore, char[]> storePair = tryObtainKeyStorePasswordPairForSsl(true);
             if (storePair == null) {
@@ -207,10 +194,11 @@ final class ReactorSslProviderBuilder {
         } catch (NoSuchAlgorithmException e) {
             String message = String.format("%s algorithm[%s] not found.", KeyManagerFactory.class.getName()
                     , KeyManagerFactory.getDefaultAlgorithm());
-            throw new SQLException(message, MySQLStates.CONNECTION_EXCEPTION, e);
+            throw new JdbdException(message, MySQLStates.CONNECTION_EXCEPTION, 0, e);
         } catch (KeyStoreException | UnrecoverableKeyException e) {
-            String message = String.format("Cannot init %s due to %s", KeyManagerFactory.class.getName(), e.getMessage());
-            throw new MySQLJdbdException(message, MySQLStates.CONNECTION_EXCEPTION, e);
+            String message = String.format("Cannot init %s due to %s", KeyManagerFactory.class.getName(),
+                    e.getMessage());
+            throw new JdbdException(message, MySQLStates.CONNECTION_EXCEPTION, 0, e);
         }
     }
 
@@ -218,52 +206,52 @@ final class ReactorSslProviderBuilder {
      * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-security.html">Security</a>
      */
     @Nullable
-    private Pair<KeyStore, char[]> tryObtainKeyStorePasswordPairForSsl(final boolean key) throws SQLException {
+    private Pair<KeyStore, char[]> tryObtainKeyStorePasswordPairForSsl(final boolean key) throws JdbdException {
         // 1. below obtain three storeUrl,storeType,storePassword
-        final MyKey storeUrlKey, storeTypeKey, passwordKey;
+        final MySQLKey<String> storeUrlKey, storeTypeKey, passwordKey;
         final String systemStoreUrlKey, systemStoreTypeKey, systemPasswordKey;
         if (key) {
-            storeUrlKey = MyKey.clientCertificateKeyStoreUrl;
-            storeTypeKey = MyKey.clientCertificateKeyStoreType;
-            passwordKey = MyKey.clientCertificateKeyStorePassword;
+            storeUrlKey = MySQLKey.CLIENT_CERTIFICATE_KEY_STORE_URL;
+            storeTypeKey = MySQLKey.CLIENT_CERTIFICATE_KEY_STORE_TYPE;
+            passwordKey = MySQLKey.CLIENT_CERTIFICATE_KEY_STORE_PASSWORD;
 
             systemStoreUrlKey = "javax.net.ssl.keyStore";
             systemStoreTypeKey = "javax.net.ssl.keyStoreType";
             systemPasswordKey = "javax.net.ssl.keyStorePassword";
         } else {
-            storeUrlKey = MyKey.trustCertificateKeyStoreUrl;
-            storeTypeKey = MyKey.trustCertificateKeyStoreType;
-            passwordKey = MyKey.trustCertificateKeyStorePassword;
+            storeUrlKey = MySQLKey.TRUST_CERTIFICATE_KEY_STORE_URL;
+            storeTypeKey = MySQLKey.TRUST_CERTIFICATE_KEY_STORE_TYPE;
+            passwordKey = MySQLKey.TRUST_CERTIFICATE_KEY_STORE_PASSWORD;
 
             systemStoreUrlKey = "javax.net.ssl.trustStore";
             systemStoreTypeKey = "javax.net.ssl.trustStoreType";
             systemPasswordKey = "javax.net.ssl.trustStorePassword";
         }
 
-        final Properties properties = this.properties;
+        final Environment env = this.env;
         String storeUrl, storeType, storePwd;
 
-        storeUrl = properties.get(storeUrlKey);
-        storeType = properties.get(storeTypeKey);
-        storePwd = properties.get(passwordKey);
+        storeUrl = env.get(storeUrlKey);
+        storeType = env.get(storeTypeKey);
+        storePwd = env.get(passwordKey);
 
         if (!MySQLStrings.hasText(storeUrl)) {
-            boolean useSystem = (key && properties.getOrDefault(MyKey.fallbackToSystemKeyStore, Boolean.class))
-                    || (!key && properties.getOrDefault(MyKey.fallbackToSystemTrustStore, Boolean.class));
+            boolean useSystem = (key && env.getOrDefault(MySQLKey.FALLBACK_TO_SYSTEM_KEY_STORE))
+                    || (!key && env.getOrDefault(MySQLKey.FALLBACK_TO_SYSTEM_TRUST_STORE));
             if (useSystem) {
                 storeUrl = System.getProperty(systemStoreUrlKey);
                 storeType = System.getProperty(systemStoreTypeKey);
                 storePwd = System.getProperty(systemPasswordKey);
             }
             if (!MySQLStrings.hasText(storeType)) {
-                storeType = properties.get(storeTypeKey);
+                storeType = env.get(storeTypeKey);
             }
 
         }
 
         if (MySQLStrings.hasText(storeUrl)) {
             try {
-                new URL(storeUrl);
+                URI.create(storeUrl).toURL();
             } catch (MalformedURLException e) {
                 storeUrl = "file:" + storeUrl;
             }
@@ -276,20 +264,19 @@ final class ReactorSslProviderBuilder {
 
         final char[] storePassword = (storePwd == null) ? new char[0] : storePwd.toCharArray();
         // 2. create and init KeyStore with three storeUrl,storeType,storePassword
-        try (InputStream storeInput = new URL(storeUrl).openStream()) {
+        try (InputStream storeInput = URI.create(storeUrl).toURL().openStream()) {
             KeyStore keyStore = KeyStore.getInstance(storeType);
             keyStore.load(storeInput, storePassword);
-            return new Pair<>(keyStore, storePassword);
+            return Pair.create(keyStore, storePassword);
         } catch (MalformedURLException e) {
-            throw new SQLException(String.format("%s[%s] isn't url.", storeUrlKey, storeUrl)
-                    , MySQLStates.CONNECTION_EXCEPTION, e);
+            throw new JdbdException(String.format("%s[%s] isn't url.", storeUrlKey, storeUrl),
+                    MySQLStates.CONNECTION_EXCEPTION, 0, e);
         } catch (KeyStoreException e) {
-            throw new SQLException(String.format("%s[%s] is KeyStore type than is supported by provider."
-                    , storeTypeKey, storeType)
-                    , MySQLStates.CONNECTION_EXCEPTION, e);
+            String m = String.format("%s[%s] is KeyStore type than is supported by provider.", storeTypeKey, storeType);
+            throw new JdbdException(m, MySQLStates.CONNECTION_EXCEPTION, 0, e);
         } catch (NoSuchAlgorithmException | IOException | CertificateException e) {
             String message = String.format("Cannot load KeyStore by url[%s] and type[%s]", storeUrl, storeType);
-            throw new SQLException(message, MySQLStates.CONNECTION_EXCEPTION, e);
+            throw new JdbdException(message, MySQLStates.CONNECTION_EXCEPTION, 0, e);
         }
     }
 
@@ -297,8 +284,8 @@ final class ReactorSslProviderBuilder {
     private static final class TrustManagerFactoryWrapper extends TrustManagerFactory {
 
         private TrustManagerFactoryWrapper(TrustManagerFactory factory, boolean verify, String host) {
-            super(new TrustManagerFactorySpiWrapper(factory, verify, host)
-                    , factory.getProvider(), factory.getAlgorithm());
+            super(new TrustManagerFactorySpiWrapper(factory, verify, host), factory.getProvider(),
+                    factory.getAlgorithm());
         }
 
 
@@ -339,17 +326,16 @@ final class ReactorSslProviderBuilder {
                     TrustManager tm = trustManagerArray[i];
 
                     if (tm instanceof X509TrustManager) {
-                        wrapperArray[i] = new X509TrustManagerWrapper((X509TrustManager) tm, this.verify
-                                , this.host);
+                        wrapperArray[i] = new X509TrustManagerWrapper((X509TrustManager) tm, this.verify, this.host);
                     } else {
                         wrapperArray[i] = tm;
                     }
 
                 }
             } catch (Throwable e) {
-                String message = String.format("Can't create %s due to %s."
-                        , X509TrustManagerWrapper.class.getName(), e.getMessage());
-                throw new JdbdSQLException(new SQLException(message, SQLStates.CONNECTION_EXCEPTION));
+                String message = String.format("Can't create %s due to %s.", X509TrustManagerWrapper.class.getName(),
+                        e.getMessage());
+                throw new JdbdException(message, SQLStates.CONNECTION_EXCEPTION, 0, e);
             }
             return wrapperArray;
         }

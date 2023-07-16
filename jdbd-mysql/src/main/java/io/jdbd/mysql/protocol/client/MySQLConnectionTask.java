@@ -378,10 +378,7 @@ final class MySQLConnectionTask extends CommunicationTask implements Authenticat
     private void sendSslRequest() {
         try {
             final Object sslObject;
-            sslObject = ReactorSslProviderBuilder.builder()
-                    .allocator(this.adjutant.allocator())
-                    .hostInfo(this.host)
-                    .serverVersion(this.handshake.getServerVersion())
+            sslObject = ReactorSslProviderBuilder.builder(this)
                     .buildSslHandler();
 
             // add sslHandler to channel line.
