@@ -1,11 +1,11 @@
 package io.jdbd.mysql.protocol.client;
 
+import io.jdbd.mysql.util.MySQLCollections;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.net.ssl.SSLContext;
 import java.security.NoSuchAlgorithmException;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
@@ -53,7 +53,7 @@ abstract class SslUtils {
      * @return a unmodifiable list
      */
     private static List<String> createMySQLRestrictedCipherSubStrList() {
-        List<String> list = new ArrayList<>(8);
+        List<String> list = MySQLCollections.arrayList(8);
         // Unacceptable TLS Ciphers
         list.add("_ANON_");
         list.add("_NULL_");
@@ -72,7 +72,7 @@ abstract class SslUtils {
      * @return a modifiable list
      */
     private static List<String> createMySQLSupportTlsProtocolList() {
-        List<String> list = new ArrayList<>(4);
+        List<String> list = MySQLCollections.arrayList(4);
         list.add(TLSv1_3);
         list.add(TLSv1_2);
         list.add(TLSv1_1);
@@ -84,7 +84,7 @@ abstract class SslUtils {
      * @return a modifiable list
      */
     static List<String> createMySQLSupportTlsCipherSuitList() {
-        List<String> list = new ArrayList<>();
+        List<String> list = MySQLCollections.arrayList();
 
         // Mandatory TLS Ciphers");
 
@@ -193,7 +193,7 @@ abstract class SslUtils {
      */
     private static List<String> createJdkSupportTlsProtocolList() {
         List<String> mySqlSupportTlsProtocolList = createMySQLSupportTlsProtocolList();
-        List<String> list = new ArrayList<>(mySqlSupportTlsProtocolList.size());
+        List<String> list = MySQLCollections.arrayList(mySqlSupportTlsProtocolList.size());
         for (String protocol : mySqlSupportTlsProtocolList) {
             try {
                 SSLContext.getInstance(protocol);

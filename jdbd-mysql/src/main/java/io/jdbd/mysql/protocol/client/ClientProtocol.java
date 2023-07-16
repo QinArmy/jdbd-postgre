@@ -29,17 +29,17 @@ import java.util.function.Function;
 final class ClientProtocol implements MySQLProtocol {
 
 
-    static ClientProtocol create(SessionManager sessionManager) {
+    static ClientProtocol create(ProtocolManager sessionManager) {
         return new ClientProtocol(sessionManager);
 
     }
 
-    private final SessionManager sessionManager;
+    private final ProtocolManager sessionManager;
 
     final TaskAdjutant adjutant;
 
 
-    private ClientProtocol(final SessionManager sessionManager) {
+    private ClientProtocol(final ProtocolManager sessionManager) {
         this.sessionManager = sessionManager;
         this.adjutant = sessionManager.adjutant();
     }

@@ -9,9 +9,32 @@ public interface TransactionOption {
 
     boolean isReadOnly();
 
+    @Nullable
+    <T> T valueOf(Option<T> key);
+
 
     static TransactionOption option(@Nullable Isolation isolation, boolean readOnly) {
         return JdbdTransactionOption.option(isolation, readOnly);
     }
+
+
+    static Builder builder() {
+        return JdbdTransactionOption.builder();
+    }
+
+    interface Builder {
+
+        <T> Builder option(Option<T> key, @Nullable T value);
+
+        /**
+         * @throws IllegalArgumentException throw when <ul>
+         *                                  <li>the value of {@link Option#READ_ONLY} is null</li>
+         *                                  <li>{@link Option#IN_TRANSACTION} exists</li>
+         *                                  </ul>
+         */
+        TransactionOption build() throws IllegalArgumentException;
+
+
+    }//Builder
 
 }

@@ -1,7 +1,26 @@
 package io.jdbd.session;
 
 
-public enum Isolation {
+import io.jdbd.lang.Nullable;
+
+import java.io.IOException;
+import java.io.InvalidObjectException;
+import java.io.ObjectInputStream;
+import java.io.ObjectStreamException;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
+
+public final class Isolation {
+
+    public static Isolation from(final String value) {
+        if (hasNoText(value)) {
+            throw new IllegalArgumentException("no text");
+        }
+        return INSTANCE_MAP.computeIfAbsent(value, Isolation::new);
+    }
+
+
+    private static final ConcurrentMap<String, Isolation> INSTANCE_MAP = new ConcurrentHashMap<>((int) (4 / 0.75f));
 
 
     /**
@@ -11,14 +30,14 @@ public enum Isolation {
      * (a "dirty read"). If any of the changes are rolled back, the second
      * transaction will have retrieved an invalid row.
      */
-    READ_UNCOMMITTED,
+    public static final Isolation READ_UNCOMMITTED = from("READ UNCOMMITTED");
 
     /**
      * A constant indicating that dirty reads are prevented; non-repeatable reads
      * and phantom reads can occur. This level only prohibits a transaction
      * from reading a row with uncommitted changes in it.
      */
-    READ_COMMITTED,
+    public static final Isolation READ_COMMITTED = from("READ COMMITTED");
 
     /**
      * A constant indicating that dirty reads and non-repeatable reads are
@@ -28,7 +47,7 @@ public enum Isolation {
      * alters the row, and the first transaction rereads the row, getting
      * different values the second time (a "non-repeatable read").
      */
-    REPEATABLE_READ,
+    public static final Isolation REPEATABLE_READ = from("REPEATABLE READ");
 
     /**
      * A constant indicating that dirty reads, non-repeatable reads and phantom
@@ -39,7 +58,77 @@ public enum Isolation {
      * {@code WHERE} condition, and the first transaction rereads for the
      * same condition, retrieving the additional "phantom" row in the second read.
      */
-    SERIALIZABLE;
+    public static final Isolation SERIALIZABLE = from("SERIALIZABLE");
+
+
+    private final String name;
+
+    /**
+     * private constructor
+     */
+    private Isolation(String name) {
+        this.name = name;
+    }
+
+    public String name() {
+        return this.name;
+    }
+
+
+    @Override
+    public int hashCode() {
+        return this.name.hashCode();
+    }
+
+    @Override
+    public boolean equals(final Object obj) {
+        final boolean match;
+        if (obj == this) {
+            match = true;
+        } else if (obj instanceof Isolation) {
+            match = ((Isolation) obj).name.equals(this.name);
+        } else {
+            match = false;
+        }
+        return match;
+    }
+
+    @Override
+    public String toString() {
+        return String.format("%s[ name : %s , hash : %s]",
+                Isolation.class.getName(),
+                this.name,
+                System.identityHashCode(this)
+        );
+    }
+
+
+    static boolean hasNoText(final @Nullable String str) {
+        final int strLen;
+        if (str == null || (strLen = str.length()) == 0) {
+            return true;
+        }
+        boolean match = true;
+        for (int i = 0; i < strLen; i++) {
+            if (Character.isWhitespace(str.charAt(i))) {
+                continue;
+            }
+            match = false;
+            break;
+        }
+        return match;
+    }
+
+    /*-------------------below private method -------------------*/
+
+    private void readObject(ObjectInputStream in) throws IOException,
+            ClassNotFoundException {
+        throw new InvalidObjectException("can't deserialize Isolation");
+    }
+
+    private void readObjectNoData() throws ObjectStreamException {
+        throw new InvalidObjectException("can't deserialize Isolation");
+    }
 
 
 }

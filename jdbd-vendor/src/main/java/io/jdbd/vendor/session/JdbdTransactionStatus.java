@@ -3,6 +3,7 @@ package io.jdbd.vendor.session;
 import io.jdbd.JdbdException;
 import io.jdbd.lang.NonNull;
 import io.jdbd.session.Isolation;
+import io.jdbd.session.Option;
 import io.jdbd.session.TransactionOption;
 import io.jdbd.session.TransactionStatus;
 
@@ -32,21 +33,16 @@ public enum JdbdTransactionStatus implements TransactionStatus {
             assert !status.inTransaction();
             return status;
         }
-        switch (isolation) {
-            case READ_UNCOMMITTED:
-                status = readOnly ? READ_UNCOMMITTED_READ : READ_UNCOMMITTED_WRITE;
-                break;
-            case READ_COMMITTED:
-                status = readOnly ? READ_COMMITTED_READ : READ_COMMITTED_WRITE;
-                break;
-            case REPEATABLE_READ:
-                status = readOnly ? REPEATABLE_READ_READ : REPEATABLE_READ_WRITE;
-                break;
-            case SERIALIZABLE:
-                status = readOnly ? SERIALIZABLE_READ : SERIALIZABLE_WRITE;
-                break;
-            default:
-                throw new JdbdException(String.format("unexpected %s", isolation));
+        if (isolation == Isolation.READ_COMMITTED) {
+            status = readOnly ? READ_COMMITTED_READ : READ_COMMITTED_WRITE;
+        } else if (isolation == Isolation.REPEATABLE_READ) {
+            status = readOnly ? REPEATABLE_READ_READ : REPEATABLE_READ_WRITE;
+        } else if (isolation == Isolation.SERIALIZABLE) {
+            status = readOnly ? SERIALIZABLE_READ : SERIALIZABLE_WRITE;
+        } else if (isolation == Isolation.READ_UNCOMMITTED) {
+            status = readOnly ? READ_UNCOMMITTED_READ : READ_UNCOMMITTED_WRITE;
+        } else {
+            throw new JdbdException(String.format("unexpected %s", isolation));
         }
         return status;
     }
@@ -72,10 +68,17 @@ public enum JdbdTransactionStatus implements TransactionStatus {
     }
 
     @Override
+    public <T> T valueOf(Option<T> key) {
+        //always null
+        return null;
+    }
+
+    @Override
     public final boolean inTransaction() {
         //always true
         return true;
     }
+
 
     @Override
     public final String toString() {

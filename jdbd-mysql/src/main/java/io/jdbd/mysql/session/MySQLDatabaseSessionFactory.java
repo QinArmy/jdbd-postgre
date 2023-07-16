@@ -1,20 +1,15 @@
 package io.jdbd.mysql.session;
 
 import io.jdbd.JdbdException;
-import io.jdbd.mysql.env.Environment;
 import io.jdbd.mysql.protocol.MySQLProtocol;
 import io.jdbd.mysql.protocol.MySQLProtocolFactory;
-import io.jdbd.mysql.protocol.client.AuthenticationPlugin;
-import io.jdbd.mysql.protocol.client.ClientProtocolFactory;
-import io.jdbd.mysql.protocol.conf.MySQLUrl;
+import io.jdbd.mysql.protocol.ProtocolFactories;
 import io.jdbd.session.DatabaseSessionFactory;
 import io.jdbd.session.LocalDatabaseSession;
 import io.jdbd.session.RmDatabaseSession;
-import io.netty.channel.EventLoopGroup;
 import org.reactivestreams.Publisher;
 import reactor.core.publisher.Mono;
 
-import java.nio.charset.Charset;
 import java.util.Map;
 
 public final class MySQLDatabaseSessionFactory implements DatabaseSessionFactory {
@@ -23,17 +18,12 @@ public final class MySQLDatabaseSessionFactory implements DatabaseSessionFactory
 
     public static MySQLDatabaseSessionFactory create(String url, Map<String, Object> properties)
             throws JdbdException {
-        return new MySQLDatabaseSessionFactory(createProtocolFactory(url, properties), false);
+        return new MySQLDatabaseSessionFactory(ProtocolFactories.from(url, properties), false);
     }
 
     public static MySQLDatabaseSessionFactory forPoolVendor(String url, Map<String, Object> properties)
             throws JdbdException {
-        return new MySQLDatabaseSessionFactory(createProtocolFactory(url, properties), true);
-    }
-
-
-    private static MySQLProtocolFactory createProtocolFactory(String url, Map<String, Object> properties) {
-        return ClientProtocolFactory.from(Environment.parse(url, properties));
+        return new MySQLDatabaseSessionFactory(ProtocolFactories.from(url, properties), true);
     }
 
 
@@ -97,44 +87,6 @@ public final class MySQLDatabaseSessionFactory implements DatabaseSessionFactory
         return session;
     }
 
-    private static final class MySQLSessionAdjutant implements SessionAdjutant {
-
-        private final MySQLDatabaseSessionFactory factory;
-
-        private final EventLoopGroup eventLoopGroup;
-
-        private final Map<String, Charset> customCharsetMap;
-
-        private MySQLSessionAdjutant(MySQLDatabaseSessionFactory factory) {
-            throw new UnsupportedOperationException();
-        }
-
-        @Override
-        public MySQLUrl jdbcUrl() {
-            throw new UnsupportedOperationException();
-        }
-
-        @Override
-        public Map<String, Class<? extends AuthenticationPlugin>> pluginClassMap() {
-            throw new UnsupportedOperationException();
-        }
-
-        @Override
-        public Map<String, Charset> customCharsetMap() {
-            return this.customCharsetMap;
-        }
-
-        @Override
-        public EventLoopGroup eventLoopGroup() {
-            return this.eventLoopGroup;
-        }
-
-        @Override
-        public boolean isSameFactory(final DatabaseSessionFactory factory) {
-            return factory == this.factory;
-        }
-
-    }
 
 
 

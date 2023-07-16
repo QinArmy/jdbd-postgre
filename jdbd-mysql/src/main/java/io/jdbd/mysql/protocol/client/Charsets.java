@@ -1,13 +1,12 @@
 package io.jdbd.mysql.protocol.client;
 
 
-import io.jdbd.mysql.MySQLJdbdException;
+import io.jdbd.JdbdException;
 import io.jdbd.mysql.protocol.MySQLServerVersion;
 import reactor.util.annotation.Nullable;
 
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
-import java.sql.SQLException;
 import java.util.*;
 
 public abstract class Charsets {
@@ -78,25 +77,39 @@ public abstract class Charsets {
 
     private static final int NUMBER_OF_ENCODINGS_CONFIGURED;
 
-    /** a unmodifiable map */
+    /**
+     * a unmodifiable map
+     */
     public static final Map<String, MyCharset> NAME_TO_CHARSET;
 
-    /** a unmodifiable map */
+    /**
+     * a unmodifiable map
+     */
     public static final Map<String, List<MyCharset>> JAVA_ENCODING_UC_TO_MYSQL_CHARSET;
 
-    /** a unmodifiable map */
+    /**
+     * a unmodifiable map
+     */
     public static final Set<String> MULTIBYTE_ENCODINGS;
 
-    /** a unmodifiable map */
+    /**
+     * a unmodifiable map
+     */
     public static final Map<String, Integer> CHARSET_NAME_TO_COLLATION_INDEX;
 
-    /** a unmodifiable map */
+    /**
+     * a unmodifiable map
+     */
     public static final Set<Integer> UTF8MB4_INDEXES;
 
-    /** a unmodifiable map */
+    /**
+     * a unmodifiable map
+     */
     public static final Map<Integer, Collation> INDEX_TO_COLLATION;
 
-    /** a unmodifiable map */
+    /**
+     * a unmodifiable map
+     */
     public static final Map<String, Collation> NAME_TO_COLLATION;
 
     /**
@@ -187,7 +200,8 @@ public abstract class Charsets {
     public static int getMblen(int collationIndex) {
         Collation collation = INDEX_TO_COLLATION.get(collationIndex);
         if (collation == null || COLLATION_NOT_DEFINED.equals(collation.name)) {
-            throw new MySQLJdbdException("Not found Collation for collationIndex[%s]", collationIndex);
+            String m = String.format("Not found Collation for collationIndex[%s]", collationIndex);
+            throw new JdbdException(m);
         }
         return collation.myCharset.mblen;
     }
@@ -231,21 +245,21 @@ public abstract class Charsets {
         return Charset.forName(collation.myCharset.javaEncodingsUcList.get(0));
     }
 
-    public static Charset getJavaCharsetByCollationIndex(int collationIndex
-            , Map<Integer, Charsets.CustomCollation> customCollationMap) throws JdbdSQLException {
+    public static Charset getJavaCharsetByCollationIndex(int collationIndex,
+                                                         Map<Integer, Charsets.CustomCollation> customCollationMap)
+            throws JdbdException {
         Collation collation = INDEX_TO_COLLATION.get(collationIndex);
         Charset charset = getJavaCharsetByCollationIndex(collationIndex);
         if (charset == null) {
             Charsets.CustomCollation customCollation = customCollationMap.get(collationIndex);
             if (customCollation == null) {
-                throw new JdbdSQLException(
-                        new SQLException(String.format("Not found collation for index[%s]", collation)));
+                String m = String.format("Not found collation for index[%s]", collation);
+                throw new JdbdException(m);
             }
             charset = getJavaCharsetByMySQLCharsetName(customCollation.charsetName);
             if (charset == null) {
-                throw new JdbdSQLException(
-                        new SQLException(
-                                String.format("Not found java charset for name[%s]", customCollation.charsetName)));
+                String m = String.format("Not found java charset for name[%s]", customCollation.charsetName);
+                throw new JdbdException(m);
             }
         } else {
             charset = Charset.forName(collation.myCharset.javaEncodingsUcList.get(0));

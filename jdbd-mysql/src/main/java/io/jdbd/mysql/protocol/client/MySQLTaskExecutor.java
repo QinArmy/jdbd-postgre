@@ -77,7 +77,7 @@ final class MySQLTaskExecutor extends CommunicationTaskExecutor<TaskAdjutant> {
 
     @Override
     protected JdbdHost obtainHostInfo() {
-        return this.factory.hostEnv;
+        return this.factory.host;
     }
 
     @Override

@@ -45,8 +45,6 @@ import java.util.function.Function;
  */
 final class MySQLConnectionTask extends CommunicationTask implements AuthenticateAssistant, ConnectionTask {
 
-    public static final String JVM_VENDOR = System.getProperty("java.vendor");
-    public static final String JVM_VERSION = System.getProperty("java.version");
 
     static Mono<AuthenticateResult> authenticate(final TaskAdjutant adjutant) {
         return Mono.create(sink -> {
@@ -59,9 +57,14 @@ final class MySQLConnectionTask extends CommunicationTask implements Authenticat
         });
     }
 
+    static final String JVM_VENDOR = System.getProperty("java.vendor");
+    static final String JVM_VERSION = System.getProperty("java.version");
+
     private static final Logger LOG = LoggerFactory.getLogger(MySQLConnectionTask.class);
 
     private final TaskAdjutant adjutant;
+
+    private final ByteBufAllocator allocator;
 
     private final FixedEnv fixedEnv;
 
@@ -98,11 +101,13 @@ final class MySQLConnectionTask extends CommunicationTask implements Authenticat
         super(adjutant, sink::error);
         this.sink = sink;
         this.adjutant = adjutant;
+        this.allocator = adjutant.allocator();
+
         final ClientProtocolFactory factory;
         factory = adjutant.getFactory();
 
         this.fixedEnv = factory;
-        this.host = factory.hostEnv;
+        this.host = factory.host;
         this.env = factory.env;
 
 
@@ -134,12 +139,12 @@ final class MySQLConnectionTask extends CommunicationTask implements Authenticat
 
     @Override
     public boolean isUseSsl() {
-        return Capabilities.supportSsl(this.capability);
+        return (this.capability & Capabilities.CLIENT_SSL) != 0;
     }
 
     @Override
     public ByteBuf createPacketBuffer(int initialPayloadCapacity) {
-        return this.adjutant.createPacketBuffer(initialPayloadCapacity);
+        return Packets.createOnePacket(this.allocator, initialPayloadCapacity);
     }
 
 
@@ -383,7 +388,7 @@ final class MySQLConnectionTask extends CommunicationTask implements Authenticat
 
             // add sslHandler to channel line.
             Objects.requireNonNull(this.sslConsumer, "this.sslConsumer")
-                    .accept(SslWrapper.create(this, createSendSSlRequestPacket(), sslObject));
+                    .accept(SslWrapper.create(this, createSSlRequestPacket(), sslObject));
             if (LOG.isDebugEnabled()) {
                 LOG.debug("add {} to ChannelPipeline complete.", SslHandler.class.getName());
             }
@@ -396,8 +401,9 @@ final class MySQLConnectionTask extends CommunicationTask implements Authenticat
      * @see #sendSslRequest()
      * @see <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_connection_phase_packets_protocol_ssl_request.html">Protocol::SSLRequest</a>
      */
-    private Mono<ByteBuf> createSendSSlRequestPacket() {
-        ByteBuf packet = this.adjutant.createPacketBuffer(32);
+    private Mono<ByteBuf> createSSlRequestPacket() {
+        final ByteBuf packet;
+        packet = Packets.createOnePacket(this.allocator, 32);
         // 1. client_flag
         Packets.writeInt4(packet, this.capability);
         // 2. max_packet_size

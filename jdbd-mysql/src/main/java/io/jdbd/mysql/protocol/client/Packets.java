@@ -28,48 +28,48 @@ abstract class Packets {
         throw new UnsupportedOperationException();
     }
 
-    public static final long NULL_LENGTH = -1L;
+    static final long NULL_LENGTH = -1L;
 
-    public static final byte HEADER_SIZE = 4;
+    static final byte HEADER_SIZE = 4;
 
 
-    public static final int MAX_PAYLOAD = 0xFFFF_FF;
+    static final int MAX_PAYLOAD = 0xFFFF_FF;
 
-    public static final int MAX_PACKET = HEADER_SIZE + MAX_PAYLOAD;
+    static final int MAX_PACKET = HEADER_SIZE + MAX_PAYLOAD;
 
-    public static final byte[] EMPTY_BYTE_ARRAY = new byte[0];
+    static final byte[] EMPTY_BYTE_ARRAY = new byte[0];
 
     /**
      * @see #ENC_3
      */
-    public static final int ENC_3_MAX_VALUE = 0xFF_FF_FF;
+    static final int ENC_3_MAX_VALUE = 0xFF_FF_FF;
 
-    public static final short LOCAL_INFILE = 0xFB;
-    public static final byte COM_QUERY = 0x03;
-    public static final byte COM_STMT_PREPARE = 0x16;
-    public static final byte COM_STMT_EXECUTE = 0x17;
+    static final short LOCAL_INFILE = 0xFB;
+    static final byte COM_QUERY = 0x03;
+    static final byte COM_STMT_PREPARE = 0x16;
+    static final byte COM_STMT_EXECUTE = 0x17;
 
-    public static final byte COM_STMT_SEND_LONG_DATA = 0x18;
-    public static final byte COM_STMT_CLOSE = 0x19;
-    public static final byte COM_STMT_FETCH = 0x1C;
+    static final byte COM_STMT_SEND_LONG_DATA = 0x18;
+    static final byte COM_STMT_CLOSE = 0x19;
+    static final byte COM_STMT_FETCH = 0x1C;
 
-    public static final byte COM_RESET_CONNECTION = 0x1F;
-    public static final byte COM_SET_OPTION = 0x1B;
+    static final byte COM_RESET_CONNECTION = 0x1F;
+    static final byte COM_SET_OPTION = 0x1B;
 
-    public static final byte COM_STMT_RESET = 0x1A;
-    public static final byte COM_QUIT_HEADER = 0x01;
+    static final byte COM_STMT_RESET = 0x1A;
+    static final byte COM_QUIT_HEADER = 0x01;
 
 
-    public static final short ENC_0 = 0xFB;
-    public static final short ENC_3 = 0xFC;
-    public static final short ENC_4 = 0xFD;
-    public static final short ENC_9 = 0xFE;
+    static final short ENC_0 = 0xFB;
+    static final short ENC_3 = 0xFC;
+    static final short ENC_4 = 0xFD;
+    static final short ENC_9 = 0xFE;
 
-    public static final int BIT_8 = 0xFF;
+    static final int BIT_8 = 0xFF;
 
-    public static final long BIT_8L = 0xFFL;
+    static final long BIT_8L = 0xFFL;
 
-    public static final long BIT_32 = 0xFFFF_FFFFL;
+    static final long BIT_32 = 0xFFFF_FFFFL;
 
     private static final long LONG_SIGNED_BIT = (1L << 63);
 
@@ -463,14 +463,16 @@ abstract class Packets {
 
 
     static void writeHeader(final ByteBuf packetBuf, final int sequenceId) {
-        final int readableBytes = packetBuf.readableBytes();
-        if (readableBytes < HEADER_SIZE || readableBytes > MAX_PACKET) {
+        final int headerSize = HEADER_SIZE, readableBytes;
+        readableBytes = packetBuf.readableBytes();
+        if (readableBytes < headerSize || readableBytes > MAX_PACKET) {
             throw new IllegalArgumentException(String.format("packetBuf readableBytes[%s] error.", readableBytes));
         }
-        final int originalWriterIndex = packetBuf.writerIndex();
+        final int originalWriterIndex;
+        originalWriterIndex = packetBuf.writerIndex();
         packetBuf.writerIndex(packetBuf.readerIndex());
 
-        writeInt3(packetBuf, readableBytes - HEADER_SIZE);
+        writeInt3(packetBuf, readableBytes - headerSize);
         packetBuf.writeByte(sequenceId);
 
         packetBuf.writerIndex(originalWriterIndex);
@@ -848,6 +850,14 @@ abstract class Packets {
         ByteBuf packet = allocator.buffer(HEADER_SIZE);
         writeInt3(packet, 0);
         packet.writeByte(sequenceId);
+        return packet;
+    }
+
+    static ByteBuf createOnePacket(final ByteBufAllocator allocator, final int initialPayloadCapacity) {
+        final int headerSize = HEADER_SIZE;
+        final ByteBuf packet;
+        packet = allocator.buffer(headerSize + initialPayloadCapacity, (1 << 30) + headerSize);
+        packet.writeZero(headerSize);
         return packet;
     }
 

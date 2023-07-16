@@ -19,9 +19,9 @@ import io.jdbd.mysql.util.MySQLStrings;
 import io.jdbd.result.MultiResult;
 import io.jdbd.result.ResultRow;
 import io.jdbd.vendor.env.Properties;
+import io.jdbd.vendor.util.Pair;
 import io.jdbd.vendor.util.SQLStates;
 import io.netty.channel.EventLoopGroup;
-import io.qinarmy.util.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import reactor.core.publisher.Flux;
@@ -39,25 +39,25 @@ import java.util.*;
 
 public final class ClientProtocolFactory extends FixedEnv implements MySQLProtocolFactory {
 
-    final MySQLHost hostEnv;
+    final MySQLHost host;
 
     final int factoryTaskQueueSize;
 
 
     final TcpClient tcpClient;
 
-    private ClientProtocolFactory(final MySQLHost hostEnv) {
-        super(hostEnv);
-        this.hostEnv = hostEnv;
+    private ClientProtocolFactory(final MySQLHost host) {
+        super(host.environment());
+        this.host = host;
 
 
-        this.factoryTaskQueueSize = hostEnv.getInRange(MySQLKey.FACTORY_TASK_QUEUE_SIZE, 3, 4096);
+        this.factoryTaskQueueSize = this.env.getInRange(MySQLKey.FACTORY_TASK_QUEUE_SIZE, 3, 4096);
 
 
-        this.tcpClient = TcpClient.create(hostEnv.get(MySQLKey.SOCKET_FACTORY, TcpResources::get))
-                .runOn(createEventLoopGroup(hostEnv))
-                .host(hostEnv.getHost())
-                .port(hostEnv.getPort());
+        this.tcpClient = TcpClient.create(this.env.get(MySQLKey.SOCKET_FACTORY, TcpResources::get))
+                .runOn(createEventLoopGroup(this.env))
+                .host(host.getHost())
+                .port(host.getPort());
     }
 
 
@@ -73,7 +73,7 @@ public final class ClientProtocolFactory extends FixedEnv implements MySQLProtoc
                 .map(executor -> new SessionManagerImpl(executor, sessionAdjutant, 0))//2. create  SessionManagerImpl
                 .flatMap(SessionManagerImpl::authenticate) //3. authenticate
                 .flatMap(SessionManagerImpl::initializing)//4. initializing
-                .flatMap(SessionManager::reset)           //5. reset
+                .flatMap(ProtocolManager::reset)           //5. reset
                 .map(ClientProtocol::create);         //6. create ClientProtocol
     }
 
@@ -95,7 +95,7 @@ public final class ClientProtocolFactory extends FixedEnv implements MySQLProtoc
     }
 
 
-    private static final class SessionManagerImpl implements SessionManager {
+    private static final class SessionManagerImpl implements ProtocolManager {
 
         private static final List<String> KEY_VARIABLES = MySQLArrays.asUnmodifiableList(
                 "sql_mode",
@@ -123,7 +123,7 @@ public final class ClientProtocolFactory extends FixedEnv implements MySQLProtoc
         }
 
         @Override
-        public Mono<SessionManager> reset() {
+        public Mono<ProtocolManager> reset() {
 
             final Pair<Charset, String> connClientPair;
             final Pair<Charset, String> resultsCharsetPair;
@@ -145,7 +145,8 @@ public final class ClientProtocolFactory extends FixedEnv implements MySQLProtoc
             sqlGroup.add(createKeyVariablesSql());//4.
             sqlGroup.add("SELECT @@SESSION.sql_mode");//5.
 
-            final MultiResult result = ComQueryTask.batchAsMulti(Stmts.batch(sqlGroup), this.executor.taskAdjutant());
+            final MultiResult result;
+            result = ComQueryTask.batchAsMulti(Stmts.batch(sqlGroup), this.executor.taskAdjutant());
             return Mono.from(result.nextUpdate())//1. SET custom variables
                     .then(Mono.from(result.nextUpdate()))//2. SET character_set_connection and character_set_client
                     .then(Mono.from(result.nextUpdate()))//3.SET character_set_results
