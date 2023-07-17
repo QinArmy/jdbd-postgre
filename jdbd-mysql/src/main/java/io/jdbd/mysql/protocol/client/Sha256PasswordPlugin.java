@@ -63,7 +63,7 @@ public class Sha256PasswordPlugin implements AuthenticationPlugin {
     protected Sha256PasswordPlugin(AuthenticateAssistant assistant, @Nullable String publicKeyString) {
         this.assistant = assistant;
         this.host = assistant.getHostInfo();
-        this.env = this.host.environment();
+        this.env = this.host.properties();
         this.originalPublicKeyString = publicKeyString;
 
         this.publicKeyString = publicKeyString;
@@ -211,7 +211,7 @@ public class Sha256PasswordPlugin implements AuthenticationPlugin {
     @Nullable
     protected static String tryLoadPublicKeyString(MySQLHost host) {
         final Path path;
-        path = host.environment().get(MySQLKey.SERVER_RSA_PUBLIC_KEY_FILE);
+        path = host.properties().get(MySQLKey.SERVER_RSA_PUBLIC_KEY_FILE);
         if (path == null) {
             return null;
         }

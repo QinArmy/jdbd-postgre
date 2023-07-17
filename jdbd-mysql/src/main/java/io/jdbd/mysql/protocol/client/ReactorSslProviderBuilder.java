@@ -49,7 +49,7 @@ final class ReactorSslProviderBuilder {
         this.host = assistant.getHostInfo();
         this.serverVersion = assistant.getServerVersion();
         this.allocator = assistant.allocator();
-        this.env = this.host.environment();
+        this.env = this.host.properties();
     }
 
 

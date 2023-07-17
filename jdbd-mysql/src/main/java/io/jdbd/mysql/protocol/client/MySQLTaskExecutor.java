@@ -4,7 +4,6 @@ import io.jdbd.JdbdException;
 import io.jdbd.mysql.Server;
 import io.jdbd.mysql.protocol.conf.MySQLHost0;
 import io.jdbd.mysql.protocol.conf.MySQLUrl;
-import io.jdbd.mysql.session.SessionAdjutant;
 import io.jdbd.mysql.syntax.DefaultMySQLParser;
 import io.jdbd.mysql.syntax.MySQLParser;
 import io.jdbd.mysql.syntax.MySQLStatement;
@@ -29,9 +28,6 @@ import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
 final class MySQLTaskExecutor extends CommunicationTaskExecutor<TaskAdjutant> {
 
-    static Mono<MySQLTaskExecutor> create(final int hostIndex, SessionAdjutant sessionAdjutant) {
-        throw new UnsupportedOperationException();
-    }
 
     static Mono<MySQLTaskExecutor> create(final ClientProtocolFactory factory) {
 

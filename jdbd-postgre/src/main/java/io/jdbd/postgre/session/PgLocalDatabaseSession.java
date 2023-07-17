@@ -1,10 +1,18 @@
 package io.jdbd.postgre.session;
 
+import io.jdbd.JdbdException;
 import io.jdbd.pool.PoolLocalDatabaseSession;
 import io.jdbd.postgre.protocol.client.ClientProtocol;
-import io.jdbd.session.TransactionOption;
+import io.jdbd.result.BatchQuery;
+import io.jdbd.result.ResultRow;
+import io.jdbd.session.HandleMode;
 import io.jdbd.session.LocalDatabaseSession;
+import io.jdbd.session.TransactionOption;
+import io.jdbd.statement.BindStatement;
+import org.reactivestreams.Publisher;
 import reactor.core.publisher.Mono;
+
+import java.util.List;
 
 class PgLocalDatabaseSession extends PgDatabaseSession implements LocalDatabaseSession {
 
@@ -28,6 +36,41 @@ class PgLocalDatabaseSession extends PgDatabaseSession implements LocalDatabaseS
         return null;
     }
 
+
+    @Override
+    public BindStatement bindStatement(String sql, boolean forceServerPrepared) throws JdbdException {
+        return null;
+    }
+
+    @Override
+    public boolean supportStmtVar() throws JdbdException {
+        return false;
+    }
+
+    @Override
+    public boolean supportOutParameter() throws JdbdException {
+        return false;
+    }
+
+    @Override
+    public Publisher<LocalDatabaseSession> startTransaction(TransactionOption option, HandleMode mode) {
+        return null;
+    }
+
+    @Override
+    public boolean inTransaction() throws JdbdException {
+        return false;
+    }
+
+    @Override
+    public Publisher<ResultRow> executeQuery(String sql) {
+        return null;
+    }
+
+    @Override
+    public BatchQuery executeBatchQuery(List<String> sqlGroup) {
+        return null;
+    }
 
     @Override
     public final Mono<LocalDatabaseSession> commit() {

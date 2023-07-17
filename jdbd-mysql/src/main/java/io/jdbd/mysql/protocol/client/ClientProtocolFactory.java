@@ -1,6 +1,8 @@
 package io.jdbd.mysql.protocol.client;
 
+import io.jdbd.JdbdException;
 import io.jdbd.mysql.MySQLJdbdException;
+import io.jdbd.mysql.MySQLType;
 import io.jdbd.mysql.SQLMode;
 import io.jdbd.mysql.Server;
 import io.jdbd.mysql.env.Environment;
@@ -11,20 +13,22 @@ import io.jdbd.mysql.protocol.MySQLProtocol;
 import io.jdbd.mysql.protocol.MySQLProtocolFactory;
 import io.jdbd.mysql.protocol.MySQLServerVersion;
 import io.jdbd.mysql.protocol.conf.MyKey;
-import io.jdbd.mysql.session.SessionAdjutant;
+import io.jdbd.mysql.stmt.MyValues;
 import io.jdbd.mysql.stmt.Stmts;
 import io.jdbd.mysql.util.MySQLArrays;
 import io.jdbd.mysql.util.MySQLCollections;
+import io.jdbd.mysql.util.MySQLExceptions;
 import io.jdbd.mysql.util.MySQLStrings;
+import io.jdbd.result.CurrentRow;
 import io.jdbd.result.MultiResult;
-import io.jdbd.result.ResultRow;
 import io.jdbd.vendor.env.Properties;
+import io.jdbd.vendor.stmt.ParamStmt;
+import io.jdbd.vendor.stmt.ParamValue;
 import io.jdbd.vendor.util.Pair;
 import io.jdbd.vendor.util.SQLStates;
 import io.netty.channel.EventLoopGroup;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.netty.resources.LoopResources;
 import reactor.netty.tcp.TcpClient;
@@ -39,6 +43,13 @@ import java.util.*;
 
 public final class ClientProtocolFactory extends FixedEnv implements MySQLProtocolFactory {
 
+    public static ClientProtocolFactory from(MySQLHost host) {
+        throw new UnsupportedOperationException();
+    }
+
+    private static final Logger LOG = LoggerFactory.getLogger(ClientProtocolFactory.class);
+
+
     final MySQLHost host;
 
     final int factoryTaskQueueSize;
@@ -47,12 +58,10 @@ public final class ClientProtocolFactory extends FixedEnv implements MySQLProtoc
     final TcpClient tcpClient;
 
     private ClientProtocolFactory(final MySQLHost host) {
-        super(host.environment());
+        super(host.properties());
         this.host = host;
 
-
         this.factoryTaskQueueSize = this.env.getInRange(MySQLKey.FACTORY_TASK_QUEUE_SIZE, 3, 4096);
-
 
         this.tcpClient = TcpClient.create(this.env.get(MySQLKey.SOCKET_FACTORY, TcpResources::get))
                 .runOn(createEventLoopGroup(this.env))
@@ -61,26 +70,14 @@ public final class ClientProtocolFactory extends FixedEnv implements MySQLProtoc
     }
 
 
-    private static final Logger LOG = LoggerFactory.getLogger(ClientProtocolFactory.class);
-
-    public static ClientProtocolFactory from(Environment env) {
-        throw new UnsupportedOperationException();
-    }
-
-
-    public static Mono<ClientProtocol0> single(final SessionAdjutant sessionAdjutant) {
-        return MySQLTaskExecutor.create(0, sessionAdjutant)//1. create tcp connection
-                .map(executor -> new SessionManagerImpl(executor, sessionAdjutant, 0))//2. create  SessionManagerImpl
-                .flatMap(SessionManagerImpl::authenticate) //3. authenticate
-                .flatMap(SessionManagerImpl::initializing)//4. initializing
-                .flatMap(ProtocolManager::reset)           //5. reset
-                .map(ClientProtocol::create);         //6. create ClientProtocol
-    }
-
-
     @Override
     public Mono<MySQLProtocol> createProtocol() {
-        return null;
+        return MySQLTaskExecutor.create(this)//1. create tcp connection
+                .map(executor -> new ClientProtocolManager(executor, this))//2. create  SessionManagerImpl
+                .flatMap(ClientProtocolManager::authenticate) //3. authenticate
+                .flatMap(ClientProtocolManager::initializing)//4. initializing
+                .flatMap(ProtocolManager::reset)           //5. reset
+                .map(ClientProtocol::create);         //6. create ClientProtocol
     }
 
     @Override
@@ -95,7 +92,7 @@ public final class ClientProtocolFactory extends FixedEnv implements MySQLProtoc
     }
 
 
-    private static final class SessionManagerImpl implements ProtocolManager {
+    private static final class ClientProtocolManager implements ProtocolManager {
 
         private static final List<String> KEY_VARIABLES = MySQLArrays.asUnmodifiableList(
                 "sql_mode",
@@ -107,14 +104,16 @@ public final class ClientProtocolFactory extends FixedEnv implements MySQLProtoc
 
         private final MySQLTaskExecutor executor;
 
-        private final SessionAdjutant sessionAdjutant;
 
-        private final int hostIndex;
+        private final TaskAdjutant adjutant;
 
-        private SessionManagerImpl(MySQLTaskExecutor executor, SessionAdjutant sessionAdjutant, int hostIndex) {
+        private final ClientProtocolFactory factory;
+
+
+        private ClientProtocolManager(MySQLTaskExecutor executor, ClientProtocolFactory factory) {
             this.executor = executor;
-            this.sessionAdjutant = sessionAdjutant;
-            this.hostIndex = hostIndex;
+            this.adjutant = executor.taskAdjutant();
+            this.factory = factory;
         }
 
         @Override
@@ -133,7 +132,7 @@ public final class ClientProtocolFactory extends FixedEnv implements MySQLProtoc
                 connClientPair = getConnClientPair();
                 resultsCharsetPair = getResultsCharsetPair();
             } catch (Throwable e) {
-                return Mono.error(e);
+                return Mono.error(MySQLExceptions.wrap(e));
             }
             final Charset clientCharset = connClientPair.getFirst();
             final Charset resultCharset = resultsCharsetPair.getFirst();
@@ -171,77 +170,104 @@ public final class ClientProtocolFactory extends FixedEnv implements MySQLProtoc
         }
 
 
-        private Mono<SessionManagerImpl> authenticate() {
+        private Mono<ClientProtocolManager> authenticate() {
             return MySQLConnectionTask.authenticate(this.executor.taskAdjutant())
                     .doOnSuccess(this.executor::setAuthenticateResult)
                     .thenReturn(this);
         }
 
 
-        private Mono<SessionManagerImpl> initializing() {
-            final TaskAdjutant adjutant = this.executor.taskAdjutant();
-            final Properties properties = adjutant.mysqlUrl().getCommonProps();
+        private Mono<ClientProtocolManager> initializing() {
+            final Environment env = this.factory.env;
 
-            if (!properties.getOrDefault(MyKey.detectCustomCollations, Boolean.class)) {
+            if (!env.getOrDefault(MySQLKey.DETECT_CUSTOM_COLLATIONS) || this.factory.customCharsetMap.size() == 0) {
                 return Mono.just(this);
             }
-            final List<String> sqlGroup = new ArrayList<>(3);
-            sqlGroup.add("SHOW CHARACTER SET");
-            sqlGroup.add("SHOW COLLATION");
-            final MultiResult result = ComQueryTask.batchAsMulti(Stmts.batch(sqlGroup), adjutant);
-            return Flux.from(result.nextQuery())// SHOW CHARACTER SET result
-                    .filter(this::isCustomCharset)
-                    .map(this::createCustomCharset)
-                    .collectMap(MyCharset::charsetName, MyCharset::self)
-                    .map(Collections::unmodifiableMap)
-
-                    .flatMap(customCharsetMap -> handleCustomCollation(result, customCharsetMap))// handle SHOW COLLATION result
-                    .thenReturn(this)
-                    ;
+            return ComQueryTask.query(Stmts.stmt("SHOW CHARACTER SET"), this::mapMyCharset, this.adjutant)// SHOW CHARACTER SET result
+                    .filter(Optional::isPresent)
+                    .map(Optional::get)
+                    .collectMap(MyCharset::charsetName, MyCharset::self, MySQLCollections::hashMap)
+                    .map(MySQLCollections::unmodifiableMap)
+                    .flatMap(this::queryAndHandleCollation); // query SHOW COLLATION result
         }
+
 
         /**
          * @see #initializing()
          */
-        private Mono<Void> handleCustomCollation(final MultiResult result
-                , final Map<String, MyCharset> customCharsetMap) {
-            return Flux.from(result.nextQuery())
-                    .filter(row -> isCustomCollation(row, customCharsetMap))
-                    .map(row -> createCustomCollation(row, customCharsetMap))
-                    .collectMap(Collation::index, Collation::self)
-                    .map(Collections::unmodifiableMap)
-                    .flatMap(customCollationMap -> this.executor.setCustomCollation(customCharsetMap, customCollationMap))
-                    .then();
-        }
-
-        private boolean isCustomCharset(final ResultRow row) {
-            final String name = row.getNonNull("Charset", String.class);
-            return !Charsets.NAME_TO_CHARSET.containsKey(name)
-                    && adjutant().customCharsetMap().containsKey(name)// custom charset can map to java charset.
-                    ;
-        }
-
-        private MyCharset createCustomCharset(final ResultRow row) {
-            final String name = row.getNonNull("Charset", String.class);
-            final Charset charset = adjutant().customCharsetMap().get(name);
-            return new MyCharset(name, row.getNonNull("Maxlen", Integer.class), 0, charset.name());
-        }
-
-        private boolean isCustomCollation(final ResultRow row, final Map<String, MyCharset> customCharsetMap) {
-            return !Charsets.INDEX_TO_COLLATION.containsKey(row.getNonNull("Id", Integer.class))
-                    && customCharsetMap.containsKey(row.getNonNull("Charset", String.class));
-        }
-
-        private Collation createCustomCollation(final ResultRow row, final Map<String, MyCharset> customCharsetMap) {
-            final int id = row.getNonNull("Id", Integer.class);
-            final String collationName = row.getNonNull("Collation", String.class);
-            final String charsetName = row.getNonNull("Charset", String.class);
-            MyCharset myCharset = Charsets.NAME_TO_CHARSET.get(charsetName);
-            if (myCharset == null) {
-                myCharset = customCharsetMap.get(charsetName);
+        private Optional<MyCharset> mapMyCharset(final CurrentRow row) {
+            final String name;
+            name = row.getNonNull("Charset", String.class);
+            final Charset charset;
+            if (Charsets.NAME_TO_CHARSET.containsKey(name)
+                    || (charset = this.factory.customCharsetMap.get(name)) == null) {
+                return Optional.empty();
             }
-            return new Collation(id, collationName, 0, myCharset);
+            final MyCharset myCharset;
+            myCharset = new MyCharset(name, row.getNonNull("Maxlen", Integer.class), 0, charset.name());
+            return Optional.of(myCharset);
+
         }
+
+
+        /**
+         * @see #initializing()
+         */
+        private Mono<ClientProtocolManager> queryAndHandleCollation(final Map<String, MyCharset> charsetMap) {
+
+            if (charsetMap.size() == 0) {
+                return Mono.just(this);
+            }
+            final ParamStmt stmt;
+            stmt = collationStmt(charsetMap);
+            return ComQueryTask.paramQuery(stmt, row -> mapCollation(row, charsetMap), this.adjutant)
+                    .filter(Optional::isPresent)
+                    .map(Optional::get)
+                    .collectMap(Collation::index, Collation::self, MySQLCollections::hashMap)
+                    .map(MySQLCollections::unmodifiableMap)
+                    .flatMap(customCollationMap -> this.executor.setCustomCollation(charsetMap, customCollationMap))
+                    .thenReturn(this);
+        }
+
+        /**
+         * @see #queryAndHandleCollation(Map)
+         */
+        private Optional<Collation> mapCollation(final CurrentRow row, final Map<String, MyCharset> charsetMap) {
+            final String charsetName;
+            charsetName = row.getNonNull("Charset", String.class);
+            final MyCharset charset;
+            charset = charsetMap.get(charsetName);
+            if (charset == null) {
+                return Optional.empty();
+            }
+            final Collation collation;
+            collation = new Collation(row.getNonNull("Id", Integer.class), charsetName, 0, charset);
+            return Optional.of(collation);
+        }
+
+        /**
+         * @see #queryAndHandleCollation(Map)
+         */
+        private ParamStmt collationStmt(final Map<String, MyCharset> charsetMap) {
+            final int charsetCount;
+            charsetCount = charsetMap.size();
+
+            final StringBuilder builder = new StringBuilder(128);
+            builder.append("SHOW COLLATION WHERE Charset IN ( ");
+            int index = 0;
+            final List<ParamValue> paramList = MySQLCollections.arrayList(charsetCount);
+            for (String name : charsetMap.keySet()) {
+                if (index > 0) {
+                    builder.append(" ,");
+                }
+                builder.append(" ?");
+                paramList.add(MyValues.paramValue(index, MySQLType.VARCHAR, name));
+                index++;
+            }
+            builder.append(" )");
+            return Stmts.paramStmt(builder.toString(), paramList);
+        }
+
 
         private Pair<Charset, String> getResultsCharsetPair() {
             final TaskAdjutant adjutant = this.executor.taskAdjutant();
@@ -309,7 +335,7 @@ public final class ClientProtocolFactory extends FixedEnv implements MySQLProtoc
                         , connCollation.myCharset.name
                         , connCollation.name);
             }
-            return new Pair<>(charset, command);
+            return Pair.create(charset, command);
         }
 
         /**
@@ -317,27 +343,26 @@ public final class ClientProtocolFactory extends FixedEnv implements MySQLProtoc
          */
         @Nullable
         private Collation getConnCollation() {
-            final TaskAdjutant adjutant = this.executor.taskAdjutant();
-            final Properties properties = adjutant.host().getProperties();
-            final String collationStr = properties.get(MyKey.connectionCollation, String.class);
+            final String collationStr = this.factory.env.get(MySQLKey.CONNECTION_COLLATION);
+
+            if (!MySQLStrings.hasText(collationStr)) {
+                return null;
+            }
+            final TaskAdjutant adjutant = this.adjutant;
 
             final Collation collation;
-            if (MySQLStrings.hasText(collationStr)) {
-                Collation tempCollation = Charsets.getCollationByName(collationStr);
-                if (tempCollation == null) {
-                    tempCollation = adjutant.nameCollationMap().get(collationStr.toLowerCase());
-                }
-                if (tempCollation == null) {
-                    String message = String.format("No found MySQL Collation[%s] fro Property[%s]"
-                            , collationStr, MyKey.connectionCollation);
-                    throw new JdbdSQLException(new SQLException(message, SQLStates.CONNECTION_EXCEPTION));
-                }
-                Charset charset = Charset.forName(tempCollation.myCharset.javaEncodingsUcList.get(0));
-                if (Charsets.isSupportCharsetClient(charset)) {
-                    collation = tempCollation;
-                } else {
-                    collation = null;
-                }
+            Collation tempCollation = Charsets.getCollationByName(collationStr);
+            if (tempCollation == null) {
+                tempCollation = adjutant.nameCollationMap().get(collationStr.toLowerCase());
+            }
+            if (tempCollation == null) {
+                String message = String.format("No found MySQL Collation[%s] fro Property[%s]",
+                        collationStr, MySQLKey.CONNECTION_COLLATION);
+                throw new JdbdException(message, SQLStates.CONNECTION_EXCEPTION, 0);
+            }
+            Charset charset = Charset.forName(tempCollation.myCharset.javaEncodingsUcList.get(0));
+            if (Charsets.isSupportCharsetClient(charset)) {
+                collation = tempCollation;
             } else {
                 collation = null;
             }

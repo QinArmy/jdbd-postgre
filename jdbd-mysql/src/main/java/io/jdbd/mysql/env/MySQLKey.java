@@ -136,7 +136,7 @@ public final class MySQLKey<T> {
     public static final MySQLKey<Boolean> CREATE_DATABASE_IF_NOT_EXIST = new MySQLKey<>("createDatabaseIfNotExist", Boolean.class, Boolean.FALSE);
 
     /**
-     * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-connection.html">createDatabaseIfNotExist</a>
+     * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-connection.html">detectCustomCollations</a>
      */
     public static final MySQLKey<Boolean> DETECT_CUSTOM_COLLATIONS = new MySQLKey<>("detectCustomCollations", Boolean.class, Boolean.FALSE);
 
@@ -203,7 +203,7 @@ public final class MySQLKey<T> {
     public static final MySQLKey<String> CONNECTION_COLLATION = new MySQLKey<>("connectionCollation", String.class, null);
 
     /**
-     * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-session.html">connectionCollation</a>
+     * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-session.html">customCharsetMapping</a>
      * @since MySQL Driver  8.0.26
      */
     public static final MySQLKey<String> CUSTOM_CHARSET_MAPPING = new MySQLKey<>("customCharsetMapping", String.class, null);

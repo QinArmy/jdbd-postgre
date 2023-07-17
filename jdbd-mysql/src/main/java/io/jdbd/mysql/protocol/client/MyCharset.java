@@ -9,6 +9,10 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 
+/**
+ * @see Charsets
+ * @since 1.0
+ */
 public final class MyCharset {
 
     public final String name;

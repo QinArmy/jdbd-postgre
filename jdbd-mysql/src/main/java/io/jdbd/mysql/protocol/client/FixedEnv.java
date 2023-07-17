@@ -5,6 +5,7 @@ import io.jdbd.mysql.env.Environment;
 import io.jdbd.mysql.env.MySQLKey;
 import io.jdbd.mysql.protocol.AuthenticateAssistant;
 import io.jdbd.mysql.util.MySQLCollections;
+import io.jdbd.mysql.util.MySQLExceptions;
 import io.jdbd.mysql.util.MySQLStrings;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -105,18 +106,27 @@ abstract class FixedEnv {
         if (!MySQLStrings.hasText(mappingValue)) {
             return Collections.emptyMap();
         }
-        final String[] pairs = mappingValue.split(";");
-        String[] valuePair;
-        final Map<String, Charset> tempMap = MySQLCollections.hashMap((int) (pairs.length / 0.75F));
-        for (String pair : pairs) {
-            valuePair = pair.split(":");
-            if (valuePair.length != 2) {
-                String m = String.format("%s value format error.", MySQLKey.CUSTOM_CHARSET_MAPPING);
-                throw new JdbdException(m);
+        final String[] pairs;
+        pairs = mappingValue.split(",");
+
+
+        try {
+            String[] valuePair;
+            final Map<String, Charset> tempMap = MySQLCollections.hashMap((int) (pairs.length / 0.75F));
+            for (String pair : pairs) {
+                valuePair = pair.split(":");
+                if (valuePair.length != 2) {
+                    String m = String.format("%s value format error.", MySQLKey.CUSTOM_CHARSET_MAPPING);
+                    throw new JdbdException(m);
+                }
+                tempMap.put(valuePair[0].trim(), Charset.forName(valuePair[1].trim()));
             }
-            tempMap.put(valuePair[0], Charset.forName(valuePair[1]));
+            return MySQLCollections.unmodifiableMap(tempMap);
+        } catch (JdbdException e) {
+            throw e;
+        } catch (Exception e) {
+            throw MySQLExceptions.wrap(e);
         }
-        return Collections.unmodifiableMap(tempMap);
     }
 
 

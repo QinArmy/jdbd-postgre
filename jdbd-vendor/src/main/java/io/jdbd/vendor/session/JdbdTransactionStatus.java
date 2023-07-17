@@ -67,10 +67,20 @@ public enum JdbdTransactionStatus implements TransactionStatus {
         return this.readOnly;
     }
 
+    @SuppressWarnings("unchecked")
     @Override
-    public <T> T valueOf(Option<T> key) {
-        //always null
-        return null;
+    public <T> T valueOf(final Option<T> key) {
+        final Object value;
+        if (key == Option.IN_TRANSACTION) {
+            value = Boolean.TRUE;
+        } else if (key == Option.ISOLATION) {
+            value = this.isolation;
+        } else if (key == Option.READ_ONLY) {
+            value = this.readOnly;
+        } else {
+            value = null;
+        }
+        return (T) value;
     }
 
     @Override

@@ -102,6 +102,10 @@ public abstract class JdbdExceptions {
         return new JdbdException(m);
     }
 
+    public static JdbdException haveExistedTransaction() {
+        return new JdbdException("Have existed transaction , couldn't start new transaction.");
+    }
+
     public static JdbdException dontSupportOutParameter(Object indexOrName, Class<? extends Statement> stmtClass,
                                                         String database) {
         String m = String.format("%s %s don't support %s at index/name %s.", database, stmtClass.getName(),

@@ -3,6 +3,7 @@ package io.jdbd.mysql.protocol.client;
 
 import io.jdbd.JdbdException;
 import io.jdbd.mysql.protocol.MySQLServerVersion;
+import io.jdbd.mysql.util.MySQLCollections;
 import reactor.util.annotation.Nullable;
 
 import java.nio.charset.Charset;
@@ -122,8 +123,8 @@ public abstract class Charsets {
         // 1. below initialize fore: NUMBER_OF_ENCODINGS_CONFIGURED,CHARSET_NAME_TO_CHARSET ,JAVA_ENCODING_UC_TO_MYSQL_CHARSET,MULTIBYTE_ENCODINGS
         final List<MyCharset> myCharsetList = createMySQLCharsetList();
 
-        Map<String, MyCharset> charsetNameToMysqlCharsetMap = new HashMap<>();
-        Map<String, List<MyCharset>> javaUcToMysqlCharsetMap = new HashMap<>();
+        Map<String, MyCharset> charsetNameToMysqlCharsetMap = MySQLCollections.hashMap();
+        Map<String, List<MyCharset>> javaUcToMysqlCharsetMap = MySQLCollections.hashMap();
 
         Set<String> tempMultibyteEncodings = new HashSet<>(); // Character sets that we can't convert ourselves.
 
@@ -324,7 +325,7 @@ public abstract class Charsets {
      * @return a unmodifiable list
      */
     private static List<MyCharset> createMySQLCharsetList() {
-        List<MyCharset> list = new ArrayList<>(41);
+        final List<MyCharset> list = MySQLCollections.arrayList(41);
         // complete list of mysql character sets and their corresponding java encoding names
         list.add(new MyCharset(ascii, 1, 0, "US-ASCII", "ASCII"));
         list.add(new MyCharset(big5, 2, 0, "Big5"));
@@ -382,7 +383,7 @@ public abstract class Charsets {
     }
 
     private static List<Collation> createCollationList() {
-        List<Collation> list = new ArrayList<>(430);
+        final List<Collation> list = MySQLCollections.arrayList(430);
 
         // complete list of mysql collations and their corresponding character sets each element of collation[1]..collation[MAP_SIZE-1] must not be null
         list.add(new Collation(1, "big5_chinese_ci", 1, big5));

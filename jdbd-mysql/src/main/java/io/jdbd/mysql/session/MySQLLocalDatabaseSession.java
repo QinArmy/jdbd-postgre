@@ -1,7 +1,9 @@
 package io.jdbd.mysql.session;
 
 import io.jdbd.mysql.protocol.MySQLProtocol;
+import io.jdbd.mysql.util.MySQLExceptions;
 import io.jdbd.pool.PoolLocalDatabaseSession;
+import io.jdbd.session.HandleMode;
 import io.jdbd.session.LocalDatabaseSession;
 import io.jdbd.session.TransactionOption;
 import org.reactivestreams.Publisher;
@@ -32,9 +34,34 @@ class MySQLLocalDatabaseSession extends MySQLDatabaseSession<LocalDatabaseSessio
 
 
     @Override
-    public final Mono<LocalDatabaseSession> startTransaction(TransactionOption option) {
-        return this.protocol.startTransaction(option)
-                .thenReturn(this);
+    public final Publisher<LocalDatabaseSession> startTransaction(TransactionOption option) {
+        return this.startTransaction(option, HandleMode.ERROR_IF_EXISTS);
+    }
+
+    @Override
+    public Publisher<LocalDatabaseSession> startTransaction(final TransactionOption option, final HandleMode mode) {
+        final Mono<LocalDatabaseSession> mono;
+        if (!this.protocol.inTransaction()) {
+            mono = this.protocol.startTransaction(option)
+                    .thenReturn(this);
+        } else switch (mode) {
+            case ERROR_IF_EXISTS:
+                mono = Mono.error(MySQLExceptions.haveExistedTransaction());
+                break;
+            case ROLLBACK_IF_EXISTS:
+                mono = this.protocol.rollback()
+                        .then(this.protocol.startTransaction(option))
+                        .thenReturn(this);
+                break;
+            case COMMIT_IF_EXISTS:
+                mono = this.protocol.commit()
+                        .then(this.protocol.startTransaction(option))
+                        .thenReturn(this);
+                break;
+            default:
+                mono = Mono.error(MySQLExceptions.unexpectedEnum(mode));
+        }
+        return mono;
     }
 
     @Override
