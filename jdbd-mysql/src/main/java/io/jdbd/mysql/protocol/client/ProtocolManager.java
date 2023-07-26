@@ -6,7 +6,7 @@ interface ProtocolManager {
 
     TaskAdjutant adjutant();
 
-    Mono<ProtocolManager> reset();
+    Mono<Void> reset();
 
     Mono<Void> reConnect();
 

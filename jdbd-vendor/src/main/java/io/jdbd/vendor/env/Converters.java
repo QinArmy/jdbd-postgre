@@ -29,10 +29,6 @@ public abstract class Converters {
         throw new UnsupportedOperationException();
     }
 
-    public static final BiFunction<Class<?>, String, ?> ENUM_FUNCTION = Converters::toEnum;
-
-    public static final BiFunction<Class<?>, String, ?> TEXT_ENUM_FUNCTION = Converters::toTextEnum;
-
 
     public static void registerDefaultConverter(final BiConsumer<Class<?>, BiFunction<Class<?>, String, ?>> consumer) {
 
@@ -58,6 +54,7 @@ public abstract class Converters {
 
 
     }
+
 
     private static String stringToString(final Class<?> targetType, final String source) {
         return source;
@@ -208,7 +205,7 @@ public abstract class Converters {
     }
 
     @SuppressWarnings("unchecked")
-    private static <T extends Enum<T>> T toEnum(final Class<?> targetType, final String source) throws JdbdException {
+    public static <T extends Enum<T>> T toEnum(final Class<?> targetType, final String source) throws JdbdException {
         try {
             return Enum.valueOf((Class<T>) targetType, source);
         } catch (IllegalArgumentException e) {
@@ -217,7 +214,7 @@ public abstract class Converters {
     }
 
     @SuppressWarnings("unchecked")
-    private static <T extends Enum<T> & TextEnum> T toTextEnum(final Class<?> targetType, final String source)
+    public static <T extends Enum<T> & TextEnum> T toTextEnum(final Class<?> targetType, final String source)
             throws JdbdException {
         final T value;
         value = (T) TextEnumHelper.getTextMap(targetType).get(source);
@@ -227,7 +224,8 @@ public abstract class Converters {
         return value;
     }
 
-    private static Object createInstanceFromGetInstanceMethod(final Class<?> interfaceClass, final String source) {
+
+    public static Object createInstanceFromGetInstanceMethod(final Class<?> interfaceClass, final String source) {
 
         try {
             final Class<?> implClass;

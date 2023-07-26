@@ -1,10 +1,10 @@
 package io.jdbd.mysql.protocol.client;
 
 import io.jdbd.JdbdException;
-import io.jdbd.mysql.MySQLJdbdException;
+import io.jdbd.lang.Nullable;
 import io.jdbd.mysql.MySQLType;
 import io.jdbd.mysql.SQLMode;
-import io.jdbd.mysql.Server;
+import io.jdbd.mysql.SessionEnv;
 import io.jdbd.mysql.env.Environment;
 import io.jdbd.mysql.env.MySQLHost;
 import io.jdbd.mysql.env.MySQLKey;
@@ -12,34 +12,29 @@ import io.jdbd.mysql.protocol.Constants;
 import io.jdbd.mysql.protocol.MySQLProtocol;
 import io.jdbd.mysql.protocol.MySQLProtocolFactory;
 import io.jdbd.mysql.protocol.MySQLServerVersion;
-import io.jdbd.mysql.protocol.conf.MyKey;
 import io.jdbd.mysql.stmt.MyValues;
 import io.jdbd.mysql.stmt.Stmts;
-import io.jdbd.mysql.util.MySQLArrays;
-import io.jdbd.mysql.util.MySQLCollections;
-import io.jdbd.mysql.util.MySQLExceptions;
-import io.jdbd.mysql.util.MySQLStrings;
+import io.jdbd.mysql.util.*;
 import io.jdbd.result.CurrentRow;
-import io.jdbd.result.MultiResult;
-import io.jdbd.vendor.env.Properties;
+import io.jdbd.result.ResultRow;
 import io.jdbd.vendor.stmt.ParamStmt;
 import io.jdbd.vendor.stmt.ParamValue;
-import io.jdbd.vendor.util.Pair;
 import io.jdbd.vendor.util.SQLStates;
 import io.netty.channel.EventLoopGroup;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.netty.resources.LoopResources;
 import reactor.netty.tcp.TcpClient;
 import reactor.netty.tcp.TcpResources;
-import reactor.util.annotation.Nullable;
 
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
-import java.sql.SQLException;
+import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Consumer;
 
 public final class ClientProtocolFactory extends FixedEnv implements MySQLProtocolFactory {
 
@@ -47,15 +42,15 @@ public final class ClientProtocolFactory extends FixedEnv implements MySQLProtoc
         throw new UnsupportedOperationException();
     }
 
-    private static final Logger LOG = LoggerFactory.getLogger(ClientProtocolFactory.class);
-
 
     final MySQLHost host;
 
     final int factoryTaskQueueSize;
 
-
     final TcpClient tcpClient;
+
+
+    private final AtomicBoolean closed = new AtomicBoolean(false);
 
     private ClientProtocolFactory(final MySQLHost host) {
         super(host.properties());
@@ -72,17 +67,21 @@ public final class ClientProtocolFactory extends FixedEnv implements MySQLProtoc
 
     @Override
     public Mono<MySQLProtocol> createProtocol() {
+        if (this.closed.get()) {
+            String m = String.format("%s have closed", this.getClass().getName());
+            return Mono.error(new JdbdException(m));
+        }
         return MySQLTaskExecutor.create(this)//1. create tcp connection
                 .map(executor -> new ClientProtocolManager(executor, this))//2. create  SessionManagerImpl
                 .flatMap(ClientProtocolManager::authenticate) //3. authenticate
                 .flatMap(ClientProtocolManager::initializing)//4. initializing
-                .flatMap(ProtocolManager::reset)           //5. reset
-                .map(ClientProtocol::create);         //6. create ClientProtocol
+                .map(ClientProtocol::create);         //5. create ClientProtocol
     }
 
     @Override
     public Mono<Void> close() {
-        return null;
+        this.closed.set(false);
+        return Mono.empty();
     }
 
 
@@ -93,6 +92,14 @@ public final class ClientProtocolFactory extends FixedEnv implements MySQLProtoc
 
 
     private static final class ClientProtocolManager implements ProtocolManager {
+
+        private static final String CHARACTER_SET_CLIENT = "character_set_client";
+        private static final String CHARACTER_SET_RESULTS = "character_set_results";
+        private static final String COLLATION_CONNECTION = "collation_connection";
+        private static final String RESULTSET_METADATA = "resultset_metadata";
+
+        private static final String TIME_ZONE = "time_zone";
+
 
         private static final List<String> KEY_VARIABLES = MySQLArrays.asUnmodifiableList(
                 "sql_mode",
@@ -116,47 +123,17 @@ public final class ClientProtocolFactory extends FixedEnv implements MySQLProtoc
             this.factory = factory;
         }
 
+
         @Override
         public TaskAdjutant adjutant() {
             return this.executor.taskAdjutant();
         }
 
         @Override
-        public Mono<ProtocolManager> reset() {
-
-            final Pair<Charset, String> connClientPair;
-            final Pair<Charset, String> resultsCharsetPair;
-            final String setCustomVariablesSql;
-            try {
-                setCustomVariablesSql = createSetVariablesSql();
-                connClientPair = getConnClientPair();
-                resultsCharsetPair = getResultsCharsetPair();
-            } catch (Throwable e) {
-                return Mono.error(MySQLExceptions.wrap(e));
-            }
-            final Charset clientCharset = connClientPair.getFirst();
-            final Charset resultCharset = resultsCharsetPair.getFirst();
-
-            final List<String> sqlGroup = MySQLCollections.arrayList(8);
-            sqlGroup.add(setCustomVariablesSql); //1.
-            sqlGroup.add(connClientPair.getSecond());//2.
-            sqlGroup.add(resultsCharsetPair.getSecond());//3.
-            sqlGroup.add(createKeyVariablesSql());//4.
-            sqlGroup.add("SELECT @@SESSION.sql_mode");//5.
-
-            final MultiResult result;
-            result = ComQueryTask.batchAsMulti(Stmts.batch(sqlGroup), this.executor.taskAdjutant());
-            return Mono.from(result.nextUpdate())//1. SET custom variables
-                    .then(Mono.from(result.nextUpdate()))//2. SET character_set_connection and character_set_client
-                    .then(Mono.from(result.nextUpdate()))//3.SET character_set_results
-                    .then(Mono.from(result.nextUpdate()))//4.SET key variables
-                    .thenMany(result.nextQuery())//5. SELECT sql_mode
-                    .last()
-                    .map(row -> new DefaultServer(clientCharset, resultCharset, row.getNonNull(0, String.class)))
-                    .doOnSuccess(this.executor::resetTaskAdjutant)
-
-                    .switchIfEmpty(Mono.defer(this::resetFailure))
-                    .thenReturn(this);
+        public Mono<Void> reset() {
+            return ComResetTask.reset(this.adjutant)
+                    .then(Mono.defer(this::resetSessionEnvironment))
+                    .then();
         }
 
 
@@ -165,7 +142,6 @@ public final class ClientProtocolFactory extends FixedEnv implements MySQLProtoc
             return this.executor.reConnect()
                     .then(Mono.defer(this::authenticate))
                     .then(Mono.defer(this::initializing))
-                    .then(Mono.defer(this::reset))
                     .then();
         }
 
@@ -178,10 +154,65 @@ public final class ClientProtocolFactory extends FixedEnv implements MySQLProtoc
 
 
         private Mono<ClientProtocolManager> initializing() {
-            final Environment env = this.factory.env;
+            return this.initializeCustomCharset()
+                    .then(Mono.defer(this::resetSessionEnvironment))
+                    .thenReturn(this);
+        }
 
-            if (!env.getOrDefault(MySQLKey.DETECT_CUSTOM_COLLATIONS) || this.factory.customCharsetMap.size() == 0) {
-                return Mono.just(this);
+
+        /**
+         * @see #initializing()
+         */
+        private Mono<ProtocolManager> resetSessionEnvironment() {
+            final List<String> sqlGroup = MySQLCollections.arrayList(6);
+
+            final Charset clientCharset, resultCharset;
+            final ZoneOffset connZone;
+            try {
+                final Consumer<String> sqlConsumer = sqlGroup::add;
+
+                buildSetVariableCommand(sqlConsumer);
+                sqlGroup.add(connCollation());
+                clientCharset = clientMyCharset(sqlConsumer);
+                resultCharset = resultsCharset(sqlConsumer);
+
+                sqlGroup.add(keyVariablesDefaultSql());
+                connZone = connTimeZone(sqlConsumer); // after keyVariablesDefaultSql
+            } catch (Throwable e) {
+                return Mono.error(MySQLExceptions.wrap(e));
+            }
+
+
+            final long utcEpochSecond;
+            utcEpochSecond = OffsetDateTime.now(ZoneOffset.UTC).toEpochSecond();
+            final String keyVariablesQuerySql;
+            keyVariablesQuerySql = MySQLStrings.builder()
+                    .append("SELECT DATE_FORMAT(FROM_UNIXTIME(")
+                    .append(utcEpochSecond)
+                    .append("),'%Y-%m-%d %T') AS databaseNow , @@SESSION.sql_mode AS sqlMode , @@SESSION.local_infile localInfile")
+                    .toString();
+
+            sqlGroup.add(keyVariablesQuerySql); // 5.
+            final int sqlSize = sqlGroup.size();
+
+            return Flux.from(ComQueryTask.batchAsFlux(Stmts.batch(sqlGroup), this.adjutant))
+                    .filter(r -> r instanceof ResultRow && r.getResultNo() == sqlSize)
+                    .last()
+                    .map(ResultRow.class::cast)
+                    .map(row -> new DefaultSessionEnv(clientCharset, resultCharset, connZone, row, utcEpochSecond, this.factory.env))
+                    .doOnSuccess(this.executor::resetTaskAdjutant)
+
+                    .switchIfEmpty(Mono.defer(this::resetFailure))
+                    .thenReturn(this);
+        }
+
+        /**
+         * @see #initializing()
+         */
+        private Mono<Void> initializeCustomCharset() {
+            if (!this.factory.env.getOrDefault(MySQLKey.DETECT_CUSTOM_COLLATIONS)
+                    || this.factory.customCharsetMap.size() == 0) {
+                return Mono.empty();
             }
             return ComQueryTask.query(Stmts.stmt("SHOW CHARACTER SET"), this::mapMyCharset, this.adjutant)// SHOW CHARACTER SET result
                     .filter(Optional::isPresent)
@@ -193,7 +224,7 @@ public final class ClientProtocolFactory extends FixedEnv implements MySQLProtoc
 
 
         /**
-         * @see #initializing()
+         * @see #initializeCustomCharset()
          */
         private Optional<MyCharset> mapMyCharset(final CurrentRow row) {
             final String name;
@@ -206,17 +237,16 @@ public final class ClientProtocolFactory extends FixedEnv implements MySQLProtoc
             final MyCharset myCharset;
             myCharset = new MyCharset(name, row.getNonNull("Maxlen", Integer.class), 0, charset.name());
             return Optional.of(myCharset);
-
         }
 
 
         /**
-         * @see #initializing()
+         * @see #initializeCustomCharset()
          */
-        private Mono<ClientProtocolManager> queryAndHandleCollation(final Map<String, MyCharset> charsetMap) {
+        private Mono<Void> queryAndHandleCollation(final Map<String, MyCharset> charsetMap) {
 
             if (charsetMap.size() == 0) {
-                return Mono.just(this);
+                return Mono.empty();
             }
             final ParamStmt stmt;
             stmt = collationStmt(charsetMap);
@@ -226,7 +256,7 @@ public final class ClientProtocolFactory extends FixedEnv implements MySQLProtoc
                     .collectMap(Collation::index, Collation::self, MySQLCollections::hashMap)
                     .map(MySQLCollections::unmodifiableMap)
                     .flatMap(customCollationMap -> this.executor.setCustomCollation(charsetMap, customCollationMap))
-                    .thenReturn(this);
+                    .then();
         }
 
         /**
@@ -269,127 +299,215 @@ public final class ClientProtocolFactory extends FixedEnv implements MySQLProtoc
         }
 
 
-        private Pair<Charset, String> getResultsCharsetPair() {
-            final TaskAdjutant adjutant = this.executor.taskAdjutant();
-            final Properties properties = adjutant.host().getProperties();
-            final String charsetString = properties.get(MyKey.characterSetResults, String.class);
+        /**
+         * @see <a href="https://dev.mysql.com/doc/refman/8.0/en/time-zone-support.html#time-zone-variables">Time Zone Variables</a>
+         */
+        @Nullable
+        private ZoneOffset connTimeZone(final Consumer<String> sqlConsumer) {
+            final String zoneStr;
+            zoneStr = this.factory.env.get(MySQLKey.CONNECTION_TIME_ZONE);
+            if (zoneStr == null || "SERVER".equals(zoneStr)) {
+                return null;
+            }
 
+            final ZoneOffset zone;
+            if (zoneStr.equals("LOCAL")) {
+                zone = MySQLTimes.systemZoneOffset();
+            } else {
+                zone = ZoneOffset.of(zoneStr);
+            }
+
+            if (this.factory.env.getOrDefault(MySQLKey.FORCE_CONNECTION_TIME_ZONE_TO_SESSION)) {
+                final String command;
+                command = MySQLStrings.builder()
+                        .append("SET @@SESSION.time_zone = '")
+                        .append(MySQLTimes.ZONE_FORMATTER.format(zone))
+                        .append(Constants.QUOTE)
+                        .toString();
+
+                sqlConsumer.accept(command);
+            }
+            return zone;
+        }
+
+        private String keyVariablesDefaultSql() {
+            final StringBuilder builder = new StringBuilder(50);
+            builder.append("SET");
+
+            final List<String> list = KEY_VARIABLES;
+            final int size = list.size();
+
+            for (int i = 0; i < size; i++) {
+                if (i > 0) {
+                    builder.append(" ,");
+                }
+
+                builder.append(" @@SESSION.")
+                        .append(list.get(i))
+                        .append(" = DEFAULT");
+
+            }
+            return builder.toString();
+        }
+
+
+        private Charset resultsCharset(final Consumer<String> sqlConsumer) throws JdbdException {
+            final String charsetString = this.factory.env.get(MySQLKey.CHARACTER_SET_RESULTS);
+
+            final StringBuilder builder = new StringBuilder(40);
             final Charset charsetResults;
-            final String command;
-            if (charsetString == null
-                    || charsetString.equalsIgnoreCase(Constants.NULL)) {
-                command = "SET character_set_results = NULL";
+            builder.append("SET character_set_results = ");
+            if (charsetString == null || charsetString.equalsIgnoreCase(Constants.NULL)) {
+                builder.append(Constants.NULL);
                 charsetResults = StandardCharsets.ISO_8859_1;
             } else if (charsetString.equalsIgnoreCase("binary")) {
-                command = "SET character_set_results = 'binary'";
+                builder.append("binary");
                 charsetResults = StandardCharsets.ISO_8859_1;
             } else {
                 MyCharset myCharset;
                 myCharset = Charsets.NAME_TO_CHARSET.get(charsetString.toLowerCase());
                 if (myCharset == null) {
-                    myCharset = adjutant.nameCharsetMap().get(charsetString.toLowerCase());
+                    myCharset = this.adjutant.nameCharsetMap().get(charsetString.toLowerCase());
                 }
                 if (myCharset == null) {
-                    String message = String.format("No found MySQL charset[%s] fro Property[%s]"
-                            , charsetString, MyKey.characterSetResults);
-                    throw new JdbdSQLException(new SQLException(message, SQLStates.CONNECTION_EXCEPTION));
+                    String message = String.format("No found MySQL charset[%s] fro Property[%s]",
+                            charsetString, MySQLKey.CHARACTER_SET_RESULTS);
+                    throw new JdbdException(message, SQLStates.CONNECTION_EXCEPTION, 0);
                 }
-                command = String.format("SET character_set_results = '%s'", myCharset.name);
+
                 charsetResults = Charset.forName(myCharset.javaEncodingsUcList.get(0));
+                builder.append(Constants.QUOTE)
+                        .append(myCharset.name)
+                        .append(Constants.QUOTE);
             }
-            return new Pair<>(charsetResults, command);
-        }
 
-        private String createSetVariablesSql() throws MySQLJdbdException {
-            final TaskAdjutant adjutant = this.executor.taskAdjutant();
-            final Properties properties = adjutant.host().getProperties();
-            final String pairString = properties.get(MyKey.sessionVariables);
-            final String sql;
-            if (MySQLStrings.hasText(pairString)) {
-                sql = Commands.buildSetVariableCommand(pairString);
-            } else {
-                sql = "SET @@session.character_set_results = DEFAULT";
-            }
-            return sql;
-        }
-
-        private Pair<Charset, String> getConnClientPair() {
-            final Collation connCollation;
-            connCollation = getConnCollation();
-
-            final String command;
-            final Charset charset;
-            if (connCollation == null) {
-                final Pair<MyCharset, Charset> charsetPair = getClientMyCharsetPair();
-                final MyCharset myCharset = charsetPair.getFirst();
-                charset = charsetPair.getSecond();
-                final String format = "SET character_set_client = '%s',character_set_connection = '%s'";
-                command = String.format(format, myCharset.name, myCharset.name);
-            } else {
-                final String format;
-                format = "SET character_set_client = '%s' COLLATE '%s',character_set_connection = '%s' COLLATE '%s'";
-                charset = Charset.forName(connCollation.myCharset.javaEncodingsUcList.get(0));
-                command = String.format(format
-                        , connCollation.myCharset.name
-                        , connCollation.name
-                        , connCollation.myCharset.name
-                        , connCollation.name);
-            }
-            return Pair.create(charset, command);
+            sqlConsumer.accept(builder.toString());
+            return charsetResults;
         }
 
         /**
-         * @see #getConnClientPair()
+         * @see #reset()
          */
-        @Nullable
-        private Collation getConnCollation() {
-            final String collationStr = this.factory.env.get(MySQLKey.CONNECTION_COLLATION);
+        private String connCollation() throws JdbdException {
+            final String collationStr;
+            collationStr = this.factory.env.get(MySQLKey.CONNECTION_COLLATION);
 
+            Collation collation;
             if (!MySQLStrings.hasText(collationStr)) {
-                return null;
-            }
-            final TaskAdjutant adjutant = this.adjutant;
-
-            final Collation collation;
-            Collation tempCollation = Charsets.getCollationByName(collationStr);
-            if (tempCollation == null) {
-                tempCollation = adjutant.nameCollationMap().get(collationStr.toLowerCase());
-            }
-            if (tempCollation == null) {
-                String message = String.format("No found MySQL Collation[%s] fro Property[%s]",
-                        collationStr, MySQLKey.CONNECTION_COLLATION);
-                throw new JdbdException(message, SQLStates.CONNECTION_EXCEPTION, 0);
-            }
-            Charset charset = Charset.forName(tempCollation.myCharset.javaEncodingsUcList.get(0));
-            if (Charsets.isSupportCharsetClient(charset)) {
-                collation = tempCollation;
-            } else {
                 collation = null;
+            } else if ((collation = Charsets.getCollationByName(collationStr)) == null) {
+                collation = this.adjutant.nameCollationMap().get(collationStr.toLowerCase());
+                if (collation == null) {
+                    String message = String.format("No found MySQL Collation[%s] fro Property[%s]",
+                            collationStr, MySQLKey.CONNECTION_COLLATION);
+                    throw new JdbdException(message, SQLStates.CONNECTION_EXCEPTION, 0);
+                }
             }
-            return collation;
+
+            if (collation != null) {
+                final Charset charset;
+                charset = Charset.forName(collation.myCharset.javaEncodingsUcList.get(0));
+                if (!Charsets.isSupportCharsetClient(charset)) {
+                    collation = null;
+                }
+            }
+
+            final String mysqlCharsetName;
+            if (collation == null) {
+                mysqlCharsetName = Charsets.utf8mb4;
+            } else {
+                mysqlCharsetName = collation.myCharset.name;
+            }
+
+            final StringBuilder builder = new StringBuilder(40);
+            builder.append("SET character_set_connection = '")
+                    .append(mysqlCharsetName)
+                    .append(Constants.QUOTE);
+
+            if (collation != null) {
+                builder.append(" COLLATE '")
+                        .append(collation.name)
+                        .append(Constants.QUOTE);
+            }
+            return builder.toString();
         }
 
         /**
-         * @see #getConnClientPair()
+         * @see #reset()
          */
-        private Pair<MyCharset, Charset> getClientMyCharsetPair() {
-            final TaskAdjutant adjutant = this.executor.taskAdjutant();
-            final Properties properties = adjutant.host().getProperties();
-            Charset charset = properties.get(MyKey.characterEncoding, Charset.class);
+        private Charset clientMyCharset(final Consumer<String> sqlConsumer) {
+            Charset charset;
+            charset = this.factory.env.getOrDefault(MySQLKey.CHARACTER_ENCODING);
 
-            MyCharset myCharset;
-            if (charset == null || !Charsets.isSupportCharsetClient(charset)) {
+            MyCharset myCharset = null;
+            if (charset != StandardCharsets.UTF_8 && Charsets.isSupportCharsetClient(charset)) {
+                final MySQLServerVersion version = this.adjutant.handshake10().serverVersion;
+                myCharset = Charsets.getMysqlCharsetForJavaEncoding(charset.name(), version);
+            }
+            if (myCharset == null) {
                 charset = StandardCharsets.UTF_8;
                 myCharset = Charsets.NAME_TO_CHARSET.get(Charsets.utf8mb4);
-            } else {
-                final MySQLServerVersion version = adjutant.handshake10().getServerVersion();
-                myCharset = Charsets.getMysqlCharsetForJavaEncoding(charset.name(), version);
-                if (myCharset == null) {
-                    charset = StandardCharsets.UTF_8;
-                    myCharset = Charsets.NAME_TO_CHARSET.get(Charsets.utf8mb4);
-                }
             }
-            return new Pair<>(myCharset, charset);
+
+            final StringBuilder builder;
+            builder = MySQLStrings.builder()
+                    .append("SET character_set_client '")
+                    .append(myCharset.name)
+                    .append(Constants.QUOTE);
+
+            sqlConsumer.accept(builder.toString());
+
+            return charset;
+        }
+
+
+        @Nullable
+        private void buildSetVariableCommand(final Consumer<String> sqlConsumer) throws JdbdException {
+
+            final String variables;
+            variables = this.factory.env.get(MySQLKey.SESSION_VARIABLES);
+
+            if (variables == null) {
+                return;
+            }
+            final Map<String, String> map;
+            map = MySQLStrings.spitAsMap(variables, ",", "=", true);
+
+            final StringBuilder builder = new StringBuilder(40);
+            builder.append("SET ");
+            int index = 0;
+            String lower, name, value;
+            for (Map.Entry<String, String> e : map.entrySet()) {
+                name = e.getKey();
+
+                lower = name.toLowerCase(Locale.ROOT);
+                if (lower.contains(CHARACTER_SET_RESULTS)
+                        || lower.contains(CHARACTER_SET_CLIENT)
+                        || lower.contains(COLLATION_CONNECTION)
+                        || lower.contains(RESULTSET_METADATA)
+                        || lower.contains(TIME_ZONE)) {
+                    throw createSetVariableException();
+                }
+
+                value = e.getValue();
+                if (!MySQLStrings.isSimpleIdentifier(name) || value.contains("'") || value.contains("\\")) {
+                    throw MySQLExceptions.valueErrorOfKey(MySQLKey.SESSION_VARIABLES.name);
+                }
+
+                if (index > 0) {
+                    builder.append(" ,");
+                }
+                builder.append(" @@SESSION.")
+                        .append(name)
+                        .append(" = '")
+                        .append(value)
+                        .append('\'');
+
+                index++;
+
+            }
+
+            sqlConsumer.accept(builder.toString());
         }
 
         /**
@@ -397,40 +515,72 @@ public final class ClientProtocolFactory extends FixedEnv implements MySQLProtoc
          */
         private <T> Mono<T> resetFailure() {
             // not bug ,never here.
-            return Mono.error(new JdbdSQLException(new SQLException("reset failure,no any result")));
+            return Mono.error(new JdbdException("reset failure,no any result"));
         }
 
-        private String createKeyVariablesSql() {
-            final StringBuilder builder = new StringBuilder();
-            builder.append("SET ");
-            final int size = KEY_VARIABLES.size();
-            for (int i = 0; i < size; i++) {
-                if (i > 0) {
-                    builder.append(',');
-                }
-                builder.append("@@SESSION.")
-                        .append(KEY_VARIABLES.get(i))
-                        .append(" = DEFAULT");
-            }
-            return builder.toString();
+        /**
+         * @see #buildSetVariableCommand(Consumer)
+         */
+        private static JdbdException createSetVariableException() {
+            String message = String.format("Below three session variables[%s,%s,%s,%s] must specified by below three properties[%s,%s,%s].",
+                    CHARACTER_SET_CLIENT,
+                    CHARACTER_SET_RESULTS,
+                    COLLATION_CONNECTION,
+                    RESULTSET_METADATA,
+                    MySQLKey.CHARACTER_ENCODING,
+                    MySQLKey.CHARACTER_SET_RESULTS,
+                    MySQLKey.CONNECTION_COLLATION
+            );
+            return new JdbdException(message);
         }
 
 
+    } // ClientProtocolManager
+
+
+    private static ZoneOffset parseServerZone(final ResultRow row, long utcEpochSecond) {
+        final LocalDateTime dateTime;
+        dateTime = LocalDateTime.parse(row.getNonNull("databaseNow", String.class), MySQLTimes.DATETIME_FORMATTER_6);
+
+        final int totalSeconds;
+        totalSeconds = (int) (OffsetDateTime.of(dateTime, ZoneOffset.UTC).toEpochSecond() - utcEpochSecond);
+        return ZoneOffset.ofTotalSeconds(totalSeconds);
     }
 
-    private static final class DefaultServer implements Server {
+
+    private static final class DefaultSessionEnv implements SessionEnv {
 
         private final Charset clientCharset;
 
         private final Charset resultsCharset;
 
+        private final ZoneOffset serverZone;
+
+        private final ZoneOffset connZone;
+
         private final Set<String> sqlModeSet;
 
-        private DefaultServer(Charset clientCharset, @Nullable Charset resultsCharset, String sqlMode) {
-            this.clientCharset = Objects.requireNonNull(clientCharset, "clientCharset");
+        private final boolean localInfile;
+
+
+        private DefaultSessionEnv(Charset clientCharset, @Nullable Charset resultsCharset, @Nullable ZoneOffset connZone,
+                                  ResultRow row, long utcEpochSecond, Environment env) {
+            Objects.requireNonNull(clientCharset);
+            this.clientCharset = clientCharset;
             this.resultsCharset = StandardCharsets.ISO_8859_1.equals(resultsCharset) ? null : resultsCharset;
-            this.sqlModeSet = Collections.unmodifiableSet(MySQLStrings.spitAsSet(sqlMode, ","));
+
+            this.serverZone = parseServerZone(row, utcEpochSecond);
+
+            if ("SERVER".equals(env.get(MySQLKey.CONNECTION_TIME_ZONE))) {
+                this.connZone = this.serverZone;
+            } else {
+                this.connZone = connZone;
+            }
+            this.sqlModeSet = MySQLStrings.spitAsSet(row.get("sqlMode", String.class), ",", true);
+
+            this.localInfile = row.getNonNull("localInfile", Boolean.class);
         }
+
 
         @Override
         public boolean containSqlMode(final SQLMode sqlMode) {
@@ -438,42 +588,52 @@ public final class ClientProtocolFactory extends FixedEnv implements MySQLProtoc
         }
 
         @Override
-        public Charset obtainCharsetClient() {
+        public Charset charsetClient() {
             return this.clientCharset;
         }
 
         @Override
-        public Charset obtainCharsetResults() {
+        public Charset charsetResults() {
             return this.resultsCharset;
         }
 
         @Override
-        public ZoneOffset obtainZoneOffsetDatabase() {
-            throw new UnsupportedOperationException();
+        public ZoneOffset connZone() {
+            return this.connZone;
         }
 
         @Override
-        public ZoneOffset obtainZoneOffsetClient() {
-            throw new UnsupportedOperationException();
+        public ZoneOffset serverZone() {
+            return this.serverZone;
         }
 
         @Override
-        public boolean supportLocalInfile() {
-            throw new UnsupportedOperationException();
+        public boolean isSupportLocalInfile() {
+            return this.localInfile;
         }
 
         @Override
         public String toString() {
-            return new StringBuilder("DefaultServer{")
-                    .append("\nclientCharset=").append(clientCharset)
-                    .append("\n, resultsCharset=").append(resultsCharset)
-                    .append("\n, sqlModeSet=").append(sqlModeSet)
-                    .append("\n}")
+            return MySQLStrings.builder()
+                    .append(getClass().getSimpleName())
+                    .append("[ sqlModeSet : ")
+                    .append(this.sqlModeSet)
+                    .append(" , clientCharset : ")
+                    .append(this.clientCharset)
+                    .append(" , resultsCharset : ")
+                    .append(this.resultsCharset)
+                    .append(" , connZone : ")
+                    .append(this.connZone)
+                    .append(" , serverZone : ")
+                    .append(this.serverZone)
+                    .append(" , localInfile : ")
+                    .append(this.localInfile)
+                    .append(" ]")
                     .toString();
         }
 
 
-    }
+    }//DefaultSessionEnv
 
 
 }

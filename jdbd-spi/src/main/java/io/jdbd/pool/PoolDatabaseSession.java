@@ -26,7 +26,7 @@ public interface PoolDatabaseSession extends DatabaseSession {
     /**
      * @return {@link Publisher} that emit <strong>this</strong> when success.
      */
-    Publisher<? extends PoolDatabaseSession> reconnect(int maxReconnect);
+    Publisher<? extends PoolDatabaseSession> reconnect();
 
     /**
      * @return {@link Publisher} that emit <strong>this</strong> when success.

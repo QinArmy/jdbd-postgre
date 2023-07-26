@@ -21,9 +21,4 @@ public class MySQLJdbdException extends JdbdException {
         super(createMessage(message, args), cause);
     }
 
-    public MySQLJdbdException(String message, @Nullable Throwable cause) {
-        super(message, cause);
-    }
-
-
 }

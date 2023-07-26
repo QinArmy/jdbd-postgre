@@ -3,7 +3,6 @@ package io.jdbd.postgre.statement;
 import io.jdbd.JdbdException;
 import io.jdbd.postgre.Group;
 import io.jdbd.postgre.PgTestUtils;
-import io.jdbd.result.CurrentRow;
 import io.jdbd.result.MultiResult;
 import io.jdbd.result.ResultRow;
 import io.jdbd.result.ResultStates;
@@ -161,7 +160,7 @@ public class PreparedStatementSuiteTests extends AbstractStatementTests {
         assertEquals(statesList.size(), 1, "statesList size");
 
         final ResultStates states = statesList.get(0);
-        assertEquals(states.getResultIndex(), 0, "resultIndex");
+        assertEquals(states.getResultNo(), 0, "resultIndex");
         PgTestUtils.assertUpdateOneWithoutMoreResult(statesList.get(0));
 
         closeSession(session);
@@ -188,7 +187,7 @@ public class PreparedStatementSuiteTests extends AbstractStatementTests {
 
         assertNotNull(states, "states");
 
-        assertEquals(states.getResultIndex(), 0, "resultIndex");
+        assertEquals(states.getResultNo(), 0, "resultIndex");
         assertFalse(states.hasMoreFetch(), "moreFetch");
         assertFalse(states.hasMoreResult(), "moreResult");
         assertFalse(states.hasColumn(), "hasColumn");
@@ -225,7 +224,7 @@ public class PreparedStatementSuiteTests extends AbstractStatementTests {
         final ResultStates states = statesHolder.get();
         assertNotNull(states, "states");
 
-        assertEquals(states.getResultIndex(), 0, "resultIndex");
+        assertEquals(states.getResultNo(), 0, "resultIndex");
         assertFalse(states.hasMoreFetch(), "moreFetch");
         assertFalse(states.hasMoreResult(), "moreResult");
         assertTrue(states.hasColumn(), "hasColumn");
@@ -266,7 +265,7 @@ public class PreparedStatementSuiteTests extends AbstractStatementTests {
 
         for (int i = 0, last = batchCount - 1; i < batchCount; i++) {
             ResultStates states = stateList.get(i);
-            assertEquals(states.getResultIndex(), i, "result index");
+            assertEquals(states.getResultNo(), i, "result index");
             if (i == last) {
                 PgTestUtils.assertUpdateOneWithoutMoreResult(states);
             } else {
@@ -352,7 +351,7 @@ public class PreparedStatementSuiteTests extends AbstractStatementTests {
 
         for (int i = 0, last = batchCount - 1; i < batchCount; i++) {
             ResultStates states = statesList.get(i);
-            assertEquals(states.getResultIndex(), i, "result index");
+            assertEquals(states.getResultNo(), i, "result index");
             if (i == last) {
                 PgTestUtils.assertUpdateOneWithoutMoreResult(states);
             } else {

@@ -116,7 +116,7 @@ abstract class MySQLStatement<S extends Statement> implements Statement, StmtOpt
 
     @Override
     public final boolean supportStmtVar() {
-        return this.session.supportStmtVar();
+        return this.session.isSupportStmtVar();
     }
 
     @SuppressWarnings("unchecked")

@@ -9,7 +9,7 @@ public interface PoolRmDatabaseSession extends RmDatabaseSession, PoolDatabaseSe
      * @return Publisher that emit this when success.
      */
     @Override
-    Publisher<PoolRmDatabaseSession> reconnect(int maxReconnect);
+    Publisher<PoolRmDatabaseSession> reconnect();
 
     /**
      * @return Publisher that emit this when success.

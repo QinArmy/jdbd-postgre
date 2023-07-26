@@ -31,7 +31,7 @@ abstract class PgResultStates implements ResultStates {
     }
 
     @Override
-    public final int getResultIndex() {
+    public final int getResultNo() {
         return this.resultIndex;
     }
 

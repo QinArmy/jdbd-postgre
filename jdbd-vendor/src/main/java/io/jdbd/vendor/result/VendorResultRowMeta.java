@@ -23,7 +23,7 @@ public abstract class VendorResultRowMeta implements ResultRowMeta {
     }
 
     @Override
-    public final int getResultIndex() {
+    public final int getResultNo() {
         return this.resultIndex;
     }
 

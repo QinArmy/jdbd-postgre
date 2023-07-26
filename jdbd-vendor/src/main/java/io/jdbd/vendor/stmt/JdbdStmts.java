@@ -57,7 +57,7 @@ public abstract class JdbdStmts {
     }
 
 
-    public static ParamStmt single(String sql, ParamStmt bindValue) {
+    public static ParamStmt single(String sql, ParamValue bindValue) {
         throw new UnsupportedOperationException();
     }
 

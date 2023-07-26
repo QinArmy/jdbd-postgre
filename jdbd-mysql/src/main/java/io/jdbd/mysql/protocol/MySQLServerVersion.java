@@ -42,6 +42,11 @@ public final class MySQLServerVersion implements Comparable<MySQLServerVersion>,
         return this.meetsMinimum(8, 0, 26);
     }
 
+    public boolean isSupportOutParameter() {
+        return this.meetsMinimum(5, 5, 3);
+    }
+
+
     @Override
     public String toString() {
         return this.completeVersion;

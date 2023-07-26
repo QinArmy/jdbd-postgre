@@ -1,7 +1,7 @@
 package io.jdbd.mysql.protocol.client;
 
 import io.jdbd.JdbdException;
-import io.jdbd.mysql.Server;
+import io.jdbd.mysql.SessionEnv;
 import io.jdbd.mysql.protocol.conf.MySQLHost0;
 import io.jdbd.mysql.protocol.conf.MySQLUrl;
 import io.jdbd.mysql.syntax.DefaultMySQLParser;
@@ -111,7 +111,7 @@ final class MySQLTaskExecutor extends CommunicationTaskExecutor<TaskAdjutant> {
         }
     }
 
-    void resetTaskAdjutant(final Server server) {
+    void resetTaskAdjutant(final SessionEnv server) {
         LOG.debug("reset success,server:{}", server);
         synchronized (this.taskAdjutant) {
             TaskAdjutantWrapper taskAdjutant = (TaskAdjutantWrapper) this.taskAdjutant;
@@ -120,7 +120,7 @@ final class MySQLTaskExecutor extends CommunicationTaskExecutor<TaskAdjutant> {
             //2.
             taskAdjutant.mySQLParser = DefaultMySQLParser.create(server::containSqlMode);
             //3.
-            double maxBytes = server.obtainCharsetClient().newEncoder().maxBytesPerChar();
+            double maxBytes = server.charsetClient().newEncoder().maxBytesPerChar();
             taskAdjutant.maxBytesPerCharClient = (int) Math.ceil(maxBytes);
         }
 
@@ -164,7 +164,7 @@ final class MySQLTaskExecutor extends CommunicationTaskExecutor<TaskAdjutant> {
 
         private MySQLParser mySQLParser = DefaultMySQLParser.getForInitialization();
 
-        private Server server;
+        private SessionEnv server;
 
         private int maxBytesPerCharClient = 0;
 
@@ -207,8 +207,8 @@ final class MySQLTaskExecutor extends CommunicationTaskExecutor<TaskAdjutant> {
 
         @Override
         public Charset charsetClient() {
-            Server server = this.server;
-            return server == null ? StandardCharsets.UTF_8 : server.obtainCharsetClient();
+            SessionEnv server = this.server;
+            return server == null ? StandardCharsets.UTF_8 : server.charsetClient();
         }
 
         /**
@@ -218,12 +218,12 @@ final class MySQLTaskExecutor extends CommunicationTaskExecutor<TaskAdjutant> {
         @Nullable
         @Override
         public Charset getCharsetResults() {
-            Server server = this.server;
+            SessionEnv server = this.server;
             Charset charset;
             if (server == null) {
                 charset = StandardCharsets.UTF_8;
             } else {
-                charset = server.obtainCharsetResults();
+                charset = server.charsetResults();
             }
             return charset;
         }
@@ -275,11 +275,11 @@ final class MySQLTaskExecutor extends CommunicationTaskExecutor<TaskAdjutant> {
 
         @Override
         public ZoneOffset serverZone() {
-            Server server = this.server;
+            SessionEnv server = this.server;
             if (server == null) {
                 throw new IllegalStateException("Cannot access zoneOffsetDatabase now.");
             }
-            return server.obtainZoneOffsetDatabase();
+            return server.connZone();
         }
 
         @Override
@@ -303,11 +303,11 @@ final class MySQLTaskExecutor extends CommunicationTaskExecutor<TaskAdjutant> {
 
         @Override
         public ZoneOffset obtainZoneOffsetClient() {
-            Server server = this.server;
+            SessionEnv server = this.server;
             if (server == null) {
                 throw new IllegalStateException("Cannot access zoneOffsetClient now.");
             }
-            return server.obtainZoneOffsetClient();
+            return server.serverZone();
         }
 
         @Override
@@ -373,8 +373,8 @@ final class MySQLTaskExecutor extends CommunicationTaskExecutor<TaskAdjutant> {
         }
 
         @Override
-        public Server obtainServer() {
-            Server server = this.server;
+        public SessionEnv obtainServer() {
+            SessionEnv server = this.server;
             if (server == null) {
                 throw new IllegalStateException("Cannot access server now.");
             }

@@ -8,7 +8,10 @@ import io.jdbd.result.MultiResult;
 import io.jdbd.result.OrderedFlux;
 import io.jdbd.result.ResultStates;
 import io.jdbd.session.*;
-import io.jdbd.statement.*;
+import io.jdbd.statement.BindStatement;
+import io.jdbd.statement.MultiStatement;
+import io.jdbd.statement.PreparedStatement;
+import io.jdbd.statement.StaticStatement;
 import io.jdbd.vendor.task.PrepareTask;
 import org.reactivestreams.Publisher;
 import reactor.core.publisher.Mono;
@@ -112,12 +115,12 @@ abstract class PgDatabaseSession implements DatabaseSession {
     }
 
     @Override
-    public final boolean supportSavePoints() {
+    public final boolean isSupportSavePoints() {
         return true;
     }
 
     @Override
-    public boolean supportMultiStatement() {
+    public boolean isSupportMultiStatement() {
         return true;
     }
 

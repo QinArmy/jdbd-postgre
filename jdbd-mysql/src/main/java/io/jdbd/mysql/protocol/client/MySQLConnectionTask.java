@@ -289,8 +289,16 @@ final class MySQLConnectionTask extends CommunicationTask implements Authenticat
         } else {
             LOG.debug("plaintext send handshake response.");
         }
-        this.packetPublisher = createHandshakeResponsePacket();
-        this.phase = Phase.HANDSHAKE_RESPONSE;
+        if ((negotiatedCapability & Capabilities.CLIENT_PROTOCOL_41) == 0) {
+            String m = String.format("server version[%s] too old", handshake.serverVersion);
+            this.addError(new JdbdException(m));
+            this.packetPublisher = null;
+            this.phase = Phase.DISCONNECT;
+        } else {
+            this.packetPublisher = createHandshakeResponsePacket();
+            this.phase = Phase.HANDSHAKE_RESPONSE;
+        }
+
     }
 
     /**
@@ -658,7 +666,7 @@ final class MySQLConnectionTask extends CommunicationTask implements Authenticat
                 | (serverCapability & Capabilities.CLIENT_PS_MULTI_RESULTS)  // We always allow multiple result sets for SSPS
                 | (serverCapability & Capabilities.CLIENT_LONG_FLAG)      //
 
-                | (serverCapability & Capabilities.CLIENT_DEPRECATE_EOF)  //
+                // | (serverCapability & Capabilities.CLIENT_DEPRECATE_EOF )  // jdbd-mysql don't deprecate eof ,because distinguish a normal resultset from an OUT parameter set.
                 | (serverCapability & Capabilities.CLIENT_PLUGIN_AUTH_LENENC_CLIENT_DATA)
                 | (env.getOrDefault(MySQLKey.USE_COMPRESSION) ? (serverCapability & Capabilities.CLIENT_COMPRESS) : 0)
                 | (useConnectWithDb ? (serverCapability & Capabilities.CLIENT_CONNECT_WITH_DB) : 0)

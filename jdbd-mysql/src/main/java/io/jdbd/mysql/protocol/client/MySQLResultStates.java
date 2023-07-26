@@ -51,7 +51,7 @@ abstract class MySQLResultStates implements ResultStates {
 
 
     @Override
-    public final int getResultIndex() {
+    public final int getResultNo() {
         return this.resultIndex;
     }
 

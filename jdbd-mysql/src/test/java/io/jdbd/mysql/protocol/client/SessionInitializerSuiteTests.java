@@ -2,7 +2,7 @@ package io.jdbd.mysql.protocol.client;
 
 import io.jdbd.mysql.Groups;
 import io.jdbd.mysql.SQLMode;
-import io.jdbd.mysql.Server;
+import io.jdbd.mysql.SessionEnv;
 import io.jdbd.mysql.protocol.conf.MyKey;
 import io.jdbd.mysql.stmt.Stmts;
 import io.jdbd.mysql.util.MySQLTimes;
@@ -183,7 +183,7 @@ public class SessionInitializerSuiteTests extends AbstractTaskSuiteTests {
 
         propMap.put(MyKey.timeTruncateFractional.getKey(), "true");
         adjutant = doConnectionTest(propMap);
-        Server server = adjutant.obtainServer();
+        SessionEnv server = adjutant.obtainServer();
 
         assertNotNull(server, "server");
         assertTrue(server.containSqlMode(SQLMode.TIME_TRUNCATE_FRACTIONAL), "TIME_TRUNCATE_FRACTIONAL");

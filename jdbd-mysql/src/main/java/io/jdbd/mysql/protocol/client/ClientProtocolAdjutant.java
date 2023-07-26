@@ -1,6 +1,6 @@
 package io.jdbd.mysql.protocol.client;
 
-import io.jdbd.mysql.Server;
+import io.jdbd.mysql.SessionEnv;
 import io.jdbd.mysql.protocol.conf.MySQLHost0;
 import io.jdbd.mysql.protocol.conf.MySQLUrl;
 import io.netty.buffer.ByteBuf;
@@ -52,6 +52,6 @@ interface ClientProtocolAdjutant extends ResultRowAdjutant {
     @Deprecated
     MySQLUrl mysqlUrl();
 
-    Server obtainServer();
+    SessionEnv obtainServer();
 
 }

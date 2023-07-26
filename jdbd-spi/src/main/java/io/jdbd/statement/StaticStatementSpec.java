@@ -164,7 +164,7 @@ public interface StaticStatementSpec {
      * @return a <code>ResultSet</code> object that contains the data produced by the
      * query; never <code>null</code>
      * <p>
-     * Flux throw {@link JdbdSQLException } if a database access error occurs;
+     * Flux throw {@link io.jdbd.JdbdException } if a database access error occurs;
      * this method is called on a closed  <code>PreparedStatement</code> or the SQL
      * statement does not return a <code>ResultSet</code> object
      * </p>
@@ -182,4 +182,6 @@ public interface StaticStatementSpec {
     OrderedFlux executeBatchAsFlux(List<String> sqlGroup);
 
     OrderedFlux executeAsFlux(String multiStmt);
+
+
 }

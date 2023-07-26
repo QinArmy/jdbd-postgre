@@ -175,7 +175,7 @@ public class LoadDataLocalSuiteTests extends AbstractStmtTaskSuiteTests {
             fail(String.format("client no support Load data local statement,please config property[%s]"
                     , MyKey.allowLoadLocalInfile));
         }
-        if (!adjutant.obtainServer().supportLocalInfile()) {
+        if (!adjutant.obtainServer().isSupportLocalInfile()) {
             LOG.warn("Server no support Local infile ,please config system variables[@@GLOBAL.local_infile]");
             return;
         }

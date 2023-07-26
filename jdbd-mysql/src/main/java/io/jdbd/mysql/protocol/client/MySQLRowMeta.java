@@ -14,7 +14,6 @@ import io.netty.buffer.ByteBuf;
 import reactor.util.annotation.Nullable;
 
 import java.nio.charset.Charset;
-import java.sql.SQLException;
 import java.time.ZoneOffset;
 import java.util.Collections;
 import java.util.List;
@@ -135,12 +134,12 @@ final class MySQLRowMeta extends VendorResultRowMeta {
 
     @Override
     public DataType getDataType(int indexBasedZero) throws JdbdException {
-        return null;
+        return this.columnMetaArray[checkIndex(indexBasedZero)].sqlType;
     }
 
     @Override
     public String getTypeName(int indexBasedZero) throws JdbdException {
-        return null;
+        return this.columnMetaArray[checkIndex(indexBasedZero)].sqlType.typeName();
     }
 
     @Override
@@ -237,7 +236,7 @@ final class MySQLRowMeta extends VendorResultRowMeta {
         return this.metaIndex == this.columnMetaArray.length;
     }
 
-    int convertToIndex(String columnAlias) throws JdbdSQLException {
+    int convertToIndex(String columnAlias) throws JdbdException {
         MySQLColumnMeta[] columnMetas = this.columnMetaArray;
         int len = columnMetas.length;
         for (int i = 0; i < len; i++) {
@@ -245,8 +244,7 @@ final class MySQLRowMeta extends VendorResultRowMeta {
                 return i;
             }
         }
-        throw new JdbdSQLException(
-                new SQLException(String.format("Not found column for columnAlias[%s]", columnAlias)));
+        throw new JdbdException(String.format("Not found column for columnAlias[%s]", columnAlias));
     }
 
     final MySQLType getMySQLType(int indexBaseZero) {
@@ -257,10 +255,10 @@ final class MySQLRowMeta extends VendorResultRowMeta {
         return this.columnMetaArray[checkIndex(indexBaseZero)].columnCharset;
     }
 
-    int checkIndex(int indexBaseZero) {
+    int checkIndex(final int indexBaseZero) {
         if (indexBaseZero < 0 || indexBaseZero >= this.columnMetaArray.length) {
-            throw new JdbdSQLException(new SQLException(
-                    String.format("index[%s] out of bounds[0 -- %s].", indexBaseZero, columnMetaArray.length - 1)));
+            String m = String.format("index[%s] out of bounds[0 -- %s].", indexBaseZero, columnMetaArray.length - 1);
+            throw new JdbdException(m);
         }
         return indexBaseZero;
     }

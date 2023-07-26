@@ -12,7 +12,7 @@ public interface Clob extends PublisherParameter {
     @NonNull
     Publisher<CharSequence> value();
 
-    static Clob from(Publisher<CharSequence> source) {
+    static <T extends CharSequence> Clob from(Publisher<T> source) {
         return JdbdTypes.clobParam(source);
     }
 

@@ -2,16 +2,8 @@ package io.jdbd.session;
 
 import io.jdbd.JdbdException;
 import io.jdbd.meta.DatabaseMetaData;
-import io.jdbd.result.CurrentRow;
-import io.jdbd.result.MultiResult;
-import io.jdbd.result.OrderedFlux;
-import io.jdbd.result.ResultStates;
 import io.jdbd.statement.*;
 import org.reactivestreams.Publisher;
-
-import java.util.List;
-import java.util.function.Consumer;
-import java.util.function.Function;
 
 /**
  * <p>
@@ -30,61 +22,6 @@ import java.util.function.Function;
 public interface DatabaseSession extends StaticStatementSpec, Closeable {
 
 
-    /**
-     * <p>
-     * Execute sql without any statement option. So dont' create {@link StaticStatement}.
-     * </p>
-     */
-    @Override
-    Publisher<ResultStates> executeUpdate(String sql);
-
-    /**
-     * <p>
-     * Execute sql without any statement option. So dont' create {@link StaticStatement}.
-     * </p>
-     */
-    @Override
-    <R> Publisher<R> executeQuery(String sql, Function<CurrentRow, R> function);
-
-    /**
-     * <p>
-     * Execute sql without any statement option. So dont' create {@link StaticStatement}.
-     * </p>
-     */
-    @Override
-    <R> Publisher<R> executeQuery(String sql, Function<CurrentRow, R> function, Consumer<ResultStates> statesConsumer);
-
-    /**
-     * <p>
-     * Execute sql without any statement option. So dont' create {@link StaticStatement}.
-     * </p>
-     */
-    @Override
-    Publisher<ResultStates> executeBatchUpdate(List<String> sqlGroup);
-
-    /**
-     * <p>
-     * Execute sql without any statement option. So dont' create {@link StaticStatement}.
-     * </p>
-     */
-    @Override
-    MultiResult executeBatchAsMulti(List<String> sqlGroup);
-
-    /**
-     * <p>
-     * Execute sql without any statement option. So dont' create {@link StaticStatement}.
-     * </p>
-     */
-    @Override
-    OrderedFlux executeBatchAsFlux(List<String> sqlGroup);
-
-    /**
-     * <p>
-     * Execute sql without any statement option. So dont' create {@link StaticStatement}.
-     * </p>
-     */
-    @Override
-    OrderedFlux executeAsFlux(String multiStmt);
 
     DatabaseMetaData databaseMetaData();
 
@@ -122,13 +59,16 @@ public interface DatabaseSession extends StaticStatementSpec, Closeable {
     /**
      * @see java.sql.DatabaseMetaData#supportsSavepoints()
      */
-    boolean supportSavePoints() throws JdbdException;
+    boolean isSupportSavePoints() throws JdbdException;
 
-    boolean supportStmtVar() throws JdbdException;
+    boolean isSupportStmtVar() throws JdbdException;
 
-    boolean supportMultiStatement() throws JdbdException;
+    boolean isSupportMultiStatement() throws JdbdException;
 
-    boolean supportOutParameter() throws JdbdException;
+    boolean isSupportOutParameter() throws JdbdException;
+
+
+    boolean isSupportStoredProcedures() throws JdbdException;
 
 
     Publisher<SavePoint> setSavePoint();

@@ -6,6 +6,7 @@ import io.jdbd.meta.DataType;
 import io.jdbd.meta.SQLType;
 import io.jdbd.result.CurrentRow;
 import io.jdbd.result.ResultStates;
+import io.jdbd.session.Isolation;
 import io.jdbd.session.SavePoint;
 import io.jdbd.statement.OutParameter;
 import io.jdbd.statement.PreparedStatement;
@@ -47,6 +48,11 @@ public abstract class JdbdExceptions {
 
     public static JdbdException unexpectedEnum(Enum<?> e) {
         return new JdbdException(String.format("unexpected enum %s", e));
+    }
+
+    public static JdbdException valueErrorOfKey(String key) {
+        String m = String.format("value of key[%s] error.", key);
+        return new JdbdException(m);
     }
 
     public static JdbdException queryMapFuncError(Function<CurrentRow, ?> function) {
@@ -306,6 +312,14 @@ public abstract class JdbdExceptions {
         return new JdbdException(String.format("unknown %s %s", SavePoint.class.getName(), savePoint));
     }
 
+    public static JdbdException unknownIsolation(Isolation isolation) {
+        return new JdbdException(String.format("unknown %s[%s]", Isolation.class.getName(), isolation.name()));
+    }
+
+    public static JdbdException savePointNameIsEmpty() {
+        return new JdbdException("save point name must non-empty");
+    }
+
 
     public static JdbdException outOfTypeRange(final int batchIndex, final Value value) {
         return outOfTypeRange(batchIndex, value, null);
@@ -484,11 +498,11 @@ public abstract class JdbdExceptions {
         throw new JdbdException(m);
     }
 
-    public static JdbdSQLException transactionExistsRejectStart(Object sessionId) {
+    public static JdbdException transactionExistsRejectStart(Object sessionId) {
         String m;
-        m = String.format("Session[%s] in transaction ,reject start a new transaction before commit or rollback."
-                , sessionId);
-        throw new JdbdSQLException(new SQLException(m));
+        m = String.format("Session[%s] in transaction ,reject start a new transaction before commit or rollback.",
+                sessionId);
+        throw new JdbdException(m);
     }
 
     public static JdbdSQLException transactionExistsRejectSet(Object sessionId) {

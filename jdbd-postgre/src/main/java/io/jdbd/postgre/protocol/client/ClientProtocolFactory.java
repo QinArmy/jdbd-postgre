@@ -140,7 +140,7 @@ public abstract class ClientProtocolFactory {
             }
             return Flux.from(SimpleQueryTask.batchAsFlux(JdbdStmts.batch(sqlGroup), adjutant))
                     .switchIfEmpty(initializingFailure())
-                    .filter(result -> result.getResultIndex() >= showResultIndex)
+                    .filter(result -> result.getResultNo() >= showResultIndex)
                     .collectList()
                     .map(this::readInitializedParamResult);
         }

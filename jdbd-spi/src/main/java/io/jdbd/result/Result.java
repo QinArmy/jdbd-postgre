@@ -3,14 +3,14 @@ package io.jdbd.result;
 /**
  * @see ResultRow
  * @see ResultStates
- * @see ResultRowMeta#getResultIndex()
+ * @see ResultRowMeta#getResultNo()
  */
 public interface Result {
 
 
     /**
-     * @return index of this Query/Update result, based zero.
+     * @return number of this Query/Update result, based one.
      */
-    int getResultIndex();
+    int getResultNo();
 
 }

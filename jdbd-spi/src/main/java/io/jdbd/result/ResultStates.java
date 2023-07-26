@@ -20,6 +20,9 @@ public interface ResultStates extends Result {
 
     boolean hasMoreFetch();
 
+
+    boolean isLastResult();
+
     default long getRowCount() {
         throw new UnsupportedOperationException();
     }

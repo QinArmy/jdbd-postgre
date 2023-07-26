@@ -73,7 +73,7 @@ public interface Statement {
      *                 </ul>
      * @return <strong>this</strong>
      * @throws JdbdException throw when : <ul>
-     *                       <li>{@link DatabaseSession#supportStmtVar()} or {@link #supportStmtVar()} return false</li>
+     *                       <li>{@link DatabaseSession#isSupportStmtVar()} or {@link #supportStmtVar()} return false</li>
      *                       <li>this statement instance is reused.Because jdbd is reactive and multi-thread and jdbd provide :
      *                              <ol>
      *                                  <li>{@link MultiResultStatement#executeBatchUpdate()}</li>
@@ -89,7 +89,7 @@ public interface Statement {
      *                       <li>dataType is null or dataType is supported by database.</li>
      *                       <li>the java type of value isn't supported by appropriate dataType</li>
      *                       </ul>
-     * @see DatabaseSession#supportStmtVar()
+     * @see DatabaseSession#isSupportStmtVar()
      * @see #supportStmtVar()
      * @see io.jdbd.meta.JdbdType
      * @see io.jdbd.meta.SQLType

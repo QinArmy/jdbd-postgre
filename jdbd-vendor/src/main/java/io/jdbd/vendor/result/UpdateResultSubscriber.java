@@ -52,7 +52,7 @@ final class UpdateResultSubscriber extends JdbdResultSubscriber {
         if (hasError()) {
             return;
         }
-        if (result.getResultIndex() != 0) {
+        if (result.getResultNo() != 0) {
             addSubscribeError(ResultType.MULTI_RESULT);
         } else if (result instanceof ResultRow) {
             addSubscribeError(ResultType.QUERY);

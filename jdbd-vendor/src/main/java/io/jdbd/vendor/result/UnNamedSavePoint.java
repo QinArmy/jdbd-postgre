@@ -26,6 +26,11 @@ public final class UnNamedSavePoint implements SavePoint {
     }
 
     @Override
+    public boolean isIdType() {
+        return true;
+    }
+
+    @Override
     public int id() throws JdbdException {
         return this.id;
     }

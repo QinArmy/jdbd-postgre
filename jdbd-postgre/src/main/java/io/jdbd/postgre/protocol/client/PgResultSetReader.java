@@ -79,7 +79,7 @@ final class PgResultSetReader implements ResultSetReader {
                 break;
                 case READ_RESULT_TERMINATOR: {
                     final PgRowMeta rowMeta = Objects.requireNonNull(this.rowMeta, "this.rowMeta");
-                    resultSetEnd = this.task.readResultStateWithReturning(cumulateBuffer, rowMeta::getResultIndex);
+                    resultSetEnd = this.task.readResultStateWithReturning(cumulateBuffer, rowMeta::getResultNo);
                     continueRead = false;
                 }
                 break;

@@ -43,7 +43,7 @@ public abstract class PgTestUtils {
     }
 
     public static ResultStates assertUpdateOneWithMoreResult(ResultStates states, int resultIndex) {
-        assertEquals(states.getResultIndex(), resultIndex, "resultIndex");
+        assertEquals(states.getResultNo(), resultIndex, "resultIndex");
         return assertUpdateOneWithMoreResult(states);
     }
 
@@ -58,7 +58,7 @@ public abstract class PgTestUtils {
     }
 
     public static ResultStates assertUpdateOneWithoutMoreResult(ResultStates states, int resultIndex) {
-        assertEquals(states.getResultIndex(), resultIndex, "resultIndex");
+        assertEquals(states.getResultNo(), resultIndex, "resultIndex");
         return assertUpdateOneWithoutMoreResult(states);
     }
 

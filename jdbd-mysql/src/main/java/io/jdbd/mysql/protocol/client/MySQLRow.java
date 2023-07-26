@@ -44,7 +44,7 @@ abstract class MySQLRow extends VendorRow {
 
 
     @Override
-    public final int getResultIndex() {
+    public final int getResultNo() {
         return this.rowMeta.resultIndex;
     }
 
@@ -134,7 +134,7 @@ abstract class MySQLRow extends VendorRow {
             return MySQLStrings.builder()
                     .append(getClass().getSimpleName())
                     .append("[ resultIndex : ")
-                    .append(getResultIndex())
+                    .append(getResultNo())
                     .append(" , rowNumber : ")
                     .append(rowNumber())
                     .append(" , hash : ")

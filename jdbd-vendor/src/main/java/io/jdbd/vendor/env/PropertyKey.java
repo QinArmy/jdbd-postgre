@@ -2,6 +2,7 @@ package io.jdbd.vendor.env;
 
 import reactor.util.annotation.Nullable;
 
+@Deprecated
 public interface PropertyKey {
 
     String name();

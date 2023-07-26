@@ -150,13 +150,13 @@ public abstract class Charsets {
         final int maxSize = 2048;
 
         //final Collation notUsedCollation = new Collation(0, COLLATION_NOT_DEFINED, 0, NOT_USED);
-        final Map<Integer, Collation> indexToCollationMap = new HashMap<>((int) (maxSize / 0.75f));
+        final Map<Integer, Collation> indexToCollationMap = MySQLCollections.hashMap((int) (maxSize / 0.75f));
 
         Map<String, Integer> charsetNameToCollationIndexMap = new TreeMap<>();
         Map<String, Integer> charsetNameToCollationPriorityMap = new TreeMap<>();
-        Set<Integer> tempUTF8MB4Indexes = new HashSet<>();
+        Set<Integer> tempUTF8MB4Indexes = MySQLCollections.hashSet();
 
-        Map<String, Collation> nameToCollation = new HashMap<>();
+        Map<String, Collation> nameToCollation = MySQLCollections.hashMap();
 
         for (Map.Entry<Integer, Collation> e : createCollationMap().entrySet()) {
             Integer i = e.getKey();
@@ -702,7 +702,7 @@ public abstract class Charsets {
      */
     private static Map<Integer, Collation> createCollationMap() {
         List<Collation> collationList = createCollationList();
-        Map<Integer, Collation> map = new HashMap<>((int) (collationList.size() / 0.75f));
+        Map<Integer, Collation> map = MySQLCollections.hashMap((int) (collationList.size() / 0.75f));
         for (Collation collation : collationList) {
             map.put(collation.index, collation);
         }

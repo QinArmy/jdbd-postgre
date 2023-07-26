@@ -98,8 +98,8 @@ class MySQLLocalDatabaseSession extends MySQLDatabaseSession<LocalDatabaseSessio
 
 
         @Override
-        public Publisher<PoolLocalDatabaseSession> reconnect(int maxReconnect) {
-            return this.protocol.reconnect(maxReconnect)
+        public Publisher<PoolLocalDatabaseSession> reconnect() {
+            return this.protocol.reconnect()
                     .thenReturn(this);
         }
 

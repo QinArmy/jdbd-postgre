@@ -372,7 +372,6 @@ final class ComQueryTask extends MySQLCommandTask {
      * This method is underlying api of {@link MultiStatement#executeBatchAsFlux()} method.
      * </p>
      *
-     * @see ClientProtocol0#multiStmtAsFlux(ParamMultiStmt)
      */
     static OrderedFlux multiStmtAsFlux(final ParamMultiStmt stmt, final TaskAdjutant adjutant) {
         return MultiResults.asFlux(sink -> {

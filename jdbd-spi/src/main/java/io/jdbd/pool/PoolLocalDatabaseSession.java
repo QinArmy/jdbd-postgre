@@ -9,7 +9,7 @@ public interface PoolLocalDatabaseSession extends PoolDatabaseSession, LocalData
      * {@inheritDoc}
      */
     @Override
-    Publisher<PoolLocalDatabaseSession> reconnect(int maxReconnect);
+    Publisher<PoolLocalDatabaseSession> reconnect();
 
     /**
      * {@inheritDoc}

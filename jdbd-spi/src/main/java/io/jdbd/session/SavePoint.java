@@ -23,6 +23,8 @@ public interface SavePoint {
 
     boolean isNamed();
 
+    boolean isIdType();
+
     /**
      * Retrieves the generated ID for the savepoint that this
      * <code>Savepoint</code> object represents.

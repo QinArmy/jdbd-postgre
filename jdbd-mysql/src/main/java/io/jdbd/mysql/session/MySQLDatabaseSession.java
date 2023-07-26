@@ -26,6 +26,8 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.util.List;
+import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
@@ -46,6 +48,8 @@ abstract class MySQLDatabaseSession<S extends DatabaseSession> implements Databa
     final MySQLDatabaseSessionFactory factory;
 
     final MySQLProtocol protocol;
+
+    private final AtomicInteger savePointIndex = new AtomicInteger(0);
 
     MySQLDatabaseSession(MySQLDatabaseSessionFactory factory, MySQLProtocol protocol) {
         this.factory = factory;
@@ -168,33 +172,51 @@ abstract class MySQLDatabaseSession<S extends DatabaseSession> implements Databa
 
 
     @Override
-    public final boolean supportStmtVar() {
+    public final boolean isSupportStmtVar() {
         return this.protocol.supportStmtVar();
     }
 
     @Override
-    public final boolean supportSavePoints() {
+    public final boolean isSupportSavePoints() {
         return this.protocol.supportSavePoints();
     }
 
     @Override
-    public final boolean supportMultiStatement() {
+    public final boolean isSupportMultiStatement() {
         return this.protocol.supportMultiStmt();
     }
 
     @Override
-    public final boolean supportOutParameter() {
+    public final boolean isSupportOutParameter() {
         return this.protocol.supportOutParameter();
     }
 
     @Override
+    public final boolean isSupportStoredProcedures() throws JdbdException {
+        // always true, MySQL support
+        return true;
+    }
+
+    @Override
     public final Publisher<SavePoint> setSavePoint() {
-        return this.protocol.createSavePoint();
+        final StringBuilder builder;
+        builder = MySQLStrings.builder()
+                .append("$jdbd-")
+                .append(this.savePointIndex.getAndIncrement())
+                .append('-')
+                .append(ThreadLocalRandom.current().nextInt(Integer.MAX_VALUE));
+        return this.setSavePoint(builder.toString());
     }
 
     @Override
     public final Publisher<SavePoint> setSavePoint(final String name) {
-        return this.protocol.createSavePoint(name);
+        if (!MySQLStrings.hasText(name)) {
+            return Mono.error(MySQLExceptions.savePointNameIsEmpty());
+        }
+        final ParamStmt stmt;
+        stmt = Stmts.single("SAVEPOINT ? ", MySQLType.VARCHAR, name);
+        return this.protocol.bindUpdate(stmt, false)
+                .thenReturn(NamedSavePoint.fromName(name));
     }
 
     @SuppressWarnings("unchecked")

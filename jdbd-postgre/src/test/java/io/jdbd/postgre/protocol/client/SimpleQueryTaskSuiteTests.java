@@ -62,7 +62,7 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
 
         assertEquals(state.getAffectedRows(), 1L, "rows");
         assertEquals(state.getInsertId(), 0L, "insert id");
-        assertEquals(state.getResultIndex(), 0, "resultIndex");
+        assertEquals(state.getResultNo(), 0, "resultIndex");
         assertFalse(state.hasMoreFetch(), "moreFetch");
 
         assertFalse(state.hasMoreResult(), "moreResult");
@@ -101,7 +101,7 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
         assertNotNull(state, "ResultState");
         assertEquals(state.getAffectedRows(), 0L, "rows");
         assertEquals(state.getInsertId(), 0L, "insert id");
-        assertEquals(state.getResultIndex(), 0, "resultIndex");
+        assertEquals(state.getResultNo(), 0, "resultIndex");
         assertFalse(state.hasMoreFetch(), "moreFetch");
 
         assertFalse(state.hasMoreResult(), "moreResult");
@@ -138,7 +138,7 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
 
             assertEquals(state.getAffectedRows(), 1L, "rows");
             assertEquals(state.getInsertId(), 0L, "insert id");
-            assertEquals(state.getResultIndex(), i, "resultIndex");
+            assertEquals(state.getResultNo(), i, "resultIndex");
             assertFalse(state.hasMoreFetch(), "moreFetch");
 
             if (i == last) {
@@ -232,7 +232,7 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
 
         // result 0
         result = resultList.get(0);
-        assertEquals(result.getResultIndex(), 0, "result index"); // result index must be 0
+        assertEquals(result.getResultNo(), 0, "result index"); // result index must be 0
         assertTrue(result instanceof ResultStates, "first update statement.");
         state = (ResultStates) result;
 
@@ -246,13 +246,13 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
 
         // result 1
         result = resultList.get(1);
-        assertEquals(result.getResultIndex(), 1, "result index");// result index must be 1
+        assertEquals(result.getResultNo(), 1, "result index");// result index must be 1
         assertTrue(result instanceof ResultRow, "second select statement.");
         row = (ResultRow) result;
 
         assertEquals(row.get("id", Long.class), Long.valueOf(bindStartId + 1));
         result = resultList.get(2);
-        assertEquals(result.getResultIndex(), 1, "result index");// result index must be 1
+        assertEquals(result.getResultNo(), 1, "result index");// result index must be 1
         assertTrue(result instanceof ResultStates, "second select statement.");
 
         state = (ResultStates) result;
@@ -265,13 +265,13 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
 
         // result 2
         result = resultList.get(3);
-        assertEquals(result.getResultIndex(), 2, "result index");// result index must be 2
+        assertEquals(result.getResultNo(), 2, "result index");// result index must be 2
         assertTrue(result instanceof ResultRow, "third select statement.");
         row = (ResultRow) result;
 
         assertEquals(row.get("id", Long.class), Long.valueOf(bindStartId + 2));
         result = resultList.get(4);
-        assertEquals(result.getResultIndex(), 2, "result index");// result index must be 2
+        assertEquals(result.getResultNo(), 2, "result index");// result index must be 2
         assertTrue(result instanceof ResultStates, "third update returning statement.");
 
         state = (ResultStates) result;
@@ -284,7 +284,7 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
 
         // result 3
         result = resultList.get(5);
-        assertEquals(result.getResultIndex(), 3, "result index");// result index must be 3
+        assertEquals(result.getResultNo(), 3, "result index");// result index must be 3
         assertTrue(result instanceof ResultStates, "fourth update statement.");
         state = (ResultStates) result;
 
@@ -332,7 +332,7 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
         assertNotNull(state, "ResultState");
         assertEquals(state.getAffectedRows(), 1L, "rows");
         assertEquals(state.getInsertId(), 0L, "insert id");
-        assertEquals(state.getResultIndex(), 0, "resultIndex");
+        assertEquals(state.getResultNo(), 0, "resultIndex");
         assertFalse(state.hasMoreFetch(), "moreFetch");
 
         assertFalse(state.hasMoreResult(), "moreResult");
@@ -415,7 +415,7 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
 
         for (int i = 0, last = valueArray.length - 1; i < valueArray.length; i++) {
             ResultStates state = stateList.get(i);
-            assertEquals(state.getResultIndex(), i);
+            assertEquals(state.getResultNo(), i);
             assertEquals(state.getAffectedRows(), 1L, "getAffectedRows");
             assertEquals(state.getInsertId(), 0L, "insert id");
 
@@ -478,7 +478,7 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
         for (int i = 0, last = valueArray.length - 1; i < valueArray.length; i++) {
             final ResultStates state = stateList.get(i);
 
-            assertEquals(state.getResultIndex(), i);
+            assertEquals(state.getResultNo(), i);
             assertEquals(state.getAffectedRows(), 1L, "getAffectedRows");
             assertEquals(state.getInsertId(), 0L, "insert id");
 
@@ -545,7 +545,7 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
             final ResultRow row = rowList.get(i);
             final List<BindValue> valueList = groupList.get(i);
 
-            assertEquals(row.getResultIndex(), i, "resultIndex");
+            assertEquals(row.getResultNo(), i, "resultIndex");
             assertEquals(row.get("id", Long.class), valueList.get(1).get(), "id");
             final LocalTime resultTime = row.getNonNull("mytime", LocalTime.class);
             final LocalTime bindTime = (LocalTime) valueList.get(0).getNonNull();
@@ -562,7 +562,7 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
             final ResultStates state = stateHolderList.get(i).get();
             assertNotNull(state, "state");
 
-            assertEquals(state.getResultIndex(), i);
+            assertEquals(state.getResultNo(), i);
             assertEquals(state.getAffectedRows(), 1L, "getAffectedRows");
             assertEquals(state.getInsertId(), 0L, "insert id");
 
@@ -620,7 +620,7 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
         for (int i = 0, last = valueArray.length - 1; i < valueArray.length; i++) {
             final ResultStates state = stateList.get(i);
 
-            assertEquals(state.getResultIndex(), i);
+            assertEquals(state.getResultNo(), i);
             assertEquals(state.getAffectedRows(), 1L, "getAffectedRows");
             assertEquals(state.getInsertId(), 0L, "insert id");
 
@@ -678,7 +678,7 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
             final ResultRow row = (ResultRow) resultList.get(j);
             final List<BindValue> valueList = groupList.get(i);
 
-            assertEquals(row.getResultIndex(), i, "resultIndex");
+            assertEquals(row.getResultNo(), i, "resultIndex");
             assertEquals(row.get("id", Long.class), valueList.get(1).get(), "id");
             final LocalTime resultTime = row.getNonNull("mytime", LocalTime.class);
             final LocalTime bindTime = (LocalTime) valueList.get(0).getNonNull();
@@ -694,7 +694,7 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
 
             final ResultStates state = (ResultStates) resultList.get(j + 1);
 
-            assertEquals(state.getResultIndex(), i);
+            assertEquals(state.getResultNo(), i);
             assertEquals(state.getAffectedRows(), 1L, "getAffectedRows");
             assertEquals(state.getInsertId(), 0L, "insert id");
 
@@ -827,26 +827,26 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
         ResultRow row;
 
         row = (ResultRow) resultList.get(0);
-        assertEquals(row.getResultIndex(), 0, "resultIndex");
+        assertEquals(row.getResultNo(), 0, "resultIndex");
         assertEquals(row.get("id"), stmtList.get(0).getBindGroup().get(0).getNonNull(), "stmt one id");
         state = (ResultStates) resultList.get(1);
-        assertEquals(state.getResultIndex(), 0, "resultIndex");
+        assertEquals(state.getResultNo(), 0, "resultIndex");
         PgTestUtils.assertQueryStateWithMoreResult(state);
 
         row = (ResultRow) resultList.get(2);
-        assertEquals(row.getResultIndex(), 1, "resultIndex");
+        assertEquals(row.getResultNo(), 1, "resultIndex");
         assertEquals(row.get("id"), stmtList.get(1).getBindGroup().get(2).getNonNull(), "stmt two id");
         state = (ResultStates) resultList.get(3);
-        assertEquals(state.getResultIndex(), 1, "resultIndex");
+        assertEquals(state.getResultNo(), 1, "resultIndex");
         PgTestUtils.assertUpdateOneAndReturningWithMoreResult(state);
 
 
         row = (ResultRow) resultList.get(4);
-        assertEquals(row.getResultIndex(), 2, "resultIndex");
+        assertEquals(row.getResultNo(), 2, "resultIndex");
         assertEquals(row.get("id"), stmtList.get(2).getBindGroup().get(2).getNonNull(), "stmt three id");
         assertEquals(row.get("myvarchar"), stmtList.get(2).getBindGroup().get(0).getNonNull(), "stmt three my_varchar");
         state = (ResultStates) resultList.get(5);
-        assertEquals(state.getResultIndex(), 2, "resultIndex");
+        assertEquals(state.getResultNo(), 2, "resultIndex");
         PgTestUtils.assertUpdateOneAndReturningWithoutMoreResult(state);
 
 

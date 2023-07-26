@@ -28,4 +28,7 @@ interface TaskAdjutant extends ITaskAdjutant, ClientProtocolAdjutant, MySQLParse
     boolean isNoBackslashEscapes();
 
 
+    boolean inTransaction();
+
+
 }

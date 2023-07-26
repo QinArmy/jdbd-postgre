@@ -1,26 +1,22 @@
 package io.jdbd.mysql.protocol.client;
 
-import io.jdbd.mysql.MySQLJdbdException;
+import io.jdbd.JdbdException;
 import io.jdbd.mysql.protocol.MySQLProtocol;
 import io.jdbd.mysql.protocol.MySQLServerVersion;
 import io.jdbd.mysql.stmt.Stmts;
 import io.jdbd.mysql.util.MySQLExceptions;
-import io.jdbd.mysql.util.MySQLStrings;
 import io.jdbd.result.*;
-import io.jdbd.session.*;
+import io.jdbd.session.Isolation;
+import io.jdbd.session.ServerVersion;
+import io.jdbd.session.TransactionOption;
+import io.jdbd.session.TransactionStatus;
 import io.jdbd.vendor.session.JdbdTransactionStatus;
 import io.jdbd.vendor.stmt.*;
 import io.jdbd.vendor.task.PrepareTask;
-import org.reactivestreams.Publisher;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
-import reactor.core.publisher.MonoSink;
 
-import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Objects;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 
 /**
@@ -29,19 +25,19 @@ import java.util.function.Function;
 final class ClientProtocol implements MySQLProtocol {
 
 
-    static ClientProtocol create(ProtocolManager sessionManager) {
-        return new ClientProtocol(sessionManager);
+    static ClientProtocol create(ProtocolManager manager) {
+        return new ClientProtocol(manager);
 
     }
 
-    private final ProtocolManager sessionManager;
+    private final ProtocolManager manager;
 
-    final TaskAdjutant adjutant;
+    private final TaskAdjutant adjutant;
 
 
-    private ClientProtocol(final ProtocolManager sessionManager) {
-        this.sessionManager = sessionManager;
-        this.adjutant = sessionManager.adjutant();
+    private ClientProtocol(final ProtocolManager manager) {
+        this.manager = manager;
+        this.adjutant = manager.adjutant();
     }
 
 
@@ -50,9 +46,7 @@ final class ClientProtocol implements MySQLProtocol {
 
     @Override
     public long getId() {
-        return this.adjutant
-                .handshake10()
-                .getThreadId();
+        return this.adjutant.handshake10().threadId;
     }
 
 
@@ -185,38 +179,29 @@ final class ClientProtocol implements MySQLProtocol {
 
 
     @Override
-    public Mono<Void> reconnect(int maxAttempts) {
-        return null;
+    public Mono<Void> reconnect() {
+        return this.manager.reConnect();
     }
 
     @Override
     public boolean supportOutParameter() {
-        return false;
+        return this.adjutant.handshake10().serverVersion.isSupportOutParameter();
     }
 
     @Override
     public boolean supportSavePoints() {
-        return false;
+        return true;
     }
 
     @Override
     public boolean supportStmtVar() {
-        return false;
+        return this.adjutant.handshake10().serverVersion.isSupportQueryAttr();
     }
 
-    @Override
-    public Mono<SavePoint> createSavePoint() {
-        return null;
-    }
-
-    @Override
-    public Mono<SavePoint> createSavePoint(String name) {
-        return null;
-    }
 
     @Override
     public boolean inTransaction() {
-        return this.adjutant.inTransaction();
+        return Terminator.inTransaction(this.adjutant.getServerStatus());
     }
 
     @Override
@@ -231,57 +216,57 @@ final class ClientProtocol implements MySQLProtocol {
             builder.append("SELECT @@session.tx_isolation AS txLevel")
                     .append(",@@session.tx_read_only AS txReadOnly");
         }
-        builder.append(",@@session.autocommit AS txAutoCommit");
 
-        final AtomicReference<ResultStates> statesHolder = new AtomicReference<>(null);
+        final ResultStates[] statesHolder = new ResultStates[1];
 
-        return ComQueryTask.query(Stmts.stmt(builder.toString(), statesHolder::set), this.adjutant)
+        final StaticStmt stmt;
+        stmt = Stmts.stmt(builder.toString(), states -> statesHolder[0] = states);
+        return ComQueryTask.query(stmt, CurrentRow::asResultRow, this.adjutant)
                 .last() // must wait for last ,because statesHolder
-                .map(row -> mapTxOption(row, statesHolder.get()));
+                .map(row -> mapTxStatus(row, statesHolder[0]));
     }
 
 
     @Override
     public Mono<Void> startTransaction(final TransactionOption option) {
-        return Mono.create(sink -> {
-            if (this.adjutant.inEventLoop()) {
-                startTransactionInEventLoop(option, sink);
-            } else {
-                this.adjutant.execute(() -> startTransactionInEventLoop(option, sink));
-            }
-        });
-    }
 
-
-    @Override
-    public Mono<Void> setTransactionOption(final TransactionOption option) {
-        return Mono.create(sink -> {
-            if (this.adjutant.inEventLoop()) {
-                setTransactionOptionInEventLoop(option, sink);
-            } else {
-                this.adjutant.execute(() -> setTransactionOptionInEventLoop(option, sink));
+        final StringBuilder builder = new StringBuilder(50);
+        final Isolation isolation = option.getIsolation();
+        if (isolation != null) {
+            builder.append("SET TRANSACTION ISOLATION LEVEL ");
+            if (appendIsolation(isolation, builder)) {
+                return Mono.error(MySQLExceptions.unknownIsolation(isolation));
             }
-        });
+            builder.append(" ; ");
+        }
+
+        if (option.isReadOnly()) {
+            builder.append("START TRANSACTION READ ONLY");
+        } else {
+            builder.append("START TRANSACTION READ WRITE");
+        }
+        return Flux.from(ComQueryTask.executeAsFlux(Stmts.multiStmt(builder.toString()), this.adjutant))
+                .last()
+                .map(ResultStates.class::cast)
+                .flatMap(this::handleStartTransactionEnd);
     }
 
     @Override
     public Mono<Void> commit() {
-        final List<String> sqlGroup = new ArrayList<>(2);
-        sqlGroup.add("COMMIT");
-        sqlGroup.add("SET @@session.autocommit = 1");
-        return ComQueryTask.batchUpdate(Stmts.batch(sqlGroup), this.adjutant)
-                .collectList()
-                .flatMap(this::validateCommitResult);
+        final String sql = "COMMIT ; SET @@session.autocommit = 1";
+        return Flux.from(ComQueryTask.executeAsFlux(Stmts.multiStmt(sql), this.adjutant))
+                .last()
+                .map(ResultStates.class::cast)
+                .flatMap(this::handleTransactionEnd);
     }
 
     @Override
     public Mono<Void> rollback() {
-        final List<String> sqlGroup = new ArrayList<>(2);
-        sqlGroup.add("ROLLBACK");
-        sqlGroup.add("SET @@session.autocommit = 1");
-        return ComQueryTask.batchUpdate(Stmts.batch(sqlGroup), this.adjutant)
-                .collectList()
-                .flatMap(this::validateRollbackResult);
+        final String sql = "ROLLBACK ; SET @@session.autocommit = 1";
+        return Flux.from(ComQueryTask.executeAsFlux(Stmts.multiStmt(sql), this.adjutant))
+                .last()
+                .map(ResultStates.class::cast)
+                .flatMap(this::handleTransactionEnd);
     }
 
 
@@ -293,8 +278,7 @@ final class ClientProtocol implements MySQLProtocol {
 
     @Override
     public Mono<Void> reset() {
-        return Mono.defer(this.sessionManager::reset)
-                .then();
+        return Mono.defer(this.manager::reset);
     }
 
     @Override
@@ -302,15 +286,6 @@ final class ClientProtocol implements MySQLProtocol {
         return PingTask.ping(timeSeconds, this.adjutant);
     }
 
-    @Override
-    public boolean isStartedTransaction(ResultStates states) {
-        return Terminator.startedTransaction(((MySQLResultStates) states).serverStatus);
-    }
-
-    @Override
-    public boolean isReadOnlyTransaction(ResultStates states) {
-        return Terminator.isReadOnly(((MySQLResultStates) states).serverStatus);
-    }
 
     @Override
     public boolean supportMultiStmt() {
@@ -319,7 +294,7 @@ final class ClientProtocol implements MySQLProtocol {
 
     @Override
     public ServerVersion serverVersion() {
-        return this.adjutant.handshake10().getServerVersion();
+        return this.adjutant.handshake10().serverVersion;
     }
 
     @Override
@@ -331,111 +306,42 @@ final class ClientProtocol implements MySQLProtocol {
 
 
     /**
-     * @see #setTransactionOptionInEventLoop(TransactionOption, MonoSink)
-     */
-    private void setTransactionOptionInEventLoop(final TransactionOption option, final MonoSink<Void> sink) {
-        final TaskAdjutant adjutant = this.adjutant;
-        if (adjutant.inTransaction()) {
-            sink.error(MySQLExceptions.transactionExistsRejectSet(adjutant.handshake10().getThreadId()));
-            return;
-        }
-        final StringBuilder builder = new StringBuilder(70);
-        builder.append("SET SESSION TRANSACTION ISOLATION LEVEL ");
-
-        try {
-            appendSetIsolation(option.getIsolation(), builder);
-        } catch (Throwable e) {
-            sink.error(e);
-            return;
-        }
-
-        if (option.isReadOnly()) {
-            builder.append(",READ ONLY");
-        } else {
-            builder.append(",READ WRITE");
-        }
-        ComQueryTask.update(Stmts.stmt(builder.toString()), adjutant)
-                .subscribe(states -> sink.success(), sink::error);
-    }
-
-
-    /**
      * @see #startTransaction(TransactionOption)
      */
-    private void startTransactionInEventLoop(final TransactionOption option, final MonoSink<Void> sink) {
-        final TaskAdjutant adjutant = this.adjutant;
-        if (adjutant.inTransaction()) {
-            sink.error(MySQLExceptions.transactionExistsRejectStart(adjutant.handshake10().getThreadId()));
-            return;
-        }
-
-        final StringBuilder builder = new StringBuilder(50);
-        builder.append("SET TRANSACTION ISOLATION LEVEL ");
-
-        try {
-            appendSetIsolation(option.getIsolation(), builder);
-        } catch (Throwable e) {
-            sink.error(e);
-            return;
-        }
-
-        final List<String> sqlGroup = new ArrayList<>(2);
-        sqlGroup.add(builder.toString());
-        if (option.isReadOnly()) {
-            sqlGroup.add("START TRANSACTION READ ONLY");
-        } else {
-            sqlGroup.add("START TRANSACTION READ WRITE");
-        }
-        ComQueryTask.batchUpdate(Stmts.batch(sqlGroup), adjutant)
-                .collectList()
-                .subscribe(list -> validateStartTransactionResult(list, sink), sink::error);
-    }
-
-    /**
-     * @see #setTransactionOptionInEventLoop(TransactionOption, MonoSink)
-     * @see #startTransaction(TransactionOption)
-     */
-    private void appendSetIsolation(final Isolation isolation, final StringBuilder builder) {
-        switch (isolation) {
-            case READ_COMMITTED:
-                builder.append("READ COMMITTED");
-                break;
-            case REPEATABLE_READ:
-                builder.append("REPEATABLE READ");
-                break;
-            case SERIALIZABLE:
-                builder.append("SERIALIZABLE");
-                break;
-            case READ_UNCOMMITTED:
-                builder.append("READ UNCOMMITTED");
-                break;
-            default:
-                throw MySQLExceptions.createUnexpectedEnumException(isolation);
-        }
-
-    }
-
-    /**
-     * @see #startTransactionInEventLoop(TransactionOption, MonoSink)
-     */
-    private void validateStartTransactionResult(List<ResultStates> list, MonoSink<Void> sink) {
-        if (list.size() != 2) {
-            sink.error(new MySQLJdbdException("start transaction failure."));
-            return;
-        }
-        final MySQLResultStates states = (MySQLResultStates) list.get(1);
+    private Mono<Void> handleStartTransactionEnd(final ResultStates states) {
+        final Mono<Void> mono;
         if (states.inTransaction()) {
-            sink.success();
+            mono = Mono.empty();
         } else {
-            sink.error(new MySQLJdbdException("start transaction failure."));
+            //no bug,never here
+            mono = Mono.error(new JdbdException("start transaction failure."));
         }
+        return mono;
+    }
+
+
+    private boolean appendIsolation(final Isolation isolation, final StringBuilder builder) {
+
+        boolean error = false;
+        if (isolation == Isolation.READ_COMMITTED) {
+            builder.append("READ COMMITTED");
+        } else if (isolation == Isolation.REPEATABLE_READ) {
+            builder.append("REPEATABLE READ");
+        } else if (isolation == Isolation.SERIALIZABLE) {
+            builder.append("SERIALIZABLE");
+        } else if (isolation == Isolation.READ_UNCOMMITTED) {
+            builder.append("READ UNCOMMITTED");
+        } else {
+            error = true;
+        }
+        return error;
     }
 
 
     /**
      * @see #transactionStatus()
      */
-    private TransactionStatus mapTxOption(final ResultRow row, final ResultStates states) {
+    private TransactionStatus mapTxStatus(final ResultRow row, final ResultStates states) {
         Objects.requireNonNull(states, "states");
 
         final String txLevel;
@@ -453,92 +359,21 @@ final class ClientProtocol implements MySQLProtocol {
         } else {
             final String m;
             m = String.format("transaction_isolation[%s] couldn't map to %s", txLevel, Isolation.class.getName());
-            throw new MySQLJdbdException(m);
+            throw new JdbdException(m);
         }
-
-        final boolean readOnly, autoCommit;
-        readOnly = MySQLStrings.parseMySqlBoolean("transaction_read_only", row.getNonNull("txReadOnly", String.class));
-        autoCommit = MySQLStrings.parseMySqlBoolean("autocommit", row.getNonNull("txAutoCommit", String.class));
-
-        final MySQLResultStates mysqlStates = (MySQLResultStates) states;
-        return JdbdTransactionStatus.txStatus(isolation, readOnly, autoCommit || mysqlStates.inTransaction());
+        return JdbdTransactionStatus.txStatus(isolation, row.getNonNull("txReadOnly", Boolean.class), states.inTransaction());
     }
 
 
-    /**
-     * @see #commit()
-     */
-    private Mono<Void> validateCommitResult(List<ResultStates> statesList) {
+    private Mono<Void> handleTransactionEnd(final ResultStates states) {
         final Mono<Void> mono;
-        if (statesList.size() != 2) {
-            mono = Mono.error(new MySQLJdbdException("COMMIT command execute failure"));
+        if (states.inTransaction()) {
+            // no bug,never here
+            mono = Mono.error(new JdbdException("end transaction failure"));
         } else {
-            final MySQLResultStates states = (MySQLResultStates) statesList.get(1);
-            if (states.inTransaction()) {
-                mono = Mono.error(new MySQLJdbdException("COMMIT command execute failure"));
-            } else {
-                mono = Mono.empty();
-            }
+            mono = Mono.empty();
         }
         return mono;
-    }
-
-    /**
-     * @see #rollback()
-     */
-    private Mono<Void> validateRollbackResult(List<ResultStates> statesList) {
-        final Mono<Void> mono;
-        if (statesList.size() != 2) {
-            mono = Mono.error(new MySQLJdbdException("ROLLBACK command execute failure"));
-        } else {
-            final MySQLResultStates states = (MySQLResultStates) statesList.get(1);
-            if (states.inTransaction()) {
-                mono = Mono.error(new MySQLJdbdException("ROLLBACK command execute failure"));
-            } else {
-                mono = Mono.empty();
-            }
-        }
-        return mono;
-    }
-
-
-    private boolean usePrepare(final BindBatchStmt stmt) {
-        boolean prepare = false;
-        for (List<BindValue> group : stmt.getGroupList()) {
-            if (usePrepare(group)) {
-                prepare = true;
-                break;
-            }
-        }
-        return prepare;
-    }
-
-    private boolean usePrepare(final List<BindValue> group) {
-        boolean prepare = false;
-        Object value;
-        outFor:
-        for (BindValue bindValue : group) {
-            value = bindValue.get();
-            if (value == null) {
-                continue;
-            }
-            if (value instanceof Publisher) {
-                prepare = true;
-                break;
-            }
-            switch (bindValue.getType()) {
-                case LONGBLOB:
-                case LONGTEXT: {
-                    if (value instanceof Path) {
-                        prepare = true;
-                        break outFor;
-                    }
-                }
-                break;
-                default:
-            }
-        }
-        return prepare;
     }
 
 

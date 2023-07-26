@@ -43,12 +43,12 @@ class PgLocalDatabaseSession extends PgDatabaseSession implements LocalDatabaseS
     }
 
     @Override
-    public boolean supportStmtVar() throws JdbdException {
+    public boolean isSupportStmtVar() throws JdbdException {
         return false;
     }
 
     @Override
-    public boolean supportOutParameter() throws JdbdException {
+    public boolean isSupportOutParameter() throws JdbdException {
         return false;
     }
 

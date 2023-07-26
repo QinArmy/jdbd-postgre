@@ -6,7 +6,6 @@ import io.jdbd.mysql.MySQLType;
 import io.jdbd.mysql.protocol.Constants;
 import io.jdbd.mysql.util.MySQLStrings;
 import io.jdbd.result.FieldType;
-import io.jdbd.vendor.env.Properties;
 import io.jdbd.vendor.result.ColumnMeta;
 import io.netty.buffer.ByteBuf;
 import io.qinarmy.util.StringUtils;
@@ -444,18 +443,15 @@ final class MySQLColumnMeta implements ColumnMeta {
     }
 
 
-    private static FieldType parseFieldType(MySQLColumnMeta columnMeta) {
+    private static FieldType parseFieldType(final MySQLColumnMeta columnMeta) {
         final String tableName = columnMeta.tableName;
         final FieldType fieldType;
-        if (MySQLStrings.hasText(tableName)) {
-            // TODO zoro complete
-            if (tableName.startsWith("#sql_")) {
-                fieldType = FieldType.PHYSICAL_FILED;
-            } else {
-                fieldType = FieldType.FIELD;
-            }
-        } else {
+        if (!MySQLStrings.hasText(tableName)) {
             fieldType = FieldType.EXPRESSION;
+        } else if (tableName.startsWith("#sql_")) {// TODO zoro complete
+            fieldType = FieldType.PHYSICAL_FILED;
+        } else {
+            fieldType = FieldType.FIELD;
         }
         return fieldType;
     }
@@ -575,34 +571,33 @@ final class MySQLColumnMeta implements ColumnMeta {
         return type;
     }
 
-    private static MySQLType fromBlob(MySQLColumnMeta columnMeta, Properties properties) {
+    private static MySQLType fromBlob(final MySQLColumnMeta columnMeta, final FixedEnv env) {
         // Sometimes MySQL uses this protocol-level type for all possible BLOB variants,
         // we can divine what the actual type is by the length reported
-
 
         final MySQLType mySQLType;
 
         final long maxLength = columnMeta.length;
         // fixing initial type according to length
         if (maxLength <= 255L) {
-            mySQLType = fromTinyBlob(columnMeta, properties);
+            mySQLType = fromTinyBlob(columnMeta, env);
         } else if (columnMeta.length <= (1 << 16) - 1) {
-            if (columnMeta.isBinary() || !isBlobTypeReturnText(columnMeta, properties)) {
+            if (columnMeta.isBinary() || !isBlobTypeReturnText(columnMeta, env)) {
                 mySQLType = MySQLType.BLOB;
             } else {
                 mySQLType = MySQLType.TEXT;
             }
         } else if (maxLength <= (1 << 24) - 1) {
-            mySQLType = fromMediumBlob(columnMeta, properties);
+            mySQLType = fromMediumBlob(columnMeta, env);
         } else {
-            mySQLType = fromLongBlob(columnMeta, properties);
+            mySQLType = fromLongBlob(columnMeta, env);
         }
         return mySQLType;
     }
 
-    private static MySQLType fromTinyBlob(MySQLColumnMeta columnMeta, Properties properties) {
+    private static MySQLType fromTinyBlob(final MySQLColumnMeta columnMeta, final FixedEnv env) {
         final MySQLType mySQLType;
-        if (columnMeta.isBinary() || !isBlobTypeReturnText(columnMeta, properties)) {
+        if (columnMeta.isBinary() || !isBlobTypeReturnText(columnMeta, env)) {
             mySQLType = MySQLType.TINYBLOB;
         } else {
             mySQLType = MySQLType.TINYTEXT;
@@ -610,9 +605,9 @@ final class MySQLColumnMeta implements ColumnMeta {
         return mySQLType;
     }
 
-    private static MySQLType fromMediumBlob(MySQLColumnMeta columnMeta, Properties properties) {
+    private static MySQLType fromMediumBlob(final MySQLColumnMeta columnMeta, final FixedEnv env) {
         final MySQLType mySQLType;
-        if (columnMeta.isBinary() || !isBlobTypeReturnText(columnMeta, properties)) {
+        if (columnMeta.isBinary() || !isBlobTypeReturnText(columnMeta, env)) {
             mySQLType = MySQLType.MEDIUMBLOB;
         } else {
             mySQLType = MySQLType.MEDIUMTEXT;
@@ -620,9 +615,9 @@ final class MySQLColumnMeta implements ColumnMeta {
         return mySQLType;
     }
 
-    private static MySQLType fromLongBlob(MySQLColumnMeta columnMeta, Properties properties) {
+    private static MySQLType fromLongBlob(final MySQLColumnMeta columnMeta, final FixedEnv env) {
         final MySQLType mySQLType;
-        if (columnMeta.isBinary() || !isBlobTypeReturnText(columnMeta, properties)) {
+        if (columnMeta.isBinary() || !isBlobTypeReturnText(columnMeta, env)) {
             mySQLType = MySQLType.LONGBLOB;
         } else {
             mySQLType = MySQLType.LONGTEXT;

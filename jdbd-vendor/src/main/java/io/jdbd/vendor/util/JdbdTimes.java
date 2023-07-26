@@ -53,6 +53,11 @@ public abstract class JdbdTimes {
     private static final String NO_OFFSET_TEXT = "+00:00";
 
 
+    public static final DateTimeFormatter ZONE_FORMATTER = new DateTimeFormatterBuilder()
+            .appendOffset(PATTERN, NO_OFFSET_TEXT)
+            .toFormatter(Locale.ENGLISH);
+
+
     public static final DateTimeFormatter TIME_FORMATTER_0 = new DateTimeFormatterBuilder()
             .appendValue(HOUR_OF_DAY, 2)
             .appendLiteral(':')

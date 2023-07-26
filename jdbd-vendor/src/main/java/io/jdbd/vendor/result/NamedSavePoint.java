@@ -5,7 +5,6 @@ import io.jdbd.session.SavePoint;
 import io.jdbd.vendor.util.JdbdStrings;
 
 /**
- * @see JdbdSavePoint
  * @see UnNamedSavePoint
  * @since 1.0
  */
@@ -24,6 +23,11 @@ public final class NamedSavePoint implements SavePoint {
     @Override
     public boolean isNamed() {
         return true;
+    }
+
+    @Override
+    public boolean isIdType() {
+        return false;
     }
 
     @Override

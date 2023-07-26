@@ -62,7 +62,7 @@ final class PgRowMeta implements ResultRowMeta {
     }
 
     @Override
-    public final int getResultIndex() {
+    public final int getResultNo() {
         final int resultIndex = this.resultIndex;
         if (resultIndex < 0) {
             throw new UnsupportedOperationException("Only used by session bind parameters.");

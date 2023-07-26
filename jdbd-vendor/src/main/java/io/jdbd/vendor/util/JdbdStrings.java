@@ -137,6 +137,27 @@ public abstract class JdbdStrings /*extends StringUtils*/ {
         return map;
     }
 
+    public static boolean isSimpleIdentifier(final String objectName) {
+        final int length = objectName.length();
+        char ch;
+        // empty string isn't safe identifier
+        boolean match = length > 0;
+        for (int i = 0; i < length; i++) {
+            ch = objectName.charAt(i);
+            if ((ch >= 'a' && ch <= 'z')
+                    || (ch >= 'A' && ch <= 'Z')
+                    || ch == '_') {
+                continue;
+            } else if (i > 0 && (ch >= '0' && ch <= '9')) {
+                continue;
+            }
+            match = false;
+            break;
+        }
+        return match;
+    }
+
+
     public static String concat(List<String> list, String delimiter) {
         StringBuilder builder = new StringBuilder();
         final int size = list.size();

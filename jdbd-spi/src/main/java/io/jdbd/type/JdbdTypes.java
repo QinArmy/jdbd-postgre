@@ -21,11 +21,12 @@ abstract class JdbdTypes {
         return new JdbdBlob(source);
     }
 
-    static Clob clobParam(@Nullable Publisher<CharSequence> source) {
+    @SuppressWarnings("unchecked")
+    static <T extends CharSequence> Clob clobParam(@Nullable Publisher<T> source) {
         if (source == null) {
             throw new NullPointerException("source must non-null");
         }
-        return new JdbdClob(source);
+        return new JdbdClob((Publisher<CharSequence>) source);
     }
 
     static Text textParam(@Nullable Charset charset, @Nullable Publisher<byte[]> source) {

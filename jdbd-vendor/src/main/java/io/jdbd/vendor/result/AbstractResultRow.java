@@ -39,8 +39,8 @@ public abstract class AbstractResultRow<R extends ResultRowMeta> implements Resu
     }
 
     @Override
-    public final int getResultIndex() {
-        return this.rowMeta.getResultIndex();
+    public final int getResultNo() {
+        return this.rowMeta.getResultNo();
     }
 
     @Override
