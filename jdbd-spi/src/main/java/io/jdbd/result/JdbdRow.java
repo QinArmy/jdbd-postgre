@@ -56,7 +56,7 @@ public interface JdbdRow extends Result {
     boolean isBigColumn(int indexBasedZero);
 
     /**
-     * @see SQLType#outputJavaType()
+     * @see SQLType#firstJavaType()
      * @see #isBigColumn(int)
      */
     @Nullable

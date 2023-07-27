@@ -2,7 +2,7 @@ package io.jdbd.mysql.protocol.conf;
 
 
 import io.jdbd.JdbdException;
-import io.jdbd.mysql.env.ProtocolType;
+import io.jdbd.mysql.env.Protocol;
 import io.jdbd.mysql.protocol.client.Charsets;
 import io.jdbd.mysql.util.MySQLCollections;
 import io.jdbd.vendor.env.*;
@@ -38,7 +38,7 @@ public final class MySQLUrl extends AbstractJdbcUrl {
 
     public static boolean acceptsUrl(final String url) {
         boolean accept = false;
-        for (ProtocolType protocol : ProtocolType.values()) {
+        for (Protocol protocol : Protocol.values()) {
             if (url.startsWith(protocol.scheme)) {
                 accept = true;
                 break;
@@ -47,7 +47,7 @@ public final class MySQLUrl extends AbstractJdbcUrl {
         return accept;
     }
 
-    public final ProtocolType protocolType;
+    public final Protocol protocolType;
 
     private final List<MySQLHost0> hostList;
 
@@ -56,7 +56,7 @@ public final class MySQLUrl extends AbstractJdbcUrl {
     private MySQLUrl(MySQLUrlParser parser) {
         super(parser);
         this.hostList = createHostInfoList(parser);
-        this.protocolType = ProtocolType.fromValue(this.getOriginalUrl(), this.getProtocol(), this.getHostList().size());
+        this.protocolType = Protocol.fromValue(this.getOriginalUrl(), this.getProtocol(), this.getHostList().size());
         this.maxAllowedPayload = parseMaxAllowedPacket();
     }
 

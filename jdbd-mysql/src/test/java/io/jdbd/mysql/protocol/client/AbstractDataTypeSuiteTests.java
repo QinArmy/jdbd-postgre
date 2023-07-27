@@ -936,7 +936,7 @@ abstract class AbstractDataTypeSuiteTests extends AbstractTaskSuiteTests {
         if (useDefault) {
             final ResultRowMeta rowMeta = row.getRowMeta();
             assertEquals(rowMeta.getSQLType(column), type, column);
-            assertTrue(type.outputJavaType().isInstance(row.getNonNull(column)), column);
+            assertTrue(type.firstJavaType().isInstance(row.getNonNull(column)), column);
             assertEquals(row.get(column, nonNull.getClass()), nonNull, column);
         }
 

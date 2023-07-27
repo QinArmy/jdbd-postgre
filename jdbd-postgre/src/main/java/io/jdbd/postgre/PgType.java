@@ -179,7 +179,7 @@ public enum PgType implements io.jdbd.meta.SQLType {
 
 
     @Override
-    public final Class<?> outputJavaType() {
+    public final Class<?> firstJavaType() {
         return this.javaType;
     }
 

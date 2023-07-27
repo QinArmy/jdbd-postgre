@@ -1480,7 +1480,7 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractTaskSuiteTests 
         resultRow = querySingleField(taskAdjutant, field, id);
 
         final MySQLType fieldType = (MySQLType) resultRow.getRowMeta().getSQLType("field");
-        final Number resultValue = (Number) resultRow.get("field", fieldType.outputJavaType());
+        final Number resultValue = (Number) resultRow.get("field", fieldType.firstJavaType());
         assertNotNull(resultValue, field);
         if (resultValue instanceof BigDecimal) {
             if (bindParam instanceof Float) {
@@ -1582,7 +1582,7 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractTaskSuiteTests 
 
         final Object result = row.get("field");
         assertNotNull(result, field);
-        assertEquals(result.getClass(), MySQLType.BIT.outputJavaType(), field);
+        assertEquals(result.getClass(), MySQLType.BIT.firstJavaType(), field);
 
         final long resultBit = (Long) result;
 

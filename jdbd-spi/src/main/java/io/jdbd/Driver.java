@@ -22,6 +22,10 @@ import java.util.Map;
  */
 public interface Driver {
 
+    String USER = "user";
+
+    String PASSWORD = "password";
+
 
     /**
      * @param url jdbc url

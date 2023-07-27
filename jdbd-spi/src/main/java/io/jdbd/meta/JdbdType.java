@@ -99,6 +99,12 @@ public enum JdbdType implements DataType {
      * Identifies the generic SQL type {@code DECIMAL}.
      */
     DECIMAL,
+
+    /**
+     * Identifies the generic SQL type {@code DECIMAL}.
+     */
+    DECIMAL_UNSIGNED,
+
     /**
      * Identifies the generic SQL type {@code CHAR}.
      */
@@ -128,13 +134,21 @@ public enum JdbdType implements DataType {
     LONGBLOB,
 
     /**
-     * Identifies the generic SQL type {@code DATE}.
-     */
-    DATE,
-    /**
      * Identifies the generic SQL type {@code TIME}.
      */
     TIME,
+
+    YEAR,
+
+    YEAR_MONTH,
+
+    MONTH_DAY,
+
+    /**
+     * Identifies the generic SQL type {@code DATE}.
+     */
+    DATE,
+
     /**
      * Identifies the generic SQL type {@code TIMESTAMP}.
      */
@@ -183,7 +197,7 @@ public enum JdbdType implements DataType {
     /**
      * Identifies the generic SQL type {@code SQLXML}.
      */
-    SQLXML,
+    XML,
 
     JSON,
 

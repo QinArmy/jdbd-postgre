@@ -4,8 +4,6 @@ import io.jdbd.lang.Nullable;
 
 public interface JdbdHost {
 
-    String HOST_PORT_SEPARATOR = ":";
-
     String DEFAULT_HOST = "localhost";
 
     String getHost();

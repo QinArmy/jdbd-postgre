@@ -39,6 +39,37 @@ public abstract class JdbdStrings /*extends StringUtils*/ {
         return match;
     }
 
+    public static boolean isEmpty(@io.qinarmy.lang.Nullable Object str) {
+        return str == null || str.equals("");
+    }
+
+
+    public static int indexNonSpace(String text) {
+        return indexNonSpace(text, 0);
+    }
+
+    public static int indexNonSpace(String text, int fromIndex) {
+        fromIndex = Math.max(0, fromIndex);
+
+        final int len = text.length();
+        for (int i = fromIndex; i < len; i++) {
+            if (text.charAt(i) != '\u0020') {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    public static int lastIndexNonSpace(String text, int fromIndex) {
+        fromIndex = Math.min(fromIndex, text.length() - 1);
+        for (int i = fromIndex; i > -1; i--) {
+            if (text.charAt(i) != '\u0020') {
+                return i;
+            }
+        }
+        return -1;
+    }
+
 
     /**
      * @return a unmodified list

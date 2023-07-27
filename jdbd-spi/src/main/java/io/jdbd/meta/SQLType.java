@@ -10,10 +10,11 @@ public interface SQLType extends DataType {
     JdbdType jdbdType();
 
 
-    /**
-     * @see io.jdbd.result.JdbdRow#get(String)
-     */
-    Class<?> outputJavaType();
+    Class<?> firstJavaType();
+
+    @Nullable
+    Class<?> secondJavaType();
+
 
     /**
      * <p>
@@ -30,38 +31,6 @@ public interface SQLType extends DataType {
     SQLType elementType();
 
     String vendor();
-
-
-    /**
-     * @return tue : type is number and unsigned.
-     */
-    boolean isUnsigned();
-
-    boolean isNumber();
-
-    boolean isIntegerType();
-
-    boolean isFloatType();
-
-    boolean isLongString();
-
-    boolean isLongBinary();
-
-    boolean isStringType();
-
-    boolean isBinaryType();
-
-    boolean isTimeType();
-
-    boolean isDecimal();
-
-    boolean isCaseSensitive();
-
-    boolean supportPublisher();
-
-    boolean supportTextPublisher();
-
-    boolean supportBinaryPublisher();
 
 
 }
