@@ -22,6 +22,10 @@ public abstract class JdbdStrings /*extends StringUtils*/ {
         return new StringBuilder();
     }
 
+    public static StringBuilder builder(int capacity) {
+        return new StringBuilder(capacity);
+    }
+
     public static boolean hasText(final @Nullable CharSequence str) {
         final int strLen;
 

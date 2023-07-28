@@ -26,7 +26,7 @@ import reactor.core.publisher.Flux;
 import java.nio.file.Path;
 import java.util.List;
 
-import static io.jdbd.mysql.session.MySQLDatabaseSessionFactory.MY_SQL;
+import static io.jdbd.mysql.MySQLDriver.MY_SQL;
 
 /**
  * <p>
@@ -140,7 +140,7 @@ final class MySQLMultiStatement extends MySQLStatement<MultiStatement> implement
         if (stmtGroup.size() == 0) {
             flux = Flux.error(MySQLExceptions.multiStmtNoSql());
         } else {
-            flux = this.session.protocol.multiStmtBatchUpdate(Stmts.multiStmt(stmtGroup, this));
+            flux = this.session.protocol.multiStmtBatchUpdate(Stmts.paramMultiStmt(stmtGroup, this));
         }
         clearStatementToAvoidReuse();
         return flux;
@@ -159,7 +159,7 @@ final class MySQLMultiStatement extends MySQLStatement<MultiStatement> implement
         if (stmtGroup.size() == 0) {
             batchQuery = MultiResults.batchQueryError(MySQLExceptions.multiStmtNoSql());
         } else {
-            batchQuery = this.session.protocol.multiStmtBatchQuery(Stmts.multiStmt(stmtGroup, this));
+            batchQuery = this.session.protocol.multiStmtBatchQuery(Stmts.paramMultiStmt(stmtGroup, this));
         }
         clearStatementToAvoidReuse();
         return batchQuery;
@@ -178,7 +178,7 @@ final class MySQLMultiStatement extends MySQLStatement<MultiStatement> implement
         if (stmtGroup.size() == 0) {
             multiResult = MultiResults.error(MySQLExceptions.multiStmtNoSql());
         } else {
-            multiResult = this.session.protocol.multiStmtAsMulti(Stmts.multiStmt(stmtGroup, this));
+            multiResult = this.session.protocol.multiStmtAsMulti(Stmts.paramMultiStmt(stmtGroup, this));
         }
         clearStatementToAvoidReuse();
         return multiResult;
@@ -198,7 +198,7 @@ final class MySQLMultiStatement extends MySQLStatement<MultiStatement> implement
         if (stmtGroup.size() == 0) {
             flux = MultiResults.fluxError(MySQLExceptions.multiStmtNoSql());
         } else {
-            flux = this.session.protocol.multiStmtAsFlux(Stmts.multiStmt(stmtGroup, this));
+            flux = this.session.protocol.multiStmtAsFlux(Stmts.paramMultiStmt(stmtGroup, this));
         }
         clearStatementToAvoidReuse();
         return flux;
@@ -207,13 +207,13 @@ final class MySQLMultiStatement extends MySQLStatement<MultiStatement> implement
     /*################################## blow Statement method ##################################*/
 
     @Override
-    public boolean supportPublisher() {
+    public boolean isSupportPublisher() {
         // always false,MySQL COM_QUERY protocol don't support Publisher
         return false;
     }
 
     @Override
-    public boolean supportOutParameter() {
+    public boolean isSupportOutParameter() {
         // always false,MySQL COM_QUERY protocol don't support.
         return false;
     }

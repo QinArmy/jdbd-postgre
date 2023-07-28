@@ -125,7 +125,7 @@ final class PgMultiStatement extends PgStatement implements MultiStatement {
     }
 
     @Override
-    public  boolean supportPublisher() {
+    public boolean isSupportPublisher() {
         return false;
     }
 

@@ -5,6 +5,6 @@ import io.jdbd.vendor.protocol.DatabaseProtocol;
 public interface MySQLProtocol extends DatabaseProtocol {
 
 
-    long getId();
+    long threadId();
 
 }

@@ -1,10 +1,7 @@
 package io.jdbd.vendor.protocol;
 
 import io.jdbd.result.*;
-import io.jdbd.session.DatabaseSession;
-import io.jdbd.session.ServerVersion;
-import io.jdbd.session.TransactionOption;
-import io.jdbd.session.TransactionStatus;
+import io.jdbd.session.*;
 import io.jdbd.statement.BindStatement;
 import io.jdbd.statement.MultiStatement;
 import io.jdbd.statement.StaticStatement;
@@ -153,14 +150,17 @@ public interface DatabaseProtocol {
     ServerVersion serverVersion();
 
 
-    Mono<Void> startTransaction(TransactionOption option);
+    Mono<ResultStates> startTransaction(TransactionOption option, HandleMode mode);
+
+
+    Mono<Void> setTransactionOption(TransactionOption option, HandleMode mode);
 
 
     boolean inTransaction();
 
-    Mono<Void> commit();
+    Mono<ResultStates> commit();
 
-    Mono<Void> rollback();
+    Mono<ResultStates> rollback();
 
 
     boolean isClosed();

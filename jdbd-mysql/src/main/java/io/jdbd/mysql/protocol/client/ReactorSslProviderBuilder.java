@@ -62,7 +62,7 @@ final class ReactorSslProviderBuilder {
 
     public SslHandler buildSslHandler() throws JdbdException {
         final MySQLHost host = this.host;
-        return buildSslContext().newHandler(this.allocator, host.getHost(), host.getPort());
+        return buildSslContext().newHandler(this.allocator, host.host(), host.port());
     }
 
     public SslContext buildSslContext() throws JdbdException {
@@ -157,7 +157,7 @@ final class ReactorSslProviderBuilder {
             if (storePair != null || verify) {
                 TrustManagerFactory tmfWrapper = new TrustManagerFactoryWrapper(
                         TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm()),
-                        verify, this.host.getHost());
+                        verify, this.host.host());
 
                 if (storePair == null) {
                     tmfWrapper.init((KeyStore) null); //initializes the TrustManagerFactory with the default truststore.
@@ -166,7 +166,7 @@ final class ReactorSslProviderBuilder {
                 }
                 builder.trustManager(tmfWrapper);
             } else {
-                builder.trustManager(new X509TrustManagerWrapper(this.host.getHost()));
+                builder.trustManager(new X509TrustManagerWrapper(this.host.host()));
 
             }
 

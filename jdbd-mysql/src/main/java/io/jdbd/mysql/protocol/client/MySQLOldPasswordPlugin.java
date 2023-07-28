@@ -43,7 +43,7 @@ public class MySQLOldPasswordPlugin implements AuthenticationPlugin {
         final AuthenticateAssistant assistant = this.assistant;
 
         final String password;
-        password = assistant.getHostInfo().getPassword();
+        password = assistant.getHostInfo().password();
         final ByteBuf payload;
         if (MySQLStrings.hasText(password)) {
             final String seed, cryptString;

@@ -1,6 +1,7 @@
 package io.jdbd.mysql.env;
 
 import io.jdbd.Driver;
+import io.jdbd.JdbdException;
 
 import java.util.Map;
 
@@ -35,6 +36,12 @@ final class MySQLJdbdHost implements MySQLHost {
         this.password = (String) properties.remove(Driver.PASSWORD);
         this.dbName = (String) properties.remove(MySQLKey.DB_NAME.name);
 
+        if (this.user == null) {
+            throw new JdbdException("No user property");
+        }
+
+        assert this.host != null;
+
         this.env = MySQLEnvironment.from(properties);
     }
 
@@ -46,28 +53,28 @@ final class MySQLJdbdHost implements MySQLHost {
 
 
     @Override
-    public String getHost() {
+    public String host() {
         return this.host;
     }
 
     @Override
-    public int getPort() {
+    public int port() {
         return this.port;
     }
 
     @Override
-    public String getUser() {
+    public String user() {
         return this.user;
     }
 
 
     @Override
-    public String getPassword() {
+    public String password() {
         return this.password;
     }
 
     @Override
-    public String getDbName() {
+    public String dbName() {
         return this.dbName;
     }
 

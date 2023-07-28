@@ -2,13 +2,9 @@ package io.jdbd.mysql.util;
 
 import io.jdbd.JdbdException;
 import io.jdbd.lang.Nullable;
-import io.jdbd.mysql.MySQLJdbdException;
 import io.jdbd.mysql.MySQLType;
-import io.jdbd.mysql.protocol.MySQLFatalIoException;
+import io.jdbd.mysql.env.MySQLKey;
 import io.jdbd.mysql.protocol.client.ErrorPacket;
-import io.jdbd.mysql.protocol.conf.MyKey;
-import io.jdbd.statement.PreparedStatement;
-import io.jdbd.statement.StaticStatement;
 import io.jdbd.vendor.stmt.ParamValue;
 import io.jdbd.vendor.util.JdbdExceptions;
 
@@ -40,50 +36,11 @@ public abstract class MySQLExceptions extends JdbdExceptions {
         return e;
     }
 
-    public static JdbdSQLException wrapSQLExceptionIfNeed(Throwable t) {
-        JdbdSQLException e;
-        if (t instanceof JdbdSQLException) {
-            e = (JdbdSQLException) t;
-        } else if (t instanceof SQLException) {
-            e = new JdbdSQLException((SQLException) t);
-        } else {
-            e = new JdbdSQLException(new SQLException(t));
-        }
-        return e;
-    }
-
-    public static MySQLJdbdException wrapJdbdExceptionIfNeed(Throwable t) {
-        MySQLJdbdException e;
-        if (t instanceof MySQLJdbdException) {
-            e = (MySQLJdbdException) t;
-        } else {
-            e = new MySQLJdbdException(t, t.getMessage());
-        }
-        return e;
-    }
 
     public static JdbdException createErrorPacketException(ErrorPacket error) {
         return new JdbdException(error.getErrorMessage(), error.getSqlState(), error.getErrorCode());
     }
 
-    /**
-     * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-reference-error-sqlstates.html">Mapping MySQL Error Numbers to JDBC SQLState Codes</a>
-     */
-    public static SQLException createSQLException(ErrorPacket error) {
-        return new SQLException(error.getErrorMessage(), error.getSqlState(), error.getErrorCode());
-    }
-
-    public static JdbdSQLException createNonResultSetCommandException() {
-        String message = "SQL isn't query command,please use " + StaticStatement.class.getName() +
-                ".executeQuery(String,BiFunction<ResultRow,ResultRowMeta,T>, Consumer<ResultStates>) method";
-        return new JdbdSQLException(new SQLException(message));
-    }
-
-    public static JdbdSQLException createNonCommandUpdateException() {
-        String message = "SQL isn't dml command,please use %s.executeUpdate() or %s.executeUpdate(String ) method";
-        message = String.format(message, PreparedStatement.class.getName(), StaticStatement.class.getName());
-        return new JdbdSQLException(new SQLException(message));
-    }
 
     public static JdbdException createFatalIoException(String message, @Nullable Throwable cause) {
         final JdbdException e;
@@ -95,10 +52,6 @@ public abstract class MySQLExceptions extends JdbdExceptions {
         return e;
     }
 
-
-    public static boolean containFatalIoException(final Throwable e) {
-        return containException(e, MySQLFatalIoException.class);
-    }
 
     public static JdbdException sqlIsEmpty() {
         return new JdbdException("Query was empty", "42000", 1065);
@@ -160,15 +113,15 @@ public abstract class MySQLExceptions extends JdbdExceptions {
 
     public static JdbdException bindValueParamIndexNotMatchError(int stmtIndex, ParamValue paramValue,
                                                                  int paramIndex) {
-        String message;
+        String m;
         if (stmtIndex < 0) {
-            message = String.format("BindValue parameter index[%s] and sql param[%s] not match."
-                    , paramValue.getIndex(), paramIndex);
+            m = String.format("BindValue parameter index[%s] and sql param[%s] not match.",
+                    paramValue.getIndex(), paramIndex);
         } else {
-            message = String.format("BindValue parameter index[%s] and sql param[%s] not match in statement[sequenceId:%s]"
-                    , paramValue.getIndex(), paramIndex, stmtIndex);
+            m = String.format("BindValue parameter index[%s] and sql param[%s] not match in statement[sequenceId:%s]",
+                    paramValue.getIndex(), paramIndex, stmtIndex);
         }
-        return new JdbdException(message, null, CR_PARAMS_NOT_BOUND);
+        return new JdbdException(m, null, CR_PARAMS_NOT_BOUND);
     }
 
     public static JdbdException createNoParametersExistsError(int stmtIndex) {
@@ -199,115 +152,26 @@ public abstract class MySQLExceptions extends JdbdExceptions {
 
 
     public static JdbdException createNetPacketTooLargeException(int maxAllowedPayload) {
-        String message = String.format("sql length larger than %s[%s]"
-                , MyKey.maxAllowedPacket, maxAllowedPayload);
-        return new JdbdException(message, netPacketTooLargeError(null));
+        String m = String.format("sql length larger than %s[%s]", MySQLKey.MAX_ALLOWED_PACKET, maxAllowedPayload);
+        return new JdbdException(m, netPacketTooLargeError(null));
     }
 
 
-    public static JdbdSQLException createTypeNotMatchException(int stmtIndex, MySQLType mySQLType
-            , ParamValue paramValue) {
-        return createTypeNotMatchException(stmtIndex, mySQLType, paramValue, null);
-    }
-
-    public static JdbdException createTypeNotMatchException(int stmtIndex, MySQLType mySQLType,
-                                                            ParamValue paramValue, @Nullable Throwable cause) {
-        String message;
-        if (stmtIndex < 0) {
-            message = String.format("Bind parameter[%s] MySQLType[%s] and JavaType[%s] value not match."
-                    , paramValue.getIndex()
-                    , mySQLType
-                    , paramValue.getNonNull().getClass().getName());
-        } else {
-            message = String.format(
-                    "Parameter Group[%s] Bind parameter[%s] MySQLType[%s] and JavaType[%s] value not match."
-                    , stmtIndex
-                    , paramValue.getIndex()
-                    , mySQLType
-                    , paramValue.getNonNull().getClass().getName());
-        }
-        return new JdbdException(createTruncatedWrongValueForField(message, cause));
-    }
-
-    public static JdbdException createDurationRangeException(int stmtIndex, MySQLType mySQLType
-            , ParamValue paramValue) {
-        String message;
-        if (stmtIndex < 0) {
-            message = String.format(
-                    "Bind parameter[%s] MySQLType[%s] Duration[%s] beyond [-838:59:59,838:59:59]"
-                    , paramValue.getIndex(), mySQLType, paramValue.get());
-        } else {
-            message = String.format(
-                    "Parameter Group[%s] Bind parameter[%s] MySQLType[%s] Duration[%s] beyond [-838:59:59,838:59:59]"
-                    , stmtIndex, paramValue.getIndex(), mySQLType, paramValue.get());
-        }
-        return new JdbdException(createTruncatedWrongValue(message, null));
-    }
-
-    public static JdbdException createNotSupportScaleException(int stmtIndex, MySQLType mySQLType
-            , ParamValue paramValue) {
+    public static JdbdException createNumberRangErrorException(int stmtIndex, MySQLType mySQLType,
+                                                               ParamValue bindValue, @Nullable Throwable cause,
+                                                               Number lower, Number upper) {
         final String message;
         if (stmtIndex < 0) {
-            message = String.format("Bind parameter[%s] is MySQLType[%s],not support fraction."
-                    , paramValue.getIndex(), mySQLType);
+            message = String.format("Bind parameter[%s] MySQLType[%s] beyond rang[%s,%s].",
+                    bindValue.getIndex(), mySQLType, lower, upper);
         } else {
-            message = String.format("Parameter Group[%s] Bind parameter[%s] is MySQLType[%s],not support fraction."
-                    , stmtIndex, paramValue.getIndex(), mySQLType);
+            message = String.format("Parameter Group[%s] Bind parameter[%s] MySQLType[%s] out range[%s,%s].",
+                    stmtIndex, bindValue.getIndex(), mySQLType, lower, upper);
         }
-        return new JdbdException(createDataOutOfRangeError(message, null));
+        return new JdbdException(message, cause);
     }
 
-    public static JdbdException createDataTooLongException(int stmtIndex, MySQLType mySQLType
-            , ParamValue paramValue) {
-        final String message;
-        if (stmtIndex < 0) {
-            message = String.format("Bind parameter[%s] MySQLType[%s] too long."
-                    , paramValue.getIndex(), mySQLType);
-        } else {
-            message = String.format("Parameter Group[%s] Bind parameter[%s] MySQLType[%s] too long."
-                    , stmtIndex, paramValue.getIndex(), mySQLType);
-        }
-        return new JdbdException(createDataTooLongError(message, null));
-    }
 
-    public static JdbdException createNumberRangErrorException(int stmtIndex, MySQLType mySQLType
-            , ParamValue bindValue, @Nullable Throwable cause, Number lower, Number upper) {
-        final String message;
-        if (stmtIndex < 0) {
-            message = String.format("Bind parameter[%s] MySQLType[%s] beyond rang[%s,%s]."
-                    , bindValue.getIndex(), mySQLType, lower, upper);
-        } else {
-            message = String.format("Parameter Group[%s] Bind parameter[%s] MySQLType[%s] out range[%s,%s]."
-                    , stmtIndex, bindValue.getIndex(), mySQLType, lower, upper);
-        }
-        return new JdbdException(createDataOutOfRangeError(message, cause));
-    }
-
-    public static JdbdException createNumberRangErrorException(int stmtIndex, MySQLType mySQLType
-            , ParamValue bindValue, Number lower, Number upper) {
-        return createNumberRangErrorException(stmtIndex, mySQLType, bindValue, null, lower, upper);
-    }
-
-    public static JdbdException createWrongArgumentsException(int stmtIndex, MySQLType mySQLType
-            , ParamValue paramValue, @Nullable Throwable cause) {
-        String message;
-        if (stmtIndex < 0) {
-            message = String.format("Bind parameter[%s] MySQLType[%s] param type[%s] error."
-                    , paramValue.getIndex(), mySQLType, paramValue.getNonNull().getClass().getName());
-        } else {
-            message = String.format("Parameter Group[%s] Bind parameter[%s] MySQLType[%s]  param type[%s] error."
-                    , stmtIndex, paramValue.getIndex(), mySQLType
-                    , paramValue.getNonNull().getClass().getName());
-        }
-        return new JdbdException(createWrongArgumentsError(message, cause));
-    }
-
-    public static SQLException createDataOutOfRangeError(String message, @Nullable Throwable cause) {
-        return new SQLException(message
-                , MySQLCodes.ERROR_TO_SQL_STATES_MAP.get(MySQLCodes.ER_DATA_OUT_OF_RANGE)
-                , MySQLCodes.ER_DATA_OUT_OF_RANGE, cause);
-
-    }
 
     public static JdbdException createTruncatedWrongValue(String message, @Nullable Throwable cause) {
         final String sqlStates;

@@ -8,6 +8,7 @@ import io.jdbd.mysql.SessionEnv;
 import io.jdbd.mysql.env.Environment;
 import io.jdbd.mysql.env.MySQLHost;
 import io.jdbd.mysql.env.MySQLKey;
+import io.jdbd.mysql.env.Protocol;
 import io.jdbd.mysql.protocol.Constants;
 import io.jdbd.mysql.protocol.MySQLProtocol;
 import io.jdbd.mysql.protocol.MySQLProtocolFactory;
@@ -33,13 +34,15 @@ import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.*;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 
 public final class ClientProtocolFactory extends FixedEnv implements MySQLProtocolFactory {
 
     public static ClientProtocolFactory from(MySQLHost host) {
-        throw new UnsupportedOperationException();
+        if (host.protocol() != Protocol.SINGLE_CONNECTION) {
+            throw new IllegalArgumentException();
+        }
+        return new ClientProtocolFactory(host);
     }
 
 
@@ -49,9 +52,6 @@ public final class ClientProtocolFactory extends FixedEnv implements MySQLProtoc
 
     final TcpClient tcpClient;
 
-
-    private final AtomicBoolean closed = new AtomicBoolean(false);
-
     private ClientProtocolFactory(final MySQLHost host) {
         super(host.properties());
         this.host = host;
@@ -60,17 +60,17 @@ public final class ClientProtocolFactory extends FixedEnv implements MySQLProtoc
 
         this.tcpClient = TcpClient.create(this.env.get(MySQLKey.SOCKET_FACTORY, TcpResources::get))
                 .runOn(createEventLoopGroup(this.env))
-                .host(host.getHost())
-                .port(host.getPort());
+                .host(host.host())
+                .port(host.port());
     }
 
+    @Override
+    public String factoryName() {
+        return this.env.getOrDefault(MySQLKey.FACTORY_NAME);
+    }
 
     @Override
     public Mono<MySQLProtocol> createProtocol() {
-        if (this.closed.get()) {
-            String m = String.format("%s have closed", this.getClass().getName());
-            return Mono.error(new JdbdException(m));
-        }
         return MySQLTaskExecutor.create(this)//1. create tcp connection
                 .map(executor -> new ClientProtocolManager(executor, this))//2. create  SessionManagerImpl
                 .flatMap(ClientProtocolManager::authenticate) //3. authenticate
@@ -78,12 +78,17 @@ public final class ClientProtocolFactory extends FixedEnv implements MySQLProtoc
                 .map(ClientProtocol::create);         //5. create ClientProtocol
     }
 
-    @Override
-    public Mono<Void> close() {
-        this.closed.set(false);
-        return Mono.empty();
-    }
 
+    @Override
+    public String toString() {
+        return MySQLStrings.builder()
+                .append(getClass().getName())
+                .append("[ name : ")
+                .append(" , hash : ")
+                .append(System.identityHashCode(this))
+                .append(" ]")
+                .toString();
+    }
 
     private static EventLoopGroup createEventLoopGroup(final Environment env) {
         return LoopResources.create("jdbd-mysql", env.getOrDefault(MySQLKey.FACTORY_WORKER_COUNT), true)

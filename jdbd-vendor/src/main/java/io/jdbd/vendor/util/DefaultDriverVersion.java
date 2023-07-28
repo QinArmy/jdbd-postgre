@@ -60,6 +60,18 @@ public final class DefaultDriverVersion implements DriverVersion {
     }
 
     @Override
+    public int getSubMinor() {
+        //TODO
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public boolean meetsMinimum(int major, int minor, int subMinor) {
+        //TODO
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
     public int hashCode() {
         return Objects.hash(getName(), this.version, this.major, this.minor);
     }

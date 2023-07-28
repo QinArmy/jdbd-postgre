@@ -1,6 +1,5 @@
 package io.jdbd.mysql.util;
 
-import io.jdbd.mysql.MySQLJdbdException;
 import io.jdbd.vendor.util.JdbdStrings;
 
 import java.nio.charset.Charset;

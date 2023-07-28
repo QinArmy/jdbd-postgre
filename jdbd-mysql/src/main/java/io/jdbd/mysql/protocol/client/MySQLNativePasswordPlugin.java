@@ -34,7 +34,7 @@ public class MySQLNativePasswordPlugin implements AuthenticationPlugin {
     @Override
     public ByteBuf nextAuthenticationStep(final ByteBuf fromServer) {
         final String password;
-        password = this.assistant.getHostInfo().getPassword();
+        password = this.assistant.getHostInfo().password();
 
         final ByteBuf payload;
         if (MySQLStrings.hasText(password)) {

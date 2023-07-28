@@ -25,7 +25,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 
-import static io.jdbd.mysql.session.MySQLDatabaseSessionFactory.MY_SQL;
+import static io.jdbd.mysql.MySQLDriver.MY_SQL;
 
 
 /**
@@ -115,7 +115,7 @@ abstract class MySQLStatement<S extends Statement> implements Statement, StmtOpt
 
 
     @Override
-    public final boolean supportStmtVar() {
+    public final boolean isSupportStmtVar() {
         return this.session.isSupportStmtVar();
     }
 
@@ -172,13 +172,13 @@ abstract class MySQLStatement<S extends Statement> implements Statement, StmtOpt
     }
 
     @Override
-    public final Function<Object, Publisher<byte[]>> getImportPublisher() {
+    public final Function<Object, Publisher<byte[]>> getImportFunction() {
         // always null
         return null;
     }
 
     @Override
-    public final Function<Object, Subscriber<byte[]>> getExportSubscriber() {
+    public final Function<Object, Subscriber<byte[]>> getExportFunction() {
         // always null
         return null;
     }

@@ -20,7 +20,7 @@ public final class Isolation {
     }
 
 
-    private static final ConcurrentMap<String, Isolation> INSTANCE_MAP = new ConcurrentHashMap<>((int) (4 / 0.75f));
+    private static final ConcurrentMap<String, Isolation> INSTANCE_MAP = concurrentHashMap((int) (4 / 0.75f));
 
 
     /**
@@ -119,6 +119,14 @@ public final class Isolation {
         return match;
     }
 
+    static <K, V> ConcurrentHashMap<K, V> concurrentHashMap() {
+        return new FinalConcurrentHashMap<>();
+    }
+
+    static <K, V> ConcurrentHashMap<K, V> concurrentHashMap(int capacity) {
+        return new FinalConcurrentHashMap<>(capacity);
+    }
+
     /*-------------------below private method -------------------*/
 
     private void readObject(ObjectInputStream in) throws IOException,
@@ -129,6 +137,19 @@ public final class Isolation {
     private void readObjectNoData() throws ObjectStreamException {
         throw new InvalidObjectException("can't deserialize Isolation");
     }
+
+
+    private static final class FinalConcurrentHashMap<K, V> extends ConcurrentHashMap<K, V> {
+
+        private FinalConcurrentHashMap() {
+        }
+
+        private FinalConcurrentHashMap(int initialCapacity) {
+            super(initialCapacity);
+        }
+
+
+    }//FinalConcurrentHashMap
 
 
 }

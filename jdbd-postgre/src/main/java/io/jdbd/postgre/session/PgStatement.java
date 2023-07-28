@@ -73,12 +73,12 @@ abstract class PgStatement implements Statement, StmtOption {
     }
 
     @Override
-    public boolean supportPublisher() {
+    public boolean isSupportPublisher() {
         return false;
     }
 
     @Override
-    public final boolean supportOutParameter() {
+    public final boolean isSupportOutParameter() {
         return true;
     }
 
@@ -100,7 +100,7 @@ abstract class PgStatement implements Statement, StmtOption {
 
     @Nullable
     @Override
-    public final Function<Object, Publisher<byte[]>> getImportPublisher() {
+    public final Function<Object, Publisher<byte[]>> getImportFunction() {
         final Function<Object, Publisher<byte[]>> function = this.importPublisher;
         if (function != null) {
             this.importPublisher = null;
@@ -110,7 +110,7 @@ abstract class PgStatement implements Statement, StmtOption {
 
     @Nullable
     @Override
-    public final Function<Object, Subscriber<byte[]>> getExportSubscriber() {
+    public final Function<Object, Subscriber<byte[]>> getExportFunction() {
         final Function<Object, Subscriber<byte[]>> function = this.exportPublisher;
         if (function != null) {
             this.exportPublisher = null;

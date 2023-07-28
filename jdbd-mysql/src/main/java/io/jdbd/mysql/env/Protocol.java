@@ -11,14 +11,14 @@ import reactor.util.annotation.Nullable;
 public enum Protocol {
 
     // DNS SRV schemes (cardinality is validated by implementing classes):
-    FAILOVER_DNS_SRV_CONNECTION("jdbc:mysql+srv:", HostsCardinality.ONE_OR_MORE), //
-    LOADBALANCE_DNS_SRV_CONNECTION("jdbc:mysql+srv:loadbalance:", HostsCardinality.ONE_OR_MORE), //
-    REPLICATION_DNS_SRV_CONNECTION("jdbc:mysql+srv:replication:", HostsCardinality.ONE_OR_MORE), //
+    FAILOVER_DNS_SRV_CONNECTION("jdbd:mysql+srv:", HostsCardinality.ONE_OR_MORE), //
+    LOADBALANCE_DNS_SRV_CONNECTION("jdbd:mysql+srv:loadbalance:", HostsCardinality.ONE_OR_MORE), //
+    REPLICATION_DNS_SRV_CONNECTION("jdbd:mysql+srv:replication:", HostsCardinality.ONE_OR_MORE), //
     // Standard schemes:
-    SINGLE_CONNECTION("jdbc:mysql:", HostsCardinality.SINGLE, FAILOVER_DNS_SRV_CONNECTION), //
-    FAILOVER_CONNECTION("jdbc:mysql:", HostsCardinality.MULTIPLE, FAILOVER_DNS_SRV_CONNECTION), //
-    LOADBALANCE_CONNECTION("jdbc:mysql:loadbalance:", HostsCardinality.ONE_OR_MORE, LOADBALANCE_DNS_SRV_CONNECTION), //
-    REPLICATION_CONNECTION("jdbc:mysql:replication:", HostsCardinality.ONE_OR_MORE, REPLICATION_DNS_SRV_CONNECTION); //
+    SINGLE_CONNECTION("jdbd:mysql:", HostsCardinality.SINGLE, FAILOVER_DNS_SRV_CONNECTION), //
+    FAILOVER_CONNECTION("jdbd:mysql:", HostsCardinality.MULTIPLE, FAILOVER_DNS_SRV_CONNECTION), //
+    LOADBALANCE_CONNECTION("jdbd:mysql:loadbalance:", HostsCardinality.ONE_OR_MORE, LOADBALANCE_DNS_SRV_CONNECTION), //
+    REPLICATION_CONNECTION("jdbd:mysql:replication:", HostsCardinality.ONE_OR_MORE, REPLICATION_DNS_SRV_CONNECTION); //
 
     public final String scheme;
     public final HostsCardinality cardinality;
@@ -57,7 +57,7 @@ public enum Protocol {
     /**
      * Checks if the given scheme corresponds to one of the connection types the driver supports.
      *
-     * @param scheme scheme part from connection string, like "jdbc:mysql:"
+     * @param scheme scheme part from connection string, like "jdbd:mysql:"
      * @return true if the given scheme is supported by driver
      */
     public static boolean isSupported(String scheme) {

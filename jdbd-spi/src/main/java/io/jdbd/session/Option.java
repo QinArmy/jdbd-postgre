@@ -5,12 +5,10 @@ import java.io.InvalidObjectException;
 import java.io.ObjectInputStream;
 import java.io.ObjectStreamException;
 import java.util.Objects;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
 public final class Option<T> {
 
-    private static final ConcurrentMap<String, Option<?>> INSTANCE_MAP = new ConcurrentHashMap<>();
 
     @SuppressWarnings("unchecked")
     public static <T> Option<T> from(final String name, final Class<T> javaType) {
@@ -20,12 +18,14 @@ public final class Option<T> {
         Objects.requireNonNull(javaType);
         final Option<?> option;
         option = INSTANCE_MAP.computeIfAbsent(name, k -> new Option<>(name, javaType));
-        if (option.javaType != javaType) {
-            String m = String.format("duplication name[%s]", name);
-            throw new IllegalArgumentException(m);
+
+        if (option.javaType == javaType) {
+            return (Option<T>) option;
         }
-        return (Option<T>) option;
+        return new Option<>(name, javaType);
     }
+
+    private static final ConcurrentMap<String, Option<?>> INSTANCE_MAP = Isolation.concurrentHashMap();
 
 
     public static final Option<Isolation> ISOLATION = Option.from("ISOLATION", Isolation.class);

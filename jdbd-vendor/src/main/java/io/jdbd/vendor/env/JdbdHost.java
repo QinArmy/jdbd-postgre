@@ -6,19 +6,19 @@ public interface JdbdHost {
 
     String DEFAULT_HOST = "localhost";
 
-    String getHost();
+    String host();
 
-    int getPort();
+    int port();
 
 
     interface HostInfo extends JdbdHost {
-        String getUser();
+        String user();
 
         @Nullable
-        String getPassword();
+        String password();
 
         @Nullable
-        String getDbName();
+        String dbName();
     }
 
 

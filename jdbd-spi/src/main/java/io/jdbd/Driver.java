@@ -26,6 +26,10 @@ public interface Driver {
 
     String PASSWORD = "password";
 
+    String FACTORY_NAME = "factoryName";
+
+    String CLIENT_INFO = "clientInfo";
+
 
     /**
      * @param url jdbc url
@@ -61,6 +65,34 @@ public interface Driver {
      */
     DatabaseSessionFactory forPoolVendor(String url, Map<String, Object> properties) throws JdbdException;
 
-    DriverVersion getVersion();
+
+    /**
+     * @return database product name,For example :  MySQL , PostgreSQL.
+     */
+    String productName();
+
+    DriverVersion version();
+
+
+    /**
+     * @return driver vendor,The value returned typically is the package name for this vendor.
+     */
+    String vendor();
+
+
+    /**
+     * override {@link Object#toString()}
+     *
+     * @return driver info, contain : <ol>
+     * <li>implementation class name</li>
+     * <li>{@link #vendor()}</li>
+     * <li>{@link #productName()}</li>
+     * <li>{@link #version()}</li>
+     * <li>{@link System#identityHashCode(Object)}</li>
+     * </ol>
+     */
+    @Override
+    String toString();
+
 
 }

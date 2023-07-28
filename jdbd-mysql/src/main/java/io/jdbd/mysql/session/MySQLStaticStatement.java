@@ -126,13 +126,13 @@ final class MySQLStaticStatement extends MySQLStatement<StaticStatement> impleme
 
     /*################################## blow Statement method ##################################*/
     @Override
-    public boolean supportPublisher() {
+    public boolean isSupportPublisher() {
         // always false,MySQL COM_QUERY protocol don't support Publisher
         return false;
     }
 
     @Override
-    public boolean supportOutParameter() {
+    public boolean isSupportOutParameter() {
         // always false,MySQL COM_QUERY protocol don't support.
         return false;
     }

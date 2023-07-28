@@ -227,7 +227,7 @@ final class PgBindStatement extends PgStatement implements BindStatement {
     }
 
     @Override
-    public boolean supportPublisher() {
+    public boolean isSupportPublisher() {
         return true;
     }
 

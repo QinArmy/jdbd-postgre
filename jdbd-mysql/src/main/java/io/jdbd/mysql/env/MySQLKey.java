@@ -1,5 +1,6 @@
 package io.jdbd.mysql.env;
 
+import io.jdbd.Driver;
 import io.jdbd.lang.Nullable;
 import io.jdbd.mysql.protocol.client.Enums;
 import io.jdbd.mysql.protocol.client.MySQLNativePasswordPlugin;
@@ -25,14 +26,14 @@ public final class MySQLKey<T> {
      *
      * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-authentication.html">user</a>
      */
-    public static final MySQLKey<String> USER = new MySQLKey<>("user", String.class, null);
+    public static final MySQLKey<String> USER = new MySQLKey<>(Driver.USER, String.class, null);
 
     /**
      * The database user password.
      *
      * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-authentication.html">password</a>
      */
-    public static final MySQLKey<String> PASSWORD = new MySQLKey<>("password", String.class, null);
+    public static final MySQLKey<String> PASSWORD = new MySQLKey<>(Driver.PASSWORD, String.class, null);
 
     /**
      * password1
@@ -1260,25 +1261,21 @@ public final class MySQLKey<T> {
 
     public static final MySQLKey<Integer> FACTORY_TASK_QUEUE_SIZE = new MySQLKey<>("factory_task_queue_size", Integer.class, 18);
 
+    public static final MySQLKey<String> FACTORY_NAME = new MySQLKey<>(Driver.FACTORY_NAME, String.class, "unnamed");
+
 
     public final String name;
-
-    public final String alias;
 
     public final Class<T> valueClass;
 
     public final T defaultValue;
 
     private MySQLKey(String name, Class<T> valueClass, @Nullable T defaultValue) {
-        this(name, null, valueClass, defaultValue);
-    }
-
-    private MySQLKey(String name, String alias, Class<T> valueClass, @Nullable T defaultValue) {
         this.name = name;
-        this.alias = alias;
         this.valueClass = valueClass;
         this.defaultValue = defaultValue;
     }
+
 
     @Override
     public String toString() {
@@ -1286,8 +1283,6 @@ public final class MySQLKey<T> {
                 .append(MySQLKey.class.getName())
                 .append("[ name : ")
                 .append(this.name)
-                .append(" , alias : ")
-                .append(this.alias)
                 .append(" , hash : ")
                 .append(System.identityHashCode(this))
                 .append(" , valueClass : ")

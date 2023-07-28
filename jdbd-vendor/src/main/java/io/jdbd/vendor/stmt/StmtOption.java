@@ -1,10 +1,11 @@
 package io.jdbd.vendor.stmt;
 
 import io.jdbd.lang.Nullable;
+import io.jdbd.session.ChunkOption;
 import org.reactivestreams.Publisher;
 import org.reactivestreams.Subscriber;
 
-import java.util.Map;
+import java.util.List;
 import java.util.function.Function;
 
 /**
@@ -20,9 +21,9 @@ public interface StmtOption {
     int getFetchSize();
 
     /**
-     * @return a unmodified map.
+     * @return a unmodified list.
      */
-    Map<String, NamedValue> getStmtVarMap();
+    List<NamedValue> getStmtVarList();
 
     /**
      * <p>
@@ -37,7 +38,7 @@ public interface StmtOption {
      * </p>
      */
     @Nullable
-    Function<Object, Publisher<byte[]>> getImportPublisher();
+    Function<ChunkOption, Publisher<byte[]>> getImportFunction();
 
     /**
      * <p>
@@ -52,6 +53,6 @@ public interface StmtOption {
      * </p>
      */
     @Nullable
-    Function<Object, Subscriber<byte[]>> getExportSubscriber();
+    Function<ChunkOption, Subscriber<byte[]>> getExportFunction();
 
 }

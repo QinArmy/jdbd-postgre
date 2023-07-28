@@ -3,6 +3,7 @@ package io.jdbd.vendor.stmt;
 import io.jdbd.result.ResultStates;
 
 import java.util.function.Consumer;
+import java.util.function.Function;
 
 /**
  * <p>
@@ -15,11 +16,11 @@ import java.util.function.Consumer;
  *      The implementation of this interface is used by the implementation of below methods:
  *      <u>
  *          <li>{@link io.jdbd.statement.StaticStatement#executeQuery(String)}</li>
- *          <li>{@link io.jdbd.statement.StaticStatement#executeQuery(String, Consumer)}</li>
+ *          <li>{@link io.jdbd.statement.StaticStatement#executeQuery(String, Function, Consumer)}</li>
  *          <li>{@link io.jdbd.statement.PreparedStatement#executeQuery()}</li>
- *          <li>{@link io.jdbd.statement.PreparedStatement#executeQuery(Consumer)}</li>
+ *          <li>{@link io.jdbd.statement.PreparedStatement#executeQuery(Function, Consumer)}</li>
  *          <li>{@link io.jdbd.statement.BindStatement#executeQuery()}</li>
- *          <li>{@link io.jdbd.statement.BindStatement#executeQuery(Consumer)}</li>
+ *          <li>{@link io.jdbd.statement.BindStatement#executeQuery(Function, Consumer)}</li>
  *      </u>
  * </p>
  * <p>
@@ -32,10 +33,6 @@ import java.util.function.Consumer;
  */
 public interface FetchAbleSingleStmt extends SingleStmt {
 
-    /**
-     * @return fetch size, if zero ignore.
-     */
-    int getFetchSize();
 
     Consumer<ResultStates> getStatusConsumer();
 

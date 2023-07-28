@@ -27,7 +27,7 @@ import java.util.List;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
-import static io.jdbd.mysql.session.MySQLDatabaseSessionFactory.MY_SQL;
+import static io.jdbd.mysql.MySQLDriver.MY_SQL;
 
 /**
  * <p>
@@ -380,13 +380,13 @@ final class MySQLPreparedStatement extends MySQLStatement<PreparedStatement> imp
 
 
     @Override
-    public boolean supportPublisher() {
+    public boolean isSupportPublisher() {
         // always true,ComPrepare
         return true;
     }
 
     @Override
-    public boolean supportOutParameter() {
+    public boolean isSupportOutParameter() {
         return this.session.protocol.supportOutParameter();
     }
 

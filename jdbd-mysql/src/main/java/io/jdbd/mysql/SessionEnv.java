@@ -14,6 +14,7 @@ public interface SessionEnv {
     @Nullable
     Charset charsetResults();
 
+    @Nullable
     ZoneOffset connZone();
 
     ZoneOffset serverZone();

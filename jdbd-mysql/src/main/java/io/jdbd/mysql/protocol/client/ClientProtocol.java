@@ -1,15 +1,14 @@
 package io.jdbd.mysql.protocol.client;
 
 import io.jdbd.JdbdException;
+import io.jdbd.lang.Nullable;
+import io.jdbd.mysql.protocol.Constants;
 import io.jdbd.mysql.protocol.MySQLProtocol;
 import io.jdbd.mysql.protocol.MySQLServerVersion;
 import io.jdbd.mysql.stmt.Stmts;
 import io.jdbd.mysql.util.MySQLExceptions;
 import io.jdbd.result.*;
-import io.jdbd.session.Isolation;
-import io.jdbd.session.ServerVersion;
-import io.jdbd.session.TransactionOption;
-import io.jdbd.session.TransactionStatus;
+import io.jdbd.session.*;
 import io.jdbd.vendor.session.JdbdTransactionStatus;
 import io.jdbd.vendor.stmt.*;
 import io.jdbd.vendor.task.PrepareTask;
@@ -30,6 +29,12 @@ final class ClientProtocol implements MySQLProtocol {
 
     }
 
+    private static final String COMMIT_MULTI_SQL = "COMMIT ; SET @@session.autocommit = 1";
+
+    private static final String ROLLBACK_MULTI_SQL = "ROLLBACK ; SET @@session.autocommit = 1";
+
+    private static final Option<Boolean> WITH_CONSISTENT_SNAPSHOT = Option.from("WITH CONSISTENT SNAPSHOT", Boolean.class);
+
     private final ProtocolManager manager;
 
     private final TaskAdjutant adjutant;
@@ -45,7 +50,7 @@ final class ClientProtocol implements MySQLProtocol {
 
 
     @Override
-    public long getId() {
+    public long threadId() {
         return this.adjutant.handshake10().threadId;
     }
 
@@ -227,46 +232,89 @@ final class ClientProtocol implements MySQLProtocol {
     }
 
 
+    /**
+     * @see <a href="https://dev.mysql.com/doc/refman/8.0/en/commit.html">START TRANSACTION Statement</a>
+     */
     @Override
-    public Mono<Void> startTransaction(final TransactionOption option) {
+    public Mono<ResultStates> startTransaction(final TransactionOption option, final HandleMode mode) {
 
         final StringBuilder builder = new StringBuilder(50);
+
+        final JdbdException error;
+        if (this.inTransaction() && (error = handleInTransaction(mode, builder)) != null) {
+            return Mono.error(error);
+        }
+
         final Isolation isolation = option.getIsolation();
+
         if (isolation != null) {
             builder.append("SET TRANSACTION ISOLATION LEVEL ");
             if (appendIsolation(isolation, builder)) {
                 return Mono.error(MySQLExceptions.unknownIsolation(isolation));
             }
-            builder.append(" ; ");
+            builder.append(Constants.SPACE_SEMICOLON_SPACE);
         }
 
+        builder.append("START TRANSACTION ");
         if (option.isReadOnly()) {
-            builder.append("START TRANSACTION READ ONLY");
+            builder.append("READ ONLY");
         } else {
-            builder.append("START TRANSACTION READ WRITE");
+            builder.append("READ WRITE");
+        }
+        if (Boolean.TRUE.equals(option.valueOf(WITH_CONSISTENT_SNAPSHOT))) {
+            builder.append(Constants.SPACE_COMMA_SPACE)
+                    .append(WITH_CONSISTENT_SNAPSHOT.name());
         }
         return Flux.from(ComQueryTask.executeAsFlux(Stmts.multiStmt(builder.toString()), this.adjutant))
                 .last()
-                .map(ResultStates.class::cast)
-                .flatMap(this::handleStartTransactionEnd);
+                .map(ResultStates.class::cast);
+    }
+
+
+    /**
+     * @see <a href="https://dev.mysql.com/doc/refman/8.0/en/set-transaction.html">SET TRANSACTION Statement</a>
+     */
+    @Override
+    public Mono<Void> setTransactionOption(final TransactionOption option, final HandleMode mode) {
+        final StringBuilder builder = new StringBuilder(50);
+
+        final JdbdException error;
+        if (this.inTransaction() && (error = handleInTransaction(mode, builder)) != null) {
+            return Mono.error(error);
+        }
+
+        final Isolation isolation = option.getIsolation();
+
+        if (isolation != null) {
+            builder.append("SET TRANSACTION ISOLATION LEVEL ");
+            if (appendIsolation(isolation, builder)) {
+                return Mono.error(MySQLExceptions.unknownIsolation(isolation));
+            }
+            builder.append(Constants.SPACE_COMMA_SPACE);
+        }
+
+        if (option.isReadOnly()) {
+            builder.append("READ ONLY");
+        } else {
+            builder.append("READ WRITE");
+        }
+        return Flux.from(ComQueryTask.executeAsFlux(Stmts.multiStmt(builder.toString()), this.adjutant))
+                .then();
+    }
+
+
+    @Override
+    public Mono<ResultStates> commit() {
+        return Flux.from(ComQueryTask.executeAsFlux(Stmts.multiStmt(COMMIT_MULTI_SQL), this.adjutant))
+                .last()
+                .map(ResultStates.class::cast);
     }
 
     @Override
-    public Mono<Void> commit() {
-        final String sql = "COMMIT ; SET @@session.autocommit = 1";
-        return Flux.from(ComQueryTask.executeAsFlux(Stmts.multiStmt(sql), this.adjutant))
+    public Mono<ResultStates> rollback() {
+        return Flux.from(ComQueryTask.executeAsFlux(Stmts.multiStmt(ROLLBACK_MULTI_SQL), this.adjutant))
                 .last()
-                .map(ResultStates.class::cast)
-                .flatMap(this::handleTransactionEnd);
-    }
-
-    @Override
-    public Mono<Void> rollback() {
-        final String sql = "ROLLBACK ; SET @@session.autocommit = 1";
-        return Flux.from(ComQueryTask.executeAsFlux(Stmts.multiStmt(sql), this.adjutant))
-                .last()
-                .map(ResultStates.class::cast)
-                .flatMap(this::handleTransactionEnd);
+                .map(ResultStates.class::cast);
     }
 
 
@@ -306,33 +354,27 @@ final class ClientProtocol implements MySQLProtocol {
 
 
     /**
-     * @see #startTransaction(TransactionOption)
+     * @see #startTransaction(TransactionOption, HandleMode)
+     * @see #setTransactionOption(TransactionOption, HandleMode)
      */
-    private Mono<Void> handleStartTransactionEnd(final ResultStates states) {
-        final Mono<Void> mono;
-        if (states.inTransaction()) {
-            mono = Mono.empty();
-        } else {
-            //no bug,never here
-            mono = Mono.error(new JdbdException("start transaction failure."));
-        }
-        return mono;
-    }
+    @Nullable
+    private JdbdException handleInTransaction(final HandleMode mode, final StringBuilder builder) {
+        JdbdException error = null;
+        switch (mode) {
+            case ERROR_IF_EXISTS:
+                error = MySQLExceptions.transactionExistsRejectStart(this.threadId());
+                break;
+            case COMMIT_IF_EXISTS:
+                builder.append(COMMIT_MULTI_SQL)
+                        .append(Constants.SPACE_SEMICOLON_SPACE);
+                break;
+            case ROLLBACK_IF_EXISTS:
+                builder.append(ROLLBACK_MULTI_SQL)
+                        .append(Constants.SPACE_SEMICOLON_SPACE);
+                break;
+            default:
+                error = MySQLExceptions.unexpectedEnum(mode);
 
-
-    private boolean appendIsolation(final Isolation isolation, final StringBuilder builder) {
-
-        boolean error = false;
-        if (isolation == Isolation.READ_COMMITTED) {
-            builder.append("READ COMMITTED");
-        } else if (isolation == Isolation.REPEATABLE_READ) {
-            builder.append("REPEATABLE READ");
-        } else if (isolation == Isolation.SERIALIZABLE) {
-            builder.append("SERIALIZABLE");
-        } else if (isolation == Isolation.READ_UNCOMMITTED) {
-            builder.append("READ UNCOMMITTED");
-        } else {
-            error = true;
         }
         return error;
     }
@@ -365,15 +407,21 @@ final class ClientProtocol implements MySQLProtocol {
     }
 
 
-    private Mono<Void> handleTransactionEnd(final ResultStates states) {
-        final Mono<Void> mono;
-        if (states.inTransaction()) {
-            // no bug,never here
-            mono = Mono.error(new JdbdException("end transaction failure"));
+    private static boolean appendIsolation(final Isolation isolation, final StringBuilder builder) {
+
+        boolean error = false;
+        if (isolation == Isolation.READ_COMMITTED) {
+            builder.append("READ COMMITTED");
+        } else if (isolation == Isolation.REPEATABLE_READ) {
+            builder.append("REPEATABLE READ");
+        } else if (isolation == Isolation.SERIALIZABLE) {
+            builder.append("SERIALIZABLE");
+        } else if (isolation == Isolation.READ_UNCOMMITTED) {
+            builder.append("READ UNCOMMITTED");
         } else {
-            mono = Mono.empty();
+            error = true;
         }
-        return mono;
+        return error;
     }
 
 

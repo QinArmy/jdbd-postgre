@@ -90,7 +90,7 @@ public class Sha256PasswordPlugin implements AuthenticationPlugin {
     public ByteBuf nextAuthenticationStep(final ByteBuf fromServer) {
 
         final AuthenticateAssistant assistant = this.assistant;
-        final String password = assistant.getHostInfo().getPassword();
+        final String password = assistant.getHostInfo().password();
 
         final ByteBuf toServer;
         if (MySQLStrings.hasText(password) && fromServer.isReadable()) {

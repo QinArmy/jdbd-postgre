@@ -44,7 +44,7 @@ public class MySQLClearPasswordPlugin implements AuthenticationPlugin {
         }
 
         final String password;
-        password = assistant.getHostInfo().getPassword();
+        password = assistant.getHostInfo().password();
         byte[] passwordBytes;
         if (password == null) {
             passwordBytes = "".getBytes(passwordCharset);

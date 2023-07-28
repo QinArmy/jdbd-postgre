@@ -29,7 +29,7 @@ import java.util.List;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
-import static io.jdbd.mysql.session.MySQLDatabaseSessionFactory.MY_SQL;
+import static io.jdbd.mysql.MySQLDriver.MY_SQL;
 
 /**
  * <p>
@@ -348,13 +348,13 @@ final class MySQLBindStatement extends MySQLStatement<BindStatement> implements 
     /*################################## blow Statement method ##################################*/
 
     @Override
-    public boolean supportPublisher() {
+    public boolean isSupportPublisher() {
         // adapt to PreparedStatement
         return true;
     }
 
     @Override
-    public boolean supportOutParameter() {
+    public boolean isSupportOutParameter() {
         // adapt to PreparedStatement
         return true;
     }

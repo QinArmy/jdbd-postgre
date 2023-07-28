@@ -1,9 +1,11 @@
 package io.jdbd.result;
 
 
+import io.jdbd.session.Option;
+
 public interface ResultStates extends Result {
 
-     boolean supportInsertId();
+    boolean supportInsertId();
 
     boolean inTransaction();
 
@@ -20,9 +22,6 @@ public interface ResultStates extends Result {
 
     boolean hasMoreFetch();
 
-
-    boolean isLastResult();
-
     default long getRowCount() {
         throw new UnsupportedOperationException();
     }
@@ -34,5 +33,8 @@ public interface ResultStates extends Result {
     default int getWarnings() {
         throw new UnsupportedOperationException();
     }
+
+
+    <T> T valueOf(Option<T> option);
 
 }

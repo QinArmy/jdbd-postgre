@@ -473,7 +473,7 @@ public abstract class CommunicationTaskExecutor<T extends ITaskAdjutant> impleme
         if (sslObject instanceof SslProvider) {
             SslProvider sslProvider = (SslProvider) sslObject;
             final JdbdHost hostInfo = obtainHostInfo();
-            InetSocketAddress address = InetSocketAddress.createUnresolved(hostInfo.getHost(), hostInfo.getPort());
+            InetSocketAddress address = InetSocketAddress.createUnresolved(hostInfo.host(), hostInfo.port());
             sslProvider.addSslHandler(this.connection.channel(), address, traceEnabled);
         } else if (sslObject instanceof SslHandler) {
             SslHandler sslHandler = (SslHandler) sslObject;

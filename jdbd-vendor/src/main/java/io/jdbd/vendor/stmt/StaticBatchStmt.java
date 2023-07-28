@@ -1,9 +1,5 @@
 package io.jdbd.vendor.stmt;
 
-import io.jdbd.lang.Nullable;
-import org.reactivestreams.Publisher;
-import org.reactivestreams.Subscriber;
-
 import java.util.List;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -26,34 +22,5 @@ public interface StaticBatchStmt extends BatchStmt {
      */
     List<String> getSqlGroup();
 
-
-    @Override
-    int getTimeout();
-
-    /**
-     * <p>
-     * If {@link #getSqlGroup()} size isn't 1 ,then always return 0 .
-     * </p>
-     */
-    @Override
-    int getFetchSize();
-
-    /**
-     * <p>
-     * If {@link #getSqlGroup()} size isn't 1 ,then always return null .
-     * </p>
-     */
-    @Nullable
-    @Override
-    Function<Object, Publisher<byte[]>> getImportPublisher();
-
-    /**
-     * <p>
-     * If {@link #getSqlGroup()} size isn't 1 ,then always return null .
-     * </p>
-     */
-    @Nullable
-    @Override
-    Function<Object, Subscriber<byte[]>> getExportSubscriber();
 
 }

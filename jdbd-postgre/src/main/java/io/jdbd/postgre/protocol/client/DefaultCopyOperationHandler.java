@@ -366,35 +366,35 @@ final class DefaultCopyOperationHandler implements CopyOperationHandler {
                 throw new SQLException(String.format("COPY-OUT only is supported with single statement in %s"
                         , StaticStatement.class.getName()));
             }
-            function = stmt.getExportSubscriber();
+            function = stmt.getExportFunction();
         } else if (stmt instanceof StaticBatchStmt) {
             final List<String> sqlGroup = ((StaticBatchStmt) stmt).getSqlGroup();
             if (resultIndex != 0 || sqlGroup.size() != 1) {
                 throw new SQLException(String.format("COPY-OUT only is supported with single statement in %s"
                         , StaticStatement.class.getName()));
             }
-            function = stmt.getExportSubscriber();
+            function = stmt.getExportFunction();
         } else if (stmt instanceof BindStmt) {
             if (resultIndex != 0) {
                 // here 1. bug ; 2. postgre CALL command add new feature that CALL command can return multi CommendComplete message.
                 throw new SQLException(String.format("COPY-OUT only is supported with single result in %s"
                         , BindSingleStatement.class.getName()));
             }
-            function = stmt.getExportSubscriber();
+            function = stmt.getExportFunction();
         } else if (stmt instanceof BindBatchStmt) {
             final List<List<BindValue>> groupList = ((BindBatchStmt) stmt).getGroupList();
             if (resultIndex != 0 || groupList.size() != 1) {
                 throw new SQLException(String.format("COPY-OUT only is supported with single bind in %s"
                         , BindSingleStatement.class.getName()));
             }
-            function = stmt.getExportSubscriber();
+            function = stmt.getExportFunction();
         } else if (stmt instanceof BindMultiStmt) {
             final List<BindStmt> stmtGroup = ((BindMultiStmt) stmt).getStmtList();
             if (resultIndex >= stmtGroup.size()) {
                 // here 1. bug ; 2. postgre CALL command add new feature that CALL command can return multi CommendComplete message.
                 throw new SQLException("Not found Subscriber for COPY-OUT.");
             }
-            function = stmtGroup.get(resultIndex).getExportSubscriber();
+            function = stmtGroup.get(resultIndex).getExportFunction();
         } else {
             String m = String.format("Unknown %s type[%s]", Stmt.class.getName(), stmt.getClass().getName());
             throw new IllegalStateException(m);

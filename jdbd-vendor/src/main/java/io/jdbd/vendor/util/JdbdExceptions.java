@@ -6,7 +6,9 @@ import io.jdbd.meta.DataType;
 import io.jdbd.meta.SQLType;
 import io.jdbd.result.CurrentRow;
 import io.jdbd.result.ResultStates;
+import io.jdbd.session.DatabaseSessionFactory;
 import io.jdbd.session.Isolation;
+import io.jdbd.session.Option;
 import io.jdbd.session.SavePoint;
 import io.jdbd.statement.OutParameter;
 import io.jdbd.statement.PreparedStatement;
@@ -33,6 +35,33 @@ public abstract class JdbdExceptions {
     }
 
     private static final Logger LOG = LoggerFactory.getLogger(JdbdExceptions.class);
+
+
+    public static final byte XA_RBBASE = 100;
+    public static final byte XA_RBROLLBACK = 100;
+    public static final byte XA_RBCOMMFAIL = 101;
+    public static final byte XA_RBDEADLOCK = 102;
+    public static final byte XA_RBINTEGRITY = 103;
+    public static final byte XA_RBOTHER = 104;
+    public static final byte XA_RBPROTO = 105;
+    public static final byte XA_RBTIMEOUT = 106;
+    public static final byte XA_RBTRANSIENT = 107;
+    public static final byte XA_RBEND = 107;
+    public static final byte XA_NOMIGRATE = 9;
+    public static final byte XA_HEURHAZ = 8;
+    public static final byte XA_HEURCOM = 7;
+    public static final byte XA_HEURRB = 6;
+    public static final byte XA_HEURMIX = 5;
+    public static final byte XA_RETRY = 4;
+    public static final byte XA_RDONLY = 3;
+    public static final byte XAER_ASYNC = -2;
+    public static final byte XAER_RMERR = -3;
+    public static final byte XAER_NOTA = -4;
+    public static final byte XAER_INVAL = -5;
+    public static final byte XAER_PROTO = -6;
+    public static final byte XAER_RMFAIL = -7;
+    public static final byte XAER_DUPID = -8;
+    public static final byte XAER_OUTSIDE = -9;
 
 
     public static JdbdException wrap(Throwable cause) {
@@ -123,25 +152,6 @@ public abstract class JdbdExceptions {
         return new JdbdException(String.format("statement variable[%s] duplication.", name));
     }
 
-    public static JdbdException wrap(Throwable e, String format, @Nullable Object... args) {
-        final String message;
-        if (args == null || args.length == 0) {
-            message = format;
-        } else {
-            message = String.format(format, args);
-        }
-        final JdbdException je;
-        if (e instanceof JdbdException) {
-            je = (JdbdException) e;
-        } else if (e instanceof SQLException) {
-            je = new JdbdSQLException(message, (SQLException) e);
-        } else if (e instanceof IndexOutOfBoundsException && isByteBufOutflow(e)) {
-            je = new JdbdSQLException(tooLargeObject(e));
-        } else {
-            je = new JdbdUnknownException(message, e);
-        }
-        return je;
-    }
 
     public static JdbdException dontSupportMultiStmt() {
         return new JdbdException("current session don't support multi-statement.",
@@ -151,7 +161,7 @@ public abstract class JdbdExceptions {
     public static Throwable wrapForMessage(final Throwable e) {
         final Throwable error;
         if (e instanceof IndexOutOfBoundsException && isByteBufOutflow(e)) {
-            error = new JdbdSQLException(tooLargeObject(e));
+            error = tooLargeObject(e);
         } else {
             error = wrapIfNonJvmFatal(e);
         }
@@ -177,6 +187,12 @@ public abstract class JdbdExceptions {
         return match;
     }
 
+
+    public static JdbdException factoryClosed(String name) {
+        String m = String.format("%s[%s] have closed", DatabaseSessionFactory.class.getName(), name);
+        return new JdbdException(m);
+    }
+
     public static Throwable wrapIfNonJvmFatal(Throwable e) {
         return isJvmFatal(e) ? e : wrap(e);
     }
@@ -188,7 +204,8 @@ public abstract class JdbdExceptions {
     }
 
     public static JdbdException notSupportBindJavaType(Class<?> notSupportType) {
-        return new JdbdException(notSupportType);
+        String m = String.format("Don't support %s", notSupportType.getName());
+        return new JdbdException(m);
     }
 
 
@@ -225,8 +242,8 @@ public abstract class JdbdExceptions {
         return new JdbdException(String.format("Can't reuse %s .", stmtClass.getName()));
     }
 
-    public static StatementClosedException preparedStatementClosed() {
-        return new StatementClosedException(String.format("%s have closed.", PreparedStatement.class.getName()));
+    public static JdbdException preparedStatementClosed() {
+        return new JdbdException(String.format("%s have closed.", PreparedStatement.class.getName()));
     }
 
 
@@ -234,8 +251,8 @@ public abstract class JdbdExceptions {
         return new JdbdException("MultiStatement no sql,should invoke addStatement(String) method.");
     }
 
-    public static JdbdSQLException noReturnColumn() {
-        return new JdbdSQLException(new SQLException("No return column"));
+    public static JdbdException noReturnColumn() {
+        return new JdbdException("No return column");
     }
 
     public static JdbdException invalidParameterValue(int stmtIndex, int paramIndex) {
@@ -248,10 +265,10 @@ public abstract class JdbdExceptions {
         return new JdbdException(m, SQLStates.INVALID_PARAMETER_VALUE, 0);
     }
 
-    public static JdbdSQLException beyondFirstParamGroupRange(int indexBasedZero, int firstGroupSize) {
-        String m = String.format("bind index[%s] beyond first param group range [0,%s) ."
-                , indexBasedZero, firstGroupSize);
-        return new JdbdSQLException(new SQLException(m, SQLStates.INVALID_PARAMETER_VALUE));
+    public static JdbdException beyondFirstParamGroupRange(int indexBasedZero, int firstGroupSize) {
+        String m = String.format("bind index[%s] beyond first param group range [0,%s) .", indexBasedZero,
+                firstGroupSize);
+        return new JdbdException(m, SQLStates.INVALID_PARAMETER_VALUE, 0);
     }
 
 
@@ -314,6 +331,10 @@ public abstract class JdbdExceptions {
 
     public static JdbdException unknownIsolation(Isolation isolation) {
         return new JdbdException(String.format("unknown %s[%s]", Isolation.class.getName(), isolation.name()));
+    }
+
+    public static JdbdException unknownOption(Option<?> option) {
+        return new JdbdException(String.format("unknown %s", option));
     }
 
     public static JdbdException savePointNameIsEmpty() {
@@ -458,8 +479,8 @@ public abstract class JdbdExceptions {
         return new JdbdException("Object too large,beyond message length.", e);
     }
 
-    public static LocalFileException localFileWriteError(int batchIndex, SQLType sqlType
-            , ParamValue bindValue, Throwable e) {
+    public static JdbdException localFileWriteError(int batchIndex, SQLType sqlType, ParamValue bindValue,
+                                                    Throwable e) {
         Path path = (Path) bindValue.getNonNull();
         String m;
         if (batchIndex < 0) {
@@ -469,7 +490,7 @@ public abstract class JdbdExceptions {
             m = String.format("batch[%s] parameter[%s] path[%s] to sql type[%s]"
                     , batchIndex, bindValue.getIndex(), bindValue.get(), sqlType);
         }
-        throw new LocalFileException(path, m, e);
+        throw new JdbdException(m, e);
     }
 
     /**
@@ -505,36 +526,51 @@ public abstract class JdbdExceptions {
         throw new JdbdException(m);
     }
 
-    public static JdbdSQLException transactionExistsRejectSet(Object sessionId) {
+    public static JdbdException startTransactionFailure(Object sessionId) {
+        String m = String.format("start transaction failure in session[%s]", sessionId);
+        return new JdbdException(m);
+    }
+
+    public static JdbdException commitTransactionFailure(Object sessionId) {
+        String m = String.format("commit transaction failure in session[%s]", sessionId);
+        return new JdbdException(m);
+    }
+
+    public static JdbdException rollbackTransactionFailure(Object sessionId) {
+        String m = String.format("rollback transaction failure in session[%s]", sessionId);
+        return new JdbdException(m);
+    }
+
+    public static JdbdException transactionExistsRejectSet(Object sessionId) {
         String m;
         m = String.format("Session[%s] in transaction ,reject set transaction characteristic before commit or rollback."
                 , sessionId);
-        throw new JdbdSQLException(new SQLException(m));
+        throw new JdbdException(m);
     }
 
 
-    public static JdbdXaException xaInvalidFlagForStart(final int flags) {
+    public static JdbdException xaInvalidFlagForStart(final int flags) {
         return xaInvalidFlag(flags, "start(Xid xid,int flags)");
     }
 
-    public static JdbdXaException xaInvalidFlagForEnd(final int flags) {
+    public static JdbdException xaInvalidFlagForEnd(final int flags) {
         return xaInvalidFlag(flags, "end(Xid xid,int flags)");
     }
 
-    public static JdbdXaException xaInvalidFlagForRecover(final int flags) {
+    public static JdbdException xaInvalidFlagForRecover(final int flags) {
         return xaInvalidFlag(flags, "recover(int flags)");
     }
 
-    public static JdbdXaException xaGtridNoText() {
-        return new JdbdXaException("gtrid of xid must have text.", SQLStates.ER_XAER_NOTA, JdbdXaException.XAER_NOTA);
+    public static JdbdException xaGtridNoText() {
+        return new JdbdException("gtrid of xid must have text.", SQLStates.ER_XAER_NOTA, XAER_NOTA);
     }
 
-    public static JdbdXaException xaGtridBeyond64Bytes() {
-        return new JdbdXaException("bytes length of gtrid beyond 64 bytes.", SQLStates.ER_XAER_NOTA, JdbdXaException.XAER_NOTA);
+    public static JdbdException xaGtridBeyond64Bytes() {
+        return new JdbdException("bytes length of gtrid beyond 64 bytes.", SQLStates.ER_XAER_NOTA, XAER_NOTA);
     }
 
-    public static JdbdXaException xaBqualBeyond64Bytes() {
-        return new JdbdXaException("bytes length of bqual beyond 64 bytes.", SQLStates.ER_XAER_NOTA, JdbdXaException.XAER_NOTA);
+    public static JdbdException xaBqualBeyond64Bytes() {
+        return new JdbdException("bytes length of bqual beyond 64 bytes.", SQLStates.ER_XAER_NOTA, XAER_NOTA);
     }
 
 
@@ -556,9 +592,9 @@ public abstract class JdbdExceptions {
     }
 
 
-    private static JdbdXaException xaInvalidFlag(final int flags, final String method) {
+    private static JdbdException xaInvalidFlag(final int flags, final String method) {
         String m = String.format("XA invalid flag[%s] for method %s", Integer.toBinaryString(flags), method);
-        return new JdbdXaException(m, SQLStates.ER_XAER_INVAL, JdbdXaException.XAER_INVAL);
+        return new JdbdException(m, SQLStates.ER_XAER_INVAL, XAER_INVAL);
     }
 
 

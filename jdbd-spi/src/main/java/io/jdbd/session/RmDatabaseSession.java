@@ -31,6 +31,16 @@ public interface RmDatabaseSession extends DatabaseSession {
     int XA_RDONLY = 3;
     int XA_OK = 0;
 
+
+    Publisher<RmDatabaseSession> setTransactionOption(TransactionOption option);
+
+    /**
+     * <p>
+     * Set transaction options for next transaction.
+     * </p>
+     */
+    Publisher<RmDatabaseSession> setTransactionOption(TransactionOption option, HandleMode mode);
+
     @Override
     Publisher<RmDatabaseSession> releaseSavePoint(SavePoint savepoint);
 

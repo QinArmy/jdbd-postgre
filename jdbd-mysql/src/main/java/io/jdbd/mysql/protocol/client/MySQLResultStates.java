@@ -1,6 +1,8 @@
 package io.jdbd.mysql.protocol.client;
 
+import io.jdbd.mysql.util.MySQLExceptions;
 import io.jdbd.result.ResultStates;
+import io.jdbd.session.Option;
 
 abstract class MySQLResultStates implements ResultStates {
 
@@ -14,7 +16,7 @@ abstract class MySQLResultStates implements ResultStates {
 
     private final int resultIndex;
 
-     final int serverStatus;
+    final int serverStatus;
 
     private final long affectedRows;
 
@@ -98,6 +100,19 @@ abstract class MySQLResultStates implements ResultStates {
         return this.warnings;
     }
 
+
+    @SuppressWarnings("unchecked")
+    @Override
+    public final <T> T valueOf(final Option<T> option) {
+        final Object value;
+        if (option == Option.READ_ONLY) {
+            value = Terminator.isReadOnly(this.serverStatus);
+        } else {
+            throw MySQLExceptions.unknownOption(option);
+        }
+        return (T) value;
+    }
+
     private static final class UpdateResultStates extends MySQLResultStates {
 
         private UpdateResultStates(int resultIndex, Terminator terminator) {
@@ -105,12 +120,12 @@ abstract class MySQLResultStates implements ResultStates {
         }
 
         @Override
-        public final long getRowCount() {
+        public long getRowCount() {
             return 0L;
         }
 
         @Override
-        public final boolean hasColumn() {
+        public boolean hasColumn() {
             return false;
         }
 

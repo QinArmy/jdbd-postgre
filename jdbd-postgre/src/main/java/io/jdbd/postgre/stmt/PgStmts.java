@@ -3,9 +3,9 @@ package io.jdbd.postgre.stmt;
 import io.jdbd.postgre.PgType;
 import io.jdbd.result.ResultStates;
 import io.jdbd.vendor.stmt.JdbdStmts;
-import io.jdbd.vendor.stmt.StmtOption;
 import io.jdbd.vendor.stmt.StaticBatchStmt;
 import io.jdbd.vendor.stmt.StaticStmt;
+import io.jdbd.vendor.stmt.StmtOption;
 import io.jdbd.vendor.util.JdbdFunctions;
 import org.reactivestreams.Publisher;
 import org.reactivestreams.Subscriber;
@@ -92,17 +92,17 @@ public abstract class PgStmts extends JdbdStmts {
 
         private PgOptionStaticStmt(String sql, StmtOption option) {
             super(sql, option);
-            this.importPublisher = option.getImportPublisher();
-            this.exportSubscriber = option.getExportSubscriber();
+            this.importPublisher = option.getImportFunction();
+            this.exportSubscriber = option.getExportFunction();
         }
 
         @Override
-        public Function<Object, Publisher<byte[]>> getImportPublisher() {
+        public Function<Object, Publisher<byte[]>> getImportFunction() {
             return this.importPublisher;
         }
 
         @Override
-        public Function<Object, Subscriber<byte[]>> getExportSubscriber() {
+        public Function<Object, Subscriber<byte[]>> getExportFunction() {
             return this.exportSubscriber;
         }
 
@@ -116,17 +116,17 @@ public abstract class PgStmts extends JdbdStmts {
 
         private PgOptionQueryStaticStmt(String sql, Consumer<ResultStates> statesConsumer, StmtOption option) {
             super(sql, statesConsumer, option);
-            this.importPublisher = option.getImportPublisher();
-            this.exportSubscriber = option.getExportSubscriber();
+            this.importPublisher = option.getImportFunction();
+            this.exportSubscriber = option.getExportFunction();
         }
 
         @Override
-        public Function<Object, Publisher<byte[]>> getImportPublisher() {
+        public Function<Object, Publisher<byte[]>> getImportFunction() {
             return this.importPublisher;
         }
 
         @Override
-        public Function<Object, Subscriber<byte[]>> getExportSubscriber() {
+        public Function<Object, Subscriber<byte[]>> getExportFunction() {
             return this.exportSubscriber;
         }
 
@@ -142,8 +142,8 @@ public abstract class PgStmts extends JdbdStmts {
         private PgOptionStaticBatchStmt(List<String> sqlGroup, StmtOption option) {
             super(sqlGroup, option);
             if (this.sqlGroup.size() == 1) {
-                this.importPublisher = option.getImportPublisher();
-                this.exportSubscriber = option.getExportSubscriber();
+                this.importPublisher = option.getImportFunction();
+                this.exportSubscriber = option.getExportFunction();
             } else {
                 this.importPublisher = null;
                 this.exportSubscriber = null;
@@ -151,12 +151,12 @@ public abstract class PgStmts extends JdbdStmts {
         }
 
         @Override
-        public Function<Object, Publisher<byte[]>> getImportPublisher() {
+        public Function<Object, Publisher<byte[]>> getImportFunction() {
             return this.importPublisher;
         }
 
         @Override
-        public Function<Object, Subscriber<byte[]>> getExportSubscriber() {
+        public Function<Object, Subscriber<byte[]>> getExportFunction() {
             return this.exportSubscriber;
         }
 
@@ -193,8 +193,8 @@ public abstract class PgStmts extends JdbdStmts {
 
         private PgOptionBindStmt(String sql, List<BindValue> bindGroup, StmtOption option) {
             super(sql, bindGroup, option);
-            this.importPublisher = option.getImportPublisher();
-            this.exportSubscriber = option.getExportSubscriber();
+            this.importPublisher = option.getImportFunction();
+            this.exportSubscriber = option.getExportFunction();
         }
 
         @Override
@@ -208,12 +208,12 @@ public abstract class PgStmts extends JdbdStmts {
         }
 
         @Override
-        public Function<Object, Publisher<byte[]>> getImportPublisher() {
+        public Function<Object, Publisher<byte[]>> getImportFunction() {
             return this.importPublisher;
         }
 
         @Override
-        public Function<Object, Subscriber<byte[]>> getExportSubscriber() {
+        public Function<Object, Subscriber<byte[]>> getExportFunction() {
             return this.exportSubscriber;
         }
 
@@ -228,17 +228,17 @@ public abstract class PgStmts extends JdbdStmts {
         private PgOptionQueryBindStmt(String sql, List<BindValue> bindGroup
                 , Consumer<ResultStates> statesConsumer, StmtOption option) {
             super(sql, bindGroup, statesConsumer, option);
-            this.importPublisher = option.getImportPublisher();
-            this.exportSubscriber = option.getExportSubscriber();
+            this.importPublisher = option.getImportFunction();
+            this.exportSubscriber = option.getExportFunction();
         }
 
         @Override
-        public Function<Object, Publisher<byte[]>> getImportPublisher() {
+        public Function<Object, Publisher<byte[]>> getImportFunction() {
             return this.importPublisher;
         }
 
         @Override
-        public Function<Object, Subscriber<byte[]>> getExportSubscriber() {
+        public Function<Object, Subscriber<byte[]>> getExportFunction() {
             return this.exportSubscriber;
         }
 
@@ -253,8 +253,8 @@ public abstract class PgStmts extends JdbdStmts {
         private PgOptionBindBatchStmt(String sql, List<List<BindValue>> groupList, StmtOption option) {
             super(sql, groupList, option);
             if (this.groupList.size() == 1) {
-                this.importPublisher = option.getImportPublisher();
-                this.exportSubscriber = option.getExportSubscriber();
+                this.importPublisher = option.getImportFunction();
+                this.exportSubscriber = option.getExportFunction();
             } else {
                 this.importPublisher = null;
                 this.exportSubscriber = null;
@@ -262,12 +262,12 @@ public abstract class PgStmts extends JdbdStmts {
         }
 
         @Override
-        public Function<Object, Publisher<byte[]>> getImportPublisher() {
+        public Function<Object, Publisher<byte[]>> getImportFunction() {
             return this.importPublisher;
         }
 
         @Override
-        public Function<Object, Subscriber<byte[]>> getExportSubscriber() {
+        public Function<Object, Subscriber<byte[]>> getExportFunction() {
             return this.exportSubscriber;
         }
 
@@ -298,12 +298,12 @@ public abstract class PgStmts extends JdbdStmts {
         }
 
         @Override
-        public Function<Object, Publisher<byte[]>> getImportPublisher() {
+        public Function<Object, Publisher<byte[]>> getImportFunction() {
             return null;
         }
 
         @Override
-        public Function<Object, Subscriber<byte[]>> getExportSubscriber() {
+        public Function<Object, Subscriber<byte[]>> getExportFunction() {
             return null;
         }
 
@@ -336,12 +336,12 @@ public abstract class PgStmts extends JdbdStmts {
         }
 
         @Override
-        public Function<Object, Publisher<byte[]>> getImportPublisher() {
+        public Function<Object, Publisher<byte[]>> getImportFunction() {
             return null;
         }
 
         @Override
-        public Function<Object, Subscriber<byte[]>> getExportSubscriber() {
+        public Function<Object, Subscriber<byte[]>> getExportFunction() {
             return null;
         }
 

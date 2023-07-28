@@ -1,6 +1,7 @@
 package io.jdbd.vendor.stmt;
 
 import io.jdbd.lang.Nullable;
+import io.jdbd.session.ChunkOption;
 import org.reactivestreams.Publisher;
 import org.reactivestreams.Subscriber;
 
@@ -33,10 +34,10 @@ public interface Stmt {
     List<NamedValue> getStmtVarList();
 
     @Nullable
-    Function<Object, Publisher<byte[]>> getImportPublisher();
+    Function<ChunkOption, Publisher<byte[]>> getImportFunction();
 
     @Nullable
-    Function<Object, Subscriber<byte[]>> getExportSubscriber();
+    Function<ChunkOption, Subscriber<byte[]>> getExportFunction();
 
 
 }

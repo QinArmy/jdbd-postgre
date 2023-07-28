@@ -21,6 +21,25 @@ import org.reactivestreams.Publisher;
  */
 public interface DatabaseSession extends StaticStatementSpec, Closeable {
 
+    /**
+     * @see DatabaseSessionFactory#name()
+     */
+    String factoryName();
+
+    /**
+     * <p>
+     * Session identifier,probably is following :
+     *     <ul>
+     *         <li>process id</li>
+     *         <li>thread id</li>
+     *         <li>other identifier</li>
+     *     </ul>
+     *     <strong>NOTE</strong>: identifier will probably be updated if reconnect.
+     * </p>
+     *
+     * @throws JdbdException throw when session have closed.
+     */
+    long identifier() throws JdbdException;
 
 
     DatabaseMetaData databaseMetaData();
@@ -93,7 +112,10 @@ public interface DatabaseSession extends StaticStatementSpec, Closeable {
 
     boolean isClosed();
 
-    ServerVersion serverVersion();
+    /**
+     * @throws JdbdException throw when session have closed.
+     */
+    ServerVersion serverVersion() throws JdbdException;
 
 
     boolean isSameFactory(DatabaseSession session);

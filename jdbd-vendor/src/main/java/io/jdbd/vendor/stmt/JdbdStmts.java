@@ -4,14 +4,13 @@ package io.jdbd.vendor.stmt;
 import io.jdbd.lang.Nullable;
 import io.jdbd.meta.DataType;
 import io.jdbd.result.ResultStates;
+import io.jdbd.session.ChunkOption;
 import io.jdbd.vendor.util.JdbdCollections;
 import org.reactivestreams.Publisher;
 import org.reactivestreams.Subscriber;
 
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.Objects;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
@@ -27,46 +26,38 @@ public abstract class JdbdStmts {
 
 
     public static StaticStmt stmt(final String sql) {
-        return new SimpleStaticStmt(sql);
+        return new MinStaticStmt(sql);
     }
 
     public static StaticStmt stmt(final String sql, Consumer<ResultStates> statusConsumer) {
-        return new SimpleQueryStaticStmt(sql, statusConsumer);
+        if (statusConsumer == IGNORE_RESULT_STATES) {
+            return new MinStaticStmt(sql);
+        }
+        return new MinQueryStaticStmt(sql, statusConsumer);
     }
 
     public static StaticBatchStmt batch(List<String> sqlGroup) {
-        return new SimpleStaticBatchStmt(sqlGroup);
-    }
-
-    public static StaticMultiStmt multiStmt(String multiStmt) {
-        return new SimpleStaticMultiStmt(multiStmt);
+        return new MinStaticBatchStmt(sqlGroup);
     }
 
     public static StaticStmt stmt(String sql, StmtOption option) {
-        Objects.requireNonNull(sql, "sql");
-        return new OptionStaticStmt(sql, option);
+        return new MinOptionStaticStmt(sql, option);
     }
 
     public static StaticStmt stmt(String sql, Consumer<ResultStates> statesConsumer, StmtOption option) {
-        Objects.requireNonNull(sql, "sql");
+        if (statesConsumer == IGNORE_RESULT_STATES) {
+            return new MinOptionStaticStmt(sql, option);
+        }
         return new OptionQueryStaticStmt(sql, statesConsumer, option);
     }
 
-    public static StaticBatchStmt batch(final List<String> sqlGroup, final StmtOption option) {
+    public static StaticBatchStmt batch(List<String> sqlGroup, StmtOption option) {
         return new OptionStaticBatchStmt(sqlGroup, option);
     }
 
 
-    public static ParamStmt single(String sql, ParamValue bindValue) {
-        throw new UnsupportedOperationException();
-    }
-
     public static ParamStmt single(String sql, DataType type, @Nullable Object value) {
-        throw new UnsupportedOperationException();
-    }
-
-    public static StaticMultiStmt multiStmt(String multiStmt, StmtOption option) {
-        return new OptionStaticMultiStmt(multiStmt, option);
+        return new MinParamStmt(sql, Collections.singletonList(JdbdValues.paramValue(0, type, value)));
     }
 
     public static ParamStmt paramStmt(final String sql, @Nullable List<ParamValue> paramGroup) {
@@ -75,15 +66,20 @@ public abstract class JdbdStmts {
         } else {
             paramGroup = JdbdCollections.unmodifiableList(paramGroup);
         }
-        return new SimpleParamStmt<>(sql, paramGroup);
+        return new MinParamStmt(sql, paramGroup);
     }
 
-    public static ParamStmt paramStmt(String sql, List<ParamValue> paramGroup, Consumer<ResultStates> statesConsumer) {
-        return new SimpleQueryParamStmt<>(sql, paramGroup, statesConsumer);
-    }
-
-    public static ParamBatchStmt paramBatch(String sql, List<List<ParamValue>> groupList) {
-        return new SimpleParamBatchStmt<>(sql, groupList);
+    public static ParamStmt paramStmt(String sql, @Nullable List<ParamValue> paramGroup,
+                                      Consumer<ResultStates> statesConsumer) {
+        if (paramGroup == null) {
+            paramGroup = EMPTY_PARAM_GROUP;
+        } else {
+            paramGroup = JdbdCollections.unmodifiableList(paramGroup);
+        }
+        if (statesConsumer == IGNORE_RESULT_STATES) {
+            return new MinParamStmt(sql, paramGroup);
+        }
+        return new QueryParamStmt(sql, paramGroup, statesConsumer);
     }
 
     public static ParamStmt paramStmt(final String sql, @Nullable List<ParamValue> paramGroup, StmtOption option) {
@@ -92,150 +88,46 @@ public abstract class JdbdStmts {
         } else {
             paramGroup = JdbdCollections.unmodifiableList(paramGroup);
         }
-        return new OptionParamStmt<>(sql, paramGroup, option);
+        return new SimpleOptionParamStmt(sql, paramGroup, option);
     }
 
-    public static ParamStmt paramStmt(String sql, List<ParamValue> paramGroup
-            , Consumer<ResultStates> statesConsumer, StmtOption option) {
-        return new OptionQueryParamStmt<>(sql, paramGroup, statesConsumer, option);
-    }
-
-    public static ParamBatchStmt<ParamValue> paramBatch(String sql, List<List<ParamValue>> groupList
-            , StmtOption option) {
-        return new OptionParamBatchStmt<>(sql, groupList, option);
-    }
-
-    public static ParamMultiStmt multiStmt(List<ParamStmt> stmtList, StmtOption option) {
-        throw new UnsupportedOperationException();
-    }
-
-
-    @Deprecated
-    public static ParamBatchStmt<ParamValue> batch(String sql, List<List<ParamValue>> groupList) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Deprecated
-    public static ParamBatchStmt<ParamValue> batch(String sql, List<List<ParamValue>> groupList, int timeOut) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Deprecated
-    public static StaticStmt stmtWithExport(String sql, Function<Object, Subscriber<byte[]>> function) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Deprecated
-    public static StaticStmt stmt(String sql, int timeout) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Deprecated
-    public static StaticStmt stmt(String sql, Consumer<ResultStates> statusConsumer, int timeout) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Deprecated
-    public static List<StaticStmt> stmts(List<String> sqlList) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Deprecated
-    public static List<StaticStmt> stmts(List<String> sqlList, int timeout) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Deprecated
-    public static StaticBatchStmt group(List<String> sqlGroup, int timeout) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Deprecated
-    public static ParamStmt multiPrepare(String sql, List<? extends ParamValue> paramGroup) {
-        throw new UnsupportedOperationException();
-    }
-
-
-    public static <T extends ParamValue> List<T> wrapBindGroup(final List<T> bindGroup) {
-        final List<T> newBindGroup;
-        switch (bindGroup.size()) {
-            case 0: {
-                newBindGroup = Collections.emptyList();
-            }
-            break;
-            case 1: {
-                newBindGroup = Collections.singletonList(bindGroup.get(0));
-            }
-            break;
-            default: {
-                newBindGroup = Collections.unmodifiableList(bindGroup);
-            }
+    public static ParamStmt paramStmt(String sql, @Nullable List<ParamValue> paramGroup,
+                                      Consumer<ResultStates> statesConsumer, StmtOption option) {
+        if (paramGroup == null) {
+            paramGroup = EMPTY_PARAM_GROUP;
+        } else {
+            paramGroup = JdbdCollections.unmodifiableList(paramGroup);
         }
-        return newBindGroup;
+        if (statesConsumer == IGNORE_RESULT_STATES) {
+            return new SimpleOptionParamStmt(sql, paramGroup, option);
+        }
+        return new QueryOptionParamStmt(sql, paramGroup, statesConsumer, option);
     }
 
-    protected static <T> List<List<T>> wrapGroupList(final List<List<T>> groupList) {
-        final List<List<T>> newGroupList;
-        switch (groupList.size()) {
-            case 0: {
-                throw new IllegalArgumentException("groupList is empty.");
-            }
-            case 1: {
-                newGroupList = Collections.singletonList(groupList.get(0));
-            }
-            break;
-            default: {
-                newGroupList = Collections.unmodifiableList(groupList);
-            }
-        }
-        return newGroupList;
+    public static ParamBatchStmt paramBatch(String sql, List<List<ParamValue>> groupList) {
+        return new MinParamBatchStmt(sql, groupList);
     }
 
 
-    protected static <T> List<T> wrapGroup(final List<T> group) {
-        Objects.requireNonNull(group, "group");
-        final List<T> newGroup;
-        switch (group.size()) {
-            case 0:
-                throw new IllegalArgumentException("group must not empty.");
-            case 1: {
-                final T e = group.get(0);
-                if (e == null) {
-                    throw new NullPointerException("group as index[0] is null");
-                }
-                newGroup = Collections.singletonList(e);
-            }
-            break;
-            default: {
-                final List<T> list = new ArrayList<>(group.size());
-                final int size = group.size();
-                T e;
-                for (int i = 0; i < size; i++) {
-                    e = group.get(i);
-                    if (e == null) {
-                        throw new NullPointerException(String.format("group at index[%s] is null.", i));
-                    }
-                    list.add(e);
-                }
-                newGroup = Collections.unmodifiableList(list);
-            }
-        }
-        return newGroup;
+    public static ParamBatchStmt paramBatch(String sql, List<List<ParamValue>> groupList, StmtOption option) {
+        return new OptionParamBatchStmt(sql, groupList, option);
+    }
+
+    public static StaticMultiStmt multiStmt(String multiStmt) {
+        return new MinStaticMultiStmt(multiStmt);
+    }
+
+    public static StaticMultiStmt multiStmt(String multiStmt, StmtOption option) {
+        return new OptionStaticMultiStmt(multiStmt, option);
     }
 
 
-    private static class SimpleStaticStmt implements StaticStmt {
+    public static ParamMultiStmt paramMultiStmt(List<ParamStmt> stmtList, StmtOption option) {
+        return new OptionMultiStmt(stmtList, option);
+    }
 
-        private final String sql;
 
-        SimpleStaticStmt(String sql) {
-            this.sql = sql;
-        }
-
-        @Override
-        public final String getSql() {
-            return this.sql;
-        }
+    private static abstract class StmtWithoutOption implements Stmt {
 
         @Override
         public final int getTimeout() {
@@ -248,27 +140,57 @@ public abstract class JdbdStmts {
         }
 
         @Override
+        public final List<NamedValue> getStmtVarList() {
+            return Collections.emptyList();
+        }
+
+        @Override
+        public final Function<ChunkOption, Publisher<byte[]>> getImportFunction() {
+            return null;
+        }
+
+        @Override
+        public final Function<ChunkOption, Subscriber<byte[]>> getExportFunction() {
+            return null;
+        }
+
+    }//StmtWithoutOption
+
+
+    private static abstract class SingleStmtWithoutOption extends StmtWithoutOption implements SingleStmt {
+
+        private final String sql;
+
+        private SingleStmtWithoutOption(String sql) {
+            this.sql = sql;
+        }
+
+        @Override
+        public final String getSql() {
+            return this.sql;
+        }
+
+
+    }// SingleStmtWithoutOption
+
+    private static final class MinStaticStmt extends SingleStmtWithoutOption implements StaticStmt {
+
+        private MinStaticStmt(String sql) {
+            super(sql);
+        }
+
+        @Override
         public Consumer<ResultStates> getStatusConsumer() {
             return IGNORE_RESULT_STATES;
         }
 
-        @Override
-        public final Function<Object, Publisher<byte[]>> getImportPublisher() {
-            return null;
-        }
+    }//MinStaticStmt
 
-        @Override
-        public final Function<Object, Subscriber<byte[]>> getExportSubscriber() {
-            return null;
-        }
-
-    }
-
-    private static final class SimpleQueryStaticStmt extends SimpleStaticStmt {
+    private static final class MinQueryStaticStmt extends SingleStmtWithoutOption implements StaticStmt {
 
         private final Consumer<ResultStates> statesConsumer;
 
-        private SimpleQueryStaticStmt(String sql, Consumer<ResultStates> statesConsumer) {
+        private MinQueryStaticStmt(String sql, Consumer<ResultStates> statesConsumer) {
             super(sql);
             this.statesConsumer = statesConsumer;
         }
@@ -278,14 +200,16 @@ public abstract class JdbdStmts {
             return this.statesConsumer;
         }
 
-    }
 
-    private static final class SimpleStaticBatchStmt implements StaticBatchStmt {
+    }//MinQueryStaticStmt
+
+
+    private static final class MinStaticBatchStmt extends StmtWithoutOption implements StaticBatchStmt {
 
         private final List<String> sqlGroup;
 
-        private SimpleStaticBatchStmt(final List<String> sqlGroup) {
-            this.sqlGroup = wrapGroup(sqlGroup);
+        private MinStaticBatchStmt(final List<String> sqlGroup) {
+            this.sqlGroup = Collections.unmodifiableList(sqlGroup);
         }
 
         @Override
@@ -293,33 +217,292 @@ public abstract class JdbdStmts {
             return this.sqlGroup;
         }
 
-        @Override
-        public int getTimeout() {
-            return 0;
+    }//SimpleStaticBatchStmt
+
+
+    private static abstract class StmtWithOption implements Stmt {
+
+        private final int timeout;
+
+        private final int fetchSize;
+
+        private final List<NamedValue> stmtVarList;
+
+        private final Function<ChunkOption, Publisher<byte[]>> importFunc;
+
+        private final Function<ChunkOption, Subscriber<byte[]>> exportFunc;
+
+        private StmtWithOption(StmtOption option) {
+            this.timeout = option.getTimeout();
+            this.fetchSize = option.getFetchSize();
+            this.stmtVarList = option.getStmtVarList();
+            this.importFunc = option.getImportFunction();
+            this.exportFunc = option.getExportFunction();
         }
 
         @Override
-        public int getFetchSize() {
-            return 0;
+        public final int getTimeout() {
+            return this.timeout;
         }
 
         @Override
-        public Function<Object, Publisher<byte[]>> getImportPublisher() {
-            return null;
+        public final int getFetchSize() {
+            return this.fetchSize;
         }
 
         @Override
-        public Function<Object, Subscriber<byte[]>> getExportSubscriber() {
-            return null;
+        public final List<NamedValue> getStmtVarList() {
+            return this.stmtVarList;
         }
 
-    }
+        @Override
+        public final Function<ChunkOption, Publisher<byte[]>> getImportFunction() {
+            return this.importFunc;
+        }
 
-    private static final class SimpleStaticMultiStmt implements StaticMultiStmt {
+        @Override
+        public final Function<ChunkOption, Subscriber<byte[]>> getExportFunction() {
+            return this.exportFunc;
+        }
+
+
+    }//StmtWithOption
+
+
+    private static abstract class SingleStmtWithOption extends StmtWithOption implements SingleStmt {
+
+        private final String sql;
+
+        private SingleStmtWithOption(String sql, StmtOption option) {
+            super(option);
+            this.sql = sql;
+        }
+
+        @Override
+        public final String getSql() {
+            return this.sql;
+        }
+
+
+    }//SingleStmtWithOption
+
+
+    private static final class MinOptionStaticStmt extends SingleStmtWithOption implements StaticStmt {
+
+        private MinOptionStaticStmt(String sql, StmtOption option) {
+            super(sql, option);
+        }
+
+        @Override
+        public Consumer<ResultStates> getStatusConsumer() {
+            return IGNORE_RESULT_STATES;
+        }
+
+    }//MinOptionStaticStmt
+
+    private static final class OptionQueryStaticStmt extends SingleStmtWithOption implements StaticStmt {
+
+        private final Consumer<ResultStates> statesConsumer;
+
+        private OptionQueryStaticStmt(String sql, Consumer<ResultStates> statesConsumer, StmtOption option) {
+            super(sql, option);
+            this.statesConsumer = statesConsumer;
+        }
+
+        @Override
+        public Consumer<ResultStates> getStatusConsumer() {
+            return this.statesConsumer;
+        }
+
+    }//OptionQueryStaticStmt
+
+
+    protected static final class OptionStaticBatchStmt extends StmtWithOption implements StaticBatchStmt {
+
+        private final List<String> sqlGroup;
+
+
+        private OptionStaticBatchStmt(List<String> sqlGroup, StmtOption option) {
+            super(option);
+            this.sqlGroup = JdbdCollections.unmodifiableList(sqlGroup);
+        }
+
+        @Override
+        public List<String> getSqlGroup() {
+            return this.sqlGroup;
+        }
+
+    }//OptionStaticBatchStmt
+
+
+    private static abstract class ParamStmtWithoutOption extends StmtWithoutOption implements ParamStmt {
+
+        private final String sql;
+
+        private final List<ParamValue> bindGroup;
+
+        private ParamStmtWithoutOption(String sql, List<ParamValue> bindGroup) {
+            this.sql = sql;
+            this.bindGroup = JdbdCollections.unmodifiableList(bindGroup);
+        }
+
+
+        @Override
+        public final List<ParamValue> getBindGroup() {
+            return this.bindGroup;
+        }
+
+        @Override
+        public final String getSql() {
+            return this.sql;
+        }
+
+    }//ParamStmtWithoutOption
+
+
+    private static final class MinParamStmt extends ParamStmtWithoutOption {
+
+        private MinParamStmt(String sql, List<ParamValue> bindGroup) {
+            super(sql, bindGroup);
+        }
+
+        @Override
+        public Consumer<ResultStates> getStatusConsumer() {
+            return IGNORE_RESULT_STATES;
+        }
+
+    }//MinParamStmt
+
+
+    private static final class QueryParamStmt extends ParamStmtWithoutOption {
+
+        private final Consumer<ResultStates> statesConsumer;
+
+        private QueryParamStmt(String sql, List<ParamValue> bindGroup, Consumer<ResultStates> statesConsumer) {
+            super(sql, bindGroup);
+            this.statesConsumer = statesConsumer;
+        }
+
+        @Override
+        public Consumer<ResultStates> getStatusConsumer() {
+            return this.statesConsumer;
+        }
+
+    }//QueryParamStmt
+
+
+    private static abstract class ParamStmtWithOption extends StmtWithOption implements ParamStmt {
+
+        private final String sql;
+
+        private final List<ParamValue> bindGroup;
+
+        private ParamStmtWithOption(String sql, List<ParamValue> bindGroup, StmtOption option) {
+            super(option);
+            this.sql = sql;
+            this.bindGroup = JdbdCollections.unmodifiableList(bindGroup);
+        }
+
+
+        @Override
+        public final List<ParamValue> getBindGroup() {
+            return this.bindGroup;
+        }
+
+        @Override
+        public final String getSql() {
+            return this.sql;
+        }
+
+    }//ParamStmtWithoutOption
+
+
+    private static final class SimpleOptionParamStmt extends ParamStmtWithOption {
+
+        private SimpleOptionParamStmt(String sql, List<ParamValue> bindGroup, StmtOption option) {
+            super(sql, bindGroup, option);
+        }
+
+        @Override
+        public Consumer<ResultStates> getStatusConsumer() {
+            return IGNORE_RESULT_STATES;
+        }
+
+    }//SimpleOptionParamStmt
+
+
+    private static final class QueryOptionParamStmt extends ParamStmtWithOption {
+
+        private final Consumer<ResultStates> statesConsumer;
+
+        private QueryOptionParamStmt(String sql, List<ParamValue> bindGroup, Consumer<ResultStates> statesConsumer,
+                                     StmtOption option) {
+            super(sql, bindGroup, option);
+            this.statesConsumer = statesConsumer;
+        }
+
+        @Override
+        public Consumer<ResultStates> getStatusConsumer() {
+            return this.statesConsumer;
+        }
+
+    }//QueryOptionParamStmt
+
+
+    private static final class MinParamBatchStmt extends StmtWithoutOption implements ParamBatchStmt {
+
+        private final String sql;
+
+        private final List<List<ParamValue>> groupList;
+
+        private MinParamBatchStmt(String sql, List<List<ParamValue>> groupList) {
+            this.sql = sql;
+            this.groupList = JdbdCollections.unmodifiableList(groupList);
+        }
+
+        @Override
+        public String getSql() {
+            return this.sql;
+        }
+
+        @Override
+        public List<List<ParamValue>> getGroupList() {
+            return this.groupList;
+        }
+
+
+    }//MinParamBatchStmt
+
+    private static final class OptionParamBatchStmt extends StmtWithOption implements ParamBatchStmt {
+
+        private final String sql;
+
+        private final List<List<ParamValue>> groupList;
+
+        private OptionParamBatchStmt(String sql, List<List<ParamValue>> groupList, StmtOption option) {
+            super(option);
+            this.sql = sql;
+            this.groupList = JdbdCollections.unmodifiableList(groupList);
+        }
+
+        @Override
+        public String getSql() {
+            return this.sql;
+        }
+
+        @Override
+        public List<List<ParamValue>> getGroupList() {
+            return this.groupList;
+        }
+
+    }//OptionParamBatchStmt
+
+
+    private static final class MinStaticMultiStmt extends StmtWithoutOption implements StaticMultiStmt {
 
         private final String multiStmt;
 
-        private SimpleStaticMultiStmt(String multiStmt) {
+        private MinStaticMultiStmt(String multiStmt) {
             this.multiStmt = multiStmt;
         }
 
@@ -328,468 +511,42 @@ public abstract class JdbdStmts {
             return this.multiStmt;
         }
 
-        @Override
-        public int getTimeout() {
-            return 0;
-        }
 
-        @Override
-        public int getFetchSize() {
-            return 0;
-        }
+    }//MinStaticMultiStmt
 
-        @Override
-        public Function<Object, Publisher<byte[]>> getImportPublisher() {
-            return null;
-        }
-
-        @Override
-        public Function<Object, Subscriber<byte[]>> getExportSubscriber() {
-            return null;
-        }
-
-    }
-
-
-    protected static class OptionStaticStmt implements StaticStmt {
-
-        private final String sql;
-
-        private final int timeout;
-
-        protected OptionStaticStmt(String sql, StmtOption option) {
-            this.sql = sql;
-            this.timeout = option.getTimeout();
-        }
-
-        @Override
-        public final String getSql() {
-            return this.sql;
-        }
-
-        @Override
-        public final int getTimeout() {
-            return this.timeout;
-        }
-
-        @Override
-        public int getFetchSize() {
-            return 0;
-        }
-
-        @Override
-        public Consumer<ResultStates> getStatusConsumer() {
-            return IGNORE_RESULT_STATES;
-        }
-
-        @Override
-        public Function<Object, Publisher<byte[]>> getImportPublisher() {
-            return null;
-        }
-
-        @Override
-        public Function<Object, Subscriber<byte[]>> getExportSubscriber() {
-            return null;
-        }
-    }
-
-    protected static class OptionQueryStaticStmt extends OptionStaticStmt {
-
-        private final int fetchSize;
-
-        private final Consumer<ResultStates> statesConsumer;
-
-        protected OptionQueryStaticStmt(String sql, Consumer<ResultStates> statesConsumer
-                , StmtOption option) {
-            super(sql, option);
-            this.fetchSize = option.getFetchSize();
-            this.statesConsumer = statesConsumer;
-        }
-
-        @Override
-        public final int getFetchSize() {
-            return this.fetchSize;
-        }
-
-        @Override
-        public final Consumer<ResultStates> getStatusConsumer() {
-            return this.statesConsumer;
-        }
-
-    }
-
-
-    protected static class OptionStaticBatchStmt implements StaticBatchStmt {
-
-        protected final List<String> sqlGroup;
-
-        private final int timeout;
-
-        private final int fetchSize;
-
-        protected OptionStaticBatchStmt(final List<String> sqlGroup, StmtOption option) {
-            this.sqlGroup = wrapGroup(sqlGroup);
-            this.timeout = option.getTimeout();
-            this.fetchSize = this.sqlGroup.size() == 1 ? option.getFetchSize() : 0;
-        }
-
-        @Override
-        public final List<String> getSqlGroup() {
-            return this.sqlGroup;
-        }
-
-        @Override
-        public final int getTimeout() {
-            return this.timeout;
-        }
-
-        @Override
-        public final int getFetchSize() {
-            return this.fetchSize;
-        }
-
-        @Override
-        public Function<Object, Publisher<byte[]>> getImportPublisher() {
-            return null;
-        }
-
-        @Override
-        public Function<Object, Subscriber<byte[]>> getExportSubscriber() {
-            return null;
-        }
-
-    }
-
-    protected static class OptionStaticMultiStmt implements StaticMultiStmt {
+    private static final class OptionStaticMultiStmt extends StmtWithOption implements StaticMultiStmt {
 
         private final String multiStmt;
 
-        private final int timeout;
-
-        protected OptionStaticMultiStmt(String multiStmt, StmtOption option) {
+        private OptionStaticMultiStmt(String multiStmt, StmtOption option) {
+            super(option);
             this.multiStmt = multiStmt;
-            this.timeout = option.getTimeout();
-
         }
 
         @Override
-        public final String getMultiStmt() {
+        public String getMultiStmt() {
             return this.multiStmt;
         }
 
-        @Override
-        public final int getTimeout() {
-            return this.timeout;
+
+    }//OptionStaticMultiStmt
+
+
+    private static final class OptionMultiStmt extends StmtWithOption implements ParamMultiStmt {
+
+        private final List<ParamStmt> stmtList;
+
+        private OptionMultiStmt(List<ParamStmt> stmtList, StmtOption option) {
+            super(option);
+            this.stmtList = JdbdCollections.unmodifiableList(stmtList);
         }
 
         @Override
-        public final int getFetchSize() {
-            return 0;
+        public List<ParamStmt> getStmtList() {
+            return this.stmtList;
         }
 
-        @Override
-        public final Function<Object, Publisher<byte[]>> getImportPublisher() {
-            return null;
-        }
-
-        @Override
-        public final Function<Object, Subscriber<byte[]>> getExportSubscriber() {
-            return null;
-        }
-
-    }
-
-    protected static class SimpleParamStmt<T extends ParamValue> implements ParamStmt {
-
-        private final String sql;
-
-        protected final List<T> bindGroup;
-
-        protected SimpleParamStmt(String sql, List<T> bindGroup) {
-            this.sql = sql;
-            this.bindGroup = bindGroup;
-        }
-
-        @Override
-        public final String getSql() {
-            return this.sql;
-        }
-
-        @Override
-        public final List<T> getBindGroup() {
-            return this.bindGroup;
-        }
-
-        @Override
-        public final int getTimeout() {
-            return 0;
-        }
-
-        @Override
-        public final int getFetchSize() {
-            return 0;
-        }
-
-        @Override
-        public Consumer<ResultStates> getStatusConsumer() {
-            return IGNORE_RESULT_STATES;
-        }
-
-        @Override
-        public final Function<Object, Publisher<byte[]>> getImportPublisher() {
-            return null;
-        }
-
-        @Override
-        public final Function<Object, Subscriber<byte[]>> getExportSubscriber() {
-            return null;
-        }
-
-    }
-
-    protected static class SimpleQueryParamStmt<T extends ParamValue> extends SimpleParamStmt<T> {
-
-        private final Consumer<ResultStates> statesConsumer;
-
-        protected SimpleQueryParamStmt(String sql, List<T> bindGroup
-                , Consumer<ResultStates> statesConsumer) {
-            super(sql, bindGroup);
-            this.statesConsumer = statesConsumer;
-        }
-
-        @Override
-        public final Consumer<ResultStates> getStatusConsumer() {
-            return this.statesConsumer;
-        }
-
-    }
-
-    protected static class SimpleParamBatchStmt<T extends ParamValue> implements ParamBatchStmt<T> {
-
-        private final String sql;
-
-        protected final List<List<T>> groupList;
-
-        protected SimpleParamBatchStmt(String sql, List<List<T>> groupList) {
-            this.sql = sql;
-            this.groupList = wrapGroupList(groupList);
-        }
-
-        @Override
-        public final String getSql() {
-            return this.sql;
-        }
-
-        @Override
-        public final List<List<T>> getGroupList() {
-            return this.groupList;
-        }
-
-        @Override
-        public final int getTimeout() {
-            return 0;
-        }
-
-        @Override
-        public final int getFetchSize() {
-            return 0;
-        }
-
-        @Override
-        public final Function<Object, Publisher<byte[]>> getImportPublisher() {
-            return null;
-        }
-
-        @Override
-        public final Function<Object, Subscriber<byte[]>> getExportSubscriber() {
-            return null;
-        }
-
-
-    }
-
-
-    protected static class OptionParamStmt<T extends ParamValue> implements ParamStmt {
-
-        private final String sql;
-
-        protected final List<T> bindGroup;
-
-        private final int timeout;
-
-        protected OptionParamStmt(String sql, List<T> bindGroup, StmtOption option) {
-            this.sql = sql;
-            this.bindGroup = JdbdCollections.unmodifiableList(bindGroup);
-            this.timeout = option.getTimeout();
-
-        }
-
-        @Override
-        public final String getSql() {
-            return this.sql;
-        }
-
-        @Override
-        public Consumer<ResultStates> getStatusConsumer() {
-            return IGNORE_RESULT_STATES;
-        }
-
-        @Override
-        public final List<T> getBindGroup() {
-            return this.bindGroup;
-        }
-
-
-        @Override
-        public final int getTimeout() {
-            return this.timeout;
-        }
-
-        @Override
-        public int getFetchSize() {
-            return 0;
-        }
-
-        @Override
-        public Function<Object, Publisher<byte[]>> getImportPublisher() {
-            return null;
-        }
-
-        @Override
-        public Function<Object, Subscriber<byte[]>> getExportSubscriber() {
-            return null;
-        }
-
-
-    }
-
-    protected static class OptionQueryParamStmt<T extends ParamValue> extends OptionParamStmt<T> {
-
-        private final int fetchSize;
-
-        private final Consumer<ResultStates> statesConsumer;
-
-        protected OptionQueryParamStmt(String sql, List<T> bindGroup
-                , Consumer<ResultStates> statesConsumer, StmtOption option) {
-            super(sql, bindGroup, option);
-            this.fetchSize = option.getFetchSize();
-            this.statesConsumer = statesConsumer;
-        }
-
-        @Override
-        public final Consumer<ResultStates> getStatusConsumer() {
-            return this.statesConsumer;
-        }
-
-        @Override
-        public final int getFetchSize() {
-            return this.fetchSize;
-        }
-
-    }
-
-    protected static class OptionParamBatchStmt<T extends ParamValue> implements ParamBatchStmt<T> {
-
-        private final String sql;
-
-        protected final List<List<T>> groupList;
-
-        private final int timeout;
-
-        private final int fetchSize;
-
-        protected OptionParamBatchStmt(final String sql, final List<List<T>> groupList
-                , final StmtOption option) {
-            this.sql = sql;
-            this.timeout = option.getTimeout();
-            this.groupList = wrapGroupList(groupList);
-            this.fetchSize = this.groupList.size() == 1 ? option.getFetchSize() : 0;
-
-        }
-
-        @Override
-        public final String getSql() {
-            return this.sql;
-        }
-
-        @Override
-        public final List<List<T>> getGroupList() {
-            return this.groupList;
-        }
-
-        @Override
-        public final int getTimeout() {
-            return this.timeout;
-        }
-
-        @Override
-        public final int getFetchSize() {
-            return this.fetchSize;
-        }
-
-        @Override
-        public Function<Object, Publisher<byte[]>> getImportPublisher() {
-            return null;
-        }
-
-        @Override
-        public Function<Object, Subscriber<byte[]>> getExportSubscriber() {
-            return null;
-        }
-
-
-    }
-
-
-    protected static class ElementBindStmt<T extends ParamValue> implements ParamStmt {
-
-        private final String sql;
-
-        protected final List<T> bindGroup;
-
-        protected ElementBindStmt(String sql, List<T> bindGroup) {
-            this.sql = sql;
-            //only use Collections.unmodifiableList(List), can't use wrapGroup(List) .
-            //because for io.jdbd.stmt.MultiStatement.addStatement() method.
-            this.bindGroup = Collections.unmodifiableList(bindGroup);
-        }
-
-        @Override
-        public final String getSql() {
-            return this.sql;
-        }
-
-        @Override
-        public final List<T> getBindGroup() {
-            return this.bindGroup;
-        }
-
-        @Override
-        public final int getTimeout() {
-            return 0;
-        }
-
-        @Override
-        public final Consumer<ResultStates> getStatusConsumer() {
-            return IGNORE_RESULT_STATES;
-        }
-
-        @Override
-        public final int getFetchSize() {
-            return 0;
-        }
-
-        @Override
-        public Function<Object, Publisher<byte[]>> getImportPublisher() {
-            return null;
-        }
-
-        @Override
-        public Function<Object, Subscriber<byte[]>> getExportSubscriber() {
-            return null;
-        }
-
-    }
+    }//OptionMultiStmt
 
 
     private static void ignoreResultStates(ResultStates states) {

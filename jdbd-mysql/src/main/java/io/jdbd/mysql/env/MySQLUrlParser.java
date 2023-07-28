@@ -2,7 +2,9 @@ package io.jdbd.mysql.env;
 
 import io.jdbd.Driver;
 import io.jdbd.JdbdException;
+import io.jdbd.lang.Nullable;
 import io.jdbd.mysql.util.MySQLCollections;
+import io.jdbd.mysql.util.MySQLExceptions;
 import io.jdbd.mysql.util.MySQLStrings;
 import io.jdbd.vendor.env.JdbdHost;
 
@@ -17,11 +19,16 @@ import java.util.regex.Pattern;
 
 
 /**
+ * <p>
+ * This class is responsible for parsing MySQL url.
+ * </p>
+ *
  * @see <a href="https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-reference-jdbc-url-format.html">Connection URL Syntax</a>
  */
 public abstract class MySQLUrlParser {
 
     private MySQLUrlParser() {
+        throw new UnsupportedOperationException();
     }
 
     private static final Pattern CONNECTION_STRING_PTRN = Pattern.compile("(?<scheme>[\\w\\+:%]+)\\s*" // scheme: required; alphanumeric, plus, colon or percent
@@ -37,6 +44,21 @@ public abstract class MySQLUrlParser {
     private static final short DEFAULT_PORT = 3306;
 
 
+    public static boolean acceptsUrl(final @Nullable String url) {
+        if (url == null) {
+            return false;
+        }
+        boolean accept = false;
+        for (Protocol protocol : Protocol.values()) {
+            if (url.startsWith(protocol.scheme)) {
+                accept = true;
+                break;
+            }
+        }
+        return accept;
+    }
+
+
     public static List<MySQLHost> parse(final String url, final Map<String, Object> properties) {
         if (!isConnectionStringSupported(url)) {
             String m = String.format("unsupported url[%s] schema", url);
@@ -50,45 +72,77 @@ public abstract class MySQLUrlParser {
 
         final String schema, authority, path, query, actualAuthority;
 
-        // 1. parse url partition.
-        schema = decodeSkippingPlusSign(matcher.group("scheme"));
-        authority = matcher.group("authority"); // Don't decode just yet.
-        path = matcher.group("path") == null ? null : decode(matcher.group("path")).trim();
-        query = matcher.group("query"); // Don't decode just yet.
+        try {
+            // 1. parse url partition.
+            schema = decodeSkippingPlusSign(matcher.group("scheme"));
+            authority = matcher.group("authority"); // Don't decode just yet.
+            path = matcher.group("path") == null ? null : decode(matcher.group("path")).trim();
+            query = matcher.group("query"); // Don't decode just yet.
 
-        // 2-1 parse url query properties
-        final Map<String, Object> queryProperties;
-        queryProperties = parseQueryProperties(query);
+            // 2-1 parse url query properties
+            final Map<String, Object> queryProperties;
+            queryProperties = parseQueryProperties(query);
 
-        //2-2 parse user and password from url
-        if (properties.containsKey(Driver.USER)) {
-            actualAuthority = authority;
-        } else {
-            actualAuthority = parseUserInfo(authority, queryProperties);
+            if (path != null) {
+                queryProperties.put(MySQLKey.DB_NAME.name, path);
+            }
+
+            //2-2 parse user and password from url
+            if (properties.containsKey(Driver.USER)) {
+                actualAuthority = authority;
+            } else {
+                actualAuthority = parseUserInfo(authority, queryProperties);
+            }
+
+
+            //3. override query properties wih properties
+            queryProperties.putAll(properties);
+            queryProperties.putIfAbsent(MySQLKey.HOST.name, JdbdHost.DEFAULT_HOST);
+            queryProperties.putIfAbsent(MySQLKey.PORT.name, DEFAULT_PORT);
+
+
+            //4. parse MySQL host  list
+            return parseHostList(url, schema, actualAuthority, queryProperties);
+        } catch (JdbdException e) {
+            throw e;
+        } catch (Throwable e) {
+            throw MySQLExceptions.wrap(e);
         }
+    }
 
-        // override query properties wih host
-        queryProperties.putAll(properties);
+    /*-------------------below private method -------------------*/
 
+
+    private static List<MySQLHost> parseHostList(final String url, final String schema, final String authority,
+                                                 final Map<String, Object> queryProperties) {
         final Protocol protocol;
-        //4. parse host info list
-        List<MySQLHost> hostList;
-        if (MySQLStrings.hasText(actualAuthority)) {
-            parseHostList(actualAuthority);
+
+        final List<MySQLHost> hostList;
+        if (MySQLStrings.hasText(authority)) {
+            final List<Map<String, Object>> propertyList;
+            propertyList = parseHostPropertyList(authority);
+            protocol = Protocol.fromValue(url, schema, propertyList.size());
+
+            final List<MySQLHost> tempList = MySQLCollections.arrayList(propertyList.size());
+            Map<String, Object> map;
+            for (Map<String, Object> hostProperties : propertyList) {
+                map = MySQLCollections.hashMap(queryProperties);
+                map.putAll(hostProperties);// override query properties wih host
+                tempList.add(MySQLJdbdHost.create(protocol, map));
+            }
+            hostList = MySQLCollections.unmodifiableList(tempList);
         } else {
-            queryProperties.put(MySQLKey.HOST.name, JdbdHost.DEFAULT_HOST);
-            queryProperties.put(MySQLKey.PORT.name, DEFAULT_PORT);
             protocol = Protocol.fromValue(url, schema, 1);
-            hostList = Collections.singletonList(MySQLJdbdHost.create(protocol, properties));
+            hostList = Collections.singletonList(MySQLJdbdHost.create(protocol, queryProperties));
         }
-        return null;
+        return hostList;
     }
 
 
     /**
      * @return a unmodifiable list
      */
-    private static List<Map<String, Object>> parseHostList(String multiHostsSegment) {
+    private static List<Map<String, Object>> parseHostPropertyList(String multiHostsSegment) {
         if (multiHostsSegment.startsWith("[") && multiHostsSegment.endsWith("]")) {
             multiHostsSegment = multiHostsSegment.substring(1, multiHostsSegment.length() - 1);
         }
@@ -167,8 +221,9 @@ public abstract class MySQLUrlParser {
 
     /**
      * @return a unmodifiable map
+     * @see #parseHostPropertyList(String)
      */
-    private static Map<String, Object> parseAddressEqualsHost(String addressEqualsHost) {
+    private static Map<String, Object> parseAddressEqualsHost(final String addressEqualsHost) {
         int openingMarkersIndex = addressEqualsHost.indexOf('(');
         if (openingMarkersIndex < 0) {
             throw new IllegalArgumentException(String.format("addressEqualsHost[%s] error.", addressEqualsHost));
@@ -183,7 +238,7 @@ public abstract class MySQLUrlParser {
             if (kv.length != 2) {
                 throw createFormatException(addressEqualsHost);
             }
-            hostKeyValueMap.put(kv[0].trim(), kv[1].trim());
+            hostKeyValueMap.put(decode(kv[0]).trim(), decode(kv[1]).trim());
             openingMarkersIndex = addressEqualsHost.indexOf('(', closingMarkersIndex);
             if (openingMarkersIndex < 0) {
                 break;
@@ -212,13 +267,14 @@ public abstract class MySQLUrlParser {
         if (pairArray.length == 0) {
             throw createFormatException(keyValueHost);
         }
-        Map<String, Object> hostKeyValueMap = MySQLCollections.hashMap((int) (pairArray.length / 0.75F));
+        final Map<String, Object> hostKeyValueMap = MySQLCollections.hashMap((int) (pairArray.length / 0.75F));
+        String[] kv;
         for (String pair : pairArray) {
-            String[] kv = pair.split("=");
+            kv = pair.split("=");
             if (kv.length != 2) {
                 throw createFormatException(keyValueHost);
             }
-            hostKeyValueMap.put(kv[0].trim(), kv[1].trim());
+            hostKeyValueMap.put(decode(kv[0]).trim(), decode(kv[1]).trim());
         }
         return MySQLCollections.unmodifiableMap(hostKeyValueMap);
     }
@@ -252,6 +308,7 @@ public abstract class MySQLUrlParser {
 
     /**
      * @return a unmodifiable map
+     * @see #parseHostPropertyList(String)
      */
     private static Map<String, Object> parseHostPortHost(final String hostPortHost) {
         String[] hostPortPair = hostPortHost.split(":");
@@ -259,10 +316,10 @@ public abstract class MySQLUrlParser {
             throw createFormatException(hostPortHost);
         }
         Map<String, Object> hostKeyValueMap = MySQLCollections.hashMap(4);
-        hostKeyValueMap.put(MySQLKey.HOST.name, hostPortPair[0].trim());
+        hostKeyValueMap.put(MySQLKey.HOST.name, decode(hostPortPair[0]).trim());
 
         if (hostPortPair.length == 2) {
-            hostKeyValueMap.put(MySQLKey.PORT.name, hostPortPair[1].trim());
+            hostKeyValueMap.put(MySQLKey.PORT.name, decode(hostPortPair[1]).trim());
         }
         return Collections.unmodifiableMap(hostKeyValueMap);
     }
@@ -316,20 +373,15 @@ public abstract class MySQLUrlParser {
         }
         final String[] queryPairs;
         queryPairs = query.split("&");
-        try {
-            String[] kv;
-            for (String pair : queryPairs) {
-                kv = pair.split("=");
-                if (kv.length == 0 || kv.length > 2) {
-                    throw new JdbdException(String.format("query[%s] error of url.", query));
-                }
-                if (kv.length == 2) {
-                    properties.put(URLDecoder.decode(kv[0], "UTF-8"), URLDecoder.decode(kv[1], "UTF-8"));
-                }
+        String[] kv;
+        for (String pair : queryPairs) {
+            kv = pair.split("=");
+            if (kv.length == 0 || kv.length > 2) {
+                throw new JdbdException(String.format("query[%s] error of url.", query));
             }
-        } catch (UnsupportedEncodingException e) {
-            // use UTF-8 never here
-            throw new JdbdException("Unsupported charset", e);
+            if (kv.length == 2) {
+                properties.put(decode(kv[0]).trim(), decode(kv[1]).trim());
+            }
         }
         return properties;
     }

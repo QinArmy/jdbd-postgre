@@ -41,17 +41,17 @@ public interface PrepareStmt extends ParamSingleStmt {
 
     /**
      * @throws IllegalStateException throw when {@link #getStmt()} throw {@link IllegalStateException}.
-     * @see ParamBatchStmt#getImportPublisher()
+     * @see ParamBatchStmt#getImportFunction()
      */
     @Override
-    Function<Object, Publisher<byte[]>> getImportPublisher();
+    Function<Object, Publisher<byte[]>> getImportFunction();
 
     /**
      * @throws IllegalStateException throw when {@link #getStmt()} throw {@link IllegalStateException}.
-     * @see ParamBatchStmt#getExportSubscriber()
+     * @see ParamBatchStmt#getExportFunction()
      */
     @Override
-    Function<Object, Subscriber<byte[]>> getExportSubscriber();
+    Function<Object, Subscriber<byte[]>> getExportFunction();
 
 
 }

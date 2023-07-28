@@ -142,11 +142,6 @@ final class MySQLConnectionTask extends CommunicationTask implements Authenticat
         return (this.capability & Capabilities.CLIENT_SSL) != 0;
     }
 
-    @Override
-    public ByteBuf createPacketBuffer(int initialPayloadCapacity) {
-        return Packets.createOnePacket(this.allocator, initialPayloadCapacity);
-    }
-
 
     @Override
     public MySQLServerVersion getServerVersion() {
@@ -503,7 +498,7 @@ final class MySQLConnectionTask extends CommunicationTask implements Authenticat
         packet.writeZero(23);
 
         // 5. username,login user name
-        Packets.writeStringTerm(packet, this.host.getUser().getBytes(clientCharset));
+        Packets.writeStringTerm(packet, this.host.user().getBytes(clientCharset));
 
         // 6. auth_response or (auth_response_length and auth_response)
         if ((clientFlag & Capabilities.CLIENT_PLUGIN_AUTH_LENENC_CLIENT_DATA) != 0) {
@@ -516,7 +511,7 @@ final class MySQLConnectionTask extends CommunicationTask implements Authenticat
 
         // 7. database
         if ((clientFlag & Capabilities.CLIENT_CONNECT_WITH_DB) != 0) {
-            String database = this.host.getDbName();
+            String database = this.host.dbName();
             if (!MySQLStrings.hasText(database)) {
                 throw new JdbdException("client flag error,check this.getClientFlat() method.");
             }
@@ -652,7 +647,7 @@ final class MySQLConnectionTask extends CommunicationTask implements Authenticat
         final Environment env = this.env;
 
         final boolean useConnectWithDb;
-        useConnectWithDb = MySQLStrings.hasText(this.host.getDbName())
+        useConnectWithDb = MySQLStrings.hasText(this.host.dbName())
                 && !env.getOrDefault(MySQLKey.CREATE_DATABASE_IF_NOT_EXIST);
 
 

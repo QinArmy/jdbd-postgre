@@ -4,6 +4,7 @@ package io.jdbd.statement;
 import io.jdbd.JdbdException;
 import io.jdbd.lang.Nullable;
 import io.jdbd.meta.DataType;
+import io.jdbd.session.ChunkOption;
 import io.jdbd.session.DatabaseSession;
 import io.jdbd.type.*;
 import org.reactivestreams.Publisher;
@@ -73,7 +74,7 @@ public interface Statement {
      *                 </ul>
      * @return <strong>this</strong>
      * @throws JdbdException throw when : <ul>
-     *                       <li>{@link DatabaseSession#isSupportStmtVar()} or {@link #supportStmtVar()} return false</li>
+     *                       <li>{@link DatabaseSession#isSupportStmtVar()} or {@link #isSupportStmtVar()} return false</li>
      *                       <li>this statement instance is reused.Because jdbd is reactive and multi-thread and jdbd provide :
      *                              <ol>
      *                                  <li>{@link MultiResultStatement#executeBatchUpdate()}</li>
@@ -90,7 +91,7 @@ public interface Statement {
      *                       <li>the java type of value isn't supported by appropriate dataType</li>
      *                       </ul>
      * @see DatabaseSession#isSupportStmtVar()
-     * @see #supportStmtVar()
+     * @see #isSupportStmtVar()
      * @see io.jdbd.meta.JdbdType
      * @see io.jdbd.meta.SQLType
      * @see Point
@@ -114,11 +115,11 @@ public interface Statement {
      *
      * @return true : support
      */
-    boolean supportPublisher();
+    boolean isSupportPublisher();
 
-    boolean supportOutParameter();
+    boolean isSupportOutParameter();
 
-    boolean supportStmtVar();
+    boolean isSupportStmtVar();
 
     Statement setTimeout(int seconds);
 
@@ -139,9 +140,9 @@ public interface Statement {
      */
     Statement setFetchSize(int fetchSize) throws JdbdException;
 
-    Statement setImportPublisher(Function<Object, Publisher<byte[]>> function) throws JdbdException;
+    Statement setImportPublisher(Function<ChunkOption, Publisher<byte[]>> function) throws JdbdException;
 
-    Statement setExportSubscriber(Function<Object, Subscriber<byte[]>> function) throws JdbdException;
+    Statement setExportSubscriber(Function<ChunkOption, Subscriber<byte[]>> function) throws JdbdException;
 
 
     DatabaseSession getSession();

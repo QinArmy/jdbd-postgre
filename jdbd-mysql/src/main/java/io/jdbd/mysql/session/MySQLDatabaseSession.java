@@ -56,6 +56,15 @@ abstract class MySQLDatabaseSession<S extends DatabaseSession> implements Databa
         this.protocol = protocol;
     }
 
+    @Override
+    public final String factoryName() {
+        return this.factory.name();
+    }
+
+    @Override
+    public final long identifier() {
+        return this.protocol.threadId();
+    }
 
     @Override
     public final Publisher<ResultStates> executeUpdate(final String sql) {

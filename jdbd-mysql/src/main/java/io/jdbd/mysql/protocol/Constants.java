@@ -59,12 +59,15 @@ public interface Constants {
 
     byte UNDERLINE_BYTE = '_';
 
-    String SEMICOLON = ";";
+    String SPACE_SEMICOLON_SPACE = " ; ";
 
+    String SPACE_COMMA_SPACE = " , ";
 
     char EMPTY_CHAR = '\0';
 
     char QUOTE = '\'';
+
+    char SPACE = ' ';
 
     byte SEMICOLON_BYTE = ';';
 

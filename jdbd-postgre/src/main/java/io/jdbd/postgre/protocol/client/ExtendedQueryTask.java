@@ -707,13 +707,13 @@ final class ExtendedQueryTask extends AbstractStmtTask implements PrepareTask<Pg
         }
 
         @Override
-        public Function<Object, Publisher<byte[]>> getImportPublisher() {
-            return getStmt().getImportPublisher();
+        public Function<Object, Publisher<byte[]>> getImportFunction() {
+            return getStmt().getImportFunction();
         }
 
         @Override
-        public Function<Object, Subscriber<byte[]>> getExportSubscriber() {
-            return getStmt().getExportSubscriber();
+        public Function<Object, Subscriber<byte[]>> getExportFunction() {
+            return getStmt().getExportFunction();
         }
 
 

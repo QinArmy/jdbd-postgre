@@ -279,7 +279,7 @@ final class PgPreparedStatement extends PgStatement implements PreparedStatement
     /*################################## blow Statement method ##################################*/
 
     @Override
-    public boolean supportPublisher() {
+    public boolean isSupportPublisher() {
         return true;
     }
 

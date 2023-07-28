@@ -3,6 +3,7 @@ package io.jdbd.mysql.session;
 import io.jdbd.mysql.protocol.MySQLProtocol;
 import io.jdbd.mysql.util.MySQLExceptions;
 import io.jdbd.pool.PoolLocalDatabaseSession;
+import io.jdbd.result.ResultStates;
 import io.jdbd.session.HandleMode;
 import io.jdbd.session.LocalDatabaseSession;
 import io.jdbd.session.TransactionOption;
@@ -40,28 +41,8 @@ class MySQLLocalDatabaseSession extends MySQLDatabaseSession<LocalDatabaseSessio
 
     @Override
     public Publisher<LocalDatabaseSession> startTransaction(final TransactionOption option, final HandleMode mode) {
-        final Mono<LocalDatabaseSession> mono;
-        if (!this.protocol.inTransaction()) {
-            mono = this.protocol.startTransaction(option)
-                    .thenReturn(this);
-        } else switch (mode) {
-            case ERROR_IF_EXISTS:
-                mono = Mono.error(MySQLExceptions.haveExistedTransaction());
-                break;
-            case ROLLBACK_IF_EXISTS:
-                mono = this.protocol.rollback()
-                        .then(this.protocol.startTransaction(option))
-                        .thenReturn(this);
-                break;
-            case COMMIT_IF_EXISTS:
-                mono = this.protocol.commit()
-                        .then(this.protocol.startTransaction(option))
-                        .thenReturn(this);
-                break;
-            default:
-                mono = Mono.error(MySQLExceptions.unexpectedEnum(mode));
-        }
-        return mono;
+        return this.protocol.startTransaction(option, mode)
+                .flatMap(this::afterStartTransaction);
     }
 
     @Override
@@ -72,13 +53,34 @@ class MySQLLocalDatabaseSession extends MySQLDatabaseSession<LocalDatabaseSessio
     @Override
     public final Mono<LocalDatabaseSession> commit() {
         return this.protocol.commit()
-                .thenReturn(this);
+                .flatMap(this::afterCommit);
     }
 
     @Override
     public final Mono<LocalDatabaseSession> rollback() {
         return this.protocol.rollback()
-                .thenReturn(this);
+                .flatMap(this::afterRollback);
+    }
+
+    private Mono<LocalDatabaseSession> afterCommit(ResultStates states) {
+        if (states.inTransaction()) {
+            return Mono.error(MySQLExceptions.commitTransactionFailure(this.protocol.threadId()));
+        }
+        return Mono.just(this);
+    }
+
+    private Mono<LocalDatabaseSession> afterRollback(ResultStates states) {
+        if (states.inTransaction()) {
+            return Mono.error(MySQLExceptions.rollbackTransactionFailure(this.protocol.threadId()));
+        }
+        return Mono.just(this);
+    }
+
+    private Mono<LocalDatabaseSession> afterStartTransaction(ResultStates states) {
+        if (states.inTransaction()) {
+            return Mono.just(this);
+        }
+        return Mono.error(MySQLExceptions.startTransactionFailure(this.protocol.threadId()));
     }
 
 

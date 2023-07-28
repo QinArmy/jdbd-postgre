@@ -570,7 +570,7 @@ public enum MySQLType implements SQLType {
 
     @Override
     public final String vendor() {
-        return "io.jdbd.mysql";
+        return MySQLDriver.DRIVER_VENDOR;
     }
 
     @Override

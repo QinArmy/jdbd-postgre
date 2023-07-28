@@ -27,4 +27,6 @@ public enum HostsCardinality {
     };
 
     public abstract boolean assertSize(int n);
+
+
 }

@@ -1,7 +1,7 @@
 package io.jdbd.mysql.session;
 
 
-import io.jdbd.mysql.MySQLJdbdException;
+import io.jdbd.JdbdException;
 import io.jdbd.mysql.protocol.MySQLProtocol;
 import io.jdbd.mysql.stmt.Stmts;
 import io.jdbd.mysql.util.MySQLBuffers;
@@ -11,8 +11,7 @@ import io.jdbd.pool.PoolRmDatabaseSession;
 import io.jdbd.result.CurrentRow;
 import io.jdbd.result.ResultRow;
 import io.jdbd.result.ResultStates;
-import io.jdbd.session.RmDatabaseSession;
-import io.jdbd.session.Xid;
+import io.jdbd.session.*;
 import io.jdbd.vendor.session.XidImpl;
 import io.jdbd.vendor.util.JdbdExceptions;
 import org.reactivestreams.Publisher;
@@ -47,6 +46,17 @@ class MySQLRmDatabaseSession extends MySQLDatabaseSession<RmDatabaseSession> imp
 
 
     @Override
+    public final Publisher<RmDatabaseSession> setTransactionOption(TransactionOption option) {
+        return this.setTransactionOption(option, HandleMode.ERROR_IF_EXISTS);
+    }
+
+    @Override
+    public final Publisher<RmDatabaseSession> setTransactionOption(TransactionOption option, HandleMode mode) {
+        return this.protocol.setTransactionOption(option, mode)
+                .thenReturn(this);
+    }
+
+    @Override
     public final Mono<RmDatabaseSession> start(final Xid xid, final int flags) {
         final StringBuilder builder = new StringBuilder(140);
         builder.append("XA START");
@@ -66,7 +76,7 @@ class MySQLRmDatabaseSession extends MySQLDatabaseSession<RmDatabaseSession> imp
                     throw JdbdExceptions.xaInvalidFlagForStart(flags);
             }
         } catch (Throwable e) {
-            return Mono.error(e);
+            return Mono.error(MySQLExceptions.wrap(e));
         }
         return this.protocol.update(Stmts.stmt(builder.toString()))
                 .map(this::mapStartResult)
@@ -92,7 +102,7 @@ class MySQLRmDatabaseSession extends MySQLDatabaseSession<RmDatabaseSession> imp
                     throw JdbdExceptions.xaInvalidFlagForEnd(flags);
             }
         } catch (Throwable e) {
-            return Mono.error(e);
+            return Mono.error(MySQLExceptions.wrap(e));
         }
         return this.protocol.update(Stmts.stmt(builder.toString()))
                 .thenReturn(this);
@@ -165,7 +175,7 @@ class MySQLRmDatabaseSession extends MySQLDatabaseSession<RmDatabaseSession> imp
     }
 
 
-    private void appendXid(final StringBuilder cmdBuilder, final Xid xid) throws JdbdXaException {
+    private void appendXid(final StringBuilder cmdBuilder, final Xid xid) throws JdbdException {
         Objects.requireNonNull(xid, "xid");
 
         final String gtrid = xid.getGtrid();
@@ -202,25 +212,25 @@ class MySQLRmDatabaseSession extends MySQLDatabaseSession<RmDatabaseSession> imp
      * @see #start(Xid, int)
      */
     private ResultStates mapStartResult(final ResultStates states) {
-        if (this.protocol.isStartedTransaction(states)) {
+        if (states.inTransaction()) {
             return states;
         }
-        throw new MySQLJdbdException("XA START failure,session not in XA transaction.");
+        throw new JdbdException("XA START failure,session not in XA transaction.");
     }
 
     /**
      * @see #prepare(Xid)
      */
     private int mapPrepareResultCode(ResultStates states) {
-        return this.protocol.isReadOnlyTransaction(states) ? XA_RDONLY : XA_OK;
+        return states.valueOf(Option.READ_ONLY) ? XA_RDONLY : XA_OK;
     }
 
     /**
      * @see #commit(Xid, boolean)
      */
     private ResultStates mapCommitResult(final ResultStates states) {
-        if (this.protocol.isStartedTransaction(states)) {
-            throw new MySQLJdbdException("XA COMMIT failure,session still in transaction.");
+        if (states.inTransaction()) {
+            throw new JdbdException("XA COMMIT failure,session still in transaction.");
         }
         return states;
     }
@@ -229,8 +239,8 @@ class MySQLRmDatabaseSession extends MySQLDatabaseSession<RmDatabaseSession> imp
      * @see #commit(Xid, boolean)
      */
     private ResultStates mapRollbackResult(final ResultStates states) {
-        if (this.protocol.isStartedTransaction(states)) {
-            throw new MySQLJdbdException("XA ROLLBACK failure,session still in transaction.");
+        if (states.inTransaction()) {
+            throw new JdbdException("XA ROLLBACK failure,session still in transaction.");
         }
         return states;
     }
@@ -248,9 +258,9 @@ class MySQLRmDatabaseSession extends MySQLDatabaseSession<RmDatabaseSession> imp
         dataBytes = row.getNonNull("data", String.class).getBytes(StandardCharsets.UTF_8);
         if (dataBytes.length != (gtridLength + bqualLength)) {
             String m;
-            m = String.format("XA Recover error,data length[%s] isn't the sum of between gtrid_length[%s] and bqual_length[%s]."
-                    , dataBytes.length, gtridLength, bqualLength);
-            throw new MySQLJdbdException(m);
+            m = String.format("XA Recover error,data length[%s] isn't the sum of between gtrid_length[%s] and bqual_length[%s].",
+                    dataBytes.length, gtridLength, bqualLength);
+            throw new JdbdException(m);
         }
 
         final String gtrid, bqual;
@@ -277,8 +287,8 @@ class MySQLRmDatabaseSession extends MySQLDatabaseSession<RmDatabaseSession> imp
         }
 
         @Override
-        public Publisher<PoolRmDatabaseSession> reconnect(int maxReconnect) {
-            return this.protocol.reconnect(maxReconnect)
+        public Publisher<PoolRmDatabaseSession> reconnect() {
+            return this.protocol.reconnect()
                     .thenReturn(this);
         }
 
