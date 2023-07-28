@@ -13,8 +13,8 @@ import io.jdbd.mysql.protocol.Constants;
 import io.jdbd.mysql.protocol.MySQLProtocol;
 import io.jdbd.mysql.protocol.MySQLProtocolFactory;
 import io.jdbd.mysql.protocol.MySQLServerVersion;
+import io.jdbd.mysql.stmt.MyStmts;
 import io.jdbd.mysql.stmt.MyValues;
-import io.jdbd.mysql.stmt.Stmts;
 import io.jdbd.mysql.util.*;
 import io.jdbd.result.CurrentRow;
 import io.jdbd.result.ResultRow;
@@ -200,7 +200,7 @@ public final class ClientProtocolFactory extends FixedEnv implements MySQLProtoc
             sqlGroup.add(keyVariablesQuerySql); // 5.
             final int sqlSize = sqlGroup.size();
 
-            return Flux.from(ComQueryTask.batchAsFlux(Stmts.batch(sqlGroup), this.adjutant))
+            return Flux.from(ComQueryTask.batchAsFlux(MyStmts.batch(sqlGroup), this.adjutant))
                     .filter(r -> r instanceof ResultRow && r.getResultNo() == sqlSize)
                     .last()
                     .map(ResultRow.class::cast)
@@ -219,7 +219,7 @@ public final class ClientProtocolFactory extends FixedEnv implements MySQLProtoc
                     || this.factory.customCharsetMap.size() == 0) {
                 return Mono.empty();
             }
-            return ComQueryTask.query(Stmts.stmt("SHOW CHARACTER SET"), this::mapMyCharset, this.adjutant)// SHOW CHARACTER SET result
+            return ComQueryTask.query(MyStmts.stmt("SHOW CHARACTER SET"), this::mapMyCharset, this.adjutant)// SHOW CHARACTER SET result
                     .filter(Optional::isPresent)
                     .map(Optional::get)
                     .collectMap(MyCharset::charsetName, MyCharset::self, MySQLCollections::hashMap)
@@ -300,7 +300,7 @@ public final class ClientProtocolFactory extends FixedEnv implements MySQLProtoc
                 index++;
             }
             builder.append(" )");
-            return Stmts.paramStmt(builder.toString(), paramList);
+            return MyStmts.paramStmt(builder.toString(), paramList);
         }
 
 

@@ -4,7 +4,7 @@ import io.jdbd.vendor.util.JdbdArrays;
 
 public abstract class MySQLArrays extends JdbdArrays {
 
-    protected MySQLArrays() {
+    private MySQLArrays() {
         throw new UnsupportedOperationException();
     }
 

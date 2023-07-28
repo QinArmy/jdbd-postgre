@@ -3,6 +3,7 @@ package io.jdbd.statement;
 import io.jdbd.JdbdException;
 import io.jdbd.lang.Nullable;
 import io.jdbd.meta.DataType;
+import io.jdbd.session.ChunkOption;
 import org.reactivestreams.Publisher;
 import org.reactivestreams.Subscriber;
 
@@ -51,13 +52,13 @@ public interface MultiStatement extends MultiResultStatement, ParametrizedStatem
      * {@inheritDoc }
      */
     @Override
-    MultiStatement setImportPublisher(Function<Object, Publisher<byte[]>> function) throws JdbdException;
+    MultiStatement setImportPublisher(Function<ChunkOption, Publisher<byte[]>> function) throws JdbdException;
 
     /**
      * {@inheritDoc }
      */
     @Override
-    MultiStatement setExportSubscriber(Function<Object, Subscriber<byte[]>> function) throws JdbdException;
+    MultiStatement setExportSubscriber(Function<ChunkOption, Subscriber<byte[]>> function) throws JdbdException;
 
 
 }

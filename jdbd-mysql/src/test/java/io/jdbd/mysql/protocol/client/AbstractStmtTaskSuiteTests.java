@@ -5,7 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.jdbd.mysql.MySQLType;
 import io.jdbd.mysql.SQLMode;
 import io.jdbd.mysql.protocol.conf.MyKey;
-import io.jdbd.mysql.stmt.Stmts;
+import io.jdbd.mysql.stmt.MyStmts;
 import io.jdbd.mysql.type.City;
 import io.jdbd.mysql.type.TrueOrFalse;
 import io.jdbd.mysql.util.*;
@@ -50,7 +50,7 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractTaskSuiteTests 
         final TaskAdjutant taskAdjutant = obtainTaskAdjutant();
 
         List<ResultRow> resultRowList;
-        resultRowList = ComQueryTask.paramQuery(Stmts.single(sql, bindValue), taskAdjutant)
+        resultRowList = ComQueryTask.paramQuery(MyStmts.single(sql, bindValue), taskAdjutant)
                 .collectList()
                 .block();
 
@@ -63,7 +63,7 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractTaskSuiteTests 
 
         // string bigint
         bindValue = BindValue.wrap(0, MySQLType.BIGINT, Long.toString(id));
-        resultRowList = ComQueryTask.paramQuery(Stmts.single(sql, bindValue), taskAdjutant)
+        resultRowList = ComQueryTask.paramQuery(MyStmts.single(sql, bindValue), taskAdjutant)
                 .collectList()
                 .block();
 
@@ -1766,7 +1766,7 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractTaskSuiteTests 
         bindGroup.add(bindValue);
 
         ResultStates resultStates;
-        resultStates = executeUpdate(Stmts.bind(sql, bindGroup), taskAdjutant)
+        resultStates = executeUpdate(MyStmts.bind(sql, bindGroup), taskAdjutant)
                 .block();
 
         assertNotNull(resultStates, "resultStates");
@@ -1778,7 +1778,7 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractTaskSuiteTests 
         BindValue bindValue = BindValue.wrap(0, MySQLType.BIGINT, id);
 
         List<ResultRow> resultRowList;
-        resultRowList = executeQuery(Stmts.single(sql, bindValue), taskAdjutant)
+        resultRowList = executeQuery(MyStmts.single(sql, bindValue), taskAdjutant)
                 .collectList()
                 .block();
         assertNotNull(resultRowList, "resultRowList");

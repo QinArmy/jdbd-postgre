@@ -5,6 +5,7 @@ import io.jdbd.lang.Nullable;
 import io.jdbd.meta.DataType;
 import io.jdbd.result.ResultRowMeta;
 import io.jdbd.result.Warning;
+import io.jdbd.session.ChunkOption;
 import io.jdbd.session.DatabaseSession;
 import org.reactivestreams.Publisher;
 import org.reactivestreams.Subscriber;
@@ -87,13 +88,13 @@ public interface PreparedStatement extends BindSingleStatement {
      * {@inheritDoc }
      */
     @Override
-    PreparedStatement setImportPublisher(Function<Object, Publisher<byte[]>> function) throws JdbdException;
+    PreparedStatement setImportPublisher(Function<ChunkOption, Publisher<byte[]>> function) throws JdbdException;
 
     /**
      * {@inheritDoc }
      */
     @Override
-    PreparedStatement setExportSubscriber(Function<Object, Subscriber<byte[]>> function) throws JdbdException;
+    PreparedStatement setExportSubscriber(Function<ChunkOption, Subscriber<byte[]>> function) throws JdbdException;
 
 
     /**

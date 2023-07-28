@@ -2,10 +2,10 @@ package io.jdbd.postgre.stmt;
 
 import io.jdbd.postgre.PgType;
 import io.jdbd.result.ResultStates;
-import io.jdbd.vendor.stmt.JdbdStmts;
 import io.jdbd.vendor.stmt.StaticBatchStmt;
 import io.jdbd.vendor.stmt.StaticStmt;
 import io.jdbd.vendor.stmt.StmtOption;
+import io.jdbd.vendor.stmt.Stmts;
 import io.jdbd.vendor.util.JdbdFunctions;
 import org.reactivestreams.Publisher;
 import org.reactivestreams.Subscriber;
@@ -17,7 +17,7 @@ import java.util.Objects;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
-public abstract class PgStmts extends JdbdStmts {
+public abstract class PgStmts extends Stmts {
 
     public static StaticStmt stmt(String sql, StmtOption option) {
         Objects.requireNonNull(sql, "sql");

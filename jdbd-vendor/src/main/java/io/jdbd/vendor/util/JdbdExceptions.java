@@ -137,6 +137,11 @@ public abstract class JdbdExceptions {
         return new JdbdException(m);
     }
 
+    public static JdbdException nonNullBindValueOf(DataType nullType) {
+        String m = String.format("Must be null of %s", nullType);
+        return new JdbdException(m);
+    }
+
     public static JdbdException haveExistedTransaction() {
         return new JdbdException("Have existed transaction , couldn't start new transaction.");
     }

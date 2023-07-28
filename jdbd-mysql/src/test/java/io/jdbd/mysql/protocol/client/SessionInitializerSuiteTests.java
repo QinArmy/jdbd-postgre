@@ -4,7 +4,7 @@ import io.jdbd.mysql.Groups;
 import io.jdbd.mysql.SQLMode;
 import io.jdbd.mysql.SessionEnv;
 import io.jdbd.mysql.protocol.conf.MyKey;
-import io.jdbd.mysql.stmt.Stmts;
+import io.jdbd.mysql.stmt.MyStmts;
 import io.jdbd.mysql.util.MySQLTimes;
 import io.jdbd.result.ResultRow;
 import org.slf4j.Logger;
@@ -160,7 +160,7 @@ public class SessionInitializerSuiteTests extends AbstractTaskSuiteTests {
         String sql = "SELECT @@character_set_connection as  characterSetConnection" +
                 ", @@character_set_results as characterSetResults," +
                 "@@character_set_client as characterSetClient";
-        ResultRow resultRow = ComQueryTask.query(Stmts.stmt(sql), adjutant)
+        ResultRow resultRow = ComQueryTask.query(MyStmts.stmt(sql), adjutant)
                 .elementAt(0)
                 .block();
         assertNotNull(resultRow);

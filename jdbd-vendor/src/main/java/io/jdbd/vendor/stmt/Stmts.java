@@ -14,13 +14,13 @@ import java.util.List;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
-public abstract class JdbdStmts {
+public abstract class Stmts {
 
-    protected JdbdStmts() {
+    protected Stmts() {
         throw new UnsupportedOperationException();
     }
 
-    public static final Consumer<ResultStates> IGNORE_RESULT_STATES = JdbdStmts::ignoreResultStates;
+    public static final Consumer<ResultStates> IGNORE_RESULT_STATES = Stmts::ignoreResultStates;
 
     protected static final List<ParamValue> EMPTY_PARAM_GROUP = Collections.emptyList();
 

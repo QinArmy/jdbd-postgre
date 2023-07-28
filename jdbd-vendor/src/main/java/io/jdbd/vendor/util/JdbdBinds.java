@@ -1,13 +1,12 @@
 package io.jdbd.vendor.util;
 
 import io.jdbd.JdbdException;
+import io.jdbd.meta.SQLType;
 import io.jdbd.type.Interval;
 import io.jdbd.type.PathParameter;
-import io.jdbd.vendor.stmt.ParamBatchStmt;
 import io.jdbd.vendor.stmt.ParamValue;
 import io.jdbd.vendor.stmt.Value;
 import io.netty.buffer.ByteBuf;
-import org.reactivestreams.Publisher;
 import reactor.util.annotation.Nullable;
 
 import java.io.IOException;
@@ -29,32 +28,88 @@ public abstract class JdbdBinds {
     }
 
 
-    public static final int MEDIUM_INT_MIN_VALUE = 0x8000_00;
-    public static final int MEDIUM_INT_MAX_VALUE = 0x7FFF_FF;
+//            case NULL:
+//            case BOOLEAN:
+//            case BIT:
+//
+//            case TINYINT:
+//            case SMALLINT:
+//            case MEDIUMINT:
+//            case INTEGER:
+//            case BIGINT:
+//            case DECIMAL:
+//            case NUMERIC:
+//
+//            case FLOAT:
+//            case REAL:
+//            case DOUBLE:
+//
+//            case TINYINT_UNSIGNED:
+//            case SMALLINT_UNSIGNED:
+//            case MEDIUMINT_UNSIGNED:
+//            case INTEGER_UNSIGNED:
+//            case BIGINT_UNSIGNED:
+//            case DECIMAL_UNSIGNED:
+//
+//            case TIME:
+//            case YEAR:
+//            case YEAR_MONTH:
+//            case MONTH_DAY:
+//            case DATE:
+//            case TIMESTAMP:
+//            case TIME_WITH_TIMEZONE:
+//            case TIMESTAMP_WITH_TIMEZONE:
+//
+//
+//            case BINARY:
+//            case VARBINARY:
+//            case TINYBLOB:
+//            case MEDIUMBLOB:
+//            case BLOB:
+//            case LONGBLOB:
+//
+//            case CHAR:
+//            case VARCHAR:
+//            case TINYTEXT:
+//            case MEDIUMTEXT:
+//            case TEXT:
+//            case LONGTEXT:
+//
+//            case JSON:
+//            case JSONB:
+//
+//            case DURATION:
+//            case PERIOD:
+//            case INTERVAL:
+//
+//            case GEOMETRY:
+//            case POINT:
+//            case LINE_STRING:
+//            case LINE:
+//            case LINEAR_RING:
+//            case MULTI_POINT:
+//            case MULTI_POLYGON:
+//            case MULTI_LINE_STRING:
+//            case POLYGON:
+//            case GEOMETRY_COLLECTION:
+//
+//            case REF:
+//            case XML:
+//            case ARRAY:
+//            case ROWID:
+//            case DATALINK:
+//            case REF_CURSOR:
+//            case DIALECT_TYPE:
+//            case UNKNOWN:
+//            default:
 
 
-    @Deprecated
-    public static boolean hasPublisher(List<? extends ParamValue> parameterGroup) {
-        boolean has = false;
-        for (ParamValue bindValue : parameterGroup) {
-            if (bindValue.get() instanceof Publisher) {
-                has = true;
-                break;
-            }
+    public static <T extends SQLType> Map<String, T> createSqlTypeMap(final T[] valueArray) {
+        final Map<String, T> map = JdbdCollections.hashMap((int) (valueArray.length / 0.75f));
+        for (T value : valueArray) {
+            map.put(value.typeName(), value);
         }
-        return has;
-    }
-
-    @Deprecated
-    public static boolean hasPublisher(ParamBatchStmt stmt) {
-        boolean has = false;
-        for (List<? extends ParamValue> group : stmt.getGroupList()) {
-            if (hasPublisher(group)) {
-                has = true;
-                break;
-            }
-        }
-        return has;
+        return JdbdCollections.unmodifiableMap(map);
     }
 
     public static Set<OpenOption> openOptionSet(final PathParameter parameter) {

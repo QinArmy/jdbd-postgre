@@ -3,8 +3,9 @@ package io.jdbd.mysql.session;
 import io.jdbd.JdbdException;
 import io.jdbd.lang.Nullable;
 import io.jdbd.meta.DataType;
+import io.jdbd.meta.JdbdType;
 import io.jdbd.mysql.MySQLType;
-import io.jdbd.mysql.stmt.Stmts;
+import io.jdbd.mysql.stmt.MyStmts;
 import io.jdbd.mysql.util.MySQLBinds;
 import io.jdbd.mysql.util.MySQLCollections;
 import io.jdbd.mysql.util.MySQLExceptions;
@@ -80,7 +81,7 @@ final class MySQLMultiStatement extends MySQLStatement<MultiStatement> implement
 
         final String lastSql = this.currentSql;
         if (lastSql != null) {
-            this.stmtGroup.add(Stmts.paramStmt(lastSql, paramGroup, this));
+            this.stmtGroup.add(MyStmts.paramStmt(lastSql, paramGroup, this));
         }
 
         this.currentSql = sql;
@@ -108,6 +109,8 @@ final class MySQLMultiStatement extends MySQLStatement<MultiStatement> implement
             error = MySQLExceptions.dontSupportJavaType(indexBasedZero, value, MY_SQL);
         } else if (dataType == null) {
             error = MySQLExceptions.dataTypeIsNull();
+        } else if (value != null && (dataType == JdbdType.NULL || dataType == MySQLType.NULL)) {
+            error = MySQLExceptions.nonNullBindValueOf(dataType);
         } else if ((type = MySQLBinds.handleDataType(dataType)) == null) {
             error = MySQLExceptions.dontSupportDataType(dataType, MY_SQL);
         } else {
@@ -140,7 +143,7 @@ final class MySQLMultiStatement extends MySQLStatement<MultiStatement> implement
         if (stmtGroup.size() == 0) {
             flux = Flux.error(MySQLExceptions.multiStmtNoSql());
         } else {
-            flux = this.session.protocol.multiStmtBatchUpdate(Stmts.paramMultiStmt(stmtGroup, this));
+            flux = this.session.protocol.multiStmtBatchUpdate(MyStmts.paramMultiStmt(stmtGroup, this));
         }
         clearStatementToAvoidReuse();
         return flux;
@@ -159,7 +162,7 @@ final class MySQLMultiStatement extends MySQLStatement<MultiStatement> implement
         if (stmtGroup.size() == 0) {
             batchQuery = MultiResults.batchQueryError(MySQLExceptions.multiStmtNoSql());
         } else {
-            batchQuery = this.session.protocol.multiStmtBatchQuery(Stmts.paramMultiStmt(stmtGroup, this));
+            batchQuery = this.session.protocol.multiStmtBatchQuery(MyStmts.paramMultiStmt(stmtGroup, this));
         }
         clearStatementToAvoidReuse();
         return batchQuery;
@@ -178,7 +181,7 @@ final class MySQLMultiStatement extends MySQLStatement<MultiStatement> implement
         if (stmtGroup.size() == 0) {
             multiResult = MultiResults.error(MySQLExceptions.multiStmtNoSql());
         } else {
-            multiResult = this.session.protocol.multiStmtAsMulti(Stmts.paramMultiStmt(stmtGroup, this));
+            multiResult = this.session.protocol.multiStmtAsMulti(MyStmts.paramMultiStmt(stmtGroup, this));
         }
         clearStatementToAvoidReuse();
         return multiResult;
@@ -198,7 +201,7 @@ final class MySQLMultiStatement extends MySQLStatement<MultiStatement> implement
         if (stmtGroup.size() == 0) {
             flux = MultiResults.fluxError(MySQLExceptions.multiStmtNoSql());
         } else {
-            flux = this.session.protocol.multiStmtAsFlux(Stmts.paramMultiStmt(stmtGroup, this));
+            flux = this.session.protocol.multiStmtAsFlux(MyStmts.paramMultiStmt(stmtGroup, this));
         }
         clearStatementToAvoidReuse();
         return flux;
@@ -235,7 +238,7 @@ final class MySQLMultiStatement extends MySQLStatement<MultiStatement> implement
     /*################################## blow MySQLStatement packet template method ##################################*/
 
     @Override
-    void checkReuse() throws JdbdSQLException {
+    void checkReuse() throws JdbdException {
         if (this.paramGroup == null && this.stmtGroup.size() > 0) {
             throw MySQLExceptions.cannotReuseStatement(MultiStatement.class);
         }
@@ -252,7 +255,7 @@ final class MySQLMultiStatement extends MySQLStatement<MultiStatement> implement
     private void endMultiStatement() {
         final String lastSql = this.currentSql;
         if (lastSql != null) {
-            this.stmtGroup.add(Stmts.paramStmt(lastSql, this.paramGroup, this));
+            this.stmtGroup.add(MyStmts.paramStmt(lastSql, this.paramGroup, this));
         }
         this.currentSql = null;
         this.paramGroup = null;

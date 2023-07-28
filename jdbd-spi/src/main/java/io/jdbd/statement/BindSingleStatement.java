@@ -7,6 +7,7 @@ import io.jdbd.meta.DataType;
 import io.jdbd.result.CurrentRow;
 import io.jdbd.result.ResultRow;
 import io.jdbd.result.ResultStates;
+import io.jdbd.session.ChunkOption;
 import org.reactivestreams.Publisher;
 import org.reactivestreams.Subscriber;
 
@@ -57,13 +58,13 @@ public interface BindSingleStatement extends ParametrizedStatement, MultiResultS
      * {@inheritDoc }
      */
     @Override
-    BindSingleStatement setImportPublisher(Function<Object, Publisher<byte[]>> function) throws JdbdException;
+    BindSingleStatement setImportPublisher(Function<ChunkOption, Publisher<byte[]>> function) throws JdbdException;
 
     /**
      * {@inheritDoc }
      */
     @Override
-    BindSingleStatement setExportSubscriber(Function<Object, Subscriber<byte[]>> function) throws JdbdException;
+    BindSingleStatement setExportSubscriber(Function<ChunkOption, Subscriber<byte[]>> function) throws JdbdException;
 
 
     /**

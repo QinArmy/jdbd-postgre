@@ -6,7 +6,7 @@ import io.jdbd.meta.SQLType;
 import io.jdbd.mysql.Groups;
 import io.jdbd.mysql.MySQLType;
 import io.jdbd.mysql.protocol.conf.MyKey;
-import io.jdbd.mysql.stmt.Stmts;
+import io.jdbd.mysql.stmt.MyStmts;
 import io.jdbd.mysql.type.City;
 import io.jdbd.mysql.type.TrueOrFalse;
 import io.jdbd.mysql.util.MySQLStreams;
@@ -64,7 +64,7 @@ public class TaskTestAdvice extends AbstractTaskSuiteTests {
 
         // single statement mode batch update
         final List<ResultStates> resultStatesList;
-        resultStatesList = ComQueryTask.batchUpdate(Stmts.batch(commandList), adjutant)
+        resultStatesList = ComQueryTask.batchUpdate(MyStmts.batch(commandList), adjutant)
                 .collectList()
                 .block();
 
@@ -84,7 +84,7 @@ public class TaskTestAdvice extends AbstractTaskSuiteTests {
         LOG.info("mysqlTypeMatch test start");
         final TaskAdjutant adjutant = obtainTaskAdjutant();
 
-        List<ResultRow> resultRowList = ComQueryTask.query(Stmts.stmt(createQuerySqlForMySQLTypeMatch()), adjutant)
+        List<ResultRow> resultRowList = ComQueryTask.query(MyStmts.stmt(createQuerySqlForMySQLTypeMatch()), adjutant)
                 .collectList()
                 .doOnError(this::printMultiError)
                 .block();
@@ -136,7 +136,7 @@ public class TaskTestAdvice extends AbstractTaskSuiteTests {
 //        byte[] bytes = command.getBytes(taskAdjutant.obtainCharsetClient());
 //        LOG.info("prepare data command bytes:{}, times:{}",bytes.length,bytes.length / PacketUtils.MAX_PAYLOAD);
 //
-        ResultStates resultStates = ComQueryTask.update(Stmts.stmt(command), taskAdjutant)
+        ResultStates resultStates = ComQueryTask.update(MyStmts.stmt(command), taskAdjutant)
                 .block();
 
         assertNotNull(resultStates, "resultStates");

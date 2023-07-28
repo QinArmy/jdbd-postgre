@@ -3,6 +3,7 @@ package io.jdbd.statement;
 import io.jdbd.JdbdException;
 import io.jdbd.lang.Nullable;
 import io.jdbd.meta.DataType;
+import io.jdbd.session.ChunkOption;
 import org.reactivestreams.Publisher;
 import org.reactivestreams.Subscriber;
 
@@ -61,13 +62,13 @@ public interface BindStatement extends BindSingleStatement {
      * {@inheritDoc }
      */
     @Override
-    BindStatement setImportPublisher(Function<Object, Publisher<byte[]>> function) throws JdbdException;
+    BindStatement setImportPublisher(Function<ChunkOption, Publisher<byte[]>> function) throws JdbdException;
 
     /**
      * {@inheritDoc }
      */
     @Override
-    BindStatement setExportSubscriber(Function<Object, Subscriber<byte[]>> function) throws JdbdException;
+    BindStatement setExportSubscriber(Function<ChunkOption, Subscriber<byte[]>> function) throws JdbdException;
 
 
 }

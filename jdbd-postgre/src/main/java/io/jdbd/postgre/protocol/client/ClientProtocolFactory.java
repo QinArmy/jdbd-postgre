@@ -12,7 +12,7 @@ import io.jdbd.result.Result;
 import io.jdbd.result.ResultRow;
 import io.jdbd.result.ResultRowMeta;
 import io.jdbd.vendor.env.Properties;
-import io.jdbd.vendor.stmt.JdbdStmts;
+import io.jdbd.vendor.stmt.Stmts;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import reactor.core.publisher.Flux;
@@ -138,7 +138,7 @@ public abstract class ClientProtocolFactory {
             for (ServerParameter parameter : INITIALIZED_PARAM_SET) {
                 sqlGroup.add("SHOW " + parameter.name());
             }
-            return Flux.from(SimpleQueryTask.batchAsFlux(JdbdStmts.batch(sqlGroup), adjutant))
+            return Flux.from(SimpleQueryTask.batchAsFlux(Stmts.batch(sqlGroup), adjutant))
                     .switchIfEmpty(initializingFailure())
                     .filter(result -> result.getResultNo() >= showResultIndex)
                     .collectList()

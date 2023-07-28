@@ -472,6 +472,7 @@ public enum MySQLType implements SQLType {
      */
     UNKNOWN((short) -1, JdbdType.UNKNOWN, Object.class);
 
+
     private final JdbdType jdbdType;
 
     private final Class<?> javaType;

@@ -1,6 +1,6 @@
 package io.jdbd.mysql.protocol.client;
 
-import io.jdbd.mysql.stmt.Stmts;
+import io.jdbd.mysql.stmt.MyStmts;
 import io.jdbd.mysql.util.MySQLNumbers;
 import io.jdbd.result.ResultStates;
 import io.jdbd.vendor.stmt.ParamValue;
@@ -55,7 +55,7 @@ public class ComQueryTaskBigColumnSuiteTests extends AbstractTaskSuiteTests {
         list.add(MySQLParamValue.wrap(0, 0));
         list.add(MySQLParamValue.wrap(1, ""));
         ResultStates states;
-        states = ComPreparedTask.update(Stmts.multiPrepare(sql, list), adjutant)
+        states = ComPreparedTask.update(MyStmts.multiPrepare(sql, list), adjutant)
                 .block();
         assertNotNull(states, alias);
         // assertEquals(states.getAffectedRows(), 1L, "myBit20");

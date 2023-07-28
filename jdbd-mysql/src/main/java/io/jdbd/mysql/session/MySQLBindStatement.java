@@ -3,8 +3,9 @@ package io.jdbd.mysql.session;
 import io.jdbd.JdbdException;
 import io.jdbd.lang.Nullable;
 import io.jdbd.meta.DataType;
+import io.jdbd.meta.JdbdType;
 import io.jdbd.mysql.MySQLType;
-import io.jdbd.mysql.stmt.Stmts;
+import io.jdbd.mysql.stmt.MyStmts;
 import io.jdbd.mysql.util.MySQLBinds;
 import io.jdbd.mysql.util.MySQLCollections;
 import io.jdbd.mysql.util.MySQLExceptions;
@@ -91,6 +92,8 @@ final class MySQLBindStatement extends MySQLStatement<BindStatement> implements 
             error = MySQLExceptions.notMatchWithFirstParamGroupCount(groupSize, indexBasedZero, firstGroupSize);
         } else if (dataType == null) {
             error = MySQLExceptions.dataTypeIsNull();
+        } else if (value != null && (dataType == JdbdType.NULL || dataType == MySQLType.NULL)) {
+            error = MySQLExceptions.nonNullBindValueOf(dataType);
         } else if ((type = MySQLBinds.handleDataType(dataType)) == null) {
             error = MySQLExceptions.dontSupportDataType(dataType, MY_SQL);
         } else {
@@ -182,7 +185,7 @@ final class MySQLBindStatement extends MySQLStatement<BindStatement> implements 
         final Mono<ResultStates> mono;
         if (error == null) {
             this.fetchSize = 0;
-            mono = this.session.protocol.bindUpdate(Stmts.paramStmt(this.sql, paramGroup, this), isUsePrepare());
+            mono = this.session.protocol.bindUpdate(MyStmts.paramStmt(this.sql, paramGroup, this), isUsePrepare());
         } else {
             mono = Mono.error(MySQLExceptions.wrap(error));
         }
@@ -192,12 +195,12 @@ final class MySQLBindStatement extends MySQLStatement<BindStatement> implements 
 
     @Override
     public Publisher<ResultRow> executeQuery() {
-        return this.executeQuery(CurrentRow::asResultRow, Stmts.IGNORE_RESULT_STATES);
+        return this.executeQuery(CurrentRow::asResultRow, MyStmts.IGNORE_RESULT_STATES);
     }
 
     @Override
     public <R> Publisher<R> executeQuery(Function<CurrentRow, R> function) {
-        return this.executeQuery(function, Stmts.IGNORE_RESULT_STATES);
+        return this.executeQuery(function, MyStmts.IGNORE_RESULT_STATES);
     }
 
     @Override
@@ -218,7 +221,7 @@ final class MySQLBindStatement extends MySQLStatement<BindStatement> implements 
         final Flux<R> flux;
         if (error == null) {
             final ParamStmt stmt;
-            stmt = Stmts.paramStmt(this.sql, paramGroup, this);
+            stmt = MyStmts.paramStmt(this.sql, paramGroup, this);
             flux = this.session.protocol.bindQuery(stmt, isUsePrepare(), function);
         } else {
             flux = Flux.error(MySQLExceptions.wrap(error));
@@ -248,7 +251,7 @@ final class MySQLBindStatement extends MySQLStatement<BindStatement> implements 
         final Flux<ResultStates> flux;
         if (error == null) {
             final ParamBatchStmt stmt;
-            stmt = Stmts.paramBatch(this.sql, paramGroupList, this);
+            stmt = MyStmts.paramBatch(this.sql, paramGroupList, this);
             flux = this.session.protocol.bindBatchUpdate(stmt, isUsePrepare());
         } else {
             flux = Flux.error(MySQLExceptions.wrap(error));
@@ -277,7 +280,7 @@ final class MySQLBindStatement extends MySQLStatement<BindStatement> implements 
         final BatchQuery batchQuery;
         if (error == null) {
             final ParamBatchStmt stmt;
-            stmt = Stmts.paramBatch(this.sql, paramGroupList, this);
+            stmt = MyStmts.paramBatch(this.sql, paramGroupList, this);
             batchQuery = this.session.protocol.bindBatchQuery(stmt, isUsePrepare());
         } else {
             batchQuery = MultiResults.batchQueryError(MySQLExceptions.wrap(error));
@@ -306,7 +309,7 @@ final class MySQLBindStatement extends MySQLStatement<BindStatement> implements 
         final MultiResult multiResult;
         if (error == null) {
             final ParamBatchStmt stmt;
-            stmt = Stmts.paramBatch(this.sql, paramGroupList, this);
+            stmt = MyStmts.paramBatch(this.sql, paramGroupList, this);
             multiResult = this.session.protocol.bindBatchAsMulti(stmt, isUsePrepare());
         } else {
             multiResult = MultiResults.error(MySQLExceptions.wrap(error));
@@ -335,7 +338,7 @@ final class MySQLBindStatement extends MySQLStatement<BindStatement> implements 
         final OrderedFlux flux;
         if (error == null) {
             final ParamBatchStmt stmt;
-            stmt = Stmts.paramBatch(this.sql, paramGroupList, this);
+            stmt = MyStmts.paramBatch(this.sql, paramGroupList, this);
             flux = this.session.protocol.bindBatchAsFlux(stmt, isUsePrepare());
         } else {
             flux = MultiResults.fluxError(MySQLExceptions.wrap(error));
@@ -382,7 +385,7 @@ final class MySQLBindStatement extends MySQLStatement<BindStatement> implements 
     /*################################## blow packet template method ##################################*/
 
     @Override
-    void checkReuse() throws JdbdSQLException {
+    void checkReuse() throws JdbdException {
         if (this.paramGroup == null) {
             throw MySQLExceptions.cannotReuseStatement(BindStatement.class);
         }

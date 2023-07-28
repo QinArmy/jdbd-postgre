@@ -1,7 +1,7 @@
 package io.jdbd.mysql.protocol.client;
 
 import io.jdbd.mysql.MySQLType;
-import io.jdbd.mysql.stmt.Stmts;
+import io.jdbd.mysql.stmt.MyStmts;
 import io.jdbd.mysql.type.City;
 import io.jdbd.mysql.type.TrueOrFalse;
 import io.jdbd.mysql.util.MySQLArrays;
@@ -11,6 +11,7 @@ import io.jdbd.mysql.util.MySQLTimes;
 import io.jdbd.result.ResultRow;
 import io.jdbd.result.ResultRowMeta;
 import io.jdbd.result.ResultStates;
+import io.jdbd.vendor.stmt.ParamStmt;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import reactor.core.publisher.Flux;
@@ -60,9 +61,9 @@ abstract class AbstractDataTypeSuiteTests extends AbstractTaskSuiteTests {
         this.startId = startId;
     }
 
-    abstract Mono<ResultStates> executeUpdate(BindStmt stmt, TaskAdjutant adjutant);
+    abstract Mono<ResultStates> executeUpdate(ParamStmt stmt, TaskAdjutant adjutant);
 
-    abstract Flux<ResultRow> executeQuery(BindStmt stmt, TaskAdjutant adjutant);
+    abstract Flux<ResultRow> executeQuery(ParamStmt stmt, TaskAdjutant adjutant);
 
 
     /**
@@ -830,9 +831,9 @@ abstract class AbstractDataTypeSuiteTests extends AbstractTaskSuiteTests {
         bindGroup.add(BindValue.wrap(1, MySQLType.BIGINT, id));
 
         final BindStmt updateStmt, queryStmt;
-        updateStmt = Stmts.bind(sql, bindGroup);
+        updateStmt = MyStmts.bind(sql, bindGroup);
         sql = String.format("SELECT t.id,t.%s FROM mysql_types AS t WHERE t.id = ?", column);
-        queryStmt = Stmts.single(sql, MySQLType.BIGINT, id);
+        queryStmt = MyStmts.single(sql, MySQLType.BIGINT, id);
 
         final ResultRow row;
         row = getClientProtocol()
@@ -850,7 +851,7 @@ abstract class AbstractDataTypeSuiteTests extends AbstractTaskSuiteTests {
     @SuppressWarnings("deprecation")
     private void assertResult(final String column, final MySQLType type, final ResultRow row, final Object nonNull) {
         boolean useDefault = false;
-        switch ((MySQLType) row.getRowMeta().getSQLType(column)) {
+        switch ((MySQLType) row.getRowMeta().getDataType(column)) {
             case SET: {
                 final Set<?> valueSet = (Set<?>) nonNull;
                 boolean isEnum = false;

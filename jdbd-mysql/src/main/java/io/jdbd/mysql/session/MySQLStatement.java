@@ -3,10 +3,12 @@ package io.jdbd.mysql.session;
 import io.jdbd.JdbdException;
 import io.jdbd.lang.Nullable;
 import io.jdbd.meta.DataType;
+import io.jdbd.meta.JdbdType;
 import io.jdbd.mysql.MySQLType;
 import io.jdbd.mysql.util.MySQLBinds;
 import io.jdbd.mysql.util.MySQLCollections;
 import io.jdbd.mysql.util.MySQLExceptions;
+import io.jdbd.session.ChunkOption;
 import io.jdbd.session.DatabaseSession;
 import io.jdbd.statement.OutParameter;
 import io.jdbd.statement.Statement;
@@ -18,7 +20,6 @@ import io.jdbd.vendor.util.JdbdStrings;
 import org.reactivestreams.Publisher;
 import org.reactivestreams.Subscriber;
 
-import java.nio.file.Path;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -73,8 +74,10 @@ abstract class MySQLStatement<S extends Statement> implements Statement, StmtOpt
             error = MySQLExceptions.stmtVarNameHaveNoText(name);
         } else if (dataType == null) {
             error = MySQLExceptions.dataTypeIsNull();
-        } else if (value instanceof Publisher || value instanceof Path || value instanceof OutParameter) {
+        } else if (value instanceof Publisher || value instanceof OutParameter) {
             error = MySQLExceptions.dontSupportJavaType(name, value, MY_SQL);
+        } else if (value != null && (dataType == JdbdType.NULL || dataType == MySQLType.NULL)) {
+            error = MySQLExceptions.nonNullBindValueOf(dataType);
         } else if ((type = MySQLBinds.handleDataType(dataType)) == null) {
             error = MySQLExceptions.dontSupportDataType(dataType, MY_SQL);
         } else {
@@ -134,7 +137,7 @@ abstract class MySQLStatement<S extends Statement> implements Statement, StmtOpt
     }
 
     @Override
-    public final S setImportPublisher(Function<Object, Publisher<byte[]>> function) throws JdbdException {
+    public final S setImportPublisher(Function<ChunkOption, Publisher<byte[]>> function) throws JdbdException {
         final JdbdException error;
         error = MySQLExceptions.dontSupportImporter(MY_SQL);
         this.closeOnBindError(error);
@@ -142,7 +145,7 @@ abstract class MySQLStatement<S extends Statement> implements Statement, StmtOpt
     }
 
     @Override
-    public final S setExportSubscriber(Function<Object, Subscriber<byte[]>> function) throws JdbdException {
+    public final S setExportSubscriber(Function<ChunkOption, Subscriber<byte[]>> function) throws JdbdException {
         final JdbdException error;
         error = MySQLExceptions.dontSupportExporter(MY_SQL);
         this.closeOnBindError(error);
@@ -161,24 +164,27 @@ abstract class MySQLStatement<S extends Statement> implements Statement, StmtOpt
     }
 
     @Override
-    public final Map<String, NamedValue> getStmtVarMap() {
-        Map<String, NamedValue> map = this.queryAttrMap;
-        if (map == null) {
-            map = Collections.emptyMap();
-        } else if (map instanceof HashMap) {
-            map = MySQLCollections.unmodifiableMap(map);
-        }// here couldn't modify this.queryAttrMap
-        return map;
+    public final List<NamedValue> getStmtVarList() {
+        final Map<String, NamedValue> map = this.queryAttrMap;
+        List<NamedValue> list;
+        if (map == null || map.size() == 0) {
+            list = Collections.emptyList();
+        } else {
+            list = MySQLCollections.arrayList(map.size());
+            list.addAll(map.values());
+            list = MySQLCollections.unmodifiableList(list);
+        }
+        return list;
     }
 
     @Override
-    public final Function<Object, Publisher<byte[]>> getImportFunction() {
+    public final Function<ChunkOption, Publisher<byte[]>> getImportFunction() {
         // always null
         return null;
     }
 
     @Override
-    public final Function<Object, Subscriber<byte[]>> getExportFunction() {
+    public final Function<ChunkOption, Subscriber<byte[]>> getExportFunction() {
         // always null
         return null;
     }

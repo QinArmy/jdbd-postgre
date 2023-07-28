@@ -3,7 +3,7 @@ package io.jdbd.mysql.protocol.client;
 
 import io.jdbd.mysql.Groups;
 import io.jdbd.mysql.protocol.conf.MyKey;
-import io.jdbd.mysql.stmt.Stmts;
+import io.jdbd.mysql.stmt.MyStmts;
 import io.jdbd.mysql.util.MySQLTimes;
 import io.jdbd.result.ResultRow;
 import io.jdbd.result.ResultStates;
@@ -75,9 +75,9 @@ public class LoadDataLocalSuiteTests extends AbstractStmtTaskSuiteTests {
 
         LOG.info("{} ddl:\n:{}", Groups.LOAD_DATA, ddl);
 
-        ComQueryTask.update(Stmts.stmt(ddl), adjutant)
+        ComQueryTask.update(MyStmts.stmt(ddl), adjutant)
                 .doOnNext(Assert::assertNotNull)
-                .then(ComQueryTask.update(Stmts.stmt("TRUNCATE mysql_load_data"), adjutant))
+                .then(ComQueryTask.update(MyStmts.stmt("TRUNCATE mysql_load_data"), adjutant))
                 .doOnNext(Assert::assertNotNull)
                 .then()
                 .block();
@@ -96,7 +96,7 @@ public class LoadDataLocalSuiteTests extends AbstractStmtTaskSuiteTests {
             final String sql = "TRUNCATE mysql_load_data";
 
             ResultStates status;
-            status = ComQueryTask.update(Stmts.stmt(sql), adjutant)
+            status = ComQueryTask.update(MyStmts.stmt(sql), adjutant)
                     .block();
 
             assertNotNull(status, sql);
@@ -186,7 +186,7 @@ public class LoadDataLocalSuiteTests extends AbstractStmtTaskSuiteTests {
 
         LOG.info("execute loadDataLocal sql :{} ", sql);
         ResultStates status;
-        status = ComQueryTask.update(Stmts.stmt(sql), adjutant)
+        status = ComQueryTask.update(MyStmts.stmt(sql), adjutant)
                 .block();
 
         assertNotNull(status, sql);

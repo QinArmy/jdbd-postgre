@@ -1,12 +1,12 @@
 package io.jdbd.mysql.session;
 
-import io.jdbd.mysql.stmt.Stmts;
 import io.jdbd.mysql.util.MySQLCollections;
 import io.jdbd.mysql.util.MySQLExceptions;
 import io.jdbd.mysql.util.MySQLStrings;
 import io.jdbd.result.*;
 import io.jdbd.statement.StaticStatement;
 import io.jdbd.vendor.result.MultiResults;
+import io.jdbd.vendor.stmt.Stmts;
 import org.reactivestreams.Publisher;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
