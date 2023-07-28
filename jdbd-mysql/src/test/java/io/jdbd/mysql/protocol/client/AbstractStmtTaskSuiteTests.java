@@ -4,14 +4,17 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.jdbd.mysql.MySQLType;
 import io.jdbd.mysql.SQLMode;
-import io.jdbd.mysql.protocol.conf.MyKey;
 import io.jdbd.mysql.stmt.MyStmts;
 import io.jdbd.mysql.type.City;
 import io.jdbd.mysql.type.TrueOrFalse;
 import io.jdbd.mysql.util.*;
 import io.jdbd.result.ResultRow;
 import io.jdbd.result.ResultStates;
-import io.jdbd.vendor.env.Properties;
+import io.jdbd.vendor.protocol.DatabaseProtocol;
+import io.jdbd.vendor.stmt.JdbdValues;
+import io.jdbd.vendor.stmt.ParamStmt;
+import io.jdbd.vendor.stmt.ParamValue;
+import io.jdbd.vendor.stmt.Stmts;
 import io.jdbd.vendor.util.GeometryUtils;
 import org.slf4j.Logger;
 import reactor.core.publisher.Flux;
@@ -21,7 +24,6 @@ import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.nio.charset.Charset;
 import java.time.*;
-import java.time.format.DateTimeFormatter;
 import java.util.*;
 
 import static org.testng.Assert.*;
@@ -35,9 +37,9 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractTaskSuiteTests 
         this.subType = subType;
     }
 
-    abstract Mono<ResultStates> executeUpdate(BindStmt stmt, TaskAdjutant adjutant);
+    abstract Mono<ResultStates> executeUpdate(ParamStmt stmt, TaskAdjutant adjutant);
 
-    abstract Flux<ResultRow> executeQuery(BindStmt stmt, TaskAdjutant adjutant);
+    abstract Flux<ResultRow> executeQuery(ParamStmt stmt, TaskAdjutant adjutant);
 
     abstract Logger obtainLogger();
 
@@ -46,11 +48,12 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractTaskSuiteTests 
 
         final String sql = "SELECT t.id as id, t.create_time as createTime FROM mysql_types as t WHERE t.id  = ?";
         final long id = convertId(2);
-        BindValue bindValue = BindValue.wrap(0, MySQLType.BIGINT, id);
+        ParamValue bindValue = JdbdValues.paramValue(0, MySQLType.BIGINT, id);
+
         final TaskAdjutant taskAdjutant = obtainTaskAdjutant();
 
         List<ResultRow> resultRowList;
-        resultRowList = ComQueryTask.paramQuery(MyStmts.single(sql, bindValue), taskAdjutant)
+        resultRowList = ComQueryTask.paramQuery(Stmts.single(sql, bindValue), DatabaseProtocol.ROW_FUNC, taskAdjutant)
                 .collectList()
                 .block();
 
@@ -62,8 +65,8 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractTaskSuiteTests 
         assertEquals(resultId, Long.valueOf(id), "id");
 
         // string bigint
-        bindValue = BindValue.wrap(0, MySQLType.BIGINT, Long.toString(id));
-        resultRowList = ComQueryTask.paramQuery(MyStmts.single(sql, bindValue), taskAdjutant)
+        bindValue = JdbdValues.paramValue(0, MySQLType.BIGINT, Long.toString(id));
+        resultRowList = ComQueryTask.paramQuery(MyStmts.single(sql, bindValue), DatabaseProtocol.ROW_FUNC, taskAdjutant)
                 .collectList()
                 .block();
 
@@ -1195,8 +1198,7 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractTaskSuiteTests 
     /**
      * @see #doTimeBindAndExtract(Logger)
      */
-    private void assertTimeBindAndExtract(final TaskAdjutant taskAdjutant, final Object bindParam
-            , final String field) {
+    private void assertTimeBindAndExtract(final TaskAdjutant taskAdjutant, final Object bindParam, final String field) {
         final long id = convertId(20);
         //1. update filed
         updateSingleField(taskAdjutant, MySQLType.TIME, bindParam, field, id);
@@ -1215,17 +1217,15 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractTaskSuiteTests 
         if (bindParam instanceof String) {
             bindTime = LocalTime.parse((String) bindParam, MySQLTimes.MYSQL_TIME_FORMATTER);
         } else if (bindParam instanceof OffsetTime) {
-            bindTime = ((OffsetTime) bindParam).withOffsetSameInstant(taskAdjutant.obtainZoneOffsetClient())
+            bindTime = ((OffsetTime) bindParam).withOffsetSameInstant(taskAdjutant.connZone())
                     .toLocalTime();
         } else {
             bindTime = (LocalTime) bindParam;
         }
-        final DateTimeFormatter formatter = MySQLTimes.getTimeFormatter(
-                (int) resultRow.getRowMeta().getPrecision("field"));
 
-        final LocalTime time = LocalTime.parse(bindTime.format(formatter), MySQLTimes.MYSQL_TIME_FORMATTER);
-        if (taskAdjutant.host().getProperties()
-                .getOrDefault(MyKey.timeTruncateFractional, Boolean.class)) {
+
+        final LocalTime time = MySQLTimes.truncatedIfNeed(resultRow.getRowMeta().getScale("field"), bindTime);
+        if (taskAdjutant.sessionEnv().containSqlMode(SQLMode.TIME_TRUNCATE_FRACTIONAL)) {
             assertEquals(resultTime, time, field);
         } else {
             Duration duration = Duration.between(time, resultTime);
@@ -1408,8 +1408,8 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractTaskSuiteTests 
     /**
      * @see #assertSetTypeBindAndExtract(TaskAdjutant, MySQLType, Object)
      */
-    private void assertSetTypeBindAndExtract(final TaskAdjutant taskAdjutant, final MySQLType mySQLType
-            , final Object bindParam) {
+    private void assertSetTypeBindAndExtract(final TaskAdjutant taskAdjutant, final MySQLType mySQLType,
+                                             final Object bindParam) {
         final long id = convertId(9);
         final String field = "my_set";
 
@@ -1423,8 +1423,7 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractTaskSuiteTests 
 
         final Set<City> bindSet;
         if (bindParam instanceof String) {
-            Set<String> itemSet = MySQLStrings.spitAsSet((String) bindParam, ",");
-            bindSet = MySQLStrings.convertStringsToEnumSet(itemSet, City.class);
+            bindSet = MySQLStrings.spitAsEnumSet((String) bindParam, ",", City.class);
         } else if (bindParam instanceof City) {
             bindSet = Collections.singleton((City) bindParam);
         } else if (bindParam instanceof Set) {
@@ -1470,8 +1469,8 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractTaskSuiteTests 
     /**
      * @see #doNumberBindAndExtract(Logger)
      */
-    private void assertNumberBindAndExtract(final TaskAdjutant taskAdjutant, final MySQLType mySQLType
-            , final Object bindParam, final String field) {
+    private void assertNumberBindAndExtract(final TaskAdjutant taskAdjutant, final MySQLType mySQLType,
+                                            final Object bindParam, final String field) {
         final long id = convertId(7);
         //1. update filed
         updateSingleField(taskAdjutant, mySQLType, bindParam, field, id);
@@ -1479,7 +1478,7 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractTaskSuiteTests 
         final ResultRow resultRow;
         resultRow = querySingleField(taskAdjutant, field, id);
 
-        final MySQLType fieldType = (MySQLType) resultRow.getRowMeta().getSQLType("field");
+        final MySQLType fieldType = (MySQLType) resultRow.getRowMeta().getDataType("field");
         final Number resultValue = (Number) resultRow.get("field", fieldType.firstJavaType());
         assertNotNull(resultValue, field);
         if (resultValue instanceof BigDecimal) {
@@ -1578,7 +1577,7 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractTaskSuiteTests 
         final ResultRow row;
         row = querySingleField(adjutant, field, id);
 
-        assertEquals(row.getRowMeta().getSQLType("field"), MySQLType.BIT, field);
+        assertEquals(row.getRowMeta().getDataType("field"), MySQLType.BIT, field);
 
         final Object result = row.get("field");
         assertNotNull(result, field);
@@ -1663,7 +1662,7 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractTaskSuiteTests 
         assertNotNull(string, field);
         if (mySQLType == MySQLType.CHAR) {
             final String actualBindParam = MySQLStrings.trimTrailingSpace(bindParam);
-            if (taskAdjutant.obtainServer().containSqlMode(SQLMode.PAD_CHAR_TO_FULL_LENGTH)) {
+            if (taskAdjutant.sessionEnv().containSqlMode(SQLMode.PAD_CHAR_TO_FULL_LENGTH)) {
                 assertTrue(string.startsWith(actualBindParam), field);
                 final String tailingSpaces = string.substring(actualBindParam.length());
                 assertFalse(MySQLStrings.hasText(tailingSpaces), "tailingSpaces");
@@ -1689,7 +1688,7 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractTaskSuiteTests 
         //2. query filed
         final ResultRow resultRow;
         resultRow = querySingleField(taskAdjutant, field, id);
-        final int precision = (int) resultRow.getRowMeta().getPrecision("field");
+        final int scale = resultRow.getRowMeta().getScale("field");
 
 
         final LocalDateTime resultDateTime = resultRow.get("field", LocalDateTime.class);
@@ -1703,11 +1702,11 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractTaskSuiteTests 
             bindDateTime = LocalDateTime.parse((String) bindParam, MySQLTimes.MYSQL_DATETIME_FORMATTER);
         } else if (bindParam instanceof OffsetDateTime) {
             bindDateTime = ((OffsetDateTime) bindParam)
-                    .withOffsetSameInstant(taskAdjutant.obtainZoneOffsetClient())
+                    .withOffsetSameInstant(taskAdjutant.connZone())
                     .toLocalDateTime();
         } else if (bindParam instanceof ZonedDateTime) {
             bindDateTime = ((ZonedDateTime) bindParam)
-                    .withZoneSameInstant(taskAdjutant.obtainZoneOffsetClient())
+                    .withZoneSameInstant(taskAdjutant.connZone())
                     .toLocalDateTime();
         } else {
             // never here
@@ -1715,13 +1714,8 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractTaskSuiteTests 
         }
 
 
-        Properties properties = taskAdjutant.host().getProperties();
-        if (properties.getOrDefault(MyKey.timeTruncateFractional, Boolean.class)) {
-            DateTimeFormatter formatter = MySQLTimes.getDateTimeFormatter(precision);
-            final String resultText, bindText;
-            resultText = resultDateTime.format(formatter);
-            bindText = bindDateTime.format(formatter);
-            assertEquals(resultText, bindText, field);
+        if (taskAdjutant.sessionEnv().containSqlMode(SQLMode.TIME_TRUNCATE_FRACTIONAL)) {
+            assertEquals(MySQLTimes.truncatedIfNeed(scale, bindDateTime), resultDateTime, field);
         } else {
             Duration duration = Duration.between(bindDateTime, resultDateTime);
             if (duration.isNegative() || duration.getSeconds() > 1L) {
@@ -1757,16 +1751,16 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractTaskSuiteTests 
         }
         String sql = String.format("UPDATE mysql_types as t SET t.%s = %s WHERE t.id = ?", field, paramExp);
 
-        List<BindValue> bindGroup = new ArrayList<>(2);
+        List<ParamValue> bindGroup = new ArrayList<>(2);
 
-        BindValue bindValue = BindValue.wrap(0, mySQLType, bindParam);
+        ParamValue bindValue = JdbdValues.paramValue(0, mySQLType, bindParam);
 
         bindGroup.add(bindValue);
-        bindValue = BindValue.wrap(1, MySQLType.BIGINT, id);
+        bindValue = JdbdValues.paramValue(1, MySQLType.BIGINT, id);
         bindGroup.add(bindValue);
 
         ResultStates resultStates;
-        resultStates = executeUpdate(MyStmts.bind(sql, bindGroup), taskAdjutant)
+        resultStates = executeUpdate(Stmts.paramStmt(sql, bindGroup), taskAdjutant)
                 .block();
 
         assertNotNull(resultStates, "resultStates");
@@ -1775,7 +1769,7 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractTaskSuiteTests 
 
     private ResultRow querySingleField(final TaskAdjutant taskAdjutant, final String field, final Object id) {
         String sql = String.format("SELECT t.id as id, t.%s as field FROM mysql_types as t WHERE t.id = ?", field);
-        BindValue bindValue = BindValue.wrap(0, MySQLType.BIGINT, id);
+        ParamValue bindValue = JdbdValues.paramValue(0, MySQLType.BIGINT, id);
 
         List<ResultRow> resultRowList;
         resultRowList = executeQuery(MyStmts.single(sql, bindValue), taskAdjutant)
@@ -1805,7 +1799,7 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractTaskSuiteTests 
                 newId = id + 150L;
                 break;
             default:
-                throw MySQLExceptions.createUnexpectedEnumException(this.subType);
+                throw MySQLExceptions.unexpectedEnum(this.subType);
 
         }
         return newId;

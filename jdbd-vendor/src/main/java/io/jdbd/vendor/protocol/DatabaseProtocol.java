@@ -17,6 +17,8 @@ import java.util.function.Function;
 
 public interface DatabaseProtocol {
 
+    Function<CurrentRow, ResultRow> ROW_FUNC = CurrentRow::asResultRow;
+
 
     /**
      * <p>

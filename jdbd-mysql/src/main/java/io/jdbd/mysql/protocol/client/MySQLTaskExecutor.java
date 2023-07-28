@@ -2,8 +2,7 @@ package io.jdbd.mysql.protocol.client;
 
 import io.jdbd.JdbdException;
 import io.jdbd.mysql.SessionEnv;
-import io.jdbd.mysql.protocol.conf.MySQLHost0;
-import io.jdbd.mysql.protocol.conf.MySQLUrl;
+import io.jdbd.mysql.env.MySQLHost;
 import io.jdbd.mysql.syntax.DefaultMySQLParser;
 import io.jdbd.mysql.syntax.MySQLParser;
 import io.jdbd.mysql.syntax.MySQLStatement;
@@ -36,11 +35,6 @@ final class MySQLTaskExecutor extends CommunicationTaskExecutor<TaskAdjutant> {
                 .map(connection -> new MySQLTaskExecutor(connection, factory));
     }
 
-
-    @Deprecated
-    static void setCustomCollation(MySQLTaskExecutor taskExecutor, Map<Integer, Charsets.CustomCollation> map) {
-
-    }
 
     private static final Logger LOG = LoggerFactory.getLogger(MySQLTaskExecutor.class);
 
@@ -292,17 +286,13 @@ final class MySQLTaskExecutor extends CommunicationTaskExecutor<TaskAdjutant> {
         }
 
         @Override
-        public MySQLHost0 host() {
-            return this.taskExecutor.protocolFactory.hostEnv;
+        public MySQLHost host() {
+            return this.taskExecutor.factory.host;
         }
 
-        @Override
-        public MySQLUrl mysqlUrl() {
-            return this.taskExecutor.sessionAdjutant.jdbcUrl();
-        }
 
         @Override
-        public ZoneOffset obtainZoneOffsetClient() {
+        public ZoneOffset connZone() {
             SessionEnv server = this.server;
             if (server == null) {
                 throw new IllegalStateException("Cannot access zoneOffsetClient now.");
@@ -312,9 +302,13 @@ final class MySQLTaskExecutor extends CommunicationTaskExecutor<TaskAdjutant> {
 
         @Override
         public int getServerStatus() throws IllegalStateException {
-            return this.taskExecutor.serverStatus;
+            return this.taskExecutor.terminator.statusFags;
         }
 
+        @Override
+        public Terminator terminator() {
+            return this.taskExecutor.terminator;
+        }
 
         @Override
         public boolean isAuthenticated() {
@@ -373,7 +367,7 @@ final class MySQLTaskExecutor extends CommunicationTaskExecutor<TaskAdjutant> {
         }
 
         @Override
-        public SessionEnv obtainServer() {
+        public SessionEnv sessionEnv() {
             SessionEnv server = this.server;
             if (server == null) {
                 throw new IllegalStateException("Cannot access server now.");

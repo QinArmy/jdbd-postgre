@@ -57,7 +57,11 @@ public abstract class Stmts {
 
 
     public static ParamStmt single(String sql, DataType type, @Nullable Object value) {
-        return new MinParamStmt(sql, Collections.singletonList(JdbdValues.paramValue(0, type, value)));
+        return single(sql, JdbdValues.paramValue(0, type, value));
+    }
+
+    public static ParamStmt single(String sql, ParamValue paramValue) {
+        return new MinParamStmt(sql, Collections.singletonList(paramValue));
     }
 
     public static ParamStmt paramStmt(final String sql, @Nullable List<ParamValue> paramGroup) {

@@ -1,7 +1,6 @@
 package io.jdbd.mysql.protocol.client;
 
 import io.jdbd.mysql.protocol.conf.MyKey;
-import io.jdbd.mysql.protocol.conf.MySQLUrl;
 import io.jdbd.mysql.util.MySQLCollections;
 import io.jdbd.mysql.util.MySQLStrings;
 import io.jdbd.mysql.util.MySQLTimes;
@@ -18,7 +17,6 @@ import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeFormatterBuilder;
-import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
 
@@ -33,19 +31,6 @@ public abstract class ClientTestUtils {
 
     private static final Environment ENV = loadTestConfig();
 
-
-    public static MySQLUrl singleUrl(Map<String, String> propertiesMap) {
-        // PREFERRED ,DISABLED
-        String url = "jdbc:mysql://localhost:3306/army_test";
-        Map<String, String> properties = new HashMap<>();
-        properties.put("user", "army_w");
-        properties.put("password", "army123");
-
-        properties.putAll(propertiesMap);
-        properties.put(MyKey.serverRSAPublicKeyFile.getKey(), SERVER_PUBLIC_KEY_PATH.toString());
-        properties.put(MyKey.allowLoadLocalInfile.getKey(), "true");
-        return MySQLUrl.getInstance(url, properties);
-    }
 
 
     public static Path getModulePath() {

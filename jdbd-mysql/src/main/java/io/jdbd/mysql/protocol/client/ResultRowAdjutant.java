@@ -7,7 +7,7 @@ import java.time.ZoneOffset;
 
 interface ResultRowAdjutant {
 
-    ZoneOffset obtainZoneOffsetClient();
+    ZoneOffset connZone();
 
     ZoneOffset serverZone();
 

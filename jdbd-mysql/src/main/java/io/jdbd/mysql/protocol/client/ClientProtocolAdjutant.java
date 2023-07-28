@@ -1,14 +1,12 @@
 package io.jdbd.mysql.protocol.client;
 
 import io.jdbd.mysql.SessionEnv;
-import io.jdbd.mysql.protocol.conf.MySQLHost0;
-import io.jdbd.mysql.protocol.conf.MySQLUrl;
+import io.jdbd.mysql.env.MySQLHost;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
 import reactor.util.annotation.Nullable;
 
 import java.nio.charset.Charset;
-import java.time.ZoneOffset;
 import java.util.Map;
 
 interface ClientProtocolAdjutant extends ResultRowAdjutant {
@@ -38,20 +36,14 @@ interface ClientProtocolAdjutant extends ResultRowAdjutant {
 
     Map<Integer, Charsets.CustomCollation> obtainCustomCollationMap();
 
-    ZoneOffset serverZone();
-
-    ZoneOffset obtainZoneOffsetClient();
 
     Handshake10 handshake10();
 
     ByteBufAllocator allocator();
 
-    @Deprecated
-    MySQLHost0 host();
+    MySQLHost host();
 
-    @Deprecated
-    MySQLUrl mysqlUrl();
 
-    SessionEnv obtainServer();
+    SessionEnv sessionEnv();
 
 }

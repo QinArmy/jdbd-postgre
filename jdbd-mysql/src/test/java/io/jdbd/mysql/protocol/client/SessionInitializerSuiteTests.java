@@ -101,7 +101,7 @@ public class SessionInitializerSuiteTests extends AbstractTaskSuiteTests {
 
         ZoneOffset zoneOffset = ZoneOffset.of("+04:14");
         ZoneOffset zoneOffsetDatabase = adjutant.serverZone();
-        ZoneOffset zoneOffsetClient = adjutant.obtainZoneOffsetClient();
+        ZoneOffset zoneOffsetClient = adjutant.connZone();
 
         assertEquals(zoneOffsetClient, zoneOffsetDatabase, "zoneOffsetClient");
         assertEquals(zoneOffsetDatabase, zoneOffset, "zoneOffsetDatabase");
@@ -109,17 +109,17 @@ public class SessionInitializerSuiteTests extends AbstractTaskSuiteTests {
 
         propMap.put(MyKey.connectionTimeZone.getKey(), "LOCAL");
         adjutant = doConnectionTest(propMap);
-        zoneOffsetClient = adjutant.obtainZoneOffsetClient();
+        zoneOffsetClient = adjutant.connZone();
         assertEquals(zoneOffsetClient, MySQLTimes.systemZoneOffset(), "zoneOffsetClient");
 
         propMap.put(MyKey.connectionTimeZone.getKey(), "+03:17");
         adjutant = doConnectionTest(propMap);
-        zoneOffsetClient = adjutant.obtainZoneOffsetClient();
+        zoneOffsetClient = adjutant.connZone();
         assertEquals(zoneOffsetClient, ZoneOffset.of("+03:17"), "zoneOffsetClient");
 
         propMap.put(MyKey.connectionTimeZone.getKey(), "Australia/Sydney");
         adjutant = doConnectionTest(propMap);
-        zoneOffsetClient = adjutant.obtainZoneOffsetClient();
+        zoneOffsetClient = adjutant.connZone();
         assertEquals(zoneOffsetClient, MySQLTimes.toZoneOffset(ZoneOffset.of("Australia/Sydney", ZoneOffset.SHORT_IDS)), "zoneOffsetClient");
 
         LOG.info("configConnectionZone test success.");
@@ -183,7 +183,7 @@ public class SessionInitializerSuiteTests extends AbstractTaskSuiteTests {
 
         propMap.put(MyKey.timeTruncateFractional.getKey(), "true");
         adjutant = doConnectionTest(propMap);
-        SessionEnv server = adjutant.obtainServer();
+        SessionEnv server = adjutant.sessionEnv();
 
         assertNotNull(server, "server");
         assertTrue(server.containSqlMode(SQLMode.TIME_TRUNCATE_FRACTIONAL), "TIME_TRUNCATE_FRACTIONAL");

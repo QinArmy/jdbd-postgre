@@ -8,7 +8,10 @@ import java.util.Map;
 
 interface TaskAdjutant extends ITaskAdjutant, ClientProtocolAdjutant, MySQLParser {
 
+    @Deprecated
     int getServerStatus();
+
+    Terminator terminator();
 
 
     boolean isAuthenticated();

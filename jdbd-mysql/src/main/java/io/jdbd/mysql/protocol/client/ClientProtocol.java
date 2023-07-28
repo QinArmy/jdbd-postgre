@@ -35,10 +35,10 @@ final class ClientProtocol implements MySQLProtocol {
 
     private static final Option<Boolean> WITH_CONSISTENT_SNAPSHOT = Option.from("WITH CONSISTENT SNAPSHOT", Boolean.class);
 
+
+    final TaskAdjutant adjutant;
+
     private final ProtocolManager manager;
-
-    private final TaskAdjutant adjutant;
-
 
     private ClientProtocol(final ProtocolManager manager) {
         this.manager = manager;

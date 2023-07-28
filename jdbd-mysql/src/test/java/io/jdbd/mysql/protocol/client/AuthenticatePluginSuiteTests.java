@@ -1,8 +1,9 @@
 package io.jdbd.mysql.protocol.client;
 
+import io.jdbd.JdbdException;
 import io.jdbd.mysql.Groups;
-import io.jdbd.mysql.protocol.conf.MyKey;
-import io.jdbd.mysql.session.SessionAdjutant;
+import io.jdbd.mysql.env.MySQLKey;
+import io.jdbd.mysql.util.MySQLCollections;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
@@ -14,7 +15,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.Map;
 
 import static org.testng.Assert.assertNotNull;
@@ -60,21 +60,19 @@ public class AuthenticatePluginSuiteTests extends AbstractTaskSuiteTests {
             return;
         }
 
-        final Map<String, String> propMap;
-        propMap = new HashMap<>();
+        final Map<String, Object> propMap;
+        propMap = MySQLCollections.hashMap();
 
-        propMap.put(MyKey.sslMode.getKey(), Enums.SslMode.DISABLED.name());
+        propMap.put(MySQLKey.SSL_MODE.name, Enums.SslMode.DISABLED);
         // here use (CachingSha2PasswordPlugin and sslMode = DISABLED)
-        propMap.put(MyKey.defaultAuthenticationPlugin.getKey(), CachingSha2PasswordPlugin.PLUGIN_NAME);
-        propMap.put(MyKey.authenticationPlugins.getKey(), CachingSha2PasswordPlugin.class.getName());
-        propMap.put(MyKey.serverRSAPublicKeyFile.getKey(), serverRSAPublicKeyPath.toString());
+        propMap.put(MySQLKey.DISABLED_AUTHENTICATION_PLUGINS.name, CachingSha2PasswordPlugin.PLUGIN_NAME);
+        propMap.put(MySQLKey.AUTHENTICATION_PLUGINS.name, CachingSha2PasswordPlugin.class.getName());
+        propMap.put(MySQLKey.SERVER_RSA_PUBLIC_KEY_FILE.name, serverRSAPublicKeyPath.toString());
 
         // propMap.put(PropertyKey.allowPublicKeyRetrieval.getKey(), serverRSAPublicKeyPath.toString());
 
-        SessionAdjutant sessionAdjutant = createSessionAdjutantForSingleHost(propMap);
-
         try {
-            AuthenticateResult result = MySQLTaskExecutor.create(0, sessionAdjutant)
+            AuthenticateResult result = MySQLTaskExecutor.create(createProtocolFactory(propMap))
                     .flatMap(executor -> MySQLConnectionTask.authenticate(executor.taskAdjutant()))
                     .block();
 
@@ -91,15 +89,10 @@ public class AuthenticatePluginSuiteTests extends AbstractTaskSuiteTests {
     @Test(dependsOnMethods = "cachingSha2PasswordPublicKeyAuthenticate", timeOut = TIME_OUT)
     public void defaultPlugin() throws Exception {
         LOG.info("defaultPlugin test start.");
-        final Map<String, String> propMap;
+        final Map<String, Object> propMap = MySQLCollections.hashMap();
 
-        propMap = new HashMap<>();
-        //propMap.put(PropertyKey.detectCustomCollations.getKey(), "true");
-        //propMap.put(PropertyKey.sslMode.getKey(),  Enums.SslMode.PREFERRED.name());
 
-        SessionAdjutant sessionAdjutant = createSessionAdjutantForSingleHost(propMap);
-
-        AuthenticateResult result = MySQLTaskExecutor.create(0, sessionAdjutant)
+        AuthenticateResult result = MySQLTaskExecutor.create(createProtocolFactory(propMap))
                 .flatMap(executor -> MySQLConnectionTask.authenticate(executor.taskAdjutant()))
                 .block();
 
@@ -117,13 +110,11 @@ public class AuthenticatePluginSuiteTests extends AbstractTaskSuiteTests {
     @Test(dependsOnMethods = "defaultPlugin", timeOut = TIME_OUT)
     public void defaultPluginWithSslDisabled() {
         LOG.info("defaultPluginWithSslDisabled test start.");
-        final Map<String, String> propMap;
-        propMap = Collections.singletonMap(MyKey.sslMode.getKey()
-                , Enums.SslMode.DISABLED.name());
+        final Map<String, Object> propMap;
+        propMap = Collections.singletonMap(MySQLKey.SSL_MODE.name, Enums.SslMode.DISABLED);
 
-        SessionAdjutant sessionAdjutant = createSessionAdjutantForSingleHost(propMap);
 
-        AuthenticateResult result = MySQLTaskExecutor.create(0, sessionAdjutant)
+        AuthenticateResult result = MySQLTaskExecutor.create(createProtocolFactory(propMap))
                 .flatMap(executor -> MySQLConnectionTask.authenticate(executor.taskAdjutant()))
                 .block();
 
@@ -132,21 +123,19 @@ public class AuthenticatePluginSuiteTests extends AbstractTaskSuiteTests {
 
     }
 
-    @Test(dependsOnMethods = "defaultPlugin", expectedExceptions = JdbdSQLException.class)
+    @Test(dependsOnMethods = "defaultPlugin", expectedExceptions = JdbdException.class)
     public void cachingSha2PasswordPluginEmptyPassword() {
         LOG.info("cachingSha2PasswordPluginEmptyPassword test start.");
 
-        final Map<String, String> propMap;
-        propMap = new HashMap<>();
+        final Map<String, Object> propMap;
+        propMap = MySQLCollections.hashMap();
 
-        propMap.put(MyKey.sslMode.getKey(), Enums.SslMode.DISABLED.name());
-        propMap.put(MyKey.defaultAuthenticationPlugin.getKey(), CachingSha2PasswordPlugin.PLUGIN_NAME);
-        propMap.put(MyKey.authenticationPlugins.getKey(), CachingSha2PasswordPlugin.class.getName());
-        propMap.put(MyKey.password.getKey(), "");
+        propMap.put(MySQLKey.SSL_MODE.name, Enums.SslMode.DISABLED.name());
+        propMap.put(MySQLKey.DEFAULT_AUTHENTICATION_PLUGIN.name, CachingSha2PasswordPlugin.PLUGIN_NAME);
+        propMap.put(MySQLKey.AUTHENTICATION_PLUGINS.name, CachingSha2PasswordPlugin.PLUGIN_NAME);
+        propMap.put(MySQLKey.PASSWORD.name, "");
 
-        SessionAdjutant sessionAdjutant = createSessionAdjutantForSingleHost(propMap);
-
-        AuthenticateResult result = MySQLTaskExecutor.create(0, sessionAdjutant)
+        AuthenticateResult result = MySQLTaskExecutor.create(createProtocolFactory(propMap))
                 .flatMap(executor -> MySQLConnectionTask.authenticate(executor.taskAdjutant()))
                 .block();
 
@@ -162,16 +151,14 @@ public class AuthenticatePluginSuiteTests extends AbstractTaskSuiteTests {
     public void mySQLNativePasswordPlugin() {
         LOG.info("mySQLNativePasswordPlugin test start.");
 
-        final Map<String, String> propMap;
-        propMap = new HashMap<>();
+        final Map<String, Object> propMap;
+        propMap = MySQLCollections.hashMap();
 
-        propMap.put(MyKey.sslMode.getKey(), Enums.SslMode.DISABLED.name());
-        propMap.put(MyKey.defaultAuthenticationPlugin.getKey(), MySQLNativePasswordPlugin.PLUGIN_NAME);
-        propMap.put(MyKey.authenticationPlugins.getKey(), MySQLNativePasswordPlugin.class.getName());
+        propMap.put(MySQLKey.SSL_MODE.name, Enums.SslMode.DISABLED.name());
+        propMap.put(MySQLKey.DEFAULT_AUTHENTICATION_PLUGIN.name, MySQLNativePasswordPlugin.PLUGIN_NAME);
+        propMap.put(MySQLKey.AUTHENTICATION_PLUGINS.name, MySQLNativePasswordPlugin.PLUGIN_NAME);
 
-        SessionAdjutant sessionAdjutant = createSessionAdjutantForSingleHost(propMap);
-
-        AuthenticateResult result = MySQLTaskExecutor.create(0, sessionAdjutant)
+        AuthenticateResult result = MySQLTaskExecutor.create(createProtocolFactory(propMap))
                 .flatMap(executor -> MySQLConnectionTask.authenticate(executor.taskAdjutant()))
                 .block();
 

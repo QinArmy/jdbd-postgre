@@ -133,6 +133,32 @@ public abstract class JdbdStrings /*extends StringUtils*/ {
     }
 
 
+    public static <T extends Enum<T>> Set<T> spitAsEnumSet(@Nullable String text, String regex, Class<T> enumClass) {
+        return (Set<T>) spitAsEnumCollection(text, regex, enumClass, JdbdCollections::hashSet);
+    }
+
+    public static <T extends Enum<T>> Collection<T> spitAsEnumCollection(@Nullable String text, String regex, Class<T> enumClass,
+                                                                         final IntFunction<Collection<T>> constructor) {
+        if (!hasText(text)) {
+            return constructor.apply(0);
+        }
+        final String[] itemArray;
+        itemArray = text.split(regex);
+
+        try {
+            final Collection<T> collection;
+            collection = constructor.apply(itemArray.length);
+            for (String p : itemArray) {
+                collection.add(Enum.valueOf(enumClass, p.trim()));
+            }
+            return collection;
+        } catch (IllegalArgumentException e) {
+            throw new JdbdException(e.getMessage(), e);
+        }
+
+    }
+
+
     public static Set<String> spitAsSet(@Nullable String text, String regex, final boolean unmodifiable) {
         Set<String> set;
         if (unmodifiable) {
@@ -143,6 +169,7 @@ public abstract class JdbdStrings /*extends StringUtils*/ {
         }
         return set;
     }
+
 
     public static Map<String, String> spitAsMap(final @Nullable String text, final String regex1,
                                                 final String regex2, final boolean unmodifiable) {
@@ -368,6 +395,59 @@ public abstract class JdbdStrings /*extends StringUtils*/ {
 
     public static String reverse(String text) {
         return new StringBuilder(text).reverse().toString();
+    }
+
+
+    /**
+     * @return a modifiable set.
+     * @throws IllegalArgumentException throw when :<ul>
+     *                                  <li>enumClass isn't enum class</li>
+     *                                  <li>not found enum instance for text.</li>
+     *                                  </ul>
+     * @see #convertTextToEnum(String, Class)
+     */
+    @SuppressWarnings("unchecked")
+    public static <T> Set<T> convertStringsToEnumSet(Collection<String> strings, Class<T> enumClass) {
+        Set<T> enumSet = new HashSet<>((int) (strings.size() / 0.75F));
+        for (String s : strings) {
+            Enum<?> e = convertTextToEnum(s, enumClass);
+            enumSet.add((T) e);
+        }
+        return enumSet;
+    }
+
+    /**
+     * @return a modifiable set.
+     * @throws IllegalArgumentException throw when :<ul>
+     *                                  <li>enumClass isn't enum class</li>
+     *                                  <li>not found enum instance for text.</li>
+     *                                  </ul>
+     * @see #convertTextToEnum(String, Class)
+     */
+    @SuppressWarnings("unchecked")
+    public static <T> List<T> convertStringsToEnumList(Collection<String> strings, Class<T> enumClass) {
+        List<T> enumList = new ArrayList<>(strings.size());
+        for (String s : strings) {
+            Enum<?> e = convertTextToEnum(s, enumClass);
+            enumList.add((T) e);
+        }
+        return enumList;
+    }
+
+
+    /**
+     * @throws IllegalArgumentException throw when :<ul>
+     *                                  <li>enumClass isn't enum class</li>
+     *                                  <li>not found enum instance for text.</li>
+     *                                  </ul>
+     */
+    @SuppressWarnings("unchecked")
+    public static <T extends Enum<T>> T convertTextToEnum(String text, Class<?> enumClass) {
+        if (!enumClass.isEnum()) {
+            throw new IllegalArgumentException(
+                    String.format("enumClass[%s] isn't Enum type.", enumClass.getName()));
+        }
+        return Enum.valueOf((Class<T>) enumClass, text);
     }
 
 

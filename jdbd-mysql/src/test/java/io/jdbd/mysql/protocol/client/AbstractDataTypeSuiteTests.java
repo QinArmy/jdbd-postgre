@@ -1,17 +1,18 @@
 package io.jdbd.mysql.protocol.client;
 
 import io.jdbd.mysql.MySQLType;
+import io.jdbd.mysql.protocol.MySQLProtocol;
 import io.jdbd.mysql.stmt.MyStmts;
 import io.jdbd.mysql.type.City;
 import io.jdbd.mysql.type.TrueOrFalse;
-import io.jdbd.mysql.util.MySQLArrays;
-import io.jdbd.mysql.util.MySQLNumbers;
-import io.jdbd.mysql.util.MySQLStreams;
-import io.jdbd.mysql.util.MySQLTimes;
+import io.jdbd.mysql.util.*;
 import io.jdbd.result.ResultRow;
 import io.jdbd.result.ResultRowMeta;
 import io.jdbd.result.ResultStates;
+import io.jdbd.vendor.stmt.JdbdValues;
 import io.jdbd.vendor.stmt.ParamStmt;
+import io.jdbd.vendor.stmt.ParamValue;
+import io.jdbd.vendor.stmt.Stmts;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import reactor.core.publisher.Flux;
@@ -32,7 +33,6 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.Year;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Queue;
 import java.util.Set;
@@ -50,7 +50,7 @@ import static org.testng.Assert.*;
  */
 abstract class AbstractDataTypeSuiteTests extends AbstractTaskSuiteTests {
 
-    private static final Queue<ClientProtocol0> PROTOCOL_QUEUE = new LinkedBlockingQueue<>();
+    private static final Queue<MySQLProtocol> PROTOCOL_QUEUE = new LinkedBlockingQueue<>();
 
     final Logger LOG = LoggerFactory.getLogger(getClass());
 
@@ -826,12 +826,12 @@ abstract class AbstractDataTypeSuiteTests extends AbstractTaskSuiteTests {
 
         String sql;
         sql = String.format("UPDATE mysql_types AS t SET t.%s = ? WHERE t.id = ? ", column);
-        final List<BindValue> bindGroup = new ArrayList<>(2);
-        bindGroup.add(BindValue.wrap(0, type, value));
-        bindGroup.add(BindValue.wrap(1, MySQLType.BIGINT, id));
+        final List<ParamValue> bindGroup = MySQLCollections.arrayList(2);
+        bindGroup.add(JdbdValues.paramValue(0, type, value));
+        bindGroup.add(JdbdValues.paramValue(1, MySQLType.BIGINT, id));
 
-        final BindStmt updateStmt, queryStmt;
-        updateStmt = MyStmts.bind(sql, bindGroup);
+        final ParamStmt updateStmt, queryStmt;
+        updateStmt = Stmts.paramStmt(sql, bindGroup);
         sql = String.format("SELECT t.id,t.%s FROM mysql_types AS t WHERE t.id = ?", column);
         queryStmt = MyStmts.single(sql, MySQLType.BIGINT, id);
 
@@ -936,7 +936,7 @@ abstract class AbstractDataTypeSuiteTests extends AbstractTaskSuiteTests {
 
         if (useDefault) {
             final ResultRowMeta rowMeta = row.getRowMeta();
-            assertEquals(rowMeta.getSQLType(column), type, column);
+            assertEquals(rowMeta.getDataType(column), type, column);
             assertTrue(type.firstJavaType().isInstance(row.getNonNull(column)), column);
             assertEquals(row.get(column, nonNull.getClass()), nonNull, column);
         }
@@ -944,8 +944,8 @@ abstract class AbstractDataTypeSuiteTests extends AbstractTaskSuiteTests {
     }
 
 
-    private Mono<ResultRow> executeStmt(final ClientProtocol0 protocol, final BindStmt updateStmt
-            , final BindStmt queryStmt) {
+    private Mono<ResultRow> executeStmt(final MySQLProtocol protocol, final ParamStmt updateStmt,
+                                        final ParamStmt queryStmt) {
         final TaskAdjutant adjutant = getTaskAdjutant(protocol);
         return executeUpdate(updateStmt, adjutant)
                 .switchIfEmpty(Mono.defer(this::updateFailure))
@@ -958,7 +958,7 @@ abstract class AbstractDataTypeSuiteTests extends AbstractTaskSuiteTests {
     }
 
 
-    private <T> Mono<T> closeProtocol(final ClientProtocol0 protocol) {
+    private <T> Mono<T> closeProtocol(final MySQLProtocol protocol) {
         return protocol.reset()
                 .doOnSuccess(v -> PROTOCOL_QUEUE.offer(protocol))
                 .then(Mono.empty());
@@ -969,12 +969,12 @@ abstract class AbstractDataTypeSuiteTests extends AbstractTaskSuiteTests {
         return Mono.error(new RuntimeException("update failure"));
     }
 
-    Mono<ClientProtocol0> getClientProtocol() {
-        final Mono<ClientProtocol0> mono;
-        ClientProtocol0 protocol;
+    Mono<MySQLProtocol> getClientProtocol() {
+        final Mono<MySQLProtocol> mono;
+        MySQLProtocol protocol;
         protocol = PROTOCOL_QUEUE.poll();
         if (protocol == null) {
-            mono = ClientProtocolFactory.single(DEFAULT_SESSION_ADJUTANT);
+            mono = PROTOCOL_FACTORY.createProtocol();
         } else {
             mono = Mono.just(protocol);
         }
